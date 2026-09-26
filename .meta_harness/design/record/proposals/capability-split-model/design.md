@@ -36,9 +36,9 @@
 | # | 性质 | 依据 |
 |---|---|---|
 | **中心一侧** | | |
-| M-1 | **路由名唯一**：判定与建档写入落在同一个提交边界里，这个边界覆盖整个判定域。判定域有两种读法：[`data.model-profile` v1 S-3](../../../spec/data/model-profile/v1/contract.md#s-3-路由名在全部档案里唯一)（候选）写的是全部档案；主线 2026-09-23 改判为「官方名对所有层保留，自建名在所在隶属树内唯一」，要等对齐波落实 | [PF-013 §4 模型档案](../../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)；[D-038](../../decisions/message-and-shape-rulings/decision.md) Q11 |
+| M-1 | **路由名唯一**：判定与建档写入落在同一个提交边界里，这个边界覆盖整个判定域。判定域有两种读法：[`data.model-profile` v2 S-3](../../../spec/data/model-profile/v2/contract.md#s-3-路由名在全部档案里唯一)（候选）写的是全部档案；主线 2026-09-23 改判为「官方名对所有层保留，自建名在所在隶属树内唯一」，要等对齐波落实 | [PF-013 §4 模型档案](../../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)；[D-058](../../decisions/message-and-shape-rulings/decision.md) Q11 |
 | M-2 | **撤回是一个动作，不是删除**：行保留；已撤回的读得出来，但不能再被新选中；官方档案谁都撤不了；官方清单随发布装入，只增不删。另有账本 U-2 待裁：上游把同名模型重新上架时怎么办 | [PF-013 §6.4](../../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)；[flows §3.1](../../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)、[§4](../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作) |
-| M-3 | 模型凭据是范围身上的一项属性，一个范围一把，轮换就是改值；档案上没有凭据 | [PF-013 §5.6](../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)、[§6.2](../../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)；[MP S-22](../../../spec/data/model-profile/v1/contract.md#s-22-凭据价格与实际用了哪条都不在档案上) |
+| M-3 | 模型凭据是范围身上的一项属性，一个范围一把，轮换就是改值；档案上没有凭据 | [PF-013 §5.6](../../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)、[§6.2](../../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)；[MP S-22](../../../spec/data/model-profile/v2/contract.md#s-22-凭据价格与实际用了哪条都不在档案上) |
 | M-4 | 建、撤自建档案与配凭据，只限组织超管与租户在自己那一层 | [PF-013 flows §4](../../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作) |
 | M-5 | 凭据的值不出现在任何对外可见的面上；能呈现的只有「有没有、是哪个范围的、什么时候配的」 | [PF-013 §6.16](../../../product/PF-013-model-profiles-and-invocation/design.md#616-错误信息外泄之前要脱敏)；[PF-016 §6.11](../../../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现) |
 | M-6 | 档案和挂在范围上的凭据都在中心一侧。据点调用时取所在范围的那一把；中心不可达时用手上的副本；组织层那一把本版不下发（账本 U-1 待裁） | [PF-016 §5.6](../../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)、[§6.17](../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)、[§6.20](../../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据) |
@@ -69,7 +69,7 @@
 
 **可调整**：能力边界与契约的份数、插件与服务键、inject 的方向、包布局与领域名，以及默认重试件写在哪一份契约里。
 **不可调整**：上表的全部性质；[D-019](../../decisions/model-provider-pi-ai-fork/README.md)（传输以 pi-ai 定向 fork 为基线）、D-022 ③④、
-[D-035](../../decisions/message-and-stream-baseline/README.md)（pi-ai 只用到传输适配为止）、D-038 的形状裁决。
+[D-035](../../decisions/message-and-stream-baseline/README.md)（pi-ai 只用到传输适配为止）、D-058 的形状裁决。
 
 ## 读了什么
 
@@ -80,7 +80,7 @@
 | 对账 `tmp/assets-runtimes/readings/D-reconciliation-c.md`（未入库） | 表 A 的前提、表 D「D1 自证」换过的六种分解 (a)～(f)——它们就是 alternatives 里候选的直接素材 |
 | `product-gaps-from-readings.md`「块 C」两节、`pending-user-rulings.md` §一 U-1/U-2 与 §二（任务区） | 主线裁定 C-1～C-15、RP 处置、已自决项 |
 | 产品正文 PF-013 rev 8、PF-012 rev 10、PF-009 rev 7、PF-004 rev 10、PF-016 rev 5、PF-014 rev 5、PF-001 rev 16、PF-002 rev 16 | M 表各行，只读引用的那些节 |
-| 决定 D-019、D-022、D-035、D-038；候选契约 `data.model-profile`、`data.model-response`、`data.call-accounts`、`data.loop-extension`、`data.content-blocks` v1；已接受的 `capability.organization-governance` v1、`composition.governance-center-entry` v1；候选 `capability.asset-governance` v1 | 现有能力的覆盖 |
+| 决定 D-019、D-022、D-035、D-058；候选契约 `data.model-profile`、`data.model-response`、`data.call-accounts`、`data.loop-extension`、`data.content-blocks` v2；已接受的 `capability.organization-governance` v1、`composition.governance-center-entry` v1；候选 `capability.asset-governance` v2 | 现有能力的覆盖 |
 | 任务区简报 S15、S16、S17（能力契约起草中，不在本分支基线上） | 起草中的切法；它们已经按机制读数改过一轮 |
 | basis `cordis/` 下 8 条：`plugin-body-reruns-on-provider-change`、`plugin-throw-fails-fiber`、`inject-has-no-optional-form` 读了全文；其余 5 条只按 basis README 核对了存在与 probe 状态，读数沿用机制读数的转述。另读 realization 入口、handbook 的能力覆盖与演化 | 机制依据与判据 |
 
@@ -92,13 +92,13 @@
 
 | 要求 | 现有能力与精确契约 | 覆盖依据 | 未覆盖的部分、缺口或未确认前提 |
 |---|---|---|---|
-| 档案的形状、引用、参数词表、撞名规则 | [`data.model-profile` v1](../../../spec/data/model-profile/README.md)（候选） | 形状、`ModelProfileRef`、撞名判定的规则与失败值名 | **没有操作**：建档、撤回、读面失败值与授权都没有主人——它的 G-11 明写「维护档案的能力契约不存在」 |
+| 档案的形状、引用、参数词表、撞名规则 | [`data.model-profile` v2](../../../spec/data/model-profile/README.md)（候选） | 形状、`ModelProfileRef`、撞名判定的规则与失败值名 | **没有操作**：建档、撤回、读面失败值与授权都没有主人——它的 G-11 明写「维护档案的能力契约不存在」 |
 | 一次发出的记录、账、拓展件的形状、块 | [`data.model-response`](../../../spec/data/model-response/README.md)、[`data.call-accounts`](../../../spec/data/call-accounts/README.md)、[`data.loop-extension`](../../../spec/data/loop-extension/README.md)、[`data.content-blocks`](../../../spec/data/content-blocks/README.md) v1（候选） | 数据这一半齐了 | 发出、守卫、中断、对账都没有主人 |
 | 建档与配凭据的授权 | [`capability.organization-governance` v1](../../../spec/capabilities/organization-governance/README.md)（已接受，D-023）的[成员资格判定](../../../spec/capabilities/organization-governance/v1/contract.md#s-26-成员资格判定) | 角色与成员资格是它的事实 | 它[不拥有](../../../spec/capabilities/organization-governance/v1/contract.md#s-2-本契约不拥有什么)资产持有、属性配值与求值，也没有档案与凭据的写面 |
-| 范围允许、锁死、「用哪个模型」这项设置的求值 | 块 A 的 [`capability.asset-governance` v1](../../../spec/capabilities/asset-governance/README.md) 及其求值契约（候选） | 设置、项锁、作用域求值 | 档案不是资产（[PF-002 decisions「模型档案在五类里的位置」](../../../product/PF-002-assets-settings-and-permissions/decisions.md)）。块 A 只提供「范围允许」与选中初值这两个输入 |
+| 范围允许、锁死、「用哪个模型」这项设置的求值 | 块 A 的 [`capability.asset-governance` v2](../../../spec/capabilities/asset-governance/README.md) 及其求值契约（候选） | 设置、项锁、作用域求值 | 档案不是资产（[PF-002 decisions「模型档案在五类里的位置」](../../../product/PF-002-assets-settings-and-permissions/decisions.md)）。块 A 只提供「范围允许」与选中初值这两个输入 |
 | 据点读中心上的事实 | [`composition.governance-center-entry` v1](../../../spec/compositions/governance-center-entry/README.md)（已接受，D-028）＋ `https-json` 传输绑定 v1（D-029） | 请求—答复形式的查询面 | [路由表是封闭的](../../../spec/compositions/governance-center-entry/v1/contract.md#s-17-路由表封闭每条路由的九件事从哪读)，里面没有档案与凭据的路由——**任何中心侧的目录都要它出 v2**；秘密值怎样跨进程送达也没有条款 |
-| 拓展件派发，以及系统自带件不可用时怎么处置 | `capability.loop-extension-runner` v1（起草中，S15） | 按装配清单顺序逐件求值、结论落日志、fail-closed 表（C-7） | 转换件按键登记、键的优先次序、输出约束都不在它的通用协议里 |
-| 流装配与首 token 判据 | `capability.stream-assembly` v1（起草中，S4c） | 到达语法、第一份内容 | 「已开口」这条耐久记录在什么时刻写，归运行时兑现 |
+| 拓展件派发，以及系统自带件不可用时怎么处置 | `capability.loop-extension-runner` v2（起草中，S15） | 按装配清单顺序逐件求值、结论落日志、fail-closed 表（C-7） | 转换件按键登记、键的优先次序、输出约束都不在它的通用协议里 |
+| 流装配与首 token 判据 | `capability.stream-assembly` v2（起草中，S4c） | 到达语法、第一份内容 | 「已开口」这条耐久记录在什么时刻写，归运行时兑现 |
 | 传输 | D-019 选定的 pi-ai 定向 fork；D-035 定它只做传输适配 | 单家路由、流与工具调用解析 | 状态码、实际执行方、实际费用要靠 fork 补丁；**它不承担任何守卫** |
 
 ## 剩余责任与能力演化
@@ -250,7 +250,7 @@ P-2 不 inject 传输（它是内部依赖）；没有任何单元 inject 模态
 | 档案行、范围凭据 | P-1 | 行写入 | 路由名唯一是同一存储里的唯一约束，单写入者。**判定域若按隶属树读，树归组织治理**——见 alternatives 里 P1-A 的反查信号 |
 | 会话日志（块 D 拥有） | P-2 写切换事实、锚点记录、失败发出的响应体；loop 写回复消息及其响应体（**同一提交**）和上交条目；执行器写挂件结论 | 各自的追加 | 写入口带尝试栅栏，按响应体标识幂等；晚到的账标 `late` 照记，栅栏不拒收（主线裁定 S2-d） |
 | 模态投影缓存 | P-2 | 缓存行写入 | 缓存不是权威，读的时候先从水位追到日志尾 |
-| 附件存储（上游原始响应，D-038 Q14） | P-2 | —— | 存储的形态归 core/storage 的附件那一侧 |
+| 附件存储（上游原始响应，D-058 Q14） | P-2 | —— | 存储的形态归 core/storage 的附件那一侧 |
 
 **切换不需要跨 owner 的同一提交**。判定合法之后、追加切换事实之前，目标可能恰好变得不合法（被撤回了，或会话里刚进来一张没人转的图）。
 这种情形 [PF-013 §6.9](../../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选) 已经给了处置：下一次请求发不出去、上交，不替用户改选。

@@ -82,7 +82,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 12，已正式接受**（产品负责人，2026-09-26，[D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 12，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**两项**——[「master 的全套机制」包含哪些](design.md#九未决项)、
   [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
 - 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。

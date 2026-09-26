@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/tui-pty.py", line 40, in <module>
+    assert p.returncode==expected,(scenario,p.returncode,transcript[-1500:])
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('normal', 2, b'\x1b[?2004$p\x1b[?2004h\x1b[?2004$p\x1b[?2004l\x1b[?2004$pomne: state-invalid\r\n\r\r\nGovernance TUI ended. Exit status: 2.\r\n')

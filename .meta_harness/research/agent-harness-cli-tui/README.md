@@ -55,3 +55,11 @@
 七份报告是当轮原貌、落盘后未改写一字，其中的工作区路径按那张表换算。
 
 只读研究正文就知道当前该信什么；只有要追因果、核对原始引文或还原当时看了什么时，才展开历次报告。
+
+2026-09-25后续：[pi-tui 0.86.1合成终端观察](reports/2026-09-25-pi-tui-probe/README.md)补单次5000字输入/resize和OSC粘贴反例；未完成真实PTY/IME及离线分发，不回改首轮无运行时数字的历史记录。
+
+[CLI离线依赖闭包观察](reports/2026-09-25-cli-portable-probe/README.md)：Node24.21.0下Mac arm64/Linux arm64、amd64从仓库外运行；不是安装采用。
+
+[治理TUI终端边界取证](reports/2026-09-25-tui-terminal-boundaries/README.md)：公共Input、XTerm379明确配置与有界undo候选；Mac模拟器尚未通过。
+
+2026-09-25：[iTerm精确版本普通粘贴与真实IME观察](reports/2026-09-25-iterm-input/README.md)，含失败尝试、模式恢复及自动关闭2004源码限制；不是支持采用。

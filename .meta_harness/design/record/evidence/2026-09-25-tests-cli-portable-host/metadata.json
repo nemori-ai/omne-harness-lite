@@ -1,0 +1,12 @@
+{
+  "base_commit": "cc01c8322e71d48d784bcb66e27cb81814fd4b6f",
+  "source_files": 529,
+  "node": "24.21.0",
+  "pnpm": "10.28.1",
+  "application_tests": 89,
+  "artifact": {
+    "path": "/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/omne-cli-d050-r3.tar.gz",
+    "sha256": "4ab4183f32ae2b8ce80a09bbd1465ff543b320eb1ac65a8ef86f97385721202b",
+    "buildId": "4b781072654a5fc55306033bb510a1d062c076235344b1726b1014e1d6175b85"
+  }
+}

@@ -1,14 +1,14 @@
 # skill-package 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
-契约：[`data.skill-package` v1](../../../../spec/data/skill-package/v1/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
+契约：[`data.skill-package` v2](../../../../spec/data/skill-package/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
 
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
-S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](#skillmd-的-yaml-读法)）是**候选依赖，版本钉定与许可核对在实施程**（[D-040 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，同 M44 的实现期事项口径，不另出决定）。
+S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](#skillmd-的-yaml-读法)）是**候选依赖，版本钉定与许可核对在实施程**（[D-060 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)，同 M44 的实现期事项口径，不另出决定）。
 **Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
 ## 公开面
@@ -17,10 +17,10 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](
 
 | 导出 | 契约坐标 |
 |---|---|
-| 类型 `SkillPackage`；`skillDependencies(pkg)`；`skillBodyContract`（asset-model 端口的那一份） | [S-1](../../../../spec/data/skill-package/v1/contract.md#s-1-技能包是什么)～[S-19](../../../../spec/data/skill-package/v1/contract.md#s-19-包是版本内容的一个整体)、[S-32](../../../../spec/data/skill-package/v1/contract.md#s-32-执行环境要求) |
-| `readSkillMd(text) → { ok: { manifest, body, unknownKeys } } \| { rejected }` | [S-20](../../../../spec/data/skill-package/v1/contract.md#s-20-skillmd-的文本形式与定界) |
-| `readSkillPackage(entries)`（条目由调用方读好、链接已解析） | [S-21](../../../../spec/data/skill-package/v1/contract.md#s-21-包的目录形式) |
-| `judgeSkillPackage(value) → { ok } \| { rejected }` | [S-22](../../../../spec/data/skill-package/v1/contract.md#s-22-规范表示)～[S-25](../../../../spec/data/skill-package/v1/contract.md#s-25-表示层拒绝不是判定也不修补) |
+| 类型 `SkillPackage`；`skillDependencies(pkg)`；`skillBodyContract`（asset-model 端口的那一份） | [S-1](../../../../spec/data/skill-package/v2/contract.md#s-1-技能包是什么)～[S-19](../../../../spec/data/skill-package/v2/contract.md#s-19-包是版本内容的一个整体)、[S-32](../../../../spec/data/skill-package/v2/contract.md#s-32-执行环境要求) |
+| `readSkillMd(text) → { ok: { manifest, body, unknownKeys } } \| { rejected }` | [S-20](../../../../spec/data/skill-package/v2/contract.md#s-20-skillmd-的文本形式与定界) |
+| `readSkillPackage(entries)`（条目由调用方读好、链接已解析） | [S-21](../../../../spec/data/skill-package/v2/contract.md#s-21-包的目录形式) |
+| `judgeSkillPackage(value) → { ok } \| { rejected }` | [S-22](../../../../spec/data/skill-package/v2/contract.md#s-22-规范表示)～[S-25](../../../../spec/data/skill-package/v2/contract.md#s-25-表示层拒绝不是判定也不修补) |
 
 **函数层不承诺**：包与资源字节同一版本整体不变、正文两条路读到同一段文字、目录形式的符号链接不逃出包根——归存储、读正文的两条路与持有目录的那台宿主（[装配给 vs 协议给](#装配给-vs-协议给)）。
 
@@ -39,7 +39,7 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](
 
 ### 装配给 vs 协议给
 
-[第五节](../../../../spec/data/skill-package/v1/contract.md#五装配给与协议给)六行里，本节点给出「文本形式的读法」（`readSkillMd` 纯函数，不随部署变）、「名字相等」（逐码点）与「表示层校验」的入口；
+[第五节](../../../../spec/data/skill-package/v2/contract.md#五装配给与协议给)六行里，本节点给出「文本形式的读法」（`readSkillMd` 纯函数，不随部署变）、「名字相等」（逐码点）与「表示层校验」的入口；
 「包与资源字节同一版本整体不变」「正文两条路同一段文字」「目录形式的符号链接判定」归存储、读正文的两条路与持有目录的那台宿主。
 
 ### 契约责任 → 模块公开入口 → 实现 → 符合性依据或缺口
@@ -48,10 +48,10 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](
 
 | 契约责任 | 模块公开入口（候选） | 实现（候选做法） | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-1](../../../../spec/data/skill-package/v1/contract.md#s-1-技能包是什么)～[S-19](../../../../spec/data/skill-package/v1/contract.md#s-19-包是版本内容的一个整体)、[S-32](../../../../spec/data/skill-package/v1/contract.md#s-32-执行环境要求) 包的形状、键的处置、资源、脚本、定义记录、组合清单、依赖、设置项、执行环境要求 | 类型 `SkillPackage`；`skillDependencies(pkg)`；`skillBodyContract`（判正文与名字、推属性、列引用） | 正文逐字：`body` 是字符串值，**本模块没有任何对它做替换、插值或执行的函数** | V-1、V-3；SC-1、SC-4 |
-| [S-20](../../../../spec/data/skill-package/v1/contract.md#s-20-skillmd-的文本形式与定界) 文本形式 | `readSkillMd(text) → { ok: { manifest, body, unknownKeys } } \| { rejected }` | 按行找开头与**独占一行**的闭合 `---`（LF 或 CRLF），不去 BOM；frontmatter 交 YAML 1.2 解析，键重复即 `malformed`；核心键类型不对即 `malformed`、不强转；`body` 是闭合行终止符之后的全部文本，逐字 | V-4（examples 第 6 节十五行，比对读出的值本身） |
-| [S-21](../../../../spec/data/skill-package/v1/contract.md#s-21-包的目录形式) 目录形式 | `readSkillPackage(entries)`：`entries` 是调用方读目录得到的条目（路径、类别、字节，链接已解析并注明是否落在包根之外） | 纯函数判 `manifest_missing`、`resource_escapes`、非常规文件；**读目录与解析链接不在本模块** | V-5 要真实文件系统，那一半归读目录的一方 |
-| [S-22](../../../../spec/data/skill-package/v1/contract.md#s-22-规范表示)～[S-25](../../../../spec/data/skill-package/v1/contract.md#s-25-表示层拒绝不是判定也不修补) 拒绝值与次序、不修补 | `judgeSkillPackage(value)` | 定义记录的格式不认得即拒，且先于其余（S-30） | V-2 |
+| [S-1](../../../../spec/data/skill-package/v2/contract.md#s-1-技能包是什么)～[S-19](../../../../spec/data/skill-package/v2/contract.md#s-19-包是版本内容的一个整体)、[S-32](../../../../spec/data/skill-package/v2/contract.md#s-32-执行环境要求) 包的形状、键的处置、资源、脚本、定义记录、组合清单、依赖、设置项、执行环境要求 | 类型 `SkillPackage`；`skillDependencies(pkg)`；`skillBodyContract`（判正文与名字、推属性、列引用） | 正文逐字：`body` 是字符串值，**本模块没有任何对它做替换、插值或执行的函数** | V-1、V-3；SC-1、SC-4 |
+| [S-20](../../../../spec/data/skill-package/v2/contract.md#s-20-skillmd-的文本形式与定界) 文本形式 | `readSkillMd(text) → { ok: { manifest, body, unknownKeys } } \| { rejected }` | 按行找开头与**独占一行**的闭合 `---`（LF 或 CRLF），不去 BOM；frontmatter 交 YAML 1.2 解析，键重复即 `malformed`；核心键类型不对即 `malformed`、不强转；`body` 是闭合行终止符之后的全部文本，逐字 | V-4（examples 第 6 节十五行，比对读出的值本身） |
+| [S-21](../../../../spec/data/skill-package/v2/contract.md#s-21-包的目录形式) 目录形式 | `readSkillPackage(entries)`：`entries` 是调用方读目录得到的条目（路径、类别、字节，链接已解析并注明是否落在包根之外） | 纯函数判 `manifest_missing`、`resource_escapes`、非常规文件；**读目录与解析链接不在本模块** | V-5 要真实文件系统，那一半归读目录的一方 |
+| [S-22](../../../../spec/data/skill-package/v2/contract.md#s-22-规范表示)～[S-25](../../../../spec/data/skill-package/v2/contract.md#s-25-表示层拒绝不是判定也不修补) 拒绝值与次序、不修补 | `judgeSkillPackage(value)` | 定义记录的格式不认得即拒，且先于其余（S-30） | V-2 |
 
 ### SKILL.md 的 YAML 读法
 
@@ -67,11 +67,11 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| `data.asset-model` v1、`data.content-blocks` v1、`data.tool-definition` v1 | [asset-model](../asset-model/README.md)、[content-blocks](../content-blocks/README.md)、[tool-definition](../tool-definition/README.md) | 随包版本 | 静态 import |
+| `data.asset-model` v2、`data.content-blocks` v2、`data.tool-definition` v2 | [asset-model](../asset-model/README.md)、[content-blocks](../content-blocks/README.md)、[tool-definition](../tool-definition/README.md) | 随包版本 | 静态 import |
 | YAML 1.2 解析 | 第三方 `yaml`（候选依赖，版本钉定与许可核对在实施程，M55） | 随锁定版本 | 静态 import |
 | 被消费 | slash-command、asset-evaluation、资产治理、注册表、执行运行时、工作区读入方 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 
@@ -89,5 +89,5 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](
 
 契约的已知缺口（第九节）不重抄。本节点自己的：
 
-- **SP-1 `yaml` 进 catalog**：候选依赖，版本钉定与许可核对在实施程（D-040 §八 M44、M55）；三条行为以包内测试核，核不过就换 `js-yaml`。owner：本节点落包时。
+- **SP-1 `yaml` 进 catalog**：候选依赖，版本钉定与许可核对在实施程（D-060 §八 M44、M55）；三条行为以包内测试核，核不过就换 `js-yaml`。owner：本节点落包时。
 - **SP-2 读目录的一方**：`readSkillPackage` 只收已解析过链接的条目；读目录、判符号链接是否落在包根之外，归持有目录的那台宿主上的读入方（工作区读入、导入器）。跨节点交接，owner：主线指派。

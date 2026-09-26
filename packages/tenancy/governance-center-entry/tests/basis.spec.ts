@@ -20,7 +20,7 @@ import { TLS_FIXTURES } from './support/wire.ts'
 const PACKAGE = join(import.meta.dirname, '..')
 const SPEC_SCHEMA = join(
   PACKAGE,
-  '../../../.meta_harness/design/spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json',
+  '../../../.meta_harness/design/spec/compositions/governance-center-entry/v3/governance-center-entry.schema.json',
 )
 
 describe('basis：ctx.on 经 effect 纳管', () => {

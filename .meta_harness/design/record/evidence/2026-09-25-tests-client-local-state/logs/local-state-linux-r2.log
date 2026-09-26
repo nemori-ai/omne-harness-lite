@@ -1,0 +1,8 @@
+{"platform":"linux","architecture":"arm64","node":"v24.21.0"}
+PASS concurrent initialization: four product processes, one identity
+PASS multiprocess CAS: one complete winner
+PASS real directory and main/WAL/SHM permissions
+PASS late-result rejection and reopening persistent identity
+PASS foreign OS owner rejected (root container fixture)
+PASS actual full 4MiB tmpfs: unconfirmed, prior record preserved
+PASS broad main-file permissions rejected without repair

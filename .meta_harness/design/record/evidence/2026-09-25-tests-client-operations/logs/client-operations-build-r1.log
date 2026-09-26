@@ -1,0 +1,29 @@
+
+> @omne-harness-lite/governance-client-operations@0.0.0 build /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/governance-client-operations
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+src/client.ts(72,52): error TS2345: Argument of type '{ readonly action: "configure"; readonly endpoint: string; readonly trust: { readonly mode: "ca"; readonly certificateAuthorities?: string; } | { readonly mode: "spki"; readonly sha256: string; }; } | { ...; } | { ...; }' is not assignable to parameter of type '{ readonly action: "configure"; readonly endpoint: string; readonly trust: { readonly mode: "ca"; readonly certificateAuthorities?: string; } | { readonly mode: "spki"; readonly sha256: string; }; } | { ...; } | { ...; }'.
+  Type '{ readonly action: "health" | "logout"; }' is not assignable to type '{ readonly action: "configure"; readonly endpoint: string; readonly trust: { readonly mode: "ca"; readonly certificateAuthorities?: string; } | { readonly mode: "spki"; readonly sha256: string; }; } | { ...; } | { ...; }'.
+    Type '{ readonly action: "health" | "logout"; }' is not assignable to type '{ action: "health"; }'.
+      Types of property 'action' are incompatible.
+        Type '"health" | "logout"' is not assignable to type '"health"'.
+          Type '"logout"' is not assignable to type '"health"'.
+src/plugin.ts(10,3): error TS2322: Type 'ZodObject<{ timeoutMs: ZodOptional<ZodNumber>; }, $strict>' is not assignable to type 'StandardSchemaV1<unknown, { readonly timeoutMs?: number; }>'.
+  The types returned by '"~standard".validate(...)' are incompatible between these types.
+    Type 'Result<{ timeoutMs?: number | undefined; }> | Promise<Result<{ timeoutMs?: number | undefined; }>>' is not assignable to type 'Result<{ readonly timeoutMs?: number; }> | Promise<Result<{ readonly timeoutMs?: number; }>>'.
+      Type 'SuccessResult<{ timeoutMs?: number | undefined; }>' is not assignable to type 'Result<{ readonly timeoutMs?: number; }> | Promise<Result<{ readonly timeoutMs?: number; }>>'.
+        Type 'SuccessResult<{ timeoutMs?: number | undefined; }>' is not assignable to type 'SuccessResult<{ readonly timeoutMs?: number; }> | Promise<Result<{ readonly timeoutMs?: number; }>>'.
+          Type 'SuccessResult<{ timeoutMs?: number | undefined; }>' is not assignable to type 'SuccessResult<{ readonly timeoutMs?: number; }>'.
+            The types of 'value.timeoutMs' are incompatible between these types.
+              Type 'number | undefined' is not assignable to type 'number'.
+                Type 'undefined' is not assignable to type 'number'.
+src/report.ts(27,20): error TS2698: Spread types may only be created from object types.
+src/use.ts(43,32): error TS2345: Argument of type 'InvokeAction | { readonly action: "health" | "logout"; }' is not assignable to parameter of type 'InvokeAction | { action: "logout"; }'.
+  Type '{ readonly action: "health" | "logout"; }' is not assignable to type 'InvokeAction | { action: "logout"; }'.
+    Type '{ readonly action: "health" | "logout"; }' is not assignable to type '{ action: "logout"; }'.
+      Types of property 'action' are incompatible.
+        Type '"health" | "logout"' is not assignable to type '"logout"'.
+          Type '"health"' is not assignable to type '"logout"'.
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/governance-client-operations:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/governance-client-operations@0.0.0 build: `node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json`
+Exit status 1

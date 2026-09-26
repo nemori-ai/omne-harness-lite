@@ -1,0 +1,20 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'Center fixture | Account alice | Orga'
+- 'Center fixture | Account alice | Orga\x1B[0m'
+
+    at file:///Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/tui-probe/frame-probe.mjs:22:9 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'Center fixture | Account alice | Orga',
+  expected: 'Center fixture | Account alice | Orga\x1B[0m',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.21.0

@@ -1,0 +1,66 @@
+Scope: 2 of 15 workspace projects
+packages/core/offer-expiry test$ vitest run
+packages/core/offer-expiry test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/core/offer-expiry test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/core/offer-expiry test:  RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/core/offer-expiry
+packages/core/offer-expiry test:  Test Files  5 passed (5)
+packages/core/offer-expiry test:       Tests  34 passed (34)
+packages/core/offer-expiry test: Type Errors  no errors
+packages/core/offer-expiry test:    Start at  00:36:40
+packages/core/offer-expiry test:    Duration  638ms (transform 165ms, setup 0ms, import 395ms, tests 11ms, environment 0ms, typecheck 444ms)
+packages/core/offer-expiry test: Done
+packages/tenancy/organization-governance test$ vitest run
+packages/tenancy/organization-governance test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/organization-governance test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/organization-governance test:  RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/organization-governance
+packages/tenancy/organization-governance test:  ❯ tests/organizations.spec.ts (20 tests | 2 failed) 159ms
+packages/tenancy/organization-governance test:      × R-6：读账号之后、写入之前账号行被删 ⇒ 引用约束拒绝插入 ⇒ accountDoesNotExist，不留组织 18ms
+packages/tenancy/organization-governance test:      × organizations 面上没有清除操作；organization-purge 面只有 S-53 这一个方法 6ms
+packages/tenancy/organization-governance test: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+packages/tenancy/organization-governance test:  FAIL  tests/organizations.spec.ts > S-20 创建个人组织 > R-6：读账号之后、写入之前账号行被删 ⇒ 引用约束拒绝插入 ⇒ accountDoesNotExist，不留组织
+packages/tenancy/organization-governance test: StorageDefect: nested storage call inside a write transaction
+packages/tenancy/organization-governance test:  ❯ SqlStorage.#admit ../../infra/storage-sql/src/provider.ts:139:13
+packages/tenancy/organization-governance test:  ❯ SqlStorage.write ../../infra/storage-sql/src/provider.ts:84:16
+packages/tenancy/organization-governance test:  ❯ AccountsStandIn.read tests/support.ts:260:90
+packages/tenancy/organization-governance test:     258|     try {
+packages/tenancy/organization-governance test:     259|       // 这个读面会写：首次观测到已过留存期限时在账号行上落盘再返回（单调事实）
+packages/tenancy/organization-governance test:     260|       return await (unit ? unit.mutate.bind(unit) : this.storage.write…
+packages/tenancy/organization-governance test:        |                                                                                          ^
+packages/tenancy/organization-governance test:     261|         const row = await tx.db
+packages/tenancy/organization-governance test:     262|           .selectFrom(ACCOUNT_TABLE)
+packages/tenancy/organization-governance test:  ❯ AccountsStandIn.h.accounts.read tests/organizations.spec.ts:89:28
+packages/tenancy/organization-governance test:  ❯ tests/support.ts:243:62
+packages/tenancy/organization-governance test:  ❯ ../../infra/storage-sql/src/unit.ts:63:18
+packages/tenancy/organization-governance test:  ❯ ../../infra/storage-sql/src/unit.ts:61:22
+packages/tenancy/organization-governance test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+packages/tenancy/organization-governance test:  FAIL  tests/organizations.spec.ts > S-42 第 4 行：S-53 单独一个服务名 > organizations 面上没有清除操作；organization-purge 面只有 S-53 这一个方法
+packages/tenancy/organization-governance test: AssertionError: expected [ 'ancestorChain', …(7) ] to deeply equal [ 'ancestorChain', …(6) ]
+packages/tenancy/organization-governance test: - Expected
+packages/tenancy/organization-governance test: + Received
+packages/tenancy/organization-governance test:   [
+packages/tenancy/organization-governance test:     "ancestorChain",
+packages/tenancy/organization-governance test:     "createPersonal",
+packages/tenancy/organization-governance test:     "createTeam",
+packages/tenancy/organization-governance test:     "dissolveAffiliation",
+packages/tenancy/organization-governance test: +   "participate",
+packages/tenancy/organization-governance test:     "read",
+packages/tenancy/organization-governance test:     "scopeLayers",
+packages/tenancy/organization-governance test:     "shareAncestor",
+packages/tenancy/organization-governance test:   ]
+packages/tenancy/organization-governance test:  ❯ tests/organizations.spec.ts:462:47
+packages/tenancy/organization-governance test:     460|     const h = await boot()
+packages/tenancy/organization-governance test:     461|     const organizations = h.assembly.ctx.get('organizations') as Organ…
+packages/tenancy/organization-governance test:     462|     expect(Object.keys(organizations).sort()).toEqual([
+packages/tenancy/organization-governance test:        |                                               ^
+packages/tenancy/organization-governance test:     463|       'ancestorChain',
+packages/tenancy/organization-governance test:     464|       'createPersonal',
+packages/tenancy/organization-governance test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+packages/tenancy/organization-governance test:  Test Files  1 failed | 8 passed (9)
+packages/tenancy/organization-governance test:       Tests  2 failed | 97 passed | 4 skipped (103)
+packages/tenancy/organization-governance test: Type Errors  no errors
+packages/tenancy/organization-governance test:    Start at  00:36:41
+packages/tenancy/organization-governance test:    Duration  1.72s (transform 962ms, setup 0ms, import 2.75s, tests 1.00s, environment 0ms, typecheck 1.06s)
+packages/tenancy/organization-governance test: Failed
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/organization-governance:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/organization-governance@0.0.0 test: `vitest run`
+Exit status 1

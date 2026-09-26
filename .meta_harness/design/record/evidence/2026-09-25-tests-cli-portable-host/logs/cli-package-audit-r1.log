@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/audit-cli-artifact.py", line 14, in <module>
+    files.sort(key=lambda x:x['path']);assert files==data['files'],'extracted inventory mismatch'
+                                              ^^^^^^^^^^^^^^^^^^^^
+AssertionError: extracted inventory mismatch

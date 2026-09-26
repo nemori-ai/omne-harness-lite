@@ -1,0 +1,39 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/governance-center-entry
+
+ ❯ tests/center.spec.ts (15 tests | 1 failed) 606ms
+     × 同一个有效登录状态、同一件事，从两个对端地址、以人用客户端与脚本的写法各发一次 ⇒ 答复逐字节相同 26ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/center.spec.ts > T-16 不记住来访、不区别对待来者 > 同一个有效登录状态、同一件事，从两个对端地址、以人用客户端与脚本的写法各发一次 ⇒ 答复逐字节相同
+AssertionError: alternate source 127.0.0.2; set OMNE_TEST_ALTERNATE_SOURCE_ADDRESS to a different local IPv4 address that can reach the loopback listener: expected 'EADDRNOTAVAIL' to be undefined
+
+- Expected:
+undefined
+
++ Received:
+"EADDRNOTAVAIL"
+
+ ❯ tests/center.spec.ts:572:9
+    570|         reply.error,
+    571|         `alternate source ${ALTERNATE_SOURCE_ADDRESS}; set OMNE_TEST_A…
+    572|       ).toBeUndefined()
+       |         ^
+    573|       expect(reply.bytes).toEqual(replies[0]?.bytes)
+    574|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 65 passed | 1 skipped (67)
+Type Errors  no errors
+   Start at  01:14:24
+   Duration  2.06s (transform 446ms, setup 0ms, import 1.00s, tests 2.47s, environment 0ms)
+
+undefined
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/governance-center-entry:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/center.spec.ts tests/lifecycle.spec.ts tests/skeleton.spec.ts tests/basis.spec.ts

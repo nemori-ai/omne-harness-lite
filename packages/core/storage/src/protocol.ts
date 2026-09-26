@@ -30,6 +30,25 @@ export interface Storage {
   write<T>(fn: (tx: WriteTx) => Promise<T>): Promise<T>
 }
 
+/** 显式共同事务中的临时操作面；不是普通 Storage，也不代表独立提交。 */
+export interface StorageUnit {
+  /** 参与提供者必须核验自己使用的是同一存储实例。 */
+  assertStorage(expected: Storage): void
+  /** 顺序参与操作可嵌套；逃出此边界的异常使整单元不可提交。 */
+  run<T>(fn: () => Promise<T>): Promise<T>
+  /** 同一写事务上的查询；只给只读类型，不承诺 query_only。 */
+  query<T>(fn: (tx: ReadTx) => Promise<T>): Promise<T>
+  /** 暂存写入。P-2 冲突仅可在所属 run 内处理，不可恢复异常不得吞掉。 */
+  mutate<T>(fn: (tx: WriteTx) => Promise<T>): Promise<T>
+  /** 真正提交后尽力通知；不等待，不提供可靠投递。不得携带秘密。 */
+  afterCommit(notify: () => void): void
+}
+
+/** 显式扩展，不改变普通 read/write 的独立提交或嵌套拒绝。 */
+export interface AtomicStorage extends Storage {
+  atomic<T>(fn: (unit: StorageUnit) => Promise<T>): Promise<T>
+}
+
 /** 提供者实例（套件与装配用）：`close` 关准入 → 等在途 → 关句柄，之后的 read/write ⇒ `StorageUnavailable`。 */
 export interface StorageInstance extends Storage {
   close(): Promise<void>

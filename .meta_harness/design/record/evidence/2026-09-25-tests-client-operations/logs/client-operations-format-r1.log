@@ -1,0 +1,6 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- packages/frontend/governance-client-operations/src packages/frontend/governance-client-operations/tests
+
+Outside the maintained formatting scope or not a file: packages/frontend/governance-client-operations/src
+ ELIFECYCLE  Command failed with exit code 2.

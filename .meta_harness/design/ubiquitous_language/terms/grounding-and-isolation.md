@@ -291,7 +291,7 @@
 - **出处**：[PF-016 §4 会话据点](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点) ·
   [§5.2](../../product/PF-016-cli-tui-delivery-surface/design.md#52-一个账号在一处怎么被装起来) ·
   [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧) ·
-  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 6）
+  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 8）
 - **⚠️ 别混**：**不是[宿主机](#ul-host-machine--宿主机--host-machine)。**
   本交付形态下两者**恰好是同一台机器**，但**回答的问题不同**：
   宿主机回答「一次[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)的作用**落在哪**」，
@@ -326,7 +326,7 @@
 - **形态**：对象
 - **出处**：[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心) ·
   [§5.1](../../product/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么) ·
-  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 6）
+  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 8）
 - **⚠️ 别混**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**
   **分界不是「治理 vs 会话」那么粗**：**对同一个组织里的别人也成立的**在中心一侧，
   **只对这台机器上这个人的这段协作成立的**在据点一侧
@@ -349,7 +349,7 @@
 
 - **形态**：属性
 - **出处**：[PF-017 §4 部署密钥](../../product/PF-017-governance-center-as-deployable-application/design.md#部署密钥) ·
-  [§6.11](../../product/PF-017-governance-center-as-deployable-application/design.md#611-部署密钥运维者生成一次自己保管中心永不显示它)（rev 2）
+  [§6.11](../../product/PF-017-governance-center-as-deployable-application/design.md#611-部署密钥运维者生成一次自己保管中心永不显示它)（rev 5）
 - **⚠️ 别混**：不是账号的凭据、不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)、
   不是[登录状态](subjects-and-ownership.md#ul-login-state--登录状态--login-state)——那三样各归各的拥有者。
   也不是[治理中心标识](#ul-governance-center-identifier--治理中心标识--governance-center-identifier)：一个是秘密、可换，一个是名字、不换
@@ -371,8 +371,8 @@
 
 - **形态**：属性
 - **出处**：[PF-017 §4 中心标识](../../product/PF-017-governance-center-as-deployable-application/design.md#中心标识) ·
-  [§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 2）
-- **注意**：「此后不变」对同一份数据成立；机器断电或操作系统崩溃只会**连着数据一起丢它**（刚立起来的中心没立住，下次起来的是另一个中心），不会让同一份数据上的它变成另一个值（[§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)，rev 2）
+  [§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)（rev 5）
+- **注意**：首次启动成功后，正常重启、操作系统崩溃与断电都保留已确定的标识；灾备从同一份数据恢复仍是原中心，从零重立才是另一个中心（[§6.12](../../product/PF-017-governance-center-as-deployable-application/design.md#612-同一个中心换了地址还是它另一个中心必须被认出来)，rev 5）。
 - **⚠️ 别混**：不是地址（地址可变，它不变）；不是[部署密钥](#ul-deployment-key--部署密钥--deployment-key)；
   与[登录标识](subjects-and-ownership.md#ul-login-identifier--登录标识--login-identifier)同一取名模式，所指不同——一个指认中心，一个指认账号
 - **注意**：它只管「是不是同一个」，不证明「真的是它」——防冒充归传输那一层
@@ -400,7 +400,7 @@
 
 - **形态**：总称
 - **出处**：[PF-017 §4 部署参数](../../product/PF-017-governance-center-as-deployable-application/design.md#部署参数) ·
-  [§6.15](../../product/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 2）
+  [§6.15](../../product/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 5）
 - **⚠️ 别混**：不是范围化对象，也不是[设置](capabilities-and-composition.md#ul-asset--资产--asset)——设置挂在层上、按范围求值，它对全中心一律生效
 - **注意**：「统称」不是一张表——每一项各自有值、各归自己的 topic；本 topic 只说谁给、何时生效、改了怎么算
 
@@ -421,13 +421,13 @@
 > not decide which one is configured** — setting, replacing or unbinding one is not its call.
 
 - **形态**：属性
-- **出处**：[UL-D-5](../decisions.md#ul-d-5--凭据保管方--2026-09-25)（依据 D-043 R-1，定义由 PM 起草）
+- **出处**：[UL-D-5](../decisions.md#ul-d-5--凭据保管方--2026-09-25)（依据 D-063 R-1，定义由 PM 起草）
 - **⚠️ 别混**：**不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)，
   也不是 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)**——
   那两样说的是「配的是哪一把」，是租户或持有上的一项值；这一条说的是**那一把的值放在谁手里、谁取得到**
 - **注意 ①**：**本版只有[会话据点](#ul-session-base--会话据点--session-base)这一侧有它**：每个据点一份，
   保管这个据点上各租户那一把模型凭据的副本——[离线时用的就是手上这份](../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)——
-  和经 OAuth 取得的 MCP 凭据；中心那一侧的保管不在本版（`capability.credential-custodian` v1）
+  和经 OAuth 取得的 MCP 凭据；中心那一侧的保管不在本版（`capability.credential-custodian` v2）
 - **注意 ②**：**它不判这把凭据在上游还算不算数**——据点上的副本是写下时的那一把，
   中心上换过、撤过，要等这台机器再连上中心、重写副本才知道
 - **注意 ③**：**加密挡的是没有密钥的拷贝与备份，以及另一个据点**；同一台机器上以同一个操作系统身份跑、

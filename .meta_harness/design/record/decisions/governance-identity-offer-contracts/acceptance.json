@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "decision_path": "record/decisions/governance-identity-offer-contracts/decision.md",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.account-identity",
+        "version": 3
+      },
+      "scope_clauses": [
+        "S-1..S-54"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.offer-expiry",
+        "version": 2
+      },
+      "scope_clauses": [
+        "S-1..S-26"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=Check whether the OMNE governance center needs a backup
+After=omne-tenancy.service
+
+[Service]
+Type=oneshot
+User=omne
+Group=omne
+WorkingDirectory=/var/lib/omne-tenancy
+UMask=0077
+ExecStart=/opt/node-v24.21.0/bin/node /opt/omne-tenancy/current/app/dist/cli.js ops --socket-dir /run/omne-tenancy backup --only-if-due
+TimeoutStartSec=infinity
+TimeoutStopSec=infinity
+KillSignal=SIGTERM

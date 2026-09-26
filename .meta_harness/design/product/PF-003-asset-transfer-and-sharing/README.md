@@ -51,7 +51,7 @@ relations:
 | 关系 | 本 topic 的情况 |
 |---|---|
 | `supersedes` | 无 |
-| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（**rev 17**，本 topic 用它定义的[上级组织](../PF-001-identity-scope-and-agent-constraints/design.md#组织)、[角色](../PF-001-identity-scope-and-agent-constraints/design.md#角色)、租户范围的归属与[提升](../PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)、[退出后租户不再有效](../PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)）与 [PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 20**，本 topic 用它定义的[一层由谁管](../PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)与[「谁可以使用它」](../PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)）。两者定义的概念一律引用，不改写 |
+| `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)（**rev 19**，本 topic 用它定义的[上级组织](../PF-001-identity-scope-and-agent-constraints/design.md#组织)、[角色](../PF-001-identity-scope-and-agent-constraints/design.md#角色)、租户范围的归属与[提升](../PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)、[退出后租户不再有效](../PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)）与 [PF-002](../PF-002-assets-settings-and-permissions/README.md)（**rev 20**，本 topic 用它定义的[一层由谁管](../PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)与[「谁可以使用它」](../PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)）。两者定义的概念一律引用，不改写 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：组织怎样隶属、关系怎么建立解除，归 PF-001——那是组织**属性**的事。
@@ -75,9 +75,9 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 
 ## 状态
 
-- 产品设计：**rev 5，已正式接受**（产品负责人，2026-09-26，[D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 5，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
-- 待裁决：**0**；提升时生效分享的现行规格处理已随 D-045 接受，历史候选与来由见 decisions.md。
+- 待裁决：**0**；提升时生效分享的现行规格处理已随 D-065 接受，历史候选与来由见 decisions.md。
 - 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留
 
 技术投影按 `harness-design-handbook` skill 展开，

@@ -1,6 +1,6 @@
 # session-tenancy-table 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
@@ -23,7 +23,7 @@
 
 | 层 | 导出（候选） | 做什么 | 承诺到哪 |
 |---|---|---|---|
-| 闭包 | `createSessionTenancyReader(storage)` → `{ holdingTenant }` | 契约 [S-8](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-8-holdingtenant读会话持有的租户身份)，给它任一符合 `core/storage` 协议的存储 | S-5～S-8 全部；「答出之后不变」要调用方给的存储持久、且没有别人改这张表 |
+| 闭包 | `createSessionTenancyReader(storage)` → `{ holdingTenant }` | 契约 [S-8](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-8-holdingtenant读会话持有的租户身份)，给它任一符合 `core/storage` 协议的存储 | S-5～S-8 全部；「答出之后不变」要调用方给的存储持久、且没有别人改这张表 |
 | 迁移片段 | `sessionTenancyMigrations: readonly MigrationFragment[]` | 建表（幂等） | 表的形状；装配合成 |
 | **只供验收装配**的子入口 `./seed` | `seedHoldingTenant(tx, session, tenant)` | 在一次写事务里插一行；同一会话再写同一租户是空操作，写别的租户即抛出（主键冲突，不改旧值） | **不是契约的面**：它代会话那一程写映射（契约 G-2 的空缺），只许验收装配的测试代码 import |
 | Cordis 服务 | 插件 `session-tenancy-table`，服务 `sessionTenancy` | 以注入的 `storage` 组出闭包 | 再加：据点根一份、`storage` 换代时重跑 |
@@ -38,7 +38,7 @@
 |---|---|---|
 | 落选方的最强论证 | 消费者拿到的是契约里的具名值，而不是「服务不在」 | —— |
 | 本方弱点 | —— | 存储换代时插件重跑（本插件没有活状态，重跑无损） |
-| 为什么选它 | —— | 表是唯一权威，没有存储一个读都答不出——「没有它我不跑」是如实的（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）。消费者对两种形态收场相同：契约 [S-11](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-11-提供者撤除换代与重启) 第 3 条「提供者缺席……口径与 `unavailable` 同」；执行宿主两者都收成 `dependencyUnavailable{sessionTenancy}` |
+| 为什么选它 | —— | 表是唯一权威，没有存储一个读都答不出——「没有它我不跑」是如实的（basis [`inject-has-no-optional-form`](../../../../basis/cordis/inject-has-no-optional-form.md)）。消费者对两种形态收场相同：契约 [S-11](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-11-提供者撤除换代与重启) 第 3 条「提供者缺席……口径与 `unavailable` 同」；执行宿主两者都收成 `dependencyUnavailable{sessionTenancy}` |
 | 置信度 | | 高 |
 
 **二、每次读都查存储，不缓存答出过的值（选）。**
@@ -77,13 +77,13 @@
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-5-会话持有的租户身份) 恰一个租户身份 | 主键 `session`：一个会话至多一行 | 尚未建包 | 「不会一个都不持有」对**有记录的会话**成立；没有记录答 `sessionNotFound`（契约 S-7 的定位值），不是「没有租户」 |
-| [S-6](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-6-答案不变) 答案不变 | 行一经插入不改不删 | 尚未建包 | 前提：没有改删路径（V-1）＋ 存储持久——边界见 STT-3 |
-| [S-7](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-7-缺席时的默认答案与失败值) 缺席默认与失败值 | 见[失败映射](#状态并发与失败映射) | 尚未建包 | 不答「没有租户」，不交任何默认租户 |
-| [S-8](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-8-holdingtenant读会话持有的租户身份) `holdingTenant` | 表示层校验 `session` → `storage.read` 里按主键取一行 → 有：核 `TenantId` 后交出；无：`sessionNotFound` | 尚未建包 | 只读，无提交 |
-| [S-9](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-9-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
-| [S-10](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-10-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
-| [S-11](../../../../spec/capabilities/session-tenancy/v1/contract.md#s-11-提供者撤除换代与重启) 撤除、换代、重启 | 没有活状态；事实全在表里 | —— | 换实例、重启答案不变 |
+| [S-5](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-5-会话持有的租户身份) 恰一个租户身份 | 主键 `session`：一个会话至多一行 | 尚未建包 | 「不会一个都不持有」对**有记录的会话**成立；没有记录答 `sessionNotFound`（契约 S-7 的定位值），不是「没有租户」 |
+| [S-6](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-6-答案不变) 答案不变 | 行一经插入不改不删 | 尚未建包 | 前提：没有改删路径（V-1）＋ 存储持久——边界见 STT-3 |
+| [S-7](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-7-缺席时的默认答案与失败值) 缺席默认与失败值 | 见[失败映射](#状态并发与失败映射) | 尚未建包 | 不答「没有租户」，不交任何默认租户 |
+| [S-8](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-8-holdingtenant读会话持有的租户身份) `holdingTenant` | 表示层校验 `session` → `storage.read` 里按主键取一行 → 有：核 `TenantId` 后交出；无：`sessionNotFound` | 尚未建包 | 只读，无提交 |
+| [S-9](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-9-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
+| [S-10](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-10-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
+| [S-11](../../../../spec/capabilities/session-tenancy/v2/contract.md#s-11-提供者撤除换代与重启) 撤除、换代、重启 | 没有活状态；事实全在表里 | —— | 换实例、重启答案不变 |
 
 **两个写入者的共同存储对象**：本契约的面上**没有写**，所以没有两个写入者相遇；种子与（将来的）会话那一程若同时写同一会话，共同对象是**主键 `session_tenancy_pkey`**——后到的一方撞主键、不改旧值。读与写之间只要一次已提交快照（`storage.read`）。
 
@@ -147,7 +147,7 @@
 |---|---|---|---|---|
 | STT-1 | **产品装配没有写入方**（契约 G-2）：表里没有一行，每一次读都是 `sessionNotFound` | 执行宿主 `submit`（整批失败）、派发器解析执行环境句柄、模型请求运行时凡要发起租户的操作（MRR-N10）、注册表的会话事实 | 会话那一程 PF-015 | 会话创建的契约写出那一写，且与会话日志第一条的租户同源 |
 | STT-2 | **真承接者未到**（契约 G-1，据点装配 C-13） | 同上 | 主线 → 会话那一程 | 那一程的会话契约收下或取代 ST v1，提供者节点互指或取代本节点 |
-| STT-3 | **「答出之后不变」的存储边界**（已知边界，主线已裁（[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)））：断电时 SQL 一侧可丢最后一段、升级未确认即撤除时快照恢复——边界与论证见 [session-log-jsonl SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：一个答过 `T` 的会话可能改答 `sessionNotFound`（契约 S-6 第 1 条的前提「存储持久」在那一刻不成立） | S-6、S-13 | 主线（已知边界）；装配（开闸在确认之后） | 不闭合的已知边界；升级恢复那一条来路由「开闸在确认之后」挡住——前提同 [SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点） |
+| STT-3 | **「答出之后不变」的存储边界**（已知边界，主线已裁（[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)））：断电时 SQL 一侧可丢最后一段、升级未确认即撤除时快照恢复——边界与论证见 [session-log-jsonl SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：一个答过 `T` 的会话可能改答 `sessionNotFound`（契约 S-6 第 1 条的前提「存储持久」在那一刻不成立） | S-6、S-13 | 主线（已知边界）；装配（开闸在确认之后） | 不闭合的已知边界；升级恢复那一条来路由「开闸在确认之后」挡住——前提同 [SLJ-2](../session-log-jsonl/design.md#实施缺口与消费者影响)，已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点） |
 | STT-4 | **`./seed` 是产品包里的一段写代码**：没有结构检查时，任何产品组件都能 import 它补出契约没有的写面 | 契约 S-2「写下这一映射本版不收」 | 本节点 ＋ ts-checks owner | 结构检查「只有 `apps/cli` 的测试代码 import `./seed`」落地并带故意违反即失败的自测（V-1）；**这是本节点「可实施」的前置**——检查落地之前，本节点不声称可实施。直接对表 `INSERT` 的组件这条检查挡不住（`UPDATE`／`DELETE` 由 V-1 前半守；关键选择三的第三列与右列同样），本版不另设检查 |
 | STT-5 | **产品据点清单本版不装本节点**（据点装配关键选择 5） | —— | 主线 | 据点装配的改选条件成立 |
 

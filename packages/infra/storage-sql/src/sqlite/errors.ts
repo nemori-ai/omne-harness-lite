@@ -12,6 +12,7 @@ import {
 export const SQLITE_BUSY = 5
 const SQLITE_READONLY = 8
 const SQLITE_IOERR = 10
+const SQLITE_FULL = 13
 const SQLITE_CANTOPEN = 14
 const SQLITE_CONSTRAINT_UNIQUE = 2067
 const SQLITE_CONSTRAINT_PRIMARYKEY = 1555
@@ -80,6 +81,9 @@ export function translateSqliteError(
       )
     default:
       break
+  }
+  if (primary === SQLITE_FULL) {
+    return new StorageUnavailable('sqlite storage capacity exhausted', { cause: error })
   }
   if (primary === SQLITE_IOERR || primary === SQLITE_CANTOPEN || primary === SQLITE_BUSY) {
     return new StorageUnavailable(`sqlite i/o failure: ${message}`, { cause: error })

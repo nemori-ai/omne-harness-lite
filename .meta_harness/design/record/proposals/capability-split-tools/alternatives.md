@@ -6,7 +6,7 @@
 
 **不可调整的**：K-1～K-8；[D-032](../../decisions/tool-execution-runtime-baseline/README.md)（运行时自研，执行宿主不在 agent runtime 之下）；
 [D-037](../../decisions/mcp-client-adoption/README.md)（官方 SDK 上自写薄桥）；[D-033](../../decisions/hooks-compat-baseline/README.md)（兼容层的 fork 边界）；
-[D-038](../../decisions/message-and-shape-rulings/README.md) Q8、Q10、Q15。
+[D-058](../../decisions/message-and-shape-rulings/README.md) Q8、Q10、Q15。
 
 **可调整的**：能力契约的数目、插件的数目与粒度、领域归属、节点名、执行宿主的 fiber 形状。
 

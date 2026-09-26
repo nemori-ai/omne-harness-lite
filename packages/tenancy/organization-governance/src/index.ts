@@ -14,3 +14,4 @@ export {
 } from './migrations.ts'
 export { StoredRecordMalformed } from './records.ts'
 export { ParentChainCycle } from './organizations.ts'
+export { organizationGovernanceSnapshotCheck, ORGANIZATION_SNAPSHOT_TABLES } from './snapshot.ts'

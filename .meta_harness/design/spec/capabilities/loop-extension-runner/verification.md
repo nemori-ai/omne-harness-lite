@@ -3,15 +3,15 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态（2026-09-24，第一轮独立评审处置之后；2026-09-25 修复波 1b、修复波 2、修复波 3 原地改）：没有任何证据。**
-> `capability.loop-extension-runner` v1 是 `candidate`，**经过两轮独立评审、未接受**；尚无提供者设计、尚无源码。
-> 回放的行为模型 **已触发、尚未建**（[契约 S-35](v1/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)、[G-14](v1/contract.md#十三已知缺口)）；下面登记的规范场景**十六条一条都没演练**。
+> `capability.loop-extension-runner` v2 是 `candidate`，**经过两轮独立评审、未接受**；尚无提供者设计、尚无源码。
+> 回放的行为模型 **已触发、尚未建**（[契约 S-35](v2/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)、[G-14](v2/contract.md#十三已知缺口)）；下面登记的规范场景**十六条一条都没演练**。
 > **在模型建成之前，回放、先落后算、只跑一轮这几条只有场景这一种证据形式。**
 
 ## 证据义务
 
 ### 形式工件
 
-**已触发、未建、未运行。**要检查的七条义务（名字、检查哪条性质、类型、前提）写在[契约 S-35](v1/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)；下面「形式义务」一节记它的证据状态。
+**已触发、未建、未运行。**要检查的七条义务（名字、检查哪条性质、类型、前提）写在[契约 S-35](v2/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)；下面「形式义务」一节记它的证据状态。
 **这不是「已由模型覆盖」**：没有任何一条性质被一个模型检查过。
 
 ### 规范场景
@@ -20,38 +20,38 @@
 
 | 场景 | 证据形式 | 状态 | 说明、责任与受阻 |
 |---|---|---|---|
-| [S-36 逐件顺序与改写叠加，放行判断看到最后那一份](v1/contract.md#s-36-逐件顺序与改写叠加放行判断看到最后那一份) | 演练，**清单故意把放行判断排在前面** | **未开始** | 排在末位是清单给的时，这条什么都证明不了；必须让 runner 自己挪 |
-| [S-37 回放不出第二张卡、不再问第二遍模型](v1/contract.md#s-37-回放不出第二张卡不再问第二遍模型) | 演练 ＋ **协程回收** | **未开始** | 受阻：等待原语与卡片契约未起草（[G-8](v1/contract.md#十三已知缺口)）；三支（答复后最终结论、答复后新一轮、偏离即停）必须都跑 |
-| [S-38 停机不产生第二条结论](v1/contract.md#s-38-停机不产生第二条结论) | **故障注入**，两个停机点同一次对比 | **未开始** | **可跑（锚由测试给）**：锚改为调用方交来的不透明键（2026-09-25 修订波，D-043 R-12），测试驱动代 loop 对同一次经过交同一把；锚的算法（[G-1](v1/contract.md#十三已知缺口)）不在本场景里 |
-| [S-39 装配清单变了，回放报不一致](v1/contract.md#s-39-装配清单变了回放报不一致) | 演练 | **未开始** | 之后运行怎么收归 loop（G-8），本场景只断言「没有新结论、一条不少」 |
-| [S-40 注入链只有一层](v1/contract.md#s-40-注入链只有一层) | 演练 | **未开始** | 必须观察到 loop 到了下一个状态点——只看「没有第二条提醒」不够 |
-| [S-41 不可用、报错、否决三者分得开](v1/contract.md#s-41-不可用报错否决三者分得开) | 演练 ＋ **故障注入** | **未开始** | 最容易被「出错就当无意见」抹掉的一条，**必须真跑**。2026-09-25 加兼容件非阻断错误一支：**必须读会话日志里那条记录**（`skipped: errored` ＋ 成因），只看链继续会漏掉静默吞错 |
-| [S-42 系统自带件不可用时由指定挂件顶上](v1/contract.md#s-42-系统自带件不可用时由指定挂件顶上) | **故障注入**，五件各一次；另跑「清单里没有放行判断」「转换件不可用 × 纯文本」「系统自带件写了 `unavailability`」 | **未开始** | 受阻：模态转换、重试、循环探测三件的能力标识未定（[G-3](v1/contract.md#十三已知缺口)）；放行判断那一行已由产品裁定（PF-012、D-039 U-5） |
-| [S-43 找不到清单不是空链](v1/contract.md#s-43-找不到清单不是空链) | 演练 ＋ 故障注入 | **未开始** | —— |
-| [S-44 连续被否决的回复被收住](v1/contract.md#s-44-连续被否决的回复被收住) | 演练 ＋ **在第 N−1 次之后停机**；另跑「L2 阈值与上限不同」「设置读不到」 | **未开始** | 受阻：连续否决上限这项运行时设置的名字与默认归 agent loop 那一程（未起草） |
-| [S-45 模型的回复落盘之前改不了](v1/contract.md#s-45-模型的回复落盘之前改不了) | 演练，四支 | **未开始** | 原受阻于 `data.loop-extension` 的可改成员表，已在那边 S-23 写明（原 G-15 ①） |
-| [S-46 retry 被拒，按上交继续](v1/contract.md#s-46-retry-被拒按上交继续) | 演练，**跨契约**（本契约 ＋ 模型请求运行时的 `canDispatchAgain`）；三支 | **未开始** | 只读守卫由模型请求运行时判，只跑本契约这一半证明不了 |
-| [S-47 过期的协程写不进](v1/contract.md#s-47-过期的协程写不进) | **故障注入**（两副协程）；另跑一次无运行的经过（入站那一侧）两副协程并发 | **未开始** | 日志写入边界上的栅栏与判重键已有窄口接口（`capability.session-log/v1#S-8`、`#S-10`），**会话日志最小提供者到位即可跑**（锚由测试给）；栅栏的前提（尝试开始先落）仍归 loop 那一程（G-8），测试驱动代它先落 |
-| [S-48 放行判断一轮汇合、凭据扣住、答复只认自己的卡](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) | 演练，**跨契约**（本契约 ＋ 放行判断 ＋ 执行运行时 ＋ 兼容层 ＋ 会话资产注册表的报告）；另跑 `admit` 整批失败、拆批、解析不了的调用、报告里查不到条目、`not_in_composition`、别的运行的报告 | **未开始** | 受阻：凭据交出的表示（[G-16](v1/contract.md#十三已知缺口)）、自由作答落成授权表达的写入者（`capability.tool-admission` 的 G-2）、答复三种表示（[G-17](v1/contract.md#十三已知缺口)）；「查不到条目」那一支的记录原因落处（[G-19](v1/contract.md#十三已知缺口)） |
-| [S-49 声明了「不可用即否决」的租户件](v1/contract.md#s-49-声明了不可用即否决的租户件) | **故障注入**，四支 | **未开始** | 最容易被「不在就跳过」一刀切掉的一条，**必须真跑** |
-| [S-51 运行被取消，这一次 `dispatch` 以 `cancelled` 收场](v1/contract.md#s-51-运行被取消这一次-dispatch-以-cancelled-收场) | 演练 ＋ **在一件兼容件的子进程跑着时叫停**；另跑「叫停落在两件之间」 | **未开始** | 兼容件执行环境的来路已有接口契约（[G-20](v1/contract.md#十三已知缺口) 改写为「真承接者未到，接口已定」），**验收装配里由最小提供者答测试种子即可跑**；兼容件起子进程要的那一项宿主机允许产品未给（`capability.execution-environments` v1 G-3），测试种子代给——**这一支只在验收装配成立**。取消请求怎样落日志归 loop 那一程（[G-8](v1/contract.md#十三已知缺口)）。断言「在途那一件没有记录、后面的件没被求值、没有提醒」 |
-| [S-52 执行环境句柄只及本会话、调用返回即失效](v1/contract.md#s-52-执行环境句柄只及本会话调用返回即失效) | 演练（两个会话）＋ **故障注入**（会话持有的租户读不到） | **未开始** | 句柄解析出的两样已有接口契约（`capability.session-tenancy/v1#S-8`、`capability.execution-environments/v1#S-11`），**最小提供者答测试种子即可跑**（真承接者未到，[G-20](v1/contract.md#十三已知缺口)）；「过期句柄再解析失败」这一支最容易被「句柄就是会话标识的别名」抹掉，**必须真跑** |
+| [S-36 逐件顺序与改写叠加，放行判断看到最后那一份](v2/contract.md#s-36-逐件顺序与改写叠加放行判断看到最后那一份) | 演练，**清单故意把放行判断排在前面** | **未开始** | 排在末位是清单给的时，这条什么都证明不了；必须让 runner 自己挪 |
+| [S-37 回放不出第二张卡、不再问第二遍模型](v2/contract.md#s-37-回放不出第二张卡不再问第二遍模型) | 演练 ＋ **协程回收** | **未开始** | 受阻：等待原语与卡片契约未起草（[G-8](v2/contract.md#十三已知缺口)）；三支（答复后最终结论、答复后新一轮、偏离即停）必须都跑 |
+| [S-38 停机不产生第二条结论](v2/contract.md#s-38-停机不产生第二条结论) | **故障注入**，两个停机点同一次对比 | **未开始** | **可跑（锚由测试给）**：锚改为调用方交来的不透明键（2026-09-25 修订波，D-063 R-12），测试驱动代 loop 对同一次经过交同一把；锚的算法（[G-1](v2/contract.md#十三已知缺口)）不在本场景里 |
+| [S-39 装配清单变了，回放报不一致](v2/contract.md#s-39-装配清单变了回放报不一致) | 演练 | **未开始** | 之后运行怎么收归 loop（G-8），本场景只断言「没有新结论、一条不少」 |
+| [S-40 注入链只有一层](v2/contract.md#s-40-注入链只有一层) | 演练 | **未开始** | 必须观察到 loop 到了下一个状态点——只看「没有第二条提醒」不够 |
+| [S-41 不可用、报错、否决三者分得开](v2/contract.md#s-41-不可用报错否决三者分得开) | 演练 ＋ **故障注入** | **未开始** | 最容易被「出错就当无意见」抹掉的一条，**必须真跑**。2026-09-25 加兼容件非阻断错误一支：**必须读会话日志里那条记录**（`skipped: errored` ＋ 成因），只看链继续会漏掉静默吞错 |
+| [S-42 系统自带件不可用时由指定挂件顶上](v2/contract.md#s-42-系统自带件不可用时由指定挂件顶上) | **故障注入**，五件各一次；另跑「清单里没有放行判断」「转换件不可用 × 纯文本」「系统自带件写了 `unavailability`」 | **未开始** | 受阻：模态转换、重试、循环探测三件的能力标识未定（[G-3](v2/contract.md#十三已知缺口)）；放行判断那一行已由产品裁定（PF-012、D-059 U-5） |
+| [S-43 找不到清单不是空链](v2/contract.md#s-43-找不到清单不是空链) | 演练 ＋ 故障注入 | **未开始** | —— |
+| [S-44 连续被否决的回复被收住](v2/contract.md#s-44-连续被否决的回复被收住) | 演练 ＋ **在第 N−1 次之后停机**；另跑「L2 阈值与上限不同」「设置读不到」 | **未开始** | 受阻：连续否决上限这项运行时设置的名字与默认归 agent loop 那一程（未起草） |
+| [S-45 模型的回复落盘之前改不了](v2/contract.md#s-45-模型的回复落盘之前改不了) | 演练，四支 | **未开始** | 原受阻于 `data.loop-extension` 的可改成员表，已在那边 S-23 写明（原 G-15 ①） |
+| [S-46 retry 被拒，按上交继续](v2/contract.md#s-46-retry-被拒按上交继续) | 演练，**跨契约**（本契约 ＋ 模型请求运行时的 `canDispatchAgain`）；三支 | **未开始** | 只读守卫由模型请求运行时判，只跑本契约这一半证明不了 |
+| [S-47 过期的协程写不进](v2/contract.md#s-47-过期的协程写不进) | **故障注入**（两副协程）；另跑一次无运行的经过（入站那一侧）两副协程并发 | **未开始** | 日志写入边界上的栅栏与判重键已有窄口接口（`capability.session-log/v2#S-8`、`#S-10`），**会话日志最小提供者到位即可跑**（锚由测试给）；栅栏的前提（尝试开始先落）仍归 loop 那一程（G-8），测试驱动代它先落 |
+| [S-48 放行判断一轮汇合、凭据扣住、答复只认自己的卡](v2/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) | 演练，**跨契约**（本契约 ＋ 放行判断 ＋ 执行运行时 ＋ 兼容层 ＋ 会话资产注册表的报告）；另跑 `admit` 整批失败、拆批、解析不了的调用、报告里查不到条目、`not_in_composition`、别的运行的报告 | **未开始** | 受阻：凭据交出的表示（[G-16](v2/contract.md#十三已知缺口)）、自由作答落成授权表达的写入者（`capability.tool-admission` 的 G-2）、答复三种表示（[G-17](v2/contract.md#十三已知缺口)）；「查不到条目」那一支的记录原因落处（[G-19](v2/contract.md#十三已知缺口)） |
+| [S-49 声明了「不可用即否决」的租户件](v2/contract.md#s-49-声明了不可用即否决的租户件) | **故障注入**，四支 | **未开始** | 最容易被「不在就跳过」一刀切掉的一条，**必须真跑** |
+| [S-51 运行被取消，这一次 `dispatch` 以 `cancelled` 收场](v2/contract.md#s-51-运行被取消这一次-dispatch-以-cancelled-收场) | 演练 ＋ **在一件兼容件的子进程跑着时叫停**；另跑「叫停落在两件之间」 | **未开始** | 兼容件执行环境的来路已有接口契约（[G-20](v2/contract.md#十三已知缺口) 改写为「真承接者未到，接口已定」），**验收装配里由最小提供者答测试种子即可跑**；兼容件起子进程要的那一项宿主机允许产品未给（`capability.execution-environments` v2 G-3），测试种子代给——**这一支只在验收装配成立**。取消请求怎样落日志归 loop 那一程（[G-8](v2/contract.md#十三已知缺口)）。断言「在途那一件没有记录、后面的件没被求值、没有提醒」 |
+| [S-52 执行环境句柄只及本会话、调用返回即失效](v2/contract.md#s-52-执行环境句柄只及本会话调用返回即失效) | 演练（两个会话）＋ **故障注入**（会话持有的租户读不到） | **未开始** | 句柄解析出的两样已有接口契约（`capability.session-tenancy/v2#S-8`、`capability.execution-environments/v2#S-11`），**最小提供者答测试种子即可跑**（真承接者未到，[G-20](v2/contract.md#十三已知缺口)）；「过期句柄再解析失败」这一支最容易被「句柄就是会话标识的别名」抹掉，**必须真跑** |
 
 ### 由别处承担、本契约只写明要求的
 
 | 要求 | 写在哪 | 由谁兑现 | 证据落点 |
 |---|---|---|---|
-| 尝试栅栏：只收序号最大那次尝试的写入 | [S-21](v1/contract.md#s-21-dispatch一次经过) ② | agent loop 那一程的契约（前提：尝试开始先落）＋ 日志写入边界（`capability.session-log/v1#S-10`） | 那两份的场景；本契约 S-47 |
-| 同一次经过交同一把锚、不同经过不同的 | [S-5](v1/contract.md#s-5-一次经过) | agent loop 与入站受理方（算法归 loop 那一程，[G-1](v1/contract.md#十三已知缺口)） | loop 那一程的场景；本契约的场景由测试驱动代交 |
-| 一批判完之前一个都不执行 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 3、9 条 | agent loop ＋ 执行运行时（凭据） | 本契约 S-48 跨契约演练 |
-| 卡片按 (这一次经过, 那一件, 那条 `ask`) 恰一张、先于「在等人」可见 | [S-27](v1/contract.md#s-27-ask交出卡片并停在这一位置) | 等待原语（loop）＋ PF-008 卡片契约 | 那两份的场景；本契约 S-37 |
-| 回放偏离的检出 | [S-28](v1/contract.md#s-28-回放) 第 4 条 | 等待原语（loop） | 本契约 S-37 第 ② 支 |
-| `before_terminal` 否决理由到 agent 眼前 | [S-23](v1/contract.md#s-23-效果之后的事由谁做) | 上下文组装（PF-010） | [G-8](v1/contract.md#十三已知缺口) |
-| 各件求得的位置、维度、干预力、策略；工作区来的只观察 | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) 第 3 条 | 资产求值 ＋ 装配 | `capability.asset-evaluation` 的场景 |
-| 无运行的经过按 (经过, name) 条件写入 | [S-21](v1/contract.md#s-21-dispatch一次经过) ② | 日志写入边界 | 本契约 S-47 第二支 |
-| 连续否决上限是一项运行时设置、与 L2 分开 | [S-30](v1/contract.md#s-30-连续被否决的回复) 第 3 条 | agent loop 那一程（设置项的名字与默认） | 本契约 S-44 |
-| 执行环境句柄解析出的两样（会话持有的租户、会话级执行环境）有来路 | [S-50](v1/contract.md#s-50-执行环境句柄的读面) 第 1 条 | 接口：`capability.session-tenancy` v1、`capability.execution-environments` v1（窄口，最小提供者承接）；真承接者：会话那一程 ＋ PF-005（[G-20](v1/contract.md#十三已知缺口)） | 那两份接口契约的场景；本契约 S-52 |
-| 运行被取消时先落取消请求、再叫停在途的 `dispatch` | [S-21](v1/contract.md#s-21-dispatch一次经过) ② 末句 | agent loop 那一程 | 本契约 S-51 |
+| 尝试栅栏：只收序号最大那次尝试的写入 | [S-21](v2/contract.md#s-21-dispatch一次经过) ② | agent loop 那一程的契约（前提：尝试开始先落）＋ 日志写入边界（`capability.session-log/v2#S-10`） | 那两份的场景；本契约 S-47 |
+| 同一次经过交同一把锚、不同经过不同的 | [S-5](v2/contract.md#s-5-一次经过) | agent loop 与入站受理方（算法归 loop 那一程，[G-1](v2/contract.md#十三已知缺口)） | loop 那一程的场景；本契约的场景由测试驱动代交 |
+| 一批判完之前一个都不执行 | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 3、9 条 | agent loop ＋ 执行运行时（凭据） | 本契约 S-48 跨契约演练 |
+| 卡片按 (这一次经过, 那一件, 那条 `ask`) 恰一张、先于「在等人」可见 | [S-27](v2/contract.md#s-27-ask交出卡片并停在这一位置) | 等待原语（loop）＋ PF-008 卡片契约 | 那两份的场景；本契约 S-37 |
+| 回放偏离的检出 | [S-28](v2/contract.md#s-28-回放) 第 4 条 | 等待原语（loop） | 本契约 S-37 第 ② 支 |
+| `before_terminal` 否决理由到 agent 眼前 | [S-23](v2/contract.md#s-23-效果之后的事由谁做) | 上下文组装（PF-010） | [G-8](v2/contract.md#十三已知缺口) |
+| 各件求得的位置、维度、干预力、策略；工作区来的只观察 | [S-6](v2/contract.md#s-6-拓展件链从装配清单来) 第 3 条 | 资产求值 ＋ 装配 | `capability.asset-evaluation` 的场景 |
+| 无运行的经过按 (经过, name) 条件写入 | [S-21](v2/contract.md#s-21-dispatch一次经过) ② | 日志写入边界 | 本契约 S-47 第二支 |
+| 连续否决上限是一项运行时设置、与 L2 分开 | [S-30](v2/contract.md#s-30-连续被否决的回复) 第 3 条 | agent loop 那一程（设置项的名字与默认） | 本契约 S-44 |
+| 执行环境句柄解析出的两样（会话持有的租户、会话级执行环境）有来路 | [S-50](v2/contract.md#s-50-执行环境句柄的读面) 第 1 条 | 接口：`capability.session-tenancy` v2、`capability.execution-environments` v2（窄口，最小提供者承接）；真承接者：会话那一程 ＋ PF-005（[G-20](v2/contract.md#十三已知缺口)） | 那两份接口契约的场景；本契约 S-52 |
+| 运行被取消时先落取消请求、再叫停在途的 `dispatch` | [S-21](v2/contract.md#s-21-dispatch一次经过) ② 末句 | agent loop 那一程 | 本契约 S-51 |
 
 ## 对齐义务
 
@@ -59,35 +59,35 @@
 
 | 来自 | 条款 | 本契约落在哪 | 核对状态 |
 |---|---|---|---|
-| `capability.tool-admission` v1 S-29／S-30 | ① 放行判断钉 `before_action` 链末（装配清单义务，runner 强制） | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) 第 2 条 | **已核对，一致**（对方 S-29、S-30） |
-| `capability.tool-admission` v1 S-14／S-29 | ② 拒绝投影成 `veto` 时 `reason` 原样带拒绝原因 token；runner 自己写的 `reason` 不借用它们 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 6 条 | **已核对，一致** |
-| `capability.tool-admission` v1 S-24／S-29／S-34 | ③ `admit` 整批失败（含 `unavailable`）或它不可用时，同批每一项都得 `vetoed` | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 7 条、[S-17](v1/contract.md#s-17-系统自带件不可用时一律关门)、[S-48](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 末支 | **已核对，已统一**（D-040 S15-d）：不可用记录不带 `output`（现带 `unavailability: fallback`）、效果 `vetoed`；`admit` 失败记 `skipped: errored` ＋ `error`、按 `treat_as_veto` 效果 `vetoed`——**记录形状以对方 S-29／S-34 为权威**，本契约 S-48 已对齐 |
-| `capability.tool-admission` v1 S-26 | 放行判断件的能力标识 `omne-official:admission-judgment` | [S-7](v1/contract.md#s-7-系统自带件怎样挂上) | **已核对，一致**（对方 S-26 正文，2026-09-24 读到）；`data.loop-extension` v1 examples 里仍写 `omne-official:tool-admission`，须改成同一个名字（已报主线） |
-| `capability.tool-execution-runtime` v1 S-63 | 卸载判定件的能力标识 `omne-official:offload-judgment` | [S-7](v1/contract.md#s-7-系统自带件怎样挂上) | **已核对，一致**：对方 S-63「卸载判定这一件」给出（S-1 的拥有表指向它；K29 原写 S-1，本契约按实际给出处引 S-63） |
-| `capability.tool-admission` v1 S-12／S-22 | ④ 答复以四个选项 id 或 `declined` 交回重判；自由作答不作为答复，先落授权表达再不带答复重判 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 8 条、[S-28](v1/contract.md#s-28-回放) 第 4 条（新一轮 `ask`） | **已核对，一致**（对方 S-12） |
-| `capability.tool-admission` v1 S-31 | ⑤ 同批有等人的项时扣住已放行项的放行凭据，不交给执行运行时 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 9 条 | **已核对，一致**（对方 S-31：本能力不扣住，扣住归 runner 与执行运行时）；凭据交出的表示仍是 [G-16](v1/contract.md#十三已知缺口) |
-| `capability.tool-admission` v1 S-28 | ⑥ 兼容件复用四档选项的卡，答复不带授权、不作为答复交给放行判断 | [S-28](v1/contract.md#s-28-回放) 第 4 条、[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 8 条 | **已核对，一致**（对方 S-28；`capability.hooks-import` v1 的 S-21 同） |
-| `capability.tool-admission` v1 S-21／S-23 | 整批一次、按轮 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | **已核对，一致**（对方 S-21、S-23）；整批输入的来路由 `data.loop-extension/v1#S-14` 的注答复 |
-| `capability.modality-projection` v1 S-23 | 转换件在 `before_persist_message` 上是最后一个动块的 | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) 第 2 条（本契约取整条链的末位） | **已核对**：对方要「最后一个动块的」，本契约取整条链的末位——强于对方的性质，不冲突；取法已报主线 |
-| `capability.modality-projection` v1 S-20／G-2 | 转换件对模型回复交回「挂派生表示」的 `rewrite`，不算 D-5 要防的改写 | [S-14](v1/contract.md#s-14-结论合不合法两类判断) ② 前两行 | **已核对，一致**；`data.loop-extension` 一侧已在 S-23 写明（原 G-15 ①） |
-| `capability.modality-projection` v1 S-21／S-22 | 转换件不可用只否决含要转的块（给模型看、还没带派生属性的语音块、图块、文件块，对方 S-20 ①）的消息 | [S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) 转换件那一行 | **已核对，一致**（对方 S-21、S-22） |
-| `capability.model-request-runtime` v1 | `select_model` 的合法目标判定；`retry` 的只读再发守卫 `canDispatchAgain(session, callId, plan) → {allowed} \| {refused{why}}`（MRR S-50），`why` 与 `dispatchAgain` 的拒绝同表，已终结是操作失败 `alreadyEnded` | [S-14](v1/contract.md#s-14-结论合不合法两类判断)、[S-26](v1/contract.md#s-26-retry-与它被拒) | **已核对，一致**：对方 S-24 `legalTargets`；只读守卫在对方 S-50，输入带 `plan`、守卫表与 S-30 同一张，已终结是操作失败 `alreadyEnded`（本契约按「不合法」处置） |
-| `capability.asset-evaluation` v1 | 各件求得的四样值 | [S-6](v1/contract.md#s-6-拓展件链从装配清单来) | **已核对**：四样值是对方 S-8 `values` 里的项；它们在装配清单里怎样表示仍是 [G-2](v1/contract.md#十三已知缺口) |
-| `capability.asset-registry` v1 S-11 | 报告带会话与运行；`effectivePermissions` 对 `tool` 表每条条目恰一项、以 `ModelToolName` 为键（M8）；条目在快照里、能力标识不在此刻组合里写 `not_in_composition`（L15）；`unavailable` 只留给求值失败；查不到键即这一次尝试没有这条条目（M10） | [S-21](v1/contract.md#s-21-dispatch一次经过) ① 的核对、[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | **已对齐（2026-09-25 修复波 2，本批同改对方 S-11）** |
-| `capability.tool-admission` v1 S-8 | 报告里「这一项缺席或写着 `unavailable`」即不可用 → M10 之后 runner 不把查不到条目的调用交进 `admit`，对方那句「缺席」对 runner 这一侧不再出现；`not_in_composition` 只指条目仍在快照、能力标识不在此刻组合里 | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | 对方由丙批改（M10 的 S-8 括注）；**核对以合回正文为准** |
-| `data.loop-extension` v1 S-14 | `batch` 可含不在本次 `actions` 的 `CallId`（解析不了的调用） | [S-21](v1/contract.md#s-21-dispatch一次经过) ①、[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 1 条 | 对方由乙批改（M11）；**核对以合回正文为准** |
-| `capability.tool-execution-runtime` v1 S-23 | 报告里查不到条目、没进放行判断的调用（没有凭据）交到执行运行时即刻收场 `unavailable{no_such_entry}` | [S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条（指路，不登依赖） | 对方由丙批改（M8、M10）；**核对以合回正文为准** |
-| `data.loop-extension` v1 S-11／S-41 | 统一输入必带执行环境句柄 `environment`（`EnvironmentHandle`），读面归本契约 | [S-10](v1/contract.md#s-10-逐件顺序求值先落后算) 第 1 条、[S-50](v1/contract.md#s-50-执行环境句柄的读面) | **已对齐（2026-09-25 修复波 3，同一起草者同轮改两边）** |
-| `capability.tool-execution-runtime` v1 S-23 ① | `submit` 带的 `report` 与本契约 `admission.report` 是同一份值，两边都核会话、运行与尝试三者（M46）、不现算（[D-040 §八 M33](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | [S-21](v1/contract.md#s-21-dispatch一次经过) ②、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证)（指路，不登依赖——对方反向消费本契约） | **已对齐（2026-09-25 修复波 3，同一起草者同轮改两边）** |
-| `capability.modality-projection` v1 S-18／S-20、`capability.hooks-import` v1 S-18／S-19／S-27 | 转换件的 `tenant`、兼容件的执行环境从执行环境句柄取；解析不出按 S-50 第 4 条归不可用或报错；运行被取消时兼容件的子进程被停下、那一次求值不留记录 | [S-7](v1/contract.md#s-7-系统自带件怎样挂上)、[S-50](v1/contract.md#s-50-执行环境句柄的读面)、[S-21](v1/contract.md#s-21-dispatch一次经过) ⑥、[S-34](v1/contract.md#s-34-撤下回收与取消时在途的经过) | **已对齐（2026-09-25 修复波 3，同一起草者同轮改）** |
-| `data.loop-extension` v1 S-6／S-31／S-33 | 不可用处置：声明成员 `unavailability ∈ skip \| veto`（缺席 = `skip`）；不可用记录带实际采用的 `unavailability ∈ skip \| veto \| fallback`；系统自带件由指定挂件顶上 | [S-12](v1/contract.md#s-12-不可用与报错runner-怎么分)、[S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) | **已核对**（对方本轮修订中的正文：S-6、S-31、S-33 已带这三处） |
+| `capability.tool-admission` v2 S-29／S-30 | ① 放行判断钉 `before_action` 链末（装配清单义务，runner 强制） | [S-6](v2/contract.md#s-6-拓展件链从装配清单来) 第 2 条 | **已核对，一致**（对方 S-29、S-30） |
+| `capability.tool-admission` v2 S-14／S-29 | ② 拒绝投影成 `veto` 时 `reason` 原样带拒绝原因 token；runner 自己写的 `reason` 不借用它们 | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 6 条 | **已核对，一致** |
+| `capability.tool-admission` v2 S-24／S-29／S-34 | ③ `admit` 整批失败（含 `unavailable`）或它不可用时，同批每一项都得 `vetoed` | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 7 条、[S-17](v2/contract.md#s-17-系统自带件不可用时一律关门)、[S-48](v2/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 末支 | **已核对，已统一**（D-060 S15-d）：不可用记录不带 `output`（现带 `unavailability: fallback`）、效果 `vetoed`；`admit` 失败记 `skipped: errored` ＋ `error`、按 `treat_as_veto` 效果 `vetoed`——**记录形状以对方 S-29／S-34 为权威**，本契约 S-48 已对齐 |
+| `capability.tool-admission` v2 S-26 | 放行判断件的能力标识 `omne-official:admission-judgment` | [S-7](v2/contract.md#s-7-系统自带件怎样挂上) | **已核对，一致**（对方 S-26 正文，2026-09-24 读到）；`data.loop-extension` v2 examples 里仍写 `omne-official:tool-admission`，须改成同一个名字（已报主线） |
+| `capability.tool-execution-runtime` v2 S-63 | 卸载判定件的能力标识 `omne-official:offload-judgment` | [S-7](v2/contract.md#s-7-系统自带件怎样挂上) | **已核对，一致**：对方 S-63「卸载判定这一件」给出（S-1 的拥有表指向它；K29 原写 S-1，本契约按实际给出处引 S-63） |
+| `capability.tool-admission` v2 S-12／S-22 | ④ 答复以四个选项 id 或 `declined` 交回重判；自由作答不作为答复，先落授权表达再不带答复重判 | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 8 条、[S-28](v2/contract.md#s-28-回放) 第 4 条（新一轮 `ask`） | **已核对，一致**（对方 S-12） |
+| `capability.tool-admission` v2 S-31 | ⑤ 同批有等人的项时扣住已放行项的放行凭据，不交给执行运行时 | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 9 条 | **已核对，一致**（对方 S-31：本能力不扣住，扣住归 runner 与执行运行时）；凭据交出的表示仍是 [G-16](v2/contract.md#十三已知缺口) |
+| `capability.tool-admission` v2 S-28 | ⑥ 兼容件复用四档选项的卡，答复不带授权、不作为答复交给放行判断 | [S-28](v2/contract.md#s-28-回放) 第 4 条、[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 8 条 | **已核对，一致**（对方 S-28；`capability.hooks-import` v2 的 S-21 同） |
+| `capability.tool-admission` v2 S-21／S-23 | 整批一次、按轮 | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | **已核对，一致**（对方 S-21、S-23）；整批输入的来路由 `data.loop-extension/v2#S-14` 的注答复 |
+| `capability.modality-projection` v2 S-23 | 转换件在 `before_persist_message` 上是最后一个动块的 | [S-6](v2/contract.md#s-6-拓展件链从装配清单来) 第 2 条（本契约取整条链的末位） | **已核对**：对方要「最后一个动块的」，本契约取整条链的末位——强于对方的性质，不冲突；取法已报主线 |
+| `capability.modality-projection` v2 S-20／G-2 | 转换件对模型回复交回「挂派生表示」的 `rewrite`，不算 D-5 要防的改写 | [S-14](v2/contract.md#s-14-结论合不合法两类判断) ② 前两行 | **已核对，一致**；`data.loop-extension` 一侧已在 S-23 写明（原 G-15 ①） |
+| `capability.modality-projection` v2 S-21／S-22 | 转换件不可用只否决含要转的块（给模型看、还没带派生属性的语音块、图块、文件块，对方 S-20 ①）的消息 | [S-17](v2/contract.md#s-17-系统自带件不可用时一律关门) 转换件那一行 | **已核对，一致**（对方 S-21、S-22） |
+| `capability.model-request-runtime` v2 | `select_model` 的合法目标判定；`retry` 的只读再发守卫 `canDispatchAgain(session, callId, plan) → {allowed} \| {refused{why}}`（MRR S-50），`why` 与 `dispatchAgain` 的拒绝同表，已终结是操作失败 `alreadyEnded` | [S-14](v2/contract.md#s-14-结论合不合法两类判断)、[S-26](v2/contract.md#s-26-retry-与它被拒) | **已核对，一致**：对方 S-24 `legalTargets`；只读守卫在对方 S-50，输入带 `plan`、守卫表与 S-30 同一张，已终结是操作失败 `alreadyEnded`（本契约按「不合法」处置） |
+| `capability.asset-evaluation` v2 | 各件求得的四样值 | [S-6](v2/contract.md#s-6-拓展件链从装配清单来) | **已核对**：四样值是对方 S-8 `values` 里的项；它们在装配清单里怎样表示仍是 [G-2](v2/contract.md#十三已知缺口) |
+| `capability.asset-registry` v2 S-11 | 报告带会话与运行；`effectivePermissions` 对 `tool` 表每条条目恰一项、以 `ModelToolName` 为键（M8）；条目在快照里、能力标识不在此刻组合里写 `not_in_composition`（L15）；`unavailable` 只留给求值失败；查不到键即这一次尝试没有这条条目（M10） | [S-21](v2/contract.md#s-21-dispatch一次经过) ① 的核对、[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | **已对齐（2026-09-25 修复波 2，本批同改对方 S-11）** |
+| `capability.tool-admission` v2 S-8 | 报告里「这一项缺席或写着 `unavailable`」即不可用 → M10 之后 runner 不把查不到条目的调用交进 `admit`，对方那句「缺席」对 runner 这一侧不再出现；`not_in_composition` 只指条目仍在快照、能力标识不在此刻组合里 | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条 | 对方由丙批改（M10 的 S-8 括注）；**核对以合回正文为准** |
+| `data.loop-extension` v2 S-14 | `batch` 可含不在本次 `actions` 的 `CallId`（解析不了的调用） | [S-21](v2/contract.md#s-21-dispatch一次经过) ①、[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 1 条 | 对方由乙批改（M11）；**核对以合回正文为准** |
+| `capability.tool-execution-runtime` v2 S-23 | 报告里查不到条目、没进放行判断的调用（没有凭据）交到执行运行时即刻收场 `unavailable{no_such_entry}` | [S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条（指路，不登依赖） | 对方由丙批改（M8、M10）；**核对以合回正文为准** |
+| `data.loop-extension` v2 S-11／S-41 | 统一输入必带执行环境句柄 `environment`（`EnvironmentHandle`），读面归本契约 | [S-10](v2/contract.md#s-10-逐件顺序求值先落后算) 第 1 条、[S-50](v2/contract.md#s-50-执行环境句柄的读面) | **已对齐（2026-09-25 修复波 3，同一起草者同轮改两边）** |
+| `capability.tool-execution-runtime` v2 S-23 ① | `submit` 带的 `report` 与本契约 `admission.report` 是同一份值，两边都核会话、运行与尝试三者（M46）、不现算（[D-060 §八 M33](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | [S-21](v2/contract.md#s-21-dispatch一次经过) ②、[S-32](v2/contract.md#s-32-装配给的保证-vs-协议须给的保证)（指路，不登依赖——对方反向消费本契约） | **已对齐（2026-09-25 修复波 3，同一起草者同轮改两边）** |
+| `capability.modality-projection` v2 S-18／S-20、`capability.hooks-import` v2 S-18／S-19／S-27 | 转换件的 `tenant`、兼容件的执行环境从执行环境句柄取；解析不出按 S-50 第 4 条归不可用或报错；运行被取消时兼容件的子进程被停下、那一次求值不留记录 | [S-7](v2/contract.md#s-7-系统自带件怎样挂上)、[S-50](v2/contract.md#s-50-执行环境句柄的读面)、[S-21](v2/contract.md#s-21-dispatch一次经过) ⑥、[S-34](v2/contract.md#s-34-撤下回收与取消时在途的经过) | **已对齐（2026-09-25 修复波 3，同一起草者同轮改）** |
+| `data.loop-extension` v2 S-6／S-31／S-33 | 不可用处置：声明成员 `unavailability ∈ skip \| veto`（缺席 = `skip`）；不可用记录带实际采用的 `unavailability ∈ skip \| veto \| fallback`；系统自带件由指定挂件顶上 | [S-12](v2/contract.md#s-12-不可用与报错runner-怎么分)、[S-17](v2/contract.md#s-17-系统自带件不可用时一律关门) | **已核对**（对方本轮修订中的正文：S-6、S-31、S-33 已带这三处） |
 
-**上表的能力契约都已登进 catalog**，clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面) 末表。
+**上表的能力契约都已登进 catalog**，clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面) 末表。
 
 ### 形式义务：回放的行为模型（已触发，未建）
 
-**义务依据 D-040 S15-c**：`formal/Runner.tla` 由主线另派任务建，**本版目录里还没有它，也没有登记 formal task**——「未运行」如实登记。
-要检查的七条义务（`OneFinalConclusionPerPiece`、`CommitBeforeNext`、`ReplayReproducesEffect`、`RemindersExactlyOnce`、`OneCardPerAsk`、`StaleAttemptCannotWrite`、`AnsweredPassCompletes`）与各自的前提（常量有界、实现结果非确定、栅栏与条件写入原子、答完之后再调一次 `dispatch` 的弱公平）写在[契约 S-35](v1/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)；
+**义务依据 D-060 S15-c**：`formal/Runner.tla` 由主线另派任务建，**本版目录里还没有它，也没有登记 formal task**——「未运行」如实登记。
+要检查的七条义务（`OneFinalConclusionPerPiece`、`CommitBeforeNext`、`ReplayReproducesEffect`、`RemindersExactlyOnce`、`OneCardPerAsk`、`StaleAttemptCannotWrite`、`AnsweredPassCompletes`）与各自的前提（常量有界、实现结果非确定、栅栏与条件写入原子、答完之后再调一次 `dispatch` 的弱公平）写在[契约 S-35](v2/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合)；
 **每一条登记为 formal task 时都要写明它检查哪条条款的哪条性质、在什么前提下**。
 
 另配否定配置（关掉「先落」、关掉「按锚判重」、关掉栅栏）作 validity-check，预期出反例、**不登记为 formal task**。
@@ -99,15 +99,15 @@
 
 ## 独立评审
 
-**第一轮**：spec-reviewer，2026-09-24，基线 `765b01dc`（HUB），发现表 `tmp/assets-runtimes/reviews/r1-R4b.md` 第〇、一节。处置按主线的修复波裁定，K 编号即 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 的编号。
+**第一轮**：spec-reviewer，2026-09-24，基线 `765b01dc`（HUB），发现表 `tmp/assets-runtimes/reviews/r1-R4b.md` 第〇、一节。处置按主线的修复波裁定，K 编号即 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 的编号。
 
 | 发现 | 处置 | 落点 |
 |---|---|---|
 | X1（rev 落后） | **改**：逐版复核 PF-012 10→14、PF-008 5→7、PF-002 16→20、PF-013 8→12、PF-014 5→7、PF-004 10→12，变化与落点见下「变化的影响」2026-09-24 第一轮一条；头部 rev 改到当前；covers note 同轮改 | 头部；S-12、S-17、S-27、S-29、S-30 |
 | X4（「宿主」同名不同义） | **不改本契约**：本契约的「宿主」与 [UL-cancellation-follows-host](../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) 同义（主线词条第四轮结论）；hooks-import 改称「来源产品（Claude Code／Codex）」 | README 一处改称；hooks-import |
 | R1（整批会合无调用协议） | **改**（K31）：`before_action` 上 `dispatch` 带 `actions`（这一批全部动作），runner 内部会合、一轮一次 `admit`、结果按 `CallId` 分回；下一轮 = 这一批答完之后对同一批的下一次 `dispatch`；拆批即 `invalidInput`；登进 S-32 | S-21 ①②④⑤⑥⑦、S-29 第 2～5 条、S-32「一批一次会合」、S-48、examples §1 |
-| R2（租户件「声明为否决」、U-5） | **改**（K8）：S-12 加不可用处置表（租户件按声明、`veto` 只随求得 `veto` 档与「之前」位置、系统自带件 `fallback`）；记录带 `unavailability`；S-17 改为指定挂件、U-5 引 D-039；P-8 改依据；新增 P-19、S-49 | S-6 第 3 条、S-10 第 3 条、S-12、S-15、S-16、S-17、S-23、P-6、P-8、P-19、S-49、examples §6a |
-| R3（被拒 `retry` 与 `treat_as_veto`） | **改**：被拒的 `retry` 按有效策略处置、照常参与合成——`ignore`／`record` 不终止，`treat_as_veto` 在该位置落 `stop{failed}`、终止（与 `data.loop-extension/v1#S-5`、`#S-34` 一致，不开例外） | S-26 第 3 条、S-46、examples §2b 变体 |
+| R2（租户件「声明为否决」、U-5） | **改**（K8）：S-12 加不可用处置表（租户件按声明、`veto` 只随求得 `veto` 档与「之前」位置、系统自带件 `fallback`）；记录带 `unavailability`；S-17 改为指定挂件、U-5 引 D-059；P-8 改依据；新增 P-19、S-49 | S-6 第 3 条、S-10 第 3 条、S-12、S-15、S-16、S-17、S-23、P-6、P-8、P-19、S-49、examples §6a |
+| R3（被拒 `retry` 与 `treat_as_veto`） | **改**：被拒的 `retry` 按有效策略处置、照常参与合成——`ignore`／`record` 不终止，`treat_as_veto` 在该位置落 `stop{failed}`、终止（与 `data.loop-extension/v2#S-5`、`#S-34` 一致，不开例外） | S-26 第 3 条、S-46、examples §2b 变体 |
 | R4（嵌套经过） | **改**：嵌套经过由 runner 自己发起、是外层 `dispatch` 的一部分；沿用外层栅栏；失败即外层以同一失败值收场；`ask` 在那里按表示层拒绝处置、不传外层；「runner 追加的提醒」凭 `producer = system` 且 `source.kind = extension` 认 | S-19 第 3、4 条 |
 | R5（无运行的经过没有栅栏） | **改**：无运行的经过按 (经过, name) 条件写入，提醒按 `MessageId`；嵌套经过沿用外层栅栏；登进 S-32、P-13 | S-21 ②、S-32、P-13、S-47 |
 | R6（答复三种表示分不开） | **改**：登 G-17（owner PF-008／`data.messages` G-5）；闭合前认不出的答复收 `unavailable`、停在那一项，不读成 `declined`、不替它再出卡 | S-29 第 8 条、G-17 |
@@ -115,14 +115,14 @@
 | R8（缺席系统件的记录名与档位） | **改**：`extension` 取能力标识的 name，`power` 取声明值（放行判断恒 `veto`） | S-6 第 2 条、S-42 |
 | R9（「链接待合流后补」） | **改**：链 UL-extension-point-pass、UL-extension-unavailability-policy、UL-consecutive-veto-limit；删过时说明 | 设计依据表、非词条清单、本页对齐义务 |
 | 范围外 3（连续否决上限与 L2） | **改**（K49）：上限是 PF-012 那项运行时设置本身，与 L2 分开、各自阈值；读不到即 `unavailable` | S-30 第 3 条、P-17、S-44 |
-| 范围外 4（「待产品负责人确认」） | **改**（G2）：依据改引 D-040／D-039／产品正文；本轮的 K 项引 D-040 §五（主线汇编，2026-09-24 夜）；仍未汇编进 D-040 的两条登 G-13 | 设计依据表、G-4、G-11、G-13 |
+| 范围外 4（「待产品负责人确认」） | **改**（G2）：依据改引 D-060／D-059／产品正文；本轮的 K 项引 D-060 §五（主线汇编，2026-09-24 夜）；仍未汇编进 D-060 的两条登 G-13 | 设计依据表、G-4、G-11、G-13 |
 | K22（只读守卫） | **改**：`retry` 判定改用 `canDispatchAgain(session, callId, plan)`（MRR S-50，与 S-30 同一张守卫表；`plan.provider` 在守卫里判）；调用已终结得操作失败 `alreadyEnded`，runner 按「不合法」处置、不读 `why`（与 MRR 批的交接，2026-09-24） | S-4、S-14、S-26、S-32、S-46、examples §2、catalog |
 | K26（`admit` 失败记录） | **改**：`skipped: errored` ＋ `error`，`output` 为 `treat_as_veto` 的 `veto`；以 tool-admission S-29／S-34 为权威 | S-29 第 7 条、S-48、examples §6b |
 | K29（两件能力标识） | **改**：S-7 引 `omne-official:admission-judgment`（tool-admission S-26）与 `omne-official:offload-judgment`（TER 的给出处是 S-63，K29 写的 S-1 是它的拥有表）；G-3 收窄为其余三件；catalog 加 TER 依赖（S-63） | S-4、S-7、G-3、examples |
 
 ### 第二轮
 
-spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R4b.md` 第一节（与第二、五节里涉及本契约的项）。处置依据 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8～M11；其余按发现表原文落。
+spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R4b.md` 第一节（与第二、五节里涉及本契约的项）。处置依据 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8～M11；其余按发现表原文落。
 
 | 编号 | 处置 | 落点 |
 |---|---|---|
@@ -132,33 +132,33 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
 | R-b（S-29 第 5 条的不可用不属三种情形之一） | **改**：S-12 不可用表加第 ④ 种（只对放行判断：这一轮依据不在场——报告里的项写 `unavailable` 或缺 `tenantAutoWritable`），S-33 加一行 | S-12、S-33、S-29 第 5 条 |
 | R-c（对齐义务表缺 asset-registry S-11；S-4 那一行没提 `not_in_composition`） | **改**：对齐义务表加 asset-registry S-11、tool-admission S-8、data.loop-extension S-14、TER S-23 四行；S-4 与页首依赖表 asset-registry 那一行写明键、`not_in_composition` 与查不到的含义 | 本页、S-4、页首 |
 | 闭合核对 G-18、G-13 | 无改动（评审确认成立；G-18 的「报告怎样送到 runner」由 B1 的处置闭合） | — |
-| 范围外 2（meta 门的执行权限与「关不掉一扇门」） | **语义不改，补一处指路**：主线裁定 M21——注册表对 meta 门条目恒给 `{auto}`、不读求值；runner 照常从报告取，放行判断照常判（永远自动档）。S-29 第 5 条「都是注册表第二次求值的 `EffectiveValue`」补 meta 门这一例外的括注，免得读成「每一项都读求值」 | 由 `capability.asset-registry` S-11 兑现（本批同改）；[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条括注 |
-| D-1、D-2（D-040 自身） | 不属本契约：D-1 已由主线修（`261e0b72`）；D-2 已由 D-040 §四 K30 行登记 | — |
+| 范围外 2（meta 门的执行权限与「关不掉一扇门」） | **语义不改，补一处指路**：主线裁定 M21——注册表对 meta 门条目恒给 `{auto}`、不读求值；runner 照常从报告取，放行判断照常判（永远自动档）。S-29 第 5 条「都是注册表第二次求值的 `EffectiveValue`」补 meta 门这一例外的括注，免得读成「每一项都读求值」 | 由 `capability.asset-registry` S-11 兑现（本批同改）；[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条括注 |
+| D-1、D-2（D-060 自身） | 不属本契约：D-1 已由主线修（`261e0b72`）；D-2 已由 D-060 §四 K30 行登记 | — |
 
 ## 变化的影响
 
-- **2026-09-25 修复波 3：实现映射反推（候选，未冻结，原地改）**：裁定出处 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M38、M39、M40（及 M33 的这一半），同轮追加 M46（报告核会话、运行、尝试三者）；推导经 N-20 接受；逐条处置见文末[实现映射反推（2026-09-25）](#实现映射反推2026-09-25)。
-  - **语义改变**：新条款 [S-50](v1/contract.md#s-50-执行环境句柄的读面)——runner 按会话造执行环境句柄、经它恰解析出会话持有的租户身份与会话级执行环境、不交出会话标识、只在这一次调用里有效、解析不出即失败不给默认；系统自带件同样经它（S-7）。`dispatch` 失败集合加 `cancelled`：运行被取消、调用方叫停时，已提交的留着，在途的那一件收到停止信号、不留记录，这一次经过不再继续（S-21 ②⑥、S-34）。
-  - **表示改变**：统一输入多一个必带成员 `environment`（形状在 `data.loop-extension` v1 S-41）。`dispatch` 的输入不变（叫停不是一个值成员，经什么交到 runner 归组合契约）。
-  - **装配名**：S-4 与第十四节 `apps/runtime-host` 改 `apps/cli`（M40；D-039 已裁），语义不变。
-  - **新缺口 [G-20](v1/contract.md#十三已知缺口)**（句柄解析出的两样没有来路契约，owner 主线 → 会话那一程 ＋ PF-005 的 owner；M43 C-7）。
+- **2026-09-25 修复波 3：实现映射反推（候选，未冻结，原地改）**：裁定出处 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M38、M39、M40（及 M33 的这一半），同轮追加 M46（报告核会话、运行、尝试三者）；推导经 N-20 接受；逐条处置见文末[实现映射反推（2026-09-25）](#实现映射反推2026-09-25)。
+  - **语义改变**：新条款 [S-50](v2/contract.md#s-50-执行环境句柄的读面)——runner 按会话造执行环境句柄、经它恰解析出会话持有的租户身份与会话级执行环境、不交出会话标识、只在这一次调用里有效、解析不出即失败不给默认；系统自带件同样经它（S-7）。`dispatch` 失败集合加 `cancelled`：运行被取消、调用方叫停时，已提交的留着，在途的那一件收到停止信号、不留记录，这一次经过不再继续（S-21 ②⑥、S-34）。
+  - **表示改变**：统一输入多一个必带成员 `environment`（形状在 `data.loop-extension` v2 S-41）。`dispatch` 的输入不变（叫停不是一个值成员，经什么交到 runner 归组合契约）。
+  - **装配名**：S-4 与第十四节 `apps/runtime-host` 改 `apps/cli`（M40；D-059 已裁），语义不变。
+  - **新缺口 [G-20](v2/contract.md#十三已知缺口)**（句柄解析出的两样没有来路契约，owner 主线 → 会话那一程 ＋ PF-005 的 owner；M43 C-7）。
   - **产品依据**：加 PF-005 rev 5 §6.3、PF-015 rev 11 §6.12（都是当前 rev，只作 S-50 的依据，未改任何已有条款）。
   - **registry**：catalog 本契约对 `data.loop-extension` 的消费 clauses 加 `S-41`；covers 加 PF-005 §6.3 → S-50、PF-015 §6.12 → S-50 两条，PF-012 §6.15 那一条加 S-21（`reviewed` 保持 false）；formal-tasks、id-namespaces 不变。
   - **对证据的影响**：没有既有证据；新增场景 S-51、S-52，「未开始」。回放的行为模型（S-35、G-14）不含叫停与句柄，已在 S-35 写明证据形式是这两条场景。
   - **对消费者**：没有已采用的消费者，无迁移。agent loop 契约（未起草）要在取消时先落取消请求、再叫停在途的 `dispatch`；`capability.modality-projection`、`capability.hooks-import` 同轮改为经句柄取租户身份与执行环境。
 
-- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8～M11；逐条处置见上文「第二轮」。
+- **2026-09-25 修复波 2（候选，未冻结，原地改）**：裁定出处 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加) M8～M11；逐条处置见上文「第二轮」。
   - **表示改变**：`dispatch` 多一个输入成员 `admission`（`before_action` 上必带，别处不许带）；`actions` 与 `batch` 的核对由「恰好凑成」改为「`batch` 多出的只能是解析不了的调用」。没有已采用的消费者，无迁移；agent loop 契约（未起草）要按这两条交值。
   - **语义改变**：报告里查不到条目的调用不再使整轮全拒（原「取不到那一条」按放行判断不可用），改为单独记 `observed`、交执行运行时收场；解析不了的调用不过 `before_action`。
   - **新缺口 G-19**（`no_such_entry` 的记录落处，owner `data.loop-extension` ＋ 主线）。
   - **registry**：catalog 本契约的依赖不变（`capability.asset-registry` 的 S-11、`data.content-blocks` 的 S-12 原已登记；执行运行时 S-23 只是指路、不登——它反向消费本契约，登记会成环）。covers、formal-tasks、id-namespaces 不变。
   - **对证据的影响**：没有既有证据；S-48 多三支、改一支，仍「未开始」。回放的行为模型（S-35、G-14）不涉。
 
-- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L2、L7、N-10）。
-  - **L7**：[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条写明 runner 组装每一项 `AdmissionInput`，`effectivePermission` 与 `tenantAutoWritable` 取自同一条执行权限项的 `EffectiveValue`（`capability.asset-evaluation/v1#S-42`）：MCP 动作取可用性报告的 `effectivePermissions`（`capability.asset-registry/v1#S-11`）；取不到、`unavailable` 或缺那一位即这一轮按放行判断不可用、全拒件顶上（**本契约推导**：与 `capability.tool-admission/v1#S-8` 对 MCP 那一项缺席的收场一致，不交缺项输入换 `invalidInput`）。**作者写的工具取哪一次求值未定，立 [G-18](v1/contract.md#十三已知缺口)**（owner 主线 ＋ `capability.asset-registry`）。场景 [S-48](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 加「放行输入的组装」一支；设计依据表加一行；消费者核对「放行判断」一行补 G-18。
-  - **同轮追加：L13，G-18 闭合**（[D-040 §六 L13](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：可用性报告的 `effectivePermissions` 扩到 `tool` 表每条条目（`capability.asset-registry/v1#S-11` 同轮改）；[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条改为一律从报告取、不另求值；S-4 末表与页首依赖表 asset-registry 那一行、设计依据表那一行、消费者核对「放行判断」一行随之改；G-18 行改为已闭合；S-48 那一支改成「作者写的工具 ＋ MCP 动作」。catalog 里对 `capability.asset-registry` 的 `S-11` 保留。
-  - **同轮追加：L15**（[D-040 §六 L15](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：报告里写着 `not_in_composition` 的项照常交进 `admit`（`effectivePermission = not_in_composition`、不带 `tenantAutoWritable`），放行判断单独判 `deny{not_held}`、不牵连同批；只有取不到、`unavailable` 或缺那一位才整轮全拒。[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 5 条、设计依据表那一行、场景 [S-48](v1/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 那一支随之改。
-  - **N-10，G-13 闭合**：两条主线裁定（`before_model_call` 的否决 ≡ 运行落失败；回复落盘前被否决追加提醒）已登 D-040 §六；设计依据表那一行、[S-23](v1/contract.md#s-23-效果之后的事由谁做) 表、[S-30](v1/contract.md#s-30-连续被否决的回复) 第 1 条改链。
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L2、L7、N-10）。
+  - **L7**：[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条写明 runner 组装每一项 `AdmissionInput`，`effectivePermission` 与 `tenantAutoWritable` 取自同一条执行权限项的 `EffectiveValue`（`capability.asset-evaluation/v2#S-42`）：MCP 动作取可用性报告的 `effectivePermissions`（`capability.asset-registry/v2#S-11`）；取不到、`unavailable` 或缺那一位即这一轮按放行判断不可用、全拒件顶上（**本契约推导**：与 `capability.tool-admission/v2#S-8` 对 MCP 那一项缺席的收场一致，不交缺项输入换 `invalidInput`）。**作者写的工具取哪一次求值未定，立 [G-18](v2/contract.md#十三已知缺口)**（owner 主线 ＋ `capability.asset-registry`）。场景 [S-48](v2/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 加「放行输入的组装」一支；设计依据表加一行；消费者核对「放行判断」一行补 G-18。
+  - **同轮追加：L13，G-18 闭合**（[D-060 §六 L13](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：可用性报告的 `effectivePermissions` 扩到 `tool` 表每条条目（`capability.asset-registry/v2#S-11` 同轮改）；[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条改为一律从报告取、不另求值；S-4 末表与页首依赖表 asset-registry 那一行、设计依据表那一行、消费者核对「放行判断」一行随之改；G-18 行改为已闭合；S-48 那一支改成「作者写的工具 ＋ MCP 动作」。catalog 里对 `capability.asset-registry` 的 `S-11` 保留。
+  - **同轮追加：L15**（[D-060 §六 L15](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）：报告里写着 `not_in_composition` 的项照常交进 `admit`（`effectivePermission = not_in_composition`、不带 `tenantAutoWritable`），放行判断单独判 `deny{not_held}`、不牵连同批；只有取不到、`unavailable` 或缺那一位才整轮全拒。[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 5 条、设计依据表那一行、场景 [S-48](v2/contract.md#s-48-放行判断一轮汇合凭据扣住答复只认自己的卡) 那一支随之改。
+  - **N-10，G-13 闭合**：两条主线裁定（`before_model_call` 的否决 ≡ 运行落失败；回复落盘前被否决追加提醒）已登 D-060 §六；设计依据表那一行、[S-23](v2/contract.md#s-23-效果之后的事由谁做) 表、[S-30](v2/contract.md#s-30-连续被否决的回复) 第 1 条改链。
   - **L2**：本包没有 `implementation.capability` 的引用（`builtin` 一支只经 `data.loop-extension` 的形状到达、本契约不点名成员），无改动。
   - **registry**：catalog 本契约对 `capability.asset-evaluation` 补 `S-42`、对 `capability.tool-admission` 补 `S-7`、`S-8`，新增依赖 `capability.asset-registry` `["S-11"]`（已核无环：注册表的依赖闭包里没有本契约）；页首依赖表与 S-4 末表同改，「后五项」改「后六项」。covers、formal-tasks、id-namespaces 不变。
   - **对证据的影响**：没有既有证据；S-48 多一支，仍「未开始」。回放的行为模型（S-35、G-14）仍未建，本轮不涉。
@@ -167,13 +167,13 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
   - **产品依据 rev 复核**：PF-012 rev 11（落盘前对模型回复只能否决；转换件没登记 vs 不可用；系统自带件不走卸载；放行判断不能替换；连续否决上限；中断提醒不开 Run）、rev 12（**不可用处置**：租户件跳过／声明否决、系统自带件指定挂件、放行判断全拒件、「此刻不在、按 X 处置」可见）→ S-12、S-17、S-23、S-30 已落；rev 13～14（转换件本版不是资产、组织与租户换不了）→ 本契约原本就不许非系统件挂派生表示，无改动。PF-008 rev 6（写不出卡＝不放行、兼容件的卡不带授权）→ 原已落；rev 7（清卡第三条路「它等的执行已终局关成已作废」、放行判断不可用全拒件）→ S-27 第 6 条、S-29 第 8 条、S-17。PF-002 rev 17（同一位置先后＝装配清单顺序）→ 原已落；rev 19～20（不可用处置是这一件自己的声明）→ S-6 第 3 条、S-12。PF-004 rev 11～12（I-4 一次运行之内；构成变小也重新装配）→ 清单在两次尝试之间变了的处置不变（S-28 第 1 条），无改动。PF-013 rev 9～12（落盘前否决不是调用失败、转换件替换只在系统装配层）→ 与 S-23、S-17 一致，无改动。PF-014 rev 6～7（中断提醒不让队列非空、连接件开新会话）→ G-6 的描述改写，无条款改动。
   - **对证据的影响**：没有既有证据；S-41、S-42、S-44、S-46、S-47、S-48 的断言改了，仍登「未开始」；新增 S-49。
   - **消费者要知道的**：agent loop 在 `before_action` 上改为一批一次调 `dispatch`、拿回逐项效果；TER、MRR 引的本契约 S-17、S-21、S-6 锚点不变。
-  - **依据链**：主线把本轮 K 项汇编进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)之后，设计依据表加一行链 K8、K22、K26、K29、K31、K49；G-13 由三条减为两条（K31 已入 D-040）；语义不变。
+  - **依据链**：主线把本轮 K 项汇编进 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)之后，设计依据表加一行链 K8、K22、K26、K29、K31、K49；G-13 由三条减为两条（K31 已入 D-060）；语义不变。
   - **与同轮对方批次的交接**（2026-09-24）：只读再发守卫改引 MRR S-50，输入带 `plan`（供应商允不允许在守卫里判），调用已终结得操作失败 `alreadyEnded`、按「不合法」处置（S-14、S-26、S-32、S-46、examples §2）；卸载判定件的能力标识改引 TER S-63（给出处），catalog 同改；S-17 转换件那一行改按「要转的块」口径（modality-projection S-20 ①），S-42 场景随之写明只给人看的块与已带派生属性的块照常落盘。**语义改变**：`retry` 的供应商不被允许，由原先「再发时被 `dispatchAgain` 拒、那一笔由它记」改为在落日志前判为不合法、按报错处置。
-- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定」的，长期落点现为 D-040（S14-d、S15-a～S15-g）。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定」的，长期落点现为 D-060（S14-d、S15-a～S15-g）。
   - **四项并行依赖登进 catalog**（G-12 闭合），对齐义务表逐行核对完毕（上表右列）。
-  - **放行判断件不得被替换、禁用或收窄**（S14-d）：[S-17](v1/contract.md#s-17-系统自带件不可用时一律关门) 末条改写，G-4 闭合。
+  - **放行判断件不得被替换、禁用或收窄**（S14-d）：[S-17](v2/contract.md#s-17-系统自带件不可用时一律关门) 末条改写，G-4 闭合。
   - **`data.loop-extension` 的四处已对齐**（G-15 闭合）；整批输入的来路由那边 S-14 的注答复，G-16 收窄为「凭据经哪一格交出」。
-  - **回放要建行为模型**（S15-c）：[S-35](v1/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合) 与 G-14 改写，义务登在上面「形式义务」一节。
+  - **回放要建行为模型**（S15-c）：[S-35](v2/contract.md#s-35-形式工件回放的行为模型已触发尚未闭合) 与 G-14 改写，义务登在上面「形式义务」一节。
   - `retryRefused` 的读法随 `capability.model-request-runtime` 改（已终结归 `alreadyEnded`）。
   - **对证据的影响**：没有既有证据；S-45 的受阻原因解除，S-48 只剩凭据交出与授权写入者两处受阻。
 
@@ -183,38 +183,38 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
   放行判断的六条对齐（上表）；回放时「答复之后再出卡」由「回放偏离」改为**新的一轮等人**，偏离改由等待原语检出、`replayInconsistent` 收场。
   **没有任何证据因此作废**——此前也没有证据。
 - 此后契约任何一处改动涉及上表场景的，**对应场景重新登记为「未开始」**；对齐义务表中任一行核对出差异，先报主线，改判后在这里记一条。
-- **（2026-09-24 措辞对齐 PF-013 rev 12，主线裁定，不改语义）**：`data.loop-extension` v1 的 `request.target` 与 `select_model` 的 `profile` 改为路由名（`RouteName`）之后，本契约第 163 行附近「`select_model` 的档案引用」改为「换上的路由名」，[S-25](v1/contract.md#s-25-before_model_call-上的换模型与重新组装) 第 1 条注明 `profile` 是一个路由名、有效模型是它落到的那一行；成员名 `profile` 不改，catalog 不变（本契约仍不据 `data.model-profile` 的条款写出承诺）。没有证据因此作废。
+- **（2026-09-24 措辞对齐 PF-013 rev 12，主线裁定，不改语义）**：`data.loop-extension` v2 的 `request.target` 与 `select_model` 的 `profile` 改为路由名（`RouteName`）之后，本契约第 163 行附近「`select_model` 的档案引用」改为「换上的路由名」，[S-25](v2/contract.md#s-25-before_model_call-上的换模型与重新组装) 第 1 条注明 `profile` 是一个路由名、有效模型是它落到的那一行；成员名 `profile` 不改，catalog 不变（本契约仍不据 `data.model-profile` 的条款写出承诺）。没有证据因此作废。
 
 ## 实现映射反推（2026-09-25）
 
-五位 realization-drafter 起草节点时报回的契约层缺陷，主线裁定见 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（下称 M 编号）。本契约涉及四条。
+五位 realization-drafter 起草节点时报回的契约层缺陷，主线裁定见 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（下称 M 编号）。本契约涉及四条。
 
 | 裁定 | 来源 | 处置 | 落在哪 |
 |---|---|---|---|
-| M38 统一输入加按会话作用域的执行环境句柄；系统自带件同样拿到它 | 辛 RUN-N3（与 MP-N1、HI-N2 同一个缺口） | **接受**。句柄的形状在 `data.loop-extension` v1 S-41，读面在新条款 S-50（与 S-9 给 `LogHandle` 读面同一个分法；编号只追加）。**两处本契约的推导**：① 句柄只在这一次调用里有效（M38 只说按会话作用域；不绑到调用，它就成了跨等待的记忆，与 `data.loop-extension/v1#S-35` 相抵）；② 解析不出时按 S-12 的分界归不可用或报错（与 S-9 第 4 条读日志失败同一口径）。句柄要的两样没有来路契约，立 G-20 | [S-7](v1/contract.md#s-7-系统自带件怎样挂上)、[S-10](v1/contract.md#s-10-逐件顺序求值先落后算) 第 1 条、[S-50](v1/contract.md#s-50-执行环境句柄的读面)、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 一行、[S-52](v1/contract.md#s-52-执行环境句柄只及本会话调用返回即失效)、[G-20](v1/contract.md#十三已知缺口)、S-4、第十四节、设计依据表 |
-| M39 `dispatch` ⑥ 加 `cancelled`；已落的保留，在途的件收到中止信号；S-34 对齐 | 辛 RUN-N4／HI-N6 | **接受**。失败值名取裁定原文 `cancelled`。**两处本契约的推导**：① 在途那一件这一次求值不留记录、排在后面的件不被求值、不补提醒（S-34「这一次经过不再继续、不产出效果」的直接展开）；② 叫停是调用方在取消请求落日志之后对这一次 `dispatch` 的动作，**不是一个值输入**，经什么交到 runner 归组合契约——RUN-N4 的闭合条件「中止信号的来路」由 ② 末句与 S-32 一行交代到契约层 | [S-21](v1/contract.md#s-21-dispatch一次经过) ②⑥ 与 ⑥ 含义表、[S-20](v1/contract.md#s-20-这一节每个操作写全九件事) 注、[S-34](v1/contract.md#s-34-撤下回收与取消时在途的经过)、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 一行、[S-51](v1/contract.md#s-51-运行被取消这一次-dispatch-以-cancelled-收场)、S-35 末段、第十四节 |
-| M40 `apps/runtime-host` 一律改 `apps/cli` | 壬 C-10、辛 | **接受**：两处改名并链 D-039 | [S-4](v1/contract.md#s-4-依赖方向与被消费的面)、[第十四节](v1/contract.md#十四消费者核对) |
-| M33（runner 这一半） | 庚 T-1 | **接受**：写明 `admission.report` 与执行运行时 `submit` 的 `report` 是同一份值、两边都核会话与运行、不现算；对方反向消费本契约，这里只指路、不登 catalog | [S-21](v1/contract.md#s-21-dispatch一次经过) ②、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 一行、第十四节 agent loop 一行 |
-| M46（追加）报告带 `attempt`；`admission.report` 核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput` | 子报回（TER R-38：报告不带尝试，同一运行上一次尝试的报告核得过） | **接受**：S-21 ① 写明三者、② 那一侧同样三者、⑥ `invalidInput` 那一行补「这一次尝试」；S-4 asset-registry 行、S-32 放行输入那一行、场景那一支、examples 失败值那一行同改。报告的 `attempt` 那一格由 asset-registry S-11 同轮加（另一位起草者） | [S-21](v1/contract.md#s-21-dispatch一次经过) ①②⑥、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证)、设计依据表 |
+| M38 统一输入加按会话作用域的执行环境句柄；系统自带件同样拿到它 | 辛 RUN-N3（与 MP-N1、HI-N2 同一个缺口） | **接受**。句柄的形状在 `data.loop-extension` v2 S-41，读面在新条款 S-50（与 S-9 给 `LogHandle` 读面同一个分法；编号只追加）。**两处本契约的推导**：① 句柄只在这一次调用里有效（M38 只说按会话作用域；不绑到调用，它就成了跨等待的记忆，与 `data.loop-extension/v2#S-35` 相抵）；② 解析不出时按 S-12 的分界归不可用或报错（与 S-9 第 4 条读日志失败同一口径）。句柄要的两样没有来路契约，立 G-20 | [S-7](v2/contract.md#s-7-系统自带件怎样挂上)、[S-10](v2/contract.md#s-10-逐件顺序求值先落后算) 第 1 条、[S-50](v2/contract.md#s-50-执行环境句柄的读面)、[S-32](v2/contract.md#s-32-装配给的保证-vs-协议须给的保证) 一行、[S-52](v2/contract.md#s-52-执行环境句柄只及本会话调用返回即失效)、[G-20](v2/contract.md#十三已知缺口)、S-4、第十四节、设计依据表 |
+| M39 `dispatch` ⑥ 加 `cancelled`；已落的保留，在途的件收到中止信号；S-34 对齐 | 辛 RUN-N4／HI-N6 | **接受**。失败值名取裁定原文 `cancelled`。**两处本契约的推导**：① 在途那一件这一次求值不留记录、排在后面的件不被求值、不补提醒（S-34「这一次经过不再继续、不产出效果」的直接展开）；② 叫停是调用方在取消请求落日志之后对这一次 `dispatch` 的动作，**不是一个值输入**，经什么交到 runner 归组合契约——RUN-N4 的闭合条件「中止信号的来路」由 ② 末句与 S-32 一行交代到契约层 | [S-21](v2/contract.md#s-21-dispatch一次经过) ②⑥ 与 ⑥ 含义表、[S-20](v2/contract.md#s-20-这一节每个操作写全九件事) 注、[S-34](v2/contract.md#s-34-撤下回收与取消时在途的经过)、[S-32](v2/contract.md#s-32-装配给的保证-vs-协议须给的保证) 一行、[S-51](v2/contract.md#s-51-运行被取消这一次-dispatch-以-cancelled-收场)、S-35 末段、第十四节 |
+| M40 `apps/runtime-host` 一律改 `apps/cli` | 壬 C-10、辛 | **接受**：两处改名并链 D-059 | [S-4](v2/contract.md#s-4-依赖方向与被消费的面)、[第十四节](v2/contract.md#十四消费者核对) |
+| M33（runner 这一半） | 庚 T-1 | **接受**：写明 `admission.report` 与执行运行时 `submit` 的 `report` 是同一份值、两边都核会话与运行、不现算；对方反向消费本契约，这里只指路、不登 catalog | [S-21](v2/contract.md#s-21-dispatch一次经过) ②、[S-32](v2/contract.md#s-32-装配给的保证-vs-协议须给的保证) 一行、第十四节 agent loop 一行 |
+| M46（追加）报告带 `attempt`；`admission.report` 核会话、`runId`、`attempt` 三者，对不上 ⇒ `invalidInput` | 子报回（TER R-38：报告不带尝试，同一运行上一次尝试的报告核得过） | **接受**：S-21 ① 写明三者、② 那一侧同样三者、⑥ `invalidInput` 那一行补「这一次尝试」；S-4 asset-registry 行、S-32 放行输入那一行、场景那一支、examples 失败值那一行同改。报告的 `attempt` 那一格由 asset-registry S-11 同轮加（另一位起草者） | [S-21](v2/contract.md#s-21-dispatch一次经过) ①②⑥、[S-32](v2/contract.md#s-32-装配给的保证-vs-协议须给的保证)、设计依据表 |
 
 **跨批对齐（2026-09-25，drafter 丑）**：
 - **examples 对 Schema 的机检**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表；第 1、2、6 节的六个代码块（结论记录）按 `data.loop-extension` 的 `Conclusion` 判：**6 处，0 不符**。其余是一次经过的步骤表，不是 Schema 实例。只核形状，不是 V- 义务的执行证据。
-- **名字与形状核对**：`admission.report` 核的「会话、运行、尝试」与 `capability.asset-registry` S-11、执行运行时 S-23 ①⑥ 逐字同一组，`attempt` 即 `data.call-accounts/v1#S-37` 的 `AttemptId`（整数序号，本契约实例写 `attempt = 1`、`2`）；`environment` 与 `data.loop-extension` S-41 的 `EnvironmentHandle`、hooks-import S-18、modality-projection S-20 ② 同名同义。无改动；catalog 的 runner → `data.loop-extension` S-41、→ asset-registry S-11、hooks-import → 本契约 S-50 都已在。
+- **名字与形状核对**：`admission.report` 核的「会话、运行、尝试」与 `capability.asset-registry` S-11、执行运行时 S-23 ①⑥ 逐字同一组，`attempt` 即 `data.call-accounts/v2#S-37` 的 `AttemptId`（整数序号，本契约实例写 `attempt = 1`、`2`）；`environment` 与 `data.loop-extension` S-41 的 `EnvironmentHandle`、hooks-import S-18、modality-projection S-20 ② 同名同义。无改动；catalog 的 runner → `data.loop-extension` S-41、→ asset-registry S-11、hooks-import → 本契约 S-50 都已在。
 
 ## 修订波（2026-09-25 公开面）
 
-依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）、R-12（锚）；[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37（N-37 ② `dependencyPresence` 是装配清单的一个查询、⑩ 执行环境引用先经会话持有租户读面）。候选未冻结，原地改。
+依据链：[D-063](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）、R-12（锚）；[D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-33～N-37（N-37 ② `dependencyPresence` 是装配清单的一个查询、⑩ 执行环境引用先经会话持有租户读面）。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
-| **锚改为调用方随 `dispatch` 交来的不透明键**：runner 不再从主体或日志推锚；表示按 `data.identity-values/v1#S-31`；`dispatch` 加 `anchor`（带 `subject` 时）／`anchors`（带 `actions` 时，同序、两两不同），`replay` 加 `anchor`；缺席或不合即 `invalidInput`；S-5 写明调用方两条义务（同一次经过同一把、不同经过不同的）与做不到的后果 | R-12（主线建议、产品负责人未反对） | [S-5](v1/contract.md#s-5-一次经过)、[S-8](v1/contract.md#s-8-本契约不持有运行实例里的状态)、S-11 记录那一条、[S-16](v1/contract.md#s-16-缺席时的默认答案)、[S-21](v1/contract.md#s-21-dispatch一次经过) 签名 ① ⑥、[S-22](v1/contract.md#s-22-replay从日志重建一次经过) 签名 ① 与表下注、[S-29](v1/contract.md#s-29-一批动作每个动作一次经过) 第 1 条、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 新一行、S-35 第一条义务的前提、[examples §1](v1/examples.md) 步 1 | **改变 `dispatch`／`replay` 的输入**（加一个必带参数）：agent loop 与入站受理方每次都要交锚。**`replay` 仍带 `subject`**（只为核 `run` 该不该带）——这是本契约的推导，D-040 S15-a「锚从主体推出」那一半被 R-12 取代 |
-| **G-1 收窄**为「锚的算法」（owner loop 那一程）；回放、只跑一轮不再受它阻 | R-12 | [G-1](v1/contract.md#十三已知缺口)、第十四节 agent loop 与状态转移表两行 | 场景 S-38 从「受阻 G-1」翻「可跑（锚由测试给）」；S-47 改为「会话日志最小提供者到位即可跑」 |
-| **句柄的两样来路改指接口契约**：租户 `capability.session-tenancy/v1#S-8`、执行环境引用 `capability.execution-environments/v1#S-11`（取引用先有租户）；**G-20 改写为「真承接者未到，接口已定」** | R-1；N-37 ⑩ | [S-50](v1/contract.md#s-50-执行环境句柄的读面) 第 1、4、5 条、[G-20](v1/contract.md#十三已知缺口)、第十四节三行 | 不改语义（句柄仍恰两样、只及本会话、调用返回即失效）；S-51、S-52 在验收装配可跑。产品装配里会话持有租户没有写入方、兼容件要的宿主机允许产品未给——两件都如实写进 G-20 |
-| **栅栏与条件写入改指会话日志窄口**：`capability.session-log/v1#S-10`（栅栏在写入边界判）、`#S-8`（判重键） | R-1 | [S-21](v1/contract.md#s-21-dispatch一次经过) ②、[S-32](v1/contract.md#s-32-装配给的保证-vs-协议须给的保证) 两行、[G-8](v1/contract.md#十三已知缺口) 注 | 不改语义；G-8 其余三件仍开着 |
-| **依赖在场判定改指装配清单的在场查询** `capability.assembly-manifest/v1#S-19`：`absent` 即 S-12 ①；整次 `unavailable` 不是 ①——这一次经过 `unavailable`、那一件不留记录 | N-37 ②；那份契约 S-19 ⑧ 与它的消费者核对原已这样读（本契约此前没写来源） | [S-12](v1/contract.md#s-12-不可用与报错runner-怎么分) 表下一条、[S-16](v1/contract.md#s-16-缺席时的默认答案)、[S-33](v1/contract.md#s-33-依赖的提供者不可用) 新一行 | **把一处未写明的判定写明**（本契约推导，与节点依赖表「缺席 ⇒ 判不出 ⇒ `unavailable`」同口径）。产品装配里在场事实没有给出方（那份契约 G-2），声明了 `needs` 的件所在的那一次经过恒 `unavailable` |
+| **锚改为调用方随 `dispatch` 交来的不透明键**：runner 不再从主体或日志推锚；表示按 `data.identity-values/v1#S-31`；`dispatch` 加 `anchor`（带 `subject` 时）／`anchors`（带 `actions` 时，同序、两两不同），`replay` 加 `anchor`；缺席或不合即 `invalidInput`；S-5 写明调用方两条义务（同一次经过同一把、不同经过不同的）与做不到的后果 | R-12（主线建议、产品负责人未反对） | [S-5](v2/contract.md#s-5-一次经过)、[S-8](v2/contract.md#s-8-本契约不持有运行实例里的状态)、S-11 记录那一条、[S-16](v2/contract.md#s-16-缺席时的默认答案)、[S-21](v2/contract.md#s-21-dispatch一次经过) 签名 ① ⑥、[S-22](v2/contract.md#s-22-replay从日志重建一次经过) 签名 ① 与表下注、[S-29](v2/contract.md#s-29-一批动作每个动作一次经过) 第 1 条、[S-32](v2/contract.md#s-32-装配给的保证-vs-协议须给的保证) 新一行、S-35 第一条义务的前提、[examples §1](v2/examples.md) 步 1 | **改变 `dispatch`／`replay` 的输入**（加一个必带参数）：agent loop 与入站受理方每次都要交锚。**`replay` 仍带 `subject`**（只为核 `run` 该不该带）——这是本契约的推导，D-060 S15-a「锚从主体推出」那一半被 R-12 取代 |
+| **G-1 收窄**为「锚的算法」（owner loop 那一程）；回放、只跑一轮不再受它阻 | R-12 | [G-1](v2/contract.md#十三已知缺口)、第十四节 agent loop 与状态转移表两行 | 场景 S-38 从「受阻 G-1」翻「可跑（锚由测试给）」；S-47 改为「会话日志最小提供者到位即可跑」 |
+| **句柄的两样来路改指接口契约**：租户 `capability.session-tenancy/v2#S-8`、执行环境引用 `capability.execution-environments/v2#S-11`（取引用先有租户）；**G-20 改写为「真承接者未到，接口已定」** | R-1；N-37 ⑩ | [S-50](v2/contract.md#s-50-执行环境句柄的读面) 第 1、4、5 条、[G-20](v2/contract.md#十三已知缺口)、第十四节三行 | 不改语义（句柄仍恰两样、只及本会话、调用返回即失效）；S-51、S-52 在验收装配可跑。产品装配里会话持有租户没有写入方、兼容件要的宿主机允许产品未给——两件都如实写进 G-20 |
+| **栅栏与条件写入改指会话日志窄口**：`capability.session-log/v2#S-10`（栅栏在写入边界判）、`#S-8`（判重键） | R-1 | [S-21](v2/contract.md#s-21-dispatch一次经过) ②、[S-32](v2/contract.md#s-32-装配给的保证-vs-协议须给的保证) 两行、[G-8](v2/contract.md#十三已知缺口) 注 | 不改语义；G-8 其余三件仍开着 |
+| **依赖在场判定改指装配清单的在场查询** `capability.assembly-manifest/v2#S-19`：`absent` 即 S-12 ①；整次 `unavailable` 不是 ①——这一次经过 `unavailable`、那一件不留记录 | N-37 ②；那份契约 S-19 ⑧ 与它的消费者核对原已这样读（本契约此前没写来源） | [S-12](v2/contract.md#s-12-不可用与报错runner-怎么分) 表下一条、[S-16](v2/contract.md#s-16-缺席时的默认答案)、[S-33](v2/contract.md#s-33-依赖的提供者不可用) 新一行 | **把一处未写明的判定写明**（本契约推导，与节点依赖表「缺席 ⇒ 判不出 ⇒ `unavailable`」同口径）。产品装配里在场事实没有给出方（那份契约 G-2），声明了 `needs` 的件所在的那一次经过恒 `unavailable` |
 | catalog：本契约新增四条依赖（`capability.session-log` S-8、S-9、S-10；`capability.session-tenancy` S-5、S-8；`capability.execution-environments` S-5、S-11；`capability.assembly-manifest` S-10、S-19），`data.identity-values` 加 S-31 | 引用即消费 | S-4、页首依赖表、README | 四份接口契约都不以坐标依赖本契约，无环 |
-| **参数名 `anchor`／`anchors`、`replay` 保留 `subject`**：起草时的推导，**主线已接受** | 主线裁定 [D-040 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | [S-22](v1/contract.md#s-22-replay从日志重建一次经过) 表下那一条 | 不改语义 |
-| **运行时面接进产品装配的前提是 loop／会话那一程立起真提供者**（`capability.run-attempt-facts` 的 G-3、会话持有租户的写入方、在场事实）：本程产品装配没有 loop 与会话，装配清单的在场查询、会话持有租户的读面在那里**没有调用者**；声明了 `needs` 的件「整次 `unavailable`」在产品装配里无从发生，验收装配以种子答（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ④） | 主线裁定（2026-09-25，与工具执行运行时 R-42 同一事实） | 本行 | 不改条款 |
-| **兼容件的非阻断错误固定按 `ignore`，记录与越档同形**：兼容件以来源产品语义下的非阻断错误收场（非零退出、超时、输出不合形状，归属由 `capability.hooks-import/v1#S-19` 定）时，不取有效策略、不进 `onError`，落 `skipped: errored` ＋ `output: observed` ＋ `error`（说明写三种成因之一，非零退出连同退出码）；原生件的报错与兼容件的其余报错照旧按有效策略。关闭 `capability.hooks-import` 的 G-17 | 主线补裁（2026-09-25，第二轮） | [S-13](v1/contract.md#s-13-报错处置策略的执行) 开头一句与新一条、[S-12](v1/contract.md#s-12-不可用与报错runner-怎么分) 表下「兼容件的哪些情形」一条（顺带改正「脚本路径不存在」算起不来的旧说法）、场景 [S-41](v1/contract.md#s-41-不可用报错否决三者分得开) 新一支、第十四节兼容件一行、[examples §7](v1/examples.md#7-兼容件的非阻断错误固定按-ignore记录与越档同形) | **改语义**：S-13 多了一个不取有效策略的情形（此前只有越档，而越档本就等于那一档的默认）。**不另立记录形状**：`data.loop-extension/v1#S-31`「可用却报错」那一种，`data.loop-extension` S-5 末条与 S-8 同步写明这一处例外。「原生件的同样说法不采用」「执行环境被撤下仍按有效策略」是本契约的推导，报主线。catalog 不变：本契约引 hooks-import S-19 只作定义引用（hooks-import 以坐标依赖本契约，登了成环） |
+| **参数名 `anchor`／`anchors`、`replay` 保留 `subject`**：起草时的推导，**主线已接受** | 主线裁定 [D-060 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | [S-22](v2/contract.md#s-22-replay从日志重建一次经过) 表下那一条 | 不改语义 |
+| **运行时面接进产品装配的前提是 loop／会话那一程立起真提供者**（`capability.run-attempt-facts` 的 G-3、会话持有租户的写入方、在场事实）：本程产品装配没有 loop 与会话，装配清单的在场查询、会话持有租户的读面在那里**没有调用者**；声明了 `needs` 的件「整次 `unavailable`」在产品装配里无从发生，验收装配以种子答（[D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ④） | 主线裁定（2026-09-25，与工具执行运行时 R-42 同一事实） | 本行 | 不改条款 |
+| **兼容件的非阻断错误固定按 `ignore`，记录与越档同形**：兼容件以来源产品语义下的非阻断错误收场（非零退出、超时、输出不合形状，归属由 `capability.hooks-import/v2#S-19` 定）时，不取有效策略、不进 `onError`，落 `skipped: errored` ＋ `output: observed` ＋ `error`（说明写三种成因之一，非零退出连同退出码）；原生件的报错与兼容件的其余报错照旧按有效策略。关闭 `capability.hooks-import` 的 G-17 | 主线补裁（2026-09-25，第二轮） | [S-13](v2/contract.md#s-13-报错处置策略的执行) 开头一句与新一条、[S-12](v2/contract.md#s-12-不可用与报错runner-怎么分) 表下「兼容件的哪些情形」一条（顺带改正「脚本路径不存在」算起不来的旧说法）、场景 [S-41](v2/contract.md#s-41-不可用报错否决三者分得开) 新一支、第十四节兼容件一行、[examples §7](v2/examples.md#7-兼容件的非阻断错误固定按-ignore记录与越档同形) | **改语义**：S-13 多了一个不取有效策略的情形（此前只有越档，而越档本就等于那一档的默认）。**不另立记录形状**：`data.loop-extension/v2#S-31`「可用却报错」那一种，`data.loop-extension` S-5 末条与 S-8 同步写明这一处例外。「原生件的同样说法不采用」「执行环境被撤下仍按有效策略」是本契约的推导，报主线。catalog 不变：本契约引 hooks-import S-19 只作定义引用（hooks-import 以坐标依赖本契约，登了成环） |
 
 **没有证据因此作废**——本契约此前没有任何执行证据。

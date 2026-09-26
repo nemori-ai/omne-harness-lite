@@ -1,0 +1,52 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 77 and seed -3241573919070855071 with 1 worker on 16 cores with 7122MB heap and 64MB offheap memory [pid: 1] (Linux 6.12.54-linuxkit aarch64, Oracle Corporation 25.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /model/CredentialRevision.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module CredentialRevision
+Starting... (2026-09-24 12:56:04)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-24 12:56:04.
+Error: Successor state is not completely specified by action Issue of the next-state relation. The following variable is not assigned: staleIssued.
+
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ changed = FALSE
+/\ revision = 0
+/\ loginRevision = 0
+/\ staleIssued = FALSE
+/\ phase = "idle"
+/\ snapshot = 0
+
+State 2: <CheckCredential line 8, col 20 to line 9, col 81 of module CredentialRevision>
+/\ changed = FALSE
+/\ revision = 0
+/\ loginRevision = 0
+/\ staleIssued = FALSE
+/\ phase = "verified"
+/\ snapshot = 0
+
+State 3: <ChangeCredential line 10, col 21 to line 11, col 80 of module CredentialRevision>
+/\ changed = TRUE
+/\ revision = 1
+/\ loginRevision = 0
+/\ staleIssued = FALSE
+/\ phase = "verified"
+/\ snapshot = 0
+
+State 4: <Issue line 12, col 10 to line 15, col 53 of module CredentialRevision>
+/\ changed = TRUE
+/\ revision = 1
+/\ loginRevision = 1
+/\ staleIssued = null
+/\ phase = "done"
+/\ snapshot = 0
+
+8 states generated, 7 distinct states found, 3 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 2 (minimum is 1, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-09-24 12:56:04)

@@ -1,0 +1,1 @@
+{"status":"PASS","piTui":"0.86.1 with candidate UndoStack256 patch","publicChecks":["latest 256 undo snapshots","ordinary Unicode editing/deletion/undo unchanged"],"scope":"isolated candidate delta, no product dependency or TUI adoption"}

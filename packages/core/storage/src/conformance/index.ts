@@ -1,7 +1,12 @@
 // 一致性套件：任何 Storage 提供者都必须通过。用例编号 C-n 对应节点 design.md「要求到协议，再到会红的测试」表。
 // factory 每次返回一个新实例，指向同一个底层库；套件最多同时持有三个实例。无 in-memory 夹具（D-026）。
 import { sql, type Kysely } from 'kysely'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type * as Vitest from 'vitest'
+
+type ConformanceRunner = Pick<
+  typeof Vitest,
+  'afterAll' | 'beforeAll' | 'describe' | 'expect' | 'it'
+>
 import {
   ReferenceViolation,
   StorageDefect,
@@ -29,7 +34,9 @@ class CallerError extends Error {
 export function describeStorageConformance(
   name: string,
   factory: () => Promise<StorageInstance>,
+  runner: ConformanceRunner,
 ): void {
+  const { afterAll, beforeAll, describe, expect, it } = runner
   describe(`storage conformance · ${name}`, () => {
     let s0: StorageInstance
     let s1: StorageInstance
@@ -599,3 +606,5 @@ export function describeStorageConformance(
     })
   })
 }
+
+export { describeAtomicStorageConformance } from './atomic.ts'

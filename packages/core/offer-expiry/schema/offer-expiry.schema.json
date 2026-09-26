@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
-  "title": "Offer expiry v1",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+  "title": "Offer expiry v2",
   "description": "待接受邀约的过期语义：两个时刻值与派生状态的枚举。各消费者的 Schema 引用本文件的 $defs，不复制定义。本文件只约束形状，不能约束判定时点、时间源同源、存在性读面调用（见 contract.md S-22）。",
   "$ref": "#/$defs/OfferTiming",
   "$defs": {
@@ -17,7 +17,10 @@
       "description": "issuedAt 与 expiresAt 在邀约写入的同一次提交内确定，此后不可修改（S-5）。不含标识：本契约不铸标识（S-3）。",
       "type": "object",
       "additionalProperties": false,
-      "required": ["issuedAt", "expiresAt"],
+      "required": [
+        "issuedAt",
+        "expiresAt"
+      ],
       "properties": {
         "issuedAt": {
           "$ref": "#/$defs/Instant",
@@ -40,22 +43,34 @@
       ],
       "x-counterexamples": [
         {
-          "value": {"issuedAt": "2026-09-22T09:00:00Z"},
+          "value": {
+            "issuedAt": "2026-09-22T09:00:00Z"
+          },
           "rejectedBySchema": true,
           "why": "缺 expiresAt。没有到期时刻的邀约会无限期悬着，正是 S-1 要消除的情形；缺字段是拒绝，不取默认值（S-22）。"
         },
         {
-          "value": {"issuedAt": "2026-09-22", "expiresAt": "2026-09-29"},
+          "value": {
+            "issuedAt": "2026-09-22",
+            "expiresAt": "2026-09-29"
+          },
           "rejectedBySchema": true,
           "why": "日期不是时间点。判定式 S-8 比较的是时刻，日期值使「now > expiresAt」在一天之内无法求值。由 Instant 的 pattern 拒绝，不依赖校验器是否断言 format。"
         },
         {
-          "value": {"issuedAt": "2026-09-22T09:00:00Z", "expiresAt": "2026-09-29T09:00:00Z", "state": "pending"},
+          "value": {
+            "issuedAt": "2026-09-22T09:00:00Z",
+            "expiresAt": "2026-09-29T09:00:00Z",
+            "state": "pending"
+          },
           "rejectedBySchema": true,
           "why": "多出 state 字段。pending 与 expired 都是派生结果，不是被存下来的值（S-7）；把 expired 存成字段就需要一个按时发生的写入来维持正确，而 S-18 禁止依赖它。"
         },
         {
-          "value": {"issuedAt": "2026-09-22T09:00:00Z", "expiresAt": "2026-09-22T09:00:00Z"},
+          "value": {
+            "issuedAt": "2026-09-22T09:00:00Z",
+            "expiresAt": "2026-09-22T09:00:00Z"
+          },
           "rejectedBySchema": false,
           "why": "expiresAt 不晚于 issuedAt，违反 S-4，但**本 Schema 放它过去**：跨字段比较不在形状约束内，由消费者的写入前置兑现。留在这里是为了让 S-22「Schema 校验通过不表示条款成立」有一个具体的、可执行的例子，而不是一句免责声明。"
         }
@@ -63,10 +78,20 @@
     },
     "OfferState": {
       "title": "邀约的派生状态（contract.md S-7）",
-      "description": "求值结果，不是存储字段。accepted 与 withdrawn 由各自的操作写下终结记录，pending 与 expired 按 S-8 在读的那一刻派生。",
+      "description": "读时求值；accepted、withdrawn、declined由对应操作同提交写终结，pending/expired派生。",
       "type": "string",
-      "enum": ["pending", "accepted", "withdrawn", "expired"],
-      "examples": ["pending", "expired"],
+      "enum": [
+        "pending",
+        "accepted",
+        "withdrawn",
+        "declined",
+        "expired"
+      ],
+      "examples": [
+        "pending",
+        "expired",
+        "declined"
+      ],
       "x-counterexamples": [
         {
           "value": "cancelled",
@@ -82,9 +107,23 @@
     },
     "SettledState": {
       "title": "终结记录（contract.md S-7、S-8）",
-      "description": "已写下终结记录的两个状态。求值次序：先看终结记录，已终结的不再转 expired。",
+      "description": "三个终结值。先看已终结记录，不再转expired，不允许相互覆盖。",
       "type": "string",
-      "enum": ["accepted", "withdrawn"]
+      "enum": [
+        "accepted",
+        "withdrawn",
+        "declined"
+      ],
+      "examples": [
+        "declined"
+      ],
+      "x-counterexamples": [
+        {
+          "value": "expired",
+          "rejectedBySchema": true,
+          "why": "过期是派生结果，不是终结字段。"
+        }
+      ]
     }
   }
 }

@@ -18,7 +18,7 @@
 > access across tenants is denied by default.
 
 - **形态**：对象
-- **出处**：[PF-001 §4 租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 7）
+- **出处**：[PF-001 §4 租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 19）
 - **别混**：与[组织](terms/subjects-and-ownership.md#ul-organization--组织--organization)不是一回事——组织是租户的**一半**，另一半是账号
 - **弃用**：~~「空间」~~、~~「工作区」~~
 ````
@@ -109,7 +109,7 @@
 
 | 形式 | 用在什么时候 | 长什么样 |
 |---|---|---|
-| **指向某个 topic 的某一节** | **绝大多数词条** | 链到 `PF-001 §4「租户」`，后面跟 `（rev 7）` |
+| **指向某个 topic 的某一节** | **绝大多数词条** | 链到 `PF-001 §4「租户」`，后面跟 `（rev 19）` |
 | **指向 [decisions.md](decisions.md) 的一条** | 这个概念**不归任何一个 topic**——跨全链的治理概念，被很多 topic 引用却没有哪一个拥有它 | 链到 `UL-D-1`，并注明是**谁、哪天**直接裁决的 |
 
 **没有第三种。**一条查不到出处的词条，说明它是**在这里被发明出来的**——

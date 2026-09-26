@@ -1,6 +1,6 @@
 # D-019 追加：fork 基线与托管（2026-09-25）
 
-产品负责人裁定（[D-043 R-5](../assets-runtimes-rulings-2026-09-25/README.md)）：
+产品负责人裁定（[D-063 R-5](../assets-runtimes-rulings-2026-09-25/README.md)）：
 
 - **基线**：pi 0.86.1，提交 `3390bd9`（本机存档 `tmp/sources/`，SHA256SUMS 在案）。
 - **托管**：fork 作为本 monorepo 里一个包（候选路径 `packages/model/pi-ai-transport`，名字随节点立时定），许可文件随包记，上游追踪只按需要同步。

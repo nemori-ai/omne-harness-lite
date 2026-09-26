@@ -1,8 +1,8 @@
 # slash-command 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
-契约：[`data.slash-command` v1](../../../../spec/data/slash-command/v1/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
+契约：[`data.slash-command` v2](../../../../spec/data/slash-command/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
 
 ## 实现路径与来源
@@ -17,13 +17,13 @@
 
 | 导出 | 契约坐标 |
 |---|---|
-| 类型 `SlashCommandDefinition`；`slashCommandBodyContract`（asset-model 端口的那一份） | [S-1](../../../../spec/data/slash-command/v1/contract.md#s-1-斜杠命令定义是资产的正文)～[S-11](../../../../spec/data/slash-command/v1/contract.md#s-11-属性项的推出规则) |
-| `recognize(text) → Recognition` | [S-12](../../../../spec/data/slash-command/v1/contract.md#s-12-只识别经交付面的输入)～[S-15](../../../../spec/data/slash-command/v1/contract.md#s-15-一条输入至多一条命令) |
-| `parseInvocation(invocation, commandSet) → ParseResult`（四支） | [S-16](../../../../spec/data/slash-command/v1/contract.md#s-16-名字只按会话斜杠命令集认)～[S-20](../../../../spec/data/slash-command/v1/contract.md#s-20-parseresult-四支) |
-| `expandPrompt`、`expandSkill` | [S-21](../../../../spec/data/slash-command/v1/contract.md#s-21-提示词型的展开)～[S-23](../../../../spec/data/slash-command/v1/contract.md#s-23-命令型的参数) |
-| `judgeSlashCommand(value)`、`judgeInvocation(invocation)` | [S-26](../../../../spec/data/slash-command/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/slash-command/v1/contract.md#s-29-表示层拒绝与解析失败分开都不修补) |
+| 类型 `SlashCommandDefinition`；`slashCommandBodyContract`（asset-model 端口的那一份） | [S-1](../../../../spec/data/slash-command/v2/contract.md#s-1-斜杠命令定义是资产的正文)～[S-11](../../../../spec/data/slash-command/v2/contract.md#s-11-属性项的推出规则) |
+| `recognize(text) → Recognition` | [S-12](../../../../spec/data/slash-command/v2/contract.md#s-12-只识别经交付面的输入)～[S-15](../../../../spec/data/slash-command/v2/contract.md#s-15-一条输入至多一条命令) |
+| `parseInvocation(invocation, commandSet) → ParseResult`（四支） | [S-16](../../../../spec/data/slash-command/v2/contract.md#s-16-名字只按会话斜杠命令集认)～[S-20](../../../../spec/data/slash-command/v2/contract.md#s-20-parseresult-四支) |
+| `expandPrompt`、`expandSkill` | [S-21](../../../../spec/data/slash-command/v2/contract.md#s-21-提示词型的展开)～[S-23](../../../../spec/data/slash-command/v2/contract.md#s-23-命令型的参数) |
+| `judgeSlashCommand(value)`、`judgeInvocation(invocation)` | [S-26](../../../../spec/data/slash-command/v2/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/slash-command/v2/contract.md#s-29-表示层拒绝与解析失败分开都不修补) |
 
-**函数层不承诺**：解析失败什么都不发与留痕（[S-24](../../../../spec/data/slash-command/v1/contract.md#s-24-解析失败即什么都不发)、[S-25](../../../../spec/data/slash-command/v1/contract.md#s-25-留痕)）、受理面收到时重新识别、保留名在系统内唯一——归交付面、受理面与发布流程（[装配给 vs 协议给](#装配给-vs-协议给)右列）。
+**函数层不承诺**：解析失败什么都不发与留痕（[S-24](../../../../spec/data/slash-command/v2/contract.md#s-24-解析失败即什么都不发)、[S-25](../../../../spec/data/slash-command/v2/contract.md#s-25-留痕)）、受理面收到时重新识别、保留名在系统内唯一——归交付面、受理面与发布流程（[装配给 vs 协议给](#装配给-vs-协议给)右列）。
 
 ## 契约到 Cordis 的投影
 
@@ -40,7 +40,7 @@
 
 ### 装配给 vs 协议给
 
-[第六节](../../../../spec/data/slash-command/v1/contract.md#六装配给与协议给)六行里，本节点给的是「同一份实现」：
+[第六节](../../../../spec/data/slash-command/v2/contract.md#六装配给与协议给)六行里，本节点给的是「同一份实现」：
 
 | 行 | 本节点在单机里提供的 | 不在本节点的那一半 |
 |---|---|---|
@@ -57,10 +57,10 @@
 
 | 契约责任 | 模块公开入口（候选） | 实现（候选做法） | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-1](../../../../spec/data/slash-command/v1/contract.md#s-1-斜杠命令定义是资产的正文)～[S-11](../../../../spec/data/slash-command/v1/contract.md#s-11-属性项的推出规则) 命令定义、保留区、绑定、参数声明、模板、推出规则 | 类型 `SlashCommandDefinition`；`slashCommandBodyContract`（命令名收窄与保留区经它判） | 保留区判定要看绑定种类，所以名字随正文一起判（`data.asset-model/v1#S-27` 第三种情形）；「空白」用 identity-values 导出的码点集合（SLC-1） | V-1、V-3；SC-6 |
-| [S-12](../../../../spec/data/slash-command/v1/contract.md#s-12-只识别经交付面的输入)～[S-23](../../../../spec/data/slash-command/v1/contract.md#s-23-命令型的参数) 识别与解析、展开 | `recognize(text) → Recognition`；`parseInvocation(invocation, commandSet) → ParseResult`（四支）；`expandPrompt`、`expandSkill` | 全程按**码点**迭代（`for…of` 与 `codePointAt`），位置是码点下标；落单代理项的输入先拒；切分照 S-17 六条手写；整数先按正则取文字、再用 `BigInt` 比界，不经浮点；**解析只读 `commandSet`**，失败的 `explanation` 不提权限、别层、别会话 | V-2（examples 第 4 节五十行，**每一个实现**都跑）；SC-3、SC-4 的类型面：失败支没有可发送的内容 |
-| [S-24](../../../../spec/data/slash-command/v1/contract.md#s-24-解析失败即什么都不发)、[S-25](../../../../spec/data/slash-command/v1/contract.md#s-25-留痕) 什么都不发、留痕 | 无（本模块只给 `failed` 支与展开物；来路标记的形状归 `data.content-blocks`） | — | 交付面与受理面 |
-| [S-26](../../../../spec/data/slash-command/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/slash-command/v1/contract.md#s-29-表示层拒绝与解析失败分开都不修补) 六个拒绝值、不修补 | `judgeSlashCommand(value)`、`judgeInvocation(invocation)` | 表示层拒绝与解析失败**两种返回类型不相容** | V-3 |
+| [S-1](../../../../spec/data/slash-command/v2/contract.md#s-1-斜杠命令定义是资产的正文)～[S-11](../../../../spec/data/slash-command/v2/contract.md#s-11-属性项的推出规则) 命令定义、保留区、绑定、参数声明、模板、推出规则 | 类型 `SlashCommandDefinition`；`slashCommandBodyContract`（命令名收窄与保留区经它判） | 保留区判定要看绑定种类，所以名字随正文一起判（`data.asset-model/v2#S-27` 第三种情形）；「空白」用 identity-values 导出的码点集合（SLC-1） | V-1、V-3；SC-6 |
+| [S-12](../../../../spec/data/slash-command/v2/contract.md#s-12-只识别经交付面的输入)～[S-23](../../../../spec/data/slash-command/v2/contract.md#s-23-命令型的参数) 识别与解析、展开 | `recognize(text) → Recognition`；`parseInvocation(invocation, commandSet) → ParseResult`（四支）；`expandPrompt`、`expandSkill` | 全程按**码点**迭代（`for…of` 与 `codePointAt`），位置是码点下标；落单代理项的输入先拒；切分照 S-17 六条手写；整数先按正则取文字、再用 `BigInt` 比界，不经浮点；**解析只读 `commandSet`**，失败的 `explanation` 不提权限、别层、别会话 | V-2（examples 第 4 节五十行，**每一个实现**都跑）；SC-3、SC-4 的类型面：失败支没有可发送的内容 |
+| [S-24](../../../../spec/data/slash-command/v2/contract.md#s-24-解析失败即什么都不发)、[S-25](../../../../spec/data/slash-command/v2/contract.md#s-25-留痕) 什么都不发、留痕 | 无（本模块只给 `failed` 支与展开物；来路标记的形状归 `data.content-blocks`） | — | 交付面与受理面 |
+| [S-26](../../../../spec/data/slash-command/v2/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/slash-command/v2/contract.md#s-29-表示层拒绝与解析失败分开都不修补) 六个拒绝值、不修补 | `judgeSlashCommand(value)`、`judgeInvocation(invocation)` | 表示层拒绝与解析失败**两种返回类型不相容** | V-3 |
 
 ### 按码点计位置，手写切分
 
@@ -75,10 +75,10 @@
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| `data.asset-model` v1、`data.content-blocks` v1、`data.identity-values` v1、`data.skill-package` v1 | [asset-model](../asset-model/README.md)、[content-blocks](../content-blocks/README.md)、已实现的 identity-values、[skill-package](../skill-package/README.md) | 随包版本 | 静态 import |
+| `data.asset-model` v2、`data.content-blocks` v2、`data.identity-values` v1、`data.skill-package` v2 | [asset-model](../asset-model/README.md)、[content-blocks](../content-blocks/README.md)、已实现的 identity-values、[skill-package](../skill-package/README.md) | 随包版本 | 静态 import |
 | 被消费 | 交付面、受理面、注册表、求值、资产治理 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 
@@ -104,5 +104,5 @@
 
 契约的已知缺口（第十节，G-7～G-9 未决）不重抄。本节点自己的：
 
-- **SLC-1 空白码点集合的导出**：S-13 的 `W` 与 `data.asset-model/v1#S-2` 是同一个集合，identity-values 包未导出——D-040 §八 M44 登记为**实现期事项**（identity-values 补一个导出），见 [asset-model AM-1](../asset-model/design.md#实施缺口与消费者影响)。owner：identity-values 节点落包时。
+- **SLC-1 空白码点集合的导出**：S-13 的 `W` 与 `data.asset-model/v2#S-2` 是同一个集合，identity-values 包未导出——D-060 §八 M44 登记为**实现期事项**（identity-values 补一个导出），见 [asset-model AM-1](../asset-model/design.md#实施缺口与消费者影响)。owner：identity-values 节点落包时。
 - **SLC-2 端口的组合根**：见 [asset-model AM-5](../asset-model/design.md#实施缺口与消费者影响)。

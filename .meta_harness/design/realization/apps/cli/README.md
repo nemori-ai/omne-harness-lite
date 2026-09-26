@@ -1,67 +1,30 @@
-# cli 应用节点
+# cli应用节点
 
-**2026-09-26 裁决对账**：[D-044 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+**2026-09-26 裁决对账**：[D-064 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
 
 
 - kind：assembly
-- 对象与设计修订：CLI 交付面的应用装配；**设计已接受、尚未实现**，2026-09-22 随该交付面的产品正文建立；2026-09-25 按资产／工具运行时／模型请求运行时一程修订——据点装配加入 `model`、`tools`、`agent-loop` 三个领域的提供者与 `core` 的两个纯模块（[D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)：两块运行时是本应用里的东西，不另立应用；「可独立运行」是验收要求，不是装配边界）；同日按修复波 3（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M31～M46）与已起草的 provider 节点对齐。尚无实现修订
-- 源码位置：`apps/cli`（尚未建包）
-- 公开面：**本节点是装配，没有公开函数面**；它组合各 provider 的服务面，SYS-LLM（经 OpenRouter）由它给传输的构建内常量兑现（[design 的公开面](design.md#公开面)）
-- 交付面：[PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 6）。它的斜杠命令交付面规则（只认开头一条、会话没有的命令名当场明说不发送、带声明的命令按声明解析不通过即不发送、`/` 开头的普通文本可字面发出、保留名一律在 `omne-official` 前缀下）现由 [`data.slash-command/v1`](../../../spec/data/slash-command/v1/contract.md)（**accepted**）S-12～S-24 接住，由 `packages/core/slash-command` 兑现，交付面预判与受理面再判各 import 一次；解析起点是 [D-036](../../../record/decisions/slash-command-parsing-baseline/README.md) 的自研统一解析器
-- 契约采用与边界依据：它消费的五份租户契约里，四份 v1 已由
-  [D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受（[身份清单](../../../registry/README.md)里 `accepted`），账号能力按入口契约钉的 `capability.account-identity/v2`（`accepted`，D-028；v1 仍有效）；
-  它们到据点这一侧的线上投影是 `composition.governance-center-entry/v1`（[契约](../../../spec/compositions/governance-center-entry/v1/contract.md)，**`accepted`，D-028**），
-  对端是 [`apps/tenancy-host`](../tenancy-host/README.md)，入口层由 [`packages/tenancy/governance-center-entry`](../../packages/tenancy/governance-center-entry/README.md) 兑现；
-  **本节点没有采用任何一份——据点一侧的客户端代理提供者尚不存在**。客户端与据点进程之间那份契约**尚未起草**。边上的保证一律指向
-  [边表与交互面表](architecture.md#拓扑与进程模型)里的坐标或「待立」，
-  命令与界面元素的产品含义一律指回
-  [PF-016 §5.7](../../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)，
-  技术栈的采用一律指向[提案](../../../record/proposals/cli-tui/alternatives.md)或[决定](../../../record/decisions/README.md)。
-  **本节点里出现第二份能力语义就是错。**
-  **据点一侧本程新装的**：十份能力契约 `capability.{tool-execution-runtime, asset-registry, mcp-bridge, tool-admission, loop-extension-runner, hooks-import, model-profile-directory, model-request-runtime, modality-projection, stream-assembly}/v1` 与工具侧六份数据契约，**全部 `accepted`**（接受由 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）；
-  提供者节点（已起草、过五批独立评审 N1～N5、accepted；包都尚未建）是 `packages/core/{tool-definition, loop-extension, skill-package, slash-command, mcp-endpoint, connector}`（一契约一包，D-040 §八 M41）、`packages/core/stream-assembly`、`packages/model/model-profile-directory`（本装配只装据点读提供者 P-1r）、`packages/model/model-request-runtime`、`packages/model/modality-projection`、
-  `packages/tools/tool-execution-runtime`、`packages/tools/asset-registry`、`packages/tools/mcp-bridge`、`packages/agent-loop/loop-extension-runner`、`packages/agent-loop/hooks-import`；插件边界与服务键以各 provider 节点为准（它们照三份被 D-039 接受的拆分提案起草），**本节点不重新设计**。
-  **七份窄口接口契约**（`capability.{session-log, assembly-manifest, session-tenancy, run-attempt-facts, credential-custodian, execution-environments, center-connection}/v1`，全部 accepted，[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）接住了原先「承接者尚不存在」的七个服务键——**接口已定、真承接者未到**；它们的最小提供者（节点已立，accepted、尚未建包：`session-log-jsonl`、`assembly-manifest-store`、`session-tenancy-table`、`run-attempt-facts-derived`、`credential-custodian-local`、`execution-environments-host`、`center-connection-probe`）本版**只进验收装配**（[关键选择 5](design.md#关键选择)），`dependencyPresence` 不再是独立键、是 `assemblyManifest` 的一个查询。
-  放行判断（`capability.tool-admission/v1`）本程**没有提供者**。中心一侧的资产治理与模型档案目录由 [`apps/tenancy-host`](../tenancy-host/README.md) 装配，**据点的依赖图里不得出现 `packages/assets/asset-governance`**。
+- 交付面：[PF016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 8），本期治理CLI/TUI。
+- 源码位置：`apps/cli`，D049文件输入增量已实现。
+- 语义接受：CQ1 S1～10已由[D049](../../../record/decisions/governance-cli-file-entry-adoption/README.md)接受；消费CG2/CLS1及冻结CG1报告表示。
+- 可实施：D049受保护文件CLI与D051限定profile的治理TUI；两者共用CG2/CLS1，秘密仍从保护文件读取，精确边界归[governance.md](governance.md)与[tui.md](tui.md)。
+- 绑定与验证：68项应用测试、两平台真实CLI子进程/PTY/管道验证通过；[verification](verification.md)及[bindings](bindings.yaml)按实际增量更新。详见[本次运行](../../../record/evidence/2026-09-25-tests-cli-file-entry/README.md)。提供者139测试独立保留，不当CLI测试。
+- 分发：D050已采用[可搬运归档](packaging.md)，真实归档与纯BUILD_ID版本显示已实现；89项应用/打包测试通过，独立中心进程治理旅程已在macOS/Linux arm64/amd64通过。见[制品及独立中心运行](../../../record/evidence/2026-09-25-tests-cli-portable-host/README.md)。
+- 终端范围沿 D054：已验证限定 xterm/iTerm profile 与输入法场景，仍有明确有限项；不泛化为任意终端安全。中心服务管理、每日备份工具与只隔离恢复见[维护验证](../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)。实际员工安装与整机损毁灾备仍待环境验收；没有交互密码输入。
 
-**这个节点现在能回答两个问题**：「这个应用选了什么形状」——进程、边、交互面入口、包分层、技术栈采用与分发；
-「据点装配要承接哪些『装配给』、承接不了的缺在哪」——[装载清单](design.md#据点装载清单与顺序)、[装配给逐行承接](design.md#装配给逐行承接)、[归装配的事项](design.md#归装配的事项逐条承接)与[缺口](design.md#实施缺口与消费者影响)。
-别的三层（可实施、绑定、实际验证）的状态逐条写在下面。
+旧完整Agent形态的三进程/据点、斜杠命令与前端层次见[architecture.md](architecture.md)，均为后续候选；本期治理不要求先建据点或Agent工作会话。PF016 rev7是当前产品范围，产品不替代CQ1与D049接受依据。
 
-## 分层状态
+2026-09-25接续：[D051](../../../record/decisions/governance-tui-entry-adoption/README.md)接受CQ2与[tui.md](tui.md)限定提供路径，允许进入TUI实现；不覆盖上方CLI既有证据，TUI实际验证与Mac支持仍待交付。
 
-四项分别陈述，**不互相补齐**。
+D051实现接续：[本次主线运行](../../../record/evidence/2026-09-25-tests-tui-increment/README.md)记录TUI源码、115项CLI/TUI/打包测试、真实中心旅程/PTY、XTerm正常退出与仓库外制品。状态为已实现的验证中增量；当时独立QA及源码review被宿主令牌错误阻止；认证恢复后的新结论见下。
 
-- **语义接受范围：设计已接受。**交付面沿用 PF-016；本批契约由 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受并冻结，当前据点装配与交付架构由 [D-042](../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受，仍有效的 D-040 裁定已追认。客户端与据点的线上契约、入口组合 v2 仍是显式缺口。
-- **可实施范围：声称兑现的条款 0 条；设计上承接的「装配给」行列在下面，产品据点清单今天装不起来。**`apps/cli`、`packages/frontend/*` 与本程据点的十个 provider 包**都尚未建包**。
-  本节点在设计上承接的装配给行（逐行见 [design.md](design.md#装配给逐行承接)）：TER S-46 第 1、2、3、8、10、11 行；MRR S-38 第 4、9 行；MPD S-22 第 1、4、5、6 行；MP S-26 第 1～4 行；SA S-29 第 2、3 行；REG S-31 第 7、8 行；BR S-30 第 2、6、8 行；RUN S-32 第 2、9、11、12 行；HI S-26 第 2、3 行（其中 RUN 第 12 行、HI 第 2 行只承接一半）——**承接不等于条款已兑现**，它们要等提供者与本应用的源码存在。
-  **受阻**：会话日志、装配清单、凭据保管方、到中心的连接（观察面）、执行环境、会话持有租户读面、尝试与运行的事实读面七处**接口已定、真承接者未到**（C-1、C-2、C-5、C-4、C-7、C-13、C-16；最小提供者节点已立、尚未建包、本版只进验收装配）；据点上的中心事实副本（C-3）、向中心发请求的入口 v2 客户端（C-4）、agent loop（C-8）**没有契约**（D-040 §八 M43、M48、M74：本程不补、留给下一程，owner 主线）——产品清单里派发器、注册表、P-1r、P-2 会停在 `PENDING`；装配清单的读链与求值结果读法未约定（AM G-4，报主线）；兼容件子进程本版 fail-closed（EE G-3，账本 ⑭）；放行判断本程无提供者，产品据点里每一批动作都被全拒（已知后果）。修复波 3 新加给 agent loop 的两样——同一份带 `attempt` 的可用性报告交给派发器与执行宿主、给 `dispatch` 的叫停——在本节点登记为「归装配／待 loop 契约」（[A-19、A-20](design.md#归装配的事项逐条承接)）；执行环境句柄的两样来路（A-21）按 M48 归会话持有租户读面（C-13，PF-015）与执行环境（C-7，PF-005）。离线调模型：凭据取值先读据点本地副本（M47，CC S-13），保管方的最小提供者（副本与 OAuth 条目密文落在绑定所在的同一 `storage`、本机只放密钥，N-37 ⑤）装上之前如实 `undispatched{credential_unavailable}`。G-19 按 D-043 R-4 闭合（`A` = 范围里登记的全部档案），模型路径的验证部分解阻。执行宿主的判定时限 `judgeTimeoutMs` 由本装配的配置给初值 500 ms（A-16）；默认重试件的退避改为策略对象、缺席取配置层默认初值（A-23，N-36）。2026-09-25 修订波处置见 [verification](verification.md#修订波2026-09-25-公开面)。
-  客户端与据点进程之间的契约尚未起草；据点一侧的治理客户端代理按 `composition.governance-center-entry/v1` 与它的传输绑定实现，**本节点不设计它**；客户端信任中心证书的规则已定在 [design.md](design.md#客户端信任中心的规则d-029)。
-  owner：架构与规格设计与各缺口的 owner，闭合条件逐条在缺口表。
-- **绑定与证据：`bindings.yaml` 的 `bindings` 是空表。**交付面 PF 已接受，
-  [按准入可以登记绑定](../../README.md#应用节点比提供者节点多什么)，**但本节点没有任何已存在、会失败的证据可指**——提供者、本应用与测试都不存在；
-  运行 [`2026-09-25-formal-assets-runtimes`](../../../record/evidence/2026-09-25-formal-assets-runtimes/README.md) 的八个 formal task 核的是契约模型，**模型把本节点给的那几样（追加口原子、同一存储、同一时钟）建成原子动作吸收掉了**，不在装配给被违反时失败，所以不绑。
-  已识别的证据义务 **33 条**全部登记在 [verification.md](verification.md)，状态一律「未开始」。
-  待复核的绑定数为 0——**因为一条都还没有**，不是因为都核过了。
-- **实际验证：没有任何运行。**没有跑过属于本节点的测试、形式任务或真实集成，
-  [verification.md 的实际执行表是空的](verification.md#实际执行)；
-  [提案登记的五个区分实验](../../../record/proposals/cli-tui/alternatives.md#进入实施前的最小区分实验)
-  **一个都没有跑过**，所以技术栈采用表里 `accepted` 的每一行都还是纸面结论。
+D051-r3当前验证：[修复、独立QA与跨系统运行](../../../record/evidence/2026-09-25-tests-tui-cross-os/README.md)封存126项源码测试、53个独立观察、两方向Mac/Linux网络治理旅程及实际UTF8 XTerm粘贴/缩放/退出。34表单为原Preview输入覆盖，不是全部业务成功；Mac GUI/IME与第二模拟器仍未完成，独立完整交付判为Unable to verify。
 
-## 按当前问题展开
+2026-09-25接续：[D054](../../../record/decisions/governance-iterm-provider-adoption/README.md)采用[iTerm R2](iterm.md)。ModeReplies与失败排空已实施，133项CLI测试/类型/结构规则通过；真实产品GUI输入/resize/退出恢复与超时PTY探针通过，完整制品独立验收仍待运行。原D053固定制品QA不受新dist影响；新制品与证据另封存，不覆盖旧运行。
 
-| 当前问题                                                 | 阅读入口                                                                      |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 这个应用是什么形状：进程、边、交互面、分层、技术栈、分发 | [应用形状](architecture.md)                                                   |
-| 选了哪些提供者、依赖什么、资源谁拥有、装卸怎么配对       | [实现设计](design.md)                                                         |
-| 据点装什么、按什么顺序、契约「装配给」的每一行由谁给     | [装载清单](design.md#据点装载清单与顺序)、[装配给逐行承接](design.md#装配给逐行承接) |
-| 「可独立运行」怎样验收                                   | [验收装配](design.md#验收装配)                                                |
-| 哪条承诺由哪份证据支持、前提是什么                       | [绑定表](bindings.yaml)                                                       |
-| 实际跑过什么、覆盖到哪里                                 | [验证与证据](verification.md)                                                 |
-| 独立评审提了什么、怎样处置、落在哪                       | [独立评审](verification.md#独立评审)                                          |
-| 这些技术选择为什么是它、还有哪些候选                     | [提案](../../../record/proposals/cli-tui/README.md)——**推荐不是接受**         |
-| 这个交付面在产品上承诺什么                               | [PF-016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 6） |
 
-状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
-契约语义变化回 [spec](../../../spec/README.md)，采用选择回
-[record/decisions](../../../record/decisions/README.md)。
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

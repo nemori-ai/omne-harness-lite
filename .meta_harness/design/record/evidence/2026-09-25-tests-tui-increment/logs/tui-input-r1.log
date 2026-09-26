@@ -1,0 +1,54 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/cli
+
+ ❯ tests/tui-input.spec.ts (7 tests | 1 failed) 38ms
+     × decodes every UTF8 split before key parsing, including a lone high byte chunk 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tui-input.spec.ts > CQ2 bounded input > decodes every UTF8 split before key parsing, including a lone high byte chunk
+AssertionError: expected [ { kind: 'key', text: '中' }, …(3) ] to deeply equal [ { kind: 'key', text: '中' }, …(2) ]
+
+- Expected
++ Received
+
+@@ -3,11 +3,15 @@
+      "kind": "key",
+      "text": "中",
+    },
+    {
+      "kind": "key",
+-     "text": "🙂",
++     "text": "�",
++   },
++   {
++     "kind": "key",
++     "text": "�",
+    },
+    {
+      "kind": "key",
+      "text": "é",
+    },
+
+ ❯ tests/tui-input.spec.ts:10:20
+      8|     const events: TerminalInput[] = [], f = new InputFramer(e => event…
+      9|     for (const byte of Buffer.from('中🙂é')) f.feed(Uint8Array.of(byte))
+     10|     expect(events).toEqual(['中', '🙂', 'é'].map(text => ({ kind: 'key'…
+       |                    ^
+     11|     f.dispose()
+     12|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+Type Errors  no errors
+   Start at  07:00:25
+   Duration  293ms (transform 25ms, setup 0ms, import 194ms, tests 38ms, environment 0ms)
+
+undefined
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/cli:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/tui-input.spec.ts

@@ -94,7 +94,7 @@ Agent Definition 对 agent runtime、会话历史对 agent runtime。三次形�
 
 ## 状态
 
-- 产品设计：**rev 6，已正式接受**（产品负责人，2026-09-26，[D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 6，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题，见 [decisions.md 第四节](decisions.md#四已知的来源问题)：两处**用词上的偏离**

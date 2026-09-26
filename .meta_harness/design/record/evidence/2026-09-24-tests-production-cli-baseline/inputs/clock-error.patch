@@ -1,0 +1,155 @@
+diff --git a/apps/tenancy-host/src/boot.ts b/apps/tenancy-host/src/boot.ts
+index d639425e..2b5002da 100644
+--- a/apps/tenancy-host/src/boot.ts
++++ b/apps/tenancy-host/src/boot.ts
+@@ -9,6 +9,7 @@
+ import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
+ import { clockPreflight } from '@omne-harness-lite/clock'
+ import {
++  GovernanceCenterClockTimeoutError,
+   SERVING_EVENT,
+   type ServingNotice,
+   governanceCenterPreflight,
+@@ -129,15 +130,6 @@ export function assertTimeoutBudget(budget: {
+     )
+ }
+ 
+-/** 入口层插件体等钟超界时抛出的那条错误（入口层包的说明写「cause: clock」；它没有导出具名错误类）。 */
+-function isClockWaitTimeout(name: HostPluginName, error: unknown): boolean {
+-  return (
+-    name === 'governance-center-entry' &&
+-    error instanceof Error &&
+-    error.message.includes('(cause: clock)')
+-  )
+-}
+-
+ /** 一条 fiber 启动失败 ⇒ 具名阶段。存储插件的具名阶段原样沿用；存储别的失败统一是「存储打不开」。 */
+ function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure {
+   const thrown = describeThrown(error)
+@@ -165,7 +157,7 @@ function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure
+       { item: name, cause: error },
+     )
+   }
+-  if (isClockWaitTimeout(name, error))
++  if (name === 'governance-center-entry' && error instanceof GovernanceCenterClockTimeoutError)
+     return new HostStartupFailure(
+       'clock-unreadable',
+       'the center clock could not be read within the startup bound (OMNE_TENANCY_CLOCK_READY_TIMEOUT)',
+diff --git a/apps/tenancy-host/tests/lifecycle.spec.ts b/apps/tenancy-host/tests/lifecycle.spec.ts
+index a0afa734..fdfe2e1d 100644
+--- a/apps/tenancy-host/tests/lifecycle.spec.ts
++++ b/apps/tenancy-host/tests/lifecycle.spec.ts
+@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
+ import type { AccountsService, LoginsService } from '@omne-harness-lite/account-identity'
+ import { LEASE_WIDTH_MS, clockPlugin } from '@omne-harness-lite/clock'
+ import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
++import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry'
+ import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+ import { storageSqlPlugin } from '@omne-harness-lite/storage-sql'
+ import {
+@@ -119,6 +120,39 @@ describe('assembly.manifest-shape', () => {
+   })
+ })
+ 
++describe('assembly.clock-failure-classification：N-18 按错误类型点名', () => {
++  it.each(['typed-with-changed-message', 'plain-with-old-message'] as const)(
++    '%s：说明文字不决定启动失败阶段',
++    async variant => {
++      const d = await deployment(variant)
++      const cause =
++        variant === 'typed-with-changed-message'
++          ? new GovernanceCenterClockTimeoutError()
++          : new Error('unrelated plugin failure (cause: clock)')
++      if (variant === 'typed-with-changed-message') cause.message = 'diagnostic wording changed'
++      const refused = await hosts.refuse(d, {
++        manifest: entries =>
++          entries.map(entry =>
++            entry.name === 'governance-center-entry'
++              ? {
++                  ...entry,
++                  plugin: () => {
++                    throw cause
++                  },
++                }
++              : entry,
++          ),
++      })
++      expect(refused.failure).toMatchObject({
++        stage: variant === 'typed-with-changed-message' ? 'clock-unreadable' : 'plugin',
++        item: 'governance-center-entry',
++        cause,
++      })
++      expect(allDisposed(refused.fibers)).toBe(true)
++    },
++  )
++})
++
+ describe('assembly.pending-is-manifest-error：PENDING 是清单错误，同步判定、不等待', () => {
+   const reorder =
+     (change: (entries: ManifestEntry[]) => ManifestEntry[]) =>
+diff --git a/packages/tenancy/governance-center-entry/src/index.ts b/packages/tenancy/governance-center-entry/src/index.ts
+index a9fbf759..47efd29f 100644
+--- a/packages/tenancy/governance-center-entry/src/index.ts
++++ b/packages/tenancy/governance-center-entry/src/index.ts
+@@ -4,6 +4,7 @@
+ // src/json.ts（严格 JSON 解析器）、src/routing/**（路由表与判定次序）、src/center-id/**（中心标识）。
+ // 消费者：apps/tenancy-host（装两个插件、合迁移片段、把核对放进 upgrade.checks、构造 openSignal、等 serving）。
+ export {
++  GovernanceCenterClockTimeoutError,
+   governanceCenterEntryPlugin,
+   GovernanceCenterEntryConfigSchema,
+   type GovernanceCenterEntryConfig,
+diff --git a/packages/tenancy/governance-center-entry/src/plugin.ts b/packages/tenancy/governance-center-entry/src/plugin.ts
+index 36853c08..381bce1a 100644
+--- a/packages/tenancy/governance-center-entry/src/plugin.ts
++++ b/packages/tenancy/governance-center-entry/src/plugin.ts
+@@ -17,6 +17,15 @@ import { type RequestRecord, thrownValue } from './routing/record.ts'
+ import type { EntryServices } from './routing/routes.ts'
+ import { ClientFace } from './transport/client-face.ts'
+ 
++/** 入口层加载时等待中心时钟超界；装配按类型归类，不依赖说明文字。 */
++export class GovernanceCenterClockTimeoutError extends Error {
++  override readonly name = 'GovernanceCenterClockTimeoutError'
++
++  constructor() {
++    super('governance-center-entry: the center clock could not be read within clockReadyTimeoutMs')
++  }
++}
++
+ export interface GovernanceCenterEntryConfig {
+   /** 监听地址与端口（部署配置；端口 0 由系统分配，只给测试用）。 */
+   readonly listen: { readonly host: string; readonly port: number }
+@@ -323,11 +332,7 @@ export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryCon
+     // 启动成功以钟可读为条件（S-34）：超界 ⇒ 启动失败，说明点名是钟
+     const ready = await waitForClock(ctx, clock, config.clockReadyTimeoutMs)
+     if (ready === 'disposed') return
+-    if (ready === 'timeout') {
+-      throw new Error(
+-        'governance-center-entry: the center clock could not be read within clockReadyTimeoutMs (cause: clock)',
+-      )
+-    }
++    if (ready === 'timeout') throw new GovernanceCenterClockTimeoutError()
+ 
+     publicHealth = publicHealthBytes(identity.centerId, config.version)
+     const current = new EntryRuntime(ctx, logger, face, clock, identity.centerId, config)
+diff --git a/packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts b/packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts
+index 005c7b3f..1a4b34a1 100644
+--- a/packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts
++++ b/packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts
+@@ -11,6 +11,7 @@ import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
+ import { openStorage } from '@omne-harness-lite/storage-sql'
+ import {
+   GOVERNANCE_CENTER_TABLE,
++  GovernanceCenterClockTimeoutError,
+   GovernanceCenterIdentityError,
+   TlsMaterialError,
+   governanceCenterEntryPlugin,
+@@ -178,7 +179,7 @@ describe('T-12 插件体抛出 ⇒ 启动失败且监听已关', () => {
+     clock.unavailable = true
+     const c = await boot({ skipCenterPlugins: true, clock, clockReadyTimeoutMs: 200 })
+     const { error, state } = await failedLoad(c, governanceCenterEntryPlugin, c.entryConfig)
+-    expect(String(error instanceof Error ? error.message : '')).toMatch(/cause: clock/)
++    expect(error).toBeInstanceOf(GovernanceCenterClockTimeoutError)
+     expect(state).toBe(FIBER_STATE.FAILED)
+     expect(await portIsFree(c.port)).toBe(true)
+   })

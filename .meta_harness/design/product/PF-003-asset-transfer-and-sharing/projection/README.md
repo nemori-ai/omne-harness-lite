@@ -1,10 +1,9 @@
-# PF-003-asset-transfer-and-sharing：设计投影
+# PF-003-asset-transfer-and-sharing 的技术投影
 
-需求与契约正文仍是权威，投影是精确来源的派生阅读入口。
+| 版本 | 范围与来源 |
+| --- | --- |
+| [v3](v3/projection.md) · [来源](v3/provenance.json) | 原 post-review 设计的行政坐标迁移；当前来源摘要重新固定，依据 [D-066](../../../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md) |
+| [原 v2](https://github.com/nemori-ai/omne-harness-lite/blob/bb3d8bc449563be4b58e9bcde1619c01c8ff5e58/.meta_harness/design/product/PF-003-asset-transfer-and-sharing/projection/v3/projection.md) | 原正式接受快照；字节及完整上下文另保存在 D-066 的 main 输入归档 |
+| [原 v1](https://github.com/nemori-ai/omne-harness-lite/blob/bb3d8bc449563be4b58e9bcde1619c01c8ff5e58/.meta_harness/design/product/PF-003-asset-transfer-and-sharing/projection/v3/projection.md) | 原 pre-review 快照；不作为当前消费者坐标 |
 
-| 版本 | 状态 | 需求修订 | 发布日期 | 来源与接受 |
-|---|---|---|---|---|
-| [v2](v2/projection.md) | **当前，accepted／post-review**；尚未表示实现 | rev 5 | 2026-09-26 | D-045（G6），契约由 D-041 接受并冻结，节点由 D-042 接受；逐文件 hash 在 [provenance](v2/provenance.json) |
-| [v1](v1/projection.md) | 历史、已由 v2 取代；保留当时未接受／未冻结的来源状态 | 原快照修订 | 2026-09-25 | 历史正文与 provenance 不原地改写，不作为当前实施入口 |
-
-当前版本为 **v2**。只在节点声明的可实施范围内使用；显式缺口不填默认值。规格以 registry 的冻结 hash 核对，产品／节点 hash 仅表示本版快照；实施之前逐项检查，来源变化出新版投影。
+投影不是产品正文或契约的第二份权威；采用、实现与验证分别看唯一登记及节点状态。

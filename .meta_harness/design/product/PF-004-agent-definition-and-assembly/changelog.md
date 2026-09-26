@@ -440,4 +440,4 @@ Slash Command、执行环境**各有一份**，它们的装配合起来才构成
 
 ## 2026-09-26 — rev 12 正式接受（状态事件）
 
-产品负责人通过 [D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。
+产品负责人通过 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。

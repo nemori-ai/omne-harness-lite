@@ -1,0 +1,231 @@
+
+[1] 公开体检（未登录即可读，EC S-18）
+  → public-health
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 59
+    
+    {"operation":"composition.governance-center-entry/v1#S-18"}
+  ← public health {"reachable":true,"centerId":"f54d61961f396547c3de8dbc8ca6d9d0","version":"0.0.0"}
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 82
+    Connection: close
+    
+    {"reachable":true,"centerId":"f54d61961f396547c3de8dbc8ca6d9d0","version":"0.0.0"}
+
+
+[2] 注册 walk-46653d-inviter@example.invalid（PF-001 flows §1.1）
+  → register
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 185
+    
+    {"protocolVersion":"1","operation":"composition.account-registration/v1#S-8","payload":{"loginIdentifier":"walk-46653d-inviter@example.invalid","credential":"***"}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 23
+    Connection: close
+    
+    {"result":"registered"}
+
+  → login
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 181
+    
+    {"protocolVersion":"1","operation":"capability.account-identity/v2#S-15","payload":{"loginIdentifier":"walk-46653d-inviter@example.invalid","credential":"***"}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 157
+    Connection: close
+    
+    {"result":{"loginState":"***","loginStateHandle":"0f349379d8d4fc6730154178fee75189ac369ab9690ee7c45ff59262256e7ffb"}}
+
+
+[3] 注册并登录 walk-46653d-invitee@example.invalid（§1.1、§1.2）
+  → register
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 185
+    
+    {"protocolVersion":"1","operation":"composition.account-registration/v1#S-8","payload":{"loginIdentifier":"walk-46653d-invitee@example.invalid","credential":"***"}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 23
+    Connection: close
+    
+    {"result":"registered"}
+
+  → login
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 181
+    
+    {"protocolVersion":"1","operation":"capability.account-identity/v2#S-15","payload":{"loginIdentifier":"walk-46653d-invitee@example.invalid","credential":"***"}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 157
+    Connection: close
+    
+    {"result":{"loginState":"***","loginStateHandle":"7968bc676dbbd05ec381d48dd13cbab02fdd55b47bbdc7260652cf215bf41903"}}
+
+
+[4] 邀请者的当前租户身份：个人组织（§1.2）
+  → currentTenant
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 161
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-36","payload":{}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 95
+    Connection: close
+    
+    {"result":{"organization":"hibkm4sged4jez4mkmc56yvptq","account":"ge6ytvgcltwztspxr2kuuxzsza"}}
+
+
+[5] 建团队组织（§1.4）
+  → createOrganization
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 161
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-21","payload":{}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 39
+    Connection: close
+    
+    {"result":"ewly67t7iyvsfqiybgw3extypi"}
+
+
+[6] 切换当前组织到新建的团队组织（§1.8）
+  → switchTenant
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 260
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-37","payload":{"targetTenant":{"organization":"ewly67t7iyvsfqiybgw3extypi","account":"ge6ytvgcltwztspxr2kuuxzsza"}}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 15
+    Connection: close
+    
+    {"result":"ok"}
+
+
+[7] 被邀请者的当前租户身份（他的账号标识从这里读出）
+  → currentTenant
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 161
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-36","payload":{}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 95
+    Connection: close
+    
+    {"result":{"organization":"ywc23x53ryfjaurrbjdvhvoij4","account":"5a6bz4o5l6ftka34t7ilz6t3em"}}
+
+
+[8] 发出邀请（§1.5 第 1 步）
+  → invite
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 206
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-23","payload":{"invitedAccount":"5a6bz4o5l6ftka34t7ilz6t3em"}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 39
+    Connection: close
+    
+    {"result":"4vsi2subue7vixn7ve6tibvslm"}
+
+
+[9] 被邀请者看到这份邀请
+  → listReceivedInvitations
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 161
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-57","payload":{}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 284
+    Connection: close
+    
+    {"result":[{"invitation":"4vsi2subue7vixn7ve6tibvslm","issuerOrganization":"ewly67t7iyvsfqiybgw3extypi","invitedAccount":"5a6bz4o5l6ftka34t7ilz6t3em","role":"member","offerTiming":{"issuedAt":"2026-09-24T07:29:56.022Z","expiresAt":"2026-10-08T07:29:56.022Z"},"offerState":"pending"}]}
+
+
+[10] 接受邀请（§1.5 第 2 步）：成员关系建立，租户产生
+  → acceptInvitation
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 202
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-25","payload":{"invitation":"4vsi2subue7vixn7ve6tibvslm"}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 95
+    Connection: close
+    
+    {"result":{"organization":"ewly67t7iyvsfqiybgw3extypi","account":"5a6bz4o5l6ftka34t7ilz6t3em"}}
+
+
+[11] 读成员名单
+  → listMembers
+    POST / HTTP/1.1
+    Host: 127.0.0.1
+    Content-Type: application/json
+    Content-Length: 161
+    
+    {"protocolVersion":"1","presentedLoginState":"***","operation":"capability.organization-governance/v1#S-59","payload":{}}
+  ← result
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+    Content-Length: 282
+    Connection: close
+    
+    {"result":[{"tenant":{"organization":"ewly67t7iyvsfqiybgw3extypi","account":"5a6bz4o5l6ftka34t7ilz6t3em"},"role":"member","effective":true},{"tenant":{"organization":"ewly67t7iyvsfqiybgw3extypi","account":"ge6ytvgcltwztspxr2kuuxzsza"},"role":"superAdministrator","effective":true}]}
+
+走完：中心 f54d61961f396547c3de8dbc8ca6d9d0；组织 ewly67t7iyvsfqiybgw3extypi；被邀请者加入后的租户 {"organization":"ewly67t7iyvsfqiybgw3extypi","account":"5a6bz4o5l6ftka34t7ilz6t3em"}；成员 2 位。

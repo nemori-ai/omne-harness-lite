@@ -9,6 +9,9 @@
 
 | 包 | 兑现什么 | 状态 |
 |---|---|---|
+| [`frontend/governance-center-client`](frontend/governance-center-client/README.md) | 公开health与EC2/HT2无状态治理协议客户端 | D038/D045受限实现；不含CLI命令与登录存储 |
+| [`frontend/client-local-state`](frontend/client-local-state/README.md) | CLS1本地完整记录、比较替换与资源收场 | D046提供者增量；不含网络用例和CLI/TUI |
+| [`frontend/governance-client-operations`](frontend/governance-client-operations/README.md) | 共享治理用例、固定使用、本地结算与安全结果 | D047；CLI/TUI装配仍需独立完成 |
 | `core/identity-values` | `data.identity-values` v1：身份值解析与相等、上级链纯函数、Schema 校验、交接凭证（Ed25519）、不透明标识生成 | 实现完整，测试对契约 examples 机检 |
 | `core/offer-expiry` | `data.offer-expiry` v1：`Instant`／`Duration`、`OfferTiming`、派生状态、`offer_ttl` 解析、`Clock` 形状；`./testing` 给可控时钟替身 | 实现完整 |
 | `core/kernel-basis` | Cordis 4.0.4 取证 probe（`tests/basis/`）、`definePlugin`、`Outcome`／`Ack`、`FIBER_STATE`、`resolveOptional`；`./testing` 的 `bootAssembly` | 实现完整；basis 条目的 `probe` 指向这里 |
@@ -29,7 +32,7 @@
 - 基础设施**不提供 in-memory 实现**：存储开发期用 sqlite 文件库，只改配置切 pg；测试用临时文件。
 - 失败值字面以契约为准，两套拼法并存（`account-identity` kebab-case，其余 camelCase），不自造统一层。
 - 契约目录（`.meta_harness/design/spec/**/v1/`）不可改；实现发现契约措辞问题报 spec owner。
-- `packages/` 与 `apps/` 内不得出现墙钟（`infra/` 与测试除外）、`ctx.bail(`；`accounts.produce(`、`organization-purge` 等受限调用只有注册组合够得着——由 [tools/ts-checks](../tools/ts-checks/README.md) 在 `pnpm run check` 里守，规则全集见其 README。
+- `packages/` 与 `apps/` 内不得出现墙钟（`infra/`、测试及D047的具名副本显示取时文件除外）、`ctx.bail(`；`accounts.produce(`、`organization-purge` 等受限调用只有注册组合够得着——由 [tools/ts-checks](../tools/ts-checks/README.md) 在 `pnpm run check` 里守，规则全集见其 README。
 
 ## 历史
 

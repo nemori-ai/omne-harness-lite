@@ -8,8 +8,9 @@ export interface OfferTiming {
 }
 
 /** 构造入口：`expiresAt = issuedAt + ttl`；跨字段约束 `expiresAt > issuedAt` 在这里兑现（Schema 管不到）。 */
-export function timingFrom(issuedAt: Instant, ttl: Duration): Parsed<OfferTiming> {
+export function timingFrom(issuedAt: Instant, ttl: Duration): Parsed<OfferTiming> | 'unavailable' {
   if (!(ttl > 0)) return invalidInput('OfferTiming: ttl must be positive')
+  if (!Number.isSafeInteger(issuedAt + ttl)) return 'unavailable'
   const expiresAt = addDuration(issuedAt, ttl)
   if (!(expiresAt > issuedAt)) return invalidInput('OfferTiming: expiresAt must be after issuedAt')
   return ok({ issuedAt, expiresAt })
@@ -34,12 +35,12 @@ export function parseOfferTiming(value: unknown): Parsed<OfferTiming> {
   return ok({ issuedAt: issuedAt.ok, expiresAt: expiresAt.ok })
 }
 
-/** S-7：终结记录的两个值——唯一允许写入存储的状态类型。 */
-export const SETTLED_STATES = ['accepted', 'withdrawn'] as const
+/** S-7：终结记录的三个值——唯一允许写入存储的状态类型。 */
+export const SETTLED_STATES = ['accepted', 'withdrawn', 'declined'] as const
 export type SettledState = (typeof SETTLED_STATES)[number]
 
-/** S-7：派生状态的四个值——只作为 `deriveState` 的返回类型出现，不得成为存储字段（SC-OE-1）。 */
-export const OFFER_STATES = ['pending', 'accepted', 'withdrawn', 'expired'] as const
+/** S-7：派生状态的五个值——只作为 `deriveState` 的返回类型出现，不得成为存储字段（SC-OE-1）。 */
+export const OFFER_STATES = ['pending', 'accepted', 'withdrawn', 'declined', 'expired'] as const
 export type OfferState = (typeof OFFER_STATES)[number]
 
 export function parseSettledState(value: unknown): Parsed<SettledState> {

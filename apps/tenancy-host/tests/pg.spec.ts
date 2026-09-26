@@ -42,7 +42,11 @@ import {
 } from './support/wire.ts'
 
 const url = process.env['OMNE_TEST_PG_URL']
-const describePg = url === undefined ? describe.skip : describe
+// D-040/D-041: the new bounded host rejects PG before opening. These legacy
+// composition obligations remain deferred until PG locking is refined; supplying
+// a URL must not silently reopen the unsupported composition. Shared storage PG
+// conformance remains in packages/infra/storage-sql. This skip is not a pass.
+const describePg = describe.skip
 
 const created: string[] = []
 

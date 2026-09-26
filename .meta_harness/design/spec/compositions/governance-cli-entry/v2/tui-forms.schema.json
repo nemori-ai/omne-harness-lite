@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-cli-entry/v2/tui-forms.schema.json",
+  "title": "CQ2 governance form mapping",
+  "type": "array",
+  "minItems": 34,
+  "maxItems": 34,
+  "items": {
+    "$ref": "#/$defs/Form"
+  },
+  "$defs": {
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "equals"
+      ],
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "equals": {
+          "type": "string"
+        }
+      }
+    },
+    "Field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "label",
+        "kind",
+        "required"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "secret-file",
+            "current-tenant",
+            "tenant",
+            "organizations",
+            "integer",
+            "boolean",
+            "enum"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "when": {
+          "$ref": "#/$defs/Condition"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "enum"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "options"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "options"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "action",
+        "operation",
+        "fields",
+        "phase"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "enum": [
+            "register",
+            "login",
+            "logout",
+            "configure",
+            "health",
+            "invoke"
+          ]
+        },
+        "operation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "payloadSchema": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Field"
+          }
+        },
+        "phase": {
+          "enum": [
+            "setup",
+            "governance"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "enum": [
+                  "configure",
+                  "health",
+                  "register",
+                  "login"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "phase": {
+                "const": "setup"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "phase": {
+                "const": "governance"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

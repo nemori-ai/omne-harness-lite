@@ -1,0 +1,16 @@
+
+> @omne-harness-lite/account-registration@0.0.0 test /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-registration
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-registration
+
+
+ Test Files  6 passed (6)
+      Tests  60 passed | 1 skipped (61)
+Type Errors  no errors
+   Start at  00:03:27
+   Duration  15.19s (transform 541ms, setup 0ms, import 1.36s, tests 15.56s, environment 0ms, typecheck 583ms)
+

@@ -1,12 +1,12 @@
 # 2026-09-25 · 资产求值 Alloy 结构模型对当前候选文件的重跑（含十三个变异）
 
-只跑一件事：`spec/capabilities/asset-evaluation/v1/formal/Evaluation.als` 的十八条命令（六条 `run`、十二条 `check`），
+只跑一件事：`spec/capabilities/asset-evaluation/v2/formal/Evaluation.als` 的十八条命令（六条 `run`、十二条 `check`），
 外加十三个变异文件各跑同一批 `check`。**它不是 registry 登记的 formal task**（与 [`2026-09-23-alloy-affiliation`](../2026-09-23-alloy-affiliation/README.md) 同一性质：Alloy 的 `exec` 退出码无意义，结论要读输出），
 通过不提升契约状态；契约仍是 `candidate`，接受归 [D-041](../../decisions/assets-runtimes-contract-acceptance/README.md)（待签）。
 
 ## 为什么入库
 
-起草 asset-evaluation 时在主检出 `tmp/formal-runs/asset-evaluation-v1-2026-09-25/`（Git 忽略）跑过这一次，只把结论写在契约验证入口；
+起草 asset-evaluation 时在主检出 `tmp/formal-runs/asset-evaluation-v2-2026-09-25/`（Git 忽略）跑过这一次，只把结论写在契约验证入口；
 PF-002 投影 v1 起草时核出「原始输出没进 `record/evidence`」——这里把那次运行的输入快照、原始输出与变异结果原样搬入，不重跑、不改写。
 
 ## 跑了什么，结果是什么

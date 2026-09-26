@@ -89,7 +89,10 @@ describe('assembly.migration-composition', () => {
       d.file,
       'SELECT name FROM kysely_migration ORDER BY name',
     )
-    expect(registered.map(r => r.name)).toEqual([...RELEASED_SEQUENCE])
+    expect(registered.map(r => r.name)).toEqual([
+      ...RELEASED_SEQUENCE,
+      '0010_account_identity_bounded_logins',
+    ])
     const rows = query<{ slot: string; center_id: string | null }>(
       d.file,
       'SELECT * FROM governance_center',

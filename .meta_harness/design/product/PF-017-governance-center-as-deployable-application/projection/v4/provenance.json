@@ -1,0 +1,26 @@
+{
+  "projection_version": 4,
+  "date": "2026-09-25",
+  "scope": "governance-startup-repair",
+  "product": {
+    "topic": "PF-017",
+    "rev": 4
+  },
+  "sources": [
+    {
+      "path": ".meta_harness/design/record/decisions/governance-startup-repair-adoption/decision.md",
+      "sha256": null,
+      "status": "decision record; not a frozen contract"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/infra/storage-sql/design.md",
+      "sha256": null,
+      "status": "mutable provider; verify accepted scope"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/tenancy/account-identity/design.md",
+      "sha256": null,
+      "status": "mutable provider; verify accepted scope"
+    }
+  ]
+}

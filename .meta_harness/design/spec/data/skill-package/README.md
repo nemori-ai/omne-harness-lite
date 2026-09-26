@@ -4,46 +4,46 @@
 本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明、执行环境要求）、由包得出的依赖声明与属性项投影规则，
 以及 `SKILL.md` 的文本形式与包的目录形式怎样读成这份表示——还有一个值不合这些形状时，拒绝值叫什么。
 
-它是 `data.asset-model` v1 里 skill 类正文的形状（那边的 S-10 `$ref` 本契约）；注册表、`Skills()`、斜杠命令的 ② 型展开、工作区读入与外部技能目录的导入
+它是 `data.asset-model` v2 里 skill 类正文的形状（那边的 S-10 `$ref` 本契约）；注册表、`Skills()`、斜杠命令的 ② 型展开、工作区读入与外部技能目录的导入
 都读这一份形状，**引用它的 `$defs` 名，不各自复述一份**。
 
-- **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.skill-package, 1)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
-- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-041 的 `acceptance.json`）。`family=data`、`topic=skill-package`、
-  `contract_path=spec/data/skill-package/v1/contract.md`，`resources` 另含 `v1/skill-package.schema.json` 与 `v1/examples.md`；
-  依赖三项：`data.asset-model` v1（`S-2`、`S-3`、`S-9`、`S-10`、`S-12`、`S-13`、`S-15`、`S-36`）、`data.content-blocks` v1（`S-7`）、
-  `data.tool-definition` v1（`S-9`、`S-11`、`S-18`、`S-26`）。
+- **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.skill-package, 2)`
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=skill-package`、
+  `contract_path=spec/data/skill-package/v2/contract.md`，`resources` 另含 `v2/skill-package.schema.json` 与 `v2/examples.md`；
+  依赖三项：`data.asset-model` v2（`S-2`、`S-3`、`S-9`、`S-10`、`S-12`、`S-13`、`S-15`、`S-36`）、`data.content-blocks` v2（`S-7`）、
+  `data.tool-definition` v2（`S-9`、`S-11`、`S-18`、`S-26`）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
-- **提供者/装配映射**：[packages/core/skill-package](../../../realization/packages/core/skill-package/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
+- **提供者/装配映射**：[packages/core/skill-package](../../../realization/packages/core/skill-package/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
 | 准入问题 | 答 |
 |---|---|
-| 语义拥有者 | 本契约。技能包的形状被资产模型、注册表、`Skills()`、斜杠命令、工作区读入与导入器共享，写两遍必然分叉；`data.asset-model` v1 的 S-10 与 G-5 把 skill 类正文留给「skill 包的数据契约」 |
+| 语义拥有者 | 本契约。技能包的形状被资产模型、注册表、`Skills()`、斜杠命令、工作区读入与导入器共享，写两遍必然分叉；`data.asset-model` v2 的 S-10 与 G-5 把 skill 类正文留给「skill 包的数据契约」 |
 | 稳定身份 | `data.skill-package`，版本 1 |
-| 适用范围 | 一个部署之内；跨进程后要由协议重新兑现的，逐行列在[契约第五节](v1/contract.md#五装配给与协议给) |
+| 适用范围 | 一个部署之内；跨进程后要由协议重新兑现的，逐行列在[契约第五节](v2/contract.md#五装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。技能怎样被装载、取用、运行、持有与配值，归注册表、`Skills()`、执行运行时与资产的三份能力契约 |
 | 精确依赖 | 见上面「catalog 映射」一行 |
 | 起点 | [D-034](../../../record/decisions/skill-spec-adoption/README.md)：Agent Skills 开放格式为载体与核心字段、规则层自持、扩展声明走包内定义记录；开放格式钉 `69ef37e` |
-| 谁在等它 | `data.asset-model`（壳 `$ref` 本契约）、`capability.asset-registry`、`Skills()` 的契约、斜杠命令的数据契约、`capability.asset-evaluation`、导入器。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
-| 接受状态 | 已接受（D-041，2026-09-26） |
+| 谁在等它 | `data.asset-model`（壳 `$ref` 本契约）、`capability.asset-registry`、`Skills()` 的契约、斜杠命令的数据契约、`capability.asset-evaluation`、导入器。完整清单见[契约的消费者表](v2/contract.md#消费者)——**那里是唯一的一份** |
+| 接受状态 | 已接受（D-061，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
-| 交换与存储表示 | [v1 Schema](v1/skill-package.schema.json) |
-| 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
-| 一份 `SKILL.md` 读出来的清单头与正文是什么 | [S-20](v1/contract.md#s-20-skillmd-的文本形式与定界)与[实例第 6 节](v1/examples.md#6-skillmd-的文本形式) |
-| 一个包有好几处不对，报哪个拒绝值 | [S-24](v1/contract.md#s-24-表示层拒绝值与判定次序)与[实例第 8 节](v1/examples.md#8-几处违例同时出现时取哪个拒绝值) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#九已知缺口)——**G-6（资源字节的摘要）、G-7（未收的扩展）**；G-3、G-4 已由产品正文闭合（PF-002 rev 19、PF-007 rev 17 §9.3） |
+| 本版本精确承诺什么 | [v1 契约](v2/contract.md) |
+| 交换与存储表示 | [v1 Schema](v2/skill-package.schema.json) |
+| 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v2/examples.md) |
+| 一份 `SKILL.md` 读出来的清单头与正文是什么 | [S-20](v2/contract.md#s-20-skillmd-的文本形式与定界)与[实例第 6 节](v2/examples.md#6-skillmd-的文本形式) |
+| 一个包有好几处不对，报哪个拒绝值 | [S-24](v2/contract.md#s-24-表示层拒绝值与判定次序)与[实例第 8 节](v2/examples.md#8-几处违例同时出现时取哪个拒绝值) |
+| 哪里在等裁决 | [已知缺口](v2/contract.md#九已知缺口)——**G-6（资源字节的摘要）、G-7（未收的扩展）**；G-3、G-4 已由产品正文闭合（PF-002 rev 19、PF-007 rev 17 §9.3） |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包
 
-`v1/` 是本契约的候选版本目录。规范工件恰三份：`contract.md`、`skill-package.schema.json`、`examples.md`——
+`v2/` 是本契约的候选版本目录。规范工件恰三份：`contract.md`、`skill-package.schema.json`、`examples.md`——
 **实例是规范工件，不是说明材料**：文本形式与目录形式的读法有一半靠「读出什么、什么被拒」说清楚。
 
 **本包不建 `formal/`。**本契约没有状态转移；它的结构约束由 Schema 的条件与条款直接表达，唯一的跨对象结构性质（组合图不得成环）归装配。
@@ -54,4 +54,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.skill-package` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.skill-package` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

@@ -62,7 +62,7 @@
 ### 使用成本明细
 
 - **现象**：PF-001 要求「一次调用花掉的成本必须能算到发起它的那个租户头上，并能逐条列出来」，同时明说成本怎么算、明细怎么归集与呈现「目前没有对应的产品设计」
-- **牵涉**：[PF-001 §6.4](../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 17）
+- **牵涉**：[PF-001 §6.4](../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 19）
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
 

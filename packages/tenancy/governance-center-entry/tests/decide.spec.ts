@@ -1,3 +1,5 @@
+import { decisionStorage } from './support/decision-storage.ts'
+const storage = decisionStorage()
 // 判定次序与路由表，参与方是桩（tests/support/stubs.ts）：`decide` 交出的就是写上连接的那一整份字节（answer 钩子原样写出），
 // 所以这里比较的字节就是线上字节；真实组合与真实连接上的对应断言在 center.spec.ts。
 // 覆盖：T-1（路由表封闭 + SC-3 的源码扫描）、T-2 的桩那一半（表示层不合格三例不调 exchange、撤销落在认人与办事之间）、
@@ -32,15 +34,18 @@ const INVALID = entryAnswerBytes('invalid-input')
 const UNAVAILABLE = entryAnswerBytes('unavailable')
 const VERSION = entryAnswerBytes('version-mismatch')
 
-const AR8 = 'composition.account-registration/v1#S-8'
-const AI15 = 'capability.account-identity/v2#S-15'
-const AI16 = 'capability.account-identity/v2#S-16'
-const AI37 = 'capability.account-identity/v2#S-37'
-const og = (clause: number) => `capability.organization-governance/v1#S-${String(clause)}`
+const AR8 = 'composition.account-registration/v2#S-8'
+const AI15 = 'capability.account-identity/v3#S-15'
+const AI16 = 'capability.account-identity/v3#S-16'
+const AI37 = 'capability.account-identity/v3#S-37'
+const AI50 = 'capability.account-identity/v3#S-50'
+const ENTRY50 = 'composition.governance-center-entry/v2#S-50'
+const og = (clause: number) => `capability.organization-governance/v2#S-${String(clause)}`
 
 async function run(stub: StubParticipants, body: string | Buffer): Promise<Decision> {
   return decide(typeof body === 'string' ? Buffer.from(body, 'utf8') : body, {
     services: stub.entryServices(),
+    storage: storage(),
     publicHealth: PUBLIC_HEALTH,
   })
 }
@@ -49,10 +54,24 @@ async function run(stub: StubParticipants, body: string | Buffer): Promise<Decis
 const ABSENT: unique symbol = Symbol('absent')
 
 function envelope(operation: string, payload: unknown, presentation: unknown = P): string {
+  // Legacy success/failure matrix supplies the confirmed fixture identity. New
+  // expectedTenant negative cases construct their raw envelopes explicitly.
+  if (
+    typeof payload === 'object' &&
+    payload !== null &&
+    !Array.isArray(payload) &&
+    ([23, 24, 28, 29, 30, 31, 32, 33, 37, 56, 58, 59, 60, 62].some(n => operation === og(n)) ||
+      operation === ENTRY50 ||
+      (operation === og(55) &&
+        'callerIdentityKind' in payload &&
+        payload.callerIdentityKind === 'tenant'))
+  ) {
+    payload = { expectedTenant: TENANT, ...payload }
+  }
   return JSON.stringify(
     presentation === ABSENT
-      ? { protocolVersion: '1', operation, payload }
-      : { protocolVersion: '1', presentedLoginState: presentation, operation, payload },
+      ? { protocolVersion: '2', operation, payload }
+      : { protocolVersion: '2', presentedLoginState: presentation, operation, payload },
   )
 }
 
@@ -69,6 +88,10 @@ const CREDENTIALS = {
 
 /** 每条路由一份合 `Payload_<路由>` 的载荷。 */
 const PAYLOADS: Record<string, Record<string, unknown>> = {
+  [AI50]: { currentCredential: 'old-secret', newCredential: 'new-secret' },
+  [ENTRY50]: { loginIdentifier: 'recipient@example.invalid' },
+  [og(61)]: { invitation: 'inv_1' },
+  [og(62)]: { affiliationRequest: 'afr_1' },
   [AR8]: CREDENTIALS,
   [AI15]: CREDENTIALS,
   [AI16]: { loginStateHandle: LOGIN_STATE },
@@ -100,6 +123,10 @@ const PAYLOADS: Record<string, Record<string, unknown>> = {
 
 /** 每条路由在第 ③ 步调用的那一个领域方法（桩的键）。 */
 const OPERATIONS: Record<string, string> = {
+  [AI50]: 'logins.commitCredentialChange',
+  [ENTRY50]: 'offers.issueInvitation',
+  [og(61)]: 'offers.declineInvitation',
+  [og(62)]: 'offers.declineAffiliationRequest',
   [AR8]: 'registration.register',
   [AI15]: 'logins.issue',
   [AI16]: 'logins.revoke',
@@ -136,10 +163,14 @@ const tenant = `{"organization":"${ORGANIZATION}","account":"${ACCOUNT}"}`
 
 /** V-9：桩的缺省成功返回，按 `Result_<路由>` 的书写次序写出后的体（由 Schema 手写，不从实现推）。 */
 const SUCCESS_BODIES: Record<string, string> = {
+  [AI50]: '{"result":"ok"}',
+  [ENTRY50]: '{"result":"inv_1"}',
+  [og(61)]: '{"result":"ok"}',
+  [og(62)]: '{"result":"ok"}',
   [AR8]: '{"result":"registered"}',
   [AI15]: `{"result":{"loginState":"${P}","loginStateHandle":"${LOGIN_STATE}"}}`,
   [AI16]: '{"result":"ok"}',
-  [AI37]: `{"result":[{"loginStateHandle":"${LOGIN_STATE}","issuedAt":"${at}"}]}`,
+  [AI37]: `{"result":[{"loginStateHandle":"${LOGIN_STATE}","issuedAt":"${at}","lastActivityAt":"${at}","absoluteExpiresAt":"2026-09-23T16:00:00Z","idleExpiresAt":"2026-09-23T09:00:00Z"}]}`,
   [og(21)]: '{"result":"org_new"}',
   [og(22)]: `{"result":{"organization":"${ORGANIZATION}","organizationKind":"team"}}`,
   [og(23)]: '{"result":"inv_1"}',
@@ -183,9 +214,9 @@ describe('T-1 路由表封闭（S-17、S-24；SC-3）', () => {
 
   it('表外的 operation（含不投影的 AI S-13／S-17／S-18、OG S-20／S-53）⇒ invalid-input，认人没有发生', async () => {
     for (const operation of [
-      'capability.account-identity/v2#S-13',
-      'capability.account-identity/v2#S-17',
-      'capability.account-identity/v2#S-18',
+      'capability.account-identity/v3#S-13',
+      'capability.account-identity/v3#S-17',
+      'capability.account-identity/v3#S-18',
       og(20),
       og(53),
       'composition.governance-center-entry/v1#S-26',
@@ -218,6 +249,11 @@ describe('V-9 与 T-10 的成功那一支：27 条路由的成功返回', () => 
     '%s：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange',
     async id => {
       const stub = new StubParticipants()
+      if (id === ENTRY50)
+        stub.on('memberships.standing', async () => ({
+          standing: 'effective',
+          role: 'superAdministrator',
+        }))
       const exempt = id === AR8 || id === AI15
       const decision = await run(stub, envelope(id, PAYLOADS[id], exempt ? ABSENT : P))
       const bytes = decision.bytes
@@ -259,6 +295,38 @@ type Expected = 'pass' | 'rejected' | 'unavailable' | 'invalid-input' | 'defect'
 
 /** 契约 S-14、S-19～S-23 的路由表逐格重写一遍（不从实现推）：每条路由每个具名值落到哪里。 */
 const FAILURES: Record<string, Record<string, Expected>> = {
+  [AI50]: {
+    'current-credential-rejected': 'pass',
+    'credential-rejected': 'pass',
+    'login-state-rejected': 'rejected',
+    'invalid-input': 'invalid-input',
+    'storage-unavailable': 'unavailable',
+  },
+  [og(61)]: {
+    invitationDoesNotExist: 'pass',
+    alreadyConcluded: 'pass',
+    accountDoesNotExist: 'defect',
+    accountNotActivated: 'defect',
+    invalidInput: 'invalid-input',
+    unavailable: 'unavailable',
+  },
+  [og(62)]: {
+    affiliationRequestDoesNotExist: 'pass',
+    notAuthorized: 'pass',
+    alreadyConcluded: 'pass',
+    invalidInput: 'invalid-input',
+    unavailable: 'unavailable',
+  },
+  [ENTRY50]: {
+    notAuthorized: 'pass',
+    accountDoesNotExist: 'pass',
+    issuerIsPersonalOrganization: 'pass',
+    alreadyAnEffectiveMember: 'pass',
+    invalidOfferDuration: 'pass',
+    accountNotActivated: 'defect',
+    invalidInput: 'invalid-input',
+    unavailable: 'unavailable',
+  },
   [AR8]: {
     'identifier-taken': 'pass',
     'credential-rejected': 'pass',
@@ -445,6 +513,11 @@ describe('T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写�
   )
   it.each(cases)('%s：%s ⇒ %s', async (id, name, expected) => {
     const stub = new StubParticipants()
+    if (id === ENTRY50)
+      stub.on('memberships.standing', async () => ({
+        standing: 'effective',
+        role: 'superAdministrator',
+      }))
     failWith(stub, id, failureReply(id, name))
     const exempt = id === AR8 || id === AI15
     await expectOutcome(
@@ -460,6 +533,11 @@ describe('T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写�
       const exempt = id === AR8 || id === AI15
       for (const reply of [failureReply(id, 'somethingElse'), undefined, 42]) {
         const stub = new StubParticipants()
+        if (id === ENTRY50)
+          stub.on('memberships.standing', async () => ({
+            standing: 'effective',
+            role: 'superAdministrator',
+          }))
         failWith(stub, id, reply)
         await expectOutcome(
           await run(stub, envelope(id, PAYLOADS[id], exempt ? ABSENT : P)),
@@ -468,6 +546,11 @@ describe('T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写�
         )
       }
       const stub = new StubParticipants()
+      if (id === ENTRY50)
+        stub.on('memberships.standing', async () => ({
+          standing: 'effective',
+          role: 'superAdministrator',
+        }))
       stub.on(OPERATIONS[id] ?? '', async () => {
         throw new TypeError('boom')
       })
@@ -537,13 +620,13 @@ describe('T-2 桩那一半：六种不认与其间撤销逐字节相同；表示
         (
           await run(
             stub,
-            `{"protocolVersion":"1","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${og(27)}","payload":{}}`,
+            `{"protocolVersion":"2","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${og(27)}","payload":{}}`,
           )
         ).bytes,
       ].filter(b => b !== undefined),
     )
     for (const malformed of [` ${P}`, `${P} `, `lsp_\\uD800x`, 'x'.repeat(1025)]) {
-      const text = `{"protocolVersion":"1","presentedLoginState":"${malformed}","operation":"${og(27)}","payload":{}}`
+      const text = `{"protocolVersion":"2","presentedLoginState":"${malformed}","operation":"${og(27)}","payload":{}}`
       const decision = await run(stub, text)
       if (decision.bytes !== undefined) answers.push(decision.bytes)
     }
@@ -575,7 +658,7 @@ describe('T-2 桩那一半：六种不认与其间撤销逐字节相同；表示
       (
         await run(
           stub,
-          `{"protocolVersion":"1","presentedLoginState":"${P}","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
+          `{"protocolVersion":"2","presentedLoginState":"${P}","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
         )
       ).record.rejection,
     ).toBe('multiple')
@@ -620,7 +703,7 @@ describe('T-3 判定次序（桩那一半）', () => {
     for (const text of [
       `{"operation":"${og(27)}","payload":{}}`,
       `{"protocolVersion":1,"operation":"${og(27)}","payload":{}}`,
-      `{"protocolVersion":"1","protocolVersion":"1","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
+      `{"protocolVersion":"2","protocolVersion":"2","presentedLoginState":"${P}","operation":"${og(27)}","payload":{}}`,
       '',
       '[]',
       'null',
@@ -631,7 +714,7 @@ describe('T-3 判定次序（桩那一半）', () => {
 
   it('①′：有表外成员 ⇒ invalid-input，认人没有发生', async () => {
     const stub = new StubParticipants()
-    const text = `{"protocolVersion":"1","presentedLoginState":"${P}","operation":"${og(27)}","payload":{},"asOrganization":"${OTHER_ORGANIZATION}"}`
+    const text = `{"protocolVersion":"2","presentedLoginState":"${P}","operation":"${og(27)}","payload":{},"asOrganization":"${OTHER_ORGANIZATION}"}`
     expect((await run(stub, text)).bytes).toBe(INVALID)
     expect(stub.count('logins.exchange')).toBe(0)
   })
@@ -673,7 +756,7 @@ describe('T-3 判定次序（桩那一半）', () => {
   it('免认人的路由不看出示物，也不看它的重复（examples §6 #12）', async () => {
     const stub = new StubParticipants()
     const without = await run(stub, envelope(AI15, CREDENTIALS, ABSENT))
-    const text = `{"protocolVersion":"1","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${AI15}","payload":${JSON.stringify(CREDENTIALS)}}`
+    const text = `{"protocolVersion":"2","presentedLoginState":"${P}","presentedLoginState":"${Q}","operation":"${AI15}","payload":${JSON.stringify(CREDENTIALS)}}`
     expect((await run(stub, text)).bytes).toEqual(without.bytes)
     expect(stub.count('logins.exchange')).toBe(0)
   })
@@ -847,7 +930,7 @@ describe('T-6 身份推导与补授权（桩那一半）', () => {
 
 describe('T-15 重复成员落在它那一步（S-4；https-json/1 S-8）', () => {
   const raw = (members: string) => `{${members}}`
-  const PV = '"protocolVersion":"1"'
+  const PV = '"protocolVersion":"2"'
   const PS = `"presentedLoginState":"${P}"`
   const OP = `"operation":"${og(23)}"`
   const PL = `"payload":{"invitedAccount":"${OTHER_ACCOUNT}"}`
@@ -906,9 +989,12 @@ describe('T-15 重复成员落在它那一步（S-4；https-json/1 S-8）', () =
     const stub = new StubParticipants()
     const ttl = (literal: string) =>
       raw(
-        [PV, PS, OP, `"payload":{"invitedAccount":"${OTHER_ACCOUNT}","offerTtl":${literal}}`].join(
-          ',',
-        ),
+        [
+          PV,
+          PS,
+          OP,
+          `"payload":{"expectedTenant":${JSON.stringify(TENANT)},"invitedAccount":"${OTHER_ACCOUNT}","offerTtl":${literal}}`,
+        ].join(','),
       )
     expect((await run(stub, ttl('9007199254740990.5'))).bytes).toBe(INVALID)
     expect((await run(stub, ttl('9007199254740992'))).bytes).toBe(INVALID)

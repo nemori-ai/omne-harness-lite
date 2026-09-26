@@ -1,0 +1,12 @@
+请做最终 Fable review 的增量复核。用户指定 --model fable，不换模型。只读，不运行命令、不修改、不派发agent、不调用外部服务或读取凭据；只用 Read/Grep/Glob。工作区 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish，分支 pandazki/add-tui-developer。根及适用AGENTS约定继续生效。
+
+初轮完整review公开结果在 tmp/production-cli-onboarding/fable-review-report-r1.md；这是增量，不需再全仓重读。请核对7条findings的处置并查修补新缺陷。
+1 初轮认为Vitest为误入prod；实际原已接受core/storage提供者规定运行时Vitest，故这是绑定代价，不能说旧实现违约。新D057 record/decisions/governance-conformance-runner-adoption 经三候选和独立架构评审采用由测试消费者显式提供runner；packages/core/storage/src/conformance/{index,atomic}.ts只type import Vitest，package.json依赖dev；3个SQL符合性调用传实际Vitest。普通入口不暴露runner，skipLibCheck:false独立普通/测试消费者已通过，见 fable-conformance-consumers-r3.json。检查公开声明与pnpm-lock生产依赖，制品正在独立重建，不把旧QA视为新制品证明。
+2 秘密文件含末尾换行精确UTF8语义保留，不trim。apps/cli/{README.md,tools/package.ts,src/application.ts,src/tui/application.ts}明确完整内容、echo/printf区别、无管理员重置。
+3 host boot.ts fiberFailure 在 StorageStartupFailure 后识别普通SnapshotFailure，点名 OMNE_TENANCY_BACKUP_DIR 及派生.quarantine与实际kind，固定建议不猜根因。新增 host maintenance-startup.spec.ts 4场景；6测试通过见 fable-host-diagnostics-r2.log。原r1仅误要求Cordis原始错误也不含注入的cause，现只检查结构化 startup-failed，不声称raw日志被全清洗。
+4/5/6/7 deploy/README.md明确全部候选复制+完整验证、5分钟是取消请求而非硬截止、256候选含坏文件、invalidCount即使current仍要查看、无自动保留/删除；强杀残余只在停止所有相关进程后核验清理task子目录且保留永久marker/root/lock；升级精确迁移名不兼容的旧封装应保留旧代码离线verify，升级后新备份；workdir不能手工建空根，只预备私有父目录。
+
+此外，诊断修补发现D056启动资源漏洞，沿EC3 S59已有保证修复（无新领域政策）：packages/infra/storage-sql/src/maintenance/workspace.ts 打开marker/root/parent即登记SnapshotResources，所有异常路径观察真实close；未settled传WorkspaceAcquisitionIncomplete，upgrade/owner.ts持有业务handles+source锁直到实际收场/进程退出，host不接管。sqlite/lock.ts创建DatabaseSync即保强引用，PRAGMA/BEGIN失败close仍开传SqliteLockIncomplete；释放只native close，不先ROLLBACK解除排他，观察isOpen，closed后抛错仍保留失败。workspace协调锁release不实关同样传Incomplete。
+真实进程测试 tests/maintenance-workspace-failure.process.spec.ts 和fixtures/maintenance-workspace-close-child.ts：10场景（FileHandle marker/root/parent、return-open、throw-closed，协调PRAGMA/BEGIN/close），强制GC、另一进程争夺工作根与source、实际退出后接手；fable-initialization-positive-r2.log 10/10。旧D056 FileHandle实现配相同有效fixture负对照5fail1pass（fable-initialization-negative-r2.log）；另旧r1 fixture漏系统migration记录失败不能计产品反例。storage全回归176pass4skip（fable-storage-tests-r2.log）。请重点看初始化→失败→实际收场所有者传播和复用primitive正常路径，其他原review已清晰的业务不必再读。
+
+输出以有实际触发场景的缺陷为先，给位置、契约依据、最小反例；区别设计允许取舍、文档缺口和真实违约。不重新提出已被用户排除的功能，不把有限通过说成无bug。最后给7条处置及新生命周期修补的已闭合/未闭合判断、实际覆盖/未覆盖。只读审查，不做接受决定。

@@ -67,7 +67,14 @@ describe('I-7 单一共享 storage 上三方写并发', () => {
   it('真实 clock 定时续约写 ＋ AI accounts.read 落盘写 ＋ OG／AR 写，跨过至少一次续约：没有「nested storage call」缺陷，每次调用都落在自己的结果集合里，不变量成立', async () => {
     // 留存期限 1 ms：几乎每一次 ② 的账号读面都要把过期落盘（AI 的读面里的写），重来的注册又要就地跑清除链
     const c = await boot({ retention: 1 })
+    const expiryWitness = await c.accounts.produce('expiry-witness', PASSWORD)
+    if (!('ok' in expiryWitness)) throw new Error('expiry witness was not produced')
+    await new Promise(resolve => setTimeout(resolve, 5))
     const mark = c.storage.statements.length
+    // Ensure the expiry-write path is exercised even if fast registrations finish within 1 ms.
+    expect(await c.accounts.read(expiryWitness.ok)).toEqual({
+      ok: { activated: false, retentionExpired: true },
+    })
     const outcomes: string[] = []
     const deadline = performance.now() + 4_000 // > 续约周期（LEASE_WIDTH_MS / 3 ≈ 3.3 s）
     let round = 0
@@ -208,20 +215,30 @@ describe('插件装载面', () => {
     await fiber.dispose()
   })
 
-  it('必需服务换代 ⇒ 同一条 fiber 卸载重跑、很快回到 ACTIVE；在途调用握着上一代的快照，下一步之前停下 ⇒ interrupted（只看 fiber 状态会放行）', async () => {
+  it('依赖换代等待旧尝试静止，新代只在旧交接结束后接纳工作', async () => {
     const c = await boot()
-    let stateWhenResumed: number | undefined
-    c.storage.afterCommit(committed(stmt.on('insert', 'account')), async () => {
-      await c.fibers.organizationGovernance.dispose()
-      await c.reload('organizationGovernance')
-      stateWhenResumed = c.fibers.registration.state as number
+    const gate = c.storage.pauseAfterCommit(committed(stmt.on('insert', 'account')))
+    const old = c.service()
+    const running = old.register('rerun', PASSWORD)
+    await gate.reached
+    let stopped = false
+    const stopping = c.fibers.organizationGovernance.dispose().then(() => {
+      stopped = true
     })
-    expect(await c.service().register('rerun', PASSWORD)).toBe('interrupted')
-    expect(stateWhenResumed).toBe(FIBER_STATE.ACTIVE)
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(stopped).toBe(false)
+    } finally {
+      gate.release()
+    }
+    expect(await running).toBe('interrupted')
+    await stopping
+    await c.reload('organizationGovernance')
+    expect(c.fibers.registration.state as number).toBe(FIBER_STATE.ACTIVE)
+    expect(await old.register('old-reference', PASSWORD)).toBe('interrupted')
     const [account] = await accountsOf(c, 'rerun')
     expect(account?.activated).toBe(0)
     expect(await personalOrganizationsOf(c)).toEqual([])
-    // 重跑之后的新一代照常工作，且接着完成那次被停下的注册
     expect(await c.service().register('rerun', PASSWORD)).toBe('registered')
   })
 })

@@ -1,0 +1,168 @@
+
+> @omne-harness-lite/account-identity@0.0.0 test /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-identity
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-identity
+
+ ❯ tests/plugin.spec.ts (8 tests | 1 failed | 1 skipped) 92ms
+     × 迁移片段：一个片段两张表；约束名显式且被存储提供者识别；不建 login_state → account 外键 3ms
+ ❯ tests/scenarios.spec.ts (19 tests | 1 failed | 4 skipped) 227ms
+     × S-40 有效登录状态列得全 + 读不到不返回空集，两支同一次里跑 15ms
+ ❯ tests/obligations.spec.ts (29 tests | 1 failed | 5 skipped) 253ms
+     × 存储读不到或写不进：九个操作一律 storage-unavailable；S-37 不返回空集，S-38 不删 16ms
+ ❯  TS  tests/types.spec-d.ts (19 tests | 3 failed)
+     × 两个服务面恰九个方法
+     × 登录状态行恰四列，没有出示物
+     × 账号行只有一个 AccountId 列（S-11／S-35 的类型层）
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/obligations.spec.ts > S-27 缺席时的默认答案：逐行注入 > 存储读不到或写不进：九个操作一律 storage-unavailable；S-37 不返回空集，S-38 不删
+AssertionError: expected { failure: 'login-state-rejected' } to strictly equal { ok: 'u352y2277tmnn742qml2xo7spm' }
+
+- Expected
++ Received
+
+  {
+-   "ok": "u352y2277tmnn742qml2xo7spm",
++   "failure": "login-state-rejected",
+  }
+
+ ❯ tests/obligations.spec.ts:130:57
+    128|     h.storage.writeUnavailable = false
+    129|     expect((await rows(h, 'account')).map(r => r['account_id'])).toCon…
+    130|     expect(await h.logins.verify(session.loginStateId)).toStrictEqual(…
+       |                                                         ^
+    131|   })
+    132|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  tests/plugin.spec.ts > account-identity 插件 > 迁移片段：一个片段两张表；约束名显式且被存储提供者识别；不建 login_state → account 外键
+AssertionError: expected [ 'account_identity', …(1) ] to deeply equal [ 'account_identity' ]
+
+- Expected
++ Received
+
+  [
+    "account_identity",
++   "account_identity_bounded_logins",
+  ]
+
+ ❯ tests/plugin.spec.ts:234:56
+    232|
+    233|   it('迁移片段：一个片段两张表；约束名显式且被存储提供者识别；不建 login_state → account 外键', async …
+    234|     expect(accountIdentityMigrations.map(f => f.name)).toEqual(['accou…
+       |                                                        ^
+    235|     expect(composedMigrationName(1, accountIdentityMigrations[0]!)).to…
+    236|     expect(ACCOUNT_TABLE).toBe('account')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  tests/scenarios.spec.ts > capability.account-identity v2 · 规范场景 > S-40 有效登录状态列得全 + 读不到不返回空集，两支同一次里跑
+AssertionError: expected { Object (ok) } to strictly equal { Object (ok) }
+
+- Expected
++ Received
+
+  {
+    "ok": [
+      {
++       "absoluteExpiresAt": 1790193600000,
++       "idleExpiresAt": 1790168400000,
+        "issuedAt": 1790164800000,
++       "lastActivityAt": 1790164800000,
+        "loginStateId": "f24abdb30d0d6ba832dca1d33a1928415c0112bd461d4a28258a396afbad03c3",
+      },
+      {
++       "absoluteExpiresAt": 1790193601000,
++       "idleExpiresAt": 1790168401000,
+        "issuedAt": 1790164801000,
++       "lastActivityAt": 1790164801000,
+        "loginStateId": "ddc6d4c6482a1dbf09e61d30b50b86cbd279f52558c732ce8561977445c2e1fd",
+      },
+      {
++       "absoluteExpiresAt": 1790193602000,
++       "idleExpiresAt": 1790168402000,
+        "issuedAt": 1790164802000,
++       "lastActivityAt": 1790164802000,
+        "loginStateId": "9137cae8e6380949b478e9730dfca24fa1b3675da77033394065bf16f4e29d06",
+      },
+    ],
+  }
+
+ ❯ tests/scenarios.spec.ts:203:20
+    201|     const third = await loginOk(h, 'frank', 'frank-password')
+    202|     const listed = await h.logins.listEffective(second.loginStateId)
+    203|     expect(listed).toStrictEqual({
+       |                    ^
+    204|       ok: [
+    205|         { loginStateId: first.loginStateId, issuedAt: h.clock.current …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  tests/types.spec-d.ts > S-36 失败集合逐字对契约（九个方法） > 两个服务面恰九个方法
+TypeCheckError: Type '"produce" | "activate" | "read" | "purge"' does not satisfy the constraint '"Expected literal string produce, Actual literal string participate" | "Expected literal string activate, Actual literal string participate" | "Expected literal string read, Actual literal string participate" | "Expected literal string purge, Actual literal string participate"'.
+  Type '"produce"' is not assignable to type '"Expected literal string produce, Actual literal string participate" | "Expected literal string activate, Actual literal string participate" | "Expected literal string read, Actual literal string participate" | "Expected literal string purge, Actual literal string participate"'.
+ ❯ tests/types.spec-d.ts:92:57
+     90|   })
+     91|   it('两个服务面恰九个方法', () => {
+     92|     expectTypeOf<keyof AccountsService>().toEqualTypeOf<'produce' | 'a…
+       |                                                         ^
+     93|     expectTypeOf<keyof LoginsService>().toEqualTypeOf<
+     94|       'issue' | 'exchange' | 'revoke' | 'verify' | 'listEffective'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  tests/types.spec-d.ts > S-36 失败集合逐字对契约（九个方法） > 两个服务面恰九个方法
+TypeCheckError: Type '"issue" | "exchange" | "verify" | "revoke" | "listEffective"' does not satisfy the constraint '"Expected literal string issue, Actual literal string participate" | "Expected literal string issue, Actual literal string prepareCredentialChange" | "Expected literal string issue, Actual literal string changeCredential" | ... 11 more ... | "Expected literal string listEffective, Actual literal strin...'.
+  Type '"issue"' is not assignable to type '"Expected literal string issue, Actual literal string participate" | "Expected literal string issue, Actual literal string prepareCredentialChange" | "Expected literal string issue, Actual literal string changeCredential" | ... 11 more ... | "Expected literal string listEffective, Actual literal strin...'.
+ ❯ tests/types.spec-d.ts:94:7
+     92|     expectTypeOf<keyof AccountsService>().toEqualTypeOf<'produce' | 'a…
+     93|     expectTypeOf<keyof LoginsService>().toEqualTypeOf<
+     94|       'issue' | 'exchange' | 'revoke' | 'verify' | 'listEffective'
+       |       ^
+     95|     >()
+     96|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  tests/types.spec-d.ts > 记录结构（S-9、S-45「永不以可读形式保存」、S-35） > 登录状态行恰四列，没有出示物
+TypeCheckError: Type '"account_id" | "login_state_id" | "issued_at" | "revoked"' does not satisfy the constraint '"Expected literal string account_id, Actual literal string credential_revision" | "Expected literal string account_id, Actual literal string last_activity_at" | ... 5 more ... | "Expected literal string revoked, Actual literal string last_activity_at"'.
+  Type '"account_id"' is not assignable to type '"Expected literal string account_id, Actual literal string credential_revision" | "Expected literal string account_id, Actual literal string last_activity_at" | ... 5 more ... | "Expected literal string revoked, Actual literal string last_activity_at"'.
+ ❯ tests/types.spec-d.ts:145:7
+    143|   it('登录状态行恰四列，没有出示物', () => {
+    144|     expectTypeOf<keyof LoginStateRow>().toEqualTypeOf<
+    145|       'login_state_id' | 'account_id' | 'issued_at' | 'revoked'
+       |       ^
+    146|     >()
+    147|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  tests/types.spec-d.ts > 记录结构（S-9、S-45「永不以可读形式保存」、S-35） > 账号行只有一个 AccountId 列（S-11／S-35 的类型层）
+TypeCheckError: Type '"account_id" | "login_identifier" | "credential_material" | "activated" | "produced_at" | "retention_deadline" | "expired_at"' does not satisfy the constraint '"Expected literal string account_id, Actual literal string credential_revision" | "Expected literal string login_identifier, Actual literal string credential_revision" | ... 4 more ... | "Expected literal string expired_at, Actual literal string credential_revision"'.
+  Type '"account_id"' is not assignable to type '"Expected literal string account_id, Actual literal string credential_revision" | "Expected literal string login_identifier, Actual literal string credential_revision" | ... 4 more ... | "Expected literal string expired_at, Actual literal string credential_revision"'.
+ ❯ tests/types.spec-d.ts:150:7
+    148|   it('账号行只有一个 AccountId 列（S-11／S-35 的类型层）', () => {
+    149|     expectTypeOf<keyof AccountRow>().toEqualTypeOf<
+    150|       | 'account_id'
+       |       ^
+    151|       | 'login_identifier'
+    152|       | 'credential_material'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  4 failed | 1 passed (5)
+      Tests  6 failed | 60 passed | 10 skipped (76)
+Type Errors  3 failed
+   Start at  23:48:17
+   Duration  1.41s (transform 336ms, setup 0ms, import 987ms, tests 576ms, environment 0ms, typecheck 840ms)
+
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-identity:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/account-identity@0.0.0 test: `vitest run`
+Exit status 1

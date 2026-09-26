@@ -2,6 +2,57 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
+## v3 维护候选
+
+2026-09-25：依据 PF-017 rev5 起草 [v3](v3/contract.md)，candidate，未接受。S-55～S-59 的真实组合验证均**未开始**；不沿用下文 v1 的实现通过声明。
+
+| 规范条款与性质 | 证据义务与范围 | 本轮状态／owner |
+|---|---|---|
+| S-55～S-59 形状闭合及体检/31路由保持 | [examples.json](v3/examples.json)逐项验证；v2的93个已有定义逐项比较 | **通过**：108例（继承28、新增80）；93定义不变。仅Schema形状，不证明授权/内容/持久性 |
+| S-55/S-58/S-59 属主、真实结束、unknown不计成功、明文隔离 | [维护TLA+](v3/formal/README.md#维护模型)：安全正配置、带弱公平的进展配置、四个预期反例配置 | **未运行**；形式工具由主线后续执行，否定配置不是formal task |
+| S-55 一致观察与不改源事实 | 并发业务写入下核对完整同一副本、原中心/迁移/时间底线及登录活动；副本不是拼接 | **未开始**；存储维护、身份/时钟各owner与装配 |
+| S-56 时间与每日进展 | 20/24小时等号；仅匹配BackupFileName的直接条目计候选，超256先capacity，非普通文件/符号链接不跟随并计invalid；完整性后先排除外中心、再评价当前中心时间；外中心未来时刻不挡due；I/O异常不计坏件；同刻最小名、unknown重取、停机不自启 | **未开始**；装配和调度提供者 |
+| S-57/S-58 文件与安全边界 | 已有空目标拒绝、源不变、目标不覆盖、封装与原身份不变、结果businessOpen=false、不开业务 | **未开始**；本机维护工具 |
+| S-59 真实收场及崩溃残余 | 断连/取消/关闭交错、旧等待界后仍持源属主、发布各切点/清理删除回退、所有正式支持打开路径拒绝 | **未开始**；存储维护与装配。模型不替代介质/真实进程证据 |
+| S-29 秘密输出边界 | 答复/元信息/诊断无秘密；受保护副本不打印为文本，不把宿主访问冒称产品沙箱 | **未开始**；维护工具与诊断提供者 |
+
+本轮实际执行：`.venv/bin/python tmp/production-cli-onboarding/check-ec3.py` 输出
+`PASS: 108 schema examples; 93 inherited definitions unchanged; 31 resources enumerated; candidate not accepted.`
+原始输出在本次任务区 `tmp/production-cli-onboarding/ec3-schema-check.log`；未归档为正式证据。
+主线已集成候选清单片段。`.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal registered`
+本轮输出 `PASS: design tree …/.meta_harness/design passed gate=internal; formal=registered.`；5项v3正向任务逐项为
+`registered; execution was not requested`。原始输出在本次任务区 `tmp/production-cli-onboarding/ec3-design-check.log`。
+这只核对登记、资源、引用与冻结边界，不是TLC执行。四份登记口径由本次片段给出：catalog候选、47条未复核covers、5项正向任务、复用既有编号族；不新增namespace前缀。
+
+### v3 静态检查义务
+
+本节编号只属于 `composition.governance-center-entry/v3`；下文v1的SC-1～SC-3及其历史通过记录原样保留，不作为本版通过依据。
+
+| # | 检查什么 | 守的条款 | 状态／owner |
+|---|---|---|---|
+| SC-1 | 客户端可调用操作恰为S-17的31条业务路由及S-18公开体检，无泛化服务/方法分派；S-24未投影的治理操作没有旁路入口 | v3 S-17/S-18/S-24/S-31 | **未开始**；入口提供者及静态检查工具 |
+| SC-2 | 运行中运维可调用操作恰为full-health、backup、backup-status；没有账号/登录/组织/成员/邀约/注册/清除治理调用。维护仅消费S-59的副本只读核对与维护要求，不能把只读核对变成治理调用；两面不共用通道 | v3 S-25/S-31/S-55/S-56/S-59 | **未开始**；入口、维护提供者及静态检查工具 |
+| SC-3 | 客户端没有完整体检/维护路由；verify与restore-isolated仅为本机文件工具，不进入任一服务通道；完整体检仍沿S-26原十字段且纯读，维护状态不混入 | v3 S-18/S-25/S-26/S-31/S-57/S-58 | **未开始**；入口和host工具装配 |
+
+### v3 变化的影响
+
+S-1/S-2/S-25/S-29/S-34/S-36/S-47/S-48/S-54 与缺口说明接续维护责任；新增 S-55～S-59，公开体检和完整体检保持原表示，31条业务route IDs保留。
+维护形状、结果和发布/隔离模型是新增范围，所有维护实现证据必须重建；继承模型行为未改，其有限范围不扩张。
+S-2 与新catalog片段按正文实质消费补登 AI S-13/14/18/38/52、OG S-53/64、OE S-8/9/12/13/15/16/20；冻结v2未改。
+v2没有独立covers条目；v3先保留v1业务条款覆盖声称且标未复核，再增加PF-017 rev5维护关系，不把旧登记当新覆盖已验证。
+本轮主线另澄清：发布已确认但暂存清理失败也为unavailable（不证明无效果），unknown优先于清理失败；正文、场景和Maintenance.KeepResidual同步，前一模型读法的运行不能替代本修订。
+既有G号保留：G-1候选/支持制品采用、G-7安全再开放、G-10新增维护绑定、G-12升级契约家；不填新默认政策。
+
+2026-09-25独立评审修订：按主线裁定对齐S-31三运维操作及本版SC义务；S-55/S-56明确目录直接条目的精确名称筛选、先计候选上限、拒绝跟随符号链接、完整性/中心身份/时间的判定次序。补6项场景，外中心未来时间不能阻止本中心due，I/O异常不冒充坏件。examples的OG2 S-55与历史v1 G-1改为精确坐标，formal入口标v3并把v2运行只作历史。Schema、机器样例、模型与配置均未修改；新增目录语义不在既有TLA+模型覆盖内，真实目录/时间场景仍未开始。
+
+2026-09-25批内对齐：EC3与HT3统一采用PF-017 rev5；核对三运维逻辑名、payload/结果及必填null、onlyIfDue/backup-status共享目录判定、发布确认/清理失败/unknown优先级、断连与独立defect不释放owner。本契约的独立缺陷边界和闭合返回集合未改；HT3只规定受理后独立defect的网络关闭及本机ops-internal-defect诊断，不新增EC状态或反向依赖。共享数据继续IV1/OE2，HT3直接消费EC3 Schema，字段不另定义；旧冻结版只读，Schema与模型不改。该对齐不代替独立评审或真实适配验证。
+
+同轮主线裁定修正维护排他的作用域：S-55/S-57/S-58/S-59采用在线部署属主单槽、离线调用作用域单槽及同一维护工作区跨进程互斥；不同工作区允许并行只读同一封装，各自固定输入观察、暂存独立持久隔离、恢复目标独占。旧“同源维护排他”不再适用，也不引入全机锁服务。补4个场景，真实验证**未开始**；模型从单个已接纳工作开始，原本不验证准入，因此Schema/模型/配置未改，formal入口明确此限制。HT3只暴露在线三操作，继续消费部署属主单槽，不把离线文件工具上线。
+
+批内对齐后的本轮实际检查：EC3样例108例通过、93个继承定义不变；HT3的24份完整HTTP例通过，其中8份继承字节不变。当前catalog的EC3/HT3均为candidate，`check_design.py --formal registered`实际退出0并输出`PASS … gate=internal; formal=registered`；形式任务仅登记核对、未请求执行。本轮没有新增模型运行结论。
+
+## 既有版本的证据
+
 > **当前状态：`composition.governance-center-entry` v1 在身份清单里是 `accepted`（[D-028](../../../record/decisions/governance-center-design-acceptance/decision.md)，2026-09-23），所依赖的 `capability.account-identity` v2 同由 D-028 接受；主责产品依据 PF-017（rev 1 于 2026-09-23 接受，同日升 rev 2）。**
 > 形式模型的一次执行已入库：[`2026-09-23-formal-governance-center-entry`](../../../record/evidence/2026-09-23-formal-governance-center-entry/README.md)（输入与当前 `v1/formal/` 逐字节相同）。
 > 实现测试的一次运行已入库：[`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（源码提交 `c9b5850`；入口层提供者是[实现映射节点](../../../realization/packages/tenancy/governance-center-entry/README.md)，承载装配是 [`apps/tenancy-host`](../../../realization/apps/tenancy-host/README.md)）。

@@ -144,7 +144,7 @@
 - **形态**：视图
 - **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
   [§4「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 20） ·
-  [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 6）
+  [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 8）
 - **别混 ①**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——reload 重填的是注册表，不是一次完整的重新装配，**不改写正在跑的运行已经捕获的构成**
 - **别混 ②**：**裸写「注册表」不作数**——设计链里的 registry 是设计对象的身份清单，另有所指
 - **注意 ①**：命令那一张装的就是这个会话的[会话斜杠命令集](capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)
@@ -172,7 +172,7 @@
 
 - **形态**：视图
 - **出处**：[PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
-  [§6.17](../../product/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 2）
+  [§6.17](../../product/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 5）
 - **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
   那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
 - **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述
@@ -196,15 +196,15 @@
 
 - **形态**：属性
 - **出处**：[PF-016 §6.17](../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
-  [§5.6 哪几件事必须现读](../../product/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 6） ·
-  [PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 2）
+  [§5.6 哪几件事必须现读](../../product/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 8） ·
+  [PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 5）
 - **⚠️ 别混 ①**：**不是[治理中心体检](#ul-governance-center-health-check--治理中心体检--governance-center-health-check)**——
   体检是中心自述「我在不在、能不能答」；这一条是据点这一头的观察。体检答「数据所在够不着」，中心照样在应答，照样可达
 - **别混 ②**：**裸写「可达性」不作数**——形式检查里的可达性说的是某个状态走不走得到，
   [当下可用性](#ul-current-availability--当下可用性--current-availability)说的是一样能力此刻用不用得了，都与这一条无关
 - **注意 ①**：**它变了不让任何东西停下**——中心问不到不是让据点上任何在途工作停的理由；
   再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
-- **注意 ②**：规格层（`capability.center-connection` v1，本能力在规格里叫「中心连接」）把它分成三态：
+- **注意 ②**：规格层（`capability.center-connection` v2，本能力在规格里叫「中心连接」）把它分成三态：
   多出的「尚未判定」是据点这一侧起来之后还没有任何一次往来有结果——**既不当可达，也不当不可达**
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

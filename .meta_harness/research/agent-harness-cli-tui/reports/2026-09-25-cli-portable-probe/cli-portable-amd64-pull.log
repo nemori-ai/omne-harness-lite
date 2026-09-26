@@ -1,0 +1,41 @@
+docker.io/library/node@sha256:5a750d3be5e5c80275f8c9a5367c3aed99c2875656590c8d0701c7ee687f5f0a: Pulling from library/node
+eaac70c68abd: Pulling fs layer
+7b2de2423ebd: Pulling fs layer
+81578410df16: Pulling fs layer
+de9e8d0a0071: Pulling fs layer
+7f25c0042239: Pulling fs layer
+240de4f9ec20: Pulling fs layer
+496e07b192ff: Pulling fs layer
+4cc81be23c06: Pulling fs layer
+496e07b192ff: Waiting
+7f25c0042239: Waiting
+240de4f9ec20: Waiting
+4cc81be23c06: Waiting
+de9e8d0a0071: Waiting
+7b2de2423ebd: Verifying Checksum
+7b2de2423ebd: Download complete
+81578410df16: Verifying Checksum
+81578410df16: Download complete
+7f25c0042239: Verifying Checksum
+7f25c0042239: Download complete
+eaac70c68abd: Verifying Checksum
+eaac70c68abd: Download complete
+eaac70c68abd: Pull complete
+7b2de2423ebd: Pull complete
+240de4f9ec20: Verifying Checksum
+240de4f9ec20: Download complete
+496e07b192ff: Verifying Checksum
+496e07b192ff: Download complete
+81578410df16: Pull complete
+4cc81be23c06: Verifying Checksum
+4cc81be23c06: Download complete
+de9e8d0a0071: Verifying Checksum
+de9e8d0a0071: Download complete
+de9e8d0a0071: Pull complete
+7f25c0042239: Pull complete
+240de4f9ec20: Pull complete
+496e07b192ff: Pull complete
+4cc81be23c06: Pull complete
+Digest: sha256:5a750d3be5e5c80275f8c9a5367c3aed99c2875656590c8d0701c7ee687f5f0a
+Status: Downloaded newer image for node@sha256:5a750d3be5e5c80275f8c9a5367c3aed99c2875656590c8d0701c7ee687f5f0a
+docker.io/library/node@sha256:5a750d3be5e5c80275f8c9a5367c3aed99c2875656590c8d0701c7ee687f5f0a

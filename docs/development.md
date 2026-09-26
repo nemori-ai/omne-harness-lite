@@ -7,17 +7,15 @@
 > 都不在这里，也不在 `docs/` ——它们归 [`.meta_harness/`](../.meta_harness/AGENTS.md)。
 > 需要做那些事时从那里进入，加载 `harness-design-handbook` skill，**不要在这边落字**。
 
-## 当前能跑什么
+## 运行入口
 
-**`packages/` 有十个成员，`apps/` 还没有可启动的应用。**租户领域第一程（2026-09-22）建起了
-契约纯模块、Cordis 共用件、存储协议与 sqlite/pg 提供者、租约时钟，以及四个 tenancy 插件的
-服务面骨架——它们的操作实现在第二程，所以**现在没有能启动的产品**。成员与状态见
-[packages/README](../packages/README.md)。
+**先构建，再按所属应用的 README 启动。**治理中心的命令与配置见
+[tenancy-host](../apps/tenancy-host/README.md)，从零部署并完成账号/组织旅程的演练见
+[黑盒端到端入口](../apps/tenancy-host/tests/e2e/README.md)。后者使用实际构建产物，包含网络、证书和临时数据目录的环境要求。
 
-当前实际可运行的是：**产品包的构建、类型检查与测试**（`pnpm run build`／`typecheck`／`test`，
-含 sqlite 上的存储一致性套件与 Cordis 4.0.4 的 probe）、**结构检查**（`pnpm run lint:rules`）、
-**开发工具**（`tools/spec-tools`、`.meta_harness/tooling`）、**自动化脚本**（`scripts/`）、
-**agent 产物的编译与检查**，以及**形式模型的执行**。
+产品包的构建、类型检查与测试分别为 `pnpm run build`、`pnpm run typecheck`、`pnpm run test`；
+结构检查为 `pnpm run lint:rules`。开发工具、agent 产物与形式模型的检查入口见下文。
+成员的实现及验证状态归[实现映射](../.meta_harness/design/realization/README.md)，本页不维护另一份进度清单。
 
 ## 准备可用的检出
 
@@ -150,9 +148,9 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 | 链接、技能镜像或 agent 产物检查失败 | 修正源及其引用，按编译工具更新产物；**不要手改镜像或移出检查范围掩盖错误** |
 | `UNCOVERED` | 尚无相应模型任务——那是覆盖缺口，不是失败 |
 | 形式工具检查失败 | `make formal-tools` 看 Java/JAR 是否就位；缺环境、覆盖缺口与执行失败是三件事 |
-| `No projects matched the filters` | `apps/**` 当前没有成员，只对 `apps` 的过滤会这样报；`packages/**` 有成员 |
+| `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness-lite/cli`、`@omne-harness-lite/tenancy-host` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
-| 不知道如何启动产品 | 当前没有可启动的应用，也没有发布入口；tenancy 插件的操作实现在第二程 |
+| 不知道如何启动产品 | 先构建，再按 [CLI](../apps/cli/README.md) 或 [治理中心](../apps/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
 
 ## 保持本页可用
 

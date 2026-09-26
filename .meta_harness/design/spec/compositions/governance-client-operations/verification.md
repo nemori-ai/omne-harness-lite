@@ -1,0 +1,7 @@
+# 治理客户端用例验证
+
+v1由D047接受且已实现；[最终Schema输入](../../../record/evidence/2026-09-25-formal-client-operations-2/README.md)77例，[实现运行](../../../record/evidence/2026-09-25-tests-client-operations/README.md)106项及两平台真实组合，均有范围限制。不得把早期候选快照当最终输入。
+
+v2是操作前预览与交互输入候选，尚未采用或实现。[有限模型与Schema运行](../../../record/evidence/2026-09-25-formal-prepared-input/README.md)56状态/四负控；初稿110例不含Output，后续补充交互取消/回调缺陷的最终结果实例。旧v1源码测试不覆盖新回调生命周期。
+
+新增义务由v2 S16及提供者design-v2维护：配置预览不含userinfo/CA原文或私钥、输入回调与实际捕获同源、迟到continue不重启目标、真实交互未结束不能释放依赖、准备读数/失效/最终结果仍一次原快照CAS。真实TTY/IME、输入尾块、应用模式恢复与发布制品不由本组合模型验证。
