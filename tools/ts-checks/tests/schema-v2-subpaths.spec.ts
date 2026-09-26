@@ -51,17 +51,36 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
       })
     }
 
-    it(`${provider} 的精确子入口不新增依赖边，也不允许本包源码绕行自身公开入口`, () => {
+    it(`${provider} 的精确子入口不新增依赖边，自有资源仅批准 AM2`, () => {
       const consumer = Object.entries(CORE_PURE_DEPENDENCIES).find(
         ([, dependencies]) => !dependencies.includes(provider),
       )?.[0]
       if (consumer === undefined) throw new Error(`缺少 ${provider} 的禁止依赖负例`)
-      for (const name of [consumer, provider])
+      expect(
+        corePureImports.check([
+          {
+            path: `core/${consumer}/src/schema.ts`,
+            text: `import '@omne-harness-lite/${provider}/schema/v2'`,
+          },
+        ]),
+      ).toHaveLength(1)
+      expect(
+        corePureImports.check([
+          {
+            path: `core/${provider}/src/schema.ts`,
+            text: `import '@omne-harness-lite/${provider}/schema/v2'`,
+          },
+        ]),
+      ).toHaveLength(provider === 'asset-model' ? 0 : 1)
+    })
+
+    it(`${provider} 的本包相邻资源路径仍禁止`, () => {
+      for (const suffix of ['schema/v3', 'schema/v20', 'schema/v2/private', 'src/schema/v2.ts'])
         expect(
           corePureImports.check([
             {
-              path: `core/${name}/src/schema.ts`,
-              text: `import '@omne-harness-lite/${provider}/schema/v2'`,
+              path: `core/${provider}/src/schema.ts`,
+              text: `import '@omne-harness-lite/${provider}/${suffix}'`,
             },
           ]),
         ).toHaveLength(1)

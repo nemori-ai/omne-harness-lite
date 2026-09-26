@@ -76,6 +76,8 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 }
 
 function allowedExternal(pkg: string, dependencies: readonly string[], specifier: string): boolean {
+  // D-068：AM3 的固定资源图显式纳入本包完整 AM2；只批准这个公开资源入口。
+  if (pkg === 'asset-model' && specifier === '@omne-harness-lite/asset-model/schema/v2') return true
   if (
     pkg !== 'stream-assembly' &&
     pkg !== 'asset-evaluation' &&
