@@ -88,6 +88,8 @@ async function consume(negativeControl: boolean) {
   const parsed: unknown = JSON.parse(result.stdout)
   await writeFile(join(directory, 'report.json'), JSON.stringify(parsed, null, 2) + '\n')
   const report = record(parsed)
+  expect(report.specEpoch).toBe(3)
+  expect(report.packedConsumer).toBe(false)
   const artifact = record(report.consumerArtifact)
   const consumerFile = join(member, 'dist/w6-asset-consumer.js')
   expect(artifact.file).toBe(consumerFile)

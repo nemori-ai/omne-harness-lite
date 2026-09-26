@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 import {
   attributeDeclarationsOf,
   carrierRecordId,
@@ -65,6 +66,7 @@ const mcp = { category: 'mcp', name: 'remote' } as const
 const slash = { category: 'slash_command', name: 'review' } as const
 const workspace = { tenant, directory: '/work/review' }
 const negativeControl = process.argv.includes('--negative-control=workspace-permissions')
+const packedConsumer = process.argv.includes('--packed-consumer')
 
 function json(value: unknown): JsonValue {
   const parsed = readJsonStrict(writeJsonLossless(value))
@@ -817,7 +819,12 @@ for (const name of [
   'identity-values',
 ]) {
   const url = new URL(import.meta.resolve('@omne-harness-lite/' + name))
-  assert.ok(url.pathname.endsWith('/packages/core/' + name + '/dist/index.js'))
+  if (packedConsumer) {
+    assert.ok(
+      fileURLToPath(url).startsWith(dirname(fileURLToPath(import.meta.url)) + '/node_modules/'),
+    )
+    assert.ok(url.pathname.endsWith('/node_modules/@omne-harness-lite/' + name + '/dist/index.js'))
+  } else assert.ok(url.pathname.endsWith('/packages/core/' + name + '/dist/index.js'))
   resolution.push({
     name,
     file: fileURLToPath(url),
@@ -846,6 +853,8 @@ process.stdout.write(
   JSON.stringify(
     {
       negativeControl,
+      specEpoch: 3,
+      packedConsumer,
       nodeVersion: process.version,
       consumerArtifact: {
         file: fileURLToPath(import.meta.url),

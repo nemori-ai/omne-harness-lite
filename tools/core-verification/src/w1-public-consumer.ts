@@ -502,8 +502,8 @@ const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.content.public-lossless-json',
     sources: [
-      'data.content-blocks/v2#S-12',
-      'data.content-blocks/v2#S-24',
+      'data.content-blocks/v3#S-12',
+      'data.content-blocks/v3#S-24',
       'content-blocks/V-11-module',
     ],
     run() {
@@ -541,11 +541,11 @@ const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.content.public-block-judgment',
     sources: [
-      'data.content-blocks/v2#S-12',
-      'data.content-blocks/v2#S-13',
-      'data.content-blocks/v2#S-24',
-      'data.content-blocks/v2#S-26',
-      'data.content-blocks/v2#S-27',
+      'data.content-blocks/v3#S-12',
+      'data.content-blocks/v3#S-13',
+      'data.content-blocks/v3#S-24',
+      'data.content-blocks/v3#S-26',
+      'data.content-blocks/v3#S-27',
     ],
     run() {
       const source =
@@ -582,10 +582,10 @@ const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.content.public-metadata-meaning',
     sources: [
-      'data.content-blocks/v2#S-6',
-      'data.content-blocks/v2#S-7',
-      'data.content-blocks/v2#S-20',
-      'data.content-blocks/v2#S-21',
+      'data.content-blocks/v3#S-6',
+      'data.content-blocks/v3#S-7',
+      'data.content-blocks/v3#S-20',
+      'data.content-blocks/v3#S-21',
     ],
     run() {
       assert.equal(isCanonicalMediaType('image/png'), true)

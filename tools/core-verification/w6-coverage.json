@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "matrix_sha256": "b5a3c77bf48739f06dd635d7c8b9176e6bc402d701a11672c5cbba8ea06fe2b0",
+  "matrix_sha256": "0cdc74ec7579f7ccc5a7f1b470fb3f13fc8d3b8491bae5598d935bae1b39142f",
   "status": "development mapping; external facts not verified",
   "obligations": [
     {
@@ -16,7 +16,7 @@
       "case_ids": [
         "storage.conformance.real-sqlite: the unmodified public provider passes every case"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "infra/storage-sql owns engine mappings/WAL behavior; no PostgreSQL evidence",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -33,7 +33,7 @@
       "case_ids": [
         "storage.conformance.detects-disabled-foreign-keys: C-11/C-12 fail their real assertions"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "test fixture owns only its connection and temporary database; no lockRow-noop inference",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -50,7 +50,7 @@
       "case_ids": [
         "w6.messages.nested-unique-boundary"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "session log owns cross-message identity uniqueness and persistence",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -69,7 +69,7 @@
       "linked_obligation_ids": [],
       "core_step": "AR envelope → actual SA.accept(close) → CB raw/lossless result → Messages",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "transport owns authentic upstream arrival and late delivery; SA release pending",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -96,7 +96,7 @@
         "w6.asset.body-rejections",
         "w6.asset.reserved-and-duplicate-real-body"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "Connector provider is outside core; AM availability guard must remain explicit",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -119,7 +119,7 @@
       "linked_obligation_ids": [],
       "core_step": "CA account judgment → AR account/trim arrivals → actual SA frame settlement/unknown",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "tool-execution runtime owns emitted/delivered distinction and late bill ownership",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -142,7 +142,7 @@
       "linked_obligation_ids": [],
       "core_step": "actual SA snapshot/closeOut/abandon → Messages judgment and MR shape",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "session-log owner owns append and reference existence",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -163,7 +163,7 @@
       "case_ids": [
         "w6.asset.mcp-schema-execution-boundary"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "MCP registry owns fetched snapshot authenticity/pinning; bridge/execution runtime owns real call and timeout",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -182,7 +182,7 @@
       "linked_obligation_ids": [],
       "core_step": "AR shape → actual SA sequenceFailure names and unchanged rejected state",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "transport/runtime owns target routing and event serialization",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -197,7 +197,7 @@
       "linked_obligation_ids": [],
       "core_step": "actual CA/AR/SA settlement → actual MR judge → runtime-record Messages judge",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "model-request runtime owns response ID/ref existence, late settlement and durable commit",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -216,7 +216,7 @@
       "linked_obligation_ids": [],
       "core_step": "actual CB/CA/AR → SA → Messages/MR, independent hand-calculated bytes/accounts/blocks",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "transport owns genuine decoded arrivals; source identities supplied by caller; SA release pending",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -244,7 +244,7 @@
         "w6.asset.workspace-normalized-skill-reading",
         "w6.asset.nonconnector-record-domain"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "PRE1-9 snapshot assembly, effective memberships, transfer validity, factory completeness, FS and MCP pinning owned by runtime/assets/session providers",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -252,7 +252,7 @@
       "id": "asset-model.walkthrough-cs-1-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/asset-model/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
           "section": "CS-1 求值读一格的持有"
         }
       ],
@@ -264,7 +264,7 @@
       "case_ids": [
         "w6.asset.layer-lock-and-setting-discontinuity"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "assets registry/input assembler owns one holding per layer/capability and selected version snapshot",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -272,7 +272,7 @@
       "id": "asset-model.walkthrough-cs-5-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/asset-model/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
           "section": "CS-5 读入一份承载清单"
         }
       ],
@@ -284,7 +284,7 @@
       "case_ids": [
         "w6.asset.workspace-normalized-skill-reading"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "workspace/session owner owns real directory reading, identity binding and at timestamp",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -292,7 +292,7 @@
       "id": "asset-model.walkthrough-cs-6-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/asset-model/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
           "section": "CS-6 一笔账记到一个 MCP 接入点"
         }
       ],
@@ -304,7 +304,7 @@
       "case_ids": [
         "w6.asset.scope-identity-and-billing"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "MCP execution owner owns whether remote billed and emitted reference correctness",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -312,7 +312,7 @@
       "id": "asset-model.walkthrough-cs-7-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/asset-model/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
           "section": "CS-7 租户领域的三条走查"
         }
       ],
@@ -325,7 +325,7 @@
         "w6.asset.scope-identity-and-billing",
         "w6.asset.workspace-normalized-skill-reading"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "identity/session/assets owners own current membership, unique keys and persistence",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -333,7 +333,7 @@
       "id": "asset-model.walkthrough-cs-8-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/asset-model/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
           "section": "CS-8 正文契约写推出规则"
         }
       ],
@@ -345,7 +345,7 @@
         "w6.asset.five-real-ports",
         "w6.asset.reserved-and-duplicate-real-body"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "tool runtime owns consuming declared settings/permission effects; Connector deferred",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -353,7 +353,7 @@
       "id": "content-blocks.walkthrough-cs-1-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/content-blocks/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/content-blocks/v3/contract.md",
           "section": "CS-1 消息层给压缩点名"
         }
       ],
@@ -366,7 +366,7 @@
         "w6.messages.nested-unique-boundary",
         "w6.messages.nested-readability-and-compaction"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "session/context owners own persisted exact immutable log and compression records",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -374,7 +374,7 @@
       "id": "content-blocks.walkthrough-cs-2-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/content-blocks/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/content-blocks/v3/contract.md",
           "section": "CS-2 流装配交出封口的块"
         }
       ],
@@ -384,7 +384,7 @@
       ],
       "core_step": "SA accepted complete close / abandonment → CB complete/unparseable/incomplete → Messages",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "tool runtime owns callId registration and nonexecution for unparseable/incomplete",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -392,7 +392,7 @@
       "id": "content-blocks.walkthrough-cs-3-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/content-blocks/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/content-blocks/v3/contract.md",
           "section": "CS-3 上下文组装取块"
         }
       ],
@@ -403,7 +403,7 @@
       "case_ids": [
         "w6.messages.nested-readability-and-compaction"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "context assembler owns choosing target audience and final model projection",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -411,7 +411,7 @@
       "id": "tool-definition.walkthrough-cs-5-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/tool-definition/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/tool-definition/v3/contract.md",
           "section": "CS-5 由 MCP 列举生成定义"
         }
       ],
@@ -422,7 +422,7 @@
       "case_ids": [
         "w6.asset.mcp-schema-execution-boundary"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "bridge owns fetched authenticity and safe execution boundary",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -430,7 +430,7 @@
       "id": "tool-definition.walkthrough-cs-8-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/tool-definition/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/tool-definition/v3/contract.md",
           "section": "CS-8 接住一次工具返回"
         }
       ],
@@ -442,7 +442,7 @@
       "case_ids": [
         "w6.tool.result-to-content"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "tool execution/runtime owns durable result identity and offload bytes",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -450,7 +450,7 @@
       "id": "messages.walkthrough-cs-4-core-step",
       "sources": [
         {
-          "path": ".meta_harness/design/spec/data/messages/v2/contract.md",
+          "path": ".meta_harness/design/spec/data/messages/v3/contract.md",
           "section": "CS-4 流装配收尾"
         }
       ],
@@ -459,7 +459,7 @@
       ],
       "core_step": "actual SA closure/settlement → Messages and MR judges",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "session/runtime owners own reference existence and durable same-commit writes",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -480,7 +480,7 @@
         "w6.asset.five-real-ports",
         "w6.asset.body-rejections"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "governance/registry owns real published package bytes/version immutability",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -499,7 +499,7 @@
       "case_ids": [
         "w6.skill.slash-expansion-to-messages"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "runtime owns actual effective usableBy before command execution and resource retrieval",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -519,7 +519,7 @@
       "case_ids": [
         "w6.asset.workspace-normalized-skill-reading"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "workspace reader owns filesystem snapshot and symlink containment, not established by provided entries",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -539,7 +539,7 @@
       "case_ids": [
         "w6.asset.five-real-ports"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "settings UI and Skills runtime own form presentation/consumption; not part of core",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -559,7 +559,7 @@
       "case_ids": [
         "w6.asset.mcp-schema-execution-boundary"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "registry owns attempted pinned action set; unavailable action assignment must be preserved externally",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -576,7 +576,7 @@
       ],
       "core_step": "actual AR open/fill/close/finish → SA ordered complete/incomplete response blocks",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "model transport owns authentic arrival sequence and max_tokens finish",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -594,7 +594,7 @@
       ],
       "core_step": "actual AR replace-fill progress/log frames → SA interrupted settlement without bill",
       "case_ids": [],
-      "measurement_status": "pending SA accepted release / scenario implementation",
+      "measurement_status": "pending SA source release / scenario implementation",
       "external_owner_and_premise": "tool runtime owns frame emission, transport delivery and actual cancellation",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -614,7 +614,7 @@
       "case_ids": [
         "w6.asset.reserved-and-duplicate-real-body"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "asset-governance owns refusing publication and user presentation",
       "acceptance": "root only; no full external CS closure claimed"
     },
@@ -634,7 +634,7 @@
       "case_ids": [
         "w6.asset.five-real-ports"
       ],
-      "measurement_status": "implemented; execution report required",
+      "measurement_status": "executed within stated core step in epoch3; see source-bound run manifest; external premise remains unverified",
       "external_owner_and_premise": "runtime owns using effective permission before invocation",
       "acceptance": "root only; no full external CS closure claimed"
     }
@@ -642,5 +642,9 @@
   "deferred": [
     "connector.walkthrough-cs-1-core-step",
     "connector.walkthrough-cs-5-core-step"
-  ]
+  ],
+  "spec_epoch": 3,
+  "previous_epoch_source_release": "7947d4e357dac8e2b61accf9f811da33c845212f",
+  "scope_note": "221 current scope; 24 external consumers remain outside; SP3/S20 semantic decision pending, do not infer complete Skill acceptance",
+  "measurement_evidence_root": "tmp/w6-core-verification/epoch-3"
 }

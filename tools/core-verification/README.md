@@ -16,7 +16,7 @@ P／C 编号是该节点的协议与用例编号，没有独立契约坐标。
 [storage](../../.meta_harness/design/realization/packages/core/storage/design.md) 与
 [content-blocks](../../.meta_harness/design/realization/packages/core/content-blocks/design.md)
 的实际公开面；数据契约精确采用 `data.identity-values/v1`、`data.offer-expiry/v2`、
-`data.content-blocks/v2`，跨包 Instant Schema 接线另采用已批准的 offer-expiry/v1 资源，
+`data.content-blocks/v3`，跨包 Instant Schema 接线另采用已批准的 offer-expiry/v1 资源，
 接受与冻结从 [registry](../../.meta_harness/design/registry/README.md) 核对。
 kernel／storage 采用 D-025／D-026 与上述技术设计，没有独立数据契约坐标。
 
@@ -52,7 +52,7 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 原默认路径及全部判据保持不变。W6 命令示例：
 
 ```sh
-OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-2/configured-run \
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-3/run \
   pnpm --filter @omne-harness-lite/core-verification run test
 ```
 
@@ -64,7 +64,8 @@ OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-2/configured
 `src/w1-public-consumer.ts` 构建为 `dist/w1-public-consumer.js`，由真实 Node 子进程运行。
 它只通过五包根 `exports` 与批准的 `./testing`／`./schema` 子入口加载构建产物，
 检查根入口确实解析到各包 `dist/index.js`；Node 应拒绝未公开的 `src/index.ts` 子路径。
-三个 Schema 的实际公开字节与冻结 v1 逐 hash 核对。消费时没有产品源码别名或 Vitest 转换器。
+三个 Schema 的实际公开字节分别与已采用的 identity v1／offer v2／content v3 冻结字节逐 hash 核对。
+消费时没有产品源码别名或 Vitest 转换器。
 下表是有限场景，产品定义仍归上面的契约与实现映射。
 
 | 稳定子场景 Test ID | 判据与采用范围 |
@@ -144,8 +145,10 @@ TypeScript 的实际模块解析验证入口是 `dist/index.d.ts`，并逐项比
 采用关系从 `.meta_harness/design/registry/{catalog,frozen}.json` 与各 core 节点的
 `README.md`、`design.md`、`verification.md`、`bindings.yaml` 核对；本工具不定义产品政策。
 当前施工输入及32项 core-composition 步骤／外部责任映射见 [w6-coverage.json](w6-coverage.json)。
-八份 v3 候选与尚未释放的 stream-assembly 不能仅因文件存在而消费为已接受规格；
-第二条实际流组合链及最终18 core包检查在收到明确接受、冻结与源码释放后展开。
+epoch 3 明确采用 D-068 已接受、冻结的 CB／Messages／MR／Loop／TD／AM 3 与 SA／AE 3；
+其余数据仍2、identity1、默认offer2与保留offer1。HUB源码基线 eabfff0f；SA实际源码仍待释放，
+第二条实际流组合链及最终18 core包检查保持 pending。epoch 2 原源码、输入和原始输出已独立封存，
+不能把它们重标3。Skill SP3／S20 的完整语义仍待用户裁决，本工具不据 normalized 输入关闭它。
 
 `w6-asset-consumer` 只通过已构建的公开入口连接五个真实 bodyContract → asset-model →
 asset-evaluation。它使用实际 Skill 文本读取、清单解析、记录判断、求值、Slash 展开、
@@ -162,9 +165,11 @@ OAuth、当前成员资格、第三方计费或持久化事实。Connector 第�
 构建后运行独立打包验证：
 
 ```sh
-node tools/core-verification/dist/w6-packed-consumer.js
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-3/run \
+  node tools/core-verification/dist/w6-packed-consumer.js
 # 只在 stream-assembly 尚未释放时作明确的先行检查；不能据此报最终20包完成。
-node tools/core-verification/dist/w6-packed-consumer.js --allow-pending-stream
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-3/run \
+  node tools/core-verification/dist/w6-packed-consumer.js --allow-pending-stream
 ```
 
 该命令 `pnpm pack` 实际成员，在自己的临时消费者内离线安装 tarballs；消费者的
@@ -174,9 +179,13 @@ overrides 同时把传递的 `0.0.0` 依赖钉回这批 tarballs，避免从 reg
 值／类型双用类），逐个 `import type` 并重新导出，独立 `tsc` 在严格模式、
 `skipLibCheck: false` 下检查；库存自身有星号／别名／双用途类型的受控反例。
 这证明公开声明闭包可消费，业务语义的类型约束仍由相应公开类型场景和节点测试承担。
+同一份已构建资产消费者还复制到独立 tarball 消费者，明确检查11个公开根入口全部解析
+在该消费者的 node_modules 下，并运行上述固定12个资产子场景；这次运行的输入、stdout
+与构建产物 hash 单独保存，不把 workspace 运行改标成打包证据。
 
-实际 Node 消费根和批准运行时子路径，Schema 公共入口及包内闭包资源逐份与冻结字节
-核对，所有 `$defs` 在实际 Ajv 2020-12 中编译。内部 Connector Schema 是已冻结的结构资源，
+实际 Node 消费根和批准运行时子路径，六数据默认3及全部公开 `schema/v2` 保留资源、其他 Schema 公共入口及包内闭包资源逐份与冻结字节
+核对，所有 `$defs` 在实际 Ajv 2020-12 中编译。默认及保留资源还逐公开子路径核对明确的版本坐标；
+错期负控要求恰 `w6.schema.current-and-retained-coordinates` 报 AssertionError，其余五项通过。内部 Connector Schema 是已冻结的结构资源，
 不冒充实际 Connector bodyContract。每包 private/src/dist、相邻路径和未公开版本各自
 必须产生 TS2307 与 `ERR_PACKAGE_PATH_NOT_EXPORTED`；不是任意编译错误／异常都算拒绝。
 storage/conformance 另在独立 Vitest 宿主中核对公开函数可导入，其真实 SQLite 套件与

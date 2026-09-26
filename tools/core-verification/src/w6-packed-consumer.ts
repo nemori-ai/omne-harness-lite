@@ -15,21 +15,21 @@ const pendingStreamAllowed = process.argv.includes('--allow-pending-stream')
 const surfaces: Readonly<Record<string, readonly string[]>> = {
   'arrival-events': ['.', './schema'],
   'asset-evaluation': ['.'],
-  'asset-model': ['.', './schema'],
+  'asset-model': ['.', './schema', './schema/v2'],
   'call-accounts': ['.', './schema'],
-  'content-blocks': ['.', './schema', './schema-runtime'],
+  'content-blocks': ['.', './schema', './schema-runtime', './schema/v2'],
   'identity-values': ['.', './schema'],
   'kernel-basis': ['.', './testing'],
-  'loop-extension': ['.', './schema'],
+  'loop-extension': ['.', './schema', './schema/v2'],
   'mcp-endpoint': ['.', './schema'],
-  messages: ['.', './schema'],
+  messages: ['.', './schema', './schema/v2'],
   'model-profile': ['.', './schema'],
-  'model-response': ['.', './schema'],
+  'model-response': ['.', './schema', './schema/v2'],
   'offer-expiry': ['.', './schema', './testing', './schema/v1'],
   'skill-package': ['.', './schema'],
   'slash-command': ['.', './schema'],
   storage: ['.', './conformance'],
-  'tool-definition': ['.', './schema'],
+  'tool-definition': ['.', './schema', './schema/v2'],
   'stream-assembly': ['.'],
   'unix-format': ['.'],
   'xml-format': ['.'],
@@ -231,8 +231,11 @@ const forbidden = members.flatMap(member => [
   member.specifier + '/src/index.ts',
   member.specifier + '/dist/index.js',
   member.specifier + '/schema/v999',
+  member.specifier + '/schema/v3',
   member.specifier + '/neighbor',
   ...(member.name === 'offer-expiry' ? [] : [member.specifier + '/schema/v1']),
+  ...(member.subpaths.includes('./schema/v2') ? [] : [member.specifier + '/schema/v2']),
+  ...(member.subpaths.includes('./schema') ? [] : [member.specifier + '/schema']),
 ])
 await writeFile(
   join(consumer, 'negative.ts'),
@@ -279,56 +282,88 @@ const runtimeInput = { members, forbidden, frozen, designRoot: join(root, '.meta
 await writeFile(join(consumer, 'input.json'), JSON.stringify(runtimeInput, null, 2) + '\n')
 await writeFile(
   join(consumer, 'consume.mjs'),
-  `
-import assert from 'node:assert/strict';
-import { readFile, realpath, readdir } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import { Ajv2020 } from 'ajv/dist/2020.js';
-const input = JSON.parse(await readFile(new URL('./input.json', import.meta.url), 'utf8'));
-const records = []; const schemas = []; const resources = new Map();
-const hash = bytes => createHash('sha256').update(bytes).digest('hex');
-async function resource(path, specifier) {
-  const bytes = await readFile(path); const schema = JSON.parse(bytes);
-  const match = new URL(schema.$id).pathname.match(/[/]spec[/](.+)$/);
-  assert.ok(match, 'schema fixed coordinate');
-  const relative = 'spec/' + match[1];
-  assert.equal(hash(bytes), input.frozen[relative], relative + ': frozen bytes');
-  assert.equal(hash(await readFile(join(input.designRoot, relative))), hash(bytes));
-  schemas.push({ specifier, file:path, sha256:hash(bytes), coordinate:relative }); resources.set(schema.$id, schema);
-}
-for (const member of input.members) {
-  for (const subpath of member.subpaths) {
-    const specifier = member.specifier + (subpath === '.' ? '' : subpath.slice(1));
-    const path = await realpath(fileURLToPath(import.meta.resolve(specifier)));
-    assert.ok(path.startsWith(dirname(fileURLToPath(import.meta.url)) + '/node_modules/'));
-    if (subpath === './schema' || subpath.startsWith('./schema/')) await resource(path, specifier);
-    else if (subpath !== './conformance') {
-      const exports = Object.keys(await import(specifier)).sort();
-      assert.ok(exports.length > 0); records.push({specifier,file:path,exports,sha256:hash(await readFile(path))});
-    }
-    if (member.name === 'asset-model' && subpath === './schema') {
-      const folder = join(dirname(path), 'resources');
-      for (const file of await readdir(folder)) if (file.endsWith('.schema.json')) await resource(join(folder,file), 'packaged-internal-resource');
-    }
-  }
-}
-for (const specifier of input.forbidden) {
-  await assert.rejects(import(specifier), error => error.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED', specifier);
-}
-const ajv = new Ajv2020({ strict:false, validateFormats:false, allErrors:true });
-for (const schema of resources.values()) ajv.addSchema(schema);
-let compiled = 0;
-for (const schema of resources.values()) {
-  for (const name of Object.keys(schema.$defs ?? {})) { ajv.compile({$ref:schema.$id + '#/$defs/' + name}); compiled++; }
-}
-assert.ok(compiled > 100);
-process.stdout.write(JSON.stringify({records, schemas, resources:resources.size, compiled, forbidden:input.forbidden}, null, 2) + '\\n');
-`,
+  await readFile(new URL('../fixtures/packed-consumer.mjs', import.meta.url)),
 )
 const runtime = await run('runtime', process.execPath, ['consume.mjs'], consumer)
 assert.equal(runtime.code, 0, runtime.stdout + runtime.stderr)
+const expectedRuntimeCases = [
+  'w6.pack.actual-runtime-exports',
+  'w6.schema.current-and-retained-coordinates',
+  'w6.schema.exact-frozen-bytes',
+  'w6.schema.fixed-resource-closure',
+  'w6.schema.current3-raw-name-versus-retained2-arrival',
+  'w6.pack.private-subpath-rejections',
+]
+function runtimeCases(stdout: string) {
+  const report = record(JSON.parse(stdout))
+  assert.equal(report.specEpoch, 3)
+  assert.ok(Array.isArray(report.cases))
+  const cases = report.cases.map((item: unknown) => record(item))
+  assert.deepEqual(
+    cases.map(item => item.id),
+    expectedRuntimeCases,
+  )
+  return cases
+}
+assert.ok(runtimeCases(runtime.stdout).every(item => item.status === 'passed'))
+const wrongEpoch = await run(
+  'runtime-wrong-content-epoch',
+  process.execPath,
+  ['consume.mjs', '--negative-control=content-epoch'],
+  consumer,
+)
+assert.equal(wrongEpoch.code, 1)
+const controlledCases = runtimeCases(wrongEpoch.stdout)
+const failures = controlledCases.filter(item => item.status === 'failed')
+assert.deepEqual(
+  failures.map(item => item.id),
+  ['w6.schema.current-and-retained-coordinates'],
+)
+assert.equal(
+  controlledCases.filter(item => item.status === 'passed').length,
+  expectedRuntimeCases.length - 1,
+)
+assert.equal(record(failures[0]?.error).name, 'AssertionError')
+assert.ok(
+  String(record(failures[0]?.error).message).includes('@omne-harness-lite/content-blocks/schema'),
+)
+assert.ok(String(record(failures[0]?.error).message).includes('/v3/'))
+assert.ok(String(record(failures[0]?.error).message).includes('/v2/'))
+await writeFile(
+  join(consumer, 'assets.mjs'),
+  await readFile(new URL('./w6-asset-consumer.js', import.meta.url)),
+)
+const assets = await run(
+  'packed-assets',
+  process.execPath,
+  ['assets.mjs', '--packed-consumer'],
+  consumer,
+)
+assert.equal(assets.code, 0, assets.stdout + assets.stderr)
+const assetReport = record(JSON.parse(assets.stdout))
+assert.equal(assetReport.specEpoch, 3)
+assert.equal(assetReport.packedConsumer, true)
+assert.ok(Array.isArray(assetReport.cases))
+const packedAssetCases = assetReport.cases.map((item: unknown) => record(item))
+const expectedAssetCases = [
+  'w6.asset.five-real-ports',
+  'w6.asset.body-rejections',
+  'w6.asset.layer-lock-and-setting-discontinuity',
+  'w6.asset.workspace-normalized-skill-reading',
+  'w6.asset.mcp-schema-execution-boundary',
+  'w6.asset.reserved-and-duplicate-real-body',
+  'w6.asset.nonconnector-record-domain',
+  'w6.asset.scope-identity-and-billing',
+  'w6.skill.slash-expansion-to-messages',
+  'w6.messages.nested-unique-boundary',
+  'w6.messages.nested-readability-and-compaction',
+  'w6.tool.result-to-content',
+]
+assert.deepEqual(
+  packedAssetCases.map(item => item.id),
+  expectedAssetCases,
+)
+assert.ok(packedAssetCases.every(item => item.status === 'passed'))
 await writeFile(
   join(consumer, 'conformance.spec.ts'),
   `import { it, expect } from 'vitest'; import { describeStorageConformance, describeAtomicStorageConformance } from '@omne-harness-lite/storage/conformance'; it('w6.pack.conformance-entry-in-actual-vitest-host', () => { expect(typeof describeStorageConformance).toBe('function'); expect(typeof describeAtomicStorageConformance).toBe('function'); });\n`,
@@ -341,6 +376,7 @@ const conformance = await run(
 )
 assert.equal(conformance.code, 0, conformance.stdout + conformance.stderr)
 const report = {
+  specEpoch: 3,
   sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: root,
     encoding: 'utf8',
@@ -361,6 +397,8 @@ const report = {
   options,
   negativeTypeDiagnostics: missing.length,
   runtime: JSON.parse(runtime.stdout),
+  wrongEpochRuntime: JSON.parse(wrongEpoch.stdout),
+  packedAssets: assetReport,
   executions,
 }
 await writeFile(join(directory, 'report.json'), JSON.stringify(report, null, 2) + '\n')
