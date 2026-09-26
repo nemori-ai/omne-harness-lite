@@ -1,12 +1,13 @@
 # ts-checks
 
 产品源码（`packages/` 与 `apps/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
-每条规则只看文本与路径（便宜、可自测），不做类型分析。类型层的检查（失败集合闭合等）
+规则检查文本、路径与 TypeScript 语法，不做跨文件类型分析。类型层的检查（失败集合闭合等）
 在各包的 `tests/*.spec-d.ts` 里，不在这里。
 
 新规则（`restricted-call-sites` 的扩展与其后各条）跑在 `src/source-text.ts` 的词法视图上：
-注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。老的三条与 `restricted-call-sites`
-的前两项仍逐行扫原文（行为未改）。按路径写死的位置集中在 `src/layout.ts`，入口层包的路径以
+注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。`no-bail-control`、`no-testing-import` 与
+`restricted-call-sites` 的前两项仍逐行扫原文。新增 core 与身份规则使用已锁定 TypeScript 的语法树，
+不构造类型检查 Program。按路径写死的位置集中在 `src/layout.ts`，入口层包的路径以
 [governance-center-entry verification「包布局常量」](../../.meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md#静态检查)为准。
 **被查的包不存在时规则无事可查、静默通过**；包存在而规则依赖的布局锚点（入口层包的
 `src/events.ts` 与 `src/ops/`、账号能力包的 `src/plugin.ts`、注册组合包的 `TERMINAL_OUTCOMES`）缺席时报出，不静默失效。
@@ -47,3 +48,52 @@ pnpm --filter @omne-harness-lite/ts-checks test   # 规则自测
 
 加规则：在 `src/rules/` 写一个 `Rule`，登记进 `src/index.ts` 的 `RULES`，并补「故意违反就失败、合规就通过」的两向夹具。
 规则的来源条款写进 `source` 字段，README 表里同时写「不覆盖」。
+
+## Core 交付的规则
+
+这些规则登记在同一 `RULES` 与 CLI 中，扫描本检出的真实产品源码。不存在的包不产生覆盖证据；
+fixture 通过只证明检查器能检出指定反例，不证明尚未实现的消费者满足契约。
+
+| 规则 | 来源 | 查什么 | 不覆盖 |
+|---|---|---|---|
+| `core-pure-imports` | 十五个新 core 节点 design 的公开面与依赖表；stream-assembly SC-2；asset-evaluation SC-1 | 每个节点分别登记其公开依赖，允许根入口与 Schema 子入口、本包源码/Schema、明确采用的 Ajv/YAML/regexpp 与纯 Node 构件。类型导入也检查；重导出、动态导入、require、import-type 都检查；动态说明符非字面量即报出；不穿透兄弟源码。既有 kernel-basis/storage 不在这十五包范围内 | 第三方内部的传递依赖；tsconfig 路径别名；经全局对象实施 I/O、计时或通知。import 白名单只闭合导入边界，不独自证明纯度或资源状态 |
+| `identity-decision-inputs` | data.identity-values/v1 S-21/S-22；identity-values SC-1 | 仅显式注册或 JSDoc `@identityDecision` 的范围对象准入函数，检查参数类型中的登记物理类型名/品牌。识别本文件类型别名、接口成员、具名 import 改名，以及 `Branded`/`OpaqueIdentifier` 的字面品牌。登记目标或类型标注缺席即报出 | 未登记也未标注的函数；跨文件类型别名、泛型实例化和接口继承；参数身体中偷偷获取的外部依据。组织结构/流转谓词不属于 S-21 的准入范围。当前默认函数注册表为空，不因此声称消费者隔离通过 |
+| `identity-account-references` | data.identity-values/v1 S-24；identity-values SC-2 | account-identity 包的 AccountRecord/AccountRow 或 `@accountRecord` 的直接对象声明，识别第二个 AccountId 字段。当前 AccountRow 的自身份 account_id 是 string，新增 typed AccountId 引用仍报出。具名 import 改名、本文件别名和 OpaqueIdentifier 品牌可识别 | 普通 string 列、任意聚类键的业务含义；跨文件/继承/联合形式的记录，以及另建关联表。这些仍需字段清单与数据形状评审，不能将本规则当成 S-24 全覆盖 |
+| `identity-scope-columns` | data.identity-values/v1 S-11/S-16；identity-values SC-9 | 持久 *Record/*Row/*Table 或 `@scopedRecord` 的直接对象形状里，成对可空 organization/tenant 列；支持 optional、null/undefined 联合和本文件 nullable 别名 | 重命名后的归属字段、跨文件/继承/复合形式的记录；不证明所有对象都携带 ScopeLayerIdentity。完整 ScopeLayerIdentity 形状另由 Schema 与品牌类型测试检查 |
+
+`no-wall-clock` 同时服务 SC-OE-3 与两个纯 capability 节点的时钟禁令；现有 Date.now 反例保留，
+新增无参 new Date 与 performance.now 的必红反例，合法 new Date(explicitInstant)、注释和字面量不误报。
+不另建同义规则。
+
+身份清单从 `@omne-harness-lite/identity-values` **公开入口**的 `IDENTITY_TYPE_NAMES` 取得，
+没有第二份领域名单。`IDENTITY_CHECK_INPUTS` 暴露规则输入；物理类型名是这项语法检查的登记表示，
+新的消费者品牌须通过任务明确注册，不能仅因“名字像”就认定业务含义。
+消费者可通过 `createIdentityDecisionInputs({ ...IDENTITY_CHECK_INPUTS, decisionTargets: [{ path, functionName }] })`
+配置明确的模块与函数；注册规则检查所需模块必须作为同一批输入提供。默认 CLI 同时识别 JSDoc 标注，
+标注本身不构成隔离保证，实施/调度者须盘点准入函数是否全部进入适用范围。
+
+`tests/core-rules.spec.ts` 包含十五包逐一禁止依赖、允许公开入口、字面量解码、真实 CLI 退出值、
+身份规则正反例与真实 AccountRow 的内存变异。变异不修改产品源码。
+
+## 后续 core 静态义务的兑现方式
+
+下表是开发者选择检查形式的导航，语义和责任仍归各节点 design「静态检查义务怎么承载」。
+只读到节点要求不等于检查已实现；所有新增形式须各有有效正反例，再对实际实现核对。
+
+| 节点 | 本阶段可机检的形式与建议 | 需要消费者或实际行为的部分 |
+|---|---|---|
+| content-blocks | SC-3 opaque 品牌不兼容的负向类型测试；无 rawArguments 解析辅助的公开面核对。SC-2 与 stream-assembly SC-1 合并为一个指定解析模块的规则，等待真实模块落点后注册 | 会话日志 SC-1/SC-4；消费者 opaque 读写、是否对完整/半截调用采用正确输入 |
+| asset-model | SC-6 的 BodyContracts 错类负向类型测试与端口结果守卫；六正文推出模块的 import 范围由一个共享规则承载，须先确定各模块路径，不能从整个包只许类型推断局部范围 | SC-1～SC-5 的资产治理/流转写路径与读面 |
+| model-profile | S-13 判别联合的负向类型测试；S-22 闭合 ModelProfile/Schema 的凭据反例 | 档案目录的状态写入与持久形状 |
+| call-accounts | SC-2/SC-3 以汇总入口参数及公开账类型的负向类型测试检查 total_usd、镜像笔、cache_tokens、total_tokens 的排除；不扫任意字面字符串 | SC-1 组装输入、SC-4 原账写入路径 |
+| messages | SC-4 公开 isReadable 函数与不暴露“当前可读集合”；SC-3 比较/排序检查必须先注册真实消费者路径和 createdAt 接收者 | SC-5 翻译方穷尽检查；日志及其他消费者 SC-1/SC-2/SC-6 |
+| tool-definition | V-10 定义 JSON 形状的负向类型测试；推出规则与其他正文共用局部 import 规则；工具名解析规则需点名值/品牌及合法转写模块后再实施 | 名字经变量转手、运行时对象混入与消费者侧取来源行为 |
+| loop-extension | 推出规则模块加入 asset-model SC-6 的同一局部 import 规则 | runner V-5 每件必留 |
+| skill-package | SC-1 核公开面不提供 body 变换；SC-4 推出模块加入同一局部 import 规则 | 读入方实际保持原文；执行运行时/注册表 SC-2/SC-3 |
+| connector | 信封不带归属成员、正文不带凭据与目标的负向类型测试 | SC-1～SC-4 均约束受理、接入端与正文写路径 |
+| mcp-endpoint | SC-1 正文不带凭据、SC-3 not_fetched 与数组不兼容的负向类型测试；SC-2 共用推出模块规则；SC-4 点名唯一逐动作键函数并用输入输出反例核对 | MCP 桥不经 shell；资产治理不按动作集清理配值 |
+| arrival-events | 统一纯模块导入边界；本节点没有自承载的 SC-1～SC-4 | 传输适配、发帧、节流消费者 |
+| model-response | Schema/公开类型与三类发送失败成因的反例核对，不建立整仓词汇禁令 | 写入、脱敏、重试责任在模型运行时 |
+| slash-command | SC-3 failed 分支与可发送值不相容、SC-4 parseInvocation 无权限参数的类型测试；SC-6 共用推出模块规则 | 交付/受理/发布 SC-1/SC-2/SC-5 及实际发送行为 |
+| stream-assembly | SC-2 导入由 core-pure-imports、时钟由 no-wall-clock 承载；SC-1 与 content-blocks 采用同一指定解析模块规则 | SC-3 拒绝不改状态与 SC-4 快照不共享可变部分须实际测试，不能靠 import 白名单替代 |
+| asset-evaluation | SC-1 的导入与时钟复用已有两条规则；SC-3 判别结果类型及无结果分支的实际反例 | SC-2 消费者缓存键；纯度的全局访问和实际副作用仍需代码审阅/测试 |
