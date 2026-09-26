@@ -4,7 +4,6 @@ import {
   createSchemaRuntime,
   type JsonSchema,
   type SchemaRuntimeOptions,
-  UnsupportedSchemaKeywordError,
 } from '../src/schema-runtime.ts'
 import { json } from './ports.ts'
 
@@ -102,25 +101,20 @@ describe('protected schema-runtime original-value boundary', () => {
     expect(second.validate(json('[9007199254740992]'))).toBe(false)
   })
   it.each(['minContains', 'maxContains'] as const)(
-    'keeps %s meta acceptance distinct from an unsupported exact compilation',
+    'preserves %s comparisons on actual JavaScript arrays for overflow bounds',
     keyword => {
       const input = schema(`{"contains":true,"${keyword}":9007199254740993}`)
       expect(runtime.metaValidate(input)).toBe(true)
-      expect(() => runtime.compile(input)).toThrow(UnsupportedSchemaKeywordError)
-      try {
-        runtime.compile(input)
-      } catch (error) {
-        if (!(error instanceof UnsupportedSchemaKeywordError)) throw error
-        expect(error.keyword).toBe(keyword)
-        expect(error.numericSource).toBe('9007199254740993')
-      }
+      expect(runtime.compile(input).validate([1])).toBe(keyword === 'maxContains')
+      expect(writeJsonLossless(input)).toBe(`{"contains":true,"${keyword}":9007199254740993}`)
     },
   )
   it('propagates reference and compile failures, without remote loading or async validation', () => {
     expect(() => runtime.compile({ $ref: 'https://unavailable.invalid/schema' })).toThrow()
     expect(() => createSchemaRuntime([{ $id: 'x', type: 'imaginary' }])).toThrow(TypeError)
     expect(() => createSchemaRuntime([true])).toThrow(TypeError)
-    expect(() => runtime.compile({ $async: true, type: 'string' })).toThrow(TypeError)
+    expect(runtime.compile({ $async: true, type: 'string' }).validate('x')).toBe(true)
+    expect(runtime.compile({ $async: true, type: 'string' }).validate(1)).toBe(false)
     const defect = new SyntaxError('caller pattern failed')
     const failing = createSchemaRuntime([], {
       patternFactory: () => {
@@ -132,6 +126,14 @@ describe('protected schema-runtime original-value boundary', () => {
 })
 
 describe('supported Draft 2020-12 compositions with fixed resources', () => {
+  it('checks the host array bound without allocating an enormous JSON array', () => {
+    const sparse: unknown[] = []
+    sparse.length = 2 ** 32 - 1
+    expect(sparse.length).toBe(2 ** 32 - 1)
+    expect(() => {
+      sparse.length = 2 ** 32
+    }).toThrow(RangeError)
+  })
   it.each([
     [
       '{"allOf":[{"minimum":9007199254740993},{"maximum":9007199254740993}]}',
@@ -176,6 +178,25 @@ describe('supported Draft 2020-12 compositions with fixed resources', () => {
     ['{"type":"string","format":"not-a-known-format"}', '"anything"', true],
     ['false', 'null', false],
     ['true', 'null', true],
+    [
+      '{"contains":true,"minContains":9007199254740994,"maxContains":9007199254740993}',
+      '[1]',
+      false,
+    ],
+    ['{"contains":false,"minContains":0,"maxContains":1e400}', '[1]', true],
+    ['{"contains":false,"minContains":1e400}', '[]', false],
+    [
+      '{"$defs":{"One":{"const":1}},"contains":{"$ref":"#/$defs/One"},"maxContains":1e400}',
+      '[1,2]',
+      true,
+    ],
+    ['{"allOf":[{"contains":true,"maxContains":1e400}]}', '[1]', true],
+    ['{"allOf":[{"contains":true,"minContains":1e400}]}', '[1]', false],
+    ['{"contains":true,"minContains":1e400}', 'null', true],
+    ['{"type":"array","contains":true,"minContains":1e400}', 'null', false],
+    ['{"type":"integer","nullable":true}', 'null', false],
+    ['{"dependencies":{"x":["y"]}}', '{"x":1}', true],
+    ['{"id":5,"$recursiveAnchor":"unknown-annotation"}', 'null', true],
   ] as const)('checks composition %s', (text, value, expected) =>
     expect(runtime.compile(schema(text)).validate(json(value))).toBe(expected),
   )
