@@ -30,7 +30,13 @@ calling their strongly typed public functions; no body implementation is importe
 
 `attributeDeclarationsOf(content, bodies, actionSnapshot?)` adds the S-15/S-36 reserved
 declarations, throws on reserved/duplicate/invalid body declarations, and preserves
-`underivable`. The action snapshot is allowed only for MCP. Connector, plugin and
+`underivable`. The MCP result always has its own `actionSnapshotKind`, including
+`undefined` when the optional snapshot was not supplied. Explicit `not_fetched`
+and fetched empty/nonempty snapshots preserve their actual kind. A missing,
+invalid or inconsistent marker, a wholly underivable MCP result, or a non-MCP
+result carrying this field throws as a port defect. The wrapper preserves this
+in-process field without JSON serialization. The action snapshot is allowed only
+for MCP. Connector, plugin and
 agent-definition declarations remain underivable under the adopted v1 gaps.
 `referencesOf(content, bodies)` returns explicit references or the agent-definition gap.
 `parseWorkspaceManifestText(text, bodies)` parses strictly and returns the unchanged,
@@ -86,5 +92,8 @@ doubles. They establish the shell boundary, rejection order and port protocol; t
 not establish the six real body implementations. The unique `defaultBodyContracts`
 composition belongs to asset-evaluation (W6). Acceptance obligations and external
 owners remain in the [node verification map](../../../.meta_harness/design/realization/packages/core/asset-model/verification.md).
+The current user-directed delivery defers the connector body, the six real port
+composition, and full asset-evaluation/workspace reading. Protocol doubles do not
+close those obligations.
 Storage uniqueness, owner/version mutation paths, sharing validity, credential
 custody and symbolic-link resolution are outside this package.

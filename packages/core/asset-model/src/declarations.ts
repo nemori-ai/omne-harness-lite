@@ -7,6 +7,7 @@ import {
 import { TENANT_ROLES } from '@omne-harness-lite/identity-values'
 import type {
   AssetContent,
+  AssetCategory,
   AttributeDeclaration,
   BodyContracts,
   DeclarationResult,
@@ -65,6 +66,11 @@ function pinDeclaration(declaration: AttributeDeclaration): AttributeDeclaration
 function pinReference(reference: CapabilityId): CapabilityId {
   return Object.freeze({ category: reference.category, name: reference.name })
 }
+export function attributeDeclarationsOf<C extends AssetCategory>(
+  content: AssetContent & { readonly category: C },
+  bodyContracts: BodyContracts,
+  actionSnapshot?: JsonValue,
+): DeclarationResult<C>
 export function attributeDeclarationsOf(
   content: AssetContent,
   bodyContracts: BodyContracts,
@@ -75,6 +81,16 @@ export function attributeDeclarationsOf(
     throw new TypeError('only MCP declarations accept an action snapshot')
   if (content.category === 'agent_definition' || content.category === 'plugin')
     return Object.freeze({ underivable: content.category })
+  let expectedSnapshotKind: 'fetched' | 'not_fetched' | undefined
+  if (content.category === 'mcp' && actionSnapshot !== undefined) {
+    if (
+      !isObject(actionSnapshot) ||
+      !Object.hasOwn(actionSnapshot, 'kind') ||
+      (actionSnapshot.kind !== 'fetched' && actionSnapshot.kind !== 'not_fetched')
+    )
+      throw new TypeError('MCP action snapshot requires its actual kind')
+    expectedSnapshotKind = actionSnapshot.kind
+  }
   const result =
     content.category === 'tool'
       ? bodies.tool.deriveDeclarations(content.definition)
@@ -87,6 +103,21 @@ export function attributeDeclarationsOf(
             : content.category === 'connector'
               ? bodies.connector.deriveDeclarations(content.body)
               : bodies.slash_command.deriveDeclarations(content.body)
+  let actionSnapshotKind: 'fetched' | 'not_fetched' | undefined
+  if (content.category === 'mcp') {
+    if ('underivable' in result)
+      throw new TypeError('MCP body rule cannot discard its known fixed declarations')
+    if (!Object.hasOwn(result, 'actionSnapshotKind'))
+      throw new TypeError('MCP body rule omitted its action snapshot knowledge marker')
+    const marker = result.actionSnapshotKind
+    if (marker !== undefined && marker !== 'fetched' && marker !== 'not_fetched')
+      throw new TypeError('MCP body rule produced an invalid action snapshot marker')
+    if (marker !== expectedSnapshotKind)
+      throw new TypeError('MCP body rule action snapshot marker disagrees with its input')
+    actionSnapshotKind = marker
+  } else if (Object.hasOwn(result, 'actionSnapshotKind')) {
+    throw new TypeError('only MCP body rules can carry an action snapshot marker')
+  }
   if ('underivable' in result) {
     if (result.underivable !== content.category)
       throw new TypeError('body rule produced an underivable result for another category')
@@ -109,13 +140,14 @@ export function attributeDeclarationsOf(
       throw new TypeError('body rule produced an invalid declaration')
     seen.add(declaration.item)
   }
-  return Object.freeze({
-    declarations: Object.freeze([
-      ...result.declarations.map(pinDeclaration),
-      DISABLED_DECLARATION,
-      USABLE_BY_DECLARATION,
-    ]),
-  })
+  const declarations = Object.freeze([
+    ...result.declarations.map(pinDeclaration),
+    DISABLED_DECLARATION,
+    USABLE_BY_DECLARATION,
+  ])
+  return content.category === 'mcp'
+    ? Object.freeze({ declarations, actionSnapshotKind })
+    : Object.freeze({ declarations })
 }
 export function referencesOf(
   content: AssetContent,

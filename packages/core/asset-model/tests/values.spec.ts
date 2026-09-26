@@ -150,11 +150,11 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
         ...bodies.mcp,
         deriveDeclarations: (_body, snapshot) => {
           received = snapshot
-          return { declarations: [] }
+          return { declarations: [], actionSnapshotKind: 'fetched' }
         },
       },
     }
-    const snapshot = json('{"actions":[]}')
+    const snapshot = json('{"kind":"fetched","actions":[]}')
     attributeDeclarationsOf({ category: 'mcp', body: {} }, contracts, snapshot)
     expect(received).toBe(snapshot)
     expect(() =>
