@@ -140,3 +140,11 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 - **AM-4 清单文本的读入方**：`parseWorkspaceManifestText` 要由**读 `.omne/workspace.json` 的那一方**调用（`capability.asset-evaluation/v1#S-2`：读文件、解析 JSON 归提供者）；读方若绕过它、用普通 `JSON.parse` 读，就看不见重复成员名。owner：据点侧读工作区的节点（注册表或据点装配，由主线指派）。
 - **AM-5 端口的组合根（按 [D-040 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 收成一处）**：`BodyContracts` 只在 `core/asset-evaluation` 组合一次、导出为 `defaultBodyContracts`（候选名）；资产治理插件体与据点注册表 import 它、不各自再组。S-27「同一值在每个接收边界得同一个拒绝值」由单一来源保证，不另写多处一致性测试。跨节点交接：asset-governance 与 asset-registry 节点的设计各改那一行（归各自节点）。
 - **AM-6 凭据引用解到哪**：本模块只定义 `CredentialRef` 的形状（S-23）。**接口已定、真承接者未到**：据点一侧的解引用是 [`capability.credential-custodian/v1`](../../../../spec/capabilities/credential-custodian/v1/contract.md) [S-17](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-17-resolve) `resolve`（本版只有 OAuth 条目交得出，静态凭据的引用一律 `notResolvable`，该契约 [G-2](../../../../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口)）；中心一侧把引用换成值本版不收（该契约 G-7）；真提供者 `infra/secrets` 那一程未到（该契约 G-1，即 [D-040 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-5）。owner：主线。本模块不受阻；受阻的是出示凭据的消费者（MCP 桥的静态凭据一支、连接件接入端）。
+
+## 2026-09-26 精确数 Schema 技术适配入口
+
+为本节点的作者属性域与tool-definition的作者参数Schema复用同一精确数机制，增加公开技术子入口 `@omne-harness-lite/asset-model/schema-runtime`。它不增加数据契约定义或领域判定：`createSchemaRuntime(resources, options?)` 接固定$id资源与可选的类型化pattern工厂，返回对象提供 `metaValidate(schema): boolean` 和 `compile(schema)`；后者交出 `validate(value: JsonValue): boolean`。JSON Schema与实例按content-blocks的严格无损值处理；深复制冻结Schema，内部负责exact keywords、私有Ajv投影、passContext及每次调用的original root，不向消费者散发需手工配对的低层keyword/投影函数。
+
+运行对象/编译缓存归构造它的调用方，随着对象引用释放；标准元Schema是本包固定输入，不建立模块级作者Schema增长缓存。编译异常原样抛给调用方；元校验false只表示meta不合格，tool自己的封闭子集、拒绝次序、U限项和编译失败分类仍归tool。没有远程ref取件或异步Schema加载，format仅作注解，不暴露可覆盖原值保护的任意Ajv选项。pattern工厂由调用方给出（未给沿本节点引擎默认），tool必须给M56逐pattern先non-u失败再u的工厂；适配不替tool决定旗标。
+
+验收明确检查实际支持的type/integer union、数值上下界/multipleOf、const/enum/uniqueItems、properties/数组/组合/$ref/标准meta及混合旗标；不称所有Draft2020-12构造都已有实证。须用原始字面量/独立手算oracle证明投影未把巨数或分数错判，并核输入不变、外部Schema资源解析到显式采用对象、构建后的独立子入口消费。此入口是已采用Ajv路径的技术复用，不改变数据契约冻结资源或六正文端口，新增功能实际验证沿本节点verification单列。
