@@ -7,7 +7,7 @@
 
 ## 分层状态
 
-**本轮部分交付边界（2026-09-26，用户明确延期 Connector 整块）**：现行设计的六正文唯一组合根依赖 Connector，故完整 `evaluate`、`readWorkspaceCarrier`、`defaultBodyContracts` 及六正文真实组合本轮延期。本轮只施工 S-23 已单独导出的界／挑选三个构件与整输入指纹，不设计五类默认求值政策、不把替身当真实 Connector。以下完整可实施设计范围保持原接受事实，不能据本轮部分交付升级整包接受。
+**本轮交付边界（2026-09-26，用户进一步明确仅 Connector 一种资产纵线延期）**：其他资产类型的 `evaluate`、`readWorkspaceCarrier`、权限构件与整输入指纹完整实施、交付和验收；只延期 Connector 正文及其相关纵线。当前默认装配不提供 Connector，不用替身宣称六真实正文齐全；五个已提供正文的完整 AM／AE 组合继续。此前整份 AE 两操作延期的口径已作废；技术可用性投影经独立架构复审细化，原冻结领域规则与完整设计接受事实不改。
 
 - 语义接受范围：**设计已接受**（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-041 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
 - 可实施范围：声称兑现 S-5～S-28、S-38～S-42 的求值与读入规则（四步、两轮、三条层序、组合根引用集、输入一致性 C1～C14、三个失败值 `invalidInput` → `compositionCycle` → `categoryUnsupported` 与判出结果分开、清单读入与留痕），以及规范场景 S-33～S-37、S-41、S-43、S-44 的实现侧。本版组合里有 plugin 或 sub-agent 的 agent 按契约以 `categoryUnsupported` 失败（[G-3、G-21](../../../../spec/capabilities/asset-evaluation/v1/contract.md#十一已知缺口) 的范围），不是本节点的缺口。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
