@@ -17,6 +17,10 @@ export interface ModelAccountInput {
   readonly cost: Cost
   readonly usage: Usage
 }
+export interface ModelUsageInput {
+  readonly responseId: ResponseId
+  readonly usage: Usage
+}
 export interface ToolAccountInput {
   /** Explicit caller-provided equality key of the containing session log; no lookup. */
   readonly sessionLog: string
@@ -41,11 +45,11 @@ export type SummaryResult = Summary | { readonly failed: EvaluationFailure }
 export type UsageField =
   'input_tokens' | 'output_tokens' | 'cache_read_tokens' | 'cache_write_tokens'
 export type UsageSummary = Readonly<Record<UsageField, Summary>>
-export type UsageSummaryResult = UsageSummary | { readonly failed: EvaluationFailure }
+export type UsageSummaryResult =
+  UsageSummary | { readonly rejected: AccountRejection } | { readonly failed: 'duplicate_account' }
 interface Target {
   readonly key: string
   readonly amount: ExactDecimal | 'unknown'
-  readonly usage?: JsonObject
 }
 interface Correction {
   readonly key: string
@@ -84,38 +88,25 @@ export class AccountGroup {
       !Array.isArray(value.corrections)
     )
       return rejected('malformed')
-    const rejections: AccountRejection[] = []
+    const invalid = preflight(value)
+    if (invalid !== undefined) return rejected(invalid)
     const targets: Target[] = []
     const corrections: Correction[] = []
     for (const model of value.models) {
+      if (!isObject(model)) throw new Error('admitted model lost structure')
       if (
-        !isObject(model) ||
-        !keys(model, ['responseId', 'cost', 'usage']) ||
-        !validate('ResponseId', model.responseId).valid
-      ) {
-        rejections.push('malformed')
-        continue
-      }
-      for (const [kind, item] of [
-        ['Cost', model.cost],
-        ['Usage', model.usage],
-      ] as const) {
-        const judgment = judgeAccountValue(kind, item)
-        if ('rejected' in judgment) rejections.push(judgment.rejected)
-      }
-      if (
-        typeof model.responseId === 'string' &&
-        isObject(model.cost) &&
-        isObject(model.usage) &&
-        (model.cost.cost_usd === 'unknown' || isJsonNumber(model.cost.cost_usd))
+        typeof model.responseId !== 'string' ||
+        !isObject(model.cost) ||
+        !isObject(model.usage) ||
+        (model.cost.cost_usd !== 'unknown' && !isJsonNumber(model.cost.cost_usd))
       )
-        targets.push(
-          Object.freeze({
-            key: modelKey(model.responseId),
-            amount: decimal(model.cost.cost_usd),
-            usage: model.usage,
-          }),
-        )
+        throw new Error('admitted model lost fields')
+      targets.push(
+        Object.freeze({
+          key: modelKey(model.responseId),
+          amount: decimal(model.cost.cost_usd),
+        }),
+      )
     }
     for (const tool of value.tools) {
       if (
@@ -123,13 +114,7 @@ export class AccountGroup {
         !keys(tool, ['sessionLog', 'account']) ||
         typeof tool.sessionLog !== 'string'
       ) {
-        rejections.push('malformed')
-        continue
-      }
-      const judgment = judgeAccountValue('ToolCallAccount', tool.account)
-      if ('rejected' in judgment) {
-        rejections.push(judgment.rejected)
-        continue
+        throw new Error('admitted tool lost structure')
       }
       if (
         !isObject(tool.account) ||
@@ -138,13 +123,15 @@ export class AccountGroup {
         !Array.isArray(tool.account.cost.items)
       )
         throw new Error('admission failed to narrow a tool account')
-      const own = tool.account.cost.items.flatMap<Amount>(item =>
-        isObject(item) &&
-        item.service !== 'model_call' &&
-        (item.cost_usd === 'unknown' || isJsonNumber(item.cost_usd))
-          ? [item.cost_usd]
-          : [],
-      )
+      const own = tool.account.cost.items.flatMap<Amount>(item => {
+        if (
+          !isObject(item) ||
+          typeof item.service !== 'string' ||
+          (item.cost_usd !== 'unknown' && !isJsonNumber(item.cost_usd))
+        )
+          throw new Error('admitted cost item lost fields')
+        return item.service === 'model_call' ? [] : [item.cost_usd]
+      })
       targets.push(
         Object.freeze({
           key: toolKey(tool.sessionLog, tool.account.callId),
@@ -158,13 +145,7 @@ export class AccountGroup {
         !keys(row, ['sessionLog', 'correction']) ||
         typeof row.sessionLog !== 'string'
       ) {
-        rejections.push('malformed')
-        continue
-      }
-      const judgment = judgeAccountValue('CostCorrection', row.correction)
-      if ('rejected' in judgment) {
-        rejections.push(judgment.rejected)
-        continue
+        throw new Error('admitted correction lost structure')
       }
       if (
         !isObject(row.correction) ||
@@ -189,18 +170,7 @@ export class AccountGroup {
         }),
       )
     }
-    // S-27 governs a single value. This local order only stabilizes multi-value admission.
-    const order: readonly AccountRejection[] = [
-      'correction_without_target',
-      'malformed',
-      'negative_amount',
-      'unknown_with_source',
-      'total_not_unknown',
-    ]
-    const first = order.find(reason => rejections.includes(reason))
-    return first === undefined
-      ? Object.freeze({ ok: new AccountGroup(admissionToken, targets, corrections) })
-      : rejected(first)
+    return Object.freeze({ ok: new AccountGroup(admissionToken, targets, corrections) })
   }
 
   static summarize(group: AccountGroup): SummaryResult {
@@ -208,40 +178,126 @@ export class AccountGroup {
     if ('failed' in prepared) return prepared
     return sum(prepared.amounts)
   }
-  static summarizeUsage(group: AccountGroup): UsageSummaryResult {
-    const prepared = effectiveTargets(group.#targets, group.#corrections)
-    if ('failed' in prepared) return prepared
-    const models = group.#targets.flatMap(target =>
-      target.usage === undefined ? [] : [target.usage],
-    )
-    function field(name: UsageField): Summary {
-      return sum(
-        models.map(usage => {
-          const item = usage[name]
-          if (!isJsonNumber(item) && item !== 'unknown')
-            throw new Error('admitted usage lost a field')
-          return decimal(item)
-        }),
-      )
-    }
-    return Object.freeze({
-      input_tokens: field('input_tokens'),
-      output_tokens: field('output_tokens'),
-      cache_read_tokens: field('cache_read_tokens'),
-      cache_write_tokens: field('cache_write_tokens'),
-    })
-  }
 }
 export function prepareAccountGroup(
-  input: AccountGroupInput | unknown,
+  input: unknown,
 ): { readonly ok: AccountGroup } | { readonly rejected: AccountRejection } {
   return AccountGroup.prepare(input)
 }
 export function summarize(group: AccountGroup): SummaryResult {
   return AccountGroup.summarize(group)
 }
-export function summarizeUsage(group: AccountGroup): UsageSummaryResult {
-  return AccountGroup.summarizeUsage(group)
+/** Model-only helper; it does not establish complete account-group validity. */
+export function summarizeUsage(models: readonly ModelUsageInput[]): UsageSummaryResult {
+  const value = snapshotJson(models)
+  if (!Array.isArray(value)) return rejected('malformed')
+  const reasons: AccountRejection[] = []
+  for (const model of value) {
+    if (
+      !isObject(model) ||
+      !keys(model, ['responseId', 'usage']) ||
+      !validate('ResponseId', model.responseId).valid
+    ) {
+      reasons.push('malformed')
+      continue
+    }
+    const result = judgeAccountValue('Usage', model.usage)
+    if ('rejected' in result) reasons.push(result.rejected)
+  }
+  const invalid = firstRejection(reasons)
+  if (invalid !== undefined) return rejected(invalid)
+  const ids = new Set(
+    value.map(model => {
+      if (!isObject(model) || typeof model.responseId !== 'string')
+        throw new Error('admitted model usage lost identity')
+      return model.responseId
+    }),
+  )
+  if (ids.size !== value.length) return Object.freeze({ failed: 'duplicate_account' as const })
+  const admittedModels = value
+  function field(name: UsageField): Summary {
+    return sum(
+      admittedModels.map(model => {
+        if (!isObject(model) || !isObject(model.usage))
+          throw new Error('admitted model usage lost structure')
+        const item = model.usage[name]
+        if (!isJsonNumber(item) && item !== 'unknown')
+          throw new Error('admitted usage lost a field')
+        return decimal(item)
+      }),
+    )
+  }
+  return Object.freeze({
+    input_tokens: field('input_tokens'),
+    output_tokens: field('output_tokens'),
+    cache_read_tokens: field('cache_read_tokens'),
+    cache_write_tokens: field('cache_write_tokens'),
+  })
+}
+
+function preflight(value: JsonObject): AccountRejection | undefined {
+  if (
+    !Array.isArray(value.models) ||
+    !Array.isArray(value.tools) ||
+    !Array.isArray(value.corrections)
+  )
+    return 'malformed'
+  const reasons: AccountRejection[] = []
+  for (const model of value.models) {
+    if (
+      !isObject(model) ||
+      !keys(model, ['responseId', 'cost', 'usage']) ||
+      !validate('ResponseId', model.responseId).valid
+    ) {
+      reasons.push('malformed')
+      continue
+    }
+    for (const [kind, item] of [
+      ['Cost', model.cost],
+      ['Usage', model.usage],
+    ] as const) {
+      const result = judgeAccountValue(kind, item)
+      if ('rejected' in result) reasons.push(result.rejected)
+    }
+    // This input is a recorded original Cost, not a previously derived effective Cost.
+    if (isObject(model.cost) && model.cost.source === 'later_correction') reasons.push('malformed')
+  }
+  for (const tool of value.tools) {
+    if (
+      !isObject(tool) ||
+      !keys(tool, ['sessionLog', 'account']) ||
+      typeof tool.sessionLog !== 'string'
+    ) {
+      reasons.push('malformed')
+      continue
+    }
+    const result = judgeAccountValue('ToolCallAccount', tool.account)
+    if ('rejected' in result) reasons.push(result.rejected)
+  }
+  for (const row of value.corrections) {
+    if (
+      !isObject(row) ||
+      !keys(row, ['sessionLog', 'correction']) ||
+      typeof row.sessionLog !== 'string'
+    ) {
+      reasons.push('malformed')
+      continue
+    }
+    const result = judgeAccountValue('CostCorrection', row.correction)
+    if ('rejected' in result) reasons.push(result.rejected)
+  }
+  return firstRejection(reasons)
+}
+function firstRejection(reasons: readonly AccountRejection[]): AccountRejection | undefined {
+  // S27 orders faults within one value. This local order only stabilizes multi-value admission.
+  const order: readonly AccountRejection[] = [
+    'correction_without_target',
+    'malformed',
+    'negative_amount',
+    'unknown_with_source',
+    'total_not_unknown',
+  ]
+  return order.find(reason => reasons.includes(reason))
 }
 
 function effectiveTargets(
@@ -334,6 +390,13 @@ export function effectiveCost(
   target: ModelCostTarget | ToolCostTarget,
   corrections: readonly CorrectionInput[],
 ): { readonly ok: Cost | Amount } | EffectiveCostFailure {
+  const input = snapshotJson({ target, corrections })
+  if (!isObject(input) || !isObject(input.target) || !Array.isArray(input.corrections))
+    return rejected('malformed')
+  const ownedTarget = input.target
+  const ownedCorrections = input.corrections
+  if (ownedTarget.kind !== 'model_response' && ownedTarget.kind !== 'tool_execution')
+    return rejected('malformed')
   const emptyUsage: Usage = {
     input_tokens: 'unknown',
     output_tokens: 'unknown',
@@ -343,25 +406,31 @@ export function effectiveCost(
   }
   const prepared = prepareAccountGroup({
     models:
-      target.kind === 'model_response'
-        ? [{ responseId: target.responseId, cost: target.cost, usage: emptyUsage }]
+      ownedTarget.kind === 'model_response'
+        ? [{ responseId: ownedTarget.responseId, cost: ownedTarget.cost, usage: emptyUsage }]
         : [],
     tools:
-      target.kind === 'tool_execution'
-        ? [{ sessionLog: target.sessionLog, account: target.account }]
+      ownedTarget.kind === 'tool_execution'
+        ? [{ sessionLog: ownedTarget.sessionLog, account: ownedTarget.account }]
         : [],
-    corrections,
+    corrections: ownedCorrections,
   })
   if ('rejected' in prepared) return prepared
   const result = summarize(prepared.ok)
   if ('failed' in result) return result
   const amount: Amount = result.unknownCount === 0 ? result.knownSum.toJsonNumber() : 'unknown'
-  if (target.kind === 'tool_execution') return Object.freeze({ ok: amount })
-  // Re-copy so the result neither aliases a caller's object nor drops original numeric spelling.
-  const original = snapshotJson(target.cost)
+  if (ownedTarget.kind === 'tool_execution') return Object.freeze({ ok: amount })
+  const original = ownedTarget.cost
   if (!isObject(original)) throw new Error('admitted model cost lost structure')
   const upstream = original.upstream_inference_cost_usd
-  const source = corrections.length > 0 ? 'later_correction' : target.cost.source
+  const originalSource = original.source
+  if (
+    originalSource !== 'none' &&
+    originalSource !== 'upstream_usage' &&
+    originalSource !== 'later_correction'
+  )
+    throw new Error('admitted model cost lost source')
+  const source = ownedCorrections.length > 0 ? 'later_correction' : originalSource
   const cost: Cost = Object.freeze({
     cost_usd: amount,
     source,

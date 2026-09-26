@@ -16,6 +16,7 @@ export {
   effectiveCost,
   type AccountGroupInput,
   type ModelAccountInput,
+  type ModelUsageInput,
   type ToolAccountInput,
   type CorrectionInput,
   type ModelCostTarget,
