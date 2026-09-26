@@ -8,7 +8,7 @@ import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-ru
 import { jsonValue } from './json.ts'
 
 export const schemaId: string = schema.$id
-export const SCHEMA_DEF_NAMES = [
+export const SCHEMA_DEF_NAMES = Object.freeze([
   'McpEndpoint',
   'McpTransport',
   'ActionSnapshot',
@@ -16,7 +16,7 @@ export const SCHEMA_DEF_NAMES = [
   'McpActionName',
   'McpEndpointName',
   'OAuthBinding',
-] as const
+] as const)
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 
 // Fixed, package-owned schemas only; remote descriptor inputSchema is data, never a compile input.
