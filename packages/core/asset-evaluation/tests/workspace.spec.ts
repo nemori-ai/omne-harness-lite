@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { WorkspaceCarrierManifest } from '@omne-harness-lite/asset-model'
-import { readWorkspaceCarrier } from '../src/index.ts'
+import {
+  createAssetModelJudge,
+  type WorkspaceCarrierManifest,
+} from '@omne-harness-lite/asset-model'
+import { readWorkspaceCarrier, defaultBodyContracts } from '../src/index.ts'
 import { workspace, shell } from './fixtures.ts'
 
 describe('complete workspace carrier input domain', () => {
@@ -34,6 +37,29 @@ describe('complete workspace carrier input domain', () => {
     ])
     expect(Object.isFrozen(result.ok.holdings[0]?.assignments[0]?.value)).toBe(true)
     expect(Object.isFrozen(manifest.assignments[0]?.value)).toBe(false)
+  })
+  it('S16 rejects assignments.disabled after AM shape accepts it, with and without a disabled-list entry', () => {
+    const judge = createAssetModelJudge(defaultBodyContracts)
+    for (const disabled of [[], [connector]]) {
+      const value: WorkspaceCarrierManifest = {
+        ...manifest,
+        assignments: [{ capability: connector, item: 'disabled', value: false }],
+        disabled,
+      }
+      expect(judge.judgeAssetValue('WorkspaceCarrierManifest', value)).toEqual({ ok: true })
+      expect(judge.validate('WorkspaceCarrierManifest', value)).toEqual({ valid: true })
+      expect(readWorkspaceCarrier(value, workspace)).toHaveProperty('invalidInput')
+    }
+    expect(
+      readWorkspaceCarrier(
+        {
+          ...manifest,
+          assignments: [{ capability: shell, item: 'disabled', value: true }],
+          disabled: [],
+        },
+        workspace,
+      ),
+    ).toHaveProperty('invalidInput')
   })
   const invalid: readonly { name: string; value: WorkspaceCarrierManifest }[] = [
     {

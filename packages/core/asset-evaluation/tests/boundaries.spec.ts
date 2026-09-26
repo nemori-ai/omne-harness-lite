@@ -94,7 +94,9 @@ describe('input conditions and multi-error priority', () => {
           ...(selection === 'empty-current'
             ? {
                 definitions: base.definitions.map(entry =>
-                  entry.id === 'ast_value' ? { ...entry, versions: [] } : entry,
+                  entry.id === 'ast_value'
+                    ? { ...entry, draft: tool('shell'), versions: [] }
+                    : entry,
                 ),
               }
             : {
@@ -111,7 +113,7 @@ describe('input conditions and multi-error priority', () => {
   it('disabled and locked-below records do not require resolvable versions', () => {
     const base = simple()
     const empty = definition('ast_empty', shell, tool('shell'), 'customized')
-    const definitionEmpty = { ...empty, versions: [] }
+    const definitionEmpty = { ...empty, draft: tool('shell'), versions: [] }
     const disabled = {
       ...base,
       definitions: [...base.definitions, definitionEmpty],
@@ -271,6 +273,7 @@ describe('workspace restrictions, resident, version selection and caller ownersh
             body: {
               transport: { kind: 'stdio', command: 'example', args: [] },
               timeouts: { connect: 'PT1S', call: 'PT1S' },
+              permissions: { execute: { default: 'ask' } },
             },
           },
           'customized',

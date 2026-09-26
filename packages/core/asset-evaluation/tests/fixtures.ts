@@ -38,7 +38,18 @@ export function definition(
   author: TenantId = tenant,
   organization = false,
 ): NonConnectorAssetDefinition {
-  const base = { id, capability, versions: [{ number: 1, content, publishedAt: at }] }
+  const base = {
+    id,
+    capability,
+    versions: [
+      {
+        number: 1,
+        content,
+        publishedAt: at,
+        ...(origin === 'customized' ? { publishedBy: author } : {}),
+      },
+    ],
+  }
   return origin === 'official'
     ? { ...base, origin }
     : {
@@ -100,7 +111,7 @@ export function tool(
       description: 'tool',
       paradigm: 'single',
       origin: { kind: 'authored' },
-      input: { type: 'object' },
+      input: { type: 'object', properties: {} },
       settings: { timeout: { category: 'preference', default: timeout } },
       permissions: { execute: { default: defaultExecute } },
       ...(skills.length === 0 ? {} : { composes: { skills } }),

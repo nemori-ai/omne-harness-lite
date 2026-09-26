@@ -2,7 +2,7 @@
 
 纯求值函数与工作区承载清单值的读入。公开入口是 `@omne-harness-lite/asset-evaluation`，不依赖 Cordis 服务、会话存储或文件读取。
 
-采用依据与当前范围在[实现节点](../../../.meta_harness/design/realization/packages/core/asset-evaluation/README.md)、[技术映射](../../../.meta_harness/design/realization/packages/core/asset-evaluation/design.md)和 [capability.asset-evaluation v1](../../../.meta_harness/design/spec/capabilities/asset-evaluation/v1/contract.md)。规格的接受与冻结状态归[身份清单](../../../.meta_harness/design/registry/README.md)。实现交付与最终接受按节点分层状态判断。
+采用依据与当前范围在[实现节点](../../../.meta_harness/design/realization/packages/core/asset-evaluation/README.md)、[技术映射](../../../.meta_harness/design/realization/packages/core/asset-evaluation/design.md)和 [capability.asset-evaluation v2](../../../.meta_harness/design/spec/capabilities/asset-evaluation/v2/contract.md)。规格的接受与冻结状态归[身份清单](../../../.meta_harness/design/registry/README.md)。实现交付与最终接受按节点分层状态判断。
 
 `evaluate` 的输入为 `NonConnectorEvaluationInput`；完整 `EvaluationInput` 仍用于输入指纹及未来完整供给边界。`defaultBodyContracts` 装配真实 tool、loop-extension、skill-package、mcp-endpoint、slash-command 五个公开正文端口。`readWorkspaceCarrier` 消费完整清单域，由调用方读取文件、解析正文并补 `since`；本包只处理传入的值。
 

@@ -30,6 +30,14 @@ export function readCarrier(
         },
       })
   }
+  // S-16(6) is a reader condition beyond the AssetModel representation:
+  // the manifest's disabled list is its only spelling for disablement.
+  if (manifest.assignments.some(entry => entry.item === 'disabled'))
+    return immutable({
+      invalidInput: {
+        diagnostics: [{ condition: 'C1', message: 'reserved disabled assignment' }],
+      },
+    })
   const assignments = new Map<string, CarrierAssignment[]>()
   const dropped: DroppedEntry[] = []
   const known = new Set(manifest.assets.map(entry => capabilityCanonicalString(entry.capability)))

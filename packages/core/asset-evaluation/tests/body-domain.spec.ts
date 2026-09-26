@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createAssetModelJudge } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless, type JsonValue } from '@omne-harness-lite/content-blocks'
+import { toolBodyContract } from '@omne-harness-lite/tool-definition'
+import { loopExtensionBodyContract } from '@omne-harness-lite/loop-extension'
+import { skillBodyContract } from '@omne-harness-lite/skill-package'
+import { mcpBodyContract } from '@omne-harness-lite/mcp-endpoint'
+import { slashCommandBodyContract } from '@omne-harness-lite/slash-command'
 import {
   BodyProviderUnavailableError,
   defaultBodyContracts,
@@ -43,6 +48,11 @@ describe('precise current body-provider domain', () => {
     ])
     expect(Object.isFrozen(defaultBodyContracts)).toBe(true)
     expect(Object.values(defaultBodyContracts).every(port => Object.isFrozen(port))).toBe(true)
+    expect(defaultBodyContracts.tool).toBe(toolBodyContract)
+    expect(defaultBodyContracts.loop_extension).toBe(loopExtensionBodyContract)
+    expect(defaultBodyContracts.skill).toBe(skillBodyContract)
+    expect(defaultBodyContracts.mcp).toBe(mcpBodyContract)
+    expect(defaultBodyContracts.slash_command).toBe(slashCommandBodyContract)
   })
   const connector = { category: 'connector', name: 'external' } as const
   const actual = { category: 'connector', body: {} } as const
@@ -124,7 +134,16 @@ describe('precise current body-provider domain', () => {
             description: 'category: connector',
             paradigm: 'single',
             origin: { kind: 'authored' },
-            input: { type: 'object', properties: { category: { const: 'connector' } } },
+            input: {
+              type: 'object',
+              properties: {
+                category: {
+                  type: 'string',
+                  const: 'connector',
+                  description: 'ordinary JSON category value',
+                },
+              },
+            },
             permissions: { execute: { default: 'ask' } },
           },
         }),

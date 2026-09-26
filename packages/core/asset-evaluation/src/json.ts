@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
   LosslessNumber,
+  copyJsonValue,
   writeJsonLossless,
   type JsonValue,
   type JsonObject,
@@ -39,25 +40,10 @@ export function canonical(value: JsonValue): string {
       .join(',')}}`
   return writeJsonLossless(value)
 }
-function cloneJson(input: unknown): JsonValue {
-  if (
-    input === null ||
-    typeof input === 'string' ||
-    typeof input === 'boolean' ||
-    typeof input === 'number'
-  )
-    return input
-  if (LosslessNumber.is(input)) return new LosslessNumber(input.source)
-  if (Array.isArray(input)) return input.map(cloneJson)
-  if (object(input))
-    return Object.fromEntries(
-      Object.entries(input).map(([name, value]) => [name, cloneJson(value)]),
-    )
-  throw new TypeError('not JSON data')
-}
 export function copyJson(input: unknown): JsonValue {
-  writeJsonLossless(input)
-  return cloneJson(input)
+  const snapshot = copyJsonValue(input)
+  if ('failed' in snapshot) throw new TypeError('not JSON data')
+  return snapshot.ok
 }
 export function immutable<T>(value: T): T {
   if (value !== null && typeof value === 'object') {
