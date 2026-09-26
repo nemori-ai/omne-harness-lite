@@ -141,6 +141,11 @@ describe('model values, parameter authority, and body ports', () => {
         },
       ],
     })
+    expect(toolResultOf('', id('empty-text'))).toEqual({
+      content: [
+        { id: 'empty-text', kind: 'text', visibility: { toHuman: true, toModel: true }, text: '' },
+      ],
+    })
     const structured = {
       content: [],
       offload: { raw: { inline: 'eA==', mediaType: 'text/plain' } },
@@ -218,6 +223,8 @@ describe('model values, parameter authority, and body ports', () => {
     ])
     expect(rich.settings?.targetEnvironment?.default.bindingLayer).toBe('session_sandbox')
     expect(toolDependencies(baseline, undefined)).toEqual([])
+    const named = requireDefinition({ ...rich, name: 'looks-like-service:artifact-store' })
+    expect(toolDependencies(named, effective)).toEqual(toolDependencies(rich, effective))
     expect(() => toolDependencies(rich, undefined)).toThrow(TypeError)
     expect(() => toolDependencies(baseline, effective)).toThrow(TypeError)
   })

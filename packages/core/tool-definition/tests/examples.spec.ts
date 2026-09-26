@@ -67,6 +67,13 @@ describe('frozen v1 normative examples', () => {
     expect(modelInput(multi)).toEqual(frozen.multiInput)
     expect(modelEntry(mcp)).toEqual(frozen.entries[0])
     expect(modelEntry(multi)).toEqual(frozen.entries[1])
+    for (const entry of frozen.entries) expect(validate('ModelToolEntry', entry).valid).toBe(true)
+    const entry = frozen.entries[0]
+    if (entry === undefined) throw new Error('missing entry')
+    expect(validate('ModelToolEntry', { ...entry, name: 'mcp:search' }).valid).toBe(false)
+    expect(
+      validate('ModelToolEntry', { name: entry.name, description: entry.description }).valid,
+    ).toBe(false)
   })
   it('V2 provider shape examples only rename keys and add documented envelopes', () => {
     for (const [index, entry] of frozen.entries.entries()) {
