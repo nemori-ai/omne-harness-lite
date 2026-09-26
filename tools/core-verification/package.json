@@ -32,6 +32,7 @@
     "@omne-harness-lite/slash-command": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/stream-assembly": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",
     "@omne-harness-lite/unix-format": "workspace:*",
     "@omne-harness-lite/xml-format": "workspace:*",
