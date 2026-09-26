@@ -126,7 +126,8 @@ export interface AssetHolding {
   readonly since: string
 }
 export interface WorkspaceCarrierManifest {
-  readonly format: 1
+  /** Numeric one can retain a lossless source spelling such as 1.0. */
+  readonly format: JsonNumber
   readonly assets: readonly { readonly capability: CapabilityId; readonly source: string }[]
   readonly assignments: readonly {
     readonly capability: CapabilityId

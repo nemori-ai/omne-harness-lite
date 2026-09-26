@@ -45,6 +45,34 @@ while retaining numeric source spelling, including long decimals and overflow li
 
 ## Verification scope
 
+The protected [`./schema-runtime`](src/schema-runtime.ts) subentry exports
+`createSchemaRuntime(resources, options?)`, returning `metaValidate(schema)` and
+`compile(schema).validate(value: JsonValue)`. Resources must be fixed `$id` objects.
+Schemas are copied and frozen at binding/compile; original values are copied per
+call, and the private Ajv projection and original-value context stay inside the
+validator. Each runtime owns its compiler/cache. Standard meta resources come from
+the adopted Ajv version; author compilers do not accumulate in a module cache.
+
+Only `options.patternFactory(source): RegExp` is configurable. It must be a
+deterministic, effect-free native RegExp factory; global/sticky patterns throw.
+The default uses Ajv's Unicode pattern mode. Tool consumers supply their M56
+non-Unicode-first factory. Meta failures are boolean; compiling an invalid meta
+input throws, and reference/pattern/compiler exceptions propagate. Async Schema
+results throw. There is no remote loading, and formats are annotations.
+
+Tests cover exact integers and decimal bounds, multipleOf, const/enum/uniqueItems,
+object/array vocabularies, compositions, explicit and recursive refs, standard
+meta validation, and mixed pattern flags. This is measured coverage of the
+adopted engine, not a claim that every Draft 2020-12 construct has been verified.
+Tool-specific subsets, rejection ordering and configured limits stay with tool.
+Numeric bounds, multipleOf, integer types and numeric const/enum values use the
+original number source. Length, array size and property count bounds compare exact
+codepoint/element/member counts. `minContains` and `maxContains` retain native Ajv
+counting only for safe integer bounds; larger valid bounds pass meta validation
+and throw `UnsupportedSchemaKeywordError` during compilation. Numeric values in
+annotations and defaults remain unchanged. No unsupported constraint is rounded
+into an accepted validator.
+
 Run `pnpm --filter @omne-harness-lite/asset-model run build`, `typecheck`, and `test`.
 Tests use the accepted frozen six Schema resources and explicitly labelled W2 protocol
 doubles. They establish the shell boundary, rejection order and port protocol; they do
