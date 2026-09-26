@@ -5,8 +5,11 @@
 设计显式采用 `capability.stream-assembly · v3`，精确 [规范](../../../../spec/capabilities/stream-assembly/v3/contract.md) 与 [接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 已冻结；采用依据为 [D-068追加](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md)。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
 
 - 可实施：沿新规范全部本节点责任和下文既有投影，只有D-068明确的表示／采用／错误例变化；不扩展外部runtime或存储。
-- 源码：本HUB尚未合入 `packages/core/stream-assembly`；独立实施spoke已建立源码并保留456项中间回归，五操作与当前3完整交付仍待正式释放。
-- 验证：旧2原证据保留其精确输入；当前3需包内回归、公开dist／旧Schema闭包、W6真实组合及逐ID独立签收。用户最后总体接受未发生。当前3已实际重新执行[有限模型与三个有效变异](../../../../record/evidence/2026-09-26-formal-core-v3/README.md)，新增两条3模型binding；不据此声称源码或真实组合完成。
+- 源码：`packages/core/stream-assembly` 已完整建立；三份作者源提交已集成至 HUB `71c4cd32`，根锁已登记。五操作均可独立公开调用，调用方持有冻结状态；依赖明确为 CB3／AR2／CA2。
+- 实际验证：[当前源 HUB 复验](../../../../record/evidence/2026-09-26-tests-core-current-v3/README.md) 中 **479 tests**、构建、严格类型、27规则与五公开操作消费者通过；[当前3有限模型](../../../../record/evidence/2026-09-26-formal-core-v3/README.md) 另有两条有限binding，不作为源码证明。W6最终真实流链、逐ID技术接受与用户总体接受仍待。
+
+
+本次局部技术接受：主调度实际接受本节点 **13项 core-local义务**，见 [逐项范围与证据](../../../../record/evidence/2026-09-26-tests-core-current-v3/local-technical-acceptance.json)。最终真实组合、外部宿主义务及用户总体接受不随之提升。
 
 ## 原2采用投影记录
 

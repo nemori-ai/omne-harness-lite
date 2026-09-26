@@ -5,8 +5,11 @@
 设计显式采用 `capability.asset-evaluation · v3`，精确 [规范](../../../../spec/capabilities/asset-evaluation/v3/contract.md) 与 [接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 已冻结；采用依据为 [D-068追加](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md)。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
 
 - 可实施：沿新规范全部本节点责任和下文既有投影，只有D-068明确的表示／采用／错误例变化；不扩展外部runtime或存储。
-- 源码：`packages/core/asset-evaluation` 已建立；HUB仍保留原2源码。当前3规范、采用设计及六数据公开资源试点已释放给AE升级，本节点没有自有Schema，真实依赖闭包与五正文完整回归待新源交付。
-- 验证：旧2原证据保留其精确输入；当前3需包内回归、公开dist／旧Schema闭包、W6真实组合及逐ID独立签收。2实现现有161测试通过只作旧范围证据。用户最后总体接受未发生。
+- 源码：`packages/core/asset-evaluation` 已采用3；作者 `211cb4f0` 已集成至 HUB `7ee9bb36`。本节点没有自有Schema，依赖六数据3和明确保留2资源；默认装配为五个真实正文端口。
+- 实际验证：[当前源 HUB 复验](../../../../record/evidence/2026-09-26-tests-core-current-v3/README.md) 中 **168 tests**、构建、严格类型、27规则及独立公开消费者通过；实际完整工作区域、整输入指纹和四结果分支有原始记录。Connector正文仍延期、Skill SP3仍待裁决；最终W6两链、逐ID接受和用户总体门仍待。
+
+
+本次局部技术接受：五项完整core-local与四项明确NonConnector当前部分已由主调度签收，见 [逐项范围](../../../../record/evidence/2026-09-26-tests-core-current-v3/AE-local-technical-acceptance.json)。四项原整条及Connector部分不随之提升，最终五正文W6组合另验。
 
 ## 原2采用投影记录
 

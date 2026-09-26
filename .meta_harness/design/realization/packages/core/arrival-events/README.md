@@ -1,5 +1,15 @@
 # arrival-events
 
+## 当前源码与验证（2026-09-26）
+
+明确保留 `data.arrival-events · v2`，源码 `packages/core/arrival-events` 已实现；其冻结Schema仍指向完整旧2资源，CB3扩展不自动升级本节点语义。表示判断与归约可从公开包独立调用，序列判定仍归Stream Assembly。
+
+主调度在最终六数据源码后实际通过 **673 tests**、严格类型与 **202组对照**，26输入实际进入CB3扩展形状而AR输出不变，见 [当前 core 复验](../../../../record/evidence/2026-09-26-tests-core-current-v3/README.md)。三项真实流组合、逐ID技术接受及用户总体门仍待；生产者节流、封口、宿主路由和持久化不由本包测试证明。
+
+本次局部技术接受：主调度实际接受本节点 **7项 core-local义务**，见 [逐项范围与证据](../../../../record/evidence/2026-09-26-tests-core-current-v3/local-technical-acceptance.json)。最终真实组合、外部宿主义务及用户总体接受不随之提升。
+
+## 原设计记录
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.arrival-events · v2`（[契约](../../../../spec/data/arrival-events/v2/contract.md)，状态 `accepted`，接受由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/arrival-events`——**尚未建包**。归 `core`：它是 `data.*`，被 `model`（传输适配、模型请求运行时）与 `tools`（发帧入口、工具执行运行时）两侧的生产者与 [stream-assembly](../stream-assembly/README.md) 消费

@@ -5,8 +5,9 @@
 设计显式采用 `data.asset-model · v3`，精确 [规范](../../../../spec/data/asset-model/v3/contract.md) 与 [接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 已冻结；采用依据为 [D-068追加](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md)。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
 
 - 可实施：沿新规范全部本节点责任和下文既有投影，只有D-068明确的表示／采用／错误例变化；不扩展外部runtime或存储。
-- 源码：`packages/core/asset-model` 已建立；HUB `585b0078` 已采用默认3资源与完整原字节 `schema/v2`。HUB `eabfff0f` 实际公开闭包试点通过（AM3全25定义、六保留2消费者全定义），源依赖已释放给后续spoke；六包完整回归、逐义务签收仍在进行，依赖试点不代替完成。
-- 验证：旧2原证据保留其精确输入；当前3需包内回归、公开dist／旧Schema闭包、W6真实组合及逐ID独立签收。用户最后总体接受未发生。
+- 源码：`packages/core/asset-model` 已完整采用3；作者 `29abb185` 的末段交付已集成至 HUB `fad84ef3`。默认3及完整原字节 `schema/v2` 均保留；实际 AM 固定图和保留2消费者闭包已通过。
+- 实际验证：[当前源 HUB 复验](../../../../record/evidence/2026-09-26-tests-core-current-v3/README.md) 中本包 **422 tests**、构建、严格类型与公开消费者通过，六包合计2410；原2证据保留原坐标。W6最终两真实链、逐ID技术接受及用户总体接受仍待，不从局部通过推到外部责任。
+
 
 ## 原2采用投影记录
 
