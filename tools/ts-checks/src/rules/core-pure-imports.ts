@@ -65,7 +65,8 @@ function allowedExternal(pkg: string, dependencies: readonly string[], specifier
     )
   )
     return true
-  if (BUILTINS[pkg]?.includes(specifier)) return true
+  if (BUILTINS[pkg]?.includes(specifier.startsWith('node:') ? specifier : `node:${specifier}`))
+    return true
   // 数据节点的既定校验器采用。两个纯 capability 节点不采用 Ajv。
   if (
     pkg !== 'stream-assembly' &&
@@ -100,7 +101,8 @@ export const corePureImports: Rule = {
         const resolved = specifier === undefined ? undefined : resolveRelative(file.path, specifier)
         const local =
           resolved !== undefined &&
-          (resolved.startsWith(`core/${pkg}/src/`) || resolved.startsWith(`core/${pkg}/schema/`))
+          (resolved.startsWith(`core/${pkg}/src/`) ||
+            (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
         if (local || (specifier !== undefined && allowedExternal(pkg, dependencies, specifier)))
           continue
         out.push({

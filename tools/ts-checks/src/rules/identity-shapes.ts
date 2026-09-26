@@ -1,4 +1,5 @@
 import ts from 'typescript'
+import { IDENTITY_TYPE_NAMES } from '@omne-harness-lite/identity-values'
 import { isTestPath, type Rule, type SourceFile, type Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { hasTag, nodeName, syntaxOf, visitSyntax } from '../syntax.ts'
@@ -15,17 +16,9 @@ export interface IdentityCheckInputs {
   readonly decisionTargets: readonly IdentityDecisionTarget[]
 }
 
-/** 与 identity-values 公开清单的对应关系由 HUB 组合验收核对；本工具不穿透兄弟 src。 */
+/** 身份类型名单只从 identity-values 公开入口取得，不维护第二份领域名单。 */
 export const IDENTITY_CHECK_INPUTS: IdentityCheckInputs = Object.freeze({
-  identityTypeNames: Object.freeze([
-    'AccountId',
-    'OrganizationId',
-    'LoginStateId',
-    'LoginIdentifier',
-    'TenantId',
-    'ScopeLayerIdentity',
-    'HandoffWarrant',
-  ]),
+  identityTypeNames: IDENTITY_TYPE_NAMES,
   physicalTypeNames: Object.freeze([
     'Path',
     'FilePath',
@@ -71,10 +64,14 @@ function typeNames(node: ts.Node, syntax: ts.SourceFile): Set<string> {
       names.add(imports.get(local) ?? local)
       const alias = aliases.get(local)
       if (alias !== undefined) inspect(alias)
+      // Branded<string, 'FilePath'>／OpaqueIdentifier<'AccountId'>，也认具名构造器改名。
+      if (['Branded', 'OpaqueIdentifier'].includes(imports.get(local) ?? local)) {
+        for (const arg of current.typeArguments ?? []) {
+          if (ts.isLiteralTypeNode(arg) && ts.isStringLiteral(arg.literal))
+            names.add(arg.literal.text)
+        }
+      }
     }
-    // Branded<string, 'FilePath'>／OpaqueIdentifier<'AccountId'> 的品牌证据。
-    if (ts.isLiteralTypeNode(current) && ts.isStringLiteral(current.literal))
-      names.add(current.literal.text)
     ts.forEachChild(current, inspect)
   }
   inspect(node)

@@ -3,6 +3,7 @@ import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+import { IDENTITY_TYPE_NAMES } from '@omne-harness-lite/identity-values'
 import {
   collectSources,
   corePureImports,
@@ -98,6 +99,7 @@ import { ArrivalEnvelope } from '@omne-harness-lite/arrival-events'`,
       '@omne-harness-lite/identity-values/secret',
       '../../identity-values/src/index.ts',
       '../../../infra/clock/src/index.ts',
+      '../schema/hidden.ts',
       'node:fs',
       'node:child_process',
     ])
@@ -197,6 +199,11 @@ describe('identity SC-1 精确输入', () => {
     decisionTargets: [{ path, functionName: 'canAccess' }],
   })
 
+  it('规则输入消费公开身份类型清单，非第二份领域名单', () => {
+    expect(IDENTITY_CHECK_INPUTS.identityTypeNames).toBe(IDENTITY_TYPE_NAMES)
+    expect(Object.isFrozen(IDENTITY_CHECK_INPUTS.identityTypeNames)).toBe(true)
+  })
+
   it('登记准入参数的物理品牌、嵌套成员、本地别名、具名import改名必红', () => {
     const source = file(
       path,
@@ -220,6 +227,22 @@ export function shareAncestor(parentOf: ParentSnapshot) { return true }`,
     expect(
       identityDecisionInputs.check([file(path, 'function readFile(path: FilePath) {}')]),
     ).toEqual([])
+    expect(
+      rule.check([
+        file(path, `export function canAccess(input: { label: 'Path' }) { return true }`),
+      ]),
+    ).toEqual([])
+  })
+
+  it('品牌构造器改名不丢失物理品牌证据', () => {
+    const source = file(
+      path,
+      `import type { Branded as Brand } from './brands.ts'
+type Physical = Brand<string, 'FilePath'>
+export function canAccess(path: Physical) { return true }`,
+    )
+    expect(rule.check([source])).toHaveLength(1)
+    expect(rule.check([source])[0]?.message).toContain('FilePath')
   })
 
   it('@identityDecision 标注函数、箭头和方法同样查，不把注释字样当任意函数', () => {
