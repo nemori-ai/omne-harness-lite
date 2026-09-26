@@ -10,12 +10,11 @@ import texts from './fixtures/text.json' with { type: 'json' }
 const md =
   '---\nname: code-review\ndescription: d\n---\n\n$ARGUMENTS ${CLAUDE_SKILL_DIR} !`cmd`\r\n'
 const main: SkillPackageEntry = { kind: 'file', path: 'SKILL.md', text: md }
-describe('S-20 full YAML 1.2 text reader', () => {
+describe('S-20 YAML 1.2 Core text reader', () => {
   for (const [id, yaml, accepted] of [
     ['int and float tags differ', '{1: x, 1.0: y}', true],
     ['int and string tags differ', '{1: x, "1": y}', true],
     ['distinct unknown tags', '{!foo a: x, !bar a: y}', true],
-    ['same unknown tag canonical string', '{!foo a: x, !foo "a": y}', false],
     ['implicit and explicit string same tag', '{a: x, !!str a: y}', false],
     ['integer different spellings', '{0x10: x, 16: y}', false],
     ['integer plus zero spelling', '{+00016: x, 16: y}', false],
@@ -74,7 +73,7 @@ describe('S-20 full YAML 1.2 text reader', () => {
       if (row.manifest === null) expect(result).toEqual({ rejected: 'malformed', malformed: 'M16' })
       else {
         expect(result).toHaveProperty('ok')
-        if ('rejected' in result) throw new Error('valid text was rejected')
+        if (!('ok' in result)) throw new Error('valid text did not finish reading')
         expect(result.ok.manifest).toEqual(row.manifest)
         expect(result.ok.body).toBe(row.body)
         if (index === 4)
@@ -108,7 +107,7 @@ describe('S-20 full YAML 1.2 text reader', () => {
     const result = readSkillMd(
       '---\nname: x\ndescription: d\n42: arbitrary\n? [name, other]\n: {any: [shape]}\n---\n',
     )
-    if ('rejected' in result) throw new Error('unknown YAML keys rejected')
+    if (!('ok' in result)) throw new Error('unknown YAML keys did not finish reading')
     expect(result.ok.manifest).toEqual({ name: 'x', description: 'd' })
     expect(result.ok.unknownKeys).toEqual([
       { keySource: '42', category: 'unknown' },
@@ -134,7 +133,7 @@ describe('S-20 full YAML 1.2 text reader', () => {
   }
   it('preserves every body character and never expands placeholders or shell-shaped text', () => {
     const result = readSkillMd(md)
-    if ('rejected' in result) throw new Error('valid text was rejected')
+    if (!('ok' in result)) throw new Error('valid text did not finish reading')
     expect(result.ok.body).toBe('\n$ARGUMENTS ${CLAUDE_SKILL_DIR} !`cmd`\r\n')
     expect(Object.isFrozen(result.ok.manifest)).toBe(true)
     expect(Object.isFrozen(result.ok.unknownKeys)).toBe(true)
@@ -148,6 +147,102 @@ describe('S-20 full YAML 1.2 text reader', () => {
     })
   }
 })
+describe('unresolved key tag gap and coinductive recursive node comparisons', () => {
+  function text(yaml: string): string {
+    return `---\nname: x\ndescription: d\n${yaml}\n---\nbody`
+  }
+  for (const [id, yaml, tags] of [
+    ['same source distinct nodes', '? !foo a\n: first\n? !foo a\n: second', ['!foo']],
+    [
+      'quoted spelling not canonical knowledge',
+      '? !foo a\n: first\n? !foo "a"\n: second',
+      ['!foo'],
+    ],
+    [
+      'different fallback strings not canonical knowledge',
+      '? !foo A\n: first\n? !foo a\n: second',
+      ['!foo'],
+    ],
+    ['sequence unknown comparison', '? [!foo x, a]\n: first\n? [!foo y, a]\n: second', ['!foo']],
+    [
+      'mapping unknown comparison',
+      '? {a: !foo x, b: 1}\n: first\n? {b: 1, a: !foo y}\n: second',
+      ['!foo'],
+    ],
+    [
+      'multiple tag diagnostics stable',
+      'ignored: {!foo a: x, !foo b: y, !bar a: x, !bar b: y}',
+      ['!bar', '!foo'],
+    ],
+  ] as const) {
+    it(`read gap: ${id}`, () => {
+      const source = text(yaml)
+      const expected = { undetermined: { reason: 'yaml_key_tag', tags } }
+      const result = readSkillMd(source)
+      expect(result).toEqual(expected)
+      expect(readSkillMd(source)).toEqual(result)
+      expect(readSkillPackage([{ kind: 'file', path: 'SKILL.md', text: source }])).toEqual(result)
+      expect(Object.keys(result)).toEqual(['undetermined'])
+      if (!('undetermined' in result)) throw new Error('expected a technical read gap')
+      expect(Object.isFrozen(result.undetermined)).toBe(true)
+      expect(Object.isFrozen(result.undetermined.tags)).toBe(true)
+    })
+  }
+  for (const [id, yaml] of [
+    [
+      'sequence definite difference after uncertainty',
+      '? [!foo x, a]\n: first\n? [!foo y, b]\n: second',
+    ],
+    ['sequence definite length difference', '? [!foo x]\n: first\n? [!foo y, a]\n: second'],
+    [
+      'mapping definite value difference after uncertainty',
+      '? {a: !foo x, b: 1}\n: first\n? {a: !foo y, b: 2}\n: second',
+    ],
+    [
+      'mapping impossible full pairing after uncertainty',
+      '? {a: !foo x, b: 1}\n: first\n? {a: !foo y, c: 1}\n: second',
+    ],
+    ['different unknown tag is a definite difference', '? !foo a\n: first\n? !bar a\n: second'],
+    ['single ignored tag needs no key comparison', 'ignored: !foo value'],
+    ['distinct recursive sequence labels', '? &a [x, *a]\n: first\n? &b [y, *b]\n: second'],
+    ['distinct recursive sequence lengths', '? &a [*a]\n: first\n? &b [*b, *b]\n: second'],
+    ['single ignored recursive graph', 'ignored: &a [*a]'],
+  ] as const) {
+    it(`determined valid: ${id}`, () => {
+      expect(readSkillMd(text(yaml))).toHaveProperty('ok')
+    })
+  }
+  for (const [id, yaml] of [
+    ['unknown alias identical node is definite duplicate', '? &a !foo x\n: first\n? *a\n: second'],
+    [
+      'mapping exact pairing overrides uncertain alternative',
+      'anchorA: &a !foo x\nanchorB: &b !foo x\n? {*a: first, *b: second}\n: one\n? {*b: second, *a: first}\n: two',
+    ],
+    ['recursive alias identical node', '? &a [*a]\n: first\n? *a\n: second'],
+    ['separate isomorphic recursive sequences', '? &a [*a]\n: first\n? &b [*b]\n: second'],
+    ['separate isomorphic recursive maps', '? &a {a: *a}\n: first\n? &b {a: *b}\n: second'],
+    [
+      'known nested duplicate overrides uncertain keys',
+      'ignored: {!foo a: x, !foo b: y}\nother: {a: x, a: y}',
+    ],
+    [
+      'unresolved alias overrides uncertain keys',
+      'ignored: {!foo a: x, !foo b: y}\nother: *missing',
+    ],
+    [
+      'invalid core value overrides uncertain keys',
+      'ignored: {!foo a: x, !foo b: y}\nlicense: !!int 1',
+    ],
+    [
+      'unknown-tag core alias overrides uncertain keys',
+      'ignored: {!foo a: x, !foo b: y}\nanchor: &a !foo x\nlicense: *a',
+    ],
+  ] as const) {
+    it(`determined malformed: ${id}`, () => {
+      expect(readSkillMd(text(yaml))).toEqual({ rejected: 'malformed', malformed: 'M16' })
+    })
+  }
+})
 describe('S-21 supplied directory observations, normative rows 1–8', () => {
   it('row 1 drops execution mode, retains resource order, and identifies only scripts/', () => {
     const result = readSkillPackage([
@@ -156,7 +251,7 @@ describe('S-21 supplied directory observations, normative rows 1–8', () => {
       { kind: 'file', path: 'references/a.md' },
       { kind: 'file', path: 'scripts/run.sh', executable: true },
     ])
-    if ('rejected' in result) throw new Error('valid entries rejected')
+    if (!('ok' in result)) throw new Error('valid entries did not finish reading')
     expect(result.ok.package.resources).toEqual([
       { path: 'references/a.md' },
       { path: 'scripts/run.sh' },
@@ -187,7 +282,7 @@ describe('S-21 supplied directory observations, normative rows 1–8', () => {
       main,
       { kind: 'file', path: 'agents/openai.yaml', text: 'policy: [any unresolved: yaml shape' },
     ])
-    if ('rejected' in result) throw new Error('sidecar was interpreted')
+    if (!('ok' in result)) throw new Error('sidecar did not remain an ordinary resource')
     expect(result.ok.package.resources).toEqual([{ path: 'agents/openai.yaml' }])
   })
   it('row 6 reads definition only at its reserved path and never lists it as resource', () => {
@@ -195,7 +290,7 @@ describe('S-21 supplied directory observations, normative rows 1–8', () => {
       main,
       { kind: 'file', path: '.omne/skill.json', text: '{"format":1}' },
     ])
-    if ('rejected' in result) throw new Error('valid definition rejected')
+    if (!('ok' in result)) throw new Error('valid definition did not finish reading')
     expect(result.ok.package.definition).toEqual({ format: 1 })
     expect(result.ok.package.resources).toEqual([])
   })
@@ -205,7 +300,7 @@ describe('S-21 supplied directory observations, normative rows 1–8', () => {
   ] as const) {
     it(`row ${id} keeps ${path} as ordinary resource`, () => {
       const result = readSkillPackage([main, { kind: 'file', path, text: 'not json' }])
-      if ('rejected' in result) throw new Error('ordinary resource rejected')
+      if (!('ok' in result)) throw new Error('ordinary resource did not finish reading')
       expect(result.ok.package.resources).toEqual([{ path }])
       expect(result.ok.package.definition).toBeUndefined()
     })
@@ -221,7 +316,7 @@ describe('S-21 supplied directory observations, normative rows 1–8', () => {
         mediaType: 'text/markdown',
       },
     ])
-    if ('rejected' in result) throw new Error('resolved file rejected')
+    if (!('ok' in result)) throw new Error('resolved file did not finish reading')
     expect(result.ok.package.resources).toEqual([
       { path: 'references/shared.md', mediaType: 'text/markdown' },
     ])
@@ -271,7 +366,7 @@ describe('S-21 supplied directory observations, normative rows 1–8', () => {
       main,
       { kind: 'file', path: '.omne/skill.json', text: '{"format":1.0}' },
     ])
-    if ('rejected' in result) throw new Error('numeric one rejected')
+    if (!('ok' in result)) throw new Error('numeric one did not finish reading')
     expect(result.ok.package.definition?.format).toHaveProperty('source', '1.0')
     expect(
       readSkillPackage([

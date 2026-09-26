@@ -69,18 +69,49 @@ function scalarIdentity(node: unknown, doc: Document): unknown {
 function forkComparisons(compared: Map<object, Set<object>>): Map<object, Set<object>> {
   return new Map([...compared].map(([key, values]) => [key, new Set(values)]))
 }
-/** YAML node equality includes tags, canonical scalar values, and resolved aliases. */
+type Equality = boolean | ReadonlySet<string>
+function conjunction(results: readonly Equality[]): Equality {
+  if (results.includes(false)) return false
+  const tags = new Set(results.flatMap(result => (typeof result === 'boolean' ? [] : [...result])))
+  return tags.size === 0 ? true : tags
+}
+/** Find a one-to-one pairing; a single uncertain edge cannot conceal a definite full matching. */
+function matching(
+  edges: readonly (readonly Equality[])[],
+  exact: boolean,
+): readonly number[] | undefined {
+  const assigned: number[] = []
+  function assign(left: number, seen: Set<number>): boolean {
+    const row = edges[left]
+    if (row === undefined) return false
+    for (const [right, edge] of row.entries()) {
+      if ((exact ? edge !== true : edge === false) || seen.has(right)) continue
+      seen.add(right)
+      const previous = assigned[right]
+      if (previous === undefined || assign(previous, seen)) {
+        assigned[right] = left
+        return true
+      }
+    }
+    return false
+  }
+  for (const left of edges.keys()) if (!assign(left, new Set())) return undefined
+  return assigned
+}
+/** Core canonical equality; unresolved scalar tags stay unknown. Cycles use coinduction. */
 function keyEqual(
   left: unknown,
   right: unknown,
   doc: Document,
   compared: Map<object, Set<object>> = new Map(),
-): boolean {
+): Equality {
   const a = resolve(left, doc)
   const b = resolve(right, doc)
   if (a === b) return true
-  if (tagOf(a, doc) !== tagOf(b, doc)) return false
+  const tag = tagOf(a, doc)
+  if (tag !== tagOf(b, doc)) return false
   if (isScalar(a) && isScalar(b)) {
+    if (!doc.schema.tags.some(known => known.tag === tag)) return new Set([tag])
     const first = scalarIdentity(a, doc)
     const second = scalarIdentity(b, doc)
     return Object.is(first, second) || first === second
@@ -93,40 +124,55 @@ function keyEqual(
   if (seen?.has(b)) return true
   if (seen === undefined) compared.set(a, new Set([b]))
   else seen.add(b)
-  if (isSeq(a) && isSeq(b))
-    return (
-      a.items.length === b.items.length &&
-      a.items.every((item, index) => keyEqual(item, b.items[index], doc, compared))
+  if (isSeq(a) && isSeq(b)) {
+    if (a.items.length !== b.items.length) return false
+    return conjunction(
+      a.items.map((item, index) => keyEqual(item, b.items[index], doc, forkComparisons(compared))),
     )
-  if (isMap(a) && isMap(b))
-    return (
-      a.items.length === b.items.length &&
-      a.items.every(pair =>
-        b.items.some(
-          other =>
-            keyEqual(pair.key, other.key, doc, forkComparisons(compared)) &&
-            keyEqual(pair.value, other.value, doc, forkComparisons(compared)),
-        ),
-      )
+  }
+  if (isMap(a) && isMap(b)) {
+    if (a.items.length !== b.items.length) return false
+    const edges = a.items.map(pair =>
+      b.items.map(other =>
+        conjunction([
+          keyEqual(pair.key, other.key, doc, forkComparisons(compared)),
+          keyEqual(pair.value, other.value, doc, forkComparisons(compared)),
+        ]),
+      ),
     )
+    if (matching(edges, true) !== undefined) return true
+    const possible = matching(edges, false)
+    if (possible === undefined) return false
+    return conjunction(
+      possible.map((left, right) => {
+        const edge = edges[left]?.[right]
+        if (edge === undefined) throw new Error('inconsistent YAML mapping matching')
+        return edge
+      }),
+    )
+  }
   return false
 }
-function validKeys(doc: Document): boolean {
-  let valid = true
+function keyValidity(doc: Document): {
+  readonly invalid: boolean
+  readonly tags: ReadonlySet<string>
+} {
+  let invalid = false
+  const tags = new Set<string>()
   visit(doc, {
     Alias(_key, node) {
-      if (node.resolve(doc) === undefined) valid = false
+      if (node.resolve(doc) === undefined) invalid = true
     },
     Map(_key, node) {
-      if (
-        node.items.some((pair, index) =>
-          node.items.slice(0, index).some(previous => keyEqual(pair.key, previous.key, doc)),
-        )
-      )
-        valid = false
+      for (const [index, pair] of node.items.entries())
+        for (const previous of node.items.slice(0, index)) {
+          const equality = keyEqual(pair.key, previous.key, doc)
+          if (equality === true) invalid = true
+          else if (equality !== false) for (const tag of equality) tags.add(tag)
+        }
     },
   })
-  return valid
+  return { invalid, tags }
 }
 function stringValue(node: unknown, doc: Document): string | undefined {
   const resolved = resolve(node, doc)
@@ -171,7 +217,9 @@ export function readSkillMd(text: string): SkillMdReadResult {
     uniqueKeys: false,
     intAsBigInt: true,
   })
-  if (doc.errors.length !== 0 || !isMap(doc.contents) || !validKeys(doc)) return rejected()
+  if (doc.errors.length !== 0 || !isMap(doc.contents)) return rejected()
+  const keys = keyValidity(doc)
+  if (keys.invalid) return rejected()
   const manifest: Record<string, JsonValue> = {}
   const unknownKeys: UnknownSkillKey[] = []
   for (const pair of doc.contents.items) {
@@ -217,6 +265,13 @@ export function readSkillMd(text: string): SkillMdReadResult {
   }
   const copied = copyJson(manifest)
   if (copied === undefined || !manifestOf(copied)) return rejected()
+  if (keys.tags.size !== 0)
+    return Object.freeze({
+      undetermined: Object.freeze({
+        reason: 'yaml_key_tag',
+        tags: Object.freeze([...keys.tags].sort()),
+      }),
+    })
   return Object.freeze({
     ok: Object.freeze({
       manifest: copied,

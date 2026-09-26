@@ -24,7 +24,7 @@ export function readSkillPackage(
   if (manifest === undefined || manifest.kind !== 'file' || typeof manifest.text !== 'string')
     return malformed('M16')
   const parsed = readSkillMd(manifest.text)
-  if ('rejected' in parsed) return parsed
+  if (!('ok' in parsed)) return parsed
   const resources: ResourceEntry[] = []
   let definition: JsonValue | undefined
   let malformedEntry = false
