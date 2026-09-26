@@ -1,0 +1,241 @@
+{
+  "format": 1,
+  "source_repository": "omne-harness-lite",
+  "source_commit": "d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac",
+  "source_package": "packages/util/unix-format",
+  "source_origin_claim": {
+    "repository": "omne-next",
+    "commit": "6263fed545e48ad9efb5714f3fe76a7c1a0af1b5",
+    "independently_reexecuted": false
+  },
+  "adopted_design": ".meta_harness/design/realization/packages/util/unix-format/design.md",
+  "adopted_decision": "D-046",
+  "imported_files": [
+    {
+      "source_path": "packages/util/unix-format/src/envelope.ts",
+      "source_sha256": "471778ad928d4c5f74f4acea0c6ce855424928e440f029ef811c22f144f8081a",
+      "destination_path": "packages/util/unix-format/src/envelope.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "475a47f77a26800c571b94b526b908c5d514f59be438f3d2410a7fdec7a8fe7a",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/unix-format/src/index.ts",
+      "source_sha256": "2e76403cdc9217dbe7b79b9d979f36ce934dfa7fb339121dfc3df68a498f5f3f",
+      "destination_path": "packages/util/unix-format/src/index.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "a8a96ccfb69aa340de62497410929c26c2812e953ce72ecc3e0563e16190dc7f",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/unix-format/src/numbered.ts",
+      "source_sha256": "4d52e07aa02d4c46feca4799159bee9daa075bf8c03dcc9ae8ad7ec68608f20b",
+      "destination_path": "packages/util/unix-format/src/numbered.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "9972850aca95600662c499512489c5f2c695cc501fc68de5b4f2fdf5a836f664",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/unix-format/src/options.ts",
+      "source_sha256": "fc4bfa9585d4a5637a59d06fb8e9babef5caf719fffe1181238014237d415179",
+      "destination_path": "packages/util/unix-format/src/options.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "cb9ea1c437e1cd054c22a7da86b101e51ada80e48df021af94a447649cb9fb0c",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/unix-format/src/sections.ts",
+      "source_sha256": "1c8044d544cf074daed4f866a1fcaafb3c0f363e7327a5c7dfdbe596d69b0bf8",
+      "destination_path": "packages/util/unix-format/src/sections.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "6afa314fe38d1d5c78f3e025c3fc689ad8819b5ea490d4cc430e9b90001247f9",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/unix-format/src/structured.ts",
+      "source_sha256": "9c340c3f7b71722ae1e61d0f08a1618ef67fb688cdb0ae076e045e952d544325",
+      "destination_path": "packages/util/unix-format/src/structured.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "28fa31a8a4836dc2e155c833031e42c3525c46dc7edab08c6e6cadcdbb43c967",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/unix-format/src/text.ts",
+      "source_sha256": "48a0cf45e5cc0f4f52c80aa780ea26e1f6a887248e22bf991a284ae33f163654",
+      "destination_path": "packages/util/unix-format/src/text.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "48a0cf45e5cc0f4f52c80aa780ea26e1f6a887248e22bf991a284ae33f163654",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/unix-format/tests/differential.spec.ts",
+      "source_sha256": "46d922f4533abf6de584a9bf65b66f02f63690e748ee5c39c34e8c93666458d9",
+      "destination_path": "packages/util/unix-format/tests/differential.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption",
+        "fixture path and limited comparison description"
+      ],
+      "destination_sha256": "0192ab0ea702a033eb015e9e97f0904356413e26d8a9eb41572c62c1bbe5460a",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/unix-format/tests/envelope.spec.ts",
+      "source_sha256": "cbeee6a7fd82ea74d07658779210a861936f37749ac92896981f9a5b3d825b49",
+      "destination_path": "packages/util/unix-format/tests/envelope.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption"
+      ],
+      "destination_sha256": "cbeee6a7fd82ea74d07658779210a861936f37749ac92896981f9a5b3d825b49",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/unix-format/tests/numbered.spec.ts",
+      "source_sha256": "f1da9748a1578a402733d8ac3c7767992afb950209bc3485e8a0369be8c1532c",
+      "destination_path": "packages/util/unix-format/tests/numbered.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption"
+      ],
+      "destination_sha256": "f1da9748a1578a402733d8ac3c7767992afb950209bc3485e8a0369be8c1532c",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/unix-format/tests/sections.spec.ts",
+      "source_sha256": "e638e9e4576c9ffafc53fb725e74d47833944cc598b52da480fc3056a0dc2baa",
+      "destination_path": "packages/util/unix-format/tests/sections.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption"
+      ],
+      "destination_sha256": "e638e9e4576c9ffafc53fb725e74d47833944cc598b52da480fc3056a0dc2baa",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/unix-format/tests/structured.spec.ts",
+      "source_sha256": "605f582a393ae1e41b1ea008c60fab72d6fca877f7f78dce510b489b73203c02",
+      "destination_path": "packages/util/unix-format/tests/structured.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption"
+      ],
+      "destination_sha256": "605f582a393ae1e41b1ea008c60fab72d6fca877f7f78dce510b489b73203c02",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/unix-format/evidence/differential/golden.json",
+      "source_sha256": "3f6cbf6498c3fa2d2cd48c4bbaf076c2bc6da82d244273908d38e5432c5cf7bf",
+      "destination_path": "packages/util/unix-format/tests/fixtures/golden.json",
+      "adaptations": [],
+      "destination_sha256": "3f6cbf6498c3fa2d2cd48c4bbaf076c2bc6da82d244273908d38e5432c5cf7bf",
+      "byte_identical_to_source": true
+    }
+  ],
+  "adaptations": [
+    "catalog development dependencies and Node engine",
+    "workspace TypeScript .ts imports and public dist exports",
+    "finite source golden fixture retained verbatim"
+  ],
+  "not_imported": [
+    "old docs/spec/research/evidence prose",
+    "Python producer (not rerun)",
+    "timeout",
+    "brand"
+  ],
+  "source_files": [
+    {
+      "path": "packages/util/unix-format/README.md",
+      "sha256": "10e15f4cc47a7823617253b55b8ea0b9ed99045a8908bf8b136b0f00fc817985"
+    },
+    {
+      "path": "packages/util/unix-format/evidence/differential/README.md",
+      "sha256": "8885fc1b0d11af896e229be59f102fb6d82dca6c80d5f65f5f0e1785915978d0"
+    },
+    {
+      "path": "packages/util/unix-format/evidence/differential/golden.json",
+      "sha256": "3f6cbf6498c3fa2d2cd48c4bbaf076c2bc6da82d244273908d38e5432c5cf7bf"
+    },
+    {
+      "path": "packages/util/unix-format/evidence/differential/golden.py",
+      "sha256": "bb055c3dc59cc7b4b4083ed541bcc3bef8d4ede905ee5d7dcf72d5aed74edfbe"
+    },
+    {
+      "path": "packages/util/unix-format/package.json",
+      "sha256": "abb86702de4305475393ded400e66a255885f492e808dd7c890822204803a400"
+    },
+    {
+      "path": "packages/util/unix-format/provenance.json",
+      "sha256": "8aa4cff739ab973c222eff935901df7c5d38da2ce2d901532d5b7bcdb03f368a"
+    },
+    {
+      "path": "packages/util/unix-format/src/envelope.ts",
+      "sha256": "471778ad928d4c5f74f4acea0c6ce855424928e440f029ef811c22f144f8081a"
+    },
+    {
+      "path": "packages/util/unix-format/src/index.ts",
+      "sha256": "2e76403cdc9217dbe7b79b9d979f36ce934dfa7fb339121dfc3df68a498f5f3f"
+    },
+    {
+      "path": "packages/util/unix-format/src/numbered.ts",
+      "sha256": "4d52e07aa02d4c46feca4799159bee9daa075bf8c03dcc9ae8ad7ec68608f20b"
+    },
+    {
+      "path": "packages/util/unix-format/src/options.ts",
+      "sha256": "fc4bfa9585d4a5637a59d06fb8e9babef5caf719fffe1181238014237d415179"
+    },
+    {
+      "path": "packages/util/unix-format/src/sections.ts",
+      "sha256": "1c8044d544cf074daed4f866a1fcaafb3c0f363e7327a5c7dfdbe596d69b0bf8"
+    },
+    {
+      "path": "packages/util/unix-format/src/structured.ts",
+      "sha256": "9c340c3f7b71722ae1e61d0f08a1618ef67fb688cdb0ae076e045e952d544325"
+    },
+    {
+      "path": "packages/util/unix-format/src/text.ts",
+      "sha256": "48a0cf45e5cc0f4f52c80aa780ea26e1f6a887248e22bf991a284ae33f163654"
+    },
+    {
+      "path": "packages/util/unix-format/tests/differential.spec.ts",
+      "sha256": "46d922f4533abf6de584a9bf65b66f02f63690e748ee5c39c34e8c93666458d9"
+    },
+    {
+      "path": "packages/util/unix-format/tests/envelope.spec.ts",
+      "sha256": "cbeee6a7fd82ea74d07658779210a861936f37749ac92896981f9a5b3d825b49"
+    },
+    {
+      "path": "packages/util/unix-format/tests/numbered.spec.ts",
+      "sha256": "f1da9748a1578a402733d8ac3c7767992afb950209bc3485e8a0369be8c1532c"
+    },
+    {
+      "path": "packages/util/unix-format/tests/sections.spec.ts",
+      "sha256": "e638e9e4576c9ffafc53fb725e74d47833944cc598b52da480fc3056a0dc2baa"
+    },
+    {
+      "path": "packages/util/unix-format/tests/structured.spec.ts",
+      "sha256": "605f582a393ae1e41b1ea008c60fab72d6fca877f7f78dce510b489b73203c02"
+    },
+    {
+      "path": "packages/util/unix-format/tsconfig.build.json",
+      "sha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd"
+    },
+    {
+      "path": "packages/util/unix-format/tsconfig.test.json",
+      "sha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20"
+    },
+    {
+      "path": "packages/util/unix-format/vitest.config.ts",
+      "sha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d"
+    }
+  ]
+}
