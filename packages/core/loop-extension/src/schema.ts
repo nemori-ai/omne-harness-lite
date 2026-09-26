@@ -132,6 +132,47 @@ function injectMessageShape(): JsonObject {
     },
   }
 }
+function guardedDimensionSelector(condition: JsonValue): JsonValue {
+  if (
+    !object(condition) ||
+    !object(condition.if) ||
+    !object(condition.if.properties) ||
+    !object(condition.if.properties.dimension)
+  )
+    return condition
+  // The frozen graph closes Dimension separately. Once that predicate is
+  // deferred, subject/card selectors must still require a legal dimension.
+  return {
+    ...condition,
+    if: {
+      ...condition.if,
+      properties: {
+        ...condition.if.properties,
+        dimension: {
+          allOf: [ownedDefinition('Dimension'), condition.if.properties.dimension],
+        },
+      },
+    },
+  }
+}
+function guardedCallIdentity(condition: JsonValue): JsonValue {
+  return {
+    if: {
+      properties: { position: { const: 'after_action' } },
+      required: ['position'],
+      not: {
+        properties: {
+          dimension: {
+            allOf: [ownedDefinition('Dimension'), { required: ['scope'] }],
+          },
+        },
+        required: ['dimension'],
+      },
+    },
+    then: {},
+    else: condition,
+  }
+}
 function earlyResource(): SchemaDocument {
   const source = snapshot(schema)
   if (!object(source) || !object(source.$defs)) throw new Error('owned Schema is not an object')
@@ -144,12 +185,18 @@ function earlyResource(): SchemaDocument {
   defs.LoopExtensionDefinition = { ...definition, allOf: definition.allOf.slice(3) }
   const input = ownedDefinition('ExtensionInput')
   if (!Array.isArray(input.allOf)) throw new Error('input conditions missing')
-  defs.ExtensionInput = { ...input, allOf: input.allOf.slice(3) }
+  defs.ExtensionInput = {
+    ...input,
+    allOf: input.allOf.slice(3).map(guardedDimensionSelector),
+  }
   const conclusion = ownedDefinition('Conclusion')
   if (!Array.isArray(conclusion.allOf)) throw new Error('conclusion conditions missing')
   defs.Conclusion = {
     ...conclusion,
-    allOf: conclusion.allOf.filter((_item, index) => [3, 4, 5, 22, 27, 28].includes(index)),
+    allOf: conclusion.allOf.flatMap((item, index) => {
+      if (index === 3) return [guardedCallIdentity(item)]
+      return [4, 5, 22, 27, 28].includes(index) ? [guardedDimensionSelector(item)] : []
+    }),
   }
   const inject = ownedDefinition('InjectOutput')
   if (!object(inject.properties)) throw new Error('inject properties missing')

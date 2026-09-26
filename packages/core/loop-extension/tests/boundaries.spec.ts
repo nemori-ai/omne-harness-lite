@@ -5,7 +5,15 @@ import {
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
 import { OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS } from '@omne-harness-lite/identity-values'
-import { judgeDefinition, judgeInput, judgeOutput, judgeValue, validate } from '../src/index.ts'
+import {
+  judgeConclusion,
+  judgeDefinition,
+  judgeInput,
+  judgeOutput,
+  judgeValue,
+  validate,
+  type ConclusionInputs,
+} from '../src/index.ts'
 import { at, call, inputAt, variants, json, recordAt, reminder } from './helpers.ts'
 
 it('LE-ORDER-1: ordinary malformed wins over position/power/dimension', () => {
@@ -204,3 +212,94 @@ it('LE-INPUT-SUBJECT: bad variant/presence/unknown member never repaired', () =>
     }).valid,
   ).toBe(false)
 })
+for (const variant of variants.filter(item => item.dimension !== undefined))
+  for (const dimension of [null, [], 1, 'each'])
+    it(`LE-DIMENSION-PRIORITY-${variant.position}-${JSON.stringify(variant.dimension)}-${JSON.stringify(dimension)}: invalid selectors do not select a subject variant`, () => {
+      const input = { ...inputAt(variant), dimension }
+      const before = writeJsonLossless(input)
+      expect(judgeInput(input)).toEqual({ rejected: 'dimension_not_allowed' })
+      expect(writeJsonLossless(input)).toBe(before)
+      expect(judgeInput({ ...input, subject: {} })).toEqual({ rejected: 'malformed' })
+    })
+for (const variant of variants.filter(item => item.position === 'after_action'))
+  for (const dimension of [null, [], 1, 'each', {}, { scope: 'future' }, { ending: 'failure' }])
+    for (const callId of [undefined, 'call_01'])
+      it(`LE-CONCLUSION-DIMENSION-${JSON.stringify(variant.dimension)}-${JSON.stringify(dimension)}-${callId ?? 'absent'}: illegal scope cannot impose call/card presence`, () => {
+        const input = judgeInput(inputAt(variant))
+        if ('rejected' in input) throw new Error('control input rejected')
+        const record = {
+          extension: 'g',
+          position: 'after_action',
+          power: 'veto',
+          dimension,
+          ...(callId === undefined ? {} : { callId }),
+          output: { kind: 'observed' },
+          at,
+        }
+        const configuration: ConclusionInputs = { input: input.ok, extensionName: 'g' }
+        expect(judgeConclusion(record, configuration)).toEqual({
+          rejected: 'dimension_not_allowed',
+        })
+        const ask = {
+          ...record,
+          output: {
+            kind: 'ask',
+            card: {
+              explanation: 'x',
+              options: [{ id: 'yes', label: 'yes' }],
+              about: {
+                position: 'after_action',
+                ...(callId === undefined ? {} : { callId }),
+              },
+            },
+          },
+        }
+        expect(judgeConclusion(ask, configuration)).toEqual({
+          rejected: 'dimension_not_allowed',
+        })
+        expect(judgeConclusion({ ...record, callId: ' ' }, configuration)).toEqual({
+          rejected: 'malformed',
+        })
+        expect(judgeConclusion({ ...record, extra: true }, configuration)).toEqual({
+          rejected: 'malformed',
+        })
+        expect(
+          judgeConclusion(
+            {
+              ...ask,
+              output: {
+                ...ask.output,
+                card: {
+                  ...ask.output.card,
+                  about: { position: 'before_model_call' },
+                },
+              },
+            },
+            configuration,
+          ),
+        ).toEqual({ rejected: 'malformed' })
+      })
+for (const variant of variants.filter(item => item.dimension !== undefined))
+  it(`LE-DIMENSION-CONTROL-${variant.position}-${JSON.stringify(variant.dimension)}: admitted controls and missing dimension keep their own predicates`, () => {
+    const value = inputAt(variant)
+    const input = judgeInput(value)
+    if ('rejected' in input) throw new Error('control input rejected')
+    const configuration: ConclusionInputs = { input: input.ok, extensionName: 'g' }
+    const record = recordAt(variant, 'observe', { kind: 'observed' })
+    expect(judgeConclusion(record, configuration)).toHaveProperty('ok')
+    const withoutDimension = (data: typeof value) =>
+      Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'dimension'))
+    expect(judgeInput(withoutDimension(value))).toEqual({ rejected: 'dimension_missing' })
+    expect(judgeConclusion(withoutDimension(record), configuration)).toEqual({
+      rejected: 'dimension_missing',
+    })
+    if (variant.position === 'after_action') {
+      const wrongCallPresence =
+        variant.callId === undefined
+          ? { ...record, callId: 'call_01' }
+          : Object.fromEntries(Object.entries(record).filter(([key]) => key !== 'callId'))
+      expect(judgeConclusion(wrongCallPresence, configuration)).toEqual({
+        rejected: 'malformed',
+      })
+    }
+  })

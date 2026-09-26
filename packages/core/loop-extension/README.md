@@ -17,6 +17,8 @@ JSON inputs and results preserve lossless numbers through the content-blocks pub
 `validate` reports Schema shape only. `judgeValue` applies the ordered representation
 predicates to a standalone definition/input/output/record or `$defs` value;
 record-relative source names are compared to that record's `extension`.
+Receiving a conclusion requires `judgeConclusion`; a standalone `judgeValue` success
+does not establish comparisons against the actual invocation.
 `judgeConclusion(value, inputs)` also compares the original invocation subject and
 actual extension name. Its required `ConclusionInputs` contains the caller-admitted
 `ExtensionInput` and actual `CapabilityName` for this invocation. The caller owns
@@ -28,6 +30,8 @@ name that differs from the supplied actual name is `malformed`.
 Neither function defaults, evaluates, repairs or resolves inputs.
 
 The ordinary-shape pass uses a private view to defer the named S-37 predicates.
+An illegal dimension cannot select a Subject or impose scope-dependent call/card
+fields. Independently decidable shape and identity-mirror errors still take precedence.
 In an inject source with a non-extension string kind, the forbidden source branch's
 private fields are not validated; S-37 row 10 rejects that kind. Missing/non-object
 source, missing/non-string kind and malformed extension-source shape remain row 1.
