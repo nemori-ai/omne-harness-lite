@@ -1,0 +1,87 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 13 and seed 8917857292787158542 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 188659] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-stream-guards/tmp/w6-core-formal/input/spec/capabilities/stream-assembly/v3/formal/Assembly.tla
+Parsing file /tmp/tlc-16414970664668496392/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /tmp/tlc-16414970664668496392/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-16414970664668496392/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-16414970664668496392/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Assembly
+Linting of module Assembly
+Starting... (2026-09-26 09:49:09)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-26 09:49:10.
+Error: Invariant SplitInvariance is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ log = <<>>
+/\ res = "-"
+/\ st = "none"
+/\ tk = "-"
+
+State 2: <Start("model") line 187, col 13 to line 190, col 37 of module Assembly>
+/\ log = <<>>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 3: <Accept([e |-> "open", i |-> 0, k |-> "grow", m |-> "replace", p |-> <<>>, r |-> "-"]) line 192, col 15 to line 196, col 42 of module Assembly>
+/\ log = << [ e |-> "open",
+     i |-> 0,
+     k |-> "grow",
+     m |-> "replace",
+     p |-> <<>>,
+     r |-> "-" ] >>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 4: <Accept([e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"]) line 192, col 15 to line 196, col 42 of module Assembly>
+/\ log = << [ e |-> "open",
+     i |-> 0,
+     k |-> "grow",
+     m |-> "replace",
+     p |-> <<>>,
+     r |-> "-" ],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"] >>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 5: <Accept([e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"]) line 192, col 15 to line 196, col 42 of module Assembly>
+/\ log = << [ e |-> "open",
+     i |-> 0,
+     k |-> "grow",
+     m |-> "replace",
+     p |-> <<>>,
+     r |-> "-" ],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"] >>
+/\ res = "-"
+/\ st = "live"
+/\ tk = "model"
+
+State 6: <Abandon line 206, col 12 to line 212, col 26 of module Assembly>
+/\ log = << [ e |-> "open",
+     i |-> 0,
+     k |-> "grow",
+     m |-> "replace",
+     p |-> <<>>,
+     r |-> "-" ],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"],
+   [e |-> "fill", i |-> 0, k |-> "-", m |-> "-", p |-> <<"a">>, r |-> "-"],
+   [e |-> "finish", i |-> -1, k |-> "-", m |-> "-", p |-> <<>>, r |-> "lost"] >>
+/\ res = [ blocks |-> <<[i |-> 0, k |-> "grow", st |-> "partial", c |-> <<"a", "a">>]>>,
+  account |-> "unknown",
+  ending |-> "lost" ]
+/\ st = "out"
+/\ tk = "model"
+
+4454 states generated, 4405 distinct states found, 3793 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 01s at (2026-09-26 09:49:10)

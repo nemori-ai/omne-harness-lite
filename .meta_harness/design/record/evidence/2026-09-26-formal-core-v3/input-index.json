@@ -1,0 +1,234 @@
+[
+  {
+    "path": "spec/data/content-blocks/v3/contract.md",
+    "sha256": "27ee5765f5cf96cbcfdbf14784e66c1200697d41d7fba6f728ce93ba2ca2c9bb",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/content-blocks/v3/content-blocks.schema.json",
+    "sha256": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/content-blocks/v3/examples.md",
+    "sha256": "dec1a42b19a1527f2ccbea8bbde4c9eb91b9f691f22827688632ad365cae6bff",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/model-response/v3/contract.md",
+    "sha256": "8c5e37b5ab55ec8672f6d7dac089d0ab8f3c0bdeb54e89fef53dd40af0dc6541",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/model-response/v3/model-response.schema.json",
+    "sha256": "9ed3b10d10e41ccfcb3f01800e3d164e234f7a6e6f58215f6e0a747e8f4c0bdc",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/model-response/v3/examples.md",
+    "sha256": "cee563359f6fd2e144d03566089ce73ad1ffe319aa7ae5058bd17f91639e476a",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/tool-definition/v3/contract.md",
+    "sha256": "237db6d3443e2be1030a1c15ace0263ac74a51a19c2858070f9cde2de323170a",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/tool-definition/v3/tool-definition.schema.json",
+    "sha256": "116e05d91003574cb2f8a50d51e82428c25d24552ad39e2eeb480edb94ec43a9",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/tool-definition/v3/examples.md",
+    "sha256": "7a281a0289a6f051e88d3748eae4a1bf4a3444d808e8052b46ca24e73365e9ea",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/asset-model/v3/contract.md",
+    "sha256": "0ff8f3a4803f4af0aeff762758737fc97c04a60bcc108d6e15b6743d5a19596a",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/asset-model/v3/asset-model.schema.json",
+    "sha256": "f674f438dfee8fc1d6ad6106113fe72699232092c84699e5b216ca2792137131",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/asset-model/v3/examples.md",
+    "sha256": "9a972c6d3296b40bad2b2927466d050d6c0b55ff9e8560b62a7c2fd2a86006b9",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/loop-extension/v3/contract.md",
+    "sha256": "eb501757719987ab6d4a64c2ee301a28d9b2855cdca527246cdb7de03e95112f",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/loop-extension/v3/loop-extension.schema.json",
+    "sha256": "cc6c0bee411e7044166be429cd0e7701b92f0938b42d1a2f0ec86da4b8411b9f",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/loop-extension/v3/examples.md",
+    "sha256": "cb6044e9884156a37ab8dbe5ead059571e117ac68624f7ca4b8718fbf84e3b88",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/messages/v3/contract.md",
+    "sha256": "2a8bc3f698c95312e041419a010425f2557f2205565f1fa5746822a5fafecad8",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/messages/v3/messages.schema.json",
+    "sha256": "5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/messages/v3/examples.md",
+    "sha256": "9dbe5c9c628f7d629422b8d5561d3d2af376e39dcbcedc28a675abf97b98fb9e",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/messages/v3/formal/README.md",
+    "sha256": "1d310b2562b5026a885ba71ec78a0e4b3359440275f39fad1c29dc99e7a6167b",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/data/messages/v3/formal/Readable.als",
+    "sha256": "125d556e090eedb20be50a42b11270cba7c24760f8c197b12ee0dc9adec647dd",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/asset-evaluation/v3/contract.md",
+    "sha256": "b652bd5482248ab4df320b542f3d1c5794ac06bab6206682326ef4914835dee6",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/asset-evaluation/v3/examples.md",
+    "sha256": "92a96be193bdf6b6c93765efcee52c58f396a68c50ed8b48beb2ee06e0bc0452",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/asset-evaluation/v3/formal/Evaluation.als",
+    "sha256": "677174549d02368af4a112797c09bb0ec68a9b293f46f4995b7bcdcbb27ede1c",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/asset-evaluation/v3/formal/README.md",
+    "sha256": "5a5458b0901a0b7b07cf37d2d440877312ed696c02d146dad38818c70f802b12",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/contract.md",
+    "sha256": "3bc1e51fb4b2fa95609280e5217d7a9fd40e5770bd0211ad9dcdfd5d39f873d0",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/examples.md",
+    "sha256": "45aaae95a390d07abe456d1c2dd33b252d74437262e81128221041d82ad2ce64",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/formal/README.md",
+    "sha256": "2ba14ff0311e0c922252789a6c437abc846d362db72b915204cef90c48dcfbb9",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/formal/Assembly.tla",
+    "sha256": "5caf855ec1b73f7c49b3afa38b784f0aee4cbe128314cb28afc19436a1b000c6",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/formal/Assembly.cfg",
+    "sha256": "5b7f84cb8333ba5da5a00b4e672964c3a2029de8b2358017fb65c3acffb797db",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/formal/Assembly_OrderByClose.cfg",
+    "sha256": "7a437b7519163339880eae4473e8afd56272f58bbea4c9ca6ad3320b1acbbbe3",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/formal/Assembly_ReplaceAsAppend.cfg",
+    "sha256": "7e5e1c6d71c1a82c1d8eeb04835120bb4a507cc2534224edfaee3ff066b5d231",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/v3/formal/Assembly_OneShotCloseFirst.cfg",
+    "sha256": "2680ba91e3be8ae86e88549711c61db6a869e832df17719f4c2230096cd25986",
+    "catalog_status": "accepted",
+    "frozen": true
+  },
+  {
+    "path": "registry/catalog.json",
+    "sha256": "0ec6914855b321d3b410cd68e38c495e1a693258c020f364364b86e8be6b026e",
+    "authority_snapshot": true
+  },
+  {
+    "path": "registry/frozen.json",
+    "sha256": "13b8724dadb8810aa41a9aa018d112e6dce508e9163a9396b2f10a5d33c4fc59",
+    "authority_snapshot": true
+  },
+  {
+    "path": "registry/formal-tasks.json",
+    "sha256": "963bb346e0fc27a106a17c128fb62bbb52a02167cc8ac03e767e8f4f8e686c8e",
+    "authority_snapshot": true
+  },
+  {
+    "path": "record/decisions/core-implementation-spec-reconciliation/decision.md",
+    "sha256": "2c10bf4da6ed5a93cd78de05ec6500fd259f0c222ea446f164827173e0b3dd80",
+    "authority_snapshot": true
+  },
+  {
+    "path": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
+    "sha256": "95e2752932b3d9f0637ff11769df5708f80744c302d83b195784f323dffa0305",
+    "authority_snapshot": true
+  },
+  {
+    "path": "spec/capabilities/stream-assembly/verification.md",
+    "sha256": "f44d1be19520419341cda39a89a362ff4a899bac74bda4d17223314da007fcf3",
+    "authority_snapshot": true
+  },
+  {
+    "path": "spec/capabilities/asset-evaluation/verification.md",
+    "sha256": "f1f9e0b1bcc5425e92cc739e1ebf363818df52d3088d3766ea33c7081f7f74b2",
+    "authority_snapshot": true
+  },
+  {
+    "path": "spec/data/messages/verification.md",
+    "sha256": "25e9a410c2ab19a4cad7f7c8d9b3b5687635decdf519ac18f204d094cececa94",
+    "authority_snapshot": true
+  }
+]

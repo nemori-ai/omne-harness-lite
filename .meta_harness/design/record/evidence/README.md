@@ -152,3 +152,6 @@ evidence/
 [2026-09-26 PR #9/#10 协调检查](2026-09-26-checks-pr9-pr10-reconciliation/README.md)：固定两线输入、冻结字节与迁移闭包核对、仓库及产品回归；既有跨 OS/部署/形式结果保留原范围。
 
 **2026-09-26 core 首批实现验证**：[`2026-09-26-tests-core-foundation/`](2026-09-26-tests-core-foundation/README.md) 保存 kernel-basis、identity-values、offer-expiry、storage 与 content-blocks 的实际运行、输入快照和失败原文。30／259／31／306 项包内测试及 storage 两项有效性自测分别沿该 run 的范围读取；规则自测最终 101 项与真实 24 规则扫描另列。storage 原 spoke 日志丢失只采用保存的 HUB 复验；content 首次扫描失败与修正后结果分别保留。消费者组合、实际准入与各 JSON 传递边界不因本轮包内通过而闭合，用户总体验收尚未发生。
+
+
+[2026-09-26 当前core v3实际模型执行](2026-09-26-formal-core-v3/README.md)：SA正配置826411 distinct及三有效变异，AE／Messages263主Alloy读数与28 XML补取；完整输入/raw/封存、有限范围与不覆盖实现分别登记。

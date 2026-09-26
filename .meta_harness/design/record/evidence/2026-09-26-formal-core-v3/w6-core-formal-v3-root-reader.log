@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "tmp/core-delivery/read-core-v3-formal-root.py", line 96, in <module>
+    number = int(label.removeprefix('ae3-M'))
+AttributeError: 'str' object has no attribute 'removeprefix'

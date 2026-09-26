@@ -1,5 +1,9 @@
 # messages 验证与证据
 
+## 当前3实际形式执行（2026-09-26）
+
+[2026-09-26-formal-core-v3](../../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存本次正式3输入的实际模型、指定变异、原始输出与完整封存。主调度核32冻结资源、630 SHA、631归档字节及263主Alloy／28 XML读数，独立spec-reviewer核对应性无阻断。原6命令2 run SAT/4 check UNSAT，五变异各规定check有反例；恰6/5条消息与前缀范围，不把fact/类型吸收的名单/配对/块不变前提当接收或写入保护。Alloy未登记正式task，不增formal binding。旧证据保留原输入；本次模型执行不签收产品实现、W6真实组合或人的最后总体门。
+
 契约侧的证据义务权威在 [`spec/data/messages/verification.md`](../../../../spec/data/messages/verification.md#证据义务)（V-1～V-12、SC-1～SC-6）。
 本页只登记**落在本节点上的那一部分**。
 

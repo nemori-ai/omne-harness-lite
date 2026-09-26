@@ -1,4 +1,5 @@
 # 条款到证据的绑定表。
+# 当前3的实际模型绑定追加在下方；最初两条2绑定保留历史范围，不证明当前3实现。
 # 证据 run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 提交 1667ea4c；任务目录 stream-assembly-v2-assembly/，
 # 退出 0、无反例；输入快照与登记命令逐项相同）。evidence 字段按 realization README 的格式写 formal:<task-id>，run id 写在每条的 assumptions 里。
 #
@@ -40,6 +41,30 @@ bindings:
       - "run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c），任务 stream-assembly-v2-assembly 退出 0"
     alignment_checked: "2026-09-25"
 
+# 2026-09-26：当前正式3输入重新实际执行，完整原始run已独立核读/归档。
+  - clause: "capability.stream-assembly/v3#S-6"
+    evidence: "formal:stream-assembly-v3-assembly"
+    assumptions:
+      - "只核P-1 BlockOrderIsOpenOrder（formal入口另列S-9落块对应），不覆盖S-6全部归约/封口/调用行为"
+      - "Indices={0,1}、Frags={a,b}、MaxEvents=6；abandon补finish不计入上限；无公平性假设、关闭死锁检查"
+      - "实际正配置1 worker/600秒，871519 generated、826411 distinct、depth9、queue0、exit0"
+      - "同输入OrderByClose变异exit12，反向封口实际破坏BlockOrderIsOpenOrder；有效性轨迹和原输出保存在同run"
+      - "run record/evidence/2026-09-26-formal-core-v3；当前冻结模型/配置逐项SHA对应，历史raw1/alias2不重标为此运行"
+      - "只证明给定有限模型检查范围；参数/载荷/砍过的调用/快照/首内容/汇总/完整表示与失败次序/真实代码及宿主前提不在模型"
+    alignment_checked: "2026-09-26"
+
+  - clause: "capability.stream-assembly/v3#S-27"
+    evidence: "formal:stream-assembly-v3-assembly"
+    assumptions:
+      - "只核P-7两半SplitInvariance与OneShotAccepted；后者只到模型Valid所表达语法，不等于完整表示接收"
+      - "Indices={0,1}、Frags={a,b}、MaxEvents=6；abandon补finish不计入上限；无公平性假设、关闭死锁检查"
+      - "实际正配置退出0并探索完毕；ReplaceAsAppend/OneShotCloseFirst分别exit12，命中SplitInvariance/OneShotAccepted与规定有效性轨迹"
+      - "前提σ没有在开工具调用时接受改变内容的砍被构造吸收；模型无参数解析、载荷形状、replace_payload_shape、工具error等完整表示判定"
+      - "run record/evidence/2026-09-26-formal-core-v3；当前冻结输入SHA对应；结果相等范围排除位置/firstContentAt/砍的汇总/emitted"
+      - "这是给定有限模型证据；真实实现符合性及所有宿主/跨进程义务仍需独立产品与组合运行"
+    alignment_checked: "2026-09-26"
+
 # 2026-09-26 核正：以上stream-assembly-v2-assembly是D066行政登记alias；历史raw目录实际v1。
 # 当前Assembly.tla/cfg与历史raw差坐标注释，不能声称当前冻字节等于旧运行输入。
-# D068当前采用3的模型/配置与源2同字节；以上绑定保持原v2范围，不提升为当前3实际执行或实现验收。
+# D068当前采用3的模型/配置与源2同字节；前两条v2绑定保持历史范围，不提升为当前3实际执行或实现验收。
+# 后两条v3绑定只引用本次2026-09-26-formal-core-v3实际运行，不引用历史alias作为当前运行。

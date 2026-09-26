@@ -1,5 +1,9 @@
 # asset-evaluation 验证与证据
 
+## 当前3实际形式执行（2026-09-26）
+
+[2026-09-26-formal-core-v3](../../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存本次正式3输入的实际模型、指定变异、原始输出与完整封存。主调度核32冻结资源、630 SHA、631归档字节及263主Alloy／28 XML读数，独立spec-reviewer核对应性无阻断。原18命令6 run SAT/12 check UNSAT，13既有变异全部匹配规定；按各原command有限scope，不把按构造的团队来源/根身份/PRE-2当实现保护。Alloy未登记正式task，不增formal binding。旧证据保留原输入；本次模型执行不签收产品实现、W6真实组合或人的最后总体门。
+
 契约侧的证据义务权威在 [`spec/capabilities/asset-evaluation/verification.md`](../../../../spec/capabilities/asset-evaluation/verification.md#证据义务)（V-1～V-11、SC-1～SC-3）。
 本页只登记**落在本节点上的那一部分**；前提 PRE-1～PRE-9 的兑现归组输入的一方与装配。
 

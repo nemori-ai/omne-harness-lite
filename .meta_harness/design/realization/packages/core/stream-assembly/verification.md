@@ -1,5 +1,9 @@
 # stream-assembly 验证与证据
 
+## 当前3实际形式执行（2026-09-26）
+
+[2026-09-26-formal-core-v3](../../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存本次正式3输入的实际模型、指定变异、原始输出与完整封存。主调度核32冻结资源、630 SHA、631归档字节及263主Alloy／28 XML读数，独立spec-reviewer核对应性无阻断。正配置826411 distinct/depth9/队列0，三变异exit12；新增两条正式3模型binding只覆盖S-6/P-1与S-27/P-7指定有限范围。两索引两符号最多六事件，无公平性、关闭死锁检查，真实实现/参数/完整表示/失败次序与宿主仍不在模型。旧证据保留原输入；本次模型执行不签收产品实现、W6真实组合或人的最后总体门。
+
 契约侧的证据义务权威在 [`spec/capabilities/stream-assembly/verification.md`](../../../../spec/capabilities/stream-assembly/verification.md#证据义务)（V-1～V-7、SC-1～SC-4）。
 本页只登记**落在本节点上的那一部分**；宿主前提（V-6）归两个宿主节点，跨进程（V-7）本版装配下无法演练。
 

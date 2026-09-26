@@ -5,7 +5,7 @@
 设计显式采用 `capability.asset-evaluation · v3`，精确 [规范](../../../../spec/capabilities/asset-evaluation/v3/contract.md) 与 [接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 已冻结；采用依据为 [D-068追加](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md)。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
 
 - 可实施：沿新规范全部本节点责任和下文既有投影，只有D-068明确的表示／采用／错误例变化；不扩展外部runtime或存储。
-- 源码：`packages/core/asset-evaluation` 已建立；当前公开产物仍是已核的2采用实现，新3 Schema／消费者闭包正在升级，不能以规格接受当实现完成。
+- 源码：`packages/core/asset-evaluation` 已建立；HUB仍保留原2源码。当前3规范、采用设计及六数据公开资源试点已释放给AE升级，本节点没有自有Schema，真实依赖闭包与五正文完整回归待新源交付。
 - 验证：旧2原证据保留其精确输入；当前3需包内回归、公开dist／旧Schema闭包、W6真实组合及逐ID独立签收。2实现现有161测试通过只作旧范围证据。用户最后总体接受未发生。
 
 ## 原2采用投影记录
