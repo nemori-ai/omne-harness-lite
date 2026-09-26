@@ -10,7 +10,7 @@ describe('V-1: frozen Schema and all normative instances', () => {
   it('bundled bytes match the frozen source', () => {
     expect(
       readFileSync(resolve(import.meta.dirname, '../schema/content-blocks.schema.json')).equals(
-        readFileSync(resolve(SPEC_DIR, 'content-blocks.schema.json')),
+        readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json')),
       ),
     ).toBe(true)
   })

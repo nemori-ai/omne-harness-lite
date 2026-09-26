@@ -42,5 +42,5 @@ it('consumes built public exports and Schema without source aliases or runtime s
     ],
     { cwd: resolve(import.meta.dirname, '..'), encoding: 'utf8' },
   )
-  expect(output).toBe(readFileSync(resolve(SPEC_DIR, 'content-blocks.schema.json'), 'utf8'))
+  expect(output).toBe(readFileSync(resolve(SPEC_DIR, '../v3/content-blocks.schema.json'), 'utf8'))
 })

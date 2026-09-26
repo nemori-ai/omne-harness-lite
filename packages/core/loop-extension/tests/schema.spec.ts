@@ -11,13 +11,13 @@ describe('frozen normative instances', () => {
     const local = readFileSync(new URL('../schema/loop-extension.schema.json', import.meta.url))
     const original = readFileSync(
       new URL(
-        '../../../../.meta_harness/design/spec/data/loop-extension/v2/loop-extension.schema.json',
+        '../../../../.meta_harness/design/spec/data/loop-extension/v3/loop-extension.schema.json',
         import.meta.url,
       ),
     )
     expect(local.equals(original)).toBe(true)
     expect(createHash('sha256').update(local).digest('hex')).toBe(
-      '41ebe3501a30fe124b7226c055b5ff294cca399ad5f0179c6754b10160c8a0fe',
+      'cc6c0bee411e7044166be429cd0e7701b92f0938b42d1a2f0ec86da4b8411b9f',
     )
     expect(SCHEMA_DEF_NAMES).toHaveLength(42)
     expect([...SCHEMA_DEF_NAMES].sort()).toEqual(Object.keys(schema.$defs).sort())

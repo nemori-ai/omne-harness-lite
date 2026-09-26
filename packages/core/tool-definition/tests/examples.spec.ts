@@ -43,7 +43,7 @@ describe('frozen v2 normative examples', () => {
     const normative = readFileSync(
       fileURLToPath(
         new URL(
-          '../../../../.meta_harness/design/spec/data/tool-definition/v2/tool-definition.schema.json',
+          '../../../../.meta_harness/design/spec/data/tool-definition/v3/tool-definition.schema.json',
           import.meta.url,
         ),
       ),

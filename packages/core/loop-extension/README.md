@@ -2,9 +2,8 @@
 
 当前实现采用 `data.loop-extension v3`（[规范](../../../.meta_harness/design/spec/data/loop-extension/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
 
-
-Pure TypeScript values and boundary judgments for accepted `data.loop-extension` v2.
-Authority: [contract](../../../.meta_harness/design/spec/data/loop-extension/v2/contract.md),
+Pure TypeScript values and boundary judgments for accepted `data.loop-extension` v3.
+Authority: [contract](../../../.meta_harness/design/spec/data/loop-extension/v3/contract.md),
 [realization](../../../.meta_harness/design/realization/packages/core/loop-extension/design.md),
 [verification](../../../.meta_harness/design/realization/packages/core/loop-extension/verification.md).
 
@@ -59,3 +58,7 @@ runner, projection, model-request and assembly owners in the linked verification
 Run `pnpm --filter @omne-harness-lite/loop-extension build`, `typecheck`, and `test`.
 Tests include all frozen examples, an independent 312-cell oracle, ordered failures,
 original-value rewrite comparisons, lossless JSON/opaque boundaries and public types.
+
+Verification retains the original v2 normative cases as regressions against current3,
+without relabeling their source, and separately consumes every accepted v3 appendix
+instance. The current and retained public Schema resources are checked independently.

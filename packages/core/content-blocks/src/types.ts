@@ -104,10 +104,20 @@ export type ToolCallBlock = BlockIdentity & {
   readonly kind: 'tool_call'
   readonly complete: true
   readonly callId: CallId
-  readonly tool: ModelToolName
 } & (
-    | { readonly arguments: JsonValue; readonly rawArguments?: never; readonly unparseable?: never }
-    | { readonly arguments?: never; readonly rawArguments: string; readonly unparseable: true }
+    | {
+        readonly tool: ModelToolName
+        readonly arguments: JsonValue
+        readonly rawArguments?: never
+        readonly unparseable?: never
+      }
+    | {
+        /** The received nonempty name is retained verbatim, without ModelToolName admission. */
+        readonly tool: string
+        readonly arguments?: never
+        readonly rawArguments: string
+        readonly unparseable: true
+      }
   )
 export interface IncompleteToolCallBlock extends BlockIdentity {
   readonly kind: 'tool_call'

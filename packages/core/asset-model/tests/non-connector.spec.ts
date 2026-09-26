@@ -72,7 +72,7 @@ describe('accepted five-port provider scope', () => {
     ] as const) {
       const frozen = readFileSync(
         new URL(
-          `../../../../.meta_harness/design/spec/data/${topic}/v2/${topic}.schema.json`,
+          `../../../../.meta_harness/design/spec/data/${topic}/v${topic === 'asset-model' ? 3 : 2}/${topic}.schema.json`,
           import.meta.url,
         ),
       )
@@ -81,7 +81,7 @@ describe('accepted five-port provider scope', () => {
       const expected =
         topic === 'connector'
           ? 'd02af56071f37786229142a73e93194529b7e3dad3b5a70c1a69e0fe44196d5d'
-          : '3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890'
+          : 'f674f438dfee8fc1d6ad6106113fe72699232092c84699e5b216ca2792137131'
       expect(createHash('sha256').update(copy).digest('hex')).toBe(expected)
     }
   })

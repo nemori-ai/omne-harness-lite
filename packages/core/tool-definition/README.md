@@ -2,8 +2,7 @@
 
 当前实现采用 `data.tool-definition v3`（[规范](../../../.meta_harness/design/spec/data/tool-definition/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
 
-
-Pure values and judgments for the accepted `data.tool-definition` v2 contract.
+Pure values and judgments for the accepted `data.tool-definition` v3 contract.
 The maintained responsibility and verification map is the
 [realization node](../../../.meta_harness/design/realization/packages/core/tool-definition/README.md).
 
@@ -25,6 +24,10 @@ offload-summary blocks through the content-blocks public judgment. Its copied,
 immutable result contains genuine opaque wrappers, including nested result blocks.
 Invalid representations raise `TypeError`; strings remain plain text.
 
-The `./schema` export is byte-identical to the frozen v2 exchange Schema. Pattern
+The `./schema` export is byte-identical to the frozen v3 exchange Schema. Pattern
 limits U1–U7 apply here; execution timing, U8 worker termination, actual result
 settlement and durable logs belong to their runtime providers.
+
+Verification retains the original v2 normative cases as regressions against current3,
+without relabeling their source, and separately consumes every accepted v3 appendix
+instance. The current and retained public Schema resources are checked independently.

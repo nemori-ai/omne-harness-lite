@@ -2,9 +2,8 @@
 
 当前实现采用 `data.asset-model v3`（[规范](../../../.meta_harness/design/spec/data/asset-model/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
 
-
 `@omne-harness-lite/asset-model` implements the locally decidable value boundaries of
-[`data.asset-model` v2](../../../.meta_harness/design/spec/data/asset-model/v2/contract.md),
+[`data.asset-model` v3](../../../.meta_harness/design/spec/data/asset-model/v3/contract.md),
 adopted through the [asset-model realization](../../../.meta_harness/design/realization/packages/core/asset-model/design.md).
 It is a pure package, with an independent public `dist` entry and `./schema` entry.
 The Schema is an unchanged copy of the frozen resource. There is no Cordis service.
@@ -21,6 +20,9 @@ closures: `judge(body, context?)`, `deriveDeclarations(body, ...snapshot)`, and
 scope also accepts `NonConnectorBodyContracts`, requiring the other five and forbidding
 an own `connector` property, even when undefined. `BodyContractSupply` is this union.
 A misplaced port or a missing non-Connector port is a configuration error (M51).
+The compiler includes current CB3 and AM3, retained CB2 and AM2, and a private
+complete frozen TD2 resource alongside the supplied body resources. AM imports no
+TD implementation. MCP2, Skill2 and Slash2 keep their exact original references.
 The five-port compiler closes its resources with the unchanged frozen Connector Schema
 in `schema/resources/connector.schema.json`; this resource supplies no body behavior.
 Full six-port construction uses the supplied Connector resource once. Actual Connector
@@ -50,7 +52,7 @@ invalid or inconsistent marker, a wholly underivable MCP result, or a non-MCP
 result carrying this field throws as a port defect. The wrapper preserves this
 in-process field without JSON serialization. The action snapshot is allowed only
 for MCP. Connector, plugin and
-agent-definition declarations remain underivable under the adopted v1 gaps.
+agent-definition declarations remain underivable under the adopted v3 gaps.
 `referencesOf(content, bodies)` returns explicit references or the agent-definition gap.
 `parseWorkspaceManifestText(text, bodies)` parses strictly and returns the unchanged,
 frozen JSON value, or the single S-27 rejection. A caller-owned judge holds compiled

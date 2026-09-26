@@ -59,11 +59,11 @@ describe('V-1 frozen normative rows', () => {
       expect(validate(row.def, row.value).valid).toBe(row.schema)
     })
   it('has exactly 43 public definitions and the Schema is frozen-byte identical', () => {
-    const original = readFileSync(new URL('spec/data/messages/v2/messages.schema.json', design))
+    const original = readFileSync(new URL('spec/data/messages/v3/messages.schema.json', design))
     const copied = readFileSync(new URL('../schema/messages.schema.json', import.meta.url))
     expect(copied.equals(original)).toBe(true)
     expect(createHash('sha256').update(copied).digest('hex')).toBe(
-      '5069484d45c7a2d9165c1201307e9b4241acf8eceae20e749b5c24f377b0d65f',
+      '5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005',
     )
     expect(SCHEMA_DEF_NAMES).toHaveLength(43)
   })

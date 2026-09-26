@@ -27,13 +27,13 @@ describe('V-1 normative roots: accepted frozen examples are the oracle', () => {
     const copied = readFileSync(new URL('../schema/model-response.schema.json', import.meta.url))
     const original = readFileSync(
       new URL(
-        '../../../../.meta_harness/design/spec/data/model-response/v2/model-response.schema.json',
+        '../../../../.meta_harness/design/spec/data/model-response/v3/model-response.schema.json',
         import.meta.url,
       ),
     )
     expect(copied.equals(original)).toBe(true)
     expect(createHash('sha256').update(copied).digest('hex')).toBe(
-      '9d85889dbf2fa8824f52396d1a588e6f1ab1969b4402a9ca7aa29782f6a122e2',
+      '9ed3b10d10e41ccfcb3f01800e3d164e234f7a6e6f58215f6e0a747e8f4c0bdc',
     )
   })
 })

@@ -22,10 +22,11 @@ function object(value: unknown): value is JsonObject {
   )
 }
 function resource(topic: string): JsonObject {
+  const version = topic === 'tool-definition' || topic === 'loop-extension' ? 3 : 2
   const parsed = readJsonStrict(
     readFileSync(
       new URL(
-        `../../../../.meta_harness/design/spec/data/${topic}/v2/${topic}.schema.json`,
+        `../../../../.meta_harness/design/spec/data/${topic}/v${version}/${topic}.schema.json`,
         import.meta.url,
       ),
       'utf8',

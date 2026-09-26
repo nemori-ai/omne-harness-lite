@@ -2,7 +2,6 @@
 
 当前实现采用 `data.content-blocks v3`（[规范](../../../.meta_harness/design/spec/data/content-blocks/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
 
-
 `contentBlockFromRepresentation(value)` is a shape-only transport adapter: it
 copies a value, checks the complete frozen `ContentBlock` Schema, and restores
 identity and opaque wrappers through the same private constructor as
@@ -12,7 +11,7 @@ complete `judgeContentBlock` check. It never branches on opaque contents.
 
 `@omne-harness-lite/content-blocks` implements the public pure module described by
 [the accepted realization node](../../../.meta_harness/design/realization/packages/core/content-blocks/design.md),
-adopting [data.content-blocks v2](../../../.meta_harness/design/spec/data/content-blocks/v2/contract.md)
+adopting [data.content-blocks v3](../../../.meta_harness/design/spec/data/content-blocks/v3/contract.md)
 (D-061 / D-062 / D-065; coordinates reconciled by D-066). It requires Node `>=24.18.0 <25` and uses Ajv 8.20.0 Draft 2020-12.
 
 Import from the package root for types and functions. `./schema` exports the unchanged
@@ -111,3 +110,7 @@ Message identity uniqueness, call registration, real log persistence, consumer p
 allowlists, transport use of opaque, attachment access, assembly and every external JSON hop
 remain with their documented owners in the realization node. Package tests do not establish
 those external obligations or final acceptance.
+
+Verification retains the original v2 normative cases as regressions against current3,
+without relabeling their source, and separately consumes every accepted v3 appendix
+instance. The current and retained public Schema resources are checked independently.
