@@ -5,4 +5,14 @@ version: 1
 node: "tool-definition"
 kind: "provider"
 
-bindings: []
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.tool-definition/v3#S-6"
+    evidence: "test:packages/core/tool-definition/tests/d068-normative.spec.ts#D068 data.tool-definition/3 normative adoption cases › D068 128字符的名字"
+    assumptions:
+      - "只核给定128字符名字在纯模型入口被接受；129拒绝另有用例，不由这条child证明。坏名未解析块是CB例外，不放宽ModelToolName或授权执行。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

@@ -1,5 +1,17 @@
 # identity-values
 
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：`data.identity-values/v1`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/identity-values` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**259 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 21 项 core-local、0 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
+
 - kind：`provider`
 - 对象与设计修订：状态 `implemented`（源码修订 `efe73eb5`），2026-09-22 首稿，设计同日由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受为实现路径；兑现 `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（[契约](../../../../spec/data/identity-values/v1/contract.md)，状态 `accepted`、已冻结）
 - 源码位置：`packages/core/identity-values`——**已实现（`efe73eb5`）**：`src/{parsed,opaque,values,predicates,validate,handoff-warrant,identifier}.ts`，公开入口 `.` 与 `./schema`，导出名逐项见 [design.md 投影表](design.md#能力到-cordis-的投影)。归 `core`：它兑现一份 `data.*` 契约，被租户领域全部四个节点与将来的资产领域消费（[两层布局](../../../README.md#packages-的两层布局)；第一层不是 workspace 成员，见承载仓库 `docs/workspace.md`）
@@ -21,7 +33,7 @@
 | 当前问题                                         | 阅读入口                            |
 | ------------------------------------------------ | ----------------------------------- |
 | 怎样实现、公开面是什么、静态检查义务落到什么形式 | [实现设计](design.md)               |
-| 哪条承诺由哪份证据支持、前提是什么               | [绑定表](bindings.yaml)（当前为空） |
+| 哪条承诺由哪份证据支持、前提是什么               | [绑定表](bindings.yaml)（含当前有限测试绑定） |
 | 实际跑过什么、覆盖到哪里                         | [验证与证据](verification.md)       |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；

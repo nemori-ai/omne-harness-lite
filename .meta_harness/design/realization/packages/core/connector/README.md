@@ -1,5 +1,11 @@
 # connector
 
+## 本阶段边界（2026-09-26）
+
+按用户明确要求，只有 Connector 资产类型的纵线延期，本轮不实现、不测试、不签收其16个义务；设计接受不等于实现。AM／AE两个混合组合项及AE四个混合局部项的当前NonConnector部分已经分别验收，不能据此声称第六Connector正文提供者已存在。其他资产类型按其已接受core规格继续交付；当前阶段仍215完整core项＋6混合项当前部分＝221，精确范围与剩余见[本轮验收](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。
+
+## 此前设计与状态记录
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.connector · v2`（[契约](../../../../spec/data/connector/v2/contract.md)，状态 `accepted`，接受由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/connector`——**尚未建包**。归 `core`：它是 `data.*`，被资产治理、求值、连接件接入端与受理消费

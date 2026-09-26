@@ -251,3 +251,8 @@ D045扩展[协议客户端](packages/frontend/governance-center-client/README.md
 
 
 **2026-09-26 正式接受**：[D-062](../record/decisions/assets-runtimes-node-acceptance/decision.md) 已接受本程 32 个新节点与 3 处修订。节点设计状态 accepted，未实现与实际验证缺口保持原记录；源码不存在不影响设计接受，也不构成实现证据。
+
+
+## 2026-09-26 本轮 core 交付状态
+
+18 core和两util均已有实际源码，本轮HUB6496检查／独立20制品消费通过；当前217／221项由主调度按精确坐标接受，四项Skill SP3及人的总体门未签。Connector仅自身16项延期，不扩大到其他资产；六混合项只接受当前NonConnector部分。[实际源、原始证据、逐项范围与main继承失败](../record/evidence/2026-09-26-tests-core-final/README.md)是本轮进度入口；本文此前按日期保留，不能把旧“未实现／未开始”当现行进度，也不能把当前core通过推成全仓make通过。

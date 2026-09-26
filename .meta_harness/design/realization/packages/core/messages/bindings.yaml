@@ -6,4 +6,14 @@ version: 1
 node: "messages"
 kind: "provider"
 
-bindings: []
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.messages/v3#S-39"
+    evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.nested-message-identity-boundary"
+    assumptions:
+      - "只核给定image及其renderings派生块重复ID在Messages边界遭拒；opaque参数域和持久日志存在性不由这条用例证明。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

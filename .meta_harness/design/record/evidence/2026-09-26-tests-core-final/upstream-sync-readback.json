@@ -1,0 +1,21 @@
+{
+  "at_utc": "2026-09-26T11:56:45.716591+00:00",
+  "main": "127d63dadf00358576b52fbfaed66e6e0c3f20dc",
+  "origin_main": "2cb236db7da15e78bb1e96dd8220ee68b6eceb75",
+  "hub": "a53644ad585d433627073c066f46d500f1aee6c6",
+  "main_ahead_behind": "3\t0",
+  "ancestors": [
+    {
+      "ancestor": "origin/main",
+      "descendant": "main",
+      "exit_code": 0
+    },
+    {
+      "ancestor": "main",
+      "descendant": "panqiwei/core-delivery",
+      "exit_code": 0
+    }
+  ],
+  "main_clean": true,
+  "reason_no_new_merge": "origin/main already contained in main; main already contained in HUB"
+}

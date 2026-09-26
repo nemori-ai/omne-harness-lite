@@ -68,3 +68,21 @@ bindings:
 # 当前Assembly.tla/cfg与历史raw差坐标注释，不能声称当前冻字节等于旧运行输入。
 # D068当前采用3的模型/配置与源2同字节；前两条v2绑定保持历史范围，不提升为当前3实际执行或实现验收。
 # 后两条v3绑定只引用本次2026-09-26-formal-core-v3实际运行，不引用历史alias作为当前运行。
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "capability.stream-assembly/v3#S-10"
+    evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.duplicate-parameters-versus-outer-text"
+    assumptions:
+      - "只核start／accept／snapshot／closeOut组成的重复参数键封口unparseable与raw原文保持；parsed和abandon不由这条用例证明，不扩展既有有限模型证明。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"
+
+  - clause: "capability.stream-assembly/v3#S-25"
+    evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.refusal-priority-and-historical-state"
+    assumptions:
+      - "表示判定在先、序列拒绝及旧状态不变的列举场景；全部八个序列失败还由同链其它具体场景与479本包测试承担。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

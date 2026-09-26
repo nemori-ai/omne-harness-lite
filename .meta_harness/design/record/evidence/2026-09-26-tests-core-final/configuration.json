@@ -1,0 +1,46 @@
+{
+  "source_head": "a53644ad585d433627073c066f46d500f1aee6c6",
+  "source_restoration": "W6-original-author-evidence.tar.gz -> source-and-built.tar.gz and inventory;1941 bytes independently identical to root source/built at actual run",
+  "models": "registered in full make; earlier actual formal-core-v3 run referenced, no solver rerun here",
+  "root_core_environment": {
+    "node": "v24.18.0",
+    "pnpm": "10.28.1",
+    "uv": "uv 0.11.24 (x86_64-unknown-linux-gnu)",
+    "python": "Python 3.12.13"
+  },
+  "core_argv": [
+    "pnpm",
+    "-r",
+    "--workspace-concurrency=1",
+    "--filter",
+    "./packages/core/**",
+    "--filter",
+    "./packages/util/**",
+    "--filter",
+    "./tools/ts-checks",
+    "--filter",
+    "./tools/core-verification",
+    "run",
+    "test",
+    "--maxWorkers",
+    "1"
+  ],
+  "core_env": {
+    "OMNE_CORE_VERIFICATION_EVIDENCE_ROOT": "tmp/core-delivery/final-core-check-a53644ad/consumers"
+  },
+  "pack_argv": [
+    "node",
+    "tools/core-verification/dist/w6-packed-consumer.js"
+  ],
+  "pack_env": {
+    "OMNE_CORE_VERIFICATION_EVIDENCE_ROOT": "tmp/core-delivery/final-core-check-a53644ad/packed/run"
+  },
+  "rules_argv": [
+    "pnpm",
+    "run",
+    "lint:rules"
+  ],
+  "rules_exit_code_observed": 0,
+  "main_baseline_archives": "upstream-main-baseline.tar.gz contains original17 test/3 failure run, all90 package-file identities and native6 scenario probe",
+  "archive_replay": "restore each original archive into a new task directory; never overwrite sealed original run"
+}

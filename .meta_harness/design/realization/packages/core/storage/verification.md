@@ -1,5 +1,17 @@
 # storage 验证与证据
 
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：已接受的独立内核／存储协议映射；没有独立数据契约坐标；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/storage` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**9 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 5 项 core-local、2 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
+
 本节点没有契约侧的证据义务权威；义务从两份要求清单（[AI R-1～R-7](../../tenancy/account-identity/design.md#对存储提供者的要求清单)、[OG R-1～R-6](../../tenancy/organization-governance/design.md#对存储提供者的要求清单)）
 与本节点声称的范围（协议语义 P-1～P-12）产生。**每条 R 的证据形式都是一致性套件里的一条测试**，由提供者在自己的测试里跑；
 本页登记「套件要证什么」，提供者节点登记「跑了、结果如何」。测试编号与会红条件的正文在 [design.md](design.md#要求到协议再到会红的测试)；用例源码在 `packages/core/storage/src/conformance/index.ts`。

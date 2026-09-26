@@ -125,3 +125,13 @@ bindings:
       - "不可伪造的前提是私钥不外泄：单进程内只靠装配纪律，本测试不证；测试密钥由测试自己生成（Ed25519），Node v24.18.0 内置 OpenSSL 3.5.7"
       - "形状面另由 schema.spec.ts › V-1 承担；run 2026-09-23-tests-tenancy-leg-2"
     alignment_checked: 2026-09-23
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.identity-values/v1#S-5"
+    evidence: "test:tools/core-verification/src/w1-public-consumer.ts#w1.identity.public-values"
+    assumptions:
+      - "只核显式两分量租户身份与相等／规范序列化，不核真实成员资格、租户表或授权。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

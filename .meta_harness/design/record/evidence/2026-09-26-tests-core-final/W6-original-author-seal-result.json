@@ -1,0 +1,11 @@
+{
+  "archive": "tmp/w6-core-verification/epoch-4/seal/epoch-4-evidence.tar.gz",
+  "sha256": "3abb27be1afb4d44c546476ff48548211178c35549f32d4abbf42ff72d869879",
+  "bytes": 7158820,
+  "verified_members": 335,
+  "manifest_sha256": "52991e6ab0a543c58c81683ce0235d36acb9ddaf8b927108dd3781901f94f45b",
+  "source_archive_sha256": "199d8afb54af8f787e0a97234566a1642af868b7c5f4593b99fd1f926abf9f85",
+  "source_archive_members": 1941,
+  "previous_epochs_unchanged": true,
+  "tracked_clean": true
+}

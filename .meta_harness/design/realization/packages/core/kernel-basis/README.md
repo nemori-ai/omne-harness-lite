@@ -1,5 +1,17 @@
 # kernel-basis
 
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：已接受的独立内核／存储协议映射；没有独立数据契约坐标；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/kernel-basis` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**30 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 7 项 core-local、0 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
+
 - kind：`provider`
 - 对象与设计修订：状态 `implemented`（源码修订 HUB `c9b5850`），2026-09-22 首稿，同日按源码与 probe 结果回填。**不兑现任何契约条款**；它是 [D-025](../../../../record/decisions/cordis-adoption-version/README.md)（`@deepseek-ai/cordis` 4.0.4）闭合条件的家——[basis/cordis](../../../../basis/README.md#当前状态) 八条条目的 probe 与两条共用主张的 probe 都在本包，对 4.0.4——加上 tenancy 插件节点共用的插件层小件与测试装配工具
 - 源码位置：`packages/core/kernel-basis`——已实现（HUB `c9b5850`）：`src/plugin.ts`、`src/outcome.ts`、`src/fiber-state.ts`、`src/testing/index.ts`，probe 在 `tests/basis/`。归 `core`：内核层复用件，没有领域事实，被 `tenancy` 五个包、两个 `infra` 提供者与装配 `apps/tenancy-host` 消费（[两层布局](../../../README.md#packages-的两层布局)）；probe 放在产品包而不是开发工具里，是因为它证的是**产品包实际依赖的那个版本**的语义（[design.md 关键选择](design.md#四处关键选择)）

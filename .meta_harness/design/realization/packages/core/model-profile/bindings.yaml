@@ -5,4 +5,14 @@ version: 1
 node: "model-profile"
 kind: "provider"
 
-bindings: []
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.model-profile/v2#S-16"
+    evidence: "test:packages/core/model-profile/tests/behavior.spec.ts#exact numeric constraints before Ajv projection"
+    assumptions:
+      - "只证列举参数精确数值边界在Ajv投影前判定；185本地测试／冻结2，真实OpenRouter档案和路由事实不在内。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

@@ -73,3 +73,21 @@ bindings:
       - "SC-OE-3（消费者不另取墙钟）的规则自测只点名 Date.now()；new Date()、performance.now 没有同名用例，规则对它们会不会红没有直接证据"
       - "真实源码上的扫描是同 run 的 pnpm run lint:rules（退出 0）；「只 provide 一个 clock」那一半归装配"
     alignment_checked: 2026-09-23
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.offer-expiry/v2#S-7"
+    evidence: "test:packages/core/offer-expiry/tests/derive.spec.ts#OE2 decline / overflow › declined remains final without clock or target and cannot be accepted"
+    assumptions:
+      - "当前2的declined终结优先与acceptable(false)；now／target由调用者显式给定，不证真实时钟或持久终结记录。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"
+
+  - clause: "data.offer-expiry/v2#S-14"
+    evidence: "test:packages/core/offer-expiry/tests/derive.spec.ts#OE2 decline / overflow › valid positive ttl with unrepresentable deadline is unavailable"
+    assumptions:
+      - "只核有效正ttl且deadline不可表示时的unavailable样本；不将历史1时限构造结果重标2。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

@@ -1,0 +1,570 @@
+{
+  "at_utc": "2026-09-26T07:08:45.096999+00:00",
+  "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+  "independent_reviews": [
+    {
+      "path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe"
+    },
+    {
+      "path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2"
+    }
+  ],
+  "technical_acceptances": [
+    {
+      "id": "identity-values.lexical-values",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "原86schema/解析形状、26码点与closed类型证据保留；新实际带内拒绝+六向品牌赋值均拒绝，brand erasure负控检出恰6unused directives。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.tenant-key",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "成员顺序、逐码点、唯一规范JSON、两分量与相邻租户均实际测试；src仅公开toCanonicalJson，无第二scalar/fromString编码。原327中tenantIdKey是审计命名误写，采用design的实际toCanonicalJson，不要求新增虚构API。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.affiliation",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "standing三形状、不可用/环/空链和手算共享祖先测试，加已冻结Alloy六组织fixture6祖先36pairs；仅证明提供给纯函数的快照，持久组织事实归消费者。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.proof-crypto",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "真实签名；缺失/非法凭证、另账号、用途不符、错密钥、篡改payload/signature、非规范编码与replay均逐分支断言；无有效期/撤销政策。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.identifier-generation",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "实际生成26小写base32测试和重复样本；src randomBytes(16)提供128bit CSPRNG，无环境身份导出。样本无重复不作为熵证明。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "offer-expiry.instant-duration",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "四位年parser与millisecond既定映射按71历史+当前80实际case核对；formatter504c99ba采用合法offset保留四位year、不可表示抛RangeError，当前4fa源码/Schema正反绑定，独立306oraclesroundtrip。新readonlypublicTTL补P1Y/P1M、unsafe numeric、ISO totaloverflow拒绝。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "offer-expiry.state-order",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "终结优先、不可用第二、target不存在/严格超时第三、pending；等时可接受及同时条件次序实际矩阵。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "offer-expiry.immutable-testing-clock",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "public type负例拒绝OfferTiming写expiresAt；testClock只前推、负数拒绝、unavailable实际断言。readonlyprimitive/value层本地承诺充分，同commit固定expiry/默认值影响在原consumer义务保留。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "kernel-basis.outcome-public",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualsucceed/fail/isSuccess互斥，Ack未知支拒绝；StandardSchemaexactttl:number/非法成员负例；config真实FAILED/apply0/awaitreject及合法apply1ACTIVE。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "kernel-basis.required-and-optional",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "真实Cordis4.0.4缺席/PENDING/LOADING/ACTIVE/UNLOADING及替换、撤回；optional不登记依赖和必需重跑次数由barrier/probe直接观察。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "kernel-basis.basis-probes",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "十个实名probe25用例各有机器pass：async串行、provider换代、isolate属性throw不回退并非数据隔离、effect并发及晚到、emit异常、logger顺序、config、provide cleanup。只采用Cordis4.0.4精确机制范围。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "kernel-basis.fiber-state",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "真实六态与UNLOADING=5；阻塞异步disposer尚未结束时fiberIsActive=false，settled后DISPOSED；未凭调用dispose推断终态。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "kernel-basis.assembly-fixture",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "两个先前Context实际ACTIVE，第三apply抛原Error，整体assert.rejects严格error===original，cleanup精确second→first。与旧PENDING/缺服务测试并用。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "storage.errors-map",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "实际publicmap只折StorageUnavailable；Unique/Ref两kind/Defect/普通Error/null/string逐catch严格同实例；类字段/name/cause旧同源码与source核对保留，新typesReferenceKind两值及全部公开错误types可取用。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "storage.migration-preflight",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualbuiltcompose顺序名/同migration引用/duplicate抛；独立PreflightCheckReadonlySet+readonlyapplied、失败具名，ReadTx无locks/WriteTx锁、narrow类型；87type取用含MigrationFragment/PreflightInput，历史up-only负例同byte复用。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "storage.conformance-suite",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "C1a/b/c到C15共19个具名断言正常真实SQLite provider逐项pass；坏foreign_keys provider仅C11/C12按预期失败，其余17保持，工具2selftests校验真实fail/output/pragma=0。不将自测推成所有错误provider或PG本轮执行。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.block-model",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "全部162规范行Schema以及ContentBlock行精确判断；7块、visibility、media逐字、render同模态、结果禁call、raw/incomplete不解析、不可改输入和validated冻结；messages唯一ID义务未由本包fixture代替。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.lossless-numbers",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "10字面量含>2^53、长小数0.1/1.10、1e400/-0和安全42；字符串oracle与nestedopaque/null/absentroundtrip。Node24.18实际执行；仅普通规范安全integer非负零number，其余frozenLosslessNumber。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.rejection-order",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "全部ContentBlock反例精确6名字+第12节组合次序；siblings反转后kind_unknown仍优先，不进入arguments/opaque；source S26/S27统一tree聚合，不Schema拒绝代替具名判断。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.public-package-consumer",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualNode14场景只消费package exports→dist；84value可取用、87namedtypestrict编译可取用，所有3品牌六向与关键shape负类型。批准testing/schema/真实storageconformance入口已有实际取用，private/src拒绝。当前formatter变更语义另外按4fa证据，非所有泛型实例穷举。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.source-purity",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "真实src通过core-pure-imports且手读函数显式inputs/纯状态；Accepted identity/lossless工具公开依赖和ownSchema合法，不用import绿色替代无运行隐式输入。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.schema-frozen-bytes",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "实际副本字节SHA一致、已接受输入绑定；逐规范行绑定defs、正反全部运行。identity section7相等表另values覆盖，sections12/13归各纯函数；content162row22defs/具名判断分别。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.public-package-consumer",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualNode14场景只消费package exports→dist；84value可取用、87namedtypestrict编译可取用，所有3品牌六向与关键shape负类型。批准testing/schema/真实storageconformance入口已有实际取用，private/src拒绝。当前formatter变更语义另外按4fa证据，非所有泛型实例穷举。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.value-boundary-purity",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "既定crypto/time纯值范围按源码输入检查；实际no-testing-import/no-wall-clock扫描及Date.now/newDate/performance红例有效。regex规则限直接表达，源码补核本包无别名墙钟/动态testing导入。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.schema-frozen-bytes",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "实际副本字节SHA一致、已接受输入绑定；逐规范行绑定defs、正反全部运行。identity section7相等表另values覆盖，sections12/13归各纯函数；content162row22defs/具名判断分别。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "kernel-basis.public-package-consumer",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualNode14场景只消费package exports→dist；84value可取用、87namedtypestrict编译可取用，所有3品牌六向与关键shape负类型。批准testing/schema/真实storageconformance入口已有实际取用，private/src拒绝。当前formatter变更语义另外按4fa证据，非所有泛型实例穷举。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "kernel-basis.exception-dependencies",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualsource/declaration/rootJS与批准testing/conformanceAST依赖图逐hash核对；保留e6批准例外。受控parser负例实际检测列举边并拒computedname，不泛化全仓module或租户证明。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "offer-expiry.public-package-consumer",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualNode14场景只消费package exports→dist；84value可取用、87namedtypestrict编译可取用，所有3品牌六向与关键shape负类型。批准testing/schema/真实storageconformance入口已有实际取用，private/src拒绝。当前formatter变更语义另外按4fa证据，非所有泛型实例穷举。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "offer-expiry.value-boundary-purity",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "既定crypto/time纯值范围按源码输入检查；实际no-testing-import/no-wall-clock扫描及Date.now/newDate/performance红例有效。regex规则限直接表达，源码补核本包无别名墙钟/动态testing导入。 交接时3a8b2117 parser的new Date(0)/UTC setters只读源码补核不引入墙钟；旧扫描仍只声称原执行字节。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "offer-expiry.schema-frozen-bytes",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "实际副本字节SHA一致、已接受输入绑定；逐规范行绑定defs、正反全部运行。identity section7相等表另values覆盖，sections12/13归各纯函数；content162row22defs/具名判断分别。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "storage.public-package-consumer",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualNode14场景只消费package exports→dist；84value可取用、87namedtypestrict编译可取用，所有3品牌六向与关键shape负类型。批准testing/schema/真实storageconformance入口已有实际取用，private/src拒绝。当前formatter变更语义另外按4fa证据，非所有泛型实例穷举。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "storage.exception-dependencies",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "actualsource/declaration/rootJS与批准testing/conformanceAST依赖图逐hash核对；保留e6批准例外。受控parser负例实际检测列举边并拒computedname，不泛化全仓module或租户证明。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.static-sc-1",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "原本本地行要求rule实现、输入登记及覆盖边界；已有redfixtures和actualscan，真实准入target0明确报告。按accepted限定syntax完成规则交付，frozen整体consumerSC责任保持原owner，不宣称隔离完成。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.static-sc-2",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "原本本地行要求rule实现、输入登记及覆盖边界；已有redfixtures和actualscan，真实准入target0明确报告。按accepted限定syntax完成规则交付，frozen整体consumerSC责任保持原owner，不宣称隔离完成。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.static-sc-9",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "原本本地行要求rule实现、输入登记及覆盖边界；已有redfixtures和actualscan，真实准入target0明确报告。按accepted限定syntax完成规则交付，frozen整体consumerSC责任保持原owner，不宣称隔离完成。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-1-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "仅关闭linked纯值与lexical步骤，publicactualTenantId规范输入/输出可定位；不是冻结CS全文上下游consumer效果。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-2-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "仅关闭linked纯值与lexical步骤，publicactualTenantId规范输入/输出可定位；不是冻结CS全文上下游consumer效果。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-3-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-4-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-5-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-6-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-7-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-8-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-9-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review-supplement.json",
+      "review_sha256": "e917bbba3d1cba191b39f303d8715817628a572497fed743168705081f07b9b2",
+      "covered_scope": "仅关闭linked纯值与lexical步骤，publicactualTenantId规范输入/输出可定位；不是冻结CS全文上下游consumer效果。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "identity-values.walkthrough-cs-10-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.walkthrough-cs-4-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.walkthrough-cs-5-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.walkthrough-cs-6-core-step",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "仅该CS链接纯值/判断步骤的公开输入输出；已有fixture中的租户/组织/治理事实仍为显式假设。逐项复用linked证据，不关闭CS全链。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.modality-and-id-functions",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "media字面规范/不修补、模态image/audio/text/video/PDFundefined、capability种类与名字精确比较和AttachmentRef仅storage+key相等均手算测试。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    },
+    {
+      "id": "content-blocks.explicit-json-number-opaque-boundaries",
+      "authority": "root primary technical planner",
+      "at_utc": "2026-09-26T07:08:45.096999+00:00",
+      "HUB_head": "902bea8e57f27d91839a83909b34d7874b6fe841",
+      "verdict": "accepted within core-local stage and stated evidence premises",
+      "review_path": "tmp/core-delivery/w1-obligation-evidence-review.json",
+      "review_sha256": "ee154fcf3c04a1715038f41689c8e3dcc04de122d9ba6a5f1891b8806f5afebe",
+      "covered_scope": "jsonNumberSource/isNonNegativeJsonInteger/toOpaqueJson/readOpaqueJson实际正反与opaque读取负类型，builtconsumer类型+Node公开调用部分已有证据；固定SchemaLossless数字判断不推成任意Schema公开能力。",
+      "outside_stage": "External runtime/governance/storage/identity authority and shared whole-CS obligations remain with their own IDs; no final user acceptance."
+    }
+  ],
+  "remaining": [
+    "content-blocks.strict-json actual core receiver composition"
+  ],
+  "user_overall_acceptance": false
+}

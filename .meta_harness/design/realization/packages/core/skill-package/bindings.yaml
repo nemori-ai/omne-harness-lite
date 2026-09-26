@@ -5,4 +5,14 @@ version: 1
 node: "skill-package"
 kind: "provider"
 
-bindings: []
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.skill-package/v2#S-8"
+    evidence: "test:packages/core/skill-package/tests/readers.spec.ts#S-20 YAML 1.2 Core text reader › preserves every body character and never expands placeholders or shell-shaped text"
+    assumptions:
+      - "只核已确定普通YAML清单头后的正文逐字／不展开；未知自定义标签键canonical判等SP3以及完整S20／CS6未闭合。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

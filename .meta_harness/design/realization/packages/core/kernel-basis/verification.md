@@ -1,5 +1,17 @@
 # kernel-basis 验证与证据
 
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：已接受的独立内核／存储协议映射；没有独立数据契约坐标；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/kernel-basis` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**30 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 7 项 core-local、0 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
+
 本节点没有契约侧的证据义务权威。义务来自三处：[D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 的闭合条件（八条 probe 在 4.0.4 上通过）、
 [basis 准入](../../../../basis/README.md#准入)（每条条目一个会失败的 probe）、本节点声称给出的共用件与 `./testing`。
 每条 probe 断言什么、4.0.4 上的结果、什么语义消失时会红，正文在 [design.md「读数与 probe 结果」](design.md#读数与-probe-结果)；本页只登记义务与状态。
