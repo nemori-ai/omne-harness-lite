@@ -235,12 +235,12 @@ export function judgeConclusion(value: unknown, inputs: ConclusionInputs): Judgm
   if (about !== undefined && (about.position !== record.position || about.callId !== record.callId))
     return rejected('malformed')
   const supplied = snapshot(inputs)
-  if (
-    object(supplied) &&
-    isCapabilityName(supplied.extensionName) &&
-    record.extension !== supplied.extensionName
-  )
-    return rejected('malformed')
+  const nameDescriptor = object(inputs)
+    ? Object.getOwnPropertyDescriptor(inputs, 'extensionName')
+    : undefined
+  const actualName: unknown =
+    nameDescriptor !== undefined && 'value' in nameDescriptor ? nameDescriptor.value : undefined
+  if (isCapabilityName(actualName) && record.extension !== actualName) return rejected('malformed')
   const representation = judgeValue('Conclusion', record)
   if ('rejected' in representation) return representation
   if (

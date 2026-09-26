@@ -61,6 +61,13 @@ it('LE-CONCLUSION-PAIR: domain refusals precede technical configuration errors',
   ).toEqual({ rejected: 'malformed' })
   expect(judgeConclusion(actionRecord, inputs)).toHaveProperty('ok')
 })
+it('LE-CONCLUSION-NAME-PRIORITY: known actual name mirror remains domain malformed with invalid auxiliary data', () => {
+  const invalidInput = { extensionName: 'g', input: { nonJson: undefined } }
+  // @ts-expect-error deliberately invalid auxiliary input cannot conceal an independently known name mismatch
+  expect(judgeConclusion({ ...actionRecord, extension: 'other' }, invalidInput)).toEqual({
+    rejected: 'malformed',
+  })
+})
 it('LE-CONCLUSION-IMMUTABLE: public row 9 preserves all call members, definition and batch', () => {
   expect(
     judgeConclusion(
