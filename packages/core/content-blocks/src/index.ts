@@ -7,6 +7,7 @@ export {
   type OpaqueJson,
   type JsonReadResult,
   readJsonStrict,
+  copyJsonValue,
   writeJsonLossless,
   isJsonNumber,
   jsonNumberSource,

@@ -29,6 +29,7 @@ The public functions are independent of Context, sessions, tenants and storage:
 | --- | --- |
 | `readJsonStrict(text: string)` | `{ readonly ok: JsonValue }` or `{ readonly failed: 'syntax' \| 'duplicate_member' }` |
 | `writeJsonLossless(value: unknown)` | JSON text; non-JSON JavaScript values throw `TypeError` rather than being omitted or rewritten |
+| `copyJsonValue(value: unknown)` | Frozen JSON exchange value or `{ readonly failed: 'not_json' }`; copies without invoking getters or `toJSON` |
 | `judgeContentBlock(value: unknown)` | `{ readonly ok: ContentBlock }` or `{ readonly rejected: ContentBlockRejection }` |
 | `validate(defName: SchemaDefName, value: unknown)` | `{ readonly valid: boolean }`, the fixed bundled Schema definitions only |
 | `modalityOf(mediaType: string)` | `Modality \| undefined`; the precondition is a canonical media type |
@@ -71,6 +72,15 @@ preserves it during serialization. Other layers keep the brand intact and do not
 No parser operates on a call block's `rawArguments`. The shared strict reader returns a neutral
 failure: block/message JSON receivers map it to `malformed`, while stream-assembly maps its one
 argument parse failure to the already specified unparseable complete call.
+
+`copyJsonValue` exposes the existing neutral JSON exchange projection used by the writer and
+validators. It keeps ordinary numbers (including `-0`) and exact `LosslessNumber` values,
+copies and freezes containers, and rejects cycles or non-JSON properties. Its result unwraps
+the transport representation of `OpaqueJson`; it is not a typed `ContentBlock` copy and
+does not retain that brand. Use it for JSON representation snapshots, validation or full-input
+fingerprints. It does not authorize business inspection of opaque contents, validate domain
+values, or repair precision already lost before this boundary. Domain objects must retain
+their wrappers or be reconstructed through their authoritative judge.
 
 Build before testing or typechecking the public declaration consumer:
 

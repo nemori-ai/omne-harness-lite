@@ -130,4 +130,4 @@ V-2～V-6 **一条执行记录也没有**。起草时的手核与一次性演算
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-014／PF-016），不在这里改契约。
 
-- **2026-09-26 实施输入核对**：SC-6 残留的“恰产出一项权限”与已冻结 S-11、CS-7 及本页对齐义务不符，按 [D-040 S18-c](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的) 与 S-11 校准为正文端口产出空集；整资产仍有 disabled、usableBy 两条共用保留声明。经独立 spec-reviewer 限定只读核对，无剩余阻断。只修版本外验证导航，三份冻结规范资源及其 hash 不变；不表示实现或验证通过。
+- **2026-09-26 实施输入核对**：SC-6 残留的“恰产出一项权限”与已冻结 S-11、CS-7 及本页对齐义务不符，按 [D-060 S18-c](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的) 与 S-11 校准为正文端口产出空集；整资产仍有 disabled、usableBy 两条共用保留声明。经独立 spec-reviewer 限定只读核对，无剩余阻断。只修版本外验证导航，三份冻结规范资源及其 hash 不变；不表示实现或验证通过。

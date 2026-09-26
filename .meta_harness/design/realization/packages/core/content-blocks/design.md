@@ -142,6 +142,12 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 | SC-3 除传输适配外不读写 `opaque` | 类型：`OpaqueJson` 不暴露内容成员；`writeJsonLossless` 能原样写出，`toOpaqueJson`／`readOpaqueJson` 是显式传输适配边界。普通消费者的直接结构读取被类型负例拒绝，传输边界调用限制仍归消费者检查，不声称公开函数构成权限隔离 | 全部消费者 |
 | SC-1、SC-4 | 落在会话日志写入方与各消费者节点 | 各消费者 |
 
+## 2026-09-26 中性 JSON 表示复制入口
+
+根入口公开现有 `copyJsonValue(value: unknown) → { ok: JsonValue } | { failed: "not_json" }`。这是 `writeJsonLossless` 与校验器已经共用的 JSON 交换表示投影：保留普通有限 `number`（含 `-0`）与 `LosslessNumber` 原文，复制并递归冻结容器，拒绝循环及非 JSON 属性。普通对象的访问器和 `toJSON` 不会被调用；反射仍可能触发 `Proxy` trap，不声称任意代理对象都不执行调用方代码。AE 可据此复制已解析的 JSON 表示、作 Schema 输入或整输入指纹，避免重新文本解析改变数值表示，或再次实现包装识别。
+
+该结果会移除 `OpaqueJson` 包装，**不是保留领域类型的复制结果**；不得直接断言为保留品牌的 `ContentBlock` 或其他领域对象。需要领域类型时保留原包装，或经其权威判定入口重新建立类型。它不新增接收边界拒绝值、不补救已经发生的数值丢失，也不授权普通消费者读取 opaque 路径、据其内容分支或改写后回填；SC-3 的消费者核对必须覆盖此入口，不能只查 `readOpaqueJson` 调用点。此窄技术投影经独立 architecture-reviewer 只读复核，无本范围阻断；公开构建消费者的实际证据另按运行登记，不能以评审替代实现验收。
+
 ## 实施缺口与消费者影响
 
 契约的已知缺口（G-1、G-4、G-10）不重抄。本节点自己的缺口：
