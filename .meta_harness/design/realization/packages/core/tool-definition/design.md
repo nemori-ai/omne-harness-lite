@@ -165,3 +165,7 @@
 独立规格输入核对指出：旧 `toolDependencies(d)` 只给定义，无法区分同一默认值经不同层配值后得到的目标环境，和冻结 S-19／S-11／CS-7 不符。改为必需第二参 `effectiveTargetEnvironment: TargetEnvironment | undefined`：调用方交出已求值的值；未声明目标环境时显式给 undefined，声明时必须给实际有效值。不从作者 default 回填，不省略声明的环境要求，不在纯模块里执行求值或查运行环境。此处只明确既定规则所需输入，不决定 G-5 的环境匹配政策。
 
 `toolBodyContract.deriveDeclarations` 仍是 S-31 的声明推出，仅读正文，以作者默认值建立属性声明；它与携带有效值的 S-19 依赖声明是两个不同步骤，静态纯性规则不能把后者的显式参数禁止掉。注册表/执行运行时未来调用此公开函数时负责从有效装配交出该项，与所执行的装配版本一致；版本同源责任不由两个输入本身证明。应测同一定义的宿主机默认与显式会话沙箱有效值：返回依赖要求随第二参变，定义/默认不变；无目标环境显式undefined；缺参不能通过类型消费者。非法调用的精确前置表达由实施接口核对，不新建领域失败值。
+
+## 共享Schema技术依赖
+
+本节点沿已有content-blocks依赖消费其公开 `./schema-runtime`（见[CB技术说明](../content-blocks/design.md#中性-schema-技术子入口)），不新增AM包依赖。原值与精确数机制由CB单一拥有，本节点的拒绝次序/领域类型/固定schema责任不外移；tool参数子集、regex工厂与caller-cache仍归tool调用方。

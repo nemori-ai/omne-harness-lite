@@ -4,7 +4,7 @@
 
 用户2026-09-26明确要求复用来源树XML格式包；该树实际名字是xml-format（消息中xml-mformat按此承接）。采用范围为 `minimal-runtime` 提交 `d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac` 的项目自有TypeScript格式化实现，其provenance指向omne-next `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`。来源只是代码血缘，既有差分golden作为有限开发fixture，不带入旧领域模型/上下文转换器/旧spec接受状态。
 
-普通字段渲染的正确字符与属性约束以[W3C XML1.0第五版 §2.2](https://www.w3.org/TR/2008/REC-xml-20081126/#charsets)与[§3.1](https://www.w3.org/TR/2008/REC-xml-20081126/#uniqattspec)为技术依据。原实现实际会保留U+0000、会输出重复属性；迁入时修复这两处，记录新旧差异，不声称与所有原输入逐字节等价。主调度已读代码后建本映射，领域/机制双盲未达成；这是技术格式化迁入，不建立新产品能力。
+普通字段渲染的正确字符与属性约束以[W3C XML1.0第五版 §2.2](https://www.w3.org/TR/2008/REC-xml-20081126/#charsets)与[§3.1](https://www.w3.org/TR/2008/REC-xml-20081126/#uniqattspec)为技术依据。原实现实际会保留U+0000、会输出重复属性；迁入时修复这两处，并按XF-1/XF-4修正选字段时误认继承属性的来源缺陷（未声明toString/constructor/__proto__拒绝，声明自身同名字段正常渲染），记录新旧差异，不声称与所有原输入逐字节等价。主调度已读代码后建本映射，领域/机制双盲未达成；这是技术格式化迁入，不建立新产品能力。
 
 ## 公开面与技术要求
 

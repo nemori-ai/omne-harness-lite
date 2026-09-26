@@ -124,7 +124,7 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 
 ## 状态、并发与失败映射
 
-**无状态、无提交点、无并发。**全部入口是纯函数。
+**数据入口无持久状态、无提交点。**既有块/JSON入口是纯函数；新增Schema技术入口的编译器与缓存由显式构造者持有，见下文。
 
 **失败映射**：表示层拒绝 ⇒ `{ rejected: 值 }`（六个之一，恰一个）；严格读入失败 ⇒ `{ failed }`，由调用处按契约映射：读块或消息文本的接收边界 ⇒ `malformed`（S-24、`data.messages/v1#S-37`），参数串的那一次解析 ⇒ 解析不了的调用块（S-12）。**都不抛异常**；抛出只留给本模块自身的缺陷。拒绝不是判定：被拒的工具结果块**不是**一次 `failed`（S-27）。
 
@@ -153,3 +153,15 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 ## 2026-09-26 实际构建面
 
 源码已建于 `packages/core/content-blocks`，`engines` 限 Node ≥24.18.0、<25；固定 Schema 通过本包公开 `./schema` 静态 JSON import 加载。值、类型、校验与 JSON 边界从公开构建入口消费；源码检查不依赖 Cordis、kernel、storage 或非 core 插件。运行结果归 [verification](verification.md)，本页不把外部每一跳、日志不变或标识唯一提升为模块保证。
+
+## 中性 Schema 技术子入口
+
+2026-09-26实施发现messages依赖图不含AM，而同一无损Schema机制需要复用。经独立architecture-reviewer归属评审无阻断，主调度在技术验收授权内接受将原AM新helper整体迁入本节点。CB已经拥有JsonValue/LosslessNumber和Ajv；AM/tool/messages均已依赖CB，不新增D-040 M41领域包边。不是把本包固定Schema私有投影直接开放，固定块校验保持不变。
+
+公开 `@omne-harness-lite/content-blocks/schema-runtime`：技术输入 `SchemaDocument = boolean | JsonObject`（不从AM取JsonSchema），`createSchemaRuntime(resources: readonly SchemaDocument[], options?: SchemaRuntimeOptions): SchemaRuntime`，options只有可选 `patternFactory(source):RegExp`；返回 `metaValidate(schema):boolean`、`compile(schema):SchemaValidator`，validator.validate(JsonValue):boolean。原Schema、固定$id资源、调用方实例严格无损，复制冻结；编译器/缓存归构造它的调用方随引用释放，标准元Schema是固定输入，不建立module增长作者cache，无IO/异步/遥取。
+
+adapter区分元Schema不合、编译失败、实例不符；领域拒绝次序和tool参数子集留消费者。低层exact keywords/projection/originalRoot不公开、不要求调用者手工配对；回调必须确定无副作用，native RegExp禁止g/y，异常原抛；不开放任意Ajv选项或async/remote refs。非标准Ajv扩展不会启用为领域语义。
+
+精确数/整数联合/界限/multipleOf/const/enum/uniqueItems/长度与成员数保留原值；min/maxContains超safe边界按实际JS数组length<2^32的有界等价处理，无default的合法AMdomain不得因多余compile添拒绝。此等价不声称跨语言无限数组，也不因有helper就声称完整Draft全保证。
+
+迁移门：单一实现且CB无AM反向import；built子入口与AM/tool/messages真实consumer；嵌套/外部$id/$ref/$dynamicRef原值上下文、含/~成员与交错调用；修改资源/作者Schema不改绑定validator；原数字oracle/混合正则/异常/g-y守卫；冻结资源与旧CB固定校验不变。实际证据另登记，本映射接受不等于实现已过门。
