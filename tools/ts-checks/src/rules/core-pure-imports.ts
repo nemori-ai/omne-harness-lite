@@ -64,8 +64,13 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
-const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
-  'content-blocks': ['schema-runtime'],
+export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
+  'content-blocks': ['schema-runtime', 'schema/v2'],
+  messages: ['schema/v2'],
+  'model-response': ['schema/v2'],
+  'loop-extension': ['schema/v2'],
+  'tool-definition': ['schema/v2'],
+  'asset-model': ['schema/v2'],
   // D-066 迁移后的消费者仍精确引用 OE1；完整原资源由这个入口公开。
   'offer-expiry': ['schema/v1'],
 }

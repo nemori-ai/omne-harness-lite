@@ -4,7 +4,11 @@ import type { Rule, SourceFile, Violation } from './rule.ts'
 import { aiR8NoCredentialInWrite } from './rules/ai-r8-no-credential-in-write.ts'
 import { credentialsParseOnly } from './rules/credentials-parse-only.ts'
 import { corePureImports } from './rules/core-pure-imports.ts'
-import { bodyProjectionInputs, parameterJudgeCacheOwner } from './rules/core-scoped.ts'
+import {
+  bodyProjectionInputs,
+  parameterJudgeCacheOwner,
+  singleToolArgumentParser,
+} from './rules/core-scoped.ts'
 import {
   identityAccountReferences,
   identityDecisionInputs,
@@ -30,7 +34,7 @@ import { terminalOutcomeClosed } from './rules/terminal-outcome-closed.ts'
 
 export type { Rule, SourceFile, Violation } from './rule.ts'
 export { isTestPath, scanLines } from './rule.ts'
-export { CORE_PURE_DEPENDENCIES } from './rules/core-pure-imports.ts'
+export { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS } from './rules/core-pure-imports.ts'
 export {
   createBodyProjectionInputs,
   createParameterJudgeCacheOwner,
@@ -44,6 +48,7 @@ export {
   type ModelToolNameOriginTarget,
   CORE_BODY_PROJECTION_TARGETS,
   CORE_PARAMETER_CACHE_TARGET,
+  CORE_TOOL_ARGUMENT_PARSER_INPUTS,
 } from './rules/core-scoped.ts'
 export {
   createIdentityDecisionInputs,
@@ -57,6 +62,7 @@ export {
   corePureImports,
   bodyProjectionInputs,
   parameterJudgeCacheOwner,
+  singleToolArgumentParser,
   identityAccountReferences,
   identityDecisionInputs,
   identityScopeColumns,
@@ -110,6 +116,7 @@ export const RULES: readonly Rule[] = [
   identityScopeColumns,
   bodyProjectionInputs,
   parameterJudgeCacheOwner,
+  singleToolArgumentParser,
 ]
 
 /** 收集 `root` 下全部 `.ts` 源（跳过 node_modules 与 dist），路径相对于 root。 */

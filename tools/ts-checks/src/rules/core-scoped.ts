@@ -373,7 +373,7 @@ export function createSingleToolArgumentParser(inputs: ToolArgumentParserInputs)
   return {
     id: 'single-tool-argument-parser',
     source:
-      'capability.stream-assembly/v1 SC-1 · data.arrival-events/v1 SC-1 · data.content-blocks/v1 SC-2',
+      'capability.stream-assembly/v2 S-10/SC-1 · data.arrival-events/v2 SC-1 · data.content-blocks/v2 SC-2',
     description: 'stream 的严格参数解析恰一处且在登记封口函数，登记 raw 消费者禁止重解析',
     check(files) {
       const out: Violation[] = []
@@ -480,6 +480,21 @@ export const CORE_PARAMETER_CACHE_TARGET: ParameterCacheTarget = Object.freeze({
   factories: Object.freeze(['createSchemaRuntime']),
 })
 
+/** 主调度点名的实现锚点；只有实际包出现时登记到默认扫描，缺席保留覆盖缺口。 */
+export const CORE_TOOL_ARGUMENT_PARSER_INPUTS: ToolArgumentParserInputs = Object.freeze({
+  streamPrefix: 'core/stream-assembly/src/',
+  closeTarget: Object.freeze({
+    path: 'core/stream-assembly/src/close.ts',
+    functionName: 'parseCollectedToolCall',
+  }),
+  rawTargets: Object.freeze([
+    Object.freeze({
+      path: 'core/stream-assembly/src/close.ts',
+      functionName: 'incompleteToolCall',
+    }),
+  ]),
+})
+
 /** 包尚不存在是覆盖缺口；包一旦存在，登记模块或函数丢失不能静默通过。 */
 function whenPackageExists(prefix: string, rule: Rule): Rule {
   return {
@@ -508,4 +523,9 @@ export const bodyProjectionInputs: Rule = {
 export const parameterJudgeCacheOwner: Rule = whenPackageExists(
   'core/tool-definition/src/',
   createParameterJudgeCacheOwner(CORE_PARAMETER_CACHE_TARGET),
+)
+
+export const singleToolArgumentParser: Rule = whenPackageExists(
+  CORE_TOOL_ARGUMENT_PARSER_INPUTS.streamPrefix,
+  createSingleToolArgumentParser(CORE_TOOL_ARGUMENT_PARSER_INPUTS),
 )

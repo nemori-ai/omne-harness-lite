@@ -74,15 +74,21 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 旧 asset-model/schema-runtime 已随实际提供者迁移移出登记，即使消费者仍依赖 asset-model 也会拒绝；相邻私有路径不获准。
 本包内部复用走相对路径，子入口登记不增加未经采用的 self import 或任意包依赖。
 
+D-068 资源接线登记精确的 content-blocks、messages、model-response、loop-extension、tool-definition、asset-model `schema/v2`，
+仍要求消费者已有该包的依赖；相邻路径、未知版本、私有入口不接受，OE `schema/v1` 保留。
+这只是检查器入口配置，不表示各产品包已经公开该资源，也不表示新候选 v3 已接受。
+当前纯 core 依赖图没有 model-response 的消费者，该项目前只核登记配置与拒绝未批准依赖。
+
 新增范围化规则的实际注册在 `src/rules/core-scoped.ts`：
 
 | 规则 | 默认实际范围 | 不覆盖 |
 |---|---|---|
 | body-projection-inputs | tool-definition、loop-extension、skill-package、mcp-endpoint、slash-command 各自的 declarations.ts，共九个声明／引用函数；类型 import、登记正文参数、MCP 显式可选动作副本、直接宿主全局/隐式 this；每包独立触发，存在包丢失模块或函数必红 | Connector 本阶段延期；包缺席是覆盖缺口。保留/治理项的完整动态返回由 asset-model 守卫及真实端口组合测试证实；不证明任意跨文件状态读取不存在 |
 | parameter-judge-cache-owner | 工具 parameters.ts/createParameterJudge 中登记的编译器/动态 cache 分配点，必须在调用方工厂内；同文件标识符别名也查 | 不禁整个包/全仓 Map/Set；固定自有 Schema 编译不在此模块范围；不证明 GC 时点、内存上界、间接工厂或对象独立性 |
+| single-tool-argument-parser | stream-assembly/src/close.ts 的 parseCollectedToolCall 恰一个 readJsonStrict 调用点；同包其它产品模块不得调用 readJsonStrict／JSON.parse，incompleteToolCall 不解析；存在包缺模块／函数即红 | 结构调用点与同文件 import/const 别名；不分析任意跨文件别名、动态成员、反射／高阶调用或导出函数的所有调用者；不证明接受分支可达性、运行时调用次数或宿主原文消费者 |
 
-这两条随实际工具包出现生效；源码尚不存在的包不产生符合性证据。
-另有三个要求实际消费路径的工厂：createSingleToolArgumentParser、createModelToolNameOrigin、createMessageCreatedAtOrder。
+各默认登记分别随对应实际包出现生效；源码尚不存在的包不产生符合性证据。
+另有两个要求实际消费路径的工厂：createModelToolNameOrigin、createMessageCreatedAtOrder。
 封口工厂明确指定函数，严格解析点恰一处；raw 消费者逐函数点名，通用 JSON 读写不进入该范围。
 名字规则只守登记名字参数的切片/前缀/分隔符操作，规范 modelName/definitionNameOf 转换函数不登记为来源判断消费者。
 createdAt 规则只守登记消息次序函数的比较/差值/排序，表示层日期校验与原样记录允许。
@@ -113,7 +119,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 | 节点 | 本阶段可机检的形式与建议 | 需要消费者或实际行为的部分 |
 |---|---|---|
-| content-blocks | SC-3 opaque 品牌不兼容的负向类型测试；无 rawArguments 解析辅助的公开面核对。SC-2 与 stream-assembly SC-1 合并为一个指定解析模块的规则，等待真实模块落点后注册 | 会话日志 SC-1/SC-4；消费者 opaque 读写、是否对完整/半截调用采用正确输入 |
+| content-blocks | SC-3 opaque 品牌不兼容的负向类型测试；无 rawArguments 解析辅助的公开面核对。SC-2 的 Stream 范围与 stream-assembly SC-1 共用指定解析函数规则；宿主其它 raw 消费者须另行点名 | 会话日志 SC-1/SC-4；消费者 opaque 读写（包括 readOpaqueJson 与 copyJsonValue），是否对完整/半截调用采用正确输入，均未由本检查器证明 |
 | asset-model | SC-6 的 BodyContracts 错类负向类型测试与端口结果守卫；六正文推出模块的 import 范围由一个共享规则承载，须先确定各模块路径，不能从整个包只许类型推断局部范围 | SC-1～SC-5 的资产治理/流转写路径与读面 |
 | model-profile | S-13 判别联合的负向类型测试；S-22 闭合 ModelProfile/Schema 的凭据反例 | 档案目录的状态写入与持久形状 |
 | call-accounts | SC-2 用汇总入口的权威投影及手算 oracle 核不重复计；完整工具账合法保留 total_usd/usage，先校验再在汇总投影排除；SC-3 派生字段的公开负类型与 Schema 反例。不扫任意字面字符串 | SC-1 组装输入、SC-4 原账写入路径 |
