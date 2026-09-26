@@ -202,7 +202,28 @@ for (const member of members) {
     })
   }
 }
-await writeFile(importer, typeConsumerSource(inventory) + '\n')
+const jsonInventory: { specifier: string; file: string; sha256: string }[] = []
+for (const member of members) {
+  for (const subpath of member.subpaths.filter(
+    path => path.startsWith('./schema') && path !== './schema-runtime',
+  )) {
+    const specifier = member.specifier + subpath.slice(1)
+    const resolved = ts.resolveModuleName(specifier, importer, options, ts.sys).resolvedModule
+    assert.ok(resolved, specifier + ': independent JSON entry resolves')
+    const file = await realpath(resolved.resolvedFileName)
+    assert.ok(file.startsWith(consumer + '/node_modules/'), 'packed JSON must be inside consumer')
+    assert.ok(file.endsWith('.json'))
+    jsonInventory.push({ specifier, file, sha256: sha256(await readFile(file)) })
+  }
+}
+const jsonTypes = jsonInventory
+  .map(
+    (item, index) =>
+      `import schema${index} from ${JSON.stringify(item.specifier)} with { type: 'json' };\n` +
+      `export const publicSchema${index}: typeof schema${index} = schema${index};`,
+  )
+  .join('\n')
+await writeFile(importer, typeConsumerSource(inventory) + '\n' + jsonTypes + '\n')
 await writeFile(
   join(consumer, 'tsconfig.json'),
   JSON.stringify(
@@ -365,6 +386,66 @@ assert.deepEqual(
 )
 assert.ok(packedAssetCases.every(item => item.status === 'passed'))
 await writeFile(
+  join(consumer, 'streams.mjs'),
+  await readFile(new URL('./w6-stream-consumer.js', import.meta.url)),
+)
+const streamIds = [
+  'w6.stream.duplicate-parameters-versus-outer-text',
+  'w6.stream.lossless-numbers-and-opaque-arguments',
+  'w6.stream.bad-name-retained-as-unparseable',
+  'w6.stream.cut-incomplete-versus-safe-merge',
+  'w6.stream.decoded-voice-split-invariance',
+  'w6.stream.tool-frame-replace-and-account',
+  'w6.stream.trim-pairing-and-frame-formulas',
+  'w6.stream.reported-and-unknown-accounts',
+  'w6.stream.refusal-priority-and-historical-state',
+  'w6.stream.snapshot-value-and-branching',
+  'w6.stream.nested-message-identity-boundary',
+  'w6.stream.model-settlement-shapes',
+  'w6.stream.lost-failure-delivered-and-in-band',
+]
+const packedStreams = []
+for (const negativeControl of [false, true]) {
+  const stream = await run(
+    negativeControl ? 'packed-streams-wrong-frame-count' : 'packed-streams',
+    process.execPath,
+    [
+      'streams.mjs',
+      '--packed-consumer',
+      ...(negativeControl ? ['--negative-control=frame-count'] : []),
+    ],
+    consumer,
+  )
+  assert.equal(stream.code, negativeControl ? 1 : 0, stream.stdout + stream.stderr)
+  const report = record(JSON.parse(stream.stdout))
+  assert.equal(report.specEpoch, 3)
+  assert.equal(report.packedConsumer, true)
+  assert.equal(report.negativeControl, negativeControl)
+  assert.ok(Array.isArray(report.cases))
+  const cases = report.cases.map((item: unknown) => record(item))
+  assert.deepEqual(
+    cases.map(item => item.id),
+    streamIds,
+  )
+  if (negativeControl) {
+    const failures = cases.filter(item => item.status === 'failed')
+    assert.deepEqual(
+      failures.map(item => item.id),
+      ['w6.stream.tool-frame-replace-and-account'],
+    )
+    assert.equal(cases.filter(item => item.status === 'passed').length, streamIds.length - 1)
+    assert.equal(record(failures[0]?.error).name, 'AssertionError')
+    assert.ok(
+      String(record(failures[0]?.error).message).includes(
+        'SA3 S-13: accepted eight frames + one merged frame = 9',
+      ),
+    )
+    assert.ok(String(record(failures[0]?.error).message).includes('9'))
+    assert.ok(String(record(failures[0]?.error).message).includes('10'))
+  } else assert.ok(cases.every(item => item.status === 'passed'))
+  packedStreams.push(report)
+}
+await writeFile(
   join(consumer, 'conformance.spec.ts'),
   `import { it, expect } from 'vitest'; import { describeStorageConformance, describeAtomicStorageConformance } from '@omne-harness-lite/storage/conformance'; it('w6.pack.conformance-entry-in-actual-vitest-host', () => { expect(typeof describeStorageConformance).toBe('function'); expect(typeof describeAtomicStorageConformance).toBe('function'); });\n`,
 )
@@ -393,12 +474,14 @@ const report = {
     : '18 core + 2 util',
   members,
   inventory,
+  jsonInventory,
   types: inventory.reduce((sum, item) => sum + item.names.length, 0),
   options,
   negativeTypeDiagnostics: missing.length,
   runtime: JSON.parse(runtime.stdout),
   wrongEpochRuntime: JSON.parse(wrongEpoch.stdout),
   packedAssets: assetReport,
+  packedStreams,
   executions,
 }
 await writeFile(join(directory, 'report.json'), JSON.stringify(report, null, 2) + '\n')

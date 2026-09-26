@@ -4,7 +4,7 @@
 不会令 core 产品包反向依赖 infra。
 
 当前交付包含存储一致性套件有效性自测、W1 五包的独立公开消费者、W6 五个真实正文
-提供者的资产组合及独立打包消费者。存储部分依据
+提供者的资产组合、真实流装配组合及独立打包消费者。存储部分依据
 [storage 实现设计 P-10／C-11／C-12](../../.meta_harness/design/realization/packages/core/storage/design.md#要求到协议再到会红的测试)
 与 [验证义务及覆盖缺口](../../.meta_harness/design/realization/packages/core/storage/verification.md#覆盖缺口)。
 P／C 编号是该节点的协议与用例编号，没有独立契约坐标。
@@ -45,18 +45,18 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 自己的临时数据库，保留原始证据；超时停止该次进程组。HUB 验收应保存这些唯一证据再退休工作树。
 
 本成员没有 PostgreSQL、跨进程持久、租户装配外键或断电保证的验收覆盖，也不声称覆盖
-所有可能错误。流装配组合线在已接受的实际公开接口释放后接入。
+所有可能错误。流装配组合线使用已接受并已释放的实际公开接口。
 
 隔离任务可通过 `OMNE_CORE_VERIFICATION_EVIDENCE_ROOT` 选择自己拥有的证据目录；
 相对路径从执行仓库根解析，绝对路径也必须位于本检出的 `tmp/` 内，空值／越界路径响亮失败。
 原默认路径及全部判据保持不变。W6 命令示例：
 
 ```sh
-OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-3/run \
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-4/run \
   pnpm --filter @omne-harness-lite/core-verification run test
 ```
 
-配置根下分别创建 `storage`、`w1-public-consumers`、`asset-consumers`、`packed-consumers`；
+配置根下分别创建 `storage`、`w1-public-consumers`、`asset-consumers`、`stream-consumers`、`packed-consumers`；
 不会据此改写已经保存的原始日志或推导清理其它目录的权限。
 
 ## W1 独立公开消费者
@@ -145,10 +145,11 @@ TypeScript 的实际模块解析验证入口是 `dist/index.d.ts`，并逐项比
 采用关系从 `.meta_harness/design/registry/{catalog,frozen}.json` 与各 core 节点的
 `README.md`、`design.md`、`verification.md`、`bindings.yaml` 核对；本工具不定义产品政策。
 当前施工输入及32项 core-composition 步骤／外部责任映射见 [w6-coverage.json](w6-coverage.json)。
-epoch 3 明确采用 D-068 已接受、冻结的 CB／Messages／MR／Loop／TD／AM 3 与 SA／AE 3；
-其余数据仍2、identity1、默认offer2与保留offer1。HUB源码基线 eabfff0f；SA实际源码仍待释放，
-第二条实际流组合链及最终18 core包检查保持 pending。epoch 2 原源码、输入和原始输出已独立封存，
-不能把它们重标3。Skill SP3／S20 的完整语义仍待用户裁决，本工具不据 normalized 输入关闭它。
+规格采用 D-068 已接受、冻结的 CB／Messages／MR／Loop／TD／AM 3 与 SA／AE 3；
+其余数据仍2、identity1、默认offer2与保留offer1。测量 epoch 4 的产品输入释放为 HUB
+`0ec3eed2`，包含实际 SA 与完整六包 v3 源码；两条组合链及18 core＋2 util 的实际打包检查已接入。
+epoch 2／3 原源码、输入和原始输出已独立封存，不能随本轮重新标注。
+Skill SP3／S20 的完整语义仍待用户裁决，本工具不据 normalized 输入关闭它。
 
 `w6-asset-consumer` 只通过已构建的公开入口连接五个真实 bodyContract → asset-model →
 asset-evaluation。它使用实际 Skill 文本读取、清单解析、记录判断、求值、Slash 展开、
@@ -165,11 +166,8 @@ OAuth、当前成员资格、第三方计费或持久化事实。Connector 第�
 构建后运行独立打包验证：
 
 ```sh
-OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-3/run \
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-4/run \
   node tools/core-verification/dist/w6-packed-consumer.js
-# 只在 stream-assembly 尚未释放时作明确的先行检查；不能据此报最终20包完成。
-OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-3/run \
-  node tools/core-verification/dist/w6-packed-consumer.js --allow-pending-stream
 ```
 
 该命令 `pnpm pack` 实际成员，在自己的临时消费者内离线安装 tarballs；消费者的
@@ -177,11 +175,37 @@ overrides 同时把传递的 `0.0.0` 依赖钉回这批 tarballs，避免从 reg
 它不改包内容、不使用源码别名或 workspace 源码软链接。公开子路径清单按已采用节点固定，
 根与批准声明子路径的类型从 TypeScript 已解析导出符号枚举（含 `export type *`、别名与
 值／类型双用类），逐个 `import type` 并重新导出，独立 `tsc` 在严格模式、
-`skipLibCheck: false` 下检查；库存自身有星号／别名／双用途类型的受控反例。
+`skipLibCheck: false` 下检查；全部公开 JSON 子入口同样以实际 JSON import 消费并核对解析位置。
+库存自身有星号／别名／双用途类型的受控反例。
 这证明公开声明闭包可消费，业务语义的类型约束仍由相应公开类型场景和节点测试承担。
 同一份已构建资产消费者还复制到独立 tarball 消费者，明确检查11个公开根入口全部解析
 在该消费者的 node_modules 下，并运行上述固定12个资产子场景；这次运行的输入、stdout
 与构建产物 hash 单独保存，不把 workspace 运行改标成打包证据。
+
+`w6-stream-consumer` 通过 CB／CA → AR → SA → Messages／MR 的六个实际公开根入口运行13个固定场景，
+相同构建 JS 也在独立 tarball 消费者再次运行。判据从冻结契约和手算值取得，覆盖：
+
+| 稳定 Test ID 后缀（前缀 `w6.stream.`） | 判据与采用范围 |
+|---|---|
+| `duplicate-parameters-versus-outer-text` | 参数解码重复键保留完整 raw＋unparseable；接收外层 JSON 重复键为 malformed；CB3 S-24、AR2 S-29、SA3 S-10／S-11 |
+| `lossless-numbers-and-opaque-arguments` | 大数与极小数原文跨 SA／Messages 保留；参数内部块形状不参与外层 ID 唯一；SA3 S-10、Messages3 S-37 |
+| `bad-name-retained-as-unparseable` | 非法名及超长名完整封口为 unparseable，合法128字符可解析；CB3 S-12、SA3 S-10 |
+| `cut-incomplete-versus-safe-merge` | 未封口及破坏性裁剪为 incomplete；安全合并与已封口状态区分；SA3 S-12／S-33 |
+| `decoded-voice-split-invariance` | 实际已解码字节分片与整块相同；串接 base64 文本拒绝；AR2 S-19、SA3 S-27 |
+| `tool-frame-replace-and-account` | 真替换填、开块顺序、首次内容、工具结算；8接收帧＋1合并帧＝9，真实 FrameAccount／ToolCallAccount 形状；SA3 S-13、CA2 S-11／S-15 |
+| `trim-pairing-and-frame-formulas` | 配对 long／rejected 抵消、两条帧公式及各原因精确手算；SA3 S-14、CA2 S-15 |
+| `reported-and-unknown-accounts` | 报回与未知分开，零不当未知；负金额／错来源／重复账拒绝且原态保留；CA2 S-20、SA3 S-13 |
+| `refusal-priority-and-historical-state` | 表示层优先、八种序列失败、拒绝前后公开历史投影不变；SA3 S-25／S-26 |
+| `snapshot-value-and-branching` | 已取快照不可变、同原态分支独立；首次内容位置含空填边界；SA3 S-4／S-7／S-16 |
+| `nested-message-identity-boundary` | CB／SA 允许的派生块与外层重复 ID 在 Messages 中拒绝；Messages3 S-39、AR2 S-24 |
+| `model-settlement-shapes` | complete／truncated 与真实模型消息、开始／结束／派发记录衔接；SA3 S-8、Messages3 S-10、MR3 S-13 |
+| `lost-failure-delivered-and-in-band` | 丢失／中断／带内失败及 delivered 分开；MR3 S-27 的失败优先级、late 必须有所属引用；MR3 S-15／S-27 |
+
+`tests/w6-stream-consumer.spec.ts` 要求正常13项全部通过。帧数负控只把上述手算9改成10，
+要求恰 `w6.stream.tool-frame-replace-and-account` 以目标 AssertionError 失败、其余12项绿，
+不能用任意非零退出代替。五 API 的闭合结果、快照只读与 complete／unparseable 类型由
+`tests/w6-stream-types.spec-d.ts` 严格检查。输入时间、run／attempt／callId 及报账来路是显式前提，
+这批 core 步骤不证明 transport、执行副作用、持久日志或引用真实存在；32项映射分别列外部 owner。
 
 实际 Node 消费根和批准运行时子路径，六数据默认3及全部公开 `schema/v2` 保留资源、其他 Schema 公共入口及包内闭包资源逐份与冻结字节
 核对，所有 `$defs` 在实际 Ajv 2020-12 中编译。默认及保留资源还逐公开子路径核对明确的版本坐标；
