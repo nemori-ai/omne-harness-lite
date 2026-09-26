@@ -56,3 +56,7 @@ const missingProvenance: McpDeclarations = { declarations: [] }
 void wrongSlot
 void missingProvenance
 void typedDerive
+declare const authoredBody: McpEndpoint
+// @ts-expect-error credentials have no place in the authored endpoint body
+const credentialBody: McpEndpoint = { ...authoredBody, credential: 'token' }
+void credentialBody
