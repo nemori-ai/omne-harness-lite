@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.asset-evaluation v2 pure non-Connector evaluation and complete workspace reading",
+  "description": "capability.asset-evaluation v3 pure non-Connector evaluation and complete workspace reading",
   "engines": {
     "node": ">=24.18.0 <25"
   },
