@@ -165,6 +165,21 @@ describe('unresolved key tag gap and coinductive recursive node comparisons', ()
     ],
     ['sequence unknown comparison', '? [!foo x, a]\n: first\n? [!foo y, a]\n: second', ['!foo']],
     [
+      'recursive sequence preserves unknown scalar comparison',
+      '? &a [!foo x, *a]\n: first\n? &b [!foo y, *b]\n: second',
+      ['!foo'],
+    ],
+    [
+      'non-Core timestamp is not loaded as Date',
+      '? !!timestamp 2026-09-26\n: first\n? !!timestamp 2026-09-27\n: second',
+      ['tag:yaml.org,2002:timestamp'],
+    ],
+    [
+      'non-Core binary is not loaded as Buffer',
+      '? !!binary SGVsbG8=\n: first\n? !!binary QQ==\n: second',
+      ['tag:yaml.org,2002:binary'],
+    ],
+    [
       'mapping unknown comparison',
       '? {a: !foo x, b: 1}\n: first\n? {b: 1, a: !foo y}\n: second',
       ['!foo'],
@@ -240,6 +255,58 @@ describe('unresolved key tag gap and coinductive recursive node comparisons', ()
   ] as const) {
     it(`determined malformed: ${id}`, () => {
       expect(readSkillMd(text(yaml))).toEqual({ rejected: 'malformed', malformed: 'M16' })
+    })
+  }
+})
+describe('recognized Core tags must actually load before discarded-field processing', () => {
+  for (const [id, yaml] of [
+    ['integer invalid content', 'ignored: !!int xyz'],
+    ['boolean invalid content', 'ignored: !!bool xyz'],
+    ['null invalid content', 'ignored: !!null xyz'],
+    ['float invalid content', 'ignored: !!float xyz'],
+    ['float invalid hexadecimal content', 'ignored: !!float 0x10'],
+    ['float invalid exponent fallback', 'ignored: !!float aEb'],
+    ['string sequence kind', 'ignored: !!str [a,b]'],
+    ['string mapping kind', 'ignored: !!str {a: b}'],
+    ['integer sequence kind', 'ignored: !!int [1,2]'],
+    ['boolean mapping kind', 'ignored: !!bool {a: b}'],
+    ['mapping scalar kind', 'ignored: !!map x'],
+    ['sequence scalar kind', 'ignored: !!seq x'],
+    ['mapping sequence kind', 'ignored: !!map [a,b]'],
+    ['sequence mapping kind', 'ignored: !!seq {a: b}'],
+    ['invalid integer mapping key', '? !!int xyz\n: value'],
+    ['invalid float in a complex key', '? {a: !!float 0x10}\n: value'],
+    ['invalid native anchor referenced by ignored alias', 'ignored: &a !!int xyz\nother: *a'],
+  ] as const) {
+    it(`M16 for ${id}, including before unresolved key comparison`, () => {
+      for (const suffix of ['', '\nuncertain: {!foo a: x, !foo b: y}']) {
+        const text = `---\nname: x\ndescription: d\n${yaml}${suffix}\n---\nbody`
+        const expected = { rejected: 'malformed', malformed: 'M16' }
+        expect(readSkillMd(text)).toEqual(expected)
+        expect(readSkillPackage([{ kind: 'file', path: 'SKILL.md', text }])).toEqual(expected)
+      }
+    })
+  }
+  for (const [id, yaml] of [
+    ['explicit integer loads as bigint', 'ignored: !!int 0x10'],
+    ['explicit finite float', 'ignored: !!float 1.0'],
+    ['explicit nonfinite float', 'ignored: !!float .inf'],
+    ['explicit null', 'ignored: !!null null'],
+    ['explicit boolean', 'ignored: !!bool TRUE'],
+    ['explicit string prevents scalar coercion', 'ignored: !!str 123'],
+    ['explicit mapping', 'ignored: !!map {a: b}'],
+    ['explicit sequence', 'ignored: !!seq [a,b]'],
+    ['native value alias', 'ignored: &a !!int 16\nother: *a'],
+    ['unrecognized local scalar tag', 'ignored: !foo value'],
+    ['unrecognized non-Core tag', 'ignored: !!timestamp 2026-09-26'],
+    ['unrecognized non-Core binary tag', 'ignored: !!binary SGVsbG8='],
+    ['unrecognized non-Core ordered mapping tag', 'ignored: !!omap [{a: b}]'],
+    ['unrecognized non-Core pairs tag', 'ignored: !!pairs [{a: b}]'],
+    ['unrecognized non-Core set tag', 'ignored: !!set {a: null}'],
+    ['nonspecific scalar tag', 'ignored: ! 123'],
+  ] as const) {
+    it(`permits ${id} without globally rejecting tag warnings`, () => {
+      expect(readSkillMd(`---\nname: x\ndescription: d\n${yaml}\n---\nbody`)).toHaveProperty('ok')
     })
   }
 })

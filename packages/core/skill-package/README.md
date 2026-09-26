@@ -15,3 +15,5 @@ read gap provides neither a successful manifest nor a domain rejection. Known Co
 violations still reject; unknown properties that require no such comparison remain
 ignored with a trace. Recursive node comparisons use coinduction: a pair revisited
 on the current comparison path is equal, subject to its other structural members.
+The reader selects YAML 1.2 Core with `resolveKnownTags: false`, and rejects failed
+loading of a recognized native Core tag before discarding unknown properties.

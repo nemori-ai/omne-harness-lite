@@ -66,6 +66,36 @@ function scalarIdentity(node: unknown, doc: Document): unknown {
   if (tag === 'tag:yaml.org,2002:float') return canonicalFloat(node.source ?? String(node.value))
   return node.value
 }
+/** The parser preserves fallback nodes even when a recognized Core tag fails loading. */
+function loadedCoreTag(node: unknown, doc: Document): boolean {
+  if (!isNode(node) || isAlias(node) || node.tag === undefined || node.tag === '!') return true
+  if (!doc.schema.tags.some(known => known.tag === node.tag)) return true
+  switch (node.tag) {
+    case 'tag:yaml.org,2002:map':
+      return isMap(node)
+    case 'tag:yaml.org,2002:seq':
+      return isSeq(node)
+    case 'tag:yaml.org,2002:str':
+      return isScalar(node) && typeof node.value === 'string'
+    case 'tag:yaml.org,2002:null':
+      return isScalar(node) && node.value === null
+    case 'tag:yaml.org,2002:bool':
+      return isScalar(node) && typeof node.value === 'boolean'
+    case 'tag:yaml.org,2002:int':
+      return isScalar(node) && typeof node.value === 'bigint'
+    case 'tag:yaml.org,2002:float':
+      return isScalar(node) && typeof node.value === 'number'
+    default:
+      throw new Error('unmapped tag in the adopted YAML Core schema')
+  }
+}
+function validCoreTags(doc: Document): boolean {
+  let valid = true
+  visit(doc, (_key, node) => {
+    if (!loadedCoreTag(node, doc)) valid = false
+  })
+  return valid
+}
 function forkComparisons(compared: Map<object, Set<object>>): Map<object, Set<object>> {
   return new Map([...compared].map(([key, values]) => [key, new Set(values)]))
 }
@@ -214,10 +244,11 @@ export function readSkillMd(text: string): SkillMdReadResult {
   const doc = parseDocument(parts.frontmatter, {
     version: '1.2',
     schema: 'core',
+    resolveKnownTags: false,
     uniqueKeys: false,
     intAsBigInt: true,
   })
-  if (doc.errors.length !== 0 || !isMap(doc.contents)) return rejected()
+  if (doc.errors.length !== 0 || !isMap(doc.contents) || !validCoreTags(doc)) return rejected()
   const keys = keyValidity(doc)
   if (keys.invalid) return rejected()
   const manifest: Record<string, JsonValue> = {}
