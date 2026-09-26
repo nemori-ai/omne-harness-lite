@@ -45,8 +45,8 @@ while retaining numeric source spelling, including long decimals and overflow li
 
 ## Verification scope
 
-The protected [`./schema-runtime`](src/schema-runtime.ts) subentry exports
-`createSchemaRuntime(resources, options?)`, returning `metaValidate(schema)` and
+The protected `@omne-harness-lite/content-blocks/schema-runtime` subentry exports
+`createSchemaRuntime(resources: readonly SchemaDocument[], options?)`, returning `metaValidate(schema)` and
 `compile(schema).validate(value: JsonValue)`. Resources must be fixed `$id` objects.
 Schemas are copied and frozen at binding/compile; original values are copied per
 call, and the private Ajv projection and original-value context stay inside the
