@@ -394,3 +394,7 @@
 - **examples 对 Schema 的机检**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表。本契约不发布 Schema，examples 里是 data 契约之值的只有 E-3 的工作区承载清单（`data.asset-model` 的 `WorkspaceCarrierManifest`）：**1 处，0 不符**；E-1～E-8 的求值输入与结果是集合与表的记法，不是 Schema 实例，不判。只核形状，不是 V- 义务的执行证据。
 - **名字与形状核对**：组合根引用集 `root { definition, references }` 与 `AssetReference { capability, resident? }`（[S-6](v2/contract.md#s-6-求值输入-evaluationinput)）在 `capability.asset-registry` 的 S-4 表、S-23 ④、S-24 ②、消费者核对末行逐字一致（「`definition` 与从那一版定义正文读出的 `references`」）；Alloy 模型的 `rootCap`／`rootRefs` 对应写在 formal/README。无改动。
 - **G-1 的另一端**：`capability.asset-governance` 的 G-6 ③ 已改引 `compositionCycle`，那份契约的消费者核对补了 `categoryUnsupported`（丑落，见那边验证入口）；本契约 G-1 行「那份契约怎样改引归它（已报主线）」一句就此办完，不改本契约正文。
+
+## 2026-09-26 D-068 当前 v3
+
+`capability.asset-evaluation · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

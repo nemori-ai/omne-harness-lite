@@ -34,3 +34,7 @@
 
 - 评审列出的范围外待裁：PF-009 rev 5 / PF-013 rev 5–6 的确认；语音增量与整交块算不算首 token（PF-013 owner）；已交付内容在成品提交前崩溃由谁保全；工具流记账的对象与次数；非法帧与 `ToolInternalMessage` 被否决后的收场；块身份、嵌套寻址与供应商回放数据的表达。
 - 接受须由产品负责人以决定记录，见 [decisions](../../decisions/README.md)。
+
+## 2026-09-26：D-068 精确 core v3 表达修订
+
+沿本topic已采用的四个候选与D060 N32接续，不新作起点选择。八份3的初审、两阻断修复与独立复审记录见 [独立规格评审](reviews/2026-09-26-core-v3-spec-review.md)；复审无阻断，接受仍由主调度在用户技术委托范围写 [D-068](../../decisions/core-implementation-spec-reconciliation/README.md)。

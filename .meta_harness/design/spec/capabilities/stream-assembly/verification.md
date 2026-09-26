@@ -146,3 +146,7 @@ realization-drafter 起草节点时报回的契约层缺陷，主线裁定见 [D
 | M36 JSON 解析口径：RFC 8259 严格解析；重复键 ⇒ 解析失败；超出 2^53 的整数与金额无损保留原文 | 戊 SA-1、MSG-3 | **接受**：S-10 第 3 条补「什么算成功」「数值无损」两项。**裁定里写的是「重复键 ⇒ 解析失败（`malformed`）」；在本契约里读作 S-10 第 3 条的「失败」一支，即解析不了的那一种调用块，不是表示层拒绝值 `malformed`**——本能力的 `malformed` 只判事件本身的形状（`data.arrival-events` S-28），参数原文解析失败从来不拒收封口（S-11）。这一读法原是推导，已经 [D-060 §八 N-20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受（`malformed` 只在读 JSON 文本的接收边界） | [S-10](v2/contract.md#s-10-工具调用在封口那一下解析且只解析这一次) 第 3 条、设计依据表、examples 第 7 节 7d |
 
 **examples 对 Schema 的机检（2026-09-25，跨批对齐，drafter 丑）**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表。本能力不发布 Schema，examples 的结果 JSON 是含义的记法；把 `H1M0` 之类的标注记法展开成两位的 `visibility` 之后，取各代码块里的块按 `data.content-blocks` 的 `ContentBlock`、账的各部分按 `data.call-accounts` 的 `FrameAccount`／`Usage`／`Cost`／`TrimSummary` 判：**19 处，0 不符**。第 2 节「第 7 个事件之后的快照」是本能力快照的记法（`opened`／`content`），不是 data 值，不判；事件表里的逐个事件含有意被拒的，按行判要逐行标预期，本轮未判。只核形状，不是 V- 义务的执行证据。
+
+## 2026-09-26 D-068 当前 v3
+
+`capability.stream-assembly · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

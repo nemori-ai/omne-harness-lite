@@ -29,3 +29,11 @@ SA 新版保留第25/26行输入，仅把期望改 head_modality_mismatch，依�
 - PF-013 rev13 只限定本轮界面验收的适用范围；模型／值的 core 规则未改变。不得因此宣称凭据、界面或 PF-016 的外部功能已经交付。
 
 这是候选的新采用依据与范围说明，不是把旧产品修订号或旧运行证据原地替换。
+
+## 2026-09-26：八版精确技术接受与冻结
+
+主调度在用户上述技术验收委托内接受复审对象 `8c49bdef3b884adee458143e716dd44637177907` 的六份 data v3（CB、Messages、MR、Loop、TD、AM）和两份 capability v3（SA、AE），全部原条款及显式缺口。初审两项阻断与两项非阻断均已处置，独立 [复审](../../proposals/message-and-stream-baseline/reviews/2026-09-26-core-v3-spec-review.md) 无阻断。精确32资源与条款范围登记在 [acceptance.json](acceptance.json)，candidate-diff原件摘要保持不变。接受时间 2026-09-26T09:33:22.844605+00:00。
+
+先作本决定，再将8条catalog提升 accepted并追加32冻结hash；原319资源hash、源2、lineage及旧运行不改，334新covers仍reviewed:false，不冒称逐条产品覆盖复核。七形式执行文件与源2同字节仅表示模型内容继承；实际TLC/Alloy本次未跑，历史行政迁移前运行可能含不同注释坐标，继续引用原输入和边界。
+
+这次接受规格，不表示八个实现已采用3、组合验证已通过或用户最后总体签收。八个当前core提供者的显式采用、六公开schema/v2原字节资源、AR2实际拒绝等同性、AM固定资源闭包和SA唯一解析次数由后续实施留证；24外部消费者仍affected、未迁移，Connector真实纵线仍延期。

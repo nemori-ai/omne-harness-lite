@@ -239,3 +239,7 @@
 | **干预力上限由允许集合兑现**（M3）；**位置项只含同一维度成员的位置、维度项只收那一成员的取值，跨类的配值在治理写面以 `valueOutOfDomain` 拒**（M4） | `capability.loop-extension-runner` v2（「干预力不高于声明的值」一句、S-6 按求得的位置与维度匹配）；`capability.asset-governance` v2 S-38（`valueOutOfDomain`）；`capability.asset-evaluation` v2 S-23（不改） | 本契约已落（[S-4](v2/contract.md#s-4-干预力三档)、[S-6](v2/contract.md#s-6-声明的成员与类别)、[S-40](v2/contract.md#s-40-属性项的推出规则)，[D-060 §七 M3、M4](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)）；runner 那一句由丁同轮改；asset-governance S-38 一行指路（同一位起草者） |
 | **`batch` 含解析不了的调用**（M11） | `capability.loop-extension-runner` v2 S-21 ①、S-29；`capability.tool-execution-runtime` v2 S-23 | 本契约已落（[S-14](v2/contract.md#s-14-按位置的-subject)）；runner、TER 由丁、丙同轮改 |
 | **执行环境句柄**（[D-060 §八 M38](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：`ExtensionInput.environment`，读面（解析得到什么、何时有效、解析不出时怎样）在 runner；模态转换件的 `tenant`、兼容件的执行环境从它取 | `capability.loop-extension-runner` v2 S-7、S-10、S-50、S-32；`capability.modality-projection` v2 S-18、S-20；`capability.hooks-import` v2 S-17、S-18、S-19、S-26 | 本契约已落（[S-11](v2/contract.md#s-11-输入的成员)、[S-41](v2/contract.md#s-41-执行环境句柄)）；三份消费契约由同一起草者同轮改（修复波 3） |
+
+## 2026-09-26 D-068 当前 v3
+
+`data.loop-extension · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

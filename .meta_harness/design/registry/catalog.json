@@ -5929,14 +5929,14 @@
       },
       "family": "data",
       "topic": "content-blocks",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/content-blocks/v3/contract.md",
       "resources": [
         "spec/data/content-blocks/v3/contract.md",
         "spec/data/content-blocks/v3/content-blocks.schema.json",
         "spec/data/content-blocks/v3/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -5960,14 +5960,14 @@
       },
       "family": "data",
       "topic": "model-response",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/model-response/v3/contract.md",
       "resources": [
         "spec/data/model-response/v3/contract.md",
         "spec/data/model-response/v3/model-response.schema.json",
         "spec/data/model-response/v3/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -6084,14 +6084,14 @@
       },
       "family": "data",
       "topic": "tool-definition",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/tool-definition/v3/contract.md",
       "resources": [
         "spec/data/tool-definition/v3/contract.md",
         "spec/data/tool-definition/v3/tool-definition.schema.json",
         "spec/data/tool-definition/v3/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -6140,14 +6140,14 @@
       },
       "family": "data",
       "topic": "asset-model",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/asset-model/v3/contract.md",
       "resources": [
         "spec/data/asset-model/v3/contract.md",
         "spec/data/asset-model/v3/asset-model.schema.json",
         "spec/data/asset-model/v3/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -6202,14 +6202,14 @@
       },
       "family": "data",
       "topic": "loop-extension",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/loop-extension/v3/contract.md",
       "resources": [
         "spec/data/loop-extension/v3/contract.md",
         "spec/data/loop-extension/v3/loop-extension.schema.json",
         "spec/data/loop-extension/v3/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -6331,7 +6331,7 @@
       },
       "family": "data",
       "topic": "messages",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/messages/v3/contract.md",
       "resources": [
         "spec/data/messages/v3/contract.md",
@@ -6340,7 +6340,7 @@
         "spec/data/messages/v3/formal/README.md",
         "spec/data/messages/v3/formal/Readable.als"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -6430,7 +6430,7 @@
       },
       "family": "capabilities",
       "topic": "asset-evaluation",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/asset-evaluation/v3/contract.md",
       "resources": [
         "spec/capabilities/asset-evaluation/v3/contract.md",
@@ -6438,7 +6438,7 @@
         "spec/capabilities/asset-evaluation/v3/formal/Evaluation.als",
         "spec/capabilities/asset-evaluation/v3/formal/README.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -6576,7 +6576,7 @@
       },
       "family": "capabilities",
       "topic": "stream-assembly",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/stream-assembly/v3/contract.md",
       "resources": [
         "spec/capabilities/stream-assembly/v3/contract.md",
@@ -6588,7 +6588,7 @@
         "spec/capabilities/stream-assembly/v3/formal/Assembly_ReplaceAsAppend.cfg",
         "spec/capabilities/stream-assembly/v3/formal/Assembly_OneShotCloseFirst.cfg"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/core-implementation-spec-reconciliation/acceptance.json",
       "dependencies": [
         {
           "coordinate": {

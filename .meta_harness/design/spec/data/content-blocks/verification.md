@@ -181,3 +181,7 @@ reviewer：spec-reviewer，S25 第二轮批 R1；基线 HUB `8ad37c50`。本批�
 
 - **来路标记的两个取值与 `data.slash-command` v2 的 S-21、S-25 对齐**（定义性引用，不登 catalog）：那两条改了展开物或留痕的所指，[S-8](v2/contract.md#s-8-文本块与来路标记) 的 `slash_command_expansion`、`slash_command_record` 同轮复核。
 - **`$defs/ModelToolName` 是 `data.tool-definition` v2 同名定义的逐字副本**（[S-12](v2/contract.md#s-12-完整的工具调用)；家在那份契约的 S-6）：`type` 与 `pattern` 两处逐字相同；那份契约改字符集或长度，本契约同轮改、V-1 重跑。本契约不 `$ref` 它、不登依赖——那份契约以 `$ref` 取本契约，反向会成环（registry README「互引成环的登记口径」）。**任何一边改了而另一边没跟，不会报任何错**，这一条只能靠两份 Schema 片段的字面比较兜住。
+
+## 2026-09-26 D-068 当前 v3
+
+`data.content-blocks · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
