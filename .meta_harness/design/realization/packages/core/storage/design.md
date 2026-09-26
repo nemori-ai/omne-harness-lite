@@ -21,7 +21,7 @@
   账号行上的过期事实（行锁下落盘）+ 组织行对账号行的引用约束。本节点不重复那段推理，只保证它依赖的三个原语——锁定读、引用约束两向可识别、唯一冲突后事务仍可用——在两种方言下都由协议给出并被套件证明。
 
 **Cordis 版本**：本节点不依赖 Cordis。提供者插件与消费者插件按 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 采用 `@deepseek-ai/cordis` 4.0.4。
-**依赖版本**：Kysely 0.29.6（workspace catalog；D-026 与研究核对的也是它），本节点只依赖它的**类型**；vitest 4.1.11 是 `./conformance` 的运行时依赖（套件是 `describe` 块）；`node:sqlite`、`pg` 归提供者节点。
+**依赖版本**：Kysely 0.29.6（workspace catalog；D-026 与研究核对的也是它），根协议公开面只依赖它的**类型**；已批准的一致性套件 `./conformance` 使用 Kysely 的运行时 `sql` 构建检查约束，vitest 4.1.11 也是该子路径的运行时依赖（套件是 `describe` 块）；`node:sqlite`、`pg` 归提供者节点。
 
 ## 协议
 
@@ -199,7 +199,7 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
 | 无契约依赖 | — | — | — |
-| Kysely 0.29.6（catalog；**只依赖类型**：`Kysely`、schema 构建器的类型） | 普通包依赖 | 随包版本 | 大版本变更 ⇒ 协议出新版本（`ReadTx.db` 的类型是公开面的一部分） |
+| Kysely 0.29.6（catalog；根协议只依赖类型；`./conformance` 另使用运行时 `sql` 构建其检查约束） | 普通包依赖 | 随包版本 | 大版本变更 ⇒ 协议出新版本（`ReadTx.db` 的类型是公开面的一部分） |
 | vitest 4.1.11（catalog） | 运行时依赖——`./conformance` 导出的是 `describe` 块 | — | 换测试运行器 ⇒ 套件重写，协议不变 |
 
 **被谁消费**：`account-identity`、`organization-governance` 经服务名 `storage` 用协议（它们 inject 的是提供者的实例，类型来自本节点），并用本节点的 `mapStorageError` 把 `StorageUnavailable` 折成各自的字面；
