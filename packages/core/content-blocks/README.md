@@ -1,5 +1,12 @@
 # content-blocks
 
+`contentBlockFromRepresentation(value)` is a shape-only transport adapter: it
+copies a value, checks the complete frozen `ContentBlock` Schema, and restores
+identity and opaque wrappers through the same private constructor as
+`judgeContentBlock`. Invalid representation preconditions raise `TypeError`.
+The adapter does not establish cross-member predicates or replace the receiver's
+complete `judgeContentBlock` check. It never branches on opaque contents.
+
 `@omne-harness-lite/content-blocks` implements the public pure module described by
 [the accepted realization node](../../../.meta_harness/design/realization/packages/core/content-blocks/design.md),
 adopting [data.content-blocks v2](../../../.meta_harness/design/spec/data/content-blocks/v2/contract.md)

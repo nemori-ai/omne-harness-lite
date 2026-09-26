@@ -11,6 +11,13 @@ the 42-definition Schema registry and shape validator, `judgeDefinition`,
 the explicit-body declaration/reference functions and
 `loopExtensionBodyContract: BodyContract<'loop_extension'>`.
 `./schema` exports the byte-identical frozen Schema resource.
+
+`isExtensionInput`, `isExtensionOutput` and `isConclusion` report Schema shape as
+booleans. They do not brand the caller's original wire object. Typed successful
+judgments rebuild the admitted object through the public content-blocks and
+messages representation adapters, including nested subjects and earlier records.
+These adapters preserve opaque payloads without adding message business refusals
+to this contract. `judgeValue` continues to return a neutral JSON exchange value.
 Only fixed owned resources are compiled; no author-input cache grows at module scope.
 JSON inputs and results preserve lossless numbers through the content-blocks public boundary.
 

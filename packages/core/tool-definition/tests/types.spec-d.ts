@@ -6,7 +6,7 @@ import type {
   JsonNumber,
   ModelToolName as ContentName,
 } from '@omne-harness-lite/content-blocks'
-import { toolBodyContract, toolDependencies } from '../src/index.ts'
+import { isToolReturn, toolBodyContract, toolDependencies, toolResultOf } from '../src/index.ts'
 import type {
   ModelToolName,
   ToolDefinition,
@@ -85,3 +85,12 @@ void executable
 void twoAuthorities
 void mcpComposition
 void absentReturn
+
+declare const wireReturn: unknown
+if (isToolReturn(wireReturn)) {
+  // @ts-expect-error representation validity does not brand the caller's original value
+  const domain: ToolReturn = wireReturn
+  void domain
+}
+expectTypeOf(isToolReturn).returns.toEqualTypeOf<boolean>()
+expectTypeOf(toolResultOf).parameter(0).toBeUnknown()

@@ -56,6 +56,7 @@ export {
 } from './schema.ts'
 export {
   judgeContentBlock,
+  contentBlockFromRepresentation,
   isCanonicalMediaType,
   modalityOf,
   capabilityIdEquals,

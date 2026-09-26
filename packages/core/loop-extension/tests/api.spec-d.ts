@@ -20,6 +20,9 @@ import {
   judgeOutput,
   judgeValue,
   validate,
+  isExtensionInput,
+  isExtensionOutput,
+  isConclusion,
 } from '@omne-harness-lite/loop-extension'
 
 declare const validLog: LogHandle
@@ -115,4 +118,26 @@ it('LE-TYPE-API: emitted exports and real category literal', () => {
   expectTypeOf(judgeValue).parameter(1).toBeUnknown()
   // @ts-expect-error definition registry is closed
   validate('NoSuchDef', {})
+})
+
+it('LE-TYPE-REPRESENTATION: boolean shape guards cannot counterfeit domain brands', () => {
+  const value: unknown = {}
+  if (isExtensionInput(value)) {
+    // @ts-expect-error Schema-only validity does not brand the original unknown value
+    const input: ExtensionInput = value
+    void input
+  }
+  if (isExtensionOutput(value)) {
+    // @ts-expect-error Schema-only validity does not brand the original unknown value
+    const output: import('../src/index.ts').ExtensionOutput = value
+    void output
+  }
+  if (isConclusion(value)) {
+    // @ts-expect-error Schema-only validity does not brand the original unknown value
+    const conclusion: Conclusion = value
+    void conclusion
+  }
+  expectTypeOf(isExtensionInput).returns.toEqualTypeOf<boolean>()
+  expectTypeOf(isExtensionOutput).returns.toEqualTypeOf<boolean>()
+  expectTypeOf(isConclusion).returns.toEqualTypeOf<boolean>()
 })

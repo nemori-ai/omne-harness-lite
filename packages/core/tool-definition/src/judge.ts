@@ -16,13 +16,7 @@ import {
   unsupportedKeyword,
 } from './schema-positions.ts'
 import { positiveInteger, validate } from './schema.ts'
-import type {
-  MalformedCode,
-  ParameterJudge,
-  ToolDefinition,
-  ToolJudgment,
-  ToolReturn,
-} from './types.ts'
+import type { MalformedCode, ParameterJudge, ToolDefinition, ToolJudgment } from './types.ts'
 import { createParameterJudge } from './parameters.ts'
 
 const duration = /^PT(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:[.][0-9]+)?S)?(?![\s\S])/u
@@ -394,6 +388,7 @@ export function judgeToolReturn(value: unknown): ToolJudgment {
     throw new Error('Schema rejection absent from S26 return inventory')
   return Object.freeze({ ok: true })
 }
-export function isToolReturn(value: unknown): value is ToolReturn {
+/** Representation validity does not establish the opaque brands on the original value. */
+export function isToolReturn(value: unknown): boolean {
   return 'ok' in judgeToolReturn(value)
 }

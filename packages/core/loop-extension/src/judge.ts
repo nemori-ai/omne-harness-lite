@@ -15,6 +15,11 @@ import { equal, object, snapshot } from './json.ts'
 import { rewriteChangesImmutable } from './rewrite.ts'
 import { ordinaryShape, validate, type SchemaDefName } from './schema.ts'
 import { isPosition, isPower, POSITION_CONCLUSIONS, POWER_CONCLUSIONS } from './tables.ts'
+import {
+  conclusionFromRepresentation,
+  inputFromRepresentation,
+  outputFromRepresentation,
+} from './values.ts'
 
 function rejected(value: Rejection): { readonly rejected: Rejection } {
   return Object.freeze({ rejected: value })
@@ -193,13 +198,14 @@ export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<
 export function isLoopExtensionDefinition(value: unknown): value is LoopExtensionDefinition {
   return validate('LoopExtensionDefinition', value).valid
 }
-export function isExtensionInput(value: unknown): value is ExtensionInput {
+/** Shape checks do not brand the caller's original representation. */
+export function isExtensionInput(value: unknown): boolean {
   return validate('ExtensionInput', value).valid
 }
-export function isExtensionOutput(value: unknown): value is ExtensionOutput {
+export function isExtensionOutput(value: unknown): boolean {
   return validate('ExtensionOutput', value).valid
 }
-export function isConclusion(value: unknown): value is Conclusion {
+export function isConclusion(value: unknown): boolean {
   return validate('Conclusion', value).valid
 }
 export function judgeDefinition(value: unknown): Judgment<LoopExtensionDefinition> {
@@ -212,14 +218,12 @@ export function judgeDefinition(value: unknown): Judgment<LoopExtensionDefinitio
 export function judgeInput(value: unknown): Judgment<ExtensionInput> {
   const result = judgeValue('ExtensionInput', value)
   if ('rejected' in result) return result
-  if (!isExtensionInput(result.ok)) throw new Error('inconsistent loop input judgment')
-  return Object.freeze({ ok: result.ok })
+  return Object.freeze({ ok: inputFromRepresentation(result.ok) })
 }
 export function judgeOutput(value: unknown): Judgment<ExtensionOutput> {
   const result = judgeValue('ExtensionOutput', value)
   if ('rejected' in result) return result
-  if (!isExtensionOutput(result.ok)) throw new Error('inconsistent loop output judgment')
-  return Object.freeze({ ok: result.ok })
+  return Object.freeze({ ok: outputFromRepresentation(result.ok) })
 }
 
 /**
@@ -276,6 +280,5 @@ export function judgeConclusion(value: unknown, inputs: ConclusionInputs): Judgm
     rewriteChangesImmutable(record.position, input.subject, output.subject)
   )
     return rejected('rewrite_touches_immutable')
-  if (!isConclusion(record)) throw new Error('inconsistent conclusion judgment')
-  return Object.freeze({ ok: record })
+  return Object.freeze({ ok: conclusionFromRepresentation(record) })
 }

@@ -184,6 +184,17 @@ export function judgeContentBlock(value: unknown): ContentBlockJudgment {
   return Object.freeze({ ok: brandBlock(copied.ok) })
 }
 
+/**
+ * Restore the TypeScript representation after a complete frozen-Schema shape check.
+ * This adapter does not establish the additional S-26 cross-member predicates.
+ */
+export function contentBlockFromRepresentation(value: unknown): ContentBlock {
+  const copied = copyJsonValue(value)
+  if ('failed' in copied || !isWireContentBlock(copied.ok))
+    throw new TypeError('ContentBlock Schema representation required')
+  return brandBlock(copied.ok)
+}
+
 function isWireContentBlock(value: JsonValue): value is JsonValue & Wire<ContentBlock> {
   return validate('ContentBlock', value).valid
 }

@@ -1,5 +1,6 @@
 import {
-  judgeContentBlock,
+  contentBlockFromRepresentation,
+  copyJsonValue,
   type JsonValue,
   type JsonNumber,
   type OpaqueJson,
@@ -30,8 +31,8 @@ export type Wire<T> =
       ? JsonValue
       : T extends JsonNumber
         ? T
-        : T extends readonly (infer Item)[]
-          ? readonly Wire<Item>[]
+        : T extends readonly unknown[]
+          ? { readonly [Key in keyof T]: Wire<T[Key]> }
           : T extends object
             ? { readonly [Key in keyof T]: Wire<T[Key]> }
             : T
@@ -47,9 +48,7 @@ function id<B extends string>(value: string, brand: B): OpaqueIdentifier<B> {
   return parsed.ok
 }
 function block(value: unknown): ContentBlock {
-  const judged = judgeContentBlock(value)
-  if ('rejected' in judged) throw new Error('validated message block failed branding')
-  return judged.ok
+  return contentBlockFromRepresentation(value)
 }
 function plain(value: unknown): PlainMessageBlock {
   const branded = block(value)
@@ -107,7 +106,12 @@ function profileRef(value: Wire<ModelProfileRef>): ModelProfileRef {
     ? value
     : Object.freeze({ ...value, scope: scope(value.scope) })
 }
-export function brandRecord(value: Wire<ModelInvocationRecord>): ModelInvocationRecord {
+/** Shape-only transport adapter; complete record judgment remains with its receiver. */
+export function brandRecord(source: unknown): ModelInvocationRecord {
+  const copied = copyJsonValue(source)
+  if ('failed' in copied || !isWireRecord(copied.ok))
+    throw new TypeError('ModelInvocationRecord Schema representation required')
+  const value: Wire<ModelInvocationRecord> = copied.ok
   if (value.kind !== 'model_call_dispatched') return Object.freeze(value)
   if (value.credentialScope.layer === 'factory')
     return Object.freeze({
@@ -142,7 +146,12 @@ function source(value: Wire<ReminderSource>): ReminderSource {
       return value
   }
 }
-export function brandMessage(value: Wire<Message>): Message {
+/** Shape-only transport adapter; message uniqueness and pairing remain with its receiver. */
+export function brandMessage(representation: unknown): Message {
+  const copied = copyJsonValue(representation)
+  if ('failed' in copied || !isWireMessage(copied.ok))
+    throw new TypeError('Message Schema representation required')
+  const value: Wire<Message> = copied.ok
   const base = { ...value, id: id(value.id, 'MessageId') }
   switch (value.type) {
     case 'system': {
