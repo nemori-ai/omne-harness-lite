@@ -37,3 +37,13 @@ SA 新版保留第25/26行输入，仅把期望改 head_modality_mismatch，依�
 先作本决定，再将8条catalog提升 accepted并追加32冻结hash；原319资源hash、源2、lineage及旧运行不改，334新covers仍reviewed:false，不冒称逐条产品覆盖复核。七形式执行文件与源2同字节仅表示模型内容继承；实际TLC/Alloy本次未跑，历史行政迁移前运行可能含不同注释坐标，继续引用原输入和边界。
 
 这次接受规格，不表示八个实现已采用3、组合验证已通过或用户最后总体签收。八个当前core提供者的显式采用、六公开schema/v2原字节资源、AR2实际拒绝等同性、AM固定资源闭包和SA唯一解析次数由后续实施留证；24外部消费者仍affected、未迁移，Connector真实纵线仍延期。
+
+## 2026-09-26：八提供者采用与技术投影
+
+主调度明确选择当前 core/content-blocks、messages、model-response、loop-extension、tool-definition、asset-model、stream-assembly、asset-evaluation 设计采用本次已接受的精确3。D-062原节点身份/边界不变；这里只取代这八个节点当前采用2的坐标及以下对应投影，源2/历史签收继续保留。源码实际升级仍在实施，旧2运行不标3。
+
+经 [独立架构复核](../../proposals/message-and-stream-baseline/reviews/2026-09-26-core-representation-and-resource-review.md) 无阻断，采用AM3固定资源闭包：六个data3公开原Schema/v2资源；AM加入自身AM2、CB2与私有完整TD2冻结文件，避免产品代码反向import TD。固定资源拷贝唯一依据registry/frozen，不修改$id/内容，不作第二份设计权威或旧业务兼容；端口签名和judge/derive/references所有权不变。只承诺当前25个AM3defs与同契约/$id提供者组合，不扩成任意外部Schema resolver，Connector2只供AM冻结Definition片段，真实纵线延期。
+
+同时采用CB/Msg表示恢复公开入口及Loop/TD诚实typed构造：按完整Schema恢复原定义的领域包装，与完整业务judge分离。Loop原形状接收边界不新增CB/Msg跨成员拒绝；TD先完整判定再恢复。guard只返回boolean，不能把未包装原JSON谎称为领域值。HUB7428be05四包1700测试、原两项反例与8组built消费者实际通过；这是2采用范围修复，不是本次3实现验收。未运行性能/全仓opaque数据流证明。
+
+六保留2的AR/CA/MP/Skill/MCP/Slash，其冻结Schema外部引用必须显式取schema/v2及其它既有精确资源；核心schema-runtime的中性校验可复用，默认业务函数只实现本阶段显式采用。AR2两条禁工具调用的拒绝等同性仍要实际新旧paired输入核对。所有外部24消费者保持affected未迁移；phase221原范围不变，不签Connector延期或人最后总体门。

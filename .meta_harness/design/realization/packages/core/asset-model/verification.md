@@ -39,3 +39,7 @@
 | --- | --- | --- | --- |
 | 建议 3（前半） | 端口 `BodyContracts` 的类型形状未写；若不按类别判别，把一类实现交到另一类键下能编译、运行时只给错误裁决，没有会失败的检查 | 按 M51：端口类型按类别判别，错类编译期失败 | design.md 端口比较表「错类的实现」一行、依赖表那一行；本页新加一行 |
 | 建议 3（后半） | `BodyContracts` 有三处组合根（资产治理、据点注册表、asset-evaluation），分叉时没有检查失败 | 按 M51：只留一处——asset-evaluation 导出 `defaultBodyContracts`，治理与注册表 import 它；不另写多处一致性测试 | design.md 本方弱点、依赖表、AM-5；asset-evaluation「实现路径」 |
+
+## D-068 当前验证epoch
+
+当前设计输入为 `data.asset-model · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。

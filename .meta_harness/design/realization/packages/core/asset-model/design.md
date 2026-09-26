@@ -164,3 +164,15 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 ## 数值 Schema 适配的宿主范围补充
 
 公开schema-runtime保留原始Schema与无损输入，整数/边界/enum等按原十进制值判断，长度/元素/成员计数精确。`minContains`/`maxContains` 的超安全整型边界不构成合法open domain额外拒绝：实际JS数组长度至多2^32-1，超过MAX_SAFE的合法min界对数组永不满足、max界无约束，可用有实际反例与原值meta验证的宿主等价投影，不把投影当跨语言无限数组证明。无default的domain只需精确meta验证，不借编译新增拒绝。非标准Ajv扩展不成为本项目JSON Schema语义，调用方schema不得隐启异步验证。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.asset-model · v3`（[规范](../../../../spec/data/asset-model/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
+
+### 当前固定Schema资源组合
+
+AM3 `resources(bodies)`保留现有端口供当前正文Schema，不加新的公共resource字段；加入本包公开`./schema/v2`、CB公开`./schema/v2`与包内私有`schema/resources/tool-definition.v2.schema.json`。TD2私有文件从唯一冻结原件逐字复制，不能参加业务判定或产生AM→TD产品代码边。identity1、OE1、Connector2资源现状不变，CB3和五个真实正文的语义判定仍经原端口。
+
+真实probe在当前25个AM3 defs仅补CB2或AM2时仍缺TD2，全部补齐25/0；这不承诺AM2/Connector2各自全部defs图（另有Loop2/Messages2引用），不承诺任意第三方$id。替代端口须同一采用契约/$id与固定资源图，保持原三责任闭包。MCP connectionTarget/credential/two timeout域实际经AM和AE的组合必须验证；ConnectorDefinition仅规范编译资源，不是Connector实现。独立机制评审见 [记录](../../../../record/proposals/message-and-stream-baseline/reviews/2026-09-26-core-representation-and-resource-review.md)。

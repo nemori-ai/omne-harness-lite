@@ -94,3 +94,9 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 
 - **MR-1 副本对齐测试**：见[上节](#副本定义的对齐放在依赖方)。owner：本节点（义务，不是阻塞）。
 - **跨节点交接**：`judgeModelResponse` 只判一条响应体本身；S-26「它不能约束的」那一串由模型请求运行时在写入时兑现，写进它的 verification。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.model-response · v3`（[规范](../../../../spec/data/model-response/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。

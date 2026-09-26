@@ -43,3 +43,7 @@
 | 编号 | 发现 | 处置 | 落点 |
 | --- | --- | --- | --- |
 | 范围外 | 两条绑定（S-6 P-1、S-27 P-7）的有效性前提是三份变异配置给得出反例，那次运行的原始输出未入 record/evidence，只有契约 verification 的文字记录 | 按 M54：主线把三份变异配置跑成证据 run `2026-09-25-validity-stream-assembly`（全部退出 12）；两条绑定的 `assumptions` 改指这个 run | bindings.yaml 顶部注释与两条的有效性前提那一项；本页 V-1 行、「实际执行」第二行；覆盖缺口删去原「变异配置未入库」一条 |
+
+## D-068 当前验证epoch
+
+当前设计输入为 `capability.stream-assembly · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。

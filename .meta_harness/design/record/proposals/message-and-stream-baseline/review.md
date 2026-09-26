@@ -38,3 +38,7 @@
 ## 2026-09-26：D-068 精确 core v3 表达修订
 
 沿本topic已采用的四个候选与D060 N32接续，不新作起点选择。八份3的初审、两阻断修复与独立复审记录见 [独立规格评审](reviews/2026-09-26-core-v3-spec-review.md)；复审无阻断，接受仍由主调度在用户技术委托范围写 [D-068](../../decisions/core-implementation-spec-reconciliation/README.md)。
+
+## 2026-09-26：core 表示投影与固定资源
+
+[两处类型恢复修复与AM3固定资源机制的独立架构复核](reviews/2026-09-26-core-representation-and-resource-review.md) 均无阻断，严格保留运行范围与外部责任。采用动作由D-068主调度追加，不修改冻结业务契约。

@@ -45,3 +45,7 @@
 | 范围外 | 规则来源的三份契约不登 catalog，规格演进的消费者影响分析会漏本节点 | 按 M52：主线把 `data.skill-package#S-13、S-17`、`data.slash-command#S-6、S-11`、`data.connector#S-11` 登进 catalog（本节点不改 registry） | 同上 |
 | 建议 3（asset-model 节点提出，后半落本节点） | `BodyContracts` 三处组合根，分叉时没有检查失败 | 按 M51：本模块成为唯一组合根，导出 `defaultBodyContracts`；资产治理与注册表 import 它 | design.md「实现路径」第二条、依赖表「被消费」一行、状态一节、AE-7；本页新加一行 |
 | 按节点备注 | 公开面五个函数多于契约的两个操作；AE-6 签名对齐是与资产治理的开放交接 | 三个 S-23 函数是契约规则的投影、与第 4 步共用一份实现，不改；AE-6 已由 N-22 推导接受为已对齐 | design.md AE-6 |
+
+## D-068 当前验证epoch
+
+当前设计输入为 `capability.asset-evaluation · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。

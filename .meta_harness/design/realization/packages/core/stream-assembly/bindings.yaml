@@ -39,3 +39,7 @@ bindings:
       - "证的是模型，不是实现；实现侧的证据是性质测试 V-3（随机切分与合并），尚无"
       - "run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c），任务 stream-assembly-v2-assembly 退出 0"
     alignment_checked: "2026-09-25"
+
+# 2026-09-26 核正：以上stream-assembly-v2-assembly是D066行政登记alias；历史raw目录实际v1。
+# 当前Assembly.tla/cfg与历史raw差坐标注释，不能声称当前冻字节等于旧运行输入。
+# D068当前采用3的模型/配置与源2同字节；以上绑定保持原v2范围，不提升为当前3实际执行或实现验收。

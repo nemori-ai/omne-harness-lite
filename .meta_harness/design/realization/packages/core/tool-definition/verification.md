@@ -45,3 +45,7 @@
 | 范围外 | `@eslint-community/regexpp` 是新第三方依赖，须主线登记 | 按 M55：作候选依赖登在「实现路径」，版本钉定与许可核对在实施程 | design.md「实现路径」、依赖节末段、TD-2 |
 
 另：契约 G-16 随 [N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16 加入判定时限，本节点登记为 U-8；G-15 由同一裁定关闭。
+
+## D-068 当前验证epoch
+
+当前设计输入为 `data.tool-definition · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。

@@ -144,3 +144,9 @@
 - **SA-2 标准 base64 的严格判定**：`payload_kind_mismatch` 要求「语音的片段不是标准 base64」即拒；Node 的 `Buffer.from(s, "base64")` 对非法字符宽容、不报错。这一判定在 `data.arrival-events` 的表示层里，执行点是 arrival-events 的 `judgeArrivalEnvelope`，本模块只在物化快照时把字节重编成标准 base64。候选：先用正则核标准字母表与填充，再解码；Node 24 是否已带严格的 `Uint8Array.fromBase64`——**假设，须按 source-check 取证**（basis 无此条目；它是 Node 事实，不是 Cordis 语义）。owner：arrival-events 节点落包时（本节点随之）。
 - **SA-3 一致性用例的机读形式**：V-2 要「同一份语言无关用例」，`examples.md` 第 2～8 节是表格与手算，还没有机读的 JSON 用例集。owner：本节点起草用例文件、契约 owner 核对它与 examples 逐项相同；在那之前 V-2 只能按表手抄进测试。
 - **跨节点交接**：S-28 第 1～9 条由两个宿主节点落（模型请求运行时、工具执行运行时）；本节点对它们只有一个要求——**宿主撤除时在途的流调 `abandon`，不交 `finish { interrupted }`**（S-28 第 6 条），写进各自的装卸配对表。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `capability.stream-assembly · v3`（[规范](../../../../spec/capabilities/stream-assembly/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。

@@ -60,3 +60,7 @@ Node24.18.0／Vitest4.1.11／TypeScript6.0.3／Ajv8.20.0；包 engines 固定 `>
 | --- | --- | --- | --- |
 | 应修 1 | 严格无损读写依赖 Node 的 `context.source` 与 `JSON.rawJSON`，节点只标了「假设、须取证」；它是全批 M36 的唯一实现点，取证要在实现路径定稿前做 | 按 M49：探针入证据库（Node v24.18.0，退出 0），改为「已取证（Node ≥ 24.18.0，实施时以 `engines` 钉下限）」；手写解析器退路保留为改选条件；置信度由中升中高 | design.md「严格的无损 JSON 读写」前提一行、改选条件与本方弱点；本页 V-6 状态 |
 | 范围外 | 「每一跳无损」对已实现的 `infra/storage-sql` 产生新要求（JSON 列按文本、驱动不自动解析），没有登记处 | 按 M53：定为全库口径，登为 storage-sql 的实施缺口（owner storage-sql），本节点不改自身设计 | design.md CB-2；本页覆盖缺口第二条 |
+
+## D-068 当前验证epoch
+
+当前设计输入为 `data.content-blocks · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。

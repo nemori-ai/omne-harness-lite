@@ -150,3 +150,9 @@ S-15 ⑦ 与 SC-2 要求消费者的缓存键覆盖整份输入（含 `standing`
 - **AE-5 组输入的两份上游（下一程）**：`root.references` 由装配清单的读方从 Agent Definition 正文读出（PRE-9）——装配清单的接口契约 [`capability.assembly-manifest/v2`](../../../../spec/capabilities/assembly-manifest/v2/contract.md) 已定，但它**不收记录内容的形状**（[S-2](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-2-本契约不拥有什么) 前两行），`root.references` 怎样从正文读出不在接口里，仍归 PF-004 那一程、真承接者未到（该契约 [G-1](../../../../spec/capabilities/assembly-manifest/v2/contract.md#十已知缺口)，即 D-060 §八 M43 C-2）；据点上组输入要的「四格同一时刻的一致读」（PRE-1）经中心事实副本的读面——**本程不补**，M43 C-3（随未来资产/据点入口（版本未分配））。owner：主线。本模块不受阻（它只收值）；受阻的是据点侧组输入的一方（注册表、据点装配）。
 - **AE-6 已对齐**：三个导出函数的签名与 asset-governance 节点的写时守卫已对齐，[D-060 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 推导接受。资产治理把「界写在界外」也交给 `pickWithinBound` 判，是那边对 S-23 第 2 条「落在界内」的读法；本模块的函数语义（`P ∩ X` 非空或 `P` 是空集）不因此变，两处用法共用这一份实现。
 - **AE-7 组合根的消费方**：`defaultBodyContracts` 由资产治理插件体与据点注册表 import（M51）。资产治理节点已按此改写；注册表那一侧的改写归 asset-registry 节点。owner：各自节点。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `capability.asset-evaluation · v3`（[规范](../../../../spec/capabilities/asset-evaluation/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。

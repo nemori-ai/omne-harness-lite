@@ -1,5 +1,15 @@
 # messages
 
+## 当前采用与实施层（2026-09-26 D-068）
+
+设计显式采用 `data.messages · v3`，精确 [规范](../../../../spec/data/messages/v3/contract.md) 与 [接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 已冻结；采用依据为 [D-068追加](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md)。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
+
+- 可实施：沿新规范全部本节点责任和下文既有投影，只有D-068明确的表示／采用／错误例变化；不扩展外部runtime或存储。
+- 源码：`packages/core/messages` 已建立；当前公开产物仍是已核的2采用实现，新3 Schema／消费者闭包正在升级，不能以规格接受当实现完成。
+- 验证：旧2原证据保留其精确输入；当前3需包内回归、公开dist／旧Schema闭包、W6真实组合及逐ID独立签收。2实现现有469测试通过只作旧范围证据。用户最后总体接受未发生。
+
+## 原2采用投影记录
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.messages · v2`（[契约](../../../../spec/data/messages/v2/contract.md)，状态 `accepted`，接受由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/messages`——**尚未建包**。归 `core`：它是 `data.*`，被 `model`、`tools`、`agent-loop` 与连接件消费

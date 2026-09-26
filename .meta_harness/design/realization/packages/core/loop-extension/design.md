@@ -92,3 +92,13 @@ S-37 的 `inject_source_mismatch` 与 frozen examples §7 最后一行一致：�
 ## 实施缺口与消费者影响
 
 契约的已知缺口（第十四节）不重抄。本节点没有自己的缺口。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.loop-extension · v3`（[规范](../../../../spec/data/loop-extension/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
+
+### 公开表示恢复入口
+
+`judgeInput/judgeOutput/judgeConclusion`成功前恢复规范位置的CB/Msg领域表示，不搜索opaque字段内部；S14/S36/S38的形状边界不新增完整消息业务拒绝。`isExtensionInput/isExtensionOutput/isConclusion`只是boolean形状报告。 原红readOpaqueJson TypeError与四包2范围修复已实际核对；当前3采用仍需重跑，不把此局部恢复当完整opaque静态证明或执行许可。

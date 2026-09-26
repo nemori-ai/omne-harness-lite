@@ -171,3 +171,13 @@ adapter区分元Schema不合、编译失败、实例不符；领域拒绝次序�
 精确数/整数联合/界限/multipleOf/const/enum/uniqueItems/长度与成员数保留原值；min/maxContains超safe边界按实际JS数组length<2^32的有界等价处理，无default的合法AMdomain不得因多余compile添拒绝。此等价不声称跨语言无限数组，也不因有helper就声称完整Draft全保证。
 
 迁移门：单一实现且CB无AM反向import；built子入口与AM/tool/messages真实consumer；嵌套/外部$id/$ref/$dynamicRef原值上下文、含/~成员与交错调用；修改资源/作者Schema不改绑定validator；原数字oracle/混合正则/异常/g-y守卫；冻结资源与旧CB固定校验不变。实际证据另登记，本映射接受不等于实现已过门。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.content-blocks · v3`（[规范](../../../../spec/data/content-blocks/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
+
+### 公开表示恢复入口
+
+公开 `contentBlockFromRepresentation(unknown):ContentBlock`：先中性copy和完整固定Schema，再权威品牌/opaque构造；只表示恢复，不作S26完整跨成员业务判断，非法形状前提TypeError。 原红readOpaqueJson TypeError与四包2范围修复已实际核对；当前3采用仍需重跑，不把此局部恢复当完整opaque静态证明或执行许可。

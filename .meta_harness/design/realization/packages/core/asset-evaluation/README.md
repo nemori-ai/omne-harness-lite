@@ -1,5 +1,15 @@
 # asset-evaluation
 
+## 当前采用与实施层（2026-09-26 D-068）
+
+设计显式采用 `capability.asset-evaluation · v3`，精确 [规范](../../../../spec/capabilities/asset-evaluation/v3/contract.md) 与 [接受](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 已冻结；采用依据为 [D-068追加](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md)。此段取代以下原2当前采用／源码不存在的旧说明，旧投影按历史读，不代替新实际验证。节点身份、纯模块或构件边界、公开操作、外部所有者与Connector延期不变。
+
+- 可实施：沿新规范全部本节点责任和下文既有投影，只有D-068明确的表示／采用／错误例变化；不扩展外部runtime或存储。
+- 源码：`packages/core/asset-evaluation` 已建立；当前公开产物仍是已核的2采用实现，新3 Schema／消费者闭包正在升级，不能以规格接受当实现完成。
+- 验证：旧2原证据保留其精确输入；当前3需包内回归、公开dist／旧Schema闭包、W6真实组合及逐ID独立签收。2实现现有161测试通过只作旧范围证据。用户最后总体接受未发生。
+
+## 原2采用投影记录
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，同日按 [D-060 §八 M31、M32、M41、M45、N-21](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 对齐契约终稿，并单独导出 S-23 的界与挑选；兑现 `omne-harness-lite-design-2026-09-15 · capability.asset-evaluation · v2`（[契约](../../../../spec/capabilities/asset-evaluation/v2/contract.md)，状态 `accepted`，接受由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/asset-evaluation`——**尚未建包**。归 `core`：契约是纯计算（[S-11](../../../../spec/capabilities/asset-evaluation/v2/contract.md#s-11-纯计算)），被 `assets`（资产治理的设置视图）、`tools`（注册表、MCP 桥）、`agent-loop`（拓展件派发）与据点装配消费（[D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md) 接受 assets 候选 B：「资产模型与求值进 `core` 作数据契约与纯计算」）
