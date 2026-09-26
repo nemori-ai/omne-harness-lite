@@ -1,0 +1,23 @@
+import { type Parsed } from './parsed.ts';
+/**
+ * 不透明标识的交换表示（data.identity-values/v1#S-31）：非空字符串，首尾不属于下列显式空白码点集合，
+ * 相等是逐码点精确相等——不做 Unicode 规范化、不折叠大小写、不裁剪。
+ *
+ * 集合与 Schema 的 pattern 逐字对应；不用 `\s`（引擎间集合不同），不用 `$`（Python 会匹配到末尾换行之前）。
+ */
+export declare const OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS: readonly number[];
+declare const brand: unique symbol;
+/** 品牌类型：不同种类的标识在编译期互不相容（S-2：登录标识不是 AccountId）。 */
+export type Branded<T, B extends string> = T & {
+    readonly [brand]: B;
+};
+export type OpaqueIdentifier<B extends string> = Branded<string, B>;
+/**
+ * S-31 的词法校验：只看形状，不解析内容。
+ * 返回 `invalidInput` 的三种情形：不是字符串、空串、首或尾码点属于空白集合。
+ */
+export declare function parseOpaqueIdentifier<B extends string>(value: unknown, kind: B): Parsed<OpaqueIdentifier<B>>;
+/** 逐码点精确相等（S-31）。字符串的 `===` 在 JS 里就是码元序列相等，等价于码点序列相等。 */
+export declare function opaqueIdentifierEquals<B extends string>(a: OpaqueIdentifier<B>, b: OpaqueIdentifier<B>): boolean;
+export {};
+//# sourceMappingURL=opaque.d.ts.map

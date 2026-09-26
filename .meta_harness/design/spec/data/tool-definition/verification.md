@@ -243,3 +243,7 @@ V-1、V-3～V-12 尚无执行记录。首次执行时在此记录工具与版本
 **对消费者**：`capability.tool-execution-runtime` 同批改（S-11 九个种类、S-23 ④⑤，丑落）；`capability.mcp-bridge` S-17 已按 M37 跟进（丑落，上节「已报主线」那一条就此办完）。
 **registry**：`capability.tool-execution-runtime` → 本契约的 clauses 补 `S-26`；本契约的依赖不变（引执行运行时 S-23、S-41 是落点指路，data 契约不登对 capability 的依赖）。
 **对证据的影响**：新行在 §10（不参与机检）；本轮暂存区机检（`jsonschema` 4.26.0）覆盖 examples 第 1～8、11 节的实例与由 B／第 2、3 节派生的反例，**116 处 0 不符**（含第 5 节 `schema_unsupported` 两行的「Schema 通过」；第 13 行本身依实现上限，通用校验器给不出）。新义务并入 V-12（判定超时不照常执行、只落这一项），归执行运行时的场景，未开始。
+
+## 2026-09-26 D-068 当前 v3
+
+`data.tool-definition · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-09-26 core最终交付与Skill3**：[新实际运行及逐项签收](2026-09-26-tests-core-skill-v3/README.md)接续此前217/221事件，当前221/221（六混合项只NonConnector）及U1另13项已技术接受，Skill完成后的用户发布授权条件满足；适用6534项回归、54独立行为、20真实tarball及44双语README／57例。原递归的一处冻结输入接线失败、main继承三个迁移失败和GitHub runner未启动均按实际范围保留，不声称全仓或Actions全绿。
+
 这里保存实际执行留下的配置、输入快照和原始结果：形式任务的 TLC 输出、
 符合性测试的运行记录、真实集成的观察。
 
@@ -150,3 +152,8 @@ evidence/
 **2026-09-26 D055/D056治理维护**：[固定源码与制品、真实Linux服务、双OS与大库、独立QA](2026-09-26-tests-governance-maintenance/README.md)。包含全部失败尝试和限定结论；不提升安全重新开放或整机损毁灾备范围。
 
 [2026-09-26 PR #9/#10 协调检查](2026-09-26-checks-pr9-pr10-reconciliation/README.md)：固定两线输入、冻结字节与迁移闭包核对、仓库及产品回归；既有跨 OS/部署/形式结果保留原范围。
+
+**2026-09-26 core 首批实现验证**：[`2026-09-26-tests-core-foundation/`](2026-09-26-tests-core-foundation/README.md) 保存 kernel-basis、identity-values、offer-expiry、storage 与 content-blocks 的实际运行、输入快照和失败原文。30／259／31／306 项包内测试及 storage 两项有效性自测分别沿该 run 的范围读取；规则自测最终 101 项与真实 24 规则扫描另列。storage 原 spoke 日志丢失只采用保存的 HUB 复验；content 首次扫描失败与修正后结果分别保留。消费者组合、实际准入与各 JSON 传递边界不因本轮包内通过而闭合，用户总体验收尚未发生。
+
+
+[2026-09-26 当前core v3实际模型执行](2026-09-26-formal-core-v3/README.md)：SA正配置826411 distinct及三有效变异，AE／Messages263主Alloy读数与28 XML补取；完整输入/raw/封存、有限范围与不覆盖实现分别登记。

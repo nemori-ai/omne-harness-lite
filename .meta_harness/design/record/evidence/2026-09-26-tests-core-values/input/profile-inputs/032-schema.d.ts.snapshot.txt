@@ -1,0 +1,9 @@
+export declare const schemaId: string;
+export declare const SCHEMA_DEF_NAMES: readonly ["ModelProfile", "ModelProfileContent", "ModelProfileSnapshot", "ModelProfileRef", "RouteName", "ProfileOrigin", "ProviderName", "InputConstraints", "Registration", "ModelRequestParameters", "ReasoningEffort"];
+export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number];
+export interface SchemaValidation {
+    readonly valid: boolean;
+}
+/** Shape only. In particular this does not check the S-18 cross-field relation. */
+export declare function validate(defName: SchemaDefName, value: unknown): SchemaValidation;
+//# sourceMappingURL=schema.d.ts.map

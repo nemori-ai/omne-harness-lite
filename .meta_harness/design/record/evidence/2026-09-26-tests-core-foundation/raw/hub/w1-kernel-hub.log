@@ -1,0 +1,24 @@
+
+> @omne-harness-lite/kernel-basis@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/kernel-basis
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+
+
+> @omne-harness-lite/kernel-basis@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/kernel-basis
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/kernel-basis@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/kernel-basis
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/kernel-basis
+
+
+ Test Files  11 passed (11)
+      Tests  30 passed (30)
+Type Errors  no errors
+   Start at  04:32:13
+   Duration  820ms (transform 1.40s, setup 0ms, import 2.21s, tests 311ms, environment 2ms)
+

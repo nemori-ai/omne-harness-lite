@@ -99,7 +99,7 @@ S-3、S-14 的词法交给 realization（契约 G-4）；`data.messages` 的 G-1
 **读不出之后是什么，两处不同**（契约 S-24 末段，[N-20](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受）：参数串的那一次解析（S-12）读不出 ⇒ 落成解析不了的调用块、**仍是一次已登记的调用**；接收边界读块或消息的文本（S-24、`data.messages/v2#S-37`）读不出 ⇒ `malformed`、**这份文本不是一个块**。所以读法只交中性的 `{ failed }`，映射留给调用处。
 S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data.asset-model` 清单的「成员名重复即 `malformed`」都落在这一件上，所以它的家在本包（本批包依赖图的底，所有用它的包本来就依赖本包）。
 
-- **值的表示**：`readJsonStrict` 交出普通的 JSON 值，只有数字多一种：**一个数字字面量转成双精度再转回去仍是同一个十进制数值，就交 `number`；否则交 `LosslessNumber`（不透明，内部是原文）**。所以 `9007199254740993` 与 `0.1000000000000000055511151231257827` 交原文，`0.1`、`42` 交 `number`——数值上都不丢。金额的精确加法在 `data.call-accounts` 那一层把两种都换成十进制再算。
+- **值的表示**：实施提交 `44b84525` 采用保守的无损表示：只有规范写法的普通安全整数（不含负零）交 `number`，其余数字交冻结 `LosslessNumber` 并保留原文字面量。因此 `0.1`、`1.10`、`-0`、`1e400` 和大整数均保留原文，`42` 交 number。与原候选的十进制数值往返判断相比，这一选法同时保留数字书写形式，公开联合类型 `JsonNumber = number | LosslessNumber` 与契约的数值含义不变；金额层将两种都转为精确十进制计算。数字读边界为 `jsonNumberSource`，整数约束为 `isNonNegativeJsonInteger`；本包固定 Schema 的投影不开放成任意 Schema 通用辅助。
 - **读**：先用 `JSON.parse`（reviver 的第三个参数 `context.source` 取每个数字的原文）判语法并取值；通过之后再扫一遍文本，按对象收集**解码后的**成员名（`"a"` 与 `"a"` 是同一个名字），有重复即失败。失败一律交 `{ failed }`（语法不合 RFC 8259 或重复成员名两种原因作诊断），不交半份值、不交挑过键的值。
 - **写**：`writeJsonLossless` 用 `JSON.rawJSON(原文)` 把 `LosslessNumber` 原样写回。
 
@@ -124,7 +124,7 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 
 ## 状态、并发与失败映射
 
-**无状态、无提交点、无并发。**全部入口是纯函数。
+**数据入口无持久状态、无提交点。**既有块/JSON入口是纯函数；新增Schema技术入口的编译器与缓存由显式构造者持有，见下文。
 
 **失败映射**：表示层拒绝 ⇒ `{ rejected: 值 }`（六个之一，恰一个）；严格读入失败 ⇒ `{ failed }`，由调用处按契约映射：读块或消息文本的接收边界 ⇒ `malformed`（S-24、`data.messages/v2#S-37`），参数串的那一次解析 ⇒ 解析不了的调用块（S-12）。**都不抛异常**；抛出只留给本模块自身的缺陷。拒绝不是判定：被拒的工具结果块**不是**一次 `failed`（S-27）。
 
@@ -134,18 +134,50 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 
 ## 静态检查义务怎么承载
 
-[契约的 SC-1～SC-4](../../../../spec/data/content-blocks/verification.md#静态检查义务) 约束的多是消费者的代码路径。本节点承载的（都**尚无**）：
+[契约的 SC-1～SC-4](../../../../spec/data/content-blocks/verification.md#静态检查义务) 约束的多是消费者的代码路径；模块侧实现与后置消费者检查分开记录：
 
 | 检查 | 形式 | 谁跑 |
 |---|---|---|
 | SC-2 不解析半截调用的 `rawArguments`；完整调用只读 `arguments` | 本包不导出任何作用于 `rawArguments` 的解析辅助；规则（候选）：产品源码里 `readJsonStrict` 与 `JSON.parse` 的调用点白名单 | stream-assembly 与消费者包 |
-| SC-3 除传输适配外不读写 `opaque` | 类型：`opaque` 是不透明品牌类型，只有 `writeJsonLossless` 能展开 | 全部消费者 |
+| SC-3 除传输适配外不读写 `opaque` | 类型：`OpaqueJson` 不暴露内容成员；`writeJsonLossless` 能原样写出，`toOpaqueJson`／`readOpaqueJson` 是显式传输适配边界。普通消费者的直接结构读取被类型负例拒绝，传输边界调用限制仍归消费者检查，不声称公开函数构成权限隔离 | 全部消费者 |
 | SC-1、SC-4 | 落在会话日志写入方与各消费者节点 | 各消费者 |
+
+## 2026-09-26 中性 JSON 表示复制入口
+
+根入口公开现有 `copyJsonValue(value: unknown) → { ok: JsonValue } | { failed: "not_json" }`。这是 `writeJsonLossless` 与校验器已经共用的 JSON 交换表示投影：保留普通有限 `number`（含 `-0`）与 `LosslessNumber` 原文，复制并递归冻结容器，拒绝循环及非 JSON 属性。普通对象的访问器和 `toJSON` 不会被调用；反射仍可能触发 `Proxy` trap，不声称任意代理对象都不执行调用方代码。AE 可据此复制已解析的 JSON 表示、作 Schema 输入或整输入指纹，避免重新文本解析改变数值表示，或再次实现包装识别。
+
+该结果会移除 `OpaqueJson` 包装，**不是保留领域类型的复制结果**；不得直接断言为保留品牌的 `ContentBlock` 或其他领域对象。需要领域类型时保留原包装，或经其权威判定入口重新建立类型。它不新增接收边界拒绝值、不补救已经发生的数值丢失，也不授权普通消费者读取 opaque 路径、据其内容分支或改写后回填；SC-3 的消费者核对必须覆盖此入口，不能只查 `readOpaqueJson` 调用点。此窄技术投影经独立 architecture-reviewer 只读复核，无本范围阻断；公开构建消费者的实际证据另按运行登记，不能以评审替代实现验收。
 
 ## 实施缺口与消费者影响
 
 契约的已知缺口（G-1、G-4、G-10）不重抄。本节点自己的缺口：
 
 - **CB-1 铸号方**：本节点给了词法候选，**铸号在别处**——`BlockId` 由模型侧传输适配与工具侧帧入口、落盘前补派生表示的一方铸；`CallId` 是否沿用上游调用 id、会话日志内唯一由登记它的模型请求运行时守。几处要用同一个生成器。owner：主线协调；落在 model-request-runtime、tool-execution-runtime 两个节点。
-- **CB-2 无损读写只在用它的边界上有效**：`opaque`、`arguments`、金额从 JSON 文本读成值的**每一处**（存储提供者读 JSON 列、传输适配读上游响应、工具运行时收工具返回、跨进程的每一跳）都要走 `readJsonStrict`／`writeJsonLossless`（M36「落盘与回读走无损读写」；契约第四节新加的「数无损、重复键不被挑一个」一行把它写成**每一跳**的协议义务）。存储那一跳已由 [D-060 §八 M53](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定为全库口径（JSON 列以 `text` 存取，驱动与 Kysely 不自动 `JSON.parse`／`stringify`，无损读写在应用层用本包），登为 `infra/storage-sql` 的实施缺口；两个运行时节点的读写边界仍各自承接。owner：storage-sql 与两个运行时节点；本节点另欠一条「丢位或放过重复键即失败」的测试。
+- **CB-2 无损读写只在用它的边界上有效**：`opaque`、`arguments`、金额从 JSON 文本读成值的**每一处**（存储提供者读 JSON 列、传输适配读上游响应、工具运行时收工具返回、跨进程的每一跳）都要走 `readJsonStrict`／`writeJsonLossless`（M36「落盘与回读走无损读写」；契约第四节新加的「数无损、重复键不被挑一个」一行把它写成**每一跳**的协议义务）。存储那一跳已由 [D-060 §八 M53](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定为全库口径（JSON 列以 `text` 存取，驱动与 Kysely 不自动 `JSON.parse`／`stringify`，无损读写在应用层用本包），登为 `infra/storage-sql` 的实施缺口；两个运行时节点的读写边界仍各自承接。owner：storage-sql 与两个运行时节点；本节点模块侧「丢位或放过重复键即失败」测试已随 `44b84525` 交付，HUB 复验306条通过；原始结果与边界见 [verification](verification.md)。
 - **CB-3 附件存储**：`AttachmentRef` 的解引用与租户判定（契约 G-1）属 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-6，**本程不补、留给下一程**，owner 主线。
+
+## 2026-09-26 实际构建面
+
+源码已建于 `packages/core/content-blocks`，`engines` 限 Node ≥24.18.0、<25；固定 Schema 通过本包公开 `./schema` 静态 JSON import 加载。值、类型、校验与 JSON 边界从公开构建入口消费；源码检查不依赖 Cordis、kernel、storage 或非 core 插件。运行结果归 [verification](verification.md)，本页不把外部每一跳、日志不变或标识唯一提升为模块保证。
+
+## 中性 Schema 技术子入口
+
+2026-09-26实施发现messages依赖图不含AM，而同一无损Schema机制需要复用。经独立architecture-reviewer归属评审无阻断，主调度在技术验收授权内接受将原AM新helper整体迁入本节点。CB已经拥有JsonValue/LosslessNumber和Ajv；AM/tool/messages均已依赖CB，不新增D-060 M41领域包边。不是把本包固定Schema私有投影直接开放，固定块校验保持不变。
+
+公开 `@omne-harness-lite/content-blocks/schema-runtime`：技术输入 `SchemaDocument = boolean | JsonObject`（不从AM取JsonSchema），`createSchemaRuntime(resources: readonly SchemaDocument[], options?: SchemaRuntimeOptions): SchemaRuntime`，options只有可选 `patternFactory(source):RegExp`；返回 `metaValidate(schema):boolean`、`compile(schema):SchemaValidator`，validator.validate(JsonValue):boolean。原Schema、固定$id资源、调用方实例严格无损，复制冻结；编译器/缓存归构造它的调用方随引用释放，标准元Schema是固定输入，不建立module增长作者cache，无IO/异步/遥取。
+
+adapter区分元Schema不合、编译失败、实例不符；领域拒绝次序和tool参数子集留消费者。低层exact keywords/projection/originalRoot不公开、不要求调用者手工配对；回调必须确定无副作用，native RegExp禁止g/y，异常原抛；不开放任意Ajv选项或async/remote refs。非标准Ajv扩展不会启用为领域语义。
+
+精确数/整数联合/界限/multipleOf/const/enum/uniqueItems/长度与成员数保留原值；min/maxContains超safe边界按实际JS数组length<2^32的有界等价处理，无default的合法AMdomain不得因多余compile添拒绝。此等价不声称跨语言无限数组，也不因有helper就声称完整Draft全保证。
+
+迁移门：单一实现且CB无AM反向import；built子入口与AM/tool/messages真实consumer；嵌套/外部$id/$ref/$dynamicRef原值上下文、含/~成员与交错调用；修改资源/作者Schema不改绑定validator；原数字oracle/混合正则/异常/g-y守卫；冻结资源与旧CB固定校验不变。实际证据另登记，本映射接受不等于实现已过门。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.content-blocks · v3`（[规范](../../../../spec/data/content-blocks/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
+
+### 公开表示恢复入口
+
+公开 `contentBlockFromRepresentation(unknown):ContentBlock`：先中性copy和完整固定Schema，再权威品牌/opaque构造；只表示恢复，不作S26完整跨成员业务判断，非法形状前提TypeError。 原红readOpaqueJson TypeError与四包2范围修复已实际核对；当前3采用仍需重跑，不把此局部恢复当完整opaque静态证明或执行许可。

@@ -1,0 +1,1128 @@
+{
+  "sourceSha256": "304122a7b1e8301a468148d31702ff55ed5f7debf06b2e79e0b4df291fee6536",
+  "rows": [
+    {
+      "id": "1.row-1",
+      "definition": "SkillName",
+      "value": "code-review",
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "1.row-2",
+      "definition": "SkillName",
+      "value": "Review_Checklist",
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "1.row-3",
+      "definition": "SkillName",
+      "value": "review:strict",
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "1.row-4",
+      "definition": "SkillName",
+      "value": "代码审查",
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "1.row-5",
+      "definition": "SkillName",
+      "value": "Code-Review",
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "1.row-6",
+      "definition": "SkillName",
+      "value": "code/review",
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M6"
+    },
+    {
+      "id": "1.row-7",
+      "definition": "SkillName",
+      "value": "code review",
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M6"
+    },
+    {
+      "id": "1.row-8",
+      "definition": "SkillName",
+      "value": "code-review\n",
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M6"
+    },
+    {
+      "id": "1.row-9",
+      "definition": "SkillName",
+      "value": "﻿code-review",
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M6"
+    },
+    {
+      "id": "1.row-10",
+      "definition": "SkillName",
+      "value": "",
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M6"
+    },
+    {
+      "id": "1.row-11",
+      "definition": "SkillName",
+      "value": 7,
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M4"
+    },
+    {
+      "id": "2.row-1",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "Review a code change for correctness. Use when asked to review a diff, a PR or a commit."
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "2.row-2",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "pdf-processing",
+        "description": "Extract PDF text. Use when handling PDFs.",
+        "license": "Apache-2.0",
+        "compatibility": "Requires Python 3.14+ and uv",
+        "metadata": {
+          "author": "example-org",
+          "version": "1.0"
+        },
+        "allowed-tools": "Bash(git:*) Read"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "2.row-3",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "d",
+        "license": ""
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "2.row-4",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M2"
+    },
+    {
+      "id": "2.row-5",
+      "definition": "SkillManifest",
+      "value": {
+        "description": "d"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M2"
+    },
+    {
+      "id": "2.row-6",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": ""
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M5"
+    },
+    {
+      "id": "2.row-7",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M5"
+    },
+    {
+      "id": "2.row-7.boundary-1024",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "2.row-8",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "d",
+        "compatibility": ""
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M5"
+    },
+    {
+      "id": "2.row-9",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "d",
+        "metadata": {
+          "version": 1
+        }
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M4"
+    },
+    {
+      "id": "2.row-10",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "d",
+        "metadata": {
+          "a": {
+            "b": "c"
+          }
+        }
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M4"
+    },
+    {
+      "id": "2.row-11",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "d",
+        "allowed-tools": [
+          "Read"
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M4"
+    },
+    {
+      "id": "2.row-12",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "d",
+        "user-invocable": false
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M3"
+    },
+    {
+      "id": "2.row-13",
+      "definition": "SkillManifest",
+      "value": {
+        "name": "code-review",
+        "description": "d",
+        "allowedTools": "Read"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M3"
+    },
+    {
+      "id": "3.row-1",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "references/checklist.md"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "3.row-2",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "scripts/extract.py",
+        "mediaType": "text/x-python"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "3.row-3",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "assets/logo.png",
+        "mediaType": "image/png"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "3.row-4",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "agents/openai.yaml"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "3.row-5",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": ".hidden/..notes"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "3.row-6",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "skill.md"
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "3.row-7",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "scripts/extract.py",
+        "executable": true
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M3"
+    },
+    {
+      "id": "3.row-8",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "scripts/extract.py",
+        "executable": false
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M3"
+    },
+    {
+      "id": "3.row-9",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "a.md",
+        "mediaType": "Text/Markdown"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M9"
+    },
+    {
+      "id": "3.row-10",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "a.md",
+        "sha256": "9f86"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M3"
+    },
+    {
+      "id": "3.row-11",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "../other-skill/SKILL.md"
+      },
+      "schema": false,
+      "rejected": "resource_escapes",
+      "malformed": null
+    },
+    {
+      "id": "3.row-12",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "a/../../b"
+      },
+      "schema": false,
+      "rejected": "resource_escapes",
+      "malformed": null
+    },
+    {
+      "id": "3.row-13",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "/etc/passwd"
+      },
+      "schema": false,
+      "rejected": "resource_escapes",
+      "malformed": null
+    },
+    {
+      "id": "3.row-14",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "C:/skills/x"
+      },
+      "schema": false,
+      "rejected": "resource_escapes",
+      "malformed": null
+    },
+    {
+      "id": "3.row-15",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "scripts\\run.py"
+      },
+      "schema": false,
+      "rejected": "resource_escapes",
+      "malformed": null
+    },
+    {
+      "id": "3.row-16",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "scripts//run.py"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M7"
+    },
+    {
+      "id": "3.row-17",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "./a.md"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M7"
+    },
+    {
+      "id": "3.row-18",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "references/"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M7"
+    },
+    {
+      "id": "3.row-19",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": ""
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M7"
+    },
+    {
+      "id": "3.row-20",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": "SKILL.md"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M7"
+    },
+    {
+      "id": "3.row-21",
+      "definition": "ResourceEntry",
+      "value": {
+        "path": ".omne/skill.json"
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M7"
+    },
+    {
+      "id": "4.row-1",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-2",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "tool",
+            "name": "read_file"
+          },
+          {
+            "category": "tool",
+            "name": "run_tests"
+          }
+        ]
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-3",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "dependencies": [
+          "github-api"
+        ]
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-4",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [],
+        "dependencies": [],
+        "settings": []
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-5",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 2
+      },
+      "schema": false,
+      "rejected": "definition_format_unsupported",
+      "malformed": null
+    },
+    {
+      "id": "4.row-6",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": "1"
+      },
+      "schema": false,
+      "rejected": "definition_format_unsupported",
+      "malformed": null
+    },
+    {
+      "id": "4.row-7",
+      "definition": "SkillDefinitionRecord",
+      "value": {},
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M15"
+    },
+    {
+      "id": "4.row-8",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "skill",
+            "name": "style-guide"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "tool_ref_invalid",
+      "malformed": null
+    },
+    {
+      "id": "4.row-9",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "mcp",
+            "name": "github"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "tool_ref_invalid",
+      "malformed": null
+    },
+    {
+      "id": "4.row-10",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "converter",
+            "name": "x"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "tool_ref_invalid",
+      "malformed": null
+    },
+    {
+      "id": "4.row-11",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "tool",
+            "name": "read/file"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "tool_ref_invalid",
+      "malformed": null
+    },
+    {
+      "id": "4.row-12",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          "tool/read_file"
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M10"
+    },
+    {
+      "id": "4.row-13",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "tool"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M10"
+    },
+    {
+      "id": "4.row-14",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "tool",
+            "name": "read_file"
+          },
+          {
+            "category": "tool",
+            "name": "read_file"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M10"
+    },
+    {
+      "id": "4.row-15",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "dependencies": [
+          ""
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M11"
+    },
+    {
+      "id": "4.row-16",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "dependencies": [
+          "github-api",
+          "github-api"
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M11"
+    },
+    {
+      "id": "4.row-17",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "resident": true
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M3"
+    },
+    {
+      "id": "4.row-18",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "permissions": []
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M3"
+    },
+    {
+      "id": "4.row-19",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "environmentRequirement": {
+          "bindingLayer": "stateless_sandbox",
+          "facilities": [
+            "python"
+          ]
+        }
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-20",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "environmentRequirement": {
+          "bindingLayer": "host_machine",
+          "facilities": []
+        }
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-21",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "environmentRequirement": {
+          "bindingLayer": "cloud_vm",
+          "facilities": []
+        }
+      },
+      "schema": false,
+      "rejected": "binding_layer_unknown",
+      "malformed": null
+    },
+    {
+      "id": "4.row-22",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "environmentRequirement": {
+          "bindingLayer": "stateless_sandbox"
+        }
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M13"
+    },
+    {
+      "id": "4.row-23",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "environmentRequirement": {
+          "bindingLayer": "stateless_sandbox",
+          "facilities": [
+            "python",
+            "python"
+          ]
+        }
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M13"
+    },
+    {
+      "id": "4.row-24",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "environmentRequirement": {
+          "bindingLayer": "stateless_sandbox",
+          "facilities": [],
+          "default": {
+            "bindingLayer": "host_machine",
+            "facilities": []
+          }
+        }
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M13"
+    },
+    {
+      "id": "4.row-25",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "checklist",
+            "kind": "setting",
+            "category": "binding",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "references/strict.md",
+                  "references/lenient.md"
+                ]
+              }
+            },
+            "default": "references/strict.md"
+          }
+        ]
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-26",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "tone",
+            "kind": "setting",
+            "category": "preference",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "string"
+              }
+            },
+            "default": "concise"
+          }
+        ]
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-27",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "targetEnvironment",
+            "kind": "setting",
+            "category": "preference",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "string"
+              }
+            },
+            "default": "sandbox"
+          }
+        ]
+      },
+      "schema": true,
+      "rejected": null,
+      "malformed": null
+    },
+    {
+      "id": "4.row-28",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "reviewers",
+            "kind": "permission",
+            "domain": {
+              "kind": "enum",
+              "values": [
+                "a",
+                "b"
+              ]
+            },
+            "default": "a"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M12"
+    },
+    {
+      "id": "4.row-29",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "lockdown",
+            "kind": "setting",
+            "category": "governance",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "boolean"
+              }
+            },
+            "default": false
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M12"
+    },
+    {
+      "id": "4.row-30",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "disabled",
+            "kind": "setting",
+            "category": "governance",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "boolean"
+              }
+            },
+            "default": false
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M12"
+    },
+    {
+      "id": "4.row-31",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "tone",
+            "kind": "setting",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "string"
+              }
+            },
+            "default": "concise"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M2"
+    },
+    {
+      "id": "4.row-32",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "usableBy",
+            "kind": "setting",
+            "category": "preference",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "string"
+              }
+            },
+            "default": "self"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "malformed",
+      "malformed": "M12"
+    },
+    {
+      "id": "4.row-33",
+      "definition": "SkillDefinitionRecord",
+      "value": {
+        "format": 1,
+        "settings": [
+          {
+            "item": "tone",
+            "kind": "setting",
+            "category": "security",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "string"
+              }
+            },
+            "default": "concise"
+          }
+        ]
+      },
+      "schema": false,
+      "rejected": "setting_category_unknown",
+      "malformed": null
+    }
+  ],
+  "packages": [
+    {
+      "manifest": {
+        "name": "code-review",
+        "description": "Review a code change for correctness and readability. Use when asked to review a diff, a pull request or a commit."
+      },
+      "body": "\n# Code review\n\n1. Read the whole change before commenting.\n2. Check behaviour first, style last.\n3. Say what you would change and why.\n",
+      "resources": []
+    },
+    {
+      "manifest": {
+        "name": "code-review",
+        "description": "Review a code change for correctness and readability. Use when asked to review a diff, a pull request or a commit.",
+        "license": "Apache-2.0"
+      },
+      "body": "\n# Code review\n\nFollow the checklist named by the `checklist` setting.\nRead the files the change touches, then run the tests.\n",
+      "definition": {
+        "format": 1,
+        "tools": [
+          {
+            "category": "tool",
+            "name": "read_file"
+          },
+          {
+            "category": "tool",
+            "name": "run_tests"
+          }
+        ],
+        "settings": [
+          {
+            "item": "checklist",
+            "kind": "setting",
+            "category": "binding",
+            "domain": {
+              "kind": "open",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "references/strict.md",
+                  "references/lenient.md"
+                ]
+              }
+            },
+            "default": "references/strict.md"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "path": "references/strict.md",
+          "mediaType": "text/markdown"
+        },
+        {
+          "path": "references/lenient.md",
+          "mediaType": "text/markdown"
+        }
+      ]
+    },
+    {
+      "manifest": {
+        "name": "pr-triage",
+        "description": "Triage open pull requests and label them. Use when asked to sort or label the PR queue.",
+        "compatibility": "Needs network access to the code host"
+      },
+      "body": "\n# PR triage\n\nRun `scripts/triage.py` to list open pull requests, then label each one.\n",
+      "definition": {
+        "format": 1,
+        "dependencies": [
+          "github-api"
+        ],
+        "environmentRequirement": {
+          "bindingLayer": "stateless_sandbox",
+          "facilities": [
+            "python"
+          ]
+        }
+      },
+      "resources": [
+        {
+          "path": "scripts/triage.py",
+          "mediaType": "text/x-python"
+        },
+        {
+          "path": "references/labels.md",
+          "mediaType": "text/markdown"
+        }
+      ]
+    }
+  ]
+}

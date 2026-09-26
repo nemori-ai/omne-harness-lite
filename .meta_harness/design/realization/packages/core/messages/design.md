@@ -98,5 +98,19 @@
 
 契约的已知缺口（G-1、G-2、G-5～G-7、G-11）不重抄。本节点自己的缺口：
 
-- **MSG-1 `MessageId` 的铸号方**：词法候选已给；铸号与会话内唯一归写入方。**接口已定、真承接者未到**：[`capability.session-log/v2`](../../../../spec/capabilities/session-log/v2/contract.md) [S-3](../../../../spec/capabilities/session-log/v2/contract.md#s-3-本契约明确不承诺什么) 写明日志不铸 `MessageId`，写入方把它拼进判重键、由 [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键) 按日志的耐久内容守「至多一条」；完整的会话日志契约与真提供者归 loop 与会话那一程（该契约 [G-1](../../../../spec/capabilities/session-log/v2/contract.md#十已知缺口)，即 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-1）。owner 主线。
-- **MSG-2 名单判定的两项输入无家**：S-29 ⑤ 要卡片 owner 的答复（契约 G-5）、⑥ 要「最近一次模型请求落在日志哪一处」（契约 G-2：条目壳）。条目壳的最小成员与日志位置已由 `capability.session-log/v2` [S-6](../../../../spec/capabilities/session-log/v2/contract.md#s-6-条目与它的壳)、[S-7](../../../../spec/capabilities/session-log/v2/contract.md#s-7-日志位置与尾位置) 定（接口已定），壳的其余字段该契约本版不收（[S-2](../../../../spec/capabilities/session-log/v2/contract.md#s-2-本契约不拥有什么)，与本契约 G-2 同一件事），真承接者未到。本模块只能收这两样作参数、缺则「判不了」。受阻：PF-010 的压缩一侧（无契约）。owner：主线（下一程）。
+- **MSG-1 `MessageId` 的铸号方**：词法候选已给；铸号与会话内唯一归写入方。**接口已定、真承接者未到**：[`capability.session-log/v1`](../../../../spec/capabilities/session-log/v2/contract.md) [S-3](../../../../spec/capabilities/session-log/v2/contract.md#s-3-本契约明确不承诺什么) 写明日志不铸 `MessageId`，写入方把它拼进判重键、由 [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键) 按日志的耐久内容守「至多一条」；完整的会话日志契约与真提供者归 loop 与会话那一程（该契约 [G-1](../../../../spec/capabilities/session-log/v2/contract.md#十已知缺口)，即 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-1）。owner 主线。
+- **MSG-2 名单判定的两项输入无家**：S-29 ⑤ 要卡片 owner 的答复（契约 G-5）、⑥ 要「最近一次模型请求落在日志哪一处」（契约 G-2：条目壳）。条目壳的最小成员与日志位置已由 `capability.session-log/v1` [S-6](../../../../spec/capabilities/session-log/v2/contract.md#s-6-条目与它的壳)、[S-7](../../../../spec/capabilities/session-log/v2/contract.md#s-7-日志位置与尾位置) 定（接口已定），壳的其余字段该契约本版不收（[S-2](../../../../spec/capabilities/session-log/v2/contract.md#s-2-本契约不拥有什么)，与本契约 G-2 同一件事），真承接者未到。本模块只能收这两样作参数、缺则「判不了」。受阻：PF-010 的压缩一侧（无契约）。owner：主线（下一程）。
+
+## 共享Schema技术依赖
+
+本节点沿已有content-blocks依赖消费其公开 `./schema-runtime`（见[CB技术说明](../content-blocks/design.md#中性-schema-技术子入口)），不新增AM包依赖。原值与精确数机制由CB单一拥有，本节点的拒绝次序/领域类型/固定schema责任不外移；tool参数子集、regex工厂与caller-cache仍归tool调用方。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.messages · v3`（[规范](../../../../spec/data/messages/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
+
+### 公开表示恢复入口
+
+公开 `brandMessage(unknown)`、`brandRecord(unknown)`、`isWireMessage/isWireRecord`、`Wire<T>`，以完整固定Schema为表示前提，恢复CB权威包装；完整消息/记录judge仍负责跨成员/日志/ID规则。 原红readOpaqueJson TypeError与四包2范围修复已实际核对；当前3采用仍需重跑，不把此局部恢复当完整opaque静态证明或执行许可。

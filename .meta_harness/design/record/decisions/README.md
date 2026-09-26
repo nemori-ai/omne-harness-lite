@@ -112,3 +112,7 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-065：PR #9 设计正式接受](assets-runtimes-formal-acceptance-2026-09-26/README.md)（2026-09-26）追认有效主线裁定、确认本批产品修订，并签署 D-061（G4）、D-062（G5）和投影 v2（G6）。
 
 [D-066：PR #9 与 draft PR #10 的身份协调](pr9-pr10-coordinate-reconciliation/README.md)：只后移 #9 的编号与精确引用，保护 draft 冻结资源及现行采用；不合并到 main。
+
+[D-067：格式化件技术采用](core-formatter-adoption/README.md)，用户明确追加两 util 包，主调度在委托内接受技术映射，未接受实现或总体交付。
+
+[D-068：core 实施反推的规格一致性修订](core-implementation-spec-reconciliation/README.md)：沿已接受 N32 补共享形状、两示例与八个 core 的显式采用；修订范围已采纳，精确新版候选待审，未接受／冻结／实现。

@@ -1,0 +1,34 @@
+Using CPython 3.12.13
+Creating virtual environment at: .venv
+Resolved 29 packages in 0.99ms
+   Building omne-harness-lite-spec-tools @ file:///data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/spec-tools
+      Built omne-harness-lite-spec-tools @ file:///data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/spec-tools
+Prepared 1 package in 5ms
+Installed 27 packages in 16ms
+ + arrow==1.4.0
+ + attrs==26.1.0
+ + fqdn==1.5.1
+ + idna==3.19
+ + iniconfig==2.3.0
+ + isoduration==20.11.0
+ + jsonpointer==3.1.1
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ + omne-harness-lite-spec-tools==0.1.0 (from file:///data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/spec-tools)
+ + packaging==26.3
+ + pluggy==1.6.0
+ + pygments==2.21.0
+ + pytest==8.4.2
+ + python-dateutil==2.9.0.post0
+ + pyyaml==6.0.3
+ + referencing==0.37.0
+ + rfc3339-validator==0.1.4
+ + rfc3987==1.3.8
+ + rpds-py==2026.6.3
+ + six==1.17.0
+ + typing-extensions==4.16.0
+ + tzdata==2026.3
+ + uri-template==1.3.0
+ + webcolors==25.10.0

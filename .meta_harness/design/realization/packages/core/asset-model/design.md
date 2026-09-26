@@ -24,7 +24,7 @@
 | 类型 `AssetDefinition`、`AssetOwner`、`AssetVersion`、`AssetContent`、`AttributeAssignment`、`HoldingScope`、`WorkspaceKey`、`AssetHolding`、`CopyLineage`、`LineageId`、`SharingId`、`CredentialRef` | [S-5](../../../../spec/data/asset-model/v2/contract.md#s-5-资产来源)～[S-11](../../../../spec/data/asset-model/v2/contract.md#s-11-plugin-的成员)、[S-14](../../../../spec/data/asset-model/v2/contract.md#s-14-属性配值)、[S-16](../../../../spec/data/asset-model/v2/contract.md#s-16-持有范围)～[S-23](../../../../spec/data/asset-model/v2/contract.md#s-23-凭据引用) |
 | `isCapabilityName(s)`、`capabilityCanonicalString(id)`、`parseCapabilityCanonicalString(s)` | [S-2](../../../../spec/data/asset-model/v2/contract.md#s-2-能力标识名的词法)、[S-3](../../../../spec/data/asset-model/v2/contract.md#s-3-能力标识与它的规范串) |
 | `carrierRecordId(workspace, capability)`、`contentFingerprint(content)`、`normalizeWorkspaceDirectory(path)` | [S-4](../../../../spec/data/asset-model/v2/contract.md#s-4-资产记录号)、[S-19](../../../../spec/data/asset-model/v2/contract.md#s-19-使用权来路)、[S-17](../../../../spec/data/asset-model/v2/contract.md#s-17-工作区键) |
-| `attributeDeclarationsOf(content, actionSnapshot?) → { declarations } \| { underivable }` | [S-12](../../../../spec/data/asset-model/v2/contract.md#s-12-属性声明由正文推出)、[S-13](../../../../spec/data/asset-model/v2/contract.md#s-13-设置项类别)、[S-15](../../../../spec/data/asset-model/v2/contract.md#s-15-disabled-是保留项名)、[S-36](../../../../spec/data/asset-model/v2/contract.md#s-36-usableby-是保留项名) |
+| `attributeDeclarationsOf(content, actionSnapshot?) → { declarations, actionSnapshotKind? } \| { underivable }`（MCP 分支的标记必带，见下述技术协议） | [S-12](../../../../spec/data/asset-model/v2/contract.md#s-12-属性声明由正文推出)、[S-13](../../../../spec/data/asset-model/v2/contract.md#s-13-设置项类别)、[S-15](../../../../spec/data/asset-model/v2/contract.md#s-15-disabled-是保留项名)、[S-36](../../../../spec/data/asset-model/v2/contract.md#s-36-usableby-是保留项名) |
 | `parseWorkspaceManifestText(text) → { ok } \| { rejected }` | [S-24](../../../../spec/data/asset-model/v2/contract.md#s-24-工作区承载清单) |
 | 端口类型 `BodyContracts`；`createAssetModelJudge(bodies)` → `judgeAssetValue(defName, value)` | [S-25](../../../../spec/data/asset-model/v2/contract.md#s-25-规范表示)～[S-28](../../../../spec/data/asset-model/v2/contract.md#s-28-表示层拒绝不是判定也不修补) |
 
@@ -67,7 +67,7 @@
 | [S-4](../../../../spec/data/asset-model/v2/contract.md#s-4-资产记录号) 例外支、[S-19](../../../../spec/data/asset-model/v2/contract.md#s-19-使用权来路) `carrier` 支 | `carrierRecordId(workspace, capability)` | 单射编码，[下文](#工作区提供的资产的记录号用单射编码不用摘要) | 契约把导法交给实现；「部署内唯一」对这一支由构造成立 |
 | S-19 `carrier` 支的内容指纹 | `contentFingerprint(content)` | SHA-256（Node 内置 `crypto`）作用在正文的规范 JSON 上：成员名按码点升序、无空白、数字按原文（经 content-blocks 的 `writeJsonLossless`，M36） | 契约把算法交给实现；「不得按记录号＋版本号缓存」是消费者的义务 |
 | [S-5](../../../../spec/data/asset-model/v2/contract.md#s-5-资产来源)～[S-11](../../../../spec/data/asset-model/v2/contract.md#s-11-plugin-的成员) 来源、所有者与作者、记录、版本线、八类外壳、plugin 成员 | 类型 `AssetDefinition`、`AssetOwner`、`AssetVersion`、`AssetContent`（八个判别变体） | S-7 第 4 条（作者与所有者同属一个组织）、S-9 编号连续、S-10 正文名与 `capability.name` 一致在接收边界判 | V-1、V-3、S-30、S-31；S-7 第 1～3 条、S-9「已发布不变」**归写路径**（资产治理，SC-1、SC-2） |
-| [S-12](../../../../spec/data/asset-model/v2/contract.md#s-12-属性声明由正文推出)、[S-13](../../../../spec/data/asset-model/v2/contract.md#s-13-设置项类别)、[S-15](../../../../spec/data/asset-model/v2/contract.md#s-15-disabled-是保留项名)、[S-36](../../../../spec/data/asset-model/v2/contract.md#s-36-usableby-是保留项名) 属性声明 | `attributeDeclarationsOf(content, actionSnapshot?) → { declarations } \| { underivable: category }`；常量 `DISABLED_DECLARATION`、`USABLE_BY_DECLARATION` | 推出的那组来自正文契约的规则（经端口），再并上两条保留声明；端口也可交回 `underivable`（本版的 connector：`data.connector/v2#S-11` 两项权限在它的 G-4 上），原样透出；推出结果里出现 `disabled`、`usableBy` 或重复项名 ⇒ 视为正文规则的缺陷，抛出 | S-12「推不出不是没有项」：`agent_definition`、plugin 自己的项与本版 connector 返回 `underivable`，**不返回空集**（G-6、G-9） |
+| [S-12](../../../../spec/data/asset-model/v2/contract.md#s-12-属性声明由正文推出)、[S-13](../../../../spec/data/asset-model/v2/contract.md#s-13-设置项类别)、[S-15](../../../../spec/data/asset-model/v2/contract.md#s-15-disabled-是保留项名)、[S-36](../../../../spec/data/asset-model/v2/contract.md#s-36-usableby-是保留项名) 属性声明 | `attributeDeclarationsOf(content, actionSnapshot?) → { declarations, actionSnapshotKind? } \| { underivable: category }`；常量 `DISABLED_DECLARATION`、`USABLE_BY_DECLARATION` | 推出的那组来自正文契约的规则（经端口），再并上两条保留声明；MCP 的部分已知结果按下述技术协议保留；端口也可交回 `underivable`（本版的 connector：`data.connector/v2#S-11` 两项权限在它的 G-4 上），原样透出；推出结果里出现 `disabled`、`usableBy` 或重复项名 ⇒ 视为正文规则的缺陷，抛出 | S-12「推不出不是没有项」：`agent_definition`、plugin 自己的项与本版 connector 返回 `underivable`，**不返回空集**（G-6、G-9） |
 | [S-14](../../../../spec/data/asset-model/v2/contract.md#s-14-属性配值)、[S-16](../../../../spec/data/asset-model/v2/contract.md#s-16-持有范围)～[S-18](../../../../spec/data/asset-model/v2/contract.md#s-18-资产持有)、[S-20](../../../../spec/data/asset-model/v2/contract.md#s-20-出厂格与工作区格的持有)～[S-23](../../../../spec/data/asset-model/v2/contract.md#s-23-凭据引用) 配值、持有范围、工作区键、持有、层限制、血缘、两种号、凭据引用 | 类型 `AttributeAssignment`、`HoldingScope`、`WorkspaceKey`、`AssetHolding`、`HoldingBasis`、`CopyLineage`、`LineageId`、`SharingId`、`CredentialRef`；`normalizeWorkspaceDirectory(path)` | 目录规范化只做**字面**的：输入须已是绝对路径（否则拒绝，不拿当前目录去补），按 `path.normalize` 一类的纯字面运算去掉 `.`、`..`、重复分隔符与结尾分隔符；不解析符号链接、不折叠大小写 | V-1、V-3、S-32～S-35；键唯一、`organization` 支的外层确有同一份持有、`pinned` 的版本存在——要看整个存储，归资产治理。符号链接一支是缺口 [AM-3](#实施缺口与消费者影响) |
 | [S-24](../../../../spec/data/asset-model/v2/contract.md#s-24-工作区承载清单) 工作区承载清单 | `parseWorkspaceManifestText(text) → { ok: WorkspaceCarrierManifest } \| { rejected }` | 用 content-blocks 的 `readJsonStrict` 读（**同一对象里的重复成员名即解析失败 ⇒ `malformed`**，M36；普通 `JSON.parse` 静默取后一个、看不见它），再按 S-27 判；`source` 只判字面逃逸 | S-24 第 6 条、V-1；**符号链接逃逸**不在此（读目录一方判） |
 | [S-25](../../../../spec/data/asset-model/v2/contract.md#s-25-规范表示)～[S-28](../../../../spec/data/asset-model/v2/contract.md#s-28-表示层拒绝不是判定也不修补) 规范表示、闭合、十个拒绝值、次序、不修补 | `createAssetModelJudge(bodies: BodyContracts)` → `judgeAssetValue(defName, value) → { ok } \| { rejected }` | 次序：`manifest_format_unsupported` 起、`malformed` 止；**嵌着的正文与名字收窄的值 v 排在 `name_invalid` 之后、`plugin_member_is_plugin` 之前**，草稿先于各版本、plugin 按成员次序 | V-2（examples 第 13 节十四行专验次序）；不修补、不交出修好的值 |
@@ -121,6 +121,22 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 
 **本节点没有任何受管效应**（0 行）。
 
+### MCP 部分已知声明的进程内端口协议（实施细化，2026-09-26）
+
+主调度在用户授权的技术验收范围内采用本细化，独立 architecture-reviewer 已核四条路径，无阻断；不改变冻结契约。`DeclarationResult<C>` 的 declarations 分支按类别区分：MCP 必须拥有自有属性 `actionSnapshotKind: 'fetched' | 'not_fetched' | undefined`，其他类别禁止这个属性。`undefined` 的含义严格是本次可选参数未提供，不冒充实际动作清单副本。MCP 正文规则在未提供、显式 `not_fetched`、`fetched` 空清单三种输入下照常推出四个固定项；已获取非空清单时另加逐动作项（`data.mcp-endpoint/v2#S-14`、S-15）。AM 再加两条保留声明，同时逐字保留知识标记，四条路径均不能靠数组长度区分。
+
+这是 TypeScript 进程内结果，带 `undefined` 的自有属性有意义，不能经 JSON 序列化或条件展开丢掉；不是新增领域 JSON 字段。运行边界检查 MCP 漏标记、非法值、与实际参数不一致及非 MCP 冒带标记，按端口违约抛出。标记值与实际输入相等，不允许规则将未提供伪造为 `not_fetched` 或 `fetched`。推出模块仍只读正文与显式动作清单。
+
+消费者 asset-evaluation 的输入预检保持 `capability.asset-evaluation/v2#S-7` C13：显式传入 `not_fetched` 是 `invalidInput`；S-12 的合法缺席则传 `undefined`，固定项照常且不产生逐动作项，不新增业务失败、不回退作者默认。实施证据须覆盖四条实际端口路径、AM 包装及正负类型；AE 两条消费者路径留给 W6 实际组合验收。
+
+### Connector 延期时的提供者可用性（实施细化，2026-09-26）
+
+用户明确仅延期 Connector 一种资产纵线，其他类型完整交付。主调度采用本细化，独立 architecture-reviewer 已核无阻断；不是新领域政策。完整 `BodyContracts` 仍是六个真实端口；追加技术类型 `NonConnectorBodyContracts = Omit<BodyContracts, 'connector'>` 表达本阶段五个真实端口。构造／绑定仅接受完整六个或明确五个，其他缺键／错类别仍为配置缺陷。没有假的 Connector 端口，没有用 `underivable`、`malformed` 或空声明掩盖缺实现。
+
+编译输入继续保有**原样冻结 Connector Schema**：在本包 `schema/resources/connector.schema.json` 逐字节复制、独立核 hash，并作为未提供 Connector 正文端口时的真实资源闭包。Schema 资源不是 Connector 提供者；不建 Connector 包、不修改冻结 Schema、不用 `{}`／`false` stub。已有 `AssetContent.oneOf` 编译会遍历 Connector `$ref`，不能因缺端口破坏其他五类构造。完整六端口配置已有同 `$id` 时不用重复登记资源。
+
+实际请求未提供的 Connector 正文规则才报告明确的 `BodyProviderUnavailableError` 技术可用性边界；不伪造领域拒绝。该请求不在当前提供者已交付的正文实施域内。一般能力标识、配值、opaque 内容、工具参数中的同名字段不触发这个边界；范围仅是契约点名的资产记录／草稿／各版本正文位置。纯 Schema 层保留真实冻结语义与资源闭包，不宣称 Connector 正文规则已实现。其他类型的判定、拒绝次序、声明与引用完整验收；五真实正文组合继续，六齐全断言延期。
+
 ## 静态检查义务怎么承载
 
 [契约的 SC-1～SC-6](../../../../spec/data/asset-model/verification.md#静态检查义务)：SC-1～SC-5 约束的是**存储的写路径与读面**，全部落在资产治理（与流转）节点；本节点只承载 SC-6 的一半：
@@ -140,3 +156,23 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 - **AM-4 清单文本的读入方**：`parseWorkspaceManifestText` 要由**读 `.omne/workspace.json` 的那一方**调用（`capability.asset-evaluation/v2#S-2`：读文件、解析 JSON 归提供者）；读方若绕过它、用普通 `JSON.parse` 读，就看不见重复成员名。owner：据点侧读工作区的节点（注册表或据点装配，由主线指派）。
 - **AM-5 端口的组合根（按 [D-060 §八 M51](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 收成一处）**：`BodyContracts` 只在 `core/asset-evaluation` 组合一次、导出为 `defaultBodyContracts`（候选名）；资产治理插件体与据点注册表 import 它、不各自再组。S-27「同一值在每个接收边界得同一个拒绝值」由单一来源保证，不另写多处一致性测试。跨节点交接：asset-governance 与 asset-registry 节点的设计各改那一行（归各自节点）。
 - **AM-6 凭据引用解到哪**：本模块只定义 `CredentialRef` 的形状（S-23）。**接口已定、真承接者未到**：据点一侧的解引用是 [`capability.credential-custodian/v2`](../../../../spec/capabilities/credential-custodian/v2/contract.md) [S-17](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-17-resolve) `resolve`（本版只有 OAuth 条目交得出，静态凭据的引用一律 `notResolvable`，该契约 [G-2](../../../../spec/capabilities/credential-custodian/v2/contract.md#十一已知缺口)）；中心一侧把引用换成值本版不收（该契约 G-7）；真提供者 `infra/secrets` 那一程未到（该契约 G-1，即 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-5）。owner：主线。本模块不受阻；受阻的是出示凭据的消费者（MCP 桥的静态凭据一支、连接件接入端）。
+
+## 2026-09-26 精确数 Schema 技术适配入口
+
+本节点消费 [content-blocks 的中性精确Schema适配器](../content-blocks/design.md#中性-schema-技术子入口) `@omne-harness-lite/content-blocks/schema-runtime`，公开函数为 createSchemaRuntime/resources/metaValidate/compile/validate。AM领域 `JsonSchema` 名称仍由本节点拥有，与CB技术输入SchemaDocument结构相容。原刚释放的AM子入口整体迁走，不保留兼容转发或第二实现；普通六正文端口与拒绝次序不变。
+
+## 数值 Schema 适配的宿主范围补充
+
+公开schema-runtime保留原始Schema与无损输入，整数/边界/enum等按原十进制值判断，长度/元素/成员计数精确。`minContains`/`maxContains` 的超安全整型边界不构成合法open domain额外拒绝：实际JS数组长度至多2^32-1，超过MAX_SAFE的合法min界对数组永不满足、max界无约束，可用有实际反例与原值meta验证的宿主等价投影，不把投影当跨语言无限数组证明。无default的domain只需精确meta验证，不借编译新增拒绝。非标准Ajv扩展不成为本项目JSON Schema语义，调用方schema不得隐启异步验证。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.asset-model · v3`（[规范](../../../../spec/data/asset-model/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
+
+### 当前固定Schema资源组合
+
+AM3 `resources(bodies)`保留现有端口供当前正文Schema，不加新的公共resource字段；加入本包公开`./schema/v2`、CB公开`./schema/v2`与包内私有`schema/resources/tool-definition.v2.schema.json`。TD2私有文件从唯一冻结原件逐字复制，不能参加业务判定或产生AM→TD产品代码边。identity1、OE1、Connector2资源现状不变，CB3和五个真实正文的语义判定仍经原端口。
+
+真实probe在当前25个AM3 defs仅补CB2或AM2时仍缺TD2，全部补齐25/0；这不承诺AM2/Connector2各自全部defs图（另有Loop2/Messages2引用），不承诺任意第三方$id。替代端口须同一采用契约/$id与固定资源图，保持原三责任闭包。MCP connectionTarget/credential/two timeout域实际经AM和AE的组合必须验证；ConnectorDefinition仅规范编译资源，不是Connector实现。独立机制评审见 [记录](../../../../record/proposals/message-and-stream-baseline/reviews/2026-09-26-core-representation-and-resource-review.md)。

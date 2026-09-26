@@ -242,3 +242,7 @@ reviewer：spec-reviewer，S25 第二轮批 R2b；基线 HUB `8ad37c50`。本批
 - **词条链接已补**（第一轮评审修复）：「一次发出」链 [UL-upstream-send](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)，「首 token」链 [UL-first-token](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-first-token--首-token--first-token)，「响应体」是 [UL-model-response](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)（模型响应体）在本契约内的简称；「上游原始响应留存」按那条词条的注意 ② 不立词条，是它身上的一项属性。
 - **跨契约同一件事的另一半**（本包不改对方的文件，由主线核对两边）：`capability.model-request-runtime` 的「已出门」铸 `ResponseId`、`route.parameters` 记实际发出的值、`vetoed`／`consumed` 的响应体由它写、`late` 的判定；`data.call-accounts` S-39 与本包 S-35 同一个标记；`data.loop-extension` S-23「它实际发出的参数留痕在响应体」与 S-2 对 `consumed` 的触发（不触发，原 G-14 已关）；`data.messages` S-10／S-21 的中断提醒对 `truncated` 同样补，S-10 的回复流对应表与本包 S-5 的到达映射、S-13 说的是同一件事（系统发起的运行取消不交出回复，M12）；`capability.model-request-runtime` S-36／S-51 撤除时先放弃在途的流、调用账记 `interrupted{run_cancelled}`（同一裁定的那一侧）。
 - **`ParameterAdjustment` 与 `droppedParameters` 的形状在 `data.messages` 里有一份逐字副本**（「已出门」，那份契约的 V-12）：本契约是这两项形状的家——按 registry「互引成环的登记口径」（D-060 §七 M2），那份契约逐字自定义、不 `$ref` 本契约、不登依赖；本契约改 S-11 这两项的形状，那边同轮改；同一次发出两处的值逐项相同（S-11 第 6 条），由写两处的 `capability.model-request-runtime` 兑现。
+
+## 2026-09-26 D-068 当前 v3
+
+`data.model-response · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

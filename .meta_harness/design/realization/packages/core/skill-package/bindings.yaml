@@ -5,4 +5,30 @@ version: 1
 node: "skill-package"
 kind: "provider"
 
-bindings: []
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.skill-package/v2#S-8"
+    evidence: "test:packages/core/skill-package/tests/readers.spec.ts#S-20 YAML 1.2 Core text reader › preserves every body character and never expands placeholders or shell-shaped text"
+    assumptions:
+      - "只核已确定普通YAML清单头后的正文逐字／不展开；未知自定义标签键canonical判等SP3以及完整S20／CS6未闭合。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"
+
+  - clause: "data.skill-package/v3#S-20"
+    evidence: "test:packages/core/skill-package/tests/readers.spec.ts#M16 key uniqueness refusal and coinductive recursive node comparisons › refuses ambiguous keys: different fallback strings not canonical knowledge"
+    assumptions:
+      - "本例以未知同标签scalar键的canonical关系不明为输入，断言M16；完整映射图其他有限例子、普通unknown对照及目标副本负控见record/evidence/2026-09-26-tests-core-skill-v3。"
+      - "真实默认Skill3公开reader；yaml2.9.1、Node24.18.0；437包内检查与54独立行为检查通过，有限输入证据不是任意输入证明。"
+      - "不承诺实际目录IO、脚本执行、外部runtime或完整共享CS。"
+    alignment_checked: "2026-09-26"
+
+  - clause: "data.skill-package/v3#S-24"
+    evidence: "test:packages/core/skill-package/tests/adopted-v3.spec.ts#S24 independently determined priority across malformed text and given observations › escape ../outside outranks text ambiguity and malformed definition"
+    assumptions:
+      - "调用方给定的escape与文本未知判等M16并存；本例仅核resource_escapes优先，不从文本失败虚构manifest或name事实。"
+      - "实际目录观察纯入口；链接解析／真实filesystem由调用方负责；本次输入与原始结果见record/evidence/2026-09-26-tests-core-skill-v3。"
+      - "有限场景，不表述为完整外部CS或跨进程保证。"
+    alignment_checked: "2026-09-26"

@@ -23,6 +23,8 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 
 **函数层不承诺**：[S-25](../../../../spec/data/model-response/v2/contract.md#s-25-装配给的保证与协议须给的保证) 八行（一次请求一条、三个时刻同源、首 token、发号、`ResponseId` 唯一、`late`、参数留痕、凭据不进响应体）与 S-26「它不能约束的」那一串——全在模型请求运行时的写路径上（[装配给 vs 协议给](#装配给-vs-协议给)）。
 
+**S-27 成员与跨成员的实施分区（2026-09-26）**：`judgeModelResponse` 先判 `outcome_unknown`／`dispatch_zero`／`cause_unknown`，再判其余独立成员形状。`failure.inBand` 缺 `statusCode` 明文属于最后无专名的跨成员 `malformed`，不能因 `Failure` 的 `dependentRequired` 而提前盖过 `failure_on_interrupted` 等具名关系；私有成员视图仅暂缓这项关系，字段类型、额外成员与其余独立形状继续检查。最后按原次序与完整 Schema 收跨成员结果。公开 `validate` 的冻结 Schema 不修改；单独校验完整 `Failure` 仍受该关系约束，没有父响应体时不声称省略了它。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用
@@ -52,16 +54,18 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 
 ### 副本定义的对齐放在依赖方
 
-为避免契约互为依赖，几处定义在别的契约里有**逐字副本**：`ResponseId`（家在 S-6）在 `data.messages` 与 `data.call-accounts` 里各有一份，`SelectedBy`、`CredentialScope`、`ParameterAdjustment`（家在 S-10、S-9、S-11）在 `data.messages` 里各有一份。
-包之间只能单向依赖：[messages](../messages/README.md) 与 [call-accounts](../call-accounts/README.md) 不依赖本包，本包依赖它们——**所以对齐测试放在本包**：取两包导出的 Schema 与本包 Schema，逐项比较这些 `$defs` 逐字相同。
-这一选择已由 [D-060 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「副本对齐测试放依赖方」接受；[tool-definition](../tool-definition/design.md#实施缺口与消费者影响) 对 `ModelToolName` 同样处理。
+为避免契约互为依赖，几处定义在别的契约里有**断言形状副本**：`ResponseId`（家在 S-6）在 `data.messages` 与 `data.call-accounts` 里各有一份，`SelectedBy`、`CredentialScope`、`ParameterAdjustment`（家在 S-10、S-9、S-11）在 `data.messages` 里各有一份。
+包之间只能单向依赖：[messages](../messages/README.md) 与 [call-accounts](../call-accounts/README.md) 不依赖本包，本包依赖它们——**所以对齐测试放在本包**：取两包导出的 Schema 与本包 Schema，逐项比较这些 `$defs` 的完整断言投影逐字相同。
+
+**2026-09-26 冻结原件核对与比较口径**：上述五组 `$defs` 在已冻结原件中已经有 `title`／`description`／`$comment`／`examples` 注解差异，断言形状相同；不能声称整个片段同字节，也不改写冻结原件使其相同。MR-1 的比较只在 Schema 对象位置排除这四个已观察到的注解键，递归核对其余全部断言与应用器结构、`$ref` 等；`properties` 等映射的键名，以及 `const`／`enum` 等实例数据原样保留，不能把用户数据中的同名字段删掉。每份完整 Schema 副本仍逐字节等于自己的冻结原件；证据另记五组片段原始 hash 与注解差异，并用约束变异和同名实例字段反例证明比较会红。该口径兑现表示形状对齐，不声称注解全文对齐或写入者留痕相等。
+**测试归属的选择**已由 [D-060 §八 M44](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「副本对齐测试放依赖方」接受；上段注解比较口径是本轮原件核对后的技术采用，不倒记成 M44 的裁定。[tool-definition](../tool-definition/design.md#实施缺口与消费者影响) 对 `ModelToolName` 同样处理。
 
 | | 不做对齐测试，靠评审 | 在被依赖方里比（反向依赖本包） | **在本包里比（本节点选）** |
 |---|---|---|---|
 | 可行 | 可行 | **成环**：messages → model-response → messages | 可行：本包本来就依赖两包 |
 | 失败时 | 副本悄悄漂移，两个实现一个收一个拒 | — | CI 红，指出是哪一份 `$defs` 不同 |
 
-**落选方（靠评审）的最强论证**：副本是规格层的事，契约的验证入口已把它们列成「对齐义务」，实现不必再核。**它输在**副本漂移的后果落在实现上（一边收一边拒），而逐字比较零成本。**本方弱点**：只核 Schema 片段，不核两边类型定义；TS 类型由各自 Schema 手写，两处类型的一致只能靠同一组正反实例。置信度：**高**。
+**落选方（靠评审）的最强论证**：副本是规格层的事，契约的验证入口已把它们列成「对齐义务」，实现不必再核。**它输在**副本漂移的后果落在实现上（一边收一边拒），而断言投影可直接比较。**本方弱点**：只核 Schema 片段，不核两边类型定义；TS 类型由各自 Schema 手写，两处类型的一致只能靠同一组正反实例。置信度：**高**。
 
 ## 依赖、作用域与绑定
 
@@ -90,3 +94,9 @@ Schema 以 `allOf` 的 `if/then` 表达收场的条件关系（S-26），ajv 的
 
 - **MR-1 副本对齐测试**：见[上节](#副本定义的对齐放在依赖方)。owner：本节点（义务，不是阻塞）。
 - **跨节点交接**：`judgeModelResponse` 只判一条响应体本身；S-26「它不能约束的」那一串由模型请求运行时在写入时兑现，写进它的 verification。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.model-response · v3`（[规范](../../../../spec/data/model-response/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。

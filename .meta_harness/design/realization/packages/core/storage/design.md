@@ -21,7 +21,7 @@
   账号行上的过期事实（行锁下落盘）+ 组织行对账号行的引用约束。本节点不重复那段推理，只保证它依赖的三个原语——锁定读、引用约束两向可识别、唯一冲突后事务仍可用——在两种方言下都由协议给出并被套件证明。
 
 **Cordis 版本**：本节点不依赖 Cordis。提供者插件与消费者插件按 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 采用 `@deepseek-ai/cordis` 4.0.4。
-**依赖版本**：Kysely 0.29.6（workspace catalog；D-026 与研究核对的也是它），本节点只依赖它的**类型**；vitest 4.1.11 是 `./conformance` 的运行时依赖（套件是 `describe` 块）；`node:sqlite`、`pg` 归提供者节点。
+**依赖版本**：Kysely 0.29.6（workspace catalog；D-026 与研究核对的也是它），根协议公开面只依赖它的**类型**；已批准的一致性套件 `./conformance` 使用 Kysely 的运行时 `sql` 构建检查约束，vitest 4.1.11 也是该子路径的运行时依赖（套件是 `describe` 块）；`node:sqlite`、`pg` 归提供者节点。
 
 ## 协议
 
@@ -199,7 +199,7 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
 | 无契约依赖 | — | — | — |
-| Kysely 0.29.6（catalog；**只依赖类型**：`Kysely`、schema 构建器的类型） | 普通包依赖 | 随包版本 | 大版本变更 ⇒ 协议出新版本（`ReadTx.db` 的类型是公开面的一部分） |
+| Kysely 0.29.6（catalog；根协议只依赖类型；`./conformance` 另使用运行时 `sql` 构建其检查约束） | 普通包依赖 | 随包版本 | 大版本变更 ⇒ 协议出新版本（`ReadTx.db` 的类型是公开面的一部分） |
 | vitest 4.1.11（catalog） | 运行时依赖——`./conformance` 导出的是 `describe` 块 | — | 换测试运行器 ⇒ 套件重写，协议不变 |
 
 **被谁消费**：`account-identity`、`organization-governance` 经服务名 `storage` 用协议（它们 inject 的是提供者的实例，类型来自本节点），并用本节点的 `mapStorageError` 把 `StorageUnavailable` 折成各自的字面；
@@ -235,9 +235,9 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 
 ## 实施缺口与消费者影响
 
-- **套件的运行结果尚未登记**：`infra/storage-sql` 已在 sqlite 与 pg 两种方言上接线运行套件，结果登记归那个节点的 verification 与 record/evidence；本节点 verification 的义务状态待证据 run 登记后回填。
+- **套件提供者历史结果已登记**：`infra/storage-sql` 的 sqlite 与 pg 运行归 `2026-09-23-tests-tenancy-leg-2`，本节点 [verification](verification.md) 保留其配置与边界；本轮未重跑 pg。
 - **装配**：约束与主键的命名纪律、真实外键、`foreign_keys=ON`、pg 的接线由 [`apps/tenancy-host`](../../../apps/tenancy-host/design.md) 兑现，真实外键两向由它的 `assembly.fk-organization-owner-account` 证。
-- **套件自测**（对一个故意做错的提供者会红，例如把 `lockRow` 换成空操作跑 C-4）未写。owner 本节点。
+- **套件有效性自测已写并在 HUB 通过**（2026-09-26，提交 `247fc9e2`）：开发工具 `tools/core-verification` 经公开入口使用真实 SQLite 提供者，同一19条套件正常全绿、在测试侧事务开始前关闭外键后恰 C-11/C-12 失败。工具不令产品 core 反向依赖 infra；只证明这项变异可被本套件识别，结果与证据保存情况归 [verification](verification.md)。
 - **pg 方言依赖环境**：缺 `OMNE_TEST_PG_URL` 时套件在 pg 上 `describe.skip`，跳过不是通过；CI 是否提供可连的 pg 归装配与 CI 配置（研究正文[「未知与下一项证据」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#未知与下一项证据)）。
 - **`narrow` 只是类型断言**：表存在与否由装配迁移与消费者测试保证；换查询层 = 新版本协议。
 - **跨进程重启的持久证据**不在套件里（AI S-32 演练）；**跨进程形态下的存储协调协议**未定（D-026「不表示」列的 Q-8）。

@@ -1,0 +1,14 @@
+{
+  "executable": "/data/qiwei/.local/share/fnm/node-versions/v24.18.0/installation/bin/node",
+  "arguments": [
+    "dist/w1-public-consumer.js",
+    "--negative-control=outcome"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/core-verification/",
+  "sourceRevision": "f1b5e7e22bac9e7cfd4fd914e6ec6876934ece22",
+  "nodeVersion": "v24.18.0",
+  "negativeControl": true,
+  "code": 1,
+  "signal": null,
+  "killed": false
+}

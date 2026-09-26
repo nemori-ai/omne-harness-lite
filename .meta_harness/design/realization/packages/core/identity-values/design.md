@@ -73,15 +73,14 @@
 
 | 检查 | 形式 | 谁跑 |
 |---|---|---|
-| SC-1 判定函数入参不含路径／目录／OS 用户／主机名／环境变量／运行实例身份类型 | **lint 规则（尚未实现）**：对标注为「判定函数」的导出，扫描参数类型的字面类型名与品牌；本模块提供品牌类型清单供规则引用 | 各消费者包的 CI；本模块只提供规则实现的输入（哪些类型是身份值） |
+| SC-1 判定函数入参不含路径／目录／OS 用户／主机名／环境变量／运行实例身份类型 | **lint 规则 `identity-decision-inputs`**：只针对登记或标注的租户准入判定函数，扫描显式参数类型/品牌；本模块导出 `IDENTITY_TYPE_NAMES` 供工具直接引用；默认真实适用函数为 0，fixture 不证明消费者隔离 | 各消费者包的 CI；本模块只提供规则实现的输入（哪些类型是身份值） |
 | SC-2 账号记录字段不含指向另一个 AccountId 的引用 | 类型层：`account-identity` 节点的记录类型由本模块的品牌类型组成，lint 规则查「同一记录类型里出现两个 `AccountId` 字段」 | `account-identity` 包 CI |
 | SC-3 一类：登录标识不作引用键、不进 TenantId | **类型不相容**（品牌）——赋值不通过编译 | 编译期，零成本 |
 | SC-9 归属身份的持久形状是带判别式的 `ScopeLayerIdentity`，不是两个可空列 | Schema 校验（`ScopeLayerIdentity` 的 `oneOf` 判别式与载荷对得上才通过）＋ lint 查记录类型里成对出现的 `organization?`／`tenant?` 可空字段 | 各持有范围化对象的包 |
 | 其余 SC 项 | 逐条落在各消费者节点的 verification（它们约束的是那些节点的路径） | 各节点 |
 
 **类型系统能挡的挡在编译期，挡不了的做 lint，两者都做不了的（六路径同判 V-3、冒充隔离 V-4）是评审与演练，不是本模块的活。**
-已落地的只有 SC-3 一类：品牌不相容由包内类型测试 `tests/types.spec-d.ts` 的负向断言守住。SC-1、SC-2、SC-9 的 lint 规则**尚未实现**——
-承载仓库 `tools/ts-checks` 里没有对应规则（[verification.md](verification.md)）。
+SC-3 一类由品牌不相容的类型负例守住；2026-09-26，`tools/ts-checks` 增加 `identity-decision-inputs`、`identity-account-references`、`identity-scope-columns` 及必红自测。它们只覆盖工具 README 指定的语法形式，不是完整类型/业务分析；实际消费者准入盘点、任意聚类键含义与复合持久形状仍需消费者验收（[verification.md](verification.md)）。
 
 ## 实施缺口与消费者影响
 
@@ -89,3 +88,7 @@
 - **Schema 副本漂移**：包内 Schema 是 spec 的副本，由包内测试 `tests/schema.spec.ts` 逐字节核对，随包测试在 CI 跑；这条测试一旦被删，V-1 的结论就不再对着规范工件。
 - **密钥的生成、保管与分发是装配的责任**：本节点只定义「持哪把钥匙能签／能核」与「密钥跨重启不变」这一前提；怎么生成、放哪归 [apps/tenancy-host](../../../apps/tenancy-host/design.md)（`keygen` 子命令与启动时的配对自检 `verifyKeyPairing`）。「私钥不外泄」在单进程内没有可机检的证据形式（[verification](verification.md#覆盖缺口)）。
 - **上游语义**：本模块不依赖任何 Cordis 行为，无 basis 引用。
+
+## 2026-09-26 实施补齐
+
+提交 `efe73eb5` 公开冻结 `OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS`（S-31 的唯一26码点输入）、`IDENTITY_BRAND_NAMES`（三个身份品牌）和 `IDENTITY_TYPE_NAMES`（再含 TenantId/ScopeLayerIdentity）。解析器与检查工具消费同一输入，不维护第二份名单。S-14/S-15 的固定图对照来自当前冻结 Affiliation.als 实际 Alloy 求值输出；六条上级链和36对共同上级判定属于有界实现对照，不提升为全部图的形式证明。运行范围与原始结果归 [verification](verification.md)。

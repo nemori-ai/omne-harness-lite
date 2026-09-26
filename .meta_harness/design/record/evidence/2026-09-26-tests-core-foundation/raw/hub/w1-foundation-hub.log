@@ -1,0 +1,50 @@
+Scope: 4 of 14 workspace projects
+packages/core/identity-values build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/storage build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build: Done
+packages/core/identity-values build: Done
+packages/core/storage build: Done
+packages/core/offer-expiry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build: Done
+Scope: 4 of 14 workspace projects
+packages/core/identity-values typecheck$ tsc -p tsconfig.test.json
+packages/core/kernel-basis typecheck$ tsc -p tsconfig.test.json
+packages/core/storage typecheck$ tsc -p tsconfig.test.json
+packages/core/identity-values typecheck: Done
+packages/core/kernel-basis typecheck: Done
+packages/core/storage typecheck: Done
+packages/core/offer-expiry typecheck$ tsc -p tsconfig.test.json
+packages/core/offer-expiry typecheck: Done
+
+> @omne-harness-lite/identity-values@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/identity-values
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/identity-values
+
+
+ Test Files  8 passed (8)
+      Tests  259 passed (259)
+Type Errors  no errors
+   Start at  04:33:45
+   Duration  2.11s (transform 1.05s, setup 0ms, import 2.75s, tests 204ms, environment 1ms, typecheck 1.39s)
+
+
+> @omne-harness-lite/offer-expiry@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/offer-expiry
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/offer-expiry
+
+
+ Test Files  5 passed (5)
+      Tests  31 passed (31)
+Type Errors  no errors
+   Start at  04:33:48
+   Duration  1.75s (transform 476ms, setup 0ms, import 1.31s, tests 35ms, environment 1ms, typecheck 1.21s)
+

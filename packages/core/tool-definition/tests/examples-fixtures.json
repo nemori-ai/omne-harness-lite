@@ -1,0 +1,2289 @@
+{
+  "definitions": [
+    {
+      "name": "t",
+      "description": "d",
+      "paradigm": "single",
+      "input": {
+        "type": "object",
+        "properties": {}
+      },
+      "permissions": {
+        "execute": {
+          "default": "ask"
+        }
+      },
+      "origin": {
+        "kind": "authored"
+      }
+    },
+    {
+      "name": "fetch_page",
+      "description": "取回一个网址的正文，返回纯文本。",
+      "paradigm": "single",
+      "input": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "要取回的网址，http 或 https。"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "permissions": {
+        "execute": {
+          "default": "ask"
+        }
+      },
+      "origin": {
+        "kind": "authored"
+      }
+    },
+    {
+      "name": "notes",
+      "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+      "paradigm": "multi",
+      "commands": {
+        "write": {
+          "description": "写入或覆盖一条笔记。",
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "笔记的标识。"
+              },
+              "text": {
+                "type": "string",
+                "description": "笔记的全文，整条覆盖。"
+              }
+            },
+            "required": [
+              "id",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "list": {
+          "description": "列出全部笔记的标识。",
+          "input": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        },
+        "read": {
+          "description": "读一条笔记。",
+          "input": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "笔记的标识。"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          },
+          "help": "read 收一个 id，返回那条笔记的全文。"
+        }
+      },
+      "permissions": {
+        "execute": {
+          "default": "auto"
+        }
+      },
+      "origin": {
+        "kind": "authored"
+      }
+    },
+    {
+      "name": "issue-tracker:search_issues",
+      "description": "在问题跟踪系统里按关键字搜索问题。",
+      "paradigm": "single",
+      "input": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键字，按空格分词。"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "permissions": {
+        "execute": {
+          "default": "ask"
+        }
+      },
+      "origin": {
+        "kind": "mcp",
+        "endpoint": {
+          "category": "mcp",
+          "name": "issue-tracker"
+        },
+        "remoteName": "search_issues"
+      }
+    },
+    {
+      "name": "render_chart",
+      "description": "照一张草图与一份数据画图表，产出一张 PNG 附件。",
+      "paradigm": "single",
+      "input": {
+        "type": "object",
+        "properties": {
+          "sketchBlockId": {
+            "type": "string",
+            "description": "草图那个图块的块标识。"
+          },
+          "data": {
+            "type": "array",
+            "description": "数据行，每行一个对象。",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "sketchBlockId",
+          "data"
+        ]
+      },
+      "help": "给一张草图的块标识与一组数据行；返回图表的缩略描述，图本身在附件里。",
+      "needs": {
+        "externalServices": [
+          "chart-render-service"
+        ],
+        "attachmentStorage": "artifact-store",
+        "inputModalities": [
+          "image"
+        ],
+        "outputModalities": [
+          "image"
+        ]
+      },
+      "settings": {
+        "targetEnvironment": {
+          "category": "placement_identity",
+          "default": {
+            "bindingLayer": "session_sandbox",
+            "facilities": [
+              "browser",
+              "command_line"
+            ]
+          }
+        },
+        "backgroundThreshold": {
+          "category": "preference",
+          "default": "PT30S"
+        },
+        "timeout": {
+          "category": "preference",
+          "default": "PT10M"
+        },
+        "concurrency": {
+          "category": "preference",
+          "default": 2
+        }
+      },
+      "allowBackground": true,
+      "permissions": {
+        "execute": {
+          "default": "ask"
+        }
+      },
+      "composes": {
+        "skills": [
+          "chart-style-guide"
+        ]
+      },
+      "origin": {
+        "kind": "authored"
+      }
+    }
+  ],
+  "multiInput": {
+    "type": "object",
+    "properties": {
+      "command": {
+        "type": "string",
+        "enum": [
+          "list",
+          "read",
+          "write"
+        ],
+        "description": "list — 列出全部笔记的标识。\nread — 读一条笔记。\nwrite — 写入或覆盖一条笔记。"
+      },
+      "args": {
+        "type": "object",
+        "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
+      }
+    },
+    "required": [
+      "command"
+    ],
+    "additionalProperties": false
+  },
+  "negativeDefinitions": [
+    {
+      "id": "EX5-01",
+      "value": "notes",
+      "rejected": "malformed",
+      "malformed": "M1",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-02",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M2",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-03",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "pipeline",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "paradigm_unknown",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-04",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "commands": {
+          "go": {
+            "description": "d",
+            "input": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      },
+      "rejected": "commands_forbidden",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-05",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "multi",
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "commands_missing",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-06",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "multi",
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "commands": {}
+      },
+      "rejected": "commands_missing",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-07",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": true,
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "input_not_schema",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-08",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": 5
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "input_not_schema",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-09",
+      "value": {
+        "name": "notes",
+        "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+        "paradigm": "multi",
+        "commands": {
+          "write": {
+            "description": "写入或覆盖一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "笔记的全文，整条覆盖。"
+                }
+              },
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "list": {
+            "description": "列出全部笔记的标识。",
+            "input": {
+              "type": "object",
+              "properties": {},
+              "required": "id"
+            }
+          },
+          "read": {
+            "description": "读一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "help": "read 收一个 id，返回那条笔记的全文。"
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "auto"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "input_not_schema",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-10",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string"
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "parameter_description_missing",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-11",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "filter": {
+              "type": "object",
+              "description": "过滤条件",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": ""
+                }
+              }
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "parameter_description_missing",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-12",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "rows": {
+              "type": "array",
+              "description": "数据行",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "v": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "parameter_description_missing",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-13",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string"
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "allow"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "parameter_description_missing",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-14",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "m": {
+              "type": "object",
+              "description": "附加字段",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "k": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "parameter_description_missing",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-15",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "description": "查询词",
+              "allOf": [
+                {
+                  "properties": {
+                    "z": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M27",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-16",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "title": "Q"
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "parameter_description_missing",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-17",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "targetEnvironment": {
+            "category": "placement_identity",
+            "default": {
+              "bindingLayer": "vm",
+              "facilities": []
+            }
+          }
+        }
+      },
+      "rejected": "binding_layer_unknown",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-18",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "timeout": {
+            "category": "security",
+            "default": "PT1M"
+          }
+        }
+      },
+      "rejected": "setting_category_unknown",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-19",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "allow"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "permission_unknown",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-20",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "plugin"
+        }
+      },
+      "rejected": "tool_origin_unknown",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-21",
+      "value": {
+        "name": "search__issues",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "name_reserved_sequence",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-22",
+      "value": {
+        "name": "a_:b",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "name_reserved_sequence",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-23",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "pipeline",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "allow"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "paradigm_unknown",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-24",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M3",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-25",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M3",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-26",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "waitsForReply": true
+      },
+      "rejected": "malformed",
+      "malformed": "M4",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-27",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "emitsFrames": true
+      },
+      "rejected": "malformed",
+      "malformed": "M4",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-28",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "implementation": {
+          "module": "./fetch_page.js"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M4",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-29",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "allowBackground": "yes"
+      },
+      "rejected": "malformed",
+      "malformed": "M5",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-30",
+      "value": {
+        "name": "",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M6",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-31",
+      "value": {
+        "name": "fetch.page",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M25",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-32",
+      "value": {
+        "name": "x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M25",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-33",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "targetEnvironment": {
+            "category": "placement_identity",
+            "default": {
+              "bindingLayer": "stateless_sandbox",
+              "facilities": [
+                "browser",
+                "browser"
+              ]
+            }
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M7",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-34",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "needs": {
+          "inputModalities": [
+            "pdf"
+          ]
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M8",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-35",
+      "value": {
+        "name": "issue-tracker:search_issues",
+        "description": "在问题跟踪系统里按关键字搜索问题。",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "搜索关键字，按空格分词。"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "mcp",
+          "endpoint": {
+            "category": "tool",
+            "name": "issue-tracker"
+          },
+          "remoteName": "search_issues"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M9",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-36",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "targetEnvironment": {
+            "category": "preference",
+            "default": {
+              "bindingLayer": "host_machine",
+              "facilities": []
+            }
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M10",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-37",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "allowBackground": true,
+        "settings": {
+          "backgroundThreshold": {
+            "category": "preference",
+            "default": "P1D"
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M11",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-38",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "concurrency": {
+            "category": "preference",
+            "default": 0
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M12",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-39",
+      "value": {
+        "name": "notes",
+        "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+        "paradigm": "multi",
+        "commands": {
+          "write": {
+            "description": "写入或覆盖一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "笔记的全文，整条覆盖。"
+                }
+              },
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "list": {
+            "description": "列出全部笔记的标识。",
+            "input": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          },
+          "read": {
+            "description": "读一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "help": "read 收一个 id，返回那条笔记的全文。"
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "auto"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "input": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M13",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-40",
+      "value": {
+        "name": "issue-tracker:search_issues",
+        "description": "在问题跟踪系统里按关键字搜索问题。",
+        "paradigm": "multi",
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "mcp",
+          "endpoint": {
+            "category": "mcp",
+            "name": "issue-tracker"
+          },
+          "remoteName": "search_issues"
+        },
+        "commands": {
+          "search": {
+            "description": "d",
+            "input": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M14",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-41",
+      "value": {
+        "name": "issue-tracker:search_issues",
+        "description": "在问题跟踪系统里按关键字搜索问题。",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "搜索关键字，按空格分词。"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "mcp",
+          "endpoint": {
+            "category": "mcp",
+            "name": "issue-tracker"
+          },
+          "remoteName": "search_issues"
+        },
+        "composes": {
+          "skills": [
+            "triage-guide"
+          ]
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M14",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-42",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "backgroundThreshold": {
+            "category": "preference",
+            "default": "PT30S"
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M15",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-43",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "backgroundThreshold": {
+            "category": "preference",
+            "default": "PT30S"
+          }
+        },
+        "allowBackground": false
+      },
+      "rejected": "malformed",
+      "malformed": "M15",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-44",
+      "value": {
+        "name": "notes",
+        "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+        "paradigm": "multi",
+        "commands": {
+          "write": {
+            "description": "写入或覆盖一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "笔记的全文，整条覆盖。"
+                }
+              },
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "list": {
+            "description": "列出全部笔记的标识。",
+            "input": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          },
+          "read": {
+            "description": "读一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "help": "read 收一个 id，返回那条笔记的全文。"
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "auto"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        },
+        "settings": {
+          "backgroundThreshold": {
+            "category": "preference",
+            "default": "PT30S"
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M15",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-45",
+      "value": {
+        "name": "notes",
+        "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+        "paradigm": "multi",
+        "commands": {
+          "write": {
+            "description": "写入或覆盖一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "笔记的全文，整条覆盖。"
+                }
+              },
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "list": {
+            "description": "列出全部笔记的标识。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "q": {
+                  "$ref": "#/$defs/query",
+                  "description": "查询词"
+                }
+              },
+              "$defs": {
+                "query": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "read": {
+            "description": "读一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "help": "read 收一个 id，返回那条笔记的全文。"
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "auto"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M24",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-46",
+      "value": {
+        "name": "notes",
+        "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+        "paradigm": "multi",
+        "commands": {
+          "write": {
+            "description": "写入或覆盖一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "笔记的全文，整条覆盖。"
+                }
+              },
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "list": {
+            "description": "列出全部笔记的标识。",
+            "input": {
+              "$id": "urn:example:list",
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "read": {
+            "description": "读一条笔记。",
+            "input": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "笔记的标识。"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "help": "read 收一个 id，返回那条笔记的全文。"
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "auto"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M24",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-47",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "array",
+          "properties": {}
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M26",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-48",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M26",
+      "schemaValid": false
+    },
+    {
+      "id": "EX5-49",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "description": "查询词",
+              "title": "Query"
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M27",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-50",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {},
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M27",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-51",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "description": "查询词",
+              "pattern": "^(a+)+$"
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "schema_unsupported",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-52",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "description": "查询词",
+              "pattern": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "schema_unsupported",
+      "schemaValid": true
+    },
+    {
+      "id": "EX5-53",
+      "value": {
+        "name": "t",
+        "description": "d",
+        "paradigm": "single",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "pattern": "^("
+            }
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "origin": {
+          "kind": "authored"
+        }
+      },
+      "rejected": "input_not_schema",
+      "schemaValid": true
+    }
+  ],
+  "negativeReturns": [
+    {
+      "id": "EX8-01",
+      "value": {
+        "content": [
+          {
+            "id": "b1",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "callId": "c9",
+            "tool": "notes",
+            "arguments": {},
+            "complete": true
+          }
+        ]
+      },
+      "rejected": "result_call_in_content"
+    },
+    {
+      "id": "EX8-02",
+      "value": {
+        "content": [],
+        "offload": {
+          "raw": {
+            "inline": "eA==",
+            "mediaType": "text/plain"
+          },
+          "summary": [
+            {
+              "id": "b3",
+              "kind": "tool_call",
+              "visibility": {
+                "toHuman": false,
+                "toModel": false
+              },
+              "rawArguments": "{\"id\":",
+              "complete": false
+            }
+          ]
+        }
+      },
+      "rejected": "result_call_in_content"
+    },
+    {
+      "id": "EX8-03",
+      "value": 42,
+      "rejected": "malformed",
+      "malformed": "M16"
+    },
+    {
+      "id": "EX8-04",
+      "value": null,
+      "rejected": "malformed",
+      "malformed": "M16"
+    },
+    {
+      "id": "EX8-05",
+      "value": {},
+      "rejected": "malformed",
+      "malformed": "M17"
+    },
+    {
+      "id": "EX8-06",
+      "value": {
+        "content": [],
+        "outcome": "failed"
+      },
+      "rejected": "malformed",
+      "malformed": "M18"
+    },
+    {
+      "id": "EX8-07",
+      "value": {
+        "content": [],
+        "offload": {
+          "summary": [
+            {
+              "id": "b1",
+              "kind": "text",
+              "visibility": {
+                "toHuman": true,
+                "toModel": true
+              },
+              "text": "摘要"
+            }
+          ]
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M17"
+    },
+    {
+      "id": "EX8-08",
+      "value": {
+        "content": [],
+        "offload": {
+          "raw": {
+            "inline": "eA==",
+            "mediaType": "text/plain"
+          },
+          "summary": []
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M20"
+    },
+    {
+      "id": "EX8-09",
+      "value": {
+        "content": [],
+        "offload": {
+          "raw": {
+            "inline": "eA=="
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M17"
+    },
+    {
+      "id": "EX8-10",
+      "value": {
+        "content": "找到 3 条"
+      },
+      "rejected": "malformed",
+      "malformed": "M19"
+    },
+    {
+      "id": "EX8-11",
+      "value": {
+        "content": [],
+        "offload": {
+          "raw": "eyJyb3dzIjogW119"
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M21"
+    },
+    {
+      "id": "EX8-12",
+      "value": {
+        "content": [],
+        "offload": {
+          "raw": {
+            "inline": "不是 base64",
+            "mediaType": "text/plain"
+          }
+        }
+      },
+      "rejected": "malformed",
+      "malformed": "M22"
+    },
+    {
+      "id": "EX8-13",
+      "value": {
+        "content": [],
+        "attachments": [
+          {}
+        ]
+      },
+      "rejected": "malformed",
+      "malformed": "M23"
+    },
+    {
+      "id": "EX8-14",
+      "value": {
+        "content": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "text": "缺标注"
+          }
+        ]
+      },
+      "rejected": "visibility_missing"
+    }
+  ],
+  "positiveReturns": [
+    "找到 3 条笔记：n1、n2、n3。",
+    {
+      "content": [
+        {
+          "id": "b0",
+          "kind": "text",
+          "visibility": {
+            "toHuman": true,
+            "toModel": true
+          },
+          "text": "找到 3 条笔记：n1、n2、n3。"
+        }
+      ]
+    },
+    {
+      "content": []
+    },
+    {
+      "content": [
+        {
+          "id": "b1",
+          "kind": "text",
+          "visibility": {
+            "toHuman": true,
+            "toModel": true
+          },
+          "text": "查询完成，共 48 213 行。"
+        }
+      ],
+      "offload": {
+        "raw": {
+          "storage": "offload-store",
+          "key": "run-7/call-3/raw",
+          "mediaType": "application/json",
+          "bytes": 5242880
+        },
+        "summary": [
+          {
+            "id": "b2",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "前 20 行：……（按金额降序）"
+          }
+        ]
+      }
+    },
+    {
+      "content": [],
+      "offload": {
+        "raw": {
+          "inline": "eyJyb3dzIjogW119",
+          "mediaType": "application/json"
+        }
+      }
+    },
+    {
+      "content": [
+        {
+          "id": "b1",
+          "kind": "text",
+          "visibility": {
+            "toHuman": true,
+            "toModel": true
+          },
+          "text": "已画出柱状图，见附件。"
+        }
+      ],
+      "attachments": [
+        {
+          "storage": "artifact-store",
+          "key": "charts/2026-09-23/c1.png",
+          "mediaType": "image/png",
+          "bytes": 20480,
+          "name": "chart.png"
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "name": "issue-tracker__search_issues",
+      "description": "在问题跟踪系统里按关键字搜索问题。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键字，按空格分词。"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "notes",
+      "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "list",
+              "read",
+              "write"
+            ],
+            "description": "list — 列出全部笔记的标识。\nread — 读一条笔记。\nwrite — 写入或覆盖一条笔记。"
+          },
+          "args": {
+            "type": "object",
+            "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "providerShapes": [
+    {
+      "type": "function",
+      "name": "issue-tracker__search_issues",
+      "description": "在问题跟踪系统里按关键字搜索问题。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键字，按空格分词。"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "issue-tracker__search_issues",
+        "description": "在问题跟踪系统里按关键字搜索问题。",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "搜索关键字，按空格分词。"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      }
+    },
+    {
+      "name": "issue-tracker__search_issues",
+      "description": "在问题跟踪系统里按关键字搜索问题。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键字，按空格分词。"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "type": "function",
+      "name": "notes",
+      "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "list",
+              "read",
+              "write"
+            ],
+            "description": "list — 列出全部笔记的标识。\nread — 读一条笔记。\nwrite — 写入或覆盖一条笔记。"
+          },
+          "args": {
+            "type": "object",
+            "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "notes",
+        "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": [
+                "list",
+                "read",
+                "write"
+              ],
+              "description": "list — 列出全部笔记的标识。\nread — 读一条笔记。\nwrite — 写入或覆盖一条笔记。"
+            },
+            "args": {
+              "type": "object",
+              "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
+            }
+          },
+          "required": [
+            "command"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "name": "notes",
+      "description": "读写本会话的笔记。先选命令，再给那个命令的参数。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "list",
+              "read",
+              "write"
+            ],
+            "description": "list — 列出全部笔记的标识。\nread — 读一条笔记。\nwrite — 写入或覆盖一条笔记。"
+          },
+          "args": {
+            "type": "object",
+            "description": "所选命令的参数；各命令的参数用法经 Tools().inspect 取得"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

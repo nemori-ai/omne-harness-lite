@@ -1,4 +1,24 @@
+## 最终 core 阶段签收（2026-09-26）
+
+本节点本阶段的 7 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
+Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
+[新原始运行与逐项签收](../../../../record/evidence/2026-09-26-tests-core-skill-v3/README.md)记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
+产品负责人已授权Skill收尾后总体发布／squash merge／清理；该条件已满足。源码复验坐标00999722，原06b运行与唯一SA测试坐标修复的适用性逐文件记录。
+下文旧日期／旧源的“未签／SP3／未完成／人的总体门待签”保留为当时事件，当前core阶段状态由本段取代。外部owner、真实运行时／IO、Connector和生产就绪没有提升；全仓make的三个main继承失败仍保留。
+
 # storage
+
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：已接受的独立内核／存储协议映射；没有独立数据契约坐标；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/storage` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**9 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 5 项 core-local、2 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
 
 - kind：`provider`
 - 对象与设计修订：状态 `implemented`（源码修订 HUB `c9b5850`），2026-09-22 首稿。**不兑现任何契约条款**；它的规格是两个 tenancy 节点写下的对存储提供者的要求清单——[account-identity R-1～R-7](../../tenancy/account-identity/design.md#对存储提供者的要求清单)与[organization-governance R-1～R-6](../../tenancy/organization-governance/design.md#对存储提供者的要求清单)（两份设计由 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md) 接受为实现路径）——加 [D-026](../../../../record/decisions/infrastructure-persistence-choices/README.md) 的四条基础设施选择
@@ -10,7 +30,9 @@
 - 语义接受范围：**无契约条款。**本节点不是任何 `data.*`／`capability.*`／`composition.*` 契约的提供者；它兑现的是两份已接受节点设计里的要求清单（AI R-1～R-7、OG R-1～R-6）与 D-026 的选择。要求清单的语义归那两个节点，本节点不改写它们的任何一条
 - 可实施范围：**已实现（HUB `c9b5850`）。**协议接口、四型失败与 `mapStorageError`（[design.md「协议」](design.md#协议)）、每条 R 在协议上的兑现点与提供者义务 P-1～P-12（[要求→协议→测试表](design.md#要求到协议再到会红的测试)）、一致性套件 19 个用例（C-1a/b～C-15，含 C-2b 主键支与 C-15 嵌套调用）、迁移片段与迁移前核对的共用形状（[design.md](design.md#迁移片段与迁移前核对的共用形状)）。**不给出**：任何提供者实现（归 [`infra/storage-sql`](../../infra/storage-sql/README.md)）、任何表结构与迁移（各 owner 导出片段、装配合成）、跨进程形态下的存储协调协议
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——没有契约条款可绑；本包的测试与套件都不是对某条契约的证据。一致性套件的通过是**提供者节点**的证据（它跑套件），不是本节点的绑定；每条用例的义务登记在 [verification.md](verification.md)
-- 实际验证：运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)，HUB）：本包的单元与类型测试随十三个 TS 成员在 sqlite 下全过；一致性套件由 [`infra/storage-sql`](../../infra/storage-sql/README.md) 在它的包测试里接线运行，sqlite 下全过，pg 16 容器上 19／19 通过。本节点 [verification.md](verification.md#实际执行) 的「实际执行」待回填
+- 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：开发工具 `247fc9e2` 在 HUB 的真实 SQLite 套件正常 **19/19**；关闭外键后 **17 通过、仅 C-11/C-12 失败**，外层有效性自测 **2/2**。记录的是完整保留的 HUB 运行，原 spoke ignored 日志丢失，未用摘要冒充原件。本次不复跑 pg、包内 runtime 测试或跨进程持久；各项与历史证据见 [verification.md](verification.md#本次追加验证2026-09-26)
+
+- 本轮公开验证：另见 [`2026-09-26-tests-core-public`](../../../../record/evidence/2026-09-26-tests-core-public/README.md)：错误映射／有序迁移两项子场景、协议／只读预检类型组、批准依赖图及真实 SQLite 套件正反复验，同一 HUB 外层12/12、零跳过；按本节点 [公开追加验证](verification.md#公开消费者追加验证2026-09-26) 的条款与边界读取。具名类型完整名单与三个 opaque 品牌互赋负例尚待后续实际运行；本轮不提升整体完成或最终接受。
 
 ## 按当前问题展开
 

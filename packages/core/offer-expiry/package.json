@@ -16,7 +16,8 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js"
-    }
+    },
+    "./schema/v1": "./schema/offer-expiry.v1.schema.json"
   },
   "files": [
     "dist",

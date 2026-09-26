@@ -1,0 +1,6 @@
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-kernel
+> ./scripts/format.sh check -- packages/core/kernel-basis/tests/basis/fiber-state-readable.test.ts packages/core/kernel-basis/tests/basis/isolate-hides-instances-not-data.test.ts packages/core/kernel-basis/tests/basis/inject-has-no-optional-form.test.ts
+
+Checking formatting...
+All matched files use Prettier code style!

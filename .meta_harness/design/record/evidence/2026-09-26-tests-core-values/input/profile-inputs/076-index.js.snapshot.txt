@@ -1,0 +1,9 @@
+// data.identity-values v1 的纯模块。公开入口以 realization 节点 core/identity-values 的投影表为准。
+export { ok, invalidInput, isOk, unwrap } from "./parsed.js";
+export { OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS, parseOpaqueIdentifier, opaqueIdentifierEquals, } from "./opaque.js";
+export { IDENTITY_BRAND_NAMES, IDENTITY_TYPE_NAMES, ORGANIZATION_KINDS, TENANT_ROLES, parseAccountId, parseOrganizationId, parseLoginStateId, parseLoginIdentifier, parseOrganizationKind, parseTenantRole, parseTenantId, tenantIdEquals, toCanonicalJson, parseMembershipStanding, parseMembershipStandingResult, parseScopeLayerIdentity, } from "./values.js";
+export { sameAccountDistinctTenants, ancestorChain, shareAncestor, } from "./predicates.js";
+export { SCHEMA_DEF_NAMES, validate, schemaId, } from "./validate.js";
+export { handoffWarrant, parseHandoffWarrant, generateHandoffKeyPair, loadSigningKey, loadVerificationKey, issue as issueHandoffWarrant, verifyWarrant as verifyHandoffWarrant, } from "./handoff-warrant.js";
+export { generateOpaqueIdentifier } from "./identifier.js";
+//# sourceMappingURL=index.js.map

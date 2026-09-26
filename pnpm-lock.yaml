@@ -12,6 +12,9 @@ catalogs:
     '@earendil-works/pi-tui':
       specifier: 0.86.1
       version: 0.86.1
+    '@eslint-community/regexpp':
+      specifier: 4.12.2
+      version: 4.12.2
     '@standard-schema/spec':
       specifier: 1.1.0
       version: 1.1.0
@@ -36,6 +39,9 @@ catalogs:
     vitest:
       specifier: 4.1.11
       version: 4.1.11
+    yaml:
+      specifier: 2.9.1
+      version: 2.9.1
     zod:
       specifier: 4.6.5
       version: 4.6.5
@@ -88,7 +94,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   apps/tenancy-host:
     dependencies:
@@ -152,7 +158,138 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/arrival-events:
+    dependencies:
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/asset-evaluation:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
+      '@omne-harness-lite/mcp-endpoint':
+        specifier: workspace:*
+        version: link:../mcp-endpoint
+      '@omne-harness-lite/skill-package':
+        specifier: workspace:*
+        version: link:../skill-package
+      '@omne-harness-lite/slash-command':
+        specifier: workspace:*
+        version: link:../slash-command
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/asset-model:
+    dependencies:
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/call-accounts:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/content-blocks:
+    dependencies:
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/core/identity-values:
     dependencies:
@@ -168,7 +305,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/core/kernel-basis:
     dependencies:
@@ -187,10 +324,165 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
       zod:
         specifier: 'catalog:'
         version: 4.6.5
+
+  packages/core/loop-extension:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../messages
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../model-profile
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/mcp-endpoint:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/messages:
+    dependencies:
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../model-profile
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/model-profile:
+    dependencies:
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/model-response:
+    dependencies:
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../loop-extension
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../messages
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../model-profile
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/core/offer-expiry:
     dependencies:
@@ -209,7 +501,57 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/skill-package:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/slash-command:
+    dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/skill-package':
+        specifier: workspace:*
+        version: link:../skill-package
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/core/storage:
     dependencies:
@@ -225,7 +567,54 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/stream-assembly:
+    dependencies:
+      '@omne-harness-lite/arrival-events':
+        specifier: workspace:*
+        version: link:../arrival-events
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/tool-definition:
+    dependencies:
+      '@eslint-community/regexpp':
+        specifier: 'catalog:'
+        version: 4.12.2
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/frontend/client-local-state:
     dependencies:
@@ -268,7 +657,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/frontend/governance-center-client:
     dependencies:
@@ -290,7 +679,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/frontend/governance-client-operations:
     dependencies:
@@ -327,7 +716,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/infra/clock:
     dependencies:
@@ -361,7 +750,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/infra/storage-sql:
     dependencies:
@@ -395,7 +784,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/tenancy/account-identity:
     dependencies:
@@ -438,7 +827,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/tenancy/account-registration:
     dependencies:
@@ -484,7 +873,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/tenancy/credential-verification:
     dependencies:
@@ -521,7 +910,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/tenancy/governance-center-entry:
     dependencies:
@@ -576,7 +965,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   packages/tenancy/organization-governance:
     dependencies:
@@ -619,7 +1008,31 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/util/unix-format:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/util/xml-format:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
   tools/artifact-builder:
     devDependencies:
@@ -631,10 +1044,100 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  tools/core-verification:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/arrival-events':
+        specifier: workspace:*
+        version: link:../../packages/core/arrival-events
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../packages/core/asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../../packages/core/asset-model
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../packages/core/call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../packages/core/content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../packages/core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../packages/core/kernel-basis
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../../packages/core/loop-extension
+      '@omne-harness-lite/mcp-endpoint':
+        specifier: workspace:*
+        version: link:../../packages/core/mcp-endpoint
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../../packages/core/messages
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../../packages/core/model-profile
+      '@omne-harness-lite/model-response':
+        specifier: workspace:*
+        version: link:../../packages/core/model-response
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../packages/core/offer-expiry
+      '@omne-harness-lite/skill-package':
+        specifier: workspace:*
+        version: link:../../packages/core/skill-package
+      '@omne-harness-lite/slash-command':
+        specifier: workspace:*
+        version: link:../../packages/core/slash-command
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../packages/core/storage
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/infra/storage-sql
+      '@omne-harness-lite/stream-assembly':
+        specifier: workspace:*
+        version: link:../../packages/core/stream-assembly
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-definition
+      '@omne-harness-lite/unix-format':
+        specifier: workspace:*
+        version: link:../../packages/util/unix-format
+      '@omne-harness-lite/xml-format':
+        specifier: workspace:*
+        version: link:../../packages/util/xml-format
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      kysely:
+        specifier: 'catalog:'
+        version: 0.29.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
 
   tools/ts-checks:
     devDependencies:
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../packages/core/identity-values
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -643,7 +1146,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
 packages:
 
@@ -665,6 +1168,10 @@ packages:
   '@earendil-works/pi-tui@0.86.1':
     resolution: {integrity: sha512-FU/zU/zG4RWokcZt+BVXXcieWi5ggvYnWP2kkB5XXjMaHRoy5BDhcZJ9JAnLTN9MwrCRoXgPQxOI0bFqwYeZkQ==}
     engines: {node: '>=22.19.0'}
+
+  '@eslint-community/regexpp@4.12.2':
+    resolution: {integrity: sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew==}
+    engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
@@ -1173,6 +1680,11 @@ packages:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
 
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
@@ -1189,6 +1701,8 @@ snapshots:
     dependencies:
       get-east-asian-width: 1.6.0
       marked: 18.0.11
+
+  '@eslint-community/regexpp@4.12.2': {}
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
@@ -1274,13 +1788,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.11(vite@8.3.0(@types/node@24.13.6))':
+  '@vitest/mocker@4.1.11(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.3.0(@types/node@24.13.6)
+      vite: 8.3.0(@types/node@24.13.6)(yaml@2.9.1)
 
   '@vitest/pretty-format@4.1.11':
     dependencies:
@@ -1512,7 +2026,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  vite@8.3.0(@types/node@24.13.6):
+  vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -1522,11 +2036,12 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.13.6
       fsevents: 2.3.3
+      yaml: 2.9.1
 
-  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)):
+  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.3.0(@types/node@24.13.6))
+      '@vitest/mocker': 4.1.11(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11
@@ -1543,7 +2058,7 @@ snapshots:
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 8.3.0(@types/node@24.13.6)
+      vite: 8.3.0(@types/node@24.13.6)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
@@ -1557,5 +2072,7 @@ snapshots:
       stackback: 0.0.2
 
   xtend@4.0.2: {}
+
+  yaml@2.9.1: {}
 
   zod@4.6.5: {}

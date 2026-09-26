@@ -1,0 +1,13 @@
+{
+  "captured_at_utc": "2026-09-26T17:04:37.619493+00:00",
+  "first_result": "seal-readback-first-error.log",
+  "first_result_origin": "Verbatim transcription of original tool result; attempted nonexistent top-level formal SHA256SUMS",
+  "correct_formal_manifests": [
+    "durable-SHA256.json",
+    "worker-SHA256SUMS",
+    "formal-run.tar.gz:w6-core-formal-v3/SHA256SUMS"
+  ],
+  "first_failure_product_defect": false,
+  "prior_run_files_changed": false,
+  "successful_new_readback": true
+}

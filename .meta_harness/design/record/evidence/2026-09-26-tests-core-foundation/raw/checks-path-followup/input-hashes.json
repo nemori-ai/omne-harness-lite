@@ -1,0 +1,11 @@
+{
+  "base_commit": "30f8786d3fd84c14f6c4862d18e443054dca24d4",
+  "files": {
+    "tools/ts-checks/src/rules/core-pure-imports.ts": "a4c3cf14575f25007f256006958abc305d5711d836b3aa5ce2f03a5cd85a310d",
+    "tools/ts-checks/tests/core-rules.spec.ts": "aba72142055d84cb5c5f1ff4e86dafcb0cfef5e0a501a46652e0f92cf91a6368",
+    "tools/ts-checks/README.md": "34597570713a20d737c2f10381efe38d757cd845a82b767513e22dff5c09dab9",
+    ".meta_harness/design/realization/packages/core/asset-model/design.md": "57481e91250265a53c3372690c0920ed32c6e61dc3e8ca28d82bd0f918259754",
+    ".meta_harness/design/realization/packages/core/mcp-endpoint/design.md": "4edf29d9e54dae37bd3c700e00233b3e7448878a09855629c6ab3ca8b6e7122a",
+    ".meta_harness/design/realization/packages/core/arrival-events/design.md": "c388c8aa937e371a69426e2427773c6890ea379430e79e9cc7b6ed2a88844d5a"
+  }
+}

@@ -1,0 +1,29 @@
+Scope: 4 of 15 workspace projects
+packages/core/storage build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build: Done
+packages/core/storage build: Done
+packages/infra/storage-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/infra/storage-sql build: Done
+tools/core-verification build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+tools/core-verification build: Done
+
+> @omne-harness-lite/core-verification@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/core-verification
+> tsc -p tsconfig.test.json
+
+
+> @omne-harness-lite/core-verification@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/core-verification
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/core-verification
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+Type Errors  no errors
+   Start at  04:37:34
+   Duration  2.70s (transform 29ms, setup 0ms, import 42ms, tests 2.51s, environment 0ms)
+

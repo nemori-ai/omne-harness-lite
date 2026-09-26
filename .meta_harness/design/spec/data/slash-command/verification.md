@@ -32,7 +32,7 @@
 | SC-3 | 拿到 `failed` 的每一条路径都不产生入站到达、不入队、不展开、不触发流程、**不把输入改当普通文字送出**；「字面发送」只由识别文法的 `//` 那一支产生 | [S-13](v2/contract.md#s-13-识别的三种结果)、[S-24](v2/contract.md#s-24-解析失败即什么都不发) | 未开始 |
 | SC-4 | 产生 `unknown_command` 的代码只读这次的 `CommandInvocation` 与会话斜杠命令集；**不读权限、不读别的层或别的会话**；从解析到呈现的任何一跳都不给它加成员或换原因 | [S-16](v2/contract.md#s-16-名字只按会话斜杠命令集认) | 未开始 |
 | SC-5 | 受理面收到交付面交来的 `CommandInvocation` 时，按 `raw` 重新识别并逐成员比对；不存在「信任对方已识别」的路径 | [S-14](v2/contract.md#s-14-commandinvocation-与位置) | 未开始 |
-| SC-6 | `slash_command` 类的属性项推出规则只读正文、恰产出一项权限、不产出 `disabled` 与治理类的项 | [S-11](v2/contract.md#s-11-属性项的推出规则) | 未开始 |
+| SC-6 | `slash_command` 类的正文属性项推出规则只读正文、产出空集，不另产出 `disabled`、`usableBy` 或治理类项；整份资产的两条保留声明由 asset-model 提供 | [S-11](v2/contract.md#s-11-属性项的推出规则) | 未开始 |
 
 ## 独立评审
 
@@ -129,3 +129,5 @@ V-2～V-6 **一条执行记录也没有**。起草时的手核与一次性演算
   同时把正文里指 `origin` 的「来源标记」一律改称「来路标记」（[UL-origin-tag](../../../ubiquitous_language/terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag)，依赖表那一处链词条；「来源标记」是入站到达与提醒上的另一个词条）——依赖表、设计依据的注表、S-21、S-22、S-25 与 G-4、G-10 两行；本页对齐义务表「① 型展开的正文与留痕」一行同改。**语义与表示都不变**，V-1 不重跑。
 
 结果不改写规范。发现语义问题回到来源设计（PF-002／PF-014／PF-016），不在这里改契约。
+
+- **2026-09-26 实施输入核对**：SC-6 残留的“恰产出一项权限”与已冻结 S-11、CS-7 及本页对齐义务不符，按 [D-060 S18-c](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s18skill-package报回的) 与 S-11 校准为正文端口产出空集；整资产仍有 disabled、usableBy 两条共用保留声明。经独立 spec-reviewer 限定只读核对，无剩余阻断。只修版本外验证导航，三份冻结规范资源及其 hash 不变；不表示实现或验证通过。

@@ -21,9 +21,11 @@
 | 类型 `ToolDefinition`、`ToolCommand`；`ModelToolName`（家在本包） | [S-1](../../../../spec/data/tool-definition/v2/contract.md#s-1-工具定义是什么)～[S-5](../../../../spec/data/tool-definition/v2/contract.md#s-5-多命令工具)、[S-8](../../../../spec/data/tool-definition/v2/contract.md#s-8-说明与用法)～[S-18](../../../../spec/data/tool-definition/v2/contract.md#s-18-名字的表示与相等) |
 | `modelEntry(d)`、`modelInput(d)`、`modelName(name)`、`definitionNameOf(modelName)` | [S-6](../../../../spec/data/tool-definition/v2/contract.md#s-6-模型面只有一个条目)、[S-7](../../../../spec/data/tool-definition/v2/contract.md#s-7-多命令-input-的生成规则)、[S-18](../../../../spec/data/tool-definition/v2/contract.md#s-18-名字的表示与相等) |
 | `createParameterJudge()` → `judgeCallArguments(d, call) → { ok } \| { invalid } \| { unsupported }` | [S-4](../../../../spec/data/tool-definition/v2/contract.md#s-4-单函数工具)、[S-5](../../../../spec/data/tool-definition/v2/contract.md#s-5-多命令工具)、[S-7](../../../../spec/data/tool-definition/v2/contract.md#s-7-多命令-input-的生成规则) |
-| `toolDependencies(d)`；`toolBodyContract`（asset-model 端口的 `tool` 那一份） | [S-19](../../../../spec/data/tool-definition/v2/contract.md#s-19-由定义得出的依赖声明)、[S-31](../../../../spec/data/tool-definition/v2/contract.md#s-31-属性项的推出规则) |
-| 类型 `ToolReturn`、`ToolResult`；`toolResultOf(returned)` | [S-20](../../../../spec/data/tool-definition/v2/contract.md#s-20-两种写法与等价规则)～[S-25](../../../../spec/data/tool-definition/v2/contract.md#s-25-toolresult-不是收场) |
+| `toolDependencies(d, effectiveTargetEnvironment)`；`toolBodyContract`（asset-model 端口的 `tool` 那一份） | [S-19](../../../../spec/data/tool-definition/v2/contract.md#s-19-由定义得出的依赖声明)、[S-31](../../../../spec/data/tool-definition/v2/contract.md#s-31-属性项的推出规则) |
+| 类型 `ToolReturn`、`ToolResult`；`toolResultOf(returned, blockId)` | [S-20](../../../../spec/data/tool-definition/v2/contract.md#s-20-两种写法与等价规则)～[S-25](../../../../spec/data/tool-definition/v2/contract.md#s-25-toolresult-不是收场) |
 | `judgeToolDefinition(value, judge?)`、`judgeToolReturn(value)` | [S-26](../../../../spec/data/tool-definition/v2/contract.md#s-26-表示层拒绝值与判定次序)～[S-28](../../../../spec/data/tool-definition/v2/contract.md#s-28-判别式与枚举闭合) |
+
+`toolResultOf` 的 `blockId` 是必需的调用方输入，按S-20由接收返回值的运行时提供；本包不生成身份。裸字符串只造一个双visibility为真的文本块，结构返回保留已有块；唯一性和只兑现一次仍归运行时。
 
 **函数层不承诺**：判一次调用的判定时限（U-8）——`judgeCallArguments` 是同步纯计算、停不下来，计时与终止归执行运行时的判定工作线程；模型看到的条目与据以校验的定义是同一份、裸字符串只兑现一次——归注册表与执行运行时（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列）。
 
@@ -57,9 +59,9 @@
 |---|---|---|---|
 | [S-1](../../../../spec/data/tool-definition/v2/contract.md#s-1-工具定义是什么)～[S-5](../../../../spec/data/tool-definition/v2/contract.md#s-5-多命令工具)、[S-8](../../../../spec/data/tool-definition/v2/contract.md#s-8-说明与用法)～[S-17](../../../../spec/data/tool-definition/v2/contract.md#s-17-来源) 定义的成员 | 类型 `ToolDefinition`、`ToolCommand` 等 | 定义只由 JSON 值组成（没有函数成员） | V-1 |
 | [S-6](../../../../spec/data/tool-definition/v2/contract.md#s-6-模型面只有一个条目)、[S-7](../../../../spec/data/tool-definition/v2/contract.md#s-7-多命令-input-的生成规则)、[S-18](../../../../spec/data/tool-definition/v2/contract.md#s-18-名字的表示与相等) 模型面条目、生成规则、名字 | `modelEntry(d)`、`modelInput(d)`、`modelName(name)`、`definitionNameOf(modelName)`；类型 `ModelToolName`（**家在本包**） | 转写：每个 `:` 换成 `__`；逆转写：每段连续 `_` 长 2m 换回 m 个 `:`、长 1 留下；命令表**按码点升序**——JS 数组默认排序比的是 UTF-16 码元，对增补平面字符与码点序不一致，所以比较函数按码点写 | V-2；逆转写唯一由 S-18 第 2 条保证，测试对三种相邻各给一个反例 |
-| S-4、S-5 末条、S-7 第 3、4 条：**判一次调用的参数** | `createParameterJudge()` → 判定对象，方法 `judgeCallArguments(d, call) → { ok: { command?, args } } \| { invalid: 诊断 } \| { unsupported }`（M50；照 asset-model `createAssetModelJudge` 的形状） | 判定对象持有一只 ajv 实例与它编出的判定函数（对象内按 schema 内容编一次）；单函数工具按 `input` 判；多命令工具先核 `command` 是命令表里的名字、`args` 是对象（缺席按 `{}`），再按 `commands[c].input` 判；**顶层没写 `additionalProperties` 按 `false` 读**；**`format` 只作注解、不作断言**（ajv `validateFormats: false`；契约 S-4 末段第一条，M37）；**编不出来的 schema 没有判定函数可用**——本函数对它返回 `{ unsupported }`，**不退成「不判、全放行」**（S-4 末段「缺席即拒绝」）；**判定时限（[U-8](#schema_unsupported-的上限登记g-16)）由调用方计时**：本函数是同步纯计算，停不下来，所以放在可终止的工作线程里跑、到点终止线程的是执行运行时 | V-9、V-12 的本节点那一半（`format` 不据以拒绝）。判不过、编不出来、判定超时怎样收场归执行运行时：后两者一律 `failed{schema_unsupported}`（`capability.tool-execution-runtime/v2` S-23 ④；契约 G-15 已由 [D-060 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16 关闭） |
-| [S-19](../../../../spec/data/tool-definition/v2/contract.md#s-19-由定义得出的依赖声明)、[S-31](../../../../spec/data/tool-definition/v2/contract.md#s-31-属性项的推出规则) 依赖声明、推出规则 | `toolDependencies(d)`；`toolBodyContract`（asset-model 端口的 `tool` 那一份：判正文与名字、推属性、列引用） | 只读定义本身 | asset-model SC-6 |
-| [S-20](../../../../spec/data/tool-definition/v2/contract.md#s-20-两种写法与等价规则)～[S-25](../../../../spec/data/tool-definition/v2/contract.md#s-25-toolresult-不是收场) 返回值 | 类型 `ToolReturn`、`ToolResult`；`toolResultOf(returned)`（裸字符串 ⇒ 恰一个文本块、两位标注为真） | 纯函数 | V-5 的等价规则那一半 |
+| S-4、S-5 末条、S-7 第 3、4 条：**判一次调用的参数** | `createParameterJudge()` → 判定对象，方法 `judgeCallArguments(d, call) → { ok: { command?, args } } \| { invalid: 诊断 } \| { unsupported }`（M50；照 asset-model `createAssetModelJudge` 的形状） | 判定对象持有一只 ajv 实例与它编出的判定函数（对象内按 schema 内容编一次）；单函数工具按 `input` 判；多命令工具先核 `command` 是命令表里的名字、`args` 是对象（缺席按 `{}`），再按 `commands[c].input` 判；**顶层没写 `additionalProperties` 按 `false` 读**；**`format` 只作注解、不作断言**（ajv `validateFormats: false`；契约 S-4 末段第一条，M37）；**编不出来的 schema 没有判定函数可用**——本函数对它返回 `{ unsupported }`，**不退成「不判、全放行」**（S-4 末段「缺席即拒绝」）；**判定时限（[U-8](#schema_unsupported-的上限登记g-16)）由调用方计时**：本函数是同步纯计算，停不下来，所以放在可终止的工作线程里跑、到点终止线程的是执行运行时 | V-9、V-12 的本节点那一半（`format` 不据以拒绝）。判不过、编不出来、判定超时怎样收场归执行运行时：后两者一律 `failed{schema_unsupported}`（`capability.tool-execution-runtime/v1` S-23 ④；契约 G-15 已由 [D-060 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16 关闭） |
+| [S-19](../../../../spec/data/tool-definition/v2/contract.md#s-19-由定义得出的依赖声明)、[S-31](../../../../spec/data/tool-definition/v2/contract.md#s-31-属性项的推出规则) 依赖声明、推出规则 | `toolDependencies(d, effectiveTargetEnvironment)`；`toolBodyContract`（asset-model 端口的 `tool` 那一份：判正文与名字、推属性、列引用） | 属性声明推出只读定义本身；S-19 依赖声明另收显式的求值后目标环境，不使用作者默认值 | asset-model SC-6；S-19 的有效值输入回归 |
+| [S-20](../../../../spec/data/tool-definition/v2/contract.md#s-20-两种写法与等价规则)～[S-25](../../../../spec/data/tool-definition/v2/contract.md#s-25-toolresult-不是收场) 返回值 | 类型 `ToolReturn`、`ToolResult`；`toolResultOf(returned, blockId)`（裸字符串 ⇒ 恰一个文本块、两位标注为真） | 纯函数 | V-5 的等价规则那一半 |
 | [S-26](../../../../spec/data/tool-definition/v2/contract.md#s-26-表示层拒绝值与判定次序)～[S-28](../../../../spec/data/tool-definition/v2/contract.md#s-28-判别式与枚举闭合) 十三个拒绝值、M1～M27 与次序 | `judgeToolDefinition(value, judge?)`、`judgeToolReturn(value)` | Schema 之外那一步：参数 schema 合不合法的 Draft 2020-12（ajv 元模式校验；**每个 `pattern` 先按 ECMA-262 不带 `u` 试编，编不过再带 `u` 试编；两者都编不过 ⇒ `input_not_schema`，任一编得过即按编得过的那种语义登记并判参数**（第 5 行；[U-1](#schema_unsupported-的上限登记g-16)，[D-060 §八 M56](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)））、每个参数带说明、只用可呈现子集、命令 `input` 无根相对 `$ref` 与 `$id`、`name` 转写后长度；**以上都过了，才按[登记的上限](#schema_unsupported-的上限登记g-16)去编——编不出来或超限即 `schema_unsupported`，第 13 行、最后一步**。去编用的判定对象由调用方传入（复用它持有的那只）；不传就随这次调用造一只、返回即丢，**不留任何跨调用的状态**；返回值里的块取 content-blocks 的值、原名 | V-1、V-2；examples 第 5 节新加的三行（嵌套无界量词、超长、`"^("` 先报 `input_not_schema`） |
 
 ### 参数判定用 ajv 编译作者的 schema
@@ -95,7 +97,7 @@
 | U-1 | 正则方言 | **每个 `pattern` 先按 ECMA-262 不带 `u` 试编，编不过再带 `u` 试编；两者都编不过 ⇒ `input_not_schema`，任一编得过即按编得过的那种语义登记并判参数**（第 5 行，先于第 13 行；[D-060 §八 M56](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。ajv 的 `unicodeRegExp` **按 pattern 逐条对齐、不用全局默认**：判定对象给 ajv 注入一个按上面次序为每个 `pattern` 选标志的正则构造函数（候选：ajv 的 `code.regExp` 选项；该选项在 8.20.0 上的行为是**待核对主张，须按 source-check 取证**） | 这一句与上表 S-26 那一行是同一句；`"^("` 两种都编不过，报 `input_not_schema` 而不是 `schema_unsupported`（examples 第 5 节那一行）；类外的 `\-`、裸 `{` 这类只在不带 `u` 时合法的写法**照收**，按不带 `u` 的语义判；两种都编得过而语义不同的（`.` 遇星号平面字符、`\u{41}`）同样按不带 `u` 的语义判——这是 M56 次序的直接后果，作者要码点语义须写成只有带 `u` 才编得过的形式 |
 | U-2 | `pattern` 长度上限 | 每个 `pattern` **≤ 1024 个码点** | 工具参数的正则实际多在几十字符内；1024 远超常见用法，又把静态筛查的输入限在很小的规模 |
 | U-3 | 回溯保护：嵌套无界量词 | 无界量词（`*`、`+`、`{n,}`）作用于一个本身含无界量词的子式（星高 ≥ 2，如 `(a+)+`、`(a*b*)*`）⇒ 超出 | 指数回溯的典型形态；examples 第 5 节那一行 `^(a+)+$` 正是它 |
-| U-4 | 回溯保护：反向引用 | 含 `\1`～`\9` 或 `\k<名>` ⇒ 超出 | 反向引用让匹配不再是正则语言，回溯上界无从估计 |
+| U-4 | 回溯保护：反向引用 | 按 U-1 选定标志后解析出的 AST 含 `Backreference` 节点（如真正的 `\1`～`\9` 或命名反向引用）⇒ 超出；解析成 Character 的八进制/字面转义不触发 U-4，仍检查其余限项 | 反向引用让匹配不再是正则语言，回溯上界无从估计 |
 | U-5 | 回溯保护：计数量词上界 | `{n,m}` 的 `m` > 1000 ⇒ 超出 | 大计数量词在回溯引擎里展开成长链，与嵌套量词叠加时同样爆炸 |
 | U-6 | 「编不出来」 | ajv 8.20.0 以 `strict: false`、`validateFormats: false`、`pattern` 按 U-1 逐条选标志编译抛错 | ajv 的严格模式会把一些合法 Draft 2020-12 写法当成编译错误，那会误报成 `schema_unsupported`；关掉它，编不出来只剩真正的引擎限制。严格模式各子项的确切行为是**待核对主张，须按 source-check 取证**（basis 无此条目），落包时以包内正反例核 |
 | U-7 | 判法的实现 | U-3～U-5 在正则的语法树上判，语法树由成熟的正则解析器给（候选依赖 `@eslint-community/regexpp`，M55），按 U-1 选定的那种标志解析，**不手写扫描** | 手写扫描在转义、字符类、命名组上容易漏判或误判；该解析器的行为是**待核对主张，须按 source-check 取证**（basis 无此条目） |
@@ -117,7 +119,7 @@
 | `data.asset-model` v2（名字词法、属性声明、设置项类别、端口类型） | [asset-model](../asset-model/README.md) | 同上 | 同上 |
 | 被消费 | loop-extension、skill-package、mcp-endpoint、asset-evaluation、执行运行时、注册表、MCP 桥、传输适配、资产治理 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环；另加一个第三方正则解析器（U-7，候选依赖，版本钉定与许可核对在实施程，M55）。**没有配置项**（U-1～U-8 是常量，不是部署配置——做成配置就违背「同一个实现、同一份登记的上限，对同一份输入恒给同一个值」）。
+包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环；另加一个第三方正则解析器（U-7，候选依赖，版本钉定与许可核对在实施程，M55）。**本包没有配置项**：U-1～U-7 是本实现登记的常量，不按部署配置改变；U-8 的时限、计时、终止与超时收场归执行运行时的策略配置，不是本包常量。
 
 ## 状态、并发与失败映射
 
@@ -150,6 +152,30 @@
 
 契约的已知缺口（G-1、G-2、G-5、G-9～G-14）不重抄；G-15 已由 [D-060 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16 关闭（判不了一律 `failed{schema_unsupported}`，收场在执行运行时 S-23 ④）；G-16 由[上文的登记](#schema_unsupported-的上限登记g-16)承接（候选值）。原 tool-model 报回的 TM-2（`format` 断言还是注解）、TM-3（远端正则的执行安全）已由 [D-060 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 与契约 S-4 末段、S-26 第 13 行关闭。本节点自己的：
 
-- **TD-1 `ModelToolName` 的副本对齐**：content-blocks 里有一份逐字副本（为避免契约互依）。对齐测试放在本包：取 content-blocks 导出的 Schema 与本包 Schema，比较两处 `$defs/ModelToolName` 逐字相同。owner：本节点（义务，不是阻塞；D-060 §八 M44 接受「副本对齐测试放依赖方」）。
-- **TD-2 登记值的确认与解析器的采用**：U-1～U-8 是本节点登记的候选；契约 G-16 说「需要跨实现一致时由主线定一份共同的下限」——本版只有这一份实现，不阻塞。正则解析器（U-7）按 [D-060 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 是候选依赖，版本钉定与许可核对在实施程。筛不出的病态正则由 U-8 的判定时限兜底，计时与终止在执行运行时的判定工作线程（它的节点已按 T-16 写进）。ajv `code.regExp` 按 pattern 选标志（U-1）与 ajv 内部缓存对已编 schema 的引用方式（M50）是实施时的核对项。owner：主线（依赖登记）；本节点（落包时以 examples 第 5 节三行与 U-1～U-8 各一对正反例核）。
+- **TD-1 `ModelToolName` 的副本对齐**：content-blocks 里有一份逐字副本（为避免契约互依）。对齐测试放在本包：取 content-blocks 导出的 Schema 与本包 Schema，比较两处 `$defs/ModelToolName` 的断言键 `type` 与 `pattern` 逐字相同（依content-blocks冻结 `$comment` 的精确口径；各自title/description/examples/$comment注释保留，不比较为同字节）。owner：本节点（义务，不是阻塞；D-060 §八 M44 接受「副本对齐测试放依赖方」）。
+- **TD-2 登记值的确认与解析器的采用**：U-1～U-7 是本节点登记的限项，U-8 的策略与用例归执行运行时；契约 G-16 说「需要跨实现一致时由主线定一份共同的下限」——本版只有这一份实现，不阻塞。正则解析器（U-7）按 [D-060 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 是候选依赖，版本钉定与许可核对在实施程。筛不出的病态正则由 U-8 的判定时限兜底，计时与终止在执行运行时的判定工作线程（它的节点已按 T-16 写进）。ajv `code.regExp` 按 pattern 选标志（U-1）与 ajv 内部缓存对已编 schema 的引用方式（M50）是实施时的核对项。owner：主线（依赖登记）；本节点（落包时以 examples 第 5 节三行与 U-1～U-7 各一对正反例核）；U-8 的配置与超时例归执行运行时。
 - **TD-3 端口的组合根**：`toolBodyContract` 与另五个正文包的那一份只由 asset-evaluation 组合一次、导出为 `defaultBodyContracts`（[asset-model AM-5](../asset-model/design.md#实施缺口与消费者影响)，M51）。
+
+## 2026-09-26 实施前置消歧
+
+依据冻结契约 G-16 授予提供者的登记范围，主调度按既定 U-1/U-7 将 U-4 明确为实际 AST Backreference。regexpp 4.12.2/Node24.18.0 的探针显示，无捕获组的 non-u `\1`、字符类中的 `\1`、无命名组的 `\k<name>` 属 Character；与真正反向引用分开判，不做源码子串封禁。该消歧会区别这些输入的 U-4 结果，不能表述为“所有行为不变”；其余限项与拒绝次序不变。独立 spec-reviewer 限定核对无剩余阻断；实际解析器/编译器的适配证据尚待包级交付登记。U-8 依赖节的旧常量说法同时校准，core 不接管 timer 或终止。
+
+## 2026-09-26 S-19 公开输入校准
+
+独立规格输入核对指出：旧 `toolDependencies(d)` 只给定义，无法区分同一默认值经不同层配值后得到的目标环境，和冻结 S-19／S-11／CS-7 不符。改为必需第二参 `effectiveTargetEnvironment: TargetEnvironment | undefined`：调用方交出已求值的值；未声明目标环境时显式给 undefined，声明时必须给实际有效值。不从作者 default 回填，不省略声明的环境要求，不在纯模块里执行求值或查运行环境。此处只明确既定规则所需输入，不决定 G-5 的环境匹配政策。
+
+`toolBodyContract.deriveDeclarations` 仍是 S-31 的声明推出，仅读正文，以作者默认值建立属性声明；它与携带有效值的 S-19 依赖声明是两个不同步骤，静态纯性规则不能把后者的显式参数禁止掉。注册表/执行运行时未来调用此公开函数时负责从有效装配交出该项，与所执行的装配版本一致；版本同源责任不由两个输入本身证明。应测同一定义的宿主机默认与显式会话沙箱有效值：返回依赖要求随第二参变，定义/默认不变；无目标环境显式undefined；缺参不能通过类型消费者。非法调用的精确前置表达由实施接口核对，不新建领域失败值。
+
+## 共享Schema技术依赖
+
+本节点沿已有content-blocks依赖消费其公开 `./schema-runtime`（见[CB技术说明](../content-blocks/design.md#中性-schema-技术子入口)），不新增AM包依赖。原值与精确数机制由CB单一拥有，本节点的拒绝次序/领域类型/固定schema责任不外移；tool参数子集、regex工厂与caller-cache仍归tool调用方。
+
+## D-068：当前3的精确投影
+
+本节点设计采用 `data.tool-definition · v3`（[规范](../../../../spec/data/tool-definition/v3/contract.md)），原2投影以上只保留不受差异影响的机制和责任；坐标以本节和唯一catalog为准。八个采用关系由 [D-068](../../../../record/decisions/core-implementation-spec-reconciliation/decision.md) 显式选定，推荐不自动升级24个外部消费者。新3实际source/资源与证据待独立交付，旧2测试和模型运行不换标签。
+
+六data默认schema为3并各公开`./schema/v2`原2完整字节/$id；AR/CA/MP/Skill/MCP/Slash仍2，固定Schema图显式取旧资源。SA/AE没有自有Schema，不造空文件或空集通过。Connector只保留被AM规范引用的冻结资源，真实提供者纵线延期。
+
+### 公开表示恢复入口
+
+`isToolReturn`只作boolean；`toolResultOf(unknown,BlockId)`先既有完整返回值判定，再从CB judge.ok构造content和offload.summary的真实领域表示，递归结果沿CB处理；字符串仍是文本。 原红readOpaqueJson TypeError与四包2范围修复已实际核对；当前3采用仍需重跑，不把此局部恢复当完整opaque静态证明或执行许可。

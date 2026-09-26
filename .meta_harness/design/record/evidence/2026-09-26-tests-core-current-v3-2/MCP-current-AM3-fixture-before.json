@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "pnpm",
+    "--filter",
+    "@omne-harness-lite/mcp-endpoint",
+    "run",
+    "test",
+    "--maxWorkers",
+    "1"
+  ],
+  "start_utc": "2026-09-26T11:00:06.898213+00:00",
+  "end_utc": "2026-09-26T11:00:13.389803+00:00",
+  "exit": 1
+}

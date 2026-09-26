@@ -1,0 +1,23 @@
+{
+  "name": "omne-harness-lite-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.28.1",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm run build && pnpm -r run test",
+    "format:write": "./scripts/format.sh write",
+    "format:check": "./scripts/format.sh check",
+    "format:staged": "./scripts/format.sh staged",
+    "format:hook:install": "./scripts/install-format-hook.sh",
+    "test:format": "./scripts/test-formatting.sh",
+    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm -r run test && pnpm run lint:rules",
+    "lint:rules": "pnpm --filter @omne-harness-lite/ts-checks run scan"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  }
+}

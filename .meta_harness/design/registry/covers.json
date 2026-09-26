@@ -18998,6 +18998,5658 @@
       },
       "reviewed": false,
       "note": "2026-09-25 接口契约批（卯）起草时按设计依据表与性质表来源列登记，未经独立复核：只覆盖经 OAuth 取得的那一种的保管与按持有交出；静态凭据与续期本版不收（G-2、G-4）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#消息的内容是一串块不是一段文本"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#每个块带两个标注给人看吗给模型看吗"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#611-每个块都带给人看--给模型看两个标注"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#半截的工具调用记下来但不给模型看"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#工具调用的参数收齐了才算数"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#610-没收齐的工具调用参数不解析不执行"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#66-内容是块不在进日志时压成文本"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#那两个标注仍然是这件事的前提"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#要求二成分必须是明确标了给模型读的"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-5",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#62-没有明确标了给模型读的不进模型那一份"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-5",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模态"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-10",
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#转换件"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-19",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#511-有-transcript-的块不再把任何模型挡在外面"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-19",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#55-一次工具执行的收场有六种"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#参数说完了却解析不了的调用不执行以失败回给-agent"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 登记，未经独立复核：PF-006 rev 18 起为 S-12 的 unparseable 一种补的产品正文（形状是主线裁定，见 D-060 §一 S1-e）；2026-09-24 第一轮评审修复复核到 PF-006 rev 19，不变"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#占位消息一律要说清原因"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24：PF-006 rev 18 这张表加的「前台超时」一行对应 S-18 的 foreground_timeout（取值名是规格层的），原 G-7 闭合；同日第二轮：rev 18 这张表的「发起时就在后台」「运行被取消」与表下「被 agent 停掉」（落在收场提醒、不在占位上）对到 S-18 的三个取值。第一轮评审修复（复核到 rev 19）：「被 agent 停掉」的 terminated_by_agent 移出 PlaceholderReason，写成后台收场提醒上的原因。2026-09-25 修复波 2（D-060 §七 M22）：PlaceholderReason 只描述占位那一侧；后台收场提醒那一侧的取值域归 capability.tool-execution-runtime S-10"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#前台上限与并发上限"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 登记，未经独立复核：前台上限到点而工具不许转后台 → 被中断，原因「前台超时」＝ S-18 的 foreground_timeout（取值名是规格层的）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#停机之后它不重来"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#它的宿主是谁决定了什么会带走它"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。原为部分覆盖（「这一次运行被取消而它还在前台」没有取值，缺口 G-2）；G-2 已于 2026-09-23 对齐波闭合（run_cancelled），现为完整覆盖"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#工具的产出"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#卸载"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#slash-command"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只支撑 S-8 的前提（② 型展开成块、参数另成一块）；来路标记本身落在 D-058 Q1（该契约 G-6 已闭合），后两个来路见 D-060 §一 S20-c。2026-09-24 第一轮评审修复复核到 PF-002 rev 20，不变"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#拓展件"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮评审修复登记，未经独立复核：PF-012 rev 14 §4 写明转换件本版不是资产、只随系统装配——S-20「producedBy 恒为 system」的依据由主线裁定改为这里与 PF-013 §4 转换件"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#范围化对象"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#会话日志"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#52-会话日志是唯一的真相来源"
+      },
+      "target": {
+        "contract_id": "data.content-blocks",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#试过又失败的那几次留痕不进方程"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-8",
+          "S-23",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。每次发出只走一家、各留一条；不许上游在一次请求里自己换家。2026-09-24 第一轮评审修复按设计依据表补登 S-8（第几次发出）与 S-23（同一次调用的响应体序列）。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#32-一次模型调用"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-12",
+          "S-16",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。调用的状态与三个终态落成每次发出的收场与同一次调用的响应体序列；2026-09-24 第一轮评审修复按设计依据表补登 S-16（发不出去的不上响应体）。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。有效模型是选中的那个路由名这一次落到的那一行（S-9 的 route.profile）；它的名字从哪来（会话选中／层级锁死／拓展件 select_model）留在 S-10 的 selectedBy 上。2026-09-24 第一轮评审修复按 rev 12「设置记路由名」改写并补登 S-9。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖属性表「请求参数」一行的留痕那一半；档案本身归 data.model-profile。2026-09-24 第一轮评审修复改为三个成员：parameters 记实际发出的值、parameterAdjustments 记改过值的项（要求的与发出的）、droppedParameters 记没发出的项名（含 extra 项的键），对应 data.model-profile S-21 的三种处置。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#已经开口说话了优先于其余各类"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-14",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。首 token 的判据与「首 token 之后的故障成因一律是说到一半断了」。同日主线裁定后修订：该节「转换件转不成」那一例由 S-13 的引注与 S-14 的 replyDisposition=vetoed 承接（收场仍 complete/truncated、这次调用结束，再试是新的模型调用），补登 S-14；原 G-6 已闭合。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#最后一行不再往下细分"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。「发不出去」没有状态码、发生在出门之前 → 不上响应体；首 token 是本层自己观察到的事实。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#还有一种没走完它不在这张表里"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。用户中断是独立的收场，不带成因。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#判据怎么用三个例子"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。截断不是非常态；空回复归不归故障由能力判。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#57-上交带什么原样带着状态码不翻译它"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。八个成因（名字归 data.loop-extension，照抄）与原样状态码。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#它看得到什么"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-5",
+          "S-8",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-24 第一轮评审修复改写：重试挂件只凭 data.loop-extension S-14 的失败主体下结论（状态码、成因、已经试过哪些都在那份主体里）；同一次调用的响应体序列（S-23）是那份主体背后的事实，挂件不直接读响应体（S-3、S-5）；S-8 给出第几次发出。按设计依据表补登 S-5、S-23。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#停机之后能不能重来只看首-token"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-12",
+          "S-17",
+          "S-18",
+          "S-19",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。首 token 的有无决定能否重发；首 token 之后停机的那次调用以被中断收场、发起方是运行时失联（S-12）；两次发出两笔钱照实记；拿不到记未知，拿到再补，Run 终结之后才到也照样归那个 Run、标晚到（S-35）。停机后补写那一条的是 capability.model-request-runtime S-33 的对账（原 G-7 已闭合）。2026-09-24 第一轮评审修复按设计依据表补登 S-12、S-35。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#611-成因在这个边界上分类不丢进外层按异常形态分"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#612-事实判断归本-topic策略归拓展件"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖它在响应体序列上的后果：只有策略那一类失败之后才有下一次发出。判定本身归模型请求运行时的能力。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#有三件事它改不动"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#616-错误信息外泄之前要脱敏"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只立「不得含凭据、写入之前脱敏」这条结果；规则本身登为契约 G-5。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#56-凭据挂在范围上不挂在档案上"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 跨契约对齐登记（主线派发），未经独立复核。来源：PF-013 rev 10 裁决 33（decisions「2026-09-24 · 组织那一层不持有凭据，每人租户层自取」）落在 §5.6——凭据只在租户层，出厂格那一把由部署装配配；S-9 的 route.credentialScope 据此只剩出厂格与租户那一支，没有组织那一支；2026-09-24 第一轮评审修复补：出厂格那一把只供官方档案（Schema 管得到）。PF-013 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。五行表的模型侧落成收场条件表；中断提醒那一半归 data.messages。2026-09-25 修复波 2（D-060 §七 M12）：系统发起的运行取消与宿主被撤下不交出回复、带 delivered（「开了口、没有回复」那一行）。PF-009 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。出错断的那一支：已交付部分记在账里（delivered），不成为消息。PF-009 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#到达的过程有它自己的语法"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「账只记一次」与「两次发出两笔钱」不冲突这一点；到达语法本身归 data.arrival-events。PF-009 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。在途状态失去连续性即没了 → 首 token 可能判不出；本契约只禁止写成缺席。停机之后谁补写、按「已开口」判首 token 有无，由 capability.model-request-runtime S-33 的对账给出（原 G-7 已闭合）。PF-009 rev 8"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#66-模型在每次请求时确定"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-9",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。每条模型产出的内容记下实际生成它的模型，事后不改。PF-004 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#61-不变式"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 I-5「可追溯的实际组成」里档案与参数那一半；其余组成登为契约 G-9。PF-004 rev 12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#成本两层缺哪一层都会算错"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。按尝试记明细在这里，按 Run 汇总是派生；一笔账归哪次尝试、哪个运行由承载它的条目给（data.call-accounts S-25），响应体上的尝试号只是发出所在尝试的事实。PF-012 rev 14"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-14",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时是缺口登记型（指 G-6）；同日主线裁定（与 data.loop-extension 对齐）后改为常规覆盖，未经独立复核：模型回复在落盘之前被否决时收场仍 complete/truncated、记 replyDisposition=vetoed、不带 failure（S-13 引注、S-14），这次调用结束，再试是 loop 另起的新模型调用而非本次调用的下一次发出（S-23 第 4 条）。只覆盖「消息是模型产生的」那一路；被中断的那份回复被否决之后同样不成为消息、这次调用仍以被中断结束（原 G-12 已闭合，见契约 S-13、S-14）。PF-012 rev 14"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#610-能干预的拓展件必须留下结论"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 select_model 结论在响应体上的回指（selectedBy.extension）；结论条目本身归 data.loop-extension。PF-012 rev 14"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#617-run-这一层的七条不变式"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮评审修复按设计依据表登记，未经独立复核。只覆盖 I-11（rev 11 收窄）在响应体上的那一半：发出所在的那次尝试（attemptId，不是条目给的归属；D-060 §七 M25）已被栅栏关掉之后才结算的那一条带 late: true，缺席即不晚，只出现在属于运行的调用上；与 data.call-accounts S-39 同一口径。PF-012 rev 14"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「使用成本能出明细」的明细那一半；成本算到哪个租户头上靠承载响应体的记录条目（口径见 data.call-accounts S-25），条目壳本身尚无契约，登为契约 G-3。PF-001 rev 17"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#52-工具这个词指三样东西寿命各不相同"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#53-一份工具定义长什么样"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-6",
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核） 2026-09-24 整批对齐补 S-7（该条款本轮改写时带上了这个小节链接），未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#54-返回值两种写法一种模型"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-20",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#610-结果太大时卸载而卸载是第三个维度"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#611-工具两端各要什么模态"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#613-mcp-接入点带来的动作"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#63-不可用时装的是同名替换件不是不装"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#64-依赖声明与解析"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#66-前台后台-与-等待态是两个维度"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#68-工具怎么提执行环境的要求"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#不在定义里的三样"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#两条来路产物不同"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#两种写法到-agent-loop-那里只剩一种"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#两端的差别在候选提供者不在规则"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#依赖"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#六项可选声明"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#其中两项声明的是设置项"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#卸载"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#只有且只有必需"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#多命令工具的定义里带多少是工具作者的权衡"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-7",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。S-7 于同日按主线裁定改写生成规则时补入（只带命令清单的写法）。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）。2026-09-24 修订批按 PF-006 rev 19 重写后的这一小节（模型面前只有命令清单一种样子）复核三条的措辞，条款不变，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#工具说明与每个参数的说明必填"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-5",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 修订批（PF-006 rev 19 新小节）补登：所列条款的正文与设计依据表都链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#前台上限与并发上限"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 修订批（PF-006 rev 18 新小节）补登：S-13 正文与设计依据表链接了这一小节（前台上限与并发上限是偏好类设置、定义给默认值、不设即无限制），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#帧长什么样由一份协议约定不由工具定义声明"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#63-组合的引用指向能力标识"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#mcp"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#tool"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-5",
+          "S-6",
+          "S-13",
+          "S-15",
+          "S-16",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#三方分工资产定形状各层配值运行时求值"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#由此得到两个推论"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#设置项分四类资产声明每一项时必须标类别"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#谁能组合谁"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-2"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-005-execution-environments-and-sandboxes",
+        "clause": "design.md#51-四种执行环境"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。PF-005 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-005-execution-environments-and-sandboxes",
+        "clause": "design.md#69-落点不可用就是拒绝不降级"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。PF-005 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-005-execution-environments-and-sandboxes",
+        "clause": "design.md#设施"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核；所列条款的正文都链接了这一小节。PF-005 rev 5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#56-一次放行判断走四步"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮独立评审处置时补登：所列条款的正文链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#61-tools通向任意非常驻工具"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮独立评审处置时补登：所列条款的正文链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#510-卸载结果落成消息之前的那一关"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-23",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮独立评审处置时补登：所列条款的正文链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#七种消息各自谁感知得到"
+      },
+      "target": {
+        "contract_id": "data.tool-definition",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮独立评审处置时补登：所列条款的正文链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#八类资产"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#slash-command"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-2"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「分隔符与拼法归规格」里名字词法那一半（禁斜杠、许冒号）；保留前缀 omne-official: 的拼法归斜杠命令的契约（G-11 已闭合；2026-09-24 独立评审第一轮改 note）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#tool"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳与属性项的推出义务；工具定义本身归 data.tool-definition"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#mcp"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。正文由 data.mcp-endpoint 承载（G-5 已闭合）；S-12 覆盖推出规则的义务，mcp 另有动作集这个输入"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#connector"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳；正文由 data.connector 承载（G-7 已闭合）；connector 的 install 与 usableBy 的对应见 G-15"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#loop-extension"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳与属性项的推出义务；拓展件定义本身归 data.loop-extension"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#skill"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳；正文由 data.skill-package 承载（G-5 已闭合）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#agent-definition"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖外壳；正文部分为让缺口 G-6 可见而登"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖配值的形状与「不是明文、不跨持有、不呈现」；凭据本体的存取归提供者设计。2026-09-24：「归谁」一行按 PF-002 rev 18（组织那一层不持有）落进 S-23 第 7 条，原 G-10 关闭"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#plugin"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。成员的实现、Rules 与 plugin 自己的属性项未覆盖，见缺口 G-9"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#谁能组合谁"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 Plugin 一行；其余组合关系的判定归 capability.asset-evaluation"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#几个刻意不做的组合"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 Plugin 嵌套 Plugin、Plugin 含 Agent Definition 两行"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#51-组合是一种关系不是几种"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#63-组合的引用指向能力标识"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#工作区"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-16",
+          "S-17",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#工作区不是目录"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-17",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#它挂在租户下"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#挂上之后它的内容在装配时自动进来"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖那份特定命名的文件的位置与形状；自动解析与过滤归 capability.asset-evaluation"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#52-设置与权限是资产的两种属性"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#三方分工资产定形状各层配值运行时求值"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-14",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「定形状」「配值」两方的形状；「求值」归 capability.asset-evaluation"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#组织的设置是视图不是对象"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#设置项分四类资产声明每一项时必须标类别"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-13",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核 2026-09-24 随 PF-002 rev 20 补 S-12（治理类项可不带 default）；S-13 治理类改为「disabled 加推出的治理类项」、S-20 工作区格不配治理类项，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#由此得到两个推论"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按条款正文的小节链接登记，未经独立复核（推论二：出厂格的值就是声明的 default）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#53-两个例子两种合成"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-14",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。S-19 的 organization 支表示「租户为外层持有的资产配值」的资格来路（G-3 已闭合）；S-14 的措辞按 PF-001 rev 17 改为界与挑选（2026-09-24 独立评审第一轮）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#54-默认与强制一个机制三处适用"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#55-资产替换的层级"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖锁替换的表示；替换次序的求值归 capability.asset-evaluation 2026-09-24 整批对齐补 S-20（该条款本轮改写时带上了这个小节链接），未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#57-工作区那一级不参与权限计算"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-20",
+          "S-24",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖工作区格持有的形状限制；不良构的条目丢弃并留痕、每一种只在一处丢（读入时丢 immutable 与没列的资产，第 4 步丢权限、落点与身份、治理类配值——S-20、S-24 第 5 条与 capability.asset-evaluation S-24 同一句，2026-09-24 独立评审第一轮），最严值归 capability.asset-evaluation 2026-09-24 整批对齐补 S-36（该条款本轮改写时带上了这个小节链接），未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#58-三条层序各答一个问题"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖资产归属那条层序的四格；三条层序的合成归 capability.asset-evaluation"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#它不因此多一重身份"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#64-移除与禁用是两个动作"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#禁用是逐层配的布尔设置任一层为真即不可见"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖禁用的表示；析取与工作区的限定归 capability.asset-evaluation"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#31-一个资产在某个范围里"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖状态的表示；转移归 capability.asset-governance 2026-09-24 整批对齐补 S-19（该条款本轮改写时带上了这个小节链接），未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#32-一份持有上一个属性项的属性配值"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#33-一个资产定义的版本"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。S-18 的 versionSelection 表示持有上的版本选用（G-2 已闭合）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#12-配置一个资产的设置或权限"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「工作区那一级的值来自承载目录里的文件」"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#14-组织锁死一个自定义资产"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按条款正文的小节链接登记，未经独立复核（出厂格只在 meta 能力上加锁，其余不加锁）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#67-创作与归属"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。「agent 产出要能分辨」由 S-8 的 byAgent 表示（G-4 已闭合；2026-09-24 独立评审第一轮补 S-8，未经独立复核）；提升只换所有者、不动持有（PF-001 rev 17 §6.7）与 S-7 一致"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#作者用租户身份标识"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核 2026-09-24 整批对齐补 S-8（该条款本轮改写时带上了这个小节链接），未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#来源official-与-customized"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-15",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#拥有获权选用"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。「拥有」「获权」由 S-19 表示；「选用」由 S-18 的 versionSelection 表示（G-2 已闭合；2026-09-24 独立评审第一轮补 S-18，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#路径是地址不是钥匙"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#资产的种类"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#62-三种合成语义"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖 immutable 标记与禁用的表示；三种合成语义本身归 capability.asset-evaluation"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#复制血缘"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-21",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#资产复制"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按条款正文的小节链接登记，未经独立复核。只覆盖复制落下的记录带什么；复制动作归 capability.asset-transfer"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#64-可复制的对象"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-7",
+          "S-9",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖版本线独立、提升不可逆、有血缘的记录不可再作源；可复制的判定归 capability.asset-transfer"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#65-首次复制"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#68-能力标识撞车但没有血缘"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#67-覆盖的范围内容覆盖配置不动"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按条款正文的小节链接登记，未经独立复核（留存的配值合法；凭据配值不被冲掉）。项还在、取值域变了的情形见缺口 G-12"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#分享"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-19",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖被分享方持有的资格来路与分享号的表示；分享本身归 capability.asset-transfer"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#610-分享给的是获权不是拥有"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#十一个位置是推出来的不是挑出来的"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#53-改日志的动作与纯派生的动作"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前每条消息都经过它不只是输入"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-14",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#两个位置带维度"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#按位置命名不按功能命名"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#能做什么不能做什么"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-19",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#第二条是硬的因为它护着-f-的纯性"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-19",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#干预力三档直接用-pf-000-的"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-5",
+          "S-20",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#拓展件是可插拔的服务不可用即卸载报错按策略"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-9",
+          "S-31",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置）：补 S-6（不可用处置成为声明成员），其余对应不变，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#没有放宽这一档"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#改参数先落一条生效参数"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#三种形态两种装得进一种拆两半"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#等人是-loop-的原语"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#协程不在了靠日志不靠记忆"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-28",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#写拓展件的人要守的一条"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#一批动作先全部判完再执行任何一个"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#两个地方等不了"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-21",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#69-拓展件只能靠改日志起作用"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-32",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#610-能干预的拓展件必须留下结论"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-30",
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#66-终态不可逆且只有一个出口"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#运行终态"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#615-取消先落日志再发信号"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#617-run-这一层的七条不变式"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#执行尝试"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-000-occurrences-and-record-entries",
+        "clause": "design.md#干预力--intervention-power"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。PF-000 rev 1"
+    },
+    {
+      "requirement": {
+        "topic": "PF-000-occurrences-and-record-entries",
+        "clause": "design.md#53-干预力只长在瞬态这一半上"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。PF-000 rev 1"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#loop-extension"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-6",
+          "S-7",
+          "S-8",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置）：补 S-40（属性项推出规则），其余对应不变，未经独立复核。2026-09-25 第二轮（D-060 §七 M3）：「声明到哪一档，各层再照常收窄」由 S-40 干预力项的允许集合（声明档及其以下）兑现"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#52-设置与权限是资产的两种属性"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#设置项分四类资产声明每一项时必须标类别"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#510-合法目标集合与展示列表是两件事"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#57-上交带什么原样带着状态码不翻译它"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#54-三类事实归本层定死其余照状态码"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-17",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#还有一种没走完它不在这张表里"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#612-事实判断归本-topic策略归拓展件"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-013 rev 12（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#52-那个判断函数"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-008 rev 7（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#决策卡片"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-008 rev 7（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#68-三种来源的卡片同一个形状选项与记录不同"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-008 rev 7（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#69-人拒绝之后agent-分得出那是拒绝"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-25",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-008 rev 7（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#56-消息落盘之前那一刻看得到什么"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-14",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-014 rev 7（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#610-结果太大时卸载而卸载是第三个维度"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-006 rev 19（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#59-循环守卫四级阶梯"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 按主线裁定原地修订时补登：L3 落失败由 stop{ terminal: failed } 承载，S-26 正文链接了 §5.9。未经独立复核。复核到 PF-012 rev 14（2026-09-24 第一轮独立评审处置，条款对应不变，未经独立复核）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#系统自带的几件不可用时各有定法"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮独立评审处置时补登：所列条款的正文链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#不可用处置是这一件自己的声明"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮独立评审处置时补登：所列条款的正文链接了这一小节，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-005-execution-environments-and-sandboxes",
+        "clause": "design.md#63-会话级沙箱到点销毁数据不留存"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-41"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-25 修复波 3 按 D-060 §八 M38 登记（执行环境句柄），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 3,
+        "clauses": [
+          "S-41"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-25 修复波 3 按 D-060 §八 M38 登记（执行环境句柄），未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#七种消息按谁在说话分"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-7",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#说话的有四个消息却有七种"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-7",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-2",
+          "S-7",
+          "S-32",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记。2026-09-24 第一轮评审修复：PF-009 rev 8 起 SystemMessage 不落会话日志、每次组装现算，本条补 S-7（改写）与 S-32 ⑦；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#七种消息各自谁感知得到"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#三件容易搞错的事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#出门的时候七种分三类"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-34",
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#52-我们自己那两种在各家落成什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#62-我们自己那两种每一家都要有落点不许落空也不许丢"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#53-落到对面之后agent-还得分得出这不是人说的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#63-提醒的标识由系统加产生提醒的那一处交的是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#消息的内容是一串块不是一段文本"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#66-内容是块不在进日志时压成文本"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#每个块带两个标注给人看吗给模型看吗"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#611-每个块都带给人看--给模型看两个标注"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#systemremindermessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-15",
+          "S-18",
+          "S-19",
+          "S-22",
+          "S-23",
+          "S-24",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#65-来源是一个属性不是另一种消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-15",
+          "S-18",
+          "S-19",
+          "S-22",
+          "S-23",
+          "S-24",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#51-systemremindermessage-凭什么独立而不是一条带标记的用户消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#61-一条消息是谁说的永远查得到且不靠解析内容"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#54-提醒说的是现在什么样还是刚才发生了什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#64-说状态的写清变化说事的写清发生消息一律追加"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#55-一条消息是分次到达的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#半条消息不是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#67-分次到达的东西不进消息类型清单"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#68-组装的结果与一次性拿到的必须相同"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。2026-09-25 修复波 2：S-10 加回复流结局对到 ending 的表（D-060 §七 M1）；运行被取消按发起者分两路、不新增取值——用户发起的落 interrupted_by_user、系统发起的经放弃不成为消息（M12）；S-21 的 by 随之写明"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#中断这件事本身要让-agent-知道"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#610-没收齐的工具调用参数不解析不执行"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#613-只要发生了中断就补一条提醒"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#57-一份会话日志两种组装"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-7",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记。2026-09-24 第一轮评审修复：PF-009 rev 8 在本小节写明给 agent 那一份开头的 SystemMessage 不从日志里筛出，本条补 S-7；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#612-日志完整删减只发生在组装那一步"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#toolinternalmessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#58-toolinternalmessage工具说它正在干什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#614-工具帧不进模型的上下文"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#compactionmessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#compactionmessage-凭什么单独成一种两条"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#91-这四件事归-pf-010不是本-topic-的缺口"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#92-流式不留到达的过程"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#55-几样东西各自落成哪一种消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#那两个标注仍然是这件事的前提"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#名单跟着摘要走是为了让日志能重放"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#610-压缩只能做两件事且落成同一条消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#611-压缩只管给模型看那一侧"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#58-压缩不能做的有三件事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#612-记录里的消息一条都不能擦除"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#613-上一次模型请求之后新来的消息不许压"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#614-悬着的东西不许被点名"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#615-组装边界要看哪些块还模型可读不是最后一条摘要在哪"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#给模型那一侧两块分别组装"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记。2026-09-24 第一轮评审修复：PF-010 rev 6 起系统提示词本版只含文本，本条补 S-6；S-29 ④ 已删去，压缩碰不到系统提示词改由 S-29 ② 与「不落日志」兑现；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#616-压缩之后meta-runtime-context-要重新给一份完整的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#先对账再进方程"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#每一次尝试开始都要做四件事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-20",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#64-每一次尝试开始agent-都要知道"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#执行尝试"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#59-循环守卫四级阶梯"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#511-外面进来的事怎么到-agent-眼前"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#611-悬着的东西不许被压掉"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#会话日志"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#只增不改怎么和压缩卸载共存"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#57-穷举一什么会让队列从空变成非空"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-8",
+          "S-12",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#610-注入的上下文变了没有运行在跑时什么都不做"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#68-变更了要不要告诉-agent看谁消费它"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-17",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#69-模型看见一块-runtime-context只有两种形态"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-17",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#55-一次工具执行的收场有六种"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#转后台是前台那一次调用的收场后台执行另有自己的收场"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#占位消息一律要说清原因"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#612-工具执行的运行时可以被单独控制而它停了就不重来"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#54-为什么系统提示词必须落在第三列"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#决策卡片"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#等待态的两个维度"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#65-不回答是合法答复"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#68-三种来源的卡片同一个形状选项与记录不同"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#56-四步资产求值--组装--投影--层级计算"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-17",
+          "S-18",
+          "S-20",
+          "S-21",
+          "S-39",
+          "S-41"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。四步次序与第 1、3 步；第 2、4 步的条款（S-20、S-22、S-23）不链这一小节，按各自的小节登 2026-09-24 随 PF-002 rev 19 第 1 步三小步补 S-39（第一步之二「谁可以使用它」滤）与 S-41（它的规范场景），未经独立复核。 2026-09-24 随 PF-002 rev 17 补 S-20：唯一会改组合的那项设置（plugin 启用哪些成员）在第 2 步就地求值，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#55-资产替换的层级"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。锁替换截断；替换必须可见落在 replaced 与每份持有都有去处"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#57-工作区那一级不参与权限计算"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-16",
+          "S-17",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。含 §5.7 表的最严值；表外权限项的最严值产品未给，见 G-8 2026-09-24 随 PF-002 rev 17、rev 20 补 S-17（仓库带来的命令型拓展件默认不启用）；S-24 同时多滤治理类项，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#58-三条层序各答一个问题"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。三条层序；工作区为别层资产配设置本版没有承载（C8、G-4），那一半未覆盖"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#它不因此多一重身份"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#53-两个例子两种合成"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-23",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。权限按能力标识跨层取交集（主线追加裁定） 2026-09-24 随 PF-002 rev 17 §5.3 补 S-36（E-4 D、E 支）：「禁止」锁不锁都是界、界内没人挑到取最近一档由 S-23 兑现，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#54-默认与强制一个机制三处适用"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。权限那一行按界与挑选求（D-060 §一 S10-b，已落进 PF-002 rev 17 §5.3），与字面一致；设置与资产替换两行由 S-22、S-18 兑现但未链这一小节。2026-09-24 独立评审第一轮改 note"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#三方分工资产定形状各层配值运行时求值"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。C10：值落在资产声明的取值域内"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#设置项分四类资产声明每一项时必须标类别"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-12",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。 2026-09-24 随 PF-002 rev 20 补 S-12（治理类项没有作者默认时缺席）；S-24 的治理类一行同条，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#由此得到两个推论"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-7",
+          "S-12",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。出厂那一格的值就是资产声明的默认值"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#51-组合是一种关系不是几种"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-7",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。组装就是组合的展开求值；Skill 与 Tool 互引不算环（PF-002 rev 17 谁能组合谁规则 2）。2026-09-24 独立评审第一轮改 note。2026-09-25 实现映射反推（D-060 §八 M32）：成环的收场定为 compositionCycle{cycle}（S-15），G-1 闭合；本条条款不变"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#谁能组合谁"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-13",
+          "S-15",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。S-10 覆盖「引用只能是表里打勾的类别」。2026-09-25 实现映射反推（D-060 §八 M32）加 S-13、S-15、S-20：规则 2「组合图不得成环、Skill 与 Tool 互引不在此列」——S-13 与 S-15 正文新链这一小节（compositionCycle{cycle}），性质表新行以它为来源、保护 S-15 ⑥ 与 S-20；原「收场未定（G-1）」随之闭合，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-20",
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-25 实现映射反推（D-060 §八 M32）登记，未经独立复核。只覆盖「组合图成环：拒绝，指出环在哪」那一行——S-15 以 compositionCycle{cycle} 收场、S-31 写装配拿到它即失败，性质表新行以这一小节为来源、保护 S-15 ⑥ 与 S-20；规范场景 S-43 按口径不登。同一小节的「official 求值后为空是缺陷」由 S-19 正文链接，起草时未登，本轮未重判"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#63-组合的引用指向能力标识"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#禁用是逐层配的布尔设置任一层为真即不可见"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-17",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#但对-agent-来说两者一样都不可见"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。被禁用的能力标识求不出，进 unresolved"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#挂上之后它的内容在装配时自动进来"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。清单显式列举不扫目录是主线裁定（D-060 §一 A8）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#它是会话选用的不指定就是空"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#它挂在租户下"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。C3：工作区键的租户那一半必须等于求值的租户"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。设置按资产取值，凭据不跟到同标识的另一份实现上；设置按资产是主线裁定（D-060 §一 S10-a）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "flows.md#33-一个资产定义的版本"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。版本选用按持有的 versionSelection（data.asset-model v2 S-18 第 6 条）定，确定不了即 invalidInput（S-6、S-12）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#62-三种合成语义"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-19",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。替换（至多一份生效）、官方件下界、权限收窄"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#设置权限资产"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#来源official-与-customized"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。C7：官方件不可禁用"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#61-一条不变量团队资产不出那棵树"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。在前提 PRE-2（交进来的持有此刻仍成立，按 capability.asset-transfer v2 S-9）之下；前提由组输入的一方兑现。Alloy (i) 按构造、不作证据（2026-09-24 独立评审第一轮）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#610-分享给的是获权不是拥有"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。被分享方的配值按（它的组织, 资产, 项）取"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#61-不变式"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-15",
+          "S-20",
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。I-4 动作空间只由构成决定（S-20）；I-9 缺件明确失败（S-31：由装配据 unresolved 失败） 2026-09-25 实现映射反推（D-060 §八 M45）加 S-12、S-15：性质表新行「一类读不了正文的资产被当作没有引用／没有属性项／全部启用」以 I-9 为来源、保护 S-12 与 S-15 ⑥ 的 categoryUnsupported，未经独立复核。 2026-09-24 整批对齐补 S-39（该条款本轮改写时带上了这个小节链接），未经独立复核。 2026-09-24 随 PF-002 rev 19 删去 S-39：它改写后不再链这一小节（「谁可以使用它」改构成、不是 I-4 的反例，由 S-20 引 PF-004 §6.5 说明）。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#装配清单"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。纯计算、同输入同输出，使清单可重放"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「引用无人提供」那一支"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "acceptance.md#装配"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「不产生半份」那一半；「明确失败并指出缺哪个」由装配据 unresolved 做（S-31）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#meta-与常驻的关系"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖锁截断那一半；meta 能力的出厂持有带锁是前提 PRE-4（装配给）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#613-工作区在创建时显式指定不指定就是空"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖工作区键与求值租户的比较；挂没挂在这次会话上是前提 PRE-5"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#到达的过程有它自己的语法"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-9",
+          "S-13",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。封口交完整块、必有结局、账只记一次在装配一侧的落点"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#组装出来的必须与一次性拿到的一模一样"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。前提与不在相等里的三样见 S-27"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#68-组装的结果与一次性拿到的必须相同"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-8",
+          "S-9",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。本契约只交出五行表要的事实（原因、有没有开口）；查表包消息归宿主与 data.messages"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#工具调用的参数收齐了才算数"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-11",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#610-没收齐的工具调用参数不解析不执行"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-11",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。「不执行、回失败」那一半归 capability.tool-execution-runtime v2（S-23、S-64；D-060 §五 K24），本契约只标记"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-7",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。落盘归宿主；进程没了之后不成立（S-29 第二行）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#616-砍了要说不许默默丢"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。模型侧汇总的家是 data.model-response 的 trims（G-3 已闭合）；每帧至多计一次「未原样送达」是 S-14 的去重规则（D-060 §五 K28）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#帧多了要节流规则就是-616-那一条"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#执行帧就是这条消息的到达增量"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。frames.emitted 的算式"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#大部分工具不发这个而那是正常形态"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-37"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#617-发帧发不出去不影响这次工具执行"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#92-流式不留到达的过程"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-7",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。PF-009 rev 8 §9.2 与本契约的快照一致（含开着的追加块已到的片段），原 G-4 已闭合"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#已经开口说话了优先于其余各类"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。本契约只给位置；时刻与判定归宿主"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#513-模型请求的运行时可以被单独控制而它停了看首-token"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖在途状态丢失时的后果那一句"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#612-工具执行的运行时可以被单独控制而它停了就不重来"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-22",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-23 起草时按设计依据表登记，未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#参数说完了却解析不了的调用不执行以失败回给-agent"
+      },
+      "target": {
+        "contract_id": "capability.stream-assembly",
+        "version": 3,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮评审修复时按设计依据表补登，未经独立复核。只覆盖「标记」：不执行、以失败回给 agent 归 capability.tool-execution-runtime v2（D-060 §五 K24）。PF-006 rev 19"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#第三档和第四档各有约束"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-42"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-25 修复波 1b 登记（D-060 §六 L7）：第四档「写得进去才出现」的那一位——执行权限项上的 tenantAutoWritable 由求值给出；tool 的执行权限项与资产治理写面的 lockedAbove／lockedHere 同一口径，mcp 逐动作项在资产治理 G-5 闭合前恒为假，租户那一格有持有却不在效或指向另一份时为假（2026-09-25 第二轮，D-060 §七 M5、M7）；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#入站到达"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 整批对齐补登：该条款本轮新增或改写时带上了这个小节链接，未经独立复核。2026-09-24 第一轮评审修复复核到 PF-014 rev 7：卡片答复不是消息这一句不变"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#执行帧就是这条消息的到达增量"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮评审修复登记：PF-009 rev 8 起执行怎么收场这条消息都照常收尾，S-13 的成立判据与 S-14 的帧流结局对应表据此写；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#54-插队停在哪就怎么办"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮评审修复登记：PF-014 rev 6 起被中断的回复不交出动作，S-10 写明其中收齐的调用块没有工具消息是合法的；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#67-生效点收到那条事实之后下一次模型请求之前"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-49"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮评审修复登记：一次调用的各次发出用同一份绑定，S-49「已出门」带上这份绑定供续接从日志恢复；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#513-模型请求的运行时可以被单独控制而它停了看首-token"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 3,
+        "clauses": [
+          "S-49",
+          "S-50"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 第一轮评审修复登记：已出门、已开口与续接；S-50 的 released 在续接或再发时凭据取不到带 credential_unavailable；未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-7",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 整批对齐补登：该条款本轮新增或改写时带上了这个小节链接，未经独立复核。PF-006 rev 19（2026-09-24 复核：rev 18、19 未改 §6.1） 2026-09-25 实现映射反推（D-060 §八 M31）加 S-7：新增的 C14「resident 只出现在引用 tool、skill 的那几条上」链这一小节，未经独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#常驻"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 整批对齐补登：该条款本轮新增或改写时带上了这个小节链接，未经独立复核。PF-006 rev 19（2026-09-24 复核：rev 18、19 未改 §6.1）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#613-mcp-接入点带来的动作"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 独立评审第一轮登记（主线裁定：钉住动作集之后再求一次），未经独立复核。只覆盖求值这一侧：逐动作执行权限由生效那份持有的动作集推出、没给动作集就不出；动作集按尝试钉住归会话资产注册表"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#谁可以使用它是各类资产共用的一项权限"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-20",
+          "S-25",
+          "S-39",
+          "S-41"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 随 PF-002 rev 19 登记，未经独立复核。「自己」指作者本人或挂上工作区的租户、判下来不能用的不装并退回下一层、official 不受它管（S-39，规范场景 S-41）；工作区提供的资产的最严值在第一步就用（S-25）；唯一在第 1 步起作用的权限项（S-20）。会话中途收回的时点由消费者兑现，本契约只写输入的函数"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-39"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 随 PF-002 rev 19 登记，未经独立复核。只覆盖「收回自下一次运行起按新输入求值、已开始的运行不换」在求值这一侧的读法；何时重求归消费者（capability.asset-registry、装配）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#plugin"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 随 PF-002 rev 17 登记，未经独立复核。只覆盖「启用哪些成员是唯一会改组合的设置、组装展开到它时就地求值」；这一项的形状等 plugin 的正文契约（2026-09-25 起为 G-21；D-060 §八 M45：在那之前组装展开到一个在效的 plugin 即 categoryUnsupported{category: plugin}，不当作「全部启用」或「没有成员」，所以这一条在本版是「规则已写、求不出」）"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#slash-command"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 随 PF-002 rev 17 登记，未经独立复核。只覆盖「绑定目标是命令本身、不是设置」，所以不改组合"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#触发会话的默认运行模式"
+      },
+      "target": {
+        "contract_id": "capability.asset-evaluation",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 随 PF-002 rev 20 登记，未经独立复核。只覆盖求值那一侧：作者默认不算数（没给即缺席）、工作区配不了（S-24 以 workspace_governance 留痕）；开不出新会话归受理"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#触发会话的默认运行模式"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 随 PF-002 rev 20 登记，未经独立复核。只覆盖它是治理类、推出时不带 default 这两件表示上的事；项本身归 data.connector"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#62-谁能流向谁"
+      },
+      "target": {
+        "contract_id": "data.asset-model",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "D-068 v3候选覆盖提案；保留源2的需求覆盖边界，尚未经独立复核。源注：2026-09-24 修订第二轮登记（主线裁定 R2-10），未经独立复核：「落在哪一层」——普通成员落租户级、超管选层——决定带血缘的记录归谁（S-6、S-21 第 4 条）；流转语义以 capability.asset-transfer v2 为准，本契约只承载形状"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#skill"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-6",
+          "S-8",
+          "S-10",
+          "S-13",
+          "S-15",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。复核到 PF-002 rev 20（2026-09-24 第一轮独立评审处置）：rev 19 删去「正文变体」「资源的取用方式」两项设置（原 G-3 闭合），「谁可以使用它」是 data.asset-model 保留的 usableBy（原 G-2 闭合）；本条不再有为让缺口可见而登的部分。修复波 1b 补登 S-15（依据 D-060 §四 L3′、§六 N-13；§六 L3「删掉该保留项」已被 L3′ 取代，2026-09-25 第二轮改引）：「系统不为这一类另规定设置项」——设置项没有保留项名；执行环境要求不是设置，改由定义记录的固定成员表达（S-32）；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-2",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#谁能组合谁"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#几个刻意不做的组合"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#63-组合的引用指向能力标识"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#52-设置与权限是资产的两种属性"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#三方分工资产定形状各层配值运行时求值"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#设置项分四类资产声明每一项时必须标类别"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#slash-command"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「② 型展开的是 skill 正文、逐字」那一面；命令本身归斜杠命令的契约；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#常驻"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#技能的说明"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-7",
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#依赖"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-14",
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#只有且只有必需"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#64-依赖声明与解析"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-16",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖技能一侧的声明形状（用能力标识指要用的工具；带脚本的技能声明执行环境要求）；解析归注册表与运行时。修复波 1b（D-060 §四 L3′ 改判、§六 N-13 接受成员名；2026-09-25 第二轮改引）执行环境要求由 S-15 的设置保留项改为 S-32 的定义记录固定成员；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#六项可选声明"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时取自条款正文里的小节链接（「不声明执行环境要求＝没有特殊要求」的读法），未经独立复核。修复波 1b 由 S-15 改指 S-32；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#613-mcp-接入点带来的动作"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。只覆盖「技能不能按能力标识依赖 MCP 动作、改声明外部服务」一条；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#62-skills通向任意技能"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-11",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核。起草简报把 PF-007 §6.2 标为只引；这里只登数据一侧的把手——读取不运行、「自己带的脚本」可判定、带脚本的 skill 声明它需要什么设施（修复波 1b 补登 S-32）——三个命令本身归 Skills() 的契约；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#67-覆盖的范围内容覆盖配置不动"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-003-asset-transfer-and-sharing",
+        "clause": "design.md#66-重复复制全量覆盖替换"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时按设计依据表登记，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#路径是地址不是钥匙"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-23 起草时取自条款正文里的小节链接（目录名不是身份、包根位置不产生资格），未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#93-技能作者自己声明的设置求出来的值交给谁"
+      },
+      "target": {
+        "contract_id": "data.skill-package",
+        "version": 3,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-24 第一轮独立评审处置时补登：所列条款的正文链接了这一小节，未经独立复核；D-069：从 Skill2 覆盖关系复制到 Skill3 候选，本次不提升 reviewed，不表示已独立复核。"
     }
   ],
   "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。\nPR #9 的 covers 随规格坐标迁移追加；reviewed 标记保持原值。"

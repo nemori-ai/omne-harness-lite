@@ -1,0 +1,28 @@
+{
+  "coordinate": { "baseline_id": "omne-harness-lite-design-2026-09-15", "contract_id": "data.model-profile", "version": 1 },
+  "acceptance": ["D-041", "D-042", "D-045", "D-040 M36", "D-040 M41"],
+  "scope": "packages/core/model-profile/**; pure representation and matching layer only",
+  "status": "implementation and author verification complete; independent HUB acceptance pending",
+  "local": [
+    { "clauses": ["S-1", "S-2", "S-4", "S-5", "S-6", "S-7", "S-8", "S-9", "S-12"], "evidence": ["EX-1-*", "EX-2-*", "EX-5.*", "S10-SHAPE", "TYPE-S22-S27-S28"], "supports": "Closed record/content member shape and values; no scope or credentials; route exactness; no writer transition guarantee" },
+    { "clauses": ["S-13", "S-14"], "evidence": ["EX-3-*", "S14-MATCH", "S14-SCOPE", "TYPE-S13", "consumer-runtime.log", "consumer-types.log"], "supports": "Origin and ScopeLayerIdentity discriminants, explicit custom scope, exact route and scope payload equality; boolean means this row matches only" },
+    { "clauses": ["S-15", "S-16", "S-17", "S-19", "S-20"], "evidence": ["EX-4-*", "EX-2-*", "S17-S20", "SCHEMA-TYPES", "TYPE-MODALITY-NUMBERS"], "supports": "Parameter wordlist, local absent/null distinctions and no default mutation, extra keys and names; no adapter/transport promise" },
+    { "clauses": ["S-18", "S-28"], "evidence": ["S18-ModelProfile", "S18-ModelProfileContent", "EX-10-*", "EXACT-LIMIT-ModelProfile", "EXACT-LIMIT-ModelProfileContent", "EXACT-INTEGER-ORACLE"], "supports": "Original exact integer values checked; equal/below succeeds; above profile limit rejects after earlier predicates for profile and content" },
+    { "clauses": ["S-22"], "evidence": ["EX-2-*", "EX-10-*", "TYPE-S22-S27-S28"], "supports": "Profile/content public type members and Schema exclude credential; does not audit external exchange or persistence" },
+    { "clauses": ["S-24", "S-25", "S-26"], "evidence": ["EX-1-*", "EX-2-*", "EX-3-*", "EX-4-*", "EX-6-1", "EX-6-2", "EX-6-3", "EX-6-4", "EX-10-*", "M-FIRST", "JSON-BOUNDARY"], "supports": "Four document kinds only; complete malformed-first rejection sequence; Schema result distinguished from representation judgement; no directory verdict" },
+    { "clauses": ["S-27"], "evidence": ["EX-9-*", "EXACT-SNAPSHOT", "TYPE-S22-S27-S28"], "supports": "Snapshot type and Schema shape only; absent from judge kinds, no copy lifecycle implemented" },
+    { "clauses": ["S-7", "S-24"], "evidence": ["SCHEMA-BYTES", "TYPE-MODALITY-NUMBERS", "EX-5.3-*"], "supports": "Model Schema byte equality and canonical content-blocks Modality type/Schema references" },
+    { "clauses": ["D-040 M36"], "evidence": ["EXACT-PARAM*", "EXACT-LIMIT-*", "EXACT-EXPONENT", "EXACT-INTEGER-ORACLE", "SCHEMA-TYPES"], "supports": "All numeric public domains are JsonNumber; decimal/exponent/integer constraints compared from source without Number coercion or exponent-sized zero expansion" },
+    { "clauses": ["SYS-OPEN"], "evidence": ["rules.log", "consumer-types.log", "consumer-runtime.log", "format.log", "build.log", "typecheck.log"], "supports": "Public dist entry and declarations, no sibling src access, shared 24 rules and formatter; no Cordis/kernel/storage/non-core dependency" }
+  ],
+  "external": [
+    { "clauses": ["S-3"], "owner": "capability.model-profile-directory", "obligation": "Same-scope uniqueness, concurrent name decision and write in one commit, storage-read failure distinction", "release_condition": "Real directory provider tests for normative examples section 7 and actual storage commit boundary" },
+    { "clauses": ["S-10", "S-11", "S-12"], "owner": "capability.model-profile-directory", "obligation": "Writer-only registration transitions, retained row identity, updatedAt monotonicity and permitted updates", "release_condition": "Actual write paths and storage scenarios; shape tests do not close these" },
+    { "clauses": ["S-13", "S-14", "S-23"], "owner": "directory, persistence and transport owners", "obligation": "Origin/scope persistence and every-hop carriage, authorization, resolved/not-found/unreadable distinct returns", "release_condition": "Real provider and transport tests with unavailable storage and mismatched identity" },
+    { "clauses": ["S-5", "S-6", "S-17", "S-18", "S-21", "S-27"], "owner": "capability.model-request-runtime and its adapter", "obligation": "Per-send provider selection/fallback, absent parameters not added to outgoing body, adjustments and dropped keys logged before send, unchanged copied snapshot", "release_condition": "Actual runtime and transport tests; upstream current ceiling source remains the accepted contract's explicit prerequisite" },
+    { "clauses": ["S-22", "S-28"], "owner": "directory and presentation providers", "obligation": "No credentials on any exchange representation, content registration/updatedAt rejected without writes on creation and manifest import", "release_condition": "Real creation/import/write/presentation paths tested; local shape and type checks support only the input boundary" }
+  ],
+  "evidence": "tmp/w2-model-profile/results.json and vitest.json; all original command logs are adjacent",
+  "model_profile_tests": { "passed": 185, "failed": 0, "skipped": 0, "normative_fixture_cases": 155, "fixed_seed": 20260926 },
+  "retention": "root must preserve and hash-check this ignored directory before spoke retirement; no cleanup performed by worker"
+}

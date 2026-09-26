@@ -1,0 +1,1219 @@
+{
+  "format": 1,
+  "capturedAt": "2026-09-26T05:32:46.218Z",
+  "environment": {
+    "node": "v24.18.0",
+    "typescript": "6.0.3",
+    "compiler": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/node_modules/.pnpm/typescript@6.0.3/node_modules/typescript/lib/typescript.js",
+    "platform": "linux",
+    "architecture": "x64"
+  },
+  "snapshot": {
+    "source": {
+      "root": "/data/qiwei/repos/omne-harness-lite/.worktrees/minimal-runtime",
+      "branch": "feat/minimal-runtime",
+      "commit": "d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac",
+      "status": ""
+    },
+    "hub": {
+      "root": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery",
+      "branch": "panqiwei/core-delivery",
+      "commit": "b1169493f8441f3071ca9d0faa9903b59273bf20",
+      "status": ""
+    }
+  },
+  "packages": {
+    "unix-format": {
+      "manifest": {
+        "name": "@omne-harness-lite/unix-format",
+        "version": "0.0.0",
+        "private": true,
+        "type": "module",
+        "license": "UNLICENSED",
+        "description": "Unix-CLI-style plain-text renderers for LLM-facing tool output",
+        "engines": {
+          "node": ">=24 <25"
+        },
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+          }
+        },
+        "files": [
+          "dist",
+          "README.md",
+          "provenance.json"
+        ],
+        "scripts": {
+          "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+          "typecheck": "tsc -p tsconfig.test.json",
+          "test": "vitest run"
+        },
+        "dependencies": {},
+        "devDependencies": {
+          "@types/node": "24.13.4",
+          "typescript": "6.0.3",
+          "vitest": "4.1.8"
+        }
+      },
+      "provenance": {
+        "format": 1,
+        "scope": "Project-owned TypeScript port of omne-next omne_core_v1 data_model/unix_format (commit 6263fed545e48ad9efb5714f3fe76a7c1a0af1b5): Unix-CLI-style plain-text renderers for LLM-facing tool output",
+        "files": [],
+        "project_files": [
+          {
+            "path": "src/index.ts",
+            "purpose": "Default public entry re-exporting the options and every renderer"
+          },
+          {
+            "path": "src/options.ts",
+            "purpose": "Shared render options, defaults and non-negative integer validation"
+          },
+          {
+            "path": "src/text.ts",
+            "purpose": "Code-point measurement, padding, slicing and line indentation helpers"
+          },
+          {
+            "path": "src/envelope.ts",
+            "purpose": "ERROR / HOLD / OK result envelopes"
+          },
+          {
+            "path": "src/sections.ts",
+            "purpose": "Man-page-style section, usage line and aligned command list"
+          },
+          {
+            "path": "src/structured.ts",
+            "purpose": "Fixed-width table, colon-aligned key-value listing and bullet list"
+          },
+          {
+            "path": "src/numbered.ts",
+            "purpose": "cat -n style line-numbered block with absolute numbering and marked truncation"
+          },
+          {
+            "path": "evidence/differential/README.md",
+            "purpose": "How the frozen Python baseline was produced and what the differential test establishes"
+          },
+          {
+            "path": "evidence/differential/golden.py",
+            "purpose": "Fixture script run against the original Python implementation to produce golden.json"
+          },
+          {
+            "path": "evidence/differential/golden.json",
+            "purpose": "Frozen renderings of the original Python implementation consumed by tests/differential.spec.ts"
+          }
+        ]
+      },
+      "files": [
+        {
+          "path": "packages/util/unix-format/README.md",
+          "bytes": 4015,
+          "sha256": "10e15f4cc47a7823617253b55b8ea0b9ed99045a8908bf8b136b0f00fc817985",
+          "headBlobSha256": "10e15f4cc47a7823617253b55b8ea0b9ed99045a8908bf8b136b0f00fc817985",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/evidence/differential/README.md",
+          "bytes": 1337,
+          "sha256": "8885fc1b0d11af896e229be59f102fb6d82dca6c80d5f65f5f0e1785915978d0",
+          "headBlobSha256": "8885fc1b0d11af896e229be59f102fb6d82dca6c80d5f65f5f0e1785915978d0",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/evidence/differential/golden.json",
+          "bytes": 3964,
+          "sha256": "3f6cbf6498c3fa2d2cd48c4bbaf076c2bc6da82d244273908d38e5432c5cf7bf",
+          "headBlobSha256": "3f6cbf6498c3fa2d2cd48c4bbaf076c2bc6da82d244273908d38e5432c5cf7bf",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/evidence/differential/golden.py",
+          "bytes": 5137,
+          "sha256": "bb055c3dc59cc7b4b4083ed541bcc3bef8d4ede905ee5d7dcf72d5aed74edfbe",
+          "headBlobSha256": "bb055c3dc59cc7b4b4083ed541bcc3bef8d4ede905ee5d7dcf72d5aed74edfbe",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/package.json",
+          "bytes": 779,
+          "sha256": "abb86702de4305475393ded400e66a255885f492e808dd7c890822204803a400",
+          "headBlobSha256": "abb86702de4305475393ded400e66a255885f492e808dd7c890822204803a400",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/provenance.json",
+          "bytes": 1670,
+          "sha256": "8aa4cff739ab973c222eff935901df7c5d38da2ce2d901532d5b7bcdb03f368a",
+          "headBlobSha256": "8aa4cff739ab973c222eff935901df7c5d38da2ce2d901532d5b7bcdb03f368a",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/src/envelope.ts",
+          "bytes": 1259,
+          "sha256": "471778ad928d4c5f74f4acea0c6ce855424928e440f029ef811c22f144f8081a",
+          "headBlobSha256": "471778ad928d4c5f74f4acea0c6ce855424928e440f029ef811c22f144f8081a",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/src/index.ts",
+          "bytes": 477,
+          "sha256": "2e76403cdc9217dbe7b79b9d979f36ce934dfa7fb339121dfc3df68a498f5f3f",
+          "headBlobSha256": "2e76403cdc9217dbe7b79b9d979f36ce934dfa7fb339121dfc3df68a498f5f3f",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/src/numbered.ts",
+          "bytes": 2645,
+          "sha256": "4d52e07aa02d4c46feca4799159bee9daa075bf8c03dcc9ae8ad7ec68608f20b",
+          "headBlobSha256": "4d52e07aa02d4c46feca4799159bee9daa075bf8c03dcc9ae8ad7ec68608f20b",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/src/options.ts",
+          "bytes": 1736,
+          "sha256": "fc4bfa9585d4a5637a59d06fb8e9babef5caf719fffe1181238014237d415179",
+          "headBlobSha256": "fc4bfa9585d4a5637a59d06fb8e9babef5caf719fffe1181238014237d415179",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/src/sections.ts",
+          "bytes": 1740,
+          "sha256": "1c8044d544cf074daed4f866a1fcaafb3c0f363e7327a5c7dfdbe596d69b0bf8",
+          "headBlobSha256": "1c8044d544cf074daed4f866a1fcaafb3c0f363e7327a5c7dfdbe596d69b0bf8",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/src/structured.ts",
+          "bytes": 3160,
+          "sha256": "9c340c3f7b71722ae1e61d0f08a1618ef67fb688cdb0ae076e045e952d544325",
+          "headBlobSha256": "9c340c3f7b71722ae1e61d0f08a1618ef67fb688cdb0ae076e045e952d544325",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/src/text.ts",
+          "bytes": 1440,
+          "sha256": "48a0cf45e5cc0f4f52c80aa780ea26e1f6a887248e22bf991a284ae33f163654",
+          "headBlobSha256": "48a0cf45e5cc0f4f52c80aa780ea26e1f6a887248e22bf991a284ae33f163654",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/tests/differential.spec.ts",
+          "bytes": 5132,
+          "sha256": "46d922f4533abf6de584a9bf65b66f02f63690e748ee5c39c34e8c93666458d9",
+          "headBlobSha256": "46d922f4533abf6de584a9bf65b66f02f63690e748ee5c39c34e8c93666458d9",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/tests/envelope.spec.ts",
+          "bytes": 2002,
+          "sha256": "cbeee6a7fd82ea74d07658779210a861936f37749ac92896981f9a5b3d825b49",
+          "headBlobSha256": "cbeee6a7fd82ea74d07658779210a861936f37749ac92896981f9a5b3d825b49",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/tests/numbered.spec.ts",
+          "bytes": 2804,
+          "sha256": "f1da9748a1578a402733d8ac3c7767992afb950209bc3485e8a0369be8c1532c",
+          "headBlobSha256": "f1da9748a1578a402733d8ac3c7767992afb950209bc3485e8a0369be8c1532c",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/tests/sections.spec.ts",
+          "bytes": 2430,
+          "sha256": "e638e9e4576c9ffafc53fb725e74d47833944cc598b52da480fc3056a0dc2baa",
+          "headBlobSha256": "e638e9e4576c9ffafc53fb725e74d47833944cc598b52da480fc3056a0dc2baa",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/tests/structured.spec.ts",
+          "bytes": 4048,
+          "sha256": "605f582a393ae1e41b1ea008c60fab72d6fca877f7f78dce510b489b73203c02",
+          "headBlobSha256": "605f582a393ae1e41b1ea008c60fab72d6fca877f7f78dce510b489b73203c02",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/tsconfig.build.json",
+          "bytes": 294,
+          "sha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "headBlobSha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/tsconfig.test.json",
+          "bytes": 229,
+          "sha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "headBlobSha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/unix-format/vitest.config.ts",
+          "bytes": 120,
+          "sha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "headBlobSha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "matchesHead": true
+        }
+      ],
+      "tests": [
+        "packages/util/unix-format/tests/differential.spec.ts",
+        "packages/util/unix-format/tests/envelope.spec.ts",
+        "packages/util/unix-format/tests/numbered.spec.ts",
+        "packages/util/unix-format/tests/sections.spec.ts",
+        "packages/util/unix-format/tests/structured.spec.ts"
+      ],
+      "goldenShape": {
+        "same": {
+          "kind": "object",
+          "count": 51
+        }
+      }
+    },
+    "xml-format": {
+      "manifest": {
+        "name": "@omne-harness-lite/xml-format",
+        "version": "0.0.0",
+        "private": true,
+        "type": "module",
+        "license": "UNLICENSED",
+        "description": "Declarative XML rendering of data objects for LLM-facing text",
+        "engines": {
+          "node": ">=24 <25"
+        },
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+          }
+        },
+        "files": [
+          "dist",
+          "README.md",
+          "provenance.json"
+        ],
+        "scripts": {
+          "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+          "typecheck": "tsc -p tsconfig.test.json",
+          "test": "vitest run"
+        },
+        "dependencies": {},
+        "devDependencies": {
+          "@types/node": "24.13.4",
+          "typescript": "6.0.3",
+          "vitest": "4.1.8"
+        }
+      },
+      "provenance": {
+        "format": 1,
+        "scope": "Project-owned TypeScript port of omne-next omne_core_v1 data_model/xml_format (commit 6263fed545e48ad9efb5714f3fe76a7c1a0af1b5): declarative XML rendering of data objects for LLM-facing text",
+        "files": [],
+        "project_files": [
+          {
+            "path": "src/index.ts",
+            "purpose": "Default public entry re-exporting the schema types, options, escaping and formatXml"
+          },
+          {
+            "path": "src/types.ts",
+            "purpose": "Field presentation, inclusion condition, field specification and schema types"
+          },
+          {
+            "path": "src/options.ts",
+            "purpose": "Runtime formatting options, their defaults, validation and override application"
+          },
+          {
+            "path": "src/escape.ts",
+            "purpose": "XML content/attribute escaping and element/attribute name validation"
+          },
+          {
+            "path": "src/format.ts",
+            "purpose": "Field selection, value rendering and markup assembly of formatXml"
+          },
+          {
+            "path": "evidence/differential/README.md",
+            "purpose": "How the frozen Python baseline was produced and what the differential test establishes"
+          },
+          {
+            "path": "evidence/differential/golden.py",
+            "purpose": "Fixture script run against the original Python implementation to produce golden.json"
+          },
+          {
+            "path": "evidence/differential/golden.json",
+            "purpose": "Frozen renderings of the original Python implementation consumed by tests/differential.spec.ts"
+          }
+        ]
+      },
+      "files": [
+        {
+          "path": "packages/util/xml-format/README.md",
+          "bytes": 5873,
+          "sha256": "e7522b36c941c358f1897cb45509f8e123818c53b7f94366f53b56e3fc736a4a",
+          "headBlobSha256": "e7522b36c941c358f1897cb45509f8e123818c53b7f94366f53b56e3fc736a4a",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/evidence/differential/README.md",
+          "bytes": 1554,
+          "sha256": "7d8103a1afbd3269058a0becd9e08e6a8159e598381d5ec561db4939170babe4",
+          "headBlobSha256": "7d8103a1afbd3269058a0becd9e08e6a8159e598381d5ec561db4939170babe4",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/evidence/differential/golden.json",
+          "bytes": 4014,
+          "sha256": "1014d81a86b32818e05f0b5cb29bc1335a3522a215a1fbf465a67c398cd04671",
+          "headBlobSha256": "1014d81a86b32818e05f0b5cb29bc1335a3522a215a1fbf465a67c398cd04671",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/evidence/differential/golden.py",
+          "bytes": 10427,
+          "sha256": "5e12e98eaa96a41b70610698379b1e5f13ccfa63c9c3a4126af9bc532351415e",
+          "headBlobSha256": "5e12e98eaa96a41b70610698379b1e5f13ccfa63c9c3a4126af9bc532351415e",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/package.json",
+          "bytes": 777,
+          "sha256": "f8e8269a8b0c4a84974b6b5f75554f29a4b3a957740a01af9a4f1717fdd2d2cc",
+          "headBlobSha256": "f8e8269a8b0c4a84974b6b5f75554f29a4b3a957740a01af9a4f1717fdd2d2cc",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/provenance.json",
+          "bytes": 1466,
+          "sha256": "9fbed45fd9864c84b39f0bddaf70786f6addc2aeaa04d115020ec27a2d0378a5",
+          "headBlobSha256": "9fbed45fd9864c84b39f0bddaf70786f6addc2aeaa04d115020ec27a2d0378a5",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/src/escape.ts",
+          "bytes": 1211,
+          "sha256": "f1f30c9d08120826a6040695b5086d932bf66d9e5e28bbd6710548fb5b6252dc",
+          "headBlobSha256": "f1f30c9d08120826a6040695b5086d932bf66d9e5e28bbd6710548fb5b6252dc",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/src/format.ts",
+          "bytes": 13298,
+          "sha256": "d088d29588996b91db165c224763b0aa0a7a1d2ce9aa3e2778780497ae2de4d9",
+          "headBlobSha256": "d088d29588996b91db165c224763b0aa0a7a1d2ce9aa3e2778780497ae2de4d9",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/src/index.ts",
+          "bytes": 468,
+          "sha256": "ccd32462e158a008d1d3a97351fb5c7d9f24e94cb8c44ddab3976e08dc364641",
+          "headBlobSha256": "ccd32462e158a008d1d3a97351fb5c7d9f24e94cb8c44ddab3976e08dc364641",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/src/options.ts",
+          "bytes": 3443,
+          "sha256": "5cdd797d412cf4fd5d7febcb4fdc97cef743de57a7d9c055d8c65704168babfd",
+          "headBlobSha256": "5cdd797d412cf4fd5d7febcb4fdc97cef743de57a7d9c055d8c65704168babfd",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/src/types.ts",
+          "bytes": 2722,
+          "sha256": "e95b8baa5c80cc78fb81837a3471bd7b4d86d2dbcb0e8dddb7e5f7c2943222cd",
+          "headBlobSha256": "e95b8baa5c80cc78fb81837a3471bd7b4d86d2dbcb0e8dddb7e5f7c2943222cd",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/tests/differential.spec.ts",
+          "bytes": 8702,
+          "sha256": "2f210cd1fea0ff31cc8aa9af047cdfeb4b20751ab0db15bfe5895f2b598ecfbe",
+          "headBlobSha256": "2f210cd1fea0ff31cc8aa9af047cdfeb4b20751ab0db15bfe5895f2b598ecfbe",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/tests/format.spec.ts",
+          "bytes": 18283,
+          "sha256": "a2f0803235a52d60590a2521ef133f63f3ac7b2ec037ace4601ba5dc95ab2f64",
+          "headBlobSha256": "a2f0803235a52d60590a2521ef133f63f3ac7b2ec037ace4601ba5dc95ab2f64",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/tests/options.spec.ts",
+          "bytes": 2967,
+          "sha256": "b2dfbba91757a3604ab5a2c5c2d28ff652976e62d0bfd1434bc16d5c3c23f380",
+          "headBlobSha256": "b2dfbba91757a3604ab5a2c5c2d28ff652976e62d0bfd1434bc16d5c3c23f380",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/tsconfig.build.json",
+          "bytes": 294,
+          "sha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "headBlobSha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/tsconfig.test.json",
+          "bytes": 229,
+          "sha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "headBlobSha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/xml-format/vitest.config.ts",
+          "bytes": 120,
+          "sha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "headBlobSha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "matchesHead": true
+        }
+      ],
+      "tests": [
+        "packages/util/xml-format/tests/differential.spec.ts",
+        "packages/util/xml-format/tests/format.spec.ts",
+        "packages/util/xml-format/tests/options.spec.ts"
+      ],
+      "goldenShape": {
+        "same": {
+          "kind": "object",
+          "count": 47
+        },
+        "diff": {
+          "kind": "object",
+          "count": 1
+        }
+      }
+    },
+    "timeout": {
+      "manifest": {
+        "name": "@omne-harness-lite/timeout",
+        "version": "0.0.0",
+        "private": true,
+        "type": "module",
+        "license": "MIT",
+        "description": "Timer and AbortSignal cooperation primitives; experimental source baseline",
+        "engines": {
+          "node": ">=24 <25"
+        },
+        "exports": {
+          "./baseline": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+          }
+        },
+        "files": [
+          "dist",
+          "LICENSE",
+          "README.md",
+          "UPSTREAM.md",
+          "provenance.json"
+        ],
+        "scripts": {
+          "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+          "typecheck": "tsc -p tsconfig.test.json",
+          "test": "vitest run"
+        },
+        "dependencies": {},
+        "devDependencies": {
+          "@types/node": "24.13.4",
+          "typescript": "6.0.3",
+          "vitest": "4.1.8"
+        }
+      },
+      "provenance": {
+        "format": 1,
+        "repository": "https://github.com/deepseek-ai/deepseek-harness",
+        "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+        "scope": "Timer and AbortSignal cooperation primitives; source baseline only, not target capability conformance",
+        "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+        "files": [
+          {
+            "upstream_path": "LICENSE",
+            "snapshot": "LICENSE",
+            "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+            "targets": [
+              "LICENSE"
+            ],
+            "changes": "Unchanged DeepSeek copyright and full MIT text."
+          },
+          {
+            "upstream_path": "packages/util/timeout/src/index.ts",
+            "snapshot": "upstream/timeout/index.ts",
+            "sha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+            "targets": [
+              "src/index.ts"
+            ],
+            "changes": "Unchanged source helper, source-only baseline vocabulary Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+          }
+        ],
+        "project_files": [
+          {
+            "path": "tests/support.spec.ts",
+            "purpose": "Preserved project-owned baseline export or regression verification, relocated from the 475389d source baseline; no target conformance claim"
+          }
+        ]
+      },
+      "files": [
+        {
+          "path": "packages/util/timeout/LICENSE",
+          "bytes": 1065,
+          "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+          "headBlobSha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/README.md",
+          "bytes": 721,
+          "sha256": "efcec808ff5830d76c6387b654d36e97687adf1417bc13f681f20786ad4cafa2",
+          "headBlobSha256": "efcec808ff5830d76c6387b654d36e97687adf1417bc13f681f20786ad4cafa2",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/UPSTREAM.md",
+          "bytes": 776,
+          "sha256": "7befa5834eee3a99ceca3581bb2ed14ce12ca8a82dba2053c83cbc63de24c4b1",
+          "headBlobSha256": "7befa5834eee3a99ceca3581bb2ed14ce12ca8a82dba2053c83cbc63de24c4b1",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/package.json",
+          "bytes": 823,
+          "sha256": "3cff1e0b854cef3929a8e8b92c4e393d22f2bd0853b84a38a88d56d8fda7cc7b",
+          "headBlobSha256": "3cff1e0b854cef3929a8e8b92c4e393d22f2bd0853b84a38a88d56d8fda7cc7b",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/provenance.json",
+          "bytes": 1360,
+          "sha256": "e2389b39d37cc099366ac08acdd3fdcd11cbbca6b40bf73f1833382632ea3c24",
+          "headBlobSha256": "e2389b39d37cc099366ac08acdd3fdcd11cbbca6b40bf73f1833382632ea3c24",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/src/index.ts",
+          "bytes": 7520,
+          "sha256": "cd0fe40a870086f2b9329f3978aa99fe97d0f75cd25d4e71e367fb411947e068",
+          "headBlobSha256": "cd0fe40a870086f2b9329f3978aa99fe97d0f75cd25d4e71e367fb411947e068",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/tests/support.spec.ts",
+          "bytes": 417,
+          "sha256": "e52ac00bd64aad162d936e42c0cc01dfa29fea346886998699beda25593fdc9b",
+          "headBlobSha256": "e52ac00bd64aad162d936e42c0cc01dfa29fea346886998699beda25593fdc9b",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/tsconfig.build.json",
+          "bytes": 294,
+          "sha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "headBlobSha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/tsconfig.test.json",
+          "bytes": 229,
+          "sha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "headBlobSha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/upstream/timeout/index.ts",
+          "bytes": 7475,
+          "sha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+          "headBlobSha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/timeout/vitest.config.ts",
+          "bytes": 120,
+          "sha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "headBlobSha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "matchesHead": true
+        }
+      ],
+      "tests": [
+        "packages/util/timeout/tests/support.spec.ts"
+      ],
+      "goldenShape": null
+    },
+    "brand": {
+      "manifest": {
+        "name": "@omne-harness-lite/brand",
+        "version": "0.0.0",
+        "private": true,
+        "type": "module",
+        "license": "MIT",
+        "description": "Nominal type brand helpers; experimental source baseline",
+        "engines": {
+          "node": ">=24 <25"
+        },
+        "exports": {
+          "./baseline": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+          }
+        },
+        "files": [
+          "dist",
+          "LICENSE",
+          "README.md",
+          "UPSTREAM.md",
+          "provenance.json"
+        ],
+        "scripts": {
+          "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json"
+        },
+        "dependencies": {},
+        "devDependencies": {
+          "@types/node": "24.13.4",
+          "typescript": "6.0.3",
+          "vitest": "4.1.8"
+        }
+      },
+      "provenance": {
+        "format": 1,
+        "repository": "https://github.com/deepseek-ai/deepseek-harness",
+        "commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+        "scope": "Nominal type brand helpers; source baseline only, not target capability conformance",
+        "archive_sha256": "f08cfc86cb05d4186be3319670e2756375cb2788b3d2164dd7f30b885f350860",
+        "files": [
+          {
+            "upstream_path": "LICENSE",
+            "snapshot": "LICENSE",
+            "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+            "targets": [
+              "LICENSE"
+            ],
+            "changes": "Unchanged DeepSeek copyright and full MIT text."
+          },
+          {
+            "upstream_path": "packages/util/brand/src/index.ts",
+            "snapshot": "upstream/brand/index.ts",
+            "sha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+            "targets": [
+              "src/index.ts"
+            ],
+            "changes": "Unchanged source helper, source-only baseline vocabulary Package-layout revision: move to responsibility leaf, consume sibling public entries; original algorithms retained except attribution package identity/path."
+          }
+        ],
+        "project_files": []
+      },
+      "files": [
+        {
+          "path": "packages/util/brand/LICENSE",
+          "bytes": 1065,
+          "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+          "headBlobSha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/README.md",
+          "bytes": 697,
+          "sha256": "4db3d9af0e566cc031762905d2d9ef81f906ed14161d8573dac80e76cf42107b",
+          "headBlobSha256": "4db3d9af0e566cc031762905d2d9ef81f906ed14161d8573dac80e76cf42107b",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/UPSTREAM.md",
+          "bytes": 776,
+          "sha256": "7befa5834eee3a99ceca3581bb2ed14ce12ca8a82dba2053c83cbc63de24c4b1",
+          "headBlobSha256": "7befa5834eee3a99ceca3581bb2ed14ce12ca8a82dba2053c83cbc63de24c4b1",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/package.json",
+          "bytes": 731,
+          "sha256": "62a4ca803eeba42e4f0f6b4ba07f6427238cfddba330b08e46c7699a2c5befef",
+          "headBlobSha256": "62a4ca803eeba42e4f0f6b4ba07f6427238cfddba330b08e46c7699a2c5befef",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/provenance.json",
+          "bytes": 1125,
+          "sha256": "3cc4764569c5a777041b67e582922138cabe1c2cd48e53b28d3166d96a45d5b0",
+          "headBlobSha256": "3cc4764569c5a777041b67e582922138cabe1c2cd48e53b28d3166d96a45d5b0",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/src/index.ts",
+          "bytes": 1520,
+          "sha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+          "headBlobSha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/tsconfig.build.json",
+          "bytes": 294,
+          "sha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "headBlobSha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/tsconfig.test.json",
+          "bytes": 229,
+          "sha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "headBlobSha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/upstream/brand/index.ts",
+          "bytes": 1520,
+          "sha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+          "headBlobSha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+          "matchesHead": true
+        },
+        {
+          "path": "packages/util/brand/vitest.config.ts",
+          "bytes": 120,
+          "sha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "headBlobSha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d",
+          "matchesHead": true
+        }
+      ],
+      "tests": [],
+      "goldenShape": null
+    }
+  },
+  "measurements": [
+    {
+      "id": "unix.negativeStart",
+      "input": {
+        "lines": [
+          "x"
+        ],
+        "start": -1
+      },
+      "status": "returned",
+      "output": "    -1 | x",
+      "oracle": "README states negative start throws; source numbered.ts only requires integer; report mismatch, do not set new policy."
+    },
+    {
+      "id": "unix.codePointTruncation",
+      "input": {
+        "lines": [
+          "😀a"
+        ],
+        "perLineCharLimit": 1
+      },
+      "status": "returned",
+      "output": "     1 | 😀 [truncated]",
+      "oracle": "Source numbered.ts uses Array.from-based code-point slicing."
+    },
+    {
+      "id": "unix.commandDelimiter",
+      "input": {
+        "commands": [
+          [
+            "go",
+            "",
+            "desc"
+          ]
+        ]
+      },
+      "status": "returned",
+      "output": "  go    — desc",
+      "oracle": "Public CommandEntry is readonly [name,synopsis,description]; README plain ASCII claim checked against em dash separator in sections.ts."
+    },
+    {
+      "id": "unix.tableBestEffortCap",
+      "input": {
+        "headers": [
+          "verylong",
+          "z"
+        ],
+        "rows": [
+          [
+            "verylong",
+            "z"
+          ]
+        ],
+        "maxWidth": 5
+      },
+      "status": "returned",
+      "output": "verylong  z  \n--------  ---\nverylong  z  ",
+      "oracle": "README documents best-effort cap; only last column shrinks."
+    },
+    {
+      "id": "xml.nameFinalNewline",
+      "input": {
+        "name": "a\n"
+      },
+      "status": "returned",
+      "output": false,
+      "oracle": "Existing options.spec.ts rejects final newline; static suspicion is explicitly checked, false means no defect."
+    },
+    {
+      "id": "xml.plainMarkupEscaped",
+      "input": {
+        "x": "</x><bad/>"
+      },
+      "status": "returned",
+      "output": "<root>\n  <x>\n    &lt;/x&gt;&lt;bad/&gt;\n  </x>\n</root>",
+      "oracle": "README escaping promise for ordinary strings."
+    },
+    {
+      "id": "xml.rawSelfRendering",
+      "input": {
+        "toXmlReturn": "</root><bad/>"
+      },
+      "status": "returned",
+      "output": "<root>\n  </root><bad/>\n</root>",
+      "oracle": "format.ts intentionally embeds XmlFormattable raw; document trusted callback boundary."
+    },
+    {
+      "id": "xml.duplicateAttribute",
+      "input": {
+        "x": "one",
+        "manualAttributes": {
+          "x": "two"
+        }
+      },
+      "status": "returned",
+      "output": "<root x=\"one\" x=\"two\"/>",
+      "oracle": "assemble appends manual attributes after rendered attributes; no uniqueness check."
+    },
+    {
+      "id": "xml.nullCharacter",
+      "input": {
+        "x": "\u0000"
+      },
+      "status": "returned",
+      "output": "<root>\n  <x>\n    \u0000\n  </x>\n</root>",
+      "oracle": "escape.ts replaces markup delimiters only; XML legal-character validation not implemented."
+    },
+    {
+      "id": "xml.entityIsPlainText",
+      "input": {
+        "input": "&amp;"
+      },
+      "status": "returned",
+      "output": "&amp;amp;",
+      "oracle": "Existing options.spec.ts explicitly expects &amp;amp; despite test title."
+    },
+    {
+      "id": "timeout.invalidRequested",
+      "input": {
+        "requested": 0,
+        "default": 10,
+        "max": 100
+      },
+      "status": "threw",
+      "error": {
+        "name": "Error",
+        "message": "timeoutMs must be a positive finite number"
+      },
+      "oracle": "Existing support.spec.ts asserts requested zero throws."
+    },
+    {
+      "id": "timeout.invalidDefault",
+      "input": {
+        "requested": null,
+        "default": -1,
+        "max": 100
+      },
+      "status": "returned",
+      "output": -1,
+      "oracle": "Implementation validates only requested when present; callers own valid default/max."
+    },
+    {
+      "id": "timeout.invalidMax",
+      "input": {
+        "requested": 10,
+        "default": 20,
+        "max": -1
+      },
+      "status": "returned",
+      "output": -1,
+      "oracle": "Implementation validates only requested when present; callers own valid default/max."
+    },
+    {
+      "id": "timeout.noTimerDeadline",
+      "input": {
+        "timeoutMs": 0
+      },
+      "status": "returned",
+      "output": {
+        "sameUpstreamSignal": true,
+        "aborted": false
+      },
+      "oracle": "deadline timeoutMs<=0 path is documented no timer; no positive deadline or runtime stopping tested."
+    },
+    {
+      "id": "brand.emptyString",
+      "input": {
+        "value": ""
+      },
+      "status": "returned",
+      "output": {
+        "same": true,
+        "value": ""
+      },
+      "oracle": "brandString applies type assertion only; cannot replace opaque identifier admission."
+    },
+    {
+      "id": "brand.nanNumber",
+      "input": {
+        "value": "NaN"
+      },
+      "status": "returned",
+      "output": {
+        "sameNaN": true
+      },
+      "oracle": "brandNumber applies type assertion only; cannot replace numeric validation."
+    }
+  ],
+  "compatibility": {
+    "options": {
+      "target": 11,
+      "module": 199,
+      "moduleResolution": 99,
+      "lib": [
+        "lib.es2024.d.ts"
+      ],
+      "types": [
+        "node"
+      ],
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "noImplicitOverride": true,
+      "noFallthroughCasesInSwitch": true,
+      "useUnknownInCatchVariables": true,
+      "verbatimModuleSyntax": true,
+      "isolatedModules": true,
+      "skipLibCheck": true,
+      "declaration": true,
+      "declarationMap": true,
+      "sourceMap": true,
+      "noEmitOnError": true,
+      "noEmit": true,
+      "typeRoots": [
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/node_modules/.pnpm/@types+node@24.13.6/node_modules/@types"
+      ],
+      "allowImportingTsExtensions": true
+    },
+    "packages": {
+      "unix-format": {
+        "mode": "TypeScript createProgram with current HUB base strict flags; source read only; noEmit; no package/public consumer build",
+        "diagnostics": []
+      },
+      "xml-format": {
+        "mode": "TypeScript createProgram with current HUB base strict flags; source read only; noEmit; no package/public consumer build",
+        "diagnostics": []
+      },
+      "timeout": {
+        "mode": "TypeScript createProgram with current HUB base strict flags; source read only; noEmit; no package/public consumer build",
+        "diagnostics": []
+      },
+      "brand": {
+        "mode": "TypeScript createProgram with current HUB base strict flags; source read only; noEmit; no package/public consumer build",
+        "diagnostics": []
+      }
+    },
+    "brandInterchangeability": {
+      "source": "import type { Branded as SourceBranded } from '/data/qiwei/repos/omne-harness-lite/.worktrees/minimal-runtime/packages/util/brand/src/index.ts';\nimport type { Branded as HubBranded } from '/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/packages/core/identity-values/src/opaque.ts';\ndeclare const sourceValue: SourceBranded<'ExampleId'>;\ndeclare const hubValue: HubBranded<string, 'ExampleId'>;\nconst asHub: HubBranded<string,'ExampleId'> = sourceValue;\nconst asSource: SourceBranded<'ExampleId'> = hubValue;\n",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": "Error",
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/__virtual_brand_comparison__.ts",
+          "line": 5,
+          "column": 7,
+          "message": "Type 'Branded<\"ExampleId\">' is not assignable to type 'Branded<string, \"ExampleId\">'.\n  Property '[brand]' is missing in type 'String & { readonly [BRAND]: \"ExampleId\"; }' but required in type '{ readonly [brand]: \"ExampleId\"; }'."
+        },
+        {
+          "code": 2322,
+          "category": "Error",
+          "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/__virtual_brand_comparison__.ts",
+          "line": 6,
+          "column": 7,
+          "message": "Type 'Branded<string, \"ExampleId\">' is not assignable to type 'Branded<\"ExampleId\">'.\n  Property '[BRAND]' is missing in type 'String & { readonly [brand]: \"ExampleId\"; }' but required in type '{ readonly [BRAND]: \"ExampleId\"; }'."
+        }
+      ],
+      "scope": "Exact source package brand versus current HUB identity-values brand. Does not test duplicate installation or compiler package-id deduplication."
+    }
+  },
+  "official": [
+    {
+      "url": "https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/c291e7961a515f6d7af9304e7fd1d257929aef26/LICENSE",
+      "status": 200,
+      "upstreamCommit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "upstreamPath": "LICENSE",
+      "bytes": 1065,
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "declaredSha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "matchesDeclared": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/util/timeout/src/index.ts",
+      "status": 200,
+      "upstreamCommit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "upstreamPath": "packages/util/timeout/src/index.ts",
+      "bytes": 7475,
+      "sha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+      "declaredSha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+      "matchesDeclared": true
+    },
+    {
+      "url": "https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/c291e7961a515f6d7af9304e7fd1d257929aef26/packages/util/brand/src/index.ts",
+      "status": 200,
+      "upstreamCommit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "upstreamPath": "packages/util/brand/src/index.ts",
+      "bytes": 1520,
+      "sha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+      "declaredSha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+      "matchesDeclared": true
+    }
+  ],
+  "hubInputs": [
+    {
+      "path": "packages/AGENTS.md",
+      "sha256": "3241c687c9b5fa46b3f0ab0caaa138928d2db7b2ef4dd574c565414c4a359aa8"
+    },
+    {
+      "path": "packages/README.md",
+      "sha256": "597169ad23d31f62e1749ed3536d983a50a48c81da199754c20b4b7fd1555975"
+    },
+    {
+      "path": "package.json",
+      "sha256": "1f29c21215337f50799f984ef6fddaf5f1c7a5ca014d9ceb94dcd1fc88cfb257"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "e964886c6921bcc2e7e2b80c6dffe158bb66d97a3b9623586529160e6808124f"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0"
+    },
+    {
+      "path": "packages/core/identity-values/src/opaque.ts",
+      "sha256": "1e67e3e63d01e050120e3bfe89283aee8610b39b66febc553660c8b7c55a954b"
+    },
+    {
+      "path": "packages/core/content-blocks/src/json.ts",
+      "sha256": "c08bd65914b354daa8ced326c8a8a6094f064077870bd0f49f4a632349545d95"
+    },
+    {
+      "path": ".meta_harness/design/realization/README.md",
+      "sha256": "222ecb2ce239f9bc53ee0587798229a1df6f40d51b852a3491b4eaa4ed7483f1"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/core/tool-definition/design.md",
+      "sha256": "e7825d4f884e5df5d169f11f5ef9c5ce41258f91e210faed96d7a19ca1273ec7"
+    }
+  ],
+  "limitations": [
+    "Did not run source workspace builds, Vitest suites, Python golden generation, install dependencies, or alter source tree.",
+    "Readonly in-memory transpilation is a targeted behavior observation, not a product consumer build.",
+    "MIT upstream individual file hashes verified; provenance archive hash not downloaded or verified.",
+    "omne-next origin commit/path and historical Python runs are local provenance claims; original Python checkout not independently inspected.",
+    "No real positive timeout, timeout workload cancellation, iterator disposal or resource cleanup measured.",
+    "No design or source acceptance conferred by this audit."
+  ],
+  "sourceSnapshotVerification": {
+    "timeout": [
+      {
+        "path": "LICENSE",
+        "declaredSha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+        "actualSha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+        "matchesDeclared": true
+      },
+      {
+        "path": "upstream/timeout/index.ts",
+        "declaredSha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+        "actualSha256": "fdfd67e7d9c0a09668a4101880439f28446a8bf038f060a0bc4d27d941be562c",
+        "matchesDeclared": true
+      }
+    ],
+    "brand": [
+      {
+        "path": "LICENSE",
+        "declaredSha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+        "actualSha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+        "matchesDeclared": true
+      },
+      {
+        "path": "upstream/brand/index.ts",
+        "declaredSha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+        "actualSha256": "f9d6da858d7308117227dcc2306ce7246b7309b2ae22d413d289cbae51e83e98",
+        "matchesDeclared": true
+      }
+    ]
+  },
+  "timeoutActiveVersusSnapshot": {
+    "method": "Compare TypeScript 6.0.3 transpileModule ES2024/ESNext generated JavaScript text in memory",
+    "originalJavaScriptSha256": "bfbe427ef67f8b9bdf124cbf6690409ab272a54f1d69a454647755a2628f52ce",
+    "activeJavaScriptSha256": "0351f1c66978de6810123380351c972a021256fcf1923a5c15cd76aa66a57935",
+    "identical": false,
+    "scope": "Equal generated JS is a bounded check on this exact source pair; not proof of timeout lifecycle correctness.",
+    "structure": {
+      "method": "TypeScript AST kind/child hierarchy/leaf source text, excluding comments/positions/layout flags",
+      "originalSha256": "6dabf67b6adb04cdad45b003fd3bf5b59ffa8d7087d4a11252a6699d241eae08",
+      "activeSha256": "6dabf67b6adb04cdad45b003fd3bf5b59ffa8d7087d4a11252a6699d241eae08",
+      "identical": true
+    },
+    "interpretation": "Generated JavaScript retains some original layout so raw output is different. Structural source AST is equal; this bounded source comparison does not verify runtime stopping or cleanup."
+  },
+  "auditCorrections": [
+    {
+      "id": "invalid-commandList-audit-input",
+      "initialInput": [
+        {
+          "name": "go",
+          "description": "desc"
+        }
+      ],
+      "initialObserved": {
+        "status": "threw",
+        "name": "TypeError",
+        "message": "object is not iterable (cannot read property Symbol(Symbol.iterator))"
+      },
+      "sourceFact": "CommandEntry is readonly [name,synopsis,description] at packages/util/unix-format/src/sections.ts:22",
+      "correction": "Reran selected measurements with [[\"go\",\"\",\"desc\"]]; final actual output is \"  go    — desc\". Does not alter a source expectation.",
+      "resultId": "unix.commandDelimiter"
+    },
+    {
+      "id": "name-final-newline-static-suspicion",
+      "input": "a\n",
+      "actualOutput": false,
+      "conclusion": "Hypothesis rejected; agrees with existing options.spec.ts expectation."
+    }
+  ],
+  "acceptanceStatus": {
+    "designAcceptedByThisAudit": false,
+    "sourceAcceptedByThisAudit": false,
+    "productImplementedByThisAudit": false,
+    "testsOrAcceptanceConferred": false,
+    "parent": "Main dispatcher /root owns current mechanism mapping and source-adoption acceptance. User addition authorizes scope; old branch spec/README/proposal cannot confer current semantic guarantees."
+  },
+  "reproduction": {
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery",
+    "command": "node --input-type=module via a single-quoted AUDIT heredoc",
+    "script": "import {readFileSync, writeFileSync} from 'node:fs';\nimport {createHash} from 'node:crypto';\nimport {createRequire} from 'node:module';\nimport {execFileSync} from 'node:child_process';\nimport path from 'node:path';\n\nconst hub='/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery';\nconst source='/data/qiwei/repos/omne-harness-lite/.worktrees/minimal-runtime';\nconst out=hub+'/tmp/core-delivery/util-reuse-audit.json';\nconst names=['unix-format','xml-format','timeout','brand'];\nconst require=createRequire(hub+'/packages/core/identity-values/package.json');\nconst ts=require('typescript');\nconst sha=bytes=>createHash('sha256').update(bytes).digest('hex');\nconst git=(cwd,args)=>execFileSync('git',args,{cwd,encoding:'utf8'}).trim();\nconst snapshot={source:{root:source,branch:git(source,['branch','--show-current']),commit:git(source,['rev-parse','HEAD']),status:git(source,['status','--short'])},hub:{root:hub,branch:git(hub,['branch','--show-current']),commit:git(hub,['rev-parse','HEAD']),status:git(hub,['status','--short'])}};\nconst packages={};\nfor(const name of names){\n  const prefix='packages/util/'+name+'/';\n  const files=git(source,['ls-files','--',prefix]).split('\\n').filter(Boolean).map(file=>{\n    const bytes=readFileSync(source+'/'+file);\n    const head=execFileSync('git',['show','HEAD:'+file],{cwd:source});\n    return {path:file,bytes:bytes.length,sha256:sha(bytes),headBlobSha256:sha(head),matchesHead:bytes.equals(head)};\n  });\n  const manifest=JSON.parse(readFileSync(source+'/'+prefix+'package.json','utf8'));\n  const provenance=JSON.parse(readFileSync(source+'/'+prefix+'provenance.json','utf8'));\n  const goldenFile=files.find(f=>f.path.endsWith('/golden.json'));\n  const golden=goldenFile?JSON.parse(readFileSync(source+'/'+goldenFile.path,'utf8')):undefined;\n  packages[name]={manifest,provenance,files,tests:files.filter(f=>/\\/tests\\//.test(f.path)).map(f=>f.path),goldenShape:golden?Object.fromEntries(Object.entries(golden).map(([k,v])=>[k,{kind:Array.isArray(v)?'array':typeof v,count:typeof v==='object'&&v!==null?Object.keys(v).length:undefined}])):null};\n}\nconst loaderCache=new Map();\nfunction moduleUrl(file,root){\n  const resolved=path.resolve(file);\n  if(!resolved.startsWith(path.resolve(root)+'/')) throw new Error('module outside selected root: '+resolved);\n  if(loaderCache.has(resolved)) return loaderCache.get(resolved);\n  const sourceText=readFileSync(resolved,'utf8');\n  const result=ts.transpileModule(sourceText,{compilerOptions:{target:ts.ScriptTarget.ES2024,module:ts.ModuleKind.ESNext},reportDiagnostics:true});\n  if(result.diagnostics?.some(d=>d.category===ts.DiagnosticCategory.Error)) throw new Error('transpile errors '+resolved);\n  const js=result.outputText.replace(/(from\\s+|import\\s*)(['\"])(\\.[^'\"]+)\\2/g,(all,prefix,quote,specifier)=>{\n    const imported=path.resolve(path.dirname(resolved),specifier.replace(/\\.(js|ts)$/,'.ts'));\n    return prefix+quote+moduleUrl(imported,root)+quote;\n  });\n  const url='data:text/javascript;base64,'+Buffer.from(js).toString('base64');\n  loaderCache.set(resolved,url);\n  return url;\n}\nconst unix=await import(moduleUrl(source+'/packages/util/unix-format/src/index.ts',source+'/packages/util/unix-format'));\nconst xml=await import(moduleUrl(source+'/packages/util/xml-format/src/index.ts',source+'/packages/util/xml-format'));\nconst timeout=await import(moduleUrl(source+'/packages/util/timeout/src/index.ts',source+'/packages/util/timeout'));\nconst brand=await import(moduleUrl(source+'/packages/util/brand/src/index.ts',source+'/packages/util/brand'));\nconst measurements=[];\nfunction measure(id,input,fn,sourceOracle){\n  try { const value=fn(); measurements.push({id,input,status:'returned',output:value,oracle:sourceOracle});}\n  catch(error){measurements.push({id,input,status:'threw',error:{name:error.name,message:error.message},oracle:sourceOracle});}\n}\nmeasure('unix.negativeStart',{lines:['x'],start:-1},()=>unix.formatNumberedLines(['x'],{start:-1}),'README states negative start throws; source numbered.ts only requires integer; report mismatch, do not set new policy.');\nmeasure('unix.codePointTruncation',{lines:['😀a'],perLineCharLimit:1},()=>unix.formatNumberedLines(['😀a'],{perLineCharLimit:1}),'Source numbered.ts uses Array.from-based code-point slicing.');\nmeasure('unix.commandDelimiter',{commands:[['go','','desc']]},()=>unix.formatCommandList([['go','','desc']]),'Public CommandEntry is readonly [name,synopsis,description]; README plain ASCII claim checked against em dash separator in sections.ts.');\nmeasure('unix.tableBestEffortCap',{headers:['verylong','z'],rows:[['verylong','z']],maxWidth:5},()=>unix.formatTable(['verylong','z'],[['verylong','z']],{maxWidth:5}),'README documents best-effort cap; only last column shrinks.');\nmeasure('xml.nameFinalNewline',{name:'a\\n'},()=>xml.isXmlName('a\\n'),'Existing options.spec.ts rejects final newline; static suspicion is explicitly checked, false means no defect.');\nmeasure('xml.plainMarkupEscaped',{x:'</x><bad/>'},()=>xml.formatXml({x:'</x><bad/>'},{tag:'root',requiredFields:{x:{}}}),'README escaping promise for ordinary strings.');\nmeasure('xml.rawSelfRendering',{toXmlReturn:'</root><bad/>'},()=>xml.formatXml({x:{toXml(){return '</root><bad/>';}}},{tag:'root',requiredFields:{x:{}}}),'format.ts intentionally embeds XmlFormattable raw; document trusted callback boundary.');\nmeasure('xml.duplicateAttribute',{x:'one',manualAttributes:{x:'two'}},()=>xml.formatXml({x:'one'},{tag:'root',requiredFields:{x:{presentation:'attr'}}},{manualAttributes:{x:'two'}}),'assemble appends manual attributes after rendered attributes; no uniqueness check.');\nmeasure('xml.nullCharacter',{x:'\\u0000'},()=>xml.formatXml({x:'\\u0000'},{tag:'root',requiredFields:{x:{}}}),'escape.ts replaces markup delimiters only; XML legal-character validation not implemented.');\nmeasure('xml.entityIsPlainText',{input:'&amp;'},()=>xml.escapeXmlContent('&amp;'),'Existing options.spec.ts explicitly expects &amp;amp; despite test title.');\nmeasure('timeout.invalidRequested',{requested:0,default:10,max:100},()=>timeout.clampTimeout(0,10,100),'Existing support.spec.ts asserts requested zero throws.');\nmeasure('timeout.invalidDefault',{requested:null,default:-1,max:100},()=>timeout.clampTimeout(undefined,-1,100),'Implementation validates only requested when present; callers own valid default/max.');\nmeasure('timeout.invalidMax',{requested:10,default:20,max:-1},()=>timeout.clampTimeout(10,20,-1),'Implementation validates only requested when present; callers own valid default/max.');\nmeasure('timeout.noTimerDeadline',{timeoutMs:0},()=>{const upstream=new AbortController().signal;const result=timeout.deadline(upstream,0,'probe');const same=result.signal===upstream;result[Symbol.dispose]();return {sameUpstreamSignal:same,aborted:result.signal.aborted};},'deadline timeoutMs<=0 path is documented no timer; no positive deadline or runtime stopping tested.');\nmeasure('brand.emptyString',{value:''},()=>({same:brand.brandString('')==='',value:brand.brandString('')}),'brandString applies type assertion only; cannot replace opaque identifier admission.');\nmeasure('brand.nanNumber',{value:'NaN'},()=>({sameNaN:Number.isNaN(brand.brandNumber(NaN))}),'brandNumber applies type assertion only; cannot replace numeric validation.');\n\nconst base=ts.readConfigFile(hub+'/tsconfig.base.json',ts.sys.readFile);\nconst parsed=ts.parseJsonConfigFileContent(base.config,ts.sys,hub);\nconst nodeTypes=path.dirname(path.dirname(require.resolve('@types/node/package.json')));\nconst compilerOptions={...parsed.options,noEmit:true,types:['node'],typeRoots:[nodeTypes],allowImportingTsExtensions:true,rootDir:undefined};\nfunction diagnostics(program){\n  return ts.getPreEmitDiagnostics(program).map(d=>{\n    const position=d.file&&d.start!==undefined?d.file.getLineAndCharacterOfPosition(d.start):null;\n    return {code:d.code,category:ts.DiagnosticCategory[d.category],file:d.file?.fileName,line:position?position.line+1:null,column:position?position.character+1:null,message:ts.flattenDiagnosticMessageText(d.messageText,'\\n')};\n  });\n}\nconst compatibility={options:compilerOptions,packages:{}};\nfor(const name of names){\n  const roots=packages[name].files.filter(f=>/\\/src\\/.*\\.ts$/.test(f.path)).map(f=>source+'/'+f.path);\n  const host=ts.createCompilerHost(compilerOptions);\n  host.writeFile=()=>{throw new Error('write forbidden during noEmit audit');};\n  const program=ts.createProgram(roots,compilerOptions,host);\n  compatibility.packages[name]={mode:'TypeScript createProgram with current HUB base strict flags; source read only; noEmit; no package/public consumer build',diagnostics:diagnostics(program)};\n}\nconst virtualFile=hub+'/tmp/core-delivery/__virtual_brand_comparison__.ts';\nconst virtualSource=\"import type { Branded as SourceBranded } from '\"+source+\"/packages/util/brand/src/index.ts';\\nimport type { Branded as HubBranded } from '\"+hub+\"/packages/core/identity-values/src/opaque.ts';\\ndeclare const sourceValue: SourceBranded<'ExampleId'>;\\ndeclare const hubValue: HubBranded<string, 'ExampleId'>;\\nconst asHub: HubBranded<string,'ExampleId'> = sourceValue;\\nconst asSource: SourceBranded<'ExampleId'> = hubValue;\\n\";\nconst host=ts.createCompilerHost(compilerOptions);\nconst original=host.getSourceFile.bind(host);\nhost.getSourceFile=(file,languageVersion,...args)=>file===virtualFile?ts.createSourceFile(file,virtualSource,languageVersion,true):original(file,languageVersion,...args);\nhost.fileExists=file=>file===virtualFile||ts.sys.fileExists(file);\nhost.readFile=file=>file===virtualFile?virtualSource:ts.sys.readFile(file);\nhost.writeFile=()=>{throw new Error('write forbidden during virtual brand audit');};\ncompatibility.brandInterchangeability={source:virtualSource,diagnostics:diagnostics(ts.createProgram([virtualFile],compilerOptions,host)),scope:'Exact source package brand versus current HUB identity-values brand. Does not test duplicate installation or compiler package-id deduplication.'};\nconst official=[];\nfor(const name of ['timeout','brand']){\n  const provenance=packages[name].provenance;\n  for(const entry of provenance.files){\n    if(official.some(item=>item.upstreamPath===entry.upstream_path)) continue;\n    const url='https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/'+provenance.commit+'/'+entry.upstream_path;\n    const response=await fetch(url);\n    const bytes=Buffer.from(await response.arrayBuffer());\n    official.push({url,status:response.status,upstreamCommit:provenance.commit,upstreamPath:entry.upstream_path,bytes:bytes.length,sha256:sha(bytes),declaredSha256:entry.sha256,matchesDeclared:response.ok&&sha(bytes)===entry.sha256});\n  }\n}\nconst hubRelevant=['packages/AGENTS.md','packages/README.md','package.json','pnpm-workspace.yaml','tsconfig.base.json','packages/core/identity-values/src/opaque.ts','packages/core/content-blocks/src/json.ts','.meta_harness/design/realization/README.md','.meta_harness/design/realization/packages/core/tool-definition/design.md'];\nconst hubInputs=hubRelevant.map(file=>{const bytes=readFileSync(hub+'/'+file);return {path:file,sha256:sha(bytes)};});\nconst audit={format:1,task:'Read-only utility reuse audit; no package implementation; no design acceptance',capturedAt:new Date().toISOString(),environment:{node:process.version,typescript:ts.version,compiler:require.resolve('typescript'),platform:process.platform,architecture:process.arch},snapshot,packages,measurements,compatibility,official,hubInputs,limitations:['Did not run source workspace builds, Vitest suites, Python golden generation, install dependencies, or alter source tree.','Readonly in-memory transpilation is a targeted behavior observation, not a product consumer build.','MIT upstream individual file hashes verified; provenance archive hash not downloaded or verified.','omne-next origin commit/path and historical Python runs are local provenance claims; original Python checkout not independently inspected.','No real positive timeout, timeout workload cancellation, iterator disposal or resource cleanup measured.','No design or source acceptance conferred by this audit.']};\nwriteFileSync(out,JSON.stringify(audit,null,2)+'\\n');\nconsole.log(JSON.stringify({artifact:out,sourceFiles:Object.values(packages).reduce((n,p)=>n+p.files.length,0),allSourceFilesMatchHead:Object.values(packages).every(p=>p.files.every(f=>f.matchesHead)),measurements,compatibility:Object.fromEntries(Object.entries(compatibility.packages).map(([k,v])=>[k,v.diagnostics])),brandDiagnostics:compatibility.brandInterchangeability.diagnostics,official},null,2));\n",
+    "scriptSha256": "51ea7e3a72528bab567cf45f804b8d506af934bf96d9af368f92bb9ac7421e3a",
+    "writes": [
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/util-reuse-audit.json"
+    ],
+    "sourceTreeOperations": "Reads and git read-only status/HEAD/ls-files/show only; no source build, install, package manager invocation or branch mutation.",
+    "replayLimitation": "Replays raw audit measurements and rewrites JSON. The current report/recommendation metadata was appended after measurements and will require preservation if it is needed for comparing later snapshots."
+  },
+  "endSnapshots": {
+    "capturedAt": "2026-09-26T05:37:15.661Z",
+    "source": {
+      "head": "d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac",
+      "status": ""
+    },
+    "hub": {
+      "head": "68cf34d2d8bdb033ee387edabf80c6685caf806c",
+      "status": "?? .meta_harness/design/realization/packages/util/"
+    }
+  },
+  "auditIntegrity": {
+    "status": "passed",
+    "checks": [
+      "JSON parse; 59 exact source files rehashed; HEAD equality recorded",
+      "16 actual behavior result records with selected fixed raw outputs independently asserted",
+      "4 noEmit source checks contain no diagnostics; 2 expected brand incompatibility diagnostic codes",
+      "3 fixed official files HTTP200 and declared hashes match",
+      "timeout structural source AST equality; raw generated-text difference retained",
+      "reproduction script hash; source tree remains clean"
+    ],
+    "scope": "Measurement-evidence integrity checks. Not a source workspace suite, product implementation conformance or design acceptance."
+  },
+  "selection_note": "Technical adoption decisions intentionally excluded; raw observations from scoped audit."
+}

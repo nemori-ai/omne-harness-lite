@@ -1,5 +1,13 @@
 # tool-execution-runtime 验证与证据
 
+## 2026-09-26 租户工具实现版本的受阻消费
+
+Core交付期间根据产品负责人对租户自定义工具实现的询问，核对了[PF002](../../../../product/PF-002-assets-settings-and-permissions/design.md)、[TD3 S30](../../../../spec/data/tool-definition/v3/contract.md)、[AM3](../../../../spec/data/asset-model/v3/contract.md)、[AE3](../../../../spec/capabilities/asset-evaluation/v3/contract.md)、[Registry2](../../../../spec/capabilities/asset-registry/v2/contract.md)与[TER2 S21／S37／S38](../../../../spec/capabilities/tool-execution-runtime/v2/contract.md)。产品允许同category/name的不同资产实现携带完整实现package；求值与注册表可以选择资产记录／版本并按尝试固定定义，发布本身不换既有快照，须reload或重新装配。
+
+现行TER的执行者只按定义名登记，本节点[设计](design.md)对同键重复登记拒绝；它不按租户／会话开实例。因此租户A选择 `tool/read → 资产A v2`、租户B选择 `tool/read → 资产B v7`，以及同一会话旧／新尝试并存时，**现行执行者表尚不能承载对应实现版本绑定**。这是已确定产品要求与尚未实施机制之间的缺口，不是运行漏洞实测。本程core只提供定义和纯值求值，没有交付该执行运行时。
+
+本节点后续实施前，主线与本节点owner须补齐“选中的资产记录／版本及尝试快照 → 对应实现工件／执行者”的契约与提供者映射，以及装载／撤除和失败责任，接续既有T14等缺口；本记录不自行选择新的索引键、加载器、Tool基类、路径约定或隔离机制。执行落点权限门也不能冒充模块初始化副作用的装载隔离保证。完整装载、租户版本正确执行与在途版本保持的独立验收，留给该未来交付增量。
+
 契约侧的证据义务权威在 [`spec/capabilities/tool-execution-runtime/verification.md`](../../../../spec/capabilities/tool-execution-runtime/verification.md)：一个 TLA+ 模型（两个登记任务、六个去保护配置、三份补充否定配置、七个可达性探针）、十八条规范场景、两个方向的故障注入、K-1～K-11 两源反例。
 本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（会话哨兵、发件箱、活体表由一个 effect 持有、先 provide 后扫描）。**本节点尚未建包，除契约模型的两次运行外一切未开始。**
 

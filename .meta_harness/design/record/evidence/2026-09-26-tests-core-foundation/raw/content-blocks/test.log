@@ -1,0 +1,14 @@
+
+> @omne-harness-lite/content-blocks@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-content/packages/core/content-blocks
+> vitest run
+
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-content/packages/core/content-blocks
+
+
+ Test Files  5 passed (5)
+      Tests  306 passed (306)
+Type Errors  no errors
+   Start at  04:55:38
+   Duration  2.39s (transform 767ms, setup 0ms, import 1.93s, tests 410ms, environment 1ms, typecheck 1.45s)
+

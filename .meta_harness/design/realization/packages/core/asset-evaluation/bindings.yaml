@@ -6,4 +6,14 @@ version: 1
 node: "asset-evaluation"
 kind: "provider"
 
-bindings: []
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "capability.asset-evaluation/v3#S-15"
+    evidence: "test:tools/core-verification/src/w6-asset-consumer.ts#w6.asset.five-real-ports"
+    assumptions:
+      - "仅当前NonConnector五真实正文端口域，显式成员／持有／正文快照；第六Connector及外部PRE1～9事实不在证据内。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

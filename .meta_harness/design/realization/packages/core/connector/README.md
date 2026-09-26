@@ -1,11 +1,19 @@
 # connector
 
+## 本阶段边界（2026-09-26）
+
+按用户明确要求，只有 Connector 资产类型的纵线延期，本轮不实现、不测试、不签收其16个义务；设计接受不等于实现。AM／AE两个混合组合项及AE四个混合局部项的当前NonConnector部分已经分别验收，不能据此声称第六Connector正文提供者已存在。其他资产类型按其已接受core规格继续交付；当前阶段仍215完整core项＋6混合项当前部分＝221，精确范围与剩余见[本轮验收](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。
+
+## 此前设计与状态记录
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.connector · v2`（[契约](../../../../spec/data/connector/v2/contract.md)，状态 `accepted`，接受由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/connector`——**尚未建包**。归 `core`：它是 `data.*`，被资产治理、求值、连接件接入端与受理消费
 - 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——契约没有操作与提交点（[第九节](../../../../spec/data/connector/v2/contract.md#九缺席怎么收)）。它提供连接件正文、来源标识、投递目标、入站信封的类型与表示层校验，推出规则与 asset-model 的 `connector` 类正文端口。**接入端、交接协议、受理、附件解引用都不在这里**
 
 ## 分层状态
+
+**本轮实施延期（2026-09-26，用户明确要求）**：Connector 相关整块去留与新产品设计仍在商榷，当前 core 交付不实现本包、接入或相关组合，不建占位包。原已接受设计／冻结规格的历史状态不因此改写；本轮源码与验证仍未开始。依赖六正文的默认装配与整体资产求值随此范围明确延期，不用替身宣称完成。
 
 - 语义接受范围：**设计已接受**（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-061 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
 - 可实施范围：声称兑现 S-1～S-10、S-16～S-19 的形状与表示层面；S-11 推出规则按契约**判不出来**（两项权限的取值域在契约 G-4 上），本节点如实返回「推不出」。**不兑现**：S-14、S-15（接入端与受理）。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**

@@ -48,7 +48,7 @@ packages/core/{identity-values,offer-expiry,kernel-basis,storage}
                                        契约纯模块、Cordis 共用件与 probe、存储协议与一致性套件
 packages/infra/{storage-sql,clock}     存储与时钟提供者（sqlite/pg、租约时钟）
 packages/tenancy/{credential-verification,account-identity,organization-governance,account-registration}
-                                       四个 tenancy 插件的服务面类型与场景清单（实现在第二程）
+                                       tenancy 插件与公开服务实现；完整成员从 packages/README 查找
 packages/frontend/governance-center-client
 packages/frontend/client-local-state
 packages/frontend/governance-client-operations
@@ -56,6 +56,7 @@ packages/frontend/governance-client-operations
 apps/cli/                             治理CLI应用；文件输入增量
 tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
 tools/ts-checks/                       TS 开发成员；产品源码结构检查规则与 CLI
+tools/core-verification/               TS 开发成员；core 真实组合与验证套件有效性自测
 pyproject.toml                         Python 开发环境聚合，package = false
 uv.lock                                Python workspace 统一锁文件
 tools/spec-tools/                      Python 开发成员；跨仓库 Markdown 导航与工具环境检查
@@ -83,7 +84,7 @@ scripts/format.sh                      TS/JS 格式化与暂存区检查
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
 TS workspace 由 pnpm 管理，[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) 声明
-`packages/*/*`、`apps/*`、`tools/ts-checks` 与 `tools/artifact-builder`，并用 `catalog` 把第三方依赖的版本钉一次
+`packages/*/*`、`apps/*`、`tools/ts-checks`、`tools/artifact-builder` 与 `tools/core-verification`，并用 `catalog` 把第三方依赖的版本钉一次
 （成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本，根命令用 `pnpm -r` 聚合；
 测试运行器是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
 Node 与 pnpm 的精确版本由根 `package.json` 的

@@ -1,5 +1,9 @@
 # 验证覆盖与实际证据
 
+## 当前3实际模型运行（2026-09-26）
+
+[2026-09-26-formal-core-v3](../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。按逐command的SAT/UNSAT与有解实例读取，263主读数中Messages11（含五变异），不是按退出0宣称通过；Alloy无正式task/binding。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。
+
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：几乎全部未开始。**`data.messages` v2 是 `candidate`（2026-09-25 修复波 3 原地改——[实现映射反推](#实现映射反推2026-09-25)），未接受、未冻结；尚无提供者设计、尚无源码、尚无装配。
@@ -255,3 +259,7 @@ reviewer：spec-reviewer，S25 第二轮批 R1（另含批 R2b 转给本契约�
 - **`model_call_ended.cause` 与 `data.loop-extension` v2 `FailureCause` 出门前四值逐字相同**（V-12）。
 - **`capability.model-request-runtime`**：写「已出门」时带上绑定（S-49）；续接或再发时凭据取不到写 `released{cause: credential_unavailable}`，不写 `undispatched`（S-50）。
 - **「已出门」上的 `parameterAdjustments`、`droppedParameters` 与同一次发出的响应体 `route` 上的同名两项逐项相同**（S-49）：`capability.model-request-runtime` 写「已出门」时带上传输适配定下的处置，停机之后补写响应体时从这一条读（它的 S-33）；`data.model-response` 改这两项的形状，本契约同轮改（V-12）。
+
+## 2026-09-26 D-068 当前 v3
+
+`data.messages · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。

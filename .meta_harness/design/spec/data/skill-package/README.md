@@ -1,3 +1,9 @@
+## 当前推荐与本轮提供者采用：Skill3（2026-09-26）
+
+精确[新3规范](v3/contract.md)、[Schema](v3/skill-package.schema.json)、[实例](v3/examples.md)已按[D069](../../../record/decisions/skill-yaml-key-resolution/acceptance.json)接受冻结，规则为未知tag canonical关系最终阻止键唯一性判断时malformed/M16，ordinaryunknown仍忽略。根提供者将采用3；完整旧2Schema及纯值／正文保留供AM3／AE3／Slash2实际精确消费，新推荐不自动升级其它契约。新3读入不保留undetermined第三结果，旧2缺口和原运行范围不变。实现／验证状态仍按节点实际证据读取。
+
+下文是源2接受时的历史入口，旧“候选／v1／未接受”标签不改冻结事实；当前采用以上段及registry为准。
+
 # 技能包
 
 **一份技能资产版本的全部内容长什么样**：`SKILL.md` 的清单头（Agent Skills 开放格式的六个键）与正文、包内资源的条目与路径、

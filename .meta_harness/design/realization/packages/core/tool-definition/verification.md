@@ -1,4 +1,24 @@
+## 最终 core 阶段签收（2026-09-26）
+
+本节点本阶段的 20 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
+Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
+[新原始运行与逐项签收](../../../../record/evidence/2026-09-26-tests-core-skill-v3/README.md)记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
+产品负责人已授权Skill收尾后总体发布／squash merge／清理；该条件已满足。源码复验坐标00999722，原06b运行与唯一SA测试坐标修复的适用性逐文件记录。
+下文旧日期／旧源的“未签／SP3／未完成／人的总体门待签”保留为当时事件，当前core阶段状态由本段取代。外部owner、真实运行时／IO、Connector和生产就绪没有提升；全仓make的三个main继承失败仍保留。
+
 # tool-definition 验证与证据
+
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：`data.tool-definition/v3`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/tool-definition` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**282 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 18 项 core-local、2 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
 
 契约侧的证据义务权威在 [`spec/data/tool-definition/verification.md`](../../../../spec/data/tool-definition/verification.md#证据义务)（V-1～V-12）。
 本页只登记**落在本节点上的那一部分**。
@@ -15,7 +35,7 @@
 | V-9 多命令派发以 `commands[c].input` 判参数 | 过了模型面、判定不过的三条调用都被拒；顶层没写 `additionalProperties` 的 schema 收到未知键被拒；带 `format` 的参数值不合格式时**不被拒**（M37：只作注解） | 未开始 | 本节点（判定）；被拒之后怎样收场归执行运行时 |
 | V-12 的本节点那一半 | `format: email` 的参数收到 `"not-an-email"` 判为合格；对 `schema_unsupported` 的 schema，`judgeCallArguments` 返回 `{ unsupported }`、**不返回 `ok`** | 未开始 | 本节点；「作者工具不以全放行运行」「MCP 来源以同形替换件出现」归执行运行时、MCP 桥与注册表的场景 |
 | S-18 逆转写唯一 | `__`、`_:`、`:_` 三种相邻各一个反例；转写后长度 ≤ 128 的边界两侧 | 未开始 | 本节点 |
-| `ModelToolName` 副本对齐（TD-1） | content-blocks 与本包两处 `$defs/ModelToolName` 逐字相同 | 未开始 | 本节点 |
+| `ModelToolName` 副本对齐（TD-1） | content-blocks 与本包两处 `$defs/ModelToolName` 的断言键 `type` 与 `pattern` 逐字相同（依content-blocks冻结 `$comment` 的精确口径；各自title/description/examples/$comment注释保留，不比较为同字节） | 未开始 | 本节点 |
 | V-10 静态检查 | 见 [design](design.md#静态检查义务怎么承载) | 未开始；规则不存在 | 本节点提出形式，`tools/ts-checks` 落规则 |
 | V-11 消费者走查 CS-1～CS-8 | 结构化走查 | 未开始 | 本节点与执行运行时、注册表、MCP 桥共同走查 |
 
@@ -45,3 +65,11 @@
 | 范围外 | `@eslint-community/regexpp` 是新第三方依赖，须主线登记 | 按 M55：作候选依赖登在「实现路径」，版本钉定与许可核对在实施程 | design.md「实现路径」、依赖节末段、TD-2 |
 
 另：契约 G-16 随 [N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16 加入判定时限，本节点登记为 U-8；G-15 由同一裁定关闭。
+
+## D-068 当前验证epoch
+
+当前设计输入为 `data.tool-definition · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。
+
+## 2026-09-26 typed表示恢复的实际旧2范围复验
+
+[HUB独立实际运行](../../../../record/evidence/2026-09-26-tests-core-opaque-restoration/README.md)保存四包1700测试/build/type/27规则、原两项TypeError与八组built消费者的输出及精确2输入。只证指定恢复路径/表示与完整业务分离，非全仓opaque数据流/性能/外部runtime/后续3采用。当前3完整回归与逐ID接受仍待，不将旧2运行重标。

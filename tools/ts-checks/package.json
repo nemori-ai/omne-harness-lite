@@ -17,6 +17,7 @@
     "scan": "node --experimental-strip-types src/cli.ts ../../packages ../../apps"
   },
   "devDependencies": {
+    "@omne-harness-lite/identity-values": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

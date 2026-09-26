@@ -1,4 +1,28 @@
+## 最终 core 阶段签收（2026-09-26）
+
+本节点本阶段的 15 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
+Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
+[新原始运行与逐项签收](../../../../record/evidence/2026-09-26-tests-core-skill-v3/README.md)记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
+产品负责人已授权Skill收尾后总体发布／squash merge／清理；该条件已满足。源码复验坐标00999722，原06b运行与唯一SA测试坐标修复的适用性逐文件记录。
+下文旧日期／旧源的“未签／SP3／未完成／人的总体门待签”保留为当时事件，当前core阶段状态由本段取代。外部owner、真实运行时／IO、Connector和生产就绪没有提升；全仓make的三个main继承失败仍保留。
+
 # stream-assembly 验证与证据
+
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：`capability.stream-assembly/v3`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/stream-assembly` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**479 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 14 项 core-local、1 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
+
+## 当前3实际形式执行（2026-09-26）
+
+[2026-09-26-formal-core-v3](../../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存本次正式3输入的实际模型、指定变异、原始输出与完整封存。主调度核32冻结资源、630 SHA、631归档字节及263主Alloy／28 XML读数，独立spec-reviewer核对应性无阻断。正配置826411 distinct/depth9/队列0，三变异exit12；新增两条正式3模型binding只覆盖S-6/P-1与S-27/P-7指定有限范围。两索引两符号最多六事件，无公平性、关闭死锁检查，真实实现/参数/完整表示/失败次序与宿主仍不在模型。旧证据保留原输入；本次模型执行不签收产品实现、W6真实组合或人的最后总体门。
 
 契约侧的证据义务权威在 [`spec/capabilities/stream-assembly/verification.md`](../../../../spec/capabilities/stream-assembly/verification.md#证据义务)（V-1～V-7、SC-1～SC-4）。
 本页只登记**落在本节点上的那一部分**；宿主前提（V-6）归两个宿主节点，跨进程（V-7）本版装配下无法演练。
@@ -43,3 +67,7 @@
 | 编号 | 发现 | 处置 | 落点 |
 | --- | --- | --- | --- |
 | 范围外 | 两条绑定（S-6 P-1、S-27 P-7）的有效性前提是三份变异配置给得出反例，那次运行的原始输出未入 record/evidence，只有契约 verification 的文字记录 | 按 M54：主线把三份变异配置跑成证据 run `2026-09-25-validity-stream-assembly`（全部退出 12）；两条绑定的 `assumptions` 改指这个 run | bindings.yaml 顶部注释与两条的有效性前提那一项；本页 V-1 行、「实际执行」第二行；覆盖缺口删去原「变异配置未入库」一条 |
+
+## D-068 当前验证epoch
+
+当前设计输入为 `capability.stream-assembly · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。

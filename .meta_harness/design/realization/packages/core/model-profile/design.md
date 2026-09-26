@@ -3,7 +3,7 @@
 > 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
 契约：[`data.model-profile` v2](../../../../spec/data/model-profile/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
-导出名、类型名一律为**已接受的设计**，源码不存在。
+导出名、类型名沿已接受设计；源码已于 `cd67215b` 落在 `packages/core/model-profile/`，实际验证范围沿本节点 verification 登记。
 
 ## 实现路径与来源
 
@@ -19,7 +19,7 @@
 | 导出 | 契约坐标 |
 |---|---|
 | 类型 `ModelProfile`、`RouteName`、`ProfileOrigin`、`ProviderName`、`InputConstraints` | [S-1](../../../../spec/data/model-profile/v2/contract.md#s-1-档案的身份所在范围与路由名)、[S-2](../../../../spec/data/model-profile/v2/contract.md#s-2-routename)、[S-4](../../../../spec/data/model-profile/v2/contract.md#s-4-profileorigin)～[S-9](../../../../spec/data/model-profile/v2/contract.md#s-9-inputconstraints)、[S-12](../../../../spec/data/model-profile/v2/contract.md#s-12-各属性何时定能不能改) |
-| 类型 `ModelProfileRef`；`refMatches(ref, profile)` | [S-13](../../../../spec/data/model-profile/v2/contract.md#s-13-modelprofileref)、[S-14](../../../../spec/data/model-profile/v2/contract.md#s-14-引用只精确解析不跨层) |
+| 类型 `ModelProfileRef`；`refMatches(ref, profile, scope?)`（下文明确三条重载） | [S-13](../../../../spec/data/model-profile/v2/contract.md#s-13-modelprofileref)、[S-14](../../../../spec/data/model-profile/v2/contract.md#s-14-引用只精确解析不跨层) |
 | 类型 `ModelRequestParameters`、`ReasoningEffort`；`parameterNames(params)` | [S-15](../../../../spec/data/model-profile/v2/contract.md#s-15-modelrequestparameters-是一份词表)～[S-20](../../../../spec/data/model-profile/v2/contract.md#s-20-项与项名) |
 | 类型 `ModelProfileSnapshot`、`ModelProfileContent` | [S-27](../../../../spec/data/model-profile/v2/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本)、[S-28](../../../../spec/data/model-profile/v2/contract.md#s-28-建档内容产生一条档案时给的那一份) |
 | `judgeModelProfileDocument(kind, value) → { ok } \| { rejected }` | [S-24](../../../../spec/data/model-profile/v2/contract.md#s-24-表示层校验是一次纯计算)～[S-26](../../../../spec/data/model-profile/v2/contract.md#s-26-表示层拒绝与判定分开) |
@@ -53,7 +53,7 @@
 
 ### 契约责任 → 模块公开入口 → 实现 → 符合性依据或缺口
 
-全部**未实现**；「实现」一列写的是候选做法。
+下表的模块职责已在 `cd67215b` 实现；目录与请求运行时责任保留各自 owner。具体函数签名以公开入口为准，测试通过的范围由 verification 与实际 run 陈述。
 
 | 契约责任 | 模块公开入口（候选） | 实现（候选做法） | 符合性依据或缺口 |
 |---|---|---|---|
@@ -92,3 +92,9 @@
 ## 实施缺口与消费者影响
 
 契约的已知缺口（第十节）不重抄。**本节点没有自己的缺口**；「三种收场不折叠」「撞名只比同一格」写进模型档案目录的 verification。
+
+## 2026-09-26 实际公开入口与数值映射
+
+`refMatches` 有三条重载：官方引用两参；自建引用第三参必需为 `ScopeLayerIdentity`；联合引用第三参必需为 `ScopeLayerIdentity | undefined`。S-1 的档案交换记录不含 scope，因此目录把该行所在格作为独立显式输入交出，函数不从环境推测。运行时未给自建 scope 返回 false，表示这份输入不能匹配，不等于目录的「查无此条」或「读不到」。
+
+全部数值域使用 content-blocks 的 `JsonNumber`；先从原数字字面量判整数性、范围与跨字段关系，再向本包固定 Schema 投影。不把巨大合法数转换成有限 Number，不向调用方承诺通用任意 Schema 数值投影。`Modality` 类型和 Schema 引用 content-blocks 唯一定义；`updatedAt` 保留 RFC3339 交换字符串，不把 offer-expiry 的运行时对象装进记录。快照只有类型与 Schema，没有表示判定入口。

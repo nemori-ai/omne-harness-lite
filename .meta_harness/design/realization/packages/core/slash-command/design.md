@@ -22,6 +22,7 @@
 | `parseInvocation(invocation, commandSet) → ParseResult`（四支） | [S-16](../../../../spec/data/slash-command/v2/contract.md#s-16-名字只按会话斜杠命令集认)～[S-20](../../../../spec/data/slash-command/v2/contract.md#s-20-parseresult-四支) |
 | `expandPrompt`、`expandSkill` | [S-21](../../../../spec/data/slash-command/v2/contract.md#s-21-提示词型的展开)～[S-23](../../../../spec/data/slash-command/v2/contract.md#s-23-命令型的参数) |
 | `judgeSlashCommand(value)`、`judgeInvocation(invocation)` | [S-26](../../../../spec/data/slash-command/v2/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/slash-command/v2/contract.md#s-29-表示层拒绝与解析失败分开都不修补) |
+| `slashCommandAttributeDeclarations(definition)`、`slashCommandReferences(definition)`；`validate(definition, value)` 与 `judgeSlashCommandValue(definition, value, context?)` | S-11 的属性推出、skill 引用与同一冻结 Schema 全部九项定义；不读权限或解析服务 |
 
 **函数层不承诺**：解析失败什么都不发与留痕（[S-24](../../../../spec/data/slash-command/v2/contract.md#s-24-解析失败即什么都不发)、[S-25](../../../../spec/data/slash-command/v2/contract.md#s-25-留痕)）、受理面收到时重新识别、保留名在系统内唯一——归交付面、受理面与发布流程（[装配给 vs 协议给](#装配给-vs-协议给)右列）。
 
@@ -71,6 +72,16 @@
 
 **落选方的最强论证**：JS 原生、零成本，且大多数命令只有 ASCII。**它输给第六节第 2 行**：位置跨实现要一致，UTF-16 下标在含 emoji 的参数上就会指错字。**本方弱点**：每处取下标都要经一个码点换算，写错一处就是一处 off-by-one；以 examples 第 4 节里带增补平面字符的行守住。置信度：**高**。
 
+### 识别与展开辅助函数的调用前提
+
+**2026-09-26，主调度技术采用**：`recognize` 的输入是 S-12 的 Unicode 码点序列。非字符串或落单代理项违反该辅助函数前提时给 `TypeError`，不增加第四种 `Recognition`；对外来的 invocation，`judgeInvocation` 仍给既有 `malformed`。`parseInvocation` 接已经合法的 invocation 与调用方交入的命令集，不去查别层或权限。
+
+`expandPrompt(definition, invocation) → Extract<ParseResult, { kind: 'expanded' | 'failed' }>` 只接 prompt 型合法定义，复用同一个 parser／模板展开规则；参数解析失败仍回原 `failed` 支。调用方保证该定义是本次已识别名字对应的实际合法定义；这个没有命令集参数的辅助函数不声称完成 S-16 查找。不是 prompt 型属于技术调用前提违例，不新增第五种 `ParseResult`。
+
+`expandSkill(invocation, skillName, pkg, annotations)` 是 S-22 展开物的纯投影：调用方先完成解析、以敲命令的人核权并选择此刻生效的合法 `SkillPackage`，再显式给每块的 `BlockId` 与 `Visibility`。结果按次序为正文逐字一块，及 `argumentText` 非空时的原样参数块；来路标记沿 S-22，`command` 来自本次已解析的名字。标注数必须恰与产出块数匹配，前提违例给 `TypeError`；本函数不生成身份、不作权限判定、不重新解析或格式化正文、不读目录、不写留痕、不发送消息。不能把纯展开物的通过声明为受理面的权限或落账已经完成。
+
+`judgeSlashCommand(value, { capabilityName?, origin? })` 与辅助 `judgeSlashCommandValue` 在缺少记录上下文时只判可独立确定的形状与谓词；不能据局部 `ok` 声称 S-4 的记录名、来源与绑定关系已经核实。正式接收资产记录由 asset-model 的真实正文端口交入实际 `capabilityName`／`origin`，判完整 S-4；Schema 的九项定义校验也不替代此步。
+
 ## 依赖、作用域与绑定
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
@@ -82,7 +93,7 @@
 
 ## 状态、并发与失败映射
 
-**无状态、无提交点、无并发。**表示层拒绝 ⇒ `{ rejected: 值 }`（恰一个）；解析失败 ⇒ `ParseResult` 的 `failed` 支（`reason` 与 `at`）。两者类型不相容，**都不抛异常**。
+**无状态、无提交点、无并发。**表示层拒绝 ⇒ `{ rejected: 值 }`（恰一个）；解析失败 ⇒ `ParseResult` 的 `failed` 支（`reason` 与 `at`）。两者类型不相容，这两种领域结果都不抛异常；只有上述辅助函数调用前提违例给 `TypeError`。
 
 ## 成对的装载与撤除
 

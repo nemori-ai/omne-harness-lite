@@ -1,0 +1,934 @@
+{
+  "source_sha256": "a32b6bbda131dffb60daa635361ad60de91374ef41d4a100cc7d8c457168200a",
+  "section_counts": {
+    "1": 14,
+    "2": 27,
+    "3": 19,
+    "4": 15,
+    "5": 18,
+    "7": 11
+  },
+  "code_blocks": 11,
+  "rows": [
+    {
+      "id": "LE-V1-1-01",
+      "line": 23,
+      "definition": "LoopPosition",
+      "text": "\"before_action\"",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-1-02",
+      "line": 24,
+      "definition": "LoopPosition",
+      "text": "\"after_terminal\"",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-1-03",
+      "line": 25,
+      "definition": "LoopPosition",
+      "text": "\"before_attempt_started\"",
+      "schema": false,
+      "rejection": "position_unknown"
+    },
+    {
+      "id": "LE-V1-1-04",
+      "line": 26,
+      "definition": "LoopPosition",
+      "text": "\"before_assembly\"",
+      "schema": false,
+      "rejection": "position_unknown"
+    },
+    {
+      "id": "LE-V1-1-05",
+      "line": 27,
+      "definition": "LoopPosition",
+      "text": "\"loop_guard\"",
+      "schema": false,
+      "rejection": "position_unknown"
+    },
+    {
+      "id": "LE-V1-1-06",
+      "line": 28,
+      "definition": "LoopPosition",
+      "text": "\"Before_Action\"",
+      "schema": false,
+      "rejection": "position_unknown"
+    },
+    {
+      "id": "LE-V1-1-07",
+      "line": 29,
+      "definition": "LoopPosition",
+      "text": "7",
+      "schema": false,
+      "rejection": "position_unknown"
+    },
+    {
+      "id": "LE-V1-1-08",
+      "line": 30,
+      "definition": "Dimension",
+      "text": "{\"ending\": \"complete_reply\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-1-09",
+      "line": 31,
+      "definition": "Dimension",
+      "text": "{\"ending\": \"failure\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-1-10",
+      "line": 32,
+      "definition": "Dimension",
+      "text": "{\"scope\": \"each\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-1-11",
+      "line": 33,
+      "definition": "Dimension",
+      "text": "{\"scope\": \"batch\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-1-12",
+      "line": 34,
+      "definition": "Dimension",
+      "text": "{\"ending\": \"interrupted\"}",
+      "schema": false,
+      "rejection": "dimension_not_allowed"
+    },
+    {
+      "id": "LE-V1-1-13",
+      "line": 35,
+      "definition": "Dimension",
+      "text": "{\"ending\": \"failure\", \"scope\": \"each\"}",
+      "schema": false,
+      "rejection": "dimension_not_allowed"
+    },
+    {
+      "id": "LE-V1-1-14",
+      "line": 36,
+      "definition": "Dimension",
+      "text": "{}",
+      "schema": false,
+      "rejection": "dimension_not_allowed"
+    },
+    {
+      "id": "LE-V1-2-01",
+      "line": 44,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"prod-db-guard\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"command\", \"host\": \"claude_code\", \"dialect\": \"2.1.280\", \"event\": \"PreToolUse\", \"command\": \"./hooks/prod-db-guard.sh\", \"matcher\": \"Bash\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-02",
+      "line": 45,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"default-retry\", \"position\": \"after_model_call\", \"dimension\": {\"ending\": \"failure\"}, \"power\": \"rewrite\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"default-retry\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-03",
+      "line": 46,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"result-offloader\", \"position\": \"after_action\", \"dimension\": {\"scope\": \"each\"}, \"power\": \"rewrite\", \"onError\": \"record\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"result-offloader\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-04",
+      "line": 47,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"cc-pretooluse-audit\", \"position\": \"before_action\", \"power\": \"observe\", \"implementation\": {\"kind\": \"command\", \"host\": \"claude_code\", \"dialect\": \"2.1.280\", \"event\": \"PreToolUse\", \"command\": \"audit-log\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-05",
+      "line": 48,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"codex-prompt-gate\", \"position\": \"before_persist_message\", \"power\": \"veto\", \"implementation\": {\"kind\": \"command\", \"host\": \"codex\", \"dialect\": \"5c5308fc\", \"event\": \"UserPromptSubmit\", \"command\": \"python3 gate.py\", \"timeout\": \"PT30S\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-06",
+      "line": 49,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"pii-scrubber\", \"position\": \"before_persist_message\", \"power\": \"rewrite\", \"needs\": [\"pii-detector\"], \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"pii-scrubber\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-07",
+      "line": 50,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"prod-db-guard\", \"position\": \"before_action\", \"power\": \"veto\", \"order\": 10, \"implementation\": {\"kind\": \"command\", \"host\": \"claude_code\", \"dialect\": \"2.1.280\", \"event\": \"PreToolUse\", \"command\": \"./hooks/prod-db-guard.sh\", \"matcher\": \"Bash\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-08",
+      "line": 51,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"prod-db-guard\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"command\", \"host\": \"claude_code\", \"dialect\": \"2.1.280\", \"event\": \"PreToolUse\", \"command\": \"./hooks/prod-db-guard.sh\", \"matcher\": \"Bash\"}, \"matcher\": \"Bash\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-09",
+      "line": 52,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"command\", \"host\": \"claude_code\", \"dialect\": \"2.1.280\", \"event\": \"PreToolUse\", \"command\": \"./hooks/prod-db-guard.sh\", \"matcher\": \"Bash\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-10",
+      "line": 53,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-11",
+      "line": 54,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"observe\", \"onError\": \"treat_as_veto\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-12",
+      "line": 55,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"after_persist_message\", \"power\": \"observe\", \"onError\": \"record\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-13",
+      "line": 56,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"after_persist_message\", \"power\": \"rewrite\", \"onError\": \"treat_as_veto\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-14",
+      "line": 57,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"needs\": [], \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-15",
+      "line": 58,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"command\", \"host\": \"cursor\", \"dialect\": \"1.6\", \"event\": \"beforeShellExecution\", \"command\": \"a.sh\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-16",
+      "line": 59,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"command\", \"host\": \"codex\", \"dialect\": \"5c5308fc\", \"event\": \"PreToolUse\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-17",
+      "line": 60,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"command\", \"host\": \"codex\", \"command\": \"a.sh\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-18",
+      "line": 61,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"native\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-19",
+      "line": 62,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"builtin\", \"capability\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-20",
+      "line": 63,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"builtin\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-21",
+      "line": 64,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\", \"host\": \"codex\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-22",
+      "line": 65,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"injection-scan\", \"position\": \"before_persist_message\", \"power\": \"veto\", \"unavailability\": \"veto\", \"needs\": [\"injection-detector\"], \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"injection-scan\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-23",
+      "line": 66,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"pii-scrubber\", \"position\": \"before_persist_message\", \"power\": \"rewrite\", \"unavailability\": \"skip\", \"needs\": [\"pii-detector\"], \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"pii-scrubber\"}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-2-24",
+      "line": 67,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"rewrite\", \"unavailability\": \"veto\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-25",
+      "line": 68,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"after_action\", \"dimension\": {\"scope\": \"each\"}, \"power\": \"veto\", \"unavailability\": \"veto\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-26",
+      "line": 69,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"unavailability\": \"fallback\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-2-27",
+      "line": 70,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"unavailability\": \"deny\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-01",
+      "line": 79,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_model_call\", \"dimension\": {\"ending\": \"failure\"}, \"run\": \"run_4c1e\", \"attempt\": 2, \"subject\": {\"failure\": \"upstream_unavailable\", \"statusCode\": 503, \"profile\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"dispatches\": [{\"kind\": \"model_call_dispatched\", \"call\": \"mc_01\", \"dispatch\": 1, \"provider\": \"provider-a\", \"response\": \"rsp_01\", \"profile\": {\"origin\": \"official\", \"routeName\": \"vendor-a/chat-large\"}, \"profileSnapshot\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"parameters\": {}, \"selectedBy\": \"session\", \"credentialScope\": {\"layer\": \"factory\"}}]}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-3-02",
+      "line": 80,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_model_call\", \"dimension\": {\"ending\": \"failure\"}, \"run\": \"run_4c1e\", \"attempt\": 2, \"subject\": {\"failure\": \"upstream_unavailable\", \"statusCode\": 503, \"dispatches\": [{\"kind\": \"model_call_dispatched\", \"call\": \"mc_01\", \"dispatch\": 1, \"provider\": \"provider-a\", \"response\": \"rsp_01\", \"profile\": {\"origin\": \"official\", \"routeName\": \"vendor-a/chat-large\"}, \"profileSnapshot\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"parameters\": {}, \"selectedBy\": \"session\", \"credentialScope\": {\"layer\": \"factory\"}}]}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-03",
+      "line": 81,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_model_call\", \"dimension\": {\"ending\": \"failure\"}, \"run\": \"run_4c1e\", \"attempt\": 2, \"subject\": {\"failure\": \"upstream_unavailable\", \"profile\": {\"providers\": [\"provider-a\"], \"allowFallback\": false, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"dispatches\": []}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-04",
+      "line": 82,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_terminal\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"proposed\": {\"state\": \"completed\"}}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-3-05",
+      "line": 83,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_model_call\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"request\": {\"target\": \"fast-small\", \"parameters\": {}, \"messages\": [], \"tools\": [\"fetch_page\", \"issue-tracker__search_issues\"]}}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-3-06",
+      "line": 84,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_model_call\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"request\": {\"target\": \"fast-small\", \"parameters\": {}, \"messages\": [], \"tools\": [{\"category\": \"tool\", \"name\": \"fetch_page\"}]}}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-07",
+      "line": 85,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_model_call\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"request\": {\"target\": \"fast-small\", \"parameters\": {}, \"messages\": [], \"tools\": [\"issue-tracker:search_issues\"]}}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-08",
+      "line": 86,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_terminal\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"terminal\": {\"state\": \"cancelled\", \"reason\": \"用户叫停\", \"initiator\": \"usr_a1\"}}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-3-09",
+      "line": 87,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"attempt_started\", \"run\": \"run_4c1e\", \"attempt\": 3, \"subject\": {\"attempt\": 3}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-3-10",
+      "line": 88,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_persist_message\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"message\": {\"id\": \"msg_1\", \"type\": \"user\", \"blocks\": [], \"createdAt\": \"2026-09-23T10:00:00Z\"}, \"producer\": \"user\"}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-11",
+      "line": 89,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_action\", \"subject\": {\"attempt\": 1}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-12",
+      "line": 90,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_model_call\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"failure\": \"unrecognized\", \"profile\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"dispatches\": [{\"kind\": \"model_call_dispatched\", \"call\": \"mc_01\", \"dispatch\": 1, \"provider\": \"provider-a\", \"response\": \"rsp_01\", \"profile\": {\"origin\": \"official\", \"routeName\": \"vendor-a/chat-large\"}, \"profileSnapshot\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"parameters\": {}, \"selectedBy\": \"session\", \"credentialScope\": {\"layer\": \"factory\"}}]}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "dimension_missing"
+    },
+    {
+      "id": "LE-V1-3-13",
+      "line": 91,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_model_call\", \"dimension\": {\"ending\": \"failure\"}, \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"failure\": \"timeout\", \"profile\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"dispatches\": [{\"kind\": \"model_call_dispatched\", \"call\": \"mc_01\", \"dispatch\": 1, \"provider\": \"provider-a\", \"response\": \"rsp_01\", \"profile\": {\"origin\": \"official\", \"routeName\": \"vendor-a/chat-large\"}, \"profileSnapshot\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"parameters\": {}, \"selectedBy\": \"session\", \"credentialScope\": {\"layer\": \"factory\"}}]}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-14",
+      "line": 92,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_model_call\", \"dimension\": {\"ending\": \"failure\"}, \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"failure\": \"interrupted_by_user\", \"profile\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"dispatches\": [{\"kind\": \"model_call_dispatched\", \"call\": \"mc_01\", \"dispatch\": 1, \"provider\": \"provider-a\", \"response\": \"rsp_01\", \"profile\": {\"origin\": \"official\", \"routeName\": \"vendor-a/chat-large\"}, \"profileSnapshot\": {\"providers\": [\"provider-a\", \"provider-b\"], \"allowFallback\": true, \"inputModalities\": [\"text\"], \"outputModalities\": [\"text\"], \"maxInputTokens\": 200000, \"maxOutputTokens\": 64000, \"updatedAt\": \"2026-09-23T08:00:00Z\"}, \"parameters\": {}, \"selectedBy\": \"session\", \"credentialScope\": {\"layer\": \"factory\"}}]}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-15",
+      "line": 93,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_terminal\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"terminal\": {\"state\": \"cancelled\"}}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-16",
+      "line": 94,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"after_terminal\", \"run\": \"run_4c1e\", \"attempt\": 1, \"subject\": {\"terminal\": {\"state\": \"waiting\"}}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-17",
+      "line": 95,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"attempt_started\", \"run\": \"run_4c1e\", \"attempt\": 3, \"subject\": {\"attempt\": 3}, \"earlier\": [], \"log\": \"log_77a0\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-18",
+      "line": 96,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_persist_message\", \"subject\": {\"message\": {\"id\": \"msg_1\", \"type\": \"user\", \"blocks\": [], \"createdAt\": \"2026-09-23T10:00:00Z\"}, \"producer\": \"user\"}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \" env_31d2\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-3-19",
+      "line": 97,
+      "definition": "ExtensionInput",
+      "text": "{\"position\": \"before_persist_message\", \"subject\": {\"message\": {\"id\": \"msg_1\", \"type\": \"user\", \"blocks\": [], \"createdAt\": \"2026-09-23T10:00:00Z\"}, \"producer\": \"user\"}, \"earlier\": [], \"log\": \"log_77a0\", \"environment\": \"env_31d2\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-4-01",
+      "line": 105,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"observed\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-4-02",
+      "line": 106,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"veto\", \"reason\": \"生产库上的破坏性命令\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-4-03",
+      "line": 107,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"stop\", \"reason\": \"本次运行已用尽预算\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-4-04",
+      "line": 108,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"stop\", \"terminal\": \"failed\", \"reason\": \"原地打转：同一工具同一参数已连续调用 6 次\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-4-05",
+      "line": 109,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"stop\", \"terminal\": \"completed\", \"reason\": \"任务已做完\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-06",
+      "line": 110,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"veto\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-07",
+      "line": 111,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"allow\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-08",
+      "line": 112,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"goto\", \"step\": \"call_model\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-09",
+      "line": 113,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"answer_card\", \"optionId\": \"deny\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-10",
+      "line": 114,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"ask\", \"card\": {\"explanation\": \"要不要继续？\", \"options\": [], \"about\": {\"position\": \"before_terminal\"}}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-11",
+      "line": 115,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"ask\", \"card\": {\"explanation\": \"要不要做？\", \"options\": [{\"id\": \"y\", \"label\": \"做\"}], \"about\": {\"position\": \"before_action\"}}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-12",
+      "line": 116,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"retry\", \"plan\": {\"provider\": \"provider-b\", \"model\": \"other-model\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-13",
+      "line": 117,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"ask\", \"card\": {\"explanation\": \"要不要改成只读执行？\", \"options\": [{\"id\": \"ok\", \"label\": \"照改写后的执行\"}], \"about\": {\"position\": \"before_action\", \"callId\": \"call_01\"}, \"proposedRewrite\": {\"arguments\": {\"command\": \"psql prod -c 'SELECT 1'\"}}}}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-4-14",
+      "line": 118,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"ask\", \"card\": {\"explanation\": \"要不要继续？\", \"options\": [{\"id\": \"y\", \"label\": \"继续\"}], \"about\": {\"position\": \"before_terminal\"}, \"proposedRewrite\": {\"arguments\": {}}}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-4-15",
+      "line": 119,
+      "definition": "ExtensionOutput",
+      "text": "{\"kind\": \"ask\", \"card\": {\"explanation\": \"要不要做？\", \"options\": [{\"id\": \"y\", \"label\": \"做\"}], \"about\": {\"position\": \"before_action\", \"callId\": \"call_01\"}, \"proposedRewrite\": {}}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-01",
+      "line": 127,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"pii-scrubber\", \"position\": \"before_persist_message\", \"power\": \"rewrite\", \"skipped\": \"unavailable\", \"unavailability\": \"skip\", \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-5-02",
+      "line": 128,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"injection-scan\", \"position\": \"before_persist_message\", \"power\": \"veto\", \"skipped\": \"unavailable\", \"unavailability\": \"veto\", \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-5-03",
+      "line": 129,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"omne-official:admission-judgment\", \"position\": \"before_action\", \"power\": \"veto\", \"callId\": \"call_01\", \"skipped\": \"unavailable\", \"unavailability\": \"fallback\", \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-5-04",
+      "line": 130,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"pii-scrubber\", \"position\": \"before_persist_message\", \"power\": \"rewrite\", \"skipped\": \"unavailable\", \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-05",
+      "line": 131,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_action\", \"power\": \"rewrite\", \"callId\": \"call_01\", \"skipped\": \"unavailable\", \"unavailability\": \"veto\", \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-06",
+      "line": 132,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"after_persist_message\", \"power\": \"veto\", \"skipped\": \"unavailable\", \"unavailability\": \"veto\", \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-07",
+      "line": 133,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"callId\": \"call_01\", \"skipped\": \"errored\", \"error\": \"boom\", \"unavailability\": \"skip\", \"output\": {\"kind\": \"veto\", \"reason\": \"拓展件报错，按 treat_as_veto 处置\"}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-08",
+      "line": 134,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"prod-db-guard\", \"position\": \"before_action\", \"power\": \"veto\", \"callId\": \"call_02\", \"skipped\": \"errored\", \"error\": \"guard backend returned 500\", \"output\": {\"kind\": \"veto\", \"reason\": \"拓展件报错，按 treat_as_veto 处置\"}, \"at\": \"2026-09-23T10:00:01Z\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-5-09",
+      "line": 135,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"result-offloader\", \"position\": \"after_action\", \"dimension\": {\"scope\": \"each\"}, \"power\": \"rewrite\", \"callId\": \"call_01\", \"skipped\": \"errored\", \"error\": \"output_not_allowed_for_power\", \"output\": {\"kind\": \"inject\", \"message\": {\"id\": \"msg_r1\", \"type\": \"system_reminder\", \"blocks\": [], \"createdAt\": \"2026-09-23T10:00:02Z\", \"nature\": \"event\", \"source\": {\"kind\": \"extension\", \"extension\": \"result-offloader\"}}}, \"at\": \"2026-09-23T10:00:02Z\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-5-10",
+      "line": 136,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"loop-guard-x\", \"position\": \"after_model_call\", \"dimension\": {\"ending\": \"complete_reply\"}, \"power\": \"veto\", \"skipped\": \"errored\", \"error\": \"detector crashed\", \"output\": {\"kind\": \"stop\", \"terminal\": \"failed\", \"reason\": \"拓展件报错，按 treat_as_veto 处置\"}, \"at\": \"2026-09-23T10:00:04Z\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-5-11",
+      "line": 137,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"audit-tail\", \"position\": \"after_terminal\", \"power\": \"veto\", \"skipped\": \"errored\", \"error\": \"sink unreachable\", \"output\": {\"kind\": \"observed\"}, \"at\": \"2026-09-23T10:00:05Z\"}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-5-12",
+      "line": 138,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"loop-guard-x\", \"position\": \"after_model_call\", \"dimension\": {\"ending\": \"complete_reply\"}, \"power\": \"veto\", \"skipped\": \"errored\", \"error\": \"detector crashed\", \"output\": {\"kind\": \"stop\", \"reason\": \"拓展件报错\"}, \"at\": \"2026-09-23T10:00:04Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-13",
+      "line": 139,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_model_call\", \"power\": \"rewrite\", \"skipped\": \"errored\", \"error\": \"boom\", \"output\": {\"kind\": \"rewrite\", \"subject\": {\"request\": {\"target\": \"m\", \"parameters\": {}, \"messages\": [], \"tools\": []}}}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-14",
+      "line": 140,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"pii-scrubber\", \"position\": \"before_persist_message\", \"power\": \"rewrite\", \"skipped\": \"unavailable\", \"unavailability\": \"skip\", \"output\": {\"kind\": \"observed\"}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-15",
+      "line": 141,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"callId\": \"call_01\", \"skipped\": \"errored\", \"output\": {\"kind\": \"veto\", \"reason\": \"x\"}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-16",
+      "line": 142,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"output\": {\"kind\": \"observed\"}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-17",
+      "line": 143,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_model_call\", \"power\": \"veto\", \"callId\": \"call_01\", \"output\": {\"kind\": \"observed\"}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-5-18",
+      "line": 144,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_model_call\", \"power\": \"veto\", \"output\": {\"kind\": \"observed\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-7-01",
+      "line": 374,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"veto\", \"order\": 1, \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "malformed"
+    },
+    {
+      "id": "LE-V1-7-02",
+      "line": 375,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_assembly\", \"power\": \"veto\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "position_unknown"
+    },
+    {
+      "id": "LE-V1-7-03",
+      "line": 376,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"power\": \"relax\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "power_unknown"
+    },
+    {
+      "id": "LE-V1-7-04",
+      "line": 377,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"after_action\", \"power\": \"rewrite\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "dimension_missing"
+    },
+    {
+      "id": "LE-V1-7-05",
+      "line": 378,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\"name\": \"g\", \"position\": \"before_action\", \"dimension\": {\"scope\": \"each\"}, \"power\": \"veto\", \"implementation\": {\"kind\": \"builtin\", \"builtinName\": \"ext-g\"}}",
+      "schema": false,
+      "rejection": "dimension_not_allowed"
+    },
+    {
+      "id": "LE-V1-7-06",
+      "line": 379,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_action\", \"power\": \"rewrite\", \"callId\": \"call_01\", \"output\": {\"kind\": \"veto\", \"reason\": \"x\"}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "output_not_allowed_for_power"
+    },
+    {
+      "id": "LE-V1-7-07",
+      "line": 380,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_persist_message\", \"power\": \"veto\", \"output\": {\"kind\": \"ask\", \"card\": {\"explanation\": \"要不要收下这条？\", \"options\": [{\"id\": \"y\", \"label\": \"收\"}], \"about\": {\"position\": \"before_persist_message\"}}}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "ask_at_forbidden_position"
+    },
+    {
+      "id": "LE-V1-7-08",
+      "line": 381,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"after_action\", \"dimension\": {\"scope\": \"each\"}, \"power\": \"veto\", \"callId\": \"call_01\", \"output\": {\"kind\": \"veto\", \"reason\": \"x\"}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "output_not_allowed_at_position"
+    },
+    {
+      "id": "LE-V1-7-09",
+      "line": 382,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"after_terminal\", \"power\": \"rewrite\", \"output\": {\"kind\": \"inject\", \"message\": {\"id\": \"msg_9\", \"type\": \"system_reminder\", \"blocks\": [], \"createdAt\": \"2026-09-23T10:00:00Z\", \"nature\": \"event\", \"source\": {\"kind\": \"extension\", \"extension\": \"g\"}}}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "output_not_allowed_at_position"
+    },
+    {
+      "id": "LE-V1-7-10",
+      "line": 383,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"before_action\", \"power\": \"rewrite\", \"callId\": \"call_01\", \"output\": {\"kind\": \"rewrite\", \"subject\": {\"proposed\": {\"state\": \"completed\"}}}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "rewrite_touches_immutable"
+    },
+    {
+      "id": "LE-V1-7-11",
+      "line": 384,
+      "definition": "Conclusion",
+      "text": "{\"extension\": \"g\", \"position\": \"after_model_call\", \"dimension\": {\"ending\": \"complete_reply\"}, \"power\": \"rewrite\", \"output\": {\"kind\": \"inject\", \"message\": {\"id\": \"msg_9\", \"type\": \"system_reminder\", \"blocks\": [], \"createdAt\": \"2026-09-23T10:00:00Z\", \"nature\": \"event\", \"source\": {\"kind\": \"loop_guard\", \"level\": \"L1\", \"finding\": \"重复调用同一工具\"}}}, \"at\": \"2026-09-23T10:00:00Z\"}",
+      "schema": false,
+      "rejection": "inject_source_mismatch"
+    },
+    {
+      "id": "LE-V1-6-JSON-01",
+      "line": 154,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\n  \"name\": \"prod-db-guard\",\n  \"position\": \"before_action\",\n  \"power\": \"veto\",\n  \"implementation\": {\n    \"kind\": \"command\", \"host\": \"claude_code\", \"dialect\": \"2.1.280\",\n    \"event\": \"PreToolUse\", \"command\": \"./hooks/prod-db-guard.sh\", \"matcher\": \"Bash\"\n  }\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-02",
+      "line": 168,
+      "definition": "ExtensionInput",
+      "text": "{\n  \"position\": \"before_action\",\n  \"run\": \"run_4c1e\",\n  \"attempt\": 1,\n  \"subject\": {\n    \"call\": {\n      \"id\": \"blk_c1\",\n      \"visibility\": { \"toHuman\": true, \"toModel\": true },\n      \"kind\": \"tool_call\",\n      \"complete\": true,\n      \"callId\": \"call_01\",\n      \"tool\": \"shell\",\n      \"arguments\": { \"command\": \"psql prod -c 'DROP TABLE t'\" }\n    },\n    \"definition\": { \"name\": \"shell\" },\n    \"batch\": [\"call_01\", \"call_02\"]\n  },\n  \"earlier\": [],\n  \"log\": \"log_77a0\",\n  \"environment\": \"env_31d2\"\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-03",
+      "line": 194,
+      "definition": "Conclusion",
+      "text": "{\n  \"extension\": \"prod-db-guard\",\n  \"position\": \"before_action\",\n  \"power\": \"veto\",\n  \"callId\": \"call_01\",\n  \"output\": {\n    \"kind\": \"ask\",\n    \"card\": {\n      \"explanation\": \"这条命令会在生产库上删除表 t。要不要改成只读执行？\",\n      \"options\": [\n        { \"id\": \"readonly\", \"label\": \"改成只读执行\" },\n        { \"id\": \"deny\", \"label\": \"不许做\" }\n      ],\n      \"about\": { \"position\": \"before_action\", \"callId\": \"call_01\" },\n      \"proposedRewrite\": {\n        \"arguments\": { \"command\": \"psql prod --set=default_transaction_read_only=on -c 'SELECT count(*) FROM t'\" }\n      }\n    }\n  },\n  \"at\": \"2026-09-23T10:00:00Z\"\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-04",
+      "line": 225,
+      "definition": "Conclusion",
+      "text": "{\n  \"extension\": \"prod-db-guard\",\n  \"position\": \"before_action\",\n  \"power\": \"veto\",\n  \"callId\": \"call_01\",\n  \"output\": { \"kind\": \"veto\", \"reason\": \"人在卡片上选了「不许做」\" },\n  \"at\": \"2026-09-23T10:05:00Z\"\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-05",
+      "line": 240,
+      "definition": "Conclusion",
+      "text": "{\n  \"extension\": \"prod-db-guard\",\n  \"position\": \"before_action\",\n  \"power\": \"veto\",\n  \"callId\": \"call_01\",\n  \"output\": {\n    \"kind\": \"rewrite\",\n    \"subject\": {\n      \"call\": {\n        \"id\": \"blk_c1\",\n        \"visibility\": { \"toHuman\": true, \"toModel\": true },\n        \"kind\": \"tool_call\",\n        \"complete\": true,\n        \"callId\": \"call_01\",\n        \"tool\": \"shell\",\n        \"arguments\": { \"command\": \"psql prod --set=default_transaction_read_only=on -c 'SELECT count(*) FROM t'\" }\n      },\n      \"definition\": { \"name\": \"shell\" },\n      \"batch\": [\"call_01\", \"call_02\"]\n    }\n  },\n  \"at\": \"2026-09-23T10:05:00Z\"\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-06",
+      "line": 273,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\n  \"name\": \"cc-pretooluse-audit\",\n  \"position\": \"before_action\",\n  \"power\": \"observe\",\n  \"implementation\": {\n    \"kind\": \"command\", \"host\": \"claude_code\", \"dialect\": \"2.1.280\",\n    \"event\": \"PreToolUse\", \"command\": \"audit-log\"\n  }\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-07",
+      "line": 288,
+      "definition": "Conclusion",
+      "text": "{\n  \"extension\": \"cc-pretooluse-audit\",\n  \"position\": \"before_action\",\n  \"power\": \"observe\",\n  \"callId\": \"call_01\",\n  \"output\": { \"kind\": \"observed\" },\n  \"at\": \"2026-09-23T10:00:00Z\"\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-08",
+      "line": 306,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\n  \"name\": \"cheap-router\",\n  \"position\": \"before_model_call\",\n  \"power\": \"rewrite\",\n  \"implementation\": { \"kind\": \"builtin\", \"builtinName\": \"cheap-router\" }\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-09",
+      "line": 317,
+      "definition": "Conclusion",
+      "text": "{\n  \"extension\": \"cheap-router\",\n  \"position\": \"before_model_call\",\n  \"power\": \"rewrite\",\n  \"output\": {\n    \"kind\": \"select_model\",\n    \"profile\": \"fast-small\",\n    \"reason\": \"上一条用户消息少于 40 字且不含附件\"\n  },\n  \"at\": \"2026-09-23T10:00:00Z\"\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-10",
+      "line": 340,
+      "definition": "LoopExtensionDefinition",
+      "text": "{\n  \"name\": \"default-retry\",\n  \"position\": \"after_model_call\",\n  \"dimension\": { \"ending\": \"failure\" },\n  \"power\": \"rewrite\",\n  \"implementation\": { \"kind\": \"builtin\", \"builtinName\": \"default-retry\" }\n}",
+      "schema": true,
+      "rejection": null
+    },
+    {
+      "id": "LE-V1-6-JSON-11",
+      "line": 352,
+      "definition": "Conclusion",
+      "text": "{\n  \"extension\": \"default-retry\",\n  \"position\": \"after_model_call\",\n  \"dimension\": { \"ending\": \"failure\" },\n  \"power\": \"rewrite\",\n  \"output\": { \"kind\": \"retry\", \"plan\": { \"provider\": \"provider-b\", \"after\": \"PT2S\" } },\n  \"at\": \"2026-09-23T10:00:03Z\"\n}",
+      "schema": true,
+      "rejection": null
+    }
+  ]
+}

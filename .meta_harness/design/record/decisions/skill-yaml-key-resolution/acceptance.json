@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_path": "record/decisions/skill-yaml-key-resolution/decision.md",
+  "authority": "root primary technical planner under user delegation; overall user acceptance excluded",
+  "at_utc": "2026-09-26T16:08:26.151383+00:00",
+  "user_ruling": "record/decisions/skill-yaml-key-resolution/user-ruling.json",
+  "independent_spec_review": "record/proposals/skill-spec-adoption/reviews/2026-09-26-key-resolution-v3-spec.md",
+  "independent_architecture_review": "record/proposals/skill-spec-adoption/reviews/2026-09-26-key-resolution-v3-architecture.md",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.skill-package",
+        "version": 3
+      },
+      "scope_clauses": [
+        "S-1..S-32"
+      ],
+      "resources": {
+        "spec/data/skill-package/v3/contract.md": "9d314af4e4063c84303b79a5558adef6515580ccd4cdd2b40836bc300f01537b",
+        "spec/data/skill-package/v3/skill-package.schema.json": "8c4a5352cccb695d94072828c5881486e8cdd5474a2213a3a621b17e3fbc836b",
+        "spec/data/skill-package/v3/examples.md": "304122a7b1e8301a468148d31702ff55ed5f7debf06b2e79e0b4df291fee6536"
+      }
+    }
+  ],
+  "provider_adoption": {
+    "node": "packages/core/skill-package",
+    "current": {
+      "baseline_id": "omne-harness-lite-design-2026-09-15",
+      "contract_id": "data.skill-package",
+      "version": 3
+    },
+    "retained_pure_value_coordinate": {
+      "baseline_id": "omne-harness-lite-design-2026-09-15",
+      "contract_id": "data.skill-package",
+      "version": 2
+    },
+    "runtime_paths": {
+      ".": "current3",
+      "./schema": "current3",
+      "./v2": "pure values/body2 only,no oldtextreaders",
+      "./schema/v2": "complete frozen2"
+    },
+    "implementation": "pending actual integration and verification"
+  },
+  "preexisting_351_frozen_preserved": true,
+  "integration_input_sha256": {
+    "decision.md": "ed5c4e126520f06a65e0b7e982652139c5fae8fab3f0a5b6b7f06da2688239c5",
+    "construction-brief.md": "aa45bb79aac8448a3e40d1bb646024cc9f990a778783eef8c37aa27e569ae295",
+    "user-ruling.json": "72d1c76afece7026cce3de01ba506c72ef4d3fd683e575219c3049a206db32f6",
+    "candidate-diff.json": "31a80e31f0f44a9a9fddc6be608ff23a0a5d6fae732553843fc98f3774881cf3",
+    "candidate-registry-patch.json": "49d93eb9d2beed92b446c221b90db7a3ee59fd175445a053e8af8e1e4d57720c",
+    "consumer-impact.json": "c5612b4a0ec0b094cfa99144ebfed66c8bb6109a8f0a57710d7fc3b9f4dd9322"
+  },
+  "draft_input_note": "Author fixed_inputs captured draft-time brief; later root appendix clarifies already stated old2 references and directory priority without changing reviewed normative resources. Integration hashes bind the final decision including its acceptance event and current accompanying inputs.",
+  "human_overall_acceptance": false
+}

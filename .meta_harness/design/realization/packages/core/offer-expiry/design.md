@@ -21,7 +21,7 @@
 
 | 契约责任 | 模块公开入口 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-4](../../../../spec/data/offer-expiry/v1/contract.md#s-4-offertiming) `OfferTiming` | 值类型 `OfferTiming { issuedAt, expiresAt }`（`Instant` 是时间点，不是字符串；`instantFromEpochMs`、`instantFromRfc3339` 解析，`instantToRfc3339` 书写为 UTC 毫秒精度、`Z` 结尾，`compareInstants`、`addDuration` 运算）；构造入口 `timingFrom(issuedAt, ttl) → Parsed<OfferTiming>`，内部 `expiresAt = issuedAt + ttl`，`ttl ≤ 0` ⇒ `invalidInput`——**跨字段约束 `expiresAt > issuedAt` 在构造时兑现**，Schema 管不到它（[S-22](../../../../spec/data/offer-expiry/v1/contract.md#s-22-schema-的范围)）；交换表示的解析 `parseOfferTiming` 同样校验这条跨字段约束 | 已实现（`src/time.ts`、`src/offer.ts`） | 「同一提交内定死」（[S-5](../../../../spec/data/offer-expiry/v1/contract.md#s-5-时刻在发出的同一提交内定死)）**不在本模块**：本模块只保证这个值一旦构造出来就是不可变数据（`readonly`）；把它与邀约同提交写入、此后不再改，归消费者的发出操作 |
+| [S-4](../../../../spec/data/offer-expiry/v1/contract.md#s-4-offertiming) `OfferTiming` | 值类型 `OfferTiming { issuedAt, expiresAt }`（`Instant` 是时间点，不是字符串；`instantFromEpochMs`、`instantFromRfc3339` 解析，`instantToRfc3339` 通常书写UTC三位毫秒、`Z`结尾；UTC年界外按下述合法偏移书写，无法表示则抛RangeError，`compareInstants`、`addDuration` 运算）；构造入口 `timingFrom(issuedAt, ttl) → Parsed<OfferTiming>`，内部 `expiresAt = issuedAt + ttl`，`ttl ≤ 0` ⇒ `invalidInput`——**跨字段约束 `expiresAt > issuedAt` 在构造时兑现**，Schema 管不到它（[S-22](../../../../spec/data/offer-expiry/v1/contract.md#s-22-schema-的范围)）；交换表示的解析 `parseOfferTiming` 同样校验这条跨字段约束 | 已实现（`src/time.ts`、`src/offer.ts`） | 「同一提交内定死」（[S-5](../../../../spec/data/offer-expiry/v1/contract.md#s-5-时刻在发出的同一提交内定死)）**不在本模块**：本模块只保证这个值一旦构造出来就是不可变数据（`readonly`）；把它与邀约同提交写入、此后不再改，归消费者的发出操作 |
 | [S-7](../../../../spec/data/offer-expiry/v1/contract.md#s-7-派生状态)／[S-22](../../../../spec/data/offer-expiry/v1/contract.md#s-22-schema-的范围) 两套状态 | **两个类型，不是一个**：`SettledState = 'accepted' \| 'withdrawn'`（**唯一允许写入存储的**）与 `OfferState = 'pending' \| 'accepted' \| 'withdrawn' \| 'expired'`（**只作为求值结果出现**）。`OfferState` **不导出任何可用于存储字段的构造**——它只是 `deriveState` 的返回类型。取值由常量 `SETTLED_STATES`、`OFFER_STATES` 给出；解析入口只有 `parseSettledState`，**没有** `OfferState` 的解析入口 | 已实现（`src/offer.ts`） | 「`expired` 不是被存下来的值」由**类型分层**兑现一半：消费者的记录类型若把 `OfferState` 用作字段，lint 规则 SC-OE-1（见[静态检查](#静态检查义务怎么承载)）失败。另一半（存储布局）在消费者节点核 |
 | [S-8](../../../../spec/data/offer-expiry/v1/contract.md#s-8-判定式) 判定式与求值次序 | `deriveState(input: DeriveStateInput) → OfferState \| 'unavailable'`，输入 `{ timing, settled: SettledState \| null, now: Instant \| 'unavailable', target: TargetExistence }`（`TargetExistence = 'exists' \| 'absent' \| 'unavailable'`）。**次序写死在函数体**：① `settled` 非空 ⇒ 原样返回（**不看时间、不看存在性**——已有答复不改写）；② `now` 或 `target` 为 `'unavailable'` ⇒ 返回 `'unavailable'`；③ `now > expiresAt ∨ target === 'absent'` ⇒ `'expired'`；④ 否则 `'pending'`。严格不等号：`now === expiresAt` ⇒ `pending` | 已实现（`src/offer.ts`） | **反方向（已过期不得再写终结记录）本模块管不住**：那是消费者撤回操作的写路径；本模块只给它一个判定入口（先 `deriveState`，得 `expired` 就不写）。**②排在③之前**是 [S-20](../../../../spec/data/offer-expiry/v1/contract.md#s-20-不可用--不存在) 的全部内容：不可用不得被判成不存在，也不得被判成存在 |
 | [S-9](../../../../spec/data/offer-expiry/v1/contract.md#s-9-读时派生且派生状态不回退) 读时派生 | `deriveState` 是纯函数、无缓存、无记忆；**不导出**任何「记住上次结果」的入口 | 已实现（`src/offer.ts`） | 「读的那一刻求值」要消费者在每次读面调用时现调 `deriveState` 并传入**本次**的 `now`；三条单调来路各有 owner（终结记录一经写下不撤销：消费者写路径；`now` 不后退：装配，见下节；对象不回来：标识不复用，identity-values [S-3](../../../../spec/data/identity-values/v1/contract.md#s-3-organizationid)）——**本模块一条也不给** |
@@ -77,6 +77,14 @@
 - **资产那两类消费者无落点**（[G-2／G-6](../../../../spec/data/offer-expiry/v1/contract.md#八已知缺口)）：本模块的入口对它们同样可用，但没有人调用；不为它们预留任何东西。
 - **上游语义**：本模块自身不依赖 Cordis 行为；默认值那一路引 basis `plugin-throw-fails-fiber`，见上。
 
+## 四位年书写的技术边界纠偏（2026-09-26）
+
+冻结S-22仅推荐UTC，并要求RFC3339四位年。既有Date.toISOString直接输出扩展年导致两个已实测schema不通过的反例，属于实现映射纠偏，不改领域v1或毫秒舍入。`instantToRfc3339`通常UTC；UTC年小于0000时固定采用+23:59（本地时刻=UTC+偏移），大于9999时固定采用-23:59；只有变换后本地年在0000～9999才输出三位毫秒和该偏移。时刻不夹紧/截断。
+
+无合法四位年可表示的毫秒Instant显式抛RangeError；这是本技术函数输入表示前提失败，不是冻结契约具名业务拒绝。此项例外限定书写函数，其他已定业务判定仍返回Parsed/失败值，不把异常默默转换为成功。Epoch构造的安全整型准入和既定Math.round保持不变，因此不承诺所有安全整数或所有合法原字符串舍入后都可书写；承诺仅对可表示毫秒Instant保持时刻。
+
+实际验收需普通UTC/四位年首尾、原两个offset反例、±23:59合法极限及其外各1ms，输出同时过冻结Instant Schema并解析回同Instant；极限长fraction舍入越界单列原例和RangeError。旧71tests包含扩展年原预期，不当作本纠偏通过证据。
+
 ## OE2 候选映射
 
 D040已接受OE2；本节点保持纯函数/值模块，不新增插件、存储或事件。SETTLED_STATES扩为accepted/withdrawn/declined，OFFER_STATES扩为五值；deriveState仍终结优先→必要读数不可用→严格now>expiresAt或对象缺席→pending，acceptable仍只认pending。新的Schema校验入口指向OE2资源，旧资产消费者不自动采用。
@@ -84,3 +92,9 @@ D040已接受OE2；本节点保持纯函数/值模块，不新增插件、存储
 构造timingFrom保留合法正时长和expiresAt>issuedAt检验，并将安全整数加法越界以可识别的计算不可用结果交给调用者；不能把它等同于非法用户时长。精确TypeScript结果为Parsed<OfferTiming> | 'unavailable'，OG须显式映射不可用。解析已给定时间对仍沿表示/跨字段invalidInput，不引入数据库操作。测试覆盖declined在无时钟/对象情况下仍保持终结、未终结任一必要读数失败、截止等号和加法越界。
 
 此增量待与OG2节点一并评审采用，当前实现尚未升级；纯模块不因此拥有接受/拒绝/撤回授权或事务。
+
+## 本轮同步后的精确时间资源（2026-09-26）
+
+治理线已经在上游实际采用 OE2；本轮同步保留其主包实现与默认 `./schema`。资产与 Agent 线的八个消费者契约仍精确钉 `data.offer-expiry` v1 的 `Instant`，行政迁移 D-066 没有升级这条依赖。因此另公开 `@omne-harness-lite/offer-expiry/schema/v1`，原样发布冻结 OE1 的完整资源、原 `$id` 和原字节；当前消费者在固定 Schema 图里明确 import 此资源。不能将 OE2 资源改挂 OE1 ID，也不能据 `Instant` 定义相同声称 OE1/OE2 的全部结算与主函数等价。
+
+上文 OE2「当前实现尚未升级」是该增量起草时的历史基线；实际上游提供者与本轮四位年纠偏并存，具体版本、输入和执行证据分别读取。旧记录不因同步而重写。

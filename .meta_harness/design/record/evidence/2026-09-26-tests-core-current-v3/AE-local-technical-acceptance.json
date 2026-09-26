@@ -1,0 +1,252 @@
+{
+  "authority": "root primary technical planner under explicit user delegation",
+  "at_utc": "2026-09-26T10:56:09.970672+00:00",
+  "HUB_head": "d54e1a83be37d65bd53499ea7fdfa33f7405c1bd",
+  "matrix_before_sha256": "f9ba18dfe2b83120b5623efafe4d01ef90896c46f75e8883e47a18286bed312a",
+  "local_count": 9,
+  "full_active_count": 5,
+  "mixed_current_portion_count": 4,
+  "actual_HUB_evidence": [
+    "AE3-HUB-build.log",
+    "AE3-HUB-types.log",
+    "AE3-HUB-tests.log",
+    "AE3-HUB-rules.log",
+    "AE3-HUB-public-r2.log"
+  ],
+  "not_accepted": [
+    "six-default-ports and other final W6 composition IDs",
+    "Connector body/vertical and six-real-provider completeness",
+    "SP3 unknown YAML tag text reader policy",
+    "External PRE snapshot/auth/cache and whole shared-CS original obligations",
+    "User overall acceptance"
+  ],
+  "accepted": [
+    {
+      "id": "asset-evaluation.input-and-results",
+      "mixed": true,
+      "scope": "Current supplied NonConnector definition domain: C1-C14 whole-input checks and invalidInput/compositionCycle/categoryUnsupported ordering; unresolved succeeds, root excluded from composition/attributes and diagnostic/result ownership. All norm variants/adopted3 cases and independent public four-branch consumer.",
+      "verdict": "accepted only the explicit current NonConnector portion; original complete obligation and Connector portion remain unaccepted",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Current supplied NonConnector definition domain: C1-C14 whole-input checks and invalidInput/compositionCycle/categoryUnsupported ordering; unresolved succeeds, root excluded from composition/attributes and diagnostic/result ownership. All norm variants/adopted3 cases and independent public four-branch consumer.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "normative.spec.ts",
+          "normative-given.spec.ts",
+          "normative-e4.spec.ts",
+          "boundaries.spec.ts",
+          "body-domain.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.filter-replace-lock",
+      "mixed": true,
+      "scope": "Current NonConnector domain: disabled disjunction before usableBy/most-specific, outer lock cut, unusable fallback and official lower bound, unheld definitions ignored; independent normative oracles and fixed structural properties.",
+      "verdict": "accepted only the explicit current NonConnector portion; original complete obligation and Connector portion remain unaccepted",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Current NonConnector domain: disabled disjunction before usableBy/most-specific, outer lock cut, unusable fallback and official lower bound, unheld definitions ignored; independent normative oracles and fixed structural properties.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "normative.spec.ts",
+          "normative-given.spec.ts",
+          "structure-properties.spec.ts",
+          "boundaries.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.bounds-settings",
+      "mixed": true,
+      "scope": "Current NonConnector domain: selected-asset settings, capability-carried permission bounds and forbid/lock behavior; three public helpers share evaluation logic, workspace settings-only and real MCP tenantAutoWritable=false snapshots. Snapshot truth remains explicit external premise.",
+      "verdict": "accepted only the explicit current NonConnector portion; original complete obligation and Connector portion remain unaccepted",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Current NonConnector domain: selected-asset settings, capability-carried permission bounds and forbid/lock behavior; three public helpers share evaluation logic, workspace settings-only and real MCP tenantAutoWritable=false snapshots. Snapshot truth remains explicit external premise.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "normative-e4.spec.ts",
+          "normative-given.spec.ts",
+          "permissions.spec.ts",
+          "permissions-evaluate.spec.ts",
+          "c10-used.spec.ts",
+          "mcp-snapshot.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.workspace-carrier",
+      "mixed": false,
+      "scope": "Complete frozen WorkspaceCarrierManifest value domain, held assets and assignment traces, workspace-derived identities, malformed and empty/null distinctions, unsupported non-provider body explicitly limited; actual own carrier reader and independent full-domain public consumer.",
+      "verdict": "accepted this full core-local obligation at explicit current3 and stated premises",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Complete frozen WorkspaceCarrierManifest value domain, held assets and assignment traces, workspace-derived identities, malformed and empty/null distinctions, unsupported non-provider body explicitly limited; actual own carrier reader and independent full-domain public consumer.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "workspace.spec.ts",
+          "normative.spec.ts",
+          "normative-given.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.cycles-categories",
+      "mixed": true,
+      "scope": "Current NonConnector domain: root reference set and recursive composition, active-factory admissibility, same type cycle ordering and explicit unsupported category; no invented choice deterministic order for multiple cycles/categories. Plain Connector references/opaque values not recursively banned.",
+      "verdict": "accepted only the explicit current NonConnector portion; original complete obligation and Connector portion remain unaccepted",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Current NonConnector domain: root reference set and recursive composition, active-factory admissibility, same type cycle ordering and explicit unsupported category; no invented choice deterministic order for multiple cycles/categories. Plain Connector references/opaque values not recursively banned.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "normative.spec.ts",
+          "normative-given.spec.ts",
+          "boundaries.spec.ts",
+          "body-domain.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.fingerprint",
+      "mixed": false,
+      "scope": "Whole EvaluationInput canonical fingerprint includes unused definitions/version/session/MCP/workspace/ordinary extra fields; raw numbers preserved and callers copied; input properties reordered canonically, changed actual content alters fingerprint. Does not prove external consumer caches correct.",
+      "verdict": "accepted this full core-local obligation at explicit current3 and stated premises",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Whole EvaluationInput canonical fingerprint includes unused definitions/version/session/MCP/workspace/ordinary extra fields; raw numbers preserved and callers copied; input properties reordered canonically, changed actual content alters fingerprint. Does not prove external consumer caches correct.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "fingerprint.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.public-package-consumer",
+      "mixed": false,
+      "scope": "Real five-provider built dist functions, four results and helpers, every30released AE public type/strict noSkip positive and five intended negative diagnostics. No six-port/Connector substitution.",
+      "verdict": "accepted this full core-local obligation at explicit current3 and stated premises",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Real five-provider built dist functions, four results and helpers, every30released AE public type/strict noSkip positive and five intended negative diagnostics. No six-port/Connector substitution.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "public.spec-d.ts",
+          "body-domain.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.source-purity",
+      "mixed": false,
+      "scope": "Nine source files retain prior validated policy; only adopted3 metadata and seven target tests changed. Root actual27rules and manual default public imports/availability/shapes/whole-input fingerprint checked; no kernel/runtime/state lookup. Not every external SC2/SC3 consumer.",
+      "verdict": "accepted this full core-local obligation at explicit current3 and stated premises",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "Nine source files retain prior validated policy; only adopted3 metadata and seven target tests changed. Root actual27rules and manual default public imports/availability/shapes/whole-input fingerprint checked; no kernel/runtime/state lookup. Not every external SC2/SC3 consumer.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "boundaries.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    },
+    {
+      "id": "asset-evaluation.schema-frozen-bytes",
+      "mixed": false,
+      "scope": "AE has no own Schema: four accepted3 normative resources individually frozen, actual six-data3 and retained2/full public resources at exact coordinate compile through real five public body ports. Models/solver evidence kept separate and no fabricated empty Schema pass.",
+      "verdict": "accepted this full core-local obligation at explicit current3 and stated premises",
+      "evidence": {
+        "run": ".meta_harness/design/record/evidence/2026-09-26-tests-core-current-v3",
+        "covered_scope": "AE has no own Schema: four accepted3 normative resources individually frozen, actual six-data3 and retained2/full public resources at exact coordinate compile through real five public body ports. Models/solver evidence kept separate and no fabricated empty Schema pass.",
+        "author_coverage_member": "spoke-evidence/ae-v3/coverage.json",
+        "author_normative_test_files": [
+          "workspace.spec.ts",
+          "body-domain.spec.ts"
+        ],
+        "actual_HUB_logs": [
+          "AE3-HUB-build.log",
+          "AE3-HUB-types.log",
+          "AE3-HUB-tests.log",
+          "AE3-HUB-rules.log",
+          "AE3-HUB-public-r2.log"
+        ],
+        "raw_archive": "original-HUB-evidence.tar.gz",
+        "author_raw_archive": "original-owner-evidence.tar.gz"
+      }
+    }
+  ],
+  "matrix_after_sha256": "eb454167f973f7decab97842f92cb9fa9c9e6392a7537bca2d03167373cc3c80"
+}

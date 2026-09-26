@@ -1,4 +1,34 @@
+## 最终 core 阶段签收（2026-09-26）
+
+本节点本阶段的 10 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
+Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
+[新原始运行与逐项签收](../../../../record/evidence/2026-09-26-tests-core-skill-v3/README.md)记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
+产品负责人已授权Skill收尾后总体发布／squash merge／清理；该条件已满足。源码复验坐标00999722，原06b运行与唯一SA测试坐标修复的适用性逐文件记录。
+下文旧日期／旧源的“未签／SP3／未完成／人的总体门待签”保留为当时事件，当前core阶段状态由本段取代。外部owner、真实运行时／IO、Connector和生产就绪没有提升；全仓make的三个main继承失败仍保留。
+
 # arrival-events
+
+## 当前 core 交付与技术接受（2026-09-26）
+
+- 语义采用：`data.arrival-events/v2`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
+- 源码与公开面：`packages/core/arrival-events` 已实施，实际复验源为 HUB `a53644ad`。公开操作、Cordis 服务及外部 owner 边界仍由 [design.md](design.md) 定义。
+- 本节点实际回归：**673 项通过，零失败、零跳过**；同源完整构建／严格类型、27 条源码规则以及实际20包的500类型／21 JSON入口／139×2私有路径拒绝通过。[原始执行、制品与范围](../../../../record/evidence/2026-09-26-tests-core-final/README.md)。
+- 逐项技术接受：本节点 7 项 core-local、3 项 core-composition 的本阶段责任已经主调度接受；[精确 ID、坐标和前提](../../../../record/evidence/2026-09-26-tests-core-final/technical-acceptance.json)。Connector 混合项只接受当前 NonConnector 部分，原整条及延期部分未签。
+- 分层限制：纯函数／显式输入与真实 core 组合分别按上述证据读取；外部事实、整个共享 CS、实际 transport／执行／存储宿主及人的总体接受未被提升。全仓 `make check` 因继承 main 的三个租户迁移测试失败而退出2，诊断及同源基线原件在同run，不能声称全仓门已通过。
+
+## 既有设计入口与此前状态记录
+
+以下执行状态按原日期与输入读取；与当前进度有关的旧“源码不存在／未开始／W6待验”已由上面的实际事件取代，原规范义务和外部边界仍保留。
+
+## 当前源码与验证（2026-09-26）
+
+明确保留 `data.arrival-events · v2`，源码 `packages/core/arrival-events` 已实现；其冻结Schema仍指向完整旧2资源，CB3扩展不自动升级本节点语义。表示判断与归约可从公开包独立调用，序列判定仍归Stream Assembly。
+
+主调度在最终六数据源码后实际通过 **673 tests**、严格类型与 **202组对照**，26输入实际进入CB3扩展形状而AR输出不变，见 [当前 core 复验](../../../../record/evidence/2026-09-26-tests-core-current-v3/README.md)。三项真实流组合、逐ID技术接受及用户总体门仍待；生产者节流、封口、宿主路由和持久化不由本包测试证明。
+
+本次局部技术接受：主调度实际接受本节点 **7项 core-local义务**，见 [逐项范围与证据](../../../../record/evidence/2026-09-26-tests-core-current-v3/local-technical-acceptance.json)。最终真实组合、外部宿主义务及用户总体接受不随之提升。
+
+## 原设计记录
 
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.arrival-events · v2`（[契约](../../../../spec/data/arrival-events/v2/contract.md)，状态 `accepted`，接受由 [D-061](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
@@ -17,7 +47,7 @@
 | 当前问题                                   | 阅读入口                            |
 | ------------------------------------------ | ----------------------------------- |
 | 怎样实现、要借开块的两项怎样判             | [实现设计](design.md)               |
-| 哪条承诺由哪份证据支持、前提是什么         | [绑定表](bindings.yaml)（当前为空） |
+| 哪条承诺由哪份证据支持、前提是什么         | [绑定表](bindings.yaml)（含当前有限测试绑定） |
 | 要跑什么、谁来跑、还缺什么                 | [验证与证据](verification.md)       |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；

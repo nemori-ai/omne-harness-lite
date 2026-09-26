@@ -1,0 +1,17 @@
+{
+  "JAVA_BIN": {
+    "configured": "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+    "resolved": "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+    "sha256": "999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1"
+  },
+  "TLA2TOOLS_JAR": {
+    "configured": "/opt/tlaplus/tla2tools.jar",
+    "resolved": "/opt/tlaplus/tla2tools.jar",
+    "sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1"
+  },
+  "ALLOY_ANALYZER_JAR": {
+    "configured": "/opt/alloy/alloy.jar",
+    "resolved": "/opt/alloy/alloy-6.2.0.jar",
+    "sha256": "6b8c1cb5bc93bedfc7c61435c4e1ab6e688a242dc702a394628d9a9801edb78d"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "node": "v24.18.0",
+  "rows": [
+    {
+      "name": "CB shape adapter restores exact opaque",
+      "passed": true
+    },
+    {
+      "name": "Messages raw and domain adapter",
+      "passed": true
+    },
+    {
+      "name": "Loop input raw and domain",
+      "passed": true
+    },
+    {
+      "name": "Loop output and conclusion",
+      "passed": true
+    },
+    {
+      "name": "TD content nested result and offload summary",
+      "passed": true
+    },
+    {
+      "name": "Shape-only boundary retains valid Loop input while full judgments refuse",
+      "passed": true
+    },
+    {
+      "name": "Record restoration preserves shape-admitted value without business acceptance",
+      "passed": true
+    },
+    {
+      "name": "Invalid shape adapter preconditions throw TypeError",
+      "passed": true
+    }
+  ]
+}

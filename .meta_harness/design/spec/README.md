@@ -154,3 +154,7 @@ SHA-256 也不改变。
 候选设计可使用本次明确输入并保留版本/接受缺口。返回 [系统设计链](../README.md)。
 
 **2026-09-26**：本程 34 份契约均已由 [D-061](../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受并冻结；catalog 当前 42 条全部 accepted。缺口、reviewed 标记和实际验证各自保留。
+
+## 2026-09-26：D-068 八份 core v3
+
+六份data（content-blocks/messages/model-response/loop-extension/tool-definition/asset-model）与两份capability（stream-assembly/asset-evaluation）v3已在独立复审后接受并冻结；精确范围见 [D-068](../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。这次有CB表示例外、TD拒绝变化、SA两示例及表达修正，不是纯行政迁移。旧2原字节保留；24外部消费者仍钉2，不自动迁移。实现采用和实际新验证由realization分别登记，接受不代替实施或最终用户签收。

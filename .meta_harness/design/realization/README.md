@@ -24,6 +24,7 @@ realization/
 │   └── verification.md    符合性或集成证据的可变入口
 ├── packages/
 │   ├── core/<node>/       核心与共享：数据契约、协议级构造、被多个领域消费的纯模块，kind: provider
+│   ├── util/<node>/       用户明确选定的技术格式化件（D-046），不拥有领域事实
 │   └── <domain>/<node>/   按领域或限界上下文聚合的能力提供者，kind: provider
 └── apps/<node>/           应用装配节点，kind: assembly
 ```
@@ -41,6 +42,8 @@ realization/
 | `core/`                                                                                                               | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件 | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约                                                                                                         |
 | `<domain>/`                                                                                                           | **按领域或限界上下文聚合**的能力与组合提供者                                                                                            | 它拥有该领域的事实或动作链；一个节点只属于一个领域。领域名由产品负责人拍板——租户领域是 `tenancy`（[D-024](../record/decisions/tenancy-domain-name/README.md)），新领域在拍板前标候选 |
 | `infra/`（组名由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板，2026-09-23） | **基础设施提供者**：兑现 `core/` 里某个协议级构造的具体实现（SQL 存储、时钟），或据点／中心的**窄口基础设施契约**（密钥保管、进程起停、连接探测）的最小提供者，被装配层选用                                             | 它没有领域事实，也不定义协议，只兑现一个协议；选型受 [D-026](../record/decisions/infrastructure-persistence-choices/README.md) 约束（不提供 in-memory 实现）。协议本身留在 `core/`   |
+
+`util/` 由用户2026-09-26明确追加；[D-046](../record/decisions/core-formatter-adoption/decision.md)限定为无领域事实的[unix-format](packages/util/unix-format/README.md)、[xml-format](packages/util/xml-format/README.md)两格式化技术件。不是新限界上下文，也不把core扩成公共工具箱；本程timeout/brand不迁入。
 
 **怎么判一个节点归 `core` 还是某个领域**：问它兑现的契约是 `data.*` 还是 `capability.*`／`composition.*`——前者几乎总在 `core`；
 后者按契约拥有的事实归领域。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
@@ -248,3 +251,13 @@ D045扩展[协议客户端](packages/frontend/governance-center-client/README.md
 
 
 **2026-09-26 正式接受**：[D-062](../record/decisions/assets-runtimes-node-acceptance/decision.md) 已接受本程 32 个新节点与 3 处修订。节点设计状态 accepted，未实现与实际验证缺口保持原记录；源码不存在不影响设计接受，也不构成实现证据。
+
+
+## 2026-09-26 本轮 core 交付状态
+
+18 core和两util均已有实际源码，本轮HUB6496检查／独立20制品消费通过；当前217／221项由主调度按精确坐标接受，四项Skill SP3及人的总体门未签。Connector仅自身16项延期，不扩大到其他资产；六混合项只接受当前NonConnector部分。[实际源、原始证据、逐项范围与main继承失败](../record/evidence/2026-09-26-tests-core-final/README.md)是本轮进度入口；本文此前按日期保留，不能把旧“未实现／未开始”当现行进度，也不能把当前core通过推成全仓make通过。
+
+
+## 2026-09-26 core 最终签收与发布授权
+
+18 core与两util的本阶段责任已完成：当前221/221、U1另13项，由主调度技术签收；产品负责人给出的Skill完成后总体发布授权条件已满足。22包44份双语README、57个TS例子已验证。原217/221、SP3和人的总体门待签描述属于前一输入事件，由[当前运行与签收](../record/evidence/2026-09-26-tests-core-skill-v3/README.md)接续。Connector仅自身纵线延期，90外部义务及未来运行时未签；全仓make继承main三个失败，不是全仓绿灯。

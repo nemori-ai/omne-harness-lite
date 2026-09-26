@@ -1,0 +1,64 @@
+{
+  "at_utc": "2026-09-26T12:00:14.441539+00:00",
+  "archives": [
+    {
+      "archive": "U1-original-Python-root-replay.tar.gz",
+      "payloads": 193,
+      "all_payload_hashes_verified": true,
+      "sha256": "887d9032800a5e76bc8a39e71b8b05b1c8c190689a19d76e217421d8dc2a47c5"
+    },
+    {
+      "archive": "data67-author-and-root-mapping.tar.gz",
+      "payloads": 19,
+      "all_payload_hashes_verified": true,
+      "sha256": "6852f95bfc48b3d78d7ab180ef880cec92f641426f4b9f74ff07fe8704e133d3"
+    },
+    {
+      "archive": "original-HUB-consumers.tar.gz",
+      "payloads": 36,
+      "all_payload_hashes_verified": true,
+      "sha256": "4eea46fa3bc4d01f4a559b7a90fe7f3d4ff55ff181d6620bc72ce7691e2c3fa7"
+    },
+    {
+      "archive": "original-HUB-packed-consumer.tar.gz",
+      "payloads": 90,
+      "all_payload_hashes_verified": true,
+      "sha256": "a7d79616ed5ca2ffbae109cc2db38bb70c92e71d8f9c83370f3daae10df64642"
+    },
+    {
+      "archive": "retained52-author-and-root-mapping.tar.gz",
+      "payloads": 23,
+      "all_payload_hashes_verified": true,
+      "sha256": "0d61a7c049e27a9f4a60d30695a268f10ce20b890507245162db66849653c9c8"
+    },
+    {
+      "archive": "upstream-main-baseline.tar.gz",
+      "payloads": 33,
+      "all_payload_hashes_verified": true,
+      "sha256": "00795635e1abd95a5a114efc55999e861a65a90e7d388550a7584fd0435dfb61"
+    },
+    {
+      "archive": "W6-original-author-evidence.tar.gz",
+      "payloads": 335,
+      "manifest_payloads": 334,
+      "all_payload_hashes_verified": true,
+      "sha256": "3abb27be1afb4d44c546476ff48548211178c35549f32d4abbf42ff72d869879"
+    },
+    {
+      "archive": "U1-original-author-evidence.tar.gz",
+      "payloads": 191,
+      "manifest_payloads": 189,
+      "all_payload_hashes_verified": true,
+      "sha256": "4d58d134951ae655d5d69f196d9d3b7be1c04dfd3e301eae794217550b94495f"
+    }
+  ],
+  "harness_correction": "R1 mistyped one digest character b instead of d; original archive and previously sealed root receipt agree on correct d hash; no archive changed",
+  "matrix_original327_identity_scope_old_signatures_preserved": true,
+  "matrix_current_sha256": "84de704941111e1f56969a8b36ed4a047a2f42f30901532f55b494928cf6518f",
+  "current_technical_accepted": 217,
+  "original_full_scope_accepted": 211,
+  "mixed_only_current_NonConnector": 6,
+  "human_overall_accepted": false,
+  "model_solver_rerun": false,
+  "full_make_passed": false
+}
