@@ -43,3 +43,7 @@
 ## D-068 当前验证epoch
 
 当前设计输入为 `data.asset-model · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。
+
+## 2026-09-26 当前固定资源图先行探针
+
+[AM3当前25 defs编译的实际原文](../../../../record/evidence/2026-09-26-probe-core-schema-closure/README.md)保存13Schema输入/固定built引擎/逐def失败与25/0。只是候选时的固定资源编译观察，不是新提供者domain judge/W6/Connector实现或全旧资源图所有defs证明。设计采用D068已明确，source release及新实际组合要另留证。
