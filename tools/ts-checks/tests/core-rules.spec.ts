@@ -42,6 +42,39 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('已批准 asset-model 依赖的消费者可用精确 schema-runtime 子入口', () => {
+    for (const statement of [
+      `import { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
+      `export { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
+      `type Runtime = import('@omne-harness-lite/asset-model/schema-runtime').SchemaRuntime`,
+      `const runtime = import('@omne-harness-lite/asset-model/schema-runtime')`,
+      String.raw`import '\u0040omne-harness-lite/asset-model/schema-runtime'`,
+    ]) {
+      expect(
+        corePureImports.check([file('core/tool-definition/src/parameter.ts', statement)]),
+      ).toEqual([])
+      expect(
+        corePureImports.check([file('core/content-blocks/src/parameter.ts', statement)]),
+      ).toHaveLength(1)
+    }
+    for (const specifier of [
+      '@omne-harness-lite/asset-model/schema-runtime/private',
+      '@omne-harness-lite/asset-model/schema-runtime.js',
+      '@omne-harness-lite/asset-model/src/schema-runtime.ts',
+      '@omne-harness-lite/asset-model/dist/schema-runtime.js',
+      '@omne-harness-lite/asset-model/testing',
+      '@omne-harness-lite/asset-model/unknown',
+      'node:fs',
+      'node:child_process',
+    ]) {
+      expect(
+        corePureImports.check([
+          file('core/tool-definition/src/parameter.ts', `import '${specifier}'`),
+        ]),
+      ).toHaveLength(1)
+    }
+  })
+
   it.each(purePackages)('%s 不导入 Cordis、kernel、storage 或非 core 插件', pkg => {
     for (const specifier of [
       '@deepseek-ai/cordis',
