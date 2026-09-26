@@ -96,3 +96,31 @@ offer 的不可变只在已设计的 readonly 类型面断言，不增加 runtim
 执行元数据及 JSON。报告中的14个子场景与父测试／类型测试计数分开，不相加声称产品自测数。
 独立 Node 子进程只服务本次公开消费边界，不构成部署的跨进程接收协议、持久重启或每一跳数无损证据。
 实际租户隔离、标识唯一、凭证领域守卫／秘密保管、生产时钟及 JSON 外部读写仍在相应 owner。
+
+## 完整根类型消费者
+
+`tests/w1-public-types-complete.spec-d.ts` 直接从已构建的五包根入口 `import type`，
+覆盖本次明确盘点的 87 个具名类型：identity 24、offer 10、kernel 4、storage 11、content 38。
+三个包的同名 Schema 类型使用本地 alias，公开名字仍由独立库存核对。库存测试通过
+TypeScript 的实际模块解析验证入口是 `dist/index.d.ts`，并逐项比对声明与直接类型导入。
+值／类型双用途的类导出由前述值消费者覆盖，不混入显式类型导出计数。
+
+| 类型场景 Test ID | 最低有效使用与重要约束 |
+|---|---|
+| `w1.types.complete.kernel-named-protocol` | PluginDefinition 消费 Standard Schema 与具型 config；FiberStateValue 只认采用版本状态；Outcome／Ack 可用 |
+| `w1.types.complete.identity-six-brand-directions` | AccountId／OrganizationId／LoginStateId 两两双向共六条不可赋；通用 Branded／OpaqueIdentifier 可实例化 |
+| `w1.types.complete.identity-values-and-snapshots` | 身份记录、角色／组织种类、资格／解析结果、层级与上级快照／派生结果可消费；读失败不伪装缺席 |
+| `w1.types.complete.identity-warrant-and-schema` | 凭证与密钥类型消费公开函数返回；用途闭合；Schema 类型可用 |
+| `w1.types.complete.offer-time-and-input` | 正时长与时间点品牌不可互换；状态求值显式输入／Clock 可用；Schema 类型可用 |
+| `w1.types.complete.storage-types` | 协议、四型异常联合、迁移片段与 preflight 输入／结果可消费；核对的表集合只读 |
+| `w1.types.complete.content-json-and-schema` | JSON 值、数组、对象、读结果与 Schema 可用；只读数组无写面，任意函数不是 JSON |
+| `w1.types.complete.content-blocks-and-metadata` | 块结构与媒体／派生／附件元数据类型可构造；带派生表示必须同时给 transcript |
+| `w1.types.complete.content-call-result-and-judgment` | 调用、半截调用、结果、原因与判定类型可消费；结果内容不包含工具调用、拒绝不含修补状态 |
+
+`public-type-surface.spec.ts` 的库存核对还用故意漏导入与 alias 的文本验证检查器自身。
+每次保存独立 `tmp/w1-public-consumers/types-complete/inventory-*` 报告，包含完整名单、
+根声明及相对声明／源码图 hash、实测 HEAD／dirty 状态与编译选项；不覆盖旧证据清单。
+实际严格类型检查的原始结果与库存结果分别登记，库存通过本身不代替 tsc。
+既有 Outcome 失败／配置类型、OfferTiming readonly 和 opaque／互斥调用的类型负例继续运行。
+这些场景只证明公开类型入口可消费与列出的类型约束，不逐字段镜像实现，也不执行类型夹具
+来声称产品运行行为、持久性或 runtime 深冻结。
