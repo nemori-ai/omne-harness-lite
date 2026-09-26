@@ -117,14 +117,18 @@ describe('V-2 frozen priority §11 and legal individual envelopes §12', () => {
       section = Number(heading[1])
       row = 0
     }
-    const priority = /^\| `(.+?)`（`\w+`） \| .+? \| `([a-z_]+)`/u.exec(line)
+    const priority = /^\| `(.+?)`（`(\w+)`） \| .+? \| `([a-z_]+)`/u.exec(line)
     if (section === 11 && priority?.[1] !== undefined) {
       row++
       const value = json(priority[1])
-      test(`§11 row${row}`, () =>
+      const def = SCHEMA_DEF_NAMES.find(name => name === priority[2])
+      if (def === undefined) throw new Error('missing priority definition binding')
+      test(`§11 row${row}`, () => {
+        expect(validate(def, value).valid).toBe(false)
         expect(judgeArrivalEnvelope({ target: modelTarget, event: value })).toEqual({
-          rejected: priority[2],
-        }))
+          rejected: priority[3],
+        })
+      })
     }
     const stream = /^\| (\d+) \| `(.+?)` \|/u.exec(line)
     if (section === 12 && stream?.[2] !== undefined) {
@@ -136,6 +140,22 @@ describe('V-2 frozen priority §11 and legal individual envelopes §12', () => {
     }
   }
   test('§11 row6 inline frame beats visible frame', () => {
+    expect(
+      validate('ArrivalEnvelope', {
+        target: frameTarget,
+        event: {
+          t: 'close',
+          index: 0,
+          block: {
+            kind: 'image',
+            id: 'b_1',
+            visibility,
+            mediaType: 'image/png',
+            data: { inline: 'YQ==' },
+          },
+        },
+      }).valid,
+    ).toBe(false)
     expect(
       judgeArrivalEnvelope({
         target: frameTarget,
@@ -154,6 +174,12 @@ describe('V-2 frozen priority §11 and legal individual envelopes §12', () => {
     ).toEqual({ rejected: 'frame_media_inline' })
   })
   test('§11 row7 negative frame account beats forbidden account', () => {
+    expect(
+      validate('ArrivalEnvelope', {
+        target: frameTarget,
+        event: { t: 'account', usage: { ...usage, input_tokens: -1 }, cost },
+      }).valid,
+    ).toBe(false)
     expect(
       judgeArrivalEnvelope({
         target: frameTarget,

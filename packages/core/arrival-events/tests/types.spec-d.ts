@@ -11,7 +11,10 @@ import {
   type OpenEvent,
   type OpenBlock,
   type WholeFillBlock,
+  type ArrivalEnvelope,
 } from '../src/index.ts'
+
+declare const callId: CallId
 
 test('public number, account, identity and failure types reuse their owners', () => {
   expectTypeOf<
@@ -27,6 +30,36 @@ test('public number, account, identity and failure types reuse their owners', ()
   expectTypeOf<ReturnType<typeof reduceFills>>().toEqualTypeOf<
     string | WholeFillBlock | undefined
   >()
+})
+test('frame envelope excludes the frozen Schema forbidden event combinations', () => {
+  // @ts-expect-error S-23 frame streams have no account event
+  const account: ArrivalEnvelope = {
+    target: { kind: 'tool_execution', callId },
+    event: {
+      t: 'account',
+      usage: {
+        input_tokens: 'unknown',
+        output_tokens: 'unknown',
+        cache_read_tokens: 'unknown',
+        cache_write_tokens: 'unknown',
+        source: 'none',
+      },
+      cost: { cost_usd: 'unknown', source: 'none' },
+    },
+  }
+  // @ts-expect-error S-23 frame streams cannot max_tokens finish
+  const ending: ArrivalEnvelope = {
+    target: { kind: 'tool_execution', callId },
+    event: { t: 'finish', reason: 'max_tokens' },
+  }
+  // @ts-expect-error S-23 frame streams cannot finish with error
+  const error: ArrivalEnvelope = {
+    target: { kind: 'tool_execution', callId },
+    event: { t: 'finish', reason: 'lost', error: { cause: 'unrecognized' } },
+  }
+  expectTypeOf(account).toMatchTypeOf<ArrivalEnvelope>()
+  expectTypeOf(ending).toMatchTypeOf<ArrivalEnvelope>()
+  expectTypeOf(error).toMatchTypeOf<ArrivalEnvelope>()
 })
 test('whole block append, raw call identity and in-band missing code cannot typecheck', () => {
   // @ts-expect-error S-8 only replace can open whole blocks

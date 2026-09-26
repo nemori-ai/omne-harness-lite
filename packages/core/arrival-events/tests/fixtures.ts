@@ -1,6 +1,7 @@
 import { readJsonStrict, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import type { OpenEvent, WholeFillBlock } from '../src/index.ts'
+import type { ImageBlock } from '@omne-harness-lite/content-blocks'
+import type { OpenEvent } from '../src/index.ts'
 
 export const visibility = Object.freeze({ toHuman: true, toModel: true })
 export const frameVisibility = Object.freeze({ toHuman: true, toModel: false })
@@ -31,7 +32,7 @@ export function opened(
     ? { ...common, kind, fill, head: { mediaType: 'audio/pcm' } }
     : { ...common, kind, fill }
 }
-export function image(frame = false): WholeFillBlock {
+export function image(frame = false): ImageBlock {
   return {
     kind: 'image',
     id: blockId(),

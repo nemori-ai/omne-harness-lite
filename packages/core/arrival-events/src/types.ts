@@ -101,10 +101,32 @@ export type FinishEvent =
   | { readonly t: 'finish'; readonly reason: 'lost'; readonly error?: ArrivalError }
 export type ArrivalEvent =
   OpenEvent | FillEvent | CloseEvent | TrimEvent | AccountEvent | FinishEvent
-export interface ArrivalEnvelope {
-  readonly target: ArrivalTarget
-  readonly event: ArrivalEvent
-}
+type FrameVisibility = { readonly toHuman: boolean; readonly toModel: false }
+type FrameEvent =
+  | (OpenEvent & { readonly visibility: FrameVisibility })
+  | (FillEvent & {
+      readonly payload: string | (WholeFillBlock & { readonly visibility: FrameVisibility })
+    })
+  | (CloseEvent & {
+      readonly block?: Exclude<ContentBlock, { readonly kind: 'tool_call' }> & {
+        readonly visibility: FrameVisibility
+      }
+    })
+  | TrimEvent
+  | {
+      readonly t: 'finish'
+      readonly reason: Exclude<FinishReason, 'max_tokens'>
+      readonly error?: never
+    }
+export type ArrivalEnvelope =
+  | {
+      readonly target: Extract<ArrivalTarget, { readonly kind: 'model_call' }>
+      readonly event: ArrivalEvent
+    }
+  | {
+      readonly target: Extract<ArrivalTarget, { readonly kind: 'tool_execution' }>
+      readonly event: FrameEvent
+    }
 /** Only the immutable kind/fill facts are needed by S-19. Whole classes never append. */
 export type ReductionMode =
   | { readonly kind: 'text' | 'thinking' | 'voice' | 'tool_call'; readonly fill: FillMode }

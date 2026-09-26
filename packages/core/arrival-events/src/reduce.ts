@@ -7,6 +7,14 @@ export function reduceFills(
   mode: ReductionMode,
   fills: readonly FillEvent['payload'][],
 ): string | WholeFillBlock | undefined {
+  if (
+    !['append', 'replace'].includes(mode.fill) ||
+    !['text', 'thinking', 'voice', 'tool_call', 'image', 'file', 'tool_result'].includes(
+      mode.kind,
+    ) ||
+    (mode.fill === 'append' && ['image', 'file', 'tool_result'].includes(mode.kind))
+  )
+    throw new TypeError('invalid reduction mode precondition')
   if (fills.length === 0) return undefined
   if (mode.kind === 'image' || mode.kind === 'file' || mode.kind === 'tool_result') {
     if (mode.fill !== 'replace') throw new TypeError('whole-block mode must replace')
