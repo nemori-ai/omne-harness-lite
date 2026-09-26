@@ -3,7 +3,8 @@
 本开发成员承接核心包的真实组合验证，产品包通过公开构建入口消费。依赖全部是开发依赖，
 不会令 core 产品包反向依赖 infra。
 
-当前交付包含存储一致性套件有效性自测与 W1 五包的独立公开消费者。存储部分依据
+当前交付包含存储一致性套件有效性自测、W1 五包的独立公开消费者、W6 五个真实正文
+提供者的资产组合及独立打包消费者。存储部分依据
 [storage 实现设计 P-10／C-11／C-12](../../.meta_harness/design/realization/packages/core/storage/design.md#要求到协议再到会红的测试)
 与 [验证义务及覆盖缺口](../../.meta_harness/design/realization/packages/core/storage/verification.md#覆盖缺口)。
 P／C 编号是该节点的协议与用例编号，没有独立契约坐标。
@@ -14,7 +15,8 @@ P／C 编号是该节点的协议与用例编号，没有独立契约坐标。
 [offer-expiry](../../.meta_harness/design/realization/packages/core/offer-expiry/design.md)、
 [storage](../../.meta_harness/design/realization/packages/core/storage/design.md) 与
 [content-blocks](../../.meta_harness/design/realization/packages/core/content-blocks/design.md)
-的实际公开面；数据契约精确采用 `data.identity-values`、`data.offer-expiry`、`data.content-blocks` v1，
+的实际公开面；数据契约精确采用 `data.identity-values/v1`、`data.offer-expiry/v2`、
+`data.content-blocks/v2`，跨包 Instant Schema 接线另采用已批准的 offer-expiry/v1 资源，
 接受与冻结从 [registry](../../.meta_harness/design/registry/README.md) 核对。
 kernel／storage 采用 D-025／D-026 与上述技术设计，没有独立数据契约坐标。
 
@@ -43,7 +45,7 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 自己的临时数据库，保留原始证据；超时停止该次进程组。HUB 验收应保存这些唯一证据再退休工作树。
 
 本成员没有 PostgreSQL、跨进程持久、租户装配外键或断电保证的验收覆盖，也不声称覆盖
-所有可能错误。后续两条 core 组合线在实际公开接口可用后接入，不预先以 fixture 补造行为。
+所有可能错误。流装配组合线在已接受的实际公开接口释放后接入。
 
 ## W1 独立公开消费者
 
@@ -100,7 +102,7 @@ offer 的不可变只在已设计的 readonly 类型面断言，不增加 runtim
 ## 完整根类型消费者
 
 `tests/w1-public-types-complete.spec-d.ts` 直接从已构建的五包根入口 `import type`，
-覆盖本次明确盘点的 87 个具名类型：identity 24、offer 10、kernel 4、storage 11、content 38。
+覆盖本次明确盘点的 103 个具名类型：identity 24、offer 10、kernel 4、storage 27、content 38。
 三个包的同名 Schema 类型使用本地 alias，公开名字仍由独立库存核对。库存测试通过
 TypeScript 的实际模块解析验证入口是 `dist/index.d.ts`，并逐项比对声明与直接类型导入。
 值／类型双用途的类导出由前述值消费者覆盖，不混入显式类型导出计数。
@@ -124,3 +126,50 @@ TypeScript 的实际模块解析验证入口是 `dist/index.d.ts`，并逐项比
 既有 Outcome 失败／配置类型、OfferTiming readonly 和 opaque／互斥调用的类型负例继续运行。
 这些场景只证明公开类型入口可消费与列出的类型约束，不逐字段镜像实现，也不执行类型夹具
 来声称产品运行行为、持久性或 runtime 深冻结。
+
+## W6 真实 core 组合与打包消费者
+
+采用关系从 `.meta_harness/design/registry/{catalog,frozen}.json` 与各 core 节点的
+`README.md`、`design.md`、`verification.md`、`bindings.yaml` 核对；本工具不定义产品政策。
+当前施工输入及32项 core-composition 步骤／外部责任映射见 [w6-coverage.json](w6-coverage.json)。
+八份 v3 候选与尚未释放的 stream-assembly 不能仅因文件存在而消费为已接受规格；
+第二条实际流组合链及最终18 core包检查在收到明确接受、冻结与源码释放后展开。
+
+`w6-asset-consumer` 只通过已构建的公开入口连接五个真实 bodyContract → asset-model →
+asset-evaluation。它使用实际 Skill 文本读取、清单解析、记录判断、求值、Slash 展开、
+MCP 动作命名、Tool 参数判断和 Messages 递归边界；没有在 fixture 中实现这些行为。
+caller 提供的文件条目、时刻、成员资格与 MCP 快照是显式前提，不证明真实文件系统、
+OAuth、当前成员资格、第三方计费或持久化事实。Connector 第六端口按阶段范围延期。
+
+`tests/w6-asset-consumer.spec.ts` 核对固定12个 Test ID，正常运行全绿。
+指定负控只把工作区权限的预期 `self` 改为 `member`，要求恰
+`w6.asset.workspace-normalized-skill-reading` 报 AssertionError，其余11项绿；
+超时、启动错误、信号与任意非零退出都不能算该负控通过。原始输出及执行信息分别保存于
+`tmp/w6-core-verification/asset-consumers/normal-*`、`negative-*`。
+
+构建后运行独立打包验证：
+
+```sh
+node tools/core-verification/dist/w6-packed-consumer.js
+# 只在 stream-assembly 尚未释放时作明确的先行检查；不能据此报最终20包完成。
+node tools/core-verification/dist/w6-packed-consumer.js --allow-pending-stream
+```
+
+该命令 `pnpm pack` 实际成员，在自己的临时消费者内离线安装 tarballs；消费者的
+overrides 同时把传递的 `0.0.0` 依赖钉回这批 tarballs，避免从 registry 取同名包。
+它不改包内容、不使用源码别名或 workspace 源码软链接。公开子路径清单按已采用节点固定，
+根与批准声明子路径的类型从 TypeScript 已解析导出符号枚举（含 `export type *`、别名与
+值／类型双用类），逐个 `import type` 并重新导出，独立 `tsc` 在严格模式、
+`skipLibCheck: false` 下检查；库存自身有星号／别名／双用途类型的受控反例。
+这证明公开声明闭包可消费，业务语义的类型约束仍由相应公开类型场景和节点测试承担。
+
+实际 Node 消费根和批准运行时子路径，Schema 公共入口及包内闭包资源逐份与冻结字节
+核对，所有 `$defs` 在实际 Ajv 2020-12 中编译。内部 Connector Schema 是已冻结的结构资源，
+不冒充实际 Connector bodyContract。每包 private/src/dist、相邻路径和未公开版本各自
+必须产生 TS2307 与 `ERR_PACKAGE_PATH_NOT_EXPORTED`；不是任意编译错误／异常都算拒绝。
+storage/conformance 另在独立 Vitest 宿主中核对公开函数可导入，其真实 SQLite 套件与
+C11/C12 效力仍由已有 W1 子进程场景运行，不以导入函数代替数据库验证。
+
+每次完整打包命令在 `tmp/w6-core-verification/packed-consumers/run-*` 保存 tarball、
+消费者输入／源码、安装与编译原始输出、逐命令状态、声明库存、Schema／JS hash 和报告。
+工具只拥有自己创建的目录，保留证据供 root 接收后统一退休；测试绿不等于自行接受。
