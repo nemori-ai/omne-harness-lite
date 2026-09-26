@@ -1,3 +1,4 @@
+import { evidencePath } from './evidence-path.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, type ExecFileException } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -8,7 +9,7 @@ import ts from 'typescript'
 import { exportedTypes, typeConsumerSource } from './packed-type-inventory.ts'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
-const evidence = join(root, 'tmp/w6-core-verification/packed-consumers')
+const evidence = evidencePath(root, 'tmp/w6-core-verification/packed-consumers', 'packed-consumers')
 const pendingStreamAllowed = process.argv.includes('--allow-pending-stream')
 // Accepted realization public surfaces. Connector remains outside this core delivery.
 const surfaces: Readonly<Record<string, readonly string[]>> = {

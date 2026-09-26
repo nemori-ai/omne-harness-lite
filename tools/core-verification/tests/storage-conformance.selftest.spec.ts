@@ -1,3 +1,4 @@
+import { evidencePath } from '../src/evidence-path.ts'
 import { execFileSync, spawn } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -7,7 +8,11 @@ import { describe, expect, it } from 'vitest'
 import type { ForeignKeyMode } from '../src/storage-fixture.ts'
 
 const memberDirectory = fileURLToPath(new URL('../', import.meta.url))
-const evidenceDirectory = fileURLToPath(new URL('../../../tmp/core-verification/', import.meta.url))
+const evidenceDirectory = evidencePath(
+  fileURLToPath(new URL('../../../', import.meta.url)),
+  'tmp/core-verification',
+  'storage',
+)
 const vitestCli = join(
   dirname(createRequire(import.meta.url).resolve('vitest/package.json')),
   'vitest.mjs',

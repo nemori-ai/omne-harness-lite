@@ -47,6 +47,18 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 本成员没有 PostgreSQL、跨进程持久、租户装配外键或断电保证的验收覆盖，也不声称覆盖
 所有可能错误。流装配组合线在已接受的实际公开接口释放后接入。
 
+隔离任务可通过 `OMNE_CORE_VERIFICATION_EVIDENCE_ROOT` 选择自己拥有的证据目录；
+相对路径从执行仓库根解析，绝对路径也必须位于本检出的 `tmp/` 内，空值／越界路径响亮失败。
+原默认路径及全部判据保持不变。W6 命令示例：
+
+```sh
+OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/epoch-2/configured-run \
+  pnpm --filter @omne-harness-lite/core-verification run test
+```
+
+配置根下分别创建 `storage`、`w1-public-consumers`、`asset-consumers`、`packed-consumers`；
+不会据此改写已经保存的原始日志或推导清理其它目录的权限。
+
 ## W1 独立公开消费者
 
 `src/w1-public-consumer.ts` 构建为 `dist/w1-public-consumer.js`，由真实 Node 子进程运行。

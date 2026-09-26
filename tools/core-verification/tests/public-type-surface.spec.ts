@@ -1,3 +1,4 @@
+import { evidencePath } from '../src/evidence-path.ts'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
@@ -87,7 +88,11 @@ it('w1.types.inventory.all-five-built-root-declarations', async () => {
     })
   }
   expect(inventory.reduce((sum, item) => sum + item.exportedNamedTypes.length, 0)).toBe(103)
-  const root = join(repository, 'tmp/w1-public-consumers/types-complete')
+  const root = evidencePath(
+    repository,
+    'tmp/w1-public-consumers/types-complete',
+    'w1-public-consumers/types-complete',
+  )
   await mkdir(root, { recursive: true })
   const directory = await mkdtemp(join(root, 'inventory-'))
   await writeFile(

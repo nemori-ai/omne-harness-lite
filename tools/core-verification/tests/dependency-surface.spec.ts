@@ -1,3 +1,4 @@
+import { evidencePath } from '../src/evidence-path.ts'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -50,7 +51,7 @@ it('w1.consumer.adopted-dependency-exceptions', async () => {
   // D-057 将测试运行器显式传入；产品套件不得运行时导入 Vitest。
   expect(storageConformance.external).toEqual(['kysely'])
 
-  const directory = join(repository, 'tmp/w1-public-consumers')
+  const directory = evidencePath(repository, 'tmp/w1-public-consumers', 'w1-public-consumers')
   await mkdir(directory, { recursive: true })
   const run = await mkdtemp(join(directory, 'dependencies-'))
   await writeFile(

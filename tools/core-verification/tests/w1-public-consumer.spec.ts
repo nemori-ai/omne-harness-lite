@@ -1,3 +1,4 @@
+import { evidencePath } from '../src/evidence-path.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, type ExecFileException } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -7,7 +8,11 @@ import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
 const member = fileURLToPath(new URL('../', import.meta.url))
-const evidenceRoot = fileURLToPath(new URL('../../../tmp/w1-public-consumers/', import.meta.url))
+const evidenceRoot = evidencePath(
+  fileURLToPath(new URL('../../../', import.meta.url)),
+  'tmp/w1-public-consumers',
+  'w1-public-consumers',
+)
 // 固定施工清单，不从被测程序的结果生成预期。
 const caseIds = [
   'w1.kernel.outcome-public',
