@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v1/mcp-endpoint.schema.json",
+  "title": "data.mcp-endpoint v1",
+  "description": "MCP 接入点这一类资产的数据形状：接入点正文（作者写下的连接目标与四项属性的默认值）、连接目标的两种传输、动作清单副本及其中每一项对端动作描述、动作条目名、OAuth 绑定。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.mcp-endpoint/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的约束（动作清单里对端动作名不重复、凭据配值的取值域、属性项推出规则等）由 contract.md S-20 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是七个拒绝值里的哪一个按 S-20 的次序定；凭据配值不合取值域的拒绝值是资产治理写面的 valueOutOfDomain，不是本文件的值。外部引用：Instant 取自 data.offer-expiry v1（S-22）；Duration 与 ExecutePermission 取自 data.tool-definition v1（S-14、S-15），McpActionName 的词法取它的 ToolName（S-18）；McpEndpointName 在 data.asset-model v1 的 CapabilityName（S-2）之上收窄。凭据配值的取值域引用 data.asset-model v1 的 CredentialRef（S-23），它写在推出的属性声明里（S-13、S-14），不是本文件的一个定义项。正反实例在同目录 examples.md。",
+  "$defs": {
+    "McpEndpoint": {
+      "title": "MCP 接入点正文",
+      "description": "S-1～S-8：一个 MCP 接入点资产（UL-mcp）的正文——作者写下的连接目标（transport），以及两项超时（timeouts）与逐动作执行权限（permissions）的作者默认值；「能不能用」是 data.asset-model v1 保留的 usableBy，不在正文里。它是 data.asset-model v1 AssetContent 里 mcp 那一支 body 的值（那边 $ref 本定义）。身份只在资产记录的能力标识上，正文里没有名字字段（S-2）。正文不收凭据：凭据是持有上的一条属性配值，不是正文的一部分（S-6）。动作清单副本不在正文里：它按持有保存，归 capability.mcp-bridge（S-9）。",
+      "$comment": "additionalProperties: false 同时挡住 credential、oauth、headers、actions 这类成员；拒绝值一律是 malformed（S-20 M4）。",
+      "type": "object",
+      "properties": {
+        "transport": {
+          "$ref": "#/$defs/McpTransport"
+        },
+        "timeouts": {
+          "type": "object",
+          "description": "S-7：两项偏好类设置的作者默认值——connect 连接超时、call 单次调用超时，两项分开（PF-002 §4 MCP）。都必须大于零。",
+          "properties": {
+            "connect": {
+              "allOf": [
+                {
+                  "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/Duration"
+                },
+                {
+                  "not": {
+                    "pattern": "^PT(?:0+H)?(?:0+M)?(?:0+(?:[.]0+)?S)?(?![\\s\\S])"
+                  }
+                }
+              ]
+            },
+            "call": {
+              "allOf": [
+                {
+                  "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/Duration"
+                },
+                {
+                  "not": {
+                    "pattern": "^PT(?:0+H)?(?:0+M)?(?:0+(?:[.]0+)?S)?(?![\\s\\S])"
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "connect",
+            "call"
+          ],
+          "additionalProperties": false,
+          "$comment": "「不为零」用 not pattern 表达：零时长的全部写法（PT0S、PT0.0S、PT0H0M 等）都被挡住。"
+        },
+        "permissions": {
+          "type": "object",
+          "description": "S-8：逐动作执行权限的作者默认值。execute 是本接入点每一个动作的执行权限共用的默认档（forbid / auto / ask），必填、没有缺省。「能不能用」不在这里——它是 data.asset-model v1 保留的 usableBy（S-36）。",
+          "properties": {
+            "execute": {
+              "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/ExecutePermission"
+            }
+          },
+          "required": [
+            "execute"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "transport",
+        "timeouts",
+        "permissions"
+      ],
+      "additionalProperties": false
+    },
+    "McpTransport": {
+      "title": "连接目标",
+      "description": "S-3～S-5：接入点连到对端的方式，按 kind 判别，本版恰两种（D-037 复选卡片）：stdio——由据点进程在据点机上拉起的子进程，经标准输入输出通信；streamable_http——对端在一个 HTTP(S) 地址上。其余传输（含旧式 SSE）的拒绝值是 transport_unknown。它同时是「连接目标」这一项落点与身份类设置的取值域（S-14）。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "stdio",
+          "properties": {
+            "kind": {
+              "const": "stdio"
+            },
+            "command": {
+              "type": "string",
+              "description": "S-4：要拉起的程序。至少含一个不属于 data.identity-values v1 S-31 空白码点集合的字符；空串或全是空白的拒绝值是 command_empty。",
+              "pattern": "[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]"
+            },
+            "args": {
+              "type": "array",
+              "description": "S-4：按次序交给程序的参数，原样传递，可以为空数组；每一项是字符串，可以是空串。",
+              "items": {
+                "type": "string"
+              }
+            },
+            "env": {
+              "type": "object",
+              "description": "S-4、S-6：作者给的非秘密环境变量。不声明即作者不加任何变量。它不是凭据的位置：凭据经持有上的凭据配值出示（S-6）。",
+              "propertyNames": {
+                "pattern": "^[^=\\u0000]+(?![\\s\\S])"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[^\\u0000]*(?![\\s\\S])"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "command",
+            "args"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "streamable_http",
+          "properties": {
+            "kind": {
+              "const": "streamable_http"
+            },
+            "url": {
+              "type": "string",
+              "description": "S-5：对端的绝对地址。scheme 只取小写的 http 或 https；有主机；不带片段（#）；不含空白与控制字符；不带 userinfo（主机前的 user:pass@）。不合的拒绝值都是 url_invalid。",
+              "pattern": "^https?://[^\\u0000-\\u0020\\u007F/?#@\\\\]+(?:[/?][^\\u0000-\\u0020\\u007F#]*)?(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ActionSnapshot": {
+      "title": "动作清单副本",
+      "description": "S-9：某一份接入点持有最近一次完整拿到的对端动作清单，按 kind 判别恰两支。fetched：取得时刻 fetchedAt 与动作描述 tools（可以为空数组——对端确实没有动作）；not_fetched：还没取过（显式取值，不是缺席，也不是空清单）。fetched 却没有 fetchedAt 的拒绝值是 snapshot_missing_time。本版只记 tools：resources 与 prompts 按 D-037 不桥，不进副本。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "已取得",
+          "properties": {
+            "kind": {
+              "const": "fetched"
+            },
+            "fetchedAt": {
+              "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+            },
+            "tools": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/McpToolDescriptor"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "fetchedAt",
+            "tools"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "还没取过",
+          "properties": {
+            "kind": {
+              "const": "not_fetched"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "McpToolDescriptor": {
+      "title": "对端动作描述",
+      "description": "S-10：对端在列举结果里给出的一个动作，原样保存。本契约只约束三个成员：name（对端的动作名，非空）、inputSchema（参数 schema，一个 JSON 对象，原样）、description（可选，字符串）；其余成员原样保留、本契约不解释。同一份清单里 name 不重复（Schema 管不到，S-20 malformed）。",
+      "$comment": "additionalProperties 不设为 false：这是对端的对象，原样保存是本条的承诺；未约束的成员不因本契约而被丢弃或改写。",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputSchema": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "inputSchema"
+      ]
+    },
+    "McpActionName": {
+      "title": "动作条目名",
+      "description": "S-11：对端一个动作在动作空间里那个工具条目的名字，恰是「接入点能力标识的 name」＋「:」＋「对端动作名」。它就是那份工具定义的 name：词法取 data.tool-definition v1 S-18 的收窄（$ref 它的 ToolName），另要求含「:」。含 __、_:、:_ 的拒绝值是 name_reserved_sequence（原名携带 data.tool-definition v1 S-26），其余不合的是 malformed（S-20）。它不可拆：消费者不得从中读出接入点或对端动作名——那两样在工具定义的 origin 里。",
+      "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/ToolName",
+      "minLength": 3,
+      "pattern": ":",
+      "examples": [
+        "github:create_issue"
+      ]
+    },
+    "McpEndpointName": {
+      "title": "接入点的 name",
+      "description": "S-26：一份 category = mcp 资产能力标识的 name 分量，在 data.asset-model v1 S-2 之内的收窄——它后面接上「:」与一个字母，拼出的串合 data.tool-definition v1 S-18 对 name 的收窄。即：只含 A–Z a–z 0–9 _ : -；不含 __、_:、:_ 三种相邻；不以 _ 结尾；转写（: 换成 __）之后不超过 125 个字符——: 算两个的那一半 Schema 管不到。不合的拒绝值 name_not_projectable（S-20 第 6 行）；违反 data.asset-model v1 S-2 本身的（空串、含空白、含 /）仍是那边的 name_invalid。",
+      "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityName",
+      "maxLength": 125,
+      "pattern": "^(?![\\s\\S]*(?:__|_:|:_))[A-Za-z0-9_:-]*[A-Za-z0-9:-](?![\\s\\S])",
+      "examples": [
+        "github",
+        "issue-tracker",
+        "acme:search"
+      ]
+    },
+    "OAuthBinding": {
+      "title": "OAuth 绑定",
+      "description": "S-12：一份接入点持有上的一次经 OAuth 取得凭据的流程与它取得的那一份凭据的状态。id 不透明、部署内唯一、不回收不复用（按 data.identity-values v1 S-31 的散文）；state 恰三值，闭合：pending（已发起、等人到对端同意）、granted（已取得、可用）、revoked（作废：人拒绝、流程过期或被新的一次取代、续不上、被清掉）；since 是进入当前状态的时刻。它不含凭据本体，也不含凭据引用。状态怎样迁移归 capability.mcp-bridge。",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "granted",
+            "revoked"
+          ]
+        },
+        "since": {
+          "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "since"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

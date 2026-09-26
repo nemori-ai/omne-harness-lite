@@ -129,6 +129,14 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 
 消费者 asset-evaluation 的输入预检保持 `capability.asset-evaluation/v1#S-7` C13：显式传入 `not_fetched` 是 `invalidInput`；S-12 的合法缺席则传 `undefined`，固定项照常且不产生逐动作项，不新增业务失败、不回退作者默认。实施证据须覆盖四条实际端口路径、AM 包装及正负类型；AE 两条消费者路径留给 W6 实际组合验收。
 
+### Connector 延期时的提供者可用性（实施细化，2026-09-26）
+
+用户明确仅延期 Connector 一种资产纵线，其他类型完整交付。主调度采用本细化，独立 architecture-reviewer 已核无阻断；不是新领域政策。完整 `BodyContracts` 仍是六个真实端口；追加技术类型 `NonConnectorBodyContracts = Omit<BodyContracts, 'connector'>` 表达本阶段五个真实端口。构造／绑定仅接受完整六个或明确五个，其他缺键／错类别仍为配置缺陷。没有假的 Connector 端口，没有用 `underivable`、`malformed` 或空声明掩盖缺实现。
+
+编译输入继续保有**原样冻结 Connector Schema**：在本包 `schema/resources/connector.schema.json` 逐字节复制、独立核 hash，并作为未提供 Connector 正文端口时的真实资源闭包。Schema 资源不是 Connector 提供者；不建 Connector 包、不修改冻结 Schema、不用 `{}`／`false` stub。已有 `AssetContent.oneOf` 编译会遍历 Connector `$ref`，不能因缺端口破坏其他五类构造。完整六端口配置已有同 `$id` 时不用重复登记资源。
+
+实际请求未提供的 Connector 正文规则才报告明确的 `BodyProviderUnavailableError` 技术可用性边界；不伪造领域拒绝。该请求不在当前提供者已交付的正文实施域内。一般能力标识、配值、opaque 内容、工具参数中的同名字段不触发这个边界；范围仅是契约点名的资产记录／草稿／各版本正文位置。纯 Schema 层保留真实冻结语义与资源闭包，不宣称 Connector 正文规则已实现。其他类型的判定、拒绝次序、声明与引用完整验收；五真实正文组合继续，六齐全断言延期。
+
 ## 静态检查义务怎么承载
 
 [契约的 SC-1～SC-6](../../../../spec/data/asset-model/verification.md#静态检查义务)：SC-1～SC-5 约束的是**存储的写路径与读面**，全部落在资产治理（与流转）节点；本节点只承载 SC-6 的一半：

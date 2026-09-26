@@ -15,6 +15,14 @@
 
 ## 公开面
 
+### 本轮提供者的精确实施域（2026-09-26）
+
+用户仅延期 Connector 资产纵线。主调度采用下述技术投影，独立 architecture-reviewer 已核；完整冻结规则与 `EvaluationInput` 类型保留。当前 `evaluate` 的公开入参为准确的技术子域 **`NonConnectorEvaluationInput`**：只排除需要 Connector 正文规则的资产记录、草稿和各版本；不递归搜索任意 JSON，也不排除一般 Connector 标识／引用。该域内完整兑现原四种结果、优先级、全部其他资产类型规则，**不抛提供者不可用异常**。超出此提供者实施域的调用才由外边界明确报告 `BodyProviderUnavailableError`，不是冻结操作的第五种业务结果，也不能伪装成 `invalidInput`、`categoryUnsupported{connector}` 或成功空集合。
+
+`readWorkspaceCarrier` 保持原完整清单域：S-16 不解析 `source` 所指正文，清单只有标识、路径、配值和禁用；单独出现 Connector 标识或未知资产配值照原 `unknown_asset`／`dropped` 处理，不增加 `NonConnectorCarrierManifest`。Connector 引用无生效资产可按原条件 `unresolved`；持有存在而定义缺席仍先违反 C5，不借延期改规则。
+
+本节点仍是默认正文装配的**唯一组合根**。当前公开 `defaultBodyContracts` 的真实类型为 `NonConnectorBodyContracts`，只组合 tool／loop_extension／skill／mcp／slash_command 五个实际端口，不断言为完整六键 `BodyContracts`、不导入不存在的 Connector 包。完整协议留作恢复 Connector 时采用；本轮完整验证五真实正文 → AM → AE 链，仅延期 Connector 相关纵线及六正文齐全断言。下文完整设计中的六端口表述是原完整范围，在本轮按此明确实施域落地，不能据五个端口签掉第六个。
+
 **全部即公开函数面**（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）：这份 capability 契约的两个操作本来就是纯计算（[S-11](../../../../spec/capabilities/asset-evaluation/v1/contract.md#s-11-纯计算)），不依赖 Cordis、会话、租户或存储，单独 `import` 即用；**没有 Cordis 服务面**（[下表](#cordis-原语本节点一样也不用)）。核对：[依赖表](#依赖作用域与绑定)只有本批纯模块、已实现的 identity-values 与 `node:crypto`，不 import `@deepseek-ai/cordis`、`kernel-basis`、`storage`，不解析任何服务键（SC-1 的 import 白名单同一条）。主要导出（候选名）：
 
 | 导出 | 契约坐标 |
