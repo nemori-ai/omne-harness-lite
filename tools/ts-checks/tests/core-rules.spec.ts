@@ -390,3 +390,13 @@ interface StoredObject { organization?: OrganizationId; tenant?: TenantId }`
     expect(identityScopeColumns.check([file('core/asset-model/tests/x.spec.ts', text)])).toEqual([])
   })
 })
+
+it('allows a data module to statically load its own exported Schema', () => {
+  const violations = corePureImports.check([
+    {
+      path: 'core/content-blocks/src/schema.ts',
+      text: "import schema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }",
+    },
+  ])
+  expect(violations).toEqual([])
+})

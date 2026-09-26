@@ -59,6 +59,12 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
 
 function allowedExternal(pkg: string, dependencies: readonly string[], specifier: string): boolean {
   if (
+    pkg !== 'stream-assembly' &&
+    pkg !== 'asset-evaluation' &&
+    specifier === `@omne-harness-lite/${pkg}/schema`
+  )
+    return true
+  if (
     dependencies.some(
       name =>
         specifier === `@omne-harness-lite/${name}` ||
