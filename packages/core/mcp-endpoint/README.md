@@ -1,0 +1,11 @@
+# `@omne-harness-lite/mcp-endpoint`
+
+Pure TypeScript implementation of the accepted [`data.mcp-endpoint/v1`](../../../.meta_harness/design/spec/data/mcp-endpoint/v1/contract.md). Adoption and responsibility follow the [realization node](../../../.meta_harness/design/realization/packages/core/mcp-endpoint/README.md), not this source guide.
+
+The public package exports the authored endpoint body, the distinct fetched / not-fetched snapshot types, open remote descriptors, OAuth binding types, `actionEntryName`, ordered `judgeMcpValue` / `judgeMcpEndpoint`, shape-only `validate`, the typed `deriveMcpDeclarations` function, and `mcpBodyContract`. `./schema` exports the frozen Schema resource. Names and durations consume tool-definition's public definitions; timestamps consume offer-expiry's public parser. Shared content-blocks components validate JSON without rounding numbers and compile fixed package-owned schemas.
+
+`validate(definition, value)` checks frozen Schema shape. `judgeMcpValue` adds the ordered representation predicates, including duplicate action names, actual calendar validity, literal URL constraints and projected name length. Neither API changes input. Remote descriptor extensions and parameter schemas remain JSON data; this package does not compile a remote `inputSchema`, connect, execute a process, acquire credentials, or implement OAuth transitions.
+
+`deriveMcpDeclarations(body, actionSnapshot?)` takes authored defaults and an explicit snapshot. Its result always owns `actionSnapshotKind`, including an own `undefined` when the optional argument is absent. It returns four fixed declarations and adds per-action permissions only for fetched actions. The body port validates unknown JSON before handing off; asset-model owns the two reserved declarations. These results are in-process values, so JSON serialization must not be used to preserve the provenance marker.
+
+Run `pnpm --filter @omne-harness-lite/mcp-endpoint run build`, `run typecheck`, and `run test` from the repository root. Tests carry normative source coordinates and its hash, exercise rejection priority, compile negative type cases, and compare the maintained Schema copy byte for byte with the adopted resource. Cross-package users consume package exports after building the dependencies; source paths are private.
