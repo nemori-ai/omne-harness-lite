@@ -5,7 +5,7 @@
 在各包的 `tests/*.spec-d.ts` 里，不在这里。
 
 新规则（`restricted-call-sites` 的扩展与其后各条）跑在 `src/source-text.ts` 的词法视图上：
-注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。`no-bail-control`、`no-testing-import` 与
+注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。`no-bail-control` 与
 `restricted-call-sites` 的前两项仍逐行扫原文。新增 core 与身份规则使用已锁定 TypeScript 的语法树，
 不构造类型检查 Program。按路径写死的位置集中在 `src/layout.ts`，入口层包的路径以
 [governance-center-entry verification「包布局常量」](../../.meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md#静态检查)为准。
@@ -14,9 +14,9 @@
 
 | 规则                             | 来源                                                                                  | 查什么                                                                                                                                                                                                                                                                                                                                                                                   | 不覆盖                                                                                                                                                |
 | -------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `no-wall-clock`                  | offer-expiry 节点 SC-OE-3                                                             | `core/`、`tenancy/` 源码里不得出现 `Date.now()`、无参 `new Date()`、`performance.now()`；`infra/` 与测试豁免                                                                                                                                                                                                                                                                             | 经别名取墙钟                                                                                                                                          |
+| `no-wall-clock` | offer-expiry 节点 SC-OE-3 | 原生产范围保留，infra 与测试豁免；Date.now、performance.now、无参 new Date，含解码成员与同文件 const/解构别名 | 跨文件/可变赋值/函数传参/动态成员的数据流 |
 | `no-bail-control`                | basis `async-control-not-bail`                                                        | 不得调用 `ctx.bail(`，异步控制走 `serial`                                                                                                                                                                                                                                                                                                                                                | —                                                                                                                                                     |
-| `no-testing-import`              | apps/tenancy-host verification                                                        | 产品源码不得 import `@omne-harness-lite/*/testing`                                                                                                                                                                                                                                                                                                                                       | —                                                                                                                                                     |
+| `no-testing-import` | apps/tenancy-host verification | 产品源码不得 import testing 子入口；静态、侧效应、字面动态/require、重导出、类型与解码说明符均查，测试豁免 | 非字面说明符、通过函数传参的动态装载 |
 | `restricted-call-sites`          | AI S-30、OG S-42、入口契约 SC-1                                                       | `accounts.produce(` 与 `'organization-purge'` 只出现在 `tenancy/account-registration`（及定义它们的包）；`createPersonal(`、`activate(`、`purge(`、`sweepStaleSelections(`（`.m(` 与解构后的 `m(` 都算）同样只许在 AR 与定义它们的包（OG；AI）。入口层路由表不点名这四个，入口层包里出现即违反                                                                                           | `apps/` 不在扫描根内（装配调 `sweepStaleSelections` 不受查）；经别名或 `obj[name](` 调用                                                              |
 | `ops-import-whitelist`           | 入口契约 SC-2；入口节点约束第 5 条；主线 2026-09-23 裁决（cordis、zod 纳入）          | 入口层包 `src/ops/**` 只许导入 `@omne-harness-lite/kernel-basis`、`storage`、`offer-expiry`（恰这三个名，不含子入口）、`@deepseek-ai/cordis`、`zod`、`node:*`、`src/events.ts` 与 ops 目录内文件；动态导入的说明符须是字面量。`src/events.ts` 只许导入 `node:*`、`@deepseek-ai/cordis`、`zod`：不导入任何 `@omne-harness-lite/*`，也不做相对导入（它在白名单里，这两种都会让传递图越界） | 类型导入与运行时导入不分（都算）                                                                                                                      |
 | `ops-event-whitelist`            | 入口契约 SC-2；入口节点约束第 5 条（事件订阅白名单）                                  | `src/ops/**` 里 Cordis 上下文（成员链含 `ctx`／`context`、标注为 `Context` 或由它们直接赋值的名字）的 `on`／`once` 第一个实参只能是从 `src/events.ts` 导入的 `serving`、`stopped`、`defect`，`emit`／`parallel`／`serial` 只能是 `listening`（具名导入可改名，命名空间导入的成员也认）；字符串字面量与计算出的名字报出                                                                   | Node 发射器（`server.on('error')`）不查；经解构（`const { on } = ctx`）、函数返回值或多次转手的上下文；`emit(thisArg, name)` 重载按首个实参判，会报出 |
@@ -65,6 +65,30 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 新增无参 new Date 与 performance.now 的必红反例，合法 new Date(explicitInstant)、注释和字面量不误报。
 不另建同义规则。
 
+`no-wall-clock` 已改用 AST，同文件 const/解构别名、解码成员和 globalThis 访问也检查；原生产范围及 infra/测试例外保留。
+不跟踪跨文件、可变赋值、函数传参或动态成员的数据流，不证明 clock 的租约/回拨保证。
+`no-testing-import` 现在解析说明符，静态/侧效应 import、重导出、import-type、字面 import()/require() 与解码拼写都检查，
+注释/字符串示例不算导入；测试豁免保持。计算说明符不能由此规则确定是否指向 testing；十五纯模块另由 core-pure-imports 拒绝非字面说明符。
+
+当前批准的精确 Schema runtime 子入口是 `@omne-harness-lite/content-blocks/schema-runtime`；消费者必须已有 content-blocks 依赖。
+旧 asset-model/schema-runtime 已随实际提供者迁移移出登记，即使消费者仍依赖 asset-model 也会拒绝；相邻私有路径不获准。
+本包内部复用走相对路径，子入口登记不增加未经采用的 self import 或任意包依赖。
+
+新增范围化规则的实际注册在 `src/rules/core-scoped.ts`：
+
+| 规则 | 默认实际范围 | 不覆盖 |
+|---|---|---|
+| body-projection-inputs | 工具 declarations.ts/toolAttributeDeclarations；类型 import、登记正文参数、直接宿主全局/隐式 this；包存在而锚点消失必红 | 其余五正文模块待实现后登记；保留/治理项的完整动态返回由 asset-model 守卫及六真实端口组合测试证实；不证明任意跨文件状态读取不存在 |
+| parameter-judge-cache-owner | 工具 parameters.ts/createParameterJudge 中登记的编译器/动态 cache 分配点，必须在调用方工厂内；同文件标识符别名也查 | 不禁整个包/全仓 Map/Set；固定自有 Schema 编译不在此模块范围；不证明 GC 时点、内存上界、间接工厂或对象独立性 |
+
+这两条随实际工具包出现生效；源码尚不存在的包不产生符合性证据。
+另有三个要求实际消费路径的工厂：createSingleToolArgumentParser、createModelToolNameOrigin、createMessageCreatedAtOrder。
+封口工厂明确指定函数，严格解析点恰一处；raw 消费者逐函数点名，通用 JSON 读写不进入该范围。
+名字规则只守登记名字参数的切片/前缀/分隔符操作，规范 modelName/definitionNameOf 转换函数不登记为来源判断消费者。
+createdAt 规则只守登记消息次序函数的比较/差值/排序，表示层日期校验与原样记录允许。
+名字/次序工厂拒绝空消费者配置，所有指定函数缺席会失败；它们尚未挂空配置到默认 RULES，fixture 不构成不存在消费者的合规证据。
+stream 解析是否仅在已接受 close 路径可达、snapshot/closeOut/partial 是否零调用，还需行为计数；词法别名检查不替代控制流证明。
+
 `asset-model` 的 S-17 字面目录规范化明确采用 `path.normalize` 一类纯运算，允许 `node:path`（及同义的 `path`）导入。
 检查器不因此证明代码没有调用 `resolve()` 隐式取得 cwd；绝对输入、相对输入拒绝、无文件系统访问仍由节点实现测试核对。
 直接采用严格 JSON 工具的 asset-model、call-accounts、messages、arrival-events、model-response、stream-assembly、asset-evaluation
@@ -91,7 +115,7 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 | content-blocks | SC-3 opaque 品牌不兼容的负向类型测试；无 rawArguments 解析辅助的公开面核对。SC-2 与 stream-assembly SC-1 合并为一个指定解析模块的规则，等待真实模块落点后注册 | 会话日志 SC-1/SC-4；消费者 opaque 读写、是否对完整/半截调用采用正确输入 |
 | asset-model | SC-6 的 BodyContracts 错类负向类型测试与端口结果守卫；六正文推出模块的 import 范围由一个共享规则承载，须先确定各模块路径，不能从整个包只许类型推断局部范围 | SC-1～SC-5 的资产治理/流转写路径与读面 |
 | model-profile | S-13 判别联合的负向类型测试；S-22 闭合 ModelProfile/Schema 的凭据反例 | 档案目录的状态写入与持久形状 |
-| call-accounts | SC-2/SC-3 以汇总入口参数及公开账类型的负向类型测试检查 total_usd、镜像笔、cache_tokens、total_tokens 的排除；不扫任意字面字符串 | SC-1 组装输入、SC-4 原账写入路径 |
+| call-accounts | SC-2 用汇总入口的权威投影及手算 oracle 核不重复计；完整工具账合法保留 total_usd/usage，先校验再在汇总投影排除；SC-3 派生字段的公开负类型与 Schema 反例。不扫任意字面字符串 | SC-1 组装输入、SC-4 原账写入路径 |
 | messages | SC-4 公开 isReadable 函数与不暴露“当前可读集合”；SC-3 比较/排序检查必须先注册真实消费者路径和 createdAt 接收者 | SC-5 翻译方穷尽检查；日志及其他消费者 SC-1/SC-2/SC-6 |
 | tool-definition | V-10 定义 JSON 形状的负向类型测试；推出规则与其他正文共用局部 import 规则；工具名解析规则需点名值/品牌及合法转写模块后再实施 | 名字经变量转手、运行时对象混入与消费者侧取来源行为 |
 | loop-extension | 推出规则模块加入 asset-model SC-6 的同一局部 import 规则 | runner V-5 每件必留 |

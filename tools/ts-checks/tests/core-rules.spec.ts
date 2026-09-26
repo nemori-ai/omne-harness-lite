@@ -13,6 +13,7 @@ import {
   identityDecisionInputs,
   identityScopeColumns,
   noWallClock,
+  noTestingImport,
   runRules,
   type SourceFile,
 } from '../src/index.ts'
@@ -82,7 +83,7 @@ describe('core-pure-imports', () => {
     ).toHaveLength(1)
   })
 
-  it('已批准 asset-model 依赖的消费者可用精确 schema-runtime 子入口', () => {
+  it('AM 已迁出的旧 schema-runtime 不再是公开入口，即使包依赖仍批准', () => {
     for (const statement of [
       `import { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
       `export { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
@@ -92,7 +93,7 @@ describe('core-pure-imports', () => {
     ]) {
       expect(
         corePureImports.check([file('core/tool-definition/src/parameter.ts', statement)]),
-      ).toEqual([])
+      ).toHaveLength(1)
       expect(
         corePureImports.check([file('core/content-blocks/src/parameter.ts', statement)]),
       ).toHaveLength(1)
@@ -286,6 +287,29 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
 })
 
 describe('SC-OE-3 no-wall-clock', () => {
+  it('字面解码、globalThis、const 与解构别名仍禁止取墙钟，显式转换保持合法', () => {
+    const source = file(
+      'core/offer-expiry/src/time.ts',
+      String.raw`const current = Date.now
+const { now: measure } = performance
+const Constructor = Date
+current()
+measure()
+new Constructor()
+Date['\u006eow']()
+globalThis.Date.now()
+globalThis['performance']['now']()
+new Constructor(issuedAt)`,
+    )
+    expect(noWallClock.check([source]).map(value => value.line)).toEqual([4, 5, 6, 7, 8, 9])
+    expect(
+      noWallClock.check([
+        file('infra/clock/src/clock.ts', source.text),
+        file('core/offer-expiry/tests/time.spec.ts', source.text),
+      ]),
+    ).toEqual([])
+  })
+
   it('Date.now、new Date()、performance.now 各有必红反例，并保留原真实扫描', () => {
     const source = file(
       'core/content-blocks/src/x.ts',
@@ -304,6 +328,38 @@ const t = clock.now()`,
         ),
         file('infra/clock/src/clock.ts', 'Date.now(); new Date(); performance.now()'),
         file('core/content-blocks/tests/x.spec.ts', 'new Date()'),
+      ]),
+    ).toEqual([])
+  })
+})
+
+describe('no-testing-import — 解码后的真实说明符', () => {
+  it('静态、侧效应、动态、重导出、类型与 require 的 testing 入口都红', () => {
+    const source = file(
+      'core/kernel-basis/src/consumer.ts',
+      String.raw`import '@omne-harness-lite/offer-expiry/testing'
+export { testClock } from '@omne-harness-lite/offer-expiry/testing'
+type Clock = import('@omne-harness-lite/offer-expiry/testing').TestClock
+const testing = import('@omne-harness-lite/offer-expiry/testing')
+const clock = require('@omne-harness-lite/offer-expiry/testing')
+import Test = require('@omne-harness-lite/offer-expiry/testing')
+import '\u0040omne-harness-lite/offer-expiry/testing'
+import '@omne-harness-lite/offer-expiry/testing/private'
+// import '@omne-harness-lite/offer-expiry/testing'
+const note = "from '@omne-harness-lite/offer-expiry/testing'"`,
+    )
+    expect(noTestingImport.check([source]).map(value => value.line)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8,
+    ])
+    expect(
+      noTestingImport.check([file('core/kernel-basis/tests/consumer.spec.ts', source.text)]),
+    ).toEqual([])
+    expect(
+      noTestingImport.check([
+        file(
+          source.path,
+          `import '@omne-harness-lite/offer-expiry'; import '@omne-harness-lite/offer-expiry/schema'`,
+        ),
       ]),
     ).toEqual([])
   })
