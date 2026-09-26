@@ -2,13 +2,13 @@
 import type { CredentialsService } from '@omne-harness-lite/credential-verification'
 import type { VerificationKey } from '@omne-harness-lite/identity-values'
 import type { Clock, Duration } from '@omne-harness-lite/offer-expiry'
-import { StorageUnavailable, type Storage } from '@omne-harness-lite/storage'
+import { StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
 import { type Diagnostics, type Notifier, describeError } from './diagnostics.ts'
 import type { RandomSource } from './presentation.ts'
 
 export interface ServiceDeps {
   /** 必需 inject 的 `storage`。 */
-  readonly storage: Storage
+  readonly storage: AtomicStorage
   /** 必需 inject 的 `clock`。 */
   readonly clock: Clock
   /** 可选依赖 `credentials`，**每次调用时解析**：缺席 ⇒ 凭据步骤判不出来（`storage-unavailable`），不是判为不合规。 */

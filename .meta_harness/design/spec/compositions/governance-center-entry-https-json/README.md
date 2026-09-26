@@ -1,5 +1,14 @@
 # 治理中心入口 · HTTPS + JSON 传输绑定
 
+## v3 维护绑定候选（未接受）
+
+[v3契约](v3/contract.md)消费EC3 candidate、IV1/OE2；客户端线上`protocolVersion="2"`映射到`https-json/3`客户端面，字节语义保持HT2。
+同一运维socket独立承载`opsVersion="1"`的full-health、backup、backup-status；本机verify/restore-isolated不上线。
+[字节例](v3/examples.md)包含8份继承报文和16份新增报文；[验证入口](verification.md#v3-维护绑定候选)区分字节检查与尚未开始的真实连接适配验证。
+本候选不授权实现，不自动升级既有消费者或冻结资源。
+
+## 既有版本入口
+
 [`composition.governance-center-entry`](../governance-center-entry/README.md) v1（入口契约）落在 **HTTP/1.1 over TLS + JSON** 这一种传输上的全部事实：
 连接只有 TLS、只按 `Content-Length` 成帧、接收上界与接收时限及它们的下限、写完怎样关闭，请求体怎样读成信封、重复成员怎样报告、答复是哪几串字节、公开体检请求怎样发、客户端怎样认出 `version-mismatch`、运维面怎样承载在本机套接字上，以及有意不照 HTTP 规范办的几处。
 入口契约 S-8 说「跨协议版本永不改的两样」，它们在传输上的具体字节就在这里；入口契约 S-6「同一个入口答复整个线上答复逐字相同」的那份字节也在这里。
@@ -42,3 +51,7 @@
 
 `v1/` 是候选版本，接受之后整体冻结：之后任何字节变化都发新版本。**不建 Schema、不建形式工件**——形状全在入口契约的 Schema 里，本契约只引用它的 `$id` 与定义名。
 换传输是一份新的传输绑定，不改本版；本版 S-18 那两样只要还在本传输上就永不改。
+
+2026-09-25，[D044](../../../record/decisions/governance-entry-production-protocol/decision.md)接受[v2](v2/contract.md)。实现与消费者另行核对，不自动升级旧绑定。
+
+当前采用：v3已由[D055](../../../record/decisions/governance-online-maintenance-adoption/README.md)接受并冻结；客户端版本2保持，ops版本1新采用，真实适配待实现。

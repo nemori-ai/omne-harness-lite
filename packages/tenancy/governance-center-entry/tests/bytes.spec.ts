@@ -1,3 +1,5 @@
+import { decisionStorage } from './support/decision-storage.ts'
+const storage = decisionStorage()
 // T-2 的固定字节快照（入口节点 T-2「version-mismatch 与公开体检的字节有快照，改动即红」；绑定 V-1、S-13、S-15）
 // 与体的写出规则逐例（绑定 V-9、examples §7）。
 // **快照不另抄一份**：直接读传输绑定的 examples.md（消费提交 c8baf30 的候选；ccd39d9 字节未变），把每一份的转义文本与
@@ -25,7 +27,7 @@ import { StubParticipants } from './support/stubs.ts'
 
 const EXAMPLES = join(
   import.meta.dirname,
-  '../../../../.meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/examples.md',
+  '../../../../.meta_harness/design/spec/compositions/governance-center-entry-https-json/v2/examples.md',
 )
 
 interface Example {
@@ -51,7 +53,7 @@ function parseExamples(markdown: string): Example[] {
     ) {
       heading = line
     }
-    const summary = /^总 (\d+) 字节.*SHA-256 `([0-9a-f]{64})`/.exec(line)
+    const summary = /^总\s*(\d+)\s*字节.*SHA-256 `([0-9a-f]{64})`/.exec(line)
     if (summary === null) continue
     const blocks: string[] = []
     let j = i + 1
@@ -165,6 +167,7 @@ describe('T-2：公开体检（examples §2）', () => {
     const decision = await decide(step.body, {
       services: new StubParticipants().entryServices(),
       publicHealth,
+      storage: storage(),
     })
     expect(decision.bytes).toEqual(example(HEALTH_REPLY))
   })
@@ -172,7 +175,7 @@ describe('T-2：公开体检（examples §2）', () => {
 
 describe('T-2：路由结果与完整体检的形状（examples §4、§5）', () => {
   it('§4：列出登录状态的两项，经路由表的投影与写出后逐字节相同（含 .25Z）', () => {
-    const route = routeFor('capability.account-identity/v2#S-37')
+    const route = routeFor('capability.account-identity/v3#S-37')
     expect(route).toBeDefined()
     if (route === undefined) return
     const at = Date.UTC(2026, 8, 23, 8, 0, 0)
@@ -181,10 +184,16 @@ describe('T-2：路由结果与完整体检的形状（examples §4、§5）', (
         {
           loginStateId: 'b8f7117646179c7f8f923b56e9735b1a337d0cf67c7a5d63d3d2f4896ec0dd8e',
           issuedAt: at,
+          lastActivityAt: at,
+          absoluteExpiresAt: at + 28800000,
+          idleExpiresAt: at + 3600000,
         },
         {
           loginStateId: 'c3ff21f9237e63ee18a0748b3d2b963355c7a77e9269c186325ad75abccf87aa',
           issuedAt: at + 250,
+          lastActivityAt: at + 250,
+          absoluteExpiresAt: at + 28800250,
+          idleExpiresAt: at + 3600250,
         },
       ],
       {},
@@ -237,7 +246,7 @@ describe('V-2：任何别的答复的体都不等于 "version-mismatch" 那 18 �
       expect(bodyOf(routeFailureBytes(name)).equals(versionBody)).toBe(false)
     }
     expect(bodyOf(routeSuccessBytes('version-mismatch')).equals(versionBody)).toBe(false)
-    expect(ROUTE_IDS).toHaveLength(27)
+    expect(ROUTE_IDS).toHaveLength(31)
   })
 })
 
@@ -278,8 +287,8 @@ describe('V-9：体的写出规则逐例（examples §7）', () => {
 
   it('整数零写 0；TenantId 与没有上级的组织按 Schema 书写次序、缺席的可选成员不写', () => {
     expect(routeSuccessBytes(0).subarray(-12).toString()).toBe('{"result":0}')
-    const tenantRoute = routeFor('capability.organization-governance/v1#S-25')
-    const organizationRoute = routeFor('capability.organization-governance/v1#S-22')
+    const tenantRoute = routeFor('capability.organization-governance/v2#S-25')
+    const organizationRoute = routeFor('capability.organization-governance/v2#S-22')
     if (tenantRoute === undefined || organizationRoute === undefined)
       throw new Error('route missing')
     expect(

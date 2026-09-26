@@ -29,9 +29,9 @@
     [PF-012](../../../product/PF-012-agent-loop-and-run/design.md) rev 10、PF-009 rev 7、PF-004 rev 10、
     [PF-016](../../../product/PF-016-cli-tui-delivery-surface/design.md) rev 5、PF-014 rev 5、PF-001 rev 16、PF-002 rev 16。
   - **决定**：[D-019](../../decisions/model-provider-pi-ai-fork/README.md)（pi-ai 定向 fork）、[D-022](../../decisions/cli-tui-delivery-form/README.md)（中心与据点的分界）、
-    [D-035](../../decisions/message-and-stream-baseline/README.md)、[D-038](../../decisions/message-and-shape-rulings/README.md)。
+    [D-035](../../decisions/message-and-stream-baseline/README.md)、[D-058](../../decisions/message-and-shape-rulings/README.md)。
   - **契约**：
-    - 候选：`data.model-profile`、`data.model-response`、`data.call-accounts`、`data.loop-extension`、`data.content-blocks` v1；
+    - 候选：`data.model-profile`、`data.model-response`、`data.call-accounts`、`data.loop-extension`、`data.content-blocks` v2；
     - 已接受：`capability.organization-governance` v1、`composition.governance-center-entry` v1；
     - 起草中（任务区简报，不在本分支上）：S15 runner、S16a／S16b、S17。
   - **读数**（任务区 `tmp/assets-runtimes/readings/`，未入库）：领域读数 B、机制读数 C、对账 D；另有 `product-gaps-from-readings.md` 与 `pending-user-rulings.md`。

@@ -23,7 +23,7 @@
 | `defaultBodyContracts`（M51，唯一组合根） | 六类的键齐全，每个键上的值就是对应正文包导出的那一份（同一引用）；用它构造 asset-model 判定对象不抛出；错类由 asset-model 节点的类型测试覆盖 | 未开始 | 本节点 |
 | `evaluationInputFingerprint`（本节点给的缓存键） | 改输入里任何一项（含 `standing`、`workspace`、会话配值、选用版本、动作集、`root.references`）指纹都变；成员次序不同的同一输入指纹相同 | 未开始 | 本节点 |
 
-**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；AE-5 的装配清单一半改指接口契约 `capability.assembly-manifest/v1`（`root.references` 的读法不在该接口里，仍受阻）。这一面成立的静态前提即 SC-1 那条 import 白名单（候选；`@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包都在白名单之外），**规则尚无**（owner `tools/ts-checks`）。
+**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；AE-5 的装配清单一半改指接口契约 `capability.assembly-manifest/v2`（`root.references` 的读法不在该接口里，仍受阻）。这一面成立的静态前提即 SC-1 那条 import 白名单（候选；`@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包都在白名单之外），**规则尚无**（owner `tools/ts-checks`）。
 
 ## 实际执行
 
@@ -37,7 +37,7 @@
 
 ## 独立评审
 
-2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行）：本节点建议 1、范围外 1，另有 asset-model 那条建议落到本节点，无阻断、无应修；主线据此裁定 [D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M51、M52（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
+2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行）：本节点建议 1、范围外 1，另有 asset-model 那条建议落到本节点，无阻断、无应修；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M51、M52（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
 
 | 编号 | 发现 | 处置 | 落点 |
 | --- | --- | --- | --- |

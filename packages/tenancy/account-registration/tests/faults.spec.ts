@@ -99,11 +99,13 @@ async function sweepEveryPosition(name: string, setup: Setup | undefined, flow: 
     const d = await boot()
     if (setup !== undefined) await setup(d)
     let committedSeen = 0
-    d.storage.afterCommit(
-      () => committedSeen++ === j,
-      () => d.fibers.registration.dispose(),
-    )
-    const stopped = await flow(d).catch((error: unknown) => (error as Error).name)
+    const gate = d.storage.pauseAfterCommit(() => committedSeen++ === j)
+    const running = flow(d).catch((error: unknown) => (error as Error).name)
+    await gate.reached
+    const stopping = d.fibers.registration.dispose()
+    gate.release()
+    const stopped = await running
+    await stopping
     await expectConverges(d, stopped, `${name}: unloaded after write ${j}`)
     cases += 1
   }

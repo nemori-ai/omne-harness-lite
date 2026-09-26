@@ -1,0 +1,10 @@
+{
+  "delivery/.meta_harness/design/record/decisions/governance-participation-provider/acceptance.json": "06a90cbb5319c959d8fed0d0dfbd2e301c1321f071c7ff5b8ce5a6034c21243f",
+  "delivery/.meta_harness/design/registry/catalog.json": "2fc1220261f789528bc29d6018d3564992e36b91d6bbbd416e352286410ed13b",
+  "delivery/.meta_harness/design/registry/frozen.json": "0dd22a83a6b8dc11c5ee045ff439eda393991b1bf3c141ece66fc97fd543e3f2",
+  "delivery/.meta_harness/design/spec/capabilities/organization-governance/v2/contract.md": "07f161ff5d9fd9ab2023e9e66bbe260f1f29f56c1a719f24cd3466e846322628",
+  "main/.meta_harness/design/record/decisions/assets-runtimes-contract-acceptance/acceptance.json": "6b7129258762d384762ebed25f9d5d457b34a447f48afd9435f93bcb490c6578",
+  "main/.meta_harness/design/registry/catalog.json": "e32743433814b6e48cff15752afef29dc8679260fdc8e0b87d16537c258d43c1",
+  "main/.meta_harness/design/registry/frozen.json": "6ae1e99f6798a555ab827b9845110d693d560c808f147e21083832ff5f90d0ad",
+  "main/.meta_harness/design/spec/capabilities/organization-governance/v2/contract.md": "40b2600806055b6695a680dcfc168a36bad411a7bc23f28cc27827d4f6896083"
+}

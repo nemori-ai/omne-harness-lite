@@ -1,0 +1,928 @@
+Scope: 4 of 15 workspace projects
+packages/tenancy/account-identity test$ vitest run
+packages/tenancy/account-identity test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/account-identity test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/account-identity test:  RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-identity
+packages/tenancy/account-identity test:  Test Files  6 passed (6)
+packages/tenancy/account-identity test:       Tests  80 passed | 10 skipped (90)
+packages/tenancy/account-identity test: Type Errors  no errors
+packages/tenancy/account-identity test:    Start at  00:00:41
+packages/tenancy/account-identity test:    Duration  1.43s (transform 391ms, setup 0ms, import 1.13s, tests 705ms, environment 0ms, typecheck 900ms)
+packages/tenancy/account-identity test: Done
+packages/tenancy/organization-governance test$ vitest run
+packages/tenancy/organization-governance test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/organization-governance test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/organization-governance test:  RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/organization-governance
+packages/tenancy/organization-governance test:  Test Files  9 passed (9)
+packages/tenancy/organization-governance test:       Tests  99 passed | 4 skipped (103)
+packages/tenancy/organization-governance test: Type Errors  no errors
+packages/tenancy/organization-governance test:    Start at  00:00:44
+packages/tenancy/organization-governance test:    Duration  1.43s (transform 712ms, setup 0ms, import 2.21s, tests 778ms, environment 0ms, typecheck 902ms)
+packages/tenancy/organization-governance test: Done
+packages/tenancy/account-registration test$ vitest run
+packages/tenancy/account-registration test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/account-registration test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/account-registration test:  RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-registration
+packages/tenancy/account-registration test:  ❯ tests/faults.spec.ts (3 tests | 3 failed) 33ms
+packages/tenancy/account-registration test:      × 注册主链（全新标识）：每条语句失败、每个写事务回滚、每次提交后撤编排者 18ms
+packages/tenancy/account-registration test:      × 注册主链撞上已过期记录（就地清除链 ①② ＋ 重跑 ①②③）：同样三类注入 8ms
+packages/tenancy/account-registration test:      × 清扫发起的清除链：同样三类注入；事后重扫与重新注册都收敛 7ms
+packages/tenancy/account-registration test:  ❯ tests/integration.spec.ts (9 tests | 6 failed | 1 skipped) 56ms
+packages/tenancy/account-registration test:      × 清除链停在两步之间时：AI S-13 按契约答 identifier-held-by-expired-record（不是存储缺陷）；经本组合注册则就地续完清除链、得到新账号；随后那条清扫的 ② 幂等收场 17ms
+packages/tenancy/account-registration test:      × 真实 clock 定时续约写 ＋ AI accounts.read 落盘写 ＋ OG／AR 写，跨过至少一次续约：没有「nested storage call」缺陷，每次调用都落在自己的结果集合里，不变量成立 8ms
+packages/tenancy/account-registration test:      × S-32／S-47 的重启一支：签发 → 整个装配撤掉 → 同一库文件、同一组部署密钥再装 ⇒ 出示物仍换得同一个 LoginStateId；撤销之后再重启仍无效 7ms
+packages/tenancy/account-registration test:      × 存储先关、再撤 clock：clock 记一条 warn、撤除不抛；同一库文件下一次启动 clock 不报回拨 7ms
+packages/tenancy/account-registration test:      × config 校验失败 ⇒ fiber FAILED、不 provide 6ms
+packages/tenancy/account-registration test:      × 必需服务换代 ⇒ 同一条 fiber 卸载重跑、很快回到 ACTIVE；在途调用握着上一代的快照，下一步之前停下 ⇒ interrupted（只看 fiber 状态会放行） 7ms
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts (12 tests | 12 failed) 87ms
+packages/tenancy/account-registration test:      × I-1 并发形／交错 (a)，S-14 先：③ 在自己的事务里读到「未过期」并写下激活、尚未提交；期限过去，清除链发起——它排在 S-14 的写锁后面，S-14 提交后 ① 现读到已激活 ⇒ accountIsActivated（终止）。终态：已激活 ∧ 有个人组织 18ms
+packages/tenancy/account-registration test:      × I-2 并发形／交错 (a)，清除链 ① 先：② 已提交、依据已在手；期限过去，清除链 ① 删组织、尚未提交；③ 排在它后面，提交后现读到已落盘的过期 ⇒ account-record-expired，不激活，本次尝试 interrupted。终态：没有可用账号、没有孤儿 7ms
+packages/tenancy/account-registration test:      × I-4 插入方向／交错 (b)，S-20 读到「未过期」之后、提交之前清除链整条跑完（账号行被删）：S-20 的插入被引用约束拒绝 ⇒ accountDoesNotExist，本次尝试 interrupted。终态：什么都没有，没有孤儿组织 6ms
+packages/tenancy/account-registration test:      × I-3／I-4 删除方向／交错 (b)，S-20 先插：S-20 读到「未过期」之后，清除链 ① 落盘过期、找不到组织 ⇒ ok ＋ 依据；S-20 随后插入成功，③ 读到已过期 ⇒ interrupted；清除链 ② 的删除被引用约束拒绝 ⇒ storage-unavailable（抖动型），下一轮重扫收干净 6ms
+packages/tenancy/account-registration test:      × I-1 activate 在 AI 把 expired_at 落盘（C1）之前到达：S-53 的账号读面读到已激活 ⇒ accountIsActivated，组织不动 6ms
+packages/tenancy/account-registration test:      × I-2 activate 在 C1 之后、OG 删组织的写事务（C2）之前到达：因落盘的 expired_at 被拒；时钟回拨到期限之前再调仍被拒（保护点是列，不是时间谓词）；C2 照常删除 7ms
+packages/tenancy/account-registration test:      × I-3 OG 在事务外读到「未激活、未过期」，随后 AI 另一次读把过期落盘，OG 再插入个人组织 ⇒ 允许（外键目标仍在）；③ 被拒；清除链下一轮把这个组织清掉，没有永久孤儿 8ms
+packages/tenancy/account-registration test:      × I-5／⑥ ① 之后真跑 AI S-38 清掉账号，再用同一 AccountId 调 S-53 ⇒ ok 且仍返回绑定它的依据，不是 accountDoesNotExist；⑦ 账号不在、组织还在 ⇒ accountDoesNotExist，组织原样、不产依据、可观测 5ms
+packages/tenancy/account-registration test:      × 主链 ② 先、清除链 ① 删掉它、主链 ③ 在清除链 ② 之前：③ 读到已过期 ⇒ interrupted；清除链 ② 随后清掉账号 6ms
+packages/tenancy/account-registration test:      × 清除链 ① 先、主链 ② 后（① 已提交之后才读）：② 现读到已落盘的过期 ⇒ accountRecordExpired，不会再建出组织 6ms
+packages/tenancy/account-registration test:      × 清除链 ② 先、主链 ① 后：清除链 ② 删账号、尚未提交时主链 ① 发起；① 排在后面，之后看到标识已释放 ⇒ 一次全新注册 6ms
+packages/tenancy/account-registration test:      × 主链 ③ vs 清除链 ②，任一顺序 ③ 都成不了：清除链整条先跑完 ⇒ ③ account-not-found；清除链 ② 在事务里时 ③ 排队 ⇒ 同样 account-not-found 5ms
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts (15 tests | 15 failed) 100ms
+packages/tenancy/account-registration test:      × 不跑清扫，同一标识再注册：这一次就走到 registered，得到一个全新的 AccountId；旧记录与它的个人组织都没了，没有孤儿 19ms
+packages/tenancy/account-registration test:      × 清除链抖动型失败（S-53 unavailable／S-38 storage-unavailable）⇒ interrupted、不重跑 ①、不记缺陷 7ms
+packages/tenancy/account-registration test:      × 清除链缺陷型：S-38 purge-warrant-invalid（核实公钥不配对）⇒ interrupted，记组合缺陷，不重跑 ① 7ms
+packages/tenancy/account-registration test:      × 清除链缺陷型：S-53 accountDoesNotExist（账号不在、组织还在）⇒ interrupted，记契约违反，组织原样、OG 另有可观测记录 7ms
+packages/tenancy/account-registration test:      × 主链路径上不可达的终止型：伪造「已过期」被翻回（accountNotExpired）或记录被激活（accountIsActivated）⇒ interrupted，记契约违反，不重跑 ①，不报 identifier-taken 7ms
+packages/tenancy/account-registration test:      × 两个发起者下都不可达的 S-38 not-expired：伪造 ①② 之间被激活 ⇒ interrupted，记契约违反（purge-2），不重跑 ① 5ms
+packages/tenancy/account-registration test:      × 重跑 ① 仍撞上已过期记录（窗口里又出现一条同标识的过期记录）⇒ interrupted，不再跑第三次、不清第二条 6ms
+packages/tenancy/account-registration test:      × 走得通且可重扫：两步都 ok ⇒ 账号记录与个人组织都没了、标识释放；再扫一遍（两样都已不在）仍 ok 5ms
+packages/tenancy/account-registration test:      × 次序在运行期挡得住：跳过 ① 直接调 ②（不带依据、带一份别的钥签的依据）⇒ purge-warrant-invalid，什么都没删 6ms
+packages/tenancy/account-registration test:      × 两步之间中断（编排者撤除）：purgeExpired 以 RegistrationStopped 拒绝；停下的状态与「① 之后」逐字相同；装回后重扫走完 6ms
+packages/tenancy/account-registration test:      × 两步之间中断后，发起者带同一标识、同一凭据回来：注册成立（记录已过期，得到的是全新 AccountId） 6ms
+packages/tenancy/account-registration test:      × 三分类原样带出（两套拼法不翻译）：终止型不记缺陷；缺陷型记；抖动型不记且下一轮续做 5ms
+packages/tenancy/account-registration test:      × S-38 的缺陷型与不可达的终止型：purge-warrant-invalid 记组合缺陷；not-expired（伪造）标 terminal、记契约违反 5ms
+packages/tenancy/account-registration test:      × 清扫 ① 先：主链就地发起的 ① 走 ⑦甲（组织已清、账号仍在）仍过现读再 ok ＋ 依据；两边的 ② 幂等收敛，主链重跑 ① 得新账号 4ms
+packages/tenancy/account-registration test:      × 主链 ① 先：清扫在主链两步之间跑完，主链的 ② 幂等 ok、重跑 ① 得新账号 4ms
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts (16 tests | 16 failed) 111ms
+packages/tenancy/account-registration test:      × ② 提交前注入存储故障 ⇒ interrupted、账号停在未激活；同标识同凭据重来 ⇒ 不报 identifier-taken，从 ② 接着走到 registered，恰一个个人组织 21ms
+packages/tenancy/account-registration test:      × 停在 ①、②、③ 任一位置之后重来都能接着完成；③ 那一支证 ② 幂等那一路照样产出激活依据 7ms
+packages/tenancy/account-registration test:      × ③ 提交成立而回执没到（S-6 第四行）：存储已是注册成立；以同一标识重来得 identifier-taken 7ms
+packages/tenancy/account-registration test:      × ① 之后、② 之后（编排者撤除）、③ 提交之前（提交失败）三个位置各中断一次、此后不重试：每一个都落在两种形态之一 7ms
+packages/tenancy/account-registration test:      × 同三个位置以存储故障中断（不撤编排者）：同样只有两种形态 7ms
+packages/tenancy/account-registration test:      × 装配期缺席：撤掉 organization-governance ⇒ 本 fiber PENDING、registration 解析不到；装回后恢复 6ms
+packages/tenancy/account-registration test:      × 运行期不可用：② 返回 unavailable ⇒ 不激活（③ 根本不调用），interrupted，账号停在未激活 5ms
+packages/tenancy/account-registration test:      × 在途时 organization-governance 被撤：① 与 ② 之间撤掉它 ⇒ 本插件随之卸载，在途尝试 interrupted，账号停在未激活、不激活 6ms
+packages/tenancy/account-registration test:      × ① 与 ② 之间卸载 registration ⇒ interrupted；账号停在未激活、没有任何清理；装回后以同一标识重来接着完成 6ms
+packages/tenancy/account-registration test:      × 同一凭据并发：只产生一个账号、一个个人组织；至少一次 registered，另一次是 registered 或（对方 ③ 已先提交时）identifier-taken 6ms
+packages/tenancy/account-registration test:      × 不同凭据并发：先成者 registered，后成者 identifier-taken；账号的凭据是先成者的 5ms
+packages/tenancy/account-registration test:      × 强制交错：A 在 ① 提交之后停住，B 同标识走完；A 放行后收场按 S-12（同凭据 registered，不同凭据 identifier-taken） 7ms
+packages/tenancy/account-registration test:      × ① 的四个失败值：identifier-taken／credential-rejected／invalid-input（另记入口缺陷）／storage-unavailable 5ms
+packages/tenancy/account-registration test:      × ② 的失败值：accountRecordExpired ⇒ interrupted 不记；accountDoesNotExist ⇒ interrupted 并记组合缺陷；unavailable ⇒ interrupted 不记 4ms
+packages/tenancy/account-registration test:      × ③ 的失败值：account-record-expired／storage-unavailable ⇒ interrupted 不记；account-not-found 与 warrant-invalid ⇒ interrupted 并记组合缺陷 5ms
+packages/tenancy/account-registration test:      × warrant-invalid：AI 核实用的公钥与本插件的私钥不配对 ⇒ interrupted，记组合缺陷，账号停在未激活 5ms
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯ Failed Tests 52 ⎯⎯⎯⎯⎯⎯⎯
+packages/tenancy/account-registration test:  FAIL  tests/faults.spec.ts > S-13／S-35 两个不可达状态：每一步之间注入失败 > 注册主链（全新标识）：每条语句失败、每个写事务回滚、每次提交后撤编排者
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/faults.spec.ts:27:13
+packages/tenancy/account-registration test:  ❯ measure tests/faults.spec.ts:52:13
+packages/tenancy/account-registration test:  ❯ sweepEveryPosition tests/faults.spec.ts:79:34
+packages/tenancy/account-registration test:  ❯ tests/faults.spec.ts:115:17
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/faults.spec.ts > S-13／S-35 两个不可达状态：每一步之间注入失败 > 注册主链撞上已过期记录（就地清除链 ①② ＋ 重跑 ①②③）：同样三类注入
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/faults.spec.ts:27:13
+packages/tenancy/account-registration test:  ❯ measure tests/faults.spec.ts:52:13
+packages/tenancy/account-registration test:  ❯ sweepEveryPosition tests/faults.spec.ts:79:34
+packages/tenancy/account-registration test:  ❯ tests/faults.spec.ts:121:17
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/faults.spec.ts > S-13／S-35 两个不可达状态：每一步之间注入失败 > 清扫发起的清除链：同样三类注入；事后重扫与重新注册都收敛
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/faults.spec.ts:27:13
+packages/tenancy/account-registration test:  ❯ measure tests/faults.spec.ts:52:13
+packages/tenancy/account-registration test:  ❯ sweepEveryPosition tests/faults.spec.ts:79:34
+packages/tenancy/account-registration test:  ❯ tests/faults.spec.ts:126:17
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/integration.spec.ts > I-6 清除完成之前同一标识重新注册 > 清除链停在两步之间时：AI S-13 按契约答 identifier-held-by-expired-record（不是存储缺陷）；经本组合注册则就地续完清除链、得到新账号；随后那条清扫的 ② 幂等收场
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/integration.spec.ts:34:13
+packages/tenancy/account-registration test:  ❯ tests/integration.spec.ts:41:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/integration.spec.ts > I-7 单一共享 storage 上三方写并发 > 真实 clock 定时续约写 ＋ AI accounts.read 落盘写 ＋ OG／AR 写，跨过至少一次续约：没有「nested storage call」缺陷，每次调用都落在自己的结果集合里，不变量成立
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/integration.spec.ts:34:13
+packages/tenancy/account-registration test:  ❯ tests/integration.spec.ts:69:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/integration.spec.ts > I-8 同一库文件整装配重启（同进程 dispose 再 boot，不是 OS 进程重启） > S-32／S-47 的重启一支：签发 → 整个装配撤掉 → 同一库文件、同一组部署密钥再装 ⇒ 出示物仍换得同一个 LoginStateId；撤销之后再重启仍无效
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ tests/integration.spec.ts:111:19
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/integration.spec.ts > I-10 storage 先于 clock 撤除 > 存储先关、再撤 clock：clock 记一条 warn、撤除不抛；同一库文件下一次启动 clock 不报回拨
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ tests/integration.spec.ts:148:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/integration.spec.ts > 插件装载面 > config 校验失败 ⇒ fiber FAILED、不 provide
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/integration.spec.ts:34:13
+packages/tenancy/account-registration test:  ❯ tests/integration.spec.ts:202:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/integration.spec.ts > 插件装载面 > 必需服务换代 ⇒ 同一条 fiber 卸载重跑、很快回到 ACTIVE；在途调用握着上一代的快照，下一步之前停下 ⇒ interrupted（只看 fiber 状态会放行）
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/integration.spec.ts:34:13
+packages/tenancy/account-registration test:  ❯ tests/integration.spec.ts:212:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ai#S-43 第 2 支 × ar 同一次演练：激活与清除链 ① 在同一条已过期记录上并发 > I-1 并发形／交错 (a)，S-14 先：③ 在自己的事务里读到「未过期」并写下激活、尚未提交；期限过去，清除链发起——它排在 S-14 的写锁后面，S-14 提交后 ① 现读到已激活 ⇒ accountIsActivated（终止）。终态：已激活 ∧ 有个人组织
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:91:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ai#S-43 第 2 支 × ar 同一次演练：激活与清除链 ① 在同一条已过期记录上并发 > I-2 并发形／交错 (a)，清除链 ① 先：② 已提交、依据已在手；期限过去，清除链 ① 删组织、尚未提交；③ 排在它后面，提交后现读到已落盘的过期 ⇒ account-record-expired，不激活，本次尝试 interrupted。终态：没有可用账号、没有孤儿
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:115:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ai#S-43 第 2 支 × ar 同一次演练：激活与清除链 ① 在同一条已过期记录上并发 > I-4 插入方向／交错 (b)，S-20 读到「未过期」之后、提交之前清除链整条跑完（账号行被删）：S-20 的插入被引用约束拒绝 ⇒ accountDoesNotExist，本次尝试 interrupted。终态：什么都没有，没有孤儿组织
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:138:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ai#S-43 第 2 支 × ar 同一次演练：激活与清除链 ① 在同一条已过期记录上并发 > I-3／I-4 删除方向／交错 (b)，S-20 先插：S-20 读到「未过期」之后，清除链 ① 落盘过期、找不到组织 ⇒ ok ＋ 依据；S-20 随后插入成功，③ 读到已过期 ⇒ interrupted；清除链 ② 的删除被引用约束拒绝 ⇒ storage-unavailable（抖动型），下一轮重扫收干净
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:156:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > 架构评审点名的集成交错（I-1～I-4；与上面 S-43 第 2 支同一批） > I-1 activate 在 AI 把 expired_at 落盘（C1）之前到达：S-53 的账号读面读到已激活 ⇒ accountIsActivated，组织不动
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:186:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > 架构评审点名的集成交错（I-1～I-4；与上面 S-43 第 2 支同一批） > I-2 activate 在 C1 之后、OG 删组织的写事务（C2）之前到达：因落盘的 expired_at 被拒；时钟回拨到期限之前再调仍被拒（保护点是列，不是时间谓词）；C2 照常删除
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:200:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > 架构评审点名的集成交错（I-1～I-4；与上面 S-43 第 2 支同一批） > I-3 OG 在事务外读到「未激活、未过期」，随后 AI 另一次读把过期落盘，OG 再插入个人组织 ⇒ 允许（外键目标仍在）；③ 被拒；清除链下一轮把这个组织清掉，没有永久孤儿
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:232:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > og#S-54 ⑥⑦（真实 AI S-38），挨着跑 > I-5／⑥ ① 之后真跑 AI S-38 清掉账号，再用同一 AccountId 调 S-53 ⇒ ok 且仍返回绑定它的依据，不是 accountDoesNotExist；⑦ 账号不在、组织还在 ⇒ accountDoesNotExist，组织原样、不产依据、可观测
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:253:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ar#S-34 与注册主链并发：交错表其余几格 > 主链 ② 先、清除链 ① 删掉它、主链 ③ 在清除链 ② 之前：③ 读到已过期 ⇒ interrupted；清除链 ② 随后清掉账号
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:310:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ar#S-34 与注册主链并发：交错表其余几格 > 清除链 ① 先、主链 ② 后（① 已提交之后才读）：② 现读到已落盘的过期 ⇒ accountRecordExpired，不会再建出组织
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:330:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ar#S-34 与注册主链并发：交错表其余几格 > 清除链 ② 先、主链 ① 后：清除链 ② 删账号、尚未提交时主链 ① 发起；① 排在后面，之后看到标识已释放 ⇒ 一次全新注册
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:350:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/interleavings.spec.ts > ar#S-34 与注册主链并发：交错表其余几格 > 主链 ③ vs 清除链 ②，任一顺序 ③ 都成不了：清除链整条先跑完 ⇒ ③ account-not-found；清除链 ② 在事务里时 ③ 排队 ⇒ 同样 account-not-found
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/interleavings.spec.ts:40:13
+packages/tenancy/account-registration test:  ❯ tests/interleavings.spec.ts:369:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次 > 不跑清扫，同一标识再注册：这一次就走到 registered，得到一个全新的 AccountId；旧记录与它的个人组织都没了，没有孤儿
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:71:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次 > 清除链抖动型失败（S-53 unavailable／S-38 storage-unavailable）⇒ interrupted、不重跑 ①、不记缺陷
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:89:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次 > 清除链缺陷型：S-38 purge-warrant-invalid（核实公钥不配对）⇒ interrupted，记组合缺陷，不重跑 ①
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:120:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次 > 清除链缺陷型：S-53 accountDoesNotExist（账号不在、组织还在）⇒ interrupted，记契约违反，组织原样、OG 另有可观测记录
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:138:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次 > 主链路径上不可达的终止型：伪造「已过期」被翻回（accountNotExpired）或记录被激活（accountIsActivated）⇒ interrupted，记契约违反，不重跑 ①，不报 identifier-taken
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:161:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次 > 两个发起者下都不可达的 S-38 not-expired：伪造 ①② 之间被激活 ⇒ interrupted，记契约违反（purge-2），不重跑 ①
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:197:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok 才重跑 ① 一次 > 重跑 ① 仍撞上已过期记录（窗口里又出现一条同标识的过期记录）⇒ interrupted，不再跑第三次、不清第二条
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:211:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 清除链（清扫经 purgeExpired 发起） > 走得通且可重扫：两步都 ok ⇒ 账号记录与个人组织都没了、标识释放；再扫一遍（两样都已不在）仍 ok
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:237:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 清除链（清扫经 purgeExpired 发起） > 次序在运行期挡得住：跳过 ① 直接调 ②（不带依据、带一份别的钥签的依据）⇒ purge-warrant-invalid，什么都没删
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:249:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 清除链（清扫经 purgeExpired 发起） > 两步之间中断（编排者撤除）：purgeExpired 以 RegistrationStopped 拒绝；停下的状态与「① 之后」逐字相同；装回后重扫走完
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:265:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 清除链（清扫经 purgeExpired 发起） > 两步之间中断后，发起者带同一标识、同一凭据回来：注册成立（记录已过期，得到的是全新 AccountId）
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:281:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 清除链（清扫经 purgeExpired 发起） > 三分类原样带出（两套拼法不翻译）：终止型不记缺陷；缺陷型记；抖动型不记且下一轮续做
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:292:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 清除链（清扫经 purgeExpired 发起） > S-38 的缺陷型与不可达的终止型：purge-warrant-invalid 记组合缺陷；not-expired（伪造）标 terminal、记契约违反
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:369:24
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 两个发起者在同一条过期记录上并发 > 清扫 ① 先：主链就地发起的 ① 走 ⑦甲（组织已清、账号仍在）仍过现读再 ok ＋ 依据；两边的 ② 幂等收敛，主链重跑 ① 得新账号
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:403:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/purge.spec.ts > S-34 两个发起者在同一条过期记录上并发 > 主链 ① 先：清扫在主链两步之间跑完，主链的 ② 幂等 ok、重跑 ① 得新账号
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/purge.spec.ts:35:13
+packages/tenancy/account-registration test:  ❯ tests/purge.spec.ts:417:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-27 中途失败后用同一标识重来 > ② 提交前注入存储故障 ⇒ interrupted、账号停在未激活；同标识同凭据重来 ⇒ 不报 identifier-taken，从 ② 接着走到 registered，恰一个个人组织
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:66:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-27 中途失败后用同一标识重来 > 停在 ①、②、③ 任一位置之后重来都能接着完成；③ 那一支证 ② 幂等那一路照样产出激活依据
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:79:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-27 中途失败后用同一标识重来 > ③ 提交成立而回执没到（S-6 第四行）：存储已是注册成立；以同一标识重来得 identifier-taken
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:99:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-28 在任意位置中断，没有第三种形态 > ① 之后、② 之后（编排者撤除）、③ 提交之前（提交失败）三个位置各中断一次、此后不重试：每一个都落在两种形态之一
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:108:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-28 在任意位置中断，没有第三种形态 > 同三个位置以存储故障中断（不撤编排者）：同样只有两种形态
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:130:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-29 参与方缺席时不放行 > 装配期缺席：撤掉 organization-governance ⇒ 本 fiber PENDING、registration 解析不到；装回后恢复
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:148:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-29 参与方缺席时不放行 > 运行期不可用：② 返回 unavailable ⇒ 不激活（③ 根本不调用），interrupted，账号停在未激活
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:160:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-29 参与方缺席时不放行 > 在途时 organization-governance 被撤：① 与 ② 之间撤掉它 ⇒ 本插件随之卸载，在途尝试 interrupted，账号停在未激活、不激活
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:173:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-30 编排者被卸载，在途尝试等同崩溃 > ① 与 ② 之间卸载 registration ⇒ interrupted；账号停在未激活、没有任何清理；装回后以同一标识重来接着完成
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:187:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-31 两个同标识并发注册 > 同一凭据并发：只产生一个账号、一个个人组织；至少一次 registered，另一次是 registered 或（对方 ③ 已先提交时）identifier-taken
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:212:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-31 两个同标识并发注册 > 不同凭据并发：先成者 registered，后成者 identifier-taken；账号的凭据是先成者的
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:226:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-31 两个同标识并发注册 > 强制交错：A 在 ① 提交之后停住，B 同标识走完；A 放行后收场按 S-12（同凭据 registered，不同凭据 identifier-taken）
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:244:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-8 参与方失败值 → 终结结果（主链；清除链那一半在 purge.spec） > ① 的四个失败值：identifier-taken／credential-rejected／invalid-input（另记入口缺陷）／storage-unavailable
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:265:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-8 参与方失败值 → 终结结果（主链；清除链那一半在 purge.spec） > ② 的失败值：accountRecordExpired ⇒ interrupted 不记；accountDoesNotExist ⇒ interrupted 并记组合缺陷；unavailable ⇒ interrupted 不记
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:289:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-8 参与方失败值 → 终结结果（主链；清除链那一半在 purge.spec） > ③ 的失败值：account-record-expired／storage-unavailable ⇒ interrupted 不记；account-not-found 与 warrant-invalid ⇒ interrupted 并记组合缺陷
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:316:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/52]⎯
+packages/tenancy/account-registration test:  FAIL  tests/scenarios.spec.ts > S-8 参与方失败值 → 终结结果（主链；清除链那一半在 purge.spec） > warrant-invalid：AI 核实用的公钥与本插件的私钥不配对 ⇒ interrupted，记组合缺陷，账号停在未激活
+packages/tenancy/account-registration test: Error: account-identity: explicit atomic storage is required
+packages/tenancy/account-registration test:  ❯ Object.apply [as callback] ../account-identity/src/plugin.ts:58:13
+packages/tenancy/account-registration test:  ❯ Fiber.execute ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1071:28
+packages/tenancy/account-registration test:  ❯ ../../../node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js:1142:34
+packages/tenancy/account-registration test:  ❯ bootAssembly ../../core/kernel-basis/src/testing/index.ts:46:25
+packages/tenancy/account-registration test:  ❯ bootComposition tests/support.ts:447:16
+packages/tenancy/account-registration test:     445|   let assembly: Assembly
+packages/tenancy/account-registration test:     446|   try {
+packages/tenancy/account-registration test:     447|     assembly = await bootAssembly({
+packages/tenancy/account-registration test:        |                ^
+packages/tenancy/account-registration test:     448|       services,
+packages/tenancy/account-registration test:     449|       plugins: [
+packages/tenancy/account-registration test:  ❯ boot tests/scenarios.spec.ts:32:13
+packages/tenancy/account-registration test:  ❯ tests/scenarios.spec.ts:338:15
+packages/tenancy/account-registration test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/52]⎯
+packages/tenancy/account-registration test:  Test Files  5 failed | 1 passed (6)
+packages/tenancy/account-registration test:       Tests  52 failed | 8 passed | 1 skipped (61)
+packages/tenancy/account-registration test: Type Errors  no errors
+packages/tenancy/account-registration test:    Start at  00:00:46
+packages/tenancy/account-registration test:    Duration  1.27s (transform 520ms, setup 0ms, import 1.35s, tests 388ms, environment 0ms, typecheck 797ms)
+packages/tenancy/account-registration test: Failed
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-registration:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/account-registration@0.0.0 test: `vitest run`
+Exit status 1

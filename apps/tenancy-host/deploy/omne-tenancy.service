@@ -1,0 +1,21 @@
+[Unit]
+Description=OMNE governance center
+After=network.target
+
+[Service]
+Type=simple
+User=omne
+Group=omne
+WorkingDirectory=/var/lib/omne-tenancy
+EnvironmentFile=/etc/omne-tenancy/center.env
+RuntimeDirectory=omne-tenancy
+RuntimeDirectoryMode=0700
+UMask=0077
+ExecStart=/opt/node-v24.21.0/bin/node /opt/omne-tenancy/current/app/dist/cli.js serve
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGTERM
+TimeoutStopSec=infinity
+
+[Install]
+WantedBy=multi-user.target

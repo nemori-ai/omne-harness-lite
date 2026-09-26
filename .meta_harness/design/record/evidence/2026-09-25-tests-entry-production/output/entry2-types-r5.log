@@ -1,0 +1,7 @@
+Scope: 3 of 15 workspace projects
+tools/ts-checks typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/governance-center-entry typecheck$ tsc -p tsconfig.test.json
+tools/ts-checks typecheck: Done
+packages/tenancy/governance-center-entry typecheck: Done
+apps/tenancy-host typecheck$ tsc -p tsconfig.test.json
+apps/tenancy-host typecheck: Done

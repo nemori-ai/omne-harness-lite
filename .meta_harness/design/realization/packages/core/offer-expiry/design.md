@@ -76,3 +76,11 @@
 - **`now` 不后退**由 [infra/clock](../../infra/clock/design.md) 以写在前的租约兑现；「时间源依赖存储」这条边在那个节点的装卸表里成对，装配把 clock 的迁移片段 `clockMigrations` 经 `composeMigrations` 合进 `storage-sql` 的迁移清单（[apps/tenancy-host](../../../apps/tenancy-host/design.md)）。
 - **资产那两类消费者无落点**（[G-2／G-6](../../../../spec/data/offer-expiry/v1/contract.md#八已知缺口)）：本模块的入口对它们同样可用，但没有人调用；不为它们预留任何东西。
 - **上游语义**：本模块自身不依赖 Cordis 行为；默认值那一路引 basis `plugin-throw-fails-fiber`，见上。
+
+## OE2 候选映射
+
+D040已接受OE2；本节点保持纯函数/值模块，不新增插件、存储或事件。SETTLED_STATES扩为accepted/withdrawn/declined，OFFER_STATES扩为五值；deriveState仍终结优先→必要读数不可用→严格now>expiresAt或对象缺席→pending，acceptable仍只认pending。新的Schema校验入口指向OE2资源，旧资产消费者不自动采用。
+
+构造timingFrom保留合法正时长和expiresAt>issuedAt检验，并将安全整数加法越界以可识别的计算不可用结果交给调用者；不能把它等同于非法用户时长。精确TypeScript结果为Parsed<OfferTiming> | 'unavailable'，OG须显式映射不可用。解析已给定时间对仍沿表示/跨字段invalidInput，不引入数据库操作。测试覆盖declined在无时钟/对象情况下仍保持终结、未终结任一必要读数失败、截止等号和加法越界。
+
+此增量待与OG2节点一并评审采用，当前实现尚未升级；纯模块不因此拥有接受/拒绝/撤回授权或事务。

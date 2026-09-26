@@ -1,0 +1,300 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/governance-center-entry
+
+ ❯ tests/bytes.spec.ts (22 tests | 4 failed) 15ms
+     × 恰 8 份；每份转义文本与十六进制逐字节相同，总字节数与 SHA-256 与页面所写一致 3ms
+     × §4：列出登录状态的两项，经路由表的投影与写出后逐字节相同（含 .25Z） 1ms
+     × §5：完整体检按 FullHealthReply 的书写次序写出，代入 examples 的值后逐字节相同 0ms
+     × 四种入口答复里只有它一份；每个可透传的具名失败与各路由成功值都不是它 0ms
+ ❯ tests/decide.spec.ts (212 tests | 42 failed) 149ms
+     × composition.account-registration/v2#S-8：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 39ms
+     × capability.account-identity/v3#S-15：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+     × capability.account-identity/v3#S-16：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+     × capability.account-identity/v3#S-37：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 4ms
+     × capability.organization-governance/v2#S-21：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-22：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-23：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+     × capability.organization-governance/v2#S-24：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-25：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-26：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-27：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-28：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-29：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-30：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-31：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-32：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-33：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-34：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+     × capability.organization-governance/v2#S-35：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+     × capability.organization-governance/v2#S-36：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-37：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 1ms
+     × capability.organization-governance/v2#S-55：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 0ms
+     × capability.organization-governance/v2#S-56：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-57：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 1ms
+     × capability.organization-governance/v2#S-58：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-59：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-60：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.account-identity/v3#S-50：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 2ms
+     × capability.organization-governance/v2#S-61：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 1ms
+     × capability.organization-governance/v2#S-62：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 1ms
+     × composition.governance-center-entry/v2#S-50：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange 3ms
+     × capability.organization-governance/v2#S-55：invitationDoesNotExist ⇒ pass 0ms
+     × capability.organization-governance/v2#S-55：unavailable ⇒ unavailable 0ms
+     × capability.organization-governance/v2#S-55：invalidInput ⇒ invalid-input 0ms
+     × capability.organization-governance/v2#S-58：invalidInput ⇒ defect 2ms
+     × capability.organization-governance/v2#S-59：invalidInput ⇒ defect 1ms
+     × capability.organization-governance/v2#S-60：invalidInput ⇒ defect 0ms
+     × capability.organization-governance/v2#S-55：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 0ms
+     × composition.governance-center-entry/v2#S-50：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷 0ms
+     × 矛盾清单：OG S-27 与 AI S-37 空列表、OG S-36 的 account 分量不等于认人所得、成功返回不合 Result_<路由> ⇒ 缺陷 1ms
+     × S-55：判别式 account 交认人所得 AccountId、tenant 交推导所得 TenantId；缺席或不在集合内 ⇒ invalid-input 0ms
+     × examples §6 #15、#16：offerTtl 9007199254740990.5 不是整数 ⇒ invalid-input；1e3 合形状、交给领域的是 1000 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 46 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/bytes.spec.ts > examples.md 自洽（前提：页面上的两种写法是同一串字节） > 恰 8 份；每份转义文本与十六进制逐字节相同，总字节数与 SHA-256 与页面所写一致
+AssertionError: expected [ { …(5) }, { …(5) }, { …(5) }, …(4) ] to have a length of 8 but got 7
+
+- Expected
++ Received
+
+- 8
++ 7
+
+ ❯ tests/bytes.spec.ts:113:22
+    111| describe('examples.md 自洽（前提：页面上的两种写法是同一串字节）', () => {
+    112|   it('恰 8 份；每份转义文本与十六进制逐字节相同，总字节数与 SHA-256 与页面所写一致', () => {
+    113|     expect(examples).toHaveLength(8)
+       |                      ^
+    114|     for (const item of examples) {
+    115|       expect(item.escaped, item.heading).toEqual(item.hex)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/46]⎯
+
+ FAIL  tests/bytes.spec.ts > T-2：路由结果与完整体检的形状（examples §4、§5） > §4：列出登录状态的两项，经路由表的投影与写出后逐字节相同（含 .25Z）
+TypeError: expected an instant
+ ❯ instant src/routing/routes.ts:140:40
+    138|
+    139| function instant(value: unknown): string {
+    140|   if (typeof value !== 'number') throw new TypeError('expected an inst…
+       |                                        ^
+    141|   return formatInstant(value)
+    142| }
+ ❯ src/routing/routes.ts:329:113
+ ❯ Object.toWire src/routing/routes.ts:327:19
+ ❯ tests/bytes.spec.ts:181:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/46]⎯
+
+ FAIL  tests/bytes.spec.ts > T-2：路由结果与完整体检的形状（examples §4、§5） > §5：完整体检按 FullHealthReply 的书写次序写出，代入 examples 的值后逐字节相同
+Error: examples: no item 7
+ ❯ example tests/bytes.spec.ts:90:34
+     88| function example(index: number): Buffer {
+     89|   const found = examples[index]
+     90|   if (found === undefined) throw new Error(`examples: no item ${index}…
+       |                                  ^
+     91|   return found.hex
+     92| }
+ ❯ tests/bytes.spec.ts:221:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/46]⎯
+
+ FAIL  tests/bytes.spec.ts > V-2：任何别的答复的体都不等于 "version-mismatch" 那 18 个字节 > 四种入口答复里只有它一份；每个可透传的具名失败与各路由成功值都不是它
+AssertionError: expected [ …(31) ] to have a length of 27 but got 31
+
+- Expected
++ Received
+
+- 27
++ 31
+
+ ❯ tests/bytes.spec.ts:242:23
+    240|     }
+    241|     expect(bodyOf(routeSuccessBytes('version-mismatch')).equals(versio…
+    242|     expect(ROUTE_IDS).toHaveLength(27)
+       |                       ^
+    243|   })
+    244| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/46]⎯
+
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > composition.account-registration/v2#S-8：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.account-identity/v3#S-15：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.account-identity/v3#S-16：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.account-identity/v3#S-37：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-21：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-22：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-23：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-24：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-25：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-26：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-27：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-28：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-29：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-30：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-31：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-32：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-33：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-34：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-35：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-36：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-37：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-55：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-56：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-57：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-58：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-59：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-60：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.account-identity/v3#S-50：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-61：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > capability.organization-governance/v2#S-62：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v2#S-55：invitationDoesNotExist ⇒ pass
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v2#S-55：unavailable ⇒ unavailable
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v2#S-55：invalidInput ⇒ invalid-input
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v2#S-55：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > 矛盾清单：OG S-27 与 AI S-37 空列表、OG S-36 的 account 分量不等于认人所得、成功返回不合 Result_<路由> ⇒ 缺陷
+ FAIL  tests/decide.spec.ts > T-6 身份推导与补授权（桩那一半） > S-55：判别式 account 交认人所得 AccountId、tenant 交推导所得 TenantId；缺席或不在集合内 ⇒ invalid-input
+Error: strict mode: required property "expectedTenant" is not defined at "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/allOf/0/then" (strictRequired)
+ ❯ checkStrictMode ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/util.ts:211:27
+ ❯ Object.code ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/vocabularies/validation/required.ts:45:26
+ ❯ keywordCode ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/validate/index.ts:532:8
+ ❯ ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/validate/index.ts:265:8
+ ❯ CodeGen.code ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/codegen/index.ts:545:33
+ ❯ CodeGen.block ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/codegen/index.ts:700:19
+ ❯ iterateKeywords ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/validate/index.ts:262:6
+ ❯ groupKeywords ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/validate/index.ts:241:6
+ ❯ ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/validate/index.ts:233:37
+ ❯ CodeGen.code ../../../node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/lib/compile/codegen/index.ts:545:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/46]⎯
+
+ FAIL  tests/decide.spec.ts > V-9 与 T-10 的成功那一支：27 条路由的成功返回 > composition.governance-center-entry/v2#S-50：按 Result_<路由> 的书写次序写出、连同 operation 过 Exchange
+AssertionError: expected '"invalid-input"' to be '{"result":"inv_1"}' // Object.is equality
+
+Expected: "{"result":"inv_1"}"
+Received: ""invalid-input""
+
+ ❯ tests/decide.spec.ts:250:78
+    248|       expect(bytes).toBeDefined()
+    249|       if (bytes === undefined) return
+    250|       expect(bytes.subarray(bytes.indexOf('\r\n\r\n') + 4).toString('u…
+       |                                                                              ^
+    251|         SUCCESS_BODIES[id],
+    252|       )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/46]⎯
+
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v2#S-58：invalidInput ⇒ defect
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v2#S-59：invalidInput ⇒ defect
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > capability.organization-governance/v2#S-60：invalidInput ⇒ defect
+AssertionError: expected Buffer[ 72, 84, 84, 80, 47, 49, …(85) ] to be Buffer[ 72, 84, 84, 80, 47, 49, …(83) ] // Object.is equality
+
+- Expected
++ Received
+
+@@ -89,11 +89,11 @@
+      116,
+      104,
+      58,
+      32,
+      49,
+-     51,
++     53,
+      13,
+      10,
+      67,
+      111,
+      110,
+@@ -114,20 +114,22 @@
+      13,
+      10,
+      13,
+      10,
+      34,
+-     117,
++     105,
+      110,
+-     97,
+      118,
+      97,
+-     105,
+-     108,
+-     97,
+-     98,
+      108,
+-     101,
++     105,
++     100,
++     45,
++     105,
++     110,
++     112,
++     117,
++     116,
+      34,
+    ],
+    "type": "Buffer",
+  }
+
+ ❯ expectOutcome tests/decide.spec.ts:461:30
+    459|       return
+    460|     case 'defect':
+    461|       expect(decision.bytes).toBe(UNAVAILABLE)
+       |                              ^
+    462|       expect(decision.record.defect).toBe(true)
+    463|   }
+ ❯ tests/decide.spec.ts:474:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/46]⎯
+
+ FAIL  tests/decide.spec.ts > T-10：每条路由的每个可达失败值 ⇒ 契约路由表所写（S-14、S-19～S-23） > composition.governance-center-entry/v2#S-50：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷
+ReferenceError: Cannot access 'stub' before initialization
+ ❯ tests/decide.spec.ts:484:27
+    482|     '%s：失败集合之外的名字、返回了却没有值、抛出 ⇒ 缺陷',
+    483|     async id => {
+    484|       if (id === ENTRY50) stub.on('memberships.standing', async () => …
+       |                           ^
+    485|       const exempt = id === AR8 || id === AI15
+    486|       for (const reply of [failureReply(id, 'somethingElse'), undefine…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/46]⎯
+
+ FAIL  tests/decide.spec.ts > T-15 重复成员落在它那一步（S-4；https-json/1 S-8） > examples §6 #15、#16：offerTtl 9007199254740990.5 不是整数 ⇒ invalid-input；1e3 合形状、交给领域的是 1000
+AssertionError: expected undefined to deeply equal [ …(4) ]
+
+- Expected:
+[
+  {
+    "account": "acc_7f3c91",
+    "organization": "org_kf22",
+  },
+  "acc_91ab40",
+  undefined,
+  1000,
+]
+
++ Received:
+undefined
+
+ ❯ tests/decide.spec.ts:941:61
+    939|     expect((await run(stub, ttl('9007199254740992'))).bytes).toBe(INVA…
+    940|     await run(stub, ttl('1e3'))
+    941|     expect(stub.callsOf('offers.issueInvitation')[0]?.args).toEqual([
+       |                                                             ^
+    942|       TENANT,
+    943|       OTHER_ACCOUNT,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/46]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  46 failed | 188 passed (234)
+Type Errors  no errors
+   Start at  01:11:30
+   Duration  646ms (transform 336ms, setup 0ms, import 713ms, tests 164ms, environment 0ms)
+
+undefined
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/governance-center-entry:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/decide.spec.ts tests/bytes.spec.ts

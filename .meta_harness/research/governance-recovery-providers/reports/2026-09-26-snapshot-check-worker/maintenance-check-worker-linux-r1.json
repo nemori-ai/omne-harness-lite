@@ -1,0 +1,34 @@
+{
+  "platform": "linux",
+  "arch": "arm64",
+  "node": "v24.21.0",
+  "rows": 1000000,
+  "bytes": 869015552,
+  "buildMs": 5382.768669,
+  "observations": [
+    {
+      "sql": "PRAGMA integrity_check",
+      "elapsedMs": 2771.175917999999,
+      "timerDelayMs": 2771.260751,
+      "rows": 1,
+      "valid": true
+    },
+    {
+      "sql": "PRAGMA foreign_key_check",
+      "elapsedMs": 116.94499999999971,
+      "timerDelayMs": 116.99445899999955,
+      "rows": 0,
+      "valid": true
+    },
+    {
+      "workerResult": {
+        "valid": true
+      },
+      "messageAt": 3115.7992090000007,
+      "exitAt": 3116.1850840000006,
+      "ticks": 222,
+      "maxGapMs": 87.17462499999965
+    }
+  ],
+  "scope": "synthetic unencrypted disposable data; build durability OFF only for fixture; query event-loop blocking, not product availability"
+}

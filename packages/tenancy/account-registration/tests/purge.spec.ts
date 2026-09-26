@@ -88,7 +88,7 @@ describe('S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok
   it('清除链抖动型失败（S-53 unavailable／S-38 storage-unavailable）⇒ interrupted、不重跑 ①、不记缺陷', async () => {
     const c = await boot()
     const first = await expiredWithOrganization(c, 'ivan')
-    // 「不重跑 ①」的可观察形式：写事务里读账号的语句只有 ① 那一次（S-53 这时读到的是已落盘的过期，不写），
+    // 「不重跑 ①」的可观察形式：写事务里有①与S-53内部AI3 read两次（已落盘过期仍沿共同边界），
     // S-38 那一支再加 S-38 自己的一次；重跑 ① 会多出一次
     const lockedAccountReads = (from: number) =>
       c.storage.statements.slice(from).filter(stmt.on('select', 'account', { inWrite: true }))
@@ -97,14 +97,14 @@ describe('S-8 撞上已过期记录：本组合就地跑清除链，两步都 ok
     let mark = c.storage.statements.length
     expect(await c.service().register('ivan', PASSWORD)).toBe('interrupted')
     expect(insertsOfAccount(c, mark)).toBe(0)
-    expect(lockedAccountReads(mark)).toBe(1)
+    expect(lockedAccountReads(mark)).toBe(2)
     expect(await personalOrganizationsOf(c, first)).toHaveLength(1) // 什么都没删
 
     c.storage.failStatement(accountDelete)
     mark = c.storage.statements.length
     expect(await c.service().register('ivan', PASSWORD)).toBe('interrupted')
     expect(insertsOfAccount(c, mark)).toBe(0)
-    expect(lockedAccountReads(mark)).toBe(2)
+    expect(lockedAccountReads(mark)).toBe(3)
     // 停在两步之间：账号记录在、未激活、没有个人组织
     const [row] = await accountsOf(c, 'ivan')
     expect(row?.account_id).toBe(first)
@@ -264,8 +264,14 @@ describe('S-34 清除链（清扫经 purgeExpired 发起）', () => {
   it('两步之间中断（编排者撤除）：purgeExpired 以 RegistrationStopped 拒绝；停下的状态与「① 之后」逐字相同；装回后重扫走完', async () => {
     const c = await boot()
     const accountId = await expiredWithOrganization(c, 'rita')
-    c.storage.afterCommit(committed(organizationDelete), () => c.fibers.registration.dispose())
-    await expect(c.service().purgeExpired(accountId)).rejects.toThrow(RegistrationStopped)
+    const gate = c.storage.pauseAfterCommit(committed(organizationDelete))
+    const running = c.service().purgeExpired(accountId)
+    const rejection = expect(running).rejects.toThrow(RegistrationStopped)
+    await gate.reached
+    const stopping = c.fibers.registration.dispose()
+    gate.release()
+    await rejection
+    await stopping
     const [row] = await accountsOf(c, 'rita')
     expect(row).toMatchObject({ account_id: accountId, activated: 0 })
     expect(await personalOrganizationsOf(c, accountId)).toEqual([])
@@ -280,8 +286,14 @@ describe('S-34 清除链（清扫经 purgeExpired 发起）', () => {
   it('两步之间中断后，发起者带同一标识、同一凭据回来：注册成立（记录已过期，得到的是全新 AccountId）', async () => {
     const c = await boot()
     const accountId = await expiredWithOrganization(c, 'sam')
-    c.storage.afterCommit(committed(organizationDelete), () => c.fibers.registration.dispose())
-    await expect(c.service().purgeExpired(accountId)).rejects.toThrow(RegistrationStopped)
+    const gate = c.storage.pauseAfterCommit(committed(organizationDelete))
+    const running = c.service().purgeExpired(accountId)
+    const rejection = expect(running).rejects.toThrow(RegistrationStopped)
+    await gate.reached
+    const stopping = c.fibers.registration.dispose()
+    gate.release()
+    await rejection
+    await stopping
     await c.reload('registration')
     expect(await c.service().register('sam', PASSWORD)).toBe('registered')
     expect(await accountIdOf(c, 'sam')).not.toBe(accountId)

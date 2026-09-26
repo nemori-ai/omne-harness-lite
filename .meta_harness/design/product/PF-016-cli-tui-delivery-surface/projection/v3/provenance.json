@@ -1,0 +1,36 @@
+{
+  "projection_version": 3,
+  "date": "2026-09-25",
+  "scope": "governance-cli-protected-files",
+  "product": {
+    "topic": "PF-016",
+    "rev": 7,
+    "sha256": null,
+    "mutable": true
+  },
+  "frozen_sources": [
+    {
+      "path": ".meta_harness/design/spec/compositions/governance-cli-entry/v1/contract.md",
+      "sha256": "c709ffba5f46d8eb4a1f4b14a13fe60057dc3f0614c54deb70e06b25fa4f8abd"
+    },
+    {
+      "path": ".meta_harness/design/spec/compositions/governance-cli-entry/v1/commands.json",
+      "sha256": "f9375c3fa4e310a6469555b109f9b2caddb3960e7ff8a0be649cabd52d99f434"
+    },
+    {
+      "path": ".meta_harness/design/spec/compositions/governance-client-operations/v2/contract.md",
+      "sha256": "fbc1724607678d344b7b7516a7c5c071353a1b3fb886f225128663d89ccc9250"
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/client-local-state/v1/contract.md",
+      "sha256": "7c5c3734267709758ba10643c84a829c1850012db87a81766ff5c525b28a84e6"
+    }
+  ],
+  "mutable_sources": [
+    {
+      "path": ".meta_harness/design/realization/apps/cli/governance.md",
+      "sha256": null
+    }
+  ],
+  "evidence_run": "2026-09-25-tests-cli-file-entry"
+}

@@ -1,0 +1,11 @@
+diff --git a/dist/undo-stack.js b/dist/undo-stack.js
+--- a/dist/undo-stack.js
++++ b/dist/undo-stack.js
+@@ -9,6 +9,7 @@ export class UndoStack {
+     /** Push a deep clone of the given state onto the stack. */
+     push(state) {
+         this.stack.push(structuredClone(state));
++        if (this.stack.length > 256) this.stack.shift();
+     }
+     /** Pop and return the most recent snapshot, or undefined if empty. */
+     pop() {

@@ -1,0 +1,7 @@
+
+> @omne-harness-lite/storage-sql@0.0.0 test /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/infra/storage-sql
+> vitest run --reporter=json --outputFile=../../../tmp/production-cli-onboarding/atomic-implementation/storage.json
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+JSON report written to /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/atomic-implementation/storage.json

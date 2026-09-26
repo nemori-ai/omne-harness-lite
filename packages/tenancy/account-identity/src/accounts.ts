@@ -20,12 +20,12 @@ import {
   ReferenceViolation,
   UniqueViolation,
   type WriteTx,
+  type StorageUnit,
   narrow,
 } from '@omne-harness-lite/storage'
 import { type ServiceDeps, storageUnavailable } from './deps.ts'
 import { defect, describeError } from './diagnostics.ts'
 import {
-  type Occupancy,
   classifyAccount,
   landExpiry,
   sameOccupancy,
@@ -41,6 +41,7 @@ import {
   FLAG_FALSE,
   FLAG_TRUE,
   storedFlag,
+  storedAccountId,
   storedLoginIdentifier,
 } from './schema.ts'
 import type {
@@ -158,6 +159,7 @@ export class AccountsImpl implements AccountsService {
           account_id: accountId,
           login_identifier: identifier,
           credential_material: material,
+          credential_revision: 0,
           activated: FLAG_FALSE,
           produced_at: producedAt,
           retention_deadline: addDuration(producedAt, this.deps.unactivatedRetention),
@@ -238,29 +240,43 @@ export class AccountsImpl implements AccountsService {
   // ---- S-18 ----
 
   async read(rawAccountId: unknown): Promise<Outcome<AccountReading, ReadFailure>> {
-    const parsed = parseAccountId(rawAccountId)
-    if (!isOk(parsed)) return INVALID_INPUT
-    const accountId = parsed.ok
-    const { storage, clock } = this.deps
     try {
-      const snapshot = await storage.read(tx => selectAccountById(tx, accountId))
-      if (snapshot === undefined) return fail('account-not-found')
-      const first = classifyAccount(snapshot, clock)
-      if (first === 'clock-unavailable') return STORAGE_UNAVAILABLE
-      if (first.kind === 'none') return fail('account-not-found')
-      if (first.kind !== 'expired' || first.landed) return succeed(readingOf(first))
-      // 首次观测到期：在同一提交内先落盘再答；写不进去 ⇒ storage-unavailable，不返回一个没落盘的「是」
-      return await storage.write(async tx => {
-        await tx.lockRow(ACCOUNT_TABLE, { account_id: accountId })
-        const row = await selectAccountById(tx, accountId)
-        if (row === undefined) return fail('account-not-found')
-        if (storedFlag(row.activated)) return succeed(ACTIVATED_READING)
-        const expiry = await settleExpiry(tx, row, clock)
-        if (expiry === 'clock-unavailable') return STORAGE_UNAVAILABLE
-        return succeed(expiry === 'expired' ? EXPIRED_READING : UNEXPIRED_READING)
-      })
+      return await this.deps.storage.atomic(unit => this.participate(unit).read(rawAccountId))
     } catch (error) {
       return storageUnavailable(this.deps.diagnostics, 'read', error)
+    }
+  }
+
+  participate(unit: StorageUnit): import('./surface.ts').AccountParticipation {
+    const invoke = <T>(fn: () => Promise<T>): Promise<T> => {
+      unit.assertStorage(this.deps.storage)
+      return unit.run(fn)
+    }
+    return {
+      read: raw =>
+        invoke(async () => {
+          const parsed = parseAccountId(raw)
+          if (!isOk(parsed)) return INVALID_INPUT
+          return unit.mutate(async tx => {
+            const row = await selectAccountById(tx, parsed.ok)
+            if (row === undefined) return fail('account-not-found')
+            if (storedFlag(row.activated)) return succeed(ACTIVATED_READING)
+            const expiry = await settleExpiry(tx, row, this.deps.clock)
+            if (expiry === 'clock-unavailable') return STORAGE_UNAVAILABLE
+            return succeed(expiry === 'expired' ? EXPIRED_READING : UNEXPIRED_READING)
+          })
+        }),
+      resolveActivatedIdentifier: raw =>
+        invoke(async () => {
+          const parsed = parseLoginIdentifier(raw)
+          if (!isOk(parsed)) return INVALID_INPUT
+          return unit.query(async tx => {
+            const row = await selectAccountByIdentifier(tx, parsed.ok)
+            return row !== undefined && storedFlag(row.activated)
+              ? succeed(storedAccountId(row.account_id))
+              : fail('account-not-found')
+          })
+        }),
     }
   }
 
@@ -320,17 +336,6 @@ export class AccountsImpl implements AccountsService {
 const ACTIVATED_READING: AccountReading = { activated: true, retentionExpired: false }
 const EXPIRED_READING: AccountReading = { activated: false, retentionExpired: true }
 const UNEXPIRED_READING: AccountReading = { activated: false, retentionExpired: false }
-
-function readingOf(occupancy: Exclude<Occupancy, { kind: 'none' }>): AccountReading {
-  switch (occupancy.kind) {
-    case 'activated':
-      return ACTIVATED_READING
-    case 'expired':
-      return EXPIRED_READING
-    case 'live':
-      return UNEXPIRED_READING
-  }
-}
 
 function newAccountId(): AccountId {
   const parsed = parseAccountId(generateOpaqueIdentifier())

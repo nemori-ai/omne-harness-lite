@@ -1,0 +1,23 @@
+import { execFileSync } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
+import assert from 'node:assert/strict'
+const attrs=()=>execFileSync('/bin/stty',['-g'],{stdio:[0,'pipe','pipe'],encoding:'utf8'}).trim()
+const before=attrs(), originalRaw=process.stdin.isRaw??false
+let pending='',waiting,changed=false,original, observations=[]
+function data(bytes){pending+=bytes.toString('latin1');const m=/\x1b\[\?2004;([0-4])\$y/.exec(pending);if(m&&waiting){const yes=waiting;waiting=undefined;pending='';yes(Number(m[1]))}}
+async function query(){return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{waiting=undefined;reject(new Error('mode-query-timeout'))},2000);waiting=value=>{clearTimeout(timer);resolve(value)};process.stdout.write('\x1b[?2004$p')})}
+let result
+try{
+ process.stdin.setRawMode(true);process.stdin.on('data',data);process.stdin.resume()
+ original=await query();observations.push(original);assert.ok(original===1||original===2)
+ if(original===2){process.stdout.write('\x1b[?2004h');changed=true}
+ observations.push(await query());assert.equal(observations.at(-1),1)
+ result={status:'PASS',platform:process.platform,node:process.version,observations,scope:'actual emulator query/set/restore and PTY termios only; no paste source or TUI adoption'}
+}catch(error){result={status:'FAIL',message:error.message,observations}}
+finally{
+ if(changed){process.stdout.write('\x1b[?2004l');try{assert.equal(await query(),original)}catch(error){result={status:'FAIL',message:error.message,observations}}}
+ process.stdin.pause();process.stdin.off('data',data);process.stdin.setRawMode(originalRaw)
+ result.termiosRestored=attrs()===before
+ writeFileSync(process.argv[2],JSON.stringify(result)+'\n')
+ process.stdout.write('\r\nTerminal probe complete.\r\n')
+}

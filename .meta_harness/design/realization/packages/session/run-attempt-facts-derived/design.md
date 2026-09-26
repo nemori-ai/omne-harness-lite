@@ -1,14 +1,14 @@
 # run-attempt-facts-derived 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
-**自建一个薄插件：读会话日志、折叠、作答，没有自己的存储。**两件事实的权威是会话日志（契约 [S-5](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-5-两件事实) 第 4 条；PF-012「用它不引入日志之外的第二份状态」），主线已裁本版**不另存表**（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ④）——那一裁定不是本节点的选择，本节点只写它怎样兑现。
+**自建一个薄插件：读会话日志、折叠、作答，没有自己的存储。**两件事实的权威是会话日志（契约 [S-5](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-5-两件事实) 第 4 条；PF-012「用它不引入日志之外的第二份状态」），主线已裁本版**不另存表**（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ④）——那一裁定不是本节点的选择，本节点只写它怎样兑现。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
-| 服务 `sessionLog` 的 `readSince`（`capability.session-log/v1#S-19`） | 验收装配里是 [`session-log-jsonl`](../session-log-jsonl/README.md) | 按水位追读条目壳 |
+| 服务 `sessionLog` 的 `readSince`（`capability.session-log/v2#S-19`） | 验收装配里是 [`session-log-jsonl`](../session-log-jsonl/README.md) | 按水位追读条目壳 |
 | `SessionRef`、`RunId`、`AttemptId` | [`core/messages`](../../core/messages/README.md)、[`core/call-accounts`](../../core/call-accounts/README.md) | 输入的表示层校验 |
 | `definePlugin` | [`core/kernel-basis`](../../core/kernel-basis/README.md) | 插件骨架与配置校验 |
 
@@ -23,7 +23,7 @@
 |---|---|---|---|
 | 纯函数 | `emptyAttemptState`、`foldAttemptEntries(state, entries, recognizer?)` | 从条目壳折叠：每个运行已见的最大尝试序号、出现过的 (运行, 尝试)、（给了认法时）已终结的运行 | 折叠**幂等、与次序无关**（取最大、并集）：同一段条目折两遍、两段重叠地折，结果都等于折一遍它们的并 |
 | 纯函数 | `answerAttemptFacts(state, run, attempt, recognizerGiven)` | 契约 S-5、S-8：`attemptNotFound`／`unavailable`／`{ superseded, runEnded }` | 只对**给定的那一份**状态作答；那一份是不是「调用开始之后的某一刻的日志」，函数层不承诺 |
-| 闭包 | `createRunAttemptFacts({ sessionLog, runEndRecognizer?, cacheLimit })` → `{ attemptFacts }` | 契约 [S-9](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-9-attemptfacts读一次尝试的两件事实)：追读、折叠、作答 | S-5～S-9；前提是交给它的 `sessionLog` 兑现 `capability.session-log` v1 的读（[下文要求](#对会话日志提供者的要求)） |
+| 闭包 | `createRunAttemptFacts({ sessionLog, runEndRecognizer?, cacheLimit })` → `{ attemptFacts }` | 契约 [S-9](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-9-attemptfacts读一次尝试的两件事实)：追读、折叠、作答 | S-5～S-9；前提是交给它的 `sessionLog` 兑现 `capability.session-log` v2 的读（[下文要求](#对会话日志提供者的要求)） |
 | Cordis 服务 | 插件 `run-attempt-facts-derived`，服务 `runAttemptFacts` | 以注入的 `sessionLog` 组出闭包 | 再加：据点根一份；`sessionLog` 换代时重跑、缓存随之丢弃 |
 
 **只在运行时层成立、函数层不承诺**：读看得见调用开始之前已提交的日志（S-7 第 2 条，要一次真的 `readSince`）；答案等于从日志算出的答案（S-5 第 4 条，要缓存只属于一份日志）。
@@ -42,7 +42,7 @@
 **`attemptFacts(session, run, attempt)` 的一次**：表示层校验 → 取这个会话的缓存（没有就从水位 `0` 起）→ `sessionLog.readSince(session, 水位)` → 读回的 `tail` 小于水位 ⇒ 这份缓存不属于这本日志：丢掉、从 `0` 再读一次、记 error 日志 → 折叠新条目、水位取 `max(水位, tail)` → 同步作答：
 
 1. 这个 (运行, 尝试) 没出现过 ⇒ `attemptNotFound`；
-2. 没给认法 ⇒ `unavailable`（认不出终结记录，契约 [G-3](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#十已知缺口)）；
+2. 没给认法 ⇒ `unavailable`（认不出终结记录，契约 [G-3](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#十已知缺口)）；
 3. 否则 `superseded` = 该运行已见的最大序号 > `attempt`，`runEnded` = 该运行在已终结集合里。
 
 ### 关键选择
@@ -53,10 +53,10 @@
 |---|---|---|
 | 落选方的最强论证 | 没有任何缓存可错；最小 | —— |
 | 本方弱点 | —— | 多一份进程内状态与它的上界（`factsCacheLimit`）；水位要只属于一份日志（第四条） |
-| 为什么选它 | 执行宿主**每一条收场路径**都在落账前调一次（执行宿主节点 T-4）：一个会话里调用 n 次、每次读全本，读量随会话寿命平方增长，而会话日志的每一行都带着载荷——「超长期待机」直接撞上它 | **缓存是精确的，不是近似**：两件事实只从假变真（契约 [S-6](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-6-只从假变真)），折叠取最大与并集、幂等且与次序无关，所以「折过的前缀 ∪ 追读的一段」恰等于从头折到新 `tail`；每次调用仍真读一次日志，S-7 第 2 条不打折扣 |
+| 为什么选它 | 执行宿主**每一条收场路径**都在落账前调一次（执行宿主节点 T-4）：一个会话里调用 n 次、每次读全本，读量随会话寿命平方增长，而会话日志的每一行都带着载荷——「超长期待机」直接撞上它 | **缓存是精确的，不是近似**：两件事实只从假变真（契约 [S-6](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-6-只从假变真)），折叠取最大与并集、幂等且与次序无关，所以「折过的前缀 ∪ 追读的一段」恰等于从头折到新 `tail`；每次调用仍真读一次日志，S-7 第 2 条不打折扣 |
 | 置信度 | | 中高：代价论证是结构性的（平方），不是测出来的 |
 
-**同一会话的两次并发调用不需要排队**：各读各的一段、各自折进同一份状态——折叠幂等，重叠折两遍不改结果；水位取最大，不会倒退。作答在折叠之后同步完成，状态那一刻等于「日志到某个 `tail` 为止的全部」，这个 `tail` 不早于本次调用自己读到的那个——**两件事实出自同一刻、那一刻不早于调用开始**（契约 [S-7](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-7-读的是哪一刻) 第 1、2 条）。
+**同一会话的两次并发调用不需要排队**：各读各的一段、各自折进同一份状态——折叠幂等，重叠折两遍不改结果；水位取最大，不会倒退。作答在折叠之后同步完成，状态那一刻等于「日志到某个 `tail` 为止的全部」，这个 `tail` 不早于本次调用自己读到的那个——**两件事实出自同一刻、那一刻不早于调用开始**（契约 [S-7](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-7-读的是哪一刻) 第 1、2 条）。
 
 **二、「已终结」的认法作为配置交进来，只有验收装配给（选）。**契约 G-3：终结记录的形状归 loop 那一程；契约第十一节：验收装配里「由代 loop 写终结的那一方同时给出它」。
 
@@ -80,14 +80,14 @@
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-5-两件事实) 两件事实 | 折叠：最大尝试序号 → `superseded`；(运行, 尝试) 集合 → 在不在日志里；认法命中 → 已终结 | 尚未建包 | 第 1 条与会话日志栅栏同一条件：都是「同一运行有更大序号的已提交条目」——本节点读的就是栅栏判的那些行；第 4 条靠缓存只属于一代日志（关键选择三） |
-| [S-6](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-6-只从假变真) 只从假变真 | 折叠只取最大与并集，从不删 | 尚未建包 | 前提：会话日志只增不改（`capability.session-log/v1#S-11`） |
-| [S-7](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-7-读的是哪一刻) 读的是哪一刻 | 每次调用真读一次 `readSince`；作答在折叠后同步完成 | 尚未建包 | 见关键选择一末段 |
-| [S-8](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-8-缺席时的默认答案与失败值) 缺席默认 | `attemptNotFound` 先于「认不出终结」判；两件事实一起答或一起不答 | 尚未建包 | 没给认法时**不**只答 `superseded`：整次 `unavailable` |
-| [S-9](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-9-attemptfacts读一次尝试的两件事实) `attemptFacts` | 上文「一次」的五步 | 尚未建包 | 次序 `invalidInput` → `attemptNotFound`；读不到或认不出 ⇒ `unavailable` |
-| [S-10](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-10-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
-| [S-11](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-11-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
-| [S-12](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-12-提供者撤除换代与重启) 撤除、换代、重启 | 没有自己的事实；缓存随实例消失 | —— | 重启后第一次调用从 `0` 重折 |
+| [S-5](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-5-两件事实) 两件事实 | 折叠：最大尝试序号 → `superseded`；(运行, 尝试) 集合 → 在不在日志里；认法命中 → 已终结 | 尚未建包 | 第 1 条与会话日志栅栏同一条件：都是「同一运行有更大序号的已提交条目」——本节点读的就是栅栏判的那些行；第 4 条靠缓存只属于一代日志（关键选择三） |
+| [S-6](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-6-只从假变真) 只从假变真 | 折叠只取最大与并集，从不删 | 尚未建包 | 前提：会话日志只增不改（`capability.session-log/v2#S-11`） |
+| [S-7](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-7-读的是哪一刻) 读的是哪一刻 | 每次调用真读一次 `readSince`；作答在折叠后同步完成 | 尚未建包 | 见关键选择一末段 |
+| [S-8](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-8-缺席时的默认答案与失败值) 缺席默认 | `attemptNotFound` 先于「认不出终结」判；两件事实一起答或一起不答 | 尚未建包 | 没给认法时**不**只答 `superseded`：整次 `unavailable` |
+| [S-9](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-9-attemptfacts读一次尝试的两件事实) `attemptFacts` | 上文「一次」的五步 | 尚未建包 | 次序 `invalidInput` → `attemptNotFound`；读不到或认不出 ⇒ `unavailable` |
+| [S-10](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-10-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
+| [S-11](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-11-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
+| [S-12](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-12-提供者撤除换代与重启) 撤除、换代、重启 | 没有自己的事实；缓存随实例消失 | —— | 重启后第一次调用从 `0` 重折 |
 
 **与调用方的写之间的共同存储对象：没有**（契约 G-2）。执行宿主在写事务之前现读两件事实、再在自己的事务里落账（存储协议 P-13 禁止在写事务里调别的服务），读到「仍是当前」之后、它提交之前，一条更大序号的尝试开始可以落进日志——两个写入者（loop 写日志、执行宿主写执行记录）在本节点这里**没有共同的行或约束**，本节点也造不出一个：日志与执行记录分属 JSONL 与 SQL（据点装配关键选择 3）。这一窗口**只会漏标 `late`、不会误标**（S-6 第 4 条），闭合条件在契约 G-2 与执行宿主 T-4——本节点如实登为 AFD-2，**不以时间谓词或进程内锁顶替**。
 
@@ -95,7 +95,7 @@
 
 | 消费的精确契约或服务 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| `capability.session-log/v1` [S-19](../../../../spec/capabilities/session-log/v1/contract.md#s-19-readsince从某个位置往后读) `readSince`（服务键 `sessionLog`） | **必需 inject**；验收装配里是 `session-log-jsonl` | 提供者换代 ⇒ 重跑、缓存丢弃（关键选择三） | 缺席 ⇒ `PENDING`，服务不出现；执行宿主按「读面缺席」收成 `dependencyUnavailable{runAttemptFacts}`（契约 S-12） |
+| `capability.session-log/v2` [S-19](../../../../spec/capabilities/session-log/v2/contract.md#s-19-readsince从某个位置往后读) `readSince`（服务键 `sessionLog`） | **必需 inject**；验收装配里是 `session-log-jsonl` | 提供者换代 ⇒ 重跑、缓存丢弃（关键选择三） | 缺席 ⇒ `PENDING`，服务不出现；执行宿主按「读面缺席」收成 `dependencyUnavailable{runAttemptFacts}`（契约 S-12） |
 | 认法 `runEndRecognizer` | 配置；**只有验收装配给** | 启动时定下 | 缺席 ⇒ 读得到这次尝试的调用一律 `unavailable`；认法抛出 ⇒ 缺陷，原样上抛 |
 
 **消费者**：执行宿主（每条收场路径在写事务之前调一次，调用时现取，不 inject——本插件换代不连带它重跑）。
@@ -106,7 +106,7 @@
 
 | # | 要求 | 对应条款（本契约） | 会话日志契约兑现条款 |
 |---|---|---|---|
-| FR-1 | `readSince` 交回位置大于水位、不大于读那一刻尾的**全部**条目，按位置升序、不跳号 | S-5（从日志算） | `capability.session-log/v1#S-19` ⑤ |
+| FR-1 | `readSince` 交回位置大于水位、不大于读那一刻尾的**全部**条目，按位置升序、不跳号 | S-5（从日志算） | `capability.session-log/v2#S-19` ⑤ |
 | FR-2 | 读那一刻的尾不早于调用开始之前已成功返回的任何一次追加 | S-7 第 2 条 | `#S-13` 第 4 条 |
 | FR-3 | 条目壳原样带写入方给的 `run` 与 `attempt` | S-5 第 1、3 条 | `#S-6` |
 | FR-4 | 读不到即 `unavailable`，不交空序列、不交半段 | S-8 | `#S-19` ⑧ |
@@ -164,7 +164,7 @@
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
 | AFD-1 | **产品装配里「已终结」认不出**（契约 G-3）：凡读得到这次尝试的调用一律 `unavailable` | 执行宿主落账的 `late`：它凡要落账的收场都写不下去（执行宿主 T-4、契约 G-18；执行宿主契约 R-42 已报主线） | loop 那一程（终结记录的形状） | 终结记录有形状或约定的读取键；本节点内建认法、删去配置项（出新修订） |
-| AFD-2 | **与执行宿主落账没有共同存储对象**（契约 G-2）：漏标 `late` 的窗口本节点闭合不了 | `data.call-accounts/v1#S-39` 的「落下时」 | 主线 ＋ 会话日志与 loop 那一程（与执行宿主契约 G-18 同一闭合条件） | 落账与两件事实的写入有一个共同存储对象；本节点随新版契约改或被取代 |
+| AFD-2 | **与执行宿主落账没有共同存储对象**（契约 G-2）：漏标 `late` 的窗口本节点闭合不了 | `data.call-accounts/v2#S-39` 的「落下时」 | 主线 ＋ 会话日志与 loop 那一程（与执行宿主契约 G-18 同一闭合条件） | 落账与两件事实的写入有一个共同存储对象；本节点随新版契约改或被取代 |
 | AFD-3 | **真承接者未到**（契约 G-1，据点装配 C-16） | 同上 | 主线 → 会话日志与 loop 那一程 | 那一程的契约收下或取代 RAF v1 |
 | AFD-4 | **验收里的认法是测试自定的形状**：它只证「给了正确认法时本节点答得对」，不证产品里的终结记录认得出 | 契约场景 S-15 在验收里的证据力 | 本节点 ＋ loop 那一程 | 随 AFD-1 闭合 |
 | AFD-5 | **只要壳却读回载荷**：会话日志 v1 没有只读条目壳的读，追读时载荷一起读回 | 大载荷会话的追读代价（缓存已把它降为每条只读一次） | 会话日志与 loop 那一程（SL G-1） | 那一程给只读壳的读，或本节点改用约定的读取键 |

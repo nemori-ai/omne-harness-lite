@@ -10,6 +10,23 @@ const OPS_PACKAGES = new Set([
   '@omne-harness-lite/offer-expiry',
   ...THIRD_PARTY,
 ])
+const MAINTENANCE = `${ENTRY_SRC}maintenance/`
+const JSON_MODULE = `${ENTRY_SRC}json`
+const MAINTENANCE_LEAVES = new Set([
+  JSON_MODULE,
+  `${ENTRY_SRC}routing/schema`,
+  `${ENTRY_SRC}center-id/snapshot`,
+])
+const READONLY_LEAVES = new Set([
+  ...MAINTENANCE_LEAVES,
+  `${ENTRY_SRC}center-id/table`,
+  `${ENTRY_SRC}center-id/snapshot-structure`,
+])
+const MAINTENANCE_PACKAGES = new Set([
+  '@omne-harness-lite/storage',
+  '@omne-harness-lite/offer-expiry',
+  '@omne-harness-lite/identity-values',
+])
 const EVENTS_MODULE = withoutExtension(ENTRY_EVENTS)
 
 /**
@@ -24,9 +41,9 @@ const EVENTS_MODULE = withoutExtension(ENTRY_EVENTS)
 export const opsImportWhitelist: Rule = {
   id: 'ops-import-whitelist',
   source:
-    'composition.governance-center-entry v1 SC-2 · governance-center-entry 节点约束第 5 条与 verification「包布局常量」',
+    'composition.governance-center-entry v3 SC-2 / D055-D056 · governance-center-entry 节点约束第 5 条与 verification「包布局常量」',
   description:
-    '入口层包 src/ops/** 只许导入 kernel-basis、storage、offer-expiry、@deepseek-ai/cordis、zod、node:*、src/events.ts 与 ops 目录内文件；src/events.ts 只许 node:*、cordis、zod',
+    '运维面仅消费已采用的ops/maintenance/严格JSON路径；维护及其只读叶子逐项受白名单约束，不得传递导入治理服务或写入口',
   check(files) {
     const out: Violation[] = []
     const entryFiles = files.filter(f => productSourceIn(f.path, ENTRY_SRC))
@@ -42,11 +59,17 @@ export const opsImportWhitelist: Rule = {
     for (const file of entryFiles) {
       const inOps = file.path.startsWith(ENTRY_OPS)
       const isEvents = file.path === ENTRY_EVENTS
-      if (!inOps && !isEvents) continue
+      const inMaintenance = file.path.startsWith(MAINTENANCE)
+      const inReadonlyLeaf = READONLY_LEAVES.has(withoutExtension(file.path))
+      if (!inOps && !isEvents && !inMaintenance && !inReadonlyLeaf) continue
       for (const ref of importsOf(file)) {
         const verdict = inOps
           ? judgeOpsImport(file.path, ref.specifier)
-          : judgeEventsImport(ref.specifier)
+          : inMaintenance
+            ? judgeMaintenanceImport(file.path, ref.specifier)
+            : inReadonlyLeaf
+              ? judgeReadonlyLeaf(file.path, ref.specifier)
+              : judgeEventsImport(ref.specifier)
         if (verdict !== undefined) {
           out.push({
             rule: this.id,
@@ -67,9 +90,14 @@ function judgeOpsImport(path: string, specifier: string | undefined): string | u
   if (OPS_PACKAGES.has(specifier)) return undefined
   const resolved = resolveRelative(path, specifier)
   if (resolved !== undefined) {
-    if (withoutExtension(resolved) === EVENTS_MODULE || resolved.startsWith(ENTRY_OPS))
+    if (
+      withoutExtension(resolved) === EVENTS_MODULE ||
+      withoutExtension(resolved) === JSON_MODULE ||
+      resolved.startsWith(ENTRY_OPS) ||
+      resolved.startsWith(MAINTENANCE)
+    )
       return undefined
-    return `运维面导入了 ${specifier}（${resolved}）；本包内只许导入事件声明模块与运维面目录自己的文件`
+    return `运维面导入了 ${specifier}（${resolved}）；本包内只许事件、严格JSON、维护与运维目录`
   }
   return `运维面导入了 ${specifier}；白名单只有 kernel-basis、storage、offer-expiry、@deepseek-ai/cordis、zod、node:* 与本包事件声明模块`
 }
@@ -84,4 +112,51 @@ function judgeEventsImport(specifier: string | undefined): string | undefined {
     return `事件声明模块导入了本包模块 ${specifier}；它在运维面白名单里，相对导入会让运维面的传递导入图越界`
   }
   return `事件声明模块导入了 ${specifier}；它只许导入 node:*、@deepseek-ai/cordis 与 zod`
+}
+
+function judgeMaintenanceImport(path: string, specifier: string | undefined): string | undefined {
+  if (specifier === undefined) return '维护模块的动态导入说明符不是字面量'
+  if (specifier.startsWith('node:') || MAINTENANCE_PACKAGES.has(specifier)) return undefined
+  const resolved = resolveRelative(path, specifier)
+  if (
+    resolved !== undefined &&
+    (resolved.startsWith(MAINTENANCE) || MAINTENANCE_LEAVES.has(withoutExtension(resolved)))
+  )
+    return undefined
+  return `维护模块导入了 ${specifier}；仅允许本维护目录、存储/时间/身份值协议、严格JSON、Schema校验及中心身份只读检查`
+}
+
+function judgeReadonlyLeaf(path: string, specifier: string | undefined): string | undefined {
+  if (specifier === undefined) return '运维只读叶子的动态导入说明符不是字面量'
+  const module = withoutExtension(path)
+  const resolved = resolveRelative(path, specifier)
+  if (module === `${ENTRY_SRC}routing/schema`) {
+    if (
+      [
+        'node:module',
+        'ajv/dist/2020.js',
+        '@omne-harness-lite/identity-values/schema',
+        '@omne-harness-lite/offer-expiry/schema',
+      ].includes(specifier)
+    )
+      return undefined
+    if (resolved === 'tenancy/governance-center-entry/schema/governance-center-entry.schema.json')
+      return undefined
+  }
+  if (module === `${ENTRY_SRC}center-id/snapshot`) {
+    if (specifier === '@omne-harness-lite/storage') return undefined
+    if (
+      resolved !== undefined &&
+      [`${ENTRY_SRC}center-id/table`, `${ENTRY_SRC}center-id/snapshot-structure`].includes(
+        withoutExtension(resolved),
+      )
+    )
+      return undefined
+  }
+  if (
+    module === `${ENTRY_SRC}center-id/snapshot-structure` &&
+    specifier === '@omne-harness-lite/storage'
+  )
+    return undefined
+  return `运维只读叶子导入了 ${specifier}；不得经叶子绕过治理与写入口边界`
 }

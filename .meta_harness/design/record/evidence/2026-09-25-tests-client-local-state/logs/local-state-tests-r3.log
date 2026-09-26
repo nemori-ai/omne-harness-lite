@@ -1,0 +1,67 @@
+
+> @omne-harness-lite/client-local-state@0.0.0 test /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state
+
+ ❯ tests/process.spec.ts (4 tests | 4 failed) 531ms
+     × initializes exactly one persistent identity under competing first opens 134ms
+     × allows only one of two writes based on the same original snapshot 122ms
+     × protects the newer process login from a delayed logout in another process 151ms
+     × releases a killed writer lock and rolls back its uncommitted whole-record update 123ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/process.spec.ts > real process coordination > initializes exactly one persistent identity under competing first opens
+ FAIL  tests/process.spec.ts > real process coordination > allows only one of two writes based on the same original snapshot
+ FAIL  tests/process.spec.ts > real process coordination > protects the newer process login from a delayed logout in another process
+ FAIL  tests/process.spec.ts > real process coordination > releases a killed writer lock and rolls back its uncommitted whole-record update
+Error: child exited 1: node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state/src/surface.ts:57
+  override readonly name = 'ClientStateUsageDefect'
+  constructor(readonly reason: 'closed' | 'invalid-snapshot') {
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    super(`client-local-state: ${reason}`)
+
+SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode
+    at parseTypeScript (node:internal/modules/typescript:68:40)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:438:20)
+    at afterLoad (node:internal/modules/esm/loader:506:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:511:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12) {
+  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.21.0
+
+ ❯ ChildProcess.<anonymous> tests/process.spec.ts:31:72
+     29|       else waiters.splice(i, 1)[0]!.resolve(message)
+     30|     })
+     31|     p.on('exit', code => { for (const w of waiters.splice(0)) w.reject…
+       |                                                                        ^
+     32|     return {
+     33|       p,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  4 failed | 27 passed (31)
+Type Errors  no errors
+   Start at  02:18:23
+   Duration  5.54s (transform 262ms, setup 0ms, import 919ms, tests 6.44s, environment 0ms)
+
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/client-local-state@0.0.0 test: `vitest run`
+Exit status 1

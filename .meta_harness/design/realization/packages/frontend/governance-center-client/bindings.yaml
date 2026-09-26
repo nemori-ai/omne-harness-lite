@@ -1,0 +1,40 @@
+version: 1
+node: "governance-center-client"
+kind: "provider"
+bindings:
+  - clause: "composition.governance-center-entry/v1#S-18"
+    evidence: "test:packages/frontend/governance-center-client/tests/health.spec.ts#public health transport › sends only the fixed public request, once on each connection"
+    assumptions:
+      - "仅固定公开health请求与三字段答复；合成TLS对端，不覆盖治理业务"
+      - "Node24.21.0，macOS arm64；run 2026-09-24-tests-governance-health-client，源码由source-manifest定位"
+    alignment_checked: 2026-09-24
+  - clause: "composition.governance-center-entry-https-json/v1#S-4"
+    evidence: "test:packages/frontend/governance-center-client/tests/health.spec.ts#public health transport › does not negotiate TLS 1.2"
+    assumptions:
+      - "仅TLS最低版本；CA/主机名/SPKI另有同文件测试，不声称协议模糊测试"
+      - "Node24.21.0，macOS arm64；run 2026-09-24-tests-governance-health-client，源码由source-manifest定位"
+    alignment_checked: 2026-09-24
+  - clause: "composition.governance-center-entry-https-json/v1#S-5"
+    evidence: "test:packages/frontend/governance-center-client/tests/health.spec.ts#public health transport › sends only the fixed public request, once on each connection"
+    assumptions:
+      - "逐调用独占连接，不覆盖任意网络故障和中间TLS终结设备"
+      - "Node24.21.0，macOS arm64；run 2026-09-24-tests-governance-health-client，源码由source-manifest定位"
+    alignment_checked: 2026-09-24
+  - clause: "composition.governance-center-entry-https-json/v1#S-9"
+    evidence: "test:packages/frontend/governance-center-client/tests/health.spec.ts#public health transport › sends only the fixed public request, once on each connection"
+    assumptions:
+      - "仅公开health的固定请求体，无治理信封编码器"
+      - "Node24.21.0，macOS arm64；run 2026-09-24-tests-governance-health-client，源码由source-manifest定位"
+    alignment_checked: 2026-09-24
+  - clause: "composition.governance-center-entry-https-json/v1#S-17"
+    evidence: "test:packages/frontend/governance-center-client/tests/health.spec.ts#public health transport › recognizes exact version mismatch before non-200 status"
+    assumptions:
+      - "本行只绑定18字节版本识别优先于状态；其他成帧/形状见verification"
+      - "Node24.21.0，macOS arm64；run 2026-09-24-tests-governance-health-client，源码由source-manifest定位"
+    alignment_checked: 2026-09-24
+  - clause: "composition.governance-center-entry/v1#S-36"
+    evidence: "test:packages/frontend/governance-center-client/tests/health.spec.ts#lifecycle and configuration › deadline bounds an incomplete response and releases the signal subscription"
+    assumptions:
+      - "只承接问不到与本地取消/期限收场；不是系统DNS立即取消或硬实时证明"
+      - "Node24.21.0，macOS arm64；run 2026-09-24-tests-governance-health-client，源码由source-manifest定位"
+    alignment_checked: 2026-09-24

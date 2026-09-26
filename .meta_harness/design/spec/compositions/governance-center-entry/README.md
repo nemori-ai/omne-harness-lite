@@ -1,5 +1,14 @@
 # 治理中心入口
 
+## v3 维护候选（未接受）
+
+[v3 契约](v3/contract.md)保留 v2 的 31 条业务路由和两种体检形状，新增在线备份、备份状态、本机文件校验、隔离恢复及真实结束责任。
+依据 PF-017 rev5；共用数据仍为 IV1/OE2，业务依赖仍为 AI3/OG2/AR2。旧消费者不自动升级。
+[Schema 与规范场景](v3/examples.md)、[形式工件](v3/formal/README.md#维护模型)和[验证状态](verification.md#v3-维护候选)可供独立评审；新维护模型本轮未运行。
+新维护传输绑定、候选采用及正式支持制品集合尚待主线；恢复安全再开放仍是 G-7，未在本版增设开放操作。
+
+## 既有版本入口
+
 客户端 ↔ [治理中心](../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)这条边在中心一侧的**整体性质与交接**：
 一个到达中心的请求按什么次序被判（版本 → 认人 → 身份推导 → 补授权 → 办事）、四种入口答复怎样闭合、
 交给领域操作的身份值从哪里推出来、领域的答复怎样变成线上的答复；外加公开体检、运维面、完整体检与治理中心标识。
@@ -46,3 +55,11 @@
 ## 版本包
 
 `v1/` 已于 2026-09-23 随 D-028 整体冻结：语义改动发布 v2，不原地改 v1。接受之前的历次原地修订记在[验证入口的「变化的影响」](verification.md#变化的影响)。
+
+## v2 候选
+
+[新版草稿](v2/contract.md)增加共同提交、预期租户、改密和两种拒绝/按标识邀请；[Schema与样例](v2/examples.md)已有有限形状检查，未接受/未实现，旧消费者不自动升级。
+
+2026-09-25，[D044](../../../record/decisions/governance-entry-production-protocol/decision.md)接受[v2](v2/contract.md)。实现与消费者另行核对，不自动升级旧绑定。
+
+当前采用：v3已由[D055](../../../record/decisions/governance-online-maintenance-adoption/README.md)接受并冻结；旧candidate段为受审历史，维护实现/证据待完成。

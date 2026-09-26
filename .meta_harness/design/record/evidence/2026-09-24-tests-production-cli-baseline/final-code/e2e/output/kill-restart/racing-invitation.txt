@@ -1,0 +1,2 @@
+racing invitation read as: unreachable (no bytes)
+invitations before 6, after 6

@@ -6,7 +6,7 @@ import { ACCOUNTS_SERVICE, LOGINS_SERVICE } from '@omne-harness-lite/account-ide
 import { isOk, loadSigningKey, unwrap } from '@omne-harness-lite/identity-values'
 import { definePlugin } from '@omne-harness-lite/kernel-basis'
 import { type Clock, type Duration, parseOfferTtl } from '@omne-harness-lite/offer-expiry'
-import type { Storage } from '@omne-harness-lite/storage'
+import { StorageDefect, type AtomicStorage } from '@omne-harness-lite/storage'
 import { createMembershipsService } from './memberships.ts'
 import { createOffersService } from './offers.ts'
 import { createOrganizationsService } from './organizations.ts'
@@ -74,8 +74,11 @@ export const organizationGovernancePlugin = definePlugin<ParsedConfig>({
     // 上面的模块增补让五个事件名成为 Events 的键、签名与 OrganizationGovernanceEvents 逐一相同；
     // TS 不能把泛型 K 下的 Events[K] 与 OrganizationGovernanceEvents[K] 对上，这里只收窄调用形状，不改运行行为
     const emit = ctx.emit.bind(ctx) as (name: string, payload: unknown) => void
+    const storage = ctx.get(STORAGE_SERVICE) as AtomicStorage
+    if (typeof storage.atomic !== 'function')
+      throw new StorageDefect('organization-governance requires AtomicStorage')
     const deps: Deps = {
-      storage: ctx.get(STORAGE_SERVICE) as Storage,
+      storage,
       clock: ctx.get(CLOCK_SERVICE) as Clock,
       accounts: ctx.get(ACCOUNTS_SERVICE) as AccountsReadFace,
       logins: ctx.get(LOGINS_SERVICE) as LoginsVerifyFace,

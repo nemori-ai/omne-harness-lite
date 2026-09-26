@@ -26,11 +26,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "kysely": "catalog:",
-    "vitest": "catalog:"
+    "kysely": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

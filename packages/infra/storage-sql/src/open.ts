@@ -5,6 +5,7 @@ import { StorageSqlConfig } from './config.ts'
 import { SqlStorage, ping, type DialectHandles } from './provider.ts'
 import { openSqlite } from './sqlite/index.ts'
 import { SqliteOwnerSite } from './sqlite/owner.ts'
+import { assertProductionStoragePath } from './sqlite/protection.ts'
 import { openPostgres } from './postgres/index.ts'
 import { PostgresOwnerSite } from './postgres/owner.ts'
 import { openOwnedStorage, type StorageSqlLogger, type UpgradeHooks } from './upgrade/owner.ts'
@@ -16,7 +17,7 @@ export interface OpenStorageOptions {
 
 function openHandles(config: StorageSqlConfig): DialectHandles {
   return config.dialect === 'sqlite'
-    ? openSqlite({ file: config.file })
+    ? openSqlite({ file: config.file, synchronous: config.synchronous ?? 'normal' })
     : openPostgres({ connectionString: config.connectionString })
 }
 
@@ -41,6 +42,7 @@ export async function openStorageWithHooks(
   if (!parsed.success)
     throw new Error(`invalid storage-sql config: ${z.prettifyError(parsed.error)}`)
   const valid = parsed.data
+  if (valid.dialect === 'sqlite') assertProductionStoragePath(valid.file)
   if (valid.migrations !== undefined && valid.upgrade !== undefined && valid.upgrade !== false) {
     return openOwnedStorage({
       site:
@@ -52,6 +54,12 @@ export async function openStorageWithHooks(
       migrations: valid.migrations,
       openHandles: () => openHandles(valid),
       hooks,
+      ...(valid.dialect === 'sqlite' && valid.maintenance !== undefined
+        ? {
+            maintenance: { ...valid.maintenance, sourceFile: valid.file },
+          }
+        : {}),
+      ...(options.logger === undefined ? {} : { logger: options.logger }),
     })
   }
 
@@ -69,5 +77,5 @@ export async function openStorageWithHooks(
     await handles.readDb.destroy().catch(() => undefined)
     throw error
   }
-  return new SqlStorage(handles)
+  return new SqlStorage(handles, undefined, options.logger)
 }

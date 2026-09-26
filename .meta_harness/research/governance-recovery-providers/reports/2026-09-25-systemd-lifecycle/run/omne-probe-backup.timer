@@ -1,0 +1,6 @@
+[Unit]
+Description=Owned timer probe only
+[Timer]
+OnActiveSec=1s
+AccuracySec=100ms
+Unit=omne-probe-backup.service

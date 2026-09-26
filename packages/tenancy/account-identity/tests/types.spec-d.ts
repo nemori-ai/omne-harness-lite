@@ -88,10 +88,19 @@ describe('S-36 失败集合逐字对契约（九个方法）', () => {
       'not-expired' | 'purge-warrant-invalid' | 'invalid-input' | 'storage-unavailable'
     >()
   })
-  it('两个服务面恰九个方法', () => {
-    expectTypeOf<keyof AccountsService>().toEqualTypeOf<'produce' | 'activate' | 'read' | 'purge'>()
+  it('两个服务面的v3操作集合', () => {
+    expectTypeOf<keyof AccountsService>().toEqualTypeOf<
+      'produce' | 'activate' | 'read' | 'purge' | 'participate'
+    >()
     expectTypeOf<keyof LoginsService>().toEqualTypeOf<
-      'issue' | 'exchange' | 'revoke' | 'verify' | 'listEffective'
+      | 'issue'
+      | 'exchange'
+      | 'revoke'
+      | 'verify'
+      | 'listEffective'
+      | 'participate'
+      | 'prepareCredentialChange'
+      | 'changeCredential'
     >()
   })
 })
@@ -140,9 +149,14 @@ describe('I-8 冻结的消费面（OG 按这几样写代码）', () => {
 })
 
 describe('记录结构（S-9、S-45「永不以可读形式保存」、S-35）', () => {
-  it('登录状态行恰四列，没有出示物', () => {
+  it('登录状态行包含期限与代次，没有出示物', () => {
     expectTypeOf<keyof LoginStateRow>().toEqualTypeOf<
-      'login_state_id' | 'account_id' | 'issued_at' | 'revoked'
+      | 'login_state_id'
+      | 'account_id'
+      | 'issued_at'
+      | 'revoked'
+      | 'last_activity_at'
+      | 'credential_revision'
     >()
   })
   it('账号行只有一个 AccountId 列（S-11／S-35 的类型层）', () => {
@@ -150,6 +164,7 @@ describe('记录结构（S-9、S-45「永不以可读形式保存」、S-35）',
       | 'account_id'
       | 'login_identifier'
       | 'credential_material'
+      | 'credential_revision'
       | 'activated'
       | 'produced_at'
       | 'retention_deadline'

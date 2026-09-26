@@ -2,9 +2,11 @@ packages:
   - packages/*/*
   - apps/*
   - tools/ts-checks
+  - tools/artifact-builder
 
 # 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
 catalog:
+  '@earendil-works/pi-tui': 0.86.1
   '@deepseek-ai/cordis': 4.0.4
   '@types/node': 24.13.6
   ajv: 8.20.0
@@ -15,3 +17,6 @@ catalog:
   vitest: 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
+
+patchedDependencies:
+  '@earendil-works/pi-tui@0.86.1': apps/cli/patches/pi-tui-0.86.1.patch

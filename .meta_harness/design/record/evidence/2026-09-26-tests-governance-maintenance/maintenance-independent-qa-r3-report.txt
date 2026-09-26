@@ -1,0 +1,86 @@
+# D056 host r3 独立有限复核
+
+结论：**Pass**，仅对 r1→r3 差异及本次 38 项维护主旅程。没有发现额外制品差异或运行回归，不代替整体生产交付接受。
+
+## 精确制品与环境
+
+- host r3：`tmp/production-cli-onboarding/omne-host-d056-r3.tar.gz`，SHA256 `94e39d788f790db5f17d83bfdc1409d70d4376581862cbbe8a6a4ed635c9f181`，BUILD_ID `e8033f3bb8fda92287afe943cce5dab16994c95df0ed932b4bed932c7ca05566`，实际解包 `/private/tmp/omne-host-d056-r3-xjc82oz2/app`。
+- 比较基准 host r1 BUILD_ID `809a36c45177d66f59213659d4f01f83e98e7d039143dc61fcfc958fd4a16778`，`/private/tmp/omne-host-d056-8zw0qh51/app`。
+- CLI 保持 r1：SHA256 `803a4f5c7234ab7a0c0169e2c5dd4c66da669d0fc71ca633568999b739db618a`，BUILD_ID `2a7ad07c28eadac80507261e17fdda109de432b5af74b46f27e65554412213ed`。
+- macOS arm64 / Node 24.21.0；实际 TLS/Unix socket/子进程。未改归档、源码或原 r1 证据；只写本目录和新的 synthetic 私有运行目录。
+
+## 独立差异审计
+
+`audit.py` 自行枚举两份解包的全部文件及软链，并与各自 build-info 清单核对；逐文件计算 SHA256，逐软链核对目标及 BUILD_ID。主线审计只作定位，未读取它的结论作为断言。
+
+4454 个清单条目中，4431 项同字节/同软链目标，23 项变化：
+
+- `deploy/README.md` 仅在 work parent 已存在后补充同 owner 和 mode 0700。
+- 20 份 pnpm `.bin` 包装仅在 `export NODE_PATH` 两行中把 `.omne-host-package-0xwpcu/` 换为 `.omne-host-package-glo6Rs/`。
+- `.modules.yaml` 仅 `prunedAt` 时间戳，`.pnpm-workspace-state-v1.json` 仅 `lastValidatedTimestamp` 时间戳。
+
+所有应用/依赖 JS、类型声明、source map、package manifests、软链和 systemd service/timer 内容保持一致。build-info 与 BUILD_ID 随新制品正常变化。原始完整差异见 `inventory-diff.patch`，机器结论见 `audit.json`。**没有可复现构建声明，也没有声称逐文件仅文档改变。**
+
+## 实际运行
+
+原 r1 主旅程使用同一断言重跑，仅切换 host 路径/归档摘要与证据目录。一次通过，无新失败重试。backup 元信息 sourceBuildId 断言等于 r3 的 BUILD_ID；verify metadata 与 backup 元信息完全相等，restore 封装与原备份同字节。原 CLI 仍能注册、登录和刷新原身份，备份前后及后续维护后身份保持一致。
+
+每项原始命令/退出码/stdout/stderr 见 `run-1/commands.json` 及同名编号文件；`run-1/checks.json` 与 `result.json` 为机器记录。
+
+| # | 验收项 | 结果 | exit |
+|---|---|---|---|
+| 1 | initial-missing | Pass | 2 |
+| 2 | employee-configure | Pass | 0 |
+| 3 | employee-register | Pass | 0 |
+| 4 | employee-login | Pass | 0 |
+| 5 | employee-identity-before | Pass | 0 |
+| 6 | online-backup | Pass | 0 |
+| 7 | status-current | Pass | 0 |
+| 8 | backup-not-due | Pass | 0 |
+| 9 | employee-identity-after | Pass | 0 |
+| 10 | offline-verify-no-env | Pass | 0 |
+| 11 | offline-restore-no-env | Pass | 0 |
+| 12 | verify-restored-envelope | Pass | 0 |
+| 13 | restore-existing-target | Pass | 2 |
+| 14 | restore-existing-empty-target | Pass | 2 |
+| 15 | serve-restored-envelope-refused | Pass | 1 |
+| 16 | corrupted-payload-refused | Pass | 2 |
+| 17 | truncated-envelope-refused | Pass | 2 |
+| 18 | trailing-byte-refused | Pass | 2 |
+| 19 | source-symlink-refused | Pass | 1 |
+| 20 | source-missing-unavailable | Pass | 1 |
+| 21 | wide-work-root-refused | Pass | 1 |
+| 22 | relative-source | Pass | 64 |
+| 23 | relative-work | Pass | 64 |
+| 24 | extra-argument | Pass | 64 |
+| 25 | duplicate-flag | Pass | 64 |
+| 26 | ops-relative | Pass | 64 |
+| 27 | unknown-operation | Pass | 64 |
+| 28 | catalog-types-and-corruption | Pass | 0 |
+| 29 | foreign-center-backup | Pass | 0 |
+| 30 | catalog-valid-foreign-filtered | Pass | 0 |
+| 31 | catalog-foreign-future-filtered | Pass | 0 |
+| 32 | own-future-unavailable | Pass | 1 |
+| 33 | work-reusable-after-failures | Pass | 0 |
+| 34 | employee-login-still-valid | Pass | 0 |
+| 35 | offline-after-center-stopped | Pass | 0 |
+| 36 | ops-stopped-center-unavailable | Pass | 1 |
+| 37 | different-work-root-parallel-a | Pass | 0 |
+| 38 | different-work-root-parallel-b | Pass | 0 |
+
+## 范围与遗留
+
+本次 r3 文档补修已经实际核对，r1 报告及其文档问题原样保留，不回写历史。r3 本轮 38 项不重复 r1 的 SIGSTOP 同根互斥和无法精确定位 hash/fstat 的源变动探针；后者仍不能据此前两次拒绝观测声称精确分支通过。
+
+Linux/systemd、跨 OS、大库业务/clock、注入 fsync/cleanup 与 unknown、全部生产打开路径/崩溃残余、20/24 小时真实等待、完整治理表单/TUI、D054 固定老 CLI 和最终 fable review 均不在本次复核范围。r1 限定结论保持，不扩大为整个目标完成。
+
+两个自建中心均 SIGTERM 后实际 exit0；所有辅助 CLI 已结束；没有创建容器。私有 synthetic fixture 位置记在 `run-1/fixture-location.txt`，用于追查而保留。
+
+## 重跑入口
+
+```sh
+python3 tmp/production-cli-onboarding/maintenance-independent-qa-r3/audit.py
+fnm exec --using 24 node tmp/production-cli-onboarding/maintenance-independent-qa-r3/run.mjs /absolute/new/evidence-directory
+```
+
+如保留本次审计历史，先将 `audit.py` 的输出 base 改为新的证据目录；不要覆盖现有记录。运行脚本不构建或改写制品。

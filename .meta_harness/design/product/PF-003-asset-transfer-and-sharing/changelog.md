@@ -72,7 +72,7 @@ rev 4 的「**团队 → 团队的复制**（他租户级的资产，落目标�
 
 其余正文随之改写：§1 背景与 §2 目标从「跨组织」扩到「在主体之间」；§2 非目标新增两行边界（租户级 → 组织级的提升归 PF-001、组织级资产在本组织给谁用归 PF-002）；
 §3 用户表新增「想把自己的工具给同事用的成员」一行；§8 边界与依赖补 PF-001 的角色与提升、PF-002 的租户级持有与「谁可以使用它」；
-README 的 `depends-on` 标到 PF-001 rev 17、PF-002 rev 17。
+README 的 `depends-on` 标到 PF-001 rev 19、PF-002 rev 17。
 
 **未决项与待裁决仍是无。**
 
@@ -86,11 +86,11 @@ README 的 `depends-on` 标到 PF-001 rev 17、PF-002 rev 17。
   [UL-copy-lineage](../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-copy-lineage--复制血缘--copy-lineage) 的定义改为「该更新目标组织那一层里的哪一份」，写明同一来源在一个组织里可以有两份；
   「本人型」「组织型」「组织内分享」要不要进词条，由统一语言的维护者定。
 - **领域对象**：[待裁](../../domain_objects/pending.md)「待确认的复制通知与分享邀请」「一段分享关系」两项按 decisions 第四节闭合——**两样都是对象**，词条与对象条目随后立。
-- **规格**：`capability.asset-transfer` v1 的方向规则（S-12、S-13、S-24、S-30 等）与 TLA+ 模型要按 §6.2 的矩阵重做——
+- **规格**：`capability.asset-transfer` v2 的方向规则（S-12、S-13、S-24、S-30 等）与 TLA+ 模型要按 §6.2 的矩阵重做——
   组织型复制、组织内分享、本人型分享、跨组织不落别人租户级、落在哪一层与所有者、成员关系解除即结束、不复活。
   `capability.asset-governance` 的角色矩阵按 [flows §4](flows.md#四角色与操作) 对一遍。
 - **锚点**：design §6.3 的标题与锚点**没变**，但这一节的内容从一条通则变成两条。按这个锚点引用它的
-  `spec/data/identity-values/v1/contract.md`（已冻结）、`spec/capabilities/asset-transfer/v1/contract.md`、
+  `spec/data/identity-values/v1/contract.md`（已冻结）、`spec/capabilities/asset-transfer/v2/contract.md`、
   `registry/covers.json`，读到的是 rev 5 的两条通则，要按新内容复核所引的那一句。
 - **[PF-016 §6.14](../PF-016-cli-tui-delivery-surface/design.md#614-没有带外通知所以进来就要看得见等着的事)** 的「等他点头的邀约」：组织内分享的邀请也在其中；本人型不产生邀约。
 
@@ -287,4 +287,4 @@ flows 的 §1.1～§1.5（各多一步确认）、§3.1、§3.2（多了「待�
 
 ## 2026-09-26 — rev 5 正式接受（状态事件）
 
-产品负责人通过 [D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。
+产品负责人通过 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。

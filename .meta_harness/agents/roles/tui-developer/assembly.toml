@@ -1,0 +1,2 @@
+shared_prompts = ["../engineering-taste.md", "../developer-contract.md"]
+default_effort = "high"

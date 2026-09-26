@@ -1,0 +1,9 @@
+{
+  "base_commit": "cc01c8322e71d48d784bcb66e27cb81814fd4b6f",
+  "source_files": 381,
+  "node": "24.21.0",
+  "platforms": [
+    "darwin-arm64",
+    "linux-arm64"
+  ]
+}

@@ -58,6 +58,14 @@ evidence/
 
 ## 当前状态
 
+**2026-09-24 公开health客户端实现**：[`2026-09-24-tests-governance-health-client/`](2026-09-24-tests-governance-health-client/README.md) 保存47项实现测试、两真实中心只读联调及Linux打包冒烟；不是完整CLI交付。
+
+**2026-09-24 客户端候选隔离取证**：[`2026-09-24-probe-governance-client/`](2026-09-24-probe-governance-client/README.md) 保存 macOS TLS/公开 health 的10场景，以及 macOS/Linux 容器的本地 SQLite 竞争与崩溃探针。不是已实现客户端或生产准入。
+
+**2026-09-24 开发基线与局部修复**：[`2026-09-24-tests-production-cli-baseline/`](2026-09-24-tests-production-cli-baseline/README.md) 保存 macOS 的原始基线失败、第二来源地址配置修复、N-18 具名时钟错误修复及最终代码回归。最终 e2e 46/46、入口真实组合 15/15；生命周期与定向慢用例的通过/跳过分开记录。不是 Linux/多机或生产准入证据。
+
+
+
 **本区的运行**：2026-09-22 两次形式工件执行；2026-09-23 一次形式工件执行、一次实现测试运行、一次 Alloy 重跑与两次端到端验收；2026-09-25 六次（见下表）。
 
 | run                                                                                                 | 跑了什么                                                                                                                                                                                                           | 结果                                                         |
@@ -93,9 +101,52 @@ evidence/
 | [`2026-09-25-validity-stream-assembly/`](2026-09-25-validity-stream-assembly/README.md) | stream-assembly P-1、P-7 的三份有效性核对配置（预期出反例） | 三份全部按预期找到反例 |
 | [`2026-09-25-alloy-asset-evaluation/`](2026-09-25-alloy-asset-evaluation/README.md) | `Evaluation.als` 十八条命令 ＋ 十三个变异文件（不是 formal task） | 六条 `run` 全 SAT、十二条 `check` 全 UNSAT；变异各按预期被推翻 |
 | [`2026-09-25-node24-json-probe/`](2026-09-25-node24-json-probe/README.md) | `content-blocks` 节点「Node 24 无损 JSON 读写」的运行时前提探针 | 在 Node 24.18.0 上成立，手写解析器退路不需启用 |
-| [`2026-09-25-formal-session-log/`](2026-09-25-formal-session-log/README.md) | 接口契约 `session-log` v1：formal task `session-log-v1-appends` ＋ 五份核对配置 | 正配置无反例；五份核对全部按预期出反例 |
-| [`2026-09-25-formal-credential-custodian/`](2026-09-25-formal-credential-custodian/README.md) | 接口契约 `credential-custodian` v1：formal task `credential-custodian-v1-sweep`（单 worker 超时一次、4 worker 重跑一次）＋ 五份核对配置 | 重跑无反例（230 万 distinct、3 min 26 s）；五份核对全部按预期出反例；登记改为 `-workers 4`、900 s |
+| [`2026-09-25-formal-session-log/`](2026-09-25-formal-session-log/README.md) | 接口契约 `session-log` v1：formal task `session-log-v2-appends` ＋ 五份核对配置 | 正配置无反例；五份核对全部按预期出反例 |
+| [`2026-09-25-formal-credential-custodian/`](2026-09-25-formal-credential-custodian/README.md) | 接口契约 `credential-custodian` v1：formal task `credential-custodian-v2-sweep`（单 worker 超时一次、4 worker 重跑一次）＋ 五份核对配置 | 重跑无反例（230 万 distinct、3 min 26 s）；五份核对全部按预期出反例；登记改为 `-workers 4`、900 s |
 
 **2026-09-23 黑盒端到端验收**：[`2026-09-23-e2e-governance-center/`](2026-09-23-e2e-governance-center/README.md)——照部署方式起 `serve` 进程，零产品包引用的测试客户端走 PF-001 flows §一／§二 与 PF-017 acceptance §一／§二；46 条场景全过，产品正文与冻结契约说法不一致三处只记观察（`output/anomalies.txt`）。**独立复跑与四态判定**：[`2026-09-23-e2e-governance-center-2/`](2026-09-23-e2e-governance-center-2/README.md)——干净检出从零构建复跑 46/46 同样通过，手动演练走完；对上一次 run 的 109 行场景逐行判：Pass 54、Pass with issues 20（断言比正文弱或前提有界，逐条列出）、Fail 2（就是那两处产品正文与契约不一致）、Unable to verify 33；遮蔽用独立采集的秘密清单与结构扫描复核，0 命中。
 
 返回[已发生的事](../README.md)。
+
+[2026-09-24 登录候选有限模型](2026-09-24-formal-login-candidates/README.md)：三组正反例及历史失败；不等于 SQL 精化。
+
+[2026-09-24 SQLite FULL 档位](2026-09-24-tests-sqlite-full/README.md)：实际连接、存储符合性、中心启动/升级及完整黑盒；物理断电未测。
+
+[2026-09-24 邀约终结模型与Schema](2026-09-24-formal-offer-settlement/README.md)：单份邀约一正两负控、17项形状检查；原始失败保留。
+
+[2026-09-24 显式存储单元](2026-09-24-tests-storage-unit/README.md)：P13符合性、通知与提交未知、中心回归和Linux冒烟；保留整数主键原型反例。
+
+[2026-09-24 预期租户有限模型与entry候选Schema](2026-09-24-formal-expected-tenant/README.md)：14 distinct正例、两项反例、22项形状检查；无真实CLI/SQL声明。
+
+[2026-09-25 有界账号局部实现](2026-09-25-tests-bounded-account/README.md)：AI80、host40、AR60、OG99、旧entry422通过（各跳过见run）；Linux5组局部smoke，不代表新版生产闭环。
+
+[2026-09-25 entry候选有限模型](2026-09-25-formal-entry-candidates/README.md)：提交/通知与入口分类的正反例，保留镜像缺失失败；不代表组合证明或实现。
+
+[2026-09-25 治理共同参与与注册整合](2026-09-25-tests-governance-participation/README.md)：OG107/4skip、OE36、AR60/1skip，局部实现，未完成entry2/CLI。
+
+[2026-09-25 entry候选补充验证](2026-09-25-formal-entry-candidates-2/README.md)：完整九分支可达性、七份HT2字节和28项Schema；不是实现验证。
+
+- [2026-09-25 本地状态提供者](2026-09-25-tests-client-local-state/README.md)：CLS1、真实多进程/双平台、初始化交错与容量故障。
+
+- [2026-09-25 治理客户端组合候选](2026-09-25-formal-client-operations/README.md)：有限生命周期、四负控及Schema例。
+
+2026-09-25新增：[CG1冻结Schema后续检查](2026-09-25-formal-client-operations-2/README.md)保存最终77例与模型输入对照；[共享治理用例实现](2026-09-25-tests-client-operations/README.md)保存106项测试与Mac/Linux各12组真实组合。均不等于CLI/TUI或生产就绪。
+
+[CG2交互输入实现](2026-09-25-tests-prepared-input/README.md)：139项、两平台实际组合及两个取消反例修复。
+
+[CQ1有限模型](2026-09-25-formal-cli-entry/README.md)：44状态、六负控；不证明TTY帧可信。
+
+[CG2测试直接引用的规范输入补充](2026-09-25-tests-prepared-input/authority-inputs/README.md)：补齐源代码包外的冻结examples/Schema，不重写原运行包。
+
+[D049文件CLI实际运行](2026-09-25-tests-cli-file-entry/README.md)：68项、两平台真实子进程/PTY/管道及原始失败记录，完整终端和生产部署未完成。
+
+[D050可搬运CLI与独立中心进程](2026-09-25-tests-cli-portable-host/README.md)：89项、最终归档及三平台真实进程治理/重启，未含TUI或备份恢复。
+
+[D051 TUI实现增量](2026-09-25-tests-tui-increment/README.md)：115项、真实PTY/中心旅程、XTerm退出和仓库外制品；独立QA与Mac模拟器/IME未完成。
+
+[D051-r3独立验收与Mac/Linux互联](2026-09-25-tests-tui-cross-os/README.md)：126项、53个独立观察、双向网络治理与XTerm UTF8；旧失败保留，完整TUI未接受。
+
+
+**2026-09-26 D055/D056治理维护**：[固定源码与制品、真实Linux服务、双OS与大库、独立QA](2026-09-26-tests-governance-maintenance/README.md)。包含全部失败尝试和限定结论；不提升安全重新开放或整机损毁灾备范围。
+
+[2026-09-26 PR #9/#10 协调检查](2026-09-26-checks-pr9-pr10-reconciliation/README.md)：固定两线输入、冻结字节与迁移闭包核对、仓库及产品回归；既有跨 OS/部署/形式结果保留原范围。

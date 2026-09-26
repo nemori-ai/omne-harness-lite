@@ -1,0 +1,29 @@
+Scope: 14 of 15 workspace projects
+packages/core/identity-values typecheck$ tsc -p tsconfig.test.json
+packages/core/kernel-basis typecheck$ tsc -p tsconfig.test.json
+packages/core/storage typecheck$ tsc -p tsconfig.test.json
+.../frontend/governance-center-client typecheck$ tsc -p tsconfig.test.json
+packages/core/identity-values typecheck: Done
+tools/ts-checks typecheck$ tsc -p tsconfig.test.json
+.../frontend/governance-center-client typecheck: Done
+packages/core/kernel-basis typecheck: Done
+packages/core/storage typecheck: Done
+tools/ts-checks typecheck: Done
+packages/core/offer-expiry typecheck$ tsc -p tsconfig.test.json
+packages/infra/storage-sql typecheck$ tsc -p tsconfig.test.json
+packages/core/offer-expiry typecheck: Done
+packages/infra/storage-sql typecheck: Done
+packages/infra/clock typecheck$ tsc -p tsconfig.test.json
+packages/infra/clock typecheck: Done
+packages/tenancy/credential-verification typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/credential-verification typecheck: Done
+packages/tenancy/account-identity typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/account-identity typecheck: Done
+packages/tenancy/organization-governance typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/organization-governance typecheck: Done
+packages/tenancy/account-registration typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/account-registration typecheck: Done
+packages/tenancy/governance-center-entry typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/governance-center-entry typecheck: Done
+apps/tenancy-host typecheck$ tsc -p tsconfig.test.json
+apps/tenancy-host typecheck: Done

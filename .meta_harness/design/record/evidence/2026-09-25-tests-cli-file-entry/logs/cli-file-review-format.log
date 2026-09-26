@@ -1,0 +1,6 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- apps/cli/src/parser.ts apps/cli/tests/application.spec.ts
+
+apps/cli/src/parser.ts 28ms (unchanged)
+apps/cli/tests/application.spec.ts 14ms

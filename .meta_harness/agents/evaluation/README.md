@@ -1,5 +1,7 @@
 # 研发 Agent 评估
 
+- [TUI 开发角色引入](tui-developer-introduction.md)：职责、两端生成与静态验证；未做模型行为评估。
+
 这里保存研发 agent 的评估输入与证据。编译器单元测试归 `tooling/tests/`；
 资产生成、普通 agent 试用、原生宿主加载与精确模型行为分别报告。
 

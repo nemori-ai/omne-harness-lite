@@ -14,6 +14,12 @@ interface IndexInfoRow {
   readonly name: string | null
 }
 
+interface TableInfoRow {
+  readonly name: string
+  readonly type: string
+  readonly pk: number
+}
+
 export class UniqueConstraintResolver {
   readonly #cache = new Map<string, string | undefined>()
 
@@ -47,6 +53,20 @@ export class UniqueConstraintResolver {
       if (index.origin === 'c') found = index.name
       else if (index.origin === 'pk') found = `${table}_pkey`
       break
+    }
+    if (found === undefined && columns.length === 1) {
+      // INTEGER PRIMARY KEY 可直接复用 rowid，没有 index_list 条目。
+      const primary = (
+        db
+          .prepare(`PRAGMA table_info(${quoteIdentifier(table)})`)
+          .all() as unknown as TableInfoRow[]
+      ).filter(column => column.pk > 0)
+      if (
+        primary.length === 1 &&
+        primary[0]!.name === wanted &&
+        primary[0]!.type.toUpperCase() === 'INTEGER'
+      )
+        found = `${table}_pkey`
     }
     this.#cache.set(key, found)
     return found

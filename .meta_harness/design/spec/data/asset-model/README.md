@@ -7,42 +7,42 @@
 它是块 A 的**共用数据底座**：求值（`capability.asset-evaluation`）、治理写面（`capability.asset-governance`）与流转（`capability.asset-transfer`）
 三份能力契约都读写这些形状，**引用它的 `$defs` 名，不各自复述一份**。
 
-- **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.asset-model, 1)`
-- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
-- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-041 的 `acceptance.json`）。`family=data`、`topic=asset-model`、
-  `contract_path=spec/data/asset-model/v1/contract.md`，`resources` 另含 `v1/asset-model.schema.json` 与 `v1/examples.md`；
-  依赖三项：`data.identity-values` v1（`S-3`、`S-5`、`S-6`、`S-8`、`S-11`、`S-12`、`S-16`、`S-22`、`S-31`、`S-33`、`S-34`）、`data.offer-expiry` v1（`S-22`）、`data.content-blocks` v1（`S-20`）。
+- **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.asset-model, 2)`
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=asset-model`、
+  `contract_path=spec/data/asset-model/v2/contract.md`，`resources` 另含 `v2/asset-model.schema.json` 与 `v2/examples.md`；
+  依赖三项：`data.identity-values` v1（`S-3`、`S-5`、`S-6`、`S-8`、`S-11`、`S-12`、`S-16`、`S-22`、`S-31`、`S-33`、`S-34`）、`data.offer-expiry` v1（`S-22`）、`data.content-blocks` v2（`S-20`）。
   **六份正文契约不登为依赖**：壳 `$ref` 它们是结构上的前提，它们反过来消费本契约（catalog 须无环）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
-- **提供者/装配映射**：[packages/core/asset-model](../../../realization/packages/core/asset-model/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
+- **提供者/装配映射**：[packages/core/asset-model](../../../realization/packages/core/asset-model/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
 | 准入问题 | 答 |
 |---|---|
-| 语义拥有者 | 本契约。这些形状被三份能力契约、各类正文契约、注册表与装配共享，写两遍必然分叉；`data.identity-values` v1 的 CS-1、CS-2、CS-6 点名资产领域的 owner 为第一消费者，它的 G-07 把工作区键「目录那一半」留在这里 |
+| 语义拥有者 | 本契约。这些形状被三份能力契约、各类正文契约、注册表与装配共享，写两遍必然分叉；`data.identity-values` v2 的 CS-1、CS-2、CS-6 点名资产领域的 owner 为第一消费者，它的 G-07 把工作区键「目录那一半」留在这里 |
 | 稳定身份 | `data.asset-model`，版本 1 |
-| 适用范围 | 一个部署之内；跨进程后要由协议重新兑现的，逐行列在[契约第四节](v1/contract.md#四装配给与协议给) |
+| 适用范围 | 一个部署之内；跨进程后要由协议重新兑现的，逐行列在[契约第四节](v2/contract.md#四装配给与协议给) |
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。记录怎样被写、持有怎样被求值、复制怎样落地，归三份能力契约 |
 | 精确依赖 | 见上面「catalog 映射」一行；四个不透明标识按 `data.identity-values/v1#S-31` 的散文自定义，**不 `$ref` 它的 `OpaqueIdentifier`** |
-| 谁在等它 | 三份资产能力契约与注册表；六份正文契约（推出规则的义务）；`data.call-accounts`（规范串）；注册表与装配。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
-| 接受状态 | 已接受（D-041，2026-09-26） |
+| 谁在等它 | 三份资产能力契约与注册表；六份正文契约（推出规则的义务）；`data.call-accounts`（规范串）；注册表与装配。完整清单见[契约的消费者表](v2/contract.md#消费者)——**那里是唯一的一份** |
+| 接受状态 | 已接受（D-061，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
-| 交换与存储表示 | [v1 Schema](v1/asset-model.schema.json) |
-| 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
-| 一个值有好几处不对，报哪个拒绝值 | [S-27 表示层拒绝值](v1/contract.md#s-27-表示层拒绝值)与[实例第 13 节](v1/examples.md#13-几处违例同时出现时取哪个拒绝值) |
-| 我是正文契约，推出属性项要守什么 | [S-12](v1/contract.md#s-12-属性声明由正文推出)、[S-13](v1/contract.md#s-13-设置项类别)、[S-15](v1/contract.md#s-15-disabled-是保留项名)、[S-36](v1/contract.md#s-36-usableby-是保留项名)、[S-23](v1/contract.md#s-23-凭据引用) |
-| 哪里在等裁决 | [已知缺口](v1/contract.md#八已知缺口)——**G-6（Agent Definition 的正文）、G-9（plugin 的正文）与 G-15（Connector 的 `install` 与 `usableBy`）**；主线裁定的依据在 D-040（G-13 已闭合） |
+| 本版本精确承诺什么 | [v1 契约](v2/contract.md) |
+| 交换与存储表示 | [v1 Schema](v2/asset-model.schema.json) |
+| 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v2/examples.md) |
+| 一个值有好几处不对，报哪个拒绝值 | [S-27 表示层拒绝值](v2/contract.md#s-27-表示层拒绝值)与[实例第 13 节](v2/examples.md#13-几处违例同时出现时取哪个拒绝值) |
+| 我是正文契约，推出属性项要守什么 | [S-12](v2/contract.md#s-12-属性声明由正文推出)、[S-13](v2/contract.md#s-13-设置项类别)、[S-15](v2/contract.md#s-15-disabled-是保留项名)、[S-36](v2/contract.md#s-36-usableby-是保留项名)、[S-23](v2/contract.md#s-23-凭据引用) |
+| 哪里在等裁决 | [已知缺口](v2/contract.md#八已知缺口)——**G-6（Agent Definition 的正文）、G-9（plugin 的正文）与 G-15（Connector 的 `install` 与 `usableBy`）**；主线裁定的依据在 D-060（G-13 已闭合） |
 | 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
 
 ## 版本包
 
-`v1/` 是本契约的候选版本目录。规范工件恰三份：`contract.md`、`asset-model.schema.json`、`examples.md`——
+`v2/` 是本契约的候选版本目录。规范工件恰三份：`contract.md`、`asset-model.schema.json`、`examples.md`——
 **实例是规范工件，不是说明材料**：条款的边界有一半靠「什么被拒、拒绝值叫什么」说清楚。
 
 **本包不建 `formal/`。**本契约没有状态转移；它的结构约束 Schema 与条款即可表达，
@@ -54,4 +54,4 @@
 
 ## 2026-09-26 版本接受
 
-本次接受 `data.asset-model` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+本次接受 `data.asset-model` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

@@ -1,7 +1,7 @@
 {
   "format": 2,
   "topic": "ts-retry-policy-libraries",
-  "consumer": "D-043 R-6 的落点：model-request-runtime 节点 P-5 改写、契约 G-8、实施边界 W-10b（均待出现）",
+  "consumer": "D-063 R-6 的落点：model-request-runtime 节点 P-5 改写、契约 G-8、实施边界 W-10b（均待出现）",
   "selected": [
     {
       "file": "github/IndigoUnited_node-promise-retry-2026-09-25.json",

@@ -43,12 +43,12 @@ PF-017 rev 1 已接受（2026-09-23，同日升 rev 2）；入口契约 v1 与�
 | [D-026「只改配置切 pg」](../../../record/decisions/infrastructure-persistence-choices/decision.md#选择与范围) | `assembly.pg-wiring`：同一份迁移与装载代码，方言配置切 `postgres` 后 `boot()` 成功且 `assembly.fk-organization-owner-account` 全绿；**本程 `describe.skip`**，前提「有一个可连的 pg ≥ 14」。**跳过不是通过** | **已通过（pg 一侧）**（同 run，PostgreSQL 16.14）：`pg.spec.ts` › `pg 首跑 · 装配（OMNE_TEST_PG_URL）` › `assembly.pg-wiring：…外键两向与约束名同 sqlite`；sqlite 一侧同名用例**跳过**（缺 pg URL）。左栏「本程 `describe.skip`」是写义务时的安排；「≥ 14」的下限没有跑（只有 16.14） | 装配，第二程 |
 | [产品代码不 import `kernel-basis/testing`](../../packages/core/kernel-basis/verification.md#证据义务) | 静态检查：`apps/tenancy-host/src` 对 `@omne-harness-lite/kernel-basis/testing` 零 import | **已通过**（同 run）：`tools/ts-checks/tests/rules.spec.ts` › `no-testing-import`（产品源码 import `./testing` ⇒ 报出、测试文件豁免）；`lint:rules` 退出 0，扫描范围含 `apps/`。此前写的「受阻：现有三条规则不含它」已不成立——本 run 的规则集是 20 条，含这一条 | 主线加一条规则（与现有三条同形） |
 | 启动失败可观测；[PF-017 §6.6](../../../product/PF-017-governance-center-as-deployable-application/design.md#66-要么整个起来要么不起来)「告诉运维者差的是哪一样」；[S-29](../../../spec/compositions/governance-center-entry/v1/contract.md#s-29-秘密不进任何输出) | `assembly.boot-failure-log`：每种启动失败落恰一条结构化记录，含失败的阶段（config／配对自检／遗留快照恢复／只读核对／建快照／迁移／哪条 fiber，入口层等钟超界单列为「钟读不到」／恢复快照）、错误类型与点名的那一项、不含 PEM 与任何 config 值；恢复失败时含快照位置；精确形状等[全局观测契约](../../../foundation/observability-and-logging/requirements.md) | **部分**（同 run）：`lifecycle.spec.ts` › `assembly.boot-failure-log：每种启动失败落恰一条结构化记录，不含 PEM 与 config 值` › `config、密钥配对、清单、插件、只读核对各一次`；进程入口 `process.spec.ts` › `进程入口（src/cli.ts）` › `serve 启动失败 ⇒ 退出 1，标准错误流里恰一条 startup-failed`。左栏点名的遗留快照恢复、建快照、迁移、钟读不到、恢复快照五个阶段，用例名里没有；那几种失败在别的用例里断言了「拒绝于哪一阶段」，是否也断言「恰一条记录、不含值」看不出（未知） | 本节点 |
-| **本程追加（候选）**：[迁移追加](design.md#迁移追加) M-9 | `assembly.migration-composition` 扩一支：用上一版的合成序列建一份有数据的库，本版在末尾多三组片段（OG v2、资产、档案目录）⇒ 登记序列仍是前缀、升级成功；OG 的两列为空；全库外键仍只有 `organization_owner_account_fk` | **未开始**（源码不存在） | 本节点 ＋ 三个 owner 包 |
+| **本程追加（候选）**：[迁移追加](design.md#迁移追加) M-9 | `assembly.migration-composition` 扩一支：用上一版的合成序列建一份有数据的库，本版在末尾多三组片段（OG v3、资产、档案目录）⇒ 登记序列仍是前缀、升级成功；OG 的两列为空；全库外键仍只有 `organization_owner_account_fk` | **未开始**（源码不存在） | 本节点 ＋ 三个 owner 包 |
 | **本程追加（候选）**：[装载清单](design.md#装载清单与顺序)与撤除次序 | `assembly.manifest-shape`、`assembly.pending-is-manifest-error`、`assembly.dispose-reverse-order` 纳入资产提供者与 P-1：拿掉 OG ⇒ 两条新 fiber 在装它们那一步 `PENDING` ⇒ 启动失败；逆序撤除时它们在运维面之后、AR 之前撤；清单里仍只有一个 `storageSqlPlugin` | 未开始 | 本节点 |
 | **本程追加（候选）**：[追加的 config](design.md#追加的-config候选变量名) 一个政策 | 两个保留期缺或非正、官方件清单一条不合法、官方档案清单不合法、出厂格引用形状不对 ⇒ 各自启动失败、说明点名是哪一项、**不含值**；出厂格引用缺 ⇒ 照常起来；清单序号不更新 ⇒ 照常起来、日志里恰一条 `manifest_not_newer` error 事件；中心进程里解析不到取值面 | 未开始 | 本节点 ＋ asset-governance ＋ model-profile-directory |
-| **本程追加（候选）**：官方件登记与档案清单装入的整体性（两支） | ① 有迁移：`assembly.upgrade-restore-on-boot-failure` 扩一支——首次启动时官方件已登记、档案清单已装入之后让入口层端口被占 ⇒ 恢复快照之后库里没有官方记录与官方档案；② **非首次、无迁移、只改清单**（D-040 §八 M62）：新清单比库里多几条官方件，让其中一条登记失败 ⇒ 启动失败、不建快照、已登记的几条留在库里；再带同一份清单启动 ⇒ 成功、不多出版本（幂等＋重登） | 未开始 | 本节点 ＋ asset-governance |
+| **本程追加（候选）**：官方件登记与档案清单装入的整体性（两支） | ① 有迁移：`assembly.upgrade-restore-on-boot-failure` 扩一支——首次启动时官方件已登记、档案清单已装入之后让入口层端口被占 ⇒ 恢复快照之后库里没有官方记录与官方档案；② **非首次、无迁移、只改清单**（D-060 §八 M62）：新清单比库里多几条官方件，让其中一条登记失败 ⇒ 启动失败、不建快照、已登记的几条留在库里；再带同一份清单启动 ⇒ 成功、不多出版本（幂等＋重登） | 未开始 | 本节点 ＋ asset-governance |
 | **本程追加（候选）**：同一存储、同一约束域（X-1～X-3 的前提）——**实现后第一波必跑**（N2 TH-1） | 结构：资产提供者、OG、P-1 解析到同一个 `storage` 实例（`assembly.manifest-shape` 纳入两条新 fiber，清单里只有一个 `storageSqlPlugin`、不用 `isolate`）；交错本身归 asset-governance 的 D-4、D-8、D-9 | 未开始 | 本节点 ＋ asset-governance |
-| **本程追加（候选）**：中心进程里没有资产事件的订阅者（AG S-48 末条的结构保护，D-040 §八 M60） | ① `tools/ts-checks` 规则：`packages/`（除 asset-governance 自身）与 `apps/tenancy-host` 内不得订阅 `asset.*` 事件，附「故意违反即失败」自测；② 启动期断言：全部 fiber `ACTIVE` 之后、开闸之前，中心进程内 `asset.*` 各事件的监听者集合为空，否则启动失败并点名 | 未开始 | 本节点 ＋ `tools/ts-checks` |
+| **本程追加（候选）**：中心进程里没有资产事件的订阅者（AG S-48 末条的结构保护，D-060 §八 M60） | ① `tools/ts-checks` 规则：`packages/`（除 asset-governance 自身）与 `apps/tenancy-host` 内不得订阅 `asset.*` 事件，附「故意违反即失败」自测；② 启动期断言：全部 fiber `ACTIVE` 之后、开闸之前，中心进程内 `asset.*` 各事件的监听者集合为空，否则启动失败并点名 | 未开始 | 本节点 ＋ `tools/ts-checks` |
 
 **受阻项**：本 run 之后义务表里没有受阻的行。「部分」两行写明了缺什么；pg 两行的 sqlite 一侧是跳过，**跳过不是通过**，通过以 pg 一侧为准。
 不用「待补充」掩盖，也不新设一个「无法验证」的状态。
@@ -56,6 +56,8 @@ PF-017 rev 1 已接受（2026-09-23，同日升 rev 2）；入口契约 v1 与�
 **修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../foundation/cross-system-constraints/requirements.md#sys-open)），写明装配不变、本节点没有能力的函数面；上表证据义务与下面的运行都不变，不新增义务。
 
 ## 实际执行
+
+2026-09-24 的局部回归见 [生产 CLI 开发基线 run](../../../record/evidence/2026-09-24-tests-production-cli-baseline/README.md)：macOS/Node 24.21.0，`lifecycle.spec.ts` 17/17（含 N-18 两种错误归类反例），`slow.spec.ts` 仅真实等钟超时一项通过、其余三项未选中，最终 e2e 46/46。属于旧治理语义基线，不表示生产新政策已实现。
 
 | 运行 | 输入与配置范围 | 结果 | 证据位置 |
 |---|---|---|---|
@@ -94,13 +96,13 @@ pg 一行只有 `pg.spec.ts` 这 11 条、只在 PostgreSQL 16.14 上跑过，�
 | **G-13 残留清扫、G-6 清扫提供者**无义务 | 本版不建 | 产品负责人定节奏 / AI v2 枚举读面 |
 | **跨进程的锁竞争与 `clock` 先后** | 本版单机；同一主机两进程的属主排他与租约由 `process.spec.ts` › `交错 I-9…`（sqlite）与 `pg.spec.ts` 的 I-9 pg 支证 | 投影 Q-8；入口契约 G-8 |
 | **四个基础设施节点的设计没有契约条款可接受** | 只随 D-023／D-028 作为实现路径接受；本节点对它们的每一处采用以此为前提 | 各自的评审与接受 |
-| **本程追加的候选部分全部没有证据** | 三个 provider 包与本节点的追加都没有源码；上表六条候选行未开始（「同一存储、同一约束域」一行是实现后第一波必跑项）；四份候选契约未接受 | 实现之后逐条跑；D-041 签署归产品负责人 |
-| **中心各面对外不可达**（U-6） | 入口契约 v1 路由表封闭；本节点在这件事上能给的证据只有「入口层不 inject 那几个面」的结构事实 | 主线：入口契约 v2 |
-| **时刻严格递增**（U-7） | 手段已选时钟（D-040 §八 M58），登为 `infra/clock` 的 C-15、下一程实施；在它之前「不复活」同一毫秒那一支没有能变绿的证据 | `infra/clock` 节点（C-15） |
+| **本程追加的候选部分全部没有证据** | 三个 provider 包与本节点的追加都没有源码；上表六条候选行未开始（「同一存储、同一约束域」一行是实现后第一波必跑项）；四份候选契约未接受 | 实现之后逐条跑；D-061 签署归产品负责人 |
+| **中心各面对外不可达**（U-6） | 入口契约 v1 路由表封闭；本节点在这件事上能给的证据只有「入口层不 inject 那几个面」的结构事实 | 主线：未来资产/据点入口（版本未分配） |
+| **时刻严格递增**（U-7） | 手段已选时钟（D-060 §八 M58），登为 `infra/clock` 的 C-15、下一程实施；在它之前「不复活」同一毫秒那一支没有能变绿的证据 | `infra/clock` 节点（C-15） |
 
 ## 独立评审
 
-2026-09-25 本节点的「本程追加」段随 N2 批（asset-governance、organization-governance v2、tenancy-host）经一次独立的架构评审（只读结构核对，无运行，基线 HUB `00a4c1c6`；已实现的租户批段不在范围）：本节点建议 3、观察 1，无阻断；主线据此裁定 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M59、M60、M62（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
+2026-09-25 本节点的「本程追加」段随 N2 批（asset-governance、organization-governance v2、tenancy-host）经一次独立的架构评审（只读结构核对，无运行，基线 HUB `00a4c1c6`；已实现的租户批段不在范围）：本节点建议 3、观察 1，无阻断；主线据此裁定 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M59、M60、M62（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
 
 | 编号 | 发现 | 处置 | 落点 |
 | --- | --- | --- | --- |
@@ -108,3 +110,28 @@ pg 一行只有 `pg.spec.ts` 这 11 条、只在 PostgreSQL 16.14 上跑过，�
 | TH-2 建议 | 「中心进程里不登记任何资产事件的监听者」没有证据义务（与 asset-governance AG-3 同一件事） | 按 M60：加两条义务——`tools/ts-checks` 规则（`packages/` 除 asset-governance 与 `apps/tenancy-host` 内不得订阅 `asset.*`）＋启动期断言监听者集合为空 | 本页义务表「中心进程里没有资产事件的订阅者」一行；design 承接表「事件」一行 |
 | TH-3 建议 | 「首次登记随快照撤回」只盖首次；非首次、无迁移、只改清单的启动靠幂等＋重登（与 AG-5 同一件事） | 按 M62：义务扩为两支，第二支覆盖「清单新增条目失败」 | 本页义务表「整体性（两支）」一行；design「迁移追加」末段与装卸表资产提供者一行 |
 | TH-4 观察 | 新边的契约坐标「待立 v2」、装载与撤除次序、两处持久写在插件体、「钉哪一版」、承接表逐组 | 已核对、无处置 | — |
+
+
+## D-039 同步档位增量 · 2026-09-24
+
+[实际运行](../../../record/evidence/2026-09-24-tests-sqlite-full/README.md)：macOS Node24，存储95通过/4跳过，中心启动与升级38通过，黑盒最终46通过；真实句柄/迁移/重开 FULL 与共享 NORMAL 默认分别检查。保留环境失败及错误过滤运行；未验证物理断电、Linux FULL 或 PostgreSQL，不提升历史证据范围。
+
+## 2026-09-25可搬运CLI与独立中心进程
+
+[本次运行](../../../record/evidence/2026-09-25-tests-cli-portable-host/README.md)：89项应用/打包故障、归档清单与BUILD_ID、三平台keygen/serve真实进程、正式scrypt成本、治理旅程与正常/强杀重启。中心仍从仓库dist启动，CLI从仓库外最终归档运行；不包含中心分发/服务管理器、物理多机、TUI或备份恢复。
+
+## 2026-09-25 D052/D053 新制品与全工作区回归
+
+[固定证据包](../../../record/evidence/2026-09-25-tests-host-startup/README.md)封存564份源输入、44份顶层运行记录、三组最终跨OS场景及两份完整归档。18成员1761通过/34跳过/0失败，build/types通过；独立无dist快照分别host先行与CLI先行打包通过。Mac/Linux arm64与Linux amd64真实HTTPS治理/重启通过；Docker网络与PTY不等同物理公司网络或macOS GUI终端验收。初版失败和旧实现迁移负控保留。宿主归档、启动修复已验证；服务管理/每日备份/隔离恢复和最终fable review仍未完成。
+
+
+## 2026-09-26 D055/D056 实际维护验证
+
+[固定源码、制品和运行证据](../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)保存原始故障、修正、源码回归及独立制品 QA。SQLite资源关闭/worker真实退出/跨进程保锁、封装与发布unknown、HT3与host信号/双槽、非root Linux systemd及近1GiB时的员工访问和租约续约分别验证。最终host r3运行字节与r1相同，文档和pnpm生成元数据差异经独立核验，r3再跑38项主旅程。没有实际断电/任意存储设备保证；独立QA的源变动精确分支未验，不计通过；恢复只隔离，整机损毁灾备与安全重新开放仍未交付。
+
+
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

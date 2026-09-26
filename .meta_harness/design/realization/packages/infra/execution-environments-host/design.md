@@ -1,13 +1,13 @@
 # execution-environments-host 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
-**2026-09-26 裁决对账**：[D-044 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+**2026-09-26 裁决对账**：[D-064 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
 
 
 ## 实现路径与来源
 
-**自建一个小的 Cordis 插件，没有可复用的上游对象**：落点判断的次序、进程组的起停与有界答复是本项目的契约语义（`capability.execution-environments` v1）。起停进程只用 Node 内置的 `node:child_process`、`node:fs` 与 `process.kill`，**不引第三方进程管理库，也不引执行器类库替本节点调度重试或轮询**（[D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 口径）。
+**自建一个小的 Cordis 插件，没有可复用的上游对象**：落点判断的次序、进程组的起停与有界答复是本项目的契约语义（`capability.execution-environments` v2）。起停进程只用 Node 内置的 `node:child_process`、`node:fs` 与 `process.kill`，**不引第三方进程管理库，也不引执行器类库替本节点调度重试或轮询**（[D-060 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 口径）。
 
 | 用什么 | 从哪来 | 用来做什么 |
 |---|---|---|
@@ -32,10 +32,10 @@
 
 | 导出（候选） | 做什么 | 输入与输出的契约坐标 |
 |---|---|---|
-| `decidePlacement(reading)` | 纯判定：一份工具落点读数（或「读不到」）→ `host`／`noLanding{why}`／`unavailable`，按契约 S-6 的次序 | [S-6](../../../../spec/capabilities/execution-environments/v1/contract.md#s-6-落点判断本版只有宿主机) 第 1～4 条 |
+| `decidePlacement(reading)` | 纯判定：一份工具落点读数（或「读不到」）→ `host`／`noLanding{why}`／`unavailable`，按契约 S-6 的次序 | [S-6](../../../../spec/capabilities/execution-environments/v2/contract.md#s-6-落点判断本版只有宿主机) 第 1～4 条 |
 | `decideExtensionLanding(allowance)` | 纯判定：拓展件子进程的宿主机允许（有／没有／读不到）→ `host`／`noLanding{hostNotAllowed}`／`unavailable` | S-6 末段 |
-| `resolveProgram(program, environment, workingDirectory, probe)` | 按 `environment` 里的程序搜索路径解析出绝对路径，或交回 `programNotFound`／`launchRefused`；`probe` 是可替换的文件探测端口 | [S-13](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess) ③⑥ |
-| `startGroup(launch, limits, signals?)` → 句柄 | 起一个进程、开一个新组；句柄有 `outcome()`（起的那一个结束时交结果）与 `stop()`（按组停、每次发信号前核组长身份、在 `stopReplyBound` 内答 `confirmedGone`／`notConfirmed`、未确认则继续停直到句柄被释放）；`signals` 是可替换的信号端口（故障注入用） | S-13～[S-15](../../../../spec/capabilities/execution-environments/v1/contract.md#s-15-stopprocessgroup) 的起停语义 |
+| `resolveProgram(program, environment, workingDirectory, probe)` | 按 `environment` 里的程序搜索路径解析出绝对路径，或交回 `programNotFound`／`launchRefused`；`probe` 是可替换的文件探测端口 | [S-13](../../../../spec/capabilities/execution-environments/v2/contract.md#s-13-startprocess) ③⑥ |
+| `startGroup(launch, limits, signals?)` → 句柄 | 起一个进程、开一个新组；句柄有 `outcome()`（起的那一个结束时交结果）与 `stop()`（按组停、每次发信号前核组长身份、在 `stopReplyBound` 内答 `confirmedGone`／`notConfirmed`、未确认则继续停直到句柄被释放）；`signals` 是可替换的信号端口（故障注入用） | S-13～[S-15](../../../../spec/capabilities/execution-environments/v2/contract.md#s-15-stopprocessgroup) 的起停语义 |
 
 **Cordis 服务面**：插件 `execution-environments-host`、服务 `executionEnvironments`（五个操作，名字取契约），不 inject 任何服务（[下节](#插件边界与服务面)）。
 
@@ -52,17 +52,17 @@
 **一个插件 `execution-environments-host`（候选名），一条 fiber，据点根作用域一份。不 inject 任何服务**：它没有耐久事实，不要存储；不写领域时刻，不要 `clock`（停止宽限与答复上界是时长，由定时器量）。
 它 provide 一个服务 `executionEnvironments`（服务键见契约 README；执行宿主、派发器、兼容件三个消费者共用），方法与契约第四节五个操作一一对应：`resolveSessionEnvironment`、`placeExecution`、`startProcess`、`processOutcome`、`stopProcessGroup`。**全部尚未实现**。
 
-**落点读数的来路**（契约 [G-2](../../../../spec/capabilities/execution-environments/v1/contract.md#十已知缺口)、G-3：没有契约）：每次调用时经 `resolveOptional` 现取一个可选服务（候选名 `executionPlacementReadings`，**无契约，形状是本节点对来路的要求**，[下文](#对落点读数来路的要求清单)）。验收装配由 `apps/cli` 测试代码里的一个种子件提供它；产品装配里没有它。
+**落点读数的来路**（契约 [G-2](../../../../spec/capabilities/execution-environments/v2/contract.md#十已知缺口)、G-3：没有契约）：每次调用时经 `resolveOptional` 现取一个可选服务（候选名 `executionPlacementReadings`，**无契约，形状是本节点对来路的要求**，[下文](#对落点读数来路的要求清单)）。验收装配由 `apps/cli` 测试代码里的一个种子件提供它；产品装配里没有它。
 
-插件体 provide 服务、登记**一个** effect，持有：引用表（(租户, 会话) ↔ 执行环境引用）、进程组表（进程组引用 → 组号、所属执行环境引用、子进程句柄、结果、状态、「组空」标记与看守定时器）、在途起进程计数、在等的调用、撤除标记。**全部只在内存里**——契约 [S-17](../../../../spec/capabilities/execution-environments/v1/contract.md#s-17-撤除重启与在途) 第 1 条：本能力没有耐久事实。
+插件体 provide 服务、登记**一个** effect，持有：引用表（(租户, 会话) ↔ 执行环境引用）、进程组表（进程组引用 → 组号、所属执行环境引用、子进程句柄、结果、状态、「组空」标记与看守定时器）、在途起进程计数、在等的调用、撤除标记。**全部只在内存里**——契约 [S-17](../../../../spec/capabilities/execution-environments/v2/contract.md#s-17-撤除重启与在途) 第 1 条：本能力没有耐久事实。
 
 **config**（候选名；全部必填、代码里不放默认，缺一或非法即启动失败）：
 
 | 配置项 | 形状与约束 | 候选初值（由装配的配置给） | 来源条款 |
 |---|---|---|---|
-| `stopGrace` | 正时长 | **2 s** | 契约 S-15 ④、[G-6](../../../../spec/capabilities/execution-environments/v1/contract.md#十已知缺口) |
+| `stopGrace` | 正时长 | **2 s** | 契约 S-15 ④、[G-6](../../../../spec/capabilities/execution-environments/v2/contract.md#十已知缺口) |
 | `stopReplyBound` | 正时长，大于 `stopGrace` | **5 s** | 契约 S-15 ④、G-6 |
-| `outputBound` | 正整数字节，每一路各自 | **1 MiB** | 契约 [S-14](../../../../spec/capabilities/execution-environments/v1/contract.md#s-14-processoutcome) ⑤、G-6 |
+| `outputBound` | 正整数字节，每一路各自 | **1 MiB** | 契约 [S-14](../../../../spec/capabilities/execution-environments/v2/contract.md#s-14-processoutcome) ⑤、G-6 |
 | `outputDrainGrace` | 非负时长 | **100 ms** | 本节点（[关键选择四](#关键选择)） |
 | `stopPollInterval` | 正时长，小于 `stopReplyBound` | **50 ms** | 本节点（确认组空的探测间隔与未确认之后继续停的节拍） |
 
@@ -103,7 +103,7 @@
 |---|---|---|
 | 落选方的最强论证 | 输出一个字节都不丢；不需要多一项配置 | —— |
 | 本方弱点 | —— | 起的进程退出前写进管道、却在宽限之后才被读到的字节会丢；子孙与它共用管道，结果里的字节也可能有子孙写的（EEH-4） |
-| 为什么选它 | 起的进程在后台留下一个继承了标准输出的孙进程时（契约 [S-21](../../../../spec/capabilities/execution-environments/v1/contract.md#s-21-孙进程随组停下)、examples §2 第 1 步的 `sleep 600 &`），管道要等孙进程结束才关——`processOutcome` 挂到孙进程死为止，违反 S-14 ④「在起的那个进程结束时返回」 | 按 S-14 ④ 返回；结果定下之后管道照读照丢，不让子孙因管道写满而挂住，直到管道关闭 |
+| 为什么选它 | 起的进程在后台留下一个继承了标准输出的孙进程时（契约 [S-21](../../../../spec/capabilities/execution-environments/v2/contract.md#s-21-孙进程随组停下)、examples §2 第 1 步的 `sleep 600 &`），管道要等孙进程结束才关——`processOutcome` 挂到孙进程死为止，违反 S-14 ④「在起的那个进程结束时返回」 | 按 S-14 ④ 返回；结果定下之后管道照读照丢，不让子孙因管道写满而挂住，直到管道关闭 |
 | 置信度 | 中 | |
 
 **五、进程组 = POSIX 会话与进程组（选）。**
@@ -117,7 +117,7 @@
 
 **六、停组：每组一个停止例程，并发的停止请求共享它、各按自己的时限答复（选）。**每次 `stopProcessGroup` 各自发信号、各自轮询也能工作，但两次并发请求会各发一遍宽限与强制，第二次的宽限从它自己的时刻算，整组被强制结束的时刻取决于谁先来。本方：第一次请求起一个例程（`SIGTERM` → 等 `stopGrace` → 组里还有 ⇒ `SIGKILL` → 每 `stopPollInterval` 探一次组空），后来的请求只登记一个等待者；每个等待者的时限是它自己到达时刻加 `stopReplyBound`，到点仍未确认就答 `notConfirmed`，**例程不停**——此后每个节拍先核组长身份（关键选择七）、核得上再发一次 `SIGKILL` 并探组空，直到组空、核不上或本插件撤除（S-15 末段：未确认之后继续停）。置信度：高。
 
-**七、每一次发信号之前核组长身份：问三件事——组长收回没有、组号上另有没有进程、看守见没见过组空（选；契约 [S-15](../../../../spec/capabilities/execution-environments/v1/contract.md#s-15-stopprocessgroup) ④ 与第六节「信号绝不到达组外进程」，主线裁定 [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）。**
+**七、每一次发信号之前核组长身份：问三件事——组长收回没有、组号上另有没有进程、看守见没见过组空（选；契约 [S-15](../../../../spec/capabilities/execution-environments/v2/contract.md#s-15-stopprocessgroup) ④ 与第六节「信号绝不到达组外进程」，主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）。**
 
 | | 组号加组长起始时刻（读 `/proc/<组号>/stat`；桥节点 S-28 回收的先例） | pidfd（Linux ≥ 5.3） | **三问（选）** |
 |---|---|---|---|
@@ -141,17 +141,17 @@
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/capabilities/execution-environments/v1/contract.md#s-5-执行环境引用) 执行环境引用 | 引用表：(租户两个分量, 会话) → 32 字节随机引用，反向表引用 → (租户, 会话) | 尚未建包 | 跨租户、没发过、上一次在场发的一律同一个 `referenceNotValid`；引用不含任何可读出的内容 |
-| [S-6](../../../../spec/capabilities/execution-environments/v1/contract.md#s-6-落点判断本版只有宿主机) 落点判断 | `decidePlacement`／`decideExtensionLanding`；读数每次经读面现取 | 尚未建包 | `always-allow`、`auto_place` ⇒ `host`（N-37 ⑥）；不缓存；不回退；本插件不另持任何名单 |
-| [S-7](../../../../spec/capabilities/execution-environments/v1/contract.md#s-7-进程组) 进程组 | 进程组表；组号 = 起的进程号（`detached`）；进程以本进程的操作系统身份跑（`spawn` 不给 `uid`／`gid`） | 尚未建包 | 引用寿命到 `confirmedGone`；起的进程自己退出不使引用失效（起看守，[关键选择七](#关键选择)）；信号只到本组：每次发之前核组长身份，剩下的前提见 EEH-5 |
-| [S-8](../../../../spec/capabilities/execution-environments/v1/contract.md#s-8-缺席时的默认答案)、[S-9](../../../../spec/capabilities/execution-environments/v1/contract.md#s-9-失败值) 缺席与失败值 | 失败映射表（[下文](#状态并发与失败映射)） | 尚未建包 | 失败值恰六个，没有 catch-all |
-| [S-11](../../../../spec/capabilities/execution-environments/v1/contract.md#s-11-resolvesessionenvironment) `resolveSessionEnvironment` | 查或登记引用表 | 尚未建包 | 不核会话持有的租户（调用方义务，S-3）；同一对同一个引用 |
-| [S-12](../../../../spec/capabilities/execution-environments/v1/contract.md#s-12-placeexecution) `placeExecution` | 引用核对 → 现取读面、读这个租户下这个工具的权限与目标环境 → `decidePlacement` | 尚未建包；读面无契约（G-2，EEH-1） | 读面缺席或答「读不到」⇒ `unavailable`；两样之一读不到即整份「读不到」（次序回归例 3） |
-| [S-13](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess) `startProcess` | 表示层（含 `launch` 五项全在；参数与环境里没有 NUL、变量名里没有 `=`——操作系统传不了的一律 `invalidInput`）→ 撤除 → 引用 → 拓展件子进程的允许 → 工作目录与 `resolveProgram` → `spawn`（`shell: false`、`env` 恰是 `launch.environment`、`cwd`、`detached`）→ 等 `spawn` 或 `error` 事件 → 登记组、写 `input` 后关标准输入 | 尚未建包；上游语义待取证（EEH-7） | **实现约束**：在途起进程计数在撤除标记核过的**同一段同步代码里、第一个 `await` 之前**加一，调用落定时减一；`spawn` 之前同步再核一次撤除标记，已置即不起、答 `environmentsWithdrawn`（撤除序列第 ② 步等的就是这个计数）。**提交点**是 `spawn` 事件：之前失败什么都不留；**产品装配未交入允许时 fail-closed**：读面缺席即「没有允许」⇒ `noLanding{hostNotAllowed}`（G-3、N-37 ⑧），什么都不起。环境变量**恰是**交来的那一份，本插件不按任何白名单增删：`EnvAllowlist` 的形状定在 S-13 表下，由调用方按它自己的那一份取出再并进 `launch.environment`（EEH-3，已闭合） |
-| [S-14](../../../../spec/capabilities/execution-environments/v1/contract.md#s-14-processoutcome) `processOutcome` | 等组表里那一项的结果（[关键选择四](#关键选择)）；每一路各收 `outputBound` 字节，超出的丢、置 `truncated` | 尚未建包 | `exit` 带码 ⇒ `exited{code}`，带信号 ⇒ `terminated`；放弃等待不停任何东西；重复取同一份；等待没有自己的时限 |
-| [S-15](../../../../spec/capabilities/execution-environments/v1/contract.md#s-15-stopprocessgroup) `stopProcessGroup` | 每组一个停止例程（[关键选择六](#关键选择)） | 尚未建包 | 组已经空了（看守已记下）⇒ 立即 `confirmedGone`；每次发信号之前核组长身份（[关键选择七](#关键选择)）：核不上 ⇒ 不发、例程停、答 `confirmedGone`、error 级记录；判不出 ⇒ 这一次不发、`notConfirmed`；答 `confirmedGone` 之后从组表删掉那一项、引用失效；`notConfirmed` 之后例程继续 |
-| [S-16](../../../../spec/capabilities/execution-environments/v1/contract.md#s-16-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
-| [S-17](../../../../spec/capabilities/execution-environments/v1/contract.md#s-17-撤除重启与在途) 撤除、重启与在途 | 撤除序列在一个 effect 里（[装卸](#成对的装载与撤除)） | 尚未建包 | 重启后引用表与组表都是空的 ⇒ 旧引用一律 `referenceNotValid`；崩溃时还在跑的进程不被停（G-7） |
+| [S-5](../../../../spec/capabilities/execution-environments/v2/contract.md#s-5-执行环境引用) 执行环境引用 | 引用表：(租户两个分量, 会话) → 32 字节随机引用，反向表引用 → (租户, 会话) | 尚未建包 | 跨租户、没发过、上一次在场发的一律同一个 `referenceNotValid`；引用不含任何可读出的内容 |
+| [S-6](../../../../spec/capabilities/execution-environments/v2/contract.md#s-6-落点判断本版只有宿主机) 落点判断 | `decidePlacement`／`decideExtensionLanding`；读数每次经读面现取 | 尚未建包 | `always-allow`、`auto_place` ⇒ `host`（N-37 ⑥）；不缓存；不回退；本插件不另持任何名单 |
+| [S-7](../../../../spec/capabilities/execution-environments/v2/contract.md#s-7-进程组) 进程组 | 进程组表；组号 = 起的进程号（`detached`）；进程以本进程的操作系统身份跑（`spawn` 不给 `uid`／`gid`） | 尚未建包 | 引用寿命到 `confirmedGone`；起的进程自己退出不使引用失效（起看守，[关键选择七](#关键选择)）；信号只到本组：每次发之前核组长身份，剩下的前提见 EEH-5 |
+| [S-8](../../../../spec/capabilities/execution-environments/v2/contract.md#s-8-缺席时的默认答案)、[S-9](../../../../spec/capabilities/execution-environments/v2/contract.md#s-9-失败值) 缺席与失败值 | 失败映射表（[下文](#状态并发与失败映射)） | 尚未建包 | 失败值恰六个，没有 catch-all |
+| [S-11](../../../../spec/capabilities/execution-environments/v2/contract.md#s-11-resolvesessionenvironment) `resolveSessionEnvironment` | 查或登记引用表 | 尚未建包 | 不核会话持有的租户（调用方义务，S-3）；同一对同一个引用 |
+| [S-12](../../../../spec/capabilities/execution-environments/v2/contract.md#s-12-placeexecution) `placeExecution` | 引用核对 → 现取读面、读这个租户下这个工具的权限与目标环境 → `decidePlacement` | 尚未建包；读面无契约（G-2，EEH-1） | 读面缺席或答「读不到」⇒ `unavailable`；两样之一读不到即整份「读不到」（次序回归例 3） |
+| [S-13](../../../../spec/capabilities/execution-environments/v2/contract.md#s-13-startprocess) `startProcess` | 表示层（含 `launch` 五项全在；参数与环境里没有 NUL、变量名里没有 `=`——操作系统传不了的一律 `invalidInput`）→ 撤除 → 引用 → 拓展件子进程的允许 → 工作目录与 `resolveProgram` → `spawn`（`shell: false`、`env` 恰是 `launch.environment`、`cwd`、`detached`）→ 等 `spawn` 或 `error` 事件 → 登记组、写 `input` 后关标准输入 | 尚未建包；上游语义待取证（EEH-7） | **实现约束**：在途起进程计数在撤除标记核过的**同一段同步代码里、第一个 `await` 之前**加一，调用落定时减一；`spawn` 之前同步再核一次撤除标记，已置即不起、答 `environmentsWithdrawn`（撤除序列第 ② 步等的就是这个计数）。**提交点**是 `spawn` 事件：之前失败什么都不留；**产品装配未交入允许时 fail-closed**：读面缺席即「没有允许」⇒ `noLanding{hostNotAllowed}`（G-3、N-37 ⑧），什么都不起。环境变量**恰是**交来的那一份，本插件不按任何白名单增删：`EnvAllowlist` 的形状定在 S-13 表下，由调用方按它自己的那一份取出再并进 `launch.environment`（EEH-3，已闭合） |
+| [S-14](../../../../spec/capabilities/execution-environments/v2/contract.md#s-14-processoutcome) `processOutcome` | 等组表里那一项的结果（[关键选择四](#关键选择)）；每一路各收 `outputBound` 字节，超出的丢、置 `truncated` | 尚未建包 | `exit` 带码 ⇒ `exited{code}`，带信号 ⇒ `terminated`；放弃等待不停任何东西；重复取同一份；等待没有自己的时限 |
+| [S-15](../../../../spec/capabilities/execution-environments/v2/contract.md#s-15-stopprocessgroup) `stopProcessGroup` | 每组一个停止例程（[关键选择六](#关键选择)） | 尚未建包 | 组已经空了（看守已记下）⇒ 立即 `confirmedGone`；每次发信号之前核组长身份（[关键选择七](#关键选择)）：核不上 ⇒ 不发、例程停、答 `confirmedGone`、error 级记录；判不出 ⇒ 这一次不发、`notConfirmed`；答 `confirmedGone` 之后从组表删掉那一项、引用失效；`notConfirmed` 之后例程继续 |
+| [S-16](../../../../spec/capabilities/execution-environments/v2/contract.md#s-16-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
+| [S-17](../../../../spec/capabilities/execution-environments/v2/contract.md#s-17-撤除重启与在途) 撤除、重启与在途 | 撤除序列在一个 effect 里（[装卸](#成对的装载与撤除)） | 尚未建包 | 重启后引用表与组表都是空的 ⇒ 旧引用一律 `referenceNotValid`；崩溃时还在跑的进程不被停（G-7） |
 
 ### 对落点读数来路的要求清单
 
@@ -160,7 +160,7 @@
 | # | 要求 | 对应条款 |
 |---|---|---|
 | RD-1 | `toolPlacement(tenant, tool)` 交回这个租户下这个工具**此刻**的执行环境权限（`always-allow`／`auto_place`／`never-allow`／没有值）与目标环境（声明了／没声明），**两样一起**；任一样读不到就整份答「读不到」 | S-6 第 1～4 条、S-12 ④ |
-| RD-2 | `extensionHostAllowance(tenant)` 交回拓展件子进程的宿主机允许：有／没有／读不到。**产品允许针对 hooks 兼容件（D-044 ⑭）**，本节点只把租户交过去；如何让读面保持这一范围而不扩到其他拓展件，仍归 G-3 的接线义务 | S-6 末段、G-3 |
+| RD-2 | `extensionHostAllowance(tenant)` 交回拓展件子进程的宿主机允许：有／没有／读不到。**产品允许针对 hooks 兼容件（D-064 ⑭）**，本节点只把租户交过去；如何让读面保持这一范围而不扩到其他拓展件，仍归 G-3 的接线义务 | S-6 末段、G-3 |
 | RD-3 | 不缓存：每次调用答此刻的值 | S-6「每次现判」 |
 | RD-4 | 「没有值」与「读不到」分得开 | S-8 第 2、3 行 |
 
@@ -223,7 +223,7 @@
 
 ## 装配给与协议给：本节点单机怎样兑现左列
 
-照契约 [S-16](../../../../spec/capabilities/execution-environments/v1/contract.md#s-16-装配给的保证-vs-协议须给的保证) 逐行；右列（执行环境在远端时）本节点一条都不兑现。
+照契约 [S-16](../../../../spec/capabilities/execution-environments/v2/contract.md#s-16-装配给的保证-vs-协议须给的保证) 逐行；右列（执行环境在远端时）本节点一条都不兑现。
 
 | 保证 | 本节点单机怎样给 | 归谁 |
 |---|---|---|
@@ -243,13 +243,13 @@
 |---|---|---|---|---|
 | EEH-1 | **工具落点读数没有来路**（契约 G-2）：产品装配里每一次 `placeExecution` 答 `unavailable` | 执行宿主 S-38 第 2 步（`failed{environment_unavailable}`，TER T-6） | PF-005 owner ＋ 资产设置求值那一侧 | 有一个读面给出「这个租户下这个工具此刻的权限与目标环境」；本节点 RD-1 改指它 |
 | EEH-2 | **拓展件子进程的宿主机允许没有**（契约 G-3，账本 ⑭）：产品装配未交入允许时 fail-closed，每一件兼容件「起不来」；产品允许针对 hooks 兼容件，读面须保持这一范围（RD-2） | 兼容件全部（HI-N1） | 执行环境与据点装配 owner | 产品已裁；读面给出那一项 |
-| EEH-3 | **已闭合**：`EnvAllowlist` 的形状定在契约 [S-13](../../../../spec/capabilities/execution-environments/v1/contract.md#s-13-startprocess) 表下那一条（名集合；按它从据点进程环境取出的恰是名字在集合里、环境里此刻有的那几个）。本能力不持有、不读任何一份——`launch.environment` 由调用方交全；兼容件的 `hookEnvAllowlist` 与桥的 `stdioEnvAllowlist` 是两个策略点、同一个形状，各自引用那一条、各自应用。本插件恰好交 `launch.environment`、不按白名单增删（S-13 行） | —— | —— | —— |
-| EEH-4 | **已闭合**：契约 [S-14](../../../../spec/capabilities/execution-environments/v1/contract.md#s-14-processoutcome) ⑤ 已改为「起的进程所在管道上的字节」（D-040 §八 N-40 ③）：子孙与它共用管道，结果里可能有子孙写的字节，退出之后 `outputDrainGrace` 才到的字节会丢 | —— | —— | —— |
+| EEH-3 | **已闭合**：`EnvAllowlist` 的形状定在契约 [S-13](../../../../spec/capabilities/execution-environments/v2/contract.md#s-13-startprocess) 表下那一条（名集合；按它从据点进程环境取出的恰是名字在集合里、环境里此刻有的那几个）。本能力不持有、不读任何一份——`launch.environment` 由调用方交全；兼容件的 `hookEnvAllowlist` 与桥的 `stdioEnvAllowlist` 是两个策略点、同一个形状，各自引用那一条、各自应用。本插件恰好交 `launch.environment`、不按白名单增删（S-13 行） | —— | —— | —— |
+| EEH-4 | **已闭合**：契约 [S-14](../../../../spec/capabilities/execution-environments/v2/contract.md#s-14-processoutcome) ⑤ 已改为「起的进程所在管道上的字节」（D-060 §八 N-40 ③）：子孙与它共用管道，结果里可能有子孙写的字节，退出之后 `outputDrainGrace` 才到的字节会丢 | —— | —— | —— |
 | EEH-5 | **组号再分配：已改为每次发信号前核组长身份（[关键选择七](#关键选择)），剩一条前提作证据义务**——组长已收回之后，看守相邻两拍之间（`stopPollInterval` 加事件循环停顿）号空间转不完一圈并让一个新组长占过又放下这个号；取证与演练见 verification N-9 第 ⑨ 条、N-11。另：停不下来与崩溃之后的组无人回收（契约 G-7） | 契约第六节「信号绝不到达组外进程」、S-15 ④；S-17 | 本节点（前提的取证）；PF-005 那一程（G-7） | N-9 第 ⑨ 条在目标机上量出号空间转一圈的最短时间远大于看守间隔、N-11 演练通过；G-7 的闭合（耐久记下起过的组、按身份核对后回收） |
 | EEH-6 | **引用表只增不减**：会话结束不使引用失效（契约 G-8），长期待机的据点里引用表随会话数增长；组表靠调用方停组才收，消费者不停组就一直留着 | S-5、S-7；PF-016 长期待机 | PF-005 ＋ PF-015 那一程 | 会话结束的触发有契约 |
 | EEH-7 | **只在 POSIX；进程与信号的上游语义全部待取证**（[实现路径](#实现路径与来源)的八条假设，另加 `execvp` 的查找规则与关键选择三的差别） | S-7、S-13～S-15 | 本节点 | 每条一个会失败的测试（Node 24.18.0 起，Linux 与 macOS 各跑一遍）；需要时登 basis |
 | EEH-8 | 「没声明要用执行环境的工具这一维不适用」本版不区分、声明了目标环境即 `requirementNotJudged`（契约 G-4、G-5）：本节点照契约 | S-6 第 3 条、S-12 末条 | PF-005 与 `data.tool-definition` owner | 契约新版本 |
 | EEH-9 | `provide` 由 effect 纳管：kernel-basis 有 probe、没有 basis 条目——**待核对主张** | 装卸表 | `core/kernel-basis` owner | 升格为 basis 条目 |
-| EEH-10 | **已裁**：路径维持 `infra/`——主线把[两层布局](../../../README.md#packages-的两层布局)里 `infra/` 的定义扩为「兑现 `core/` 协议级构造，或据点／中心的窄口基础设施契约（密钥保管、进程起停、连接探测）」（D-040 §八 N-40 ①） | —— | —— | —— |
+| EEH-10 | **已裁**：路径维持 `infra/`——主线把[两层布局](../../../README.md#packages-的两层布局)里 `infra/` 的定义扩为「兑现 `core/` 协议级构造，或据点／中心的窄口基础设施契约（密钥保管、进程起停、连接探测）」（D-060 §八 N-40 ①） | —— | —— | —— |
 
 **报给主线**（不在本节点改）：hooks-import 设计里引的「HI-N11」在它的缺口表里没有这一行。「工具配 `host` 或 `auto_place` 答 `host`」按契约读作执行环境权限 `always-allow` 或 `auto_place` 答 `host`（`host` 是答复，不是权限值）。**产品装配里装不装**：本版不装（cli 关键选择 5）；装上之后工具一律 `unavailable`、兼容件一律 `noLanding{hostNotAllowed}`——如实失败，不填默认值。

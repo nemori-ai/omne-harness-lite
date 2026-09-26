@@ -1,3 +1,4 @@
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 // 判定次序第 ② 步：认人（入口契约 S-11；入口节点约束第 8 条「只凭出示物认人」）。
 // **`Caller` 只在本模块构造**：路由调用函数以登录状态为发起方或调用方时，实参只从它取；
 // 它的两个值只来自 `logins.exchange` 的返回——线上收到的任何 `LoginStateId` 都不作认人依据。
@@ -53,6 +54,7 @@ export async function authenticate(
   try {
     outcome = await logins.exchange(presentation.ok)
   } catch (error) {
+    if (error instanceof StorageUnavailable) throw error
     return defect(thrownValue(error))
   }
   // 参与方的返回按运行期形状核：失败集合之外的任何东西（含没有值）都是缺陷

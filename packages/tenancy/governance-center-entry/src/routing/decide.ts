@@ -1,3 +1,8 @@
+import { StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
+import {
+  parseLoginStatePresentation,
+  type PreparedCredentialChange,
+} from '@omne-harness-lite/account-identity'
 // 判定次序（入口契约 S-10）：一个请求体恰按下面的次序走，每一步只有「过」与「答」两个出口，没有回跳、没有并行的判定。
 //   读 JSON（https-json/1 S-7）→ 0 公开体检 → ① 版本 → ①′ 信封 →（免认人：载荷 → ③）／（② 认人 → 载荷 → 推导 → 补授权 → ③）
 // 任何一步判不了就停在那一步答 `unavailable`，永不改说成 `login-state-rejected`；不用查就判得了的照判。
@@ -8,6 +13,7 @@ import {
   parseMembershipStanding,
   parseTenantId,
   type TenantId,
+  tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
 import { type DuplicateMember, readJsonText } from '../json.ts'
 import { RECEIVE_LIMITS } from '../ops/limits.ts'
@@ -17,7 +23,7 @@ import {
   routeFailureBytes,
   routeSuccessBytes,
 } from './answers.ts'
-import { type Caller, authenticate } from './caller.ts'
+import { type Authentication, type Caller, authenticate } from './caller.ts'
 import {
   type Call,
   type Observed,
@@ -30,6 +36,7 @@ import { ACCEPTED_PROTOCOL_VERSIONS, PUBLIC_HEALTH_ROUTE } from './route-ids.ts'
 import {
   type AuthenticatedRoute,
   type EntryServices,
+  type AuthenticatedServices,
   type ExemptRoute,
   type Payload,
   type ReplyShape,
@@ -39,6 +46,7 @@ import {
 import { conformsTo } from './schema.ts'
 
 export interface DecisionContext {
+  readonly storage: AtomicStorage
   readonly services: EntryServices
   /** 启动时构造好的公开体检答复（一次运行期间固定）。 */
   readonly publicHealth: Buffer
@@ -136,7 +144,145 @@ export async function decide(body: Buffer, context: DecisionContext): Promise<De
 
   const payload = payloadOf(route, envelope, duplicates, count('payload'))
   if (route.exempt) return exempt(route, payload, context.services)
-  return authenticated(route, envelope, count('presentedLoginState'), payload, context.services)
+  // Lookup-free rejection must not depend on starting a storage transaction.
+  const presentations = count('presentedLoginState')
+  const rejection =
+    presentations === 0
+      ? 'absent'
+      : presentations > 1
+        ? 'multiple'
+        : !isOk(parseLoginStatePresentation(envelope['presentedLoginState']))
+          ? 'malformed'
+          : undefined
+  if (rejection !== undefined)
+    return finish(
+      { stage: 'authenticate', route: route.id, rejection },
+      entry('login-state-rejected'),
+    )
+  if (route.credentialChange)
+    return changeCredential(route, envelope, presentations, payload, context)
+  return committed(context, route, services =>
+    authenticated(route, envelope, presentations, payload, services),
+  )
+}
+
+/** Only the boundary owner can convert a rollback into a network decision. */
+class RequestRollback extends Error {
+  constructor(readonly decision: Decision) {
+    super('request must roll back')
+    this.name = 'RequestRollback'
+  }
+}
+
+async function committed(
+  context: DecisionContext,
+  route: AuthenticatedRoute,
+  work: (services: AuthenticatedServices) => Promise<Decision>,
+): Promise<Decision> {
+  let rolledBack: Decision | undefined
+  try {
+    return await context.storage.atomic(async unit => {
+      try {
+        const services: AuthenticatedServices = {
+          accounts: context.services.accounts.participate(unit),
+          logins: context.services.logins.participate(unit),
+          organizations: context.services.organizations.participate(unit),
+          memberships: context.services.memberships.participate(unit),
+          offers: context.services.offers.participate(unit),
+        }
+        const decision = await work(services)
+        if (decision.record.defect || decision.record.answer === 'unavailable')
+          throw new RequestRollback(decision)
+        return decision
+      } catch (error) {
+        // A participant may have poisoned the unit with its original exception.
+        // Keep a prior observed defect for reporting after the rollback.
+        if (error instanceof RequestRollback) rolledBack = error.decision
+        throw error
+      }
+    })
+  } catch (error) {
+    if (rolledBack !== undefined) return rolledBack
+    if (error instanceof StorageUnavailable)
+      return finish(
+        { stage: 'operation', route: route.id },
+        entry('unavailable', { call: 'operation', value: 'storage-unavailable' }),
+      )
+    return finish({ stage: 'operation', route: route.id }, defect('operation', thrownValue(error)))
+  }
+}
+
+async function changeCredential(
+  route: AuthenticatedRoute,
+  envelope: Readonly<Record<string, unknown>>,
+  presentations: number,
+  payload: Payload | undefined,
+  context: DecisionContext,
+): Promise<Decision> {
+  const at = { stage: 'authenticate' as const, route: route.id }
+  let recognized: Authentication
+  try {
+    recognized = await authenticate(
+      envelope['presentedLoginState'],
+      presentations,
+      context.services.logins,
+    )
+  } catch (error) {
+    return finish(
+      at,
+      error instanceof StorageUnavailable
+        ? entry('unavailable')
+        : defect('authenticate', thrownValue(error)),
+    )
+  }
+  switch (recognized.kind) {
+    case 'rejected':
+      return finish({ ...at, rejection: recognized.rejection }, entry('login-state-rejected'))
+    case 'unavailable':
+      return finish(at, entry('unavailable', recognized.observed))
+    case 'defect':
+      return finish(at, defect(recognized.observed.call, recognized.observed.value))
+    case 'caller':
+      break
+  }
+  const base = {
+    stage: 'payload' as const,
+    route: route.id,
+    account: accountCorrelation(recognized.caller.accountId),
+  }
+  if (payload === undefined) return finish(base, entry('invalid-input'))
+  try {
+    if (
+      !isParsedOk(context.services.credentials.parse(payload['currentCredential'])) ||
+      !isParsedOk(context.services.credentials.parse(payload['newCredential']))
+    )
+      return finish(base, entry('invalid-input'))
+  } catch (error) {
+    return finish(base, defect('credentials', thrownValue(error)))
+  }
+  let prepared: Awaited<ReturnType<EntryServices['logins']['prepareCredentialChange']>>
+  try {
+    prepared = await context.services.logins.prepareCredentialChange(
+      recognized.caller.loginStateId,
+      payload['currentCredential'],
+      payload['newCredential'],
+    )
+  } catch (error) {
+    return finish(
+      base,
+      error instanceof StorageUnavailable
+        ? entry('unavailable')
+        : defect('operation', thrownValue(error)),
+    )
+  }
+  if (!isPlainObject(prepared)) return finish(base, defect('operation', 'malformed-preparation'))
+  if ('failure' in prepared) return finish(base, mapFailure(route, prepared.failure, payload))
+  if (!('ok' in prepared) || !isPlainObject(prepared.ok))
+    return finish(base, defect('operation', 'malformed-preparation'))
+  // Final stage starts with the owner's G check, never a second exchange.
+  return committed(context, route, services =>
+    authenticatedCaller(route, payload, services, recognized.caller, prepared.ok),
+  )
 }
 
 /** 载荷那一步（S-10）：`payload` 恰一个、里面任意深度没有重复成员（https-json/1 S-8）、合 `Payload_<路由>`。 */
@@ -171,8 +317,17 @@ async function exempt(
     return finish(base, defect('credentials', thrownValue(error)))
   }
   if (!isParsedOk(parsed)) return finish(base, entry('invalid-input'))
-  const settled = await invoke(route, payload, undefined, () => route.invoke(services, payload))
-  return finish({ stage: 'operation', route: route.id }, settled)
+  try {
+    const settled = await invoke(route, payload, undefined, () => route.invoke(services, payload))
+    return finish({ stage: 'operation', route: route.id }, settled)
+  } catch (error) {
+    return finish(
+      { stage: 'operation', route: route.id },
+      error instanceof StorageUnavailable
+        ? entry('unavailable')
+        : defect('operation', thrownValue(error)),
+    )
+  }
 }
 
 function isParsedOk(parsed: unknown): boolean {
@@ -184,7 +339,7 @@ async function authenticated(
   envelope: Readonly<Record<string, unknown>>,
   presentations: number,
   payload: Payload | undefined,
-  services: EntryServices,
+  services: AuthenticatedServices,
 ): Promise<Decision> {
   // ② 认人
   const recognized = await authenticate(
@@ -203,7 +358,16 @@ async function authenticated(
     case 'caller':
       break
   }
-  const caller = recognized.caller
+  return authenticatedCaller(route, payload, services, recognized.caller)
+}
+
+async function authenticatedCaller(
+  route: AuthenticatedRoute,
+  payload: Payload | undefined,
+  services: AuthenticatedServices,
+  caller: Caller,
+  credentialChange?: PreparedCredentialChange,
+): Promise<Decision> {
   const account = accountCorrelation(caller.accountId)
 
   // 载荷：认出人之后才看输入
@@ -219,6 +383,46 @@ async function authenticated(
       return finish({ stage: 'derive', route: route.id, account }, derivation.settled)
     }
     tenant = derivation.tenant
+  }
+  if (payload['expectedTenant'] !== undefined) {
+    const expected = parseTenantId(payload['expectedTenant'])
+    if (!isOk(expected) || tenant === undefined)
+      return finish(
+        { stage: 'derive', route: route.id, account },
+        defect('derive', 'missing-expected-identity'),
+      )
+    if (!tenantIdEquals(expected.ok, tenant))
+      return finish(
+        { stage: 'derive', route: route.id, account },
+        {
+          bytes: routeFailureBytes('expectedTenantMismatch'),
+          answer: 'failure:expectedTenantMismatch',
+        },
+      )
+  }
+  if (route.requiresSuperAdministrator) {
+    if (tenant === undefined)
+      return finish({ stage: 'gate', route: route.id, account }, defect('gate', 'missing-tenant'))
+    const standing = await services.memberships.standing(tenant)
+    if ('failure' in standing) {
+      return finish(
+        { stage: 'gate', route: route.id, account },
+        standing.failure === 'unavailable'
+          ? entry('unavailable')
+          : defect('gate', 'invalid-standing'),
+      )
+    }
+    const parsed = parseMembershipStanding(standing)
+    if (!isOk(parsed))
+      return finish(
+        { stage: 'gate', route: route.id, account },
+        defect('gate', 'malformed-standing'),
+      )
+    if (parsed.ok.standing !== 'effective' || parsed.ok.role !== 'superAdministrator')
+      return finish(
+        { stage: 'gate', route: route.id, account },
+        { bytes: routeFailureBytes('notAuthorized'), answer: 'failure:notAuthorized' },
+      )
   }
   const identities =
     tenant === undefined ? { account } : { account, tenant: tenantCorrelation(tenant) }
@@ -241,8 +445,21 @@ async function authenticated(
   }
 
   // ③ 办事
-  const input = { payload, caller, tenant }
+  const input = {
+    payload,
+    caller,
+    tenant,
+    ...(credentialChange === undefined ? {} : { credentialChange }),
+  }
   const settled = await invoke(route, payload, caller, () => route.invoke(services, input))
+  if (settled.answer === 'result') {
+    const finalized = await services.logins.finalizeActivity(caller.loginStateId)
+    if (finalized !== 'ok')
+      return finish(
+        { stage: 'operation', route: route.id, ...identities },
+        defect('operation', 'activity-finalization-invalid'),
+      )
+  }
   return finish({ stage: 'operation', route: route.id, ...identities }, settled)
 }
 
@@ -251,11 +468,12 @@ type Derivation =
   | { readonly kind: 'settled'; readonly settled: Settled }
 
 /** S-12：现读 OG S-36，参数是认人所得 `LoginStateId`。 */
-async function deriveTenant(services: EntryServices, caller: Caller): Promise<Derivation> {
+async function deriveTenant(services: AuthenticatedServices, caller: Caller): Promise<Derivation> {
   let reply: unknown
   try {
     reply = await services.memberships.currentTenant(caller.loginStateId)
   } catch (error) {
+    if (error instanceof StorageUnavailable) throw error
     return { kind: 'settled', settled: defect('derive', thrownValue(error)) }
   }
   const normalized = normalize('outcome', reply)
@@ -292,7 +510,7 @@ async function deriveTenant(services: EntryServices, caller: Caller): Promise<De
  * 任一无效 ⇒ `notAuthorized`、不调被投影的操作；全部有效 ⇒ 过（`undefined`）。
  */
 async function gate(
-  services: EntryServices,
+  services: AuthenticatedServices,
   caller: Caller,
   organizations: readonly unknown[],
 ): Promise<Settled | undefined> {
@@ -303,9 +521,12 @@ async function gate(
     try {
       reply = await services.memberships.standing({ organization, account: caller.accountId })
     } catch (error) {
-      verdicts.push('defect')
-      observedDefect ??= thrownValue(error)
-      continue
+      if (error instanceof StorageUnavailable) {
+        if (observedDefect !== undefined) return defect('gate', observedDefect)
+        throw error
+      }
+      // An escaping participant exception poisons this unit; no further reads.
+      return defect('gate', observedDefect ?? thrownValue(error))
     }
     const verdict = standingVerdict(reply)
     verdicts.push(verdict)
@@ -376,6 +597,7 @@ async function invoke(
   try {
     reply = await call()
   } catch (error) {
+    if (error instanceof StorageUnavailable) throw error
     return defect('operation', thrownValue(error))
   }
   const normalized = normalize(route.reply, reply)
@@ -411,7 +633,9 @@ function mapFailure(route: Route, name: string, payload: Payload): Settled {
   }
   if (table.representation?.includes(name) === true) {
     // 交给领域的输入里有来自载荷的项 ⇒ invalid-input；全是入口层产出的值 ⇒ 错不在来者，缺陷
-    return Object.keys(payload).length > 0 ? entry('invalid-input') : defect('operation', name)
+    return Object.keys(payload).some(key => key !== 'expectedTenant')
+      ? entry('invalid-input')
+      : defect('operation', name)
   }
   // 结构上到不了的具名值，以及失败集合之外的任何名字
   return defect(

@@ -1,0 +1,35 @@
+tmp/production-cli-onboarding/tui-probe/mac-paste-ime.swift:40:5: warning: result of call to 'apple' is unused [#NoUsage]
+38 | }
+39 | defer { restoreClipboard() }
+40 | try apple("tell application \"iTerm\" to select window id "+window)
+   |     `- warning: result of call to 'apple' is unused [#NoUsage]
+41 | try apple("tell application \"System Events\" to tell process \"iTerm2\" to keystroke \"v\" using command down")
+42 | try waitStage("ime-ready");restoreClipboard()
+
+tmp/production-cli-onboarding/tui-probe/mac-paste-ime.swift:41:5: warning: result of call to 'apple' is unused [#NoUsage]
+39 | defer { restoreClipboard() }
+40 | try apple("tell application \"iTerm\" to select window id "+window)
+41 | try apple("tell application \"System Events\" to tell process \"iTerm2\" to keystroke \"v\" using command down")
+   |     `- warning: result of call to 'apple' is unused [#NoUsage]
+42 | try waitStage("ime-ready");restoreClipboard()
+43 | let original=TISCopyCurrentKeyboardInputSource().takeRetainedValue()
+
+tmp/production-cli-onboarding/tui-probe/mac-paste-ime.swift:49:5: warning: result of call to 'apple' is unused [#NoUsage]
+47 | defer { if sourceID(TISCopyCurrentKeyboardInputSource().takeRetainedValue())==sourceID(pinyin){TISSelectInputSource(original)} }
+48 | Thread.sleep(forTimeInterval:0.3)
+49 | try apple("tell application \"iTerm\" to select window id "+window)
+   |     `- warning: result of call to 'apple' is unused [#NoUsage]
+50 | try apple("tell application \"System Events\" to tell process \"iTerm2\"\nkey code 45\nkey code 34\nkey code 4\nkey code 0\nkey code 31\nkey code 49\nend tell")
+51 | try waitStage("done")
+
+28:49: execution error: iTerm got an error: Can’t get window id 88928. (-1728)
+tmp/production-cli-onboarding/tui-probe/mac-paste-ime.swift:50:5: warning: result of call to 'apple' is unused [#NoUsage]
+48 | Thread.sleep(forTimeInterval:0.3)
+49 | try apple("tell application \"iTerm\" to select window id "+window)
+50 | try apple("tell application \"System Events\" to tell process \"iTerm2\"\nkey code 45\nkey code 34\nkey code 4\nkey code 0\nkey code 31\nkey code 49\nend tell")
+   |     `- warning: result of call to 'apple' is unused [#NoUsage]
+51 | try waitStage("done")
+52 | print("Completed own iTerm window " + window + "; clipboard restored if unchanged; input source restored on exit")
+
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+Completed own iTerm window 88928; clipboard restored if unchanged; input source restored on exit

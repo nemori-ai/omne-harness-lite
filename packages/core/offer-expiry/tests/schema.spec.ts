@@ -5,7 +5,7 @@ import { type SchemaDefName, validate } from '../src/index.ts'
 
 const SPEC_FILE = resolve(
   import.meta.dirname,
-  '../../../../.meta_harness/design/spec/data/offer-expiry/v1/offer-expiry.schema.json',
+  '../../../../.meta_harness/design/spec/data/offer-expiry/v2/offer-expiry.schema.json',
 )
 
 interface Counterexample {

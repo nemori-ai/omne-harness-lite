@@ -1,8 +1,8 @@
 # connector 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
-契约：[`data.connector` v1](../../../../spec/data/connector/v1/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
+契约：[`data.connector` v2](../../../../spec/data/connector/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
 
 ## 实现路径与来源
@@ -17,9 +17,9 @@
 
 | 导出 | 契约坐标 |
 |---|---|
-| 类型 `ConnectorDefinition`、`SourceIdentity`、`DeliveryTarget`、`InboundEnvelope`（不带任何归属成员） | [S-1](../../../../spec/data/connector/v1/contract.md#s-1-连接件正文)～[S-10](../../../../spec/data/connector/v1/contract.md#s-10-信封里的文本不是命令) |
-| `connectorBodyContract`（asset-model 端口的那一份；推属性本版交回 `underivable`） | [S-11](../../../../spec/data/connector/v1/contract.md#s-11-推出规则)～[S-13](../../../../spec/data/connector/v1/contract.md#s-13-两项权限) |
-| `judgeConnector(value)`、`judgeEnvelope(value)` | [S-16](../../../../spec/data/connector/v1/contract.md#s-16-规范表示)～[S-19](../../../../spec/data/connector/v1/contract.md#s-19-表示层拒绝不是判定也不修补) |
+| 类型 `ConnectorDefinition`、`SourceIdentity`、`DeliveryTarget`、`InboundEnvelope`（不带任何归属成员） | [S-1](../../../../spec/data/connector/v2/contract.md#s-1-连接件正文)～[S-10](../../../../spec/data/connector/v2/contract.md#s-10-信封里的文本不是命令) |
+| `connectorBodyContract`（asset-model 端口的那一份；推属性本版交回 `underivable`） | [S-11](../../../../spec/data/connector/v2/contract.md#s-11-推出规则)～[S-13](../../../../spec/data/connector/v2/contract.md#s-13-两项权限) |
+| `judgeConnector(value)`、`judgeEnvelope(value)` | [S-16](../../../../spec/data/connector/v2/contract.md#s-16-规范表示)～[S-19](../../../../spec/data/connector/v2/contract.md#s-19-表示层拒绝不是判定也不修补) |
 
 **函数层不承诺**：信封与归属的绑定、`externalId` 取自外部、附件解引用——归接入端、交接协议与受理（[装配给 vs 协议给](#装配给-vs-协议给)）。
 
@@ -38,7 +38,7 @@
 
 ### 装配给 vs 协议给
 
-[第六节](../../../../spec/data/connector/v1/contract.md#六装配给与协议给)五行里，本节点只在「表示层校验在每个接收边界重做」一行出力（`judgeEnvelope`、`judgeConnector` 两个纯入口）；
+[第六节](../../../../spec/data/connector/v2/contract.md#六装配给与协议给)五行里，本节点只在「表示层校验在每个接收边界重做」一行出力（`judgeEnvelope`、`judgeConnector` 两个纯入口）；
 信封与归属的绑定、`externalId` 取自外部、附件解引用、选不了目标与身份，归接入端、交接协议与受理。
 
 ### 契约责任 → 模块公开入口 → 实现 → 符合性依据或缺口
@@ -47,9 +47,9 @@
 
 | 契约责任 | 模块公开入口（候选） | 实现（候选做法） | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-1](../../../../spec/data/connector/v1/contract.md#s-1-连接件正文)～[S-10](../../../../spec/data/connector/v1/contract.md#s-10-信封里的文本不是命令) 正文、来源、投递目标、信封、`externalId`、`receivedAt`、不带归属、落成用户消息、文本不是命令 | 类型 `ConnectorDefinition`、`SourceIdentity`、`DeliveryTarget`、`InboundEnvelope` | 信封类型里**没有**任何归属成员；「落成一条用户消息」的投影归受理 | V-1；SC-1（信封文本不走斜杠识别）由类型分开：`recognize`（[slash-command](../slash-command/README.md)）只收交付面输入的类型 |
-| [S-11](../../../../spec/data/connector/v1/contract.md#s-11-推出规则)～[S-13](../../../../spec/data/connector/v1/contract.md#s-13-两项权限) 推出规则 | `connectorBodyContract` 的推属性 | 两项权限的取值域在契约 G-4 上，整组声明判不出来 ⇒ 交回 `{ underivable }`（[asset-model 的端口允许这一支](../asset-model/design.md#正文契约的判定经端口注入不-import-正文包)）；**不交回前四项当作全部**，也不替两项权限补取值域 | S-11 末两条；asset-model SC-6 |
-| [S-16](../../../../spec/data/connector/v1/contract.md#s-16-规范表示)～[S-19](../../../../spec/data/connector/v1/contract.md#s-19-表示层拒绝不是判定也不修补) 四个拒绝值、不修补 | `judgeConnector(value)`、`judgeEnvelope(value)` | — | V-2 |
+| [S-1](../../../../spec/data/connector/v2/contract.md#s-1-连接件正文)～[S-10](../../../../spec/data/connector/v2/contract.md#s-10-信封里的文本不是命令) 正文、来源、投递目标、信封、`externalId`、`receivedAt`、不带归属、落成用户消息、文本不是命令 | 类型 `ConnectorDefinition`、`SourceIdentity`、`DeliveryTarget`、`InboundEnvelope` | 信封类型里**没有**任何归属成员；「落成一条用户消息」的投影归受理 | V-1；SC-1（信封文本不走斜杠识别）由类型分开：`recognize`（[slash-command](../slash-command/README.md)）只收交付面输入的类型 |
+| [S-11](../../../../spec/data/connector/v2/contract.md#s-11-推出规则)～[S-13](../../../../spec/data/connector/v2/contract.md#s-13-两项权限) 推出规则 | `connectorBodyContract` 的推属性 | 两项权限的取值域在契约 G-4 上，整组声明判不出来 ⇒ 交回 `{ underivable }`（[asset-model 的端口允许这一支](../asset-model/design.md#正文契约的判定经端口注入不-import-正文包)）；**不交回前四项当作全部**，也不替两项权限补取值域 | S-11 末两条；asset-model SC-6 |
+| [S-16](../../../../spec/data/connector/v2/contract.md#s-16-规范表示)～[S-19](../../../../spec/data/connector/v2/contract.md#s-19-表示层拒绝不是判定也不修补) 四个拒绝值、不修补 | `judgeConnector(value)`、`judgeEnvelope(value)` | — | V-2 |
 
 ### 推出规则：返回「推不出」，不返回前四项
 
@@ -64,10 +64,10 @@
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| `data.asset-model` v1、`data.messages` v1、`data.content-blocks` v1、`data.offer-expiry` v1、`data.identity-values` v1 | [asset-model](../asset-model/README.md)、[messages](../messages/README.md)、[content-blocks](../content-blocks/README.md)、已实现的 offer-expiry 与 identity-values | 随包版本 | 静态 import |
+| `data.asset-model` v2、`data.messages` v2、`data.content-blocks` v2、`data.offer-expiry` v1、`data.identity-values` v1 | [asset-model](../asset-model/README.md)、[messages](../messages/README.md)、[content-blocks](../content-blocks/README.md)、已实现的 offer-expiry 与 identity-values | 随包版本 | 静态 import |
 | 被消费 | 资产治理、asset-evaluation、连接件接入端、受理 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 

@@ -16,8 +16,8 @@
 - **输入基线**（本工作树，2026-09-23）：
   - 产品正文：PF-002 rev 16、PF-003 rev 4、[PF-001](../../../product/PF-001-identity-scope-and-agent-constraints/README.md) rev 16（§6.1、§6.7）；
     邻接 [PF-016](../../../product/PF-016-cli-tui-delivery-surface/README.md) rev 5（§5.6、§6.9、§6.17）、[PF-017](../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 2（§6.6）。
-  - 候选契约：[`data.asset-model` v1](../../../spec/data/asset-model/README.md)、[`capability.asset-transfer` v1](../../../spec/capabilities/asset-transfer/README.md)（都未接受）；
-    `capability.asset-governance` v1 与 `capability.asset-evaluation` v1 **同批起草、不在本工作树**，本包只按契约身份称呼。
+  - 候选契约：[`data.asset-model` v2](../../../spec/data/asset-model/README.md)、[`capability.asset-transfer` v2](../../../spec/capabilities/asset-transfer/README.md)（都未接受）；
+    `capability.asset-governance` v2 与 `capability.asset-evaluation` v2 **同批起草、不在本工作树**，本包只按契约身份称呼。
   - 已接受契约：`data.identity-values` v1、`data.offer-expiry` v1、`capability.organization-governance` v1（[D-023](../../decisions/tenant-domain-design-acceptance/README.md)）；
     `composition.governance-center-entry` v1（[D-028](../../decisions/governance-center-design-acceptance/README.md)）。
   - 实现映射：[realization 的两层布局](../../../realization/README.md#packages-的两层布局)；[组织治理节点](../../../realization/packages/tenancy/organization-governance/README.md)（「一个插件多个服务面」「跨 owner 同一提交」的先例）；

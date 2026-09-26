@@ -210,3 +210,10 @@ bindings:
       - "启动失败说明不含 PEM 与任何 config 值，只在这五个阶段各测一次；遗留快照恢复、建快照、迁移、钟读不到、恢复快照没有对应用例（verification 覆盖缺口）"
       - "精确的记录形状等全局观测契约"
     alignment_checked: 2026-09-23
+
+  # D055/D056 actual assembly observations; no new domain authority in host.
+  - clause: "composition.governance-center-entry/v3#S-59"
+    evidence: "test:apps/tenancy-host/tests/maintenance-signal.process.spec.ts#SIGINT ends the ops client wait while the admitted server run keeps source ownership and completes once"
+    assumptions:
+      - "真实客户端SIGINT和SQLite第二属主竞争；源run由测试gate控制；无任意调度/IO时限证明"
+    alignment_checked: 2026-09-26

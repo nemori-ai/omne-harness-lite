@@ -90,6 +90,8 @@
 
 ## 当前主题
 
+- [治理中心恢复提供者](governance-recovery-providers/README.md)：Litestream v0.5.17 的同步接口、同机文件副本探针及应用恢复边界；未采用。
+
 ### 上游与模型
 
 - [TypeSafe Jev：结构化决策模型的能力与边界](typesafe-jev/README.md) — `jev-1.13.0`，取证 2026-09-19 两轮（主张核查；机制、训练与用途），消费者待出现
@@ -119,7 +121,7 @@
 - [主流 AI 助手产品里与「连接件」相近的功能：完整产品设计是什么样](connector-products/README.md) — Anthropic（Claude.ai Connectors／Claude Code channels、routines、in Slack／Claude Tag／Cowork）与 OpenAI（ChatGPT connectors／plugins、应用事件触发的 scheduled tasks、API connectors 与 webhooks）2026-09-24 线上文档，参照 Slack Events API／GitHub Webhooks／Zapier／IFTTT 的事件目录与订阅范式；help.openai.com 不可访问只记待验证，取证 2026-09-24，消费者为 PF-002 连接件「事件类型目录与订阅」方向的产品裁决（待出现）
 - [斜杠命令的识别与解析：五个来源怎么认、怎么分、怎么留痕](slash-command-parsing-sources/README.md) — Codex `5c5308f`（TUI 取自同 SHA 克隆，未钉字节）/ Claude Code `2.1.280` 文档字节 + 本机实测 / DSH `c291e796` / omne-next `6263fed` / pi `3390bd9`（只作对照），取证 2026-09-23，消费者为提案「斜杠命令识别与解析基线」（待出现）
 
-- [TypeScript 里「可配置重试策略」的现成库：cockatiel、p-retry 与同类](ts-retry-policy-libraries/README.md) — `cockatiel@4.0.0` / `p-retry@8.0.1` / `retry@0.13.1` / `exponential-backoff@3.1.3` / `async-retry@1.3.3` / `ts-retry-promise@0.8.1` / `@lifeomic/attempt@3.1.0` / `promise-retry@2.0.1`，参照 `tenacity@9.1.4` 与 `effect@3.22.2`；tarball 源码钉字节、Node `v24.18.0` 探针实测，取证 2026-09-25，消费者为 D-043 R-6 的落点（MRR 节点 P-5、契约 G-8、W-10b，待出现）
+- [TypeScript 里「可配置重试策略」的现成库：cockatiel、p-retry 与同类](ts-retry-policy-libraries/README.md) — `cockatiel@4.0.0` / `p-retry@8.0.1` / `retry@0.13.1` / `exponential-backoff@3.1.3` / `async-retry@1.3.3` / `ts-retry-promise@0.8.1` / `@lifeomic/attempt@3.1.0` / `promise-retry@2.0.1`，参照 `tenacity@9.1.4` 与 `effect@3.22.2`；tarball 源码钉字节、Node `v24.18.0` 探针实测，取证 2026-09-25，消费者为 D-063 R-6 的落点（MRR 节点 P-5、契约 G-8、W-10b，待出现）
 
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 

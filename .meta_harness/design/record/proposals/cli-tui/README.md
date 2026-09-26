@@ -6,14 +6,14 @@ CLI-TUI 应用——**用什么技术把它做出来，它的大框架长什么�
 进程模型、命令体系、分发、测试驱动、配置文件、线上协议与认证），
 以及由它们合成的拓扑、分层、通信与进程模型框架。
 
-**这个交付面不新增任何领域概念。**它显示的每一条都指回会话日志里的一条记录条目，
+**2026-09-22 的完整 Agent 交付面候选不新增领域概念。**它显示的每一条都指回会话日志里的一条记录条目，
 它提交的每一件事都成为一条入站到达、一条卡片答复记录或一条控制指令记录——
 领域语义全部来自[架构内核 PF](../../../product/architecture-core.md) 已立的对象，
 本提案只回答「用什么把行画到终端上、这些进程怎么摆」。
 
 - **当前状态：候选。**十一个选型点的推荐**一条都没有被接受**，
   [decisions](../../decisions/README.md) 里没有任何一条接受它们。
-  与本提案相关而**确实已经发生的接受只有两条**，且都是它的**前提**不是结论：
+  截至本段输入日期 2026-09-22，与本提案相关而**已发生的接受有两条**，且都是它的**前提**不是结论：
   [D-022 CLI-TUI 交付形态](../../decisions/cli-tui-delivery-form/README.md)（五条产品形态与交付深度）与
   [D-019 定向 fork pi-ai](../../decisions/model-provider-pi-ai-fork/README.md)（模型传输层不在本提案重选）。
 - **本次终点与范围**：把 2026-09-22 的选型草案收成一个可长期消费的信息包——
@@ -34,6 +34,12 @@ CLI-TUI 应用——**用什么技术把它做出来，它的大框架长什么�
   [account-registration](../../../spec/compositions/account-registration/README.md)）均为 `candidate`；
   [Cordis 机制条目](../../../basis/README.md)；
   [pi-ai 定向 fork 的采用决定](../../decisions/model-provider-pi-ai-fork/README.md)（模型传输层不在本提案重选）。
+
+## 2026-09-24 治理切片增量
+
+输入改为 PF-016 active rev6 的本期治理 CLI/TUI、PF-001 rev17、PF-017 rev3；Agent 工作会话下一期。下述 2026-09-22 的完整 Agent 框架仍是历史输入与候选，不要求本期先创建据点或 Agent 进程。本期边界、27条前身路由映射、本地状态三个实现候选及新接口缺口归 [governance-client.md](governance-client.md)。
+
+治理运输采用前提另有已接受的 D-029 和冻结 `composition.governance-center-entry-https-json/v1`，不沿用旧草案的 Bearer 头。新增客户端语义仍为候选，不能把传输已接受外推为全部 CLI 已可实施。独立评审及局部探针见 [评审记录](review.md#治理客户端增量评审--2026-09-24)。
 
 ## 准入核对
 
@@ -64,7 +70,7 @@ CLI-TUI 应用——**用什么技术把它做出来，它的大框架长什么�
     [realization 的应用节点](../../../realization/README.md)`apps/cli/architecture.md`——
     节点建立后，每个选型点在那里标 `candidate` 并**回链本包**；被接受后改为链接决定；
   - 新词条归[统一语言](../../../ubiquitous_language/index.md)，**先立词条才能进正文**。
-- **还没有的**：任何决定文件覆盖 D1～D11；任何契约；任何绑定；任何证据。
+- **2026-09-22 草案当时还没有的**：任何决定文件覆盖 D1～D11；交付面契约、绑定或执行证据。后续治理切片与运输采用按本页增量入口展开。
   [alternatives.md](alternatives.md) 末尾列出的最小区分实验 E1～E5 **一个都没跑**。
 
 路径、里程碑、排期与派工不在本包，留在任务区。返回[提案](../README.md)。

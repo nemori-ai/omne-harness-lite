@@ -1,7 +1,6 @@
 // 治理中心装配 apps/tenancy-host 的公开入口。设计：.meta_harness/design/realization/apps/tenancy-host/。
 export {
   boot,
-  assertTimeoutBudget,
   type BootOptions,
   type BootHooks,
   type UpgradeConfirmer,

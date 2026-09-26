@@ -230,8 +230,11 @@ describe('account-identity 插件', () => {
 
   it.skip('S-32／S-47 第 2 支的完整进程重启（另起一个 Node 进程打开同一库）——归 W2-A／W3-A（tenancy-host 可重启装配）', () => {})
 
-  it('迁移片段：一个片段两张表；约束名显式且被存储提供者识别；不建 login_state → account 外键', async () => {
-    expect(accountIdentityMigrations.map(f => f.name)).toEqual(['account_identity'])
+  it('迁移片段：原表片段与追加的有界迁移；约束名显式且被存储提供者识别；不建 login_state → account 外键', async () => {
+    expect(accountIdentityMigrations.map(f => f.name)).toEqual([
+      'account_identity',
+      'account_identity_bounded_logins',
+    ])
     expect(composedMigrationName(1, accountIdentityMigrations[0]!)).toBe('0001_account_identity')
     expect(ACCOUNT_TABLE).toBe('account')
     expect(ACCOUNT_ID_COLUMN).toBe('account_id')

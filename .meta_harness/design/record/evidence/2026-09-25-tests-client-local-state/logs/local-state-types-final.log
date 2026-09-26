@@ -1,0 +1,41 @@
+
+> @omne-harness-lite/client-local-state@0.0.0 typecheck /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state
+> tsc -p tsconfig.test.json
+
+src/open.ts(2,36): error TS2307: Cannot find module '@omne-harness-lite/storage' or its corresponding type declarations.
+src/open.ts(43,36): error TS2339: Property 'read' does not exist on type 'StateStorage'.
+src/plugin.ts(1,30): error TS2307: Cannot find module '@omne-harness-lite/kernel-basis' or its corresponding type declarations.
+src/plugin.ts(9,15): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+src/plugin.ts(9,20): error TS7006: Parameter 'config' implicitly has an 'any' type.
+src/store.ts(7,8): error TS2307: Cannot find module '@omne-harness-lite/storage' or its corresponding type declarations.
+src/store.ts(44,24): error TS7006: Parameter 'unit' implicitly has an 'any' type.
+src/store.ts(45,23): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/store.ts(49,44): error TS7006: Parameter 'col' implicitly has an 'any' type.
+src/store.ts(50,49): error TS7006: Parameter 'col' implicitly has an 'any' type.
+src/store.ts(51,40): error TS7006: Parameter 'col' implicitly has an 'any' type.
+src/store.ts(52,43): error TS7006: Parameter 'col' implicitly has an 'any' type.
+src/store.ts(54,42): error TS7006: Parameter 'col' implicitly has an 'any' type.
+src/store.ts(162,41): error TS2339: Property 'read' does not exist on type 'StateStorage'.
+src/store.ts(191,60): error TS2339: Property 'atomic' does not exist on type 'StateStorage'.
+src/store.ts(191,67): error TS7006: Parameter 'unit' implicitly has an 'any' type.
+src/store.ts(192,29): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+tests/failures.spec.ts(3,51): error TS2307: Cannot find module '@omne-harness-lite/storage' or its corresponding type declarations.
+tests/failures.spec.ts(25,7): error TS2353: Object literal may only specify known properties, and 'read' does not exist in type 'StateStorage'.
+tests/failures.spec.ts(25,13): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(26,14): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(28,20): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(54,7): error TS2353: Object literal may only specify known properties, and 'read' does not exist in type 'StateStorage'.
+tests/failures.spec.ts(54,13): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(55,14): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(77,7): error TS2353: Object literal may only specify known properties, and 'read' does not exist in type 'StateStorage'.
+tests/failures.spec.ts(77,13): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(78,14): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(80,15): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(157,9): error TS2353: Object literal may only specify known properties, and 'read' does not exist in type 'StateStorage'.
+tests/failures.spec.ts(157,15): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/failures.spec.ts(158,16): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+tests/files.spec.ts(4,29): error TS2307: Cannot find module '@omne-harness-lite/storage' or its corresponding type declarations.
+tests/plugin.spec.ts(1,30): error TS2307: Cannot find module '@omne-harness-lite/kernel-basis/testing' or its corresponding type declarations.
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/client-local-state@0.0.0 typecheck: `tsc -p tsconfig.test.json`
+Exit status 2

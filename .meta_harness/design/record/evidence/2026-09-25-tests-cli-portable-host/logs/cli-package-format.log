@@ -1,0 +1,9 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- apps/cli/tools/package.ts apps/cli/src/version.ts apps/cli/src/application.ts apps/cli/tests/packaging.spec.ts apps/cli/tsconfig.test.json
+
+apps/cli/tools/package.ts 39ms
+apps/cli/src/version.ts 3ms
+apps/cli/src/application.ts 10ms
+apps/cli/tests/packaging.spec.ts 8ms
+apps/cli/tsconfig.test.json 4ms (unchanged)

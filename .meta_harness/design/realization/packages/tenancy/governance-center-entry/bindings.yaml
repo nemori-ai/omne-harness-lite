@@ -522,3 +522,46 @@ bindings:
     assumptions:
       - "中心一侧；客户端一侧无承担者（apps/cli 不存在）"
     alignment_checked: 2026-09-23
+
+  # D055/D056, actual runs: 2026-09-26-tests-governance-maintenance. Historical v1 rows retain their scope.
+  - clause: "composition.governance-center-entry/v3#S-55"
+    evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#backs up online, verifies offline, and restores identical bytes with business closed"
+    assumptions:
+      - "SQLite临时文件；成功发布、offline校验与同字节封装；不代表物理断电或任意设备"
+    alignment_checked: 2026-09-26
+
+  - clause: "composition.governance-center-entry/v3#S-56"
+    evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#uses 20h due and strictly greater than 24h overdue, with deterministic name ties"
+    assumptions:
+      - "固定测试时钟核边界；外中心、坏候选与未知发布另由同文件具名用例承载"
+    alignment_checked: 2026-09-26
+
+  - clause: "composition.governance-center-entry/v3#S-57"
+    evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#backs up online, verifies offline, and restores identical bytes with business closed"
+    assumptions:
+      - "同一个实际封装的副本/结构/摘要路径；异常输入另见format测试与独立QA"
+    alignment_checked: 2026-09-26
+
+  - clause: "composition.governance-center-entry/v3#S-58"
+    evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts#retains restored output when confirmation of the new target parent fails"
+    assumptions:
+      - "实际目录fsync故障注入，不是断电；输出保留且不开放业务"
+    alignment_checked: 2026-09-26
+
+  - clause: "composition.governance-center-entry/v3#S-59"
+    evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-ops.spec.ts#network drain finishes before a blocked owned run, without releasing the source or replaying it"
+    assumptions:
+      - "真实Unix socket与SQLite属主；测试gate控制run，必须实际解除后才释放"
+    alignment_checked: 2026-09-26
+
+  - clause: "composition.governance-center-entry-https-json/v3#S-20"
+    evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-ops.spec.ts#dispatches actual online backup and status through the original Unix socket"
+    assumptions:
+      - "限定本机私有socket；无业务授权或离线操作网络入口"
+    alignment_checked: 2026-09-26
+
+  - clause: "composition.governance-center-entry-https-json/v3#S-21"
+    evidence: "test:packages/tenancy/governance-center-entry/tests/maintenance-wire.spec.ts#matches every frozen maintenance response byte example, including metadata time formatting"
+    assumptions:
+      - "固定规范hex答复另由本文件参数化用例逐字比对，运行原文归维护证据"
+    alignment_checked: 2026-09-26

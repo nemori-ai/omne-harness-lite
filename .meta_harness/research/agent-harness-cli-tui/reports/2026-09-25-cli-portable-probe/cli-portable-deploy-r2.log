@@ -1,0 +1,6 @@
+Packages are cloned from the content-addressable store to the virtual store.
+  Content-addressable store is at: /Users/pandazki/Library/pnpm/store/v10
+  Virtual store is at:             tmp/production-cli-onboarding/cli-portable-probe-2/node_modules/.pnpm
+.../cli-portable-probe-2                 | Progress: resolved 1, reused 0, downloaded 0, added 0
+.../cli-portable-probe-2                 |  +79 ++++++++
+.../cli-portable-probe-2                 | Progress: resolved 79, reused 79, downloaded 0, added 79, done

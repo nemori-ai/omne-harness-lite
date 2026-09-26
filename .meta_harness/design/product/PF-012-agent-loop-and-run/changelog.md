@@ -1214,4 +1214,4 @@ PM 推出过「**摘要只生成一次，不再被二次压缩**」，写进了 
 
 ## 2026-09-26 — rev 15 正式接受（状态事件）
 
-产品负责人通过 [D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。
+产品负责人通过 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。

@@ -3,8 +3,8 @@
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态（2026-09-24，第一轮独立评审处置之后；2026-09-25 修复波 1b 原地改，同日修复波 2 按第二轮复评原地改，同日修复波 3 按实现映射反推原地改）：没有任何证据。**
-> `capability.hooks-import` v1 是 `candidate`，**经过两轮独立评审、未接受**；尚无提供者设计、fork 尚未做、尚无源码。
-> 本版**不建形式工件**（[契约 S-28](v1/contract.md#s-28-本版不选用形式工件)）；下面登记的全部证据义务都是**规范场景与来源产品探针**，**一条都没跑**。
+> `capability.hooks-import` v2 是 `candidate`，**经过两轮独立评审、未接受**；尚无提供者设计、fork 尚未做、尚无源码。
+> 本版**不建形式工件**（[契约 S-28](v2/contract.md#s-28-本版不选用形式工件)）；下面登记的全部证据义务都是**规范场景与来源产品探针**，**一条都没跑**。
 > **来源产品一侧的事实只有文档与源码阅读**：Claude Code 只有文档快照、没有跑过任何探针；映射按 PF-012 rev 7 作出，2026-09-24 按 rev 14 复核了位置、维度与否决含义（G-13 已闭合），**逐格的来源产品行为仍只有文档证据**。
 
 ## 证据义务
@@ -15,22 +15,22 @@
 
 ### 规范场景
 
-**全部未开始**——它们要的是真实实现。兼容件的载荷已有家（`data.loop-extension/v1#S-8` 的 `command` 一支）；导入留痕还没有（[G-1](v1/contract.md#十一已知缺口)），只影响「从哪份配置导入」的回答，不挡兼容件跑起来。
+**全部未开始**——它们要的是真实实现。兼容件的载荷已有家（`data.loop-extension/v2#S-8` 的 `command` 一支）；导入留痕还没有（[G-1](v2/contract.md#十一已知缺口)），只影响「从哪份配置导入」的回答，不挡兼容件跑起来。
 
 | 场景 | 证据形式 | 状态 | 说明、责任与受阻 |
 |---|---|---|---|
-| [S-29 一条都不丢](v1/contract.md#s-29-一条都不丢) | 单元测试（纯函数） | **未开始** | 不受阻于 G-1：报告本身可以先测 |
-| [S-30 写坏的 matcher 让整份失败](v1/contract.md#s-30-写坏的-matcher-让整份失败) | 单元测试 | **未开始** | 同上 |
-| [S-31 允许不是放行](v1/contract.md#s-31-允许不是放行) | 演练，**跨契约**（本契约 ＋ runner ＋ 放行判断） | **未开始** | 受阻：G-1 |
-| [S-32 挂了看得见，不静默](v1/contract.md#s-32-挂了看得见不静默) | **故障注入**，三种情形各一次，另跑声明改为 `veto` 的一支、执行环境句柄解析不出与宿主机允许不在的一支、脚本不存在记非阻断错误的一支、坏 JSON 记非阻断错误的一支、起来之后撤下执行环境按报错落 `veto` 的一支、带 `args` 不导入的一支；**非阻断错误那几支必须读会话日志里的报错记录与它的成因**，只看动作走没走到放行判断会漏掉静默吞错 | **未开始** | 验收装配可跑：执行环境由 `capability.execution-environments` v1 的最小提供者给，宿主机允许、白名单与工作目录由测试给（执行环境 G-3、本契约 [G-15](v1/contract.md#十一已知缺口)）；仍受阻于 G-1（留痕）。产品装配里每一件都起不来 |
-| [S-33 来源产品的 ask，四档卡不带授权，回放不重跑](v1/contract.md#s-33-来源产品的-ask四档卡不带授权回放不重跑) | 演练，**跨契约**（本契约 ＋ runner ＋ 放行判断 ＋ 卡片）；另跑 `ask` 带改写的一支 | **未开始** | 受阻：G-1；卡片契约未起草；「子进程没有再跑」以调用计数为准，**只看结论对不对证明不了** |
-| [S-34 工作区来源导入即禁用](v1/contract.md#s-34-工作区来源导入即禁用) | 演练，**跨契约**（本契约 ＋ 资产治理 ＋ 求值） | **未开始** | 受阻：G-1、禁用落格（[G-8](v1/contract.md#十一已知缺口)） |
-| [S-35 重新导入是新版本](v1/contract.md#s-35-重新导入是新版本) | 单元测试（name 导出）＋ 演练（落地成新版本） | **未开始** | name 导出部分不受阻 |
-| [S-36 Stop 的续跑状态从日志数](v1/contract.md#s-36-stop-的续跑状态从日志数) | 演练 ＋ **在两次之间停机** | **未开始** | 受阻：G-1 |
+| [S-29 一条都不丢](v2/contract.md#s-29-一条都不丢) | 单元测试（纯函数） | **未开始** | 不受阻于 G-1：报告本身可以先测 |
+| [S-30 写坏的 matcher 让整份失败](v2/contract.md#s-30-写坏的-matcher-让整份失败) | 单元测试 | **未开始** | 同上 |
+| [S-31 允许不是放行](v2/contract.md#s-31-允许不是放行) | 演练，**跨契约**（本契约 ＋ runner ＋ 放行判断） | **未开始** | 受阻：G-1 |
+| [S-32 挂了看得见，不静默](v2/contract.md#s-32-挂了看得见不静默) | **故障注入**，三种情形各一次，另跑声明改为 `veto` 的一支、执行环境句柄解析不出与宿主机允许不在的一支、脚本不存在记非阻断错误的一支、坏 JSON 记非阻断错误的一支、起来之后撤下执行环境按报错落 `veto` 的一支、带 `args` 不导入的一支；**非阻断错误那几支必须读会话日志里的报错记录与它的成因**，只看动作走没走到放行判断会漏掉静默吞错 | **未开始** | 验收装配可跑：执行环境由 `capability.execution-environments` v2 的最小提供者给，宿主机允许、白名单与工作目录由测试给（执行环境 G-3、本契约 [G-15](v2/contract.md#十一已知缺口)）；仍受阻于 G-1（留痕）。产品装配里每一件都起不来 |
+| [S-33 来源产品的 ask，四档卡不带授权，回放不重跑](v2/contract.md#s-33-来源产品的-ask四档卡不带授权回放不重跑) | 演练，**跨契约**（本契约 ＋ runner ＋ 放行判断 ＋ 卡片）；另跑 `ask` 带改写的一支 | **未开始** | 受阻：G-1；卡片契约未起草；「子进程没有再跑」以调用计数为准，**只看结论对不对证明不了** |
+| [S-34 工作区来源导入即禁用](v2/contract.md#s-34-工作区来源导入即禁用) | 演练，**跨契约**（本契约 ＋ 资产治理 ＋ 求值） | **未开始** | 受阻：G-1、禁用落格（[G-8](v2/contract.md#十一已知缺口)） |
+| [S-35 重新导入是新版本](v2/contract.md#s-35-重新导入是新版本) | 单元测试（name 导出）＋ 演练（落地成新版本） | **未开始** | name 导出部分不受阻 |
+| [S-36 Stop 的续跑状态从日志数](v2/contract.md#s-36-stop-的续跑状态从日志数) | 演练 ＋ **在两次之间停机** | **未开始** | 受阻：G-1 |
 
 ### 来源产品探针
 
-**映射表的每一行都建立在「来源产品真按文档做」之上**（[契约 S-3](v1/contract.md#s-3-本契约明确不承诺什么)）。研究包列过而**均未跑**的探针，钉住版本下应在实施计划的第一步补上：
+**映射表的每一行都建立在「来源产品真按文档做」之上**（[契约 S-3](v2/contract.md#s-3-本契约明确不承诺什么)）。研究包列过而**均未跑**的探针，钉住版本下应在实施计划的第一步补上：
 
 | 探针 | 影响映射表哪一格 | 状态 |
 |---|---|---|
@@ -39,33 +39,33 @@
 | CC 2.1.280 并行 `PreToolUse` 是否全判完才执行 | 无，仅对照 | **未开始** |
 | CC 2.1.280 Stop 连续 8 次上限 | `no_host_continuation_cap` 的说法 | **未开始** |
 | Codex `5c5308fc` Stop 的续跑与重入 | Codex `Stop` 行 | **未开始** |
-| Codex 两种配置文件里 hooks 那一段的结构 | [S-5](v1/contract.md#s-5-来源产品方言版本与配置来源) 的「同构」读法（[G-5](v1/contract.md#十一已知缺口)） | **未开始** |
+| Codex 两种配置文件里 hooks 那一段的结构 | [S-5](v2/contract.md#s-5-来源产品方言版本与配置来源) 的「同构」读法（[G-5](v2/contract.md#十一已知缺口)） | **未开始** |
 
 ### 由别处承担、本契约只写明要求的
 
 | 要求 | 写在哪 | 由谁兑现 | 证据落点 |
 |---|---|---|---|
-| 导入留痕有家 | [S-10](v1/contract.md#s-10-兼容件要带的东西) | `data.asset-model` 或资产治理的落地写面 | G-1 |
-| 越限声明被拒收；禁用落在租户层那一格 | [S-8](v1/contract.md#s-8-干预力声明与上限)、[S-9](v1/contract.md#s-9-工作区来源的-hook导入即禁用) | 资产治理 | G-7、G-8 |
-| 卡片草稿带 `proposedRewrite`、它只随 `before_action` | [S-21](v1/contract.md#s-21-ask-与回放) | `data.loop-extension/v1#S-28` | 那份契约的 Schema 与实例 |
-| 不可用时按声明处置、记录带 `unavailability` | [S-10](v1/contract.md#s-10-兼容件要带的东西)、[S-19](v1/contract.md#s-19-起不来与报错) | runner（`#S-12`） | runner 的 S-41、S-49 |
-| 同一份配置内的相对次序进装配清单 | [S-15](v1/contract.md#s-15-报告里的次序) | 装配（PF-004） | G-10 |
-| 兼容件卡片的答复不交给放行判断 | [S-21](v1/contract.md#s-21-ask-与回放) | runner（`#S-28`、`#S-29` 第 8 条） | runner 的 S-48 |
-| 执行环境句柄只及本会话、调用返回即失效；解析出的执行环境有来路 | [S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪) | runner（`#S-50`）＋ `capability.execution-environments` v1（S-5、S-11） | runner 的 S-52；runner 的 G-20 |
-| 没有显式允许不落宿主机；不经解释器、不继承环境变量；按组停、`notConfirmed` 不算停下 | [S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪)、[S-19](v1/contract.md#s-19-起不来与报错)、[S-27](v1/contract.md#s-27-缺席撤下与重新导入) | `capability.execution-environments` v1（S-6、S-13～S-15） | 那份契约的场景 S-20～S-23 |
-| 运行被取消时兼容件收到停止信号、那一次求值不留记录 | [S-27](v1/contract.md#s-27-缺席撤下与重新导入) | runner（`#S-21` ⑥、`#S-34`） | runner 的 S-51 |
+| 导入留痕有家 | [S-10](v2/contract.md#s-10-兼容件要带的东西) | `data.asset-model` 或资产治理的落地写面 | G-1 |
+| 越限声明被拒收；禁用落在租户层那一格 | [S-8](v2/contract.md#s-8-干预力声明与上限)、[S-9](v2/contract.md#s-9-工作区来源的-hook导入即禁用) | 资产治理 | G-7、G-8 |
+| 卡片草稿带 `proposedRewrite`、它只随 `before_action` | [S-21](v2/contract.md#s-21-ask-与回放) | `data.loop-extension/v2#S-28` | 那份契约的 Schema 与实例 |
+| 不可用时按声明处置、记录带 `unavailability` | [S-10](v2/contract.md#s-10-兼容件要带的东西)、[S-19](v2/contract.md#s-19-起不来与报错) | runner（`#S-12`） | runner 的 S-41、S-49 |
+| 同一份配置内的相对次序进装配清单 | [S-15](v2/contract.md#s-15-报告里的次序) | 装配（PF-004） | G-10 |
+| 兼容件卡片的答复不交给放行判断 | [S-21](v2/contract.md#s-21-ask-与回放) | runner（`#S-28`、`#S-29` 第 8 条） | runner 的 S-48 |
+| 执行环境句柄只及本会话、调用返回即失效；解析出的执行环境有来路 | [S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪) | runner（`#S-50`）＋ `capability.execution-environments` v2（S-5、S-11） | runner 的 S-52；runner 的 G-20 |
+| 没有显式允许不落宿主机；不经解释器、不继承环境变量；按组停、`notConfirmed` 不算停下 | [S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪)、[S-19](v2/contract.md#s-19-起不来与报错)、[S-27](v2/contract.md#s-27-缺席撤下与重新导入) | `capability.execution-environments` v2（S-6、S-13～S-15） | 那份契约的场景 S-20～S-23 |
+| 运行被取消时兼容件收到停止信号、那一次求值不留记录 | [S-27](v2/contract.md#s-27-缺席撤下与重新导入) | runner（`#S-21` ⑥、`#S-34`） | runner 的 S-51 |
 
 ## 对齐义务
 
 | 来自 | 条款 | 本契约落在哪 | 核对状态 |
 |---|---|---|---|
-| `capability.tool-admission` v1 S-15 | 四档选项的 `id` 与 `label` | [S-21](v1/contract.md#s-21-ask-与回放) 第 1 条 | **已核对（2026-09-24 整批对齐）**：本契约按坐标引用、不复述；那边四档 `deny`／`allow_once`／`allow_session`／`allow_tenant` 与 PF-008 原词 `label` 在同一棵树里 |
-| `capability.tool-admission` v1 S-28 | 兼容件复用四档选项的卡，答复不带授权、不交给放行判断 | [S-21](v1/contract.md#s-21-ask-与回放) 第 2 条 | **已核对（2026-09-24 整批对齐）**：那边 S-28 写明兼容件复用的卡答复不带授权、不交给放行判断，与本条同 |
-| `data.loop-extension` v1 S-6／S-28 | 声明成员 `unavailability`；卡片草稿的 `proposedRewrite: {arguments}` | [S-10](v1/contract.md#s-10-兼容件要带的东西)、[S-21](v1/contract.md#s-21-ask-与回放) | **已核对**（对方本轮修订中的正文已带两处；`proposedRewrite` 只随 `about.position = before_action`） |
-| `capability.loop-extension-runner` v1 S-12 | 不可用按声明处置；导入件是租户件 | [S-19](v1/contract.md#s-19-起不来与报错)、[S-27](v1/contract.md#s-27-缺席撤下与重新导入) | **已核对**（本批同改） |
-| `data.loop-extension` v1 S-8 | 兼容件载荷里的「宿主」改称「来源产品」，成员名 `host` 注明指来源产品（第二轮评审 H-a，K47 的残留） | [S-10](v1/contract.md#s-10-兼容件要带的东西) 所引 | **已核对（2026-09-25 读到，乙批）**：对方 `command` 那一行已写「来源产品」，并注明 `host` 不是 runner 的「宿主」 |
+| `capability.tool-admission` v2 S-15 | 四档选项的 `id` 与 `label` | [S-21](v2/contract.md#s-21-ask-与回放) 第 1 条 | **已核对（2026-09-24 整批对齐）**：本契约按坐标引用、不复述；那边四档 `deny`／`allow_once`／`allow_session`／`allow_tenant` 与 PF-008 原词 `label` 在同一棵树里 |
+| `capability.tool-admission` v2 S-28 | 兼容件复用四档选项的卡，答复不带授权、不交给放行判断 | [S-21](v2/contract.md#s-21-ask-与回放) 第 2 条 | **已核对（2026-09-24 整批对齐）**：那边 S-28 写明兼容件复用的卡答复不带授权、不交给放行判断，与本条同 |
+| `data.loop-extension` v2 S-6／S-28 | 声明成员 `unavailability`；卡片草稿的 `proposedRewrite: {arguments}` | [S-10](v2/contract.md#s-10-兼容件要带的东西)、[S-21](v2/contract.md#s-21-ask-与回放) | **已核对**（对方本轮修订中的正文已带两处；`proposedRewrite` 只随 `about.position = before_action`） |
+| `capability.loop-extension-runner` v2 S-12 | 不可用按声明处置；导入件是租户件 | [S-19](v2/contract.md#s-19-起不来与报错)、[S-27](v2/contract.md#s-27-缺席撤下与重新导入) | **已核对**（本批同改） |
+| `data.loop-extension` v2 S-8 | 兼容件载荷里的「宿主」改称「来源产品」，成员名 `host` 注明指来源产品（第二轮评审 H-a，K47 的残留） | [S-10](v2/contract.md#s-10-兼容件要带的东西) 所引 | **已核对（2026-09-25 读到，乙批）**：对方 `command` 那一行已写「来源产品」，并注明 `host` 不是 runner 的「宿主」 |
 
-clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
+clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)。
 
 ## 实际执行
 
@@ -73,7 +73,7 @@ clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
 
 ## 独立评审
 
-**第一轮**：spec-reviewer，2026-09-24，基线 `765b01dc`（HUB），发现表 `tmp/assets-runtimes/reviews/r1-R4b.md` 第〇、二节。处置按主线的修复波裁定，K 编号即 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 的编号。
+**第一轮**：spec-reviewer，2026-09-24，基线 `765b01dc`（HUB），发现表 `tmp/assets-runtimes/reviews/r1-R4b.md` 第〇、二节。处置按主线的修复波裁定，K 编号即 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加) 的编号。
 
 | 发现 | 处置 | 落点 |
 |---|---|---|
@@ -86,26 +86,26 @@ clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)。
 | H5（「每一项都带」） | **改**：「每一条导入了的（`imported`、`degraded`）都带」 | examples §2、S-34 |
 | H6（依赖表与 catalog 漏登） | **改**：补 runner `#S-6`、`#S-34`，`data.loop-extension` `#S-31`、`#S-37`；catalog 同步 | S-4、catalog |
 | H7（导入件的不可用处置；G-13） | **改**（K47）：导入件取 `skip`、声明里显式写出、报告看得见；安装者可在落地前改为 `veto`；G-13 按 rev 14 复核后闭合 | S-10、S-12、S-19、S-27、P-14、G-13 |
-| 范围外 2（导入 hook 不可用时的处置） | 按 K47 取 `skip`；主线裁定，已汇编为 D-040 §五 K47（G-12 随之闭合），产品面由主线另记 | S-10、G-12 |
-| 范围外 4（「待产品负责人确认」） | **改**（G2）：G1–G11 与 S15-a/b/f/g 改引 D-040；G-3 按 PF-008 §6.8 闭合 | 设计依据表、G-3、G-4、G-12（K32、K47 已汇编进 D-040 §五，闭合） |
+| 范围外 2（导入 hook 不可用时的处置） | 按 K47 取 `skip`；主线裁定，已汇编为 D-060 §五 K47（G-12 随之闭合），产品面由主线另记 | S-10、G-12 |
+| 范围外 4（「待产品负责人确认」） | **改**（G2）：G1–G11 与 S15-a/b/f/g 改引 D-060；G-3 按 PF-008 §6.8 闭合 | 设计依据表、G-3、G-4、G-12（K32、K47 已汇编进 D-060 §五，闭合） |
 
 ### 第二轮
 
-spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R4b.md` 第三节。裁定出处 [D-040 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（本批没有专属于本契约的 M 编号，应修与建议按发现表原文落）。
+spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runtimes/reviews/r2-R4b.md` 第三节。裁定出处 [D-060 §七](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)（本批没有专属于本契约的 M 编号，应修与建议按发现表原文落）。
 
 | 编号 | 处置 | 落点 |
 |---|---|---|
 | H-a（`data.loop-extension` S-8 仍写「宿主」） | 对方（乙批）改；本契约不动，对齐义务表补一行并核对已落 | [对齐义务](#对齐义务) |
-| H-b（「导入件恒为 `skip`」会被读成运行时不可能是 `veto`） | **改**：S-19 那一格改为「导入产出的声明恒为 `skip`」，并注明运行时读落地时的声明；S-27 第一行改为「按声明的不可用处置（导入产出的是 `unavailability: skip`）」。评审说两处都写「恒为」，实际只有 S-19 那一处，S-27 那一行一并收紧 | [S-19](v1/contract.md#s-19-起不来与报错)、[S-27](v1/contract.md#s-27-缺席撤下与重新导入) |
+| H-b（「导入件恒为 `skip`」会被读成运行时不可能是 `veto`） | **改**：S-19 那一格改为「导入产出的声明恒为 `skip`」，并注明运行时读落地时的声明；S-27 第一行改为「按声明的不可用处置（导入产出的是 `unavailability: skip`）」。评审说两处都写「恒为」，实际只有 S-19 那一处，S-27 那一行一并收紧 | [S-19](v2/contract.md#s-19-起不来与报错)、[S-27](v2/contract.md#s-27-缺席撤下与重新导入) |
 | B1、B2、R-a～R-c、A-1～A-3、M-a～M-c、范围外 2 | 不涉本契约 | — |
-| D-1、D-2 | 归主线（D-040 自身），本契约不引 L13、L15、K30 | — |
+| D-1、D-2 | 归主线（D-060 自身），本契约不引 L13、L15、K30 | — |
 | 闭合核对（L9、G-14、K32、K47） | 评审判成立，无改动 | — |
 
 ## 变化的影响
 
-- **2026-09-25 修复波 3：实现映射反推（候选，未冻结，原地改）**：裁定出处 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M38、M39、M40；逐条处置见文末[实现映射反推（2026-09-25）](#实现映射反推2026-09-25)。
+- **2026-09-25 修复波 3：实现映射反推（候选，未冻结，原地改）**：裁定出处 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M38、M39、M40；逐条处置见文末[实现映射反推（2026-09-25）](#实现映射反推2026-09-25)。
   - **语义改变**：兼容件起子进程要的执行环境**从统一输入的执行环境句柄取**（S-18），句柄在起子进程之前解析不出与落不了位同一处置——起不来（S-19 第一行）；运行被取消时在途的兼容件收到停止信号、子进程被停下、那一次求值不留记录（S-27 新一行，S-26 新一行）。S-17 写明两只句柄都不交出会话标识、句柄解析出的租户身份不造成来源产品输入里的字段。
-  - **装配名**：S-4 与第十二节 `apps/runtime-host` 改 `apps/cli`（M40；D-039 已裁）。
+  - **装配名**：S-4 与第十二节 `apps/runtime-host` 改 `apps/cli`（M40；D-059 已裁）。
   - **registry**：catalog 本契约对 runner 的消费 clauses 加 `S-21`、`S-50`，对 `data.loop-extension` 加 `S-41`；covers、formal-tasks、id-namespaces 不变。
   - **对证据的影响**：没有既有证据；S-32 多一支，仍「未开始」；新依赖的证据落点是 runner 的 S-51、S-52。
   - **对消费者**：没有已采用的消费者，无迁移。`apps/cli` 要接好执行环境句柄的解析来路（执行环境本身没有提供者，runner G-20）。
@@ -115,8 +115,8 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
   - **registry**：catalog、covers、formal-tasks、id-namespaces 不变。
   - **对证据的影响**：没有既有证据；场景全部仍「未开始」。
 
-- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-040 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L1、L2、L9）。
-  - **L9，G-14 闭合**：统一输入不加会话标识、`data.loop-extension` 不加成员；[S-17](v1/contract.md#s-17-输入怎样译成来源产品的原生输入) 第 2 条改链裁定（会话标识早在第一轮修复里删去，这一次只补依据），G-14 行改为已闭合，消费者核对 runner 一行随之改。**不另加降级说明**：与 `transcript_path`、`permission_mode` 一样只是「不造」，S-13 的十四个 token 不变（同轮由主线确认，[D-040 §六 N-12](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，G-14 行补链）。
+- **2026-09-25 修复波 1b（候选，未冻结，原地改）**：裁定出处 [D-060 §六](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)（L1、L2、L9）。
+  - **L9，G-14 闭合**：统一输入不加会话标识、`data.loop-extension` 不加成员；[S-17](v2/contract.md#s-17-输入怎样译成来源产品的原生输入) 第 2 条改链裁定（会话标识早在第一轮修复里删去，这一次只补依据），G-14 行改为已闭合，消费者核对 runner 一行随之改。**不另加降级说明**：与 `transcript_path`、`permission_mode` 一样只是「不造」，S-13 的十四个 token 不变（同轮由主线确认，[D-060 §六 N-12](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)，G-14 行补链）。
   - **L1**：本包没有指向 `data.content-blocks` S-8 的锚点，无改动。**L2**：本包没有 `implementation.capability` 的引用（兼容件只引 `implementation.kind = command` 那一支），无改动。
   - **registry**：catalog、covers、formal-tasks、id-namespaces 不变。
   - **对证据的影响**：没有既有证据；场景全部仍「未开始」。
@@ -125,60 +125,60 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
   - **产品依据 rev 复核**：PF-012 rev 11～14（系统自带件不走卸载、放行判断不可替换、连续否决上限、转换件不是资产）→ 与兼容件无直接关系；rev 12 **不可用处置**（租户件默认跳过、可声明否决）→ S-10、S-19、S-27；rev 8 起的「否决只在『之前』、执行动作之后不给否决」→ 映射表原本如此（G-13 闭合）。PF-002 rev 17「仓库带来的命令型 hook 默认不启用」→ S-9 改引产品正文；rev 19～20 不可用处置是这一件自己的声明 → S-10。PF-008 rev 6「搬来的 hook 的卡借四档样子、不带授权、样式分得开」→ S-21 第 2 条、G-3 闭合；rev 7（清卡第三条路、放行判断全拒件）→ 与本契约无直接关系。PF-005 rev 5 未变。
   - **对证据的影响**：没有既有证据；S-32、S-33、S-34 的断言改了，仍登「未开始」。
   - **消费者要知道的**：资产治理落地时收到的声明多一项 `unavailability: skip`；兼容件出的卡草稿可能带 `proposedRewrite`。
-  - **依据链**：主线把本轮 K 项汇编进 [D-040 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)之后，设计依据里 K32、K47 两条改链那里，G-12 闭合；语义不变。
-- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定」的，长期落点现为 D-040（S15-a、S15-b、S15-f、S15-g）。
-  - **兼容件载荷有了家**（S15-b）：`data.loop-extension/v1#S-8` 的 `implementation.command` 一支；[S-10](v1/contract.md#s-10-兼容件要带的东西) 改写，「导出时的情形」由 `(host, dialect, event)` 查映射表得出、不另存；**G-1 收窄为导入留痕没有家**，不再挡兼容件跑起来。
+  - **依据链**：主线把本轮 K 项汇编进 [D-060 §五](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)之后，设计依据里 K32、K47 两条改链那里，G-12 闭合；语义不变。
+- **2026-09-24 整批对齐（候选，未冻结，原地改）**：依据行写「主线裁定」的，长期落点现为 D-060（S15-a、S15-b、S15-f、S15-g）。
+  - **兼容件载荷有了家**（S15-b）：`data.loop-extension/v2#S-8` 的 `implementation.command` 一支；[S-10](v2/contract.md#s-10-兼容件要带的东西) 改写，「导出时的情形」由 `(host, dialect, event)` 查映射表得出、不另存；**G-1 收窄为导入留痕没有家**，不再挡兼容件跑起来。
   - **推导项采纳**（S15-a）：`degraded` 带资产、十四个降级说明 token；与 runner 与数据半边逐项核过，一致。
   - **导入来源本版不核实**（S15-f），G-4 闭合；G7 的禁用配在租户层那一格照旧（G-8 仍待资产治理的落地写面）。PostToolUse 的干预力按研究「可改写」（S15-g），映射表原本如此，未改。
   - **`capability.tool-admission` 补登 catalog**，G-11 闭合。
   - **对证据的影响**：没有既有证据；规范场景的受阻原因解除（只剩真实实现）。
 
-- **2026-09-23 起草**：首版，没有旧证据可作废。本契约从 `capability.loop-extension-runner` 的施工简报里按主线修订拆出（兼容层导入与方言映射另立契约）；runner 的简报里「一份 CC 配置的导入报告」那条实例在本包的 [examples](v1/examples.md) 第 2 节。
+- **2026-09-23 起草**：首版，没有旧证据可作废。本契约从 `capability.loop-extension-runner` 的施工简报里按主线修订拆出（兼容层导入与方言映射另立契约）；runner 的简报里「一份 CC 配置的导入报告」那条实例在本包的 [examples](v2/examples.md) 第 2 节。
 - 钉住的来源产品版本升级、或研究包出新一轮，**映射表全部重新核对**；表中任一格变化即出本契约的新版本。
 
 ## 实现映射反推（2026-09-25）
 
-五位 realization-drafter 起草节点时报回的契约层缺陷，主线裁定见 [D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（下称 M 编号）。本契约涉及三条。
+五位 realization-drafter 起草节点时报回的契约层缺陷，主线裁定见 [D-060 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（下称 M 编号）。本契约涉及三条。
 
 | 裁定 | 来源 | 处置 | 落在哪 |
 |---|---|---|---|
-| M38 执行环境句柄；hooks-import S-18 改从它取 | 辛 HI-N2（执行器拿到「这一次会话的执行环境」的通道没有写） | **接受**：S-18 写明执行环境从统一输入的 `environment` 取、不经别的通道；**「句柄在起子进程之前解析不出」归「起不来」是本契约的推导**——与落不了位同一处置，分界照 runner S-12／S-50「还没开始就取不到的是起不来」 | [S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪)、[S-19](v1/contract.md#s-19-起不来与报错) 第一行、[S-17](v1/contract.md#s-17-输入怎样译成来源产品的原生输入) 第 2 条、[S-26](v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第一行、[S-32](v1/contract.md#s-32-挂了看得见不静默) 一支、S-4 |
-| M39 运行被取消时 `dispatch` 以 `cancelled` 收场，在途的件收到中止信号 | 辛 HI-N6（取消时那一次求值以什么收场没有契约值） | **接受**：S-27 加一行——子进程被停下、那一次求值不留记录、兼容件不自造结论，那一次 `dispatch` 的收场归 runner；S-26 加一行「运行被取消时子进程确实停下」。HI-N6 的闭合条件（收场值）由 runner S-21 ⑥ 给出 | [S-27](v1/contract.md#s-27-缺席撤下与重新导入)、[S-26](v1/contract.md#s-26-装配给的保证-vs-协议须给的保证)、S-4、设计依据表 |
-| M40 `apps/runtime-host` 改 `apps/cli` | 壬 C-10、辛 | **接受**：S-4 与第十二节两处改名并链 D-039 | [S-4](v1/contract.md#s-4-依赖方向与被消费的面)、[第十二节](v1/contract.md#十二消费者核对) |
+| M38 执行环境句柄；hooks-import S-18 改从它取 | 辛 HI-N2（执行器拿到「这一次会话的执行环境」的通道没有写） | **接受**：S-18 写明执行环境从统一输入的 `environment` 取、不经别的通道；**「句柄在起子进程之前解析不出」归「起不来」是本契约的推导**——与落不了位同一处置，分界照 runner S-12／S-50「还没开始就取不到的是起不来」 | [S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪)、[S-19](v2/contract.md#s-19-起不来与报错) 第一行、[S-17](v2/contract.md#s-17-输入怎样译成来源产品的原生输入) 第 2 条、[S-26](v2/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第一行、[S-32](v2/contract.md#s-32-挂了看得见不静默) 一支、S-4 |
+| M39 运行被取消时 `dispatch` 以 `cancelled` 收场，在途的件收到中止信号 | 辛 HI-N6（取消时那一次求值以什么收场没有契约值） | **接受**：S-27 加一行——子进程被停下、那一次求值不留记录、兼容件不自造结论，那一次 `dispatch` 的收场归 runner；S-26 加一行「运行被取消时子进程确实停下」。HI-N6 的闭合条件（收场值）由 runner S-21 ⑥ 给出 | [S-27](v2/contract.md#s-27-缺席撤下与重新导入)、[S-26](v2/contract.md#s-26-装配给的保证-vs-协议须给的保证)、S-4、设计依据表 |
+| M40 `apps/runtime-host` 改 `apps/cli` | 壬 C-10、辛 | **接受**：S-4 与第十二节两处改名并链 D-059 | [S-4](v2/contract.md#s-4-依赖方向与被消费的面)、[第十二节](v2/contract.md#十二消费者核对) |
 
-表中写明「推导」的各项，已经 [D-040 §八 N-20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受（2026-09-25）。
+表中写明「推导」的各项，已经 [D-060 §八 N-20](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 接受（2026-09-25）。
 
 **examples 对 Schema 的机检（2026-09-25，跨批对齐，drafter 丑）**：暂存区脚本（不入库），`jsonschema` 4.26.0（`Draft202012Validator` ＋ `referencing`，锁定 uv 环境），设计根下全部 `*.schema.json` 按 `$id` 登表；第 3 节 `ask` 那条结论记录按 `data.loop-extension` 的 `Conclusion` 判：**1 处，0 不符**。第 1 节是 Claude Code 的配置文件（不是本系统的形状）、第 3 节第二块是一个成员片段，不判；导入报告按本契约的写法是表。只核形状，不是 V- 义务的执行证据。执行环境句柄的名字与形状同 `data.loop-extension` S-41、runner S-50（核对无改动）。
 
 ## 修订波（2026-09-25 公开面）
 
-依据链：[D-043](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-040 §八 N-37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑧（兼容件子进程要一项产品允许，账本 ⑭）、⑩（消费者侧四处）。候选未冻结，原地改。
+依据链：[D-063](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1（替身改为接口契约 ＋ 最小提供者）；[D-060 §八 N-37](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ⑧（兼容件子进程要一项产品允许，账本 ⑭）、⑩（消费者侧四处）。候选未冻结，原地改。
 
 | 变化 | 依据 | 落在哪 | 语义变不变、对消费者 |
 |---|---|---|---|
-| **执行环境改指 `capability.execution-environments` v1**：子进程经它的 `startProcess` 起；落点由它判——本版只有宿主机，且只凭「拓展件子进程的宿主机允许」（无词条）；那一项产品未给，**闭合之前每一件兼容件都起不来**（fail-closed） | R-1；N-37 ⑧ | [S-2](v1/contract.md#s-2-本契约不拥有什么)、[S-4](v1/contract.md#s-4-依赖方向与被消费的面) 新一行、[S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪) 第 1 条、[S-26](v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 首行、第十二节 `apps/cli` 一行、页首依赖表 | **主线裁定 G6「会话级沙箱」本版兑现不了**：落点从「会话级沙箱、不回退宿主机」变成「宿主机、只凭显式允许」；「不回退」保留为「没有允许不落宿主机」 |
-| **起子进程的四件事**：带租户；解释器写成 `program`、command 原文作一个参数；交全环境变量（白名单 `hookEnvAllowlist`，来源产品导出的变量给不出的不造）；拿到结果之后停组、停组的答复不改结论 | N-37 ⑩ | [S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条、[S-17](v1/contract.md#s-17-输入怎样译成来源产品的原生输入) 第 2 条、[S-27](v1/contract.md#s-27-缺席撤下与重新导入) 两行 | 带租户、停组不改语义。**解释器写成 `program` 改了「起不来」的边界**：「程序不存在」本版只指解释器；command 指向的脚本不存在是解释器起来之后的退出。初稿把它**由不可用（跳过）改为报错（可否决档落 `veto`）**；**主线同日撤回**，改按来源产品的退出码语义归非阻断错误（见本表「退出码按来源产品语义」一行） |
-| **新缺口 G-15**：`startProcess` 要工作目录必带，统一输入与句柄都不给；白名单的值未定。闭合之前交不出工作目录即起不来 | 那份契约 S-13 ① | [G-15](v1/contract.md#十一已知缺口) | 叠在执行环境 G-3 之上的第二道阻断 |
-| **G-5 扩一句**：Codex 执行 command 用哪一个解释器研究包没记下，按与 CC 同构读 | 研究包局限 | [G-5](v1/contract.md#十一已知缺口) | 与 G-5 原有「按与 CC 同构读」同一处置 |
-| catalog：本契约新增依赖 `capability.execution-environments` v1（S-5、S-6、S-7、S-9、S-13、S-14、S-15） | 引用即消费 | S-4、页首依赖表、README | 那份契约不以坐标依赖本契约，无环 |
-| **退出码按来源产品语义**：Claude Code 0 放行、2 否决、其余为**非阻断错误**（记下、不否决、继续，效果同 `ignore`、不按 `onError`）；脚本不存在即解释器退出 127 ⇒ 非阻断错误；Codex 按与 CC 同构读，映射表只写了 0 与 2，其余**待核对**。超时与输出坏掉仍按报错（可否决档默认当否决） | 主线裁定（2026-09-25，撤回初稿「脚本不存在 = 报错拦下」） | [S-19](v1/contract.md#s-19-起不来与报错) 表第四、五行与表下两条、[S-13](v1/contract.md#s-13-降级说明) `fails_closed_on_error`／`nonzero_exit_json_not_read` 两行、P-7、[G-5](v1/contract.md#十一已知缺口)、场景 [S-32](v1/contract.md#s-32-挂了看得见不静默) ② 与脚本不存在那一支、examples §3 三行 | **改语义**：可否决档的兼容件非零非 2 退出不再当否决（原主线裁定 G4 这一半改判）。**新缺口 G-17**：runner 只按一件求得的策略处置报错，「这一种报错固定按 `ignore`」要 runner 加一条（与越档那一条同形）；闭合之前兼容件交回 `observed`、退出码只进工程日志——**会话日志看不出它是一次错误**。本契约推导，报主线。**本行「超时与输出坏掉仍按报错」与 G-17 的过渡落法已被下面两行取代** |
-| **CC 的 exec form（`args`）与 `shell` 字段归 `no_mapping` ⑦**，另立 G-16（按本机 CC 语料核实这两个字段是否存在与语义，owner 主线／verification-developer）；S-18 第 3 条第 2 项写明只对 shell form | 主线裁定 [D-040 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | [S-14](v1/contract.md#s-14-不导入的理由)、[S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪)、[G-16](v1/contract.md#十一已知缺口)、场景 S-32 新一支、examples §3 新一行 | **改导入结果**：带这两个字段的 handler 不再被导成兼容件 |
-| **`hookEnvAllowlist` 是一份 `EnvAllowlist`**：形状与取法定在 `capability.execution-environments/v1#S-13` 表下一次（候选名 `EnvAllowlist`，主线给），本契约与 MCP 桥各自引用、各自保留配置项；G-15 里「是否同一份」一句改为已裁 | 主线裁定 [D-040 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | [S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条第 3 项、[G-15](v1/contract.md#十一已知缺口) | 不改语义（S-13 已在本契约依赖的 clauses 里，catalog 不变） |
-| **超时与输出坏掉也按来源产品语义归非阻断错误**：Claude Code 对 hook 超时与无效 JSON 输出都是非阻断错误，兼容件复现来源产品的语义——退出码、超时、输出坏掉三种一律非阻断；只剩「起来之后执行环境被撤下」「判不出开始前后」按报错（可否决档默认当否决），`fails_closed_on_error` 收窄到这两种；Codex 一侧三种都「待核对」 | 主线补裁（2026-09-25，第二轮） | [S-19](v1/contract.md#s-19-起不来与报错) 表第五、六行与表下两条、[S-13](v1/contract.md#s-13-降级说明) `fails_closed_on_error`、[S-10](v1/contract.md#s-10-兼容件要带的东西) 那一段、[S-18](v1/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条第 4 项（超时那一支）、P-7 重写、P-11、[S-26](v1/contract.md#s-26-装配给的保证-vs-协议须给的保证)「超时后子进程确实停下」一行、[G-5](v1/contract.md#十一已知缺口)、场景 S-32（改名「挂了看得见，不静默」，① 改判、加坏 JSON 与撤下执行环境两支）、examples §3 两行改、两行加 | **改语义**：可否决档兼容件超时与输出坏掉不再当否决（提案 P4 的 fail-closed 整体改判，只留执行环境被撤下与判不出两种）。本项目自有拓展件的 `onError` 不受影响。**`fails_closed_on_error` 收窄而不删**是本契约的推导：来源产品里与「执行环境被撤下」相当的是进程被外力停下，按它的退出码语义是非阻断，这里拦，仍是一处差异 |
-| **G-17 闭合**：runner 契约 S-13 加一条——兼容件交回的非阻断错误固定按 `ignore` 处置、不进 `onError`，记录形状与越档那一条相同（`skipped: errored` ＋ `output: observed` ＋ `error` 写三种成因之一；来源件即记录的 `extension`）；`data.loop-extension` 复用「可用却报错」那一种记录，不另立 | 主线补裁（2026-09-25，第二轮） | [G-17](v1/contract.md#十一已知缺口) 改为已闭合、[S-19](v1/contract.md#s-19-起不来与报错) 表下第一条、examples §3 退出码 1 那一行与新加的一条记录；对面：`capability.loop-extension-runner/v1#S-13`、`data.loop-extension/v1#S-5` 末条与 S-8 | **闭合前的过渡落法（交回 `observed`、退出码只进工程日志）作废**：非阻断错误在会话日志里看得见。catalog 不变（本契约 → runner 已含 S-13，→ `data.loop-extension` 已含 S-31） |
+| **执行环境改指 `capability.execution-environments` v2**：子进程经它的 `startProcess` 起；落点由它判——本版只有宿主机，且只凭「拓展件子进程的宿主机允许」（无词条）；那一项产品未给，**闭合之前每一件兼容件都起不来**（fail-closed） | R-1；N-37 ⑧ | [S-2](v2/contract.md#s-2-本契约不拥有什么)、[S-4](v2/contract.md#s-4-依赖方向与被消费的面) 新一行、[S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪) 第 1 条、[S-26](v2/contract.md#s-26-装配给的保证-vs-协议须给的保证) 首行、第十二节 `apps/cli` 一行、页首依赖表 | **主线裁定 G6「会话级沙箱」本版兑现不了**：落点从「会话级沙箱、不回退宿主机」变成「宿主机、只凭显式允许」；「不回退」保留为「没有允许不落宿主机」 |
+| **起子进程的四件事**：带租户；解释器写成 `program`、command 原文作一个参数；交全环境变量（白名单 `hookEnvAllowlist`，来源产品导出的变量给不出的不造）；拿到结果之后停组、停组的答复不改结论 | N-37 ⑩ | [S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条、[S-17](v2/contract.md#s-17-输入怎样译成来源产品的原生输入) 第 2 条、[S-27](v2/contract.md#s-27-缺席撤下与重新导入) 两行 | 带租户、停组不改语义。**解释器写成 `program` 改了「起不来」的边界**：「程序不存在」本版只指解释器；command 指向的脚本不存在是解释器起来之后的退出。初稿把它**由不可用（跳过）改为报错（可否决档落 `veto`）**；**主线同日撤回**，改按来源产品的退出码语义归非阻断错误（见本表「退出码按来源产品语义」一行） |
+| **新缺口 G-15**：`startProcess` 要工作目录必带，统一输入与句柄都不给；白名单的值未定。闭合之前交不出工作目录即起不来 | 那份契约 S-13 ① | [G-15](v2/contract.md#十一已知缺口) | 叠在执行环境 G-3 之上的第二道阻断 |
+| **G-5 扩一句**：Codex 执行 command 用哪一个解释器研究包没记下，按与 CC 同构读 | 研究包局限 | [G-5](v2/contract.md#十一已知缺口) | 与 G-5 原有「按与 CC 同构读」同一处置 |
+| catalog：本契约新增依赖 `capability.execution-environments` v2（S-5、S-6、S-7、S-9、S-13、S-14、S-15） | 引用即消费 | S-4、页首依赖表、README | 那份契约不以坐标依赖本契约，无环 |
+| **退出码按来源产品语义**：Claude Code 0 放行、2 否决、其余为**非阻断错误**（记下、不否决、继续，效果同 `ignore`、不按 `onError`）；脚本不存在即解释器退出 127 ⇒ 非阻断错误；Codex 按与 CC 同构读，映射表只写了 0 与 2，其余**待核对**。超时与输出坏掉仍按报错（可否决档默认当否决） | 主线裁定（2026-09-25，撤回初稿「脚本不存在 = 报错拦下」） | [S-19](v2/contract.md#s-19-起不来与报错) 表第四、五行与表下两条、[S-13](v2/contract.md#s-13-降级说明) `fails_closed_on_error`／`nonzero_exit_json_not_read` 两行、P-7、[G-5](v2/contract.md#十一已知缺口)、场景 [S-32](v2/contract.md#s-32-挂了看得见不静默) ② 与脚本不存在那一支、examples §3 三行 | **改语义**：可否决档的兼容件非零非 2 退出不再当否决（原主线裁定 G4 这一半改判）。**新缺口 G-17**：runner 只按一件求得的策略处置报错，「这一种报错固定按 `ignore`」要 runner 加一条（与越档那一条同形）；闭合之前兼容件交回 `observed`、退出码只进工程日志——**会话日志看不出它是一次错误**。本契约推导，报主线。**本行「超时与输出坏掉仍按报错」与 G-17 的过渡落法已被下面两行取代** |
+| **CC 的 exec form（`args`）与 `shell` 字段归 `no_mapping` ⑦**，另立 G-16（按本机 CC 语料核实这两个字段是否存在与语义，owner 主线／verification-developer）；S-18 第 3 条第 2 项写明只对 shell form | 主线裁定 [D-060 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | [S-14](v2/contract.md#s-14-不导入的理由)、[S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪)、[G-16](v2/contract.md#十一已知缺口)、场景 S-32 新一支、examples §3 新一行 | **改导入结果**：带这两个字段的 handler 不再被导成兼容件 |
+| **`hookEnvAllowlist` 是一份 `EnvAllowlist`**：形状与取法定在 `capability.execution-environments/v2#S-13` 表下一次（候选名 `EnvAllowlist`，主线给），本契约与 MCP 桥各自引用、各自保留配置项；G-15 里「是否同一份」一句改为已裁 | 主线裁定 [D-060 §八 N-39](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | [S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条第 3 项、[G-15](v2/contract.md#十一已知缺口) | 不改语义（S-13 已在本契约依赖的 clauses 里，catalog 不变） |
+| **超时与输出坏掉也按来源产品语义归非阻断错误**：Claude Code 对 hook 超时与无效 JSON 输出都是非阻断错误，兼容件复现来源产品的语义——退出码、超时、输出坏掉三种一律非阻断；只剩「起来之后执行环境被撤下」「判不出开始前后」按报错（可否决档默认当否决），`fails_closed_on_error` 收窄到这两种；Codex 一侧三种都「待核对」 | 主线补裁（2026-09-25，第二轮） | [S-19](v2/contract.md#s-19-起不来与报错) 表第五、六行与表下两条、[S-13](v2/contract.md#s-13-降级说明) `fails_closed_on_error`、[S-10](v2/contract.md#s-10-兼容件要带的东西) 那一段、[S-18](v2/contract.md#s-18-子进程在哪跑钱记在哪) 第 3 条第 4 项（超时那一支）、P-7 重写、P-11、[S-26](v2/contract.md#s-26-装配给的保证-vs-协议须给的保证)「超时后子进程确实停下」一行、[G-5](v2/contract.md#十一已知缺口)、场景 S-32（改名「挂了看得见，不静默」，① 改判、加坏 JSON 与撤下执行环境两支）、examples §3 两行改、两行加 | **改语义**：可否决档兼容件超时与输出坏掉不再当否决（提案 P4 的 fail-closed 整体改判，只留执行环境被撤下与判不出两种）。本项目自有拓展件的 `onError` 不受影响。**`fails_closed_on_error` 收窄而不删**是本契约的推导：来源产品里与「执行环境被撤下」相当的是进程被外力停下，按它的退出码语义是非阻断，这里拦，仍是一处差异 |
+| **G-17 闭合**：runner 契约 S-13 加一条——兼容件交回的非阻断错误固定按 `ignore` 处置、不进 `onError`，记录形状与越档那一条相同（`skipped: errored` ＋ `output: observed` ＋ `error` 写三种成因之一；来源件即记录的 `extension`）；`data.loop-extension` 复用「可用却报错」那一种记录，不另立 | 主线补裁（2026-09-25，第二轮） | [G-17](v2/contract.md#十一已知缺口) 改为已闭合、[S-19](v2/contract.md#s-19-起不来与报错) 表下第一条、examples §3 退出码 1 那一行与新加的一条记录；对面：`capability.loop-extension-runner/v2#S-13`、`data.loop-extension/v2#S-5` 末条与 S-8 | **闭合前的过渡落法（交回 `observed`、退出码只进工程日志）作废**：非阻断错误在会话日志里看得见。catalog 不变（本契约 → runner 已含 S-13，→ `data.loop-extension` 已含 S-31） |
 
 **没有证据因此作废**——本契约此前没有任何执行证据；S-32 多了几支，仍「未开始」。
 
 **账本外的名字**：具名参数 `hookEnvAllowlist` 是本波给的候选名（仿 `capability.mcp-bridge` 的 `stdioEnvAllowlist`），已报主线；主线裁它与桥那一个是两个策略点、同一个形状 `EnvAllowlist`（候选名，主线给）。
 
 **本波发现、报主线**：
-- **CC 的 exec form（`args`）与 `shell` 字段本契约没有处理**：研究副本记下 CC 有两种形式（doc:466-497），`data.loop-extension/v1#S-8` 的 `command` 一支只带 `command`。带 `args` 的 handler 现在会被导成只有 `command`、按 `sh -c` 跑——**与来源产品静默不一致**，也不在 S-14 的不导入理由里。本波不自改导入规则；建议闭合前把带 `args` 或 `shell` 的 handler 归 `no_mapping`。
+- **CC 的 exec form（`args`）与 `shell` 字段本契约没有处理**：研究副本记下 CC 有两种形式（doc:466-497），`data.loop-extension/v2#S-8` 的 `command` 一支只带 `command`。带 `args` 的 handler 现在会被导成只有 `command`、按 `sh -c` 跑——**与来源产品静默不一致**，也不在 S-14 的不导入理由里。本波不自改导入规则；建议闭合前把带 `args` 或 `shell` 的 handler 归 `no_mapping`。
 - 「脚本不存在」由跳过改为报错（上表第二行）对可否决档的兼容件意味着「装错一个路径就拦下全部动作」；这与 P-7「挂了不放行」同向，但请主线确认。
 - **两条都已裁（主线，2026-09-25）**：exec form 与 `shell` 归 `no_mapping` ⑦、另立 G-16；「脚本不存在 = 报错拦下」撤回，非零非 2 退出按来源产品语义归非阻断错误——落法见上表后三行。**新报**：非阻断错误要 runner 加一条「按 `ignore` 处置」才落得进会话日志的记录（G-17）；超时是否也照来源产品放行，本波按原口径（报错、可否决档当否决）没动。
 - **这两条新报也已裁（主线补裁，2026-09-25 第二轮）**：G-17 由 runner S-13 那一条闭合；超时与输出坏掉同归非阻断错误——落法见上表末两行。
 
-**2026-09-26 裁决对账**：[D-044 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。以下历史评审记录按当日事实保留；本次不登记实现或验证完成。
+**2026-09-26 裁决对账**：[D-064 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。以下历史评审记录按当日事实保留；本次不登记实现或验证完成。
 
 ### 2026-09-26 产品依据复核
 
-按 [D-044](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 复核 PF-005 rev 6 与 PF-012 rev 15 的适用条款：hooks 宿主机允许已确认、允许读面接线仍是缺口；旧尝试推进写仍被拒，响应体与账的结算例外与 session-log S-10 同向。没有改变形式模型；本次未重跑模型检查，旧证据不扩张为本次运行证据。
+按 [D-064](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 复核 PF-005 rev 6 与 PF-012 rev 15 的适用条款：hooks 宿主机允许已确认、允许读面接线仍是缺口；旧尝试推进写仍被拒，响应体与账的结算例外与 session-log S-10 同向。没有改变形式模型；本次未重跑模型检查，旧证据不扩张为本次运行证据。

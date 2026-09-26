@@ -4,7 +4,7 @@
   以及作参照的事件目录范式（Slack Events API、GitHub Webhooks、Zapier triggers、IFTTT triggers）。全部为 **2026-09-24** 线上文档；版本 token 见 [evidence.md 头部](evidence.md)。
 - 消费者：PF-002 连接件「事件类型目录 + 持有上的订阅配值 + 上下文里的类型说明」这一方向的产品裁决（待出现）；
   对照的本项目正文是 [PF-002 §4 Connector](../../design/product/PF-002-assets-settings-and-permissions/design.md#connector) 与候选契约
-  `data.connector` v1（S-2 鉴权绑定与投递目标不在正文里、S-4 投递目标、S-5 入站信封、S-13 两项权限、S-14 没有读取面也没有管理面；
+  `data.connector` v2（S-2 鉴权绑定与投递目标不在正文里、S-4 投递目标、S-5 入站信封、S-13 两项权限、S-14 没有读取面也没有管理面；
   候选契约随本程规格批次入库，坐标见[身份清单](../../design/registry/README.md)）。
 - 最近核对：2026-09-24 / 上述线上版本。
 - 当前结论：**两家主流产品里叫 connector 的东西全是拉取型**（agent 出去调），与 PF-002「唯一方向朝里」相反；**推型入口存在**（Claude Code channels、routines 的 API/GitHub 触发、Claude Tag／in Slack 的 mention、ChatGPT 的应用事件触发），
@@ -32,7 +32,7 @@
 
 ## 对照表一：主对象 × PF-002 连接件的性质
 
-行是 PF-002 §4 Connector 与 `data.connector` v1 关心的性质；「未述」= 该来源读遍了没写。格内 `E-n` 指向证据条目。
+行是 PF-002 §4 Connector 与 `data.connector` v2 关心的性质；「未述」= 该来源读遍了没写。格内 `E-n` 指向证据条目。
 
 | PF-002 连接件的性质 | Claude.ai Connectors（E1–E4） | Claude Code channels（E5–E6） | Claude Code routines：API／GitHub 触发（E7） | Claude Tag／Claude Code in Slack（E8–E9） | ChatGPT connectors／plugins（E12–E15） | ChatGPT scheduled tasks 的应用事件触发（E11） |
 |---|---|---|---|---|---|---|
@@ -187,7 +187,7 @@ routines「Claude Code doesn't reuse sessions across events」（[E7](evidence.m
 
 **事实**：channels/routines/ChatGPT 任务 → 会话或任务**所属用户**（[E5](evidence.md#e5-claude-codechannels把外部事件推进正在运行的会话)、[E7](evidence.md#e7-claude-coderoutinesapi-触发与-github-事件触发)、[E11](evidence.md#e11-chatgptlearnchatgptcomscheduled-tasks-的应用事件触发)）；Claude Tag 频道 → **频道的服务账号**，与发送者无关，DM 才是发送者本人（[E9](evidence.md#e9-claude-tag组织共享身份的-claude)）；ChatGPT shared/agent-owned 连接 → **连接账号**的权限（[E12](evidence.md#e12-chatgptlearnchatgptcomplugin-controls-与-chatgpt-work-overview管理员同步共享连接)）。
 
-**判断**：PF-002 G-4 未定的 `processingIdentity` 在先例里的取值域是三个：持有者本人、投递目标（频道/会话）配置的身份、连接账号本身；三家都不让外部内容选身份，这与 `data.connector` v1 第六节「装配给与协议给」的「外部内容选不了目标、选不了身份」一致。
+**判断**：PF-002 G-4 未定的 `processingIdentity` 在先例里的取值域是三个：持有者本人、投递目标（频道/会话）配置的身份、连接账号本身；三家都不让外部内容选身份，这与 `data.connector` v2 第六节「装配给与协议给」的「外部内容选不了目标、选不了身份」一致。
 
 - 适用范围：2026-09-24 线上文档。
 - 代价与不适用：选「投递目标配置的身份」要求目标（会话/频道）本身带身份配置（Claude Tag 是 Owner 按 scope 配）；选「持有者本人」则组织共用场景下动作都记在一个人名下。

@@ -1,0 +1,12 @@
+{
+  "base_revision": "cc01c8322e71d48d784bcb66e27cb81814fd4b6f",
+  "dirty_paths": [
+    " M apps/tenancy-host/tests/e2e/README.md",
+    " M apps/tenancy-host/tests/e2e/e2e.spec.ts",
+    " M packages/tenancy/governance-center-entry/README.md",
+    " M packages/tenancy/governance-center-entry/tests/center.spec.ts"
+  ],
+  "node": "v24.21.0",
+  "TMPDIR": "/tmp",
+  "OMNE_TEST_ALTERNATE_SOURCE_ADDRESS": "10.241.31.200"
+}

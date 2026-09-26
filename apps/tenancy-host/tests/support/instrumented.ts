@@ -31,6 +31,9 @@ import {
 import {
   type ReadTx,
   type Storage,
+  type AtomicStorage,
+  type StorageUnit,
+  StorageDefect,
   type WriteTx,
   composeMigrations,
 } from '@omne-harness-lite/storage'
@@ -171,7 +174,7 @@ function take<R>(rules: R[], match: (rule: R) => boolean): R | undefined {
 }
 
 /** 包在真实提供者外面的 `storage`；规则一次性，命中即摘下。 */
-export class InstrumentedStorage implements Storage {
+export class InstrumentedStorage implements AtomicStorage {
   /** 经过本层的每一条语句（供断言「某条路真的走到了」）。 */
   readonly statements: StatementInfo[] = []
   readonly #pause: { probe: StatementProbe; gate: Gate }[] = []
@@ -221,6 +224,37 @@ export class InstrumentedStorage implements Storage {
         return args.result
       },
     }
+  }
+
+  async atomic<T>(fn: (unit: StorageUnit) => Promise<T>): Promise<T> {
+    const before = this.#beforeWrite.shift()
+    if (before !== undefined) await before.wait()
+    const statements: StatementInfo[] = []
+    const result = await this.inner.atomic(async unit => {
+      const wrapped: StorageUnit = {
+        assertStorage: expected => {
+          if (expected !== this) throw new StorageDefect('instrumented storage mismatch')
+          unit.assertStorage(this.inner)
+        },
+        run: callback => unit.run(callback),
+        query: callback =>
+          unit.query(tx => callback({ db: tx.db.withPlugin(this.#plugin(true, statements)) })),
+        mutate: callback =>
+          unit.mutate(tx =>
+            callback({
+              db: tx.db.withPlugin(this.#plugin(true, statements)),
+              lockRow: (table, key) => tx.lockRow(table, key),
+              lockSentinel: name => tx.lockSentinel(name),
+            }),
+          ),
+        afterCommit: callback => unit.afterCommit(callback),
+      }
+      const value = await fn(wrapped)
+      return value
+    })
+    const after = take(this.#afterCommit, rule => rule.probe(statements))
+    if (after !== undefined) await after.run()
+    return result
   }
 
   async read<T>(fn: (tx: ReadTx) => Promise<T>): Promise<T> {

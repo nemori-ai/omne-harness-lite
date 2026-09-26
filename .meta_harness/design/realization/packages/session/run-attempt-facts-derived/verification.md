@@ -3,7 +3,7 @@
 契约侧的证据义务权威在 [`spec/capabilities/run-attempt-facts/verification.md`](../../../../spec/capabilities/run-attempt-facts/verification.md)：本版不建形式工件（契约 S-13），证据全部是五条规范场景与故障注入。
 本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（折叠缓存、认法作配置、必需 inject 日志）。**本节点尚未建包，一切未开始。**
 
-**共同前提**：跑在同批 [`session-log-jsonl`](../session-log-jsonl/README.md)（尚未建包）的真实临时目录上；「已终结」一支用测试驱动写的终结记录与它给的认法——这些场景记「**有前提：测试给认法**」（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-35 ①），不计入实际验证完成数。
+**共同前提**：跑在同批 [`session-log-jsonl`](../session-log-jsonl/README.md)（尚未建包）的真实临时目录上；「已终结」一支用测试驱动写的终结记录与它给的认法——这些场景记「**有前提：测试给认法**」（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-35 ①），不计入实际验证完成数。
 
 ## 证据义务
 
@@ -11,11 +11,11 @@
 
 | 场景 | 在本节点上怎样跑 | 另外受阻于 | 状态 |
 |---|---|---|---|
-| [S-14 取代之后读得「已被取代」](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-14-取代之后读得已被取代) | 同一份日志上同时断言会话日志拒收尝试 1 的带栅栏追加（两边同一个条件） | 会话日志最小提供者尚未建包 | 未开始 |
-| [S-15 终结之后读得「已终结」](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-15-终结之后读得已终结) | 测试驱动写一条它自定形状的终结记录、给出认法 | 契约 G-3：只能在验收里演练（AFD-4） | 未开始 |
-| [S-16 没有这次尝试不是「仍是当前」](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-16-没有这次尝试不是仍是当前) | 演练；另跑一支「没给认法」：仍是 `attemptNotFound`，不是 `unavailable` | —— | 未开始 |
-| [S-17 读不到就是读不到](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-17-读不到就是读不到) | 故障注入：交给闭包一个 `readSince` 恒答 `unavailable` 的日志 | —— | 未开始 |
-| [S-18 只从假变真](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#s-18-只从假变真) | 读与追加交错；缓存开着跑一遍、`factsCacheLimit = 1` 让缓存频繁被逐出再跑一遍 | —— | 未开始 |
+| [S-14 取代之后读得「已被取代」](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-14-取代之后读得已被取代) | 同一份日志上同时断言会话日志拒收尝试 1 的带栅栏追加（两边同一个条件） | 会话日志最小提供者尚未建包 | 未开始 |
+| [S-15 终结之后读得「已终结」](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-15-终结之后读得已终结) | 测试驱动写一条它自定形状的终结记录、给出认法 | 契约 G-3：只能在验收里演练（AFD-4） | 未开始 |
+| [S-16 没有这次尝试不是「仍是当前」](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-16-没有这次尝试不是仍是当前) | 演练；另跑一支「没给认法」：仍是 `attemptNotFound`，不是 `unavailable` | —— | 未开始 |
+| [S-17 读不到就是读不到](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-17-读不到就是读不到) | 故障注入：交给闭包一个 `readSince` 恒答 `unavailable` 的日志 | —— | 未开始 |
+| [S-18 只从假变真](../../../../spec/capabilities/run-attempt-facts/v2/contract.md#s-18-只从假变真) | 读与追加交错；缓存开着跑一遍、`factsCacheLimit = 1` 让缓存频繁被逐出再跑一遍 | —— | 未开始 |
 
 ### 本节点自己的选择带来的义务
 
