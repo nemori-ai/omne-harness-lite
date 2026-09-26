@@ -1,6 +1,6 @@
 import { unwrap } from '@omne-harness-lite/identity-values'
 import { describe, expect, it } from 'vitest'
-import { instantFromRfc3339, instantToRfc3339, validate } from '../src/index.ts'
+import { instantFromEpochMs, instantFromRfc3339, instantToRfc3339, validate } from '../src/index.ts'
 
 // Independent epoch oracles: Python's proleptic Gregorian datetime for years
 // 0001..9999; year 0000 is the leap year immediately before 0001 (366 days).
@@ -35,14 +35,14 @@ describe('Instant 四位年日历回归（S-22）', () => {
   })
 
   it.each([
-    ['0000-01-01T00:00:00+01:00', -62167222800000, '-000001-12-31T23:00:00.000Z'],
-    ['9999-12-31T23:59:59-01:00', 253402304399000, '+010000-01-01T00:59:59.000Z'],
+    ['0000-01-01T00:00:00+01:00', -62167222800000, '0000-01-01T22:59:00.000+23:59'],
+    ['9999-12-31T23:59:59-01:00', 253402304399000, '9999-12-31T01:00:59.000-23:59'],
   ] as const)('%s 的偏移跨越四位年边界仍是时间点', (text, millis, written) => {
     const instant = unwrap(instantFromRfc3339(text))
     expect(instant).toBe(millis)
-    // The established Date formatter can write an expanded year; the input
-    // boundary remains the frozen four-digit-year pattern.
     expect(instantToRfc3339(instant)).toBe(written)
+    expect(validate('Instant', written).valid).toBe(true)
+    expect(unwrap(instantFromRfc3339(written))).toBe(instant)
   })
 
   it.each([
@@ -65,6 +65,36 @@ describe('Instant 四位年日历回归（S-22）', () => {
     '-000001-01-01T00:00:00Z',
   ])('%s 不因 Date 的静默进位成为合法值', text => {
     expect('invalidInput' in instantFromRfc3339(text)).toBe(true)
+  })
+})
+
+describe('Instant 四位年书写边界（S-22，映射修订 504c99ba）', () => {
+  it.each([
+    [-62167219200000, '0000-01-01T00:00:00.000Z'],
+    [253402300799999, '9999-12-31T23:59:59.999Z'],
+    [-62167305540000, '0000-01-01T00:00:00.000+23:59'],
+    [253402387139999, '9999-12-31T23:59:59.999-23:59'],
+  ] as const)('%i 的书写通过冻结 Schema 并保留毫秒时刻', (epoch, written) => {
+    const instant = unwrap(instantFromEpochMs(epoch))
+    expect(instantToRfc3339(instant)).toBe(written)
+    expect(validate('Instant', written).valid).toBe(true)
+    expect(unwrap(instantFromRfc3339(written))).toBe(instant)
+  })
+
+  it.each([-62167305540001, 253402387140000, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])(
+    '%i 仍获 Epoch 准入，无法书写则抛 RangeError',
+    epoch => {
+      const instant = unwrap(instantFromEpochMs(epoch))
+      expect(() => instantToRfc3339(instant)).toThrow(RangeError)
+    },
+  )
+
+  it('合法长 fraction 舍入至可表示极限外，不夹紧或截断', () => {
+    const text = '9999-12-31T23:59:59.9999-23:59'
+    expect(validate('Instant', text).valid).toBe(true)
+    const instant = unwrap(instantFromRfc3339(text))
+    expect(instant).toBe(253402387140000)
+    expect(() => instantToRfc3339(instant)).toThrow(RangeError)
   })
 })
 
