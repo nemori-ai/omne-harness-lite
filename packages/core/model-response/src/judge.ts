@@ -9,8 +9,8 @@ import type { ModelResponseJudgment, ModelResponseRejection } from './types.ts'
 function rejected(value: ModelResponseRejection): ModelResponseJudgment {
   return Object.freeze({ rejected: value })
 }
-const outcomes: readonly string[] = schema.$defs.ResponseOutcome.enum
-const causes: readonly string[] = loopSchema.$defs.FailureCause.enum
+const outcomes: readonly string[] = Object.freeze([...schema.$defs.ResponseOutcome.enum])
+const causes: readonly string[] = Object.freeze([...loopSchema.$defs.FailureCause.enum])
 const zero = ExactDecimal.from(0)
 const one = ExactDecimal.from(1)
 

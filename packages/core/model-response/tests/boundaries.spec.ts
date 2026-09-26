@@ -9,6 +9,7 @@ import {
 import { OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, validate } from '@omne-harness-lite/model-response'
 import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import schema from '@omne-harness-lite/model-response/schema' with { type: 'json' }
 import {
   complete,
   failed,
@@ -129,6 +130,73 @@ describe('S-13 complete conditional table and closed members', () => {
 })
 
 describe('exact decimal representation and amount admission', () => {
+  const trim = {
+    merged: 0,
+    cut: 0,
+    omittedBytes: 0,
+    byReason: { rate_merged: 0, frame_too_long: 0, quota_exhausted: 0, rejected: 0 },
+  }
+  for (const field of ['merged', 'cut', 'omittedBytes', 'frame_too_long'])
+    it(`nonzero trims: ${field} preserves arbitrarily large integer`, () => {
+      const number = new LosslessNumber('1e400')
+      const trims =
+        field === 'frame_too_long'
+          ? { ...trim, byReason: { ...trim.byReason, frame_too_long: number } }
+          : { ...trim, [field]: number }
+      expect(judgeModelResponse({ ...complete, trims })).toEqual({ ok: true })
+    })
+  it('fractional trims remain a member shape failure before reply_missing', () =>
+    expect(
+      judgeModelResponse({
+        ...omit(complete, 'reply'),
+        trims: { ...trim, merged: new LosslessNumber('1.0000000000000000000001') },
+      }),
+    ).toEqual({ rejected: 'malformed' }))
+  it('foreign profile counters and request seed retain unbounded integer sources', () => {
+    const route = object(complete.route)
+    const value = {
+      ...complete,
+      route: {
+        ...route,
+        profileSnapshot: {
+          ...object(route.profileSnapshot),
+          maxInputTokens: new LosslessNumber('1e400'),
+          maxOutputTokens: new LosslessNumber('9007199254740993'),
+        },
+        parameters: {
+          seed: new LosslessNumber('-9007199254740993'),
+          maxOutputTokens: new LosslessNumber('1e400'),
+        },
+      },
+    }
+    expect(judgeModelResponse(value)).toEqual({ ok: true })
+    expect(text(value)).toContain('"seed":-9007199254740993')
+  })
+  it('foreign request temperature uses its exact upper bound', () =>
+    expect(
+      judgeModelResponse({
+        ...complete,
+        route: {
+          ...object(complete.route),
+          parameters: { temperature: new LosslessNumber('2.0000000000000000000000001') },
+        },
+      }),
+    ).toEqual({ rejected: 'malformed' }))
+  it('raw body is a reference and preserves exact byte length without dereferencing', () => {
+    const body = {
+      storage: 'opaque-storage',
+      key: 'opaque-key',
+      mediaType: 'application/json',
+      bytes: new LosslessNumber('9007199254740993'),
+    }
+    expect(validate('RawResponse', { body })).toEqual({ valid: true })
+    expect(judgeModelResponse({ ...complete, raw: { body } })).toEqual({ ok: true })
+    expect(text(body)).toContain('"bytes":9007199254740993')
+  })
+  it('unknown accounting amounts remain unknown and are not estimated', () => {
+    expect(judgeModelResponse(failed)).toEqual({ ok: true })
+    expect(text(failed.cost)).toContain('"cost_usd":"unknown"')
+  })
   for (const source of ['9007199254740993', '1e400', '1e+400', '100000000000000000000000000000001'])
     it(`counts and amounts preserve ${source}`, () => {
       const number = new LosslessNumber(source)
@@ -224,6 +292,25 @@ describe('S-6 shared opaque identity boundary', () => {
 })
 
 describe('pure shape scope and no repair', () => {
+  it('fixed validators and ordered enums retain their own copied inputs', () => {
+    const originalOutcome = [...schema.$defs.ResponseOutcome.enum]
+    const originalCause = [...loopSchema.$defs.FailureCause.enum]
+    try {
+      schema.$defs.ResponseOutcome.enum.push('outside_contract')
+      loopSchema.$defs.FailureCause.enum.push('outside_contract')
+      expect(judgeModelResponse({ ...complete, outcome: 'outside_contract' })).toEqual({
+        rejected: 'outcome_unknown',
+      })
+      expect(judgeModelResponse({ ...failed, failure: { cause: 'outside_contract' } })).toEqual({
+        rejected: 'cause_unknown',
+      })
+      expect(validate('ResponseOutcome', 'outside_contract')).toEqual({ valid: false })
+      expect(validate('Failure', { cause: 'outside_contract' })).toEqual({ valid: false })
+    } finally {
+      schema.$defs.ResponseOutcome.enum.splice(0, Infinity, ...originalOutcome)
+      loopSchema.$defs.FailureCause.enum.splice(0, Infinity, ...originalCause)
+    }
+  })
   const outOfScope = [
     [
       'reply response mismatch',

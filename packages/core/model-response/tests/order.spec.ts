@@ -9,6 +9,16 @@ const delivered = object(openedFailure).delivered
 const failure = { cause: 'unrecognized', localError: 'trace' }
 const cases = [
   [
+    'string cause_unknown before fractional dispatch and wrong outcome type',
+    { ...complete, dispatch: new LosslessNumber('0.5'), outcome: false, failure: { cause: 'new' } },
+    'cause_unknown',
+  ],
+  [
+    'dispatch_zero before wrong outcome type',
+    { ...complete, dispatch: 0, outcome: false },
+    'dispatch_zero',
+  ],
+  [
     'outcome_unknown before dispatch/cause/other member errors',
     { ...complete, outcome: 'new', dispatch: 0, failure: { cause: 'new' }, cost: null },
     'outcome_unknown',
