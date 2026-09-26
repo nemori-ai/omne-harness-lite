@@ -1,0 +1,47 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/core-verification
+
+ ❯ tests/dependency-surface.spec.ts (2 tests | 1 failed) 102ms
+   ✓ w1.consumer.dependency-parser-detects-forbidden-edges 16ms
+   × w1.consumer.adopted-dependency-exceptions 84ms
+ ✓ tests/w1-public-consumer.spec.ts (2 tests) 790ms
+   ✓ w1.consumer.built-public-packages  400ms
+   ✓ w1.consumer.detects-wrong-outcome-expectation  389ms
+ ✓  TS  tests/w1-public-consumer.spec-d.ts (6 tests)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/dependency-surface.spec.ts > w1.consumer.adopted-dependency-exceptions
+AssertionError: expected [ 'kysely', 'vitest' ] to deeply equal [ 'vitest' ]
+
+- Expected
++ Received
+
+  [
++   "kysely",
+    "vitest",
+  ]
+
+ ❯ tests/dependency-surface.spec.ts:50:39
+     48|   expect(storageRuntime.external).toEqual([])
+     49|   const storageConformance = await dependencySurface(root('storage', '…
+     50|   expect(storageConformance.external).toEqual(['vitest'])
+       |                                       ^
+     51|
+     52|   const directory = join(repository, 'tmp/w1-public-consumers')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 9 passed (10)
+Type Errors  no errors
+   Start at  05:37:37
+   Duration  2.69s (transform 139ms, setup 0ms, import 468ms, tests 892ms, environment 0ms, typecheck 1.68s)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tmp/w1-public-consumers/test-results-dependencies.json
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/core-verification:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/dependency-surface.spec.ts tests/w1-public-consumer.spec.ts tests/w1-public-consumer.spec-d.ts --reporter=default --reporter=json --outputFile=../../tmp/w1-public-consumers/test-results-dependencies.json

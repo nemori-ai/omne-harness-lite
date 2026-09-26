@@ -1,0 +1,172 @@
+{
+  "consumerArtifact": {
+    "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/core-verification/dist/w1-public-consumer.js",
+    "sha256": "2a2a6d414f7bd1b909da9762619f9cd7d01e9eeaffabe66865111890dcda7c1c"
+  },
+  "format": 1,
+  "nodeVersion": "v24.18.0",
+  "negativeControl": false,
+  "resolution": [
+    {
+      "specifier": "@omne-harness-lite/kernel-basis",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/index.js",
+      "sha256": "22cb3a5636469209ae1138ad3301443559e641b1b1a9ec160e48199345e54e62"
+    },
+    {
+      "specifier": "@omne-harness-lite/identity-values",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/identity-values/dist/index.js",
+      "sha256": "a1538fc56c58ac7e964501365a52f4e11de4ff50f6e8cf564679c9fbf2179a86"
+    },
+    {
+      "specifier": "@omne-harness-lite/offer-expiry",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/offer-expiry/dist/index.js",
+      "sha256": "1c49f899c4b129e9a9ba7cd4cb31c91ff571a715e7e027f646723f4e9bfcb8f6"
+    },
+    {
+      "specifier": "@omne-harness-lite/storage",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/index.js",
+      "sha256": "9eca967932409252091d8c9d7174c69766be3315d46110a6687746e4f384444b"
+    },
+    {
+      "specifier": "@omne-harness-lite/content-blocks",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/content-blocks/dist/index.js",
+      "sha256": "58bb0e10755a17a46dde456cc64e12dc95701ca79f4177d00c46da2ebdd705e3"
+    }
+  ],
+  "schemas": [
+    {
+      "specifier": "@omne-harness-lite/identity-values/schema",
+      "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855"
+    },
+    {
+      "specifier": "@omne-harness-lite/offer-expiry/schema",
+      "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684"
+    },
+    {
+      "specifier": "@omne-harness-lite/content-blocks/schema",
+      "sha256": "c3d6361a3e7a4fc64a66b98c75819172ca481bbde35230728552e687405177e5"
+    }
+  ],
+  "cases": [
+    {
+      "id": "w1.kernel.outcome-public",
+      "sources": [
+        "realization/packages/core/kernel-basis/design.md#能力到-cordis-的投影"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.kernel.public-lifecycle",
+      "sources": [
+        "realization/packages/core/kernel-basis/design.md#状态并发与失败映射"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.kernel.public-assembly-cleanup",
+      "sources": [
+        "realization/packages/core/kernel-basis/design.md#成对的装载与撤除"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.identity.public-values",
+      "sources": [
+        "data.identity-values/v1#S-2",
+        "data.identity-values/v1#S-5",
+        "data.identity-values/v1#S-7",
+        "data.identity-values/v1#S-13"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.identity.in-band-closed-input",
+      "sources": [
+        "data.identity-values/v1#S-10",
+        "data.identity-values/v1#S-11",
+        "data.identity-values/v1#S-12",
+        "data.identity-values/v1#S-31",
+        "data.identity-values/v1#S-32",
+        "data.identity-values/v1#S-33"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.identity.public-parent-snapshot",
+      "sources": [
+        "data.identity-values/v1#S-14",
+        "data.identity-values/v1#S-15"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.identity.public-warrant",
+      "sources": [
+        "data.identity-values/v1#S-35"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.offer.public-time-shape",
+      "sources": [
+        "data.offer-expiry/v1#S-4",
+        "data.offer-expiry/v1#S-14",
+        "data.offer-expiry/v1#S-22"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.offer.public-evaluation-order",
+      "sources": [
+        "data.offer-expiry/v1#S-8",
+        "data.offer-expiry/v1#S-13",
+        "data.offer-expiry/v1#S-20"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.storage.exception-dependencies",
+      "sources": [
+        "realization/packages/core/storage/design.md#状态并发与失败映射"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.storage.public-migrations",
+      "sources": [
+        "realization/packages/core/storage/design.md#表结构不在协议里由装配层迁移建立两节点同一约束域"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.content.public-lossless-json",
+      "sources": [
+        "data.content-blocks/v1#S-12",
+        "data.content-blocks/v1#S-24",
+        "content-blocks/V-11-module"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.content.public-block-judgment",
+      "sources": [
+        "data.content-blocks/v1#S-12",
+        "data.content-blocks/v1#S-13",
+        "data.content-blocks/v1#S-24",
+        "data.content-blocks/v1#S-26",
+        "data.content-blocks/v1#S-27"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "w1.content.public-metadata-meaning",
+      "sources": [
+        "data.content-blocks/v1#S-6",
+        "data.content-blocks/v1#S-7",
+        "data.content-blocks/v1#S-20",
+        "data.content-blocks/v1#S-21"
+      ],
+      "status": "passed"
+    }
+  ]
+}

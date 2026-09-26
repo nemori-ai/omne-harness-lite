@@ -35,6 +35,14 @@ Schema 副本逐字节核对仍相同，冻结 v1 未改；[输入与哈希审�
 checks `46be3697`、HUB `59669096` 的 [100/100 与 scan](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-checks-path-hub.log) 提供 SC-1／2／9 的规则自测，
 当前真实准入覆盖 0，完整消费者责任与 S-35 领域守卫仍在对应 owner；[逐项覆盖](../../../../record/evidence/2026-09-26-tests-core-foundation/coverage.md#packagescoreidentity-values)。
 
+## 公开消费者追加验证（2026-09-26）
+
+`w1.identity.public-values`、`w1.identity.in-band-closed-input`、`w1.identity.public-parent-snapshot`、`w1.identity.public-warrant` 四项通过，分别补 S-2／5／7／13，S-10～12／31～33，S-14／15，S-35 的模块公开面。品牌错配／原字符串／缺分量、表示非法与效力不可用分支由 `w1.types.identity.brands`／`w1.types.identity.in-band-results` 两组严格声明测试守住。链含自身／近到远、不可用／循环不返短链，warrant 错误用途／账号／密钥／自制字符串与重放只证纯模块原语。
+
+本轮没有新 Alloy 运行，不推广上级快照为所有结构的定义式证明；没有核 SC-1 实际准入或 S-16～S-30 租户隔离、SC-2／SC-9 完整消费者记录／归属，也没有闭合密钥秘密与领域守卫。公开具名类型完整清单仍需后续实际类型运行，现有两组反例不冒充全表。
+
+原始 [正常 Node report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json)、[负向 report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__negative-WagReR__report.json)、[HUB build／typecheck／12/12 log](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__core-delivery__w1-public-consumers-hub.log)、[逐项条款对应](../../../../record/evidence/2026-09-26-tests-core-public/coverage.md)与[实际源码／配置／环境](../../../../record/evidence/2026-09-26-tests-core-public/README.md)分别保留。工具源码5140574b，HUB起点e0b6c212加当时未提交且与dc431fdf同字节的lock；期间文档提交不改变本轮产品／工具／配置。子场景不叠加进外层测试数，六组类型只覆盖具体断言。测试通过不提升语义接受或用户最终接受。
+
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据：

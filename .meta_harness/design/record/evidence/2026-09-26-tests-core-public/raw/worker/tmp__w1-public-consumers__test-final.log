@@ -1,0 +1,20 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tools/core-verification
+
+ ✓ tests/w1-public-consumer.spec.ts (2 tests) 856ms
+   ✓ w1.consumer.built-public-packages  433ms
+   ✓ w1.consumer.detects-wrong-outcome-expectation  421ms
+ ✓ tests/storage-conformance.selftest.spec.ts (2 tests) 2913ms
+     ✓ storage.conformance.real-sqlite: the unmodified public provider passes every case  1557ms
+     ✓ storage.conformance.detects-disabled-foreign-keys: C-11/C-12 fail their real assertions  1353ms
+ ✓  TS  tests/w1-public-consumer.spec-d.ts (6 tests)
+
+ Test Files  3 passed (3)
+      Tests  10 passed (10)
+Type Errors  no errors
+   Start at  05:31:10
+   Duration  4.73s (transform 104ms, setup 0ms, import 158ms, tests 3.77s, environment 0ms, typecheck 1.56s)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/tmp/w1-public-consumers/test-results-final.json

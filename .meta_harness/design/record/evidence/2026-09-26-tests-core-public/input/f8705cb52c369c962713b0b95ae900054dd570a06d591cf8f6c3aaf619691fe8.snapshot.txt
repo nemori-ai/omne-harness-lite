@@ -1,0 +1,18 @@
+export function definePlugin(definition) {
+    const plugin = {
+        name: definition.name,
+        Config: definition.Config,
+        apply: definition.apply,
+    };
+    if (definition.inject !== undefined)
+        plugin.inject = definition.inject;
+    return plugin;
+}
+/**
+ * 可选依赖的调用时解析：`ctx.get` 不要求 inject，提供者不在或未 `ACTIVE` 时返回 `undefined`。
+ * 调用方拿到 `undefined` 时按各自契约的「缺席默认答案」收场（例如 `storage-unavailable`），不放行。
+ */
+export function resolveOptional(ctx, name) {
+    return ctx.get(name);
+}
+//# sourceMappingURL=plugin.js.map

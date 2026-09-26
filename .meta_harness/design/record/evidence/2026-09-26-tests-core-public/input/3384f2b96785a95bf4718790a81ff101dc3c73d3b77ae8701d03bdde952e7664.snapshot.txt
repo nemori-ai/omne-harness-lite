@@ -1,0 +1,18 @@
+import type { Context } from '@deepseek-ai/cordis';
+/**
+ * `FiberState` 在 @deepseek-ai/cordis 4.0.4 的声明文件里是 `declare const enum`，
+ * `isolatedModules` 下不能在运行时引用；这里镜像它的数值，由 probe
+ * `tests/basis/fiber-state-readable.test.ts` 对着真实 fiber 核对每一个取值。
+ */
+export declare const FIBER_STATE: {
+    readonly PENDING: 0;
+    readonly LOADING: 1;
+    readonly ACTIVE: 2;
+    readonly FAILED: 3;
+    readonly DISPOSED: 4;
+    readonly UNLOADING: 5;
+};
+export type FiberStateValue = (typeof FIBER_STATE)[keyof typeof FIBER_STATE];
+/** account-registration 每步之前用它判断本 fiber 是否仍 ACTIVE（不再 ACTIVE ⇒ `interrupted`）。 */
+export declare function fiberIsActive(ctx: Context): boolean;
+//# sourceMappingURL=fiber-state.d.ts.map

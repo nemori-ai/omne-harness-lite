@@ -52,6 +52,14 @@
 [完整来源说明](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)、[逐项覆盖](../../../../record/evidence/2026-09-26-tests-core-foundation/coverage.md#packagescorestorage)。
 本次 foundation HUB 对本包 build／typecheck 通过，但未新跑包内 runtime 测试；包内9条与pg两侧维持历史 run 的范围，未伪称本次重跑。
 
+## 公开消费者追加验证（2026-09-26）
+
+`w1.storage.exception-dependencies`、`w1.storage.public-migrations` 两项通过：只映射 StorageUnavailable，其他三类与调用方值同一实例重抛；有序命名迁移保留函数引用、同名拒绝。`w1.types.storage.protocol-and-preflight` 核读 Tx 没有写锁与具名失败预检形状。没有以形状测试证明真实装配迁移或预检运行。
+
+`w1.consumer.adopted-dependency-exceptions` 核 root source／声明的 Kysely 类型依赖与 root JS 无外部运行时依赖，批准 conformance JS 只含 Kysely／Vitest；按 `e6c9d66a` 精确映射采用，worker 9 通过1失败原文没有抹去。真实 SQLite/WAL 同一套件另重跑正常19/19，关闭实际写连接外键并读回后17通过、仅 C-11/C-12 目标失败，外层有效性自测2/2。只说明这个提供者与一次配置，不声称 pg、实际租户外键、跨进程重启、断电或所有错误提供者保证；这些责任沿原 owner 保留。
+
+原始 [正常 Node report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json)、[负向 report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__negative-WagReR__report.json)、[HUB build／typecheck／12/12 log](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__core-delivery__w1-public-consumers-hub.log)、[逐项条款对应](../../../../record/evidence/2026-09-26-tests-core-public/coverage.md)与[实际源码／配置／环境](../../../../record/evidence/2026-09-26-tests-core-public/README.md)分别保留。工具源码5140574b，HUB起点e0b6c212加当时未提交且与dc431fdf同字节的lock；期间文档提交不改变本轮产品／工具／配置。子场景不叠加进外层测试数，六组类型只覆盖具体断言。测试通过不提升语义接受或用户最终接受。
+
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据：

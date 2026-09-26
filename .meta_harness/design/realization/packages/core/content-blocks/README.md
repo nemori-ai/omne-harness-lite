@@ -12,6 +12,8 @@
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task。证据义务见 [verification.md](verification.md)：本节点的 V-1／V-2／V-3 与 V-6／V-11 模块部分有实际结果，外部责任分列
 - 实际验证：[`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md) 的 spoke 与 HUB 包 build／typecheck／test 均退出 0，**306/306**、零跳过／失败；built exports 与 Node24.18.0 六样本探针有源码及原结果。首次 HUB 纯性扫描失败与工具修正后 **101/101**、24-rule scan 分别保留。本结果不提升用户最终接受；SC-2 完整消费者准入与每一跳 JSON／日志／租户责任保持在各 owner
 
+- 本轮公开验证：另见 [`2026-09-26-tests-core-public`](../../../../record/evidence/2026-09-26-tests-core-public/README.md)：无损 JSON、具名块判定／完整调用、媒体与元数据三项子场景及 opaque／调用形状严格类型组，同一 HUB 外层12/12、零跳过；按本节点 [公开追加验证](verification.md#公开消费者追加验证2026-09-26) 的条款与边界读取。具名类型完整名单与三个 opaque 品牌互赋负例尚待后续实际运行；本轮不提升整体完成或最终接受。
+
 ## 按当前问题展开
 
 | 当前问题                                           | 阅读入口                            |

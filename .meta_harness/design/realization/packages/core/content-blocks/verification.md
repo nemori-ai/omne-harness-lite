@@ -38,6 +38,14 @@ Node24.18.0／Vitest4.1.11／TypeScript6.0.3／Ajv8.20.0；包 engines 固定 `>
 从公开self exports解析built dist；源码仍44b84525、配置／锁与47c4990a同字节，旧JSON未覆盖。
 完整来源与责任边界见[run README](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)。测试通过不提升最终接受状态。
 
+## 公开消费者追加验证（2026-09-26）
+
+`w1.content.public-lossless-json`、`w1.content.public-block-judgment`、`w1.content.public-metadata-meaning` 三项通过，补 S-12／24 与 V-6／11 模块部分的六数字原文字面、解码／嵌套重复键中性 failed、opaque 往返、非法写入拒绝；完整调用大参数往返，自有冻结值、拒绝优先级、不修复、不完整 rawArguments 保留；规范媒体／无模态、CapabilityId 与 AttachmentRef 结构相等、精确非负整数 bytes。
+
+`w1.types.content.opaque-and-call-forms` 核 opaque 成员读取／索引负例与 tool call 参数形状互斥、backgrounded 必带原因；三 opaque 品牌互赋负例与直接具名类型全表仍待后续实际运行。模块测试没有闭合 SC-2 真实 stream 唯一参数解析、外部 opaque 消费者、每一 JSON／日志跳点、铸号或附件租户解引用；本 run 没有重跑包内306项测试。
+
+原始 [正常 Node report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json)、[负向 report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__negative-WagReR__report.json)、[HUB build／typecheck／12/12 log](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__core-delivery__w1-public-consumers-hub.log)、[逐项条款对应](../../../../record/evidence/2026-09-26-tests-core-public/coverage.md)与[实际源码／配置／环境](../../../../record/evidence/2026-09-26-tests-core-public/README.md)分别保留。工具源码5140574b，HUB起点e0b6c212加当时未提交且与dc431fdf同字节的lock；期间文档提交不改变本轮产品／工具／配置。子场景不叠加进外层测试数，六组类型只覆盖具体断言。测试通过不提升语义接受或用户最终接受。
+
 ## 覆盖缺口
 
 - **模块内已取得证据**：V-1／V-2／V-3前三项、V-6／V-11模块部分及公开opaque负向类型已验证；空绑定表是无formal task，并非无实现。

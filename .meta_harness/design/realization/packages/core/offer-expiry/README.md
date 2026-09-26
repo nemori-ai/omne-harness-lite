@@ -12,6 +12,8 @@
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——本契约不建形式工件。证据义务见 [verification.md](verification.md)，包内测试的运行结果登记在那里
 - 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：产品源码本次未变，HUB `f73078ba` build／typecheck 退出 0、**31/31**。checks 最终 HUB **100/100**、24-rule scan，SC-OE-3 的 Date.now／无参 new Date／performance.now 直接调用反例已检出。纯函数、解析器与规则不替代实际时钟或邀约操作；消费者／装配义务与历史运行见 [verification.md](verification.md#本次追加验证2026-09-26)
 
+- 本轮公开验证：另见 [`2026-09-26-tests-core-public`](../../../../record/evidence/2026-09-26-tests-core-public/README.md)：时刻／ttl／表示形状、严格截止与求值次序两项子场景及状态／Clock／readonly 严格类型组，同一 HUB 外层12/12、零跳过；按本节点 [公开追加验证](verification.md#公开消费者追加验证2026-09-26) 的条款与边界读取。具名类型完整名单与三个 opaque 品牌互赋负例尚待后续实际运行；本轮不提升整体完成或最终接受。
+
 ## 按当前问题展开
 
 | 当前问题                                                     | 阅读入口                            |

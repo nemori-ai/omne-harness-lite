@@ -1,0 +1,22 @@
+/** 合成后的迁移名：四位全局位置编号 + owner 给的名字。发布后不改、不重排。 */
+export function composedMigrationName(position, fragment) {
+    return `${String(position).padStart(4, '0')}_${fragment.name}`;
+}
+/**
+ * 把各 owner 的片段按给定次序合成一个 Kysely `MigrationProvider`。
+ * 次序就是数组次序（装配负责把 AI 片段排在 OG 片段之前等）；
+ * 同名片段 ⇒ 抛出（两个 owner 撞名，或同一 owner 重复导出），不静默覆盖。
+ */
+export function composeMigrations(fragments) {
+    const migrations = {};
+    const seen = new Set();
+    fragments.forEach((fragment, index) => {
+        if (seen.has(fragment.name)) {
+            throw new Error(`duplicate migration fragment name: ${fragment.name}`);
+        }
+        seen.add(fragment.name);
+        migrations[composedMigrationName(index + 1, fragment)] = fragment.migration;
+    });
+    return { getMigrations: async () => migrations };
+}
+//# sourceMappingURL=migration.js.map

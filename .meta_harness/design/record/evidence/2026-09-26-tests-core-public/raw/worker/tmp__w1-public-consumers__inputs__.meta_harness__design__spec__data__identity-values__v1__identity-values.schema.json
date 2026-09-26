@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+  "title": "data.identity-values v1",
+  "description": "身份值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.identity-values/v1 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；隔离义务 S-16～S-30 约束的是各 owner 的访问路径与判定，Schema 一概管不到，由静态检查与消费者契约兑现。正反实例在同目录 examples.md。",
+
+  "$defs": {
+
+    "OpaqueIdentifier": {
+      "title": "不透明标识（内部基定义）",
+      "description": "S-1、S-3、S-9、S-31：不透明、部署内唯一、由存储生成的标识。交换表示是非空字符串，禁止首尾空白；相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或首尾裁剪。消费者不得解析其内容推断注册时间、顺序或归属，也不得做除相等之外的比较。它不来自运行时对象（如 Cordis 的 Fiber.uid）。本定义不单独被引用，只供下面各具体标识复用。",
+      "$comment": "字符集、长度与生成方式是已知缺口 G-04，留 realization。此处只约束到「非空、无首尾空白的字符串」，不补造格式；实现不得把这里的宽松当作「任意字符串都是合法标识」。pattern 刻意不用 \\s 与 $：\\s 的成员在不同引擎里不同（ECMA-262 含 U+FEFF、Python 不含），而 Python 的 $ 还会匹配到「末尾换行之前」，于是同一个串会被两个实现一收一拒。这里改用 S-31 写死的显式空白码点集合（U+0009–000D、U+0020、U+0085、U+00A0、U+1680、U+2000–200A、U+2028、U+2029、U+202F、U+205F、U+3000、U+FEFF）的否定字符类，并以 (?![\\s\\S]) 作绝对结尾断言——[\\s\\S] 的并集在任何引擎下都是全字符集，因此这个否定前瞻只在真正的字符串末尾成立。回归用例：examples.md 第 1 节的尾随换行与前导 U+FEFF 两条反例。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+    },
+
+    "HandoffWarrant": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "交接凭证 · Handoff Warrant",
+      "description": "S-35：一步操作交给下一步的凭证，断言「我这一步已经做完」，不断言别的。它不是身份值——不指认任何对象，不得作任何记录的键。形状与不透明标识同形：非空、首尾无空白、逐码点精确相等、核实方不解析其内容。六条性质里 Schema 一条也管不到：由哪一步产出、绑定哪个对象标识（本版两个实例都绑 AccountId，不绑定尝试、本版不作废，重放安全由核实方在自己提交里的前置现读承担）、核实方核实存在/绑定/由产出方签发、核实方不核实它断言的领域事实——全部是行为约束，归产出方与核实方各自的契约。",
+      "$comment": "绑定字段（凭证里怎么承载 AccountId）的形状由 realization 定，本 Schema 只约束到非空字符串，刻意不给结构：给了结构就等于邀请核实方去解析它，而里面的内容是产出方写的，解析出来的东西证明不了任何事。不可伪造同样管不到——它是 S-35 的契约承诺，单机由装配给（同进程 nonce 登记），跨进程须由协议重新兑现（签名或共享登记），见 contract.md 第六节。本版的两个实例：激活依据（composition.account-registration 于 capability.organization-governance#S-20 成功时产出，capability.account-identity#S-14 核实）、清除依据（capability.organization-governance#S-53 成功含幂等成功时产出，capability.account-identity#S-38 核实）。",
+      "examples": ["whf_2a91c07e"]
+    },
+
+    "LoginIdentifier": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "登录标识 · Login Identifier",
+      "description": "S-2：账号的一项属性（UL-login-identifier），用来指认这个账号的对外名字。整个部署内唯一，注册时确定，未激活的账号同样占用它。它只承担「指认」，不证明来者持有这个账号——那是凭据的事。它不是 AccountId：不得出现在 TenantId 中，也不得作为任何归属记录的键。本版无变更路径。",
+      "$comment": "它的对外形式（是否邮箱、是否允许大小写差异）本版未定，与 G-04 同属 realization。此处复用 OpaqueIdentifier 只是形状上的最小约束，不表示它对用户不可读。",
+      "examples": ["ada@example.invalid"]
+    },
+
+    "AccountId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "账号标识 · Account Id",
+      "description": "S-1：账号（UL-account）的标识。不透明、部署内唯一、由存储生成、不回收不复用。相等即同一个账号。跨对象引用一律用它，不用登录标识（S-2）。",
+      "examples": ["acc_91ab40"]
+    },
+
+    "OrganizationId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "组织标识 · Organization Id",
+      "description": "S-3：组织（UL-organization）的标识。不透明、部署内唯一、由存储生成、不回收不复用。个人组织与团队组织共用同一个标识空间，不能从它的形状分辨变体——要分辨读 OrganizationKind。",
+      "examples": ["org_7fd2c1"]
+    },
+
+    "LoginStateId": {
+      "$ref": "#/$defs/OpaqueIdentifier",
+      "title": "登录状态标识 · Login State Id",
+      "description": "S-9：登录状态（UL-login-state）的标识。不透明、部署内唯一、由存储生成。每次登录产生新的一个，不复用；它不是会话的标识，也不是账号的标识。产品正文未述登录状态靠什么标识（缺口 G-06），本定义只给出满足「彼此可分辨」的最小形状。",
+      "examples": ["lgs_3c7e11"]
+    },
+
+    "OrganizationKind": {
+      "title": "OrganizationKind",
+      "description": "S-4：组织的一项属性，创建时确定、此后不可改、无写路径。它是规格层的判别式名，不是统一语言词条——词表里没有「组织变体」这一条，因此这里刻意不给它「中文 · English」那种词条式标题。它的两个取值各对应一个词条：personal ↔ 个人组织 Personal Organization，team ↔ 团队组织 Team Organization。personal 蕴含一组结构性禁止（恰四条，逐条连同在哪个失败值上兑现，写在 omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1 的 S-6；本契约不自列一份）。本契约只取其数据形状后果：判断这些事读这一个值、不另立标志位；个人组织的上级链恒空，因此任何两个不同的个人组织都不会有共同上级。",
+      "$comment": "「personal 蕴含那组禁止」是跨对象约束，Schema 表达不了，归组织治理契约与其结构模型。判别式闭合、未知取值一律拒绝，见 S-32。",
+      "type": "string",
+      "enum": ["personal", "team"]
+    },
+
+    "TenantRole": {
+      "title": "租户角色 · Tenant Role",
+      "description": "S-8：租户在其组织内的属性，单值，取值恰两种。可变，变更只影响此后的准入判定，不改变已发生的归属与既有事实。superAdministrator 的作用域恰是该组织，不表达任何平台范围的资格。它不进租户身份（见 TenantId）。",
+      "type": "string",
+      "enum": ["superAdministrator", "member"]
+    },
+
+    "TenantId": {
+      "title": "租户身份 · Tenant Id",
+      "description": "S-5 / S-7：值类型，由 (OrganizationId, AccountId) 这一有序对确定，这是它的唯一规范序列化形式。相等按分量，不存在第三种相等依据。不含角色、不含成员资格、不含时间。S-6：没有生成路径，也没有销毁路径——成员关系的建立与解除改变的是 MembershipStanding，不改变这个值是哪一个，已记录的引用永不悬空。两个分量都必需：缺一即非法值，不得用环境里的当前账号或当前组织补齐（S-12）。",
+      "$comment": "本版刻意不定义任何标量形式（拼接串、哈希、编码键都不是），见缺口 G-05。消费者若在实现里需要标量键，不得把它作为身份对外发布，也不得把解析它的结果当作授权依据（S-7、S-34）。additionalProperties: false 同时挡住了「顺手加一个 role 字段」这种最常见的越界。",
+      "type": "object",
+      "properties": {
+        "organization": { "$ref": "#/$defs/OrganizationId" },
+        "account": { "$ref": "#/$defs/AccountId" }
+      },
+      "required": ["organization", "account"],
+      "additionalProperties": false,
+      "examples": [
+        { "organization": "org_7fd2c1", "account": "acc_91ab40" }
+      ]
+    },
+
+    "MembershipStanding": {
+      "title": "成员资格效力 · Membership Standing",
+      "description": "S-10：一个租户此刻算不算数（UL-membership-standing），恰两值。effective 表示成员关系成立，并同时给出该租户在其组织内恰持的那一个角色；ineffective 表示从未建立或已被解除。没有「有效但角色未知」这一态。「读不到」不是它的第三个取值——那是读面的失败，见 MembershipStandingResult 与 S-19。token 与词条的对应：effective ↔ 词条的「有效 In force」，ineffective ↔ 「无效 Not in force」。两者不得互相替代——对外文档用词条名，交换表示用 token；token 取「同一词根的正反」这条最不易写错的形状，不必与词条英文同形。",
+      "$comment": "效力本身（读面、写路径、失败集合）归组织治理契约，本契约只定取值与消费者的义务。断与续改变效力，不改变这个租户是哪一个（S-5、S-6）；角色调整两样都不改。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "有效",
+          "properties": {
+            "standing": { "const": "effective" },
+            "role": { "$ref": "#/$defs/TenantRole" }
+          },
+          "required": ["standing", "role"],
+          "additionalProperties": false
+        },
+        {
+          "title": "无效",
+          "properties": {
+            "standing": { "const": "ineffective" }
+          },
+          "required": ["standing"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "standing": "effective", "role": "superAdministrator" },
+        { "standing": "ineffective" }
+      ]
+    },
+
+    "MembershipStandingResult": {
+      "title": "MembershipStandingResult",
+      "description": "S-10、S-19：成员资格判定的结果——要么是一个 MembershipStanding，要么以「不可用」失败。读面 capability.organization-governance/v1#S-26 的返回是闭合和 invalidInput | MembershipStandingResult，本类型只是其中的右项。它是规格层的结果包装名，不是统一语言词条——词表里没有它，因此这里刻意不给「中文 · English」那种词条式标题。准入判定必须用的那个成员资格读面是 omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1 的 S-26（S-10：同契约的 S-59、S-27 也会说到成员关系，但它们的返回一概不得作准入依据）；它失败集合里的 unavailable 就是本类型的 {\"failure\": \"unavailable\"} 那一支，必须以返回值承载，不得走带外错误通道。{\"failure\": \"unavailable\"} 是失败，不是效力值：它表示这一次判不出来，而 ineffective 是判出来的结果是无效。消费者拿到它必须明确失败，不得视作 ineffective、不得回退到任何其他范围、不得返回空集、不得据此执行清理、不得写缓存。",
+      "$comment": "把失败放进一个与效力并列的包装、而不是塞成第三个 standing 取值，是为了让「不可用 ≠ 无效」在类型上就成立：拿到本类型的消费者必须先分支，分不掉。失败刻意不带原因字段——带上原因会诱使消费者按原因分支，而唯一正确的消费方式是失败。",
+      "oneOf": [
+        { "$ref": "#/$defs/MembershipStanding" },
+        {
+          "title": "不可用（失败，不是效力值）",
+          "type": "object",
+          "properties": {
+            "failure": { "const": "unavailable" }
+          },
+          "required": ["failure"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "standing": "effective", "role": "member" },
+        { "standing": "ineffective" },
+        { "failure": "unavailable" }
+      ]
+    },
+
+    "ScopeLayerIdentity": {
+      "title": "作用域层身份 · Scope Layer Identity",
+      "description": "S-11：作用域层的一格由哪重身份充当（UL-scope-layer-identity），本版供得出标识表示的恰两个变体：organization 由组织充当、携带一个 OrganizationId；tenant 由租户充当、携带一个 TenantId。刻意不含另两格与两个误解：factoryDefault（由系统充当，没有一个身份对象占这一格，不得铸一个「平台租户」）、session（由那个会话充当，但它的标识表示是缺口 G-01，归 PF-015）、account（账号不充当任何一格，它的求值是恒等的）、workspace（不是一重身份，只在设置与资产归属两条层序上各占一格）。本类型不表达资产归属那条层序（official < 组织 < 租户 < 工作区），那是另一条层序，成员对不齐。",
+      "$comment": "不含 session 是本版的一个明确设计动作，不是遗漏：词条已定它由那个会话充当，缺的是「用什么标识表示」。让它无法被静默构造出来，需要它的消费者会在这里停下并报缺口，而不是照一个猜测实施。补上它要出 v2。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "组织级",
+          "properties": {
+            "layer": { "const": "organization" },
+            "organization": { "$ref": "#/$defs/OrganizationId" }
+          },
+          "required": ["layer", "organization"],
+          "additionalProperties": false
+        },
+        {
+          "title": "租户级",
+          "properties": {
+            "layer": { "const": "tenant" },
+            "tenant": { "$ref": "#/$defs/TenantId" }
+          },
+          "required": ["layer", "tenant"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "layer": "organization", "organization": "org_7fd2c1" },
+        { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } }
+      ]
+    }
+  }
+}
