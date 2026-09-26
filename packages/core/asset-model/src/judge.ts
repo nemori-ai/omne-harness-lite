@@ -21,7 +21,7 @@ import type {
   BodyJudgeContext,
   JsonSchema,
 } from './types.ts'
-import { isAssetCategory, isCapabilityName } from './values.ts'
+import { isAssetCategory, isCapabilityName, normalizeWorkspaceDirectory } from './values.ts'
 import { createSchemaRuntime, type SchemaValidator } from './schema-runtime.ts'
 
 export const schemaId = schema.$id
@@ -231,6 +231,27 @@ function exactIntegers(defName: SchemaDefName, p: Positions): boolean {
         : undefined
   return selection?.kind !== 'pinned' || positiveInteger(selection.number)
 }
+function canonicalWorkspaceKey(defName: SchemaDefName, root: JsonObject | undefined): boolean {
+  const scope =
+    defName === 'HoldingScope'
+      ? root
+      : defName === 'AssetHolding'
+        ? object(root?.holder)
+        : undefined
+  const key =
+    defName === 'WorkspaceKey'
+      ? root
+      : scope?.layer === 'workspace'
+        ? object(scope.workspace)
+        : undefined
+  if (key === undefined || typeof key.directory !== 'string') return true
+  try {
+    return normalizeWorkspaceDirectory(key.directory) === key.directory
+  } catch (error) {
+    if (error instanceof TypeError) return false
+    throw error
+  }
+}
 export interface AssetModelJudge {
   readonly judgeAssetValue: (
     defName: SchemaDefName,
@@ -422,6 +443,7 @@ export function createAssetModelJudge(bodyContracts: BodyContracts): AssetModelJ
     }
     if (nested.includes('malformed') || !validate(defName, value).valid)
       return Object.freeze({ rejected: 'malformed' })
+    if (!canonicalWorkspaceKey(defName, root)) return Object.freeze({ rejected: 'malformed' })
     if (defName === 'AssetDefinition' && root !== undefined && owner !== undefined) {
       if (!sameTenant(owner, root.author)) return Object.freeze({ rejected: 'malformed' })
       const lineage = object(root.lineage)
@@ -453,6 +475,7 @@ function validDomain(root: JsonObject, bodies: BodyContracts): boolean {
   // Caller schemas have no module-level cache. The local compiler dies with this invocation.
   const runtime = createSchemaRuntime(resources(bodies))
   if (!runtime.metaValidate(raw)) return false
+  if (!Object.hasOwn(root, 'default')) return true
   let validator: SchemaValidator
   try {
     validator = runtime.compile(raw)

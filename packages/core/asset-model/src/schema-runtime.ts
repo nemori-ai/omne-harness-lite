@@ -11,7 +11,6 @@ import type { JsonSchema } from './types.ts'
 import { createExactMetaValidator, exactSchema, installExactKeywords } from './exact-schema.ts'
 
 export type { JsonSchema } from './types.ts'
-export { UnsupportedSchemaKeywordError } from './exact-schema.ts'
 export interface SchemaRuntimeOptions {
   /** Deterministic, effect-free factory; only native, non-global, non-sticky expressions. */
   readonly patternFactory?: (source: string) => RegExp

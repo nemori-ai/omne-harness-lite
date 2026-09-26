@@ -27,6 +27,9 @@ describe('exact JSON number Schema constraints on original values', () => {
     ['{"type":"number","multipleOf":0.1}', '0.3000000000000000000000001', false],
     ['{"type":"number","multipleOf":3}', '1e400', false],
     ['{"type":"number","multipleOf":5}', '1e400', true],
+    ['{"type":"array","contains":true,"maxContains":9007199254740993}', '[1]', true],
+    ['{"type":"array","contains":true,"minContains":9007199254740993}', '[1]', false],
+    ['{"type":"integer","$async":true}', '1e400', true],
     ['{"type":"number","multipleOf":1e-400}', '1e-399', true],
     ['{"type":"number","multipleOf":-1e-400}', '0', false],
     ['{"type":"string","minLength":1.0000000000000000000001}', '"x"', false],
@@ -87,6 +90,20 @@ describe('exact JSON number Schema constraints on original values', () => {
   })
   it('meta-validates domain Schemas and enforces default membership', () => {
     expect(
+      judge.judgeAssetValue(
+        'AttributeDeclaration',
+        json(
+          '{"item":"x","kind":"setting","category":"placement_identity","domain":{"kind":"open","schema":{"type":"array","contains":true,"maxContains":9007199254740993}}}',
+        ),
+      ),
+    ).toEqual({ ok: true })
+    expect(
+      judge.judgeAssetValue('AttributeDomain', {
+        kind: 'open',
+        schema: { $ref: 'https://not-loaded.invalid/schema' },
+      }),
+    ).toEqual({ ok: true })
+    expect(
       judge.judgeAssetValue('AttributeDomain', { kind: 'open', schema: { type: 'imaginary' } }),
     ).toEqual({ rejected: 'malformed' })
     expect(
@@ -106,6 +123,37 @@ describe('exact JSON number Schema constraints on original values', () => {
   })
 })
 describe('S-27 dependent body responsibilities and deterministic precedence', () => {
+  it.each(['relative/path', '/a//b', '/a/../b', '/a/'])(
+    'rejects noncanonical workspace directory %s at each owned path without repairing it',
+    directory => {
+      const workspace = { tenant: { organization: 'o', account: 'a' }, directory }
+      const scope = { layer: 'workspace', workspace }
+      const holding = {
+        holder: scope,
+        capability: { category: 'tool', name: 'x' },
+        asset: 'a',
+        basis: { kind: 'carrier' },
+        versionSelection: { kind: 'current' },
+        immutable: false,
+        assignments: [],
+        since: '2026-09-01T00:00:00Z',
+      }
+      for (const [definition, value] of [
+        ['WorkspaceKey', workspace],
+        ['HoldingScope', scope],
+        ['AssetHolding', holding],
+      ] as const) {
+        expect(judge.validate(definition, value)).toEqual({ valid: true })
+        expect(judge.judgeAssetValue(definition, value)).toEqual({ rejected: 'malformed' })
+      }
+      expect(workspace.directory).toBe(directory)
+    },
+  )
+  it('accepts an absolute canonical workspace key and preserves the directory', () => {
+    const key = { tenant: { organization: 'o', account: 'a' }, directory: '/中文/😀' }
+    expect(judge.judgeAssetValue('WorkspaceKey', key)).toEqual({ ok: true })
+    expect(key.directory).toBe('/中文/😀')
+  })
   const record = {
     id: 'a',
     capability: { category: 'slash_command', name: 'omne-official:reload-skill' },
