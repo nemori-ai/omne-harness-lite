@@ -1,22 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { abandon } from '../src/abandon.ts'
-import { acceptWithSealer } from '../src/accept.ts'
-import { incompleteToolCall, parseCollectedToolCall, type ToolOpening } from '../src/close.ts'
+import { accept } from '../src/index.ts'
 import { closeOut, snapshot, start } from '../src/operations.ts'
 import type { AssemblyState } from '../src/state.ts'
 import { canonical } from './helpers.ts'
 
-function seal(opened: ToolOpening, raw: string, changed: boolean) {
-  return changed ? incompleteToolCall(opened, raw) : parseCollectedToolCall(opened, raw)
-}
 function create(target: unknown): AssemblyState {
   const result = start(target)
   if ('rejected' in result) throw new Error('fixture target rejected')
   return result.ok
 }
 function accepted(state: AssemblyState, event: unknown): AssemblyState {
-  const result = acceptWithSealer(state, event, seal)
+  const result = accept(state, event)
   if ('rejected' in result) throw new Error(`fixture prefix ${result.rejected}`)
   return result.ok
 }

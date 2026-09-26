@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { acceptWithSealer } from '../src/accept.ts'
+import { accept } from '../src/index.ts'
 import { abandon } from '../src/abandon.ts'
-import { incompleteToolCall, parseCollectedToolCall, type ToolOpening } from '../src/close.ts'
 import { closeOut, snapshot, start } from '../src/operations.ts'
 import type { AssemblyState } from '../src/state.ts'
 import { canonical, eventSources, json, source } from './helpers.ts'
@@ -19,10 +18,6 @@ interface RefusalCase {
 const file: { cases: readonly RefusalCase[] } = JSON.parse(
   readFileSync(new URL('./fixtures/refusal-cases.json', import.meta.url), 'utf8'),
 )
-const unconflicted = file.cases.filter(row => !row.oracleConflictReported)
-function seal(opened: ToolOpening, raw: string, changed: boolean) {
-  return changed ? incompleteToolCall(opened, raw) : parseCollectedToolCall(opened, raw)
-}
 const model = { kind: 'model_call', callId: 'mc_1', dispatch: 1 }
 const tool = { kind: 'tool_execution', callId: 'call_9' }
 const visibility = { toHuman: true, toModel: true }
@@ -61,7 +56,7 @@ function create(target: unknown): AssemblyState {
   return result.ok
 }
 function accepted(state: AssemblyState, event: unknown): AssemblyState {
-  const result = acceptWithSealer(state, event, seal)
+  const result = accept(state, event)
   if ('rejected' in result) throw new Error(`bad fixture prefix: ${result.rejected}`)
   return result.ok
 }
@@ -121,6 +116,16 @@ function input(row: RefusalCase): unknown {
   switch (row.row) {
     case 5:
       return openText(1)
+    case 26:
+      return {
+        t: 'open',
+        index: 1,
+        kind: 'voice',
+        fill: 'append',
+        id: 'b_2',
+        visibility,
+        head: { mediaType: 'image/png' },
+      }
     case 11:
       return { t: 'fill', index: 0, payload: { ...image, id: 'b_1' } }
     case 15:
@@ -141,21 +146,22 @@ function observed(row: RefusalCase, state: AssemblyState) {
     case 'abandon':
       return abandon(state, row.row === 20 ? input(row) : undefined)
     case 'accept':
-      return acceptWithSealer(state, input(row), seal)
+      return accept(state, input(row))
     default:
       throw new Error('fixture operation unknown')
   }
 }
 
-describe('EX5/S25/S26 unconflicted frozen refusals; two reported oracles remain pending', () => {
-  it('REFUSAL-MATRIX retains all 28 source rows and exactly two reported conflicts', () => {
+describe('EX5/S25/S26 all adopted v3 refusals preserve the previous state', () => {
+  it('REFUSAL-MATRIX retains all 28 source rows including corrected head-modality priorities', () => {
     expect(file.cases).toHaveLength(28)
-    expect(unconflicted).toHaveLength(26)
-    expect(file.cases.filter(row => row.oracleConflictReported).map(row => row.row)).toEqual([
-      25, 26,
+    expect(file.cases.some(row => row.oracleConflictReported)).toBe(false)
+    expect(file.cases.filter(row => [25, 26].includes(row.row)).map(row => row.expected)).toEqual([
+      'head_modality_mismatch',
+      'head_modality_mismatch',
     ])
   })
-  it.each(unconflicted)('$id exact $expected and no old-state change', row => {
+  it.each(file.cases)('$id exact $expected and no old-state change', row => {
     const state = given(row)
     const before = canonical(snapshot(state))
     const settledBefore = canonical(closeOut(state))

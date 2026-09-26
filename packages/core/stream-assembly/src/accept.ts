@@ -1,28 +1,17 @@
 import { judgeArrivalEnvelope } from '@omne-harness-lite/arrival-events'
 import type { CloseEvent } from '@omne-harness-lite/arrival-events'
-import type {
-  ContentBlock,
-  IncompleteToolCallBlock,
-  ToolCallBlock,
-} from '@omne-harness-lite/content-blocks'
+import type { ContentBlock } from '@omne-harness-lite/content-blocks'
 import { closeMatches, contentOf, nonEmptyBlock } from './blocks.ts'
-import type { ToolOpening } from './close.ts'
+import { sealToolCall } from './close.ts'
 import { AssemblyState, recordSlot, replaceRecord, type StateData } from './state.ts'
 import { advance, nextPosition, transition } from './transition.ts'
 import type { AcceptRejection, AssemblyResult } from './types.ts'
 import { ownEvent } from './values.ts'
 
-export type ToolSealer = (
-  opened: ToolOpening,
-  rawArguments: string,
-  changed: boolean,
-) => ToolCallBlock | IncompleteToolCallBlock
-
-/** Internal composition: all guards precede the supplied accepted-call sealer. */
+/** All representation and sequence guards precede the fixed accepted-call sealer. */
 function closeTransition(
   data: StateData,
   event: CloseEvent,
-  sealTool: ToolSealer,
 ): AssemblyResult<StateData, AcceptRejection> {
   const slot = recordSlot(data.blocks, event.index)
   const record = data.blocks[slot]
@@ -35,7 +24,7 @@ function closeTransition(
     const raw = contentOf(record)
     if (raw !== undefined && typeof raw !== 'string')
       throw new Error('tool parameter reduction invariant')
-    block = sealTool(record.opened, raw ?? '', record.changed)
+    block = sealToolCall(record.opened, raw ?? '', record.changed)
   } else {
     if (event.block === undefined) throw new Error('matched non-call close has no block')
     block = event.block
@@ -63,11 +52,10 @@ function closeTransition(
   })
 }
 
-/** Internal assembly until the adopted tool-name sealing policy is supplied by close.ts. */
-export function acceptWithSealer(
+/** S-19/S-25: representation, finish, then sequence; rejection preserves the old value. */
+export function accept(
   state: AssemblyState,
   event: unknown,
-  sealTool: ToolSealer,
 ): AssemblyResult<AssemblyState, AcceptRejection> {
   const data = AssemblyState.read(state)
   const judgment = judgeArrivalEnvelope({ target: data.target, event }, index => {
@@ -77,7 +65,6 @@ export function acceptWithSealer(
   if ('rejected' in judgment) return judgment
   if (data.finish !== undefined) return Object.freeze({ rejected: 'event_after_finish' } as const)
   const owned = ownEvent(event)
-  const result =
-    owned.t === 'close' ? closeTransition(data, owned, sealTool) : transition(data, owned)
+  const result = owned.t === 'close' ? closeTransition(data, owned) : transition(data, owned)
   return 'rejected' in result ? result : Object.freeze({ ok: AssemblyState.create(result.ok) })
 }

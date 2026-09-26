@@ -1,4 +1,4 @@
-import { readJsonStrict } from '@omne-harness-lite/content-blocks'
+import { readJsonStrict, validate } from '@omne-harness-lite/content-blocks'
 import type { IncompleteToolCallBlock, ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import type { OpenEvent } from '@omne-harness-lite/arrival-events'
 
@@ -18,6 +18,27 @@ export function incompleteToolCall(
     tool: opened.head.tool,
     rawArguments,
   })
+}
+
+/** S-10: changed content precedes the model-name check; neither branch parses. */
+export function sealToolCall(
+  opened: ToolOpening,
+  rawArguments: string,
+  changed: boolean,
+): ToolCallBlock | IncompleteToolCallBlock {
+  if (changed) return incompleteToolCall(opened, rawArguments)
+  if (!validate('ModelToolName', opened.head.tool).valid)
+    return Object.freeze({
+      kind: 'tool_call',
+      id: opened.id,
+      visibility: opened.visibility,
+      complete: true,
+      callId: opened.head.callId,
+      tool: opened.head.tool,
+      rawArguments,
+      unparseable: true,
+    })
+  return parseCollectedToolCall(opened, rawArguments)
 }
 
 /** Only an accepted, untrimmed close with a legal model tool name reaches here. */

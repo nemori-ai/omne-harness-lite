@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.stream-assembly v2 的不可变到达装配与纯结算",
+  "description": "capability.stream-assembly v3 的不可变到达装配与纯结算",
   "engines": {
     "node": ">=24.18.0 <25"
   },

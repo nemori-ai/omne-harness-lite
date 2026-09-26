@@ -1,21 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { judgeContentBlock, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { acceptWithSealer } from '../src/accept.ts'
-import { incompleteToolCall, parseCollectedToolCall, type ToolOpening } from '../src/close.ts'
+import { accept } from '../src/index.ts'
 import { closeOut, snapshot, start } from '../src/operations.ts'
 import type { AssemblyState } from '../src/state.ts'
 import { canonical } from './helpers.ts'
 
-function seal(opened: ToolOpening, raw: string, changed: boolean) {
-  return changed ? incompleteToolCall(opened, raw) : parseCollectedToolCall(opened, raw)
-}
 function initial(): AssemblyState {
   const result = start({ kind: 'model_call', callId: 'mc_boundaries', dispatch: 1 })
   if ('rejected' in result) throw new Error('fixture start rejected')
   return result.ok
 }
 function step(state: AssemblyState, event: unknown): AssemblyState {
-  const result = acceptWithSealer(state, event, seal)
+  const result = accept(state, event)
   if ('rejected' in result) throw new Error(`fixture ${result.rejected}`)
   return result.ok
 }

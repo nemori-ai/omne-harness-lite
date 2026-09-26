@@ -2,24 +2,20 @@ import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { judgeContentBlock, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { acceptWithSealer } from '../src/accept.ts'
-import { incompleteToolCall, parseCollectedToolCall, type ToolOpening } from '../src/close.ts'
+import { accept } from '../src/index.ts'
 import { closeOut, snapshot, start } from '../src/operations.ts'
 import type { AssemblyState } from '../src/state.ts'
 import { canonical } from './helpers.ts'
 
 const model = { kind: 'model_call', callId: 'mc_property', dispatch: 1 }
 const tool = { kind: 'tool_execution', callId: 'tool_property' }
-function seal(opened: ToolOpening, raw: string, changed: boolean) {
-  return changed ? incompleteToolCall(opened, raw) : parseCollectedToolCall(opened, raw)
-}
 function initial(target: unknown): AssemblyState {
   const result = start(target)
   if ('rejected' in result) throw new Error('bad generator target')
   return result.ok
 }
 function accepted(state: AssemblyState, event: unknown): AssemblyState {
-  const result = acceptWithSealer(state, event, seal)
+  const result = accept(state, event)
   if ('rejected' in result) throw new Error(`bad generated event: ${result.rejected}`)
   return result.ok
 }
@@ -158,9 +154,9 @@ describe('V-3 fixed-seed independent partition, byte and trim oracles', () => {
             if (draw(2) === 0) send({ t: 'fill', index: 7, payload: 'delivered' })
             else {
               const before = canonical(snapshot(state))
-              expect(
-                acceptWithSealer(state, { t: 'fill', index: 99, payload: 'rejected' }, seal),
-              ).toEqual({ rejected: 'block_not_open' })
+              expect(accept(state, { t: 'fill', index: 99, payload: 'rejected' })).toEqual({
+                rejected: 'block_not_open',
+              })
               expect(canonical(snapshot(state))).toEqual(before)
               send({ t: 'trim', reason: 'rejected', omittedBytes: draw(32) })
             }

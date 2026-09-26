@@ -1,21 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import { acceptWithSealer } from '../src/accept.ts'
-import { incompleteToolCall, parseCollectedToolCall, type ToolOpening } from '../src/close.ts'
+import { accept } from '../src/index.ts'
 import { closeOut, snapshot, start } from '../src/operations.ts'
 import type { AssemblyState } from '../src/state.ts'
 import { canonical } from './helpers.ts'
 
-function seal(opened: ToolOpening, raw: string, changed: boolean) {
-  return changed ? incompleteToolCall(opened, raw) : parseCollectedToolCall(opened, raw)
-}
 function state(): AssemblyState {
   const result = start({ kind: 'model_call', callId: 'mc_priority', dispatch: 1 })
   if ('rejected' in result) throw new Error('bad test target')
   return result.ok
 }
 function open(previous: AssemblyState, event: unknown): AssemblyState {
-  const result = acceptWithSealer(previous, event, seal)
+  const result = accept(previous, event)
   if ('rejected' in result) throw new Error(`bad prefix ${result.rejected}`)
   return result.ok
 }
@@ -37,7 +33,7 @@ function voice(fill = 'append') {
 function refuses(previous: AssemblyState, event: unknown, rejected: string) {
   const before = canonical(snapshot(previous))
   const beforeSettlement = canonical(closeOut(previous))
-  expect(acceptWithSealer(previous, event, seal)).toEqual({ rejected })
+  expect(accept(previous, event)).toEqual({ rejected })
   expect(canonical(snapshot(previous))).toEqual(before)
   expect(canonical(closeOut(previous))).toEqual(beforeSettlement)
 }
