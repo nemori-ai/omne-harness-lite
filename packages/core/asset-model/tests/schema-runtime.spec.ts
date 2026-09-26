@@ -4,6 +4,7 @@ import {
   createSchemaRuntime,
   type JsonSchema,
   type SchemaRuntimeOptions,
+  UnsupportedSchemaKeywordError,
 } from '../src/schema-runtime.ts'
 import { json } from './ports.ts'
 
@@ -36,6 +37,21 @@ describe('protected schema-runtime original-value boundary', () => {
     ['{"uniqueItems":true}', '[1,1.0]', false],
     ['{"exact_minimum":"not a private encoding"}', '-1', true],
     ['{"minimum":0,"exact_minimum":"-10"}', '-1', false],
+    ['{"minLength":9007199254740993}', '"x"', false],
+    ['{"maxLength":9007199254740993}', '"x"', true],
+    ['{"minLength":1e400}', '"😀"', false],
+    ['{"maxLength":1e400}', '"😀"', true],
+    ['{"minLength":2}', '"😀"', false],
+    ['{"maxLength":1}', '"😀"', true],
+    ['{"minItems":1e400}', '[]', false],
+    ['{"maxItems":1e400}', '[1,2]', true],
+    ['{"minProperties":9007199254740993}', '{}', false],
+    ['{"maxProperties":9007199254740993}', '{"x":1}', true],
+    ['{"propertyNames":{"minLength":2}}', '{"a":1}', false],
+    ['{"propertyNames":{"maxLength":1}}', '{"😀":1}', true],
+    ['{"propertyNames":{"type":["integer","string"]}}', '{"a":1}', true],
+    ['{"propertyNames":{"enum":[1,"a"]}}', '{"a":1}', true],
+    ['{"propertyNames":{"enum":[1,"a"]}}', '{"b":1}', false],
   ] as const)('validates %s against %s without changing the source', (text, input, expected) => {
     const originalSchema = schema(text)
     const value = json(input)
@@ -85,6 +101,21 @@ describe('protected schema-runtime original-value boundary', () => {
     expect(first.validate(json('{"a/b":9007199254740992}'))).toBe(true)
     expect(second.validate(json('[9007199254740992]'))).toBe(false)
   })
+  it.each(['minContains', 'maxContains'] as const)(
+    'keeps %s meta acceptance distinct from an unsupported exact compilation',
+    keyword => {
+      const input = schema(`{"contains":true,"${keyword}":9007199254740993}`)
+      expect(runtime.metaValidate(input)).toBe(true)
+      expect(() => runtime.compile(input)).toThrow(UnsupportedSchemaKeywordError)
+      try {
+        runtime.compile(input)
+      } catch (error) {
+        if (!(error instanceof UnsupportedSchemaKeywordError)) throw error
+        expect(error.keyword).toBe(keyword)
+        expect(error.numericSource).toBe('9007199254740993')
+      }
+    },
+  )
   it('propagates reference and compile failures, without remote loading or async validation', () => {
     expect(() => runtime.compile({ $ref: 'https://unavailable.invalid/schema' })).toThrow()
     expect(() => createSchemaRuntime([{ $id: 'x', type: 'imaginary' }])).toThrow(TypeError)

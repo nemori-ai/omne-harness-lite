@@ -30,6 +30,15 @@ interface Decimal {
   readonly digits: string
   readonly exponent: bigint
 }
+export class UnsupportedSchemaKeywordError extends Error {
+  constructor(
+    readonly keyword: 'minContains' | 'maxContains',
+    readonly numericSource: string,
+  ) {
+    super(`${keyword} cannot be compiled exactly outside the safe integer range: ${numericSource}`)
+    this.name = 'UnsupportedSchemaKeywordError'
+  }
+}
 function decimal(value: unknown): Decimal | undefined {
   if (!isJsonNumber(value)) return undefined
   const raw = jsonNumberSource(value)
@@ -128,7 +137,7 @@ function divisible(a: Decimal, b: Decimal): boolean {
   return denominator === 1n && exponent >= twos && exponent >= fives
 }
 /** Per-call context, no mutable numeric registry: Ajv's projected view is never authoritative. */
-function original(receiver: unknown, context: unknown): JsonValue | undefined {
+function original(receiver: unknown, context: unknown, observed: unknown): JsonValue | undefined {
   if (
     !object(receiver) ||
     !Object.hasOwn(receiver, 'root') ||
@@ -136,6 +145,8 @@ function original(receiver: unknown, context: unknown): JsonValue | undefined {
     typeof context.instancePath !== 'string'
   )
     throw new Error('missing exact Schema invocation context')
+  // String projection is identity, including propertyNames' synthetic string input.
+  if (typeof observed === 'string') return observed
   let value = receiver.root
   for (const encoded of context.instancePath.split('/').slice(1)) {
     const key = encoded.replace(/~1/gu, '/').replace(/~0/gu, '~')
@@ -152,6 +163,46 @@ function literal(text: unknown): JsonValue {
   return result.ok
 }
 export function installExactKeywords(ajv: Ajv2020): void {
+  for (const keyword of [
+    'minLength',
+    'maxLength',
+    'minItems',
+    'maxItems',
+    'minProperties',
+    'maxProperties',
+  ])
+    ajv.addKeyword({
+      keyword: `exact_${keyword}`,
+      schemaType: 'string',
+      errors: false,
+      validate: function (
+        this: unknown,
+        encoded: unknown,
+        _value: unknown,
+        _schema: unknown,
+        context: unknown,
+      ): boolean {
+        const value = original(this, context, _value)
+        let count: number
+        if (keyword.endsWith('Length')) {
+          if (typeof value !== 'string') return true
+          count = 0
+          for (const _point of value) count++
+        } else if (keyword.endsWith('Items')) {
+          if (!Array.isArray(value)) return true
+          count = value.length
+        } else {
+          if (!object(value)) return true
+          count = Object.keys(value).length
+        }
+        const actual = decimal(count)
+        const bound = decimal(literal(encoded))
+        if (actual === undefined || bound === undefined)
+          throw new Error('invalid cardinality Schema bound')
+        const comparison = compare(actual, bound)
+        return keyword.startsWith('min') ? comparison >= 0 : comparison <= 0
+      },
+    })
   ajv.addKeyword({
     keyword: 'exact_uniqueItems',
     schemaType: 'boolean',
@@ -163,7 +214,7 @@ export function installExactKeywords(ajv: Ajv2020): void {
       _schema: unknown,
       context: unknown,
     ): boolean {
-      const value = original(this, context)
+      const value = original(this, context, _value)
       return (
         !Array.isArray(value) ||
         value.every((item, index) => !value.slice(0, index).some(other => equal(item, other)))
@@ -181,7 +232,7 @@ export function installExactKeywords(ajv: Ajv2020): void {
       _schema: unknown,
       context: unknown,
     ): boolean {
-      const value = original(this, context)
+      const value = original(this, context, _value)
       const types = literal(encoded)
       const candidates = Array.isArray(types) ? types : [types]
       return candidates.some(type => {
@@ -215,7 +266,7 @@ export function installExactKeywords(ajv: Ajv2020): void {
         _schema: unknown,
         context: unknown,
       ): boolean {
-        const value = decimal(original(this, context))
+        const value = decimal(original(this, context, _value))
         const bound = decimal(literal(encoded))
         if (value === undefined) return true
         if (bound === undefined) throw new Error('invalid numeric Schema bound')
@@ -242,7 +293,7 @@ export function installExactKeywords(ajv: Ajv2020): void {
       _schema: unknown,
       context: unknown,
     ): boolean {
-      const value = original(this, context)
+      const value = original(this, context, _value)
       if (!isJsonNumber(value)) return true
       const number = decimal(value)
       return number !== undefined && (number.digits === '0' || number.exponent >= 0n)
@@ -260,7 +311,7 @@ export function installExactKeywords(ajv: Ajv2020): void {
         _schema: unknown,
         context: unknown,
       ): boolean {
-        const value = original(this, context)
+        const value = original(this, context, _value)
         const expected = literal(encoded)
         return (
           value !== undefined &&
@@ -302,6 +353,12 @@ const privateKeywords = new Set([
   'exact_const',
   'exact_enum',
   'exact_uniqueItems',
+  'exact_minLength',
+  'exact_maxLength',
+  'exact_minItems',
+  'exact_maxItems',
+  'exact_minProperties',
+  'exact_maxProperties',
 ])
 /** Transform only actual subschemas, never the objects inside enum/default/const. */
 export function exactSchema(schema: JsonValue): JsonValue {
@@ -310,6 +367,24 @@ export function exactSchema(schema: JsonValue): JsonValue {
     Object.entries(schema).flatMap(([key, value]) => {
       // Unknown author annotations cannot impersonate our private compiler keywords.
       if (privateKeywords.has(key)) return []
+      if (
+        [
+          'minLength',
+          'maxLength',
+          'minItems',
+          'maxItems',
+          'minProperties',
+          'maxProperties',
+        ].includes(key) &&
+        isJsonNumber(value)
+      )
+        return [[`exact_${key}`, writeJsonLossless(value)]]
+      if (
+        (key === 'minContains' || key === 'maxContains') &&
+        isJsonNumber(value) &&
+        !Number.isSafeInteger(Number(jsonNumberSource(value)))
+      )
+        throw new UnsupportedSchemaKeywordError(key, jsonNumberSource(value))
       if (
         ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'].includes(
           key,
