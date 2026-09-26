@@ -44,7 +44,7 @@ const purePackages = [
 
 describe('core-pure-imports', () => {
   it('中性 Schema runtime 从批准的 content-blocks 依赖公开子入口消费', () => {
-    for (const pkg of ['asset-model', 'tool-definition', 'messages']) {
+    for (const pkg of ['asset-model', 'tool-definition', 'messages', 'mcp-endpoint']) {
       expect(
         corePureImports.check([
           file(
@@ -69,7 +69,7 @@ describe('core-pure-imports', () => {
       corePureImports.check([
         file(
           'core/mcp-endpoint/src/schema.ts',
-          `import '@omne-harness-lite/content-blocks/schema-runtime'`,
+          `import '@omne-harness-lite/content-blocks/json-runtime'`,
         ),
       ]),
     ).toHaveLength(1)
@@ -81,6 +81,39 @@ describe('core-pure-imports', () => {
         ),
       ]),
     ).toHaveLength(1)
+  })
+
+  it('MCP 中性技术边只允许已批准 CB 根／Schema/runtime 子入口，不扩大为任意子路径', () => {
+    const path = 'core/mcp-endpoint/src/values.ts'
+    for (const statement of [
+      `import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'`,
+      `import schema from '@omne-harness-lite/content-blocks/schema'`,
+      `import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'`,
+      `export type { SchemaDocument } from '@omne-harness-lite/content-blocks/schema-runtime'`,
+      `type Value = import('@omne-harness-lite/content-blocks').JsonValue`,
+      `const runtime = import('@omne-harness-lite/content-blocks/schema-runtime')`,
+      String.raw`import '\u0040omne-harness-lite/content-blocks/schema-runtime'`,
+    ])
+      expect(corePureImports.check([file(path, statement)])).toEqual([])
+    for (const specifier of [
+      '@omne-harness-lite/content-blocks/schema-runtime/private',
+      '@omne-harness-lite/content-blocks/schema-testing',
+      '@omne-harness-lite/content-blocks/testing',
+      '@omne-harness-lite/content-blocks/json-runtime',
+      '@omne-harness-lite/content-blocks/src/json.ts',
+      '@omne-harness-lite/content-blocks/dist/index.js',
+      '@omne-harness-lite/asset-model/schema-runtime',
+      '../../content-blocks/src/index.ts',
+      'node:fs',
+      'node:child_process',
+    ])
+      expect(corePureImports.check([file(path, `import '${specifier}'`)])).toHaveLength(1)
+    for (const statement of [
+      `const runtime = import(runtimePath)`,
+      `const runtime = import('@omne-harness-lite/content-blocks/' + name)`,
+      `const runtime = require(runtimePath)`,
+    ])
+      expect(corePureImports.check([file(path, statement)])).toHaveLength(1)
   })
 
   it('AM 已迁出的旧 schema-runtime 不再是公开入口，即使包依赖仍批准', () => {

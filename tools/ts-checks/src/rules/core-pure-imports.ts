@@ -23,7 +23,13 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   ],
   'skill-package': ['asset-model', 'content-blocks', 'tool-definition'],
   connector: ['asset-model', 'messages', 'content-blocks', 'offer-expiry', 'identity-values'],
-  'mcp-endpoint': ['asset-model', 'tool-definition', 'identity-values', 'offer-expiry'],
+  'mcp-endpoint': [
+    'asset-model',
+    'tool-definition',
+    'identity-values',
+    'offer-expiry',
+    'content-blocks',
+  ],
   'arrival-events': ['content-blocks', 'call-accounts', 'loop-extension', 'identity-values'],
   'model-response': [
     'call-accounts',
