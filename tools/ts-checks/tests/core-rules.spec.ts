@@ -110,6 +110,50 @@ import { ArrivalEnvelope } from '@omne-harness-lite/arrival-events'`,
       ).toHaveLength(1)
   })
 
+  it('asset-model S-17 可用纯 path 字面规范化；其他节点不因此获得路径依赖', () => {
+    for (const specifier of ['node:path', 'path']) {
+      const source = file(
+        'core/asset-model/src/workspace.ts',
+        `import { isAbsolute, normalize } from '${specifier}'
+export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize(path) : undefined`,
+      )
+      expect(corePureImports.check([source])).toEqual([])
+      expect(
+        corePureImports.check([file('core/content-blocks/src/x.ts', source.text)]),
+      ).toHaveLength(1)
+    }
+    for (const specifier of [
+      'node:fs',
+      '@deepseek-ai/cordis',
+      '@omne-harness-lite/asset-governance',
+    ]) {
+      expect(
+        corePureImports.check([file('core/asset-model/src/workspace.ts', `import '${specifier}'`)]),
+      ).toHaveLength(1)
+    }
+  })
+
+  it('已明确采用 JSON 工具的节点可通过 content-blocks 公开入口复用', () => {
+    for (const pkg of [
+      'asset-model',
+      'call-accounts',
+      'messages',
+      'arrival-events',
+      'model-response',
+      'stream-assembly',
+      'asset-evaluation',
+    ]) {
+      expect(
+        corePureImports.check([
+          file(
+            `core/${pkg}/src/json.ts`,
+            `import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'`,
+          ),
+        ]),
+      ).toEqual([])
+    }
+  })
+
   it('静态、重导出、类型导入、require、import()、转义字面量都查；计算说明符拒绝', () => {
     const source = file(
       'core/content-blocks/src/x.ts',

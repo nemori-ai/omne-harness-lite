@@ -50,7 +50,8 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
 }
 
 const BUILTINS: Readonly<Record<string, readonly string[]>> = {
-  'asset-model': ['node:crypto', 'node:buffer'],
+  // S-17：只规范化显式绝对路径的字面形状，不从 cwd 补齐、也不读文件系统。
+  'asset-model': ['node:crypto', 'node:buffer', 'node:path'],
   'arrival-events': ['node:buffer'],
   'stream-assembly': ['node:buffer'],
   'asset-evaluation': ['node:crypto'],
