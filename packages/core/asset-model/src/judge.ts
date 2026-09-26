@@ -22,7 +22,10 @@ import type {
   JsonSchema,
 } from './types.ts'
 import { isAssetCategory, isCapabilityName, normalizeWorkspaceDirectory } from './values.ts'
-import { createSchemaRuntime, type SchemaValidator } from './schema-runtime.ts'
+import {
+  createSchemaRuntime,
+  type SchemaValidator,
+} from '@omne-harness-lite/content-blocks/schema-runtime'
 
 export const schemaId = schema.$id
 export const SCHEMA_DEF_NAMES = [
