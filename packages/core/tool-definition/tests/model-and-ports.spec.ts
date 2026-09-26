@@ -8,6 +8,7 @@ import {
   judgeToolDefinition,
   judgeToolReturn,
   modelInput,
+  modelEntry,
   modelName,
   toolResultOf,
   toolAttributeDeclarations,
@@ -128,6 +129,38 @@ describe('model values, parameter authority, and body ports', () => {
         rejected: 'malformed',
         malformed: 'M25',
       })
+    for (const [source, encoded] of [
+      ['a_b', 'a_b'],
+      ['a:b', 'a__b'],
+      ['a::b', 'a____b'],
+    ] as const) {
+      expect(modelName(source)).toBe(encoded)
+      expect(definitionNameOf(encoded)).toBe(source)
+    }
+    // A three-underscore output would require one of the forbidden source adjacencies.
+    for (const source of ['a_:b', 'a:_b'])
+      expect(judgeToolDefinition({ ...baseline, name: source })).toEqual({
+        rejected: 'name_reserved_sequence',
+      })
+  })
+  it('S8 definition help remains authored data and never becomes a model command', () => {
+    const single = requireDefinition({ ...baseline, help: 'single help' })
+    const helped = requireDefinition({
+      ...multi,
+      help: 'tool help',
+      commands: {
+        list: {
+          description: 'list',
+          help: 'command help',
+          input: { type: 'object', properties: {} },
+        },
+      },
+    })
+    expect(single.help).toBe('single help')
+    expect(helped.help).toBe('tool help')
+    expect(modelEntry(single)).toEqual(modelEntry(baseline))
+    expect(modelEntry(helped)).not.toHaveProperty('help')
+    expect(modelInput(helped)).toMatchObject({ properties: { command: { enum: ['list'] } } })
   })
   it('V5 local bare text conversion takes runtime id, does not parse JSON, invent raw or outcome', () => {
     const value = '{"content":[],"outcome":"failed"}'

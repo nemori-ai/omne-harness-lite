@@ -119,4 +119,15 @@ describe('actual U1-U7 pattern compilation and AST limits', () => {
       rejected: 'name_reserved_sequence',
     })
   })
+  it('U6 real compiler rejection yields unsupported and remains owned by each judge', () => {
+    const schema = { type: 'object', properties: {}, required: 'not-an-array' }
+    for (const judge of [createParameterJudge(), createParameterJudge()]) {
+      expect(judge.metaValidate(schema)).toBe(false)
+      expect(judge.compile(schema)).toHaveProperty('unsupported')
+      expect(judge.compile(schema)).not.toHaveProperty('ok')
+    }
+    expect(judgeToolDefinition({ ...definition('a'), input: schema })).toEqual({
+      rejected: 'input_not_schema',
+    })
+  })
 })
