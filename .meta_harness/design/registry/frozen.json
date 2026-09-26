@@ -352,6 +352,9 @@
     "spec/capabilities/stream-assembly/v3/formal/Assembly.cfg": "5b7f84cb8333ba5da5a00b4e672964c3a2029de8b2358017fb65c3acffb797db",
     "spec/capabilities/stream-assembly/v3/formal/Assembly_OrderByClose.cfg": "7a437b7519163339880eae4473e8afd56272f58bbea4c9ca6ad3320b1acbbbe3",
     "spec/capabilities/stream-assembly/v3/formal/Assembly_ReplaceAsAppend.cfg": "7e5e1c6d71c1a82c1d8eeb04835120bb4a507cc2534224edfaee3ff066b5d231",
-    "spec/capabilities/stream-assembly/v3/formal/Assembly_OneShotCloseFirst.cfg": "2680ba91e3be8ae86e88549711c61db6a869e832df17719f4c2230096cd25986"
+    "spec/capabilities/stream-assembly/v3/formal/Assembly_OneShotCloseFirst.cfg": "2680ba91e3be8ae86e88549711c61db6a869e832df17719f4c2230096cd25986",
+    "spec/data/skill-package/v3/contract.md": "9d314af4e4063c84303b79a5558adef6515580ccd4cdd2b40836bc300f01537b",
+    "spec/data/skill-package/v3/skill-package.schema.json": "8c4a5352cccb695d94072828c5881486e8cdd5474a2213a3a621b17e3fbc836b",
+    "spec/data/skill-package/v3/examples.md": "304122a7b1e8301a468148d31702ff55ed5f7debf06b2e79e0b4df291fee6536"
   }
 }

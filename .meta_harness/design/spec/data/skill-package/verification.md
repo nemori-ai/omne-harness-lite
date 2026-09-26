@@ -1,3 +1,7 @@
+## D069 Skill3新增证据义务（2026-09-26）
+
+新3已接受，实施／验证待开始；旧2结果保留其原坐标。S5/S20/S21/S24 M16按新14文本／3目录规范例子实际核结果、正文、unknown痕迹；完整图包含复杂键／alias／ignored value映射。已确定目录escape不得被text M16遮蔽。双版本纯值判断/正文和author ref2/ref3正反，严格3结果无undetermined、全部自有5defs、完整JSON字节、公开两runtime路径实际resolved hash和真实pack均须实测；4/5资源图不是AM2全defs通用闭包。W6读入3到旧2值判断/AM3-AE3-Slash2组合单列，不重标原2证明；Connector/外部9义务保持。
+
 # 验证覆盖与实际证据
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。

@@ -1,3 +1,31 @@
+## D-069：Skill3 已接受采用（2026-09-26）
+
+[用户判等拒绝策略](../../../../record/decisions/skill-yaml-key-resolution/decision.md)已接受；[新3规范](../../../../spec/data/skill-package/v3/contract.md)已独立复审并按[技术接受](../../../../record/decisions/skill-yaml-key-resolution/acceptance.json)冻结；本节提供者投影已接受，可据此实施，源码与实际验证另记。节点仍是纯模块，原正文责任、调用者IO／目录观测／授权／注册／执行边界不变。
+
+### 公开面与精确采用
+
+包根将采用data.skill-package/3；公开当前完整JSON Schema为`./schema`，普通值types／judge／派生以及readSkillMd／readSkillPackage采用3。新3两个读入结果仅ok或原拒绝集合，不发布未判定结果。
+
+既有AM3／AE3／Slash2继续精确采用Skill2纯规范值与正文，公开`./schema/v2`提供冻结2完整原字节／原$id，`./v2`只提供实际仍被消费的Skill2纯规范值类型、Schema常量／validate、judge／is、declarations／references／dependencies／scripts和正文端口。不给旧2文本／目录读入及未判定结果建立行为兼容层。`./v2`的所有值判断必须固定旧2Schema与解引用图，而非仅将端口schema换2后仍调用3validator。
+
+根skillBodyContract为3；AE3默认装配和固定2调用者显式使用`./v2`的skillBodyContract／规范值判断。新3文本读出后，规范化JSON形状不变，调用者可以通过旧2规范值判定投影进入AM3／AE3／Slash2；此组合不升级冻结消费者、不给正文执行许可，也不声称宿主文件／since／快照事实已经核实。 同形JSON不是无条件兼容：作者取值域引用Skill3自有defs的值可能在根3合法而在旧2返回M12；跨版本消费须真的经过旧2判断，不能绕过、改写引用或自动把3内容登记成2。W6增加此具体拒绝对照。
+
+### 版本绑定与资源闭包
+
+旧2图明确包含Skill2／AM2／CB2／TD2；新3图在原4份之外加入Skill3，因为AM2冻结资源本身引用Skill2。仅有限的这两套已接受资源，无任意外部resolver。每版全部自有defs实际编译，JSON文件$id／字节独立核对。作者取值域引用Skill2自有defs在旧2可解，Skill3自有defs在旧2不可解；新3能够解析自己的defs。避免共享全局默认compiler造成跨坐标扩权或隐性拒绝。
+
+按两版Schema上下文绑定validate和每次调用的author-schema runtime，ordered predicates及不变派生可共享；端口judge、refs、声明和Schema都与其精确版本同源。不得复制整个实现仅改URI，不增加无责任的转发层；具体模块分割可由实施者据上述边界决定。纯模块无Fiber／存储／装卸效应，新版本不引入服务或生命周期。
+
+### 文本拒绝的技术投影
+
+沿已采用yaml2.9.1 Core解析节点图及当前无损canonical／复杂键判等，先检查完整映射图，含将丢弃属性的嵌套映射与复杂键。只有最终键唯一性真正依赖未知scalar标签canonical关系时给malformed/M16；有已知不等的结构分量／不同tag时不一概拒绝。普通未知属性／不参与键判等的未知tag值仍丢弃并留痕。已知非法Core tag／重复键／解析失败保持原拒绝；目录读入原样承接M16。新3不再传播undetermined；旧2缺口和旧运行保留原语义范围。
+
+### 验证与反向核对
+
+新3文本及目录覆盖未知tag对／复杂键／alias／忽略属性内部歧义，普通unknown和已知不等输入为成功对照；故意取消该拒绝必须命中指定AssertionError。严格类型核新3结果无undetermined。旧2自有ref成功、新3ref拒绝及default3自身ref成功防止端口投影混版；公开两个runtime入口／两个JSON资源及全部named类型、真实tarball／defs分别实核。W6实际解析两入口，记录其真实JS路径/hash；读入3→规范值2→AM3/AE3组合与斜杠正文逐字另跑，不以旧2源码和日志重标3。
+
+实际输入／输出、技术接受与有限证据binding应在新运行后登记。Connector延期、所有真实IO／授权／注册／脚本执行及人的总体门保持原边界；当前候选不声明这些义务闭合。
+
 # skill-package 实现设计
 
 > 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。

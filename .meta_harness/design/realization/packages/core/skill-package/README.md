@@ -1,3 +1,9 @@
+## D069当前采用与实施中（2026-09-26）
+
+本节点已接受[Skill3](../../../../spec/data/skill-package/v3/contract.md)及[本次提供者投影](design.md#d-069skill3-已接受采用2026-09-26)，依据[D069技术接受](../../../../record/decisions/skill-yaml-key-resolution/acceptance.json)；默认3读入／纯值与保留2纯值／正文／完整Schema边界见design。本轮实现升级与新15项core义务正在实施，不能把此前11项2签收重标3。旧2 SP3和原4项未签结论仍是原输入的真实记录，当前3策略已有答案但实际证据须新跑。
+
+下文原2实现／技术接受按原日期与坐标读取，由本段当前采用取代其“当前2”口径；不否认原结果。
+
 # skill-package
 
 ## 当前 core 交付与技术接受（2026-09-26）

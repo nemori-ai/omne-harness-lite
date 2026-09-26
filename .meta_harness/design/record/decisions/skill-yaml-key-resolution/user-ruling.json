@@ -1,0 +1,8 @@
+{
+  "at_utc": "2026-09-26T15:46:11.889700+00:00",
+  "decision": "D-069",
+  "question": "Skill 文本有一处未定规则：未知 YAML 自定义标签用于键、且其含义导致无法确定是否重复时，应该如何处理？现有规格既要求拒绝重复键，又要求忽略未知属性，没有定义“判等未知”的结果。",
+  "answer": "补规格：拒绝这类无法判等的输入，普通未知属性仍忽略（推荐）",
+  "source": "user asynchronous question reply in this conversation",
+  "authority": "product owner"
+}

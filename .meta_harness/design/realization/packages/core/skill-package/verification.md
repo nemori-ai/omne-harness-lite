@@ -1,3 +1,7 @@
+## D069当前3实施证据义务
+
+当前15本地／组合责任须在新3源重核；旧2结果不可重标。新增14文本＋3目录规范例子，目录已定escape>M16，双版自身ref正反、真实旧2consumer入口、严格3无undetermined、5自有defs／两Schema字节、真实tarball／W6链/公开类型／private路径／27规则均按actual run登记。旧4/5资源集合不承诺AM2全25defs；普通unknown对照必保留。实际证据尚未运行。
+
 # skill-package 验证与证据
 
 ## 当前 core 交付与技术接受（2026-09-26）

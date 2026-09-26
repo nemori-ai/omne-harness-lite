@@ -157,3 +157,7 @@ covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含
 ## 2026-09-26：D-068 core v3
 
 独立规格复审无阻断后，主调度在用户技术验收委托内接受八份3；8 catalog、37精确依赖、334 reviewed:false覆盖、32冻结资源和1个SA3正配置任务由 [D-068](../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 触发。总计63 accepted、315依赖、1496覆盖、351冻结资源、37任务。原55条接受、319冻结hash、lineage及36任务保持原内容；登记新增任务不声称执行。24外部消费者仍采用2，八个core实现的采用须另登记。上表治理线/#9数量仅描述原迁移历史。
+
+## D-069 Skill3（2026-09-26）
+
+按[独立复审后的技术接受](../record/decisions/skill-yaml-key-resolution/acceptance.json)新增Skill3：catalog当前64 accepted、318精确依赖、1518覆盖、354冻结资源。351旧冻结hash与37形式任务不变；新3只补未知YAML键最终无法排重时M16，ordinaryunknown仍忽略。其它消费者继续精确Skill2，不自动升级。接受不表明实现／证据／人的总体签字。

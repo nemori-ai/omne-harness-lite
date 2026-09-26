@@ -6655,6 +6655,68 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.skill-package",
+        "version": 3
+      },
+      "family": "data",
+      "topic": "skill-package",
+      "status": "accepted",
+      "contract_path": "spec/data/skill-package/v3/contract.md",
+      "resources": [
+        "spec/data/skill-package/v3/contract.md",
+        "spec/data/skill-package/v3/skill-package.schema.json",
+        "spec/data/skill-package/v3/examples.md"
+      ],
+      "acceptance": "record/decisions/skill-yaml-key-resolution/acceptance.json",
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.asset-model",
+            "version": 2
+          },
+          "clauses": [
+            "S-2",
+            "S-3",
+            "S-9",
+            "S-10",
+            "S-12",
+            "S-13",
+            "S-15",
+            "S-36"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 2
+          },
+          "clauses": [
+            "S-7"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.tool-definition",
+            "version": 2
+          },
+          "clauses": [
+            "S-9",
+            "S-11",
+            "S-18",
+            "S-26"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }
