@@ -235,9 +235,9 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 
 ## 实施缺口与消费者影响
 
-- **套件的运行结果尚未登记**：`infra/storage-sql` 已在 sqlite 与 pg 两种方言上接线运行套件，结果登记归那个节点的 verification 与 record/evidence；本节点 verification 的义务状态待证据 run 登记后回填。
+- **套件提供者历史结果已登记**：`infra/storage-sql` 的 sqlite 与 pg 运行归 `2026-09-23-tests-tenancy-leg-2`，本节点 [verification](verification.md) 保留其配置与边界；本轮未重跑 pg。
 - **装配**：约束与主键的命名纪律、真实外键、`foreign_keys=ON`、pg 的接线由 [`apps/tenancy-host`](../../../apps/tenancy-host/design.md) 兑现，真实外键两向由它的 `assembly.fk-organization-owner-account` 证。
-- **套件自测**（对一个故意做错的提供者会红，例如把 `lockRow` 换成空操作跑 C-4）未写。owner 本节点。
+- **套件有效性自测已写并在 HUB 通过**（2026-09-26，提交 `247fc9e2`）：开发工具 `tools/core-verification` 经公开入口使用真实 SQLite 提供者，同一19条套件正常全绿、在测试侧事务开始前关闭外键后恰 C-11/C-12 失败。工具不令产品 core 反向依赖 infra；只证明这项变异可被本套件识别，结果与证据保存情况归 [verification](verification.md)。
 - **pg 方言依赖环境**：缺 `OMNE_TEST_PG_URL` 时套件在 pg 上 `describe.skip`，跳过不是通过；CI 是否提供可连的 pg 归装配与 CI 配置（研究正文[「未知与下一项证据」](../../../../../research/agent-harness-persistence-and-identity-infra/research.md#未知与下一项证据)）。
 - **`narrow` 只是类型断言**：表存在与否由装配迁移与消费者测试保证；换查询层 = 新版本协议。
 - **跨进程重启的持久证据**不在套件里（AI S-32 演练）；**跨进程形态下的存储协调协议**未定（D-026「不表示」列的 Q-8）。
