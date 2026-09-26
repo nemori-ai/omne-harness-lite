@@ -23,6 +23,10 @@ const caseIds = [
   'w6.asset.reserved-and-duplicate-real-body',
   'w6.asset.nonconnector-record-domain',
   'w6.asset.scope-identity-and-billing',
+  'w7.skill.current3-unknown-key-ambiguity',
+  'w7.skill.ordinary-unknown-and-exact-body',
+  'w7.skill.escape-priority-over-text-ambiguity',
+  'w7.skill.current3-author-ref-rejected-by-frozen2-consumers',
   'w6.skill.slash-expansion-to-messages',
   'w6.messages.nested-unique-boundary',
   'w6.messages.nested-readability-and-compaction',
@@ -103,7 +107,7 @@ async function consume(negativeControl: boolean) {
   expect(cases.map(item => item.id)).toEqual(caseIds)
   expect(report.negativeControl).toBe(negativeControl)
   assert.ok(Array.isArray(report.resolution))
-  expect(report.resolution).toHaveLength(11)
+  expect(report.resolution).toHaveLength(12)
   for (const item of report.resolution) {
     const artifact = record(item)
     assert.ok(typeof artifact.file === 'string')

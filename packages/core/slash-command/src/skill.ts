@@ -3,7 +3,7 @@ import {
   isSkillPackage,
   judgeSkillPackage,
   type SkillPackage,
-} from '@omne-harness-lite/skill-package'
+} from '@omne-harness-lite/skill-package/v2'
 import { isCommandInvocation } from './judge.ts'
 import { snapshot, object } from './json.ts'
 import type { CommandInvocation, ExpansionBlockAnnotation } from './types.ts'

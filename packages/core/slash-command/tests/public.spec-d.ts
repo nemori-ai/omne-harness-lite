@@ -2,7 +2,7 @@ import { expectTypeOf, it } from 'vitest'
 import type { BodyContract } from '@omne-harness-lite/asset-model'
 import type { BlockId, TextBlock } from '@omne-harness-lite/content-blocks'
 import type { AccountId } from '@omne-harness-lite/identity-values'
-import type { SkillPackage } from '@omne-harness-lite/skill-package'
+import type { SkillPackage } from '@omne-harness-lite/skill-package/v2'
 import {
   recognize,
   parseInvocation,

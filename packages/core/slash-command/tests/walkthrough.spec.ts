@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { type SkillPackage } from '@omne-harness-lite/skill-package'
+import { type SkillPackage } from '@omne-harness-lite/skill-package/v2'
 import {
   recognize,
   parseInvocation,

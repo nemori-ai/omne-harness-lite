@@ -15,7 +15,6 @@ import type {
   SkillPackageEntry,
   SkillMdReadResult,
   SkillPackageReadResult,
-  SkillReadUndetermined,
   SkillSetting,
   ToolReference,
 } from '@omne-harness-lite/skill-package'
@@ -24,16 +23,15 @@ test('numeric format preserves the existing lossless number type', () => {
   const d: SkillDefinitionRecord = { format: new LosslessNumber('1.0') }
   expectTypeOf(d.format).toEqualTypeOf<number | LosslessNumber>()
 })
-test('unresolved read gap is distinct from successful values and domain rejections', () => {
-  const gap: SkillReadUndetermined = { undetermined: { reason: 'yaml_key_tag', tags: ['!foo'] } }
-  expectTypeOf(gap).toExtend<SkillMdReadResult>()
-  expectTypeOf(gap).toExtend<SkillPackageReadResult>()
-  // @ts-expect-error unresolved loading does not assert a successful manifest
-  gap.ok
-  // @ts-expect-error unresolved loading is not a domain malformed rejection
-  gap.rejected
-  // @ts-expect-error diagnostic tags are readonly
-  gap.undetermined.tags.push('!bar')
+test('current readers have only successful values or the closed rejection result', () => {
+  expectTypeOf<Extract<SkillMdReadResult, { readonly undetermined: unknown }>>().toBeNever()
+  expectTypeOf<Extract<SkillPackageReadResult, { readonly undetermined: unknown }>>().toBeNever()
+  const result = readSkillMd('input')
+  if ('ok' in result) expectTypeOf(result.ok.manifest).toEqualTypeOf<SkillManifest>()
+  else
+    expectTypeOf(result.rejected).toEqualTypeOf<
+      import('@omne-harness-lite/skill-package').SkillRejection
+    >()
 })
 test('body and manifest are required with no second asset identity', () => {
   // @ts-expect-error body is required

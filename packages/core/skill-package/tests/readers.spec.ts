@@ -147,11 +147,11 @@ describe('S-20 YAML 1.2 Core text reader', () => {
     })
   }
 })
-describe('unresolved key tag gap and coinductive recursive node comparisons', () => {
+describe('M16 key uniqueness refusal and coinductive recursive node comparisons', () => {
   function text(yaml: string): string {
     return `---\nname: x\ndescription: d\n${yaml}\n---\nbody`
   }
-  for (const [id, yaml, tags] of [
+  for (const [id, yaml] of [
     ['same source distinct nodes', '? !foo a\n: first\n? !foo a\n: second', ['!foo']],
     [
       'quoted spelling not canonical knowledge',
@@ -190,17 +190,14 @@ describe('unresolved key tag gap and coinductive recursive node comparisons', ()
       ['!bar', '!foo'],
     ],
   ] as const) {
-    it(`read gap: ${id}`, () => {
+    it(`refuses ambiguous keys: ${id}`, () => {
       const source = text(yaml)
-      const expected = { undetermined: { reason: 'yaml_key_tag', tags } }
+      const expected = { rejected: 'malformed', malformed: 'M16' }
       const result = readSkillMd(source)
       expect(result).toEqual(expected)
       expect(readSkillMd(source)).toEqual(result)
       expect(readSkillPackage([{ kind: 'file', path: 'SKILL.md', text: source }])).toEqual(result)
-      expect(Object.keys(result)).toEqual(['undetermined'])
-      if (!('undetermined' in result)) throw new Error('expected a technical read gap')
-      expect(Object.isFrozen(result.undetermined)).toBe(true)
-      expect(Object.isFrozen(result.undetermined.tags)).toBe(true)
+      expect(Object.isFrozen(result)).toBe(true)
     })
   }
   for (const [id, yaml] of [

@@ -8,10 +8,11 @@ const providers = [
   'loop-extension',
   'tool-definition',
   'asset-model',
+  'skill-package',
 ]
 
 describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
-  it('登记恰六个 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
+  it('登记恰七个 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
     expect(
       Object.entries(PUBLIC_SUBPATHS)
         .filter(([, values]) => values.includes('schema/v2'))
@@ -20,6 +21,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
     ).toEqual([...providers].sort())
     expect(PUBLIC_SUBPATHS['offer-expiry']).toEqual(['schema/v1'])
     expect(PUBLIC_SUBPATHS['content-blocks']).toEqual(['schema-runtime', 'schema/v2'])
+    expect(PUBLIC_SUBPATHS['skill-package']).toEqual(['v2', 'schema/v2'])
   })
 
   for (const provider of providers) {
@@ -51,7 +53,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
       })
     }
 
-    it(`${provider} 的精确子入口不新增依赖边，自有资源仅批准 AM2`, () => {
+    it(`${provider} 的精确子入口不新增依赖边，自有资源仅批准 AM2 与 Skill2`, () => {
       const consumer = Object.entries(CORE_PURE_DEPENDENCIES).find(
         ([, dependencies]) => !dependencies.includes(provider),
       )?.[0]
@@ -71,7 +73,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
             text: `import '@omne-harness-lite/${provider}/schema/v2'`,
           },
         ]),
-      ).toHaveLength(provider === 'asset-model' ? 0 : 1)
+      ).toHaveLength(provider === 'asset-model' || provider === 'skill-package' ? 0 : 1)
     })
 
     it(`${provider} 的本包相邻资源路径仍禁止`, () => {
@@ -86,6 +88,44 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         ).toHaveLength(1)
     })
   }
+
+  for (const consumer of ['asset-evaluation', 'slash-command']) {
+    it(`${consumer} accepts the exact adopted Skill2 value/body entry only`, () => {
+      const path = `core/${consumer}/src/body.ts`
+      expect(
+        corePureImports.check([
+          { path, text: "import { skillBodyContract } from '@omne-harness-lite/skill-package/v2'" },
+        ]),
+      ).toEqual([])
+      for (const suffix of [
+        'v1',
+        'v3',
+        'v20',
+        'v2/private',
+        'v2/testing',
+        'v2.js',
+        'src/v2.ts',
+        'dist/v2.js',
+      ])
+        expect(
+          corePureImports.check([
+            { path, text: `import '@omne-harness-lite/skill-package/${suffix}'` },
+          ]),
+        ).toHaveLength(1)
+    })
+  }
+
+  it('the Skill2 pure value entry does not grant new package dependency edges', () => {
+    for (const consumer of ['content-blocks', 'messages', 'model-response', 'skill-package'])
+      expect(
+        corePureImports.check([
+          {
+            path: `core/${consumer}/src/body.ts`,
+            text: "import '@omne-harness-lite/skill-package/v2'",
+          },
+        ]),
+      ).toHaveLength(1)
+  })
 
   it('model-response 无现行 core 依赖消费者，登记项存在不冒称已实际消费', () => {
     expect(

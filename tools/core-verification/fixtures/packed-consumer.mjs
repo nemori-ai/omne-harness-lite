@@ -64,6 +64,7 @@ await scenario('w6.schema.current-and-retained-coordinates', async () => {
     'loop-extension',
     'tool-definition',
     'asset-model',
+    'skill-package',
   ])
   for (const member of input.members) {
     for (const subpath of member.subpaths.filter(
@@ -114,8 +115,8 @@ await scenario('w6.schema.fixed-resource-closure', () => {
   assert.ok(compiled > 100)
   assert.equal(
     resources.size,
-    22,
-    'six current3, six retained2, other fixed2 + identity1/OE1/OE2/Connector2',
+    23,
+    'seven current3, seven retained2, other fixed2 + identity1/OE1/OE2/Connector2',
   )
 })
 await scenario('w6.schema.current3-raw-name-versus-retained2-arrival', () => {
@@ -153,6 +154,8 @@ process.stdout.write(
   JSON.stringify(
     {
       specEpoch: 3,
+      measurementEpoch: 5,
+      skillCoordinates: { reader: 3, body: 2 },
       negativeControl,
       records,
       schemas,

@@ -3,7 +3,7 @@ import { createAssetModelJudge } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { toolBodyContract } from '@omne-harness-lite/tool-definition'
 import { loopExtensionBodyContract } from '@omne-harness-lite/loop-extension'
-import { skillBodyContract } from '@omne-harness-lite/skill-package'
+import { skillBodyContract } from '@omne-harness-lite/skill-package/v2'
 import { mcpBodyContract } from '@omne-harness-lite/mcp-endpoint'
 import { slashCommandBodyContract } from '@omne-harness-lite/slash-command'
 import {

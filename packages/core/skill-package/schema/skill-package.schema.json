@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v2/skill-package.schema.json",
-  "title": "data.skill-package v2",
-  "description": "技能包的交换与存储表示：一份技能（UL-skill）资产版本的全部内容——SKILL.md 的清单头（Agent Skills 开放格式 69ef37e 的六个键）、SKILL.md 的正文、本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明、执行环境要求）、包内资源条目。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.skill-package/v2 内有效。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v3/skill-package.schema.json",
+  "title": "data.skill-package v3",
+  "description": "技能包的交换与存储表示：一份技能（UL-skill）资产版本的全部内容——SKILL.md 的清单头（Agent Skills 开放格式 69ef37e 的六个键）、SKILL.md 的正文、本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明、执行环境要求）、包内资源条目。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.skill-package/v3 内有效。",
   "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员约束（资源路径互不相同且互不为前缀、设置项 item 互不相同、设置项 default 合它的取值域、清单头 name 等于所属能力标识的 name）由 contract.md S-24 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是八个拒绝值里的哪一个按 S-24 的次序定。SKILL.md 的文本形式与包的目录形式（S-20、S-21）不是 JSON，不在本 Schema 的范围内。外部引用：MediaType 取自 data.content-blocks v2（S-7）；CapabilityName、CapabilityId、AttributeDeclaration 取自 data.asset-model v2（S-2、S-3、S-12）；DependencyName 与 TargetEnvironment 取自 data.tool-definition v2（S-9、S-11）。执行环境要求是定义记录里的固定成员 environmentRequirement，不是设置项；settings 没有保留项名（S-15、S-32，D-060 §四 L3′、§六 N-13）。正反实例在同目录 examples.md。",
   "$defs": {
     "SkillName": {

@@ -250,7 +250,7 @@ export function readSkillMd(text: string): SkillMdReadResult {
   })
   if (doc.errors.length !== 0 || !isMap(doc.contents) || !validCoreTags(doc)) return rejected()
   const keys = keyValidity(doc)
-  if (keys.invalid) return rejected()
+  if (keys.invalid || keys.tags.size !== 0) return rejected()
   const manifest: Record<string, JsonValue> = {}
   const unknownKeys: UnknownSkillKey[] = []
   for (const pair of doc.contents.items) {
@@ -296,13 +296,6 @@ export function readSkillMd(text: string): SkillMdReadResult {
   }
   const copied = copyJson(manifest)
   if (copied === undefined || !manifestOf(copied)) return rejected()
-  if (keys.tags.size !== 0)
-    return Object.freeze({
-      undetermined: Object.freeze({
-        reason: 'yaml_key_tag',
-        tags: Object.freeze([...keys.tags].sort()),
-      }),
-    })
   return Object.freeze({
     ok: Object.freeze({
       manifest: copied,

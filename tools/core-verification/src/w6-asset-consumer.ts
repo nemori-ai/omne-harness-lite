@@ -39,7 +39,13 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { loopExtensionBodyContract } from '@omne-harness-lite/loop-extension'
 import { mcpBodyContract, judgeMcpValue, actionEntryName } from '@omne-harness-lite/mcp-endpoint'
-import { skillBodyContract, readSkillPackage } from '@omne-harness-lite/skill-package'
+import { readSkillPackage, judgeSkillPackage, schemaId } from '@omne-harness-lite/skill-package'
+import {
+  skillBodyContract,
+  judgeSkillPackage as judgeSkillPackageV2,
+  schemaId as skillV2SchemaId,
+  type SkillPackage,
+} from '@omne-harness-lite/skill-package/v2'
 import {
   slashCommandBodyContract,
   expandSkill,
@@ -149,6 +155,7 @@ const skillRead = readSkillPackage(
 )
 if (!('ok' in skillRead)) throw new Error('normalized skill fixture rejected')
 const skillPackage = skillRead.ok.package
+assert.deepEqual(judgeSkillPackageV2(skillPackage), { ok: true })
 const bodies: readonly NonConnectorAssetContent[] = [
   { category: 'tool', definition: toolBody() },
   { category: 'skill', body: json(skillPackage) },
@@ -220,6 +227,10 @@ export const ASSET_CASE_IDS = [
   'w6.asset.reserved-and-duplicate-real-body',
   'w6.asset.nonconnector-record-domain',
   'w6.asset.scope-identity-and-billing',
+  'w7.skill.current3-unknown-key-ambiguity',
+  'w7.skill.ordinary-unknown-and-exact-body',
+  'w7.skill.escape-priority-over-text-ambiguity',
+  'w7.skill.current3-author-ref-rejected-by-frozen2-consumers',
   'w6.skill.slash-expansion-to-messages',
   'w6.messages.nested-unique-boundary',
   'w6.messages.nested-readability-and-compaction',
@@ -605,6 +616,103 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
     },
   },
   {
+    id: 'w7.skill.current3-unknown-key-ambiguity',
+    run() {
+      assert.ok(schemaId.includes('/v3/'))
+      assert.ok(skillV2SchemaId.includes('/v2/'))
+      assert.ok(typeof defaultBodyContracts.skill.schema === 'object')
+      assert.equal(defaultBodyContracts.skill.schema.$id, skillV2SchemaId)
+      const text =
+        '---\nname: review\ndescription: d\nunknown: {!opaque a: x, !opaque b: y}\n---\nbody'
+      assert.deepEqual(readSkillPackage([{ kind: 'file', path: 'SKILL.md', text }]), {
+        rejected: 'malformed',
+        malformed: 'M16',
+      })
+    },
+  },
+  {
+    id: 'w7.skill.ordinary-unknown-and-exact-body',
+    run() {
+      const text =
+        '---\r\nname: review\r\ndescription: d\r\nversion: 1.2.0\r\nuser-invocable: false\r\n---\r\n\r\nRun $ARGUMENTS\r\n'
+      const result = readSkillPackage([{ kind: 'file', path: 'SKILL.md', text }])
+      assert.ok('ok' in result)
+      assert.equal(result.ok.package.body, '\r\nRun $ARGUMENTS\r\n')
+      assert.deepEqual(
+        result.ok.unknownKeys.map(key => key.category),
+        ['unknown', 'external_attribute'],
+      )
+      assert.deepEqual(judgeSkillPackageV2(result.ok.package), { ok: true })
+      assert.deepEqual(
+        judge.judgeAssetValue('AssetContent', { category: 'skill', body: result.ok.package }),
+        { ok: true },
+      )
+    },
+  },
+  {
+    id: 'w7.skill.escape-priority-over-text-ambiguity',
+    run() {
+      const text = '---\nname: review\ndescription: d\n!opaque a: x\n!opaque b: y\n---\nbody'
+      for (const entry of [
+        { kind: 'file', path: '../outside' },
+        { kind: 'link', path: 'shared', resolution: 'outside' },
+      ] as const)
+        assert.deepEqual(readSkillPackage([{ kind: 'file', path: 'SKILL.md', text }, entry]), {
+          rejected: 'resource_escapes',
+        })
+    },
+  },
+  {
+    id: 'w7.skill.current3-author-ref-rejected-by-frozen2-consumers',
+    run() {
+      const value = (coordinate: string): SkillPackage => ({
+        manifest: { name: 'review', description: 'd' },
+        body: 'verbatim',
+        resources: [],
+        definition: {
+          format: 1,
+          settings: [
+            {
+              item: 'name',
+              kind: 'setting',
+              category: 'preference',
+              domain: { kind: 'open', schema: { $ref: coordinate + '#/$defs/SkillName' } },
+              default: 'valid:name',
+            },
+          ],
+        },
+      })
+      const current = value(schemaId)
+      const prior = value(skillV2SchemaId)
+      assert.deepEqual(judgeSkillPackage(current), { ok: true })
+      assert.deepEqual(judgeSkillPackageV2(current), { rejected: 'malformed', malformed: 'M12' })
+      assert.ok(
+        'rejected' in judge.judgeAssetValue('AssetContent', { category: 'skill', body: current }),
+      )
+      assert.deepEqual(judgeSkillPackageV2(prior), { ok: true })
+      assert.deepEqual(judge.judgeAssetValue('AssetContent', { category: 'skill', body: prior }), {
+        ok: true,
+      })
+      const recognition = recognize('/review')
+      assert.equal(recognition.kind, 'invocation')
+      if (recognition.kind !== 'invocation') throw new Error('expected invocation')
+      const annotations = [
+        {
+          id: unwrap(parseOpaqueIdentifier('body', 'BlockId')),
+          visibility: { toHuman: true, toModel: true },
+        },
+      ]
+      assert.throws(
+        () => expandSkill(recognition.invocation, 'review', current, annotations),
+        TypeError,
+      )
+      assert.equal(
+        expandSkill(recognition.invocation, 'review', prior, annotations)[0]?.text,
+        'verbatim',
+      )
+    },
+  },
+  {
     id: 'w6.skill.slash-expansion-to-messages',
     run() {
       const recognition = recognize('/review careful')
@@ -811,6 +919,7 @@ for (const name of [
   'tool-definition',
   'loop-extension',
   'skill-package',
+  'skill-package/v2',
   'mcp-endpoint',
   'slash-command',
   'content-blocks',
@@ -823,8 +932,25 @@ for (const name of [
     assert.ok(
       fileURLToPath(url).startsWith(dirname(fileURLToPath(import.meta.url)) + '/node_modules/'),
     )
-    assert.ok(url.pathname.endsWith('/node_modules/@omne-harness-lite/' + name + '/dist/index.js'))
-  } else assert.ok(url.pathname.endsWith('/packages/core/' + name + '/dist/index.js'))
+    assert.ok(
+      url.pathname.endsWith(
+        '/node_modules/@omne-harness-lite/' +
+          name.split('/')[0] +
+          '/dist/' +
+          (name.endsWith('/v2') ? 'v2' : 'index') +
+          '.js',
+      ),
+    )
+  } else
+    assert.ok(
+      url.pathname.endsWith(
+        '/packages/core/' +
+          name.split('/')[0] +
+          '/dist/' +
+          (name.endsWith('/v2') ? 'v2' : 'index') +
+          '.js',
+      ),
+    )
   resolution.push({
     name,
     file: fileURLToPath(url),
@@ -854,6 +980,8 @@ process.stdout.write(
     {
       negativeControl,
       specEpoch: 3,
+      measurementEpoch: 5,
+      skillCoordinates: { reader: 3, body: 2 },
       packedConsumer,
       nodeVersion: process.version,
       consumerArtifact: {

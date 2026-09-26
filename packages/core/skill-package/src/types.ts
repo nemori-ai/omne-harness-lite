@@ -83,13 +83,6 @@ export interface UnknownSkillKey {
   readonly key?: string
   readonly category: 'external_attribute' | 'unknown'
 }
-/** A technical read gap: no successful manifest or domain rejection is asserted. */
-export interface SkillReadUndetermined {
-  readonly undetermined: {
-    readonly reason: 'yaml_key_tag'
-    readonly tags: readonly string[]
-  }
-}
 export type SkillMdReadResult =
   | {
       readonly ok: {
@@ -99,7 +92,6 @@ export type SkillMdReadResult =
       }
     }
   | { readonly rejected: SkillRejection; readonly malformed?: MalformedCode }
-  | SkillReadUndetermined
 export type SkillPackageReadResult =
   | {
       readonly ok: {
@@ -108,4 +100,3 @@ export type SkillPackageReadResult =
       }
     }
   | { readonly rejected: SkillRejection; readonly malformed?: MalformedCode }
-  | SkillReadUndetermined

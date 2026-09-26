@@ -8,7 +8,7 @@ import {
   writeJsonLossless,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import { type SkillPackage } from '@omne-harness-lite/skill-package'
+import { type SkillPackage } from '@omne-harness-lite/skill-package/v2'
 import {
   slashCommandBodyContract,
   slashCommandAttributeDeclarations,

@@ -71,6 +71,8 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
   'loop-extension': ['schema/v2'],
   'tool-definition': ['schema/v2'],
   'asset-model': ['schema/v2'],
+  // D-069: current AM3/AE3/Slash2 consume the exact Skill2 pure value/body boundary.
+  'skill-package': ['v2', 'schema/v2'],
   // D-066 迁移后的消费者仍精确引用 OE1；完整原资源由这个入口公开。
   'offer-expiry': ['schema/v1'],
 }
@@ -78,6 +80,8 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 function allowedExternal(pkg: string, dependencies: readonly string[], specifier: string): boolean {
   // D-068：AM3 的固定资源图显式纳入本包完整 AM2；只批准这个公开资源入口。
   if (pkg === 'asset-model' && specifier === '@omne-harness-lite/asset-model/schema/v2') return true
+  if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')
+    return true
   if (
     pkg !== 'stream-assembly' &&
     pkg !== 'asset-evaluation' &&

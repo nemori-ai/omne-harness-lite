@@ -26,7 +26,7 @@ const surfaces: Readonly<Record<string, readonly string[]>> = {
   'model-profile': ['.', './schema'],
   'model-response': ['.', './schema', './schema/v2'],
   'offer-expiry': ['.', './schema', './testing', './schema/v1'],
-  'skill-package': ['.', './schema'],
+  'skill-package': ['.', './schema', './v2', './schema/v2'],
   'slash-command': ['.', './schema'],
   storage: ['.', './conformance'],
   'tool-definition': ['.', './schema', './schema/v2'],
@@ -375,6 +375,10 @@ const expectedAssetCases = [
   'w6.asset.reserved-and-duplicate-real-body',
   'w6.asset.nonconnector-record-domain',
   'w6.asset.scope-identity-and-billing',
+  'w7.skill.current3-unknown-key-ambiguity',
+  'w7.skill.ordinary-unknown-and-exact-body',
+  'w7.skill.escape-priority-over-text-ambiguity',
+  'w7.skill.current3-author-ref-rejected-by-frozen2-consumers',
   'w6.skill.slash-expansion-to-messages',
   'w6.messages.nested-unique-boundary',
   'w6.messages.nested-readability-and-compaction',
@@ -458,6 +462,8 @@ const conformance = await run(
 assert.equal(conformance.code, 0, conformance.stdout + conformance.stderr)
 const report = {
   specEpoch: 3,
+  measurementEpoch: 5,
+  skillCoordinates: { reader: 3, body: 2 },
   sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: root,
     encoding: 'utf8',

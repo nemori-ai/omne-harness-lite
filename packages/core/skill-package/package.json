@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.skill-package v2 pure values, text and supplied-entry readers",
+  "description": "data.skill-package v3 pure values and readers; precise v2 value/body port",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,7 +12,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/skill-package.schema.json"
+    "./schema": "./schema/skill-package.schema.json",
+    "./v2": {
+      "types": "./dist/v2.d.ts",
+      "import": "./dist/v2.js"
+    },
+    "./schema/v2": "./schema/skill-package.v2.schema.json"
   },
   "files": [
     "dist",

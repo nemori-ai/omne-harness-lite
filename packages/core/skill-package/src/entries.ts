@@ -1,7 +1,7 @@
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
-import { copyJson } from './json.ts'
-import { judgeSkillPackage, isSkillPackage, pathEscapes } from './judge.ts'
+import { copyJson, object } from './json.ts'
+import { judgeSkillPackage, isSkillPackage, knownSkillRejection, pathEscapes } from './judge.ts'
 import { readSkillMd } from './md.ts'
 import type {
   ResourceEntry,
@@ -10,7 +10,10 @@ import type {
   SkillPackageReadResult,
 } from './types.ts'
 
-function malformed(code: 'M2' | 'M8' | 'M16' | 'M17'): SkillPackageReadResult {
+function malformed(code: 'M2' | 'M8' | 'M16' | 'M17'): {
+  readonly rejected: 'malformed'
+  readonly malformed: 'M2' | 'M8' | 'M16' | 'M17'
+} {
   return Object.freeze({ rejected: 'malformed', malformed: code } as const)
 }
 /** S-21 pure half: filesystem observation and UTF-8 decoding belong to the caller. */
@@ -21,10 +24,10 @@ export function readSkillPackage(
   const manifests = entries.filter(entry => entry.path === 'SKILL.md' && entry.kind === 'file')
   if (manifests.length === 0) return Object.freeze({ rejected: 'manifest_missing' } as const)
   const manifest = manifests[0]
-  if (manifest === undefined || manifest.kind !== 'file' || typeof manifest.text !== 'string')
-    return malformed('M16')
-  const parsed = readSkillMd(manifest.text)
-  if (!('ok' in parsed)) return parsed
+  const parsed =
+    manifest?.kind === 'file' && typeof manifest.text === 'string'
+      ? readSkillMd(manifest.text)
+      : malformed('M16')
   const resources: ResourceEntry[] = []
   let definition: JsonValue | undefined
   let malformedEntry = false
@@ -56,19 +59,17 @@ export function readSkillPackage(
         }),
       )
   }
-  const pkg = copyJson({
-    manifest: parsed.ok.manifest,
-    body: parsed.ok.body,
+  const facts = copyJson({
+    ...('ok' in parsed ? { manifest: parsed.ok.manifest } : {}),
     ...(definition === undefined ? {} : { definition }),
     resources,
   })
+  if (!object(facts)) throw new Error('inconsistent Skill observations')
+  const known = knownSkillRejection(facts, context, escaped)
+  if (known !== undefined) return known
+  if (!('ok' in parsed)) return parsed
+  const pkg = copyJson({ ...facts, body: parsed.ok.body })
   const judgment = judgeSkillPackage(pkg, context)
-  if (
-    'rejected' in judgment &&
-    ['name_mismatch', 'definition_format_unsupported'].includes(judgment.rejected)
-  )
-    return judgment
-  if (escaped) return Object.freeze({ rejected: 'resource_escapes' } as const)
   if ('rejected' in judgment) return judgment
   if (unreadableDefinition) return Object.freeze({ rejected: 'malformed' } as const)
   if (duplicate) return malformed('M8')
