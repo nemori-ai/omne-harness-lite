@@ -37,10 +37,14 @@ export function instantFromRfc3339(value: unknown): Parsed<Instant> {
     string,
   ]
   const millis = frac === undefined ? 0 : Number(`0.${frac}`) * 1000
-  const base = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s))
+  // Date.UTC remaps years 0..99 to 1900..1999; setUTCFullYear preserves
+  // the four-digit RFC 3339 year, including leap year 0000.
+  const check = new Date(0)
+  check.setUTCFullYear(Number(y), Number(mo) - 1, Number(d))
+  check.setUTCHours(Number(h), Number(mi), Number(s), 0)
+  const base = check.getTime()
   if (Number.isNaN(base)) return invalidInput('Instant: invalid calendar value')
-  // 拒绝 Date.UTC 会静默进位的值（如 2026-02-30）。
-  const check = new Date(base)
+  // 拒绝 Date setters 会静默进位的值（如 2026-02-30）。
   if (
     check.getUTCFullYear() !== Number(y) ||
     check.getUTCMonth() !== Number(mo) - 1 ||
