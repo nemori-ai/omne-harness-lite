@@ -7,7 +7,7 @@
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 |---|---|---|---|
-| V-1 结构性质 (i)～(x) | 契约侧是 Alloy 模型 `Evaluation.als`（**不是 formal task、不可绑定**）；实现侧须有对应的规范场景或性质测试，否则模型结论落不到实现上 | 未开始。契约侧的依据是 M31 之后的那次重跑（[契约验证入口](../../../../spec/capabilities/asset-evaluation/verification.md#已执行组合根只作身份之后的-alloy-运行2026-09-25)：十八条命令、十三个变异体与预期一致，**未登记为 formal task、原始输出未入 record/evidence**）；它**不建失败值**（`compositionCycle`、`categoryUnsupported`），M31 的三处改动按构造、不作证据 | 本节点：选几条模型性质写成实现上的性质测试（随机持有、锁、禁用组合）；随机生成器产出含 plugin 或 sub-agent 的组合时，断言结果是 `categoryUnsupported`，不是一份结果 |
+| V-1 结构性质 (i)～(x) | 契约侧是 Alloy 模型 `Evaluation.als`（**不是 formal task、不可绑定**）；实现侧须有对应的规范场景或性质测试，否则模型结论落不到实现上 | 未开始。契约侧的依据是 M31 之后的那次重跑（[契约验证入口](../../../../spec/capabilities/asset-evaluation/verification.md#已执行组合根只作身份之后的-alloy-运行2026-09-25)：十八条命令、十三个变异体与预期一致，**未登记为 formal task**；原始输出已在 [2026-09-25-alloy-asset-evaluation](../../../../record/evidence/2026-09-25-alloy-asset-evaluation/README.md) 登记）；它**不建失败值**（`compositionCycle`、`categoryUnsupported`），M31 的三处改动按构造、不作证据 | 本节点：选几条模型性质写成实现上的性质测试（随机持有、锁、禁用组合）；随机生成器产出含 plugin 或 sub-agent 的组合时，断言结果是 `categoryUnsupported`，不是一份结果 |
 | V-2 四格齐全的一次求值（S-33，E-1） | 五个集合与 E-1 逐项相等，`root` 是 `root.definition` 且不在 `composition` 里；同一输入重放；改一项权限只动那一项 | 未开始 | 本节点 |
 | V-3 先禁用后替换（S-34，E-2a、E-2b） | 规范场景 | 未开始 | 本节点 |
 | V-4 清单读入的留痕（S-35，E-3） | `readWorkspaceCarrier` 对 E-3 的持有与 `dropped` 逐项相等 | 未开始 | 本节点 |
@@ -27,12 +27,12 @@
 
 ## 实际执行
 
-尚无。源码不存在。契约侧 Alloy 运行的结论只在契约验证入口有记录，不是本节点的证据。
+尚无实现运行。源码不存在。契约侧 Alloy 原始输入与输出已登记在 [2026-09-25-alloy-asset-evaluation](../../../../record/evidence/2026-09-25-alloy-asset-evaluation/README.md)；当前 `Evaluation.als` 与记录输入同 SHA256 `6935da2259130aafea0e770dad7c94578152fd517e3ef5d2f7bd006a8bba505f`。这次有限结构检查不是实现证据，也不是可绑定的 formal task。
 
 ## 覆盖缺口
 
 - **契约的每一条都没有实现侧证据**：没有源码，空绑定表与此一致。owner：本节点。
-- **Alloy 模型不可绑定**：结构性质只有模型侧结论，而且 2026-09-25 那次重跑的原始输出**未登记进 record/evidence**——契约侧的依据目前只由契约验证入口的文字记录支撑。实现侧须另写性质测试（V-1 行）。owner：本节点（性质测试）；主线（把那次运行登记成 evidence run）。
+- **Alloy 模型不可绑定**：2026-09-25 的原始输出已登记，输入与当前冻结模型一致；有限结构结论仍不能代替实现侧性质测试（V-1 行）。owner：本节点（实现性质测试）。
 - **两个诊断的内容不可比对**：`cycle`、`category` 的具体内容契约豁免了确定性（S-11 的两处例外），有几个环、几类读不了时，V-10、V-11 只能核「有没有、首尾相接、类别在不在读不了的那两类里」，不能逐字核（E-7 A 支只有一个一元环，逐字核得了）。这是契约的选择，不是缺证据。
 
 ## 独立评审

@@ -99,3 +99,5 @@ evidence/
 **2026-09-23 黑盒端到端验收**：[`2026-09-23-e2e-governance-center/`](2026-09-23-e2e-governance-center/README.md)——照部署方式起 `serve` 进程，零产品包引用的测试客户端走 PF-001 flows §一／§二 与 PF-017 acceptance §一／§二；46 条场景全过，产品正文与冻结契约说法不一致三处只记观察（`output/anomalies.txt`）。**独立复跑与四态判定**：[`2026-09-23-e2e-governance-center-2/`](2026-09-23-e2e-governance-center-2/README.md)——干净检出从零构建复跑 46/46 同样通过，手动演练走完；对上一次 run 的 109 行场景逐行判：Pass 54、Pass with issues 20（断言比正文弱或前提有界，逐条列出）、Fail 2（就是那两处产品正文与契约不一致）、Unable to verify 33；遮蔽用独立采集的秘密清单与结构扫描复核，0 命中。
 
 返回[已发生的事](../README.md)。
+
+**2026-09-26 core 首批实现验证**：[`2026-09-26-tests-core-foundation/`](2026-09-26-tests-core-foundation/README.md) 保存 kernel-basis、identity-values、offer-expiry、storage 与 content-blocks 的实际运行、输入快照和失败原文。30／259／31／306 项包内测试及 storage 两项有效性自测分别沿该 run 的范围读取；规则自测最终 101 项与真实 24 规则扫描另列。storage 原 spoke 日志丢失只采用保存的 HUB 复验；content 首次扫描失败与修正后结果分别保留。消费者组合、实际准入与各 JSON 传递边界不因本轮包内通过而闭合，用户总体验收尚未发生。
