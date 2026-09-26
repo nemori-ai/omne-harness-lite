@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 定义与装配
 status: active
-revision: 10
+revision: 12
 relations:
   supersedes: []
   depends-on:
@@ -82,15 +82,12 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 10**，已定稿（**rev 10 让[技能在系统提示词里的那一格](design.md#52-三段结构是递归的)跟上
-  [PF-006 rev 15 的常驻](../PF-006-tools-and-skills/design.md#常驻)**：常驻的才进，进的是 name 与说明；
-  rev 9 接住[工作区那一级的内容在装配时自动进来](design.md#装配)——跟上 [PF-002 rev 10](../PF-002-assets-settings-and-permissions/changelog.md)；
-  rev 8 把[执行环境](design.md#执行环境)从「注入的三样之一」改判为「装配留下两样、落点每次执行现算」——跟上 [PF-005 rev 4](../PF-005-execution-environments-and-sandboxes/changelog.md)）
+- 产品设计：**rev 12，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**两项**——[「master 的全套机制」包含哪些](design.md#九未决项)、
   [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
 - 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。
   **第一条更要紧**：`non-master` 是由 master 反向定义的，**那份清单不全，这条线就划不准**
-- 来源问题：**新增一条并已修掉**（[§7 引用了不存在的 §6.8](decisions.md#四已知的来源问题)）；其余仍按原处置
+- 来源问题：[§6.3 判据没有覆盖非常驻条目](decisions.md#四已知的来源问题)那一条**已闭合**（rev 12，主线裁定）；其余仍按原处置
 - 技术投影：**尚未开始**
 
 技术投影按 `harness-design-handbook` skill 展开，

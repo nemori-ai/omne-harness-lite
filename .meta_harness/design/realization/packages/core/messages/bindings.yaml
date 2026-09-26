@@ -1,0 +1,9 @@
+# 条款到证据的绑定表。
+# 空表：data.messages v2 没有登记的 formal task；formal/Readable.als 是 Alloy 模型，不是 formal task
+# （alloy exec 的退出码不判断言，登记它会得到一个永远通过的任务），不可绑定。
+# 源码不存在，没有测试可绑。证据义务与缺口记在 verification.md。
+version: 1
+node: "messages"
+kind: "provider"
+
+bindings: []

@@ -1,0 +1,73 @@
+# 条款到证据的绑定表。
+# 只绑已登记、且断言被证明会失败的 formal task：model-request-runtime-v2-invocation（Invocation.tla + Invocation.cfg）。
+# 六条不变量各有一份恰拧反一个开关的否定配置，在同一份模型（SHA-256 7dafcaa2…）上实跑出反例，
+# 结果登记在契约验证入口 spec/capabilities/model-request-runtime/verification.md「实际执行」。
+# 执行记录：run 2026-09-25-formal-assets-runtimes（record/evidence/2026-09-25-formal-assets-runtimes，HUB 1667ea4c，退出 0）。
+# 不绑：
+# - model-request-runtime-v2-invocation-no-fallback：否定配置都以 AllowFallback = TRUE 构造，
+#   它在「不允许回退」下的断言能否失败未单独演示；它的执行只在 verification.md 登记。
+# - 被建模方式吸收的四条（ProviderAllowed、FirstDispatchFirstProvider、ResumeSameProvider、UndispatchedHasNoDispatch）：
+#   按构造成立，条款被违反时模型不会失败；证据形式是规范场景，见 verification.md。
+# - 只在正向配置里检查过的十条，与进展性质 SentEventuallySettled（依赖弱公平、无否定配置）。
+# - S-39：QuiescentSettled 只覆盖它第四条「在途发出不假装没发生」，不绑整条。
+# 共同前提（除非条目另写）：常量 NumProviders = 2、AllowFallback = TRUE、MaxDispatch = 3、MaxCrashes = 2；
+# 模型只有一次调用、不含 loop 与拓展件（DispatchAgain 与计划是非确定选择）；
+# 「写下一条响应体」「写下一个锚点」是原子动作——追加口的原子性、按 ResponseId 的幂等、确认即落盘
+# 由会话日志提供者承担（节点存储要求 L-1、L-2、L-6；接口 capability.session-log/v2 S-8、S-13、S-17 已定，candidate），
+# 最小提供者节点 session-log-jsonl 已立（candidate、尚未建包）——节点已立不等于有实现兑现它；模型不检查。
+# 模型只覆盖运行时层：公开函数面 invokeModel（design.md「公开面」）不在模型里，函数层也不承诺这几条性质。
+version: 1
+node: "model-request-runtime"
+kind: "provider"
+
+bindings:
+  - clause: "capability.model-request-runtime/v2#S-15"
+    evidence: "formal:model-request-runtime-v2-invocation"
+    assumptions:
+      - "QuiescentSettled（第一行「已出门」先于出网）与 NoDispatchAfterSeen（第二行「已开口」先于被看见）；否定配置 SendBeforeAnchor、SpokeAfterObserve 各出反例"
+      - "模型里「写下」即耐久：确认落盘的语义（L-1）由会话日志提供者承担；锚点写不进的两支（S-15 末条）不在模型里，证据是场景 S-52「已开口写不进」一支"
+      - "run 2026-09-25-formal-assets-runtimes：退出 0；结论只在共同前提的常量内成立"
+    alignment_checked: 2026-09-25
+
+  - clause: "capability.model-request-runtime/v2#S-17"
+    evidence: "formal:model-request-runtime-v2-invocation"
+    assumptions:
+      - "AtMostOneBodyPerDispatch：先到者赢、同一次发出至多一条响应体；否定配置 NonIdempotentSettle 出反例（宿主停止时正常收场与撤除结算各写一条）"
+      - "模型里「先看有没有、再写」是一个原子动作；实现里由会话日志上以 ResponseId 拼的判重键兑现（L-2；capability.session-log/v2#S-8，判定与写入同一步 #S-14），跨 owner 的那一半（loop 的回复与响应体一次写下）不在模型里，证据是真并发演练 C-1"
+      - "reply_pending、settleReply、结算不受栅栏拒收都不在模型里"
+      - "run 2026-09-25-formal-assets-runtimes：退出 0"
+    alignment_checked: 2026-09-25
+
+  - clause: "capability.model-request-runtime/v2#S-22"
+    evidence: "formal:model-request-runtime-v2-invocation"
+    assumptions:
+      - "第 4 条（开口之后不再发出，跨尝试）：NoDispatchAfterSpoke 与 NoDispatchAfterSeen；否定配置 NoGuard_Spoke、SpokeAfterObserve 出反例"
+      - "第 3 条（只在策略类故障或首 token 之前失联之后再发）：ContinuationOnlyAfterStrategyOrSilentLoss；否定配置 NoGuard_Fact 出反例"
+      - "第 2、5 条与续接同一家被建模方式吸收（FirstDispatchFirstProvider、ProviderAllowed、ResumeSameProvider），本条不据它们成立；只在允许回退的常量下演示过会失败"
+      - "run 2026-09-25-formal-assets-runtimes：退出 0"
+    alignment_checked: 2026-09-25
+
+  - clause: "capability.model-request-runtime/v2#S-30"
+    evidence: "formal:model-request-runtime-v2-invocation"
+    assumptions:
+      - "守卫 1（already_spoke）与守卫 2（fact_class）：NoDispatchAfterSpoke、ContinuationOnlyAfterStrategyOrSilentLoss；否定配置 NoGuard_Spoke、NoGuard_Fact 出反例"
+      - "守卫 3（provider_not_allowed）是 DispatchAgain 的前置 Allowed(p)，不受开关控制、被建模方式吸收，本条不证它；计划里出现别的成员 ⇒ invalidInput 不在模型里"
+      - "只读判定面 S-50 与 dispatchAgain 同一张表，模型没有另建它"
+      - "run 2026-09-25-formal-assets-runtimes：退出 0"
+    alignment_checked: 2026-09-25
+
+  - clause: "capability.model-request-runtime/v2#S-31"
+    evidence: "formal:model-request-runtime-v2-invocation"
+    assumptions:
+      - "④⑧ 意图先落再中止：NoDispatchAfterInterrupt；否定配置 AbortBeforeIntent 出反例（叫停 → 停机 → 对账当成失联 → 续接再发）"
+      - "只作用于一个 callId（③）与 session 归属不在模型里（模型只有一次调用），证据形式是 examples 第 8 节与场景"
+      - "run 2026-09-25-formal-assets-runtimes：退出 0"
+    alignment_checked: 2026-09-25
+
+  - clause: "capability.model-request-runtime/v2#S-33"
+    evidence: "formal:model-request-runtime-v2-invocation"
+    assumptions:
+      - "对账表：QuiescentSettled（失联的发出被追补、不被遗忘）与 NoDispatchAfterInterrupt（意图行先于失联行）；否定配置 SendBeforeAnchor、AbortBeforeIntent 出反例"
+      - "模型里 Reconcile 不区分新尝试触发还是会话重新承载触发，也不含不属于任何运行的调用；追补体的路由留痕与参数三项从「已出门」读不在模型里，证据是场景 S-42"
+      - "run 2026-09-25-formal-assets-runtimes：退出 0"
+    alignment_checked: 2026-09-25

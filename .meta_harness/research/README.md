@@ -118,7 +118,10 @@
 - [模型请求传输的来源：pi-ai 与 minimal-runtime 的现状](model-request-transport-sources/README.md) — pi `3390bd9`（0.86.1）/ 本仓库钉的 0.85.1 + 补丁 / minimal-runtime `d79484d`，D-019 比较门逐项现状，取证 2026-09-23（离线），消费者为块 C 的架构读数与「模型传输比较门」补记（待出现）
 - [Loop 拓展点与两家 hooks 的兼容层：Claude Code、Codex 与 DSH hook-protocol](loop-extension-hooks-compat/README.md) — Claude Code 文档 2026-09-23 抓取（`sources/` 钉字节）+ 本机 `2.1.280` 实例 / Codex `5c5308f` / DSH `c291e796`，两家事件→PF-012 十一位置映射全表，取证 2026-09-23，消费者为提案「hooks 兼容层基线」（待出现）
 - [消息数据模型与流协议的起点：DSH llm、DSH 会话格式、pi-ai 与 minimal-runtime](message-model-and-stream-sources/README.md) — DSH `c291e796` / pi `3390bd9` / minimal-runtime `d79484d`，PF-009/010/012/013 条款逐行三源对照（五种判定），取证 2026-09-23，消费者为提案「消息与流基线」（待出现）
+- [主流 AI 助手产品里与「连接件」相近的功能：完整产品设计是什么样](connector-products/README.md) — Anthropic（Claude.ai Connectors／Claude Code channels、routines、in Slack／Claude Tag／Cowork）与 OpenAI（ChatGPT connectors／plugins、应用事件触发的 scheduled tasks、API connectors 与 webhooks）2026-09-24 线上文档，参照 Slack Events API／GitHub Webhooks／Zapier／IFTTT 的事件目录与订阅范式；help.openai.com 不可访问只记待验证，取证 2026-09-24，消费者为 PF-002 连接件「事件类型目录与订阅」方向的产品裁决（待出现）
 - [斜杠命令的识别与解析：五个来源怎么认、怎么分、怎么留痕](slash-command-parsing-sources/README.md) — Codex `5c5308f`（TUI 取自同 SHA 克隆，未钉字节）/ Claude Code `2.1.280` 文档字节 + 本机实测 / DSH `c291e796` / omne-next `6263fed` / pi `3390bd9`（只作对照），取证 2026-09-23，消费者为提案「斜杠命令识别与解析基线」（待出现）
+
+- [TypeScript 里「可配置重试策略」的现成库：cockatiel、p-retry 与同类](ts-retry-policy-libraries/README.md) — `cockatiel@4.0.0` / `p-retry@8.0.1` / `retry@0.13.1` / `exponential-backoff@3.1.3` / `async-retry@1.3.3` / `ts-retry-promise@0.8.1` / `@lifeomic/attempt@3.1.0` / `promise-retry@2.0.1`，参照 `tenacity@9.1.4` 与 `effect@3.22.2`；tarball 源码钉字节、Node `v24.18.0` 探针实测，取证 2026-09-25，消费者为 D-063 R-6 的落点（MRR 节点 P-5、契约 G-8、W-10b，待出现）
 
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 

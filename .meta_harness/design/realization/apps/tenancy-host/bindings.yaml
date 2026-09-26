@@ -8,7 +8,9 @@
 # 不绑（证据登记在 verification.md）：
 #   - R-U1～R-U8（PF-017 §6.9、§6.10 的承接）、D-026 的 pg 接线、kernel-basis 的 no-testing-import、CV 换代演练——不是契约坐标；
 #   - IV 第六节的表行——没有 S- 条款号；
-#   - registry 的 formal task 与 kernel-basis 的 probe——证的是契约模型与内核语义，在本节点的装配语义消失时不会失败；probe 作为 basis 记在各绑定里。
+#   - registry 的 formal task 与 kernel-basis 的 probe——证的是契约模型与内核语义，在本节点的装配语义消失时不会失败；probe 作为 basis 记在各绑定里；
+#   - 2026-09-25 本程追加（候选，尚未实现）：AG S-50、AT S-34、OG v2 S-42、MPD S-22 在本节点的承接——源码与测试都不存在，没有会失败的证据，一条不绑
+#     （义务在 verification.md 标「本程追加（候选）」的五行，全部未开始）。
 # 共同前提：sqlite 临时文件库（pg 另注）、单主机、Node v24.18.0、vitest 4.1.11；真实八插件经本节点 boot() 装出，除非另注；
 # 「回拨」是改写 clock_lease 行模拟的，「崩溃」是对子进程 SIGKILL；每条只跑一次。
 version: 1

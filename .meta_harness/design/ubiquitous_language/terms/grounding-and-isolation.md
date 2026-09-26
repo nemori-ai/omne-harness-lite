@@ -27,7 +27,7 @@
 > change the action space**.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 10） · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 5） · [PF-005 §6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5）
+- **出处**：[PF-004 §4 执行环境](../../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 12） · [PF-005 §4](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 6） · [PF-005 §6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 6）
 - **注意 ①**：**它的存活与 agent runtime 无关**——可能短得多（一次工具调用就结束），也可能长得多（绑定在租户）
 - **⚠️ 注意 ②**：**它不是一个被注入的取值。**装配留下的是
   「需要哪几类环境」与「装进来哪些[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)」两样，
@@ -49,7 +49,7 @@
 > possible.
 
 - **形态**：变体（父：[执行环境](#ul-execution-environment--执行环境--execution-environment)）
-- **出处**：[PF-005 §4 沙箱](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱)（rev 5）
+- **出处**：[PF-005 §4 沙箱](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱)（rev 6）
 - **别混**：与[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)不是一回事——**后者是装配进来的那个提供者**，前者是**这次执行落进去的那个隔离环境**
 - **注意**：**沙箱不是资产**
 
@@ -69,7 +69,7 @@
 > the host machine is not among them — it needs no plugging in.
 
 - **形态**：对象
-- **出处**：[PF-005 §4 沙箱实现](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 5） · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5）
+- **出处**：[PF-005 §4 沙箱实现](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 6） · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 6）
 - **别混**：**不是[沙箱](#ul-sandbox--沙箱--sandbox)本身**——一个沙箱实现可以起出很多个沙箱
 - **注意 ①**：**它不是资产**——[理由与沙箱那条一样](../../product/PF-005-execution-environments-and-sandboxes/design.md#67-沙箱不是资产)：资产约束 agent 由什么组装而成，它提供的是动作落地的地方
 - **注意 ②**：**这次执行要落隔离环境时，拿设施与层级去匹配已装配的这些；
@@ -94,8 +94,9 @@
 > an effect may land directly on it must be explicitly permitted**.
 
 - **形态**：变体（父：[执行环境](#ul-execution-environment--执行环境--execution-environment)）
-- **出处**：[PF-005 §4 宿主机](../../product/PF-005-execution-environments-and-sandboxes/design.md#宿主机)（rev 5） · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 5） · [§6.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（rev 5）
-- **⚠️ 别混**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**命令行交付形态下两者恰好是同一台机器（[PF-016](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)），但宿主机回答「一次工具执行的作用落在哪」、每次执行现算，据点回答「这些会话的事实存在哪」
+- **出处**：[PF-005 §4 宿主机](../../product/PF-005-execution-environments-and-sandboxes/design.md#宿主机)（rev 6） · [§6.1](../../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 6） · [§6.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#62-宿主机不提供租户隔离因此必须被显式允许)（rev 6）
+- **⚠️ 别混 ①**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**命令行交付形态下两者恰好是同一台机器（[PF-016](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点)），但宿主机回答「一次工具执行的作用落在哪」、每次执行现算，据点回答「这些会话的事实存在哪」
+- **⚠️ 别混 ②**：**裸写「宿主」不是它**——词表里「宿主」指承载一个协程或一段执行、它没了那一段就跟着没了的那一方（agent runtime、会话；见[取消跟着宿主走](agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)），在[领域对象条目](../../domain_objects/conventions.md#一条对象条目长什么样)里是「寿命跟着谁」那一栏；hooks 来自的第三方 agent 产品（Claude Code、Codex）也不是宿主，规格里另有称呼。这几个所指都不是宿主机
 - **注意 ①**：**它不被装配**——要装配的是[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)，而且是可选的
 - **注意 ②**：**沙箱创建失败不得退回宿主机**——那等于绕过安全判断
 - **注意 ③**：**[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)的承载目录不是它上面的边界**——
@@ -111,7 +112,7 @@
 > goes with it — there was never anything meant to be kept.
 
 - **形态**：对象
-- **出处**：[PF-005 §5.1 四种执行环境](../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 5）
+- **出处**：[PF-005 §5.1 四种执行环境](../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 6）
 - **别混**：它「不绑定」是因为**用完就扔**；宿主机「不绑定」是因为**大家共用**。
   **两个「不绑定」含义相反**，这正是分类必须拆成两维的原因
 
@@ -127,8 +128,8 @@
 > the session need one again, **a fresh one is built and the clock starts over**.
 
 - **形态**：对象
-- **出处**：[PF-005 §5.1 四种执行环境](../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 5） ·
-  [§6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 5）
+- **出处**：[PF-005 §5.1 四种执行环境](../../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 6） ·
+  [§6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 6）
 - **注意**：**同一个执行环境里的终端会话会一起消失**——环境是它们的宿主，agent **必须被告知**
 
 ### UL-tenant-sandbox · 租户级沙箱 · Tenant-Scoped Sandbox
@@ -147,7 +148,7 @@
 > migratable**, lasting as long as the tenant does.
 
 - **形态**：对象
-- **出处**：[PF-005 §5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 5） · [§6.4](../../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 5）
+- **出处**：[PF-005 §5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 6） · [§6.4](../../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 6）
 
 ### UL-sandbox-data · 沙箱数据 · Sandbox Data
 
@@ -162,7 +163,7 @@
 > be lost" both hold.**
 
 - **形态**：对象
-- **出处**：[PF-005 §4 沙箱内的数据](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 5） · [§5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 5）
+- **出处**：[PF-005 §4 沙箱内的数据](../../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 6） · [§5.2](../../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 6）
 
 ### UL-environment-facility · 环境设施 · Environment Facility
 
@@ -179,7 +180,7 @@
 > facilities.
 
 - **形态**：属性
-- **出处**：[PF-005 §4 设施](../../product/PF-005-execution-environments-and-sandboxes/design.md#设施)（rev 5）
+- **出处**：[PF-005 §4 设施](../../product/PF-005-execution-environments-and-sandboxes/design.md#设施)（rev 6）
 - **别混**：**裸写「设施」不作数**——它专指执行环境声明的这一层
 - **注意**：**环境声明自己提供什么**归这里；**工具声明自己需要什么怎么声明**归工具那一块；
   [匹配不上的后果归 PF-005](../../product/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)
@@ -197,7 +198,7 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 16） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 5）
+- **出处**：[PF-007 §6.4 `Shell()`](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 18） · [PF-005 §6.3](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 6）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
@@ -223,7 +224,7 @@
 
 - **形态**：属性
 - **出处**：[PF-005 §4 执行环境权限](../../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境权限) ·
-  [§6.8](../../product/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)（rev 5）
+  [§6.8](../../product/PF-005-execution-environments-and-sandboxes/design.md#68-执行环境权限每个工具各配各的)（rev 6）
 - **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
   **两者都是三态、都曾各有一个 `auto`**，但**一个决定「准不准」，一个决定「落在哪」**，
   而且**会在同一次执行里一前一后出现**。**两个名字特意分开取**：`auto_permission` 对 `auto_place`
@@ -242,6 +243,27 @@
   **这一项不是 `never-allow`，就是能用**
 - **弃用**：~~「执行安全策略」~~（指的是**把这一项配成 `never-allow`** 那件事，是同一项权限的配值） ·
   ~~「使用宿主机的资格」~~（＝**这一项不是 `never-allow`**）
+
+### UL-target-environment · 目标环境 · Target Environment
+
+> **中**：**工具的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：这个工具的执行需要一个什么样的[执行环境](#ul-execution-environment--执行环境--execution-environment)**，
+> 形状是「绑定在哪一层 × 要哪几种[设施](#ul-environment-facility--环境设施--environment-facility)」。
+> 默认值是工具作者的判断；持有它的组织、租户可以在自己那一层改，**工作区改不了**。
+> **求值出来的那一份就是这次执行的要求**，运行时按它自动匹配；**满足不了，这个工具就不可用——绝不降级满足**。
+>
+> **EN**: **A placement-and-identity setting on a tool: what kind of execution environment its executions
+> require**, shaped as "bound at which level × needing which facilities". The default is the tool author's
+> judgement; holding organizations and tenants may change it at their own level, **the workspace may not**.
+> **The evaluated value is this execution's requirement**, matched automatically at run time; **if it cannot
+> be met, the tool is unavailable — never satisfied by a lesser environment**.
+
+- **形态**：属性
+- **出处**：[PF-006 §6.8 工具怎么提执行环境的要求](../../product/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) ·
+  [§5.3 其中两项声明的是设置项](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)（rev 19） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 20）
+- **别混**：**它说的是「要什么」**；[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)说的是「许落在哪」；
+  这次执行实际落在哪，是按两者**每次现算**出来的——执行环境权限改了，下一次执行按新值现算，不必重建任何东西
+- **注意**：**不声明就是没有特殊要求**——它是工具定义里那项「需要什么样的执行环境」声明落成的设置
 
 ### UL-session-base · 会话据点 · Session Base
 
@@ -269,7 +291,7 @@
 - **出处**：[PF-016 §4 会话据点](../../product/PF-016-cli-tui-delivery-surface/design.md#会话据点) ·
   [§5.2](../../product/PF-016-cli-tui-delivery-surface/design.md#52-一个账号在一处怎么被装起来) ·
   [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧) ·
-  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 7）
+  [§6.16](../../product/PF-016-cli-tui-delivery-surface/design.md#616-没人开着屏这一处照常发生事)（rev 8）
 - **⚠️ 别混**：**不是[宿主机](#ul-host-machine--宿主机--host-machine)。**
   本交付形态下两者**恰好是同一台机器**，但**回答的问题不同**：
   宿主机回答「一次[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)的作用**落在哪**」，
@@ -304,7 +326,7 @@
 - **形态**：对象
 - **出处**：[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心) ·
   [§5.1](../../product/PF-016-cli-tui-delivery-surface/design.md#51-三处地方各自拥有什么) ·
-  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 7）
+  [§5.6](../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)（rev 8）
 - **⚠️ 别混**：**不是[会话据点](#ul-session-base--会话据点--session-base)。**
   **分界不是「治理 vs 会话」那么粗**：**对同一个组织里的别人也成立的**在中心一侧，
   **只对这台机器上这个人的这段协作成立的**在据点一侧
@@ -381,5 +403,44 @@
   [§6.15](../../product/PF-017-governance-center-as-deployable-application/design.md#615-部署参数由运维者给值起动时读缺一不可)（rev 5）
 - **⚠️ 别混**：不是范围化对象，也不是[设置](capabilities-and-composition.md#ul-asset--资产--asset)——设置挂在层上、按范围求值，它对全中心一律生效
 - **注意**：「统称」不是一张表——每一项各自有值、各归自己的 topic；本 topic 只说谁给、何时生效、改了怎么算
+
+### UL-credential-custodian · 凭据保管方 · Credential Custodian
+
+> **中**：**拿着凭据本体——那个秘密的值——的那一方。**凭据在别处只以引用或「配没配」出现，
+> 要值只能向它取；**它只按条件交出**：值只交给凭着这把凭据所属的那个[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)
+> 或那份[持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)来取的一方，
+> **条件不成立就不交，不拿别的租户、别的范围那一把顶上**。本体落在它之外的任何持久介质上，**只以加密形式存在**。
+> **它只保管，不决定配哪一把**：配上、换一把、解绑，都不经它判。
+>
+> **EN**: **The party that holds a credential's body — the secret value itself.** Everywhere else a
+> credential appears only as a reference or as whether one is configured; the value can be obtained
+> from the custodian alone, and **it hands the value over only on conditions**: only to a caller asking
+> on behalf of the tenant or the holding the credential belongs to — **when the conditions fail it hands
+> nothing over, never substituting another tenant's or another scope's credential**. Wherever the value
+> rests on durable storage outside the custodian, **it rests encrypted**. **It keeps credentials; it does
+> not decide which one is configured** — setting, replacing or unbinding one is not its call.
+
+- **形态**：属性
+- **出处**：[UL-D-5](../decisions.md#ul-d-5--凭据保管方--2026-09-25)（依据 D-063 R-1，定义由 PM 起草）
+- **⚠️ 别混**：**不是[模型凭据](capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential)，
+  也不是 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)**——
+  那两样说的是「配的是哪一把」，是租户或持有上的一项值；这一条说的是**那一把的值放在谁手里、谁取得到**
+- **注意 ①**：**本版只有[会话据点](#ul-session-base--会话据点--session-base)这一侧有它**：每个据点一份，
+  保管这个据点上各租户那一把模型凭据的副本——[离线时用的就是手上这份](../../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据)——
+  和经 OAuth 取得的 MCP 凭据；中心那一侧的保管不在本版（`capability.credential-custodian` v2）
+- **注意 ②**：**它不判这把凭据在上游还算不算数**——据点上的副本是写下时的那一把，
+  中心上换过、撤过，要等这台机器再连上中心、重写副本才知道
+- **注意 ③**：**加密挡的是没有密钥的拷贝与备份，以及另一个据点**；同一台机器上以同一个操作系统身份跑、
+  密钥与密文都够得着的进程，它不挡——[宿主机那一层不隔离](../../product/PF-016-cli-tui-delivery-surface/design.md#64-一台机器上账号之间互不可见但宿主机那一层不隔离)
+
+### UL-subprocess-environment-allowlist · 子进程环境变量名单 · Subprocess Environment Allowlist
+
+> **中**：从父进程环境里向子进程传递变量时，允许传递的变量名集合。只传集合内且父进程实际具有的变量，不自动继承集合外的变量；名单不赋予读取凭据或落到宿主机的权限。
+>
+> **EN**: The set of variable names allowed to pass from a parent process environment to a child. Only listed variables actually present in the parent are copied; unlisted variables are never inherited automatically. The list grants neither credential access nor permission to run on the host.
+
+- **形态**：规则
+- **出处**：[PF-005 §6.10](../../product/PF-005-execution-environments-and-sandboxes/design.md#610-hooks-子进程与环境变量传递)（rev 6）
+- **别混**：不是凭据配置；不同消费者可各配一份名单，名单的含义相同。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

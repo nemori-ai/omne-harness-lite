@@ -29,7 +29,7 @@
 > whom it can communicate with.
 
 - **形态**：过程
-- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 16）
+- **出处**：[PF-007 §6.8 派发有三种模式](../../product/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 18）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -58,7 +58,7 @@
 
 - **形态**：属性
 - **出处**：[PF-007 §6.8 两处分水岭，各自只有一条](../../product/PF-007-meta-capabilities/design.md#两处分水岭各自只有一条) ·
-  [§6.8 报告终结的是这次派发，不是那个会话](../../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 16）
+  [§6.8 报告终结的是这次派发，不是那个会话](../../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 18）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -96,7 +96,7 @@
 > dispatch relationship**, so **two agents that never met can talk**.
 
 - **形态**：规则
-- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 16）
+- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 18）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
   **一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了**。
   **「活跃」就是「未被归档」**（[UL-D-4 裁决 8](../decisions.md#ul-d-4--主会话与子会话--2026-09-21)）——
@@ -134,7 +134,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.8 报告与消息是两样东西](../../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 16）
+- **出处**：[PF-007 §6.8 报告与消息是两样东西](../../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 18）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   **它的会话不会因此被归档，而归档是会话唯一的出口**，派发者[照样发得出消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -160,7 +160,7 @@
 > **indefinitely**, with **no upper bound**.
 
 - **形态**：总称
-- **出处**：[PF-008 §4 HITL](../../product/PF-008-human-in-the-loop/design.md#hitl)（rev 5）
+- **出处**：[PF-008 §4 HITL](../../product/PF-008-human-in-the-loop/design.md#hitl)（rev 7）
 - **⚠️ 注意**：**不设上限是硬的。**设了上限就必须规定「到点算什么」，
   **那就是系统替人作答**——而**「人没回答」与「人回答了随便」是两回事**
 - **注意**：它**不占资源**——问询发生在动手之前，**不花钱的等待没有理由设上限**
@@ -179,7 +179,7 @@
 > wait state**, hanging off a different lifecycle.
 
 - **形态**：状态
-- **出处**：[PF-008 §4 等待态的两个维度](../../product/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 5）
+- **出处**：[PF-008 §4 等待态的两个维度](../../product/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
 - **⚠️ 别混**：**裸写「等待态」不作数**——它有两个所指，**必须说清是 run 的还是工具的**
 - **注意**：`Ask()` 属于**工具**那一列。run 之所以也停住，
   **是因为它恰好是前台调用**——**而不是因为这两个维度是同一件事**
@@ -187,7 +187,7 @@
   由当前这个 run 在下一步消费，**不会另起一个 run**。
   这与[会话内单活跃](agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution)是同一条
 - **注意**：**同一个会话可以同时有别的东西在等**——那些转到后台的工具执行，
-  **各等各的，也不影响 run**
+  **各等各的，也不影响 run**。**本版要等应答的执行只在前台等**，这一格暂不出现；模型照样这么分，将来打开不必改
 
 ### UL-decision-card · 决策卡片 · Decision Card
 
@@ -203,7 +203,7 @@
 > tells which source, and which extension.
 
 - **形态**：对象
-- **出处**：[PF-008 §4 决策卡片](../../product/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](../../product/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 5）
+- **出处**：[PF-008 §4 决策卡片](../../product/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](../../product/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 7）
 - **注意 ①**：**一张卡片只能被答一次**，在会话里答还是在[池子](#ul-decision-pool--决策池--decision-pool)里答**都算数**，
   **答完两处一起消失**——**同一张卡片有两套状态，人就再也不信任这个池子了**
 - **注意 ②**：**「在会话里答」指的是在会话里那张卡片上答，不是发一条消息**。
@@ -230,7 +230,7 @@
 
 - **形态**：视图
 - **出处**：[PF-008 §5.3 一批卡片，与「答完」是什么意思](../../product/PF-008-human-in-the-loop/design.md#53-一批卡片与答完是什么意思) ·
-  [PF-008 flows §3.2 一批卡片](../../product/PF-008-human-in-the-loop/flows.md#32-一批卡片)（rev 5）
+  [PF-008 flows §3.2 一批卡片](../../product/PF-008-human-in-the-loop/flows.md#32-一批卡片)（rev 7）
 - **别混**：与[决策池](#ul-decision-pool--决策池--decision-pool)**分组的依据不同**——
   池子按**租户**把所有等着的卡片摆在一处**给人看**，这一批按**被它阻塞的那一个**收在一起**决定什么时候解除**
 - **⚠️ 注意 ①**：**答到一半，什么都不会发生**——已经拿到的那几个答案**不会先送出去**。
@@ -238,7 +238,10 @@
 - **注意 ②**：**被阻塞的可能是一次前台工具执行、一次后台工具执行，或一个
   [运行](agent-runtime-loop.md#ul-run--运行--run)**——三种情形在人这一侧一模一样，
   **差别只在解除了什么**
-- **注意 ③**：**「作废」只有两条来路**：那个运行被中断，或**会话被归档**
+- **注意 ③**：**「作废」有三条来路**：那个运行被中断；**会话被归档**；
+  **它等的那次执行已经终局**（据点停机后恢复时落了失败、原因「异常中断」），恢复对账时系统把那些卡片关成「已作废」——
+  这不是超时、不是替人作答，卡片上不落任何答案（[PF-008 §6.1 第三条路](../../product/PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答)，§9.1 已按它写成定论）
+- **注意 ④**：被阻塞的是后台工具执行那一种，**本版不出现**——要等应答的执行只在前台等
 
 ### UL-decision-pool · 决策池 · Decision Pool
 
@@ -252,7 +255,7 @@
 > glance.
 
 - **形态**：视图
-- **出处**：[PF-008 §4 决策池](../../product/PF-008-human-in-the-loop/design.md#决策池)（rev 5）
+- **出处**：[PF-008 §4 决策池](../../product/PF-008-human-in-the-loop/design.md#决策池)（rev 7）
 - **⚠️ 注意**：**不存在「组织在等什么」这回事。组织不会等，等的永远是某个会话。**
   把池子当成主体，就会做出一个「组织待办中心」——**它会开始有自己的状态、自己的流转、
   自己的归属，而真正在等的那个 run 反倒被隔在一层之外**
@@ -266,23 +269,27 @@
 > **它既是判官也是撰稿人**。它的输入是三样合起来：
 > **权限设置 + [会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context) + 会话运行模式**。
 > **它是系统自带的一件[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**，
-> 站在「执行动作之前」、干预力可否决，出卡用的是 loop 的[等待原语](agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive)——**自带的不享受特权**。
+> 站在「执行动作之前」、干预力可否决，出卡用的是 loop 的[等待原语](agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive)——**自带的不享受特权**，
+> 只有往严里走的例外：**它不能被替换、禁用或收窄**。
 >
 > **EN**: **A function** run inside a run, **after each model response**: it decides
 > **whether to stop** and **writes the card the person will read** — **it is both judge
 > and drafter**. Its inputs are three things together: the permission settings, the
 > session authorization context, and the session's operating mode. **It is a built-in loop
 > extension**, sitting at "before an action executes" with veto power and raising its card
-> through the loop's wait primitive — **built-in confers no privilege**.
+> through the loop's wait primitive — **built-in confers no privilege**, the only exceptions
+> running towards strictness: **it cannot be replaced, disabled or narrowed**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 5） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 10）
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 15）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
   而**会话里坐着的那个人，未必是设权限的那个人**
 - **注意 ③**：**拿不准就再问一次**——两个方向的代价不对称：该放的没放只是多问一遍，
   **不该放的放了就是做了没有人批准过的事**
+- **注意 ④**：**它此刻不可用时，顶上的是系统预先声明的[全拒件](agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy)**——
+  需要判断的动作一律拒绝，不放行、也不出卡问人，agent 读到的是一次否决、原因写明「放行判断此刻不在」；放行之后到执行之间不重判
 
 ### UL-inquiry · 问询 · Inquiry
 
@@ -296,7 +303,7 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 16）
+- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 18）
 - **别混**：与[请示](#ul-approval-request--请示--approval-request)**形状不同**——
   **问询是开放的，拿到之后接着想；请示是封闭的，拿到之后才动手**
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
@@ -316,7 +323,7 @@
 > declined. **An approval is recorded into the session authorization context.**
 
 - **形态**：过程
-- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 16）
+- **出处**：[PF-007 §6.11 `Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 18）
 - **注意 ①**：**先把事做了再请示，那不叫请示，叫通知**——**人拒绝的时候已经晚了**
 - **注意 ②**：**翻不出裁决就不要翻。**人的回答常常不落在准/驳上（「第二封改改语气再发」）——
   **替人合成一个裁决等于伪造签字**
@@ -339,7 +346,7 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[PF-007 §4 会话授权上下文](../../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 16）
+- **出处**：[PF-007 §4 会话授权上下文](../../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 18）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
@@ -379,7 +386,7 @@
 > permission setting value**.
 
 - **形态**：对象
-- **出处**：[PF-007 §4 一笔授权表达有三个维度](../../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 16）
+- **出处**：[PF-007 §4 一笔授权表达有三个维度](../../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 18）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
@@ -405,7 +412,7 @@
 > and **both leave a trace**.
 
 - **形态**：对象
-- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 5）
+- **出处**：[PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 7）
 - **别混 ①**：**它不是一条[消息](record-and-context.md#ul-message--消息--message)。**
   消息回答**谁在说话**；入站到达回答**外面送进来了一件什么事**。
   **有的到达会成为消息**（进[待处理消息队列](agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue)），
@@ -416,6 +423,30 @@
 - **注意**：**「从哪个通道进来」是它的一个属性，不是它的种类**——
   交付面、连接件送达、定时到点、别的会话捎话，**同一套受理规矩，差别只在取值**；
   **斜杠命令不是来源取值**，它是经交付面进来的到达在受理时被认出的内容标注
+
+### UL-inbound-target · 投递目标 · Inbound Target
+
+> **中**：**[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：它送进来的外部消息进哪个[会话](agent-runtime-loop.md#ul-session--会话--session)。**
+> **它是连接件[两种投递方式](../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同)里 ①「已有的会话开口接收」那一路的配置，本版只指一个已有的会话**——走这一路送进来的都落进那一个；按对面的线程分进不同会话，本版没有。
+> **连接件的事件经受理开出一个新会话是另一种方式（②）**，它的配置是触发会话的默认运行模式，不是这一项；受理怎么开那个新会话归 PF-014，新会话怎么建归 PF-015。
+> 各层按持有配值，**工作区那一级配不了它**。
+>
+> **EN**: **A placement-and-identity setting on a connector: which session the external messages it
+> brings in go to.** **It configures mode ① of the connector's two delivery modes — an existing session
+> opening itself to receive — and in this version names exactly one existing session**; everything delivered
+> that way lands there, and splitting the far side's threads across sessions does not exist in this version.
+> **A connector event opening a new session through intake is the other mode (②)**, configured by the default
+> run mode for triggered sessions, not by this entry; how intake opens that session belongs to PF-014 and how
+> the session is created to PF-015. Layers assign it through their holdings; **the workspace level cannot set
+> it**.
+
+- **形态**：属性
+- **出处**：[PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) ·
+  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 20） ·
+  [PF-014 §5.7 穷举一](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 7）
+- **别混 ①**：**不是[交付面](#ul-delivery-surface--交付面--delivery-surface)**（Delivery Surface）——那是人碰到这个系统的那一面，这里是连接件把外面的消息送往哪里
+- **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**——那是 MCP 接入点往外连到哪，方向相反
+- **注意**：送进来的消息**受理之后怎么走**，归[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)那一套，与它无关
 
 ### UL-business-flow-extension-point · 业务流程拓展点 · Business Flow Extension Point
 
@@ -456,7 +487,7 @@
 > defines that action**.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 5）
+- **出处**：[PF-014 §4 控制指令](../../product/PF-014-inbound-intake-and-queueing/design.md#控制指令)（rev 7）
 - **别混 ①**：**与[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)不是一回事。**
   绑定提示词或 skill 的斜杠命令是**内容**——它要 agent 去做一件事，因此进队列；
   绑定系统业务流程的那种不进队列，但它触发的是一条业务流程、留一条记录，也不是处置；
@@ -482,7 +513,7 @@
 > why**.
 
 - **形态**：变体（父：[控制指令](#ul-control-command--控制指令--control-command)）
-- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 5）
+- **出处**：[PF-014 §4 插队](../../product/PF-014-inbound-intake-and-queueing/design.md#插队)（rev 7）
 - **别混 ①**：**它不终止[运行](agent-runtime-loop.md#ul-run--运行--run)。**
   这是它与**取消**最要紧的差别：取消让运行落终态，
   **插队只是把运行推到下一次取消息那一点**，运行一直活着
@@ -492,6 +523,8 @@
 - **注意 ①**：**它是系统唯一的加急通道**，[不设第二种优先级](../../product/PF-012-agent-loop-and-run/design.md#先到先处理只有一个例外)
 - **注意 ②**：**它会解除 loop 里各种等待态**，其中悬着的[决策卡片](#ul-decision-card--决策卡片--decision-card)
   按「**人明确拒绝回复**」处置——**取消视作拒绝是无副作用可逆的，反过来不是**
+- **注意 ③**：**被它中断的模型回复不交出动作**——参数已经收齐、还没执行的工具调用也不执行，
+  留在那条被中断的消息里，agent 读完新话自己决定要不要重新发起（[PF-014 §5.4](../../product/PF-014-inbound-intake-and-queueing/design.md#54-插队停在哪就怎么办)）
 
 ## 人从哪一面碰到它
 
@@ -516,7 +549,7 @@
 - **形态**：总称
 - **出处**：[PF-016 §4 交付面](../../product/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](../../product/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
-  [§5.4](../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 7）
+  [§5.4](../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 8）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -541,7 +574,7 @@
 
 - **形态**：状态
 - **出处**：[PF-016 §4 呈现形式](../../product/PF-016-cli-tui-delivery-surface/design.md#呈现形式) ·
-  [§5.5](../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 7）
+  [§5.5](../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 8）
 - **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
   那是「**本该问人的那一刻改怎么办**」，是会话的事，**改变领域行为**；
   这一条是「**这份事实交给谁读**」，是交付面的事，**一个字都不改**
@@ -568,7 +601,7 @@
 
 - **形态**：属性
 - **出处**：[PF-016 §4 观感偏好](../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
-  [§6.12](../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 7）
+  [§6.12](../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 8）
 - **⚠️ 别混**：**不是[元 runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)
   那十四项里的第 3 项「账号级的界面偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
   **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)，

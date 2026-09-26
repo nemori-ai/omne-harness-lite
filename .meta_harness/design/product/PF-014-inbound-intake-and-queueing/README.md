@@ -2,7 +2,7 @@
 id: PF-014
 title: 输入的受理与排队
 status: active
-revision: 5
+revision: 7
 relations:
   supersedes: []
   depends-on:
@@ -23,7 +23,7 @@ relations:
     - id: PF-012
       for: 待处理消息队列、Run 的边界由 loop 进出划定、状态转移表与两层循环的出口、拓展点
     - id: PF-013
-      for: 一次模型调用被中断是它的一种收场，且不带故障成因
+      for: 一次模型调用被中断是它的一种收场，且不带故障成因；用户可以单独中断一次模型调用；转换失败即不落盘
   extends: []
 ---
 
@@ -81,8 +81,10 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 5**，**已定稿**（2026-09-22 由产品负责人定） · [演进过程见变更历史](changelog.md)
+- 产品设计：**rev 7**。rev 5 **已定稿**（2026-09-22 由产品负责人定）；**rev 6、rev 7 待产品负责人确认** · [演进过程见变更历史](changelog.md)
 - 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
+- **连接件的事件可以经受理开出一个新会话**（[§5.7](design.md#57-穷举一什么会让队列从空变成非空) 第四行）：本 topic **只登记这一路存在**；
+  新会话以哪个 agent definition、哪个租户身份建归会话那一块，去重、合并与这一路的验收下次升 rev 时做（[decisions §四](decisions.md#四已知的来源问题)）
 - **本 topic 引入的三个概念已经落进词表**：
   [入站到达](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) ·
   [控制指令](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) ·

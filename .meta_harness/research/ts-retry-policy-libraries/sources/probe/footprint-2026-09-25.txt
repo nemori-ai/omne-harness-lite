@@ -1,0 +1,10 @@
+# 安装体积实测：各候选单独 npm install --ignore-scripts 到空目录，du -sb node_modules；npm 11.16.0，node v24.18.0，2026-09-25
+async-retry_1.3.3 | 49441 bytes | packages=async-retry@1.3.3,retry@0.13.1
+cockatiel_4.0.0 | 291196 bytes | packages=cockatiel@4.0.0
+effect | 30273953 bytes | packages=@standard-schema/spec@1.1.0,effect@3.22.2,fast-check@3.23.2,pure-rand@6.1.0
+exponential-backoff_3.1.3 | 121170 bytes | packages=exponential-backoff@3.1.3
+_lifeomic_attempt_3.1.0 | 70815 bytes | packages=@lifeomic/attempt@3.1.0
+p-retry_8.0.1 | 44345 bytes | packages=is-network-error@1.3.2,p-retry@8.0.1
+promise-retry_2.0.1 | 102177 bytes | packages=err-code@2.0.3,promise-retry@2.0.1,retry@0.12.0
+retry_0.13.1 | 35678 bytes | packages=retry@0.13.1
+ts-retry-promise_0.8.1 | 50394 bytes | packages=ts-retry-promise@0.8.1

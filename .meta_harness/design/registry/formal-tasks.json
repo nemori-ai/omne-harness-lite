@@ -600,6 +600,246 @@
         "spec/compositions/governance-center-entry/v3/formal/Maintenance.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "asset-transfer-v2-transfer",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.tla",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/asset-transfer-v2-transfer",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.cfg",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "asset-transfer-v2-share",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.tla",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer_Share.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/asset-transfer-v2-share",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer_Share.cfg",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "asset-transfer-v2-revival",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.tla",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer_Revival.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/asset-transfer-v2-revival",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-config",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer_Revival.cfg",
+        "spec/capabilities/asset-transfer/v2/formal/Transfer.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "id": "stream-assembly-v2-assembly",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/stream-assembly/v2/formal/Assembly.tla",
+        "spec/capabilities/stream-assembly/v2/formal/Assembly.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/stream-assembly-v2-assembly",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/stream-assembly/v2/formal/Assembly.cfg",
+        "spec/capabilities/stream-assembly/v2/formal/Assembly.tla"
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "id": "model-request-runtime-v2-invocation",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation.tla",
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v2-invocation",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation.cfg",
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v2-invocation-no-fallback",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation.tla",
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation_NoFallback.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v2-invocation-no-fallback",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation_NoFallback.cfg",
+        "spec/capabilities/model-request-runtime/v2/formal/Invocation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "tool-execution-runtime-v2-execution",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/tool-execution-runtime/v2/formal/Execution.tla",
+        "spec/capabilities/tool-execution-runtime/v2/formal/Execution.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/tool-execution-runtime-v2-execution",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/tool-execution-runtime/v2/formal/Execution.cfg",
+        "spec/capabilities/tool-execution-runtime/v2/formal/Execution.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "tool-execution-runtime-v2-execution-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/tool-execution-runtime/v2/formal/Execution.tla",
+        "spec/capabilities/tool-execution-runtime/v2/formal/ExecutionProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/tool-execution-runtime-v2-execution-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/tool-execution-runtime/v2/formal/ExecutionProgress.cfg",
+        "spec/capabilities/tool-execution-runtime/v2/formal/Execution.tla"
+      ],
+      "timeout_seconds": 2400
+    },
+    {
+      "id": "session-log-v2-appends",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v2/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v2/formal/SessionLog.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v2-appends",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v2/formal/SessionLog.cfg",
+        "spec/capabilities/session-log/v2/formal/SessionLog.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "credential-custodian-v2-sweep",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/credential-custodian/v2/formal/Sweep.tla",
+        "spec/capabilities/credential-custodian/v2/formal/Sweep.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/credential-custodian-v2-sweep",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "4",
+        "-config",
+        "spec/capabilities/credential-custodian/v2/formal/Sweep.cfg",
+        "spec/capabilities/credential-custodian/v2/formal/Sweep.tla"
+      ],
+      "timeout_seconds": 900
     }
   ]
 }

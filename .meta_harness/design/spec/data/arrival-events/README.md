@@ -1,0 +1,54 @@
+# 到达事件
+
+**一条消息分次到达时，生产的一方交出的那串事件长什么样**：信封说它属于哪条流，六种事件——开块、填、封口、砍、记账、收尾——
+各自带什么，一条流里能以什么次序出现，以及一个事件不合形状时的拒绝值叫什么。
+
+**一份语法，两个生产者**：模型的回复（长成 `AssistantMessage`）与工具的执行帧（长成 `ToolInternalMessage`）走同一套；
+它是 core 三层（[D-035](../../../record/decisions/message-and-stream-baseline/README.md)）里的第二层——
+语法借 `StreamChunk` 的骨架并条款化。**按它把一条流装配起来的是 `capability.stream-assembly`**，那是本语法唯一的消费方式；
+装配状态由宿主（模型请求运行时、工具执行运行时）持有，包成哪种消息也归宿主。
+
+- **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.arrival-events, 2)`
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-061 的 `acceptance.json`）。`family=data`、`topic=arrival-events`、
+  `contract_path=spec/data/arrival-events/v2/contract.md`，`resources` 另含 `v2/arrival-events.schema.json` 与 `v2/examples.md`；
+  依赖四项：`data.content-blocks` v2、`data.call-accounts` v2（含 `ModelCallId`，S-37）、`data.loop-extension` v2（`FailureCause`，S-17）与 `data.identity-values` v1（S-33），消费 clauses 见[契约头部](v2/contract.md)。
+  **登记在 [registry](../../../registry/README.md)，本行只作索引**
+- **提供者/装配映射**：[packages/core/arrival-events](../../../realization/packages/core/arrival-events/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
+
+## 准入核对
+
+| 准入问题 | 答 |
+|---|---|
+| 语义拥有者 | 本契约。语法被装配器、传输适配、发帧原语与会话出站流共享，写两遍必然分叉；[D-035](../../../record/decisions/message-and-stream-baseline/decision.md) 定了「语法借骨架并条款化」且三层落 core、先于两个运行时的契约 |
+| 稳定身份 | `data.arrival-events`，版本 1 |
+| 适用范围 | 一个部署之内的一条条到达流；跨进程后要由协议重新兑现的，逐行列在[契约 S-25](v2/contract.md#s-25-装配给与协议给) |
+| 为什么是 data 而不是 capability | 它定义值与值序列的合法性，**没有操作、没有自己的状态、不做判定**；持有在途状态、收尾交出消息的是 `capability.stream-assembly` |
+| 精确依赖 | `data.content-blocks` v2（块）、`data.call-accounts` v2（账与砍的原因、模型调用的标识）、`data.loop-extension` v2（成因 `FailureCause`，S-17）、`data.identity-values` v1（S-33 表示层校验与判定分开的口径）。`data.messages` v2 的 S-14、S-10 只以坐标指路（帧流与回复流结局的对应表），不登依赖 |
+| 接受状态 | 已接受（D-061，2026-09-26） |
+
+## 按当前问题展开
+
+| 当前问题 | 阅读入口 |
+|---|---|
+| 本版本精确承诺什么 | [v1 契约](v2/contract.md) |
+| 交换表示 | [v1 Schema](v2/arrival-events.schema.json) |
+| 一个事件长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v2/examples.md) |
+| 一条流里能以什么次序出现 | [契约第四节](v2/contract.md#四语法一条流里的次序) |
+| 工具帧比模型回复多出哪几条 | [S-23](v2/contract.md#s-23-执行帧的另外四条) |
+| 哪里在等裁决 | [已知缺口](v2/contract.md#九已知缺口) |
+| 哪些条款有怎样的证据义务，现在到哪一步 | [验证与覆盖](verification.md) |
+
+## 版本包
+
+`v2/` 是本契约的候选版本目录。规范工件恰三份：`contract.md`、`arrival-events.schema.json`、`examples.md`。
+
+**本包不建 `formal/`。**序列的行为——多块并开、交错、收尾、放弃、「一次装配 == 一次性到达」——恰是装配的行为，
+它的行为模型在 `capability.stream-assembly` v2 的 `formal/Assembly.tla`；**本契约不另造一份平行的状态机**，单个信封的结构约束 Schema 本身判得了。
+本契约触发的义务在[验证入口](verification.md)登记，状态**一律为「未开始」**。
+
+本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `data.arrival-events` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

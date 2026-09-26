@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json",
+  "title": "data.slash-command v2",
+  "description": "斜杠命令的静态数据形状：一份 slash_command 资产的正文（命令定义、绑定目标、参数声明、命令名）、交付面上识别出的一次命令尝试（CommandInvocation），以及按命令定义解析它得到的结果（ParseResult）。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.slash-command/v2 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；识别文法（S-12～S-15）与解析规则（S-16～S-23）是函数，不是形状，Schema 表达不了，由 contract.md 的条款与 examples.md 的判定用例集约束。Schema 表达不了的跨成员与跨对象约束（参数名不重复、位置参数排在具名参数之前、必填位置参数不排在可选位置参数之后、模板占位符对得上声明、CommandInvocation 与 raw 重新识别的结果一致、所在资产记录的 capability.name 与绑定种类对得上保留区、customized 记录不带 command 绑定）由 contract.md S-28 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是六个拒绝值里的哪一个按 S-28 的次序定。「空白」恒是 data.identity-values v1 S-31 逐个列出的码点集合，pattern 用显式字符类与 (?![\\s\\S]) 作绝对结尾，不用 \\s 与 $（理由与回归用例见那一条）。外部引用：CapabilityName 与 CapabilityId 取自 data.asset-model v2（S-2、S-3）。正反实例与判定用例集在同目录 examples.md。",
+  "$defs": {
+    "CommandName": {
+      "title": "命令名",
+      "description": "S-2、S-3：斜杠命令的名字，也就是它所在资产记录的能力标识的 name 分量——data.asset-model v2 的 CapabilityName（非空、不含空白、不含 '/'、允许 ':'、区分大小写），本契约只在其上加保留区一条：前 14 个码点按 ASCII 不区分大小写等于 'omne-official:' 的名字在保留区里；保留区里的名字前 14 个码点必须恰是小写的 'omne-official:'，且其后至少还有一个码点。名字在不在保留区与绑定目标的对应（S-4）要看所在记录，由接收边界判。",
+      "$comment": "allOf 第一项是 data.asset-model 的名字词法，第二项是保留区的唯一拼法（「不在保留区，或者恰以小写保留前缀开头且后面还有东西」）。不合这两项的拒绝值都是 name_invalid（S-28）。",
+      "allOf": [
+        {
+          "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityName"
+        },
+        {
+          "anyOf": [
+            {
+              "not": {
+                "pattern": "^[Oo][Mm][Nn][Ee]-[Oo][Ff][Ff][Ii][Cc][Ii][Aa][Ll]:"
+              }
+            },
+            {
+              "pattern": "^omne-official:[\\s\\S]"
+            }
+          ]
+        }
+      ],
+      "examples": [
+        "review",
+        "fix-issue",
+        "team:review",
+        "omne-official:reload-skill"
+      ]
+    },
+    "ServiceName": {
+      "title": "系统业务流程名",
+      "description": "S-7：command 型绑定所指的那一条系统业务流程（无词条）的名字。不透明：非空字符串，首字符与末字符都不属于 data.identity-values v1 S-31 的空白码点集合，相等是逐码点精确相等；消费者不解析它。它解到哪一个命令服务或查询服务的哪一个动作、此刻办不办得了，归系统业务流程的登记处（contract.md G-7），不归本契约。",
+      "$comment": "按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 那边的 OpaqueIdentifier（那一版已冻结且自述不单独被引用）。具体词法归实现。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": [
+        "registry.reload.skill"
+      ]
+    },
+    "CommandBinding": {
+      "title": "绑定目标",
+      "description": "S-6：一条命令恰绑一个目标，按 kind 判别，恰三种：prompt（自定义提示词，template 是它自带的正文）、skill（装配里的一个技能，skill 是它的能力标识，类别必为 skill）、command（一条系统业务流程，service 是它的名字）。kind 出现了但不是三者之一的拒绝值是 binding_unknown；kind 缺席是 malformed。",
+      "$comment": "skill 指向能力标识而不是某一份具体资产记录（PF-002 §6.3）：换一份同标识的实现，绑定跟着指到新的那份。template 的占位符规则与合法性约束归 S-10，Schema 只管非空。",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "oneOf": [
+        {
+          "title": "prompt",
+          "properties": {
+            "kind": {
+              "const": "prompt"
+            },
+            "template": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "template"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "skill",
+          "properties": {
+            "kind": {
+              "const": "skill"
+            },
+            "skill": {
+              "allOf": [
+                {
+                  "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityId"
+                },
+                {
+                  "properties": {
+                    "category": {
+                      "const": "skill"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "skill"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "command",
+          "properties": {
+            "kind": {
+              "const": "command"
+            },
+            "service": {
+              "$ref": "#/$defs/ServiceName"
+            }
+          },
+          "required": [
+            "kind",
+            "service"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ParameterDeclaration": {
+      "title": "参数声明",
+      "description": "S-8：命令声明的一个参数。name 是参数名（小写 ASCII 字母起头，其后是小写 ASCII 字母、数字、'_'、'-'）；kind 恰四种：string、integer、boolean、enum，enum 必带 values（非空、各不相同的非空字符串），其余三种不带；required 必填；positional 只取 true，缺席即具名参数（以 --name 给出）。hint 是可选的参数提示：给人看的一句话，交付面据以提示怎样填，不进任何给模型的内容。没有 default：没给的参数在解析结果里缺席，不补值。",
+      "$comment": "同一份定义里参数名不重复（parameter_duplicate）、位置参数排在具名参数之前（positional_after_named）、必填位置参数不排在可选位置参数之后（malformed），都要看整个数组，Schema 管不到，见 S-9。",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(?![\\s\\S])"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "string",
+            "integer",
+            "boolean",
+            "enum"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "positional": {
+          "const": true
+        },
+        "hint": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "required"
+      ],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "enum"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "values"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "values"
+          ]
+        }
+      }
+    },
+    "SlashCommandDefinition": {
+      "title": "斜杠命令定义",
+      "description": "S-1：一份 slash_command 资产的正文。description 是给人看的一句说明，不是身份、不给模型；binding 是它恰绑的那一个目标（S-6）；parameters 是参数声明（S-8）——缺席表示没有声明（命令名之后的整段文字作一个自由参数），空数组表示声明了「不收任何参数」。正文里没有名字：命令名就是所在资产记录的 capability.name（S-1、S-2）。名字在保留区里当且仅当绑定目标是 command（S-4），这一条要看所在记录，由接收边界判。",
+      "$comment": "不带 name：身份与名字只在所在资产记录的 capability（data.asset-model v2 S-10），正文不重复一份。S-4 的三行都要看所在记录（capability.name 与 origin），Schema 管不到（S-28）。",
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding": {
+          "$ref": "#/$defs/CommandBinding"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ParameterDeclaration"
+          }
+        }
+      },
+      "required": [
+        "description",
+        "binding"
+      ],
+      "additionalProperties": false
+    },
+    "Span": {
+      "title": "位置区间",
+      "description": "S-14：一段文字在 raw 里的位置——以 Unicode 码点计、从 0 起、左闭右开，相对 raw。不是 UTF-16 码元，也不是字节。CommandInvocation 的 span 与 ParseResult 里 failed 的 at 都是它。",
+      "$comment": "start ≤ end ≤ raw 的码点数要看 raw，Schema 管不到（S-14）。",
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "CommandInvocation": {
+      "title": "一次命令尝试",
+      "description": "S-14：识别文法（S-13）从经交付面提交的一段输入里认出的那一次命令尝试。raw 是那段输入原样（以一个 '/' 开头、第二个码点不是 '/'）；name 是 '/' 之后到第一个空白之前的那一段（非空、不含空白与 '/'；它不一定是一个合法的命令名，也不一定在会话斜杠命令集里）；argumentText 是名字之后的其余文字，去掉首尾空白；span 是 '/name' 这一段在 raw 里的位置，恒为 {start: 0, end: 1 + name 的码点数}。位置一律以 Unicode 码点计、从 0 起、左闭右开，相对 raw。",
+      "$comment": "「raw 重新识别的结果与 name、argumentText、span 逐成员相等」「start ≤ end ≤ raw 的码点数」要看成员之间的关系，Schema 管不到，由接收边界判（S-14）。",
+      "type": "object",
+      "properties": {
+        "raw": {
+          "type": "string",
+          "pattern": "^/(?!/)"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF/]+(?![\\s\\S])"
+        },
+        "argumentText": {
+          "type": "string",
+          "pattern": "^(?:[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?)?(?![\\s\\S])"
+        },
+        "span": {
+          "$ref": "#/$defs/Span"
+        }
+      },
+      "required": [
+        "raw",
+        "name",
+        "argumentText",
+        "span"
+      ],
+      "additionalProperties": false,
+      "examples": [
+        {
+          "raw": "/fix-issue 42 main",
+          "name": "fix-issue",
+          "argumentText": "42 main",
+          "span": {
+            "start": 0,
+            "end": 10
+          }
+        }
+      ]
+    },
+    "Recognition": {
+      "title": "识别结果",
+      "description": "S-13：识别文法对一段经交付面提交的输入得出的结果，按 kind 判别，恰三种：text（普通文字，text 就是输入原样）、literal（字面发送，text 是输入去掉第一个码点）、invocation（一次命令尝试）。plain 与 literal 交出去的文字一个码点不改。",
+      "$comment": "三种结果都只由输入文字决定；是哪一种、text 是否恰如 S-13 所写，Schema 管不到，由判定用例集约束。",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "oneOf": [
+        {
+          "title": "text",
+          "properties": {
+            "kind": {
+              "const": "text"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "literal",
+          "properties": {
+            "kind": {
+              "const": "literal"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "invocation",
+          "properties": {
+            "kind": {
+              "const": "invocation"
+            },
+            "invocation": {
+              "$ref": "#/$defs/CommandInvocation"
+            }
+          },
+          "required": [
+            "kind",
+            "invocation"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ParseResult": {
+      "title": "解析结果",
+      "description": "S-20：按会话斜杠命令集与命令定义解析一次命令尝试的结果，按 kind 判别，恰四支：expanded（prompt 型展开后的文字）、skill（skill 型所指的技能）、command（command 型所指的系统业务流程与按声明解析出的参数；arguments 出现当且仅当该命令声明了参数）、failed（解析没通过：reason 恰六种之一，at 是出错那一段在 raw 里的位置，explanation 是给人看的说明）。它恒与产生它的那个 CommandInvocation 一起用，不重复携带原文与参数文字。failed 是一个判定结果值，不是表示层拒绝（S-29）。",
+      "$comment": "skill 支的形状以 JSON Pointer 引 CommandBinding 的 skill 支；at 引 Span。arguments 的值恰是 string、integer（在 ±(2^53−1) 之内）或 boolean。",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "oneOf": [
+        {
+          "title": "expanded",
+          "properties": {
+            "kind": {
+              "const": "expanded"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "skill",
+          "properties": {
+            "kind": {
+              "const": "skill"
+            },
+            "skill": {
+              "$ref": "#/$defs/CommandBinding/oneOf/1/properties/skill"
+            }
+          },
+          "required": [
+            "kind",
+            "skill"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "command",
+          "properties": {
+            "kind": {
+              "const": "command"
+            },
+            "service": {
+              "$ref": "#/$defs/ServiceName"
+            },
+            "arguments": {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "#/$defs/ParameterDeclaration/properties/name"
+              },
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "integer",
+                  "boolean"
+                ],
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "service"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "failed",
+          "properties": {
+            "kind": {
+              "const": "failed"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "unknown_command",
+                "unterminated_quote",
+                "missing_required",
+                "type_mismatch",
+                "unexpected_argument",
+                "enum_out_of_range"
+              ]
+            },
+            "at": {
+              "$ref": "#/$defs/Span"
+            },
+            "explanation": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "reason",
+            "explanation"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

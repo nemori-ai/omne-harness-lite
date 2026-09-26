@@ -21,7 +21,7 @@
 > **三层互不牵连。**一个工具可以「**在动作空间里 + 不占槽位 + 当下不可用**」——
 > **三个取值各说各的**。
 
-- **出处**：[PF-006 §4 三层](../../product/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](../../product/PF-006-tools-and-skills/design.md#51-三层正交)（rev 17）
+- **出处**：[PF-006 §4 三层](../../product/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](../../product/PF-006-tools-and-skills/design.md#51-三层正交)（rev 19）
 
 ## 怎么够得着
 
@@ -44,7 +44,7 @@
 > not occupying a slot** — it remains in the action space, reachable through the discovery entry.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 常驻](../../product/PF-006-tools-and-skills/design.md#常驻)（rev 17）
+- **出处**：[PF-006 §4 常驻](../../product/PF-006-tools-and-skills/design.md#常驻)（rev 19）
 - **别混**：**它是那份 Agent Definition 或 Plugin 上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
@@ -53,16 +53,16 @@
 
 > **中**：**一个工具或技能当下能不能真的用。**它是**[依赖声明](#ul-dependency-declaration--依赖声明--dependency-declaration)解析的结果，
 > 不是一个被谁配置的开关**：**声明里每一项都有在场且可用的提供者就可用，缺一项就不可用**。
-> **每次 run 开始前重算一遍**——**提供者换了或没了都要重算**。
+> **每次 run 开始前重算一遍**（一次 run 里的每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)都算一次开始）——**提供者换了或没了都要重算**。
 >
 > **EN**: **Whether a tool or skill can actually be used right now.** It is **the
 > result of resolving its dependency declaration, not a switch anyone sets**: available
 > when every item in the declaration has a present, usable provider, unavailable when any
-> one is missing. It is **recomputed before every run** — **a provider being replaced or
-> gone forces a recomputation**.
+> one is missing. It is **recomputed before every run** (each run attempt within a run counts
+> as a start) — **a provider being replaced or gone forces a recomputation**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 可用性](../../product/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 17）
+- **出处**：[PF-006 §4 可用性](../../product/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 19）
 - **别混**：**裸写「可用性」不作数**——那个词在别处指服务可用性、系统可用性，**与这里毫无关系**
 - **别混**：与[资产禁用](circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)不同——
   **禁用是不可见**（装配时就被滤掉，agent 无从知道它存在），**不可用是可见但用了一定失败**（条目还在原位，调用必得「不可用」这一个收场）
@@ -86,7 +86,7 @@
 > remains that of the original entry in the action space.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 替换件](../../product/PF-006-tools-and-skills/design.md#替换件) · [§6.3](../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 17）
+- **出处**：[PF-006 §4 替换件](../../product/PF-006-tools-and-skills/design.md#替换件) · [§6.3](../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 19）
 - **别混**：**它不是另一个条目**——动作空间里的条目一个没多、一个没少，变的只有那一条的说明与应答
 - **注意 ①**：**不可用时装的是它，不是「不装」**——**藏起来 agent 会以为自己没这个能力，而实际只是暂时用不了**
 - **注意 ②**：**说明不是闸**，agent 读到了照样可能调它——所以它的行为只有一种。
@@ -113,7 +113,7 @@
 > **anything a tool can do without stays out of the declaration and is probed at use**.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 依赖](../../product/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 17）
+- **出处**：[PF-006 §4 依赖](../../product/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 19）
 - **别混**：这里的「**外部服务**」**不是 [PF-002 排除掉的那个 Service](capabilities-and-composition.md#ul-asset--资产--asset)**——
   那条排除的是 Cordis 的运行时概念。**指前者时必须写全 `Cordis service`**
 - **注意**：**声明不是免费的**——每多一项就多一个可能不被满足的前提，
@@ -122,6 +122,34 @@
   组合说的是**由什么构成**，依赖说的是**还需要什么在场**
 - **注意**：**表达不出「或」就只能按最严的算**，好用的东西会被无谓地判成不可用
 - **注意**：**带脚本的技能同样要声明**它需要什么设施——不给它地方声明，就只能默认塞给宿主机，**绕过安全判断**
+
+### UL-session-asset-registry · 会话资产注册表 · Session Asset Registry
+
+> **中**：**一个会话里，某一类资产此刻被认得的那一批所在的那一张表**——会话认得的斜杠命令、装进来的技能、plugin 这类东西各住一张；
+> 用到它们的地方**都经它取**。它的内容是某一次求值的结果：会话创建时装配填入；**人发对应的 reload，只按此刻的求值结果重填那一张**；
+> ③ 型斜杠命令背后的服务不在了，系统自动刷新命令那一张；一次完整的重新装配把全部重填。
+> **权限收回不等 reload，但落到哪一刻看那一类资产在不在运行里**：斜杠命令是人的入口、不在运行里，收回了**此刻起就不在命令那一张**；
+> 装进运行的资产（技能这类），**已经开始的运行不变，自下一次运行起不再装入**。
+>
+> **EN**: **The table in which a session keeps the set of one asset category it currently recognizes** —
+> the slash commands it knows, the skills and plugins loaded into it, each category in a table of its own;
+> **everything that uses them reads through it**. Its content is the result of an evaluation: filled at
+> session assembly; **refilled, for that one table only, from the current evaluation when the person issues
+> the matching reload**; refreshed automatically for commands when the service behind a type-③ slash command
+> is gone; and refilled entirely by a full re-assembly. **A withdrawn permission never waits for a reload, but
+> when it lands depends on whether that category lives inside a run**: a slash command is a person's entry point
+> and is not in the run, so it **leaves the command table at once**; an asset loaded into runs (a skill, say)
+> **stays for the run already under way and is no longer loaded from the next run on**.
+
+- **形态**：视图
+- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
+  [§4「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 20） ·
+  [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 8）
+- **别混 ①**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——reload 重填的是注册表，不是一次完整的重新装配，**不改写正在跑的运行已经捕获的构成**
+- **别混 ②**：**裸写「注册表」不作数**——设计链里的 registry 是设计对象的身份清单，另有所指
+- **注意 ①**：命令那一张装的就是这个会话的[会话斜杠命令集](capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)
+- **注意 ②**：**资产的增删与禁用不让它自己变**——变化发生在人自己选的那一刻（reload）；热更新对进行中的运行何时可见，正文未述（[PF-004 已知的来源问题](../../product/PF-004-agent-definition-and-assembly/decisions.md#四已知的来源问题)）
+- **注意 ③**：**「收回即时」只对命令那一张成立**——技能这类装进运行的，[撤销管的是下一道准入，不是强制停止](circulation-and-entitlement.md#ul-revocation-is-not-stop--撤销不等于强制停止--revocation-is-not-a-stop)，这次运行照样用得上它
 
 ### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
 
@@ -148,5 +176,35 @@
 - **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
   那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
 - **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述
+
+### UL-governance-center-reachability · 治理中心可达性 · Governance Center Reachability
+
+> **中**：一处[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)对它所属的
+> [治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**此刻在不在应答**的观察：
+> 最近一次与中心的往来拿到了中心的一份答复，就是可达；落在「问不到」——没有拿到中心的答复——就是不可达。
+> **答复说了什么不影响它**：中心答「不认你这个登录状态」「这件事此刻答不了」，照样是可达。
+> **它只是一个观察，不作任何准入依据**：可达不说明成员资格有效、登录状态作数，不可达也不说明它们无效；
+> 中心不可达时，已经开着的会话照常干活。
+>
+> **EN**: A session base's observation of **whether the governance center it belongs to is answering
+> right now**: reachable when the latest exchange with the center brought back an answer from it,
+> unreachable when the latest exchange ended in "could not ask" — no answer from the center came back.
+> **What the answer said does not matter**: a center replying "that login state is not accepted" or
+> "this cannot be answered now" is reachable. **It is an observation only and admits nothing**: being
+> reachable does not mean a membership is valid or a login state still counts, and being unreachable does
+> not mean they are invalid; sessions already open keep working while the center is unreachable.
+
+- **形态**：属性
+- **出处**：[PF-016 §6.17](../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
+  [§5.6 哪几件事必须现读](../../product/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 8） ·
+  [PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 5）
+- **⚠️ 别混 ①**：**不是[治理中心体检](#ul-governance-center-health-check--治理中心体检--governance-center-health-check)**——
+  体检是中心自述「我在不在、能不能答」；这一条是据点这一头的观察。体检答「数据所在够不着」，中心照样在应答，照样可达
+- **别混 ②**：**裸写「可达性」不作数**——形式检查里的可达性说的是某个状态走不走得到，
+  [当下可用性](#ul-current-availability--当下可用性--current-availability)说的是一样能力此刻用不用得了，都与这一条无关
+- **注意 ①**：**它变了不让任何东西停下**——中心问不到不是让据点上任何在途工作停的理由；
+  再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
+- **注意 ②**：规格层（`capability.center-connection` v2，本能力在规格里叫「中心连接」）把它分成三态：
+  多出的「尚未判定」是据点这一侧起来之后还没有任何一次往来有结果——**既不当可达，也不当不可达**
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

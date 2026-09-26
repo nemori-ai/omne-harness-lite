@@ -1,7 +1,10 @@
 # cli应用节点
 
+**2026-09-26 裁决对账**：[D-064 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+
+
 - kind：assembly
-- 交付面：[PF016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 7），本期治理CLI/TUI。
+- 交付面：[PF016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 8），本期治理CLI/TUI。
 - 源码位置：`apps/cli`，D049文件输入增量已实现。
 - 语义接受：CQ1 S1～10已由[D049](../../../record/decisions/governance-cli-file-entry-adoption/README.md)接受；消费CG2/CLS1及冻结CG1报告表示。
 - 可实施：D049受保护文件CLI与D051限定profile的治理TUI；两者共用CG2/CLS1，秘密仍从保护文件读取，精确边界归[governance.md](governance.md)与[tui.md](tui.md)。

@@ -1,0 +1,6 @@
+SessionLog	0
+SessionLog_NoSerialization_Fence	12
+SessionLog_NoSerialization_Key	12
+SessionLog_VolatileDedupe	12
+SessionLog_Reach_DuplicateRejected	12
+SessionLog_Reach_StaleRejected	12

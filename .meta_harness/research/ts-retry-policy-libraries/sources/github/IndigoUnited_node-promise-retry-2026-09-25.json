@@ -1,0 +1,107 @@
+{
+  "repo": {
+    "archived": false,
+    "default_branch": "master",
+    "full_name": "IndigoUnited/node-promise-retry",
+    "license": "MIT",
+    "open_issues_count": 11,
+    "pushed_at": "2022-12-30T20:36:01Z",
+    "stargazers_count": 319
+  },
+  "recent_commits": [
+    {
+      "date": "2020-06-14T13:08:52Z",
+      "sha": "7fb08491112cffe5a0dd11805eff20ca6b6133ac",
+      "subject": "2.0.1"
+    },
+    {
+      "date": "2020-06-14T05:09:16Z",
+      "sha": "923edf9475ea8ba254f5d02bc497c2884d0d8afa",
+      "subject": "fix: update node requirement in package.json (#36)"
+    },
+    {
+      "date": "2020-06-13T10:11:38Z",
+      "sha": "a3dae32edaf0259c9608b266e4ee2f2f180e94f1",
+      "subject": "2.0.0"
+    }
+  ],
+  "open_issues_and_prs": [
+    {
+      "created_at": "2022-12-30T20:36:01Z",
+      "kind": "PR",
+      "number": 43,
+      "title": "Bump flat from 4.1.0 to 5.0.2",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/pull/43"
+    },
+    {
+      "created_at": "2021-06-11T20:32:15Z",
+      "kind": "PR",
+      "number": 42,
+      "title": "Bump glob-parent from 5.1.1 to 5.1.2",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/pull/42"
+    },
+    {
+      "created_at": "2021-05-11T17:15:48Z",
+      "kind": "PR",
+      "number": 41,
+      "title": "Bump lodash from 4.17.15 to 4.17.21",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/pull/41"
+    },
+    {
+      "created_at": "2021-04-01T02:05:53Z",
+      "kind": "PR",
+      "number": 40,
+      "title": "Bump y18n from 4.0.0 to 4.0.1",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/pull/40"
+    },
+    {
+      "created_at": "2020-11-04T12:56:47Z",
+      "kind": "issue",
+      "number": 39,
+      "title": "What is the params, \"value\" and \"err\" of examples?",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/issues/39"
+    },
+    {
+      "created_at": "2020-06-15T22:13:43Z",
+      "kind": "issue",
+      "number": 37,
+      "title": "No CHANGELOG, no release notes",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/issues/37"
+    },
+    {
+      "created_at": "2019-02-07T20:52:23Z",
+      "kind": "issue",
+      "number": 32,
+      "title": " expose retry's operation object and update retry to 0.12.0",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/issues/32"
+    },
+    {
+      "created_at": "2019-02-07T20:48:00Z",
+      "kind": "PR",
+      "number": 31,
+      "title": "expose retry's operation object and update retry to 0.12.0",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/pull/31"
+    },
+    {
+      "created_at": "2018-12-15T03:57:28Z",
+      "kind": "issue",
+      "number": 30,
+      "title": "Feature : Kill pending retry callbacks?",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/issues/30"
+    },
+    {
+      "created_at": "2018-03-02T13:18:18Z",
+      "kind": "issue",
+      "number": 25,
+      "title": "Question: UseCase - Communication Disconnect",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/issues/25"
+    },
+    {
+      "created_at": "2017-10-05T14:19:09Z",
+      "kind": "issue",
+      "number": 20,
+      "title": "Possible memory leak?",
+      "url": "https://github.com/IndigoUnited/node-promise-retry/issues/20"
+    }
+  ]
+}

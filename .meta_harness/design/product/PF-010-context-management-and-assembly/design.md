@@ -1,7 +1,7 @@
 # PF-010：上下文管理与组装
 
-- 修订：rev 5，2026-09-21 · [变更历史](changelog.md)
-- 状态：**已接受为正式版本，无未决项。**
+- 修订：rev 6，2026-09-23 · [变更历史](changelog.md)
+- 状态：rev 5 已接受为正式版本；**rev 6 待产品负责人确认**。无未决项。
 
 ## 一、背景与问题
 
@@ -112,6 +112,10 @@
 | **系统提示词** | 你是谁、你有什么能用 | **[成分在装配那一刻就定死了](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)**——[装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单)不变，它就不变 |
 | **会话上下文** | 这场对话到目前为止 | **每一轮都在长** |
 
+**系统提示词本版只含文本。**它[不落会话日志](../PF-009-context-message-types/design.md#消息)、每次组装时现算，
+所以也不经过[消息落盘之前](../PF-012-agent-loop-and-run/design.md#消息落盘之前每条消息都经过它不只是输入)那一关的[转换件](../PF-013-model-profiles-and-invocation/design.md#转换件)；
+只有文本，就不会出现「有效模型收不下系统提示词里某一块」这回事。
+
 **为什么必须分成两块**：两块的**变化节奏完全不同**，而且——
 
 > **只有第二块压得动。**
@@ -196,7 +200,6 @@
 而这里的理由更硬一层：
 
 **误给的后果收不回来。**模型一旦看见了不该看的——
-[用户没听到的那段语音](../PF-009-context-message-types/design.md#59-语音生成了不等于听到了)、
 [没长完的工具调用](../PF-009-context-message-types/design.md#半截的工具调用记下来但不给模型看)、
 [工具执行中的帧](../PF-009-context-message-types/design.md#toolinternalmessage)——
 **它就会拿着这个往下推理，而你没有办法让它忘掉**。
@@ -250,7 +253,7 @@
 | 谁需要它 | 需要档案上的哪一项 |
 |---|---|
 | **这一次取多长** | **窗口** |
-| **这一次那个图块给原件还是给[文本那一份](../PF-013-model-profiles-and-invocation/design.md#转换件)** | **收得下哪些[模态](../PF-013-model-profiles-and-invocation/design.md#模态)** |
+| **这一次那个块给原件、[派生表示](../../ubiquitous_language/terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)，还是 [transcript](../../ubiquitous_language/terms/record-and-context.md#ul-transcript--transcript--transcript)** | **收得下哪些[模态](../PF-013-model-profiles-and-invocation/design.md#模态)**——按它取原件或收得下的那份派生表示，都取不到就给 transcript（[PF-013 转换件](../PF-013-model-profiles-and-invocation/design.md#转换件)）；几份都收得下时挑哪几份是策略 |
 | **一张图送进去之前要不要先缩** | **送进去之前的限制**（[PF-013 §8 那条三段交接的第二段](../PF-013-model-profiles-and-invocation/design.md#八边界与依赖)） |
 
 > **三项是同一份档案里的三个事实，不是三套机制。**
@@ -259,7 +262,7 @@
 
 **做不到会怎样**：换模型这条产品承诺**没有落脚点**。
 用户切到一个窗口更小的模型，组装照旧按老窗口取——**这一次请求当场装不下**；
-切到一个收不下图的模型，组装照旧递原图——**而那个块明明已经有文本那一份了**。
+切到一个收不下图的模型，组装照旧递原图——**而那个块明明已经挂着派生表示与 transcript 了**。
 
 > **具体用什么手段兑现「送进去之前的限制」**（预处理时多档各存一份、运行时缓存、还是别的），
 > **不在产品这一层**——[PF-013 已经把这一段明确划给架构与实现规格](../PF-013-model-profiles-and-invocation/design.md#八边界与依赖)。

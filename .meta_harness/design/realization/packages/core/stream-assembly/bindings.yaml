@@ -1,0 +1,41 @@
+# 条款到证据的绑定表。
+# 证据 run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 提交 1667ea4c；任务目录 stream-assembly-v2-assembly/，
+# 退出 0、无反例；输入快照与登记命令逐项相同）。evidence 字段按 realization README 的格式写 formal:<task-id>，run id 写在每条的 assumptions 里。
+#
+# 只绑模型里「作证据」的两条性质（契约 formal/README「本版选用什么」）：P-1 BlockOrderIsOpenOrder、P-7 SplitInvariance ＋ OneShotAccepted，
+# 它们各有预期出反例的变异配置（order_by_close／replace_as_append／oneshot_close_first），驳得倒才算数。
+# 变异配置按契约原话不登 formal task；它们的反例以证据 run record/evidence/2026-09-25-validity-stream-assembly 入库
+# （HUB 提交 0ea85c0b，三份全部退出 12、找到反例，输入快照的 Assembly.tla 与主 run 相同；D-060 §八 M54）。
+# 不绑：P-2～P-6（FinishIsLast、AccountAtMostOnce、ToolHasNoAccount、OpenIndicesIncrease、FillsLandOnOpenBlocks、ResultOnlyWithFinish）——
+# 按构造成立、复述 Valid 与 CloseOut／Abandon 的守卫，模型里没有会在条款被违反时失败的断言；P-9「被拒不改状态」是建模方式本身。
+# 它们的证据形式是规范场景与一致性用例，记在 verification.md，现在一条也没有。
+# 源码不存在：下面两条证的都是模型，不是实现；实现与模型对得上要靠一致性用例（V-2）与性质测试（V-3），尚无。
+version: 1
+node: "stream-assembly"
+kind: "provider"
+
+bindings:
+  - clause: "capability.stream-assembly/v2#S-6"
+    evidence: "formal:stream-assembly-v2-assembly"
+    assumptions:
+      - "只证 P-1「块在状态里的次序是开块次序，与封口次序无关」（不变量 BlockOrderIsOpenOrder）；S-6 表里各项（归约、封口块、调用块怎样定下）不在此"
+      - "常量 Indices = {0, 1}、Frags = {\"a\", \"b\"}、MaxEvents = 6：两块、两种片段、至多六个事件之内无反例；更大规模未穷举"
+      - "一个模型实例是一条流、一个串行调用方；路由、分叉、乱序、重复与宿主重建不在模型里（宿主前提 S-28、部署表 S-29）"
+      - "无公平性假设，只查安全性质；死锁检查关闭（本能力不承诺进展）"
+      - "证据有效的前提是变异配置 Assembly_OrderByClose.cfg 给得出反例：run record/evidence/2026-09-25-validity-stream-assembly（HUB 0ea85c0b）目录 Assembly_OrderByClose/ 退出 12、BlockOrderIsOpenOrder 被违反，输入快照的 Assembly.tla 与本 run 相同（D-060 §八 M54）；那个 run 只证变异后的模型出反例，常量与规模界限同主配置"
+      - "证的是模型 Assembly.tla，不是实现；实现是否等于模型须由一致性用例（契约 V-2）核，尚无"
+      - "run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c），任务 stream-assembly-v2-assembly 退出 0，826411 个不同状态"
+    alignment_checked: "2026-09-25"
+
+  - clause: "capability.stream-assembly/v2#S-27"
+    evidence: "formal:stream-assembly-v2-assembly"
+    assumptions:
+      - "只证 P-7 的两半：结果相等 SplitInvariance（blocks、ending.reason、account 相等）与一次性形式也被逐个接受 OneShotAccepted；位置、firstContentAt、砍的汇总与 emitted 按契约本来就不在相等里"
+      - "OneShotAccepted 只到模型的 Valid 为止（收尾、账、索引、块开没开、填法）；块头模态、载荷形状、replace_payload_shape、工具侧带 error 的收尾等表示层判定不在模型里"
+      - "模型里没有参数解析、没有「被砍过的调用落成半截」规则、trim 不改任何东西：前提「σ 里没有在工具调用块开着时被接受的改变内容的砍」由模型的构造满足，S-12 那一支不被本证据覆盖"
+      - "载荷抽象成符号序列；块标识、标注、块头不在模型里；「封口块等于归约」作为生产者前提写进模型"
+      - "常量 Indices = {0, 1}、Frags = {\"a\", \"b\"}、MaxEvents = 6（Abandon 补的收尾不占上限）；无公平性假设"
+      - "证据有效的前提是变异配置 Assembly_ReplaceAsAppend.cfg、Assembly_OneShotCloseFirst.cfg 给得出反例：run record/evidence/2026-09-25-validity-stream-assembly（HUB 0ea85c0b）目录 Assembly_ReplaceAsAppend/ 与 Assembly_OneShotCloseFirst/ 各退出 12，SplitInvariance、OneShotAccepted 分别被违反，输入与本 run 相同（D-060 §八 M54）"
+      - "证的是模型，不是实现；实现侧的证据是性质测试 V-3（随机切分与合并），尚无"
+      - "run：record/evidence/2026-09-25-formal-assets-runtimes（HUB 1667ea4c），任务 stream-assembly-v2-assembly 退出 0"
+    alignment_checked: "2026-09-25"
