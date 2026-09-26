@@ -6,6 +6,8 @@ ROLES = Path(__file__).parents[2] / "agents/roles"
 TASTE = "../engineering-taste.md"
 # Product roles take the product-manager viewpoint and must not judge engineering choices.
 EXEMPT = {"product-design-drafter", "product-design-reviewer"}
+DEVELOPERS = {"kernel-developer", "capability-developer", "infrastructure-developer",
+              "application-developer", "verification-developer"}
 
 
 def shared_prompts(role: Path) -> list[str]:
@@ -23,3 +25,11 @@ def test_taste_is_first_shared_prompt_of_every_non_exempt_role():
     assert not missing, f"roles without the shared taste as first shared prompt: {missing}"
     leaked = [role.name for role in roles if role.name in EXEMPT and TASTE in shared_prompts(role)]
     assert not leaked, f"exempt roles must not inline the shared taste: {leaked}"
+
+
+def test_all_developer_roles_inline_the_same_implementation_contract():
+    """A role without the shared input/stop contract must fail before dispatch."""
+    for name in DEVELOPERS:
+        prompts = shared_prompts(ROLES / name)
+        assert prompts.count("../developer-contract.md") == 1, name
+        assert prompts.index(TASTE) < prompts.index("../developer-contract.md"), name
