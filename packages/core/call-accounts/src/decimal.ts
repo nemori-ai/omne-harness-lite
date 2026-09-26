@@ -92,8 +92,10 @@ function render(coefficient: bigint, exponent: bigint): string {
   const digits = absolute(coefficient).toString()
   const point = BigInt(digits.length) + exponent
   if (point > 0n) {
-    const split = Number(point) // index within the existing string, never an amount conversion
-    return `${coefficient < 0n ? '-' : ''}${digits.slice(0, split)}.${digits.slice(split)}`
+    const divisor = 10n ** -exponent
+    const magnitude = absolute(coefficient)
+    const fraction = (magnitude % divisor).toString().padStart(divisor.toString().length - 1, '0')
+    return `${coefficient < 0n ? '-' : ''}${magnitude / divisor}.${fraction}`
   }
   if (point === 0n) return `${coefficient < 0n ? '-' : ''}0.${digits}`
   return `${coefficient}e${exponent}`
