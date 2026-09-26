@@ -116,7 +116,7 @@ describe('parameter-judge-cache-owner — 作者 Schema 的实际作用域', () 
         file(
           path,
           `
-import { createSchemaRuntime as makeRuntime } from '@omne-harness-lite/asset-model/schema-runtime'
+import { createSchemaRuntime as makeRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 export function createParameterJudge() {
   const runtime = makeRuntime([])
   const cache = new Map()

@@ -83,7 +83,7 @@ describe('core-pure-imports', () => {
     ).toHaveLength(1)
   })
 
-  it('已批准 asset-model 依赖的消费者可用精确 schema-runtime 子入口', () => {
+  it('AM 已迁出的旧 schema-runtime 不再是公开入口，即使包依赖仍批准', () => {
     for (const statement of [
       `import { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
       `export { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
@@ -93,7 +93,7 @@ describe('core-pure-imports', () => {
     ]) {
       expect(
         corePureImports.check([file('core/tool-definition/src/parameter.ts', statement)]),
-      ).toEqual([])
+      ).toHaveLength(1)
       expect(
         corePureImports.check([file('core/content-blocks/src/parameter.ts', statement)]),
       ).toHaveLength(1)

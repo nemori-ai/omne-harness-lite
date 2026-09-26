@@ -71,7 +71,7 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 注释/字符串示例不算导入；测试豁免保持。计算说明符不能由此规则确定是否指向 testing；十五纯模块另由 core-pure-imports 拒绝非字面说明符。
 
 当前批准的精确 Schema runtime 子入口是 `@omne-harness-lite/content-blocks/schema-runtime`；消费者必须已有 content-blocks 依赖。
-旧 asset-model/schema-runtime 仅在迁移期间登记，仍要求已有 asset-model 依赖；相邻私有路径不获准。
+旧 asset-model/schema-runtime 已随实际提供者迁移移出登记，即使消费者仍依赖 asset-model 也会拒绝；相邻私有路径不获准。
 本包内部复用走相对路径，子入口登记不增加未经采用的 self import 或任意包依赖。
 
 新增范围化规则的实际注册在 `src/rules/core-scoped.ts`：
