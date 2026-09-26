@@ -48,10 +48,7 @@ function copyTransport(value: McpTransport): JsonObject {
 function executeItem(remoteName: string): string {
   return 'execute:' + remoteName
 }
-export type McpDeclarations = Extract<
-  DeclarationResult<'mcp'>,
-  { readonly declarations: readonly AttributeDeclaration[] }
-> & { readonly actionSnapshotKind: ActionSnapshot['kind'] | undefined }
+export type McpDeclarations = DeclarationResult<'mcp'>
 
 /** S14–S16: only typed authored data and the caller's actual snapshot are read. */
 export function deriveMcpDeclarations(
