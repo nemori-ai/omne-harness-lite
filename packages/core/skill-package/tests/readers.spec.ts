@@ -245,6 +245,18 @@ describe('S-21 supplied directory observations, normative rows 1–8', () => {
         rejected: 'malformed',
       })
   })
+  it('rejects duplicate or prefix-conflicting supplied resource paths', () => {
+    expect(
+      readSkillPackage([main, { kind: 'file', path: 'a' }, { kind: 'file', path: 'a/b' }]),
+    ).toEqual({ rejected: 'malformed', malformed: 'M8' })
+    expect(
+      readSkillPackage([
+        main,
+        { kind: 'file', path: 'a', mediaType: 'text/plain' },
+        { kind: 'file', path: 'a', mediaType: 'text/markdown' },
+      ]),
+    ).toEqual({ rejected: 'malformed', malformed: 'M8' })
+  })
   it('JSON syntax failure does not outrank observed escapes or name mismatch', () => {
     const invalid: SkillPackageEntry = { kind: 'file', path: '.omne/skill.json', text: '{' }
     expect(

@@ -119,7 +119,7 @@ describe('exact author domains, pure derivation and body port', () => {
         metadata: { dependency: 'ignored' },
       },
       body: 'use an unlisted tool in a sentence',
-      resources: [{ path: 'scripts/run.sh' }, { path: 'scripts' }],
+      resources: [{ path: 'scripts/run.sh' }, { path: 'bin/run.sh' }],
       definition: {
         format: 1,
         tools: [{ category: 'tool', name: 'read' }],
@@ -136,6 +136,7 @@ describe('exact author domains, pure derivation and body port', () => {
         ],
       },
     }
+    expect(judgeSkillPackage(pkg)).toEqual({ ok: true })
     expect(skillDependencies(pkg)).toEqual([
       { kind: 'tool', capability: { category: 'tool', name: 'read' } },
       { kind: 'external_service', name: 'service' },
@@ -146,6 +147,14 @@ describe('exact author domains, pure derivation and body port', () => {
     ])
     expect(skillReferences(pkg)).toEqual([{ category: 'tool', name: 'read' }])
     expect(skillScripts(pkg)).toEqual([{ path: 'scripts/run.sh' }])
+    const rootScript: SkillPackage = {
+      manifest: pkg.manifest,
+      body: pkg.body,
+      resources: [{ path: 'scripts' }],
+      definition: { format: 1 },
+    }
+    expect(judgeSkillPackage(rootScript)).toEqual({ ok: true })
+    expect(skillScripts(rootScript)).toEqual([])
     const declarations = skillAttributeDeclarations(pkg)
     expect(declarations.map(d => d.item)).toEqual(['targetEnvironment'])
     expect(Object.isFrozen(declarations)).toBe(true)
