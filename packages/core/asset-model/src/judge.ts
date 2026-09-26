@@ -2,6 +2,7 @@ import schema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
 import offerSchema from '@omne-harness-lite/offer-expiry/schema' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
+import connectorSchema from '../schema/resources/connector.schema.json' with { type: 'json' }
 import {
   isNonNegativeJsonInteger,
   isJsonNumber,
@@ -18,9 +19,12 @@ import type {
   BodyContract,
   BodyCategory,
   BodyContracts,
+  BodyContractSupply,
+  NonConnectorBodyContracts,
   BodyJudgeContext,
   JsonSchema,
 } from './types.ts'
+import { BodyProviderUnavailableError } from './availability.ts'
 import { isAssetCategory, isCapabilityName, normalizeWorkspaceDirectory } from './values.ts'
 import {
   createSchemaRuntime,
@@ -97,20 +101,30 @@ function jsonCopy(value: unknown): JsonValue | undefined {
     throw error
   }
 }
-function resources(bodies: BodyContracts): readonly JsonSchema[] {
+function bodySchema(bodies: BodyContractSupply, category: BodyCategory): JsonSchema {
+  return category === 'connector'
+    ? (bodies.connector?.schema ?? connectorSchema)
+    : bodies[category].schema
+}
+function resources(bodies: BodyContractSupply): readonly JsonSchema[] {
   return [
     identitySchema,
     offerSchema,
     contentSchema,
     schema,
-    ...bodyCategories.map(category => bodies[category].schema),
+    ...bodyCategories.map(category => bodySchema(bodies, category)),
   ]
 }
 /** Validate configuration and capture the three responsibility closures at construction. */
-export function bindBodyContracts(bodies: BodyContracts): BodyContracts {
+export function bindBodyContracts(bodies: BodyContracts): BodyContracts
+export function bindBodyContracts(bodies: NonConnectorBodyContracts): NonConnectorBodyContracts
+export function bindBodyContracts(bodies: BodyContractSupply): BodyContractSupply
+export function bindBodyContracts(bodies: BodyContractSupply): BodyContractSupply {
   for (const category of bodyCategories) {
     const port = bodies[category]
+    if (category === 'connector' && !Object.hasOwn(bodies, category) && port === undefined) continue
     if (
+      !Object.hasOwn(bodies, category) ||
       port === undefined ||
       port.category !== category ||
       typeof port.judge !== 'function' ||
@@ -125,14 +139,16 @@ export function bindBodyContracts(bodies: BodyContracts): BodyContracts {
       throw new TypeError(`body Schema needs an id: ${port.category}`)
     return Object.freeze({ ...port, schema: resource })
   }
-  return Object.freeze({
+  const captured = {
     tool: pin(bodies.tool),
     loop_extension: pin(bodies.loop_extension),
     skill: pin(bodies.skill),
     mcp: pin(bodies.mcp),
     slash_command: pin(bodies.slash_command),
-    connector: pin(bodies.connector),
-  })
+  }
+  return bodies.connector === undefined
+    ? Object.freeze(captured)
+    : Object.freeze({ ...captured, connector: pin(bodies.connector) })
 }
 interface Positions {
   readonly capabilities: readonly JsonObject[]
@@ -263,7 +279,7 @@ export interface AssetModelJudge {
   ) => AssetJudgment
   readonly validate: (defName: SchemaDefName, value: unknown) => { readonly valid: boolean }
 }
-export function createAssetModelJudge(bodyContracts: BodyContracts): AssetModelJudge {
+export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetModelJudge {
   const bodies = bindBodyContracts(bodyContracts)
   const runtime = createSchemaRuntime(resources(bodies))
   const validators = new Map<SchemaDefName, SchemaValidator>()
@@ -319,7 +335,9 @@ export function createAssetModelJudge(bodyContracts: BodyContracts): AssetModelJ
         nested.push('malformed')
         continue
       }
-      const result = bodies[category].judge(body, bodyContext)
+      const port = bodies[category]
+      if (port === undefined) throw new BodyProviderUnavailableError()
+      const result = port.judge(body, bodyContext)
       if ('rejected' in result) nested.push(result.rejected)
     }
     if (
@@ -339,13 +357,15 @@ export function createAssetModelJudge(bodyContracts: BodyContracts): AssetModelJ
           continue
         const ref = declaration.domain.schema.$ref
         for (const category of bodyCategories) {
-          const resource = object(bodies[category].schema)
+          const resource = object(bodySchema(bodies, category))
           if (typeof resource?.$id !== 'string' || !ref.startsWith(`${resource.$id}#/$defs/`))
             continue
           const definition = ref.slice(`${resource.$id}#/$defs/`.length)
           if (!isObject(resource.$defs) || !Object.hasOwn(resource.$defs, definition))
             throw new TypeError('declaration references an unknown body definition')
-          const result = bodies[category].judge(entry.value, { definition })
+          const port = bodies[category]
+          if (port === undefined) throw new BodyProviderUnavailableError()
+          const result = port.judge(entry.value, { definition })
           if ('rejected' in result) nested.push(result.rejected)
         }
       }
@@ -468,7 +488,7 @@ export function createAssetModelJudge(bodyContracts: BodyContracts): AssetModelJ
   }
   return Object.freeze({ judgeAssetValue, validate })
 }
-function validDomain(root: JsonObject, bodies: BodyContracts): boolean {
+function validDomain(root: JsonObject, bodies: BodyContractSupply): boolean {
   const domain = object(root.domain) ?? root
   if (domain.kind === 'enum')
     return !Object.hasOwn(root, 'default') || array(domain.values).includes(root.default ?? null)

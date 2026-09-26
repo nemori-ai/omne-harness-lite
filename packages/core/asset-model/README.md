@@ -14,8 +14,18 @@ refer to body JSON without duplicating the six packages' precise body type defin
 
 `BodyContract<C>` carries a literal `category: C`, a fixed `schema` resource, and three
 closures: `judge(body, context?)`, `deriveDeclarations(body, ...snapshot)`, and
-`references(body)`. `BodyContracts` requires all six categories. A misplaced port is
-a type error; a missing or mismatched runtime port throws during construction (M51).
+`references(body)`. `BodyContracts` requires all six categories. The current provider
+scope also accepts `NonConnectorBodyContracts`, requiring the other five and forbidding
+an own `connector` property, even when undefined. `BodyContractSupply` is this union.
+A misplaced port or a missing non-Connector port is a configuration error (M51).
+The five-port compiler closes its resources with the unchanged frozen Connector Schema
+in `schema/resources/connector.schema.json`; this resource supplies no body behavior.
+Full six-port construction uses the supplied Connector resource once. Actual Connector
+`judge`, declaration or reference requests without its port throw the public
+`BodyProviderUnavailableError` with `category: 'connector'`, outside the frozen rejection
+and underivable results. Traversal covers only contract-owned body positions and
+explicit fixed-definition dependencies; arbitrary JSON and Connector identifiers stay
+within their original domains. Pure `validate` still applies the original Schema.
 `judge` returns `{ ok: true } | { rejected: string }`, preserving the original JSON
 instead of converting a typed or opaque body result back into JSON.
 
@@ -92,8 +102,10 @@ doubles. They establish the shell boundary, rejection order and port protocol; t
 not establish the six real body implementations. The unique `defaultBodyContracts`
 composition belongs to asset-evaluation (W6). Acceptance obligations and external
 owners remain in the [node verification map](../../../.meta_harness/design/realization/packages/core/asset-model/verification.md).
-The current user-directed delivery defers the connector body, the six real port
-composition, and full asset-evaluation/workspace reading. Protocol doubles do not
-close those obligations.
+The current user-directed delivery defers only the Connector asset vertical and
+the assertion that all six real body ports are supplied. The other five real bodies,
+their asset-evaluation chain and workspace reading remain in the current delivery.
+Local protocol doubles do not close that real five-body composition obligation,
+which belongs to asset-evaluation's W6 assembly.
 Storage uniqueness, owner/version mutation paths, sharing validity, credential
 custody and symbolic-link resolution are outside this package.

@@ -9,10 +9,11 @@ import type {
   AssetContent,
   AssetCategory,
   AttributeDeclaration,
-  BodyContracts,
+  BodyContractSupply,
   DeclarationResult,
 } from './types.ts'
 import { bindBodyContracts, createAssetModelJudge, isObject } from './judge.ts'
+import { connectorContract } from './availability.ts'
 
 export const DISABLED_DECLARATION: AttributeDeclaration = Object.freeze({
   item: 'disabled',
@@ -68,12 +69,12 @@ function pinReference(reference: CapabilityId): CapabilityId {
 }
 export function attributeDeclarationsOf<C extends AssetCategory>(
   content: AssetContent & { readonly category: C },
-  bodyContracts: BodyContracts,
+  bodyContracts: BodyContractSupply,
   actionSnapshot?: JsonValue,
 ): DeclarationResult<C>
 export function attributeDeclarationsOf(
   content: AssetContent,
-  bodyContracts: BodyContracts,
+  bodyContracts: BodyContractSupply,
   actionSnapshot?: JsonValue,
 ): DeclarationResult {
   const bodies = bindBodyContracts(bodyContracts)
@@ -101,7 +102,7 @@ export function attributeDeclarationsOf(
           : content.category === 'skill'
             ? bodies.skill.deriveDeclarations(content.body)
             : content.category === 'connector'
-              ? bodies.connector.deriveDeclarations(content.body)
+              ? connectorContract(bodies).deriveDeclarations(content.body)
               : bodies.slash_command.deriveDeclarations(content.body)
   let actionSnapshotKind: 'fetched' | 'not_fetched' | undefined
   if (content.category === 'mcp') {
@@ -151,7 +152,7 @@ export function attributeDeclarationsOf(
 }
 export function referencesOf(
   content: AssetContent,
-  bodyContracts: BodyContracts,
+  bodyContracts: BodyContractSupply,
 ): { readonly references: readonly CapabilityId[] } | { readonly underivable: 'agent_definition' } {
   const bodies = bindBodyContracts(bodyContracts)
   if (content.category === 'agent_definition')
@@ -163,6 +164,8 @@ export function referencesOf(
       ? bodies.tool.references(content.definition)
       : content.category === 'loop_extension'
         ? bodies.loop_extension.references(content.extension)
-        : bodies[content.category].references(content.body)
+        : content.category === 'connector'
+          ? connectorContract(bodies).references(content.body)
+          : bodies[content.category].references(content.body)
   return Object.freeze({ references: Object.freeze(references.map(pinReference)) })
 }

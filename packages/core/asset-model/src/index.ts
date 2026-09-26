@@ -1,4 +1,5 @@
 export type * from './types.ts'
+export { BodyProviderUnavailableError } from './availability.ts'
 export {
   isCapabilityName,
   isAssetCategory,

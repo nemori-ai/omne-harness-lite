@@ -167,6 +167,11 @@ export interface BodyContract<C extends BodyCategory> {
   readonly references: (body: JsonValue) => readonly CapabilityId[]
 }
 export type BodyContracts = { readonly [C in BodyCategory]: BodyContract<C> }
+/** The current provider scope omits only Connector, without inventing a substitute port. */
+export type NonConnectorBodyContracts = Omit<BodyContracts, 'connector'> & {
+  readonly connector?: never
+}
+export type BodyContractSupply = BodyContracts | NonConnectorBodyContracts
 export interface AssetJudgeContext {
   readonly declarations?: readonly AttributeDeclaration[]
 }
