@@ -16,3 +16,5 @@ catalog:
   vitest: 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
+  yaml: 2.9.1
+  '@eslint-community/regexpp': 4.12.2
