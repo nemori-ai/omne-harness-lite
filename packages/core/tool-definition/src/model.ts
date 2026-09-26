@@ -1,5 +1,6 @@
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import type { ModelToolEntry, ModelToolName, ToolDefinition } from './types.ts'
+import { copyJson, object } from './json.ts'
 
 export function modelName(name: string): ModelToolName {
   return name.replaceAll(':', '__')
@@ -18,7 +19,11 @@ function codePointCompare(left: string, right: string): number {
   return first.length - second.length
 }
 export function modelInput(definition: ToolDefinition): JsonObject {
-  if (definition.paradigm === 'single') return definition.input
+  if (definition.paradigm === 'single') {
+    const copied = copyJson(definition.input)
+    if (!object(copied)) throw new TypeError('JSON object input schema required')
+    return copied
+  }
   const names = Object.keys(definition.commands).sort(codePointCompare)
   return Object.freeze({
     type: 'object',
