@@ -20,6 +20,7 @@
 | 类型 `McpEndpoint`、`ActionSnapshot`（`fetched`／`not_fetched` 两支）、`McpToolDescriptor` | [S-1](../../../../spec/data/mcp-endpoint/v1/contract.md#s-1-接入点正文)～[S-10](../../../../spec/data/mcp-endpoint/v1/contract.md#s-10-对端动作描述)、[S-12](../../../../spec/data/mcp-endpoint/v1/contract.md#s-12-oauth-绑定)、[S-13](../../../../spec/data/mcp-endpoint/v1/contract.md#s-13-凭据配值的取值域) |
 | `actionEntryName(endpointName, remoteName) → { ok } \| { notProjectable }` | [S-11](../../../../spec/data/mcp-endpoint/v1/contract.md#s-11-动作条目名) |
 | `mcpBodyContract`（asset-model 端口的那一份：名字收窄、推属性） | [S-26](../../../../spec/data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄)、[S-14](../../../../spec/data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)～[S-17](../../../../spec/data/mcp-endpoint/v1/contract.md#s-17-工作区格上的这些项) |
+| `deriveMcpDeclarations(body, actionSnapshot?) → McpDeclarations` | 同一 S-14～S-17 纯推出；结果使用 asset-model 的 `DeclarationResult<'mcp'>`，保留实际快照的 `fetched`／`not_fetched` 知识标记，不把未取得动作集当成空集 |
 | `judgeMcpEndpoint(value) → { ok } \| { rejected, m? }`；`judgeMcpValue(definition, value)` 覆盖冻结 Schema 七个公开定义 | [S-18](../../../../spec/data/mcp-endpoint/v1/contract.md#s-18-规范表示)～[S-21](../../../../spec/data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补) |
 
 **函数层不承诺**：OAuth 绑定号部署内唯一且不可猜、stdio 在据点机上拉起——归 MCP 桥（[装配给 vs 协议给](#装配给-vs-协议给)）。
@@ -69,6 +70,8 @@
 MCP 推出结果采用 [AM 部分已知端口协议](../asset-model/design.md#mcp-部分已知声明的进程内端口协议实施细化2026-09-26)：四固定项始终照常，显式 `not_fetched` 不当空清单；未提供动作集保留自有 `actionSnapshotKind: undefined`，已获取空／非空清单均标 `'fetched'`。不得整体 `underivable` 丢失已知固定项。远端 `inputSchema` 仍只判对象并原样保留，不用引入的适配器编译远端作者 Schema；投影限制仍归 tool／MCP 桥。
 
 ## 状态、并发与失败映射
+
+`validate(definition, value)` 与 `schemaId`／冻结的 `SCHEMA_DEF_NAMES` 给同一七项冻结定义的公开 Schema 面；值判定不从 Schema 错误反推出具名拒绝。技术上消费 content-blocks 中性 JSON／Schema 入口，不由 MCP 编译或修补对端作者的 `inputSchema`。
 
 **无状态、无提交点、无并发。**表示层拒绝 ⇒ `{ rejected: 值, m? }`（恰一个，`malformed` 另带 M 编号作诊断）；拼不出条目名 ⇒ `{ notProjectable }`。两者类型不相容，**都不抛异常**。
 

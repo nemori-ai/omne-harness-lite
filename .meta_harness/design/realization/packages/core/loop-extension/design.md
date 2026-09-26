@@ -20,6 +20,7 @@
 | 类型 `ExtensionInput`、`FailureCause`、`TerminalFact`；不透明的 `EnvironmentHandle`（本包不导出任何解析它的函数） | [S-11](../../../../spec/data/loop-extension/v1/contract.md#s-11-输入的成员)～[S-18](../../../../spec/data/loop-extension/v1/contract.md#s-18-terminalfact)、[S-41](../../../../spec/data/loop-extension/v1/contract.md#s-41-执行环境句柄) |
 | 类型 `Conclusion`；常量表 `POWER_CONCLUSIONS`、`POSITION_CONCLUSIONS` | [S-19](../../../../spec/data/loop-extension/v1/contract.md#s-19-结论封闭八种)～[S-29](../../../../spec/data/loop-extension/v1/contract.md#s-29-没有放宽) |
 | `judgeConclusion(value, inputs) → { ok } \| { rejected }` | [S-36](../../../../spec/data/loop-extension/v1/contract.md#s-36-规范表示与定义项)～[S-39](../../../../spec/data/loop-extension/v1/contract.md#s-39-判别式与枚举闭合) |
+| 类型 `ConclusionInputs`；`validate(definition, value)`、`judgeValue(definition, value)`；`judgeDefinition`、`judgeInput`、`judgeOutput` 与类型守卫 | 同一冻结 Schema 的全部 42 项定义；辅助入口不拥有派发或资格判定 |
 | `loopExtensionBodyContract`（asset-model 端口的那一份） | [S-40](../../../../spec/data/loop-extension/v1/contract.md#s-40-属性项的推出规则) |
 
 **函数层不承诺**：结论先落后算、瀑布次序与 `earlier` 可见、不可用与报错两分、`ask` 的卡片先于等待落盘——它们归派发器与日志（[装配给 vs 协议给](#装配给-vs-协议给)其余五行）。
@@ -54,6 +55,16 @@
 | [S-36](../../../../spec/data/loop-extension/v1/contract.md#s-36-规范表示与定义项)～[S-39](../../../../spec/data/loop-extension/v1/contract.md#s-39-判别式与枚举闭合) 十个拒绝值与次序 | `judgeConclusion(value, inputs)` | 第 9、10 行（改了不可改的成员、冒名的 `inject`）要对照输入与本件 name，经 `inputs` 交进来（参数不叫 `ctx`，免得读成 Cordis 的 Context） | V-2；「不合法的结论按报错处置」（S-34）归派发器 |
 | [S-40](../../../../spec/data/loop-extension/v1/contract.md#s-40-属性项的推出规则) 推出规则 | `loopExtensionBodyContract`：推属性（`position`、`dimension`、`power`）；规则一恒为空集 | 只读声明本身 | asset-model SC-6 |
 
+### 结论辅助输入与来源分支的实施前提
+
+**2026-09-26，独立 spec-reviewer 核对后由主调度技术采用**。`ConclusionInputs = { input: ExtensionInput, extensionName: CapabilityName }`：调用方交入本次已经受理的实际调用输入与本件名字，不由本模块查运行时。记录中的 `position`、`dimension`、`callId` 必须与这份输入对应；这一可检查的配对违例是辅助 API 的 `TypeError`，不是第十一个表示层拒绝。先判无需该配对即可确定的形状、位置、干预力等既有拒绝；不能用配置错误盖过已能确定的领域拒绝。记录的 `extension` 与合法主体结论中的名字仍按 S-7 的镜像形状判，不混成配对错误。相同字段不证明真实调用出处，调用方仍负责提供本次实际输入；不新增调用身份来假称已经证明出处。
+
+S-37 的 `inject_source_mismatch` 与 frozen examples §7 最后一行一致：当 `source.kind` 是合法字符串但不是 `extension`，按第 10 行判冒名，不把该禁止来源分支的私有 `level`／`finding` 再按消息来源规则判成第 1 行 `malformed`。`source` 缺席、非对象或 `kind` 非字符串仍是形状错误；允许的 `extension` 分支的必填、词法与额外成员仍须校验。不得扩成对整份来源形状免检，也不修改冻结的 L1 例子。
+
+`rewrite` 对照原输入判不可改成员；`ask.about` 与注入来源继续给已有具名拒绝。模型改写后是否具有系统转换资格归 runner，本模块不接受一个布尔值来替它完成资格判断。
+
+`validate` 只判 Schema；`judgeValue` 判该定义自身可独立确定的形状与有序谓词，包括记录内看得见的来源镜像。它没有原 subject 与实际本件名字，不声称兑现依赖实际调用的 S-37 第 9 行及第 10 行全部上下文条件。正式接收一份结论必须用带必需 `ConclusionInputs` 的 `judgeConclusion`；不能以辅助局部 `ok` 代替它。
+
 ## 依赖、作用域与绑定
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
@@ -68,7 +79,7 @@
 
 ## 状态、并发与失败映射
 
-**无状态、无提交点、无并发。**表示层拒绝 ⇒ `{ rejected: 值 }`（十个之一）；**不抛异常**；拒绝不是判定（S-38）。
+**无状态、无提交点、无并发。**表示层拒绝 ⇒ `{ rejected: 值 }`（十个之一），该判定不抛异常；拒绝不是判定（S-38）。只有上述结论辅助 API 的调用前提违例给 `TypeError`，不能记成一次结论拒绝或 runner 收场。
 
 ## 成对的装载与撤除
 
