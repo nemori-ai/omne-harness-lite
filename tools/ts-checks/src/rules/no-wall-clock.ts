@@ -1,4 +1,5 @@
-import { isTestPath, scanLines, type Rule } from '../rule.ts'
+import { isTestPath, type Rule } from '../rule.ts'
+import { scanCode } from '../source-text.ts'
 
 /**
  * SC-OE-3（offer-expiry 节点）：消费者不得另用墙钟；领域时间只从 clock 服务取。
@@ -11,12 +12,12 @@ export const noWallClock: Rule = {
   description:
     'core/ 与 tenancy/ 源码里不得出现 Date.now()、new Date()、performance.now()；时间只从 clock 服务取',
   check(files) {
-    return scanLines(
-      this,
+    return scanCode(
+      this.id,
       files,
-      /\bDate\.now\(\)|\bnew Date\(\s*\)|\bperformance\.now\(\)/,
-      '使用了墙钟；领域时间必须来自 clock 服务（Clock.now()）',
-      path => isTestPath(path) || path.startsWith('infra/'),
+      path => !isTestPath(path) && !path.startsWith('infra/'),
+      /\bDate\s*\.\s*now\s*\(\s*\)|\bnew\s+Date\s*\(\s*\)|\bperformance\s*\.\s*now\s*\(\s*\)/,
+      () => '使用了墙钟；领域时间必须来自 clock 服务（Clock.now()）',
     )
   },
 }

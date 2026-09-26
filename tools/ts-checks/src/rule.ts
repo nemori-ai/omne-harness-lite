@@ -1,4 +1,4 @@
-/** 一条结构检查规则：对一组源码文件给出违反点。规则只看文本与路径，不做类型分析——便宜、可自测。 */
+/** 一条结构检查规则：对源码文本、语法和路径给出违反点，不作跨文件类型分析。 */
 export interface SourceFile {
   /** 相对于扫描根（`packages/`）的 POSIX 路径。 */
   readonly path: string
