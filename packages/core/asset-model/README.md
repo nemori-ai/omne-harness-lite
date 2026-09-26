@@ -58,7 +58,11 @@ deterministic, effect-free native RegExp factory; global/sticky patterns throw.
 The default uses Ajv's Unicode pattern mode. Tool consumers supply their M56
 non-Unicode-first factory. Meta failures are boolean; compiling an invalid meta
 input throws, and reference/pattern/compiler exceptions propagate. Async Schema
-results throw. There is no remote loading, and formats are annotations.
+results throw as an internal safeguard; the nonstandard `$async` annotation is
+ignored in the private Draft compiler view. There is no remote loading, and
+formats are annotations. Other engine extensions (`nullable`, legacy `id`,
+`$recursiveAnchor`/`$recursiveRef` and `dependencies`) have no assertion semantics
+in this Draft view; the standard meta Schema still checks their deprecated shapes.
 
 Tests cover exact integers and decimal bounds, multipleOf, const/enum/uniqueItems,
 object/array vocabularies, compositions, explicit and recursive refs, standard
@@ -67,11 +71,14 @@ adopted engine, not a claim that every Draft 2020-12 construct has been verified
 Tool-specific subsets, rejection ordering and configured limits stay with tool.
 Numeric bounds, multipleOf, integer types and numeric const/enum values use the
 original number source. Length, array size and property count bounds compare exact
-codepoint/element/member counts. `minContains` and `maxContains` retain native Ajv
-counting only for safe integer bounds; larger valid bounds pass meta validation
-and throw `UnsupportedSchemaKeywordError` during compilation. Numeric values in
-annotations and defaults remain unchanged. No unsupported constraint is rounded
-into an accepted validator.
+codepoint/element/member counts. `minContains` and `maxContains` use native Ajv
+counting. For larger-than-safe integer bounds, the private compiler substitutes
+MAX_SAFE_INTEGER: actual matching counts cannot exceed array length, and
+[ECMAScript arrays have length below 2^32](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-array-exotic-objects).
+Within the actual JavaScript value domain these comparisons are equivalent;
+this is not a claim about unbounded arrays in another language. Original bounds,
+meta checks, annotation numbers and defaults remain unchanged. An open domain
+without an author default needs only meta validation, not compilation.
 
 Run `pnpm --filter @omne-harness-lite/asset-model run build`, `typecheck`, and `test`.
 Tests use the accepted frozen six Schema resources and explicitly labelled W2 protocol
