@@ -34,6 +34,7 @@ import {
   ok,
   opaqueIdentifierEquals,
   parseAccountId,
+  parseHandoffWarrant,
   parseLoginIdentifier,
   parseLoginStateId,
   parseOpaqueIdentifier,
@@ -343,6 +344,12 @@ const cases: readonly ConsumerCase[] = [
       const account = unwrap(parseAccountId('warrant-account'))
       const other = unwrap(parseAccountId('warrant-other'))
       const warrant = issueHandoffWarrant(signer, 'activation', account)
+      assert.equal(unwrap(parseHandoffWarrant(warrant)), warrant)
+      assert.equal(isOk(parseHandoffWarrant(undefined)), false)
+      assert.equal(handoffWarrant.generateKeyPair, generateHandoffKeyPair)
+      assert.equal(handoffWarrant.loadSigningKey, loadSigningKey)
+      assert.equal(handoffWarrant.loadVerificationKey, loadVerificationKey)
+      assert.equal(handoffWarrant.parse, parseHandoffWarrant)
       assert.equal(unwrap(handoffWarrant.parse(warrant)), warrant)
       assert.equal(
         handoffWarrant.verify(

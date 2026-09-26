@@ -1,5 +1,6 @@
 import { expectTypeOf, test } from 'vitest'
-import { isSuccess, type Ack, type Outcome } from '@omne-harness-lite/kernel-basis'
+import { z } from 'zod'
+import { definePlugin, isSuccess, type Ack, type Outcome } from '@omne-harness-lite/kernel-basis'
 import {
   type AccountId,
   type LoginIdentifier,
@@ -40,6 +41,16 @@ import {
 import type { Kysely } from 'kysely'
 
 test('w1.types.kernel.outcome-public', () => {
+  const inferred = definePlugin({
+    name: 'public-type-consumer',
+    Config: z.object({ ttl: z.number() }),
+    apply(_ctx, config) {
+      expectTypeOf(config).toEqualTypeOf<{ ttl: number }>()
+      // @ts-expect-error Standard Schema 推导的配置没有任意属性
+      config.unknown
+    },
+  })
+  expectTypeOf(inferred).toBeObject()
   const narrowResult = (result: Outcome<number, 'unavailable' | 'interrupted'>) => {
     if (isSuccess(result)) {
       expectTypeOf(result.ok).toEqualTypeOf<number>()
