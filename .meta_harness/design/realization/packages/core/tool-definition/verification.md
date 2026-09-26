@@ -15,7 +15,7 @@
 | V-9 多命令派发以 `commands[c].input` 判参数 | 过了模型面、判定不过的三条调用都被拒；顶层没写 `additionalProperties` 的 schema 收到未知键被拒；带 `format` 的参数值不合格式时**不被拒**（M37：只作注解） | 未开始 | 本节点（判定）；被拒之后怎样收场归执行运行时 |
 | V-12 的本节点那一半 | `format: email` 的参数收到 `"not-an-email"` 判为合格；对 `schema_unsupported` 的 schema，`judgeCallArguments` 返回 `{ unsupported }`、**不返回 `ok`** | 未开始 | 本节点；「作者工具不以全放行运行」「MCP 来源以同形替换件出现」归执行运行时、MCP 桥与注册表的场景 |
 | S-18 逆转写唯一 | `__`、`_:`、`:_` 三种相邻各一个反例；转写后长度 ≤ 128 的边界两侧 | 未开始 | 本节点 |
-| `ModelToolName` 副本对齐（TD-1） | content-blocks 与本包两处 `$defs/ModelToolName` 逐字相同 | 未开始 | 本节点 |
+| `ModelToolName` 副本对齐（TD-1） | content-blocks 与本包两处 `$defs/ModelToolName` 的断言键 `type` 与 `pattern` 逐字相同（依content-blocks冻结 `$comment` 的精确口径；各自title/description/examples/$comment注释保留，不比较为同字节） | 未开始 | 本节点 |
 | V-10 静态检查 | 见 [design](design.md#静态检查义务怎么承载) | 未开始；规则不存在 | 本节点提出形式，`tools/ts-checks` 落规则 |
 | V-11 消费者走查 CS-1～CS-8 | 结构化走查 | 未开始 | 本节点与执行运行时、注册表、MCP 桥共同走查 |
 

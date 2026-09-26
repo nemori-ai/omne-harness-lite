@@ -148,3 +148,7 @@ S-4 把 `(WorkspaceKey, capability)` → 记录号的导法交给实现，要求
 运行对象/编译缓存归构造它的调用方，随着对象引用释放；标准元Schema是本包固定输入，不建立模块级作者Schema增长缓存。编译异常原样抛给调用方；元校验false只表示meta不合格，tool自己的封闭子集、拒绝次序、U限项和编译失败分类仍归tool。没有远程ref取件或异步Schema加载，format仅作注解，不暴露可覆盖原值保护的任意Ajv选项。pattern工厂由调用方给出（未给沿本节点引擎默认），tool必须给M56逐pattern先non-u失败再u的工厂；适配不替tool决定旗标。
 
 验收明确检查实际支持的type/integer union、数值上下界/multipleOf、const/enum/uniqueItems、properties/数组/组合/$ref/标准meta及混合旗标；不称所有Draft2020-12构造都已有实证。须用原始字面量/独立手算oracle证明投影未把巨数或分数错判，并核输入不变、外部Schema资源解析到显式采用对象、构建后的独立子入口消费。此入口是已采用Ajv路径的技术复用，不改变数据契约冻结资源或六正文端口，新增功能实际验证沿本节点verification单列。
+
+## 数值 Schema 适配的宿主范围补充
+
+公开schema-runtime保留原始Schema与无损输入，整数/边界/enum等按原十进制值判断，长度/元素/成员计数精确。`minContains`/`maxContains` 的超安全整型边界不构成合法open domain额外拒绝：实际JS数组长度至多2^32-1，超过MAX_SAFE的合法min界对数组永不满足、max界无约束，可用有实际反例与原值meta验证的宿主等价投影，不把投影当跨语言无限数组证明。无default的domain只需精确meta验证，不借编译新增拒绝。非标准Ajv扩展不成为本项目JSON Schema语义，调用方schema不得隐启异步验证。

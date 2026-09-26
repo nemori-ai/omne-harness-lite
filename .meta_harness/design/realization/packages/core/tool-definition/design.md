@@ -152,7 +152,7 @@
 
 契约的已知缺口（G-1、G-2、G-5、G-9～G-14）不重抄；G-15 已由 [D-040 §八 N-22](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) T-16 关闭（判不了一律 `failed{schema_unsupported}`，收场在执行运行时 S-23 ④）；G-16 由[上文的登记](#schema_unsupported-的上限登记g-16)承接（候选值）。原 tool-model 报回的 TM-2（`format` 断言还是注解）、TM-3（远端正则的执行安全）已由 [D-040 §八 M37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 与契约 S-4 末段、S-26 第 13 行关闭。本节点自己的：
 
-- **TD-1 `ModelToolName` 的副本对齐**：content-blocks 里有一份逐字副本（为避免契约互依）。对齐测试放在本包：取 content-blocks 导出的 Schema 与本包 Schema，比较两处 `$defs/ModelToolName` 逐字相同。owner：本节点（义务，不是阻塞；D-040 §八 M44 接受「副本对齐测试放依赖方」）。
+- **TD-1 `ModelToolName` 的副本对齐**：content-blocks 里有一份逐字副本（为避免契约互依）。对齐测试放在本包：取 content-blocks 导出的 Schema 与本包 Schema，比较两处 `$defs/ModelToolName` 的断言键 `type` 与 `pattern` 逐字相同（依content-blocks冻结 `$comment` 的精确口径；各自title/description/examples/$comment注释保留，不比较为同字节）。owner：本节点（义务，不是阻塞；D-040 §八 M44 接受「副本对齐测试放依赖方」）。
 - **TD-2 登记值的确认与解析器的采用**：U-1～U-7 是本节点登记的限项，U-8 的策略与用例归执行运行时；契约 G-16 说「需要跨实现一致时由主线定一份共同的下限」——本版只有这一份实现，不阻塞。正则解析器（U-7）按 [D-040 §八 M55](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 是候选依赖，版本钉定与许可核对在实施程。筛不出的病态正则由 U-8 的判定时限兜底，计时与终止在执行运行时的判定工作线程（它的节点已按 T-16 写进）。ajv `code.regExp` 按 pattern 选标志（U-1）与 ajv 内部缓存对已编 schema 的引用方式（M50）是实施时的核对项。owner：主线（依赖登记）；本节点（落包时以 examples 第 5 节三行与 U-1～U-7 各一对正反例核）；U-8 的配置与超时例归执行运行时。
 - **TD-3 端口的组合根**：`toolBodyContract` 与另五个正文包的那一份只由 asset-evaluation 组合一次、导出为 `defaultBodyContracts`（[asset-model AM-5](../asset-model/design.md#实施缺口与消费者影响)，M51）。
 
