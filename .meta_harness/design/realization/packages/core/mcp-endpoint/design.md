@@ -20,7 +20,7 @@
 | 类型 `McpEndpoint`、`ActionSnapshot`（`fetched`／`not_fetched` 两支）、`McpToolDescriptor` | [S-1](../../../../spec/data/mcp-endpoint/v1/contract.md#s-1-接入点正文)～[S-10](../../../../spec/data/mcp-endpoint/v1/contract.md#s-10-对端动作描述)、[S-12](../../../../spec/data/mcp-endpoint/v1/contract.md#s-12-oauth-绑定)、[S-13](../../../../spec/data/mcp-endpoint/v1/contract.md#s-13-凭据配值的取值域) |
 | `actionEntryName(endpointName, remoteName) → { ok } \| { notProjectable }` | [S-11](../../../../spec/data/mcp-endpoint/v1/contract.md#s-11-动作条目名) |
 | `mcpBodyContract`（asset-model 端口的那一份：名字收窄、推属性） | [S-26](../../../../spec/data/mcp-endpoint/v1/contract.md#s-26-接入点-name-登记时收窄)、[S-14](../../../../spec/data/mcp-endpoint/v1/contract.md#s-14-推出规则五类项)～[S-17](../../../../spec/data/mcp-endpoint/v1/contract.md#s-17-工作区格上的这些项) |
-| `judgeMcpEndpoint(value) → { ok } \| { rejected, m? }` | [S-18](../../../../spec/data/mcp-endpoint/v1/contract.md#s-18-规范表示)～[S-21](../../../../spec/data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补) |
+| `judgeMcpEndpoint(value) → { ok } \| { rejected, m? }`；`judgeMcpValue(definition, value)` 覆盖冻结 Schema 七个公开定义 | [S-18](../../../../spec/data/mcp-endpoint/v1/contract.md#s-18-规范表示)～[S-21](../../../../spec/data/mcp-endpoint/v1/contract.md#s-21-表示层拒绝不是判定也不修补) |
 
 **函数层不承诺**：OAuth 绑定号部署内唯一且不可猜、stdio 在据点机上拉起——归 MCP 桥（[装配给 vs 协议给](#装配给-vs-协议给)）。
 
@@ -61,9 +61,12 @@
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
 | `data.asset-model` v1、`data.tool-definition` v1、`data.identity-values` v1、`data.offer-expiry` v1 | [asset-model](../asset-model/README.md)、[tool-definition](../tool-definition/README.md)、已实现的 identity-values 与 offer-expiry | 随包版本 | 静态 import |
+| 中性 JSON／Schema 技术依赖（不新增领域契约边） | [content-blocks](../content-blocks/README.md) 的 `JsonValue`、无损表示与 `./schema-runtime` 公开入口；仅表示／校验层使用，不消费块语义 | 随包版本；遵该技术入口固定 meta 与编译器生命周期边界 | 静态 import；推出规则模块仍只 import 类型（SC-2） |
 | 被消费 | 资产治理、MCP 桥、注册表、asset-evaluation | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+领域依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）；CB 中性技术边另列，采用与 D-040 M52 的 asset-evaluation 无损写工具依赖相同的归属，不向 catalog 虚增块语义消费。主调度于 2026-09-26 技术接受，独立 architecture-reviewer 已核无阻断；该边已有经 AM／tool 的可达路径，不增加环。**没有配置项**。
+
+MCP 推出结果采用 [AM 部分已知端口协议](../asset-model/design.md#mcp-部分已知声明的进程内端口协议实施细化2026-09-26)：四固定项始终照常，显式 `not_fetched` 不当空清单；未提供动作集保留自有 `actionSnapshotKind: undefined`，已获取空／非空清单均标 `'fetched'`。不得整体 `underivable` 丢失已知固定项。远端 `inputSchema` 仍只判对象并原样保留，不用引入的适配器编译远端作者 Schema；投影限制仍归 tool／MCP 桥。
 
 ## 状态、并发与失败映射
 

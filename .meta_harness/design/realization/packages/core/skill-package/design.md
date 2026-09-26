@@ -61,6 +61,12 @@ S-20 第 5、6 条要一个 YAML 1.2 解析器：第三方包 `yaml`（[下文](
 | 新依赖 | 无 | 有 | 有 |
 
 **选 `yaml` 所依的三条行为是待核对主张**：默认模式是 YAML 1.2 core、重复键默认报错、`name: no` 读成字符串——**假设，须按 source-check 取证**（basis 无此条目，它不是 Cordis 语义），落包时以包内测试（examples 第 6 节）核。
+
+**S-5／S-20 的实施读法（2026-09-26，独立 spec-reviewer 已核，主调度技术采用）**：按 YAML 节点解析所得类型检查六个核心键，不把库对未识别 local tag 的 fallback string 当成已成功构造的字符串。核心值 `name: !foo x` 按 M16 拒绝；`description: !!str 123` 是真实字符串，`!!int 123` 不字符串化；单独 `!` 的非特定标签不能误当未知 local tag 拒绝。此读法兑现已有类型前置，不新增自定义标签政策，依据为 [YAML 1.2.2 §3.3.3～3.3.4](https://yaml.org/spec/1.2.2/#333-recognized-and-valid-tags)（1.2.2 未改变 1.2 的规范规则）。
+
+未知属性、非字符串或复杂键不能强转成有效 manifest 键，按 S-5 丢弃并留下可见 `keySource` 等读入痕迹。未知属性自身含未识别标签不能一概拒整包；若其 anchor 被核心值引用，按 alias 解析后的真实节点类型检查。`metadata` 与 `allowed-tools` 属核心类型检查，不按未知属性丢弃。重复键检查覆盖原 frontmatter mapping，包括最终丢弃的键；库 `uniqueKeys` 默认开启不替代复杂键／带标签键／alias 的实测与节点等价检查。实际探针、正反例和采用版本许可挂本包 evidence；此说明不声称这些检查已经完成。
+
+目录输入中的 `.omne/skill.json` 采用 CB 严格无损 JSON 读入；语法或解码后重复键失败归中性的 `{ rejected: 'malformed' }`，不套用只针对 SKILL.md YAML 的 M16，不自行创造 M 编号。链接事实由调用方显式交入，纯模块不访问文件系统。
 **落选方（手写子集）的最强论证**：零依赖、行为完全可控。**它输给契约**：S-20 明写「按 YAML 1.2 解析」，子集读法会让合法的 frontmatter 被拒。**本方弱点**：多一个第三方依赖，要进 pnpm catalog。置信度：**中**（在两个库之间）。
 
 ## 依赖、作用域与绑定
