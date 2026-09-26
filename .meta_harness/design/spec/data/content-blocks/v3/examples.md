@@ -635,3 +635,45 @@
   "unparseable": true
 }
 ```
+
+## v3 独立评审后的名字边界对照
+
+以下对照限定正常参数与工具指认的值域；完整未解析分支仍保留收到的非空原名。
+
+### 128字符正常参数
+
+校验对象：`$defs/ContentBlock`。预期 Schema：`通过`；契约结果：`—`。S-12、S-26：正常 arguments 分支仍受原 ModelToolName 的 128 字符上限约束。
+
+```json
+{
+  "id": "b_bad",
+  "kind": "tool_call",
+  "visibility": {
+    "toHuman": true,
+    "toModel": true
+  },
+  "complete": true,
+  "callId": "call_bad",
+  "tool": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "arguments": {}
+}
+```
+
+### 129字符正常参数
+
+校验对象：`$defs/ContentBlock`。预期 Schema：`拒绝`；契约结果：`malformed`。S-12、S-26：正常 arguments 分支仍受原 ModelToolName 的 128 字符上限约束。
+
+```json
+{
+  "id": "b_bad",
+  "kind": "tool_call",
+  "visibility": {
+    "toHuman": true,
+    "toModel": true
+  },
+  "complete": true,
+  "callId": "call_bad",
+  "tool": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "arguments": {}
+}
+```

@@ -776,3 +776,39 @@ Anthropic：
   }
 }
 ```
+
+## v3 独立评审后的名字边界对照
+
+以下对照限定正常参数与工具指认的值域；完整未解析分支仍保留收到的非空原名。
+
+### 不合字符集的名字
+
+校验对象：`$defs/ModelToolName`。预期 Schema：`拒绝`；契约结果：`不是 ModelToolName`。S-6：此处校验工具指认的值域；完整未解析调用保留原名的例外不扩大它。
+
+```json
+"bad:name"
+```
+
+### 129字符的名字
+
+校验对象：`$defs/ModelToolName`。预期 Schema：`拒绝`；契约结果：`不是 ModelToolName`。S-6：此处校验工具指认的值域；完整未解析调用保留原名的例外不扩大它。
+
+```json
+"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+### 128字符的名字
+
+校验对象：`$defs/ModelToolName`。预期 Schema：`通过`；契约结果：`—`。S-6：此处校验工具指认的值域；完整未解析调用保留原名的例外不扩大它。
+
+```json
+"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+### 普通合法名字
+
+校验对象：`$defs/ModelToolName`。预期 Schema：`通过`；契约结果：`—`。S-6：此处校验工具指认的值域；完整未解析调用保留原名的例外不扩大它。
+
+```json
+"read_file"
+```

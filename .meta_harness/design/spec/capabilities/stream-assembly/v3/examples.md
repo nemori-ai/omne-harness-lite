@@ -21,6 +21,7 @@
 | [6](#6-用户叫停与放弃) | 模型侧叫停：半截调用、缺账记全未知；放弃 | S-9、S-13、S-22 |
 | [7](#7-解析不了与被砍过) | 解析不了只标记；被砍过内容的调用落成半截；先截短后拒收只计一次；严格解析（重复键、大整数） | S-10、S-11、S-12、S-14 |
 | [8](#8-首个内容排除空载荷) | 空串的填不算开口；相等不含首个内容 | S-16、S-27 |
+| [10](#10-工具名字符集与长度都先于参数解析) | 字符集坏名、129字符坏名与128字符/普通合法名的解析边界 | S-10、S-11 |
 
 ## 2. 并开两块、一次砍、一次整体替换
 
@@ -344,3 +345,96 @@
 - 第 2、3、6、7、8 节的每个事件都按 `data.arrival-events` v2 的 Schema 与 [S-28](contract.md#s-28-宿主要兑现的前提) 手核过：帧流上的图都是引用、`toModel` 都是 `false`、工具侧没有 `account`；第 7c 节两处「紧挨」按 S-28 第 4 条排。
 - 第 5 节每行只有一处违例，或者（第 23～27 行）写明了按次序取哪一个。
 - **手核不是证据**：这些结果尚未被任何实现、一致性用例或模型运行复现（[验证入口](../verification.md)）。
+
+## 10. 工具名字符集与长度都先于参数解析
+
+依 [S-10](contract.md#s-10-工具调用在封口那一下解析且只解析这一次) 第 2、3 条和 [S-11](contract.md#s-11-参数收齐却解析不了只标记)，四条独立的模型回复流均接受以下事件。`tool` 分别取下面四组完整值，未发生 trim。
+
+| 位置 | 事件 |
+|---|---|
+| 1 | `{"t":"open","index":0,"kind":"tool_call","fill":"append","id":"b_name","visibility":H1M1,"head":{"callId":"call_name","tool":tool}}` |
+| 2 | `{"t":"fill","index":0,"payload":"{}"}` |
+| 3 | `{"t":"close","index":0}` |
+| 4 | `{"t":"finish","reason":"end"}` |
+
+`open` 的块头允许收到的非空名字，四组事件形状均合法。各次 `close` 被接受，位置 3 起快照和收尾取得下列同一块；它们不再解析参数。参数原文在四组中都是合法的 `{}`，所以前两组不解析的原因完全是名字约束。
+
+### 字符集坏名
+
+封口那一下参数解析次数：**0**。预期块（`data.content-blocks/v3`）：
+
+```json
+{
+  "id": "b_name",
+  "kind": "tool_call",
+  "visibility": {
+    "toHuman": true,
+    "toModel": true
+  },
+  "complete": true,
+  "callId": "call_name",
+  "tool": "bad:name",
+  "rawArguments": "{}",
+  "unparseable": true
+}
+```
+
+### 129字符超长名字
+
+封口那一下参数解析次数：**0**。预期块（`data.content-blocks/v3`）：
+
+```json
+{
+  "id": "b_name",
+  "kind": "tool_call",
+  "visibility": {
+    "toHuman": true,
+    "toModel": true
+  },
+  "complete": true,
+  "callId": "call_name",
+  "tool": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "rawArguments": "{}",
+  "unparseable": true
+}
+```
+
+### 128字符边界名字
+
+封口那一下参数解析次数：**1**。预期块（`data.content-blocks/v3`）：
+
+```json
+{
+  "id": "b_name",
+  "kind": "tool_call",
+  "visibility": {
+    "toHuman": true,
+    "toModel": true
+  },
+  "complete": true,
+  "callId": "call_name",
+  "tool": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "arguments": {}
+}
+```
+
+### 普通合法名字
+
+封口那一下参数解析次数：**1**。预期块（`data.content-blocks/v3`）：
+
+```json
+{
+  "id": "b_name",
+  "kind": "tool_call",
+  "visibility": {
+    "toHuman": true,
+    "toModel": true
+  },
+  "complete": true,
+  "callId": "call_name",
+  "tool": "read_file",
+  "arguments": {}
+}
+```
+
+前两组完整未解析块原样保留名字和参数原文，不进入逆转写或执行；把它们改成 `arguments: {}` 的正常分支将被 CB3 拒绝。后两组恰解析一次，名字不变。这里给出的是规范预期；本轮 Schema 检查只核事件和结果的表示以及名字边界，未运行装配提供者，也未验证真实解析次数。

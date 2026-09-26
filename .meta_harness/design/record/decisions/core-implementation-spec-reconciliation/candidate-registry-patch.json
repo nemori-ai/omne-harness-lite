@@ -6304,5 +6304,51 @@
       "owner": "主线与 core/stream-assembly 提供者",
       "gate": "接受候选后显式更新实现映射/Schema资源/矩阵/证据；当前不迁移"
     }
-  ]
+  ],
+  "review_corrections": {
+    "round": 2,
+    "draft_parent_commit": "c58873e01bac95b40183c2fb2a54590c1cb2321b",
+    "authority": "主线转交独立 spec-reviewer 两项应修；沿 D-068 / D-060 N32，不另作产品裁决",
+    "changes": [
+      {
+        "coordinate": "data.tool-definition/3#S-6",
+        "kind": "normative-expression-correction",
+        "change": "模型面工具指认及逆转写限定正常 arguments 调用；完整 rawArguments+unparseable 分支保留原名，禁止逆转写或执行。ModelToolName 定义不变。"
+      },
+      {
+        "coordinate": "capability.stream-assembly/3#S-10",
+        "kind": "normative-expression-correction",
+        "change": "不解析条件涵盖 ModelToolName 全部约束，显式包括长度；129 个合法字符也须原样落成完整未解析块。"
+      },
+      {
+        "coordinate": "draft-report.md#继承的已知缺口",
+        "kind": "report-extraction-correction",
+        "change": "移除错误抽入未闭合表的 Messages 已关闭 G-3/G-4/G-8/G-9/G-10/G-12/G-13，原契约缺口状态不变。"
+      }
+    ],
+    "examples": {
+      "new_schema_scenarios": 6,
+      "schema_scenarios_total": 35,
+      "new_sa_normative_traces": 4,
+      "scope": "128/129 字符及 bad:name；检查事件/结果表示与名字域，不声称运行提供者或测得真实解析次数。"
+    },
+    "registration_delta": "本轮不改 catalog/resources/依赖/cover/formal-task 提案，仅更新本文修订摘要；八候选仍 candidate。"
+  },
+  "review_followup": {
+    "round": 3,
+    "authority": "主线转交独立评审非阻断表达修订；沿 D-068、SA S-25、AR2 S-28",
+    "changes": [
+      {
+        "coordinate": "data.content-blocks/3#S-0",
+        "kind": "consumer-index-label-correction",
+        "change": "modality-projection 消费者版本标签由遗留 v1 校正为当前 v2，并明确 affected / 未迁移；只作索引，不改外部契约或消费 clauses。"
+      },
+      {
+        "coordinate": "capability.stream-assembly/3#S-25",
+        "kind": "priority-explanation-clarification",
+        "change": "结构在内容之前的内容仅指依赖当前开块的载荷约束；独立 open.head 模态表示仍先于索引序列错误，两项借开块例外不推后它。既有完整优先级不变。"
+      }
+    ],
+    "registration_delta": "catalog/resources/clauses/cover/formal-task 均无变化；Schema 断言与形式模型不变。"
+  }
 }

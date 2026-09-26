@@ -88,7 +88,7 @@
 | [`data.asset-model`](../../asset-model/README.md) v3（candidate） 及各类正文契约（`data.skill-package`、`data.slash-command`、`data.connector`、`data.mcp-endpoint`、`data.loop-extension`） | `CapabilityId`（[S-20](#s-20-派生表示的产出者与能力标识)）、`MediaType`、`AttachmentRef`；来路标记（[S-8](#s-8-文本块与来路标记)）与附件落块（[S-34](#s-34-只给了引用的附件落成哪一类块)） |
 | [`capability.tool-execution-runtime`](../../../capabilities/tool-execution-runtime/README.md) v2（仍采用源2，待核对） | 工具返回的内容落成 [S-15](#s-15-工具结果块) 的 `blocks`；[S-16](#s-16-结果里不发起调用)～[S-18](#s-18-占位原因与它落在哪一格)；`offloaded`（[S-21](#s-21-attachmentref)）；执行帧里的块 |
 | [`capability.model-request-runtime`](../../../capabilities/model-request-runtime/README.md) v2（仍采用源2，待核对） 与传输适配 | 回复里的块；[S-9](#s-9-思考块与不透明数据) 的 `opaque`；[S-6](#s-6-模态由媒体类型判定) 与 [S-10](#s-10-语音块与图块) |
-| [`capability.modality-projection`](../../../capabilities/modality-projection/README.md) v1 | [S-6](#s-6-模态由媒体类型判定)、[S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) |
+| [`capability.modality-projection`](../../../capabilities/modality-projection/README.md) v2（仍采用2；受影响、未迁移） | [S-6](#s-6-模态由媒体类型判定)、[S-19](#s-19-派生表示与-transcript)、[S-20](#s-20-派生表示的产出者与能力标识) |
 | PF-010 上下文组装（无契约） | [S-4](#s-4-两个标注)、[S-5](#s-5-嵌套的块按合取取用)、[S-13](#s-13-半截的工具调用)、[S-19](#s-19-派生表示与-transcript) |
 
 > 上表没有一行是本契约的依赖：方向一律是消费者 → 本契约，登记在各消费者自己的 catalog 条目里（**消费 clauses 以 catalog 为准，本表只作索引**）。

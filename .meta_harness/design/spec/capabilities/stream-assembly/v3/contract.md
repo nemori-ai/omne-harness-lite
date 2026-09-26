@@ -205,7 +205,7 @@
 **接受一个工具调用块的 `close` 的那一下，是这次调用参数唯一的解析点**（[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md) 保留前提 1、`data.content-blocks/v3#S-12`）：
 
 1. 参数原文 ≝ 这块全部填按填法的归约（`data.arrival-events/v2#S-19`）；没收到过填就是空串。**空串按 `{}` 解析**（无参调用的上游习惯不成为模型侧失败，[D-060 §S4-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#二2026-09-24-用户在场期间主线随用户裁决所作的自定账本-二-原文标主线自定的行)）。
-2. 这块若在开着时被改过内容（[S-12](#s-12-被砍过内容的调用落成半截)），**不解析**，落成半截的调用。块头的 `tool` 不合 `data.content-blocks/v3` 的 `ModelToolName` 字符集时同样不解析，落成解析不了的那一种调用块（[S-11](#s-11-参数收齐却解析不了只标记)；接住 `data.content-blocks/v3` G-10，[D-060 §八 N-32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+2. 这块若在开着时被改过内容（[S-12](#s-12-被砍过内容的调用落成半截)），**不解析**，落成半截的调用。块头的 `tool` 不满足 `data.content-blocks/v3` 的 `ModelToolName` 任一约束（含字符集及 1～128 字符长度）时同样不解析，落成解析不了的那一种调用块（[S-11](#s-11-参数收齐却解析不了只标记)；接住 `data.content-blocks/v3` G-10，[D-060 §八 N-32](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
 3. 否则按 JSON **严格**解析一次（[RFC 8259](https://www.rfc-editor.org/rfc/rfc8259)；主线裁定，见 [D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：
    - **成功** ⇒ 完整的调用块（`data.content-blocks/v3#S-12`）：`complete: true`，`callId` 与 `tool` 取块头，`arguments` 是解析得到的值，`id` 与 `visibility` 取开块时说的；
    - **失败** ⇒ 解析不了的那一种调用块（[S-11](#s-11-参数收齐却解析不了只标记)，`data.content-blocks/v3#S-12`）。
@@ -459,7 +459,7 @@ omittedBytes                = Σ trim.omittedBytes     （reason ≠ rate_merged
 ```
 
 - **表示层在前**：认不出是哪种事件，就谈不上它来得合不合时宜（`data.arrival-events/v2#S-28` 末段）。
-- **结构在内容之前**：索引重开、块没开，先于载荷合不合那一类——对着一个不存在的块，谈不上载荷合不合它。
+- **结构在内容之前**：这里的「内容」限于依赖当前开块才能判定的载荷约束；索引重开、块没开，先于载荷合不合那一类——对着一个不存在的块，谈不上载荷合不合它。`open.head` 的模态表示可独立判定，按 `data.arrival-events/v2#S-28` 及上述次序，`head_modality_mismatch` 仍先于索引序列错误；借开块的两项例外不把独立的块头表示判定推后。
 - `index_reused` 在 `index_not_monotonic` 之前：重开的索引必然不大于已开过的，那一条更具体。
 - 这个次序让两个实现对同一份状态、同一个事件给出**同一个**失败值，与校验的遍历次序无关。
 
