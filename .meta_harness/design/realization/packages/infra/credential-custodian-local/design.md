@@ -1,5 +1,7 @@
 # credential-custodian-local 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个小的 Cordis 插件，没有可复用的上游对象**：保管条目的两种、交出的条件、清扫的三种是本项目的契约语义（`capability.credential-custodian` v1）。加密、随机与文件都用 Node 内置模块，**不引第三方依赖**，也不引任何执行器类库替本节点调度清扫（与 [D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 同一口径）。

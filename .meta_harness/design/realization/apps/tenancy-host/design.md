@@ -1,5 +1,7 @@
 # tenancy-host 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 本页回答**这个装配选了哪些提供者、按什么顺序装、config 从哪来、迁移怎么合成、升级怎么整体成或整体不成、密钥怎么只到持钥插件且公私钥确实配对、
 入口层与运维面怎么装、启动失败与撤除怎么收口，以及契约里每一条「装配给」在本节点的哪一行承接或转交**。
 它是 [assembly 节点](../../README.md#bindingsyaml)，**不持有任何能力语义**：每条保证指向一份契约坐标或某个 provider 节点，
@@ -11,8 +13,8 @@
 `src/config.ts`（环境变量与文件来源 `readHostConfig`、`ENV`）、`src/keys.ts`（配对自检 `verifyKeyPairing`、`generateKeyFiles`）、`src/log.ts`（JSONL 日志汇）、`src/failure.ts`（启动失败的具名阶段 `HostStartupFailure`）、
 `src/main.ts` 与 `src/cli.ts`（进程入口：子命令 `keygen <dir>` 与 `serve`）。它装配的九个包都已实现（各节点 README「源码位置」）。
 
-**2026-09-25 修订（候选，尚未实现）**：本装配再装两条中心侧 fiber——资产提供者（[asset-governance](../../packages/assets/asset-governance/README.md)）与模型档案目录的中心插件 P-1（`packages/model/model-profile-directory` 节点，本批并行起草）——并把组织治理按 v2 采用（[OG 节点 v2 修订](../../packages/tenancy/organization-governance/design.md#v2-修订候选尚未实现)）。
-三者的契约都是 `candidate`（待 D-041），源码一行都没有；**本页上文写的是已实现的部分，追加的部分集中在[本程追加](#本程追加资产治理与模型档案目录的中心侧候选尚未实现)一节**，上文只在装载清单、合成规则、其余 config、承接表与缺口表里加了指向它的标记。
+**2026-09-25 修订（设计已接受，尚未实现）**：本装配再装两条中心侧 fiber——资产提供者（[asset-governance](../../packages/assets/asset-governance/README.md)）与模型档案目录的中心插件 P-1（`packages/model/model-profile-directory` 节点，本批并行起草）——并把组织治理按 v2 采用（[OG 节点 v2 修订](../../packages/tenancy/organization-governance/design.md#v2-修订候选尚未实现)）。
+三者的契约都是 `accepted`（已由 D-041 接受），源码一行都没有；**本页上文写的是已实现的部分，追加的部分集中在[本程追加](#本程追加资产治理与模型档案目录的中心侧候选尚未实现)一节**，上文只在装载清单、合成规则、其余 config、承接表与缺口表里加了指向它的标记。
 
 ## 实现路径与来源
 
@@ -64,11 +66,11 @@
 
 ```text
 storage-sql → clock → credential-verification → account-identity → organization-governance → account-registration
-            → asset-governance（候选）→ model-profile-directory 中心 P-1（候选）
+            → asset-governance（设计已接受）→ model-profile-directory 中心 P-1（设计已接受）
             → governance-center-ops → governance-center-entry
 ```
 
-标「候选」的两条是本程追加、**尚未实现**（[本程追加](#本程追加资产治理与模型档案目录的中心侧候选尚未实现)）；已实现的清单（HUB `c9b5850`）是去掉这两条的八条。
+标「设计已接受」的两条是本程追加、**尚未实现**（[本程追加](#本程追加资产治理与模型档案目录的中心侧候选尚未实现)）；已实现的清单（HUB `c9b5850`）是去掉这两条的八条。
 
 - **顺序 = 依赖序**。`clock`、AI、OG 必需 inject `storage`，AR 必需 inject 三个领域面；迁移在 `provide('storage')` 之前跑，装 `storage` 先于一切让「表已在」对后面每个插件都成立。
 - **运维面与入口层装在最后，运维面先于入口层**（[governance-center-entry「次序由装配保证」](../../packages/tenancy/governance-center-entry/design.md#成对的装载与撤除)；提案[装配草图](../../../record/proposals/governance-center-entry/design.md#装载顺序)）。
@@ -115,7 +117,7 @@ hostMigrationFragments = [
   }),
   ...clockMigrations,                                          // clock 包导出：一个片段 clock_lease（只带 up）
   ...governanceCenterMigrations,                               // governance-center-entry 包导出：governance_center 建表 + 一行未铸的占位
-  // ↓ 本程追加（候选，尚未实现）：只追加在末尾（M-9）
+  // ↓ 本程追加（设计已接受，尚未实现）：只追加在末尾（M-9）
   ...organizationGovernanceV2Migrations,                       // OG 包单独导出：organization、membership 各加一列时刻（可空）
   ...assetGovernanceMigrations,                                // asset-governance 包导出：资产、流转两组表与显式命名的唯一索引
   ...modelProfileDirectoryMigrations,                          // model-profile-directory 包导出（片段与表名以该节点为准）
@@ -446,16 +448,18 @@ verifyHandoffWarrant(verification, purpose, PROBE_ACCOUNT_ID, warrant) === 'ok' 
 
 ## 本程追加：资产治理与模型档案目录的中心侧（候选，尚未实现）
 
-**本节全部是候选**：兑现的契约 `capability.asset-governance/v1`、`capability.asset-transfer/v1`、`capability.model-profile-directory/v1`、`capability.organization-governance/v2` 都是 `candidate`（待 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/README.md)），三个 provider 包都没有源码；本节的变量名、常量名、片段名一律候选。
+本节标题保留历史链接；当前设计已由 D-042 正式接受，尚未实现。
+
+**本节设计已由 D-042 接受**：兑现的契约 `capability.asset-governance/v1`、`capability.asset-transfer/v1`、`capability.model-profile-directory/v1`、`capability.organization-governance/v2` 都是 `accepted`（已由 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/README.md)），三个 provider 包都没有源码；本节的变量名、常量名、片段名已作为设计接受。
 落点依据：[D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)（资产取候选 B、模型取 P1-A，两者的中心侧由本节点装配；**本节点不改名**，承载已超出租户领域）；装配草图在[资产提案](../../../record/proposals/capability-split-assets/design.md#装配草图可独立引用)与[模型提案](../../../record/proposals/capability-split-model/design.md#装配草图与切分理由)。
 
 ### 选择与动作链（追加的四行）
 
 | 消费的契约与版本 | 所选提供者及修订 | 配置与作用域 | 动作链上的责任交接 |
 | --- | --- | --- | --- |
-| `capability.organization-governance/v2`（candidate）——两个时刻、双版本 | 同一个 `organizationGovernancePlugin`，按 [v2 修订](../../packages/tenancy/organization-governance/design.md#v2-修订候选尚未实现) | 根 Context 一份，config 不变；多 provide 两个 v2 服务名；迁移多一个片段 | **钉哪一版由本节点绑定**：钉 v1 的入口层、AR、资产提供者的 AG 那一半、P-1 inject v1 服务名；钉 v2 的只有资产提供者的流转那一半，它经 OG 的事务内读入口读、不 inject v2 服务名 |
-| `capability.asset-governance/v1` ＋ `capability.asset-transfer/v1`（candidate） | [`packages/assets/asset-governance`](../../packages/assets/asset-governance/design.md) 插件 `assetGovernancePlugin`（候选），一条 fiber、四个面 | 根 Context 一份；inject `storage`、`clock`、`memberships`、`organizations`；config 五项（下文） | 正常：每个写操作恰一次 `storage` 提交；失败：`storage`／`clock`／OG 面不可用 ⇒ 各操作 `unavailable`；撤除：在途调用跑完、按各自那一次提交收场。**官方件在插件体里按本节点给的清单登记**，登记失败 ⇒ 插件体抛出 ⇒ 整体启动失败 |
-| `capability.model-profile-directory/v1`（candidate）的中心那一半 | [`packages/model/model-profile-directory`](../../packages/model/model-profile-directory/design.md) 的中心插件 P-1（插件名候选 `model-profile-directory`；本装配下只 provide `modelCatalog`） | 根 Context 一份；inject `storage`、`clock` 与 OG v1 的 `memberships`（S-26）；config 三项：`officialManifest`（序号 ＋ 条目）、`factoryCredentialRef`（出厂格那一把的**引用**，可缺）、`serveBaseFaces: false`（下文） | 官方清单装入在 P-1 插件体里、`provide` 之前（该节点「`loadManifest` 不在任何服务面上」）：`invalidInput`／`unavailable` ⇒ 插件体抛出 ⇒ 整体启动失败；`manifestNotNewer` ⇒ P-1 **不抛**、记一条 error 事件、照常服务——**收场归 P-1**，本节点沿用，那条事件进同一条日志汇 |
+| `capability.organization-governance/v2`（accepted）——两个时刻、双版本 | 同一个 `organizationGovernancePlugin`，按 [v2 修订](../../packages/tenancy/organization-governance/design.md#v2-修订候选尚未实现) | 根 Context 一份，config 不变；多 provide 两个 v2 服务名；迁移多一个片段 | **钉哪一版由本节点绑定**：钉 v1 的入口层、AR、资产提供者的 AG 那一半、P-1 inject v1 服务名；钉 v2 的只有资产提供者的流转那一半，它经 OG 的事务内读入口读、不 inject v2 服务名 |
+| `capability.asset-governance/v1` ＋ `capability.asset-transfer/v1`（accepted） | [`packages/assets/asset-governance`](../../packages/assets/asset-governance/design.md) 插件 `assetGovernancePlugin`（设计已接受），一条 fiber、四个面 | 根 Context 一份；inject `storage`、`clock`、`memberships`、`organizations`；config 五项（下文） | 正常：每个写操作恰一次 `storage` 提交；失败：`storage`／`clock`／OG 面不可用 ⇒ 各操作 `unavailable`；撤除：在途调用跑完、按各自那一次提交收场。**官方件在插件体里按本节点给的清单登记**，登记失败 ⇒ 插件体抛出 ⇒ 整体启动失败 |
+| `capability.model-profile-directory/v1`（accepted）的中心那一半 | [`packages/model/model-profile-directory`](../../packages/model/model-profile-directory/design.md) 的中心插件 P-1（已接受的设计插件名 `model-profile-directory`；本装配下只 provide `modelCatalog`） | 根 Context 一份；inject `storage`、`clock` 与 OG v1 的 `memberships`（S-26）；config 三项：`officialManifest`（序号 ＋ 条目）、`factoryCredentialRef`（出厂格那一把的**引用**，可缺）、`serveBaseFaces: false`（下文） | 官方清单装入在 P-1 插件体里、`provide` 之前（该节点「`loadManifest` 不在任何服务面上」）：`invalidInput`／`unavailable` ⇒ 插件体抛出 ⇒ 整体启动失败；`manifestNotNewer` ⇒ P-1 **不抛**、记一条 error 事件、照常服务——**收场归 P-1**，本节点沿用，那条事件进同一条日志汇 |
 | 据点侧的 P-1r、模型请求运行时、注册表 | **不在本节点**：`apps/cli` 节点 | — | 中心的资产与目录各面**本版对外不可达**（入口契约 v1 路由表封闭，D-040 PA-5、PC-3）；据点副本与凭据跨进程送达归入口契约 v2 |
 
 ### 装载清单与撤除次序

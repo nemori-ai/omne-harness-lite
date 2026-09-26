@@ -1,7 +1,7 @@
 # capability.tool-execution-runtime v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-execution-runtime, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 按第一轮独立评审修订，2026-09-25 按第二轮修订、同日按实现映射反推修订，同日修复波 3 跨批对齐落 N-22 T-16；同日「公开面」修订波四处改指窄口接口契约、失败值全集加 `dependencyUnavailable{runAttemptFacts}`，见[验证入口](../verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**（PF-006 rev 19；2026-09-24 由 rev 17 升上来，见[验证入口](../verification.md#变化的影响)）：
   [§4 Tool Execution](../../../../product/PF-006-tools-and-skills/design.md#tool-execution)、
   [§5.3 多命令工具的定义里带多少](../../../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（带了完整参数，系统据它校验交上来的参数）、

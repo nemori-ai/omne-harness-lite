@@ -1,7 +1,7 @@
 # capability.asset-transfer v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-transfer, 1)`
-- **状态**：`candidate`——2026-09-23 起草，2026-09-24 整批对齐，**同日按 PF-003 rev 5 原地修订**（方向矩阵、两条通则、组织内分享、不复活），**同日第二轮修订**（不复活改读组织治理 v2 的两个时刻、删除与提升结束分享、本人型复制的尝试键、组织型复制通知给目标侧看源组织），同日经独立评审第一轮（基线 `765b01dc`）并按[处置表](../verification.md#独立评审)原地修订；**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**（PF-003 rev 5）：
   [§4 资产复制](../../../../product/PF-003-asset-transfer-and-sharing/design.md#资产复制)、
   [§4 分享](../../../../product/PF-003-asset-transfer-and-sharing/design.md#分享)、

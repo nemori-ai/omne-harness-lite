@@ -8,11 +8,11 @@
 消息、到达事件、流装配、工具运行时、模型请求运行时与上下文组装都引用它的 `$defs` 名与成员名，**不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.content-blocks, 1)`
-- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用
-- **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=content-blocks`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-041 的 `acceptance.json`）。`family=data`、`topic=content-blocks`、
   `contract_path=spec/data/content-blocks/v1/contract.md`，`resources` 另含 `v1/content-blocks.schema.json` 与 `v1/examples.md`；
   依赖一项：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1`，消费 clauses `S-31`、`S-34`。**登记在 [registry](../../../registry/README.md)，本行只作索引**
-- **提供者/装配映射**：尚无
+- **提供者/装配映射**：[packages/core/content-blocks](../../../realization/packages/core/content-blocks/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -24,13 +24,13 @@
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。块怎样到达、怎样落盘、怎样被组装，归各自的契约 |
 | 精确依赖 | `data.identity-values` v1 的 `#S-31`（不透明标识的交换表示，按散文自写形状、不跨契约 `$ref`）与 `#S-34`（地址不是身份）；**不依赖 `data.offer-expiry`**——块上本版没有时间点；**不反向依赖任何引用它的契约**（能力标识名、命令名的词法只指路，见契约 G-5）。**定义性引用，不登 catalog 依赖**：[S-8](v1/contract.md#s-8-文本块与来路标记) 的两个来路 `slash_command_expansion`、`slash_command_record` 的所指由 `data.slash-command` v1 的 S-21、S-25 给出，而那份契约依赖本契约——登记会让依赖图成环；那两条改了所指，本契约同轮复核（[验证入口](verification.md#对齐义务)）。**同一口径**：完整工具调用块的 `tool` 取 `data.tool-definition` v1 的模型面名字 `ModelToolName`，本契约逐字写出同一个字符集、以那份契约为家、不登依赖（[S-12](v1/contract.md#s-12-完整的工具调用)）。口径见 [registry「互引成环的登记口径」](../../../registry/README.md#covers) |
 | 谁在等它 | 全批其余契约几乎都引用它（消息、到达事件、流装配、账、模型响应、工具定义、模型档案、资产模型与各类正文、两个运行时、模态投影）；PF-010 组装尚无契约。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份**；精确的消费 clauses 以 catalog 为准 |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/content-blocks.schema.json) |
 | 一个块长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 一个值有好几处不对，报哪个拒绝值 | [S-26 表示层拒绝值](v1/contract.md#s-26-表示层拒绝值)与[实例第 12 节](v1/examples.md#12-几处违例同时出现时取哪个拒绝值) |
@@ -48,3 +48,7 @@
 本契约触发的义务是 Schema 正反实例校验、接收边界校验、规范场景与静态检查，在[验证入口](verification.md)登记，状态**一律为「未开始」**。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `data.content-blocks` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

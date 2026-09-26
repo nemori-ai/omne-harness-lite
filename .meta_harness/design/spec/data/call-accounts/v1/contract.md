@@ -1,11 +1,11 @@
 # data.call-accounts v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.call-accounts, 1)`——
   `family = data`、`topic = call-accounts`、规范路径 `spec/data/call-accounts/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未闭合，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-001 rev 17、PF-006 rev 19、PF-009 rev 8、PF-012 rev 15、PF-013 rev 12、PF-002 rev 20** 为准，
   另取 **PF-000 rev 1** 的一节（记录条目上挂什么）。2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-012 rev 11 把 I-11 收窄进了产品正文（[S-39](#s-39-晚到的账) 改引它）、PF-009 rev 8 把「已开口」记进那次调用的账（[第二节](#一份账挂在哪)写明它不在本契约的值里），其余不改本契约条款；逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
 - **所引的产品版本**：PF-013 rev 10 起凭据只在租户层与出厂格、PF-002 rev 18 起组织那一层不持有 MCP 凭据——两条到当前 rev 仍成立（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）

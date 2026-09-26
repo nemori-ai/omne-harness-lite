@@ -11,8 +11,8 @@
 把结果装进会话归 PF-004 的契约（尚无）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-evaluation, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按独立评审第一轮原地修订——[处置表](verification.md#独立评审)；2026-09-25 修复波 1b 补 S-42；同日修复波 3 按实现映射反推改 `root`、加两个失败值——[处置表](verification.md#实现映射反推2026-09-25)），**未接受，未冻结**
-- **catalog 映射**：已登记为 `candidate`。`family=capabilities`、`topic=asset-evaluation`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`。`family=capabilities`、`topic=asset-evaluation`、
   `contract_path=spec/capabilities/asset-evaluation/v1/contract.md`，
   `resources` 另含 `v1/examples.md`、`v1/formal/Evaluation.als`、`v1/formal/README.md`；
   依赖五项：`data.identity-values` v1、`data.asset-model` v1、`data.mcp-endpoint` v1（连接目标是不是 stdio；逐动作执行权限的推出与动作集）、
@@ -20,7 +20,7 @@
   消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)；`capability.asset-transfer` 的分享判据是前提、不登（会成环，契约页首写明）
 - **formal-tasks 映射**：**不登记**。`Evaluation.als` 的 runner `alloy exec` 退出码与断言结果无关，登记它只会得到一个永远通过的任务；
   理由与实际运行见[验证入口](verification.md#形式化工件)
-- **提供者/装配映射**：尚无
+- **提供者/装配映射**：[packages/core/asset-evaluation](../../../realization/packages/core/asset-evaluation/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -30,14 +30,14 @@
 | 稳定身份 | `capability.asset-evaluation`，版本 1 |
 | 适用范围 | 一个租户、一次求值的输入到结果；工作区承载清单到那一格持有的读入。**写入、存储、注册表、装配清单不在范围内** |
 | 为什么是 capability 而不是 data | 它有两个操作，各有失败集合（`invalidInput`；求值另有 `compositionCycle`、`categoryUnsupported`）与闭合的判定结果（`filteredOut`、`unresolved`）；输入输出的值类型归 data 契约 |
-| 精确依赖 | `data.identity-values` v1（身份值、成员资格、缺席即拒绝）；`data.asset-model` v1（持有、定义、属性声明与配值的形状，candidate）；`data.mcp-endpoint` v1（连接目标是不是 stdio、动作集与逐动作执行权限，candidate）；`data.tool-definition` v1、`data.loop-extension` v1（两种分档权限的档，candidate） |
-| 接受状态 | 未接受 |
+| 精确依赖 | `data.identity-values` v1（身份值、成员资格、缺席即拒绝）；`data.asset-model` v1（持有、定义、属性声明与配值的形状，accepted）；`data.mcp-endpoint` v1（连接目标是不是 stdio、动作集与逐动作执行权限，accepted）；`data.tool-definition` v1、`data.loop-extension` v1（两种分档权限的档，accepted） |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 两个操作各自的输入、失败集合与缺席默认 | [契约第四节](v1/contract.md#四操作) |
 | 四步各怎么求 | [契约第五节](v1/contract.md#五四步的求值规则) |
 | 一次四格齐全的求值长什么样、每项值来自哪一格 | [规范场景](v1/examples.md) |
@@ -60,3 +60,7 @@
 一旦某份组合契约把两个操作投影到进程外，线上形状归它。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `capability.asset-evaluation` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

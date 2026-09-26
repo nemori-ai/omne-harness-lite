@@ -1,11 +1,11 @@
 # capability.modality-projection v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.modality-projection, 1)`——
   `family = capabilities`、`topic = modality-projection`、规范路径 `spec/capabilities/modality-projection/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订，处置见[验证入口](../verification.md#独立评审)；2026-09-25 修复波 2 按第二轮独立复评原地改，同日修复波 3 按实现映射反推把 `tenant` 的来路改为执行环境句柄；同日「公开面」修订波把句柄里租户身份的来路改指会话持有租户的接口契约，见[验证入口](../verification.md#修订波2026-09-25-公开面)）——未接受、未冻结，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准，另引 **PF-012 rev 14**、**PF-006 rev 19**、**PF-015 rev 11**、**PF-009 rev 8**；每次改 rev 之前逐版读 changelog 核过受影响的条款，结论记在[验证入口「变化的影响」](../verification.md#变化的影响)。
   主线裁定的原文在 [D-040](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)（产品负责人尚未逐条追认；第一轮评审处置的裁定在它的[第五节](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）
 - **精确语义依赖**（五项；消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)；前四项与本契约同为 candidate、未冻结）：

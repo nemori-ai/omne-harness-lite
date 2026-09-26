@@ -9,8 +9,8 @@
 > 承载全部执行、产品正文里「在工具执行运行时里找得到／找不到」的这一项能力本身没有词条。目录名就是这份契约的身份。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-execution-runtime, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24、2026-09-25 经两轮独立评审后原地修订，处置见[验证入口](verification.md#独立评审)；同日按实现映射反推原地修订，见[验证入口](verification.md#实现映射反推2026-09-25)；同日「公开面」修订波把会话日志、会话租户、尝试事实、执行环境四处改指窄口接口契约、失败值全集加 `dependencyUnavailable{runAttemptFacts}`——[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
-- **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=tool-execution-runtime`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=tool-execution-runtime`、
   `contract_path=spec/capabilities/tool-execution-runtime/v1/contract.md`；`resources` 含契约、`examples.md`、`formal/` 下的模型、八个配置与入口页；
   依赖十七项（`data.content-blocks`、`data.call-accounts`、`data.messages`、`data.tool-definition`、`data.loop-extension`、`data.offer-expiry`、`data.identity-values`、
   `data.arrival-events`、`capability.stream-assembly`、`capability.tool-admission`、`capability.asset-registry`、`capability.loop-extension-runner`、`capability.mcp-bridge`、
@@ -19,7 +19,7 @@
 - **formal-tasks 映射**：两个任务——`tool-execution-runtime-v1-execution`（`Execution.tla` ＋ `Execution.cfg`，安全性质）与
   `tool-execution-runtime-v1-execution-progress`（同一模型 ＋ `ExecutionProgress.cfg`，进展性质）。
   **六个有效性核对配置不登记**：它们期望失败，与该清单的语义相反；验证入口证据里另有三份补充否定配置与七个可达性探针，同样不登记。执行结果在[验证入口](verification.md)
-- **提供者/装配映射**：尚无
+- **提供者/装配映射**：[packages/tools/tool-execution-runtime](../../../realization/packages/tools/tool-execution-runtime/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -30,13 +30,13 @@
 | 为什么不并进 agent loop | 工具执行的宿主是会话，agent runtime 的宿主是运行；回收 agent runtime 不影响任何一次执行（PF-006 §6.5），取消语义也不同（PF-012 §6.13）——放在一起就得在一个服务里维护两套寿命 |
 | 为什么不并进注册表或放行判断 | 注册表拥有「这次尝试里有什么、可不可用」，放行判断拥有「准不准」；本契约拥有「准了之后怎么跑、怎么收场」。三者失效事件不同 |
 | 精确依赖 | 见上；**依赖单向**：本契约 → 数据契约与并行的能力契约；agent loop、`BkgJobs()`、归档流程、插队处置读本契约；卸载判定这一件的身份与站位归本契约（[S-63](v1/contract.md#s-63-卸载判定这一件)） |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 十四个操作各自的前置、提交点、失败集合与缺席默认 | [契约第四节](v1/contract.md#四操作) |
 | 六种收场各从哪来、落什么；占位原因怎么取 | [契约 S-9](v1/contract.md#s-9-两个收场)、[S-10](v1/contract.md#s-10-占位原因) |
 | 结果落成 ToolMessage 还是提醒；与执行记录怎样不只成一半 | [契约 S-19](v1/contract.md#s-19-送达) |
@@ -57,3 +57,7 @@
 **建 `formal/`**：六路收场竞争同一行、送达与记录跨停机不只成一半、恢复扫描与在跑的执行交错，每条保护都配了一个去掉它就被反驳的核对。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `capability.tool-execution-runtime` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

@@ -1,10 +1,10 @@
 # capability.asset-governance v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-governance, 1)`——
   `family = capabilities`、`topic = asset-governance`、规范路径 `spec/capabilities/asset-governance/v1/contract.md`
-- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 与 PF-002 rev 18 的凭据一条原地修订，同日修订第二轮（[D-040 §三](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25) R2-7、R2-8、R2-9、R2-16、G-24、G-25，及资产流转 S-52 的同提交写入），同日按独立评审第一轮原地修订（[处置表](../verification.md#独立评审)），2026-09-25 修复波 1b 原地补 name 收窄的诊断，同日修复波 3 跨批对齐把 G-6 ③ 改引 `compositionCycle`（[处置](../verification.md#实现映射反推2026-09-25)）；未接受、未冻结
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**（**PF-002 rev 20 · PF-001 rev 17 · PF-003 rev 5**；2026-09-24 按 changelog 由 PF-002 rev 16、PF-001 rev 16 逐条复核到当前）：
   PF-002 rev 17 §5.3 的界与挑选（[S-38](#s-38-assign-配值)、[S-41](#s-41-unlockassignment-解除该项的锁)）与 PF-001 rev 17 §6.7「提升只换所有者，不动任何一份持有」（[S-27](#s-27-promotetoorganization-提升到组织)）早已吸收；
   **复核出的变化**：rev 17 谁能组合谁规则 2「环指展开不完的那一种、Skill⇄Tool 互引不算环」已是产品正文——[G-6](#十二已知缺口) ① 改引它；rev 17 §5.7「仓库带来的本地命令型 MCP 接入点与命令型 hook 默认不启用，由持有工作区的租户逐件打开」——**本契约没有那个「打开」的写面**，登 [G-26](#十二已知缺口)；

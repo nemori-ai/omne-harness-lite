@@ -1,11 +1,11 @@
 # data.model-response v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.model-response, 1)`——
   `family = data`、`topic = model-response`、规范路径 `spec/data/model-response/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12**、**PF-009 rev 8**、**PF-004 rev 12**、**PF-012 rev 14**、**PF-001 rev 17**、**PF-011 rev 4**、**PF-010 rev 6** 为准（PF-010 只取「要求三」一句：压缩摘要落成压缩记录那条消息，见设计依据表）；
   其中 PF-013 rev 5–12 与 PF-009 rev 5–8 **全文待产品负责人确认**，本契约引用的首 token 判据与请求参数都落在这几版里。各版逐条复核到了哪些变化，记在[验证入口「变化的影响」](../verification.md#变化的影响)
 - **精确语义依赖**（引用名字，不复制定义）：

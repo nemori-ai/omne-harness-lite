@@ -1,7 +1,7 @@
 # capability.assembly-manifest v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.assembly-manifest, 1)`
-- **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」，接口按消费者已列出的需要定窄口，将来真提供者要更多走新版本（[D-043 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。
   它只收四个操作：**读表头、条件追加、按表时刻读回历史换表记录**——会话资产注册表节点对装配清单提供者的要求 [R-M1～R-M9](../../../../realization/packages/tools/asset-registry/design.md#对装配清单提供者的要求清单)；**以及依赖在场判定 `dependencyPresence`**——简报裁定并入本契约作一个查询，消费者是拓展点派发（`capability.loop-extension-runner/v1#S-12` ①；[节点](../../../../realization/packages/agent-loop/loop-extension-runner/design.md) RUN-N5；据点装配 C-14）。
   另核对[据点装配验收替身表](../../../../realization/apps/cli/design.md#验收装配)「装配清单」一行的「只许做什么」。**不替 PF-004 那一程设计装配清单**（[G-1](#十已知缺口)）

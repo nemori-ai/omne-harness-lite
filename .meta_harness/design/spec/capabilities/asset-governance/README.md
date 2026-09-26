@@ -12,14 +12,14 @@
 **它不拥有数据形状**（`data.asset-model` v1）、复制与分享（`capability.asset-transfer` v1）、工作区那一级的持有（由承载目录读入）。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-governance, 1)`
-- **状态**：`candidate`，2026-09-23 起草，2026-09-24 整批对齐，同日按 PF-003 rev 5 与 PF-002 rev 18 原地修订、修订第二轮，同日经独立评审第一轮（基线 `765b01dc`）并按[处置表](verification.md#独立评审)原地修订；**未接受、未冻结**。候选期间语义改动直接落在 v1，每次改动记进[验证入口的「变化的影响」](verification.md#变化的影响)
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **需求 rev**：PF-001 rev 17、PF-002 rev 20、PF-003 rev 5（2026-09-24 按 changelog 逐条复核到当前，结论在[契约页首](v1/contract.md)）
-- **提供者／装配映射**：尚无
+- **提供者/装配映射**：[packages/assets/asset-governance](../../../realization/packages/assets/asset-governance/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## catalog 映射
 
-- **已登记**：`status = candidate`、`family = capabilities`、`topic = asset-governance`、
-  `contract_path = spec/capabilities/asset-governance/v1/contract.md`、`resources` = `v1/contract.md`、`v1/examples.md`，`acceptance = null`。
+- **已登记**：`status = accepted`、`family = capabilities`、`topic = asset-governance`、
+  `contract_path = spec/capabilities/asset-governance/v1/contract.md`、`resources` = `v1/contract.md`、`v1/examples.md`，`acceptance` 指向 D-041 的 `acceptance.json`。
 - **依赖十一项已登记**，clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：
   - `data.identity-values · v1`：`S-3`、`S-5`、`S-6`、`S-8`、`S-10`、`S-11`、`S-12`、`S-16`～`S-21`、`S-23`、`S-26`、`S-27`、`S-29`～`S-34`（S-4 表里的 `CS-1`、`CS-2`、`CS-5` 是那份契约的消费者核对场景，不是条款，不登 clauses）；
   - `data.offer-expiry · v1`：`S-6`、`S-19`；
@@ -41,13 +41,13 @@
 | 适用范围 | 组织层与租户层的写面，出厂层只经官方件登记；**工作区那一级不经本契约**；求值、复制与分享、正文内部都不在 |
 | 为什么是 capability 而不是 data | 每个写操作都有授权前置与失败模式，并有别人要调用的读面 |
 | 精确依赖 | `data.identity-values` v1、`data.offer-expiry` v1、`capability.organization-governance` v1、`data.asset-model` v1、`capability.asset-evaluation` v1、六份正文契约（见上） |
-| 接受状态 | 候选，无接受依据 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 二十四个操作各自的前置、提交点、失败集合与缺席默认 | [契约第四节](v1/contract.md#四操作) |
 | 十九个失败值与判定次序 | [契约 S-18](v1/contract.md#s-18-失败值闭合)、[S-19](v1/contract.md#s-19-判定次序) |
 | 谁能做哪件事、每格出自哪里 | [契约 S-16](v1/contract.md#s-16-谁能做角色矩阵落成的四种资格)、[examples 第四节](v1/examples.md#四角色矩阵--操作) |
@@ -66,3 +66,7 @@
 数据形状全部归 `data.asset-model` v1 与 `data.identity-values` v1，[在这里再建一份就是第二份权威](v1/contract.md#s-53-本版选用哪些形式工件)。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `capability.asset-governance` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

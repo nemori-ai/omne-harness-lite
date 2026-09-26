@@ -1,7 +1,7 @@
 # capability.session-tenancy v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.session-tenancy, 1)`
-- **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的替身换成「接口契约 ＋ 最小提供者」，接口按消费者已列出的需要定窄口，将来真提供者要更多走新版本（[D-043 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。
   它只收一个读：**这个会话持有哪个租户身份**。消费者四个，同一读面（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M48、M66）：
   工具执行运行时 `submit`（[`capability.tool-execution-runtime/v1#S-23`](../../tool-execution-runtime/v1/contract.md#s-23-提交一批) ② 第 2 条、那份契约的 G-12；[节点](../../../../realization/packages/tools/tool-execution-runtime/design.md) T-8）、

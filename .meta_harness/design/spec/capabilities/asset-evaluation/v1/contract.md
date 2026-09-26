@@ -1,7 +1,7 @@
 # capability.asset-evaluation v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-evaluation, 1)`
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 按独立评审第一轮原地修订，处置表在[验证入口「独立评审」](../verification.md#独立评审)；2026-09-25 修复波 1b 补 S-42 `tenantAutoWritable`、改二次求值的措辞；同日修复波 3 按实现映射反推把 `root` 改为组合根引用集、失败集合加 `compositionCycle` 与 `categoryUnsupported`，处置在[验证入口「实现映射反推」](../verification.md#实现映射反推2026-09-25)），**未接受**
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**（PF-002 rev 20；2026-09-24 由 rev 16 对到 rev 20，按 changelog rev 17→20 逐条核过：rev 19 §5.2「谁可以使用它」与 §5.6 第 1 步三小步落进 [S-39](#s-39-谁可以使用它值与判定)、[S-17](#s-17-第一步之一先按禁用滤)、[S-18](#s-18-第一步之三最后取最具体的一份锁在最外那一把处截断)，原 G-15 关闭；
   rev 17 §5.3「禁止」锁不锁都是界与落档规则落进 [S-23](#s-23-第四步权限)，§5.7 仓库带来的命令型 hook 默认不启用落进 S-17，§5.6「唯一会改组合的那项设置在第 2 步就地求值」落进 [S-20](#s-20-第二步组装)；rev 20 §5.7「管三样」的第三样（治理类里除禁用之外的项）落进 [S-24](#s-24-工作区那一格在第四步只贡献设置)——原 G-13、G-20 关闭；rev 20 其余各条只涉连接件的事件目录与投递，不涉本契约）：
   [§4 工作区](../../../../product/PF-002-assets-settings-and-permissions/design.md#工作区)及其四小节

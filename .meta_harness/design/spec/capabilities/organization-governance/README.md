@@ -20,14 +20,14 @@
 见[契约 S-4 末段的四条](v1/contract.md#s-4-依赖方向与被消费的面)。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.organization-governance, 1)`；
-  候选的下一版是 `(omne-harness-lite-design-2026-09-15, capability.organization-governance, 2)`，见下一条
-- **v2（`candidate`，2026-09-24）**：[v2 契约](v2/contract.md)——**加法版**：成员关系记录多一项**成员关系生效时刻**（`membershipEffectiveSince`）、
+  已接受的下一版是 `(omne-harness-lite-design-2026-09-15, capability.organization-governance, 2)`，见下一条
+- **v2（`accepted`，2026-09-24）**：[v2 契约](v2/contract.md)——**加法版**：成员关系记录多一项**成员关系生效时刻**（`membershipEffectiveSince`）、
   上级组织属性多一项**隶属建立时刻**（`parentEstablishedAt`，两者无词条），[读组织](v2/contract.md#s-22-读组织)、[列出组织成员](v2/contract.md#s-59-列出组织成员)、[当前租户身份查询](v2/contract.md#s-36-当前租户身份查询)把它们带出来；
-  写下它们的几条写路径多一项、三个读面各多一种 `unavailable` 触发、[S-22](v2/contract.md#s-22-读组织) ② 指路更正；**上面这些之外与 v1 同文**，失败值集合不变。为 [PF-003 §6.12](../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)「分享不复活」而出（主线裁定 [D-040 §三 R2-1](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)）。经独立评审第一轮（[处置表](verification.md#独立评审)），未接受。
+  写下它们的几条写路径多一项、三个读面各多一种 `unavailable` 触发、[S-22](v2/contract.md#s-22-读组织) ② 指路更正；**上面这些之外与 v1 同文**，失败值集合不变。为 [PF-003 §6.12](../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)「分享不复活」而出（主线裁定 [D-040 §三 R2-1](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)）。经独立评审第一轮（[处置表](verification.md#独立评审)），已接受。
   **消费者**：v1 仍是 `composition.account-registration`、`composition.governance-center-entry`、`capability.asset-governance`、`capability.model-profile-directory` 与实现映射 tenancy 各包（含 [`realization/packages/tenancy/organization-governance`](../../../realization/packages/tenancy/organization-governance/README.md)）钉的版本；
   **钉 v2 的只有 `capability.asset-transfer` v1**。**v2 的采用是实施侧另一步**，推荐版本不自动升级消费者。
   逐条差异、**逐个 v1 消费者的相容性**与同一提供者服务两版的规则在 [v2 §十三](v2/contract.md#十三版本差异与规范工件)；v2 **不新增形式工件、沿用 v1 的**（[v2 S-45](v2/contract.md#s-45-本版选用哪些形式工件)）。**v1 的状态与下面各条不因它改变**
-- **状态**：`accepted`，资源已冻结——[D-023](../../../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）接受 v1 全部条款，
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
   含[已知缺口](v1/contract.md#十一已知缺口)作为显式缺口；**此后语义改动发布 v2，不原地改 v1**。接受不表示已实现或已验证
 - **catalog 映射**：**已登记并接受**（2026-09-22，状态 `accepted`，`acceptance` 指向 D-023 的 [`acceptance.json`](../../../record/decisions/tenant-domain-design-acceptance/acceptance.json)）。`family=capabilities`、
   `topic=organization-governance`、
@@ -60,7 +60,7 @@
   （[第一次](../../../record/evidence/2026-09-22-formal-tenant-domain/README.md)之后
   `Affiliation.als` 改过，**Alloy 那四格以第二次为准**；`Membership.*` 两次逐字节相同），
   映射仍见 [formal 入口](v1/formal/README.md)
-- **提供者/装配映射**：[`realization/packages/tenancy/organization-governance`](../../../realization/packages/tenancy/organization-governance/README.md)（一个插件、四个服务面，[S-53](v1/contract.md#s-53-清除未激活账号的个人组织) 单列只给清除链）；设计已随 D-023 接受，源码尚未建包
+- **提供者/装配映射**：[packages/tenancy/organization-governance](../../../realization/packages/tenancy/organization-governance/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -71,13 +71,13 @@
 | 适用范围 | 组织与成员这一侧的事实与操作。**账号、登录状态、凭据不在范围内**；资产持有与配值、会话、成本计量也不在 |
 | 为什么是 capability 而不是 data | 它的每个写操作都有**授权前置**（谁能邀请、谁能调角色、谁能解除）与**失败模式**，且有[需要被别人调用的读面](v1/contract.md#s-26-成员资格判定)。这两样是 data 契约没有的 |
 | 精确依赖 | `data.identity-values` v1（身份值与隔离义务）、`data.offer-expiry` v1（过期语义，**整块引用不复制**）、`capability.account-identity` v1（两个读面） |
-| 接受状态 | 已接受：[D-023](../../../record/decisions/tenant-domain-design-acceptance/decision.md)，2026-09-22；catalog `acceptance` 指向该包的 `acceptance.json` |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md)（已接受）；下一版候选 [v2 契约](v2/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md)（已接受）；下一版已接受 [v2 契约](v2/contract.md) |
 | v2 比 v1 多了什么、谁钉哪一版 | [v2 §十三](v2/contract.md#十三版本差异与规范工件) |
 | **二十五个**操作各自的前置、提交点、失败集合与缺席默认 | [契约第四节](v1/contract.md#四操作) |
 | 邀约与成员现在是什么样（六个读面，评审轮一新增） | [契约 S-55～S-60](v1/contract.md#六个读面邀约与成员现在是什么样) |
@@ -91,7 +91,7 @@
 ## 版本包
 
 `v1/` 是本契约的已接受版本目录，含 `contract.md` 与 `formal/`。
-`v2/` 是下一版候选，**只含 `contract.md`**：它的形式工件就是 `v1/formal/` 那几份（[v2 S-45](v2/contract.md#s-45-本版选用哪些形式工件) 写明沿用的范围与前提），不复制。
+`v2/` 是下一版已接受，**只含 `contract.md`**：它的形式工件就是 `v1/formal/` 那几份（[v2 S-45](v2/contract.md#s-45-本版选用哪些形式工件) 写明沿用的范围与前提），不复制。
 
 **本包建 `formal/`，理由与[过期语义那一份](../../data/offer-expiry/README.md#版本包)正好相反**：
 那一份没有状态机，判定式没有交错可被反驳；**这一份有**。
@@ -104,3 +104,7 @@
 `data.offer-expiry` v1；[在这里再建一份就是第二份权威](v1/contract.md#s-45-本版选用哪些形式工件)。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `capability.organization-governance` v2 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

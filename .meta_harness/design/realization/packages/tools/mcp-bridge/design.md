@@ -1,5 +1,7 @@
 # mcp-bridge 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **官方 MCP SDK 之上自写薄桥**（[D-037](../../../../record/decisions/mcp-client-adoption/decision.md)）：握手、JSON-RPC、两种传输、分页、取消与通知交官方 `@modelcontextprotocol/sdk`，作一般第三方依赖、**不 fork**；本节点自写的是契约拥有的部分——按持有键控的连接、完整列举与持久副本、投影与最小规范化、收场映射、两项超时、OAuth 绑定与续期、收口次序。

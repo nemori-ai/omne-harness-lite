@@ -1,7 +1,7 @@
 # capability.organization-governance v2
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.organization-governance, 2)`
-- **状态**：`candidate`，2026-09-24 起草，同日经独立评审第一轮（基线 `765b01dc`）并按[处置表](../verification.md#独立评审)原地修订；未接受、未冻结；已登记进 catalog（2026-09-24，`candidate`）。
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
   前身是 [v1](../v1/contract.md)（`accepted`、已冻结，[D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)）；
   **v1 一个字不改**。本版是**加法版**：成员关系记录多一项[成员关系生效时刻](#s-8-成员关系记录)，上级组织属性多一项[隶属建立时刻](#s-7-上级组织属性)，
   写下它们的那几条写路径（S-20、S-21、S-25、S-32、S-33 的 ④）写集合各多一项，

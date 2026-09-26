@@ -1,7 +1,7 @@
 # capability.session-log v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.session-log, 1)`
-- **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的会话日志替身换成「接口契约 ＋ 最小提供者」，接口**按消费者已列出的需要**定窄口，将来真提供者要更多走新版本（[D-043 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。
   它只收三个运行时消费者已经写下的要求——[工具执行运行时节点 L-1～L-5](../../../../realization/packages/tools/tool-execution-runtime/design.md#对会话日志提供者的要求)、[模型请求运行时节点 L-1～L-8](../../../../realization/packages/model/model-request-runtime/design.md#存储要求)、[拓展点派发节点 RL-1～RL-5](../../../../realization/packages/agent-loop/loop-extension-runner/design.md#存储要求) 与 `capability.loop-extension-runner/v1#S-5`、[据点装配的 L-a～L-f](../../../../realization/apps/cli/design.md#存储要求清单与跨-owner-的同一提交)——**不替 loop 与会话那一程设计整本会话日志**（[G-1](#十已知缺口)）
 - **设计依据**（PF-012 rev 15、PF-015 rev 11、PF-000 rev 1）：

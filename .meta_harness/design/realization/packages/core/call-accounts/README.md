@@ -1,13 +1,13 @@
 # call-accounts
 
 - kind：`provider`
-- 对象与设计修订：状态 `candidate`，2026-09-25 首稿（按 [D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1`（[契约](../../../../spec/data/call-accounts/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.call-accounts · v1`（[契约](../../../../spec/data/call-accounts/v1/contract.md)，状态 `accepted`，接受由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/call-accounts`——**尚未建包**。归 `core`：它是 `data.*`，被 `model`、`tools`、`agent-loop` 消费
 - 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——契约没有操作与提交点；汇总求值是它唯一的求值，纯计算（[S-23](../../../../spec/data/call-accounts/v1/contract.md#s-23-汇总已知之和与未知笔数) 九件事第 3 件）。它提供账的类型、精确十进制金额、五个拒绝值的校验、有效费用与汇总。**账只记一次、补账的写入、按 Run 归组都不在这里**，归承载记录的一侧与读面
 
 ## 分层状态
 
-- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 语义接受范围：**设计已接受**（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-041 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
 - 可实施范围：声称兑现 S-4～S-18、S-22～S-24、S-27～S-29、S-37 的形状与求值面。**不兑现**：S-19「恰一份」的落盘、S-20 缺账时由谁追补全未知、S-25 的归组、S-26 左列（归承载记录的一侧、运行时与读面）。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task；源码不存在。证据义务见 [verification.md](verification.md)，全部未开始
 - 实际验证：**无**（源码不存在）

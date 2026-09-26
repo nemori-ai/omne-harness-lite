@@ -8,13 +8,13 @@
 都读这一份形状，**引用它的 `$defs` 名，不各自复述一份**。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.skill-package, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审处置修订，见[独立评审](verification.md#独立评审)；修复波 1b 把执行环境要求改为定义记录的固定成员，见[变化的影响](verification.md#变化的影响)）——未接受、未冻结，不得据此发布或声称消费者已采用
-- **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=skill-package`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-041 的 `acceptance.json`）。`family=data`、`topic=skill-package`、
   `contract_path=spec/data/skill-package/v1/contract.md`，`resources` 另含 `v1/skill-package.schema.json` 与 `v1/examples.md`；
   依赖三项：`data.asset-model` v1（`S-2`、`S-3`、`S-9`、`S-10`、`S-12`、`S-13`、`S-15`、`S-36`）、`data.content-blocks` v1（`S-7`）、
   `data.tool-definition` v1（`S-9`、`S-11`、`S-18`、`S-26`）。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
-- **提供者/装配映射**：尚无
+- **提供者/装配映射**：[packages/core/skill-package](../../../realization/packages/core/skill-package/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -27,13 +27,13 @@
 | 精确依赖 | 见上面「catalog 映射」一行 |
 | 起点 | [D-034](../../../record/decisions/skill-spec-adoption/README.md)：Agent Skills 开放格式为载体与核心字段、规则层自持、扩展声明走包内定义记录；开放格式钉 `69ef37e` |
 | 谁在等它 | `data.asset-model`（壳 `$ref` 本契约）、`capability.asset-registry`、`Skills()` 的契约、斜杠命令的数据契约、`capability.asset-evaluation`、导入器。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/skill-package.schema.json) |
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 一份 `SKILL.md` 读出来的清单头与正文是什么 | [S-20](v1/contract.md#s-20-skillmd-的文本形式与定界)与[实例第 6 节](v1/examples.md#6-skillmd-的文本形式) |
@@ -51,3 +51,7 @@
 本契约触发的义务是 Schema 正反实例校验、接收边界校验、两种读法的用例、规范场景与静态检查，在[验证入口](verification.md)登记，状态**一律为「未开始」**。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `data.skill-package` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

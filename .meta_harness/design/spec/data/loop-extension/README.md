@@ -7,13 +7,13 @@
 **瀑布怎么走、回放怎么跑**变了，只动 runner。操作那一半是 `capability.loop-extension-runner`。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.loop-extension, 1)`
-- **状态**：`candidate`，2026-09-23 起草、同日按主线裁定原地修订一次，2026-09-24 整批对齐再原地改一次，同日按第一轮独立评审处置再改一次，2026-09-25 修复波 3 按实现映射反推加执行环境句柄（[变化的影响](verification.md#变化的影响)、[独立评审](verification.md#独立评审)、[实现映射反推](verification.md#实现映射反推2026-09-25)）；**未接受、未冻结**，不得据此发布或声称消费者已采用
-- **catalog 映射**：已登记为 `candidate`（`acceptance` 为 null）。`family=data`、`topic=loop-extension`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-041 的 `acceptance.json`）。`family=data`、`topic=loop-extension`、
   `contract_path=spec/data/loop-extension/v1/contract.md`，`resources` 另含同目录的 `loop-extension.schema.json` 与 `examples.md`；
   `dependencies` 列八项——两项已接受（`data.identity-values`、`data.offer-expiry`），六项是候选
   （`data.content-blocks`、`data.messages`、`data.model-profile`、`data.call-accounts`、`data.tool-definition`、`data.asset-model`），
   消费 clauses 按[契约头部的依赖表](v1/contract.md)登为条款号（2026-09-24 整批对齐由 `$defs` 名换成条款号）；`data.call-accounts` 那一项另含运行与执行尝试的标识 `RunId`、`AttemptId`（[验证入口「变化的影响」](verification.md#变化的影响)）
-- **提供者/装配映射**：**尚无**。它是纯数据契约，提供者会是 core 下的一个纯模块（形状、Schema 校验、两张合法组合表的判定）；节点未立
+- **提供者/装配映射**：[packages/core/loop-extension](../../../realization/packages/core/loop-extension/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -25,13 +25,13 @@
 | 为什么是 data 而不是 capability | 它**没有操作**：没有状态转移、没有提交点。有行为的是 runner |
 | 精确依赖 | 八项，见[契约抬头](v1/contract.md)；两项已接受，六项是候选 |
 | 谁在等它 | `capability.loop-extension-runner`、`capability.hooks-import`、`capability.tool-admission`、`capability.model-request-runtime`、`data.model-response` 与 `data.arrival-events`（`$ref` `FailureCause`）、PF-002 资产领域 |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/loop-extension.schema.json) |
 | 一个声明、一条结论长什么样，什么会被拒 | [v1 正反实例](v1/examples.md)，含四个完整走查 |
 | 一件拓展件此刻不在时怎么办 | [S-6 不可用处置的声明](v1/contract.md#s-6-声明的成员与类别)、[S-33](v1/contract.md#s-33-不可用与报错两分) |
@@ -51,3 +51,7 @@ Alloy 只会重述它们；行为性质（回放一致、先落后算、同一�
 理由全文在[契约第十六节](v1/contract.md#十六版本差异与规范工件)；已触发的义务在[验证入口](verification.md)，状态「未开始」。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `data.loop-extension` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

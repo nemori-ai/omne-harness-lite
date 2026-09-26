@@ -94,12 +94,7 @@ Agent Definition 对 agent runtime、会话历史对 agent runtime。三次形�
 
 ## 状态
 
-- 产品设计：**rev 6**（2026-09-26；hooks 兼容件子进程获准落宿主机；子进程环境变量按名单传递。），已定稿（rev 1 已被接受为正式版本，其后几版是其上的增补。
-  **rev 5 写明[工作区的承载目录不是宿主机上的边界](design.md#工作区的承载目录不是宿主机上的边界)**——跟上 [PF-002 rev 10](../PF-002-assets-settings-and-permissions/changelog.md)；
-  **rev 3 接下[执行环境权限](design.md#执行环境权限)这一维**，并把
-  [「落点不可用就是拒绝」](design.md#69-落点不可用就是拒绝不降级)从推导表搬进正文；
-  **rev 4 定死[宿主机始终在场、沙箱实现可选装配、落点每次执行算](design.md#61-宿主机始终在场沙箱实现装配时可选装配)**，
-  并把三个叫法收敛为[执行环境权限](design.md#执行环境权限)一个正式名）
+- 产品设计：**rev 6，已正式接受**（产品负责人，2026-09-26，[D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题，见 [decisions.md 第四节](decisions.md#四已知的来源问题)：两处**用词上的偏离**

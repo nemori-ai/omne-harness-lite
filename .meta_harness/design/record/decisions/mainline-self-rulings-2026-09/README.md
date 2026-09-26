@@ -28,3 +28,7 @@
 | 产品负责人当场裁的那些 | [D-039](../assets-runtimes-split-and-rulings/README.md) |
 
 返回[决定](../README.md)。
+
+## 2026-09-26 正式接受事件
+
+[D-045](../assets-runtimes-formal-acceptance-2026-09-26/decision.md) 已接受 PR #9 现行设计，追认本批仍有效的 D-040 裁定、签署 G4／G5／G6，并确认凭据保管方现有定义。上文待签／待确认陈述保留为各记录作出时的事实；当前采用状态查 registry 与各节点入口。未成形的规则继续作为显式缺口。

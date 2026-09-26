@@ -1,11 +1,11 @@
 # data.arrival-events v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.arrival-events, 1)`——
   `family = data`、`topic = arrival-events`、规范路径 `spec/data/arrival-events/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-006 rev 19、PF-013 rev 12、PF-012 rev 14** 为准。
   2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 的「工具帧出错照常收尾」让帧流的 `lost` 多了两种来路（执行者没有回答、执行者换了代，[S-16](#s-16-收尾)）；
   「在途快照含已到片段」「开口是账」「入站语音整条到」与本契约既有条款一致；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)

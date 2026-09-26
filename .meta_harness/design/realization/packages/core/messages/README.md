@@ -1,13 +1,13 @@
 # messages
 
 - kind：`provider`
-- 对象与设计修订：状态 `candidate`，2026-09-25 首稿（按 [D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.messages · v1`（[契约](../../../../spec/data/messages/v1/contract.md)，状态 `candidate`，接受待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 对象与设计修订：状态 `accepted`，2026-09-25 首稿（按 [D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 一契约一包）；兑现 `omne-harness-lite-design-2026-09-15 · data.messages · v1`（[契约](../../../../spec/data/messages/v1/contract.md)，状态 `accepted`，接受由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
 - 源码位置：`packages/core/messages`——**尚未建包**。归 `core`：它是 `data.*`，被 `model`、`tools`、`agent-loop` 与连接件消费
 - 契约采用与边界依据：本节点是**纯模块，不是 Cordis 插件**——契约没有操作、提交点与状态转移。它提供七种消息与五种运行时记录的类型、两段式表示层校验、「此刻模型可读」与「合法名单」「配对与唯一」三项纯判定。**铸 `MessageId`、追加与去重、翻译出门都不在这里**，归会话日志的写入方与模型请求运行时
 
 ## 分层状态
 
-- 语义接受范围：**未接受**（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
+- 语义接受范围：**设计已接受**（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-041 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
 - 可实施范围：声称兑现 S-1～S-40、S-49、S-50 的形状与判定面（S-28 此刻模型可读、S-29 合法名单、S-32 配对与唯一的判定、S-37～S-40 两段式拒绝值）。**不兑现**：S-3 的铸号与唯一、S-32 的追加与幂等、S-34～S-36 的翻译（归写入方与传输适配）。逐条见 [design.md 投影表](design.md#契约责任--模块公开入口--实现--符合性依据或缺口)。源码不存在，以上**全部未实现**
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **为空表**——契约没有登记的 formal task（Alloy 模型 `Readable.als` 不是 formal task，不可绑定）；源码不存在。证据义务见 [verification.md](verification.md)，全部未开始
 - 实际验证：**无**（源码不存在）

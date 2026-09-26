@@ -1,0 +1,1280 @@
+{
+  "format": 1,
+  "topic": "PF-003-asset-transfer-and-sharing",
+  "version": "v2",
+  "label": "post-review",
+  "generated_at": "2026-09-26",
+  "requirements_revision": 5,
+  "acceptance": "record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md",
+  "frozen": "spec-resources-only",
+  "drift_note": "Spec hashes must match registry/frozen. Other hashes are snapshot checks, not immutable publication. Recheck all sources before implementation; changed inputs require a new projection version.",
+  "supersedes": "v1",
+  "superseded_by": null,
+  "sources": [
+    {
+      "resource": "basis/cordis/async-control-not-bail.md",
+      "sha256": "d4bd0e5d7fa1e7df7ee2ca4fbc12e47490356fb0c98708cb764408268e7ab3a6",
+      "frozen": false
+    },
+    {
+      "resource": "basis/cordis/emit-listener-throw-propagates.md",
+      "sha256": "7572c16bee317b9279fc6f5281298835adfddb6ebbc7e3d8a37112618fed3d08",
+      "frozen": false
+    },
+    {
+      "resource": "basis/cordis/inject-has-no-optional-form.md",
+      "sha256": "7bb63d7f57fc4bfc1685abcbcca0602471429a95fc199ffedad5a4e4973f1f45",
+      "frozen": false
+    },
+    {
+      "resource": "basis/cordis/isolate-hides-instances-not-data.md",
+      "sha256": "8c71a8d1eb25a6549508f9b75daf0f89c59155bb5f8183a745042a7039053272",
+      "frozen": false
+    },
+    {
+      "resource": "basis/cordis/plugin-body-reruns-on-provider-change.md",
+      "sha256": "1eb2c7bf6e90761ae76811321687bf18bd8d86f7849ea123b9575c66f1f85186",
+      "frozen": false
+    },
+    {
+      "resource": "basis/cordis/plugin-throw-fails-fiber.md",
+      "sha256": "7cdc507b4c817100e9637373daf2c2ad10b68968b252065397695eec1a20baf3",
+      "frozen": false
+    },
+    {
+      "resource": "domain_objects/objects.md",
+      "sha256": "1c01b2e00a6ca1f2dd14022ceb7ec091fad0cda45aa1c435afc3f13242cd82ed",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-001-identity-scope-and-agent-constraints/design.md",
+      "sha256": "2dda2c3dd46bb5133ca28300b2cdceb8417b68392d23367c92b1c6cbf2f63125",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-003-asset-transfer-and-sharing/README.md",
+      "sha256": "a502f19017d28089a617280584692eb493615779f65dd89a5d1991f1b2a61137",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-003-asset-transfer-and-sharing/acceptance.md",
+      "sha256": "aa6925d6564f7392d6f32cb1d474332b848fdddc43fe126ea2a30e2ce4b463df",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-003-asset-transfer-and-sharing/changelog.md",
+      "sha256": "d76ffd0ba1c6775387c48193cba2fa8a96318fa3450d2e48bd655172a4b6d62e",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-003-asset-transfer-and-sharing/decisions.md",
+      "sha256": "52be3e42a444a31aab8a1bf6367132759ca999f1095698c0aa11c2e65e396e7b",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-003-asset-transfer-and-sharing/design.md",
+      "sha256": "bb834ead77255bedb1d236bcc93cd30776f8c01a0835d8ea265135df849e5e0a",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-003-asset-transfer-and-sharing/flows.md",
+      "sha256": "f7b4606ae9465096296f674370908726cb823de8bd7255f4984c4ca05a3a7b1e",
+      "frozen": false
+    },
+    {
+      "resource": "realization/apps/tenancy-host/README.md",
+      "sha256": "0d8e18a50d32db3c61dc5104f8c737678eaecfd57120ae5ecce1cfe527c099e6",
+      "frozen": false
+    },
+    {
+      "resource": "realization/apps/tenancy-host/architecture.md",
+      "sha256": "ac081e327304b0ffb2e828325f819bd4747792c2c2cdebb984ce6d50a2028a7e",
+      "frozen": false
+    },
+    {
+      "resource": "realization/apps/tenancy-host/bindings.yaml",
+      "sha256": "407872b8c17995616151ae325bfdfa05753e2dbdd89f4441998d8bd3a41a4d63",
+      "frozen": false
+    },
+    {
+      "resource": "realization/apps/tenancy-host/design.md",
+      "sha256": "eb48454f34c469d1de0648aa1d68c8271270ebca20f699391f1e5586aaee7936",
+      "frozen": false
+    },
+    {
+      "resource": "realization/apps/tenancy-host/verification.md",
+      "sha256": "2e9d9b32d4852d0ad5656dc579099da0bea00d5c3f2ef731a774a19cf0725216",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/assembly-manifest-store/README.md",
+      "sha256": "002231ced33deb41a3d8d48b57550971d7097f5906ab57713bcb9778994b4956",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/assembly-manifest-store/bindings.yaml",
+      "sha256": "a6041ce445ca1ecb7c27885f20a55e2644dac75dd80754e8c6945f3524e44cb6",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/assembly-manifest-store/design.md",
+      "sha256": "fad34191d39abb94058821f26457f4f68aa1e9eba79826eef043e9d94745af80",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/assembly-manifest-store/verification.md",
+      "sha256": "63b21e4f9b31ac5787430a1ae35738ce6126677fe533f26f73602d8de50d403d",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/asset-governance/README.md",
+      "sha256": "4e5dd709f8cc3c40118e3b7b4dbb464a4793e080f25a80d69f139ed8af22116b",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/asset-governance/bindings.yaml",
+      "sha256": "5a2910311520170df55d011e20123f3c5e20dec487ffdaa8593b406bd01b1776",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/asset-governance/design.md",
+      "sha256": "83fd0a4e5a1c797a832b4eac5243cf6f3780528e408b252d60b87e19187b9514",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/assets/asset-governance/verification.md",
+      "sha256": "a485a1934eb95353eb89fa4d8e629377888a5f1d05ba8d5ccc6f0ba219fa9fdf",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-evaluation/README.md",
+      "sha256": "b1365ef59c1d58be463626fb0ef9ea65909461672a7cdd7a9e06097d34987b5f",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-evaluation/bindings.yaml",
+      "sha256": "680e29d97d189addd78284cd806519e197dafa4482214aa9510df66ad65a9d54",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-evaluation/design.md",
+      "sha256": "ae1472f6db10b52427f9d7fdd8aae1af05e8bd5ddf0b5f408e21882e75db587f",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-evaluation/verification.md",
+      "sha256": "ccaaf78d2d78d58d9aef104c5bc155e923e2811e8ff302fcb46d8761d8651b4e",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-model/README.md",
+      "sha256": "22c777cc4764b73db86c97c7524df58bb76d7252ec14ac1caee033d8dcfb9e98",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-model/bindings.yaml",
+      "sha256": "2e934eaf6985b8177d76c63b2a60ce0c7716a5fc99979ab0f8e3992817db7b20",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-model/design.md",
+      "sha256": "57481e91250265a53c3372690c0920ed32c6e61dc3e8ca28d82bd0f918259754",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/asset-model/verification.md",
+      "sha256": "8a2b8c804ad43eb81edf59f832008bfd62681fe44660266f04cf4aa92e251edc",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/call-accounts/README.md",
+      "sha256": "63581cf283a4789b339d8877192f45b0f35a5db4024e6b66b859e772edcdd49a",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/call-accounts/bindings.yaml",
+      "sha256": "ea4f04bd8a7a3bb0956e3fe077a7ba18296b453a3ba1bea3ab278008f61e11a2",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/call-accounts/design.md",
+      "sha256": "09aa79fb65344490a7ec610cee91a7197ade3aba0c30c1be9bf0a0e96d025218",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/call-accounts/verification.md",
+      "sha256": "6c66b50f47549fc684b542246c435df25b38517521b5b6d2923630950f3aed0d",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/connector/README.md",
+      "sha256": "95befd589eac883128639d7baacaca3e3662707cc32a46fa0681d0e343fb5edf",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/connector/bindings.yaml",
+      "sha256": "7c978e356328fb7bc02db103d5310edd46bee8d1088216eed015e695f2e70a7c",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/connector/design.md",
+      "sha256": "4e05496f9a3bc269860ef0765869f60afc235261e2aa8c92fc8c6051dc72c506",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/connector/verification.md",
+      "sha256": "84545bfe1a6efb85850b7e0e3ba4dd35e91c403d56c5d3d05adafdaefb8fcb15",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/content-blocks/README.md",
+      "sha256": "e3518412458cda9e76546e396eba12d1fb6f41825277e0e733b7efa8df338000",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/content-blocks/bindings.yaml",
+      "sha256": "cc752d56b1e16de05699cded66fa241762c52e08104ce8ac30b80bfbb87d6c50",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/content-blocks/design.md",
+      "sha256": "0759d7ef6f3e7ec9ac31f1cdd4af8ee51930d19c3b939f2c24ed2ee0bbf56f38",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/content-blocks/verification.md",
+      "sha256": "e0bb7c7a142568ef526ddc7cab4ac0acbf4cc1826cc62650a84322c1b9b2612f",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/loop-extension/README.md",
+      "sha256": "621b234d99e2f34645f69272be7e8a0efef57c4acd41efe1897d6e4ee4087906",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/loop-extension/bindings.yaml",
+      "sha256": "ec8d0eab6deb008d07de9d8a50413427f600057906a0407c9ee7008447b54455",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/loop-extension/design.md",
+      "sha256": "485b26138de258d30eeae913e2f4daebc2be5c5843a532d5d4cf8bf6889c5546",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/loop-extension/verification.md",
+      "sha256": "5a3e3dc280f940b512fb80b695acc5f9097899eba41c428a38d5ea491dccefc4",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/mcp-endpoint/README.md",
+      "sha256": "0720db9fc440bde72721cc268c7ba3ba257d98ef856fb1338bda1f274258164b",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/mcp-endpoint/bindings.yaml",
+      "sha256": "e0957780430cb23e3daa11659ea7df07a8b408acb10d92ae83cc76d67fa16a77",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/mcp-endpoint/design.md",
+      "sha256": "4edf29d9e54dae37bd3c700e00233b3e7448878a09855629c6ab3ca8b6e7122a",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/mcp-endpoint/verification.md",
+      "sha256": "6155103b9547888a969974236c689593cf948005341082926eaf261565e2f879",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/messages/README.md",
+      "sha256": "9fba98fc67fcb3b252abed3a065cdabeddb39fac0faef2919de513052415860e",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/messages/bindings.yaml",
+      "sha256": "4019ce35cb7ce5e2792331a55a4536e2fcb1d5c8bf5b6f907d591cc6b50485de",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/messages/design.md",
+      "sha256": "18272ffb4c70d0a0e24baa66d6c6f4d0b7905ceb8814a55e158c507cd1df6108",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/messages/verification.md",
+      "sha256": "531562b633d3a673c1909a94da8d9e13559f75e769d905e0a2c3bab08ffe23a8",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/model-profile/README.md",
+      "sha256": "6956f417d1ecd36b6d5e2064c9f726d6c13877132f82793df4cc1776eac85c8e",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/model-profile/bindings.yaml",
+      "sha256": "42ca8d6574e021133eae9e5c73402ff6f86c09d10bedf3dd8993c05071fad19f",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/model-profile/design.md",
+      "sha256": "d0a2ec58597a6498add1fe680965ba2e40035b0068b84f487e8fdabdfbfe84c7",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/model-profile/verification.md",
+      "sha256": "0c1d26fa58904d6014246cd492aac041f59a1541a2e1e60e067b268679904fd3",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/skill-package/README.md",
+      "sha256": "d70ebb5785250f588483d29d5bef7f7574b2ab0f83e27faaab124806213e1e34",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/skill-package/bindings.yaml",
+      "sha256": "34eeea1ae522488b85bd92c99acf3dc17f6c4bd0f42e9b63c92235f5cf436089",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/skill-package/design.md",
+      "sha256": "286d1d1bc3b56d60a3b9b7bd9873e621766c40b32699d97c6ec25b2292b488cf",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/skill-package/verification.md",
+      "sha256": "6484c7524d8fb8f8fb4bdd17fb2fbbbf0154561d27cc3cb4fada54978fbb77dc",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/slash-command/README.md",
+      "sha256": "9d9ce2fc1e204f94ab64d0e278e09e7f9a94840ae512e60992b6022daf6e13f6",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/slash-command/bindings.yaml",
+      "sha256": "efda529f5bacc0d743782b804d58b5d162bee60097aebaaf22617c01166db92d",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/slash-command/design.md",
+      "sha256": "330ddfeae6a773ab74e1b88807a810a47b370702f9ae4991bcdd68d81b90b17e",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/slash-command/verification.md",
+      "sha256": "f67d4a3e404337a4ddf4d4c7a8cb797d9fe7fad897993ca651e1c9f7718b4816",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/tool-definition/README.md",
+      "sha256": "dd18bc6b5114bbf3095400825822a121f08b7a1d649ed3ff8b234ef5fcc3a4a2",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/tool-definition/bindings.yaml",
+      "sha256": "9f9bef04be5bb2c87668f9c0a6d31cecdec238998006057cac10fb36a8774761",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/tool-definition/design.md",
+      "sha256": "4fa27b2116f135cb1103e5077359f2a9790db2ef79ed04db834756b64295d46c",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/core/tool-definition/verification.md",
+      "sha256": "b1a80fb5334d958077de08fd304241cd7de7789096556369506eb3e315ec46ba",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/center-connection-probe/README.md",
+      "sha256": "a65b4c2cd4c77d486a60e728e3efe8dfd2c590d82c5b410b34fe1f1f2010caf0",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/center-connection-probe/bindings.yaml",
+      "sha256": "8abfc09f6b0e4e9c98d175b786ab12ce700d99301183ca3391a270c59031b4fe",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/center-connection-probe/design.md",
+      "sha256": "bf0f5b74a093d83b595bba501dc402026f4335770516bb43fa19592abf96ed02",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/center-connection-probe/verification.md",
+      "sha256": "522f77713d31d86d857a9a0cadb1033860f5ea1c6fde9da167444743e7126c63",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/clock/README.md",
+      "sha256": "209273bf27dc96bc494740113b0451438d1d3793bafa6140b7409bb785b2f0db",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/clock/bindings.yaml",
+      "sha256": "91426fc763d117fb100cc2c924aa1f73b88e8010c8149d2dead809eccebec3c7",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/clock/design.md",
+      "sha256": "063555ae209840d4f07bb4fbe39941a4c778bfb4217052f872230b7206aa0503",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/clock/verification.md",
+      "sha256": "0236f12d543e4c21246c24e968d907e13468012e4ad8c1eb72f7595a029d24ae",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/credential-custodian-local/README.md",
+      "sha256": "2b2ffed8557d6a5e119750b9d8b6dac5852fc69db772af2f820a0df331ea3418",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/credential-custodian-local/bindings.yaml",
+      "sha256": "076ecc912d323a13637847b1f83b5833adae184a74bbe74392ba2f4a2b0a44a1",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/credential-custodian-local/design.md",
+      "sha256": "afbc8a680f564af1ec84c64cfe2bb83f7c56d2febfb40170c4d3ba94bc631706",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/credential-custodian-local/verification.md",
+      "sha256": "3909f9a16c12a38463ea5f41eef6afdbb9982e3fecfc7125bf2edde628e7add2",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/execution-environments-host/README.md",
+      "sha256": "2899d49d480c7107381ae061a8814cc1906be3c502579e754104b15f06abcccc",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/execution-environments-host/bindings.yaml",
+      "sha256": "c089f39221a4f2a3213741f152064c5e430dbdba05908bfa181bcd062f997f13",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/execution-environments-host/design.md",
+      "sha256": "589b2817670099c18aaccd8bc224284f218e8f987f973a73287bb675a596d068",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/infra/execution-environments-host/verification.md",
+      "sha256": "b06cc8fd7c547c08bdce051dc815ac524ceea024df56552502256c6b0e9e6f06",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/model-profile-directory/README.md",
+      "sha256": "45d7812c28c55c51ffb50706cd57982439affd6b7a8714bbe7db6f5fb86ac290",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/model-profile-directory/bindings.yaml",
+      "sha256": "03d3ac1e076bc3b5b4fc370764f58f0aaacdbd2b841d6963ef0a24ede839c7b1",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/model-profile-directory/design.md",
+      "sha256": "22c2e126b4baeab4b386749a85004bff456f045937b5109557f1d228db4d62e3",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/model-profile-directory/verification.md",
+      "sha256": "3ea9123157bffb26fe92b8083b535a55f5b29afb812e10d543c461fc7fe57734",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-log-jsonl/README.md",
+      "sha256": "f0f3264482d1e2e7235ce27f7ef2ec9094b69e7b6f9d8610dc632530b833fbc8",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-log-jsonl/bindings.yaml",
+      "sha256": "f15fe47cdecbd62767e34798e6bc8ab9b3b2df7a48a837b7e6c670415f4b384a",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-log-jsonl/design.md",
+      "sha256": "2146c470a769f897984e3fa4d519506d2446549c73ff1ee2948669e204822ddc",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-log-jsonl/verification.md",
+      "sha256": "2cb0bc5c27b6e0c5b07587de5d4d65ca484b86b5c2305f15edbf095e0e76d455",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-tenancy-table/README.md",
+      "sha256": "a4249509a64d1450bfeddda4c600bafe689f5536515234da701c51a5e22d868d",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-tenancy-table/bindings.yaml",
+      "sha256": "c9b8f2b285822319841681f189f4b582cd0b178a5c106817c6db2fe64cc35905",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-tenancy-table/design.md",
+      "sha256": "0e7c385cc312ab9d0f414b62b8de63a077e74ca9f2ba02f12aaa111e9d764559",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/session/session-tenancy-table/verification.md",
+      "sha256": "21f11308343875d910fcd4add25b5e20bde0624ec0173073d8a4a299d9a89097",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tenancy/organization-governance/README.md",
+      "sha256": "2e6d8332c04e84753ccc97626dddd591e07ad9bb3ec94c9849779f9ee2c56ab7",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tenancy/organization-governance/bindings.yaml",
+      "sha256": "c474e0c46640a1f3f4ee3c4ff0fcb7980cce74548ab05b9bf168fb85179afba7",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tenancy/organization-governance/design.md",
+      "sha256": "d87a445687187435e9d7b03804b7a926ac0bdbf49092d54efe30d006f0fd437a",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tenancy/organization-governance/verification.md",
+      "sha256": "1ed72430dcc72cf1fa5c404f6499b335e601bee9bdc40a0316fe86c3601f85db",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tools/mcp-bridge/README.md",
+      "sha256": "9416f7d348854447651687b55f5ed0c006ec2320c63a0a5e2b76d5dafff6c462",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tools/mcp-bridge/bindings.yaml",
+      "sha256": "017197ea375e5cf5618713af7f981313dd02e61e5ff9f01b56dbb41a7bd3ef61",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tools/mcp-bridge/design.md",
+      "sha256": "2b93fcc30911cce567971ef0b613601bccb24471f0d2f9e81eafafbbd4744534",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/tools/mcp-bridge/verification.md",
+      "sha256": "5dc79618c3c2c1d918ffa28ee0f3dad15ad763704995a4cb52efde673811ecda",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/assets-runtimes-contract-acceptance/README.md",
+      "sha256": "da573d329d9f2328f402a5281c36477bd941ef3bcc72fdd9028b2f546e9064e6",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/assets-runtimes-contract-acceptance/decision.md",
+      "sha256": "67784e66bf2b58bd9ccffbf4cb1d21a34413ff1ab61200696b448f7991c7f988",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md",
+      "sha256": "9cb850b21171a3b0ec11de6e6655e7f1332a605155b527f82644872c50c12aba",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/assets-runtimes-node-acceptance/README.md",
+      "sha256": "fcbde7c06609f7995a9dca86a91e0bae2d2cd52d2c578b2db4fd9464b8c183b5",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/assets-runtimes-node-acceptance/decision.md",
+      "sha256": "80a1921deea104fbd163b519ea5b44b9ccae406f5a21cc21b16a52773a0003d7",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/assets-runtimes-split-and-rulings/decision.md",
+      "sha256": "5b26ce73c9b5bbf6dbc8574da1efdaaee3e1186cb3121824180b016fca1be880",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/cordis-adoption-version/decision.md",
+      "sha256": "f513840e203acdc0cb105b90178d0318df754e0a57342cba1762286bf8e5cfc1",
+      "frozen": false
+    },
+    {
+      "resource": "record/decisions/mainline-self-rulings-2026-09/decision.md",
+      "sha256": "5eb479d4ebed2d330572de5de9c3577aad92dbc5b594b7bc19ae9decaa28156e",
+      "frozen": false
+    },
+    {
+      "resource": "registry/catalog.json",
+      "sha256": "e32743433814b6e48cff15752afef29dc8679260fdc8e0b87d16537c258d43c1",
+      "frozen": false
+    },
+    {
+      "resource": "registry/covers.json",
+      "sha256": "26189cef563930c8b6b83474e02a7f349f58e2fc9cc5006e19ed1c1657c88fbc",
+      "frozen": false
+    },
+    {
+      "resource": "registry/formal-tasks.json",
+      "sha256": "e588b772304fe07c543beed3c78b18640c5e1c4e587c8c89a20b589b28e80a1f",
+      "frozen": false
+    },
+    {
+      "resource": "spec/capabilities/account-identity/v1/contract.md",
+      "sha256": "642eb2663732b6e84b1c895a40ea214ecc4baeec5cd6653a95c0e33119aa1023",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/account-identity/v2/contract.md",
+      "sha256": "29bf928fd750121b2630778044b5afd981e377d8167a4bc7c7f6e8fb4780984f",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/assembly-manifest/v1/contract.md",
+      "sha256": "07a79cb478b76b12179b6db8a77fce1976cc40f0c449beb43591a9ca3a754361",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/assembly-manifest/v1/examples.md",
+      "sha256": "c23913ab8fdabe6b53162734418f05a0e6e8c57bf4345b84b204b1c6468c1de6",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-evaluation/v1/contract.md",
+      "sha256": "71e0e8deb36fca4400ce8c34670f2ca5c28351107e99d1ee98aa7db3f301b423",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-evaluation/v1/examples.md",
+      "sha256": "7778eafc2101b3b789ef91fe10f29783e0b17ac8b7b1d63dad69b521efa319af",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-evaluation/v1/formal/Evaluation.als",
+      "sha256": "6935da2259130aafea0e770dad7c94578152fd517e3ef5d2f7bd006a8bba505f",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-evaluation/v1/formal/README.md",
+      "sha256": "74d42b69fbbf7045862b4946cc23bcd05823ed283b61e3156b1c41b1fb8adbcc",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-governance/v1/contract.md",
+      "sha256": "6978342f84c6ef6ed48b7188e2b0189de3b2c6b3bf73e239ff74750e425c13e9",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-governance/v1/examples.md",
+      "sha256": "7358df671b9e3f2a77aec0280cc4a4ccf5653c6b8a98c64e124e53642d071f24",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/contract.md",
+      "sha256": "7d17ef8e525a31de4139e45e7b25fced9c7a6ef282ce4b98e54a9f73f0b990f1",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/examples.md",
+      "sha256": "f36f8e60e48ed74793568b56985ceaac61eac623714a0f638d4c40ff80e9a13e",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/README.md",
+      "sha256": "d5f1ce2d5b276a0dca66c8fc4b78db716b5d19830d2f655a18e486c7d2f2c246",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer.cfg",
+      "sha256": "9971f7266eb778db5be1b5100033b47dd5b6250b77d09fcbb864b8360a398a1c",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer.tla",
+      "sha256": "699bedc5eb8eaf386ba30edff2ded2c5b23a059534257334d58528b3d0044c50",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoConfirmRecheck.cfg",
+      "sha256": "962bb7e8c2e1ce564e9c077b82d081aa0d7d7c5b6bcef1e7fce39b881b91c58c",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoConfirmerCheck.cfg",
+      "sha256": "4346483ced709f883d2807c215e3fb02b45091c4eb6fef2951f111f4f688c3a4",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoLayerCheck.cfg",
+      "sha256": "bbeeb447c4e26d7d82163c3f98f2061ef0a6156ae0544763d0da6cef3dbe620a",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoLayerCheck_Share.cfg",
+      "sha256": "61b9bedb4b294f6097b973af87bc97322391b515cadaebbcd485aafb15fc06ab",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSameCommit_Lineage.cfg",
+      "sha256": "cea625877b7e3dd293afcbe905fcd4f52a3b969a28d305aa6ee0e661cc78784a",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSameCommit_Settle.cfg",
+      "sha256": "40e4b8514ae49f0de48ac42220ceec4fc99765ecfe96985672ff8e672e88e5fd",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSameCommit_Sharing.cfg",
+      "sha256": "c8b8a0644ea0d3f44377236db2be6976f8f17f98e66f21be1bb8a26d2819f1bd",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSinceCheck.cfg",
+      "sha256": "528c51728bfc2a867bb0957db1ed048834aba5114ea37c437f00badab864721f",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSinceCheck_Use.cfg",
+      "sha256": "3c49d7a567343054ce7fe707645a27364e5962a50d8903cd6551fdd015f1ea97",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSourceEnd.cfg",
+      "sha256": "075f025bc2e9b4eb47cd09fe38035d32d3d550432799c17de169464341dbcfdb",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoSourceEnd_Record.cfg",
+      "sha256": "b0002369a7d5d3378bced4028486b4c6e9a8e0f82c8c9cd245e62ca1bb5ac43d",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoUseTimeCheck.cfg",
+      "sha256": "e245a0e7d318b169ef916ebef024b3500cc94560a43621a7121509fee4237631",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_NoUseTimeCheck_Member.cfg",
+      "sha256": "f41ece8b982333e928cdc540ddb0773fcde578804a3fb8cec25b9ffa3fb37f32",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_Revival.cfg",
+      "sha256": "70f352c8f7f5cd2724aa5f92186fab175e613f04359a7177cb032fac0985c158",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/v1/formal/Transfer_Share.cfg",
+      "sha256": "795bcc8936782e2c4ec83b525dd0d599f7a798e74bb670b86d69ddc8a7143908",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/asset-transfer/verification.md",
+      "sha256": "b341ec1cc5e9afd3b4ed14fc625760db77d6d2c149355b13e1136b08abc01aa0",
+      "frozen": false
+    },
+    {
+      "resource": "spec/capabilities/center-connection/v1/contract.md",
+      "sha256": "0fd5ab898edd0574fec6243fb2b7609df571e2f338a6b190e00795a9befb0f85",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/center-connection/v1/examples.md",
+      "sha256": "4b09b33cc69680af8db913572351d0335fb9656e576ec5f2cd3756403e040de5",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/contract.md",
+      "sha256": "b8bbf2cb56ce7e573d72770ed35b0929483611c9fff2cd000c3cff0a420471f8",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/examples.md",
+      "sha256": "f419a41c44846a06ae53c69663f207cb214bb844eb809b524471d1630eecc70b",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/README.md",
+      "sha256": "e2b8abb11899ef2f15ba62eadcca453da28c680694244e749123a33f99535ed3",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/Sweep.cfg",
+      "sha256": "1a6e190cebc3d6455b4784a057052b165289decc78718fad52229c6f5af4244e",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/Sweep.tla",
+      "sha256": "12f0907a949c893c71fd66e8f9c8c04a64320802a6ab6d5e1130133018fb247b",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/Sweep_Reach_Discard.cfg",
+      "sha256": "c59ebd9dcf41b77b8060184ece23e585e694e0ace0becc81c51a8af63cb1e37a",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/Sweep_Reach_Granted.cfg",
+      "sha256": "1f8074c3bd6c524a33d60d8e01fb7f78d39665e803b0f6a3c368b155ee1f93d8",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/Sweep_Validity_NoSweep.cfg",
+      "sha256": "4651e1208fb61023eb03bdc4a3f62b55e19a3e8e54981dff8235a6cb05d0b155",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/Sweep_Validity_StaleCompletionTime.cfg",
+      "sha256": "9c88eb915b8eb6715184787f78beea370e7d801f733199e673fa109d25f6cd2b",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/credential-custodian/v1/formal/Sweep_Validity_SweepNotGranted.cfg",
+      "sha256": "c83e3754d915592e091ebffe928a99e2039a5fedc7111b59100962d8bb92dcdf",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/execution-environments/v1/contract.md",
+      "sha256": "4f678e33253534245cae66d99e494fcf6a97ec8c01a06767134f03782bd30d75",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/execution-environments/v1/examples.md",
+      "sha256": "6c2526be24f4456291fa1c91ab26037291e39bd4832b73ba70a9d4d89b2f24e7",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/mcp-bridge/v1/contract.md",
+      "sha256": "06478e2aa245caf9b8cb26a3f7469f7937a8e71e726fc3342964eda4c6d28461",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/mcp-bridge/v1/examples.md",
+      "sha256": "64301df09e9dfa0588352a6f0bf426646ebe6443124c5ed640d549addff2a5bc",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/model-profile-directory/v1/contract.md",
+      "sha256": "785177c1f99e96fee579c6fedaf2165d3c4e714503928ab1517e4738d3d67b04",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/model-profile-directory/v1/examples.md",
+      "sha256": "c5570c7297c1fa3650cb0996369c05bc978d5bd6aae60d3424a33259960b0339",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/organization-governance/v1/contract.md",
+      "sha256": "ba6e748e3fea4cb0566d198ccb821e22e8bdcf0db878b85232adf2c7644a87a4",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/organization-governance/v1/formal/Affiliation.als",
+      "sha256": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/organization-governance/v1/formal/Membership.cfg",
+      "sha256": "abaa8fa24bf14e8c8fa7e7bed0858197a78bd532c56887f27d462c42e1195734",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/organization-governance/v1/formal/Membership.tla",
+      "sha256": "5c7656a47c3b827e638a24f781c4039ccb6d7a669e37799e8580101043bde436",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/organization-governance/v1/formal/Membership_NoSerialization.cfg",
+      "sha256": "8b0631823173848c527d32a9685470184a46a881440cd33fa5a55c19ba990159",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/organization-governance/v1/formal/README.md",
+      "sha256": "0ffe35efbb436b703d8b69dc9fe90db078e67f9a952fde93aa8730b878ba0c58",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/organization-governance/v2/contract.md",
+      "sha256": "40b2600806055b6695a680dcfc168a36bad411a7bc23f28cc27827d4f6896083",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/contract.md",
+      "sha256": "bd47a422432fb380d6db976340002892dee4d69b31464d320c4e5335bde1d5a7",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/examples.md",
+      "sha256": "8a46eefb896dca24751eeb4ed5a437fd3bd19846fcd4d680fa37583b54b1087f",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/README.md",
+      "sha256": "ec42b958df10be90ca330e22b22221a76f93a58b29e30ad4b1b86920a4667725",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/SessionLog.cfg",
+      "sha256": "00afacd3f30155181be7e6c31716228c35eb1e0412a6c6be22b95feebb938938",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/SessionLog.tla",
+      "sha256": "cc53f4589cea118634d58f48b9c0001cd6d9508b17909953a6311dab93e238e0",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/SessionLog_NoSerialization_Fence.cfg",
+      "sha256": "38635076c41ae948b5b291599e0177dd43bb2e0d134554b99030d0ed39c6f9ca",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/SessionLog_NoSerialization_Key.cfg",
+      "sha256": "f79c622479a29c6e57e3fc8d9da1d71728e2f257fc2e420a09e805efcb5092cf",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/SessionLog_Reach_DuplicateRejected.cfg",
+      "sha256": "0deb25295bef6dd9a0634848449cc1352788c81d65a53d55ffbf22a7518e3d6b",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/SessionLog_Reach_StaleRejected.cfg",
+      "sha256": "366a6c84db586ec2f405a5456735ecc7036183af5f5c7ab51b162e88cff38204",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v1/formal/SessionLog_VolatileDedupe.cfg",
+      "sha256": "23e974b168295b79b9c4eef4064f625bff6a84fdb35ac57aaa4544298632c668",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-tenancy/v1/contract.md",
+      "sha256": "b0cfb20c0e5e5a9a0af94cc482dd69c5f75745c5fd3d119f701b4e9c2be1ff04",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-tenancy/v1/examples.md",
+      "sha256": "3de6082d59252af27b2ab16a19e41fb0c25844913f069e7515b835ced3740ebc",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/account-registration/v1/contract.md",
+      "sha256": "c0224baff5551e68aa68ae2a82ec5c5424a3194b88407d48cd913092cd246803",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/account-registration/v1/formal/README.md",
+      "sha256": "38fef9713f750e3e99266ad4541dc1d283f672749fb0cbaf02033743c632f5a6",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/account-registration/v1/formal/Registration.tla",
+      "sha256": "83bc2f8c54bd5057e5831f638bd41d25fe8d908bb5fd43db937d2ee324230f20",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/account-registration/v1/formal/basic.cfg",
+      "sha256": "38198123c96a2704908a72b8df4ea8a76cdf1fac1b05a4622c3b3e178915d64d",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/account-registration/v1/formal/crash.cfg",
+      "sha256": "2a77296a8915042cf5f53d0f92a476b2e568e61a68d36044b78282125fff7ffc",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/account-registration/v1/formal/progress.cfg",
+      "sha256": "6c1a4b3da5fe329b4db766559b1a0905002d050c8af71ad42fe1574b75c90cca",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry-https-json/v1/contract.md",
+      "sha256": "385839de42fdbe253d4196d3e0330c1c88a6a26d35e065f7e5dbf6be7dcd3372",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry-https-json/v1/examples.md",
+      "sha256": "0efcc32c45b447b1a0f9fda89a4a34ddcc058418f3c53167fbaceb3a8c302246",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/contract.md",
+      "sha256": "7798e378d857118df82b14662f6ad9120909e57f51f69e587a894f6c1a07d963",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/examples.md",
+      "sha256": "e39db7b5bbf69a05b0c0e6905e72b84712be682a3836604a566800e9198b5013",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/EntryDecision.cfg",
+      "sha256": "12cd556423baedc91761f932ee2e686a1fb4bbf1cb1278d78de1d9c4e0cd4e26",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla",
+      "sha256": "05006b6c3ca100d3c5182a6a701044c988a38b08af76a09223f4ee1ffafd24a0",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/README.md",
+      "sha256": "d7e8c1c96207e255f922d2f2050e7227057cd9befa4dd50a9b89153f63e773fb",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_Reachability.cfg",
+      "sha256": "9949177bb351b7c7ada65ed7b1686de145a15f65085903e350829ace1acccdc8",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_authBeforeEnvelope.cfg",
+      "sha256": "d1580671536a87d03bb7d943be14c9c0fadaccf9774ee696a3c7762b1917e28b",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_defectAsResult.cfg",
+      "sha256": "d6fa442ff09cba54fdf367e7a1fefef94c60983e417297df9a04fef6fdde19bf",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_deriveBeforePayload.cfg",
+      "sha256": "97be78b86fc6a3855c63da980a9466a460f8606852bf3f1e35188cb00641ca91",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_gateUnavailableAsDenied.cfg",
+      "sha256": "60b7d27b324765a917985b2148b97dadd87fb2d1742ef6a154f1abf6bd0704dc",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_inputBeforeAuth.cfg",
+      "sha256": "45ba38425a16981c50b027f9823ac32991a92fdf0e6f0b6827e4090ea83f7315",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_passthroughStateNotValid.cfg",
+      "sha256": "3701c37d37fd09db78ae46660fd225669f75e610e6a17f91c4faefdf573e9af4",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_readPresentationBeforeVersion.cfg",
+      "sha256": "2029dbcf6d0dc12e610e7daff161f884698e34c1f890f7736bea6511edc3ca5d",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/formal/Validity_unavailableAsRejected.cfg",
+      "sha256": "e50939eb0ce697cc8591f3cbe7c7bece61c9f073b6b750c4ea4272483fda8a88",
+      "frozen": true
+    },
+    {
+      "resource": "spec/compositions/governance-center-entry/v1/governance-center-entry.schema.json",
+      "sha256": "e8ee446e957163fc91b8cebb87a8434ee0c2a464b53a2264349c8ad54b396fb1",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/asset-model/v1/asset-model.schema.json",
+      "sha256": "681dfa6477400b907b61f43bdcf26ed96218ac7159a1a0c0d6cc26039c4001cd",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/asset-model/v1/contract.md",
+      "sha256": "2928e70244c5bbcea82bf9129bb2c6b1f8b1e86e5d1fe1dfa882e05c407e3503",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/asset-model/v1/examples.md",
+      "sha256": "f5aafa965858498f0f5fe519996e53bb1d2a6f0952a895dfbffb96a13e6896c2",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/call-accounts/v1/call-accounts.schema.json",
+      "sha256": "46078c33bfe6129289d2158be5ec1cc6f741c59d10fad8c4b743b009fb86b5af",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/call-accounts/v1/contract.md",
+      "sha256": "39a7430c245f3e0241e593b9734680e5c3030e694f221b25a50752d64e8a6b2b",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/call-accounts/v1/examples.md",
+      "sha256": "98ca7eafe01433ca51461aefbc3509a3b138a145da7e8c99e2397d7e7433e870",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/connector/v1/connector.schema.json",
+      "sha256": "d43a334f594e11eacf4361f2312e61cccff62064b9a84f5f1b3cf7e785630e98",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/connector/v1/contract.md",
+      "sha256": "82c24bd472f46b15888cacb1dd706e197bdbd2a175ea7eab3906a83ea69978ed",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/connector/v1/examples.md",
+      "sha256": "1069c020ebbdcbfc8ae32053f9ea0c7da42dc943347281bc0db30e127a975a37",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/content-blocks/v1/content-blocks.schema.json",
+      "sha256": "c3d6361a3e7a4fc64a66b98c75819172ca481bbde35230728552e687405177e5",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/content-blocks/v1/contract.md",
+      "sha256": "f9c022ed6dd5625db552a107e6300af8f9ac11325e1cee4f7b4f80f9282af0e0",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/content-blocks/v1/examples.md",
+      "sha256": "f11bf11f2f17cfa2ce7a8713209fbcdf7775e76b042313375faf8aba42338301",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/identity-values/v1/contract.md",
+      "sha256": "3d57e58950c0ba202d611450ed66c6ff66178e1fbbb4773615ea0481145be6af",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/identity-values/v1/examples.md",
+      "sha256": "7c89ef5272f16b4deb6f9461a8b313789ad8e62fbb24719184b02b569c58e039",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/identity-values/v1/identity-values.schema.json",
+      "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/loop-extension/v1/contract.md",
+      "sha256": "9b553168f2a4a12e32fdec24b1169ab5f818b97f30518411b08fa73cf8bc5629",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/loop-extension/v1/examples.md",
+      "sha256": "4540b5f453feb47cc66da14015675ffe2b0816ffeb6c84ac38f868959abf94c2",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/loop-extension/v1/loop-extension.schema.json",
+      "sha256": "dd13f280017e49ea67de649816229f4219dc8d773d71d08ca901e9635e179710",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/mcp-endpoint/v1/contract.md",
+      "sha256": "7b84bf18c5a17793be2690ede56a52fa49cb5e5651d77fd01471782330c8c174",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/mcp-endpoint/v1/examples.md",
+      "sha256": "60482645b884718996f8a5ba0b84f4d911118afb1a4126c77f3b05e331c7b957",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/mcp-endpoint/v1/mcp-endpoint.schema.json",
+      "sha256": "45f497eb5e03809a7fd4925cdc375c28c92b8bf0079f34a2104c2325d80934d5",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/messages/v1/contract.md",
+      "sha256": "3ad2d111670a9b392efcfc8c807cc7c706d4b403269ebdf1eb7e3dca0f8dff09",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/messages/v1/examples.md",
+      "sha256": "ed2d77ed0de8c45af4fa0b7105c41badb3e8408d3b88401ce5447e7ead757423",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/messages/v1/formal/README.md",
+      "sha256": "63c8b501aa75e43b3670c4fcdedc2bbe9272ca7a2e6d417b5232560affaf197f",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/messages/v1/formal/Readable.als",
+      "sha256": "313f76ee2cee52286884a56e2676401f87766adb8b73d562e8ea9a48c14da266",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/messages/v1/messages.schema.json",
+      "sha256": "00e6d5cd03bbcd49285f49a59c928fb8953f974763163ace79425973ae3e614d",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/model-profile/v1/contract.md",
+      "sha256": "43a30a0187ccffd142a13bf002e408cdc5f9fd6b94f70d05c3f739d479254c30",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/model-profile/v1/examples.md",
+      "sha256": "d3f4f67e3d64d884813f58e28e2503ee69a0c2a46939194ef2796a0e6b95c646",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/model-profile/v1/model-profile.schema.json",
+      "sha256": "4b3b1cb0cf76093d7c1d47be7d2f491cdfe44d2feb5a04c28af6483e6c4f8b24",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/offer-expiry/v1/contract.md",
+      "sha256": "71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/offer-expiry/v1/offer-expiry.schema.json",
+      "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/skill-package/v1/contract.md",
+      "sha256": "73d374aa20ad9ff4bea9cadc24e067dcab472a8333f0f779a2ef48a7a9132ebb",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/skill-package/v1/examples.md",
+      "sha256": "b95683579847915f6276212f7843d11ac6015bd2ddb6935c3ee3ca0c361b8972",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/skill-package/v1/skill-package.schema.json",
+      "sha256": "e7b2ddf73d4a39a2bdf8f78d41befcbc5b414ae4b24f017f5006d4d6c52f9c74",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/slash-command/v1/contract.md",
+      "sha256": "13892a3b757cfcd78693019d14d68a9a5b14bda2df660cb739a2112c63b29f0a",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/slash-command/v1/examples.md",
+      "sha256": "14d62c18956d21c4f334d9027602920da439b664ed72f59b89c597dda6fedde4",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/slash-command/v1/slash-command.schema.json",
+      "sha256": "c2e05383c6b36888ddcb8f10c866fb68ff8f7cba2014f4ba8a5d8b2978dfd425",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/tool-definition/v1/contract.md",
+      "sha256": "8265575f3b2cd250d37c1380342ce1012bcd8bff13b00ff971a76d33a3dee8e0",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/tool-definition/v1/examples.md",
+      "sha256": "20ea0d4c39595ca70aa889be68a53796b85ad67bfed268787d4845e93d2557e4",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/tool-definition/v1/tool-definition.schema.json",
+      "sha256": "e598d0f03cba4618845be87472781b097f848fa68d8bbf119d8d3b1e3c1f9037",
+      "frozen": true
+    }
+  ]
+}

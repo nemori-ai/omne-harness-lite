@@ -1,5 +1,7 @@
 # pi-ai-transport 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 契约：[`capability.model-request-runtime` v1](../../../../spec/capabilities/model-request-runtime/v1/contract.md)（下文「契约 S-n」「契约 G-n」都指它；引别的契约写全坐标）。
 本页的导出名、服务键、插件名、日志事件名、配置项名一律是**候选**；源码不存在。契约的九件事不复述，只写本节点上的兑现点与缺口。
 

@@ -1,11 +1,11 @@
 # capability.stream-assembly v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.stream-assembly, 1)`——
   `family = capabilities`、`topic = stream-assembly`、规范路径 `spec/capabilities/stream-assembly/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-25 修复波 3 按实现映射反推写定 [S-10](#s-10-工具调用在封口那一下解析且只解析这一次) 的 JSON 解析口径）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-006 rev 19、PF-013 rev 12** 为准（2026-09-24 逐版复核，见[验证入口「变化的影响」](../verification.md#变化的影响)）
 - **精确语义依赖**：
 

@@ -1,5 +1,7 @@
 # asset-registry 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个 Cordis 插件，没有可复用的上游对象**：会话资产注册表的快照、换表规则、可用性与报告是本项目的产品语义（PF-002、PF-006），DSH 没有对应物。

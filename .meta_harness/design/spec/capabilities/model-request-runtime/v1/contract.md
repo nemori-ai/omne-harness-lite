@@ -1,11 +1,11 @@
 # capability.model-request-runtime v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 1)`——
   `family = capabilities`、`topic = model-request-runtime`、规范路径 `spec/capabilities/model-request-runtime/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草；2026-09-24 经第一轮独立评审并按处置修订，处置见[验证入口](../verification.md#独立评审)；修复波 1b 补模型侧到达装配前提的承诺与追补体参数三项的来源；2026-09-25 修复波 2 按第二轮独立复评补撤除走放弃、「已开口」写不进那一支、被拒事件的日志事件、按（会话，目标）路由与允许集合来源的缺口，见[验证入口「变化的影响」](../verification.md#变化的影响)；2026-09-25「公开面」修订波按 [D-043 R-4](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)、R-6 闭合 G-19 与 G-8、另立 G-20，见[验证入口](../verification.md#修订波2026-09-25-公开面)）——未接受、未冻结
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准（rev 11 只动转换件呈现的落点，不影响本契约条款；rev 12 的同名按层覆盖、设置记路由名已落进本契约），另引 PF-012 rev 14、PF-009 rev 8、PF-004 rev 12、PF-001 rev 17、PF-015 rev 11（逐 rev 复核结论在[验证入口「变化的影响」](../verification.md#变化的影响)）
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v1`（candidate）

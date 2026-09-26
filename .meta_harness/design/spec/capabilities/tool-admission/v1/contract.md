@@ -1,11 +1,11 @@
 # capability.tool-admission v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.tool-admission, 1)`——
   `family = capabilities`、`topic = tool-admission`、规范路径 `spec/capabilities/tool-admission/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14、修复波 2 按第二轮修订），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **契约种类**：**接口型**——本契约只定[放行判断](../../../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)**对外的输入、输出、判定次序与凭据**；
   授权表达怎样求值（函数体）、卡片怎样投递、调用怎样执行，都不在这里（[S-2](#s-2-本契约不拥有什么)）
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-007 rev 18、PF-008 rev 7、PF-012 rev 14、PF-015 rev 11、PF-002 rev 20、PF-014 rev 7、PF-001 rev 17** 为准（2026-09-24 逐版复核，见[验证入口「变化的影响」](../verification.md#变化的影响)）

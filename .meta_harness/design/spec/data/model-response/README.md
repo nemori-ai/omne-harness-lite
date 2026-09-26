@@ -8,11 +8,11 @@
 归模型请求运行时的能力契约；成因的名字归 `data.loop-extension`，账的形状归 `data.call-accounts`。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.model-response, 1)`
-- **状态**：`candidate`（2026-09-23 起草，此后按对齐与评审原地修订）——**未接受、未冻结**；接受前可原地修订，每次修订记在[验证入口「变化的影响」](verification.md#变化的影响)
-- **catalog 映射**：已登记为 `candidate`，`family=data`、`topic=model-response`、
-  `contract_path=spec/data/model-response/v1/contract.md`，`resources` 另含 `v1/model-response.schema.json` 与 `v1/examples.md`，`acceptance` 为 null。
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`，`family=data`、`topic=model-response`、
+  `contract_path=spec/data/model-response/v1/contract.md`，`resources` 另含 `v1/model-response.schema.json` 与 `v1/examples.md`，`acceptance` 指向 D-041 的 `acceptance.json`。
   依赖七项，消费的条款以 catalog 为准、与[契约抬头的依赖表](v1/contract.md)一致：`data.call-accounts`、`data.content-blocks`、`data.messages`、`data.model-profile`、`data.loop-extension`（五份同批候选）、`data.offer-expiry`（`S-22`）、`data.identity-values`（`S-11`、`S-16`、`S-31`）
-- **提供者/装配映射**：尚无。写它的是模型请求运行时（`capability.model-request-runtime`），其提供者设计未起草
+- **提供者/装配映射**：[packages/core/model-response](../../../realization/packages/core/model-response/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -23,13 +23,13 @@
 | 适用范围 | 一次发出结束之后写下的那一条。**一次都没发出的调用没有响应体**（「发不出去」那一类、在待发出时就被中断的） |
 | 为什么是 data 而不是 capability | 它没有操作：没有状态转移、没有提交点、没有自己的授权前提。**写它、读它、据它决定重试的那些动作**各有授权与失败，归各自的能力契约 |
 | 精确依赖 | 七项，见[契约抬头](v1/contract.md)；其中五项是同批候选 |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 收场、回复及它有没有成为消息、已交付部分、故障与首 token 怎样组合才合法 | [S-13 条件关系表](v1/contract.md#s-13-收场与其余成员的条件关系) |
 | 交换与存储表示 | [v1 Schema](v1/model-response.schema.json) |
 | 一条响应体长什么样、什么会被拒、按 Run 怎么汇总 | [v1 正反实例](v1/examples.md) |
@@ -46,3 +46,7 @@ Schema 的条件约束逐格表达、正反实例逐格演示，在给定规模�
 本契约触发的证据义务是**规范场景与写入者的约束检查**，在[验证入口](verification.md)登记。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `data.model-response` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

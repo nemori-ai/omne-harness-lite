@@ -1,11 +1,11 @@
 # data.content-blocks v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.content-blocks, 1)`——
   `family = data`、`topic = content-blocks`、规范路径 `spec/data/content-blocks/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用。2026-09-25 修复波 3 按实现映射反推写明 JSON 的解析与数值口径（M36，[S-12](#s-12-完整的工具调用)、[S-24](#s-24-规范表示)；处置在[验证入口「实现映射反推」](../verification.md#实现映射反推2026-09-25)）
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-013 rev 12、PF-006 rev 19、PF-002 rev 20、PF-001 rev 17、PF-012 rev 14** 为准（2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev，本契约条款无语义变化；逐 topic 核了哪些变化，见[验证入口「变化的影响」](../verification.md#变化的影响)）
 - **精确语义依赖**：`omne-harness-lite-design-2026-09-15 · data.identity-values · v1` 的两条——
   [`#S-31` 不透明标识的交换表示](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示)（`BlockId`、`CallId` 与 `AttachmentRef` 的 `storage`／`key` 按它的散文表示；Schema **不** `$ref` 它的 `OpaqueIdentifier`——那一项自述不单独被引用，各契约按散文自写形状，主线裁定，见 [D-040 §一 S1-a](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s1content-blocks报回的)）、

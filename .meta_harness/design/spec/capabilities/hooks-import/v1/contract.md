@@ -1,11 +1,11 @@
 # capability.hooks-import v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.hooks-import, 1)`——
   `family = capabilities`、`topic = hooks-import`、规范路径 `spec/capabilities/hooks-import/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 按第二轮独立复评改 S-19、S-27 两处措辞，同日修复波 3 按实现映射反推改 S-4、S-17、S-18、S-19、S-26、S-27 与第十二节；同日「公开面」修订波把执行环境改指 `capability.execution-environments` v1 并写进起子进程的四件事，见[验证入口](../verification.md#修订波2026-09-25-公开面)）——**未接受、未冻结**，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-012 rev 15**、**PF-002 rev 20**、**PF-008 rev 7**、**PF-005 rev 6** 为准（2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）；来源产品事实以研究包 [loop-extension-hooks-compat](../../../../../research/loop-extension-hooks-compat/research.md)（首轮 2026-09-23，映射按 PF-012 rev 7 作出；本契约 2026-09-24 按 rev 14 复核了映射用到的位置、维度与否决含义）为准
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)；全部是**候选**，定型后复核）：
 

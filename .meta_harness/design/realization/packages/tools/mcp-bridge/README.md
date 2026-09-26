@@ -1,7 +1,7 @@
 # mcp-bridge
 
 - kind：`provider`
-- 对象与设计修订：状态 `candidate`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.mcp-bridge · v1`（[契约](../../../../spec/capabilities/mcp-bridge/v1/contract.md)，状态 `candidate`，未接受、未冻结；设计依据 PF-002 rev 20、PF-006 rev 19）
+- 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.mcp-bridge · v1`（[契约](../../../../spec/capabilities/mcp-bridge/v1/contract.md)，状态 `accepted`，已接受、已冻结；设计依据 PF-002 rev 20、PF-006 rev 19）
 - 源码位置：`packages/tools/mcp-bridge`——**尚未建包**。第一层 `tools` 由 [D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板（tools 取候选 C，MCP 桥归 `tools`）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
 - 契约采用与边界依据：官方 MCP SDK 之上自写薄桥（[D-037](../../../../record/decisions/mcp-client-adoption/README.md)：协议层交 SDK、不 fork；**SDK 精确钉版尚无决定**）。**一个包、两个 Cordis 插件**：
   桥本体 `mcp-bridge`（候选名）必需 inject 存储与时钟，持有连接表、OAuth 续期与孤儿回收；
@@ -13,7 +13,7 @@
 
 四项分别陈述，不互相补齐。
 
-- 语义接受范围：**未接受（候选，待 D-041）**。契约仍是 `candidate`；[D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md) 是待产品负责人签字的草案，契约里的主线裁定长期落点 [D-040](../../../../record/decisions/mainline-self-rulings-2026-09/README.md) 尚未逐条追认。本节点的设计同样未被接受
+- 语义接受范围：**设计已接受**（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-041 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
 - 可实施范围：本节点声称兑现的条款逐条对在 [design.md 的投影表](design.md#契约责任到插件服务与操作)：S-5～S-30 的全部操作、义务与装配给一列。**尚未建包、没有一行源码**。
   **受阻**：凭据保管方**接口已定、真承接者未到**（`capability.credential-custodian` v1 S-16～S-18 接住 C-1～C-3；最小提供者节点 `credential-custodian-local` 已立、本版只进验收装配，经本包 `./tx-reads` 读与锁绑定行、共用过期谓词 `isPendingExpired`）——在它装上之前（产品装配），凡交来凭据引用的接入点一律 `dependencyUnavailable`，OAuth 整条路走不通；装上之后 **C-4～C-6 本版不收**（保管方 G-2、G-4、G-3）：要静态凭据的接入点 `credentialUnavailable`、OAuth 令牌不续期（到期人要重取）、没有出示名；「引用还配没配着」要读据点上的配值副本，**没有 provider 节点**（缺口 B-3，归装配）；SDK 的进程组、环境合并、按请求取消、进度路由与 OAuth 钩子**全部待取证**（契约 G-6，缺口 B-1）。
   2026-09-25 随契约修复波 3 对齐（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：远端参数 schema 形状合法、只是编不出来的动作不再排除，以同形替换件出现、原因 `schema_unsupported`（M37）；执行运行时的 `submit` 带报告，交给本节点的接入点持有有了来路（M33，原缺口 B-6 闭合）；副本与线上消息按严格无损 JSON 读写（M36，线上那两跳待取证）。保管方与配值副本读面按 M43 本程不补——在 [verification](verification.md#覆盖缺口) 登记。

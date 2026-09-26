@@ -1,11 +1,11 @@
 # data.model-profile v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.model-profile, 1)`——
   `family = data`、`topic = model-profile`、规范路径 `spec/data/model-profile/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 12** 为准（那个 topic 的 rev 4 已接受，rev 5–12 待产品负责人确认——这是产品正文自己的状态），另引 **PF-001 rev 17**、**PF-004 rev 12**、**PF-010 rev 6**。主线在自驱授权下的裁定引 [D-040](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md)，产品负责人当场的裁定已落进 PF-013 正文与它的 decisions，直接引那里
 - **精确语义依赖**（catalog 已按此登记）：
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`——

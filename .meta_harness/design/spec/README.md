@@ -87,7 +87,7 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-**2026-09-25 新增七份接口契约（candidate）**：`capabilities/{session-log, assembly-manifest, session-tenancy, run-attempt-facts, credential-custodian, execution-environments, center-connection}` v1——两块运行时 inject 依赖的窄口，按消费者需要定，真提供者随各自那一程到来时出新版本（[D-043 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。连同本程此前的 27 份，候选共 34 份，接受归 D-041（待签）。
+**2026-09-25 新增七份接口契约（已接受）**：`capabilities/{session-log, assembly-manifest, session-tenancy, run-attempt-facts, credential-custodian, execution-environments, center-connection}` v1——两块运行时 inject 依赖的窄口，按消费者需要定，真提供者随各自那一程到来时出新版本（[D-043 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。连同本程此前的 27 份，共 34 份，已由 D-041 于 2026-09-26 接受并冻结。
 
 **已接受的有七个 topic**，前六个列在下表（都属租户相关领域与治理中心入口），**全部 `accepted`、资源已冻结**：
 前五个 v1 依据 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）；
@@ -104,9 +104,9 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 **第七个 topic 后来也接受了**：[`compositions/governance-center-entry-https-json`](compositions/governance-center-entry-https-json/README.md) v1（2026-09-23 起草，同日由 [D-029](../record/decisions/governance-center-transport-binding-acceptance/README.md) 接受并冻结）——入口契约落在 HTTP/1.1 over TLS + JSON 上的全部字节事实（传输绑定 `https-json/1`，闭合入口契约 G-10 与 G-11 的中心一侧）。
 
-**另有 26 份候选 v1（2026-09-23 起草，2026-09-24 整批对齐），都是 `candidate`、未接受、未冻结**：data 13 份（`content-blocks`、`call-accounts`、`model-profile`、`model-response`、`tool-definition`、`asset-model`、`loop-extension`、`messages`、`connector`、`arrival-events`、`skill-package`、`slash-command`、`mcp-endpoint`），capabilities 13 份（`asset-transfer`、`asset-governance`、`asset-evaluation`、`modality-projection`、`stream-assembly`、`tool-admission`、`asset-registry`、`mcp-bridge`、`loop-extension-runner`、`hooks-import`、`model-profile-directory`、`model-request-runtime`、`tool-execution-runtime`）。它们都已在 catalog 登记（`acceptance` 为 null），依赖 159 条（2026-09-25 修复波 3 跨批对齐时按 catalog 实际计数；整批对齐时为 150）、全部带条款号、依赖图无环；covers 按各包口径登记、全部 `reviewed: false`；带 TLA+ 的四份共 6 个 formal task，两份 Alloy 模型（`asset-evaluation`、`messages`）按「`check` 行 UNSAT 读作无反例」判读、不登记为任务。各包的实际状态以其 `verification.md` 为准。
+**本程此前新增 26 份 v1（2026-09-23 起草，2026-09-24 整批对齐），已由 D-041 接受并冻结**：data 13 份（`content-blocks`、`call-accounts`、`model-profile`、`model-response`、`tool-definition`、`asset-model`、`loop-extension`、`messages`、`connector`、`arrival-events`、`skill-package`、`slash-command`、`mcp-endpoint`），capabilities 13 份（`asset-transfer`、`asset-governance`、`asset-evaluation`、`modality-projection`、`stream-assembly`、`tool-admission`、`asset-registry`、`mcp-bridge`、`loop-extension-runner`、`hooks-import`、`model-profile-directory`、`model-request-runtime`、`tool-execution-runtime`）。它们都已在 catalog 登记（`acceptance` 指向 D-041），依赖 159 条（2026-09-25 修复波 3 跨批对齐时按 catalog 实际计数；整批对齐时为 150）、全部带条款号、依赖图无环；covers 按各包口径登记、全部 `reviewed: false`；带 TLA+ 的四份共 6 个 formal task，两份 Alloy 模型（`asset-evaluation`、`messages`）按「`check` 行 UNSAT 读作无反例」判读、不登记为任务。各包的实际状态以其 `verification.md` 为准。
 
-**上面六个 topic 的七个版本都在 [catalog](../registry/README.md) 登记并接受**（第七个 topic 的候选 v1 也已登记，`acceptance` 为 null）：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
+**上面六个 topic 的七个版本都在 [catalog](../registry/README.md) 登记并接受**（第七个 topic 的传输绑定 v1 由 D-029 接受，`acceptance` 指向 D-029）：五份 v1 的 `acceptance` 指向 D-023 的 `acceptance.json`，
 入口契约 v1 与账号能力 v2 指向 D-028 的；`frozen.json` 登记了五个 v1 目录的 18 项资源，加入口契约 v1 的 15 项与账号能力 v2 的 1 项。
 它们之间的依赖带精确坐标与消费 clauses，登记口径是**正文以坐标引用某条款即为消费**，
 只有否定式提及（「不来自」「不同于」）不登；**方向只算消费者 → 提供者**：data 契约正文以坐标引用
@@ -147,3 +147,5 @@ v1 目录任何字节变化都会被检查器报 `frozen file changed`，语义�
 SHA-256 也不改变。
 
 候选设计可使用本次明确输入并保留版本/接受缺口。返回 [系统设计链](../README.md)。
+
+**2026-09-26**：本程 34 份契约均已由 [D-041](../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受并冻结；catalog 当前 42 条全部 accepted。缺口、reviewed 标记和实际验证各自保留。

@@ -1,5 +1,7 @@
 # center-connection-probe 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个小包、两个 Cordis 插件，没有可复用的上游对象**：三态可达性、计数规则与「在场不随可达性变」是本项目的契约语义（`capability.center-connection` v1）。探测用 Node 内置的 `node:https`，**不引第三方 HTTP 客户端，也不引执行器类库替本节点调度重试**（[D-040 §八 N-36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 口径：探测不是重试，是契约 S-6 的节拍）。

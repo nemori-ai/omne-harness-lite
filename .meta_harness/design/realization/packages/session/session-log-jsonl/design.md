@@ -1,5 +1,7 @@
 # session-log-jsonl 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个 Cordis 插件与它背后的一个不依赖 Cordis 的闭包，只用 Node 内置模块与本仓库的纯模块。**会话日志的判重、尝试栅栏与「一本日志一个租户」是本项目的产品语义（PF-012、PF-015），DSH 没有对应物；[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md) 已把会话日志一类的本地持久化定为**文件系统 JSONL**，格式与目录留给本节点——所以不引嵌入式键值库，也不把日志放进 SQL（据点装配[关键选择 3](../../../apps/cli/design.md#关键选择)）。

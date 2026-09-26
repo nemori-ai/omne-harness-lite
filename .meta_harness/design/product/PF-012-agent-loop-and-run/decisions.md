@@ -423,3 +423,7 @@ rev 1 的五条去向见[上一节末尾那张表](#rev-1-那五条待裁决rev-
 ---
 
 返回[本 topic 入口](README.md)。
+
+## 2026-09-26 — 当前修订正式接受
+
+产品负责人以 [D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受 PR #9 中本 topic 的现行 rev 15；当前正文的主线裁定、PM 读法及推导不再待确认。历史记录保留当日的提出／待裁状态，现行设计已接受；没有现成答案的规则继续作为显式缺口，不由本事件补齐。

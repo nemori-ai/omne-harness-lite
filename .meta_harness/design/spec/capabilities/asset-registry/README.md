@@ -7,12 +7,12 @@
 > 本契约兑现的是词条[会话资产注册表](../../../ubiquitous_language/terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry)；快照、条目、报告这些记录形状无词条，定义只在契约里。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订——处置表在[验证入口](verification.md#独立评审)；2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目；同日修复波 2、修复波 3 各按主线裁定原地改——[实现映射反推](verification.md#实现映射反推2026-09-25)；同日「公开面」修订波把 `EvaluationRef` 改为引用装配清单窄口的 S-8、换表提交点与 G-1 改指那份接口契约——[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
-- **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=asset-registry`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=asset-registry`、
   `contract_path=spec/capabilities/asset-registry/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖十七项：`data.asset-model`、`data.tool-definition`、`data.loop-extension`、`data.messages`、`data.offer-expiry`、`data.identity-values`、`data.call-accounts`、`capability.asset-evaluation`、`capability.asset-governance`、`data.skill-package`、`data.slash-command`、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.tool-admission`、`capability.modality-projection`、`data.model-profile`、`capability.assembly-manifest`（均 v1；最后一项 2026-09-25 修订波登记），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)（2026-09-24 整批对齐补齐，同日第一轮评审修订再补）
 - **formal-tasks 映射**：无（本版不建形式工件，[S-35](v1/contract.md#s-35-本版选用哪些形式工件)）
-- **提供者/装配映射**：尚无
+- **提供者/装配映射**：[packages/tools/asset-registry](../../../realization/packages/tools/asset-registry/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -23,13 +23,13 @@
 | 为什么不并进资产求值 | 求值是「哪份资产生效」的纯判定，不知道会话、不知道时刻；本契约拥有「这个会话**此刻**认得什么」——变化原因不同：求值规则变是那边变，换表时刻与可用性规则变是这里变 |
 | 为什么不并进装配清单 | 清单是「会话装了什么」的唯一权威记录；本契约是读它、按它换表的那一方。**快照不持久**正是为了不重复拥有 |
 | 精确依赖 | 见上；**依赖方向单向**：本契约 → 资产形状、各类正文、求值、资产治理、MCP 桥、放行、身份值；agent loop、meta 门、斜杠命令识别、放行判断读本契约 |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 七个操作各自的前置、提交点、失败集合与缺席默认 | [契约第四节](v1/contract.md#四操作) |
 | 快照在哪几个时刻换，什么都不换它 | [契约 S-15](v1/contract.md#s-15-快照只在这几个时刻换) |
 | reload 一族有哪几条、plugin 怎么连带 | [契约 S-23](v1/contract.md#s-23-reload按类别重填) |
@@ -49,3 +49,7 @@
 **不建 `formal/`**：单写者、一次提交，被建模方式吸收；理由与触发条件见[验证入口](verification.md#形式工件)。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `capability.asset-registry` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

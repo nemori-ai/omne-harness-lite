@@ -66,8 +66,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 12**（2026-09-24）——[变更历史](changelog.md)。
-  **rev 4 已正式接受**（产品负责人 2026-09-23，[记录](decisions.md#2026-09-23--接受为正式)）；**rev 5–12 全文待产品负责人确认**
+- 产品设计：**rev 13，已正式接受**（产品负责人，2026-09-26，[D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 待裁决：**0**
 - **凭据只在租户层**：每人自取，[组织那一层不持有](design.md#组织那一层为什么不持有)；出厂默认那一格另有部署配的一把
 - **档案的身份是[所在范围加路由名](design.md#档案的身份所在范围加路由名)**：官方、组织、租户可以各有一条同路由名的，列表上每条标着来源；[已撤回的可以恢复在册](design.md#64-撤回不删行会话指向被撤回的档案时说已下架)
@@ -83,7 +82,7 @@ relations:
 - **本 topic 与 [PF-012](../PF-012-agent-loop-and-run/README.md)、
   [PF-014](../PF-014-inbound-intake-and-queueing/README.md) 出自同一次联合修订**；
   三份此后各自演进、各自接受，状态不互相牵连
-- 技术投影：[v1](projection/README.md)，对应 rev 12，`post-review`、来源未冻结——派生快照，不是权威
+- 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留
 
 ## 本包的文件
 

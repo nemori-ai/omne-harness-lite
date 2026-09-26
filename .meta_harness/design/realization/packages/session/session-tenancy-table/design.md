@@ -1,5 +1,7 @@
 # session-tenancy-table 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个薄插件：一张表、一个读。**「会话持有哪个租户身份」是本项目的产品语义（PF-015 §6.12），没有上游对应物；存储走本仓库已实现的 `core/storage` 协议与 `infra/storage-sql` 提供者（[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)），不另开连接、不另选库。

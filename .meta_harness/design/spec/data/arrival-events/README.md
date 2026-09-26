@@ -9,12 +9,12 @@
 装配状态由宿主（模型请求运行时、工具执行运行时）持有，包成哪种消息也归宿主。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.arrival-events, 1)`
-- **状态**：`candidate`——未接受、未冻结，不得据此发布或声称消费者已采用；候选期内原地改过多次（整批对齐、两轮评审修复），逐次见[验证入口「变化的影响」](verification.md#变化的影响)
-- **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=arrival-events`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-041 的 `acceptance.json`）。`family=data`、`topic=arrival-events`、
   `contract_path=spec/data/arrival-events/v1/contract.md`，`resources` 另含 `v1/arrival-events.schema.json` 与 `v1/examples.md`；
   依赖四项：`data.content-blocks` v1、`data.call-accounts` v1（含 `ModelCallId`，S-37）、`data.loop-extension` v1（`FailureCause`，S-17）与 `data.identity-values` v1（S-33），消费 clauses 见[契约头部](v1/contract.md)。
   **登记在 [registry](../../../registry/README.md)，本行只作索引**
-- **提供者/装配映射**：尚无
+- **提供者/装配映射**：[packages/core/arrival-events](../../../realization/packages/core/arrival-events/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -25,13 +25,13 @@
 | 适用范围 | 一个部署之内的一条条到达流；跨进程后要由协议重新兑现的，逐行列在[契约 S-25](v1/contract.md#s-25-装配给与协议给) |
 | 为什么是 data 而不是 capability | 它定义值与值序列的合法性，**没有操作、没有自己的状态、不做判定**；持有在途状态、收尾交出消息的是 `capability.stream-assembly` |
 | 精确依赖 | `data.content-blocks` v1（块）、`data.call-accounts` v1（账与砍的原因、模型调用的标识）、`data.loop-extension` v1（成因 `FailureCause`，S-17）、`data.identity-values` v1（S-33 表示层校验与判定分开的口径）。`data.messages` v1 的 S-14、S-10 只以坐标指路（帧流与回复流结局的对应表），不登依赖 |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换表示 | [v1 Schema](v1/arrival-events.schema.json) |
 | 一个事件长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 一条流里能以什么次序出现 | [契约第四节](v1/contract.md#四语法一条流里的次序) |
@@ -48,3 +48,7 @@
 本契约触发的义务在[验证入口](verification.md)登记，状态**一律为「未开始」**。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `data.arrival-events` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

@@ -1,7 +1,7 @@
 # capability.asset-registry v1
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 1)`
-- **状态**：`candidate`——2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 把报告的执行权限扩到全部工具条目（L13），同日修复波 2 按第二轮复评定下报告各项的键、meta 门的执行权限项（M8、M21），同日修复波 3 按实现映射反推落 M34、M35、M40、M46 并随求值的 M31、M32、M45 对齐（处置在[验证入口「实现映射反推」](../verification.md#实现映射反推2026-09-25)）；同日「公开面」修订波把 [S-13](#s-13-evaluationref) 改为引用装配清单窄口的定义、换表提交点与 G-1 改指那份接口契约（[验证入口「修订波」](../verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**（PF-002 rev 20、PF-006 rev 19、PF-004 rev 12；2026-09-24 逐版复核到当前 rev，变化与落点记在[验证入口](../verification.md#变化的影响)）：
   PF-002 [§4 Slash Command](../../../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)、
   [§4「会话认得哪些命令，什么时候变」](../../../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)、

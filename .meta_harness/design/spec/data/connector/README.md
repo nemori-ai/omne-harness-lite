@@ -7,12 +7,12 @@
 并给受理一侧一个「外部内容在交接那一刻长什么样」的共同定义。**连接件只能送消息进来**：本契约里没有任何一个值能承载读取、管理或控制。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.connector, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐与第一轮独立评审处置；连接件专项收口未做，见 G-10）——未接受、未冻结，不得据此发布或声称消费者已采用
-- **catalog 映射**：已登记为 `candidate`（`acceptance` 为 `null`）。`family=data`、`topic=connector`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`（`acceptance` 指向 D-041 的 `acceptance.json`）。`family=data`、`topic=connector`、
   `contract_path=spec/data/connector/v1/contract.md`，`resources` 另含 `v1/connector.schema.json` 与 `v1/examples.md`；
   依赖五项：`data.asset-model` v1、`data.messages` v1、`data.content-blocks` v1、`data.offer-expiry` v1、`data.identity-values` v1，
   消费的条款见[契约头部的依赖表](v1/contract.md)。**登记在 [registry](../../../registry/README.md)，本行只作索引**
-- **提供者/装配映射**：尚无；连接件接入端本程不投影
+- **提供者/装配映射**：[packages/core/connector](../../../realization/packages/core/connector/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -24,13 +24,13 @@
 | 为什么是 data 而不是 capability | 它**没有操作**：没有提交点、没有状态转移、没有自己的授权前提。接入端怎样收、受理怎样收下、求值怎样合成，归各自的契约 |
 | 精确依赖 | 见上面「catalog 映射」一行；三个外部标识按 `data.identity-values/v1#S-31` 的散文写，**不 `$ref` 它的 `OpaqueIdentifier`** |
 | 谁在等它 | `data.asset-model`（connector 那一支的正文）、`capability.asset-evaluation`（推出的属性项）、`capability.asset-governance`（鉴权绑定的写面）、PF-014 的受理、未立的连接件接入端。完整清单见[契约的消费者表](v1/contract.md#消费者)——**那里是唯一的一份** |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 交换与存储表示 | [v1 Schema](v1/connector.schema.json) |
 | 一个值长什么样、什么会被拒、拒绝值叫什么 | [v1 正反实例](v1/examples.md) |
 | 鉴权绑定与投递目标为什么不在正文里 | [S-2](v1/contract.md#s-2-鉴权绑定与投递目标不在正文里)——主线裁定，见 [D-040 §S21 S21-a、S21-b](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s21connector报回的) |
@@ -47,3 +47,7 @@
 本契约触发的义务是 Schema 正反实例校验、接收边界的拒绝值、规范场景与静态检查，在[验证入口](verification.md)登记，状态**一律为「未开始」**。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[数据契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `data.connector` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

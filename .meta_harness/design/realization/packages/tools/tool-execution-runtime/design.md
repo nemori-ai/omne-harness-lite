@@ -1,5 +1,7 @@
 # tool-execution-runtime 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个 Cordis 插件**（[D-032](../../../../record/decisions/tool-execution-runtime-baseline/decision.md)：C 自研）。契约拥有的是执行记录的状态与收场、结果落成哪种消息、恢复扫描——三者被「同一次执行的收场只写一次、与它的消息不得只成一半」绑在一起，没有可 fork 的对象。

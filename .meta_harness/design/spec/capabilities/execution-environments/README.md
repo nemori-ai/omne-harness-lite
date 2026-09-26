@@ -8,13 +8,13 @@
 **依赖方向是单向的：本契约 → 身份值、会话引用、拓展点统一输入、工具定义的目标环境。**
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.execution-environments, 1)`
-- **状态**：`candidate`（2026-09-25 起草，未经独立评审；同日「公开面」修订波原地改，见[修订波](verification.md#修订波2026-09-25-公开面)）——未接受、未冻结
-- **catalog 映射**：已登记为 candidate。`family=capabilities`、`topic=execution-environments`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 accepted。`family=capabilities`、`topic=execution-environments`、
   `contract_path=spec/capabilities/execution-environments/v1/contract.md`，`resources` 另含 `v1/examples.md`；
   依赖四项，消费 clauses 取自[契约 S-4 的被消费面表](v1/contract.md#s-4-依赖方向与被消费的面)：
   `data.identity-values` v1、`data.messages` v1、`data.loop-extension` v1、`data.tool-definition` v1
 - **formal-tasks 映射**：无——本版不建 TLA+／Alloy，理由见[契约 S-18](v1/contract.md#s-18-本版选用哪些形式工件)
-- **提供者／装配映射**：尚无节点（主线另立）。服务键候选名 `executionEnvironments`（执行宿主、派发器、兼容件三个消费者共用）。
+- **提供者/装配映射**：[packages/infra/execution-environments-host](../../../realization/packages/infra/execution-environments-host/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
   **最小提供者的形态**（本程施工简报定；接口契约 ＋ 最小提供者取代验收替身见 [D-043 R-1](../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）：**直接起本机进程**——落点判断从测试种子读执行环境权限与拓展件子进程的允许（顶替[契约 G-2](v1/contract.md#十已知缺口)、[G-3](v1/contract.md#十已知缺口) 的来路，只供验收装配），起停用本机操作系统的进程组。
   真承接者是 PF-005 那一程（[G-1](v1/contract.md#十已知缺口)）
 
@@ -28,7 +28,7 @@
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [版本化契约](v1/contract.md) |
+| 本版本精确承诺什么 | [版本化契约](v1/contract.md) |
 | 落点、起停走通是什么样、每个失败值的反例 | [规范实例](v1/examples.md) |
 | 哪些条款有怎样的证据，哪些仍缺 | [验证与覆盖](verification.md) |
 | 还有哪些没定、等谁裁 | [已知缺口](v1/contract.md#十已知缺口) |
@@ -36,3 +36,7 @@
 ## 版本包
 
 `v1/` 是候选版本目录。发布（接受并冻结）之后规范正文与实例不可原地覆盖，修改发布新版本；执行记录留在版本目录外（[验证入口](verification.md)）。
+
+## 2026-09-26 版本接受
+
+本次接受 `capability.execution-environments` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。

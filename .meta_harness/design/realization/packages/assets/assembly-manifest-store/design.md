@@ -1,5 +1,7 @@
 # assembly-manifest-store 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个薄插件：两张表、四个操作。**装配清单的换表记录与条件追加是本项目的产品语义（PF-004 §4、PF-015 §6.11），没有上游对应物；存储走本仓库已实现的 `core/storage` 协议与 `infra/storage-sql` 提供者（[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)），与据点上的其余 SQL 写入者同一实例、不另开连接。契约第十一节在「本机 JSON 文件或 sqlite 表」之间留了选择，本批取后者：条件追加要的「判定与写入同一步」「头与各类最后一条一次一致读」，协议的写事务与只读事务直接给出，JSON 文件要重造一遍。

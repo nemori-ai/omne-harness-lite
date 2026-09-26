@@ -1,5 +1,7 @@
 # organization-governance 实现设计
 
+> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+
 ## 实现路径与来源
 
 **自建一个 Cordis 插件。**契约拥有的是组织、成员关系、两类邀约、当前租户身份四组持久事实与 25 个操作的提交语义；DSH 没有对应上层包，没有可 fork 的对象。
@@ -86,7 +88,9 @@
 
 ## v2 修订（候选，尚未实现）
 
-[v2](../../../../spec/capabilities/organization-governance/v2/contract.md) 是 v1 的加法版（`candidate`，待 D-041）；**本节只写增量**，v1 同文的条款沿用上文。下文方法名、服务名、列名、入口名一律**候选**；源码仍是 v1（HUB `c9b5850`）。
+本节标题保留历史链接；当前设计已由 D-042 正式接受，尚未实现。
+
+[v2](../../../../spec/capabilities/organization-governance/v2/contract.md) 是 v1 的加法版（`accepted`，已由 D-041 接受）；**本节只写增量**，v1 同文的条款沿用上文。下文方法名、服务名、列名、入口名一律为**已接受的设计**；源码仍是 v1（HUB `c9b5850`）。
 
 ### 投影增量
 

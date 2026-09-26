@@ -1,11 +1,11 @@
 # data.skill-package v1
 
-> 候选规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
+> 规格正文。接受、采用、冻结与执行结果由版本外入口与 registry 记录，本文件不填进度、通过状态或哈希。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.skill-package, 1)`——
   `family = data`、`topic = skill-package`、规范路径 `spec/data/skill-package/v1/contract.md`。
   **文件位置不代替这个三元组身份。**
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审处置修订，修复波 1b 把执行环境要求由设置保留项改为定义记录里的固定声明）——语义可被审阅；接受、采用与冻结均未由有权者闭合，不得据此发布或声称消费者已采用
+- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
 - **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-002 rev 20、PF-006 rev 19、PF-003 rev 5、PF-007 rev 18** 为准（PF-007 只引，§9.3 那一条据以关闭 G-4）；
   起点是 [D-034](../../../../record/decisions/skill-spec-adoption/decision.md)（Agent Skills 开放格式为载体、规则层自持、扩展声明走包内定义记录）；
   开放格式钉的是研究 [skill-spec-sources](../../../../../research/skill-spec-sources/research.md#第二轮开放格式原文与三家扩展) 第二轮钉存的 agentskills/agentskills `69ef37e`（[原文字节](../../../../../research/skill-spec-sources/sources/provenance.json)；规格本身没有版本号）

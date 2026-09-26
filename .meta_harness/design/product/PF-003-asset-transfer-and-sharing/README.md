@@ -75,13 +75,13 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 
 ## 状态
 
-- 产品设计：**rev 5**，已定稿
+- 产品设计：**rev 5，已正式接受**（产品负责人，2026-09-26，[D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
-- 待裁决：**1**（提升时生效中的分享怎么收场，见 [decisions.md 第三节](decisions.md#三待裁决)；规格已按主线倾向先落）
-- 技术投影：[v1](projection/README.md)，对应 rev 5，`post-review`、来源未冻结——派生快照，不是权威
+- 待裁决：**0**；提升时生效分享的现行规格处理已随 D-045 接受，历史候选与来由见 decisions.md。
+- 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留
 
 技术投影按 `harness-design-handbook` skill 展开，
-产物按其步骤 G 落回本包的 `projection/v1/`。
+产物按其步骤 G 落回本包的 `projection/v2/`。
 
 ## 本包的文件
 

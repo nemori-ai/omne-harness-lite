@@ -8,12 +8,12 @@
 导入结果落成资产（写哪一层、新资产还是新版本、禁用落在哪一格）归资产治理。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.hooks-import, 1)`
-- **状态**：`candidate`（2026-09-23 起草，2026-09-24 整批对齐，同日按第一轮独立评审修订，2026-09-25 修复波 1b 闭合 G-14，同日修复波 2 改 S-19、S-27 两处措辞，同日修复波 3 按实现映射反推改为经执行环境句柄取执行环境、补运行被取消那一行、装配名改 `apps/cli`；同日「公开面」修订波把执行环境改指 `capability.execution-environments` v1、写进起子进程的四件事——[修订波](verification.md#修订波2026-09-25-公开面)），**未接受、未冻结**
-- **catalog 映射**：已登记为 `candidate`；`family=capabilities`、`topic=hooks-import`、
+- **状态**：`accepted`、资源已冻结（2026-09-26，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
+- **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=hooks-import`、
   `contract_path=spec/capabilities/hooks-import/v1/contract.md`；`resources` 含契约与 `examples.md`；
   依赖八项（`capability.loop-extension-runner`、`capability.tool-admission`、`capability.execution-environments`、`data.loop-extension`、`data.asset-model`、`data.messages`、`data.content-blocks`、`data.identity-values`，均为 v1；`capability.execution-environments` 2026-09-25 修订波登记），clauses 取自[契约 S-4](v1/contract.md#s-4-依赖方向与被消费的面)
 - **formal-tasks 映射**：无——导入是纯函数、映射是有限查表，理由见[契约 S-28](v1/contract.md#s-28-本版不选用形式工件)
-- **提供者/装配映射**：尚无。起点已由 [D-033](../../../record/decisions/hooks-compat-baseline/decision.md) 选定（fork DSH `hook-protocol` 无运行时的一半，其余自写），fork 尚未做
+- **提供者/装配映射**：[packages/agent-loop/hooks-import](../../../realization/packages/agent-loop/hooks-import/README.md)；当前节点设计已由 D-042 接受，源码／实际验证按各节点四层状态分别读取。
 
 ## 准入核对
 
@@ -23,13 +23,13 @@
 | 为什么是 capability 而不是 data | 有一个操作（`importHostHooks`），有失败集合与缺席默认；兼容件的求值是一套行为规则 |
 | 为什么不并进 runner | runner 的失效事件是「求值次序、合成或恢复规则变了」；本契约的失效事件是「**来源产品升级了方言**」——两家的 hook 协议都在变（[研究](../../../../research/loop-extension-hooks-compat/research.md)），钉住的版本一动就要出新版本，不该拖着 runner 一起出 |
 | 精确依赖 | 见上；**依赖方向单向**：本契约 → runner、数据半边、资产模型、消息、块、身份值、执行环境 |
-| 接受状态 | 未接受 |
+| 接受状态 | 已接受（D-041，2026-09-26） |
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本候选版本精确承诺什么 | [v1 契约](v1/contract.md) |
+| 本版本精确承诺什么 | [v1 契约](v1/contract.md) |
 | 某个来源产品事件会挂在哪、能做什么 | [Claude Code 映射表](v1/contract.md#s-23-claude-code-映射表) · [Codex 映射表](v1/contract.md#s-24-codex-映射表) |
 | 导入报告里有什么、为什么有一条没导入 | [契约 S-12～S-14](v1/contract.md#s-12-导入报告) |
 | 为什么挂了看得见却不拦（照来源产品）、不在时跳过、允许不放行 | [契约 S-10](v1/contract.md#s-10-兼容件要带的东西)、[S-19](v1/contract.md#s-19-起不来与报错)、[S-20](v1/contract.md#s-20-输出怎样译回) |
@@ -44,3 +44,7 @@
 **不建 `formal/`**。**钉住的来源产品版本一升级就出新版本**，不原地改。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
+
+## 2026-09-26 版本接受
+
+本次接受 `capability.hooks-import` v1 的全部条款，[D-041](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
