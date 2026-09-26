@@ -1,0 +1,5 @@
+
+> omne-harness-lite-workspace@ format:write /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-content
+> ./scripts/format.sh write -- packages/core/content-blocks/src/types.ts
+
+packages/core/content-blocks/src/types.ts 95ms

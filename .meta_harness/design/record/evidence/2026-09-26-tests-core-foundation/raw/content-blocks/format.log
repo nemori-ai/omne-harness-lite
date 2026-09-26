@@ -1,0 +1,9 @@
+
+> omne-harness-lite-workspace@ format:write /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-content
+> ./scripts/format.sh write -- packages/core/content-blocks/src/json.ts packages/core/content-blocks/src/schema.ts packages/core/content-blocks/tests/json.spec.ts packages/core/content-blocks/tests/types.spec-d.ts packages/core/content-blocks/tests/public-consumer.spec.ts
+
+packages/core/content-blocks/src/json.ts 125ms (unchanged)
+packages/core/content-blocks/src/schema.ts 33ms
+packages/core/content-blocks/tests/json.spec.ts 44ms
+packages/core/content-blocks/tests/types.spec-d.ts 12ms (unchanged)
+packages/core/content-blocks/tests/public-consumer.spec.ts 4ms (unchanged)
