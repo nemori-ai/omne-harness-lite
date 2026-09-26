@@ -1,49 +1,118 @@
 # @omne-harness-lite/slash-command
 
-`data.slash-command` v2 的纯 TypeScript 实现。采用版本及接受依据见
-[registry](../../../.meta_harness/design/registry/README.md)，接口及调用前提见
-[realization](../../../.meta_harness/design/realization/packages/core/slash-command/design.md)，
-规范例与判定次序见[契约](../../../.meta_harness/design/spec/data/slash-command/v2/contract.md)。
+[中文](README_ZH.md)
 
-公开入口提供 `recognize`、`parseInvocation`、`expandPrompt`、`expandSkill`，
-`judgeSlashCommand`、`judgeInvocation`、九个固定 Schema 定义的 `validate` 与
-`judgeSlashCommandValue`，以及 `slashCommandBodyContract`、属性声明与引用投影。
-Schema 通过 `@omne-harness-lite/slash-command/schema` 公开，保持冻结资源的原始字节。
+Recognize delivery-surface slash commands, parse arguments against an explicit session command set, and expand prompt or selected skill content. Results describe what a consumer should do; the package performs no delivery or service dispatch.
+
+This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
+
+| Public API                                                       | Use                                                          |
+| ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| `recognize`                                                      | Distinguish text, literal slash text and invocation attempts |
+| `parseInvocation`                                                | Parse against the supplied session command set               |
+| `expandPrompt`, `expandSkill`                                    | Project prompt text or selected skill blocks                 |
+| `judgeSlashCommand`, `judgeInvocation`, `judgeSlashCommandValue` | Validate definitions and exchange values                     |
+| `slashCommandBodyContract`, declaration/reference helpers        | Integrate definitions with asset evaluation                  |
+
+## Recognize and parse a prompt command
+
+Only a slash in the first code point starts an invocation. `//` sends literal slash text; an unknown invocation stays a failure.
 
 ```ts
-import { recognize, parseInvocation } from '@omne-harness-lite/slash-command'
+import {
+  recognize,
+  parseInvocation,
+  type SlashCommandDefinition,
+} from '@omne-harness-lite/slash-command'
 
-const input = recognize('/summarize full raw text')
-if (input.kind === 'invocation') {
-  const result = parseInvocation(input.invocation, {
-    summarize: {
-      description: 'Summarize the supplied text',
-      binding: { kind: 'prompt', template: 'Summarize: $ARGUMENTS' },
-    },
-  })
-  // result: { kind: 'expanded', text: 'Summarize: full raw text' }
+const definition: SlashCommandDefinition = {
+  description: 'Summarize text',
+  binding: { kind: 'prompt', template: 'Summarize: $ARGUMENTS' },
 }
+console.log(recognize('//summarize text')) // { kind: 'literal', text: '/summarize text' }
+console.log(recognize(' /summarize text').kind) // text
+const recognized = recognize('/summarize a short note')
+if (recognized.kind !== 'invocation') throw new Error('Invocation required')
+console.log(parseInvocation(recognized.invocation, { summarize: definition }))
+// { kind: 'expanded', text: 'Summarize: a short note' }
+console.log(parseInvocation(recognized.invocation, {}))
+// { kind: 'failed', reason: 'unknown_command', at: { start: 0, end: 10 },
+//   explanation: 'This session has no command with this name.' }
 ```
 
-导出通过构建产物消费；包内 `src/` 不供跨包导入。调用方提供合法命令集；
-`expandPrompt` 的调用方还保证定义与本次名字配对。`expandSkill` 接收调用方已经选好、
-核权的合法 SkillPackage，以及每个实际输出块的 id 与 visibility；它保留正文和参数原文。
-辅助函数的技术前提违例给 `TypeError`，表示层判定仍返回六个既有拒绝值，解析结果恰四支。
-缺少资产记录上下文的局部正文判断不等于完整记录接收。
+## Parse typed service arguments
 
-本包不执行服务、shell 或工具，不访问目录、权限、存储、时钟或 Cordis。
-交付/受理面实际调用、受理重判、发布动作名集合、失败不发送、权限核实、留痕和跨进程
-一致性由[verification](../../../.meta_harness/design/spec/data/slash-command/verification.md)
-点名的消费者承担。G-7～G-9 保留在权威契约中。
+Service commands use the official reserved namespace. Parsing produces data; it does not resolve or invoke the service.
 
-```sh
-pnpm --filter @omne-harness-lite/slash-command build
-pnpm --filter @omne-harness-lite/slash-command typecheck
-pnpm --filter @omne-harness-lite/slash-command test
-pnpm run lint:rules
+```ts
+import {
+  judgeSlashCommand,
+  recognize,
+  parseInvocation,
+  type SlashCommandDefinition,
+} from '@omne-harness-lite/slash-command'
+
+const name = 'omne-official:reload'
+const definition: SlashCommandDefinition = {
+  description: 'Reload an asset',
+  binding: { kind: 'command', service: 'registry.reload' },
+  parameters: [{ name: 'version', kind: 'integer', required: true, positional: true }],
+}
+console.log(judgeSlashCommand(definition, { capabilityName: name, origin: 'official' })) // { ok: true }
+const recognized = recognize('/omne-official:reload 7')
+if (recognized.kind !== 'invocation') throw new Error('Invocation required')
+console.log(parseInvocation(recognized.invocation, { [name]: definition }))
+// { kind: 'command', service: 'registry.reload', arguments: { version: 7 } }
+console.log(judgeSlashCommand(definition, { capabilityName: name, origin: 'customized' }))
+// { rejected: 'name_reserved' }
 ```
 
-`tests/normative.spec.ts` 逐行消费冻结 examples，包含 D-01～D-50 在人读、机读和受理三种
-调用形态下的同一实现；这不表示已验证另一语言实现。`boundaries.spec.ts` 使用固定预期
-检查 Unicode、切分、优先级、精确整数和模板边界，`projections.spec.ts` 检查端口、原文
-块及冻结字节，`public.spec-d.ts` 保持结果分支、品牌和正文类别的负向类型证据。
+## Expand an explicitly selected skill
+
+The caller has already selected the effective, authorized skill. The body remains literal; arguments become a separate annotated block.
+
+```ts
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
+import { recognize, parseInvocation, expandSkill } from '@omne-harness-lite/slash-command'
+
+const recognized = recognize('/review focus on errors')
+if (recognized.kind !== 'invocation') throw new Error('Invocation required')
+const parsed = parseInvocation(recognized.invocation, {
+  review: {
+    description: 'Review code',
+    binding: {
+      kind: 'skill',
+      skill: { category: 'skill', name: 'review' },
+    },
+  },
+})
+if (parsed.kind !== 'skill') throw new Error('Skill binding required')
+const skill = {
+  manifest: { name: 'review', description: 'Review code' },
+  body: 'Review the code. Keep $0 literal.',
+  resources: [],
+}
+const blocks = expandSkill(recognized.invocation, parsed.skill.name, skill, [
+  {
+    id: unwrap(parseOpaqueIdentifier('skill_body', 'BlockId')),
+    visibility: { toHuman: true, toModel: true },
+  },
+  {
+    id: unwrap(parseOpaqueIdentifier('skill_arguments', 'BlockId')),
+    visibility: { toHuman: true, toModel: true },
+  },
+])
+console.log(blocks.map(block => block.text))
+// ['Review the code. Keep $0 literal.', 'focus on errors']
+console.log(blocks.map(block => block.origin?.kind)) // ['skill_body', 'slash_command_args']
+```
+
+## Failures and boundaries
+
+Representation judgments return `{ ok: true }` or `{ rejected }`. Parsing returns `expanded`, `skill`, `command` or `failed`; a failure contains a reason, explanation and, where applicable, a Unicode code-point span. Missing and unauthorized commands look identical because parsing sees only the supplied set. A failure must not be silently converted to text delivery.
+
+`recognize` is for human input arriving through a delivery surface. Callers must keep model output and connector, scheduled or peer-session text out of this grammar. Matching is case-sensitive. Quoted arguments, typed positional/named parameters and enum values are parsed only when the definition supplies `parameters`; without declarations, the argument text remains free text.
+
+`expandSkill` takes the already selected SkillPackage and one caller-supplied block annotation per output block. It does not fetch, choose or authorize skills. Auxiliary inputs that violate helper preconditions throw `TypeError`, distinct from parse failure. The package does not log, send content, execute commands or resolve service names; those effects belong to the caller.
+
+The JSON Schema is available through `@omne-harness-lite/slash-command/schema`. See [source exports](src/index.ts), [tests](tests/) and [skill package](../skill-package/README.md).

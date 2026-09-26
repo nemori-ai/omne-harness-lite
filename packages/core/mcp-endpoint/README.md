@@ -1,11 +1,96 @@
-# `@omne-harness-lite/mcp-endpoint`
+# @omne-harness-lite/mcp-endpoint
 
-Pure TypeScript implementation of the accepted [`data.mcp-endpoint/v2`](../../../.meta_harness/design/spec/data/mcp-endpoint/v2/contract.md). Adoption and responsibility follow the [realization node](../../../.meta_harness/design/realization/packages/core/mcp-endpoint/README.md), not this source guide.
+[中文](README_ZH.md)
 
-The public package exports the authored endpoint body, the distinct fetched / not-fetched snapshot types, open remote descriptors, OAuth binding types, `actionEntryName`, ordered `judgeMcpValue` / `judgeMcpEndpoint`, shape-only `validate`, the typed `deriveMcpDeclarations` function, and `mcpBodyContract`. `./schema` exports the frozen Schema resource. Names and durations consume tool-definition's public definitions; timestamps consume offer-expiry's public parser. Shared content-blocks components validate JSON without rounding numbers and compile fixed package-owned schemas.
+Pure data for authored MCP connection targets, timeouts, action snapshots and OAuth binding representations. Derive asset declarations from an endpoint and the action snapshot explicitly supplied by a caller.
 
-`validate(definition, value)` checks frozen Schema shape. `judgeMcpValue` adds the ordered representation predicates, including duplicate action names, actual calendar validity, literal URL constraints and projected name length. Neither API changes input. Remote descriptor extensions and parameter schemas remain JSON data; this package does not compile a remote `inputSchema`, connect, execute a process, acquire credentials, or implement OAuth transitions.
+This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
 
-`deriveMcpDeclarations(body, actionSnapshot?)` takes authored defaults and an explicit snapshot. Its result always owns `actionSnapshotKind`, including an own `undefined` when the optional argument is absent. It returns four fixed declarations and adds per-action permissions only for fetched actions. The body port validates unknown JSON before handing off; asset-model owns the two reserved declarations. These results are in-process values, so JSON serialization must not be used to preserve the provenance marker.
+| Public API                                 | Use                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| `judgeMcpEndpoint`, `judgeMcpValue`        | Judge endpoint and related representations                         |
+| `deriveMcpDeclarations`                    | Derive fixed settings and known per-action permission declarations |
+| `actionEntryName`                          | Construct a projectable tool entry name                            |
+| `mcpBodyContract`                          | Supply MCP rules to the asset model                                |
+| `validate`, `schemaId`, `SCHEMA_DEF_NAMES` | Use the schema surface                                             |
 
-Run `pnpm --filter @omne-harness-lite/mcp-endpoint run build`, `run typecheck`, and `run test` from the repository root. Tests carry normative source coordinates and its hash, exercise rejection priority, compile negative type cases, and compare the maintained Schema copy byte for byte with the adopted resource. Cross-package users consume package exports after building the dependencies; source paths are private.
+## Judge a connection target
+
+Endpoint names are supplied separately from the body. The example address is data and is never contacted.
+
+```ts
+import { judgeMcpEndpoint, judgeMcpValue, type McpEndpoint } from '@omne-harness-lite/mcp-endpoint'
+
+const endpoint: McpEndpoint = {
+  transport: { kind: 'streamable_http', url: 'https://mcp.example.invalid/api' },
+  timeouts: { connect: 'PT5S', call: 'PT30S' },
+  permissions: { execute: { default: 'ask' } },
+}
+console.log(judgeMcpEndpoint(endpoint, { capabilityName: 'repo' })) // { ok: true }
+console.log(
+  judgeMcpEndpoint({
+    ...endpoint,
+    transport: { kind: 'streamable_http', url: 'https://user:secret@example.invalid' },
+  }),
+) // { rejected: 'url_invalid' }
+console.log(
+  judgeMcpValue('OAuthBinding', {
+    id: 'oauth_binding_1',
+    state: 'granted',
+    since: '2026-09-26T10:00:00Z',
+  }),
+) // { ok: true }
+```
+
+## Preserve snapshot knowledge and project names
+
+A fetched empty action set is different from one that was never fetched. Fixed connection settings are available in both cases.
+
+```ts
+import {
+  deriveMcpDeclarations,
+  actionEntryName,
+  judgeMcpValue,
+  type McpEndpoint,
+  type ActionSnapshot,
+} from '@omne-harness-lite/mcp-endpoint'
+
+const endpoint: McpEndpoint = {
+  transport: { kind: 'stdio', command: 'repo-mcp', args: ['--readonly'] },
+  timeouts: { connect: 'PT5S', call: 'PT30S' },
+  permissions: { execute: { default: 'ask' } },
+}
+const actions: ActionSnapshot = {
+  kind: 'fetched',
+  fetchedAt: '2026-09-26T10:00:00Z',
+  tools: [
+    {
+      name: 'read',
+      description: 'Read a file',
+      inputSchema: {
+        type: 'object',
+        properties: { path: { type: 'string' } },
+      },
+    },
+  ],
+}
+console.log(judgeMcpValue('ActionSnapshot', actions)) // { ok: true }
+const known = deriveMcpDeclarations(endpoint, actions)
+console.log(known.actionSnapshotKind) // fetched
+console.log(known.declarations.map(item => item.item))
+// ['connectionTarget', 'credential', 'connectTimeout', 'callTimeout', 'execute:read']
+console.log(deriveMcpDeclarations(endpoint, { kind: 'not_fetched' }).actionSnapshotKind) // not_fetched
+console.log(deriveMcpDeclarations(endpoint).actionSnapshotKind) // undefined
+console.log(actionEntryName('repo', 'read')) // { ok: 'repo:read' }
+console.log(actionEntryName('repo', 'has space')) // { notProjectable: true }
+```
+
+## Failures and boundaries
+
+Judgments return `{ ok: true }` or `{ rejected }`; `malformed` includes an `M` diagnostic. Name projection returns `{ ok: name }` or `{ notProjectable: true }`. Action entry construction is forward-only: keep the endpoint and remote name as separate facts rather than decoding a concatenated name.
+
+MCP descriptor extension fields stay JSON data. `inputSchema` is not compiled or repaired here; projection to executable Tool definitions needs Tool admission in a consumer. Snapshot knowledge is explicit: omitted, `not_fetched`, and `fetched` are distinct. Per-action permissions are derived only from a fetched snapshot; no snapshot does not mean an empty known action set.
+
+The package does not start stdio processes, connect HTTP, discover or call tools, perform OAuth, resolve credentials, or refresh snapshots. OAuth bindings describe data, not authorized state transitions. URL checks validate syntax rather than endpoint trust or secrecy; credentials belong outside the endpoint body. Runtime transport, authorization and lifecycle belong to consumers.
+
+The JSON Schema is available through `@omne-harness-lite/mcp-endpoint/schema`. See [source exports](src/index.ts), [tests](tests/) and [asset evaluation](../asset-evaluation/README.md).

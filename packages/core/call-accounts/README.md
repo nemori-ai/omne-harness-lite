@@ -1,15 +1,132 @@
-# call-accounts
+# @omne-harness-lite/call-accounts
 
-纯数据校验与费用求值包，采用已接受的 [`data.call-accounts` v2](../../../.meta_harness/design/spec/data/call-accounts/v2/contract.md)。责任与消费者边界见 [realization](../../../.meta_harness/design/realization/packages/core/call-accounts/design.md)。
+[中文](README_ZH.md)
 
-公开入口为 `@omne-harness-lite/call-accounts`；冻结 Schema 从 `@omne-harness-lite/call-accounts/schema` 读取。没有 Cordis 服务或外部状态。
+Pure accounting-value admission and exact decimal evaluation for model responses, tool executions and later cost corrections. Summaries keep known amounts and unknown counts separate, without querying services or mutating original records.
 
-`judgeAccountValue` 返回有序的表示拒绝值；`validate` 仅判断 Schema。`ExactDecimal` 从 content-blocks 的 `JsonNumber` 读取精确十进制，保留输入数字原文，运算结果可通过 `toJsonNumber()` 交回无损 JSON 写入器。
+## Workspace use
 
-`prepareAccountGroup` 先完整校验模型账、工具账与补账，再生成不可手工构造的 `AccountGroup`。`summarize` 只读取该快照的权威金额。工具的镜像费用、`total_usd` 和工具用量不进入投影。`effectiveCost` 对单个目标和只属于该目标的补账求值；模型分支保持 `Cost` 形状与上游另报的推理费用。
+This is an experimental, private workspace package, currently not published on npm. In a repository checkout, use the [development setup](../../../docs/development.md), build the workspace, and declare `"@omne-harness-lite/call-accounts": "workspace:*"` in the consuming member. Declare other packages imported by an example as direct dependencies too. Import through the public package entry; do not import sibling `src/` paths.
 
-`summarizeUsage` 接收只读的 `ResponseId + Usage` 集合，先校验全部输入，再汇总四项 token；重复响应标识明确失败。工具账、费用和补账不是该辅助函数的输入，完整账组的合法性与归组完整性由消费者另行保证。
+## Public API
 
-会话日志归属由调用方显式传入，只用来比较目标身份；本包不查会话、租户或存储。求值失败名是本包的本地候选，正式读面命名缺口 CA-1/G-10 保留。分组、持久写入、镜像与权威同组以及精度的每一跳仍由相应消费者兑现。
+| Public API                                         | Purpose                                                                                |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `judgeAccountValue`, `validate`; `./schema`        | Complete accounting judgment, shape validation and v2 Schema                           |
+| `ExactDecimal`                                     | Exact `from`, `add`, `compare`, `isInteger`, `toString`, `toJsonNumber`                |
+| `prepareAccountGroup`, `AccountGroup`, `summarize` | Admit a complete owned group before authoritative cost projection                      |
+| `effectiveCost`                                    | Apply only the corrections belonging to one explicit model/tool target                 |
+| `summarizeUsage`                                   | Sum four model token fields with a known sum and unknown count                         |
+| Accounting types                                   | `Usage`, `Cost`, `ToolCallAccount`, `CostCorrection`, trim/frame values and identities |
 
-本包可执行 `pnpm build`、`pnpm typecheck`、`pnpm test`。测试直接读取冻结规范实例，分别核 Schema 与具名拒绝；另核手算汇总、精确金额、补账平局、跨会话目标、类型负例和不可变快照。实际运行证据与最终接受由交付调度维护。
+## Examples
+
+Each TypeScript example is self-contained and uses the built public exports.
+
+### Add decimal amounts without floating-point rounding
+
+```ts
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
+
+const total = ExactDecimal.from(new LosslessNumber('0.1')).add(
+  ExactDecimal.from(new LosslessNumber('0.2')),
+)
+console.log(total.compare(ExactDecimal.from(new LosslessNumber('0.3')))) // 0
+console.log(writeJsonLossless({ cost_usd: total.toJsonNumber() })) // {"cost_usd":0.3}
+console.log(judgeAccountValue('Cost', { cost_usd: 'unknown', source: 'upstream_usage' }))
+// { rejected: 'unknown_with_source' }
+```
+
+### Admit a group and apply a later correction
+
+```ts
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { effectiveCost, prepareAccountGroup, summarize } from '@omne-harness-lite/call-accounts'
+
+const cost = { cost_usd: new LosslessNumber('0.1'), source: 'upstream_usage' } as const
+const usage = {
+  input_tokens: 10,
+  output_tokens: 2,
+  cache_read_tokens: 0,
+  cache_write_tokens: 0,
+  source: 'upstream',
+} as const
+const corrections = [
+  {
+    sessionLog: 'session_1',
+    correction: {
+      target: { kind: 'model_response', responseId: 'response_1' },
+      cost_usd: new LosslessNumber('0.3'),
+      obtainedVia: 'manual',
+      at: '2026-09-26T12:00:00Z',
+    },
+  },
+] as const
+const admitted = prepareAccountGroup({
+  models: [{ responseId: 'response_1', cost, usage }],
+  tools: [],
+  corrections,
+})
+if ('rejected' in admitted) throw new Error(admitted.rejected)
+const summary = summarize(admitted.ok)
+if ('failed' in summary) throw new Error(summary.failed)
+console.log(summary.knownSum.toString(), summary.unknownCount) // 0.3 0
+const effective = effectiveCost(
+  { kind: 'model_response', responseId: 'response_1', cost },
+  corrections,
+)
+if ('ok' in effective)
+  console.log(effective.ok.source) // later_correction
+else throw new Error('cost evaluation failed')
+```
+
+### Summarize model usage without treating unknown as zero
+
+```ts
+import { summarizeUsage } from '@omne-harness-lite/call-accounts'
+
+const summary = summarizeUsage([
+  {
+    responseId: 'response_1',
+    usage: {
+      input_tokens: 10,
+      output_tokens: 2,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+      source: 'upstream',
+    },
+  },
+  {
+    responseId: 'response_2',
+    usage: {
+      input_tokens: 'unknown',
+      output_tokens: 'unknown',
+      cache_read_tokens: 'unknown',
+      cache_write_tokens: 'unknown',
+      source: 'none',
+    },
+  },
+])
+if ('rejected' in summary || 'failed' in summary) throw new Error('usage evaluation failed')
+console.log(summary.input_tokens.knownSum.toString()) // 10
+console.log(summary.input_tokens.unknownCount) // 1
+```
+
+## Boundaries and failures
+
+Admission rejections are `correction_without_target`, `malformed`, `negative_amount`, `unknown_with_source`, `total_not_unknown`, in that order. `validate` alone does not establish cross-field validity. Evaluation distinguishes malformed input from `duplicate_account`, `orphan_correction` and `correction_tie`; these are local evaluator failure names, not a complete runtime read API. Conflicting amounts at the same exact instant are a tie even if a later correction exists.
+
+A cost summary counts authoritative model costs and tool-owned costs. Tool `model_call` items are mirrors; they, tool `total_usd`, and tool usage are excluded from this projection after full admission. The latest unambiguous correction replaces the target's effective amount without rewriting its original record. `effectiveCost` requires corrections for that target only, and tool target matching also uses the caller-supplied session-log key.
+
+`'unknown'` is explicit and is neither zero nor absence. `ExactDecimal` operates on the supplied numeric representation; it cannot restore precision lost before a JavaScript number reached this boundary. Use `LosslessNumber` or the strict JSON reader for exact decimals. `summarizeUsage` handles only model `ResponseId + Usage` inputs and four token fields; it does not prove full group validity. Callers own grouping completeness, session/tenant ownership, persistence, idempotency and every subsequent numeric transport boundary.
+
+## Development
+
+```sh
+pnpm --filter @omne-harness-lite/call-accounts run build
+pnpm --filter @omne-harness-lite/call-accounts run typecheck
+pnpm --filter @omne-harness-lite/call-accounts run test
+```
+
+Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.

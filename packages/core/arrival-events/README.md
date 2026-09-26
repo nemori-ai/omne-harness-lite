@@ -1,11 +1,103 @@
-# arrival-events
+# @omne-harness-lite/arrival-events
 
-`data.arrival-events` v2 的纯函数包。采用版本、责任和外部义务见[实现节点](../../../.meta_harness/design/realization/packages/core/arrival-events/README.md)与[契约](../../../.meta_harness/design/spec/data/arrival-events/v2/contract.md)。
+[中文](README_ZH.md)
 
-通过包名导入构建后的公开入口；`./schema` 是冻结原字节 Schema。`validate` 检查全部十四个定义的形状；`judgeArrivalEnvelope` 实现表示层拒绝的固定优先级。文本边界 `judgeArrivalEnvelopeText` 使用共享严格无损 JSON 读取，拒绝任意嵌套重复成员。判定不改动或修补输入。
+Pure validation of arrival envelopes and reduction of one block's fills. The same data vocabulary describes model-response streams and tool execution frames; this package supplies no transport or reliable-delivery mechanism.
 
-调用方可传入 `openBlock(index)`，提供合法只读且此刻仍开的块视图；未开或已封口的块返回 `undefined`。只有整体替换是否合开块，以及帧流语音填字节这两项借它判定；没有视图、或查不到该块时，两项不参与。这不证明事件序列合法。序列判断、路由、会话与租户隔离归消费者。
+## Workspace use
 
-`reduceFills(mode, fills)` 只归约一个块，输入为合法的 `ReductionMode` 和属于该块的合法载荷序列。零次填返回 `undefined`；追加文本原样相接，追加语音按解码后的字节相接并返回标准 Base64；替换取最后一次。工具参数始终保持原文。违反归约前提可抛 `TypeError`，不生成表示层拒绝或补造内容。`isStandardBase64` 可供消费者共用严格的非空语音载荷判据。
+This is an experimental, private workspace package, currently not published on npm. In a repository checkout, use the [development setup](../../../docs/development.md), build the workspace, and declare `"@omne-harness-lite/arrival-events": "workspace:*"` in the consuming member. Declare other packages imported by an example as direct dependencies too. Import through the public package entry; do not import sibling `src/` paths.
 
-先构建 workspace 依赖，在根运行 `pnpm --filter @omne-harness-lite/arrival-events run build`、`typecheck`、`test`。这些检查覆盖本包纯值责任；生产者的封口一致性、节流和实际跨进程交付仍需各自的组合证据。
+## Public API
+
+| Public API                                             | Purpose                                                                 |
+| ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `judgeArrivalEnvelope`, `judgeArrivalEnvelopeText`     | Ordered representation judgment; optional caller-owned `openBlock` view |
+| `reduceFills`                                          | Reduce legal fills of one block in producer order                       |
+| `isStandardBase64`                                     | Strict nonempty standard Base64 with canonical padding/tail bits        |
+| Arrival/event/open/reduction types                     | `open`, `fill`, `close`, `trim`, `account`, `finish` values             |
+| `validate`, `schemaId`, `SCHEMA_DEF_NAMES`; `./schema` | Shape validation and v2 Schema                                          |
+
+## Examples
+
+Each TypeScript example is self-contained and uses the built public exports.
+
+### Validate model and tool envelopes
+
+```ts
+import { judgeArrivalEnvelope, judgeArrivalEnvelopeText } from '@omne-harness-lite/arrival-events'
+
+console.log(
+  judgeArrivalEnvelope({
+    target: { kind: 'model_call', callId: 'model_call_1', dispatch: 1 },
+    event: {
+      t: 'open',
+      index: 0,
+      id: 'block_1',
+      kind: 'text',
+      fill: 'append',
+      visibility: { toHuman: true, toModel: true },
+    },
+  }),
+) // { ok: true }
+console.log(
+  judgeArrivalEnvelopeText(
+    JSON.stringify({
+      target: { kind: 'tool_execution', callId: 'call_1' },
+      event: {
+        t: 'open',
+        index: 0,
+        id: 'block_2',
+        kind: 'text',
+        fill: 'append',
+        visibility: { toHuman: true, toModel: false },
+      },
+    }),
+  ),
+) // { ok: true }
+console.log(
+  judgeArrivalEnvelope({
+    target: { kind: 'model_call', callId: 'model_call_1', dispatch: 1 },
+    event: {
+      t: 'open',
+      index: 1,
+      id: 'block_3',
+      kind: 'image',
+      fill: 'append',
+      visibility: { toHuman: true, toModel: true },
+    },
+  }),
+) // { rejected: 'fill_kind_not_appendable' }
+```
+
+### Reduce text, raw parameters and decoded audio bytes
+
+```ts
+import { isStandardBase64, reduceFills } from '@omne-harness-lite/arrival-events'
+
+console.log(reduceFills({ kind: 'text', fill: 'append' }, ['Hello, ', 'Ada'])) // Hello, Ada
+console.log(reduceFills({ kind: 'tool_call', fill: 'append' }, ['{"x":', '1}'])) // {"x":1}
+console.log(reduceFills({ kind: 'voice', fill: 'append' }, ['AQ==', 'Ag=='])) // AQI=
+console.log(reduceFills({ kind: 'text', fill: 'replace' }, ['old', 'new'])) // new
+console.log(reduceFills({ kind: 'text', fill: 'append' }, [])) // undefined
+console.log(isStandardBase64('AQ==')) // true
+console.log(isStandardBase64('AR==')) // false: nonzero unused tail bits
+```
+
+## Boundaries and failures
+
+Judgment checks representation, not event sequence. A successful `{ ok: true }` does not prove that an index was opened, is monotonic, or can be closed. Use a sequence consumer such as [stream-assembly](../stream-assembly/README.md) for those checks. The optional `openBlock(index)` must return a legal immutable currently open view, or `undefined` when absent/closed. Only replacement-shape and tool-frame voice-fill predicates borrow this view; missing views do not prove those contextual conditions.
+
+Tool frames must have `toModel: false`; inline media bytes are forbidden, and tool streams have no `account`, `max_tokens` finish or finish error. Presentation hints are rejected in the current version. Model targets carry `callId` and `dispatch`; tool targets carry `callId`. Neither target carries session or tenant routing.
+
+`reduceFills` assumes legal mode and payloads belonging to one block in producer order. Invalid preconditions throw `TypeError`; zero fills return `undefined`. Audio concatenates decoded bytes, not Base64 strings. Tool arguments remain raw strings and are not parsed here. Text reception rejects syntax and nested duplicate members as `malformed` and preserves exact numeric values. Callers own sequencing, close/reduction consistency, throttling, trim accounting, routing, authorization and ordered delivery without duplicates or loss. Rejected data does not itself terminate an execution.
+
+## Development
+
+```sh
+pnpm --filter @omne-harness-lite/arrival-events run build
+pnpm --filter @omne-harness-lite/arrival-events run typecheck
+pnpm --filter @omne-harness-lite/arrival-events run test
+```
+
+Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.

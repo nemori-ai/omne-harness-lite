@@ -1,17 +1,132 @@
-# asset-evaluation
+# @omne-harness-lite/asset-evaluation
 
-纯求值函数与工作区承载清单值的读入。公开入口是 `@omne-harness-lite/asset-evaluation`，不依赖 Cordis 服务、会话存储或文件读取。
+[中文](README_ZH.md)
 
-采用依据与当前范围在[实现节点](../../../.meta_harness/design/realization/packages/core/asset-evaluation/README.md)、[技术映射](../../../.meta_harness/design/realization/packages/core/asset-evaluation/design.md)和 [capability.asset-evaluation v3](../../../.meta_harness/design/spec/capabilities/asset-evaluation/v3/contract.md)。D-068 显式采用 AM3、TD3、Loop3，Skill、MCP、Slash 仍采用正文2；四步求值规则及公开输入范围保持原承诺。规格的接受与冻结状态归[身份清单](../../../.meta_harness/design/registry/README.md)。实现交付与最终接受按节点分层状态判断。
+Compute effective assets, composition and attribute values from explicit holdings across factory, organization, tenant, workspace and session layers. The package also turns a parsed workspace manifest into carrier holdings with a record of ignored entries.
 
-`evaluate` 的输入为 `NonConnectorEvaluationInput`；完整 `EvaluationInput` 仍用于输入指纹及未来完整供给边界。`defaultBodyContracts` 装配真实 tool、loop-extension、skill-package、mcp-endpoint、slash-command 五个公开正文端口。`readWorkspaceCarrier` 消费完整清单域，由调用方读取文件、解析正文并补 `since`；本包只处理传入的值。
+This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
 
-公开构件还有 `classifyPermissionAssignment`、`boundOf`、`pickWithinBound` 和 `evaluationInputFingerprint`。输出由本次调用持有并冻结，调用方输入保持原有所有权。各条义务和证据入口归[节点 verification](../../../.meta_harness/design/realization/packages/core/asset-evaluation/verification.md)；本目录的测试检验本包实现，不替代装配前提或外部供应的证明。
+| Public API                   | Use                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| `evaluate`                   | Validate inputs, filter/select assets, expand composition and resolve values |
+| `readWorkspaceCarrier`       | Convert a complete manifest value into workspace holdings                    |
+| `defaultBodyContracts`       | Reuse the five available body providers                                      |
+| `evaluationInputFingerprint` | Fingerprint the full evaluation input                                        |
+| Permission helpers           | Classify assignments and calculate bounds                                    |
 
-在 workspace 根运行：
+## Evaluate a complete input
 
-```sh
-pnpm --filter @omne-harness-lite/asset-evaluation run build
-pnpm --filter @omne-harness-lite/asset-evaluation run typecheck
-pnpm --filter @omne-harness-lite/asset-evaluation run test
+This example includes the root definition and every held definition. A missing reference is reported in `unresolved`.
+
+```ts
+import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
+import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
+import { type AssetHolding } from '@omne-harness-lite/asset-model'
+import { evaluate, type NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
+
+const tenant = unwrap(parseTenantId({ organization: 'org_acme', account: 'acc_alice' }))
+const at = '2026-09-26T10:00:00Z'
+const root = { category: 'agent_definition', name: 'assistant' } as const
+const tool = { category: 'tool', name: 'inspect' } as const
+function factory(capability: AssetHolding['capability'], asset: string): AssetHolding {
+  return {
+    holder: { layer: 'factory' },
+    capability,
+    asset,
+    basis: { kind: 'official' },
+    versionSelection: { kind: 'current' },
+    immutable: false,
+    assignments: [],
+    since: at,
+  }
+}
+const input: NonConnectorEvaluationInput = {
+  tenant,
+  standing: { standing: 'effective', role: 'member' },
+  root: {
+    definition: root,
+    references: [
+      { capability: tool, resident: true },
+      { capability: { category: 'skill', name: 'missing-review' } },
+    ],
+  },
+  holdings: [factory(root, 'asset_root'), factory(tool, 'asset_inspect')],
+  definitions: [
+    {
+      id: 'asset_root',
+      capability: root,
+      origin: 'official',
+      versions: [
+        {
+          number: 1,
+          publishedAt: at,
+          content: { category: 'agent_definition', body: toOpaqueJson({}) },
+        },
+      ],
+    },
+    {
+      id: 'asset_inspect',
+      capability: tool,
+      origin: 'official',
+      versions: [
+        {
+          number: 1,
+          publishedAt: at,
+          content: {
+            category: 'tool',
+            definition: {
+              name: 'inspect',
+              description: 'Inspect files',
+              paradigm: 'single',
+              origin: { kind: 'authored' },
+              input: { type: 'object', properties: {} },
+              permissions: { execute: { default: 'ask' } },
+            },
+          },
+        },
+      ],
+    },
+  ],
+}
+const result = evaluate(input)
+if (!('ok' in result)) throw new Error(JSON.stringify(result))
+console.log(result.ok.assets.map(asset => asset.capability.name)) // ['assistant', 'inspect']
+console.log(result.ok.unresolved.map(entry => entry.capability.name)) // ['missing-review']
+console.log(result.ok.values.find(value => value.item === 'execute')?.value) // { allowed: ['ask'] }
 ```
+
+## Read carrier holdings with diagnostics
+
+The manifest has all three required lists. The reader ignores an immutable flag and records an assignment to an unknown asset.
+
+```ts
+import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
+import { type WorkspaceCarrierManifest } from '@omne-harness-lite/asset-model'
+import { readWorkspaceCarrier } from '@omne-harness-lite/asset-evaluation'
+
+const tenant = unwrap(parseTenantId({ organization: 'org_acme', account: 'acc_alice' }))
+const capability = { category: 'tool', name: 'inspect' } as const
+const manifest: WorkspaceCarrierManifest = {
+  format: 1,
+  assets: [{ capability, source: 'tools/inspect.json' }],
+  assignments: [
+    { capability, item: 'timeout', value: 'PT10S', immutable: true },
+    { capability: { category: 'skill', name: 'missing' }, item: 'variant', value: 'brief' },
+  ],
+  disabled: [capability],
+}
+const result = readWorkspaceCarrier(manifest, { tenant, directory: '/work/repo' })
+if ('invalidInput' in result) throw new Error(JSON.stringify(result.invalidInput))
+console.log(result.ok.holdings[0]?.assignments.map(entry => entry.item)) // ['timeout', 'disabled']
+console.log(result.ok.dropped.map(entry => entry.reason)) // ['immutable_flag', 'unknown_asset']
+```
+
+## Failures and boundaries
+
+`evaluate` returns one of `{ ok }`, `{ invalidInput }`, `{ compositionCycle }` or `{ categoryUnsupported }`. Input diagnostics precede evaluation. An `ok` result can contain `filteredOut` and `unresolved`; a consumer must not dispatch an assembly with unresolved references. Reachable Plugin bodies and non-root Agent Definition bodies currently produce `categoryUnsupported` rather than assumed empty composition.
+
+The implemented input domain is `NonConnectorEvaluationInput`. `defaultBodyContracts` contains the five real Tool, Loop Extension, Skill, MCP and Slash Command providers. Connector asset records, drafts or version bodies are outside that domain and throw `BodyProviderUnavailableError`. Connector identifiers and references are not recursively forbidden, and `readWorkspaceCarrier` accepts the full manifest domain.
+
+Both operations are pure calculations over explicit input. The caller supplies a consistent, authorized snapshot and verifies workspace ownership and provenance. No files, clocks, stores, models or tools are accessed. The reader does not load `source` bodies; it returns holdings without `since`, which the caller supplies from the actual read event. Permission classification, bound intersection and pick checks are also exported as `classifyPermissionAssignment`, `boundOf` and `pickWithinBound`; they calculate values without granting execution authority.
+
+See [source exports](src/index.ts), [tests](tests/) and [asset model](../asset-model/README.md).

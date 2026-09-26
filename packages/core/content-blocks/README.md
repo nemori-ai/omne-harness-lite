@@ -1,97 +1,93 @@
-# content-blocks
+# @omne-harness-lite/content-blocks
 
-当前实现采用 `data.content-blocks v3`（[规范](../../../.meta_harness/design/spec/data/content-blocks/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+[中文](README_ZH.md)
 
-`contentBlockFromRepresentation(value)` is a shape-only transport adapter: it
-copies a value, checks the complete frozen `ContentBlock` Schema, and restores
-identity and opaque wrappers through the same private constructor as
-`judgeContentBlock`. Invalid representation preconditions raise `TypeError`.
-The adapter does not establish cross-member predicates or replace the receiver's
-complete `judgeContentBlock` check. It never branches on opaque contents.
+Immutable multimodal content blocks and a strict, lossless JSON boundary. Validate text, thinking, media, tool-call and tool-result values while preserving exact numeric literals and opaque transport payloads.
 
-`@omne-harness-lite/content-blocks` implements the public pure module described by
-[the accepted realization node](../../../.meta_harness/design/realization/packages/core/content-blocks/design.md),
-adopting [data.content-blocks v3](../../../.meta_harness/design/spec/data/content-blocks/v3/contract.md)
-(D-061 / D-062 / D-065; coordinates reconciled by D-066). It requires Node `>=24.18.0 <25` and uses Ajv 8.20.0 Draft 2020-12.
+## Workspace use
 
-Import from the package root for types and functions. `./schema` exports the unchanged
-`schema/content-blocks.schema.json` file, with `$id` and 22 `$defs` matching the frozen
-specification. To register it in another Ajv instance:
+This is an experimental, private workspace package, currently not published on npm. In a repository checkout, use the [development setup](../../../docs/development.md), build the workspace, and declare `"@omne-harness-lite/content-blocks": "workspace:*"` in the consuming member. Declare other packages imported by an example as direct dependencies too. Import through the public package entry; do not import sibling `src/` paths.
+
+## Public API
+
+| Entry / API                                                 | Purpose                                                             |
+| ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| `judgeContentBlock`                                         | Complete block judgment with ordered named rejections               |
+| `contentBlockFromRepresentation`                            | Shape-checked transport restoration; does not replace full judgment |
+| `readJsonStrict`, `writeJsonLossless`, `copyJsonValue`      | Duplicate-aware JSON read, exact write and owned frozen copy        |
+| `LosslessNumber`, numeric predicates and `jsonNumberSource` | Exact numeric representation and explicit source access             |
+| `toOpaqueJson`, `readOpaqueJson`                            | Explicit transport-only opaque wrapping/read boundary               |
+| Block types, equality helpers, media-type helpers           | Seven block kinds, identities, attachments and modality             |
+| `validate`, `schemaId`; `./schema`, `./schema/v2`           | Current v3 and retained v2 Schema resources                         |
+| `./schema-runtime`                                          | `createSchemaRuntime` and exact Draft 2020-12 validator types       |
+
+## Examples
+
+Each TypeScript example is self-contained and uses the built public exports.
+
+### Round-trip exact JSON and reject duplicate names
 
 ```ts
-import schema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
-import { Ajv2020 } from 'ajv/dist/2020.js'
+import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
-const ajv = new Ajv2020({ strict: true, strictTypes: false, strictRequired: false })
-ajv.addSchema(schema)
-const validateBlock = ajv.getSchema(`${schema.$id}#/$defs/ContentBlock`)
+const source = '{"large":9007199254740993,"price":1.10,"huge":1e400,"zero":-0}'
+const read = readJsonStrict(source)
+if ('failed' in read) throw new Error(read.failed)
+console.log(writeJsonLossless(read.ok) === source) // true
+console.log(readJsonStrict('{"x":1,"\u0078":2}')) // { failed: 'duplicate_member' }
 ```
 
-The two disabled static diagnostics allow the specification's `allOf` / `not` / `required`
-composition. They do not disable data constraints. This Schema has no external references;
-consumers register this `$id` when their own Schema references its definitions. Raw Ajv
-validation alone does not check the cross-member constraints or numeric wrappers described below.
+### Admit a block and preserve opaque payloads
 
-The public functions are independent of Context, sessions, tenants and storage:
+```ts
+import {
+  judgeContentBlock,
+  toOpaqueJson,
+  writeJsonLossless,
+  LosslessNumber,
+} from '@omne-harness-lite/content-blocks'
 
-| Entry | Result |
-| --- | --- |
-| `readJsonStrict(text: string)` | `{ readonly ok: JsonValue }` or `{ readonly failed: 'syntax' \| 'duplicate_member' }` |
-| `writeJsonLossless(value: unknown)` | JSON text; non-JSON JavaScript values throw `TypeError` rather than being omitted or rewritten |
-| `copyJsonValue(value: unknown)` | Frozen JSON exchange value or `{ readonly failed: 'not_json' }`; copies without invoking getters or `toJSON` |
-| `judgeContentBlock(value: unknown)` | `{ readonly ok: ContentBlock }` or `{ readonly rejected: ContentBlockRejection }` |
-| `validate(defName: SchemaDefName, value: unknown)` | `{ readonly valid: boolean }`, the fixed bundled Schema definitions only |
-| `modalityOf(mediaType: string)` | `Modality \| undefined`; the precondition is a canonical media type |
-| `isCanonicalMediaType(value: unknown)` | Canonical media-type predicate, without normalization |
-| `capabilityIdEquals(a, b)` / `attachmentRefEquals(a, b)` | Exact component equality |
+const result = judgeContentBlock({
+  kind: 'thinking',
+  id: 'b_1',
+  visibility: { toHuman: false, toModel: true },
+  text: 'Considering the request',
+  opaque: toOpaqueJson({ vendor: 'token', n: new LosslessNumber('1.10') }),
+})
+if ('rejected' in result) throw new Error(result.rejected)
+console.log(Object.isFrozen(result.ok)) // true
+console.log(writeJsonLossless(result.ok)) // includes "opaque":{"vendor":"token","n":1.10}
+console.log(judgeContentBlock({ kind: 'text', id: 'b_2', text: 'Hello' }))
+// { rejected: 'visibility_missing' }
+```
 
-`judgeContentBlock` checks the five named refusal predicates over all block positions in the
-contract's order, then checks the remaining Schema and cross-member constraints. It never selects
-a refusal from Ajv's errors. Accepted results are owned, deeply frozen copies; callers retain
-their original objects. The block variants, `Visibility`, `Modality`, `MediaType`, identifiers,
-attachments, outcomes and reasons are exported types. `BlockId` and `CallId` use the public
-identity-values brand; use that package's `parseOpaqueIdentifier(value, 'BlockId' / 'CallId')`
-and `generateOpaqueIdentifier()` at the respective identity construction boundary.
+A transport adapter may wrap or read opaque data. Other consumers keep the opaque value intact and do not branch on its contents.
 
-`JsonNumber` is `number | LosslessNumber`. This implementation conservatively keeps only ordinary
-safe-integer literals as `number` (excluding negative zero). Decimals, exponent spellings, unsafe
-integers and `-0` use a frozen `LosslessNumber`, preserving their source spelling. Thus `0.1`,
-`1.10`, `1e400` and `-0` all round-trip through their original literal, without conversion to a
-double. This is an implementation representation choice; the realization's original examples
-use `number` for `0.1`. The contract's decimal value is preserved by both representations.
+### Validate an exact numeric bound with a standalone compiler
 
-The standalone numeric components are `new LosslessNumber(source)`, `LosslessNumber.is(value)`,
-`isJsonNumber(value)`, `jsonNumberSource(number)` and `isNonNegativeJsonInteger(value)`. The
-constructor accepts only a JSON number literal and rejects invalid sources with `TypeError`.
-Use the source for exact decimal arithmetic in consumers; `Number(source)` cannot establish
-exact equality or bounds. `isNonNegativeJsonInteger` handles coefficient/exponent syntax
-exactly, including exponents outside the double range. It performs no arithmetic or rounding.
+```ts
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 
-The bundled `validate` projects wrappers as numbers for Ajv, while separately checking the
-original `AttachmentRef.bytes` as an exact integer >= 0 at every declared attachment position.
-`bytes` is the only numerically constrained member in this fixed Schema; `arguments` and
-`opaque` allow arbitrary JSON values. **This projection is internal and specific to this
-Schema.** Consumers with `maximum`, precision, enum or other numeric constraints must check
-their original `JsonNumber` values according to their own contracts before using any Schema
-view. Do not pass `LosslessNumber` directly to an ordinary Ajv instance as an object.
+const runtime = createSchemaRuntime([])
+const validator = runtime.compile({
+  type: 'integer',
+  minimum: new LosslessNumber('9007199254740993'),
+})
+console.log(validator.validate(new LosslessNumber('9007199254740992'))) // false
+console.log(validator.validate(new LosslessNumber('9007199254740993'))) // true
+console.log(validator.validate(new LosslessNumber('1.00000000000000000001'))) // false
+```
 
-`ThinkingBlock.opaque` exposes only the `OpaqueJson` brand. Transport adapters construct it
-with `toOpaqueJson(value)` and read it through `readOpaqueJson(value)`; `writeJsonLossless`
-preserves it during serialization. Other layers keep the brand intact and do not inspect it.
-No parser operates on a call block's `rawArguments`. The shared strict reader returns a neutral
-failure: block/message JSON receivers map it to `malformed`, while stream-assembly maps its one
-argument parse failure to the already specified unparseable complete call.
+## Boundaries and failures
 
-`copyJsonValue` exposes the existing neutral JSON exchange projection used by the writer and
-validators. It keeps ordinary numbers (including `-0`) and exact `LosslessNumber` values,
-copies and freezes containers, and rejects cycles or non-JSON properties. Its result unwraps
-the transport representation of `OpaqueJson`; it is not a typed `ContentBlock` copy and
-does not retain that brand. Use it for JSON representation snapshots, validation or full-input
-fingerprints. It does not authorize business inspection of opaque contents, validate domain
-values, or repair precision already lost before this boundary. Domain objects must retain
-their wrappers or be reconstructed through their authoritative judge.
+`judgeContentBlock` checks `kind_unknown`, `visibility_missing`, `incomplete_call_visible`, `call_in_result`, `modality_mismatch`, then remaining shape/cross-member constraints as `malformed`. Success owns a deeply frozen copy. `contentBlockFromRepresentation` checks the full bundled Schema and restores brands, but skips additional judgment predicates; malformed representation preconditions throw `TypeError`.
 
-Build before testing or typechecking the public declaration consumer:
+`JsonNumber` is `number | LosslessNumber`. The strict reader keeps ordinary safe-integer literals as numbers; decimals, exponents, unsafe integers and negative zero retain their source in `LosslessNumber`. Never use `Number(source)` to establish exact bounds or equality. The writer rejects non-JSON values with `TypeError` instead of omitting them; copying rejects getters, cycles and other non-JSON properties. Opaque JSON is not an inspection permission, and copying its exchange representation does not preserve its domain brand.
+
+The bundled `validate` is shape-only and has a numeric projection specific to this fixed Schema; do not reuse that projection for arbitrary numeric constraints or pass wrappers directly to ordinary Ajv. `createSchemaRuntime` is caller-owned, resolves only supplied fixed resources, and performs no remote loading or async validation. This package does not parse `rawArguments`, execute tools, retrieve attachments, persist blocks, establish block-ID uniqueness across messages, or authorize visibility. `./schema/v2` retains the old resource without v2 behavior compatibility. Node `>=24.18.0 <25` is required for the actual JSON source/raw-number APIs.
+
+## Development
 
 ```sh
 pnpm --filter @omne-harness-lite/content-blocks run build
@@ -99,18 +95,4 @@ pnpm --filter @omne-harness-lite/content-blocks run typecheck
 pnpm --filter @omne-harness-lite/content-blocks run test
 ```
 
-Tests cover all 162 normative Schema rows, named block refusal rows and the six precedence
-examples, cross-member constraints, immutability, exact JSON number/opaque round-trips,
-decoded duplicate keys, public built JavaScript/Schema consumption and negative public type
-tests. These correspond to the node's V-1 / V-2 / V-3 and module-side V-6 / V-11 obligations.
-The numeric reader relies on the actual Node `context.source` and `JSON.rawJSON` APIs.
-Tests of depth 128 and long input are bounded evidence, not a guarantee for unbounded inputs.
-
-Message identity uniqueness, call registration, real log persistence, consumer parsing
-allowlists, transport use of opaque, attachment access, assembly and every external JSON hop
-remain with their documented owners in the realization node. Package tests do not establish
-those external obligations or final acceptance.
-
-Verification retains the original v2 normative cases as regressions against current3,
-without relabeling their source, and separately consumes every accepted v3 appendix
-instance. The current and retained public Schema resources are checked independently.
+Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.

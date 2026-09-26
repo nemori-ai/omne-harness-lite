@@ -1,27 +1,143 @@
-# model-response
+# @omne-harness-lite/model-response
 
-当前实现采用 `data.model-response v3`（[规范](../../../.meta_harness/design/spec/data/model-response/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+[中文](README_ZH.md)
 
-Pure TypeScript implementation of the accepted
-[`data.model-response` v3](../../../.meta_harness/design/spec/data/model-response/v3/contract.md).
-The [provider mapping](../../../.meta_harness/design/realization/packages/core/model-response/design.md)
-owns the implementation boundary.
+Represent the record of one model dispatch: its route snapshot, actual parameters, response outcome, timing, delivered content, usage and cost. The package judges complete records without sending model requests or owning persistence.
 
-The package exports all sixteen definition types, `validate(defName, value)` for
-the full frozen shape, and `judgeModelResponse(value)` for the ordered S-27
-rejection. The judge returns `{ ok: true } | { rejected: ModelResponseRejection }`.
-The `./schema` entry exports the unchanged frozen resource. Use the
-content-blocks JSON reader and writer for text boundaries and lossless numbers.
+This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
 
-The package neither sends requests nor reads clocks, generates identifiers,
-redacts upstream material, retries, or writes accounts. S-25 and V-2 through V-14
-remain with the model-request runtime and its transport and storage owners.
-Passing shape validation does not establish those facts.
+| Public API                                    | Use                                                          |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| `ModelResponse`, `Route`, `Failure`, `Timing` | Type the conditional response shapes                         |
+| `judgeModelResponse`                          | Judge independent members and outcome relationships in order |
+| `validate`, `SCHEMA_DEF_NAMES`, `schemaId`    | Access the schema validation surface                         |
 
-Package tests cover normative examples, rejection precedence, all definitions,
-lossless numeric boundaries and generated public type constraints. Run `build`,
-`typecheck` and `test` with the workspace package filter.
+## Judge a complete response
 
-Verification retains the original v2 normative cases as regressions against current3,
-without relabeling their source, and separately consumes every accepted v3 appendix
-instance. The current and retained public Schema resources are checked independently.
+Create branded message and block identities through public APIs. This record uses an official profile and a factory credential scope.
+
+```ts
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
+import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
+
+const block = judgeContentBlock({
+  id: 'block_1',
+  kind: 'text',
+  text: 'Ready.',
+  visibility: { toHuman: true, toModel: true },
+})
+if ('rejected' in block || block.ok.kind !== 'text') throw new Error('Text block required')
+const { origin: _origin, ...replyBlock } = block.ok
+const response: ModelResponse = {
+  id: 'response_1',
+  call: { callId: 'model_call_1' },
+  dispatch: 1,
+  route: {
+    profile: { origin: 'official', routeName: 'vendor/chat' },
+    profileSnapshot: {
+      providers: ['provider-a'],
+      allowFallback: false,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 32000,
+      maxOutputTokens: 8192,
+      updatedAt: '2026-09-26T09:00:00Z',
+    },
+    selectedBy: 'session',
+    provider: 'provider-a',
+    credentialScope: { layer: 'factory' },
+    parameters: { maxOutputTokens: 64 },
+  },
+  outcome: 'complete',
+  reply: {
+    id: unwrap(parseOpaqueIdentifier('message_1', 'MessageId')),
+    type: 'assistant',
+    response: 'response_1',
+    ending: 'complete',
+    blocks: [replyBlock],
+    createdAt: '2026-09-26T10:00:02Z',
+  },
+  replyDisposition: 'persisted',
+  timing: {
+    sentAt: '2026-09-26T10:00:00Z',
+    firstTokenAt: '2026-09-26T10:00:01Z',
+    endedAt: '2026-09-26T10:00:02Z',
+  },
+  usage: {
+    input_tokens: 12,
+    output_tokens: 2,
+    cache_read_tokens: 0,
+    cache_write_tokens: 0,
+    source: 'upstream',
+  },
+  cost: { cost_usd: 0.0001, source: 'upstream_usage' },
+}
+console.log(judgeModelResponse(response)) // { ok: true }
+console.log(
+  judgeModelResponse({ ...response, reply: { ...response.reply, ending: 'truncated_at_limit' } }),
+)
+// { rejected: 'reply_ending_mismatch' }
+```
+
+## Judge failure and rejection precedence
+
+Unknown cost remains unknown. An in-band status-code relationship is checked after the named response relationships.
+
+```ts
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
+
+const response: ModelResponse = {
+  id: 'response_failed',
+  call: { callId: 'model_call_2' },
+  dispatch: 1,
+  route: {
+    profile: { origin: 'official', routeName: 'vendor/chat' },
+    profileSnapshot: {
+      providers: ['provider-a'],
+      allowFallback: false,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 32000,
+      maxOutputTokens: 8192,
+      updatedAt: '2026-09-26T09:00:00Z',
+    },
+    selectedBy: 'session',
+    provider: 'provider-a',
+    credentialScope: { layer: 'factory' },
+    parameters: {},
+  },
+  outcome: 'failed',
+  failure: { cause: 'request_rejected', statusCode: 429 },
+  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
+  usage: {
+    input_tokens: 'unknown',
+    output_tokens: 'unknown',
+    cache_read_tokens: 'unknown',
+    cache_write_tokens: 'unknown',
+    source: 'none',
+  },
+  cost: { cost_usd: 'unknown', source: 'none' },
+}
+console.log(judgeModelResponse(response)) // { ok: true }
+console.log(judgeModelResponse({ ...response, outcome: 'future', dispatch: 0 }))
+// { rejected: 'outcome_unknown' }
+console.log(
+  judgeModelResponse({
+    ...response,
+    outcome: 'interrupted',
+    initiator: 'user',
+    failure: { cause: 'request_rejected', inBand: true },
+  }),
+) // { rejected: 'failure_on_interrupted' }
+```
+
+## Failures and boundaries
+
+`judgeModelResponse` returns `{ ok: true }` or one `{ rejected }`. Precedence is: unknown outcome, integer dispatch below one, unknown failure cause, other independent member malformation; then `reply_missing`, `reply_on_failure`, `reply_and_delivered`, `failure_missing`, `failure_on_interrupted`, `failure_on_success`, `reply_ending_mismatch`, `first_token_inconsistent`; remaining cross-member violations are `malformed`. For example, missing `statusCode` with `failure.inBand: true` does not hide `failure_on_interrupted`. Schema-only `validate` reports shape validity rather than this rejection order.
+
+Complete and truncated responses carry a reply and disposition. Mid-reply failure carries `delivered` and a first-token time, with no reply. Interruption has its own shapes and is not a failure. `late` belongs only to a response associated with a run. Numeric counts and costs use exact `JsonNumber` values, and unknown amounts are not replaced with zero.
+
+Passing validation establishes representation validity. Actual dispatch provenance, identity uniqueness, clock provenance, truthful usage, redaction, snapshot capture and persistence remain the writer's responsibility. A rejected record is a writer defect; it must not be reclassified as a failed model call or used as a reason to automatically resend. This module reads no clocks or stores and performs no model calls.
+
+Public JSON Schema entries are `@omne-harness-lite/model-response/schema` (v3) and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [model profile](../model-profile/README.md).

@@ -1,31 +1,102 @@
-# model-profile
+# @omne-harness-lite/model-profile
 
-`@omne-harness-lite/model-profile` 实施已接受的
-[`data.model-profile` v2](../../../.meta_harness/design/spec/data/model-profile/v2/contract.md)。
-采用与职责分配见[实现映射](../../../.meta_harness/design/realization/packages/core/model-profile/design.md)，
-接受与冻结以[registry](../../../.meta_harness/design/registry/README.md) 为准。
+[中文](README_ZH.md)
 
-从公开入口导入类型，以及 `judgeModelProfileDocument`、`refMatches`、`parameterNames`；
-`validate` 只检查 Schema 形状，Schema 资源通过 `@omne-harness-lite/model-profile/schema` 导入。
-数值成员使用 content-blocks 的 `JsonNumber`，保留超出安全整数范围的字面量；
-`Modality` 类型和 Schema 都消费该包的唯一正式定义。
+Model profile data, exact scoped references, and request parameter validation. Describe a route and its provider/modality limits without binding it to credentials or a model client.
 
-`refMatches` 的官方引用用二参调用。自建引用用三参调用，第三参是目录显式交出的行所在范围；
-联合引用类型也必须显式交出 `scope | undefined`。返回值只说明给定行是否匹配。
+This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
 
-本包检查与开发入口：
+| Public API                  | Use                                                         |
+| --------------------------- | ----------------------------------------------------------- |
+| `judgeModelProfileDocument` | Judge profiles, creation content, references and parameters |
+| `refMatches`                | Compare a reference to one supplied row and scope           |
+| `parameterNames`            | List unified parameter names and keys in `extra`            |
+| `ModelProfileSnapshot`      | Type the profile facts captured by a request writer         |
+| `validate`                  | Validate any exported schema definition                     |
 
-```sh
-pnpm --filter @omne-harness-lite/model-profile run build
-pnpm --filter @omne-harness-lite/model-profile run typecheck
-pnpm --filter @omne-harness-lite/model-profile run test
-node --experimental-strip-types tools/ts-checks/src/cli.ts packages/core/model-profile
+## Judge a profile and its output limit
+
+Use the full judge for relationships that schema shape alone cannot enforce.
+
+```ts
+import {
+  judgeModelProfileDocument,
+  validate,
+  parameterNames,
+  type ModelProfile,
+} from '@omne-harness-lite/model-profile'
+
+const profile: ModelProfile = {
+  routeName: 'vendor/chat',
+  origin: 'official',
+  providers: ['provider-a'],
+  allowFallback: false,
+  inputModalities: ['text'],
+  outputModalities: ['text'],
+  maxInputTokens: 32000,
+  maxOutputTokens: 8192,
+  inputConstraints: {},
+  parameters: { maxOutputTokens: 4096, extra: { top_k: 40 } },
+  registration: 'listed',
+  updatedAt: '2026-09-26T10:00:00Z',
+}
+console.log(judgeModelProfileDocument('ModelProfile', profile)) // { ok: true }
+if (profile.parameters === undefined) throw new Error('Parameters required')
+console.log(parameterNames(profile.parameters)) // ['maxOutputTokens', 'top_k']
+const oversized = { ...profile, parameters: { maxOutputTokens: 8193 } }
+console.log(validate('ModelProfile', oversized).valid) // true
+console.log(judgeModelProfileDocument('ModelProfile', oversized))
+// { rejected: 'max_output_exceeds_profile' }
 ```
 
-测试消费构建后的公开入口。`tests/examples.spec.ts` 逐行读取冻结规范实例，
-分别核对 Schema 形状和表示判定；`tests/behavior.spec.ts` 核对范围匹配、
-跨字段上限、无损数值、无默认值和输入不变；`tests/types.spec-d.ts` 核对公开类型及负例。
-测试前需构建 identity-values、offer-expiry 与 content-blocks 的公开产物。
+## Match a custom reference in its exact scope
 
-目录写入、撞名、撤回与恢复、授权、传输留痕和快照复制的后续责任沿
-[节点验证入口](../../../.meta_harness/design/realization/packages/core/model-profile/verification.md) 交接。
+The profile row carries no scope field. Its directory supplies scope as a separate argument; withdrawal does not alter identity matching.
+
+```ts
+import { parseScopeLayerIdentity, unwrap } from '@omne-harness-lite/identity-values'
+import {
+  refMatches,
+  type ModelProfile,
+  type ModelProfileRef,
+} from '@omne-harness-lite/model-profile'
+
+const alice = unwrap(
+  parseScopeLayerIdentity({
+    layer: 'tenant',
+    tenant: { organization: 'org_acme', account: 'acc_alice' },
+  }),
+)
+const bob = unwrap(
+  parseScopeLayerIdentity({
+    layer: 'tenant',
+    tenant: { organization: 'org_acme', account: 'acc_bob' },
+  }),
+)
+const profile: ModelProfile = {
+  routeName: 'vendor/chat',
+  origin: 'custom',
+  providers: ['provider-a'],
+  allowFallback: false,
+  inputModalities: ['text'],
+  outputModalities: ['text'],
+  maxInputTokens: 32000,
+  maxOutputTokens: 8192,
+  inputConstraints: {},
+  registration: 'withdrawn',
+  updatedAt: '2026-09-26T10:00:00Z',
+}
+const ref: ModelProfileRef = { origin: 'custom', routeName: 'vendor/chat', scope: alice }
+console.log(refMatches(ref, profile, alice)) // true
+console.log(refMatches(ref, profile, bob)) // false
+```
+
+## Failures and boundaries
+
+`judgeModelProfileDocument` judges four document kinds: `ModelProfile`, `ModelProfileContent`, `ModelProfileRef` and `ModelRequestParameters`. It returns one `{ rejected }` in a fixed order, with malformed structure checked first. `validate` checks schema shape; cross-field checks such as `max_output_exceeds_profile` require the judge. `ModelProfileSnapshot` has a type and schema entry, but no document-judgment entry.
+
+References compare exact origin, route name and, for custom profiles, supplied scope. Names are case-sensitive and are not Unicode-normalized. A mismatch is a boolean about the supplied row, not a directory lookup failure. Matching does not check registration or authorization.
+
+Numeric fields accept `JsonNumber`, including `LosslessNumber`; judgments compare exact represented numbers. Missing request parameters are not filled in. The package does not store profiles, create snapshots, enforce name uniqueness, manage credentials or send OpenRouter requests; request routing and lifecycle belong to consumers.
+
+The JSON Schema is available through `@omne-harness-lite/model-profile/schema`. See [source exports](src/index.ts), [tests](tests/) and [model response](../model-response/README.md).

@@ -1,64 +1,115 @@
 # @omne-harness-lite/loop-extension
 
-当前实现采用 `data.loop-extension v3`（[规范](../../../.meta_harness/design/spec/data/loop-extension/v3/contract.md)）。公开 `./schema` 为冻结 v3；`./schema/v2` 只保留完整冻结 v2 资源及原 `$id`，不提供 v2 领域行为兼容入口。
+[中文](README_ZH.md)
 
-Pure TypeScript values and boundary judgments for accepted `data.loop-extension` v3.
-Authority: [contract](../../../.meta_harness/design/spec/data/loop-extension/v3/contract.md),
-[realization](../../../.meta_harness/design/realization/packages/core/loop-extension/design.md),
-[verification](../../../.meta_harness/design/realization/packages/core/loop-extension/verification.md).
+Data and judgments for extensions at eleven agent-loop positions. Define an extension's declared power and implementation, admit invocation input, and check a recorded conclusion against that exact input.
 
-The public root exports the protocol types, immutable power/position tables,
-the 42-definition Schema registry and shape validator, `judgeDefinition`,
-`judgeInput`, `judgeOutput`, `judgeValue`, `judgeConclusion`, type guards,
-the explicit-body declaration/reference functions and
-`loopExtensionBodyContract: BodyContract<'loop_extension'>`.
-`./schema` exports the byte-identical frozen Schema resource.
+This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
 
-`isExtensionInput`, `isExtensionOutput` and `isConclusion` report Schema shape as
-booleans. They do not brand the caller's original wire object. Typed successful
-judgments rebuild the admitted object through the public content-blocks and
-messages representation adapters, including nested subjects and earlier records.
-These adapters preserve opaque payloads without adding message business refusals
-to this contract. `judgeValue` continues to return a neutral JSON exchange value.
-Only fixed owned resources are compiled; no author-input cache grows at module scope.
-JSON inputs and results preserve lossless numbers through the content-blocks public boundary.
+| Public API                                                         | Use                                                               |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `judgeDefinition`, `judgeInput`, `judgeOutput`                     | Admit protocol values and obtain typed copies                     |
+| `judgeConclusion(value, inputs)`                                   | Check conclusion shape, allowed combinations and immutable fields |
+| `POSITIONS`, `POWERS`, `POWER_CONCLUSIONS`, `POSITION_CONCLUSIONS` | Inspect legal positions and output combinations                   |
+| `loopExtensionBodyContract`                                        | Supply definition rules to the asset model                        |
+| `validate`, `judgeValue`                                           | Use the schema and generic judgment surfaces                      |
 
-`validate` reports Schema shape only. `judgeValue` applies the ordered representation
-predicates to a standalone definition/input/output/record or `$defs` value;
-record-relative source names are compared to that record's `extension`.
-Receiving a conclusion requires `judgeConclusion`; a standalone `judgeValue` success
-does not establish comparisons against the actual invocation.
-`judgeConclusion(value, inputs)` also compares the original invocation subject and
-actual extension name. Its required `ConclusionInputs` contains the caller-admitted
-`ExtensionInput` and actual `CapabilityName` for this invocation. The caller owns
-invocation provenance; the function checks observable position, dimension and
-action identity pairing. A missing, invalid or mismatched auxiliary configuration
-raises `TypeError` after independently decidable domain refusals. This technical
-precondition error is outside the ten domain rejection values. A record's extension
-name that differs from the supplied actual name is `malformed`.
-Neither function defaults, evaluates, repairs or resolves inputs.
+## Admit a definition
 
-The ordinary-shape pass uses a private view to defer the named S-37 predicates.
-An illegal dimension cannot select a Subject or impose scope-dependent call/card
-fields. Independently decidable shape and identity-mirror errors still take precedence.
-In an inject source with a non-extension string kind, the forbidden source branch's
-private fields are not validated; S-37 row 10 rejects that kind. Missing/non-object
-source, missing/non-string kind and malformed extension-source shape remain row 1.
-The exported frozen Schema is unchanged and still reports shape independently.
+A declaration describes a builtin implementation; admission does not load or invoke that implementation.
 
-`src/declarations.ts` reads only the explicit author definition. It derives position,
-the declared dimension member, and the power downset; its references are empty.
-It does not add reserved declarations, evaluate settings, or assemble default ports.
+```ts
+import {
+  judgeDefinition,
+  POWER_CONCLUSIONS,
+  POSITION_CONCLUSIONS,
+  type LoopExtensionDefinition,
+} from '@omne-harness-lite/loop-extension'
 
-This package does not execute extensions, persist conclusions, implement replay,
-resolve environment/log handles, check system-converter eligibility or model-selection/
-retry eligibility, or assemble all body contracts. Those obligations retain their
-runner, projection, model-request and assembly owners in the linked verification.
+const definition: LoopExtensionDefinition = {
+  name: 'review-before-action',
+  position: 'before_action',
+  power: 'veto',
+  onError: 'record',
+  unavailability: 'veto',
+  needs: ['audit-log'],
+  implementation: { kind: 'builtin', builtinName: 'action-review' },
+}
+console.log('ok' in judgeDefinition(definition)) // true
+console.log(POWER_CONCLUSIONS.observe) // ['observed']
+console.log(POSITION_CONCLUSIONS.after_terminal) // ['observed']
+```
 
-Run `pnpm --filter @omne-harness-lite/loop-extension build`, `typecheck`, and `test`.
-Tests include all frozen examples, an independent 312-cell oracle, ordered failures,
-original-value rewrite comparisons, lossless JSON/opaque boundaries and public types.
+## Compare a rewrite with its actual input
 
-Verification retains the original v2 normative cases as regressions against current3,
-without relabeling their source, and separately consumes every accepted v3 appendix
-instance. The current and retained public Schema resources are checked independently.
+Changing parsed arguments is representable here; changing call identity is rejected. The input judge establishes the opaque handle and content-block types.
+
+```ts
+import { judgeInput, judgeConclusion } from '@omne-harness-lite/loop-extension'
+
+const input = judgeInput({
+  position: 'before_action',
+  run: 'run_1',
+  attempt: 1,
+  subject: {
+    call: {
+      id: 'block_call',
+      kind: 'tool_call',
+      complete: true,
+      callId: 'call_1',
+      tool: 'repo__read',
+      arguments: { path: 'README.md' },
+      visibility: { toHuman: true, toModel: true },
+    },
+    definition: { name: 'repo__read' },
+    batch: ['call_1'],
+  },
+  earlier: [],
+  log: 'log_1',
+  environment: 'environment_1',
+})
+if ('rejected' in input || input.ok.position !== 'before_action')
+  throw new Error('Action input required')
+const subject = input.ok.subject
+const context = { input: input.ok, extensionName: 'review-before-action' }
+const conclusion = {
+  extension: context.extensionName,
+  position: 'before_action',
+  power: 'rewrite',
+  callId: 'call_1',
+  at: '2026-09-26T10:00:00Z',
+  output: {
+    kind: 'rewrite',
+    subject: {
+      ...subject,
+      call: { ...subject.call, arguments: { path: 'CONTRIBUTING.md' } },
+    },
+  },
+}
+console.log('ok' in judgeConclusion(conclusion, context)) // true
+console.log(
+  judgeConclusion(
+    {
+      ...conclusion,
+      output: {
+        kind: 'rewrite',
+        subject: {
+          ...subject,
+          call: { ...subject.call, tool: 'other' },
+        },
+      },
+    },
+    context,
+  ),
+) // { rejected: 'rewrite_touches_immutable' }
+```
+
+## Failures and boundaries
+
+Judgments return a typed `{ ok }` copy or `{ rejected }`. `judgeConclusion` needs an admitted `ExtensionInput` and the actual extension name, paired to the same position, dimension and action identity. Missing or invalid auxiliary configuration throws `TypeError`; protocol rejection remains a separate result. Schema-only guards and `validate` cannot compare a rewrite against the actual invocation.
+
+A valid conclusion is not dispatch authorization. The caller supplies the effective power, checks model/provider eligibility, performs admission, records conclusions, and applies them in loop order. `select_model`, `retry`, `ask` and `veto` are values here; no model selection, retry, waiting, veto effect or command execution happens in this package. Log and environment handles are opaque.
+
+Rewrites preserve the immutable members for their position. An unparseable tool call cannot be repaired into parsed arguments by an extension. Injected reminders must name the actual extension as their source. Dependencies, policy execution, persistence and recovery belong to consumers.
+
+Public JSON Schema entries are `@omne-harness-lite/loop-extension/schema` (v3) and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [tool definition](../tool-definition/README.md).

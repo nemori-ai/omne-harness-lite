@@ -1,26 +1,151 @@
-# stream-assembly
+# @omne-harness-lite/stream-assembly
 
-本包采用 [capability.stream-assembly v3](../../../.meta_harness/design/spec/capabilities/stream-assembly/v3/contract.md)，精确依赖为 `arrival-events` v2、`content-blocks` v3 和 `call-accounts` v2。接受与采用以设计区 registry 和 [realization](../../../.meta_harness/design/realization/packages/core/stream-assembly/README.md) 为准。
+[中文](README_ZH.md)
 
-公开入口提供 `start(target)`、`accept(state, event)`、`snapshot(state)`、`closeOut(state)` 和 `abandon(state, reason?)`，可独立导入使用。`AssemblyState` 仅导出为不透明类型，由 `start` 创建。成功返回 `{ ok }`，契约拒绝返回 `{ rejected }`；`snapshot` 直接交出快照。目标和事件边界接受未知值并校验，状态输入须是本包创建的状态。
+An immutable, pure stream assembler. Feed arrival events into caller-owned state to obtain snapshots and a final content/account settlement for model responses or tool frames. It does not call models, execute tools or perform I/O.
+
+## Workspace use
+
+This is an experimental, private workspace package, currently not published on npm. In a repository checkout, use the [development setup](../../../docs/development.md), build the workspace, and declare `"@omne-harness-lite/stream-assembly": "workspace:*"` in the consuming member. Declare other packages imported by an example as direct dependencies too. Import through the public package entry; do not import sibling `src/` paths.
+
+## Public API
+
+| Function                           | Result                                                          |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `start(target: unknown)`           | `{ ok: AssemblyState }` or `{ rejected: 'malformed' }`          |
+| `accept(state, event: unknown)`    | New state or a representation/sequence rejection                |
+| `snapshot(state)`                  | `AssemblySnapshot` with block views and accepted-event position |
+| `closeOut(state)`                  | `AssemblySettlement` or `stream_not_finished`                   |
+| `abandon(state, reason?: unknown)` | Lost settlement or `malformed` / `event_after_finish`           |
+
+`AssemblyState` is exported only as an opaque type; obtain it through `start`. Result, snapshot, settlement and rejection types are also public. The package has no separate Schema resource.
+
+## Examples
+
+Each TypeScript example is self-contained and uses the built public exports.
+
+### Assemble text and settle a finished stream
 
 ```ts
-import { start, accept, snapshot, closeOut } from '@omne-harness-lite/stream-assembly'
+import {
+  start,
+  accept,
+  snapshot,
+  closeOut,
+  type AssemblyState,
+} from '@omne-harness-lite/stream-assembly'
 
-const initial = start({ kind: 'model_call', callId: 'mc_1', dispatch: 1 })
-if ('ok' in initial) {
-  const finished = accept(initial.ok, { t: 'finish', reason: 'end' })
-  if ('ok' in finished) {
-    const view = snapshot(finished.ok)
-    const settlement = closeOut(finished.ok)
-  }
+import { jsonNumberSource } from '@omne-harness-lite/content-blocks'
+
+const initial = start({ kind: 'model_call', callId: 'model_call_1', dispatch: 1 })
+if ('rejected' in initial) throw new Error(initial.rejected)
+let state: AssemblyState = initial.ok
+const events = [
+  {
+    t: 'open',
+    index: 0,
+    id: 'block_1',
+    kind: 'text',
+    fill: 'append',
+    visibility: { toHuman: true, toModel: true },
+  },
+  { t: 'fill', index: 0, payload: 'Hello' },
+  {
+    t: 'close',
+    index: 0,
+    block: {
+      kind: 'text',
+      id: 'block_1',
+      visibility: { toHuman: true, toModel: true },
+      text: 'Hello',
+    },
+  },
+  { t: 'finish', reason: 'end' },
+]
+for (const event of events) {
+  const next = accept(state, event)
+  if ('rejected' in next) throw new Error(next.rejected)
+  state = next.ok
 }
+console.log(jsonNumberSource(snapshot(state).position)) // 4
+console.log(snapshot(initial.ok).position) // 0: previous states remain usable
+const settled = closeOut(state)
+if ('rejected' in settled) throw new Error(settled.rejected)
+console.log(settled.ok.blocks[0]?.kind, settled.ok.ending.reason) // text end
+if ('usage' in settled.ok.account) console.log(settled.ok.account.usage.source) // none: no reported account
 ```
 
-调用方持有每份状态。内部冻结记录数组共享未变记录，追加填充使用不可变片段链；替换只保留本版最后一次填。领域索引按精确数学值查找，查找和记录更新为 O(B)，链头追加的结构操作为 O(1)，另计校验和载荷复制；读与结算为 O(B + F + L)，保留多版状态还会保留各版数组槽位。没有可变缓存、全局目标表或载荷大小拒绝上限。
+### Seal raw tool arguments exactly once
 
-参数严格解析只在已接受、内容未被砍且模型工具名合法的封口执行一次。被砍调用落半截；坏字符或超过 128 字符的名字落完整未解析调用，原名和原参数保留。重复 JSON 键或语法失败也落未解析调用。快照、结算和放弃不重解析参数。块、账、精确数值及不透明载荷沿各自公开契约携带；准入时建立所有权，返回值运行时冻结。
+```ts
+import { start, accept, closeOut, type AssemblyState } from '@omne-harness-lite/stream-assembly'
 
-[tests](tests/) 覆盖规范事件、全部拒绝表行、固定种子切分与字节归约、参数解析次数和试写不可变性；[fixtures](tests/fixtures/) 保留规范来源摘要与原文位置。本能力不发布自己的 Schema；测试核对全部八份能力资源及依赖 Schema 闭包。开发检查为 `pnpm --filter @omne-harness-lite/stream-assembly build`、`typecheck`、`test`，源码规则使用仓库统一检查器。
+const initial = start({ kind: 'model_call', callId: 'model_call_1', dispatch: 1 })
+if ('rejected' in initial) throw new Error(initial.rejected)
+let state: AssemblyState = initial.ok
+for (const event of [
+  {
+    t: 'open',
+    index: 0,
+    id: 'block_1',
+    kind: 'tool_call',
+    fill: 'append',
+    visibility: { toHuman: true, toModel: true },
+    head: { callId: 'call_1', tool: 'lookup' },
+  },
+  { t: 'fill', index: 0, payload: '{"x":1,"x":2}' },
+  { t: 'close', index: 0 },
+  { t: 'finish', reason: 'end' },
+]) {
+  const next = accept(state, event)
+  if ('rejected' in next) throw new Error(next.rejected)
+  state = next.ok
+}
+const result = closeOut(state)
+if ('rejected' in result) throw new Error(result.rejected)
+const call = result.ok.blocks[0]
+if (call?.kind !== 'tool_call' || !call.complete || !('unparseable' in call))
+  throw new Error('expected unparseable call')
+console.log(call.unparseable, call.rawArguments) // true {"x":1,"x":2}
+```
 
-宿主负责会话路由、逐个投递、流的持有、时刻、落盘、一次记录、卸载收口和工具执行。模型与工具运行时以及跨进程前提的验收由对应 owner 完成；本包测试不证明这些外部保证。
+The close is accepted. Duplicate parameter names produce a complete `unparseable` call, not a rejected close. This example does not invoke `lookup`.
+
+### Handle refusal and abandon a stream without continuity
+
+```ts
+import { start, accept, snapshot, closeOut, abandon } from '@omne-harness-lite/stream-assembly'
+
+const initial = start({ kind: 'tool_execution', callId: 'call_1' })
+if ('rejected' in initial) throw new Error(initial.rejected)
+console.log(closeOut(initial.ok)) // { rejected: 'stream_not_finished' }
+console.log(accept(initial.ok, { t: 'fill', index: 0, payload: 'Hello' }))
+// { rejected: 'block_not_open' }
+console.log(snapshot(initial.ok).position) // 0: refused input has no effect
+const lost = abandon(initial.ok)
+if ('rejected' in lost) throw new Error(lost.rejected)
+console.log(lost.ok.ending.reason) // lost
+const finished = accept(initial.ok, { t: 'finish', reason: 'end' })
+if ('rejected' in finished) throw new Error(finished.rejected)
+console.log(accept(finished.ok, { t: 'unknown' })) // { rejected: 'event_unknown' }
+console.log(accept(finished.ok, { t: 'fill', index: 0, payload: 'late' }))
+// { rejected: 'event_after_finish' }
+```
+
+## Boundaries and failures
+
+Every `accept` first checks the arrival representation, then `event_after_finish`, then sequence guards. Representation errors therefore retain priority even after finish. Sequence failures include reused/non-monotonic indices, missing/closed blocks, mismatched payloads and duplicate accounts. Rejection leaves the supplied state unchanged. Invalid forged state objects violate the opaque-state precondition and may throw; obtain states only from this module.
+
+Tool parameters remain raw throughout fills. A legal, accepted, untrimmed tool-call close with a valid model tool name parses once using strict lossless JSON; an empty raw string denotes `{}`. Syntax errors, duplicate names or invalid tool names produce a complete `unparseable` call preserving raw name/arguments. Content-changing trims and unclosed calls settle as invisible incomplete calls. Snapshots, settlement and abandonment do not parse parameters again or initiate execution. Non-call closes must supply the matching final block; the producer owns equality with the fill reduction.
+
+Positions and `firstContentAt` are event positions, not timestamps. A missing model account settles to explicit unknown usage/cost, not zero. Tool streams return frame accounting. `abandon` means lost continuity; a reason is allowed only for model streams, and settlement does not mutate or consume the original state. The caller must ensure one current state per session/target, ordered delivery without duplicates/loss, rejected-increment trim reporting, snapshot/event continuity, clock capture, durable recording exactly once, and abandonment on host removal. Cross-process reliable delivery, authorization and recovery are outside this package. Retaining old immutable states retains memory; array lookup/update costs grow with block count.
+
+## Development
+
+```sh
+pnpm --filter @omne-harness-lite/stream-assembly run build
+pnpm --filter @omne-harness-lite/stream-assembly run typecheck
+pnpm --filter @omne-harness-lite/stream-assembly run test
+```
+
+Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
