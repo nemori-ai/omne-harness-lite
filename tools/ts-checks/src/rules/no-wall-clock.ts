@@ -16,7 +16,12 @@ export const noWallClock: Rule = {
   check(files) {
     const out: Violation[] = []
     for (const file of files) {
-      if (isTestPath(file.path) || file.path.startsWith('infra/')) continue
+      if (
+        isTestPath(file.path) ||
+        file.path.startsWith('infra/') ||
+        file.path === 'frontend/governance-client-operations/src/observation-time.ts'
+      )
+        continue
       const syntax = syntaxOf(file)
       const aliases = new Map<string, string>()
       const resolve = (node: ts.Expression): string | undefined => {

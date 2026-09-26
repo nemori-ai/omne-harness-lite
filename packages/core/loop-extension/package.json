@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.loop-extension v1 pure protocol values and judgments",
+  "description": "data.loop-extension v2 pure protocol values and judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },

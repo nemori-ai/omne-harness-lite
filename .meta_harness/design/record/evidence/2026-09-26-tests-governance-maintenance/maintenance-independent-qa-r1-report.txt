@@ -1,0 +1,92 @@
+# D056 r1 固定制品独立维护 QA
+
+结论：**Pass with issues**，仅适用于下述维护黑盒范围。45 项可判定运行检查通过（主旅程 38、跨进程同根互斥/恢复 3、元信息负例 4）；另核验两份制品清单。没有发现产品代码阻断。此结论不是主线接受，也不表示全链路、全部失败路径或整个生产目标完成。
+
+## 固定输入
+
+- host archive SHA256 `d57549451e84b409ce6b442ea910e212d5f91ce4b5947a600af1e61b7b985ab5`，BUILD `809a36c45177d66f59213659d4f01f83e98e7d039143dc61fcfc958fd4a16778`，`/private/tmp/omne-host-d056-8zw0qh51/app`。
+- CLI archive SHA256 `803a4f5c7234ab7a0c0169e2c5dd4c66da669d0fc71ca633568999b739db618a`，BUILD `2a7ad07c28eadac80507261e17fdda109de432b5af74b46f27e65554412213ed`，`/private/tmp/omne-cli-d056-pm0ryito/app`。
+- 实际平台 macOS arm64、Node 24.21.0；同机实际 TLS/Unix socket、多进程；不冒充 Linux 或两台物理机。
+- oracle：D055/D056、冻结 EC3 S55–59/HT3、接受的 entry maintenance 文件绑定、host maintenance-binding。源码只读，没有修改产品、规格、既有测试或固定制品。
+- synthetic 独立中心/密钥/账号均在私有 `/private/tmp/omne-maint-qa-*`；所有自建中心及辅助进程实际结束，没有容器。
+
+## 逐项证据
+
+| # | 验收项 | 判定 | 证据 |
+|---|---|---|---|
+| 1 | initial-missing | Pass | `run-3/commands.json` 中同名项；exit 2 |
+| 2 | employee-configure | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 3 | employee-register | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 4 | employee-login | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 5 | employee-identity-before | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 6 | online-backup | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 7 | status-current | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 8 | backup-not-due | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 9 | employee-identity-after | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 10 | offline-verify-no-env | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 11 | offline-restore-no-env | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 12 | verify-restored-envelope | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 13 | restore-existing-target | Pass | `run-3/commands.json` 中同名项；exit 2 |
+| 14 | restore-existing-empty-target | Pass | `run-3/commands.json` 中同名项；exit 2 |
+| 15 | serve-restored-envelope-refused | Pass | `run-3/commands.json` 中同名项；exit 1 |
+| 16 | corrupted-payload-refused | Pass | `run-3/commands.json` 中同名项；exit 2 |
+| 17 | truncated-envelope-refused | Pass | `run-3/commands.json` 中同名项；exit 2 |
+| 18 | trailing-byte-refused | Pass | `run-3/commands.json` 中同名项；exit 2 |
+| 19 | source-symlink-refused | Pass | `run-3/commands.json` 中同名项；exit 1 |
+| 20 | source-missing-unavailable | Pass | `run-3/commands.json` 中同名项；exit 1 |
+| 21 | wide-work-root-refused | Pass | `run-3/commands.json` 中同名项；exit 1 |
+| 22 | relative-source | Pass | `run-3/commands.json` 中同名项；exit 64 |
+| 23 | relative-work | Pass | `run-3/commands.json` 中同名项；exit 64 |
+| 24 | extra-argument | Pass | `run-3/commands.json` 中同名项；exit 64 |
+| 25 | duplicate-flag | Pass | `run-3/commands.json` 中同名项；exit 64 |
+| 26 | ops-relative | Pass | `run-3/commands.json` 中同名项；exit 64 |
+| 27 | unknown-operation | Pass | `run-3/commands.json` 中同名项；exit 64 |
+| 28 | catalog-types-and-corruption | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 29 | foreign-center-backup | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 30 | catalog-valid-foreign-filtered | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 31 | catalog-foreign-future-filtered | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 32 | own-future-unavailable | Pass | `run-3/commands.json` 中同名项；exit 1 |
+| 33 | work-reusable-after-failures | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 34 | employee-login-still-valid | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 35 | offline-after-center-stopped | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 36 | ops-stopped-center-unavailable | Pass | `run-3/commands.json` 中同名项；exit 1 |
+| 37 | different-work-root-parallel-b | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 38 | different-work-root-parallel-a | Pass | `run-3/commands.json` 中同名项；exit 0 |
+| 39 | 同 work root 原进程 SIGSTOP 后第二进程 | Pass | `run-3/same-work-root-concurrency.json`，busy/2；task 出现后才暂停 |
+| 40 | 原进程 SIGCONT 后实际完成 | Pass | 同上，verified/0 |
+| 41 | 原进程实际退出后同根再用 | Pass | 同上，verified/0，未删除保护标记 |
+| 42 | metadata centerId 与真实副本不符 | Pass | `run-3/negative-inputs-attempt-1.json`，invalid-backup/2 |
+| 43 | metadata migrationNames 与真实副本不符 | Pass | 同上，invalid-backup/2 |
+| 44 | startedAt 晚于 finishedAt | Pass | 同上，invalid-backup/2 |
+| 45 | metadata 额外键 | Pass | 同上，invalid-backup/2 |
+
+`run-3/inventory.json` 逐项核验固定制品清单：文件 SHA256、软链目标、BUILD_ID 与清单对应。数量：/private/tmp/omne-host-d056-8zw0qh51/app: 4224 files / 230 links; /private/tmp/omne-cli-d056-pm0ryito/app: 4222 files / 204 links. 这不声称清单来源的真实性，归档信任仍是部署者责任。
+
+## 问题、失败尝试与范围
+
+1. 文档问题：审核开始时仓库 `apps/tenancy-host/README.md` 命令表仍称超过 30 秒撤除失败退出，与 D055 和同页正确停机段冲突；主线随后报告已修。归档 r1 的 `deploy/README.md` 未明确离线 work root 的父目录也须同 owner/0700，仅写 parent 已存在；主线据独立 Linux 演练确认并补修。此 QA 没有验尚未给出的 r2，不能将后来修复冒充 r1 内容。
+2. 主脚本第一次失败为 QA 判据错：输入 symlink 的 O_NOFOLLOW 打开失败是 unavailable/1，不能等同目录候选 symlink 的 invalidCount 或内容坏件。`attempt-1-script.mjs`、`attempt-1.log`、`run-1/` 保留。
+3. 第二次失败为 QA 判据错：停止中心后的 ops 无服务器结果，正确是 exit1、空 stdout、固定 `ops result unconfirmed`，不是伪造 unavailable JSON。`attempt-2-script.mjs`、`attempt-2.log`、`run-2/` 保留。第三次完整主旅程通过，没有弱化成功判据。
+4. 原位变动源文件的两轮附加探针：观察到 task 目录后暂停进程并改坏输入，分别得到 unavailable/1、invalid-backup/2，均未成功。此 gate **无法定位内部 hash/fstat 阶段**，两个精确分支断言各有一轮不成立。故本项仅留拒绝观测，**精确源变动分支验收 Unable to verify**，不计入 45 项通过数。原始脚本和两份 JSON/log 全保留；不以扩大允许集合把失败改绿。实际绑定规定已观察源变化为 unavailable，而读到错误摘要为 invalid-backup；本黑盒证据不足以判定哪一个内部观察先发生。
+5. inventory 第一轮工具把清单实际 `kind:link` 错写成 `symlink`，在未知 kind 处停止；修正清单字段识别后完整通过，原脚本/log 保留。
+
+## 未覆盖
+
+- 源变动确切 hash/fstat 优先分支、同一路径替换固定句柄的全部情况。
+- 注入 fsync/cleanup 失败、outcome-unknown 后持久重确认、真断电/磁盘损坏、全部生产打开 API 与崩溃明文残余矩阵。
+- 本轮未运行 Linux/systemd、跨 OS、大库业务/clock 性能，也未复验 D054 老固定 CLI；主线有独立任务，不能由本报告代替。
+- 本轮新固定 CLI 做注册/登录/身份读，未重跑所有治理表单或 TUI；D054 限定终端覆盖边界保持。
+- 没有等待 20/24 小时实时时钟；本轮只验证当前 not-due/current、无有效副本 missing、未来候选处理。
+- Claude Code fable 最终审查由主线在完整交付后执行，本报告不替代。
+
+## 重跑
+
+仓库根执行（所有新运行请使用新证据目录，不覆盖以上历史）：
+
+```sh
+fnm exec --using 24 node tmp/production-cli-onboarding/maintenance-independent-qa-r1/run.mjs /absolute/new/evidence-dir
+fnm exec --using 24 node tmp/production-cli-onboarding/maintenance-independent-qa-r1/concurrency.mjs /absolute/new/evidence-dir
+fnm exec --using 24 node tmp/production-cli-onboarding/maintenance-independent-qa-r1/inventory.mjs /absolute/new/evidence-dir
+```
+
+`negative-inputs.mjs` 是保留的未完成精确分支探针，可能因内部阶段竞争以非零退出；不是通过门禁。主旅程保存生成 fixture 路径以便附加脚本复用；不要在并发脚本运行前删除私有 fixture。主程序复用现有部署辅助仅做 openssl/环境/进程，不 import 产品实现。

@@ -307,7 +307,7 @@ describe('S-24/S-28 strict text and lossless untouched values', () => {
     expect(readFileSync(new URL('../schema/asset-model.schema.json', import.meta.url))).toEqual(
       readFileSync(
         new URL(
-          '../../../../.meta_harness/design/spec/data/asset-model/v1/asset-model.schema.json',
+          '../../../../.meta_harness/design/spec/data/asset-model/v2/asset-model.schema.json',
           import.meta.url,
         ),
       ),

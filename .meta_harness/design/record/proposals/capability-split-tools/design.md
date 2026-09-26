@@ -43,11 +43,11 @@
 | **K-4** | 任何一层的明确禁止，什么运行模式、什么拓展件都翻不了；放行判断缺席时整批拒；判的、签的、执行的是同一份参数 | [PF-007 §5.6](../../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 16）；[PF-012「改参数，先落一条生效参数」](../../../product/PF-012-agent-loop-and-run/design.md#改参数先落一条生效参数)（rev 10）；「缺席即整批拒」是**主线裁定，待产品负责人确认**（任务区 `tmp/assets-runtimes/pending-user-rulings.md` §一 U-5 甲案） | 派发器 inject 放行提供者（缺席时停在 PENDING，别的件也跟着不跑）；或执行运行时不核对放行凭据（无词条） |
 | **K-5** | [拓展件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)不可用就视作卸载：这一次看得见「此刻不在」，别的件照走；系统自带的件不享受特权 | [PF-012 §5.8「拓展件是可插拔的服务」](../../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略)、[「系统自带的几件」](../../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪)（rev 10） | 派发器 inject 各件的实现 |
 | **K-6** | MCP 对端的可用性与版本不由本系统掌握，对端的变化不算故障；连不上时，它的动作原位装[替换件](../../../ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | [PF-002 §4 MCP](../../../product/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 16）；[PF-006 §6.13](../../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)（rev 17） | 桥与执行宿主同插件：桥的每次换代或更新都会牵连本地工具执行 |
-| **K-7** | 收场、账与结果消息在同一次提交里落下；真实结果落成 ToolMessage 还是 SystemReminderMessage，由运行时按日志里有没有占位来判 | [PF-006 §5.4](../../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)、[§5.5](../../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 17）；[D-038](../../decisions/message-and-shape-rulings/README.md) Q15 | 执行记录（无词条）出现第二个写入者 |
+| **K-7** | 收场、账与结果消息在同一次提交里落下；真实结果落成 ToolMessage 还是 SystemReminderMessage，由运行时按日志里有没有占位来判 | [PF-006 §5.4](../../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)、[§5.5](../../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 17）；[D-058](../../decisions/message-and-shape-rulings/README.md) Q15 | 执行记录（无词条）出现第二个写入者 |
 | **K-8** | 边界能在不改语义的前提下拆成分布式；哪些保证是装配给的，要写明 | [SYS-DEPLOY](../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | 按进程内的方便来切，不按部署亲和来切 |
 
 **可调整的**：能力契约的数目、插件的数目与粒度、领域归属、节点名、执行宿主的 fiber 形状。
-**不可调整的**：K-1～K-8；D-032（运行时自研、执行宿主不在 agent runtime 之下）；D-037（桥的路径与范围）；D-033（兼容层的 fork 边界）；D-038 Q8、Q10、Q15。
+**不可调整的**：K-1～K-8；D-032（运行时自研、执行宿主不在 agent runtime 之下）；D-037（桥的路径与范围）；D-033（兼容层的 fork 边界）；D-058 Q8、Q10、Q15。
 
 ## 五个对象的归属画像
 
@@ -204,10 +204,10 @@
 
 | 通道 | 性质 | 派发方式 | 依据 |
 |---|---|---|---|
-| 拓展件派发（含放行判断） | 控制，异步 | **派发器自己按清单顺序逐件 await**，不走 Cordis 事件 | 次序是装配清单顺序（D-038 Q8），成员是本会话的数据；[`async-control-not-bail`](../../../basis/cordis/async-control-not-bail.md)；[`isolate-hides-instances-not-data`](../../../basis/cordis/isolate-hides-instances-not-data.md) |
+| 拓展件派发（含放行判断） | 控制，异步 | **派发器自己按清单顺序逐件 await**，不走 Cordis 事件 | 次序是装配清单顺序（D-058 Q8），成员是本会话的数据；[`async-control-not-bail`](../../../basis/cordis/async-control-not-bail.md)；[`isolate-hides-instances-not-data`](../../../basis/cordis/isolate-hides-instances-not-data.md) |
 | 提交、中断、转后台、答复等待、成批中断 | 控制 | 直接调用运行时 | — |
 | ③ 型流程 | 控制 | 可选取用目标服务后直接调用；缺席就是那项服务明说的一次失败 | [`inject-has-no-optional-form`](../../../basis/cordis/inject-has-no-optional-form.md) |
-| 发帧 | 数据流 | 调流装配器的追加，**不阻塞、不失败** | [PF-006 §4 发帧](../../../product/PF-006-tools-and-skills/design.md#发帧)；D-038 Q4、Q18 |
+| 发帧 | 数据流 | 调流装配器的追加，**不阻塞、不失败** | [PF-006 §4 发帧](../../../product/PF-006-tools-and-skills/design.md#发帧)；D-058 Q4、Q18 |
 | 执行结束、注册表某张表的内容换了 | 通知 | `emit`，**发送方包住**；只作提示，正确性来自日志与存储 | [`emit-listener-throw-propagates`](../../../basis/cordis/emit-listener-throw-propagates.md) |
 | MCP `tools/list_changed` | 通知（对端发来） | 只记一笔，下一次执行尝试开始前重取 | D-037 |
 
@@ -229,7 +229,7 @@ Cordis 的 `waterfall` 是环绕式中间件（H-5），拓展件拿到 `next` �
 9. **派发器和 hooks 兼容层落在 agent loop 那一侧的领域**（推荐候选 C 相对于 B 的差别）：派发器的拥有者、宿主和唯一的运行时调用方都在那一侧，
    读数之后给它追加的裁定，凡是改语义的，改的都是 loop 语义或各块自带件的缺席处置，没有一条涉及执行运行时（[归属画像](#五个对象的归属画像)）。向它登记的贡献者分属三个块，但它们经公开契约登记，
    跨领域登记**不是**同步修改的信号。hooks 兼容层的方言跟着两家宿主的版本漂移（[研究](../../../../research/loop-extension-hooks-compat/research.md)），它只在拓展点协议之上工作，所以与派发器同属一侧。
-10. **hooks 的导入移出派发器契约**（主线裁定）：方言映射随 Claude Code／Codex 的版本变；它若留在派发器契约里，每次宿主升级都要给派发器出新版本。D-038 Q10 也说「运行时只认统一的入出」。
+10. **hooks 的导入移出派发器契约**（主线裁定）：方言映射随 Claude Code／Codex 的版本变；它若留在派发器契约里，每次宿主升级都要给派发器出新版本。D-058 Q10 也说「运行时只认统一的入出」。
 
 ### 为什么不拆
 
@@ -238,7 +238,7 @@ Cordis 的 `waterfall` 是环绕式中间件（H-5），拓展件拿到 `next` �
 | 前后台姿态、等待态、收场和账**不拆成各自的服务**，都是执行记录同一行上的列 | 转后台、答复等待、中断、归档、恢复、正常完成这六路会争同一次执行的状态；拆到几个服务，就要跨 owner 同提交，而首胜只能是同一行上的条件写（进程内锁和时间谓词都不算） | 跨 owner 同提交 |
 | 转后台计时器不拆成独立服务 | 它的触发与完成竞争同一行；拆出去，就要有第二份「这次执行现在是不是前台」的事实 | 重复拥有同一事实 |
 | 结果送达的判断（落 ToolMessage 还是 SystemReminderMessage）不拆出运行时 | 判断的依据是「这个 `CallId` 有没有占位」，只有写占位的一方同时知道姿态何时变；拆出去，就是两个写入者对同一个 `CallId` 的消息各判一次 | 跨 owner 同提交 |
-| 发帧不拆成插件 | 帧没有自己的生命周期（与执行同生同灭），也没有自己的消费者契约（消费者是流装配器）；拼到一半的在途状态由运行时持有（D-038 Q18） | 只是把需求名改成插件名 |
+| 发帧不拆成插件 | 帧没有自己的生命周期（与执行同生同灭），也没有自己的消费者契约（消费者是流装配器）；拼到一半的在途状态由运行时持有（D-058 Q18） | 只是把需求名改成插件名 |
 | 执行者接口不拆成独立契约 | 它只有一个消费者（运行时），随运行时变 | — |
 | 动作清单副本不拆出桥 | 写它的只有桥；拆出去就多了第二个写入者的入口 | 重复拥有同一事实 |
 | 放行凭据不单立服务 | 凭据就是日志里那条放行结论的引用加参数摘要，任何一方读日志都能核对，跨进程也一样 | — |

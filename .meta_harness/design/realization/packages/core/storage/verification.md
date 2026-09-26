@@ -74,3 +74,19 @@
 - **`synchronous=NORMAL` 的断电边界**：WAL 下可能丢最后一段已提交事务；这是开发期 sqlite 的已知边界，不做测试（无可复现的断电夹具），生产期 pg 不受此限。
 - **两条跨 owner 交错**（激活 vs 清除、创建个人组织 vs 清除）不在本节点演练——套件证的是原语，交错的收场归 [AI S-43 第 2 支](../../tenancy/account-identity/verification.md#证据义务)那次三节点共同的真并发演练（同 run 在 `account-registration` 的 `interleavings.spec.ts` 里）。
 - 与 [bindings.yaml](bindings.yaml) 一致：空表，无契约条款——协议语义 P-1～P-12 与 R 清单不是契约坐标，证据登记在本页与 `infra/storage-sql` 的 verification。
+
+## P-13 显式单元 · 2026-09-24
+
+[实际证据](../../../../record/evidence/2026-09-24-tests-storage-unit/README.md)：macOS存储全套110通过/4个PG跳过、core9通过、补充通知2通过、中心启动升级38通过；Linux实际构建产物8组冒烟。包括真实SQL回滚/排空和P-2边界，不代表完整领域参与面。ALS/通知/裸句柄范围见设计；物理故障及PG新组合未验。
+
+
+## 2026-09-26 D055/D056 实际维护验证
+
+[固定源码、制品和运行证据](../../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)保存原始故障、修正、源码回归及独立制品 QA。SQLite资源关闭/worker真实退出/跨进程保锁、封装与发布unknown、HT3与host信号/双槽、非root Linux systemd及近1GiB时的员工访问和租约续约分别验证。最终host r3运行字节与r1相同，文档和pnpm生成元数据差异经独立核验，r3再跑38项主旅程。没有实际断电/任意存储设备保证；独立QA的源变动精确分支未验，不计通过；恢复只隔离，整机损毁灾备与安全重新开放仍未交付。
+
+
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

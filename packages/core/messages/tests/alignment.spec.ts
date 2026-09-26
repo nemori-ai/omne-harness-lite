@@ -42,9 +42,9 @@ function assertions(value: JsonValue | undefined): unknown {
     )
   return value
 }
-const messages = schema('messages/v1/messages.schema.json')
-const response = schema('model-response/v1/model-response.schema.json')
-const loop = schema('loop-extension/v1/loop-extension.schema.json')
+const messages = schema('messages/v2/messages.schema.json')
+const response = schema('model-response/v2/model-response.schema.json')
+const loop = schema('loop-extension/v2/loop-extension.schema.json')
 describe('V12 six literal frozen definition alignments without reverse product dependencies', () => {
   for (const name of ['ResponseId', 'SelectedBy', 'CredentialScope', 'ParameterAdjustment'])
     it(name, () => {

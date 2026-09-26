@@ -1,0 +1,21 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- packages/frontend/governance-client-operations/src/actions.ts packages/frontend/governance-client-operations/src/cache.ts packages/frontend/governance-client-operations/src/client.ts packages/frontend/governance-client-operations/src/index.ts packages/frontend/governance-client-operations/src/plugin.ts packages/frontend/governance-client-operations/src/report.ts packages/frontend/governance-client-operations/src/routes.ts packages/frontend/governance-client-operations/src/settlement.ts packages/frontend/governance-client-operations/src/surface.ts packages/frontend/governance-client-operations/src/use.ts packages/frontend/governance-client-operations/src/validation.ts packages/frontend/governance-client-operations/tests/actions.spec.ts packages/frontend/governance-client-operations/tests/cache.spec.ts packages/frontend/governance-client-operations/tests/lifecycle.spec.ts packages/frontend/governance-client-operations/tests/plugin.spec.ts packages/frontend/governance-client-operations/tests/settlement.spec.ts packages/frontend/governance-client-operations/tests/support.ts
+
+packages/frontend/governance-client-operations/src/actions.ts 32ms
+packages/frontend/governance-client-operations/src/cache.ts 13ms
+packages/frontend/governance-client-operations/src/client.ts 9ms
+packages/frontend/governance-client-operations/src/index.ts 1ms
+packages/frontend/governance-client-operations/src/plugin.ts 2ms
+packages/frontend/governance-client-operations/src/report.ts 6ms
+packages/frontend/governance-client-operations/src/routes.ts 2ms
+packages/frontend/governance-client-operations/src/settlement.ts 2ms
+packages/frontend/governance-client-operations/src/surface.ts 4ms
+packages/frontend/governance-client-operations/src/use.ts 12ms
+packages/frontend/governance-client-operations/src/validation.ts 3ms
+packages/frontend/governance-client-operations/tests/actions.spec.ts 11ms
+packages/frontend/governance-client-operations/tests/cache.spec.ts 13ms
+packages/frontend/governance-client-operations/tests/lifecycle.spec.ts 6ms
+packages/frontend/governance-client-operations/tests/plugin.spec.ts 1ms
+packages/frontend/governance-client-operations/tests/settlement.spec.ts 3ms
+packages/frontend/governance-client-operations/tests/support.ts 4ms

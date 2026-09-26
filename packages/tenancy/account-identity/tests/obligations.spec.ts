@@ -127,7 +127,11 @@ describe('S-27 缺席时的默认答案：逐行注入', () => {
     h.storage.readUnavailable = false
     h.storage.writeUnavailable = false
     expect((await rows(h, 'account')).map(r => r['account_id'])).toContain(stale)
-    expect(await h.logins.verify(session.loginStateId)).toStrictEqual({ ok: accountId })
+    expect(await h.logins.verify(session.loginStateId)).toStrictEqual({
+      failure: 'login-state-rejected',
+    })
+    const fresh = await loginOk(h, 'vera', 'vera-password')
+    expect(await h.logins.verify(fresh.loginStateId)).toStrictEqual({ ok: accountId })
   })
 
   it('credential_policy 取不到（缺省或形状不合）⇒ credential-rejected，不退化为不校验；认回那一路不读它', async () => {

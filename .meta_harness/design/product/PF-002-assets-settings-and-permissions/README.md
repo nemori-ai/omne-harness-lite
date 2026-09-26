@@ -47,9 +47,9 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 20，已正式接受**（产品负责人，2026-09-26，[D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 20，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**一项**（[§九](design.md#九未决项)）——同一份连接件送来的一条事件，走两种投递方式的哪一路；另有一处缺口**归会话那一块**（新会话以哪个 agent definition、哪个租户身份建），§九只指路
-- 待裁决：**一项**（D-6，同上），见 [decisions §三](decisions.md#三待裁决)；D-2～D-4 已于 2026-09-24 裁定，D-5 的现行主线裁定已由 D-045 确认
+- 待裁决：**一项**（D-6，同上），见 [decisions §三](decisions.md#三待裁决)；D-2～D-4 已于 2026-09-24 裁定，D-5 的现行主线裁定已由 D-065 确认
 - 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留
 
 技术投影按 `harness-design-handbook` skill 展开，

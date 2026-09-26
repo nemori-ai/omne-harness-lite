@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-response v1: lossless response shape and ordered admission",
+  "description": "data.model-response v2: lossless response shape and ordered admission",
   "engines": {
     "node": ">=24.18.0 <25"
   },

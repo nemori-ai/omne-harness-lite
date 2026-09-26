@@ -3,7 +3,7 @@ import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type
 import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
-import offerSchema from '@omne-harness-lite/offer-expiry/schema' with { type: 'json' }
+import offerSchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import { jsonValue } from './json.ts'
 

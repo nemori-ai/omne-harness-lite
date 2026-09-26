@@ -84,3 +84,17 @@
 无合法四位年可表示的毫秒Instant显式抛RangeError；这是本技术函数输入表示前提失败，不是冻结契约具名业务拒绝。此项例外限定书写函数，其他已定业务判定仍返回Parsed/失败值，不把异常默默转换为成功。Epoch构造的安全整型准入和既定Math.round保持不变，因此不承诺所有安全整数或所有合法原字符串舍入后都可书写；承诺仅对可表示毫秒Instant保持时刻。
 
 实际验收需普通UTC/四位年首尾、原两个offset反例、±23:59合法极限及其外各1ms，输出同时过冻结Instant Schema并解析回同Instant；极限长fraction舍入越界单列原例和RangeError。旧71tests包含扩展年原预期，不当作本纠偏通过证据。
+
+## OE2 候选映射
+
+D040已接受OE2；本节点保持纯函数/值模块，不新增插件、存储或事件。SETTLED_STATES扩为accepted/withdrawn/declined，OFFER_STATES扩为五值；deriveState仍终结优先→必要读数不可用→严格now>expiresAt或对象缺席→pending，acceptable仍只认pending。新的Schema校验入口指向OE2资源，旧资产消费者不自动采用。
+
+构造timingFrom保留合法正时长和expiresAt>issuedAt检验，并将安全整数加法越界以可识别的计算不可用结果交给调用者；不能把它等同于非法用户时长。精确TypeScript结果为Parsed<OfferTiming> | 'unavailable'，OG须显式映射不可用。解析已给定时间对仍沿表示/跨字段invalidInput，不引入数据库操作。测试覆盖declined在无时钟/对象情况下仍保持终结、未终结任一必要读数失败、截止等号和加法越界。
+
+此增量待与OG2节点一并评审采用，当前实现尚未升级；纯模块不因此拥有接受/拒绝/撤回授权或事务。
+
+## 本轮同步后的精确时间资源（2026-09-26）
+
+治理线已经在上游实际采用 OE2；本轮同步保留其主包实现与默认 `./schema`。资产与 Agent 线的八个消费者契约仍精确钉 `data.offer-expiry` v1 的 `Instant`，行政迁移 D-066 没有升级这条依赖。因此另公开 `@omne-harness-lite/offer-expiry/schema/v1`，原样发布冻结 OE1 的完整资源、原 `$id` 和原字节；当前消费者在固定 Schema 图里明确 import 此资源。不能将 OE2 资源改挂 OE1 ID，也不能据 `Instant` 定义相同声称 OE1/OE2 的全部结算与主函数等价。
+
+上文 OE2「当前实现尚未升级」是该增量起草时的历史基线；实际上游提供者与本轮四位年纠偏并存，具体版本、输入和执行证据分别读取。旧记录不因同步而重写。

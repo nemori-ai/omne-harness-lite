@@ -20,3 +20,5 @@ export {
 } from './sqlite/driver.ts'
 export { translateSqliteError } from './sqlite/errors.ts'
 export { translatePgError } from './postgres/index.ts'
+export { openSnapshotInspection } from './maintenance/engine.ts'
+export { storageSnapshotCheck, STORAGE_SNAPSHOT_TABLES } from './maintenance/registry-check.ts'

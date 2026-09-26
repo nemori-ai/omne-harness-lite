@@ -6,6 +6,8 @@
 
 | 入口 | 作用 |
 |---|---|
+| [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps/tenancy-host/README.md) |
+| [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps/cli/README.md) |
 | [check.sh](check.sh) | 定位仓库根，依次运行 agent 产物与根链接、文档、规格、Python 工具测试及产品包检查；任一步失败即停止并返回非零 |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
@@ -22,7 +24,7 @@
 显式安装本地 hook。安装命令不会覆盖已有 hook，也不应由共享自动化代替用户执行。
 
 CI 配置将负责选择触发条件和环境，随后调用同一入口。当前尚未接入 CI 平台，
-也没有发布或部署脚本；新增时按真实目标明确输入、产物和外部副作用。
+已有本地CLI制品脚本；远程发布或部署入口新增时按真实目标明确输入、产物和外部副作用。
 形式工具环境单独使用 `make spec-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
 
 包专属的构建脚本和 skill 自带脚本随其所有者维护，不统一搬到这里。

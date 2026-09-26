@@ -1,7 +1,7 @@
 # TypeScript 里「可配置重试策略」的现成库：cockatiel、p-retry 与同类
 
-以 [D-043 R-6](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md)「重试做成可配置策略、调度复用成熟 TS 库（对应 Python 的 tenacity）」为问题，
-以 [`capability.model-request-runtime` v1](../../design/spec/capabilities/model-request-runtime/v1/contract.md) 的 S-35（默认重试件）、S-30（`dispatchAgain` 与三道守卫）、G-8，
+以 [D-063 R-6](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md)「重试做成可配置策略、调度复用成熟 TS 库（对应 Python 的 tenacity）」为问题，
+以 [`capability.model-request-runtime` v2](../../design/spec/capabilities/model-request-runtime/v2/contract.md) 的 S-35（默认重试件）、S-30（`dispatchAgain` 与三道守卫）、G-8，
 以及 [model-request-runtime 节点](../../design/realization/packages/model/model-request-runtime/design.md) 的 P-5 为对照基准，核对 npm 上八个重试库能交出什么。
 
 这项调查要区分三件事：候选的**执行器**（自己睡、自己再调用）、**延迟计算**（第 n 次等多久）与**配置词汇**，各自能不能单独拿出来；
@@ -10,7 +10,7 @@
 
 - 调查对象与基线：`cockatiel@4.0.0`、`p-retry@8.0.1`、`retry@0.13.1`、`exponential-backoff@3.1.3`、`async-retry@1.3.3`、`ts-retry-promise@0.8.1`、`@lifeomic/attempt@3.1.0`、`promise-retry@2.0.1`；
   参照 `tenacity@9.1.4`（Python）与 `effect@3.22.2` 的 `Schedule`。2026-09-25 的 npm 注册表、GitHub 仓库状态与 tarball 源码；本机 Node `v24.18.0`、TypeScript `6.0.3` 实测。
-- 消费者：D-043 R-6 的三个落点——model-request-runtime 节点 P-5 改写、契约 G-8 改成「策略配置项与默认初值」、实施边界 W-10b（均待出现）。
+- 消费者：D-063 R-6 的三个落点——model-request-runtime 节点 P-5 改写、契约 G-8 改成「策略配置项与默认初值」、实施边界 W-10b（均待出现）。
 - 最近核对：2026-09-25 / 上述版本。
 
 ## 准入核对

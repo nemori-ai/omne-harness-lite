@@ -28,7 +28,7 @@
   - 有效决定：[D-032](../../decisions/tool-execution-runtime-baseline/README.md)（运行时自研，执行宿主不挂在 agent runtime 之下）、
     [D-033](../../decisions/hooks-compat-baseline/README.md)（hooks 兼容层的起点与 fork 边界）、
     [D-037](../../decisions/mcp-client-adoption/README.md)（官方 SDK 上自写薄桥；stdio 本版一律在据点机拉起）、
-    [D-038](../../decisions/message-and-shape-rulings/README.md)（Q8 按装配清单排序、Q10 运行时只认统一的入出、Q15 结果落哪种消息由判断决定）、
+    [D-058](../../decisions/message-and-shape-rulings/README.md)（Q8 按装配清单排序、Q10 运行时只认统一的入出、Q15 结果落哪种消息由判断决定）、
     [D-024](../../decisions/tenancy-domain-name/README.md)（领域名先例：在第一次建包之前定）、
     [D-026](../../decisions/infrastructure-persistence-choices/README.md)、[D-025](../../decisions/cordis-adoption-version/README.md)（Cordis 4.0.4）。
   - 候选契约（未接受）：[`data.tool-definition`](../../../spec/data/tool-definition/README.md) v1、[`data.loop-extension`](../../../spec/data/loop-extension/README.md) v1。

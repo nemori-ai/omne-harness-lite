@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/account-identity@0.0.0 build /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/account-identity
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+

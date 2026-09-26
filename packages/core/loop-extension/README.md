@@ -1,7 +1,7 @@
 # @omne-harness-lite/loop-extension
 
-Pure TypeScript values and boundary judgments for accepted `data.loop-extension` v1.
-Authority: [contract](../../../.meta_harness/design/spec/data/loop-extension/v1/contract.md),
+Pure TypeScript values and boundary judgments for accepted `data.loop-extension` v2.
+Authority: [contract](../../../.meta_harness/design/spec/data/loop-extension/v2/contract.md),
 [realization](../../../.meta_harness/design/realization/packages/core/loop-extension/design.md),
 [verification](../../../.meta_harness/design/realization/packages/core/loop-extension/verification.md).
 

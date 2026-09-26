@@ -1,0 +1,3 @@
+# 精确控制答复链补充
+
+追加取得同一commit的VT100Terminal.m与VT100ScreenMutableState+TerminalDelegate.m原文；GitHub contents API经Docker Node取得，SHA与独立reviewer的原文读数相同。executeDECRequestMode调用terminalSendReport，delegate再调用screenSendReportData；PTYSession.m原封存reporting:YES绕过普通队列。因此该链与真实交错相符。原run与SHA256SUMS不修改，本补充另给摘要。

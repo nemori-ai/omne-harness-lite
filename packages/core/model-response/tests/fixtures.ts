@@ -25,7 +25,7 @@ export function parse(text: string): JsonValue {
 }
 const examples = readFileSync(
   new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v1/examples.md',
+    '../../../../.meta_harness/design/spec/data/model-response/v2/examples.md',
     import.meta.url,
   ),
   'utf8',

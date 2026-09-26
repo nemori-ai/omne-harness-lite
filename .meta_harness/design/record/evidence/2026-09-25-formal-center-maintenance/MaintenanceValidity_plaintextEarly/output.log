@@ -1,0 +1,46 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 18 and seed 1403209360332848420 with 1 worker on 16 cores with 7122MB heap and 64MB offheap memory [pid: 11] (Linux 6.12.54-linuxkit aarch64, Eclipse Adoptium 25.0.4 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /run/MaintenanceValidity_plaintextEarly/Maintenance.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module Maintenance
+Starting... (2026-09-25 15:35:25)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-25 15:35:25.
+Error: Invariant IsolatedPlaintext is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ protected = FALSE
+/\ result = "pending"
+/\ connected = TRUE
+/\ owner = TRUE
+/\ deleted = FALSE
+/\ crashed = FALSE
+/\ cancelRequested = FALSE
+/\ published = FALSE
+/\ stopping = FALSE
+/\ phase = "accepted"
+/\ durable = FALSE
+/\ job = TRUE
+/\ plaintext = FALSE
+/\ handles = TRUE
+
+State 2: <Export line 18, col 11 to line 21, col 89 of module Maintenance>
+/\ protected = FALSE
+/\ result = "pending"
+/\ connected = TRUE
+/\ owner = TRUE
+/\ deleted = FALSE
+/\ crashed = FALSE
+/\ cancelRequested = FALSE
+/\ published = FALSE
+/\ stopping = FALSE
+/\ phase = "exporting"
+/\ durable = FALSE
+/\ job = TRUE
+/\ plaintext = TRUE
+/\ handles = TRUE
+
+3 states generated, 3 distinct states found, 1 states left on queue.
+The depth of the complete state graph search is 2.
+Finished in 00s at (2026-09-25 15:35:25)

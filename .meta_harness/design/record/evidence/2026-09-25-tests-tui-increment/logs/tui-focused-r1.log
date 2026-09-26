@@ -1,0 +1,12 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/cli
+
+
+ Test Files  3 passed (3)
+      Tests  16 passed (16)
+Type Errors  no errors
+   Start at  12:23:36
+   Duration  751ms (transform 208ms, setup 0ms, import 1.14s, tests 79ms, environment 0ms)
+

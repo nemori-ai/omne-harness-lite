@@ -47,6 +47,9 @@ import {
 import {
   type ReadTx,
   type Storage,
+  type AtomicStorage,
+  type StorageUnit,
+  StorageDefect,
   StorageUnavailable,
   type WriteTx,
   composeMigrations,
@@ -225,7 +228,7 @@ interface Once<P, A> {
  * 包在真实提供者外面的 `storage`：规则一次性，命中即摘下。故障以 `StorageUnavailable` 到达参与方，
  * 与真实的「存储不可用」走同一条映射。统计 `statements` 供断言「某一步根本没发生」。
  */
-export class InstrumentedStorage implements Storage {
+export class InstrumentedStorage implements AtomicStorage {
   readonly statements: StatementInfo[] = []
   readonly #fail: Once<StatementProbe, undefined>[] = []
   readonly #pause: Once<StatementProbe, Gate>[] = []
@@ -296,6 +299,39 @@ export class InstrumentedStorage implements Storage {
         return args.result
       },
     }
+  }
+
+  async atomic<T>(fn: (unit: StorageUnit) => Promise<T>): Promise<T> {
+    const before = this.#beforeWrite.shift()
+    if (before !== undefined) await before.wait()
+    const statements: StatementInfo[] = []
+    const result = await this.inner.atomic(async unit => {
+      const wrapped: StorageUnit = {
+        assertStorage: expected => {
+          if (expected !== this) throw new StorageDefect('instrumented storage mismatch')
+          unit.assertStorage(this.inner)
+        },
+        run: callback => unit.run(callback),
+        query: callback =>
+          unit.query(tx => callback({ db: tx.db.withPlugin(this.#plugin(true, statements)) })),
+        mutate: callback =>
+          unit.mutate(tx =>
+            callback({
+              db: tx.db.withPlugin(this.#plugin(true, statements)),
+              lockRow: (table, key) => tx.lockRow(table, key),
+              lockSentinel: name => tx.lockSentinel(name),
+            }),
+          ),
+        afterCommit: callback => unit.afterCommit(callback),
+      }
+      const value = await fn(wrapped)
+      if (take(this.#failCommit, rule => rule.probe(statements)) !== undefined)
+        throw new StorageUnavailable('injected: atomic commit failed')
+      return value
+    })
+    const after = take(this.#afterCommit, rule => rule.probe(statements))
+    if (after !== undefined) await after.action()
+    return result
   }
 
   async read<T>(fn: (tx: ReadTx) => Promise<T>): Promise<T> {

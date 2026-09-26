@@ -23,7 +23,9 @@ import { type Assembly, bootAssembly } from '@omne-harness-lite/kernel-basis/tes
 import type { Clock, Duration, Instant } from '@omne-harness-lite/offer-expiry'
 import {
   type ReadTx,
-  type Storage,
+  type AtomicStorage,
+  type StorageUnit,
+  StorageDefect,
   type StorageInstance,
   StorageUnavailable,
   type WriteTx,
@@ -97,18 +99,40 @@ export function testClock(start: Instant = START): TestClock {
 
 // ---- 故障注入的 storage 包装：读／写不可用、提交失败；并标出「正在写事务回调里」的异步范围 ----
 
-export class FaultyStorage implements Storage {
+export class FaultyStorage implements AtomicStorage {
   readUnavailable = false
   writeUnavailable = false
   /** 事务函数跑完之后以 StorageUnavailable 回滚：模拟提交失败（事务中途存储没了）。 */
   failCommit = false
   readonly #writeScope = new AsyncLocalStorage<true>()
 
-  constructor(readonly inner: StorageInstance) {}
+  constructor(readonly inner: StorageInstance & AtomicStorage) {}
 
   /** 当前异步上下文是否在某个 write 的回调里（R-8 的测试形式用它）。 */
   inWriteCallback(): boolean {
     return this.#writeScope.getStore() === true
+  }
+
+  atomic<T>(fn: (unit: StorageUnit) => Promise<T>): Promise<T> {
+    if (this.readUnavailable || this.writeUnavailable)
+      return Promise.reject(new StorageUnavailable('injected atomic failure'))
+    return this.inner.atomic(unit =>
+      this.#writeScope.run(true, async () => {
+        const scope: StorageUnit = {
+          assertStorage: expected => {
+            if (expected !== this) throw new StorageDefect('test storage instance mismatch')
+            unit.assertStorage(this.inner)
+          },
+          run: callback => unit.run(callback),
+          query: callback => unit.query(callback),
+          mutate: callback => unit.mutate(callback),
+          afterCommit: callback => unit.afterCommit(callback),
+        }
+        const result = await fn(scope)
+        if (this.failCommit) throw new StorageUnavailable('injected commit failure')
+        return result
+      }),
+    )
   }
 
   read<T>(fn: (tx: ReadTx) => Promise<T>): Promise<T> {
@@ -254,7 +278,9 @@ export async function openHarness(options: HarnessOptions = {}): Promise<Harness
       { plugin: credentialsPlugin, config: FAST_CREDENTIALS },
     ],
   })
-  const storage = new FaultyStorage(assembly.ctx.get(STORAGE_SERVICE) as StorageInstance)
+  const storage = new FaultyStorage(
+    assembly.ctx.get(STORAGE_SERVICE) as StorageInstance & AtomicStorage,
+  )
   const realCredentials = assembly.ctx.get(CREDENTIALS_SERVICE) as CredentialsService
   const probe: CredentialProbe = {
     callsInsideWrite: [],

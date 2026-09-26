@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json",
-  "title": "data.tool-definition v1",
-  "description": "工具定义与工具返回值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.tool-definition/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。块、附件引用、能力标识、模态、媒体类型取自 data.content-blocks v1（同样是候选），本文件只 $ref 其 $defs、不复制定义。Schema 只管形状：参数 schema 是否合法的 Draft 2020-12 schema（S-4，表示层校验在 Schema 之外的那一步）、help 与 inspect 一致（S-8）、声明与实际对得上（S-19、S-24）、表示层拒绝不折成判定（S-27）都管不到。表示层拒绝值、判定次序与 malformed 的来由 M1～M27 见 contract.md S-26。正反实例在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json",
+  "title": "data.tool-definition v2",
+  "description": "工具定义与工具返回值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.tool-definition/v2 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。块、附件引用、能力标识、模态、媒体类型取自 data.content-blocks v2（同样是候选），本文件只 $ref 其 $defs、不复制定义。Schema 只管形状：参数 schema 是否合法的 Draft 2020-12 schema（S-4，表示层校验在 Schema 之外的那一步）、help 与 inspect 一致（S-8）、声明与实际对得上（S-19、S-24）、表示层拒绝不折成判定（S-27）都管不到。表示层拒绝值、判定次序与 malformed 的来由 M1～M27 见 contract.md S-26。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -124,7 +124,7 @@
 
     "ToolName": {
       "title": "工具定义的名字",
-      "description": "S-18：每一份工具定义的 name（作者写的与 MCP 来源的同一套）。只含 A–Z a–z 0–9 _ : -；不含 __、_:、:_ 三种相邻（拒绝值 name_reserved_sequence）；逐码点相等；转写（: 换成 __）之后不超过 128 个字符——: 算两个的那一半 Schema 管不到，在表示层校验的 Schema 之外那一步（M25）。它是 data.asset-model v1 S-2 能力标识名词法之内的收窄；data.mcp-endpoint v1 的动作条目名 $ref 它。",
+      "description": "S-18：每一份工具定义的 name（作者写的与 MCP 来源的同一套）。只含 A–Z a–z 0–9 _ : -；不含 __、_:、:_ 三种相邻（拒绝值 name_reserved_sequence）；逐码点相等；转写（: 换成 __）之后不超过 128 个字符——: 算两个的那一半 Schema 管不到，在表示层校验的 Schema 之外那一步（M25）。它是 data.asset-model v2 S-2 能力标识名词法之内的收窄；data.mcp-endpoint v2 的动作条目名 $ref 它。",
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
@@ -139,7 +139,7 @@
         "properties": { "type": "object" }
       },
       "required": ["type", "properties"],
-      "$comment": "不 $ref 官方元 schema（主线裁定，D-040 §S5 S5-b）：合法性检查是表示层校验在 Schema 之外的那一步。"
+      "$comment": "不 $ref 官方元 schema（主线裁定，D-060 §S5 S5-b）：合法性检查是表示层校验在 Schema 之外的那一步。"
     },
 
     "ModelToolName": {
@@ -169,8 +169,8 @@
       "properties": {
         "externalServices": { "type": "array", "items": { "$ref": "#/$defs/DependencyName" }, "uniqueItems": true },
         "attachmentStorage": { "$ref": "#/$defs/DependencyName" },
-        "inputModalities": { "type": "array", "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/Modality" }, "uniqueItems": true },
-        "outputModalities": { "type": "array", "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/Modality" }, "uniqueItems": true }
+        "inputModalities": { "type": "array", "items": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/Modality" }, "uniqueItems": true },
+        "outputModalities": { "type": "array", "items": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/Modality" }, "uniqueItems": true }
       },
       "additionalProperties": false
     },
@@ -224,7 +224,7 @@
       "description": "S-10、S-31：{ category, default }——资产属性声明（data.asset-model 的 AttributeDeclaration）在工具定义里的写法：项名由 settings 的键给、种类恒为设置、取值域由本契约按项定死，作者只写类别与默认值；S-31 的推出规则由它得出 AttributeDeclaration。不是第二种声明。两者都必填。各层配值与运行时求值不在本契约。",
       "type": "object",
       "properties": {
-        "category": { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/SettingCategory" },
+        "category": { "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/SettingCategory" },
         "default": true
       },
       "required": ["category", "default"],
@@ -294,7 +294,7 @@
             "kind": { "const": "mcp" },
             "endpoint": {
               "allOf": [
-                { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/CapabilityId" },
+                { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CapabilityId" },
                 { "properties": { "category": { "const": "mcp" } }, "required": ["category"] }
               ]
             },
@@ -324,7 +324,7 @@
           "type": "array",
           "items": {
             "allOf": [
-              { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ContentBlock" },
+              { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ContentBlock" },
               { "not": { "properties": { "kind": { "const": "tool_call" } }, "required": ["kind"] } }
             ]
           }
@@ -332,7 +332,7 @@
         "offload": { "$ref": "#/$defs/Offload" },
         "attachments": {
           "type": "array",
-          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/AttachmentRef" }
+          "items": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/AttachmentRef" }
         }
       },
       "required": ["content"],
@@ -346,13 +346,13 @@
       "properties": {
         "raw": {
           "oneOf": [
-            { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/AttachmentRef" },
+            { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/AttachmentRef" },
             {
               "title": "内联",
               "type": "object",
               "properties": {
-                "inline": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/InlineBytes" },
-                "mediaType": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/MediaType" }
+                "inline": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/InlineBytes" },
+                "mediaType": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/MediaType" }
               },
               "required": ["inline", "mediaType"],
               "additionalProperties": false
@@ -364,7 +364,7 @@
           "minItems": 1,
           "items": {
             "allOf": [
-              { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ContentBlock" },
+              { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ContentBlock" },
               { "not": { "properties": { "kind": { "const": "tool_call" } }, "required": ["kind"] } }
             ]
           }

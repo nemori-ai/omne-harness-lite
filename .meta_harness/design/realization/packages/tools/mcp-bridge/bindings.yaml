@@ -1,8 +1,8 @@
 # 条款到证据的绑定表：空。
-# capability.mcp-bridge v1 本版不建形式工件（契约 S-31：OAuth 绑定是三状态表、副本是一次条件写、收口是进程内三步次序，
+# capability.mcp-bridge v2 本版不建形式工件（契约 S-31：OAuth 绑定是三状态表、副本是一次条件写、收口是进程内三步次序，
 # 都改写成规范场景与静态检查），registry 里没有它自己的 formal task；本节点尚未建包，没有测试。
 #
-# 不借 credential-custodian-v1-sweep（保管方契约 S-21 的 Sweep.tla）来绑 S-23：
+# 不借 credential-custodian-v2-sweep（保管方契约 S-21 的 Sweep.tla）来绑 S-23：
 # 那份模型证的是保管方契约，不是本节点的代码与存储；「在绑定行上排序」在模型里是前提（每个动作对它的绑定原子），
 # 恰是本节点要兑现、却没有任何会失败的断言去检查的那一半。
 # 本节点那一半的证据形式登记在 verification.md：N-2（custodian S-28 的真并发交错）与 N-18（S-23 ④ 两次提交之间强杀）。

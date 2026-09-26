@@ -5,7 +5,7 @@ import type { Context, Logger } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis'
 import type { Clock, Instant } from '@omne-harness-lite/offer-expiry'
-import type { Storage } from '@omne-harness-lite/storage'
+import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { readOrMintCenterId } from './center-id/read-or-mint.ts'
 import type { GovernanceCenterId } from './center-id/table.ts'
 import { defect, listening, serving, stopped } from './events.ts'
@@ -16,6 +16,15 @@ import { decide } from './routing/decide.ts'
 import { type RequestRecord, thrownValue } from './routing/record.ts'
 import type { EntryServices } from './routing/routes.ts'
 import { ClientFace } from './transport/client-face.ts'
+
+/** 入口层加载时等待中心时钟超界；装配按类型归类，不依赖说明文字。 */
+export class GovernanceCenterClockTimeoutError extends Error {
+  override readonly name = 'GovernanceCenterClockTimeoutError'
+
+  constructor() {
+    super('governance-center-entry: the center clock could not be read within clockReadyTimeoutMs')
+  }
+}
 
 export interface GovernanceCenterEntryConfig {
   /** 监听地址与端口（部署配置；端口 0 由系统分配，只给测试用）。 */
@@ -131,6 +140,21 @@ class EntryRuntime {
   #disposing = false
   /** 撤除已返回：之后仍在跑的请求再遇到缺陷，只写工程记录、不再 emit。 */
   #noticesClosed = false
+  readonly #business = new Set<Promise<unknown>>()
+
+  get accepting(): boolean {
+    return !this.#disposing
+  }
+
+  run<T>(work: () => Promise<T>): Promise<T> {
+    const job = work()
+    this.#business.add(job)
+    job.then(
+      () => this.#business.delete(job),
+      () => this.#business.delete(job),
+    )
+    return job
+  }
 
   constructor(
     ctx: Context,
@@ -243,6 +267,7 @@ class EntryRuntime {
         await this.#face.retire()
       }
     } finally {
+      await Promise.allSettled([...this.#business])
       this.#noticesClosed = true
     }
   }
@@ -255,6 +280,7 @@ export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryCon
     'clock',
     'credentials',
     'logins',
+    'accounts',
     'registration',
     'organizations',
     'memberships',
@@ -265,8 +291,10 @@ export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryCon
     const logger = ctx.logger('governance-center-entry')
     // 服务实例经 inject 取得（`ctx.get` 不带类型）；按各 owner 公开的服务面类型收下
     const clock: Clock = ctx.get('clock')
-    const storage: Storage = ctx.get('storage')
+    const storage: AtomicStorage = ctx.get('storage')
+    if (typeof storage.atomic !== 'function') throw new TypeError('entry2 requires AtomicStorage')
     const services: EntryServices = {
+      accounts: ctx.get('accounts'),
       logins: ctx.get('logins'),
       registration: ctx.get('registration'),
       credentials: ctx.get('credentials'),
@@ -282,22 +310,26 @@ export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryCon
       port: config.listen.port,
       tls: config.tls,
       limits: RECEIVE_LIMITS,
-      answer: async body => {
-        if (runtime === undefined || publicHealth === undefined) return undefined
-        try {
-          const decision = await decide(body, { services, publicHealth })
-          runtime.record(decision.record)
-          return decision.bytes
-        } catch (error) {
-          // 本包自己的异常：答 unavailable 并记为缺陷（S-14），不吞
-          runtime.record({
-            stage: 'operation',
-            answer: 'unavailable',
-            observed: { call: 'operation', value: thrownValue(error) },
-            defect: true,
-          })
-          return entryAnswerBytes('unavailable')
-        }
+      answer: body => {
+        const current = runtime
+        const health = publicHealth
+        if (current === undefined || health === undefined || !current.accepting)
+          return Promise.resolve(undefined)
+        return current.run(async () => {
+          try {
+            const decision = await decide(body, { services, publicHealth: health, storage })
+            current.record(decision.record)
+            return decision.bytes
+          } catch (error) {
+            current.record({
+              stage: 'operation',
+              answer: 'unavailable',
+              observed: { call: 'operation', value: thrownValue(error) },
+              defect: true,
+            })
+            return entryAnswerBytes('unavailable')
+          }
+        })
       },
       closedWithoutAnswer: reason =>
         logger.debug('connection closed without an answer: %s', reason),
@@ -323,11 +355,7 @@ export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryCon
     // 启动成功以钟可读为条件（S-34）：超界 ⇒ 启动失败，说明点名是钟
     const ready = await waitForClock(ctx, clock, config.clockReadyTimeoutMs)
     if (ready === 'disposed') return
-    if (ready === 'timeout') {
-      throw new Error(
-        'governance-center-entry: the center clock could not be read within clockReadyTimeoutMs (cause: clock)',
-      )
-    }
+    if (ready === 'timeout') throw new GovernanceCenterClockTimeoutError()
 
     publicHealth = publicHealthBytes(identity.centerId, config.version)
     const current = new EntryRuntime(ctx, logger, face, clock, identity.centerId, config)

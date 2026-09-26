@@ -1,6 +1,6 @@
 # `@omne-harness-lite/mcp-endpoint`
 
-Pure TypeScript implementation of the accepted [`data.mcp-endpoint/v1`](../../../.meta_harness/design/spec/data/mcp-endpoint/v1/contract.md). Adoption and responsibility follow the [realization node](../../../.meta_harness/design/realization/packages/core/mcp-endpoint/README.md), not this source guide.
+Pure TypeScript implementation of the accepted [`data.mcp-endpoint/v2`](../../../.meta_harness/design/spec/data/mcp-endpoint/v2/contract.md). Adoption and responsibility follow the [realization node](../../../.meta_harness/design/realization/packages/core/mcp-endpoint/README.md), not this source guide.
 
 The public package exports the authored endpoint body, the distinct fetched / not-fetched snapshot types, open remote descriptors, OAuth binding types, `actionEntryName`, ordered `judgeMcpValue` / `judgeMcpEndpoint`, shape-only `validate`, the typed `deriveMcpDeclarations` function, and `mcpBodyContract`. `./schema` exports the frozen Schema resource. Names and durations consume tool-definition's public definitions; timestamps consume offer-expiry's public parser. Shared content-blocks components validate JSON without rounding numbers and compile fixed package-owned schemas.
 

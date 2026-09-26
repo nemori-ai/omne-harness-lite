@@ -4,9 +4,22 @@
 //   ⑤ 一次只读事务：读表清单与迁移登记，跑 checks   ⑥ 有待跑迁移且还没有快照 ⇒ 建一致快照   ⑦ 迁移   ⑧ 交出实例
 //   撤除：守卫置为已撤、关准入 → 等在途事务与在途确认 → 关句柄 → 磁盘上仍有快照 ⇒ 恢复 → 放排他
 import { Migrator, type MigrationProvider } from 'kysely/migration'
-import type { PreflightCheck, PreflightResult } from '@omne-harness-lite/storage'
-import { ping, SqlStorage, type DialectHandles, type StorageTeardown } from '../provider.ts'
+import {
+  StorageDefect,
+  type PreflightCheck,
+  type PreflightResult,
+} from '@omne-harness-lite/storage'
+import {
+  ping,
+  retainStorageHandles,
+  SqlStorage,
+  type DialectHandles,
+  type StorageTeardown,
+} from '../provider.ts'
 import { readMigrationRegistry, MIGRATION_REGISTRY_TABLE } from './registry.ts'
+import { SnapshotEngine } from '../maintenance/engine.ts'
+import { WorkspaceAcquisitionIncomplete } from '../maintenance/workspace.ts'
+import { sqliteSnapshotProducer } from '../maintenance/source.ts'
 import {
   attachGuard,
   StorageStartupFailure,
@@ -56,12 +69,18 @@ export interface UpgradeHooks {
 }
 
 export interface OwnedStorageInput {
+  readonly logger?: StorageSqlLogger
   readonly site: OwnerSite
   readonly guard: UpgradeGuard
   readonly checks: readonly PreflightCheck[]
   readonly migrations: MigrationProvider
   readonly openHandles: () => DialectHandles
   readonly hooks: UpgradeHooks
+  readonly maintenance?: {
+    readonly sourceFile: string
+    readonly workDirectory: string
+    readonly onClosed: (status: 'clean' | 'error') => void
+  }
 }
 
 function describe(error: unknown): string {
@@ -74,6 +93,8 @@ async function destroyHandles(handles: DialectHandles): Promise<void> {
   } finally {
     await handles.readDb.destroy()
   }
+  if (handles.resourcesClosed?.() === false)
+    throw new StorageDefect('native storage handles remain open')
 }
 
 /** ⑤：一次只读事务里先读表清单与迁移登记，再逐条跑核对；读失败与核对不过都是「核对」阶段。 */
@@ -130,6 +151,7 @@ export async function openOwnedStorage(input: OwnedStorageInput): Promise<SqlSto
   }
 
   let handles: DialectHandles | undefined
+  let snapshots: SnapshotEngine | undefined
   try {
     await hooks.afterAttach?.()
     await site.recoverLeftovers()
@@ -141,7 +163,23 @@ export async function openOwnedStorage(input: OwnedStorageInput): Promise<SqlSto
     await ping(handles.writeDb)
     await ping(handles.readDb)
 
-    const storage = new SqlStorage(handles, ownerTeardown(site, attachment, lock))
+    if (input.maintenance !== undefined)
+      snapshots = await SnapshotEngine.open(
+        input.maintenance.workDirectory,
+        sqliteSnapshotProducer(input.maintenance.sourceFile),
+      )
+    const storage = new SqlStorage(
+      handles,
+      ownerTeardown(site, attachment, lock),
+      input.logger,
+      snapshots === undefined || input.maintenance === undefined
+        ? undefined
+        : {
+            engine: snapshots,
+            confirmed: () => attachment.phase === 'serving' && attachment.confirmed !== undefined,
+            onClosed: input.maintenance.onClosed,
+          },
+    )
     await hooks.beforePreflight?.(handles)
     const applied = await preflight(storage, handles, input.checks)
 
@@ -192,7 +230,31 @@ export async function openOwnedStorage(input: OwnedStorageInput): Promise<SqlSto
     return storage
   } catch (error) {
     attachment.phase = 'ended'
-    throw await abortStartup(error, site, handles, lock)
+    if (error instanceof WorkspaceAcquisitionIncomplete) {
+      if (handles !== undefined) retainStorageHandles(handles)
+      input.maintenance?.onClosed('error')
+      throw new StorageStartupFailure(
+        'preflight',
+        'maintenance initialization cleanup incomplete; source ownership is retained',
+        { cause: error },
+      )
+    }
+    if (snapshots !== undefined) {
+      try {
+        await snapshots.close()
+      } catch (closeError) {
+        input.maintenance?.onClosed('error')
+        if (!snapshots.ownershipReleased) {
+          if (handles !== undefined) retainStorageHandles(handles)
+          throw new StorageStartupFailure(
+            'preflight',
+            'maintenance startup cleanup failed; ownership is retained',
+            { cause: new AggregateError([error, closeError]) },
+          )
+        }
+      }
+    }
+    throw await abortStartup(error, site, handles, lock, input.maintenance !== undefined)
   }
 }
 
@@ -202,10 +264,29 @@ async function abortStartup(
   site: OwnerSite,
   handles: DialectHandles | undefined,
   lock: OwnerLock,
+  retainOnCloseFailure: boolean,
 ): Promise<unknown> {
   let result = failure
+  // Do not restore data or release source ownership while a native handle survives.
+  if (handles !== undefined) {
+    try {
+      await destroyHandles(handles)
+    } catch (closeError) {
+      if (retainOnCloseFailure) {
+        retainStorageHandles(handles)
+        return new StorageStartupFailure(
+          'preflight',
+          'startup handles remain open; ownership is retained',
+          {
+            cause: new AggregateError([failure, closeError]),
+          },
+        )
+      }
+      await lock.release()
+      throw closeError
+    }
+  }
   try {
-    if (handles !== undefined) await destroyHandles(handles)
     // ②自己的恢复已经失败过：不在同一次启动里再动那份快照
     const restoreAlreadyFailed =
       failure instanceof StorageStartupFailure && failure.stage === 'restore'
@@ -223,8 +304,13 @@ async function abortStartup(
         )
       }
     }
-  } finally {
+  } catch (error) {
+    result = new AggregateError([result, error], 'startup failure and recovery inspection failed')
+  }
+  try {
     await lock.release()
+  } catch (error) {
+    return new AggregateError([result, error], 'startup cleanup and owner lock release failed')
   }
   return result
 }
@@ -245,22 +331,32 @@ function ownerTeardown(
       return attachment.confirming
     },
     async finish(handlesClosed) {
-      let failure: unknown
+      let outcome: { ok: true } | { ok: false; error: unknown } = { ok: true }
       try {
         // 句柄没关干净就不替换库文件：快照留在磁盘上，下一次启动的②恢复它
         if (handlesClosed && (await site.snapshotOnDisk())) await site.restore()
       } catch (error) {
-        failure = error
+        outcome = {
+          ok: false,
+          error: new Error(
+            `restoring the unconfirmed upgrade snapshot on dispose failed; snapshot kept at ${site.location ?? '(none)'}: ${describe(error)}`,
+            { cause: error },
+          ),
+        }
       } finally {
         attachment.phase = 'ended'
+      }
+      try {
         await lock.release()
+      } catch (error) {
+        if (!outcome.ok)
+          throw new AggregateError(
+            [outcome.error, error],
+            'snapshot recovery and owner lock release failed',
+          )
+        throw error
       }
-      if (failure !== undefined) {
-        throw new Error(
-          `restoring the unconfirmed upgrade snapshot on dispose failed; snapshot kept at ${site.location ?? '(none)'}: ${describe(failure)}`,
-          { cause: failure },
-        )
-      }
+      if (!outcome.ok) throw outcome.error
     },
   }
 }

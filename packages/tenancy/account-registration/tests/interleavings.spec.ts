@@ -63,19 +63,10 @@ function track<T>(promise: Promise<T>) {
   return { promise, settled: () => settled }
 }
 
-/**
- * 主链停在 ② 已经判定「未过期」之后、OG 自己的写事务开始之前：OG 的账号读面（事务外、AI 的一次读）已按当时的时钟
- * 判完，下一步就是 OG 的写事务。等待点在 ① 提交之后才布下：账号未过期时 AI 的读面不写，所以那之后的第一个写事务就是
- * OG createPersonal 的那一个。（停在读事务**里面**不行：storage-sql 的 sqlite 读被 Kysely 的 ConnectionMutex 串行，
- * 停住的读事务会挡住其余一切读；停在读事务刚结束也不行：AI 在快照之后才按时钟判期限。）
- */
-async function mainPausedAfterStepTwoRead(c: Composition, identifier: string) {
-  let readGate: Gate | undefined
-  c.storage.afterCommit(committed(accountInsert), async () => {
-    readGate = c.storage.pauseBeforeNextWrite()
-  })
+/** OG2把账号现读与个人组织写入放在同一事务；只能在其确认提交后安排外部写交错。 */
+async function mainPausedAfterStepTwoCommit(c: Composition, identifier: string) {
+  const readGate = c.storage.pauseAfterCommit(committed(organizationInsert))
   const main = track(c.service().register(identifier, PASSWORD))
-  while (readGate === undefined) await settleTurns(1)
   await readGate.reached
   return { main, readGate }
 }
@@ -134,12 +125,12 @@ describe('ai#S-43 第 2 支 × ar 同一次演练：激活与清除链 ① 在�
     expect(c.defects()).toEqual([]) // account-record-expired 是正常收场，不是缺陷
   })
 
-  it('I-4 插入方向／交错 (b)，S-20 读到「未过期」之后、提交之前清除链整条跑完（账号行被删）：S-20 的插入被引用约束拒绝 ⇒ accountDoesNotExist，本次尝试 interrupted。终态：什么都没有，没有孤儿组织', async () => {
+  it('OG2已提交个人组织之后清除链跑完，晚到激活读到账号不存在；无孤儿、无误激活', async () => {
     const c = await boot()
-    const { main, readGate } = await mainPausedAfterStepTwoRead(c, 'b-purge-first')
+    const { main, readGate } = await mainPausedAfterStepTwoCommit(c, 'b-purge-first')
     const accountId = await accountIdOf(c, 'b-purge-first')
     c.clock!.advance(HOUR + 1)
-    expect(await c.service().purgeExpired(accountId)).toBe('ok') // 此刻还没有组织：① ⑦甲 ok，② 删掉账号
+    expect(await c.service().purgeExpired(accountId)).toBe('ok') // ①删掉已提交组织，②删账号
     expect(await accountsOf(c, 'b-purge-first')).toEqual([])
     readGate.release()
     expect(await main.promise).toBe<TerminalOutcome>('interrupted')
@@ -148,30 +139,26 @@ describe('ai#S-43 第 2 支 × ar 同一次演练：激活与清除链 ① 在�
     expect(state.violations).toEqual(NO_VIOLATIONS)
     // 期间跑过清除链：映射表把这一格记为组合缺陷（「除非期间跑过清除链」），记录带着 AccountId 可供对照
     expect(c.defects()).toEqual([
-      { kind: 'composition-defect', step: 2, failure: 'accountDoesNotExist', accountId },
+      { kind: 'composition-defect', step: 3, failure: 'account-not-found', accountId },
     ])
   })
 
-  it('I-3／I-4 删除方向／交错 (b)，S-20 先插：S-20 读到「未过期」之后，清除链 ① 落盘过期、找不到组织 ⇒ ok ＋ 依据；S-20 随后插入成功，③ 读到已过期 ⇒ interrupted；清除链 ② 的删除被引用约束拒绝 ⇒ storage-unavailable（抖动型），下一轮重扫收干净', async () => {
+  it('OG2先完整提交，清除①随后删除组织；晚到激活因到期拒绝，清除②正常完成', async () => {
     const c = await boot()
-    const { main, readGate } = await mainPausedAfterStepTwoRead(c, 'b-insert-first')
+    const { main, readGate } = await mainPausedAfterStepTwoCommit(c, 'b-insert-first')
     const accountId = await accountIdOf(c, 'b-insert-first')
     c.clock!.advance(HOUR + 1)
     const betweenPurgeSteps = c.storage.pauseAfterCommit(purgeOneCommit)
     const purge = track(c.service().purgeExpired(accountId))
-    await betweenPurgeSteps.reached // 清除链 ① 已提交（没有组织可删），② 还没开始
+    await betweenPurgeSteps.reached // 清除链①已删除组织并提交，②还没开始
     readGate.release()
     expect(await main.promise).toBe<TerminalOutcome>('interrupted')
     const middle = await finalState(c, 'b-insert-first')
     expect(middle.accounts.map(a => [a.activated, a.expired_at !== null])).toEqual([[0, true]])
-    expect(middle.organizations.map(o => o.owner_account)).toEqual([accountId])
+    expect(middle.organizations).toEqual([])
     expect(middle.violations).toEqual(NO_VIOLATIONS) // 组织有账号；账号未激活
     betweenPurgeSteps.release()
-    expect(await purge.promise).toEqual<PurgeExpiredResult>({
-      from: 'S-38',
-      failure: 'storage-unavailable',
-      class: 'transient',
-    })
+    expect(await purge.promise).toBe<PurgeExpiredResult>('ok')
     // 下一轮：① 这次读到已落盘的过期与那个组织、删掉它；② 再成
     expect(await c.service().purgeExpired(accountId)).toBe('ok')
     const end = await finalState(c, 'b-insert-first')
@@ -228,9 +215,9 @@ describe('架构评审点名的集成交错（I-1～I-4；与上面 S-43 第 2 �
     expect(await accountsOf(c, 'i2')).toEqual([])
   })
 
-  it('I-3 OG 在事务外读到「未激活、未过期」，随后 AI 另一次读把过期落盘，OG 再插入个人组织 ⇒ 允许（外键目标仍在）；③ 被拒；清除链下一轮把这个组织清掉，没有永久孤儿', async () => {
+  it('OG2已提交组织，随后AI独立读落盘到期；③被拒，清除链收净，无永久孤儿', async () => {
     const c = await boot()
-    const { main, readGate } = await mainPausedAfterStepTwoRead(c, 'i3')
+    const { main, readGate } = await mainPausedAfterStepTwoCommit(c, 'i3')
     const accountId = await accountIdOf(c, 'i3')
     c.clock!.advance(HOUR + 1)
     expect(await c.accounts.read(accountId)).toEqual({

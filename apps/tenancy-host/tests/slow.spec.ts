@@ -118,49 +118,45 @@ describe('assembly.no-commit-before-open ⑤：确认之后等不到 serving（�
   }, 120_000)
 })
 
-describe('assembly.dispose-timeout', () => {
-  it('一个故意挂住的 disposer ⇒ dispose() 在总超时后仍返回，记下未完成（含没轮到）的 fiber', async () => {
-    const d = await deployment('dispose-timeout')
+describe('assembly.dispose-real-completion', () => {
+  it('30秒只报告still-stopping，保持真实等待与源owner直到disposer结束', async () => {
+    const d = await deployment('dispose-pending')
     const { host, log } = await hosts.start(d)
     const registration = host.fibers['account-registration']
     if (registration === undefined) throw new Error('no AR fiber')
-    registration.ctx.effect(
-      () => () => new Promise<void>(() => undefined),
-      'test: hanging disposer',
-    )
-    const started = performance.now()
-    const disposal = await hosts.stop(host)
-    const elapsed = performance.now() - started
-    expect(elapsed).toBeGreaterThanOrEqual(DISPOSE_TIMEOUT_MS - 100)
-    expect(elapsed).toBeLessThan(DISPOSE_TIMEOUT_MS + 5_000)
-    expect(disposal).toEqual({
-      complete: false,
-      unfinished: [
-        'account-registration',
-        'organization-governance',
-        'account-identity',
-        'credential-verification',
-        'clock',
-        'storage-sql',
-      ],
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
     })
-    expect(log.events('dispose-incomplete')).toEqual([
-      expect.objectContaining({ level: 'error', unfinished: disposal.unfinished }),
-    ])
-    // 入口层与运维面在挂住之前已撤完
-    expect(log.events('fiber-disposed').map(l => l['plugin'])).toEqual([
-      'governance-center-entry',
-      'governance-center-ops',
-    ])
-    // 测试收尾：把没轮到的撤掉（生产进程此时退出非零）
-    for (const name of [
-      'organization-governance',
-      'account-identity',
-      'credential-verification',
-      'clock',
-      'storage-sql',
-    ] as const)
-      await host.fibers[name]?.dispose()
+    registration.ctx.effect(() => () => gate, 'test: delayed disposer')
+    let settled = false
+    const disposing = hosts.stop(host).then(result => {
+      settled = true
+      return result
+    })
+    try {
+      await new Promise<void>(resolve => setTimeout(resolve, DISPOSE_TIMEOUT_MS + 200))
+      expect(settled).toBe(false)
+      expect(log.events('still-stopping')).toHaveLength(1)
+      expect(log.events('fiber-disposed').map(line => line['plugin'])).toEqual([
+        'governance-center-entry',
+        'governance-center-ops',
+      ])
+      const { openStorage, createUpgradeGuard } = await import('@omne-harness-lite/storage-sql')
+      const { composeMigrations } = await import('@omne-harness-lite/storage')
+      const { hostMigrationFragments } = await import('../src/index.ts')
+      await expect(
+        openStorage({
+          dialect: 'sqlite',
+          file: d.file,
+          migrations: composeMigrations(hostMigrationFragments),
+          upgrade: { guard: createUpgradeGuard(), checks: [] },
+        }),
+      ).rejects.toMatchObject({ stage: 'occupied' })
+    } finally {
+      release()
+    }
+    expect(await disposing).toEqual({ complete: true, unfinished: [] })
     expect(query(d.file, 'SELECT count(*) AS n FROM governance_center')).toEqual([{ n: 1 }])
   }, 90_000)
 })

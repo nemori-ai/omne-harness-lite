@@ -1,0 +1,28 @@
+{
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--entrypoint",
+    "java",
+    "--mount",
+    "type=bind,source=/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/entry-reachability-r4,target=/model",
+    "--workdir",
+    "/model",
+    "sha256:f379f3a12f81844d554a11a3bdfc532aab0efdd4f3d49966f4d22bcdf49ccc9b",
+    "-cp",
+    "tla2tools.jar",
+    "tlc2.TLC",
+    "-workers",
+    "1",
+    "-continue",
+    "-metadir",
+    "/tmp/tlc",
+    "-config",
+    "Validity_Reachability.cfg",
+    "EntryDecision.tla"
+  ],
+  "exit": 0
+}

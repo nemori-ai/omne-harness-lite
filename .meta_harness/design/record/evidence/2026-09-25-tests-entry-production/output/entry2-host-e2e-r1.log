@@ -1,0 +1,44 @@
+
+> @omne-harness-lite/tenancy-host@0.0.0 test:e2e /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/tenancy-host
+> vitest run tests/e2e
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/tenancy-host
+
+ ❯ tests/e2e/e2e.spec.ts (46 tests | 1 failed) 28061ms
+       × [手动演练入口] walk.ts 与套件共用驱动器：另起一个 Node 进程走注册→登录→建组织→邀请→接受；它打印的东西里没有一样能当出示物用 741ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/e2e.spec.ts > e2e：治理中心作为可部署应用的黑盒旅程（部署方式起进程，另一进程只凭线上契约驱动） > 三、PF-001 主要旅程与分支 [PF-001 flows §1.1～1.8、§二；PF-017 §一 第 4、5 行] > [手动演练入口] walk.ts 与套件共用驱动器：另起一个 Node 进程走注册→登录→建组织→邀请→接受；它打印的东西里没有一样能当出示物用
+AssertionError: switchTenant: expected a result, got invalid-input
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ tests/e2e/e2e.spec.ts:1265:36
+    1265|     })
+    1266|
+    1267|     it('[手动演练入口] walk.ts 与套件共用驱动器：另起一个 Node 进程走注册→登录→建组织→邀请→接受；它打印的东西里…
+       |                            ^
+    1268|       scenario('walk-entry')
+    1269|       const walk = join(import.meta.dirname, 'walk.ts')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 45 passed (46)
+Type Errors  no errors
+   Start at  01:19:11
+   Duration  28.18s (transform 48ms, setup 0ms, import 64ms, tests 28.06s, environment 0ms)
+
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/tenancy-host:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/tenancy-host@0.0.0 test:e2e: `vitest run tests/e2e`
+Exit status 1

@@ -1,6 +1,6 @@
 {
-  "source": ".meta_harness/design/spec/data/mcp-endpoint/v1/examples.md",
-  "sourceSha256": "60482645b884718996f8a5ba0b84f4d911118afb1a4126c77f3b05e331c7b957",
+  "source": ".meta_harness/design/spec/data/mcp-endpoint/v2/examples.md",
+  "sourceSha256": "3fd1089fba522a5944c46ae2176fc3053297348eba49adc1dd6daaaf85a6c7f0",
   "cases": [
     {
       "id": "block-1",
@@ -244,7 +244,7 @@
         "domain": {
           "kind": "open",
           "schema": {
-            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v1/mcp-endpoint.schema.json#/$defs/McpTransport"
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json#/$defs/McpTransport"
           }
         },
         "default": {
@@ -265,7 +265,7 @@
         "domain": {
           "kind": "open",
           "schema": {
-            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef"
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json#/$defs/CredentialRef"
           }
         }
       },
@@ -284,7 +284,7 @@
           "schema": {
             "allOf": [
               {
-                "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json#/$defs/Duration"
+                "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json#/$defs/Duration"
               },
               {
                 "not": {
@@ -311,7 +311,7 @@
           "schema": {
             "allOf": [
               {
-                "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json#/$defs/Duration"
+                "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json#/$defs/Duration"
               },
               {
                 "not": {

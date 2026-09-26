@@ -20,9 +20,9 @@
 
 - 消费对象：research.md「问题与区分条件」、[C-1](research.md#c-1-候选的执行器与契约里重试件的位置对不上)、[C-3](research.md#c-3-退避序号要从事实里推出来库里的计数不跨进程)、[C-4](research.md#c-4-换家没有一个库能表达s-35-的产品规则全落在本项目代码里)。
 - 来源：本工作树 `panqiwei/assets-runtimes`，2026-09-25 读取。
-  - [契约 `capability.model-request-runtime` v1](../../design/spec/capabilities/model-request-runtime/v1/contract.md)：S-29、S-30、S-35、G-8、S-41。
+  - [契约 `capability.model-request-runtime` v2](../../design/spec/capabilities/model-request-runtime/v2/contract.md)：S-29、S-30、S-35、G-8、S-41。
   - [节点 model-request-runtime 设计](../../design/realization/packages/model/model-request-runtime/design.md)：P-5 一行与「S-35 默认重试件」操作落点一行。
-  - [D-043](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-6；D-040 N-33（`record/decisions/mainline-self-rulings-2026-09/decision.md`）。
+  - [D-063](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-6；D-060 N-33（`record/decisions/mainline-self-rulings-2026-09/decision.md`）。
 - 来源立场：本项目自己的候选契约与裁决，不是上游事实。
 - 实际观察（原文摘录）：
   - S-30 ④：「`after` 给出时**由 loop 在退避到期之后才调用本操作**——本能力不替它计时」。
@@ -30,7 +30,7 @@
   - S-30 守卫表：`already_spoke`、`fact_class`、`provider_not_allowed`；`plan` 只许 `provider`、`after` 两个成员。
   - S-35 的五条：只对 `upstream_unavailable`／`unrecognized` 出手；逐家一遍、每家至多一次；不允许回退时同家至多再试一次；`after` 取 `default_retry_backoff`；没有下一家即试尽。
   - 节点 P-5：「`defaultRetryBackoff`（逐次取值、超出列表取最后一值，停止只由 S-35 决定，N-33）……**默认 `[1000, 2000, 4000]` ms**」；S-35 落点：「P-5 登记的实现：纯函数（快照里的供应商次序、允不允许回退、已试过的家、最近成因）→ `retry { provider, after }` 或 `observed`」「零依赖」。
-  - D-043 R-6：「重试是**可配置策略**（次数、退避种类、基数、倍率、上限、抖动、哪些失败才重试），默认值只是配置初值；调度复用成熟 TS 库（候选 `cockatiel`、`p-retry`，按 research 取证后钉版）；产品规则（同家至多一次、逐家一遍才停）仍由契约 S-35 与 S16-g 约束策略」。
+  - D-063 R-6：「重试是**可配置策略**（次数、退避种类、基数、倍率、上限、抖动、哪些失败才重试），默认值只是配置初值；调度复用成熟 TS 库（候选 `cockatiel`、`p-retry`，按 research 取证后钉版）；产品规则（同家至多一次、逐家一遍才停）仍由契约 S-35 与 S16-g 约束策略」。
 - 支持范围：重试件在本项目里的角色是「给结论」，不是「执行」；这是候选契约当前正文，契约改分工则 C-1 的前提变。
 
 ## E2 npm 注册表元数据与周下载量

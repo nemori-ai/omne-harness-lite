@@ -15,7 +15,7 @@ import {
 } from '@omne-harness-lite/model-profile'
 
 const normative = new URL(
-  '../../../../.meta_harness/design/spec/data/model-profile/v1/',
+  '../../../../.meta_harness/design/spec/data/model-profile/v2/',
   import.meta.url,
 )
 const examples = readFileSync(new URL('examples.md', normative), 'utf8')

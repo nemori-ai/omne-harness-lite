@@ -1,0 +1,49 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 96 and seed -5886688812226278926 with 1 worker on 16 cores with 7122MB heap and 64MB offheap memory [pid: 1] (Linux 6.12.54-linuxkit aarch64, Oracle Corporation 25.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /model/ExpectedTenant.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module ExpectedTenant
+Starting... (2026-09-24 15:39:19)
+Computing initial states...
+Finished computing initial states: 2 distinct states generated at 2026-09-24 15:39:20.
+Error: Invariant AppliedExpected is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ checked = "none"
+/\ selected = t1
+/\ effect = "none"
+/\ pc = "ready"
+/\ expected = t1
+
+State 2: <Switch line 15, col 11 to line 17, col 56 of module ExpectedTenant>
+/\ checked = "none"
+/\ selected = t2
+/\ effect = "none"
+/\ pc = "ready"
+/\ expected = t1
+
+State 3: <Check line 19, col 10 to line 23, col 52 of module ExpectedTenant>
+/\ checked = t2
+/\ selected = t2
+/\ effect = "none"
+/\ pc = "checked"
+/\ expected = t1
+
+State 4: <Commit line 27, col 11 to line 30, col 54 of module ExpectedTenant>
+/\ checked = t2
+/\ selected = t2
+/\ effect = t2
+/\ pc = "done"
+/\ expected = t1
+
+17 states generated, 11 distinct states found, 3 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 1 (minimum is 1, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-09-24 15:39:20)

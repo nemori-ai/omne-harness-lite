@@ -2,13 +2,13 @@
 
 - 调查对象与日期：npm 上的 `cockatiel@4.0.0`、`p-retry@8.0.1`、`retry@0.13.1`、`exponential-backoff@3.1.3`、`async-retry@1.3.3`、`ts-retry-promise@0.8.1`、
   `@lifeomic/attempt@3.1.0`、`promise-retry@2.0.1`；参照 Python `tenacity@9.1.4` 与 `effect@3.22.2` 的 `Schedule`。全部取证于 **2026-09-25**，本机 Node `v24.18.0`、npm `11.16.0`、TypeScript `6.0.3`。
-- 消费者：[D-043 R-6](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 的三个落点——
+- 消费者：[D-063 R-6](../../design/record/decisions/assets-runtimes-rulings-2026-09-25/README.md) 的三个落点——
   [model-request-runtime 节点](../../design/realization/packages/model/model-request-runtime/design.md) P-5 改写、
-  [契约 G-8](../../design/spec/capabilities/model-request-runtime/v1/contract.md#十二已知缺口) 改成「策略配置项与默认初值」、实施边界 W-10b。
+  [契约 G-8](../../design/spec/capabilities/model-request-runtime/v2/contract.md#十二已知缺口) 改成「策略配置项与默认初值」、实施边界 W-10b。
 - 最近核对：2026-09-25 / 上述版本。
 - 当前结论：**八个候选的主接口全是「执行器」**——包住一个函数，在进程里循环「调用→捕获→睡→再调用」；
-  而本项目契约里的重试件是「判定者」——它只交回一条 `retry { provider, after }`，等待与再发归 loop（[S-30](../../design/spec/capabilities/model-request-runtime/v1/contract.md#s-30-dispatchagain) ④），
-  一次发出之内不许藏重试（[S-29](../../design/spec/capabilities/model-request-runtime/v1/contract.md#s-29-dispatch) 末条）。
+  而本项目契约里的重试件是「判定者」——它只交回一条 `retry { provider, after }`，等待与再发归 loop（[S-30](../../design/spec/capabilities/model-request-runtime/v2/contract.md#s-30-dispatchagain) ④），
+  一次发出之内不许藏重试（[S-29](../../design/spec/capabilities/model-request-runtime/v2/contract.md#s-29-dispatch) 末条）。
   所以候选的执行器原样放不进重试件；能搬过来的只剩**延迟怎么算**和**配置项怎么叫**。把延迟计算作为公开、无副作用接口交出来的只有
   `cockatiel`（不可变的退避对象链）、`retry`（`createTimeout`）和 `@lifeomic/attempt`（`defaultCalculateDelay`）三个；
   `p-retry` 的执行器最完整（睡眠可被 `AbortSignal` 打断、谓词与钩子齐全），但它的延迟计算是模块私有的。
@@ -16,8 +16,8 @@
 
 ## 问题与区分条件
 
-D-043 R-6 要的是：重试做成**可配置策略**（次数、退避种类、基数、倍率、上限、抖动、哪些失败才重试），默认值只是配置初值，
-「调度复用成熟 TS 库」，产品规则仍由 [S-35](../../design/spec/capabilities/model-request-runtime/v1/contract.md#s-35-默认重试件可替换) 与 D-040 S16-g 约束。
+D-063 R-6 要的是：重试做成**可配置策略**（次数、退避种类、基数、倍率、上限、抖动、哪些失败才重试），默认值只是配置初值，
+「调度复用成熟 TS 库」，产品规则仍由 [S-35](../../design/spec/capabilities/model-request-runtime/v2/contract.md#s-35-默认重试件可替换) 与 D-060 S16-g 约束。
 
 一个重试库在这件事里可能扮演三种角色，要分开看：
 
@@ -86,7 +86,7 @@ D-043 R-6 要的是：重试做成**可配置策略**（次数、退避种类、
 - **观察**：八个候选的主接口都是执行器（[E5](evidence.md#e5-cockatiel-400)–[E11](evidence.md#e11-lifeomicattempt-310)）。契约里重试件只交回结论，`after` 到期后由 loop 调 `dispatchAgain`，本能力「不替它计时」；传输不得在一次发出之内藏重试；P-5 是零依赖的纯函数（[E1](evidence.md#e1-本项目对重试件的约束契约节点与裁决)）。
 - **因此不可能**：把任何候选的执行器原样装进 P-5 而同时满足 S-30 ④（等待不在件里）与节点里「纯函数」的写法。执行器在自己的循环里再调用，这次再发就绕过了 S-30 的三道守卫、`canDispatchAgain` 与「已出门」留痕。
 - **代价**：若把 R-6 的「调度复用成熟 TS 库」读成「让库执行等待与再发」，就要改契约的分工（那是设计变更）；若不改，库只能以「延迟计算 + 配置词汇」两种角色进来。
-- 适用范围：上述八个包的当前版本；契约 `capability.model-request-runtime` v1 候选当前正文。
+- 适用范围：上述八个包的当前版本；契约 `capability.model-request-runtime` v2 候选当前正文。
 
 ### C-2 能单独交出延迟计算的只有三个
 
@@ -105,7 +105,7 @@ D-043 R-6 要的是：重试做成**可配置策略**（次数、退避种类、
 ### C-4 「换家」没有一个库能表达，S-35 的产品规则全落在本项目代码里
 
 - **观察**：没有候选有「目标／供应商／回退链」的概念；`cockatiel` 的 `fallback` 是返回替代值，不是换下一个目标。在执行器里换家只能让被包函数按尝试序号去索引一张供应商表（[E12](evidence.md#e12-行为探针node-v24180) P5：cockatiel 用 `context.attempt`、p-retry 用 `attemptNumber` 都能跑通；`exponential-backoff` 与 `ts-retry-promise` 的被包函数不收参数，要靠外部可变计数）。
-- **因此不可能**：用任何库的配置表达 S-35 的「只对策略类成因出手」「按快照次序逐家一遍、每家至多一次」「不允许回退时同家至多一次」「没有下一家即试尽」，也不能表达 S-30 的三道守卫。R-6 七个维度里的「次数」在 S-35 下不是一个独立参数：停止只由 S-35 决定（D-040 N-33），次数由允许的供应商个数和回退声明推出。
+- **因此不可能**：用任何库的配置表达 S-35 的「只对策略类成因出手」「按快照次序逐家一遍、每家至多一次」「不允许回退时同家至多一次」「没有下一家即试尽」，也不能表达 S-30 的三道守卫。R-6 七个维度里的「次数」在 S-35 下不是一个独立参数：停止只由 S-35 决定（D-060 N-33），次数由允许的供应商个数和回退声明推出。
 - **代价**：库能接管的只有 `after` 的取值；下一家是谁、要不要再试，任何选择下都要自己写、自己测。
 - 适用范围：上述版本。
 
@@ -169,7 +169,7 @@ D-043 R-6 要的是：重试做成**可配置策略**（次数、退避种类、
 
 **若判据 ① 被拿掉**（即契约改成让重试件自己执行等待与再发），次序会变：`p-retry` 升到第一（取消、谓词、钩子、维护都最好），`cockatiel` 第二（但要先解决睡眠不看信号），`exponential-backoff` 第三。那一读法与 C-1 所列的 S-30 ④、S-29 末条冲突，是否改分工不归本调查。
 
-另一个始终存在的参照点：P-5 当前是零依赖的纯函数，退避取 `[1000, 2000, 4000]` 列表（D-040 N-33、M67）。任何候选进来都把「零依赖」变成「一个依赖」；三个满足判据 ① 的候选里，被用到的部分都是十余行的算术（[E5](evidence.md#e5-cockatiel-400)、[E7](evidence.md#e7-retry-0131)、[E11](evidence.md#e11-lifeomicattempt-310) 的源码原样在 `sources/lib/`）。
+另一个始终存在的参照点：P-5 当前是零依赖的纯函数，退避取 `[1000, 2000, 4000]` 列表（D-060 N-33、M67）。任何候选进来都把「零依赖」变成「一个依赖」；三个满足判据 ① 的候选里，被用到的部分都是十余行的算术（[E5](evidence.md#e5-cockatiel-400)、[E7](evidence.md#e7-retry-0131)、[E11](evidence.md#e11-lifeomicattempt-310) 的源码原样在 `sources/lib/`）。
 
 ## 局限与未决
 

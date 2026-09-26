@@ -1,7 +1,7 @@
 # model-profile
 
 `@omne-harness-lite/model-profile` 实施已接受的
-[`data.model-profile` v1](../../../.meta_harness/design/spec/data/model-profile/v1/contract.md)。
+[`data.model-profile` v2](../../../.meta_harness/design/spec/data/model-profile/v2/contract.md)。
 采用与职责分配见[实现映射](../../../.meta_harness/design/realization/packages/core/model-profile/design.md)，
 接受与冻结以[registry](../../../.meta_harness/design/registry/README.md) 为准。
 

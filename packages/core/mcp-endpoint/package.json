@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.mcp-endpoint v1 pure representation judgments and explicit-input declarations",
+  "description": "data.mcp-endpoint v2 pure representation judgments and explicit-input declarations",
   "engines": {
     "node": ">=24.18.0 <25"
   },

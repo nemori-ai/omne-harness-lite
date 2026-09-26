@@ -1,0 +1,24 @@
+Scope: 7 of 16 workspace projects
+packages/core/identity-values build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/storage build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build: Done
+packages/core/storage build: Done
+packages/core/identity-values build: Done
+packages/infra/storage-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build: Done
+packages/infra/storage-sql build: Done
+.../frontend/governance-center-client build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../frontend/governance-center-client build: Done
+packages/frontend/client-local-state build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/frontend/client-local-state build: src/store.ts(103,54): error TS2339: Property 'value' does not exist on type '{ kind: "value"; value: LocalRecord | null; json: string; } | { kind: "invalid" | "limit"; }'.
+packages/frontend/client-local-state build:   Property 'value' does not exist on type '{ kind: "invalid" | "limit"; }'.
+packages/frontend/client-local-state build: src/store.ts(105,125): error TS2339: Property 'json' does not exist on type '{ kind: "value"; value: LocalRecord | null; json: string; } | { kind: "invalid" | "limit"; }'.
+packages/frontend/client-local-state build:   Property 'json' does not exist on type '{ kind: "invalid" | "limit"; }'.
+packages/frontend/client-local-state build: src/store.ts(107,103): error TS2339: Property 'value' does not exist on type '{ kind: "value"; value: LocalRecord | null; json: string; } | { kind: "invalid" | "limit"; }'.
+packages/frontend/client-local-state build:   Property 'value' does not exist on type '{ kind: "invalid" | "limit"; }'.
+packages/frontend/client-local-state build: Failed
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/client-local-state@0.0.0 build: `node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json`
+Exit status 1

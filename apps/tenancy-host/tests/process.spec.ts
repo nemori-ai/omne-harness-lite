@@ -147,7 +147,10 @@ describe('交错 I-9：两进程属主排他，clock 租约在同一文件', () 
     ])
     const winner = outcomes[0].startsWith('serving') ? a : b
     const loserLine = outcomes[0].startsWith('serving') ? outcomes[1] : outcomes[0]
-    expect(outcomes.filter(o => o.startsWith('serving'))).toHaveLength(1)
+    expect(
+      outcomes.filter(o => o.startsWith('serving')),
+      JSON.stringify({ outcomes, a: a.stderr(), b: b.stderr() }),
+    ).toHaveLength(1)
     expect(loserLine).toBe('failed occupied')
 
     winner.send('dispose')
@@ -216,7 +219,7 @@ describe('进程入口（src/cli.ts）', () => {
     ])
   })
 
-  it('keygen <dir>：写四份文件、标准输出给出 _FILE 变量；同一目录再跑一次 ⇒ 退出 1、不覆盖；缺参数 ⇒ 退出 2', async () => {
+  it('keygen <dir>：写四份文件、标准输出给出 _FILE 变量；同一目录再跑一次 ⇒ 退出 1、不覆盖；缺参数 ⇒ 退出 64', async () => {
     const directory = join(tempDirectory('cli-keygen'), 'keys')
     const first = track(spawnCli(['keygen', directory], {}))
     expect(await first.exited()).toBe(0)
@@ -224,7 +227,7 @@ describe('进程入口（src/cli.ts）', () => {
     expect(await again.exited()).toBe(1)
     expect(again.stderr()).toContain('KeyFilesExist')
     const usage = track(spawnCli(['keygen'], {}))
-    expect(await usage.exited()).toBe(2)
+    expect(await usage.exited()).toBe(64)
     for (const name of ['activation-signing-key.pem', 'purge-verification-key.pem'])
       expect(existsSync(join(directory, name))).toBe(true)
   })
@@ -256,9 +259,9 @@ describe('AI S-32 的完整进程重启（另起一个 Node 进程打开同一�
     const revoked = await tlsExchange(
       d.port,
       JSON.stringify({
-        protocolVersion: '1',
+        protocolVersion: '2',
         presentedLoginState: session.loginState,
-        operation: 'capability.account-identity/v2#S-16',
+        operation: 'capability.account-identity/v3#S-16',
         payload: { loginStateHandle: session.loginStateHandle },
       }),
     )

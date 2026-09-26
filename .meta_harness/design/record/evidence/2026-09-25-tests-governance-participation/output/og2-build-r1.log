@@ -1,0 +1,36 @@
+
+> omne-harness-lite-workspace@ build /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' run build
+
+Scope: 14 of 15 workspace projects
+packages/core/identity-values build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/storage build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../frontend/governance-center-client build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/identity-values build: Done
+tools/ts-checks build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../frontend/governance-center-client build: Done
+packages/core/kernel-basis build: Done
+tools/ts-checks build: Done
+packages/core/storage build: Done
+packages/core/offer-expiry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/infra/storage-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build: Done
+packages/infra/storage-sql build: Done
+packages/infra/clock build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/infra/clock build: Done
+packages/tenancy/credential-verification build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/credential-verification build: Done
+packages/tenancy/account-identity build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/account-identity build: Done
+packages/tenancy/organization-governance build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/organization-governance build: src/purge.ts(41,31): error TS2322: Type '{ readonly ok: OrganizationId | undefined; } & Record<"failure", unknown>' is not assignable to type 'PurgeOutcome'.
+packages/tenancy/organization-governance build:   Type '{ readonly ok: OrganizationId | undefined; } & Record<"failure", unknown>' is not assignable to type '{ readonly ok: { readonly warrant: HandoffWarrant; }; }'.
+packages/tenancy/organization-governance build:     Types of property 'ok' are incompatible.
+packages/tenancy/organization-governance build:       Type 'OrganizationId | undefined' is not assignable to type '{ readonly warrant: HandoffWarrant; }'.
+packages/tenancy/organization-governance build:         Type 'undefined' is not assignable to type '{ readonly warrant: HandoffWarrant; }'.
+packages/tenancy/organization-governance build: Failed
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/organization-governance:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/organization-governance@0.0.0 build: `node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json`
+Exit status 1
+ ELIFECYCLE  Command failed with exit code 1.

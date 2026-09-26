@@ -35,17 +35,20 @@ export interface AccountRow {
   readonly account_id: string
   readonly login_identifier: string
   readonly credential_material: string
+  readonly credential_revision: number | string
   readonly activated: StoredFlag
   readonly produced_at: StoredInstant
   readonly retention_deadline: StoredInstant
   readonly expired_at: StoredInstant | null
 }
 
-/** 登录状态记录（S-9）：恰四列，**没有出示物，也没有任何由出示物得来的第二个字段**（S-45、S-46）。 */
+/** 登录状态记录（S-9）：含签发/活动与代次，**没有出示物，也没有任何由出示物得来的第二个字段**（S-45、S-46）。 */
 export interface LoginStateRow {
   readonly login_state_id: string
   readonly account_id: string
   readonly issued_at: StoredInstant
+  readonly last_activity_at: StoredInstant
+  readonly credential_revision: number | string
   readonly revoked: StoredFlag
 }
 
@@ -93,10 +96,59 @@ const accountIdentityTables: Migration = {
   },
 }
 
+const boundedLoginMigration: Migration = {
+  async up(db) {
+    // SQLite's migrator does not wrap DDL. This fragment needs its own atomic
+    // boundary so the complete column set also entails the legacy-data update.
+    if (!db.isTransaction) {
+      await db.transaction().execute(tx => boundedLoginMigration.up(tx))
+      return
+    }
+    // The host requires fragments to be idempotent. A completed migration must
+    // neither add columns again nor revoke logins issued after the upgrade.
+    const tables = await db.introspection.getTables()
+    const present = [
+      [ACCOUNT_TABLE, 'credential_revision'],
+      [LOGIN_STATE_TABLE, 'credential_revision'],
+      [LOGIN_STATE_TABLE, 'last_activity_at'],
+    ].map(
+      ([table, column]) =>
+        tables.find(entry => entry.name === table)?.columns.some(entry => entry.name === column) ??
+        false,
+    )
+    if (present.every(Boolean)) return
+    if (present.some(Boolean)) throw new StorageDefect('incomplete bounded login migration')
+    await db.schema
+      .alterTable(ACCOUNT_TABLE)
+      .addColumn('credential_revision', 'bigint', c => c.notNull().defaultTo(0))
+      .execute()
+    await db.schema
+      .alterTable(LOGIN_STATE_TABLE)
+      .addColumn('credential_revision', 'bigint', c => c.notNull().defaultTo(0))
+      .execute()
+    await db.schema
+      .alterTable(LOGIN_STATE_TABLE)
+      .addColumn('last_activity_at', 'bigint', c => c.notNull().defaultTo(0))
+      .execute()
+    await db
+      .updateTable(LOGIN_STATE_TABLE)
+      .set(eb => ({ revoked: FLAG_TRUE, last_activity_at: eb.ref('issued_at') }))
+      .execute()
+  },
+}
+
 /** 本包的迁移片段：名字包内稳定、只追加不重排（tenancy-host M-9）。两张表一个片段。 */
 export const accountIdentityMigrations: readonly MigrationFragment[] = [
   { name: 'account_identity', migration: accountIdentityTables },
+  { name: 'account_identity_bounded_logins', migration: boundedLoginMigration },
 ]
+
+export function storedRevision(value: number | string): number {
+  const revision = typeof value === 'string' ? Number(value) : value
+  if (!Number.isSafeInteger(revision) || revision < 0)
+    throw new StorageDefect('stored credential revision is not a nonnegative safe integer')
+  return revision
+}
 
 // ---- 从存储读回的值：本包自己写进去的，形状不对即存储缺陷，不是调用方的输入错误 ----
 

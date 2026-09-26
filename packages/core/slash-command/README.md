@@ -1,9 +1,9 @@
 # @omne-harness-lite/slash-command
 
-`data.slash-command` v1 的纯 TypeScript 实现。采用版本及接受依据见
+`data.slash-command` v2 的纯 TypeScript 实现。采用版本及接受依据见
 [registry](../../../.meta_harness/design/registry/README.md)，接口及调用前提见
 [realization](../../../.meta_harness/design/realization/packages/core/slash-command/design.md)，
-规范例与判定次序见[契约](../../../.meta_harness/design/spec/data/slash-command/v1/contract.md)。
+规范例与判定次序见[契约](../../../.meta_harness/design/spec/data/slash-command/v2/contract.md)。
 
 公开入口提供 `recognize`、`parseInvocation`、`expandPrompt`、`expandSkill`，
 `judgeSlashCommand`、`judgeInvocation`、九个固定 Schema 定义的 `validate` 与

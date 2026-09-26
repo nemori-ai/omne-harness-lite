@@ -1,0 +1,1 @@
+{"status":"PASS","platform":"linux","arch":"arm64","node":"v24.21.0","checks":["register/activate","successful activity extends idle","change invalidates old login","old credential rejected","idle equality rejected"],"limits":"Local provider assembly only; no CLI/TUI or remote HTTPS claim"}

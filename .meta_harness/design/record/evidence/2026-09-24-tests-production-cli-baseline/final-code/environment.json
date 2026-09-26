@@ -1,0 +1,5 @@
+{
+  "TMPDIR": "/tmp",
+  "OMNE_TEST_ALTERNATE_SOURCE_ADDRESS": "10.241.31.200",
+  "node": "v24.21.0"
+}

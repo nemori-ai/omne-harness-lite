@@ -3,7 +3,7 @@ import type { CapabilityId } from '@omne-harness-lite/content-blocks'
 import type { ToolDefinition } from './types.ts'
 
 const id =
-  'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json'
+  'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json'
 export function toolAttributeDeclarations(
   definition: ToolDefinition,
 ): readonly AttributeDeclaration[] {

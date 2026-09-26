@@ -1,6 +1,7 @@
 // storage-sql 的 config：方言可辨识联合 + 迁移 + 升级守卫的显式二选一（design.md「方言配置形状」「守卫为什么显式开启」）。
 import type { MigrationProvider } from 'kysely/migration'
 import { z } from 'zod'
+import { isAbsolute } from 'node:path'
 import type { PreflightCheck } from '@omne-harness-lite/storage'
 import { UpgradeGuard } from './upgrade/guard.ts'
 
@@ -33,6 +34,7 @@ export const StorageSqlConfig = z
   .discriminatedUnion('dialect', [
     z.object({
       dialect: z.literal('sqlite'),
+      synchronous: z.enum(['normal', 'full']).optional(),
       file: z
         .string()
         .min(1)
@@ -42,6 +44,15 @@ export const StorageSqlConfig = z
         ),
       migrations: migrationProvider.optional(),
       upgrade: upgrade.optional(),
+      maintenance: z
+        .object({
+          workDirectory: z.string().refine(isAbsolute),
+          onClosed: z.custom<(status: 'clean' | 'error') => void>(
+            value => typeof value === 'function',
+          ),
+        })
+        .strict()
+        .optional(),
     }),
     z.object({
       dialect: z.literal('postgres'),
@@ -51,6 +62,16 @@ export const StorageSqlConfig = z
     }),
   ])
   .superRefine((config, ctx) => {
+    if (
+      config.dialect === 'sqlite' &&
+      config.maintenance !== undefined &&
+      (config.upgrade === undefined || config.upgrade === false)
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['maintenance'],
+        message: 'snapshot maintenance requires an owned upgrade guard',
+      })
     if (config.migrations !== undefined && config.upgrade === undefined)
       ctx.addIssue({
         code: 'custom',

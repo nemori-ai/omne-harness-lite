@@ -1,7 +1,7 @@
 import schema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
-import expirySchema from '@omne-harness-lite/offer-expiry/schema' with { type: 'json' }
+import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import { LosslessNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { Ajv2020 } from 'ajv/dist/2020.js'
 import { isObject, jsonValue } from './json.ts'

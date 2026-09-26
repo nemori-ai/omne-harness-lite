@@ -2,7 +2,7 @@
 
 `@omne-harness-lite/content-blocks` implements the public pure module described by
 [the accepted realization node](../../../.meta_harness/design/realization/packages/core/content-blocks/design.md),
-adopting [data.content-blocks v1](../../../.meta_harness/design/spec/data/content-blocks/v1/contract.md)
+adopting [data.content-blocks v2](../../../.meta_harness/design/spec/data/content-blocks/v2/contract.md)
 (D-041 / D-042 / D-045). It requires Node `>=24.18.0 <25` and uses Ajv 8.20.0 Draft 2020-12.
 
 Import from the package root for types and functions. `./schema` exports the unchanged

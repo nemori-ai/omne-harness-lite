@@ -3,7 +3,7 @@
 import type { CredentialMaterial } from '@omne-harness-lite/credential-verification'
 import type { AccountId, LoginIdentifier, LoginStateId } from '@omne-harness-lite/identity-values'
 import { type Clock, type Instant, compareInstants } from '@omne-harness-lite/offer-expiry'
-import { narrow, type ReadTx, type WriteTx } from '@omne-harness-lite/storage'
+import { StorageUnavailable, narrow, type ReadTx, type WriteTx } from '@omne-harness-lite/storage'
 import {
   ACCOUNT_TABLE,
   type AccountIdentityDb,
@@ -12,6 +12,8 @@ import {
   storedAccountId,
   storedFlag,
   storedInstant,
+  storedRevision,
+  type LoginStateRow,
 } from './schema.ts'
 
 export function selectAccountByIdentifier(
@@ -64,7 +66,7 @@ export function classifyAccount(
   if (compareInstants(now, storedInstant(row.retention_deadline)) > 0) {
     return { kind: 'expired', accountId, landed: false, observedAt: now }
   }
-  // 材料列只由 S-13 的插入写入一次，写进去的就是 `credentials.derive` 的返回；本包只存不读它的内部（SC-CV-1）
+  // 材料列由 S-13 产生、S-50 替换，写进去的就是 `credentials.derive` 的返回；本包只存不读它的内部（SC-CV-1）
   return { kind: 'live', accountId, material: row.credential_material as CredentialMaterial }
 }
 
@@ -105,30 +107,65 @@ export async function landExpiry(tx: WriteTx, accountId: AccountId, now: Instant
     .execute()
 }
 
-/**
- * S-17 的判定（S-44 调同一个函数）：查不到／已撤销／所属账号未激活 ⇒ 同一个 `login-state-rejected`；
- * 返回类型里没有 `invalid-input`——S-44 表里「S-17 出口 `invalid-input` ⇒ 结构上到不了」由类型兑现。
- * 读不到的存储以异常到达调用方，由它收成 `storage-unavailable`。
- */
+export const LOGIN_ABSOLUTE_MS = 28_800_000
+export const LOGIN_IDLE_MS = 3_600_000
+
+export function loginDeadlines(row: LoginStateRow): {
+  issuedAt: Instant
+  lastActivityAt: Instant
+  absoluteExpiresAt: Instant
+  idleExpiresAt: Instant
+} {
+  const issuedAt = storedInstant(row.issued_at)
+  const lastActivityAt = storedInstant(row.last_activity_at)
+  const absolute = issuedAt + LOGIN_ABSOLUTE_MS
+  const idle = lastActivityAt + LOGIN_IDLE_MS
+  if (!Number.isSafeInteger(absolute) || !Number.isSafeInteger(idle))
+    throw new StorageUnavailable('login deadline overflow')
+  return {
+    issuedAt,
+    lastActivityAt,
+    absoluteExpiresAt: absolute as Instant,
+    idleExpiresAt: idle as Instant,
+  }
+}
+
+export function trustedNow(clock: Clock): Instant {
+  const now = clock.now()
+  if (now === 'unavailable') throw new StorageUnavailable('login clock unavailable')
+  return now
+}
+
+export function loginValidAt(row: LoginStateRow, revision: number, now: Instant): boolean {
+  if (storedFlag(row.revoked) || storedRevision(row.credential_revision) !== revision) return false
+  const limits = loginDeadlines(row)
+  return now < limits.absoluteExpiresAt && now < limits.idleExpiresAt
+}
+
+/** Caller holds the common transaction boundary. This function never opens a read connection. */
 export async function judgeLoginState(
   tx: ReadTx,
   loginStateId: LoginStateId,
+  clock: Clock,
 ): Promise<{ readonly ok: AccountId } | { readonly failure: 'login-state-rejected' }> {
   const db = narrow<AccountIdentityDb>(tx)
   const state = await db
     .selectFrom(LOGIN_STATE_TABLE)
-    .select(['account_id', 'revoked'])
+    .selectAll()
     .where('login_state_id', '=', loginStateId)
     .executeTakeFirst()
   if (state === undefined || storedFlag(state.revoked)) return LOGIN_STATE_REJECTED
   const accountId = storedAccountId(state.account_id)
-  const account = await db
-    .selectFrom(ACCOUNT_TABLE)
-    .select(['activated'])
-    .where('account_id', '=', accountId)
-    .executeTakeFirst()
-  if (account === undefined || !storedFlag(account.activated)) return LOGIN_STATE_REJECTED
-  return { ok: accountId }
+  const account = await selectAccountById(tx, accountId)
+  if (
+    account === undefined ||
+    !storedFlag(account.activated) ||
+    storedRevision(state.credential_revision) !== storedRevision(account.credential_revision)
+  )
+    return LOGIN_STATE_REJECTED
+  return loginValidAt(state, storedRevision(account.credential_revision), trustedNow(clock))
+    ? { ok: accountId }
+    : LOGIN_STATE_REJECTED
 }
 
 const LOGIN_STATE_REJECTED = { failure: 'login-state-rejected' } as const

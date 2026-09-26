@@ -1,3 +1,4 @@
+import * as runner from 'vitest'
 // pg 方言本程只接线不跑：需要一个可连的 PostgreSQL（环境变量 OMNE_TEST_PG_URL）。跳过不是通过（verification 登记）。
 import { describe, it } from 'vitest'
 import { describeStorageConformance } from '@omne-harness-lite/storage/conformance'
@@ -9,7 +10,9 @@ if (url === undefined) {
     it('skipped', () => {})
   })
 } else {
-  describeStorageConformance('postgres', () =>
-    openStorage({ dialect: 'postgres', connectionString: url }),
+  describeStorageConformance(
+    'postgres',
+    () => openStorage({ dialect: 'postgres', connectionString: url }),
+    runner,
   )
 }

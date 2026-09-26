@@ -18,3 +18,4 @@ export {
 } from './lease.ts'
 export { clockPreflight, CLOCK_PREFLIGHT_CHECK } from './preflight.ts'
 export { clockPlugin, ClockConfig, CLOCK_SERVICE } from './plugin.ts'
+export { clockSnapshotCheck, CLOCK_SNAPSHOT_TABLES } from './snapshot.ts'

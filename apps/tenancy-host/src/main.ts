@@ -1,68 +1,106 @@
-// 进程形态（architecture「拓扑与进程模型」：建包时定）：两条子命令。
+// 进程形态（architecture「拓扑与进程模型」：建包时定）：服务、部署密钥和本机维护命令。
 //   keygen <dir>  一次性生成两对部署密钥，写四份 0600 PEM；标准输出给出四个 `_FILE` 变量与路径（不含密钥内容）。
-//   serve         从环境变量起治理中心；SIGTERM／SIGINT ⇒ 逆序撤除 ⇒ 撤完退出 0，撤除总超时 ⇒ 退出 1；启动失败 ⇒ 退出 1。
+//   serve         从环境变量起治理中心；SIGTERM／SIGINT ⇒ 逆序撤除 ⇒ 撤完退出 0，30秒仅诊断继续等；收场未确认或启动失败 ⇒ 退出 1。
 // 启动失败与撤除的结构化记录由 boot() 写进标准错误流（JSONL）；本模块只决定退出码。
-import { boot } from './boot.ts'
-import { generateKeyFiles } from './keys.ts'
 
-export const EXIT = { ok: 0, failed: 1, usage: 2 } as const
+export const EXIT = { ok: 0, failed: 1, usage: 64 } as const
 
 export interface MainIo {
-  readonly stdout: (line: string) => void
-  readonly stderr: (line: string) => void
+  readonly stdout: (line: string) => void | Promise<void>
+  readonly stderr: (line: string) => void | Promise<void>
   /** 等到一个停机信号。 */
   readonly shutdownSignal: () => Promise<string>
+  readonly releaseShutdownSignal?: () => void
 }
 
-const processIo: MainIo = {
-  stdout: line => void process.stdout.write(line),
-  stderr: line => void process.stderr.write(line),
-  shutdownSignal: () =>
-    new Promise(resolve => {
-      const stop = (signal: string) => {
-        process.off('SIGTERM', stop)
-        process.off('SIGINT', stop)
-        resolve(signal)
-      }
-      process.on('SIGTERM', stop)
-      process.on('SIGINT', stop)
-    }),
+function createProcessIo(): MainIo {
+  let release = () => {}
+  return {
+    stdout: line =>
+      new Promise<void>((resolve, reject) =>
+        process.stdout.write(line, error => (error ? reject(error) : resolve())),
+      ),
+    stderr: line =>
+      new Promise<void>((resolve, reject) =>
+        process.stderr.write(line, error => (error ? reject(error) : resolve())),
+      ),
+    shutdownSignal: () =>
+      new Promise(resolve => {
+        const stop = (signal: string) => {
+          release()
+          resolve(signal)
+        }
+        release = () => {
+          process.off('SIGTERM', stop)
+          process.off('SIGINT', stop)
+        }
+        process.on('SIGTERM', stop)
+        process.on('SIGINT', stop)
+      }),
+    releaseShutdownSignal: () => release(),
+  }
 }
 
-const USAGE = 'usage: tenancy-host keygen <directory> | tenancy-host serve\n'
+const USAGE =
+  'usage: tenancy-host keygen <directory> | serve | ops --socket-dir <absolute> full-health|backup [--only-if-due]|backup-status | verify --source <absolute> --work-dir <absolute> | restore-isolated --source <absolute> --target <new-absolute-directory> --work-dir <absolute>\n'
 
-export async function main(argv: readonly string[], io: MainIo = processIo): Promise<number> {
+export async function main(
+  argv: readonly string[],
+  io: MainIo = createProcessIo(),
+): Promise<number> {
   const [command, ...rest] = argv
   if (command === 'keygen') {
     const [directory] = rest
     if (directory === undefined || rest.length !== 1) {
-      io.stderr(USAGE)
+      await io.stderr(USAGE)
       return EXIT.usage
     }
     try {
+      const { generateKeyFiles } = await import('./keys.ts')
       const files = await generateKeyFiles(directory)
-      io.stdout(`${JSON.stringify({ event: 'keys-generated', files })}\n`)
+      await io.stdout(`${JSON.stringify({ event: 'keys-generated', files })}\n`)
       return EXIT.ok
     } catch (error) {
       const name = error instanceof Error ? error.name : typeof error
       const message = error instanceof Error ? error.message : 'non-error value thrown'
-      io.stderr(`${JSON.stringify({ event: 'keygen-failed', errorType: name, message })}\n`)
+      await io.stderr(`${JSON.stringify({ event: 'keygen-failed', errorType: name, message })}\n`)
       return EXIT.failed
     }
   }
   if (command === 'serve' && rest.length === 0) {
-    // 先登记信号：启动途中收到的停机信号不丢，在 boot() 结束后按顺序撤除
     const signal = io.shutdownSignal()
-    let host
     try {
-      host = await boot()
+      const { boot } = await import('./boot.ts')
+      const host = await boot()
+      await signal
+      const disposal = await host.dispose()
+      return disposal.complete ? EXIT.ok : EXIT.failed
     } catch {
       return EXIT.failed
+    } finally {
+      io.releaseShutdownSignal?.()
     }
-    await signal
-    const disposal = await host.dispose()
-    return disposal.complete ? EXIT.ok : EXIT.failed
   }
-  io.stderr(USAGE)
+  if (command === 'ops' || command === 'verify' || command === 'restore-isolated') {
+    const { parseMaintenanceCommand, runMaintenanceCommand } =
+      await import('./maintenance-command.ts')
+    const parsed = parseMaintenanceCommand(argv)
+    if (parsed === undefined) {
+      await io.stderr(USAGE)
+      return EXIT.usage
+    }
+    const abort = new AbortController()
+    const signal = io.shutdownSignal()
+    void signal.then(
+      () => abort.abort(),
+      () => abort.abort(),
+    )
+    try {
+      return await runMaintenanceCommand(parsed, io, abort.signal)
+    } finally {
+      io.releaseShutdownSignal?.()
+    }
+  }
+  await io.stderr(USAGE)
   return EXIT.usage
 }

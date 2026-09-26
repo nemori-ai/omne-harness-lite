@@ -19,5 +19,5 @@
 ## 仍未闭合的事项
 
 - **独立评审**：这是资产领域的基座级边界选择，按既有做法适合派 architecture-reviewer 做角色评审，或按中立 prompt 做强制二选一的独立投票（B 对 C、B 对 D），看反证是否互不重复；是否派、派哪种由主线定。
-- **接受**：推荐 B 已由 [D-039](../../decisions/assets-runtimes-split-and-rulings/README.md) 接受（2026-09-24，产品负责人「同意」）；领域名 `assets` 同决定拍板。接受的是拆分候选，不是契约。
+- **接受**：推荐 B 已由 [D-059](../../decisions/assets-runtimes-split-and-rulings/README.md) 接受（2026-09-24，产品负责人「同意」）；领域名 `assets` 同决定拍板。接受的是拆分候选，不是契约。
 - **交接缺口**十一项的拥有者与闭合条件见 [design.md](design.md#交接缺口)；评审完成不产生接受，也不闭合它们。

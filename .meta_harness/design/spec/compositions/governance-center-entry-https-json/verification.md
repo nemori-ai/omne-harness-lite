@@ -2,6 +2,42 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
+## v3 维护绑定候选
+
+2026-09-25：[HT3](v3/contract.md)为candidate，未接受；依赖EC3 candidate、IV1/OE2 accepted，产品依据PF-017 rev5/PF-016 rev7。
+
+| 性质与条款 | 证据义务 | 本轮状态／owner |
+|---|---|---|
+| S-11～S-15/S-21字节与数据引用 | [examples](v3/examples.md)24份完整HTTP报文的文本/十六进制/长度/摘要相符；新增payload/result按EC3定义核验 | **通过（工件检查）**；8份继承报文逐字节保持、16份新增报文符合引用定义，不证明真实网络实现 |
+| S-19客户端2与ops1独立 | 同构建上客户端原请求与旧字节相符；只有运维socket解释opsVersion，文件工具不上线 | **未开始**；入口与host版本映射 |
+| S-20/S-21运维解析、通道与下限 | 缺/多/错/重复字段、UTF-8/BOM/语法、深度64/成员1024、头8192/体65536/30秒的边界和优先级；禁止原body日志 | **未开始**；入口解析/服务器 |
+| S-21/S-23失败结果映射 | 所有EC闭合结果保持，required null不省略，unknown不变成功/未发生，unavailable不变无答复 | **未开始**；运维写出器与本机工具 |
+| S-5/S-20/S-23真实关闭 | 断连、写失败、网络排空期限不释放EC维护属主；新请求停止、已受理维护真实收场，无自动重做backup | **未开始**；入口、host与EC维护提供者真实组合 |
+
+本轮字节检查命令：`.venv/bin/python tmp/production-cli-onboarding/check-ht3.py`。
+实际输出：`PASS: 24 complete HTTP examples (8 inherited byte-identical, 16 new); text/hex/length/SHA-256 consistent; all new payloads/results match EC3 definitions.`
+原始输出在任务区`tmp/production-cli-onboarding/ht3-byte-check.log`，不是已归档的正式实现证据。
+本轮设计检查使用`.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal registered`，
+实际输出`PASS: design tree …/.meta_harness/design passed gate=internal; formal=registered.`，原始输出为任务区`tmp/production-cli-onboarding/ht3-design-check.log`。
+该次运行时HT3候选条目尚在交主线集成的片段中，因此本结果不冒称新catalog坐标已完成集成校验；集成后须再运行同一检查器。
+本版不新增Schema、TLA+/Alloy工件或formal task：共享表示只引用EC3，维护行为权威仍归EC3；本次**未运行形式工具**。
+
+### v3 变化的影响
+
+客户端已有字节/路由/协议号保持；绑定标签变为https-json/3，不能推导员工线上版本3。S-19/S-20/S-21/S-23/S-24/S-29/S-31明确运维解析、独立opsVersion、维护结果和工作归属；S-10/S-12明确共用边界及必需null，原客户端字节不变。
+HT1/HT2旧运维“任意成帧报文都回体检”证据不能复用于本版；运维嵌套/成员上界现已适用，必须重建解析、通道和真实关闭证据。EC3若改表示/结果须重新对齐本绑定，不能默默跟随。
+候选登记片段提供2份资源、3项精确依赖、未复核covers；编号族沿用、无新形式任务。G-2/G-3/G-4保留既有owner与范围，候选采用和真实适配验证尚未完成。
+
+2026-09-25独立评审修订：按主线裁定修正v3 S-29，停机排空界内完成的请求可答，超界仅结束网络交付，原owner仍负责已受理工作至真实结束；不增加超时取消或自动重试。与S-16/S-21/S-23及EC3 S-59对齐，字节例和共享表示未变；真实停机适配场景仍未开始。
+
+2026-09-25批内对齐：按主线裁定在HT3 S-16/S-21/S-23/S-29及examples明确“已受理运维EC独立defect未交合法结果→关闭无答复，本机ops-internal-defect”；底层输出自身出错单列传输失败，原owner与子资源继续真实收场。该诊断不是EC返回字段/status，客户端业务unavailable映射保持。与EC3 S-25/S-31/S-34/S-55/S-56/S-59核对操作名、只读体检与持久维护区别、闭合结果/必填null、目录与时间判定归属、断连/缺陷/unknown收场；两版均采用PF-017 rev5，catalog消费方向仍HT3→EC3，引用锚点/Schema定义保持。没有改旧冻结版、Schema、模型或registry。新增缺陷对照及真实连接场景**未开始**，字节例的既有通过不覆盖它们。
+
+同轮EC3收窄维护排他范围后，HT3 S-23的在线维护名额仍指同一中心部署属主的单槽；离线调用作用域/共享工作区边界留在EC3 S-57～S-59，文件工具不上线，不产生新运维动作或传输字段。
+
+批内对齐后已核对主线集成的catalog：HT3与EC3均为candidate，HT3精确消费EC3/IV1/OE2。重跑字节检查输出仍为24份完整HTTP例通过、旧8份不变；EC3样例108例通过。集成后的`check_design.py --formal registered`实际退出0，输出`PASS … gate=internal; formal=registered`，补齐上文首轮尚未集成时的检查范围；这不是形式工具或真实套接字执行结果。
+
+## 既有版本的证据
+
 > **当前状态：已接受并冻结（D-029，2026-09-23）。**实现测试的一次运行已入库：[`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（源码提交 `c9b5850`；入口层提供者是[实现映射节点](../../../realization/packages/tenancy/governance-center-entry/README.md)）。
 > V-1～V-9 与 V-11 都有通过的承担者；**V-10 无证据**（`apps/cli` 的客户端代理不存在）。承担者写成「文件 › describe › it」，文件都在入口层包 `packages/tenancy/governance-center-entry/tests/` 下；逐条状态在该 run 的 `cases.tsv`。
 > 「实际执行」一节另留起草者对 examples 的自检，它不是任何一条证据义务。**通过不提升或改变任何接受状态。**

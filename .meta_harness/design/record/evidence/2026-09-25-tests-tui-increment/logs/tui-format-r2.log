@@ -1,0 +1,10 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- apps/cli/src/tui/framer.ts apps/cli/src/tui/dialog.ts apps/cli/tests/tui-input.spec.ts apps/cli/tests/tui-application.spec.ts apps/cli/tests/tui-dialog.spec.ts apps/cli/tests/support/tui.ts
+
+apps/cli/src/tui/framer.ts 40ms
+apps/cli/src/tui/dialog.ts 14ms (unchanged)
+apps/cli/tests/tui-input.spec.ts 13ms
+apps/cli/tests/tui-application.spec.ts 8ms (unchanged)
+apps/cli/tests/tui-dialog.spec.ts 4ms (unchanged)
+apps/cli/tests/support/tui.ts 2ms (unchanged)

@@ -7,7 +7,7 @@
 // - 钟是服从 offer-expiry `Clock` 形状的包内替身：可前推、可答 'unavailable'、可按调用次序给脚本里的值，记下每一次读。
 // - 故障：`FaultyStorage` 包在真实存储外面——整体不可用、下一次写在开始前失败、下一次写在提交前失败（回滚）、
 //   下一次写停在提交前等放行。
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { format, inspect } from 'node:util'
@@ -32,11 +32,14 @@ import {
 import {
   type ReadTx,
   type Storage,
+  type AtomicStorage,
+  type StorageUnit,
+  StorageDefect,
   StorageUnavailable,
   type WriteTx,
   composeMigrations,
 } from '@omne-harness-lite/storage'
-import { type SqlStorage, openStorage } from '@omne-harness-lite/storage-sql'
+import { type SqlStorage, openStorage, createUpgradeGuard } from '@omne-harness-lite/storage-sql'
 import {
   DEFECT_EVENT,
   type GovernanceCenterEntryConfig,
@@ -47,6 +50,7 @@ import {
   type ServingNotice,
   governanceCenterEntryPlugin,
   governanceCenterMigrations,
+  governanceCenterSnapshotCheck,
   governanceCenterOpsPlugin,
 } from '../../src/index.ts'
 import {
@@ -79,8 +83,10 @@ export const FAST_CREDENTIALS = {
   keyBytes: 32,
 }
 
+export const OPS_HEALTH = '{"opsVersion":"1","operation":"full-health","payload":{}}'
+
 export function tempDirectory(label: string): string {
-  return mkdtempSync(join(tmpdir(), `omne-gce-${label}-`))
+  return realpathSync(mkdtempSync(join(tmpdir(), `omne-gce-${label}-`)))
 }
 
 export function tempSqliteFile(label: string): string {
@@ -181,7 +187,7 @@ export function deferred<T = void>(): Deferred<T> {
 // ---- 故障存储 ----
 
 /** 包在真实存储外面；故障以 `StorageUnavailable` 到达参与方，与真实的「存储不可用」走同一条映射。 */
-export class FaultyStorage implements Storage {
+export class FaultyStorage implements AtomicStorage {
   /** 整体不可用：每一次 read／write 在开始前失败。 */
   down = false
   reads = 0
@@ -191,6 +197,9 @@ export class FaultyStorage implements Storage {
   readonly #pauseBeforeCommit: Gate[] = []
 
   constructor(readonly inner: SqlStorage) {}
+  get maintenance() {
+    return this.inner.maintenance
+  }
 
   /** 下一次写事务在开始前失败（锁与读都没发生）。 */
   failNextWrite(): void {
@@ -207,6 +216,34 @@ export class FaultyStorage implements Storage {
     const g = gate()
     this.#pauseBeforeCommit.push(g)
     return g
+  }
+
+  async atomic<T>(fn: (unit: StorageUnit) => Promise<T>): Promise<T> {
+    this.writes += 1
+    if (this.down) throw new StorageUnavailable('injected: storage down')
+    if (this.#failNextWrite) {
+      this.#failNextWrite = false
+      throw new StorageUnavailable('injected: write failed before it began')
+    }
+    const failCommit = this.#failNextCommit
+    this.#failNextCommit = false
+    const pause = this.#pauseBeforeCommit.shift()
+    return this.inner.atomic(async unit => {
+      const wrapped: StorageUnit = {
+        assertStorage: expected => {
+          if (expected !== this) throw new StorageDefect('faulty storage mismatch')
+          unit.assertStorage(this.inner)
+        },
+        run: callback => unit.run(callback),
+        query: callback => unit.query(callback),
+        mutate: callback => unit.mutate(callback),
+        afterCommit: callback => unit.afterCommit(callback),
+      }
+      const value = await fn(wrapped)
+      if (pause !== undefined) await pause.wait()
+      if (failCommit) throw new StorageUnavailable('injected: commit failed')
+      return value
+    })
   }
 
   async read<T>(fn: (tx: ReadTx) => Promise<T>): Promise<T> {
@@ -324,12 +361,16 @@ export async function loadPlugin(ctx: Context, plugin: Plugin, config: unknown):
 
 export async function bootCenter(options: CenterOptions = {}): Promise<Center> {
   const file = options.file ?? tempSqliteFile(options.label ?? 'center')
+  const backupDirectory = tempDirectory('backups')
+  const guard = createUpgradeGuard()
   const raw = await openStorage({
     dialect: 'sqlite',
     file,
     migrations: composedMigrations(),
-    upgrade: false,
+    upgrade: { guard, checks: [] },
+    maintenance: { workDirectory: join(backupDirectory, '.quarantine'), onClosed() {} },
   })
+  await guard.confirm()
   const storage = new FaultyStorage(raw)
   const clock = options.clock ?? new ScriptedClock()
   const activation = generateHandoffKeyPair()
@@ -403,6 +444,13 @@ export async function bootCenter(options: CenterOptions = {}): Promise<Center> {
     socketDirectory,
     deploymentKey: { present: true, complete: true },
     deploymentParameters: { ...DEPLOYMENT_PARAMETERS },
+    maintenance: {
+      backupDirectory,
+      sourceBuildId: null,
+      migrationNames: Object.keys(await composedMigrations().getMigrations()),
+      snapshotChecks: [governanceCenterSnapshotCheck],
+      onClosed() {},
+    },
     ...options.opsConfig,
   }
   let storageFiber: Fiber | undefined = base.fibers[1]
@@ -465,7 +513,7 @@ export async function bootCenter(options: CenterOptions = {}): Promise<Center> {
       const reply = await tlsExchange(port, httpRequest(JSON.stringify(envelope)))
       return reply.bytes
     },
-    ops: (request = httpRequest('{}'), clientOptions) =>
+    ops: (request = httpRequest(OPS_HEALTH), clientOptions) =>
       unixExchange(center.socketPath, request, clientOptions),
     logText: () => messages.map(renderMessage).join('\n'),
     async dispose() {
@@ -493,11 +541,11 @@ export async function waitUntil(condition: () => boolean, timeoutMs = 5_000): Pr
 
 // ---- 线上的账号 ----
 
-export const REGISTER = 'composition.account-registration/v1#S-8'
-export const LOGIN = 'capability.account-identity/v2#S-15'
-export const REVOKE = 'capability.account-identity/v2#S-16'
-export const LIST_LOGINS = 'capability.account-identity/v2#S-37'
-export const OG = (clause: number) => `capability.organization-governance/v1#S-${String(clause)}`
+export const REGISTER = 'composition.account-registration/v2#S-8'
+export const LOGIN = 'capability.account-identity/v3#S-15'
+export const REVOKE = 'capability.account-identity/v3#S-16'
+export const LIST_LOGINS = 'capability.account-identity/v3#S-37'
+export const OG = (clause: number) => `capability.organization-governance/v2#S-${String(clause)}`
 export const HEALTH = 'composition.governance-center-entry/v1#S-18'
 
 export function envelopeOf(
@@ -506,8 +554,8 @@ export function envelopeOf(
   presentation?: string,
 ): Record<string, unknown> {
   return presentation === undefined
-    ? { protocolVersion: '1', operation, payload }
-    : { protocolVersion: '1', presentedLoginState: presentation, operation, payload }
+    ? { protocolVersion: '2', operation, payload }
+    : { protocolVersion: '2', presentedLoginState: presentation, operation, payload }
 }
 
 /** 答复的体（按 JSON 读）。 */

@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v1/skill-package.schema.json",
-  "title": "data.skill-package v1",
-  "description": "技能包的交换与存储表示：一份技能（UL-skill）资产版本的全部内容——SKILL.md 的清单头（Agent Skills 开放格式 69ef37e 的六个键）、SKILL.md 的正文、本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明、执行环境要求）、包内资源条目。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.skill-package/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员约束（资源路径互不相同且互不为前缀、设置项 item 互不相同、设置项 default 合它的取值域、清单头 name 等于所属能力标识的 name）由 contract.md S-24 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是八个拒绝值里的哪一个按 S-24 的次序定。SKILL.md 的文本形式与包的目录形式（S-20、S-21）不是 JSON，不在本 Schema 的范围内。外部引用：MediaType 取自 data.content-blocks v1（S-7）；CapabilityName、CapabilityId、AttributeDeclaration 取自 data.asset-model v1（S-2、S-3、S-12）；DependencyName 与 TargetEnvironment 取自 data.tool-definition v1（S-9、S-11）。执行环境要求是定义记录里的固定成员 environmentRequirement，不是设置项；settings 没有保留项名（S-15、S-32，D-040 §四 L3′、§六 N-13）。正反实例在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v2/skill-package.schema.json",
+  "title": "data.skill-package v2",
+  "description": "技能包的交换与存储表示：一份技能（UL-skill）资产版本的全部内容——SKILL.md 的清单头（Agent Skills 开放格式 69ef37e 的六个键）、SKILL.md 的正文、本项目的包内定义记录（组合的工具清单、外部服务依赖、设置项声明、执行环境要求）、包内资源条目。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.skill-package/v2 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员约束（资源路径互不相同且互不为前缀、设置项 item 互不相同、设置项 default 合它的取值域、清单头 name 等于所属能力标识的 name）由 contract.md S-24 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是八个拒绝值里的哪一个按 S-24 的次序定。SKILL.md 的文本形式与包的目录形式（S-20、S-21）不是 JSON，不在本 Schema 的范围内。外部引用：MediaType 取自 data.content-blocks v2（S-7）；CapabilityName、CapabilityId、AttributeDeclaration 取自 data.asset-model v2（S-2、S-3、S-12）；DependencyName 与 TargetEnvironment 取自 data.tool-definition v2（S-9、S-11）。执行环境要求是定义记录里的固定成员 environmentRequirement，不是设置项；settings 没有保留项名（S-15、S-32，D-060 §四 L3′、§六 N-13）。正反实例在同目录 examples.md。",
   "$defs": {
     "SkillName": {
       "title": "技能名",
-      "description": "S-2：技能的名字，就是它的能力标识的 name 分量——data.asset-model v1 的 CapabilityName（非空、不含空白、不含 '/'、允许 ':'、区分大小写）。本契约不在其上收窄：开放格式自己的名字规则（小写字母数字与连字符、至多 64 个字符）不是本系统技能名的约束。",
-      "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityName"
+      "description": "S-2：技能的名字，就是它的能力标识的 name 分量——data.asset-model v2 的 CapabilityName（非空、不含空白、不含 '/'、允许 ':'、区分大小写）。本契约不在其上收窄：开放格式自己的名字规则（小写字母数字与连字符、至多 64 个字符）不是本系统技能名的约束。",
+      "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityName"
     },
 
     "SkillManifest": {
@@ -46,7 +46,7 @@
           "pattern": "^(?![A-Za-z]:)(?!(?:[\\s\\S]*/)?\\.\\.?(?:/|(?![\\s\\S])))[^/\\\\]+(?:/[^/\\\\]+)*(?![\\s\\S])",
           "not": { "enum": ["SKILL.md", ".omne/skill.json"] }
         },
-        "mediaType": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/MediaType" }
+        "mediaType": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/MediaType" }
       },
       "required": ["path"],
       "additionalProperties": false
@@ -64,7 +64,7 @@
           "uniqueItems": true,
           "items": {
             "allOf": [
-              { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityId" },
+              { "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityId" },
               { "properties": { "category": { "const": "tool" } } }
             ]
           }
@@ -72,13 +72,13 @@
         "dependencies": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/DependencyName" }
+          "items": { "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/DependencyName" }
         },
         "settings": {
           "type": "array",
           "items": {
             "allOf": [
-              { "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/AttributeDeclaration" },
+              { "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/AttributeDeclaration" },
               {
                 "properties": {
                   "kind": { "const": "setting" },
@@ -90,7 +90,7 @@
           }
         },
         "environmentRequirement": {
-          "$ref": "../../tool-definition/v1/tool-definition.schema.json#/$defs/TargetEnvironment",
+          "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/TargetEnvironment",
           "description": "S-32：带脚本的技能的执行环境要求（无词条）——绑定在哪一层 × 要哪几种设施。随内容声明的固定成员：不是设置项，各层配不了，推出规则不产出它；缺席即没有特殊要求；原样进依赖声明（S-16）。它的值与工具的目标环境（UL-target-environment）那项设置的值同形，但它不是目标环境。"
         }
       },

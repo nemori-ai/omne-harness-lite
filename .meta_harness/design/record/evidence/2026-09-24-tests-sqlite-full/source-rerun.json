@@ -1,0 +1,5 @@
+{
+  "reason": "prior configured alternate address no longer assigned; detect current nonloopback IPv4 via node os.networkInterfaces",
+  "selectedFromCurrentInterface": true,
+  "exit": 1
+}

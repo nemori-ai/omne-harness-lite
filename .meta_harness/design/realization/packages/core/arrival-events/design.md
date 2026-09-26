@@ -1,8 +1,8 @@
 # arrival-events 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
-契约：[`data.arrival-events` v1](../../../../spec/data/arrival-events/v1/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
+契约：[`data.arrival-events` v2](../../../../spec/data/arrival-events/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
 
 ## 实现路径与来源
@@ -16,15 +16,15 @@
 
 | 导出 | 契约坐标 |
 |---|---|
-| 类型 `ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent` 与六种事件 | [S-5](../../../../spec/data/arrival-events/v1/contract.md#s-5-信封与目标)～[S-16](../../../../spec/data/arrival-events/v1/contract.md#s-16-收尾) |
-| `reduceFills(mode, fills)`（一块此刻是什么的唯一归约） | [S-19](../../../../spec/data/arrival-events/v1/contract.md#s-19-归约一块此刻是什么) |
-| `judgeArrivalEnvelope(envelope, openBlock?) → { ok } \| { rejected }` | [S-26](../../../../spec/data/arrival-events/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/arrival-events/v1/contract.md#s-29-表示层拒绝不是判定也不修补) |
+| 类型 `ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent` 与六种事件 | [S-5](../../../../spec/data/arrival-events/v2/contract.md#s-5-信封与目标)～[S-16](../../../../spec/data/arrival-events/v2/contract.md#s-16-收尾) |
+| `reduceFills(mode, fills)`（一块此刻是什么的唯一归约） | [S-19](../../../../spec/data/arrival-events/v2/contract.md#s-19-归约一块此刻是什么) |
+| `judgeArrivalEnvelope(envelope, openBlock?) → { ok } \| { rejected }` | [S-26](../../../../spec/data/arrival-events/v2/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/arrival-events/v2/contract.md#s-29-表示层拒绝不是判定也不修补) |
 
-**函数层不承诺**：按次序不重不漏、目标只在所属会话里有意义、封口块等于归约——它们是生产者与宿主的义务（[S-25](../../../../spec/data/arrival-events/v1/contract.md#s-25-装配给与协议给) 其余五行）；序列语法由 [stream-assembly](../stream-assembly/design.md#公开面) 判。
+**函数层不承诺**：按次序不重不漏、目标只在所属会话里有意义、封口块等于归约——它们是生产者与宿主的义务（[S-25](../../../../spec/data/arrival-events/v2/contract.md#s-25-装配给与协议给) 其余五行）；序列语法由 [stream-assembly](../stream-assembly/design.md#公开面) 判。
 
 ### 归约与已开视图的辅助签名（2026-09-26）
 
-`ReductionMode` 携带合法 `OpenEvent` 的 `kind` 与 `fill`，等价于这两字段的投影；image／file／tool_result 只允许 replace。只传 append／replace 一个字符串不足以区分文本与语音字节，不能由载荷字符串猜模态。`reduceFills(mode, fills)` 接本块的合法 payload 序列，返回文本／标准 base64、整交的 ContentBlock，或没有归约时的 `undefined`。**零次填没有归约**，与 `capability.stream-assembly/v1#S-6` 的块内容表一致，不伪造空串；工具调用在 append 时相接参数原文，在 replace 时取最后一次原文，两者均不解析。模式与载荷的独立形状、两者模态相容是辅助函数可检查的前提，违例给技术 `TypeError`，不增加第十种事件表示拒绝或修补输入。载荷与实际那一块的 id／visibility，以及适用时与 `open.head.mediaType` 的相等，由调用方保证；只凭 kind／fill 与 payload 无法核对这些关联。
+`ReductionMode` 携带合法 `OpenEvent` 的 `kind` 与 `fill`，等价于这两字段的投影；image／file／tool_result 只允许 replace。只传 append／replace 一个字符串不足以区分文本与语音字节，不能由载荷字符串猜模态。`reduceFills(mode, fills)` 接本块的合法 payload 序列，返回文本／标准 base64、整交的 ContentBlock，或没有归约时的 `undefined`。**零次填没有归约**，与 `capability.stream-assembly/v2#S-6` 的块内容表一致，不伪造空串；工具调用在 append 时相接参数原文，在 replace 时取最后一次原文，两者均不解析。模式与载荷的独立形状、两者模态相容是辅助函数可检查的前提，违例给技术 `TypeError`，不增加第十种事件表示拒绝或修补输入。载荷与实际那一块的 id／visibility，以及适用时与 `open.head.mediaType` 的相等，由调用方保证；只凭 kind／fill 与 payload 无法核对这些关联。
 
 `judgeArrivalEnvelope` 的 `openBlock(index: JsonNumber) → OpenEvent | undefined` 由调用方交入合法、只读的已开视图：只返回此刻仍开着的块，未开或已封口返回 `undefined`；这里的 index 保留无损整数，不能经浮点丢身份。该视图只供本节点明确依赖开块的表示谓词使用，不代替序列判定或会话路由。
 
@@ -38,12 +38,12 @@
 | 服务键 | 无 | — |
 | `inject` 关系 | **无** | — |
 | effect 装卸 | **无装载效应**（0 行） | — |
-| 事件派发 | **不发、不听 Cordis 事件**。到达事件是**值**，不是 Cordis 事件；它们在宿主里按（会话，目标）交给装配状态（`capability.stream-assembly/v1#S-28` 第 1 条）。**没有一条能越过租户或会话边界**的前提是那条路由，归宿主 | [S-25](../../../../spec/data/arrival-events/v1/contract.md#s-25-装配给与协议给) 第二行 |
+| 事件派发 | **不发、不听 Cordis 事件**。到达事件是**值**，不是 Cordis 事件；它们在宿主里按（会话，目标）交给装配状态（`capability.stream-assembly/v2#S-28` 第 1 条）。**没有一条能越过租户或会话边界**的前提是那条路由，归宿主 | [S-25](../../../../spec/data/arrival-events/v2/contract.md#s-25-装配给与协议给) 第二行 |
 | 存储 | **无**：到达事件不落日志（S-4；SC-2） | — |
 
 ### 装配给 vs 协议给：单机时本节点提供了什么
 
-[S-25](../../../../spec/data/arrival-events/v1/contract.md#s-25-装配给与协议给) 六行里，本节点只在「表示层校验在每个接收边界重做」一行出力：`judgeArrivalEnvelope` 这一个纯入口。
+[S-25](../../../../spec/data/arrival-events/v2/contract.md#s-25-装配给与协议给) 六行里，本节点只在「表示层校验在每个接收边界重做」一行出力：`judgeArrivalEnvelope` 这一个纯入口。
 其余五行（按次序不重不漏、目标只在所属会话里有意义、`dispatch` 分开两次发出、首个内容的时刻、封口块等于归约）归生产者与宿主。
 
 ### 契约责任 → 模块公开入口 → 实现 → 符合性依据或缺口
@@ -52,22 +52,22 @@
 
 | 契约责任 | 模块公开入口（候选） | 实现（候选做法） | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/data/arrival-events/v1/contract.md#s-5-信封与目标)～[S-16](../../../../spec/data/arrival-events/v1/contract.md#s-16-收尾) 信封、目标、六种事件、块索引、开块、块头、呈现提示、填、封口、砍、记账、收尾 | 类型 `ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent` 等 | 值一律冻结 | V-1 |
-| [S-19](../../../../spec/data/arrival-events/v1/contract.md#s-19-归约一块此刻是什么) 归约 | `reduceFills(mode, fills)`：追加相接、替换取最后一次；**语音按字节相接**（先把各段标准 base64 解成字节再接），不按 base64 串相接 | 纯函数 | 生产者义务「封口块等于归约」（S-20）的性质测试 V-5 用它作参照；stream-assembly 物化快照也用它——**一个归约只有一份** |
-| [S-26](../../../../spec/data/arrival-events/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/arrival-events/v1/contract.md#s-29-表示层拒绝不是判定也不修补) 九个拒绝值与次序、不修补 | `judgeArrivalEnvelope(envelope, openBlock?: (index) => OpenEvent \| undefined)` | 嵌着的块取 content-blocks 的值、嵌着的账取 call-accounts 的值，原名；**要借开块的两项**（`replace_payload_shape`、帧流上往语音块填字节）只在 `openBlock` 给出那一块时才判，否则不参与 | V-2、V-3；`openBlock` 这个参数是与 [stream-assembly](../stream-assembly/design.md#表示层判定借-arrival-events不在本模块重写) 对齐的形状 |
-| [S-17](../../../../spec/data/arrival-events/v1/contract.md#s-17-一条流的形状)～[S-24](../../../../spec/data/arrival-events/v1/contract.md#s-24-违反语法由消费一方判定并命名) 序列语法 | — | **不在本节点**：由消费一方判定并命名，归 stream-assembly | — |
+| [S-5](../../../../spec/data/arrival-events/v2/contract.md#s-5-信封与目标)～[S-16](../../../../spec/data/arrival-events/v2/contract.md#s-16-收尾) 信封、目标、六种事件、块索引、开块、块头、呈现提示、填、封口、砍、记账、收尾 | 类型 `ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent` 等 | 值一律冻结 | V-1 |
+| [S-19](../../../../spec/data/arrival-events/v2/contract.md#s-19-归约一块此刻是什么) 归约 | `reduceFills(mode, fills)`：追加相接、替换取最后一次；**语音按字节相接**（先把各段标准 base64 解成字节再接），不按 base64 串相接 | 纯函数 | 生产者义务「封口块等于归约」（S-20）的性质测试 V-5 用它作参照；stream-assembly 物化快照也用它——**一个归约只有一份** |
+| [S-26](../../../../spec/data/arrival-events/v2/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/arrival-events/v2/contract.md#s-29-表示层拒绝不是判定也不修补) 九个拒绝值与次序、不修补 | `judgeArrivalEnvelope(envelope, openBlock?: (index) => OpenEvent \| undefined)` | 嵌着的块取 content-blocks 的值、嵌着的账取 call-accounts 的值，原名；**要借开块的两项**（`replace_payload_shape`、帧流上往语音块填字节）只在 `openBlock` 给出那一块时才判，否则不参与 | V-2、V-3；`openBlock` 这个参数是与 [stream-assembly](../stream-assembly/design.md#表示层判定借-arrival-events不在本模块重写) 对齐的形状 |
+| [S-17](../../../../spec/data/arrival-events/v2/contract.md#s-17-一条流的形状)～[S-24](../../../../spec/data/arrival-events/v2/contract.md#s-24-违反语法由消费一方判定并命名) 序列语法 | — | **不在本节点**：由消费一方判定并命名，归 stream-assembly | — |
 
 ## 依赖、作用域与绑定
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| `data.content-blocks` v1 | [content-blocks](../content-blocks/README.md) | 随包版本 | 静态 import |
-| `data.call-accounts` v1 | [call-accounts](../call-accounts/README.md) | 同上 | 同上 |
-| `data.loop-extension` v1（收尾里的 `FailureCause`） | [loop-extension](../loop-extension/README.md) | 同上 | 同上 |
+| `data.content-blocks` v2 | [content-blocks](../content-blocks/README.md) | 随包版本 | 静态 import |
+| `data.call-accounts` v2 | [call-accounts](../call-accounts/README.md) | 同上 | 同上 |
+| `data.loop-extension` v2（收尾里的 `FailureCause`） | [loop-extension](../loop-extension/README.md) | 同上 | 同上 |
 | `data.identity-values` v1 | 已实现的 core 包 | 同上 | 同上 |
 | 被消费 | stream-assembly、模型侧传输适配、工具侧发帧入口、两个运行时 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 

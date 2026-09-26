@@ -410,7 +410,7 @@ describe('frozen normative examples: all rows and variants', () => {
   it('binds fixture bytes to the frozen spec and exact package Schema', () => {
     const source = readFileSync(
       new URL(
-        '../../../../.meta_harness/design/spec/data/skill-package/v1/examples.md',
+        '../../../../.meta_harness/design/spec/data/skill-package/v2/examples.md',
         import.meta.url,
       ),
     )
@@ -418,7 +418,7 @@ describe('frozen normative examples: all rows and variants', () => {
     expect(readFileSync(new URL('../schema/skill-package.schema.json', import.meta.url))).toEqual(
       readFileSync(
         new URL(
-          '../../../../.meta_harness/design/spec/data/skill-package/v1/skill-package.schema.json',
+          '../../../../.meta_harness/design/spec/data/skill-package/v2/skill-package.schema.json',
           import.meta.url,
         ),
       ),

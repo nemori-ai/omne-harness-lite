@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.slash-command v1 pure recognition, parsing and body projections",
+  "description": "data.slash-command v2 pure recognition, parsing and body projections",
   "engines": {
     "node": ">=24.18.0 <25"
   },

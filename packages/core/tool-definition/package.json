@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.tool-definition v1 pure values and caller-owned parameter judgments",
+  "description": "data.tool-definition v2 pure values and caller-owned parameter judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },

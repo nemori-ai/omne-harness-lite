@@ -7,7 +7,7 @@
 
 ## 分层状态
 
-- 语义接受范围：包的需要与位置已由用户明确；本节点技术映射经独立评审，由主调度在用户委托内接受（[D-046](../../../../record/decisions/core-formatter-adoption/decision.md)），不表示用户已总体接受。
+- 语义接受范围：包的需要与位置已由用户明确；本节点技术映射经独立评审，由主调度在用户委托内接受（[D-067](../../../../record/decisions/core-formatter-adoption/decision.md)），不表示用户已总体接受。
 - 可实施范围：单独import可用的格式化函数和声明类型，不提供Cordis服务、不执行工具、不组上下文。
 - 绑定与证据：[bindings.yaml](bindings.yaml)为空；没有可绑定契约条款或formal task。技术要求逐项沿[verification.md](verification.md)验证。
 - 实际验证：迁入后尚无；旧分支的结果不升级本HUB的实现状态。

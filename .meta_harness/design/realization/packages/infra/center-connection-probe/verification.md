@@ -1,6 +1,6 @@
 # center-connection-probe 验证与证据
 
-契约侧的证据义务权威在 [`spec/capabilities/center-connection/verification.md`](../../../../spec/capabilities/center-connection/verification.md)：本版**不建形式工件**（[S-12](../../../../spec/capabilities/center-connection/v1/contract.md#s-12-本版选用哪些形式工件)），证据全部是对脚本化对端与真实 TLS 的场景。
+契约侧的证据义务权威在 [`spec/capabilities/center-connection/verification.md`](../../../../spec/capabilities/center-connection/verification.md)：本版**不建形式工件**（[S-12](../../../../spec/capabilities/center-connection/v2/contract.md#s-12-本版选用哪些形式工件)），证据全部是对脚本化对端与真实 TLS 的场景。
 本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（两种装法、节拍、时钟不可用的收场、撤除丢弃在途结果）。**本节点尚未建包，一切未开始。**
 
 ## 证据义务
@@ -9,11 +9,11 @@
 
 | 场景 | 本节点上的形式与前提 | 另外受阻于 | 状态 |
 |---|---|---|---|
-| [S-13](../../../../spec/capabilities/center-connection/v1/contract.md#s-13-断线与重连) 断线与重连 | **replay 插件**、真实定时器：脚本「答 → 静默 → 答 → 拒 → 答」；消费者每隔一小段读一次，逐条核三态、`since` 不减、`reachCount` 恰在进入可达时加一；计时一支按装配给的 `probeInterval`、`probeTimeout` 核上界 `probeInterval + probeTimeout`；在场一支在验收装配里核本插件与 P-1r 都没有撤除、重跑 | 在场一支要验收装配里的 P-1r 与一次在途模型调用（P-1r 问中心不在本版，只核「没有重跑」） | 未开始 |
-| [S-14](../../../../spec/capabilities/center-connection/v1/contract.md#s-14-在应答就是可达判不了也算) 在应答就是可达 | **probe 插件**对一个本地的脚本化 TLS 对端（测试证书作信任锚）：对端答 `unavailable`、`version-mismatch`、`login-state-rejected` ⇒ 都是 `reachable` | 上游语义取证（CNP-8） | 未开始 |
-| [S-15](../../../../spec/capabilities/center-connection/v1/contract.md#s-15-确认不了对端就是问不到) 确认不了对端就是问不到 | **probe 插件**：对端用不由信任锚签发的证书、主机名对不上、只给 TLS 1.2、答一页 HTML、答复超 `probeReplyMaxBytes` ⇒ 都是 `unreachable`。**replay 插件证不了这一条** | 同上；信任方式本版是 CA 链加主机名（CNP-2 已裁），将来换成钉公钥时这一条要重跑 | 未开始 |
-| [examples §1～§3](../../../../spec/capabilities/center-connection/v1/examples.md#1-起来断线重连) | §1 用 replay 插件；§2、§3 用 probe 插件与脚本化 TLS 对端 | 同上 | 未开始 |
-| [examples §4](../../../../spec/capabilities/center-connection/v1/examples.md#4-本能力不在场) 本能力不在场 | 消费者一侧的测试，由各消费者的验证入口承担；本节点只证「撤除之后经旧引用调用 ⇒ 抛出，不答 `unreachable`」（N-6） | —— | 未开始 |
+| [S-13](../../../../spec/capabilities/center-connection/v2/contract.md#s-13-断线与重连) 断线与重连 | **replay 插件**、真实定时器：脚本「答 → 静默 → 答 → 拒 → 答」；消费者每隔一小段读一次，逐条核三态、`since` 不减、`reachCount` 恰在进入可达时加一；计时一支按装配给的 `probeInterval`、`probeTimeout` 核上界 `probeInterval + probeTimeout`；在场一支在验收装配里核本插件与 P-1r 都没有撤除、重跑 | 在场一支要验收装配里的 P-1r 与一次在途模型调用（P-1r 问中心不在本版，只核「没有重跑」） | 未开始 |
+| [S-14](../../../../spec/capabilities/center-connection/v2/contract.md#s-14-在应答就是可达判不了也算) 在应答就是可达 | **probe 插件**对一个本地的脚本化 TLS 对端（测试证书作信任锚）：对端答 `unavailable`、`version-mismatch`、`login-state-rejected` ⇒ 都是 `reachable` | 上游语义取证（CNP-8） | 未开始 |
+| [S-15](../../../../spec/capabilities/center-connection/v2/contract.md#s-15-确认不了对端就是问不到) 确认不了对端就是问不到 | **probe 插件**：对端用不由信任锚签发的证书、主机名对不上、只给 TLS 1.2、答一页 HTML、答复超 `probeReplyMaxBytes` ⇒ 都是 `unreachable`。**replay 插件证不了这一条** | 同上；信任方式本版是 CA 链加主机名（CNP-2 已裁），将来换成钉公钥时这一条要重跑 | 未开始 |
+| [examples §1～§3](../../../../spec/capabilities/center-connection/v2/examples.md#1-起来断线重连) | §1 用 replay 插件；§2、§3 用 probe 插件与脚本化 TLS 对端 | 同上 | 未开始 |
+| [examples §4](../../../../spec/capabilities/center-connection/v2/examples.md#4-本能力不在场) 本能力不在场 | 消费者一侧的测试，由各消费者的验证入口承担；本节点只证「撤除之后经旧引用调用 ⇒ 抛出，不答 `unreachable`」（N-6） | —— | 未开始 |
 
 ### 本节点自己的选择带来的义务
 
@@ -47,7 +47,7 @@
 
 ## 独立评审
 
-**独立评审 N7**（architecture-reviewer，2026-09-25；对象：本节点首稿与同批另三个节点；结论无阻断）。下表是本节点名下各项的处置，依据主线裁定 [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**处置不等于评审闭合**：本次修订尚未复评。
+**独立评审 N7**（architecture-reviewer，2026-09-25；对象：本节点首稿与同批另三个节点；结论无阻断）。下表是本节点名下各项的处置，依据主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**处置不等于评审闭合**：本次修订尚未复评。
 
 | 评审项 | 处置 | 落在哪 |
 |---|---|---|
@@ -55,4 +55,4 @@
 | S-5 循环里持续缺陷只记 error、观察静默过时 | 改：error 记录的结构化字段带连续缺陷计数，正常落定即归零；是否要第四种状态归契约新版本 | design 失败映射末行、装卸表 effect 一行；N-5 三拍断言 |
 | D-3 插件体读钟、读不到即启动失败（主线裁） | 改：插件体不读钟、不因钟启动失败；effect 登记时读一次、读不到按节拍再读，结果按 F-4 的锚点丢弃重试；CNP-5 改「已裁」。**反推出一处对不上**：服务须在插件体里出现（cli 装载时 `PENDING` 即清单错误），而起始时刻读到之前 `undetermined` 的 `since` 给不出（契约 S-5、S-9 ⑤⑥）——登 CNP-12；主线裁 ①（契约 S-5 改为「第一次读得到时间源的时刻，此前缺席」），本节点按此实施：effect 登记时读钟，读不到则 `since` 缺席、在节拍点再读，读到即定 | design [关键选择五](design.md#关键选择)、装卸表；CNP-5、新 CNP-12；README |
 | D-4 客户端信任方式（主线裁） | CA 链加主机名（Node 标准核验），钉公钥留新版本；CNP-2 改「已裁」 | design CNP-2、config 表、S-10 表；README；S-15 行 |
-| 顺带 | 路径裁定改引 D-040 §八 N-40 ① | design CNP-10；README |
+| 顺带 | 路径裁定改引 D-060 §八 N-40 ① | design CNP-10；README |

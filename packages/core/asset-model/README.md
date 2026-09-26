@@ -1,7 +1,7 @@
 # asset-model
 
 `@omne-harness-lite/asset-model` implements the locally decidable value boundaries of
-[`data.asset-model` v1](../../../.meta_harness/design/spec/data/asset-model/v1/contract.md),
+[`data.asset-model` v2](../../../.meta_harness/design/spec/data/asset-model/v2/contract.md),
 adopted through the [asset-model realization](../../../.meta_harness/design/realization/packages/core/asset-model/design.md).
 It is a pure package, with an independent public `dist` entry and `./schema` entry.
 The Schema is an unchanged copy of the frozen resource. There is no Cordis service.

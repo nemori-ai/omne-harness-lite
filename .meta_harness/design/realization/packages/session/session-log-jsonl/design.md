@@ -1,6 +1,6 @@
 # session-log-jsonl 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
@@ -11,7 +11,7 @@
 | `node:fs/promises`（追加写、`datasync`、按偏移读、`truncate`、`rename`、目录 `sync`） | Node ≥ 24 内置 | 日志与索引的落盘、确认、截回、重写 |
 | `node:crypto`（SHA-256） | 同上 | 会话指认 → 目录名 |
 | `node:sqlite`（只用来持一把随进程死亡释放的文件锁） | 同上 | 日志目录的属主排他——借 sqlite 的文件锁作原语，与 [`infra/storage-sql` 升级守卫的属主锁](../../infra/storage-sql/design.md#排他为什么是随进程死亡释放的锁)用的是同一原语（那边 2026-09-23 取证：同进程两句柄互斥、持有者被杀即可取得）；两者锁的对象与目的不同（那边是 sqlite 库的升级属主，这里是日志目录的属主），主线已裁不抽共享件（SLJ-3，观察项） |
-| `readJsonStrict`、`writeJsonLossless`、`JsonNumber` | [`core/content-blocks`](../../core/content-blocks/design.md#严格的无损-json-读写)（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M36、M53） | 载荷与整行的严格无损读写（契约 S-11 第 2 条） |
+| `readJsonStrict`、`writeJsonLossless`、`JsonNumber` | [`core/content-blocks`](../../core/content-blocks/design.md#严格的无损-json-读写)（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M36、M53） | 载荷与整行的严格无损读写（契约 S-11 第 2 条） |
 | `TenantId`、不透明标识的词法（`data.identity-values/v1#S-31`） | [`core/identity-values`](../../core/identity-values/README.md) | 租户身份、判重键与读取键的表示层校验 |
 | `SessionRef` | [`core/messages`](../../core/messages/README.md) | 会话指认 |
 | `RunId`、`AttemptId` | [`core/call-accounts`](../../core/call-accounts/README.md) | 条目壳的运行与尝试 |
@@ -26,7 +26,7 @@
 
 | 层 | 导出（候选） | 做什么 | 承诺到哪 |
 |---|---|---|---|
-| 纯函数 | `checkAppendInput(request)` | 契约 [S-17](../../../../spec/capabilities/session-log/v1/contract.md#s-17-append追加一批条目) ⑥ 的 `invalidInput` 各情形 | 只判表示层 |
+| 纯函数 | `checkAppendInput(request)` | 契约 [S-17](../../../../spec/capabilities/session-log/v2/contract.md#s-17-append追加一批条目) ⑥ 的 `invalidInput` 各情形 | 只判表示层 |
 | 纯函数 | `judgeAppend(state, request)` | 对一份判定态依次判 `tenantMismatch` → `attemptSuperseded` → `alreadyRecorded{keys}`，全过答「可写」 | 只在**给定的那一份**判定态上判；那一份是不是「提交点之前已提交的全部」，函数层不承诺 |
 | 纯函数 | `emptyLogState`、`foldCommit(state, commit)` | 由已提交的行折叠出判定态（租户、尾、判重键集、读取键 → 位置、每个运行的最大尝试序号） | 折叠是确定的：同一串行，同一份判定态 |
 | 纯函数 | `encodeCommitLine(commit)`、`decodeLogBytes(bytes, from)` | 一行一次提交的编解码；解码交出有效行、以及文件尾是「干净」「半截」还是「受损」 | 只判字节 |
@@ -64,7 +64,7 @@
 ```
 
 - **`entries.jsonl` 的一行**（候选形状）：`{"v":1,"session":…,"first":n,"entries":[{"tenant":…,"run"?:…,"attempt"?:…,"dedupeKey"?:…,"readKeys":[…],"payload":…}…]}` 加换行。`first` 是这一批第一条的位置，这一批依次取 `first`、`first+1`……；`session` 每行都写，打开时核它等于被指认的会话（目录名是散列，两个会话撞散列时由这一核挡住，撞了即受损）。整行以 `writeJsonLossless` 写、`readJsonStrict` 读。
-- **`index.jsonl` 的一行**：`{"v":折叠版本,"first":n,"count":k,"start":字节偏移,"end":字节偏移,"dedupe":[…],"read":[[键,位置]…],"runs":[[运行,本行最大尝试序号]…]}`；首行另带 `tenant`。**它是判定态的一个来源**：判定态 = 索引覆盖的那一段（**直接取自索引**）∪ 索引之后按日志补读的那一段。契约 [S-8](../../../../spec/capabilities/session-log/v1/contract.md#s-8-判重键) 第 2 条允许的是「已提交的条目本身或与它同成同败的持久索引」，而本索引在确认之后另写、**不与日志同成同败**，所以索引那一段等于对应日志段的折叠是**有前提的**：
+- **`index.jsonl` 的一行**：`{"v":折叠版本,"first":n,"count":k,"start":字节偏移,"end":字节偏移,"dedupe":[…],"read":[[键,位置]…],"runs":[[运行,本行最大尝试序号]…]}`；首行另带 `tenant`。**它是判定态的一个来源**：判定态 = 索引覆盖的那一段（**直接取自索引**）∪ 索引之后按日志补读的那一段。契约 [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键) 第 2 条允许的是「已提交的条目本身或与它同成同败的持久索引」，而本索引在确认之后另写、**不与日志同成同败**，所以索引那一段等于对应日志段的折叠是**有前提的**：
   - **前提一：同一折叠版本写入**。行上的 `v` 是折叠版本号——行格式或折叠语义任一变化即递增；打开时 `v` 与本实现的不符 ⇒ 整份作废、按日志重建。
   - **前提二：日志根不被外部改写**（运维约定，与属主锁同一前提：本实例之外没有别的写者，也没有人手改文件）。
   - 打开时的核对（下面步骤 2～3）挡得住**结构性**的错：缺、截、落后、偏移不衔接、`v` 不符——都按日志补回，最坏情况退化成全量扫描。**内容错而结构对的**（一行可解析、与前后衔接，`dedupe` 里却漏了一个键）**它挡不住**：那一种只由上面两条前提排除；前提失守时判定态会缺那个键，同键第二条就写得进（[verification](verification.md#证据义务) V-1 的反例支让这件事可见）。
@@ -72,7 +72,7 @@
 
 **打开一本日志**（懒打开：这本日志第一次被触碰时，在它自己的队列头上做一次；读等它做完）：
 
-0. **先核根**（每一次操作开始都做，不只打开时）：`stat(dir)` 的（设备号, inode）须等于取属主锁时记下的那一对。`dir` 不在，或已解析到另一个目录（被删、被卸载、挂载点漂移到底下的空目录）⇒ 这一次答 `unavailable`、记 error 日志——**不读作空日志**（契约 [S-15](../../../../spec/capabilities/session-log/v1/contract.md#s-15-缺席时的默认答案) 末条：读不到不等于没有）。只看手里那个根目录句柄的 `fstat` 不够：目录被删之后句柄仍可 `fstat`，被懒卸载之后句柄仍指着旧文件系统。设备号与 inode 的比较是**探测，不是保证**：根被删后重建、恰好复用同一 inode 时看不出——那一种由 F-8 的运维约定排除。
+0. **先核根**（每一次操作开始都做，不只打开时）：`stat(dir)` 的（设备号, inode）须等于取属主锁时记下的那一对。`dir` 不在，或已解析到另一个目录（被删、被卸载、挂载点漂移到底下的空目录）⇒ 这一次答 `unavailable`、记 error 日志——**不读作空日志**（契约 [S-15](../../../../spec/capabilities/session-log/v2/contract.md#s-15-缺席时的默认答案) 末条：读不到不等于没有）。只看手里那个根目录句柄的 `fstat` 不够：目录被删之后句柄仍可 `fstat`，被懒卸载之后句柄仍指着旧文件系统。设备号与 inode 的比较是**探测，不是保证**：根被删后重建、恰好复用同一 inode 时看不出——那一种由 F-8 的运维约定排除。
 1. 根核过之后，会话目录 `ENOENT` ⇒ **再核一次根**（排除「核根之后、读目录之前根被删」的窗口），仍是那一个 ⇒ 空日志：尾 `0`、租户未定（契约 S-5 第 4 条：这是读得到的事实）。**读不建目录**，第一次追加才建。
 2. 严格读 `index.jsonl`：末行不完整即忽略；`v` 与本实现的折叠版本不符、任一完整行读不出、或与前一行不衔接（`first`、`start` 对不上）⇒ **整份索引作废**。
 3. 核索引末行：`entries.jsonl` 在它的 `start` 处那一行的 `first` 与 `count` 须与索引一致，`end` 不超过文件长度；不一致 ⇒ 索引作废、从字节 0 读。
@@ -88,28 +88,28 @@
 |---|---|---|---|---|
 | 落选方的最强论证 | 没有任何「内存态与盘不一致」的可能 | 最简单；单进程、单实例时就是对的 | 判重落在数据库的唯一约束上，与执行记录同一事务域 | —— |
 | 本方弱点 | —— | —— | —— | 判定态常驻内存（有上界，见[策略配置项](#策略配置项)）；属主锁借 `node:sqlite` 的文件锁作原语，与 storage-sql 各自实现（SLJ-3，已裁观察项）；插件重跑时新实例若早于旧实例放锁即启动失败（SLJ-4） |
-| 为什么选它 | 扫描本身不排除两路并发各扫一遍「不在」再各写一条——**仍要一个序列化点**；每次追加的代价与日志长度成正比，「超长期待机」的会话越跑越慢 | **不算数**：锁随插件实例生灭——插件重跑时旧实例在途的追加与新实例互不相知，两边各判一次「不在」各写一条（契约 [S-14](../../../../spec/capabilities/session-log/v1/contract.md#s-14-同一会话的追加一条接一条判定与写入是同一步) 第 4 条） | 推翻 D-026（会话日志落 JSONL）要一份新决定；据点装配关键选择 3 已按 JSONL 走出站项 | 进程内队列**只在属主锁持有者的寿命内被依赖**：新实例在旧实例放锁之前拿不到锁、写不了一个字节，而旧实例放锁是它撤除的最后一步、在排空之后；判定态只从盘上内容折叠、只在确认落盘之后前进，所以它总等于「提交点之前已提交的全部」 |
+| 为什么选它 | 扫描本身不排除两路并发各扫一遍「不在」再各写一条——**仍要一个序列化点**；每次追加的代价与日志长度成正比，「超长期待机」的会话越跑越慢 | **不算数**：锁随插件实例生灭——插件重跑时旧实例在途的追加与新实例互不相知，两边各判一次「不在」各写一条（契约 [S-14](../../../../spec/capabilities/session-log/v2/contract.md#s-14-同一会话的追加一条接一条判定与写入是同一步) 第 4 条） | 推翻 D-026（会话日志落 JSONL）要一份新决定；据点装配关键选择 3 已按 JSONL 走出站项 | 进程内队列**只在属主锁持有者的寿命内被依赖**：新实例在旧实例放锁之前拿不到锁、写不了一个字节，而旧实例放锁是它撤除的最后一步、在排空之后；判定态只从盘上内容折叠、只在确认落盘之后前进，所以它总等于「提交点之前已提交的全部」 |
 | 置信度 | | | | 中高 |
 
-**两个写入者共同触碰的存储对象**：**这本日志的 `entries.jsonl`**——判重键与栅栏比较的都是它里面已提交的行（契约 [S-8](../../../../spec/capabilities/session-log/v1/contract.md#s-8-判重键) 第 2、5 条）；**写它的权利由 `<dir>/.owner-lock` 上的文件锁排他**（随进程死亡释放，同进程第二个句柄也拿不到）。跨 owner 那一侧（执行宿主的出站项、模型请求运行时的结算、派发器的两副协程）与本节点共同触碰的就是**判重键所在的那一行**（契约 S-8 第 5 条；执行宿主节点 L-5）。
+**两个写入者共同触碰的存储对象**：**这本日志的 `entries.jsonl`**——判重键与栅栏比较的都是它里面已提交的行（契约 [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键) 第 2、5 条）；**写它的权利由 `<dir>/.owner-lock` 上的文件锁排他**（随进程死亡释放，同进程第二个句柄也拿不到）。跨 owner 那一侧（执行宿主的出站项、模型请求运行时的结算、派发器的两副协程）与本节点共同触碰的就是**判重键所在的那一行**（契约 S-8 第 5 条；执行宿主节点 L-5）。
 
 **反证四条交错**：
 
 - **同一实例、同一本日志、两路并发交同一个判重键**：两路进同一条队列，后一路在前一路确认落盘、判定态前进之后才判 ⇒ `alreadyRecorded{keys}`。把队列拿掉（故障注入），两路对同一份判定态各判「不在」⇒ 两行同键——这就是契约模型里 `Serialized = FALSE` 那份否定配置在实现上的对应，[verification](verification.md#证据义务) V-6 让它必须失败。
 - **插件重跑：旧实例手里一次追加在途，新实例起来**：旧实例撤除时先关准入、等在途那一批写完并确认、关句柄、**最后**放锁；新实例插件体第一步取锁——早于旧实例放锁 ⇒ 取不到 ⇒ 启动失败（响的，SLJ-4）；晚于 ⇒ 旧实例的提交已全在盘上，新实例懒打开时从盘上折叠，看得见它。两种次序下都没有第二个写者。
-- **进程在一行写完之后、确认之前被杀，重启后写入方以同一批重交**：那一行在盘上是完整的 ⇒ 新实例打开时把它当已提交折叠进来 ⇒ 重交得 `alreadyRecorded`；那一行没写完 ⇒ 打开时当半截尾截掉 ⇒ 重交写进。两种都只留一条（契约 [S-22](../../../../spec/capabilities/session-log/v1/contract.md#s-22-回执丢失与结果未知) 第 1 条）。把判定态换成只在进程里、不从盘上重建的集合（故障注入）⇒ 重启后同键写进第二条——契约场景 [S-26](../../../../spec/capabilities/session-log/v1/contract.md#s-26-判重停机重排不多一条) ① 要它必须失败。
+- **进程在一行写完之后、确认之前被杀，重启后写入方以同一批重交**：那一行在盘上是完整的 ⇒ 新实例打开时把它当已提交折叠进来 ⇒ 重交得 `alreadyRecorded`；那一行没写完 ⇒ 打开时当半截尾截掉 ⇒ 重交写进。两种都只留一条（契约 [S-22](../../../../spec/capabilities/session-log/v2/contract.md#s-22-回执丢失与结果未知) 第 1 条）。把判定态换成只在进程里、不从盘上重建的集合（故障注入）⇒ 重启后同键写进第二条——契约场景 [S-26](../../../../spec/capabilities/session-log/v2/contract.md#s-26-判重停机重排不多一条) ① 要它必须失败。
 - **两个据点进程指着同一个 `dir`**：后起的那个取不到属主锁 ⇒ 启动失败。
 
 **反证不了、要真跑的**：栅栏在两副协程真并发下的交错（契约场景 S-27 第三支）、两个进程抢锁与锁随 `SIGKILL` 释放——见 [verification](verification.md#证据义务) V-4、S-27。
 
-**二、「确认落盘」取每批 `fdatasync`（选）。**契约 [G-3](../../../../spec/capabilities/session-log/v1/contract.md#十已知缺口) 把刷盘政策与断电边界留给本节点写明。
+**二、「确认落盘」取每批 `fdatasync`（选）。**契约 [G-3](../../../../spec/capabilities/session-log/v2/contract.md#十已知缺口) 把刷盘政策与断电边界留给本节点写明。
 
 | | 只写进操作系统，不强制刷盘（与 D-027 对 SQL 存储取 `synchronous = NORMAL` 同口径） | 刷盘政策做成配置项 | **每批写完 `fdatasync`，返回成功在它之后（选）** |
 |---|---|---|---|
 | 落选方的最强论证 | 契约 S-13 第 2 条只要求「进程崩溃再起来不丢」，写进操作系统就够；首 token 热路径上少一次耐久写（模型请求运行时节点 MRR-N7 未测）；与同一据点里那份 sqlite 的断电边界一致，只有一种口径 | 策略不写死：将来要换就改配置 | —— |
 | 本方弱点 | —— | —— | 每批多一次 `fdatasync`，延迟未测（实施程测量项，与 MRR-N7 同一测量）；它守住的只是日志一侧——SQL 一侧按 [D-027](../../../../record/decisions/infrastructure-names-and-sqlite-durability/decision.md) 仍可能在断电时丢最后一段，**跨两种存储的断电次序不保证**（已知边界 SLJ-2） |
 | 为什么选它 | **会话日志是下游写入的前提**：执行宿主把出站项标成「已送达」、模型请求运行时发出请求，都在日志追加返回之后。只写进操作系统时，断电可以丢掉日志里那一行、却留下 sqlite 里更晚提交的「已送达」——两个文件的回写次序没有保证——**那条消息永远丢了**（据点装配[同一提交表](../../../apps/cli/design.md#存储要求清单与跨-owner-的同一提交)第一行的形状②由此失守）；刷盘之后，日志一侧总不晚于依它写下的那一侧 | 它不是调优旋钮而是上一格那条因果的前提：配成「不刷」时那条因果无声地断；D-027 同样没为 sqlite 开这个开关 | 断电边界随之收窄为：**本节点确认过的批次，断电后仍在**（前提：本地文件系统如实执行 `fdatasync`，SLJ-7）；日志一侧唯一还会在断电时丢的是「写了、没确认」的那一行，它的写入方本来就没收到成功 |
-| 置信度 | | | 中高：主线已裁（[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）接受——D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质 |
+| 置信度 | | | 中高：主线已裁（[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）接受——D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质 |
 
 **三、一行一次提交（选），不做「一行一条条目加提交标记行」。**
 
@@ -117,7 +117,7 @@
 |---|---|---|
 | 落选方的最强论证 | 每行就是一条条目，别的工具直接按行读就是条目流 | —— |
 | 本方弱点 | —— | 一行可能很大（一批里带图片的工具结果）；外部工具要按「行 → 批 → 条目」两层读 |
-| 为什么选它 | 「标记之后的条目不算」是第二种判读规则，写入与打开两处都要守；标记行本身也会写一半 | 半批在盘上只有一种形态——**最后一行没写完**；打开时的判读只有一条规则（契约 [S-13](../../../../spec/capabilities/session-log/v1/contract.md#s-13-提交与持久) 第 3 条） |
+| 为什么选它 | 「标记之后的条目不算」是第二种判读规则，写入与打开两处都要守；标记行本身也会写一半 | 半批在盘上只有一种形态——**最后一行没写完**；打开时的判读只有一条规则（契约 [S-13](../../../../spec/capabilities/session-log/v2/contract.md#s-13-提交与持久) 第 3 条） |
 | 置信度 | | 高 |
 
 **四、派生索引文件 `index.jsonl`（选），不是每次打开都扫全本日志。**
@@ -137,25 +137,25 @@
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/capabilities/session-log/v1/contract.md#s-5-一个会话一本会话日志) 一个会话一本日志 | 一个会话一个目录，目录名是会话指认的 SHA-256；每行带 `session`、打开时核 | 尚未建包 | 从没追加过的会话读得空日志、尾 `0`，不建目录、不是失败——**前提是日志根核过**（打开步骤 0）；根不在或已换 ⇒ `unavailable` |
-| [S-6](../../../../spec/capabilities/session-log/v1/contract.md#s-6-条目与它的壳) 条目与壳 | 行内每条带 `tenant`、可选的 `run`／`attempt`、`dedupeKey`、`readKeys`、`payload`；`position` 不落盘，由 `first` 与在批内的序推出 | 尚未建包 | 壳上的运行与尝试按写入方给的原样存，不从载荷推 |
-| [S-7](../../../../spec/capabilities/session-log/v1/contract.md#s-7-日志位置与尾位置) 位置与尾 | `first = 尾 + 1`；打开时核 `first` 连续；尾 = 已确认的最后一条的位置 | 尚未建包 | 不回收、不复用、不跳号由「只追加、半截尾只截没确认的那一行、中间受损不截」三条给 |
-| [S-8](../../../../spec/capabilities/session-log/v1/contract.md#s-8-判重键) 判重键 | 判定态里的判重键集，由盘上已提交的行折叠；`judgeAppend` 在队列里判 | 尚未建包 | 共同存储对象与反证见[关键选择一](#关键选择)；同一批里两条同键是 `invalidInput`（表示层）。**有前提地能**：判定态的索引那一段取自派生索引，它不与日志同成同败，等于日志段的折叠要靠[落盘形状](#落盘形状)的两条前提（SLJ-11） |
-| [S-9](../../../../spec/capabilities/session-log/v1/contract.md#s-9-读取键) 读取键 | 判定态里的「读取键 → 位置」表；同样折叠而来 | 尚未建包 | 判重键不自动进读取键 |
-| [S-10](../../../../spec/capabilities/session-log/v1/contract.md#s-10-尝试栅栏) 尝试栅栏 | 判定态里「运行 → 已见最大尝试序号」；`fenced{run, attempt}` 且表里该运行 > `attempt` ⇒ `attemptSuperseded` | 尚未建包 | 不另存尝试行；无论带不带栅栏，每条带运行的条目都推进这张表（第 1 条：比较的是日志里所有条目） |
-| [S-11](../../../../spec/capabilities/session-log/v1/contract.md#s-11-只增不改载荷原样) 只增不改、载荷原样 | 只追加；唯一的「截」只截从没确认过的半截尾；严格无损读写 | 尚未建包 | 载荷不是合法 JSON 值 ⇒ `invalidInput`；不校验载荷形状（契约 G-6） |
-| [S-12](../../../../spec/capabilities/session-log/v1/contract.md#s-12-一本日志一个租户身份) 一个租户身份 | 判定态的租户 = 第一行第一条的租户；判 `tenantMismatch` | 尚未建包 | 本节点不读 `sessionTenancy`（契约 S-12 第 3 条：填对归写入方） |
-| [S-13](../../../../spec/capabilities/session-log/v1/contract.md#s-13-提交与持久) 提交与持久 | 提交点 = 那一行完整写进 `entries.jsonl`；**确认** = `datasync` 返回；返回成功、推进判定态与尾、写索引行都在确认之后 | 尚未建包 | 第 1 条由「一行一批」给；第 3 条由打开时截半截尾给；第 4 条由「尾只在确认之后推进、读以内存尾为界」给；第 5 条的边界见[关键选择二](#关键选择)与 SLJ-2、SLJ-7 |
-| [S-14](../../../../spec/capabilities/session-log/v1/contract.md#s-14-同一会话的追加一条接一条判定与写入是同一步) 串行、判定与写入同一步 | 每本日志一条队列；属主锁排他 | 尚未建包 | 不同会话各自一条队列、互不排队（第 3 条） |
-| [S-15](../../../../spec/capabilities/session-log/v1/contract.md#s-15-缺席时的默认答案) 缺席默认 | `fence` 与 `after` 必填，缺即 `invalidInput`；读不到答 `unavailable`、不交空序列 | 尚未建包 | 见[失败映射](#状态并发与失败映射) |
-| [S-17](../../../../spec/capabilities/session-log/v1/contract.md#s-17-append追加一批条目) `append` | 表示层（不进队列）→ 队列满即 `unavailable` → 入队 → 懒打开 → `judgeAppend` → 编码一行 → 追加写 → `datasync` → 推进判定态 → 写索引行 → 返回 `{ positions, tail }` | 尚未建包 | 第一次追加先建目录与两个文件，文件与父目录（连同日志根）各落盘一次 |
-| [S-18](../../../../spec/capabilities/session-log/v1/contract.md#s-18-readbykey按读取键读) `readByKey` | 等懒打开 → 在内存里取「尾 T 与键的位置表」一份快照 → 按行偏移读回这些行 → 按位置升序交出 | 尚未建包 | 读不进队列：只读到 T 为止，此后的追加不影响这一次（文件只增，T 之前的字节不变） |
-| [S-19](../../../../spec/capabilities/session-log/v1/contract.md#s-19-readsince从某个位置往后读) `readSince` | 同上，从位置 `after + 1` 所在那一行读到 T 那一行的末尾 | 尚未建包 | `after` 大于尾 ⇒ 空序列、`tail` 照实给；读到一半读不出 ⇒ `unavailable`，不交半段 |
-| [S-20](../../../../spec/capabilities/session-log/v1/contract.md#s-20-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
-| [S-21](../../../../spec/capabilities/session-log/v1/contract.md#s-21-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
-| [S-22](../../../../spec/capabilities/session-log/v1/contract.md#s-22-回执丢失与结果未知) 结果未知 | 「写了、没确认」时本节点先截回；截回成功即确定没写下 | 尚未建包 | 进程被杀时截回不发生 ⇒ 结果未知只有「整行在」「整行不在」两种，由写入方以判重键认回 |
-| [S-23](../../../../spec/capabilities/session-log/v1/contract.md#s-23-提供者撤除换代与重启) 撤除、换代、重启 | 见[装卸表](#成对的装载与撤除) | —— | 没有只活在实例里的事实：换实例、重启后从盘上重开，判定答案不变 |
-| [S-24](../../../../spec/capabilities/session-log/v1/contract.md#s-24-会话归档之后) 归档之后 | 没有封存；照收照读 | —— | —— |
+| [S-5](../../../../spec/capabilities/session-log/v2/contract.md#s-5-一个会话一本会话日志) 一个会话一本日志 | 一个会话一个目录，目录名是会话指认的 SHA-256；每行带 `session`、打开时核 | 尚未建包 | 从没追加过的会话读得空日志、尾 `0`，不建目录、不是失败——**前提是日志根核过**（打开步骤 0）；根不在或已换 ⇒ `unavailable` |
+| [S-6](../../../../spec/capabilities/session-log/v2/contract.md#s-6-条目与它的壳) 条目与壳 | 行内每条带 `tenant`、可选的 `run`／`attempt`、`dedupeKey`、`readKeys`、`payload`；`position` 不落盘，由 `first` 与在批内的序推出 | 尚未建包 | 壳上的运行与尝试按写入方给的原样存，不从载荷推 |
+| [S-7](../../../../spec/capabilities/session-log/v2/contract.md#s-7-日志位置与尾位置) 位置与尾 | `first = 尾 + 1`；打开时核 `first` 连续；尾 = 已确认的最后一条的位置 | 尚未建包 | 不回收、不复用、不跳号由「只追加、半截尾只截没确认的那一行、中间受损不截」三条给 |
+| [S-8](../../../../spec/capabilities/session-log/v2/contract.md#s-8-判重键) 判重键 | 判定态里的判重键集，由盘上已提交的行折叠；`judgeAppend` 在队列里判 | 尚未建包 | 共同存储对象与反证见[关键选择一](#关键选择)；同一批里两条同键是 `invalidInput`（表示层）。**有前提地能**：判定态的索引那一段取自派生索引，它不与日志同成同败，等于日志段的折叠要靠[落盘形状](#落盘形状)的两条前提（SLJ-11） |
+| [S-9](../../../../spec/capabilities/session-log/v2/contract.md#s-9-读取键) 读取键 | 判定态里的「读取键 → 位置」表；同样折叠而来 | 尚未建包 | 判重键不自动进读取键 |
+| [S-10](../../../../spec/capabilities/session-log/v2/contract.md#s-10-尝试栅栏) 尝试栅栏 | 判定态里「运行 → 已见最大尝试序号」；`fenced{run, attempt}` 且表里该运行 > `attempt` ⇒ `attemptSuperseded` | 尚未建包 | 不另存尝试行；无论带不带栅栏，每条带运行的条目都推进这张表（第 1 条：比较的是日志里所有条目） |
+| [S-11](../../../../spec/capabilities/session-log/v2/contract.md#s-11-只增不改载荷原样) 只增不改、载荷原样 | 只追加；唯一的「截」只截从没确认过的半截尾；严格无损读写 | 尚未建包 | 载荷不是合法 JSON 值 ⇒ `invalidInput`；不校验载荷形状（契约 G-6） |
+| [S-12](../../../../spec/capabilities/session-log/v2/contract.md#s-12-一本日志一个租户身份) 一个租户身份 | 判定态的租户 = 第一行第一条的租户；判 `tenantMismatch` | 尚未建包 | 本节点不读 `sessionTenancy`（契约 S-12 第 3 条：填对归写入方） |
+| [S-13](../../../../spec/capabilities/session-log/v2/contract.md#s-13-提交与持久) 提交与持久 | 提交点 = 那一行完整写进 `entries.jsonl`；**确认** = `datasync` 返回；返回成功、推进判定态与尾、写索引行都在确认之后 | 尚未建包 | 第 1 条由「一行一批」给；第 3 条由打开时截半截尾给；第 4 条由「尾只在确认之后推进、读以内存尾为界」给；第 5 条的边界见[关键选择二](#关键选择)与 SLJ-2、SLJ-7 |
+| [S-14](../../../../spec/capabilities/session-log/v2/contract.md#s-14-同一会话的追加一条接一条判定与写入是同一步) 串行、判定与写入同一步 | 每本日志一条队列；属主锁排他 | 尚未建包 | 不同会话各自一条队列、互不排队（第 3 条） |
+| [S-15](../../../../spec/capabilities/session-log/v2/contract.md#s-15-缺席时的默认答案) 缺席默认 | `fence` 与 `after` 必填，缺即 `invalidInput`；读不到答 `unavailable`、不交空序列 | 尚未建包 | 见[失败映射](#状态并发与失败映射) |
+| [S-17](../../../../spec/capabilities/session-log/v2/contract.md#s-17-append追加一批条目) `append` | 表示层（不进队列）→ 队列满即 `unavailable` → 入队 → 懒打开 → `judgeAppend` → 编码一行 → 追加写 → `datasync` → 推进判定态 → 写索引行 → 返回 `{ positions, tail }` | 尚未建包 | 第一次追加先建目录与两个文件，文件与父目录（连同日志根）各落盘一次 |
+| [S-18](../../../../spec/capabilities/session-log/v2/contract.md#s-18-readbykey按读取键读) `readByKey` | 等懒打开 → 在内存里取「尾 T 与键的位置表」一份快照 → 按行偏移读回这些行 → 按位置升序交出 | 尚未建包 | 读不进队列：只读到 T 为止，此后的追加不影响这一次（文件只增，T 之前的字节不变） |
+| [S-19](../../../../spec/capabilities/session-log/v2/contract.md#s-19-readsince从某个位置往后读) `readSince` | 同上，从位置 `after + 1` 所在那一行读到 T 那一行的末尾 | 尚未建包 | `after` 大于尾 ⇒ 空序列、`tail` 照实给；读到一半读不出 ⇒ `unavailable`，不交半段 |
+| [S-20](../../../../spec/capabilities/session-log/v2/contract.md#s-20-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
+| [S-21](../../../../spec/capabilities/session-log/v2/contract.md#s-21-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
+| [S-22](../../../../spec/capabilities/session-log/v2/contract.md#s-22-回执丢失与结果未知) 结果未知 | 「写了、没确认」时本节点先截回；截回成功即确定没写下 | 尚未建包 | 进程被杀时截回不发生 ⇒ 结果未知只有「整行在」「整行不在」两种，由写入方以判重键认回 |
+| [S-23](../../../../spec/capabilities/session-log/v2/contract.md#s-23-提供者撤除换代与重启) 撤除、换代、重启 | 见[装卸表](#成对的装载与撤除) | —— | 没有只活在实例里的事实：换实例、重启后从盘上重开，判定答案不变 |
+| [S-24](../../../../spec/capabilities/session-log/v2/contract.md#s-24-会话归档之后) 归档之后 | 没有封存；照收照读 | —— | —— |
 
 ### 依赖、作用域与绑定
 
@@ -259,8 +259,8 @@
 | # | 缺口 | 受阻的消费或条款 | owner | 闭合条件 |
 |---|---|---|---|---|
 | SLJ-1 | **真承接者未到**：本节点是契约第十一节的最小提供者；整本会话日志的契约与真提供者归 loop 与会话那一程（契约 G-1，据点装配 C-1） | 产品据点清单里派发器与模型请求运行时停在 `PENDING`（本版不装本节点，据点装配关键选择 5） | 主线 → loop 与会话那一程 | 那一程的契约收下或取代 SL v1，提供者节点与本节点互指或取代本节点 |
-| SLJ-2 | **已知边界（主线已裁，[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）：每批 `datasync` 接受；跨两种存储的断电次序仍不保证。**D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束本节点的文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质，本节点照[关键选择二](#关键选择)兑现，**日志一侧确认过的批次断电后仍在**。SQL 一侧按 D-027 仍可能丢最后一段已提交事务；`storage-sql` 升级未确认即撤除时恢复快照，是同一形状的另一条来路（SQL 回退、日志不回退）——两种情形下，日志里已确认的条目都可能指着 SQL 一侧已经不在的行。**受影响的是 SQL 一侧的两处**：会话持有租户 `capability.session-tenancy/v1#S-6`（[session-tenancy-table](../session-tenancy-table/design.md#实施缺口与消费者影响) STT-3）、装配清单 `capability.assembly-manifest/v1#S-24` 与 S-13（[assembly-manifest-store](../../assets/assembly-manifest-store/design.md#实施缺口与消费者影响) AMS-4、AMS-5）——它们引这一条，不另论证。每批多一次耐久写的延迟未测，记为**实施程测量项**（verification V-13，与模型请求运行时 MRR-N7 同测） | 契约 S-13 第 5 条、G-3；ST S-6、AM S-24；首 token 热路径 | 主线（边界）；实现者（测量） | 不闭合的已知边界：产品要求跨存储的断电次序时另出决定（sqlite 改 `FULL`，或两处落进同一事务域）；升级恢复那一条来路由「开闸在确认之后」挡住——已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点）；测量结果记入 verification |
-| SLJ-3 | **已裁：观察项（主线，D-040 §八 N-40 ②）——不抽共享件。**`infra/storage-sql` 的排他是升级守卫的属主（sqlite 库级），本节点是日志目录的属主（借 sqlite 文件锁作原语）：机制与目的都不同，两份实现不是同一概念的两份权威 | —— | 主线 | 出现第三个「目录属主」消费者时再议抽共享件 |
+| SLJ-2 | **已知边界（主线已裁，[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②）：每批 `datasync` 接受；跨两种存储的断电次序仍不保证。**D-027 的 `NORMAL` 只管 sqlite 那一份存储，不约束本节点的文件系统日志；契约 S-13 第 5 条「提交即持久」是契约性质，本节点照[关键选择二](#关键选择)兑现，**日志一侧确认过的批次断电后仍在**。SQL 一侧按 D-027 仍可能丢最后一段已提交事务；`storage-sql` 升级未确认即撤除时恢复快照，是同一形状的另一条来路（SQL 回退、日志不回退）——两种情形下，日志里已确认的条目都可能指着 SQL 一侧已经不在的行。**受影响的是 SQL 一侧的两处**：会话持有租户 `capability.session-tenancy/v2#S-6`（[session-tenancy-table](../session-tenancy-table/design.md#实施缺口与消费者影响) STT-3）、装配清单 `capability.assembly-manifest/v2#S-24` 与 S-13（[assembly-manifest-store](../../assets/assembly-manifest-store/design.md#实施缺口与消费者影响) AMS-4、AMS-5）——它们引这一条，不另论证。每批多一次耐久写的延迟未测，记为**实施程测量项**（verification V-13，与模型请求运行时 MRR-N7 同测） | 契约 S-13 第 5 条、G-3；ST S-6、AM S-24；首 token 热路径 | 主线（边界）；实现者（测量） | 不闭合的已知边界：产品要求跨存储的断电次序时另出决定（sqlite 改 `FULL`，或两处落进同一事务域）；升级恢复那一条来路由「开闸在确认之后」挡住——已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点）；测量结果记入 verification |
+| SLJ-3 | **已裁：观察项（主线，D-060 §八 N-40 ②）——不抽共享件。**`infra/storage-sql` 的排他是升级守卫的属主（sqlite 库级），本节点是日志目录的属主（借 sqlite 文件锁作原语）：机制与目的都不同，两份实现不是同一概念的两份权威 | —— | 主线 | 出现第三个「目录属主」消费者时再议抽共享件 |
 | SLJ-4 | **插件重跑时新实例早于旧实例放锁 ⇒ 启动失败**：重跑时旧 effect 的撤除是否先于新插件体**完成**，basis [`plugin-body-reruns-on-provider-change`](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md) 只说「先卸载再重跑」——**待核对主张**，与 storage-sql 交错 (d) 同一件 | 运行期重跑（据点装配本版不做） | `core/kernel-basis` owner | 按 source-check 取证后定要不要一条测试；若旧撤除不先完成，改为有界等待锁（届时是一个策略配置项） |
 | SLJ-5 | 两个策略项的初值没有测量依据；写与确认没有超时 | 长期待机的内存与句柄上界；挂住的文件系统 | 实现者 | 有测量再调初值；出现网络存储或挂住的实际案例再议超时 |
 | SLJ-6 | **读没有分页**：`readSince(…, 0)` 把整本日志（含载荷）一次读进内存——契约的接口就是这样 | 长日志的读方（投影追尾、拓展件的日志只读句柄） | loop 与会话那一程（SL G-1） | 那一程的契约给分页或流式读 |

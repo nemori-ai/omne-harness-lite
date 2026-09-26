@@ -7,6 +7,7 @@ Design-chain identities, catalog registrations, frozen versions and formal tasks
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 from pathlib import Path
 
@@ -21,6 +22,15 @@ IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build"
 # Retained originals keep the relative links they were written with, by design: rewriting them
 # would falsify the record of what the source actually said. Their own entries explain this.
 RETAINED = ("{meta}/design_legacy", "{meta}/research/legacy_backup", "{meta}/agents/research")
+
+# One byte-preserved upstream API source, sealed in the adjacent sha256.json.
+# Its relative links belong to Node's doc/api tree, not this repository. Keep the
+# surrounding research README in the navigation check and reject modified bytes.
+RETAINED_FILES = {
+    ".meta_harness/research/governance-recovery-providers/reports/"
+    "2026-09-26-snapshot-check-worker/maintenance-probe/node24-worker-threads.md":
+    "148bc99fe9b4a2b991dd0966168d3f2188c75e1e673d3eb723ede3dd32accd81",
+}
 
 
 def collect(root: Path) -> list[Path]:
@@ -38,6 +48,7 @@ def collect(root: Path) -> list[Path]:
     # filled in when a topic is created, so they cannot resolve where they sit.
     return [p for p in files
             if ".templates" not in p.parts
+            and p.relative_to(root).as_posix() not in RETAINED_FILES
             and not any(p.is_relative_to(area) for area in retained)]
 
 
@@ -59,6 +70,10 @@ def check_skill_mirrors(root: Path, errors: list[str]) -> None:
 
 def check(root: Path):
     errors: list[str] = []
+    for relative, expected in RETAINED_FILES.items():
+        path = root / relative
+        if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            errors.append(f"{relative}: retained upstream source digest differs")
     files = collect(root)
     for path in sorted(files):
         for raw in markdown_links(path):

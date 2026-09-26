@@ -5,7 +5,7 @@
 //   HB = spec/compositions/governance-center-entry-https-json/v1；EC = spec/compositions/governance-center-entry/v1；
 //   D-029 = realization/apps/cli/design.md「客户端信任中心的规则」。
 // 判据一律是来者可观察的结果：答复的值与字节、之后能不能做某事、进程的退出码与它写出的工程记录；不读进程内部。
-// 唯一碰库文件的两处都是运维者在产品之外做的事：搬家（挪文件）与备份（复制文件）；「备份外泄」一条读的是那份拷贝。
+// 搬家挪动停机后的文件；备份/隔离恢复走产品命令。「备份外泄」只在隔离目录提取取证副本，不开放业务。
 // 本目录不 import 任何 `@omne-harness-lite/*` 包与 `src/`；被测的是构建产物（先 `pnpm run build`）。
 // 证据：设 `OMNE_E2E_EVIDENCE_DIR` 就写到那里（出示物、口令、私钥遮蔽成 ***），否则写到临时目录、跑完删掉。
 import { spawn } from 'node:child_process'
@@ -21,6 +21,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
+import { isIPv4 } from 'node:net'
 import { DatabaseSync } from 'node:sqlite'
 import { createServer as createTlsServer } from 'node:tls'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -83,6 +84,9 @@ import {
 } from './journey.ts'
 
 // ---- 固定字节：HB examples.md §1、§3（每份的 SHA-256 取自那一页，先核对夹具本身） ----
+
+// 不是每个平台都配置了第二个回环地址；覆盖条件仍是两个不同且可绑定的来源地址。
+const ALTERNATE_SOURCE_ADDRESS = process.env['OMNE_TEST_ALTERNATE_SOURCE_ADDRESS'] ?? '127.0.0.2'
 
 function answerBytes(body: string): Buffer {
   return Buffer.from(
@@ -292,11 +296,42 @@ function invitationView(value: unknown): Record<string, unknown> {
 
 // ---- 路由的简写 ----
 
-function as(
+async function as(
   name: string,
   route: RouteName,
   payload: Record<string, unknown> = {},
 ): Promise<Exchange> {
+  // This black-box journey explicitly confirms the current selection before
+  // each tenant-scoped action. Stale confirmations are tested independently.
+  const scoped: readonly RouteName[] = [
+    'invite',
+    'withdrawInvitation',
+    'changeRole',
+    'removeMember',
+    'requestAffiliation',
+    'withdrawAffiliationRequest',
+    'acceptAffiliationRequest',
+    'dissolveAffiliation',
+    'switchTenant',
+    'readAffiliationRequest',
+    'listIssuedOffers',
+    'listMembers',
+    'listIncomingAffiliationRequests',
+  ]
+  if (
+    (scoped.includes(route) ||
+      (route === 'readInvitation' && payload['callerIdentityKind'] === 'tenant')) &&
+    !Object.hasOwn(payload, 'expectedTenant')
+  ) {
+    const current = await call(
+      cA,
+      'currentTenant',
+      {},
+      login(name).presentation,
+      `${name}:confirm-current-tenant`,
+    )
+    payload = { ...payload, expectedTenant: expectResult(current) }
+  }
   return call(cA, route, payload, login(name).presentation, `${name}:${route}`)
 }
 
@@ -727,7 +762,11 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       logins.set('ada4', await logIn(cA, account('ada'), 'ada:login 4'))
       const listed = asArray(expectResult(await as('ada1', 'listLoginStates')), 'login states')
       const handles = listed.map(item => {
-        const entry = expectKeys(item, ['loginStateHandle', 'issuedAt'], 'list item')
+        const entry = expectKeys(
+          item,
+          ['loginStateHandle', 'issuedAt', 'lastActivityAt', 'absoluteExpiresAt', 'idleExpiresAt'],
+          'list item',
+        )
         expect(entry['issuedAt']).toMatch(INSTANT)
         return asString(entry['loginStateHandle'], 'handle')
       })
@@ -1308,7 +1347,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
           callRaw(
             cA,
             'two presentations',
-            `{"protocolVersion":"1","presentedLoginState":${JSON.stringify(valid)},"presentedLoginState":"x","operation":"${ROUTE.myTenants}","payload":{}}`,
+            `{"protocolVersion":"2","presentedLoginState":${JSON.stringify(valid)},"presentedLoginState":"x","operation":"${ROUTE.myTenants}","payload":{}}`,
           ),
         ],
         ['malformed', call(cA, 'myTenants', {}, ` ${valid}`, 'malformed (leading space)')],
@@ -1442,10 +1481,14 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         'this client from 127.0.0.1',
       )
       expectResult(first)
-      const elsewhere = client(address(dA, { localAddress: '127.0.0.2' }), { observe })
+      expect(isIPv4(ALTERNATE_SOURCE_ADDRESS), 'alternate source must be an IPv4 address').toBe(
+        true,
+      )
+      expect(['127.0.0.1', '0.0.0.0']).not.toContain(ALTERNATE_SOURCE_ADDRESS)
+      const elsewhere = client(address(dA, { localAddress: ALTERNATE_SOURCE_ADDRESS }), { observe })
       const script = await callRaw(
         elsewhere,
-        'a script from 127.0.0.2: PUT, another path, no Host, other headers',
+        `a script from ${ALTERNATE_SOURCE_ADDRESS}: PUT, another path, no Host, other headers`,
         envelopeBody({
           protocolVersion: PROTOCOL_VERSION,
           presentedLoginState: login('ada1').presentation,
@@ -1462,6 +1505,10 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
           ],
         },
       )
+      expect(
+        script.wire.requestWritten,
+        `alternate source ${ALTERNATE_SOURCE_ADDRESS}: ${script.wire.error ?? 'request not sent'}; set OMNE_TEST_ALTERNATE_SOURCE_ADDRESS to a different local IPv4 address that can reach the loopback listener`,
+      ).toBe(true)
       expect(text(script)).toBe(text(first))
       const viaOpenssl = await opensslClient(dA.port, ca.certFile, request)
       const wire = {
@@ -1502,7 +1549,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
   })
 
   describe('五、运维者没有门 [PF-017 §一 第 37～41 行；§二 第 19、20 行；§三「运维者没有门」「体检只说部署」]', () => {
-    it('[PF-017 §一「替同事接受邀请、移出、撤销登录状态」；EC S-25] 运维面对任何请求都只答完整体检，事后什么都没变', async () => {
+    it('[PF-017 §一「替同事接受邀请、移出、撤销登录状态」；EC S-25] 运维面拒绝业务载荷，事后治理状态不变', async () => {
       scenario('pf017-ops-no-door')
       const socket = opsSocketOf(dA)
       const invitation = id('invitation-for-cy')
@@ -1510,7 +1557,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'accept invitation for cy',
           envelopeBody({
-            protocolVersion: '1',
+            protocolVersion: '2',
             operation: ROUTE.acceptInvitation,
             payload: { invitation },
           }),
@@ -1519,7 +1566,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'remove ada',
           envelopeBody({
-            protocolVersion: '1',
+            protocolVersion: '2',
             operation: ROUTE.removeMember,
             payload: { targetTenant: tenants.get('X:ada') },
           }),
@@ -1528,7 +1575,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'revoke ada1',
           envelopeBody({
-            protocolVersion: '1',
+            protocolVersion: '2',
             operation: ROUTE.revokeLoginState,
             payload: { loginStateHandle: login('ada1').handle },
           }),
@@ -1537,7 +1584,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'register mallory',
           envelopeBody({
-            protocolVersion: '1',
+            protocolVersion: '2',
             operation: ROUTE.register,
             payload: { loginIdentifier: 'mallory@example.invalid', credential: password() },
           }),
@@ -1548,7 +1595,10 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       ]
       for (const [label, body, shape] of attempts) {
         const e = await fullHealth(socket, `ops: ${label}`, body, shape, observe)
-        expectKeys(e.health, FULL_HEALTH_KEYS, label)
+        expect(e.health, label).toBeUndefined()
+        const answer = parseHttpAnswer(e.wire.received)
+        if (typeof answer === 'string') throw new Error(`${label}: ${answer}`)
+        expect(JSON.parse(answer.body.toString('utf8')), label).toEqual({ status: 'invalid-input' })
       }
       expect((await readInvitation('cy1', invitation, 'account'))['offerState']).toBe('pending')
       expect(
@@ -1570,7 +1620,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       )
     })
 
-    it('[PF-017 §一「运维者想撤销某个同事的登录状态」；§二「运维者有任何一条不经登录状态的路」] 进程入口只有 keygen 与 serve，别的子命令一律用法错误', async () => {
+    it('[PF-017 §一「运维者想撤销某个同事的登录状态」；§二「运维者有任何一条不经登录状态的路」] 本机维护命令不提供账号管理入口，未定义子命令一律用法错误', async () => {
       scenario('pf017-cli-no-door')
       for (const args of [
         ['revoke', 'ada'],
@@ -1582,8 +1632,8 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       ]) {
         const run = await runCli(args, {}, command)
         cliRuns.push({ label: `cli ${args.join(' ')}`, run })
-        expect(run.code, args.join(' ')).toBe(2)
-        expect(run.stderr).toContain('usage: tenancy-host keygen <directory> | tenancy-host serve')
+        expect(run.code, args.join(' ')).toBe(64)
+        expect(run.stderr).toContain('usage: tenancy-host keygen <directory> | serve')
       }
     })
 
@@ -1592,7 +1642,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       const e = await fullHealth(
         opsSocketOf(dA),
         'full health after the journeys',
-        '{}',
+        undefined,
         {},
         observe,
       )
@@ -1684,7 +1734,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
           httpRequest(PUBLIC_HEALTH_BODY, 'localhost'),
           5_000,
         )
-        const opsProbe = await fullHealth(opsSocketOf(dA), 'ops probe', '{}', {}, undefined)
+        const opsProbe = await fullHealth(opsSocketOf(dA), 'ops probe', undefined, {}, undefined)
         probes.push({
           tls: `written=${String(tlsProbe.requestWritten)} tls=${String(tlsProbe.tls?.protocol)} err=${String(tlsProbe.error)} bytes=${String(tlsProbe.received.length)}`,
           ops: `written=${String(opsProbe.wire.requestWritten)} err=${String(opsProbe.wire.error)} bytes=${String(opsProbe.wire.received.length)}`,
@@ -1804,7 +1854,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       const health = await fullHealth(
         opsSocketOf(dA),
         'full health after the key files were deleted',
-        '{}',
+        undefined,
         {},
         observe,
       )
@@ -1905,17 +1955,19 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
     }, 90_000)
 
     let backupDir = ''
+    let forensicFile = ''
 
-    it('[PF-017 §一「运维者从备份恢复」] 恢复出来的还是原来那个中心；备份之后签发的不作数，注册、邀请、加入都不在；备份之后撤销的又有效、移出的成员又回来了', async () => {
+    it('[PF-017 rev5 / EC3 S-43–59] 在线备份与隔离恢复不回滚现用库；旧撤销与移除不会复活，恢复物不能启动业务', async () => {
       scenario('pf017-backup-restore')
-      await stopA()
-      backupDir = join(root, 'backup')
-      mkdirSync(backupDir)
-      const files = ['', '-wal', '-shm'].filter(s => existsSync(`${dA.dbFile}${s}`))
-      for (const suffix of files)
-        copyFileSync(`${dA.dbFile}${suffix}`, join(backupDir, `center.sqlite${suffix}`))
-      evidence.output('backup/files.txt', `${files.map(s => `center.sqlite${s}`).join('\n')}\n`)
-      await start('A-12-before-backup-actions', dA)
+      const backupRun = await runCli(['ops', '--socket-dir', dA.opsDir, 'backup'], {}, command)
+      cliRuns.push({ label: 'online backup', run: backupRun })
+      expect(backupRun.code, backupRun.stderr).toBe(0)
+      const backup = asRecord(JSON.parse(backupRun.stdout), 'backup')
+      expect(backup['status']).toBe('completed')
+      const source = join(
+        `${dA.dbFile}.backups`,
+        asString(asRecord(backup['backup'], 'descriptor')['fileName'], 'fileName'),
+      )
       const after = await logIn(cA, account('ada'), 'ada: login after the backup')
       logins.set('ada6', after)
       expect(
@@ -1934,60 +1986,69 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       const joined = asTenantId(
         expectResult(await as('erin1', 'acceptInvitation', { invitation: lateInvitation })),
       )
-      await stopA()
-      for (const suffix of ['', '-wal', '-shm']) rmSync(`${dA.dbFile}${suffix}`, { force: true })
-      for (const suffix of files)
-        copyFileSync(join(backupDir, `center.sqlite${suffix}`), `${dA.dbFile}${suffix}`)
-      expect((await start('A-13-restored', dA))['centerId']).toBe(centerIdA)
-      expectEntry(await as('ada6', 'myTenants'), 'login-state-rejected')
-      expectResult(await as('ada5', 'myTenants'))
-      expectFailure(
-        await call(
-          cA,
-          'login',
-          {
-            loginIdentifier: account('gina').loginIdentifier,
-            credential: account('gina').credential,
-          },
-          undefined,
-          'gina login after restore',
-        ),
-        'identifier-or-credential-rejected',
+      backupDir = join(root, 'restored-isolated')
+      const work = join(root, 'restore-work')
+      const restored = await runCli(
+        ['restore-isolated', '--source', source, '--target', backupDir, '--work-dir', work],
+        {},
+        command,
+      )
+      cliRuns.push({ label: 'restore isolated', run: restored })
+      expect(restored.code, restored.stderr).toBe(0)
+      expect(JSON.parse(restored.stdout)).toMatchObject({
+        status: 'restored-isolated',
+        businessOpen: false,
+      })
+      const isolated = join(backupDir, 'data.omne-backup')
+      expect(readFileSync(isolated)).toEqual(readFileSync(source))
+      const refused = await runCli(
+        ['serve'],
+        envOf({ ...dA, dbFile: isolated, port: await freePort(), opsDir: opsDirectory(root) }),
+        command,
+      )
+      cliRuns.push({ label: 'isolated envelope cannot serve', run: refused })
+      expect(refused.code, refused.stderr).toBe(1)
+      expect(refused.stderr).not.toContain('"event":"serving"')
+      expectResult(await as('ada6', 'myTenants'))
+      expectEntry(await as('ada5', 'myTenants'), 'login-state-rejected')
+      logins.set(
+        'gina1',
+        await logIn(cA, account('gina'), 'gina: login unaffected by isolated restore'),
       )
       expect(
         expectResult(await as('ada1', 'membershipStanding', { tenant: tenants.get('X:frank') })),
-      ).toEqual({
+      ).toEqual({ standing: 'ineffective' })
+      expect(expectResult(await as('ada1', 'membershipStanding', { tenant: joined }))).toEqual({
         standing: 'effective',
         role: 'member',
       })
-      // 备份之后的邀请与加入都不在了
-      expectFailure(
-        await as('erin1', 'readInvitation', {
-          invitation: lateInvitation,
-          callerIdentityKind: 'account',
-        }),
-        'invitationDoesNotExist',
+      expect((await readInvitation('erin1', lateInvitation, 'account'))['offerState']).toBe(
+        'accepted',
       )
-      expect(expectResult(await as('ada1', 'membershipStanding', { tenant: joined }))).toEqual({
-        standing: 'ineffective',
-      })
+      expect((await fullHealth(opsSocketOf(dA))).health?.['centerId']).toBe(centerIdA)
+      // Test-only extraction inside the permanently marked work root; never opened by product serve.
+      const envelope = readFileSync(isolated)
+      const magic = Buffer.from('OMNE-CENTER-BACKUP/1\n')
+      expect(envelope.subarray(0, magic.length)).toEqual(magic)
+      forensicFile = join(work, 'forensic.sqlite')
+      writeFileSync(
+        forensicFile,
+        envelope.subarray(magic.length + 4 + envelope.readUInt32BE(magic.length)),
+        { mode: 0o600 },
+      )
     })
 
     it('[PF-017 §一「一份中心数据的备份外泄了」；§三「不交出能直接用的凭证」（备份那一半）；EC S-41] 备份字节里搜不到口令与出示物；备份里每一个字符串值当出示物都被拒、答复逐字相同；两个仍有效的照常能用', async () => {
       scenario('pf017-backup-leak')
-      const bytes = readFileSync(join(backupDir, 'center.sqlite'))
-      const sidecars = ['-wal', '-shm']
-        .map(s => join(backupDir, `center.sqlite${s}`))
-        .filter(p => existsSync(p))
-        .map(p => readFileSync(p))
-      const all = Buffer.concat([bytes, ...sidecars])
+      const bytes = readFileSync(forensicFile)
+      const all = Buffer.concat([bytes, readFileSync(join(backupDir, 'data.omne-backup'))])
       for (const secret of evidence.secrets.all.filter(s => s.kind !== 'private-key'))
         for (const form of secretForms(secret.value))
           expect(all.includes(Buffer.from(form.text, 'utf8')), `${secret.kind} ${form.form}`).toBe(
             false,
           )
-      const copy = join(root, 'backup-copy.sqlite')
-      copyFileSync(join(backupDir, 'center.sqlite'), copy)
+      const copy = join(root, 'restore-work', 'backup-copy.sqlite')
+      copyFileSync(forensicFile, copy)
       const strings = new Set<string>()
       const db = new DatabaseSync(copy)
       try {
@@ -2112,7 +2173,13 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
     })
 
     it('[PF-017 §二「部署密钥的值出现在…任何输出里」「工程记录里出现对端地址，或账号、租户能被还原出来的标识」] 全部答复、两种体检、工程记录、启动失败说明：密钥与口令一处都没有；出示物只在签发它的那一次登录答复里；工程记录里没有来源地址、没有任何账号标识与登录标识', async () => {
-      const last = await fullHealth(opsSocketOf(dA), 'full health at the end', '{}', {}, observe)
+      const last = await fullHealth(
+        opsSocketOf(dA),
+        'full health at the end',
+        undefined,
+        {},
+        observe,
+      )
       expect(last.health?.['defectCount'], '整段旅程入口层没有记下任何缺陷').toBe(0)
       if (A !== undefined) await stopA()
       const outputs: { readonly where: string; readonly text: string }[] = [
@@ -2146,7 +2213,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         expect(places[0]?.text).toContain(`{"result":{"loginState":"${value}"`)
       }
       const logs = processes.map(p => p.stderr()).join('\n')
-      expect(logs).not.toContain('127.0.0.2')
+      expect(logs).not.toContain(ALTERNATE_SOURCE_ADDRESS)
       for (const t of tenants.values())
         expect(logs, 'AccountId in the engineering records').not.toContain(t.account)
       for (const a of accounts.values())
@@ -2158,7 +2225,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         'log-scan.txt',
         [
           `engineering records: ${String(processes.length)} processes, ${String(logs.split('\n').filter(Boolean).length)} lines`,
-          `peer address 127.0.0.2: absent; AccountIds: ${String(tenants.size)} checked, absent; login identifiers: ${String(accounts.size)} checked, absent`,
+          `peer address ${ALTERNATE_SOURCE_ADDRESS}: absent; AccountIds: ${String(tenants.size)} checked, absent; login identifiers: ${String(accounts.size)} checked, absent`,
           `OrganizationIds seen in the records (observation, not a criterion): ${String(organizationsInLogs.length)}`,
           '',
         ].join('\n'),

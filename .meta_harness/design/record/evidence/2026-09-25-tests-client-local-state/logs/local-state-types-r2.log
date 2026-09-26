@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/client-local-state@0.0.0 typecheck /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state
+> tsc -p tsconfig.test.json
+

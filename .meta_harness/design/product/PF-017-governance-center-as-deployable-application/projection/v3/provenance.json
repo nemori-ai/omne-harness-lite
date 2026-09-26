@@ -1,0 +1,21 @@
+{
+  "projection_version": 3,
+  "date": "2026-09-25",
+  "scope": "governance-host-portable",
+  "product": {
+    "topic": "PF-017",
+    "rev": 4
+  },
+  "sources": [
+    {
+      "path": ".meta_harness/design/realization/apps/tenancy-host/packaging.md",
+      "sha256": null,
+      "status": "mutable provider; verify accepted scope before implementation"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/governance-host-portable-adoption/decision.md",
+      "sha256": null,
+      "status": "decision record, not registry frozen contract"
+    }
+  ]
+}

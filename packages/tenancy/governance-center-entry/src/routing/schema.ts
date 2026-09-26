@@ -32,6 +32,9 @@ const offerExpirySchema = schemaDocument(require('@omne-harness-lite/offer-expir
 const ajv = new Ajv2020({
   strict: true,
   strictTypes: false,
+  // Conditional required keys are declared in the enclosing schema. This Ajv
+  // authoring warning is not a JSON Schema validation constraint.
+  strictRequired: false,
   allErrors: false,
   validateFormats: false,
 })

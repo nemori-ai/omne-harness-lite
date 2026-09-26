@@ -32,7 +32,7 @@ function ownDefinition(name: string): name is SchemaDefName {
 }
 const ownUrl = new URL('../schema/mcp-endpoint.schema.json', import.meta.url)
 const authoritativeUrl = new URL(
-  '../../../../.meta_harness/design/spec/data/mcp-endpoint/v1/mcp-endpoint.schema.json',
+  '../../../../.meta_harness/design/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json',
   import.meta.url,
 )
 

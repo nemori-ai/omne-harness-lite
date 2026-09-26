@@ -1935,7 +1935,7 @@
       "domain": {
         "kind": "open",
         "schema": {
-          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef"
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json#/$defs/CredentialRef"
         }
       }
     },

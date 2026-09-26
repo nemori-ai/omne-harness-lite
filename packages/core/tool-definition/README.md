@@ -1,6 +1,6 @@
 # tool-definition
 
-Pure values and judgments for the accepted `data.tool-definition` v1 contract.
+Pure values and judgments for the accepted `data.tool-definition` v2 contract.
 The maintained responsibility and verification map is the
 [realization node](../../../.meta_harness/design/realization/packages/core/tool-definition/README.md).
 

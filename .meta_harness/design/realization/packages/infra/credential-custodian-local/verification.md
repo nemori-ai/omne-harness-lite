@@ -7,7 +7,7 @@
 
 ### 契约的形式工件：已运行，不作本节点的绑定
 
-formal task `credential-custodian-v1-sweep`（[run 2026-09-25-formal-credential-custodian](../../../../record/evidence/2026-09-25-formal-credential-custodian/README.md)：正配置无反例，三份去保护配置与两个探针按预期）证的是**契约模型**：「只丢三种」与「按排到之后读的时刻判」缺一即有反例。它把「在绑定上排序」建成每个动作的原子性、两侧共用一个 `Expired`——**这两条被建模方式吸收，模型不检查它们**；而本节点对 S-18 的份额恰是这两条（锁同一绑定行、锁到之后取时刻；过期只经桥的 `isPendingExpired` 判）。所以它是本节点设计的依据，不是本节点实现的证据；[bindings](bindings.yaml) 不登记它。本节点那一份的证据是下面的 S-28 与 N-1。
+formal task `credential-custodian-v2-sweep`（[run 2026-09-25-formal-credential-custodian](../../../../record/evidence/2026-09-25-formal-credential-custodian/README.md)：正配置无反例，三份去保护配置与两个探针按预期）证的是**契约模型**：「只丢三种」与「按排到之后读的时刻判」缺一即有反例。它把「在绑定上排序」建成每个动作的原子性、两侧共用一个 `Expired`——**这两条被建模方式吸收，模型不检查它们**；而本节点对 S-18 的份额恰是这两条（锁同一绑定行、锁到之后取时刻；过期只经桥的 `isPendingExpired` 判）。所以它是本节点设计的依据，不是本节点实现的证据；[bindings](bindings.yaml) 不登记它。本节点那一份的证据是下面的 S-28 与 N-1。
 
 ### 规范场景（七条，全部未开始）
 
@@ -15,14 +15,14 @@ formal task `credential-custodian-v1-sweep`（[run 2026-09-25-formal-credential-
 
 | 场景 | 本节点上的形式与前提 | 另外受阻于 | 状态 |
 |---|---|---|---|
-| [S-22](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-22-离线用副本) 离线用副本 | 验收装配：测试登录状态经 `storeReplica` 写种子，切断中心连接后调模型 | P-1r 向中心取值不在本版（MPD-N2）：只能验「副本在就交出」那一半，**有前提：测试种子** | 未开始 |
-| [S-23](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-23-另一个账号的据点读不到) 另一个账号的据点读不到 | 两个据点各一份 `storage` 与各自的 `keyFile`；把 A 的两张表的行拷进 B 的库再读（契约已写明只拷条目、B 的密钥不变） | —— | 未开始 |
-| [S-24](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-24-登录状态结束副本随之清除) 登录状态结束，副本随之清除 | 集成测试（sqlite 与 pg 两方言） | 产品里没有调用方（CCL-4）：测试直接调 `discardLoginState` | 未开始 |
-| [S-25](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-25-oauth-条目待生效时不交出granted-才交出) 待生效不交出，`granted` 才交出 | 对真实存储：绑定行由桥的迁移建表、测试按桥的写法迁状态；故障注入：绑定读失败 ⇒ `unavailable` | 桥的 `./tx-reads` 尚未建包 | 未开始 |
-| [S-26](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-26-加密落地) 加密落地 | 以已知原文逐字节扫库文件（sqlite 主文件与预写日志都扫）；**运行期**让密钥文件读不到（改权限或挪走）⇒ 四个操作 `unavailable` | —— | 未开始 |
-| [S-27](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-27-秘密不出本契约) 秘密不出本契约 | 哨兵扫全部返回、失败值、工程记录与结构化日志；**加一支**：在 pg 上造一次引用主键冲突与一次引用约束失败，断言日志里没有引用（N-4） | —— | 未开始 |
-| [S-28](../../../../spec/capabilities/credential-custodian/v1/contract.md#s-28-清扫与完成交错) 清扫与完成交错 | **真并发**：见 N-1；按装配给的 `sweepInterval` 计时，调度按起点到起点、轮不重叠（[关键选择五](design.md#关键选择)末段）：断言条目在 `t` 成为可丢后不晚于 `t + sweepInterval` 被丢；**另一支**把存储放慢到一轮超过 `sweepInterval / 2`，断言下一拍被跳过、记 warn、两轮从不重叠 | 桥（本体或按它的写法迁状态的测试件）；桥的 `./tx-reads` 尚未建包 | 未开始 |
-| [examples §4](../../../../spec/capabilities/credential-custodian/v1/examples.md#4-每个失败值一个反例) 失败值与次序 | 每个失败值一个反例 ＋ 三条次序回归例；**加一条**：密钥读不到且这个租户没有副本 ⇒ `unavailable`（不是 `absent`） | —— | 未开始 |
+| [S-22](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-22-离线用副本) 离线用副本 | 验收装配：测试登录状态经 `storeReplica` 写种子，切断中心连接后调模型 | P-1r 向中心取值不在本版（MPD-N2）：只能验「副本在就交出」那一半，**有前提：测试种子** | 未开始 |
+| [S-23](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-23-另一个账号的据点读不到) 另一个账号的据点读不到 | 两个据点各一份 `storage` 与各自的 `keyFile`；把 A 的两张表的行拷进 B 的库再读（契约已写明只拷条目、B 的密钥不变） | —— | 未开始 |
+| [S-24](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-24-登录状态结束副本随之清除) 登录状态结束，副本随之清除 | 集成测试（sqlite 与 pg 两方言） | 产品里没有调用方（CCL-4）：测试直接调 `discardLoginState` | 未开始 |
+| [S-25](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-25-oauth-条目待生效时不交出granted-才交出) 待生效不交出，`granted` 才交出 | 对真实存储：绑定行由桥的迁移建表、测试按桥的写法迁状态；故障注入：绑定读失败 ⇒ `unavailable` | 桥的 `./tx-reads` 尚未建包 | 未开始 |
+| [S-26](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-26-加密落地) 加密落地 | 以已知原文逐字节扫库文件（sqlite 主文件与预写日志都扫）；**运行期**让密钥文件读不到（改权限或挪走）⇒ 四个操作 `unavailable` | —— | 未开始 |
+| [S-27](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-27-秘密不出本契约) 秘密不出本契约 | 哨兵扫全部返回、失败值、工程记录与结构化日志；**加一支**：在 pg 上造一次引用主键冲突与一次引用约束失败，断言日志里没有引用（N-4） | —— | 未开始 |
+| [S-28](../../../../spec/capabilities/credential-custodian/v2/contract.md#s-28-清扫与完成交错) 清扫与完成交错 | **真并发**：见 N-1；按装配给的 `sweepInterval` 计时，调度按起点到起点、轮不重叠（[关键选择五](design.md#关键选择)末段）：断言条目在 `t` 成为可丢后不晚于 `t + sweepInterval` 被丢；**另一支**把存储放慢到一轮超过 `sweepInterval / 2`，断言下一拍被跳过、记 warn、两轮从不重叠 | 桥（本体或按它的写法迁状态的测试件）；桥的 `./tx-reads` 尚未建包 | 未开始 |
+| [examples §4](../../../../spec/capabilities/credential-custodian/v2/examples.md#4-每个失败值一个反例) 失败值与次序 | 每个失败值一个反例 ＋ 三条次序回归例；**加一条**：密钥读不到且这个租户没有副本 ⇒ `unavailable`（不是 `absent`） | —— | 未开始 |
 
 ### 本节点自己的选择带来的义务
 
@@ -48,14 +48,14 @@ formal task `credential-custodian-v1-sweep`（[run 2026-09-25-formal-credential-
 
 - **全部条款没有任何实现证据**：源码、测试、集成运行都不存在；[bindings](bindings.yaml) 为空。
 - **跨包的设计已接上、代码都没有**：S-25、S-28、N-1、N-10 要桥包的 `./tx-reads`（读、锁、`isPendingExpired`）与桥的迁移片段——桥节点已登记（X-1～X-3），两包都尚未建包。受阻消费者：桥的 `resolve` 与 `completeOAuth`、P-1r 离线取凭据的验收（S-22 那一半）。
-- **只能在测试种子上跑通的**（D-040 §八 N-35 ①）：S-22（副本来路 G-6）、S-24（调用方 G-5）——记「有前提：测试种子」，不计入实际验证完成数。
+- **只能在测试种子上跑通的**（D-060 §八 N-35 ①）：S-22（副本来路 G-6）、S-24（调用方 G-5）——记「有前提：测试种子」，不计入实际验证完成数。
 - **打不开的 OAuth 条目本版没有收场路径**（契约 G-10）：N-3 只证「留下、记 error、不动绑定」，不证它会被收走；受阻消费者：桥（那个绑定一直 `credentialUnavailable`，直到人重新授权）。
 - **密钥丢失而条目表非空时没有运维出口**（CCL-13）：N-5 只证启动失败与诊断，不证人能从那里走出来。
 - **契约 S-19 右列（协议须给）**本节点一条都不兑现。
 
 ## 独立评审
 
-**独立评审 N7**（architecture-reviewer，2026-09-25；对象：本节点首稿与同批另三个节点；结论无阻断）。下表是本节点名下各项的处置，依据主线裁定 [D-040 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**处置不等于评审闭合**：本次修订尚未复评。
+**独立评审 N7**（architecture-reviewer，2026-09-25；对象：本节点首稿与同批另三个节点；结论无阻断）。下表是本节点名下各项的处置，依据主线裁定 [D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)。**处置不等于评审闭合**：本次修订尚未复评。
 
 | 评审项 | 处置 | 落在哪 |
 |---|---|---|
@@ -66,4 +66,4 @@ formal task `credential-custodian-v1-sweep`（[run 2026-09-25-formal-credential-
 | S-6 CCL-1 与桥节点不同步 | CCL-1 改「已由桥节点 X-1／X-2 闭合」并互指；`readOAuthBinding`、`lockOAuthBinding` 与过期谓词 `isPendingExpired`（桥节点 X-3，桥已导出并自用）同在桥的 `./tx-reads`，本节点判过期一律经它 | design CCL-1、依赖表、跨 owner 一节；README |
 | D-1 `oauthPendingTtl` 双持（主线裁） | 维持双持加相等装配测试；谓词已只一份 | design CCL-3 |
 | 观察：本包依赖 `tools/mcp-bridge` 子路径的方向（主线裁） | 与契约依赖同向，接受 | design 关键选择一、CCL-10 |
-| 顺带 | CCL-7、CCL-8 的契约措辞已落（D-040 §八 N-40 ③），改「已闭合」 | design 缺口表 |
+| 顺带 | CCL-7、CCL-8 的契约措辞已落（D-060 §八 N-40 ③），改「已闭合」 | design 缺口表 |

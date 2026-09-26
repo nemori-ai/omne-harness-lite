@@ -38,26 +38,26 @@
 
 | 编号 | 性质 | 观察者 | 依据 |
 |---|---|---|---|
-| INV-1 | **确认一次成立，撤回、到期、资产没了之后什么都没有**：一份复制通知（无词条）被确认，目标组织要么同时得到那一版（首次另加血缘与持有）且通知成为已确认，要么两样都没有；一份分享邀请（无词条）被确认，分享（无词条）记录、被分享方那一层的持有与邀请的已确认同成同败 | 目标组织超管、发起者 | [PF-003 flows §3.4](../../../product/PF-003-asset-transfer-and-sharing/flows.md#34-一份待确认的邀约复制通知与分享邀请同形)、[§3.2](../../../product/PF-003-asset-transfer-and-sharing/flows.md#32-一段分享关系)；[AT S-18](../../../spec/capabilities/asset-transfer/v1/contract.md#s-18-确认是一次提交同一落点的确认序列化)、[S-22](../../../spec/capabilities/asset-transfer/v1/contract.md#s-22-确认复制) ④、[S-26](../../../spec/capabilities/asset-transfer/v1/contract.md#s-26-确认分享) ④ |
-| INV-2 | **资产记录与持有的结构不变量**：已发布版本不变、版本线只增且编号连续；所有者至多变一次；一格一个能力标识至多一份持有 | 选用某一版的消费方、审计者、目标组织 | [PF-002 flows §3.3](../../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)；[PF-001 §6.7](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)；[AM S-9](../../../spec/data/asset-model/v1/contract.md#s-9-版本线)、[S-7](../../../spec/data/asset-model/v1/contract.md#s-7-所有者至多变一次)、[S-18](../../../spec/data/asset-model/v1/contract.md#s-18-资产持有) |
-| INV-3 | （推导）**持有的使用权来路与记录此刻的所有者对得上**：一份资产从租户提升到组织，原租户那一格不再以「自己拥有」持有它 | 设置页上的成员、审计者 | [PF-001 §6.7](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)（提升是一次交付，所有权易手）；[AM S-19](../../../spec/data/asset-model/v1/contract.md#s-19-使用权来路)（`owned` 只在所有者那一格）；使用权来路的五支（[MR-8](#本包依赖的主线裁定尚无决定记录)）。**产品正文没写提升时持有怎么变**，本行是推导（[X-2](alternatives.md#仍待区分的事项)） |
-| INV-4 | **目标侧拿不到源**：复制下来的那份对目标组织只显示「由某租户在某时送进来第几版」；任何读面都给不出源记录号与源组织 | 目标组织 | [PF-003 §4 复制血缘](../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘)；[AT S-10](../../../spec/capabilities/asset-transfer/v1/contract.md#s-10-复制血缘怎么判怎么记)、[S-34](../../../spec/capabilities/asset-transfer/v1/contract.md#s-34-装配给的保证-vs-协议须给的保证) 末行；[AM S-22](../../../spec/data/asset-model/v1/contract.md#s-22-血缘号与分享号) |
+| INV-1 | **确认一次成立，撤回、到期、资产没了之后什么都没有**：一份复制通知（无词条）被确认，目标组织要么同时得到那一版（首次另加血缘与持有）且通知成为已确认，要么两样都没有；一份分享邀请（无词条）被确认，分享（无词条）记录、被分享方那一层的持有与邀请的已确认同成同败 | 目标组织超管、发起者 | [PF-003 flows §3.4](../../../product/PF-003-asset-transfer-and-sharing/flows.md#34-一份待确认的邀约复制通知与分享邀请同形)、[§3.2](../../../product/PF-003-asset-transfer-and-sharing/flows.md#32-一段分享关系)；[AT S-18](../../../spec/capabilities/asset-transfer/v2/contract.md#s-18-确认是一次提交同一落点的确认序列化)、[S-22](../../../spec/capabilities/asset-transfer/v2/contract.md#s-22-确认复制) ④、[S-26](../../../spec/capabilities/asset-transfer/v2/contract.md#s-26-确认分享) ④ |
+| INV-2 | **资产记录与持有的结构不变量**：已发布版本不变、版本线只增且编号连续；所有者至多变一次；一格一个能力标识至多一份持有 | 选用某一版的消费方、审计者、目标组织 | [PF-002 flows §3.3](../../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)；[PF-001 §6.7](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)；[AM S-9](../../../spec/data/asset-model/v2/contract.md#s-9-版本线)、[S-7](../../../spec/data/asset-model/v2/contract.md#s-7-所有者至多变一次)、[S-18](../../../spec/data/asset-model/v2/contract.md#s-18-资产持有) |
+| INV-3 | （推导）**持有的使用权来路与记录此刻的所有者对得上**：一份资产从租户提升到组织，原租户那一格不再以「自己拥有」持有它 | 设置页上的成员、审计者 | [PF-001 §6.7](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)（提升是一次交付，所有权易手）；[AM S-19](../../../spec/data/asset-model/v2/contract.md#s-19-使用权来路)（`owned` 只在所有者那一格）；使用权来路的五支（[MR-8](#本包依赖的主线裁定尚无决定记录)）。**产品正文没写提升时持有怎么变**，本行是推导（[X-2](alternatives.md#仍待区分的事项)） |
+| INV-4 | **目标侧拿不到源**：复制下来的那份对目标组织只显示「由某租户在某时送进来第几版」；任何读面都给不出源记录号与源组织 | 目标组织 | [PF-003 §4 复制血缘](../../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘)；[AT S-10](../../../spec/capabilities/asset-transfer/v2/contract.md#s-10-复制血缘怎么判怎么记)、[S-34](../../../spec/capabilities/asset-transfer/v2/contract.md#s-34-装配给的保证-vs-协议须给的保证) 末行；[AM S-22](../../../spec/data/asset-model/v2/contract.md#s-22-血缘号与分享号) |
 | INV-5 | （推导）**同一份输入，两处给同一个答案**：设置页上看到的「这份来自哪一层、替换了哪一层、这一项取什么值」，与据点装配时实际用上的，在输入相同时一致 | 成员、管理员、经 meta 能力查看的 agent | [PF-002 §5.5](../../../product/PF-002-assets-settings-and-permissions/design.md#55-资产替换的层级)（替换在设置页与 meta 能力两处都必须可见）、[「组织的设置」是视图](../../../product/PF-002-assets-settings-and-permissions/design.md#组织的设置是视图不是对象)、[§6.1](../../../product/PF-002-assets-settings-and-permissions/design.md#61-设置页是长出来的不是画出来的) |
-| SAF-1 | **指向已不在的资产的邀约确认不下去**：资产被删除、或被所有者那一层移除之后，确认被拒且说它已失效；不出现「先确认成功、再当场失败」 | 接收方 | [PF-003 §6.14](../../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)、[flows §二](../../../product/PF-003-asset-transfer-and-sharing/flows.md#二分支与异常)；[AT S-7](../../../spec/capabilities/asset-transfer/v1/contract.md#s-7-两类待确认件共用的过期语义)、S-18；[`data.offer-expiry/v1#S-10`](../../../spec/data/offer-expiry/v1/contract.md#s-10-接受操作在同一提交内重新求值) |
-| SAF-2 | **再复制不碰目标组织的配置**：不改目标侧任何持有与配值（含 immutable），不覆盖无血缘的同标识资产 | 目标组织 | [PF-003 §6.7](../../../product/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动)、[§6.8](../../../product/PF-003-asset-transfer-and-sharing/design.md#68-能力标识撞车但没有血缘)；[AT S-11](../../../spec/capabilities/asset-transfer/v1/contract.md#s-11-复制的收场) |
-| SAF-3 | **被分享方移除，一并干净**：分享的结束与被分享方那一层的持有、配值消失同成同败 | 被分享方 | [PF-003 flows §1.7](../../../product/PF-003-asset-transfer-and-sharing/flows.md#17-结束一段分享)；[AT S-29](../../../spec/capabilities/asset-transfer/v1/contract.md#s-29-移除收到的分享) ④；[资产移除](../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-removal--资产移除--asset-removal) |
+| SAF-1 | **指向已不在的资产的邀约确认不下去**：资产被删除、或被所有者那一层移除之后，确认被拒且说它已失效；不出现「先确认成功、再当场失败」 | 接收方 | [PF-003 §6.14](../../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)、[flows §二](../../../product/PF-003-asset-transfer-and-sharing/flows.md#二分支与异常)；[AT S-7](../../../spec/capabilities/asset-transfer/v2/contract.md#s-7-两类待确认件共用的过期语义)、S-18；[`data.offer-expiry/v1#S-10`](../../../spec/data/offer-expiry/v1/contract.md#s-10-接受操作在同一提交内重新求值) |
+| SAF-2 | **再复制不碰目标组织的配置**：不改目标侧任何持有与配值（含 immutable），不覆盖无血缘的同标识资产 | 目标组织 | [PF-003 §6.7](../../../product/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动)、[§6.8](../../../product/PF-003-asset-transfer-and-sharing/design.md#68-能力标识撞车但没有血缘)；[AT S-11](../../../spec/capabilities/asset-transfer/v2/contract.md#s-11-复制的收场) |
+| SAF-3 | **被分享方移除，一并干净**：分享的结束与被分享方那一层的持有、配值消失同成同败 | 被分享方 | [PF-003 flows §1.7](../../../product/PF-003-asset-transfer-and-sharing/flows.md#17-结束一段分享)；[AT S-29](../../../spec/capabilities/asset-transfer/v2/contract.md#s-29-移除收到的分享) ④；[资产移除](../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-removal--资产移除--asset-removal) |
 | LIV-1 | **治理中心问不到时，已经开着的会话照常求值**：装配、reload、每一次使用前的权限读照常进行，用据点上的副本。**前提**：副本存在（据点装配给，[MR-3](#本包依赖的主线裁定尚无决定记录)）；它可能已旧，这是已接受的代价 | 会话里的人 | [PF-016 §6.17](../../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)、[§6.9](../../../product/PF-016-cli-tui-delivery-surface/design.md#69-需要现读成员资格的那几件事不拿副本放行)（会话里的一切不问中心）、[§5.6](../../../product/PF-016-cli-tui-delivery-surface/design.md#56-哪些东西在中心一侧哪些在据点一侧)；[PF-002 §4 工作区](../../../product/PF-002-assets-settings-and-permissions/design.md#工作区)（目录在据点）；[治理中心](../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)「它不知道任何会话」 |
 
 **保护点不随本选择移动的**（五个候选都由同一个承载者兑现，本包不再比较）：
 
 - 同一 (源记录, 目标组织) 至多一份带血缘的目标记录、同一 (资产, 被分享方) 至多一份生效分享——同键写入由存储序列化（AT S-18；P-1）；
 - 团队 → 团队复制的确认与隶属解除——确认事务取组织治理的隶属哨兵（[MR-2](#本包依赖的主线裁定尚无决定记录)），五个候选都要组织治理节点配合（[X-1](alternatives.md#仍待区分的事项)）；
-- 分享在使用时失效、不靠事件（[AT S-9](../../../spec/capabilities/asset-transfer/v1/contract.md#s-9-分享此刻是否生效)、[S-31](../../../spec/capabilities/asset-transfer/v1/contract.md#s-31-隶属解除分享在使用时失效不靠事件)；[og S-40](../../../spec/capabilities/organization-governance/v1/contract.md#s-40-事件都是通知)）——读时谓词，求值那一侧判；
+- 分享在使用时失效、不靠事件（[AT S-9](../../../spec/capabilities/asset-transfer/v2/contract.md#s-9-分享此刻是否生效)、[S-31](../../../spec/capabilities/asset-transfer/v2/contract.md#s-31-隶属解除分享在使用时失效不靠事件)；[og S-40](../../../spec/capabilities/organization-governance/v1/contract.md#s-40-事件都是通知)）——读时谓词，求值那一侧判；
 - 中心不半开（[PF-017 §6.6](../../../product/PF-017-governance-center-as-deployable-application/design.md#66-要么整个起来要么不起来)；[gce S-34](../../../spec/compositions/governance-center-entry/v1/contract.md#s-34-起来即整体停机时在途请求归谁)）——入口层 inject 全部面；
   **C、E 多出来的插件同样被入口层 inject，任一个缺席中心整个不起来**，这使它们的「失败隔离」在本版没有可观察的收益（[alternatives](alternatives.md#候选-c)）；
-- 没有只活在运行实例里的事实、没有定时器承担正确性（[AT S-37](../../../spec/capabilities/asset-transfer/v1/contract.md#s-37-本能力自己被撤除替换或重启)；[`data.offer-expiry/v1#S-9`](../../../spec/data/offer-expiry/v1/contract.md#s-9-读时派生且派生状态不回退)、[`#S-18`](../../../spec/data/offer-expiry/v1/contract.md#s-18-后台清理不担正确性)；D-026）；
+- 没有只活在运行实例里的事实、没有定时器承担正确性（[AT S-37](../../../spec/capabilities/asset-transfer/v2/contract.md#s-37-本能力自己被撤除替换或重启)；[`data.offer-expiry/v1#S-9`](../../../spec/data/offer-expiry/v1/contract.md#s-9-读时派生且派生状态不回退)、[`#S-18`](../../../spec/data/offer-expiry/v1/contract.md#s-18-后台清理不担正确性)；D-026）；
 - 治理变化只作用于下一道尚未通过的准入（[PF-001 §6.6](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)）；
-- 确认成功之后目标组织下一次求值即用到落地的内容（[AT 第七节](../../../spec/capabilities/asset-transfer/v1/contract.md#七性质与前提)）——前提在求值一侧（持有上的版本选用，[MR-7](#本包依赖的主线裁定尚无决定记录)）。
+- 确认成功之后目标组织下一次求值即用到落地的内容（[AT 第七节](../../../spec/capabilities/asset-transfer/v2/contract.md#七性质与前提)）——前提在求值一侧（持有上的版本选用，[MR-7](#本包依赖的主线裁定尚无决定记录)）。
 
 ## 对象与落点（可独立引用）
 
@@ -76,7 +76,7 @@
 | O-8 | 官方件集合 | #1 | 随产品版本发布的数据；由装配启动时登记进中心存储，不是运行时操作（[MR-5](#本包依赖的主线裁定尚无决定记录)） | 中心登记；据点随程序带同一份（推导） |
 | O-9 | 一次资产复制（复制通知及其落地） | **#2**：资产提供者上一个以独立契约文本公开的面 | #1 否：有待确认段、会过期、有终结。#2 是：效果写在 O-2、O-6 的存储事实上，授权前提与失败模式是新条款、单独公开，不是悄悄扩大服务责任。**不到 #8**：消费者与 O-2、O-6 是同一批（中心治理面经入口层），且有同一提交 | 中心 |
 | O-10 | 复制血缘 | #1 | O-2 上的字段，首次复制时写、此后血缘号不变 | 中心 |
-| O-11 | 一段资产分享 | **#2**（同 O-9） | 同 O-9；**此刻是否生效是读时谓词**（[AT S-9](../../../spec/capabilities/asset-transfer/v1/contract.md#s-9-分享此刻是否生效)；[iv CS-4](../../../spec/data/identity-values/v1/contract.md#cs-4-分享边界有共同上级)），不是存储状态 | 中心 |
+| O-11 | 一段资产分享 | **#2**（同 O-9） | 同 O-9；**此刻是否生效是读时谓词**（[AT S-9](../../../spec/capabilities/asset-transfer/v2/contract.md#s-9-分享此刻是否生效)；[iv CS-4](../../../spec/data/identity-values/v1/contract.md#cs-4-分享边界有共同上级)），不是存储状态 | 中心 |
 | O-12 | 成员资格效力与上级链判定 | #0 | 指得出原文：[og S-26](../../../spec/capabilities/organization-governance/v1/contract.md#s-26-成员资格判定)、[S-34](../../../spec/capabilities/organization-governance/v1/contract.md#s-34-上级链与有共同上级)；块 A 只消费 | 中心（组织治理） |
 | O-13 | 工作区登记（无词条） | 块外 | 没有登记动作：工作区在会话创建时指定即存在；据点上一份「用过的工作区」清单只供交付面给默认值，不是治理事实（[MR-10](#本包依赖的主线裁定尚无决定记录)） | 据点 |
 | O-14 | 承载清单与工作区层读入结果 | #1 | 文件内容与由它派生的值；读文件是装配里的一段 I/O。**不建文件监听**：产品只认装配与 reload 两个时刻 | 据点 |
@@ -86,7 +86,7 @@
 | O-18 | 属性投影视图（「组织的设置」） | #1 | 持有集合上的函数；建成对象就是第二份权威 | 读面 |
 | O-19 | 资产领域的变化通知 | #4 通知，`emit` | 不是事实本身；没有谁凭返回值放行；到不了据点（H-2） | 中心进程内 |
 | O-20 | 据点上的中心事实副本（无词条） | 块外 | 归据点装配，读面 ＝ 入口契约的查询面 ＋ 本地缓存（MR-3） | 据点 |
-| O-21 | MCP 凭据 | 引用 #1；本体块外 | 配值里是不透明引用（[AM S-23](../../../spec/data/asset-model/v1/contract.md#s-23-凭据引用)）；本体存哪、怎么续期归 MCP 桥接的提供者设计 | 引用随 O-7 |
+| O-21 | MCP 凭据 | 引用 #1；本体块外 | 配值里是不透明引用（[AM S-23](../../../spec/data/asset-model/v2/contract.md#s-23-凭据引用)）；本体存哪、怎么续期归 MCP 桥接的提供者设计 | 引用随 O-7 |
 | O-22 | 过期邀约与休眠持有的后台整理 | #9 | 可见性整理与存储回收，不担正确性（`data.offer-expiry/v1#S-18`）；若建，也走与读写同一个判定 | 中心 |
 
 **分布**：#0 ×1 · #1 ×12（O-1、3、4、5、7、8、10、14、15、16、18、O-21 的引用）· #2 ×3（O-9、O-11、O-17 中心半）· #4 ×1 · **#8 ×2（O-2、O-6，同一插件）** · #9 ×1 · 块外 ×2 又两个半（O-13、O-20；O-17 据点半、O-21 本体）。**共 22 个对象。**
@@ -94,14 +94,14 @@
 
 ## 现有能力如何承载
 
-调查范围：本工作树的 `spec/`、`realization/`、`record/decisions/`（2026-09-23）。**范围外**：同批起草、不在本工作树的 `capability.asset-governance` v1 与 `capability.asset-evaluation` v1（本包只按契约身份称呼、不链接），块 B/C/D 的契约。
+调查范围：本工作树的 `spec/`、`realization/`、`record/decisions/`（2026-09-23）。**范围外**：同批起草、不在本工作树的 `capability.asset-governance` v2 与 `capability.asset-evaluation` v2（本包只按契约身份称呼、不链接），块 B/C/D 的契约。
 
 | 要求 | 现有能力与精确契约 | 怎样组合、谁交接 | 未覆盖的承诺或缺口 |
 |---|---|---|---|
-| 记录、版本、持有、配值、血缘、承载清单的形状 | [`data.asset-model` v1](../../../spec/data/asset-model/README.md)（candidate） | 三份能力契约引用它的 `$defs` 名 | 它的 [G-2（版本选用）与 G-3（使用权来路）](../../../spec/data/asset-model/v1/contract.md#八已知缺口)挡住求值第 3 步与工作区读入；主线已给出形状（MR-7、MR-8），尚未落进契约 |
-| 复制与分享：两类邀约、分享、血缘判定、流转边界 | [`capability.asset-transfer` v1](../../../spec/capabilities/asset-transfer/README.md)（candidate） | 确认的落地写在资产治理的存储对象上 | [S-2](../../../spec/capabilities/asset-transfer/v1/contract.md#s-2-本契约不拥有什么) 与 [S-4](../../../spec/capabilities/asset-transfer/v1/contract.md#s-4-依赖方向与被消费的面) 末两表把落地写成「组合资产治理的写面」，[G-10](../../../spec/capabilities/asset-transfer/v1/contract.md#十一已知缺口)登记对方的落地面未定——**这正是本选择要回答的** |
-| 创作、发布、提升、删除、持有与配值的写面与读面 | `capability.asset-governance` v1（起草中，不在本工作树） | — | 无可引用条款 |
-| 四步求值与承载清单读入 | `capability.asset-evaluation` v1（起草中，不在本工作树） | — | 无可引用条款 |
+| 记录、版本、持有、配值、血缘、承载清单的形状 | [`data.asset-model` v2](../../../spec/data/asset-model/README.md)（candidate） | 三份能力契约引用它的 `$defs` 名 | 它的 [G-2（版本选用）与 G-3（使用权来路）](../../../spec/data/asset-model/v2/contract.md#八已知缺口)挡住求值第 3 步与工作区读入；主线已给出形状（MR-7、MR-8），尚未落进契约 |
+| 复制与分享：两类邀约、分享、血缘判定、流转边界 | [`capability.asset-transfer` v2](../../../spec/capabilities/asset-transfer/README.md)（candidate） | 确认的落地写在资产治理的存储对象上 | [S-2](../../../spec/capabilities/asset-transfer/v2/contract.md#s-2-本契约不拥有什么) 与 [S-4](../../../spec/capabilities/asset-transfer/v2/contract.md#s-4-依赖方向与被消费的面) 末两表把落地写成「组合资产治理的写面」，[G-10](../../../spec/capabilities/asset-transfer/v2/contract.md#十一已知缺口)登记对方的落地面未定——**这正是本选择要回答的** |
+| 创作、发布、提升、删除、持有与配值的写面与读面 | `capability.asset-governance` v2（起草中，不在本工作树） | — | 无可引用条款 |
+| 四步求值与承载清单读入 | `capability.asset-evaluation` v2（起草中，不在本工作树） | — | 无可引用条款 |
 | 成员资格、角色、组织变体、上级链 | [og v1](../../../spec/capabilities/organization-governance/README.md) [S-22](../../../spec/capabilities/organization-governance/v1/contract.md#s-22-读组织)、[S-26](../../../spec/capabilities/organization-governance/v1/contract.md#s-26-成员资格判定)、[S-34](../../../spec/capabilities/organization-governance/v1/contract.md#s-34-上级链与有共同上级)（accepted） | 资产一侧 inject 读面，每道准入现读（[iv S-27](../../../spec/data/identity-values/v1/contract.md#s-27-每道准入现读)） | 团队 → 团队复制与隶属解除要一个共同存储对象：[og 节点](../../../realization/packages/tenancy/organization-governance/design.md#对存储提供者的要求清单) R-3b 的隶属哨兵只为它自己的 S-32／S-33 设（MR-2、X-1） |
 | 邀约的过期 | [`data.offer-expiry` v1](../../../spec/data/offer-expiry/README.md)（accepted） | 整块引用，读时派生 | 存在性读面归持有该对象的契约（AT S-7 已承担） |
 | 身份值与隔离 | [`data.identity-values` v1](../../../spec/data/identity-values/README.md)（accepted） | 纯函数 `shareAncestor` 等 | — |
@@ -116,7 +116,7 @@
 | 资产记录与持有的治理：创作、发布、提升、删除、加入、移除、禁用、锁替换、配值 | **新增** `capability.asset-governance` | 组织治理不拥有资产（它的事实是组织、成员关系、邀约、当前租户身份）；把资产写进 og 等于让 PF-002 的变化原因改一份已冻结的 v1。消费者：入口层（中心治理面）、据点副本经快照面 |
 | 跨组织流动：复制通知、分享邀请、分享、血缘判定、流转边界 | **新增** `capability.asset-transfer`（已有候选契约） | 变化原因是 PF-003；**与资产治理由同一个提供者兑现**（[N-1](#n-1-资产治理与资产流转契约两份提供者一个插件)） |
 | 四步求值与承载清单读入 | **新增** `capability.asset-evaluation`，提供者是**纯模块** | handbook [能力覆盖与演化](../../../../agents/skills/harness-design-handbook/canonical/references/decompose.md#新维度怎样获得依据)：纯计算可通过输入输出关系定义契约；同输入同输出，两侧 import（[N-2](#n-2-求值不做插件不进-ctx)） |
-| 静态形状 | `data.asset-model`（已有候选） | 数据契约，不需要插件（[AM「这份契约拥有什么」](../../../spec/data/asset-model/v1/contract.md#这份契约拥有什么)） |
+| 静态形状 | `data.asset-model`（已有候选） | 数据契约，不需要插件（[AM「这份契约拥有什么」](../../../spec/data/asset-model/v2/contract.md#这份契约拥有什么)） |
 | 中心那一半求值输入 | **读面投影**：资产治理的快照面 | 在一次读事务里取齐持有、记录与分享（N-3） |
 | 据点那一半求值输入、中心事实副本 | **组合**：据点装配（MR-3），不另立契约 | 另一半输入（工作区文件、会话值、MCP 动作清单、离线副本）都在据点（N-3、N-7） |
 | 客户端够得到资产各面 | **组合**：入口契约出 v2 追加路由 | 五个候选共有，不影响本选择 |
@@ -211,7 +211,7 @@ tenancy-host 的装载次序里，资产提供者排在组织治理之后（它 
 
 | 事件（候选） | 类 | 派发 | 发出点 | 进程内消费者 | 送不到会怎样 |
 |---|---|---|---|---|---|
-| 资产已发布／已提升／已删除；持有变了；配值变了；流转状态变了（名字归资产治理契约；资产流转本版不发自己的事件，[AT S-33](../../../spec/capabilities/asset-transfer/v1/contract.md#s-33-本版不发本契约自己的事件)） | 通知 | `emit`，提交之后，发出方包一层 | 中心，资产提供者 | 本版无必需的进程内消费者；可能有审计、给据点发同步提示的那一方 | **什么都不会错**：正确性来自存储与读时求值；据点那边的注册表与副本各有自己的刷新时刻 |
+| 资产已发布／已提升／已删除；持有变了；配值变了；流转状态变了（名字归资产治理契约；资产流转本版不发自己的事件，[AT S-33](../../../spec/capabilities/asset-transfer/v2/contract.md#s-33-本版不发本契约自己的事件)） | 通知 | `emit`，提交之后，发出方包一层 | 中心，资产提供者 | 本版无必需的进程内消费者；可能有审计、给据点发同步提示的那一方 | **什么都不会错**：正确性来自存储与读时求值；据点那边的注册表与副本各有自己的刷新时刻 |
 
 **包一层**：监听者同步抛出会穿回发出方并截断本轮派发（basis [`emit-listener-throw-propagates`](../../../basis/cordis/emit-listener-throw-propagates.md)），不包就会出现「调用方看到失败、存储里已经变了」；`emit` 丢弃返回值（basis [`async-control-not-bail`](../../../basis/cordis/async-control-not-bail.md)）。
 **没有控制事件**：锁截断、禁用析取、组合环、放行判断都在数据与纯函数里判。将来若开「发布前」「加入持有前」这类拓展点，异步判定必须 `serial`，不得 `bail`。
@@ -239,7 +239,7 @@ tenancy-host 的装载次序里，资产提供者排在组织治理之后（它 
 | **资产没了 ⇒ 指着它的邀约过期** | 记录上的删除事实，或所有者那一层移除持有（AT S-7 ③）；确认 | 同一插件：确认事务与删除／移除事务**锁同一行**（记录行；所有者那一层的持有行），两者在一行上排出次序。删除落成记录行上的一列（推导：MR-9 定删除之后内容保留为归档，删除是一个事实而不是一次物理删除） | 一方的事务锁另一方的行、读另一方的列 |
 | **被分享方移除** | 分享记录写 `removed`；被分享方持有与配值删除（AT S-29 ④） | 同一提交 | 跨 owner |
 | **提升到组织** | 记录的所有者；原租户那一格持有的来路（推导，INV-3） | 同一提交 | 跨 owner，见[候选 E](alternatives.md#候选-e) |
-| **团队 → 团队复制 vs 隶属解除** | 复制确认；组织治理的隶属写（[og S-33](../../../spec/capabilities/organization-governance/v1/contract.md#s-33-解除隶属)） | **跨 owner**（MR-2）：确认事务取组织治理的隶属哨兵 `lockSentinel('organization-governance/affiliation')`——sqlite 上由库级写锁兑现，pg 上是事务级 advisory lock，都在存储里、不在进程里——**并在同一事务里直接读组织治理的上级链列**，用 `core/identity-values` 的纯函数判「有共同上级」（P-13 不许在事务里调 og 的面）。两者在哨兵上排出次序；**装配给**（同一存储、同一约束域，P-1），跨进程由协议重兑（[AT S-34](../../../spec/capabilities/asset-transfer/v1/contract.md#s-34-装配给的保证-vs-协议须给的保证) 第三行） | 五个候选相同；需组织治理节点配合（X-1） |
+| **团队 → 团队复制 vs 隶属解除** | 复制确认；组织治理的隶属写（[og S-33](../../../spec/capabilities/organization-governance/v1/contract.md#s-33-解除隶属)） | **跨 owner**（MR-2）：确认事务取组织治理的隶属哨兵 `lockSentinel('organization-governance/affiliation')`——sqlite 上由库级写锁兑现，pg 上是事务级 advisory lock，都在存储里、不在进程里——**并在同一事务里直接读组织治理的上级链列**，用 `core/identity-values` 的纯函数判「有共同上级」（P-13 不许在事务里调 og 的面）。两者在哨兵上排出次序；**装配给**（同一存储、同一约束域，P-1），跨进程由协议重兑（[AT S-34](../../../spec/capabilities/asset-transfer/v2/contract.md#s-34-装配给的保证-vs-协议须给的保证) 第三行） | 五个候选相同；需组织治理节点配合（X-1） |
 | 成员资格、上级链的读 与 资产写（其余操作） | og S-26、S-34 的读；资产提交 | **不要求同一提交**：单次调用内的窗口按 [iv S-27](../../../spec/data/identity-values/v1/contract.md#s-27-每道准入现读)「影响的是下一道尚未通过的准入」读成可接受（组织治理节点对它自己的 S-36 同法） | —— |
 
 **不算数的三个替身**：时间谓词（`now` 不参与冲突检测）；进程内锁（随插件实例生灭，basis `plugin-body-reruns-on-provider-change`）；没落盘的「单调事实」。
@@ -248,7 +248,7 @@ tenancy-host 的装载次序里，资产提供者排在组织治理之后（它 
 
 供对账与契约取用，不是对账结论。
 
-- **P-1 同一存储提供者、同一约束域**（装配给；tenancy-host [「同一存储、同一约束域」](../../../realization/apps/tenancy-host/design.md#同一存储同一约束域本节点要保证的三件事)）：资产表之间的行锁与唯一约束、MR-2 对隶属哨兵的锁与对上级链列的读都靠它；跨进程后由协议重新兑现（AT S-34、[AM 第四节](../../../spec/data/asset-model/v1/contract.md#四装配给与协议给)）。
+- **P-1 同一存储提供者、同一约束域**（装配给；tenancy-host [「同一存储、同一约束域」](../../../realization/apps/tenancy-host/design.md#同一存储同一约束域本节点要保证的三件事)）：资产表之间的行锁与唯一约束、MR-2 对隶属哨兵的锁与对上级链列的读都靠它；跨进程后由协议重新兑现（AT S-34、[AM 第四节](../../../spec/data/asset-model/v2/contract.md#四装配给与协议给)）。
 - **P-2 据点副本**：会话内的权限求值与 reload 用的是副本（PF-016 §6.9、§6.17），离线时新鲜度没有上界——这是已接受的产品取舍（MR-3），与 iv S-27「缓存须写明失效条件与最大陈旧窗口」的字面有张力，求值契约的「装配给」表须写明读法。
 - **P-3 分享此刻是否生效是读时谓词**：每组一次中心快照都要读上级链，读不到 ⇒ 整份快照不可用（[iv S-19](../../../spec/data/identity-values/v1/contract.md#s-19-不可用即明确失败)），不交一份缺了分享的快照。
 - **P-4 求值确定、可重放**：输入里要有被选版本的正文、工作区文件内容的指纹、MCP 动作清单的快照。
@@ -320,7 +320,7 @@ tenancy-host 的装载次序里，资产提供者排在组织治理之后（它 
 邀约过期读时派生、派生状态不回退，后台清理不担正确性（`data.offer-expiry/v1#S-9`、`#S-18`）；分享此刻是否生效是读时谓词（iv CS-4、AT S-31）。
 这三样都建成运行时对象的话，就是用 effect 承载本该落盘或读时求值的事实（basis `effect-disposal-concurrent-not-ordered`「已知的误用」）。
 
-**改票条件**：产品要求工作区文件改动自动生效；或产品负责人把「隶属重建之后分享是否复活」（[AT G-4](../../../spec/capabilities/asset-transfer/v1/contract.md#十一已知缺口)）裁成「不复活」，而组织治理愿意给一个持久的解除事实——那时监听者也只能作缓存，权威仍在存储。
+**改票条件**：产品要求工作区文件改动自动生效；或产品负责人把「隶属重建之后分享是否复活」（[AT G-4](../../../spec/capabilities/asset-transfer/v2/contract.md#十一已知缺口)）裁成「不复活」，而组织治理愿意给一个持久的解除事实——那时监听者也只能作缓存，权威仍在存储。
 
 ### N-7 工作区不进中心
 
@@ -333,7 +333,7 @@ tenancy-host 的装载次序里，资产提供者排在组织治理之后（它 
 **结论**：O-2 与 O-6 各自都满足 #8 的判据，但由同一个插件提供。
 
 **理由**：两者之间有三处与流转无关的同一提交或互读——**提升**（记录的所有者与原租户那一格持有的来路同时改，INV-3，推导）；
-**加入持有 vs 删除记录**（加入要在同一提交里看到记录此刻未删、能力标识相符（[AM S-18](../../../spec/data/asset-model/v1/contract.md#s-18-资产持有) ②）；删除前要列出持有它的引用方）；
+**加入持有 vs 删除记录**（加入要在同一提交里看到记录此刻未删、能力标识相符（[AM S-18](../../../spec/data/asset-model/v2/contract.md#s-18-资产持有) ②）；删除前要列出持有它的引用方）；
 **「资产没了」**（AT S-7 的存在性同时看记录与所有者那一层的持有）。再加上复制与分享的落地同时写两边。
 拆开之后两个插件互相要读，inject 成环——必需依赖缺席即 `PENDING`（basis `inject-has-no-optional-form`），两个插件都等对方先 provide（推导），一条边只能退成调用时 `ctx.get`。完整比较见[候选 E](alternatives.md#候选-e)。
 
@@ -395,7 +395,7 @@ tenancy-host 的装载次序里，资产提供者排在组织治理之后（它 
 
 | 依赖的性质与前提 | 保护者 | 所需证据 | 当前结果与闭合条件 |
 |---|---|---|---|
-| INV-1 确认一次成立 | 资产提供者的确认事务 | 故障注入：在落地写与终结记录之间让事务失败，两者都不在；契约层已有 [AT formal](../../../spec/capabilities/asset-transfer/v1/formal/README.md) 的「去掉同一提交」有效性核对作模型证据（期望反例，不登记为 formal task） | 未开始；受阻：提供者节点未立、资产治理契约未定 |
+| INV-1 确认一次成立 | 资产提供者的确认事务 | 故障注入：在落地写与终结记录之间让事务失败，两者都不在；契约层已有 [AT formal](../../../spec/capabilities/asset-transfer/v2/formal/README.md) 的「去掉同一提交」有效性核对作模型证据（期望反例，不登记为 formal task） | 未开始；受阻：提供者节点未立、资产治理契约未定 |
 | SAF-1 删除／移除与确认交错 | 记录行、持有行上的锁（插件内） | 两连接同一库真并发：删除与确认交错，只有「先删后拒」「先确认后删」两种终态 | 未开始 |
 | INV-4 目标侧拿不到源 | 读面投影（候选 B 下） | 每个资产面、持有面的读面一条反例：构造有血缘的记录，读出的任何字段都推不出源（X-3） | 未开始 |
 | INV-5 两处同答 | 同一份纯模块 | 同一输入在中心设置视图与据点装配两处求值比对 | 未开始；受阻：据点装配未建 |
@@ -410,7 +410,7 @@ tenancy-host 的装载次序里，资产提供者排在组织治理之后（它 
 | # | 缺口 | 影响谁 | 负责产物／拥有者 | 闭合条件 |
 |---|---|---|---|---|
 | 1 | 本包依赖的十条主线裁定（MR-1～MR-10）尚无决定记录，设计链内无处可链 | 提供者设计、三份能力契约的对齐 | 主线 → [record/decisions](../../decisions/README.md) | 落一份决定（可与本包的接受同一份） |
-| 2 | AT 契约仍把落地写成「组合资产治理的写面」：[S-2](../../../spec/capabilities/asset-transfer/v1/contract.md#s-2-本契约不拥有什么) 第 2 行、S-4 末两表、S-18 正文、S-29 ④「组合资产治理的 `unhold`」、G-10 | 资产流转与资产治理两份契约的起草者 | 对齐 | 改写为「写集合由同一提供者在确认的同一次提交内完成」；资产治理契约写「落地写入由 asset-transfer 在同一提交内完成」 |
+| 2 | AT 契约仍把落地写成「组合资产治理的写面」：[S-2](../../../spec/capabilities/asset-transfer/v2/contract.md#s-2-本契约不拥有什么) 第 2 行、S-4 末两表、S-18 正文、S-29 ④「组合资产治理的 `unhold`」、G-10 | 资产流转与资产治理两份契约的起草者 | 对齐 | 改写为「写集合由同一提供者在确认的同一次提交内完成」；资产治理契约写「落地写入由 asset-transfer 在同一提交内完成」 |
 | 3 | MR-2 的兑现要求资产一侧在确认事务里取组织治理的隶属哨兵，**并直接读 `organization.parent`**（P-13 不许在事务里调 og 的面）——og 节点的锁对象与表形状由此成为另一个 owner 的依赖 | og 节点、资产提供者节点 | og 节点 owner（X-1） | og 节点登记这两项外部依赖；或给出一个可在调用方事务里求值的只读函数（会改 og 节点的公开入口，不改 og 契约） |
 | 4 | 入口契约 v1 的路由表封闭 | 资产各面对外可达 | 主线 | 入口契约出 v2 追加路由；入口层 inject 追加资产提供者 |
 | 5 | tenancy-host 修订：装载清单 ＋1、迁移合成 ＋1 组片段、官方件启动登记、两类邀约的默认时长配置 | 中心装配 | tenancy-host 节点 | 节点修订（名字见上节待拍板） |

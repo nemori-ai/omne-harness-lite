@@ -1,0 +1,32 @@
+{
+  "node": "v24.21.0",
+  "platform": "linux",
+  "arch": "arm64",
+  "checks": [
+    {
+      "synchronous": "normal",
+      "reopened": false,
+      "readWritePragmas": "pass",
+      "committedRead": "pass"
+    },
+    {
+      "synchronous": "normal",
+      "reopened": true,
+      "readWritePragmas": "pass",
+      "committedRead": "pass"
+    },
+    {
+      "synchronous": "full",
+      "reopened": false,
+      "readWritePragmas": "pass",
+      "committedRead": "pass"
+    },
+    {
+      "synchronous": "full",
+      "reopened": true,
+      "readWritePragmas": "pass",
+      "committedRead": "pass"
+    }
+  ],
+  "limits": "Built provider smoke only; no power-loss, host, PostgreSQL or full Linux test-suite validation."
+}

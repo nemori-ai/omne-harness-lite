@@ -61,7 +61,7 @@
 其余不在本 run 证据范围内的：
 
 - **pg 的边界**：只跑了 16.14、直连；连接串指向事务模式连接池（pgbouncer 一类）时会话级咨询锁是否还有意义、锁等待超时的行为，都没有证据。owner：装配。
-- **断电级持久**没有证据形式，且本版 `synchronous=NORMAL` 明确不给；R-4 只证到进程重启（跨进程重启归 AI S-32 演练）。
+- **断电级持久**没有证据形式，历史默认 `synchronous=NORMAL` 明确不给；D-039 增加 FULL 档位仍未作物理断电实验；R-4 只证到进程重启（跨进程重启归 AI S-32 演练）。
 - **跨进程的锁竞争**（两个进程各起一个不开守卫的本插件）没有套件用例；开了守卫的两进程排他由 `upgrade.exclusive-owner` 证。本版单机，Q-8。
 - **运维约定「生产库不得被非守卫实例打开」**（[design.md 交错 (b) 旁](design.md#自构的交错)）：非守卫实例在机制之外，本节点无法检测，无证据形式；与 clock「租约表不得手动删」同形。owner：装配（tenancy-host 的运维说明）。
 - **确认的删除已生效、目录落盘失败**那一支（[design.md 实施缺口](design.md#实施缺口与消费者影响)）：抛出时快照已不在命名空间里，与 tenancy-host R-U6「报错时快照须仍在」差这一支；定手段之前不写测试。owner：本节点 + tenancy-host。
@@ -69,3 +69,25 @@
 - **重跑时旧 disposer 与新插件体的先后**是待核对主张（交错 (d)）；核定前不写测试，两种答案都不静默。
 - **给 tenancy-host 的一条前提**：「库文件逐字节不变」只在上一次是干净停机时成立，否则 sqlite 关句柄时的检查点会改写库文件的字节而不改内容；该节点 `assembly.upgrade-preflight-refuses` 的断言要带这条前提或改成按内容比对（[design.md](design.md#实施缺口与消费者影响)）。
 - 与 [bindings.yaml](bindings.yaml) 一致：空表——本节点无契约条款可绑，不是缺证据；上表的证据是协议与 R-U 各行的，不是契约坐标的。
+
+## D-039 同步档位增量 · 2026-09-24
+
+[实际运行](../../../../record/evidence/2026-09-24-tests-sqlite-full/README.md)：macOS Node24，存储95通过/4跳过，中心启动与升级38通过，黑盒最终46通过；真实句柄/迁移/重开 FULL 与共享 NORMAL 默认分别检查。保留环境失败及错误过滤运行；未验证物理断电、Linux FULL 或 PostgreSQL，不提升历史证据范围。
+
+后续[Linux arm64 补充](../../../../record/evidence/2026-09-24-tests-sqlite-full/linux-supplement/README.md)：构建产物的 NORMAL/FULL 读写参数、提交行及重开四组通过；不是 Linux 全套回归或断电实验。
+
+## P-13 显式单元 · 2026-09-24
+
+[实际证据](../../../../record/evidence/2026-09-24-tests-storage-unit/README.md)：macOS存储全套110通过/4个PG跳过、core9通过、补充通知2通过、中心启动升级38通过；Linux实际构建产物8组冒烟。包括真实SQL回滚/排空和P-2边界，不代表完整领域参与面。ALS/通知/裸句柄范围见设计；物理故障及PG新组合未验。
+
+
+## 2026-09-26 D055/D056 实际维护验证
+
+[固定源码、制品和运行证据](../../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)保存原始故障、修正、源码回归及独立制品 QA。SQLite资源关闭/worker真实退出/跨进程保锁、封装与发布unknown、HT3与host信号/双槽、非root Linux systemd及近1GiB时的员工访问和租约续约分别验证。最终host r3运行字节与r1相同，文档和pnpm生成元数据差异经独立核验，r3再跑38项主旅程。没有实际断电/任意存储设备保证；独立QA的源变动精确分支未验，不计通过；恢复只隔离，整机损毁灾备与安全重新开放仍未交付。
+
+
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

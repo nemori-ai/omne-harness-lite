@@ -1,0 +1,26 @@
+{
+  "verdict": "Pass with issues",
+  "checksPassed": 45,
+  "mainChecks": 38,
+  "sameWorkRootChecks": 3,
+  "metadataNegatives": 4,
+  "artifactInventories": [
+    {
+      "app": "/private/tmp/omne-host-d056-8zw0qh51/app",
+      "buildId": "809a36c45177d66f59213659d4f01f83e98e7d039143dc61fcfc958fd4a16778",
+      "files": 4224,
+      "links": 230,
+      "status": "PASS"
+    },
+    {
+      "app": "/private/tmp/omne-cli-d056-pm0ryito/app",
+      "buildId": "2a7ad07c28eadac80507261e17fdda109de432b5af74b46f27e65554412213ed",
+      "files": 4222,
+      "links": 204,
+      "status": "PASS"
+    }
+  ],
+  "sourceMutationExactBranch": "Unable to verify",
+  "productBlockers": [],
+  "report": "report.md"
+}

@@ -21,7 +21,7 @@
 
 ## 实际执行
 
-采用 `data.content-blocks` v1（D-041／D-042／D-045），实现 `44b84525e998113b45e3b0b351caf1041f23cd75`，HUB merge `be07910a2fc3f84f5d9909675b3736c5acba7b74`。
+采用 `data.content-blocks` v2（D-041／D-042／D-045），实现 `44b84525e998113b45e3b0b351caf1041f23cd75`，HUB merge `be07910a2fc3f84f5d9909675b3736c5acba7b74`。
 spoke 与 HUB 包构建／类型检查／测试均退出0，**306/306**、5文件、零跳过／失败；HUB先 `pnpm install --ignore-scripts` 加入新包，实际未提交lock字节由47c4990a恢复，be079只表示提交起点；
 [spoke build](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/content-blocks/build.log)、[typecheck](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/content-blocks/typecheck.log)、[test](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/content-blocks/test.log)、[HUB原log](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-content-hub.log)。
 Node24.18.0／Vitest4.1.11／TypeScript6.0.3／Ajv8.20.0；包 engines 固定 `>=24.18.0 <25`；严格无损读写依赖实际 `context.source` 与 `JSON.rawJSON`。
@@ -54,7 +54,7 @@ Node24.18.0／Vitest4.1.11／TypeScript6.0.3／Ajv8.20.0；包 engines 固定 `>
 
 ## 独立评审
 
-2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行）：本节点应修 1、范围外 1，无阻断；主线据此裁定 [D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M49、M53（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
+2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行）：本节点应修 1、范围外 1，无阻断；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M49、M53（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
 
 | 编号 | 发现 | 处置 | 落点 |
 | --- | --- | --- | --- |

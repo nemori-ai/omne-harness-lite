@@ -1,0 +1,3 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Error: Error: unrecognized option: -noGenerateSpecTE
+Usage: java tlc2.TLC [-option] inputfile

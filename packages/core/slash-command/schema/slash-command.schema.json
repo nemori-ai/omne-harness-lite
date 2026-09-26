@@ -1,17 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v1/slash-command.schema.json",
-  "title": "data.slash-command v1",
-  "description": "斜杠命令的静态数据形状：一份 slash_command 资产的正文（命令定义、绑定目标、参数声明、命令名）、交付面上识别出的一次命令尝试（CommandInvocation），以及按命令定义解析它得到的结果（ParseResult）。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.slash-command/v1 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；识别文法（S-12～S-15）与解析规则（S-16～S-23）是函数，不是形状，Schema 表达不了，由 contract.md 的条款与 examples.md 的判定用例集约束。Schema 表达不了的跨成员与跨对象约束（参数名不重复、位置参数排在具名参数之前、必填位置参数不排在可选位置参数之后、模板占位符对得上声明、CommandInvocation 与 raw 重新识别的结果一致、所在资产记录的 capability.name 与绑定种类对得上保留区、customized 记录不带 command 绑定）由 contract.md S-28 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是六个拒绝值里的哪一个按 S-28 的次序定。「空白」恒是 data.identity-values v1 S-31 逐个列出的码点集合，pattern 用显式字符类与 (?![\\s\\S]) 作绝对结尾，不用 \\s 与 $（理由与回归用例见那一条）。外部引用：CapabilityName 与 CapabilityId 取自 data.asset-model v1（S-2、S-3）。正反实例与判定用例集在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json",
+  "title": "data.slash-command v2",
+  "description": "斜杠命令的静态数据形状：一份 slash_command 资产的正文（命令定义、绑定目标、参数声明、命令名）、交付面上识别出的一次命令尝试（CommandInvocation），以及按命令定义解析它得到的结果（ParseResult）。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.slash-command/v2 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；识别文法（S-12～S-15）与解析规则（S-16～S-23）是函数，不是形状，Schema 表达不了，由 contract.md 的条款与 examples.md 的判定用例集约束。Schema 表达不了的跨成员与跨对象约束（参数名不重复、位置参数排在具名参数之前、必填位置参数不排在可选位置参数之后、模板占位符对得上声明、CommandInvocation 与 raw 重新识别的结果一致、所在资产记录的 capability.name 与绑定种类对得上保留区、customized 记录不带 command 绑定）由 contract.md S-28 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是六个拒绝值里的哪一个按 S-28 的次序定。「空白」恒是 data.identity-values v1 S-31 逐个列出的码点集合，pattern 用显式字符类与 (?![\\s\\S]) 作绝对结尾，不用 \\s 与 $（理由与回归用例见那一条）。外部引用：CapabilityName 与 CapabilityId 取自 data.asset-model v2（S-2、S-3）。正反实例与判定用例集在同目录 examples.md。",
   "$defs": {
     "CommandName": {
       "title": "命令名",
-      "description": "S-2、S-3：斜杠命令的名字，也就是它所在资产记录的能力标识的 name 分量——data.asset-model v1 的 CapabilityName（非空、不含空白、不含 '/'、允许 ':'、区分大小写），本契约只在其上加保留区一条：前 14 个码点按 ASCII 不区分大小写等于 'omne-official:' 的名字在保留区里；保留区里的名字前 14 个码点必须恰是小写的 'omne-official:'，且其后至少还有一个码点。名字在不在保留区与绑定目标的对应（S-4）要看所在记录，由接收边界判。",
+      "description": "S-2、S-3：斜杠命令的名字，也就是它所在资产记录的能力标识的 name 分量——data.asset-model v2 的 CapabilityName（非空、不含空白、不含 '/'、允许 ':'、区分大小写），本契约只在其上加保留区一条：前 14 个码点按 ASCII 不区分大小写等于 'omne-official:' 的名字在保留区里；保留区里的名字前 14 个码点必须恰是小写的 'omne-official:'，且其后至少还有一个码点。名字在不在保留区与绑定目标的对应（S-4）要看所在记录，由接收边界判。",
       "$comment": "allOf 第一项是 data.asset-model 的名字词法，第二项是保留区的唯一拼法（「不在保留区，或者恰以小写保留前缀开头且后面还有东西」）。不合这两项的拒绝值都是 name_invalid（S-28）。",
       "allOf": [
         {
-          "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityName"
+          "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityName"
         },
         {
           "anyOf": [
@@ -79,7 +79,7 @@
             "skill": {
               "allOf": [
                 {
-                  "$ref": "../../asset-model/v1/asset-model.schema.json#/$defs/CapabilityId"
+                  "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityId"
                 },
                 {
                   "properties": {
@@ -186,7 +186,7 @@
     "SlashCommandDefinition": {
       "title": "斜杠命令定义",
       "description": "S-1：一份 slash_command 资产的正文。description 是给人看的一句说明，不是身份、不给模型；binding 是它恰绑的那一个目标（S-6）；parameters 是参数声明（S-8）——缺席表示没有声明（命令名之后的整段文字作一个自由参数），空数组表示声明了「不收任何参数」。正文里没有名字：命令名就是所在资产记录的 capability.name（S-1、S-2）。名字在保留区里当且仅当绑定目标是 command（S-4），这一条要看所在记录，由接收边界判。",
-      "$comment": "不带 name：身份与名字只在所在资产记录的 capability（data.asset-model v1 S-10），正文不重复一份。S-4 的三行都要看所在记录（capability.name 与 origin），Schema 管不到（S-28）。",
+      "$comment": "不带 name：身份与名字只在所在资产记录的 capability（data.asset-model v2 S-10），正文不重复一份。S-4 的三行都要看所在记录（capability.name 与 origin），Schema 管不到（S-28）。",
       "type": "object",
       "properties": {
         "description": {

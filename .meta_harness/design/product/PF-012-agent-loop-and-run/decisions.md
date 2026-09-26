@@ -64,7 +64,7 @@
 
 ### 2026-09-26 · 收尾裁决
 
-尝试栅栏只拒绝推进运行的旧写入；已发动作的响应体与迟到账仍保留。 原始答复与接受边界见 [D-044](../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)。
+尝试栅栏只拒绝推进运行的旧写入；已发动作的响应体与迟到账仍保留。 原始答复与接受边界见 [D-064](../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)。
 
 ## 二、PM 推导
 
@@ -418,7 +418,7 @@ rev 1 的五条去向见[上一节末尾那张表](#rev-1-那五条待裁决rev-
 | ~~**[§8](design.md#八边界与依赖) 里 PF-004、PF-009、PF-010 三行标的版本落后于它们现行的 rev**~~ **✅ 已闭合（rev 14）**：逐行对过后标到 PF-004 rev 12、PF-009 rev 8、PF-010 rev 6，「它拥有什么」一格都不用改（[rev 14 新推的](#rev-14-新推的)第二行）。登记时的原文——（PF-004 标 rev 8，现行 rev 11；PF-009 标 rev 4，现行 rev 8；PF-010 标 rev 5，现行 rev 6） | 读者会以为本 topic 只对过那几版；那几版之后的改动有没有碰到本 topic 引用的东西，没人答过 | **照实记着**：rev 13 的施工简报只点了另外五行。**升这三行之前要逐行对过**本 topic 用到的那几件（装配清单与注入；七种消息与块上的标注；组装与压缩闭包）在现行版里是否仍是这个样子，归本 topic 下一次修订 |
 | ~~**拓展件不可用处置在 [PF-002 Loop Extension「自带的属性」](../PF-002-assets-settings-and-permissions/design.md#loop-extension)里没有位置**~~ **✅ 已闭合（PF-002 rev 20，D-5 主线裁定）**：[不可用处置是这一件自己的一项声明](../PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)，同工具定义的 `allowBackground`，不是设置也不是权限——持有它的各层都不给它配值，也收窄不了它；工作区带来的挂件声明什么都等于跳过。登记时的原文——它是拓展件自己声明的一项（设置？还是随资产本身、不许各层改？），组织能不能锁它、工作区带来的件能不能声明否决，都没有正文 | 下游只能从本 topic 读出「注册时声明」，不知道各层能不能改、改了按哪条层序合成 | **本 topic 只定取值与谁能用哪一种**，属性的类别与合成[归 PF-002](design.md#拓展件是可插拔的服务不可用即卸载报错按策略)；**已登记为 [PF-002 待裁决 D-5](../PF-002-assets-settings-and-permissions/decisions.md#三待裁决)**（同批 rev 19） |
 | **[§5.7](design.md#57-一次尝试三条路通向重新算一遍)「重算之后动作空间可能与上一次尝试不同」与 [§7](design.md#七取舍)「前后两次尝试的动作空间可能不同」，和 PF-004 的说法对不上**：[PF-004 I-4](../PF-004-agent-definition-and-assembly/design.md#61-不变式)「动作空间只由构成决定」，一次运行之内不变；而不可用靠[替换件](../PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)在原位占着——[不可用是可见但用了一定失败](../PF-002-assets-settings-and-permissions/design.md#但对-agent-来说两者一样都不可见)，条目不少 | 照 §5.7 字面，实现者会在每次尝试重算可用性时把用不了的条目从 agent 眼前拿掉，与替换件占位正好相反；照 PF-004，同一次运行的几次尝试之间动作空间不该变，变的只是哪些调得通。**§5.7 自己下一句又说「它调一个已经没了的能力，替换件会给它『用不了 + 原因』」**——那一句与 PF-004 同向，前一句的「动作空间」多半该读作「调得通的范围」 | **只登记，本 rev 不改正文**（2026-09-24，主线施工简报点名只登记）。PM 的读法：换成「重算之后，哪些调得通可能与上一次尝试不同」，§7 那一格同改——那样三处都成立；**改之前要确认「动作空间」在本 topic 别处没有被当作「调得通的范围」用过**，归本 topic 下一次修订 |
-| **[§5.7](design.md#同一个-run-同一时刻只有一副协程在推它)「序号更小的尝试，写什么都被拒」与 [I-11](design.md#617-run-这一层的七条不变式) 只给「运行终结之后」的迟到账开口，而规格把口子延到了「尝试已被取代」**（[`data.call-accounts` v1 S-39](../../spec/data/call-accounts/v1/contract.md#s-39-晚到的账)、[`capability.session-log` v1 S-10](../../spec/capabilities/session-log/v1/contract.md#s-10-尝试栅栏) ③，主线裁定 [D-040 K14](../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)） | 照正文字面，旧尝试里已经出门的模型发出，它的账与响应体写不进日志，「按 Run 汇总成本」会漏 | **已裁（2026-09-26，D-044 ⑮；rev 15 已改正文）**。原登记（2026-09-25，词条批发现，[C-34](../../ubiquitous_language/conflicts.md)）。PM 的读法：I-11 的理由对被取代的尝试同样成立，§5.7 宜写成「推进这次运行的写一律被拒；已经发出去的动作，账迟到了照样落、标明迟到」；裁后改正文并升 rev，[尝试栅栏](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-attempt-fence--尝试栅栏--attempt-fence)词条随之复核 |
+| **[§5.7](design.md#同一个-run-同一时刻只有一副协程在推它)「序号更小的尝试，写什么都被拒」与 [I-11](design.md#617-run-这一层的七条不变式) 只给「运行终结之后」的迟到账开口，而规格把口子延到了「尝试已被取代」**（[`data.call-accounts` v2 S-39](../../spec/data/call-accounts/v2/contract.md#s-39-晚到的账)、[`capability.session-log` v2 S-10](../../spec/capabilities/session-log/v2/contract.md#s-10-尝试栅栏) ③，主线裁定 [D-060 K14](../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)） | 照正文字面，旧尝试里已经出门的模型发出，它的账与响应体写不进日志，「按 Run 汇总成本」会漏 | **已裁（2026-09-26，D-064 ⑮；rev 15 已改正文）**。原登记（2026-09-25，词条批发现，[C-34](../../ubiquitous_language/conflicts.md)）。PM 的读法：I-11 的理由对被取代的尝试同样成立，§5.7 宜写成「推进这次运行的写一律被拒；已经发出去的动作，账迟到了照样落、标明迟到」；裁后改正文并升 rev，[尝试栅栏](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-attempt-fence--尝试栅栏--attempt-fence)词条随之复核 |
 
 ---
 
@@ -426,4 +426,4 @@ rev 1 的五条去向见[上一节末尾那张表](#rev-1-那五条待裁决rev-
 
 ## 2026-09-26 — 当前修订正式接受
 
-产品负责人以 [D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受 PR #9 中本 topic 的现行 rev 15；当前正文的主线裁定、PM 读法及推导不再待确认。历史记录保留当日的提出／待裁状态，现行设计已接受；没有现成答案的规则继续作为显式缺口，不由本事件补齐。
+产品负责人以 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受 PR #9 中本 topic 的现行 rev 15；当前正文的主线裁定、PM 读法及推导不再待确认。历史记录保留当日的提出／待裁状态，现行设计已接受；没有现成答案的规则继续作为显式缺口，不由本事件补齐。

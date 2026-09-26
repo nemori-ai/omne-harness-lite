@@ -2,6 +2,7 @@
 // 每个方法记下调用、按可替换的处理函数作答。缺省答复是「一切顺利」的合形值；测试按需要替换成失败值、集合外的值、抛出或停住。
 // 桩故意能给出参与方类型不允许的值（集合外、没有值、形状不对）——那正是入口层要当作缺陷收场的输入，
 // 所以交给 `decide` 时整体按 `EntryServices` 收下（见 `entryServices()` 的注释）。
+import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { EntryServices } from '../../src/routing/routes.ts'
 
 export const ACCOUNT = 'acc_7f3c91'
@@ -43,6 +44,10 @@ const affiliationRequest = {
 /** 每个方法的缺省答复：合形、成功。 */
 function defaults(stub: StubParticipants): Record<string, Handler> {
   return {
+    'accounts.resolveActivatedIdentifier': async () => ({ ok: OTHER_ACCOUNT }),
+    'logins.finalizeActivity': async () => 'ok',
+    'logins.prepareCredentialChange': async () => ({ ok: {} }),
+    'logins.commitCredentialChange': async () => 'ok',
     'logins.issue': async () => ({ ok: { presentation: P, loginStateId: LOGIN_STATE } }),
     'logins.exchange': async presentation =>
       stub.valid.has(String(presentation))
@@ -50,7 +55,15 @@ function defaults(stub: StubParticipants): Record<string, Handler> {
         : { failure: 'login-state-rejected' },
     'logins.revoke': async () => 'ok',
     'logins.listEffective': async () => ({
-      ok: [{ loginStateId: LOGIN_STATE, issuedAt: INSTANT }],
+      ok: [
+        {
+          loginStateId: LOGIN_STATE,
+          issuedAt: INSTANT,
+          lastActivityAt: INSTANT,
+          absoluteExpiresAt: INSTANT + 28800000,
+          idleExpiresAt: INSTANT + 3600000,
+        },
+      ],
     }),
     'registration.register': async () => 'registered',
     'credentials.parse': raw =>
@@ -75,6 +88,8 @@ function defaults(stub: StubParticipants): Record<string, Handler> {
     'memberships.list': async () => ({
       ok: [{ tenant: TENANT, role: 'superAdministrator', effective: true }],
     }),
+    'offers.declineInvitation': async () => 'ok',
+    'offers.declineAffiliationRequest': async () => 'ok',
     'offers.issueInvitation': async () => ({ ok: 'inv_1' }),
     'offers.withdrawInvitation': async () => 'ok',
     'offers.acceptInvitation': async () => ({ ok: TENANT }),
@@ -92,7 +107,16 @@ function defaults(stub: StubParticipants): Record<string, Handler> {
 }
 
 export const STUB_METHODS = {
-  logins: ['issue', 'exchange', 'revoke', 'listEffective'],
+  accounts: ['resolveActivatedIdentifier'],
+  logins: [
+    'issue',
+    'exchange',
+    'revoke',
+    'listEffective',
+    'finalizeActivity',
+    'prepareCredentialChange',
+    'commitCredentialChange',
+  ],
   registration: ['register'],
   credentials: ['parse'],
   organizations: [
@@ -113,6 +137,8 @@ export const STUB_METHODS = {
     'list',
   ],
   offers: [
+    'declineInvitation',
+    'declineAffiliationRequest',
     'issueInvitation',
     'withdrawInvitation',
     'acceptInvitation',
@@ -164,6 +190,19 @@ export class StubParticipants {
         return handler(...args)
       }
     }
+    if (name !== 'credentials' && name !== 'registration') {
+      face['participate'] = raw => {
+        const unit = raw as StorageUnit
+        return Object.fromEntries(
+          Object.entries(face)
+            .filter(([method]) => method !== 'participate')
+            .map(([method, invoke]) => [
+              method,
+              (...args: unknown[]) => unit.run(async () => invoke(...args)),
+            ]),
+        )
+      }
+    }
     return face
   }
 
@@ -181,6 +220,7 @@ export class StubParticipants {
    */
   entryServices(): EntryServices {
     const services: Record<StubService, unknown> = {
+      accounts: this.service('accounts'),
       logins: this.service('logins'),
       registration: this.service('registration'),
       credentials: this.service('credentials'),

@@ -4,6 +4,7 @@
 // src/json.ts（严格 JSON 解析器）、src/routing/**（路由表与判定次序）、src/center-id/**（中心标识）。
 // 消费者：apps/tenancy-host（装两个插件、合迁移片段、把核对放进 upgrade.checks、构造 openSignal、等 serving）。
 export {
+  GovernanceCenterClockTimeoutError,
   governanceCenterEntryPlugin,
   GovernanceCenterEntryConfigSchema,
   type GovernanceCenterEntryConfig,
@@ -16,6 +17,18 @@ export {
 export type { DeploymentKeyLoad, DeploymentParameters } from './ops/health.ts'
 export { OPS_SOCKET_NAME, OpsSocketError, type OpsSocketFailure } from './ops/socket.ts'
 export { RECEIVE_LIMITS, type ReceiveLimits } from './ops/limits.ts'
+export { createOfflineMaintenance, type OfflineMaintenanceOptions } from './maintenance/offline.ts'
+export { validMaintenanceLocation } from './maintenance/inputs.ts'
+export {
+  failureResult as maintenanceFailureResult,
+  type MaintenanceResult,
+} from './maintenance/results.ts'
+export { readOpsReplyBody } from './ops/maintenance-wire.ts'
+export {
+  governanceCenterSnapshotCheck,
+  readSnapshotCenterId,
+  CENTER_SNAPSHOT_TABLES,
+} from './center-id/snapshot.ts'
 export type { ServingNotice } from './ops/notice.ts'
 export {
   serving as SERVING_EVENT,

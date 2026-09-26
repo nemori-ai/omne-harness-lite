@@ -1,83 +1,9 @@
 # capability.organization-governance v2
 
-- **契约坐标**：`(omne-harness-lite-design-2026-09-15, capability.organization-governance, 2)`
-- **状态**：已由 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 接受；精确资源冻结与采用状态由版本外入口及 registry 维护。
-  前身是 [v1](../v1/contract.md)（`accepted`、已冻结，[D-023](../../../../record/decisions/tenant-domain-design-acceptance/README.md)）；
-  **v1 一个字不改**。本版是**加法版**：成员关系记录多一项[成员关系生效时刻](#s-8-成员关系记录)，上级组织属性多一项[隶属建立时刻](#s-7-上级组织属性)，
-  写下它们的那几条写路径（S-20、S-21、S-25、S-32、S-33 的 ④）写集合各多一项，
-  [读组织](#s-22-读组织)、[列出组织成员](#s-59-列出组织成员)、[当前租户身份查询](#s-36-当前租户身份查询)把它们带出来、并各多一种 `unavailable` 触发；[S-22](#s-22-读组织) ② 的指路改正一处。**上面这些之外的条款与 v1 同文**。
-  逐条差异与**逐个 v1 消费者**的相容性在 [§十三](#十三版本差异与规范工件)。
-  **依据**：主线裁定 [D-040 §三 R2-1](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#三2026-09-24-第二轮规格修订的主线裁定简报-r2-1r2-16-原文与-g-24g-25)，为兑现 [PF-003 §6.12](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（rev 5）「关系断了之后又接上，分享不复活」——
-  那条要在读时判「关系建立的时刻不晚于分享确认的时刻」，v1 没有这两个时刻
-- **设计依据**（**PF-001 rev 17**；下列小节在 v1 按 rev 15 写成，2026-09-24 独立评审第一轮按 changelog 逐条复核到 rev 17，结论在本节末）：
-  [§4 组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)、
-  [§4 未激活的账号记录不会永久占着那个名字](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)、
-  [§4 隶属关系怎么建立与解除](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)、
-  [§4 两种邀约都会过期](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)、
-  [§4 个人组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织)、
-  [§4 租户](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)、
-  [§4 退出之后再加入，回来的是同一个租户](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)、
-  [§4 当前租户身份](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份)、
-  [§4 角色](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色)、
-  [§6.1 层次](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)、
-  [§6.4 隔离](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)、
-  [§6.6 撤销不等于强制停止](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)、
-  [§6.7 创作与归属](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)；
-  [flows §1.4](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#14-创建组织)～[§1.8](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#18-切换当前组织)、
-  [flows §2 分支与异常](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)、
-  [flows §3.3 成员关系](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)、
-  [flows §4 角色与操作](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)；
-  [acceptance](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md)；
-  [decisions §一 2026-09-22 九条确认](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求)
-- **其中三处依据是 rev 13 落下来的，逐一点名**（**正文已落盘，不再是「已裁未落」**）：
-  [S-23](#s-23-发出邀请) 的授权前置「**本版即超级管理员**」（rev 13 flows §4 把「管理资格」那处笔误改掉）；
-  [S-7](#s-7-上级组织属性) 的「上级组织**创建时为空**，只有隶属请求一条建立路径」（rev 13 §4 组织删掉了属性表里的「创建时可指定」）；
-  [S-53](#s-53-清除未激活账号的个人组织) 的产品依据（rev 13 §4 写明未激活记录到期清除时，**为它准备的个人组织与第一个租户身份随之消失**）。
-  **这三条都不登记缺口**——正文已经写着它们
-- **rev 14 落下来的是三条读面的授权**（[缺口 G-11](#十一已知缺口) 随之闭合）：
-  [flows §4](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作) 补上了
-  「查看成员名单」「查看本组织发出的邀约」「查看本组织收到的隶属请求」三行——
-  **成员名单对本组织每一位有效成员可见**（[S-59](#s-59-列出组织成员) ②按此放宽），
-  **两类邀约只归超级管理员**（[S-58](#s-58-列出组织发出的邀请与隶属请求)／[S-60](#s-60-列出组织收到的隶属请求) ②维持不变，
-  但**不再是「本契约自己取的一档」，是产品已定**）。三条的失败集合都没有变
-- **rev 15 落下来的是成员名单里「已解除的那些」归谁**：
-  [flows §4](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)
-  把成员名单拆成两行——**「查看成员名单（有效成员）」普通成员可，「查看已解除的成员」只归超级管理员**。
-  落点是 [S-59](#s-59-列出组织成员) ①那个过滤开关：**两档分别授权**，默认档（只要有效的）仍是该组织的有效成员、任一角色，
-  「连无效的一起要」这一档**只给该组织的超级管理员**。**失败集合不变、不新增失败值**——`notAuthorized` 本来就在。
-  其余条款一条未动
-- **相邻依据**（2026-09-24 独立评审第一轮按各自 changelog 复核到当前 rev）：[PF-002 §5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)（**rev 20**）、
-  [PF-003 §5.2](../../../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)、
-  [PF-003 §6.2](../../../../product/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁)、
-  [PF-003 §6.12](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（**rev 5**）、
-  [PF-015 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（**rev 11**）、
-  [PF-007 §4 一笔授权表达有三个维度](../../../../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（**rev 18**）；
-  [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant)、
-  [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy)
-- **复核结论**（v1 的依据由本版沿用，逐条对到当前 rev）：
-  - **PF-001 rev 16**（机器断电与操作系统崩溃的限定）：刚建的组织、刚写下的成员关系可能随断电退回——例外的范围与收场归 PF-017，与本契约 [S-42](#s-42-装配给的保证-vs-协议须给的保证) 「装配给」那几行同向；**两个时刻随所属那次提交一起退回**，退回之后的重新写下取的仍是更晚的时刻，[不变量](#不变量)「断过又接上写下的时刻一定更晚」不受影响。**不改语义**。
-  - **PF-001 rev 17**：§4 未激活的账号记录把「没有承载过任何东西」点名为没有资产、持有、配值——[S-53](#s-53-清除未激活账号的个人组织) 的产品依据那句（「它们从未承载任何东西」）与之一致；§6.1 方向词与工作区「会话创建时选定」、§6.4 成本一句归 PF-013、§6.7 提升不动持有——都不涉本契约的承诺（[S-35](#s-35-层身份) 只答组织与租户两层；成本仍是 [G-3](#十一已知缺口)；提升归资产治理）。**不改语义**。
-  - **PF-002 rev 10～20**（§5.2）：设置项分四类、界与挑选、组织层不持有凭据、「谁可以使用它」、治理类设置——都是配值与求值那一侧的事；本契约给的仍只是「这个租户此刻有没有效、持什么角色」与「它带来哪两层」（[第十二节](#十二消费者核对)那一行），**不改语义**。
-  - **PF-003 rev 5**：复制与分享的方向矩阵重定——组织型复制、组织内分享是新格，复制的前提由「同一账号两边都是成员」一条变成本人型与组织型两条通则；[第十二节](#十二消费者核对)「复制前提」一行按两条通则改写，本契约给的面（[S-26](#s-26-成员资格判定) 与 `TenantId` 的结构相等）**够用、不改**；§6.12「不复活」由本版的两个时刻兑现。
-  - **PF-015 rev 9～11**（工作区显式指定、工具权限的落点、归档时在途执行的收场）与 **PF-007 rev 16～18**（多命令范式、放行四步、总表列名）：都没有碰上面引的那两节，**不改语义**。
-  **本版新增的依据**：[PF-003 §6.12](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（rev 5）与
-  [PF-001 flows §3.3 成员关系](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（「无 → 成员 → 无 → 再成员」同一条记录）
-- **用到两个没有词条的技术名**：**成员关系生效时刻**（`membershipEffectiveSince`）、**隶属建立时刻**（`parentEstablishedAt`）——
-  统一语言复核判为产品正文未述、**不立词条**；本文标「（无词条）」，工作定义在 [S-8](#s-8-成员关系记录)、[S-7](#s-7-上级组织属性)，
-  与 `capability.asset-transfer/v1#S-9` 用的是同两个名、同一含义
-- **精确语义依赖**（三项，消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)）：
-  - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`
-  - `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`
-  - `omne-harness-lite-design-2026-09-15 · capability.account-identity · v1`
-- **条款编号**：`S-n`，**只在本契约本版本内有效**；外部引用须写全坐标，如
-  `capability.organization-governance/v2#S-28`。
-  **编号在本版本内只追加，不重排**：后补的条款取下一个未用的号并放进它语义所属的那一节，
-  因此节内的号**不一定连续递增**。这样做是为了让已被别的契约引用的条款号（`#S-20`、`#S-23`）
-  **不因本版内的增补而漂移**。
-  **本版沿用 v1 的编号**：v1 的 `S-1`～`S-60` 在本版里仍指同一件事（其中几条多了一项，逐条见 [§十三](#十三版本差异与规范工件)）；
-  本版只新增 [S-61](#s-61-两个时刻随写入写下按规则改写由三个读面带出)。`v1#S-n` 与 `v2#S-n` 是两个坐标，**消费者钉哪一版就读哪一版**
-
----
+- 坐标：`(omne-harness-lite-design-2026-09-15, capability.organization-governance, 2)`；接受与采用状态查registry；v1冻结资源不改。
+- 产品依据：[PF-001 rev18](../../../../product/PF-001-identity-scope-and-agent-constraints/README.md)、[PF-016 rev7](../../../../product/PF-016-cli-tui-delivery-surface/README.md)、PF-017 rev4单机边界；既有组织/成员/隶属语义保留。
+- 基础依赖切至 D-040 接受的 AI v3（有界登录、共同参与）与 OE v2（declined）；IV v1保持。精确消费面在S-4；消费者升级各自登记，不自动迁移。
+- 相对 v1：增加 S-61/62接收方拒绝、S-63共同参与与失败边界、S-64本版验证；读面状态消费OE2。既有操作编号/身份不重排，不由目录出现宣称已实现。
 
 ## 一、含义与使用范围
 
@@ -88,9 +14,9 @@
 
 | # | 拥有的事实 | 正文 |
 |---|---|---|
-| 1 | **组织**：它的标识、它是哪一种变体、它的[上级组织](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-parent-organization--上级组织--parent-organization)属性（**v2**：连同隶属建立时刻（无词条）） | [S-5](#s-5-组织)～[S-7](#s-7-上级组织属性) |
-| 2 | **成员关系**：一个[租户](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant)此刻有没有效、持什么[租户角色](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role)（**v2**：以及它最近一次成为有效的时刻——成员关系生效时刻（无词条）） | [S-8](#s-8-成员关系记录)、[S-9](#s-9-成员资格判定结果两值不可用是读面失败) |
-| 3 | **[邀请](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-invitation--邀请--invitation)**与**[隶属请求](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request)**的全生命周期：发出、撤回、接受、过期 | [S-10](#s-10-邀请)、[S-11](#s-11-隶属请求) |
+| 1 | **组织**：它的标识、它是哪一种变体、它的[上级组织](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-parent-organization--上级组织--parent-organization)属性 | [S-5](#s-5-组织)～[S-7](#s-7-上级组织属性) |
+| 2 | **成员关系**：一个[租户](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant)此刻有没有效、持什么[租户角色](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role) | [S-8](#s-8-成员关系记录)、[S-9](#s-9-成员资格判定结果两值不可用是读面失败) |
+| 3 | **[邀请](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-invitation--邀请--invitation)**与**[隶属请求](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request)**的全生命周期：发出、撤回、接受、拒绝、过期 | [S-10](#s-10-邀请)、[S-11](#s-11-隶属请求) |
 | 4 | **[上级链](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-ancestor-chain--上级链--ancestor-chain)**与**有共同上级**这两个读面 | [S-12](#s-12-上级链与有共同上级) |
 | 5 | **身份带来的那两层**：组织级与租户级的[层身份](#s-13-层身份读面) | [S-13](#s-13-层身份读面) |
 | 6 | **[当前租户身份](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)**这项选择：查询与切换 | [S-14](#s-14-当前租户身份是登录状态上的一项选择) |
@@ -103,9 +29,9 @@
 
 | 不拥有 | 归谁 |
 |---|---|
-| 账号事实、登录状态、凭据校验 | `capability.account-identity` v1（本契约**消费**其中两个读面，见 [S-4](#s-4-依赖方向与被消费的面)） |
+| 账号事实、登录状态、凭据校验 | `capability.account-identity` v3（本契约**消费**其中两个读面，见 [S-4](#s-4-依赖方向与被消费的面)） |
 | 身份值的形状与隔离义务 | `data.identity-values` v1 |
-| 一份待接受的邀约**何时不再可被接受** | `data.offer-expiry` v1（本契约**引用**它的判定式与求值次序，[S-10](#s-10-邀请)、[S-11](#s-11-隶属请求)） |
+| 一份待接受的邀约**何时不再可被接受** | `data.offer-expiry` v2（本契约**引用**它的判定式与求值次序，[S-10](#s-10-邀请)、[S-11](#s-11-隶属请求)） |
 | 资产持有、属性配值、求值 | PF-002 的契约 |
 | 资产复制与分享 | PF-003 的契约 |
 | 会话 | PF-015 的契约 |
@@ -135,24 +61,25 @@
 
 | 被消费的面 | 用在哪 | 消费 clauses |
 |---|---|---|
-| **账号存在判定**（给定 AccountId，这个账号在不在） | [S-20 创建个人组织](#s-20-创建个人组织) | `capability.account-identity/v1#S-18`——**读账号**，`account-not-found` 即不存在 |
-| **账号已激活判定** | [S-21](#s-21-创建团队组织)、[S-23 发出邀请](#s-23-发出邀请)、[S-25 接受邀请](#s-25-接受邀请)、[S-53 清除未激活账号的个人组织](#s-53-清除未激活账号的个人组织)（反过来用：要求**未**激活） | `capability.account-identity/v1#S-18` 返回值里的**激活状态**（同一个读面，不是第二个面） |
-| **账号记录是否已过留存期限** | [S-20 创建个人组织](#s-20-创建个人组织) 的前置②（要求**未**过期）、[S-53 清除未激活账号的个人组织](#s-53-清除未激活账号的个人组织) 的前置②（要求**已**过期） | `capability.account-identity/v1#S-18` 返回值里的**是否已过留存期限**（仍是同一个读面）。**本契约依赖它的单调性**：一旦读到「是」，此后每一次读都是「是」——[那条性质写在该条款里](../../../capabilities/account-identity/v1/contract.md#s-18-读账号)，不是本契约的假设。**两处方向相反，正是这一对把两条链隔开**：同一个单调事实为假时只有 S-20 能过，为真时只有 S-53 能过 |
-| **激活的前置与依据核实**（激活须出示激活依据、在自己提交里现读「是否已过留存期限」） | 第七节「已激活的账号 ⇒ 恰有一个个人组织」的「至少一个」一半 | `capability.account-identity/v1#S-14`——前置③与第 3 条 |
-| **已激活不回退、不消失** | [S-25 接受邀请](#s-25-接受邀请) ②「本版判不出真」的理由 | `capability.account-identity/v1#S-20` |
-| **`identifier-held-by-expired-record` 只流向组合** | [S-53 清除未激活账号的个人组织](#s-53-清除未激活账号的个人组织) 的调用面论证 | `capability.account-identity/v1#S-22` |
-| **清除链 ②（清除到期的未激活账号记录）** | [S-53](#s-53-清除未激活账号的个人组织) ⑤「本版不作废」的重放安全全靠它前置②③的现读；③的「至多一个」与一一约束 | `capability.account-identity/v1#S-38`——前置②③④ |
-| **登录状态校验面**（LoginStateId → **AccountId** ／ **`login-state-rejected`** ／ **`invalid-input`** ／ **`storage-unavailable`**，**四出口**） | [S-36 当前租户身份查询](#s-36-当前租户身份查询)、[S-37 切换](#s-37-切换当前租户身份) | `capability.account-identity/v1#S-17` |
+| **账号存在判定**（给定 AccountId，这个账号在不在） | [S-20 创建个人组织](#s-20-创建个人组织) | `capability.account-identity/v3#S-18`——**读账号**，`account-not-found` 即不存在 |
+| **账号已激活判定** | [S-21](#s-21-创建团队组织)、[S-23 发出邀请](#s-23-发出邀请)、[S-25 接受邀请](#s-25-接受邀请)、[S-53 清除未激活账号的个人组织](#s-53-清除未激活账号的个人组织)（反过来用：要求**未**激活） | `capability.account-identity/v3#S-18` 返回值里的**激活状态**（同一个读面，不是第二个面） |
+| **账号记录是否已过留存期限** | [S-20 创建个人组织](#s-20-创建个人组织) 的前置②（要求**未**过期）、[S-53 清除未激活账号的个人组织](#s-53-清除未激活账号的个人组织) 的前置②（要求**已**过期） | `capability.account-identity/v3#S-18` 返回值里的**是否已过留存期限**（仍是同一个读面）。**本契约依赖它的单调性**：一旦读到「是」，此后每一次读都是「是」——[那条性质写在该条款里](../../../capabilities/account-identity/v3/contract.md#s-18-读账号)，不是本契约的假设。**两处方向相反，正是这一对把两条链隔开**：同一个单调事实为假时只有 S-20 能过，为真时只有 S-53 能过 |
+| **激活的前置与依据核实**（激活须出示激活依据、在自己提交里现读「是否已过留存期限」） | 第七节「已激活的账号 ⇒ 恰有一个个人组织」的「至少一个」一半 | `capability.account-identity/v3#S-14`——前置③与第 3 条 |
+| **已激活不回退、不消失** | [S-25 接受邀请](#s-25-接受邀请) ②「本版判不出真」的理由 | `capability.account-identity/v3#S-20` |
+| **`identifier-held-by-expired-record` 只流向组合** | [S-53 清除未激活账号的个人组织](#s-53-清除未激活账号的个人组织) 的调用面论证 | `capability.account-identity/v3#S-22` |
+| **清除链 ②（清除到期的未激活账号记录）** | [S-53](#s-53-清除未激活账号的个人组织) ⑤「本版不作废」的重放安全全靠它前置②③的现读；③的「至多一个」与一一约束 | `capability.account-identity/v3#S-38`——前置②③④ |
+| **登录状态校验面**（LoginStateId → **AccountId** ／ **`login-state-rejected`** ／ **`invalid-input`** ／ **`storage-unavailable`**，**四出口**） | [S-36 当前租户身份查询](#s-36-当前租户身份查询)、[S-37 切换](#s-37-切换当前租户身份) | `capability.account-identity/v3#S-17` |
+| **有界登录与显式参与** | S-36/37 与 S-63 的同边界有效性读数、参与生命周期及失败传播 | `capability.account-identity/v3#S-48`、`#S-51` |
 
 **登录状态校验面的四个出口逐一映射到本契约的收场**，[S-36](#s-36-当前租户身份查询) 与
 [S-37](#s-37-切换当前租户身份) 的 ⑧ 就是这张映射：
 
-| `capability.account-identity/v1#S-17` 的出口 | 本契约的收场 | 为什么不能合并 |
+| `capability.account-identity/v3#S-17` 的出口 | 本契约的收场 | 为什么不能合并 |
 |---|---|---|
 | **AccountId** | 继续往下判 | — |
-| **`login-state-rejected`**（查不到、已撤销、所属账号未激活，值不区分原因） | `loginStateNotValid` | 这是一个成立的结论，调用方该做的是**重新登录** |
+| **`login-state-rejected`**（查不到、已撤销、所属账号未激活、凭据代次不符或绝对/空闲期限已到，值不区分原因） | `loginStateNotValid` | 这是一个成立的结论，调用方该做的是**重新登录** |
 | **`invalid-input`**（那条 `LoginStateId` 在**表示层**就不合格） | `invalidInput`。**但这一支在本契约里到不了**，见下 | 两边是同一类东西（都是[表示层校验，不是判定结果](#s-16-缺席时的默认答案)），所以映射是显然的；它**不能**被折进 `loginStateNotValid` 或 `unavailable` |
-| **`storage-unavailable`** | `unavailable` | 这不是结论，调用方该做的是**按当时实际状态重试**（[S-16](#s-16-缺席时的默认答案)） |
+| **`storage-unavailable`** | `unavailable` | 必要判定不可用或提交结果未确认；先核实当前事实，非幂等动作不得自动重试（S-63） |
 
 > **第三行为什么写「到不了」，以及它靠什么前提。**
 > 本契约的每个操作**先做自己的表示层校验**（[S-16](#s-16-缺席时的默认答案) 的第三类）：
@@ -210,17 +137,17 @@
 > `TenantId` 账号那一半的结构相等（`data.identity-values/v1#S-5`）得出。
 > 把它登进消费清单，会让「换掉 `data.identity-values/v1#S-13` 要不要重审本契约」得到一个错误的答案。
 
-#### 过期语义侧的被消费面（`data.offer-expiry` v1）
+#### 过期语义侧的被消费面（`data.offer-expiry` v2）
 
 **整块引用不复制**（[S-10](#s-10-邀请)、[S-11](#s-11-隶属请求)），具体条款号由正文里按号引用的位置收齐。
-**`data.offer-expiry/v1#S-19`（指向对象的存在性读面归属）必须一并登记**：
+**`data.offer-expiry/v2#S-19`（指向对象的存在性读面归属）必须一并登记**：
 [S-25](#s-25-接受邀请) 与 [S-32](#s-32-接受隶属请求) 的⑧把「组织存在性读面不可用」收成 `unavailable`，
 依据正是那一条把读面责任派给了持有该对象的契约——**本契约就是那个契约**。
 
 #### 不消费什么，以及这条契约级边界买到什么
 
 **本契约不消费凭据校验。**
-[`capability.account-identity/v1#S-15`](../../../capabilities/account-identity/v1/contract.md#s-15-验证凭据并签发登录状态)
+[`capability.account-identity/v3#S-15`](../../../capabilities/account-identity/v3/contract.md#s-15-验证凭据并签发登录状态)
 那一条操作与组织治理没有任何共同的判定输入或不变量，本契约的任何一条前置都用不到它。
 
 **理由不是重启半径。**本契约 inject 的是账号能力的读面，
@@ -236,10 +163,10 @@
 
 | 拆开买到什么 | 落点 |
 |---|---|
-| **反方向的半径收敛** | 本契约 inject 账号读面，**账号提供者换代本来就会重跑本契约**；那个方向合不合并都一样。拆开收的是**另一个方向**：只需要「来者是谁」的那些消费者（[`capability.account-identity/v1#S-17`](../../../capabilities/account-identity/v1/contract.md#s-17-校验登录状态)、[`#S-18`](../../../capabilities/account-identity/v1/contract.md#s-18-读账号)）**不因组织治理换代而重跑** |
-| **契约层的失败隔离** | 账号面不可用时本契约的相关操作以具名值**明确失败、不静默降级**（[S-43](#s-43-依赖的提供者不可用)）；反过来，账号能力**只依赖存储**、不消费任何其他契约（[`capability.account-identity/v1#S-28`](../../../capabilities/account-identity/v1/contract.md#s-28-依赖不可用撤除与重启时的在途归属)），本契约不可用不使它失效。**两句话各写在自己那份契约里；合成一份之后它们没有地方可写** |
-| **SYS-DEPLOY 的分布式缝已逐条标价** | 两侧各自把「本版由装配给、跨进程后须由协议重新兑现」的保证**逐条点名**（[S-42](#s-42-装配给的保证-vs-协议须给的保证)、[`capability.account-identity/v1#S-30`](../../../capabilities/account-identity/v1/contract.md#s-30-装配给的保证-vs-协议须给的保证)），跨两侧的交接由 [`composition.account-registration/v1#S-25`](../../../compositions/account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 点名。合成一份会把这些缝藏进一次进程内调用，[SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) 要的「语义不变地拆成分布式」届时**无从逐条兑现** |
-| **账号身份事实不是范围化对象** | [`capability.account-identity/v1#S-12`](../../../capabilities/account-identity/v1/contract.md#s-12-账号身份事实不是范围化对象) 兑现 [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) 的方式是**它什么也不提供**：没有任何操作接受层身份作参数。与本契约（它持有组织、成员关系与[层身份](#s-13-层身份读面)）合并之后，这条负向承诺**失去它的结构依据**，只剩一句自律 |
+| **反方向的半径收敛** | 本契约 inject 账号读面，**账号提供者换代本来就会重跑本契约**；那个方向合不合并都一样。拆开收的是**另一个方向**：只需要「来者是谁」的那些消费者（[`capability.account-identity/v3#S-17`](../../../capabilities/account-identity/v3/contract.md#s-17-校验登录状态)、[`#S-18`](../../../capabilities/account-identity/v3/contract.md#s-18-读账号)）**不因组织治理换代而重跑** |
+| **契约层的失败隔离** | 账号面不可用时本契约的相关操作以具名值**明确失败、不静默降级**（[S-43](#s-43-依赖的提供者不可用)）；反过来，账号能力**只依赖存储**、不消费任何其他契约（[`capability.account-identity/v3#S-28`](../../../capabilities/account-identity/v3/contract.md#s-28-依赖不可用撤除与重启时的在途归属)），本契约不可用不使它失效。**两句话各写在自己那份契约里；合成一份之后它们没有地方可写** |
+| **SYS-DEPLOY 的分布式缝已逐条标价** | 两侧各自把「本版由装配给、跨进程后须由协议重新兑现」的保证**逐条点名**（[S-42](#s-42-装配给的保证-vs-协议须给的保证)、[`capability.account-identity/v3#S-30`](../../../capabilities/account-identity/v3/contract.md#s-30-装配给的保证-vs-协议须给的保证)），跨两侧的交接由 [`composition.account-registration/v1#S-25`](../../../compositions/account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 点名。合成一份会把这些缝藏进一次进程内调用，[SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) 要的「语义不变地拆成分布式」届时**无从逐条兑现** |
+| **账号身份事实不是范围化对象** | [`capability.account-identity/v3#S-12`](../../../capabilities/account-identity/v3/contract.md#s-12-账号身份事实不是范围化对象) 兑现 [SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) 的方式是**它什么也不提供**：没有任何操作接受层身份作参数。与本契约（它持有组织、成员关系与[层身份](#s-13-层身份读面)）合并之后，这条负向承诺**失去它的结构依据**，只剩一句自律 |
 
 > **这四条里没有「换一次认证提供者会把整个组织治理重启一遍」，那是有意的。**
 > 那句话在契约层**不成立**，理由见上面「理由不是重启半径」那一段。
@@ -269,7 +196,7 @@
 |---|---|---|---|
 | `OrganizationId` | 不透明标识 | 创建时，由存储生成 | 否 |
 | `OrganizationKind` | `personal` / `team` | 创建时 | **否，无写路径** |
-| 上级组织 | 至多一个 `OrganizationId`，可以为空；**有值时带隶属建立时刻**（v2，[S-7](#s-7-上级组织属性)） | 创建时为空 | 是，见 [S-7](#s-7-上级组织属性) |
+| 上级组织 | 至多一个 `OrganizationId`，可以为空 | 创建时为空 | 是，见 [S-7](#s-7-上级组织属性) |
 
 **本版组织只有一条终结路径，且它够不到任何邀约**：
 [S-53](#s-53-清除未激活账号的个人组织) 清除一个**从未激活过**的账号的个人组织
@@ -350,48 +277,14 @@
 **上级组织不进[作用域层](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)。**
 下级组织不自动继承上级组织的任何东西；[S-13](#s-13-层身份读面) 给出的两层与上级链无关。
 
-#### 隶属建立时刻（v2）
-
-**上级组织属性有值时，带一个时刻：隶属建立时刻（无词条，`parentEstablishedAt`）——此刻这个上级值是在哪一次提交里写下的。**
-
-| 事 | 隶属建立时刻怎样 |
-|---|---|
-| [接受一份隶属请求](#s-32-接受隶属请求)写下上级值 | **与上级值在同一次提交里写下**，取那次提交的时刻 |
-| [解除隶属](#s-33-解除隶属)清空上级值 | **随值一起不再有**：属性为空时没有「此刻这个上级从何时起」可答 |
-| 解除之后再次建立（同一个上级或另一个） | 写下**新的**时刻——那是另一次 [S-32](#s-32-接受隶属请求) 的提交 |
-
-**写路径与上级值本身同一对，没有第三条**：只有 [S-32](#s-32-接受隶属请求) 写它、只有 [S-33](#s-33-解除隶属) 清它；
-不存在单独改写这个时刻的操作。**时刻取自本契约判过期用的同一个时间源**（`data.offer-expiry/v1#S-16`），
-不后退由装配给（`data.offer-expiry/v1#S-17` 那一行；本契约 [S-42](#s-42-装配给的保证-vs-协议须给的保证) 末行）。
-
-**它回答的只有一件事**：这条隶属关系（这一个上级值）连续成立的起点。消费者据它判「某个时刻以来这条隶属关系断过没有」——
-断过又接上，写下的必然是一个更晚的时刻。**它不是上级链的一部分**，[S-12](#s-12-上级链与有共同上级) 的两个谓词与判环都不读它。
-
 ### S-8 成员关系记录
 
-成员关系是一条**以 `TenantId` 为键**的持久记录，属性有三项（**v2 多了第三项**）：
+成员关系是一条**以 `TenantId` 为键**的持久记录，属性有两项：
 
 | 属性 | 取值 | 说明 |
 |---|---|---|
 | 有效性 | 有效 / 无效 | [无 → 成员 → 无 → 再成员](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)，全在同一条记录上 |
 | 角色 | `TenantRole` **单值** | 一个租户在其组织内**只持一个**角色 |
-| **成员关系生效时刻**（无词条，`membershipEffectiveSince`；v2） | 一个时刻 | 这条记录**最近一次由无效（或尚未建立）变为有效**的那一次提交的时刻，见下 |
-
-**成员关系生效时刻只随「变为有效」写下，别的写入都不动它：**
-
-| 事 | 成员关系生效时刻怎样 |
-|---|---|
-| **首次建立**——[创建个人组织](#s-20-创建个人组织)、[创建团队组织](#s-21-创建团队组织)的创建者、[接受邀请](#s-25-接受邀请)而此前没有这条记录 | **与有效性在同一次提交里写下**，取那次提交的时刻 |
-| [解除成员](#s-29-解除成员)（退出或移除） | **不清空、不改**：记录变为无效，时刻留着——它说的是「上一次从何时起有效」 |
-| **再加入**——[接受邀请](#s-25-接受邀请)而这条记录此前无效（[S-39](#s-39-回来的是同一个租户)） | **改写**为这一次提交的时刻 |
-| [调整角色](#s-28-调整角色) | **不动**：有效性没变，这段成员关系没有断 |
-| [清除未激活账号的个人组织](#s-53-清除未激活账号的个人组织) | 记录连同它一起删除 |
-
-**时刻取自本契约判过期用的同一个时间源**（`data.offer-expiry/v1#S-16`），不后退由装配给（[S-42](#s-42-装配给的保证-vs-协议须给的保证) 末行）。
-**它回答的只有一件事**：这一段成员关系连续有效的起点。消费者据它判「某个时刻以来这个租户断过没有」——
-[回来的是同一个租户](#s-39-回来的是同一个租户)，`TenantId` 相同，**但生效时刻是新的**，那正是「断过」留下的痕迹。
-**它不是成员资格判定的一部分**：[S-26](#s-26-成员资格判定) 的返回形状归 `data.identity-values` v1、恰两支，本版不改它；
-**准入仍按 [S-18](#s-18-每道准入现读) 读 [S-26](#s-26-成员资格判定)**，这个时刻只由 [S-59](#s-59-列出组织成员)、[S-36](#s-36-当前租户身份查询) 带出。
 
 **键就是 `TenantId`，本契约不铸第二个标识。**由此直接得到两条：
 同一个 (组织, 账号) 无论断续多少次都是同一条记录（[S-39](#s-39-回来的是同一个租户)）；
@@ -431,20 +324,20 @@
 | 发出它的组织 | `OrganizationId`；**同时是 offer-expiry 判定用的那个指向对象** |
 | 被邀请的账号 | `AccountId`；**不参与过期判定** |
 | 指定的角色 | `TenantRole`，缺省为普通成员 |
-| `OfferTiming` | `data.offer-expiry/v1#S-4`，本契约不复制其定义 |
+| `OfferTiming` | `data.offer-expiry/v2#S-4`，本契约不复制其定义 |
 
-**过期语义整块引用 `data.offer-expiry` v1**：派生状态四值、判定式、读时派生、
+**过期语义整块引用 `data.offer-expiry` v2**：派生状态五值、判定式、读时派生、
 接受在同一提交内重新求值、到期不可接受、过期与撤回收场相同与拒绝理由不区分来路，
-分别是 `data.offer-expiry/v1#S-7`～`#S-13`。**本契约不复制其中任何一条，也不改写它们。**
+分别是 `data.offer-expiry/v2#S-7`～`#S-13`。**本契约不复制其中任何一条，也不改写它们。**
 
-**判定用的指向对象只有发出它的那个组织**，这是 `data.offer-expiry/v1#S-2` 已经定下的；
+**判定用的指向对象只有发出它的那个组织**，这是 `data.offer-expiry/v2#S-6` 已经定下的；
 被邀请的账号不进判定。
 
 **这一份的有效时长由发出它的人在 [S-23](#s-23-发出邀请) 指定，不指定就按邀请这一类的默认值**
 （部署配置，[PF-001 §4 两种邀约都会过期](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)、
 [flows §1.5](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#15-邀请与加入)）。
 **指定值是这份数据的一个参数，跟着这份邀约走、随它结束而消失，不进[作用域层](../../../../ubiquitous_language/terms/scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)**；
-它落进 `OfferTiming` 的方式归 `data.offer-expiry/v1#S-14`，本契约不复制。
+它落进 `OfferTiming` 的方式归 `data.offer-expiry/v2#S-14`，本契约不复制。
 
 ### S-11 隶属请求
 
@@ -453,11 +346,11 @@
 
 | 字段 | 含义 |
 |---|---|
-| 发起方组织、接收方组织 | 两个 `OrganizationId`。**offer-expiry 判定用的指向对象只有接收方组织**（`data.offer-expiry/v1#S-2`、`data.offer-expiry/v1#S-6`）——它就是产品正文说的[「它指向的那个组织」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)。**发起方组织不进判定**：本版它不可能消失（见下） |
+| 发起方组织、接收方组织 | 两个 `OrganizationId`。**offer-expiry 判定用的指向对象只有接收方组织**（`data.offer-expiry/v2#S-6`）——它就是产品正文说的[「它指向的那个组织」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)。**发起方组织不进判定**：本版它不可能消失（见下） |
 | 方向 | 请对方作自己的上级 / 请对方作自己的下级 |
 | `OfferTiming` | 同 [S-10](#s-10-邀请) |
 
-**过期语义同样整块引用 `data.offer-expiry` v1**，不复制。
+**过期语义同样整块引用 `data.offer-expiry` v2**，不复制。
 
 **这一份的有效时长由发出它的人在 [S-30](#s-30-发出隶属请求) 指定，不指定就按隶属请求这一类的默认值**
 （部署配置，[flows §1.7](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)）。
@@ -465,7 +358,7 @@
 是这份数据的参数，不进作用域层。
 
 **「指向的组织不存在」这一分支本版没有触发源**（[S-5](#s-5-组织)）。
-规则照 `data.offer-expiry/v1#S-8` 写全，**但实现不得为它造一个当前不存在的事件源**，
+规则照 `data.offer-expiry/v2#S-8` 写全，**但实现不得为它造一个当前不存在的事件源**，
 也不得为「组织被解散」预埋写路径。见[缺口 G-2](#十一已知缺口)。
 
 > **发起方组织为什么不进判定式。**产品正文给的是单数——[「它指向的那个组织不存在了」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)；
@@ -474,13 +367,13 @@
 > （[S-6](#s-6-两个变体与四条结构性禁止) 的禁止 3），而**团队组织没有任何终结路径**（[S-5](#s-5-组织)）。
 > **这是推导，不是省略**：发起方消失这件事本版没有触发源，写进判定式也只是一条永远为假的析取项。
 > 团队组织有了终结路径那天，「发起方是否也该进判定」要由产品重新裁——
-> 那属语义变更，归 `data.offer-expiry` v1 的新版本，不在本契约里自行补。
+> 那属语义变更，归 `data.offer-expiry` v2 的新版本，不在本契约里自行补。
 
 > **隶属请求的宿主「正文未述」，本契约不受阻。**
 > [对象清单登记了这项未裁](../../../../domain_objects/objects.md#ul-affiliation-request--隶属请求)：
 > 两端都是组织，正文只点了「它**指向的**那个组织」。**本契约不依赖宿主**——
 > 它按 `AffiliationRequestId` 持久存在，按**接收方组织这一个**指向对象判过期
-> （[上一段](#s-11-隶属请求)、`data.offer-expiry/v1#S-2`、`data.offer-expiry/v1#S-6`），
+> （[上一段](#s-11-隶属请求)、`data.offer-expiry/v2#S-6`），
 > 两件事都不需要先知道它挂在谁身上。裁决见[缺口 G-4](#十一已知缺口)。
 >
 > **「按接收方单数判」与「宿主未裁」是两件事，不要用前者去答后者。**
@@ -514,7 +407,7 @@
 > **「把自己算进来」这一步不能省。**上级链本身不含自己，
 > [若只比两条不含自己的链，一个组织与它自己的上级就不算有共同上级](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)——
 > 而团队与它所属的公司分明在同一棵树上。**这处差异此前登记为缺口 G-5**，
-> [Alloy 模型在给定规模内给出过那个反例](../v1/formal/README.md)；
+> [Alloy 模型在给定规模内给出过那个反例](formal/README.md)；
 > PF-001 rev 12 已裁定取**把自己算进来**的那一种，缺口随之关闭。
 
 **个人组织的上级链恒空**（[S-6](#s-6-两个变体与四条结构性禁止)），把它自己算进来也只有它一个，
@@ -562,7 +455,7 @@
    （`data.identity-values` v1 的隔离义务）。把它当成环境里的「当前租户」直接放行，
    会让一条没有携带租户身份的调用路径看起来合法——[SYS-TENANT](../../../../foundation/cross-system-constraints/requirements.md#sys-tenant) 要挡的正是这个。
 5. **它是本契约拥有的一条独立记录，以 `LoginStateId` 为键引用账号契约的登录状态记录；它的生灭归本契约。**
-   登录状态记录归 `capability.account-identity/v1`（[`#S-9`](../../../capabilities/account-identity/v1/contract.md#s-9-登录状态记录)），
+   登录状态记录归 `capability.account-identity/v3`（[`#S-9`](../../../capabilities/account-identity/v3/contract.md#s-9-登录状态记录)），
    这项选择不是那条记录上的字段，账号契约撤销或让它过期时**不动这项选择、也不需要知道它**。
    登录状态一旦失效，这项选择**不可达**——[S-36](#s-36-当前租户身份查询)／[S-37](#s-37-切换当前租户身份) 每次都先走登录状态校验
    （[S-4](#s-4-依赖方向与被消费的面) 的四出口），校验不过就到不了这条记录；
@@ -613,13 +506,13 @@
 
 | 带默认值的非身份参数 | 在哪 | 缺席时取什么 |
 |---|---|---|
-| **这一份邀约的有效时长** | [S-23](#s-23-发出邀请)①、[S-30](#s-30-发出隶属请求)① | **该类邀约的默认值**（部署配置，`data.offer-expiry/v1#S-14`）。**这一格是产品明写的**：[缺席按这一类的默认值，非法则拒绝](#s-23-发出邀请) |
+| **这一份邀约的有效时长** | [S-23](#s-23-发出邀请)①、[S-30](#s-30-发出隶属请求)① | **该类邀约的默认值**（部署配置，`data.offer-expiry/v2#S-14`）。**这一格是产品明写的**：[缺席按这一类的默认值，非法则拒绝](#s-23-发出邀请) |
 | **邀请指定的角色** | [S-23](#s-23-发出邀请)① | **普通成员**（[S-10](#s-10-邀请)、[PF-001 §4 角色](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色)）。它是一个 `TenantRole` 取值，**给了就按 `data.identity-values/v1#S-32` 判集合闭合**，集合外 ⇒ `invalidInput` |
 | **创建键** | [S-21](#s-21-创建团队组织)① | **不去重**（本次调用不认回任何此前的调用）。它没有「默认值」——缺席就是一种取值；写在这里是因为它是**非**身份参数、缺席**不**拒绝 |
 | **列表面的过滤开关** | [S-57](#s-57-列出账号收到的待接受邀请)①、[S-58](#s-58-列出组织发出的邀请与隶属请求)①、[S-59](#s-59-列出组织成员)①、[S-60](#s-60-列出组织收到的隶属请求)① | **各自条款里写死的那个默认**：三条邀约列表面默认**只要 `pending` 的**，[S-59](#s-59-列出组织成员) 默认**只要有效的**。**它不是一项部署配置，是这条操作的取值规则，四条一致如此**。**[S-59](#s-59-列出组织成员) 那一格另有一句**：它的两档**授权不同**（默认档＝该组织的有效成员，另一档＝超管），所以**缺席取默认这件事顺带决定了走哪一道授权**；**这不改变「它没有默认值就该拒绝」的判法**——缺席仍然取默认，取完再按②判那一档 |
 
 **这三行的共同点只有一个：它们都不是身份参数**，所以「缺席即拒绝」那条不适用。
-**不同点要写出来**：第一行的默认值来自**部署配置**（配错了按 `data.offer-expiry/v1#S-17` 启动即失败），
+**不同点要写出来**：第一行的默认值来自**部署配置**（配错了按 `data.offer-expiry/v2#S-14` 启动即失败），
 第二、三行的默认值**写死在本契约条款里**，没有任何可配之处。
 **这张表是穷举的**：本契约缺席不拒绝的非身份参数就这几个，写操作里是前三行，读面里是第四行。
 
@@ -651,7 +544,7 @@
 把前置检查与写入放进同一次提交**还不够**——两次提交仍可各自读到旧状态；
 必须序列化，才使「检查—写入」这个窗口对同组织的第二个写入者关闭。
 
-> [行为模型把这一条检查成了会失败的断言](../v1/formal/README.md)：
+> [行为模型把这一条检查成了会失败的断言](formal/README.md)：
 > 去掉序列化的配置能产生反例，保留序列化的配置在已检查范围内不变量恒成立。
 
 ### S-18 每道准入现读
@@ -690,7 +583,7 @@
 **每个操作的⑥都含 `invalidInput`**（[S-16](#s-16-缺席时的默认答案)），下面逐条列出、不省略。
 **每个读操作也一样**：读面同样收得到不合形状的标识。
 
-**本节共 25 个操作**：写操作十一个（[S-20](#s-20-创建个人组织)、[S-21](#s-21-创建团队组织)、
+**本节保留原 25 个操作；S-61/62另加两个拒绝操作**：写操作十一个（[S-20](#s-20-创建个人组织)、[S-21](#s-21-创建团队组织)、
 [S-23](#s-23-发出邀请)、[S-24](#s-24-撤回邀请)、[S-25](#s-25-接受邀请)、[S-28](#s-28-调整角色)、
 [S-29](#s-29-解除成员)、[S-30](#s-30-发出隶属请求)、[S-31](#s-31-撤回隶属请求)、
 [S-32](#s-32-接受隶属请求)、[S-33](#s-33-解除隶属)），
@@ -706,7 +599,7 @@
 | ① | `AccountId` |
 | ② | **恰两条**：该账号**存在**（消费账号存在判定，[S-4](#s-4-依赖方向与被消费的面)）；该账号记录**未过留存期限**（同一个读面的「是否已过留存期限」为否，见下）。**「尚无个人组织」不是前置**——已有时按⑦幂等返回，**不是一次拒绝**。**也不要求账号已激活**——[激活的前置正是个人组织已存在](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号)，要求已激活会让注册无法完成 |
 | ③ | 无 |
-| ④ | **单次提交**：组织行（`kind = personal`，上级为空）＋ 成员关系记录（有效；**v2：连同成员关系生效时刻 = 这次提交的时刻**，[S-8](#s-8-成员关系记录)）＋ 角色为超级管理员，**三者同时成立**。**不存在「有组织但没有管理员」的中间状态**（[flows §1.4](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#14-创建组织)）。**②的两条账号判定（存在、未过期）必须与这次写入落在同一提交边界内**；**幂等那一路（不写入）同样在一次提交内现读这两条** |
+| ④ | **单次提交**：组织行（`kind = personal`，上级为空）＋ 成员关系记录（有效）＋ 角色为超级管理员，**三者同时成立**。**不存在「有组织但没有管理员」的中间状态**（[flows §1.4](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#14-创建组织)）。**②的两条账号判定（存在、未过期）必须与这次写入落在同一提交边界内**；**幂等那一路（不写入）同样在一次提交内现读这两条** |
 | ⑤ | `OrganizationId`（以及由它与输入账号确定的 `TenantId`）。**幂等那一路返回的是已有的那一个**，形状完全相同——调用方**不需要、也不能**区分这两路 |
 | ⑥ | `accountDoesNotExist` · **`accountRecordExpired`** · `invalidInput` · `unavailable`。**没有 `personalOrganizationAlreadyExists`**：那不是一种失败 |
 | ⑦ | **幂等，边界是 `AccountId`。**该账号已有个人组织时返回那一个，不产生第二个，**也不报错**——这使[注册中途失败后用同一标识重来能接着完成](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#一可观察场景)。**幂等那一路仍要过②的两条判定**：记录已过期时返回 `accountRecordExpired`，**不返回那个已有的个人组织** |
@@ -720,7 +613,7 @@
 清除链的第 ② 步再把账号记录删掉——组织留下了，它的账号没了。
 
 **这条前置之所以挡得住，靠的是「已过期」这个事实是单调的**
-（`capability.account-identity/v1#S-18` 明写了这条性质）：
+（`capability.account-identity/v3#S-18` 明写了这条性质）：
 清除链 ① 能跑说明那一刻已经过期，而过期不会翻回去，
 所以本操作**此后每一次**现读都读到「已过期」，**不可能在清除链 ① 之后成功**。
 **两边读的是同一个事实，各自在自己的提交里读**——这就是收场，不需要跨 owner 的协调。
@@ -744,7 +637,7 @@
 | ① | 创建者 `AccountId`；**可选：创建键**——调用方给出的一个不透明去重标识（本操作的幂等键），**缺席不是拒绝，是「本次不去重」**（不是身份参数，[S-16](#s-16-缺席时的默认答案) 的表有它一行） |
 | ② | 该账号**已激活**（[flows §2](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)：发起者账号未激活 ⇒ 无新组织） |
 | ③ | 无 |
-| ④ | **单次提交**：组织行（`kind = team`，上级为空）＋ 创建者的成员关系记录（有效；**v2：连同成员关系生效时刻**，[S-8](#s-8-成员关系记录)）＋ 角色为超级管理员＋**（带键时）创建键登记**。**不存在无超管的中间态**；键登记与组织行不落在同一提交里，回执丢失的窗口就仍然开着 |
+| ④ | **单次提交**：组织行（`kind = team`，上级为空）＋ 创建者的成员关系记录（有效）＋ 角色为超级管理员＋**（带键时）创建键登记**。**不存在无超管的中间态**；键登记与组织行不落在同一提交里，回执丢失的窗口就仍然开着 |
 | ⑤ | `OrganizationId` |
 | ⑥ | `accountNotActivated` · `accountDoesNotExist` · `invalidInput` · `unavailable` |
 | ⑦ | **幂等边界 = (创建者 `AccountId`, 创建键)**。带键重放（同创建者、同键，键仍在保留期内）⇒ **返回首次创建的那个 `OrganizationId`，无二次效果**——这就是 [PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果)「未知结果后的重试认回同一逻辑操作」在本操作上的兑现处。**不带键 ⇒ 不幂等**：同一账号可以创建一个或多个团队组织（[PF-001 §4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)），重复调用产生的是**另一个**组织，且本版无终结路径，重复不可撤。键的作用域是创建者，两个账号用同一个键互不相干；键的**保留期** `team_creation_key_retention` 是部署配置（写成参数、不填值），过期后同键 ⇒ 新组织 |
@@ -761,20 +654,16 @@
 | # | 内容 |
 |---|---|
 | ① | `OrganizationId` |
-| ② | 无授权前置。**本操作只返回组织自身的结构事实，不返回成员名单**——名单走 [S-59 列出组织成员](#s-59-列出组织成员)（授权按它的 ②：该组织任一有效成员可读默认档，已解除的那些只归超管），单个租户的效力走 [S-26 成员资格判定](#s-26-成员资格判定) |
+| ② | 无授权前置。**本操作只返回组织自身的结构事实，不返回成员名单**——名单走 [S-59 列出组织成员](#s-59-列出组织成员)（**超管**），单个租户的效力走 [S-26 成员资格判定](#s-26-成员资格判定) |
 | ③ | 无 |
 | ④ | 只读，无提交 |
-| ⑤ | `{ OrganizationId, OrganizationKind, 上级组织（有或无） }`；**v2：上级组织有值时一并给出它的隶属建立时刻**（[S-7](#s-7-上级组织属性)），无值时没有这一项——**不给一个占位时刻** |
+| ⑤ | `{ OrganizationId, OrganizationKind, 上级组织（有或无） }` |
 | ⑥ | `organizationDoesNotExist`（本版**只在一种情形下被触发**：该组织是一个已被 [S-53](#s-53-清除未激活账号的个人组织) 清除的个人组织，见 [S-5](#s-5-组织)）· `invalidInput` · `unavailable` |
 | ⑦ | 只读，天然可重复 |
-| ⑧ | 读不到 ⇒ `unavailable`，**不得返回「不存在」**——[不可用 ≠ 不存在](../../../data/offer-expiry/v1/contract.md#s-20-不可用--不存在)；`OrganizationId` 缺席或不合形状 ⇒ `invalidInput`，**同样不得收成 `organizationDoesNotExist`**（[S-16](#s-16-缺席时的默认答案)：表示层校验不是一次判定结果）。**v2：有上级而隶属建立时刻读不到 ⇒ `unavailable`**，不得省掉它返回一个只有上级值的结果——那会让消费者把「不知道从何时起」当成「一直都在」 |
+| ⑧ | 读不到 ⇒ `unavailable`，**不得返回「不存在」**——[不可用 ≠ 不存在](../../../data/offer-expiry/v2/contract.md#s-20-不可用不等于不存在)；`OrganizationId` 缺席或不合形状 ⇒ `invalidInput`，**同样不得收成 `organizationDoesNotExist`**（[S-16](#s-16-缺席时的默认答案)：表示层校验不是一次判定结果） |
 | ⑨ | 不发 |
 
 **这个读面是 [S-15](#s-15-结构性禁止不是权限判定) 的兑现点**：`OrganizationKind` 让界面在不发起操作的前提下就知道「这里没有这个动作」。
-
-**v2：它也是隶属建立时刻唯一的读面。**消费者拿它判「某个时刻以来这条隶属关系断过没有」时，
-**先按 [S-34](#s-34-上级链与有共同上级) 现读上级链，再为链上的组织读本条**；本条读到的上级不是链上那一个（含此刻已没有上级），按断过判。
-理由与 [S-59](#s-59-列出组织成员) 那一段同一条：先读时刻、后读链，一次解除—重新隶属落在两读之间，旧时刻就会配上新接上的链。
 
 ### S-23 发出邀请
 
@@ -783,10 +672,10 @@
 | ① | 发起者 `TenantId`、目标 `AccountId`、指定角色（缺省普通成员）、**可选：这一份的有效时长**。**缺席不是拒绝，是按邀请这一类的默认值**（[S-10](#s-10-邀请)）——时长与指定角色是本操作两个有默认值的输入（[S-16](#s-16-缺席时的默认答案) 有表，读面的过滤开关另算），都不是身份参数，[S-16](#s-16-缺席时的默认答案) 那条「没有默认值」约束的是身份参数 |
 | ② | 发起者在该组织的成员资格**有效且是超级管理员**；目标账号**已激活**；目标账号在该组织**尚无有效成员关系** |
 | ③ | **有**：发起者 `TenantId` 的组织是个人组织 ⇒ **`issuerIsPersonalOrganization`**。**这不是权限判定**（[S-15](#s-15-结构性禁止不是权限判定)） |
-| ④ | 写入一份邀请（带 `OfferTiming`，`data.offer-expiry/v1#S-5`：两个时刻在这次提交内定死、此后不可改；`expiresAt` 由①的指定时长算出，①缺席时由邀请这一类的默认值算出）。**单次提交** |
+| ④ | 写入一份邀请（带 `OfferTiming`，`data.offer-expiry/v2#S-5`：两个时刻在这次提交内定死、此后不可改；`expiresAt` 由①的指定时长算出，①缺席时由邀请这一类的默认值算出）。**单次提交** |
 | ⑤ | `InvitationId` |
 | ⑥ | **`issuerIsPersonalOrganization`** · `notAuthorized` · `accountNotActivated` · `accountDoesNotExist` · `alreadyAnEffectiveMember` · **`invalidOfferDuration`** · `invalidInput` · `unavailable` |
-| ⑦ | **不幂等。**每次调用产生一份新的邀请。**本契约不去重未决邀请**——[过期与撤回是它们唯一的收场](../../../data/offer-expiry/v1/contract.md#s-12-过期与撤回收场相同)，多发几份不制造任何新状态，而去重要引入一个「什么算同一份」的判据，正文没有给 |
+| ⑦ | **不幂等。**每次调用产生一份新的邀请。**本契约不去重未决邀请**——[未决邀请可过期、被撤回或由接收方拒绝](../../../data/offer-expiry/v2/contract.md#s-12-过期与撤回收场相同)，多发几份不制造任何新状态，而去重要引入一个「什么算同一份」的判据，正文没有给 |
 | ⑧ | 成员资格判定以 `unavailable` 失败，或账号读面不可用 ⇒ 本操作以 `unavailable` 失败；**不得按「读不到就不是成员」拒绝**，那会把失败说成失权。身份参数缺席或不合形状 ⇒ `invalidInput` |
 | ⑨ | `invitation.issued`（**必发**，通知） |
 
@@ -820,31 +709,31 @@ rev 12 曾在普通成员那一行写过「被授予管理资格时」可邀请�
 | ① | 发起者 `TenantId`、`InvitationId` |
 | ② | 该邀请由**发起者 `TenantId` 的那个组织**发出；发起者在该组织成员资格有效且是超级管理员 |
 | ③ | 无（能发出的组织才有邀请可撤） |
-| ④ | 写入终结记录 `withdrawn`（`data.offer-expiry/v1#S-7`）。单次提交。**这次提交内须先按 `data.offer-expiry/v1#S-8` 现读一次**：已终结**或已过期**的不写（见⑦） |
+| ④ | 写入终结记录 `withdrawn`（`data.offer-expiry/v2#S-7`）。单次提交。**这次提交内须先按 `data.offer-expiry/v2#S-8` 现读一次**：已终结**或已过期**的不写（见⑦） |
 | ⑤ | `ok` |
 | ⑥ | `invitationDoesNotExist` · `notAuthorized` · `alreadyConcluded` · `invalidInput` · `unavailable` |
-| ⑦ | **幂等到本操作自己写的那条终结记录为止**：已 `withdrawn` ⇒ **`ok`**，无二次效果（这是一次重入，不是撞上别人的结论）。已 `accepted` ⇒ `alreadyConcluded`——[已经有了答复的邀约不再改写](../../../data/offer-expiry/v1/contract.md#s-8-判定式)。**已过期** ⇒ `alreadyConcluded`，**不写终结记录**（见下面的定义） |
-| ⑧ | 邀请读不到、**过期判定读不到**（时间源不可用，`data.offer-expiry/v1#S-16`；**或[组织存在性读面](#s-22-读组织)不可用**，`data.offer-expiry/v1#S-20`）⇒ `unavailable`，**不写终结记录**。**存在性读面不可用一律收 `unavailable`，绝不得据此判成「组织不存在」从而判成已过期**——那会把一次抖动写成这份邀请的永久失效。`InvitationId` 缺席或不合形状 ⇒ `invalidInput` |
+| ⑦ | **幂等到本操作自己写的那条终结记录为止**：已 `withdrawn` ⇒ **`ok`**，无二次效果（这是一次重入，不是撞上别人的结论）。已 `accepted` 或 `declined` ⇒ `alreadyConcluded`——[已经有了答复的邀约不再改写](../../../data/offer-expiry/v2/contract.md#s-8-判定式)。**已过期** ⇒ `alreadyConcluded`，**不写终结记录**（见下面的定义） |
+| ⑧ | 邀请读不到、**过期判定读不到**（时间源不可用，`data.offer-expiry/v2#S-16`；**或[组织存在性读面](#s-22-读组织)不可用**，`data.offer-expiry/v2#S-20`）⇒ `unavailable`，**不写终结记录**。**存在性读面不可用一律收 `unavailable`，绝不得据此判成「组织不存在」从而判成已过期**——那会把一次抖动写成这份邀请的永久失效。`InvitationId` 缺席或不合形状 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
 **`alreadyConcluded` 的定义写在这里，本契约是它的权威。**
-[`data.offer-expiry/v1#S-8`](../../../data/offer-expiry/v1/contract.md#s-8-判定式) 只提一条**禁止**
+[`data.offer-expiry/v2#S-8`](../../../data/offer-expiry/v2/contract.md#s-8-判定式) 只提一条**禁止**
 （已过期的不得再被写入终结记录），**那个失败值叫什么、哪些情形算「已终结」，归本条**：
 
-> **`alreadyConcluded` ＝ 存在一条本操作不会再写的终结记录（即 `accepted`），
-> 或这份邀请已按 [`data.offer-expiry/v1#S-8`](../../../data/offer-expiry/v1/contract.md#s-8-判定式) 过期。**
+> **`alreadyConcluded` ＝ 存在一条本操作不会再写的终结记录（即 `accepted` 或 `declined`），
+> 或这份邀请已按 [`data.offer-expiry/v2#S-8`](../../../data/offer-expiry/v2/contract.md#s-8-判定式) 过期。**
 
 **`withdrawn` 不在这个定义里，这是关键的一格。**它正是本操作**自己会写的**那条终结记录，
 所以再撤回一份已 `withdrawn` 的**不是撞上别人的结论，是本操作的一次幂等重入** ⇒ **`ok`**（⑦）。
 **「本操作不会再写的」这个限定不能省**：写成「终结记录存在」就把 `withdrawn` 一并括进来，
 与⑦的幂等承诺当场矛盾——**那正是上一轮这里写错的地方**。
 
-**过期那一支的理由**：[那份契约写明已过期的邀约不得再被写入任何终结记录](../../../data/offer-expiry/v1/contract.md#s-8-判定式)，
+**过期那一支的理由**：[那份契约写明已过期的邀约不得再被写入任何终结记录](../../../data/offer-expiry/v2/contract.md#s-8-判定式)，
 本操作**写不下去**，所以它与「已经有了答复」收场相同。
 **不这样写会出什么**：一份 `expiresAt` 已过、却带着 `withdrawn` 记录的邀请，
 读它时终结记录先截住 S-8，**派生状态从 `expired` 翻回 `withdrawn`**——
 一个读时派生的状态被一次事后写入改掉了。收场相同不等于可以乱写：
-[三种收场在接受路径上本来就同值](../../../data/offer-expiry/v1/contract.md#s-12-过期与撤回收场相同)，
+[三种收场在接受路径上本来就同值](../../../data/offer-expiry/v2/contract.md#s-12-过期与撤回收场相同)，
 撤回一份已过期的**本来就没有任何事可做**。
 
 **「这份邀请不是你的组织发出的」返回 `invitationDoesNotExist`，不是 `notAuthorized`。**
@@ -857,31 +746,31 @@ rev 12 曾在普通成员那一行写过「被授予管理资格时」可邀请�
 | # | 内容 |
 |---|---|
 | ① | 接受者 `AccountId`、`InvitationId` |
-| ② | 接受者**就是被邀请的那个账号**；**接受者的账号已激活**（消费账号已激活判定，[S-4](#s-4-依赖方向与被消费的面)）；该邀请按 `data.offer-expiry/v1#S-8` 求值为 `pending`——**这次求值必须在写入效果的同一次提交内重新做**（`data.offer-expiry/v1#S-10`），不得沿用调用前的读数 |
+| ② | 接受者**就是被邀请的那个账号**；**接受者的账号已激活**（消费账号已激活判定，[S-4](#s-4-依赖方向与被消费的面)）；该邀请按 `data.offer-expiry/v2#S-8` 求值为 `pending`——**这次求值必须在写入效果的同一次提交内重新做**（`data.offer-expiry/v2#S-10`），不得沿用调用前的读数 |
 | ③ | 无 |
-| ④ | **单次提交，且受 [S-17](#s-17-同一组织的成员写入序列化) 序列化**：过期重判 ＋ 成员关系记录置为有效（**v2：成员关系生效时刻写为这次提交的时刻**——首次建立与再加入同样，[S-8](#s-8-成员关系记录)）＋ 角色写为邀请指定的那个 ＋ 邀请写入终结记录 `accepted`，**四者同时成立**。**②的账号已激活判定也落在这次提交内** |
+| ④ | **单次提交，且受 [S-17](#s-17-同一组织的成员写入序列化) 序列化**：过期重判 ＋ 成员关系记录置为有效 ＋ 角色写为邀请指定的那个 ＋ 邀请写入终结记录 `accepted`，**四者同时成立**。**②的账号已激活判定也落在这次提交内** |
 | ⑤ | `TenantId` = (发出邀请的组织, 接受者账号) |
 | ⑥ | `invitationDoesNotExist` · `offerNoLongerValid` · `notTheInvitedAccount` · **`accountNotActivated`** · **`accountDoesNotExist`** · `alreadyAnEffectiveMember` · `invalidInput` · `unavailable` |
-| ⑦ | **幂等到成员关系为止**：同一份邀请再次接受 ⇒ **`offerNoLongerValid`**——依据是 `data.offer-expiry/v1#S-13`，`accepted` 是那条的**第三条来路**，与过期、撤回给同一个值。**已是有效成员时不产生第二条记录**（键是 `TenantId`，[S-8](#s-8-成员关系记录)） |
-| ⑧ | 过期判定读不到（时间源或组织存在性读面不可用）⇒ `unavailable`，**不得放行，也不得判成已失效**（`data.offer-expiry/v1#S-20`）；账号读面不可用 ⇒ `unavailable`；`InvitationId`／`AccountId` 缺席或不合形状 ⇒ `invalidInput` |
+| ⑦ | **幂等到成员关系为止**：同一份邀请再次接受 ⇒ **`offerNoLongerValid`**——依据是 `data.offer-expiry/v2#S-13`，`accepted` 是那条的**第三条来路**，与过期、撤回、拒绝给同一个值。**已是有效成员时不产生第二条记录**（键是 `TenantId`，[S-8](#s-8-成员关系记录)） |
+| ⑧ | 过期判定读不到（时间源或组织存在性读面不可用）⇒ `unavailable`，**不得放行，也不得判成已失效**（`data.offer-expiry/v2#S-20`）；账号读面不可用 ⇒ `unavailable`；`InvitationId`／`AccountId` 缺席或不合形状 ⇒ `invalidInput` |
 | ⑨ | `membership.changed`（通知） |
 
-**`offerNoLongerValid` 是一个值，不是三个。**过期、撤回、**以及「已经被接受过了」**给出
-**同一个拒绝结果**（`data.offer-expiry/v1#S-13`），
+**`offerNoLongerValid` 是一个值，不是四个。**过期、撤回、接收方拒绝、**以及「已经被接受过了」**给出
+**同一个拒绝结果**（`data.offer-expiry/v2#S-13`），
 [flows §2 把「已过期或被撤回」与「发出邀请的组织不存在了」写成同一行反馈](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)。
 **本契约因此不设 `alreadyAccepted`，也不在这里借用 `alreadyConcluded`**——
 后者是[撤回](#s-24-撤回邀请)那条操作的失败值，两条操作的收场不同，值不能串用。
 
 **②补的「接受者账号已激活」是[本版到不了的观测点](#s-53-清除未激活账号的个人组织)，前置仍然保留。**
 [发出](#s-23-发出邀请)那一步已经判过一次已激活，而**本版没有任何路径能让一个已激活的账号在此后消失或退回未激活**：
-账号记录的唯一清除路径 `capability.account-identity/v1#S-38` **只对未激活且已过留存期限的记录成立**，
-[已激活不回退、不消失](../../../capabilities/account-identity/v1/contract.md#s-20-已激活不回退不消失)。
+账号记录的唯一清除路径 `capability.account-identity/v3#S-38` **只对未激活且已过留存期限的记录成立**，
+[已激活不回退、不消失](../../../capabilities/account-identity/v3/contract.md#s-20-已激活不回退不消失)。
 **所以这两支在本版判不出真**——与 [S-53](#s-53-清除未激活账号的个人组织) ③那条空真的守卫是同一种东西。
 
 **它仍然写进前置与失败集合，理由有三条，都不是「以防万一」：**
 
 - **它是那条禁止在本操作上的观测点。**「已激活的账号不会消失」这件事不由本契约保证，
-  它归[账号契约](../../../capabilities/account-identity/v1/contract.md#s-20-已激活不回退不消失)；
+  它归[账号契约](../../../capabilities/account-identity/v3/contract.md#s-20-已激活不回退不消失)；
   **本操作现读一次，就是在本契约这一侧把那条禁止变成可被观察的**。少了它，那条禁止一旦被破，
   本操作会**静默**写出一条指向不存在账号的 `TenantId`，而没有任何地方会发现。
 - **[唯一有意义的判定时点是写入的那一刻](#s-30-发出隶属请求)**——这与判环那条是同一个道理：
@@ -929,7 +818,7 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 > [那份契约已就此写明](../../../data/identity-values/v1/contract.md#s-10-membershipstanding)——
 > 表示层拒绝**在该类型之外，由操作自己的失败集合承载**。
 
-**三样东西一律由返回值承载，一个都不走带外通道。**
+**普通调用的三样结果一律由返回值承载；参与式调用的存储异常先传播至共同终结边界，再映射失败（S-63），不得提前吞错提交。**
 `MembershipStanding`、`failure = unavailable` 与 `invalidInput`：
 
 - **不得抛出一个调用方可以不接的异常，不得靠日志、事件或旁路信号传达。**
@@ -967,8 +856,8 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | 输入的账号 | 空列表 | 为什么 |
 |---|---|---|
 | **已激活** | **本版不可能，出现即是缺陷** | 个人组织没有销毁路径（[S-6](#s-6-两个变体与四条结构性禁止) 的例外只对未激活账号成立），[唯一成员又不能解除自己](#s-29-解除成员) |
-| **未激活** | **可能，且是正确答案** | [S-53](#s-53-清除未激活账号的个人组织) 已经把它的个人组织清掉、而 `capability.account-identity/v1#S-38` 还没把账号记录清掉的那一段窗口里，这个账号确实一个有效租户也没有 |
-| **不存在** | 见⑧ | 本操作**不判账号存在性**（②无授权前置、无账号读面消费）；一个不存在的 `AccountId` 得到的是空列表，**这不泄漏存在性**——它与「存在但没有有效租户」不可区分，[那正是想要的](../../../capabilities/account-identity/v1/contract.md#s-22-账号存在性不从登录路径泄漏) |
+| **未激活** | **可能，且是正确答案** | [S-53](#s-53-清除未激活账号的个人组织) 已经把它的个人组织清掉、而 `capability.account-identity/v3#S-38` 还没把账号记录清掉的那一段窗口里，这个账号确实一个有效租户也没有 |
+| **不存在** | 见⑧ | 本操作**不判账号存在性**（②无授权前置、无账号读面消费）；一个不存在的 `AccountId` 得到的是空列表，**这不泄漏存在性**——它与「存在但没有有效租户」不可区分，[那正是想要的](../../../capabilities/account-identity/v3/contract.md#s-22-账号存在性不从登录路径泄漏) |
 
 **因此⑧写的是「读不到不得返回空列表」，不是「空列表一定是错的」。**
 两者的差别在清除窗口里是实在的：把空列表一律当成缺陷，
@@ -1001,7 +890,7 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ① | 发起者 `TenantId`、目标 `TenantId`（同一组织） |
 | ② | 发起者**是目标本人**（退出），**或**发起者是该组织的超级管理员（移除）；目标的成员关系记录有效；**解除之后该组织仍有至少一位有效超级管理员** |
 | ③ | **有**：目标组织是个人组织 ⇒ `personalOrganizationMemberCannotLeave`。[账号不能退出自己的个人组织](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#16-退出组织) |
-| ④ | **单次提交，且受 [S-17](#s-17-同一组织的成员写入序列化) 序列化**：前置与「把成员关系记录置为无效」在同一次提交内（**v2：成员关系生效时刻不动**，[S-8](#s-8-成员关系记录)） |
+| ④ | **单次提交，且受 [S-17](#s-17-同一组织的成员写入序列化) 序列化**：前置与「把成员关系记录置为无效」在同一次提交内 |
 | ⑤ | `ok` |
 | ⑥ | `personalOrganizationMemberCannotLeave` · `notAuthorized` · `membershipNotEffective` · `wouldLeaveNoSuperAdministrator` · `invalidInput` · `unavailable` |
 | ⑦ | **幂等**：目标已无效 ⇒ `membershipNotEffective`，无二次效果 |
@@ -1065,17 +954,17 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ④ | 写入终结记录 `withdrawn`。单次提交。**这次提交内须先现读一次过期判定**，同 [S-24](#s-24-撤回邀请) ④ |
 | ⑤ | `ok` |
 | ⑥ | `affiliationRequestDoesNotExist` · `notAuthorized` · `alreadyConcluded` · `invalidInput` · `unavailable` |
-| ⑦ | 幂等到**本操作自己写的那条**终结记录为止，同 [S-24](#s-24-撤回邀请)：已 `withdrawn` ⇒ **`ok`**。**`alreadyConcluded` 在这里是[同一个定义](#s-24-撤回邀请)**——存在一条本操作不会再写的终结记录（即 `accepted`），或已按 `data.offer-expiry/v1#S-8` 过期。**`withdrawn` 不在其内** |
-| ⑧ | 请求读不到、**过期判定读不到**（时间源不可用；**或[接收方组织的存在性读面](#s-22-读组织)不可用**，`data.offer-expiry/v1#S-20`）⇒ `unavailable`，**不写终结记录**，**且不得据读不到判成「组织不存在」从而判成已过期**；`AffiliationRequestId` 缺席或不合形状 ⇒ `invalidInput` |
+| ⑦ | 幂等到**本操作自己写的那条**终结记录为止，同 [S-24](#s-24-撤回邀请)：已 `withdrawn` ⇒ **`ok`**。**`alreadyConcluded` 在这里是[同一个定义](#s-24-撤回邀请)**——存在一条本操作不会再写的终结记录（即 `accepted` 或 `declined`），或已按 `data.offer-expiry/v2#S-8` 过期。**`withdrawn` 不在其内** |
+| ⑧ | 请求读不到、**过期判定读不到**（时间源不可用；**或[接收方组织的存在性读面](#s-22-读组织)不可用**，`data.offer-expiry/v2#S-20`）⇒ `unavailable`，**不写终结记录**，**且不得据读不到判成「组织不存在」从而判成已过期**；`AffiliationRequestId` 缺席或不合形状 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
 **「这份请求不是你的组织发起的」返回 `affiliationRequestDoesNotExist`**，理由同 [S-24](#s-24-撤回邀请)：
 不泄漏存在性。**注意这一条只对发起方成立**——接收方组织的超管**撤不了**别人发来的请求，
-他能做的是[不接受它、让它过期](../../../data/offer-expiry/v1/contract.md#s-12-过期与撤回收场相同)；
+他能做的是[不接受它、让它过期](../../../data/offer-expiry/v2/contract.md#s-12-过期与撤回收场相同)；
 本版**没有「拒绝一份隶属请求」这个动作**，[产品正文没有给](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)，本契约不自行补。
 
 > **本操作比施工简报的操作表多一条。**[统一语言的词条写明隶属请求「被接受之前它可以被撤回」](../../../../ubiquitous_language/terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request)，
-> 而 `data.offer-expiry/v1#S-7` 的 `withdrawn` 对四类消费者一律成立。
+> 而 `data.offer-expiry/v2#S-7` 的 `withdrawn` 对四类消费者一律成立。
 > 没有这条操作，`withdrawn` 对隶属请求就是一个写不进去的状态。
 
 ### S-32 接受隶属请求
@@ -1083,19 +972,19 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | # | 内容 |
 |---|---|
 | ① | 接受者 `TenantId`、`AffiliationRequestId` |
-| ② | 接受者是**接收方组织**的超级管理员；该请求按 `data.offer-expiry/v1#S-8` 求值为 `pending`（**同提交内重判**，`#S-10`）；**由方向确定的那个下级组织尚无上级**；**接受之后不成环**（判据见④③） |
+| ② | 接受者是**接收方组织**的超级管理员；该请求按 `data.offer-expiry/v2#S-8` 求值为 `pending`（**同提交内重判**，`#S-10`）；**由方向确定的那个下级组织尚无上级**；**接受之后不成环**（判据见④③） |
 | ③ | **有**：任一方是个人组织 ⇒ `personalOrganizationTakesNoPartInAffiliation` |
-| ④ | **单次提交**：① 过期重判 ＋ ② 「下级尚无上级」判定 ＋ ③ **判环** ＋ ④ 写入下级组织的上级组织属性（**v2：连同隶属建立时刻 = 这次提交的时刻**，[S-7](#s-7-上级组织属性)）＋ ⑤ 请求写入终结记录 `accepted`，**五者同时成立**。判环要读多条组织行，**这次读必须与写入落在同一提交边界内**。**判环的精确判据**：`newParent` **不是** `child` 自己，**且** `child` 不在 `newParent` 的上级链上——等价的一句是 **`child` 不在 `newParent` 含自身的上级链上**（`child ∉ {newParent} ∪ ancestorChain(newParent)`） |
+| ④ | **单次提交**：① 过期重判 ＋ ② 「下级尚无上级」判定 ＋ ③ **判环** ＋ ④ 写入下级组织的上级组织属性 ＋ ⑤ 请求写入终结记录 `accepted`，**五者同时成立**。判环要读多条组织行，**这次读必须与写入落在同一提交边界内**。**判环的精确判据**：`newParent` **不是** `child` 自己，**且** `child` 不在 `newParent` 的上级链上——等价的一句是 **`child` 不在 `newParent` 含自身的上级链上**（`child ∉ {newParent} ∪ ancestorChain(newParent)`） |
 | ⑤ | `ok` |
 | ⑥ | `affiliationRequestDoesNotExist` · `offerNoLongerValid` · `notAuthorized` · `alreadyHasAParentOrganization` · `wouldFormACycle` · `personalOrganizationTakesNoPartInAffiliation` · `invalidInput` · `unavailable` |
-| ⑦ | **幂等到上级属性为止**：同一份请求再次接受 ⇒ `offerNoLongerValid`——依据同 [S-25](#s-25-接受邀请) ⑦，`accepted` 是 `data.offer-expiry/v1#S-13` 的第三条来路。上级属性已是同一个值时不重复写 |
-| ⑧ | 过期判定读不到（时间源不可用，`data.offer-expiry/v1#S-16`；**或[接收方组织的存在性读面](#s-22-读组织)不可用**，`data.offer-expiry/v1#S-20`）⇒ `unavailable`，**不得放行，也不得判成已失效**——与 [S-25](#s-25-接受邀请) ⑧同形；判环读不到 ⇒ `unavailable`，**不得在读不到部分组织行的情况下判定「不成环」**——那是把失败当成放行。`TenantId`／`AffiliationRequestId` 缺席或不合形状 ⇒ `invalidInput` |
+| ⑦ | **幂等到上级属性为止**：同一份请求再次接受 ⇒ `offerNoLongerValid`——依据同 [S-25](#s-25-接受邀请) ⑦，`accepted` 是 `data.offer-expiry/v2#S-13` 的第三条来路。上级属性已是同一个值时不重复写 |
+| ⑧ | 过期判定读不到（时间源不可用，`data.offer-expiry/v2#S-16`；**或[接收方组织的存在性读面](#s-22-读组织)不可用**，`data.offer-expiry/v2#S-20`）⇒ `unavailable`，**不得放行，也不得判成已失效**——与 [S-25](#s-25-接受邀请) ⑧同形；判环读不到 ⇒ `unavailable`，**不得在读不到部分组织行的情况下判定「不成环」**——那是把失败当成放行。`TenantId`／`AffiliationRequestId` 缺席或不合形状 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
 **判环那一条为什么要写成两半。**只写「`child` 不在 `newParent` 的上级链上」是**不够的**：
 [上级链按定义不含自己](#s-12-上级链与有共同上级)，所以 `child = newParent` 时这一条**恒真**——
 三条前置全过，写进去的是一条 `o → o` 的自环。
-**这不是推演出来的担忧**：[Alloy 的 `AcceptPreservesAcyclic` 在本机执行时正是给出了这个反例](../v1/formal/README.md)
+**这不是推演出来的担忧**：[Alloy 的 `AcceptPreservesAcyclic` 在本机执行时正是给出了这个反例](formal/README.md)
 （`child = newParent`，一份取值里 `parent = {(o, o)}`）。
 **契约按反例改了判据，不是模型按契约改了断言。**
 
@@ -1118,7 +1007,7 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ① | 发起者 `TenantId`、被解除的那条隶属关系（下级 `OrganizationId`） |
 | ② | 发起者是**任一方**组织的超级管理员——**单方面即可**，不需要一份隶属请求（[PF-001 §4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)） |
 | ③ | 无 |
-| ④ | 清空下级组织的上级组织属性（**v2：隶属建立时刻随之不再有**，[S-7](#s-7-上级组织属性)）。单次提交 |
+| ④ | 清空下级组织的上级组织属性。单次提交 |
 | ⑤ | `ok` |
 | ⑥ | `noSuchAffiliation` · `notAuthorized` · `invalidInput` · `unavailable` |
 | ⑦ | **幂等**：属性已空 ⇒ `noSuchAffiliation`，无二次效果 |
@@ -1136,10 +1025,10 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | # | 内容 |
 |---|---|
 | ① | **`AccountId`，只收这一个。**不再收 `OrganizationId`——见下面「输入为什么收窄」 |
-| ② | **求值次序固定，三步，不得调换**：**表示层校验** → **读账号**（`capability.account-identity/v1#S-18`）→ **读组织**。两条路各自的前置如下。**无授权前置**——它不是一条用户动作，调用面由装配限定（[S-42](#s-42-装配给的保证-vs-协议须给的保证)）<br>**（甲）账号读到了**：该账号**未激活**，**且该账号记录已过留存期限**——`capability.account-identity/v1#S-18` 返回值里的**激活状态**与**是否已过留存期限**（同一个读面的两个字段，[S-4](#s-4-依赖方向与被消费的面)），**两条都在本操作自己这一次提交内现读**。再读它的个人组织：**存在**则先过③（是个人组织）再清（④）；**已不存在**就按⑦幂等返回<br>**（乙）账号读不到**（`capability.account-identity/v1#S-18` 给 `account-not-found`）：**不在这一步失败，继续读组织**——**组织也已不存在 ⇒ `ok` 并返回依据**（两样都不在了，它断言的那件事本来就成立）；**组织仍在 ⇒ `accountDoesNotExist`**，**不删、不产出依据**（见下） |
+| ② | **求值次序固定，三步，不得调换**：**表示层校验** → **读账号**（`capability.account-identity/v3#S-18`）→ **读组织**。两条路各自的前置如下。**无授权前置**——它不是一条用户动作，调用面由装配限定（[S-42](#s-42-装配给的保证-vs-协议须给的保证)）<br>**（甲）账号读到了**：该账号**未激活**，**且该账号记录已过留存期限**——`capability.account-identity/v3#S-18` 返回值里的**激活状态**与**是否已过留存期限**（同一个读面的两个字段，[S-4](#s-4-依赖方向与被消费的面)），**两条都在本操作自己这一次提交内现读**。再读它的个人组织：**存在**则先过③（是个人组织）再清（④）；**已不存在**就按⑦幂等返回<br>**（乙）账号读不到**（`capability.account-identity/v3#S-18` 给 `account-not-found`）：**不在这一步失败，继续读组织**——**组织也已不存在 ⇒ `ok` 并返回依据**（两样都不在了，它断言的那件事本来就成立）；**组织仍在 ⇒ `accountDoesNotExist`**，**不删、不产出依据**（见下） |
 | ③ | **有**：由 `AccountId` 定位到的那个组织的 `OrganizationKind` 不是 `personal` ⇒ `organizationIsNotPersonal`。**这是结构性禁止，不是权限判定**（[S-15](#s-15-结构性禁止不是权限判定)）：团队组织**没有**这条路径，谁来调都没有。**本版由 `AccountId` 定位到的只可能是它的个人组织**（存储上「账号 → 个人组织」的一一约束，[「每个账号至多一个个人组织」那条不变量](#不变量)），**因此这一支是空真的守卫**，仍写出来——它是「团队组织没有销毁路径」在本操作上的观测点。**次序**：本判定在②的三步**之后**——先读账号、再读组织，读到组织才判它的变体；**②乙先浮出**：账号读不到时走②乙的两支（`ok` 或 `accountDoesNotExist`），**不判③** |
 | ④ | **单次提交，且受 [S-17](#s-17-同一组织的成员写入序列化) 序列化**：删除个人组织记录 ＋ 删除它那条唯一的成员关系记录，**两者同时成立**。**②甲的两条现读也在这次提交的判定里**——不得先读、放一会儿、再写。**②乙那一路不写入任何东西** |
-| ⑤ | `ok`，**并返回一份清除依据**——它是 [`data.identity-values/v1#S-35` 交接凭证](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant) 的一个**实例**：不透明值、由本操作产出、**绑定该 `AccountId`**、**不可伪造**、**本版不作废**（由 [`capability.account-identity/v1#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录) 核实，核实之后**不失效**；重放安全由 `capability.account-identity/v1#S-38` 前置②③的现读承担，见下）。它断言的只有一件事：「这个 `AccountId` 的个人组织已不存在」。**幂等那两路（组织本来就不存在）同样返回依据**——它们断言的是同一件事实 |
+| ⑤ | `ok`，**并返回一份清除依据**——它是 [`data.identity-values/v1#S-35` 交接凭证](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant) 的一个**实例**：不透明值、由本操作产出、**绑定该 `AccountId`**、**不可伪造**、**本版不作废**（由 [`capability.account-identity/v3#S-38`](../../../capabilities/account-identity/v3/contract.md#s-38-清除到期的未激活账号记录) 核实，核实之后**不失效**；重放安全由 `capability.account-identity/v3#S-38` 前置②③的现读承担，见下）。它断言的只有一件事：「这个 `AccountId` 的个人组织已不存在」。**幂等那两路（组织本来就不存在）同样返回依据**——它们断言的是同一件事实 |
 | ⑥ | `organizationIsNotPersonal` · `accountIsActivated` · **`accountNotExpired`** · **`accountDoesNotExist`**（**只在「账号不在、组织仍在」那一支**，②乙） · `invalidInput` · `unavailable`。**恰六个**。**个人组织已不存在 ⇒ `ok` 并返回依据**（见⑦），不是一个失败值 |
 | ⑦ | **幂等，边界是那个账号**，**有两路**：<br>**（甲）账号仍在、个人组织已不存在**（被上一次清除掉）⇒ `ok` 并返回依据，无二次效果。**这一路仍要过②甲的两条现读**——组织没了不等于那个账号此刻还该被清（一个已激活的账号若因别的缺陷丢了个人组织，这里必须给 `accountIsActivated`，不能顺手发一份依据）。<br>**（乙）账号与个人组织都已不存在** ⇒ `ok` 并返回依据。**这一路过不了②甲的两条现读，因为读不到账号**；它成立靠的是另一条：**依据断言的那件事此刻为真**（这个 `AccountId` 的个人组织确实不在）。<br>这两路使[清除链可以安全重扫](../../../compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)：一次崩溃之后重来，无论崩在两步之间还是两步之后，都不会因为「已经清过了」而停住。**「组织没了不等于那个账号此刻还该被清」这句话只对甲成立**——乙那一路根本没有账号可判 |
 | ⑧ | 账号读面**以 `storage-unavailable` 失败**、或组织行读不到 ⇒ 本操作以 `unavailable` 失败，**不清除、不产出依据**。**这与②乙的「账号不存在」是两件事，绝不可互相折叠**：`account-not-found` 是一个**成立的结论**（那条记录真的不在了），按②乙继续读组织；`storage-unavailable` 是**没有结论**，只能失败。**绝不得**把「判不出账号」当成「账号未激活」「已过期」或「账号不存在」而往下走——前两者会删掉一个已激活账号的个人组织，而[那是本版没有任何路径能做的事](#s-6-两个变体与四条结构性禁止)，或者删掉一个**正在注册的人**的空间；后者会在组织已不存在时发出一份**根本没有依据**的清除依据。`AccountId` 缺席或不合形状 ⇒ `invalidInput` |
@@ -1198,21 +1087,21 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
   使他的[注册第 3 步再也激活不了](../../../compositions/account-registration/v1/contract.md#s-8-三步次序与责任交接)。
   **本操作因此自己判，不接受任何形式的代判。**
 
-> **它与 `capability.account-identity/v1#S-38` 的 `not-expired` 是对称的一对。**
-> 清除链的两步**各自现读同一个单调事实**——`capability.account-identity/v1#S-18` 的「是否已过留存期限」——
+> **它与 `capability.account-identity/v3#S-38` 的 `not-expired` 是对称的一对。**
+> 清除链的两步**各自现读同一个单调事实**——`capability.account-identity/v3#S-18` 的「是否已过留存期限」——
 > 在各自的提交里判，**谁也不替谁判、谁也不信谁的断言**。
 > 这与[本契约挡住孤儿个人组织用的是同一招](#s-20-创建个人组织)：
 > **找一个单调的事实，让每个写入者在自己的提交里读它。**
 > 两步的防御强度因此相同；少掉任何一边，那一边就退化成「信任上游」。
 
 **本操作不碰账号记录，但它为账号那一半产出依据。**
-账号记录由 `capability.account-identity/v1#S-38` 清除，
+账号记录由 `capability.account-identity/v3#S-38` 清除，
 **次序与理由归** `omne-harness-lite-design-2026-09-15 · composition.account-registration · v1`
 的[第二条动作链](../../../compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)。
 
 本操作成功时产出的那份**清除依据**，断言的**只有一件事**：
 **这个 `AccountId` 的个人组织已不存在。**它**不断言**那个账号此刻仍未激活、仍已过期——
-那两条由 `capability.account-identity/v1#S-38` [自己的前置照判](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录)。
+那两条由 `capability.account-identity/v3#S-38` [自己的前置照判](../../../capabilities/account-identity/v3/contract.md#s-38-清除到期的未激活账号记录)。
 依据是**次序的凭证**，不是**状态的快照**。
 
 **它绑定一个对象标识，本版不作废。**
@@ -1222,14 +1111,14 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | 项 | 本实例是什么 |
 |---|---|
 | 绑定的对象标识 | **输入的那个 `AccountId`**。一份为 A 产出的依据**不能**用在 B 身上 |
-| 作废 | **不作废。**被 [`capability.account-identity/v1#S-38`](../../../capabilities/account-identity/v1/contract.md#s-38-清除到期的未激活账号记录) 核实之后**不失效**。重扫既可以重放旧的一份，也可以重新调本操作取一份新的——本操作对「组织本来就不存在」幂等返回成功并**再产出一份**（⑦）——**两份断言的是同一件事实，在语义上可互换** |
+| 作废 | **不作废。**被 [`capability.account-identity/v3#S-38`](../../../capabilities/account-identity/v3/contract.md#s-38-清除到期的未激活账号记录) 核实之后**不失效**。重扫既可以重放旧的一份，也可以重新调本操作取一份新的——本操作对「组织本来就不存在」幂等返回成功并**再产出一份**（⑦）——**两份断言的是同一件事实，在语义上可互换** |
 
 **为什么本版不作废。**依据断言的只有「这个 `AccountId` 的个人组织已不存在」。
 个人组织只在[注册第 ② 步](../../../compositions/account-registration/v1/contract.md#s-8-三步次序与责任交接)为一条**未过留存期限**的记录创建（[S-20](#s-20-创建个人组织) 前置②），
-而「已过留存期限」是单调的（`capability.account-identity/v1#S-18`）、本操作又只对已过期的记录成功（②甲）——
+而「已过留存期限」是单调的（`capability.account-identity/v3#S-18`）、本操作又只对已过期的记录成功（②甲）——
 所以一份依据一经产出，那个 `AccountId` 的记录此后再也建不出个人组织，**断言一经成立永远为真**。
-重放一份旧依据因此造不成任何错误删除：`capability.account-identity/v1#S-38` 在**自己的提交里**现读前置②③（未激活、已过期），
-一份依据放行不了任何被那两条现读挡住的记录——即便那个 `AccountId` 之后对应一条新记录，那条记录未过期，`capability.account-identity/v1#S-38` 前置③的现读就挡住它。
+重放一份旧依据因此造不成任何错误删除：`capability.account-identity/v3#S-38` 在**自己的提交里**现读前置②③（未激活、已过期），
+一份依据放行不了任何被那两条现读挡住的记录——即便那个 `AccountId` 之后对应一条新记录，那条记录未过期，`capability.account-identity/v3#S-38` 前置③的现读就挡住它。
 **「核实后作废」因此是一个没有收益的运行时状态**，本版不设；两个实例（激活依据、清除依据）本版都不作废，
 口径与 [`data.identity-values/v1#S-35` 性质 4](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant) 同句：**重放安全由核实方在自己提交里的前置现读承担**。
 
@@ -1237,13 +1126,13 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 [`data.identity-values/v1#S-35` 交接凭证 Handoff Warrant](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)
 定义了这一类值的全部性质——不透明、由一步操作产出、绑定一个对象标识、由下一步操作核实、
 **不可伪造是契约承诺**（怎么做到归 realization）。
-本操作产出的清除依据与 `capability.account-identity/v1#S-14` 消费的激活依据，
+本操作产出的清除依据与 `capability.account-identity/v3#S-14` 消费的激活依据，
 **是同一个概念的两个实例**，三份契约引用同一条，**不各写一份**。
 
 **「不可伪造」是承诺，不是实现细节。**没有它，
-[S-53](#s-53-清除未激活账号的个人组织) → `capability.account-identity/v1#S-38`
+[S-53](#s-53-清除未激活账号的个人组织) → `capability.account-identity/v3#S-38`
 这条次序守卫就是空的：任何能构造出一个像依据的值的调用方，
-都能让 `capability.account-identity/v1#S-38` 在组织根本没清的情况下删掉账号记录。
+都能让 `capability.account-identity/v3#S-38` 在组织根本没清的情况下删掉账号记录。
 **核实方必须能确认这份依据由产出方签发、且绑定该 `AccountId`。**
 
 #### 本操作的产品依据
@@ -1255,10 +1144,10 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 **为它准备的个人组织与第一个租户身份随之消失——它们从未承载任何东西。**
 本操作是那句话的落点。**这一条不登记缺口**：正文已经写着它。
 
-本契约**不发起 `capability.account-identity/v1#S-38`、不等待它、也不核实它做没做**——
+本契约**不发起 `capability.account-identity/v3#S-38`、不等待它、也不核实它做没做**——
 [依赖方向是单向的：治理 → 账号](#s-4-依赖方向与被消费的面)，反过来的一条也没有。
 **产出依据不构成一条反向依赖**：依据是本操作的返回值，交给调用方（清除链），
-由调用方带给 `capability.account-identity/v1#S-38`；本契约不知道它被拿去做了什么。
+由调用方带给 `capability.account-identity/v3#S-38`；本契约不知道它被拿去做了什么。
 
 ### S-34 上级链与有共同上级
 
@@ -1312,10 +1201,10 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ② | 该登录状态**此刻仍有效**（消费登录状态校验面，[S-4](#s-4-依赖方向与被消费的面)） |
 | ③ | 无 |
 | ④ | 只读。**该登录状态尚未做过任何切换时，答案是 (该账号的个人组织, 该账号)**——这是[初值](#s-14-当前租户身份是登录状态上的一项选择)，不是一次写入 |
-| ⑤ | `TenantId`；**v2：连同这个 `TenantId` 那条成员关系记录的生效时刻**（[S-8](#s-8-成员关系记录)）。那条记录本版必在：登录状态只属于已激活的账号，已激活账号的个人组织与成员关系记录没有销毁路径（[S-6](#s-6-两个变体与四条结构性禁止) 的例外只对未激活账号成立），切换到的 `TenantId` 在切换那一刻是有效成员、记录此后不删。**带出生效时刻不改变下面那句**：返回的 `TenantId` 仍不承诺此刻有效 |
+| ⑤ | `TenantId` |
 | ⑥ | `loginStateNotValid` · `invalidInput` · `unavailable` |
 | ⑦ | 只读 |
-| ⑧ | 登录状态校验读不到（`capability.account-identity/v1#S-17` 的 `storage-unavailable`）⇒ `unavailable`；**校验说「拒绝」（同条的 `login-state-rejected`）⇒ `loginStateNotValid`**。两者不得合并。**那项选择本身读不到**（存储不可用，分不清「没切换过」与「读失败」）⇒ `unavailable`，**不得收成④的初值**——初值是「尚未做过任何切换」这个**已判出的事实**的答案，读不到没有这个事实，填初值等于把一次抖动说成「你还没切换过」并把调用方悄悄放回个人组织租户（[§6.4 禁止的静默回退](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)）。`LoginStateId` 缺席或不合形状 ⇒ `invalidInput`，**不是 `loginStateNotValid`**——后者是一次成立的校验结论，前者根本没进校验。**v2：生效时刻读不到 ⇒ `unavailable`**，不得只返回 `TenantId` 而省掉它 |
+| ⑧ | 登录状态校验读不到（`capability.account-identity/v3#S-17` 的 `storage-unavailable`）⇒ `unavailable`；**校验说「拒绝」（同条的 `login-state-rejected`）⇒ `loginStateNotValid`**。两者不得合并。**那项选择本身读不到**（存储不可用，分不清「没切换过」与「读失败」）⇒ `unavailable`，**不得收成④的初值**——初值是「尚未做过任何切换」这个**已判出的事实**的答案，读不到没有这个事实，填初值等于把一次抖动说成「你还没切换过」并把调用方悄悄放回个人组织租户（[§6.4 禁止的静默回退](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)）。`LoginStateId` 缺席或不合形状 ⇒ `invalidInput`，**不是 `loginStateNotValid`**——后者是一次成立的校验结论，前者根本没进校验 |
 | ⑨ | 不发 |
 
 **返回的 `TenantId` 不承诺此刻有效。**成员关系可能在切换之后被解除；
@@ -1333,7 +1222,7 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ⑤ | `ok` |
 | ⑥ | `loginStateNotValid` · `notOwnTenant` · `membershipNotEffective` · `invalidInput` · `unavailable` |
 | ⑦ | **幂等**：切到已选中的那个 ⇒ `ok`，无二次效果 |
-| ⑧ | **两处各自分开收场，共四种**：登录状态校验读不到 ⇒ `unavailable`，**校验说「拒绝」⇒ `loginStateNotValid`**（`capability.account-identity/v1#S-17` 的两个不放行出口，见 [S-4](#s-4-依赖方向与被消费的面)）；成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，**不是 `membershipNotEffective`**。[目标范围不可用时明确失败，不静默回退到个人范围](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)。`LoginStateId` 或目标 `TenantId` 缺席／不合形状 ⇒ `invalidInput` |
+| ⑧ | **两处各自分开收场，共四种**：登录状态校验读不到 ⇒ `unavailable`，**校验说「拒绝」⇒ `loginStateNotValid`**（`capability.account-identity/v3#S-17` 的两个不放行出口，见 [S-4](#s-4-依赖方向与被消费的面)）；成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，**不是 `membershipNotEffective`**。[目标范围不可用时明确失败，不静默回退到个人范围](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)。`LoginStateId` 或目标 `TenantId` 缺席／不合形状 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
 **切换只影响此后新建的东西。**先前在别的租户身份下建起来的东西**一律不动**：
@@ -1353,7 +1242,7 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 **这六条补的是一个真实的空洞。**本契约此前拥有[邀请](#s-10-邀请)与[隶属请求](#s-11-隶属请求)的
 **全生命周期**，却**一个都读不出来**：
 
-- `data.offer-expiry/v1#S-9` 要求派生状态**在读的那一刻求值**，
+- `data.offer-expiry/v2#S-9` 要求派生状态**在读的那一刻求值**，
   可本契约**没有任何读面**能返回那个状态——那条规矩因此在本契约里**没有落点**；
 - [S-3](#s-3-本契约明确不承诺什么) 写着「对方收到了一份邀约」的含义**就是「对方查询得到它」**，
   而本契约**没有给他可以查询的那个面**——**隶属请求这一侧尤其致命**：
@@ -1373,11 +1262,11 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ① | 调用方身份、`InvitationId`。**调用方身份是一个带判别式的值，恰两支**：`account`（携一个 `AccountId`）／ `tenant`（携一个 `TenantId`）。**判别式集合封闭**（`data.identity-values/v1#S-32`）：**收到集合外的判别式一律 `invalidInput`**，不得靠「哪个字段有值就是哪一支」去猜 |
 | ② | **两类人之一，与①的两支一一对应**：判别式为 `account` ⇒ 它必须是**被邀请的那个账号**本人；判别式为 `tenant` ⇒ 它的组织必须是**发出这份邀请的那个组织**，且该 `TenantId` 的成员资格有效、角色是**超级管理员**。**其余一律不给** |
 | ③ | 无 |
-| ④ | 只读，**读时求值**（`data.offer-expiry/v1#S-9`） |
-| ⑤ | `{ InvitationId, 发出它的组织, 被邀请的账号, 指定的角色, OfferTiming, 派生状态 }`。**派生状态四值**：`pending`／`accepted`／`withdrawn`／**`expired`**，按 `data.offer-expiry/v1#S-8` 在**本次读取的时点**求出，**不得返回缓存的旧值** |
+| ④ | 只读，**读时求值**（`data.offer-expiry/v2#S-9`） |
+| ⑤ | `{ InvitationId, 发出它的组织, 被邀请的账号, 指定的角色, OfferTiming, 派生状态 }`。**派生状态五值**：`pending`／`accepted`／`withdrawn`／`declined`／**`expired`**，按 `data.offer-expiry/v2#S-8` 在**本次读取的时点**求出，**不得返回缓存的旧值** |
 | ⑥ | `invitationDoesNotExist` · `invalidInput` · `unavailable` |
 | ⑦ | 只读，天然可重复。**返回的派生状态不得被缓存后复用**（同[S-18](#s-18-每道准入现读) 的口径） |
-| ⑧ | 邀请读不到、时间源读不到（`data.offer-expiry/v1#S-16`）、**或[组织存在性读面](#s-22-读组织)读不到**（`data.offer-expiry/v1#S-20`）⇒ `unavailable`，**不得返回一个缺了派生状态的结果，也不得把派生状态填成 `pending`**，**更不得据存在性读不到就把它判成 `expired`**。②的 `tenant` 支要做成员资格判定：**成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，不得收成 `invitationDoesNotExist`**——那是把失败说成「没有这份」（[S-9](#s-9-成员资格判定结果两值不可用是读面失败)），与 [S-59](#s-59-列出组织成员) ⑧同形。`InvitationId` 缺席、不合形状，或①的判别式不在集合内 ⇒ `invalidInput` |
+| ⑧ | 邀请读不到、时间源读不到（`data.offer-expiry/v2#S-16`）、**或[组织存在性读面](#s-22-读组织)读不到**（`data.offer-expiry/v2#S-20`）⇒ `unavailable`，**不得返回一个缺了派生状态的结果，也不得把派生状态填成 `pending`**，**更不得据存在性读不到就把它判成 `expired`**。②的 `tenant` 支要做成员资格判定：**成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，不得收成 `invitationDoesNotExist`**——那是把失败说成「没有这份」（[S-9](#s-9-成员资格判定结果两值不可用是读面失败)），与 [S-59](#s-59-列出组织成员) ⑧同形。`InvitationId` 缺席、不合形状，或①的判别式不在集合内 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
 **②不满足时返回 `invitationDoesNotExist`，不是 `notAuthorized`**（理由见 [S-24](#s-24-撤回邀请)：不泄漏存在性）。
@@ -1411,7 +1300,7 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ② | **无授权前置**，写法同 [S-27 我的租户](#s-27-我的租户)：**输入的 `AccountId` 就是调用者本人**，这个身份由入口层核实（[S-42](#s-42-装配给的保证-vs-协议须给的保证) 的「调用方身份已经核实过」）。**本操作不自己核实，也不因此变成「谁都能读」**——它返回的全部内容都以那一个 `AccountId` 为界。**没有第二类人**：[超管看不到某个人在别处收了哪些邀请](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)，那是跨组织的信息，**本操作也没有任何输入能表达那个请求** |
 | ③ | 无 |
 | ④ | 只读，**列表里每一项的派生状态都在本次读取时点求值** |
-| ⑤ | 该账号收到的邀请列表，每项形状同 [S-55](#s-55-读邀请) ⑤。**默认只含此刻派生状态为 `pending` 的那些**；①要求「连已终结的一起要」时，`accepted`／`withdrawn`／`expired` 的也在内，**各带它此刻求出的那个派生状态**。**默认那一路里已过期的不在列表中**（它此刻不是 `pending`），**但这不是一次写入**——它们没有被标记，只是没被这次求值选中 |
+| ⑤ | 该账号收到的邀请列表，每项形状同 [S-55](#s-55-读邀请) ⑤。**默认只含此刻派生状态为 `pending` 的那些**；①要求「连已终结的一起要」时，`accepted`／`withdrawn`／`declined`／`expired` 的也在内，**各带它此刻求出的那个派生状态**。**默认那一路里已过期的不在列表中**（它此刻不是 `pending`），**但这不是一次写入**——它们没有被标记，只是没被这次求值选中 |
 | ⑥ | `invalidInput` · `unavailable` |
 | ⑦ | 只读 |
 | ⑧ | 读不到、时间源读不到、**或[组织存在性读面](#s-22-读组织)读不到** ⇒ `unavailable`，**不得返回空列表，也不得返回一份少了几项的列表**——空列表在这里是一个会被当真的答案（「你没有待处理的邀请」）。**更不得据存在性读不到就把某一项判成 `expired` 从而把它从默认列表里滤掉**。`AccountId` 缺席、不合形状，或过滤开关不在取值集合内 ⇒ `invalidInput` |
@@ -1443,7 +1332,7 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ⑤ | 两段：该组织**发出的邀请**（形状同 [S-55](#s-55-读邀请) ⑤）与该组织**发起的隶属请求**（形状同 [S-56](#s-56-读隶属请求) ⑤）。**接收方那一侧的隶属请求不在这里**，它归 [S-60 列出组织收到的隶属请求](#s-60-列出组织收到的隶属请求)——**两个方向分成两条操作，不合并**：本条回答「我发出去的还悬着几份」，那条回答「有谁在等我点头」，授权相同但**用途与读者的动作不同**（前者接着可能去[撤回](#s-31-撤回隶属请求)，后者接着可能去[接受](#s-32-接受隶属请求)） |
 | ⑥ | `notAuthorized` · `invalidInput` · `unavailable` |
 | ⑦ | 只读 |
-| ⑧ | 存储读不到、**时间源读不到**（`data.offer-expiry/v1#S-16`）、**或[组织存在性读面](#s-22-读组织)读不到**（`data.offer-expiry/v1#S-20`）⇒ `unavailable`，**不得返回空列表，也不得返回一份少了几项的列表**。**本条每一项都带派生状态**（⑤引的两个形状里都有它），**求不出派生状态就没有结果可返回**——不得把它填成 `pending`，也不得据存在性读不到就判成 `expired`。②的成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，**不得收成 `notAuthorized`**（与 [S-59](#s-59-列出组织成员) ⑧同形）。`TenantId` 缺席、不合形状，或过滤开关不在取值集合内 ⇒ `invalidInput` |
+| ⑧ | 存储读不到、**时间源读不到**（`data.offer-expiry/v2#S-16`）、**或[组织存在性读面](#s-22-读组织)读不到**（`data.offer-expiry/v2#S-20`）⇒ `unavailable`，**不得返回空列表，也不得返回一份少了几项的列表**。**本条每一项都带派生状态**（⑤引的两个形状里都有它），**求不出派生状态就没有结果可返回**——不得把它填成 `pending`，也不得据存在性读不到就判成 `expired`。②的成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，**不得收成 `notAuthorized`**（与 [S-59](#s-59-列出组织成员) ⑧同形）。`TenantId` 缺席、不合形状，或过滤开关不在取值集合内 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
 **这一条的失败值是 `notAuthorized`，不是 `…DoesNotExist`**——
@@ -1459,16 +1348,11 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ② | **按①那一档判，两档不同**。**默认档（只要有效的）**：调用方是**该 `TenantId` 的那个组织**的有效成员，**任一[租户角色](#s-8-成员关系记录)都可以**——[产品已定：成员名单对本组织每一位有效成员可见](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)（PF-001 rev 15 flows §4）；**判的只有成员资格，不判角色**。**「连无效的一起要」这一档**：调用方是**该组织的超级管理员**——[产品已定：查看已解除的成员只归超级管理员](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)（同上），**普通成员请求这一档 ⇒ `notAuthorized`**。**两档共同**：非本组织的一律不给 |
 | ③ | 无 |
 | ④ | 只读，**每次调用现读**（[S-18](#s-18-每道准入现读)） |
-| ⑤ | 该组织的成员关系记录列表，每项 `{ TenantId, 角色, 有效性, 成员关系生效时刻 }`——**恰好是[成员关系记录](#s-8-成员关系记录)的四样**（**v2 多了生效时刻**；无效的那几项带的是它们上一次成为有效的时刻，[S-8](#s-8-成员关系记录)：解除不清空）。**默认只返回有效的那些**；无效的那些**只在超管走「连无效的一起要」那一档时才出现**（②）。**普通成员拿到的列表里不含任何无效项**——不是把它们的字段隐去，**是它们不在这份列表里**。**每一项的角色与有效性是本次读取时点的投影，不得作准入依据**：准入仍按 [S-18](#s-18-每道准入现读) 在那一道现读 [S-26](#s-26-成员资格判定)——[`data.identity-values/v1#S-10`](../../../data/identity-values/v1/contract.md#s-10-membershipstanding) 里 `MembershipStanding` 是一次判定的结果，名单上的那一格不是那次判定 |
+| ⑤ | 该组织的成员关系记录列表，每项 `{ TenantId, 角色, 有效性 }`——**恰好是[成员关系记录](#s-8-成员关系记录)的三样**。**默认只返回有效的那些**；无效的那些**只在超管走「连无效的一起要」那一档时才出现**（②）。**普通成员拿到的列表里不含任何无效项**——不是把它们的字段隐去，**是它们不在这份列表里**。**每一项的角色与有效性是本次读取时点的投影，不得作准入依据**：准入仍按 [S-18](#s-18-每道准入现读) 在那一道现读 [S-26](#s-26-成员资格判定)——[`data.identity-values/v1#S-10`](../../../data/identity-values/v1/contract.md#s-10-membershipstanding) 里 `MembershipStanding` 是一次判定的结果，名单上的那一格不是那次判定 |
 | ⑥ | `notAuthorized` · `invalidInput` · `unavailable` |
 | ⑦ | 只读。**返回值不得被缓存后复用而不写明失效条件**（[S-18](#s-18-每道准入现读)）。**两档的返回值不得互相复用**：超管那一档取回的整份列表，**不得被裁剪之后当作默认档的结果交给另一个调用方**——那是拿一次超管授权下的读取去兑一次普通成员的读取 |
 | ⑧ | 成员资格读面以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，**不得返回一份不全的名单**——不全的名单会让调用方据它得出「他不是成员」，那是把失败说成失权（[S-9](#s-9-成员资格判定结果两值不可用是读面失败)）；**②自己那次判定不可用也一样 ⇒ `unavailable`，不得收成 `notAuthorized`**，**两档都是**（超管那一档要多判一次角色，角色读不到同样是 `unavailable`）。**「连无效的一起要」被拒时给的是 `notAuthorized`，不得降级成「按默认档返回」**——静默降级会让调用方以为这个组织从没解除过谁。`TenantId` 缺席、不合形状，或过滤开关不在取值集合内 ⇒ `invalidInput`（**这一类在②之前发生**，[S-16](#s-16-缺席时的默认答案) 第三类） |
 | ⑨ | 不发 |
-
-**v2：每一项的成员关系生效时刻也在本次读取里一并读出，读不到任何一项的就整次 `unavailable`**——少了时刻的一项与少了一项同样是一份不全的名单（⑧）。
-**消费者拿它判「某个时刻以来这个租户断过没有」时，有效性仍按 [S-18](#s-18-每道准入现读) 现读 [S-26](#s-26-成员资格判定)，
-且读生效时刻的那一次不早于那次 [S-26](#s-26-成员资格判定)**：反过来读，一次退出—重新加入落在两读之间，旧的时刻就会配上新的「有效」，
-把一段断过的成员关系读成没断过。先判有效、后读时刻，两读之间的任何断开都会让时刻变新或让名单里没有这一项，结论只会偏向「断过」。
 
 **它返回 `TenantId` 而不是 `AccountId`。**成员关系的键就是 `TenantId`（[S-8](#s-8-成员关系记录)），
 账号那一半可以从它按分量取出（`data.identity-values/v1#S-5`）。
@@ -1504,11 +1388,11 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | ① | 调用方 `TenantId`、**可选**：只要 `pending` 的，还是连已终结的一起要（**默认只要 `pending` 的**） |
 | ② | 调用方是**该 `TenantId` 的那个组织**的超级管理员。**只有超管**——[接受一份隶属请求本来就只有超管能做](#s-32-接受隶属请求)，给普通成员看它没有任何可接的动作。**产品已定**（[PF-001 rev 15 flows §4](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)）：本组织收到的隶属请求**只有超级管理员看得见**，理由与这里写的是同一条——**这不再是本契约自己取的一档** |
 | ③ | 无 |
-| ④ | 只读，**列表里每一项的派生状态都在本次读取时点求值**（`data.offer-expiry/v1#S-9`） |
-| ⑤ | 以该组织为**接收方**的隶属请求列表，每项 `{ AffiliationRequestId, 发起方组织, 方向, OfferTiming, 派生状态 }`。**派生状态四值**：`pending`／`accepted`／`withdrawn`／**`expired`**，按 `data.offer-expiry/v1#S-8` 求出；**判过期用的指向对象是接收方组织，也就是调用方自己**（[S-11](#s-11-隶属请求)），所以本列表里**不可能**出现因指向对象消失而过期的项 |
+| ④ | 只读，**列表里每一项的派生状态都在本次读取时点求值**（`data.offer-expiry/v2#S-9`） |
+| ⑤ | 以该组织为**接收方**的隶属请求列表，每项 `{ AffiliationRequestId, 发起方组织, 方向, OfferTiming, 派生状态 }`。**派生状态五值**：`pending`／`accepted`／`withdrawn`／`declined`／**`expired`**，按 `data.offer-expiry/v2#S-8` 求出；**判过期用的指向对象是接收方组织，也就是调用方自己**（[S-11](#s-11-隶属请求)），所以本列表里**不可能**出现因指向对象消失而过期的项 |
 | ⑥ | `notAuthorized` · `invalidInput` · `unavailable` |
 | ⑦ | 只读，天然可重复。**返回的派生状态不得被缓存后复用**（同 [S-55](#s-55-读邀请) ⑦） |
-| ⑧ | 存储读不到、时间源读不到、**或[组织存在性读面](#s-22-读组织)读不到**（`data.offer-expiry/v1#S-20`）⇒ `unavailable`，**不得返回一份残缺的列表**——少了几项的列表会让超管以为某份请求已经不在了，而它可能正悬着、马上要过期。**也不得返回空列表充当读失败**（同 [S-57](#s-57-列出账号收到的待接受邀请) ⑧、[S-59](#s-59-列出组织成员) ⑧的口径）。**存在性那一支在本条格外要写明**：判过期用的指向对象**就是调用方自己的组织**（⑤），读不到它**绝不得**判成「组织不存在 ⇒ 全表过期」——那会把一次抖动变成「你收到的请求一份都不剩」。②的成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，**不得收成 `notAuthorized`**（与 [S-59](#s-59-列出组织成员) ⑧同形）。`TenantId` 缺席、不合形状，或过滤开关不在取值集合内 ⇒ `invalidInput` |
+| ⑧ | 存储读不到、时间源读不到、**或[组织存在性读面](#s-22-读组织)读不到**（`data.offer-expiry/v2#S-20`）⇒ `unavailable`，**不得返回一份残缺的列表**——少了几项的列表会让超管以为某份请求已经不在了，而它可能正悬着、马上要过期。**也不得返回空列表充当读失败**（同 [S-57](#s-57-列出账号收到的待接受邀请) ⑧、[S-59](#s-59-列出组织成员) ⑧的口径）。**存在性那一支在本条格外要写明**：判过期用的指向对象**就是调用方自己的组织**（⑤），读不到它**绝不得**判成「组织不存在 ⇒ 全表过期」——那会把一次抖动变成「你收到的请求一份都不剩」。②的成员资格判定以 `unavailable` 失败 ⇒ 本操作以 `unavailable` 失败，**不得收成 `notAuthorized`**（与 [S-59](#s-59-列出组织成员) ⑧同形）。`TenantId` 缺席、不合形状，或过滤开关不在取值集合内 ⇒ `invalidInput` |
 | ⑨ | 不发 |
 
 **这一条补的是隶属请求唯一的发现路径。**在它之前，一份隶属请求发出去之后，
@@ -1628,22 +1512,21 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 |---|---|---|---|
 | **任何组织在任何时刻至少有一位有效的超级管理员** | [S-28](#s-28-调整角色)、[S-29](#s-29-解除成员) 的同提交前置 ＋ [S-17](#s-17-同一组织的成员写入序列化) 的序列化 | 存储兑现序列化。**量化在「存在的组织」上，对 [S-53](#s-53-清除未激活账号的个人组织) 空真**：它在同一提交内把个人组织与它唯一的成员关系记录一起删掉，被清除的组织不在量化域内——那不是一条「把超管清空」的路径，也不是这条不变量的反例 | [§4 角色](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色)、[flows §3.3](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)、[acceptance §二](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#二绝不能发生的事) |
 | **至多一个上级组织** | [S-7](#s-7-上级组织属性)：数据形状，不存在写第二个值的路径 | — | [§4 组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织) |
-| **上级链不成环，自环也不行** | [S-32](#s-32-接受隶属请求) 的同提交判环（**两半**：`newParent` 不是 `child` 自己，且 `child` 不在 `newParent` 的上级链上）＋ [S-30](#s-30-发出隶属请求) 的「指向自己」前置 | 判环读到的组织行与写入同源。**只写后一半会漏掉自环**——[Alloy 给出过那个反例](../v1/formal/README.md) | [§4 组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)、[decisions 第 4 条](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求) |
+| **上级链不成环，自环也不行** | [S-32](#s-32-接受隶属请求) 的同提交判环（**两半**：`newParent` 不是 `child` 自己，且 `child` 不在 `newParent` 的上级链上）＋ [S-30](#s-30-发出隶属请求) 的「指向自己」前置 | 判环读到的组织行与写入同源。**只写后一半会漏掉自环**——[Alloy 给出过那个反例](formal/README.md) | [§4 组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)、[decisions 第 4 条](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求) |
 | **个人组织：上级恒空、不作上级、不可邀请、唯一成员不可解除** | [S-6](#s-6-两个变体与四条结构性禁止)＋[S-23](#s-23-发出邀请)/[S-29](#s-29-解除成员)/[S-30](#s-30-发出隶属请求)/[S-32](#s-32-接受隶属请求) 的失败集合项 | — | [§4 个人组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织) |
-| **每个账号至多一个个人组织** | [S-20](#s-20-创建个人组织) 的幂等边界 ＋ 存储上「账号 → 个人组织」一一约束 | 存储兑现唯一约束；**「每个账号」指每一条存在的账号记录**（[S-6](#s-6-两个变体与四条结构性禁止)）。**只写「至多」，不写「恰有」**：「至少一个」在两个可达窗口里为假——注册第 ② 步提交之前那条记录还没有个人组织；[S-53](#s-53-清除未激活账号的个人组织) 把个人组织删掉之后、`capability.account-identity/v1#S-38` 把账号记录删掉之前，那条记录也没有——「至少一个」只对已激活的账号成立，**挂在下面「已激活的账号 ⇒ 恰有一个个人组织」那一行** | [§4 个人组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织) |
+| **每个账号至多一个个人组织** | [S-20](#s-20-创建个人组织) 的幂等边界 ＋ 存储上「账号 → 个人组织」一一约束 | 存储兑现唯一约束；**「每个账号」指每一条存在的账号记录**（[S-6](#s-6-两个变体与四条结构性禁止)）。**只写「至多」，不写「恰有」**：「至少一个」在两个可达窗口里为假——注册第 ② 步提交之前那条记录还没有个人组织；[S-53](#s-53-清除未激活账号的个人组织) 把个人组织删掉之后、`capability.account-identity/v3#S-38` 把账号记录删掉之前，那条记录也没有——「至少一个」只对已激活的账号成立，**挂在下面「已激活的账号 ⇒ 恰有一个个人组织」那一行** | [§4 个人组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织) |
 | **已激活的账号至少有一个有效租户** | [S-20](#s-20-创建个人组织) 的提交（组织＋成员关系＋超管三者同时成立）＋ [S-6](#s-6-两个变体与四条结构性禁止) 的禁止 2（唯一成员不能解除自己）＋ [S-53](#s-53-清除未激活账号的个人组织) ②的 `accountIsActivated` | **这一条是从 [S-27](#s-27-我的租户) ⑧拆出来的单向式，不是 ⇔**。反方向（**未**激活的账号也至少有一个有效租户）**在清除窗口里为假**，[S-27](#s-27-我的租户) 因此写明未激活账号的空列表是正确答案 | [§4 租户](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#租户) |
-| **个人组织存在 ⇒ 对应的账号记录存在** | **保护点是清除链的次序 ＋ 依据**：[S-53](#s-53-清除未激活账号的个人组织) 是个人组织唯一的销毁路径，它成功时**产出一份清除依据**，而 `capability.account-identity/v1#S-38` **把「持有与该 AccountId 绑定的清除依据」写成了自己的前置**——组织先于账号被清；建的那一侧由 [S-20](#s-20-创建个人组织) 的前置②守住（账号存在且未过期才建得出个人组织） | **本契约只兑现一步**（产出依据、同提交删两条记录），**次序由组合承担**；**⇒ 由「依据」这条运行期凭证兑现**——`capability.account-identity/v1#S-38` 没有依据就拒绝，因此**次序在运行期有对应物**，不只是组合契约的一句条款。**依据只证明「组织那半已做」**，不证明账号此刻仍可清，那两条由 `capability.account-identity/v1#S-38` 自己的前置照判。**与组合契约 [S-35](../../../compositions/account-registration/v1/contract.md#s-35-个人组织不会变成孤儿) 逐字同形**——反方向（账号记录存在 ⇒ 个人组织存在）**不是不变量**，上一行已写明它在两个窗口里为假 | [flows §1.1](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#11-注册)、[§3.1](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号)、组合契约 [S-35](../../../compositions/account-registration/v1/contract.md#s-35-个人组织不会变成孤儿) |
-| **已激活的账号 ⇒ 恰有一个个人组织** | **至多一个**：上面「每个账号至多一个个人组织」那一行；**至少一个**：激活侧的前置——激活要出示[激活依据](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)（`capability.account-identity/v1#S-14` 前置③，依据由 [S-20](#s-20-创建个人组织) 成功产出），[S-20](#s-20-创建个人组织) ④在同一提交里把组织、成员关系与超管一起建起来；此后 [S-53](#s-53-清除未激活账号的个人组织) ②甲的 `accountIsActivated` 与 [S-6](#s-6-两个变体与四条结构性禁止) 的例外（已激活账号的个人组织没有销毁路径）守住它不消失 | 「至少一个」那一半**不由本契约独立兑现**——激活侧的前置在账号契约里，[S-20](#s-20-创建个人组织) 只保证「建了就三者同在」。**与组合契约 [S-13](../../../compositions/account-registration/v1/contract.md#s-13-一个可用账号有且仅有一个个人组织) 是同一条不变量**（那边的措辞是「一个可用账号有且仅有一个个人组织」，「可用账号」即已激活的账号）；那一条的另一面「不存在已激活却没有个人组织的账号」是同一条，不单列 | [§4 个人组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织)、[§3.1](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号)、组合契约 [S-13](../../../compositions/account-registration/v1/contract.md#s-13-一个可用账号有且仅有一个个人组织) |
+| **个人组织存在 ⇒ 对应的账号记录存在** | **保护点是清除链的次序 ＋ 依据**：[S-53](#s-53-清除未激活账号的个人组织) 是个人组织唯一的销毁路径，它成功时**产出一份清除依据**，而 `capability.account-identity/v3#S-38` **把「持有与该 AccountId 绑定的清除依据」写成了自己的前置**——组织先于账号被清；建的那一侧由 [S-20](#s-20-创建个人组织) 的前置②守住（账号存在且未过期才建得出个人组织） | **本契约只兑现一步**（产出依据、同提交删两条记录），**次序由组合承担**；**⇒ 由「依据」这条运行期凭证兑现**——`capability.account-identity/v3#S-38` 没有依据就拒绝，因此**次序在运行期有对应物**，不只是组合契约的一句条款。**依据只证明「组织那半已做」**，不证明账号此刻仍可清，那两条由 `capability.account-identity/v3#S-38` 自己的前置照判。**与组合契约 [S-35](../../../compositions/account-registration/v1/contract.md#s-35-个人组织不会变成孤儿) 逐字同形**——反方向（账号记录存在 ⇒ 个人组织存在）**不是不变量**，上一行已写明它在两个窗口里为假 | [flows §1.1](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#11-注册)、[§3.1](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号)、组合契约 [S-35](../../../compositions/account-registration/v1/contract.md#s-35-个人组织不会变成孤儿) |
+| **已激活的账号 ⇒ 恰有一个个人组织** | **至多一个**：上面「每个账号至多一个个人组织」那一行；**至少一个**：激活侧的前置——激活要出示[激活依据](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant)（`capability.account-identity/v3#S-14` 前置③，依据由 [S-20](#s-20-创建个人组织) 成功产出），[S-20](#s-20-创建个人组织) ④在同一提交里把组织、成员关系与超管一起建起来；此后 [S-53](#s-53-清除未激活账号的个人组织) ②甲的 `accountIsActivated` 与 [S-6](#s-6-两个变体与四条结构性禁止) 的例外（已激活账号的个人组织没有销毁路径）守住它不消失 | 「至少一个」那一半**不由本契约独立兑现**——激活侧的前置在账号契约里，[S-20](#s-20-创建个人组织) 只保证「建了就三者同在」。**与组合契约 [S-13](../../../compositions/account-registration/v1/contract.md#s-13-一个可用账号有且仅有一个个人组织) 是同一条不变量**（那边的措辞是「一个可用账号有且仅有一个个人组织」，「可用账号」即已激活的账号）；那一条的另一面「不存在已激活却没有个人组织的账号」是同一条，不单列 | [§4 个人组织](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织)、[§3.1](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号)、组合契约 [S-13](../../../compositions/account-registration/v1/contract.md#s-13-一个可用账号有且仅有一个个人组织) |
 | **租户身份跨成员关系断续保持同一** | [S-8](#s-8-成员关系记录) 的键 ＋ [S-38](#s-38-解除只改成员关系的有效性)／[S-39](#s-39-回来的是同一个租户) | — | [§4 退出之后再加入](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户) |
 | **一个租户在其组织内只持一个角色** | [S-8](#s-8-成员关系记录)：单值字段 | — | [§4 角色](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色) |
-| **（v2）断过又接上，写下的时刻一定更晚**：成员关系生效时刻只在「变为有效」的那次提交里写下、隶属建立时刻只在写下上级值的那次提交里写下，此后没有别的操作改它们 | [S-8](#s-8-成员关系记录)、[S-7](#s-7-上级组织属性) 的写路径：各只有那一两条 | 与写入同提交、取自同一时间源且不后退，**先后两次串行提交写下的时刻可区分**（[S-42](#s-42-装配给的保证-vs-协议须给的保证) 末行） | [flows §3.3](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)；[PF-003 §6.12](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后) |
 
 ### 安全性质（绝不能发生）
 
 | 绝不能发生 | 谁在何处保护 | 前提 | 来源 |
 |---|---|---|---|
 | **两次同时的动作各自合法、合起来把超管清空** | [S-17](#s-17-同一组织的成员写入序列化) | 存储兑现序列化；跨节点须真正协调（[S-42](#s-42-装配给的保证-vs-协议须给的保证)） | [flows §3.3](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)、[acceptance §三](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#三判据) |
-| **一份已过期、已撤回或已被接受过的邀约，被再次接受之后产生了效果** | [S-25](#s-25-接受邀请)、[S-32](#s-32-接受隶属请求)：同提交重判（`data.offer-expiry/v1#S-10`），三条来路同收 `offerNoLongerValid`（`data.offer-expiry/v1#S-13`） | 时间源同源可用 | [§4 两种邀约都会过期](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期) |
+| **一份已过期、已撤回或已被接受过的邀约，被再次接受之后产生了效果** | [S-25](#s-25-接受邀请)、[S-32](#s-32-接受隶属请求)：同提交重判（`data.offer-expiry/v2#S-10`），三条来路同收 `offerNoLongerValid`（`data.offer-expiry/v2#S-13`） | 时间源同源可用 | [§4 两种邀约都会过期](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期) |
 | **接受一份隶属请求产生了租户** | [S-32](#s-32-接受隶属请求)：没有通向成员写入的路径 | — | [§4 隶属关系怎么建立与解除](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除) |
 | **单方面建立隶属关系** | [S-32](#s-32-接受隶属请求) 的授权前置：接收方组织的超管 | — | 同上 |
 | **切换把某一层的事实复制到另一层，或账号事实进了某一层** | [S-37](#s-37-切换当前租户身份)：本操作只写一项选择，**没有写向任何层的路径** | 各 owner 的层事实写路径只以显式 `TenantId`／`OrganizationId` 为键（隔离义务） | [§6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)、[decisions 第 6 条](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#2026-09-22--九条正文规则逐条确认为产品要求) |
@@ -1659,14 +1542,14 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | 性质 | 上界 | 前提 | 来源 |
 |---|---|---|---|
 | 接受邀请成功返回之后，**下一次**成员资格判定即为有效 | 下一次判定 | 存储可用 | [flows §1.5](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#15-邀请与加入) |
-| 一份未接受也未撤回的邀约，**不迟于 `issuedAt + offer_ttl`** 进入不可接受 | `offer_ttl`，**不依赖任何定时器** | 时间源可用、同源，且 **`now` 不后退**（[`data.offer-expiry/v1#S-17` 的「`now` 不后退」行](../../../data/offer-expiry/v1/contract.md#s-17-装配给的保证-vs-协议须给的保证)：单机装配给，跨进程归它的缺口） | [§4 两种邀约都会过期](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期) |
+| 一份未接受也未撤回的邀约，在 **`now > issuedAt + offer_ttl` 的首次判定**不可接受（相等仍可接受） | 截止后的首次有效判定，**不依赖任何定时器** | 时间源可用、同源，且 **`now` 不后退**（`data.offer-expiry/v2#S-16`；单机与跨进程的一致性责任沿其 S-17） | [§4 两种邀约都会过期](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期) |
 | 第二次动作（接受）成功返回之后，隶属关系即成立 | 该次返回 | 存储可用 | [flows §1.7](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属) |
 | 解除成员成功返回之后，**下一道**准入被拒 | 下一道准入 | 各 owner 现读、缓存写明失效条件 | [flows §1.6](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#16-退出组织)、[§6.6](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止) |
 | 角色调整成功返回之后，**第一道**准入按新角色判 | 第一道准入 | 同上 | [§4 角色](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色) |
 | 重新加入成功返回之后，原租户级私有部分**原样可用** | 该次返回 | 资产侧未销毁（[S-38](#s-38-解除只改成员关系的有效性) 的前提） | [flows §3.3](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系) |
 | 被拒的操作**立即**返回一个具名拒绝值，且不留部分效果 | 该次返回 | 存储原子性 | [flows §2](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常) |
 
-**「不迟于」「下一次」「下一道」这些措辞是有意的**：它们写得出会失败的断言。
+**「首次判定」「下一次」「下一道」这些措辞是有意的**：它们写得出会失败的断言。
 [规格入口要求进展性质有证据形式](../../../README.md#按需展开形式化工件)——
 「最终会生效」写不出，「下一道准入就生效」写得出。
 
@@ -1687,11 +1570,9 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 | **[S-53](#s-53-清除未激活账号的个人组织) 只由清除链调用** | **装配给**：那条操作自己**没有授权前置**，它在本版成立靠的是「只有 `composition.account-registration` v1 的清除链够得着它」——与该组合契约的 [S-25](../../../compositions/account-registration/v1/contract.md#s-25-装配给的保证-vs-协议须给的保证) 同句 | **协议给**：跨进程后「够不着」不再成立，须在接收边界鉴别调用方并为它定义授权。**做不到就等于给了一条直接删任何账号个人组织的入口**——它前面那三条现读（未激活、已过期、是个人组织）挡得住误删，**挡不住有权限的人删错目标** |
 | **成员资格的可见性**（[S-18](#s-18-每道准入现读)、[S-26](#s-26-成员资格判定)） | **装配给**：写入即可被下一次读看到 | **协议给**：须定义传播时延上界，并把它纳入契约；在上界内旧判定仍被放行这件事必须写明，不能默认为零 |
 | **当前租户身份这项选择的可见性**（[S-36](#s-36-当前租户身份查询)、[S-37](#s-37-切换当前租户身份)） | **装配给**：切换写入即可被下一次查询看到 | **协议给**：同上。**切换之后立刻创建的东西落在哪个租户身份上**，在传播窗口内必须有确定答案 |
-| **邀约过期判定的时钟同源**（`data.offer-expiry/v1#S-17`） | **装配给** | **协议给**：由 `data.offer-expiry` v1 拥有，本契约不重复承诺 |
-| **调用方身份已经核实过**（全部写操作与读面，**[S-36](#s-36-当前租户身份查询)／[S-37](#s-37-切换当前租户身份) 两条除外，理由见下**） | **装配给**：本契约的面是**能力间内部面**，不是终端 API。入口层（apps 装配）先把 `LoginStateId` 换成当前租户身份（[S-36](#s-36-当前租户身份查询)）或校验出 `AccountId`（`capability.account-identity/v1#S-17`），再带着那个身份值调本契约；**本契约不再核实这个身份是不是调用者本人的** | **协议给**：跨进程时调用必须**携带授权依据**，并**在接收边界重新验证**（`data.identity-values/v1#S-30`）。**不得只靠「上游已经验过了」**——那句话在同一进程里由调用链保证，跨进程之后什么也不保证 |
+| **邀约过期判定的时钟同源**（`data.offer-expiry/v2#S-17`） | **装配给** | **协议给**：由 `data.offer-expiry` v2 拥有，本契约不重复承诺 |
+| **调用方身份与句柄来源已经核实**（所有操作含 S-36/37） | 能力面仅限可信内部调用；网络入口先以出示物调用 AI3 S-44，取得来源合规的句柄/账号，在同一共同边界用 S-36 推导实际当前租户；裸 LoginStateId 不是凭证。可信签发、本人登录列表或选择记录的其他来源沿 AI3 S-51，不由网络调用方提供。S-17 重验有效性不替代来源保证 | 接收边界重新验证授权依据；不得相信裸账号/租户/登录 ID 或未认证的“上游已验过” |
 | **读面的调用方身份**（[S-22](#s-22-读组织)、[S-26](#s-26-成员资格判定)、[S-27](#s-27-我的租户)、[S-34](#s-34-上级链与有共同上级)、[S-35](#s-35-层身份)、[S-55](#s-55-读邀请)～[S-60](#s-60-列出组织收到的隶属请求)，**十一条读面，一条不漏**） | **装配给**：同上一行 | **协议给**：同上一行 |
-| **（v2）代行读两个时刻**：`capability.asset-transfer/v1#S-9` 读分享两端的隶属建立时刻与成员关系生效时刻，调用主体不是哪一位租户（第十二节「不复活」一行） | **装配给**：单机装配下由运行时代行，以被读的那个租户的 `TenantId` 为调用方身份值读 [S-59](#s-59-列出组织成员) 默认档、按链逐个读 [S-22](#s-22-读组织)，可串行化读即满足——**同一存储内一次可串行化读（含事务内直读）即满足，不要求经服务面代行**；身份值为真由上两行兑现。**做不到会怎样**：读不到即按「读不到」收，分享不放行（不当成「此刻成立」） | **协议给**：由一个获授权读这两个读面的服务身份兑现，[S-59](#s-59-列出组织成员) ② 的授权要认它；未定义前并入 [G-7](#十一已知缺口) |
-| **（v2）两个时刻可比**：成员关系生效时刻与隶属建立时刻（[S-8](#s-8-成员关系记录)、[S-7](#s-7-上级组织属性)）与它们所随的那次写入同一次提交写下，取自本契约判过期用的同一个时间源、不后退，**且先后两次串行提交写下的时刻不相等**——消费者拿它们与自己写下的时刻（同一时间源）比先后 | **装配给**：同一存储、同一时钟；不后退由 `data.offer-expiry/v1#S-17` 那一行给；**「先后两次串行提交的时刻不相等」由时钟分辨率或提交序给**——选哪一样归提供者与装配设计，本契约不定手段。**做不到会怎样**：同一时刻内的「断开—接上」写下的时刻与旧的相等，按「不晚于」判的消费者会把断过的关系读成没断过 | **协议给**：跨节点须有全序的提交时刻（或等价的版本号），读到的时刻不得早于最近一次提交的成员关系与隶属变更；未定义前并入 [G-7](#十一已知缺口) |
 
 **这两行是本轮补的，补的是一处真实的缺口。**评审指出：本契约的写操作只收发起者的
 `TenantId`／`AccountId`，**从不核实调用方确实是那个身份**；几个读面连授权前置都没有
@@ -1702,21 +1583,14 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 - **本契约的授权判定全部以「身份值是真的」为前提。**这个前提**不由本契约兑现**，
   谁拿到一个 `TenantId` 就能以那个身份调用本契约的每一个操作。
 - **因此本契约的面不得被直接暴露成终端 API。**装配必须在它前面放一层做身份核实的入口。
-- **这与 `capability.account-identity/v1#S-18`／`#S-30` 同形**——那份契约的读账号面也没有授权前置，
+- **这与 `capability.account-identity/v3#S-18`／`#S-30` 同形**——那份契约的读账号面也没有授权前置，
   理由与收场都一样。
 - **「无授权前置」的读面不是「谁都能读」**：[S-59](#s-59-列出组织成员)、[S-58](#s-58-列出组织发出的邀请与隶属请求)、[S-60](#s-60-列出组织收到的隶属请求) 有自己的
   `notAuthorized`，[S-55](#s-55-读邀请)、[S-56](#s-56-读隶属请求) 有自己的两类人判定，
   [S-27](#s-27-我的租户)、[S-57](#s-57-列出账号收到的待接受邀请) 以「输入的 `AccountId` 就是调用者本人」为界；
   这一行说的是**那些判定所依据的身份值本身**由谁保证为真。
 
-> **[S-36 当前租户身份查询](#s-36-当前租户身份查询) 有意不在那一行里。**
-> 十二个读操作里只有它**不收身份值，收的是 `LoginStateId`**，
-> 而它②**自己就带一道校验**——`capability.account-identity/v1#S-17` 现读那条登录状态是否仍有效
-> （[S-4](#s-4-依赖方向与被消费的面) 的四出口映射）。
-> **它因此不依赖「入口层已经核实过」这个前提**：它自己就是那道核实的一部分，
-> [装配正是先用它把 `LoginStateId` 换成当前租户身份，再带着那个身份值去调别的面](#s-42-装配给的保证-vs-协议须给的保证)。
-> **把它列进去会让这张表自指**——那条前提由它兑现，不能又以它为前提。
-> [S-37 切换](#s-37-切换当前租户身份) 同理，它是写操作，同样自带那道校验。
+S-36/37 既要求句柄来源合规，又现读 AI3 S-17 的有效性。前者证明句柄归属，后者判定现在是否仍有效，二者不能互相替代。登录到期、撤销或凭据代次变化后，旧选择不得继续作为身份依据。
 
 ---
 
@@ -1733,14 +1607,12 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 依据是 [PF-001 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) 与
 [S-16](#s-16-缺席时的默认答案) 的通用收场。
 
-**本能力自己被撤除或替换时**，它拥有的全部事实都在存储里（[S-5](#s-5-组织)～[S-14](#s-14-当前租户身份是登录状态上的一项选择)），
-**没有一条只活在运行实例内**：没有定时器承担正确性（`data.offer-expiry/v1#S-18`），
-没有需要按顺序释放的资源，没有在途的多步事务。因此**重启不改变任何判定结果**，
-**也没有在途工作需要交接**。
-
-**这不是运气，是[所有操作都在单次提交内结算](#s-19-这一节每个操作写全九件事)的直接结果**，
-并且它是一条**可被推翻的承诺**：任何引入跨提交在途状态的修改都会使它失效，
-那时必须回到本节重写交接责任。
+持久组织、成员、邀约和选择事实不归运行实例生命周期；重启不重建或重新起算期限。
+时钟继续推进，重启后的判定可能因已到期而变化，不能声称判定结果恒定。
+撤除时停止新请求，等待已准入的普通操作或共同事务完成/回滚后释放提供者。
+参与调用的临时结果、作用域和待发通知归外层事务拥有者：不得跨撤除保存旧参与句柄或提前报成功。
+崩溃后的未提交事务由存储回滚，已提交事实仍以持久记录为准；未确认提交按 S-63 报不可用，不能承诺无效果。
+通知仅在确认提交后尽力发送，不承诺跨崩溃可靠重放。后台清扫不承担有效性判断。
 
 ### S-44 撤销不发出停止信号
 
@@ -1759,48 +1631,32 @@ S-26 的返回  ≝  invalidInput  |  MembershipStandingResult
 
 | 性质 | 表达 | 理由 |
 |---|---|---|
-| [S-17](#s-17-同一组织的成员写入序列化) ＋「至少一位有效超管」 | **TLA+ 行为模型**（[`formal/Membership.tla`](../v1/formal/Membership.tla)） | 这是一条**自定义并发协议**：两位超管交错移除／降级，各自的前置都成立、合起来违反不变量。只有行为模型能表达交错，并在去掉序列化时**给出反例** |
-| [S-7](#s-7-上级组织属性) 的三条结构约束 ＋ [S-12](#s-12-上级链与有共同上级) 的谓词 | **Alloy 结构模型**（[`formal/Affiliation.als`](../v1/formal/Affiliation.als)） | 这是结构关系，不是交错；在给定规模内找反例正是 Alloy 的用法 |
-| 邀约三收场、过期后接受被拒 | **规范场景**（[S-46](#s-46-邀约的三种收场)～[S-48](#s-48-并发移除对方只有先成的一方成立)） | 判定式本身归 `data.offer-expiry` v1，本契约要证的是**它在这两个操作上被按时求值** |
+| [S-17](#s-17-同一组织的成员写入序列化) ＋「至少一位有效超管」 | **TLA+ 行为模型**（[`formal/Membership.tla`](formal/Membership.tla)） | 这是一条**自定义并发协议**：两位超管交错移除／降级，各自的前置都成立、合起来违反不变量。只有行为模型能表达交错，并在去掉序列化时**给出反例** |
+| [S-7](#s-7-上级组织属性) 的三条结构约束 ＋ [S-12](#s-12-上级链与有共同上级) 的谓词 | **Alloy 结构模型**（[`formal/Affiliation.als`](formal/Affiliation.als)） | 这是结构关系，不是交错；在给定规模内找反例正是 Alloy 的用法 |
+| 邀约四收场、过期后接受被拒 | **规范场景**（[S-46](#s-46-邀约的四种收场)～[S-48](#s-48-并发移除对方只有先成的一方成立)） | 判定式本身归 `data.offer-expiry` v2，本契约要证的是**它在这两个操作上被按时求值** |
 | [S-53](#s-53-清除未激活账号的个人组织) 的三条拒绝与幂等 | **规范场景**（[S-54](#s-54-清除只对未激活账号成立)） | 这条操作的全部内容是「**在什么情况下不删**」，而拒绝路径只有真跑才看得见。**跨契约的那一半**（个人组织存在 ⇒ 账号记录存在）**不在本包**：它跨两个提交边界，行为模型归 `omne-harness-lite-design-2026-09-15 · composition.account-registration · v1` |
 | 其余条款 | **规范场景** | 见下 |
-| **（v2）**两个时刻（[S-7](#s-7-上级组织属性)、[S-8](#s-8-成员关系记录)）怎样写下、怎样改写、由哪三个读面带出 | **规范场景**（[S-61](#s-61-两个时刻随写入写下按规则改写由三个读面带出)） | 它们各只随一两条已有的写路径写下、**不引入新的状态转移、也不参与任何交错性质**：S-17 保护的「至少一位有效超管」不读它们，判环也不读它们。「断过又接上写下的时刻更晚」依赖的是时间源（[S-42](#s-42-装配给的保证-vs-协议须给的保证) 末行），不是一段交错。**消费者那一侧**：`capability.asset-transfer` 的行为模型只在「两个时刻与确认时刻同源且严格递增、使用时的判定是一步原子读」这两条前提下检查 `NoRevival`；**先读关系、后读时刻这条读序被那一建模方式吸收，模型不作它的证据**——读序的证据是那份契约的场景 [`capability.asset-transfer/v1#S-44`](../../asset-transfer/v1/contract.md#s-44-隶属解除之后分享失效复制留着不复活) |
-
-**本版不新增形式工件，沿用 v1 的**：上表前两行的模型与配置就是 [`../v1/formal/`](../v1/formal/README.md) 下那几份，**不复制一份**。
-沿用的适用范围与前提：v1 的 `Membership.tla` 与 `Affiliation.als` **不含**两个时刻——本版给成员关系记录与上级组织属性多加的这一项，
-只随模型里已有的那几个动作（加入、解除、接受隶属、解除隶属）一并写下，**不增加动作、不改守卫**，因此那两个模型对 [S-17](#s-17-同一组织的成员写入序列化) 与 [S-7](#s-7-上级组织属性) 三条结构约束的结论，**在本版照样成立、范围与前提不变**；
-**它们对两个时刻什么也没说**——那一格的证据是 [S-61](#s-61-两个时刻随写入写下按规则改写由三个读面带出)。
-formal task `organization-governance-v1-membership` 仍是这一格的登记，本版**不新登任务**。
 
 **本版不附 JSON Schema。**本契约的数据形状（`TenantId`、`MembershipStanding`、
 `ScopeLayerIdentity`、`OfferTiming`）全部由 `data.identity-values` v1 与
-`data.offer-expiry` v1 拥有，**在这里再建一份就是第二份权威**。
+`data.offer-expiry` v2 拥有，**在这里再建一份就是第二份权威**。
 本契约自己新增的形状只有 `InvitationId` 与 `AffiliationRequestId` 两个不透明标识，
 它们的词法约束由 `data.identity-values` v1 的不透明标识条款覆盖。
 
-条款到模型的精确映射、检查范围与未覆盖部分在 [`formal/README.md`](../v1/formal/README.md)；
+条款到模型的精确映射、检查范围与未覆盖部分在 [`formal/README.md`](formal/README.md)；
 执行状态与结果在[验证入口](../verification.md)，**不写进本版本目录**。
 
 ### 规范场景
 
-#### S-46 邀约的三种收场
+#### S-46 邀约的四种收场
 
-对**邀请**与**隶属请求**各演练一遍：发出一份，分别让它 ① 被接受 ② 被撤回 ③ 放到过期。
+对邀请与隶属请求各发出四份，分别接受、撤回、接收方拒绝、放到过期。
+接受仅产生本类的一份成员或隶属效果；另外三份不产生接受效果。
+随后在同一次演练中对四份调用接受，结果都为 `offerNoLongerValid`；已接受的一份没有第二份效果。
+已授权读面仍能区分 accepted/withdrawn/declined/expired。拒绝的授权、重复与竞争另按 S-64 核对。
 
-**必须观察到**：① 产生该邀约约定的那一个效果（邀请 ⇒ 成员关系有效并返回 `TenantId`；
-隶属请求 ⇒ 下级的上级组织属性有了值，**且没有任何租户产生**）；
-②③ **不产生任何效果**，且此后接受被拒的结果值**逐字相同**（`offerNoLongerValid`）。
-
-②③ **必须在同一次演练里对比**——分开跑证明不了「相同」。
-**同一次再跑第四支**：对①已被接受的那一份**再接受一次**，
-观察拿到的是与②③**逐字相同**的 `offerNoLongerValid`（`data.offer-expiry/v1#S-13` 的第三条来路），
-且**没有第二份效果**。
-
-> **本条与 `data.offer-expiry/v1#S-23`～`#S-25` 不是重复登记。**
-> 那三条断言的是**判定式**：什么时候不再可被接受、三种来路的拒绝值逐字相同、上界是 `offer_ttl`。
-> **本条断言的是本契约自己那个具名值 `offerNoLongerValid` 与本契约自己的效果面**
-> （成员关系、租户、上级组织属性），判定式**引用不重证**。
-> **一次执行可以同时兑现两边**，但[两边各自记结果](../verification.md)，谁也不填谁的空。
+本条消费 `data.offer-expiry/v2#S-23`～`#S-25` 的判定式，验证本能力自己的具名结果与效果，
+不以数据模型代替真实操作验证；证据分别绑定两侧条款。
 
 #### S-47 过期之后接受被拒，且没有中间状态
 
@@ -1809,7 +1665,7 @@ formal task `organization-governance-v1-membership` 仍是这一格的登记，�
 **必须观察到**：接受被拒，理由 `offerNoLongerValid`；
 **成员关系与 `TenantId` 从头到尾没产生过**
 （[acceptance §一](../../../../product/PF-001-identity-scope-and-agent-constraints/acceptance.md#一可观察场景)）。
-这条同时是 `data.offer-expiry/v1#S-18` 的反面证据：清理停着，结论不变。
+这条同时是 `data.offer-expiry/v2#S-18` 的反面证据：清理停着，结论不变。
 
 #### S-48 并发移除对方只有先成的一方成立
 
@@ -1874,7 +1730,7 @@ formal task `organization-governance-v1-membership` 仍是这一格的登记，�
 **同一次演练须再跑四支**：
 
 - **幂等（账号仍在）**：对①的目标再调一次 ⇒ `ok`、**仍返回依据**，无二次效果；
-- **幂等（账号也已不在）**：在①之后**再把那条账号记录清掉**（`capability.account-identity/v1#S-38`），
+- **幂等（账号也已不在）**：在①之后**再把那条账号记录清掉**（`capability.account-identity/v3#S-38`），
   然后**用同一个 `AccountId` 再调一次** ⇒ **`ok` 并仍然返回依据**（②乙 ＋ ⑦乙）。
   **绝不能观察到** `accountDoesNotExist`——那会让[清除链在重扫时停住](../../../compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)；
 - **缺陷观测**：构造「**账号记录已不在、个人组织还在**」，调本操作 ⇒ **`accountDoesNotExist`**，
@@ -1907,23 +1763,6 @@ formal task `organization-governance-v1-membership` 仍是这一格的登记，�
 
 **这条最容易在实现里被一个「读不到就当没有」抹掉，必须真跑。**
 
-#### S-61 两个时刻随写入写下、按规则改写、由三个读面带出
-
-**v2 新增。**两段演练，**每一步之后都经三个读面各读一次**（[S-22](#s-22-读组织)、[S-59](#s-59-列出组织成员) 超管那一档、[S-36](#s-36-当前租户身份查询)），记下读到的时刻。
-
-**成员关系那一段**：邀请账号 B 加入团队组织 O 并接受 → 调整 B 的角色 → B 退出 → 再邀请、B 再接受。
-**必须观察到**：首次接受之后 B 那一项的生效时刻是那次提交的时刻；**调整角色之后不变**；**退出之后仍是原值**（名单里 B 那一项无效、时刻留着）；
-**再接受之后变成新的、严格更晚的时刻**，`TenantId` 与退出前**是同一个值**（[S-39](#s-39-回来的是同一个租户)）。
-创建团队组织 O 时，创建者那一项的生效时刻就是创建那次提交的时刻；B 的登录状态切到 (O, B) 之后，[S-36](#s-36-当前租户身份查询) 带出的就是名单上那一个时刻。
-
-**隶属那一段**：团队组织 C 发隶属请求给 G、G 接受 → C 解除 → 再建立同一条隶属。
-**必须观察到**：接受之后 [S-22](#s-22-读组织) 读 C 带出上级 G 与它的隶属建立时刻；**解除之后没有上级、也没有时刻**（不是一个占位值）；
-**再建立之后是新的、严格更晚的时刻**。
-
-**同一次演练里再跑两支故障注入**：让时刻那一项读不到，分别调三个读面 ⇒ 一律 `unavailable`，**不得**返回省掉时刻的结果。
-**「严格更晚」要在同一时钟分辨率内连做**（解除与再建立、退出与再接受之间不等待）：它撑着 [S-42](#s-42-装配给的保证-vs-协议须给的保证) 末行那条「先后两次串行提交的时刻不相等」——
-等待一会儿再做，这一支永远是绿的，却什么也没证明。
-
 ---
 
 ## 十一、已知缺口
@@ -1933,108 +1772,104 @@ formal task `organization-governance-v1-membership` 仍是这一格的登记，�
 | # | 缺口 | owner | 闭合条件 |
 |---|---|---|---|
 | G-1 | **会话级层身份**（[S-13](#s-13-层身份读面)）：四层里的第四格「谁是这一层」无人定义。本契约**不返回它，也不返回空值** | PF-015 的 owner（该 topic 仍是草稿） | PF-015 正文写明会话级的层身份是什么；本契约的 [S-13](#s-13-层身份读面) 随之补一格，**判定式与其余三层不变** |
-| G-2 | **「指向的组织已不存在」这一分支本版没有触发源**（[S-5](#s-5-组织)、[S-11](#s-11-隶属请求)）：**团队组织**没有终结路径，而[S-53](#s-53-清除未激活账号的个人组织) 只清个人组织——**没有任何邀约指向个人组织**（[S-6](#s-6-两个变体与四条结构性禁止) 的禁止 1 与 3）。因此 [S-46](#s-46-邀约的三种收场)～[S-47](#s-47-过期之后接受被拒且没有中间状态) 仍然覆盖不到它 | PF-001 的 owner（[产品正文已自认](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#非目标)） | **团队组织**的终结路径成立，或产品正文明确「此分支为将来而立、本版不验收」。**在此之前不得实现事件源** |
+| G-2 | **「指向的组织已不存在」这一分支本版没有触发源**（[S-5](#s-5-组织)、[S-11](#s-11-隶属请求)）：**团队组织**没有终结路径，而[S-53](#s-53-清除未激活账号的个人组织) 只清个人组织——**没有任何邀约指向个人组织**（[S-6](#s-6-两个变体与四条结构性禁止) 的禁止 1 与 3）。因此 [S-46](#s-46-邀约的四种收场)～[S-47](#s-47-过期之后接受被拒且没有中间状态) 仍然覆盖不到它 | PF-001 的 owner（[产品正文已自认](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#非目标)） | **团队组织**的终结路径成立，或产品正文明确「此分支为将来而立、本版不验收」。**在此之前不得实现事件源** |
 | G-3 | **使用成本的计量口径未定**：[PF-001 §6.4 要求成本按租户归属并能出明细](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)，但一条明细是什么、怎么归集，[没有任何 topic 拥有](../../../../domain_objects/pending.md)。本契约只承诺 `TenantId` 可被每次调用携带 | 产品负责人（观测与计量尚无 topic） | 有 topic 认领计量并说明一条明细是什么 |
 | G-4 | **隶属请求的宿主未裁**（[S-11](#s-11-隶属请求)）：两端都是组织，正文只点了「它指向的那个组织」 | PF-001 的 owner，[已记入该 topic 的「已知的来源问题」](../../../../product/PF-001-identity-scope-and-agent-constraints/decisions.md#四已知的来源问题) | 正文写明宿主。**本契约不受阻**——它按 `AffiliationRequestId` 持久、按**接收方组织这一个**指向对象判过期（[S-11](#s-11-隶属请求)），两件事都不需要先知道宿主。**注意别把这两件事并成一句**：判定对象是单数这件事[产品正文已经定了](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)，**未裁的只有宿主** |
-| G-10 | **已闭合（2026-09-22，评审轮一）**：本契约与三份依赖均已登记进 catalog（状态 `candidate`）；[S-4](#s-4-依赖方向与被消费的面) 的**身份值侧被消费面已按条款逐条补齐，共 27 条**（`S-1`、`S-3`～`S-12`、`S-14`～`S-19`、`S-26`～`S-35`，**含交接凭证 `#S-35`**；`#S-13` 有意排除），过期语义侧补上 `data.offer-expiry/v1#S-19`。编号保留不重排。**catalog 的 `clauses` 随之更新，那是 registry 一侧的动作，不在本契约内**。**编号说明**：这一条此前占用 `G-5`，与下表里已关闭的旧 G-5（shareAncestor 读法差异）一号两指，评审轮三改用下一个未用的号；`G-8`、`G-9` 已删除不复用 | — | — |
+| G-10 | **v1 历史已闭合**：2026-09-22 的登记与依赖补齐仅指 v1。v2 的精确依赖、采用与冻结由本版评审和 registry 另行办理，不继承 v1 的接受状态 | 本版采用者 | v2 采用记录与资源哈希落盘 |
 | G-6 | **运行控制的承接方缺席**（[S-44](#s-44-撤销不发出停止信号)）：「已经开始的调用是否停止」归独立的运行控制，而那一侧尚无契约 | PF-012／PF-015 的 owner | 有契约拥有运行控制，并说明它怎样与成员资格变化衔接 |
-| G-7 | **跨进程的协调、传播上界与判环一致性级别未定义**（[S-42](#s-42-装配给的保证-vs-协议须给的保证) 右列；**v2 起含末行那两个时刻的全序，以及代行读两个时刻的服务身份与 [S-59](#s-59-列出组织成员) ② 对它的授权**——[第十二节](#十二消费者核对)「不复活」那一行） | 架构设计（本版单机不阻断） | 分布式演化启动时给出协调协议、传播上界与判环一致性级别，**并作为本契约的新版本发布** |
+| G-7 | **跨进程的协调、传播上界与判环一致性级别未定义**（[S-42](#s-42-装配给的保证-vs-协议须给的保证) 右列） | 架构设计（本版单机不阻断） | 分布式演化启动时给出协调协议、传播上界与判环一致性级别，**并作为本契约的新版本发布** |
 | G-11 | **已闭合（2026-09-22，PF-001 rev 14）**：问的是普通成员能否查看本组织的成员名单，以及两类邀约（本组织发出的邀请与隶属请求、本组织收到的隶属请求）。**产品负责人的答复**：**成员名单对同组织所有有效成员可见；发出的邀约与收到的隶属请求只有超级管理员可见**，已落进 [flows §4 的角色与操作表](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)（三行）。**落点**：[S-59](#s-59-列出组织成员) ②由超管**放宽为该组织的有效成员、任一角色**；[S-58](#s-58-列出组织发出的邀请与隶属请求)／[S-60](#s-60-列出组织收到的隶属请求) ②**维持超管**，两处「待产品确认」的标注删除——**它们不再是本契约自己取的一档**。三条的失败集合都不变；编号保留不重排 | — | — |
 | G-12 | **已闭合（2026-09-22，产品负责人选 (b)）**：[S-21](#s-21-创建团队组织) ① 加**可选创建键**，⑦ 幂等边界改为 (创建者 `AccountId`, 创建键)，带键重放返回首次的 `OrganizationId`，键登记与组织行同一提交（④），保留期 `team_creation_key_retention` 为部署配置；失败集合不变。原缺口：⑦ 曾写「调用方须自带幂等键——本契约不提供」而 ① 无输入可带，[PF-001 §6.8](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#68-管理结果) 的认回规则对本操作无拥有者。编号保留不重排 | — | — |
-| G-13 | **当前租户身份残留记录的清扫未定触发与节奏。**[S-14](#s-14-当前租户身份是登录状态上的一项选择) ⑤ 把登录状态失效后残留的选择记录交给本契约提供者清扫，但登录状态记录本版永不删除、每次登录新建一条，残留随之单调增长；谁触发、多久一次、消费 `capability.account-identity/v1#S-17` 还是别的失效读面，未写。无正确性影响 | 架构与提供者设计（与组合契约 G-6 同形） | 装配给出清扫的发起方式与节奏；本契约条款不因此改变 |
+| G-13 | **当前租户身份残留记录的清扫未定触发与节奏。**[S-14](#s-14-当前租户身份是登录状态上的一项选择) ⑤ 把登录状态失效后残留的选择记录交给本契约提供者清扫，但登录状态记录本版永不删除、每次登录新建一条，残留随之单调增长；谁触发、多久一次、消费 `capability.account-identity/v3#S-17` 还是别的失效读面，未写。无正确性影响 | 架构与提供者设计（与组合契约 G-6 同形） | 装配给出清扫的发起方式与节奏；本契约条款不因此改变 |
 
 **本版关掉了一条缺口，它不再出现在上表**（PF-001 **rev 12**，
 见[该 topic 的 changelog](../../../../product/PF-001-identity-scope-and-agent-constraints/changelog.md)）：
 
 | 原编号 | 原来是什么 | 现在怎么了 |
 |---|---|---|
-| 旧 G-5 | 「有共同上级」与「同一棵隶属树」不等价——一个组织与它自己的上级落在两种读法的缝里 | **闭合。**rev 12 把判据改成[「把各自算进自己的上级链之后，两条链有交集，也就是同一棵隶属树（根相同）」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)，并明写这与 [PF-003 §5.2 是同一句话](../../../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)。[S-12](#s-12-上级链与有共同上级) 的定义式随之改写，[S-34](#s-34-上级链与有共同上级) 的读面同步；**两个判据合一，消费者此后可以把它们当同一个用**。[缺口关闭也使 Alloy 的 `ShareAncestorIsSameAffiliationTree` 从「预期反例」变成「预期无反例」](../v1/formal/README.md) |
+| 旧 G-5 | 「有共同上级」与「同一棵隶属树」不等价——一个组织与它自己的上级落在两种读法的缝里 | **闭合。**rev 12 把判据改成[「把各自算进自己的上级链之后，两条链有交集，也就是同一棵隶属树（根相同）」](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)，并明写这与 [PF-003 §5.2 是同一句话](../../../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)。[S-12](#s-12-上级链与有共同上级) 的定义式随之改写，[S-34](#s-34-上级链与有共同上级) 的读面同步；**两个判据合一，消费者此后可以把它们当同一个用**。[缺口关闭也使 Alloy 的 `ShareAncestorIsSameAffiliationTree` 从「预期反例」变成「预期无反例」](formal/README.md) |
 
 ---
 
 ## 十二、消费者核对
 
-本节不新增承诺，只走一遍具名消费者的路径，核对本契约给的面是否够用。
+本节核对消费者需求，不表示既有消费者已经升级到 v2。注册组合 v1 仍钉旧版账号/组织；表内兼容路径须由下一版组合明确采用。
 **发现不够用时回到本契约补条款，不在消费者那边自己算一份。**
 
 | 消费者 | 它要什么 | 本契约给什么 | 够不够 |
 |---|---|---|---|
 | **PF-002 配值资格**（[§5.2](../../../../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)）：超管配组织层、成员配租户层 | 「这个 `TenantId` 此刻是不是有效成员、持什么角色」＋「它带来哪两层」 | [S-26](#s-26-成员资格判定) ＋ [S-35](#s-35-层身份) | **够。**注意 PF-002 的另一半前提是**持有**——「配值的资格来自持有」，那一半归资产契约，本契约不给 |
-| **PF-003 复制前提**（[§6.2](../../../../product/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁)，rev 5 两条通则）：**本人型**——同一账号在两边**都是成员**；**组织型**——源组织的超管发起、目标组织的超管确认；**组织内分享**——接收方是同组织的有效成员 | 各个 `TenantId` 的成员资格判定与角色 | [S-26](#s-26-成员资格判定)：本人型调两次、「同一账号」由 `TenantId` 的账号那一半结构相等判定（`data.identity-values` v1）；组织型两侧各调一次、看角色；组织内分享对接收方调一次 | **够** |
+| **PF-003 复制前提**（[§6.2](../../../../product/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁)）：同一账号在两边**都是成员** | 两个 `TenantId` 各自的成员资格判定 | [S-26](#s-26-成员资格判定) 调两次；「同一账号」由 `TenantId` 的账号那一半结构相等判定（`data.identity-values` v1） | **够** |
 | **PF-003 分享边界**（[§5.2](../../../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)）：同一棵隶属树 | `shareAncestor` | [S-34](#s-34-上级链与有共同上级) | **够。**PF-001 rev 12 已裁定两者是同一个判据，[S-12](#s-12-上级链与有共同上级) 的定义式改为**把各自算进自己的上级链**；此前登记的差异（旧缺口 G-5）随之关闭。**消费者直接用 `shareAncestor` 这一支，不要自己从上级链求交** |
 | **PF-003 关系解除之后**（[§6.12](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)）：分享失效 | 每次使用时的求值条件，**不是一个事件** | [S-34](#s-34-上级链与有共同上级) 现读 ＋ [S-40](#s-40-事件都是通知) 的负向承诺 | **够**，且本契约明写不得靠 `affiliation.dissolved` |
-| **（v2）PF-003 关系断了又接上，分享不复活**（[§6.12](../../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)；`capability.asset-transfer/v1#S-9` 第三个合取项） | 连接两个组织的每一条隶属关系从何时起成立；分享两端里是租户的那一端的成员关系从何时起有效——都要**持久**、**读时可取**、**断过又接上必然更晚** | 隶属建立时刻：[S-7](#s-7-上级组织属性) ＋ [S-22](#s-22-读组织)（按 [S-34](#s-34-上级链与有共同上级) 的链逐个读）；成员关系生效时刻：[S-8](#s-8-成员关系记录) ＋ [S-59](#s-59-列出组织成员)（默认档，调用方是那个组织的有效成员）或 [S-36](#s-36-当前租户身份查询)；先后可比：[S-42](#s-42-装配给的保证-vs-协议须给的保证) 末行 | **够，有两个前提**：① 消费者按 [S-22](#s-22-读组织)、[S-59](#s-59-列出组织成员) 末段写的先后读（先链与有效性、后时刻）；② 成员关系生效时刻**没有按 `TenantId` 直接读的面**——要读某个租户的，读 [S-59](#s-59-列出组织成员) 默认档，取那一项；那个租户此刻已不是有效成员时它不在默认档里，**那正是「此刻不成立」**。[S-26](#s-26-成员资格判定) 不带时刻：它的返回形状归 `data.identity-values` v1，本版不改。
-**读这两个时刻的调用主体是运行时代行**：要读的是分享两端的组织与租户，不是发起这次操作的那位调用者，也没有哪一位租户在为这次读取发起调用——单机装配下由运行时代行，以被读的那个租户的 `TenantId` 为调用方身份值读 `#S-59` 默认档、按链逐个读 `#S-22`，可串行化读即满足（**装配给**；依据是本契约 [S-42](#s-42-装配给的保证-vs-协议须给的保证)「调用方身份已经核实过」那一行：这批是能力间内部面，身份值由装配保证为真）；跨进程之后由一个获授权读这两个读面的服务身份兑现（**协议给**），做不到时按「读不到」收，分享不放行。
-这一句与 `capability.asset-transfer/v1#S-9` ② 同句（主线裁定 [D-040 §五 K37](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。**跨进程时 [S-59](#s-59-列出组织成员) ② 的授权要认那个服务身份**——本版的 ② 只认该组织的有效成员，那一格归 [G-7](#十一已知缺口)（跨进程协调）一并定 |
 | **PF-015 会话创建**（[§6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)）：捕获创建那一刻的租户身份 | 「这次登录此刻站在哪」 | [S-36](#s-36-当前租户身份查询) | **够。**捕获之后的持有归 PF-015；本契约只保证 [S-37](#s-37-切换当前租户身份) 的切换**不回头改**已创建的东西 |
 | **PF-007 全局授权表达**（[§4](../../../../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)）：「全局」那一档落成**租户层**的权限设置值，且「写这个值要有写它的权限」 | 「这一层是哪个租户」＋「他此刻是不是有效成员、持什么角色」 | [S-35](#s-35-层身份) ＋ [S-26](#s-26-成员资格判定) | **够**。写值本身的资格判定归 PF-002 的契约 |
 | **注册组合** | 建个人组织并使之可被激活前置查到 | [S-20](#s-20-创建个人组织)，**幂等边界是 `AccountId`**，且**不要求账号已激活** | **够**，见 [S-20](#s-20-创建个人组织) ② |
-| **注册组合的清除链**（[第二条动作链](../../../compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)） | 清掉个人组织并拿到一份可交给 `capability.account-identity/v1#S-38` 的依据 | [S-53](#s-53-清除未激活账号的个人组织)，**输入只收 `AccountId`**，成功与幂等成功**都返回**[交接凭证](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant) | **够。**「依据不可伪造」是那条身份值条款的承诺，**不是本契约的**；实现路径归 realization |
+| **注册组合的清除链**（[第二条动作链](../../../compositions/account-registration/v1/contract.md#s-34-第二条动作链未激活到期清除)） | 清掉个人组织并拿到一份可交给 `capability.account-identity/v3#S-38` 的依据 | [S-53](#s-53-清除未激活账号的个人组织)，**输入只收 `AccountId`**，成功与幂等成功**都返回**[交接凭证](../../../data/identity-values/v1/contract.md#s-35-交接凭证-handoff-warrant) | **够。**「依据不可伪造」是那条身份值条款的承诺，**不是本契约的**；实现路径归 realization |
 | **被邀请的那个人**（[flows §1.5](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#15-邀请与加入)）：看见自己收到了什么，并判断它还能不能接受 | 一份邀请的全部字段 ＋ **此刻**的派生状态；以及「我现在有哪些待处理的」 | [S-55](#s-55-读邀请) ＋ [S-57](#s-57-列出账号收到的待接受邀请) | **够。**这两条是本轮补的；在此之前[S-3](#s-3-本契约明确不承诺什么) 说的「对方查询得到它」**没有面** |
 | **发出邀约的那个组织**：看自己发了什么、还悬着几份 | 两类邀约各自的列表与派生状态 | [S-58](#s-58-列出组织发出的邀请与隶属请求) ＋ [S-55](#s-55-读邀请)／[S-56](#s-56-读隶属请求) | **够** |
 | **收到隶属请求的那个组织**（[flows §1.7](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)）：知道有谁在等我点头，然后去接受 | 以本组织为接收方的隶属请求列表 ＋ 每项**此刻**的派生状态 | [S-60](#s-60-列出组织收到的隶属请求) ＋ [S-56](#s-56-读隶属请求) ＋ [S-32](#s-32-接受隶属请求) | **够。**[S-60](#s-60-列出组织收到的隶属请求) 是本轮补的；在它之前**这一格是空的**——`AffiliationRequestId` 不透明猜不出、[S-58](#s-58-列出组织发出的邀请与隶属请求) 只列发出的、[S-30](#s-30-发出隶属请求) ⑨不发事件，**接收方无从得知一份请求存在**，那条产品流程在契约里走不通 |
 | **组织里的任何一位有效成员**（[flows §4](../../../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)）：超管管理成员前先看到成员，普通成员共事前先知道这里有谁 | 本组织的成员名单，带角色与效力 | [S-59](#s-59-列出组织成员) | **够。**[S-22](#s-22-读组织) 此前把读者指向 [S-26](#s-26-成员资格判定)，而那条**列不出名单**。**授权是 PF-001 rev 15 定的那两档**：有效成员那一份任一角色都能读，**已解除的那些只归超管**；[两类邀约同样只归超管](#s-58-列出组织发出的邀请与隶属请求) |
-| **`data.offer-expiry/v1#S-9`**（读时派生）：它要求有一个按读取时点求值的读面 | 邀请与隶属请求的派生状态读面 | [S-55](#s-55-读邀请)～[S-58](#s-58-列出组织发出的邀请与隶属请求)、[S-60](#s-60-列出组织收到的隶属请求) | **够**（本契约这两类，**两个方向都有**）。**另两类消费者（复制通知、分享邀请）的读面不在本契约**，归资产领域的规格 |
+| **`data.offer-expiry/v2#S-9`**（读时派生）：它要求有一个按读取时点求值的读面 | 邀请与隶属请求的派生状态读面 | [S-55](#s-55-读邀请)～[S-58](#s-58-列出组织发出的邀请与隶属请求)、[S-60](#s-60-列出组织收到的隶属请求) | **够**（本契约这两类，**两个方向都有**）。**另两类消费者（复制通知、分享邀请）的读面不在本契约**，归资产领域的规格 |
 
 ---
 
-## 十三、版本差异与规范工件
+## 十三、本版新增与共同提交
 
-**本版是 v2，前身是 [v1](../v1/contract.md)**（`accepted`、已冻结）。**本版只做加法**：两个时刻，与带出它们的三个读面。
+### S-61 接收账号拒绝邀请
 
-### 与 v1 的逐条差异
+| 项 | 精确行为 |
+|---|---|
+| 输入 | 接收者AccountId、InvitationId；身份来自可信组合，线上认人须经AI3 S-44，不能以网络AccountId冒充 |
+| 授权/次序 | 表示层先验；定位邀请，不存在为invitationDoesNotExist；接收者不等于被邀请账号也返回invitationDoesNotExist，避免确认他人待办存在。账号必须已激活，必要事实在同一边界读取 |
+| 结构 | 不产生组织/成员/租户，不改变已有关系 |
+| 提交 | 对同份邀约共同序列：按OE2 S-8重判pending后写declined。与接受/撤回竞争只有一个终结；终结及必要前置同一提交 |
+| 成功 | ok；已declined且当前仍满足授权则ok，无二次效果。先授权，不能拿幂等分支越权 |
+| 失败集合 | invitationDoesNotExist、accountDoesNotExist、accountNotActivated、alreadyConcluded、invalidInput、unavailable |
+| 终结 | accepted/withdrawn/expired为alreadyConcluded，保持原结果；不能用拒绝解除已加入关系。重新发邀请是另一份 |
+| 不可用/未知 | 必要账号、时间或组织存在性不可用为unavailable，不按猜测拒绝；提交未确认沿S-63，不能宣称未拒绝或自动重试 |
+| 事件 | 不发 |
 
-| 条款 | 差异 | 语义还是表示 |
-|---|---|---|
-| 抬头 | 坐标、状态、依据（PF-003 §6.12 rev 5、PF-001 flows §3.3；PF-001 与相邻依据逐条复核到当前 rev，结论写在抬头）、两个无词条的技术名、编号说明 | — |
-| [S-1](#s-1-本契约拥有什么) | 第 1、2 行各多一项：隶属建立时刻、成员关系生效时刻 | 语义（新增事实） |
-| [S-5](#s-5-组织) | 上级组织一行：有值时带隶属建立时刻 | 语义（新增事实） |
-| [S-7](#s-7-上级组织属性) | 新增「隶属建立时刻」一小节：谁写、谁清、时间源；**上级值为空时没有这一项** | 语义（新增事实） |
-| [S-8](#s-8-成员关系记录) | 属性由两项变三项；新增「成员关系生效时刻只随『变为有效』写下」一张表 | 语义（新增事实） |
-| [S-20](#s-20-创建个人组织)、[S-21](#s-21-创建团队组织)、[S-25](#s-25-接受邀请) ④ | 成员关系记录置为有效时连同生效时刻写下 | 语义（写集合多一项） |
-| [S-29](#s-29-解除成员) ④ | 注明生效时刻不动 | 语义（明写不变） |
-| [S-32](#s-32-接受隶属请求) ④、[S-33](#s-33-解除隶属) ④ | 上级值写下时连同隶属建立时刻；清空时它随之不再有 | 语义（写集合多一项） |
-| [S-22](#s-22-读组织) ⑤⑧ ＋ 末段 | 返回里多隶属建立时刻；读不到 ⇒ `unavailable`；消费者先读链、后读时刻 | 语义（读面多一项、`unavailable` 多一种触发） |
-| [S-22](#s-22-读组织) ② | 指路 [S-59](#s-59-列出组织成员) 处删去「（超管）」，改写为按它的 ② 授权（v1 那处是 rev 14 放宽之前留下的旧字，与 v1 自己的 S-59 ② 不符） | 表示（更正指路；两版的授权都以 S-59 ② 为准） |
-| [S-36](#s-36-当前租户身份查询) ⑤⑧ | 返回里多那条成员关系记录的生效时刻；读不到 ⇒ `unavailable` | 语义（读面多一项、`unavailable` 多一种触发） |
-| [S-59](#s-59-列出组织成员) ⑤⑧ ＋ 表后一段 | 每项多生效时刻；读不到任何一项 ⇒ 整次 `unavailable`；消费者先判有效、后读时刻 | 语义（读面多一项、`unavailable` 多一种触发） |
-| [第七节不变量](#不变量) | 新增一行：断过又接上，写下的时刻一定更晚 | 语义（新增性质） |
-| [S-42](#s-42-装配给的保证-vs-协议须给的保证) | 新增两行：两个时刻可比（同提交、同一时间源、不后退、先后两次串行提交不相等）；代行读两个时刻（单机由运行时代行，跨进程由服务身份兑现、并入 G-7；2026-09-25 第二轮补，原先只写在第十二节） | 语义（新增保证） |
-| [S-45](#s-45-本版选用哪些形式工件) | 新增一行（两个时刻的证据是场景；消费者那一侧的模型只在两条前提下检查 `NoRevival`，读序的证据是那份契约的场景）；**形式工件沿用 v1，不复制**，写明适用范围与前提 | 表示 |
-| **[S-61](#s-61-两个时刻随写入写下按规则改写由三个读面带出)**（新增） | 两个时刻的规范场景 | — |
-| [十一、已知缺口](#十一已知缺口) G-7 | 范围多两项：两个时刻的全序；代行读两个时刻的服务身份与 S-59 ② 对它的授权 | — |
-| [十二、消费者核对](#十二消费者核对) | 新增一行：PF-003 分享不复活（含读两个时刻的调用主体）；「复制前提」一行按 PF-003 rev 5 的两条通则改写 | — |
-| 本节 | 重写 | — |
+### S-62 接收组织拒绝隶属请求
 
-**上表之外的条款与 v1 同文**（链接由 `formal/…` 改指 `../v1/formal/…` 不算改动）。特别地：
-**失败值集合一个值都没变**（S-22、S-36、S-59 多的是 `unavailable` 的一种触发，不是新值），操作仍是 25 个，[S-26](#s-26-成员资格判定) 的返回形状不变（它归 `data.identity-values` v1）；
-**「六个读面」里只有 [S-59](#s-59-列出组织成员) 带出了新的一项**——[S-55](#s-55-读邀请)～[S-58](#s-58-列出组织发出的邀请与隶属请求)、[S-60](#s-60-列出组织收到的隶属请求) 返回的是邀约，
-里面既没有成员关系记录、也没有上级组织属性，没有可带出的东西，**逐字不变**。
-依赖三项与 v1 相同：两个时刻取的时间源与不后退（`data.offer-expiry/v1#S-16`、`#S-17`）v1 已经在消费，**本版不新增消费**。
+| 项 | 精确行为 |
+|---|---|
+| 输入 | 接收方行事TenantId、AffiliationRequestId；身份由可信组合现推导 |
+| 授权/次序 | 表示层先验；请求不存在、或TenantId的组织不是接收组织，均affiliationRequestDoesNotExist。接收方在该组织须为当前有效超管，否则notAuthorized；不因请求曾发给该组织就保留旧超管资格 |
+| 结构 | 个人组织不参与；不建立/解除上下级关系，不影响成员 |
+| 提交 | 与同份接受/撤回共同序列，在同提交内授权并重判OE2 pending，再写declined |
+| 成功 | ok；自己有权处理的既有declined也ok，无二次效果 |
+| 失败集合 | affiliationRequestDoesNotExist、notAuthorized、alreadyConcluded、invalidInput、unavailable |
+| 终结 | accepted/withdrawn/expired为alreadyConcluded，不改结果；已成立隶属须走原解除动作 |
+| 不可用/未知 | 必要资格、时间或接收组织存在性读不到为unavailable；提交未确认沿S-63 |
+| 事件 | 不发 |
 
-### 对消费者的影响
+### S-63 显式参与与可观察提交边界
 
-**钉 v1 的消费者一个也不自动升**：推荐版本不自动升级消费者。下表逐个列出它们（catalog 登记的消费）用到的条款**在 v2 里变了什么、属于哪种相容性**——供它们各自决定升不升、升时要核什么。
-「写集合多一项」消费者读不到，不影响它；「返回多一项」对**按成员取值**的消费者相容，对**把返回形状当闭合集合校验**的消费者不相容；「`unavailable` 多一种触发」对**不看触发、只按值处理 `unavailable`** 的消费者相容。
+普通操作保持各自提交/最终返回；新增明确参与面，仅提供 S-21～S-37、S-55～S-62。参与面加入组合拥有的共同一致性域，操作表中的提交归该共同提交，内部返回只是临时结果；对外成功及既有通知必须等真实提交后释放。S-20创建个人组织与S-53清除仍在注册/清除独立链中（S-54是验证场景，不是操作），不隐式加入入口业务事务。
 
-| 消费者（钉 v1） | 它消费的条款 | 其中 v2 变了的 | 相容性 |
-|---|---|---|---|
-| `composition.account-registration` v1（accepted） | `S-20`、`S-53` | `S-20` ④ 写集合多一项（生效时刻）；⑤⑥⑧ 不变。`S-53` 同文 | **相容**：它只读 `S-20` 的返回与失败值，两者未变 |
-| `composition.governance-center-entry` v1（accepted） | `S-10`、`S-11`、`S-16`、`S-21`～`S-37`、`S-42`、`S-55`～`S-60` | `S-21`、`S-25`、`S-32`、`S-33` ④ 写集合多一项；`S-29` ④ 明写不动；**`S-22` ⑤ 返回多一项、⑧ 多一种 `unavailable` 触发、② 指路更正**；**`S-36` ⑤ 返回多一项、⑧ 多一种触发**；**`S-59` ⑤ 每项多一项、⑧ 多一种触发**；`S-42` 多末行（时刻可比，装配给） | **返回多一项、失败触发多一种**：那份入口若把 `S-22`／`S-36`／`S-59` 的返回按闭合形状投影给终端，升 v2 时要决定新的一项露不露、怎么露；对 `unavailable` 的处理不看触发则相容。**要升由它出新版时核** |
-| `capability.asset-governance` v1（candidate） | `S-22`、`S-26`、`S-38` | **`S-22` ⑤ 返回多一项、⑧ 多一种触发**；`S-26`、`S-38` 同文 | **相容**：它只读 `S-22` 的变体与存在，`unavailable` 一律收成它自己的 `unavailable`、不看触发（它的 S-4 那一行） |
-| `capability.model-profile-directory` v1（candidate） | `S-26` | 无 | **相容**：同文 |
-| 实现映射 `realization/packages/tenancy/organization-governance` 与 tenancy 其余各包 | — | — | **v1**。**v2 的采用是实施侧另一步**：写集合多两项、三个读面多带一项、[S-42](#s-42-装配给的保证-vs-协议须给的保证) 末行的时刻可比要由装配兑现 |
+AI相关读面在参与面中用同一作用域的AI3参与面，不另开只读事务。尤其当前选择查询/切换、有效性观察和清扫不能绕过AI3活动暂存的序列；选择清扫逐LoginStateId在同边界核无效再删除，判不了不删。纯查询面在共同事务内不自行给登录续期；成功业务活动由entry组合消费AI3 S-49完成。
 
-**钉 v2 的**：`capability.asset-transfer` v1（candidate）——它的 S-9 第三个合取项（不复活）读两个时刻；那份契约的依赖整体钉 v2。
+作用域同域、生命周期、异常污染、单调到期事实例外及通知规则消费AI3 S-51；归属仍各owner自管，不由组织能力修改凭据/登录表。异常与不可验证成功结果必须到唯一终结边界，不能在参与面内转换成unavailable后提交半份创建键/组织/成员/终结。普通面在自己事务结束后转换错误；参与面存储异常先传播到组合回滚，再由组合映射，因此普通操作表“不走带外失败”的要求不允许被用来提前吞参与事务异常。
 
-**同一提供者同时服务 v1 与 v2 的消费者时**（本节推导，依据是「推荐版本不自动升级消费者」）：
-- **写按 v2**：两个时刻随那几条写路径一并写下——v2 的写集合是 v1 的超集，v1 承诺的每一条效果照样成立，多写的那一项 v1 消费者读不到；
-- **答按调用方钉的版本**：钉 v1 的调用拿到 v1 的返回形状与 v1 的失败触发——不带时刻，也不因时刻读不到而 `unavailable`；钉 v2 的照 v2。调用方钉哪一版由装配绑定（**装配给**）；跨进程之后由调用携带的契约版本兑现（**协议给**，与 [S-42](#s-42-装配给的保证-vs-协议须给的保证) 同一处待定，[G-7](#十一已知缺口)）；
-- **只有 v1 写路径写过的记录**（提供者从 v1 升到 v2 之前就在的成员关系与隶属）没有时刻：钉 v2 的读面对它们按 ⑧ 收 `unavailable`，**不补一个时刻**——补哪一刻都是编造；提供者升到 v2 时怎样给存量记录落时刻，是实施侧的迁移，不在本契约。
+unavailable包括必要判定不可用以及提交是否成立无法确认，不保证无效果。确定的前置拒绝或已确认回滚才可声称没有本次业务写；未知提交不能自动补交非幂等动作。普通具名拒绝仍无部分业务，允许的AI首次未激活到期事实按其条款处理。
 
-**不登 lineage**：`registry/lineage.json` 的关系只收「旧谱系 → 当前谱系」的重定基（检查器要求 `source` 属于已声明的旧谱系），
-同一谱系内 v1 → v2 的版本关系记在本节与包入口，与 `capability.account-identity` v1 → v2 同一做法。
+需要行事租户的入口操作必须在与业务相同的提交中读取真实当前选择并比较客户端预期身份；比较和线上失败由入口组合定义，本能力不把网络TenantId直接当资格。授权现读及实际业务同一共同保护，角色/成员撤销与接受/拒绝不能仅因“都查过一次”就声称无竞争。具体SQLite/PG绑定由提供者兑现；本期生产装配仅SQLite，PG新组合未闭合不得开放。
 
-**本版的规范工件**：本文件。形式工件**沿用 v1**——[`../v1/formal/Membership.tla`](../v1/formal/Membership.tla) 与其检查配置、
-[`../v1/formal/Affiliation.als`](../v1/formal/Affiliation.als)，映射在 [`../v1/formal/README.md`](../v1/formal/README.md)；沿用的范围与前提写在 [S-45](#s-45-本版选用哪些形式工件)。
-接受状态、冻结记录与执行结果都在本版本目录之外维护，本文件不填进度、通过状态或哈希。
+### S-64 新版验证义务
+
+- 邀请/隶属状态读面正确返回declined；拒绝不写成员/隶属，不能变相撤回或解除已成立关系；过期/已接受/已撤回不可覆盖。
+- 有权接收方重复拒绝无二次效果；他人账号、错误组织、接收组织普通成员/已降级超管均不能拒绝；未注册/未激活事实与不可用分开。
+- 同一份接受/撤回/拒绝竞争只能一次终结；消费OE2有限模型的原子Settle必须由真实数据库精化，而不是把模型当实现证据。
+- 新AI有效性观察、当前选择/切换/清扫、业务授权与活动共同边界；在最终时钟失败或业务异常时实际数据整体回滚，通知不提前发。
+- 旧末位超管、组织无环、租户键不变、隔离、幂等创建键和清除链的符合性继续验；不能因这次只加拒绝而少跑受影响路径。
+
+## 十四、版本差异与消费者
+
+v1保留给旧entry/注册组合；v2不自动迁移消费者。新版entry还需精确路由、预期租户与按标识邀请编排和Schema；本能力S-23仍按AccountId发邀请，按名解析归AI3 S-54，由已授权组合在同一边界调用，客户端不得裸查名后伪造依据。状态迁移须允许新的declined终结，不重写旧timing或历史结果。
+
+本稿仍待全量规格独立评审、精确依赖/血缘登记及提供者映射；复制的v1规范场景和模型只有在前提/输入未变的部分可复用。现有实现继续钉v1，不能提前消费本候选。
+
+本版规范工件为本文件及 formal/ 中的 Membership.tla、两个配置、Affiliation.als 与映射页。
+四份模型/配置沿 v1 逐字复用，新增拒绝及参与事务由 OE2 模型和本版场景分担；
+旧模型不证明登录最终计时、真实 SQL 共同提交、通知时序或接收方授权。

@@ -9,7 +9,8 @@ import { dirname, resolve } from 'node:path'
 import { StorageStartupFailure } from '../upgrade/guard.ts'
 import { exists, fsyncDirectory, fsyncFile, readHead, removeIfExists } from '../upgrade/files.ts'
 import type { OwnerLock, OwnerSite, StorageSqlLogger, UpgradeHooks } from '../upgrade/owner.ts'
-import { isSqliteBusy } from './errors.ts'
+import { acquireSqliteLock, SqliteLockBusy } from './lock.ts'
+import { assertProductionStoragePath } from './protection.ts'
 
 /** 快照位置上的「库不存在」标记：内容固定；有效的 sqlite 库总以 `SQLite format 3\0` 开头，二者不会混淆。 */
 const ABSENT_MARKER = Buffer.from(
@@ -17,12 +18,6 @@ const ABSENT_MARKER = Buffer.from(
   'utf8',
 )
 const SQLITE_HEADER = Buffer.from('SQLite format 3\0', 'latin1')
-
-/**
- * 持锁句柄钉在模块里，直到显式放锁：没人引用的 DatabaseSync 被垃圾回收时会关闭并放掉文件锁（取证：Node 24.18，
- * `--expose-gc` 下丢弃引用再 gc() 后另一句柄即可取得）。锁只随 release() 或进程死亡结束，不交给 GC。
- */
-const heldOwnerLocks = new Set<DatabaseSync>()
 
 export interface SqliteOwnerPaths {
   readonly db: string
@@ -70,17 +65,16 @@ export class SqliteOwnerSite implements OwnerSite {
   }
 
   /**
-   * ①：库旁锁文件上一个持住的排他事务。锁是 sqlite 自己的文件锁，随进程死亡由操作系统释放；
-   * 同进程第二个句柄同样拿不到。锁文件用内存日志，不留附属文件；它本身常在、无内容。
+   * ①：库旁空锁库上持住唯一写事务槽。IMMEDIATE允许竞争者短暂读锁库元信息，
+   * 避免零等待EXCLUSIVE把两名竞争者都拒绝；第二个写事务仍不能取得属主资格。
+   * 文件锁随进程死亡释放；强引用直到release。MEMORY日志不留附属文件。
    */
   async acquire(): Promise<OwnerLock> {
-    const db = new DatabaseSync(this.paths.lock, { timeout: 0 })
+    assertProductionStoragePath(this.paths.db)
     try {
-      db.exec('PRAGMA journal_mode = MEMORY')
-      db.exec('BEGIN EXCLUSIVE')
+      return acquireSqliteLock(this.paths.lock)
     } catch (error) {
-      db.close()
-      if (isSqliteBusy(error))
+      if (error instanceof SqliteLockBusy)
         throw new StorageStartupFailure(
           'occupied',
           `another owner instance holds ${this.paths.lock}`,
@@ -88,21 +82,11 @@ export class SqliteOwnerSite implements OwnerSite {
         )
       throw error
     }
-    heldOwnerLocks.add(db)
-    return {
-      async release() {
-        heldOwnerLocks.delete(db)
-        try {
-          if (db.isTransaction) db.exec('ROLLBACK')
-        } finally {
-          db.close()
-        }
-      },
-    }
   }
 
   /** ②：先删临时名上的半成品并落盘，再看快照位置；有就恢复。 */
   async recoverLeftovers(): Promise<void> {
+    assertProductionStoragePath(this.paths.db)
     const temp = [this.paths.snapshotTemp, ...this.paths.snapshotTempSidecars]
     try {
       let removed = false
@@ -128,6 +112,7 @@ export class SqliteOwnerSite implements OwnerSite {
 
   /** ③：库文件不存在 ⇒ 在快照位置落「库不存在」标记（临时名 → 落盘 → 改名 → 目录落盘），之后才打开库。 */
   async markIfAbsent(): Promise<boolean> {
+    assertProductionStoragePath(this.paths.db)
     try {
       if (await exists(this.paths.db)) return false
       await writeFile(this.paths.snapshotTemp, ABSENT_MARKER)
@@ -146,6 +131,7 @@ export class SqliteOwnerSite implements OwnerSite {
 
   /** ⑥：在线备份把当前已提交状态（含预写日志里的）写成临时名 → 权限同库 → 落盘 → 改名成快照 → 目录落盘。 */
   readonly takeSnapshot = async (): Promise<void> => {
+    assertProductionStoragePath(this.paths.db)
     try {
       const source = new DatabaseSync(this.paths.db, { timeout: 5000 })
       try {
@@ -174,6 +160,7 @@ export class SqliteOwnerSite implements OwnerSite {
    * 「库不存在」标记：删库与附属文件并落盘，最后删标记。每一步都可重做：中途断电，快照或标记仍在，下一次再来。
    */
   async restore(): Promise<void> {
+    assertProductionStoragePath(this.paths.db)
     const { paths } = this
     const kind = await this.#snapshotKind()
     const { mtime } = await stat(paths.snapshot)
@@ -205,6 +192,7 @@ export class SqliteOwnerSite implements OwnerSite {
 
   /** 确认：删快照或标记，目录落盘之后才算删到。本来就不在 ⇒ false。 */
   async removeSnapshot(): Promise<boolean> {
+    assertProductionStoragePath(this.paths.db)
     const removed = await removeIfExists(this.paths.snapshot)
     if (removed) await fsyncDirectory(this.paths.directory)
     return removed

@@ -1,6 +1,6 @@
 # arrival-events
 
-`data.arrival-events` v1 的纯函数包。采用版本、责任和外部义务见[实现节点](../../../.meta_harness/design/realization/packages/core/arrival-events/README.md)与[契约](../../../.meta_harness/design/spec/data/arrival-events/v1/contract.md)。
+`data.arrival-events` v2 的纯函数包。采用版本、责任和外部义务见[实现节点](../../../.meta_harness/design/realization/packages/core/arrival-events/README.md)与[契约](../../../.meta_harness/design/spec/data/arrival-events/v2/contract.md)。
 
 通过包名导入构建后的公开入口；`./schema` 是冻结原字节 Schema。`validate` 检查全部十四个定义的形状；`judgeArrivalEnvelope` 实现表示层拒绝的固定优先级。文本边界 `judgeArrivalEnvelopeText` 使用共享严格无损 JSON 读取，拒绝任意嵌套重复成员。判定不改动或修补输入。
 

@@ -1,0 +1,25 @@
+{
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v24.21.0",
+  "rows": 1000000,
+  "bytes": 869015552,
+  "buildMs": 7994.806458,
+  "observations": [
+    {
+      "sql": "PRAGMA integrity_check",
+      "elapsedMs": 3388.4167499999994,
+      "timerDelayMs": 3388.5605000000005,
+      "rows": 1,
+      "valid": true
+    },
+    {
+      "sql": "PRAGMA foreign_key_check",
+      "elapsedMs": 144.02999999999884,
+      "timerDelayMs": 144.08974999999919,
+      "rows": 0,
+      "valid": true
+    }
+  ],
+  "scope": "synthetic unencrypted disposable data; build durability OFF only for fixture; query event-loop blocking, not product availability"
+}

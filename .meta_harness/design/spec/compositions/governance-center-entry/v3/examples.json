@@ -1,0 +1,1111 @@
+[
+  {
+    "definition": "Payload_OG_S23",
+    "value": {
+      "invitedAccount": "account-2",
+      "expectedTenant": {
+        "organization": "org-1",
+        "account": "account-1"
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_OG_S23",
+    "value": {
+      "invitedAccount": "account-2"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Payload_OG_S37",
+    "value": {
+      "targetTenant": {
+        "organization": "org-1",
+        "account": "account-1"
+      },
+      "expectedTenant": {
+        "organization": "org-1",
+        "account": "account-1"
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_OG_S55",
+    "value": {
+      "invitation": "invite-1",
+      "callerIdentityKind": "account"
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_OG_S55",
+    "value": {
+      "invitation": "invite-1",
+      "callerIdentityKind": "account",
+      "expectedTenant": {
+        "organization": "org-1",
+        "account": "account-1"
+      }
+    },
+    "valid": false
+  },
+  {
+    "definition": "Payload_OG_S55",
+    "value": {
+      "invitation": "invite-1",
+      "callerIdentityKind": "tenant"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Payload_OG_S55",
+    "value": {
+      "invitation": "invite-1",
+      "callerIdentityKind": "tenant",
+      "expectedTenant": {
+        "organization": "org-1",
+        "account": "account-1"
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_AI_S50",
+    "value": {
+      "currentCredential": "synthetic-old",
+      "newCredential": "synthetic-new"
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_AI_S50",
+    "value": {
+      "currentCredential": "synthetic-old"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Payload_AI_S50",
+    "value": {
+      "currentCredential": "synthetic-old",
+      "newCredential": "synthetic-new",
+      "account": "someone"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Payload_OG_S61",
+    "value": {
+      "invitation": "invite-1"
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_OG_S62",
+    "value": {
+      "affiliationRequest": "request-1",
+      "expectedTenant": {
+        "organization": "org-1",
+        "account": "account-1"
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_OG_S62",
+    "value": {
+      "affiliationRequest": "request-1"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Payload_ENTRY_S50",
+    "value": {
+      "loginIdentifier": "employee-2",
+      "expectedTenant": {
+        "organization": "org-1",
+        "account": "account-1"
+      },
+      "role": "member"
+    },
+    "valid": true
+  },
+  {
+    "definition": "Payload_ENTRY_S50",
+    "value": {
+      "loginIdentifier": "employee-2"
+    },
+    "valid": false
+  },
+  {
+    "definition": "RouteFailure",
+    "value": {
+      "failure": "expectedTenantMismatch"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RouteFailure",
+    "value": {
+      "failure": "current-credential-rejected"
+    },
+    "valid": true
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "capability.account-identity/v3#S-15",
+      "reply": {
+        "failure": "login-state-rejected"
+      }
+    },
+    "valid": false
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "capability.account-identity/v3#S-16",
+      "reply": {
+        "failure": "credential-rejected"
+      }
+    },
+    "valid": false
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "capability.organization-governance/v2#S-61",
+      "reply": {
+        "failure": "alreadyConcluded"
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "capability.organization-governance/v2#S-61",
+      "reply": {
+        "failure": "notAuthorized"
+      }
+    },
+    "valid": false
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "capability.organization-governance/v2#S-37",
+      "reply": {
+        "failure": "expectedTenantMismatch"
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "composition.account-registration/v2#S-8",
+      "reply": "login-state-rejected"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "composition.account-registration/v2#S-8",
+      "reply": "unavailable"
+    },
+    "valid": true
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "capability.account-identity/v3#S-15",
+      "reply": "login-state-rejected"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Exchange",
+    "value": {
+      "operation": "capability.account-identity/v3#S-15",
+      "reply": "unavailable"
+    },
+    "valid": true
+  },
+  {
+    "definition": "LoginStateListItem",
+    "value": {
+      "loginStateHandle": "login-1",
+      "issuedAt": "2026-09-24T00:00:00.000Z",
+      "lastActivityAt": "2026-09-24T00:30:00.000Z",
+      "absoluteExpiresAt": "2026-09-24T08:00:00.000Z",
+      "idleExpiresAt": "2026-09-24T01:30:00.000Z"
+    },
+    "valid": true
+  },
+  {
+    "definition": "LoginStateListItem",
+    "value": {
+      "loginStateHandle": "login-1",
+      "issuedAt": "2026-09-24T00:00:00.000Z"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupInput",
+    "value": {
+      "onlyIfDue": true
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupInput",
+    "value": {
+      "onlyIfDue": false
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusInput",
+    "value": {},
+    "valid": true
+  },
+  {
+    "definition": "VerifyInput",
+    "value": {
+      "sourceLocation": "/backups/c.omne-backup"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedInput",
+    "value": {
+      "sourceLocation": "/backups/c.omne-backup",
+      "targetLocation": "/new/restore"
+    },
+    "valid": true
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupDescriptor",
+    "value": {
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+      "metadata": {
+        "format": "omne-center-backup/1",
+        "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceBuildId": null,
+        "migrationNames": [
+          "initial",
+          "bounded_login"
+        ],
+        "startedAt": "2026-09-25T00:00:00Z",
+        "finishedAt": "2026-09-25T00:00:02Z",
+        "byteLength": 4096,
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupInput",
+    "value": {},
+    "valid": false
+  },
+  {
+    "definition": "BackupInput",
+    "value": {
+      "onlyIfDue": true,
+      "path": "/tmp"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupInput",
+    "value": {
+      "onlyIfDue": 1
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupStatusInput",
+    "value": {
+      "tenant": "x"
+    },
+    "valid": false
+  },
+  {
+    "definition": "VerifyInput",
+    "value": {},
+    "valid": false
+  },
+  {
+    "definition": "RestoreIsolatedInput",
+    "value": {
+      "sourceLocation": "/x"
+    },
+    "valid": false
+  },
+  {
+    "definition": "MaintenanceLocation",
+    "value": "",
+    "valid": false
+  },
+  {
+    "definition": "MaintenanceLocation",
+    "value": "/x\u0000",
+    "valid": false
+  },
+  {
+    "definition": "MaintenanceLocation",
+    "value": "/x\u0085",
+    "valid": false
+  },
+  {
+    "definition": "MaintenanceLocation",
+    "value": "\ud800",
+    "valid": false
+  },
+  {
+    "definition": "MaintenanceLocation",
+    "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "valid": false
+  },
+  {
+    "definition": "BackupFileName",
+    "value": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC.omne-backup",
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "other",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "a",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "a",
+        "a"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "x-1"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 0,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 1073741825,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "valid": false
+  },
+  {
+    "definition": "Metadata",
+    "value": {
+      "format": "omne-center-backup/1",
+      "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceBuildId": null,
+      "migrationNames": [
+        "initial",
+        "bounded_login"
+      ],
+      "startedAt": "2026-09-25T00:00:00Z",
+      "finishedAt": "2026-09-25T00:00:02Z",
+      "byteLength": 4096,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "credential": "synthetic"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "completed",
+      "backup": {
+        "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+        "metadata": {
+          "format": "omne-center-backup/1",
+          "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceBuildId": null,
+          "migrationNames": [
+            "initial",
+            "bounded_login"
+          ],
+          "startedAt": "2026-09-25T00:00:00Z",
+          "finishedAt": "2026-09-25T00:00:02Z",
+          "byteLength": 4096,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "not-due",
+      "backup": {
+        "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+        "metadata": {
+          "format": "omne-center-backup/1",
+          "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceBuildId": null,
+          "migrationNames": [
+            "initial",
+            "bounded_login"
+          ],
+          "startedAt": "2026-09-25T00:00:00Z",
+          "finishedAt": "2026-09-25T00:00:02Z",
+          "byteLength": 4096,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "invalid-input"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "invalid-input"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "busy"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "busy"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "unavailable"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "unavailable"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "capacity"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "capacity"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "invalid-backup"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "invalid-backup"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "target-exists"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "target-exists"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "cancelled"
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "cancelled"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "invalid-input"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "busy"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "unavailable"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "capacity"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "cancelled"
+    },
+    "valid": true
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "invalid-input"
+    },
+    "valid": true
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "busy"
+    },
+    "valid": true
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "unavailable"
+    },
+    "valid": true
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "capacity"
+    },
+    "valid": true
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "invalid-backup"
+    },
+    "valid": true
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "cancelled"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+      "targetLocation": null
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+      "targetLocation": null
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "observed",
+      "health": "missing",
+      "latest": null,
+      "invalidCount": 0
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "observed",
+      "health": "current",
+      "latest": {
+        "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+        "metadata": {
+          "format": "omne-center-backup/1",
+          "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceBuildId": null,
+          "migrationNames": [
+            "initial",
+            "bounded_login"
+          ],
+          "startedAt": "2026-09-25T00:00:00Z",
+          "finishedAt": "2026-09-25T00:00:02Z",
+          "byteLength": 4096,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "invalidCount": 0
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "observed",
+      "health": "overdue",
+      "latest": {
+        "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+        "metadata": {
+          "format": "omne-center-backup/1",
+          "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceBuildId": null,
+          "migrationNames": [
+            "initial",
+            "bounded_login"
+          ],
+          "startedAt": "2026-09-25T00:00:00Z",
+          "finishedAt": "2026-09-25T00:00:02Z",
+          "byteLength": 4096,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "invalidCount": 0
+    },
+    "valid": true
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "verified",
+      "metadata": {
+        "format": "omne-center-backup/1",
+        "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceBuildId": null,
+        "migrationNames": [
+          "initial",
+          "bounded_login"
+        ],
+        "startedAt": "2026-09-25T00:00:00Z",
+        "finishedAt": "2026-09-25T00:00:02Z",
+        "byteLength": 4096,
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "businessOpen": false
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "restored-isolated",
+      "metadata": {
+        "format": "omne-center-backup/1",
+        "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceBuildId": null,
+        "migrationNames": [
+          "initial",
+          "bounded_login"
+        ],
+        "startedAt": "2026-09-25T00:00:00Z",
+        "finishedAt": "2026-09-25T00:00:02Z",
+        "byteLength": 4096,
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "targetLocation": "/new",
+      "businessOpen": false
+    },
+    "valid": true
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": null,
+      "targetLocation": "/new"
+    },
+    "valid": true
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "completed"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+      "targetLocation": null,
+      "backup": {
+        "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+        "metadata": {
+          "format": "omne-center-backup/1",
+          "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceBuildId": null,
+          "migrationNames": [
+            "initial",
+            "bounded_login"
+          ],
+          "startedAt": "2026-09-25T00:00:00Z",
+          "finishedAt": "2026-09-25T00:00:02Z",
+          "byteLength": 4096,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": null,
+      "targetLocation": null
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+      "targetLocation": "/new"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "observed",
+      "health": "current",
+      "latest": null,
+      "invalidCount": 0
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "observed",
+      "health": "missing",
+      "latest": {
+        "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+        "metadata": {
+          "format": "omne-center-backup/1",
+          "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceBuildId": null,
+          "migrationNames": [
+            "initial",
+            "bounded_login"
+          ],
+          "startedAt": "2026-09-25T00:00:00Z",
+          "finishedAt": "2026-09-25T00:00:02Z",
+          "byteLength": 4096,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "invalidCount": 0
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "observed",
+      "health": "missing",
+      "latest": null,
+      "invalidCount": 257
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupStatusResult",
+    "value": {
+      "status": "invalid-backup"
+    },
+    "valid": false
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+      "targetLocation": null
+    },
+    "valid": false
+  },
+  {
+    "definition": "VerifyResult",
+    "value": {
+      "status": "verified",
+      "metadata": {
+        "format": "omne-center-backup/1",
+        "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceBuildId": null,
+        "migrationNames": [
+          "initial",
+          "bounded_login"
+        ],
+        "startedAt": "2026-09-25T00:00:00Z",
+        "finishedAt": "2026-09-25T00:00:02Z",
+        "byteLength": 4096,
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "businessOpen": true
+    },
+    "valid": false
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "restored-isolated",
+      "metadata": {
+        "format": "omne-center-backup/1",
+        "centerId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceBuildId": null,
+        "migrationNames": [
+          "initial",
+          "bounded_login"
+        ],
+        "startedAt": "2026-09-25T00:00:00Z",
+        "finishedAt": "2026-09-25T00:00:02Z",
+        "byteLength": 4096,
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "targetLocation": "/new",
+      "businessOpen": true
+    },
+    "valid": false
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup",
+      "targetLocation": "/new"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "other"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "cancelled",
+      "fileName": "cccccccccccccccccccccccccccccccc.omne-backup"
+    },
+    "valid": false
+  },
+  {
+    "definition": "BackupResult",
+    "value": {
+      "status": "unavailable"
+    },
+    "valid": true,
+    "scenario": "\u6301\u4e45\u53d1\u5e03\u5df2\u786e\u8ba4\u4f46\u6682\u5b58\u6b8b\u4f59\u6e05\u7406\u5931\u8d25\uff1b\u5df2\u53d1\u5e03\u7269\u4fdd\u7559\uff0c\u672c\u673a\u8bca\u65ad\u7ed9\u6b8b\u4f59\u4f4d\u7f6e\uff0cunavailable\u4e0d\u8bc1\u660e\u65e0\u6548\u679c"
+  },
+  {
+    "definition": "RestoreIsolatedResult",
+    "value": {
+      "status": "outcome-unknown",
+      "fileName": null,
+      "targetLocation": "/new"
+    },
+    "valid": true,
+    "scenario": "\u76ee\u6807\u53d1\u5e03\u540e\u8010\u4e45\u672a\u786e\u8ba4\u4e14\u6682\u5b58\u6e05\u7406\u5931\u8d25\uff0cunknown\u4f18\u5148"
+  }
+]

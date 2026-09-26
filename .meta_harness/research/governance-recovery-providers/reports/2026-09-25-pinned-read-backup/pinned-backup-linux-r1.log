@@ -1,0 +1,1 @@
+{"status":"PASS","node":"v24.21.0","pages":1090,"callbacks":272,"concurrentCommits":10,"backupGeneration":0,"liveGeneration":10,"scope":"fixed read transaction and WAL backup on Node24.21, synthetic data; not product API/adoption, fsync/cancellation/timeout guarantee"}

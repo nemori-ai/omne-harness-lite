@@ -1,13 +1,13 @@
 # 2026-09-25 · stream-assembly 三份有效性核对配置的执行（预期出反例）
 
-`capability.stream-assembly/v1` 的 P-1、P-7 两条不变量各配了预期**出反例**的有效性核对配置
-（[`formal/README.md`](../../../spec/capabilities/stream-assembly/v1/formal/README.md) 的三行）。
+`capability.stream-assembly/v2` 的 P-1、P-7 两条不变量各配了预期**出反例**的有效性核对配置
+（[`formal/README.md`](../../../spec/capabilities/stream-assembly/v2/formal/README.md) 的三行）。
 它们按契约原话**不登记为 formal task**，但 [`packages/core/stream-assembly`](../../../realization/packages/core/stream-assembly/bindings.yaml)
 两条绑定的有效性前提是「变异配置给得出反例」——这次运行把那个前提从契约验证入口里的文字记录变成有输入快照与原始输出的证据
 （主线裁定 [D-040 §八 M54](../../decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
 
 执行在 HUB 分支 `panqiwei/assets-runtimes`、提交 `0ea85c0b`（[`started.txt`](started.txt)），工作目录是设计根 `.meta_harness/design`，
-命令与登记任务 `stream-assembly-v1-assembly` 的命令只差配置文件与 `-metadir`（各目录 `commands.txt` 为执行当时写下）。
+命令与登记任务 `stream-assembly-v2-assembly` 的命令只差配置文件与 `-metadir`（各目录 `commands.txt` 为执行当时写下）。
 每个目录下 `input/` 是模型与配置的快照（带 `SHA256SUMS`，与 `2026-09-25-formal-assets-runtimes` 快照的 `Assembly.tla` 相同），`output/tlc.log` 是 TLC 原始日志。
 
 ## 结果

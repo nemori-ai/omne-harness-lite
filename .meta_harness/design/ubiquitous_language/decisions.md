@@ -369,7 +369,7 @@ UL-session 注意 ③、产品区 README 与 [architecture-core](../product/arch
 
 ### 产品负责人的裁决
 
-[D-043 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md#裁决)（2026-09-25，产品负责人在场，按原话整理）：
+[D-063 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md#裁决)（2026-09-25，产品负责人在场，按原话整理）：
 
 > **同意改为「接口契约 + 最小提供者」**：两块运行时 inject 的每个依赖各定一份窄口 candidate v1
 > （会话日志、装配清单、会话租户、尝试事实、**凭据保管方**、执行环境、中心连接），按消费者需要定，真提供者要更多走新版本。
@@ -382,7 +382,7 @@ UL-session 注意 ③、产品区 README 与 [architecture-core](../product/arch
 
 | 条件 | 核对 |
 |---|---|
-| **跨全链** | 三个 topic 都倚着它：[PF-013 §5.6](../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) 发出时要取租户那一把的值；[PF-002 §4 MCP 凭据](../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) 经 OAuth 取得的那一份要有人拿着；[PF-016 §6.20](../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据) 离线时用据点上那份副本、[§6.11](../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现) 秘密不进任何呈现。规格里 `data.asset-model` v1 S-23、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.model-profile-directory` 都已在用「保管方」这个说法 |
+| **跨全链** | 三个 topic 都倚着它：[PF-013 §5.6](../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) 发出时要取租户那一把的值；[PF-002 §4 MCP 凭据](../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) 经 OAuth 取得的那一份要有人拿着；[PF-016 §6.20](../product/PF-016-cli-tui-delivery-surface/design.md#620-每台机器上只有自己那一把凭据) 离线时用据点上那份副本、[§6.11](../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现) 秘密不进任何呈现。规格里 `data.asset-model` v2 S-23、`data.mcp-endpoint`、`capability.mcp-bridge`、`capability.model-profile-directory` 都已在用「保管方」这个说法 |
 | **没有哪个 topic 拥有它** | [PF-002 的推导](../product/PF-002-assets-settings-and-permissions/decisions.md#rev-20-的主线推导与-pm-推导2026-09-24)明写「存哪、加密、何时续、多副本谁来续、中途失效的收场**归技术设计**」——产品正文有意不收它 |
 | **产品负责人直接裁决过** | 上面那条 R-1。**这一条是三条里最薄的**，理由见上一节 |
 
@@ -390,16 +390,16 @@ UL-session 注意 ③、产品区 README 与 [architecture-core](../product/arch
 
 | 定义里的哪一句 | 从哪来 |
 |---|---|
-| **拿着本体的那一方；别处只见引用或「配没配」** | `data.asset-model` v1 S-23：配值里只放不透明引用，「解引用时由凭据本体的保管方按调用方的持有判定」；[PF-016 §6.11](../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现)：能呈现的只有有没有、哪个范围、什么时候配的 |
-| **只按条件交出，不拿别的顶上** | `capability.credential-custodian` v1 S-9、S-13、S-17：副本按租户交出、OAuth 那一份按持有与授权交出，条件不成立就不交；[SYS-TENANT](../foundation/cross-system-constraints/requirements.md#sys-tenant) 跨租户默认拒绝 |
-| **落在它之外的持久介质上只以加密形式存在** | 同一份契约 S-7；[D-040 §八 M47](../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（据点副本经它落地、加密） |
+| **拿着本体的那一方；别处只见引用或「配没配」** | `data.asset-model` v2 S-23：配值里只放不透明引用，「解引用时由凭据本体的保管方按调用方的持有判定」；[PF-016 §6.11](../product/PF-016-cli-tui-delivery-surface/design.md#611-秘密不进任何一份呈现)：能呈现的只有有没有、哪个范围、什么时候配的 |
+| **只按条件交出，不拿别的顶上** | `capability.credential-custodian` v2 S-9、S-13、S-17：副本按租户交出、OAuth 那一份按持有与授权交出，条件不成立就不交；[SYS-TENANT](../foundation/cross-system-constraints/requirements.md#sys-tenant) 跨租户默认拒绝 |
+| **落在它之外的持久介质上只以加密形式存在** | 同一份契约 S-7；[D-060 §八 M47](../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)（据点副本经它落地、加密） |
 | **只保管，不决定配哪一把** | 同一份契约 S-2：配哪一把、换、解除归模型档案目录，OAuth 授权的状态归 MCP 桥；保管方只读它们 |
 
 ### 两处 PM 自己定的
 
 **① 形态定为「属性」——它是一个角色，不是一样新东西。**
 它的所指是「在凭据这件事上**拿着秘密本体**的那一方」这个角色。本版扮演它的是每个会话据点上的一份能力实例；
-[契约 G-7](../spec/capabilities/credential-custodian/v1/contract.md#十一已知缺口) 留着中心那一侧的保管，将来那一侧也可能扮演它——
+[契约 G-7](../spec/capabilities/credential-custodian/v2/contract.md#十一已知缺口) 留着中心那一侧的保管，将来那一侧也可能扮演它——
 **角色不变，扮演者会变**。判成「对象」就得给这些实例定身份与生灭，而那是提供者设计的事
 （[宿主、级别不写进词条](conventions.md#形态这个词指的是哪一类东西)）。与[子 agent](terms/interaction-and-dispatch.md#ul-subagent--子-agent--subagent)
 是同一种判法：一段关系里扮演什么。
@@ -423,13 +423,13 @@ UL-session 注意 ③、产品区 README 与 [architecture-core](../product/arch
 
 | 名字 | 权威在哪 | 不收的具体理由 |
 |---|---|---|
-| 条目壳 | `capability.session-log` v1 S-6 | 记录形状。它的产品一半——每条条目上挂什么——已在[记录条目](terms/record-and-context.md#ul-record-entry--记录条目--record-entry)注意 ③ |
+| 条目壳 | `capability.session-log` v2 S-6 | 记录形状。它的产品一半——每条条目上挂什么——已在[记录条目](terms/record-and-context.md#ul-record-entry--记录条目--record-entry)注意 ③ |
 | 判重键、读取键、日志位置、尾位置 | 同上 S-7～S-9 | 追加与读取用的字段，只有这一份契约定义，别处按坐标引用 |
-| 换表记录、序号、头、表时刻 | `capability.assembly-manifest` v1 S-5～S-9 | 装配清单内部怎么切分，[PF-004 那一程还没定](../spec/capabilities/assembly-manifest/v1/contract.md#十已知缺口)（G-1）——现在收等于把草稿定成语言；「序号」「头」还是通用词 |
-| 在场事实 | 同上 S-10 | 只在这一份契约里，来源与语义归属都还悬着（G-2、[D-040 §八 N-37](../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②） |
-| 已被取代、已终结 | `capability.run-attempt-facts` v1 S-5 | 判定形式，所指已由尝试栅栏与运行终态接住；两个词裸用在别处各有别的意思 |
-| 保管条目、副本条目、OAuth 条目、清扫 | `capability.credential-custodian` v1 S-5、S-18 | 保管方内部的记录形状与动作；「清扫」在租户领域的契约里另指清掉过期的注册记录，裸用会撞 |
-| 执行环境引用、进程组、落点判断 | `capability.execution-environments` v1 S-5～S-7 | 不透明标识、操作系统的现成概念、一个操作；产品一半已在[宿主机](terms/grounding-and-isolation.md#ul-host-machine--宿主机--host-machine)与[执行环境权限](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission) |
-| 拓展件子进程的宿主机允许 | 同上 S-6、G-3 | **产品还没给这项允许**（D-040 §八 N-37 ⑧，账本 ⑭），写不出无歧义的定义 |
+| 换表记录、序号、头、表时刻 | `capability.assembly-manifest` v2 S-5～S-9 | 装配清单内部怎么切分，[PF-004 那一程还没定](../spec/capabilities/assembly-manifest/v2/contract.md#十已知缺口)（G-1）——现在收等于把草稿定成语言；「序号」「头」还是通用词 |
+| 在场事实 | 同上 S-10 | 只在这一份契约里，来源与语义归属都还悬着（G-2、[D-060 §八 N-37](../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ②） |
+| 已被取代、已终结 | `capability.run-attempt-facts` v2 S-5 | 判定形式，所指已由尝试栅栏与运行终态接住；两个词裸用在别处各有别的意思 |
+| 保管条目、副本条目、OAuth 条目、清扫 | `capability.credential-custodian` v2 S-5、S-18 | 保管方内部的记录形状与动作；「清扫」在租户领域的契约里另指清掉过期的注册记录，裸用会撞 |
+| 执行环境引用、进程组、落点判断 | `capability.execution-environments` v2 S-5～S-7 | 不透明标识、操作系统的现成概念、一个操作；产品一半已在[宿主机](terms/grounding-and-isolation.md#ul-host-machine--宿主机--host-machine)与[执行环境权限](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission) |
+| 拓展件子进程的宿主机允许 | 同上 S-6、G-3 | **产品还没给这项允许**（D-060 §八 N-37 ⑧，账本 ⑭），写不出无歧义的定义 |
 
 返回[统一语言入口](README.md)

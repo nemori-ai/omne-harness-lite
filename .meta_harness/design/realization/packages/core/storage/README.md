@@ -24,3 +24,18 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## D-040 的显式共同事务增量
+
+P-13 绑定经独立评审后进入实现：AtomicStorage扩展保持普通Storage不变；单元只是AI3共同提交的基础条件，不代表领域/入口已迁移。本批已实现、未提交；P-13独立符合性及Linux冒烟结果见verification，既有历史结果不改范围。
+
+D055/D056 已采用并实施的维护提供者精化：[maintenance](maintenance.md)。
+
+D056已采用[维护run调用方资源补全](../../../../record/decisions/governance-maintenance-resources-adoption/README.md)，精确提供者修订见决定；实现已完成；实际验证与边界见[维护运行证据](../../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)。
+
+
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

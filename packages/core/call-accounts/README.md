@@ -1,6 +1,6 @@
 # call-accounts
 
-纯数据校验与费用求值包，采用已接受的 [`data.call-accounts` v1](../../../.meta_harness/design/spec/data/call-accounts/v1/contract.md)。责任与消费者边界见 [realization](../../../.meta_harness/design/realization/packages/core/call-accounts/design.md)。
+纯数据校验与费用求值包，采用已接受的 [`data.call-accounts` v2](../../../.meta_harness/design/spec/data/call-accounts/v2/contract.md)。责任与消费者边界见 [realization](../../../.meta_harness/design/realization/packages/core/call-accounts/design.md)。
 
 公开入口为 `@omne-harness-lite/call-accounts`；冻结 Schema 从 `@omne-harness-lite/call-accounts/schema` 读取。没有 Cordis 服务或外部状态。
 

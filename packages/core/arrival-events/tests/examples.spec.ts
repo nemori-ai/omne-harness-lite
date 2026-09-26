@@ -10,7 +10,7 @@ import { json, modelTarget, frameTarget, visibility, cost, usage } from './fixtu
 
 const text = readFileSync(
   new URL(
-    '../../../../.meta_harness/design/spec/data/arrival-events/v1/examples.md',
+    '../../../../.meta_harness/design/spec/data/arrival-events/v2/examples.md',
     import.meta.url,
   ),
   'utf8',
@@ -101,7 +101,7 @@ describe('V-1/V-2 frozen examples sections 1–9, exact schema and owned rejecti
     expect(readFileSync(new URL('../schema/arrival-events.schema.json', import.meta.url))).toEqual(
       readFileSync(
         new URL(
-          '../../../../.meta_harness/design/spec/data/arrival-events/v1/arrival-events.schema.json',
+          '../../../../.meta_harness/design/spec/data/arrival-events/v2/arrival-events.schema.json',
           import.meta.url,
         ),
       ),

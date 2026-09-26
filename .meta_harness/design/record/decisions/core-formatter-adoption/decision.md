@@ -1,4 +1,4 @@
-# D-046：采用 unix-format 与 xml-format 的窄技术映射
+# D-067：采用 unix-format 与 xml-format 的窄技术映射
 
 - 当前状态：技术映射已接受（2026-09-26）；实现及用户总体交付接受未发生。
 - 来源：[研究](../../../../research/minimal-runtime-formatters/research.md)及其固定观察。

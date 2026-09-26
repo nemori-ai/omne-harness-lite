@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v1/model-response.schema.json",
-  "title": "data.model-response v1",
-  "description": "一次发出的完整响应体：回复（若有）、出错断时已交付而不成消息的部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序、上游原始响应的引用。一次模型调用每发出一次留一条。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v1 内有效。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v2/model-response.schema.json",
+  "title": "data.model-response v2",
+  "description": "一次发出的完整响应体：回复（若有）、出错断时已交付而不成消息的部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序、上游原始响应的引用。一次模型调用每发出一次留一条。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v2 内有效。",
   "$comment": "状态 candidate，未接受、未冻结。本文件引用同批候选契约的 $defs（data.call-accounts、data.content-blocks、data.messages、data.model-profile、data.loop-extension），整批对齐（2026-09-24）核过引用解析；RunId、AttemptId、ModelCallId、TrimSummary 的家在 data.call-accounts，ModelProfileSnapshot 的家在 data.model-profile。ResponseId 的家在本文件。Schema 只管形状与收场条件（S-13）；reply.response 等于 id、三个时刻的先后、同一次调用的响应体序列（S-23）、脱敏（S-21）、无隐藏重试（S-24）、成因不取「发不出去」那三个值（S-16）都不在它的能力范围内（S-26）。allOf 每一支的 $comment 写明违反它时给哪个表示层拒绝值（S-27）。正反实例在同目录 examples.md。",
   "$ref": "#/$defs/ModelResponse",
   "$defs": {
@@ -18,21 +18,21 @@
     },
 
     "RunId": {
-      "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/RunId",
+      "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/RunId",
       "title": "运行标识（contract.md S-7）",
-      "description": "这次调用所属的那次运行（UL-run）。定义的家在 data.call-accounts/v1（它按尝试记明细、按 Run 汇总本就需要）；本契约只引用。"
+      "description": "这次调用所属的那次运行（UL-run）。定义的家在 data.call-accounts/v2（它按尝试记明细、按 Run 汇总本就需要）；本契约只引用。"
     },
 
     "AttemptId": {
-      "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/AttemptId",
+      "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/AttemptId",
       "title": "执行尝试序号（contract.md S-7）",
-      "description": "这一次发出在它那次运行的第几次执行尝试里出门，整数、从 1 起；与 call.runId 合起来才是一次尝试的身份（UL-run-attempt：身份是 (哪次运行, 第几次)，不另存一份）。它属于每一次发出，不属于调用——一次调用可以跨尝试（S-8）。它是出门所在尝试的事实，不是这笔账的归属：归属的权威是承载本条的记录条目（data.call-accounts/v1#S-25）。定义的家在 data.call-accounts/v1；本契约只引用。"
+      "description": "这一次发出在它那次运行的第几次执行尝试里出门，整数、从 1 起；与 call.runId 合起来才是一次尝试的身份（UL-run-attempt：身份是 (哪次运行, 第几次)，不另存一份）。它属于每一次发出，不属于调用——一次调用可以跨尝试（S-8）。它是出门所在尝试的事实，不是这笔账的归属：归属的权威是承载本条的记录条目（data.call-accounts/v2#S-25）。定义的家在 data.call-accounts/v2；本契约只引用。"
     },
 
     "ModelCallId": {
-      "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/ModelCallId",
+      "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/ModelCallId",
       "title": "模型调用标识（contract.md S-7）",
-      "description": "这条响应体属于哪一次模型调用（UL-model-call）。定义的家在 data.call-accounts/v1；本契约只引用。它不是工具调用的 CallId。"
+      "description": "这条响应体属于哪一次模型调用（UL-model-call）。定义的家在 data.call-accounts/v2；本契约只引用。它不是工具调用的 CallId。"
     },
 
     "ReplyDisposition": {
@@ -114,7 +114,7 @@
 
     "CredentialScope": {
       "title": "这一次发出用的凭据在哪一格（contract.md S-9）",
-      "description": "factory：出厂格那一把，由部署装配配置，只供官方档案（S-9）；否则是租户格，取 data.identity-values 的 ScopeLayerIdentity 的租户那一支。模型凭据只在租户层与出厂格（PF-013 rev 10 裁决 33），没有组织那一支。用量记在这一格头上（data.call-accounts/v1#S-38）。它不是凭据本身，也不是凭据的引用。",
+      "description": "factory：出厂格那一把，由部署装配配置，只供官方档案（S-9）；否则是租户格，取 data.identity-values 的 ScopeLayerIdentity 的租户那一支。模型凭据只在租户层与出厂格（PF-013 rev 10 裁决 33），没有组织那一支。用量记在这一格头上（data.call-accounts/v2#S-38）。它不是凭据本身，也不是凭据的引用。",
       "$comment": "ScopeLayerIdentity 刻意不含出厂那一格（identity-values S-11），所以本契约在它之外加一支 {layer: factory}，不带身份值；token factory 与 data.asset-model HoldingScope.layer 同词。租户那一支 $ref ScopeLayerIdentity 再把 layer 限为 tenant，形状仍归 identity-values，不另写一份。",
       "oneOf": [
         {
@@ -144,17 +144,17 @@
       "required": ["profile", "profileSnapshot", "selectedBy", "provider", "credentialScope", "parameters"],
       "properties": {
         "profile": {
-          "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileRef",
+          "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ModelProfileRef",
           "description": "这一次的有效模型（UL-effective-model）。"
         },
         "profileSnapshot": {
-          "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelProfileSnapshot",
+          "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ModelProfileSnapshot",
           "description": "这次调用打开时绑定的那条档案在那一刻的副本：发出与重试消费的那些属性与 updatedAt（S-9）。档案后来改了，这里不变。"
         },
         "selectedBy": { "$ref": "#/$defs/SelectedBy" },
         "provider": {
-          "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ProviderName",
-          "description": "本层为这一次发出指定的那一家；每一次发出只走一家（S-24）。它在 profileSnapshot.providers 里；dispatch = 1 时是第一家；profileSnapshot.allowFallback = false 时恒是第一家（S-9，data.model-profile/v1#S-5、#S-6）——跨成员，Schema 不管。"
+          "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ProviderName",
+          "description": "本层为这一次发出指定的那一家；每一次发出只走一家（S-24）。它在 profileSnapshot.providers 里；dispatch = 1 时是第一家；profileSnapshot.allowFallback = false 时恒是第一家（S-9，data.model-profile/v2#S-5、#S-6）——跨成员，Schema 不管。"
         },
         "credentialScope": { "$ref": "#/$defs/CredentialScope" },
         "upstreamModel": {
@@ -168,7 +168,7 @@
           "description": "上游给这次请求的 id（OpenRouter 的 generation id），原样，用于事后对账。上游没给时缺席。"
         },
         "parameters": {
-          "$ref": "../../model-profile/v1/model-profile.schema.json#/$defs/ModelRequestParameters",
+          "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ModelRequestParameters",
           "description": "这一次实际发给上游的那一组请求参数，以统一词表表示：按原值发出的项记原值，改了值再发出的项记实际发出的值，没发出的项不在这里（S-11）。译成上游的字段名不是改值。一项都没发出时是 {}。"
         },
         "parameterAdjustments": {
@@ -182,15 +182,15 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 },
-          "description": "要求的那一组里没有发给上游的那些项的名字（S-11）：统一项以成员名为名，extra 项以它的键为名（data.model-profile/v1#S-20），两者一视同仁。缺席即一项也没丢；空数组不是合法写法。这些名字都不在 parameters 里——跨成员，Schema 不管。"
+          "description": "要求的那一组里没有发给上游的那些项的名字（S-11）：统一项以成员名为名，extra 项以它的键为名（data.model-profile/v2#S-20），两者一视同仁。缺席即一项也没丢；空数组不是合法写法。这些名字都不在 parameters 里——跨成员，Schema 不管。"
         }
       }
     },
 
     "ParameterAdjustment": {
       "title": "改了值再发出的一项（contract.md S-11）",
-      "description": "name 是项名（data.model-profile/v1#S-20：统一项以成员名为名，extra 项以它的键为名）；requested 是它在要求的那一组（档案参数经本次覆盖合并之后）里的值；sent 是实际发出的值，等于 Route.parameters 里这一项的值，且与 requested 不同。统一项的 sent 必须在那一项的取值域里（它也出现在 parameters 里）；extra 项的两个值是任意 JSON。",
-      "$comment": "requested 与 sent 不按项名分别收窄取值域：那要按 name 逐项写条件，而 sent 的取值域已由 Route.parameters 管住；requested 的取值域在它进入要求的那一组之前已由 data.model-profile/v1#S-24 校验过。",
+      "description": "name 是项名（data.model-profile/v2#S-20：统一项以成员名为名，extra 项以它的键为名）；requested 是它在要求的那一组（档案参数经本次覆盖合并之后）里的值；sent 是实际发出的值，等于 Route.parameters 里这一项的值，且与 requested 不同。统一项的 sent 必须在那一项的取值域里（它也出现在 parameters 里）；extra 项的两个值是任意 JSON。",
+      "$comment": "requested 与 sent 不按项名分别收窄取值域：那要按 name 逐项写条件，而 sent 的取值域已由 Route.parameters 管住；requested 的取值域在它进入要求的那一组之前已由 data.model-profile/v2#S-24 校验过。",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "requested", "sent"],
@@ -230,7 +230,7 @@
       "required": ["cause"],
       "properties": {
         "cause": {
-          "$ref": "../../loop-extension/v1/loop-extension.schema.json#/$defs/FailureCause",
+          "$ref": "../../loop-extension/v2/loop-extension.schema.json#/$defs/FailureCause",
           "$comment": "取值不在八个之内：cause_unknown（S-27）。withdrawn / scope_disallowed / modality_mismatch 三个值形状上放过，但按 S-16 不出现在任何一条响应体上——那是判定层的约束，Schema 不管。"
         },
         "statusCode": { "type": "integer" },
@@ -265,7 +265,7 @@
           "type": "object",
           "additionalProperties": { "type": "string" }
         },
-        "body": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/AttachmentRef" }
+        "body": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/AttachmentRef" }
       }
     },
 
@@ -289,7 +289,7 @@
         },
         "late": {
           "const": true,
-          "description": "这一条写下时，这一次发出所在的那次尝试已被栅栏关掉——被新的一次尝试取代，或它所在的运行已经终结（S-35，data.call-accounts/v1#S-39）。只取 true；缺席即不晚。只在带 call.runId 的那一条上出现。",
+          "description": "这一条写下时，这一次发出所在的那次尝试已被栅栏关掉——被新的一次尝试取代，或它所在的运行已经终结（S-35，data.call-accounts/v2#S-39）。只取 true；缺席即不晚。只在带 call.runId 的那一条上出现。",
           "$comment": "不是 true（含 false）：malformed。出现在不带 call.runId 的那一条上：malformed（allOf 里标 malformed 的一支）。"
         },
         "route": { "$ref": "#/$defs/Route" },
@@ -304,22 +304,22 @@
           "description": "上游原样的 finish / stop reason，不翻译；上游没给时缺席。消费者不得据它推断收场，收场只看 outcome（S-12）。"
         },
         "reply": {
-          "$ref": "../../messages/v1/messages.schema.json#/$defs/AssistantMessage",
+          "$ref": "../../messages/v2/messages.schema.json#/$defs/AssistantMessage",
           "description": "这一次拿回来的那份回复（S-14）。它成没成为消息看 replyDisposition。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
         },
         "replyDisposition": { "$ref": "#/$defs/ReplyDisposition" },
         "delivered": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "../../content-blocks/v1/content-blocks.schema.json#/$defs/ContentBlock" },
+          "items": { "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/ContentBlock" },
           "description": "开了口却没有回复的那一次，已交付、不成为消息的那部分：首 token 之后的故障，或开了口之后被中断而没有交出回复（S-14）。缺席即没有；空数组不是合法写法。"
         },
         "failure": { "$ref": "#/$defs/Failure" },
         "timing": { "$ref": "#/$defs/Timing" },
-        "usage": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/Usage" },
-        "cost": { "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/Cost" },
+        "usage": { "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Usage" },
+        "cost": { "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Cost" },
         "trims": {
-          "$ref": "../../call-accounts/v1/call-accounts.schema.json#/$defs/TrimSummary",
+          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/TrimSummary",
           "description": "这一次发出的流上合并与截掉的汇总（S-19）。缺席即一次也没砍；全零的汇总不是合法写法。",
           "$comment": "全零即没砍，只有缺席这一种写法：四个计数里至少一个大于零（截短单个增量只计在 byReason.frame_too_long 与 omittedBytes 里，不计 merged、cut）。",
           "anyOf": [
@@ -453,7 +453,7 @@
           "then": { "properties": { "call": { "required": ["runId"] } }, "required": ["call"] }
         },
         {
-          "$comment": "malformed（跨成员，无专名）：凭据记在出厂格时，有效模型必须是官方档案——出厂格那一把只供官方档案（S-9；capability.model-request-runtime v1 S-19）。",
+          "$comment": "malformed（跨成员，无专名）：凭据记在出厂格时，有效模型必须是官方档案——出厂格那一把只供官方档案（S-9；capability.model-request-runtime v2 S-19）。",
           "if": {
             "properties": { "route": { "properties": { "credentialScope": { "properties": { "layer": { "const": "factory" } }, "required": ["layer"] } }, "required": ["credentialScope"] } },
             "required": ["route"]

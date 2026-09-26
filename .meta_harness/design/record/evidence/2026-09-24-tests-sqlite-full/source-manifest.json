@@ -1,0 +1,11 @@
+{
+  "packages/infra/storage-sql/src/config.ts": "40fae38bea8e83da4261d2b4d5f98ca5217c686b0c4e65c986a484f8e33ce8a1",
+  "packages/infra/storage-sql/src/open.ts": "1c4d08cad8ab74b998a85c9b4c28456146ae776307ddd3b5775c4ece607e51f4",
+  "packages/infra/storage-sql/src/sqlite/index.ts": "86a6f41174a18ca187da4e011e6529f54e13e94d6ca2141edb078636093c037e",
+  "packages/infra/storage-sql/src/sqlite/driver.ts": "c85b90ab9aea84754a1d76b8a49b9f821087b6d211ec6ad2d999a50c0e7dc690",
+  "packages/infra/storage-sql/tests/conformance.sqlite.spec.ts": "d8a77781b8760b06578f12d1ad2bfe07fcbc70988026b78a6f9165f39f923965",
+  "packages/infra/storage-sql/tests/synchronous.spec.ts": "668914abd6bbaf0b38274e38a2a33116de90dbcf93eb7beb9fbeca1eca541118",
+  "apps/tenancy-host/src/manifest.ts": "ece5bacd680b6a90d8f82890f210406e06e7125f1bd8d20dc3d8b2784ae854cf",
+  "apps/tenancy-host/tests/lifecycle.spec.ts": "d2839d09a93670535264fed94a56629357b2d6b4dc4bfd04f9195d55bd8b1c04",
+  "pnpm-lock.yaml": "b5a9ecaf361820ab65db905bd0eecb8e32766ac32492f08b0e14625e456b882f"
+}

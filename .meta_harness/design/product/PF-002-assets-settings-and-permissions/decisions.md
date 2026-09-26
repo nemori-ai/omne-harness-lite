@@ -445,10 +445,10 @@ PM 把它作为 rev 12 唯一的待裁上报，给了两个选项：① 按字�
 **那三件事产品负责人没有逐一作答**；PM 从已接受内容推出其中能推的部分（[第二节](#rev-15-新推的mcp-凭据与-oauth)），
 剩下一问交裁（[第三节](#三待裁决)）。
 
-### 2026-09-23 · 同一位置上几件拓展件的先后，按装配清单的顺序（D-038 Q8）
+### 2026-09-23 · 同一位置上几件拓展件的先后，按装配清单的顺序（D-058 Q8）
 
 **背景**：[PF-012](../PF-012-agent-loop-and-run/design.md#58-loop-拓展点) 把「同一位置挂了多个时按什么次序跑」登记给本 topic，本 topic rev 16 没有认领。
-数据形状的十九处分岔里，这一处交产品负责人当场作答（[D-038](../../record/decisions/message-and-shape-rulings/decision.md) 记全）。
+数据形状的十九处分岔里，这一处交产品负责人当场作答（[D-058](../../record/decisions/message-and-shape-rulings/decision.md) 记全）。
 
 **产品负责人原话**（2026-09-23）：
 
@@ -516,7 +516,7 @@ PM 把它作为 rev 12 唯一的待裁上报，给了两个选项：① 按字�
 
 ### 2026-09-26 · OAuth 续期验收的本版缺口
 
-产品负责人原话：「oauth 到期重授权接受为已知缺口」。[D-044 ⑰](../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 登记接受范围；验收中「续期不打扰任何人」标受阻，产品目标不改。凭据保管方 G-4 随 `infra/secrets` 那一程的新版本闭合。
+产品负责人原话：「oauth 到期重授权接受为已知缺口」。[D-064 ⑰](../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 登记接受范围；验收中「续期不打扰任何人」标受阻，产品目标不改。凭据保管方 G-4 随 `infra/secrets` 那一程的新版本闭合。
 
 ## 二、PM 推导
 
@@ -808,4 +808,4 @@ PM 把它翻成可核对的问题：**这项值改了之后，会不会换掉这
 
 ## 2026-09-26 — 当前修订正式接受
 
-产品负责人以 [D-045](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受 PR #9 中本 topic 的现行 rev 20；当前正文的主线裁定、PM 读法及推导不再待确认。历史记录保留当日的提出／待裁状态，现行设计已接受；没有现成答案的规则继续作为显式缺口，不由本事件补齐。
+产品负责人以 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受 PR #9 中本 topic 的现行 rev 20；当前正文的主线裁定、PM 读法及推导不再待确认。历史记录保留当日的提出／待裁状态，现行设计已接受；没有现成答案的规则继续作为显式缺口，不由本事件补齐。

@@ -1,14 +1,14 @@
 # call-accounts 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
-契约：[`data.call-accounts` v1](../../../../spec/data/call-accounts/v1/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
+契约：[`data.call-accounts` v2](../../../../spec/data/call-accounts/v2/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
 导出名、类型名一律为**已接受的设计**，源码不存在。
 
 ## 实现路径与来源
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口、Schema 原样复制并逐字节核对、拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)。
-金额从 JSON 文本读入一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)（[D-040 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「金额一律无损保留原文」）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+金额从 JSON 文本读入一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)「金额一律无损保留原文」）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
 ## 公开面
 
@@ -16,10 +16,10 @@
 
 | 导出 | 契约坐标 |
 |---|---|
-| 类型 `Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`FrameAccount`、`TrimSummary`、`CostCorrection`；三个归属标识 `RunId`、`AttemptId`、`ModelCallId` | [S-4](../../../../spec/data/call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)～[S-18](../../../../spec/data/call-accounts/v1/contract.md#s-18-原账不改)、[S-37](../../../../spec/data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) |
-| `ExactDecimal.from(JsonNumber)`、`add`、`compare` | [S-5](../../../../spec/data/call-accounts/v1/contract.md#s-5-金额美元十进制不截断) |
-| `effectiveCost(target, corrections)`、`summarize(group) → { knownSum, unknownCount } \| { failed }` | [S-22](../../../../spec/data/call-accounts/v1/contract.md#s-22-有效费用)～[S-24](../../../../spec/data/call-accounts/v1/contract.md#s-24-汇总不重复计) |
-| `judgeAccountValue(kind, value) → { ok } \| { rejected }` | [S-27](../../../../spec/data/call-accounts/v1/contract.md#s-27-表示层拒绝值闭合)～[S-29](../../../../spec/data/call-accounts/v1/contract.md#s-29-判别式与枚举闭合) |
+| 类型 `Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`FrameAccount`、`TrimSummary`、`CostCorrection`；三个归属标识 `RunId`、`AttemptId`、`ModelCallId` | [S-4](../../../../spec/data/call-accounts/v2/contract.md#s-4-未知是一个值不是零也不是缺席)～[S-18](../../../../spec/data/call-accounts/v2/contract.md#s-18-原账不改)、[S-37](../../../../spec/data/call-accounts/v2/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) |
+| `ExactDecimal.from(JsonNumber)`、`add`、`compare` | [S-5](../../../../spec/data/call-accounts/v2/contract.md#s-5-金额美元十进制不截断) |
+| `effectiveCost(target, corrections)`、`summarize(group) → { knownSum, unknownCount } \| { failed }` | [S-22](../../../../spec/data/call-accounts/v2/contract.md#s-22-有效费用)～[S-24](../../../../spec/data/call-accounts/v2/contract.md#s-24-汇总不重复计) |
+| `judgeAccountValue(kind, value) → { ok } \| { rejected }` | [S-27](../../../../spec/data/call-accounts/v2/contract.md#s-27-表示层拒绝值闭合)～[S-29](../../../../spec/data/call-accounts/v2/contract.md#s-29-判别式与枚举闭合) |
 
 `prepareAccountGroup(input)` 先对全部完整模型费用/用量、工具账和补账表示准入，通过后才生成冻结的候选权威投影 `AccountGroup`。完整输入中的工具账可以有 `cost.total_usd` 和 `usage`；只是金额/用量求值内部投影不取它们。`summarize` 只收本准入函数产生的组，不在计算期间边验证边产生部分结果。
 
@@ -42,7 +42,7 @@
 
 ### 装配给 vs 协议给：单机时本节点提供了什么
 
-[S-26](../../../../spec/data/call-accounts/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 六行里，本节点只在第一行出力：
+[S-26](../../../../spec/data/call-accounts/v2/contract.md#s-26-装配给的保证-vs-协议须给的保证) 六行里，本节点只在第一行出力：
 
 | 行 | 本节点在单机里提供的 | 不在本节点的那一半 |
 |---|---|---|
@@ -55,21 +55,21 @@
 
 | 契约责任 | 模块公开入口（候选） | 实现（候选做法） | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-4](../../../../spec/data/call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)～[S-18](../../../../spec/data/call-accounts/v1/contract.md#s-18-原账不改)、[S-37](../../../../spec/data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) 未知、金额、用量、费用、工具账、帧账、砍的汇总、补账、三个归属标识 | 类型 `Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`FrameAccount`、`TrimSummary`、`CostCorrection`、`RunId`、`AttemptId`、`ModelCallId`；金额类型 `ExactDecimal`（不透明，内部是规范十进制串）；`"unknown"` 是一个值，类型上与数不相容 | `CostItem.service` 写一个 MCP 接入点时用 asset-model 的规范串 | V-1、V-2；`ResponseId` 是逐字副本，**家在 `data.model-response`**，对齐测试放在 [model-response](../model-response/design.md#副本定义的对齐放在依赖方) |
-| [S-5](../../../../spec/data/call-accounts/v1/contract.md#s-5-金额美元十进制不截断) 金额精确（契约 G-9 交给实现） | `ExactDecimal.from(JsonNumber)`、`add`、`compare` | 读入时把 content-blocks 交出的 `number` 或 `LosslessNumber` 都换成十进制；加法用 `BigInt` 按两数小数位对齐后相加——`0.1 + 0.2` 得 `0.3`，不经二进制浮点；写出时按原精度，不截断、不补零 | 「会在丢位时失败的测试」即 G-9 的闭合条件（V-9 左列第一行） |
-| [S-22](../../../../spec/data/call-accounts/v1/contract.md#s-22-有效费用)、[S-23](../../../../spec/data/call-accounts/v1/contract.md#s-23-汇总已知之和与未知笔数)、[S-24](../../../../spec/data/call-accounts/v1/contract.md#s-24-汇总不重复计) 有效费用与汇总 | `effectiveCost(target, corrections)`；`summarize(group) → { knownSum, unknownCount } \| { failed }` | 精确加法；三种明确失败（孤立补账、补账平局、重复的账）；先表示准入完整输入，再从冻结的内部权威投影取数；内部投影不带 `total_usd`、镜像笔与 `ToolCallAccount.usage` | V-5、V-6（examples 第 9 节手算）；三种失败**叫什么归读面的契约**（契约 G-10），本模块先以候选判别值交回（CA-1） |
-| [S-27](../../../../spec/data/call-accounts/v1/contract.md#s-27-表示层拒绝值闭合)～[S-29](../../../../spec/data/call-accounts/v1/contract.md#s-29-判别式与枚举闭合) 五个拒绝值、六步次序、校验与判定分开 | `judgeAccountValue(kind, value)` | 结构那一半先于正负、正负先于来源、组合约束最后 | V-2；被拒的值不进汇总、也不当 `"unknown"` |
+| [S-4](../../../../spec/data/call-accounts/v2/contract.md#s-4-未知是一个值不是零也不是缺席)～[S-18](../../../../spec/data/call-accounts/v2/contract.md#s-18-原账不改)、[S-37](../../../../spec/data/call-accounts/v2/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) 未知、金额、用量、费用、工具账、帧账、砍的汇总、补账、三个归属标识 | 类型 `Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`FrameAccount`、`TrimSummary`、`CostCorrection`、`RunId`、`AttemptId`、`ModelCallId`；金额类型 `ExactDecimal`（不透明，内部是规范十进制串）；`"unknown"` 是一个值，类型上与数不相容 | `CostItem.service` 写一个 MCP 接入点时用 asset-model 的规范串 | V-1、V-2；`ResponseId` 是逐字副本，**家在 `data.model-response`**，对齐测试放在 [model-response](../model-response/design.md#副本定义的对齐放在依赖方) |
+| [S-5](../../../../spec/data/call-accounts/v2/contract.md#s-5-金额美元十进制不截断) 金额精确（契约 G-9 交给实现） | `ExactDecimal.from(JsonNumber)`、`add`、`compare` | 读入时把 content-blocks 交出的 `number` 或 `LosslessNumber` 都换成十进制；加法用 `BigInt` 按两数小数位对齐后相加——`0.1 + 0.2` 得 `0.3`，不经二进制浮点；写出时按原精度，不截断、不补零 | 「会在丢位时失败的测试」即 G-9 的闭合条件（V-9 左列第一行） |
+| [S-22](../../../../spec/data/call-accounts/v2/contract.md#s-22-有效费用)、[S-23](../../../../spec/data/call-accounts/v2/contract.md#s-23-汇总已知之和与未知笔数)、[S-24](../../../../spec/data/call-accounts/v2/contract.md#s-24-汇总不重复计) 有效费用与汇总 | `effectiveCost(target, corrections)`；`summarize(group) → { knownSum, unknownCount } \| { failed }` | 精确加法；三种明确失败（孤立补账、补账平局、重复的账）；先表示准入完整输入，再从冻结的内部权威投影取数；内部投影不带 `total_usd`、镜像笔与 `ToolCallAccount.usage` | V-5、V-6（examples 第 9 节手算）；三种失败**叫什么归读面的契约**（契约 G-10），本模块先以候选判别值交回（CA-1） |
+| [S-27](../../../../spec/data/call-accounts/v2/contract.md#s-27-表示层拒绝值闭合)～[S-29](../../../../spec/data/call-accounts/v2/contract.md#s-29-判别式与枚举闭合) 五个拒绝值、六步次序、校验与判定分开 | `judgeAccountValue(kind, value)` | 结构那一半先于正负、正负先于来源、组合约束最后 | V-2；被拒的值不进汇总、也不当 `"unknown"` |
 
 ## 依赖、作用域与绑定
 
 | 消费的精确契约 | 实际提供者／解析方式与范围 | 工作中绑定与变更生效点 | 缺席、撤回和旧引用政策 |
 |---|---|---|---|
-| `data.content-blocks` v1（`CallId`；严格无损读写） | [content-blocks](../content-blocks/README.md) | 随包版本 | 静态 import |
-| `data.asset-model` v1（能力标识的规范串） | [asset-model](../asset-model/README.md) | 同上 | 同上 |
+| `data.content-blocks` v2（`CallId`；严格无损读写） | [content-blocks](../content-blocks/README.md) | 随包版本 | 静态 import |
+| `data.asset-model` v2（能力标识的规范串） | [asset-model](../asset-model/README.md) | 同上 | 同上 |
 | `data.identity-values`、`data.offer-expiry` v1 | 已实现的 core 包 | 同上 | 同上 |
-| 被消费 | messages、arrival-events、model-response、loop-extension、stream-assembly、两个运行时、拓展件 runner、会话资产注册表（可用性报告带 `attempt`，取本包的 `AttemptId`——[D-040 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）、读面 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
+| 被消费 | messages、arrival-events、model-response、loop-extension、stream-assembly、两个运行时、拓展件 runner、会话资产注册表（可用性报告带 `attempt`，取本包的 `AttemptId`——[D-060 §八 M46](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）、读面 | 普通包依赖；契约出 v2 另开入口 | 不改 v1 导出 |
 
-包依赖与 catalog 的契约依赖同构（[D-040 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
+包依赖与 catalog 的契约依赖同构（[D-060 §八 M41](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)），无环。**没有配置项**。
 
 ## 状态、并发与失败映射
 

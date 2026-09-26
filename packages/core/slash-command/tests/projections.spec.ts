@@ -129,13 +129,13 @@ describe('V-1/V-3/SC-6 body contract and pure declaration module', () => {
     const resource = readFileSync(new URL('../schema/slash-command.schema.json', import.meta.url))
     const frozen = readFileSync(
       new URL(
-        '../../../../.meta_harness/design/spec/data/slash-command/v1/slash-command.schema.json',
+        '../../../../.meta_harness/design/spec/data/slash-command/v2/slash-command.schema.json',
         import.meta.url,
       ),
     )
     expect(resource.equals(frozen)).toBe(true)
     expect(createHash('sha256').update(resource).digest('hex')).toBe(
-      'c2e05383c6b36888ddcb8f10c866fb68ff8f7cba2014f4ba8a5d8b2978dfd425',
+      '595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e',
     )
     const schema = slashCommandBodyContract.schema
     if (typeof schema !== 'object' || schema === null) throw new Error('object Schema required')

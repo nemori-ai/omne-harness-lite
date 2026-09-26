@@ -2,7 +2,7 @@
 // 这两支按真实时长跑（约 30 秒），用 describe.concurrent 并行，放在单独的文件里，不拖慢其余测试文件。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { RECEIVE_LIMITS } from '../src/index.ts'
-import { type Center, HEALTH, bodyOf, bootCenter } from './support/composition.ts'
+import { type Center, HEALTH, OPS_HEALTH, bodyOf, bootCenter } from './support/composition.ts'
 import { httpRequest, tlsExchange, unixExchange } from './support/wire.ts'
 
 let center: Center
@@ -54,7 +54,7 @@ describe.concurrent('接收时限：下限 30 秒之内不被切，到了时限�
 
   it('运维面同一时限：约 28 秒才发完的请求照答；没收齐的在 30 秒后关闭不写', async () => {
     const slow = unixExchange(center.socketPath, Buffer.alloc(0), {
-      chunks: slices(httpRequest('{}'), 29),
+      chunks: slices(httpRequest(OPS_HEALTH), 29),
       chunkDelayMs: 1_000,
       timeoutMs: 40_000,
     })

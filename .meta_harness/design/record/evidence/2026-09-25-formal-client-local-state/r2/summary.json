@@ -1,0 +1,18 @@
+[
+  {
+    "config": "valid",
+    "exit": 0
+  },
+  {
+    "config": "bad-split",
+    "exit": 12
+  },
+  {
+    "config": "bad-instance",
+    "exit": 12
+  },
+  {
+    "config": "bad-claim",
+    "exit": 12
+  }
+]

@@ -3,8 +3,7 @@
 本页维护 monorepo 的源码归属、包边界与开发环境组织。产品实现以 TypeScript 为主；
 Python 当前服务于开发工具。
 
-> 成员清单与各自状态见 [packages/README](../packages/README.md) 与
-> [apps/README](../apps/README.md)；本页维护布局与 workspace 规则。
+> 成员与状态以 [packages/README](../packages/README.md)、[apps/README](../apps/README.md) 和各 realization 节点为准。本页维护归属与 workspace 规则，不另存易过期的成员总数。
 
 语言无关的契约不在这里——它们归
 [`.meta_harness/design/spec/`](../.meta_harness/design/spec/README.md)；
@@ -37,7 +36,7 @@ Python 当前服务于开发工具。
 
 > **只为已经有接受规格、且确实要写代码的职责建成员。**每个包对应一个
 > [realization 节点](../.meta_harness/design/realization/README.md)，节点先于包；
-> 第一层组名（`core`、`infra`、`tenancy`）随节点布局。
+> 第一层组名（`core`、`infra`、`tenancy`、`frontend`）随节点布局。
 
 ## 当前可执行代码
 
@@ -50,6 +49,12 @@ packages/core/{identity-values,offer-expiry,kernel-basis,storage}
 packages/infra/{storage-sql,clock}     存储与时钟提供者（sqlite/pg、租约时钟）
 packages/tenancy/{credential-verification,account-identity,organization-governance,account-registration}
                                        tenancy 插件与公开服务实现；完整成员从 packages/README 查找
+packages/frontend/governance-center-client
+packages/frontend/client-local-state
+packages/frontend/governance-client-operations
+                                       治理协议运输、本地完整状态与共享治理用例
+apps/cli/                             治理CLI应用；文件输入增量
+tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
 tools/ts-checks/                       TS 开发成员；产品源码结构检查规则与 CLI
 tools/core-verification/               TS 开发成员；core 真实组合与验证套件有效性自测
 pyproject.toml                         Python 开发环境聚合，package = false
@@ -79,7 +84,7 @@ scripts/format.sh                      TS/JS 格式化与暂存区检查
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
 TS workspace 由 pnpm 管理，[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) 声明
-`packages/*/*`、`apps/*`、`tools/ts-checks` 与 `tools/core-verification` 四个范围，并用 `catalog` 把第三方依赖的版本钉一次
+`packages/*/*`、`apps/*`、`tools/ts-checks`、`tools/artifact-builder` 与 `tools/core-verification`，并用 `catalog` 把第三方依赖的版本钉一次
 （成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本，根命令用 `pnpm -r` 聚合；
 测试运行器是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
 Node 与 pnpm 的精确版本由根 `package.json` 的

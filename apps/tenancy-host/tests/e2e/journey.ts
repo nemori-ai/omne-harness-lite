@@ -134,7 +134,10 @@ export async function walk(
   const switched = await call(
     c,
     'switchTenant',
-    { targetTenant: { organization, account: inviterPersonal.account } },
+    {
+      expectedTenant: inviterPersonal,
+      targetTenant: { organization, account: inviterPersonal.account },
+    },
     inviterLogin.presentation,
   )
   if (resultOf(switched) !== 'ok') throw new Error(`switch: ${describe(switched)}`)
@@ -148,7 +151,10 @@ export async function walk(
       await call(
         c,
         'invite',
-        { invitedAccount: inviteePersonal.account },
+        {
+          expectedTenant: { organization, account: inviterPersonal.account },
+          invitedAccount: inviteePersonal.account,
+        },
         inviterLogin.presentation,
       ),
     ),
@@ -171,7 +177,14 @@ export async function walk(
 
   await step('读成员名单')
   const members = asArray(
-    resultOf(await call(c, 'listMembers', {}, inviterLogin.presentation)),
+    resultOf(
+      await call(
+        c,
+        'listMembers',
+        { expectedTenant: { organization, account: inviterPersonal.account } },
+        inviterLogin.presentation,
+      ),
+    ),
     'members',
   )
 

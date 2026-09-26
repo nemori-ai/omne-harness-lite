@@ -11,7 +11,7 @@ import {
 } from '@omne-harness-lite/messages'
 
 const design = new URL('../../../../.meta_harness/design/', import.meta.url)
-const examples = readFileSync(new URL('spec/data/messages/v1/examples.md', design), 'utf8')
+const examples = readFileSync(new URL('spec/data/messages/v2/examples.md', design), 'utf8')
 interface Row {
   readonly line: number
   readonly def: SchemaDefName
@@ -59,11 +59,11 @@ describe('V-1 frozen normative rows', () => {
       expect(validate(row.def, row.value).valid).toBe(row.schema)
     })
   it('has exactly 43 public definitions and the Schema is frozen-byte identical', () => {
-    const original = readFileSync(new URL('spec/data/messages/v1/messages.schema.json', design))
+    const original = readFileSync(new URL('spec/data/messages/v2/messages.schema.json', design))
     const copied = readFileSync(new URL('../schema/messages.schema.json', import.meta.url))
     expect(copied.equals(original)).toBe(true)
     expect(createHash('sha256').update(copied).digest('hex')).toBe(
-      '00e6d5cd03bbcd49285f49a59c928fb8953f974763163ace79425973ae3e614d',
+      '5069484d45c7a2d9165c1201307e9b4241acf8eceae20e749b5c24f377b0d65f',
     )
     expect(SCHEMA_DEF_NAMES).toHaveLength(43)
   })

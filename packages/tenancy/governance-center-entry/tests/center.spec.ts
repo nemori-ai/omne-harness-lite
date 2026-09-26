@@ -2,9 +2,11 @@
 // 覆盖：T-2、T-3、T-4、T-5（含备份那一半）、T-6、T-7、T-9 的客户端一面、T-16，最后 T-11 在本文件全部输出里搜秘密。
 // 「桩」在这里是对真实服务实例的 vi.spyOn：计数、或在认人与办事之间插一次真实的撤销。
 import { copyFileSync } from 'node:fs'
+import { isIPv4 } from 'node:net'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { LoginsService } from '@omne-harness-lite/account-identity'
+import type { LoginParticipation, LoginsService } from '@omne-harness-lite/account-identity'
+import { parseLoginStateId, isOk } from '@omne-harness-lite/identity-values'
 import { entryAnswerBytes } from '../src/routing/answers.ts'
 import {
   type Center,
@@ -30,6 +32,7 @@ const REJECTED = entryAnswerBytes('login-state-rejected')
 const INVALID = entryAnswerBytes('invalid-input')
 const UNAVAILABLE = entryAnswerBytes('unavailable')
 const VERSION = entryAnswerBytes('version-mismatch')
+const ALTERNATE_SOURCE_ADDRESS = process.env['OMNE_TEST_ALTERNATE_SOURCE_ADDRESS'] ?? '127.0.0.2'
 
 // ---- T-11 的收集：本文件里每一份答复、每一份体检、每一条日志 ----
 const outputs: string[] = []
@@ -104,17 +107,42 @@ function result(reply: unknown): unknown {
 
 function spyLogins(c: Center) {
   const logins: LoginsService = c.logins()
-  return {
-    exchange: vi.spyOn(logins, 'exchange'),
+  const participate = logins.participate.bind(logins)
+  let current: LoginParticipation
+  // Each wrapper selects its captured participant synchronously before the mock
+  // dispatches; the default delegates immediately, never after an await.
+  const spies = {
+    exchange: vi.fn<LoginParticipation['exchange']>((...args) => current.exchange(...args)),
     verify: vi.spyOn(logins, 'verify'),
-    revoke: vi.spyOn(logins, 'revoke'),
-    listEffective: vi.spyOn(logins, 'listEffective'),
+    revoke: vi.fn<LoginParticipation['revoke']>((...args) => current.revoke(...args)),
+    listEffective: vi.fn<LoginParticipation['listEffective']>((...args) =>
+      current.listEffective(...args),
+    ),
     logins,
   }
+  vi.spyOn(logins, 'participate').mockImplementation(unit => {
+    const scope = participate(unit)
+    return {
+      ...scope,
+      exchange: (...args) => {
+        current = scope
+        return spies.exchange(...args)
+      },
+      revoke: (...args) => {
+        current = scope
+        return spies.revoke(...args)
+      },
+      listEffective: (...args) => {
+        current = scope
+        return spies.listEffective(...args)
+      },
+    }
+  })
+  return { ...spies, participant: () => current }
 }
 
 describe('T-2 线上逐字节相同（真实组合）', () => {
-  it('没带、两个、三种表示层不合格、查不到、已撤销、撤销落在认人与办事之间：八次都是同一份 137 字节；表示层不合格那三次没调 exchange', async () => {
+  it('没带、两个、三种表示层不合格、查不到、已撤销、事务内登录跨过空闲期限：八次都是同一份 137 字节；表示层不合格那三次没调 exchange', async () => {
     const c = await boot()
     const ada = await session(c, 'ada@example.invalid')
     const revoked = await login(c, 'ada@example.invalid')
@@ -127,14 +155,14 @@ describe('T-2 线上逐字节相同（真实组合）', () => {
     replies.push(
       await askRaw(
         c,
-        `{"protocolVersion":"1","presentedLoginState":"${ada.presentation}","presentedLoginState":"${ada.presentation}x","operation":"${mine}","payload":{}}`,
+        `{"protocolVersion":"2","presentedLoginState":"${ada.presentation}","presentedLoginState":"${ada.presentation}x","operation":"${mine}","payload":{}}`,
       ),
     )
     for (const malformed of [` ${ada.presentation}`, 'lsp_\\uD800x', 'x'.repeat(1025)]) {
       replies.push(
         await askRaw(
           c,
-          `{"protocolVersion":"1","presentedLoginState":"${malformed}","operation":"${mine}","payload":{}}`,
+          `{"protocolVersion":"2","presentedLoginState":"${malformed}","operation":"${mine}","payload":{}}`,
         ),
       )
     }
@@ -143,18 +171,26 @@ describe('T-2 线上逐字节相同（真实组合）', () => {
     replies.push(await ask(c, envelopeOf(mine, {}, revoked.presentation)))
     // 入口层认人只经 exchange（S-44），从不调 verify（下面测试自己插进去的那次撤销在 AI 内部会用到它，所以先核）
     expect(spies.verify).not.toHaveBeenCalled()
-    // 撤销落在认人与办事之间：exchange 认出人之后、推导读 OG S-36 之前，同一登录状态被真实撤销
+    // Time can advance while the transaction excludes competing writers.
     const victim = await login(c, 'ada@example.invalid')
     presentations.add(victim.presentation)
-    const exchange = spies.logins.exchange.bind(spies.logins)
     spies.exchange.mockImplementationOnce(async presentation => {
-      const identity = await exchange(presentation)
-      if ('ok' in identity)
-        await spies.logins.revoke(identity.ok.loginStateId, identity.ok.loginStateId)
+      const identity = await spies.participant().exchange(presentation)
+      c.clock.advance(3_600_000)
       return identity
     })
     replies.push(
-      await ask(c, envelopeOf(OG(23), { invitedAccount: ada.account }, victim.presentation)),
+      await ask(
+        c,
+        envelopeOf(
+          OG(23),
+          {
+            invitedAccount: ada.account,
+            expectedTenant: { organization: ada.personal, account: ada.account },
+          },
+          victim.presentation,
+        ),
+      ),
     )
     expect(replies).toHaveLength(8)
     for (const reply of replies) expect(reply).toEqual(REJECTED)
@@ -249,8 +285,8 @@ describe('T-5 列表句柄、撤销与备份（真实组合）', () => {
     expect(Array.isArray(listed)).toBe(true)
     const items = listed as { loginStateHandle: string; issuedAt: string }[]
     expect(items.map(item => Object.keys(item))).toEqual([
-      ['loginStateHandle', 'issuedAt'],
-      ['loginStateHandle', 'issuedAt'],
+      ['loginStateHandle', 'issuedAt', 'lastActivityAt', 'absoluteExpiresAt', 'idleExpiresAt'],
+      ['loginStateHandle', 'issuedAt', 'lastActivityAt', 'absoluteExpiresAt', 'idleExpiresAt'],
     ])
     expect(items.map(item => item.loginStateHandle).sort()).toEqual(
       [ada.handle, second.handle].sort(),
@@ -306,31 +342,27 @@ describe('T-5 列表句柄、撤销与备份（真实组合）', () => {
     expect(await ask(c, envelopeOf(LIST_LOGINS, {}, ada.presentation))).toEqual(REJECTED)
   })
 
-  it('两条交错：认人与撤销之间目标被别处撤掉 ⇒ ok；发起方被撤掉 ⇒ login-state-rejected', async () => {
+  it('共同事务前已撤销目标仍幂等；已撤销发起方不得撤销另一个目标', async () => {
     const c = await boot()
     const ada = await session(c, 'ada@example.invalid')
     const target = await login(c, 'ada@example.invalid')
+    const another = await login(c, 'ada@example.invalid')
     presentations.add(target.presentation)
-    const spies = spyLogins(c)
-    const revoke = spies.logins.revoke.bind(spies.logins)
-    spies.revoke.mockImplementationOnce(async (targetId, initiator) => {
-      await revoke(target.handle, initiator)
-      return revoke(targetId, initiator)
-    })
+    presentations.add(another.presentation)
+    const adaId = parseLoginStateId(ada.handle)
+    const otherId = parseLoginStateId(another.handle)
+    if (!isOk(adaId) || !isOk(otherId)) throw new Error('invalid test handle')
+    await c.logins().revoke(target.handle, adaId.ok)
     expect(
       bodyOf(
         await ask(c, envelopeOf(REVOKE, { loginStateHandle: target.handle }, ada.presentation)),
       ),
     ).toEqual({ result: 'ok' })
-    const another = await login(c, 'ada@example.invalid')
-    presentations.add(another.presentation)
-    spies.revoke.mockImplementationOnce(async (targetId, initiator) => {
-      await revoke(initiator, initiator)
-      return revoke(targetId, initiator)
-    })
+    await c.logins().revoke(ada.handle, otherId.ok)
     expect(
       await ask(c, envelopeOf(REVOKE, { loginStateHandle: another.handle }, ada.presentation)),
     ).toEqual(REJECTED)
+    expect(await c.logins().exchange(another.presentation)).toHaveProperty('ok')
   })
 
   it('备份那一半（契约 S-41 后半）：登录三次、撤销一次、停机备份；备份里每一个字符串值当出示物都得 login-state-rejected，与没带时逐字节相同；两个仍有效的照常能用', async () => {
@@ -399,7 +431,10 @@ describe('T-6 身份推导与补授权（真实组合）', () => {
           c,
           envelopeOf(
             OG(37),
-            { targetTenant: { organization: team, account: ada.account } },
+            {
+              expectedTenant: { organization: ada.personal, account: ada.account },
+              targetTenant: { organization: team, account: ada.account },
+            },
             ada.presentation,
           ),
         ),
@@ -407,14 +442,34 @@ describe('T-6 身份推导与补授权（真实组合）', () => {
     ).toEqual({ result: 'ok' })
     const invitation = String(
       result(
-        bodyOf(await ask(c, envelopeOf(OG(23), { invitedAccount: bob.account }, ada.presentation))),
+        bodyOf(
+          await ask(
+            c,
+            envelopeOf(
+              OG(23),
+              {
+                invitedAccount: bob.account,
+                expectedTenant: { organization: team, account: ada.account },
+              },
+              ada.presentation,
+            ),
+          ),
+        ),
       ),
     )
     const view = result(
       bodyOf(
         await ask(
           c,
-          envelopeOf(OG(55), { invitation, callerIdentityKind: 'tenant' }, ada.presentation),
+          envelopeOf(
+            OG(55),
+            {
+              invitation,
+              callerIdentityKind: 'tenant',
+              expectedTenant: { organization: team, account: ada.account },
+            },
+            ada.presentation,
+          ),
         ),
       ),
     )
@@ -426,13 +481,25 @@ describe('T-6 身份推导与补授权（真实组合）', () => {
           OG(23),
           {
             invitedAccount: bob.account,
+            expectedTenant: { organization: team, account: ada.account },
             issuerTenant: { organization: bob.personal, account: ada.account },
           },
           ada.presentation,
         ),
       ),
     ).toEqual(INVALID)
-    const issued = result(bodyOf(await ask(c, envelopeOf(OG(58), {}, ada.presentation))))
+    const issued = result(
+      bodyOf(
+        await ask(
+          c,
+          envelopeOf(
+            OG(58),
+            { expectedTenant: { organization: team, account: ada.account } },
+            ada.presentation,
+          ),
+        ),
+      ),
+    )
     expect(issued).toMatchObject({ invitations: [{ invitation }] })
     expect((issued as { invitations: unknown[] }).invitations).toHaveLength(1)
     expect(
@@ -460,7 +527,19 @@ describe('T-6 身份推导与补授权（真实组合）', () => {
     const ada = await session(c, 'ada@example.invalid')
     const bob = await session(c, 'bob@example.invalid')
     expect(
-      bodyOf(await ask(c, envelopeOf(OG(23), { invitedAccount: bob.account }, ada.presentation))),
+      bodyOf(
+        await ask(
+          c,
+          envelopeOf(
+            OG(23),
+            {
+              invitedAccount: bob.account,
+              expectedTenant: { organization: ada.personal, account: ada.account },
+            },
+            ada.presentation,
+          ),
+        ),
+      ),
     ).toEqual({ failure: 'issuerIsPersonalOrganization' })
   })
 })
@@ -485,19 +564,46 @@ describe('T-7 δ = 0：每个请求现读（真实组合）', () => {
     const team = String(result(bodyOf(await ask(c, envelopeOf(OG(21), {}, ada.presentation)))))
     organizationIds.add(team)
     expect(
-      bodyOf(await ask(c, envelopeOf(OG(23), { invitedAccount: bob.account }, ada.presentation))),
+      bodyOf(
+        await ask(
+          c,
+          envelopeOf(
+            OG(23),
+            {
+              invitedAccount: bob.account,
+              expectedTenant: { organization: ada.personal, account: ada.account },
+            },
+            ada.presentation,
+          ),
+        ),
+      ),
     ).toEqual({ failure: 'issuerIsPersonalOrganization' })
     await ask(
       c,
       envelopeOf(
         OG(37),
-        { targetTenant: { organization: team, account: ada.account } },
+        {
+          expectedTenant: { organization: ada.personal, account: ada.account },
+          targetTenant: { organization: team, account: ada.account },
+        },
         ada.presentation,
       ),
     )
     const invitation = String(
       result(
-        bodyOf(await ask(c, envelopeOf(OG(23), { invitedAccount: bob.account }, ada.presentation))),
+        bodyOf(
+          await ask(
+            c,
+            envelopeOf(
+              OG(23),
+              {
+                invitedAccount: bob.account,
+                expectedTenant: { organization: team, account: ada.account },
+              },
+              ada.presentation,
+            ),
+          ),
+        ),
       ),
     )
     expect(bodyOf(await ask(c, envelopeOf(OG(25), { invitation }, bob.presentation)))).toEqual({
@@ -512,7 +618,10 @@ describe('T-7 δ = 0：每个请求现读（真实组合）', () => {
           c,
           envelopeOf(
             OG(29),
-            { targetTenant: { organization: team, account: bob.account } },
+            {
+              expectedTenant: { organization: team, account: ada.account },
+              targetTenant: { organization: team, account: bob.account },
+            },
             ada.presentation,
           ),
         ),
@@ -540,6 +649,8 @@ describe('T-9 客户端一面没有第三张面', () => {
 
 describe('T-16 不记住来访、不区别对待来者', () => {
   it('同一个有效登录状态、同一件事，从两个对端地址、以人用客户端与脚本的写法各发一次 ⇒ 答复逐字节相同', async () => {
+    expect(isIPv4(ALTERNATE_SOURCE_ADDRESS), 'alternate source must be an IPv4 address').toBe(true)
+    expect(['127.0.0.1', '0.0.0.0']).not.toContain(ALTERNATE_SOURCE_ADDRESS)
     const c = await boot()
     const ada = await session(c, 'ada@example.invalid')
     const body = JSON.stringify(envelopeOf(OG(27), {}, ada.presentation))
@@ -554,14 +665,20 @@ describe('T-16 不记住来访、不区别对待来者', () => {
     const replies = [
       await tlsExchange(c.port, human, { localAddress: '127.0.0.1' }),
       await tlsExchange(c.port, script, { localAddress: '127.0.0.1' }),
-      await tlsExchange(c.port, human, { localAddress: '127.0.0.2' }),
-      await tlsExchange(c.port, script, { localAddress: '127.0.0.2' }),
+      await tlsExchange(c.port, human, { localAddress: ALTERNATE_SOURCE_ADDRESS }),
+      await tlsExchange(c.port, script, { localAddress: ALTERNATE_SOURCE_ADDRESS }),
     ]
     for (const reply of replies) outputs.push(reply.bytes.toString('latin1'))
     expect(bodyOf(replies[0]?.bytes ?? Buffer.alloc(0))).toMatchObject({
       result: [{ account: ada.account }],
     })
-    for (const reply of replies) expect(reply.bytes).toEqual(replies[0]?.bytes)
+    for (const reply of replies) {
+      expect(
+        reply.error,
+        `alternate source ${ALTERNATE_SOURCE_ADDRESS}; set OMNE_TEST_ALTERNATE_SOURCE_ADDRESS to a different local IPv4 address that can reach the loopback listener`,
+      ).toBeUndefined()
+      expect(reply.bytes).toEqual(replies[0]?.bytes)
+    }
   })
 })
 
@@ -602,7 +719,7 @@ describe('T-11 秘密不进任何输出（本文件全部答复、体检、工�
       .join('\n')
     expect(engineering.length).toBeGreaterThan(0)
     expect(engineering).not.toContain('127.0.0.1')
-    expect(engineering).not.toContain('127.0.0.2')
+    expect(engineering).not.toContain(ALTERNATE_SOURCE_ADDRESS)
     for (const id of accountIds) expect(engineering).not.toContain(id)
     for (const id of organizationIds) expect(engineering).not.toContain(id)
     for (const value of payloadValues) expect(engineering).not.toContain(value)

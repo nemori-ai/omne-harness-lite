@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/storage-sql@0.0.0 typecheck /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/infra/storage-sql
+> tsc -p tsconfig.test.json
+

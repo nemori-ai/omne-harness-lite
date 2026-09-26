@@ -2,7 +2,7 @@
 
 契约侧的证据义务权威在 [`spec/capabilities/organization-governance/verification.md`](../../../../spec/capabilities/organization-governance/verification.md)：
 两份形式工件、九条规范场景（S-46～S-52、S-54，另有 S-21 创建键、S-23／S-30 时长两路、S-30 自环、S-53 依据四条无场景号的义务）。本页按本节点的兑现点登记。
-**v2（候选）** 沿用 v1 的形式工件（v2 [S-45](../../../../spec/capabilities/organization-governance/v2/contract.md#s-45-本版选用哪些形式工件)），新增的义务是场景 S-61 与本节点的双版本、迁移、外部依赖三项（下表标「v2」的行）。
+**v2（候选）** 沿用 v1 的形式工件（v2 [S-45](../../../../spec/capabilities/organization-governance/v3/contract.md#s-45-本版选用哪些形式工件)），新增的义务是场景 S-61 与本节点的双版本、迁移、外部依赖三项（下表标「v2」的行）。
 
 ## 证据义务
 
@@ -25,7 +25,7 @@
 | [S-23](../../../../spec/capabilities/organization-governance/v1/contract.md#s-23-发出邀请)／[S-30](../../../../spec/capabilities/organization-governance/v1/contract.md#s-30-发出隶属请求) 时长两路、S-30 自环 | 演练 | **已通过**（同 run）：`offers.spec.ts` › `S-23／S-30 有效时长两路（同一次对比）`（2 条）；自环 `organizations.spec.ts` › `S-32／S-33／S-34 隶属与上级链` › `S-32 判环两半：…与 S-30 自环同一个值` | 本节点 |
 | [S-42 第 4 行](../../../../spec/capabilities/organization-governance/v1/contract.md#s-42-装配给的保证-vs-协议须给的保证) 只由清除链调用 | 结构检查：仓库内解析 `organization-purge` 的包只有 `account-registration`——**同时查 inject 声明与 `ctx.get('organization-purge')` 一类动态解析**；须有一条「在别的包里故意解析就失败」的自测 | **已通过**（同 run）：`tools/ts-checks/tests/consumer-rules.spec.ts` › `og-s42-dynamic-resolve`（3 条，含对真实 OG `plugin.ts` 的变异核对）；`tools/ts-checks/tests/rules.spec.ts` › `restricted-call-sites`；`pnpm run lint:rules` 退出 0；本包 `organizations.spec.ts` › `S-42 第 4 行：S-53 单独一个服务名` | 装配节点；本节点提出形式 |
 | S-36／S-37 的登录状态参数是品牌（[design S-36／S-37 行](design.md#操作)；[AI v2 S-30 第 10 行](../../../../spec/capabilities/account-identity/v2/contract.md#s-30-装配给的保证-vs-协议须给的保证)） | **类型测试**（`tests/types.spec-d.ts`）：把 `unknown` 与 `string` 交给 `currentTenant`、`switchCurrentTenant` 的登录状态参数须编译失败（`@ts-expect-error`，去掉即红），交 `LoginStateId` 编译通过；**另一支运行期**：绕过类型送非法表示（空串、首尾空白）⇒ `invalidInput`，不是 `loginStateNotValid`、不是 `unavailable`，且本节点没有读存储——钉住「S-31 解析交给 AI S-17、本节点按 S-4 第三行映射」 | **已通过**（同 run）：类型 `types.spec-d.ts` › `E-4：S-36／S-37 的登录状态参数是 LoginStateId 品牌…`；运行期 `memberships.spec.ts` › `S-36／S-37 当前租户身份` › `E-4 运行期那一支：绕过类型送非法表示 ⇒ invalidInput（不是 loginStateNotValid／unavailable），且本节点没有读存储` | 本节点。类型那一支失守是静默的：入口层把线上的串直接交进来，每一步都返回成功 |
-| **v2** [S-61](../../../../spec/capabilities/organization-governance/v2/contract.md#s-61-两个时刻随写入写下按规则改写由三个读面带出) 两个时刻 | 两段演练（成员关系、隶属），每步之后经 v2 三个读面各读一次；两支故障注入（时刻读不到 ⇒ `unavailable`）；「严格更晚」在同一时钟分辨率内连做 | **未开始**（源码未改）；「严格更晚」一支受阻于 V2-2 | 本节点 ＋ `infra/clock` |
+| **v2** [S-61](../../../../spec/capabilities/organization-governance/v3/contract.md#s-61-两个时刻随写入写下按规则改写由三个读面带出) 两个时刻 | 两段演练（成员关系、隶属），每步之后经 v2 三个读面各读一次；两支故障注入（时刻读不到 ⇒ `unavailable`）；「严格更晚」在同一时钟分辨率内连做 | **未开始**（源码未改）；「严格更晚」一支受阻于 V2-2 | 本节点 ＋ `infra/clock` |
 | **v2** §十三 双版本 | 同一库、同一实例：经 v1 服务名读存量记录 ⇒ v1 形状、不因时刻缺失而 `unavailable`；经 v2 服务名读同一记录 ⇒ `unavailable`；一次写之后两版读面都看得见 v1 承诺的效果 | 未开始 | 本节点 |
 | **v2** 迁移片段 | 在带 v1 数据的库上跑合成序列：新片段追加在末尾、登记序列仍是前缀、两列为空、再跑一遍不重复加列 | 未开始 | 本节点 ＋ tenancy-host |
 | **v2** 外部依赖 X-1～X-3 | 资产提供者的交错演练（它的 verification D-4、D-8、D-9）；`./tx-reads` 的导入限定规则 ＋ 自测（V2-4） | 未开始 | 本节点 ＋ asset-governance ＋ `tools/ts-checks` |
@@ -67,19 +67,19 @@
 **v2（候选，尚未实现）还缺的**：
 
 - **全部 v2 实现证据缺席**：上表四条 v2 行都未开始；`bindings.yaml` 里三条 v2 绑定证的是沿用的 v1 模型（S-17 那一格），**模型里没有两个时刻**，对它们什么也没说。
-- **「先后两次串行提交的时刻不相等」**受阻于 `infra/clock` 的 C-15（V2-2，D-040 §八 M58）；在它落地之前 S-61「严格更晚」一支跑不出绿，标「**有前提：C-15**」（C-15 已按 D-040 §八 N-34 排为实施程前置任务，落地后这一支是通过条件）。
-- **存量记录不补时刻**（V2-3，D-040 §八 N-19 已接受）：带 v1 数据的库上 v2 读面与资产流转判定的 `unavailable` 是预期结果，不是缺陷；半径是被分享方整个组织的快照（M61）。
-- **v2 两个服务名本版无人 inject**：v2 读面的唯一证据是 S-61（D-040 §八 M59）。
+- **「先后两次串行提交的时刻不相等」**受阻于 `infra/clock` 的 C-15（V2-2，D-060 §八 M58）；在它落地之前 S-61「严格更晚」一支跑不出绿，标「**有前提：C-15**」（C-15 已按 D-060 §八 N-34 排为实施程前置任务，落地后这一支是通过条件）。
+- **存量记录不补时刻**（V2-3，D-060 §八 N-19 已接受）：带 v1 数据的库上 v2 读面与资产流转判定的 `unavailable` 是预期结果，不是缺陷；半径是被分享方整个组织的快照（M61）。
+- **v2 两个服务名本版无人 inject**：v2 读面的唯一证据是 S-61（D-060 §八 M59）。
 - `./tx-reads` 的导入限定与钉版本的静态核对都没有规则（V2-4、V2-5）。
 
 ## 独立评审
 
-2026-09-25 本节点的 v2 修订段随 N2 批经一次独立的架构评审（只读结构核对，无运行，基线 HUB `00a4c1c6`；v1 段不在范围）：本节点应修 1（与 asset-governance AG-2 同一件事）、建议 1、观察 1，无阻断；主线据此裁定 [D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M58、M59（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
+2026-09-25 本节点的 v2 修订段随 N2 批经一次独立的架构评审（只读结构核对，无运行，基线 HUB `00a4c1c6`；v1 段不在范围）：本节点应修 1（与 asset-governance AG-2 同一件事）、建议 1、观察 1，无阻断；主线据此裁定 [D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M58、M59（批的结论见同节 N-28）。**处置不等于评审闭合**——是否闭合由复审判断。
 
 | 编号 | 发现 | 处置 | 落点 |
 | --- | --- | --- | --- |
 | OG-1 应修 | V2-2 交接给 `infra/clock` 未落，且与它现有断言相反 | 按 M58：手段选时钟，登为 `infra/clock` 的 C-15（下一程）；V2-2 改指 C-15，本节点无动作 | design V2-2 与「v2 S-42 两个时刻可比」行；本页覆盖缺口 |
-| OG-2 建议 | v2 两个读面服务名本版无人 inject；契约写的单机路径（代行读）与实现路径（事务内读）不同 | 按 M59：写明本版无消费者、唯一证据是 S-61，D-041 的接受口径不变；AT S-34 与 v2 S-42「代行读两个时刻」两行由主线加半句「同一存储内一次可串行化读（含事务内直读）即满足」 | design「双版本怎么服务」末段、「代行读两个时刻」行；本页覆盖缺口 |
+| OG-2 建议 | v2 两个读面服务名本版无人 inject；契约写的单机路径（代行读）与实现路径（事务内读）不同 | 按 M59：写明本版无消费者、唯一证据是 S-61，D-061 的接受口径不变；AT S-34 与 v2 S-42「代行读两个时刻」两行由主线加半句「同一存储内一次可串行化读（含事务内直读）即满足」 | design「双版本怎么服务」末段、「代行读两个时刻」行；本页覆盖缺口 |
 | OG-3 观察 | R-8 锁次序、`parent_established_at` 的静态检查、v2 绑定沿用 v1 模型、存量不补时刻的标价、装卸增量 | 已核对、无处置 | — |
 
 V2-3 的半径（被分享方整个组织的快照不可用）按 asset-governance 的 AG-4 与 M61 写进 design V2-3。

@@ -7,13 +7,13 @@ const root =
 const transportDomain = Object.freeze({
   kind: 'open' as const,
   schema: Object.freeze({
-    $ref: `${root}/mcp-endpoint/v1/mcp-endpoint.schema.json#/$defs/McpTransport`,
+    $ref: `${root}/mcp-endpoint/v2/mcp-endpoint.schema.json#/$defs/McpTransport`,
   }),
 })
 const credentialDomain = Object.freeze({
   kind: 'open' as const,
   schema: Object.freeze({
-    $ref: `${root}/asset-model/v1/asset-model.schema.json#/$defs/CredentialRef`,
+    $ref: `${root}/asset-model/v2/asset-model.schema.json#/$defs/CredentialRef`,
   }),
 })
 const durationDomain = Object.freeze({
@@ -21,7 +21,7 @@ const durationDomain = Object.freeze({
   schema: Object.freeze({
     allOf: Object.freeze([
       Object.freeze({
-        $ref: `${root}/tool-definition/v1/tool-definition.schema.json#/$defs/Duration`,
+        $ref: `${root}/tool-definition/v2/tool-definition.schema.json#/$defs/Duration`,
       }),
       Object.freeze({
         not: Object.freeze({ pattern: '^PT(?:0+H)?(?:0+M)?(?:0+(?:[.]0+)?S)?(?![\\s\\S])' }),

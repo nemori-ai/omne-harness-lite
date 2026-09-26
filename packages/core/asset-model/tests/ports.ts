@@ -25,7 +25,7 @@ function resource(topic: string): JsonObject {
   const parsed = readJsonStrict(
     readFileSync(
       new URL(
-        `../../../../.meta_harness/design/spec/data/${topic}/v1/${topic}.schema.json`,
+        `../../../../.meta_harness/design/spec/data/${topic}/v2/${topic}.schema.json`,
         import.meta.url,
       ),
       'utf8',

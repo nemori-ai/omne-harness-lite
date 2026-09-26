@@ -87,7 +87,7 @@ describe('exact author domains, pure derivation and body port', () => {
     ['true schema null', 'true', 'null', true],
     [
       'owned reference',
-      '{"$ref":"https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v1/tool-definition.schema.json#/$defs/TargetEnvironment"}',
+      '{"$ref":"https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json#/$defs/TargetEnvironment"}',
       '{"bindingLayer":"host_machine","facilities":[]}',
       true,
     ],

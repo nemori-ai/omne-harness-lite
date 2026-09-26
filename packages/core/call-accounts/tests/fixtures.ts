@@ -3,7 +3,7 @@ import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { judgeAccountValue, validate, SCHEMA_DEF_NAMES, type SchemaDefName } from '../src/index.ts'
 
 const spec = new URL(
-  '../../../../.meta_harness/design/spec/data/call-accounts/v1/',
+  '../../../../.meta_harness/design/spec/data/call-accounts/v2/',
   import.meta.url,
 )
 const text = readFileSync(new URL('examples.md', spec), 'utf8')

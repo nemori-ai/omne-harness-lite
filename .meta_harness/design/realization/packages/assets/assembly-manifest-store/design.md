@@ -1,6 +1,6 @@
 # assembly-manifest-store 实现设计
 
-> 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
+> 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
 ## 实现路径与来源
 
@@ -27,9 +27,9 @@
 
 | 层 | 导出（候选） | 做什么 | 承诺到哪 |
 |---|---|---|---|
-| 纯函数 | `checkManifestAppendInput(request)` | 契约 [S-17](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-17-append条件追加一条换表记录) ⑥ 的 `invalidInput` 各情形 | 只判表示层 |
+| 纯函数 | `checkManifestAppendInput(request)` | 契约 [S-17](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-17-append条件追加一条换表记录) ⑥ 的 `invalidInput` 各情形 | 只判表示层 |
 | 纯函数 | `judgeManifestAppend(facts, request)` | 对一份「此刻的事实」（头、这个引用归谁、`reuse` 的目标在不在、各类最后的表时刻）依次判 `alreadyRecorded` → `evaluationRefConflict` → `recordNotFound` → `headMismatch` → `filledAtNotIncreasing`，全过答「可写」 | 只在给定的那一份事实上判；那一份是不是「提交点之前已提交的全部」，函数层不承诺 |
-| 纯函数 | `answerPresence(snapshot, names)` | 契约 [S-19](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-19-dependencypresence依赖名此刻在不在场) ⑤⑧：任一名字没有事实即整次 `unavailable` | 只判给定的快照 |
+| 纯函数 | `answerPresence(snapshot, names)` | 契约 [S-19](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-19-dependencypresence依赖名此刻在不在场) ⑤⑧：任一名字没有事实即整次 `unavailable` | 只判给定的快照 |
 | 闭包 | `createAssemblyManifestStore(storage, { presenceSource? })` → `{ readHead, append, readHistory, dependencyPresence }` | 整份契约 | 契约全部条款；前提是交给它的存储兑现 `core/storage` 协议、且没有别人改这两张表 |
 | 迁移片段 | `assemblyManifestMigrations: readonly MigrationFragment[]` | 建两张表与索引（幂等） | 表的形状；装配合成 |
 | Cordis 服务 | 插件 `assembly-manifest-store`，服务 `assemblyManifest` | 以注入的 `storage` 组出闭包 | 再加：据点根一份；`storage` 换代时重跑 |
@@ -49,7 +49,7 @@
 | `assembly_manifest_record` | `session`、`seq`（整数）、`evaluation_kind`（`given`／`mint`／`reuse`）、`evaluation_ref`（这条所依的引用）、`owned_ref`（`given`、`mint` 时等于 `evaluation_ref`，`reuse` 时为空）、`content`（无损 JSON 文本） | 主键 (`session`, `seq`)，不命名 ⇒ `assembly_manifest_record_pkey`；唯一索引 `assembly_manifest_record_owned_ref_unique` 于 `owned_ref`（空值互不冲突，两方言皆然）；`CHECK`：`evaluation_kind` 三选一、`owned_ref` 为空当且仅当 `reuse`、不空时等于 `evaluation_ref` | 本节点的 `append` |
 | `assembly_manifest_table` | `session`、`seq`、`category`、`filled_at`（`Instant`，整数）、`composition`（无损 JSON 文本） | 主键 (`session`, `seq`, `category`) ⇒ `assembly_manifest_table_pkey`；唯一索引 `assembly_manifest_table_filled_unique` 于 (`session`, `category`, `filled_at`)；外键 (`session`, `seq`) → `assembly_manifest_record`，`ON DELETE RESTRICT` | 同上，与记录行同一事务 |
 
-**没有 UPDATE、没有 DELETE**：本包没有改与删这两张表的代码路径（契约 S-11、[S-24](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-24-留存本版不删)「本版不删」；结构检查 V-4）。
+**没有 UPDATE、没有 DELETE**：本包没有改与删这两张表的代码路径（契约 S-11、[S-24](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-24-留存本版不删)「本版不删」；结构检查 V-4）。
 
 ### 条件追加：一次写事务
 
@@ -75,11 +75,11 @@
 | 为什么选它 | 判定次序要靠「撞了再重判」才守得住：输家的 `alreadyRecorded`、`recordNotFound` 都是在对手提交之前判的，只有重判才对——对的，但每一种结论都要经过这条迂回，它成了常路而不是兜底 | pg 上一个会话的**第一次**追加没有「头」那一行可锁（锁定读锁不住不存在的行，`core/storage` 协议 `lockRow` 一行的说明）；要先插后锁，又回到左列的冲突路 | 同一会话的追加在存储里真正排成一列，判定次序平铺直叙；主键仍在，哨兵被绕过时照样挡住第二条 `seq`。与执行宿主「同会话写由存储哨兵序列化」同一做法 |
 | 置信度 | | | 高 |
 
-**两个写入者共同触碰的存储对象**：**`assembly_manifest_record` 的主键 (`session`, `seq`)**——头就是这些行里最大的 `seq`；同一会话的追加另经**同名哨兵**在存储里排队（sqlite 的库级写锁、pg 的事务级咨询锁，都在存储一侧、随事务结束释放，不是进程内锁）。求值引用的全局唯一落在 **`owned_ref` 唯一索引**上。跨 owner 那一侧：会话资产注册表以这一次追加为换表的提交点（`capability.asset-registry/v1#S-18`；注册表节点[关键选择三](../../tools/asset-registry/design.md#关键选择)），**它与本节点共同触碰的就是这个主键**。
+**两个写入者共同触碰的存储对象**：**`assembly_manifest_record` 的主键 (`session`, `seq`)**——头就是这些行里最大的 `seq`；同一会话的追加另经**同名哨兵**在存储里排队（sqlite 的库级写锁、pg 的事务级咨询锁，都在存储一侧、随事务结束释放，不是进程内锁）。求值引用的全局唯一落在 **`owned_ref` 唯一索引**上。跨 owner 那一侧：会话资产注册表以这一次追加为换表的提交点（`capability.asset-registry/v2#S-18`；注册表节点[关键选择三](../../tools/asset-registry/design.md#关键选择)），**它与本节点共同触碰的就是这个主键**。
 
 **反证四条交错**：
 
-- **同一注册表实例两次并发换表，都以头 3 追加**：sqlite 上第二个写事务在 `BEGIN IMMEDIATE` 处等第一个提交，进来读到头 4 ⇒ `headMismatch{4}`；pg 上第二个在哨兵处等，拿到后读到头 4 ⇒ 同上。把哨兵拿掉（故障注入）⇒ 两者都插 `seq = 4`，后者撞主键、重判得 `headMismatch{4}`；把主键**也**拿掉 ⇒ 出现两条序号 4——契约场景 [S-26](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-26-条件追加两路并发恰一路成) 的故障注入支要它必须失败。
+- **同一注册表实例两次并发换表，都以头 3 追加**：sqlite 上第二个写事务在 `BEGIN IMMEDIATE` 处等第一个提交，进来读到头 4 ⇒ `headMismatch{4}`；pg 上第二个在哨兵处等，拿到后读到头 4 ⇒ 同上。把哨兵拿掉（故障注入）⇒ 两者都插 `seq = 4`，后者撞主键、重判得 `headMismatch{4}`；把主键**也**拿掉 ⇒ 出现两条序号 4——契约场景 [S-26](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-26-条件追加两路并发恰一路成) 的故障注入支要它必须失败。
 - **注册表旧实例在途的追加 × 新实例的追加**（注册表因提供者换代重跑，内核不取消旧实例手上那一次）：两者经同一个 `storage` 实例（或它换代后的新实例，指向同一库文件）写同一张表——序列化与主键都在库里，与哪个插件实例发起无关；后到者 `headMismatch`，按注册表节点关键选择三重建重做。
 - **两个会话同时以同一个引用 `given`**：哨兵不同名、不互等；两者都判「这个引用没人用」⇒ 都插 ⇒ 后提交者撞 `owned_ref` 唯一索引 ⇒ 重判得 `evaluationRefConflict`。只有唯一索引挡得住这一条——本版 `given` 的引用由装配交来，全局唯一靠的就是它（契约 S-21 第三行左列）。
 - **装配那一次提交之后、回执之前进程被杀，注册表以同一 `given{e1}` 重交**：记录已在 ⇒ `alreadyRecorded{record}`（判在 `headMismatch` 之前，契约 S-17 末段）。`mint`／`reuse` 同样情形下重交得 `headMismatch`，由注册表读头比对（契约 S-22 第 2 条、G-7）。
@@ -112,25 +112,25 @@
 
 | 契约责任 | 插件、服务／贡献或公开操作 | 实现／源码与采用版本 | 符合性依据或缺口 |
 |---|---|---|---|
-| [S-5](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-5-一个会话一列换表记录) 一列只增的记录 | 两张表，按 `session` 分列；没有改删路径 | 尚未建包 | 从没追加过的会话读得头 `0`、空映射——读得到的事实，不是失败 |
-| [S-6](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-6-记录与它的壳) 记录与壳 | 记录行 ＋ 每类一行表行；`tables` 非空、类别两两不同由表示层与主键双守 | 尚未建包 | `composition`、`content` 不解释 |
-| [S-7](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-7-序号与头) 序号与头 | `seq = 头 + 1`；头 = 最大 `seq` | 尚未建包 | 稠密：只有一个插入点、在序列化之下 |
-| [S-8](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-8-求值引用-evaluationref) 求值引用 | `owned_ref` 唯一索引；`given` 认回、`mint` 随机铸、`reuse` 沿用 | 尚未建包 | 本节点不解析引用；权威在契约 S-8 |
-| [S-9](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-9-表时刻同一类别上严格递增) 表时刻严格递增 | 事务内按 (会话, 类别) 取最大 `filled_at` 比较；唯一索引兜底 | 尚未建包 | 按整数比较，不按字典序 |
-| [S-10](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-10-在场事实) 在场事实 | `presenceSource`（配置） | 尚未建包 | 不进序号、不影响头；产品装配没有来源（AMS-2） |
-| [S-11](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-11-只增不改原样存原样交回) 原样存 | 严格无损读写，文本列 | 尚未建包 | 交来的不是合法 JSON 值 ⇒ `invalidInput`；自己存的读不出 ⇒ 缺陷 |
-| [S-12](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-12-条件追加判定与写入是同一步) 条件追加同一步 | 上文「一次写事务」 | 尚未建包 | 共同对象与反证见[关键选择一](#关键选择) |
-| [S-13](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-13-提交与持久) 提交与持久 | 记录行与表行同一写事务（`core/storage` P-1） | 尚未建包 | 断电边界 AMS-4；升级恢复 AMS-5 |
-| [S-14](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-14-缺席时的默认答案) 缺席默认 | `expectedHead`、`evaluation` 必填；读不到答 `unavailable`、不交头 `0` | 尚未建包 | 见[失败映射](#状态并发与失败映射) |
-| [S-16](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-16-readhead读头与每一类最后一条) `readHead` | 一次 `storage.read`：头 ＋ 每类最大 `filled_at` 那一行所属的记录 | 尚未建包 | 同一只读事务 ⇒ 同一刻（`core/storage` P-6）；「便宜」是两条语句，没有测量（AMS-10） |
-| [S-17](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-17-append条件追加一条换表记录) `append` | 上文「一次写事务」 | 尚未建包 | 判定次序照 ⑥；`given` 幂等不看期望头 |
-| [S-18](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-18-readhistory按表时刻读回一条) `readHistory` | 按 (会话, 类别, `filled_at`) 唯一索引取表行 → 取整条记录 | 尚未建包 | 同一组参数永远读回同一条（不删） |
-| [S-19](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-19-dependencypresence依赖名此刻在不在场) `dependencyPresence` | 表示层 → 没有来源 ⇒ `unavailable` → 来源交一份快照 → `answerPresence` | 尚未建包 | 任一名字缺事实 ⇒ 整次 `unavailable`，不答 `absent` |
-| [S-20](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-20-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
-| [S-21](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-21-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
-| [S-22](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-22-回执丢失与结果未知) 结果未知 | 不另做：`given` 由唯一索引认回，`mint`／`reuse` 由写入方读头比对 | —— | 契约 G-7 |
-| [S-23](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-23-提供者撤除换代与重启) 撤除、换代、重启 | 没有活状态；在场事实随配置重给 | —— | 重启后在场事实**不沿用**：来源由装配重新给出 |
-| [S-24](../../../../spec/capabilities/assembly-manifest/v1/contract.md#s-24-留存本版不删) 本版不删 | 没有删除路径；外键 `RESTRICT` 另挡住只删记录行 | —— | —— |
+| [S-5](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-5-一个会话一列换表记录) 一列只增的记录 | 两张表，按 `session` 分列；没有改删路径 | 尚未建包 | 从没追加过的会话读得头 `0`、空映射——读得到的事实，不是失败 |
+| [S-6](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-6-记录与它的壳) 记录与壳 | 记录行 ＋ 每类一行表行；`tables` 非空、类别两两不同由表示层与主键双守 | 尚未建包 | `composition`、`content` 不解释 |
+| [S-7](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-7-序号与头) 序号与头 | `seq = 头 + 1`；头 = 最大 `seq` | 尚未建包 | 稠密：只有一个插入点、在序列化之下 |
+| [S-8](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-8-求值引用-evaluationref) 求值引用 | `owned_ref` 唯一索引；`given` 认回、`mint` 随机铸、`reuse` 沿用 | 尚未建包 | 本节点不解析引用；权威在契约 S-8 |
+| [S-9](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-9-表时刻同一类别上严格递增) 表时刻严格递增 | 事务内按 (会话, 类别) 取最大 `filled_at` 比较；唯一索引兜底 | 尚未建包 | 按整数比较，不按字典序 |
+| [S-10](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-10-在场事实) 在场事实 | `presenceSource`（配置） | 尚未建包 | 不进序号、不影响头；产品装配没有来源（AMS-2） |
+| [S-11](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-11-只增不改原样存原样交回) 原样存 | 严格无损读写，文本列 | 尚未建包 | 交来的不是合法 JSON 值 ⇒ `invalidInput`；自己存的读不出 ⇒ 缺陷 |
+| [S-12](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-12-条件追加判定与写入是同一步) 条件追加同一步 | 上文「一次写事务」 | 尚未建包 | 共同对象与反证见[关键选择一](#关键选择) |
+| [S-13](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-13-提交与持久) 提交与持久 | 记录行与表行同一写事务（`core/storage` P-1） | 尚未建包 | 断电边界 AMS-4；升级恢复 AMS-5 |
+| [S-14](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-14-缺席时的默认答案) 缺席默认 | `expectedHead`、`evaluation` 必填；读不到答 `unavailable`、不交头 `0` | 尚未建包 | 见[失败映射](#状态并发与失败映射) |
+| [S-16](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-16-readhead读头与每一类最后一条) `readHead` | 一次 `storage.read`：头 ＋ 每类最大 `filled_at` 那一行所属的记录 | 尚未建包 | 同一只读事务 ⇒ 同一刻（`core/storage` P-6）；「便宜」是两条语句，没有测量（AMS-10） |
+| [S-17](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-17-append条件追加一条换表记录) `append` | 上文「一次写事务」 | 尚未建包 | 判定次序照 ⑥；`given` 幂等不看期望头 |
+| [S-18](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-18-readhistory按表时刻读回一条) `readHistory` | 按 (会话, 类别, `filled_at`) 唯一索引取表行 → 取整条记录 | 尚未建包 | 同一组参数永远读回同一条（不删） |
+| [S-19](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-19-dependencypresence依赖名此刻在不在场) `dependencyPresence` | 表示层 → 没有来源 ⇒ `unavailable` → 来源交一份快照 → `answerPresence` | 尚未建包 | 任一名字缺事实 ⇒ 整次 `unavailable`，不答 `absent` |
+| [S-20](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-20-本版不发事件) 不发事件 | 不 `emit`、不监听 | —— | —— |
+| [S-21](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-21-装配给的保证-vs-协议须给的保证) 装配给 vs 协议给 | 见[下节](#装配给与协议给本节点单机怎样兑现左列) | —— | —— |
+| [S-22](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-22-回执丢失与结果未知) 结果未知 | 不另做：`given` 由唯一索引认回，`mint`／`reuse` 由写入方读头比对 | —— | 契约 G-7 |
+| [S-23](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-23-提供者撤除换代与重启) 撤除、换代、重启 | 没有活状态；在场事实随配置重给 | —— | 重启后在场事实**不沿用**：来源由装配重新给出 |
+| [S-24](../../../../spec/capabilities/assembly-manifest/v2/contract.md#s-24-留存本版不删) 本版不删 | 没有删除路径；外键 `RESTRICT` 另挡住只删记录行 | —— | —— |
 
 ### 依赖、作用域与绑定
 
@@ -221,7 +221,7 @@
 | AMS-1 | **真承接者未到**（契约 G-1，据点装配 C-2） | 产品据点清单里注册表停在 `PENDING`（本版不装本节点） | 主线 → PF-004 那一程 | 那一程的装配清单契约收下或取代 AM v1，提供者节点互指或取代本节点 |
 | AMS-2 | **在场事实在产品装配里没有来源**（契约 G-2）：`dependencyPresence` 恒 `unavailable`；这个查询是否该住在装配清单里，语义归属仍存疑 | 派发器对带 `needs` 的件恒收「判不出」 | 主线（这个查询的家）；PF-006 依赖解析与据点装配那一程（事实的来源） | 事实有写面与来源；若家不在这里，从契约新版移出、本节点删掉这一查询 |
 | AMS-3 | **派发器读链与模型请求运行时读求值结果读不出**（契约 G-4）：本节点原样交回写入方记下的 `content`，读法没有约定 | 派发器服务面的链与不可用处置、模型请求运行时的选中初值、层锁与两个时限（验收里由测试经函数面直接交值） | PF-004 那一程（C-2） | 那一程定下记录里求值那一部分的形状与读法 |
-| AMS-4 | **断电边界**（契约 G-3；已知边界，主线已裁（[D-040 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)））：边界与论证见 [session-log-jsonl SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：注册表已被告知成功，重建出来少一次换表 | S-13 第 2 条、注册表 R-M7 | 主线（已知边界） | 不闭合的已知边界；产品要求断电不丢时另出决定、契约出新版 |
+| AMS-4 | **断电边界**（契约 G-3；已知边界，主线已裁（[D-060 §八 N-40](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)））：边界与论证见 [session-log-jsonl SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)，本节点不另论证。落在本节点的后果：注册表已被告知成功，重建出来少一次换表 | S-13 第 2 条、注册表 R-M7 | 主线（已知边界） | 不闭合的已知边界；产品要求断电不丢时另出决定、契约出新版 |
 | AMS-5 | **升级恢复撤掉确认之前的记录**：与「本版不删」冲突的唯一一条路径；与 AMS-4 同一条已知边界的另一条来路（[SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)） | S-24、S-13 | 装配 | 不闭合的已知边界；由「开闸在确认之后」挡住——前提同 [SLJ-2](../../session/session-log-jsonl/design.md#实施缺口与消费者影响)，已由 [cli 升级确认在第一次受理之前](../../../apps/cli/design.md#升级确认在第一次受理之前) 承接（据点清单 A-28，产品与验收装配同一时点：全部 fiber `ACTIVE` 之后 `guard.confirm()`，确认之后才开闸；证据义务 `assembly.upgrade-confirmed`，名候选，归 cli 节点） |
 | AMS-6 | **pg 上的哨兵与重判路径只在 `OMNE_TEST_PG_URL` 可连时能测**；跳过不是通过 | S-12 在 pg 上的证据 | 实现者 | 有可连的 pg 时跑并登记 |
 | AMS-7 | **产品据点清单本版不装本节点**（据点装配关键选择 5）；装上即完整兑现换表那三个操作，在场查询恒 `unavailable` | —— | 主线 | 据点装配的改选条件成立 |

@@ -1,7 +1,7 @@
 # model-response
 
 Pure TypeScript implementation of the accepted
-[`data.model-response` v1](../../../.meta_harness/design/spec/data/model-response/v1/contract.md).
+[`data.model-response` v2](../../../.meta_harness/design/spec/data/model-response/v2/contract.md).
 The [provider mapping](../../../.meta_harness/design/realization/packages/core/model-response/design.md)
 owns the implementation boundary.
 

@@ -1,6 +1,6 @@
 import schema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
-import offerSchema from '@omne-harness-lite/offer-expiry/schema' with { type: 'json' }
+import offerSchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
 import connectorSchema from '../schema/resources/connector.schema.json' with { type: 'json' }
 import {

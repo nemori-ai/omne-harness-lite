@@ -1,0 +1,33 @@
+import { writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { InputFramer } from '/private/tmp/omne-cli-d053-cb_mt37l/app/dist/tui/framer.js'
+const [out,stage]=process.argv.slice(2)
+const before=execFileSync('/bin/stty',['-g'],{stdio:[0,'pipe','pipe'],encoding:'utf8'}).trim()
+const raw=process.stdin.isRaw??false
+let phase='query',reply,original,changed=false,sent=false,all=Buffer.alloc(0),records=[],events=[],result
+const f=new InputFramer(e=>events.push(e))
+let finished
+const finish=new Promise(r=>finished=r)
+function input(b){
+ if(phase==='query') { const m=/\x1b\[\?2004;([0-4])\$y/.exec(b.toString('latin1'));if(m&&reply){const r=reply;reply=undefined;r(Number(m[1]))};return }
+ all=Buffer.concat([all,b]);records.push({bytes:b.toString('hex'),at:performance.now()});f.feed(b)
+ if(!sent && all.includes(Buffer.from('\x1b[200~'))){sent=true;process.stdout.write('\x1b[?2004$p')}
+ if(sent && all.includes(Buffer.from('$y')) && all.length>=781)setTimeout(finished,60)
+}
+function query(){phase='query';return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('query timeout')),3000);reply=n=>{clearTimeout(timer);resolve(n)};process.stdout.write('\x1b[?2004$p')})}
+try {
+ process.stdin.setRawMode(true);process.stdin.on('data',input);process.stdin.resume()
+ original=await query();if(original===2){changed=true;process.stdout.write('\x1b[?2004h')};if(await query()!==1)throw Error('mode unavailable')
+ phase='paste';writeFileSync(stage,'paste-ready');process.stdout.write('\r\nOMNE own-window report interleave probe ready\r\n')
+ let timer;try{await Promise.race([finish,new Promise((_,reject)=>timer=setTimeout(()=>reject(Error('paste timeout')),12000))])}finally{clearTimeout(timer)}
+ const text=all.toString('latin1'),report=/\x1b\[\?2004;[0-4]\$y/.exec(text)
+ const without=text.replace(/\x1b\[\?2004;[0-4]\$y/g,'')
+ result={status:'OBSERVED',reportOffset:report?.index,rawEndPresent:text.includes('\x1b[201~'),strippedEndPresent:without.includes('\x1b[201~'),inPaste:f.inPaste,events,records,expectedBodyCharacters:758,scope:'real ordinary GUI paste; probe injects a legitimate query after receiving first chunk to examine upstream scheduling, not product startup reproduction'}
+}catch(e){result={status:'FAIL',error:e.message,records,events,inPaste:f.inPaste}}
+finally{
+ f.eof();f.dispose()
+ try{if(changed){process.stdout.write('\x1b[?2004l');if(await query()!==original)throw Error('mode mismatch')}}catch(e){result.restoreError=e.message}
+ process.stdin.pause();process.stdin.off('data',input);process.stdin.setRawMode(raw)
+ result.termiosRestored=execFileSync('/bin/stty',['-g'],{stdio:[0,'pipe','pipe'],encoding:'utf8'}).trim()===before
+ writeFileSync(out,JSON.stringify(result,null,2)+'\n');writeFileSync(stage,'done');process.stdout.write('\r\nOMNE probe ended\r\n')
+}
