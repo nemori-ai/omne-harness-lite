@@ -1029,6 +1029,18 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness-lite/arrival-events':
+        specifier: workspace:*
+        version: link:../../packages/core/arrival-events
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../packages/core/asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../../packages/core/asset-model
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../packages/core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../packages/core/content-blocks
@@ -1038,18 +1050,51 @@ importers:
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/core/kernel-basis
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../../packages/core/loop-extension
+      '@omne-harness-lite/mcp-endpoint':
+        specifier: workspace:*
+        version: link:../../packages/core/mcp-endpoint
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../../packages/core/messages
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../../packages/core/model-profile
+      '@omne-harness-lite/model-response':
+        specifier: workspace:*
+        version: link:../../packages/core/model-response
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry
+      '@omne-harness-lite/skill-package':
+        specifier: workspace:*
+        version: link:../../packages/core/skill-package
+      '@omne-harness-lite/slash-command':
+        specifier: workspace:*
+        version: link:../../packages/core/slash-command
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../packages/core/storage
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../packages/infra/storage-sql
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-definition
+      '@omne-harness-lite/unix-format':
+        specifier: workspace:*
+        version: link:../../packages/util/unix-format
+      '@omne-harness-lite/xml-format':
+        specifier: workspace:*
+        version: link:../../packages/util/xml-format
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
