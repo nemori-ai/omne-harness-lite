@@ -1,0 +1,42 @@
+{
+  "source_commit": "efe73eb5144d44c7f2d40b8908ffa469beb156aa",
+  "baseline": "0bf83cd7",
+  "branch": "panqiwei/core-delivery-foundation",
+  "environment": {
+    "node": "v24.18.0",
+    "pnpm": "10.28.1",
+    "vitest": "4.1.11",
+    "alloy": "6.2.0",
+    "solver": "SAT4J"
+  },
+  "input_sha256": {
+    ".meta_harness/design/spec/data/identity-values/v1/contract.md": "3d57e58950c0ba202d611450ed66c6ff66178e1fbbb4773615ea0481145be6af",
+    ".meta_harness/design/spec/data/identity-values/v1/identity-values.schema.json": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+    ".meta_harness/design/spec/data/identity-values/v1/examples.md": "7c89ef5272f16b4deb6f9461a8b313789ad8e62fbb24719184b02b569c58e039",
+    ".meta_harness/design/spec/data/offer-expiry/v1/contract.md": "71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f",
+    ".meta_harness/design/spec/data/offer-expiry/v1/offer-expiry.schema.json": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+    ".meta_harness/design/spec/capabilities/organization-governance/v1/formal/Affiliation.als": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+    ".meta_harness/design/registry/catalog.json": "e32743433814b6e48cff15752afef29dc8679260fdc8e0b87d16537c258d43c1",
+    ".meta_harness/design/registry/frozen.json": "6ae1e99f6798a555ab827b9845110d693d560c808f147e21083832ff5f90d0ad"
+  },
+  "implementation_sha256": {
+    "packages/core/identity-values/src/index.ts": "998b7cf410bb51f086994645ef6cafa9df17df80b08c9c7c749ec1ee34cfbdf2",
+    "packages/core/identity-values/src/opaque.ts": "1e67e3e63d01e050120e3bfe89283aee8610b39b66febc553660c8b7c55a954b",
+    "packages/core/identity-values/src/values.ts": "29392bddd58c97d820c833b9057c967b7dc13c3a15ffe276e47f8c3c26e15b5f",
+    "packages/core/identity-values/tests/affiliation.spec.ts": "8ae3190f8b9c9a4bdecf7128931caac034642cd5f20233850f3220aa99b7088a",
+    "packages/core/identity-values/tests/fixtures/affiliation-alloy.ts": "ac28a907f70c6c35191a529362f2c37a2cf262407c5b4fcb61c064a4c3757d69",
+    "packages/core/identity-values/tests/opaque.spec.ts": "abfafdd800814b3b6df0abed8c6f70a133f07af8e242db94154aa79c1fa72b94",
+    "packages/core/identity-values/tests/types.spec-d.ts": "46192f802f4571900965a2bceb6ae2154174ede02cdd71e2a5a04ca86a88441b"
+  },
+  "evidence_sha256": {
+    "affiliation-query.als": "7cc73e88cee60d9511ea7a95a24e0e5ec0d3166ab6b60f097dcd1bf0abfe32bd",
+    "affiliation-query-suffix.als": "5de73cf7a53b4f9b4a12931eeabb000ef099c894506687be65a2aa067299b3c9",
+    "verification.log": "9c8529c7917239446a5e441ba07bad7dc297ad5c69aad126a40114719b145a76",
+    "alloy-original/aNonTrivialTree-solution-0.json": "3e9dd28a8c6997366462556742c955015b743aa2337271715a3547bb0f25c074",
+    "alloy-original/receipt.json": "6307a23dbebf2d6e1706be247982ad495feb4105aca57256c60c3b8524b84c8b",
+    "alloy-fixture/receipt.json": "13ab01b048b476bb9ff2f6f35f4f68b180378ad63af6ba74b64ed4807061a27b",
+    "alloy-fixture/coreCorrespondenceFixture-solution-0.json": "bae82bdc1c92435c200141478e30ac1ea6807caca99585880df353686c08d7aa",
+    "consumer/consumer.ts": "742063d625f0f4e6810f705e2eedd26d006045b17420abec6c3867edce295b36",
+    "consumer/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428"
+  }
+}

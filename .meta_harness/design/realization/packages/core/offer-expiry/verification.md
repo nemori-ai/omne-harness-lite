@@ -13,7 +13,7 @@
 | [S-13](../../../../spec/data/offer-expiry/v1/contract.md#s-13-接受路径上三种来路给同一个拒绝值) | `acceptable` 对 `expired`／`withdrawn`／`accepted` 三值返回同一个 `false` | **已通过**（同 run）：`derive.spec.ts` › `acceptable（S-13）` › `pending 为真；三种来路同一个 false` | 本节点；「逐字相同的失败值」在消费者节点的 S-24 三支同跑里证 |
 | [S-4](../../../../spec/data/offer-expiry/v1/contract.md#s-4-offertiming)／[S-14](../../../../spec/data/offer-expiry/v1/contract.md#s-14-offer_ttl) | `timingFrom` 与 `parseOfferTtl` 单元测试：`0`、负数、`NaN`、`Infinity`、非数值 ⇒ `invalidInput`；`undefined` 不进解析器（缺席由调用方分流） | **已通过**（同 run）：`derive.spec.ts` › `timingFrom / parseOfferTtl（S-4 / S-14）`（4 条） | 本节点。「指定值拒绝、默认值启动失败」两路的收场在消费者节点与装配 |
 | [S-22](../../../../spec/data/offer-expiry/v1/contract.md#s-22-schema-的范围) 形状 | Schema 副本逐字节核对 + 正反实例过 `validate` | **已通过**（同 run）：`schema.spec.ts` › `Schema 副本` › `与 spec 目录的规范工件逐字节相同`、`Schema 自带的 examples 与 x-counterexamples 逐条核对`（10 条）；`time.spec.ts`（6 条）；副本逐字节另有该 run 的独立核对（`63a8ccb4…`，与 `frozen.json` 相同） | 本节点 |
-| 三条 lint 规则 SC-OE-1～3（[design.md](design.md#静态检查义务怎么承载)） | 规则实现 + 「故意违反就失败」自测 | **部分**（同 run）：三条规则都在，自测通过——SC-OE-1 `tools/ts-checks/tests/consumer-rules.spec.ts` › `sc-oe-1`（3 条）、SC-OE-2 同文件 › `sc-oe-2`（3 条）、SC-OE-3 `tools/ts-checks/tests/rules.spec.ts` › `no-wall-clock`（1 条）；`pnpm run lint:rules` 在真实源码上 PASS。SC-OE-3 的自测只点名 `Date.now()`，义务里的 `new Date()`、`performance.now` 没有同名用例 | 本节点提供规则，消费者包 CI 跑 |
+| 三条 lint 规则 SC-OE-1～3（[design.md](design.md#静态检查义务怎么承载)） | 规则实现 + 「故意违反就失败」自测 | **部分**（同 run）：三条规则都在，自测通过——SC-OE-1 `tools/ts-checks/tests/consumer-rules.spec.ts` › `sc-oe-1`（3 条）、SC-OE-2 同文件 › `sc-oe-2`（3 条）、SC-OE-3 `tools/ts-checks/tests/rules.spec.ts` › `no-wall-clock`（1 条）；`pnpm run lint:rules` 在真实源码上 PASS。本次 [checks 100/100](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-checks-path-hub.log) 中 `core-rules.spec.ts` 三种直接墙钟调用各有必红反例，显式时间构造合法 | 本节点提供规则，消费者包 CI 跑 |
 
 **受阻项**：无。原先写的「`Instant` 表示选型未定前 S-8 的测试写不了」已不成立——S-8 的测试已写成并通过（本包的 `Instant` 是品牌化数值，见 `types.spec-d.ts` › `编译期挡住的条款` 的用例名）。
 
@@ -28,11 +28,19 @@
 
 **有限检查不写成无条件证明。**上面的测试证的是纯函数与解析器对给定输入的判定，在 Node v24.18.0 这一次、单进程下成立；`now` 由测试给出，不证任何真实时间源的行为（那一半归 `infra/clock` 与装配）。静态规则只扫 `lint:rules` 那一次看到的源码。**通过不提升契约或本节点的任何接受状态。**
 
+## 本次追加验证（2026-09-26）
+
+产品源码本次未变；HUB `f73078ba` 对本包 build／typecheck 退出 0、**31/31**、零跳过／失败。
+[spoke 原命令](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/foundation/verification.log)、[HUB 原 log](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-foundation-hub.log)、[Schema 独立哈希核对](../../../../record/evidence/2026-09-26-tests-core-foundation/audit.json)。
+checks 最终修订 `46be3697`、HUB `59669096` 的 [100/100 与 24-rule scan](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-checks-path-hub.log) 补齐 SC-OE-3 的三种直接调用反例；
+原 98 条运行同样保留，未改写旧结果。测试输入时间与 testClock 是替身，未运行真实邀约写路径或实际时间源。
+[逐项覆盖](../../../../record/evidence/2026-09-26-tests-core-foundation/coverage.md#packagescoreoffer-expiry) 只覆盖本包纯函数、解析器、形状与语法规则。
+
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据：
 
-- **SC-OE-3 的自测只点名 `Date.now()`**：义务里的 `new Date()`、`performance.now` 没有同名用例，规则对它们会不会红没有直接证据。owner：本节点提出、`tools/ts-checks` 补自测用例。
+- **原 SC-OE-3 三种直接调用反例的缺口已补**（[coverage](../../../../record/evidence/2026-09-26-tests-core-foundation/coverage.md#packagescoreoffer-expiry)）；`Date.now()`、无参 `new Date()`、`performance.now()` 均检出。经别名获取墙钟仍在规则的不覆盖范围，实际时钟同源与单调仍归消费者／装配。
 
 其余不在本节点证据范围内的：
 

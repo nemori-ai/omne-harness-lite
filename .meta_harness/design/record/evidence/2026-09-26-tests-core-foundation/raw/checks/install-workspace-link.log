@@ -1,0 +1,7 @@
+Scope: all 14 workspace projects
+ WARN  A pnpm-lock.yaml file exists. The current configuration prohibits to read or write a lockfile
+Progress: resolved 0, reused 1, downloaded 0, added 0
+Already up to date
+Progress: resolved 98, reused 75, downloaded 0, added 0, done
+
+Done in 1.3s using pnpm v10.28.1

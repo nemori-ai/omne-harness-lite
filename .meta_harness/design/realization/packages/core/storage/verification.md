@@ -18,14 +18,14 @@
 | OG R-3d（P-6） | C-7 只读事务两次读夹着一次**已完成**的并发提交，两次读相同、结束后可见 | **已通过**（run `2026-09-23-tests-tenancy-leg-2`；套件在 `infra/storage-sql` 上 sqlite 与 pg 两侧各跑一遍，同名用例都通过） | 同上。sqlite 下要求提供者为读开独立连接 |
 | AI R-4／OG R-4（P-7） | C-8 写入 → 关闭 → 重开 ⇒ 仍在 | **已通过**（run `2026-09-23-tests-tenancy-leg-2`；套件在 `infra/storage-sql` 上 sqlite 与 pg 两侧各跑一遍，同名用例都通过） | 同上。**跨进程重启不在套件**，归 AI S-32 演练（装配） |
 | AI R-5／OG R-5（P-8 瞬时那一半） | C-9a 关闭后调用 ⇒ `StorageUnavailable`；C-9b 在途写事务期间从另一异步任务 `close()` 本实例 ⇒ 完整提交或 `StorageUnavailable`、绝无部分提交、之后不再受理 | **已通过**（run `2026-09-23-tests-tenancy-leg-2`；套件在 `infra/storage-sql` 上 sqlite 与 pg 两侧各跑一遍，同名用例都通过） | 同上 |
-| R-5 的反面（P-8 缺陷那一半） | C-7b 只读事务里写 ⇒ `StorageDefect` 且库无变化；C-14 非法语句 ⇒ `StorageDefect` 带 `cause`，违反 `CHECK` ⇒ `StorageDefect` | **已通过**（run `2026-09-23-tests-tenancy-leg-2`，sqlite 与 pg 两侧）：套件 `C-7b`、`C-14`；本行点名缺的嵌套调用现有 `C-15 嵌套调用 ⇒ StorageDefect…`，同样两侧通过 | 同上。**嵌套调用 ⇒ `StorageDefect`** 无用例，本节点补 |
+| R-5 的反面（P-8 缺陷那一半） | C-7b 只读事务里写 ⇒ `StorageDefect` 且库无变化；C-14 非法语句 ⇒ `StorageDefect` 带 `cause`，违反 `CHECK` ⇒ `StorageDefect` | **已通过**（run `2026-09-23-tests-tenancy-leg-2`，sqlite 与 pg 两侧）：套件 `C-7b`、`C-14`；本行点名缺的嵌套调用现有 `C-15 嵌套调用 ⇒ StorageDefect…`，同样两侧通过 | 同上。C-15 已在历史两方言与本次真实 SQLite 运行通过；无新增缺口 |
 | AI R-6（P-9） | C-10 删后同值再插成功 | **已通过**（run `2026-09-23-tests-tenancy-leg-2`；套件在 `infra/storage-sql` 上 sqlite 与 pg 两侧各跑一遍，同名用例都通过） | 同上 |
-| AI R-7／OG R-6 删除受限向（P-10） | C-11 有子行时删父行 ⇒ `delete-restricted`，父行仍在 | **部分**（run `2026-09-23-tests-tenancy-leg-2`）：套件 `C-11` 在 sqlite 与 pg 两侧通过；本行要求的「`foreign_keys` 关着时红」的负向运行套件里没有——装配一侧有 `apps/tenancy-host/tests/migrations.spec.ts` › `assembly.fk-organization-owner-account…` 的 ③ 负向运行（真实外键上，通过） | 同上。**sqlite 下必须在 `foreign_keys` 关着时红**——提供者的测试要包含一次故意关掉的负向运行，否则这条测试证不了它在守 |
+| AI R-7／OG R-6 删除受限向（P-10） | C-11 有子行时删父行 ⇒ `delete-restricted`，父行仍在 | **本次正反两向已验证**：[正常19/19](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/storage-hub/enabled-UATxGq/report.json)，[关闭外键后 C-11/C-12 目标断言失败](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/storage-hub/disabled-xzINMp/report.json)。历史 pg 结果保留，未在本次重跑；真实租户外键仍归装配 | 同上。**sqlite 下必须在 `foreign_keys` 关着时红**——提供者的测试要包含一次故意关掉的负向运行，否则这条测试证不了它在守 |
 | OG R-6 缺失目标向（P-10） | C-12 插子行指向不存在的父 ⇒ `missing-target` | **已通过**（run `2026-09-23-tests-tenancy-leg-2`；套件在 `infra/storage-sql` 上 sqlite 与 pg 两侧各跑一遍，同名用例都通过） | 同上 |
 | P-12 进程内并发不互卡 | 由 C-4／C-5／C-13 的「无一方 `StorageUnavailable`」断言覆盖，不另立用例 | **已通过**（run `2026-09-23-tests-tenancy-leg-2`；套件在 `infra/storage-sql` 上 sqlite 与 pg 两侧各跑一遍，同名用例都通过） | 同上 |
 | `mapStorageError` 只折 `StorageUnavailable` | 单元测试 `tests/errors.spec.ts`：`StorageUnavailable` ⇒ 调用方给的字面；`StorageDefect`／`UniqueViolation`／`ReferenceViolation`／调用方错误 ⇒ **同一实例**重抛；四型各有稳定 `name` 与 `cause` 通道 | **已通过**（run `2026-09-23-tests-tenancy-leg-2`）：`errors.spec.ts` › `mapStorageError 只折 StorageUnavailable`（3 条） | — |
 | 协议面形状 | 类型测试 `tests/types.spec-d.ts`：`ReferenceViolationKind` 恰两向；`Storage` 恰 `read`／`write`；`WriteTx` 恰 `db`／`lockRow`／`lockSentinel` | **已通过**（同 run）：`types.spec-d.ts` › `storage 协议类型`（2 条）；另 `MigrationFragment 与 PreflightCheck 的形状`（2 条） | — |
-| 套件自身 | 一条「套件对一个故意做错的提供者会红」的自测（例如把 `lockRow` 换成空操作跑 C-4）；没有它，「套件全绿」证不了套件在看 | **无证据**：同 run 里没有把 `lockRow` 换成空操作一类的自测用例 | 本节点 |
+| 套件自身 | 一条「套件对一个故意做错的提供者会红」的自测（例如把 `lockRow` 换成空操作跑 C-4）；没有它，「套件全绿」证不了套件在看 | **本次有代表性真实错误的自测**：[HUB外层2/2](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-storage-hub.log)，外键关闭且读回确认，完整套件仅 C-11/C-12 因目标断言失败；不声称检查任意错误提供者 | 本节点 |
 
 **受阻项**：无。原先的「C-1～C-14 依赖 `infra/storage-sql` 的 sqlite 实现存在」已不成立，套件在该提供者的两种方言上都跑过。
 
@@ -40,12 +40,24 @@
 
 **有限检查不写成无条件证明。**套件的结果只对「跑套件的那个提供者（`infra/storage-sql`）+ 那个方言 + 那次配置」成立：sqlite 一侧是临时文件库、WAL、单主机单进程；pg 一侧只有 16.14 一个版本，没有跑「≥ 14」的下限。每种方言单次运行，真并发用例的交错取决于那一次的调度，通过一次不说明每种交错都被走到。**通过不提升本节点或任何契约的接受状态。**
 
+## 本次追加验证（2026-09-26）
+
+开发工具提交 `247fc9e2`，HUB 开始 `cdcc58ab`、运行期间至 `c51146ba`；根配置在期间有变，产品与 fixture 字节未变，起止配置分别保存。
+正常子进程 [19/19](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/storage-hub/enabled-UATxGq/report.json)，故障子进程 [17通过、仅C-11/C-12失败](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/storage-hub/disabled-xzINMp/report.json)，
+外层 [有效性自测2/2](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-storage-hub.log)、build／typecheck 均退出 0。
+真实公开 openStorage／SqlStorage／NodeSqliteDriver、Node24.18.0／SQLite3.53.1／Kysely0.29.6／Vitest4.1.11、临时文件WAL、单主机；
+两子进程 execution.json 保存参数、版本、信号和超时；失败均为预期 ReferenceViolation 却收到 undefined 的真实断言失败，不由普通非零退出推导有效性。
+父测试删除私有临时数据库但保留日志；工具侧消费公开 core 与 infra 入口，不引入 core 反依赖 infra。
+**原 spoke ignored 日志丢失**，本次只引用完整保留且 hash 核对的 HUB 原件；源码247fc9e2仍完整。
+[完整来源说明](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)、[逐项覆盖](../../../../record/evidence/2026-09-26-tests-core-foundation/coverage.md#packagescorestorage)。
+本次 foundation HUB 对本包 build／typecheck 通过，但未新跑包内 runtime 测试；包内9条与pg两侧维持历史 run 的范围，未伪称本次重跑。
+
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据：
 
-- **套件自身「对故意做错的提供者会红」没有自测**：没有把 `lockRow` 换成空操作一类的用例，「套件全绿」证不了套件在看。owner：本节点。
-- **C-11 的负向运行不在套件里**：「`foreign_keys` 关着时红」这一支套件没有；装配一侧 `apps/tenancy-host` 的 `assembly.fk-organization-owner-account` ③ 在真实外键上做了负向运行（同 run 通过），它证的是那条外键，不证套件对任意提供者都会红。owner：本节点（套件自测）。
+- **代表性错误的自测已经有证据**：[完整负向原结果](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/storage-hub/disabled-xzINMp/report.json) 中 C-11/C-12 红、其余17通过。它证明外键关闭错误被发现，不证明全部错误都会红；没有新增 lockRow 无操作变异。
+- **C-11/C-12 的外键关闭负向义务已补**：测试侧在实际写连接、事务前关闭并读回确认，复用同一完整套件；只支持该真实 SQLite 提供者与本次配置。真实账号／组织外键是否存在仍由装配另证。
 
 其余不在本节点证据范围内的：
 

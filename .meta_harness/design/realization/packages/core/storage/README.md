@@ -10,7 +10,7 @@
 - 语义接受范围：**无契约条款。**本节点不是任何 `data.*`／`capability.*`／`composition.*` 契约的提供者；它兑现的是两份已接受节点设计里的要求清单（AI R-1～R-7、OG R-1～R-6）与 D-026 的选择。要求清单的语义归那两个节点，本节点不改写它们的任何一条
 - 可实施范围：**已实现（HUB `c9b5850`）。**协议接口、四型失败与 `mapStorageError`（[design.md「协议」](design.md#协议)）、每条 R 在协议上的兑现点与提供者义务 P-1～P-12（[要求→协议→测试表](design.md#要求到协议再到会红的测试)）、一致性套件 19 个用例（C-1a/b～C-15，含 C-2b 主键支与 C-15 嵌套调用）、迁移片段与迁移前核对的共用形状（[design.md](design.md#迁移片段与迁移前核对的共用形状)）。**不给出**：任何提供者实现（归 [`infra/storage-sql`](../../infra/storage-sql/README.md)）、任何表结构与迁移（各 owner 导出片段、装配合成）、跨进程形态下的存储协调协议
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——没有契约条款可绑；本包的测试与套件都不是对某条契约的证据。一致性套件的通过是**提供者节点**的证据（它跑套件），不是本节点的绑定；每条用例的义务登记在 [verification.md](verification.md)
-- 实际验证：运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)，HUB）：本包的单元与类型测试随十三个 TS 成员在 sqlite 下全过；一致性套件由 [`infra/storage-sql`](../../infra/storage-sql/README.md) 在它的包测试里接线运行，sqlite 下全过，pg 16 容器上 19／19 通过。本节点 [verification.md](verification.md#实际执行) 的「实际执行」待回填
+- 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：开发工具 `247fc9e2` 在 HUB 的真实 SQLite 套件正常 **19/19**；关闭外键后 **17 通过、仅 C-11/C-12 失败**，外层有效性自测 **2/2**。记录的是完整保留的 HUB 运行，原 spoke ignored 日志丢失，未用摘要冒充原件。本次不复跑 pg、包内 runtime 测试或跨进程持久；各项与历史证据见 [verification.md](verification.md#本次追加验证2026-09-26)
 
 ## 按当前问题展开
 

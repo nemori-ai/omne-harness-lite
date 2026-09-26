@@ -1,0 +1,138 @@
+{
+  "duration":85,
+  "incremental":true,
+  "instances":[
+    {
+      "messages":[
+        
+      ],
+      "skolems":{
+        
+      },
+      "state":0,
+      "values":{
+        "0":{
+          
+        },
+        "1":{
+          
+        },
+        "2":{
+          
+        },
+        "3":{
+          
+        },
+        "4":{
+          
+        },
+        "5":{
+          
+        },
+        "Branch$0":{
+          
+        },
+        "Config$0":{
+          "parent":[
+            [
+              "Branch$0",
+              "Root$0"
+            ],
+            [
+              "Leaf$0",
+              "Branch$0"
+            ]
+          ]
+        },
+        "FixtureResult$0":{
+          "shared":[
+            [
+              "Root$0",
+              "Root$0"
+            ],
+            [
+              "Root$0",
+              "Branch$0"
+            ],
+            [
+              "Root$0",
+              "Leaf$0"
+            ],
+            [
+              "Branch$0",
+              "Root$0"
+            ],
+            [
+              "Branch$0",
+              "Branch$0"
+            ],
+            [
+              "Branch$0",
+              "Leaf$0"
+            ],
+            [
+              "Leaf$0",
+              "Root$0"
+            ],
+            [
+              "Leaf$0",
+              "Branch$0"
+            ],
+            [
+              "Leaf$0",
+              "Leaf$0"
+            ],
+            [
+              "Other$0",
+              "Other$0"
+            ],
+            [
+              "PersonalOne$0",
+              "PersonalOne$0"
+            ],
+            [
+              "PersonalTwo$0",
+              "PersonalTwo$0"
+            ]
+          ],
+          "ancestors":[
+            [
+              "Branch$0",
+              "Root$0"
+            ],
+            [
+              "Leaf$0",
+              "Root$0"
+            ],
+            [
+              "Leaf$0",
+              "Branch$0"
+            ]
+          ]
+        },
+        "Leaf$0":{
+          
+        },
+        "Other$0":{
+          
+        },
+        "PersonalOne$0":{
+          
+        },
+        "PersonalTwo$0":{
+          
+        },
+        "Root$0":{
+          
+        }
+      }
+    }
+  ],
+  "localtime":"2026-09-26T04:28:39.612610657",
+  "loopstate":-1,
+  "sigs":{
+    
+  },
+  "timezone":"Etc/UTC",
+  "utctime":1790396919612
+}

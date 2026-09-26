@@ -1,0 +1,1227 @@
+{
+  "raw": {
+    "kernel": {
+      "files": 11,
+      "source": "/data/qiwei/repos/omne-harness-lite/tmp/core-delivery/spoke-evidence/kernel",
+      "all_hashes_match": true
+    },
+    "foundation": {
+      "files": 11,
+      "source": "/data/qiwei/repos/omne-harness-lite/tmp/core-delivery/spoke-evidence/foundation",
+      "all_hashes_match": true
+    },
+    "storage-hub": {
+      "files": 12,
+      "source": "/data/qiwei/repos/omne-harness-lite/tmp/core-delivery/spoke-evidence/storage-hub",
+      "all_hashes_match": true
+    },
+    "checks": {
+      "files": 11,
+      "source": "/data/qiwei/repos/omne-harness-lite/tmp/core-delivery/spoke-evidence/checks",
+      "all_hashes_match": true
+    },
+    "checks-path-followup": {
+      "files": 9,
+      "source": "/data/qiwei/repos/omne-harness-lite/tmp/core-delivery/spoke-evidence/checks-path-followup",
+      "all_hashes_match": true
+    },
+    "hub-kernel": {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/w1-kernel-hub.log",
+      "sha256": "8f3f18a683aa770747bde8d2d8682fed04dce274a59eeaaef8bceff04356a5b5"
+    },
+    "hub-foundation": {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/w1-foundation-hub.log",
+      "sha256": "4065c65ba444bd4628f67fa04e28640db91c94be68a2158bad6d9aa3275ebccd"
+    },
+    "hub-storage": {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/w1-storage-hub.log",
+      "sha256": "39fda90a602b066ad71c2b5513b4b02d41b81f5c33cc77cdc81864d7f188c051"
+    },
+    "hub-checks": {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/w1-checks-hub.log",
+      "sha256": "86698714b53744dc895fe3e4430b2c94297aed8664c51c36ae7c5ffe72fb88e7"
+    },
+    "hub-checks-path": {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/w1-checks-path-hub.log",
+      "sha256": "4d122ec3fdf86e6f6679b8a9be589cce7eb484a0dfbe5b71862c13fe479ba21e"
+    }
+  },
+  "snapshots": {
+    "adopted": {
+      "revision": "c51146ba",
+      "files": {
+        ".meta_harness/design/realization/packages/core/identity-values/README.md": {
+          "sha256": "0fa71ec99fd56ba093b417f9565adf35d53ea9bffc66112b8428fd7ba9802d96",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/identity-values/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/identity-values/bindings.yaml": {
+          "sha256": "5034fff74ba688cf98e9dcfdaf41774c82a779a6a80ab929e6e32de9292dd2f9",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/identity-values/bindings.yaml.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/identity-values/design.md": {
+          "sha256": "3819f1a2ec8a8e7613642d62583f276ce7bf157262e55ab5dcbb99626a0ce4c5",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/identity-values/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/identity-values/verification.md": {
+          "sha256": "9ac869a639ddb54fd8d6719861069873701ea534fe9c43ff64b62ea320a24d39",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/identity-values/verification.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/kernel-basis/README.md": {
+          "sha256": "7b9ac9fb514a346271d0229a99f02c966f0479e916204d7b403c3694226392ec",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/kernel-basis/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/kernel-basis/bindings.yaml": {
+          "sha256": "dc4657e78e7f91b43b8a44a3e780cbd50d4c9645fd17354bd71ef36a435436c8",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/kernel-basis/bindings.yaml.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/kernel-basis/design.md": {
+          "sha256": "999d3a6e815249fbda9deadedb2b594c411bb598edcddefecc5fcf0c6f3ac7d3",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/kernel-basis/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/kernel-basis/verification.md": {
+          "sha256": "eaf8ea3561ee5072c351c078db6f2db62cf4e8585e624eb4b11150e88ace97b2",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/kernel-basis/verification.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/offer-expiry/README.md": {
+          "sha256": "138cf4af017cb3219c5b99dee4a95da05abb5c1f5ff3a42b09b2b2a77e635d25",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/offer-expiry/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/offer-expiry/bindings.yaml": {
+          "sha256": "907dfba869752b016c5f5c87d1346824c285b01a09b8b08fd36d063926ec32fb",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/offer-expiry/bindings.yaml.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/offer-expiry/design.md": {
+          "sha256": "3421ba8895468752429f133d5d8789194031d0eb8a8b426e677a9ec4ee4d1163",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/offer-expiry/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/offer-expiry/verification.md": {
+          "sha256": "52489f940597bef36d83e9d7f97d9eb44e0d2112e7e8da17cd8a769630b281f6",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/offer-expiry/verification.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/storage/README.md": {
+          "sha256": "f0f467ce0be5d75725587c2ca08a9308675b45c992e585731da6878e90af65b6",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/storage/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/storage/bindings.yaml": {
+          "sha256": "cf061e54a5e405d52b209dc9eb8ff7088d0d17e05e3d716325eb9a56c9198234",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/storage/bindings.yaml.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/storage/design.md": {
+          "sha256": "49c928fb50937687eedc650fed3dce26b5c60ff987d0b56b9bf1cf3a923be52e",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/storage/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/storage/verification.md": {
+          "sha256": "4a266f966d20c5ced22d1b613ab3572fec425c8e8d4153da7fa61f889aae9b1d",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/core/storage/verification.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/tenancy/account-identity/design.md": {
+          "sha256": "cfc232950404d86067be50331cf277553df7d7bed0547b67934763f4beb39029",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/tenancy/account-identity/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/tenancy/organization-governance/design.md": {
+          "sha256": "d87a445687187435e9d7b03804b7a926ac0bdbf49092d54efe30d006f0fd437a",
+          "snapshot": "input/adopted/.meta_harness/design/realization/packages/tenancy/organization-governance/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-contract-acceptance/README.md": {
+          "sha256": "da573d329d9f2328f402a5281c36477bd941ef3bcc72fdd9028b2f546e9064e6",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-contract-acceptance/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-contract-acceptance/acceptance.json": {
+          "sha256": "6b7129258762d384762ebed25f9d5d457b34a447f48afd9435f93bcb490c6578",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-contract-acceptance/acceptance.json.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-contract-acceptance/decision.md": {
+          "sha256": "67784e66bf2b58bd9ccffbf4cb1d21a34413ff1ab61200696b448f7991c7f988",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-contract-acceptance/decision.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-formal-acceptance-2026-09-26/README.md": {
+          "sha256": "d5b0ca3cbd0ac12834e390bb18d24cf5d64ce6a520b6c871771dc303a97198f6",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-formal-acceptance-2026-09-26/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md": {
+          "sha256": "9cb850b21171a3b0ec11de6e6655e7f1332a605155b527f82644872c50c12aba",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-formal-acceptance-2026-09-26/scope.json": {
+          "sha256": "59a35e125a6bcf6306fb4251b4abf63f9431b114ae052571c8d583d725df6f16",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-formal-acceptance-2026-09-26/scope.json.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-node-acceptance/README.md": {
+          "sha256": "fcbde7c06609f7995a9dca86a91e0bae2d2cd52d2c578b2db4fd9464b8c183b5",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-node-acceptance/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/assets-runtimes-node-acceptance/decision.md": {
+          "sha256": "80a1921deea104fbd163b519ea5b44b9ccae406f5a21cc21b16a52773a0003d7",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/assets-runtimes-node-acceptance/decision.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/cordis-adoption-version/README.md": {
+          "sha256": "cf865fc707d88b0adc24b8bd5698f16cfc3b92d7b81cf5961fd3655a6ff83305",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/cordis-adoption-version/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/cordis-adoption-version/decision.md": {
+          "sha256": "f513840e203acdc0cb105b90178d0318df754e0a57342cba1762286bf8e5cfc1",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/cordis-adoption-version/decision.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/infrastructure-persistence-choices/README.md": {
+          "sha256": "84270d85511df4be84955b2a04b850be77e52e5ace90ad9190eabb3d52f8be68",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/infrastructure-persistence-choices/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/infrastructure-persistence-choices/decision.md": {
+          "sha256": "b483648a1379fd2c4abdcba7c5b61be9206f8c3ac2df5ae54b5b209886178d6b",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/infrastructure-persistence-choices/decision.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/tenant-domain-design-acceptance/README.md": {
+          "sha256": "ccd24a9a71c1bbc768a6e96676682aa418e60528d352446f91ea8f5e68117136",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/tenant-domain-design-acceptance/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/tenant-domain-design-acceptance/acceptance.json": {
+          "sha256": "5f896d0ee13591e380d1eebaf7583324e207f2ed50fb02507737b04424160da0",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/tenant-domain-design-acceptance/acceptance.json.snapshot.txt"
+        },
+        ".meta_harness/design/record/decisions/tenant-domain-design-acceptance/decision.md": {
+          "sha256": "045d61f3f76124badd3f50b176cefad74d40a32be77360c0f093838bc0ae9a87",
+          "snapshot": "input/adopted/.meta_harness/design/record/decisions/tenant-domain-design-acceptance/decision.md.snapshot.txt"
+        },
+        ".meta_harness/design/registry/catalog.json": {
+          "sha256": "e32743433814b6e48cff15752afef29dc8679260fdc8e0b87d16537c258d43c1",
+          "snapshot": "input/adopted/.meta_harness/design/registry/catalog.json.snapshot.txt"
+        },
+        ".meta_harness/design/registry/frozen.json": {
+          "sha256": "6ae1e99f6798a555ab827b9845110d693d560c808f147e21083832ff5f90d0ad",
+          "snapshot": "input/adopted/.meta_harness/design/registry/frozen.json.snapshot.txt"
+        },
+        ".meta_harness/design/spec/capabilities/organization-governance/v1/formal/Affiliation.als": {
+          "sha256": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+          "snapshot": "input/adopted/.meta_harness/design/spec/capabilities/organization-governance/v1/formal/Affiliation.als.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/identity-values/README.md": {
+          "sha256": "b6c873d89fac74fafbf9573214c087336ff120d5cfa4a5febb901e2577d2f221",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/identity-values/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/identity-values/v1/contract.md": {
+          "sha256": "3d57e58950c0ba202d611450ed66c6ff66178e1fbbb4773615ea0481145be6af",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/identity-values/v1/contract.md.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/identity-values/v1/examples.md": {
+          "sha256": "7c89ef5272f16b4deb6f9461a8b313789ad8e62fbb24719184b02b569c58e039",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/identity-values/v1/examples.md.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/identity-values/v1/identity-values.schema.json": {
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/identity-values/v1/identity-values.schema.json.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/identity-values/verification.md": {
+          "sha256": "315b6e46c9bd9e3c2024b98334165bab275d9411bc3c4694ab5794f7f9bc5984",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/identity-values/verification.md.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/offer-expiry/README.md": {
+          "sha256": "7dc45f7b1e4d39f2edae843ad46509ce31618d3dc8f33b2ee469ac46b9944b23",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/offer-expiry/README.md.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/offer-expiry/v1/contract.md": {
+          "sha256": "71165d083892075381b6ab74a56c9550c266ce375ef69a1ee9b431a3da85d07f",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/offer-expiry/v1/contract.md.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/offer-expiry/v1/offer-expiry.schema.json": {
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/offer-expiry/v1/offer-expiry.schema.json.snapshot.txt"
+        },
+        ".meta_harness/design/spec/data/offer-expiry/verification.md": {
+          "sha256": "30b98c528501c7dbd7830d6ea546864a441d4684bca34086a5858ec5b6898e67",
+          "snapshot": "input/adopted/.meta_harness/design/spec/data/offer-expiry/verification.md.snapshot.txt"
+        }
+      }
+    },
+    "implementation": {
+      "revision": "c51146ba",
+      "files": {
+        "packages/core/identity-values/package.json": {
+          "sha256": "4f03db21988dc976e3e7bc1990bd731a2885c427b7b499017394cae298d1af0b",
+          "snapshot": "input/implementation/packages/core/identity-values/package.json.snapshot.txt"
+        },
+        "packages/core/identity-values/schema/identity-values.schema.json": {
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "snapshot": "input/implementation/packages/core/identity-values/schema/identity-values.schema.json.snapshot.txt"
+        },
+        "packages/core/identity-values/src/handoff-warrant.ts": {
+          "sha256": "cf250b20c82002921ec26140162989637fbf4b196c582b3a6ed334febee6d215",
+          "snapshot": "input/implementation/packages/core/identity-values/src/handoff-warrant.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/src/identifier.ts": {
+          "sha256": "187ca4e1a1d841f30a96e3ecf1a6c182051d00720936e873030b80bafe231618",
+          "snapshot": "input/implementation/packages/core/identity-values/src/identifier.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/src/index.ts": {
+          "sha256": "998b7cf410bb51f086994645ef6cafa9df17df80b08c9c7c749ec1ee34cfbdf2",
+          "snapshot": "input/implementation/packages/core/identity-values/src/index.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/src/opaque.ts": {
+          "sha256": "1e67e3e63d01e050120e3bfe89283aee8610b39b66febc553660c8b7c55a954b",
+          "snapshot": "input/implementation/packages/core/identity-values/src/opaque.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/src/parsed.ts": {
+          "sha256": "959eedf2cf58c50b7e95f17190e79688bd1b5544eaf778b5fcc66611fe9da9f3",
+          "snapshot": "input/implementation/packages/core/identity-values/src/parsed.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/src/predicates.ts": {
+          "sha256": "79a13f3edfe40f57c0ff6f0013ce661d9a384a93290bc49e9137f053770e3fdf",
+          "snapshot": "input/implementation/packages/core/identity-values/src/predicates.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/src/validate.ts": {
+          "sha256": "83042c48008943658152157e0b7e3e62543b9f87948e1b15e1a7dbf756fd38f4",
+          "snapshot": "input/implementation/packages/core/identity-values/src/validate.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/src/values.ts": {
+          "sha256": "29392bddd58c97d820c833b9057c967b7dc13c3a15ffe276e47f8c3c26e15b5f",
+          "snapshot": "input/implementation/packages/core/identity-values/src/values.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/affiliation.spec.ts": {
+          "sha256": "8ae3190f8b9c9a4bdecf7128931caac034642cd5f20233850f3220aa99b7088a",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/affiliation.spec.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/fixtures/affiliation-alloy.ts": {
+          "sha256": "ac28a907f70c6c35191a529362f2c37a2cf262407c5b4fcb61c064a4c3757d69",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/fixtures/affiliation-alloy.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/handoff-warrant.spec.ts": {
+          "sha256": "ef4947973e1c83c29079c79b8471c4e739a00ca6891799776014e893451bbdfa",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/handoff-warrant.spec.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/identifier.spec.ts": {
+          "sha256": "562188e2a6941e3699a0239d420421c45933cae9d61db69aad5c77a3dbf63db7",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/identifier.spec.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/opaque.spec.ts": {
+          "sha256": "abfafdd800814b3b6df0abed8c6f70a133f07af8e242db94154aa79c1fa72b94",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/opaque.spec.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/predicates.spec.ts": {
+          "sha256": "1acd66f004af6eb33f11bf41af380d228434ad07cfda96849e74c0b57967d93b",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/predicates.spec.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/schema.spec.ts": {
+          "sha256": "98e9e15a0d8190837feaba241c795a5fd9d03c0d596a2d8774cbb59052b4b957",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/schema.spec.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/spec-fixtures.ts": {
+          "sha256": "550599d86e36d1cc6b91b4be462a7817416553a9cde0b57eed98523d733368fc",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/spec-fixtures.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/types.spec-d.ts": {
+          "sha256": "46192f802f4571900965a2bceb6ae2154174ede02cdd71e2a5a04ca86a88441b",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/types.spec-d.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tests/values.spec.ts": {
+          "sha256": "15055f91d8e662f4136f9fefc689f33277d2c9efa0ee56cdaaac1adc72aa0612",
+          "snapshot": "input/implementation/packages/core/identity-values/tests/values.spec.ts.snapshot.txt"
+        },
+        "packages/core/identity-values/tsconfig.build.json": {
+          "sha256": "ed54eadbde93969726eef46671721cb0e0dbcee3c16c00873f1d2cd62db14ebe",
+          "snapshot": "input/implementation/packages/core/identity-values/tsconfig.build.json.snapshot.txt"
+        },
+        "packages/core/identity-values/tsconfig.test.json": {
+          "sha256": "132276fd71193c254b1dd1e2366d37bce3c92416c3c41626e1802f15aaec0fb9",
+          "snapshot": "input/implementation/packages/core/identity-values/tsconfig.test.json.snapshot.txt"
+        },
+        "packages/core/identity-values/vitest.config.ts": {
+          "sha256": "2a04d3f311a9c1ee30a3dbfbe0ca4943b9bba64b3889b2b4e75cc735f55e368c",
+          "snapshot": "input/implementation/packages/core/identity-values/vitest.config.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/package.json": {
+          "sha256": "c0cff30a982fef29b7827770eb6f96b704b5ae61006b550ae776b15d2eee839b",
+          "snapshot": "input/implementation/packages/core/kernel-basis/package.json.snapshot.txt"
+        },
+        "packages/core/kernel-basis/src/fiber-state.ts": {
+          "sha256": "ff4fe6da9e8355a973a7c55e66f7d76606bfd0328fc53beb23504eab0f6fdf1d",
+          "snapshot": "input/implementation/packages/core/kernel-basis/src/fiber-state.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/src/index.ts": {
+          "sha256": "a18e6b5c783fdf6e8dd36fe6b2bcd0a41328939839d586dfeadea2c16706081e",
+          "snapshot": "input/implementation/packages/core/kernel-basis/src/index.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/src/outcome.ts": {
+          "sha256": "28af11a34ed4000d5d2d186e3bf465bc0e11f51d3fc3a9f50345f59391650492",
+          "snapshot": "input/implementation/packages/core/kernel-basis/src/outcome.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/src/plugin.ts": {
+          "sha256": "d9f327df27428e5ed22b23b9ee10145c774bcf3926e6175d1aed29d7918ef323",
+          "snapshot": "input/implementation/packages/core/kernel-basis/src/plugin.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/src/testing/index.ts": {
+          "sha256": "3c9abc2a263ccd3fbe2f67bbd1f03ac79e19a229c1728a373e6918befd13ede1",
+          "snapshot": "input/implementation/packages/core/kernel-basis/src/testing/index.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/async-control-not-bail.test.ts": {
+          "sha256": "7b4b4667a77f446e31361028727f4f2e16b92384cab4e75544d789ee3df577ed",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/async-control-not-bail.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/effect-disposal-concurrent-not-ordered.test.ts": {
+          "sha256": "c80c67e459f82198c83513c84b98a814a61803385e33a12fb6a91dd0c243f9c3",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/effect-disposal-concurrent-not-ordered.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/emit-listener-throw-propagates.test.ts": {
+          "sha256": "0bb793e7823c50e6309ea1f26311ef687cdede827afad5bc6b7e92163abf99b3",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/emit-listener-throw-propagates.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/fiber-state-readable.test.ts": {
+          "sha256": "bb7d76dd57d742395d15b7f35af71a3231f64ae95984dfbdf665d4cd276abfc1",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/fiber-state-readable.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/inject-has-no-optional-form.test.ts": {
+          "sha256": "a0eee445462dadf0d7fb8eb51dbdf27e1feaef299673e0b487b3d68511a3e695",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/inject-has-no-optional-form.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/isolate-hides-instances-not-data.test.ts": {
+          "sha256": "cec6d9fef59daf8569c5963c7cb9685b4ee80ac2039e0e4f075ec3ccea20f9fd",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/isolate-hides-instances-not-data.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/logger-level-order-error-lowest.test.ts": {
+          "sha256": "f6951ce7db3eb7407e38f1273d7773ec0c14ba074e7da555239308613a398838",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/logger-level-order-error-lowest.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/plugin-body-reruns-on-provider-change.test.ts": {
+          "sha256": "a3dc21aaff9b72962d41cdf2df7f28f0db90a3d2cc3cb90e28c0a93764be6125",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/plugin-body-reruns-on-provider-change.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/plugin-throw-fails-fiber.test.ts": {
+          "sha256": "46c76bca6a4738fd3f44195bbe4838d58b9735971807a218e9f0948dcd51140d",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/plugin-throw-fails-fiber.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/provide-is-effect-managed.test.ts": {
+          "sha256": "365316da0232ae5acbfc25b912e1e74100366acf3357bcfdc38460a26da8c32c",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/provide-is-effect-managed.test.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/basis/support.ts": {
+          "sha256": "71eeb618f6c81fd12310976a79cf3c1bf93d6edcf67a1f0f63d337f37260a90a",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/basis/support.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tests/testing.spec.ts": {
+          "sha256": "e7ce33b93d6c79ab73ac9bd766ab4520426edacfb34083d79d0b1470afcf23ef",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tests/testing.spec.ts.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tsconfig.build.json": {
+          "sha256": "ed54eadbde93969726eef46671721cb0e0dbcee3c16c00873f1d2cd62db14ebe",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tsconfig.build.json.snapshot.txt"
+        },
+        "packages/core/kernel-basis/tsconfig.test.json": {
+          "sha256": "132276fd71193c254b1dd1e2366d37bce3c92416c3c41626e1802f15aaec0fb9",
+          "snapshot": "input/implementation/packages/core/kernel-basis/tsconfig.test.json.snapshot.txt"
+        },
+        "packages/core/kernel-basis/vitest.config.ts": {
+          "sha256": "ed95e082575301c864c201375e88d17f9472705959c8fec682c78a44e96685a8",
+          "snapshot": "input/implementation/packages/core/kernel-basis/vitest.config.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/package.json": {
+          "sha256": "8788ffea19af4ec6698a1477d8a040a55823aad9c80185a5be037970a5b03d84",
+          "snapshot": "input/implementation/packages/core/offer-expiry/package.json.snapshot.txt"
+        },
+        "packages/core/offer-expiry/schema/offer-expiry.schema.json": {
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "snapshot": "input/implementation/packages/core/offer-expiry/schema/offer-expiry.schema.json.snapshot.txt"
+        },
+        "packages/core/offer-expiry/src/index.ts": {
+          "sha256": "de4ac694a682d241d039b1128192362958ce3d63f4281c4d50f71eb9c04f7f12",
+          "snapshot": "input/implementation/packages/core/offer-expiry/src/index.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/src/offer.ts": {
+          "sha256": "78bd3b9f520bff025845676046f04e9e01d1f71132eadc7b2c785699a8d12355",
+          "snapshot": "input/implementation/packages/core/offer-expiry/src/offer.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/src/testing/index.ts": {
+          "sha256": "c6cf8ebf0720e7c1b53fa46774e8b65baee33dccb1f9993529cd7c0104d3b00e",
+          "snapshot": "input/implementation/packages/core/offer-expiry/src/testing/index.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/src/time.ts": {
+          "sha256": "c4e3002f520e9a2c94bbed6aa3606696f4a7acdb892cb13b69d11616925d03dc",
+          "snapshot": "input/implementation/packages/core/offer-expiry/src/time.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/src/validate.ts": {
+          "sha256": "0b9ba353f74418a7d4b78bf84d4524103ae6330bc9bca9b87ddea90a3bec702b",
+          "snapshot": "input/implementation/packages/core/offer-expiry/src/validate.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/tests/derive.spec.ts": {
+          "sha256": "fbaee0005ac009c8c0c93b026d8756a840f27923b4b8c80d3a10a618cd1b8f84",
+          "snapshot": "input/implementation/packages/core/offer-expiry/tests/derive.spec.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/tests/schema.spec.ts": {
+          "sha256": "b90b7f7cc27cd254efcb0b63283f8f006a0b37c6ff64886b66c4075524156e98",
+          "snapshot": "input/implementation/packages/core/offer-expiry/tests/schema.spec.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/tests/testing.spec.ts": {
+          "sha256": "ca018fae99325073aefa8ede4d6f5a8d9fde16e744a23dd3e5c118027b411ae3",
+          "snapshot": "input/implementation/packages/core/offer-expiry/tests/testing.spec.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/tests/time.spec.ts": {
+          "sha256": "6769dfb98f00f56d5bb65210110fdc8994280e2c7ec032e2bb452b3c01b29c92",
+          "snapshot": "input/implementation/packages/core/offer-expiry/tests/time.spec.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/tests/types.spec-d.ts": {
+          "sha256": "bab2241784a8e58a32604595368a508272322fc7026272a5b959d35c85a6a744",
+          "snapshot": "input/implementation/packages/core/offer-expiry/tests/types.spec-d.ts.snapshot.txt"
+        },
+        "packages/core/offer-expiry/tsconfig.build.json": {
+          "sha256": "ed54eadbde93969726eef46671721cb0e0dbcee3c16c00873f1d2cd62db14ebe",
+          "snapshot": "input/implementation/packages/core/offer-expiry/tsconfig.build.json.snapshot.txt"
+        },
+        "packages/core/offer-expiry/tsconfig.test.json": {
+          "sha256": "132276fd71193c254b1dd1e2366d37bce3c92416c3c41626e1802f15aaec0fb9",
+          "snapshot": "input/implementation/packages/core/offer-expiry/tsconfig.test.json.snapshot.txt"
+        },
+        "packages/core/offer-expiry/vitest.config.ts": {
+          "sha256": "2a04d3f311a9c1ee30a3dbfbe0ca4943b9bba64b3889b2b4e75cc735f55e368c",
+          "snapshot": "input/implementation/packages/core/offer-expiry/vitest.config.ts.snapshot.txt"
+        },
+        "packages/core/storage/package.json": {
+          "sha256": "3e53254782b5ec7aad4ad4259243fcef22b852a9f649983379614949a78bcfec",
+          "snapshot": "input/implementation/packages/core/storage/package.json.snapshot.txt"
+        },
+        "packages/core/storage/src/conformance/index.ts": {
+          "sha256": "710e72332c7f91f42bfa9e6be2753dfa9661afc85d995d330ad34330c7e8deb8",
+          "snapshot": "input/implementation/packages/core/storage/src/conformance/index.ts.snapshot.txt"
+        },
+        "packages/core/storage/src/errors.ts": {
+          "sha256": "ee16db0443c8970ecb71a756d7d7c0eb4b2935afd26f1a188b4629ce0bae11b7",
+          "snapshot": "input/implementation/packages/core/storage/src/errors.ts.snapshot.txt"
+        },
+        "packages/core/storage/src/index.ts": {
+          "sha256": "12422c001df4e94d2968f403c44b37ecb89c26039ab839b809c55d635cd54768",
+          "snapshot": "input/implementation/packages/core/storage/src/index.ts.snapshot.txt"
+        },
+        "packages/core/storage/src/map.ts": {
+          "sha256": "67ccb147fc6fbf4aef0e40adc6af411369632944196821f5a66a5c8b83d9936a",
+          "snapshot": "input/implementation/packages/core/storage/src/map.ts.snapshot.txt"
+        },
+        "packages/core/storage/src/migration.ts": {
+          "sha256": "6d87a7dd9f563f487a8fc30ae680d1b290f966666d933efc6bea4edf3cdc1ab7",
+          "snapshot": "input/implementation/packages/core/storage/src/migration.ts.snapshot.txt"
+        },
+        "packages/core/storage/src/preflight.ts": {
+          "sha256": "e18b87b514435a08ceaa6bb2d5a3eff597b2a96b8731d1817a858525f50a3116",
+          "snapshot": "input/implementation/packages/core/storage/src/preflight.ts.snapshot.txt"
+        },
+        "packages/core/storage/src/protocol.ts": {
+          "sha256": "fde24d0954acb4759a773ba655deef4e3b283113c84a29bc33ac2c126a0a412c",
+          "snapshot": "input/implementation/packages/core/storage/src/protocol.ts.snapshot.txt"
+        },
+        "packages/core/storage/tests/errors.spec.ts": {
+          "sha256": "75cc54db2dff5a37377ae7df5f5519ae66ccda89d5d92beac27774b78a97bf7e",
+          "snapshot": "input/implementation/packages/core/storage/tests/errors.spec.ts.snapshot.txt"
+        },
+        "packages/core/storage/tests/migration.spec.ts": {
+          "sha256": "006975b87fc17d3e9c37d530dfaa35ee5867b6d5e2a1df2d581ca2d3d2b14b23",
+          "snapshot": "input/implementation/packages/core/storage/tests/migration.spec.ts.snapshot.txt"
+        },
+        "packages/core/storage/tests/types.spec-d.ts": {
+          "sha256": "fd01c1ab58eec94a820cb244b22b94e49352e108de5e2cd1c96eaaf515b3c2be",
+          "snapshot": "input/implementation/packages/core/storage/tests/types.spec-d.ts.snapshot.txt"
+        },
+        "packages/core/storage/tsconfig.build.json": {
+          "sha256": "ed54eadbde93969726eef46671721cb0e0dbcee3c16c00873f1d2cd62db14ebe",
+          "snapshot": "input/implementation/packages/core/storage/tsconfig.build.json.snapshot.txt"
+        },
+        "packages/core/storage/tsconfig.test.json": {
+          "sha256": "132276fd71193c254b1dd1e2366d37bce3c92416c3c41626e1802f15aaec0fb9",
+          "snapshot": "input/implementation/packages/core/storage/tsconfig.test.json.snapshot.txt"
+        },
+        "packages/core/storage/vitest.config.ts": {
+          "sha256": "2a04d3f311a9c1ee30a3dbfbe0ca4943b9bba64b3889b2b4e75cc735f55e368c",
+          "snapshot": "input/implementation/packages/core/storage/vitest.config.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/package.json": {
+          "sha256": "825c420efcf1d2015d40ddc44a5ebaa7a90f0720519b73dd2b6fa0ac757d310a",
+          "snapshot": "input/implementation/packages/infra/storage-sql/package.json.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/config.ts": {
+          "sha256": "dd90998e1cd01a0c5485c93a03f514a9b9b33e3806c70f27bdd7da5e61e0a57c",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/config.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/index.ts": {
+          "sha256": "581c9d2e8232c6dcf64f0c022f6db7cc97a8a0a2b27cb47dac18a59c06fb4532",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/index.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/open.ts": {
+          "sha256": "48545e9143e9aed33782a92edd8a8975fc4850a146da75edb452cc6f68a948ea",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/open.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/plugin.ts": {
+          "sha256": "e6b79703bad4cc3f7dfa27fd5e27b6c3bdff363f9015008cc27fad73849c636f",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/plugin.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/postgres/index.ts": {
+          "sha256": "a3014d764ba5670c272f740ebffa9a45f39e2e95722d6227a20a1eff5150ea3c",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/postgres/index.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/postgres/owner.ts": {
+          "sha256": "2cecb2439a754da42f4a89d6dede7766a96bea872392969008d55597df6a12fe",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/postgres/owner.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/provider.ts": {
+          "sha256": "94ec66648b10e59ca0eb2361b6b07bff1e535b30f450f46a6509fb898595ad3a",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/provider.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/sqlite/constraints.ts": {
+          "sha256": "1cf28b217f924f91234d736edffecfaaa100f2bc906c35acf1f01344edf4b48c",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/sqlite/constraints.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/sqlite/driver.ts": {
+          "sha256": "2b1baaf50edd04b13f4ea47bc495be51d1d0c793300bfb2d9e994f7518862eda",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/sqlite/driver.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/sqlite/errors.ts": {
+          "sha256": "5344fbc0aaa65a7fe1c438356dca73184d39b12a8a111369681e60ef72643c12",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/sqlite/errors.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/sqlite/index.ts": {
+          "sha256": "0aec993bf9e5cde947c8831a3a533d8e5389d736523c823e85fc29776252df10",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/sqlite/index.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/sqlite/owner.ts": {
+          "sha256": "ea97b8b612289f2abca96efc9e926a89c37f36e804a4b8880ce911f49e3bfc5e",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/sqlite/owner.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/upgrade/files.ts": {
+          "sha256": "3ace1b3995845b615a7e22b10573990101cb7d83ea5ab389385f9ca596134978",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/upgrade/files.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/upgrade/guard.ts": {
+          "sha256": "12648cdc86797dc2ec4bfc2f5f3e75d80232ef1f490041c9a0daba71404174a3",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/upgrade/guard.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/upgrade/owner.ts": {
+          "sha256": "4cc650a23b8b4850c5dfefb5222f3a3b80ab71e99e48f7cef105516214001cef",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/upgrade/owner.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/src/upgrade/registry.ts": {
+          "sha256": "c542ead30902ac31b0f01381248cc3ed4a20342dc13ab9d77cd937ea923daac6",
+          "snapshot": "input/implementation/packages/infra/storage-sql/src/upgrade/registry.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/conformance.postgres.spec.ts": {
+          "sha256": "c0a2c68c34a45e37800b8db2c09b525e214124ab672fe75bce7797fb3d1ec82f",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/conformance.postgres.spec.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/conformance.sqlite.spec.ts": {
+          "sha256": "492b1bd56f33c7ee32bd0e172e6c7523ac418bb38689c9b2ff6de356c0e881f0",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/conformance.sqlite.spec.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/fixtures/migrations.ts": {
+          "sha256": "d4c746501ae7570aba8583dd71be5c4080c1f2751b6a335b9143900da8ddeae2",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/fixtures/migrations.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/fixtures/owner-child.ts": {
+          "sha256": "8b0b78ac18b8472fba9f3668560e39ec9bba531e80935ced6c48fe6b6e01566f",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/fixtures/owner-child.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/owner-process.ts": {
+          "sha256": "412157db1a429f97b79caf400cba0451de0c771e7631a41cf3f5d80ccf6ede2f",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/owner-process.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/plugin.spec.ts": {
+          "sha256": "004b489259b204cceb2474a1ff3edd955f81d003e400e715668612147b1598ed",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/plugin.spec.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/support.ts": {
+          "sha256": "92460da2b18b67f5779a7fce637782606e7f602734f0c4dc54fc3e3d1d065b5e",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/support.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/upgrade.plugin.spec.ts": {
+          "sha256": "0947cc6acedaaf241f8c36727c23f344fab3f2c399dbc39b5938c25426067b6c",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/upgrade.plugin.spec.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/upgrade.postgres.spec.ts": {
+          "sha256": "3b89006299c54884de4673a42d1bc9c818c3aa24f0bfebee93592fa5881a4e1b",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/upgrade.postgres.spec.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/upgrade.process.spec.ts": {
+          "sha256": "65309752fdec4bb18ffe7ccdece802a7a4df4839ed49d2414175046bcaa2679e",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/upgrade.process.spec.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tests/upgrade.spec.ts": {
+          "sha256": "fd12638851ad8a19cdc0133843c8041f68e9c2b3ac39c4eab5444e83c4a442eb",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tests/upgrade.spec.ts.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tsconfig.build.json": {
+          "sha256": "ed54eadbde93969726eef46671721cb0e0dbcee3c16c00873f1d2cd62db14ebe",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tsconfig.build.json.snapshot.txt"
+        },
+        "packages/infra/storage-sql/tsconfig.test.json": {
+          "sha256": "132276fd71193c254b1dd1e2366d37bce3c92416c3c41626e1802f15aaec0fb9",
+          "snapshot": "input/implementation/packages/infra/storage-sql/tsconfig.test.json.snapshot.txt"
+        },
+        "packages/infra/storage-sql/vitest.config.ts": {
+          "sha256": "2a04d3f311a9c1ee30a3dbfbe0ca4943b9bba64b3889b2b4e75cc735f55e368c",
+          "snapshot": "input/implementation/packages/infra/storage-sql/vitest.config.ts.snapshot.txt"
+        },
+        "tools/core-verification/README.md": {
+          "sha256": "04b96a92b59fcf308d2caa32b989b8cbfac1640221191f7406ec76618556e36b",
+          "snapshot": "input/implementation/tools/core-verification/README.md.snapshot.txt"
+        },
+        "tools/core-verification/fixtures/storage-conformance.spec.ts": {
+          "sha256": "9e13430e23563f802c3e9ed0e649da01c8dd02b99ed609f40f27361795b8b518",
+          "snapshot": "input/implementation/tools/core-verification/fixtures/storage-conformance.spec.ts.snapshot.txt"
+        },
+        "tools/core-verification/fixtures/vitest.storage-conformance.config.ts": {
+          "sha256": "be0bef7690e368095f95c781492396dcb1fdf39f97c9c59197a4e15f0516a1a5",
+          "snapshot": "input/implementation/tools/core-verification/fixtures/vitest.storage-conformance.config.ts.snapshot.txt"
+        },
+        "tools/core-verification/package.json": {
+          "sha256": "97a7947b033d4ecbb2d407a5f975dc235c5421a87684121e91a3d5045a083f2f",
+          "snapshot": "input/implementation/tools/core-verification/package.json.snapshot.txt"
+        },
+        "tools/core-verification/src/storage-fixture.ts": {
+          "sha256": "377f1b96cde2371d3a32c12f3cd9d92f545f6b5d4f5c6f8a9977f6426927423c",
+          "snapshot": "input/implementation/tools/core-verification/src/storage-fixture.ts.snapshot.txt"
+        },
+        "tools/core-verification/tests/storage-conformance.selftest.spec.ts": {
+          "sha256": "f96ea1bd72a47b3feaca20c1a05702b1baf06b74ce825932f2d45663fccf25c2",
+          "snapshot": "input/implementation/tools/core-verification/tests/storage-conformance.selftest.spec.ts.snapshot.txt"
+        },
+        "tools/core-verification/tsconfig.build.json": {
+          "sha256": "331425a988ac85f129acf48720e0cad6c1b6130d6124b738f9fcb555945c24f3",
+          "snapshot": "input/implementation/tools/core-verification/tsconfig.build.json.snapshot.txt"
+        },
+        "tools/core-verification/tsconfig.test.json": {
+          "sha256": "42de80c342b19e6caa3838deb259bbc8a8e4f261406f8d3dc37ebcd1b3ffa300",
+          "snapshot": "input/implementation/tools/core-verification/tsconfig.test.json.snapshot.txt"
+        },
+        "tools/core-verification/vitest.config.ts": {
+          "sha256": "aec0c2faac9c9c8ff07bcb090044398657be3ab28deb6ab12ebf366b18f624da",
+          "snapshot": "input/implementation/tools/core-verification/vitest.config.ts.snapshot.txt"
+        }
+      }
+    },
+    "checks": {
+      "revision": "d8d1382d",
+      "files": {
+        "tools/ts-checks/README.md": {
+          "sha256": "5b78c85e7e3ca2689d97c2a491a592ddcd29c1187a2902104bfc9b7a2773f543",
+          "snapshot": "input/checks/tools/ts-checks/README.md.snapshot.txt"
+        },
+        "tools/ts-checks/package.json": {
+          "sha256": "9fe418b3d401281f30382fbc18fb5c1e83b740cb00f4fa0a57c774408e024996",
+          "snapshot": "input/checks/tools/ts-checks/package.json.snapshot.txt"
+        },
+        "tools/ts-checks/src/cli.ts": {
+          "sha256": "2f724006f2f6894bf3214ba91523c63c4251fb9f821656b5aa2183c147496290",
+          "snapshot": "input/checks/tools/ts-checks/src/cli.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/index.ts": {
+          "sha256": "6c8211c51b3678574253c5f478d79a252aa91b0c0bb5edddf2c7740442ea2978",
+          "snapshot": "input/checks/tools/ts-checks/src/index.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/layout.ts": {
+          "sha256": "9bf36295d3de72e344c555a0fc3fae2b2ceeb7b960d3893c14cea01c70f2ebc7",
+          "snapshot": "input/checks/tools/ts-checks/src/layout.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rule.ts": {
+          "sha256": "d0af92076010c91f00f27535860dca58757b47f488b9486d35d8a83530582ecc",
+          "snapshot": "input/checks/tools/ts-checks/src/rule.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/ai-r8-no-credential-in-write.ts": {
+          "sha256": "78a0027a3c564565c33ee8f34f6e8f460dac50c2b9e9990c9f8155c3509a1ed5",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/ai-r8-no-credential-in-write.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/core-pure-imports.ts": {
+          "sha256": "2445eebb660c4561fe1f48cbb0e6ca1b035040b1fdf51c172eda0c032ca090c3",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/core-pure-imports.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/credentials-parse-only.ts": {
+          "sha256": "3ed4579e7806216c9420786bfacad537d495153be19dc42938d1da1be31f28ae",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/credentials-parse-only.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/identity-shapes.ts": {
+          "sha256": "0d87d89b7ea745280cf12d6a82d94e36bb780fc501edbd6cd8a882212f5964ac",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/identity-shapes.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-bail-control.ts": {
+          "sha256": "f4cc29e202f4493c8610c8499be20c5168d551f365336fa587eaa346ed94ab85",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-bail-control.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-dialect-bypass.ts": {
+          "sha256": "888ea58f14cb30b750118f9fb785beece4f734df85515c4f9313a610c0a19976",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-dialect-bypass.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-network-listen-in-tenancy.ts": {
+          "sha256": "d4444e60ccc65477f3cc5ee0f14244a980a278446cfadb3187c5501b4279fea0",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-network-listen-in-tenancy.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-peer-address.ts": {
+          "sha256": "f13c58e77c263e8a150e98c20d37a687067562c83c71cac099343db7afe0b99a",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-peer-address.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-presentation-in-diagnostics.ts": {
+          "sha256": "1069ab8c35d9d278e619a23598013d1ac037773cd14dd91303afcf59c5dfda1e",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-presentation-in-diagnostics.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-random-source-inline.ts": {
+          "sha256": "627661f3c320109eb2309a6378b02be1889ba0020a10efe333bcc5f83a4ee44e",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-random-source-inline.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-testing-import.ts": {
+          "sha256": "171c21896125f598cec7bb6fac50276efeaa2c827be5cf2ab81af0cc9f809a6d",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-testing-import.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-wall-clock.ts": {
+          "sha256": "bc9bb6863b375f2db81cd38e2050264b45c2704d946df7933eb1d43023cfe372",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/no-wall-clock.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/og-s42-dynamic-resolve.ts": {
+          "sha256": "5c82d0e6dc7dd624f78553c0bb13e2f1e4d7ece3a990a32dede7a8d085b0713d",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/og-s42-dynamic-resolve.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/ops-event-whitelist.ts": {
+          "sha256": "d237612debf5b62babf7a36a875eb38be1d0d7aa2aec6916ac732bc1e1a4ea90",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/ops-event-whitelist.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/ops-import-whitelist.ts": {
+          "sha256": "79c7d4fd4847c79ec303b7a7cda38026b3e6990781b899959c91cfb47f76fae1",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/ops-import-whitelist.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/presentation-only-authn.ts": {
+          "sha256": "1fc93956b643221b761455eed9b2929149c99c16c52a2a8dd08179a51c42445b",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/presentation-only-authn.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/restricted-call-sites.ts": {
+          "sha256": "b1871c6bea2b58fd1a8eef9ae7d1bccb7f3260072c35f33a926e7fe307939bf6",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/restricted-call-sites.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/sc-cv-1.ts": {
+          "sha256": "48c1de199435acc06f22fa7cbf7fcacf6636c4c3f645e5ae032d80169811bda0",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/sc-cv-1.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/sc-oe.ts": {
+          "sha256": "a103177721ea172deca826898fa1cfe2e8bd5559dbe0847c18f32b77fba2096e",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/sc-oe.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/single-table-entry.ts": {
+          "sha256": "0dbd7b8f198fc1f0c1ed6861385bf40eecdd31ff2d0147d68c7d69c4f397aa03",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/single-table-entry.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/terminal-outcome-closed.ts": {
+          "sha256": "d9e70185b105a84b470191003254f5f213127fdd1fe69a0e7fc381ac8772a141",
+          "snapshot": "input/checks/tools/ts-checks/src/rules/terminal-outcome-closed.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/source-text.ts": {
+          "sha256": "046cb44d2cd1d4cc5517035b72bbf1495a32bea4c4d9b931575ef71fa009a153",
+          "snapshot": "input/checks/tools/ts-checks/src/source-text.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/syntax.ts": {
+          "sha256": "5173d5fc58a536b46d8adbf2faf82c621e61b08ba02e643701f5245a71ee5710",
+          "snapshot": "input/checks/tools/ts-checks/src/syntax.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/account-identity-rules.spec.ts": {
+          "sha256": "9dacc34050e7e13cdbf5826b2bffd20c76fed848c0d251470a03494e9d55d65a",
+          "snapshot": "input/checks/tools/ts-checks/tests/account-identity-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/consumer-rules.spec.ts": {
+          "sha256": "24f9c3acdb5cafe161099df7f194fa8e91fadfe402524dee8dc750bf95a460f9",
+          "snapshot": "input/checks/tools/ts-checks/tests/consumer-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/core-rules.spec.ts": {
+          "sha256": "7c72cf209d344b6d26a5a5b5ca4cac8f6855c95026fb5858c1e4fb19b6c6f453",
+          "snapshot": "input/checks/tools/ts-checks/tests/core-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/entry-rules.spec.ts": {
+          "sha256": "b05eb5f36ee81f33a278f7f335eb145875533c78d1a240a27a09e6e46548cfa7",
+          "snapshot": "input/checks/tools/ts-checks/tests/entry-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/rules.spec.ts": {
+          "sha256": "1205f60fd31f26ec222529eb35fd94d4d7083f5808e3da0eb9935a9af5c3bfc2",
+          "snapshot": "input/checks/tools/ts-checks/tests/rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/source-text.spec.ts": {
+          "sha256": "26ab578aff67dec9d9946dd6382553831d590ffdbed4f3eb4373d93aa921f0f1",
+          "snapshot": "input/checks/tools/ts-checks/tests/source-text.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tsconfig.build.json": {
+          "sha256": "331425a988ac85f129acf48720e0cad6c1b6130d6124b738f9fcb555945c24f3",
+          "snapshot": "input/checks/tools/ts-checks/tsconfig.build.json.snapshot.txt"
+        },
+        "tools/ts-checks/tsconfig.test.json": {
+          "sha256": "fb64515f2fbcaad048ff1547c12d1ef6e3e3002f35e766a5517fa5cf2aa101f6",
+          "snapshot": "input/checks/tools/ts-checks/tsconfig.test.json.snapshot.txt"
+        },
+        "tools/ts-checks/vitest.config.ts": {
+          "sha256": "2a04d3f311a9c1ee30a3dbfbe0ca4943b9bba64b3889b2b4e75cc735f55e368c",
+          "snapshot": "input/checks/tools/ts-checks/vitest.config.ts.snapshot.txt"
+        }
+      }
+    },
+    "checks-path": {
+      "revision": "59669096",
+      "files": {
+        "tools/ts-checks/README.md": {
+          "sha256": "34597570713a20d737c2f10381efe38d757cd845a82b767513e22dff5c09dab9",
+          "snapshot": "input/checks-path/tools/ts-checks/README.md.snapshot.txt"
+        },
+        "tools/ts-checks/package.json": {
+          "sha256": "9fe418b3d401281f30382fbc18fb5c1e83b740cb00f4fa0a57c774408e024996",
+          "snapshot": "input/checks-path/tools/ts-checks/package.json.snapshot.txt"
+        },
+        "tools/ts-checks/src/cli.ts": {
+          "sha256": "2f724006f2f6894bf3214ba91523c63c4251fb9f821656b5aa2183c147496290",
+          "snapshot": "input/checks-path/tools/ts-checks/src/cli.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/index.ts": {
+          "sha256": "6c8211c51b3678574253c5f478d79a252aa91b0c0bb5edddf2c7740442ea2978",
+          "snapshot": "input/checks-path/tools/ts-checks/src/index.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/layout.ts": {
+          "sha256": "9bf36295d3de72e344c555a0fc3fae2b2ceeb7b960d3893c14cea01c70f2ebc7",
+          "snapshot": "input/checks-path/tools/ts-checks/src/layout.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rule.ts": {
+          "sha256": "d0af92076010c91f00f27535860dca58757b47f488b9486d35d8a83530582ecc",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rule.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/ai-r8-no-credential-in-write.ts": {
+          "sha256": "78a0027a3c564565c33ee8f34f6e8f460dac50c2b9e9990c9f8155c3509a1ed5",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/ai-r8-no-credential-in-write.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/core-pure-imports.ts": {
+          "sha256": "a4c3cf14575f25007f256006958abc305d5711d836b3aa5ce2f03a5cd85a310d",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/core-pure-imports.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/credentials-parse-only.ts": {
+          "sha256": "3ed4579e7806216c9420786bfacad537d495153be19dc42938d1da1be31f28ae",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/credentials-parse-only.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/identity-shapes.ts": {
+          "sha256": "0d87d89b7ea745280cf12d6a82d94e36bb780fc501edbd6cd8a882212f5964ac",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/identity-shapes.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-bail-control.ts": {
+          "sha256": "f4cc29e202f4493c8610c8499be20c5168d551f365336fa587eaa346ed94ab85",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-bail-control.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-dialect-bypass.ts": {
+          "sha256": "888ea58f14cb30b750118f9fb785beece4f734df85515c4f9313a610c0a19976",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-dialect-bypass.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-network-listen-in-tenancy.ts": {
+          "sha256": "d4444e60ccc65477f3cc5ee0f14244a980a278446cfadb3187c5501b4279fea0",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-network-listen-in-tenancy.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-peer-address.ts": {
+          "sha256": "f13c58e77c263e8a150e98c20d37a687067562c83c71cac099343db7afe0b99a",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-peer-address.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-presentation-in-diagnostics.ts": {
+          "sha256": "1069ab8c35d9d278e619a23598013d1ac037773cd14dd91303afcf59c5dfda1e",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-presentation-in-diagnostics.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-random-source-inline.ts": {
+          "sha256": "627661f3c320109eb2309a6378b02be1889ba0020a10efe333bcc5f83a4ee44e",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-random-source-inline.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-testing-import.ts": {
+          "sha256": "171c21896125f598cec7bb6fac50276efeaa2c827be5cf2ab81af0cc9f809a6d",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-testing-import.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/no-wall-clock.ts": {
+          "sha256": "bc9bb6863b375f2db81cd38e2050264b45c2704d946df7933eb1d43023cfe372",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/no-wall-clock.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/og-s42-dynamic-resolve.ts": {
+          "sha256": "5c82d0e6dc7dd624f78553c0bb13e2f1e4d7ece3a990a32dede7a8d085b0713d",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/og-s42-dynamic-resolve.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/ops-event-whitelist.ts": {
+          "sha256": "d237612debf5b62babf7a36a875eb38be1d0d7aa2aec6916ac732bc1e1a4ea90",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/ops-event-whitelist.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/ops-import-whitelist.ts": {
+          "sha256": "79c7d4fd4847c79ec303b7a7cda38026b3e6990781b899959c91cfb47f76fae1",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/ops-import-whitelist.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/presentation-only-authn.ts": {
+          "sha256": "1fc93956b643221b761455eed9b2929149c99c16c52a2a8dd08179a51c42445b",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/presentation-only-authn.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/restricted-call-sites.ts": {
+          "sha256": "b1871c6bea2b58fd1a8eef9ae7d1bccb7f3260072c35f33a926e7fe307939bf6",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/restricted-call-sites.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/sc-cv-1.ts": {
+          "sha256": "48c1de199435acc06f22fa7cbf7fcacf6636c4c3f645e5ae032d80169811bda0",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/sc-cv-1.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/sc-oe.ts": {
+          "sha256": "a103177721ea172deca826898fa1cfe2e8bd5559dbe0847c18f32b77fba2096e",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/sc-oe.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/single-table-entry.ts": {
+          "sha256": "0dbd7b8f198fc1f0c1ed6861385bf40eecdd31ff2d0147d68c7d69c4f397aa03",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/single-table-entry.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/terminal-outcome-closed.ts": {
+          "sha256": "d9e70185b105a84b470191003254f5f213127fdd1fe69a0e7fc381ac8772a141",
+          "snapshot": "input/checks-path/tools/ts-checks/src/rules/terminal-outcome-closed.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/source-text.ts": {
+          "sha256": "046cb44d2cd1d4cc5517035b72bbf1495a32bea4c4d9b931575ef71fa009a153",
+          "snapshot": "input/checks-path/tools/ts-checks/src/source-text.ts.snapshot.txt"
+        },
+        "tools/ts-checks/src/syntax.ts": {
+          "sha256": "5173d5fc58a536b46d8adbf2faf82c621e61b08ba02e643701f5245a71ee5710",
+          "snapshot": "input/checks-path/tools/ts-checks/src/syntax.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/account-identity-rules.spec.ts": {
+          "sha256": "9dacc34050e7e13cdbf5826b2bffd20c76fed848c0d251470a03494e9d55d65a",
+          "snapshot": "input/checks-path/tools/ts-checks/tests/account-identity-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/consumer-rules.spec.ts": {
+          "sha256": "24f9c3acdb5cafe161099df7f194fa8e91fadfe402524dee8dc750bf95a460f9",
+          "snapshot": "input/checks-path/tools/ts-checks/tests/consumer-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/core-rules.spec.ts": {
+          "sha256": "aba72142055d84cb5c5f1ff4e86dafcb0cfef5e0a501a46652e0f92cf91a6368",
+          "snapshot": "input/checks-path/tools/ts-checks/tests/core-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/entry-rules.spec.ts": {
+          "sha256": "b05eb5f36ee81f33a278f7f335eb145875533c78d1a240a27a09e6e46548cfa7",
+          "snapshot": "input/checks-path/tools/ts-checks/tests/entry-rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/rules.spec.ts": {
+          "sha256": "1205f60fd31f26ec222529eb35fd94d4d7083f5808e3da0eb9935a9af5c3bfc2",
+          "snapshot": "input/checks-path/tools/ts-checks/tests/rules.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/source-text.spec.ts": {
+          "sha256": "26ab578aff67dec9d9946dd6382553831d590ffdbed4f3eb4373d93aa921f0f1",
+          "snapshot": "input/checks-path/tools/ts-checks/tests/source-text.spec.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tsconfig.build.json": {
+          "sha256": "331425a988ac85f129acf48720e0cad6c1b6130d6124b738f9fcb555945c24f3",
+          "snapshot": "input/checks-path/tools/ts-checks/tsconfig.build.json.snapshot.txt"
+        },
+        "tools/ts-checks/tsconfig.test.json": {
+          "sha256": "fb64515f2fbcaad048ff1547c12d1ef6e3e3002f35e766a5517fa5cf2aa101f6",
+          "snapshot": "input/checks-path/tools/ts-checks/tsconfig.test.json.snapshot.txt"
+        },
+        "tools/ts-checks/vitest.config.ts": {
+          "sha256": "2a04d3f311a9c1ee30a3dbfbe0ca4943b9bba64b3889b2b4e75cc735f55e368c",
+          "snapshot": "input/checks-path/tools/ts-checks/vitest.config.ts.snapshot.txt"
+        }
+      }
+    },
+    "kernel-spoke": {
+      "revision": "1a229204",
+      "files": {
+        "package.json": {
+          "sha256": "6869b2bf16a04200dc7f25af8628ec13ef356cba8be4de832ded3d43b58a601e",
+          "snapshot": "input/kernel-spoke/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "2acc40c49ccc96904930e5ba3303ba772a24cdc70c9368805af356c95344ac39",
+          "snapshot": "input/kernel-spoke/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "f7348ff448f3764c92323c324467efde12d330c79774e5a27a0083ee26dcd7ef",
+          "snapshot": "input/kernel-spoke/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/kernel-spoke/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "kernel-hub": {
+      "revision": "0e39dc26",
+      "files": {
+        "package.json": {
+          "sha256": "6869b2bf16a04200dc7f25af8628ec13ef356cba8be4de832ded3d43b58a601e",
+          "snapshot": "input/kernel-hub/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "2acc40c49ccc96904930e5ba3303ba772a24cdc70c9368805af356c95344ac39",
+          "snapshot": "input/kernel-hub/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "f7348ff448f3764c92323c324467efde12d330c79774e5a27a0083ee26dcd7ef",
+          "snapshot": "input/kernel-hub/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/kernel-hub/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "foundation-spoke": {
+      "revision": "efe73eb5",
+      "files": {
+        "package.json": {
+          "sha256": "6869b2bf16a04200dc7f25af8628ec13ef356cba8be4de832ded3d43b58a601e",
+          "snapshot": "input/foundation-spoke/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "2acc40c49ccc96904930e5ba3303ba772a24cdc70c9368805af356c95344ac39",
+          "snapshot": "input/foundation-spoke/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "f7348ff448f3764c92323c324467efde12d330c79774e5a27a0083ee26dcd7ef",
+          "snapshot": "input/foundation-spoke/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/foundation-spoke/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "foundation-hub": {
+      "revision": "f73078ba",
+      "files": {
+        "package.json": {
+          "sha256": "6869b2bf16a04200dc7f25af8628ec13ef356cba8be4de832ded3d43b58a601e",
+          "snapshot": "input/foundation-hub/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "2acc40c49ccc96904930e5ba3303ba772a24cdc70c9368805af356c95344ac39",
+          "snapshot": "input/foundation-hub/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "f7348ff448f3764c92323c324467efde12d330c79774e5a27a0083ee26dcd7ef",
+          "snapshot": "input/foundation-hub/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/foundation-hub/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "storage-hub-start": {
+      "revision": "cdcc58ab",
+      "files": {
+        "package.json": {
+          "sha256": "6869b2bf16a04200dc7f25af8628ec13ef356cba8be4de832ded3d43b58a601e",
+          "snapshot": "input/storage-hub-start/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "e9df69606d472032645a77235c8a53335f7a6267bd5207ad88a8a633b44ddb2f",
+          "snapshot": "input/storage-hub-start/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "af7edf44dfe791591bb362f20ddbb4c8742e11f61bb6b600995e64efc90da41e",
+          "snapshot": "input/storage-hub-start/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/storage-hub-start/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "storage-hub-end": {
+      "revision": "c51146ba",
+      "files": {
+        "package.json": {
+          "sha256": "1f29c21215337f50799f984ef6fddaf5f1c7a5ca014d9ceb94dcd1fc88cfb257",
+          "snapshot": "input/storage-hub-end/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "e9df69606d472032645a77235c8a53335f7a6267bd5207ad88a8a633b44ddb2f",
+          "snapshot": "input/storage-hub-end/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "e964886c6921bcc2e7e2b80c6dffe158bb66d97a3b9623586529160e6808124f",
+          "snapshot": "input/storage-hub-end/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/storage-hub-end/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "checks-spoke": {
+      "revision": "30f8786d",
+      "files": {
+        "package.json": {
+          "sha256": "6869b2bf16a04200dc7f25af8628ec13ef356cba8be4de832ded3d43b58a601e",
+          "snapshot": "input/checks-spoke/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "2acc40c49ccc96904930e5ba3303ba772a24cdc70c9368805af356c95344ac39",
+          "snapshot": "input/checks-spoke/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "f7348ff448f3764c92323c324467efde12d330c79774e5a27a0083ee26dcd7ef",
+          "snapshot": "input/checks-spoke/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/checks-spoke/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "checks-hub-lock": {
+      "revision": "4800b320",
+      "files": {
+        "package.json": {
+          "sha256": "1f29c21215337f50799f984ef6fddaf5f1c7a5ca014d9ceb94dcd1fc88cfb257",
+          "snapshot": "input/checks-hub-lock/package.json.snapshot.txt"
+        },
+        "pnpm-lock.yaml": {
+          "sha256": "630644f4887f4cb69565e6617155f0bd8935eb4edd8502154d254a0799b26e13",
+          "snapshot": "input/checks-hub-lock/pnpm-lock.yaml.snapshot.txt"
+        },
+        "pnpm-workspace.yaml": {
+          "sha256": "e964886c6921bcc2e7e2b80c6dffe158bb66d97a3b9623586529160e6808124f",
+          "snapshot": "input/checks-hub-lock/pnpm-workspace.yaml.snapshot.txt"
+        },
+        "tsconfig.base.json": {
+          "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+          "snapshot": "input/checks-hub-lock/tsconfig.base.json.snapshot.txt"
+        }
+      }
+    },
+    "checks-path-adoption": {
+      "revision": "46be3697",
+      "files": {
+        ".meta_harness/design/realization/packages/core/arrival-events/design.md": {
+          "sha256": "c388c8aa937e371a69426e2427773c6890ea379430e79e9cc7b6ed2a88844d5a",
+          "snapshot": "input/checks-path-adoption/.meta_harness/design/realization/packages/core/arrival-events/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/asset-model/design.md": {
+          "sha256": "57481e91250265a53c3372690c0920ed32c6e61dc3e8ca28d82bd0f918259754",
+          "snapshot": "input/checks-path-adoption/.meta_harness/design/realization/packages/core/asset-model/design.md.snapshot.txt"
+        },
+        ".meta_harness/design/realization/packages/core/mcp-endpoint/design.md": {
+          "sha256": "4edf29d9e54dae37bd3c700e00233b3e7448878a09855629c6ab3ca8b6e7122a",
+          "snapshot": "input/checks-path-adoption/.meta_harness/design/realization/packages/core/mcp-endpoint/design.md.snapshot.txt"
+        },
+        "tools/ts-checks/README.md": {
+          "sha256": "34597570713a20d737c2f10381efe38d757cd845a82b767513e22dff5c09dab9",
+          "snapshot": "input/checks-path-adoption/tools/ts-checks/README.md.snapshot.txt"
+        },
+        "tools/ts-checks/src/rules/core-pure-imports.ts": {
+          "sha256": "a4c3cf14575f25007f256006958abc305d5711d836b3aa5ce2f03a5cd85a310d",
+          "snapshot": "input/checks-path-adoption/tools/ts-checks/src/rules/core-pure-imports.ts.snapshot.txt"
+        },
+        "tools/ts-checks/tests/core-rules.spec.ts": {
+          "sha256": "aba72142055d84cb5c5f1ff4e86dafcb0cfef5e0a501a46652e0f92cf91a6368",
+          "snapshot": "input/checks-path-adoption/tools/ts-checks/tests/core-rules.spec.ts.snapshot.txt"
+        }
+      }
+    }
+  },
+  "correspondence": {
+    "kernel": {
+      "revision": "1a229204",
+      "metadata_input_files_verified": 34
+    },
+    "foundation": {
+      "revision": "efe73eb5",
+      "metadata_input_files_verified": 15
+    },
+    "checks": {
+      "revision": "30f8786d",
+      "metadata_input_files_verified": 29
+    },
+    "checks-path": {
+      "revision": "46be3697",
+      "metadata_input_files_verified": 6
+    },
+    "frozen": "All adopted frozen resources match registry hashes.",
+    "schema_copies": {
+      "identity-values": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+      "offer-expiry": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684"
+    }
+  }
+}
