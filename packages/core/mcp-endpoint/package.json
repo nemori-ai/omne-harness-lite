@@ -4,12 +4,20 @@
   "private": true,
   "type": "module",
   "description": "data.mcp-endpoint v1 pure representation judgments and explicit-input declarations",
-  "engines": { "node": ">=24.18.0 <25" },
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
     "./schema": "./schema/mcp-endpoint.schema.json"
   },
-  "files": ["dist", "schema"],
+  "files": [
+    "dist",
+    "schema"
+  ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
