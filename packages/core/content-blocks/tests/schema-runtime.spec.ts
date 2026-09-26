@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { writeJsonLossless, readJsonStrict, type JsonValue } from '../src/json.ts'
 import {
   createSchemaRuntime,
-  type JsonSchema,
+  type SchemaDocument,
   type SchemaRuntimeOptions,
 } from '../src/schema-runtime.ts'
-import { json } from './ports.ts'
+function json(text: string): JsonValue {
+  const parsed = readJsonStrict(text)
+  if ('failed' in parsed) throw new Error('invalid test JSON')
+  return parsed.ok
+}
 
-function schema(text: string): JsonSchema {
+function schema(text: string): SchemaDocument {
   const value = json(text)
   if (typeof value === 'boolean') return value
   if (value === null || typeof value !== 'object' || Array.isArray(value))
@@ -99,6 +103,42 @@ describe('protected schema-runtime original-value boundary', () => {
     expect(second.validate(json('[9007199254740993]'))).toBe(true)
     expect(first.validate(json('{"a/b":9007199254740992}'))).toBe(true)
     expect(second.validate(json('[9007199254740992]'))).toBe(false)
+  })
+  it('recovers original numbers below escaped members and external numeric refs', () => {
+    const pinned = createSchemaRuntime([
+      schema(
+        '{"$id":"https://test.invalid/escaped","$defs":{"Number":{"minimum":9007199254740993}}}',
+      ),
+    ])
+    const compiled = pinned.compile({
+      type: 'object',
+      properties: {
+        'a/b~c': { type: 'array', items: { $ref: 'https://test.invalid/escaped#/$defs/Number' } },
+      },
+      required: ['a/b~c'],
+    })
+    expect(compiled.validate(json('{"a/b~c":[9007199254740992]}'))).toBe(false)
+    expect(compiled.validate(json('{"a/b~c":[9007199254740993]}'))).toBe(true)
+    expect(compiled.validate(json('{"a/b~c":[9007199254740992]}'))).toBe(false)
+  })
+  it('keeps identical resource ids private to each caller-owned runtime', () => {
+    const first = createSchemaRuntime([{ $id: 'https://test.invalid/private', const: 1 }])
+    const second = createSchemaRuntime([{ $id: 'https://test.invalid/private', const: 2 }])
+    const a = first.compile({ $ref: 'https://test.invalid/private' })
+    const b = second.compile({ $ref: 'https://test.invalid/private' })
+    expect(a.validate(json('1.0'))).toBe(true)
+    expect(b.validate(json('1.0'))).toBe(false)
+    expect(a.validate(2)).toBe(false)
+    expect(b.validate(2)).toBe(true)
+  })
+  it('keeps metadata results independent of compilation and prior caller mutations', () => {
+    const author = { minLength: 1 }
+    const compiled = runtime.compile(author)
+    author.minLength = -1
+    expect(runtime.metaValidate(author)).toBe(false)
+    expect(compiled.validate('x')).toBe(true)
+    expect(compiled.validate('')).toBe(false)
+    expect(runtime.metaValidate({ minLength: 1 })).toBe(true)
   })
   it.each(['minContains', 'maxContains'] as const)(
     'preserves %s comparisons on actual JavaScript arrays for overflow bounds',

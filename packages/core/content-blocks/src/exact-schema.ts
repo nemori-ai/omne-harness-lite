@@ -15,7 +15,7 @@ import {
   writeJsonLossless,
   type JsonValue,
   type JsonObject,
-} from '@omne-harness-lite/content-blocks'
+} from './json.ts'
 
 function object(value: unknown): value is JsonObject {
   return (

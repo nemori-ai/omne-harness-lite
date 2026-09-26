@@ -12,11 +12,7 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/asset-model.schema.json",
-    "./schema-runtime": {
-      "types": "./dist/schema-runtime.d.ts",
-      "import": "./dist/schema-runtime.js"
-    }
+    "./schema": "./schema/asset-model.schema.json"
   },
   "files": [
     "dist",
@@ -30,8 +26,7 @@
   "dependencies": {
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*",
-    "ajv": "catalog:"
+    "@omne-harness-lite/offer-expiry": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
