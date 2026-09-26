@@ -12,7 +12,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/asset-model.schema.json"
+    "./schema": "./schema/asset-model.schema.json",
+    "./schema-runtime": {
+      "types": "./dist/schema-runtime.d.ts",
+      "import": "./dist/schema-runtime.js"
+    }
   },
   "files": [
     "dist",

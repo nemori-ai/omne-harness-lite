@@ -22,8 +22,10 @@ import {
   parseCapabilityCanonicalString,
   parseWorkspaceManifestText,
   type BodyContracts,
+  type AttributeDeclaration,
 } from '../src/index.ts'
 import { bodies, json } from './ports.ts'
+import { isObject } from '../src/judge.ts'
 
 const judge = createAssetModelJudge(bodies)
 describe('S-2/S-3 identity and canonical spelling', () => {
@@ -130,7 +132,7 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
   it.each(['disabled', 'usableBy', 'duplicate'])('throws body rule defects: %s', item => {
     const declarations =
       item === 'duplicate'
-        ? [DISABLED_DECLARATION, DISABLED_DECLARATION].map(d => ({ ...d, item: 'same' }))
+        ? [USABLE_BY_DECLARATION, USABLE_BY_DECLARATION].map(d => ({ ...d, item: 'same' }))
         : [{ ...DISABLED_DECLARATION, item }]
     const contracts: BodyContracts = {
       ...bodies,
@@ -158,6 +160,63 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
     expect(() =>
       attributeDeclarationsOf({ category: 'tool', definition: {} }, contracts, snapshot),
     ).toThrow(TypeError)
+    expect(() =>
+      attributeDeclarationsOf({ category: 'plugin', members: [] }, contracts, snapshot),
+    ).toThrow(TypeError)
+  })
+  it('calls the connector port and treats an invented partial set as a body defect', () => {
+    let called = false
+    const contracts: BodyContracts = {
+      ...bodies,
+      connector: {
+        ...bodies.connector,
+        deriveDeclarations: () => {
+          called = true
+          return { underivable: 'connector' }
+        },
+      },
+    }
+    expect(attributeDeclarationsOf({ category: 'connector', body: {} }, contracts)).toEqual({
+      underivable: 'connector',
+    })
+    expect(called).toBe(true)
+    expect(() =>
+      attributeDeclarationsOf(
+        { category: 'connector', body: {} },
+        {
+          ...bodies,
+          connector: { ...bodies.connector, deriveDeclarations: () => ({ declarations: [] }) },
+        },
+      ),
+    ).toThrow(TypeError)
+  })
+  it('pins declaration and reference outputs without changing numeric source or values', () => {
+    const domain = { type: 'object' }
+    const originalDefault = { n: new LosslessNumber('9007199254740993') }
+    const declaration: AttributeDeclaration = {
+      item: 'x',
+      kind: 'setting',
+      category: 'preference',
+      domain: { kind: 'open', schema: domain },
+      default: originalDefault,
+    }
+    const contracts: BodyContracts = {
+      ...bodies,
+      tool: { ...bodies.tool, deriveDeclarations: () => ({ declarations: [declaration] }) },
+    }
+    const result = attributeDeclarationsOf({ category: 'tool', definition: {} }, contracts)
+    expect('declarations' in result && result.declarations[0]).toEqual(declaration)
+    domain.type = 'string'
+    originalDefault.n = new LosslessNumber('1')
+    if (!('declarations' in result)) throw new Error('expected derived declarations')
+    const first = result.declarations[0]
+    if (first === undefined) throw new Error('expected first declaration')
+    expect(first.domain).toEqual({ kind: 'open', schema: { type: 'object' } })
+    expect(writeJsonLossless(first.default)).toBe('{"n":9007199254740993}')
+    const member = { category: 'tool' as const, name: 'before' }
+    const references = referencesOf({ category: 'plugin', members: [member] }, bodies)
+    member.name = 'after'
+    expect(references).toEqual({ references: [{ category: 'tool', name: 'before' }] })
   })
   it('keeps references explicit and does not inspect agent body', () => {
     const member = { category: 'tool', name: 'x' } as const
@@ -191,6 +250,34 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
         definition: {},
       }),
     ).toThrow(defect)
+  })
+  it('binds fixed Schema and responsibility closures at construction', () => {
+    const originalSchema = bodies.tool.schema
+    if (typeof originalSchema === 'boolean' || !isObject(originalSchema.$defs))
+      throw new Error('expected fixed resource id')
+    const mutableSchema = {
+      ...originalSchema,
+      $defs: {
+        ...originalSchema.$defs,
+        ToolDefinition: { type: 'object', required: ['sentinel'] },
+      },
+    }
+    const port = {
+      ...bodies.tool,
+      schema: mutableSchema,
+      judge: () => ({ rejected: 'original' }),
+    }
+    const bound = createAssetModelJudge({ ...bodies, tool: port })
+    mutableSchema.$defs.ToolDefinition.required.push('later')
+    port.judge = () => ({ rejected: 'changed' })
+    expect(bound.judgeAssetValue('AssetContent', { category: 'tool', definition: {} })).toEqual({
+      rejected: 'original',
+    })
+    expect(
+      bound.validate('AssetContent', { category: 'tool', definition: { sentinel: true } }),
+    ).toEqual({
+      valid: true,
+    })
   })
 })
 describe('S-24/S-28 strict text and lossless untouched values', () => {

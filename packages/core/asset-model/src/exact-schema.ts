@@ -1,7 +1,14 @@
 import { Ajv2020 } from 'ajv/dist/2020.js'
+import metaSchema from 'ajv/dist/refs/json-schema-2020-12/schema.json' with { type: 'json' }
+import applicatorMeta from 'ajv/dist/refs/json-schema-2020-12/meta/applicator.json' with { type: 'json' }
+import unevaluatedMeta from 'ajv/dist/refs/json-schema-2020-12/meta/unevaluated.json' with { type: 'json' }
+import contentMeta from 'ajv/dist/refs/json-schema-2020-12/meta/content.json' with { type: 'json' }
+import coreMeta from 'ajv/dist/refs/json-schema-2020-12/meta/core.json' with { type: 'json' }
+import formatMeta from 'ajv/dist/refs/json-schema-2020-12/meta/format-annotation.json' with { type: 'json' }
+import metadataMeta from 'ajv/dist/refs/json-schema-2020-12/meta/meta-data.json' with { type: 'json' }
+import validationMeta from 'ajv/dist/refs/json-schema-2020-12/meta/validation.json' with { type: 'json' }
 import {
   isJsonNumber,
-  isNonNegativeJsonInteger,
   jsonNumberSource,
   LosslessNumber,
   readJsonStrict,
@@ -81,6 +88,13 @@ function equal(left: JsonValue, right: JsonValue): boolean {
     )
   return left === right
 }
+function containsNumber(value: JsonValue): boolean {
+  return (
+    isJsonNumber(value) ||
+    (Array.isArray(value) && value.some(containsNumber)) ||
+    (object(value) && Object.values(value).some(containsNumber))
+  )
+}
 function divisible(a: Decimal, b: Decimal): boolean {
   if (b.negative || b.digits === '0') return false
   if (a.digits === '0') return true
@@ -138,6 +152,51 @@ function literal(text: unknown): JsonValue {
   return result.ok
 }
 export function installExactKeywords(ajv: Ajv2020): void {
+  ajv.addKeyword({
+    keyword: 'exact_uniqueItems',
+    schemaType: 'boolean',
+    errors: false,
+    validate: function (
+      this: unknown,
+      _encoded: unknown,
+      _value: unknown,
+      _schema: unknown,
+      context: unknown,
+    ): boolean {
+      const value = original(this, context)
+      return (
+        !Array.isArray(value) ||
+        value.every((item, index) => !value.slice(0, index).some(other => equal(item, other)))
+      )
+    },
+  })
+  ajv.addKeyword({
+    keyword: 'exact_type',
+    schemaType: 'string',
+    errors: false,
+    validate: function (
+      this: unknown,
+      encoded: unknown,
+      _value: unknown,
+      _schema: unknown,
+      context: unknown,
+    ): boolean {
+      const value = original(this, context)
+      const types = literal(encoded)
+      const candidates = Array.isArray(types) ? types : [types]
+      return candidates.some(type => {
+        if (type === 'integer') {
+          const number = decimal(value)
+          return number !== undefined && (number.digits === '0' || number.exponent >= 0n)
+        }
+        if (type === 'number') return isJsonNumber(value)
+        if (type === 'array') return Array.isArray(value)
+        if (type === 'object') return object(value)
+        if (type === 'null') return value === null
+        return typeof value === type
+      })
+    },
+  })
   for (const keyword of [
     'minimum',
     'maximum',
@@ -232,11 +291,25 @@ const mapSchemas = new Set([
   'dependentSchemas',
 ])
 const listSchemas = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems'])
+const privateKeywords = new Set([
+  'exact_minimum',
+  'exact_maximum',
+  'exact_exclusiveMinimum',
+  'exact_exclusiveMaximum',
+  'exact_multipleOf',
+  'exact_integer',
+  'exact_type',
+  'exact_const',
+  'exact_enum',
+  'exact_uniqueItems',
+])
 /** Transform only actual subschemas, never the objects inside enum/default/const. */
 export function exactSchema(schema: JsonValue): JsonValue {
   if (!object(schema)) return schema
   return Object.fromEntries(
     Object.entries(schema).flatMap(([key, value]) => {
+      // Unknown author annotations cannot impersonate our private compiler keywords.
+      if (privateKeywords.has(key)) return []
       if (
         ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'].includes(
           key,
@@ -244,7 +317,11 @@ export function exactSchema(schema: JsonValue): JsonValue {
         isJsonNumber(value)
       )
         return [[`exact_${key}`, writeJsonLossless(value)]]
-      if (key === 'const' || key === 'enum') return [[`exact_${key}`, writeJsonLossless(value)]]
+      if ((key === 'const' || key === 'enum') && containsNumber(value))
+        return [[`exact_${key}`, writeJsonLossless(value)]]
+      if (key === 'uniqueItems' && value === true) return [['exact_uniqueItems', true]]
+      if (key === 'type' && Array.isArray(value) && value.includes('integer'))
+        return [['exact_type', writeJsonLossless(value)]]
       if (key === 'type' && value === 'integer')
         return [
           ['type', 'number'],
@@ -264,4 +341,33 @@ export function exactSchema(schema: JsonValue): JsonValue {
       return [[key, value]]
     }),
   )
+}
+/** Reuse the standard dialect resources, with the same exact original-value checks. */
+export function createExactMetaValidator(): (schema: JsonValue, projected: JsonValue) => boolean {
+  const ajv = new Ajv2020({
+    meta: false,
+    validateSchema: false,
+    strict: false,
+    ownProperties: true,
+    validateFormats: false,
+    passContext: true,
+  })
+  installExactKeywords(ajv)
+  for (const resource of [
+    metaSchema,
+    applicatorMeta,
+    unevaluatedMeta,
+    contentMeta,
+    coreMeta,
+    formatMeta,
+    metadataMeta,
+    validationMeta,
+  ]) {
+    const transformed = exactSchema(resource)
+    if (!object(transformed)) throw new Error('standard meta-Schema is not an object')
+    ajv.addMetaSchema(transformed)
+  }
+  const validator = ajv.getSchema(metaSchema.$id)
+  if (validator === undefined) throw new Error('standard meta-Schema is unavailable')
+  return (schema, projected) => validator.call({ root: schema }, projected) === true
 }

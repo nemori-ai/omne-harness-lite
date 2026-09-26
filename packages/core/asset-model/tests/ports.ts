@@ -102,7 +102,10 @@ export const bodies: BodyContracts = {
   skill: port('skill', 'skill-package'),
   mcp: port('mcp', 'mcp-endpoint'),
   slash_command: port('slash_command', 'slash-command'),
-  connector: port('connector', 'connector'),
+  connector: {
+    ...port('connector', 'connector'),
+    deriveDeclarations: () => ({ underivable: 'connector' }),
+  },
 }
 export function json(text: string): JsonValue {
   const parsed = readJsonStrict(text)
