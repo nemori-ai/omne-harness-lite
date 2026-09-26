@@ -129,3 +129,5 @@
 
 判断方法按需读 `harness-design-handbook` skill 的「设计选择」。
 返回 [系统设计链](../design/README.md)。
+
+[2026-09-26 core 规格实施一致性观察](core-spec-conformance-2026-09-26/README.md)：固定CB2/SA2的两个反例与静态消费者影响；不接受新版本或实现。
