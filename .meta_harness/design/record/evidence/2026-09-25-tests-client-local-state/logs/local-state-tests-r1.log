@@ -1,0 +1,187 @@
+
+> @omne-harness-lite/client-local-state@0.0.0 test /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state
+
+ ❯ tests/state.spec.ts (13 tests | 9 failed) 200ms
+     × retains identity, revision and the whole record across reopen 26ms
+     × late logout cannot delete a newly selected login from another provider 14ms
+     × detects changed persistent identity even when revision and value match 13ms
+     × never clears a bound center or migrates its login to another center 19ms
+     × freezes private snapshots and captures input before waiting for storage 13ms
+     × does not reinterpret a known account attached to the same bearer 13ms
+     × reports a future format and invalid record without replacing either 13ms
+     × rejects revision exhaustion and current operation ID reuse 13ms
+     × keeps validated reads together and requires clearing them when the login changes 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/state.spec.ts > complete local record > retains identity, revision and the whole record across reopen
+AssertionError: expected 'not-installed' to be 'installed' // Object.is equality
+
+Expected: "installed"
+Received: "not-installed"
+
+ ❯ tests/state.spec.ts:16:28
+     14|     expect(Object.keys(empty.token)).toEqual([])
+     15|     const installed = await state.compareAndReplace(empty.token, logge…
+     16|     expect(installed.kind).toBe('installed')
+       |                            ^
+     17|     await state.close()
+     18|     const reopened = await f.open(directory)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/state.spec.ts > complete local record > late logout cannot delete a newly selected login from another provider
+AssertionError: expected 'not-installed' to be 'installed' // Object.is equality
+
+Expected: "installed"
+Received: "not-installed"
+
+ ❯ tests/state.spec.ts:27:92
+     25|     await a.compareAndReplace((await read(a)).token, logged, 'login-fi…
+     26|     const logoutSnapshot = await read(a)
+     27|     expect((await b.compareAndReplace((await read(b)).token, other, 'l…
+       |                                                                                            ^
+     28|     expect((await a.compareAndReplace(logoutSnapshot.token, config, 'l…
+     29|     expect((await read(a)).value).toEqual(other)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/state.spec.ts > complete local record > detects changed persistent identity even when revision and value match
+AssertionError: expected 'not-installed' to be 'conflict' // Object.is equality
+
+Expected: "conflict"
+Received: "not-installed"
+
+ ❯ tests/state.spec.ts:52:78
+     50|     const db = new DatabaseSync(join(directory, 'client.sqlite'))
+     51|     try { db.exec("UPDATE client_local_state SET store_id = 'ffffffff-…
+     52|     expect((await s.compareAndReplace(original.token, logged, 'late'))…
+       |                                                                              ^
+     53|     expect((await read(s)).value).toBe(null)
+     54|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/state.spec.ts > complete local record > never clears a bound center or migrates its login to another center
+AssertionError: expected { kind: 'installed', …(1) } to deeply equal { kind: 'not-installed', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "kind": "not-installed",
+-   "reason": "invalid-input",
++   "kind": "installed",
++   "snapshot": {
++     "operationId": "bad",
++     "revision": 1,
++     "storeId": "ab886bb4-890f-4f5e-aadb-532de275276f",
++     "token": {},
++     "value": null,
++   },
+  }
+
+ ❯ tests/state.spec.ts:60:78
+     58|     await s.compareAndReplace((await read(s)).token, logged, 'first')
+     59|     for (const value of [null, { ...logged, center: { ...center, cente…
+     60|       expect(await s.compareAndReplace((await read(s)).token, value, '…
+       |                                                                              ^
+     61|     }
+     62|     expect((await s.compareAndReplace((await read(s)).token, { ...logg…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/state.spec.ts > complete local record > freezes private snapshots and captures input before waiting for storage
+AssertionError: expected 'not-installed' to be 'installed' // Object.is equality
+
+Expected: "installed"
+Received: "not-installed"
+
+ ❯ tests/state.spec.ts:71:28
+     69|     Object.assign(value, { login: other.login })
+     70|     const installed = await pending
+     71|     expect(installed.kind).toBe('installed')
+       |                            ^
+     72|     const snapshot = await read(s)
+     73|     expect(snapshot.value).toEqual(logged)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/state.spec.ts > complete local record > does not reinterpret a known account attached to the same bearer
+AssertionError: expected 'not-installed' to be 'installed' // Object.is equality
+
+Expected: "installed"
+Received: "not-installed"
+
+ ❯ tests/state.spec.ts:82:91
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/state.spec.ts > complete local record > reports a future format and invalid record without replacing either
+AssertionError: expected { kind: 'not-installed', …(1) } to deeply equal { kind: 'not-installed', …(1) }
+
+- Expected
++ Received
+
+  {
+    "kind": "not-installed",
+-   "reason": "unsupported-format",
++   "reason": "invalid-input",
+  }
+
+ ❯ tests/state.spec.ts:103:75
+    101|       db.exec('UPDATE client_local_state SET format_version = 2')
+    102|       expect(await s.read()).toEqual({ kind: 'failed', reason: 'unsupp…
+    103|       expect(await s.compareAndReplace(original.token, logged, 'future…
+       |                                                                           ^
+    104|       db.exec("UPDATE client_local_state SET format_version = 1, value…
+    105|       expect(await s.read()).toEqual({ kind: 'failed', reason: 'invali…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/state.spec.ts > complete local record > rejects revision exhaustion and current operation ID reuse
+Error: fixture read failed: invalid-record
+ ❯ read tests/support.ts:37:37
+     35| export async function read(state: ClientLocalStateInstance): Promise<L…
+     36|   const result = await state.read()
+     37|   if (result.kind !== 'read') throw new Error(`fixture read failed: ${…
+       |                                     ^
+     38|   return result.snapshot
+     39| }
+ ❯ tests/state.spec.ts:116:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/state.spec.ts > read copies > keeps validated reads together and requires clearing them when the login changes
+AssertionError: expected 'not-installed' to be 'installed' // Object.is equality
+
+Expected: "installed"
+Received: "not-installed"
+
+ ❯ tests/state.spec.ts:128:86
+    126|     const s = await f.open(await f.directory())
+    127|     await s.compareAndReplace((await read(s)).token, logged, 'login')
+    128|     expect((await s.compareAndReplace((await read(s)).token, cached, '…
+       |                                                                                      ^
+    129|     expect((await read(s)).value).toEqual(cached)
+    130|     expect(await s.compareAndReplace((await read(s)).token, { ...other…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed | 4 passed (13)
+Type Errors  no errors
+   Start at  02:15:15
+   Duration  471ms (transform 65ms, setup 0ms, import 209ms, tests 200ms, environment 0ms)
+
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/frontend/client-local-state:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/client-local-state@0.0.0 test: `vitest run`
+Exit status 1

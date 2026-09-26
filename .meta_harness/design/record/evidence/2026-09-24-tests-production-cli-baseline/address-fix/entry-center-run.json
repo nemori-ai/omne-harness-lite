@@ -1,0 +1,21 @@
+{
+  "command": [
+    "fnm",
+    "exec",
+    "--using",
+    "24",
+    "pnpm",
+    "--filter",
+    "@omne-harness-lite/governance-center-entry",
+    "exec",
+    "vitest",
+    "run",
+    "tests/center.spec.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/baseline-2026-09-24-2/entry-center-results.json"
+  ],
+  "started_at": "2026-09-24T07:16:14.040710+00:00",
+  "finished_at": "2026-09-24T07:16:16.558528+00:00",
+  "exit_code": 0
+}

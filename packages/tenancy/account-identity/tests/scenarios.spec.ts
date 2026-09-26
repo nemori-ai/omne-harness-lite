@@ -202,9 +202,27 @@ describe('capability.account-identity v2 · 规范场景', () => {
     const listed = await h.logins.listEffective(second.loginStateId)
     expect(listed).toStrictEqual({
       ok: [
-        { loginStateId: first.loginStateId, issuedAt: h.clock.current - 2000 },
-        { loginStateId: second.loginStateId, issuedAt: h.clock.current - 1000 },
-        { loginStateId: third.loginStateId, issuedAt: h.clock.current },
+        {
+          loginStateId: first.loginStateId,
+          issuedAt: h.clock.current - 2000,
+          lastActivityAt: h.clock.current - 2000,
+          absoluteExpiresAt: h.clock.current - 2000 + 8 * HOUR_MS,
+          idleExpiresAt: h.clock.current - 2000 + HOUR_MS,
+        },
+        {
+          loginStateId: second.loginStateId,
+          issuedAt: h.clock.current - 1000,
+          lastActivityAt: h.clock.current - 1000,
+          absoluteExpiresAt: h.clock.current - 1000 + 8 * HOUR_MS,
+          idleExpiresAt: h.clock.current - 1000 + HOUR_MS,
+        },
+        {
+          loginStateId: third.loginStateId,
+          issuedAt: h.clock.current,
+          lastActivityAt: h.clock.current,
+          absoluteExpiresAt: h.clock.current + 8 * HOUR_MS,
+          idleExpiresAt: h.clock.current + HOUR_MS,
+        },
       ],
     })
     expect(await h.logins.revoke(first.loginStateId, second.loginStateId)).toBe('ok')

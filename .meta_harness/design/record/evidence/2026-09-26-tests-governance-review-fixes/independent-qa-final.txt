@@ -1,0 +1,112 @@
+# D057 最终 host r3 / CLI r2 独立有限 QA
+
+结论：**Pass**，限本报告实际范围。原有 47 项在新制品上一次全部通过；独立完整清单与无测试运行器检查通过；新增一次真实首次启动 marker 关闭故障 → 非零退出 → 正常重启恢复 → 正常停止探针通过。没有发现产品阻断，没有改源码、已有 oracle 或旧证据。本报告不是主线接受，也不把未覆盖项目改为通过。
+
+## 固定输入
+
+开始时确认分支 `pandazki/add-tui-developer`。输入为 `fable-artifacts-final.json`；主线审计实际文件名是 `fable-artifacts-audit-final.json`，仅作上下文，独立审计不取其中 PASS 为 oracle。
+
+| 制品 | archive SHA256 | BUILD_ID |
+|---|---|---|
+| host `omne-host-d057-r3.tar.gz` | `bba5d17f650011058f0592752f83dc88f68095bc1c4a0209f5925fe2921d554a` | `9b23209932a02438a80b7a173df7cee3cc2d89ec85cc26747c31028a35d574cd` |
+| CLI `omne-cli-d057-r2.tar.gz` | `19bf675a5f8cee4ba39dc64829d2a54589df7871973217692648941a5b841929` | `bb367e5706b00b831200a05797c1013a9d109e9016902e288f1767f5b2763ea8` |
+
+实际 app 目录 `/private/tmp/omne-host-d057-final-gv2n9joz/app` 和 `/private/tmp/omne-cli-d057-final-grlcfifl/app`；macOS arm64、Node 24.21.0、真实 TLS/Unix socket/独立进程。本次不构建主树，不改变 EC3/HT3 或恢复权限。
+
+## 原 47 项复核
+
+主旅程沿前轮已核准的 44 个判据，仅切换固定制品路径/摘要/证据目录；同工作根 3 个判据同样保持。没有失败重试或改判据。
+
+| # | 项目 | 结果 | exit |
+|---|---|---|---|
+| 1 | initial-missing | Pass | 2 |
+| 2 | employee-configure | Pass | 0 |
+| 3 | employee-register | Pass | 0 |
+| 4 | employee-login | Pass | 0 |
+| 5 | employee-identity-before | Pass | 0 |
+| 6 | online-backup | Pass | 0 |
+| 7 | status-current | Pass | 0 |
+| 8 | backup-not-due | Pass | 0 |
+| 9 | employee-identity-after | Pass | 0 |
+| 10 | offline-verify-no-env | Pass | 0 |
+| 11 | offline-restore-no-env | Pass | 0 |
+| 12 | verify-restored-envelope | Pass | 0 |
+| 13 | restore-existing-target | Pass | 2 |
+| 14 | restore-existing-empty-target | Pass | 2 |
+| 15 | serve-restored-envelope-refused | Pass | 1 |
+| 16 | corrupted-payload-refused | Pass | 2 |
+| 17 | truncated-envelope-refused | Pass | 2 |
+| 18 | trailing-byte-refused | Pass | 2 |
+| 19 | source-symlink-refused | Pass | 1 |
+| 20 | source-missing-unavailable | Pass | 1 |
+| 21 | wide-work-root-refused | Pass | 1 |
+| 22 | relative-source | Pass | 64 |
+| 23 | relative-work | Pass | 64 |
+| 24 | extra-argument | Pass | 64 |
+| 25 | duplicate-flag | Pass | 64 |
+| 26 | ops-relative | Pass | 64 |
+| 27 | unknown-operation | Pass | 64 |
+| 28 | catalog-types-and-corruption | Pass | 0 |
+| 29 | foreign-center-backup | Pass | 0 |
+| 30 | catalog-valid-foreign-filtered | Pass | 0 |
+| 31 | catalog-foreign-future-filtered | Pass | 0 |
+| 32 | own-future-unavailable | Pass | 1 |
+| 33 | work-reusable-after-failures | Pass | 0 |
+| 34 | employee-login-still-valid | Pass | 0 |
+| 35 | cli-help-credential-semantics | Pass | 0 |
+| 36 | secret-probe-configure | Pass | 0 |
+| 37 | secret-full-utf8-register | Pass | 0 |
+| 38 | secret-trimmed-login-rejected | Pass | 4 |
+| 39 | secret-full-utf8-login | Pass | 0 |
+| 40 | host-missing-quarantine-marker-diagnostic | Pass | 1 |
+| 41 | offline-after-center-stopped | Pass | 0 |
+| 42 | ops-stopped-center-unavailable | Pass | 1 |
+| 43 | different-work-root-parallel-b | Pass | 0 |
+| 44 | different-work-root-parallel-a | Pass | 0 |
+| 45 | task 已建立后暂停原进程，同工作根第二进程拒绝 | Pass | 2 / busy |
+| 46 | 原进程恢复后实际完成 | Pass | 0 / verified |
+| 47 | 原进程实际退出后同根再用 | Pass | 0 / verified |
+
+`run-1/commands.json` 和编号文件保存每次实际退出码/stdout/stderr；`checks.json`、`same-work-root-concurrency.json` 保存判定。新 host BUILD_ID 精确出现在备份元信息；verify 元信息一致，restore 输出封装同字节、businessOpen=false；新 CLI 注册/登录/身份读取兼容。UTF-8 复合秘密保留 BOM/中文/空格/LF，trim 后拒绝、原文成功，输出不泄露秘密。
+
+## 新增首次启动未确认恢复探针
+
+`unclosed-marker.mjs` 只用于本次子进程 preload，拦截实际 `.quarantine/.omne-isolated` FileHandle.close 并抛 EIO；不关真实 fd、不修改制品。
+
+实际观察（`startup-probe-result.json`）：
+
+1. 首次中心启动，故障 close 调用两次，均记录 fdStillOpen=true；进程实际 exit1、signal=null，没有 serving。
+2. startup-failed.stage=`upgrade-unconfirmed`；snapshot 字段指向 `<db>.upgrade-snapshot`，该路径当时实际存在。信息准确说 `an upgrade snapshot or absent-database marker may remain`、`restoration is not confirmed`、`ownership is retained`；没有 `restoring the upgrade snapshot failed`。
+3. 等该失败进程实际退出后，同配置不用 preload 启动真实中心，完整体检成功；upgrade-snapshot 路径已消失。
+4. 正常重启中心 SIGTERM，实际 exit0。
+
+探针证明本次文件关闭故障的诊断与后续恢复，不将此路径扩大成 SQL 恢复/放锁双故障组合证明。原始失败启动日志和正常重启日志均保存。故障由明确输入触发，expected exit1 是验收结果，不是测试基础设施失败。
+
+## 独立完整制品审计与文档
+
+`audit.py` 自行核两个归档 SHA256、实际文件/软链集合与各自清单、逐文件 SHA256、软链目标、BUILD_ID；核 package.json 的已安装包名及生产 dependencies/optionalDependencies，扫描所有 JS/MJS/CJS 的 Vitest/Vite import/require。
+
+- host：2835 文件、115 软链、908 份 JavaScript。
+- CLI：2833 文件、89 软链、907 份 JavaScript。
+- 两者均无安装 Vitest/Vite/@vitest/@vitejs/rolldown/@rolldown/why-is-node-running 测试运行包；开发声明所需 devDependency 不当作已安装运行器。精确安装清单见 `inventory.json`。
+
+实际归档 deploy/README 已明确：新工作根单命令初始化；并发首建或崩溃可能留下缺 marker 根；确认旧进程退出后保留旧根选择新路径；不得手补 marker；已初始化根有真实占用时并发 busy。此项是文档核对，本轮未另外模拟首次创建竞争，不冒称其全部时序通过。
+
+## 范围与未覆盖
+
+- 恢复与放锁双故障 AggregateError 的 SQL 注入未重做，归主线定向测试及独立只读评审；不能计作本 QA 黑盒通过项。
+- 旧 sourceMutation 精确 hash/fstat 阶段仍 **Unable to verify**，旧报告和失败尝试保持原样。
+- 未重复大库、全 TUI、Linux/systemd、跨 OS、物理断电、公司实际部署；这些由其他证据承担。
+- 未新增安全再开放或灾备保证。恢复封装 serve 拒绝继续通过。
+- 制品清单核验不构成可复现构建或所有动态字符串加载的形式证明。
+
+所有自建中心/CLI/故障进程已实际退出，无自建容器。新增 synthetic 私有 fixture 保留供追查；脚本、日志、报告只在本新证据目录，不覆盖此前 r1/final 以外记录。
+
+## 重跑
+
+```sh
+fnm exec --using 24 node tmp/production-cli-onboarding/fable-independent-qa-final/run.mjs /absolute/new/evidence-dir
+fnm exec --using 24 node tmp/production-cli-onboarding/fable-independent-qa-final/concurrency.mjs /absolute/new/evidence-dir
+```
+
+独立入口还有 `audit.py` 和 `startup-probe.mjs`。重跑前将它们的 evidence/base 指向新目录以保留现有结果；preload 文件属于本 QA，不应配置到正常服务。主旅程辅助脚本复用 openssl/部署配置/进程脚手架，不 import 产品实现。

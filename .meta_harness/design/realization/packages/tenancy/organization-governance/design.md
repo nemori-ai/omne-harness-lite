@@ -135,3 +135,7 @@
 - **G-13 残留清扫**：本节点只给方法，触发归装配；[tenancy-host](../../../apps/tenancy-host/design.md) 本版不建这个定时器（节奏是政策，待产品负责人），仓库里 `sweepStaleSelections` 尚无调用点；`tools/ts-checks` 的 `restricted-call-sites` 现只许本包、account-registration 与测试调它，装配建定时器时须放行装配。
 - **G-05 标量键**：成员关系用复合键绕开；需要按 `TenantId` 建索引的消费者（计量 G-3）落包前要 G-04／G-05 裁定。
 - **Alloy 模型未登记为 formal task**（退出码归 tooling），S-7／S-12／S-32 的结构证据只能在 verification 里引 evidence run，不能进 bindings。
+
+## 维护副本的本版结构核对（候选R2，未实施）
+
+本包公开只读snapshotCheck，消费core/storage的固定副本inspection/structure；覆盖自己拥有的organization、membership、invitation、affiliation_request、current_tenant_selection、team_creation_key。与本包当前迁移片段逐项核对全部列名/声明类型/nullability/PK次序、必要唯一索引的列/部分条件及所拥有外键；列/对象缺失、额外列或不匹配拒绝invalid-data，实际读取错误保留unavailable。期望结构由本owner随迁移共同维护并以“真实迁移生成的空库”和“升级后的库”作正对照，以逐个删表/列/约束为负对照，避免检查清单自己错误。SQL provider只提供结构事实，不认识本包业务表；host只静态合并检查，不查询私有表。不装业务插件、不迁移输入、不改账号/成员/登录事实。这些检查为EC3维护的数据格式完整性承担义务，不是验证所有领域历史或认证来源。

@@ -1,0 +1,15 @@
+{"ts":1790234996466,"level":"info","name":"tenancy-host","event":"manifest-active","plugins":["storage-sql","clock","credential-verification","account-identity","organization-governance","account-registration","governance-center-ops","governance-center-entry"]}
+{"ts":1790234996472,"level":"info","name":"tenancy-host","event":"upgrade-confirmed","migrated":true,"snapshotTaken":true,"snapshotRemoved":true}
+{"ts":1790234996472,"level":"info","name":"tenancy-host","event":"open-signal"}
+{"ts":1790234996472,"level":"info","name":"tenancy-host","event":"serving","centerId":"2c7a000cb52bd5aab10ff01c93a149b6","version":"0.0.0","startedAt":1790234996472}
+{"ts":1790234996758,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"composition.account-registration/v1#S-8\",\"answer\":\"result\"}"}
+{"ts":1790234996940,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"operation\",\"route\":\"capability.account-identity/v2#S-15\",\"answer\":\"result\"}"}
+{"ts":1790234996941,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-entry"}
+{"ts":1790234996942,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-ops"}
+{"ts":1790234996942,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-registration"}
+{"ts":1790234996942,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"organization-governance"}
+{"ts":1790234996942,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-identity"}
+{"ts":1790234996942,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"credential-verification"}
+{"ts":1790234996942,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock"}
+{"ts":1790234996943,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1790234996943,"level":"info","name":"tenancy-host","event":"disposed","complete":true}

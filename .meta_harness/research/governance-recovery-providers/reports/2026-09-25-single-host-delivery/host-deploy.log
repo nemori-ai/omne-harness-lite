@@ -1,0 +1,6 @@
+Packages are cloned from the content-addressable store to the virtual store.
+  Content-addressable store is at: /Users/pandazki/Library/pnpm/store/v10
+  Virtual store is at:             ../../../../../../private/tmp/omne-host-portable-probe-20260925/node_modules/.pnpm
+.../omne-host-portable-probe-20260925    | Progress: resolved 1, reused 0, downloaded 0, added 0
+.../omne-host-portable-probe-20260925    |  +82 ++++++++
+.../omne-host-portable-probe-20260925    | Progress: resolved 82, reused 82, downloaded 0, added 82, done

@@ -1,0 +1,134 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createServer } from 'node:net'
+import { createGovernanceClient, exitStatus } from '../../../packages/frontend/governance-client-operations/dist/index.js'
+import { openClientLocalState } from '../../../packages/frontend/client-local-state/dist/index.js'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { bootAssembly } from '../../../packages/core/kernel-basis/dist/testing/index.js'
+import { generateHandoffKeyPair } from '../../../packages/core/identity-values/dist/index.js'
+import { composeMigrations } from '../../../packages/core/storage/dist/index.js'
+import { storageSqlPlugin } from '../../../packages/infra/storage-sql/dist/index.js'
+import { credentialsPlugin } from '../../../packages/tenancy/credential-verification/dist/index.js'
+import { accountIdentityPlugin, accountIdentityMigrations, ACCOUNT_TABLE, ACCOUNT_ID_COLUMN } from '../../../packages/tenancy/account-identity/dist/index.js'
+import { organizationGovernancePlugin, organizationGovernanceMigrations } from '../../../packages/tenancy/organization-governance/dist/index.js'
+import { registrationPlugin } from '../../../packages/tenancy/account-registration/dist/index.js'
+import { governanceCenterEntryPlugin, governanceCenterMigrations } from '../../../packages/tenancy/governance-center-entry/dist/index.js'
+const root = await mkdtemp(join(await realpath(tmpdir()), 'omne-cg-integration-'))
+let now = Date.UTC(2026, 8, 25)
+const activation = generateHandoffKeyPair(), purge = generateHandoffKeyPair()
+const reservation = createServer()
+await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve))
+const port = reservation.address().port
+await new Promise(resolve => reservation.close(resolve))
+const certs = new URL('../../../packages/tenancy/governance-center-entry/tests/fixtures/tls/', import.meta.url).pathname
+let allowOpen
+const openSignal = new Promise(resolve => { allowOpen = resolve })
+const assembly = await bootAssembly({
+  services: [{name: 'clock', value: {now: () => now}}],
+  plugins: [
+    {plugin: storageSqlPlugin, config: { dialect: 'sqlite', file: join(root, 'center.sqlite'), synchronous: 'full', migrations: composeMigrations([
+      ...accountIdentityMigrations,
+      ...organizationGovernanceMigrations({ownerAccountReference: {table: ACCOUNT_TABLE, column: ACCOUNT_ID_COLUMN}, ownerAccountForeignKey: 'org_owner_fk'}),
+      ...governanceCenterMigrations,
+    ]), upgrade: false}},
+    {plugin: credentialsPlugin, config: {cost:1024,blockSize:8,parallelization:1,saltBytes:16,keyBytes:32}},
+    {plugin: accountIdentityPlugin, config: {credentialPolicy: {minLength: 8}, unactivatedRetention: 3600000, activationVerificationKeyPem: activation.publicKeyPem, purgeVerificationKeyPem: purge.publicKeyPem}},
+    {plugin: organizationGovernancePlugin, config: {invitationTtlDefault:3600000, affiliationRequestTtlDefault:3600000, teamCreationKeyRetention:86400000,purgeSigningKeyPem:purge.privateKeyPem}},
+    {plugin: registrationPlugin, config: {activationSigningKeyPem:activation.privateKeyPem}},
+    {plugin: governanceCenterEntryPlugin, config: { listen:{host:'127.0.0.1',port}, tls:{certificateChainPem:readFileSync(certs+'chain.pem','utf8'),privateKeyPem:readFileSync(certs+'leaf.key','utf8')}, version:'cg1-integration',drainTimeoutMs:1000,clockReadyTimeoutMs:1000,openSignal}},
+  ],
+})
+const ready = new Promise(resolve => assembly.ctx.on('governance-center-entry/serving', resolve))
+allowOpen()
+await ready
+const og = n => `capability.organization-governance/v2#S-${n}`
+const ai = n => `capability.account-identity/v3#S-${n}`
+const clients = [], states = [], reports = []
+const configure = { action: 'configure', endpoint: `https://localhost:${port}/`, trust: {mode:'ca',certificateAuthorities:readFileSync(certs+'ca.pem','utf8')} }
+async function setup(name) {
+  const state = await openClientLocalState({directory:join(root,name)})
+  states.push(state)
+  const client = createGovernanceClient({state})
+  clients.push(client)
+  assert.equal(exitStatus(await client.runAction(configure)),0)
+  return client
+}
+async function action(client,input,expected='success') {
+  const report = await client.runAction(input)
+  reports.push(report)
+  assert.equal(report.defect,undefined)
+  assert.equal(report.remote.status,expected,`${input.action} ${input.operation??''}: ${JSON.stringify(report)}`)
+  if(expected==='success') assert.equal(exitStatus(report),report.use==='reenter-required'?4:0)
+  return report
+}
+async function result(client,operation,payload={},read=false) {
+  const report = await action(client,{action:'invoke',operation,payload,...(read?{readMode:'refresh'}:{})})
+  return report.remote.reply.reply.result
+}
+const password='original-password', changed='replacement-password'
+async function login(client,identifier,credential=password) { return action(client,{action:'login',payload:{loginIdentifier:identifier,credential}}) }
+try {
+  const alice=await setup('alice'), bob=await setup('bob'), aliceOther=await setup('alice-other')
+  for (const [client,name] of [[alice,'alice'],[bob,'bob']]) {
+    await action(client,{action:'register',payload:{loginIdentifier:name,credential:password}})
+    await login(client,name)
+  }
+  await login(aliceOther,'alice')
+  const alicePersonal=await result(alice,og(36),{},true), bobPersonal=await result(bob,og(36),{},true)
+  const child=await result(alice,og(21),{creationKey:'child'}), parent=await result(alice,og(21),{creationKey:'parent'})
+  const childTenant={organization:child,account:alicePersonal.account}, parentTenant={organization:parent,account:alicePersonal.account}
+  const bobChild={organization:child,account:bobPersonal.account}
+  await result(alice,og(37),{expectedTenant:alicePersonal,targetTenant:childTenant})
+  assert.deepEqual((await action(alice,{action:'invoke',operation:og(58),payload:{expectedTenant:alicePersonal},readMode:'refresh'},'rejected')).remote.reply.reply,{failure:'expectedTenantMismatch'})
+  const invitation=await result(alice,'composition.governance-center-entry/v2#S-50',{expectedTenant:childTenant,loginIdentifier:'bob'})
+  assert.equal((await result(bob,og(57),{},true)).length,1)
+  await result(bob,og(25),{invitation})
+  await result(bob,og(37),{expectedTenant:bobPersonal,targetTenant:bobChild})
+  assert.deepEqual(await result(bob,og(26),{tenant:bobChild},true),{standing:'effective',role:'member'})
+  await result(alice,og(28),{expectedTenant:childTenant,targetTenant:bobChild,role:'superAdministrator'})
+  await result(bob,og(60),{expectedTenant:bobChild},true)
+  const opened=await bob.openUse();assert.equal(opened.kind,'use')
+  await result(alice,og(28),{expectedTenant:childTenant,targetTenant:bobChild,role:'member'})
+  const role=await opened.use.run({action:'invoke',operation:og(26),payload:{tenant:bobChild},readMode:'refresh'})
+  assert.deepEqual(role.remote.reply.reply,{result:{standing:'effective',role:'member'}})
+  const admin=await opened.use.run({action:'invoke',operation:og(60),payload:{expectedTenant:bobChild}})
+  assert.equal(admin.view.source,'none');assert.equal(admin.remote.status,'rejected')
+  await opened.use.close()
+  const request=await result(alice,og(30),{expectedTenant:childTenant,recipientOrganization:parent,direction:'recipientAsParent'})
+  await result(alice,og(37),{expectedTenant:childTenant,targetTenant:parentTenant})
+  await result(alice,og(32),{expectedTenant:parentTenant,affiliationRequest:request})
+  assert.deepEqual(await result(alice,og(34),{organizations:[child]},true),[parent])
+  await result(alice,og(33),{expectedTenant:parentTenant,childOrganization:child})
+  assert.deepEqual(await result(alice,og(34),{organizations:[child]},true),[])
+  await result(alice,og(37),{expectedTenant:parentTenant,targetTenant:childTenant})
+  await result(alice,og(29),{expectedTenant:childTenant,targetTenant:bobChild})
+  const denied=await action(bob,{action:'invoke',operation:og(26),payload:{tenant:bobChild},readMode:'refresh'},'rejected')
+  assert.deepEqual(denied.remote.reply.reply,{failure:'notAuthorized'})
+  const again=await result(alice,'composition.governance-center-entry/v2#S-50',{expectedTenant:childTenant,loginIdentifier:'bob'})
+  await result(bob,og(61),{invitation:again})
+  assert.deepEqual((await action(bob,{action:'invoke',operation:og(25),payload:{invitation:again}},'rejected')).remote.reply.reply,{failure:'offerNoLongerValid'})
+  const logins=await result(alice,ai(37),{},true)
+  assert.equal(logins.length,2)
+  await result(alice,ai(50),{currentCredential:password,newCredential:changed})
+  assert.equal((await action(aliceOther,{action:'invoke',operation:og(27),payload:{},readMode:'refresh'},'rejected')).remote.answer,'login-state-rejected')
+  await login(alice,'alice',changed)
+  await action(alice,{action:'logout'})
+  assert.equal((await alice.runAction({action:'invoke',operation:og(27),payload:{}})).admission.reason,'not-logged-in')
+  await login(alice,'alice',changed)
+  now+=3600000
+  assert.equal((await action(alice,{action:'invoke',operation:og(27),payload:{},readMode:'refresh'},'rejected')).remote.answer,'login-state-rejected')
+  await login(alice,'alice',changed)
+  for(let n=1;n<16;n++){now+=1800000;await result(alice,og(27),{},true)}
+  now+=1800000
+  assert.equal((await action(alice,{action:'invoke',operation:og(27),payload:{},readMode:'refresh'},'rejected')).remote.answer,'login-state-rejected')
+  const publicBytes=JSON.stringify(reports)
+  assert.ok(!publicBytes.includes(password)&&!publicBytes.includes(changed)&&!publicBytes.includes('presentedLoginState')&&!publicBytes.includes('"loginState":'))
+  console.log(JSON.stringify({status:'PASS',platform:process.platform,arch:process.arch,node:process.version,checks:['health/center binding','register/login/identity','create and switch organizations','expected tenant rejection','invitation inbox/accept/decline','role changes and cache invalidation','affiliation accept/unlink','membership loss actual notAuthorized','credential change/all old logins rejected','logout','idle one hour and absolute eight hours','secret-free shared reports'],scope:'Built CG1 + D045 + real CLS + real Cordis center/SQLite/HTTPS; controlled clock and loopback in one process, no CLI/TUI or physical multi-machine/production credential-cost claim'}))
+} finally {
+  await Promise.all(clients.map(c=>c.close()))
+  await Promise.all(states.map(s=>s.close()))
+  await assembly.dispose()
+  await rm(root,{recursive:true,force:true})
+}

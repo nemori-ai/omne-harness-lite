@@ -22,13 +22,15 @@ export const ORGANIZATION_OWNER_ACCOUNT_FK = 'organization_owner_account_fk'
  * AI 在前（外键目标先存在）→ OG 工厂（外键目标与名字由本节点给，目标取 AI 导出的常量）→ clock → 入口层。
  */
 export const hostMigrationFragments: readonly MigrationFragment[] = Object.freeze([
-  ...accountIdentityMigrations,
+  // Preserve the published global prefix; new AI fragments append after all old owners.
+  ...accountIdentityMigrations.slice(0, 1),
   ...organizationGovernanceMigrations({
     ownerAccountReference: { table: ACCOUNT_TABLE, column: ACCOUNT_ID_COLUMN },
     ownerAccountForeignKey: ORGANIZATION_OWNER_ACCOUNT_FK,
   }),
   ...clockMigrations,
   ...governanceCenterMigrations,
+  ...accountIdentityMigrations.slice(1),
 ])
 
 /** 一组片段合成后的迁移名序列（与 `composeMigrations` 同一编号规则）。 */

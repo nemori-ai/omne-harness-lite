@@ -33,6 +33,8 @@ import {
   type MigrationFragment,
   type ReadTx,
   type Storage,
+  type AtomicStorage,
+  type StorageUnit,
   StorageUnavailable,
   type WriteTx,
 } from '@omne-harness-lite/storage'
@@ -174,13 +176,13 @@ function tablesOf(node: unknown, into: Set<string>): Set<string> {
  * 本包拿到的 `storage` 服务：委托给真实提供者，另可按条件让触及某些表的语句失败（`StorageUnavailable`）。
  * 失败在语句编译时抛出，与真实的「读不到」同样以异常到达本包。`statements` 数本包发出的语句条数。
  */
-export class FaultableStorage implements Storage {
+export class FaultableStorage implements AtomicStorage {
   /** 返回 true 的语句以 `StorageUnavailable` 失败；`undefined` = 不注入。 */
   failWhen: ((tables: ReadonlySet<string>) => boolean) | undefined
   statements = 0
   readonly #plugin: KyselyPlugin
 
-  constructor(readonly inner: Storage) {
+  constructor(readonly inner: AtomicStorage) {
     this.#plugin = {
       transformQuery: (args: PluginTransformQueryArgs): RootOperationNode => {
         this.statements += 1
@@ -192,6 +194,25 @@ export class FaultableStorage implements Storage {
       },
       transformResult: async args => args.result,
     }
+  }
+
+  atomic<T>(fn: (unit: StorageUnit) => Promise<T>): Promise<T> {
+    return this.inner.atomic(unit =>
+      fn({
+        assertStorage: expected => unit.assertStorage(expected === this ? this.inner : expected),
+        run: work => unit.run(work),
+        query: work => unit.query(tx => work({ db: tx.db.withPlugin(this.#plugin) })),
+        mutate: work =>
+          unit.mutate(tx =>
+            work({
+              db: tx.db.withPlugin(this.#plugin),
+              lockRow: (table, key) => tx.lockRow(table, key),
+              lockSentinel: name => tx.lockSentinel(name),
+            }),
+          ),
+        afterCommit: notify => unit.afterCommit(notify),
+      }),
+    )
   }
 
   failTables(...tables: string[]): void {
@@ -226,6 +247,10 @@ export class FaultableStorage implements Storage {
 type AccountReading = { readonly activated: boolean; readonly retentionExpired: boolean }
 
 export class AccountsStandIn {
+  participate(unit: StorageUnit) {
+    unit.assertStorage(this.storage)
+    return { read: (account: unknown) => unit.run(() => this.read(account, unit)) }
+  }
   /** 故障注入：读面整体以 `storage-unavailable` 失败。 */
   unavailable = false
   reads = 0
@@ -234,75 +259,91 @@ export class AccountsStandIn {
     private readonly clock: Clock,
   ) {}
 
-  async read(accountId: unknown): Promise<Outcome<AccountReading, ReadFailure>> {
+  async read(
+    accountId: unknown,
+    unit?: StorageUnit,
+  ): Promise<Outcome<AccountReading, ReadFailure>> {
     this.reads += 1
     const parsed = parseAccountId(accountId)
     if (!isOk(parsed)) return { failure: 'invalid-input' }
     if (this.unavailable) return { failure: 'storage-unavailable' }
     try {
       // 这个读面会写：首次观测到已过留存期限时在账号行上落盘再返回（单调事实）
-      return await this.storage.write(async tx => {
-        const row = await tx.db
-          .selectFrom(ACCOUNT_TABLE)
-          .select(['activated', 'retention_deadline', 'expired_at'])
-          .where(ACCOUNT_ID_COLUMN, '=', parsed.ok)
-          .executeTakeFirst()
-        if (row === undefined) return { failure: 'account-not-found' as const }
-        if (row.activated === 1) return { ok: { activated: true, retentionExpired: false } }
-        if (row.expired_at !== null) return { ok: { activated: false, retentionExpired: true } }
-        const now = this.clock.now()
-        if (now === 'unavailable') return { failure: 'storage-unavailable' as const }
-        if (now > Number(row.retention_deadline)) {
-          await tx.db
-            .updateTable(ACCOUNT_TABLE)
-            .set({ expired_at: now })
+      return await (unit ? unit.mutate.bind(unit) : this.storage.write.bind(this.storage))(
+        async tx => {
+          const row = await tx.db
+            .selectFrom(ACCOUNT_TABLE)
+            .select(['activated', 'retention_deadline', 'expired_at'])
             .where(ACCOUNT_ID_COLUMN, '=', parsed.ok)
-            .execute()
-          return { ok: { activated: false, retentionExpired: true } }
-        }
-        return { ok: { activated: false, retentionExpired: false } }
-      })
+            .executeTakeFirst()
+          if (row === undefined) return { failure: 'account-not-found' as const }
+          if (row.activated === 1) return { ok: { activated: true, retentionExpired: false } }
+          if (row.expired_at !== null) return { ok: { activated: false, retentionExpired: true } }
+          const now = this.clock.now()
+          if (now === 'unavailable') return { failure: 'storage-unavailable' as const }
+          if (now > Number(row.retention_deadline)) {
+            await tx.db
+              .updateTable(ACCOUNT_TABLE)
+              .set({ expired_at: now })
+              .where(ACCOUNT_ID_COLUMN, '=', parsed.ok)
+              .execute()
+            return { ok: { activated: false, retentionExpired: true } }
+          }
+          return { ok: { activated: false, retentionExpired: false } }
+        },
+      )
     } catch (error) {
-      if (error instanceof StorageUnavailable) return { failure: 'storage-unavailable' }
+      if (unit === undefined && error instanceof StorageUnavailable)
+        return { failure: 'storage-unavailable' }
       throw error
     }
   }
 }
 
 export class LoginsStandIn {
+  participate(unit: StorageUnit) {
+    unit.assertStorage(this.storage)
+    return { verify: (login: unknown) => unit.run(() => this.verify(login, unit)) }
+  }
   unavailable = false
   verifies = 0
   constructor(private readonly storage: Storage) {}
 
-  async verify(loginStateId: unknown): Promise<Outcome<AccountId, VerifyLoginFailure>> {
+  async verify(
+    loginStateId: unknown,
+    unit?: StorageUnit,
+  ): Promise<Outcome<AccountId, VerifyLoginFailure>> {
     this.verifies += 1
     // 品牌参数在运行期仍先过 parseLoginStateId，先于任何读（AI 公开入口末段）
     const parsed = parseLoginStateId(loginStateId)
     if (!isOk(parsed)) return { failure: 'invalid-input' }
     if (this.unavailable) return { failure: 'storage-unavailable' }
     try {
-      return await this.storage.read(async tx => {
-        const row = await tx.db
-          .selectFrom('login_state')
-          .innerJoin(
-            ACCOUNT_TABLE,
-            `${ACCOUNT_TABLE}.${ACCOUNT_ID_COLUMN}`,
-            'login_state.account_id',
-          )
-          .select([
-            'login_state.account_id as account_id',
-            'login_state.revoked',
-            'account.activated',
-          ])
-          .where('login_state.login_state_id', '=', parsed.ok)
-          .executeTakeFirst()
-        if (row === undefined || row.revoked === 1 || row.activated !== 1) {
-          return { failure: 'login-state-rejected' as const }
-        }
-        return { ok: unwrap(parseAccountId(row.account_id)) }
-      })
+      return await (unit ? unit.query.bind(unit) : this.storage.read.bind(this.storage))(
+        async tx => {
+          const row = await tx.db
+            .selectFrom('login_state')
+            .innerJoin(
+              ACCOUNT_TABLE,
+              `${ACCOUNT_TABLE}.${ACCOUNT_ID_COLUMN}`,
+              'login_state.account_id',
+            )
+            .select([
+              'login_state.account_id as account_id',
+              'login_state.revoked',
+              'account.activated',
+            ])
+            .where('login_state.login_state_id', '=', parsed.ok)
+            .executeTakeFirst()
+          if (row === undefined || row.revoked === 1 || row.activated !== 1) {
+            return { failure: 'login-state-rejected' as const }
+          }
+          return { ok: unwrap(parseAccountId(row.account_id)) }
+        },
+      )
     } catch (error) {
-      if (error instanceof StorageUnavailable) return { failure: 'storage-unavailable' }
+      if (unit === undefined && error instanceof StorageUnavailable)
+        return { failure: 'storage-unavailable' }
       throw error
     }
   }

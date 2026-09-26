@@ -1,0 +1,2 @@
+{"node":"v24.21.0","platform":"darwin","version":"0.86.1","unicodeScalars":5000,"renderMilliseconds":7.755125000000007,"outputBytes":817,"scope":"synthetic Terminal, no IME or actual PTY claim"}
+OBSERVED: raw Input paste can retain OSC control bytes; application-owned input/output boundary must account for it

@@ -4,7 +4,7 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/PF-*/{README,design,flows}.md`（rev、指向词条的链接）
-- 生成时间：2026-09-23
+- 生成时间：2026-09-24
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
 对象 **38** 个，变体 **20** 个，形态未定的词条 **0** 个，待裁 **8** 项。

@@ -53,6 +53,51 @@ function withoutClockLease(dump: ReturnType<typeof dumpDatabase>) {
   return { schema: dump.schema, rows }
 }
 
+describe('AI3 append preserves the released host migration prefix', () => {
+  it('opens an actual database with the nine old global migrations and appends the bounded migration', async () => {
+    const d = await deployment('bounded-prefix')
+    const oldNames = [
+      '0001_account_identity',
+      '0002_organization',
+      '0003_membership',
+      '0004_invitation',
+      '0005_affiliation_request',
+      '0006_current_tenant_selection',
+      '0007_team_creation_key',
+      '0008_clock_lease',
+      '0009_governance_center',
+    ]
+    const storage = await openStorage({
+      dialect: 'sqlite',
+      file: d.file,
+      synchronous: 'full',
+      migrations: composeMigrations(hostMigrationFragments.slice(0, 9)),
+      upgrade: false,
+    })
+    const centerId = '1234567890abcdef1234567890abcdef'
+    await storage.write(tx =>
+      tx.db.updateTable('governance_center').set({ center_id: centerId }).execute(),
+    )
+    await storage.close()
+    expect(
+      query<{ name: string }>(d.file, 'SELECT name FROM kysely_migration ORDER BY name').map(
+        r => r.name,
+      ),
+    ).toEqual(oldNames)
+    const first = await hosts.start(d)
+    expect(first.host.serving.centerId).toBe(centerId)
+    await hosts.stop(first.host)
+    expect(
+      query<{ name: string }>(d.file, 'SELECT name FROM kysely_migration ORDER BY name').map(
+        r => r.name,
+      ),
+    ).toEqual([...oldNames, '0010_account_identity_bounded_logins'])
+    const second = await hosts.start(d)
+    expect(second.host.serving.centerId).toBe(centerId)
+    await hosts.stop(second.host)
+  })
+})
+
 describe('assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数据', () => {
   it('① 迁移登记里多一个本版本不认识的名字（更新的版本写过这份库）⇒ 拒绝、点名那个迁移；库的内容与字节都不变、没有建快照', async () => {
     const d = await deployment('newer')
@@ -66,7 +111,7 @@ describe('assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数�
     const refused = await hosts.refuse(d)
     expect(refused.failure.stage).toBe('preflight')
     expect(refused.failure.message).toContain(`check "${DATA_FORMAT_CHECK}" refused`)
-    expect(refused.failure.message).toContain('"0010_upgrade_probe"')
+    expect(refused.failure.message).toContain('"0011_upgrade_probe"')
     expect(failureRecords(refused.log)).toHaveLength(1)
     expect(allDisposed(refused.fibers)).toBe(true)
     expect(readFileSync(d.file).equals(clean)).toBe(true)
@@ -113,8 +158,8 @@ describe('assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数�
       snapshotRemoved: true,
     })
     const names = query<{ name: string }>(d.file, 'SELECT name FROM kysely_migration ORDER BY name')
-    expect(names.map(n => n.name).at(-1)).toBe('0010_upgrade_probe')
-    expect(names).toHaveLength(10)
+    expect(names.map(n => n.name).at(-1)).toBe('0011_upgrade_probe')
+    expect(names).toHaveLength(11)
   })
 })
 
@@ -232,6 +277,8 @@ describe('assembly.upgrade-restore-on-boot-failure：确认之前的任何启动
     expect(refused.failure.snapshot).toBe(snapshot)
     expect(refused.failure.message).toContain(snapshot)
     expect(refused.failure.message).not.toMatch(/restored/i)
+    expect(refused.failure.message).not.toContain('restoring the upgrade snapshot failed')
+    expect(refused.failure.message).toContain('restoration is not confirmed')
     expect(allDisposed(refused.fibers)).toBe(true)
     expect(existsSync(snapshot)).toBe(true)
     const [record] = failureRecords(refused.log)
@@ -340,18 +387,19 @@ describe('assembly.upgrade-confirmed：确认绑在实例上，确认之后不�
       expect(sidecarsOf(d.file).db).toBe(false)
     })
 
-    it('upgrade: false 的实例不取独占、不建快照；生产 boot() 在它上面确认不了（守卫没挂上）⇒ 拒绝', async () => {
-      const d = await deployment('upgrade-false')
+    it('D055：带维护面的生产装配拒绝 upgrade:false，存储配置校验先于打开数据库', async () => {
+      const d = await deployment('upgrade-false-host')
       const refused = await hosts.refuse(d, {
         manifest: withStorageConfig(config => ({ ...config, upgrade: false })),
-        beforeConfirm: () => {
-          // 运行中：独占锁文件没人持有、没有快照
-          expect(existsSync(`${d.file}.owner-lock`)).toBe(false)
-          expect(sidecarsOf(d.file).snapshot).toBe(false)
-        },
       })
-      expect(refused.failure.stage).toBe('upgrade-confirm')
-      expect(refused.failure.message).toContain('UpgradeGuardNotAttached')
+      expect(refused.failure.stage).toBe('plugin')
+      expect(refused.failure.item).toBe('storage-sql')
+      expect(refused.failure.message).toContain(
+        'snapshot maintenance requires an owned upgrade guard',
+      )
+      expect(existsSync(d.file)).toBe(false)
+      expect(existsSync(`${d.file}.owner-lock`)).toBe(false)
+      expect(sidecarsOf(d.file).snapshot).toBe(false)
     })
 
     it('存储提供者层面：upgrade: false 照常打开、不取独占（另一个属主同时拿得到锁）', async () => {
@@ -400,7 +448,7 @@ describe('AI S-46 ① 的快照部分：翻装配留下的升级快照，里面�
       const reply = bodyOf(
         await tlsExchange(
           d.port,
-          envelope('capability.account-identity/v2#S-15', {
+          envelope('capability.account-identity/v3#S-15', {
             loginIdentifier: 'ada@example.invalid',
             credential: 'correct horse battery',
           }),

@@ -17,6 +17,7 @@ import {
   type Center,
   type CenterOptions,
   HEALTH,
+  OPS_HEALTH,
   OG,
   ScriptedClock,
   bodyOf,
@@ -101,28 +102,20 @@ describe('V-8 运维面的承载（S-20）', () => {
     expect(lstatSync(stalePath).isSocket()).toBe(true)
     await c.loadOps({ ...c.opsConfig, socketDirectory: stale })
     await c.open()
-    const reply = await unixExchange(stalePath, httpRequest('{}'))
+    const reply = await unixExchange(stalePath, httpRequest(OPS_HEALTH))
     expect(bodyOf(reply.bytes)).toMatchObject({ reachable: true })
   })
 })
 
 describe('T-9、V-8 运维面的答复（S-21、S-26）', () => {
-  it('任意方法、路径、体都答完整体检：成员次序如 FullHealthReply、过 Schema；发信封、公开体检请求、超深超多的 JSON 也照答', async () => {
+  it('HT3同一合法full-health不因方法或路径变化：保留原FullHealthReply成员与字节外形', async () => {
     const c = await boot()
-    const ada = await (async () => {
-      await c.open()
-      return registerAndLogin(c, 'ada@example.invalid')
-    })()
-    const deep = `${'['.repeat(200)}${']'.repeat(200)}`
-    const many = `{${Array.from({ length: 3000 }, (_, i) => `"m${String(i)}":0`).join(',')}}`
+    await c.open()
     const requests = [
-      httpRequest('{}'),
-      httpRequest('', { method: 'GET', path: '/anything' }),
-      httpRequest('not json at all', { method: 'DELETE' }),
-      httpRequest(JSON.stringify(envelopeOf(OG(27), {}, ada.presentation))),
-      httpRequest(JSON.stringify({ operation: HEALTH })),
-      httpRequest(deep),
-      httpRequest(many),
+      httpRequest(OPS_HEALTH),
+      httpRequest(OPS_HEALTH, { method: 'GET', path: '/anything' }),
+      httpRequest(OPS_HEALTH, { method: 'DELETE' }),
+      httpRequest(OPS_HEALTH, { method: 'HEAD' }),
     ]
     for (const request of requests) {
       const reply = await c.ops(request)
@@ -145,6 +138,27 @@ describe('T-9、V-8 运维面的答复（S-21、S-26）', () => {
         'deploymentParameters',
       ])
     }
+  })
+
+  it('HT3坏表示不调用health，深度和成员数超界仍零响应', async () => {
+    const c = await boot()
+    await c.open()
+    const ada = await registerAndLogin(c, 'ada@example.invalid')
+    const reads = c.storage.reads
+    for (const body of [
+      '{}',
+      '',
+      'not json',
+      JSON.stringify(envelopeOf(OG(27), {}, ada.presentation)),
+      JSON.stringify({ operation: HEALTH }),
+    ])
+      expect(bodyOf((await c.ops(httpRequest(body))).bytes)).toEqual({ status: 'invalid-input' })
+    for (const body of [
+      `${'['.repeat(200)}${']'.repeat(200)}`,
+      `{${Array.from({ length: 3000 }, (_, i) => `"m${String(i)}":0`).join(',')}}`,
+    ])
+      expect((await c.ops(httpRequest(body))).bytes.length).toBe(0)
+    expect(c.storage.reads).toBe(reads)
   })
 
   it('storageReachable、clockSane 每次读都现探；体检里没有治理事实', async () => {

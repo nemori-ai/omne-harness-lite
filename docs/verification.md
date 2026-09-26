@@ -29,6 +29,8 @@ unknown consumer 或缺 release evidence 的关系失败。
 
 > **留档区不在检查范围内。**`design_legacy/`、`research/legacy_backup/` 与 `agents/research/`
 > 保持原件搬来时的相对链接——改写它们就会篡改「当初那份材料实际写了什么」。
+> 单独封存的 Node 24 worker API 原文也按精确路径和 SHA-256 保留上游相对链接；
+> 检查器拒绝该原文字节变化，周围研究说明仍接受本地导航检查。
 > 各区入口说明了这一点。
 
 ## 环境与实际执行

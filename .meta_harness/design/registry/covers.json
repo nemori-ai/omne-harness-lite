@@ -2979,6 +2979,1135 @@
       },
       "reviewed": false,
       "note": "2026-09-23 传输绑定评审第一轮修订补登（spec-reviewer 建议 8）：只覆盖该节「客户端把报出同一个中心标识的冒牌货当成了中心」一行在中心一侧的那一半——规范场景 S-30 验服务端 TLS 认证与材料；客户端一侧的确认不在本契约，登为该契约 G-2。PF-017 rev 2。未经独立复核"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#63-当前身份必须一直在场"
+      },
+      "target": {
+        "contract_id": "composition.governance-client-operations",
+        "version": 1,
+        "clauses": [
+          "S-2",
+          "S-5",
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-25主线按CG1来源登记；架构/规格评审不代替独立逐条coverage复核，不声明已实现"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#65-人能做的脚本能做脚本能做的人能做"
+      },
+      "target": {
+        "contract_id": "composition.governance-client-operations",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-14",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-25主线按CG1来源登记；架构/规格评审不代替独立逐条coverage复核，不声明已实现"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#69-需要现读成员资格的那几件事不拿副本放行"
+      },
+      "target": {
+        "contract_id": "composition.governance-client-operations",
+        "version": 1,
+        "clauses": [
+          "S-7",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-25主线按CG1来源登记；架构/规格评审不代替独立逐条coverage复核，不声明已实现"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#611-秘密不进任何一份呈现"
+      },
+      "target": {
+        "contract_id": "composition.governance-client-operations",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-6",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-25主线按CG1来源登记；架构/规格评审不代替独立逐条coverage复核，不声明已实现"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#611-秘密不进任何一份呈现"
+      },
+      "target": {
+        "contract_id": "composition.governance-cli-entry",
+        "version": 1,
+        "clauses": [
+          "S-3",
+          "S-4",
+          "S-6",
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "CQ1候选只覆盖单次CLI输入/输出，不声明TUI或实际交付，尚未接受"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#部署前提"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-19",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#运维者"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#部署密钥"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-26",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#中心标识"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#部署参数"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#中心体检"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#51-中心有两张面没有第三张"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-17",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#53-认出一个来者只有一条路"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#54-中心自己的时间"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#62-中心只认登录状态不认客户端"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-16",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#63-只信自己签发的此刻仍有效的登录状态别人说验过了不算数"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#64-无效与答不出是两个不同的答复"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-10",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#65-拒绝的时候什么都不多说"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-11",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#66-要么整个起来要么不起来"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-14",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#67-重启不让任何人退出登录"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#68-停机已确认的都在没确认的等于没发生"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-17",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#69-升级同一个中心要么整体成要么整体不成"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。为让缺口可见而登，不表示已覆盖：G-12。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#610-时间不能倒着走"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#610-时间不能倒着走"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。为让缺口可见而登，不表示已覆盖：G-12。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#612-同一个中心换了地址还是它另一个中心必须被认出来"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#613-运维者没有任何一扇门通向账号能做的事"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-24",
+          "S-25",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#614-产品不把任何秘密的值交给运维者"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-26",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#615-部署参数由运维者给值起动时读缺一不可"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#616-版本对不上就明说"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-6",
+          "S-8",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#617-体检只说部署不说里面有谁"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-9",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "flows.md#13-一个客户端带着登录状态来"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-11",
+          "S-16",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "flows.md#16-从备份恢复"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "flows.md#四角色与操作"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-10",
+          "S-11",
+          "S-14",
+          "S-16",
+          "S-24",
+          "S-25",
+          "S-28",
+          "S-29",
+          "S-30",
+          "S-31",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-38",
+          "S-39",
+          "S-40",
+          "S-41",
+          "S-42",
+          "S-44",
+          "S-45",
+          "S-46"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#治理中心"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#56-哪些东西在中心一侧哪些在据点一侧"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-3",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#65-人能做的脚本能做脚本能做的人能做"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#69-需要现读成员资格的那几件事不拿副本放行"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#617-治理中心不可达已经开着的会话照常干活"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#登录状态"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-9",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#当前租户身份"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-12",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-13",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "v3 candidate 继承业务条款关系；PF-001 rev18/PF-016 rev7/PF-017 rev5，尚待独立覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#51-中心有两张面没有第三张"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-25",
+          "S-55",
+          "S-56",
+          "S-57",
+          "S-58"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5 维护增量，candidate；尚未独立逐条覆盖复核，不包括 G-7 安全再开放。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#68-停机已确认的保留未确认的核实"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-34",
+          "S-55",
+          "S-58",
+          "S-59"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5 维护增量，candidate；尚未独立逐条覆盖复核，不包括 G-7 安全再开放。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#613-运维者没有任何一扇门通向账号能做的事"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-25",
+          "S-55",
+          "S-56",
+          "S-57",
+          "S-58"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5 维护增量，candidate；尚未独立逐条覆盖复核，不包括 G-7 安全再开放。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#614-产品不把任何秘密的值交给运维者"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-29",
+          "S-59"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5 维护增量，candidate；尚未独立逐条覆盖复核，不包括 G-7 安全再开放。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#618-备份与恢复的交付目标"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry",
+        "version": 3,
+        "clauses": [
+          "S-55",
+          "S-56",
+          "S-57",
+          "S-58",
+          "S-59"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5 维护增量，candidate；尚未独立逐条覆盖复核，不包括 G-7 安全再开放。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-4",
+          "S-22",
+          "S-24",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#62-中心只认登录状态不认客户端"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#64-无效与答不出是两个不同的答复"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-7",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#65-拒绝的时候什么都不多说"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#616-版本对不上就明说"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-17",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#617-体检只说部署不说里面有谁"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-9",
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#中心体检"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#51-中心有两张面没有第三张"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-20",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#运维者"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "acceptance.md#三判据"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-26",
+          "S-27",
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "acceptance.md#二绝不能发生的事"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "HT3 candidate：保留客户端字节承诺，运维范围按新版S20/S21/S23改写；PF-017 rev5、PF-016 rev7，尚未独立逐条覆盖复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#51-中心有两张面没有第三张"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-19",
+          "S-20",
+          "S-21",
+          "S-23",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5维护传输增量；只覆盖本机请求/结果与真实收场的传输适配，不声称备份算法/持久介质/恢复安全再开放已验证。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#613-运维者没有任何一扇门通向账号能做的事"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-20",
+          "S-21",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5维护传输增量；只覆盖本机请求/结果与真实收场的传输适配，不声称备份算法/持久介质/恢复安全再开放已验证。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#68-停机已确认的保留未确认的核实"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-5",
+          "S-20",
+          "S-21",
+          "S-23",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5维护传输增量；只覆盖本机请求/结果与真实收场的传输适配，不声称备份算法/持久介质/恢复安全再开放已验证。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-017-governance-center-as-deployable-application",
+        "clause": "design.md#618-备份与恢复的交付目标"
+      },
+      "target": {
+        "contract_id": "composition.governance-center-entry-https-json",
+        "version": 3,
+        "clauses": [
+          "S-20",
+          "S-21",
+          "S-23",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "PF-017 rev5维护传输增量；只覆盖本机请求/结果与真实收场的传输适配，不声称备份算法/持久介质/恢复安全再开放已验证。"
     }
   ],
   "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。"

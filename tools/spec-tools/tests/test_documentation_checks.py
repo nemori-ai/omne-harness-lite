@@ -1,5 +1,6 @@
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -78,6 +79,21 @@ def test_retained_originals_keep_their_original_links(tmp_path, area):
     base(tmp_path)
     write(tmp_path / area / "topic/README.md", "[as it was written](../../old/place.md)")
     assert run(tmp_path).returncode == 0
+
+
+def test_sealed_upstream_file_keeps_original_links_but_not_its_neighbors(tmp_path):
+    from omne_harness_lite_spec_tools.check_docs import RETAINED_FILES
+    base(tmp_path)
+    source_root = Path(__file__).resolve().parents[3]
+    for relative in RETAINED_FILES:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((source_root / relative).read_bytes())
+        assert run(tmp_path).returncode == 0
+        write(target.parent.parent / "README.md", "[missing](missing.md)")
+        assert "README.md: broken link" in run(tmp_path).stdout
+        target.write_bytes(target.read_bytes() + b"\nchanged\n")
+        assert "retained upstream source digest differs" in run(tmp_path).stdout
 
 
 def test_templates_are_excluded(tmp_path):

@@ -30,6 +30,8 @@
 
 | topic | 选择对象 | 候选／接受边界 | 当前消费范围 |
 |---|---|---|---|
+| [`governance-production-mechanisms/`](governance-production-mechanisms/README.md) | 有限登录/改密/身份一致性与最新恢复事实的机制 | 四条恢复候选；首稿独立评审有两项未闭合阻断，未接受 | 后续精确规格与提供者设计；不供完整生产实现直接消费 |
+| [`governance-production-baseline/`](governance-production-baseline/README.md) | 公司内网治理 CLI/TUI 首发所需的登录/凭据生命周期与恢复保证 | 产品目标已纳入 PF-001 rev17／PF-016 rev6／PF-017 rev3；登录与恢复分别保留三个实质候选，恢复机制未接受 | 本轮产品基线来源与评审记录；不作为新规格或实现采用依据 |
 | [`identity-values-v1/`](identity-values-v1/README.md) | 身份值与隔离义务写成一份共用数据契约时，边界画在哪 | 三份独立起草的完整候选包（`candidates/A|B|C`），**已由主线合并落盘**为 [`spec/data/identity-values` v1](../../spec/data/identity-values/README.md)，[合并件经四轮 spec-reviewer 评审、第四轮 0 阻断](identity-values-v1/review.md)；**合并件已由 [D-023](../decisions/tenant-domain-design-acceptance/README.md) 接受**（2026-09-22），三份原件本身未被独立评审、不在接受范围 | 该契约在 [catalog](../../registry/README.md) 为 `accepted`、资源已冻结，四份同批契约登记了对它的依赖 |
 | [`tenant-capability-split/`](tenant-capability-split/README.md) | 租户领域的语义边界怎么切：维持「两 data、两能力、一组合」还是合并两能力（及两种第三拆法） | 四个实质候选；**三票独立评审全投维持（A）**，主线裁「A + 修两处瑕疵」（当前租户身份「归一不搬家」、改写拆分理由），两处修正已落回 `spec/`；**已由 [D-023](../decisions/tenant-domain-design-acceptance/README.md) 接受**（2026-09-22）——五份边界与依赖方向被接受，候选 C 与「再切治理侧」仍是候选 | 五份契约在 catalog 为 `accepted`、资源已冻结；翻盘走新决定 |
 | [`cli-tui/`](cli-tui/README.md) | 第一个交付面（面向生产分发的 CLI-TUI 应用）**用什么技术做、大框架什么形状**：十一个决定点各有 3 个以上实质候选，外加由它们合成的拓扑、分层、通信与进程模型 | **十一个推荐一条都没有被接受**；已发生的接受只有交付形态那五条（[D-022](../decisions/cli-tui-delivery-form/README.md)），它们是本提案的**前提**不是结论。已记录[两次独立评审](cli-tui/review.md)——D2 的强制二选一投票与 fable 对整套草案的 26 条发现；**评审不是接受** | 下游是[应用节点](../../realization/README.md) `apps/cli/architecture.md` 的技术栈采用一节（未接受项在那里标 `candidate` 并回链本包）与未来的前端契约；**前端契约尚未起草，区分实验 E1–E5 一个都没跑** |

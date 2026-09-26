@@ -1,0 +1,80 @@
+import { setTimeout as delay } from 'node:timers/promises'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
+import { openStorage } from '@omne-harness-lite/storage-sql'
+import { checkSideFiles, prepareFiles, unavailableIo, type PrivateFiles } from './files.ts'
+import { initialize, LocalState, readRow, type StateStorage } from './store.ts'
+import { ClientStateOpenFailure, type ClientLocalState } from './surface.ts'
+
+function sqliteCode(error: unknown): number | undefined {
+  return error instanceof Error && 'errcode' in error && typeof error.errcode === 'number'
+    ? error.errcode & 0xff
+    : undefined
+}
+
+export interface OpenClientLocalStateOptions {
+  readonly directory: string
+}
+export interface ClientLocalStateInstance extends ClientLocalState {
+  close(): Promise<void>
+}
+
+/** Only the process that exclusively created the file may initialize its identity. */
+export async function openClientLocalState(
+  options: OpenClientLocalStateOptions,
+): Promise<ClientLocalStateInstance> {
+  let files: PrivateFiles | undefined
+  let storage: StateStorage | undefined
+  try {
+    files = await prepareFiles(options.directory)
+    const deadline = AbortSignal.timeout(5000)
+    for (;;) {
+      try {
+        storage = await openStorage({ dialect: 'sqlite', file: files.file, synchronous: 'full' })
+        break
+      } catch (error) {
+        if (!([5, 6].includes(sqliteCode(error) ?? -1) || error instanceof StorageUnavailable))
+          throw error
+        if (deadline.aborted) throw new ClientStateOpenFailure('unavailable')
+        await delay(25)
+      }
+    }
+    if (files.creator) await initialize(storage)
+    for (;;) {
+      const result = await storage.read(readRow)
+      if (result.kind === 'row') break
+      if (result.reason !== 'invalid-record') throw new ClientStateOpenFailure(result.reason)
+      // Emptiness belongs to the same snapshot as the failed reading. A second
+      // catalog query could mistake another process's completed initialization for damage.
+      if (files.creator || result.emptyCatalog !== true || deadline.aborted)
+        throw new ClientStateOpenFailure('invalid-record')
+      await delay(25)
+    }
+    await checkSideFiles(files.file)
+    // Every opener confirms its own parent/file directory durability, including competitors.
+    await files.sync()
+    return new LocalState(storage, files.sync, files.close)
+  } catch (error) {
+    const cleanup: unknown[] = []
+    try {
+      await storage?.close()
+    } catch (failure) {
+      cleanup.push(failure)
+    }
+    try {
+      await files?.close()
+    } catch (failure) {
+      cleanup.push(failure)
+    }
+    if (cleanup.length)
+      throw new AggregateError(
+        [error, ...cleanup],
+        'client-local-state: opening and cleanup failed',
+      )
+    if (error instanceof ClientStateOpenFailure) throw error
+    if ([11, 26].includes(sqliteCode(error) ?? -1))
+      throw new ClientStateOpenFailure('invalid-record')
+    if (error instanceof StorageUnavailable || unavailableIo(error))
+      throw new ClientStateOpenFailure('unavailable')
+    throw error
+  }
+}

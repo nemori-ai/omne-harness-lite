@@ -11,7 +11,7 @@
  * - `clock-unreadable`：入口层在插件体里等钟超界；
  * - `upgrade-confirm`：`guard.confirm()` 抛出（含守卫没挂上）或 `snapshotTaken ⇒ snapshotRemoved` 不成立；
  * - `serving-timeout`：确认并兑现 `openSignal` 之后有界地等不到 `serving`（缺口 U-4，快照已确认、不恢复）；
- * - `upgrade-unconfirmed`：逆序撤完之后 `guard.pending()` 仍见快照（撤除路径上的恢复失败，R-U8）。
+ * - `upgrade-unconfirmed`：逆序撤完之后 `guard.pending()` 仍报告快照或标记待确认；可能恢复失败、尚未尝试恢复或磁盘观察失败（R-U8）。
  */
 export type HostStartupStage =
   | 'config'
@@ -32,7 +32,7 @@ export type HostStartupStage =
 export interface HostStartupFailureOptions {
   /** 点名的那一项：环境变量名、插件名或密钥对名。 */
   readonly item?: string
-  /** 未确认的升级快照仍在磁盘上时它的位置（恢复失败）。 */
+  /** 未确认的升级快照或标记位置；不据此判定是否仍存在或是否尝试过恢复。 */
   readonly snapshot?: string
   readonly cause?: unknown
 }

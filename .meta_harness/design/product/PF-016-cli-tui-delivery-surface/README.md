@@ -2,7 +2,7 @@
 id: PF-016
 title: 这套系统交到人手上的第一面：装在自己机器上的命令行
 status: active
-revision: 5
+revision: 7
 relations:
   supersedes: []
   depends-on:
@@ -42,6 +42,9 @@ relations:
 **本 topic 不改这些概念里的任何一个，也不在它们之上另造一套**；
 它新增的[五个概念](#关系)只回答一件它们没回答过的事——
 **这些事实各自落在哪一侧**，以及人从哪一面碰到它们。
+
+**本期交付边界**：[10 人以内、Linux/macOS 的内网治理 CLI/TUI 闭环](design.md#本期交付范围)。
+Agent 工作会话下一期；下表描述完整产品设计，不表示本期全部实现或验收。
 
 ## 本 rev 覆盖到哪
 
@@ -96,10 +99,11 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 5**，**定稿**（产品负责人 2026-09-22 正式接受，[decisions §一](decisions.md#一拍板记录)）
-- 未决项：**5**（见 [design.md 第九节](design.md#九未决项)），都归别的 topic 或技术设计
-- 待裁决：**0**（见 [decisions.md 第三节](decisions.md#三待裁决)）
-- 已知的来源问题：**2**（见 [decisions.md 第四节](decisions.md#四已知的来源问题)）
+- 产品设计：**rev 7**，本轮产品基线；前版已完成独立评审，本次单机分期已完成定向复评；2026-09-24 具体确认与 PM 推导见 [decisions](decisions.md)。此前 rev 5 的定稿登记及原接受依据保留，新稿不自动继承整稿接受状态
+- 本期范围：治理 CLI/TUI；Agent 工作会话下一期，见 [design](design.md#本期交付范围)
+- 未决项：既有会话与中心交互边界见 [design §九](design.md#九未决项)；本期另依赖 PF-001 的登录判定与 PF-017 的恢复方案
+- 待裁决：本 topic 无新增独立政策选择，跨 topic 依赖尚未闭合
+- 已知来源问题：本次来源复核见 [decisions](decisions.md#rev-6-来源与消费者复核)
 - 技术投影：**尚未开始**
 
 ## 本包的文件

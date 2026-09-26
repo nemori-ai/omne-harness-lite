@@ -1,0 +1,14 @@
+{"ts":1790235015684,"level":"info","name":"tenancy-host","event":"manifest-active","plugins":["storage-sql","clock","credential-verification","account-identity","organization-governance","account-registration","governance-center-ops","governance-center-entry"]}
+{"ts":1790235015685,"level":"info","name":"tenancy-host","event":"upgrade-confirmed","migrated":false,"snapshotTaken":false,"snapshotRemoved":false}
+{"ts":1790235015685,"level":"info","name":"tenancy-host","event":"open-signal"}
+{"ts":1790235015685,"level":"info","name":"tenancy-host","event":"serving","centerId":"f54d61961f396547c3de8dbc8ca6d9d0","version":"0.0.0","startedAt":1790235015685}
+{"ts":1790235015693,"level":"info","name":"governance-center-entry","message":"request {\"stage\":\"public-health\",\"answer\":\"public-health\"}"}
+{"ts":1790235015694,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-entry"}
+{"ts":1790235015695,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-ops"}
+{"ts":1790235015695,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-registration"}
+{"ts":1790235015695,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"organization-governance"}
+{"ts":1790235015695,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-identity"}
+{"ts":1790235015695,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"credential-verification"}
+{"ts":1790235015695,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock"}
+{"ts":1790235015696,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1790235015696,"level":"info","name":"tenancy-host","event":"disposed","complete":true}

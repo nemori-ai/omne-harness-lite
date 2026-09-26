@@ -1,5 +1,7 @@
 // 升级守卫的真崩溃与跨进程排他：子进程（tests/fixtures/owner-child.ts）在指定时点被 SIGKILL。
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
+import { DatabaseSync } from 'node:sqlite'
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -34,6 +36,45 @@ async function confirmedDatabase(file: string, kinds: string[]): Promise<void> {
 }
 
 describe('upgrade.exclusive-owner', () => {
+  it('old EXCLUSIVE and current IMMEDIATE owners reject each other across processes', async () => {
+    const file = tempSqliteFile('mixed-owner')
+    const legacy = new DatabaseSync(`${file}.owner-lock`, { timeout: 0 })
+    legacy.exec('PRAGMA journal_mode=MEMORY; BEGIN EXCLUSIVE')
+    try {
+      const current = spawnOwner({ file, migrations: ['t1'] })
+      expect(await current.until('failed:')).toBe('failed:occupied')
+      expect(await current.exited()).toBe(0)
+    } finally {
+      legacy.close()
+    }
+    const guard = createUpgradeGuard()
+    const current = await openStorage(ownerConfig(file, guard, ['t1']))
+    try {
+      await guard.confirm()
+      const result = execFileSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `
+        import { DatabaseSync } from 'node:sqlite';
+        const db = new DatabaseSync(process.argv[1], { timeout: 0 });
+        try { db.exec('PRAGMA journal_mode=MEMORY; BEGIN EXCLUSIVE'); process.stdout.write('owned'); }
+        catch (error) { if (error.errcode !== 5 && error.errcode !== 6) throw error; process.stdout.write('occupied'); }
+        finally { db.close(); }
+      `,
+          `${file}.owner-lock`,
+        ],
+        { encoding: 'utf8' },
+      )
+      expect(result).toBe('occupied')
+    } finally {
+      await current.close()
+    }
+    const reopened = await openStorage(ownerConfig(file, createUpgradeGuard(), ['t1']))
+    await reopened.close()
+  })
+
   it('两个子进程：后起者「被占」且没碰库与快照；先起者被 SIGKILL 之后，后起者再起即成功（锁随进程释放）', async () => {
     const file = tempSqliteFile('exclusive')
     await confirmedDatabase(file, ['t1'])

@@ -1,0 +1,20 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- apps/cli/src/tui/application.ts apps/cli/src/tui/dialog.ts apps/cli/src/tui/forms.ts apps/cli/src/tui/framer.ts apps/cli/src/tui/screen.ts apps/cli/src/tui/terminal.ts apps/cli/src/main.ts apps/cli/src/application.ts apps/cli/tests/tui-application.spec.ts apps/cli/tests/tui-dialog.spec.ts apps/cli/tests/tui-forms.spec.ts apps/cli/tests/tui-input.spec.ts apps/cli/tests/tui-screen.spec.ts apps/cli/tests/support/tui.ts apps/cli/package.json pnpm-workspace.yaml
+
+apps/cli/src/tui/application.ts 50ms
+apps/cli/src/tui/dialog.ts 12ms
+apps/cli/src/tui/forms.ts 10ms
+apps/cli/src/tui/framer.ts 8ms
+apps/cli/src/tui/screen.ts 7ms
+apps/cli/src/tui/terminal.ts 6ms
+apps/cli/src/main.ts 3ms
+apps/cli/src/application.ts 5ms (unchanged)
+apps/cli/tests/tui-application.spec.ts 8ms
+apps/cli/tests/tui-dialog.spec.ts 3ms
+apps/cli/tests/tui-forms.spec.ts 4ms
+apps/cli/tests/tui-input.spec.ts 6ms
+apps/cli/tests/tui-screen.spec.ts 4ms
+apps/cli/tests/support/tui.ts 2ms
+apps/cli/package.json 5ms (unchanged)
+pnpm-workspace.yaml 7ms (unchanged)

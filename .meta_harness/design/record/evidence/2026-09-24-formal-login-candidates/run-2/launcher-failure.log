@@ -1,0 +1,4 @@
+Unable to find image 'ghcr.io/openai/codex-universal@sha256:e091a9e923255f077d7103ca424cc29c79c701c82df53ccd894d9ad555758750' locally
+docker: Error response from daemon: manifest unknown
+
+Run 'docker run --help' for more information

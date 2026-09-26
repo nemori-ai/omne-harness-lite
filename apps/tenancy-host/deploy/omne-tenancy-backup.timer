@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly OMNE governance backup check
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=omne-tenancy-backup.service
+
+[Install]
+WantedBy=timers.target

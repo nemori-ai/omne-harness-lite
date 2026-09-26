@@ -1,5 +1,6 @@
+import type { DeclineInvitationFailure, DeclineAffiliationRequestFailure } from './types.ts'
 // offers 服务面：邀请（S-23 发出、S-24 撤回、S-25 接受）、隶属请求（S-30 发出、S-31 撤回、S-32 接受），
-// 读面 S-55～S-58、S-60。过期语义整块引用 data.offer-expiry v1：`timingFrom`、`deriveState`、`acceptable`、`parseOfferTtl`。
+// 读面 S-55～S-58、S-60。过期语义整块引用 data.offer-expiry v2：`timingFrom`、`deriveState`、`acceptable`、`parseOfferTtl`。
 import {
   type OrganizationId,
   type TenantId,
@@ -42,7 +43,13 @@ import {
   readMembership,
   readOrganization,
 } from './records.ts'
-import { type Deps, readAccountFacts, withStorage } from './runtime.ts'
+import {
+  type Deps,
+  type OperationContext,
+  readAccountFacts,
+  withOperation,
+  withParticipation,
+} from './runtime.ts'
 import type {
   AcceptAffiliationRequestFailure,
   AcceptInvitationFailure,
@@ -156,6 +163,7 @@ function withdrawStep(state: OfferState | 'unavailable'): WithdrawStep {
     case 'withdrawn':
       return 'ok'
     case 'accepted':
+    case 'declined':
     case 'expired':
       return 'alreadyConcluded'
     case 'unavailable':
@@ -166,7 +174,7 @@ function withdrawStep(state: OfferState | 'unavailable'): WithdrawStep {
 // ---- 邀请 ----
 
 async function issueInvitation(
-  deps: Deps,
+  deps: OperationContext,
   issuerInput: unknown,
   targetInput: unknown,
   roleInput?: unknown,
@@ -186,15 +194,13 @@ async function issueInvitation(
   if (ttl === 'invalidOfferDuration') return fail('invalidOfferDuration')
 
   // ③ 结构性禁止先于授权（S-15），② 授权再先于账号读面：失败值的次序与读面给的判定一致
-  const precheck = await withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      const organization = await readOrganization(d, issuer.ok.organization)
-      if (organization?.kind === 'personal') return fail('issuerIsPersonalOrganization')
-      if (!(await isSuperAdministrator(d, issuer.ok))) return fail('notAuthorized')
-      return succeed(undefined)
-    }),
-  )
+  const precheck = await deps.query(async tx => {
+    const d = db(tx)
+    const organization = await readOrganization(d, issuer.ok.organization)
+    if (organization?.kind === 'personal') return fail('issuerIsPersonalOrganization')
+    if (!(await isSuperAdministrator(d, issuer.ok))) return fail('notAuthorized')
+    return succeed(undefined)
+  })
   if ('failure' in precheck) return precheck
 
   // 账号读面在本节点的事务之外调（不嵌套）
@@ -202,36 +208,35 @@ async function issueInvitation(
   if ('failure' in facts) return facts
   if (!facts.ok.activated) return fail('accountNotActivated')
 
-  const outcome = await withStorage(() =>
-    deps.storage.write(async tx => {
-      const d = db(tx)
-      // 授权在写入的同一提交里再现读一次（S-18）
-      if (!(await isSuperAdministrator(d, issuer.ok))) return fail('notAuthorized')
-      const existing = await readMembership(d, {
-        organization: issuer.ok.organization,
-        account: target.ok,
+  const outcome = await deps.mutate(async tx => {
+    const d = db(tx)
+    // 授权在写入的同一提交里再现读一次（S-18）
+    if (!(await isSuperAdministrator(d, issuer.ok))) return fail('notAuthorized')
+    const existing = await readMembership(d, {
+      organization: issuer.ok.organization,
+      account: target.ok,
+    })
+    if (existing?.effective === true) return fail('alreadyAnEffectiveMember')
+    const now = deps.clock.now()
+    if (now === 'unavailable') return fail('unavailable')
+    const timing = timingFrom(now, ttl)
+    if (timing === 'unavailable') return fail('unavailable')
+    if (!isOk(timing)) return fail('invalidOfferDuration')
+    const id = mintIdentifier('InvitationId')
+    await d
+      .insertInto('invitation')
+      .values({
+        invitation_id: id,
+        issuer_organization: issuer.ok.organization,
+        invited_account: target.ok,
+        role,
+        issued_at: timing.ok.issuedAt,
+        expires_at: timing.ok.expiresAt,
+        settled: null,
       })
-      if (existing?.effective === true) return fail('alreadyAnEffectiveMember')
-      const now = deps.clock.now()
-      if (now === 'unavailable') return fail('unavailable')
-      const timing = timingFrom(now, ttl)
-      if (!isOk(timing)) return fail('invalidOfferDuration')
-      const id = mintIdentifier('InvitationId')
-      await d
-        .insertInto('invitation')
-        .values({
-          invitation_id: id,
-          issuer_organization: issuer.ok.organization,
-          invited_account: target.ok,
-          role,
-          issued_at: timing.ok.issuedAt,
-          expires_at: timing.ok.expiresAt,
-          settled: null,
-        })
-        .execute()
-      return succeed(id)
-    }),
-  )
+      .execute()
+    return succeed(id)
+  })
   if ('failure' in outcome) return outcome
   // ⑨ 必发（通知）：提交之后派发一次
   deps.notify('invitation.issued', {
@@ -243,43 +248,42 @@ async function issueInvitation(
 }
 
 async function withdrawInvitation(
-  deps: Deps,
+  deps: OperationContext,
   issuerInput: unknown,
   invitationInput: unknown,
 ): Promise<Ack<WithdrawInvitationFailure>> {
   const issuer = parseTenantId(issuerInput)
   const id = parseInvitationId(invitationInput)
   if (!isOk(issuer) || !isOk(id)) return fail('invalidInput')
-  const outcome = await withStorage(() =>
-    deps.storage.write(async tx => {
-      await tx.lockRow('invitation', { invitation_id: id.ok })
-      const d = db(tx)
-      const record = await readInvitationRecord(d, id.ok)
-      // 不属发起者的组织 ⇒ 同一个 DoesNotExist，不泄漏存在性
-      if (record === undefined || record.issuer !== issuer.ok.organization) {
-        return fail('invitationDoesNotExist')
-      }
-      if (!(await isSuperAdministrator(d, issuer.ok))) return fail('notAuthorized')
-      // ④ 提交内先现读一次过期判定（OE S-8 反方向：已过期的不得再写终结记录）
-      const step = withdrawStep(
+  const outcome = await deps.mutate(async tx => {
+    await tx.lockRow('invitation', { invitation_id: id.ok })
+    const d = db(tx)
+    const record = await readInvitationRecord(d, id.ok)
+    // 不属发起者的组织 ⇒ 同一个 DoesNotExist，不泄漏存在性
+    if (record === undefined || record.issuer !== issuer.ok.organization) {
+      return fail('invitationDoesNotExist')
+    }
+    if (!(await isSuperAdministrator(d, issuer.ok))) return fail('notAuthorized')
+    // ④ 提交内先现读一次过期判定（OE S-8 反方向：已过期的不得再写终结记录）
+    const step = withdrawStep(
+      record.settled ??
         invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer)),
-      )
-      if (step === 'alreadyConcluded' || step === 'unavailable') return fail(step)
-      if (step === 'write') {
-        await d
-          .updateTable('invitation')
-          .set({ settled: 'withdrawn' })
-          .where('invitation_id', '=', record.id)
-          .execute()
-      }
-      return succeed(undefined)
-    }),
-  )
+    )
+    if (step === 'alreadyConcluded' || step === 'unavailable') return fail(step)
+    if (step === 'write') {
+      await d
+        .updateTable('invitation')
+        .set({ settled: 'withdrawn' })
+        .where('invitation_id', '=', record.id)
+        .execute()
+    }
+    return succeed(undefined)
+  })
   return 'failure' in outcome ? outcome : 'ok'
 }
 
 async function acceptInvitation(
-  deps: Deps,
+  deps: OperationContext,
   accountInput: unknown,
   invitationInput: unknown,
 ): Promise<Outcome<TenantId, AcceptInvitationFailure>> {
@@ -288,14 +292,12 @@ async function acceptInvitation(
   if (!isOk(account) || !isOk(id)) return fail('invalidInput')
 
   // 三段，不把账号读面嵌进本节点的存储事务：① 读邀请 → ② 账号已激活 → ③ 序列化的写提交内全部重判
-  const located = await withStorage(() =>
-    deps.storage.read(async tx => {
-      const record = await readInvitationRecord(db(tx), id.ok)
-      if (record === undefined) return fail('invitationDoesNotExist')
-      if (record.invitedAccount !== account.ok) return fail('notTheInvitedAccount')
-      return succeed(record.issuer)
-    }),
-  )
+  const located = await deps.query(async tx => {
+    const record = await readInvitationRecord(db(tx), id.ok)
+    if (record === undefined) return fail('invitationDoesNotExist')
+    if (record.invitedAccount !== account.ok) return fail('notTheInvitedAccount')
+    return succeed(record.issuer)
+  })
   if ('failure' in located) return located
   const issuer = located.ok
 
@@ -305,44 +307,44 @@ async function acceptInvitation(
   if (!facts.ok.activated) return fail('accountNotActivated')
 
   const tenant: TenantId = { organization: issuer, account: account.ok }
-  const outcome = await withStorage(() =>
-    deps.storage.write(async tx => {
-      // ④ 受 S-17 序列化（R-3a）：成员写入前锁组织行；邀请行锁住防与撤回交错
-      await tx.lockRow('organization', { organization_id: issuer })
-      await tx.lockRow('invitation', { invitation_id: id.ok })
-      const d = db(tx)
-      const record = await readInvitationRecord(d, id.ok)
-      if (record === undefined) return fail('invitationDoesNotExist')
-      if (record.invitedAccount !== account.ok) return fail('notTheInvitedAccount')
-      // ② 过期在写入的同一提交内重新求值（OE S-10）；三种来路折成一个布尔再映射（OE S-13）
-      const state = invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer))
-      if (state === 'unavailable') return fail('unavailable')
-      if (!acceptable(state)) return fail('offerNoLongerValid')
-      const existing = await readMembership(d, tenant)
-      if (existing?.effective === true) return fail('alreadyAnEffectiveMember')
-      // S-39：同一个主键上置回有效——回来的是同一条记录、同一个 TenantId；角色取本次邀请指定的，不继承
-      await d
-        .insertInto('membership')
-        .values({
-          organization_id: tenant.organization,
-          account_id: tenant.account,
-          effective: 1,
-          role: record.role,
-        })
-        .onConflict(oc =>
-          oc
-            .columns(['organization_id', 'account_id'])
-            .doUpdateSet({ effective: 1, role: record.role }),
-        )
-        .execute()
-      await d
-        .updateTable('invitation')
-        .set({ settled: 'accepted' })
-        .where('invitation_id', '=', record.id)
-        .execute()
-      return succeed(tenant)
-    }),
-  )
+  const outcome = await deps.mutate(async tx => {
+    // ④ 受 S-17 序列化（R-3a）：成员写入前锁组织行；邀请行锁住防与撤回交错
+    await tx.lockRow('organization', { organization_id: issuer })
+    await tx.lockRow('invitation', { invitation_id: id.ok })
+    const d = db(tx)
+    const record = await readInvitationRecord(d, id.ok)
+    if (record === undefined) return fail('invitationDoesNotExist')
+    if (record.invitedAccount !== account.ok) return fail('notTheInvitedAccount')
+    // ② 过期在写入的同一提交内重新求值（OE S-10）；三种来路折成一个布尔再映射（OE S-13）
+    const state =
+      record.settled ??
+      invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer))
+    if (state === 'unavailable') return fail('unavailable')
+    if (!acceptable(state)) return fail('offerNoLongerValid')
+    const existing = await readMembership(d, tenant)
+    if (existing?.effective === true) return fail('alreadyAnEffectiveMember')
+    // S-39：同一个主键上置回有效——回来的是同一条记录、同一个 TenantId；角色取本次邀请指定的，不继承
+    await d
+      .insertInto('membership')
+      .values({
+        organization_id: tenant.organization,
+        account_id: tenant.account,
+        effective: 1,
+        role: record.role,
+      })
+      .onConflict(oc =>
+        oc
+          .columns(['organization_id', 'account_id'])
+          .doUpdateSet({ effective: 1, role: record.role }),
+      )
+      .execute()
+    await d
+      .updateTable('invitation')
+      .set({ settled: 'accepted' })
+      .where('invitation_id', '=', record.id)
+      .execute()
+    return succeed(tenant)
+  })
   if ('failure' in outcome) return outcome
   deps.notify('membership.changed', { tenant, effective: true })
   return outcome
@@ -351,7 +353,7 @@ async function acceptInvitation(
 // ---- 隶属请求 ----
 
 async function issueAffiliationRequest(
-  deps: Deps,
+  deps: OperationContext,
   initiatorInput: unknown,
   recipientInput: unknown,
   directionInput: unknown,
@@ -366,70 +368,68 @@ async function issueAffiliationRequest(
   // 指向自己：两个不透明标识逐码点比较即可判出，不读任何记录；值与 S-32 判环同一个
   if (recipient.ok === initiator.ok.organization) return fail('wouldFormACycle')
 
-  return withStorage(() =>
-    deps.storage.write(async tx => {
-      const d = db(tx)
-      const own = await readOrganization(d, initiator.ok.organization)
-      if (own?.kind === 'personal') return fail('personalOrganizationTakesNoPartInAffiliation')
-      const other = await readOrganization(d, recipient.ok)
-      if (other === undefined) return fail('organizationDoesNotExist')
-      if (other.kind === 'personal') return fail('personalOrganizationTakesNoPartInAffiliation')
-      if (!(await isSuperAdministrator(d, initiator.ok))) return fail('notAuthorized')
-      // 一般的环与「己方已有上级」不在这里判，留给接受那一刻（S-30 正文）
-      const now = deps.clock.now()
-      if (now === 'unavailable') return fail('unavailable')
-      const timing = timingFrom(now, ttl)
-      if (!isOk(timing)) return fail('invalidOfferDuration')
-      const id = mintIdentifier('AffiliationRequestId')
-      await d
-        .insertInto('affiliation_request')
-        .values({
-          affiliation_request_id: id,
-          initiator: initiator.ok.organization,
-          recipient: recipient.ok,
-          direction: direction.ok,
-          issued_at: timing.ok.issuedAt,
-          expires_at: timing.ok.expiresAt,
-          settled: null,
-        })
-        .execute()
-      return succeed(id)
-    }),
-  )
+  return deps.mutate(async tx => {
+    const d = db(tx)
+    const own = await readOrganization(d, initiator.ok.organization)
+    if (own?.kind === 'personal') return fail('personalOrganizationTakesNoPartInAffiliation')
+    const other = await readOrganization(d, recipient.ok)
+    if (other === undefined) return fail('organizationDoesNotExist')
+    if (other.kind === 'personal') return fail('personalOrganizationTakesNoPartInAffiliation')
+    if (!(await isSuperAdministrator(d, initiator.ok))) return fail('notAuthorized')
+    // 一般的环与「己方已有上级」不在这里判，留给接受那一刻（S-30 正文）
+    const now = deps.clock.now()
+    if (now === 'unavailable') return fail('unavailable')
+    const timing = timingFrom(now, ttl)
+    if (timing === 'unavailable') return fail('unavailable')
+    if (!isOk(timing)) return fail('invalidOfferDuration')
+    const id = mintIdentifier('AffiliationRequestId')
+    await d
+      .insertInto('affiliation_request')
+      .values({
+        affiliation_request_id: id,
+        initiator: initiator.ok.organization,
+        recipient: recipient.ok,
+        direction: direction.ok,
+        issued_at: timing.ok.issuedAt,
+        expires_at: timing.ok.expiresAt,
+        settled: null,
+      })
+      .execute()
+    return succeed(id)
+  })
 }
 
 async function withdrawAffiliationRequest(
-  deps: Deps,
+  deps: OperationContext,
   initiatorInput: unknown,
   requestInput: unknown,
 ): Promise<Ack<WithdrawAffiliationRequestFailure>> {
   const initiator = parseTenantId(initiatorInput)
   const id = parseAffiliationRequestId(requestInput)
   if (!isOk(initiator) || !isOk(id)) return fail('invalidInput')
-  const outcome = await withStorage(() =>
-    deps.storage.write(async tx => {
-      await tx.lockRow('affiliation_request', { affiliation_request_id: id.ok })
-      const d = db(tx)
-      const record = await readAffiliationRequestRecord(d, id.ok)
-      // 只对发起方成立；接收方撤不了别人发来的请求，同样收成 DoesNotExist
-      if (record === undefined || record.initiator !== initiator.ok.organization) {
-        return fail('affiliationRequestDoesNotExist')
-      }
-      if (!(await isSuperAdministrator(d, initiator.ok))) return fail('notAuthorized')
-      const step = withdrawStep(
+  const outcome = await deps.mutate(async tx => {
+    await tx.lockRow('affiliation_request', { affiliation_request_id: id.ok })
+    const d = db(tx)
+    const record = await readAffiliationRequestRecord(d, id.ok)
+    // 只对发起方成立；接收方撤不了别人发来的请求，同样收成 DoesNotExist
+    if (record === undefined || record.initiator !== initiator.ok.organization) {
+      return fail('affiliationRequestDoesNotExist')
+    }
+    if (!(await isSuperAdministrator(d, initiator.ok))) return fail('notAuthorized')
+    const step = withdrawStep(
+      record.settled ??
         requestState(record, deps.clock.now(), await existenceOne(d, record.recipient)),
-      )
-      if (step === 'alreadyConcluded' || step === 'unavailable') return fail(step)
-      if (step === 'write') {
-        await d
-          .updateTable('affiliation_request')
-          .set({ settled: 'withdrawn' })
-          .where('affiliation_request_id', '=', record.id)
-          .execute()
-      }
-      return succeed(undefined)
-    }),
-  )
+    )
+    if (step === 'alreadyConcluded' || step === 'unavailable') return fail(step)
+    if (step === 'write') {
+      await d
+        .updateTable('affiliation_request')
+        .set({ settled: 'withdrawn' })
+        .where('affiliation_request_id', '=', record.id)
+        .execute()
+    }
+    return succeed(undefined)
+  })
   return 'failure' in outcome ? outcome : 'ok'
 }
 
@@ -455,124 +455,121 @@ async function setParent(d: Db, child: OrganizationId, newParent: OrganizationId
 }
 
 async function acceptAffiliationRequest(
-  deps: Deps,
+  deps: OperationContext,
   acceptorInput: unknown,
   requestInput: unknown,
 ): Promise<Ack<AcceptAffiliationRequestFailure>> {
   const acceptor = parseTenantId(acceptorInput)
   const id = parseAffiliationRequestId(requestInput)
   if (!isOk(acceptor) || !isOk(id)) return fail('invalidInput')
-  const outcome = await withStorage(() =>
-    deps.storage.write(async (tx: WriteTx) => {
-      // R-3b：隶属写部署级序列化——链跨多个组织，按组织加锁不够
-      await tx.lockSentinel(AFFILIATION_SENTINEL)
-      await tx.lockRow('affiliation_request', { affiliation_request_id: id.ok })
-      const d = db(tx)
-      const record = await readAffiliationRequestRecord(d, id.ok)
-      if (record === undefined) return fail('affiliationRequestDoesNotExist')
-      // ③ 结构性禁止先于授权（S-15）：由两端的 OrganizationKind 决定，与接受者无关
-      const initiatorOrg = await readOrganization(d, record.initiator)
-      const recipientOrg = await readOrganization(d, record.recipient)
-      if (initiatorOrg?.kind === 'personal' || recipientOrg?.kind === 'personal') {
-        return fail('personalOrganizationTakesNoPartInAffiliation')
-      }
-      // ② 接受者是接收方组织的超级管理员（单方面指定不允许，哪怕发起方是上级）
-      const authorized =
-        acceptor.ok.organization === record.recipient &&
-        (await isSuperAdministrator(d, acceptor.ok))
-      if (!authorized) return fail('notAuthorized')
-      // ④① 过期重判，指向对象只有接收方组织
-      const state = requestState(
-        record,
-        deps.clock.now(),
-        recipientOrg === undefined ? 'absent' : 'exists',
+  const outcome = await deps.mutate(async (tx: WriteTx) => {
+    // R-3b：隶属写部署级序列化——链跨多个组织，按组织加锁不够
+    await tx.lockSentinel(AFFILIATION_SENTINEL)
+    await tx.lockRow('affiliation_request', { affiliation_request_id: id.ok })
+    const d = db(tx)
+    const record = await readAffiliationRequestRecord(d, id.ok)
+    if (record === undefined) return fail('affiliationRequestDoesNotExist')
+    // ③ 结构性禁止先于授权（S-15）：由两端的 OrganizationKind 决定，与接受者无关
+    const initiatorOrg = await readOrganization(d, record.initiator)
+    const recipientOrg = await readOrganization(d, record.recipient)
+    if (initiatorOrg?.kind === 'personal' || recipientOrg?.kind === 'personal') {
+      return fail('personalOrganizationTakesNoPartInAffiliation')
+    }
+    // ② 接受者是接收方组织的超级管理员（单方面指定不允许，哪怕发起方是上级）
+    const authorized =
+      acceptor.ok.organization === record.recipient && (await isSuperAdministrator(d, acceptor.ok))
+    if (!authorized) return fail('notAuthorized')
+    // ④① 过期重判，指向对象只有接收方组织
+    const state = requestState(
+      record,
+      deps.clock.now(),
+      recipientOrg === undefined ? 'absent' : 'exists',
+    )
+    if (state === 'unavailable') return fail('unavailable')
+    if (!acceptable(state)) return fail('offerNoLongerValid')
+    const { child, newParent } = childAndParent(record)
+    const childOrg = child === record.initiator ? initiatorOrg : recipientOrg
+    if (childOrg === undefined) {
+      // 团队组织本版没有终结路径；下级组织读得到却不存在是缺陷
+      throw new Error(
+        `organization-governance: affiliation request ${record.id} names a missing organization`,
       )
-      if (state === 'unavailable') return fail('unavailable')
-      if (!acceptable(state)) return fail('offerNoLongerValid')
-      const { child, newParent } = childAndParent(record)
-      const childOrg = child === record.initiator ? initiatorOrg : recipientOrg
-      if (childOrg === undefined) {
-        // 团队组织本版没有终结路径；下级组织读得到却不存在是缺陷
-        throw new Error(
-          `organization-governance: affiliation request ${record.id} names a missing organization`,
-        )
-      }
-      // ④② 下级尚无上级
-      if (childOrg.parent !== null) return fail('alreadyHasAParentOrganization')
-      // ④③ 判环两半：newParent 不是 child 自己，且 child 不在 newParent 的上级链上；
-      // 链在同一提交内逐行读出，任一行读不到 ⇒ unavailable，不判「不成环」
-      if (child === newParent) return fail('wouldFormACycle')
-      const chain = ancestorChain(newParent, await loadParentSnapshot(d, [newParent]))
-      if ('failure' in chain) {
-        if (chain.failure === 'cycle') throw new ParentChainCycle(newParent)
-        return fail('unavailable')
-      }
-      if (chain.ok.includes(child)) return fail('wouldFormACycle')
-      // ④④⑤ 写上级属性 ＋ 终结记录；不产生任何租户（没有通向成员写入的路）
-      await setParent(d, child, newParent)
-      await d
-        .updateTable('affiliation_request')
-        .set({ settled: 'accepted' })
-        .where('affiliation_request_id', '=', record.id)
-        .execute()
-      return succeed(undefined)
-    }),
-  )
+    }
+    // ④② 下级尚无上级
+    if (childOrg.parent !== null) return fail('alreadyHasAParentOrganization')
+    // ④③ 判环两半：newParent 不是 child 自己，且 child 不在 newParent 的上级链上；
+    // 链在同一提交内逐行读出，任一行读不到 ⇒ unavailable，不判「不成环」
+    if (child === newParent) return fail('wouldFormACycle')
+    const chain = ancestorChain(newParent, await loadParentSnapshot(d, [newParent]))
+    if ('failure' in chain) {
+      if (chain.failure === 'cycle') throw new ParentChainCycle(newParent)
+      return fail('unavailable')
+    }
+    if (chain.ok.includes(child)) return fail('wouldFormACycle')
+    // ④④⑤ 写上级属性 ＋ 终结记录；不产生任何租户（没有通向成员写入的路）
+    await setParent(d, child, newParent)
+    await d
+      .updateTable('affiliation_request')
+      .set({ settled: 'accepted' })
+      .where('affiliation_request_id', '=', record.id)
+      .execute()
+    return succeed(undefined)
+  })
   return 'failure' in outcome ? outcome : 'ok'
 }
 
 // ---- 读面 ----
 
 async function readInvitation(
-  deps: Deps,
+  deps: OperationContext,
   callerInput: OfferReader,
   invitationInput: unknown,
 ): Promise<Outcome<InvitationReading, ReadInvitationFailure>> {
   const caller = parseOfferReader(callerInput)
   const id = parseInvitationId(invitationInput)
   if (!isOk(caller) || !isOk(id)) return fail('invalidInput')
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      const record = await readInvitationRecord(d, id.ok)
-      if (record === undefined) return fail('invitationDoesNotExist')
-      // ② 两类人，与判别式一一对应；不满足 ⇒ DoesNotExist（不泄漏存在性）
-      const allowed =
-        caller.ok.kind === 'account'
-          ? caller.ok.accountId === record.invitedAccount
-          : caller.ok.tenantId.organization === record.issuer &&
-            (await isSuperAdministrator(d, caller.ok.tenantId))
-      if (!allowed) return fail('invitationDoesNotExist')
-      const state = invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer))
-      if (state === 'unavailable') return fail('unavailable')
-      return succeed(invitationReading(record, state))
-    }),
-  )
+  return deps.query(async tx => {
+    const d = db(tx)
+    const record = await readInvitationRecord(d, id.ok)
+    if (record === undefined) return fail('invitationDoesNotExist')
+    // ② 两类人，与判别式一一对应；不满足 ⇒ DoesNotExist（不泄漏存在性）
+    const allowed =
+      caller.ok.kind === 'account'
+        ? caller.ok.accountId === record.invitedAccount
+        : caller.ok.tenantId.organization === record.issuer &&
+          (await isSuperAdministrator(d, caller.ok.tenantId))
+    if (!allowed) return fail('invitationDoesNotExist')
+    const state =
+      record.settled ??
+      invitationState(record, deps.clock.now(), await existenceOne(d, record.issuer))
+    if (state === 'unavailable') return fail('unavailable')
+    return succeed(invitationReading(record, state))
+  })
 }
 
 async function readAffiliationRequest(
-  deps: Deps,
+  deps: OperationContext,
   callerInput: unknown,
   requestInput: unknown,
 ): Promise<Outcome<AffiliationRequestReading, ReadAffiliationRequestFailure>> {
   const caller = parseTenantId(callerInput)
   const id = parseAffiliationRequestId(requestInput)
   if (!isOk(caller) || !isOk(id)) return fail('invalidInput')
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      const record = await readAffiliationRequestRecord(d, id.ok)
-      if (record === undefined) return fail('affiliationRequestDoesNotExist')
-      const party =
-        caller.ok.organization === record.initiator || caller.ok.organization === record.recipient
-      if (!party || !(await isSuperAdministrator(d, caller.ok))) {
-        return fail('affiliationRequestDoesNotExist')
-      }
-      const state = requestState(record, deps.clock.now(), await existenceOne(d, record.recipient))
-      if (state === 'unavailable') return fail('unavailable')
-      return succeed(requestReading(record, state))
-    }),
-  )
+  return deps.query(async tx => {
+    const d = db(tx)
+    const record = await readAffiliationRequestRecord(d, id.ok)
+    if (record === undefined) return fail('affiliationRequestDoesNotExist')
+    const party =
+      caller.ok.organization === record.initiator || caller.ok.organization === record.recipient
+    if (!party || !(await isSuperAdministrator(d, caller.ok))) {
+      return fail('affiliationRequestDoesNotExist')
+    }
+    const state =
+      record.settled ??
+      requestState(record, deps.clock.now(), await existenceOne(d, record.recipient))
+    if (state === 'unavailable') return fail('unavailable')
+    return succeed(requestReading(record, state))
+  })
 }
 
 /**
@@ -625,7 +622,7 @@ async function requestsWhere(
 }
 
 async function listReceivedInvitations(
-  deps: Deps,
+  deps: OperationContext,
   accountInput: unknown,
   includeSettledInput?: unknown,
 ): Promise<Outcome<readonly InvitationReading[], ListReceivedInvitationsFailure>> {
@@ -633,112 +630,225 @@ async function listReceivedInvitations(
   const includeSettled = parseIncludeSwitch(includeSettledInput)
   if (!isOk(account) || !isOk(includeSettled)) return fail('invalidInput')
   // ② 无授权前置：输入的 AccountId 就是调用者本人（入口层核实，S-42）；返回的全部内容以它为界
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      const records = await invitationsWhere(d, 'invited_account', account.ok)
-      const now = deps.clock.now()
-      const existence = await existenceOf(
-        d,
-        records.map(r => r.issuer),
-      )
-      const result = evaluateAll(
-        records,
-        r => invitationState(r, now, existence.get(r.issuer) ?? 'unavailable'),
-        invitationReading,
-        includeSettled.ok,
-      )
-      return result === 'unavailable' ? fail('unavailable') : succeed(result)
-    }),
-  )
+  return deps.query(async tx => {
+    const d = db(tx)
+    const records = await invitationsWhere(d, 'invited_account', account.ok)
+    const now = deps.clock.now()
+    const existence = await existenceOf(
+      d,
+      records.filter(r => r.settled === null).map(r => r.issuer),
+    )
+    const result = evaluateAll(
+      records,
+      r => invitationState(r, now, existence.get(r.issuer) ?? 'unavailable'),
+      invitationReading,
+      includeSettled.ok,
+    )
+    return result === 'unavailable' ? fail('unavailable') : succeed(result)
+  })
 }
 
 async function listIssued(
-  deps: Deps,
+  deps: OperationContext,
   tenantInput: unknown,
   includeSettledInput?: unknown,
 ): Promise<Outcome<IssuedOffers, ListIssuedFailure>> {
   const caller = parseTenantId(tenantInput)
   const includeSettled = parseIncludeSwitch(includeSettledInput)
   if (!isOk(caller) || !isOk(includeSettled)) return fail('invalidInput')
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      if (!(await isSuperAdministrator(d, caller.ok))) return fail('notAuthorized')
-      const organization = caller.ok.organization
-      const invitations = await invitationsWhere(d, 'issuer_organization', organization)
-      const requests = await requestsWhere(d, 'initiator', organization)
-      const now = deps.clock.now()
-      const existence = await existenceOf(d, [
-        ...invitations.map(r => r.issuer),
-        ...requests.map(r => r.recipient),
-      ])
-      const issuedInvitations = evaluateAll(
-        invitations,
-        r => invitationState(r, now, existence.get(r.issuer) ?? 'unavailable'),
-        invitationReading,
-        includeSettled.ok,
-      )
-      const issuedRequests = evaluateAll(
-        requests,
-        r => requestState(r, now, existence.get(r.recipient) ?? 'unavailable'),
-        requestReading,
-        includeSettled.ok,
-      )
-      if (issuedInvitations === 'unavailable' || issuedRequests === 'unavailable') {
-        return fail('unavailable')
-      }
-      return succeed({ invitations: issuedInvitations, affiliationRequests: issuedRequests })
-    }),
-  )
+  return deps.query(async tx => {
+    const d = db(tx)
+    if (!(await isSuperAdministrator(d, caller.ok))) return fail('notAuthorized')
+    const organization = caller.ok.organization
+    const invitations = await invitationsWhere(d, 'issuer_organization', organization)
+    const requests = await requestsWhere(d, 'initiator', organization)
+    const now = deps.clock.now()
+    const existence = await existenceOf(d, [
+      ...invitations.filter(r => r.settled === null).map(r => r.issuer),
+      ...requests.filter(r => r.settled === null).map(r => r.recipient),
+    ])
+    const issuedInvitations = evaluateAll(
+      invitations,
+      r => invitationState(r, now, existence.get(r.issuer) ?? 'unavailable'),
+      invitationReading,
+      includeSettled.ok,
+    )
+    const issuedRequests = evaluateAll(
+      requests,
+      r => requestState(r, now, existence.get(r.recipient) ?? 'unavailable'),
+      requestReading,
+      includeSettled.ok,
+    )
+    if (issuedInvitations === 'unavailable' || issuedRequests === 'unavailable') {
+      return fail('unavailable')
+    }
+    return succeed({ invitations: issuedInvitations, affiliationRequests: issuedRequests })
+  })
 }
 
 async function listReceivedAffiliationRequests(
-  deps: Deps,
+  deps: OperationContext,
   tenantInput: unknown,
   includeSettledInput?: unknown,
 ): Promise<Outcome<readonly AffiliationRequestReading[], ListReceivedAffiliationRequestsFailure>> {
   const caller = parseTenantId(tenantInput)
   const includeSettled = parseIncludeSwitch(includeSettledInput)
   if (!isOk(caller) || !isOk(includeSettled)) return fail('invalidInput')
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      if (!(await isSuperAdministrator(d, caller.ok))) return fail('notAuthorized')
-      const records = await requestsWhere(d, 'recipient', caller.ok.organization)
-      const now = deps.clock.now()
-      // 指向对象就是调用方自己的组织；读不到以异常上抛 ⇒ unavailable，绝不判成「不存在 ⇒ 全表过期」
-      const existence = await existenceOf(
-        d,
-        records.map(r => r.recipient),
-      )
-      const result = evaluateAll(
-        records,
-        r => requestState(r, now, existence.get(r.recipient) ?? 'unavailable'),
-        requestReading,
-        includeSettled.ok,
-      )
-      return result === 'unavailable' ? fail('unavailable') : succeed(result)
-    }),
-  )
+  return deps.query(async tx => {
+    const d = db(tx)
+    if (!(await isSuperAdministrator(d, caller.ok))) return fail('notAuthorized')
+    const records = await requestsWhere(d, 'recipient', caller.ok.organization)
+    const now = deps.clock.now()
+    // 指向对象就是调用方自己的组织；读不到以异常上抛 ⇒ unavailable，绝不判成「不存在 ⇒ 全表过期」
+    const existence = await existenceOf(
+      d,
+      records.filter(r => r.settled === null).map(r => r.recipient),
+    )
+    const result = evaluateAll(
+      records,
+      r => requestState(r, now, existence.get(r.recipient) ?? 'unavailable'),
+      requestReading,
+      includeSettled.ok,
+    )
+    return result === 'unavailable' ? fail('unavailable') : succeed(result)
+  })
+}
+
+async function declineInvitation(
+  deps: OperationContext,
+  accountInput: unknown,
+  invitationInput: unknown,
+): Promise<Ack<DeclineInvitationFailure>> {
+  const account = parseAccountId(accountInput)
+  const id = parseInvitationId(invitationInput)
+  if (!isOk(account) || !isOk(id)) return fail('invalidInput')
+  const located = await deps.query(tx => readInvitationRecord(db(tx), id.ok))
+  if (located === undefined || located.invitedAccount !== account.ok)
+    return fail('invitationDoesNotExist')
+  const facts = await readAccountFacts(deps, account.ok)
+  if ('failure' in facts) return facts
+  if (!facts.ok.activated) return fail('accountNotActivated')
+  // The owner run holds the shared writer from locate through authorization and settlement.
+  return deps.mutate(async tx => {
+    const d = db(tx)
+    const state =
+      located.settled ??
+      invitationState(located, deps.clock.now(), await existenceOne(d, located.issuer))
+    if (state === 'declined') return 'ok'
+    if (state === 'unavailable') return fail('unavailable')
+    if (!acceptable(state)) return fail('alreadyConcluded')
+    await d
+      .updateTable('invitation')
+      .set({ settled: 'declined' })
+      .where('invitation_id', '=', id.ok)
+      .execute()
+    return 'ok'
+  })
+}
+
+async function declineAffiliationRequest(
+  deps: OperationContext,
+  tenantInput: unknown,
+  requestInput: unknown,
+): Promise<Ack<DeclineAffiliationRequestFailure>> {
+  const tenant = parseTenantId(tenantInput)
+  const id = parseAffiliationRequestId(requestInput)
+  if (!isOk(tenant) || !isOk(id)) return fail('invalidInput')
+  return deps.mutate(async tx => {
+    const d = db(tx)
+    const record = await readAffiliationRequestRecord(d, id.ok)
+    if (record === undefined || record.recipient !== tenant.ok.organization)
+      return fail('affiliationRequestDoesNotExist')
+    if (!(await isSuperAdministrator(d, tenant.ok))) return fail('notAuthorized')
+    const state =
+      record.settled ??
+      record.settled ??
+      requestState(record, deps.clock.now(), await existenceOne(d, record.recipient))
+    if (state === 'declined') return 'ok'
+    if (state === 'unavailable') return fail('unavailable')
+    if (!acceptable(state)) return fail('alreadyConcluded')
+    await d
+      .updateTable('affiliation_request')
+      .set({ settled: 'declined' })
+      .where('affiliation_request_id', '=', id.ok)
+      .execute()
+    return 'ok'
+  })
 }
 
 export function createOffersService(deps: Deps): OffersService {
   return {
     issueInvitation: (issuer, target, role, ttl) =>
-      issueInvitation(deps, issuer, target, role, ttl),
-    withdrawInvitation: (issuer, id) => withdrawInvitation(deps, issuer, id),
-    acceptInvitation: (account, id) => acceptInvitation(deps, account, id),
+      withOperation(deps, context => issueInvitation(context, issuer, target, role, ttl)),
+    withdrawInvitation: (issuer, invitation) =>
+      withOperation(deps, context => withdrawInvitation(context, issuer, invitation)),
+    acceptInvitation: (account, invitation) =>
+      withOperation(deps, context => acceptInvitation(context, account, invitation)),
     issueAffiliationRequest: (initiator, recipient, direction, ttl) =>
-      issueAffiliationRequest(deps, initiator, recipient, direction, ttl),
-    withdrawAffiliationRequest: (initiator, id) => withdrawAffiliationRequest(deps, initiator, id),
-    acceptAffiliationRequest: (acceptor, id) => acceptAffiliationRequest(deps, acceptor, id),
-    readInvitation: (caller, id) => readInvitation(deps, caller, id),
-    readAffiliationRequest: (caller, id) => readAffiliationRequest(deps, caller, id),
+      withOperation(deps, context =>
+        issueAffiliationRequest(context, initiator, recipient, direction, ttl),
+      ),
+    withdrawAffiliationRequest: (initiator, request) =>
+      withOperation(deps, context => withdrawAffiliationRequest(context, initiator, request)),
+    acceptAffiliationRequest: (acceptor, request) =>
+      withOperation(deps, context => acceptAffiliationRequest(context, acceptor, request)),
+    readInvitation: (caller, invitation) =>
+      withOperation(deps, context => readInvitation(context, caller, invitation)),
+    readAffiliationRequest: (caller, request) =>
+      withOperation(deps, context => readAffiliationRequest(context, caller, request)),
     listReceivedInvitations: (account, includeSettled) =>
-      listReceivedInvitations(deps, account, includeSettled),
-    listIssued: (tenant, includeSettled) => listIssued(deps, tenant, includeSettled),
+      withOperation(deps, context => listReceivedInvitations(context, account, includeSettled)),
+    listIssued: (tenant, includeSettled) =>
+      withOperation(deps, context => listIssued(context, tenant, includeSettled)),
     listReceivedAffiliationRequests: (tenant, includeSettled) =>
-      listReceivedAffiliationRequests(deps, tenant, includeSettled),
+      withOperation(deps, context =>
+        listReceivedAffiliationRequests(context, tenant, includeSettled),
+      ),
+    declineInvitation: (account, invitation) =>
+      withOperation(deps, context => declineInvitation(context, account, invitation)),
+    declineAffiliationRequest: (tenant, request) =>
+      withOperation(deps, context => declineAffiliationRequest(context, tenant, request)),
+    participate: unit => ({
+      issueInvitation: (issuer, target, role, ttl) =>
+        withParticipation(deps, unit, context =>
+          issueInvitation(context, issuer, target, role, ttl),
+        ),
+      withdrawInvitation: (issuer, invitation) =>
+        withParticipation(deps, unit, context => withdrawInvitation(context, issuer, invitation)),
+      acceptInvitation: (account, invitation) =>
+        withParticipation(deps, unit, context => acceptInvitation(context, account, invitation)),
+      issueAffiliationRequest: (initiator, recipient, direction, ttl) =>
+        withParticipation(deps, unit, context =>
+          issueAffiliationRequest(context, initiator, recipient, direction, ttl),
+        ),
+      withdrawAffiliationRequest: (initiator, request) =>
+        withParticipation(deps, unit, context =>
+          withdrawAffiliationRequest(context, initiator, request),
+        ),
+      acceptAffiliationRequest: (acceptor, request) =>
+        withParticipation(deps, unit, context =>
+          acceptAffiliationRequest(context, acceptor, request),
+        ),
+      readInvitation: (caller, invitation) =>
+        withParticipation(deps, unit, context => readInvitation(context, caller, invitation)),
+      readAffiliationRequest: (caller, request) =>
+        withParticipation(deps, unit, context => readAffiliationRequest(context, caller, request)),
+      listReceivedInvitations: (account, includeSettled) =>
+        withParticipation(deps, unit, context =>
+          listReceivedInvitations(context, account, includeSettled),
+        ),
+      listIssued: (tenant, includeSettled) =>
+        withParticipation(deps, unit, context => listIssued(context, tenant, includeSettled)),
+      listReceivedAffiliationRequests: (tenant, includeSettled) =>
+        withParticipation(deps, unit, context =>
+          listReceivedAffiliationRequests(context, tenant, includeSettled),
+        ),
+      declineInvitation: (account, invitation) =>
+        withParticipation(deps, unit, context => declineInvitation(context, account, invitation)),
+      declineAffiliationRequest: (tenant, request) =>
+        withParticipation(deps, unit, context =>
+          declineAffiliationRequest(context, tenant, request),
+        ),
+    }),
   }
 }

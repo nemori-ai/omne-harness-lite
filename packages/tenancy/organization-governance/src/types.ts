@@ -1,4 +1,5 @@
-// capability.organization-governance v1 的服务面类型。契约：.meta_harness/design/spec/capabilities/organization-governance/v1/contract.md；
+import type { StorageUnit } from '@omne-harness-lite/storage'
+// capability.organization-governance v2 的服务面类型。契约：.meta_harness/design/spec/capabilities/organization-governance/v2/contract.md；
 // 节点设计：.meta_harness/design/realization/packages/tenancy/organization-governance/design.md。
 // 失败字面**逐字对契约**（camelCase），每个方法的失败集合恰为契约 ⑥ 所列，无兜底值；tests/types.spec-d.ts 逐条守。
 // 输入一律 `unknown`：表示层解析在方法体内做，不合格 ⇒ `invalidInput`（S-16 第三类）。
@@ -87,6 +88,7 @@ export interface ScopeLayers {
 }
 
 export interface OrganizationsService {
+  participate(unit: StorageUnit): OrganizationsParticipation
   /** 幂等边界 AccountId；幂等那一路仍过 ② 两条判定。 */
   createPersonal(accountId: unknown): Promise<Outcome<CreatedOrganization, CreatePersonalFailure>>
   /** 幂等边界 (创建者, 创建键)；不带键不幂等。 */
@@ -166,7 +168,30 @@ export interface IssuedOffers {
   readonly affiliationRequests: readonly AffiliationRequestReading[]
 }
 
+export type DeclineInvitationFailure =
+  | 'accountDoesNotExist'
+  | 'accountNotActivated'
+  | 'invitationDoesNotExist'
+  | 'alreadyConcluded'
+  | 'invalidInput'
+  | 'unavailable'
+export type DeclineAffiliationRequestFailure =
+  | 'affiliationRequestDoesNotExist'
+  | 'notAuthorized'
+  | 'alreadyConcluded'
+  | 'invalidInput'
+  | 'unavailable'
+
 export interface OffersService {
+  declineInvitation(
+    accountId: unknown,
+    invitationId: unknown,
+  ): Promise<Ack<DeclineInvitationFailure>>
+  declineAffiliationRequest(
+    tenantId: unknown,
+    requestId: unknown,
+  ): Promise<Ack<DeclineAffiliationRequestFailure>>
+  participate(unit: StorageUnit): OffersParticipation
   issueInvitation(
     issuerTenant: unknown,
     targetAccount: unknown,
@@ -244,6 +269,7 @@ export type SwitchCurrentTenantFailure =
 export type ListMembersFailure = 'notAuthorized' | 'invalidInput' | 'unavailable'
 
 export interface MembershipsService {
+  participate(unit: StorageUnit): MembershipsParticipation
   /** 返回值是闭合和：`MembershipStandingResult`（含 `failure: 'unavailable'` 支）或表示层的 `invalidInput`；不抛异常，每次现读。 */
   standing(
     tenantId: unknown,
@@ -330,3 +356,16 @@ export const ORGANIZATIONS_SERVICE = 'organizations' as const
 export const OFFERS_SERVICE = 'offers' as const
 export const MEMBERSHIPS_SERVICE = 'memberships' as const
 export const ORGANIZATION_PURGE_SERVICE = 'organization-purge' as const
+
+/** 临时结果，不代表提交；S20/S53及清扫不在参与面。 */
+export type OrganizationsParticipation = Omit<
+  OrganizationsService,
+  'participate' | 'createPersonal' | 'scopeLayers'
+> & {
+  scopeLayers(tenantId: unknown): Promise<Outcome<ScopeLayers, ScopeLayersFailure>>
+}
+export type MembershipsParticipation = Omit<
+  MembershipsService,
+  'participate' | 'sweepStaleSelections'
+>
+export type OffersParticipation = Omit<OffersService, 'participate'>

@@ -11,14 +11,11 @@ import {
   loadVerificationKey,
 } from '@omne-harness-lite/identity-values'
 import {
-  DISPOSE_TIMEOUT_MS,
-  DRAIN_TIMEOUT_MS,
   ENV,
   HOST_VERSION,
   HostStartupFailure,
   KEY_FILES,
   KeyFilesExist,
-  assertTimeoutBudget,
   generateKeyFiles,
   verifyKeyPairing,
 } from '../src/index.ts'
@@ -305,18 +302,6 @@ describe('assembly.invalid-config-fails-boot：每一项坏法都启动失败、
       expect(sidecarsOf(d.file).db).toBe(false)
     })
   }
-
-  it('排空上界不小于撤除总超时 ⇒ 启动失败（两个都是常量：这里核判据本身与常量取值）', () => {
-    expect(() => assertTimeoutBudget({ drainTimeoutMs: 30_000, disposeTimeoutMs: 30_000 })).toThrow(
-      HostStartupFailure,
-    )
-    expect(() =>
-      assertTimeoutBudget({
-        drainTimeoutMs: DRAIN_TIMEOUT_MS,
-        disposeTimeoutMs: DISPOSE_TIMEOUT_MS,
-      }),
-    ).not.toThrow()
-  })
 
   it('反向：credentialPolicy 缺席 ⇒ 启动成功（契约 S-27 的例外），注册得 credential-rejected', async () => {
     const d = await deployment('no-policy')

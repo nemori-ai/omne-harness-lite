@@ -1,0 +1,21 @@
+{
+  "packages/frontend/governance-center-client/README.md": "b3632b4c4722e634e86e05fcb21378391937ff07e6ac97862ba05cf778ecca3f",
+  "packages/frontend/governance-center-client/tsconfig.test.json": "132276fd71193c254b1dd1e2366d37bce3c92416c3c41626e1802f15aaec0fb9",
+  "packages/frontend/governance-center-client/package.json": "a43f37eec35a21472ca183b3b19e2646134b79254419fe6324a338a445898315",
+  "packages/frontend/governance-center-client/tsconfig.build.json": "ed54eadbde93969726eef46671721cb0e0dbcee3c16c00873f1d2cd62db14ebe",
+  "packages/frontend/governance-center-client/vitest.config.ts": "2a04d3f311a9c1ee30a3dbfbe0ca4943b9bba64b3889b2b4e75cc735f55e368c",
+  "packages/frontend/governance-center-client/tests/types.spec-d.ts": "145c024c66f1d37c2bdcf69a00c1ed20b012a36a9d54bdd154308b4b85c46a98",
+  "packages/frontend/governance-center-client/tests/governance-cases.ts": "be62431f31dc11033302495422e2d92a602e99c539643200a50f66d85d12fb53",
+  "packages/frontend/governance-center-client/tests/health.spec.ts": "e61e73505a49e514fb41c56a2a35a3be669d085d1a84723372dc86b7392e8475",
+  "packages/frontend/governance-center-client/schema/governance-center-entry.schema.json": "7c7124396ea16e1f0d2eda7d6a44f4284d9be77f2546e74de7ae740d718a3b29",
+  "packages/frontend/governance-center-client/src/governance.ts": "da97a8c108c8ba477cf08a0d7054f72f6ac73a7158fe0822a535c9620f9f461c",
+  "packages/frontend/governance-center-client/src/protocol.ts": "33825bd3039b7d59c22279954e59d27620c96847da06bba99efc901574c18c18",
+  "packages/frontend/governance-center-client/src/health.ts": "7dbf3f6a3efbac58c645c8877a9e6d3e280a232b68cecf9f5a0b283e20024921",
+  "packages/frontend/governance-center-client/src/transport.ts": "4acc05e4069a23413b7ada0ff57467fd09b427ac0e499315417e9fa686a1335a",
+  "packages/frontend/governance-center-client/src/index.ts": "c7c1e2f023efb9689d49b4f67cfa5afcde55f0a9416cd445f52c0b74abd36c9c",
+  "packages/frontend/governance-center-client/src/config.ts": "92b94bb7f7c3e2570e0e56893b8a3a424530ccb20c395c5a982049b00a9df00c",
+  "pnpm-lock.yaml": "1d5ccd2f2df944dbca8f0724af0d71b2f7132d36e48d382e2b3062c142ff0645",
+  "pnpm-workspace.yaml": "f7348ff448f3764c92323c324467efde12d330c79774e5a27a0083ee26dcd7ef",
+  "tmp/production-cli-onboarding/client2-integration/macos.mjs": "73b1e40c7ae48574b5c98d23014ee264ee350fe9df9cac0bfc205406fcdf5816",
+  "tmp/production-cli-onboarding/client2-integration/linux.mjs": "5df41b7aa9b5f32c235b59fc762e657aab3fa769154c452a09de2257ba78d383"
+}

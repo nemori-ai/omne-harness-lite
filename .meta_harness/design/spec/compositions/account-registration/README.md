@@ -85,3 +85,9 @@
 **本包不建 Schema。**本契约不拥有任何交换或存储的数据形状；它拥有的是次序与责任。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[组合契约](../README.md)。
+
+## v2 候选
+
+[v2](v2/contract.md)对齐AI3/OG2普通注册清除面及提交未确认语义，保持独立链；未接受，旧采用不自动升级。
+
+2026-09-25，[D043](../../../record/decisions/registration-bounded-provider/decision.md)接受[v2](v2/contract.md)，旧消费者不自动升级。

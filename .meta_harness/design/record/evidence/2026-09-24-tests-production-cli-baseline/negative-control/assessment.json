@@ -1,0 +1,5 @@
+{
+  "expected_failure_observed": true,
+  "basis": "raw log rejects 127.0.0.1 at the alternate-source precondition before boot",
+  "runner_classification_error": "result.json searched for not to include; Vitest prints to not include. Original run record retained."
+}

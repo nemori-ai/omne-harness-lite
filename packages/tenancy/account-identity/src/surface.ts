@@ -1,4 +1,4 @@
-// capability.account-identity v2 的服务面类型。契约：.meta_harness/design/spec/capabilities/account-identity/v2/contract.md；
+// capability.account-identity v3 的服务面类型。契约：.meta_harness/design/spec/capabilities/account-identity/v3/contract.md；
 // 节点设计：.meta_harness/design/realization/packages/tenancy/account-identity/design.md。
 // 失败字面**逐字对契约**（kebab-case），每个方法的失败集合恰为契约所列，无兜底值；类型测试（tests/types.spec-d.ts）守 S-36。
 // 参数按「是不是用来认人」分：S-16 的发起方、S-17、S-37 是品牌 `LoginStateId`（契约「按来源读」），其余一律 `unknown`，
@@ -6,6 +6,7 @@
 import type { AccountId, LoginIdentifier, LoginStateId } from '@omne-harness-lite/identity-values'
 import type { Duration, Instant } from '@omne-harness-lite/offer-expiry'
 import type { Ack, Outcome } from '@omne-harness-lite/kernel-basis'
+import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { LoginStatePresentation } from './presentation.ts'
 
 // ---- S-13 产生账号（未激活） ----
@@ -45,6 +46,7 @@ export type PurgeFailure =
 
 /** 服务名 `accounts`：S-13／S-14／S-18／S-38。 */
 export interface AccountsService {
+  participate(unit: StorageUnit): AccountParticipation
   produce(loginIdentifier: unknown, presentedCredential: unknown): Promise<ProduceResult>
   /** 已激活 ⇒ `ok` 无二次效果，但仍须出示有效依据。 */
   activate(accountId: unknown, activationWarrant: unknown): Promise<Ack<ActivateFailure>>
@@ -76,17 +78,53 @@ export interface ExchangedIdentity {
 export interface EffectiveLoginState {
   readonly loginStateId: LoginStateId
   readonly issuedAt: Instant
+  readonly lastActivityAt: Instant
+  readonly absoluteExpiresAt: Instant
+  readonly idleExpiresAt: Instant
 }
 export type ListEffectiveFailure = 'login-state-rejected' | 'invalid-input' | 'storage-unavailable'
 
 /** 服务名 `logins`：S-15／S-44／S-16／S-17／S-37。 */
+export interface AccountParticipation {
+  read(accountId: unknown): Promise<Outcome<AccountReading, ReadFailure>>
+  resolveActivatedIdentifier(identifier: unknown): Promise<Outcome<AccountId, ReadFailure>>
+}
+export type ChangeCredentialFailure =
+  | 'invalid-input'
+  | 'login-state-rejected'
+  | 'current-credential-rejected'
+  | 'credential-rejected'
+  | 'storage-unavailable'
+export type PreparedCredentialChange = { readonly credentialChange: unique symbol }
+export type PrepareCredentialResult = Outcome<PreparedCredentialChange, ChangeCredentialFailure>
+export interface LoginParticipation {
+  exchange(presentation: unknown): Promise<Outcome<ExchangedIdentity, VerifyLoginFailure>>
+  verify(loginStateId: LoginStateId): Promise<Outcome<AccountId, VerifyLoginFailure>>
+  revoke(target: unknown, initiator: LoginStateId): Promise<Ack<RevokeFailure>>
+  listEffective(
+    caller: LoginStateId,
+  ): Promise<Outcome<readonly EffectiveLoginState[], ListEffectiveFailure>>
+  finalizeActivity(caller: LoginStateId): Promise<Ack<'invalid-input'>>
+  commitCredentialChange(prepared: PreparedCredentialChange): Promise<Ack<ChangeCredentialFailure>>
+}
 export interface LoginsService {
+  participate(unit: StorageUnit): LoginParticipation
+  prepareCredentialChange(
+    caller: LoginStateId,
+    current: unknown,
+    next: unknown,
+  ): Promise<PrepareCredentialResult>
+  changeCredential(
+    caller: LoginStateId,
+    current: unknown,
+    next: unknown,
+  ): Promise<Ack<ChangeCredentialFailure>>
   /** 不存在／不匹配／未激活三支落到同一个 `identifier-or-credential-rejected`（S-22、S-31）。 */
   issue(
     loginIdentifier: unknown,
     presentedCredential: unknown,
   ): Promise<Outcome<IssuedLoginState, IssueFailure>>
-  /** 九个方法里唯一以出示物为输入的方法（S-30「只有 S-44 认出示物」）；判定就是 `verify` 的判定。 */
+  /** 普通操作中唯一以出示物为输入的方法（S-30「只有 S-44 认出示物」）；判定就是 `verify` 的判定。 */
   exchange(presentation: unknown): Promise<Outcome<ExchangedIdentity, VerifyLoginFailure>>
   /**
    * 目标不是秘密、可以来自线上（`unknown`）；发起方用来认人（品牌）。

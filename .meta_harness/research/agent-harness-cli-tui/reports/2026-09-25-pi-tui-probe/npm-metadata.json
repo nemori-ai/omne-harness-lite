@@ -1,0 +1,33 @@
+{
+  "version": "0.86.1",
+  "dist": {
+    "shasum": "acb23213665f032d0999cd6d3f9d9340302e3daf",
+    "tarball": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-0.86.1.tgz",
+    "fileCount": 188,
+    "integrity": "sha512-FU/zU/zG4RWokcZt+BVXXcieWi5ggvYnWP2kkB5XXjMaHRoy5BDhcZJ9JAnLTN9MwrCRoXgPQxOI0bFqwYeZkQ==",
+    "signatures": [
+      {
+        "sig": "MEYCIQChNsr98jPMGVlFjcGFUFbPIoHcRkLbdQP00VxjLHaFJwIhALzJ0IZk8z+nLzsowlN1b+zKtipxa8hd9n8rrGmuLFnP",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      },
+      {
+        "sig": "MEUCIFa9+58NetC7o+cBpBEpXFepiK4WxRc9pCuue2ubZgn+AiEAh7uhmCK/V8cAIci0ldbnPuZE2jRnQBJcKY3/efD48BM=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      }
+    ],
+    "attestations": {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@earendil-works%2fpi-tui@0.86.1",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1"
+      }
+    },
+    "unpackedSize": 2865726
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "marked": "18.0.11",
+    "get-east-asian-width": "1.6.0"
+  }
+}

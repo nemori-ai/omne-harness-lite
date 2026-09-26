@@ -1,0 +1,4 @@
+node v24.21.0 (darwin arm64)
+openssl 3.5.8 (Node 内置)；证书由系统 openssl 生成，见 commands/commands.txt
+cli /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/tenancy-host/dist/cli.js
+protocolVersion 1

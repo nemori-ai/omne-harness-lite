@@ -1,0 +1,18 @@
+from pathlib import Path
+import tempfile,tarfile,json,hashlib,os,sys
+archive=Path(sys.argv[1]); out=Path(tempfile.mkdtemp(prefix='omne-cli-d050-',dir='/tmp')).resolve()
+with tarfile.open(archive) as t:t.extractall(out,filter='data')
+app=out/'app';data=json.loads((app/'build-info.json').read_text());files=[]
+for parent,dirs,names in os.walk(app,followlinks=False):
+ for name in dirs+names:
+  p=Path(parent)/name;key=p.relative_to(app).as_posix()
+  if key in ['BUILD_ID','build-info.json']:continue
+  if p.is_symlink():
+   target=os.readlink(p);assert not os.path.isabs(target);assert p.resolve().is_relative_to(app);files.append({'path':key,'kind':'link','target':target})
+  elif p.is_file():files.append({'path':key,'kind':'file','sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
+  else:assert p.is_dir()
+files.sort(key=lambda x:x['path']);assert files==data['files'],'extracted inventory mismatch'
+h=hashlib.sha256(json.dumps(files,separators=(',',':'),ensure_ascii=False).encode()).hexdigest();assert h==data['buildId']==(app/'BUILD_ID').read_text().strip()
+allowed={'node_modules','commands','dist','package.json','README.md','BUILD_ID','build-info.json','pnpm-lock.yaml'};assert set(x.name for x in app.iterdir())==allowed
+assert not any(x['path'].endswith(('.sqlite','.sqlite-wal','.sqlite-shm','.key','.pem')) for x in files)
+print(json.dumps({'app':str(app),'buildId':h,'filesAndLinks':len(files),'closureVerified':True,'noClientStateOrCredentialFiles':True}))

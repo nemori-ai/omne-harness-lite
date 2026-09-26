@@ -47,7 +47,7 @@ D-022 至 D-029 是**新分配**的：旧谱系已分配到 D-021，新号从其
 D-031 起归「资产、工具运行时与模型请求运行时一程」：两条并行工作线 2026-09-23 约定各占一段号——治理中心一程从 D-022 起（第二程用到 D-029），资产一程从 D-031 起；
 **D-030 是有意留空的段间余量，不回填**。
 
-**接受契约的只有 D-023、D-028 与 D-029。**D-019 与 D-022 各自写明它**不表示**接受任何契约，那是它们当日的范围声明，不因后来的接受改写；
+**接受契约的有 D-023、D-028、D-029 与 D-040。**D-019 与 D-022 各自写明它**不表示**接受任何契约，那是它们当日的范围声明，不因后来的接受改写；
 [catalog 里五份 v1 契约的 `acceptance` 指向 D-023，入口契约 v1 与账号能力 v2 指向 D-028，传输绑定 v1 指向 D-029](../../registry/README.md)。
 记录旧谱系已发生的接受事实及后续局部取代时，同样写明它**不表示**新 v1 的 catalog、
 依赖或实现已经接受；目标资源的精确采用由 [registry](../../registry/README.md) 登记。
@@ -60,3 +60,43 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 
 判断方法按需读 `harness-design-handbook` skill 的「设计选择」。
 返回 [系统设计链](../../README.md)。
+
+[D-038：公开 health 客户端限定采用](governance-health-client-adoption/README.md)（2026-09-24，主线按本轮实施授权登记）：仅 Node24 HTTPS 的无秘密 health 提供者，消费现有冻结协议；不接受新契约、本地状态或完整CLI。新号顺延D-037，不回填D-030。
+
+[D-039：单机治理中心 SQLite FULL 档位](governance-sqlite-full/README.md)（2026-09-24）：共享提供者可选 normal/full，中心显式 full；部分取代 D-027 的固定参数范围，不接受新领域契约或灾备方案。
+
+[D-040：有限登录与邀约拒绝基础规格](governance-identity-offer-contracts/README.md)：AI v3、OE v2及有限模型，显式事务参与方向；不自动升级旧消费者或宣称生产闭环已完成。
+
+[D-041 有界账号提供者局部实施](bounded-account-provider/README.md)：独立节点架构评审后采用，不开放整装。
+
+[D-042 组织治理参与与拒绝](governance-participation-provider/README.md)：OG2及OE2/OG2局部提供者采用，未开放生产组合。
+
+[D043 注册组合衔接](registration-bounded-provider/README.md)：AR2及局部提供者采用。
+
+[D044 治理入口与新版运输](governance-entry-production-protocol/README.md)：EC2/HT2及局部提供者采用，实际闭环待实现。
+
+[D045 治理协议客户端](governance-protocol-client-adoption/README.md)：EC2/HT2无状态业务消费提供者，CLI状态与交互仍待立契约。
+
+[D046客户端本地记录](client-local-state-adoption/README.md)：CLS1与私有SQLite完整CAS路径，组合/CLI仍待契约。
+
+[D047治理客户端用例](governance-client-operations-adoption/README.md)：CG1固定使用/公开结果/副本与结算，CLI/TUI实际应用仍待交付。
+
+[D048固定动作交互输入](governance-prepared-input-adoption/README.md)：CG2预览与输入生命周期，终端入口仍独立待交付。
+
+[D049治理CLI文件入口](governance-cli-file-entry-adoption/README.md)：CQ1规范接受、文件路径实施，TTY/TUI仍未交付。
+
+[D050治理CLI可搬运归档](governance-cli-portable-adoption/README.md)：现有应用生产依赖闭包与本地独占归档，未安装/上传。
+
+[D051治理TUI入口](governance-tui-entry-adoption/README.md)：CQ2与限定XTerm379/Undo256提供路径接受，实施及跨平台实际验收待完成。
+
+[D052 · 治理中心可搬运归档](governance-host-portable-adoption/README.md)：共同开发工具和host纯构建标识，备份/恢复另行设计。
+
+[D053 · 单机启动修复](governance-startup-repair-adoption/README.md)：私有锁库竞争与bounded迁移的原子幂等，语义契约不变。
+
+[D054 iTerm提供路径](governance-iterm-provider-adoption/README.md)：控制拆分器R2与限定profile采用，实施/GUI验证待完成。
+
+[D055不停服维护](governance-online-maintenance-adoption/README.md)：EC3/HT3与维护提供者接受，批准实施，实际产品维护尚未完成。
+
+[D056维护调用方资源](governance-maintenance-resources-adoption/README.md)：run级外部句柄托管，补D055收场绑定，规范语义不变。
+
+[D057符合性运行器边界](governance-conformance-runner-adoption/README.md)：测试消费者提供Vitest，精化生产依赖闭包，领域契约不变。

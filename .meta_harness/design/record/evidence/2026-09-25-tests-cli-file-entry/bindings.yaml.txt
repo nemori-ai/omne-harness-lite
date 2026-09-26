@@ -1,0 +1,34 @@
+version: 1
+node: "cli"
+kind: "assembly"
+bindings:
+  - clause: "composition.governance-cli-entry/v1#S-2"
+    evidence: "test:apps/cli/tests/application.spec.ts#CLI owns process resources and preserves governance facts › retains machine mode behind a global option when later syntax is invalid"
+    assumptions:
+      - "Node24.21.0 macOS arm64，运行2026-09-25-tests-cli-file-entry；内部Runtime故障不冒充黑盒自然异常"
+      - "不覆盖TTY秘密输入/TUI、安装或不同物理机部署"
+    alignment_checked: 2026-09-25
+  - clause: "composition.governance-cli-entry/v1#S-4"
+    evidence: "test:apps/cli/tests/input.spec.ts#owned input files › rejects a FIFO without an opposing endpoint and refuses character devices"
+    assumptions:
+      - "Node24.21.0 macOS arm64，运行2026-09-25-tests-cli-file-entry；内部Runtime故障不冒充黑盒自然异常"
+      - "不覆盖TTY秘密输入/TUI、安装或不同物理机部署"
+    alignment_checked: 2026-09-25
+  - clause: "composition.governance-cli-entry/v1#S-6"
+    evidence: "test:apps/cli/tests/application.spec.ts#CLI owns process resources and preserves governance facts › turns output control sequences into JSON data including C1 and bidi controls"
+    assumptions:
+      - "Node24.21.0 macOS arm64，运行2026-09-25-tests-cli-file-entry；内部Runtime故障不冒充黑盒自然异常"
+      - "不覆盖TTY秘密输入/TUI、安装或不同物理机部署"
+    alignment_checked: 2026-09-25
+  - clause: "composition.governance-cli-entry/v1#S-7"
+    evidence: "test:apps/cli/tests/application.spec.ts#CLI owns process resources and preserves governance facts › a handled stop waits for accepted work and its close before releasing state"
+    assumptions:
+      - "Node24.21.0 macOS arm64，运行2026-09-25-tests-cli-file-entry；内部Runtime故障不冒充黑盒自然异常"
+      - "不覆盖TTY秘密输入/TUI、安装或不同物理机部署"
+    alignment_checked: 2026-09-25
+  - clause: "composition.governance-cli-entry/v1#S-10"
+    evidence: "test:apps/cli/tests/application.spec.ts#CLI owns process resources and preserves governance facts › CG close rejection preserves the report, exits 70, and does not withdraw borrowed state"
+    assumptions:
+      - "Node24.21.0 macOS arm64，运行2026-09-25-tests-cli-file-entry；内部Runtime故障不冒充黑盒自然异常"
+      - "不覆盖TTY秘密输入/TUI、安装或不同物理机部署"
+    alignment_checked: 2026-09-25

@@ -1,3 +1,4 @@
+import { ReferenceViolation } from '@omne-harness-lite/storage'
 // organizations 服务面与 organization-purge 的操作级义务：S-20、S-21（创建键五支 + 故障注入 + 保留期）、
 // S-22、S-33、S-34、S-35、S-7（静态）、S-42 第 4 行（服务面分离）、S-53 依据与 ②乙 两支。
 import { readdirSync, readFileSync } from 'node:fs'
@@ -81,23 +82,37 @@ describe('S-20 创建个人组织', () => {
     expect(await countRows(h, 'organization')).toBe(0)
   })
 
-  it('R-6：读账号之后、写入之前账号行被删 ⇒ 引用约束拒绝插入 ⇒ accountDoesNotExist，不留组织', async () => {
+  it('R-6：账号现读到组织提交受同一边界保护，竞争删除只能在其后被引用约束拒绝', async () => {
     const h = await boot()
     const account = await addAccount(h, { activated: false })
+    const reached = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
     const realRead = h.accounts.read.bind(h.accounts)
-    h.accounts.read = async id => {
-      const result = await realRead(id)
-      // 清除链的第 ② 步恰在这个窗口里提交
-      await h.raw.write(async tx => {
-        await tx.db.deleteFrom('account').where('account_id', '=', account).execute()
-      })
+    h.accounts.read = async (id, unit) => {
+      const result = await realRead(id, unit)
+      reached.resolve()
+      await release.promise
       return result
     }
-    expect(await h.organizations.createPersonal(account)).toEqual({
-      failure: 'accountDoesNotExist',
+    const creating = h.organizations.createPersonal(account)
+    await reached.promise
+    let deletionEntered = false
+    const deleting = h.raw.write(async tx => {
+      deletionEntered = true
+      await tx.db.deleteFrom('account').where('account_id', '=', account).execute()
     })
-    expect(await countRows(h, 'organization')).toBe(0)
-    expect(await countRows(h, 'membership')).toBe(0)
+    const rejected = expect(deleting).rejects.toBeInstanceOf(ReferenceViolation)
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(deletionEntered).toBe(false)
+    } finally {
+      release.resolve()
+    }
+    expect(await creating).toHaveProperty('ok')
+    await rejected
+    expect(await countRows(h, 'account')).toBe(1)
+    expect(await countRows(h, 'organization')).toBe(1)
+    expect(await countRows(h, 'membership')).toBe(1)
   })
 })
 
@@ -464,6 +479,7 @@ describe('S-42 第 4 行：S-53 单独一个服务名', () => {
       'createPersonal',
       'createTeam',
       'dissolveAffiliation',
+      'participate',
       'read',
       'scopeLayers',
       'shareAncestor',

@@ -38,6 +38,30 @@ const activateUpdate = stmt.on('update', 'account', { column: 'activated' })
 const accountInsert = stmt.on('insert', 'account')
 const organizationInsert = stmt.on('insert', 'organization')
 
+async function unloadAt(
+  c: Composition,
+  identifier: string,
+  predicate: Parameters<Composition['storage']['pauseAfterCommit']>[0],
+  owner: 'registration' | 'organizationGovernance' = 'registration',
+) {
+  const gate = c.storage.pauseAfterCommit(predicate)
+  const running = c.service().register(identifier, PASSWORD)
+  await gate.reached
+  let ended = false
+  const stopping = c.fibers[owner].dispose().then(() => {
+    ended = true
+  })
+  try {
+    await settleTurns(2)
+    expect(ended).toBe(false) // whole registration still owns its paused step
+  } finally {
+    gate.release()
+  }
+  const outcome = await running
+  await stopping
+  return { outcome, afterDispose: c.storage.statements.length }
+}
+
 function expectTerminal(outcome: TerminalOutcome): void {
   expect(TERMINAL_OUTCOMES).toContain(outcome)
 }
@@ -108,12 +132,10 @@ describe('S-28 在任意位置中断，没有第三种形态', () => {
     const c = await boot()
     const outcomes: TerminalOutcome[] = []
 
-    c.storage.afterCommit(committed(accountInsert), () => c.fibers.registration.dispose())
-    outcomes.push(await c.service().register('after-1', PASSWORD))
+    outcomes.push((await unloadAt(c, 'after-1', committed(accountInsert))).outcome)
     await c.reload('registration')
 
-    c.storage.afterCommit(committed(organizationInsert), () => c.fibers.registration.dispose())
-    outcomes.push(await c.service().register('after-2', PASSWORD))
+    outcomes.push((await unloadAt(c, 'after-2', committed(organizationInsert))).outcome)
     await c.reload('registration')
 
     c.storage.failCommit(committed(activateUpdate))
@@ -166,14 +188,15 @@ describe('S-29 参与方缺席时不放行', () => {
     expect(c.storage.statements.slice(before).filter(activateUpdate)).toEqual([])
     expect(
       c.storage.statements.slice(before).filter(stmt.on('select', 'account', { inWrite: true })),
-    ).toHaveLength(1) // 只有 ① 的锁定读；③ 的锁定读不存在
+    ).toHaveLength(2) // ① 的锁定读 + ②内AI3 read；③ 的锁定读不存在
   })
 
   it('在途时 organization-governance 被撤：① 与 ② 之间撤掉它 ⇒ 本插件随之卸载，在途尝试 interrupted，账号停在未激活、不激活', async () => {
     const c = await boot()
-    c.storage.afterCommit(committed(accountInsert), () => c.fibers.organizationGovernance.dispose())
     const before = c.storage.statements.length
-    expect(await c.service().register('erin', PASSWORD)).toBe('interrupted')
+    expect(
+      (await unloadAt(c, 'erin', committed(accountInsert), 'organizationGovernance')).outcome,
+    ).toBe('interrupted')
     expect(c.fibers.registration.state as number).toBe(FIBER_STATE.PENDING)
     const [account] = await accountsOf(c, 'erin')
     expect(account?.activated).toBe(0)
@@ -185,12 +208,8 @@ describe('S-29 参与方缺席时不放行', () => {
 describe('S-30 编排者被卸载，在途尝试等同崩溃', () => {
   it('① 与 ② 之间卸载 registration ⇒ interrupted；账号停在未激活、没有任何清理；装回后以同一标识重来接着完成', async () => {
     const c = await boot()
-    let afterDispose = 0
-    c.storage.afterCommit(committed(accountInsert), async () => {
-      await c.fibers.registration.dispose()
-      afterDispose = c.storage.statements.length
-    })
-    expect(await c.service().register('frank', PASSWORD)).toBe('interrupted')
+    const { outcome, afterDispose } = await unloadAt(c, 'frank', committed(accountInsert))
+    expect(outcome).toBe('interrupted')
     const stopped = await accountIdOf(c, 'frank')
     const [account] = await accountsOf(c, 'frank')
     expect(account?.activated).toBe(0)

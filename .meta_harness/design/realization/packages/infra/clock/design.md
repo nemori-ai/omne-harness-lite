@@ -166,3 +166,11 @@ tenancy-host 要在迁移之前、不碰数据地核一次「钟比中心用过�
 - **租约表被外部删除**无法防御，只能观测（启动时行不存在且不是首次部署——本节点分不出「首次」与「被删」，记 info 日志）。owner：装配的运维约定。
 - **上游语义**：basis 四条（`plugin-body-reruns-on-provider-change`、`effect-disposal-concurrent-not-ordered`、`isolate-hides-instances-not-data`、`plugin-throw-fails-fiber`）与 kernel-basis 一条不对应条目的 probe（`provide-is-effect-managed`）均已在 4.0.4 上通过；装卸表各行引用它们作证据来源。bindings 仍为空表，因为无契约条款可绑。
 - **消费者**：AI、OG、入口层、运维面必需 inject `clock`；本节点换代它们重跑，接口形状归 offer-expiry，本节点不改——运行中回拨也只用既有的 `'unavailable'` 表达，不加新的返回值。`apps/tenancy-host` 另消费两样：`LEASE_WIDTH_MS`（核 `clockReadyTimeoutMs` 严格大于它）与迁移前的只读核对。测试装配用可控 `clock`（offer-expiry 演练要求「只许前推」），不用本节点。
+
+## D-039 的消费者档位补充
+
+上文 R-C2 及崩溃段的 OS 尾部丢失边界适用于 NORMAL 消费者。按 [D-039](../../../../record/decisions/governance-sqlite-full/decision.md)，tenancy-host 的 SQLite 句柄显式 FULL，使租约提交在 WAL 与底层兑现同步的前提下获得耐久性；其他装配不得自动继承此保证。时钟算法、租约宽度和回拨处理没有改变；本项不解决备份回滚或磁盘毁损。历史测试不提升为物理断电证据。
+
+## 维护副本只读检查（候选，未实施）
+
+供EC3 S59的静态owner函数`clockSnapshotCheck(SnapshotView)`：先按本版clock迁移核clock_lease表全部列/声明类型/nullability/主键及约束，再要求恰一行id=1；lease_until/written_at为既有epochMs可表达的合法时间且written_at≤lease_until。无行/额外行/不合形拒绝invalid-data；IO失败原样不可用。不比较当前wall、不改值、不续约、不装clock插件；其含义是原底线可解析且保留，并不证明旧授权仍有效。host经固定配置把该函数交维护控制器，无entry→clock私有依赖。验证有效原值完全保持及损坏/缺失/多行拒绝，实际证据待实现。

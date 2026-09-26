@@ -49,6 +49,8 @@ PF-017 rev 1 已接受（2026-09-23，同日升 rev 2）；入口契约 v1 与�
 
 ## 实际执行
 
+2026-09-24 的局部回归见 [生产 CLI 开发基线 run](../../../record/evidence/2026-09-24-tests-production-cli-baseline/README.md)：macOS/Node 24.21.0，`lifecycle.spec.ts` 17/17（含 N-18 两种错误归类反例），`slow.spec.ts` 仅真实等钟超时一项通过、其余三项未选中，最终 e2e 46/46。属于旧治理语义基线，不表示生产新政策已实现。
+
 | 运行 | 输入与配置范围 | 结果 | 证据位置 |
 |---|---|---|---|
 | [`2026-09-23-tests-tenancy-leg-2`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（sqlite 一侧） | 源码提交 `c9b5850`；`apps/tenancy-host/tests/` 七个文件（`config`、`lifecycle`、`migrations`、`process`、`slow`、`upgrade`、`pg`）；sqlite 临时文件库，`OMNE_TEST_PG_URL` 显式 unset；`process.spec.ts` 另起 Node 子进程；Node v24.18.0（`node:sqlite` 的 SQLite 3.53.1）、vitest 4.1.11；同 run 的 `tools/ts-checks` 自测（65 条）与 `pnpm run lint:rules` | build、typecheck 退出 0；102 条用例 **91 通过、11 跳过**、0 失败——跳过的 11 条恰是 `pg.spec.ts` 整个文件（缺 pg URL）；`lint:rules` 退出 0（20 条规则，扫描 `packages/`、`apps/`，无违反） | [`output/tenancy-host.log`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/tenancy-host.log)、[`json/tenancy-host.json`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/json/tenancy-host.json)、[`output/_lint-rules.log`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/output/_lint-rules.log)；义务对应 [`coverage.md`](../../../record/evidence/2026-09-23-tests-tenancy-leg-2/coverage.md#appstenancy-host) |
@@ -86,3 +88,27 @@ pg 一行只有 `pg.spec.ts` 这 11 条、只在 PostgreSQL 16.14 上跑过，�
 | **G-13 残留清扫、G-6 清扫提供者**无义务 | 本版不建 | 产品负责人定节奏 / AI v2 枚举读面 |
 | **跨进程的锁竞争与 `clock` 先后** | 本版单机；同一主机两进程的属主排他与租约由 `process.spec.ts` › `交错 I-9…`（sqlite）与 `pg.spec.ts` 的 I-9 pg 支证 | 投影 Q-8；入口契约 G-8 |
 | **四个基础设施节点的设计没有契约条款可接受** | 只随 D-023／D-028 作为实现路径接受；本节点对它们的每一处采用以此为前提 | 各自的评审与接受 |
+
+## D-039 同步档位增量 · 2026-09-24
+
+[实际运行](../../../record/evidence/2026-09-24-tests-sqlite-full/README.md)：macOS Node24，存储95通过/4跳过，中心启动与升级38通过，黑盒最终46通过；真实句柄/迁移/重开 FULL 与共享 NORMAL 默认分别检查。保留环境失败及错误过滤运行；未验证物理断电、Linux FULL 或 PostgreSQL，不提升历史证据范围。
+
+## 2026-09-25可搬运CLI与独立中心进程
+
+[本次运行](../../../record/evidence/2026-09-25-tests-cli-portable-host/README.md)：89项应用/打包故障、归档清单与BUILD_ID、三平台keygen/serve真实进程、正式scrypt成本、治理旅程与正常/强杀重启。中心仍从仓库dist启动，CLI从仓库外最终归档运行；不包含中心分发/服务管理器、物理多机、TUI或备份恢复。
+
+## 2026-09-25 D052/D053 新制品与全工作区回归
+
+[固定证据包](../../../record/evidence/2026-09-25-tests-host-startup/README.md)封存564份源输入、44份顶层运行记录、三组最终跨OS场景及两份完整归档。18成员1761通过/34跳过/0失败，build/types通过；独立无dist快照分别host先行与CLI先行打包通过。Mac/Linux arm64与Linux amd64真实HTTPS治理/重启通过；Docker网络与PTY不等同物理公司网络或macOS GUI终端验收。初版失败和旧实现迁移负控保留。宿主归档、启动修复已验证；服务管理/每日备份/隔离恢复和最终fable review仍未完成。
+
+
+## 2026-09-26 D055/D056 实际维护验证
+
+[固定源码、制品和运行证据](../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)保存原始故障、修正、源码回归及独立制品 QA。SQLite资源关闭/worker真实退出/跨进程保锁、封装与发布unknown、HT3与host信号/双槽、非root Linux systemd及近1GiB时的员工访问和租约续约分别验证。最终host r3运行字节与r1相同，文档和pnpm生成元数据差异经独立核验，r3再跑38项主旅程。没有实际断电/任意存储设备保证；独立QA的源变动精确分支未验，不计通过；恢复只隔离，整机损毁灾备与安全重新开放仍未交付。
+
+
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

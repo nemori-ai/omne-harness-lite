@@ -1,0 +1,17 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- apps/cli/src/application.ts apps/cli/src/diagnostic.ts apps/cli/src/input.ts apps/cli/src/main.ts apps/cli/src/parser.ts apps/cli/src/presentation.ts apps/cli/src/validation.ts apps/cli/tests/application.spec.ts apps/cli/tests/input.spec.ts apps/cli/package.json apps/cli/tsconfig.build.json apps/cli/tsconfig.test.json apps/cli/vitest.config.ts
+
+apps/cli/src/application.ts 34ms
+apps/cli/src/diagnostic.ts 2ms
+apps/cli/src/input.ts 11ms
+apps/cli/src/main.ts 3ms
+apps/cli/src/parser.ts 4ms
+apps/cli/src/presentation.ts 2ms
+apps/cli/src/validation.ts 2ms
+apps/cli/tests/application.spec.ts 9ms
+apps/cli/tests/input.spec.ts 9ms
+apps/cli/package.json 5ms (unchanged)
+apps/cli/tsconfig.build.json 1ms (unchanged)
+apps/cli/tsconfig.test.json 0ms (unchanged)
+apps/cli/vitest.config.ts 1ms (unchanged)

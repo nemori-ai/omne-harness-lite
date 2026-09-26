@@ -87,7 +87,12 @@ Alloy 可按结构关系建立模型，检查断言并探索合法实例；参�
 
 ## 当前状态
 
-**当前有六个 topic**，都属租户相关领域，**全部 `accepted`、资源已冻结**：
+2026-09-24增量：[D-040](../record/decisions/governance-identity-offer-contracts/README.md)接受并冻结账号能力v3（有限登录/主动更换/显式参与）与邀约时间数据v2（接收方拒绝），以及相应有限模型。旧消费者仍钉旧版，新的组织治理/入口与提供者组合尚未采用，不能据规格接受推断生产交付完成。精确版本以registry为准。
+
+### 前两程的基线记录
+
+
+**D-028 接受时有六个 topic**，都属租户相关领域，**全部 `accepted`、资源已冻结**：
 前五个 v1 依据 [D-023](../record/decisions/tenant-domain-design-acceptance/README.md)（产品负责人，2026-09-22）；
 `compositions/governance-center-entry` v1 与 `capabilities/account-identity` **v2** 依据 [D-028](../record/decisions/governance-center-design-acceptance/README.md)（产品负责人，2026-09-23；主责产品依据 PF-017 rev 2）。账号能力 v1 与 v2 并存：注册组合与治理契约仍钉 v1，入口契约钉 v2：
 

@@ -49,27 +49,40 @@ export const registrationPlugin = definePlugin<AccountRegistrationConfig>({
     // 「本插件这一代仍在」＝ fiber ACTIVE 且本次插件体的 effect 尚未被收回。只看 fiber 状态不够：
     // 必需服务换代时同一条 fiber 卸载后重跑、很快回到 ACTIVE，而在途调用手里握着的是上一代的服务快照。
     let generationLive = true
+    const inFlight = new Set<Promise<unknown>>()
+    function track<T>(work: Promise<T>): Promise<T> {
+      inFlight.add(work)
+      // Observe both outcomes immediately without changing the caller's result.
+      work.then(
+        () => inFlight.delete(work),
+        () => inFlight.delete(work),
+      )
+      return work
+    }
     ctx.effect(
-      () => () => {
+      () => async () => {
         generationLive = false
+        await Promise.allSettled([...inFlight])
       },
       'account-registration generation',
     )
 
-    ctx.provide(
-      REGISTRATION_SERVICE,
-      createRegistrationService({
-        accounts: ctx.get(ACCOUNTS_SERVICE) as AccountsService,
-        organizations: ctx.get(ORGANIZATIONS_SERVICE) as OrganizationsService,
-        organizationPurge: ctx.get(ORGANIZATION_PURGE_SERVICE) as OrganizationPurgeService,
-        activationKey: activationKey.ok,
-        isActive: () => generationLive && fiberIsActive(ctx),
-        recordDefect(record: RegistrationDefectRecord) {
-          // error 级：Cordis 缺省只导出到 INFO，warn 默认看不见（basis logger-level-order-error-lowest）。
-          // 记录本身是结构化对象，只含失败本名、步骤与 AccountId；不含登录标识、凭据与依据
-          logger.error('registration defect: %o', record)
-        },
-      }),
-    )
+    const service = createRegistrationService({
+      accounts: ctx.get(ACCOUNTS_SERVICE) as AccountsService,
+      organizations: ctx.get(ORGANIZATIONS_SERVICE) as OrganizationsService,
+      organizationPurge: ctx.get(ORGANIZATION_PURGE_SERVICE) as OrganizationPurgeService,
+      activationKey: activationKey.ok,
+      isActive: () => generationLive && fiberIsActive(ctx),
+      recordDefect(record: RegistrationDefectRecord) {
+        // error 级：Cordis 缺省只导出到 INFO，warn 默认看不见（basis logger-level-order-error-lowest）。
+        // 记录本身是结构化对象，只含失败本名、步骤与 AccountId；不含登录标识、凭据与依据
+        logger.error('registration defect: %o', record)
+      },
+    })
+    ctx.provide(REGISTRATION_SERVICE, {
+      register: (identifier: unknown, credential: unknown) =>
+        track(service.register(identifier, credential)),
+      purgeExpired: (account: unknown) => track(service.purgeExpired(account)),
+    })
   },
 })

@@ -90,6 +90,8 @@
 
 ## 当前主题
 
+- [治理中心恢复提供者](governance-recovery-providers/README.md)：Litestream v0.5.17 的同步接口、同机文件副本探针及应用恢复边界；未采用。
+
 ### 上游与模型
 
 - [TypeSafe Jev：结构化决策模型的能力与边界](typesafe-jev/README.md) — `jev-1.13.0`，取证 2026-09-19 两轮（主张核查；机制、训练与用途），消费者待出现

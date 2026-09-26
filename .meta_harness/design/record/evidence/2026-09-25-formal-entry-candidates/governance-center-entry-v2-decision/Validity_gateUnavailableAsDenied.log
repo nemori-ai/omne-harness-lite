@@ -1,0 +1,162 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 58 and seed -3250918367388835034 with 1 worker on 16 cores with 7122MB heap and 64MB offheap memory [pid: 1] (Linux 6.12.54-linuxkit aarch64, Eclipse Adoptium 25.0.4 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /model/EntryDecision.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module EntryDecision
+Starting... (2026-09-24 16:35:00)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Computed 2 initial states...
+Computed 4 initial states...
+Computed 8 initial states...
+Computed 16 initial states...
+Computed 32 initial states...
+Computed 64 initial states...
+Computed 128 initial states...
+Finished computing initial states: 224 distinct states generated at 2026-09-24 16:35:00.
+Error: Invariant CannotJudgeIsUnavailable is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ postAuthRead = FALSE
+/\ payloadOk = TRUE
+/\ decision = "none"
+/\ presentationRead = FALSE
+/\ envelopeOk = TRUE
+/\ pres = "valid"
+/\ stateNotValidSeen = FALSE
+/\ gatePassed = FALSE
+/\ route = "authGated"
+/\ domainCalled = FALSE
+/\ pc = "start"
+/\ versionOk = TRUE
+/\ invalidated = FALSE
+/\ defectRecorded = FALSE
+/\ passedAuth = FALSE
+/\ rejectionJudged = FALSE
+/\ lookupFailed = FALSE
+
+State 2: <CheckVersion line 109, col 5 to line 118, col 54 of module EntryDecision>
+/\ postAuthRead = FALSE
+/\ payloadOk = TRUE
+/\ decision = "none"
+/\ presentationRead = FALSE
+/\ envelopeOk = TRUE
+/\ pres = "valid"
+/\ stateNotValidSeen = FALSE
+/\ gatePassed = FALSE
+/\ route = "authGated"
+/\ domainCalled = FALSE
+/\ pc = "envelope"
+/\ versionOk = TRUE
+/\ invalidated = FALSE
+/\ defectRecorded = FALSE
+/\ passedAuth = FALSE
+/\ rejectionJudged = FALSE
+/\ lookupFailed = FALSE
+
+State 3: <CheckEnvelope line 122, col 5 to line 132, col 85 of module EntryDecision>
+/\ postAuthRead = FALSE
+/\ payloadOk = TRUE
+/\ decision = "none"
+/\ presentationRead = FALSE
+/\ envelopeOk = TRUE
+/\ pres = "valid"
+/\ stateNotValidSeen = FALSE
+/\ gatePassed = FALSE
+/\ route = "authGated"
+/\ domainCalled = FALSE
+/\ pc = "auth"
+/\ versionOk = TRUE
+/\ invalidated = FALSE
+/\ defectRecorded = FALSE
+/\ passedAuth = FALSE
+/\ rejectionJudged = FALSE
+/\ lookupFailed = FALSE
+
+State 4: <Authenticate line 148, col 5 to line 176, col 64 of module EntryDecision>
+/\ postAuthRead = FALSE
+/\ payloadOk = TRUE
+/\ decision = "none"
+/\ presentationRead = TRUE
+/\ envelopeOk = TRUE
+/\ pres = "valid"
+/\ stateNotValidSeen = FALSE
+/\ gatePassed = FALSE
+/\ route = "authGated"
+/\ domainCalled = FALSE
+/\ pc = "payload"
+/\ versionOk = TRUE
+/\ invalidated = FALSE
+/\ defectRecorded = FALSE
+/\ passedAuth = TRUE
+/\ rejectionJudged = FALSE
+/\ lookupFailed = FALSE
+
+State 5: <CheckPayload line 180, col 5 to line 188, col 85 of module EntryDecision>
+/\ postAuthRead = FALSE
+/\ payloadOk = TRUE
+/\ decision = "none"
+/\ presentationRead = TRUE
+/\ envelopeOk = TRUE
+/\ pres = "valid"
+/\ stateNotValidSeen = FALSE
+/\ gatePassed = FALSE
+/\ route = "authGated"
+/\ domainCalled = FALSE
+/\ pc = "derive"
+/\ versionOk = TRUE
+/\ invalidated = FALSE
+/\ defectRecorded = FALSE
+/\ passedAuth = TRUE
+/\ rejectionJudged = FALSE
+/\ lookupFailed = FALSE
+
+State 6: <Derive line 194, col 5 to line 213, col 75 of module EntryDecision>
+/\ postAuthRead = TRUE
+/\ payloadOk = TRUE
+/\ decision = "none"
+/\ presentationRead = TRUE
+/\ envelopeOk = TRUE
+/\ pres = "valid"
+/\ stateNotValidSeen = FALSE
+/\ gatePassed = FALSE
+/\ route = "authGated"
+/\ domainCalled = FALSE
+/\ pc = "gate"
+/\ versionOk = TRUE
+/\ invalidated = FALSE
+/\ defectRecorded = FALSE
+/\ passedAuth = TRUE
+/\ rejectionJudged = FALSE
+/\ lookupFailed = FALSE
+
+State 7: <Gate line 218, col 5 to line 233, col 38 of module EntryDecision>
+/\ postAuthRead = TRUE
+/\ payloadOk = TRUE
+/\ decision = "result"
+/\ presentationRead = TRUE
+/\ envelopeOk = TRUE
+/\ pres = "valid"
+/\ stateNotValidSeen = FALSE
+/\ gatePassed = FALSE
+/\ route = "authGated"
+/\ domainCalled = FALSE
+/\ pc = "classified"
+/\ versionOk = TRUE
+/\ invalidated = FALSE
+/\ defectRecorded = FALSE
+/\ passedAuth = TRUE
+/\ rejectionJudged = FALSE
+/\ lookupFailed = TRUE
+
+777 states generated, 755 distinct states found, 9 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 2).
+Finished in 00s at (2026-09-24 16:35:00)

@@ -160,3 +160,19 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 
 判断方法按需读 `harness-design-handbook` skill 的「插件投影」。
 返回[设计链入口](../README.md)。
+
+## 2026-09-24 客户端独立增量
+
+[`packages/frontend/governance-center-client`](packages/frontend/governance-center-client/README.md) 为仅公开health的客户端传输节点，消费已接受 EC1/HT1/D029，D-038限定采用；首个受限增量已实现，实际证据见节点。它不接受本地登录存储或生产治理路由，不要求启动Agent据点。
+
+## 2026-09-25治理客户端提供者接续
+
+D045扩展[协议客户端](packages/frontend/governance-center-client/README.md)消费EC2/HT2；D046采用[本地状态](packages/frontend/client-local-state/README.md)CLS1；D047采用[共享治理用例](packages/frontend/governance-client-operations/README.md)CG1。三节点已有各自具名验证，不表示apps/cli或完整终端交付已完成。上方2026-09-22～24状态保留其日期背景，当前分层事实从具体节点读。
+
+2026-09-25 D048/49接续：CG2交互输入已有139项及两平台组合证据；apps/cli的受保护文件路径已建源码，真实CLI/PTY/管道正在取证。TTY/交互密码/TUI未实现，不能沿旧“无客户端源码”状态或新CLI目录推断全部交付。
+
+
+2026-09-26 D055/D056：在线维护、离线校验/隔离恢复、资源真实结束与host服务模板已实施；[本轮固定制品与独立QA](../record/evidence/2026-09-26-tests-governance-maintenance/README.md)给出源码1908通过/34跳过的合并范围、限定Linux服务/双OS/大库实测及未覆盖项。旧分层状态按其日期读取，当前状态从各节点接续段查找；本记录不是整机损毁灾备或实际公司部署接受。
+
+
+2026-09-26 终审修补交付：[最终治理CLI/TUI制品与证据](../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D057，列出最终host r3/CLI r2、1926通过/34跳过、独立QA和实际双OS/systemd结果。Claude Code fable三轮意见已处置；保留终端profile、单机备份、只隔离恢复及首次工作根串行初始化边界。没有真实公司部署或生产无条件保证。

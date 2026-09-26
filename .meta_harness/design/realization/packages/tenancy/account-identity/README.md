@@ -29,3 +29,11 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## v3 提供者修订候选
+
+[D040接受规格](../../../../record/decisions/governance-identity-offer-contracts/README.md)的[提供者映射草稿](v3-design.md)已按[D-041](../../../../record/decisions/bounded-account-provider/README.md)接受供局部实施，实现进行中；既有bindings与实际验证仍按上文v2。entry业务排空及host迁移全局顺序是整装开放门槛。
+
+## v3 局部实现与实跑
+
+按D041实现有界登录、代次、主动改密、显式参与/最终活动及内部按标识解析；[实跑证据](../../../../record/evidence/2026-09-25-tests-bounded-account/README.md)含80项AI测试与消费者回归、Linux局部smoke。旧bindings不自动升级；entry2/OG2接线、业务排空和完整装配仍未完成，不能开放新版生产。上文v2代码位置描述作为原基线保留，本节为当前增量。

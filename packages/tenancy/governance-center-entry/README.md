@@ -1,7 +1,7 @@
 # `@omne-harness-lite/governance-center-entry`
 
-治理中心入口层：兑现 `composition.governance-center-entry` v1，落在传输绑定
-`composition.governance-center-entry-https-json` v1 上（按 `ccd39d9` 那一版绑定候选实施）。
+治理中心入口层：兑现 `composition.governance-center-entry` v2，落在传输绑定
+`composition.governance-center-entry-https-json` v2 上（D044 采用）。
 设计、证据义务与缺口归实现映射节点
 [`realization/packages/tenancy/governance-center-entry`](../../../.meta_harness/design/realization/packages/tenancy/governance-center-entry/README.md)；
 本页只记源码怎样对应它、包内常量取了什么值。
@@ -15,6 +15,7 @@
 | `governanceCenterMigrations` | 迁移片段（`governance_center` 表 + 占位行），由装配经 `composeMigrations` 合成 | `apps/tenancy-host` |
 | `governanceCenterPreflight` | 迁移前核对：非空库却没有 `governance_center` ⇒ 不过；装配放进 `upgrade.checks` | `apps/tenancy-host` |
 | `SERVING_EVENT` 等四个通知名、`ServingNotice` | 两个插件之间的 `emit` 通知 | 装配（等 `serving`） |
+| `GovernanceCenterClockTimeoutError` | 入口层加载期间等钟超界的具名错误；按类型归类，说明文字不是协议 | `apps/tenancy-host` 映射到 `clock-unreadable` |
 
 ## 源码布局（结构规则按它写）
 
@@ -40,10 +41,14 @@
 | 运维面撤除时等在途体检的上界 | 3 秒 | 入口契约 S-34：有界 | `src/ops/plugin.ts` |
 | 完整体检里现探存储的上界 | 2 秒（超时即 `storageReachable: false`） | 入口契约 S-26：每次现探 | `src/ops/health.ts` |
 | 等钟可读的轮询间隔 | 100 毫秒（上界是 config `clockReadyTimeoutMs`） | 入口契约 S-34 | `src/plugin.ts` |
-| 接受的协议版本 | `['1']`（`ACCEPTED_PROTOCOL_VERSIONS`） | 入口契约 S-8 | `src/routing/route-ids.ts` |
+| 接受的协议版本 | `['2']`（`ACCEPTED_PROTOCOL_VERSIONS`） | 入口契约 S-8 | `src/routing/route-ids.ts` |
 
 ## 验证
 
 `pnpm --filter @omne-harness-lite/governance-center-entry run test`：真实 TLS 连接、真实 Unix 套接字、真实 sqlite 文件库与四个真实参与方插件；
 `tests/slow.spec.ts` 按真实时长跑接收时限（约 30 秒）；`tests/transport.spec.ts` 里有两例调用本机 `openssl s_client`（1.1.1）看
 `close_notify` 与早期数据。T-2 的固定字节快照直接读传输绑定的 `examples.md`，不另抄一份。各条证据义务的对应见节点 verification。
+
+`center.spec.ts` 的两来源地址场景缺省使用 `127.0.0.1` 与 `127.0.0.2`。第二个地址不可绑定时，
+用 `OMNE_TEST_ALTERNATE_SOURCE_ADDRESS` 指定另一个本机 IPv4 地址；条件与失败处置见
+[黑盒套件的环境说明](../../../apps/tenancy-host/tests/e2e/README.md#跑套件)。

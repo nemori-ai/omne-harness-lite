@@ -2,6 +2,7 @@
 // 环境变量／文件 → 值。本模块只做「文本 → 值」与「有没有、二义、读得到、权限」；形状与为正归各插件 Config，
 // 跨插件的配对归 keys.ts。任一不成 ⇒ `HostStartupFailure('config')`，说明点名变量、不含值。
 import { open } from 'node:fs/promises'
+import { isAbsolute } from 'node:path'
 import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock'
 import { isOk } from '@omne-harness-lite/identity-values'
 import { parseOfferTtl } from '@omne-harness-lite/offer-expiry'
@@ -30,6 +31,7 @@ export const ENV = {
   entryTlsCertChain: 'OMNE_TENANCY_ENTRY_TLS_CERT_CHAIN_PEM',
   entryTlsPrivateKey: 'OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM',
   opsSocketDirectory: 'OMNE_TENANCY_OPS_SOCKET_DIR',
+  backupDirectory: 'OMNE_TENANCY_BACKUP_DIR',
 } as const
 
 /** `_FILE` 惯例：`X` 给文本本身，`X_FILE` 给文件路径，恰设其一。 */
@@ -70,6 +72,7 @@ export interface HostConfig {
     readonly tls: { readonly certificateChainPem: string; readonly privateKeyPem: string }
   }
   readonly opsSocketDirectory: string
+  readonly backupDirectory?: string
 }
 
 function configFailure(item: string, reason: string): HostStartupFailure {
@@ -212,6 +215,9 @@ export async function readHostConfig(env: HostEnv): Promise<HostConfig> {
   const certificateChainPem = await readPemSource(env, ENV.entryTlsCertChain, false)
   const privateKeyPem = await readPemSource(env, ENV.entryTlsPrivateKey, true)
   const opsSocketDirectory = required(env, ENV.opsSocketDirectory)
+  const backupDirectory = env[ENV.backupDirectory]
+  if (backupDirectory !== undefined && !isAbsolute(backupDirectory))
+    throw configFailure(ENV.backupDirectory, 'must be an absolute path')
   return {
     storage,
     keys,
@@ -221,5 +227,6 @@ export async function readHostConfig(env: HostEnv): Promise<HostConfig> {
     clockReadyTimeoutMs,
     entry: { listen, tls: { certificateChainPem, privateKeyPem } },
     opsSocketDirectory,
+    ...(backupDirectory === undefined ? {} : { backupDirectory }),
   }
 }

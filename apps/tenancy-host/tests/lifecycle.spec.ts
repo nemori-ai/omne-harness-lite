@@ -3,12 +3,14 @@
 // assembly.keys-only-in-owner-config、assembly.credentials-swap-no-rerun、assembly.clock-write-failure-fails-boot、
 // assembly.boot-failure-log、AI S-32「完整重启」支（同进程两次 boot）、真实 clock 插件的组合）。
 import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { inspect } from 'node:util'
 import type { Fiber } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AccountsService, LoginsService } from '@omne-harness-lite/account-identity'
 import { LEASE_WIDTH_MS, clockPlugin } from '@omne-harness-lite/clock'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
+import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
 import { storageSqlPlugin } from '@omne-harness-lite/storage-sql'
 import {
@@ -56,6 +58,33 @@ async function loginOverWire(d: Deployment, identifier: string) {
 }
 
 describe('assembly.manifest-shape', () => {
+  it('rejects PostgreSQL before opening a provider instead of falling back to an unproven bounded composition', async () => {
+    const d = await deployment('postgres-refused')
+    const config = await readHostConfig(asEnv(d))
+    const guard = (await import('@omne-harness-lite/storage-sql')).createUpgradeGuard()
+    expect(() =>
+      buildManifest(
+        {
+          ...config,
+          storage: { dialect: 'postgres', connectionString: 'postgresql://unused.invalid/test' },
+        },
+        {
+          migrations: { getMigrations: async () => ({}) },
+          checks: [],
+          guard,
+          openSignal: Promise.resolve(),
+          maintenance: {
+            backupDirectory: join(d.root, 'backups'),
+            sourceBuildId: null,
+            migrationNames: ['test'],
+            storageClosed() {},
+            controllerClosed() {},
+          },
+        },
+      ),
+    ).toThrow('currently requires SQLite')
+  })
+
   it('清单：恰一个 storageSqlPlugin、恰一个 clockPlugin；inject organization-purge 的恰为 AR；运维面与入口层是最后两项且运维面在前；运维面 config 里没有服务句柄', async () => {
     const d = await deployment('manifest')
     const config = await readHostConfig(asEnv(d))
@@ -64,9 +93,20 @@ describe('assembly.manifest-shape', () => {
       checks: [],
       guard: (await import('@omne-harness-lite/storage-sql')).createUpgradeGuard(),
       openSignal: Promise.resolve(),
+      maintenance: {
+        backupDirectory: join(d.root, 'backups'),
+        sourceBuildId: null,
+        migrationNames: ['test'],
+        storageClosed() {},
+        controllerClosed() {},
+      },
     })
     expect(entries.map(e => e.name)).toEqual([...HOST_PLUGIN_NAMES])
     expect(entries.filter(e => e.plugin === storageSqlPlugin)).toHaveLength(1)
+    expect(entries.find(e => e.plugin === storageSqlPlugin)?.config).toMatchObject({
+      dialect: 'sqlite',
+      synchronous: 'full',
+    })
     expect(entries.filter(e => e.plugin === clockPlugin)).toHaveLength(1)
     const injecting = entries.filter(e => {
       const inject = (e.plugin as { inject?: unknown }).inject
@@ -78,14 +118,22 @@ describe('assembly.manifest-shape', () => {
       'governance-center-entry',
     ])
     const ops = entries.find(e => e.name === 'governance-center-ops')?.config
-    // 运维面 config 是纯数据：没有函数、没有带原型的对象（服务句柄），也没有 PEM
+    // 运维参数为数据；D055新增owner只读检查与收场观察回调，不传治理服务句柄或PEM
     const plainData = (value: unknown): boolean =>
       value === null ||
       ['string', 'number', 'boolean'].includes(typeof value) ||
       (typeof value === 'object' &&
         Object.getPrototypeOf(value) === Object.prototype &&
         Object.values(value as object).every(plainData))
-    expect(plainData(ops)).toBe(true)
+    const opsConfig = ops as {
+      maintenance: { snapshotChecks: unknown; onClosed: unknown }
+      deploymentKey: unknown
+      deploymentParameters: unknown
+    }
+    expect(plainData(opsConfig.deploymentKey)).toBe(true)
+    expect(plainData(opsConfig.deploymentParameters)).toBe(true)
+    expect(Array.isArray(opsConfig.maintenance.snapshotChecks)).toBe(true)
+    expect(typeof opsConfig.maintenance.onClosed).toBe('function')
     expect(JSON.stringify(ops)).not.toContain(PEM_HEADER)
   })
 
@@ -117,6 +165,39 @@ describe('assembly.manifest-shape', () => {
       expect.arrayContaining(['governance_center', 'account', 'organization']),
     )
   })
+})
+
+describe('assembly.clock-failure-classification：N-18 按错误类型点名', () => {
+  it.each(['typed-with-changed-message', 'plain-with-old-message'] as const)(
+    '%s：说明文字不决定启动失败阶段',
+    async variant => {
+      const d = await deployment(variant)
+      const cause =
+        variant === 'typed-with-changed-message'
+          ? new GovernanceCenterClockTimeoutError()
+          : new Error('unrelated plugin failure (cause: clock)')
+      if (variant === 'typed-with-changed-message') cause.message = 'diagnostic wording changed'
+      const refused = await hosts.refuse(d, {
+        manifest: entries =>
+          entries.map(entry =>
+            entry.name === 'governance-center-entry'
+              ? {
+                  ...entry,
+                  plugin: () => {
+                    throw cause
+                  },
+                }
+              : entry,
+          ),
+      })
+      expect(refused.failure).toMatchObject({
+        stage: variant === 'typed-with-changed-message' ? 'clock-unreadable' : 'plugin',
+        item: 'governance-center-entry',
+        cause,
+      })
+      expect(allDisposed(refused.fibers)).toBe(true)
+    },
+  )
 })
 
 describe('assembly.pending-is-manifest-error：PENDING 是清单错误，同步判定、不等待', () => {
@@ -440,9 +521,9 @@ describe('AI S-32「完整重启」支：boot() 可重入同一文件', () => {
     const revoke = await tlsExchange(
       d.port,
       JSON.stringify({
-        protocolVersion: '1',
+        protocolVersion: '2',
         presentedLoginState: session.loginState,
-        operation: 'capability.account-identity/v2#S-16',
+        operation: 'capability.account-identity/v3#S-16',
         payload: { loginStateHandle: session.loginStateHandle },
       }),
     )

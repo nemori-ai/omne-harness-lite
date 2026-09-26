@@ -242,3 +242,20 @@ describeStorageConformance(name: string, factory: () => Promise<StorageInstance>
 - **`narrow` 只是类型断言**：表存在与否由装配迁移与消费者测试保证；换查询层 = 新版本协议。
 - **跨进程重启的持久证据**不在套件里（AI S-32 演练）；**跨进程形态下的存储协调协议**未定（D-026「不表示」列的 Q-8）。
 - **上游语义**：本节点不依赖 Cordis 行为，无 basis 引用。
+
+## P-13 显式共同事务扩展
+
+按 D-040 的 AI3 S-49/51 需要，采用[提供者候选 r2](../../../../record/proposals/governance-production-mechanisms/storage-unit.md)的显式单元；已独立定向评审无阻断。主线在既定实施授权内采用此绑定。原 Storage 和 P-1～P-12 不变，新增 AtomicStorage 扩展与 StorageUnit（run/query/mutate/assertStorage/afterCommit）。普通 read/write 不隐式参与，嵌套仍拒绝。
+
+unit 的 query/mutate 是同一 tx 的暂存，不代表独立提交；query 只给 ReadTx 类型，不声称数据库硬只读。作用域同域/活跃帧/串行子调用检查，任何逃出 run 的异常永久污染；P-2冲突只可在参与操作内部处理。接纳即挂内部拒绝观察；作用域结束若有调用在途，禁止新调用并等待其静止后回滚。不是检测所有await/背景交接或沙箱化裸SQL。
+
+SqlStorage.atomic 复用已有 write 事务和排空；单元局部 ALS 只管调用帧，不合并普通 Storage。真正提交后、在事务与单元上下文外派发尽力通知。通知抛出/返回Promise只记无秘密的诊断，不能将已提交业务改报失败；提交未知不派发。退出后调用只报缺陷，不追回提交。相关符合性由新增独立套件及提供者测试取证，不从原P1～12通过推断。
+
+接口/实现分别归本节点与对应另一节点；这不是完整AI/OG事务面或PG治理授权的验证。实际验证回填 verification，不能提前声称生产入口已切换。
+
+维护提供者精化：[maintenance](maintenance.md)，采用与实际验证状态见[节点入口](README.md)；该精确稿保留接受时的文字。
+
+
+## D057 符合性运行器依赖精化（2026-09-26）
+
+[D057](../../../../record/decisions/governance-conformance-runner-adoption/README.md)限定取代本页旧Vitest运行时依赖与无runner参数签名：describeStorageConformance(name,factory,runner)、describeAtomicStorageConformance(name,factory,runner)。runner为两个suite实际使用的Vitest函数Pick类型；测试进程提供，core不自行导入运行时。Vitest只作开发依赖；普通根公开入口不导出runner类型。声明消费与制品依赖清单实际验证归verification，不由type import字样推定隔离已完成。

@@ -95,3 +95,9 @@
 `data.offer-expiry` v1；[在这里再建一份就是第二份权威](v1/contract.md#s-45-本版选用哪些形式工件)。
 
 本入口不代替唯一 catalog；推荐版本不会自动升级消费者。返回[能力契约](../README.md)。
+
+## v2 候选
+
+[v2规格草稿](v2/contract.md)接续D040，增加接收方拒绝与显式共同参与，未采用/未实现。v1消费者不自动迁移。
+
+2026-09-25，[D042](../../../record/decisions/governance-participation-provider/decision.md)接受[v2](v2/contract.md)，既有消费者仍按各自采用版本。

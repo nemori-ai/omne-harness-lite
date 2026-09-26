@@ -11,6 +11,7 @@ import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import {
   GOVERNANCE_CENTER_TABLE,
+  GovernanceCenterClockTimeoutError,
   GovernanceCenterIdentityError,
   TlsMaterialError,
   governanceCenterEntryPlugin,
@@ -178,7 +179,7 @@ describe('T-12 插件体抛出 ⇒ 启动失败且监听已关', () => {
     clock.unavailable = true
     const c = await boot({ skipCenterPlugins: true, clock, clockReadyTimeoutMs: 200 })
     const { error, state } = await failedLoad(c, governanceCenterEntryPlugin, c.entryConfig)
-    expect(String(error instanceof Error ? error.message : '')).toMatch(/cause: clock/)
+    expect(error).toBeInstanceOf(GovernanceCenterClockTimeoutError)
     expect(state).toBe(FIBER_STATE.FAILED)
     expect(await portIsFree(c.port)).toBe(true)
   })
@@ -398,7 +399,7 @@ describe('T-12 停机时的在途请求（S-34）', () => {
     expect((await tlsExchange(c.port, health())).handshake).toBe(false)
   })
 
-  it('超过 drainTimeoutMs 仍未答完的连接被销毁；它的领域写要么完整在、要么完全不在', async () => {
+  it('超过 drainTimeoutMs 连接销毁，但撤除仍等待完整业务结束才释放依赖', async () => {
     const c = await boot({ drainTimeoutMs: 300 })
     await c.open()
     const ada = await registerAndLogin(c, 'ada@example.invalid')
@@ -410,13 +411,18 @@ describe('T-12 停机时的在途请求（S-34）', () => {
     )
     await paused.reached
     const started = performance.now()
-    await c.entryFiber?.dispose()
-    expect(performance.now() - started).toBeLessThan(1_500)
+    let disposed = false
+    const disposing = c.entryFiber?.dispose().then(() => {
+      disposed = true
+    })
     const reply = await inFlight
+    expect(performance.now() - started).toBeLessThan(1_500)
+    expect(disposed).toBe(false)
     expect(reply.bytes.length).toBe(0)
     paused.release()
-    // 放行之后那次写事务照常提交或回滚：组织与它的成员关系成对出现
-    await sleep(200)
+    await disposing
+    expect(disposed).toBe(true)
+    // 放行并等完整工作结束：组织与它的成员关系成对出现
     const after = await teams(c)
     expect(after.organizations - teamsBefore.organizations).toBe(
       after.memberships - teamsBefore.memberships,

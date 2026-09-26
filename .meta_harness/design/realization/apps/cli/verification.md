@@ -1,3 +1,24 @@
+# CLI验证义务与当前运行
+
+## D049文件入口增量
+
+| ID | 判据 | 当前证据 |
+|---|---|---|
+| F1 | 34命令/31路由的白名单与非秘密载荷映射；重复key、精度、未知/重复选项拒绝 | input.spec.ts逐项对照冻结命令与CG例；语法失败仍保持已选machine模式 |
+| F2 | 秘密只从受保护regular文件取，FIFO/设备拒绝、严格UTF8、权限/符号链接/超限拒绝 | 具名文件测试及两平台实际CLI反例；Linux另实测外UID文件 |
+| F3 | CG提供的Preview先于秘密；所有人读需TTY，机器一份安全JSON | 内部顺序断言及实际script PTY/子进程管道 |
+| F4 | 实际CG工作→CG close→CLS close→输出；关闭缺陷不伪造业务事实/静止 | 内部具名屏障、CG/CLS close异常、信号及输出失败测试 |
+| F5 | 输出EPIPE不重做业务；秘密和远端控制序列不进入输出指令 | 实际CLI破损stdout、中心记录恰一次目标；控制字符/公开报告检查 |
+| F6 | 可复跑输入、两平台/工具链限定、构建完成后验证 | 本次源码与原始日志；workspace build/typecheck、应用68项，规则与设计检查 |
+
+[2026-09-25运行包](../../../record/evidence/2026-09-25-tests-cli-file-entry/README.md)保存上述证据。实际治理旅程在macOS/Linux arm64 Node24.21.0运行编译CLI子进程，连接同一测试进程里的真实Cordis中心/HTTPS/SQLite；中心时钟可控、凭据成本为测试配置。不是apps/tenancy-host进程部署或物理多机验收。
+
+内部Runtime是测试入口，精确制造读取/CAS/关闭与stderr故障，不开放用户故障选项。CG close正常实现使用allSettled，拒绝分支由内部替身触发，不称正常黑盒已经出现该故障。秘密TTY、TUI、安装与升级/备份仍无本节点的接受结果。portable额外实验只验证搬离仓库的依赖闭包，尚未采用安装器或发布制品。
+
+## 后续完整Agent形态的旧义务（不作为本期治理状态）
+
+以下保留旧三进程/据点方案对应的未完成事项；其中“未建包/契约未立”只指该后续Agent方案，不能替代上方D049已实现治理增量。
+
 # cli 验证与证据
 
 本页登记这个节点**触发了哪些证据义务、实际跑过什么、覆盖到哪里**。
@@ -55,3 +76,28 @@
 | 交付面自己那份契约的全部性质**没有可绑定的条款** | 契约尚未起草 | 架构与规格设计 |
 | harness 能力族的任何条款 | 契约与提供者都还没设计 | 各能力的设计 |
 | 跨进程之后失效的那批保证 | 入口契约（candidate）已把这批保证逐行分派；**在它被接受、且据点侧代理立起来之前，这批保证在本节点这条边上是缺口，不是假设** | 入口契约 `composition.governance-center-entry/v1` 的接受；据点侧代理提供者 |
+
+## 2026-09-25可搬运CLI与独立中心进程
+
+[本次运行](../../../record/evidence/2026-09-25-tests-cli-portable-host/README.md)：89项应用/打包故障、归档清单与BUILD_ID、三平台keygen/serve真实进程、正式scrypt成本、治理旅程与正常/强杀重启。中心仍从仓库dist启动，CLI从仓库外最终归档运行；不包含中心分发/服务管理器、物理多机、TUI或备份恢复。
+
+D051新增CQ2验证义务：全部34表单/31路由真实Intent与秘密槽；setup/固定Use分责；原Preview完整实际输出后确认；输入帧/输出背压有界、严格UTF8、取消/resize/迟到事件；输入及CG静止/输出结束后恢复2004和OS再关闭CLS。真实CG/中心/CLS和Mac/Linux模拟器/IME分别验收，未完成不得提升验证状态。有限模型归2026-09-25-formal-tui-delivery，不能代替上述实际测试。
+
+D051主线验证见[增量运行](../../../record/evidence/2026-09-25-tests-tui-increment/README.md)：34表单映射、115项测试、真实中心TUI旅程、PTY四场景及XTerm正常退出、制品Undo256与表单核对。独立验收/源码review未执行，Mac模拟器/IME与完整真实终端交错仍未覆盖；原先“没有任何证据”段仅描述旧Agent形态，不适用当前治理增量。
+
+D051-r3：[独立QA与跨OS](../../../record/evidence/2026-09-25-tests-tui-cross-os/README.md)封存53个独立观察、126项源码测试、S37取消不附带读取修复及Mac/Linux真实HTTPS互联；Mac GUI/IME和全34操作成功业务语义独立覆盖仍缺。
+
+## 2026-09-25 D052/D053 新制品与全工作区回归
+
+[固定证据包](../../../record/evidence/2026-09-25-tests-host-startup/README.md)封存564份源输入、44份顶层运行记录、三组最终跨OS场景及两份完整归档。18成员1761通过/34跳过/0失败，build/types通过；独立无dist快照分别host先行与CLI先行打包通过。Mac/Linux arm64与Linux amd64真实HTTPS治理/重启通过；Docker网络与PTY不等同物理公司网络或macOS GUI终端验收。初版失败和旧实现迁移负控保留。宿主归档、启动修复已验证；服务管理/每日备份/隔离恢复和最终fable review仍未完成。
+
+## 2026-09-25 D054 iTerm 与独立治理表单补验
+
+[固定证据](../../../record/evidence/2026-09-25-tests-iterm-delivery/README.md)封存133项CLI测试、实际iTerm 3.7.1beta1 GUI/WeType输入、半答复停止与恢复、Linux XTerm回归及独立QA r4/r5。r4覆盖30/30治理表单成功业务语义；r5为有限范围Pass with issues，严格汇总exit1：实际交错三次中两次命中并通过，一次夹具额外查询时序异常保留。不是所有时序均通过或整体生产接受。备份、服务部署与最终fable review仍未完成。
+
+
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

@@ -7,10 +7,11 @@
 持续感知环境、协作完成工作、积累知识，并在运行中发展自身能力，始终与所服务的组织或个人
 保持利益对齐。
 
-> **当前阶段：产品设计。**已有系统目标、全局约束与一批成形的产品设计正文。
-> **系统架构与规格设计尚未开始**，因此没有可运行的产品，`packages/` 与 `apps/` 是空骨架。
-> 下文介绍已确认的目标与设计方向；交付范围、实现和验证将逐步落实。
-> 第一版完整交付为单机系统。
+> 产品设计、规格与实验实现并行推进。已接受的契约从
+> [身份清单](.meta_harness/design/registry/README.md)查找，实现及验证范围从
+> [实现映射](.meta_harness/design/realization/README.md)查找。
+> 治理中心的启动与配置见 [tenancy-host](apps/tenancy-host/README.md)；
+> 可运行不等于已经满足生产准入。第一版完整交付为单机系统。
 
 [系统目标与全局约束](.meta_harness/design/foundation/README.md) ·
 [产品设计](.meta_harness/design/product/README.md) ·
@@ -62,7 +63,7 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 - **动态组合。** 可替换能力以具有生命周期、作用域和所有权的插件或服务组合；
   定义、运行实例、持久状态与物理部署分别建模。
 - **语言无关的契约。** TLA+ 表达行为权威规格，Alloy 辅助验证结构约束，JSON Schema
-  定义数据契约；产品实现以 TypeScript 为主。**规格设计尚未开始**，
+  定义数据契约；产品实现以 TypeScript 为主。
   已登记的契约身份见[身份清单](.meta_harness/design/registry/README.md)。
 - **从第一天起落实租户隔离。** 自然人全局身份与租户成员关系分别表达；受租户所有权
   约束的对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝。
@@ -79,7 +80,7 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 |---|---|
 | [.meta_harness/](.meta_harness/README.md) | **设计工作区**：需求、产品设计、统一语言、规格、研究、已发生的事、agent 能力 |
 | [docs/](docs/README.md) | **项目开发文档**：环境、源码布局、检查含义、防御指导 |
-| [packages/](packages/README.md)、[apps/](apps/README.md) | 产品包与应用装配；**当前为空骨架** |
+| [packages/](packages/README.md)、[apps/](apps/README.md) | 产品包与应用装配；采用范围与验证状态见实现映射 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 
 当前可以运行仓库检查。按[开发指南](docs/development.md#准备可用的检出)准备 Python 与
@@ -93,6 +94,6 @@ make check
 
 `make check` 执行 agent 产物与链接、文档导航、设计链登记、工具测试与格式检查，
 **不调用真实模型**。日常文档修改可单跑 `make docs-check`；形式模型的覆盖、执行与工具环境
-按[验证与证据](docs/verification.md)分别报告。产品启动入口将在相应应用落地后提供。
+按[验证与证据](docs/verification.md)分别报告。应用启动入口、配置与运行边界由所属应用的 README 维护。
 
 参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始；coding agents 遵循 [AGENTS.md](AGENTS.md)。

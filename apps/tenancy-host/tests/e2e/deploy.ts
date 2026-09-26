@@ -451,7 +451,7 @@ export class CenterProcess {
         throw new Error(
           `[${this.label}] exited ${JSON.stringify(this.#exited)} before ready: ${this.stderr()}`,
         )
-      const probe = await fullHealth(socketPath, 'readiness-probe', '{}', {}, undefined)
+      const probe = await fullHealth(socketPath, 'readiness-probe', undefined, {}, undefined)
       if (probe.health !== undefined) return probe.health
       if (performance.now() - started > timeoutMs)
         throw new Error(

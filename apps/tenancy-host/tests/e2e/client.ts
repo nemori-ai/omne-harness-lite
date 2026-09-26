@@ -23,19 +23,19 @@ import {
  * 本客户端声明的协议版本。哪些版本算对得上是中心的具名参数 `accepted_protocol_versions`（EC S-8），
  * 取值归入口层的实现映射（入口层包 README）；客户端只是照着那份映射发。
  */
-export const PROTOCOL_VERSION = '1'
+export const PROTOCOL_VERSION = '2'
 
 /** EC S-18：公开体检的路由标识；它不是信封路由。 */
 export const PUBLIC_HEALTH_ROUTE = 'composition.governance-center-entry/v1#S-18'
 
-const OG = 'capability.organization-governance/v1'
+const OG = 'capability.organization-governance/v2'
 
 /** EC S-17 路由表：27 条，路由标识即被投影条款的坐标。 */
 export const ROUTE = {
-  register: 'composition.account-registration/v1#S-8',
-  login: 'capability.account-identity/v2#S-15',
-  revokeLoginState: 'capability.account-identity/v2#S-16',
-  listLoginStates: 'capability.account-identity/v2#S-37',
+  register: 'composition.account-registration/v2#S-8',
+  login: 'capability.account-identity/v3#S-15',
+  revokeLoginState: 'capability.account-identity/v3#S-16',
+  listLoginStates: 'capability.account-identity/v3#S-37',
   createOrganization: `${OG}#S-21`,
   readOrganization: `${OG}#S-22`,
   invite: `${OG}#S-23`,
@@ -381,7 +381,12 @@ export function readFullHealth(wire: Wire): Record<string, unknown> | undefined 
   const answer = parseHttpAnswer(wire.received)
   if (typeof answer === 'string' || answer.status !== 200) return undefined
   const json = readJson(answer.body)
-  return json.ok && isRecord(json.value) ? json.value : undefined
+  return json.ok &&
+    isRecord(json.value) &&
+    json.value['reachable'] === true &&
+    typeof json.value['centerId'] === 'string'
+    ? json.value
+    : undefined
 }
 
 /** 体的写出规则（HB S-12）里不依赖 Schema 的那一半：无空白、字符串按 RFC 8785 写——重新序列化与原文逐字相同。 */
@@ -475,11 +480,12 @@ export function publicHealth(
   )
 }
 
-/** 运维面（EC S-25／S-26）：本机套接字上任何请求都答完整体检。 */
+/** HT3 S-20: only the explicit local full-health operation yields full health. */
+export const OPS_HEALTH_BODY = '{"opsVersion":"1","operation":"full-health","payload":{}}'
 export async function fullHealth(
   socketPath: string,
   label = 'full-health',
-  body: string | Buffer = '{}',
+  body: string | Buffer = OPS_HEALTH_BODY,
   shape: RequestShape = {},
   observe?: Observer,
 ): Promise<Exchange & { readonly health: Record<string, unknown> | undefined }> {

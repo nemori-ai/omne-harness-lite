@@ -1,0 +1,354 @@
+ M .meta_harness/agents/evaluation/README.md
+ M .meta_harness/agents/roles/README.md
+ M .meta_harness/design/domain_objects/objects.md
+ M .meta_harness/design/domain_objects/pending.md
+ M .meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/README.md
+ M .meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/acceptance.md
+ M .meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/changelog.md
+ M .meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/decisions.md
+ M .meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/design.md
+ M .meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/flows.md
+ M .meta_harness/design/product/PF-016-cli-tui-delivery-surface/README.md
+ M .meta_harness/design/product/PF-016-cli-tui-delivery-surface/acceptance.md
+ M .meta_harness/design/product/PF-016-cli-tui-delivery-surface/changelog.md
+ M .meta_harness/design/product/PF-016-cli-tui-delivery-surface/decisions.md
+ M .meta_harness/design/product/PF-016-cli-tui-delivery-surface/design.md
+ M .meta_harness/design/product/PF-016-cli-tui-delivery-surface/flows.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/README.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/acceptance.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/changelog.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/decisions.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/design.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/flows.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/interviews/README.md
+ M .meta_harness/design/product/PF-017-governance-center-as-deployable-application/projection/README.md
+ M .meta_harness/design/product/README.md
+ M .meta_harness/design/product/architecture-core.md
+ M .meta_harness/design/realization/README.md
+ M .meta_harness/design/realization/apps/cli/README.md
+ M .meta_harness/design/realization/apps/cli/architecture.md
+ M .meta_harness/design/realization/apps/cli/bindings.yaml
+ M .meta_harness/design/realization/apps/cli/verification.md
+ M .meta_harness/design/realization/apps/tenancy-host/README.md
+ M .meta_harness/design/realization/apps/tenancy-host/architecture.md
+ M .meta_harness/design/realization/apps/tenancy-host/design.md
+ M .meta_harness/design/realization/apps/tenancy-host/verification.md
+ M .meta_harness/design/realization/packages/core/offer-expiry/README.md
+ M .meta_harness/design/realization/packages/core/offer-expiry/design.md
+ M .meta_harness/design/realization/packages/core/storage/README.md
+ M .meta_harness/design/realization/packages/core/storage/design.md
+ M .meta_harness/design/realization/packages/core/storage/verification.md
+ M .meta_harness/design/realization/packages/infra/clock/design.md
+ M .meta_harness/design/realization/packages/infra/storage-sql/README.md
+ M .meta_harness/design/realization/packages/infra/storage-sql/design.md
+ M .meta_harness/design/realization/packages/infra/storage-sql/verification.md
+ M .meta_harness/design/realization/packages/tenancy/account-identity/README.md
+ M .meta_harness/design/realization/packages/tenancy/account-identity/design.md
+ M .meta_harness/design/realization/packages/tenancy/account-identity/verification.md
+ M .meta_harness/design/realization/packages/tenancy/account-registration/README.md
+ M .meta_harness/design/realization/packages/tenancy/governance-center-entry/README.md
+ M .meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md
+ M .meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md
+ M .meta_harness/design/realization/packages/tenancy/organization-governance/README.md
+ M .meta_harness/design/realization/packages/tenancy/organization-governance/design.md
+ M .meta_harness/design/record/decisions/README.md
+ M .meta_harness/design/record/evidence/README.md
+ M .meta_harness/design/record/proposals/README.md
+ M .meta_harness/design/record/proposals/cli-tui/README.md
+ M .meta_harness/design/record/proposals/cli-tui/review.md
+ M .meta_harness/design/registry/catalog.json
+ M .meta_harness/design/registry/covers.json
+ M .meta_harness/design/registry/formal-tasks.json
+ M .meta_harness/design/registry/frozen.json
+ M .meta_harness/design/spec/README.md
+ M .meta_harness/design/spec/capabilities/account-identity/README.md
+ M .meta_harness/design/spec/capabilities/organization-governance/README.md
+ M .meta_harness/design/spec/compositions/account-registration/README.md
+ M .meta_harness/design/spec/compositions/governance-center-entry-https-json/README.md
+ M .meta_harness/design/spec/compositions/governance-center-entry-https-json/verification.md
+ M .meta_harness/design/spec/compositions/governance-center-entry/README.md
+ M .meta_harness/design/spec/compositions/governance-center-entry/verification.md
+ M .meta_harness/design/spec/data/offer-expiry/README.md
+ M .meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md
+ M .meta_harness/design/ubiquitous_language/terms/circulation-and-entitlement.md
+ M .meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md
+ M .meta_harness/design/ubiquitous_language/terms/interaction-and-dispatch.md
+ M .meta_harness/design/ubiquitous_language/terms/reach-and-availability.md
+ M .meta_harness/design/ubiquitous_language/terms/scope-and-resolution.md
+ M .meta_harness/design/ubiquitous_language/terms/subjects-and-ownership.md
+ M .meta_harness/design/views/domain-object-map.md
+ M .meta_harness/research/README.md
+ M .meta_harness/research/agent-harness-cli-tui/README.md
+ M README.md
+ M apps/README.md
+ M apps/tenancy-host/README.md
+ M apps/tenancy-host/package.json
+ M apps/tenancy-host/src/boot.ts
+ M apps/tenancy-host/src/cli.ts
+ M apps/tenancy-host/src/config.ts
+ M apps/tenancy-host/src/index.ts
+ M apps/tenancy-host/src/main.ts
+ M apps/tenancy-host/src/manifest.ts
+ M apps/tenancy-host/src/migrations.ts
+ M apps/tenancy-host/tests/config.spec.ts
+ M apps/tenancy-host/tests/e2e/README.md
+ M apps/tenancy-host/tests/e2e/client.ts
+ M apps/tenancy-host/tests/e2e/deploy.ts
+ M apps/tenancy-host/tests/e2e/e2e.spec.ts
+ M apps/tenancy-host/tests/e2e/journey.ts
+ M apps/tenancy-host/tests/lifecycle.spec.ts
+ M apps/tenancy-host/tests/migrations.spec.ts
+ M apps/tenancy-host/tests/pg.spec.ts
+ M apps/tenancy-host/tests/process.spec.ts
+ M apps/tenancy-host/tests/slow.spec.ts
+ M apps/tenancy-host/tests/support/instrumented.ts
+ M apps/tenancy-host/tests/support/wire.ts
+ M apps/tenancy-host/tests/upgrade.spec.ts
+ M apps/tenancy-host/tsconfig.test.json
+ M docs/development.md
+ M docs/verification.md
+ M docs/workspace.md
+ M package.json
+ M packages/README.md
+ M packages/core/offer-expiry/schema/offer-expiry.schema.json
+ M packages/core/offer-expiry/src/offer.ts
+ M packages/core/offer-expiry/tests/derive.spec.ts
+ M packages/core/offer-expiry/tests/schema.spec.ts
+ M packages/core/offer-expiry/tests/types.spec-d.ts
+ M packages/core/storage/src/conformance/index.ts
+ M packages/core/storage/src/index.ts
+ M packages/core/storage/src/protocol.ts
+ M packages/infra/clock/src/index.ts
+ M packages/infra/storage-sql/src/config.ts
+ M packages/infra/storage-sql/src/index.ts
+ M packages/infra/storage-sql/src/open.ts
+ M packages/infra/storage-sql/src/provider.ts
+ M packages/infra/storage-sql/src/sqlite/constraints.ts
+ M packages/infra/storage-sql/src/sqlite/driver.ts
+ M packages/infra/storage-sql/src/sqlite/errors.ts
+ M packages/infra/storage-sql/src/sqlite/index.ts
+ M packages/infra/storage-sql/src/sqlite/owner.ts
+ M packages/infra/storage-sql/src/upgrade/owner.ts
+ M packages/infra/storage-sql/tests/conformance.sqlite.spec.ts
+ M packages/infra/storage-sql/tests/upgrade.process.spec.ts
+ M packages/tenancy/account-identity/src/accounts.ts
+ M packages/tenancy/account-identity/src/deps.ts
+ M packages/tenancy/account-identity/src/index.ts
+ M packages/tenancy/account-identity/src/logins.ts
+ M packages/tenancy/account-identity/src/plugin.ts
+ M packages/tenancy/account-identity/src/records.ts
+ M packages/tenancy/account-identity/src/schema.ts
+ M packages/tenancy/account-identity/src/surface.ts
+ M packages/tenancy/account-identity/tests/obligations.spec.ts
+ M packages/tenancy/account-identity/tests/plugin.spec.ts
+ M packages/tenancy/account-identity/tests/scenarios.spec.ts
+ M packages/tenancy/account-identity/tests/support.ts
+ M packages/tenancy/account-identity/tests/types.spec-d.ts
+ M packages/tenancy/account-registration/src/plugin.ts
+ M packages/tenancy/account-registration/src/registration.ts
+ M packages/tenancy/account-registration/tests/faults.spec.ts
+ M packages/tenancy/account-registration/tests/integration.spec.ts
+ M packages/tenancy/account-registration/tests/interleavings.spec.ts
+ M packages/tenancy/account-registration/tests/purge.spec.ts
+ M packages/tenancy/account-registration/tests/scenarios.spec.ts
+ M packages/tenancy/account-registration/tests/support.ts
+ M packages/tenancy/governance-center-entry/README.md
+ M packages/tenancy/governance-center-entry/package.json
+ M packages/tenancy/governance-center-entry/schema/governance-center-entry.schema.json
+ M packages/tenancy/governance-center-entry/src/index.ts
+ M packages/tenancy/governance-center-entry/src/ops/plugin.ts
+ M packages/tenancy/governance-center-entry/src/plugin.ts
+ M packages/tenancy/governance-center-entry/src/routing/caller.ts
+ M packages/tenancy/governance-center-entry/src/routing/decide.ts
+ M packages/tenancy/governance-center-entry/src/routing/route-ids.ts
+ M packages/tenancy/governance-center-entry/src/routing/routes.ts
+ M packages/tenancy/governance-center-entry/src/routing/schema.ts
+ M packages/tenancy/governance-center-entry/tests/basis.spec.ts
+ M packages/tenancy/governance-center-entry/tests/bytes.spec.ts
+ M packages/tenancy/governance-center-entry/tests/center.spec.ts
+ M packages/tenancy/governance-center-entry/tests/decide.spec.ts
+ M packages/tenancy/governance-center-entry/tests/json.spec.ts
+ M packages/tenancy/governance-center-entry/tests/lifecycle.spec.ts
+ M packages/tenancy/governance-center-entry/tests/ops.spec.ts
+ M packages/tenancy/governance-center-entry/tests/skeleton.spec.ts
+ M packages/tenancy/governance-center-entry/tests/slow.spec.ts
+ M packages/tenancy/governance-center-entry/tests/support/composition.ts
+ M packages/tenancy/governance-center-entry/tests/support/stubs.ts
+ M packages/tenancy/organization-governance/src/index.ts
+ M packages/tenancy/organization-governance/src/memberships.ts
+ M packages/tenancy/organization-governance/src/offers.ts
+ M packages/tenancy/organization-governance/src/organizations.ts
+ M packages/tenancy/organization-governance/src/plugin.ts
+ M packages/tenancy/organization-governance/src/purge.ts
+ M packages/tenancy/organization-governance/src/runtime.ts
+ M packages/tenancy/organization-governance/src/types.ts
+ M packages/tenancy/organization-governance/tests/organizations.spec.ts
+ M packages/tenancy/organization-governance/tests/support.ts
+ M pnpm-lock.yaml
+ M pnpm-workspace.yaml
+ M scripts/README.md
+ M tools/README.md
+ M tools/spec-tools/src/omne_harness_lite_spec_tools/check_docs.py
+ M tools/spec-tools/tests/test_documentation_checks.py
+ M tools/ts-checks/README.md
+ M tools/ts-checks/src/rules/no-wall-clock.ts
+ M tools/ts-checks/src/rules/ops-import-whitelist.ts
+ M tools/ts-checks/src/rules/presentation-only-authn.ts
+ M tools/ts-checks/tests/entry-rules.spec.ts
+ M tools/ts-checks/tests/rules.spec.ts
+?? .meta_harness/agents/evaluation/tui-developer-introduction.md
+?? .meta_harness/agents/roles/tui-developer/
+?? .meta_harness/design/product/PF-016-cli-tui-delivery-surface/projection/
+?? .meta_harness/design/product/PF-017-governance-center-as-deployable-application/interviews/2026-09-24-production-cli-intake.md
+?? .meta_harness/design/product/PF-017-governance-center-as-deployable-application/projection/v3/
+?? .meta_harness/design/product/PF-017-governance-center-as-deployable-application/projection/v4/
+?? .meta_harness/design/product/PF-017-governance-center-as-deployable-application/projection/v5/
+?? .meta_harness/design/realization/apps/cli/governance.md
+?? .meta_harness/design/realization/apps/cli/iterm.md
+?? .meta_harness/design/realization/apps/cli/packaging.md
+?? .meta_harness/design/realization/apps/cli/tui.md
+?? .meta_harness/design/realization/apps/tenancy-host/maintenance-binding.md
+?? .meta_harness/design/realization/apps/tenancy-host/maintenance.md
+?? .meta_harness/design/realization/apps/tenancy-host/packaging.md
+?? .meta_harness/design/realization/packages/core/storage/maintenance.md
+?? .meta_harness/design/realization/packages/frontend/
+?? .meta_harness/design/realization/packages/infra/storage-sql/maintenance.md
+?? .meta_harness/design/realization/packages/tenancy/account-identity/v3-design.md
+?? .meta_harness/design/realization/packages/tenancy/account-registration/v2-design.md
+?? .meta_harness/design/realization/packages/tenancy/governance-center-entry/maintenance.md
+?? .meta_harness/design/realization/packages/tenancy/governance-center-entry/v2-design.md
+?? .meta_harness/design/realization/packages/tenancy/organization-governance/v2-design.md
+?? .meta_harness/design/record/decisions/bounded-account-provider/
+?? .meta_harness/design/record/decisions/client-local-state-adoption/
+?? .meta_harness/design/record/decisions/governance-cli-file-entry-adoption/
+?? .meta_harness/design/record/decisions/governance-cli-portable-adoption/
+?? .meta_harness/design/record/decisions/governance-client-operations-adoption/
+?? .meta_harness/design/record/decisions/governance-entry-production-protocol/
+?? .meta_harness/design/record/decisions/governance-health-client-adoption/
+?? .meta_harness/design/record/decisions/governance-host-portable-adoption/
+?? .meta_harness/design/record/decisions/governance-identity-offer-contracts/
+?? .meta_harness/design/record/decisions/governance-iterm-provider-adoption/
+?? .meta_harness/design/record/decisions/governance-maintenance-resources-adoption/
+?? .meta_harness/design/record/decisions/governance-online-maintenance-adoption/
+?? .meta_harness/design/record/decisions/governance-participation-provider/
+?? .meta_harness/design/record/decisions/governance-prepared-input-adoption/
+?? .meta_harness/design/record/decisions/governance-protocol-client-adoption/
+?? .meta_harness/design/record/decisions/governance-sqlite-full/
+?? .meta_harness/design/record/decisions/governance-startup-repair-adoption/
+?? .meta_harness/design/record/decisions/governance-tui-entry-adoption/
+?? .meta_harness/design/record/decisions/registration-bounded-provider/
+?? .meta_harness/design/record/evidence/2026-09-24-formal-expected-tenant/
+?? .meta_harness/design/record/evidence/2026-09-24-formal-login-candidates/
+?? .meta_harness/design/record/evidence/2026-09-24-formal-offer-settlement/
+?? .meta_harness/design/record/evidence/2026-09-24-probe-governance-client/
+?? .meta_harness/design/record/evidence/2026-09-24-tests-governance-health-client/
+?? .meta_harness/design/record/evidence/2026-09-24-tests-production-cli-baseline/
+?? .meta_harness/design/record/evidence/2026-09-24-tests-sqlite-full/
+?? .meta_harness/design/record/evidence/2026-09-24-tests-storage-unit/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-center-maintenance/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-cli-entry/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-client-local-state/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-client-operations-2/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-client-operations/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-entry-candidates-2/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-entry-candidates/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-prepared-input/
+?? .meta_harness/design/record/evidence/2026-09-25-formal-tui-delivery/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-bounded-account/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-cli-file-entry/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-cli-portable-host/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-client-local-state/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-client-operations/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-entry-production/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-governance-participation/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-governance-protocol-client/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-host-startup/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-iterm-delivery/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-prepared-input/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-tui-cross-os/
+?? .meta_harness/design/record/evidence/2026-09-25-tests-tui-increment/
+?? .meta_harness/design/record/evidence/2026-09-26-tests-governance-maintenance/
+?? .meta_harness/design/record/proposals/cli-tui/governance-client.md
+?? .meta_harness/design/record/proposals/governance-production-baseline/
+?? .meta_harness/design/record/proposals/governance-production-mechanisms/
+?? .meta_harness/design/spec/capabilities/account-identity/v3/
+?? .meta_harness/design/spec/capabilities/client-local-state/
+?? .meta_harness/design/spec/capabilities/organization-governance/v2/
+?? .meta_harness/design/spec/compositions/account-registration/v2/
+?? .meta_harness/design/spec/compositions/governance-center-entry-https-json/v2/
+?? .meta_harness/design/spec/compositions/governance-center-entry-https-json/v3/
+?? .meta_harness/design/spec/compositions/governance-center-entry/v2/
+?? .meta_harness/design/spec/compositions/governance-center-entry/v3/
+?? .meta_harness/design/spec/compositions/governance-cli-entry/
+?? .meta_harness/design/spec/compositions/governance-client-operations/
+?? .meta_harness/design/spec/data/offer-expiry/v2/
+?? .meta_harness/research/agent-harness-cli-tui/reports/2026-09-25-cli-portable-probe/
+?? .meta_harness/research/agent-harness-cli-tui/reports/2026-09-25-iterm-input/
+?? .meta_harness/research/agent-harness-cli-tui/reports/2026-09-25-iterm-report-interleave/
+?? .meta_harness/research/agent-harness-cli-tui/reports/2026-09-25-pi-tui-probe/
+?? .meta_harness/research/agent-harness-cli-tui/reports/2026-09-25-tui-terminal-boundaries/
+?? .meta_harness/research/governance-recovery-providers/
+?? apps/cli/
+?? apps/tenancy-host/deploy/
+?? apps/tenancy-host/src/build-version.ts
+?? apps/tenancy-host/src/maintenance-command.ts
+?? apps/tenancy-host/src/maintenance-config.ts
+?? apps/tenancy-host/src/maintenance-state.ts
+?? apps/tenancy-host/src/snapshot-checks.ts
+?? apps/tenancy-host/tests/build-version.spec.ts
+?? apps/tenancy-host/tests/fixtures/maintenance-dispose-child.ts
+?? apps/tenancy-host/tests/fixtures/maintenance-read-gate.ts
+?? apps/tenancy-host/tests/maintenance-command.spec.ts
+?? apps/tenancy-host/tests/maintenance-dispose.process.spec.ts
+?? apps/tenancy-host/tests/maintenance-signal.process.spec.ts
+?? apps/tenancy-host/tests/maintenance-startup.spec.ts
+?? apps/tenancy-host/tests/packaging.spec.ts
+?? apps/tenancy-host/tests/snapshot-checks.spec.ts
+?? apps/tenancy-host/tools/
+?? packages/core/storage/src/conformance/atomic.ts
+?? packages/core/storage/src/maintenance.ts
+?? packages/core/storage/src/snapshot-check.ts
+?? packages/frontend/
+?? packages/infra/clock/src/snapshot-structure.ts
+?? packages/infra/clock/src/snapshot.ts
+?? packages/infra/storage-sql/src/maintenance/
+?? packages/infra/storage-sql/src/sqlite/lock.ts
+?? packages/infra/storage-sql/src/sqlite/protection.ts
+?? packages/infra/storage-sql/src/unit.ts
+?? packages/infra/storage-sql/tests/atomic-notifications.spec.ts
+?? packages/infra/storage-sql/tests/atomic.sqlite.spec.ts
+?? packages/infra/storage-sql/tests/capacity.sqlite.spec.ts
+?? packages/infra/storage-sql/tests/constraints.sqlite.spec.ts
+?? packages/infra/storage-sql/tests/fixtures/maintenance-close-child.ts
+?? packages/infra/storage-sql/tests/fixtures/maintenance-startup-close-child.ts
+?? packages/infra/storage-sql/tests/initialization.sqlite.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-engine.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-failure.process.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-owned.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-protection.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-resources.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-source.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-view.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-worker-lifetime.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-worker.spec.ts
+?? packages/infra/storage-sql/tests/maintenance-workspace.spec.ts
+?? packages/infra/storage-sql/tests/synchronous.spec.ts
+?? packages/tenancy/account-identity/src/snapshot-structure.ts
+?? packages/tenancy/account-identity/src/snapshot.ts
+?? packages/tenancy/account-identity/tests/bounded-logins.spec.ts
+?? packages/tenancy/governance-center-entry/src/center-id/snapshot-structure.ts
+?? packages/tenancy/governance-center-entry/src/center-id/snapshot.ts
+?? packages/tenancy/governance-center-entry/src/maintenance/
+?? packages/tenancy/governance-center-entry/src/ops/maintenance-wire.ts
+?? packages/tenancy/governance-center-entry/tests/maintenance-format.spec.ts
+?? packages/tenancy/governance-center-entry/tests/maintenance-operations.spec.ts
+?? packages/tenancy/governance-center-entry/tests/maintenance-ops.spec.ts
+?? packages/tenancy/governance-center-entry/tests/maintenance-wire.spec.ts
+?? packages/tenancy/governance-center-entry/tests/production-boundary.spec.ts
+?? packages/tenancy/governance-center-entry/tests/support/decision-storage.ts
+?? packages/tenancy/organization-governance/src/snapshot-structure.ts
+?? packages/tenancy/organization-governance/src/snapshot.ts
+?? packages/tenancy/organization-governance/tests/participation.spec.ts
+?? scripts/package-cli.sh
+?? scripts/package-tenancy-host.sh
+?? tools/artifact-builder/

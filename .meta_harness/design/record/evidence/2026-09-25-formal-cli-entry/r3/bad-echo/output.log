@@ -1,0 +1,67 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 50 and seed 6953092976661909815 with 1 worker on 16 cores with 7122MB heap and 64MB offheap memory [pid: 1] (Linux 6.12.54-linuxkit aarch64, Eclipse Adoptium 25.0.4 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /work/TerminalExit.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module TerminalExit
+Starting... (2026-09-24 20:51:55)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-24 20:51:55.
+Error: Invariant NoEarlyEcho is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ inputDone = FALSE
+/\ pasteOpen = FALSE
+/\ pasteStarted = FALSE
+/\ stopping = FALSE
+/\ outputs = 0
+/\ phase = "input"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = TRUE
+/\ rawAtInvoke = FALSE
+/\ raw = TRUE
+
+State 2: <PasteStart line 12, col 15 to line 15, col 64 of module TerminalExit>
+/\ inputDone = FALSE
+/\ pasteOpen = TRUE
+/\ pasteStarted = TRUE
+/\ stopping = FALSE
+/\ outputs = 0
+/\ phase = "input"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = TRUE
+/\ rawAtInvoke = FALSE
+/\ raw = TRUE
+
+State 3: <Stop line 32, col 9 to line 34, col 83 of module TerminalExit>
+/\ inputDone = FALSE
+/\ pasteOpen = TRUE
+/\ pasteStarted = TRUE
+/\ stopping = TRUE
+/\ outputs = 0
+/\ phase = "input"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = TRUE
+/\ rawAtInvoke = FALSE
+/\ raw = TRUE
+
+State 4: <Restore line 23, col 12 to line 26, col 86 of module TerminalExit>
+/\ inputDone = FALSE
+/\ pasteOpen = TRUE
+/\ pasteStarted = TRUE
+/\ stopping = TRUE
+/\ outputs = 0
+/\ phase = "input"
+/\ cgClosed = FALSE
+/\ localReleased = FALSE
+/\ workDone = TRUE
+/\ rawAtInvoke = FALSE
+/\ raw = FALSE
+
+14 states generated, 12 distinct states found, 5 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 2 (minimum is 1, the maximum 3 and the 95th percentile is 3).
+Finished in 00s at (2026-09-24 20:51:55)
