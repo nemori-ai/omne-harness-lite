@@ -21,6 +21,10 @@
 | `effectiveCost(target, corrections)`、`summarize(group) → { knownSum, unknownCount } \| { failed }` | [S-22](../../../../spec/data/call-accounts/v1/contract.md#s-22-有效费用)～[S-24](../../../../spec/data/call-accounts/v1/contract.md#s-24-汇总不重复计) |
 | `judgeAccountValue(kind, value) → { ok } \| { rejected }` | [S-27](../../../../spec/data/call-accounts/v1/contract.md#s-27-表示层拒绝值闭合)～[S-29](../../../../spec/data/call-accounts/v1/contract.md#s-29-判别式与枚举闭合) |
 
+`prepareAccountGroup(input)` 先对全部完整模型费用/用量、工具账和补账表示准入，通过后才生成冻结的候选权威投影 `AccountGroup`。完整输入中的工具账可以有 `cost.total_usd` 和 `usage`；只是金额/用量求值内部投影不取它们。`summarize` 只收本准入函数产生的组，不在计算期间边验证边产生部分结果。
+
+另有受限纯辅助面 `summarizeUsage(models)`：输入仅为只读 `ResponseId + Usage` 集合，逐值表示准入后对四字段求已知和/未知数，重复 `ResponseId` 明确失败且不去重。不接收工具账或补账，因此不额外施加货币补账失败门；不证明原完整账组合法或归组完整。S-23“同式”与九件事对完整组 token 失败的作用范围尚未唯一表达，该完整组读面政策留给G-10拥有者；本辅助面只兑现两种读法共同明确的用量计算。
+
 **函数层不承诺**：一份账只落一次、补账找得到目标、镜像与权威同组、金额在每一跳都不丢位——它们只在承载记录的一侧、运行时与读面成立（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列）；`summarize` 只对交进来的这一组给出结论。
 
 ## 契约到 Cordis 的投影
@@ -53,7 +57,7 @@
 |---|---|---|---|
 | [S-4](../../../../spec/data/call-accounts/v1/contract.md#s-4-未知是一个值不是零也不是缺席)～[S-18](../../../../spec/data/call-accounts/v1/contract.md#s-18-原账不改)、[S-37](../../../../spec/data/call-accounts/v1/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) 未知、金额、用量、费用、工具账、帧账、砍的汇总、补账、三个归属标识 | 类型 `Usage`、`Cost`、`CostItem`、`ToolCallAccount`、`FrameAccount`、`TrimSummary`、`CostCorrection`、`RunId`、`AttemptId`、`ModelCallId`；金额类型 `ExactDecimal`（不透明，内部是规范十进制串）；`"unknown"` 是一个值，类型上与数不相容 | `CostItem.service` 写一个 MCP 接入点时用 asset-model 的规范串 | V-1、V-2；`ResponseId` 是逐字副本，**家在 `data.model-response`**，对齐测试放在 [model-response](../model-response/design.md#副本定义的对齐放在依赖方) |
 | [S-5](../../../../spec/data/call-accounts/v1/contract.md#s-5-金额美元十进制不截断) 金额精确（契约 G-9 交给实现） | `ExactDecimal.from(JsonNumber)`、`add`、`compare` | 读入时把 content-blocks 交出的 `number` 或 `LosslessNumber` 都换成十进制；加法用 `BigInt` 按两数小数位对齐后相加——`0.1 + 0.2` 得 `0.3`，不经二进制浮点；写出时按原精度，不截断、不补零 | 「会在丢位时失败的测试」即 G-9 的闭合条件（V-9 左列第一行） |
-| [S-22](../../../../spec/data/call-accounts/v1/contract.md#s-22-有效费用)、[S-23](../../../../spec/data/call-accounts/v1/contract.md#s-23-汇总已知之和与未知笔数)、[S-24](../../../../spec/data/call-accounts/v1/contract.md#s-24-汇总不重复计) 有效费用与汇总 | `effectiveCost(target, corrections)`；`summarize(group) → { knownSum, unknownCount } \| { failed }` | 精确加法；三种明确失败（孤立补账、补账平局、重复的账）；只从权威位置取，参数类型里没有 `total_usd`、镜像笔与 `ToolCallAccount.usage` | V-5、V-6（examples 第 9 节手算）；三种失败**叫什么归读面的契约**（契约 G-10），本模块先以候选判别值交回（CA-1） |
+| [S-22](../../../../spec/data/call-accounts/v1/contract.md#s-22-有效费用)、[S-23](../../../../spec/data/call-accounts/v1/contract.md#s-23-汇总已知之和与未知笔数)、[S-24](../../../../spec/data/call-accounts/v1/contract.md#s-24-汇总不重复计) 有效费用与汇总 | `effectiveCost(target, corrections)`；`summarize(group) → { knownSum, unknownCount } \| { failed }` | 精确加法；三种明确失败（孤立补账、补账平局、重复的账）；先表示准入完整输入，再从冻结的内部权威投影取数；内部投影不带 `total_usd`、镜像笔与 `ToolCallAccount.usage` | V-5、V-6（examples 第 9 节手算）；三种失败**叫什么归读面的契约**（契约 G-10），本模块先以候选判别值交回（CA-1） |
 | [S-27](../../../../spec/data/call-accounts/v1/contract.md#s-27-表示层拒绝值闭合)～[S-29](../../../../spec/data/call-accounts/v1/contract.md#s-29-判别式与枚举闭合) 五个拒绝值、六步次序、校验与判定分开 | `judgeAccountValue(kind, value)` | 结构那一半先于正负、正负先于来源、组合约束最后 | V-2；被拒的值不进汇总、也不当 `"unknown"` |
 
 ## 依赖、作用域与绑定
