@@ -11,11 +11,20 @@ const actualModules: readonly SourceFile[] = paths.map(path => ({
   path,
   text: readFileSync(new URL(`../../../packages/${path}`, import.meta.url), 'utf8'),
 }))
+const slashPath = 'core/slash-command/src/declarations.ts'
 
-describe('body-projection-inputs — 已存在的四类正文模块', () => {
+describe('body-projection-inputs — 已存在的正文模块', () => {
   it('实际四类正文、七个声明／引用入口与 MCP 可选动作副本均通过', () => {
-    expect(paths).toHaveLength(4)
-    expect(CORE_BODY_PROJECTION_TARGETS).toHaveLength(7)
+    expect(paths.filter(path => path !== slashPath)).toHaveLength(4)
+    expect(CORE_BODY_PROJECTION_TARGETS.filter(target => target.path !== slashPath)).toHaveLength(7)
+    expect(
+      bodyProjectionInputs.check(actualModules.filter(file => file.path !== slashPath)),
+    ).toEqual([])
+  })
+
+  it('Slash 两个真实入口追加后，五类正文九个锚均通过', () => {
+    expect(paths).toHaveLength(5)
+    expect(CORE_BODY_PROJECTION_TARGETS).toHaveLength(9)
     expect(bodyProjectionInputs.check(actualModules)).toEqual([])
   })
 

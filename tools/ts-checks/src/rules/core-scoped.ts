@@ -105,7 +105,7 @@ export function createBodyProjectionInputs(targets: readonly BodyProjectionTarge
   return {
     id: 'body-projection-inputs',
     source:
-      'data.asset-model/v1 S-12/S-25/SC-6 · data.tool-definition/v1 S-31 · data.loop-extension/v1 S-40 · data.skill-package/v1 SC-4 · data.mcp-endpoint/v1 S-14～S-17/SC-2',
+      'data.asset-model/v1 S-12/S-25/SC-6 · data.tool-definition/v1 S-31 · data.loop-extension/v1 S-40 · data.skill-package/v1 SC-4 · data.mcp-endpoint/v1 S-14～S-17/SC-2 · data.slash-command/v1 S-11/SC-6',
     description: '登记的正文推出模块只导入类型、接明确正文及批准动作副本，不读宿主全局',
     check(files) {
       const out: Violation[] = []
@@ -424,7 +424,7 @@ export function createSingleToolArgumentParser(inputs: ToolArgumentParserInputs)
   }
 }
 
-/** 已由主调度点名且源码存在的四类正文模块；没有源码的正文不登记占位锚点。 */
+/** 已由主调度点名且源码存在的五类正文模块；没有源码的正文不登记占位锚点。 */
 export const CORE_BODY_PROJECTION_TARGETS: readonly BodyProjectionTarget[] = Object.freeze([
   Object.freeze({
     path: 'core/tool-definition/src/declarations.ts',
@@ -460,6 +460,16 @@ export const CORE_BODY_PROJECTION_TARGETS: readonly BodyProjectionTarget[] = Obj
     path: 'core/mcp-endpoint/src/declarations.ts',
     functionName: 'deriveMcpDeclarations',
     parameterTypes: Object.freeze(['McpEndpoint', 'ActionSnapshot']),
+  }),
+  Object.freeze({
+    path: 'core/slash-command/src/declarations.ts',
+    functionName: 'slashCommandAttributeDeclarations',
+    parameterTypes: Object.freeze(['SlashCommandDefinition']),
+  }),
+  Object.freeze({
+    path: 'core/slash-command/src/declarations.ts',
+    functionName: 'slashCommandReferences',
+    parameterTypes: Object.freeze(['SlashCommandDefinition']),
   }),
 ])
 
