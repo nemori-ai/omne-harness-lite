@@ -56,6 +56,22 @@ import type {
   PreflightInput,
   PreflightResult,
   PreflightCheck,
+  AtomicStorage,
+  StorageUnit,
+  SnapshotFailureKind,
+  SnapshotColumn,
+  SnapshotIndex,
+  SnapshotForeignKey,
+  SnapshotTable,
+  SnapshotStructure,
+  SnapshotView,
+  SnapshotCheck,
+  SnapshotInput,
+  SnapshotInspectionSession,
+  SnapshotSession,
+  SnapshotRunOptions,
+  SnapshotMaintenance,
+  SnapshotInspection,
 } from '@omne-harness-lite/storage'
 import type {
   JsonNumber,
@@ -234,6 +250,34 @@ test('w1.types.complete.storage-types', () => {
   }
   expectTypeOf(check).parameter(0).toEqualTypeOf<PreflightInput>()
   void kind
+})
+
+test('w1.types.complete.storage-atomic-and-maintenance', () => {
+  expectTypeOf<AtomicStorage>().toExtend<Storage>()
+  expectTypeOf<StorageUnit>().not.toExtend<Storage>()
+  expectTypeOf<StorageUnit['assertStorage']>().parameter(0).toEqualTypeOf<Storage>()
+  expectTypeOf<StorageUnit['afterCommit']>().parameter(0).toEqualTypeOf<() => void>()
+  expectTypeOf<SnapshotFailureKind>().toEqualTypeOf<
+    'busy' | 'unavailable' | 'capacity' | 'invalid-data' | 'cancelled'
+  >()
+  expectTypeOf<SnapshotTable['columns']>().toEqualTypeOf<readonly SnapshotColumn[]>()
+  expectTypeOf<SnapshotTable['indexes']>().toEqualTypeOf<readonly SnapshotIndex[]>()
+  expectTypeOf<SnapshotTable['foreignKeys']>().toEqualTypeOf<readonly SnapshotForeignKey[]>()
+  expectTypeOf<SnapshotView['structure']>().toEqualTypeOf<SnapshotStructure>()
+  expectTypeOf<SnapshotCheck>().parameter(0).toEqualTypeOf<SnapshotView>()
+  expectTypeOf<SnapshotCheck>().returns.toEqualTypeOf<Promise<PreflightResult>>()
+  expectTypeOf<SnapshotInput['chunks']>().toEqualTypeOf<AsyncIterable<Uint8Array>>()
+  expectTypeOf<SnapshotSession>().toExtend<SnapshotInspectionSession>()
+  expectTypeOf<SnapshotRunOptions['signal']>().toEqualTypeOf<AbortSignal | undefined>()
+  expectTypeOf<SnapshotMaintenance>().not.toExtend<SnapshotInspection>()
+  expectTypeOf<SnapshotInspection['close']>().returns.toEqualTypeOf<Promise<void>>()
+  const rejectMisuse = (unit: StorageUnit, view: SnapshotView) => {
+    // @ts-expect-error 同一事务单元没有独立提交操作
+    unit.commit()
+    // @ts-expect-error 临时快照视图不提供写入操作
+    view.write(0, new Uint8Array())
+  }
+  expectTypeOf(rejectMisuse).toBeFunction()
 })
 
 test('w1.types.complete.content-json-and-schema', () => {

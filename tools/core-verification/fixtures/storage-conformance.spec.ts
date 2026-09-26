@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { afterAll } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { describeStorageConformance } from '@omne-harness-lite/storage/conformance'
 import { createSqliteConformanceFixture } from '../src/storage-fixture.ts'
 
@@ -10,7 +10,13 @@ if (directory === undefined || (mode !== 'enabled' && mode !== 'disabled'))
   throw new Error('conformance fixture requires an owned directory and explicit foreign-key mode')
 
 const fixture = createSqliteConformanceFixture(directory, mode)
-describeStorageConformance('sqlite (public provider)', fixture.open)
+describeStorageConformance('sqlite (public provider)', fixture.open, {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+})
 
 afterAll(async () => {
   try {

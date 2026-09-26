@@ -15,7 +15,7 @@ import {
 } from '../src/index.ts'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
-describe('frozen v1 normative examples', () => {
+describe('frozen v2 normative examples', () => {
   for (const [index, value] of frozen.definitions.entries())
     it(`EX1-4 positive definition ${index}`, () =>
       expect(judgeToolDefinition(value)).toEqual({ ok: true }))

@@ -43,6 +43,39 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('OE1 精确资源入口只授予已登记依赖，不准许版本通配或私有路径', () => {
+    for (const pkg of [
+      'asset-model',
+      'call-accounts',
+      'loop-extension',
+      'mcp-endpoint',
+      'messages',
+      'model-profile',
+      'model-response',
+    ]) {
+      const path = `core/${pkg}/src/schema.ts`
+      expect(
+        corePureImports.check([
+          file(path, `import schema from '@omne-harness-lite/offer-expiry/schema/v1'`),
+        ]),
+      ).toEqual([])
+      for (const specifier of [
+        '@omne-harness-lite/offer-expiry/schema/v2',
+        '@omne-harness-lite/offer-expiry/schema/v1/private',
+        '@omne-harness-lite/offer-expiry/schema/v1.json',
+        '@omne-harness-lite/offer-expiry/schema/offer-expiry.v1.schema.json',
+        '@omne-harness-lite/offer-expiry/src/index.ts',
+      ])
+        expect(corePureImports.check([file(path, `import '${specifier}'`)])).toHaveLength(1)
+    }
+    for (const pkg of ['content-blocks', 'tool-definition', 'arrival-events'])
+      expect(
+        corePureImports.check([
+          file(`core/${pkg}/src/index.ts`, `import '@omne-harness-lite/offer-expiry/schema/v1'`),
+        ]),
+      ).toHaveLength(1)
+  })
+
   it('中性 Schema runtime 从批准的 content-blocks 依赖公开子入口消费', () => {
     for (const pkg of ['asset-model', 'tool-definition', 'messages', 'mcp-endpoint']) {
       expect(

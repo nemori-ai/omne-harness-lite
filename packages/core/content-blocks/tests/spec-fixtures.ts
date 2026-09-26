@@ -9,7 +9,7 @@ import {
 
 export const SPEC_DIR = resolve(
   import.meta.dirname,
-  '../../../../.meta_harness/design/spec/data/content-blocks/v1',
+  '../../../../.meta_harness/design/spec/data/content-blocks/v2',
 )
 export interface ExampleRow {
   readonly section: number

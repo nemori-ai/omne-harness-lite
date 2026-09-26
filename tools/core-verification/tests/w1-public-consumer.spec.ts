@@ -107,7 +107,8 @@ async function consume(negativeControl: boolean) {
   const frozenFiles = record(record(frozen).files)
   for (const [index, name] of ['identity-values', 'offer-expiry', 'content-blocks'].entries()) {
     const schema = record(report.schemas[index])
-    const specPath = `spec/data/${name}/v1/${name}.schema.json`
+    const version = name === 'identity-values' ? 'v1' : 'v2'
+    const specPath = `spec/data/${name}/${version}/${name}.schema.json`
     const bytes = await readFile(join(member, '../../.meta_harness/design', specPath))
     const sha256 = createHash('sha256').update(bytes).digest('hex')
     expect(schema.specifier).toBe(`@omne-harness-lite/${name}/schema`)

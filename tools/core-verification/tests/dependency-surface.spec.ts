@@ -43,12 +43,12 @@ it('w1.consumer.adopted-dependency-exceptions', async () => {
   const storageSource = await dependencySurface(root('storage', 'src/index.ts'))
   const storageDeclarations = await dependencySurface(root('storage', 'dist/index.d.ts'), true)
   const storageRuntime = await dependencySurface(root('storage', 'dist/index.js'))
-  expect(storageSource.external).toEqual(['kysely', 'kysely/migration'])
-  expect(storageDeclarations.external).toEqual(storageSource.external)
-  expect(storageRuntime.external).toEqual([])
+  expect(storageSource.external).toEqual(['kysely', 'kysely/migration', 'node:util'])
+  expect(storageDeclarations.external).toEqual(['kysely', 'kysely/migration'])
+  expect(storageRuntime.external).toEqual(['node:util'])
   const storageConformance = await dependencySurface(root('storage', 'dist/conformance/index.js'))
-  // D-026 的已批准套件以 sql 建 CHECK；根协议仍只用 Kysely 类型。
-  expect(storageConformance.external).toEqual(['kysely', 'vitest'])
+  // D-057 将测试运行器显式传入；产品套件不得运行时导入 Vitest。
+  expect(storageConformance.external).toEqual(['kysely'])
 
   const directory = join(repository, 'tmp/w1-public-consumers')
   await mkdir(directory, { recursive: true })

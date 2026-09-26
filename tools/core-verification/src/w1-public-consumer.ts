@@ -375,7 +375,7 @@ const cases: readonly ConsumerCase[] = [
   },
   {
     id: 'w1.offer.public-time-shape',
-    sources: ['data.offer-expiry/v1#S-4', 'data.offer-expiry/v1#S-14', 'data.offer-expiry/v1#S-22'],
+    sources: ['data.offer-expiry/v2#S-4', 'data.offer-expiry/v2#S-14', 'data.offer-expiry/v2#S-22'],
     run() {
       const utc = unwrap(instantFromRfc3339('2026-09-22T09:00:00Z'))
       const offset = unwrap(instantFromRfc3339('2026-09-22T17:00:00+08:00'))
@@ -384,24 +384,35 @@ const cases: readonly ConsumerCase[] = [
       assert.equal(unwrap(instantFromEpochMs(utc)), utc)
       const duration = unwrap(parseOfferTtl('PT1S'))
       assert.equal(addDuration(utc, duration), utc + 1_000)
-      assert.deepEqual(unwrap(timingFrom(utc, duration)), { issuedAt: utc, expiresAt: utc + 1_000 })
+      const computedTiming = timingFrom(utc, duration)
+      assert(computedTiming !== 'unavailable')
+      assert.deepEqual(unwrap(computedTiming), { issuedAt: utc, expiresAt: utc + 1_000 })
       for (const input of [0, -1, NaN, Infinity, undefined, 'P1M', 'bad'])
         assert.equal(isOk(parseOfferTtl(input)), false)
       const equal = { issuedAt: '2026-09-22T09:00:00Z', expiresAt: '2026-09-22T09:00:00Z' }
       assert.equal(validateOffer('OfferTiming', equal).valid, true)
       assert.equal(isOk(parseOfferTiming(equal)), false)
       assert.equal(isOk(parseSettledState('expired')), false)
-      assert.deepEqual(SETTLED_STATES, ['accepted', 'withdrawn'])
-      assert.deepEqual(OFFER_STATES, ['pending', 'accepted', 'withdrawn', 'expired'])
+      assert.deepEqual(SETTLED_STATES, ['accepted', 'withdrawn', 'declined'])
+      assert.deepEqual(OFFER_STATES, ['pending', 'accepted', 'withdrawn', 'declined', 'expired'])
+      assert.equal(unwrap(parseSettledState('declined')), 'declined')
+      const maximalInstant = unwrap(instantFromEpochMs(Number.MAX_SAFE_INTEGER))
+      assert.equal(timingFrom(maximalInstant, duration), 'unavailable')
     },
   },
   {
     id: 'w1.offer.public-evaluation-order',
-    sources: ['data.offer-expiry/v1#S-8', 'data.offer-expiry/v1#S-13', 'data.offer-expiry/v1#S-20'],
+    sources: ['data.offer-expiry/v2#S-8', 'data.offer-expiry/v2#S-13', 'data.offer-expiry/v2#S-20'],
     run() {
       const start = unwrap(instantFromEpochMs(1_000))
       const ttl = unwrap(parseOfferTtl(1_000))
-      const timing = unwrap(timingFrom(start, ttl))
+      const computedTiming = timingFrom(start, ttl)
+      assert(computedTiming !== 'unavailable')
+      const timing = unwrap(computedTiming)
+      assert.equal(
+        deriveState({ timing, settled: 'declined', now: 'unavailable', target: 'unavailable' }),
+        'declined',
+      )
       const clock = testClock(start)
       clock.advance(1_000)
       assert.equal(
@@ -491,8 +502,8 @@ const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.content.public-lossless-json',
     sources: [
-      'data.content-blocks/v1#S-12',
-      'data.content-blocks/v1#S-24',
+      'data.content-blocks/v2#S-12',
+      'data.content-blocks/v2#S-24',
       'content-blocks/V-11-module',
     ],
     run() {
@@ -530,11 +541,11 @@ const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.content.public-block-judgment',
     sources: [
-      'data.content-blocks/v1#S-12',
-      'data.content-blocks/v1#S-13',
-      'data.content-blocks/v1#S-24',
-      'data.content-blocks/v1#S-26',
-      'data.content-blocks/v1#S-27',
+      'data.content-blocks/v2#S-12',
+      'data.content-blocks/v2#S-13',
+      'data.content-blocks/v2#S-24',
+      'data.content-blocks/v2#S-26',
+      'data.content-blocks/v2#S-27',
     ],
     run() {
       const source =
@@ -571,10 +582,10 @@ const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.content.public-metadata-meaning',
     sources: [
-      'data.content-blocks/v1#S-6',
-      'data.content-blocks/v1#S-7',
-      'data.content-blocks/v1#S-20',
-      'data.content-blocks/v1#S-21',
+      'data.content-blocks/v2#S-6',
+      'data.content-blocks/v2#S-7',
+      'data.content-blocks/v2#S-20',
+      'data.content-blocks/v2#S-21',
     ],
     run() {
       assert.equal(isCanonicalMediaType('image/png'), true)

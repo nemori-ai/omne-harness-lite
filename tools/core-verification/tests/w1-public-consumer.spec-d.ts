@@ -102,8 +102,10 @@ test('w1.types.identity.in-band-results', () => {
 })
 
 test('w1.types.offer.derived-state-and-clock', () => {
-  expectTypeOf<SettledState>().toEqualTypeOf<'accepted' | 'withdrawn'>()
-  expectTypeOf<OfferState>().toEqualTypeOf<'pending' | 'accepted' | 'withdrawn' | 'expired'>()
+  expectTypeOf<SettledState>().toEqualTypeOf<'accepted' | 'withdrawn' | 'declined'>()
+  expectTypeOf<OfferState>().toEqualTypeOf<
+    'pending' | 'accepted' | 'withdrawn' | 'declined' | 'expired'
+  >()
   expectTypeOf<ReturnType<Clock['now']>>().toEqualTypeOf<Instant | 'unavailable'>()
   // @ts-expect-error 派生 expired 不是持久终结状态
   const stored: SettledState = 'expired'
