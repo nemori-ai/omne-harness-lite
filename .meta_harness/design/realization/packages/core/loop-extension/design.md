@@ -3,7 +3,7 @@
 > 本批设计已接受（2026-09-26，[D-042](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-045](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。
 
 契约：[`data.loop-extension` v1](../../../../spec/data/loop-extension/v1/contract.md)（candidate）。下文的 S-n 都指这份契约；引别的契约写全坐标。
-导出名、类型名一律为**已接受的设计**，源码不存在。
+导出名、类型名一律为**已接受的设计**。源码已进入 HUB，纯值接口已实际复验释放；下文「未实现／候选」是设计接受时的投影基线，逐项持久证据登记与 runner 外部责任分别保留。
 
 ## 实现路径与来源
 

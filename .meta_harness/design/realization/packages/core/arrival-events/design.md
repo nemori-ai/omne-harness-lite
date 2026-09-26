@@ -22,6 +22,12 @@
 
 **函数层不承诺**：按次序不重不漏、目标只在所属会话里有意义、封口块等于归约——它们是生产者与宿主的义务（[S-25](../../../../spec/data/arrival-events/v1/contract.md#s-25-装配给与协议给) 其余五行）；序列语法由 [stream-assembly](../stream-assembly/design.md#公开面) 判。
 
+### 归约与已开视图的辅助签名（2026-09-26）
+
+`ReductionMode` 携带合法 `OpenEvent` 的 `kind` 与 `fill`，等价于这两字段的投影；image／file／tool_result 只允许 replace。只传 append／replace 一个字符串不足以区分文本与语音字节，不能由载荷字符串猜模态。`reduceFills(mode, fills)` 接本块的合法 payload 序列，返回文本／标准 base64、整交的 ContentBlock，或没有归约时的 `undefined`。**零次填没有归约**，与 `capability.stream-assembly/v1#S-6` 的块内容表一致，不伪造空串；工具调用在 append 时相接参数原文，在 replace 时取最后一次原文，两者均不解析。模式与载荷的独立形状、两者模态相容是辅助函数可检查的前提，违例给技术 `TypeError`，不增加第十种事件表示拒绝或修补输入。载荷与实际那一块的 id／visibility，以及适用时与 `open.head.mediaType` 的相等，由调用方保证；只凭 kind／fill 与 payload 无法核对这些关联。
+
+`judgeArrivalEnvelope` 的 `openBlock(index: JsonNumber) → OpenEvent | undefined` 由调用方交入合法、只读的已开视图：只返回此刻仍开着的块，未开或已封口返回 `undefined`；这里的 index 保留无损整数，不能经浮点丢身份。该视图只供本节点明确依赖开块的表示谓词使用，不代替序列判定或会话路由。
+
 ## 契约到 Cordis 的投影
 
 ### Cordis 原语：本节点一样也不用
@@ -48,7 +54,7 @@
 |---|---|---|---|
 | [S-5](../../../../spec/data/arrival-events/v1/contract.md#s-5-信封与目标)～[S-16](../../../../spec/data/arrival-events/v1/contract.md#s-16-收尾) 信封、目标、六种事件、块索引、开块、块头、呈现提示、填、封口、砍、记账、收尾 | 类型 `ArrivalEnvelope`、`ArrivalTarget`、`ArrivalEvent` 等 | 值一律冻结 | V-1 |
 | [S-19](../../../../spec/data/arrival-events/v1/contract.md#s-19-归约一块此刻是什么) 归约 | `reduceFills(mode, fills)`：追加相接、替换取最后一次；**语音按字节相接**（先把各段标准 base64 解成字节再接），不按 base64 串相接 | 纯函数 | 生产者义务「封口块等于归约」（S-20）的性质测试 V-5 用它作参照；stream-assembly 物化快照也用它——**一个归约只有一份** |
-| [S-26](../../../../spec/data/arrival-events/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/arrival-events/v1/contract.md#s-29-表示层拒绝不是判定也不修补) 九个拒绝值与次序、不修补 | `judgeArrivalEnvelope(envelope, openBlock?: (index) => OpenedBlock \| undefined)` | 嵌着的块取 content-blocks 的值、嵌着的账取 call-accounts 的值，原名；**要借开块的两项**（`replace_payload_shape`、帧流上往语音块填字节）只在 `openBlock` 给出那一块时才判，否则不参与 | V-2、V-3；`openBlock` 这个参数是与 [stream-assembly](../stream-assembly/design.md#表示层判定借-arrival-events不在本模块重写) 对齐的形状 |
+| [S-26](../../../../spec/data/arrival-events/v1/contract.md#s-26-规范表示)～[S-29](../../../../spec/data/arrival-events/v1/contract.md#s-29-表示层拒绝不是判定也不修补) 九个拒绝值与次序、不修补 | `judgeArrivalEnvelope(envelope, openBlock?: (index) => OpenEvent \| undefined)` | 嵌着的块取 content-blocks 的值、嵌着的账取 call-accounts 的值，原名；**要借开块的两项**（`replace_payload_shape`、帧流上往语音块填字节）只在 `openBlock` 给出那一块时才判，否则不参与 | V-2、V-3；`openBlock` 这个参数是与 [stream-assembly](../stream-assembly/design.md#表示层判定借-arrival-events不在本模块重写) 对齐的形状 |
 | [S-17](../../../../spec/data/arrival-events/v1/contract.md#s-17-一条流的形状)～[S-24](../../../../spec/data/arrival-events/v1/contract.md#s-24-违反语法由消费一方判定并命名) 序列语法 | — | **不在本节点**：由消费一方判定并命名，归 stream-assembly | — |
 
 ## 依赖、作用域与绑定
@@ -79,4 +85,4 @@
 
 契约的已知缺口（第九节）不重抄。生产者一侧的义务（S-20、S-22）由模型请求运行时（传输适配）与工具执行运行时（发帧入口）落。本节点自己的：
 
-- **AEV-1 标准 base64 的严格判定**：`payload_kind_mismatch` 要求「语音的片段不是标准 base64」即拒，`reduceFills` 也要先把各段解成字节；Node 的 `Buffer.from(s, "base64")` 对非法字符宽容、不报错。候选：先用正则核标准字母表与填充，再解码。Node 24 是否已带严格的 `Uint8Array.fromBase64`——**假设，须按 source-check 取证**（basis 无此条目；它是 Node 事实，不是 Cordis 语义）。owner：本节点落包时；[stream-assembly SA-2](../stream-assembly/design.md#实施缺口与消费者影响) 随之。
+- **AEV-1 标准 base64 的严格判定**：`payload_kind_mismatch` 要求「语音的片段不是标准 base64」即拒，`reduceFills` 也要先把各段解成字节；Node 的 `Buffer.from(s, "base64")` 对非法字符宽容、不报错。Node 24.18.0 的实际探针没有 `Uint8Array.fromBase64`／`toBase64`。采用标准字母表与填充完整匹配，再解码后按标准重新编码逐字比较，拒绝非法字符、填充及非零填充位（pad bits）；不能凭 Buffer 接受就放行。原始探针与正反／字节 oracle 随本包证据登记，不以方案采用声明验证已经完成。owner：本节点落包时；[stream-assembly SA-2](../stream-assembly/design.md#实施缺口与消费者影响) 随之。
