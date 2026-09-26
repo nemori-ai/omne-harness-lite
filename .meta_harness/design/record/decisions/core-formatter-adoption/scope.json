@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "reviewed_candidate_sha256": {
+    "unix-format/README.md": "7f4c0c46becbe7bb9f23958347c8a135e13254ceaf2e40b442f53c8041cce4d7",
+    "unix-format/bindings.yaml": "93a65898211c173a912cf275b7352529b5bc475394e9ca91c1a1c9cd91ea35f5",
+    "unix-format/design.md": "e9dca2df119e2282eaa885af6b1299d547a3f0405f81d92c8f61e6f550273e6f",
+    "unix-format/verification.md": "97bf1878a1351f1aef4f3981adc0cac49ef2a5be77c2bb41b1f61481a1f5635d",
+    "xml-format/README.md": "ad2f4828c38857525607dfaca22b5c6b7f7ef361136bdd5fd386dbb5beefd075",
+    "xml-format/bindings.yaml": "76912cd9fa10fb835bb5c2cab1430bfa2ad65e754e432880abca827845c77a56",
+    "xml-format/design.md": "46eae6575542326d2aee51406cc5180b9c0ccfa0ffbcc04847063a77a382d8df",
+    "xml-format/verification.md": "a65c1f5b758a7631da3f93298dfdcd6fc215ff53dcf314dc6142a9bcbef45ce9"
+  },
+  "source_commit": "d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac",
+  "technical_acceptor": "primary dispatcher under user delegation",
+  "implementation_accepted": false,
+  "human_overall_accepted": false
+}
