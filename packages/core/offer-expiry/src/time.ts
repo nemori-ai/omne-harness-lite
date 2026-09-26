@@ -65,9 +65,23 @@ export function instantFromRfc3339(value: unknown): Parsed<Instant> {
   return ok(Math.round(base + millis - offsetMs) as Instant)
 }
 
-/** 规范书写：UTC，毫秒精度，`Z` 结尾。 */
+/**
+ * 规范书写：通常为 UTC 三位毫秒；UTC 年界外采用合法偏移保留四位年。
+ * 无法在 RFC 3339 四位年范围表示时抛 RangeError，不夹紧或截断时间点。
+ */
 export function instantToRfc3339(instant: Instant): string {
-  return new Date(instant).toISOString()
+  const utc = new Date(instant)
+  const year = utc.getUTCFullYear()
+  if (year >= 0 && year <= 9999) return utc.toISOString()
+
+  const offsetMinutes = year < 0 ? 1439 : -1439
+  const local = new Date(instant + offsetMinutes * 60_000)
+  const localYear = local.getUTCFullYear()
+  if (!(localYear >= 0 && localYear <= 9999)) {
+    throw new RangeError('Instant: cannot be represented within the RFC 3339 four-digit year range')
+  }
+  const offset = year < 0 ? '+23:59' : '-23:59'
+  return `${local.toISOString().slice(0, -1)}${offset}`
 }
 
 export function compareInstants(a: Instant, b: Instant): -1 | 0 | 1 {
