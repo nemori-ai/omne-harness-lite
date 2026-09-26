@@ -1,6 +1,6 @@
 # 八份 v3 候选构造简报
 
-唯一工作位置：core-delivery HUB。职责：规格作者只构造本简报决定的语言无关承诺与精确采用，不实现／不接受／不改产品或统一语言。来源与选择已在 decision.md，不能自行补另一失败政策。
+工作位置：从 core-delivery HUB 固定基线派出的 core-delivery-spec-reconciliation spoke；HUB 仅由主调度集成。职责：规格作者只构造本简报决定的语言无关承诺与精确采用，不实现／不接受／不改产品或统一语言。来源与选择已在 decision.md，不能自行补另一失败政策。
 
 ## 固定输入与可写边界
 
