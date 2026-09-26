@@ -5,14 +5,14 @@ import { modelName, validate as validateTool } from '@omne-harness-lite/tool-def
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import { jsonValue, object } from './json.ts'
 import { validate, type SchemaDefName } from './schema.ts'
-import type { ActionEntryNameResult, McpJudgment, McpMalformedCode } from './types.ts'
+import type { ActionEntryNameResult, McpJudgment, McpMalformedCode, McpRejection } from './types.ts'
 
 const whitespace = new Set<number>(OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS)
 const accepted = Object.freeze({ ok: true } as const)
 function malformed(code: McpMalformedCode): McpJudgment {
   return Object.freeze({ rejected: 'malformed', malformed: code })
 }
-function rejected(value: Exclude<McpJudgment, { ok: true }>['rejected']): McpJudgment {
+function rejected(value: Exclude<McpRejection, 'malformed'> | 'name_invalid'): McpJudgment {
   return Object.freeze({ rejected: value })
 }
 function has(value: JsonObject, key: string): boolean {

@@ -11,6 +11,7 @@ import type {
   ActionSnapshot,
   OAuthBinding,
   McpDeclarations,
+  McpJudgment,
 } from '../src/index.ts'
 expectTypeOf<McpActionName>().toEqualTypeOf<ToolName>()
 expectTypeOf<McpEndpointName>().toEqualTypeOf<CapabilityName>()
@@ -60,3 +61,9 @@ declare const authoredBody: McpEndpoint
 // @ts-expect-error credentials have no place in the authored endpoint body
 const credentialBody: McpEndpoint = { ...authoredBody, credential: 'token' }
 void credentialBody
+// @ts-expect-error malformed always carries its M predicate diagnostic
+const noDiagnostic: McpJudgment = { rejected: 'malformed' }
+// @ts-expect-error M diagnostics cannot be attached to another rejection
+const wrongDiagnostic: McpJudgment = { rejected: 'url_invalid', malformed: 'M1' }
+void noDiagnostic
+void wrongDiagnostic

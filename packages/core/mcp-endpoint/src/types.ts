@@ -52,6 +52,10 @@ export type McpMalformedCode = `M${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
 /** name_invalid is carried from asset-model for base CapabilityName violations. */
 export type McpJudgment =
   | { readonly ok: true }
-  | { readonly rejected: McpRejection | 'name_invalid'; readonly malformed?: McpMalformedCode }
+  | { readonly rejected: 'malformed'; readonly malformed: McpMalformedCode }
+  | {
+      readonly rejected: Exclude<McpRejection, 'malformed'> | 'name_invalid'
+      readonly malformed?: never
+    }
 export type ActionEntryNameResult =
   { readonly ok: McpActionName } | { readonly notProjectable: true }
