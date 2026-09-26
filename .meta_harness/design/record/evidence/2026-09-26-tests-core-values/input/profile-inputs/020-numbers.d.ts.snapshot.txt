@@ -1,0 +1,6 @@
+import { type JsonNumber } from '@omne-harness-lite/content-blocks';
+export declare function isJsonInteger(value: unknown): value is JsonNumber;
+export declare function compareNumbers(left: JsonNumber, right: JsonNumber): -1 | 0 | 1;
+export declare function isPositiveInteger(value: unknown): value is JsonNumber;
+export declare function inRange(value: unknown, minimum: number, maximum: number, openMinimum?: boolean): boolean;
+//# sourceMappingURL=numbers.d.ts.map

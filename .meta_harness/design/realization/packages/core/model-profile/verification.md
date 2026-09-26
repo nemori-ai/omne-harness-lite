@@ -7,23 +7,37 @@
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |
 |---|---|---|---|
-| S-24、S-25 表示层校验与拒绝值次序 | `examples.md` 的正反实例逐条过 `judgeModelProfileDocument`；第 6 节四条次序回归例与第 10 节建档内容一条；包内 Schema 副本与 spec 逐字节相同 | 未开始 | 本节点：包内测试，CI 跑过、结果登记进 record/evidence 即闭合 |
-| S-18 `max_output_exceeds_profile`（Schema 之外那一步） | 单元检查：档案与建档内容两种文档各一正一反 | 未开始 | 本节点 |
-| S-28 建档内容不带在册状态与 `updatedAt`（M12） | 带了即 `malformed` | 未开始 | 本节点 |
-| S-14 引用只精确解析 | `refMatches`：名字对、所在范围不对 ⇒ 不匹配；官方支与自建支互不匹配 | 未开始 | 本节点（匹配那一半）；三种收场不折叠归目录 |
-| 对齐义务（`Modality` 只有一份定义） | 类型与 Schema 都从 content-blocks 取 `Modality` | 未开始 | 本节点 |
+| S-24、S-25 表示层校验与拒绝值次序 | `examples.md` 正反实例逐条过judge；第6节四条、第10节一条次序回归；Schema副本同字节 | **已通过**：185/185中155fixture、`M-FIRST`、`SCHEMA-BYTES`；[具名JSON](../../../../record/evidence/2026-09-26-tests-core-values/raw/model-profile/vitest.json)、[输入audit](../../../../record/evidence/2026-09-26-tests-core-values/audit.json) | 本节点；不证明真实接收／写入路径 |
+| S-18 `max_output_exceeds_profile`（Schema之外） | 档案与建档内容各一正一反 | **已通过**：`S18-ModelProfile`／`S18-ModelProfileContent`、`EXACT-LIMIT-*`；[原log](../../../../record/evidence/2026-09-26-tests-core-values/raw/model-profile/test.log)；显式断言Schema放行而完整judge拒绝 | 本节点；上游输出上限来源与发出留痕归runtime |
+| S-28 建档内容M12 | 带registration／updatedAt即malformed，含listed | **已通过**：`EX-10-*`含规范次序例；[原JSON](../../../../record/evidence/2026-09-26-tests-core-values/raw/model-profile/vitest.json) | 本节点纯输入判定；真实建档／清单invalidInput且无写入归目录 |
+| S-14 引用值精确匹配 | 名字对而scope／origin不对即不匹配 | **已通过**：`S14-MATCH`／`S14-SCOPE`、`TYPE-S13`与[HUB公开consumer](../../../../record/evidence/2026-09-26-tests-core-values/raw/hub/w2-model-profile-consumer-runtime.log) | custom分支显式给目录scope；boolean只答给定行是否匹配，三种目录收场未由本模块证明 |
+| Modality唯一定义 | type与Schema都取content-blocks | **已通过**：`TYPE-MODALITY-NUMBERS`／`EX-5.3-*`与153项[audit](../../../../record/evidence/2026-09-26-tests-core-values/audit.json) | 本节点 |
+| M36精确数字、参数与快照公开形状 | 原数字字面核整数、值域、跨字段关系，Schema视图不丢语义；快照只形状不重judge | **已通过**：`EXACT-INTEGER-ORACLE`固定seed20260926的64样本、`EXACT-PARAM*`／`EXACT-EXPONENT`／`EXACT-SNAPSHOT`与[JSON](../../../../record/evidence/2026-09-26-tests-core-values/raw/model-profile/vitest.json) | 有限数值与模块形状；每个外部JSON边界和原样快照写入归对应owner |
 
 **不在本节点**：撞名、在册转移、`updatedAt`、只发往允许的一家、不静默丢改、快照原样、缺席不补值等规范场景（模型档案目录与模型请求运行时）。
 
-**修订波（2026-09-25 公开面）**：design 新增「[公开面](design.md#公开面)」一节（[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)），只把既有入口归为公开函数面，不新增语义，上表证据义务不变；这一面成立的静态前提「本包源码不 import `@deepseek-ai/cordis`、`@omne-harness-lite/kernel-basis`、`@omne-harness-lite/storage` 与任何插件包」**规则尚无**（候选，本批十五个 `core` 纯模块共用一条，owner `tools/ts-checks`）。
+**公开面静态前提**：`core-pure-imports`规则已交付，[本次HUB24规则扫描](../../../../record/evidence/2026-09-26-tests-core-values/raw/hub/w2-purity-scan.log)对model-profile／asset-model真实源码无违反；本包还实际消费独立公开dist声明与runtime。扫描只支持该修订和登记语法范围，不替代消费者行为保证。
 
 ## 实际执行
 
-尚无。源码不存在。
+运行[`2026-09-26-tests-core-values`](../../../../record/evidence/2026-09-26-tests-core-values/README.md)：实现`cd67215b`、HUB merge`735ee728`；
+作者[build](../../../../record/evidence/2026-09-26-tests-core-values/raw/model-profile/build.log)／[typecheck](../../../../record/evidence/2026-09-26-tests-core-values/raw/model-profile/typecheck.log)／[test](../../../../record/evidence/2026-09-26-tests-core-values/raw/model-profile/test.log)
+与[HUB包原log](../../../../record/evidence/2026-09-26-tests-core-values/raw/hub/w2-model-profile-hub.log)各退出0，**185/185**、3文件、0失败／跳过。
+Node24.18.0／pnpm10.28.1／Vitest4.1.11／TypeScript6.0.3／Ajv8.20.0；155个冻结fixture参与，seed20260926的64个BigInt样本在一个测试内，不计成64独立测试。
+HUB先install产生dirtylock，实际锁与稍后aa7c3d33同字节；后续W1证据／锁提交不改产品，不称全程固定HEAD。
+
+HUB在aa7c3d33独立执行作者同字节[consumer](../../../../record/evidence/2026-09-26-tests-core-values/raw/hub/model-profile-consumer/consumer.mts)与[tsconfig](../../../../record/evidence/2026-09-26-tests-core-values/raw/hub/model-profile-consumer/tsconfig.json)，
+strict、skipLibCheck=false，[types原log](../../../../record/evidence/2026-09-26-tests-core-values/raw/hub/w2-model-profile-consumer-types.log)和[runtime原log](../../../../record/evidence/2026-09-26-tests-core-values/raw/hub/w2-model-profile-consumer-runtime.log)各0；类型stdout为空也不代替退出码，主调度实际exec结果另登记。
+当时只有3导航文件dirty，末尾才提交633b2019，产品／工具／配置未变。
+作者初始smoke原log保留，但新包写入与它并行发生，不作固定基线或本包验收；34阶段外skip不混入本包零skip。
+17原件与153输入逐hash核对，Schema副本及规范冻结相符；[逐项覆盖与owner](../../../../record/evidence/2026-09-26-tests-core-values/coverage.md)。本次通过不提升最终接受状态。
 
 ## 覆盖缺口
 
-- **契约的每一条都没有实现侧证据**：没有源码，空绑定表与此一致。owner：本节点。
+- 本模块声称的形状／词表／精确匹配／表示层面已有本次证据；空绑定表是无formal task，不表示无实现。
+- S-3同格判重原子性、S-10/11写入与时间、S-14三种读取收场与S-13持久／授权归目录及持有owner；未在本包演练。
+- S-5/6实际出站供应商、S-17无补值、S-21处置留痕、S-27打开调用时原样复制及每一处JSON传递归runtime／adapter。未访问OpenRouter或真实模型。
+- 数值oracle、纯性语法scan与外部dist消费者均是有界检查，不代表所有数值／交错／消费者符合。
 
 ## 独立评审
 

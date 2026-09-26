@@ -1,0 +1,21 @@
+export function testClock(start) {
+    let current = start;
+    let unavailable = false;
+    return {
+        get current() {
+            return current;
+        },
+        now() {
+            return unavailable ? 'unavailable' : current;
+        },
+        advance(ms) {
+            if (!Number.isInteger(ms) || ms < 0)
+                throw new RangeError(`testClock.advance: ms must be a non-negative integer, got ${ms}`);
+            current = (current + ms);
+        },
+        setUnavailable(value) {
+            unavailable = value;
+        },
+    };
+}
+//# sourceMappingURL=index.js.map

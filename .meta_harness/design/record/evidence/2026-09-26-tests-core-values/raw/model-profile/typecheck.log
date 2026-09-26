@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/model-profile@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-model-profile/packages/core/model-profile
+> tsc -p tsconfig.test.json
+

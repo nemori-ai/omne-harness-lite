@@ -1,0 +1,11 @@
+import { type JsonValue } from './json.ts';
+export declare const schemaId: string;
+export declare const SCHEMA_DEF_NAMES: readonly ["ContentBlock", "BlockBase", "TextBlock", "ThinkingBlock", "VoiceBlock", "ImageBlock", "FileBlock", "ToolCallBlock", "IncompleteToolCallBlock", "ToolResultBlock", "Visibility", "DerivedRendering", "AttachmentRef", "InlineBytes", "MediaType", "Modality", "ExecutionOutcome", "PlaceholderReason", "BlockId", "CallId", "CapabilityId", "ModelToolName"];
+export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number];
+export interface SchemaValidation {
+    readonly valid: boolean;
+}
+/** Schema only; cross-member constraints and rejection precedence belong to judgeContentBlock. */
+export declare function validate(defName: SchemaDefName, value: unknown): SchemaValidation;
+export declare function isObject(value: unknown): value is Record<string, JsonValue>;
+//# sourceMappingURL=schema.d.ts.map

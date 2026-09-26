@@ -1,0 +1,12 @@
+import { type ScopeLayerIdentity } from '@omne-harness-lite/identity-values';
+import type { ModelProfile, ModelProfileDocumentKind, ModelProfileJudgment, ModelProfileRef } from './types.ts';
+/** S-25: check all malformed conditions before any of the nine named predicates. */
+export declare function judgeModelProfileDocument(kind: ModelProfileDocumentKind, value: unknown): ModelProfileJudgment;
+export declare function refMatches(ref: Extract<ModelProfileRef, {
+    origin: 'official';
+}>, profile: ModelProfile): boolean;
+export declare function refMatches(ref: Extract<ModelProfileRef, {
+    origin: 'custom';
+}>, profile: ModelProfile, scope: ScopeLayerIdentity): boolean;
+export declare function refMatches(ref: ModelProfileRef, profile: ModelProfile, scope: ScopeLayerIdentity | undefined): boolean;
+//# sourceMappingURL=profile.d.ts.map
