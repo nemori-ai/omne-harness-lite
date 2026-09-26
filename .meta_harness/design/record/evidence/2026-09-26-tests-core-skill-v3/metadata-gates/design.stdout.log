@@ -1,0 +1,43 @@
+PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal registered  
+FORMAL organization-governance-v1-membership: registered; execution was not requested
+FORMAL account-registration-v1-basic: registered; execution was not requested
+FORMAL account-registration-v1-crash: registered; execution was not requested
+FORMAL account-registration-v1-progress: registered; execution was not requested
+FORMAL governance-center-entry-v1-decision: registered; execution was not requested
+FORMAL account-identity-v3-lifetime: registered; execution was not requested
+FORMAL account-identity-v3-commit: registered; execution was not requested
+FORMAL account-identity-v3-revision: registered; execution was not requested
+FORMAL offer-expiry-v2-settlement: registered; execution was not requested
+FORMAL organization-governance-v2-membership: registered; execution was not requested
+FORMAL account-registration-v2-basic: registered; execution was not requested
+FORMAL account-registration-v2-crash: registered; execution was not requested
+FORMAL account-registration-v2-progress: registered; execution was not requested
+FORMAL governance-center-entry-v2-decision: registered; execution was not requested
+FORMAL governance-center-entry-v2-commit: registered; execution was not requested
+FORMAL governance-center-entry-v2-expected-tenant: registered; execution was not requested
+FORMAL client-local-state-v1-choice: registered; execution was not requested
+FORMAL governance-client-operations-v1-lifecycle: registered; execution was not requested
+FORMAL governance-cli-entry-v1-exit: registered; execution was not requested
+FORMAL governance-client-operations-v2-prepared-input: registered; execution was not requested
+FORMAL governance-cli-entry-v2-tui-delivery: registered; execution was not requested
+FORMAL governance-center-entry-v3-decision: registered; execution was not requested
+FORMAL governance-center-entry-v3-commit: registered; execution was not requested
+FORMAL governance-center-entry-v3-expected-tenant: registered; execution was not requested
+FORMAL governance-center-entry-v3-maintenance-valid: registered; execution was not requested
+FORMAL governance-center-entry-v3-maintenance-progress: registered; execution was not requested
+FORMAL asset-transfer-v2-transfer: registered; execution was not requested
+FORMAL asset-transfer-v2-share: registered; execution was not requested
+FORMAL asset-transfer-v2-revival: registered; execution was not requested
+FORMAL stream-assembly-v2-assembly: registered; execution was not requested
+FORMAL model-request-runtime-v2-invocation: registered; execution was not requested
+FORMAL model-request-runtime-v2-invocation-no-fallback: registered; execution was not requested
+FORMAL tool-execution-runtime-v2-execution: registered; execution was not requested
+FORMAL tool-execution-runtime-v2-execution-progress: registered; execution was not requested
+FORMAL session-log-v2-appends: registered; execution was not requested
+FORMAL credential-custodian-v2-sweep: registered; execution was not requested
+FORMAL stream-assembly-v3-assembly: registered; execution was not requested
+PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/.meta_harness/design passed gate=internal; formal=registered.
+PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design 
+PASS: 228 个词条、42 条对象条目、8 项待裁，对账一致。
+PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/realization_nodes.py --root .meta_harness/design 
+PASS: 50 个实现映射节点（apps 2、packages 48），对账一致。

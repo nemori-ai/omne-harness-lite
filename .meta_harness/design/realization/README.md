@@ -256,3 +256,8 @@ D045扩展[协议客户端](packages/frontend/governance-center-client/README.md
 ## 2026-09-26 本轮 core 交付状态
 
 18 core和两util均已有实际源码，本轮HUB6496检查／独立20制品消费通过；当前217／221项由主调度按精确坐标接受，四项Skill SP3及人的总体门未签。Connector仅自身16项延期，不扩大到其他资产；六混合项只接受当前NonConnector部分。[实际源、原始证据、逐项范围与main继承失败](../record/evidence/2026-09-26-tests-core-final/README.md)是本轮进度入口；本文此前按日期保留，不能把旧“未实现／未开始”当现行进度，也不能把当前core通过推成全仓make通过。
+
+
+## 2026-09-26 core 最终签收与发布授权
+
+18 core与两util的本阶段责任已完成：当前221/221、U1另13项，由主调度技术签收；产品负责人给出的Skill完成后总体发布授权条件已满足。22包44份双语README、57个TS例子已验证。原217/221、SP3和人的总体门待签描述属于前一输入事件，由[当前运行与签收](../record/evidence/2026-09-26-tests-core-skill-v3/README.md)接续。Connector仅自身纵线延期，90外部义务及未来运行时未签；全仓make继承main三个失败，不是全仓绿灯。
