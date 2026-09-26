@@ -1,0 +1,60 @@
+import { type OpaqueIdentifier } from './opaque.ts';
+import { type Parsed } from './parsed.ts';
+/** 本模块的三个身份品牌，供消费者的静态检查引用；登录标识和交接凭证不是身份。 */
+export declare const IDENTITY_BRAND_NAMES: readonly ["AccountId", "OrganizationId", "LoginStateId"];
+/** 身份值类型包含三个品牌及两个结构身份（S-5、S-11）；不包含角色或成员效力。 */
+export declare const IDENTITY_TYPE_NAMES: readonly ["AccountId", "OrganizationId", "LoginStateId", "TenantId", "ScopeLayerIdentity"];
+export type AccountId = OpaqueIdentifier<(typeof IDENTITY_BRAND_NAMES)[0]>;
+export type OrganizationId = OpaqueIdentifier<(typeof IDENTITY_BRAND_NAMES)[1]>;
+export type LoginStateId = OpaqueIdentifier<(typeof IDENTITY_BRAND_NAMES)[2]>;
+/** 登录标识是账号的一项属性，不是它的标识（S-2）；品牌不同，与 AccountId 不相容。 */
+export type LoginIdentifier = OpaqueIdentifier<'LoginIdentifier'>;
+export declare const parseAccountId: (value: unknown) => Parsed<AccountId>;
+export declare const parseOrganizationId: (value: unknown) => Parsed<OrganizationId>;
+export declare const parseLoginStateId: (value: unknown) => Parsed<LoginStateId>;
+export declare const parseLoginIdentifier: (value: unknown) => Parsed<LoginIdentifier>;
+export declare const ORGANIZATION_KINDS: readonly ["personal", "team"];
+export type OrganizationKind = (typeof ORGANIZATION_KINDS)[number];
+export declare const TENANT_ROLES: readonly ["superAdministrator", "member"];
+export type TenantRole = (typeof TENANT_ROLES)[number];
+export declare const parseOrganizationKind: (value: unknown) => Parsed<OrganizationKind>;
+export declare const parseTenantRole: (value: unknown) => Parsed<TenantRole>;
+/**
+ * 值类型，由 (OrganizationId, AccountId) 有序对确定；不含角色、不含效力、不含时间；
+ * 没有生成路径也没有销毁路径。
+ */
+export interface TenantId {
+    readonly organization: OrganizationId;
+    readonly account: AccountId;
+}
+/** 两个分量均必需（S-12），不得用环境值补齐；多余成员一律拒绝（S-7）。 */
+export declare function parseTenantId(value: unknown): Parsed<TenantId>;
+/** 相等按分量（S-5），不存在第三种相等依据。 */
+export declare function tenantIdEquals(a: TenantId, b: TenantId): boolean;
+/**
+ * S-7 的唯一规范序列化形式：两个成员、固定键序、无多余成员。
+ * 这是交换表示，不是标量键——本版不给标量键（G-05）。
+ */
+export declare function toCanonicalJson(tenant: TenantId): string;
+export type MembershipStanding = {
+    readonly standing: 'effective';
+    readonly role: TenantRole;
+} | {
+    readonly standing: 'ineffective';
+};
+/** 读面的操作结果：效力值，或「这一次判不出来」。恰两支；`invalidInput` 不在其中（S-33）。 */
+export type MembershipStandingResult = MembershipStanding | {
+    readonly failure: 'unavailable';
+};
+export declare function parseMembershipStanding(value: unknown): Parsed<MembershipStanding>;
+export declare function parseMembershipStandingResult(value: unknown): Parsed<MembershipStandingResult>;
+/** 恰两个变体；`session`、`workspace`、`account`、`factoryDefault` 在类型层面不存在。 */
+export type ScopeLayerIdentity = {
+    readonly layer: 'organization';
+    readonly organization: OrganizationId;
+} | {
+    readonly layer: 'tenant';
+    readonly tenant: TenantId;
+};
+export declare function parseScopeLayerIdentity(value: unknown): Parsed<ScopeLayerIdentity>;
+//# sourceMappingURL=values.d.ts.map

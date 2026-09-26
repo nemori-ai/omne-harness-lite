@@ -14,6 +14,8 @@
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——本契约没有已登记的 formal task。证据义务见 [verification.md](verification.md)：契约 `examples.md` 参与机检的 86 行正反实例、S-35 四类反例、Schema 副本逐字节相同，都由包内测试承担，运行结果登记在那里的「实际执行」
 - 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：实现 `efe73eb5`、HUB `f73078ba`，build／typecheck 退出 0，**259/259**，另有 built exports 外部消费者与六组织 Alloy 输出的有界对照。SC-1／SC-2／SC-9 规则形式已实现并有正反例；checks 最终 HUB **100/100**、24-rule scan。SC-1 当前真实准入覆盖 **0**，SC-2／SC-9 只覆盖登记语法形状；租户隔离与消费者完整义务保持在各 owner。前提、原始输出与历史范围见 [verification.md](verification.md#本次追加验证2026-09-26)
 
+- 本轮公开验证：另见 [`2026-09-26-tests-core-public`](../../../../record/evidence/2026-09-26-tests-core-public/README.md)：值相等／品牌、闭合输入与带内失败、显式上级快照、warrant 四项子场景及两组严格类型反例，同一 HUB 外层12/12、零跳过；按本节点 [公开追加验证](verification.md#公开消费者追加验证2026-09-26) 的条款与边界读取。具名类型完整名单与三个 opaque 品牌互赋负例尚待后续实际运行；本轮不提升整体完成或最终接受。
+
 ## 按当前问题展开
 
 | 当前问题                                         | 阅读入口                            |

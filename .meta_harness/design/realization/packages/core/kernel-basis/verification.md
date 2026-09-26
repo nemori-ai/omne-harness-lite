@@ -41,6 +41,14 @@
 checks 最新 [100/100 与 24-rule scan](../../../../record/evidence/2026-09-26-tests-core-foundation/raw/hub/w1-checks-path-hub.log) 含 no-testing-import 自测与真实源码扫描。
 没有改产品内核、强设状态或运行内核源码变异，也不闭合 D-042 后来新增的其它 probe 义务。
 
+## 公开消费者追加验证（2026-09-26）
+
+`w1.kernel.outcome-public`、`w1.kernel.public-lifecycle`、`w1.kernel.public-assembly-cleanup` 三个固定子场景通过，`w1.types.kernel.outcome-public` 核公开声明的 Config 推导、Outcome／Ack 成败互斥。实际 Cordis 4.0.4 下非法 config 使 FAILED 且 apply 0 次，合法 apply 1 次；dispose 后 optional 不可用；第三个插件失败以同一错误拒绝，两个已装插件逆序清理、服务消失。
+
+`w1.consumer.adopted-dependency-exceptions` 核 root source／声明只含 Cordis／Standard Schema 类型，root JS 没有外部运行时依赖，批准 testing JS 只含 Cordis；AST 控制反例另过。Outcome 错误预期控制只把 42 改成 0，实际仅目标 AssertionError 失败、13 项通过、进程退出1且无超时／信号。它证一个错误 oracle 可被发现，不是内核变异或所有交错证明；旧 30 probe 结果没有在本 run 重跑。
+
+原始 [正常 Node report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json)、[负向 report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__negative-WagReR__report.json)、[HUB build／typecheck／12/12 log](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__core-delivery__w1-public-consumers-hub.log)、[逐项条款对应](../../../../record/evidence/2026-09-26-tests-core-public/coverage.md)与[实际源码／配置／环境](../../../../record/evidence/2026-09-26-tests-core-public/README.md)分别保留。工具源码5140574b，HUB起点e0b6c212加当时未提交且与dc431fdf同字节的lock；期间文档提交不改变本轮产品／工具／配置。子场景不叠加进外层测试数，六组类型只覆盖具体断言。测试通过不提升语义接受或用户最终接受。
+
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据：

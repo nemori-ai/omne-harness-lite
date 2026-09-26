@@ -1,0 +1,49 @@
+import { type KeyObject } from 'node:crypto';
+import { type OpaqueIdentifier } from './opaque.ts';
+import { type Parsed } from './parsed.ts';
+import { type AccountId } from './values.ts';
+/**
+ * 交接凭证（data.identity-values/v1#S-35）：一步操作交给下一步的凭证，断言「我这一步已经做完」。
+ * 不是身份值；交换表示与不透明标识同形（非空、首尾无空白、逐码点相等）。
+ *
+ * 本版走签名（Ed25519，Node 内置 crypto）：产出方持私钥、核实方持公钥；`purpose` 进载荷，
+ * 两个实例（`activation`、`purge`）各一对密钥。凭证不作废、不带尝试号、不带有效期（性质 4）。
+ * 核实方只核三件：存在、绑定该 AccountId、由持钥方签发（性质 5）；不解析别的领域事实（性质 6）。
+ */
+export type HandoffWarrant = OpaqueIdentifier<'HandoffWarrant'>;
+export type WarrantPurpose = 'activation' | 'purge';
+export declare const parseHandoffWarrant: (value: unknown) => Parsed<HandoffWarrant>;
+/** 密钥是部署配置输入：PEM 字符串（私钥 PKCS#8、公钥 SPKI），一次生成、持久保存、跨重启不变。 */
+export interface HandoffKeyPairPem {
+    readonly privateKeyPem: string;
+    readonly publicKeyPem: string;
+}
+export declare function generateHandoffKeyPair(): HandoffKeyPairPem;
+export type SigningKey = KeyObject & {
+    readonly __handoffSigning?: never;
+};
+export type VerificationKey = KeyObject & {
+    readonly __handoffVerification?: never;
+};
+/** 装载时校验形状：不是 Ed25519 私钥即拒绝，持钥节点据此启动失败。 */
+export declare function loadSigningKey(privateKeyPem: unknown): Parsed<SigningKey>;
+export declare function loadVerificationKey(publicKeyPem: unknown): Parsed<VerificationKey>;
+/**
+ * 产出一份绑定 `boundAccountId` 与 `purpose` 的凭证。随机数只保证两份凭证不同形，不构成状态。
+ */
+export declare function issue(signingKey: SigningKey, purpose: WarrantPurpose, boundAccountId: AccountId): HandoffWarrant;
+export type WarrantVerification = 'ok' | 'invalid';
+/**
+ * 核实三件事：存在（形状合法）、绑定该 AccountId 与 purpose、由持有配对私钥的一方签发。
+ * 任一不满足一律 `'invalid'`，不区分原因——区分原因会诱使核实方按原因分支。
+ */
+export declare function verifyWarrant(verificationKey: VerificationKey, purpose: WarrantPurpose, expectedAccountId: AccountId, warrant: unknown): WarrantVerification;
+export declare const handoffWarrant: {
+    readonly issue: typeof issue;
+    readonly verify: typeof verifyWarrant;
+    readonly generateKeyPair: typeof generateHandoffKeyPair;
+    readonly loadSigningKey: typeof loadSigningKey;
+    readonly loadVerificationKey: typeof loadVerificationKey;
+    readonly parse: (value: unknown) => Parsed<HandoffWarrant>;
+};
+//# sourceMappingURL=handoff-warrant.d.ts.map

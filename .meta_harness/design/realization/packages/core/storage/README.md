@@ -12,6 +12,8 @@
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——没有契约条款可绑；本包的测试与套件都不是对某条契约的证据。一致性套件的通过是**提供者节点**的证据（它跑套件），不是本节点的绑定；每条用例的义务登记在 [verification.md](verification.md)
 - 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：开发工具 `247fc9e2` 在 HUB 的真实 SQLite 套件正常 **19/19**；关闭外键后 **17 通过、仅 C-11/C-12 失败**，外层有效性自测 **2/2**。记录的是完整保留的 HUB 运行，原 spoke ignored 日志丢失，未用摘要冒充原件。本次不复跑 pg、包内 runtime 测试或跨进程持久；各项与历史证据见 [verification.md](verification.md#本次追加验证2026-09-26)
 
+- 本轮公开验证：另见 [`2026-09-26-tests-core-public`](../../../../record/evidence/2026-09-26-tests-core-public/README.md)：错误映射／有序迁移两项子场景、协议／只读预检类型组、批准依赖图及真实 SQLite 套件正反复验，同一 HUB 外层12/12、零跳过；按本节点 [公开追加验证](verification.md#公开消费者追加验证2026-09-26) 的条款与边界读取。具名类型完整名单与三个 opaque 品牌互赋负例尚待后续实际运行；本轮不提升整体完成或最终接受。
+
 ## 按当前问题展开
 
 | 当前问题                                                                                                | 阅读入口                            |

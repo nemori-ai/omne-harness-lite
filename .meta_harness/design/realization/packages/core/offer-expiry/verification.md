@@ -36,6 +36,14 @@ checks 最终修订 `46be3697`、HUB `59669096` 的 [100/100 与 24-rule scan](.
 原 98 条运行同样保留，未改写旧结果。测试输入时间与 testClock 是替身，未运行真实邀约写路径或实际时间源。
 [逐项覆盖](../../../../record/evidence/2026-09-26-tests-core-foundation/coverage.md#packagescoreoffer-expiry) 只覆盖本包纯函数、解析器、形状与语法规则。
 
+## 公开消费者追加验证（2026-09-26）
+
+`w1.offer.public-time-shape`、`w1.offer.public-evaluation-order` 两项通过，补 S-4／14／22 的 RFC3339 相等、非法 ttl 带内拒绝、形状与跨字段语义区分，以及 S-8／13／20 的相等截止仍 pending、严格晚才 expired、不可用先于不存在、终结状态优先。`w1.types.offer.derived-state-and-clock` 核状态集合、品牌时刻、Clock 返回形状与 readonly 负例；readonly 不是 runtime 深冻结。
+
+HUB 起点 `e0b6c212` 已含产品 `3a8b2117` 日历解析修正，与 worker `5b3014f8` 的旧输入分开保存。本轮公开消费者没有穷尽 formatter／历法输入，不借本结果声称新的 parser 71 项或包测试 306 项已经重跑。实际 Clock 同源、五行装配保证、存在性读面、同提交求值与持久化终结写路径仍由各消费者／装配提供证据。
+
+原始 [正常 Node report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json)、[负向 report](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__w1-public-consumers__negative-WagReR__report.json)、[HUB build／typecheck／12/12 log](../../../../record/evidence/2026-09-26-tests-core-public/raw/hub/tmp__core-delivery__w1-public-consumers-hub.log)、[逐项条款对应](../../../../record/evidence/2026-09-26-tests-core-public/coverage.md)与[实际源码／配置／环境](../../../../record/evidence/2026-09-26-tests-core-public/README.md)分别保留。工具源码5140574b，HUB起点e0b6c212加当时未提交且与dc431fdf同字节的lock；期间文档提交不改变本轮产品／工具／配置。子场景不叠加进外层测试数，六组类型只覆盖具体断言。测试通过不提升语义接受或用户最终接受。
+
 ## 覆盖缺口
 
 按上面这次 run 的对应清单，本节点还缺的证据：

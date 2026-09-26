@@ -12,6 +12,8 @@
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——没有契约条款可绑；probe 的登记位置是 basis 条目的 `probe` 字段而不是绑定表，共用件的单元测试是本包自己的测试而不是对某条契约的证据。证据义务与状态在 [verification.md](verification.md)
 - 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：HUB `0e39dc26` 的 build／typecheck／test 退出 0，Cordis **4.0.4** 上 **30/30**。源码提交 `1a229204` 只追加三份 probe，核真实 UNLOADING、子 isolate 属性读取抛错与 optional 中间态过滤；get 的严格／非严格差异及边界见 [verification.md](verification.md#本次追加验证2026-09-26)。此前 [2026-09-23 run](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) 保留其历史范围；不推断其他 Cordis 版本，也不提升最终接受状态
 
+- 本轮公开验证：另见 [`2026-09-26-tests-core-public`](../../../../record/evidence/2026-09-26-tests-core-public/README.md)：真实 Node 公共入口的 Outcome、配置失败／有效 apply、dispose 与部分装配逆序清理三项子场景；Config／Outcome 严格类型组；root source／声明／JS 与 testing 的批准依赖图，同一 HUB 外层12/12、零跳过；按本节点 [公开追加验证](verification.md#公开消费者追加验证2026-09-26) 的条款与边界读取。具名类型完整名单与三个 opaque 品牌互赋负例尚待后续实际运行；本轮不提升整体完成或最终接受。
+
 ## 按当前问题展开
 
 | 当前问题                                                                                    | 阅读入口                            |
