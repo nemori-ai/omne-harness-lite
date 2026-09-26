@@ -1,0 +1,9 @@
+{
+  "HUB_before": "98462a0b62dff8fc48f407076090eb22a6633d04",
+  "file": "packages/core/mcp-endpoint/tests/body-resource.spec.ts",
+  "before_sha256": "98b79c2e37c4f0900d1b048d81b26c789578db89a6f665a1d61338110fdb5964",
+  "after_sha256": "9b765d92ca2abfa240d694a32f98d7d9fbf6b24acb5d539cc7bdfff1df28b734",
+  "authority": "Current public createAssetModelJudge uses AM3 frozen AssetContent reference to LoopExtensionDefinition3; this integration fixture calls that current consumer, otherPort deliberately supplies only resources.",
+  "exact_fix": "Only test loop resource coordinate2->3; current Tool3, retained Skill2/Slash2 and frozen Connector2 resource retained.",
+  "unchanged": "MCP accepted2 schema/product code, test assertions, scope and known SP3/Connector gaps"
+}
