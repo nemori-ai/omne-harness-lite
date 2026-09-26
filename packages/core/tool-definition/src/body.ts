@@ -4,10 +4,14 @@ import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import { isToolDefinition, judgeToolDefinition } from './judge.ts'
 import { toolAttributeDeclarations, toolReferences } from './declarations.ts'
 import { SCHEMA_DEF_NAMES, validate } from './schema.ts'
+import { copyJson, object } from './json.ts'
+
+const resource = copyJson(schema)
+if (!object(resource)) throw new Error('owned tool Schema resource is not an object')
 
 export const toolBodyContract: BodyContract<'tool'> = Object.freeze({
   category: 'tool',
-  schema,
+  schema: resource,
   judge(body: unknown, context?: BodyJudgeContext) {
     if (context?.definition !== undefined) {
       const definition = SCHEMA_DEF_NAMES.find(name => name === context.definition)
