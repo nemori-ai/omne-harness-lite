@@ -144,8 +144,17 @@ export interface BodyJudgeContext {
   readonly definition?: string
 }
 export type BodyJudgment = { readonly ok: true } | { readonly rejected: string }
-export type DeclarationResult<C extends AssetCategory = AssetCategory> =
-  { readonly declarations: readonly AttributeDeclaration[] } | { readonly underivable: C }
+export type DeclarationResult<C extends AssetCategory = AssetCategory> = C extends 'mcp'
+  ? {
+      readonly declarations: readonly AttributeDeclaration[]
+      /** Own property, including undefined when the optional snapshot was not supplied. */
+      readonly actionSnapshotKind: 'fetched' | 'not_fetched' | undefined
+    }
+  : | {
+        readonly declarations: readonly AttributeDeclaration[]
+        readonly actionSnapshotKind?: never
+      }
+    | { readonly underivable: C; readonly actionSnapshotKind?: never }
 /** Category is a literal discriminant, so a tool implementation cannot occupy the skill slot. */
 export interface BodyContract<C extends BodyCategory> {
   readonly category: C

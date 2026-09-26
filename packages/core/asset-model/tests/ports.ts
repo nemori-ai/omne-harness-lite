@@ -35,7 +35,10 @@ function resource(topic: string): JsonObject {
   return parsed.ok
 }
 /** W2 protocol doubles, intentionally not implementations of the six full body contracts. */
-function port<C extends BodyCategory>(category: C, topic: string): BodyContract<C> {
+function port<C extends BodyCategory>(
+  category: C,
+  topic: string,
+): Omit<BodyContract<C>, 'deriveDeclarations'> {
   function judge(body: unknown, context?: BodyJudgeContext): BodyJudgment {
     if (!object(body)) return { rejected: 'malformed' }
     const name = context?.capabilityName
@@ -92,16 +95,29 @@ function port<C extends BodyCategory>(category: C, topic: string): BodyContract<
     category,
     schema: resource(topic),
     judge,
-    deriveDeclarations: () => ({ declarations: [] }),
     references: () => [],
   }
 }
 export const bodies: BodyContracts = {
-  tool: port('tool', 'tool-definition'),
-  loop_extension: port('loop_extension', 'loop-extension'),
-  skill: port('skill', 'skill-package'),
-  mcp: port('mcp', 'mcp-endpoint'),
-  slash_command: port('slash_command', 'slash-command'),
+  tool: { ...port('tool', 'tool-definition'), deriveDeclarations: () => ({ declarations: [] }) },
+  loop_extension: {
+    ...port('loop_extension', 'loop-extension'),
+    deriveDeclarations: () => ({ declarations: [] }),
+  },
+  skill: { ...port('skill', 'skill-package'), deriveDeclarations: () => ({ declarations: [] }) },
+  mcp: {
+    ...port('mcp', 'mcp-endpoint'),
+    deriveDeclarations: (_body, snapshot) => {
+      if (snapshot === undefined) return { declarations: [], actionSnapshotKind: undefined }
+      if (!object(snapshot) || (snapshot.kind !== 'fetched' && snapshot.kind !== 'not_fetched'))
+        throw new TypeError('expected explicit snapshot discriminant')
+      return { declarations: [], actionSnapshotKind: snapshot.kind }
+    },
+  },
+  slash_command: {
+    ...port('slash_command', 'slash-command'),
+    deriveDeclarations: () => ({ declarations: [] }),
+  },
   connector: {
     ...port('connector', 'connector'),
     deriveDeclarations: () => ({ underivable: 'connector' }),
