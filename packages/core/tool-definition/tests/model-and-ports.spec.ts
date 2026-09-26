@@ -8,6 +8,7 @@ import {
   judgeToolDefinition,
   judgeToolReturn,
   modelInput,
+  modelEntry,
   modelName,
   toolResultOf,
   toolAttributeDeclarations,
@@ -128,6 +129,38 @@ describe('model values, parameter authority, and body ports', () => {
         rejected: 'malformed',
         malformed: 'M25',
       })
+    for (const [source, encoded] of [
+      ['a_b', 'a_b'],
+      ['a:b', 'a__b'],
+      ['a::b', 'a____b'],
+    ] as const) {
+      expect(modelName(source)).toBe(encoded)
+      expect(definitionNameOf(encoded)).toBe(source)
+    }
+    // A three-underscore output would require one of the forbidden source adjacencies.
+    for (const source of ['a_:b', 'a:_b'])
+      expect(judgeToolDefinition({ ...baseline, name: source })).toEqual({
+        rejected: 'name_reserved_sequence',
+      })
+  })
+  it('S8 definition help remains authored data and never becomes a model command', () => {
+    const single = requireDefinition({ ...baseline, help: 'single help' })
+    const helped = requireDefinition({
+      ...multi,
+      help: 'tool help',
+      commands: {
+        list: {
+          description: 'list',
+          help: 'command help',
+          input: { type: 'object', properties: {} },
+        },
+      },
+    })
+    expect(single.help).toBe('single help')
+    expect(helped.help).toBe('tool help')
+    expect(modelEntry(single)).toEqual(modelEntry(baseline))
+    expect(modelEntry(helped)).not.toHaveProperty('help')
+    expect(modelInput(helped)).toMatchObject({ properties: { command: { enum: ['list'] } } })
   })
   it('V5 local bare text conversion takes runtime id, does not parse JSON, invent raw or outcome', () => {
     const value = '{"content":[],"outcome":"failed"}'
@@ -139,6 +172,11 @@ describe('model values, parameter authority, and body ports', () => {
           visibility: { toHuman: true, toModel: true },
           text: value,
         },
+      ],
+    })
+    expect(toolResultOf('', id('empty-text'))).toEqual({
+      content: [
+        { id: 'empty-text', kind: 'text', visibility: { toHuman: true, toModel: true }, text: '' },
       ],
     })
     const structured = {
@@ -172,6 +210,24 @@ describe('model values, parameter authority, and body ports', () => {
     expect(toolReferences(rich)).toEqual([{ category: 'skill', name: 'chart-style-guide' }])
     expect(toolAttributeDeclarations(requireDefinition(frozen.definitions[3]))).toEqual([])
   })
+  it('public derived values are deeply immutable snapshots without freezing caller input', () => {
+    const raw = structuredClone(frozen.definitions[4])
+    if (raw === undefined) throw new Error('missing rich definition fixture')
+    const d = requireDefinition(raw)
+    const input = modelInput(d)
+    const declarations = toolAttributeDeclarations(d)
+    expect(Object.isFrozen(input)).toBe(true)
+    expect(Object.isFrozen(input.properties)).toBe(true)
+    expect(Object.isFrozen(raw.input)).toBe(false)
+    const target = declarations.find(value => value.item === 'targetEnvironment')
+    expect(Object.isFrozen(target?.domain)).toBe(true)
+    expect(Object.isFrozen(target?.default)).toBe(true)
+    expect(Object.isFrozen(toolBodyContract.schema)).toBe(true)
+    expect(Object.isFrozen(raw.settings?.targetEnvironment?.default.facilities)).toBe(false)
+    expect(() => Reflect.set(input, 'type', 'array')).not.toThrow()
+    expect(Reflect.set(input, 'type', 'array')).toBe(false)
+    expect(modelInput(d)).toEqual(raw.input)
+  })
   it('AM tool port uses real valid body, actual category context, and fixed definition domains', () => {
     expect(toolBodyContract.judge(rich, { capabilityName: rich.name })).toEqual({ ok: true })
     expect(toolBodyContract.judge(rich, { capabilityName: 'other' })).toEqual({
@@ -200,6 +256,8 @@ describe('model values, parameter authority, and body ports', () => {
     ])
     expect(rich.settings?.targetEnvironment?.default.bindingLayer).toBe('session_sandbox')
     expect(toolDependencies(baseline, undefined)).toEqual([])
+    const named = requireDefinition({ ...rich, name: 'looks-like-service:artifact-store' })
+    expect(toolDependencies(named, effective)).toEqual(toolDependencies(rich, effective))
     expect(() => toolDependencies(rich, undefined)).toThrow(TypeError)
     expect(() => toolDependencies(baseline, effective)).toThrow(TypeError)
   })

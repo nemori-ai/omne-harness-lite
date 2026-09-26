@@ -15,11 +15,14 @@ export function toolAttributeDeclarations(
       item: 'targetEnvironment',
       kind: 'setting',
       category: 'placement_identity',
-      domain: { kind: 'open', schema: { $ref: `${id}#/$defs/TargetEnvironment` } },
-      default: {
+      domain: Object.freeze({
+        kind: 'open',
+        schema: Object.freeze({ $ref: `${id}#/$defs/TargetEnvironment` }),
+      }),
+      default: Object.freeze({
         bindingLayer: settings.targetEnvironment.default.bindingLayer,
-        facilities: settings.targetEnvironment.default.facilities,
-      },
+        facilities: Object.freeze([...settings.targetEnvironment.default.facilities]),
+      }),
     })
   for (const item of ['backgroundThreshold', 'timeout'] as const) {
     const declaration = settings?.[item]
@@ -28,7 +31,10 @@ export function toolAttributeDeclarations(
         item,
         kind: 'setting',
         category: 'preference',
-        domain: { kind: 'open', schema: { $ref: `${id}#/$defs/Duration` } },
+        domain: Object.freeze({
+          kind: 'open',
+          schema: Object.freeze({ $ref: `${id}#/$defs/Duration` }),
+        }),
         default: declaration.default,
       })
   }
@@ -37,13 +43,16 @@ export function toolAttributeDeclarations(
       item: 'concurrency',
       kind: 'setting',
       category: 'preference',
-      domain: { kind: 'open', schema: { type: 'integer', minimum: 1 } },
+      domain: Object.freeze({
+        kind: 'open',
+        schema: Object.freeze({ type: 'integer', minimum: 1 }),
+      }),
       default: settings.concurrency.default,
     })
   declarations.push({
     item: 'execute',
     kind: 'permission',
-    domain: { kind: 'enum', values: ['forbid', 'auto', 'ask'] },
+    domain: Object.freeze({ kind: 'enum', values: Object.freeze(['forbid', 'auto', 'ask']) }),
     default: definition.permissions.execute.default,
   })
   return Object.freeze(declarations.map(value => Object.freeze(value)))
