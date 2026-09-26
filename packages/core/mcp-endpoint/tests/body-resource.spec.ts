@@ -9,10 +9,10 @@ import {
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import schema from '@omne-harness-lite/mcp-endpoint/schema' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
-import loopSchema from '../../../../.meta_harness/design/spec/data/loop-extension/v1/loop-extension.schema.json' with { type: 'json' }
-import skillSchema from '../../../../.meta_harness/design/spec/data/skill-package/v1/skill-package.schema.json' with { type: 'json' }
-import slashSchema from '../../../../.meta_harness/design/spec/data/slash-command/v1/slash-command.schema.json' with { type: 'json' }
-import connectorSchema from '../../../../.meta_harness/design/spec/data/connector/v1/connector.schema.json' with { type: 'json' }
+import loopSchema from '../../../../.meta_harness/design/spec/data/loop-extension/v2/loop-extension.schema.json' with { type: 'json' }
+import skillSchema from '../../../../.meta_harness/design/spec/data/skill-package/v2/skill-package.schema.json' with { type: 'json' }
+import slashSchema from '../../../../.meta_harness/design/spec/data/slash-command/v2/slash-command.schema.json' with { type: 'json' }
+import connectorSchema from '../../../../.meta_harness/design/spec/data/connector/v2/connector.schema.json' with { type: 'json' }
 import { mcpBodyContract, schemaId } from '../src/index.ts'
 
 /** Only the MCP port is real: other categories supply resources and must never run. */
