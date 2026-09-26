@@ -1,5 +1,8 @@
 # hooks-import
 
+**2026-09-26 裁决对账**：[D-044 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+
+
 - kind：`provider`
 - 对象与设计修订：状态 `candidate`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.hooks-import · v1`（[契约](../../../../spec/capabilities/hooks-import/v1/contract.md)，状态 `candidate`、未冻结）。落在 `agent-loop` 领域是 [D-039](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 接受的 tools 拆分候选 C（草图里写作 `hooks-compat`，节点名以本批裁定为准）；fork 边界是 [D-033](../../../../record/decisions/hooks-compat-baseline/decision.md#选择与范围)
 - 源码位置：`packages/agent-loop/hooks-import`——尚未建包。第二层 `agent-loop` 由 D-039 拍板，布局见[两层布局](../../../README.md#packages-的两层布局)
@@ -9,7 +12,7 @@
 ## 分层状态
 
 - 语义接受范围：未接受（候选，待 [D-041](../../../../record/decisions/assets-runtimes-contract-acceptance/README.md)）
-- 可实施范围：声称兑现 S-5～S-15（来源与方言、一条 command 一件、能力标识、干预力、工作区来源、兼容件载荷、导入与报告）、S-16～S-24（被调到时与两张映射表）、S-25、S-26 左列、S-27，逐条落点见 [design.md](design.md#操作落点)。**尚未建包，fork 尚未做，没有任何实现。**受阻（[缺口](design.md#实施缺口与消费者影响)）：执行环境**接口已定、真承接者未到**（`capability.execution-environments` v1；最小提供者节点 `execution-environments-host` 已立，本版只进验收装配），但**本版 fail-closed**——拓展件子进程的宿主机允许产品没给（execution-environments G-3，账本 ⑭），`startProcess` 恒答 `noLanding{hostNotAllowed}`，每一件兼容件都「起不来」、按声明跳过（HI-N1）；子进程的工作目录与白名单变量没有来路（契约 G-15，HI-N7；交不出工作目录即起不来）；两家的解释器是契约引研究原文的待核对主张、basis 无条目（HI-N8）；函数层没有契约条款（HI-N9）；DSH 的许可与来历未核（HI-N3）；D-033 的 A／C 区分实验未跑（HI-N4）。HI-N2、HI-N6 已随 D-040 §八 M38、M39 闭合；HI-N10、HI-N11 已随契约 2026-09-25 第二轮修订闭合（S-19 退出码按来源产品语义；`EnvAllowlist` 定于 execution-environments S-13）。2026-09-25 修订波（公开面；N-37 ⑩ 四处）：处置见 [verification](verification.md#修订波2026-09-25-公开面)
+- 可实施范围：声称兑现 S-5～S-15（来源与方言、一条 command 一件、能力标识、干预力、工作区来源、兼容件载荷、导入与报告）、S-16～S-24（被调到时与两张映射表）、S-25、S-26 左列、S-27，逐条落点见 [design.md](design.md#操作落点)。**尚未建包，fork 尚未做，没有任何实现。**受阻（[缺口](design.md#实施缺口与消费者影响)）：执行环境**接口已定、真承接者未到**（`capability.execution-environments` v1；最小提供者节点 `execution-environments-host` 已立，本版只进验收装配），但**产品装配未交入允许时 fail-closed**——拓展件子进程的宿主机允许产品已给、装配尚未接入（execution-environments G-3，账本 ⑭），产品装配未交入允许时，`startProcess` 答 `noLanding{hostNotAllowed}`，每一件兼容件都「起不来」、按声明跳过（HI-N1）；子进程的工作目录与白名单变量没有来路（契约 G-15，HI-N7；交不出工作目录即起不来）；两家的解释器是契约引研究原文的待核对主张、basis 无条目（HI-N8）；函数层没有契约条款（HI-N9）；DSH 的许可与来历未核（HI-N3）；D-033 的 A／C 区分实验未跑（HI-N4）。HI-N2、HI-N6 已随 D-040 §八 M38、M39 闭合；HI-N10、HI-N11 已随契约 2026-09-25 第二轮修订闭合（S-19 退出码按来源产品语义；`EnvAllowlist` 定于 execution-environments S-13）。2026-09-25 修订波（公开面；N-37 ⑩ 四处）：处置见 [verification](verification.md#修订波2026-09-25-公开面)
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **空表**——契约 S-28 不选用形式工件；证据形式是规范场景 S-29～S-36 与每行映射的测试，都没有实现可跑，登记在 [verification.md](verification.md#证据义务)
 - 实际验证：无
 

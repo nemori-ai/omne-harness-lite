@@ -2,7 +2,7 @@
 
 - kind：`provider`
 - 对象与设计修订：状态 `candidate`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.run-attempt-facts · v1`（[契约](../../../../spec/capabilities/run-attempt-facts/v1/contract.md)，状态 `candidate`，未接受、未冻结）的**全部条款**（S-5～S-12，一个读），作为它第十一节说的「本版的最小提供者」（[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
-- 源码位置：`packages/session/run-attempt-facts-derived`——**尚未建包**。第一层 `session` 是**候选领域名**（待产品负责人拍板；改名只动目录）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
+- 源码位置：`packages/session/run-attempt-facts-derived`——**尚未建包**。第一层 `session` 已由产品负责人接受（[D-044 ⑱](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
 - 公开面：**公开函数面**是从会话日志条目折叠两件事实的纯函数与作答的纯函数，以及不依赖 Cordis 的闭包 `createRunAttemptFacts`（候选名，给它任一有 `readSince` 的会话日志即可用）；**Cordis 服务面** `runAttemptFacts` 是闭包的一种消费者（[design 的公开面](design.md#公开面)，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）
 - 契约采用与边界依据：**一个 Cordis 插件、一条 fiber，必需 inject `sessionLog`，不 inject `storage`、不 inject `clock`**；**不另存表**（[D-040 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-37 ④）：「已被取代」与「这次尝试在日志里」从 `sessionLog.readSince` 交回的条目壳算出。
   「已终结」要认得出运行终结记录，而那条记录的形状没有定（契约 [G-3](../../../../spec/capabilities/run-attempt-facts/v1/contract.md#十已知缺口)）：**产品装配里不给认法，凡读得到这次尝试的调用一律 `unavailable`**；验收装配把「代 loop 写终结的那一方」所用的认法作为配置交进来（[关键选择二](design.md#关键选择)）。

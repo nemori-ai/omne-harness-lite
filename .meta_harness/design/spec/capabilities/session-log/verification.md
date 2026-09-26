@@ -81,3 +81,7 @@
 | 消费者正文改指本契约：`capability.tool-execution-runtime` v1（S-19、S-22、S-46、G-1）、`capability.loop-extension-runner` v1（S-21 ②、S-32、G-8 注）已在本波改指；`capability.model-request-runtime` v1 **本波未改指**（它的 S-2、S-8 仍写「会话日志的拥有者」，已报主线） | R-1 | 那几份契约 | 本契约不变 |
 
 **没有证据因此作废**：本波对正文的改动不触及形式模型建模的性质（判重键至多一条、栅栏）。
+
+### 2026-09-26 产品依据复核
+
+按 [D-044](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 复核 PF-005 rev 6 与 PF-012 rev 15 的适用条款：hooks 宿主机允许已确认、允许读面接线仍是缺口；旧尝试推进写仍被拒，响应体与账的结算例外与 session-log S-10 同向。没有改变形式模型；本次未重跑模型检查，旧证据不扩张为本次运行证据。

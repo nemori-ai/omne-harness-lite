@@ -62,3 +62,5 @@
 | 对齐契约第二轮：`args`／`shell` | 契约 S-14 ⑦、G-16 | 带这两个字段的 CC handler 导入即 `skipped{no_mapping}` | design.md S-11～S-15 行 |
 | 最小提供者节点互指（主线 2026-09-25） | `packages/infra/execution-environments-host`、`packages/session/session-tenancy-table`（candidate） | 起子进程四件事落在 `execution-environments-host` 的 S-13～S-15 上；拓展件子进程的宿主机允许来自它的可选读面 `executionPlacementReadings`，缺席即 `noLanding{hostNotAllowed}`、验收由种子件给；HI-N1 ③ 删去、改为「真承接者未到，最小提供者节点已立」；依赖表、装配给表同步 | design.md 起限时停段首、起、依赖表、装配给表、HI-N1；README |
 
+
+**2026-09-26 裁决对账**：[D-044 ⑭](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。以下历史评审记录按当日事实保留；本次不登记实现或验证完成。

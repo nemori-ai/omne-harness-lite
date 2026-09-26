@@ -2,7 +2,7 @@
 
 - kind：`provider`
 - 对象与设计修订：状态 `candidate`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.session-log · v1`（[契约](../../../../spec/capabilities/session-log/v1/contract.md)，状态 `candidate`，未接受、未冻结）的**全部条款**，作为它第十一节说的「本版的最小提供者」（[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
-- 源码位置：`packages/session/session-log-jsonl`——**尚未建包**。第一层 `session` 是**候选领域名**（待产品负责人拍板；改名只动目录，节点与源码两边同步搬）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
+- 源码位置：`packages/session/session-log-jsonl`——**尚未建包**。第一层 `session` 已由产品负责人接受（[D-044 ⑱](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
 - 公开面：**公开函数面**是追加的三道判定与表示层校验、判定态的折叠、日志行的编解码（纯函数），以及不依赖 Cordis 的闭包 `openJsonlSessionLog`（候选名，自己持属主锁与文件句柄）；**Cordis 服务面** `sessionLog` 是它的一种消费者，另加「据点根一份」、撤除时的排空次序与配置校验（[design 的公开面](design.md#公开面)，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）
 - 契约采用与边界依据：**一个 Cordis 插件、一条 fiber，不 inject 任何服务**（会话日志落文件系统 JSONL，[D-026](../../../../record/decisions/infrastructure-persistence-choices/decision.md)；不用 `storage`、不用 `clock`——条目壳本版不带时刻，契约 G-4）。
   它**取代**据点装配[验收装配](../../../apps/cli/design.md#验收装配)里「会话日志」那一行原先的替身；**真承接者**是 loop 与会话那一程（契约 [G-1](../../../../spec/capabilities/session-log/v1/contract.md#十已知缺口)，据点装配缺口 C-1）。

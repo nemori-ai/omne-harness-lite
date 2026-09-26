@@ -1,5 +1,8 @@
 # cli 应用节点
 
+**2026-09-26 裁决对账**：[D-044 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+
+
 - kind：assembly
 - 对象与设计修订：CLI 交付面的应用装配；**候选**，2026-09-22 随该交付面的产品正文建立；2026-09-25 按资产／工具运行时／模型请求运行时一程修订——据点装配加入 `model`、`tools`、`agent-loop` 三个领域的提供者与 `core` 的两个纯模块（[D-039](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)：两块运行时是本应用里的东西，不另立应用；「可独立运行」是验收要求，不是装配边界）；同日按修复波 3（[D-040 §八](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) M31～M46）与已起草的 provider 节点对齐。尚无实现修订
 - 源码位置：`apps/cli`（尚未建包）

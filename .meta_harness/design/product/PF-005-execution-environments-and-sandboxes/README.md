@@ -2,7 +2,7 @@
 id: PF-005
 title: 执行环境与沙箱
 status: active
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on:
@@ -94,7 +94,7 @@ Agent Definition 对 agent runtime、会话历史对 agent runtime。三次形�
 
 ## 状态
 
-- 产品设计：**rev 5**，已定稿（rev 1 已被接受为正式版本，其后几版是其上的增补。
+- 产品设计：**rev 6**（2026-09-26；hooks 兼容件子进程获准落宿主机；子进程环境变量按名单传递。），已定稿（rev 1 已被接受为正式版本，其后几版是其上的增补。
   **rev 5 写明[工作区的承载目录不是宿主机上的边界](design.md#工作区的承载目录不是宿主机上的边界)**——跟上 [PF-002 rev 10](../PF-002-assets-settings-and-permissions/changelog.md)；
   **rev 3 接下[执行环境权限](design.md#执行环境权限)这一维**，并把
   [「落点不可用就是拒绝」](design.md#69-落点不可用就是拒绝不降级)从推导表搬进正文；

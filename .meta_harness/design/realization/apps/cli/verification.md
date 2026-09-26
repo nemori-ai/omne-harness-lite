@@ -149,3 +149,5 @@
 | 同批主线裁定 D-4：中心连接信任方式 | [D-040 §八 N-42](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ③ | A-34 由「未定」改为「本版 CA 链加主机名」、状态改承接 | design.md A-34、验收装配中心连接行 |
 | 第四轮：`openCall` 带同一份报告、工具条目经注册表取 | MRR S-28 ①③、G-24 闭合（[D-040 §八 N-43](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | 调用链同步：agent loop 驱动把同一份报告也交给 `openCall`；A-19 改为三个接收方；inject 边表 P-2「调用时取用」加 `assetRegistry`；C-8 与 TER S-46 第 7 行的承接句同步 | design.md 替身表 agent loop 驱动行、inject 边表 P-2 行、装配给 TER S-46 第 7 行、A-19、C-8 |
 | 收尾：保管方密钥文件缺席时的收场（N7 F-2） | [`credential-custodian-local`](../../packages/infra/credential-custodian-local/design.md#关键选择) 关键选择四；[D-040 §八 N-42](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ② | 验收装配保管方一行由「`keyFile` 缺席时启动生成」改为「缺席且两张条目表都空才生成，任一张非空即启动失败」；A-16 同步 | design.md 验收装配保管方行、A-16 |
+
+**2026-09-26 裁决对账**：[D-044 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。以下历史评审记录按当日事实保留；本次不登记实现或验证完成。

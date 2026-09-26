@@ -191,7 +191,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v1 | 纯计算＋转换器登记插件 P-3（不 inject 任何服务）、声明插件、各转换器插件 P-4*、系统自带转换件的零状态贡献者插件；不 inject 存储；模态转换这一件经执行环境句柄取 `tenant`，来路待 runner 契约 G-20 |
 | [`packages/model/pi-ai-transport`](packages/model/pi-ai-transport/README.md) | `capability.model-request-runtime` v1 的传输适配一层（S-38 十一条；[D-043 R-5](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)） | pi 0.86.1（`3390bd9`）传输一层的定向 fork，`node:https` 直发；公开函数面 `planRequest`／`sendRequest`／`readStream`／`createPiAiTransport`；插件登记 `modelTransport`（P-2 必需 inject，验收装配以脚本化传输登记同键）；无存储、不 inject；绑定 0 条；D-019 比较门未过 |
 
-**2026-09-25 会话领域（`session`，候选领域名，待产品负责人拍板——账本 ⑱）**——最小提供者节点（[D-043 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：验收装配的替身改「接口契约 + 最小提供者」），节点状态 `candidate`，所兑现的接口契约 `candidate`，**尚未建包**；真提供者归 loop／会话那一程，出契约新版本时在此接续。
+**2026-09-25 会话领域（`session`，领域名已由产品负责人接受，见 [D-044 ⑱](../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）**——最小提供者节点（[D-043 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：验收装配的替身改「接口契约 + 最小提供者」），节点状态 `candidate`，所兑现的接口契约 `candidate`，**尚未建包**；真提供者归 loop／会话那一程，出契约新版本时在此接续。
 
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
@@ -204,7 +204,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
 | [`packages/infra/credential-custodian-local`](packages/infra/credential-custodian-local/README.md) | `capability.credential-custodian` v1 | 一个插件，必需 inject `storage`、`clock`；副本条目与 OAuth 条目以密文落在绑定所在的同一 `storage`（两张表），本机只放一个密钥文件；OAuth 条目对桥的绑定行立引用约束，清扫锁同一行；读绑定行待桥导出事务内读函数（CCL-1） |
-| [`packages/infra/execution-environments-host`](packages/infra/execution-environments-host/README.md) | `capability.execution-environments` v1 | 一个插件，不 inject；本机 POSIX 进程组起停、有界答复；落点读数调用时现取可选读面（无契约，验收装配由种子件给）；拓展件子进程 fail-closed；进程表只在内存，撤除即按组停 |
+| [`packages/infra/execution-environments-host`](packages/infra/execution-environments-host/README.md) | `capability.execution-environments` v1 | 一个插件，不 inject；本机 POSIX 进程组起停、有界答复；落点读数调用时现取可选读面（无契约，验收装配由种子件给）；hooks 宿主机落点已获 D-044 ⑭ 允许；允许读面未接入时 fail-closed；进程表只在内存，撤除即按组停 |
 | [`packages/infra/center-connection-probe`](packages/infra/center-connection-probe/README.md) | `capability.center-connection` v1 | 一个包两个插件：probe 是产品装法（对入口发公开体检），replay 是验收装法（回放对端行为）；同一服务键、同一归约，必需 inject `clock`；不设判定阈值（CNP-1） |
 
 **2026-09-25 loop 侧（`agent-loop`，D-039 拍板）**——节点状态 `candidate`，所兑现的契约 `candidate`、待 D-041，**尚未建包**；runner 的行为模型未建（契约 G-14），两个节点都没有绑定：
@@ -212,7 +212,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | 节点 | 兑现的契约 | 形态 |
 | --- | --- | --- |
 | [`packages/agent-loop/loop-extension-runner`](packages/agent-loop/loop-extension-runner/README.md) | `capability.loop-extension-runner` v1 | 一个插件，只 inject 会话日志；实现经贡献者登记在场，runner 从不 inject 贡献者；执行环境句柄每次调用一只、按会话解析；叫停即 `cancelled`、不等在途那一件；本实例被撤除时在途 `dispatch` 以 `unavailable` 收场、不落记录（M63）；放行判断经 `toolAdmission`（本批全拒） |
-| [`packages/agent-loop/hooks-import`](packages/agent-loop/hooks-import/README.md) | `capability.hooks-import` v1 | 导入是包导出的纯函数；兼容插件向 runner 登记一个命令执行器；D-033 fork 边界；子进程的执行环境经句柄取，执行环境无提供者，兼容件一律「起不来」 |
+| [`packages/agent-loop/hooks-import`](packages/agent-loop/hooks-import/README.md) | `capability.hooks-import` v1 | 导入是包导出的纯函数；兼容插件向 runner 登记一个命令执行器；D-033 fork 边界；子进程的执行环境经句柄取，最小执行环境节点已立；hooks 宿主机落点已获 D-044 ⑭ 允许，允许读面、工作目录与变量名单仍待接线 |
 
 ## 当前状态
 

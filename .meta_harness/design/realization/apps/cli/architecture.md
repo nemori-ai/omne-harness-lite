@@ -1,5 +1,8 @@
 # cli 的形状
 
+**2026-09-26 裁决对账**：[D-044 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
+
+
 每一节都是「引用 + 本应用的选择」。**这个交付面在产品上是什么、命令的含义是什么，全部归
 [PF-016](../../../product/PF-016-cli-tui-delivery-surface/README.md)；边上的保证归契约；
 候选比较归[提案](../../../record/proposals/cli-tui/alternatives.md)；采用理由归
@@ -92,7 +95,7 @@ Cordis 的 fiber 树、服务解析、重载与 effect 释放**只在一个进�
 | 据点 → 模型服务（HTTPS） | OpenRouter，**唯一出口**（[SYS-LLM](../../../foundation/cross-system-constraints/requirements.md#sys-llm)） | `capability.model-request-runtime/v1`（传输十一条在它的 [S-38](../../../spec/capabilities/model-request-runtime/v1/contract.md#s-38-装配给的保证-vs-协议须给的保证)），到达形状 `data.arrival-events/v1`、回复形状 `data.model-response/v1`（均 candidate） | 传输是同进程的 `pi-ai-transport` 插件（pi-ai 定向 fork，D-019；P-2 必需 inject `modelTransport`），**不另起进程**；base URL 是构建内常量、不是用户配置项；凭据值只在发出那一刻出现、只交给传输适配（[S-19](../../../spec/capabilities/model-request-runtime/v1/contract.md#s-19-凭据每次发出现取取值只交给传输适配)）；「已出门」先于出网 |
 | 据点 → 远端 MCP 服务端（Streamable HTTP）与它的 OAuth 授权方 | 第三方 | `capability.mcp-bridge/v1`、接入点形状 `data.mcp-endpoint/v1`（均 candidate） | 协议层归官方 SDK（D-037）；连接归桥、不跨租户（[S-6](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户)）；已发出的调用不重放；OAuth 绑定与令牌落据点、跟机器（[S-8](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-8-oauth-绑定状态与迁移)），落处归凭据保管方（`capability.credential-custodian` v1 S-16～S-18，密文落在绑定所在的同一 `storage`；最小提供者节点 `credential-custodian-local` 已立、本版只进验收装配，[design.md 缺口 C-5](design.md#实施缺口与消费者影响)） |
 | 据点 ↔ 本机 MCP stdio 服务端（子进程的标准输入输出） | 第三方程序 | `capability.mcp-bridge/v1`（candidate） | 只给白名单上的环境变量、正文的变量与它自己那份凭据，不继承据点进程的其余环境（[S-6](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-6-连接归桥不上签名不跨租户)）；stderr 持续排空、遮掉凭据后留存；收口次序按 [S-26](../../../spec/capabilities/mcp-bridge/v1/contract.md#s-26-连接的收口次序) |
-| 据点 ↔ hooks 兼容件子进程 | 用户导入的命令 | `capability.hooks-import/v1`（candidate） | 输入译成来源产品的原生形状、输出译回拓展点结论；超时或运行被取消时按进程组停（[S-26](../../../spec/capabilities/hooks-import/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第 3、2 行）；起、等、停经 `capability.execution-environments` v1 S-13～S-15、每次带租户；**本版 fail-closed**：本版没有会话级沙箱，子进程落宿主机要一项产品没给的允许（EE G-3，账本 ⑭），兼容件一律「起不来」（同 S-26 第 1 行） |
+| 据点 ↔ hooks 兼容件子进程 | 用户导入的命令 | `capability.hooks-import/v1`（candidate） | 输入译成来源产品的原生形状、输出译回拓展点结论；超时或运行被取消时按进程组停（[S-26](../../../spec/capabilities/hooks-import/v1/contract.md#s-26-装配给的保证-vs-协议须给的保证) 第 3、2 行）；起、等、停经 `capability.execution-environments` v1 S-13～S-15、每次带租户；**本版 fail-closed**：本版没有会话级沙箱，子进程落宿主机要一项产品已给、装配尚未接入的允许（EE G-3，账本 ⑭），兼容件一律「起不来」（同 S-26 第 1 行） |
 
 **这四条边上也没有任何绑定**：契约全部 candidate（待 [D-041](../../../record/decisions/assets-runtimes-contract-acceptance/README.md)），提供者与源码都不存在。
 

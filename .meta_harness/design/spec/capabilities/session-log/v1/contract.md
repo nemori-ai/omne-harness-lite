@@ -4,7 +4,7 @@
 - **状态**：`candidate`（2026-09-25 起草），**未接受、未冻结**；接受与采用只从 [catalog](../../../../registry/README.md) 读
 - **这一版是什么**：**窄口的接口契约**。产品负责人 2026-09-25 同意把验收装配里的会话日志替身换成「接口契约 ＋ 最小提供者」，接口**按消费者已列出的需要**定窄口，将来真提供者要更多走新版本（[D-043 R-1](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)）。
   它只收三个运行时消费者已经写下的要求——[工具执行运行时节点 L-1～L-5](../../../../realization/packages/tools/tool-execution-runtime/design.md#对会话日志提供者的要求)、[模型请求运行时节点 L-1～L-8](../../../../realization/packages/model/model-request-runtime/design.md#存储要求)、[拓展点派发节点 RL-1～RL-5](../../../../realization/packages/agent-loop/loop-extension-runner/design.md#存储要求) 与 `capability.loop-extension-runner/v1#S-5`、[据点装配的 L-a～L-f](../../../../realization/apps/cli/design.md#存储要求清单与跨-owner-的同一提交)——**不替 loop 与会话那一程设计整本会话日志**（[G-1](#十已知缺口)）
-- **设计依据**（PF-012 rev 14、PF-015 rev 11、PF-000 rev 1）：
+- **设计依据**（PF-012 rev 15、PF-015 rev 11、PF-000 rev 1）：
   PF-012 [§4 会话日志](../../../../product/PF-012-agent-loop-and-run/design.md#会话日志)（含[「只增不改」怎么和压缩、卸载共存](../../../../product/PF-012-agent-loop-and-run/design.md#只增不改怎么和压缩卸载共存)）、
   [§4 执行尝试](../../../../product/PF-012-agent-loop-and-run/design.md#执行尝试)、
   [§5.2 会话日志是唯一的真相来源](../../../../product/PF-012-agent-loop-and-run/design.md#52-会话日志是唯一的真相来源)、

@@ -2,7 +2,7 @@
 
 - kind：`provider`
 - 对象与设计修订：状态 `candidate`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.session-tenancy · v1`（[契约](../../../../spec/capabilities/session-tenancy/v1/contract.md)，状态 `candidate`，未接受、未冻结）的**全部条款**（S-5～S-11，一个读），作为它第十一节说的「本版的最小提供者」（[D-043](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
-- 源码位置：`packages/session/session-tenancy-table`——**尚未建包**。第一层 `session` 是**候选领域名**（待产品负责人拍板；改名只动目录）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
+- 源码位置：`packages/session/session-tenancy-table`——**尚未建包**。第一层 `session` 已由产品负责人接受（[D-044 ⑱](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
 - 公开面：**公开函数面**是不依赖 Cordis 的闭包 `createSessionTenancyReader(storage)`（候选名，给它任一符合 `core/storage` 协议的存储即可用）与这张表的迁移片段；另有**只供验收装配**的子入口 `./seed`（测试种子代会话那一程写映射，不进产品代码）。**Cordis 服务面** `sessionTenancy` 是闭包的一种消费者（[design 的公开面](design.md#公开面)，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）
 - 契约采用与边界依据：**一个 Cordis 插件、一条 fiber，必需 inject `storage`，不 inject `clock`**（没有要读时刻的地方）；一张（会话 → 租户身份）的表，经 [`core/storage`](../../core/storage/README.md) 落在据点那一份 `storage` 里，迁移片段由装配合成。
   它**取代**据点装配[验收装配](../../../apps/cli/design.md#验收装配)里「会话持有租户读面」那个替身；**真承接者**是会话那一程 PF-015（契约 [G-1](../../../../spec/capabilities/session-tenancy/v1/contract.md#十已知缺口)，据点装配缺口 C-13）。
