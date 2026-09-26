@@ -494,6 +494,9 @@ importers:
 
   tools/ts-checks:
     devDependencies:
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../packages/core/identity-values
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
