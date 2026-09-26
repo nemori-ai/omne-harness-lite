@@ -1,0 +1,8 @@
+uv run --locked omne-docs-check
+Using CPython 3.12.13
+Creating virtual environment at: .venv
+   Building omne-harness-lite-spec-tools @ file:///data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-checks/tools/spec-tools
+      Built omne-harness-lite-spec-tools @ file:///data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-checks/tools/spec-tools
+Installed 27 packages in 17ms
+PASS: 957 Markdown files; local links and skill mirrors.
+NOTE: retained originals are excluded by design; design-chain registrations are checked by the meta-harness design checker, not here.

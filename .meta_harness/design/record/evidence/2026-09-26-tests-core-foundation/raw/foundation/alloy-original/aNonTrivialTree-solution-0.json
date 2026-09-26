@@ -1,0 +1,95 @@
+{
+  "duration":53,
+  "incremental":true,
+  "instances":[
+    {
+      "messages":[
+        
+      ],
+      "skolems":{
+        "$aNonTrivialTree_a":{
+          "arity":1,
+          "data":[
+            [
+              "Organization$3"
+            ]
+          ]
+        },
+        "$aNonTrivialTree_b":{
+          "arity":1,
+          "data":[
+            [
+              "Organization$2"
+            ]
+          ]
+        },
+        "$aNonTrivialTree_c":{
+          "arity":1,
+          "data":[
+            [
+              "Config$0"
+            ]
+          ]
+        },
+        "$aNonTrivialTree_d":{
+          "arity":1,
+          "data":[
+            [
+              "Organization$1"
+            ]
+          ]
+        }
+      },
+      "state":0,
+      "values":{
+        "0":{
+          
+        },
+        "1":{
+          
+        },
+        "2":{
+          
+        },
+        "3":{
+          
+        },
+        "Config$0":{
+          "parent":[
+            [
+              "Organization$0",
+              "Organization$1"
+            ],
+            [
+              "Organization$2",
+              "Organization$0"
+            ],
+            [
+              "Organization$3",
+              "Organization$2"
+            ]
+          ]
+        },
+        "Organization$0":{
+          
+        },
+        "Organization$1":{
+          
+        },
+        "Organization$2":{
+          
+        },
+        "Organization$3":{
+          
+        }
+      }
+    }
+  ],
+  "localtime":"2026-09-26T04:27:46.593979749",
+  "loopstate":-1,
+  "sigs":{
+    
+  },
+  "timezone":"Etc/UTC",
+  "utctime":1790396866593
+}

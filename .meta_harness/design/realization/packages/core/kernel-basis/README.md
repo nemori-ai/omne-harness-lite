@@ -10,7 +10,7 @@
 - 语义接受范围：**无契约条款。**本节点不是任何契约的提供者；它的依据是 D-025 的版本裁定与 [basis 准入](../../../../basis/README.md#准入)。basis/cordis 的八条条目都以本包为 probe 位置（`version: 4.0.4`）：最初四条 2026-09-22 回填；`inject-has-no-optional-form`、`plugin-throw-fails-fiber` 两条共用主张 2026-09-23 升格为条目；`emit-listener-throw-propagates`、`logger-level-order-error-lowest` 两条 2026-09-23 新登。另两条 probe（`provide-is-effect-managed`、`fiber-state-readable`）核的是 realization 节点依赖的共用主张，**不对应 basis 条目**，是否升格按 basis 准入另议
 - 可实施范围：**已实现（HUB `c9b5850`）。**公开入口即源码（[投影表](design.md#能力到-cordis-的投影)逐条对到文件）：`definePlugin`、`Outcome` 一族、`FIBER_STATE`／`fiberIsActive`、`resolveOptional`、`./testing` 的 `bootAssembly`／`settle`（某个插件启动失败或装后仍 `PENDING` ⇒ 先逆序撤已装的 fiber 再拒绝）。**不给出**：`mapStorageError`、可控时钟（各归其 owner）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——没有契约条款可绑；probe 的登记位置是 basis 条目的 `probe` 字段而不是绑定表，共用件的单元测试是本包自己的测试而不是对某条契约的证据。证据义务与状态在 [verification.md](verification.md)
-- 实际验证：运行 `2026-09-23-tests-tenancy-leg-2`（证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)，HUB）：本包随十三个 TS 成员 build／typecheck／test 在 sqlite 下全过，含十条 probe。此前 2026-09-22 的单包运行（对 `@deepseek-ai/cordis` 4.0.4，当时 9 个文件 20 条通过）见 [verification.md](verification.md#实际执行)，逐条覆盖待回填。probe 通过说明这八条语义在 4.0.4 上如读数所述，不说明 4.0.x 后续补丁如此
+- 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：HUB `0e39dc26` 的 build／typecheck／test 退出 0，Cordis **4.0.4** 上 **30/30**。源码提交 `1a229204` 只追加三份 probe，核真实 UNLOADING、子 isolate 属性读取抛错与 optional 中间态过滤；get 的严格／非严格差异及边界见 [verification.md](verification.md#本次追加验证2026-09-26)。此前 [2026-09-23 run](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md) 保留其历史范围；不推断其他 Cordis 版本，也不提升最终接受状态
 
 ## 按当前问题展开
 

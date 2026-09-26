@@ -10,7 +10,7 @@
 - 语义接受范围：`data.offer-expiry` v1 **全部条款**（含其已知缺口作为显式缺口），依据 [D-023](../../../../record/decisions/tenant-domain-design-acceptance/decision.md)（产品负责人，2026-09-22）；本节点的设计随同一决定被接受为实现路径。接受不提升下面三层
 - 可实施范围：本节点声称兑现的条款逐条见 [design.md「能力到 Cordis 的投影」](design.md#能力到-cordis-的投影)——值与形状（S-4、S-7、S-22）、判定式与求值次序（S-8 的两个方向、S-9 的「读时求值」那一半）、三值存在性与不可用传播（S-20）、`offer_ttl` 的两路校验（S-14），以上**已实现（HUB `c9b5850`）**，导出名逐项见 design 投影表。**不兑现**：S-5 的「同一提交内定死」与 S-10 的「同一提交内重求值」（提交点在消费者）、S-16 的「同源」与 S-17 的五行装配给保证（本节点只定接口形状，选型与兑现归装配）、S-18 后台清理（不在本节点，落点 #9）、S-19 存在性读面（归持有对象的契约）、四条规范场景（消费者跑）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) 为**空表**——本契约不建形式工件。证据义务见 [verification.md](verification.md)，包内测试的运行结果登记在那里
-- 实际验证：运行 `2026-09-23-tests-tenancy-leg-2`：十三个 TS 成员 build／typecheck／test 在 sqlite 下全过（全仓 1184 通过、34 跳过、0 失败），证据登记在 [`record/evidence/2026-09-23-tests-tenancy-leg-2/`](../../../../record/evidence/2026-09-23-tests-tenancy-leg-2/README.md)（HUB）。此前 2026-09-22 的单包运行（31 条测试通过、类型测试无错误）见 [verification.md「实际执行」](verification.md#实际执行)；逐条覆盖待 verification 回填
+- 实际验证：运行 [`2026-09-26-tests-core-foundation`](../../../../record/evidence/2026-09-26-tests-core-foundation/README.md)：产品源码本次未变，HUB `f73078ba` build／typecheck 退出 0、**31/31**。checks 最终 HUB **100/100**、24-rule scan，SC-OE-3 的 Date.now／无参 new Date／performance.now 直接调用反例已检出。纯函数、解析器与规则不替代实际时钟或邀约操作；消费者／装配义务与历史运行见 [verification.md](verification.md#本次追加验证2026-09-26)
 
 ## 按当前问题展开
 
