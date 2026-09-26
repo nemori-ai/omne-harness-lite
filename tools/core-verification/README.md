@@ -56,7 +56,7 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 | 稳定子场景 Test ID | 判据与采用范围 |
 |---|---|
 | `w1.kernel.outcome-public` | 公开 succeed／fail 产生互斥的成功／失败形状，isSuccess 判别；kernel 投影表 |
-| `w1.kernel.public-lifecycle` | 公开 definePlugin 的非法配置启动失败、合法配置生效；fiberIsActive 与 resolveOptional 在撤除前后同判；Cordis 4.0.4 |
+| `w1.kernel.public-lifecycle` | 公开 definePlugin 的非法配置启动失败且 apply 未执行、合法配置 apply 恰一次且生效；fiberIsActive 与 resolveOptional 在撤除前后同判；Cordis 4.0.4 |
 | `w1.kernel.public-assembly-cleanup` | 公开 bootAssembly 撤除服务；两个先前已 ACTIVE 插件后第三 apply 抛原 Error，等待整体以同一实例拒绝且 cleanup 按 second→first；节点装卸表 |
 | `w1.identity.public-values` | 品牌解析、TenantId 结构相等／唯一规范序列化、同账号不同租户；S-2／S-5／S-7／S-13 |
 | `w1.identity.in-band-closed-input` | 缺席、空值、边界空白、未知枚举与额外身份分量以 invalidInput 到达；效力不可用保持独立失败支；S-10～S-12／S-31～S-33 |
@@ -74,6 +74,18 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 它们覆盖 Outcome 分支、身份品牌、效力与解析结果区分、过期状态／时钟品牌、存储协议／只读核对、
 opaque 与互斥调用形状；各 `@ts-expect-error` 同样由严格 tsc 检查，负例若不再报错会失败。
 offer 的不可变只在已设计的 readonly 类型面断言，不增加 runtime 深冻结承诺。
+
+`tests/dependency-surface.spec.ts` 另核对已批准的依赖例外，与存储失败映射场景分开：
+
+| 稳定 Test ID | 判据与采用范围 |
+|---|---|
+| `w1.consumer.adopted-dependency-exceptions` | 实际读取 kernel／storage 根入口的源码、构建声明与构建 JS 的相对依赖图；kernel 只出现 Cordis／Standard Schema 类型，storage 只出现 Kysely 类型，二者根 JS 都无外部运行时依赖；批准的 `kernel-basis/testing` 仅有 Cordis、`storage/conformance` 仅有 Kysely `sql` 与 Vitest 的运行时依赖；D-025／D-026 与两节点实现设计 |
+| `w1.consumer.dependency-parser-detects-forbidden-edges` | 在受控文本负控中识别 import／export／require／动态 import／类型 import，包括禁止方向与产品根入口取用测试子路径的边；忽略注释、拒绝计算式模块名，不能把不可核对的动态路径当通过 |
+
+检查器复用 TypeScript 编译器 AST，在实际入口图中记录每个读取文件的 hash，并在
+`tmp/w1-public-consumers/dependencies-*` 保存报告；它是受控入口图核对工具，不是通用
+模块解析器或全仓隔离证明。开发成员自身可以同时消费 core 与真实 infra 提供者；
+这一点不能成为产品 core 反向依赖 infra 或业务包的例外。
 
 父用例 `w1.consumer.built-public-packages` 核对固定14项清单、全通过、零遗漏及正常退出。
 `w1.consumer.detects-wrong-outcome-expectation` 故意把答案42预期改成0，在同一真实消费者上

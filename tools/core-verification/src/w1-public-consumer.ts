@@ -131,10 +131,12 @@ const cases: readonly ConsumerCase[] = [
     sources: ['realization/packages/core/kernel-basis/design.md#状态并发与失败映射'],
     async run() {
       const ctx = new Context()
+      let applied = 0
       const plugin = definePlugin({
         name: 'public-config-consumer',
         Config: z.object({ ttl: z.number().positive() }),
         apply(inner, config) {
+          applied += 1
           assert.equal(fiberIsActive(inner), false)
           inner.provide('w1ConsumerValue', config.ttl)
         },
@@ -145,10 +147,12 @@ const cases: readonly ConsumerCase[] = [
           await settle(bad)
         }, /invalid config/)
         assert.equal(bad.state, FIBER_STATE.FAILED)
+        assert.equal(applied, 0)
         assert.equal(resolveOptional(ctx, 'w1ConsumerValue'), undefined)
         const good = ctx.plugin(plugin, { ttl: 25 })
         try {
           await settle(good)
+          assert.equal(applied, 1)
           assert.equal(fiberIsActive(good.ctx), true)
           assert.equal(resolveOptional(good.ctx, 'w1ConsumerValue'), 25)
         } finally {
