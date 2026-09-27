@@ -1,0 +1,1940 @@
+{
+  "files": {
+    "docker-daemon-loss-reassessment/README.md": {
+      "bytes": 3012,
+      "sha256": "a0600071892e4f0751dc8a2c7d613b49220728d880c10a631ce4aeda331e4b92"
+    },
+    "docker-daemon-loss-reassessment/original-run-after.sha256.json": {
+      "bytes": 47296,
+      "sha256": "41f9e4d2dc85609baf249fd42add1d1286d4faece69d0260e4f569ab0f2771e5"
+    },
+    "docker-daemon-loss-reassessment/original-run-before.sha256.json": {
+      "bytes": 47296,
+      "sha256": "41f9e4d2dc85609baf249fd42add1d1286d4faece69d0260e4f569ab0f2771e5"
+    },
+    "docker-daemon-loss-reassessment/reassess.py": {
+      "bytes": 9914,
+      "sha256": "6d3630a9094f54a3dcc32314ee9d5453c06e5b6228997588fec1b2c0887fee09"
+    },
+    "docker-daemon-loss-reassessment/reassessment.stdout": {
+      "bytes": 771,
+      "sha256": "0d664bac0e0822ef176d22f0446cccedc441170c7ba45b80d27e5785214ef1c1"
+    },
+    "docker-daemon-loss-reassessment/self-test.stdout": {
+      "bytes": 73,
+      "sha256": "6f832a872f72ba4a55ca5132c6cf87ddfac22f4d7616da9ce58d00c9fd208b4f"
+    },
+    "docker-daemon-loss-reassessment/self_test.py": {
+      "bytes": 744,
+      "sha256": "91e28418bf8f962e6a7279b1c5339df7a9e68936c5683efd88b1404a00733f74"
+    },
+    "docker-daemon-loss-reassessment/sha256.json": {
+      "bytes": 836,
+      "sha256": "1a9927c8cc84b1e9af7b8d43f4df98f036a322f27f4859a79b3a9fe2994e4346"
+    },
+    "docker-daemon-loss-reassessment/verdict.json": {
+      "bytes": 771,
+      "sha256": "0d664bac0e0822ef176d22f0446cccedc441170c7ba45b80d27e5785214ef1c1"
+    },
+    "docker-daemon-loss/README.md": {
+      "bytes": 4515,
+      "sha256": "4223db23430f28d59f1af34d3f2a59b9457dfa1af9876d0ae44283c2345b37a6"
+    },
+    "docker-daemon-loss/base_driver.py": {
+      "bytes": 33616,
+      "sha256": "a450179ed522b8ab2033f0aa368c5d4ad3fe43139353b9d14d24afb01915da26"
+    },
+    "docker-daemon-loss/candidate-argv.json": {
+      "bytes": 1273,
+      "sha256": "b0fef9a8a9adb41c3898fe032c42d2c71fae6098eb6aa9c2555c6b9aca3a7e65"
+    },
+    "docker-daemon-loss/driver.py": {
+      "bytes": 17833,
+      "sha256": "b9cca36f514ea87d25a3bce2c8d9bb7e0b7dbf66832e59705f5655b0c9df63f9"
+    },
+    "docker-daemon-loss/gate.mjs": {
+      "bytes": 3544,
+      "sha256": "94bf86ae9885f6c90ec54e5f66ba011dbd1e3a8a757cb7fb09c5f42e083867e8"
+    },
+    "docker-daemon-loss/gate_availability.mjs": {
+      "bytes": 1626,
+      "sha256": "62a60c445e8f244d59c6a84f14f7d197dd4e0e72aa5d64e2f6d96df68cf9cb24"
+    },
+    "docker-daemon-loss/gate_self_test.mjs": {
+      "bytes": 1688,
+      "sha256": "d633c271cd184ce2a749430b4c3007846945540f57de2fe915b801decf3f749a"
+    },
+    "docker-daemon-loss/inventory.mjs": {
+      "bytes": 2653,
+      "sha256": "e34066264f428780fd3aa79def7c98461a315ff1b5243ca11038c2d6736b3517"
+    },
+    "docker-daemon-loss/io_driver.py": {
+      "bytes": 23067,
+      "sha256": "f1c4f815fa8d0e8d7260d59e0d49c08a7c60037f719880bed055f4f09ecfe646"
+    },
+    "docker-daemon-loss/offline-gate-self-test.stdout": {
+      "bytes": 90,
+      "sha256": "d67e549112829905902c4f77811c9696a12330425dfb6c898845a23a324c3245"
+    },
+    "docker-daemon-loss/offline-inputs.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/offline-inputs.stdout": {
+      "bytes": 6119,
+      "sha256": "211bab77744bbd4dec36eed0b4471889644f1d888ea8e06c3959d24467b6e2a4"
+    },
+    "docker-daemon-loss/offline-self-test.stdout": {
+      "bytes": 409,
+      "sha256": "e162babd6d3d8a3cc2700592bf4545edae2bdb9bd0c8d2dcbca335e491e6c872"
+    },
+    "docker-daemon-loss/oracle.py": {
+      "bytes": 28995,
+      "sha256": "59f61d3d84e3acec05531058266935c9e3c069869920dc84bc1ca5b2acd5bad4"
+    },
+    "docker-daemon-loss/p_driver.py": {
+      "bytes": 27008,
+      "sha256": "9d35fd8e7ee1f155c791b8c77b9c989436f4a00ff162bd4b391f873eb3f67342"
+    },
+    "docker-daemon-loss/p_self_test.py": {
+      "bytes": 21442,
+      "sha256": "865d6371b230e4ee25ba11f53b7854418f8b44448d07100f6e63af540be7ef10"
+    },
+    "docker-daemon-loss/pid_signal.sh": {
+      "bytes": 1677,
+      "sha256": "6c70ee88be89cf739e528e074e09de65fb754b2bfb41fee09332eba716ae3466"
+    },
+    "docker-daemon-loss/reviewed-gate.json": {
+      "bytes": 305,
+      "sha256": "9c010786bd66e661a2f45d378d4acd8733981552c8734ae28db6862797b03bbb"
+    },
+    "docker-daemon-loss/root-actual-files.sha256.json": {
+      "bytes": 85057,
+      "sha256": "4f34f0ae0f3e96c0ee70f772aca84b99bab3cbfb1bba6ddd5c22c84b89a9be90"
+    },
+    "docker-daemon-loss/root-actual-result.json": {
+      "bytes": 88,
+      "sha256": "998483d286f05fc5ebf997903a914ed0fcbfdd0cfd2059dc500599b3759e8537"
+    },
+    "docker-daemon-loss/root-actual-start.json": {
+      "bytes": 148,
+      "sha256": "c72dd960d74002bb6f24042118e7d845cd85528824b6ee2ec787df6c489b52a4"
+    },
+    "docker-daemon-loss/root-actual.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/root-actual.stdout": {
+      "bytes": 209,
+      "sha256": "d99b8920a1571ac6ad9588300486794bbd687c6f668f26abe7e5b09a59386d69"
+    },
+    "docker-daemon-loss/root-postrun-audit.json": {
+      "bytes": 3214,
+      "sha256": "b980975cbc04aa567f96c22a7f8680b7eb4c66c3e412824fd793aa63454d056f"
+    },
+    "docker-daemon-loss/root-run-argv.json": {
+      "bytes": 1499,
+      "sha256": "60cf21b33aa2d485e9c2473193fea10b92642086960d98e4931a269dc8a918f1"
+    },
+    "docker-daemon-loss/root-static-review.json": {
+      "bytes": 1445,
+      "sha256": "06bce9b911cfcef533e0f9482ebf6f3fe5905a860585050e61053a450eca99e1"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/evidence.json": {
+      "bytes": 143323,
+      "sha256": "d683597ba7564de2a9407770d0f662e07c3508bd75e3ecee52489c45778241af"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/base_driver.py": {
+      "bytes": 33616,
+      "sha256": "a450179ed522b8ab2033f0aa368c5d4ad3fe43139353b9d14d24afb01915da26"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/cli.tar.gz": {
+      "bytes": 3160862,
+      "sha256": "b8431b6cdb176af43fe9af2002bbc480f927fdbcf64c69c8553f6ceab08e471c"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/compose.maintenance.yaml": {
+      "bytes": 919,
+      "sha256": "c09fe374f71f40689157e0fb1d5f5e07d024f2fea1bb12ddfa59caf8890d08a7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/compose.yaml": {
+      "bytes": 2570,
+      "sha256": "9d007493a3a25089e032b1818484d2cf80ae142cc439d5176bad40d9f20c89da"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/driver.py": {
+      "bytes": 17833,
+      "sha256": "b9cca36f514ea87d25a3bce2c8d9bb7e0b7dbf66832e59705f5655b0c9df63f9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/gate.mjs": {
+      "bytes": 3544,
+      "sha256": "94bf86ae9885f6c90ec54e5f66ba011dbd1e3a8a757cb7fb09c5f42e083867e8"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/gate_availability.mjs": {
+      "bytes": 1626,
+      "sha256": "62a60c445e8f244d59c6a84f14f7d197dd4e0e72aa5d64e2f6d96df68cf9cb24"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/health.mjs": {
+      "bytes": 1070,
+      "sha256": "29736f3da3215614c9e754ed0115088459bd23d62e7e141100370b5167ce7212"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/i3-manifest.json": {
+      "bytes": 18666,
+      "sha256": "c97c8584b0346c6c0051ca43d20737e425cb8908366fd6adcfddd6b3eda1b06e"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/inventory.mjs": {
+      "bytes": 2653,
+      "sha256": "e34066264f428780fd3aa79def7c98461a315ff1b5243ca11038c2d6736b3517"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/omne-center": {
+      "bytes": 37864,
+      "sha256": "71ba9f3c31b34c171dd2a4048d9e249af31f7948abcf66ee603da5ffb7d1b365"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/omne-center-backup@.service": {
+      "bytes": 305,
+      "sha256": "cb36897849176dcdda600f9ac38f8b07fafa39ed3e63a76b1e50a115e20b5820"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/omne-center-backup@.timer": {
+      "bytes": 182,
+      "sha256": "af7e710b3a4e59600ad581a9bf70d534fe893ec2c81f5d43785321801c537f89"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/oracle.py": {
+      "bytes": 28995,
+      "sha256": "59f61d3d84e3acec05531058266935c9e3c069869920dc84bc1ca5b2acd5bad4"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/p_driver.py": {
+      "bytes": 27008,
+      "sha256": "9d35fd8e7ee1f155c791b8c77b9c989436f4a00ff162bd4b391f873eb3f67342"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/inputs/reviewed-gate.json": {
+      "bytes": 305,
+      "sha256": "9c010786bd66e661a2f45d378d4acd8733981552c8734ae28db6862797b03bbb"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/oracle.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/oracle.stdout": {
+      "bytes": 90,
+      "sha256": "615a2f7573823f111e7aff1d376335b3a648427fb61ea590517548d66b859607"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/qa-context.tar": {
+      "bytes": 10240,
+      "sha256": "11b7412159db529b7cc4a7424e72761ae148d70688713e15e07248e234f5af01"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-container-omne-r5-20260927-023116-f00f3c2f-control.stderr": {
+      "bytes": 88,
+      "sha256": "2510748c9d32bb0669206fcd10d3bed1ef665076ae0f3465e6ab96a96d124284"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-container-omne-r5-20260927-023116-f00f3c2f-control.stdout": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-container-omne-r5-20260927-023116-f00f3c2f-dind.stderr": {
+      "bytes": 85,
+      "sha256": "e383c159109bfda0f4c9506ce54add07b768be9b5a6167cbcf1bb8d6ccf5c3e6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-container-omne-r5-20260927-023116-f00f3c2f-dind.stdout": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-network-omne-r5-20260927-023116-f00f3c2f-net.stderr": {
+      "bytes": 83,
+      "sha256": "db360a7517ac986cf26cf088504e1bed22345aa44a64c571087302110d06aac9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-network-omne-r5-20260927-023116-f00f3c2f-net.stdout": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-volume-omne-r5-20260927-023116-f00f3c2f-daemon.stderr": {
+      "bytes": 88,
+      "sha256": "0c74c960752f2511d2fbeac974a8a35de5f63ee805687a4553e4d8a45303213e"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-volume-omne-r5-20260927-023116-f00f3c2f-daemon.stdout": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-volume-omne-r5-20260927-023116-f00f3c2f-data.stderr": {
+      "bytes": 86,
+      "sha256": "97ff570302c8d039501a10015f63f6f17dda0fccb2536c58815af4903cd401d2"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-volume-omne-r5-20260927-023116-f00f3c2f-data.stdout": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-volume-omne-r5-20260927-023116-f00f3c2f-socket.stderr": {
+      "bytes": 88,
+      "sha256": "a32ec79f1cd4e935a8b6bf5d7c73fc2f959a34c36257c137a090b55ed7cef120"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/absent-volume-omne-r5-20260927-023116-f00f3c2f-socket.stdout": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/app-inode.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/app-inode.stdout": {
+      "bytes": 23,
+      "sha256": "54aa0e4cafc0180593900879b8ab27e8f948f288d99da8c8a08abed838b615a6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/app-view-marker.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/app-view-marker.stdout": {
+      "bytes": 9,
+      "sha256": "1d301574ce73aabe0234dd9fc5c751555c129cf8aa26d0a2b5dbd117452b93ca"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/chmod-cli.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/chmod-cli.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/chmod-helper.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/chmod-helper.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-container-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-container-0.stdout": {
+      "bytes": 13,
+      "sha256": "0a179f46941b54cfb1c676cb714f7ec95456a5e879df27641acc1f0f55c7a42f"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-container-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-container-1.stdout": {
+      "bytes": 13,
+      "sha256": "de08849c72a132ed16b95f94a95d058f1d8c8335bfb9eaffc0137958b6967961"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-final-list-container.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-final-list-container.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-final-list-network.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-final-list-network.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-final-list-volume.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-final-list-volume.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-all-final-list.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-all-final-list.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-fixture-final-list.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-fixture-final-list.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-fixture-list.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-fixture-list.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-final-list.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-final-list.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-inspect-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-inspect-0.stdout": {
+      "bytes": 10363,
+      "sha256": "13f92075f054b19ed478c12166bf8658c017c2bba6faefe78b972b73ba50b290"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-inspect-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-inspect-1.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-list.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-inner-project-list.stdout": {
+      "bytes": 130,
+      "sha256": "8fb9fa5300bde7af6f3f065b9681e186ad4ea24990fde83d078718be337662b8"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-list-container.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-list-container.stdout": {
+      "bytes": 26,
+      "sha256": "437ffc90a7d3cb0369a55bab3c6949660154323a47f71ee5d60629f227ebd025"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-list-network.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-list-network.stdout": {
+      "bytes": 13,
+      "sha256": "c9e2ebcddc80258a88e4ad87718192cf2a2a04131be31310c2e5fc8f409b5f6a"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-list-volume.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-list-volume.stdout": {
+      "bytes": 118,
+      "sha256": "b00afafe7f685b9ea4a97eee278b27c3540c9475663d43296b8971afba054b4d"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-network-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-network-0.stdout": {
+      "bytes": 13,
+      "sha256": "c9e2ebcddc80258a88e4ad87718192cf2a2a04131be31310c2e5fc8f409b5f6a"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-volume-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-volume-0.stdout": {
+      "bytes": 40,
+      "sha256": "837267b58a1eaeca9799884ad214fda52e20fb49cbe65fbdc9b2a559659f99e9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-volume-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-volume-1.stdout": {
+      "bytes": 38,
+      "sha256": "0fa643f920495df3f4508031ec2acd138027f1d5f405100822abe09e71bd07d7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-volume-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/cleanup-volume-2.stdout": {
+      "bytes": 40,
+      "sha256": "24af943cecc9001a0e0e4ff6b0379a794b61f550b714a4317f3546da20e4fa5b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/compose-version.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/compose-version.stdout": {
+      "bytes": 7,
+      "sha256": "0def688a3697223d799e2b978362c8a161293ec61512fe28d40d48986643bd0e"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-inode.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-inode.stdout": {
+      "bytes": 23,
+      "sha256": "54aa0e4cafc0180593900879b8ab27e8f948f288d99da8c8a08abed838b615a6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-pid1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-pid1.stdout": {
+      "bytes": 8,
+      "sha256": "12e6ff4feb1b552a431b41d3935d33f08f9d75ddb8a88f645f4cf231bc05e820"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-systemd-environment.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-systemd-environment.stdout": {
+      "bytes": 135,
+      "sha256": "2a983b853af8281a5a404bd4bf6987c696378287eefce2715736ddce7e335fab"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-systemd-version.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-systemd-version.stdout": {
+      "bytes": 329,
+      "sha256": "390af12493d5f1a36a377ef1ded1dbd490a372ea2b464539d838b47d00f3b648"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-uid.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/control-uid.stdout": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-compose.maintenance.yaml.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-compose.maintenance.yaml.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-compose.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-compose.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-compose.yaml.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-compose.yaml.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-docker-cli.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-docker-cli.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-health.mjs.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-health.mjs.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-omne-center-backup@.service.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-omne-center-backup@.service.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-omne-center-backup@.timer.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-omne-center-backup@.timer.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-omne-center.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/copy-omne-center.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-container-omne-r5-20260927-023116-f00f3c2f-control.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-container-omne-r5-20260927-023116-f00f3c2f-control.stdout": {
+      "bytes": 65,
+      "sha256": "64d89d3584c0e152e0ecb9826681a5ad15a933f070df262570a946e368798d5f"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-container-omne-r5-20260927-023116-f00f3c2f-dind.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-container-omne-r5-20260927-023116-f00f3c2f-dind.stdout": {
+      "bytes": 65,
+      "sha256": "3a5b7123a97f4a79d53574a8f5005ae9edabe6bfdc973a80090d3700c2280a17"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-network-omne-r5-20260927-023116-f00f3c2f-net.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-network-omne-r5-20260927-023116-f00f3c2f-net.stdout": {
+      "bytes": 65,
+      "sha256": "6304f6367c4a2f93fb28145a92ffd761308b7739c1d7b243bfb78ceea5481e1c"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-volume-omne-r5-20260927-023116-f00f3c2f-daemon.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-volume-omne-r5-20260927-023116-f00f3c2f-daemon.stdout": {
+      "bytes": 40,
+      "sha256": "837267b58a1eaeca9799884ad214fda52e20fb49cbe65fbdc9b2a559659f99e9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-volume-omne-r5-20260927-023116-f00f3c2f-data.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-volume-omne-r5-20260927-023116-f00f3c2f-data.stdout": {
+      "bytes": 38,
+      "sha256": "0fa643f920495df3f4508031ec2acd138027f1d5f405100822abe09e71bd07d7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-volume-omne-r5-20260927-023116-f00f3c2f-socket.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/create-volume-omne-r5-20260927-023116-f00f3c2f-socket.stdout": {
+      "bytes": 40,
+      "sha256": "24af943cecc9001a0e0e4ff6b0379a794b61f550b714a4317f3546da20e4fa5b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-center-before-fault.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-center-before-fault.stdout": {
+      "bytes": 12172,
+      "sha256": "53bc9b03fd5ad85401ff3647b91b69f3b4a6b0f157b82df5b8c939c5e71c32d9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-center-events-new-engine.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-center-events-new-engine.stdout": {
+      "bytes": 18359,
+      "sha256": "4b1095a0319780c50979d602d342774282754b722dfabd15934903105008b739"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-engine-ready-1.stderr": {
+      "bytes": 114,
+      "sha256": "69df1a10cf40578a07d339290b65c8b39f6d488d3724046c20877f5527f20dc9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-engine-ready-1.stdout": {
+      "bytes": 8,
+      "sha256": "7a2a6bdcdb37065910b5608839c039d905a9c57c972ed3238833bbc47732ddff"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-engine-ready-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-engine-ready-2.stdout": {
+      "bytes": 14,
+      "sha256": "e286d8485269f0724933d7fe7194676d30af9668c7bf91ea2fd831b8825e30b7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-explicit-start-same-dind.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-explicit-start-same-dind.stdout": {
+      "bytes": 65,
+      "sha256": "3a5b7123a97f4a79d53574a8f5005ae9edabe6bfdc973a80090d3700c2280a17"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-namespace-after.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-namespace-after.stdout": {
+      "bytes": 17,
+      "sha256": "22b6e752af5b59833843736d9c4e6ec3992f1e5e3a0977916e0817f83ff67a3e"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-namespace-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-namespace-before.stdout": {
+      "bytes": 17,
+      "sha256": "6be847d526d30838c7e6c1ae192f0a3e42cb929c0cbbceb886001cd7dc3fb6cc"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-one-outer-sigkill.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-one-outer-sigkill.stdout": {
+      "bytes": 65,
+      "sha256": "3a5b7123a97f4a79d53574a8f5005ae9edabe6bfdc973a80090d3700c2280a17"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-events.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-events.stdout": {
+      "bytes": 2538,
+      "sha256": "4a1004719f4e6b2fd1f14bf16252c28f2d68bc54bf27b1e07c9943b853e37f3b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-inspect-after.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-inspect-after.stdout": {
+      "bytes": 10901,
+      "sha256": "c80b62307e7def88a596370060052e094291f02b9206a046f367b56c764a42d4"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-inspect-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-inspect-before.stdout": {
+      "bytes": 10891,
+      "sha256": "d1ab78285fb6246776f46d0fba74c22019a36d05d70928e696b6462761480b90"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-inspect-dead.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-outer-inspect-dead.stdout": {
+      "bytes": 10619,
+      "sha256": "4a2fd8f8b26d23cf55b7b23709dbaf0d68d358edbdaa0114c8e16f134b94e679"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-1.stdout": {
+      "bytes": 11568,
+      "sha256": "1c142c9bfb4756ae56ad9e303db37054eeb53dbc6e4a2143a192bd8d214714ac"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-10.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-10.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-2.stdout": {
+      "bytes": 11568,
+      "sha256": "1c142c9bfb4756ae56ad9e303db37054eeb53dbc6e4a2143a192bd8d214714ac"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-3.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-3.stdout": {
+      "bytes": 11568,
+      "sha256": "1c142c9bfb4756ae56ad9e303db37054eeb53dbc6e4a2143a192bd8d214714ac"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-4.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-4.stdout": {
+      "bytes": 11568,
+      "sha256": "1c142c9bfb4756ae56ad9e303db37054eeb53dbc6e4a2143a192bd8d214714ac"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-5.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-5.stdout": {
+      "bytes": 11654,
+      "sha256": "f7db726fbf8f24b1add50dae766c8cdf1d9786c90ab4d7ad6d6e099e92970908"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-6.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-6.stdout": {
+      "bytes": 11836,
+      "sha256": "7fd95a1e678e75df5f82615ec6a5dba26ca8aff6184a12fba72d62c8fe520ac7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-7.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-7.stdout": {
+      "bytes": 11836,
+      "sha256": "7fd95a1e678e75df5f82615ec6a5dba26ca8aff6184a12fba72d62c8fe520ac7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-8.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-8.stdout": {
+      "bytes": 11836,
+      "sha256": "7fd95a1e678e75df5f82615ec6a5dba26ca8aff6184a12fba72d62c8fe520ac7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-9.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-restart-poll-9.stdout": {
+      "bytes": 11836,
+      "sha256": "5b7457a4acd4e7db5b5407a9cb9cb1fb1a752db74ebf452799137d3e555d22a5"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-after-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-after-0.stdout": {
+      "bytes": 382,
+      "sha256": "976b209637509644efd38fc0ef2afb6daa7ca62ca3d56814e51c8700f1caec0b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-after-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-after-1.stdout": {
+      "bytes": 386,
+      "sha256": "778dbfde25966fa059a75b1dd0c2eef6a436d2d3faa1014c4bc820af76236984"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-after-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-after-2.stdout": {
+      "bytes": 386,
+      "sha256": "f7c00543ffe9169efaec84ac21f752fa4bd0f7764f721abd0b410b99be49a3f9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-before-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-before-0.stdout": {
+      "bytes": 382,
+      "sha256": "976b209637509644efd38fc0ef2afb6daa7ca62ca3d56814e51c8700f1caec0b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-before-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-before-1.stdout": {
+      "bytes": 386,
+      "sha256": "778dbfde25966fa059a75b1dd0c2eef6a436d2d3faa1014c4bc820af76236984"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-before-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/d-volume-before-2.stdout": {
+      "bytes": 386,
+      "sha256": "f7c00543ffe9169efaec84ac21f752fa4bd0f7764f721abd0b410b99be49a3f9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/dind-inode.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/dind-inode.stdout": {
+      "bytes": 23,
+      "sha256": "54aa0e4cafc0180593900879b8ab27e8f948f288d99da8c8a08abed838b615a6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/engine-ready-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/engine-ready-1.stdout": {
+      "bytes": 14,
+      "sha256": "e286d8485269f0724933d7fe7194676d30af9668c7bf91ea2fd831b8825e30b7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/fixture-force-remove-inner-project-0.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/fixture-force-remove-inner-project-0.stdout": {
+      "bytes": 65,
+      "sha256": "f85a84747747eb4babe94848c333ea8d6b4c2493f39a0c690d62bb62600dfba6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/fixture-force-remove-inner-project-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/fixture-force-remove-inner-project-1.stdout": {
+      "bytes": 65,
+      "sha256": "fe2a57886ef808b93bc886dbdc4b602cae1decd12a24810dc86e764afcaaf70f"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/gate-availability.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/gate-availability.stdout": {
+      "bytes": 330,
+      "sha256": "0e5472a6b22382d1bc006101c5c98e2a3efc1f41b1f06828909b886dbe5dfa6e"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/generate-keys.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/generate-keys.stdout": {
+      "bytes": 377,
+      "sha256": "29c0d138b11a4f89ca4059b9afe0549709d79a6f7045c38a5dff422abe1d8044"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/generate-tls.stderr": {
+      "bytes": 837,
+      "sha256": "b8e2d73d47da657a32676455a84bf4bb3ffc09e437e98ddaeac1ff6990ac5815"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/generate-tls.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/inner-image-inspect.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/inner-image-inspect.stdout": {
+      "bytes": 3264,
+      "sha256": "4b67176f7ef29fe5f3990d2826c325d582bc910d6845dfc73aa618a95f676b0b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/inner-image-list.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/inner-image-list.stdout": {
+      "bytes": 72,
+      "sha256": "e60cfdf9b9630848d6ad9d356eb1930cd058c0fd227171e603873a11707d0d3f"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/load-image.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/load-image.stdout": {
+      "bytes": 67,
+      "sha256": "01ff2c7535ee42330e69a4eaf657d5e97c4adc11c7722592881e11b9becdbc60"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mkdir-plugin.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mkdir-plugin.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mkdir-qa-timer-dropin.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mkdir-qa-timer-dropin.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mode-settings.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mode-settings.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mode-tls.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/mode-tls.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/original-inventory.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/original-inventory.stdout": {
+      "bytes": 226,
+      "sha256": "db147a9712cae307cd4c3940dc2d61bd62c878fd9a403d47ce9af6761c52e9da"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-image-docker.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-image-docker.stdout": {
+      "bytes": 4785,
+      "sha256": "aaed405720186ecd3e83b8032c9fea04372dca6161263c2973d9cea8ac28b3d7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-image-omne-m0-v0-control-tools.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-image-omne-m0-v0-control-tools.stdout": {
+      "bytes": 2653,
+      "sha256": "ff73db5ef02fd1179b25e5bd181c3cb73748c58f5c756d90424554eed2954d1b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-inspect-omne-r5-20260927-023116-f00f3c2f-control.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-inspect-omne-r5-20260927-023116-f00f3c2f-control.stdout": {
+      "bytes": 9149,
+      "sha256": "3985a11728eba752686bc48f60f0c2e4bf7cefa3a77e483ae52f1ca930181e7b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-inspect-omne-r5-20260927-023116-f00f3c2f-dind.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-inspect-omne-r5-20260927-023116-f00f3c2f-dind.stdout": {
+      "bytes": 10891,
+      "sha256": "d1ab78285fb6246776f46d0fba74c22019a36d05d70928e696b6462761480b90"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-product-image.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/outer-product-image.stdout": {
+      "bytes": 3884,
+      "sha256": "a569f830e9bfbd4191054150d8dc6507e32c31baad4689cc855f2a8eb9bcd452"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/own-tls.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/own-tls.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-add-qa-credential-policy.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-add-qa-credential-policy.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-marker-content.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-marker-content.stdout": {
+      "bytes": 16,
+      "sha256": "31d5c3a500a5e2d198f14c7fa56fac8d9cbb9962c7691262ed6c650a5735a78c"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-marker-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-marker-stat.stdout": {
+      "bytes": 45,
+      "sha256": "259ba67a012f60dde51c45fcde8adb4a4fa40c8cf189703de18a44688e0c43ff"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-snapshot-header.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-snapshot-header.stdout": {
+      "bytes": 16,
+      "sha256": "3f8434aff012ffcb594ad7527d6042841ce94f499887f86ab828f84a9a275f91"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-snapshot-sha.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-snapshot-sha.stdout": {
+      "bytes": 168,
+      "sha256": "1ea373e8e601e4ddec54f447143c63991b08d16fe70618ba9af6463ca1b09808"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-snapshot-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-snapshot-stat.stdout": {
+      "bytes": 49,
+      "sha256": "9567049a2ec7ee10239f4c15f267014771e06b600e56b0dfe0f89080ff45952a"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-task-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-after-task-stat.stdout": {
+      "bytes": 39,
+      "sha256": "8ab5253d4160a84949b7b380ac68d30c551ab7c88eabcfe6414b55218cd967ce"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-arm-gate.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-arm-gate.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-backup-status-recovered.stderr": {
+      "bytes": 143,
+      "sha256": "4b3c176b3bed5f0a78bc5f58177adc3cb942e8de7d4bf3952d028e77338ecac3"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-backup-status-recovered.stdout": {
+      "bytes": 742,
+      "sha256": "60ddd648bac4801a266c3aa44022b1088f6218a193aac61ee3fc85fa59ec8b32"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-find-snapshot.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-find-snapshot.stdout": {
+      "bytes": 102,
+      "sha256": "c0103ba828fd7506d20a5e036305e28b578098238d44d9283acf5be6bd1b849e"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-marker-content.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-marker-content.stdout": {
+      "bytes": 16,
+      "sha256": "31d5c3a500a5e2d198f14c7fa56fac8d9cbb9962c7691262ed6c650a5735a78c"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-marker-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-marker-stat.stdout": {
+      "bytes": 45,
+      "sha256": "259ba67a012f60dde51c45fcde8adb4a4fa40c8cf189703de18a44688e0c43ff"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-snapshot-header.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-snapshot-header.stdout": {
+      "bytes": 16,
+      "sha256": "3f8434aff012ffcb594ad7527d6042841ce94f499887f86ab828f84a9a275f91"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-snapshot-sha.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-snapshot-sha.stdout": {
+      "bytes": 168,
+      "sha256": "1ea373e8e601e4ddec54f447143c63991b08d16fe70618ba9af6463ca1b09808"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-snapshot-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-snapshot-stat.stdout": {
+      "bytes": 49,
+      "sha256": "9567049a2ec7ee10239f4c15f267014771e06b600e56b0dfe0f89080ff45952a"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-task-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-before-task-stat.stdout": {
+      "bytes": 39,
+      "sha256": "8ab5253d4160a84949b7b380ac68d30c551ab7c88eabcfe6414b55218cd967ce"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-initial.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-initial.stdout": {
+      "bytes": 11833,
+      "sha256": "cc0ee9592d07a043bd797e9883cb0a7ea08ce3231d80179090f2d8da7f019427"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-logs.stderr": {
+      "bytes": 6168,
+      "sha256": "d7a8a8c57fbe5f86b71dbd0ef0c3a0b25d6970cacc979814c37f24e4957f15b7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-logs.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-recovered.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-recovered.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-stable-first.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-stable-first.stdout": {
+      "bytes": 11919,
+      "sha256": "2ab18db80fb9bf066d83c5c46d80c00b54ec33269fe760c40c5f8d2a61228168"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-stable-last.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-center-stable-last.stdout": {
+      "bytes": 12172,
+      "sha256": "53bc9b03fd5ad85401ff3647b91b69f3b4a6b0f157b82df5b8c939c5e71c32d9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-build-id.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-build-id.stdout": {
+      "bytes": 65,
+      "sha256": "3a43d18c6e6a17f5dd78ac52b1ad06afc28f4e7f7e696adb4946e96558566383"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-configure.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-configure.stdout": {
+      "bytes": 484,
+      "sha256": "d9ecb5ff1dd8244879a6ee2109cb881e0505863a1622bdbe4c52900da7eec601"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-create-team-payload-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-create-team-payload-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-create-team-payload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-create-team-payload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-create-team.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-create-team.stdout": {
+      "bytes": 752,
+      "sha256": "bf3120f292e366e4f08f9df89db3785dcb4459b4a78a440ce6edb83526a45b94"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-after-payload-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-after-payload-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-after-payload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-after-payload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-after.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-after.stdout": {
+      "bytes": 980,
+      "sha256": "c5a5ce0835f7b3e644d67b666c8ff515cd2add11debf61462ad54963dba22eda"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-before-payload-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-before-payload-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-before-payload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-before-payload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-current-before.stdout": {
+      "bytes": 980,
+      "sha256": "f50b95cb136828354e4c7bdd87d6bb4fc32e717aa5d6356f1c10a83768255ea7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-health-after.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-health-after.stdout": {
+      "bytes": 485,
+      "sha256": "0ef6bd92496286482171950e296250741c63c8ac221e75aee8e5aa3d2fdd2a46"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-health-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-health-before.stdout": {
+      "bytes": 485,
+      "sha256": "56b957c855bf51810ee16a4e0f2ac79d3460c986f02f79bd4ac438a90fbc5aff"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-after-payload-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-after-payload-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-after-payload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-after-payload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-after.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-after.stdout": {
+      "bytes": 1154,
+      "sha256": "a4532d78d7ebdb44c498935241cf4a3878c054114a914bac837fa80513fe7c48"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-before-payload-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-before-payload-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-before-payload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-before-payload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-list-before.stdout": {
+      "bytes": 1154,
+      "sha256": "088d65722938f3d5e2fac2d57e8b8cad13d70ada57fece58d148085773dd6a2b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-login.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-login.stdout": {
+      "bytes": 758,
+      "sha256": "69eb7ed234c13c25a5b52cb0bb26ecf6f7a9c93aa428a1632e8ecc24a7c0b794"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-personal-before-payload-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-personal-before-payload-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-personal-before-payload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-personal-before-payload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-personal-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-personal-before.stdout": {
+      "bytes": 980,
+      "sha256": "99862f10eaa1502f90f54cdf7c59ac9c78e2a6639155aba34fc62fd4dd5981a7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-register.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-register.stdout": {
+      "bytes": 627,
+      "sha256": "2b68967eacd404ccfa6973964576c647def5d461caf7a09b57b43f61ac4e7a5d"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-switch-payload-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-switch-payload-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-switch-payload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-switch-payload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-switch.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-cli-switch.stdout": {
+      "bytes": 802,
+      "sha256": "672a344439dae7958fd1bc647b87f2e34f8bcef4d4c7135d7b3d06c5abd39047"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-control-node-version.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-control-node-version.stdout": {
+      "bytes": 9,
+      "sha256": "f2ec568164f99546161909b0189b57bb5be3e80f8e2ccd8a51a4aed8c4055a04"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-copy-cli.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-copy-cli.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-dind-network-inspect.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-dind-network-inspect.stdout": {
+      "bytes": 10891,
+      "sha256": "4e70b049fbc0afa2f9cae6707fe743256f04bfacf6811c32b2ce48bfc185ebb9"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-extract-cli.stderr": {
+      "bytes": 102168,
+      "sha256": "f658b3fe214bbfb6f0a2b4dd9213612cf53f26bb690951122f8fe827bb399c08"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-extract-cli.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-full-health-before.stderr": {
+      "bytes": 141,
+      "sha256": "733f9698bb619c63ce37619d535686a3a80aa08739600b4f976c3c249b40844b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-full-health-before.stdout": {
+      "bytes": 443,
+      "sha256": "838499a80fe9b62f585836d94297e591547fa4a053264e8937f7795f5def9525"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-full-health-recovered.stderr": {
+      "bytes": 141,
+      "sha256": "733f9698bb619c63ce37619d535686a3a80aa08739600b4f976c3c249b40844b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-full-health-recovered.stdout": {
+      "bytes": 443,
+      "sha256": "17b533a78f73b90bab5b63b2bad605af1bf15e8619244ea7eb7cb9558de398ed"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held-poll-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held-poll-1.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held-poll-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held-poll-2.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held-poll-3.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held-poll-3.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-held.stdout": {
+      "bytes": 135,
+      "sha256": "b3f9b7e244fd1a161deb47b973ad032c8c4bd8d30632ab7c152691a0a9d5ae74"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-ready-poll-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-ready-poll-1.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-ready.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-gate-ready.stdout": {
+      "bytes": 60,
+      "sha256": "290ba1ada7d814cbabb4acf1b3a392f3dea2a121e8f92f5f7e2516282269d536"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generate-private-san-tls.stderr": {
+      "bytes": 1104,
+      "sha256": "9c89fdaeaf81512042ade7437a5514402da361067bd80d8a4d23342380327061"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generate-private-san-tls.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-content-after.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-content-after.stdout": {
+      "bytes": 21,
+      "sha256": "c084082e4c798c7d971cf056d39750518901672da1476cc7d5faf17dc86ddcc6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-content-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-content-before.stdout": {
+      "bytes": 21,
+      "sha256": "c084082e4c798c7d971cf056d39750518901672da1476cc7d5faf17dc86ddcc6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-stat-after.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-stat-after.stdout": {
+      "bytes": 32,
+      "sha256": "19c9454bc7f7eb2b3afd8592375f210f8ca9907beee5133e67d0061ca83b3b91"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-stat-before.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-generation-stat-before.stdout": {
+      "bytes": 32,
+      "sha256": "19c9454bc7f7eb2b3afd8592375f210f8ca9907beee5133e67d0061ca83b3b91"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-held-before-arm.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-held-before-arm.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-held-fd-link.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-held-fd-link.stdout": {
+      "bytes": 67,
+      "sha256": "db7b0b178544df2ac431d2a9919c7fcb667b2439447d6a74a649e34921700819"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-held-fd-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-held-fd-stat.stdout": {
+      "bytes": 29,
+      "sha256": "4755a05ae8679d92adb0d3186d49f0f1024a58982172e4faca38717a4b47b6df"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-mkdir-cli.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-mkdir-cli.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-mode-private-san-tls.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-mode-private-san-tls.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-original-serve-inspect.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-original-serve-inspect.stdout": {
+      "bytes": 10363,
+      "sha256": "13f92075f054b19ed478c12166bf8658c017c2bba6faefe78b972b73ba50b290"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-original-serve-logs.stderr": {
+      "bytes": 2282,
+      "sha256": "1e5f36a3492c69f617f4759b7d87579774fd4753e41943f001ea658add13ab2d"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-original-serve-logs.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-original-serve.stderr": {
+      "bytes": 2282,
+      "sha256": "1e5f36a3492c69f617f4759b7d87579774fd4753e41943f001ea658add13ab2d"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-original-serve.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-own-private-san-tls.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-own-private-san-tls.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-pending-backup.stderr": {
+      "bytes": 136,
+      "sha256": "1f3db1b30dbca165e7edbd25f197eb3dd5560962f35080550a7572be9c10b61f"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-pending-backup.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-prior-backup-status.stderr": {
+      "bytes": 143,
+      "sha256": "4b3c176b3bed5f0a78bc5f58177adc3cb942e8de7d4bf3952d028e77338ecac3"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-prior-backup-status.stdout": {
+      "bytes": 742,
+      "sha256": "60ddd648bac4801a266c3aa44022b1088f6218a193aac61ee3fc85fa59ec8b32"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-prior-backup.stderr": {
+      "bytes": 136,
+      "sha256": "1f3db1b30dbca165e7edbd25f197eb3dd5560962f35080550a7572be9c10b61f"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-prior-backup.stdout": {
+      "bytes": 707,
+      "sha256": "ad0ce389c2085a1fc7d23b943217f963ef25c8a391afe95a5f418c000e82f987"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-marker-content.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-marker-content.stdout": {
+      "bytes": 16,
+      "sha256": "31d5c3a500a5e2d198f14c7fa56fac8d9cbb9962c7691262ed6c650a5735a78c"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-marker-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-marker-stat.stdout": {
+      "bytes": 45,
+      "sha256": "259ba67a012f60dde51c45fcde8adb4a4fa40c8cf189703de18a44688e0c43ff"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-snapshot-header.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-snapshot-header.stdout": {
+      "bytes": 16,
+      "sha256": "3f8434aff012ffcb594ad7527d6042841ce94f499887f86ab828f84a9a275f91"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-snapshot-sha.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-snapshot-sha.stdout": {
+      "bytes": 168,
+      "sha256": "1ea373e8e601e4ddec54f447143c63991b08d16fe70618ba9af6463ca1b09808"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-snapshot-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-snapshot-stat.stdout": {
+      "bytes": 49,
+      "sha256": "9567049a2ec7ee10239f4c15f267014771e06b600e56b0dfe0f89080ff45952a"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-task-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-probe-after-task-stat.stdout": {
+      "bytes": 39,
+      "sha256": "8ab5253d4160a84949b7b380ac68d30c551ab7c88eabcfe6414b55218cd967ce"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-qa-policy-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-qa-policy-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-qa-policy-tail.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-qa-policy-tail.stdout": {
+      "bytes": 48,
+      "sha256": "b405ed671b1ef67fc1085ee4addda943b4910fb723fd43587dbc909306d49313"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-1.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-1.stdout": {
+      "bytes": 12088,
+      "sha256": "a0e518ad27514a0d75de53ca2afc310396f634f540432b38a859ff4a13f2b335"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-10.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-10.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-11.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-11.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-2.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-2.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-3.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-3.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-4.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-4.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-5.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-5.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-6.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-6.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-7.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-7.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-8.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-8.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-9.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-recovered-observe-9.stdout": {
+      "bytes": 12088,
+      "sha256": "4922ba44028a66877e51ed2ea090389c3f37e052c1d5fa8b54c0f3f22d1a8f33"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-start.stderr": {
+      "bytes": 206,
+      "sha256": "ab38ba2cb841d917940fe469efcc5bfa750f4c35b8821ca4a73464377d1711f7"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-start.stdout": {
+      "bytes": 281,
+      "sha256": "9c5c96372a8cfe7e9c724f257c45d6ef180a9c6d37663cc43bcb0075d75ead82"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-status-recovered.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-status-recovered.stdout": {
+      "bytes": 401,
+      "sha256": "5682d1b9329cc265fb204873c57ffaf1b666259fb8ea133664b1b82c4d2c318c"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-validate.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-validate.stdout": {
+      "bytes": 39,
+      "sha256": "6e0985463474e2307dcc4638d8ab44308fa5cba77f36cf64f47c31c7562faebb"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-write-credential-stat.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-write-credential-stat.stdout": {
+      "bytes": 21,
+      "sha256": "d609a1bf49fec6e72858fdc6b91e0aa0ae5e53d3d7b028a3f14e9a9b81c2d6fa"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-write-credential.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/p-write-credential.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/prepare-dirs.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/prepare-dirs.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-build.stderr": {
+      "bytes": 206,
+      "sha256": "d86cb49dd44ce17a9da506b4e732433d5755f98bac9a709da0462523638defc5"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-build.stdout": {
+      "bytes": 1179,
+      "sha256": "577d442d5d65ff03feaaf89be77a61a0dc0108451bde77676fcc70b55ea739d8"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-dir.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-dir.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-image-inspect.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-image-inspect.stdout": {
+      "bytes": 3439,
+      "sha256": "c5ba3fb46b68dac127f75d41a93427a924363e65a460fd4a8fd57aabaa044de6"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-inventory.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-inventory.stdout": {
+      "bytes": 226,
+      "sha256": "db147a9712cae307cd4c3940dc2d61bd62c878fd9a403d47ce9af6761c52e9da"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-mode-owner.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-mode-owner.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-mode-permission.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-mode-permission.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-mode.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/qa-mode.stdout": {
+      "bytes": 11,
+      "sha256": "d8ab2444af9b414bb06887605f428b91f7b2e65f98895137545dd3dc05dc932b"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/read-view-marker.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/read-view-marker.stdout": {
+      "bytes": 9,
+      "sha256": "1d301574ce73aabe0234dd9fc5c751555c129cf8aa26d0a2b5dbd117452b93ca"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/set-private-systemd-host.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/set-private-systemd-host.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/systemd-reload.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/systemd-reload.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/write-qa-timer-dropin.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/write-qa-timer-dropin.stdout": {
+      "bytes": 52,
+      "sha256": "cdb9fd96c4ad0cd1e09cb15657c184e366c53626e30dec73cc8ad61cbc018412"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/write-settings.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/write-settings.stdout": {
+      "bytes": 303,
+      "sha256": "c6aba5e46c3e141b14bc153bed5b8d555c70f7c0f3685cc4567700fb02b66f07"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/write-view-marker.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/runs/20260927T023116Z-f00f3c2f/raw/write-view-marker.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docker-daemon-loss/self_test.py": {
+      "bytes": 9321,
+      "sha256": "954c274643b00d8937ec9a91a361d3217b3a1e7be79a8e5d37b8571a3f16b42a"
+    },
+    "docker-daemon-loss/static-manifest.json": {
+      "bytes": 5221,
+      "sha256": "0d8ff6d475a5327d86df13d3b5bd3ae93bb6c51c46f6020b3ef5fa97d95c5c82"
+    },
+    "docker-daemon-root-final-recheck.json": {
+      "bytes": 775,
+      "sha256": "4b49cd191814d6842c8c0839ea86c32e76fe86755dceb280c17c40547ebb5961"
+    }
+  }
+}

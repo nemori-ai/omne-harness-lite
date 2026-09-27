@@ -30825,6 +30825,742 @@
       },
       "reviewed": false,
       "note": "2026-09-27 精确消费者闭包候选；继承原同号条款，未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#61-不变式"
+      },
+      "target": {
+        "contract_id": "capability.assembly-manifest",
+        "version": 4,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#67-装配清单的生与失效"
+      },
+      "target": {
+        "contract_id": "capability.assembly-manifest",
+        "version": 4,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#装配清单"
+      },
+      "target": {
+        "contract_id": "capability.assembly-manifest",
+        "version": 4,
+        "clauses": [
+          "S-5",
+          "S-11",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#64-依赖声明与解析"
+      },
+      "target": {
+        "contract_id": "capability.assembly-manifest",
+        "version": 4,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#611-会话睡醒之后还是原来那个"
+      },
+      "target": {
+        "contract_id": "capability.assembly-manifest",
+        "version": 4,
+        "clauses": [
+          "S-9",
+          "S-12",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#装配清单"
+      },
+      "target": {
+        "contract_id": "capability.assembly-manifest",
+        "version": 4,
+        "clauses": [
+          "S-36",
+          "S-37"
+        ]
+      },
+      "reviewed": false,
+      "note": "原有来源/恢复性质的固定 head 读取与消费；不增加产品政策，未评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#611-会话睡醒之后还是原来那个"
+      },
+      "target": {
+        "contract_id": "capability.assembly-manifest",
+        "version": 4,
+        "clauses": [
+          "S-36",
+          "S-37"
+        ]
+      },
+      "reviewed": false,
+      "note": "原有来源/恢复性质的固定 head 读取与消费；不增加产品政策，未评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "decisions.md#2026-09-23--reload-是注册表的动态热更新不是完整重新装配"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "decisions.md#2026-09-23--斜杠命令参数无权限即不存在会话认得哪些命令③-型不开放保留名前缀"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#mcp"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-11",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#plugin"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#slash-command"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-20",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#tool"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#会话认得哪些命令什么时候变"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-1",
+          "S-14",
+          "S-15",
+          "S-20",
+          "S-23",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-1",
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#53-三个时刻"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#61-不变式"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-12",
+          "S-21",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#62-装配"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#63-三类变化三种传播"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-15",
+          "S-23",
+          "S-28",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#65-权限变化动作空间不变"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-20",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#三类变化背后只有一条判据系统提示词的成分会不会变"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-15",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#装配清单"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#61-常驻标记挂在引用条目上agent-definition-压-plugin"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#613-mcp-接入点带来的动作"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-7",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#62-可用性在每次-run-开始前重算"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#63-不可用时装的是同名替换件不是不装"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-8",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#64-依赖声明与解析"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#依赖"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#只有且只有必需"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#可用性"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#常驻"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#接入点连不上它的动作就是不可用"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#替换件"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#槽位"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#57-权限能关掉一条命令关不掉一扇门"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#58-子不得宽于父"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-007-meta-capabilities",
+        "clause": "design.md#meta-与常驻的关系"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#每一次尝试开始都要做四件事"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#58-存储要守住的两件事"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-8"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#611-会话睡醒之后还是原来那个"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#会话运行模式"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#57-人要做的事分三族"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#617-治理中心不可达已经开着的会话照常干活"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-20",
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#谁可以使用它是各类资产共用的一项权限"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-11",
+          "S-20",
+          "S-24",
+          "S-25",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-27 原完整 fill 来源候选；继承 v3 同号条款与需求范围，待独立评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#装配清单"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-51",
+          "S-52"
+        ]
+      },
+      "reviewed": false,
+      "note": "原有来源/恢复性质的固定 head 读取与消费；不增加产品政策，未评审。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#611-会话睡醒之后还是原来那个"
+      },
+      "target": {
+        "contract_id": "capability.asset-registry",
+        "version": 4,
+        "clauses": [
+          "S-51",
+          "S-52"
+        ]
+      },
+      "reviewed": false,
+      "note": "原有来源/恢复性质的固定 head 读取与消费；不增加产品政策，未评审。"
     }
   ],
   "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。\nPR #9 的 covers 随规格坐标迁移追加；reviewed 标记保持原值。"

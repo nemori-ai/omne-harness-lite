@@ -1,6 +1,6 @@
 # 规范实例：走通的路径与每个失败值的反例
 
-属于 `capability.assembly-manifest` v2 的规范工件。本契约**不附 Schema**，这里是**操作层面的输入 → 预期结果 → 依据条款**。
+属于 `capability.assembly-manifest` v4 的规范工件。本契约**不附 Schema**，这里是**操作层面的输入 → 预期结果 → 依据条款**。
 
 - **标识只是占位**：`s1`、`e1`、`t1` 不承诺任何词法（`data.identity-values/v1#S-31`）；`tN` 按时间先后。
 - **「预期」是契约要求的可观察结果，不是某次执行的记录**；执行状态在[验证入口](../verification.md)。

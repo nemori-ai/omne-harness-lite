@@ -1,0 +1,101 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_path": "record/decisions/model-main-integration-coordination/decision.md",
+  "authority": "root technical integration under explicit upstream synchronization and implementation delegation",
+  "at_utc": "2026-09-27T07:50:07.277202+00:00",
+  "user_instruction": "远程主分支有更新，同步好后 hub 也同步到最新",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.model-profile",
+        "version": 3
+      },
+      "resources": {
+        "spec/data/model-profile/v3/contract.md": "8bc4fbfe743b02586ccf582aecb4b5792e3e6582af9e48d5516c364b7251be23",
+        "spec/data/model-profile/v3/model-profile.schema.json": "fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d",
+        "spec/data/model-profile/v3/examples.md": "0a4bd984ecabb46a4d448654d241d3ef48e0a3cbabca73817c0904fb18f1dc6d"
+      },
+      "scope_clauses": [
+        "S-1..S-31"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.messages",
+        "version": 4
+      },
+      "resources": {
+        "spec/data/messages/v4/contract.md": "a8ac82be707ae5d49ceb7ad057b42041f73f73a47e76cdfbea5cc37b9d1be89c",
+        "spec/data/messages/v4/messages.schema.json": "2d65ca8ba5a81dba4121a500825c5f99d2bc01cf32686c4660d7299797ce1821",
+        "spec/data/messages/v4/examples.md": "19577a4217d825ebf9c5dc0b91372916ba1ac0d10d31f63d7bcabe7feca641c4",
+        "spec/data/messages/v4/formal/README.md": "a70d6c5793a6b09c077c466f6593f1c8416ee0dec7b4e15bb1b2463bcc894aef",
+        "spec/data/messages/v4/formal/Readable.als": "125d556e090eedb20be50a42b11270cba7c24760f8c197b12ee0dc9adec647dd"
+      },
+      "scope_clauses": [
+        "S-1..S-50"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.model-response",
+        "version": 4
+      },
+      "resources": {
+        "spec/data/model-response/v4/contract.md": "b591476555136ef8e86fba235b95df23627aa930581ee13db2817079d5cbf566",
+        "spec/data/model-response/v4/model-response.schema.json": "ee9952c0b7a327c15692e2622a9924e624397934649256e1fb005ddb380decad",
+        "spec/data/model-response/v4/examples.md": "a9b583a11647a7c6b228ad910f80814d77548c9e7960b7ef0a11789bed7b0328"
+      },
+      "scope_clauses": [
+        "S-1..S-38"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.model-profile-directory",
+        "version": 3
+      },
+      "resources": {
+        "spec/capabilities/model-profile-directory/v3/contract.md": "a38d111a1e071300bc7297f533998922213dc2e47e4671be621b8dd21cf94e45",
+        "spec/capabilities/model-profile-directory/v3/examples.md": "0695236343540a2742d03b0fe7bd4cf08909f0f9eb53d5677b52e4b2f903885e"
+      },
+      "scope_clauses": [
+        "S-1..S-35"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.agent-definition",
+        "version": 1
+      },
+      "resources": {
+        "spec/data/agent-definition/v1/contract.md": "6820187aea0e9c45a2a54f05df876feead27f3c95cd27e6f1c03b7f9fcfa3119",
+        "spec/data/agent-definition/v1/agent-definition.schema.json": "e115d2b7d47a3121c3706eeeae91a67c06c1363550d7f1e46f714f5e29a0cff9",
+        "spec/data/agent-definition/v1/examples.md": "60f2e9b599786fdb3a2b5790e0eb9998c1fc9717bef9359c46a1af0547f3bb49"
+      },
+      "scope_clauses": [
+        "S-1..S-10"
+      ]
+    }
+  ],
+  "human_overall_acceptance": false,
+  "scope": "administrative continuation only; original semantic acceptance unchanged",
+  "original_acceptance_records": {
+    "record/decisions/model-adaptation-binding-acceptance/decision.md": "d50c5bfaf6adf9913894e21892c66fddffe43a958741263c4734e970d874295e",
+    "record/decisions/model-adaptation-binding-acceptance/acceptance-2.json": "8fe1b7977bd56608b129422155097ff3aaabec2ba231a648b05836d3fd93a979",
+    "record/decisions/model-adaptation-binding-acceptance/README.md": "548a447072a9d04c3e829235e22d27bfe0d8aece17b13b15e490ba02d4568e48",
+    "record/decisions/model-adaptation-binding-acceptance/acceptance.json": "2325ad9ea365e22db85add3a8f192660a0a4ae4e565dbba79e18ebbfc44cf89f",
+    "record/decisions/model-value-provider-adoption/decision.md": "1d50c117435e72fe06e6414438229081f0e801a2a7fb65503dda701beafff4e9",
+    "record/decisions/model-value-provider-adoption/README.md": "79db48a7a6507496d3800b6c1505ad15bda102a34652e42e1f57766607da6571",
+    "record/decisions/model-value-provider-adoption/acceptance.json": "45e4c92e7c48d186675f7269a2f0ff7704dc419f15e5d2d5bcbc8a911a421286",
+    "record/decisions/agent-definition-read-adoption/decision.md": "a41f1c8215fc81fb277bd3074503c05e44bc76fdb3bceb388677051b247d6481",
+    "record/decisions/agent-definition-read-adoption/README.md": "f07b2d9fe58e5874fb0f4cb484240cc20abb99b0c80e2193b572325d1d428326",
+    "record/decisions/agent-definition-read-adoption/acceptance.json": "dcd1df6eb2acf2f76f7467c795127c0bd9d02ba6e3778f9334f42ac3b34f0fe1"
+  },
+  "snapshot": "record/decisions/model-main-integration-coordination/coordination-snapshot.json"
+}

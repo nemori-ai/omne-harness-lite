@@ -113,6 +113,10 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 
 [D-066：PR #9 与 draft PR #10 的身份协调](pr9-pr10-coordinate-reconciliation/README.md)：只后移 #9 的编号与精确引用，保护 draft 冻结资源及现行采用；不合并到 main。
 
+[合并前本支 D-067：治理中心Docker部署](governance-docker-deployment-adoption/README.md)：采用Compose固定声明、单一Engine重启与宿主备份timer；设计可实施，产品未实现/未验。
+
+[合并前本支 D-068：内容块实现接缝](content-blocks-seams-adoption/README.md)：限定采用 CB 无损数值校验桥与生产者铸号分工；独立 CB 可实施，pi 及其他消费者门继续保留。
+
 [D-067：格式化件技术采用](core-formatter-adoption/README.md)，用户明确追加两 util 包，主调度在委托内接受技术映射，未接受实现或总体交付。
 
 [D-068：core 实施反推的规格一致性修订](core-implementation-spec-reconciliation/README.md)：沿已接受 N32 补共享形状、两示例与八个 core 的显式采用；修订范围已采纳，精确新版候选待审，未接受／冻结／实现。
@@ -122,3 +126,14 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-076 模型请求纵线最终规格和装配投影](model-runtime-delivery-adoption/README.md)：RT3/runner3接受，runtime/transport/runner/验收app采用，真实交付待完成。
 
 [D-077 模型输入源接口补充](model-source-interfaces-adoption/README.md)：完整可信部署项与受限固定根读面采用；原装配来源认回及真实新增面验收待完成。
+
+
+[D-069：Skill YAML 键解析](skill-yaml-key-resolution/README.md)保留上游现行编号。
+
+[D-070：PR11 整合与历史编号消歧](core11-integration-coordination/README.md)承接本支 Docker R4 与 I-B，退役旧 CB N-A。上面两项“合并前本支”仅导航历史事实；现行 D-067／D-068／D-069 唯一指上游格式化、core 规格协调与 Skill YAML 决定。精确旧提交／路径与新承接范围见 D-070，不改原记录或验收标签。
+
+[D-071：Docker 正常终止请求与真实退出](governance-docker-stop-adoption/README.md)采用R5三处停止绑定，固定Engine条件与unknown结果；最终helper及两架构制品仍待验收。
+
+[D-072：健康探针单进程绑定](governance-docker-health-binding/README.md)接受已有公开main的同进程调用及原期限/资源清理约束；不改变EC3/HT3，不代表新制品已验。
+
+[D-078：模型纵线历史编号消歧](model-main-integration-coordination/README.md)接续施工提交的原 D-070～D-072；上文链接至 model-adaptation-binding-acceptance、model-value-provider-adoption、agent-definition-read-adoption 的同号文字仅导航历史，本次之后无提交限定的 D-070～D-072 指远程现行记录。模型 D-073～D-077 不变；原技术接受及资源字节不改变。

@@ -1,5 +1,7 @@
 # tenancy-host 验证与证据
 
+2026-09-26接续：[macOS夹具反例与修复](../../../record/evidence/2026-09-26-tests-host-macos-fixtures/README.md)。短化Unix socket路径、显式命名曲线后，在实际OpenSSL3.6.3工具链下host 187通过/11 PG跳过；合入HUB独立e2e 46/46。保留旧LibreSSL及路径失败原件；不扩为Docker或全平台结论。
+
 本页登记本节点**触发了哪些证据义务、实际跑过什么、覆盖到哪里**。原始配置、输入快照与运行结果归
 [record/evidence](../../../record/evidence/README.md)，本页只引用并解释范围。
 
@@ -135,3 +137,30 @@ pg 一行只有 `pg.spec.ts` 这 11 条、只在 PostgreSQL 16.14 上跑过，�
 [最终固定输入、运行与独立QA](../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
 
 限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。
+
+## Docker R5 停止绑定验收
+
+[D-071](../../../record/decisions/governance-docker-stop-adoption/decision.md)限定采用后，最终 helper 必须证明：显式SIGTERM配置与实际容器一致；running/restarting单次请求；完整wait值与同ID退出一致，空值/矛盾/丢回执unknown；初始exited不重启；启动失败始终非零且stderr保留收场事实；单次维护取消与真实完成竞争按原结果结算。上述逐项另与实际长IO／close残余／第二owner／timer及重建治理旅程组合验收。机制实验不填本表产品通过状态。采用时尚未执行最终R5 helper验收；后续实际范围见下节，D-071历史采用快照不改写。
+
+## Docker 最终制品的已运行范围 · 2026-09-27
+
+本节只接续验证状态，不修改上述义务或采用版本。产品源固定 `f8f286c95cb9458fe3173190edbeab6076339b08`、I3 manifest SHA256 `c97c8584b0346c6c0051ca43d20737e425cb8908366fd6adcfddd6b3eda1b06e`；下列场景由独立于产品实现的验收工具取证，具体执行与复核责任见各记录；root核对原始清单、判定器及关键输出后有限接受。实际环境为macOS上的私有Linux Engine；amd64使用具名Rosetta，未测原生amd64。
+
+| 范围 | 实际证据及边界 |
+| --- | --- |
+| 正常安装、维护与跨OS治理 | [helper启动](../../../record/evidence/2026-09-27-tests-docker-helper-start/README.md)、[维护与timer](../../../record/evidence/2026-09-27-tests-docker-r5-smoke/README.md)、[Mac/Linux治理、TLS与重建](../../../record/evidence/2026-09-27-tests-docker-cross-os/README.md)。自定义UID、原制品身份和第二属主拒绝已实测；不等于公司物理网络验收。 |
+| 安装拒绝 | [实际坏配置矩阵](../../../record/evidence/2026-09-27-tests-docker-install-validation/README.md)验证10类无效输入的validate/start拒绝；额外挂载另以真实inspect调用原校验函数，结论只在该组件边界，不称完整start拒绝。 |
+| 在线备份与关闭 | [长IO及关闭失败](../../../record/evidence/2026-09-27-tests-docker-r5-maintenance-io/README.md)、[业务并行备份与隔离拒绝](../../../record/evidence/2026-09-27-tests-docker-business-backup/README.md)、[调用者消失后的显式查询](../../../record/evidence/2026-09-27-tests-docker-online-caller-loss/README.md)。QA门绑定真实FileHandle，原应用清单不变；不称物理设备EIO或所有断连时序保证。 |
+| 已确认停止、启动失败与互斥 | [exit0跨Engine重启及同schema换镜像](../../../record/evidence/2026-09-27-tests-docker-recovery/README.md)、[exit1跨Engine重启](../../../record/evidence/2026-09-27-tests-docker-exit1-daemon/README.md)、[启动健康观察过期](../../../record/evidence/2026-09-27-tests-docker-startup-expiry/README.md)、[生命周期锁交错](../../../record/evidence/2026-09-27-tests-docker-lifecycle-lock/README.md)。均保留确切容器身份，不能推为非计划崩溃、任意升级迁移或断电保证。 |
+| 离线任务生命周期 | [已知任务TERM](../../../record/evidence/2026-09-27-tests-docker-offline-cancel/README.md)、[调用helper被SIGKILL](../../../record/evidence/2026-09-27-tests-docker-offline-caller-loss/README.md)、[不同工作根并行](../../../record/evidence/2026-09-27-tests-docker-offline-parallel/README.md)。真实完成前资源保持、同根busy、各任务独立；调用者未知结果不被稍后查询改写。 |
+| 定时备份的不可达边界 | [Engine离线timer](../../../record/evidence/2026-09-27-tests-docker-engine-offline-timer/README.md)实际触发失败且不拉起Engine或已停止中心；正常及停止中心的timer场景见前述维护证据。 |
+| 进程意外终止与升级顺序 | [进程SIGKILL后的恢复](../../../record/evidence/2026-09-27-tests-docker-unplanned-process/README.md)覆盖已确认治理事实、原备份与真实快照残留隔离；[timer协调换镜像](../../../record/evidence/2026-09-27-tests-docker-timer-replacement/README.md)验证实际停复顺序和原操作导出。两者不证明Engine损毁、新schema或失败升级的组合。 |
+| 未结算请求晚到 | [原运行及追加复核](../../../record/evidence/2026-09-27-tests-docker-late-request/README.md)记录调用者/锁释放之后，原请求仍可实际到达Engine；原调用保持unknown且未重发。原镜像身份判定错误的FAIL保留，另以修正判定器复核完整原始观测，不称新的产品执行。 |
+
+[Engine意外退出的实际运行与追加复核](../../../record/evidence/2026-09-27-tests-docker-daemon-loss/README.md)补齐本次同schema恢复窗口：私有DinD被SIGKILL后，测试显式恢复同一Engine，内部原中心自动恢复；已确认治理事实、先前备份和真实快照隔离保持。测量器独立于产品实现，root直接执行；原输入复制校验失败保留，新来源链复核另列，不称新产品运行或宿主Engine自动启动。
+
+[Fable整体评审及处置](../../../record/proposals/governance-docker-deployment/review.md#m0-固定交付的-fable-整体评审--2026-09-27)已完成；F1证据粒度追溯已由root明确接受，F5按[D072](../../../record/decisions/governance-docker-health-binding/decision.md)修补单进程健康绑定。其后的新制品验证与[M0 限定技术验收](../../../record/proposals/governance-docker-deployment/review.md#i4-定向复审与-m0-技术验收--2026-09-27)已完成，实际范围见下文。原失败记录不改写；修订判定器后的追加复核分别记录新判据、输入与有限接受依据，同机备份也不兑现整机或磁盘毁损灾备。
+
+[D072局部实现与主线整合检查](../../../record/evidence/2026-09-27-tests-docker-health-binding/README.md)：公开main的同进程探针及严格期限/输出边界已实现，实施者37项与主线26项分别通过；真实socket客户端使用夹具服务端，尚不计作新镜像部署/外层Docker取消验收。旧I3证据保持原身份。
+
+[D072 新制品实际验证](../../../record/evidence/2026-09-27-tests-docker-health-i4/README.md)：I4 两架构完整清单与新镜像的正常治理／备份／停止通过，amd64 为具名 Rosetta 模拟；arm64 原健康命令在真实请求在途时受到 Docker 2 秒外层超时，原 PID／连接结束且未观察到遗留后代。QA 服务端取消场景与真实中心正常场景分别陈述。线程名误判的原 FAIL、追加复核及环境预检失败完整保留。Fable 定向复审无阻断，root 已接受 M0 限定技术验收完成；默认内部期限先到的原镜像故障组合未运行，内部计时器不保证强制中断永不结束的模块加载。后续改变公开 index 的传递依赖、导入期副作用或探针进程模型时，须重新核对加载、退出、期限与回收。

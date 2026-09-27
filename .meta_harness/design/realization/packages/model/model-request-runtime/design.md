@@ -108,7 +108,7 @@
 
 | 中止原因 | 传输交回 | 收场 | 依据 |
 | --- | --- | --- | --- |
-| `first_token_wait_limit` 到点 | `local`，带 `queued` 留痕（在连接池里排队、还没拿到连接就被中止——上游零请求） | 按 S-18「传输本地」行：**`unrecognized`**，`localError` 里的排队时长作留痕；**不**因中止原因是超时而折成 `upstream_unavailable` | S-18 表第 2 行与首条说明（本地故障不报成「上游给不出」，否则重试件拿本机排队去换家、退避直到试尽）；与 S-21「超了算什么」一列的张力见 MRR-N15 |
+| `first_token_wait_limit` 到点 | `local`，带 `queued` 留痕（在连接池里排队、还没拿到连接就被中止——上游零请求） | 按 S-18「传输本地」行：**`unrecognized`**，`localError` 里的排队时长作留痕；**不**因中止原因是超时而折成 `upstream_unavailable` | S-18 表第 2 行与首条说明（本地故障不报成「上游给不出」，否则重试件拿本机排队去换家、退避直到试尽）；S-21 已明确限定上游被触达的前提，D-060 §八 N-44 ④；MRR-N15 已闭合 |
 | `first_token_wait_limit` 到点 | `aborted`（已拿到连接，请求已发往上游） | `upstream_unavailable` | S-21 第 1 行；S-18 表第 3 行 |
 | `post_first_token_stall_limit` 到点 | `aborted` | `interrupted_mid_reply` | S-21 第 2 行；S-18 表第 6 行 |
 | 撤除 | `aborted` 或 `local{queued}` | 都按撤除收场：`interrupted{run_cancelled}`、没有回复，**不进成因分类** | S-36 |
@@ -314,6 +314,6 @@
 | MRR-N12 | **函数层的行为没有契约条款**：`invokeModel`、`TransportAdapter`、`dispatchGuard`、`decideRetry`、`retryDelay` 借本契约的词汇与判定，契约写的是服务面（与 TER T-17 同题） | 主线 | 外部包装 `invokeModel` 的人 | 契约为函数面给出条款，或明写「函数面不受契约约束」 |
 | MRR-N13 | **「用哪个模型」这项设置的产出方未定**（契约 [G-20](../../../../spec/capabilities/model-request-runtime/v2/contract.md#十二已知缺口)，从原 G-19 拆出）：从没切换过的会话，选中模型判不出 ⇒ `effectiveModel`、`displayList` 对它 `unavailable`，不拿链上某个名字当初值（契约 S-9、G-20 ②）；锁那一半已由契约 S-10 第 2 步定下（求值成功而没有这一项即没有锁），不在本缺口。**后果**：一个新会话在用户第一次切换之前，loop 拿不到 `target`、发不出第一次模型请求——产品装配里如此；验收装配以种子写一条模型切换记录（契约 S-9 末句） | 主线 → PF-004（Agent 定义的属性项）＋ `capability.asset-evaluation`（它的 G-21） | loop（新会话的第一次请求）；`displayList` 的消费者（交付面） | 契约 G-20 闭合：某份正文契约产出这一项、写明锁怎么判；或主线裁定本版没有这一项时初值从哪来 |
 | MRR-N14 | **已闭合**（[D-060 §八 N-42](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) ④、N-43；契约 [S-28](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-28-opencall) ①③④⑧、G-24）：名字到条目由本能力经会话资产注册表的 `lookup` 解析，属于某个 Run 的调用随请求带 `report`（与 `run` 同在同缺）、在它所依的快照里取；落点见 S-7 行与依赖表 `assetRegistry` 一行。**受阻的只剩调用方**：带 `report` 调 `openCall` 的是 agent loop（C-8） | — | — | — |
-| MRR-N15 | **契约 S-21 与 S-18 在「排队中被首 token 时限中止」这一格读法相左**：[S-21](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-21-两个时限是运行时设置项) 的「超了算什么」一列写 `first_token_wait_limit` 超了即 `upstream_unavailable`，不分上游有没有被触达；本节点按 S-18「传输本地」行把传输交回的 `local{queued}`（在本机连接池里排队、零字节出网）收 `unrecognized`（[上文](#传输交回的事实怎样分成因)；`pi-ai-transport` 的 PAT-N18 ①）。两种读法在这一格给出不同成因，重试件的走向随之不同（`upstream_unavailable` 会换家、退避） | 主线（契约 S-21：写明那一列只在请求已到上游时成立，或另定） | 场景 S-46 这一支的判据；默认重试件（S-35）对本机排队的反应 | 契约写明，本节点照做 |
+| MRR-N15 | **已由契约闭合**：S-21 首行明确 `upstream_unavailable` 只在请求已到上游时成立；`local{queued}`、对上游零请求按 S-18 传输本地一行收 `unrecognized`（D-060 §八 N-44 ④）。节点分类与场景沿该条款，不再有两种未裁读法；实际测试仍未开始 | — | — | — |
 
 **与草图的差异不改契约**：「P-2 不 inject 会话日志服务」只写在草图里，契约没有这一条；本节点改为必需 inject（[理由](#与装配草图不同的四处)）；「不 inject 传输」同理改为必需 inject `modelTransport`（之四）。若 loop 契约起草时把会话级写入也做成调用方交口，本节点可退回草图。

@@ -54,3 +54,7 @@
 返回 [系统设计链](../../README.md)。
 
 [PR #9/#10 并行设计的坐标协调](pr9-pr10-coordinate-reconciliation/README.md)：三条路径及代价；按用户明确要求采用后移 #9 的行政坐标，见 D-066。
+
+[治理中心 Docker 部署](governance-docker-deployment/README.md)：沿现有治理中心的停止、备份和隔离恢复保证比较三种部署承载；R4 已由 D-067 接受，实际交付验收另列。
+
+[内容块实现接缝](content-blocks-implementation-seams/README.md)：无损数字进入 Schema 校验、普通与 pi 生产者的铸号策略协调；R2 的限定范围已由 D-068 接受；完整 pi 与其他消费者实施门仍未闭合。

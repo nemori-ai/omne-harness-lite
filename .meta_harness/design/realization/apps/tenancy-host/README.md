@@ -2,6 +2,8 @@
 
 ## 当前采用与历史结构读法
 
+新增的 [Docker 部署映射](docker.md) R5 已由 [D-071](../../../record/decisions/governance-docker-stop-adoption/decision.md)采用，继承 D-070 的 Docker R4 范围，健康探针由[D-072](../../../record/decisions/governance-docker-health-binding/decision.md)精化为同进程调用原公开main。实现、I4 制品正常治理与实际外层取消验证、Fable 定向复审已完成，root 已作出[M0 限定技术验收](../../../record/proposals/governance-docker-deployment/review.md#i4-定向复审与-m0-技术验收--2026-09-27)。[I3 的逐项有限验收](verification.md#docker-最终制品的已运行范围--2026-09-27)及[I4 的变更验证](../../../record/evidence/2026-09-27-tests-docker-health-i4/README.md)保持各自源码、制品与运行范围，不把历史场景称作 I4 全部重跑。实际公司部署、原生 amd64、专门的 TUI 到 Docker 操作与独立整机灾备等未覆盖范围沿验收记录读取；下列历史原生部署证据不扩大 Docker 保证。
+
 本节点当前消费D040～D044、D055/D056：AI3、OG2、AR2、OE2、EC3/HT3与IV1，SQLite由D039显式FULL；应用仍按D028的存储/时钟/密钥/入口装配责任组合，没有新增治理授权规则。有限登录、共同业务/活动提交、主动改密全失效与真实排空均已实现。源码/现有运行见下方接续和[当前CLI](../cli/README.md)。
 
 下方D023/D028/D029基线段保留装配推导与历史修订坐标；其中旧契约版本、实验期范围与旧完成状态只描述当时，不是当前消费者登记。当前版本与接受依据以前段和registry为准。治理CLI/TUI已有实现与有限跨OS/GUI证据；维护工具与限定 Linux 服务安装验证已完成；恢复只保持隔离，实际员工安装与整机损毁灾备仍须相应环境验收，不从有限测试推导全量生产保证。
