@@ -1,5 +1,11 @@
 # 评审记录
 
+## 2026-09-27 SL3 恢复路径识别增补独立复审
+
+architecture-reviewer `/root/b1_late_boundary_review` 与 spec-reviewer `/root/p2_narrow_projection_expression_review` 分别只读核对 recovery rev1及rev2；初稿 SHA `3cb5bee15aef25c797a5c5e95700a46f97ff985b1fabb7e44e09a14ce9f3b82b`，最终 `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`。架构两轮无阻断，置信度中，保留每日志同步、索引信任及宿主退出观察部署的强反方。表达 ER1 指出 RG-V3 将回执丢失／成功截回一律判不可信，ER2 指出 RG-V7 将第一次重建失败一律要求删除；rev2仅修这两行及修订号，两项独立定向复核均闭合，无新增问题。
+
+38输入和SL3原24冻结资源无漂移，完整原件及主线归因摘要见 [61文件归档](reviews/session-log-jsonl-recovery-2026-09-27.tar.gz)。摘要是主线忠实转述评审消息，未冒充逐字评审报告。没有执行IO／进程／TLC，不关闭RG-G1～3实际义务，也不提升完整runtime实现或37认证。精确技术采用另归D085。
+
 本包 revision 1 经独立 architecture-reviewer 只读评审，design SHA-256 `268554d7bd30b5240b8dc3996bb3b819fc321a9fdca8208861dea75cde9dcbe4`。没有接受记录。
 
 | 发现 | revision 2 处置 | 待验义务 |

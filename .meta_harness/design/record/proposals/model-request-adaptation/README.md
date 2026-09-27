@@ -13,5 +13,6 @@
 | 共用实现及模型插件怎样选择 | [候选比较](alternatives.md) |
 | 独立评审与处置 | [评审记录](review.md) |
 | 已发出响应按实际提交顺序判定 late 的三种演进方向 | [迟到结算候选比较](late-coordination.md)，选择记录见 [D-081](../../decisions/model-late-coordination-direction/README.md) |
+| JSONL 健康打开与不可信物理重启恢复的识别信号 | [恢复识别三候选](log-recovery.md)，精确技术采用见 [D-085](../../decisions/session-log-recovery-projection-adoption/README.md) |
 
 排期、执行负责人和实时状态留在任务区；本包不维护第二份实施计划。

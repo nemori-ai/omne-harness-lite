@@ -1,5 +1,9 @@
 # session-log-jsonl 验证与证据
 
+## 2026-09-27 恢复识别增补采用
+
+[D085](../../../../record/decisions/session-log-recovery-projection-adoption/decision.md) 采用 [恢复投影rev2](v3-recovery-design.md)，其RG-V1～V10全部尚未执行；RG-G4只完成技术采用，RG-G1可信物理身份／退出观察、RG-G2真实FS／进程／关闭及RG-G3全部调用者与README迁移保持未完成。原V1～V13与SLJ3-V1～V11不删；只有D084明确取代的旧V5截回失败读旧尾分支按新版三操作unavailable，成功截回和仅回执丢失的健康分支保持。当前binding0，独立设计评审、结构formal=skip及部分施工测试均不移作新恢复IO通过。
+
 契约侧的证据义务权威在 [`spec/capabilities/session-log/verification.md`](../../../../spec/capabilities/session-log/verification.md)：形式工件已跑过一次（run `2026-09-25-formal-session-log`，证的是契约的模型），六条规范场景一条都没演练。
 本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（属主锁、一行一批、半截尾截断、派生索引、失败截回、刷盘）。**本节点尚未建包，一切未开始。**
 

@@ -1,5 +1,7 @@
 # 实现映射
 
+2026-09-27：[D085](../record/decisions/session-log-recovery-projection-adoption/decision.md)采用[SL3恢复识别增补rev2](packages/session/session-log-jsonl/v3-recovery-design.md)。补可靠active／clean标记和可信物理退出输入；真实观察、FS和调用者迁移仍未验收，bindings0，不提升日志或runtime交付状态。
+
 2026-09-27：model/pi-ai-transport revision7公共完整定义增量已[有限实施签收](../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)，旧默认删除，HUB175／6、独立制品／文档／真实排空及8行为负控保全；两model节点当前层次沿各自入口。不是完整P2、耐久十三操作或37模型认证。
 
 这里保存契约由谁兑现：插件提供者的设计、应用装配的选择，以及把承诺绑到实际证据上的绑定表。
