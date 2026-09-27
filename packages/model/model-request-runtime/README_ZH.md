@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前实现范围是独立函数。耐久十三操作服务、Cordis 插件、租户准入、恢复、重试和回复结算尚待交付。精确采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。
+当前实现范围是独立函数，包含精确重试退避算术。耐久十三操作服务、Cordis 插件、租户准入、恢复、自动重试和回复结算尚待交付。精确采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。
 
 ## 公开接口
 
@@ -12,6 +12,7 @@
 | --- | --- |
 | `invokeModel(input)` | 返回包含 `outcome`、`snapshot()` 与 `abort()` 的句柄 |
 | `classifyCause(facts, hasContent, table)` | 按显式状态码表分类来源，保留原始状态码 |
+| `retryDelay(input)`、`RetryBackoffPolicy`、`RetryDelayInput`、`RetryDelayResult` | 按显式政策、重试序号、sample 及 decorrelated 前值计算精确 TD3 Duration |
 | `TransportAdapter`、`PlanInput` | 调用者持有的 plan/send/read 端口与显式请求输入 |
 | `InvocationPolicy`、`ModelInvocationResult` | 调度、脱敏、诊断政策与尚未结算的结果投影 |
 
@@ -66,6 +67,34 @@ transportOptions.definitions 必须显式给已核实的完整定义与自持网
 调用 `handle.abort()` 或中止传入信号后，等待 `handle.outcome` 再释放资源。出网前取消返回 `{ cancelledBeforeSend: true }`，没有请求结果。已开始发送的调用收敛为 `complete`、`truncated`、`interrupted` 或 `failed`。首内容后失败保留已经交付的部分。usage、缓存零与未知、精确实报费用保真；上游缺身份时不从请求路由补造。
 
 规划拒绝不产生模型响应。意外实现缺陷仍表现为被拒绝的 promise。结果没有会话、租户、ResponseId，也没有耐久入账或回复落盘含义。
+
+## 计算精确重试退避
+
+`retryDelay` 是同步纯函数，实现 [RT4 S-60](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v4/contract.md#s-60-纯判定与可单取用构件)，沿 D086 接受与 D076 R3-P7 投影、D087 保留范围采用。结果为 `{ ok: duration }` 或 `{ invalidInput: { reason: 'malformed' } }`。五个政策成员、正整数 `n` 和 `[0, 1)` 内的精确 `uniformSample` 均须显式给出，`none` 也不例外。decorrelated 另需 `previousDelay`；第一次重试须按时长值等于 `base`。函数不提供默认值或随机源。
+
+```ts
+import { retryDelay } from '@omne-harness-lite/model-request-runtime'
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+
+const delay = retryDelay({
+  policy: { kind: 'exponential', base: 'PT10S', factor: 2, max: 'PT25S', jitter: 'half' },
+  n: 3, uniformSample: new LosslessNumber('0.999'),
+})
+if ('invalidInput' in delay) throw new Error(delay.invalidInput.reason)
+if (delay.ok !== 'PT24.9875S') throw new Error('unexpected exact delay')
+
+const next = retryDelay({
+  policy: { kind: 'constant', base: 'PT1M', factor: 1.5, max: 'PT2M', jitter: 'decorrelated' },
+  n: 1, uniformSample: 0.25, previousDelay: 'PT60S',
+})
+if ('invalidInput' in next) throw new Error(next.invalidInput.reason)
+if (next.ok !== 'PT67.5S') throw new Error('unexpected decorrelated delay')
+console.log(delay.ok, next.ok)
+```
+
+构造 `LosslessNumber` 时将 content-blocks 声明为直接依赖。时长接受 TD3 的 H/M/S 字符串、小数秒及等值写法，输出采用精确秒。系数复用公开 `JsonNumber` 表示，可保留十进制字面量及超过 2^53 的重试序号。普通 JavaScript 数值按调用时已有的十进制值处理，函数无法恢复调用前已经丢失的精度。
+
+函数复制并校验 JSON 数据、不读取 getter、不改调用者输入，也不取整到毫秒。算术结果不表示已经允许重试，不执行等待、发送、回退或默认重试贡献。实际定时精度和大时长调度仍受 R3-G7 约束；P-5/runner 接线及 37 模型认证尚待交付。
 
 ## 开发与验证
 
