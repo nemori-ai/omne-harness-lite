@@ -19,7 +19,7 @@
 
 本次 PF 修订的影响与未兑现范围见 [README](README.md) 开头。下述既有形状不是新增生产语义的接受或实现声明。
 
-本节点是 [PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 9）
+本节点是 [PF-016 命令行交付面](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 10）
 这一个交付面的应用装配：**一个装在用户自己机器上的命令行应用**。
 它给出的是这个应用的形状；交付面自己的定义、边界与产品规则全在那份正文里。
 

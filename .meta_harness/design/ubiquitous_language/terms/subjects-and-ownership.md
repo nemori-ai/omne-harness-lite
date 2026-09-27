@@ -65,7 +65,7 @@
 - **注意 ②**：**正文未述它靠什么标识**，只写明彼此可分辨——重新登录是新的一个，多处登录各是一个
 - **注意 ③**：**可被同账号的其他有效登录状态列出。**[持本账号任一有效登录状态者，可以列出本账号当前全部有效的登录状态，每一个带签发时间](../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)；**已失效的不在列表里**。独立撤销仍逐个；[主动更换凭据](../../product/PF-001-identity-scope-and-agent-constraints/design.md#主动更换凭据)成功会使全部旧登录失效
 - **注意 ④**：[当前租户身份](#ul-current-tenant-identity--当前租户身份--current-tenant-identity)这项选择**挂在它身上**：它失效，那项选择随之不存在；重新登录从个人组织重新起算
-- **注意 ⑤**：**属于签发它的那个[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**，这是它身份的一部分；换一个中心就是另一套身份（[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 9））
+- **注意 ⑤**：**属于签发它的那个[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**，这是它身份的一部分；换一个中心就是另一套身份（[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 10））
 
 ### UL-organization · 组织 · Organization
 
@@ -106,7 +106,7 @@
 > ones. Not a new concept, merely a word to set against "personal organization".
 
 - **形态**：变体（父：[组织](#ul-organization--组织--organization)）
-- **出处**：[PF-003 §4 承接](../../product/PF-003-asset-transfer-and-sharing/design.md#承接-pf-001-与-pf-002)（rev 5）
+- **出处**：[PF-003 §4 承接](../../product/PF-003-asset-transfer-and-sharing/design.md#承接-pf-001-与-pf-002)（rev 6）
 
 ### UL-parent-organization · 上级组织 · Parent Organization
 
@@ -140,7 +140,7 @@
 > root); that tree **is exactly the boundary** within which assets may circulate.
 
 - **形态**：视图
-- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 22） · [PF-003 §5.2](../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)（rev 5）
+- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 22） · [PF-003 §5.2](../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)（rev 6）
 - **别混**：**「有共同上级」不是「两条不含自己的链有交集」。**照那种读法，[一个组织与它自己的上级会被判成没有共同上级](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)，而它们分明在同一棵树上——团队与它所属的公司反倒成了出树。**必须先把各自算进自己的链**
 - **注意**：个人组织的上级链恒为空，把它自己算进来也只有它一个，所以**任何两个个人组织都不会有共同上级**——不是把门放宽了，**是那把尺子量不到它们**
 
@@ -163,7 +163,7 @@
 > pending sharing invitation.
 
 - **形态**：总称
-- **出处**：[PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 22） · [PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)（rev 5）
+- **出处**：[PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 22） · [PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)（rev 6）
 - **⚠️ 别混**：**这四样不是同一类东西，也不共享一套身份机制。**四样**各是一个对象**——[邀请](#ul-invitation--邀请--invitation)、[隶属请求](#ul-affiliation-request--隶属请求--affiliation-request)、
   [复制通知](circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice)、[分享邀请](circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation)各有词条与条目，
   关系主体与接受后建立的东西各不相同。**这个词只用来归类，不给这四样一套共同的身份、存储或状态机**
@@ -366,7 +366,7 @@
 - **形态**：总称
 - **出处**：[PF-017 §4 运维者](../../product/PF-017-governance-center-as-deployable-application/design.md#运维者) ·
   [§5.5](../../product/PF-017-governance-center-as-deployable-application/design.md#55-运维者与超级管理员两条线不交叉) ·
-  [§6.13](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 5）
+  [§6.13](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 6）
 - **⚠️ 别混**：**不是[超级管理员](#ul-super-administrator--超级管理员--super-administrator)。**超管是一个组织内的最高治理角色，
   凭自己的登录状态做治理动作；运维者凭对机器与数据的控制让中心在，**手上没有任何登录状态可用**。
   同一个人两头都是，产品也当成两个人

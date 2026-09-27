@@ -15,7 +15,7 @@ PF-017 为这个应用开题时点名的就是本节点（[拍板记录](../../.
 
 本次 PF 修订的影响与未兑现范围见 [README](README.md) 开头。下述既有形状不是新增生产语义的接受或实现声明。
 
-本节点是 [PF-017 治理中心作为一个可部署应用](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 5）的应用装配——
+本节点是 [PF-017 治理中心作为一个可部署应用](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 6）的应用装配——
 PF-017 有意不在治理中心身上用「交付面」这个词，本节标题只沿用节点模板——并承接
 [PF-001 身份、范围与对 Agent 的约束](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 22）
 的[投影 v1 第 3 步](../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#8-实施顺序)：

@@ -87,7 +87,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [租户](../domain_objects/objects.md#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与 | Git 工作区 | PF-020（草稿） | 002 016 |
+| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [租户](../domain_objects/objects.md#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与 | Git 工作区 | PF-020（草稿） | 002 |
 | [工作区实例](../domain_objects/objects.md#ul-workspace-instance--工作区实例) | [UL-workspace-instance](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 部署节点上的一次工作区装载，可接入用户已有的本地目录；它代表一个工作区，但不拥有工作区 | — | PF-020（草稿） | — |
 
 ## 主体与归属
@@ -148,4 +148,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、模型响应体、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、工作区实例、账号、登录状态、邀请、隶属请求、租户—工作区关系。
+装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、模型响应体、被卸载的原始结果、执行环境、沙箱实现、无状态沙箱、租户级沙箱、沙箱数据、派发报告、决策卡片、会话授权上下文、记录条目、待办条目、工作区、工作区实例、账号、登录状态、邀请、隶属请求、租户—工作区关系。

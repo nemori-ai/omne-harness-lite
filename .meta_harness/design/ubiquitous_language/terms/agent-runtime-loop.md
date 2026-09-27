@@ -171,7 +171,7 @@
 - **形态**：过程
 - **出处**：[PF-015 §4 会话归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话归档) ·
   [§6.2](../../product/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动) ·
-  [§6.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 12）
+  [§6.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)（rev 13）
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
   那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](../../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
@@ -199,7 +199,7 @@
 > happens to that definition.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话类型](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 12）
+- **出处**：[PF-015 §4 会话类型](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 13）
 - **⚠️ 别混**：**它不是一道闸门。**它**不参与**
   [放行三元组](../../product/PF-007-meta-capabilities/design.md#611-ask通向人)，
   也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
@@ -226,8 +226,8 @@
 > does not decide which actions need asking**, only what happens at that moment.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话运行模式](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 12）；
-  它在[放行四步](../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 18）里是第 ④ 步
+- **出处**：[PF-015 §4 会话运行模式](../../product/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 13）；
+  它在[放行四步](../../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 19）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
@@ -571,7 +571,7 @@
   [§5.3](../../product/PF-000-occurrences-and-record-entries/design.md#53-干预力只长在瞬态这一半上)（rev 1） ·
   [PF-012 §5.8 干预力三档](../../product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的) ·
   [没有「放宽」这一档](../../product/PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 15） ·
-  [PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 23）
+  [PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 24）
 - **注意 ①**：**在拓展件上它是一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)，不是设置**——各层按收窄合成，组织锁在「只观察」，租户就放不宽
 - **注意 ②**：**三档挂了的后果相反**——只观察那一档不影响正在发生的事；可改写那一档不影响，但留一笔「它没跑成」；可否决那一档报错默认当作否决。**「不可用」不是报错**，另有定法
 - **注意 ③**：**否决只在「之前」的位置上有意义**；可否决那一档站在「之后」，多出来的只有等人
@@ -592,7 +592,7 @@
 > error policy**: unavailable means it never ran; an error means it ran and failed.
 
 - **形态**：属性（一件拓展件登记上的一项；系统自带的那几件由系统预先给定）
-- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 15） · [PF-002 §4 不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 23）
+- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 15） · [PF-002 §4 不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 24）
 - **⚠️ 别混**：与[干预力](#ul-intervention-power--干预力--intervention-power)里「报错默认当作否决」那条是两回事——那条管跑了出错，这条管根本没跑
 - **注意 ①**：**「此刻不在」无论按哪种处置，都必须看得见**——日志里有一笔「这一件此刻不在、按 X 处置」
 - **注意 ②**：系统自带的[放行判断](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)的指定挂件是**全拒件**——它不在时，需要判断的动作一律拒绝，不放行、也不出卡问人
@@ -612,7 +612,7 @@
 - **形态**：过程
 - **出处**：[PF-012 §5.8 改了日志就重新组装，同一位置同一次经过只跑一轮](../../product/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)（rev 15）
 - **注意 ①**：**与压缩那一圈同构**——压完再量一次，还超就上交，不再压一轮；不定这条，一个爱改日志的挂件就能把自己无限触发下去
-- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 23），后一件看得到前一件的结论
+- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 24），后一件看得到前一件的结论
 
 ### UL-wait-primitive · 等待原语 · Wait Primitive
 
@@ -683,8 +683,8 @@
 > scope at that time.
 
 - **形态**：过程
-- **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 12） ·
-  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 23）
+- **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 13） ·
+  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 24）
 - **别混 ①**：**裸写「装配 / assembly」在跨领域的文字里不作数**——它专指把 agent 定义求值成清单的这个动作
 - **别混 ②**：**它的产物不是一个活物**——
   **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
@@ -706,7 +706,7 @@
 > mid-run **adds** an entry, it never edits one.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 装配清单](../../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 12）
+- **出处**：[PF-004 §4 装配清单](../../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 13）
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——
   **清单是照着起协程的那份图纸，协程是照它起来的那个东西**。
   复用清单**不等于**复用协程：协程每次尝试都是新的
@@ -728,7 +728,7 @@
 > arrive this way.**
 
 - **形态**：过程
-- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 12）
+- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 13）
 - **别混 ①**：**不是依赖注入**（DI）。那是技术设计里的容器机制；**裸写「注入」不作数**
 - **⚠️ 别混 ②**：**[执行环境](grounding-and-isolation.md#ul-execution-environment--执行环境--execution-environment)不是注入进来的**——
   它**每扇门每次执行现算**。两者共享同一条性质（变了不必重新装配、协程不必重起），**来路不同**
@@ -747,7 +747,7 @@
 > which goes through graceful cancellation and a fresh start.
 
 - **形态**：过程
-- **出处**：[PF-004 §6.3](../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 12）
+- **出处**：[PF-004 §6.3](../../product/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 13）
 - **注意**：**两条路殊途同归**——热装不了就重新装配，**[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)照样由构成决定**
 
 ## 怎么没
@@ -773,7 +773,7 @@
 
 - **形态**：规则
 - **出处**：产品负责人 2026-09-20 直接裁决，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)；**2026-09-23 产品负责人纠正**：工具执行有自己独立的 runtime，前台后台都绑会话——
-  [PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 19） · [PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 15）
+  [PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 20） · [PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 15）
 - **它推出来的四条**（**不必分别记忆**，都是同一条规则）：
 
   | 谁 | 中断一次运行 | 终止 / 归档 / 回收会话 | agent runtime 被回收 |

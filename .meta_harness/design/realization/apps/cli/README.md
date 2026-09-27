@@ -1,12 +1,14 @@
 # cli应用节点
 
+**跨 PF 工作区一致性复核（2026-09-27）**：PF-016 rev 10 的显式登记、共享实例与资产重载属于工作区交付增量；既有治理 CLI/TUI 契约尚未覆盖这些接口。当前仅更新产品引用并登记消费缺口，保留原已接受契约、部署、实现与验证范围。
+
 **工作区增量复核（2026-09-27）**：当前 PF 引用已对齐本会话的工作区概念修订；本节点的治理交付范围不变。PF-020 的工作区身份、实例、地址与参与关系仍是产品草稿，不因本次引用更新成为已接受契约、实现或验证声明。
 
 **2026-09-26 裁决对账**：[D-064 ⑭](../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md) 已允许 hooks 子进程落宿主机，取代此前「产品未允许」的前提。现行未完成项是 EE G-3 的允许读面接线与 HI G-15 的工作目录、变量名单来路；缺席时仍按契约拒绝。本次只更新裁决依据，未登记实现或验证完成。
 
 
 - kind：assembly
-- 交付面：[PF016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 9），本期治理CLI/TUI。
+- 交付面：[PF016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 10），本期治理CLI/TUI。
 - 源码位置：`apps/cli`，D049文件输入增量已实现。
 - 语义接受：CQ1 S1～10已由[D049](../../../record/decisions/governance-cli-file-entry-adoption/README.md)接受；消费CG2/CLS1及冻结CG1报告表示。
 - 可实施：D049受保护文件CLI与D051限定profile的治理TUI；两者共用CG2/CLS1，秘密仍从保护文件读取，精确边界归[governance.md](governance.md)与[tui.md](tui.md)。

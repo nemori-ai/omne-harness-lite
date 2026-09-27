@@ -123,7 +123,7 @@
 > projection's own tradeoff, **and does not change what it is**.
 
 - **形态**：视图
-- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 12）·
+- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 13）·
   [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 13）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
@@ -184,7 +184,7 @@
 - **出处**：[PF-009 §5.6 中断这件事本身，要让 agent 知道](../../product/PF-009-context-message-types/design.md#中断这件事本身要让-agent-知道) ·
   [§6.13](../../product/PF-009-context-message-types/design.md#613-只要发生了中断就补一条提醒)（rev 8） ·
   [PF-013 §5.5](../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话)（rev 13）
-- **注意 ①**：**它不算一次[触发](agent-runtime-loop.md#ul-trigger--触发--trigger)**——系统为已经发生的中断追补的这一条，[不让待处理消息队列从空变非空](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 7），用户叫停之后它不会把 agent 重新叫起来
+- **注意 ①**：**它不算一次[触发](agent-runtime-loop.md#ul-trigger--触发--trigger)**——系统为已经发生的中断追补的这一条，[不让待处理消息队列从空变非空](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 8），用户叫停之后它不会把 agent 重新叫起来
 - **注意 ②**：**它管的是模型回复那一路。**工具执行没走完就收场的，交代原因的是那次调用位置上的[占位消息](#ul-placeholder-message--占位消息--placeholder-message)，不是它
 
 ### UL-placeholder-message · 占位消息 · Placeholder Message
@@ -204,7 +204,7 @@
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
 - **出处**：[PF-006 §6.7 用户可以中断，而中断不是失败](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) ·
   [占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) ·
-  [§6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 19） ·
+  [§6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 20） ·
   [PF-009 §4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 8）
 - **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)留下的那条**——正文也管它叫「占位」，但那一条装着真实结果的摘要与取全文的办法，**它就是那次调用的结果**；占位消息里没有结果
 - **注意**：**它不是失败。**agent 按原因读它——**失败是「这事没成」，中断是「这事不做了」**，把两者读混，agent 会去重试用户刚叫停的事
@@ -224,7 +224,7 @@
 > of the six outcomes: moved to background, interrupted, or failed.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.7 占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)（rev 19）
+- **出处**：[PF-006 §6.7 占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)（rev 20）
 - **注意 ①**：**「工具执行异常中断」落在失败，不在被中断**——没有任何人叫停它，agent 该自己判断要不要再调
 - **注意 ②**：**「被 agent 停掉」不是它的取值**——后台那一段被 agent 自己掐掉时，原因写在那段执行收场的提醒里；那次调用的占位早在转后台时就放下了
 - **注意 ③**：**「运行被取消」不借「用户手动中断」**——取消的可能不是用户，而且停的是这一步，不是这一次执行
@@ -247,7 +247,7 @@
 - **形态**：属性
 - **出处**：[PF-009 §6.5 来源是一个属性，不是另一种消息](../../product/PF-009-context-message-types/design.md#65-来源是一个属性不是另一种消息) ·
   [§4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 8） ·
-  [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 7）
+  [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 8）
 - **别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
 - **⚠️ 别混 ②**：**不是[来路标记](#ul-origin-tag--来路标记--origin-tag)**——那是**一块文本**身上「这段字从哪条路来」（斜杠命令的留痕、展开物、附带的参数），挂在块上；来源标记挂在到达与消息那一层，答的是「谁捎来的」。人敲一条斜杠命令，**来源仍是用户，来路才是命令**——同一条消息上两者可以都有
 - **弃用**：~~「来源属性」~~（正文的叙述说法，指的就是它）
@@ -268,7 +268,7 @@
 
 - **形态**：属性
 - **出处**：[PF-014 §5.10 斜杠命令在受理时分两路走](../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) ·
-  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 7）
+  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 8）
 - **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文本上，说的是这段字怎么来的
 - **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
@@ -485,7 +485,7 @@
 - **形态**：规则
 - **出处**：[PF-009 §5.5 到达的过程有它自己的语法](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
   [「填」有两种模式](../../product/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 8） ·
-  [PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 19）
+  [PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 20）
 - **别混**：与[增量到达](#ul-incremental-arrival--增量到达--incremental-arrival)——那一条说「一条消息是分次到达的」这件事，**这一条说那件事必须按什么先后走**
 - **注意**：**两种填法只管「填」这一步**，开块、封口、记账、收尾一样不少；取代只发生在一个块里，不跨块
 
@@ -540,8 +540,8 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 18）·
-  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 12）
+- **出处**：[PF-007 §6.9 `TodoItems()`](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 19）·
+  [PF-015 §5.6 第 13 项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 13）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
@@ -640,7 +640,7 @@
 
 - **形态**：视图
 - **出处**：[PF-010 §4 给模型那一侧](../../product/PF-010-context-management-and-assembly/design.md#给模型那一侧两块分别组装)（rev 6）·
-  [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 12）
+  [PF-004 §5.4](../../product/PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)（rev 13）
 - **注意**：走遍所有[meta 能力](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)，
   **它应当逐字不变**——取用一个工具**不改写它**
 

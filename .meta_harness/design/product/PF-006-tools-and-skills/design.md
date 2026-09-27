@@ -1,7 +1,7 @@
 # PF-006：工具与技能
 
-- 修订：rev 19，2026-09-24 · [变更历史](changelog.md)
-- 状态：rev 17 已定稿；**rev 18–19 待产品负责人确认**；**无未决项**
+- 修订：rev 20，2026-09-27 · [变更历史](changelog.md)
+- 状态：本轮工作区一致性增量为草稿；此前接受范围及现存未决项见 [README](README.md#状态)，本次不扩大接受或已实现范围。
 
 ## 一、背景与问题
 
@@ -941,9 +941,11 @@ run 不再等它，结果换个时候以提醒的形式回来。
 2. **造出来的是一份[资产](../PF-002-assets-settings-and-permissions/design.md#八类资产)**，不是临时草稿。
    它的**归属算得出来**——租户上下文本来就注入在 agent runtime 里，
    不需要为这件事另加机制。
-3. **当场能用，但不改变 agent definition。**动作空间就地变长，
+3. **经显式增量装载后当场能用，但不改变 agent definition。**动作空间就地变长，
    [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime) 不重建。
    **改了 definition 的，在下一次 run 时重建 agent runtime。**
+
+单纯在工作区写入技能、工具或 Agent Definition 文件不等于完成装载，不自行触发当场可用或下一 run 重建。工作区来源沿 [PF-020](../PF-020-workspace/design.md#装载附着与装配)，在实际装配或显式资产 reload 时校验和加载；候选校验失败，原内存数据不变。
 
 第 3 条是[构成变了却不重新装配的那个例外](../PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播)：
 **它装上来的是非常驻的东西，系统提示词的成分一个字没动**——
