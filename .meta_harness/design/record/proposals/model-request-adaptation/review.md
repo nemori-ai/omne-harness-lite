@@ -148,3 +148,11 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 作者rev2仅升修订号及两处明确替代：旧design该读取行为和旧V5对应预期改由SLJ3-V8承接，成功截回、其余故障注入／机制与部署前提保持。两位reviewer定向复核无本次阻断／新增非阻断；最终SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`，28项输入无漂移，汇总摘要 `6e57ee89189bc356eca20b93e4fa6ae03fb991d8cdfc46a35ed068bf8a0e9bd9`。旧四件套及v2输入在评审时字节不变；表达检查20链接、SL3 24资源和旧SL2 10冻结资源符合。
 
 [输入、两修订、差异、作者结构检查及主线评审摘要](reviews/session-log-jsonl-v3-2026-09-27.tar.gz)，SHA256 `70b5b1eb70c43f35b899e0a33952874d3659a773491636bbe9161ff62c874360`；[索引](reviews/session-log-jsonl-v3-2026-09-27.json)47文件已逐字读回。primary-summary不是reviewer逐字原文。11新oracle及所有真实IO尚未执行、bindings0；评审未运行产品或形式工具。索引信任、重启停顿／全量扫描和文件机制取证成本作为强反方保留。技术采用见[D084](../../decisions/session-log-jsonl-v3-projection-adoption/decision.md)，不自动升级RT3/SL2依赖或证明Run认法／旧writer停止。
+
+## 2026-09-27 runtime共同业务编码窄投影独立评审
+
+独立architecture-reviewer `b1_late_boundary_review` 与spec-reviewer `p2_narrow_projection_expression_review` 只读核对[同runtime节点增补](../../../realization/packages/model/model-request-runtime/v4-log-codec-design.md)，226项输入manifest SHA256 `39cd81433d5a676453d724579cb7646a25471432922bccc3e0dacf24f63944f4`。rev1 `ab502ec8045528ab3c7c8c5c45c2e0c54b55022a3d33b79c30c9108cfc024c84` 的架构评审无阻断：K1／P1纯构件不新增事实权威，G29-P可以承载既有RT4全部写方／合法历史组合义务，但尚无真实来源和全路径采用实证。公开批边界对混杂历史的优势、历史清点代价和码元键体积成本作为强反方保留。
+
+表达初审发现G29-ER1原批身份与败方候选身份适用域冲突、G29-ER2写前候选被要求具有读后耐久位置两项阻断，以及G29-ER3字段路径错误。作者rev2仅消歧相应谓词、结果表／C-V6并修正`R.timing.firstTokenAt`，K1／P1／G29-P字节不变。定向只读复审确认三项全部闭合，50行差分与实际一致，邻域无新问题。最终精确SHA256 `f537277f2610b2d98169c69d5c71fcbb3e62fd65de3364ae0ff5148603e92c27`。
+
+[273成员归档](reviews/model-runtime-log-codec-2026-09-27.tar.gz)SHA256 `e4df3c0e9e67ab5a186d3c98899b99a39534a161e56d74efa4eb2789bdbc0bf9` 已逐字读回，[索引](reviews/model-runtime-log-codec-2026-09-27.json)列原输入、两个修订、作者检查和主线明确归因摘要。评审文本是主线据真实消息保存的摘要，不是reviewer逐字报告、测试或采用。作者结构检查formal=skip；C-V1～10、实际竞争／旧写方停止／历史来源、G28／G30／G31、十三操作及37认证均未验证。精确技术采用另见[D088](../../decisions/model-runtime-log-codec-adoption/decision.md)，只关闭采用步骤，不据相邻成员认定物理同批。
