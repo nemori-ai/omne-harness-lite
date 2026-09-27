@@ -1,5 +1,11 @@
 # 资产求值
 
+## 2026-09-27 工作区产品修订的影响
+
+v2／v3 的 C3、S-16／PRE-5、S-27／S-28 沿用旧工作区键和单清单；S-17 又要求兼容 hook 导入租户格。这些与共享实例、双来源选择／设置覆盖、兼容候选留工作区层不一致，需要新规格接续。四步求值、工作区滤权与治理层约束并未被本轮撤销；两个目录不是两层组织治理。
+
+[核对依据与消费者边界](../../../../research/workspace-product-technical-impact/research.md)。本次只更新适用范围与缺口，不改冻结规范、既有采用或历史验证，也不展开 PF-020 技术设计。
+
 **给定一个租户此刻在四格上的[资产持有](../../../ubiquitous_language/terms/circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)、
 可选的会话格配值与一个组合根（一个 Agent Definition 的身份，加调用方从它正文读出的引用列表），算出这次装配实际用了哪些资产、每一项设置与权限取什么值、各来自哪一格、谁被滤掉以及为什么**；
 另加一件：把工作区承载清单读成[工作区](../../../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace)那一格的持有。

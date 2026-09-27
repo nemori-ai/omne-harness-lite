@@ -1,5 +1,11 @@
 # 会话资产注册表
 
+## 2026-09-27 工作区产品修订的影响
+
+v2 S-23 已是校验与记录追加成功后换目标表，失败不替换；S-24② 明确每次尝试不重读工作区目录。因此本轮无需重做 reload 核心协议。新工作区来源和身份接入受阻于输入读面；后续演进需收窄 S-15／S-20 对变化传播的旧泛称，不把文件变更当已接受治理变更。
+
+[核对依据与消费者边界](../../../../research/workspace-product-technical-impact/research.md)。本次只更新适用范围与缺口，不改冻结规范、既有采用或历史验证，也不展开 PF-020 技术设计。
+
 **一个会话此刻认得哪些资产、它们此刻能不能用。**按类别一张表，由装配填、由 reload 一族按类别重填；
 [会话斜杠命令集](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)就是其中一张的视图；
 [当下可用性](../../../ubiquitous_language/terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability)与[替换件](../../../ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in)在每次[执行尝试](../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始时算出，一次尝试内不变；MCP 动作条目、接入点持有与逐动作执行权限也在那时钉进报告。
