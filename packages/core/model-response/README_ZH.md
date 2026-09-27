@@ -6,6 +6,74 @@
 
 本包是尚未发布的私有 ESM workspace 成员。请在本仓库内使用声明的 Node 与 pnpm 版本，环境准备见[开发指南](../../../docs/development.md)。以下导入均使用包的公开入口，每个示例都可以独立使用。
 
+包根入口和 `./schema` 精确采用 **MR4**；有序字符串数组响应头须显式导入 `./v5` 与 `./schema/v5`。保留的 `./v3`、`./schema/v3`、`./schema/v2` 维持原版本。同步判定不取得调用方输入的所有权，也不证明头值来自哪里。
+
+## 显式 MR5 完整响应与原始头
+
+下面用公开 v5 判定完整响应，并校验 `RawHeaders`。空数组、空串与缺席各自独立；旧根 MR4 仍拒绝混合数组值。
+
+```ts
+import assert from 'node:assert/strict'
+import { judgeModelResponse as judgeV4 } from '@omne-harness-lite/model-response'
+import {
+  judgeModelResponse,
+  validate,
+  type ModelResponse,
+  type RawHeaders,
+} from '@omne-harness-lite/model-response/v5'
+
+const headers: RawHeaders = {
+  'x-one': 'a,b',
+  'x-many': ['second', 'first', 'first', ''],
+  'x-empty-array': [],
+  'x-empty-string': '',
+}
+const adaptation = {
+  implementation: { name: 'example-family', revision: 'impl-1' },
+  definition: { modelId: 'vendor/chat', revision: 'model-1' },
+  configuration: { revision: 'config-1', values: {} },
+}
+const response: ModelResponse = {
+  id: 'response_1',
+  call: { callId: 'model_call_1' },
+  dispatch: 1,
+  route: {
+    adaptation,
+    profile: { origin: 'official', routeName: 'vendor/chat' },
+    profileSnapshot: {
+      adaptation,
+      providers: ['provider-a'],
+      allowFallback: false,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 32000,
+      maxOutputTokens: 8192,
+      updatedAt: '2026-09-26T09:00:00Z',
+    },
+    selectedBy: 'session',
+    provider: 'provider-a',
+    credentialScope: { layer: 'factory' },
+    parameters: {},
+  },
+  outcome: 'interrupted',
+  initiator: 'user',
+  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
+  usage: {
+    input_tokens: 'unknown',
+    output_tokens: 'unknown',
+    cache_read_tokens: 'unknown',
+    cache_write_tokens: 'unknown',
+    source: 'none',
+  },
+  cost: { cost_usd: 'unknown', source: 'none' },
+  raw: { headers },
+}
+assert.deepEqual(validate('RawHeaders', headers), { valid: true })
+assert.deepEqual(judgeModelResponse(response), { ok: true })
+assert.deepEqual(judgeV4(response), { rejected: 'malformed' })
+assert.deepEqual(headers['x-empty-array'], [])
+```
+
 | 公开 API                                      | 用途                         |
 | --------------------------------------------- | ---------------------------- |
 | `ModelResponse`、`Route`、`Failure`、`Timing` | 描述响应的条件形状           |
