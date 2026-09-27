@@ -155,3 +155,27 @@ G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和�
 ## 2026-09-27 revision6 公开函数消费实际补证
 
 [运行边界与原始归档](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)：实际direct NetworkResources和invokeModel在baseline/throw/reject/pending诊断sink下业务结果相同、无未处理rejection；两份独立制品真实TLS并有旧诊断缺陷负控。新增S-54局部绑定，不借transport整包测试推断runtime十三操作已完成。宿主service/耐久结算恢复/租户观测出口/完整换代及官方37认证仍未覆盖；本轮付费0、形式任务0，旧结果原样保留。
+
+## v5 G-6 脱敏政策候选证据义务
+
+对应 [v5-redaction-design rev2](v5-redaction-design.md)，**未采用、未实现、以下实测未运行、新增绑定 0**。RT5/MR5 的语义已由 D-090 接受；本候选的 `openrouter-redaction/1` 数值、名单与描述及 R5R-AR1 修订须独立安全复评。这里列的是可失败 oracle，不把小型算法演练或已有通用片段测试当生产闭合。
+
+使用合成且不出网的已知凭据 V；另造未作为本次凭据的 `sk-`/Bearer/Basic 形态 Q、长度 m−1/m/m+1 的 V 片段、无秘密的原文 N。结果比较器根据原输入独立计算匹配区间，不调用被测 redactor。原始证据只记用例编号、摘要和判定，不把真实凭据、配置输入或原始异常写入报告。每项都核实际公共值和可访问的产物字节，不能只检查调用了某个 mock。
+
+| ID／条款与表面 | 正向场景（安全值及非秘密保真） | 拒绝/泄漏负向场景与故意行为负控 | owner／通过边界 |
+| --- | --- | --- | --- |
+| R5R-V1：RT5 S-20/S-46/S-58/S-59；MR5 S-21，**上游错误** | 真 TLS 的 HTTP 401/400/503、未知状态和 200 后带内错误，在 code/message/raw 的嵌套键、数组字符串、精确数字/布尔/null token 中放 V/片段/Q；对 V 分别为 true/false/null，命中 scalar 必须为字符串 █、未命中原值和类型保持，二次处理相等；公开 send/read/invoke 与实际写入均无命中，N、非命中精确数值和分类来源保持；带内 500 不是 HTTP 200 | 在 unknown-key、转义 JSON 字符串、原始大整数内藏哨兵；仅处理 message、只替全值、忽略形态、跳过数字、无条件透传布尔/null 各一个编译负控必须失败。JSON 原文不可解析也不能原样进入 localError；约束字段冲突按 R5R-G4 报出，不降低 oracle | transport＋runtime；覆盖指定错误来源及已执行写方，不推出全部十三操作 |
+| R5R-V2：RT5 S-20/S-54/S-58；MR5 S-20～S-22，**响应头** | 各种大小写 denylist 头全部移除；普通 string/string[] 保留形状、重复、次序、空串/空数组；V/片段/Q 在非名单头键和值都遮罩。2xx reader 未进入、非2xx body 未完及取得头后取消都有同次安全 H | 原键名 `Authorization`/`AUTHORIZATION`、`set-cookie` 多值、特殊对象键、遮罩键碰撞、输入/config 后改、stop()/stopped/描述符/Symbol/原型可达图均查漏。取消 header 剥除、恢复公开 stream.headers 或 stop 返回 request、把数组 join、二次生成 H 各负控必须失败 | transport＋runtime；复用 PH-V1～V9 的真实交错；完整写入/reopen 仍另验 |
+| R5R-V3：RT5 S-20；MR5 S-20/S-21，**raw.body 附件字节** | 真附件提供者的写前口只收到两遍核稳定的安全字节；V/片段/Q 横跨每个可能网络切分点、JSON escape/surrogate、SSE data 边界，读回 AttachmentRef 后仍无命中；分别 V=true/false/null 时原 token 换为引号包围的 █，非命中 scalar 原字节保留；成功输出重交无任何“已脱敏”标签也逐字节相等。逐字比较所有不在独立期望区间内的原 x 字节、空白与次序 | 固定下方 nsecret1 反例须在写前留存失败，无原文/中间候选持久字节。先写后洗、逐 chunk 替换、parse/stringify、漏原字节命中、扩至未命中反斜杠修语法、跳过第二遍、无限重复至稳定、布尔/null 直通、无效/超界便原样保存各负控必须失败。失败无伪引用、有受控事实，费用/收场和已安全 H 保持；不以附件能否合法 JSON 另设契约 oracle | 附件写方＋装配；R5R-G3 未闭，当前真实 IO 未开始，纯字节函数不代验 |
+| R5R-V4：RT5 S-20/S-46/S-54/S-63；MR5 S-21，**localError** | 本地适配抛错、连接失败、解析故障、门失败，在文字里放 V/片段/Q；public localError 和实际完整响应安全，N 原样。默认诊断只含阶段/类目/计数，正常 sink 与 throw/reject/pending sink 的业务结果一致 | Error.message/cause/stack、自定义属性及异步 rejection 放哨兵；不允许 stringify 整个错误对象旁路。编译负控去掉本地处理或将 error/rawHeaders 放 detail 后，公共值/日志扫描必须失败；sink 自身坏时独立退化可查，不能假成功 | runtime＋transport＋装配诊断 owner；不把敏感调试授权当默认旁路 |
+| R5R-V5：RT5 S-20/S-60/G-6，**内核与配置** | 完整基线和每种受支持加强变体；短于 m 的全值（含 true/false/null）、所有长度 m 窗口、重叠区间、ASCII大小写、空串/空容器、键碰撞均按独立 oracle；text/JSON/header 验值幂等，byte 区分成功域幂等及明确失败域、不别名；两份包外真实制品及双语 literal 编译执行 | 缺三项之一、空/删基线名单、重复/未知/非法描述、m=0/65/非整数、生产m>8、访问器/循环配置、反射陷阱抛错均具名构造拒绝、零网络且错误不含输入；不宣称识别所有 proxy。长前缀、64描述、128头名和既有内容界边界/越界量测含字节两遍上界；把扫描换无界 regex 或允许配置夹 callback 的负控失败 | 纯构件 owner；资源复杂度与环境实测如实报告，不声称未测性能界 |
+| R5R-V6：RT5 S-54/S-58/S-63；MR5 S-20/S-21，**同次联合交接** | 同一真实凭据、完整 policy 快照，经 TLS→send→invoke→安全响应批→真实 append/reopen；头事实原值保留，body/error 规则一致。记录配置非秘密全值及精确代码版本，assert 凭据只出现在受控上游请求预期位置 | 制造 transport/runtime 两端配置不同、运行中改外部 config、调用 A 后更新到 B 再结束 A；有缺口不得通过生产装配门。负控仅 runtime 事后脱敏仍须由 send 公共面扫描抓到；追加后才清洗也必须失败 | 两 provider＋全部实际写方＋装配；只有真正执行的链可签收 |
+| R5R-V7：RT5 S-20/S-36/S-53/S-56/S-64，**停止和失败** | 在 header 到达前后、错误体/解析/附件处理未完、配置换代时分别取消/关闭；零次和一次send计数准确，socket/reader/回调实际终止后才释放原 lease/秘密引用，已安全 H 不因停止消失 | 构造无效 policy 不启动；处理函数故障不得 raw fallback；旧闭包提前释放、close 只发 abort 就完成、等待坏诊断才能停各负控失败。GC 不当作资源完成信号；非成功留存不伪造完整 body | 原资源 owner＋装配；实际句柄与FD观测，不仅断言 Promise 已完成 |
+
+**R5R-AR1 的独立期望值**：已知凭据分别取 `true`/`false`/`null`，输入 raw 值 `[true,false,null,"true","false","null",{"flag":true}]`；命中的非字符串 scalar 为字符串 █、其他非字符串逐值保留，字符串按实际区间处理，再次处理值完全相等。原始体使用相同内容但故意带不同空白；期望字节由固定 token span 替换拼出，不能调用被测 mapper/stringifier 生成 oracle。S-46 的 m 不得使短于 m 的全凭据免扫。
+
+**R5R-V3 转义反例的独立期望值**：V=`nsecret1`、m=8，x 的十六进制为 `22 5c 6e 73 65 63 72 65 74 31 22`；raw 命中恰 `[2,10)`，解码值换行接 `secret1` 不命中。最小候选 y=`22 5c e2 96 88 22` 在第二遍不能完成转义映射，故预期是留存未成且写入调用数为 0，不能只测“输出没有 V”。对照 x=`22 5c 5c 6e 73 65 63 72 65 74 31 22`（两个反斜杠）可得到 y=`22 5c 5c e2 96 88 22`，两遍稳定且未命中字节相同，应成功；把所有转义输入直接丢弃也要被这个正向对照检出。两项分别在每个 chunk 边界重放；不要求附件普遍合法 JSON，只按本提供者明确的映射成功/失败规则和字节事实验收。
+
+**安全评审的可否决清单**：对 R5R-G1 独立判断 min=8 的短片段风险、名单与形态覆盖/误剥、编码/跨记录边界、区间并集和键碰撞、全部 scalar、字节两遍/成功失败域幂等、处理异常的收场、真实公开对象可达性、附件写前边界及两端配置同次一致。可以用例如已准入 ASCII 凭据 `503` 与必须保留的 HTTP `failure.statusCode=503`，或已知片段与精确身份字段重合，要求原 owner 澄清 RT5 S-20/S-46 与 MR5 S-21 的值域边界（R5R-G4）；不能自行收紧凭据格式、改状态码或说扫描通过就没有冲突。rev2 对 R5R-AR1 的处置待独立复评，不自称已闭合。
+
+**覆盖缺口**：R5R-G1 尚未安全评审/采用；R5R-G2 尚无两端完整实现；R5R-G3 缺真实附件写方/留存资源政策；R5R-G4 是必需事实冲突/无法安全处理时的具名门。旧 bindings 全保留其原版本前提；本次不绑定任何未执行测试、形式任务或由表示方式天然吸收的性质。设计结构检查不关闭上述门。

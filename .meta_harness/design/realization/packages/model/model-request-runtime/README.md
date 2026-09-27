@@ -1,5 +1,12 @@
 # model-request-runtime
 
+## 2026-09-27 G-6 脱敏政策候选
+
+- **语义接受**：[D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 已接受 RT5/MR5；本次 [v5-redaction-design rev2](v5-redaction-design.md) 的三参数生产基线与匹配选择仍为 candidate，未接受。rev1 独立评审的 R5R-AR1 处置已起草，待复评。
+- **可实施**：候选保持 `min=8`、11 个凭据头名、3 个有限形态描述；rev2 统一数字/布尔/null 的 token 投影，明确原始字节第二遍稳定性核验及转义区间失败。R5R-G1/G2 仍挡生产头出值，R5R-G3 挡真实附件留存，R5R-G4 保留必需事实与秘密规则可能冲突的裁定。D-091 已接受的不透明 R 修复范围不扩大。
+- **绑定证据**：新增 0；[R5R-V1～V7](verification.md#v5-g-6-脱敏政策候选证据义务) 均为待执行义务，不借旧片段替换测试证明名单/形态已接通。
+- **实际验证**：本增补没有生产实现、TLS、附件或独立制品验证；设计检查只证明结构一致。完整 S-20、G-6、十三操作及 37 认证不因此完成。
+
 **2026-09-27 W16纯重试延迟技术签收**：公开 `retryDelay` 经[独立双制品及主线逐项核对](../../../../record/evidence/2026-09-27-tests-model-request-runtime-retry-delay/README.md)有限签收，两目录各2181断言、两个真编译行为负控、当前双语literal及实际TLS集成通过；整体证据Pass with issues保留早期driver PID记账缺口。只新增S60 half／decorrelated两条窄绑定，不替实际调度／默认重试件／十三操作或P2。当前共享codec施工46项通过、精确时间core实施与MR5 headers候选起草并行；完整结算及生产认证仍待。以下checkpoint按原范围读取。
 
 **2026-09-27 W15纯守卫技术签收**：公开 `dispatchGuard` 已实际合入，经[独立双制品及主线核对](../../../../record/evidence/2026-09-27-tests-model-request-runtime-guard-log/README.md)有限签收；两目录各85oracle、unknown／终态顺序compiled负控、严格输入与pure根通过，新增一条只覆盖S-60中守卫成员的有限绑定。当前HUB另合入 `retryDelay`，组合120项及6个双语TS块通过，尚待自身独立验收。下方旧checkpoint保留原范围；五共同结算构件、完整十三操作及37认证仍未交付。
@@ -63,3 +70,6 @@
 ## 2026-09-27 最终技术采用
 
 [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受对应精确规格与本节点投影。旧候选读数和验证历史保留。此事件不代替源码、真实故障/停止或37模型生产认证；新增实际绑定另附运行证据。
+## G-6 纯政策构件当前采用（2026-09-27）
+
+[D-093](../../../../record/decisions/model-credential-policy-adoption/decision.md)限定采用[v5-redaction-design rev2](v5-redaction-design.md)的显式配置基线及text/header/raw-error JSON共有构件。独立安全复评在此范围内无剩余阻断；源码与实际制品尚待。R5R-G2跨包接线、G3附件、G4必需事实碰撞、完整S-20及生产H出值不放行，新增绑定0。

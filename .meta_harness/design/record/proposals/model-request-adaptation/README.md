@@ -5,6 +5,7 @@
 - 输入：`capability.model-request-runtime/v2`、`data.model-profile/v2`、`data.messages/v3`、`data.model-response/v3`；既有实现映射与 D-019/D-063 的复用边界。
 - 本次范围：独立函数、37 个官方模型、策略版本绑定、声明式自建档案、诊断、单机真实验收装配。完整 Agent Loop、工具执行、中心与据点同步、任意租户代码隔离不在范围内。
 - 持续消费者：本轮规格候选、model-request-runtime/pi-ai-transport 提供者和独立验收装配。
+- 共有脱敏构件的候选比较见[credential-policy](credential-policy.md)，限定技术采用归[D-093](../../decisions/model-credential-policy-adoption/decision.md)；全S-20及实际头交接未放行。
 - 真实身份阶段启动循环的三个接线选择见 [auth-bootstrap](auth-bootstrap.md)；精确采用归 [D-092](../../decisions/model-auth-bootstrap-adoption/decision.md)，应用和符号守卫仍待真实实施验收。
 - 方法限制：本会话已阅读机制，补充领域读数不满足双盲；下列性质不是独立盲测结果。
 
