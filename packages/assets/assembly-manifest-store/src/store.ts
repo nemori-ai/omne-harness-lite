@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isAssetCategory, type AssetCategory } from '@omne-harness-lite/asset-model'
 import {
   readJsonStrict,
+  jsonNumberSource,
   writeJsonLossless,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
@@ -18,6 +20,7 @@ import {
 import {
   answerPresence,
   checkManifestAppendInput,
+  checkManifestGivenReadInput,
   judgeManifestAppend,
   readEvaluationProjection,
   sessionRef,
@@ -30,6 +33,7 @@ import type {
   CheckedAppend,
   EvaluationRef,
   EvaluationReadResult,
+  GivenReadResult,
   ManifestDb,
   ManifestDiagnostic,
   ManifestOptions,
@@ -39,8 +43,19 @@ import type {
   ReadFailure,
 } from './types.ts'
 
-class ContentUnavailable extends Error {}
+class ContentUnavailable extends StorageDefect {}
+/** A known malformed stored value, never a generic SQL/schema/programming defect. */
+class ManifestDataCorrupt extends StorageDefect {}
 type RecordRow = ManifestDb['assembly_manifest_record']
+const recordColumns = [
+  'session',
+  'seq',
+  'evaluation_kind',
+  'evaluation_ref',
+  'owned_ref',
+  'content',
+] as const
+const tableColumns = ['session', 'seq', 'category', 'filled_at', 'composition'] as const
 function decode(text: string): JsonValue {
   const result = readJsonStrict(text)
   if ('failed' in result) throw new ContentUnavailable('manifest JSON representation unavailable')
@@ -48,7 +63,7 @@ function decode(text: string): JsonValue {
 }
 function positiveSeq(value: number): number {
   if (!Number.isSafeInteger(value) || value < 1)
-    throw new StorageDefect('invalid manifest sequence representation')
+    throw new ManifestDataCorrupt('invalid manifest sequence representation')
   return value
 }
 async function head(tx: ReadTx, session: string): Promise<number> {
@@ -72,19 +87,19 @@ async function record(tx: ReadTx, row: RecordRow): Promise<ManifestRecord> {
       ? row.owned_ref !== null
       : row.owned_ref !== row.evaluation_ref)
   )
-    throw new StorageDefect('invalid manifest record shell')
+    throw new ManifestDataCorrupt('invalid manifest record shell')
   const rows = await narrow<ManifestDb>(tx)
     .selectFrom('assembly_manifest_table')
-    .selectAll()
+    .select(tableColumns)
     .where('session', '=', row.session)
     .where('seq', '=', row.seq)
     .execute()
-  if (rows.length === 0) throw new StorageDefect('manifest record missing tables')
+  if (rows.length === 0) throw new ManifestDataCorrupt('manifest record missing tables')
   const tables: Partial<Record<AssetCategory, ManifestTable>> = {}
   for (const item of rows) {
     const filledAt = instantFromEpochMs(item.filled_at)
     if (!isAssetCategory(item.category) || !('ok' in filledAt))
-      throw new StorageDefect('invalid manifest table shell')
+      throw new ManifestDataCorrupt('invalid manifest table shell')
     tables[item.category] = Object.freeze({
       filledAt: filledAt.ok,
       composition: decode(item.composition),
@@ -111,7 +126,7 @@ async function facts(tx: ReadTx, request: CheckedAppend): Promise<AppendFacts> {
       ? undefined
       : await db
           .selectFrom('assembly_manifest_record')
-          .selectAll()
+          .select(recordColumns)
           .where('owned_ref', '=', identity.ref)
           .executeTakeFirst()
   const owner = ownerRow === undefined ? undefined : await record(tx, ownerRow)
@@ -158,47 +173,68 @@ export function createAssemblyManifestStore(
     try {
       diagnostic?.(Object.freeze(event))
     } catch {
-      diagnosticFailure?.({ kind: 'manifest_diagnostic_unavailable' })
+      try {
+        diagnosticFailure?.({ kind: 'manifest_diagnostic_unavailable' })
+      } catch {
+        // The assembly records degradation before its fallible output. Neither
+        // borrowed output channel may replace a committed result or original defect.
+      }
     }
   }
+  type Observation = Pick<
+    ManifestDiagnostic,
+    'head' | 'evaluationRef' | 'stage' | 'requestedHead' | 'requestedHeadOmitted' | 'selectedSeq'
+  >
   async function perform<T extends object>(
     operation: ManifestDiagnostic['operation'],
     session: ManifestSessionRef,
-    fn: (note: (stage: 'capacity') => void) => Promise<T>,
+    fn: (note: (fact: Observation) => void) => Promise<T>,
   ): Promise<T | { readonly failure: 'unavailable' }> {
     if (stopped) return { failure: 'unavailable' }
     active++
     let outcome: T | { readonly failure: 'unavailable' }
-    let stage: 'capacity' | undefined
+    let observed: Observation = {}
     try {
       try {
         outcome = await fn(value => {
-          stage = value
+          observed = { ...observed, ...value }
         })
       } catch (error) {
-        if (!(error instanceof StorageUnavailable || error instanceof ContentUnavailable)) {
+        if (
+          !(error instanceof StorageUnavailable) &&
+          !(
+            error instanceof ContentUnavailable &&
+            (operation === 'readEvaluation' || operation === 'readGiven')
+          )
+        ) {
           emit({
             kind: 'assembly_manifest',
             operation,
-            providerRevision: 'MF3',
+            providerRevision: 'MF4',
             session,
             result: 'defect',
+            ...observed,
             resourceEnded: true,
           })
           throw error
         }
         outcome = { failure: 'unavailable' }
       }
-      const fields = outcome as { failure?: string; head?: number; evaluationRef?: EvaluationRef }
+      const fields = outcome as {
+        failure?: string
+        head?: number
+        evaluationRef?: EvaluationRef
+        none?: true
+      }
       emit({
         kind: 'assembly_manifest',
         operation,
-        providerRevision: 'MF3',
+        providerRevision: 'MF4',
         session,
-        result: fields.failure ?? 'success',
+        result: fields.failure ?? (fields.none === true ? 'none' : 'success'),
         ...(fields.head === undefined ? {} : { head: fields.head }),
         ...(fields.evaluationRef === undefined ? {} : { evaluationRef: fields.evaluationRef }),
-        ...(stage === undefined ? {} : { stage }),
+        ...observed,
         resourceEnded: true,
       })
       return outcome
@@ -230,7 +266,7 @@ export function createAssemblyManifestStore(
             if (full === undefined) {
               const stored = await narrow<ManifestDb>(tx)
                 .selectFrom('assembly_manifest_record')
-                .selectAll()
+                .select(recordColumns)
                 .where('session', '=', session)
                 .where('seq', '=', row.seq)
                 .executeTakeFirst()
@@ -255,7 +291,7 @@ export function createAssemblyManifestStore(
           const decision = judgeManifestAppend(current, request)
           if ('failure' in decision) return decision
           if (current.head === Number.MAX_SAFE_INTEGER) {
-            note('capacity')
+            note({ stage: 'capacity' })
             return { failure: 'unavailable' } as const
           }
           const seq = current.head + 1
@@ -281,6 +317,7 @@ export function createAssemblyManifestStore(
               .execute()
           } catch (error) {
             if (!(error instanceof UniqueViolation)) throw error
+            note({ stage: 'parent_conflict' })
             const rejudged = judgeManifestAppend(await facts(tx, request), request)
             // This first statement failed; no part of this request was inserted.
             if ('failure' in rejudged) return rejudged
@@ -288,17 +325,22 @@ export function createAssemblyManifestStore(
           }
           // P-2 preserves prior statements after a failed statement. Any failure here
           // must escape the callback so the whole record and every table roll back.
-          for (const [category, table] of Object.entries(request.record.tables))
-            await db
-              .insertInto('assembly_manifest_table')
-              .values({
-                session: request.session,
-                seq,
-                category,
-                filled_at: table.filledAt,
-                composition: writeJsonLossless(table.composition),
-              })
-              .execute()
+          try {
+            for (const [category, table] of Object.entries(request.record.tables))
+              await db
+                .insertInto('assembly_manifest_table')
+                .values({
+                  session: request.session,
+                  seq,
+                  category,
+                  filled_at: table.filledAt,
+                  composition: writeJsonLossless(table.composition),
+                })
+                .execute()
+          } catch (error) {
+            note({ stage: 'table_failure' })
+            throw error
+          }
           return { seq, evaluationRef, head: seq }
         }),
       )
@@ -320,7 +362,7 @@ export function createAssemblyManifestStore(
           if (table === undefined) return { failure: 'recordNotFound' } as const
           const stored = await narrow<ManifestDb>(tx)
             .selectFrom('assembly_manifest_record')
-            .selectAll()
+            .select(recordColumns)
             .where('session', '=', session)
             .where('seq', '=', table.seq)
             .executeTakeFirst()
@@ -350,7 +392,7 @@ export function createAssemblyManifestStore(
           const upper = await head(tx, session)
           const source = await narrow<ManifestDb>(tx)
             .selectFrom('assembly_manifest_record')
-            .selectAll()
+            .select(recordColumns)
             .where('session', '=', session)
             .where('seq', '<=', upper)
             .where('evaluation_kind', 'in', ['given', 'mint'])
@@ -365,6 +407,62 @@ export function createAssemblyManifestStore(
           if (!('ok' in ref) || source.owned_ref !== source.evaluation_ref)
             throw new StorageDefect('invalid manifest evaluation source shell')
           return { evaluationRef: ref.ok, ...projection.ok }
+        }),
+      )
+    },
+    async readGiven(value: unknown, headValue: unknown): Promise<GivenReadResult> {
+      const checked = checkManifestGivenReadInput(value, headValue)
+      if ('failure' in checked) return checked
+      const request = checked.ok
+      return perform('readGiven', request.session, note =>
+        storage.read(async tx => {
+          try {
+            const committed = await head(tx, request.session)
+            note({ head: committed })
+            if (ExactDecimal.from(request.head).compare(ExactDecimal.from(committed)) > 0) {
+              // No stringification/conversion of an unbounded represented request.
+              note({ stage: 'head_range', requestedHeadOmitted: true })
+              return { failure: 'invalidInput' } as const
+            }
+            // Exact comparison proved 0 <= H <= actual safe C before conversion.
+            const upper = Number(jsonNumberSource(request.head))
+            if (!Number.isSafeInteger(upper) || upper < 0)
+              throw new StorageDefect('bounded manifest head conversion failed')
+            note({ requestedHead: upper })
+            const selected = await narrow<ManifestDb>(tx)
+              .selectFrom('assembly_manifest_record')
+              .select(recordColumns)
+              .where('session', '=', request.session)
+              .where('seq', '<=', upper)
+              .where('evaluation_kind', '=', 'given')
+              .orderBy('seq', 'desc')
+              .limit(1)
+              .executeTakeFirst()
+            if (selected === undefined) return { none: true } as const
+            note({ selectedSeq: positiveSeq(selected.seq) })
+            const full = await record(tx, selected)
+            if (
+              full.session !== request.session ||
+              full.seq > upper ||
+              full.evaluation.kind !== 'given' ||
+              full.evaluation.ref !== full.evaluationRef
+            )
+              throw new ManifestDataCorrupt('manifest given source relation mismatch')
+            note({ evaluationRef: full.evaluationRef })
+            const projection = readEvaluationProjection(full.content)
+            if ('failure' in projection) {
+              note({ stage: 'projection' })
+              return projection
+            }
+            // Return every original table/content member; filledBy belongs to AR.
+            return { record: full }
+          } catch (error) {
+            if (error instanceof ManifestDataCorrupt || error instanceof ContentUnavailable) {
+              note({ stage: error instanceof ContentUnavailable ? 'decode' : 'source' })
+              return { failure: 'unavailable' } as const
+            }
+            throw error
+          }
         }),
       )
     },

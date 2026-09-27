@@ -1,4 +1,7 @@
 # 条款到证据的绑定表。
+# 当前：D-076 采用后 P1 四条与 P2 两条 v3 局部测试绑定；P2 输入/输出见
+# record/evidence/2026-09-27-tests-model-request-runtime-p2；P1 输入/输出见
+# record/evidence/2026-09-27-tests-model-request-runtime-p1。以下旧说明保留历史范围。
 # 2026-09-27 v3 candidate（S-1～S-67）：新增0条；R3-V4当前核权、R3-V7未知opened回执恢复及R3-V15默认件身份等未实施的R3-V1～V23不登记占位绑定。
 # 以下六条仅保留原v2有限形式任务范围，不作为v3节点实现或真实装配证据。
 # 只绑已登记、且断言被证明会失败的 formal task：model-request-runtime-v2-invocation（Invocation.tla + Invocation.cfg）。
@@ -23,6 +26,18 @@ node: "model-request-runtime"
 kind: "provider"
 
 bindings:
+  - clause: "capability.model-request-runtime/v3#S-54"
+    evidence: "test:packages/model/pi-ai-transport/tests/https.spec.ts#owns invocation policy values while an actual response is pending"
+    assumptions:
+      - "P2 run；实际503响应等待中改变调用者状态码表/clock/redactor，函数仍消费原捕获值；只证异步政策固定，不证目录和所有请求值来源/耐久binding"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-56"
+    evidence: "test:packages/model/pi-ai-transport/tests/plugin-lifecycle.spec.ts#real Cordis forced contribution disposal stops both HTTPS consumers and waits for tracked callbacks"
+    assumptions:
+      - "P2 run；invokeModel是独立函数消费者，显式gate通过lease.track登记；取消结束函数及socket后不假称外部门已停，完成门后才释放；不证十三操作、多dispatch/retry/reply_pending和opened追加恢复"
+    alignment_checked: 2026-09-27
+
   - clause: "capability.model-request-runtime/v2#S-15"
     evidence: "formal:model-request-runtime-v2-invocation"
     assumptions:
@@ -73,3 +88,27 @@ bindings:
       - "模型里 Reconcile 不区分新尝试触发还是会话重新承载触发，也不含不属于任何运行的调用；追补体的路由留痕与参数三项从「已出门」读不在模型里，证据是场景 S-42"
       - "run 2026-09-25-formal-assets-runtimes：退出 0"
     alignment_checked: 2026-09-25
+
+  - clause: "capability.model-request-runtime/v3#S-54"
+    evidence: "test:packages/model/pi-ai-transport/tests/https.spec.ts#a pre-send cancellation issues no request, including repeated outcome reads"
+    assumptions:
+      - "P1 run；真实本机 TLS fixture，预先取消且输入表示有效；只证发送前外层取消和重复 outcome 读取零 HTTP，不证完整十三操作或所有 S-54 分支"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-55"
+    evidence: "test:packages/model/pi-ai-transport/tests/https.spec.ts#keeps first content private until an asynchronous gate succeeds, exactly once"
+    assumptions:
+      - "P1 run；可控异步门和真实 core stream assembler；门等待中无可见 text/firstContentAt、成功一次后才交付；没有 durable append 或 ack 未知知识"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-56"
+    evidence: "test:packages/model/pi-ai-transport/tests/https.spec.ts#explicit cancellation releases a never-resolving content gate and closes its socket"
+    assumptions:
+      - "P1 run；实际 HTTPS socket 与永不完成的外部门；观察函数结果和 socket close，不声称外部门本身或独立存储写者已停止，不证所有卸载租约"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-21"
+    evidence: "test:packages/model/pi-ai-transport/tests/https.spec.ts#an actual connection-queue deadline remains a local failure with zero second HTTP"
+    assumptions:
+      - "P1 run；一个实际活动连接、maxConnections=1、显式 firstContentTimeoutMs=40；只证第二个排队请求本地 unrecognized/local_queue_timeout 且无第二 HTTP"
+    alignment_checked: 2026-09-27

@@ -183,3 +183,17 @@ export function readEvaluationProjection(
     }),
   }
 }
+
+/** MF4 S-36 checks the represented request only; range requires actual IO. */
+export function checkManifestGivenReadInput(
+  session: unknown,
+  headValue: unknown,
+):
+  | { readonly ok: { readonly session: ManifestSessionRef; readonly head: JsonNumber } }
+  | { readonly failure: 'invalidInput' } {
+  const identity = sessionRef(session)
+  const copied = copyJsonValue(headValue)
+  if (identity === undefined || 'failed' in copied || !isNonNegativeJsonInteger(copied.ok))
+    return { failure: 'invalidInput' }
+  return { ok: Object.freeze({ session: identity, head: copied.ok }) }
+}

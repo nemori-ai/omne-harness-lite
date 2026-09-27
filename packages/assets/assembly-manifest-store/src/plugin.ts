@@ -36,7 +36,7 @@ export const assemblyManifestStorePlugin = definePlugin({
         : { diagnosticFailure: config.diagnosticFailure }),
     })
     ctx.effect(() => () => store.close())
-    const { readHead, append, readHistory, dependencyPresence, readEvaluation } = store
+    const { readHead, append, readHistory, dependencyPresence, readEvaluation, readGiven } = store
     ctx.provide(
       ASSEMBLY_MANIFEST_SERVICE,
       Object.freeze({
@@ -45,6 +45,7 @@ export const assemblyManifestStorePlugin = definePlugin({
         readHistory,
         dependencyPresence,
         readEvaluation,
+        readGiven,
       }) satisfies AssemblyManifestService,
     )
   },

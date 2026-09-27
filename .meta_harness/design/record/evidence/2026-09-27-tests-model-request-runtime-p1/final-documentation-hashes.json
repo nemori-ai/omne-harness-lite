@@ -1,0 +1,158 @@
+[
+  {
+    "path": "packages/assets/assembly-manifest-store/README.md",
+    "sha256": "b3a71b299b97fa2cfc77d10e7c40fe5c2ed9af8cb031f884374632eb420d71c9"
+  },
+  {
+    "path": "packages/assets/assembly-manifest-store/README_ZH.md",
+    "sha256": "9bfc71b562edf4fcec29aab048e09200d21efb11fc697315a1e617339e8212be"
+  },
+  {
+    "path": "packages/assets/assembly-manifest-store/package.json",
+    "sha256": "970fe5675cd4bf42afe103cc7c57f67c5c1b983061bff09ea6213e7b929143b1"
+  },
+  {
+    "path": "packages/assets/evaluation-input-store/README.md",
+    "sha256": "170800fed7a9e11478f8ea489dcc02b02699489e8728362eedd5060d5770fb8c"
+  },
+  {
+    "path": "packages/assets/evaluation-input-store/README_ZH.md",
+    "sha256": "5fe434b11f970adcd945df9fdf87913f7d266895879cee2bf57051112124e5ff"
+  },
+  {
+    "path": "packages/assets/evaluation-input-store/package.json",
+    "sha256": "6d836e52c32091ed00695415348f412c407733b5410c2527893b1599e90924c3"
+  },
+  {
+    "path": "packages/core/agent-definition/README.md",
+    "sha256": "4bac084a65709a2a1df59c606b05d538648648f4863a25e38d72d2e8453f44f7"
+  },
+  {
+    "path": "packages/core/agent-definition/README_ZH.md",
+    "sha256": "2f9b941ca1cf59c96cc9c5c0624881dcae65b8c5b23df0f357ee8ab4f7c4036b"
+  },
+  {
+    "path": "packages/core/agent-definition/package.json",
+    "sha256": "c7db50e183fbb2788dfd2db49091fe0d58d8814355ec79718bef684a22de68a5"
+  },
+  {
+    "path": "packages/core/arrival-events/README.md",
+    "sha256": "284e01f079f26defb4d3280222b6226307dec738dfa7e2c921341b608fab837d"
+  },
+  {
+    "path": "packages/core/arrival-events/README_ZH.md",
+    "sha256": "5d42ae9513ba4b2e382aa5cf2e0cdd92c2e493c196f2a2ab6d263cb99a8b82fa"
+  },
+  {
+    "path": "packages/core/arrival-events/package.json",
+    "sha256": "5f7ce56deb9aa27f7b69310d23e7d638341cb62967a08dbcea2b93062915820a"
+  },
+  {
+    "path": "packages/core/asset-evaluation/README.md",
+    "sha256": "b48f0a8037bc9e4f8d77b26b3ee824c351f181aff2e60fb7d183663f5b246a4f"
+  },
+  {
+    "path": "packages/core/asset-evaluation/README_ZH.md",
+    "sha256": "1f42ba30f12785c93f1b358a5529fde8987e8a57d7613008a5d41c3292b25b18"
+  },
+  {
+    "path": "packages/core/asset-evaluation/package.json",
+    "sha256": "9e81ab0b951b232ab398a50a96a9da98bd9b282a4a34093ca3239a54c528d1ae"
+  },
+  {
+    "path": "packages/core/loop-extension/README.md",
+    "sha256": "b4e46759937ce5ca7820da39828bdb5706c102bcdcbefb4d6ee7de6fc1f1d5c9"
+  },
+  {
+    "path": "packages/core/loop-extension/README_ZH.md",
+    "sha256": "a1e252683f7f49a6f53927996f193627d1c6cabbd02497c548a510fccaa1398c"
+  },
+  {
+    "path": "packages/core/loop-extension/package.json",
+    "sha256": "6f98ed8e7974a1c11667379050c395352b2bb60b2fdb7330328f3fddf22b2ad2"
+  },
+  {
+    "path": "packages/core/messages/README.md",
+    "sha256": "8db92482d7e6a6c4d00396b534d5177941200af9d0c73dfb3f78afb0fba1e0ed"
+  },
+  {
+    "path": "packages/core/messages/README_ZH.md",
+    "sha256": "08bcfcee4d407604836234f3478e58754e8998176d4610e2f831b03e719c0ded"
+  },
+  {
+    "path": "packages/core/messages/package.json",
+    "sha256": "8540b124d5f91746e21825e359b2ae94faa24aae787384eca1f337d06bed95d6"
+  },
+  {
+    "path": "packages/core/model-profile/README.md",
+    "sha256": "6a8832f4a7bfc75361a7eacf8af97d89988ed05775b4d0da6c7d5f3c7c8891df"
+  },
+  {
+    "path": "packages/core/model-profile/README_ZH.md",
+    "sha256": "6df3af1888f442c92c414354752d97b5158ec00428b1b858f42c824e56fbae15"
+  },
+  {
+    "path": "packages/core/model-profile/package.json",
+    "sha256": "fe690ebd6834afbdbb33529afc44d1374a48c7f9e42b1f8ea15270671f88ee53"
+  },
+  {
+    "path": "packages/core/model-response/README.md",
+    "sha256": "f5e1d2c12655ef7e5cd46f10b8c991e885845ae1ceaa1ca0b1fde3c5970cbfae"
+  },
+  {
+    "path": "packages/core/model-response/README_ZH.md",
+    "sha256": "7310fdcc6a269d62671b0edf5d935eceb093d8e203d23f1438d8c4722d068a17"
+  },
+  {
+    "path": "packages/core/model-response/package.json",
+    "sha256": "64a7089d8f1e53b519e21d2318a5a4d493d25c5c03a9f2bef9b13570fb1bd341"
+  },
+  {
+    "path": "packages/model/model-request-runtime/README.md",
+    "sha256": "9524f10d95e37c3fd8b2d4304fbc2b51460bdeca854b7ce7b2672f3a58c4ff05"
+  },
+  {
+    "path": "packages/model/model-request-runtime/README_ZH.md",
+    "sha256": "7ac2043a186105704c21cf52d36fbd5cb8fcb7417cae341b021177545ab3df0a"
+  },
+  {
+    "path": "packages/model/model-request-runtime/package.json",
+    "sha256": "408f69a37132b1908443dace891216848c1a09aa93d2ba084e2c7bf0b0b6026f"
+  },
+  {
+    "path": "packages/model/pi-ai-transport/README.md",
+    "sha256": "099516a6a64ccde9f67c95a1a3fa4750db53e2fb81608b991128f630752427e1"
+  },
+  {
+    "path": "packages/model/pi-ai-transport/README_ZH.md",
+    "sha256": "7f04e429e6af8f703e0c6f0d537300fc133aecb4f8ee4f7e2106a236bba762cc"
+  },
+  {
+    "path": "packages/model/pi-ai-transport/package.json",
+    "sha256": "d912ff22dc6d056ed747e5ab560074b5e4f23776000e920186ab5c09768c93f6"
+  },
+  {
+    "path": "packages/session/session-tenancy-table/README.md",
+    "sha256": "0546a5cd0bef1b046568c321ff83f2b13228aefc06b3d8df1db929a727564e1a"
+  },
+  {
+    "path": "packages/session/session-tenancy-table/README_ZH.md",
+    "sha256": "b9d6ecdaa23ad2d8cc06f2afdbb096d681bbe52e7c868128361d950f47209122"
+  },
+  {
+    "path": "packages/session/session-tenancy-table/package.json",
+    "sha256": "0d239c2141a71e1a8f4deb9480f25513c055d80a9b08a233ce181bf44b890d21"
+  },
+  {
+    "path": "packages/tools/asset-registry/README.md",
+    "sha256": "de7b7958eea1c6289dc9c9cde4163a9d2cf41ac9332cefd539b8ad099b18a70d"
+  },
+  {
+    "path": "packages/tools/asset-registry/README_ZH.md",
+    "sha256": "0614aa5831b622c0e1055213dc3c46a3758a90d17bb1d91f2918d336dc51b214"
+  },
+  {
+    "path": "packages/tools/asset-registry/package.json",
+    "sha256": "d72d62ee7e1eed5b19b92d5e8771c01e83668e10e5ae4fcb7bf423fa6fdd15dc"
+  }
+]

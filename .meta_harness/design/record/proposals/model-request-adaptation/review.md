@@ -65,3 +65,27 @@ spec-reviewer binding_batch_spec_review 首轮指出 B1 未列技术端口失败
 runtime旧d91候选的RT-AR1为阻断：opened实际上提交却丢回执，独立函数正确给出零可见firstTokenAt的失败，若服务按此写before_first_content响应就与日志矛盾并可能跳过恢复。Q1–4隔离实际写者及流、权威读回和S33结算控制形成355稿；architecture-reviewer adaptation_architecture_review确认原两条交错设计闭合。spec-reviewer binding_batch_spec_review指出RT-B1系统停止S36与新隔离支歧义，主线沿既有恢复边界裁定并由原drafter补正常已知收场与失去连续性后恢复前提；最终RT9d73735d3c22033dd583f10f8c7ea61b5b6865769e25de652399a59e2949747a及节点31a46a46ad67bb6d1dd383cbc6a08a7a89d3354aa261d9db54ab8f7ae7d2ae99均独立有限复核无阻断，未加意图/操作/默认政策。新实例是真实验收义务，原有限模型不代证。
 
 app原332稿的MAA-AR1裸revision五元组认证碰撞阻断，在49c87851856064ba0c33cc0c25d8b73a70a7b249d6a060fca3fcb0610da96bbf采用完整来源上下文/无损binding/实际route匹配与A-V13负控；MAA-AR2权限负控在A-V14补齐。core_projection_review有限复核二者保护点闭合，binding_batch_spec_review对限定表达检查未见阻断。OS权限、真实IO、opened恢复和37认证仍无执行声明，bindings新增均0。runner最后e2fcc节点439f与pi节点297d沿此前无阻断评审采用；各未交付全产品分支原缺口保留。
+
+## 2026-09-27 MF4/AR4 原 fill 读面独立复审
+
+architecture-reviewer 与 spec-reviewer 分别只读核对 MF4 contract `46c3d605fb889c6f66822f8aecb815c1e691bf605600a036dc48ac0c9aeb6a2d`、AR4 contract `23ce5e5b88dbdaf4062184e2a0324cf0b75cd5af86cdf79aebaba05354c9b414` 和 candidate 登记 `12d70a309a48062419749cfaa2b37a6842a2d6ee2cfe4c3fb46c9f6db9b23f38`。两者均无阻断；MF 保留同会话/H 的完整 given 事实，AR 核 assembly/六表/唯一根用途，reload CAS 漂移全重做，refresh 保留 H 观察点，EIS 当前事实不冒充共同快照。
+
+spec N1：MF4 examples 第3行仍写 v2，主线仅改归属为 v4；最终 SHA `d0e78471062e824c1723129822d7fefac38eef9a96196d386e4f874033f01d45`。contract 不变；其他实例正文和行为场景不变。47项 covers 全保留 reviewed:false。原4,977历史／六负控只支持声明的有限抽象值关系，未验证真实提供者/授权/重启。
+
+独立 architecture-reviewer 随后核 MF4 provider `d2394261503f5a37b39f67a6e11b552c19c218564e008bcf4884235be99c2784`、verification `739927b83c3f8f7ba097d1dc0cbdf8213da6fc13cb94f66b61b1f8fdfaabdfb3`，无阻断。明确 parent 首语句 UNIQUE 才能同事务重判；table failure 整次回滚；实际安全容量与数学请求域分离；真实结束后诊断，巨大 H 不 stringify。PG、MG-V及真实 AR/EIS 组合未覆盖。评审未修改稿、未运行产品测试、未接受；技术采用另见 D-079。
+
+## 2026-09-27 AR4/EIS 历史正文联合复审
+
+core_projection_review 对 AR4 provider 初稿及有限顺序修订独立评审，无阻断。最终 design d5d53046909700936b839a7142406bff606b55b33c050d9b6ef21ec467a0ba60，verification 19d6c7d6a87e6d7fcff067e68d78f9cb2cff1bf9efbf30fcc43d467ed6cbb7da。原给定来源、七操作、共同 SQL 对象、reload 全套 CAS 与 refresh 固定 H 的分工维持。联合核对确认 STT 先核租户再 MF 真表，EIS/OG 同 atomic 后再纯判定；同租户另一会话仍须 AR/可信入口核实际 session/run/attempt，STT 不替代入口授权。
+
+adaptation_architecture_review 对 EIS history revision 1 独立审阅，无阻断，design 9313dcbe4788f4e72b1be13b05b109d55f7d5aa70d928e24927af49bc9e584a0。真实原表 tuple、当前资格与 immutable 正文分配明确；两 owner 的不可变事实允许独立读取，不新造共同事务。重复 MF 回读与全版本序列成本已标价，尚无实测。
+
+binding_batch_spec_review 对两包联合表达复审，无阻断；116 个本地引用路径可定位。唯一非阻断 N1 是 EIS README 仍写先 MF 后 STT，主线只改摘要，README 最终 2b18a74027adc265ed83742f298802fe467122055ebf16cfe2c62035baf87fb2；reviewer 有限复核确认 N1 闭合，其余五份输入不变。三位 reviewer 均只读，未测试、未接受。HI-V1～9、V4-1～15、真实旧报告/未持有旧版本成功恢复及观测/静态权限/换代仍未验证，不因本评审关闭 AR4-G3/HI-G1。
+
+## 2026-09-27 必要日志载荷投影独立评审
+
+session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/session-log-jsonl/v2-design.md) 初稿 SHA256 `6dd4ac87b116f31f8dc0d010d2eb31e6beb6f1885be932fa8d9da1fc64adbc11` 经独立 architecture-reviewer 与 spec-reviewer 只读核对。架构阻断 AR-B1-1：带 Run 的响应预读当前尝试后构造 `late`，新尝试或运行终结可以在无栅栏响应追加前先提交。共同 JSONL 只能排序写，未保护提交前判断；MR4 S-35、CA2 S-39 的实际写入时语义尚未兑现。这是已采用 runtime L-4 的继承组合缺口，不能以 ResponseId 判重、再次普通读取或进程内锁关闭。
+
+表达评审指出 MR4 字符串响应头与传输多值数组冲突、写入不可信时 fence／重启顺序歧义，以及公开无损载体的澄清。候选修订 2 SHA256 `a3cd98478faf5d158a8b09dd8e1491db568b4cc93091b0dc560b6e74a20ffbb6` 分开两种保真验收、先关停／重启再确认新 fence、读方权威恢复领域类型。有限表达复核确认原表达发现已处置，无新增表达阻断；架构复核确认范围处置一致，**AR-B1-1／G2-7 仍阻断带 Run 的 late／结算组合**。SL2 不透明三操作可按其采用和验收前提独立推进，没有暗增第四操作或载荷解释。G2-6 多值头的持久投影仍交 runtime／response owner。
+
+两次输入快照、四份评审原文及来源封存于 [评审归档](reviews/session-log-jsonl-2026-09-27.tar.gz)，SHA256 `37cfab94e74894d01564b50cc6ca3688b11a6cbd5072bf286c4bd1a3d8f7f080`；[索引](reviews/session-log-jsonl-2026-09-27.json) 列 102 文件、64 冻结资源和 4 已采用设计核对，来源漂移 0。归档是只读评审记录，未执行提供者 IO、并发、故障恢复或形式任务，不产生候选接受或实现通过。共同键 codec、旧写者实际静止、owner 交接及权威恢复尾的真实证据仍开放。

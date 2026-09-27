@@ -1,5 +1,29 @@
 # pi-ai-transport 验证与证据
 
+## Revision 4 符合性补证（2026-09-27）
+
+[实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-conformance/README.md)保留修复前 10/12 通过、T-16 与 T-8 两个实际失败、85 文件输入／源码／dist 快照及修复后独立 13/13。最终整包 209 项、runtime 6 项、类型及维护范围格式／源码规则检查、双语 10 示例通过。仓库外制品所有模块解析保持内部闭合，明确 Cordis peer，根入口拒绝解析插件依赖仍可用，控制 HTTPS／实际取消与贡献装卸通过。
+
+T-16 对不同 id/index、未知 metadata、null／缺席及超 2^53 数值保真；相同 metadata 的文本片段仍可拼接。同路由回放实际比全 JSON 值，换路由不复用；没有将 LosslessNumber 私有字段的表面相等充当精度验证。T-8 保留首次实报值，并按既有 design 输出 serving_provider_changed。T-12/14 逐事件由真实 stream-assembly/3 接收；T-19 覆盖真实 socket reset、无整数 code 带内错误、异常 finish_reason、未结束 SSE 帧及 DONE 后数据，不虚造正常封口或费用。
+
+这只是列明子项；完整 T/SC/G、实际 provider 名称对应、片段／队列总界限、完整脱敏／诊断矩阵、耐久 service 与 37 官方认证仍待。implementation revision 4，旧 revision 3 的研究或制品不提供本修订上游认证。本 run 付费 0，未执行形式任务。
+
+## P2 局部构件实际验证（2026-09-27）
+
+[新 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p2/README.md)保存 transport 196 项（plan 12、TLS 44、registry 8、真实 Cordis lifecycle 6、official 窄定义 126）、依赖闭包 build/typecheck、源扫描、仓库外制品和两包双语 10 个示例。implementation revision 3；以前 revision 2 的付费结果不移作本轮上游认证。
+
+T-2 补实际脱敏响应头/重复值/过界体头；T-18 补负 token 关系诊断及未知计数。PAT-V3-1/T-17 取得全部 37 身份与提醒/route/cache 的离线证据，但完整 offer/schema 未冻结。PAT-V3-2/6、T-20 取得实际 acquire/retire、稳定服务不重跑、空闲再 acquire、幂等 release、旧清理不删替代贡献、超时 fiber 仍 UNLOADING，以及真实双 HTTPS 停止后待 track callback 收口的局部证据。网络使用可信控制 endpoint assembly，不冒称固定 OpenRouter 插件的实际网络认证。
+
+完整 T/SC/G、未定头工具片段/队列总界限、全部诊断/脱敏/查询、宿主服务换代、目录耐久采用和 37 public/service 认证仍待。缓存 TTL 到期未测，official 完整认证 0/37；不得以离线 126 项判逐模型生产通过。binding 只覆盖已执行的具体断言。
+
+## P1 实际公开生产验证（2026-09-27）
+
+[实际 run 与完整边界](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p1/README.md)保存 plan 12、TLS HTTPS 27 项通过、构建/类型检查、仓库外制品、r1/r2 共八次实际 OpenRouter 请求及全部保存的建设失败。bindings 中五条 v3 局部绑定只覆盖断言可失败的具体部分。
+
+T-1/T-3/T-9/T-10a/T-12/T-14/T-17/T-18 等取得局部控制证据，T-17 只有两项精确定义；没有把整行判为全模型通过。SC 扫描通过不替代全部比较门。HTTP 非成功首部留痕、负 usage 关系诊断、工具片段/队列总界限、完整 T/SC/G、动态引用撤除、TTL 到期、全部 37 模型和 service 路径仍未完成。包双语 README、公开规划/生命周期示例及来源/许可已补齐。
+
+下文保留原义务与历史观察；candidate/尚无源码等沿当时日期读取，当前接受见 D-076。未被本节明确覆盖的义务继续待验。
+
 本页记本节点触发的证据义务、实际跑过什么、覆盖到哪里。原始输入与输出归 [record/evidence](../../../../record/evidence/README.md)，本页只引用并写范围。**源码不存在，本节点没有任何实现层的证据。**
 
 ## 证据义务

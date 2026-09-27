@@ -1,0 +1,21 @@
+{
+  "packages": [
+    "packages/assets/assembly-manifest-store",
+    "packages/assets/evaluation-input-store",
+    "packages/core/agent-definition",
+    "packages/core/arrival-events",
+    "packages/core/asset-evaluation",
+    "packages/core/loop-extension",
+    "packages/core/messages",
+    "packages/core/model-profile",
+    "packages/core/model-response",
+    "packages/model/model-request-runtime",
+    "packages/model/pi-ai-transport",
+    "packages/session/session-tenancy-table",
+    "packages/tools/asset-registry"
+  ],
+  "readmeCount": 26,
+  "examples": 44,
+  "codeMatchesExecutedInputs": true,
+  "publishFileListsIncludeBothLanguages": true
+}

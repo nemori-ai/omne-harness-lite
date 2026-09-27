@@ -137,3 +137,7 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-072：健康探针单进程绑定](governance-docker-health-binding/README.md)接受已有公开main的同进程调用及原期限/资源清理约束；不改变EC3/HT3，不代表新制品已验。
 
 [D-078：模型纵线历史编号消歧](model-main-integration-coordination/README.md)接续施工提交的原 D-070～D-072；上文链接至 model-adaptation-binding-acceptance、model-value-provider-adoption、agent-definition-read-adoption 的同号文字仅导航历史，本次之后无提交限定的 D-070～D-072 指远程现行记录。模型 D-073～D-077 不变；原技术接受及资源字节不改变。
+
+[D-079 原完整fill读面](model-original-fill-adoption/README.md)：MF4/AR4接受，MF4 provider采用；真实新增方法及AR4来源链待验。
+
+[D-080 注册表与历史正文提供者](model-registry-history-provider-adoption/README.md)：AR4 与 EIS history revision 1 技术采用；真实旧表/旧报告成功恢复待实现验收。

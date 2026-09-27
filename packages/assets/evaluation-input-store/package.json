@@ -19,10 +19,16 @@
     "./publication": {
       "types": "./dist/publication.d.ts",
       "import": "./dist/publication.js"
+    },
+    "./registry-history": {
+      "types": "./dist/registry-history.d.ts",
+      "import": "./dist/registry-history.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -43,7 +49,9 @@
     "@omne-harness-lite/agent-definition": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*"
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",

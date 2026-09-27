@@ -418,6 +418,10 @@
     "spec/capabilities/loop-extension-runner/v3/formal/validity-check/start-before-commit.cfg": "71fa74b61b80127fccac15c5f97f2bbfaa1c9f5c65bb7eb13327c93470e353a5",
     "spec/capabilities/loop-extension-runner/v3/formal/validity-check/unchecked-retry.cfg": "892f8b2ef9814302d3975fe5630bd3f143950efa91cec8979a982fceb3581655",
     "spec/capabilities/loop-extension-runner/v3/formal/validity-check/volatile-replay.cfg": "dffc478b82769dd00c42c62cd5359dd2b82f88b6343593cbd5855f65b6f1a84c",
-    "spec/capabilities/loop-extension-runner/v3/formal/validity-check/volatile-subject.cfg": "81fe0be38638cc0d5fcf23c1a7eddf31c8779ae64b89b4bee027cc28b04f798f"
+    "spec/capabilities/loop-extension-runner/v3/formal/validity-check/volatile-subject.cfg": "81fe0be38638cc0d5fcf23c1a7eddf31c8779ae64b89b4bee027cc28b04f798f",
+    "spec/capabilities/assembly-manifest/v4/contract.md": "46c3d605fb889c6f66822f8aecb815c1e691bf605600a036dc48ac0c9aeb6a2d",
+    "spec/capabilities/assembly-manifest/v4/examples.md": "d0e78471062e824c1723129822d7fefac38eef9a96196d386e4f874033f01d45",
+    "spec/capabilities/asset-registry/v4/contract.md": "23ce5e5b88dbdaf4062184e2a0324cf0b75cd5af86cdf79aebaba05354c9b414",
+    "spec/capabilities/asset-registry/v4/examples.md": "66bbcc339d483b23f9b6d2ac0e848417b0ab79c2e676bfa539851054c45f747a"
   }
 }

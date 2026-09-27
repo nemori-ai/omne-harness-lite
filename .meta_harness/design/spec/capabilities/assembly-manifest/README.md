@@ -52,3 +52,5 @@
 ## 2026-09-27 v4 候选：固定头上界的给定记录读取
 
 [完整契约](v4/contract.md)与[规范实例](v4/examples.md)形成 candidate，未接受。继承 v3 五操作，新增只读 readGiven(session,head)，范围内无给定记录明确 none；只选择并无损返回原记录，不解释 filledBy/资产根。 v3 已由 [D-073](../../../record/decisions/model-current-input-contracts-adoption/README.md) 接受且保持冻结；上文早期 v3 候选文字为历史记录，现行接受状态以 [registry](../../../registry/README.md) 为准，新增候选不替代 v3。无新 Schema/身份/状态转移；S-36/S-37 的实际证据与未开始项见 [verification](verification.md#v4-候选原完整填表来源2026-09-27)。
+
+[D-079](../../../record/decisions/model-original-fill-adoption/decision.md)接受v4，六操作；旧v3仍独立冻结，消费者显式采用。

@@ -161,7 +161,12 @@ export function emit(deps: InputSourceDependencies, event: unknown): void {
   try {
     deps.diagnostics(value)
   } catch {
-    deps.onDiagnosticFailure('current_evaluation_inputs')
+    try {
+      deps.onDiagnosticFailure('current_evaluation_inputs')
+    } catch {
+      // The assembly updates its independent degradation state before external
+      // output. Neither borrowed output may replace the source's business result.
+    }
   }
 }
 export function checkDependencies(deps: InputSourceDependencies): void {

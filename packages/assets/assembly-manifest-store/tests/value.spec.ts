@@ -35,9 +35,7 @@ test('exact integer spelling and huge exponent are compared without native round
       request.ok,
     )
     expect(decision).toEqual(
-      value.toString().startsWith('0')
-        ? { admissible: true }
-        : { failure: 'headMismatch', head: 0 },
+      value.source.startsWith('0') ? { admissible: true } : { failure: 'headMismatch', head: 0 },
     )
   }
 })
@@ -115,4 +113,48 @@ test('all dependency names require an explicit same-observation fact; prototype 
   // Only this unchanged public component is consumed from the current owner; no ToolDefinition upgrade.
   expect(v2.$defs.DependencyName).toMatchObject({ type: 'string', minLength: 1 })
   expect(toolValidate('DependencyName', ' spaces are legal ')).toEqual({ valid: true })
+})
+
+test('projection order is an exact permutation, with no root, duplicate, omission or repair', () => {
+  // DTO relationship fixture. The independent real evaluate/write path is exercised in store.spec.ts.
+  const a = { category: 'tool', name: 'example:a' } as const
+  const b = { category: 'skill', name: 'example:b' } as const
+  const original = evaluated()
+  const evaluation = {
+    ...original,
+    assets: [
+      ...original.assets,
+      {
+        capability: a,
+        asset: 'asset_a',
+        version: 1,
+        from: 'factory',
+        replaced: [],
+        resident: false,
+      },
+      {
+        capability: b,
+        asset: 'asset_b',
+        version: 1,
+        from: 'factory',
+        replaced: [],
+        resident: true,
+      },
+    ],
+    composition: [a, b],
+    values: [
+      ...original.values,
+      { capability: a, item: 'usableBy', value: { allowed: ['member'] }, from: 'factory' },
+      { capability: b, item: 'usableBy', value: { allowed: ['member'] }, from: 'factory' },
+    ],
+  }
+  expect(readEvaluationProjection({ evaluation, compositionOrder: [b, a] })).toHaveProperty(
+    'ok.compositionOrder',
+    [b, a],
+  )
+  for (const order of [[], [a], [a, a], [a, b, original.root], [a, { ...b, name: 'other' }]])
+    expect(readEvaluationProjection({ evaluation, compositionOrder: order })).toEqual({
+      failure: 'unavailable',
+      reason: 'invalid_evaluation_content',
+    })
 })

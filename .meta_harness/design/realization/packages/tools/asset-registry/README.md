@@ -52,3 +52,20 @@
 ## 2026-09-27 本轮技术采用
 
 [D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。
+
+## v4 完整增量候选（2026-09-27）
+
+新增 [v4-design.md](v4-design.md)，完整接续七操作与 AR4 S-51/S-52 的来源认回，旧设计、来源缺口稿及 bindings 保留原字节。节点仍为 `packages/tools/asset-registry`，尚未建包。
+
+| 分层状态 | 本增量事实 |
+| --- | --- |
+| 语义接受 | [D-079](../../../../record/decisions/model-original-fill-adoption/decision.md) 已接受 AR4/MF4 和 MF4 provider；本节点 v4-design **candidate，未采用**，不借上游接受提升 |
+| 可实施范围 | AR4-1～7 对应完整七操作、readHead(H)→readGiven(H)→完整 fill 用途核验→真实 STT/EIS 固定正文、reload CAS 全套重取及 refresh 固定 H。AR4-G3 所需受限历史正文端口待 source owner 增量设计/采用，旧报告及已不持有旧表正文的成功恢复仍是本批必交目标 |
+| 绑定与证据 | **0 新绑定**，bindings.yaml 不改；[V4-1～15](verification.md#v4-完整增量的证据义务) 是未执行义务。MF3/EIS 各自组件通过不代证 AR4 来源认回/重开/并发链 |
+| 实际验证 | 尚无本节点产品验证；静态文档检查只核文档结构，独立架构评审与采用归主线 |
+
+原 OF-G1/2 的公共定位与观察范围已由 AR4/MF4 接受条款回答；其实现证据和 D-077 SI-G1 仍待真实组合关闭。来源/正文缺失应正确 unavailable，但不能用该拒绝路径替代本批成功恢复验收。新稿不建立来源旁表、不新增报告 head、不把 MF/EIS/JSONL 称为共同事务。
+
+## 2026-09-27 历史读取增量技术采用
+
+[D-080](../../../../record/decisions/model-registry-history-provider-adoption/decision.md)精确采用本增量；上方候选状态保留该次成稿事实。源码与适用验证义务继续独立落实，真实成功恢复尚未验收，新增绑定0。

@@ -1,5 +1,17 @@
 # model-request-runtime 验证与证据
 
+## P2 函数消费者实际验证（2026-09-27）
+
+[新 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p2/README.md)保存 runtime 6 项、伴随 transport 196 项与仓库外实际制品。调用在异步开始前固定请求/政策；真实 Cordis 模型贡献 force 时，direct 与 invokeModel 的 socket/读循环都实际停止，独立 gate/callback 的 track 未完成仍保留引用、fiber 等待，完成后才清理。这是 S-53/S-56/S-64 的独立函数消费者局部责任，P-2 耐久服务尚未建立；不证多个 dispatch、retry/reply_pending 或持久结算后的 release。
+
+本轮没有付费请求，revision 3 的完整生产认证未执行。R3-G4/L-7 的日志载荷传播/权威恢复、十三操作与所有租户/观测门继续待验；当前日志提供者传播候选不因本轮组件通过而被接受。
+
+## P1 实际公开函数验证（2026-09-27）
+
+[本次 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p1/README.md)保存精确源码、已接受输入、控制 TLS、制品、原始结果及费用回执。runtime build/typecheck 与 6 项成因检查、伴随 transport 的 39 项检查通过；r2 生产制品完成 OpenAI/Anthropic 各两次冷暖请求，均一次 send、正常结束且 readerStopped。公开面 R3-V8 已取得有界实际证据；R3-V7 只覆盖函数门私有/失败/取消，不覆盖任何真实追加、回执未知或恢复。R3-V13 取得本机排队/已触达、精确 usage/cost 及两代表模型缓存事实，完整 custodian/service 与其他分支仍待。
+
+四条 v3 局部测试绑定见 bindings；原六条 v2 形式绑定保留原前提。十三操作、耐久服务、37 模型、Cordis 装配及独立总体验收尚未完成。本包双语 README 及公开例子已检查。下文是原义务与历史执行记录，“待实现/源码不存在/candidate”沿原日期读取，不盖过本节采用后的局部事实；未被本节明确覆盖的义务继续待验。
+
 ## v3 增量证据义务
 
 本节对应 [v3-design.md](v3-design.md) R3-P1～P11；本版为candidate、尚未建包。所有“待验”均不是通过声明。契约侧[有限模型与原型](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md)不包含生产HTTP、真实提供者提交或完整租户接线；不增加绑定。

@@ -177,3 +177,5 @@ covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含
 [D-076](../record/decisions/model-runtime-delivery-adoption/decision.md)：RT3/runner3最终精确技术接受，17项RT依赖对齐；四个提供者/装配投影采用，真实交付与认证另核。
 
 2026-09-27，按 [D-078](../record/decisions/model-main-integration-coordination/decision.md)接续模型施工提交的历史 D-070～D-072：五个既有 accepted 坐标只切换 acceptance 路径，资源 hash、版本、依赖、覆盖与任务不变。采用不因主分支同步提升实现验收状态。
+
+按 [D-079](../record/decisions/model-original-fill-adoption/decision.md)接受 MF4/AR4，冻结四资源；旧版本/依赖保持精确采用，不自动升级其它消费者。

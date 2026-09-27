@@ -17,6 +17,19 @@ export function usdUnits(value) {
 export function usdString(units) {
   return `${units / scale}.${(units % scale).toString().padStart(18, '0')}`
 }
+// Actual receipts keep every reported decimal digit; only reservations round upward.
+function aboveLimit(values, limit) {
+  const decimals = [...values, limit].map(value => {
+    if (typeof value !== 'string' || !/^\d+(?:\.\d+)?$/.test(value))
+      throw new Error('USD must be a nonnegative decimal string')
+    const [whole, fraction = ''] = value.split('.')
+    return { coefficient: BigInt(whole + fraction), places: fraction.length }
+  })
+  const places = Math.max(...decimals.map(value => value.places))
+  const aligned = decimals.map(value => value.coefficient * 10n ** BigInt(places - value.places))
+  const bound = aligned.pop()
+  return aligned.reduce((sum, value) => sum + value, 0n) > bound
+}
 export function estimateReservation(pricing, inputBytes, outputTokens) {
   if (
     !Number.isSafeInteger(inputBytes) ||
@@ -97,14 +110,12 @@ export async function openLedger(
     async reserve({ model, provider, stage, estimateUsd }) {
       if (!['research', 'acceptance'].includes(stage)) throw new Error('Invalid verification stage')
       if (state.entries.some(e => e.state !== 'settled')) throw new Error('Unsettled request: stop')
-      const spent = state.entries.reduce((sum, e) => sum + usdUnits(e.actualUsd), 0n)
-      const researchSpent = state.entries
-        .filter(e => e.stage === 'research')
-        .reduce((sum, e) => sum + usdUnits(e.actualUsd), 0n)
-      const reserve = usdUnits(estimateUsd)
+      const spent = state.entries.map(e => e.actualUsd)
+      const researchSpent = state.entries.filter(e => e.stage === 'research').map(e => e.actualUsd)
+      usdUnits(estimateUsd)
       if (
-        spent + reserve > limit ||
-        (stage === 'research' && researchSpent + reserve > researchLimit)
+        aboveLimit([...spent, estimateUsd], limitUsd) ||
+        (stage === 'research' && aboveLimit([...researchSpent, estimateUsd], researchLimitUsd))
       )
         throw new Error('Budget reservation refused')
       const id = randomUUID()
@@ -120,11 +131,11 @@ export async function openLedger(
         await persist()
         throw new Error('Actual cost unknown: stop paid verification')
       }
-      const actual = usdUnits(actualUsd)
-      entry.actualUsd = usdString(actual)
+      usdUnits(actualUsd)
+      entry.actualUsd = actualUsd
       entry.state = 'settled'
       await persist()
-      if (actual > usdUnits(entry.estimateUsd))
+      if (aboveLimit([actualUsd], entry.estimateUsd))
         throw new Error('Reservation underestimated: stop paid verification')
     },
     snapshot: () => structuredClone(state),
@@ -139,11 +150,12 @@ export async function openLedger(
         throw new Error('Explicit upstream reconciliation evidence required')
       const entry = state.entries.find(e => e.id === id)
       if (!entry || entry.state === 'settled') throw new Error('Invalid reconciliation')
-      entry.actualUsd = usdString(usdUnits(actualUsd))
+      usdUnits(actualUsd)
+      entry.actualUsd = actualUsd
       entry.state = 'settled'
       entry.costSource = source
       await persist()
-      if (usdUnits(actualUsd) > usdUnits(entry.estimateUsd))
+      if (aboveLimit([actualUsd], entry.estimateUsd))
         throw new Error('Reconciled cost exceeds reservation')
     },
     async close() {

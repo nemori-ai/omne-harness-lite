@@ -1,5 +1,23 @@
 # pi-ai-transport
 
+## 当前分层状态：P2 局部构件（2026-09-27）
+
+- 语义接受仍为 D-076 精确 v3-design；本次仅沿已定规格实现，冻结设计未改。
+- 已实施：共享公开传输、进程内 register/acquire/retire 与固定 lease、稳定 Cordis 服务和可信模型贡献插件；37 个显式身份/reminder/路由缓存窄定义已导出，当前 implementation revision 4、definition revision 1。默认静态集仍为两 pilot，完整逐模型参数/模态 offer 与配置 Schema 尚未交付。
+- 绑定与证据：新增具体可失败的局部绑定，见 [bindings.yaml](bindings.yaml)。[本轮实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p2/README.md)保存 transport 196 项、实际 Cordis/双 HTTPS 取消与回调排空、仓库外制品、双语示例和失败记录；不是完整 T/SC/G 或 P2 放行。
+- 实际验证：HTTP 脱敏头与负 usage 关系、37 个离线规划、版本保留/超时/强制实际停止取得局部证据；目录 adopt、完整服务宿主替换、耐久收口、全部观测、TTL 到期和官方认证仍待，完整认证 0/37。本轮无付费请求；之前 r2 上游读数只属于 revision 2。
+
+追加 [revision 4 符合性 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-conformance/README.md)：独立实际反例发现推理明细身份／未知元数据丢失和 provider 变更诊断名失配；沿既有 T-16／T-8 修复，公共 parser 换修订。最终 transport 209 项、runtime 6 项及两包双语 10 示例通过；仓库外实际制品根入口与 Cordis 消费通过。旧 revision 3 run 保留原字节与范围，不能用它认证 revision 4 的上游行为；新 run 无付费请求，不关闭完整 P2／T／SC／G 或带 Run 耐久结算缺口。
+
+## P1 历史实施读数（2026-09-27）
+
+- 语义接受：精确 runtime3 与本节点 [v3-design.md](v3-design.md)由 [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受；冻结设计不变。
+- 已实施：`packages/model/pi-ai-transport` 提供公开 plan/send/read/factory，保存 pi 0.86.1 精确来源、许可与修改说明；使用显式配置及凭据、一次 OpenRouter HTTPS 与严格无损 SSE。当前只有 OpenAI/Anthropic 各一个 pilot 定义，implementation revision 2、definition revision 1；其余 35 模型与动态贡献/引用租约、Cordis 插件尚未交付。
+- 绑定与证据：[bindings.yaml](bindings.yaml)新增五条有前提的 v3 传输局部测试绑定。[P1 实际证据](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p1/README.md)记录 plan 12＋TLS HTTPS 27 项、仓库外制品及八次实际 OpenRouter 请求。不是完整 T/SC/G 门通过。
+- 实际验证：r2 OpenAI/Anthropic 暖读分别报告 5837/9382 cache token，显式 TTL 来自本次 configuration values；TTL 到期未测，官方完整认证 0/37。
+
+下面保留 v2 与 D-076 之前的历史观察；“尚未建包/无实现/0 条绑定”只指当时，当前状态以本节及验证入口 P1 节为准。
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿；是 `omne-harness-lite-design-2026-09-15 · capability.model-request-runtime · v2`（[契约](../../../../spec/capabilities/model-request-runtime/v2/contract.md)，状态 `accepted`、已冻结）里**传输适配那一层**的提供者——契约只在 [S-38](../../../../spec/capabilities/model-request-runtime/v2/contract.md#s-38-装配给的保证-vs-协议须给的保证) 写它须兑现的十一条、实现归提供者设计（契约 S-2 第 11 行）。本节点承接 [model-request-runtime 节点](../model-request-runtime/design.md#实施缺口与消费者影响)的缺口 MRR-N4（那一格仍开着：尚未建包、比较门未过）
 - 源码位置：`packages/model/pi-ai-transport`——尚未建包。第二层 `model` 由 D-059 拍板；与节点路径逐字相同
@@ -10,14 +28,14 @@
   - **Cordis 采用版本** 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）
   - **最小的边界**：本节点只兑现契约留给传输适配的那几条，**不扩展任何契约**；锚点、结算、成因分类、凭据取用、时限计时都仍在 P-2（[model-request-runtime 节点](../model-request-runtime/README.md)）。它不取代任何替身：**脚本化传输仍是验收装配的另一件**，与本插件登记同一个服务键
 
-## 分层状态
+## v2 历史分层状态
 
 - 语义接受范围：**设计已接受**（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-061 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
 - 可实施范围：声称兑现契约 S-38 传输适配十一条（逐条落点见 [design 的投影表](design.md#契约责任到兑现点)），以及生产者一侧的 `data.arrival-events` S-7～S-9、S-11、S-13、S-15、S-20，`data.model-profile` S-17、S-21 的改值与丢项，`data.content-blocks` S-9 `opaque` 的写读与 S-14 `CallId` 的登记，`data.messages` S-35 我们自己那两种消息的线上落点。**尚未建包，没有任何实现。**可实施性的阻断：D-019 比较门一项都没有在真实 OpenRouter 上过（[PAT-N2](design.md#实施缺口与消费者影响)）；状态码表的行、费用单位、用量换算都是待核对主张（PAT-N3、N5、N6）；工具条目来源和 P-2 对排队中止／无码带内错误的分类已由 MRR v2 闭合（PAT-N14、PAT-N18）；真实注册表、调用方与本包的实现和验证仍未完成。原先登的两处契约对不上（PAT-N4、N9）已由契约闭合（D-060 §八 N-40 ④、N-41）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **0 条**——没有任何已登记的形式任务或测试以本节点的代码为对象；十一条的证据形式是本包的符合性测试（脚本化的本机 HTTP 端），见 [verification](verification.md#证据义务)
 - 实际验证：**尚无**（源码不存在；本节点不复用 minimal-runtime 或 2026-09-16 那次真实短请求作证据——前者未进 main，后者只覆盖一条路由且早于本基线）
 
-## 2026-09-27 v3 候选增量的分层状态
+## 2026-09-27 v3 候选增量历史（D-076 之前）
 
 以下接续本轮模型请求纵线；上面的 v2 接受事实和 [design.md](design.md) 保持原范围。新稿见 [v3-design.md](v3-design.md)，目标源码路径仍为 `packages/model/pi-ai-transport`，尚未建包。
 

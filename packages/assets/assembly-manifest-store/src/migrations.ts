@@ -40,11 +40,6 @@ export const assemblyManifestMigrations: readonly MigrationFragment[] = [
           .addColumn('filled_at', 'integer', c => c.notNull())
           .addColumn('composition', 'text', c => c.notNull())
           .addPrimaryKeyConstraint('assembly_manifest_table_pkey', ['session', 'seq', 'category'])
-          .addUniqueConstraint('assembly_manifest_table_filled_unique', [
-            'session',
-            'category',
-            'filled_at',
-          ])
           .addForeignKeyConstraint(
             'assembly_manifest_table_record_fk',
             ['session', 'seq'],
@@ -52,6 +47,13 @@ export const assemblyManifestMigrations: readonly MigrationFragment[] = [
             ['session', 'seq'],
             c => c.onDelete('restrict'),
           )
+          .execute()
+        await db.schema
+          .createIndex('assembly_manifest_table_filled_unique')
+          .ifNotExists()
+          .on('assembly_manifest_table')
+          .columns(['session', 'category', 'filled_at'])
+          .unique()
           .execute()
       },
     },

@@ -8481,13 +8481,13 @@
       },
       "family": "capabilities",
       "topic": "assembly-manifest",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/assembly-manifest/v4/contract.md",
       "resources": [
         "spec/capabilities/assembly-manifest/v4/contract.md",
         "spec/capabilities/assembly-manifest/v4/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-original-fill-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -8575,13 +8575,13 @@
       },
       "family": "capabilities",
       "topic": "asset-registry",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/asset-registry/v4/contract.md",
       "resources": [
         "spec/capabilities/asset-registry/v4/contract.md",
         "spec/capabilities/asset-registry/v4/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-original-fill-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {

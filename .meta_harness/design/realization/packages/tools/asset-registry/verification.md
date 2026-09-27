@@ -129,3 +129,37 @@
 | OF-V10：AR3 S-31～S-33；装卸与观测 | 真宿主更换 provider、旧实例在途读取/追加结束，旧引用不提供猜测来源；无未归属 Promise、未等真实结束就关存储、正文/配值泄漏。诊断失效不改变已经提交的给定记录 | registry/MF/EIS/验收装配；沿已采用生命周期与有界策略 | 未执行 |
 
 OF-G1 最小缺口归 MF 契约 owner：公开固定 head 范围内最后 given 的不可变记录及关联；AR owner 核它是完整 assembly 并采用。OF-G2 归 AR owner：本次操作所依完整 fill、表与源的观察范围/并发重做，不能在 app 胶水暗定。MS2/SLog2 没有已定义的装配来源载荷或跨 manifest 提交关系，不能借 opaque JSON 补齐。完整重开与重新装配验收在这些缺口关闭并产生 OF-V 实际证据前保持受阻；本段不修改旧 bindings，也不接受本稿。
+
+## v4 完整增量的证据义务
+
+对应 [v4-design.md](v4-design.md) 的 AR4-1～7 与 [AR4 S-51/S-52](../../../../spec/capabilities/asset-registry/v4/contract.md#s-51-原完整填表来源与本次表头的关联)。D-079 已接受 AR4/MF4/MF4 provider，本节点新稿未采用、尚未建包。**本段全部未执行，0 新 bindings**；旧 S-36～S-47、N、VE、OF 的历史义务保留，不批量提升状态。旧 OF-V8 的候选末尾头复核不带入本版：refresh 固定 H，不要求最后仍是最新头。
+
+共同真实前置：实际文件型存储、MF4 六操作、真实 STT/当前 OG 资格、EIS 本地发布/capture/fixed-root 公共面、同一 AE4/正文判定制品、真实公开 evaluate 和 caller 显式 O。输入 fixture 可以作坏值负控，不能作成功链的来源。存储 owner 的独立事务测试、EIS 45 项及 MF3 45 项组件检查只能覆盖各自原范围；本段须亲自观察跨边界行为。
+
+| 编号／条款／投影 | 可失败验收和负控 | owner／额外前置 | 状态 |
+| --- | --- | --- | --- |
+| V4-1：S-22/S-48/S-49，AR4-1 | 真发布/捕获→真 evaluate→显式 O→fill；清单恰一 given、六表含空类、content 恰三槽且完整 E/O，无 input/占位 ref。换 E 的集合编码不换表次序；O 缺席/重复/遗漏/额外/含根在追加前拒绝。真实生产计数不能被 typed E fixture 代替 | registry/AE4/EIS/app；真实根正文 producer 和表正文 | 未执行 |
+| V4-2：S-23/S-27/S-28/S-48/S-50，AR4-1/2/5 | reload 只换目标，plugin 按旧新成员同次换连带；真实权限收回/markFailed 只缩 slash_command，保留原 E/O/ref/相对次序，其他五表不动。以删 O、重 evaluate 后写 E、自动加入新授予条目为负控。重复收窄零追加 | registry/MF/源；plugin/MCP/正文未具备成功分支须显式待验，不能 mock 成产品通过 | 未执行 |
+| V4-3：S-51.1～3/S-52.1，AR4-2 | A/v1 真 full fill→逐类六次 reload→可选 reuse→销毁 registry/MF 并重开，从公共 readHead/readGiven 认原 given，精确提根→EIS 真读原正文→reload 和 refresh 成功。故意移除 readGiven、用 latest E/creation/内存预置根/猜 ref 的变异须失败 | registry/MF4/EIS/真实 storage；MF MG-V11 互验，含公开调用轨迹 | 未执行 |
+| V4-4：S-51/S-52.2/6，AR4-2/6 | 完整 fill A/v2 再六类全换、重开，必须认新 given；另做 E/O/根值完全相同但 ref/seq 不同的两次 full fill，仍认最后提交身份。F/E0→tool E2→旧表 reuse E0 后三读分别是表 E0、readEvaluation E2、readGiven F；重开保持 | registry/MF/EIS；不能解析 opaque ref 或比较根值选来源 | 未执行 |
+| V4-5：S-51.2/6/S-52.5，AR4-2 | 有表无 given、最新 given 非 assembly、mint 冒充、缺/多类、非完整构成、坏 E/O、根缺/重复、跨 session、ref 不符、seq>H、坏无损值、读取失败，均 unavailable、后续 fixed-root/evaluate/append/report 为零。H=0 确认无装配仍 sessionNotFound；坏最新不回退旧合法 | registry/MF；合法 MF JSON 负例要经实际 append；结构损坏在隔离故障库注入，不冒称合规写者可生成 | 未执行 |
+| V4-6：S-16/S-23/S-24/S-50.5/6/S-51.6，AR4-2/3 | 真源 A1 fill 后 actual current 改 B 或 A2，固定根不变，EIS 真 selector/evaluate 产生 C16；reload/refresh start/continue 均 unavailable，无表/头变化、无报告。root 保持而角色变化分别验证 reload 当前角色、refresh 捕获角色，两者实际资格撤销/未知仍拒绝。invalid O 表示、缺 attempt/错报告优先；cycle/unsupported 原样转交，通常第二求值不可读作对照 | EIS/AE4/registry/app；不得仅注入 failure 字符串、改 pinned 或伪造旧 holding | 未执行 |
+| V4-7：S-17/S-23/S-51.4/S-52.4，AR4-2/6 | 两真实实例停在 H/F1 后，F2 full fill 提交 H+1，旧 reload append 零写 headMismatch；重做须新 readHead/readGiven/input/evaluate/目标表，caller O 再核。只换 expectedHead、旧 source/E 复用、自动修 O 的三种变异均被断言拒绝。关实例队列再跑；策略耗尽明确失败 | registry/MF/storage；共享真实哨兵/parent，显式可控调度与有界策略 | 未执行 |
+| V4-8：S-24/S-51.5/S-52.3，AR4-3/6 | refresh 固定 H 表后并发 H+1 full fill/reload/reuse，再 readGiven(H) 与 EIS。根未漂移支成功、报告无 head 字段、历史 lookup/list 只见 H；根漂移支真实 C16 整个失败。末尾强制读新头重启、H 表配新 given、途中换新表的变异失败。EIS 自己的发布另排交错，报告不冒称 MF/EIS 同快照 | registry/MF/EIS；不靠“没有竞争”绕过旧观察点 | 未执行 |
+| V4-9：S-25/S-26/S-33/S-34/S-48.6，AR4-4/5/6 | 保存真实报告，换表多次并让旧资产不再被当前持有，关闭/重开 registry 后从 MF history＋真实受限 historicalBody 读原版本成功；新正文不得进旧报告。缺原版本/源不可读时 unavailable，不换当前表。tool ModelToolName、动作并入、slash 现读、skill/run 钉门分别断言；报告自身丢失仍沿原 start 例外，不伪造持久报告 | source/EIS/registry/app；**AR4-G3 窄源设计/采用及 IO 必须完成**。拒绝分支通过不能替代成功恢复 | 未执行，成功链受 AR4-G3 阻断 |
+| V4-10：S-17/S-18/S-22⑦/S-27/S-48.5，AR4-1/5/6 | parent/table 故障整批回滚、不提前发布；提交后回执丢失/进程退出，given 原请求认回或 superseded；mint/reuse 未知不自动重发、后续对头保留真实已写事实。两会话同 ref 至多一成功。日志失败不调 markFailed，日志成功后 MF 失败/崩溃不撤销日志 | MF MG-V7/8、registry/sessionLog/app；真实文件库/故障边界，不把中止等待当回滚 | 未执行 |
+| V4-11：S-8～S-12/S-24/S-29/S-30，AR4-3/7 | first E→技能门控→工具/技能依赖→桥→第二 E 的顺序；无动作集不多求值，second 通常失败非 meta 项 unavailable、meta 有真实部署来源才 auto；失持有接入点零桥调用/零动作，单项依赖缺失只影响该项；名字冲突、替换件同形、命令开关、零业务事件/提醒 | bridge/源/meta/可用性 owner/registry；缺成功依赖的项仍未验，不能用全空集合宣称完整覆盖 | 未执行 |
+| V4-12：S-6/S-19/S-25/S-31/S-48/S-51，AR4-4/7 | 跨租户/错 session/report/table-bound source 拒绝，读取他方正文次数零；当前资格失效时 historicalBody 不交正文，但“已不持有”且来源/权限合法的旧表仍成功。对参数/依赖回值/返回报告做深层修改不影响后续；大版号/精确小数、布尔数字、对象重排/数组次序保真 | STT/OG/EIS/source/registry；真实 tenant mapping，严格 JSON/BodyContracts | 未执行 |
+| V4-13：S-31～S-33，AR4-6/7 | 真 Cordis 4.0.4 缺必需依赖 PENDING；provider 换代旧调用晚提交、新实例下次读能见新头，旧缓存不污染新实例；同实例低 H 构建晚到不覆盖高 H。close 前后调用、排队/读取/追加/故障各支 Promise 有归属，真实完成后才 close 源/storage，借用者不提前关资源 | registry/MF/EIS/clock/宿主/app；补 provide 纳管实际核对，不以 fiber dispose 代证事务终结 | 未执行 |
+| V4-14：S-31/S-51 与 SYS-OPEN，AR4-1～7 | 纯构件不用 Cordis/storage 可取用；完整制品导出七操作闭包/技术 close；禁止 registry 私表 import、EIS fixed-root/historicalBody 向 runtime/adapter/tool 转导出或别名旁路、第二份 evaluate/BodyContracts、自动 O 生成/输入 fixture 生产。每条结构 guard 有故意违反即失败的负控 | registry/source/ts-checks；受限历史端口采用后更新精确合法消费者 | 未执行 |
+| V4-15：S-52 及全局观测，AR4-7 | 同真实动作的日志/trace 能关联 H/given/source revision/阶段/提交已知或未知、实际资源结束；sink 拒绝/异常/有界饱和不改业务事实或吞缺陷。秘密/正文/E/O canary 不出现在产物；记录源读取、双次纯 evaluate、表重建/追加耗时和规模，不伪 SQL 获锁或未测阈值 | registry/MF/EIS/app/observability owner；端口尺寸/容量/保留显式配置，独立故障通道 | 未执行 |
+
+### v4 覆盖缺口与证据范围
+
+- AR4-G1/2：规范缺口已有 D-079，provider 采用与实现/组合证据仍缺；受阻 reload/refresh 原来源认回、runtime 前置报告。MF 只证给定记录，不证 AR 用途及 EIS 读取权。
+- AR4-G3：历史正文的受限来源接口归 EIS/source owner 起草并采用，registry/app 负责表与报告证明、接线与恢复验收。**旧报告＋已不持有旧表正文成功恢复是本批交付条件**；unavailable 只能验证缺源的安全后果，不能结束此项工作。
+- AR4-G4/5：workspace/shared/MCP、有效模式/自报/meta、产品通知转发、PF-004 完整装配触发及报告跨崩溃沿原 owner；未具备成功分支不得标通过。源为空必须是实际未配置的事实。
+- AR4-G6：真实存储交错、未知回执、真 Cordis/close、制品边界及有界诊断尚无本节点运行证据；文档检查、纯枚举、测试替身不能替代。全局形式工件范围沿 S-35/S-52，不新建无法失败的绑定。
+- 本段不更改旧绑定或其 assumptions；节点新增绑定始终为 0，直到主线取得有稳定名字且能否定错误实现的真实证据。
+
+V4-9/12/13/14 的 source 接线对应尚待采用的 [EIS 历史正文候选增量](../../assets/evaluation-input-store/v4-history-source-interfaces.md)，SHA-256 `9313dcbe4788f4e72b1be13b05b109d55f7d5aa70d928e24927af49bc9e584a0`，候选入口为 `./registry-history`／`createRegistryHistoryReader`。真实执行轨迹必须是：技术表示校验／实例准入 → 真实 STT 核 tenant，不符／未知／不可读时零 MF IO → 真实 MF4 readHistory 回读请求三元定位并核原表 capability/asset/精确 version 元组 → 同一 EIS atomic 内当前 OG 资格与版本读取 → atomic 实际结束后的严格 JSON／AM3 judge／BodyContracts 纯判定。增加“错误 tenant 却先调用 MF”“假常量 readHistory”“只信请求元组”“从当前持有选择旧正文”“MF 换代后复用关闭 reader”的负控；均须失败，并核参与异常先越过真实 atomic 终结再映射。AR 对报告/H/full E/O/filledBy/reuse 的核验仍独立存在，不以 source 回读替代，也不声称 MF/EIS 共同事务。装配构造/close、registry 借用 read 的逐 symbol 权限须做制品/AST 检查；本段明确责任仍不等于接口采用或 IO 实现，旧报告及已不持有旧表正文的成功恢复继续受 AR4-G3 停止线约束。

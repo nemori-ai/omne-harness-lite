@@ -25,6 +25,7 @@ import {
   type OffersService,
 } from '@omne-harness-lite/organization-governance'
 import { composeMigrations, narrow } from '@omne-harness-lite/storage'
+import { assemblyManifestMigrations } from '@omne-harness-lite/assembly-manifest-store'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import {
   createSessionTenancyReader,
@@ -126,6 +127,7 @@ export async function boot(file?: string) {
       ...clockMigrations,
       ...sessionTenancyMigrations,
       ...evaluationInputMigrations,
+      ...assemblyManifestMigrations,
     ]),
     upgrade: false,
   })

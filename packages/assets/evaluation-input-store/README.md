@@ -1,36 +1,60 @@
-# evaluation-input-store
+# @omne-harness-lite/evaluation-input-store
 
-This package implements the locally published input reader used by model requests. Its
-accepted contracts and provider design are in [the realization node](../../../.meta_harness/design/realization/packages/assets/evaluation-input-store/README.md).
+[中文](README_ZH.md)
 
-The root exports `createEvaluationInputReader`, the SQL migration fragments and a Cordis
-plugin factory. Supply the same `AtomicStorage` instance used by real organization governance,
-the session tenancy reader, an explicit store key, trusted deployment entries
-`{ capability, meta }`, diagnostic/failure callbacks and a monotonic measurement clock.
-`reader.read(session, tenant)` returns an owned input or a classified failure. The plugin
-publishes only `currentEvaluationInputs.read`; the public closure also has `close()`.
+Read owned evaluation input from immutable local publications, actual session tenancy and current organization-governance facts. This experimental, unpublished ESM workspace member exposes standalone closures and a Cordis reader. Accepted provider scope and component coverage are in the [realization node](../../../.meta_harness/design/realization/packages/assets/evaluation-input-store/README.md).
 
-Import `publishLocalInputs`, `captureSessionRecipe` and `readPublicationRevision` from
-`@omne-harness-lite/evaluation-input-store/publication` in the trusted application bootstrap.
-Publish immutable definitions and explicit factory/organization/tenant scope collections
-with `expectedRevision`; an empty scope collection and a missing scope row differ. Establish
-the real session tenancy mapping before capturing its recipe. A later publication changes
-what subsequent reads see. Do not automatically retry a publication whose commit result is
-unknown; read its revision and actual data first.
+## Public entries
 
-The restricted `./registry-inputs` entry provides the separate fixed-root reader and its
-types. Repository consumers are limited by the structural checker. Its trusted caller must
-first verify the same-session original complete fill; this component does not recover that
-origin. `rootSourceMismatch` carries the actual C16 refusal and selected source so the
-registry can preserve the existing tables. Runtime uses the ordinary root reader.
+| Entry | Capability |
+| --- | --- |
+| `.` | `createEvaluationInputReader`, `evaluationInputMigrations`, `createEvaluationInputStorePlugin`, `CURRENT_EVALUATION_INPUTS_SERVICE`, dependency/result types |
+| `./publication` | Trusted `publishLocalInputs`, `captureSessionRecipe`, `readPublicationRevision` and publication types |
+| `./registry-inputs` | Restricted fixed-root reader for an admitted registry caller |
+| `./registry-history` | `createRegistryHistoryReader` and history types for authorized exact historical body reads |
 
-Compose these migrations with account, governance, clock and session tenancy migrations
-before admission. Old bare deployment manifests are refused until an explicit trusted
-republish; no meta value is inferred. Mounted workspace and unresolved shared sources
-remain unavailable. The application owns the storage and governance services: close input
-readers, drain publication calls, then close those dependencies.
+## Read current input
 
-Run `pnpm --filter @omne-harness-lite/evaluation-input-store build`, `typecheck` and `test`.
-Tests use real file-backed SQLite, real account/login/governance plugins, controlled races
-and child-process termination. They cover this component; they do not certify the model
-runtime, recover registry fill origins or establish power-loss durability.
+Supply the same `AtomicStorage` used by actual governance, a session-tenancy reader, explicit `storeKey`, trusted deployed entries `{ capability, meta }`, diagnostic/failure ports and a monotonic measurement clock. Establish a real session mapping and capture its recipe first.
+
+```ts
+import { createEvaluationInputReader, type InputSourceDependencies } from '@omne-harness-lite/evaluation-input-store'
+import type { TenantId } from '@omne-harness-lite/identity-values'
+
+export async function readCurrent(dependencies: InputSourceDependencies, session: string, tenant: TenantId) {
+  const reader = createEvaluationInputReader(dependencies)
+  try { return await reader.read(session, tenant) }
+  finally { await reader.close() }
+}
+```
+
+Read results preserve ownership and source revisions. An empty scope row differs from a missing row. Unavailable shared/workspace/MCP sources refuse the complete read rather than inventing empty inputs.
+
+## Publish in trusted bootstrap
+
+Supply complete definitions, explicit scope rows and a publication with `expectedRevision`. Subsequent reads see a new publication; previously returned values remain owned snapshots.
+
+```ts
+import type { InputSourceDependencies } from '@omne-harness-lite/evaluation-input-store'
+import { publishLocalInputs, readPublicationRevision, type LocalPublication } from '@omne-harness-lite/evaluation-input-store/publication'
+
+export async function publish(dependencies: InputSourceDependencies, publication: LocalPublication) {
+  const previous = await readPublicationRevision(dependencies)
+  const result = await publishLocalInputs(dependencies, publication)
+  return { previous, result }
+}
+```
+
+Unknown commit results require reading actual revision/data before deciding the next action; this helper does not retry. `captureSessionRecipe` records the explicit root and session values after the tenancy mapping exists.
+
+## Restricted consumers and lifecycle
+
+Repository guards restrict `./registry-inputs` and `./registry-history`. The registry's fixed-root caller must verify its original full fill. The history reader consumes actual manifest history, current tenancy/membership and immutable versions; it does not recover the registry or grant authorization from a supplied tuple. Ordinary runtime consumers use the root reader.
+
+Compose `evaluationInputMigrations` with the application's actual account, governance and tenancy migrations before admission. Each reader's `close()` drains its own reads; close readers and finish publication calls before closing borrowed governance/storage. Tests use real file-backed SQLite and actual governance plugins; component pass is not complete runtime delivery or power-loss proof.
+
+```sh
+pnpm --filter @omne-harness-lite/evaluation-input-store... run build
+pnpm --filter @omne-harness-lite/evaluation-input-store run typecheck
+pnpm --filter @omne-harness-lite/evaluation-input-store run test
+```

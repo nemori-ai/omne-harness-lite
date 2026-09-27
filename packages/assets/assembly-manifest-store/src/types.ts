@@ -49,15 +49,25 @@ export interface PresenceSource {
 export interface ManifestDiagnostic {
   readonly kind: 'assembly_manifest'
   readonly operation:
-    'readHead' | 'append' | 'readHistory' | 'dependencyPresence' | 'readEvaluation'
-  readonly providerRevision: 'MF3'
+    'readHead' | 'append' | 'readHistory' | 'dependencyPresence' | 'readEvaluation' | 'readGiven'
+  readonly providerRevision: 'MF4'
   readonly session: string
   readonly result: string
   readonly head?: number
   readonly evaluationRef?: EvaluationRef
   /** Emits only after storage has actually returned or thrown. */
   readonly resourceEnded: true
-  readonly stage?: 'capacity'
+  readonly stage?:
+    | 'capacity'
+    | 'head_range'
+    | 'source'
+    | 'decode'
+    | 'projection'
+    | 'parent_conflict'
+    | 'table_failure'
+  readonly requestedHead?: number
+  readonly requestedHeadOmitted?: true
+  readonly selectedSeq?: number
 }
 export interface ManifestOptions {
   readonly presenceSource?: PresenceSource
@@ -74,10 +84,13 @@ export type EvaluationReadResult =
   | { readonly failure: 'recordNotFound' }
   | { readonly failure: 'unavailable'; readonly reason: 'invalid_evaluation_content' }
   | (EvaluationProjection & { readonly evaluationRef: EvaluationRef })
+export type GivenReadResult =
+  | ReadFailure
+  | { readonly none: true }
+  | { readonly record: ManifestRecord }
+  | { readonly failure: 'unavailable'; readonly reason: 'invalid_evaluation_content' }
 export interface AssemblyManifestService {
-  readHead(
-    session: unknown,
-  ): Promise<
+  readHead(session: unknown): Promise<
     | ReadFailure
     | {
         readonly head: number
@@ -97,6 +110,7 @@ export interface AssemblyManifestService {
     names: unknown,
   ): Promise<ReadFailure | { readonly presence: Readonly<Record<string, Presence>> }>
   readEvaluation(session: unknown): Promise<EvaluationReadResult>
+  readGiven(session: unknown, head: unknown): Promise<GivenReadResult>
 }
 export interface AssemblyManifestStore extends AssemblyManifestService {
   close(): Promise<void>

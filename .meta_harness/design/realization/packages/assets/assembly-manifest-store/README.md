@@ -52,3 +52,22 @@
 ## 2026-09-27 本轮技术采用
 
 [D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。
+
+## v4 候选增量（2026-09-27）
+
+本节是当前 v4 状态入口，上方的 v2/v3 历史状态及其采用范围保持原记录。
+
+| 分层状态 | 当前范围 |
+| --- | --- |
+| 语义接受 | **无。** 精确输入为同一基线的 [capability.assembly-manifest/v4](../../../../spec/capabilities/assembly-manifest/v4/contract.md) 全部 S-1～S-37；[asset-registry/v4](../../../../spec/capabilities/asset-registry/v4/contract.md) S-51/S-52 为消费者交接。两坐标已在 [catalog](../../../../registry/catalog.json) 登记 candidate，本稿亦未采用；D-074 不延伸到 v4 |
+| 可实施范围 | [v4-design.md](v4-design.md) 给出六操作候选投影：新增公共 readGiven(session,H)，同 ReadTx 实读已提交头并选 H 内最后 given，完整原值交回；精确请求整数与实际序号容量分开；仅首条 parent INSERT 唯一冲突可同事务重判，table 失败必须整次回滚。MF3 五操作源码已存在且正在施工，不能据此称 v4 已实现；精确规格与本稿采用后才能实施第六操作 |
+| 绑定与证据 | **0 新绑定。** [bindings.yaml](bindings.yaml) 不改；[MG-V1～12](verification.md#v4-候选增量的证据义务) 是可失败的待执行义务，旧证据不提升版本 |
+| 实际验证 | **无本版产品验收。** 本次只形成候选设计及文档检查结果；真实 SQLite 六操作、公开制品、Cordis 装卸、registry/EIS 生产链与 PostgreSQL 均须分别取证 |
+
+实施与归装配边界见 v4 设计 MG-1～8、R-AMS4-1～5、MG-G1～5。`apps/model-request-acceptance` 拥有同库与升级确认、入口身份、有界诊断端口及真实组合验证；storage 被借用，闭包停止准入后等在途操作真实结束。MF 只返回源记录，不解释 filledBy，也不替 AR4 接受原完整 fill 或替 EIS 证明权限。缺口与受阻消费者沿 v4 设计及验证追加段登记，不由本文接受。
+
+[D-079](../../../../record/decisions/model-original-fill-adoption/decision.md)精确采用 v4 增量。新增 readGiven 与全来源组合尚待实现验收；旧候选输入字节保留，绑定0。
+
+## 2026-09-27 六操作实际组件检查
+
+源码已建于 `packages/assets/assembly-manifest-store`，本次 MF4 组件测试 76 项通过，含真实 SQLite/重开/并发/唯一约束回滚/SIGKILL/Cordis 排空。公开打包导出在仓库外目录通过声明编译和实际运行；全仓 build/typecheck 与实际规则扫描通过。记录及限度见[组件证据](../../../../record/evidence/2026-09-27-probe-model-request-runtime/mf-component-checks.md)。这不补证 AR/EIS 的完整生产来源链、装配退化查询、PostgreSQL 或生产模型认证；bindings 仍 0。上方候选与未实现字句保留其原事件状态，由本段接续。

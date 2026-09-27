@@ -1,6 +1,7 @@
 export type * from './types.ts'
 export {
   checkManifestAppendInput,
+  checkManifestGivenReadInput,
   judgeManifestAppend,
   answerPresence,
   readEvaluationProjection,

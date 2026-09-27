@@ -1,0 +1,55 @@
+{
+  "scope": [
+    "realization/packages/model/model-request-runtime",
+    "realization/packages/model/pi-ai-transport"
+  ],
+  "checks": [
+    "entry",
+    "architecture",
+    "bindings",
+    "links"
+  ],
+  "errors": [],
+  "notes": [],
+  "designCheckExitCode": 0,
+  "executedFormalTasks": 0,
+  "archiveSha256": "24740ce27ef45f883cbe7a50e151a9198d27ab54efca1d7a44abaeb9e67d74eb",
+  "inputHashes": [
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/README.md",
+      "sha256": "1c81602b530a914a44c655f5282cc2aee291e68aa643982362c6cd70d9365085"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/verification.md",
+      "sha256": "f0254259bc0e6aed01859dad40c1b215a63562927ab8977d0d39e988027671e1"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/bindings.yaml",
+      "sha256": "8f89f5752ec82e2d1aa20a0aaaa52afd60a48cc16d4bb937c1e80e9e1ba2b924"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/README.md",
+      "sha256": "bc0e6a53b0ca50b169aefa285dff1e95de2e3a73f63a2c1c7a0592f3574e80fa"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/verification.md",
+      "sha256": "4ef38457f035195641beb9023239793f11707fd675d6b5f04887dfba9bc6be2c"
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/bindings.yaml",
+      "sha256": "8345612217b56aee1b4c34fcc79a2685ccbd8270fd52b5a9144730677daafad0"
+    },
+    {
+      "path": ".meta_harness/tooling/src/realization_nodes.py",
+      "sha256": "241ce5ab265b7a225a1931c854bf2ffa7b799803a97fe0e6533deb9a8dd96918"
+    },
+    {
+      "path": ".meta_harness/tooling/src/check_design.py",
+      "sha256": "011435e0b1f75760d6de255f2e8d7524eae2582c0cdd6defc0a6fff5802a980d"
+    },
+    {
+      "path": "tmp/model-request-runtime/check-p2-mapping.py",
+      "sha256": "d3cf2b67d23da32a79c7ff75aa91509b23960aba166502bc537cea0ff0e563a8"
+    }
+  ]
+}

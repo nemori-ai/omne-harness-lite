@@ -4,7 +4,7 @@
 
 | 分层状态 | v4 事实 |
 | --- | --- |
-| 语义接受 | MF4/AR4 正文为候选；本稿无接受。输入登记与收口由规格 owner 完成，不借 MF3 已接受事实提升 |
+| 语义接受 | MF4/AR4 已登记 candidate；本稿无接受。最终收口与采用由主线/规格 owner 完成，不借 MF3 已接受事实提升 |
 | 可实施范围 | 六操作及新读面、整数边界、唯一冲突阶段修正的完整候选投影；MF4/AR4 与本稿采用前不向正式消费者提供 readGiven |
 | 绑定与证据 | 0 新绑定；继承证据只保留原坐标。下文 MG-V1～12 均为待执行义务 |
 | 实际验证 | 无本稿产品验证；不声称 SQLite 六操作、PostgreSQL、真 registry/EIS 组合或资源收口通过 |
@@ -100,9 +100,9 @@ MF 只保证自己的读视图与提交；AR4 H 对表/原 fill 的关联由消�
 | 迁移与 storage | 装配合成既有两表迁移，确认升级后开闸；本节点借用，不拥有库关闭权 | 不删除/补写历史，不回滚其他实例的合法提交；底层关闭等借用调用实际结束 |
 | 一个公开闭包与 assemblyManifest 服务 | 本 fiber 配置通过且依赖可用后提供六操作；失败沿 fiber 收回已取得贡献 | 同一个组合 effect 先关准入，旧引用后到 unavailable；close 幂等并 await 所有已受理调用 |
 | 每次 ReadTx/WriteTx 与调用 Promise | 调用登记在进入异步存储前建立；事务由 storage 拥有，返回值/异常均有等待者 | 计数只在实际 storage 完成及本次收场处理后释放；取消等待或服务撤除不等于实际停止，不自动重发 append |
-| 诊断端口及独立故障端口 | 装配负责有界队列、单项字段长度、输出/保留策略和 sink 资源；缺配/非法静态配置按启动失败 | 节点不后台排队、不持有无主 Promise、不关闭借用 sink；sink 故障暴露覆盖缺口，不能改业务结果、吞原缺陷或提前标 resourceEnded |
+| 诊断端口及独立故障端口 | 装配负责有界队列、单项字段长度、输出/保留策略和 sink 资源；已配置诊断却缺必需故障端口或静态配置非法时启动失败，不把可选端口变为必配 | 节点不后台排队、不持有无主 Promise、不关闭借用 sink；sink 故障暴露覆盖缺口，不能改业务结果、吞原缺陷或提前标 resourceEnded |
 
-诊断只交操作、provider 修订、session、输入 H、实际 C/选中 seq/ref、结果 success/none/既有失败及限定阶段；租户/尝试只用已核调用上下文，不能从 SessionRef 猜。巨大输入 H 用可配置长度上限的表示或截断标记记录，不能为诊断耗尽内存，也不能通过诊断截断反改请求值。内部 capacity、parent_conflict、table_failure、decode/projection 可区分；不输出异常 message、完整 content、表 composition、E/O、正文、配值或秘密。resourceEnded 只在 storage 已返回/抛出后为真，不在回调内标记。没有真实存储操作的表示拒绝不伪造事务结束事件；诊断故障不替代清单事实。
+诊断只交操作、provider 修订、session、受检后可安全表示的 H、实际 C/选中 seq/ref、结果 success/none/既有失败及限定阶段；租户/尝试只用已核调用上下文，不能从 SessionRef 猜。巨大或尚未受检的输入 H 不输出原值、不为诊断 stringify，可交常量标记 `requestedHeadOmitted=true`（候选技术字段）；readGiven 的 H 经真实范围核对后才可按安全整数输出。此处不新增 cap 配置或领域 metadata；端口 owner 对 session/ref 等显式字段的尺寸、输出与保留负责，不能反改请求值。内部 capacity、parent_conflict、table_failure、decode/projection 可区分；不输出异常 message、完整 content、表 composition、E/O、正文、配值或秘密。resourceEnded 只在 storage 已返回/抛出后为真，不在回调内标记。没有真实存储操作的表示拒绝不伪造事务结束事件；诊断故障不替代清单事实。
 
 机制依据：必需 inject 沿 [inject-has-no-optional-form](../../../../basis/cordis/inject-has-no-optional-form.md)，依赖换代沿 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)，配置失败沿 [plugin-throw-fails-fiber](../../../../basis/cordis/plugin-throw-fails-fiber.md)，不依赖 disposer 完成顺序沿 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)。原 probe 不代替六操作真宿主演练；provide 纳管仍按原节点待核对主张登记，没有依据声称 Cordis 取消本次数据库事务。
 
@@ -124,7 +124,7 @@ MF 只保证自己的读视图与提交；AR4 H 对表/原 fill 的关联由消�
 
 | 缺口 | 受阻范围与 owner | 闭合条件 |
 | --- | --- | --- |
-| MG-G1 | MF4/AR4 候选最终登记、收口及精确采用；主线/规格 owner | 坐标和最终条款一致、独立评审与采用完成；不得修改旧 adopted 稿代替 |
+| MG-G1 | MF4/AR4 已登记候选，最终收口及精确采用未完成；主线/规格 owner | 坐标和最终条款一致、独立评审与采用完成；不得修改旧 adopted 稿代替 |
 | MG-G2 | readGiven 全记录读取、损坏与缺陷分类、精确整数/容量、parent-only 重判未验；本节点/storage owner | MG-V1～10 及原 MF3 相关义务真实执行；任何方言不满足 P-2/P-3 停该方言，不改产品次序 |
 | MG-G3 | 原 fill→公共 readGiven(H)→AR4 完整 fill 核对→EIS 固定正文读取；registry/EIS/app owner | MG-V11 与 AR4 S-52 真生产链；MF 成功仅是原记录事实，不能独自关闭 SI-G1 |
 | MG-G4 | 真实 Cordis 撤除、诊断有界与故障、制品公开入口；本节点/装配 owner | MG-V9/10/12 真宿主/文件库/独立制品；不借旧证据称当前已验 |

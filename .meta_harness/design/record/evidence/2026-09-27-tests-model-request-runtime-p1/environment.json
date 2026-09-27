@@ -1,0 +1,34 @@
+{
+  "branch": "panqiwei/model-request-runtime",
+  "head": "cb83084b88ce685a65fda2118854d2600ddbfff4",
+  "platform": "Linux",
+  "uid": 1001,
+  "node": "v24.18.0",
+  "pnpm": "10.28.1",
+  "python": "Python 3.12.13",
+  "sourcePackages": [
+    "packages/assets/assembly-manifest-store",
+    "packages/assets/evaluation-input-store",
+    "packages/core/agent-definition",
+    "packages/core/arrival-events",
+    "packages/core/asset-evaluation",
+    "packages/core/call-accounts",
+    "packages/core/content-blocks",
+    "packages/core/identity-values",
+    "packages/core/loop-extension",
+    "packages/core/messages",
+    "packages/core/model-profile",
+    "packages/core/model-response",
+    "packages/core/tool-definition",
+    "packages/model/model-request-runtime",
+    "packages/model/pi-ai-transport",
+    "packages/session/session-tenancy-table",
+    "packages/tools/asset-registry"
+  ],
+  "paidImplementationRevisions": [
+    1,
+    2
+  ],
+  "intermediateFailedSourceSnapshotsComplete": false,
+  "currentSourceAndPaidArtifactsComplete": true
+}

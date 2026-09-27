@@ -35,3 +35,20 @@
 源码已建于 `packages/assets/evaluation-input-store`，包含普通读取、受限固定根读取、发布/捕获、迁移及 Cordis 插件。D-074/D-077 的采用范围不变。真实 SQLite/account/login/OG/STT 组件测试共 45 项通过，build 与 typecheck 退出 0；静态边界工具完整 386 项测试通过，实际源码扫描通过。实际记录见 [组件证据补充](../../../../record/evidence/2026-09-27-probe-model-request-runtime/component-checks.md)。
 
 本次为实施者组件检查；没有独立验收结论，不将各表的场景自动标成完整通过。原 fill 来源认回 SI-G1 仍待 manifest/registry 真组合；runtime 消费、两次求值的端到端量测、完整 source 竞争负控及验收应用未完成。bindings 仍为 0，生产模型认证仍为 0/37。上文“无实现”的历史读数由本段接续，不重写旧采用输入。
+
+## 2026-09-27 历史正文读取增量候选
+
+[v4-history-source-interfaces.md](v4-history-source-interfaces.md)补齐 AR4 历史表所绑定的不可变正文读取：候选 `./registry-history` 闭包先以真实 STT 核租户归属，再从真实 MF4 历史表核 capability/asset/精确版本，最后在 EIS atomic 中核当前 OG 资格并读取原版本。原资产已不再持有时仍可恢复；该正文不进入普通 EvaluationInput，不改固定根 C16 规则。
+
+- **语义接受：上游已接受，本增量未接受。** D-079 接受 MF4/AR4 及 MF4 provider；本稿是 EIS 技术投影候选，AR4 provider 的并行评审不自动接受本稿。
+- **可实施范围：待独立评审和采用。** 只增受限公开闭包，不增服务、身份或存储。可信 app 拥有 reader/close 并绑定真实 MF，registry 借用；当前资格与历史表用途分开。明确范围见 HI-1～HI-6。
+- **绑定与证据：0 条。** bindings 原字节不改；新增 HI-V1～HI-V9 是[未执行义务](verification.md#历史正文读取增量义务candidate2026-09-27)，不是证据。
+- **实际验证：新增面尚无。** 旧 45 项组件检查不涵盖历史面。AR4-G3/HI-G1 的旧报告、未持有旧版本成功恢复仍阻断完整交付，正确返回 unavailable 不代替成功验收；SI-G1 真组合仍归 registry/MF/EIS/app。
+
+## 2026-09-27 历史读取增量技术采用
+
+[D-080](../../../../record/decisions/model-registry-history-provider-adoption/decision.md)精确采用本增量；上方候选状态保留该次成稿事实。源码与适用验证义务继续独立落实，真实成功恢复尚未验收，新增绑定0。
+
+## 2026-09-27 历史正文组件实现检查
+
+受限历史读面与对应 AST 入口守卫已实现；EIS 全组件 68 项测试、工具 428 项测试、构建/类型检查及实际源码规则扫描通过。[运行与限度](../../../../record/evidence/2026-09-27-probe-model-request-runtime/eis-history-component-checks.md)保存真实版本发布/移除持有/换表/重开、当前资格竞争及零 MF IO 场景。MF 表项仍是明确的组件 fixture，真实 AR producer 与旧报告恢复、装配退化查询/OS 权限/独立制品消费未验证；HI-G1/AR4-G3/SI-G1 继续开放，bindings0。

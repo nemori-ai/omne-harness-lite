@@ -21,3 +21,9 @@
 ## 连续调用补验
 
 独立复审指出原型的排空 Promise 在一次归零后永久完成。新增 acquire A→release A→acquire B→dispose 的真实 Cordis 交错，旧原型在 B 尚有引用时 `disposed=true`，exit1：[原失败与输入](lifecycle-reuse-failure/stderr.txt)。改为停止新准入后才建立当次排空等待，新增交错与原三场景均 exit0：[修正结果](lifecycle-reuse-fixed/stdout.txt)、[对应输入](lifecycle-reuse-fixed/input.mjs)。旧三场景结论因此只适用于其原路径；生产排空方案需采用修正输入并继续验收。
+
+## 后续实施组件证据（2026-09-27）
+
+以上正文记述最初研究 run，原清单保留。D-078～D-080 的采用与后续源码检查另有精确输入，不能沿用最初的「候选未接受／没有正式提供者」推断当前状态。[MF4 组件检查](mf-component-checks.md)记录 76 项测试、403 项规则工具测试与构建制品消费者；[EIS 历史正文组件检查](eis-history-component-checks.md)记录 68 项 EIS 测试及 428 项规则工具测试。它们仍非真实 AR 生产者／报告完整链及独立应用验收，更非 37 模型 official 认证。
+
+[当前文件与归档成员清单](input-and-output-hashes-v2.json)重新盘点现存材料；最初清单里的已压缩展开路径不再作为当前导航。[字面秘密扫描范围与结果](secret-scan-v2.json)覆盖当次现存文件、全部常规归档成员及嵌套包 tgz，检测明确列出的供应商 key 前缀及私钥 PEM，不能解释为一般秘密不存在的证明。

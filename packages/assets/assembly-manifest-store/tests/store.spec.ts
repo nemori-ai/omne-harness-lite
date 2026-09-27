@@ -313,12 +313,79 @@ test('real table UNIQUE after parent must escape, not return alreadyRecorded', a
     await store.close()
   })
 })
+
+test('negative control: P2 plus whole-insertion catch can commit its own partial given', async () => {
+  await database(async storage => {
+    await storage.write(async tx => {
+      await sql`CREATE TRIGGER inject_unique BEFORE INSERT ON assembly_manifest_table WHEN NEW.category = 'skill' BEGIN INSERT INTO assembly_manifest_table(session,seq,category,filled_at,composition) VALUES(NEW.session,NEW.seq,NEW.category,NEW.filled_at,'[]'); END`.execute(
+        tx.db,
+      )
+    })
+    const unsafe = await storage.write(async tx => {
+      const db = narrow<ManifestDb>(tx)
+      await tx.lockSentinel('assembly-manifest/session')
+      try {
+        await db
+          .insertInto('assembly_manifest_record')
+          .values({
+            session: 'session',
+            seq: 1,
+            evaluation_kind: 'given',
+            evaluation_ref: 'partial_ref',
+            owned_ref: 'partial_ref',
+            content: '{}',
+          })
+          .execute()
+        await db
+          .insertInto('assembly_manifest_table')
+          .values({ session: 'session', seq: 1, category: 'tool', filled_at: 1, composition: '[]' })
+          .execute()
+        await db
+          .insertInto('assembly_manifest_table')
+          .values({
+            session: 'session',
+            seq: 1,
+            category: 'skill',
+            filled_at: 1,
+            composition: '[]',
+          })
+          .execute()
+      } catch (error) {
+        if (!(error instanceof UniqueViolation)) throw error
+        const own = await db
+          .selectFrom('assembly_manifest_record')
+          .selectAll()
+          .where('owned_ref', '=', 'partial_ref')
+          .executeTakeFirst()
+        if (own?.session === 'session' && own.evaluation_kind === 'given')
+          return { failure: 'alreadyRecorded' }
+        throw error
+      }
+      throw new Error('negative trigger did not fire')
+    })
+    expect(unsafe).toEqual({ failure: 'alreadyRecorded' })
+    const partial = await storage.read(async tx => ({
+      records: await narrow<ManifestDb>(tx)
+        .selectFrom('assembly_manifest_record')
+        .selectAll()
+        .execute(),
+      tables: await narrow<ManifestDb>(tx)
+        .selectFrom('assembly_manifest_table')
+        .selectAll()
+        .execute(),
+    }))
+    expect(partial.records).toHaveLength(1)
+    expect(partial.tables.map(item => item.category)).toEqual(['tool'])
+    // The real old algorithm violates the same zero-partial assertion used for the corrected provider.
+    expect(() => expect(partial).toEqual({ records: [], tables: [] })).toThrow()
+  })
+})
 test('close after prior idle waits for a later actual read; withdrawn Cordis reference cannot admit', async () => {
   await database(async storage => {
     const ctx = new Context()
     ctx.provide('storage', storage)
-    const fiber = ctx.plugin(assemblyManifestStorePlugin)
-    await fiber.ready()
+    const fiber = ctx.plugin(assemblyManifestStorePlugin, {})
+    await fiber
     const store = ctx.get('assemblyManifest') as AssemblyManifestService
     await store.readHead('session')
     let release!: () => void, entered!: () => void
@@ -354,7 +421,6 @@ test('close after prior idle waits for a later actual read; withdrawn Cordis ref
       head: 0,
       latest: {},
     })
-    await ctx.dispose()
   })
 })
 test('presence needs a real configured observation; sink failure is reported separately with no content', async () => {

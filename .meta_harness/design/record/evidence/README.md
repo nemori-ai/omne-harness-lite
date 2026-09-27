@@ -1,5 +1,11 @@
 # 运行证据
 
+**2026-09-27 model request runtime revision 4 符合性补证**：[真实反例、修复与仓库外制品](2026-09-27-tests-model-request-runtime-conformance/README.md)。两个既有 T-16／T-8 失败修复后独立 13/13、最终 transport 209／runtime 6、双语 10 例及外部制品通过；旧 P2 run 保留，本轮付费 0。不关闭完整 P2、耐久服务或 37 模型认证。
+
+**2026-09-27 model request runtime P2 局部构件**：[37 窄定义、动态引用与真实 Cordis/TLS](2026-09-27-tests-model-request-runtime-p2/README.md)。transport 196、runtime 6 项，修改两包的 10 个双语示例及仓库外制品通过；本轮付费 0。完整 offer、耐久服务、全门和 37 认证仍未完成。
+
+**2026-09-27 model request runtime P1**：[公开生产函数、真实 TLS、仓库外制品与双语包文档](2026-09-27-tests-model-request-runtime-p1/README.md)。runtime 6、transport 39、预算门 37 项通过，13 包双语 README 的 44 例实际检查；r1/r2 两款代表模型共八次 OpenRouter 冷暖请求。十三操作、Cordis/租户装配、TTL 到期与完整 37 模型认证未完成。
+
 **2026-09-26 core最终交付与Skill3**：[新实际运行及逐项签收](2026-09-26-tests-core-skill-v3/README.md)接续此前217/221事件，当前221/221（六混合项只NonConnector）及U1另13项已技术接受，Skill完成后的用户发布授权条件满足；适用6534项回归、54独立行为、20真实tarball及44双语README／57例。原递归的一处冻结输入接线失败、main继承三个迁移失败和GitHub runner未启动均按实际范围保留，不声称全仓或Actions全绿。
 
 这里保存实际执行留下的配置、输入快照和原始结果：形式任务的 TLC 输出、

@@ -60,3 +60,5 @@
 ## 2026-09-27 v4 候选：原完整填表来源认回
 
 [完整契约](v4/contract.md)与[规范实例](v4/examples.md)形成 candidate，未接受。继承 v3 七操作，仅升级 manifest 依赖到 v4；同 H 表/原 given，reload 同 H CAS，refresh 报告保留 H 时的表，后续追加不强制重做。 v3 已由 [D-073](../../../record/decisions/model-current-input-contracts-adoption/README.md) 接受且保持冻结；上文早期 v3 候选文字为历史记录，现行接受状态以 [registry](../../../registry/README.md) 为准，新增候选不替代 v3。无新 Schema/身份/状态转移；S-51/S-52 的实际证据与未开始项见 [verification](verification.md#v4-候选原完整填表来源2026-09-27)。
+
+[D-079](../../../record/decisions/model-original-fill-adoption/decision.md)接受v4，同H原fill来源与七操作；实现映射另采用，不自动升级runtime/runner依赖。

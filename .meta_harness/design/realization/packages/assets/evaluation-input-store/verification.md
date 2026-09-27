@@ -69,3 +69,27 @@
 源码已建于 `packages/assets/evaluation-input-store`，包含普通读取、受限固定根读取、发布/捕获、迁移及 Cordis 插件。D-074/D-077 的采用范围不变。真实 SQLite/account/login/OG/STT 组件测试共 45 项通过，build 与 typecheck 退出 0；静态边界工具完整 386 项测试通过，实际源码扫描通过。实际记录见 [组件证据补充](../../../../record/evidence/2026-09-27-probe-model-request-runtime/component-checks.md)。
 
 本次为实施者组件检查；没有独立验收结论，不将各表的场景自动标成完整通过。原 fill 来源认回 SI-G1 仍待 manifest/registry 真组合；runtime 消费、两次求值的端到端量测、完整 source 竞争负控及验收应用未完成。bindings 仍为 0，生产模型认证仍为 0/37。上文“无实现”的历史读数由本段接续，不重写旧采用输入。
+
+## 历史正文读取增量义务（candidate，2026-09-27）
+
+对应 [v4-history-source-interfaces revision 1](v4-history-source-interfaces.md)。D-079 已接受 MF4/AR4 契约和 MF4 provider；本增量尚未接受，新增 `./registry-history` 尚未实现。以下均**未执行**，旧 45 项检查不补证本面，bindings 保持 0。HI-G1/AR4-G3 在真实成功恢复完成前保持阻断；不得把 unavailable 当本轮验收终点。
+
+共同前提：真实 SQLite 文件库、真实 account/login/OG/STT，真实 EIS 发布和不可变版本；真实 evaluate→AR fill→MF append 存下原表。随后真实 AR/MF 公共 readHead/readHistory、真实历史 source 和 AR lookup/list 组合，销毁并重新构造提供者。允许注入故障点，正常路径不得替换为 fake membership、手写 record 回调、private SQL 读、fixture EvaluationInput 或 EffectiveAssembly 反建正文。损坏库 fixture 必须明确是负控，不能称合法发布。该闭包不发模型 HTTP，不产生计费；这些组件证据不能计为模型认证。
+
+| 编号／条款 | 可失败的验收义务 | owner／证据界限 |
+| --- | --- | --- |
+| HI-V1：AR4 S-7/S-18/S-25/S-26/S-33；MF4 S-18/S-24 | 从真实 A/v1 正文、显式 O 和求值建立 fill 与旧 run 报告；之后真实发布 v2、移除 v1 持有并换表，再关闭/重开 MF/EIS/registry，以旧报告 lookup/list。必须成功返回旧表的 A/v1 正文/顺序及原报告 availability；不换新 body/current table/given。另用当前六类表全部换过和 reuse 收窄的局面恢复保留下来的原条目；对具名缺源分支返回 unavailable 不能让这项通过 | registry/MF/EIS/app；完整成功链未执行，HI-G1/AR4-G3 |
+| HI-V2：AM3 S-4/S-9/S-10；CB3 无损；AE4 PRE-9 | 正文放未知合法成员、嵌套数组、大整数/精确小数；版本号以数值等价表示核对，返回完整 AssetVersion 且原 publishedBy 缺席保留。真实发布后更改调用方对象不得影响已存/已返回值。查出的源 id/capability/category/精确版本须逐项一致；相同 capability 的别资产、v2/草稿替代 v1、浮点舍入、浅共享变异负控均失败 | EIS/core/app；真实 IO 加纯值判定，不能只测类型编译 |
+| HI-V3：MF4 S-18/S-21；AR4 S-31/S-48 | 使用真实 MF.readHistory 记录实际调用次数和返回壳。分别改 session/tenant/category/filledAt/capability/asset/version、让 tuple 仅存在 E.assets 而不在实际表、reuse 已删项、重复 tuple、壳/session/表时刻不符，均不得交正文；跨租户 STT 不符必须零 MF/source 读取。MF 坏/缺源不能转 none、空正文或回退旧时刻；inject 一个未经真实 MF 的任意 DTO 不能完成正常路径 | EIS/MF/registry；AR 仍另验完整 E/O/filledBy/reuse 和报告 runId/attempt，不把局部 tuple checker 当全 AR 验证 |
+| HI-V4：STT2 S-8；OG2 S-26/S-63；AR4 S-20 | 真实创建 effective tenant 后改角色、撤销、恢复：历史读只以本次当前资格为门，不从 captured standing 兜底、不重求 report gate；所有 AR 原现读/报告门控仍运行。真实撤销分别在 EIS atomic 之前与之后排序，核各自结果；跨 storage 参与拒绝。参与异常必须传播到 atomic 终结/回滚后映射，unit 内吞错后成功的变异失败 | EIS/OG/registry/storage；不宣称返回至工具执行期间持续授权 |
+| HI-V5：AR4 S-33 失败；提供者闭合结果 | 畸形七字段请求在任何依赖读取前 invalidInput；无映射、tenant 不符、MF recordNotFound/unavailable、坏表关联、资格未知、缺目标版本、坏严格 JSON、正文 provider 缺席与存储不可用分别落既定 stage。内部已合法请求被下游拒绝不归用户 invalidInput；程序异常必须暴露。一个条目不可读令 AR 整类重建 unavailable、零部分表/新报告/写入；故障恢复后真实原版本可重新读，不缓存失败为永久 absence | EIS/registry；正常请求与故障 fixture 分开记录 |
+| HI-V6：AR4 S-51/S-52；MF4 S-36；runtime3 S-66 | H 的旧表读出后并发新 given/mint/reuse，EIS 再发布 v2/移除旧持有；历史面仍读实际旧 tuple 的 v1，不调用 readGiven/selector/evaluate，不要求最新 H/C16。独立固定根 reload/refresh 仍经 readGiven(H) 和 registry-inputs 产生真实 C16；历史面成功不能吞那条失败。再调普通 S-66：unheld 历史资产不得混入 definitions，scope/current-pinned 均无写改 | EIS/MF/registry/runtime/app；三个读取用途分别记录，不能互借成功 |
+| HI-V7：装卸与依赖换代 | 阻塞真实 MF 读和 EIS atomic，调用 close：新调用 stopped，在途没收口 close 不完成，registry 不 close 借用 reader，storage/MF 不提前关闭。模拟新 MF provider 及新 registry：app 明确停旧准入/排空/close，再传新真实 MF；对新 registry 偷用旧关闭 reader 的负控失败。旧报告继续依持久原 locator 恢复；无悬空 Promise、无隐藏重试，无取消请求冒充实际停止 | EIS/registry/app；公共闭包与真实 Cordis 宿主各测；basis probe 不能代替本组合 |
+| HI-V8：真实观测与 pure 边界 | 记录 STT/MF 实际读往返、atomic 实际锁取得/释放、事务后解码/AM/BodyContracts 开始/结束；最后实际事务结束必须先于纯阶段。不同版本数/字节数及并发发布压力下分别量测 MF 额外回读、排队、持锁和 pure 成本，不用回调开始冒充锁取得。selector/evaluate 计数必须 0。正文/配值/secret 哨兵不在 log/trace，sink 与后备失效不得伪造成功或改变失败；阶段未知不补 seq/ref | EIS/storage/观测/app；明确量测环境与范围，没有本轮吞吐保证 |
+| HI-V9：公开入口、AST 与权限交付 | 正常 app bootstrap 构造真实依赖，registry 仅 type import＋借用 read，外部独立包 fixture 经 exports 编译/运行。分别让 runtime/runner/adapter/tool/其他 apps/src 导入或转导出新面；named、namespace、dynamic import、路径别名/private src/私表访问及 wrapper 转发负控必须被 gate 否定。registry src 值导入 factory 也拒绝。未获闭包的租户即使知道 tuple 也无调用入口，tenant 参数不充授权 | EIS/静态工具/app；AST 不宣称进程内安全沙箱，真实闭包分发与入口授权另验 |
+
+覆盖缺口：HI-G1 是旧报告与未持有版本的成功交付，owner 为 registry/MF/EIS/app；HI-G2 的报告/原表完整用途校验仍归 AR owner，不由本面判定；HI-G3 保留跨库 EIS/OG 与非本机历史来源分支；HI-G4 是新入口 guard、关闭和观测接线。新稿静态检查结果只能证明文档可被工具读取，实际组合与独立验收状态仍为尚无，不新增 formal 或 bindings。
+
+## 2026-09-27 历史正文组件检查补充
+
+D-080 精确采用后的源码、配置及原始运行见[历史正文组件证据](../../../../record/evidence/2026-09-27-probe-model-request-runtime/eis-history-component-checks.md)。EIS68/工具428项测试、构建/类型检查及实际27+6规则扫描通过。保留 HI-V1～9 的原待执行义务，不将完整组自动标为通过：真实 MF tuple fixture/本机发布版本/STT/OG atomic/重开/零 IO/close/异常分离只关闭归档内组件场景。AR完整producer及旧报告成功恢复、完整制品/宿主换代、装配退化查询和OS边界尚未验证，HI-G1/AR4-G3/SI-G1仍开放；bindings0。
