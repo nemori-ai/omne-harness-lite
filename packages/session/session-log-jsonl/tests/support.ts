@@ -57,7 +57,7 @@ export function entry(
 }
 export async function root(): Promise<string> {
   const base = fileURLToPath(
-    new URL('../../../../tmp/model-request-runtime/b1-log-implementation/', import.meta.url),
+    new URL('../../../../tmp/model-request-runtime/b1-log-diagnostics-fix/', import.meta.url),
   )
   await mkdir(base, { recursive: true })
   const workers = join(base, 'physical-workers')
