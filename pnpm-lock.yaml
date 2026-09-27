@@ -965,6 +965,12 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../../core/loop-extension
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages

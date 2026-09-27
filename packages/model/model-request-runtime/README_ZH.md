@@ -12,6 +12,8 @@
 | --- | --- |
 | `invokeModel(input)` | 返回包含 `outcome`、`snapshot()` 与 `abort()` 的句柄 |
 | `classifyCause(facts, hasContent, table)` | 按显式状态码表分类来源，保留原始状态码 |
+| `dispatchGuard(input)` | 按显式调用、发出与档案事实同步判定一次重试计划 |
+| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>` | 只读守卫输入、闭合答案与明确的已知／未知事实 |
 | `TransportAdapter`、`PlanInput` | 调用者持有的 plan/send/read 端口与显式请求输入 |
 | `InvocationPolicy`、`ModelInvocationResult` | 调度、脱敏、诊断政策与尚未结算的结果投影 |
 
@@ -66,6 +68,47 @@ transportOptions.definitions 必须显式给已核实的完整定义与自持网
 调用 `handle.abort()` 或中止传入信号后，等待 `handle.outcome` 再释放资源。出网前取消返回 `{ cancelledBeforeSend: true }`，没有请求结果。已开始发送的调用收敛为 `complete`、`truncated`、`interrupted` 或 `failed`。首内容后失败保留已经交付的部分。usage、缓存零与未知、精确实报费用保真；上游缺身份时不从请求路由补造。
 
 规划拒绝不产生模型响应。意外实现缺陷仍表现为被拒绝的 promise。结果没有会话、租户、ResponseId，也没有耐久入账或回复落盘含义。
+
+## 不发送就判定一次重试计划
+
+`dispatchGuard` 是同步纯函数。调用者交入合法取得的当前调用事实、跨所有尝试的完整开口历史、最近失败、原完整档案快照和重试计划。`{ known: null }` 表示已知该调用不存在；`{ unknown: true }` 表示当前无法确定该事实。不能把本地过时阶段当作已知的当前权威。非法数据返回 `invalidInput`；当前守卫所需事实无法判定时返回 `unavailable`。
+
+函数依次判调用存在、终态或 `reply_pending`、任何一次开口、阶段、失败类别和供应商限制。它使用快照中原有的有序供应商与 `allowFallback`，通过严格 JSON 复制接收输入，不调用 getter、不改入参、不跨调用持有调用状态。守卫没有 Cordis、存储、时钟、调度或网络操作。
+
+下面的教学示例无需服务或凭据即可执行。使用精确 JSON 数时，把 `content-blocks` 与本包一起声明为直接依赖。
+
+```ts
+import { dispatchGuard, type DispatchGuardInput } from '@omne-harness-lite/model-request-runtime'
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+
+const input: DispatchGuardInput = {
+  session: 'example-session',
+  callId: 'example-call',
+  call: { known: {
+    session: 'example-session', callId: 'example-call', phase: { known: 'awaiting_decision' },
+  } },
+  dispatches: { known: {
+    session: 'example-session', callId: 'example-call', opened: [{ known: false }],
+  } },
+  latestFailure: { known: 'upstream_unavailable' },
+  snapshot: { known: {
+    adaptation: {
+      implementation: { name: 'teaching', revision: 'one' },
+      definition: { modelId: 'teaching/model', revision: 'one' },
+      configuration: { revision: 'one', values: {} },
+    },
+    providers: ['first', 'second'], allowFallback: true,
+    inputModalities: ['text'], outputModalities: ['text'],
+    maxInputTokens: new LosslessNumber('9007199254740993'), maxOutputTokens: 10,
+    updatedAt: '2026-09-27T00:00:00Z',
+  } },
+  plan: { provider: 'second', after: 'PT9007199254740993.0000000001S' },
+}
+const answer = dispatchGuard(input)
+if (!('allowed' in answer)) throw new Error('Expected this example retry plan to be allowed')
+```
+
+`after` 沿共享 ISO 时长字符串（`PT` 后的时／分／秒），不设数值上限、不转成毫秒。缺席表示不等，函数本身从不等待。答案是 `{ allowed: true }`、`{ refused: { why } }` 或 `{ rejected }`（`wrongPhase` 另带 `phase`）。拒绝原因恰为 `already_spoke`、`fact_class`、`provider_not_allowed`；错误恰为 `invalidInput`、`callNotFound`、`alreadyEnded`、`wrongPhase`、`unavailable`。允许只对应已交入事实，后续实际操作仍核当前状态、宿主停止与依赖。耐久 `canDispatchAgain`／`dispatchAgain` 服务尚待交付。
 
 ## 开发与验证
 
