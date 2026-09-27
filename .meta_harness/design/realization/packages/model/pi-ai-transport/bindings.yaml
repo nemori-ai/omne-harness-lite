@@ -17,6 +17,42 @@ node: "pi-ai-transport"
 kind: "provider"
 
 bindings:
+  - clause: "capability.model-request-runtime/v3#S-58"
+    evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#%s closure rejects queued and old-lease sends but preserves an active reader and callback"
+    assumptions:
+      - "revision6 boundaries run；direct/真实Cordis＋TLS、maxConnections=1、显式callback gate；关闭后零新增HTTP，旧流实际读完/socket停止/引用与callback完成后资源归零分别观测；不证完整A/B换代或耐久服务"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-63"
+    evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#isolates %s sink through direct functions and invokeModel with actual resources"
+    assumptions:
+      - "revision6 boundaries run；显式NetworkResources、baseline/throw/reject/pending和read阶段故障；业务/Usage不变，无未处理rejection；独立外部制品重测四种sink并有恢复旧缺陷负控，不证全部租户观测出口"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-63"
+    evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#redacts escaped sentinel in %s values while preserving ordinary lossless facts"
+    assumptions:
+      - "revision6 boundaries run；真实JSON/TLS的HTTP/in-band/finish/serving，递归键值/headers脱敏与普通事实保留；独立制品带原始解码、异常finish来源及负控；有限哨兵不证所有字符串或权限装配"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-63"
+    evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#preserves ordinary and multiple redacted keys when an existing marker key appears %s"
+    assumptions:
+      - "revision6 boundaries run；普通非ASCII遮罩键前/后、多个秘密键碰撞，成员不丢及无损数保留；独立真实TLS另测非ASCII标记不重造ASCII秘密，二类恢复旧缺陷负控均失败；不指定最终键名字面量"
+    alignment_checked: 2026-09-27
+
+  - clause: "data.model-profile/v3#S-20"
+    evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#records dropped extra parameter names exactly as profile v3 S-20 requires"
+    assumptions:
+      - "revision6 boundaries run；extra每项原始键不加前缀，保护项全丢后extra缺席且公开judge通过；独立37离线定义规划＋TLS字节和旧前缀负控，不证37完整能力/上游参数支持"
+    alignment_checked: 2026-09-27
+
+  - clause: "data.call-accounts/v2#S-6"
+    evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#$name has source $source and satisfies the public Usage judge"
+    assumptions:
+      - "revision6 boundaries run；空/reasoning-only/cost-only/非法/矛盾/合法零/精确数；四基础项全未知为none且无reasoning；直接account与invokeModel过公开judge，独立制品含恢复错误upstream来源负控；非实际供应商计价认证"
+    alignment_checked: 2026-09-27
+
   - clause: "data.model-profile/v3#S-17"
     evidence: "test:packages/model/pi-ai-transport/tests/parameters.spec.ts#protected upstream spellings cannot override present unified values"
     assumptions:

@@ -1,5 +1,9 @@
 # model-request-runtime
 
+## revision6 独立函数消费补证（2026-09-27）
+
+[新实际运行](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)补证公开 invokeModel 在实际传输诊断抛错／拒绝／待定时保留正文、Usage 和业务收场；两个仓库外副本分别执行，故障负控恢复未经隔离的 sink 后失败。新增一条 S-54 有限绑定。runtime 组件仍6项，十三操作、租户 service、耐久结算／恢复未完成；该事件不放行整个 P2 或 withRun，也不成为新完整定义代际或官方37认证。
+
 ## 当前分层状态：公开函数与 P2 引用消费（2026-09-27）
 
 - 语义接受：精确 runtime3 与本节点 v3 投影已由 [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受；施工遵循 [v3-design.md](v3-design.md)，不改其冻结正文。

@@ -27,6 +27,12 @@ kind: "provider"
 
 bindings:
   - clause: "capability.model-request-runtime/v3#S-54"
+    evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#isolates %s sink through direct functions and invokeModel with actual resources"
+    assumptions:
+      - "revision6 boundaries run；public invokeModel消费实际send/read NetworkResources，诊断抛错/拒绝/待定不改变函数正文与收场，无未处理rejection；独立外部两副本复测并有负控，仅独立函数消费，不证十三操作/耐久服务"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-54"
     evidence: "test:packages/model/pi-ai-transport/tests/https.spec.ts#owns invocation policy values while an actual response is pending"
     assumptions:
       - "P2 run；实际503响应等待中改变调用者状态码表/clock/redactor，函数仍消费原捕获值；只证异步政策固定，不证目录和所有请求值来源/耐久binding"

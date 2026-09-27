@@ -160,3 +160,9 @@ T-1/T-3/T-9/T-10a/T-12/T-14/T-17/T-18 等取得局部控制证据，T-17 只有�
 ## 2026-09-27 既有承诺同步
 
 主线与独立 spec-reviewer 定向核对 PAT-N14、PAT-N18、MRR-N15：MRR v2 冻结契约 SHA256 `d7d166da84aaf1f05ac6274abc0f215e57a32dadad79db19f4a7402120f799b9` 已含 D-060 N-42～N-44 的工具条目来源、无码带内错误与排队中止分类，D-066 登记继续承接其语义接受。三处为节点漏同步，按既有条款修正，无新裁决、未改冻结资源。历史评审表保留原时点；未运行源码、T/G 比较门或新的形式验证，其他实施缺口不变。
+
+## 2026-09-27 revision6 边界修复实际验收
+
+[实际运行与主线有限签收](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)：HUB transport262／runtime6、build/typecheck与源码规则；独立两份新制品各23场景，84次本机TLS；七类恢复缺陷负控均实际失败并命中诊断。公开direct/Cordis关闭准入保留旧流/回调到真实停止，direct诊断异常不改业务，失败/serving逐键值脱敏保留普通事实，extra原键及全未知Usage来源通过公开judge。六条新增绑定仅覆盖各自有限判据，不将输入保全或测试总数当完整契约符合性。
+
+implementation6／definition1；当前旧窄定义/两个pilot尚待D082迁移。未验证真实OpenRouter、TTL到期、37完整能力/config、耐久租户服务、完整A/B换代或全T/SC/G。付费0，旧失败和r5原样保留，不重标历史认证；本轮形式执行0。

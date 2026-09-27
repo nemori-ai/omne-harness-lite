@@ -1,5 +1,11 @@
 # pi-ai-transport
 
+## revision6 有限实施验收（2026-09-27）
+
+主线技术签收已合入 HUB `a6285a7f` 的关闭准入、诊断故障隔离、递归脱敏／键碰撞、extra 原项名和全未知 Usage 来源修复；D-076 的精确传输义务不变。[本次实际证据](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)保全所有失败、262／6 项集成、两个独立仓库外副本各 23 场景、共 84 次本机 TLS 和七类预期失败负控。新增六条有限绑定，均带前提；不是全传输门或耐久 runtime 服务验收。
+
+HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义及两 pilot 默认。D-082 完整定义迁移正在独立 spoke 施工，尚未合入；本 run 不成为新代际或实际 OpenRouter 认证。新增付费0，正式37生产认证仍0／37。
+
 ## 完整定义增量采用（2026-09-27）
 
 [D-082](../../../../record/decisions/model-definition-projection-adoption/decision.md) 已采用 [v4-definition-design](v4-definition-design.md) 精确增量：core 能力复用、逐 route 参数／缓存声明与 Schema／解释器同源、四个纯公开面、完整 definitions 及旧集合／默认的迁移。该页历史 candidate 字样保留，实际采用依本决定；旧 v3 字节不变。

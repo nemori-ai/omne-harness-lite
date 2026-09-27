@@ -143,3 +143,7 @@ G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和�
 ## 2026-09-27 既有承诺同步
 
 主线与独立 spec-reviewer 定向核对 PAT-N14、PAT-N18、MRR-N15：MRR v2 冻结契约 SHA256 `d7d166da84aaf1f05ac6274abc0f215e57a32dadad79db19f4a7402120f799b9` 已含 D-060 N-42～N-44 的工具条目来源、无码带内错误与排队中止分类，D-066 登记继续承接其语义接受。三处为节点漏同步，按既有条款修正，无新裁决、未改冻结资源。历史评审表保留原时点；未运行源码、T/G 比较门或新的形式验证，其他实施缺口不变。
+
+## 2026-09-27 revision6 公开函数消费实际补证
+
+[运行边界与原始归档](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)：实际direct NetworkResources和invokeModel在baseline/throw/reject/pending诊断sink下业务结果相同、无未处理rejection；两份独立制品真实TLS并有旧诊断缺陷负控。新增S-54局部绑定，不借transport整包测试推断runtime十三操作已完成。宿主service/耐久结算恢复/租户观测出口/完整换代及官方37认证仍未覆盖；本轮付费0、形式任务0，旧结果原样保留。
