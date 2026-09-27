@@ -73,8 +73,9 @@ export async function* readStream(
   signal: AbortSignal,
   deps: { maxSseEventBytes: number; diagnostic: (event: Diagnostic) => void },
 ): AsyncGenerator<ArrivalEvent, StreamEnd> {
-  if (!(signal instanceof AbortSignal) || !claimResponse(response, planned))
-    return { rejected: 'invalidInput' }
+  const claimed = signal instanceof AbortSignal ? claimResponse(response, planned) : undefined
+  if (!claimed) return { rejected: 'invalidInput' }
+  const state = claimed
   const blocks: Block[] = []
   const tools = new Map<string, ToolParts>()
   let textBlock: Block | undefined, thinkingBlock: Block | undefined
@@ -129,7 +130,7 @@ export async function* readStream(
     if (typeof value !== 'string') return
     if (originalServing[key] === undefined) {
       originalServing[key] = value
-      serving[key] = response.redact(value)
+      serving[key] = state.redact(value)
     } else if (originalServing[key] !== value)
       diagnostic({
         kind:
@@ -143,7 +144,7 @@ export async function* readStream(
   signal.addEventListener('abort', abort, { once: true })
   try {
     if (signal.aborted) response.stop()
-    for await (const data of parseSSE(response.stream, deps.maxSseEventBytes)) {
+    for await (const data of parseSSE(state.stream, deps.maxSseEventBytes)) {
       if (signal.aborted) break
       if (data === '[DONE]') {
         done = true
@@ -156,17 +157,17 @@ export async function* readStream(
       remember('upstreamModel', frame.model)
       remember('servingProvider', frame.provider)
       if (object(frame.error)) {
-        const error = redactObject(frame.error, response.redact)
+        const error = redactObject(frame.error, state.redact)
         const code = frame.error.code
         failed = isNonNegativeJsonInteger(code)
           ? {
               source: 'in_band',
-              httpStatus: response.statusCode,
+              httpStatus: state.statusCode,
               statusCode: code,
               inBand: true,
               upstreamError: { raw: error },
             }
-          : { source: 'in_band', httpStatus: response.statusCode, upstreamError: { raw: error } }
+          : { source: 'in_band', httpStatus: state.statusCode, upstreamError: { raw: error } }
         break
       }
       if (object(frame.usage)) {
@@ -294,9 +295,9 @@ export async function* readStream(
         if (finish !== undefined && finish !== choice.finish_reason)
           throw new SseProtocolError('finish_reason changed')
         finish = choice.finish_reason
-        serving.stopReason = response.redact(finish)
+        serving.stopReason = state.redact(finish)
         if (!['stop', 'tool_calls', 'length'].includes(finish)) {
-          failed = { source: 'in_band', upstreamError: { code: response.redact(finish) } }
+          failed = { source: 'in_band', upstreamError: { code: state.redact(finish) } }
           break
         }
       }

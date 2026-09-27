@@ -384,7 +384,9 @@ describe('credentials cannot return through upstream non-content facts', () => {
         const request = planned(host.transport)
         const sent = await host.transport.send(request, sentinel, new AbortController().signal)
         if ('response' in sent) {
-          clean(sent.response.headers)
+          // Successful response headers have no public outlet until the S-20 policy
+          // and the same-result rawHeaders handoff are adopted together.
+          expect(Reflect.ownKeys(sent.response).sort()).toEqual(['stop', 'stopped'])
           const result = await drain(
             host.transport.read(sent.response, request, new AbortController().signal),
           )
