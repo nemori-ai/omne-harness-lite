@@ -387,3 +387,34 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 编号场景 V-1～V-15 保留，增加四组未执行的补充规范向量。S-1～S-73、十三操作、失败集合、S-54～S-67 独立函数正文与候选登记保持；消费者落实要求同步于 [consumer-impact](v4/consumer-impact.md)。修订 3 的全部 TLA、cfg、oracle 及 formal 说明与修订 2 保持逐字节一致，形式运行不因正文修订被追认为覆盖这些新表述。结构检查只核结构、链接及字节边界，不能代替定向复审、真实故障验收或独立形式执行。
 
 **本修订作者实际检查**：候选结构检查、`check_design.py --gate internal --formal skip`、`git diff --check` 均退出 0；73 条、13 个九项操作、926 个本地链接，64 个旧冻结资源及 13 个继承形式文件不变；全部 24 个 formal 资源相对修订 2 哈希相同。原始 stdout/stderr、argv/cwd/退出码与旧新清单保全在任务目录 `tmp/model-request-runtime/b1-runtime-spec/revision-3/`，供主线冻结交复审。未在本修订重新运行 SANY 或 TLC；新向量的实际执行仍未开始。
+
+## v5 候选变化与证据
+
+**状态：candidate，未接受；真实符合性未开始。** 完整规范为 [contract](v5/contract.md)、[examples](v5/examples.md)、[consumer-impact](v5/consumer-impact.md) 和 [formal](v5/formal/README.md)。MR5 三份规范是固定 candidate 输入，不在本次改写；方向依据为 [header-handoff rev1](../../../record/proposals/model-request-adaptation/header-handoff.md)，技术选择评审不代本版全文评审或接受。
+
+**变化的影响**：完整保留 S-1～S-73、十三服务操作各九项、原失败/拒绝次序和 SL3 耐久结算/恢复；唯一依赖升级 MR4→MR5，原二十六 MR 消费条款与其余十六依赖保持。S-58 公共 rawHeaders 单一权威→S-54 最终结果→S-17 完整响应保留原值；S-59 不覆盖，S-16/S-20/S-62/S-63/S-64 承接首 token、秘密、观察与交接责任。没有新失败代码、Schema、模型调用、观察队列、政策默认或兼容决定。消费者须另做精确采用，旧 D-087/D-088 投影和 MR4 接收面不自动支持数组。
+
+| 本 topic 局部标签 | 可失败的证据义务 | 责任与状态 |
+|---|---|---|
+| RT5-H1 | string／ordered string[] 的原形、顺序、重复、空串/空数组/空 map/缺席；非法 map/混型拒绝；自有不可变；原表示校验和发送前取消优先不变 | core/transport/runtime 与 response owner；公开端口/完整 MR5 形状符合性及变异负控，未执行 |
+| RT5-H2 | 同次 send→invoke，真实 TLS 的成功/HTTP 错误/带内失败/读体或解析中断/门失败/取得头后取消全分支保留；成功 R 不透明、read 无另一头权威 | transport/runtime owner；真实组合和取消/关闭故障场景，未执行 |
+| RT5-H3 | 仅头不触发门/首 token、snapshot/onAccepted/arrival 不交头，模型上下文/默认人类呈现/diagnostic detail 无头对象 | runtime/observer/各消费 owner；边界观测和头当 token 负控，未执行 |
+| RT5-H4 | 原参数/绑定/实际值/usage/cache/cost、四 outcome、最多一次 send、十三操作拒绝/失败、SL3 整批/unknown 与实际停止全部回归 | runtime/host/日志/回复 owner；原操作及37模型真实验收仍未完成，本轮未执行 |
+| RT5-H5 | 完整 MR5 原值→所有真实写方→一次 append→关闭旧 writer/reopen；同批身份/账/原批优先、unknown 强门与秘密哨兵 | core/codec/runtime/所有回复写方与日志 owner；真实日志与故障负控，未执行，不能只测 map JSON 往返 |
+| RT5-H6 | public 制品和双语 literal 严格消费完整值；compiled 形状损坏、取消丢值、头当 token 与旧 MR4 错接等负控能失败 | core/运输/运行时/codec owner；先明确公开入口和精确采用，未执行；不自决 wrapper/key 的历史兼容/混用 |
+
+详细前提、输入和期望在实例的同标签行。场景驱动给显式测试政策不成为产品默认；G-6 的真实取值仍未定。Schema 只能判表示，不证明采得／原样交接／脱敏／持久过程，readonly 不能证明自有不可变。
+
+**形式义务**：v5 目录逐字携带四 TLA、十九 cfg（六正配置、十三否定配置），六个新任务 ID/路径/metadir 从 v4 精确换版登记；未运行 TLC/Alloy。可失败断言、常量、公平性、模型吸收的前提保持 formal README 映射；rawHeaders 没有进入继承模型，不能将旧模型或 CancelEventuallyStops 记为新头性质及真实资源停止的证据。全部否定配置只作 validity-check。
+
+**保留的缺口**：G-28 生产 Run 终结认法归原 loop/Run/runtime/回复 owner；G-29 共同业务键与真实提交/恢复/实际停止归日志、runtime、全部回复方与主线；G-30 合法完整前缀的授权/供给归访问授权、宿主、日志与结算者。G-31 仅候选表示/交接表达完成，MR5/RT5 正式采用、core 完整接收、提供者投影、全写方和真实链均未闭合。其他继承 G-n 原 owner 不变，见契约完整表。
+
+**本次未覆盖的产品 rev 重核边界**：继承 RT4 原 PF-013 rev13、PF-012 rev15、PF-009 rev8、PF-004 rev12、PF-001 rev19、PF-015 rev11 的已接受依据。现场前三项一致；后三项现为 rev13/rev23/rev13，本轮 headers 增补未全量重核或重采纳这些后续修订。后续差异处置归各原产品 owner 与主线；本候选 covers 55 条均未独立复核，不改旧 accepted 行。
+
+**起草检查与证据范围**：本树 baseline checker internal/formal=skip 实际退出 0（PID 120930），不执行形式工具。作者最终结构/引用/旧字节及 diff 检查结果由下面的本次记录给出。原输入、initial dirty、实际 argv/cwd/PID/exit/wait、stdout/stderr、首次失败、输入/候选快照及作者独立 patch 归施工交接。以上工具检查不代替独立架构/表达评审，不声称规格已接受或真实链通过。
+
+### v5 本次作者检查记录
+
+2026-09-27，本树自身 .venv 执行 internal/formal=skip：最终候选检查 PID 125605 退出 0，60 项 formal 均明确 skip；结构/旧字节检查 PID 125661 退出 0；git diff --check PID 125583 退出 0。73 条、十三个九项服务操作、27 规范资源、17 精确依赖已核；472 冻结原文件、7 个 root 所有输入、20 个提供输入均无漂移。catalog/covers/tasks 的原 80/2043/54 条记录原字节保留，仅增加 1/55/6；四 TLA 与十九 cfg 字节等同 RT4。
+
+首次候选检查 PID 124834 退出 1：catalog 缺必填 acceptance:null、实例标题锚点遗漏，前者连带使新 task 的资源未入 catalog。已修复；首次结构助手 PID 125086 退出 1（漏算四级条款标题），第二次 PID 125178 退出 1（依赖归属表在 S-2，助手误列 S-4），只修正助手，不放宽规格保证。原 raw/argv/PID/exit/wait 保留于本次施工证据，修复后通过不抹去首次失败。工具输出截断导致的首次 apply_patch 拒绝另有记录，未修改规范。没有执行 TLC、Alloy、模型请求、真实 IO、实现测试或新的 Schema 检查。完成证据追加后的最终复查及交接归档索引由施工 HANDOFF 记录。

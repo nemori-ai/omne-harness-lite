@@ -164,3 +164,9 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 原owner承接任意小数／合法偏移／闰秒顺序无需全局Clock改表示；R1的ok不能证明实际闰秒合法性，G29-P物理来源本身也不能代证具名时间生产链。TL-G1缺前提的完整批仍不可确认。双入口误用、线性成本、A的隔离半径／C的统一表示／R2适应混杂来源的优势与改票条件保留。两评审未执行tests／IO／TLC、未写文件或接受。
 
 [107成员归档](reviews/model-runtime-rfc3339-order-2026-09-27.tar.gz)SHA256 `8329a9c9b79549904c730cfe3df702dade98dff10c4ec8cfad60be950fb53807`包含77原输入、候选、作者检查及主线明确归因摘要，全部逐字读回；[索引](reviews/model-runtime-rfc3339-order-2026-09-27.json)钉逐文件hash。主线摘要不冒充逐字reviewer原件；源码／TO-V1～9／双语制品／TL-G1与完整runtime门均未验。技术采用另见[D089](../../decisions/model-time-order-projection-adoption/decision.md)，未改冻结OE1／OE2或MR4时间域，新增bindings0。
+
+## 2026-09-27 多值响应头／MR5-RT5 与 core v5 独立评审
+
+两轴 A/A 的 architecture-reviewer、完整 MR5/RT5 的 spec-reviewer、core v5 rev1 的两角色独立只读评审均无本次范围内阻断。受审 MR5 c4cba40c…／RT5 21c3ef25…，core `5c2e633b771e5d262d4d5240310f7d8bf9cd735a36259d4a6e70b749bf41eb94`；详细责任与未覆盖为 [root 据实际角色消息保存的归因摘要](reviews/model-headers-v5-2026-09-27.json)及其完整归档，不能当逐字 reviewer 原件或产品执行。规范整批的 runtime D087 导航滞后与 core 旧候选导航由本次当前段落修正；旧记录不覆盖。无新增产品政策，codec mrr/1／新格式仍归共同 owner。
+
+主线 [D-090](../../decisions/model-headers-v5-adoption/decision.md)只精确接受完整规范与 core 投影。PV1～9、RT5-H1～6、真实 TLS／秘密／停止／append-reopen、全部写方及十三操作和37认证均待；新增 bindings0。评审归档全部212成员原字节读回，SHA256 `53a1c0fc4076998cf4db91c8edf9bb0dbc317fa42fb3be7cc9c3d0b8bcc89777`。

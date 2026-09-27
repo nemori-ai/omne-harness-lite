@@ -347,3 +347,77 @@ FAIL: design validation found 3 error(s).
 - messages/v4 与 model-profile/v3 为同批候选依赖。主线已明确采用它们的定型公共形状；本版不能先于依赖被当成完整接受的闭包。
 - registry 由主线唯一写入者落四份清单；本起草者交付精确 candidate 条目与复用范围，不另造第二份持久坐标清单。登记前不声称已登记。
 - 提案的机械 revision 标记仍由主线维护，本版引用本次明确的 rev 2，不把提案当作接受记录。
+
+## 2026-09-27 v5 多值响应头候选验证
+
+本版基于 [D-078 承接接受的 MR4](../../../record/decisions/model-main-integration-coordination/acceptance.json)，新增完整 [v5 契约](v5/contract.md)、[Schema](v5/model-response.schema.json) 与[规范实例](v5/examples.md)。MR5 仍为 candidate，未接受、未冻结；下列结构自检不是独立评审，也不提升采用或实现状态。
+
+### 变化的影响
+
+本轮按主线施工裁定保留 `raw.headers` 的对象表示，只增加有序字符串数组值域，保持字符串／数组形状、数组次序、重复、空字符串、空数组、空对象与缺席的区别。没有新操作或提交点，不套用操作九件表；没有新状态机、并发协议或共享代数，不新增 TLA+、Alloy、形式任务或编号族。MR5-H1～MR5-H6 只是本主题局部证据标签。S-20 是唯一值域变化；S-26 说明 Schema 边界，S-27 只澄清已有一般空值说明不拒绝 S-20 的合法空值，失败集合与优先级保持原样。
+
+S-1～S-19、S-21～S-25、S-28～S-38 的旧承诺和所有外部 Schema 引用不变。七个 catalog 依赖及其 clauses 逐值继承 MR4；catalog 新增一个候选、三资源，covers 新增 28 条 `reviewed: false`，只继承原需求／条款覆盖范围。旧 accepted、candidate、covers、frozen、id-namespaces 与 formal-tasks 登记均保留。原模型、实现与 v2/v3/v4 的历史结果只保留其输入范围，不能冒充 MR5 生产符合性。
+
+**需求 rev 的继承边界**：PF-013 rev13、PF-009 rev8、PF-012 rev15、PF-011 rev4、PF-010 rev6 与现场一致。MR4 原采用 PF-004 rev12、PF-001 rev19，当前分别为 rev13、rev23；主线裁定本次只继承旧已接受条款范围，不重采纳这两份新版产品。候选抬头已去掉继承来的“均与当前一致”误述。两个 topic 新 rev 的全量语义重核不在本轮，owner 为对应产品负责人和主线；本次未改产品、旧规范或既有覆盖行。
+
+### MR5 证据义务
+
+| 项 | 条款与能失败的断言 | 证据形式、前提与 owner | 状态 |
+|---|---|---|---|
+| MR5-H1 | S-20/S-26：完整响应接收字符串与数组混合、重复／空元素、空数组、空对象、headers 缺席和 raw 缺席；不可将这些值解释为同一个值 | 本树精确 Schema 闭包、完整规范实例；原样过程另外以实际输入输出逐值比对；data owner／写方 | Schema 与局部值比较已执行；真实原样过程未开始 |
+| MR5-H2 | S-13/S-17/S-20/S-27/S-36：非法头值与空 raw 拒绝；加入数组不改变其他收场／绑定检查及失败优先级 | 规范负例、交错违规输入与局部纯判定 oracle；不是生产接收器验收 | 已执行实例与 Schema 阶段次序、S-36 检查；未运行生产判定器 |
+| MR5-H3 | MR4 合法域保持同义，原规范正反例判定不变；新增数组样本 MR4 拒绝、MR5 接收；旧 Schema 与全部冻结资源摘要不变 | 两版 Schema 对同一完整文档判定；逐定义差分与输入 manifest | 已执行，见下方范围与局限 |
+| MR5-H4 | S-20/S-21/S-22：实际写前脱敏，已采得且脱敏后各值不拼接、不取首、不丢项、不重排、不改形；写下之后不改 | runtime／transport／完整响应写方，以显式脱敏政策和秘密哨兵实测；在真实消费链加入丢项、重排等行为负控 | **未开始**；Schema 无法代证 |
+| MR5-H5 | S-20/S-22/S-24：transport→invoke 结果→完整响应→同次 append→reopen 保留同一次发出的完整事实；未采得不补、未知账不多发 | 后续 runtime 新版及 core/runtime/transport/验收装配四层显式采用；成功、HTTP 失败、带内失败、断流、观察后取消、未知账场景 | **未开始**；本轮不关闭 RT4 G-31 |
+| MR5-H6 | 坐标、Schema 标识／引用、全部实例、38 条编号及候选登记一致；旧依赖、字段、覆盖和冻结字节不漂移 | 本树 check_design，Schema 元校验／闭包解析、定点差分与输入保护 | baseline 与 candidate internal 均已执行通过；formal=skip |
+
+表示判定不会证明值确实由上游采得；合法的字符串化数组或排序后数组仍可违反 S-20。空 map 与缺席的分界不能用空集默认掩盖。先脱敏、后承载脱敏结果，MR5 没有选择新的头名归一化、碰撞、wire-level 或留存政策；G-4/G-5 与 runtime 的具名脱敏参数责任保持。
+
+### 消费传播与闭合点
+
+| 消费方／owner | 本次沿用范围与后续义务 | 闭合证据 |
+|---|---|---|
+| runtime 规格 owner | RT2/3/4 保留原精确 MR2/4；后续新版本须明确事实端口并消费 MR5，不能只替换依赖数字 | 新候选独立评审／采用与运输事实交接场景；RT4 G-31 不因本包完成而关闭 |
+| core model-response owner | 当前 MR4 完整接收仍拒数组；须为新链提供显式 MR5 完整接收，旧 MR4 oracle 保留原适用范围 | 公开制品、Schema 闭包和完整判定测试 |
+| runtime 提供者、共同日志构件 owner | 新接收须覆盖完整响应的捕获、批检查、全值比较及重开读取；不能用时间点等价替代 JSON 全值相等，也不能改变历史值 | 与实际日志的同次追加、回复结算、未知结果认回与 reopen 证据；现 D087/D088 的采用不含本新增表示 |
+| transport 与验收装配 owner | 现运输面已可采数组，但最终 invoke 结果未完整交头事实；2xx／错误／取消路径需按新规格明确交接 | 原始事实、脱敏后事实和完整持久响应逐值对照，实际 send 次数不增加 |
+| 其他精确消费者 | runner2/3 只消费未变身份、成因及绑定相关条款，可继续原版；MS4、CA2、LC3、MP3、CB3、IV1、offer-expiry1 不因头值域自动升版；日志不透明 payload 不因此升规格版 | 完整响应实际读写方采用时定向检查；仅复制身份／参数形状的旧对齐义务保持 |
+
+catalog 当前五条指向 MR 的消费边为 RT2/3/4、runner2/3；现有其他 Schema 无外部 MR 引用。这个只读范围不能证明外仓或动态消费者不存在。源码和持久化交付由各 owner 接续，本轮没有建立 RT5、提供者增量或验收应用。
+
+### MR5 实际执行
+
+2026-09-27，在工作树 `panqiwei/model-request-runtime-p2-response-headers-spec`（起始 HEAD `4cf612e9314bd042abe61591abf7156fd6861d09`）使用本树 `.venv`：Python 3.12.13、jsonschema 4.26.0、referencing 0.37.0。没有安装依赖、调用模型或运行产品 IO。临时完整输入、命令 argv/cwd/PID/exit、stdout/stderr 与首次失败由本次交接包保存；正式证据保全由主线承接。
+
+- baseline internal 检查：PID 107994，exit 0。93 项审计输入的原提交字节核对一致；现场仅有原审计已说明的 5 项导航／新增重试导出差异，MR4、RT4 与头相关源码未变。595 项输入已快照，472 份冻结资源摘要一致。
+- Schema 首次探针：PID 111218，exit 1。错误是临时探针把注释 `malformed（跨成员，无专名，contract.md S-27）` 整段当成拒绝标签，在 MR4 R-17 停下；没有改规范或预期使其通过。原脚本、stdout/stderr 和退出记录保留。
+- 修复标签提取后的第二次探针：PID 111287，exit 0。35 份 Schema 通过元校验，MR5 传递闭包为 21 个资源、862 个引用均可解析。MR4 完整实例 58 个（22 接收／36 拒绝）；MR5 完整实例 77 个（27 接收／50 拒绝）。前 58 个实例值和预期逐值保持。按 Schema 阶段注释和 S-36 构造的临时 oracle 分别核 56／75 个有明确结果标签的实例，0 处不符；两个旧实例仅声明 Schema 拒绝，不伪造其未给出的专名。9 项局部精确值比较符合预期，不能代替真实无损过程测试。
+- Schema 除自身版本说明、`RawHeaders` 和 `RawResponse.headers` 外逐定义相同；35 条条款正文逐字相同，S-20/S-26/S-27 的差异限定于上述范围。七依赖逐值不变；79 条旧 catalog 与 2015 条旧 covers 的原条目字节保持；472 份冻结资源无漂移。
+- candidate internal 检查：PID 111313，exit 0；输出末行为 `PASS: design tree … passed gate=internal; formal=skip.`。54 个现有形式任务全部显式跳过，**未运行 TLA+/Alloy**，没有新增形式任务。检查器不校验 covers 的全部语义，覆盖表仅作上述继承范围和结构比较。
+
+实际检查入口（从本工作树根执行）：
+
+```sh
+.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip --gate internal
+.venv/bin/python tmp/model-request-runtime/p2-response-headers-spec/verify_candidate.py
+```
+
+第二次探针的原始汇总：
+
+```json
+{"event":"PASS","totals":{"4":{"instances":58,"passed":22,"rejected":36,"representation_oracles":56},"5":{"instances":77,"passed":27,"rejected":50,"representation_oracles":75}},"local_value_comparisons":9,"mismatches":0}
+```
+
+这只覆盖规范形状、局部表示关系、引用和冻结保护；未运行生产 judge、秘密哨兵、transport→invoke 交接、真实 append/reopen 或全部操作认证，MR5-H4/H5 仍未开始。
+
+### MR5 已知缺口
+
+本轮不新增 G 编号。继承 v4 G-3（条目壳与租户归属，owner：loop／主线）、G-4（留存期设置，owner：PF-002 产品负责人＋主线）、G-5（脱敏规则，owner：model-request-runtime）、G-9（其余可追溯组成，owner：PF-010 组装＋runtime）、G-10（真实费用取证，owner：runtime 提供者）；G-8 的既有实际供应商表示沿用，真实取证仍待提供者完成。这些历史缺口在本轮不自行重裁或关闭。外部 RT4 G-6 的政策值与 G-31 的表示采用／事实交接仍由其原 owner 推进。
+
+### MR5 报给主线
+
+- **简报裁定**：保留 string 或有序 string[] map，允许空数组、空串、空 map，保留 S-21/S-22 和七依赖；不新增产品政策。38 条完整复制是交付要求，不以仅 delta 替代规范。
+- **起草推导**：Schema 用 `RawHeaders` 的两个互斥 JSON 类型分支表达裁定；没有 `uniqueItems` 或 `minItems`，以免误拒重复／空数组。S-27 仅澄清合法空头值例外，其值集合和顺序不动。Schema 不承担观察事实或过程保真，相关证据留给 MR5-H4/H5。
+- **历史依据差异**：MR4 抬头的 PF-004/PF-001“当前一致”不再成立，已按本轮主线裁定限定为继承旧采用范围；全量新版产品重核由相应产品 owner＋主线承接。本轮没有发现须改 headers 裁定的产品反例。
+- **未闭门**：本候选只解决合法表示，MR5-H4/H5 未开始；RT4 G-31、G-6 不能在后续采用时被 Schema 通过记录替代。独立语义／表达评审和正式接受由主线安排。
+- **术语与冲突**：沿既有模型响应体及其上游原始响应留存属性，不新增词条、ID 族或服务；`RawHeaders` 是简报允许的 Schema 内部表示名。本轮未改变其他契约或已有采用关系。
