@@ -25,7 +25,7 @@
 | `CapabilityId`、`capabilityIdEquals(a, b)`（形状与相等的家） | [S-20](../../../../spec/data/content-blocks/v2/contract.md#s-20-派生表示的产出者与能力标识) |
 | `readJsonStrict(text) → { ok } \| { failed }`、`writeJsonLossless(value)`、`JsonNumber` | [S-12](../../../../spec/data/content-blocks/v2/contract.md#s-12-完整的工具调用)、[S-24](../../../../spec/data/content-blocks/v2/contract.md#s-24-规范表示)（M36） |
 | `judgeContentBlock(value) → { ok } \| { rejected }` | [S-24](../../../../spec/data/content-blocks/v2/contract.md#s-24-规范表示)～[S-27](../../../../spec/data/content-blocks/v2/contract.md#s-27-表示层拒绝不是判定也不修补) |
-| 类型 `BlockId`、`CallId`（生成器即 identity-values 的 `generateOpaqueIdentifier()`，本包不另写） | [S-3](../../../../spec/data/content-blocks/v2/contract.md#s-3-blockid)、[S-14](../../../../spec/data/content-blocks/v2/contract.md#s-14-callid) |
+| 类型 `BlockId`、`CallId`（普通生产者沿 identity-values 的 `generateOpaqueIdentifier()`，pi 例外见下文；本包不另写） | [S-3](../../../../spec/data/content-blocks/v2/contract.md#s-3-blockid)、[S-14](../../../../spec/data/content-blocks/v2/contract.md#s-14-callid) |
 
 **函数层不承诺**：块标识在一条消息内唯一、`CallId` 在会话日志内唯一、落盘之后整块不变、每一跳都走严格无损读写——它们只在铸号方、日志写入方与各读写边界成立（[装配给 vs 协议给](#装配给-vs-协议给单机时本节点提供了什么)右列，CB-1、CB-2）。
 
@@ -64,13 +64,15 @@
 | [S-20](../../../../spec/data/content-blocks/v2/contract.md#s-20-派生表示的产出者与能力标识) `CapabilityId`（**形状与相等的唯一家**） | 类型 `CapabilityId`；`capabilityIdEquals` | 两个分量逐码点比较 | 名字词法与规范串在 [asset-model](../asset-model/design.md) |
 | [S-12](../../../../spec/data/content-blocks/v2/contract.md#s-12-完整的工具调用) 的 `ModelToolName` | 类型 `ModelToolName`（本包是 `data.tool-definition/v2#S-6` 的逐字副本） | Schema 副本 | **家在 tool-definition**；对齐测试放在 [tool-definition](../tool-definition/design.md#实施缺口与消费者影响)（它依赖本包，本包不依赖它） |
 | S-9 `opaque`、[S-12](../../../../spec/data/content-blocks/v2/contract.md#s-12-完整的工具调用)「怎样才算解析成功」、[S-24](../../../../spec/data/content-blocks/v2/contract.md#s-24-规范表示)「读写块的 JSON 文本的口径」（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)） | `readJsonStrict(text) → { ok: value } \| { failed: "syntax" \| "duplicate_member" }`、`writeJsonLossless(value)`；数值类型 `JsonNumber = number \| LosslessNumber` | [下文](#严格的无损-json-读写)。**同一个读法，两处各自映射失败**：接收边界读块（或消息）的文本失败 ⇒ `malformed`（S-24）；参数串的那一次解析失败 ⇒ 解析不了的调用块（S-12，执行点在 stream-assembly） | V-6；「每一跳都用它」是缺口 [CB-2](#实施缺口与消费者影响) |
-| [S-3](../../../../spec/data/content-blocks/v2/contract.md#s-3-blockid)、[S-14](../../../../spec/data/content-blocks/v2/contract.md#s-14-callid) 两种标识的词法（G-4 交给 realization） | 类型 `BlockId`、`CallId`；生成器即 identity-values 的 `generateOpaqueIdentifier()`，本包不另写 | [下文](#标识的词法沿用-identity-values-的生成器) | 唯一性由铸号方保证（CB-1） |
+| [S-3](../../../../spec/data/content-blocks/v2/contract.md#s-3-blockid)、[S-14](../../../../spec/data/content-blocks/v2/contract.md#s-14-callid) 两种标识的词法（G-4 交给 realization） | 类型 `BlockId`、`CallId`；普通生产者沿 identity-values 的 `generateOpaqueIdentifier()`，pi 例外见下文；本包不另写 | [下文](#标识的词法沿用-identity-values-的生成器) | 唯一性由铸号方保证（CB-1） |
 | [S-22](../../../../spec/data/content-blocks/v2/contract.md#s-22-落盘之后整块不变)、[S-23](../../../../spec/data/content-blocks/v2/contract.md#s-23-块不携带租户身份) 落盘不变、不带租户 | 类型上没有租户成员；值冻结 | 就地更新的写路径归会话日志写入方（SC-1） | 不在本节点 |
 | [S-24](../../../../spec/data/content-blocks/v2/contract.md#s-24-规范表示)～[S-27](../../../../spec/data/content-blocks/v2/contract.md#s-27-表示层拒绝不是判定也不修补) 六个拒绝值与次序、不修补 | `judgeContentBlock(value: unknown) → { ok } \| { rejected }`；从文本读的边界先 `readJsonStrict`，失败即 `{ rejected: "malformed" }`（S-24 读写口径：任何一层重复成员名即 `malformed`），不把一个挑过键的值交给 `judgeContentBlock` | `kind_unknown` 起、`malformed` 止，[逐条判](#拒绝值按契约的次序逐条判不从-schema-错误里反推)；「一条消息里 `id` 重复」在消息层的接收边界判（`data.messages/v2#S-39` 的 `block_id_duplicate`） | V-2；拒绝时不交出任何「修好的」值 |
 
 ### 拒绝值按契约的次序逐条判，不从 Schema 错误里反推
 
-| | 跑 Schema，再把 ajv 的错误列表映射成拒绝值 | **按契约的次序逐条判（本节点选）**：每份契约一张有序清单，每项是一个对 `unknown` 值的谓词，第一项命中即返回；`malformed` 的判据是「不合 Schema 或违反 Schema 之外的约束」 |
+本 TypeScript 入口的 `unknown` 不把任意 JS 对象纳入 S-24 的 JSON 表示域。当前提供者先用 `copyJsonValue` 检查并复制本模块支持的 JSON 值表示（包括真正的 `LosslessNumber` 与 `OpaqueJson` 的表示恢复）；失败先返回 `malformed`。复制成功后，才对整棵块树按 S-26 的具名次序判定，Schema 仍只判剩余形状。普通属性 getter／toJSON 不会被求值；这不是对 Proxy trap 的无用户代码保证。以下有序谓词表针对已经进入该值域的输入，不能把非 JSON JS 值混入时的入口拒绝解释成域内优先级改变。
+
+| | 跑 Schema，再把 ajv 的错误列表映射成拒绝值 | **按契约的次序逐条判（本节点选）**：每份契约一张有序清单，每项是一个对已进入 JSON 值域的值的谓词，第一项命中即返回；`malformed` 的判据是「不合 Schema 或违反 Schema 之外的约束」 |
 |---|---|---|
 | 两个实现对同一坏输入给同一个值 | ajv 的错误次序取决于遍历与 `allErrors` 设置，**不是契约的次序**；多处违例时映射结果不稳 | 次序就是清单次序，与遍历无关 |
 | `malformed` 在首位的契约（`data.model-profile`）与在末位的契约 | 要为每份契约写一套错误过滤 | 同一种写法，只是清单次序不同 |
@@ -82,7 +84,7 @@
 
 ### 标识的词法：沿用 identity-values 的生成器
 
-S-3、S-14 的词法交给 realization（契约 G-4）；`data.messages` 的 G-1 同样把 `MessageId` 的词法交给 realization。本批三种标识一个候选：
+S-3、S-14 的词法交给 realization（契约 G-4）；`data.messages` 的 G-1 同样把 `MessageId` 的词法交给 realization。下面比较普通新消息、工具侧新块与新增派生块的生成选择；接收词法不收窄为 26 字符。pi 的 b 加索引和确定性 CallId 沿 [D-070 承接的 I-B](../../../../record/decisions/core11-integration-coordination/decision.md#生产者铸号)，不属于下表随机生成器的适用范围：
 
 | | 每条消息／每个会话一个计数器 | 时间有序（ULID 类） | **沿用 `generateOpaqueIdentifier()`（本节点选）**：128 位 CSPRNG、小写 base32 无填充、26 个字符 |
 |---|---|---|---|
@@ -152,7 +154,7 @@ S-9 的 `opaque`、S-12 的 `arguments`、`data.call-accounts` 的金额、`data
 
 契约的已知缺口（G-1、G-4、G-10）不重抄。本节点自己的缺口：
 
-- **CB-1 铸号方**：本节点给了词法候选，**铸号在别处**——`BlockId` 由模型侧传输适配与工具侧帧入口、落盘前补派生表示的一方铸；`CallId` 是否沿用上游调用 id、会话日志内唯一由登记它的模型请求运行时守。几处要用同一个生成器。owner：主线协调；落在 model-request-runtime、tool-execution-runtime 两个节点。
+- **CB-1 铸号方**：本节点给了词法候选，**铸号在别处**——`BlockId` 由模型侧传输适配与工具侧帧入口、落盘前补派生表示的一方铸；`CallId` 是否沿用上游调用 id、会话日志内唯一由登记它的模型请求运行时守。普通生产者用同一随机生成器，pi 的确定性例外按 [D-070](../../../../record/decisions/core11-integration-coordination/decision.md#生产者铸号)；登记唯一与恢复仍归相应 owner。owner：主线协调；落在 model-request-runtime、tool-execution-runtime 两个节点。
 - **CB-2 无损读写只在用它的边界上有效**：`opaque`、`arguments`、金额从 JSON 文本读成值的**每一处**（存储提供者读 JSON 列、传输适配读上游响应、工具运行时收工具返回、跨进程的每一跳）都要走 `readJsonStrict`／`writeJsonLossless`（M36「落盘与回读走无损读写」；契约第四节新加的「数无损、重复键不被挑一个」一行把它写成**每一跳**的协议义务）。存储那一跳已由 [D-060 §八 M53](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 定为全库口径（JSON 列以 `text` 存取，驱动与 Kysely 不自动 `JSON.parse`／`stringify`，无损读写在应用层用本包），登为 `infra/storage-sql` 的实施缺口；两个运行时节点的读写边界仍各自承接。owner：storage-sql 与两个运行时节点；本节点模块侧「丢位或放过重复键即失败」测试已随 `44b84525` 交付，HUB 复验306条通过；原始结果与边界见 [verification](verification.md)。
 - **CB-3 附件存储**：`AttachmentRef` 的解引用与租户判定（契约 G-1）属 [D-060 §八 M43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 的 C-6，**本程不补、留给下一程**，owner 主线。
 

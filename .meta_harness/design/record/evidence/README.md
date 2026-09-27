@@ -153,7 +153,27 @@ evidence/
 
 [2026-09-26 PR #9/#10 协调检查](2026-09-26-checks-pr9-pr10-reconciliation/README.md)：固定两线输入、冻结字节与迁移闭包核对、仓库及产品回归；既有跨 OS/部署/形式结果保留原范围。
 
+[2026-09-27 content-blocks 纯模块](2026-09-27-tests-content-blocks/README.md)：HUB 195 项测试、独立 12 组／162 行规范实例与公开类型消费者；仅接受模块局部，无每跳或会话级保证。
+
+[2026-09-27 Docker 维护 IO 先导](2026-09-27-probe-docker-maintenance-io/README.md)：I1 QA 制品真实写入阻塞与关闭失败、第二 owner 和残余；保留夹具失败，不替代最终 Docker 验收。
+
 **2026-09-26 core 首批实现验证**：[`2026-09-26-tests-core-foundation/`](2026-09-26-tests-core-foundation/README.md) 保存 kernel-basis、identity-values、offer-expiry、storage 与 content-blocks 的实际运行、输入快照和失败原文。30／259／31／306 项包内测试及 storage 两项有效性自测分别沿该 run 的范围读取；规则自测最终 101 项与真实 24 规则扫描另列。storage 原 spoke 日志丢失只采用保存的 HUB 复验；content 首次扫描失败与修正后结果分别保留。消费者组合、实际准入与各 JSON 传递边界不因本轮包内通过而闭合，用户总体验收尚未发生。
 
 
 [2026-09-26 当前core v3实际模型执行](2026-09-26-formal-core-v3/README.md)：SA正配置826411 distinct及三有效变异，AE／Messages263主Alloy读数与28 XML补取；完整输入/raw/封存、有限范围与不覆盖实现分别登记。
+
+[2026-09-27 PR11 整合检查](2026-09-27-tests-core11-integration/README.md)：35成员最新结果8114通过／34跳过，Python176通过；两处环境失败及纠正后运行均保留，非 Docker／Agent 总体验收。
+
+[2026-09-27 Docker R5 控制脚本局部整合](2026-09-27-tests-docker-control-r5/README.md)：root整合22项、类型与文档通过，自有wait客户端反例已修；实际helper/I3/独立QA仍待。
+
+[2026-09-27 Docker helper 首轮真实启动](2026-09-27-tests-docker-helper-start/README.md)：validate通过、应用启动前实际挂载校验失败；原件及清理保留，业务和timer尚未进入。
+
+[2026-09-27 Docker R5 正常运维纵线](2026-09-27-tests-docker-r5-smoke/README.md)：新I3独立核验，真实helper备份／隔离恢复／正常停止及两次timer通过；两次测量失败原件保留，故障与跨OS矩阵仍待。
+
+[2026-09-27 Docker R5 在途维护 IO](2026-09-27-tests-docker-r5-maintenance-io/README.md)：最终制品的写入挂起／关闭失败、停止等待、第二 owner 和隔离残余通过有界真实检查；构建与测量器失败原件保留，非物理故障或完整部署验收。
+
+[2026-09-27 Docker 停止与镜像替换](2026-09-27-tests-docker-recovery/README.md)：正常 exit0 后私有 Engine 重启保持停止；同 Schema 镜像替换保留公开治理事实与真实工程记录。强杀、启动失败与完整升级链仍未覆盖。
+
+[2026-09-27 Docker 启动健康观察过期](2026-09-27-tests-docker-startup-expiry/README.md)：QA只阻塞健康进程，正式 helper 正常停止并核真实退出，start仍失败；不覆盖迁移故障。
+
+[2026-09-27 Docker 离线维护 TERM](2026-09-27-tests-docker-offline-cancel/README.md)：真实 known-ID helper取消、31秒后仍持资源、同根busy、释放后cancelled/exit2及永久隔离；三轮测量失败保留，SIGKILL／失联与异根并行仍待。

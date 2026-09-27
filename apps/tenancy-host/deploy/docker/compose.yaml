@@ -1,0 +1,55 @@
+services:
+  center:
+    image: ${OMNE_CENTER_IMAGE:?verified immutable image identity required}
+    container_name: ${OMNE_CENTER_CONTAINER_NAME:?container name required}
+    user: "${OMNE_CENTER_UID:?uid required}:${OMNE_CENTER_GID:?gid required}"
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: -1s
+    env_file:
+      - path: ${OMNE_CENTER_SETTINGS_FILE:?settings file required}
+        format: raw
+    environment:
+      OMNE_TENANCY_STORAGE_DIALECT: sqlite
+      OMNE_TENANCY_STORAGE_FILE: /state/data/center.sqlite
+      OMNE_TENANCY_BACKUP_DIR: /state/backups
+      OMNE_TENANCY_OPS_SOCKET_DIR: /run/omne-tenancy
+      OMNE_TENANCY_ENTRY_LISTEN: 0.0.0.0:8443
+      OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM_FILE: /secrets/activation-signing-key.pem
+      OMNE_TENANCY_ACTIVATION_VERIFICATION_KEY_PEM_FILE: /secrets/activation-verification-key.pem
+      OMNE_TENANCY_PURGE_SIGNING_KEY_PEM_FILE: /secrets/purge-signing-key.pem
+      OMNE_TENANCY_PURGE_VERIFICATION_KEY_PEM_FILE: /secrets/purge-verification-key.pem
+      OMNE_TENANCY_ENTRY_TLS_CERT_CHAIN_PEM_FILE: /secrets/tls-chain.pem
+      OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM_FILE: /secrets/tls-private.pem
+    volumes:
+      - type: bind
+        source: ${OMNE_CENTER_STATE_DIR:?state directory required}
+        target: /state
+      - type: bind
+        source: ${OMNE_CENTER_SECRETS_DIR:?secrets directory required}
+        target: /secrets
+        read_only: true
+    tmpfs:
+      - /run/omne-tenancy:mode=0700,uid=${OMNE_CENTER_UID:?uid required},gid=${OMNE_CENTER_GID:?gid required},nosuid,nodev,noexec
+    ports:
+      - target: 8443
+        host_ip: ${OMNE_CENTER_PUBLISH_ADDRESS:?publish address required}
+        published: ${OMNE_CENTER_PUBLISH_PORT:?publish port required}
+        protocol: tcp
+    healthcheck:
+      test: [CMD, node, /opt/omne/app/deploy/docker/health.mjs]
+      interval: ${OMNE_CENTER_HEALTH_INTERVAL:-30s}
+      timeout: ${OMNE_CENTER_HEALTH_TIMEOUT:-7s}
+      start_period: ${OMNE_CENTER_HEALTH_START_PERIOD:-30s}
+      retries: ${OMNE_CENTER_HEALTH_RETRIES:-3}
+    logging:
+      driver: local
+      options:
+        max-size: ${OMNE_CENTER_LOG_MAX_SIZE:-10m}
+        max-file: ${OMNE_CENTER_LOG_MAX_FILE:-3}
+    labels:
+      ai.nemori.omne.project: ${OMNE_CENTER_PROJECT:?project required}
+      ai.nemori.omne.service: center
+      org.opencontainers.image.version: ${OMNE_CENTER_VERSION:?version required}
+      ai.nemori.omne.host-build-id: ${OMNE_CENTER_BUILD_ID:?build id required}
+      ai.nemori.omne.distribution: tenancy-host-docker/1

@@ -13,7 +13,7 @@
 ## 分层状态
 
 - 语义接受范围：**设计已接受**（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)；契约接受由 D-061 登记）。接受的是设计与显式缺口；可实施范围、绑定与实际验证各层沿用下列记录。
-- 可实施范围：声称兑现契约 S-38 传输适配十一条（逐条落点见 [design 的投影表](design.md#契约责任到兑现点)），以及生产者一侧的 `data.arrival-events` S-7～S-9、S-11、S-13、S-15、S-20，`data.model-profile` S-17、S-21 的改值与丢项，`data.content-blocks` S-9 `opaque` 的写读与 S-14 `CallId` 的登记，`data.messages` S-35 我们自己那两种消息的线上落点。**尚未建包，没有任何实现。**可实施性的阻断：D-019 比较门一项都没有在真实 OpenRouter 上过（[PAT-N2](design.md#实施缺口与消费者影响)）；状态码表的行、费用单位、用量换算都是待核对主张（PAT-N3、N5、N6）；工具条目从哪来待契约（PAT-N14，与 MRR-N14 同一件）；P-2 对排队中被中止与无码带内错误的分类未写明（PAT-N18）。原先登的两处契约对不上（PAT-N4、N9）已由契约闭合（D-060 §八 N-40 ④、N-41）
+- 可实施范围：声称兑现契约 S-38 传输适配十一条（逐条落点见 [design 的投影表](design.md#契约责任到兑现点)），以及生产者一侧的 `data.arrival-events` S-7～S-9、S-11、S-13、S-15、S-20，`data.model-profile` S-17、S-21 的改值与丢项，`data.content-blocks` S-9 `opaque` 的写读与 S-14 `CallId` 的登记，`data.messages` S-35 我们自己那两种消息的线上落点。**尚未建包，没有任何实现。**可实施性的阻断：D-019 比较门一项都没有在真实 OpenRouter 上过（[PAT-N2](design.md#实施缺口与消费者影响)）；状态码表的行、费用单位、用量换算都是待核对主张（PAT-N3、N5、N6）；工具条目来源和 P-2 对排队中止／无码带内错误的分类已由 MRR v2 闭合（PAT-N14、PAT-N18）；真实注册表、调用方与本包的实现和验证仍未完成。原先登的两处契约对不上（PAT-N4、N9）已由契约闭合（D-060 §八 N-40 ④、N-41）
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **0 条**——没有任何已登记的形式任务或测试以本节点的代码为对象；十一条的证据形式是本包的符合性测试（脚本化的本机 HTTP 端），见 [verification](verification.md#证据义务)
 - 实际验证：**尚无**（源码不存在；本节点不复用 minimal-runtime 或 2026-09-16 那次真实短请求作证据——前者未进 main，后者只覆盖一条路由且早于本基线）
 
