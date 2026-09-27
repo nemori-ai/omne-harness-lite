@@ -4,8 +4,11 @@
 跑对应的检查。贡献范围与交付要求见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 > **本页只管开发。**产品设计、系统架构与规格设计、产品/系统/算法的 research
-> 都不在这里，也不在 `docs/` ——它们归 [`.meta_harness/`](../.meta_harness/AGENTS.md)。
+> 的权威正文都不在这里，也不在 `docs/` ——它们归 [`.meta_harness/`](../.meta_harness/AGENTS.md)。
 > 需要做那些事时从那里进入，加载 `harness-design-handbook` skill，**不要在这边落字**。
+
+个人技术博客通过 `docs/blogs/` 子模块接入；归属见[源码布局](workspace.md#目录与内容归属)，
+操作见下文[博客子模块](#博客子模块)。
 
 ## 运行入口
 
@@ -72,6 +75,33 @@ pnpm format:write
 
 需要本地提交检查时，确认没有既有 `pre-commit` hook 后运行 `pnpm format:hook:install`。
 安装器不覆盖已有 hook；所装检查只读 Git index 中已暂存的文件，**不 stash、不改工作区**。
+
+## 博客子模块
+
+`docs/blogs/` 是独立的个人博客仓库，地址由根 `.gitmodules` 记录。
+本项目的开发和构建不要求初始化它；博客仓库私有时，读取权限需要单独授予，
+拥有本项目权限不会自动获得博客权限。只做产品开发时可保留普通的非递归克隆方式。
+
+需要阅读或编辑博客时，在项目根执行：
+
+```sh
+git submodule update --init -- docs/blogs
+```
+
+这会检出本项目记录的博客 commit。开始编辑前，在博客仓库切到写作分支；
+若直接维护其主分支，执行 `git -C docs/blogs switch main`。
+文章的修改、提交和推送都在博客仓库中完成，推送父仓库不会代替这一步。
+
+博客提交已经推送到远程后，在父仓库更新采用版本：
+
+```sh
+git add docs/blogs
+git commit -m "chore(docs): update blog submodule"
+```
+
+该提交只记录子模块的新 commit；博客内容和历史仍由博客仓库管理。
+父仓库更新后，其他已有检出重复执行上述初始化命令即可切到相同版本。
+博客仓库改为公开后，只要仓库地址不变，无需重新添加子模块。
 
 ## 定位修改位置
 

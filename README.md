@@ -79,7 +79,7 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 | 位置 | 内容 |
 |---|---|
 | [.meta_harness/](.meta_harness/README.md) | **设计工作区**：需求、产品设计、统一语言、规格、研究、已发生的事、agent 能力 |
-| [docs/](docs/README.md) | **项目开发文档**：环境、源码布局、检查含义、防御指导 |
+| [docs/](docs/README.md) | 项目开发文档：环境、源码布局、检查含义、防御指导；`blogs/` 接入个人技术博客子模块 |
 | [packages/](packages/README.md)、[apps/](apps/README.md) | 产品包与应用装配；采用范围与验证状态见实现映射 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 

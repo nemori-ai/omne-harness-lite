@@ -1,0 +1,3 @@
+[submodule "docs/blogs"]
+	path = docs/blogs
+	url = https://github.com/PanQiWei/omne-harness-blogs.git
