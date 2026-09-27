@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.model-request-runtime v3 独立函数面；耐久服务尚在实施",
+  "description": "Standalone model invocation and pure dispatch guard; durable service is pending",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -25,6 +25,8 @@
   },
   "dependencies": {
     "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/loop-extension": "workspace:*",
     "@omne-harness-lite/arrival-events": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
