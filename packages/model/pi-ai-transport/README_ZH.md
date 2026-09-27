@@ -8,19 +8,19 @@
 
 ## 公开接口
 
-| 导出 | 用途 |
-| --- | --- |
-| `ModelDefinition`、`ModelRoute`、`ParameterRule`、`ParameterRules` | 完整能力及逐路由提醒、八项参数规则、已认得的私有键和缓存允许值 |
-| `readModelDefinition(definitions, coordinates)` | 精确版本的不可变观察，不取得使用权 |
-| `configurationSchema(definition, provider)` | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值 |
-| `interpretConfiguration(definition, values, provider)` | 从同一路由声明严格、无损解释配置 |
-| `createOfficialProfileContent(definition, options)` | 构造并判定 core 内容，不写目录、不登记、不生成时间 |
-| `planRequest(input, definitions)` | 纯不可变规划，含实际参数、调整和丢项原键 |
-| `createPiAiTransport(options)` | 显式定义与自持连接池的 plan/send/read/close、诊断计数 |
-| `sendRequest`、`readStream` | 借用明确网络资源的独立函数 |
-| `createModelTransportService`、`AdaptationLease`、`RetirementPolicy` | 进程内精确登记、固定引用和显式排空 |
-| `parseSSE`、`canonicalInteger`、`generatedCallId` | 分帧与精确确定性标识辅助 |
-| `officialModelIds`、`OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES` | 目标身份、产品端点与当前可承载的 text/image 输入 |
+| 导出                                                                    | 用途                                                           |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `ModelDefinition`、`ModelRoute`、`ParameterRule`、`ParameterRules`      | 完整能力及逐路由提醒、八项参数规则、已认得的私有键和缓存允许值 |
+| `readModelDefinition(definitions, coordinates)`                         | 精确版本的不可变观察，不取得使用权                             |
+| `configurationSchema(definition, provider)`                             | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值            |
+| `interpretConfiguration(definition, values, provider)`                  | 从同一路由声明严格、无损解释配置                               |
+| `createOfficialProfileContent(definition, options)`                     | 构造并判定 core 内容，不写目录、不登记、不生成时间             |
+| `planRequest(input, definitions)`                                       | 纯不可变规划，含实际参数、调整和丢项原键                       |
+| `createPiAiTransport(options)`                                          | 显式定义与自持连接池的 plan/send/read/close、诊断计数          |
+| `sendRequest`、`readStream`                                             | 借用明确网络资源的独立函数                                     |
+| `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`    | 进程内精确登记、固定引用和显式排空                             |
+| `parseSSE`、`canonicalInteger`、`generatedCallId`                       | 分帧与精确确定性标识辅助                                       |
+| `officialModelIds`、`OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES` | 目标身份、产品端点与当前可承载的 text/image 输入               |
 
 纯读取返回 `{ ok }`、invalidInput 或 unavailable。内容构造器保留 core 表示拒绝原名（如 parameter_out_of_range、max_output_exceeds_profile）；定义/路由/配置一致性失败仍为提供者 invalidInput。陌生精确版本/路由不可用，非法定义/配置为输入错误。失败只给有限拒绝类别，不输出配置正文。根入口不加载 Cordis；`./plugin` 显式依赖 Cordis 4.0.4。
 
@@ -29,42 +29,72 @@
 保存为 `example-definition.ts`，后面的例子引用这些值。能力和参数事实都是用于本地受控测试的合成教学值，不描述官方模型，禁止发布或用于真实路由。生产定义需要已核实事实与明确采用的配置来源。
 
 ```ts
-import type { ModelDefinition, RetirementPolicy, TransportPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type {
+  ModelDefinition,
+  RetirementPolicy,
+  TransportPolicy,
+} from '@omne-harness-lite/pi-ai-transport'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
 // Synthetic teaching data for controlled tests only. Never publish or call this as a live model.
 export const definition: ModelDefinition = {
-  modelId: 'example/controlled-text', revision: 'example-1',
+  modelId: 'example/controlled-text',
+  revision: 'example-1',
   implementation: { name: 'example:openrouter-text', revision: '7' },
   capabilities: {
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 1024, maxOutputTokens: 128, inputConstraints: {},
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 1024,
+    maxOutputTokens: 128,
+    inputConstraints: {},
   },
-  routes: { 'example-provider': {
-    reminderRole: 'developer',
-    parameters: {
-      reasoningEffort: { kind: 'pass' }, temperature: { kind: 'pass' },
-      topP: { kind: 'pass' }, seed: { kind: 'pass' }, maxOutputTokens: { kind: 'pass' },
-      stopSequences: { kind: 'pass' }, frequencyPenalty: { kind: 'pass' },
-      presencePenalty: { kind: 'pass' },
+  routes: {
+    'example-provider': {
+      reminderRole: 'developer',
+      parameters: {
+        reasoningEffort: { kind: 'pass' },
+        temperature: { kind: 'pass' },
+        topP: { kind: 'pass' },
+        seed: { kind: 'pass' },
+        maxOutputTokens: { kind: 'pass' },
+        stopSequences: { kind: 'pass' },
+        frequencyPenalty: { kind: 'pass' },
+        presencePenalty: { kind: 'pass' },
+      },
+      extra: { example_flag: { kind: 'pass' } },
+      cache: { mode: 'automatic' },
     },
-    extra: { example_flag: { kind: 'pass' } }, cache: { mode: 'automatic' },
-  } },
+  },
 }
 export const definitions: readonly ModelDefinition[] = [definition]
 const reminder = judgeMessage({
-  id: 'reminder-example', type: 'system_reminder', nature: 'event',
+  id: 'reminder-example',
+  type: 'system_reminder',
+  nature: 'event',
   source: { kind: 'extension', extension: 'example:reminder' },
   createdAt: '2026-09-27T00:00:00Z',
-  blocks: [{ id: 'text-example', kind: 'text', text: 'Continue the task.',
-    visibility: { toHuman: true, toModel: true } }],
+  blocks: [
+    {
+      id: 'text-example',
+      kind: 'text',
+      text: 'Continue the task.',
+      visibility: { toHuman: true, toModel: true },
+    },
+  ],
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
-  target: { kind: 'model_call', callId: unwrap(parseOpaqueIdentifier('call-example', 'ModelCallId')), dispatch: 1 },
-  routeName: definition.modelId, provider: 'example-provider', messages: [reminder.ok], tools: [],
+  target: {
+    kind: 'model_call',
+    callId: unwrap(parseOpaqueIdentifier('call-example', 'ModelCallId')),
+    dispatch: 1,
+  },
+  routeName: definition.modelId,
+  provider: 'example-provider',
+  messages: [reminder.ok],
+  tools: [],
   parameters: { maxOutputTokens: 64 },
   snapshot: {
     adaptation: {
@@ -72,18 +102,30 @@ export const request: PlanInput = {
       definition: { modelId: definition.modelId, revision: definition.revision },
       configuration: { revision: 'example-automatic-1', values: { cache: { mode: 'automatic' } } },
     },
-    providers: ['example-provider'], allowFallback: false,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 1024, maxOutputTokens: 128, updatedAt: '2026-09-27T00:00:00Z',
+    providers: ['example-provider'],
+    allowFallback: false,
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 1024,
+    maxOutputTokens: 128,
+    updatedAt: '2026-09-27T00:00:00Z',
   },
 }
 export const networkPolicy: TransportPolicy = {
-  maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
-  maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
+  maxConnections: 4,
+  idleConnectionTimeoutMs: 30000,
+  connectTimeoutMs: 10000,
+  maxErrorBodyBytes: 65536,
+  maxSseEventBytes: 8388608,
+  credentialFragmentMinLength: 8,
 }
 export const retirement: RetirementPolicy = {
-  waitMilliseconds: 1000, force: false,
-  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
+  waitMilliseconds: 1000,
+  force: false,
+  schedule: (ms, callback) => {
+    const timer = setTimeout(callback, ms)
+    return () => clearTimeout(timer)
+  },
 }
 ```
 
@@ -93,17 +135,27 @@ export const retirement: RetirementPolicy = {
 
 ```ts
 import {
-  readModelDefinition, configurationSchema, interpretConfiguration,
-  createOfficialProfileContent, planRequest,
+  readModelDefinition,
+  configurationSchema,
+  interpretConfiguration,
+  createOfficialProfileContent,
+  planRequest,
 } from '@omne-harness-lite/pi-ai-transport'
 import { definition, definitions, request } from './example-definition.js'
 
 const binding = request.snapshot.adaptation
-console.log(readModelDefinition(definitions, { implementation: binding.implementation, definition: binding.definition }))
+console.log(
+  readModelDefinition(definitions, {
+    implementation: binding.implementation,
+    definition: binding.definition,
+  }),
+)
 console.log(configurationSchema(definition, request.provider))
 console.log(interpretConfiguration(definition, binding.configuration.values, request.provider))
 const content = createOfficialProfileContent(definition, {
-  providers: request.snapshot.providers, allowFallback: false, configuration: binding.configuration,
+  providers: request.snapshot.providers,
+  allowFallback: false,
+  configuration: binding.configuration,
 })
 if ('rejected' in content) throw new Error(content.rejected)
 // This is a construction example only; it does not publish the synthetic content.
@@ -131,12 +183,16 @@ try {
   console.log(result.planned.parameters)
   // To send: supply a real complete definition, owned credential and AbortSignal,
   // then use send/read or invokeModel from the companion package.
-} finally { await transport.close() }
+} finally {
+  await transport.close()
+}
 ```
 
 definitions 必填，缺席、undefined、非数组或不完整定义在建立连接池前同步抛 TypeError；纯 planRequest 对应报 invalidInput。明确 definitions: [] 合法，静态合法请求规划均 unavailable；动态服务内部用它建立空网络 owner，不授予通用发送权。宿主签发的计划不能交另一个宿主，send 只消费固定字节，不读最新定义或重新解释配置。
 
 独立消费者显式给凭据/取消，持有资源到执行停止，并以原计划只读一次响应。没有环境凭据回退、隐藏重试、供应商回退或重定向。装配、首内容门与时限使用配套 invokeModel。测试可显式给 HTTPS baseUrl 与 CA，产品模型路由仍是 OpenRouter。
+
+成功的 `sendRequest` 返回冻结、无原型的不透明 `RawResponse` 句柄，公开成员仅有 `stop(): void` 和 `stopped: Promise<void>`。`stop()` 请求关闭网络，实际返回 `undefined`；请求关闭后 `stopped` 才结算。以原计划通过 `readStream(response, originalPlan, signal, deps)` 或所属传输的 `read` 仅读正文一次。原始 Node 流、状态、脱敏器和成功响应头均不能从句柄取得；这个中间修订尚不输出成功响应头。HTTP 状态失败仍有旧版 `failed.headers` 字段，完整响应头交接和凭据政策待后续实施，不能将本次句柄修改视为 RT5 S-20 或完整响应头支持。
 
 凭据脱敏覆盖解码后的错误键/值、首部键/值、实报模型/供应商/请求 ID 与结束原因。转义不能绕过；非 ASCII 替换不会重造合法 ASCII 凭据或保护片段；键碰撞保留普通成员与精确数字。直接 send/read 隔离抛错、拒绝或未决诊断，借用 sink 健康由调用者负责。factory 的 failed/pending/dropped 计数不改业务结果。
 
@@ -158,7 +214,9 @@ try {
   const result = lease.transport.plan(request)
   if ('rejected' in result) throw new Error(result.rejected)
   console.log(result.planned.parameters)
-} finally { lease.release() }
+} finally {
+  lease.release()
+}
 console.log(await service.retire(registered.registered, retirement))
 console.log(await service.close(retirement)) // no HTTP request
 ```

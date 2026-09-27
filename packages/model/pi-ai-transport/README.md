@@ -8,19 +8,19 @@ Every caller supplies complete model definitions explicitly. There are no defaul
 
 ## Public API
 
-| Export | Purpose |
-| --- | --- |
-| `ModelDefinition`, `ModelRoute`, `ParameterRule`, `ParameterRules` | Complete capabilities and explicit per-route reminder, eight parameter rules, recognized private keys and cache values |
-| `readModelDefinition(definitions, coordinates)` | Immutable exact-version observation; does not acquire usage rights |
-| `configurationSchema(definition, provider)` | Closed Draft 2020-12 Schema, generated from route data without defaults |
-| `interpretConfiguration(definition, values, provider)` | The same route's strict, lossless configuration interpretation |
-| `createOfficialProfileContent(definition, options)` | Construct and judge core content; no directory write, registration or timestamp |
-| `planRequest(input, definitions)` | Pure immutable wire plan, actual parameters, adjustments and dropped original keys |
-| `createPiAiTransport(options)` | Explicit definitions and owned pool with plan/send/read/close and diagnostic counters |
-| `sendRequest`, `readStream` | Independent functions borrowing explicit network resources |
-| `createModelTransportService`, `AdaptationLease`, `RetirementPolicy` | Process-local precise registration, fixed leases and explicit draining |
-| `parseSSE`, `canonicalInteger`, `generatedCallId` | Framing and exact deterministic identity helpers |
-| `officialModelIds`, `OPENROUTER_BASE_URL`, `PI_AI_CARRIABLE_MODALITIES` | Target IDs, product endpoint and currently carried text/image input |
+| Export                                                                  | Purpose                                                                                                                |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `ModelDefinition`, `ModelRoute`, `ParameterRule`, `ParameterRules`      | Complete capabilities and explicit per-route reminder, eight parameter rules, recognized private keys and cache values |
+| `readModelDefinition(definitions, coordinates)`                         | Immutable exact-version observation; does not acquire usage rights                                                     |
+| `configurationSchema(definition, provider)`                             | Closed Draft 2020-12 Schema, generated from route data without defaults                                                |
+| `interpretConfiguration(definition, values, provider)`                  | The same route's strict, lossless configuration interpretation                                                         |
+| `createOfficialProfileContent(definition, options)`                     | Construct and judge core content; no directory write, registration or timestamp                                        |
+| `planRequest(input, definitions)`                                       | Pure immutable wire plan, actual parameters, adjustments and dropped original keys                                     |
+| `createPiAiTransport(options)`                                          | Explicit definitions and owned pool with plan/send/read/close and diagnostic counters                                  |
+| `sendRequest`, `readStream`                                             | Independent functions borrowing explicit network resources                                                             |
+| `createModelTransportService`, `AdaptationLease`, `RetirementPolicy`    | Process-local precise registration, fixed leases and explicit draining                                                 |
+| `parseSSE`, `canonicalInteger`, `generatedCallId`                       | Framing and exact deterministic identity helpers                                                                       |
+| `officialModelIds`, `OPENROUTER_BASE_URL`, `PI_AI_CARRIABLE_MODALITIES` | Target IDs, product endpoint and currently carried text/image input                                                    |
 
 Pure reads return `{ ok }`, `invalidInput` or `unavailable`. The content builder preserves core representation rejection names such as `parameter_out_of_range` and `max_output_exceeds_profile`; definition/route/configuration consistency failures are provider `invalidInput`. Unknown exact versions/routes are unavailable; illegal declarations/configurations are invalid input. Errors contain finite rejection categories, not configuration contents. The root entry does not load Cordis. `./plugin` is the explicit Cordis 4.0.4 entry.
 
@@ -29,42 +29,72 @@ Pure reads return `{ ok }`, `invalidInput` or `unavailable`. The content builder
 Save this as `example-definition.ts`; the following examples import its values. These capability and parameter facts are synthetic, for local controlled tests only. They do not describe an official model and must not be published or sent to a live route. A production definition needs verified facts and an adopted configuration source.
 
 ```ts
-import type { ModelDefinition, RetirementPolicy, TransportPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type {
+  ModelDefinition,
+  RetirementPolicy,
+  TransportPolicy,
+} from '@omne-harness-lite/pi-ai-transport'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
 // Synthetic teaching data for controlled tests only. Never publish or call this as a live model.
 export const definition: ModelDefinition = {
-  modelId: 'example/controlled-text', revision: 'example-1',
+  modelId: 'example/controlled-text',
+  revision: 'example-1',
   implementation: { name: 'example:openrouter-text', revision: '7' },
   capabilities: {
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 1024, maxOutputTokens: 128, inputConstraints: {},
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 1024,
+    maxOutputTokens: 128,
+    inputConstraints: {},
   },
-  routes: { 'example-provider': {
-    reminderRole: 'developer',
-    parameters: {
-      reasoningEffort: { kind: 'pass' }, temperature: { kind: 'pass' },
-      topP: { kind: 'pass' }, seed: { kind: 'pass' }, maxOutputTokens: { kind: 'pass' },
-      stopSequences: { kind: 'pass' }, frequencyPenalty: { kind: 'pass' },
-      presencePenalty: { kind: 'pass' },
+  routes: {
+    'example-provider': {
+      reminderRole: 'developer',
+      parameters: {
+        reasoningEffort: { kind: 'pass' },
+        temperature: { kind: 'pass' },
+        topP: { kind: 'pass' },
+        seed: { kind: 'pass' },
+        maxOutputTokens: { kind: 'pass' },
+        stopSequences: { kind: 'pass' },
+        frequencyPenalty: { kind: 'pass' },
+        presencePenalty: { kind: 'pass' },
+      },
+      extra: { example_flag: { kind: 'pass' } },
+      cache: { mode: 'automatic' },
     },
-    extra: { example_flag: { kind: 'pass' } }, cache: { mode: 'automatic' },
-  } },
+  },
 }
 export const definitions: readonly ModelDefinition[] = [definition]
 const reminder = judgeMessage({
-  id: 'reminder-example', type: 'system_reminder', nature: 'event',
+  id: 'reminder-example',
+  type: 'system_reminder',
+  nature: 'event',
   source: { kind: 'extension', extension: 'example:reminder' },
   createdAt: '2026-09-27T00:00:00Z',
-  blocks: [{ id: 'text-example', kind: 'text', text: 'Continue the task.',
-    visibility: { toHuman: true, toModel: true } }],
+  blocks: [
+    {
+      id: 'text-example',
+      kind: 'text',
+      text: 'Continue the task.',
+      visibility: { toHuman: true, toModel: true },
+    },
+  ],
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
-  target: { kind: 'model_call', callId: unwrap(parseOpaqueIdentifier('call-example', 'ModelCallId')), dispatch: 1 },
-  routeName: definition.modelId, provider: 'example-provider', messages: [reminder.ok], tools: [],
+  target: {
+    kind: 'model_call',
+    callId: unwrap(parseOpaqueIdentifier('call-example', 'ModelCallId')),
+    dispatch: 1,
+  },
+  routeName: definition.modelId,
+  provider: 'example-provider',
+  messages: [reminder.ok],
+  tools: [],
   parameters: { maxOutputTokens: 64 },
   snapshot: {
     adaptation: {
@@ -72,18 +102,30 @@ export const request: PlanInput = {
       definition: { modelId: definition.modelId, revision: definition.revision },
       configuration: { revision: 'example-automatic-1', values: { cache: { mode: 'automatic' } } },
     },
-    providers: ['example-provider'], allowFallback: false,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 1024, maxOutputTokens: 128, updatedAt: '2026-09-27T00:00:00Z',
+    providers: ['example-provider'],
+    allowFallback: false,
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 1024,
+    maxOutputTokens: 128,
+    updatedAt: '2026-09-27T00:00:00Z',
   },
 }
 export const networkPolicy: TransportPolicy = {
-  maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
-  maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
+  maxConnections: 4,
+  idleConnectionTimeoutMs: 30000,
+  connectTimeoutMs: 10000,
+  maxErrorBodyBytes: 65536,
+  maxSseEventBytes: 8388608,
+  credentialFragmentMinLength: 8,
 }
 export const retirement: RetirementPolicy = {
-  waitMilliseconds: 1000, force: false,
-  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
+  waitMilliseconds: 1000,
+  force: false,
+  schedule: (ms, callback) => {
+    const timer = setTimeout(callback, ms)
+    return () => clearTimeout(timer)
+  },
 }
 ```
 
@@ -93,17 +135,27 @@ All four pure surfaces and planning work without a runtime, directory, tenant or
 
 ```ts
 import {
-  readModelDefinition, configurationSchema, interpretConfiguration,
-  createOfficialProfileContent, planRequest,
+  readModelDefinition,
+  configurationSchema,
+  interpretConfiguration,
+  createOfficialProfileContent,
+  planRequest,
 } from '@omne-harness-lite/pi-ai-transport'
 import { definition, definitions, request } from './example-definition.js'
 
 const binding = request.snapshot.adaptation
-console.log(readModelDefinition(definitions, { implementation: binding.implementation, definition: binding.definition }))
+console.log(
+  readModelDefinition(definitions, {
+    implementation: binding.implementation,
+    definition: binding.definition,
+  }),
+)
 console.log(configurationSchema(definition, request.provider))
 console.log(interpretConfiguration(definition, binding.configuration.values, request.provider))
 const content = createOfficialProfileContent(definition, {
-  providers: request.snapshot.providers, allowFallback: false, configuration: binding.configuration,
+  providers: request.snapshot.providers,
+  allowFallback: false,
+  configuration: binding.configuration,
 })
 if ('rejected' in content) throw new Error(content.rejected)
 // This is a construction example only; it does not publish the synthetic content.
@@ -131,12 +183,16 @@ try {
   console.log(result.planned.parameters)
   // To send: supply a real complete definition, owned credential and AbortSignal,
   // then use send/read or invokeModel from the companion package.
-} finally { await transport.close() }
+} finally {
+  await transport.close()
+}
 ```
 
 Definitions are required. Missing, undefined, non-array or incomplete definitions synchronously throw TypeError before pool construction. `planRequest` reports invalidInput for the same input errors. Explicit `definitions: []` is allowed and every valid static plan is unavailable; the dynamic service uses this empty network owner internally. It grants no general sending authority. A plan signed by one host is rejected by another; send consumes frozen bytes without reading latest definitions or reinterpreting configuration.
 
 Standalone consumers supply credentials and cancellation explicitly, hold resources until execution stops and read a response once with its original plan. There is no environment credential lookup, hidden retry, provider fallback or redirect. For assembly, gating and deadlines use the companion `invokeModel`. Test callers may supply an explicit HTTPS baseUrl and CA; the product route remains OpenRouter.
+
+A successful `sendRequest` returns an opaque, frozen, null-prototype `RawResponse` handle. Its only public members are `stop(): void` and `stopped: Promise<void>`; `stop()` requests network shutdown and actually returns `undefined`, while `stopped` settles after the request closes. Read the body once through `readStream(response, originalPlan, signal, deps)` or the owning transport's `read`. The raw Node stream, status, redactor and successful response headers are not accessible through the handle. Successful response headers are not emitted by this intermediate implementation. The existing `failed.headers` on an HTTP-status failure is a legacy field; the complete response-header handoff and credential policy remain pending. Do not treat this handle change as RT5 S-20 or full response-header support.
 
 Credential redaction covers decoded error strings/keys, header names/values, serving model/provider/request IDs and stop reasons. Escaping cannot bypass it; non-ASCII replacements cannot recreate accepted ASCII credentials or protected fragments. Collisions preserve ordinary members and exact numbers. Direct send/read isolates throwing, rejecting and pending diagnostic callbacks; callers own the borrowed sink's health. Factory diagnostics expose failed/pending/dropped counts without changing business outcomes.
 
@@ -158,7 +214,9 @@ try {
   const result = lease.transport.plan(request)
   if ('rejected' in result) throw new Error(result.rejected)
   console.log(result.planned.parameters)
-} finally { lease.release() }
+} finally {
+  lease.release()
+}
 console.log(await service.retire(registered.registered, retirement))
 console.log(await service.close(retirement)) // no HTTP request
 ```

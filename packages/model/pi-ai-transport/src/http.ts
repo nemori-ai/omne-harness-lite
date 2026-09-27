@@ -28,21 +28,26 @@ export interface NetworkResources {
   readonly acquireConnection: (signal: AbortSignal) => Promise<(() => void) | undefined>
 }
 export interface RawResponse {
-  readonly stream: IncomingMessage
-  readonly statusCode: number
-  readonly headers: Readonly<Record<string, string | readonly string[]>>
   readonly stopped: Promise<void>
   readonly stop: () => void
-  readonly redact: (text: string) => string
 }
-const responses = new WeakSet<RawResponse>()
-const consumed = new WeakSet<RawResponse>()
-const responsePlans = new WeakMap<RawResponse, PlannedRequest>()
-export function claimResponse(response: RawResponse, planned: PlannedRequest): boolean {
-  if (!responses.has(response) || consumed.has(response) || responsePlans.get(response) !== planned)
-    return false
-  consumed.add(response)
-  return true
+interface ResponseState {
+  readonly stream: IncomingMessage
+  readonly statusCode: number
+  readonly redact: (text: string) => string
+  readonly planned: PlannedRequest
+  claimed: boolean
+}
+const responses = new WeakMap<RawResponse, ResponseState>()
+/** Package-internal, single-reader claim; never exported from the public entry. */
+export function claimResponse(
+  response: RawResponse,
+  planned: PlannedRequest,
+): ResponseState | undefined {
+  const state = responses.get(response)
+  if (!state || state.claimed || state.planned !== planned) return undefined
+  state.claimed = true
+  return state
 }
 /** Deliberate substring removal; no hashing of credentials and no unbounded regex. */
 export function credentialRedactor(secret: string, minimum: number): (text: string) => string {
@@ -154,24 +159,25 @@ export async function sendRequest(
     })
     req.once('response', res => {
       disposeConnect()
+      const statusCode = res.statusCode ?? 0
+      if (statusCode >= 200 && statusCode < 300) {
+        const response: RawResponse = Object.freeze(
+          Object.assign(Object.create(null), {
+            stopped,
+            stop: () => {
+              req.destroy()
+            },
+          }),
+        )
+        responses.set(response, { stream: res, statusCode, redact, planned, claimed: false })
+        settle({ response })
+        return
+      }
       const headers: Record<string, string | readonly string[]> = {}
       for (const [key, value] of redactedEntries(Object.entries(res.headers), redact))
         if (value !== undefined)
           headers[key] = Array.isArray(value) ? Object.freeze(value.map(redact)) : redact(value)
-      const response: RawResponse = Object.freeze({
-        stream: res,
-        statusCode: res.statusCode ?? 0,
-        headers: Object.freeze(headers),
-        stopped,
-        stop: () => req.destroy(),
-        redact,
-      })
-      responses.add(response)
-      responsePlans.set(response, planned)
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        settle({ response })
-        return
-      }
+      Object.freeze(headers)
       const readError = async () => {
         const chunks: Buffer[] = []
         let bytes = 0,
@@ -203,8 +209,8 @@ export async function sendRequest(
         const raw = parsed ? redactObject(parsed, redact) : undefined
         const failed: TransportFailure = {
           source: 'http_status',
-          statusCode: response.statusCode,
-          headers: response.headers,
+          statusCode,
+          headers,
           ...(raw ? { upstreamError: { raw } } : { localError: 'upstream HTTP error' }),
         }
         settle({ failed })
