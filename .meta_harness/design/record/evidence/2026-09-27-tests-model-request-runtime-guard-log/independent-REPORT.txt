@@ -1,0 +1,35 @@
+# W15 independent result: Pass with issues
+
+受测产品 slice **Pass**；整体证据交付四态为 **Pass with issues**，原因是首次环境 setup 的 wrapper PID 和原 common-dir stream 只保留了实际 tool transcript 的文本副本，见 `setup-v1-transcript-provenance.json`。全部业务首次失败、fixture修订、测试原 stdout/stderr/result、argv/cwd/PID、actual wait/exit/耗时均保全。此结论不是 root 接受，也不签收完整 P2/RT4 服务。
+
+版本 `W15-d7c44a2-r1`。执行 spoke `/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-guard-log-verification`，branch `panqiwei/model-request-runtime-p2-guard-log-verification`，HEAD `d7c44a262654e1237b5134badf25ea10087467b6`；common-dir 为项目共享 `.git`，受测开始/结束 tracked clean。548 维护输入 + 656 dist 共 1204 SHA 前后零漂移。只写本 spoke 授权 tmp 与自有 OS 制品。HUB 和原 804 报告只读，无 HUB freeze。
+
+## 判据与来源
+
+日志：D083 SL3 `contract.md` SHA f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26；D084 rev2 v3-design SHA f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351；D085 recovery rev2 SHA ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae；SYS-OBSERVABILITY C5 的 sink 健康责任仍归宿主。guard：D086 RT4 S5/S6/S14/S22/S30/S50/S60/S72（contract SHA 4a31cb8bc98ae5bbb55a28c671ff84a8f86520747de7dd07c180787183651689），D076 v3 R3-P7，D087 v4 projection SHA 95a0115e89404d147ef547655e06e3c8bca86a79c16b9a9fa8b13dc56518f212。LC4/MP3/IV1/CB3/TD3 从 freeze 的已采用正文/Schema 消费。guard 基础快照取 MP3 第一规范正例，按 S27 仅删除四个非 snapshot 成员；`fixture-source.json` 记录原块 SHA，不从施工测试取 oracle。
+
+## 逐项覆盖
+
+| brief 项 | 四态 | 独立 evidence 与限界 |
+|---|---|---|
+| 1 fresh pack/deploy/双目录/strict | Pass | 本 spoke Node24.18.0/pnpm10.28.1 offline frozen install、依赖构建全部完成后实际 pack 16 包并 public offline deploy。两个包及真实 runtime README companion pi-ai closure，全部 723 pack members 各目录逐字比对。B/C 每个 132 symlink 内闭合、0坏链/0仓库回链。TS6.0.3 strict NodeNext，skipLibCheck=false。仅 legacy deploy 原根 self-link 在运行前改成制品内部指针，记录原路径。 |
+| 2 原最小 oracle/原值/交接 | Pass | 原脚本 SHA 15ef9b109515992f127c628367d58768547cf01937c86768209fe7a497f1dde9 一字未改。两目录正常 append/close→坏 sink reopen/full read 均 exit0；额外独立 exact payload/tail/dedupe/竞争锁/owner handoff 断言全部通过。 |
+| 3 throwing sink 与真实资源 | Pass | 首次 index warning 后 append 已确认保持；健康 read/recovery 不受同步 sink 异常覆盖；真实 read/write EIO 保留 unavailable；内部 Error 保持同一原 exception；clean/close 坏 sink 后实际 handles/DB 0、锁交接。真实 close EIO 返回 `session log IO failed at close`/stage close，坏 sink 未替换错误；活子进程实际有未关 FileHandle/DB 且竞争锁拒绝，父进程随后观察实际 exit + close event/wait（code0）才新 owner 字节零扫描认回原批。无可选 Cordis/kernel 实际移除副本 open/read/close；真 Cordis4.0.4 plugin FAILED config无资源、blocked write/dispose 保持 pending/锁占有，释放 barrier 后实际全清理。 |
+| 4 编译日志负控/真错误 | Pass | 仅取消新编译 policy 的 diagnostic isolation，原不变最小 oracle 指定 AssertionError exit1（syntax0）；真实 read EIO 伪成功 mutation 由具名 oracle AssertionError检出。正常真实 close IO/内部异常未被 catch 吞掉。同步端口不 await/后台重试 sink；不声明 async sink completion。 |
+| 5 guard 同一优先级表 | Pass | 每目录85个具名 oracle：call unknown/absence/错会话、phase unknown、含 reply_pending 的4终结态先于 opened unknown/true；跨 attempt any true 优先于 unknown/wrongPhase；无 true 任一 unknown unavailable；已知 wrongPhase 先于 failure/provider；仅两 fact_class、snapshot unknown、原有序列表/fallback。全部只给 pure facts，不构造完整当前性/权限权威。 |
+| 6 完整输入与纯边界 | Pass | MP3 complete adaptation/values、LC4 plan/failure、TD3超大 H/M/S及长小数保持字符串；exact JsonNumber 原值，opaque非UUID内空白/Unicode身份、ProviderName边空白精确比较。IV1自己规定禁止身份边空白，拒绝而不trim。getter不调用、extra/missing/非法 JSON/fake number品牌拒绝；入参未改/返回冻结/不留跨调用状态。真实 public root 禁 optional/IO module resolution，调用期间 env/Date/hrtime/random/timer 被禁止且未访问。 |
+| 7 guard compiled controls | Pass | unknown-as-false、terminal-after-opened 两 closed 编译副本均 syntax0，同一正常85case oracle 在指定条目 AssertionError1。其它产品 bytes 无漂移；正常源/dist/pack保留。 |
+| 8 双语12literal块 | Pass | 8log+4runtime块从维护README与pack逐字取出，各目录严格编译并实际模块执行，共24次0。4个 invokeOnce 实际请求本地 HTTPS/SSE fixture且 complete；真实 transport Agent.destroyed、server stopped、socket0。未调用付费/公网模型；transport教学定义块作为独立支持fixture另记SHA，不计作12块。 |
+| 9 证据/终态/封存 | Pass with issues | 41 最终选定正向命令均实际 wait/exit0，215 成功具名 oracle执行；4/4真正行为负控，初次 loader/fixture失败不计负控。所有业务原件保留。初次环境 wrapper capture 限制如首段；闭合 archive/manifest/hash 见 `archive.json`。 |
+
+## 运行与资源
+
+公开消费目录 `/tmp/omne-guard-log-independent-136lc8_y/B` 与 `/tmp/omne-guard-log-independent-136lc8_y/relocated/C`。统一控运行 `/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-guard-log-verification/tmp/model-request-runtime/p2-guard-log-independent/controls-1790535959799101389`，共4个 control，不能把早期 loader 非零或 fixture TypeError 算控制。正向选定命令、PID/wait/result路径都在 `summary.json`；原 CLI 命令与环境 stdout 在 setup/environment 各 raw 文件。
+
+最终 root 资源审计 `24` 个真实 `.owner-lock` 目录全部重新 acquire/close，tracked owned FileHandle/SQLite 均0；标准宿主 FD仍存在，未声称整个进程FD为0。真 close故障孩子的**失败时快照刻意非零**，其 actual exit/close wait 后，父 owner实际重新取锁/读回/close 为0。负控 AssertionError 可能在正常 cleanup 前终止，记录实际 subprocess wait后再全 root取锁；不伪造其退出前零资源快照。4个TLS服务均 stopped，socket0，真实Agent destroyed。
+
+## 前代引用及不覆盖
+
+原804独立 `Fail`、r2归档 SHA 84db13471d3f9818b6e3f5a6625b232fec25cf6d109810fc4c011e7824b4520e 保持原字节只读。本轮与旧 frozen map 比较889路径，881同字节，8变化；日志production源码只有 policy.ts不同，protected runtime invoke/input/types与804逐字相同。`baseline804-byte-inheritance.json` 列明每项/变化。旧 IO/concurrency/index/realSIGKILL/GC义务只在同字节实现/同spec/同前提范围沿用其已封存实测证据；此轮重新验证改动的 sink 边界。未把旧 RT3 证据升级为 RT4服务，也不合并改写原Fail。
+
+production RG-G1、PID reuse/supervisor restart历史、宿主C5及async sink健康、旧SL2全部writer迁移、D088/G29全codec C-V、G28～31闭合、13service操作、P3～P6/完整P2/37认证为 **Unable to verify／本包不覆盖**。Linux本地FS/同步与锁前提仍限定实测范围，进程故障试验不能证明机器掉电持久性。没有数学/形式无条件证明或技术接受声明。

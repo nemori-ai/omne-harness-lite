@@ -1,5 +1,7 @@
 # session-log-jsonl
 
+**2026-09-27 源码与诊断隔离实际增量**：SL3提供者源码已合入HUB，公开闭包／薄插件及四参数条件append已存在；修复后HUB本包178项通过。[W15独立制品及主线核对](../../../../record/evidence/2026-09-27-tests-model-request-runtime-guard-log/README.md)有限签收借用同步diagnostic sink的异常隔离，真实IO／内部异常不被吞、close失败仍保留锁直至实际退出；原804 Fail保留。该签收不是完整提供者验收，生产processOwnership观察、旧写方迁移及runtime组合仍待；当前新增bindings0。下方未建包／未验陈述保留各旧checkpoint范围。
+
 **2026-09-27 恢复识别增补**：[D-085](../../../../record/decisions/session-log-recovery-projection-adoption/decision.md) 已技术采用 [v3-recovery-design](v3-recovery-design.md) rev2（SHA256 `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`）。沿D084补每日志预写active／健康clean和必填processOwnership，标记及锁不代证旧物理进程退出，三操作业务面不变。当前仅采用设计；真实宿主观察、10项恢复oracle及所有调用者／双语README迁移仍待，新增bindings0。施工spoke部分源码检查不构成本节点最终验收，下方较早“尚未建包”等按其日期读取。
 
 **2026-09-27 当前增量**：[D-084](../../../../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md) 已技术采用 [SL3 提供者投影](v3-design.md) rev 2（SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`），消费 D-083 已接受的 session-log/v3。当前实施面为必填 condition 的四参数 append、两读面及独立闭包／薄插件；不可信态三操作 unavailable，旧 V-5 的读旧尾预期由 SLJ3-V8 替代，其余 IO 义务保留。旧三参数不兼容；RT3 等实际消费者须显式采用新版本和停旧写方后接入。当前尚未建包、绑定0、真实验证未完成。下方首稿状态按其 SL2／2026-09-25 范围读取，不以历史设计状态代新版实现证据。

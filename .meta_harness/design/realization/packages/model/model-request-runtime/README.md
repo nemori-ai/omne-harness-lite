@@ -1,5 +1,7 @@
 # model-request-runtime
 
+**2026-09-27 W15纯守卫技术签收**：公开 `dispatchGuard` 已实际合入，经[独立双制品及主线核对](../../../../record/evidence/2026-09-27-tests-model-request-runtime-guard-log/README.md)有限签收；两目录各85oracle、unknown／终态顺序compiled负控、严格输入与pure根通过，新增一条只覆盖S-60中守卫成员的有限绑定。当前HUB另合入 `retryDelay`，组合120项及6个双语TS块通过，尚待自身独立验收。下方旧checkpoint保留原范围；五共同结算构件、完整十三操作及37认证仍未交付。
+
 **2026-09-27 共同业务编码技术采用**：[D088](../../../../record/decisions/model-runtime-log-codec-adoption/decision.md)采用[增补rev2](v4-log-codec-design.md)的精确字节，原candidate正文作为冻结修订保留。语义仍为D086／D087，纯共同键／载荷／成员检查可实施；本增补源码及C-V1～10未交付，新增bindings0。G29-P实际全写方与物理来源、G29-H历史与停止、G28／G30／G31及十三操作和37认证继续受阻；评审与采用不提升实际验证层。
 
 **2026-09-27 RT4语义与投影接受**：[D086](../../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md)接受新版73条及SL3精确消费；[D087](../../../../record/decisions/model-runtime-v4-projection-adoption/decision.md)采用[v4增补rev2](v4-design.md)。可实施构件和受阻生产接线分别沿R4-G1～G7；原v3投影／绑定不改。公共invokeModel／r7有限消费者证据保持原RT3范围；v4源码、13项新oracle、完整十三操作与恢复未验，新增bindings0。共同codec／真实Run／合法读权／多值headers／具体调度／实际宿主交接仍待，不据采用或有限形式Pass升级实现层。

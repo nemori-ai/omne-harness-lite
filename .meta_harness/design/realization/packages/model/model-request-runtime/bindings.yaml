@@ -26,6 +26,12 @@ node: "model-request-runtime"
 kind: "provider"
 
 bindings:
+  - clause: "capability.model-request-runtime/v4#S-60"
+    evidence: "test:packages/model/model-request-runtime/tests/dispatch-guard.spec.ts#does not answer wrongPhase or allowed by skipping unknown call, phase or opening facts"
+    assumptions:
+      - "W15-d7独立run仅dispatchGuard成员；双制品各85具名oracle及unknown-as-false、terminal-after-opened两个compiled副本在同一oracle指定AssertionError，完整事实纯输入/TD3/原snapshot/顺序通过；不证S-60其他构件或十三操作当前事实/权限接线。完整源与负控在record/evidence/2026-09-27-tests-model-request-runtime-guard-log。"
+    alignment_checked: 2026-09-27
+
   - clause: "capability.model-request-runtime/v3#S-54"
     evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#isolates %s sink through direct functions and invokeModel with actual resources"
     assumptions:
