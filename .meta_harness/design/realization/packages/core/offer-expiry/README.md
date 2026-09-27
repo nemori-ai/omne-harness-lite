@@ -8,6 +8,8 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 # offer-expiry
 
+**2026-09-27 模型时间精确比较增补**：[D089](../../../../record/decisions/model-time-order-projection-adoption/decision.md)技术采用[原串排序rev1](rfc3339-order-design.md) SHA256 `249c68ea3239977131cc44be3d75dbd31474e0659355258c2606833eb2bfaab2`。B／R1新增纯公开比较入口，在合法RFC3339时点前提下精确排序，不改变旧毫秒Instant／Clock；`ok`不认证闰秒事实。当前仅采用，源码及TO-V1～9未验，新增bindings0；TL-G1真实时间生产者／宿主／合法历史证据及runtime完整关联仍待。下方旧接口实测保持原范围。
+
 ## 当前 core 交付与技术接受（2026-09-26）
 
 - 语义采用：`data.offer-expiry/v2`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。

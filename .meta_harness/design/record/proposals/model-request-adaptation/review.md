@@ -156,3 +156,11 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 表达初审发现G29-ER1原批身份与败方候选身份适用域冲突、G29-ER2写前候选被要求具有读后耐久位置两项阻断，以及G29-ER3字段路径错误。作者rev2仅消歧相应谓词、结果表／C-V6并修正`R.timing.firstTokenAt`，K1／P1／G29-P字节不变。定向只读复审确认三项全部闭合，50行差分与实际一致，邻域无新问题。最终精确SHA256 `f537277f2610b2d98169c69d5c71fcbb3e62fd65de3364ae0ff5148603e92c27`。
 
 [273成员归档](reviews/model-runtime-log-codec-2026-09-27.tar.gz)SHA256 `e4df3c0e9e67ab5a186d3c98899b99a39534a161e56d74efa4eb2789bdbc0bf9` 已逐字读回，[索引](reviews/model-runtime-log-codec-2026-09-27.json)列原输入、两个修订、作者检查和主线明确归因摘要。评审文本是主线据真实消息保存的摘要，不是reviewer逐字报告、测试或采用。作者结构检查formal=skip；C-V1～10、实际竞争／旧写方停止／历史来源、G28／G30／G31、十三操作及37认证均未验证。精确技术采用另见[D088](../../decisions/model-runtime-log-codec-adoption/decision.md)，只关闭采用步骤，不据相邻成员认定物理同批。
+
+## 2026-09-27 原core精确RFC3339比较窄投影评审
+
+独立architecture-reviewer与spec-reviewer只读核对[offer-expiry增补rev1](../../../realization/packages/core/offer-expiry/rfc3339-order-design.md)，候选SHA256 `249c68ea3239977131cc44be3d75dbd31474e0659355258c2606833eb2bfaab2`、77输入manifest SHA256 `a501cf6acf822f9c71adff43b55ed27d9faf76ec115d6e33ad9c8ea112f27a8d`。两份本次评审均无阻断；架构结论仅适用于B／R1合法时点前提下的条件排序，表达结论不证明算法。
+
+原owner承接任意小数／合法偏移／闰秒顺序无需全局Clock改表示；R1的ok不能证明实际闰秒合法性，G29-P物理来源本身也不能代证具名时间生产链。TL-G1缺前提的完整批仍不可确认。双入口误用、线性成本、A的隔离半径／C的统一表示／R2适应混杂来源的优势与改票条件保留。两评审未执行tests／IO／TLC、未写文件或接受。
+
+[107成员归档](reviews/model-runtime-rfc3339-order-2026-09-27.tar.gz)SHA256 `8329a9c9b79549904c730cfe3df702dade98dff10c4ec8cfad60be950fb53807`包含77原输入、候选、作者检查及主线明确归因摘要，全部逐字读回；[索引](reviews/model-runtime-rfc3339-order-2026-09-27.json)钉逐文件hash。主线摘要不冒充逐字reviewer原件；源码／TO-V1～9／双语制品／TL-G1与完整runtime门均未验。技术采用另见[D089](../../decisions/model-time-order-projection-adoption/decision.md)，未改冻结OE1／OE2或MR4时间域，新增bindings0。
