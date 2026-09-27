@@ -148,3 +148,88 @@ pnpm --filter @omne-harness-lite/model-request-runtime run test
 ```
 
 配套传输测试用真实本地 HTTPS 和公开 core 装配器验证本函数。完整服务/耐久保证及真实模型认证仍需后续阶段验收。
+## 日志值的捕获、构造与认回
+
+成员检查消费 [D089 已采用](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) 的 offer-expiry 公共根比较器，在捕获的原 timing 字符串上核 `sentAt <= firstTokenAt <= endedAt`；首 token 缺席时核 `sentAt <= endedAt`。静态非法日期和逆序不能返回成员完整。任意小数与时区同点保留精度，opened 的原字符串仍须精确相同。
+
+本包根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 [D088 的精确采用](../../../.meta_harness/design/record/decisions/model-runtime-log-codec-adoption/decision.md)。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log-jsonl 根入口借用。
+
+文本与值接收是两个显式模式。任意层重复成员、getter、`toJSON`、非 JSON 对象及伪数字品牌均拒绝。捕获返回自有不可变原 JSON，保留数字词法；响应 judge 的 `{ ok: true }` 不会替调用方制造 owned ModelResponse。
+
+```ts
+import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+
+const captured = captureModelLogValue({
+  category: 'record',
+  input: { kind: 'text', text: '{"kind":"model_call_opened","call":"example-call","dispatch":1.0,"firstTokenAt":"2026-09-27T00:00:01Z"}' },
+})
+if (!('ok' in captured)) throw new Error(captured.reason)
+if (!writeJsonLossless(captured.ok.value).includes('"dispatch":1.0'))
+  throw new Error('Original numeric spelling must survive capture')
+```
+
+构造条目时显式交会话、租户、成对 run/attempt、用途及这条消息之前的完整合法消息前缀。`messagePrefix: null` 表示前缀不可得，日志消息会拒绝，不能偷偷代传空数组。写前 OwnedLogEntry 没有耐久 position。实际写方负责权限、栅栏、condition、追加和清理；selection 恒无判重键，其余 D 必须显式出现在 R 中。persisted AssistantMessage 使用 `{ kind: 'persistedMessage', response: capturedResponse }`，与响应的完整 reply 一致；普通 assistant 和 SystemMessage 不得独立写入。
+
+```ts
+import { captureModelLogValue, prepareModelLogEntry, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { parseTenantId } from '@omne-harness-lite/identity-values'
+
+const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
+const message = captureModelLogValue({ category: 'message', input: { kind: 'value', value: {
+  id: 'example-message', type: 'user', createdAt: '2026-09-27T00:00:00Z', blocks: [],
+} } })
+if (!('ok' in tenant) || !('ok' in message)) throw new Error('Invalid example value')
+const prepared = prepareModelLogEntry({
+  session: 'example-session', shell: { tenant: tenant.ok }, captured: message.ok,
+  purpose: { kind: 'message' }, messagePrefix: [],
+})
+if (!('ok' in prepared)) throw new Error(prepared.reason)
+const key = encodeModelLogKey({ kind: 'message', message: 'example-message' })
+if (!('ok' in key) || prepared.ok.dedupeKey !== key.ok || !prepared.ok.readKeys.includes(key.ok))
+  throw new Error('D and R must explicitly share the MessageId key')
+if ('position' in prepared.ok) throw new Error('A candidate has no durable position')
+```
+
+全值相等按精确数学数字、对象成员无序、数组有序和原字符串判断；缺席不等于 null。消息认回保留原捕获值，不用本次候选覆盖原值；仅比 id、正文或 source 不够。
+
+```ts
+import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+
+const original = '{"id":"example-reminder","type":"system_reminder","nature":"event","source":{"kind":"extension","extension":"teaching","payload":{"amount":1.00}},"blocks":[],"createdAt":"2026-09-27T00:00:00Z"}'
+const candidate = original.replace('1.00', '1e0')
+const recognized = recognizeMessageValue({
+  candidate: { kind: 'text', text: candidate }, original: { kind: 'text', text: original },
+})
+if (!('same' in recognized)) throw new Error('Expected the same mathematical JSON value')
+if (!writeJsonLossless(recognized.original.value).includes('1.00'))
+  throw new Error('Recognition must retain the original value')
+```
+
+`inspectModelLogEntry` 接收实际 LogEntry、预期 session/tenant、明确用途及该位置之前的消息前缀，反核闭合 `{ format, category, value }` wrapper、壳、position 和全部 D/R；R 读取时按集合核对，不把排列次序当业务值。`inspectSettlementMembers` 接收 `{ mode: 'read', session, tenant, prefix: { entries, tail }, target: { call, dispatch, response }, anchors: { dispatched, opened, intent }, current }`；`current` 为 null，或已指定 `{ messageId, disposition }`（缺席成员用 null）。write 模式还交完整 position-free `candidates` 数组，不要求新 R 已在前缀中。
+
+认回先看原批自己的身份、绑定、参数、原金额和完整回复；败方未提交 MessageId 不同或被另批占用，不单独否定合法原批。原批不存在时，当前候选 MessageId 占用才阻止 absent。`completeMembers` 附原捕获值和条目，以及 `disposition: 'same' | 'firstWinner' | 'unrequested'`；不同合法处置保留先到原批，具体服务的成功/alreadyEnded 映射仍归原操作。
+
+成员检查不证明一次物理 append、合法历史、读权限、Run 生命周期或旧任务实际停止。H1 一次 `[M,R]` 与 H2 分次 `[M]`/`[R]` 可有相同 SL3 读面；G29-P/H 仍由宿主和全部写方关闭。withRun late 认回在 G28 原生产解释器未交付时返回 `undetermined: true, reason: 'run_history_unavailable'`，不能把未知历史当 false，也不能用归账 attempt 代原发出 attempt。十三操作服务、真实 runner/app 采用、G30/G31 和生产模型认证仍待交付。
+
+```ts
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
+
+const sent = '2026-09-27T00:00:00.0004Z'
+const first = '2026-09-27T00:00:00.0003Z'
+const order = compareRfc3339Instants(sent, first)
+if (!('ok' in order) || order.ok !== 1) throw new Error('Sub-millisecond reverse order must remain visible')
+const alias = '2026-09-27T01:00:00.0003+01:00'
+const sameInstant = compareRfc3339Instants(first, alias)
+if (!('ok' in sameInstant) || sameInstant.ok !== 0) throw new Error('Expected offset-equivalent instants')
+if (modelLogJsonEqual(first, alias)) throw new Error('Original strings remain different')
+const opened = captureModelLogValue({ category: 'record', input: { kind: 'value', value: {
+  kind: 'model_call_opened', call: 'example-call', dispatch: 1, firstTokenAt: first,
+} } })
+if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opened.ok.record.firstTokenAt !== first)
+  throw new Error('Capture must retain the original opened string')
+```
+
+比较器与 completeMembers 在声明的合法 RFC3339 输入域内给条件性结果，不认证实际时间来源、闰秒公告、合法历史或物理提交。真正生产边界的生产者／宿主／历史 owner 仍须兑现 TL-G1；未核外部值或历史在该边界保持 unavailable。旧毫秒 Instant／Clock 行为保持原状。
