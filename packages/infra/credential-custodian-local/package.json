@@ -4,13 +4,28 @@
   "private": true,
   "type": "module",
   "description": "Local model replica component and shared AES-GCM sealing primitives",
-  "engines": { "node": ">=24 <25" },
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-    "./model-replica": { "types": "./dist/model-replica.d.ts", "import": "./dist/model-replica.js" },
-    "./migrations": { "types": "./dist/migrations.d.ts", "import": "./dist/migrations.js" }
+  "engines": {
+    "node": ">=24 <25"
   },
-  "files": ["dist", "README.md", "README_ZH.md"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./model-replica": {
+      "types": "./dist/model-replica.d.ts",
+      "import": "./dist/model-replica.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations.d.ts",
+      "import": "./dist/migrations.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",

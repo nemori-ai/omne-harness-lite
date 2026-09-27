@@ -1,5 +1,11 @@
 {
   "extends": "../../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "declaration": false, "declarationMap": false, "sourceMap": false, "rewriteRelativeImportExtensions": true },
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rewriteRelativeImportExtensions": true
+  },
   "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
 }
