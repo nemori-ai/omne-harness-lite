@@ -1056,6 +1056,78 @@
         "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
       ],
       "timeout_seconds": 240
+    },
+    {
+      "id": "session-log-v3-appends",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-appends",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "session-log-v3-tail-attempt",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-tail-attempt",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "session-log-v3-tail-run-end",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-tail-run-end",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "timeout_seconds": 300
     }
   ]
 }

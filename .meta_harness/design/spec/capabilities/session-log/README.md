@@ -1,5 +1,11 @@
 # 会话日志（窄口）
 
+## v3 精确采用（2026-09-27）
+
+[D083](../../../record/decisions/session-log-tail-condition-adoption/decision.md)技术接受[v3完整包](v3/contract.md)，24资源已按接受清单冻结；append条件必填、尾判定与整批共同提交、未知恢复和完整前缀责任明确。三形式任务已登记，有限run1沿未变模型和原输入范围读取；没有provider绑定或真实IO验收。当前RT3等六条规范消费者仍精确SL2，新版不自动升级它们。[消费者传播](v3/consumer-impact.md)及[验证入口](verification.md)指向尚未完成项。
+
+## v2 历史入口
+
 **一个会话的[会话日志](../../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log)里，追加一批条目、按键读、从某个位置往后读；追加时判重、判尝试栅栏。**
 这是按三个运行时消费者（工具执行运行时、模型请求运行时、拓展点派发）已列出的要求定的**窄口接口**，不是整本会话日志的契约——那一份归 loop 与会话那一程。
 

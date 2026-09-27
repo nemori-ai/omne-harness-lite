@@ -8825,6 +8825,111 @@
           "rebase_relation": null
         }
       ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.session-log",
+        "version": 3
+      },
+      "family": "capabilities",
+      "topic": "session-log",
+      "status": "accepted",
+      "contract_path": "spec/capabilities/session-log/v3/contract.md",
+      "resources": [
+        "spec/capabilities/session-log/v3/consumer-impact.md",
+        "spec/capabilities/session-log/v3/contract.md",
+        "spec/capabilities/session-log/v3/examples.md",
+        "spec/capabilities/session-log/v3/formal/README.md",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_NoSerialization_Fence.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_NoSerialization_Key.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_Reach_DuplicateRejected.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_Reach_StaleRejected.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_VolatileDedupe.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_NoTail_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_NoTail_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_PartialRead_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_PartialRead_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_Duplicate.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_Late.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_TailChanged.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_SplitTail_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_SplitTail_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_UnknownAsNoWrite.cfg"
+      ],
+      "acceptance": "record/decisions/session-log-tail-condition-adoption/acceptance.json",
+      "dependencies": [
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.identity-values",
+            "version": 1
+          },
+          "clauses": [
+            "S-5",
+            "S-17",
+            "S-18",
+            "S-19",
+            "S-30",
+            "S-31",
+            "S-33"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.messages",
+            "version": 2
+          },
+          "clauses": [
+            "S-20",
+            "S-24",
+            "S-33",
+            "S-37"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.call-accounts",
+            "version": 2
+          },
+          "clauses": [
+            "S-37"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "data.content-blocks",
+            "version": 2
+          },
+          "clauses": [
+            "S-24"
+          ],
+          "rebase_relation": null
+        },
+        {
+          "coordinate": {
+            "baseline_id": "omne-harness-lite-design-2026-09-15",
+            "contract_id": "capability.session-tenancy",
+            "version": 2
+          },
+          "clauses": [
+            "S-5",
+            "S-8"
+          ],
+          "rebase_relation": null
+        }
+      ]
     }
   ]
 }

@@ -119,3 +119,12 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 独立 spec-reviewer 核对完整定义→content→目录独立采用→acquire 路由联集→plan 本次路由的消费者路径，无表达阻断。唯一非阻断 ND-ER1 是 ND-V2 概括会把当前 maxOutputTokens only-pass 误当 drop/select 正向场景。作者仅改这一行：八项原值／缺席正向，其余允许规则项测 drop/select/adjust，maxOutputTokens drop/select 为非法定义负控，G-22/S-18 保留。reviewer 在内存还原这一行得到原精确哈希，定向确认闭合；最终 SHA256 `13f0bdfe97c885fd521da924b6c1d432577d1f669c22081ea5eafd147f61ceda`。
 
 两个 reviewer 均只读、未运行测试／形式工具、未接受。当前共用实现 revision6 修复不在该表达评审范围；ND-V1～9、37模型完整能力／参数／TTL与布局、跨宿主实际资源及消费者迁移均未验收。[输入、三个修订、结构检查与主线汇总归档](reviews/definition-projection-2026-09-27.tar.gz) SHA256 `1784c3140d8a6172c85ea863f1c5f3fb6a4c684c7d1368138376a0b63e840368` 已读回校验，[索引](reviews/definition-projection-2026-09-27.json) 逐文件登记。汇总不是 reviewer 原始全文；设计合入 HUB 后 internal 检查通过、formal 明确 skip。主线精确技术采用见 [D-082](../../decisions/model-definition-projection-adoption/decision.md)，旧 v3 字节不变。
+## 2026-09-27 session-log v3 规格整包独立评审
+
+依据已采用D081方向，独立architecture-reviewer和spec-reviewer分别核SL3契约／消费者传播／形式工件。初稿contract `f7086724e58e736dc5dccc92dcd936eabda82c1cae5c0fbf523c966ed51e1fa8` 的架构评审无本包阻断；表达发现SL3-ER1：S35把稳定业务批认回义务无条件施加给合法keyless条件调用者，另ER2重交缺前置条件、ER3入口精确依赖写错。
+
+作者修订S22/S35通用THISbatch零写与适用业务唯一性协议，保留keyless未知非幂等；S17重交按既定输入／租户／栅栏／判重／尾顺序，examples增三支，README依赖1/2/2/2/2。第二轮两reviewer均无本次阻断／新非阻断，ER1/2/3闭合。最终contract `f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26`；26文件manifest `54575a682046204ead63792a977e61f2b08f29fb028c89d8206920944ad0e5d2`，整包排序摘要 `0a4f67e20b8d4717476c9c1445b949c3e6b45deafc985c800bda95004c9449a2`。consumer-impact、2TLA、18cfg与formalREADME原字节不变，旧SL2十资源未变。
+
+[精确两轮输入、差异、结构检查和主线汇总归档](reviews/session-log-v3-2026-09-27.tar.gz)，SHA256 `28c424b0be9efb9869d23930ec83f2df357e21bf5b6059c97c899ed97725f5ee`；[索引](reviews/session-log-v3-2026-09-27.json)登记409文件，全部读回。primary-summary.json是主线据独立消息写的摘要，不是reviewer逐字全文。53项作者观察输入按精确hash保全：其中旧候选verification从已封存revision1取字节，brief为明确task虚拟路径；前两次归档来源解析失败保留，不冒称全部来自当前HUB。
+
+独立形式执行 [run1](../../evidence/2026-09-27-formal-session-log-v3/README.md)只绑定旧正文及有限前提；未变模型继续适用，不重标成新正文已跑。两个reviewer未执行模型／产品工具或接受。本次最终技术接受见[D083](../../decisions/session-log-tail-condition-adoption/decision.md)；生产Run认法、完整批／共同键、真实IO与旧writer停止及RT3→新消费传播仍须原owner闭合，withRun尚未放行。

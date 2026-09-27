@@ -123,3 +123,8 @@
 - 修订前 26 项候选输入与 manifest／registry 候选／检查输出均保全，逐 hash 与独立形式 run-1 的输入一致。独立执行者已确认旧输入执行结束，才开始修订。两份 TLA+ 与十八份配置保持原字节；本轮不运行或改记形式任务，旧形式结果仍只绑定旧正文与原输入，不能替换成新正文哈希。
 
 这次仅修正文适用范围和导航；没有更改产品政策、旧 SL2、RT3、provider、正式 registry 或接受状态。实际结构检查随修订交接；独立复审与结果登记由主线处理。
+## 2026-09-27 v3 有限形式执行与精确接受
+
+[真实run1](../../../record/evidence/2026-09-27-formal-session-log-v3/README.md)保全2SANY/3正/15负，正distinct2784／17539／17539；全部指定oracle匹配，无工具/语法错误代替负控。输入为初稿f708，最终f327修文的两TLA/十八cfg/formalREADME字节未变，独立复评确认限定性质投影继续适用；不是最终正文重跑，无键普通条件实例和真实IO仍需另外验收。全尾争用未声明liveness/fairness，批原子/身份/StopOld由模型抽象吸收。
+
+[D083](../../../record/decisions/session-log-tail-condition-adoption/decision.md)正式技术接受v3并冻结24资源，5精确依赖、11项覆盖仍reviewed:false、3正任务登记；登记不扩大执行结果。旧SL2和六个消费者精确关系保持；实际provider新增绑定0，真实持久/跨进程/旧writer停止/Run认法/全部响应写方版本传播未完成，withRun未放行。
