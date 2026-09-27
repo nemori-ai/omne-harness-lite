@@ -6,6 +6,74 @@ Represent the record of one model dispatch: its route snapshot, actual parameter
 
 This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
 
+The package root and `./schema` use **MR4**. Import `./v5` and `./schema/v5` explicitly for ordered string-array response headers. The retained `./v3`, `./schema/v3`, and `./schema/v2` entries keep their original versions. Judging is synchronous and does not capture ownership of the caller's input or establish where headers came from.
+
+## Explicit MR5 complete response and raw headers
+
+This example exercises the public v5 judge and the `RawHeaders` definition. Empty arrays and strings remain distinct from absent keys; MR4 still rejects the mixed array value.
+
+```ts
+import assert from 'node:assert/strict'
+import { judgeModelResponse as judgeV4 } from '@omne-harness-lite/model-response'
+import {
+  judgeModelResponse,
+  validate,
+  type ModelResponse,
+  type RawHeaders,
+} from '@omne-harness-lite/model-response/v5'
+
+const headers: RawHeaders = {
+  'x-one': 'a,b',
+  'x-many': ['second', 'first', 'first', ''],
+  'x-empty-array': [],
+  'x-empty-string': '',
+}
+const adaptation = {
+  implementation: { name: 'example-family', revision: 'impl-1' },
+  definition: { modelId: 'vendor/chat', revision: 'model-1' },
+  configuration: { revision: 'config-1', values: {} },
+}
+const response: ModelResponse = {
+  id: 'response_1',
+  call: { callId: 'model_call_1' },
+  dispatch: 1,
+  route: {
+    adaptation,
+    profile: { origin: 'official', routeName: 'vendor/chat' },
+    profileSnapshot: {
+      adaptation,
+      providers: ['provider-a'],
+      allowFallback: false,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 32000,
+      maxOutputTokens: 8192,
+      updatedAt: '2026-09-26T09:00:00Z',
+    },
+    selectedBy: 'session',
+    provider: 'provider-a',
+    credentialScope: { layer: 'factory' },
+    parameters: {},
+  },
+  outcome: 'interrupted',
+  initiator: 'user',
+  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
+  usage: {
+    input_tokens: 'unknown',
+    output_tokens: 'unknown',
+    cache_read_tokens: 'unknown',
+    cache_write_tokens: 'unknown',
+    source: 'none',
+  },
+  cost: { cost_usd: 'unknown', source: 'none' },
+  raw: { headers },
+}
+assert.deepEqual(validate('RawHeaders', headers), { valid: true })
+assert.deepEqual(judgeModelResponse(response), { ok: true })
+assert.deepEqual(judgeV4(response), { rejected: 'malformed' })
+assert.deepEqual(headers['x-empty-array'], [])
+```
+
 | Public API                                    | Use                                                          |
 | --------------------------------------------- | ------------------------------------------------------------ |
 | `ModelResponse`, `Route`, `Failure`, `Timing` | Type the conditional response shapes                         |
