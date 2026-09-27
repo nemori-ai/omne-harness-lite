@@ -9,3 +9,5 @@ export type {
   DispatchGuardInput,
   DispatchGuardResult,
 } from './dispatch-guard.ts'
+export type { RetryBackoffPolicy, RetryDelayInput, RetryDelayResult } from './retry-delay-types.ts'
+export { retryDelay } from './retry-delay.ts'

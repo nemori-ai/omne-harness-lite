@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Standalone model invocation and pure dispatch guard; durable service is pending",
+  "description": "Standalone model invocation, pure dispatch guard and exact retry delay; durable service is pending",
   "engines": {
     "node": ">=24.18.0 <25"
   },
