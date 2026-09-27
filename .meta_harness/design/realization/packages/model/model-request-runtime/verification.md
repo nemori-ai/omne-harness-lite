@@ -1,5 +1,9 @@
 # model-request-runtime 验证与证据
 
+## RT4 结算投影采用（2026-09-27）
+
+[D087](../../../../record/decisions/model-runtime-v4-projection-adoption/decision.md)技术采用[v4-design rev2](v4-design.md)；R4-V1～V13全部待执行，原R3-V1～V23及T／SC／G、公开制品、双语示例和37生产认证义务保留。两类独立设计评审无阻断不构成运行结果；本次新增bindings0，没有IO／真实十三操作／宿主恢复验收。G28～31及R4-G1～G6沿原owner保留；旧证据不改标签，runner3及源码不自动采用RT4。
+
 ## Revision 7 公共消费者补证（2026-09-27）
 
 [实际完整定义 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)包含当前两model包双语12个TS块的两仓库外目录编译／执行，以及两语言公开runtime helper的实际受控HTTPS调用；HUB既有runtime6项通过，受测源码无漂移。此处仅登记公共消费者证据，不新增十三操作绑定、不将transport机制验证升为耐久service、租户装配、结算恢复或完整P2签收。37正式生产认证仍0／37。

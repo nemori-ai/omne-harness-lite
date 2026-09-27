@@ -1,6 +1,6 @@
 # model-request-runtime
 
-**2026-09-27 RT4语义接受**：[D086](../../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md)接受新版73条及SL3精确消费；当前既有v3提供者投影不自动变成RT4，v4投影尚未采用。公共invokeModel／r7有限消费者证据保持原RT3范围，完整十三操作、共同codec／真实Run／合法读权／多值headers与恢复仍待，不据形式Pass升级实现层。
+**2026-09-27 RT4语义与投影接受**：[D086](../../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md)接受新版73条及SL3精确消费；[D087](../../../../record/decisions/model-runtime-v4-projection-adoption/decision.md)采用[v4增补rev2](v4-design.md)。可实施构件和受阻生产接线分别沿R4-G1～G7；原v3投影／绑定不改。公共invokeModel／r7有限消费者证据保持原RT3范围；v4源码、13项新oracle、完整十三操作与恢复未验，新增bindings0。共同codec／真实Run／合法读权／多值headers／具体调度／实际宿主交接仍待，不据采用或有限形式Pass升级实现层。
 
 ## revision7 完整定义消费者补证（2026-09-27）
 

@@ -149,3 +149,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-081 模型响应 late 提交协调方向](model-late-coordination-direction/README.md)：采用既有日志追加提交点保护读取尾的演进方向；精确新契约、提供者和消费者尚未采用，withRun 结算仍受阻。
 
 [D-082 完整模型窄定义投影](model-definition-projection-adoption/README.md)：采用 core 能力复用、逐路由规则与 Schema／解释器、明确完整 definitions 迁移；公共实现待施工，37 模型事实与认证未就绪。
+
+[D-087 RT4结算消费者投影](model-runtime-v4-projection-adoption/README.md)：采用v4增补rev2的完整写方矩阵、同次前缀条件追加、原批认回、显式争用策略与资源交接；原生产认法／codec／读权／headers等门和真实运行义务保留。
