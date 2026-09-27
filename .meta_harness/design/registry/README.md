@@ -154,6 +154,10 @@ covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含
 
 **当前坐标协调（2026-09-26）**：按 [D-066](../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md)，组织治理的 main v2→v3，#9 其余 33 份 v1→v2；draft OG2/AI3/OE2/入口/客户端继续钉原坐标。`version-migrations.json` 是同 baseline 行政迁移的唯一关系登记，`lineage.json` 仍只承载旧 baseline 的血缘；现有通用检查器不读取新的行政迁移清单，本次的独立逐字核对与 Schema 解析检查由 D-066 指向的证据提供。原接受声明用原 main 快照解释，当前 migrated catalog 的 acceptance 统一指向 D-066。
 
+部署提供路径接续：[D-070 Docker R4](../record/decisions/core11-integration-coordination/decision.md#docker-r4)承接本支原采用的tenancy-host Docker R4，仍消费原EC3/HT3等精确版本；不新增catalog身份或改动frozen资源，Docker绑定与产品运行尚未建立。
+
+数据实现映射接续：[D-070](../record/decisions/core11-integration-coordination/decision.md)整体采用上游 CB／core，承接生产者铸号 I-B，退役本支旧 N-A。原本支 D-068 的快照和验收保留历史身份；不改变下节上游现行 D-068 的契约接受。24个外部消费者精确版本仍为2，完整 pi 的入口、登记／恢复与比较门继续保留。
+
 ## 2026-09-26：D-068 core v3
 
 独立规格复审无阻断后，主调度在用户技术验收委托内接受八份3；8 catalog、37精确依赖、334 reviewed:false覆盖、32冻结资源和1个SA3正配置任务由 [D-068](../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 触发。总计63 accepted、315依赖、1496覆盖、351冻结资源、37任务。原55条接受、319冻结hash、lineage及36任务保持原内容；登记新增任务不声称执行。24外部消费者仍采用2，八个core实现的采用须另登记。上表治理线/#9数量仅描述原迁移历史。

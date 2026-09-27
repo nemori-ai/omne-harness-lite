@@ -1,0 +1,731 @@
+#!/usr/bin/env bash
+# Linux/root Docker projection of the accepted tenancy-host deployment mapping.
+set -euo pipefail
+umask 077
+if (( BASH_VERSINFO[0] < 4 )); then printf 'omne-center: bash-4-required\n' >&2; exit 1; fi
+
+here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+center_file="$here/compose.yaml"
+maintenance_file="$here/compose.maintenance.yaml"
+docker_host="${DOCKER_HOST:-unix:///var/run/docker.sock}"
+project=''
+image=''
+state_dir=''
+secrets_dir=''
+settings_file=''
+publish_address=''
+publish_port=''
+app_uid=10001
+app_gid=10001
+startup_wait=120
+observation_interval=1
+health_interval=30s
+health_timeout=7s
+health_start_period=30s
+health_retries=3
+log_max_size=10m
+log_max_file=3
+source_path=''
+work_dir=''
+target_path=''
+container_id=''
+only_if_due=false
+declare -A supplied=()
+
+fail() { printf 'omne-center: %s\n' "$1" >&2; exit 1; }
+meta() { printf 'omne-center: %s\n' "$1" >&2; }
+require() { [[ -n "$1" ]] || fail "missing-$2"; }
+positive() { [[ "$1" =~ ^[1-9][0-9]*$ ]] || fail "invalid-$2"; }
+duration() { [[ "$1" =~ ^[1-9][0-9]*(ms|s|m)$ ]] || fail "invalid-$2"; }
+
+docker_cli() {
+  env -i PATH="$PATH" HOME="${HOME:-/root}" DOCKER_HOST="$docker_host" docker "$@"
+}
+docker_wait_client() {
+  # The background job PID is the Docker CLI itself, so its owner can reap it.
+  exec env -i PATH="$PATH" HOME="${HOME:-/root}" DOCKER_HOST="$docker_host" docker wait "$1"
+}
+stop_local_wait_client() {
+  local pid="$1" running
+  [[ -n "$pid" ]] || return 0
+  running=$'\n'"$(jobs -pr)"$'\n'
+  if [[ "$running" == *$'\n'"$pid"$'\n'* ]]; then
+    kill -KILL "$pid" 2>/dev/null || true
+  fi
+  wait "$pid" 2>/dev/null || true
+}
+compose_center() {
+  env -i PATH="$PATH" HOME="${HOME:-/root}" DOCKER_HOST="$docker_host" \
+    OMNE_CENTER_IMAGE="$image" OMNE_CENTER_CONTAINER_NAME="omne-${project}-center" \
+    OMNE_CENTER_PROJECT="$project" OMNE_CENTER_UID="$app_uid" OMNE_CENTER_GID="$app_gid" \
+    OMNE_CENTER_STATE_DIR="$state_dir" OMNE_CENTER_SECRETS_DIR="$secrets_dir" \
+    OMNE_CENTER_SETTINGS_FILE="$settings_file" OMNE_CENTER_PUBLISH_ADDRESS="$publish_address" \
+    OMNE_CENTER_PUBLISH_PORT="$publish_port" OMNE_CENTER_VERSION="$image_version" \
+    OMNE_CENTER_BUILD_ID="$image_build_id" OMNE_CENTER_HEALTH_INTERVAL="$health_interval" \
+    OMNE_CENTER_HEALTH_TIMEOUT="$health_timeout" OMNE_CENTER_HEALTH_START_PERIOD="$health_start_period" \
+    OMNE_CENTER_HEALTH_RETRIES="$health_retries" OMNE_CENTER_LOG_MAX_SIZE="$log_max_size" \
+    OMNE_CENTER_LOG_MAX_FILE="$log_max_file" \
+    docker compose --ansi never -f "$center_file" -p "$project" "$@"
+}
+compose_maintenance() {
+  env -i PATH="$PATH" HOME="${HOME:-/root}" DOCKER_HOST="$docker_host" \
+    OMNE_CENTER_IMAGE="$image" OMNE_CENTER_PROJECT="$project" \
+    OMNE_CENTER_UID="$app_uid" OMNE_CENTER_GID="$app_gid" OMNE_CENTER_STATE_DIR="$state_dir" \
+    OMNE_CENTER_VERSION="$image_version" OMNE_CENTER_BUILD_ID="$image_build_id" \
+    OMNE_CENTER_LOG_MAX_SIZE="$log_max_size" OMNE_CENTER_LOG_MAX_FILE="$log_max_file" \
+    docker compose --ansi never -f "$maintenance_file" -p "$project" "$@"
+}
+
+usage() {
+  printf '%s\n' 'usage: omne-center ACTION --project TOKEN [ACTION FLAGS]' >&2
+  exit 64
+}
+parse() {
+  (($# > 0)) || usage
+  action="$1"; shift
+  while (($# > 0)); do
+    key="$1"; shift
+    [[ "$key" =~ ^--[a-z-]+$ ]] || usage
+    [[ -z "${supplied[$key]+present}" ]] || usage
+    supplied[$key]=1
+    if [[ "$key" == --only-if-due ]]; then only_if_due=true; continue; fi
+    (($# > 0)) || usage
+    value="$1"; shift
+    case "$key" in
+      --project) project="$value" ;;
+      --image) image="$value" ;;
+      --state-dir) state_dir="$value" ;;
+      --secrets-dir) secrets_dir="$value" ;;
+      --settings-file) settings_file="$value" ;;
+      --publish-address) publish_address="$value" ;;
+      --publish-port) publish_port="$value" ;;
+      --uid) app_uid="$value" ;;
+      --gid) app_gid="$value" ;;
+      --startup-wait) startup_wait="$value" ;;
+      --observation-interval) observation_interval="$value" ;;
+      --health-interval) health_interval="$value" ;;
+      --health-timeout) health_timeout="$value" ;;
+      --health-start-period) health_start_period="$value" ;;
+      --health-retries) health_retries="$value" ;;
+      --log-max-size) log_max_size="$value" ;;
+      --log-max-file) log_max_file="$value" ;;
+      --source) source_path="$value" ;;
+      --work-dir) work_dir="$value" ;;
+      --target) target_path="$value" ;;
+      --container-id) container_id="$value" ;;
+      *) usage ;;
+    esac
+  done
+  [[ "$project" =~ ^[a-z0-9][a-z0-9_-]{0,62}$ ]] || fail invalid-project
+  case "$action" in
+    validate|start)
+      allow --project --image --state-dir --secrets-dir --settings-file --publish-address --publish-port --uid --gid --startup-wait --observation-interval --health-interval --health-timeout --health-start-period --health-retries --log-max-size --log-max-file
+      for key in image state_dir secrets_dir settings_file publish_address publish_port; do require "${!key}" "$key"; done
+      ;;
+    stop|status|backup-status|full-health) allow --project ;;
+    backup) allow --project --only-if-due ;;
+    verify)
+      allow --project --image --state-dir --source --work-dir --uid --gid --log-max-size --log-max-file
+      for key in image state_dir source_path work_dir; do require "${!key}" "$key"; done
+      ;;
+    restore-isolated)
+      allow --project --image --state-dir --source --work-dir --target --uid --gid --log-max-size --log-max-file
+      for key in image state_dir source_path work_dir target_path; do require "${!key}" "$key"; done
+      ;;
+    maintenance-status) allow --project --container-id; require "$container_id" container-id ;;
+    *) usage ;;
+  esac
+  positive "$app_uid" uid; positive "$app_gid" gid
+  positive "$startup_wait" startup-wait; positive "$observation_interval" observation-interval
+  positive "$health_retries" health-retries; positive "$log_max_file" log-max-file
+  duration "$health_interval" health-interval; duration "$health_timeout" health-timeout
+  duration "$health_start_period" health-start-period
+  [[ "$log_max_size" =~ ^[1-9][0-9]*[kmg]$ ]] || fail invalid-log-max-size
+}
+allow() {
+  local given allowed found
+  for given in "${!supplied[@]}"; do
+    found=false
+    for allowed in "$@"; do [[ "$given" == "$allowed" ]] && found=true; done
+    [[ "$found" == true ]] || usage
+  done
+}
+
+prerequisites() {
+  [[ "$(uname -s)" == Linux && "$EUID" == 0 ]] || fail linux-root-required
+  [[ "$docker_host" == unix:///* ]] || fail local-docker-socket-required
+  for tool in docker jq flock realpath stat sync mktemp od timeout; do command -v "$tool" >/dev/null || fail "tool-unavailable-$tool"; done
+  [[ -f "$center_file" && -f "$maintenance_file" ]] || fail fixed-compose-missing
+  local versions
+  versions="$(docker_cli version --format '{{.Client.Version}} {{.Server.Version}}' 2>/dev/null)" || fail engine-unavailable
+  [[ "$versions" == '29.1.3 29.1.3' ]] || fail docker-version-unchecked
+  versions="$(docker_cli compose version --short 2>/dev/null)" || fail compose-unavailable
+  compose_version_supported "$versions" || fail compose-version-unchecked
+  [[ "$(docker_cli info --format '{{.OSType}}' 2>/dev/null)" == linux ]] || fail linux-engine-required
+  local security
+  security="$(docker_cli info --format '{{json .SecurityOptions}}' 2>/dev/null)" || fail engine-unavailable
+  jq -e 'index("name=rootless") == null' <<< "$security" >/dev/null || fail rootful-engine-required
+}
+reject_compose_overrides() {
+  local name
+  for name in COMPOSE_FILE COMPOSE_PROFILES COMPOSE_PROJECT_NAME COMPOSE_ENV_FILES COMPOSE_PATH_SEPARATOR; do
+    [[ -z "${!name+present}" ]] || fail compose-override-prohibited
+  done
+}
+compose_version_supported() {
+  [[ "$1" == 2.40.3 || "$1" == 2.40.3-desktop.1 ]]
+}
+
+# Existing ancestors must be real directories. The marker is an existence test,
+# including broken symlinks; its content does not grant permission to open data.
+canonical_existing() {
+  local path="$1" kind="$2" allow_final_marker="${3:-false}" cursor='' remaining part
+  [[ "$path" == /* && "$path" != / && "$path" != *//* ]] || fail "invalid-$kind-path"
+  [[ "$path" != */./* && "$path" != */../* && "$path" != */. && "$path" != */.. ]] || fail "invalid-$kind-path"
+  [[ "$(realpath -e -- "$path" 2>/dev/null)" == "$path" ]] || fail "invalid-$kind-path"
+  [[ -d / && ! -e /.omne-isolated && ! -L /.omne-isolated ]] || fail "isolated-$kind-ancestor"
+  remaining="${path#/}"
+  while [[ -n "$remaining" ]]; do
+    if [[ "$remaining" == */* ]]; then
+      part="${remaining%%/*}"
+      remaining="${remaining#*/}"
+    else
+      part="$remaining"
+      remaining=''
+    fi
+    [[ -n "$part" ]] || fail "invalid-$kind-path"
+    cursor="$cursor/$part"
+    [[ -d "$cursor" && ! -L "$cursor" ]] || fail "unsafe-$kind-ancestor"
+    if [[ "$cursor" != "$path" || "$allow_final_marker" != true ]]; then
+      [[ ! -e "$cursor/.omne-isolated" && ! -L "$cursor/.omne-isolated" ]] || fail "isolated-$kind-ancestor"
+    fi
+  done
+}
+private_dir() {
+  local path="$1" owner="$2" group="$3" mode
+  [[ -d "$path" && ! -L "$path" ]] || fail private-directory-invalid
+  mode="$(stat -c '%u:%g:%a' -- "$path" 2>/dev/null)" || fail private-directory-unreadable
+  [[ "$mode" == "$owner:$group:700" ]] || fail private-directory-permission
+}
+private_file() {
+  local path="$1" owner="$2" group="$3" mode
+  [[ -f "$path" && ! -L "$path" ]] || fail private-file-invalid
+  mode="$(stat -c '%u:%g:%a' -- "$path" 2>/dev/null)" || fail private-file-unreadable
+  if [[ "$group" == '*' ]]; then
+    [[ "$mode" == "$owner:"*:600 ]] || fail private-file-permission
+  else
+    [[ "$mode" == "$owner:$group:600" ]] || fail private-file-permission
+  fi
+}
+validate_state() {
+  canonical_existing "$state_dir" state
+  private_dir "$state_dir" "$app_uid" "$app_gid"
+  for name in data offline-work restores; do
+    canonical_existing "$state_dir/$name" state
+    private_dir "$state_dir/$name" "$app_uid" "$app_gid"
+  done
+  if [[ -e "$state_dir/backups" || -L "$state_dir/backups" ]]; then
+    canonical_existing "$state_dir/backups" state
+    private_dir "$state_dir/backups" "$app_uid" "$app_gid"
+  fi
+}
+validate_secrets() {
+  canonical_existing "$secrets_dir" secrets
+  private_dir "$secrets_dir" "$app_uid" "$app_gid"
+  local name
+  for name in activation-signing-key.pem activation-verification-key.pem purge-signing-key.pem purge-verification-key.pem tls-chain.pem tls-private.pem; do
+    private_file "$secrets_dir/$name" "$app_uid" "$app_gid"
+  done
+}
+validate_settings() {
+  local line key value
+  [[ "$settings_file" == /* && "$(realpath -e -- "$settings_file" 2>/dev/null)" == "$settings_file" ]] || fail invalid-settings-path
+  private_file "$settings_file" 0 '*'
+  declare -A seen=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" != *$'\r'* ]] || fail settings-format-invalid
+    [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^(OMNE_TENANCY_[A-Z_]+)=(.*)$ ]] || fail settings-format-invalid
+    key="${BASH_REMATCH[1]}"; value="${BASH_REMATCH[2]}"
+    [[ -z "${seen[$key]+present}" ]] || fail settings-duplicate-key
+    case "$key" in
+      OMNE_TENANCY_UNACTIVATED_RETENTION|OMNE_TENANCY_INVITATION_TTL_DEFAULT|OMNE_TENANCY_AFFILIATION_REQUEST_TTL_DEFAULT|OMNE_TENANCY_COPY_NOTICE_TTL_DEFAULT|OMNE_TENANCY_SHARING_INVITATION_TTL_DEFAULT|OMNE_TENANCY_TEAM_CREATION_KEY_RETENTION|OMNE_TENANCY_CLOCK_READY_TIMEOUT|OMNE_TENANCY_CREDENTIAL_POLICY) ;;
+      *) fail settings-unknown-key ;;
+    esac
+    seen[$key]=1
+  done < "$settings_file"
+  for key in OMNE_TENANCY_UNACTIVATED_RETENTION OMNE_TENANCY_INVITATION_TTL_DEFAULT OMNE_TENANCY_AFFILIATION_REQUEST_TTL_DEFAULT OMNE_TENANCY_COPY_NOTICE_TTL_DEFAULT OMNE_TENANCY_SHARING_INVITATION_TTL_DEFAULT OMNE_TENANCY_TEAM_CREATION_KEY_RETENTION OMNE_TENANCY_CLOCK_READY_TIMEOUT; do
+    [[ -n "${seen[$key]+present}" ]] || fail "settings-missing-$key"
+  done
+}
+validate_address() {
+  local octet
+  positive "$publish_port" publish-port
+  ((publish_port <= 65535)) || fail invalid-publish-port
+  if [[ "$publish_address" == ::1 ]]; then return; fi
+  if [[ "$publish_address" =~ ^[fF][cCdD][0-9a-fA-F:]+$ ]]; then return; fi
+  [[ "$publish_address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail invalid-publish-address
+  IFS=. read -r -a octets <<< "$publish_address"
+  for octet in "${octets[@]}"; do
+    [[ "$octet" =~ ^(0|[1-9][0-9]{0,2})$ ]] && ((10#$octet <= 255)) || fail invalid-publish-address
+  done
+  [[ "$publish_address" == 127.* || "$publish_address" == 10.* || "$publish_address" == 192.168.* || "$publish_address" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]] || fail public-publish-address
+}
+
+image_version=''
+image_build_id=''
+image_id=''
+validate_image() {
+  [[ "$image" =~ ^sha256:[0-9a-f]{64}$ || "$image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]] || fail mutable-image-reference
+  local inspected labels line
+  inspected="$(docker_cli image inspect "$image" 2>/dev/null)" || fail image-unavailable
+  image_id="$(jq -er '.[0].Id' <<< "$inspected")" || fail image-identity-invalid
+  [[ "$image_id" =~ ^sha256:[0-9a-f]{64}$ ]] || fail image-identity-invalid
+  if [[ "$image" == *@sha256:* ]]; then
+    jq -e --arg image "$image" '.[0].RepoDigests | index($image) != null' <<< "$inspected" >/dev/null || fail image-digest-unavailable
+  fi
+  [[ "$(jq -r '.[0].Os + "/" + .[0].Architecture' <<< "$inspected")" == linux/arm64 || "$(jq -r '.[0].Os + "/" + .[0].Architecture' <<< "$inspected")" == linux/amd64 ]] || fail image-platform-invalid
+  labels="$(jq -ec '.[0].Config.Labels | {version:."org.opencontainers.image.version",build:."ai.nemori.omne.host-build-id",distribution:."ai.nemori.omne.distribution"}' <<< "$inspected")" || fail image-labels-invalid
+  image_version="$(jq -er '.version' <<< "$labels")" || fail image-labels-invalid
+  image_build_id="$(jq -er '.build' <<< "$labels")" || fail image-labels-invalid
+  [[ "$image_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ && "$image_build_id" =~ ^[0-9a-f]{64}$ && "$(jq -r '.distribution' <<< "$labels")" == tenancy-host-docker/1 ]] || fail image-labels-invalid
+  line="$(docker_cli run --rm --network none --pull never "$image_id" --version 2>/dev/null)" || fail image-version-unavailable
+  [[ "$line" == "tenancy-host $image_version $image_build_id" ]] || fail image-version-mismatch
+}
+
+center_id=''
+center_inspect=''
+select_center() {
+  local matches
+  matches="$(docker_cli ps -a --filter "label=ai.nemori.omne.project=$project" --filter 'label=ai.nemori.omne.service=center' --format '{{.ID}}' 2>/dev/null)" || fail engine-unavailable
+  [[ "$(wc -l <<< "$matches")" -le 1 || -z "$matches" ]] || fail ambiguous-center
+  if [[ -z "$matches" ]]; then center_id=''; center_inspect=''; return; fi
+  center_inspect="$(docker_cli inspect "$matches" 2>/dev/null)" || fail center-inspection-unavailable
+  center_id="$(jq -er '.[0].Id' <<< "$center_inspect")" || fail center-inspection-invalid
+  jq -e --arg project "$project" '.[0].Config.Labels."ai.nemori.omne.project" == $project and .[0].Config.Labels."ai.nemori.omne.service" == "center" and .[0].Config.Labels."com.docker.compose.project" == $project and .[0].Config.Labels."com.docker.compose.service" == "center"' <<< "$center_inspect" >/dev/null || fail center-identity-invalid
+}
+verify_container_image() {
+  local inspected labels image_labels
+  inspected="$1"
+  image_id="$(jq -er '.[0].Image' <<< "$inspected")" || fail identity-unavailable
+  image_labels="$(docker_cli image inspect "$image_id" 2>/dev/null)" || fail identity-unavailable
+  labels="$(jq -ec '.[0].Config.Labels | {version:."org.opencontainers.image.version",build:."ai.nemori.omne.host-build-id",distribution:."ai.nemori.omne.distribution"}' <<< "$image_labels")" || fail identity-unavailable
+  jq -e --argjson labels "$labels" '.[0].Config.Labels."org.opencontainers.image.version" == $labels.version and .[0].Config.Labels."ai.nemori.omne.host-build-id" == $labels.build and .[0].Config.Labels."ai.nemori.omne.distribution" == "tenancy-host-docker/1" and ($labels.build | test("^[0-9a-f]{64}$")) and ($labels.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+"))' <<< "$inspected" >/dev/null || fail identity-unavailable
+}
+
+lock_project() {
+  local root=/run/omne-center lock="$project.lock" owner mode
+  if [[ -e "$root" || -L "$root" ]]; then
+    [[ -d "$root" && ! -L "$root" ]] || fail lock-root-invalid
+  else
+    install -d -m 0700 -o 0 -g 0 "$root" || fail lock-root-unavailable
+  fi
+  mode="$(stat -c '%u:%g:%a' "$root")" || fail lock-root-unavailable
+  [[ "$mode" == 0:0:700 ]] || fail lock-root-invalid
+  if [[ -e "$root/$lock" || -L "$root/$lock" ]]; then
+    [[ -f "$root/$lock" && ! -L "$root/$lock" && "$(stat -c '%u:%g:%a' "$root/$lock")" == 0:0:600 ]] || fail lock-file-invalid
+  fi
+  exec {lock_fd}> "$root/$lock" || fail lock-file-unavailable
+  [[ -f "$root/$lock" && ! -L "$root/$lock" ]] || fail lock-file-invalid
+  flock -n "$lock_fd" || fail busy
+}
+
+validate_center_config() {
+  local config
+  config="$(compose_center config --format json 2>/dev/null)" || fail compose-config-invalid
+  jq -e --arg image "$image" --arg state "$state_dir" --arg secrets "$secrets_dir" --arg user "$app_uid:$app_gid" --arg address "$publish_address" --arg port "$publish_port" '
+    .services | keys == ["center"] and
+    .center.image == $image and .center.user == $user and .center.restart == "unless-stopped" and
+    .center.stop_grace_period == "-1s" and .center.stop_signal == "SIGTERM" and
+    (.center.privileged // false) == false and
+    (.center.pid // "") != "host" and
+    ((.center.cap_add // []) | length) == 0 and
+    ((.center.devices // []) | length) == 0 and
+    (.center.volumes | length) == 2 and
+    (any(.center.volumes[]; .type == "bind" and .source == $state and .target == "/state" and (.read_only // false) == false)) and
+    (any(.center.volumes[]; .type == "bind" and .source == $secrets and .target == "/secrets" and .read_only == true)) and
+    (.center.tmpfs | length) == 1 and (.center.ports | length) == 1 and
+    .center.ports[0].host_ip == $address and (.center.ports[0].published | tostring) == $port and
+    .center.ports[0].target == 8443 and
+    .center.environment.OMNE_TENANCY_STORAGE_FILE == "/state/data/center.sqlite" and
+    .center.environment.OMNE_TENANCY_BACKUP_DIR == "/state/backups" and
+    .center.environment.OMNE_TENANCY_OPS_SOCKET_DIR == "/run/omne-tenancy" and
+    .center.environment.OMNE_TENANCY_ENTRY_LISTEN == "0.0.0.0:8443"
+  ' <<< "$config" >/dev/null || fail compose-config-unsafe
+}
+validate_actual_center() {
+  local inspected="$1"
+  verify_container_image "$inspected"
+  jq -e --arg image "$desired_image_id" --arg state "$state_dir" --arg secrets "$secrets_dir" --arg user "$app_uid:$app_gid" --arg address "$publish_address" --arg port "$publish_port" --arg uid "$app_uid" --arg gid "$app_gid" '
+    .[0].Image == $image and .[0].Config.User == $user and
+    .[0].HostConfig.RestartPolicy.Name == "unless-stopped" and
+    .[0].Config.StopTimeout == -1 and .[0].Config.StopSignal == "SIGTERM" and
+    .[0].HostConfig.Privileged == false and .[0].HostConfig.PidMode != "host" and
+    ((.[0].HostConfig.CapAdd // []) | length) == 0 and
+    ((.[0].HostConfig.Devices // []) | length) == 0 and
+    ((.[0].HostConfig.DeviceRequests // []) | length) == 0 and
+    (.[0].Mounts | length) == 2 and
+    (any(.[0].Mounts[]; .Type == "bind" and .Source == $state and .Destination == "/state" and .RW == true)) and
+    (any(.[0].Mounts[]; .Type == "bind" and .Source == $secrets and .Destination == "/secrets" and .RW == false)) and
+    (.[0].HostConfig.Tmpfs | if type == "object" then keys == ["/run/omne-tenancy"] else false end) and
+    (.[0].HostConfig.Tmpfs."/run/omne-tenancy" |
+      if type == "string" then
+        (split(",") | sort) == (["mode=0700", "uid=" + $uid, "gid=" + $gid, "nosuid", "nodev", "noexec"] | sort)
+      else false end) and
+    .[0].HostConfig.NetworkMode != "host" and
+    .[0].HostConfig.PortBindings."8443/tcp"[0].HostIp == $address and
+    .[0].HostConfig.PortBindings."8443/tcp"[0].HostPort == $port and
+    .[0].Config.Healthcheck.Test == ["CMD","node","/opt/omne/app/deploy/docker/health.mjs"]
+  ' <<< "$inspected" >/dev/null || fail actual-container-unsafe
+}
+
+validate_inputs() {
+  reject_compose_overrides
+  validate_state
+  validate_secrets
+  validate_settings
+  validate_address
+  validate_image
+  validate_center_config
+}
+export_operations() {
+  local old="$1" parent="$state_dir/operations" directory name metadata
+  if [[ -e "$parent" || -L "$parent" ]]; then
+    private_dir "$parent" 0 0
+  else
+    mkdir -m 0700 -- "$parent" || fail operations-directory-unavailable
+  fi
+  directory="$(mktemp -d "$parent/center-$(printf '%s' "$old" | cut -c1-12)-XXXXXXXX")" || fail operations-directory-unavailable
+  docker_cli logs "$old" > "$directory/stdout.log" 2> "$directory/stderr.log" || fail operations-log-export-failed
+  metadata="$(docker_cli inspect "$old" 2>/dev/null)" || fail operations-inspection-failed
+  jq -e '.[0] | {containerId:.Id,imageId:.Image,version:.Config.Labels."org.opencontainers.image.version",buildId:.Config.Labels."ai.nemori.omne.host-build-id",status:.State.Status,exitCode:.State.ExitCode,finishedAt:.State.FinishedAt}' <<< "$metadata" > "$directory/metadata.json" || fail operations-metadata-failed
+  chmod 0600 "$directory/stdout.log" "$directory/stderr.log" "$directory/metadata.json"
+  for name in stdout.log stderr.log metadata.json; do sync -f "$directory/$name" || fail operations-sync-failed; done
+  sync -f "$directory" || fail operations-sync-failed
+  sync -f "$parent" || fail operations-sync-failed
+  meta "operations-exported container=$old directory=$directory"
+}
+
+parse_wait_code() {
+  local file="$1" size
+  IFS= read -r wait_code < "$file" || return 1
+  [[ "$wait_code" =~ ^(0|[1-9][0-9]{0,2})$ ]] || return 1
+  ((wait_code <= 255)) || return 1
+  size="$(wc -c < "$file")" || return 1
+  ((size == ${#wait_code} + 1))
+}
+normal_stop() {
+  local id="$1" inspected status exit_code wait_file wait_pid result_state clean
+  inspected="$(docker_cli inspect "$id" 2>/dev/null)" || fail stop-outcome-unknown
+  jq -e --arg id "$id" 'length == 1 and .[0].Id == $id' <<< "$inspected" >/dev/null || fail stop-outcome-unknown
+  status="$(jq -r '.[0].State.Status' <<< "$inspected")"
+  if [[ "$status" == running || "$status" == restarting ]]; then
+    meta "term-request container=$id"
+    docker_cli kill --signal=SIGTERM "$id" >/dev/null || fail stop-outcome-unknown
+  elif [[ "$status" == exited ]]; then
+    # Engine 29.1.3 returns 304 before recording a manual stop on an exited container.
+    printf '{"state":"stop-intent-unconfirmed","containerId":"%s","exitCode":%s}\n' "$id" "$(jq -r '.[0].State.ExitCode' <<< "$inspected")"
+    return 1
+  else
+    fail stop-state-invalid
+  fi
+  wait_file="$(mktemp)" || fail stop-outcome-unknown
+  # This trap owns only the temporary client result; it does not claim the app exited.
+  trap 'stop_local_wait_client "${wait_pid:-}"; rm -f -- "$wait_file"; fail stop-outcome-unknown' INT TERM
+  docker_wait_client "$id" > "$wait_file" 2>/dev/null &
+  wait_pid=$!
+  if ! wait "$wait_pid"; then
+    rm -f -- "$wait_file"
+    fail stop-outcome-unknown
+  fi
+  wait_pid=''
+  if ! parse_wait_code "$wait_file"; then
+    rm -f -- "$wait_file"
+    fail stop-outcome-unknown
+  fi
+  rm -f -- "$wait_file"
+  trap - INT TERM
+  exit_code="$wait_code"
+  inspected="$(docker_cli inspect "$id" 2>/dev/null)" || fail stop-outcome-unknown
+  jq -e --arg id "$id" --argjson code "$exit_code" '
+    length == 1 and .[0].Id == $id and
+    .[0].State.Status == "exited" and .[0].State.ExitCode == $code
+  ' <<< "$inspected" >/dev/null || fail stop-outcome-unknown
+  result_state=stopped; clean=true
+  if [[ "$exit_code" != 0 ]]; then result_state=stopped-with-error; clean=false; fi
+  printf '{"state":"%s","containerId":"%s","exitCode":%s,"clean":%s}\n' "$result_state" "$id" "$exit_code" "$clean"
+  [[ "$exit_code" == 0 ]] || exit 1
+}
+
+status_center() {
+  if ! select_center; then fail status-unavailable; fi
+  if [[ -z "$center_id" ]]; then printf '{"state":"absent"}\n'; return; fi
+  if ! (verify_container_image "$center_inspect"); then
+    printf '{"state":"identity-unavailable","containerId":"%s"}\n' "$center_id"
+    return 1
+  fi
+  jq -c '.[0] | {state:.State.Status,containerId:.Id,imageId:.Image,version:.Config.Labels."org.opencontainers.image.version",buildId:.Config.Labels."ai.nemori.omne.host-build-id",health:(.State.Health.Status // "unknown"),running:.State.Running,restarting:.State.Restarting,pid:.State.Pid,restartCount:.RestartCount,exitCode:(if .State.Status == "exited" then .State.ExitCode else null end),previousExit:"unknown"}' <<< "$center_inspect"
+}
+
+run_ops() {
+  select_center
+  [[ -n "$center_id" ]] || fail center-absent
+  jq -e '.[0].State.Status == "running" and .[0].State.Running == true and .[0].State.Restarting == false and .[0].State.Pid > 0' <<< "$center_inspect" >/dev/null || fail center-not-running
+  meta "ops-request project=$project container=$center_id operation=$action"
+  local command=(node /opt/omne/app/dist/cli.js ops --socket-dir /run/omne-tenancy "$action")
+  if [[ "$only_if_due" == true ]]; then command+=(--only-if-due); fi
+  docker_cli exec "$center_id" "${command[@]}"
+}
+
+validate_offline_path() {
+  local path="$1" label="$2" parent
+  [[ "$path" == /* && "$path" != */ && "$path" != *//* && "$path" != */./* && "$path" != */../* && "$path" != */. && "$path" != */.. ]] || fail "invalid-$label-path"
+  [[ "$(realpath -m -- "$path" 2>/dev/null)" == "$path" ]] || fail "invalid-$label-path"
+  parent="$(dirname -- "$path")"
+  canonical_existing "$parent" "$label"
+  if [[ -e "$path" || -L "$path" ]]; then
+    [[ "$(realpath -e -- "$path" 2>/dev/null)" == "$path" ]] || fail "invalid-$label-path"
+  fi
+  [[ "$path" == "$state_dir/"* ]] || fail "outside-state-$label"
+}
+map_state_path() { printf '/state/%s' "${1#"$state_dir"/}"; }
+validate_existing_work_root() {
+  canonical_existing "$work_dir" work-dir true
+  private_dir "$work_dir" "$app_uid" "$app_gid"
+  local marker="$work_dir/.omne-isolated"
+  if [[ -e "$marker" || -L "$marker" ]]; then
+    [[ -f "$marker" && ! -L "$marker" ]] || fail unsafe-work-marker
+  fi
+  # Marker content, root lock and replay eligibility remain with the storage provider.
+}
+validate_offline() {
+  reject_compose_overrides
+  validate_state
+  validate_image
+  validate_offline_path "$source_path" source
+  [[ -f "$source_path" && ! -L "$source_path" ]] || fail source-invalid
+  validate_offline_path "$work_dir" work-dir
+  [[ "$work_dir" == "$state_dir/offline-work/"* ]] || fail work-dir-outside-root
+  if [[ -e "$work_dir" || -L "$work_dir" ]]; then
+    validate_existing_work_root
+  fi
+  private_dir "$(dirname -- "$work_dir")" "$app_uid" "$app_gid"
+  if [[ "$action" == restore-isolated ]]; then
+    validate_offline_path "$target_path" target
+    [[ "$target_path" == "$state_dir/restores/"* ]] || fail target-outside-root
+    [[ ! -e "$target_path" && ! -L "$target_path" ]] || fail target-exists
+    private_dir "$(dirname -- "$target_path")" "$app_uid" "$app_gid"
+    [[ "$target_path" != "$work_dir" && "$target_path" != "$source_path" ]] || fail path-overlap
+  fi
+  [[ "$source_path" != "$work_dir" ]] || fail path-overlap
+  local config
+  config="$(compose_maintenance config --format json 2>/dev/null)" || fail maintenance-compose-invalid
+  jq -e --arg state "$state_dir" --arg image "$image" --arg user "$app_uid:$app_gid" '
+    .services | keys == ["maintenance"] and .maintenance.image == $image and
+    .maintenance.user == $user and .maintenance.restart == "no" and
+    .maintenance.stop_signal == "SIGTERM" and
+    .maintenance.network_mode == "none" and (.maintenance.volumes | length) == 1 and
+    (.maintenance.privileged // false) == false and
+    (.maintenance.pid // "") != "host" and
+    ((.maintenance.cap_add // []) | length) == 0 and
+    ((.maintenance.devices // []) | length) == 0 and
+    .maintenance.volumes[0].type == "bind" and .maintenance.volumes[0].source == $state and
+    .maintenance.volumes[0].target == "/state" and
+    (.maintenance.ports == null) and (.maintenance.environment == null)
+  ' <<< "$config" >/dev/null || fail maintenance-compose-unsafe
+}
+
+offline_id=''
+offline_name=''
+offline_ready=false
+offline_interrupted=false
+offline_temp=''
+offline_wait_pid=''
+offline_wait_done=false
+offline_wait_code=''
+offline_finishing=false
+offline_cleanup() {
+  if [[ -n "$offline_temp" ]]; then
+    stop_local_wait_client "$offline_wait_pid"
+    rm -f -- "$offline_temp/create" "$offline_temp/inspect" "$offline_temp/wait" "$offline_temp/result"
+    rmdir -- "$offline_temp"
+  fi
+}
+offline_signal() {
+  if [[ "$offline_finishing" == true ]]; then return; fi
+  trap - INT TERM
+  if [[ "$offline_ready" != true ]]; then
+    fail "maintenance-outcome-unknown name=$offline_name container=${offline_id:-unconfirmed}"
+  fi
+  offline_interrupted=true
+  local state
+  state="$(docker_cli inspect "$offline_id" --format '{{.State.Status}}' 2>/dev/null)" || fail maintenance-outcome-unknown
+  if [[ "$state" == running || "$state" == restarting ]]; then
+    meta "maintenance-term-request container=$offline_id"
+    docker_cli kill --signal=SIGTERM "$offline_id" >/dev/null || {
+      state="$(docker_cli inspect "$offline_id" --format '{{.State.Status}}' 2>/dev/null)" || fail maintenance-outcome-unknown
+      [[ "$state" == exited ]] || fail maintenance-outcome-unknown
+    }
+  elif [[ "$state" != exited ]]; then
+    fail maintenance-outcome-unknown
+  fi
+  offline_wait
+}
+offline_finish() {
+  local expected="$1" code state result_file="$offline_temp/result"
+  offline_finishing=true
+  state="$(docker_cli inspect "$offline_id" --format '{{.Id}} {{.State.Status}} {{.State.ExitCode}}' 2>/dev/null)" || fail maintenance-outcome-unknown
+  [[ "$state" == "$offline_id exited $expected" ]] || fail maintenance-outcome-unknown
+  code="$expected"
+  if ! docker_cli logs "$offline_id" > "$result_file"; then
+    fail maintenance-output-unavailable
+  fi
+  if [[ -s "$result_file" ]]; then
+    if (( $(wc -l < "$result_file") != 1 )) ||
+      ! jq -e -s 'length == 1' "$result_file" >/dev/null 2>/dev/null; then
+      fail maintenance-output-invalid
+    fi
+    cat -- "$result_file"
+  elif [[ "$code" == 0 ]]; then
+    fail maintenance-output-missing
+  fi
+  meta "maintenance-finished container=$offline_id exit=$code interrupted=$offline_interrupted"
+  exit "$code"
+}
+offline_wait() {
+  if [[ "$offline_wait_done" == true ]]; then offline_finish "$offline_wait_code"; fi
+  if [[ -z "$offline_wait_pid" ]]; then
+    docker_wait_client "$offline_id" > "$offline_temp/wait" 2>/dev/null &
+    offline_wait_pid=$!
+  fi
+  wait "$offline_wait_pid" || fail maintenance-outcome-unknown
+  offline_wait_pid=''
+  parse_wait_code "$offline_temp/wait" || fail maintenance-exit-unavailable
+  offline_wait_code="$wait_code"
+  offline_wait_done=true
+  offline_finish "$offline_wait_code"
+}
+run_offline() {
+  validate_offline
+  local suffix command create_pid inspect_pid inspected
+  suffix="$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+  offline_name="omne-$project-$action-$suffix"
+  offline_temp="$(mktemp -d)" || fail maintenance-output-unavailable
+  trap offline_cleanup EXIT
+  trap offline_signal INT TERM
+  meta "maintenance-name project=$project action=$action name=$offline_name state=$state_dir -> /state"
+  command=("$action" --source "$(map_state_path "$source_path")" --work-dir "$(map_state_path "$work_dir")")
+  if [[ "$action" == restore-isolated ]]; then command+=(--target "$(map_state_path "$target_path")"); fi
+  compose_maintenance run -d -T --no-deps --pull never --name "$offline_name" \
+    --label "ai.nemori.omne.action=$action" maintenance "${command[@]}" > "$offline_temp/create" 2>/dev/null &
+  create_pid=$!
+  wait "$create_pid" || fail "maintenance-create-unknown name=$offline_name"
+  IFS= read -r offline_id < "$offline_temp/create" || fail "maintenance-id-unavailable name=$offline_name"
+  [[ "$offline_id" =~ ^[0-9a-f]{64}$ ]] || fail "maintenance-id-unavailable name=$offline_name"
+  meta "maintenance-created name=$offline_name container=$offline_id"
+  docker_cli inspect "$offline_id" > "$offline_temp/inspect" 2>/dev/null &
+  inspect_pid=$!
+  wait "$inspect_pid" || fail "maintenance-identity-unavailable name=$offline_name container=$offline_id"
+  inspected="$(cat -- "$offline_temp/inspect")"
+  jq -e --arg project "$project" --arg action "$action" --arg state "$state_dir" \
+    --arg image "$image_id" --arg user "$app_uid:$app_gid" --arg version "$image_version" --arg build "$image_build_id" '
+    .[0].Image == $image and .[0].Config.User == $user and
+    .[0].Config.Labels."ai.nemori.omne.project" == $project and
+    .[0].Config.Labels."ai.nemori.omne.service" == "maintenance" and
+    .[0].Config.Labels."ai.nemori.omne.action" == $action and
+    .[0].Config.Labels."org.opencontainers.image.version" == $version and
+    .[0].Config.Labels."ai.nemori.omne.host-build-id" == $build and
+    .[0].Config.Labels."ai.nemori.omne.distribution" == "tenancy-host-docker/1" and
+    .[0].HostConfig.RestartPolicy.Name == "no" and .[0].HostConfig.NetworkMode == "none" and
+    .[0].Config.StopSignal == "SIGTERM" and
+    .[0].HostConfig.Privileged == false and .[0].HostConfig.PidMode != "host" and
+    ((.[0].HostConfig.CapAdd // []) | length) == 0 and
+    ((.[0].HostConfig.Devices // []) | length) == 0 and
+    ((.[0].HostConfig.DeviceRequests // []) | length) == 0 and
+    (.[0].Mounts | length) == 1 and .[0].Mounts[0].Type == "bind" and
+    .[0].Mounts[0].Source == $state and .[0].Mounts[0].Destination == "/state" and
+    (.[0].HostConfig.PortBindings == {} or .[0].HostConfig.PortBindings == null)
+  ' <<< "$inspected" >/dev/null || fail "maintenance-container-unsafe name=$offline_name container=$offline_id"
+  offline_ready=true
+  offline_wait
+}
+maintenance_status() {
+  [[ "$container_id" =~ ^[0-9a-f]{64}$ ]] || fail invalid-container-id
+  local inspected output
+  inspected="$(docker_cli inspect "$container_id" 2>/dev/null)" || fail maintenance-container-unavailable
+  jq -e --arg project "$project" '.[0].Config.Labels."ai.nemori.omne.project" == $project and .[0].Config.Labels."ai.nemori.omne.service" == "maintenance" and (. [0].Config.Labels."ai.nemori.omne.action" == "verify" or .[0].Config.Labels."ai.nemori.omne.action" == "restore-isolated")' <<< "$inspected" >/dev/null || fail maintenance-container-mismatch
+  verify_container_image "$inspected"
+  output="$(docker_cli logs "$container_id" 2>/dev/null)" || fail maintenance-output-unavailable
+  jq -c --arg output "$output" '.[0] | {containerId:.Id,imageId:.Image,action:.Config.Labels."ai.nemori.omne.action",state:.State.Status,exitCode:(if .State.Status == "exited" then .State.ExitCode else null end),outputText:$output}' <<< "$inspected"
+}
+
+start_center() {
+  lock_project
+  select_center
+  if [[ -n "$center_id" ]]; then
+    local state old_state
+    state="$(jq -r '.[0].State.Status' <<< "$center_inspect")"
+    [[ "$state" == created || "$state" == exited ]] || fail center-already-active
+  fi
+  validate_inputs
+  desired_image_id="$image_id"
+  if [[ -n "$center_id" ]]; then
+    old_state="$(jq -r '.[0].Mounts[] | select(.Destination == "/state") | .Source' <<< "$center_inspect")"
+    [[ "$old_state" == "$state_dir" ]] || fail state-mapping-changed
+    export_operations "$center_id"
+  fi
+  compose_center create --no-build --pull never -y center >/dev/null 2>/dev/null || fail center-create-unknown
+  select_center
+  [[ -n "$center_id" ]] || fail center-create-unknown
+  validate_actual_center "$center_inspect"
+  local before restarted deadline inspected status health after
+  before="$(jq -r '.[0].State.StartedAt' <<< "$center_inspect")"
+  restarted="$(jq -r '.[0].RestartCount' <<< "$center_inspect")"
+  meta "center-start-request project=$project container=$center_id image=$image_id"
+  docker_cli start "$center_id" >/dev/null || fail center-start-unknown
+  deadline=$((SECONDS + startup_wait))
+  while ((SECONDS <= deadline)); do
+    inspected="$(docker_cli inspect "$center_id" 2>/dev/null)" || fail center-start-unknown
+    status="$(jq -r '.[0].State.Status' <<< "$inspected")"
+    if ! jq -e --argjson restarted "$restarted" '.[0].State.Status == "running" and .[0].State.Running == true and .[0].State.Restarting == false and .[0].State.Pid > 0 and .[0].RestartCount == $restarted' <<< "$inspected" >/dev/null; then
+      meta "startup-process-failed project=$project container=$center_id status=$status"
+      normal_stop "$center_id" >&2 || true
+      exit 1
+    fi
+    after="$(jq -r '.[0].State.StartedAt' <<< "$inspected")"
+    health="$(jq -r '.[0].State.Health.Status // "unknown"' <<< "$inspected")"
+    if [[ "$after" != "$before" && "$health" == healthy ]]; then
+      if bounded_full_health "$center_id"; then
+        printf '{"state":"running","containerId":"%s","imageId":"%s","buildId":"%s","health":"healthy"}\n' "$center_id" "$image_id" "$image_build_id"
+        return
+      fi
+    fi
+    sleep "$observation_interval"
+  done
+  meta "startup-observation-expired project=$project container=$center_id"
+  normal_stop "$center_id" >&2 || true
+  exit 1
+}
+bounded_full_health() {
+  timeout --signal=KILL "$health_timeout" env -i PATH="$PATH" HOME="${HOME:-/root}" DOCKER_HOST="$docker_host" \
+    docker exec "$1" node /opt/omne/app/deploy/docker/health.mjs >/dev/null 2>/dev/null
+}
+
+main() {
+  parse "$@"
+  prerequisites
+  case "$action" in
+    validate) validate_inputs; printf '{"state":"deployment-structure-valid"}\n' ;;
+    start) start_center ;;
+    stop)
+      lock_project; select_center
+      [[ -n "$center_id" ]] || fail center-absent
+      normal_stop "$center_id"
+      ;;
+    status) status_center ;;
+    backup|backup-status|full-health) run_ops ;;
+    verify|restore-isolated) run_offline ;;
+    maintenance-status) maintenance_status ;;
+  esac
+}
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi

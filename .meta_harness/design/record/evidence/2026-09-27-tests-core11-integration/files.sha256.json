@@ -1,0 +1,21 @@
+{
+  "source-manifest.json": "09d35ede82a3314c33b3cc17a3d1772fa3df242772f10dd8dabdc9021023dadb",
+  "core11-test-counts.json": "97a90d7538dd573e72c2f3c7333bb972dccbca153830990ac29076e80bd01476",
+  "core11-tests.log": "15d3f33fcff0a0ac75785f90943541f7ffce54d1e1e542994ad68964a7c813aa",
+  "core11-format-tool.log": "81b4412ee57588c0fab9cd031d50691fcadb1043926b60896b4dcfa4e4a7db1e",
+  "core11-typecheck.log": "0b7a9d60b9647baa45078e08415d579c40c83b0f4f870a18184bb9867c3d2cb3",
+  "core11-format.log": "537bb3d5f6cc7bf818f1f4ddd9ae3148e265641a0499e2108f7f163fb2097d2e",
+  "core11-lint.log": "fd72f5f7be8f2a33c35fc63efa7446453fc61eab5476595346bc5c41605fbd23",
+  "core11-build.log": "b6304a8dcd176a8ebadd2eaab66067b6a0d2f5511969e798baf0582b4a267377",
+  "core11-format-tool-physical-tmp.log": "213b35038d21937876d0a5d67460f730b4b44743d95d73f59e05a18210bd7ba9",
+  "core11-docs-final.log": "14835e910e0b136450e9f50af2e18f07231b3537004a60ae802c258defece92e",
+  "core11-python.log": "e160868a8fdd596732e41482bcd80a9c685e7744bc70336e8c3b394aa0e1c405",
+  "core11-install-online.log": "3edcbddb54968606331a41dbd927ffebe395ffe1f877ee13019c772f85467369",
+  "configuration.json": "5c9a2b5d05025ea436e84c13b3a8f9944f2b28efa1df5d997bc0c706d0896fc9",
+  "core11-tests-remaining.log": "a9ad8e7bfaaf2e9f3558705f08b890658917fa9ad0a45e58c35899d78b0f5751",
+  "core11-agents.log": "6bf6cd1fd62f7c503185b5b960821cd6b8f4c345256dadcfe7e69093c9834320",
+  "core11-install-resolved.log": "3f980650086ec1358a2eaedca543c1decce510a879b58fb73d0768ca5d36f298",
+  "core11-agents-refreshed.log": "f3b7e9edd429eecf3043b0227cd24daba2578091d78beedfe93c00b2e3fa54af",
+  "core11-design-final.log": "1d79e93231f0194c629dee0d21fe111b4f4bd20f41dd3f639db726e740c2a195",
+  "core11-install.log": "3ebf0dc27cc79ce0e1f87c0dea704c159d0fd003cf506c706dac7e6c4be2925b"
+}

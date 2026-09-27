@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly governance center due backup for project %i
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=omne-center-backup@%i.service
+
+[Install]
+WantedBy=timers.target

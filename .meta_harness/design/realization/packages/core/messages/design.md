@@ -9,7 +9,7 @@
 
 **自建一个 TypeScript 纯模块**，写法与 [content-blocks](../content-blocks/design.md#实现路径与来源) 相同：`ajv` 8.20.0 的 Draft 2020-12 入口（V-1 要求 `unevaluatedProperties`、`dependentRequired`），Schema 从 spec 原样复制进包并逐字节核对；
 拒绝值[按契约次序逐条判](../content-blocks/design.md#拒绝值按契约的次序逐条判不从-schema-错误里反推)；从 JSON 文本读消息（与运行时记录）一律经 content-blocks 的[严格无损读写](../content-blocks/design.md#严格的无损-json-读写)：契约 [S-37](../../../../spec/data/messages/v2/contract.md#s-37-规范表示) 的读写口径与 `data.content-blocks/v2#S-24` 同一条（[D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——任何一层对象里重复的成员名 ⇒ `malformed`（读不出即拒，不挑一个再交给第一段判定），数无损、落盘与回读同一个十进制数。
-`MessageId` 的词法候选与 `BlockId` 同一个（[那里的选择](../content-blocks/design.md#标识的词法沿用-identity-values-的生成器)）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
+普通新消息 `MessageId` 与工具侧／新增派生 `BlockId` 沿同一随机生成器；这是生成选择，不是接收词法收窄，pi 的 BlockId／CallId 例外由 [D-070](../../../../record/decisions/core11-integration-coordination/decision.md#生产者铸号)承接（[那里的选择](../content-blocks/design.md#标识的词法沿用-identity-values-的生成器)）。**Cordis 版本**：采用 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/README.md)）；本模块不依赖 Cordis。
 
 ## 公开面
 

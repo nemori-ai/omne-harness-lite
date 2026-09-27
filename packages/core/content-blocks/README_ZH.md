@@ -81,7 +81,7 @@ console.log(validator.validate(new LosslessNumber('1.00000000000000000001'))) //
 
 ## 边界与失败处理
 
-`judgeContentBlock` 依次检查 `kind_unknown`、`visibility_missing`、`incomplete_call_visible`、`call_in_result`、`modality_mismatch`，其余形状／跨成员约束归 `malformed`。成功时返回自己拥有的深冻结副本。`contentBlockFromRepresentation` 校验完整内置 Schema 并恢复品牌，但不执行额外判定谓词；非法表示前提会抛 `TypeError`。
+`judgeContentBlock` 先复制本模块支持的 JSON 表示（包括真正的 `LosslessNumber` 和 `OpaqueJson` 的表示恢复）；非 JSON 的 JavaScript 值直接返回 `malformed`。复制不会求值普通 getter 或 `toJSON`，但不保证 Proxy trap 不执行用户代码。只有复制成功的 JSON 值才依次检查 `kind_unknown`、`visibility_missing`、`incomplete_call_visible`、`call_in_result`、`modality_mismatch`，其余形状／跨成员约束归 `malformed`。成功时返回自己拥有的深冻结副本。`contentBlockFromRepresentation` 校验完整内置 Schema 并恢复品牌，但不执行额外判定谓词；非法表示前提会抛 `TypeError`。
 
 `JsonNumber` 是 `number | LosslessNumber`。严格读取器把普通安全整数字面量保留为 number；小数、指数、不安全整数与负零由 `LosslessNumber` 保留原文。不能用 `Number(source)` 判断精确边界或相等。写入器对非 JSON 值抛 `TypeError`，不会省略它们；复制器拒绝 getter、环与其他非 JSON 属性。不透明 JSON 不构成内容检查许可，复制其交换表示也不会保留领域品牌。
 
