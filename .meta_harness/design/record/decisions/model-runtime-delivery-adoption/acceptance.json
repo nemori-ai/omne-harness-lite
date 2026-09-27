@@ -1,0 +1,113 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "authority": "root primary technical adoption under user implementation delegation",
+  "user_instruction": "Implement the plan.",
+  "at_utc": "2026-09-27T06:42:01.081068+00:00",
+  "decision_path": "record/decisions/model-runtime-delivery-adoption/decision.md",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.model-request-runtime",
+        "version": 3
+      },
+      "resources": {
+        "spec/capabilities/model-request-runtime/v3/contract.md": "9d73735d3c22033dd583f10f8c7ea61b5b6865769e25de652399a59e2949747a",
+        "spec/capabilities/model-request-runtime/v3/examples.md": "a37859d0059f4fe79bb9de71a418b8bf8f1bd8ae355daa79a365318bac48d801",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.cfg": "ab563c44e090b185d77cd83af395f5feabf43d42e3ef4be035dd92ba1bdc01b8",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla": "23472057c4d32b456c90de1301eddc59de1078ee9123e1a142aef1257f89ffe2",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.cfg": "ae581bb8d669d1d7c144745e5d177c20120d3667df41d89eebf439accf6c6297",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.tla": "dcdc3fcf8615a533bf09645c1e3690f4dcb341af68f0e12a2e2a411b5c3d32f4",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.cfg": "4f27666a277acbf630a977919c6c7216d3f4cad24fcf8d8f81d1b2fca1ed795a",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.tla": "3610b3ba7b7ec3b92d48190de90bd4155dc3b49f56ab4e7c024706ae06d2e95e",
+        "spec/capabilities/model-request-runtime/v3/formal/README.md": "c7a60b3d6666f5e9b284ce94341d2779dfd5c1a5e30769506c47d1fc5c42a9b3",
+        "spec/capabilities/model-request-runtime/v3/formal/validity-check/AdaptationBinding_MissingFallback.cfg": "8ee71965023c9fa159550cd0ae749dfca2c806e0ecc96b44835dc9a9a1bdc12e",
+        "spec/capabilities/model-request-runtime/v3/formal/validity-check/AdaptationBinding_UseLatest.cfg": "971d1c3e719b1b7985cf219e676071439630f3dc2123b93337b0e94a7a77da0d",
+        "spec/capabilities/model-request-runtime/v3/formal/validity-check/Adaptation_AcquireRetired.cfg": "577548732fb2fd20de6d6f74ce2a1d6a3c5a6b9d8f5023199eda9f1de936ec00",
+        "spec/capabilities/model-request-runtime/v3/formal/validity-check/Adaptation_DisposeActive.cfg": "48123bdef7b19620f1401694a5e76c244f95cb6d02ba98bbcbd92982e1533aba",
+        "spec/capabilities/model-request-runtime/v3/formal/validity-check/Adaptation_Rebind.cfg": "522416cd6e44095a53370393ef70dec6a72c22b343c5c35db9f2e558a91e3d26",
+        "spec/capabilities/model-request-runtime/v3/formal/validity-check/ContentGate_IgnoreCancel.cfg": "917ff043f94e4972490a2d162fbb3ec29af58e6c60bbaa7379eb17119c62a88b",
+        "spec/capabilities/model-request-runtime/v3/formal/validity-check/ContentGate_NoWait.cfg": "a98f8122ac4ae2bb4ac8e2b0a04d599b6895d9155d7f5ee2294aadd079217181"
+      },
+      "scope_clauses": [
+        "S-1..S-67"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.loop-extension-runner",
+        "version": 3
+      },
+      "resources": {
+        "spec/capabilities/loop-extension-runner/v3/contract.md": "e2fcc0aac94b2bb5567ecf6b764b3dcc10790b538af3ae9faaf15b0e0dad7b2b",
+        "spec/capabilities/loop-extension-runner/v3/examples.md": "2e7a21e80d677b6b3e2e75d7e05e59f2dbe62b6121370ff37f67fca947549772",
+        "spec/capabilities/loop-extension-runner/v3/formal/README.md": "7b8ede330458a5345ecd5977e8864b708c7892ba24a0fe9ba79f740e8ef91457",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.cfg": "4d7388c64fda8aebdfe73db370432b5ca3e084b6fe86a7a599320935a41450bf",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla": "d6bafbfffa414ad8ac866f4e92e207dc33ed6d4288756a44fb5cf57beac3cc9d",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerConcurrent.cfg": "3ebac4ed58fc1419ded67ca5a528fa07608385a97f6555a6a4078b4716aad728",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerProgress.cfg": "fef41b4e6290d83bf210e0e3e882b73ac06acf54028209cd859ddf941fe237ed",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerUnfenced.cfg": "01139d30bb46ba5a430a92acff1339e803bb39e0515fcade79cd6d94b4008b8f",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/answered-stalls.cfg": "f28b4a28d8baf3e92ea61d1fbe35b93c69a1af0f03b45bf0da47d78cbd63122d",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/continue-after-stop.cfg": "feadec361b867363bd925ff5843e2260d9dc241457fdbd0b10afc275d5bc7535",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/duplicate-card.cfg": "6c08648a8e379d0a7ac167ef8551487d0482bdc1f05b9c9a1800c15fa43527df",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/duplicate-final.cfg": "9113e8d9450c38295dcc136c6ac930512d712d6cf21bcb04681b92966dcc8393",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/duplicate-reminder.cfg": "984f048f3df5c1e180f8552ab45bce7e502acdc075eb280d8cb05cee0d0c4d2a",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/stale-write.cfg": "5e028ff935f3172d3c1945376212b4baacc76f1d78d66ea47661a99579be908d",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/start-before-commit.cfg": "71fa74b61b80127fccac15c5f97f2bbfaa1c9f5c65bb7eb13327c93470e353a5",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/unchecked-retry.cfg": "892f8b2ef9814302d3975fe5630bd3f143950efa91cec8979a982fceb3581655",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/volatile-replay.cfg": "dffc478b82769dd00c42c62cd5359dd2b82f88b6343593cbd5855f65b6f1a84c",
+        "spec/capabilities/loop-extension-runner/v3/formal/validity-check/volatile-subject.cfg": "81fe0be38638cc0d5fcf23c1a7eddf31c8779ae64b89b4bee027cc28b04f798f"
+      },
+      "scope_clauses": [
+        "S-1..S-52"
+      ]
+    }
+  ],
+  "provider_adoption": [
+    {
+      "node": "packages/model/model-request-runtime",
+      "design": "v3-design.md",
+      "input_sha256": {
+        "realization/packages/model/model-request-runtime/v3-design.md": "31a46a46ad67bb6d1dd383cbc6a08a7a89d3354aa261d9db54ab8f7ae7d2ae99",
+        "realization/packages/model/model-request-runtime/README.md": "31f96ff5a5fe66ec819b1704bf329ccca1eb46890130aa041a2a25f7fb8421db",
+        "realization/packages/model/model-request-runtime/verification.md": "0047f2234658c4e17cfae29cb0e472fc4371a819c55ac78255ef70815e59c89a",
+        "realization/packages/model/model-request-runtime/bindings.yaml": "0cd750f04a1e55281009501ca8a226d707dad6cea19c150cfe110b983398a421"
+      }
+    },
+    {
+      "node": "packages/model/pi-ai-transport",
+      "design": "v3-design.md",
+      "input_sha256": {
+        "realization/packages/model/pi-ai-transport/v3-design.md": "297d42b6eb6b8841169724d3922bd9be4f1114a8432c498aa27cba4b9f75e0cd",
+        "realization/packages/model/pi-ai-transport/README.md": "a16bb83c22eba52a08de1437b8db0f36cf0ca7cbb469639975f37fa9e7576cba",
+        "realization/packages/model/pi-ai-transport/verification.md": "c70917bacc91f90a18b06ab004b315bccbd2aa217e6efceb738a3b849a209ca4",
+        "realization/packages/model/pi-ai-transport/bindings.yaml": "7ebc9ed84fc0d543f18c2647663071a5c82d7cb5a9dc77cf0cdafd9a44f0f668"
+      }
+    },
+    {
+      "node": "packages/agent-loop/loop-extension-runner",
+      "design": "v3-design.md",
+      "input_sha256": {
+        "realization/packages/agent-loop/loop-extension-runner/v3-design.md": "439fcb0ea12535bd2bf1ac9b467ce2873eda57957c46b224fb5e3b64040613c7",
+        "realization/packages/agent-loop/loop-extension-runner/README.md": "5496ba3623dd01f95c6e2ec33a94fa99671760ef6c44e1f026f9f9fd677e9aa6",
+        "realization/packages/agent-loop/loop-extension-runner/verification.md": "9769ba586f4bc64e419ced557b1ef56e8506030d398e93df25d8898ea2754865",
+        "realization/packages/agent-loop/loop-extension-runner/bindings.yaml": "8111e4dff02385e9e54012b7368c00864ada2d0ca983a423307b1abd72a429cb"
+      }
+    },
+    {
+      "node": "apps/model-request-acceptance",
+      "design": "design.md",
+      "input_sha256": {
+        "realization/apps/model-request-acceptance/design.md": "49c87851856064ba0c33cc0c25d8b73a70a7b249d6a060fca3fcb0610da96bbf",
+        "realization/apps/model-request-acceptance/README.md": "bb06945d220590b08312e3ecf1e4320bbf109735d3e92650e570c7df0aa814a9",
+        "realization/apps/model-request-acceptance/verification.md": "893b270db06cf5e789f10a89bd49500c5c759a441bc6937f04844f57d17d2fad",
+        "realization/apps/model-request-acceptance/bindings.yaml": "533e721aebbdec53c5ff1d3264555fff6238d3b7e01fd6e20cc29d8ed726c795"
+      }
+    }
+  ],
+  "actual_delivery": "pending production implementation and real acceptance",
+  "human_overall_acceptance": false,
+  "formal_scope": "finite previously executed lifecycle/binding/gate/runner scopes only; unknown opened ack and actual IO are not modeled proof"
+}

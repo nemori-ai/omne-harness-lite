@@ -28,6 +28,11 @@ import {
 
 const profile: ModelProfile = {
   routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
   origin: 'official',
   providers: ['provider-a'],
   allowFallback: false,
@@ -75,6 +80,11 @@ const bob = unwrap(
 )
 const profile: ModelProfile = {
   routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
   origin: 'custom',
   providers: ['provider-a'],
   allowFallback: false,
@@ -100,3 +110,5 @@ References compare exact origin, route name and, for custom profiles, supplied s
 Numeric fields accept `JsonNumber`, including `LosslessNumber`; judgments compare exact represented numbers. Missing request parameters are not filled in. The package does not store profiles, create snapshots, enforce name uniqueness, manage credentials or send OpenRouter requests; request routing and lifecycle belong to consumers.
 
 The JSON Schema is available through `@omne-harness-lite/model-profile/schema`. See [source exports](src/index.ts), [tests](tests/) and [model response](../model-response/README.md).
+
+The default entry and Schema use profile3; `./v2` and `./schema/v2` retain the previous exact consumer version. The current content/snapshot includes a complete model adaptation binding. See the accepted design for its definition.

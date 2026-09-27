@@ -2,6 +2,55 @@
 
 本页记本节点触发的证据义务、实际跑过什么、覆盖到哪里。契约层的证据状态归[契约验证入口](../../../../spec/capabilities/model-profile-directory/verification.md)。**源码不存在，本节点没有任何实现层的证据。**
 
+## v3 候选增量（2026-09-27）
+
+对象为 [v3 候选实现设计](v3-design.md)，输入坐标 `capability.model-profile-directory/v3` 与 `data.model-profile/v3` 在起草后已由主线 [D-070](../../../../record/decisions/model-adaptation-binding-acceptance/decision.md) 接受；提供者候选仍未接受。本节不改变下方旧证据状态；没有本节点源码，不把计划中的测试记为执行结果。下表 S-n 默认目录 v3，data 指 model-profile/v3。
+
+### 新增及受影响的证据义务
+
+| 编号／条款 | 可失败的验收场景及判据 | 状态／owner |
+|---|---|---|
+| V3-1：S-14、S-34；data S-29～S-31 | 经真实目录 register/read/list/update/loadManifest 往返完整绑定；缺任一分量、definition.modelId 不等 routeName 在指定次序拒绝。带大整数、高精度十进制、重复 JSON 成员、对象重排、数组重排、boolean/number 反例；不能先有损解析后再比 | 未开始；本节点＋core/model-profile v3；G3-1 |
+| V3-2：S-14、S-31、S-34(4)(5) | 两目录实例、两存储连接、同一 SQLite 文件，对同档案同一新修订分别写不同 values，交错双向执行；至多一方成功，另一方 malformed，profile/history 对齐。两者同值按原认回规则。撤去共享事务／唯一约束的故障版本必须令断言失败 | 未开始；本节点＋storage-sql。pg 单独跑才覆盖 pg |
+| V3-3：S-31、S-34 | c1→c2→c1：c1 原值可以采用，改义值拒绝；改实现／模型定义修订但重复 c1 不得绕过。仅 adaptation 改变 updatedAt 不动；五项上游属性变动才推动。拒绝嵌套补丁与删除绑定 | 未开始；本节点 |
+| V3-4：S-5、S-23、S-34(6) | c1→撤回→重启→relist→c2→c1 改义仍拒绝；同范围同名 register 不产生新身份。验证提供者卸载、迁移正常执行均不清历史；没有 delete API 或删除后的新身份产品假设 | 未开始；本节点＋装配升级验收 |
+| V3-5：S-8、S-18、S-34 | 新清单两条，第二条与配置历史冲突；读到的全部档案、配置事实、ordinal/dispositions 仍旧值。逐个注入写失败、commit 前进程退出；重开真实文件确认没有部分历史或处置 | 未开始；本节点＋storage-sql；故障点与原始文件快照留证 |
+| V3-6：S-18、S-35 | 清单提交后丢回执、重启同序号同完整内容，返回原 dispositions 且不写／不重发。旧序号／同序号不同内容同时含历史冲突时必须 manifestNotNewer。仅绑定改动为 updated；custom 同名行及历史逐值不变 | 未开始；本节点 |
+| V3-7：S-6、S-16、S-17、S-34 | P-1 真存储 readProfile/listProfiles；并发 update 不得把旧 profile 与新 values 拼成返回值；两组织多租户同修订各值互不冲突。跨链引用在读取前拒绝，撤回与被覆盖行仍按契约列出；不需要或伪造中心请求 | 未开始；本节点＋单机验收装配 |
+| V3-8：S-10、S-11、S-13、S-34 | 真实 memberships 的无权／撤销／不可用分别测试；用档案存在性、配置冲突构造探针，未授权时 protected 查询计数为零，不泄漏不同结论。authorized update 才查旧行和历史；不得用同库巧合声称跨 owner 撤销原子性 | 未开始；本节点＋organization-governance |
+| V3-9：S-7、S-19、S-20、S-32 | 绑定管理真实持久化；tenant 优先、custom 无 tenant 不回落 factory、无组织 key 路径。tenant 格读取 unavailable 时即 unavailable，不能问 factory；已绑定但取值失败不当 absent。解绑不删档案／历史或保管本体 | 未开始；本节点＋凭据提供者；中心解值成功分支受 G3-2 阻断 |
+| V3-10：S-12、S-20、S-34(7)；data S-30 | 密钥／CredentialRef 哨兵不得进入 read/list、失败、通知、默认诊断或档案快照；合法声明式 configuration.values 在 read/list 与档案快照中须完整保留，但不写默认诊断。逐 symbol 结构检查的正例允许可信 bootstrap 构造 reader/factory 并传递；负例拒绝 bootstrap 执行返回 reader/readBoundReplicaIn、产品 caller 导入工厂／取值、P-1r close 共享组件，以及向未具名者转交闭包。禁止配置执行代码的路径有反例；不把有限哨兵检测当任意秘密识别证明 | 未开始；本节点＋入口／诊断 owner；通用非受信配置入口 G3-4 |
+| V3-11：S-21 | 真实 withdraw/loadManifest 提交后通知一次；已撤回不再发，relist 不发；监听者抛错后行仍 withdrawn 且错误可查。没有监听者仍执行发出；不宣称通知可靠送达 | 未开始；本节点；跨范围监听仍须旧 MPD-N6 取证 |
+| V3-12：S-23、S-34 | 真实 Cordis4.0.4：依赖缺席 PENDING、非法配置 FAILED、provide 前清单失败无服务；依赖重跑及撤除与进行中的写交错，写事务完整成功或具名失败，已提交历史不消失，不伪造取消。fixture 必须先成功一次，再重跑并发验证 | 未开始；本节点＋kernel-basis＋storage-sql |
+| V3-13：S-35 | 注册新版本→目录失败→旧绑定仍可读；目录采用→停止旧版→仍显式旧绑定的 custom 不能被重写；合法未注册绑定成功保存而 runtime acquire unavailable。已有调用快照保持旧值，新调用读到已提交新值 | 未开始；本节点＋pi-ai-transport＋runtime。研究原型不能代替这次真实组合 |
+| V3-14：S-12、S-19、S-20、S-22；CCL 新技术投影 | 真登录状态／租户及 trusted bootstrap 的真实 sourceRef/body，经新 storeBoundReplica 写加密副本、localCredentialOnly 读取；重启后仍核对 sourceRef。已选 tenant 格时无行／无ref／错ref／打不开→credentialUnavailable，运行期密钥／存储不可用→unavailable，均不问 factory；custom 绝不回落。缺keyFile／枚举非法／重复键启动失败；不用伪造 centerConnection 或 MCP OAuth 服务 | 受 G3-7 阻断；本节点＋CCL 新增量＋验收装配；不接受用旧 S-12/S-13 冒充 ref 关联 |
+| V3-15：S-19、S-20；R3-7/R3-8 | **顺序反例**：bind RefA、存 A、bind RefB、不更新副本，下一次取值必须 credentialUnavailable 且不发网；不得交 A。存 B 后应交 B。**真并发**：A 捕获持锁先于 bind B，以及 bind B 先于 A 延迟捕获两种次序；B 副本不被迟到 A 覆盖。匹配读取与 bind/unbind 交错，共同绑定行锁决定先后；跨StorageUnit、失效Unit、恒值reader、去锁故障版本必须失败。旧 generic storeReplica 覆盖后 sourceRef 清空；不得重新标当前Ref。检查 Ref/body 从不出日志和 afterCommit。atomic 提交故障时已暂取body不得交出 | 受 G3-7 阻断；本节点＋CCL＋storage-sql；SQLite 两实例真实库执行，pg 另测；没有并发排除前提 |
+| V3-16：S-12、S-20；model-replica 技术结果映射 | 覆盖 `{body}`／`{absent}`、closed、key 不可读、StorageUnavailable、内部坏ref、四型存储异常及错/失效/重叠Unit。先在同一Unit暂存可观察写入，再令参与read抛错；即使上层试图捕获也必须回滚，只有atomic外层可将StorageUnavailable映射unavailable，其他缺陷继续抛。clock不可用时已有匹配副本仍可读，store失败由bootstrap处理；全部失败无body泄漏／零出网，且不问factory | 未开始；本节点＋CCL＋storage-sql；与CCL失败表逐格对齐，不以静态类型测试代替真实事务 |
+
+本地凭据成功分支依赖 CCL 新技术投影保留真实 sourceRef，并核对实际绑定；**旧 storeReplica/readReplica 不足以覆盖本机 RefA→RefB**。可信本机 bootstrap 必须持有同一来源的 sourceRef/body 及真实登录状态／租户归属输入，不能提交时把旧 body 标为当前 ref。它不证明中心送达协议；factory 值来自受管装配，凭据 body 不写入目录配置历史。
+
+### 本机凭据引用独立评审后的修订
+
+主线转交独立评审反例：credentialPresent 仅返回存在与范围，readReplica 只按 tenant 返回 body；RefA→RefB 后即使没有并发也仍可能交 A。该反例违反目录 v3 S-19 下一次取用生效与 S-20 按绑定取值；不能归入中心传播范围。原候选的成功路径声明已撤回。
+
+现候选改为目录真实绑定读取、CCL 来源引用捕获、同一 StorageUnit 中锁定共同绑定行并匹配 sourceRef。CCL2 六个领域操作不变；有限技术端口由 CCL owner 起草新设计增量。见 [替代比较与动作链](v3-design.md#当前绑定与副本引用匹配的有限替代)。这只是修订处置，**未作独立复审或接受声明**；V3-14/V3-15 尚未执行。
+
+CCL owner 的 [v2-design 候选](../../infra/credential-custodian-local/v2-design.md) 已成稿；R3-7/R3-8 与 K-M1/K-M2/K-M4 双向指明共同对象。两节点统一由装配唯一拥有 model-only 组件，bootstrap 与 P-1r 借用，等待外层 atomic 实际结束后才关闭。2026-09-27 此修订运行同一设计检查命令，先因并行节点未完成的两个锚点失败（目录节点未被点名），节点成稿后重跑退出 **0**，末行 `passed gate=internal; formal=skip`；本节点 `git diff --check` 通过。没有执行 V3-14/V3-15 或任何生产请求。
+
+后续有限表达修订按 symbol 区分工厂构造与返回闭包执行：可信 bootstrap 可以构造和传递真实 reader，不能据此执行取值；CCL/P-1r 才可执行 reader。同步 CCL 完整技术失败表，P-1r 的 StorageUnavailable 仅在外层 atomic 回滚后映射 unavailable，内部缺陷不伪装为 credentialUnavailable；V3-10 新增许可正例与越权负例，V3-16 登记逐格映射和真实回滚义务。此处仍只记修订，未宣称独立复审闭合。
+
+本次有限表达修订完成后，设计检查实际退出 **0**（`gate=internal; formal=skip`），本节点 `git diff --check` 通过。V3-10/V3-16 的结构负控及真实回滚仍未执行，bindings 仍为 0。
+
+### 本次实际执行与覆盖缺口
+
+2026-09-27 本次实际运行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`，退出码 **0**，输出末行：`PASS: design tree … passed gate=internal; formal=skip.`；全部 formal 项均明确 skipped。此结果仅为设计树内部导航／登记检查，不是实现或形式运行证据。未运行目录单测、存储并发或生产请求；`bindings.yaml` 维持空表。
+
+同日后续检查退出码 **1**，输出 `FAIL: design validation found 5 error(s).`：并行更新中的 acceptance 缺 scope_clauses、assembly-manifest/v3 锚点两处、messages/v4 冻结资源未见 catalog、formal task[37] 工件未全登记。本节点四件套未被该输出点名；这不能称为全树通过，已交主线处置，本节点不越界改 registry/spec。
+
+主线登记稳定后，以同一命令对本节点最终候选及全树复查，退出码 **0**，末行恢复为 `PASS: design tree … passed gate=internal; formal=skip.`。formal 仍全部跳过；`git diff --check` 对本节点三份已跟踪文件通过。中间失败记录保留，不把最后一次文档通过解释成实现验证。
+
+缺口与受阻消费沿 [G3-1～G3-7](v3-design.md#归装配及缺口)：候选采用和 v3 数据包、中心租户凭据解值、独立验收装配、非受信配置入口、真实并发／持久证据、原有远端协议和通知范围，以及新增的本机引用关联。旧 V2 的有限证据与其他节点的通过结果均不自动提升本增量。
+
 ## 证据义务
 
 | 来源条款 | 需要什么证据 | 当前状态 | owner 与闭合条件 |

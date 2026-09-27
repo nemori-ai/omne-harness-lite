@@ -28,6 +28,11 @@ import {
 
 const profile: ModelProfile = {
   routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
   origin: 'official',
   providers: ['provider-a'],
   allowFallback: false,
@@ -75,6 +80,11 @@ const bob = unwrap(
 )
 const profile: ModelProfile = {
   routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
   origin: 'custom',
   providers: ['provider-a'],
   allowFallback: false,
@@ -100,3 +110,5 @@ console.log(refMatches(ref, profile, bob)) // false
 数值字段接收 `JsonNumber`，包括 `LosslessNumber`；判定比较原表示的精确数值。缺席的请求参数不会被补上。本包不存储档案、不创建快照、不保证名字唯一、不管理凭据、不发送 OpenRouter 请求；请求路由与生命周期由消费者负责。
 
 JSON Schema 通过 `@omne-harness-lite/model-profile/schema` 公开。参见[源码导出](src/index.ts)、[测试](tests/)与[模型响应](../model-response/README_ZH.md)。
+
+默认入口与 Schema 采用 profile3；`./v2` 与 `./schema/v2` 保留原精确消费版本。当前内容及快照携带完整模型适配绑定，定义归已接受设计。

@@ -17,7 +17,7 @@
 | `isReadable`、`judgePairing`、`judgeCompactionList`                       | 依赖前缀的判定，外部输入显式传入         |
 | `brandMessage`、`brandRecord`、`isWireMessage`、`isWireRecord`、`Wire<T>` | 只检查形状的传输恢复与交换类型           |
 | 消息／记录类型、`LogPrefixView`                                           | 七类消息与调用方拥有的有序前缀           |
-| `validate`、`schemaId`；`./schema`、`./schema/v2`                         | 形状校验；当前 v3 与保留的 v2 资源       |
+| `validate`、`schemaId`；`./schema`、`./schema/v2`                         | 形状校验；当前 v4 与保留的 v2 资源       |
 
 ## 使用示例
 
@@ -135,3 +135,5 @@ pnpm --filter @omne-harness-lite/messages run test
 ```
 
 先构建 workspace 依赖。这些检查覆盖本包；组合行为需针对实际消费者与提供者验证。
+
+默认入口与 Schema 采用 version4；`./v3` 和 `./schema/v3` 保留 version3 纯值入口及精确资源。`./schema/v2` 仍仅为 Schema 资源。恢复请求记录或响应时请显式选择消费版本。

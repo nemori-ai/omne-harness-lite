@@ -5,7 +5,7 @@
 组织超管与租户在这里建档、修订、撤回、恢复在册，租户配、换、解除自己那一把凭据；官方档案随系统发布的清单装入（撤回与恢复也只经清单）；
 [会话据点](../../../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base)上的模型请求运行时从这里读档案、取凭据。
 
-**它不拥有**档案记录的形状与路由名唯一的规则（`data.model-profile` v2）、合法目标集合与一次模型调用（`capability.model-request-runtime` v2）、
+**它不拥有**档案记录的形状与路由名唯一的规则（已接受目录 v2 采用 `data.model-profile` v2；目录 v3 候选采用数据 v3）、合法目标集合与一次模型调用（`capability.model-request-runtime`）、
 「这个范围允许哪几条档案」（`capability.asset-evaluation` v2），也不拥有凭据本体的保管（提供者设计）。**依赖方向是单向的：本契约 → 档案形状、身份值、组织治理（只取成员资格判定）**；
 模型请求运行时消费本契约，本契约不消费它。
 
@@ -14,28 +14,29 @@
 - **catalog 映射**：已登记为 accepted。`family=capabilities`、`topic=model-profile-directory`、
   `contract_path=spec/capabilities/model-profile-directory/v2/contract.md`，`resources` 另含 `v2/examples.md`；
   依赖五项，消费 clauses 取自[契约 S-4 的被消费面表](v2/contract.md#s-4-依赖方向与被消费的面)：
-  `data.model-profile` v2、`data.identity-values` v1、`data.asset-model` v2、`data.offer-expiry` v1、`capability.organization-governance` v2
+  `data.model-profile` v2、`data.identity-values` v1、`data.asset-model` v2、`data.offer-expiry` v1、`capability.organization-governance` v1
 - **formal-tasks 映射**：无——本版不建 TLA+／Alloy，理由见[契约 S-24](v2/contract.md#s-24-本版选用哪些形式工件)
 - **提供者/装配映射**：[packages/model/model-profile-directory](../../../realization/packages/model/model-profile-directory/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
+- **新候选**：`(omne-harness-lite-design-2026-09-15, capability.model-profile-directory, 3)`；[v3 契约](v3/contract.md)与[实例](v3/examples.md)。采用 `data.model-profile` v3 的必填适配绑定，完整保留十个操作及八个失败值；配置修订不改义及发布三动作的责任另行明确。候选登记由本批 registry owner 集成，未经本版接受，不改写 v2 冻结资源。
 
 ## 准入核对
 
 - **独立责任**：档案登记与凭据绑定的写面带管理授权、住在中心；它的变化原因（管理员建档、系统发布、凭据轮换）与据点侧运行时（一次调用怎样发、怎样收场）不同，消费者也不同（交付面管理页、系统发布、据点运行时）。起草之初两者并在一份里，主线后来把它们拆开（[契约第十二节](v2/contract.md#十二版本差异与规范工件)）。
-- **稳定身份与版本**：首版 v1，候选。
-- **依赖**：三份已接受（`data.identity-values`、`data.offer-expiry`、`capability.organization-governance`），两份候选（`data.model-profile`、`data.asset-model`）——候选依赖改动时本契约须重核。
+- **稳定身份与版本**：v2 已接受并冻结；v3 是同一能力的演进候选，不自动升级消费者。
+- **依赖**：v2 的五份依赖均已接受；v3 只将 `data.model-profile` 升至 v3 候选，其余精确版本与条款沿用。共享候选变化时重核，不把草稿并存当成已经共同接受。
 
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 |---|---|
-| 本版本精确承诺什么 | [版本化契约](v2/contract.md) |
-| 每个操作走通是什么样、每个失败值的反例 | [规范实例](v2/examples.md) |
+| 当前已接受版本精确承诺什么 | [v2 契约](v2/contract.md)与[实例](v2/examples.md) |
+| 新候选的适配绑定读写与更新交接 | [v3 契约](v3/contract.md)与[实例](v3/examples.md) |
 | 哪些条款有怎样的证据，哪些仍缺 | [验证与覆盖](verification.md) |
-| 还有哪些没定、等谁裁 | [已知缺口](v2/contract.md#十已知缺口) |
+| 还有哪些没定、等谁裁 | [v3 已知缺口](v3/contract.md#十已知缺口)，v2 采用者仍查自己的冻结版本 |
 
 ## 版本包
 
-`v2/` 是候选版本目录。发布（接受并冻结）之后规范正文与实例不可原地覆盖，修改发布新版本；执行记录留在版本目录外（[验证入口](verification.md)）。
+`v2/` 已冻结，`v3/` 是演进候选。发布（接受并冻结）之后规范正文与实例不可原地覆盖，修改发布新版本；执行记录留在版本目录外（[验证入口](verification.md)）。本轮不新增 capability Schema 或平行注册状态机。
 
 ## 2026-09-26 版本接受
 

@@ -1,3 +1,30 @@
+## v4 候选增量的证据义务
+
+本节对应 [v4-design.md](v4-design.md) 的 AE4-1～AE4-8，2026-09-27 起草，未接受、未实现、未独立评审。新坐标为 `capability.asset-evaluation/v4`；以下只有应执行的义务，不能把下列 v3 历史结果重标为 v4 通过。
+
+| 缺口与条款 | 必须能失败的验收方案 | 当前状态、owner 与受阻消费者 |
+|---|---|---|
+| **AE4-1**：S-6/S-7 C15、S-45；AD1 S-1～S-9 | 从真实 AD1 公开构件取得并校验声明；正确/错误类别、未知项、保留项、重复 item、缺 default、非法规范域、越域默认逐项拒绝。source 缺成员或未知成员不放行；根空属性合法；不得以任意等价 Schema 替代规范域。类型与运行值共同核对 | 未开始；本包与 agent-definition 纯节点 owner，主线负责精确接受。阻断 v4 的合法输入校验与制品采用 |
+| **AE4-2**：S-7 C16、S-13/S-15 | 根 source 资产和版本分别失配时 invalidInput，覆盖 current/pinned 及换资产；与合法环/不支持类别叠加时仍优先 invalidInput；合法输入同时有环和不支持类别时 cycle 优先。三个失败均无半份结果 | 未开始；本包。阻断注册表信任 v4 求值结果 |
+| **AE4-3**：S-20～S-24、S-45/S-46 E-9 | 生效根不在 composition，但声明恰进入 values；外层锁胜、无锁最内胜、默认回退；换具体资产不继承旧设置/锁；不可见根进 unresolved 且不产生根设置；attributes 空或少项不补项、不由配值造项；缺 model 不造选中模型 | 未开始；本包。阻断模型运行时消费根设置与锁 |
+| **AE4-4**：S-11/S-15 ⑦/S-30；content-blocks/v3 S-24 | 独立制品调用无 Context/存储/时钟/网络/环境；严格无损值覆盖超安全整数版本、十进制、不透明合法成员、非 JSON 拒绝。逐项改变根 source/attributes/其他输入使缓存键区分不同输入；成员次序等既有指纹行为保持。调用方后续改对象与并行另一输入不改变已复制计算结果；Duration 不转成定时器数值 | 未开始；本包及消费缓存的 registry owner。阻断重放、隔离和可靠缓存结论；解析前重复键由文本接收边界另验 |
+| **AE4-5**：S-16/S-23/S-27/S-28/S-33～S-44 | 新制品运行继承规范场景；既有权限函数与清单读入保持原语义；v3 显式入口以原输入运行，v4 不接受缺 attributes/source 的旧输入。真实 NonConnector 正文闭包、精确旧 Skill v2 端口与传递 Schema 离线消费；所有公开导出由独立包消费，拒绝私有路径。根和被引用 sub-agent 的正文均满足 AD1 窄模式时，后者仍须 categoryUnsupported | 未开始；本包和各未切换消费者。Connector 延期保持，不能仅跑新增用例就宣称原闭包未受影响 |
+| **AE4-6**：S-29/PRE-9、S-45/S-46/G-22 | 从真实已发布正文读取两槽位及来源，经 AD1 通用/窄校验→evaluate→registry 提交→manifest readEvaluation，验证历史链；另从 runtime/v3 S-66 当前输入端口→evaluate→发前检查，验证新鲜链。换版重读；相同 source 但伪造声明应由生产者真实性检查识别，不能以 C16 冒充。合法空/缺任一时限结果可提交，但当前输入缺时限时 runtime 必须拒绝且 HTTP 发送计数为 0；readEvaluation 按现行 manifest/v3 S-33 读取固定头上界内最新 given/mint，不能因 reuse 沿旧表来源回退；历史合法结果不得遮蔽当前源读取失败、当前缺项或一致性竞争 | 未开始；`packages/assets/evaluation-input-store`、registry、assembly-manifest-store、runtime 与 `apps/model-request-acceptance`。阻断真实纵线验收，不阻断纯包起草；输入提供者节点尚未成稿、真实 IO 未验；runtime S-66 当前输入端口仍 candidate，不改本包纯计算边界 |
+| **AE4-7**：S-8/S-47；manifest/v3 S-32 | 独立包调用候选 judgeEffectiveAssembly，执行 S-47/E-10 并逐一删除必需成员、损坏身份/正 version/层/枚举/布尔及集合唯一性；逐类 DTO 添加未知成员须 false，任意 value 对象增加合法用户成员仍 true。混合快照造成 composition 无 asset、同能力多版本、value 无生效资产、已生效目标又 unresolved 时 false；合法非空 unresolved、同目标多个父引用、集合重排仍 true。覆核 S-47 第 4～7 条的锁/替换/常驻、过滤关系、根与固定权限、已出现元数据反例。结构自洽的跨输入拼接不能以结果证真，由真实写入链核对。无损超安全整数/小数、非 JSON 及重复键接收反例；判定不改输入。manifest 真调用同一构件并将 false 映射既有 invalid_evaluation_content | 未开始；本包拥有共享值判定，manifest owner 消费；S-47 候选已明确未知成员拒绝边界，不再由本节点补政策。阻断持久 EffectiveAssembly 的完整读取验收；无新增 failure enum、IO 或 Schema |
+| **AE4-8**：S-6/S-7 的第一步输入条件、S-17～S-19/S-39、C15/C16；AM3 S-9/S-18 | 独立制品消费者只交窄输入，不含 refs/attributes/source/动作集，覆盖官方根、组织/租户替换、禁用退回、usableBy/捕获角色、外层锁截断及同资产内层留下、current/pinned。选择结果与补入真实正文后的完整 evaluate 根资产/版本相同；删除保护/改锁优先级后比较应失败。没有生效根得 missing；缺定义、重复持有、错误租户、无效 standing、版本不存在得原 invalidInput，坏的非根持有也不得漏过；真实正文判定提供者缺席与明确缺根分开。经真实公开 ExactDecimal 构件区分 9007199254740992/9007199254740993、1e400/2e400，合法等值整数表示相等，不浮点化或展开天量零；AM3 连续版本线仍按原义拒坏，超大数值单测不冒充可实际构造的完整长版本线输入。input store 使用同一组件选来源，实际读取所选不可变正文后由完整 evaluate 检出错误 attributes/source；两者不得各自保存一份选择算法 | 未开始；本包负责共享选择与现有 call-accounts ExactDecimal 接入，input store 与验收装配验证真实 IO 交接及 PRE-3 效力前提。已定位 pinned 的 Number 转换但未修复；不新增规范 operation，技术结果不扩 evaluate 领域失败集合 |
+
+**有限模型的边界**：[RootSettings 映射与 receipt 检查器](../../../../spec/capabilities/asset-evaluation/v4/formal/README.md) 的范围为 3 Cap、5 Holding、4 Assign、3 Item、3 Asset、2 Owner、2 Version、bitwidth 4。正配置检查根成员排除、可见根投影、缺根无设置、source 一致性、外层锁与最内配值；六个定点变异检查这些断言确会发现指定错误。版本选择算法、真实时长/RouteName 值、C15 完整拒绝器、PRE-9 内容真实、IO、提交与 runtime 零出网不在模型内。运行状态归[契约验证入口](../../../../spec/capabilities/asset-evaluation/verification.md)，本节点不增加 production binding，也不把继承 Evaluation.als 的原结果换标签。
+
+**实现期间应记录的反例**：移除 C16 守卫应放行失配输入；忽略根投影应丢根设置；把根塞入 composition 应多一个成员；忽略根锁应误取会话值；复用旧资产声明应使换版/换资产用例失败。相应测试应观察公开结果，不仅断言内部辅助函数被调用。
+
+### 本次文档检查
+
+2026-09-27 在执行工作区运行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`；结果判定、S-47/runtime S-66 对齐，以及本次共享根选择与 ExactDecimal 投影补齐后，以同一命令检查，最终实际退出码 **0**。检查器结尾为 `PASS: design tree …/.meta_harness/design passed gate=internal; formal=skip.`；列出的全部 formal task 均明确显示 `skipped by explicit --formal skip`。这次只证明当前设计树通过内部结构/引用门，不宣称产品测试、模型重跑或独立评审。最后仅回填本条执行说明。
+
+### v4 覆盖缺口
+
+上述八项均未取得本节点 v4 实现证据，bindings 中新增条数为 0。结果拒绝边界已按 S-47 候选表达；精确接受、AD1 公开签名、结果判定/共享选择实现、精确版本比较及真实正文生产者仍未兑现。输入提供者与独立验收装配 owner 已点名，节点/真实交接尚未兑现。v3 历史绑定 1 条只保留其输入、工具、源码及 NonConnector 前提，不证明新根设置行为或本次定位的所有数值边界。文档链接/身份检查通过不等于独立评审、语义接受、可实施接受或真实验证。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 11 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。

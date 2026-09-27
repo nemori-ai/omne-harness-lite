@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-response v3: lossless response shape and ordered admission",
+  "description": "data.model-response v4 完整判断与显式 v3 纯值采用面",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -13,7 +13,12 @@
       "import": "./dist/index.js"
     },
     "./schema": "./schema/model-response.schema.json",
-    "./schema/v2": "./schema/model-response.v2.schema.json"
+    "./schema/v2": "./schema/model-response.v2.schema.json",
+    "./v3": {
+      "types": "./dist/v3/index.d.ts",
+      "import": "./dist/v3/index.js"
+    },
+    "./schema/v3": "./schema/v3/model-response.schema.json"
   },
   "files": [
     "dist",

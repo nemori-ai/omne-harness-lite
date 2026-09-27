@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import { judgeModelResponse } from '@omne-harness-lite/model-response'
+import { judgeModelResponse } from '@omne-harness-lite/model-response/v3'
 import { complete, failed, interrupted, object, omit, openedFailure } from './fixtures.ts'
 
 const reply = object(complete.reply)

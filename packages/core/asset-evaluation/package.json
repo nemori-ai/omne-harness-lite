@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.asset-evaluation v3 pure non-Connector evaluation and complete workspace reading",
+  "description": "capability.asset-evaluation v4 pure evaluation, root selection and result reading; explicit v3 adoption",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./v3": {
+      "types": "./dist/v3/index.d.ts",
+      "import": "./dist/v3/index.js"
     }
   },
   "files": [
@@ -29,7 +33,10 @@
     "@omne-harness-lite/loop-extension": "workspace:*",
     "@omne-harness-lite/mcp-endpoint": "workspace:*",
     "@omne-harness-lite/skill-package": "workspace:*",
-    "@omne-harness-lite/slash-command": "workspace:*"
+    "@omne-harness-lite/slash-command": "workspace:*",
+    "@omne-harness-lite/agent-definition": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/model-profile": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

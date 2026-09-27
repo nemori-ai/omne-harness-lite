@@ -16,7 +16,7 @@ import {
   type ExtensionInput,
   type ExtensionOutput,
   type Subject,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 import { at, assistant, inputAt, recordAt, reminder, variants, visibility } from './helpers.ts'
 
 const encoded = '{"token":"x","precision":9007199254740993,"small":1.2300,"nil":null}'

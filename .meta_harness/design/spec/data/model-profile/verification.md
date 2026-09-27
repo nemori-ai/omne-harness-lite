@@ -2,6 +2,70 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
+## v3 候选与证据义务
+
+2026-09-27：在 `panqiwei/model-request-runtime`、基线 `d4eaf767` 上起草
+[`data.model-profile/v3`](v3/contract.md)。v2 已接受并冻结；v3 未接受、未冻结，不把 v2 的接受与既有证据提升为 v3 已验证。
+版本目录仍只有契约、Schema 和规范实例三项；可变验证记录留在本文件。
+
+| 规范/性质 | 证据方式与输入 | 当前状态 | 责任与受阻消费者 |
+|---|---|---|---|
+| S-29 必填、三组分量闭合、字符串边界 | Schema 正反实例第 11、12 节，及三个档案表示的必填回归；显式空白码点、尾随换行/U+FEFF 均检查 | 本地 Schema 自检通过；未归档，非实现验收 | 规格工具与 core/model-profile；缺绑定不得补默认 |
+| S-31 模型 ID 一致及 S-25 优先级 | 表示层校验的纯计算检查；examples 第 12 节的 Schema 通过而完整校验拒绝、与空路由名和输出上限同时错误场景 | 未开始 | core/model-profile；只运行 Schema 不足以通过 |
+| S-30 配置 JSON 与数无损 | 严格解析重复成员、NaN、尾逗号及精确大整数/小数的往返；以 content-blocks/v2 S-24 的共同语义为依据 | 未开始 | 配置接收边界与 core 公共 JSON 设施；不能由 Schema 实例检查替代 |
+| S-29 修订命名域、不原地改义、值相等 | examples 第 13 节；同档案改值不改修订被阻止，不同租户可用同修订字符串但保留各自 values；对象次序不影响相等、数组次序与精确数值参与比较 | 未开始 | 实现/定义/档案写入者；不能仅测结构合法 |
+| S-27/S-29 调用快照完整且不随更新变化 | 原样复制绑定和 values 后修改当前档案，旧调用、重试与历史回读仍得旧值；另测外部对象别名修改 | 未开始 | 运行时与持久化消费者；其状态机模型和真实组合证据不在本 data 包伪造 |
+| S-30 秘密/凭据禁入、自建只取声明式配置 | 接收边界检查与写入路径审阅；嵌套合成秘密不被当成 Schema 已排除；自建不能通过配置载入任意代码、冒充 official | 未开始 | 档案写入与适配注册 owner；Schema 通过不证明此性质 |
+| S-29/S-30/S-31 跨消费者同一定义 | Schema 指针与精确依赖检查，messages/response/extension 等只引用公共定义；注册可用性与配置适用性失败由行为消费者闭合 | 未开始 | 主线整批对齐；G-14 阻断实现采用，不阻断候选表达 |
+
+### v3 变化的影响
+
+- 必填 `adaptation` 加入 `ModelProfileContent`、`ModelProfile`、`ModelProfileSnapshot`；唯一公共定义为 `v3/model-profile.schema.json#/$defs/ModelAdaptationBinding`，对应 S-29。S-30、S-31 补配置义务与模型对应性。
+- 五个字符串和配置 JSON 值一起构成绑定值比较；`configuration.revision` 不全局唯一。复制不得只留下修订，也不得按修订取别的档案值。
+- S-1～S-28 保留原有身份、范围和参数承诺，更新字段集合、跨字段校验、快照复制与拒绝优先级。修订适配不改变 S-11 仅由五项上游属性推动 `updatedAt` 的规则。
+- 产品前提复核到 PF-013 **rev 13**：rev 13 只修订 S5b/S10c 验收范围，未改档案数据语义；PF-001 rev 19、PF-004 rev 12、PF-010 rev 6 不变。本批新增要求来自用户授权方向与主线施工简报，不标成 PF-013 已有规则或新的已接受产品修订。
+- 依赖保留 `identity-values/v1` 与 `offer-expiry/v1`；`content-blocks/v2` 除 S-6 再消费 S-24。该 Schema 没有 `JsonObject` 定义，主线裁定用 `type: object` 加精确语义引用，不新增同义 JSON 规范或悬空 `$ref`。
+- 旧 v2 规范及历史证据保留原范围；新增绑定、跨字段拒绝和消费者快照证据必须重建。没有自动升级、默认绑定或兼容转换承诺。
+
+| 现有消费者 | 必须随本批显式升级的部分 | 未升级时 |
+|---|---|---|
+| core/model-profile 实现 | 公共类型、Schema、解析/复制、相等、完整表示层校验及拒绝次序 | 继续消费 v2；不可声称能读 v3 |
+| `capability.model-profile-directory/v2` | 建档、修订、官方清单、读取完整绑定；配置修订改义与注册配置校验的责任和失败 | G-14 未闭合，不得以 v2 接收新数据 |
+| `capability.model-request-runtime/v2` 与公开模型函数 | 采用/冻结完整绑定、模型对应性、注册与配置可用性、版本更新后在途保持 | G-14 未闭合；形状合法不等于调用获准 |
+| `data.model-response/v2`、`v3`；`data.loop-extension/v2`、`v3`；`data.messages/v2`、`v3` | 当前都精确引用 model-profile/v2；新候选须将相关快照与嵌套记录指到 v3，显式处理新增绑定字段 | 旧快照形状拒绝新成员或丢失绑定，不能混用 |
+| `capability.modality-projection/v2`、`capability.asset-registry/v2` | 当前只消费 S-7 或 S-25；若输入改成完整 v3 档案则采用新版本并更新验证，否则保留既有精确依赖 | 不因推荐新版本自动升级；由主线逐入口判定采用 |
+
+### v3 检查结果
+
+2026-09-27 本地自检实际执行于该工作树 `.venv/bin/python`（`jsonschema 4.26.0`、`referencing`），读取本版 Schema、examples JSON 正例及第 9 节快照，构造绑定缺席、未知成员、类型错误、全部 26 个显式空白码点 × 五个字符串 × 首尾两端、三个表示缺绑定等反例。仅检查 Schema 的通过/拒绝；同时确认模型 ID 错配可被 Schema 放过，以免误报完整校验通过。
+首次以 heredoc 执行；按主线补充授权将同一检查保存为脚本并重跑，命令为 `.venv/bin/python tmp/model-request-runtime/model-profile-v3/check_schema.py`，退出 0。
+
+本次实际输出：
+
+```text
+PASS: model-profile/v3 candidate schema and examples; checks=321; definitions=12; clauses=31; jsonschema=4.26.0
+SCOPE: Schema only. Cross-field refusal, secret exclusion, revision immutability and runtime freeze remain unexecuted implementation obligations.
+```
+
+输入 SHA-256：`model-profile.schema.json` 为 `fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d`，`examples.md` 为 `0a4bd984ecabb46a4d448654d241d3ef48e0a3cbabca73817c0904fb18f1dc6d`。
+脚本、真实标准输出/错误及含输入哈希和工具版本的 `schema-check-inputs.json` 暂存于本批工作树 `tmp/model-request-runtime/model-profile-v3/`，尚未归档到长期 evidence；它们是交接资产，不能当作已发布的持久证据入口。本地自检不能充作独立实现符合性证据，归档由本批主线统一负责。
+
+同次执行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`，退出 1：
+
+```text
+FAIL: design validation found 9 error(s).
+```
+
+九处全树链接错误位于并行成稿中的 `capabilities/model-request-runtime/v3`、`data/messages/v4`、`data/model-response/v4`；本次输出未指向本包，但本次全树检查仍是失败，registry 集成和整批检查须由主线收口。`git diff --check` 通过，`v2/` 无字节修改。
+
+保存脚本与输入后重跑同一全树命令，退出 1，实际输出为 `FAIL: design validation found 2 error(s).`：余下两处均为运行时 v3 契约及形式入口指向其尚未写完的 `verification.md#v3-候选变化与证据`。该次真实输出、错误和命令/退出码已保存为上述交接目录中的 `design-check.stdout.txt`、`design-check.stderr.txt`、`design-check-run.json`；仍不声明全树通过。
+
+本包未建立 TLA+/Alloy 工件，也未运行形式工具；`--formal skip` 明确不执行形式任务。新增内容不引入 data 操作或并发状态机；注册、撤除、调用保持的形式义务由其行为 owner 承担。
+
+## v2 起草期记录
+
+以下保留 v2 起草、评审与本地自检的原始叙述。其“candidate/未接受”措辞是当时状态；当前接受与冻结以 registry 为准，不能据下段否定 v2 后续接受，也不能据旧自检声称 v3 已通过。
+
 > **当前状态：未开始。**`data.model-profile` v2 是 `candidate`（2026-09-23 起草），未接受、未冻结；
 > 没有提供者、没有装配、没有源码。下表登记的是**已经触发的证据义务**，不是已完成的检查。
 > 跑过的只有对 [`examples.md`](v2/examples.md) 正反实例的两次**本地自检**（未登记、未进 `record/evidence/`），
@@ -201,3 +265,10 @@ reviewer：spec-reviewer，S25 第二轮批 R2b（另含批 R1 转来的一条�
 - **2026-09-25 修复波 2（候选，未冻结，原地改）**——逐条处置见[独立评审「第二轮」](#第二轮2026-09-25)：R2-MP-1（消费者表 messages、MRR 两行与 S-20 末条补全）、R2-MR-4 的本契约一半（S-23 协议列：出网之前交回写「已出门」的一方，只随结果回传不够）、R2-MP-2（「切换事实」→「模型切换落下的那条记录」，链 UL-model-switch；实例第 3 节一行、covers 一条 note 同改）、R2-MP-3（S-10 末段按名字写）、R2-MP-4（对齐义务状态）。**语义与表示都不变**：Schema 与实例 JSON 未改，自检不重跑；catalog 不变。
 
 结果不改写规范。发现语义问题回到来源设计（PF-013），不在这里改契约。
+
+## v3 报给主线
+
+1. **已获裁定**：修订命名域、绑定完整值比较、`JsonObject` 引用冲突以及模型 ID 必须等于路由名，均按本批简报与后续消息落到 S-29～S-31，没有自行增加别名或租约政策。
+2. **登记交接**：本批 registry 唯一 owner 是主线；候选 catalog/covers 建议随本次交接返回，本 agent 不写四份共享清单。规范工件三份，条款 S-1～S-31；未增加编号族，未增加 formal task，不冻结资源。
+3. **G-14，owner 主线及各行为消费者**：数据候选定型不等于目录、函数、运行时或嵌套历史已升级；上表列出当前坐标与采用义务。注册/配置失败值及并发版本保持不能由本 data 包补造。
+4. **继承缺口**：G-2（供应商词法，传输适配 owner）、G-8（覆盖去掉参数，运行时/拓展数据 owner）、G-9（extra 同义参数收场，运行时 owner）、G-10（将来模型组，产品负责人）保留，不在本批数据改动中暗关。

@@ -4,6 +4,7 @@ import { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS, corePureImports } from '../src
 const providers = [
   'content-blocks',
   'messages',
+  'model-profile',
   'model-response',
   'loop-extension',
   'tool-definition',
@@ -12,7 +13,7 @@ const providers = [
 ]
 
 describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
-  it('登记恰七个 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
+  it('登记八个已采用 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
     expect(
       Object.entries(PUBLIC_SUBPATHS)
         .filter(([, values]) => values.includes('schema/v2'))
@@ -36,7 +37,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         ).toEqual([])
         for (const suffix of [
           'schema/v1',
-          'schema/v3',
+          'schema/v99',
           'schema/v20',
           'schema/v2/private',
           'schema/v2.json',
@@ -53,7 +54,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
       })
     }
 
-    it(`${provider} 的精确子入口不新增依赖边，自有资源仅批准 AM2 与 Skill2`, () => {
+    it(`${provider} 的精确子入口不新增依赖边，自有保留资源仅沿已采用节点`, () => {
       const consumer = Object.entries(CORE_PURE_DEPENDENCIES).find(
         ([, dependencies]) => !dependencies.includes(provider),
       )?.[0]
@@ -73,11 +74,22 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
             text: `import '@omne-harness-lite/${provider}/schema/v2'`,
           },
         ]),
-      ).toHaveLength(provider === 'asset-model' || provider === 'skill-package' ? 0 : 1)
+      ).toHaveLength(
+        [
+          'asset-model',
+          'skill-package',
+          'messages',
+          'model-profile',
+          'model-response',
+          'loop-extension',
+        ].includes(provider)
+          ? 0
+          : 1,
+      )
     })
 
     it(`${provider} 的本包相邻资源路径仍禁止`, () => {
-      for (const suffix of ['schema/v3', 'schema/v20', 'schema/v2/private', 'src/schema/v2.ts'])
+      for (const suffix of ['schema/v99', 'schema/v20', 'schema/v2/private', 'src/schema/v2.ts'])
         expect(
           corePureImports.check([
             {
@@ -88,6 +100,28 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         ).toHaveLength(1)
     })
   }
+
+  it('D071/D073 current owners may import their exact retained v3 resources but no adjacent or future version', () => {
+    for (const provider of ['messages', 'model-response', 'loop-extension']) {
+      const path = `core/${provider}/src/v3/schema.ts`
+      expect(
+        corePureImports.check([
+          { path, text: `import '@omne-harness-lite/${provider}/schema/v3'` },
+        ]),
+      ).toEqual([])
+      for (const suffix of [
+        'schema/v4',
+        'schema/v3/private',
+        'schema/v3.json',
+        'schema/v3/testing',
+      ])
+        expect(
+          corePureImports.check([
+            { path, text: `import '@omne-harness-lite/${provider}/${suffix}'` },
+          ]),
+        ).toHaveLength(1)
+    }
+  })
 
   for (const consumer of ['asset-evaluation', 'slash-command']) {
     it(`${consumer} accepts the exact adopted Skill2 value/body entry only`, () => {

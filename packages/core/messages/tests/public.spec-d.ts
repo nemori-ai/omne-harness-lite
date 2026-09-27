@@ -14,8 +14,8 @@ import type {
   InterruptedSource,
   MessageId,
   LogPrefixView,
-} from '@omne-harness-lite/messages'
-import { judgePairing, isReadable, judgeCompactionList } from '@omne-harness-lite/messages'
+} from '@omne-harness-lite/messages/v3'
+import { judgePairing, isReadable, judgeCompactionList } from '@omne-harness-lite/messages/v3'
 declare const message: Message
 declare const internal: ToolInternalMessage
 declare const messageId: MessageId

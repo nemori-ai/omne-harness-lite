@@ -1,14 +1,14 @@
 import { expect, it } from 'vitest'
 import type { BodyContract } from '@omne-harness-lite/asset-model'
 import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
-import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import loopSchema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import {
   loopExtensionBodyContract,
   judgeDefinition,
   loopExtensionAttributeDeclarations,
   loopExtensionReferences,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 import { json } from './helpers.ts'
 
 const declarationJudge = createSchemaRuntime([assetSchema, loopSchema]).compile({
@@ -119,7 +119,7 @@ it('LE-BODY-IDENTITY: exact codepoint name, no builtin asset reference or implic
   expect(() => loopExtensionBodyContract.references({})).toThrow(TypeError)
 })
 it('LE-BODY-OPAQUE: no execution environment resolving export or mutable schema', async () => {
-  const api = await import('../src/index.ts')
+  const api = await import('../src/v3/index.ts')
   expect(Object.keys(api).some(name => /resolve|environment/i.test(name))).toBe(false)
   expect(Object.isFrozen(loopExtensionBodyContract)).toBe(true)
   expect(Object.isFrozen(loopExtensionBodyContract.schema)).toBe(true)

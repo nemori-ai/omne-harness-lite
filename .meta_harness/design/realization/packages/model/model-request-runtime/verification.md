@@ -1,5 +1,56 @@
 # model-request-runtime 验证与证据
 
+## v3 增量证据义务
+
+本节对应 [v3-design.md](v3-design.md) R3-P1～P11；本版为candidate、尚未建包。所有“待验”均不是通过声明。契约侧[有限模型与原型](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md)不包含生产HTTP、真实提供者提交或完整租户接线；不增加绑定。
+
+| 编号／来源 | 必须可失败的检查 | 当前状态／owner |
+|---|---|---|
+| R3-V1：S-28/S-53 | 新call完整binding/配置取得、目录改V2后旧call三阶段仍V1、新call用V2；同名配置revision跨档案不同值不互取；旧版缺失unavailable零锚点/零HTTP | 待实现；runtime＋transport＋directory |
+| R3-V2：S-28 | 真assetRegistry发布/lookup与report；run/attempt/session每一处错配拒绝，reload后report仍读旧工具快照；无工具/未知工具/源不可读三分；续接用新tools/report | 待真实provider；runtime＋registry＋runner |
+| R3-V3：S-10/S-21/S-66 | 无reload改变层配值，新effectiveModel受新锁，旧openCall绑定不变而下一dispatch使用新时限；缺可选model无锁、缺任一时限零HTTP且状态不变 | 待真实当前输入store；runtime＋AE＋输入provider |
+| R3-V4：S-66、AE4 PRE-3、OG2 S-63 | 捕获effective但当前资格失效/未知/无内部权限均unavailable且零HTTP，当前有效时角色变化不改捕获standing、不逐请求取中心；真实OG participate与recipe/head/资产同atomic，资格撤销或发布交错无拼接成功，去保护负控能失败；参与异常必须实际回滚/排空后才映射。跨tenant、根version/source/正文失配、current误改pinned及源不可读均拒绝，历史manifest不能掩盖当前失败 | 待真实同存储参与组合；输入provider主验、runtime核原状态与零发出；不以mock资格替代 |
+| R3-V5：S-15/S-29/S-54/S-57 | 插桩使真实plan在锚点前只运行一次；实际请求体及参数与已出门还原值一致；锚点写失败send计数0；写成后停机恢复保留事实；private prepared构件输入错配拒绝 | 待实现；runtime＋真实log＋transport |
+| R3-V6：S-28/S-29/S-57 | 已发出后续接换messages/tools造成三种规划拒绝，各零新send/response/ended且保留原阶段；同样模态拒绝在历史0次时才undispatched。历史不可读不猜零；凭据缺失独立分支 | 待实现；runtime |
+| R3-V7：S-15/S-16/S-17/S-29/S-33/S-51/S-55、X4/X5 | 真实opened追加阻塞时所有可见面无内容；函数门失败仍无firstTokenAt。至少故障矩阵：①提交true/ack unavailable→禁止普通failed response，恢复opened后durable firstTokenAt等于锚点且终态不重发；②提交false/ack unavailable仍先隔离，不把未知当未写，满足S-33前提并权威确无opened后才按原表；③取消门等待→函数interrupted零内容→append迟到提交或ack丢，durable timing仍取opened，中断意图优先；④权威read unavailable或只剩旧confirmed tail→未结算、零内容/零再发；⑤旧writer未停/无有效fence→不得先结算或进入可续接；⑥假成功回执负控必须被重启耐久/先锚点后可见断言抓住。隔离期间runner/P-5不得收到失败主体。全支核ResponseId至多一次与response/anchor一致；去掉隔离/静止屏障须失败 | 待真实故障注入及独立机制复审；runtime＋JSONL owner＋宿主装配；原ContentGate模型不覆盖耐久ack未知 |
+| R3-V8：S-54～S-56 | 不装Cordis/会话/存储的实际制品消费者仅一次send；结果无系统身份/回复处置；发送前取消外层分支不造ResponseOutcome；abort幂等但不假称实际停止；不响应构件保持可见未停状态 | 待实现；runtime＋transport |
+| R3-V9：S-17/S-49、X1 | 两副协程交叠于真实日志提交：consumer回复＋R与撤除/settleReply的R竞争，唯一response/账，整批回复无孤儿；持久写失败保留reply_pending，不提前release | 待真实log组合；runtime＋consumer |
+| R3-V10：S-8/S-22/S-38、X2/X3 | 新attempt与旧fenced发出交错；无run旧/新实例同序号交错；败者零HTTP，不用同实例锁或固定sleep代替提交插桩 | 待真实log双实例；runtime＋日志owner |
+| R3-V11：S-31/S-33/S-36 | 意图写前/后崩溃，意图失败不发中止；用户取消与系统停止有/无内容、reply_pending竞争分别收场。普通已知系统停止为run_cancelled、无回复且保留已交付块；未知ack隔离不因系统停止新增durable意图，恢复无意图/无response时，opened无→runtime_lost/resumable、有→runtime_lost/interrupted并取锚点时刻。有真实意图才优先；不能用内存stop原因阻止合法显式续接 | 待实现；runtime＋宿主consumer |
+| R3-V12：S-33/S-34/S-53 | 真进程终止后在相同持久日志恢复；只装V2亦可追补V1且send0；无首内容resumable、已开口终态；部分追补失败不交部分成功，重复对账幂等；续接再取得原版 | 待跨进程真实验收；runtime＋装配 |
+| R3-V13：S-18/S-19/S-21 | queued超时unrecognized、触达后upstream_unavailable、未知阶段不猜；首内容后故障优先；每次凭据轮换真实读；provider请求/实报/缺席、缓存0/未知/正数、cost精度逐支 | 待实现/采用表取证；runtime＋transport＋custodian |
+| R3-V14：S-20 | 原凭据、满足长度的片段、具名头/模式秘密哨兵遍及错误/记录/附件/诊断出口；默认prompt/tool/reasoning哨兵不入诊断；不能用Schema通过当禁秘证据 | 待实现；runtime＋transport＋sink装配 |
+| R3-V15：S-30/S-35/S-50/S-60/S-67 | 真实runner按 `{ category: loop_extension, name: "omne-official:default-retry" }` 识别；声明/name/记录逐码点一致，after_model_call且ending=failure；错名/错位/错dimension不得冒充默认件，禁止按类名识别。完整失败主体经声明求值和结论记录；实际power不允许时retry被拒绝，不能将retry/record填Power或凭身份越权。默认与恶意自定义retry均过同一只读/实际守卫；n/u端点、非法factor/base/max、退化区间/decorrelated前值逐项；无seed、隐式取整或自动send | 待runtime3/runner3接受及真实组合；runtime拥有标识与P-5，runner消费并校验；LC4已接受 |
+| R3-V16：S-36/S-53/S-61 | 真实Cordis宿主register↔stop两种次序、登记失败回收；正常提前解除、重复停止、runtime与host并发撤除；真实socket/回调结束后才release，写失败不伪称结算 | 待source-check及产品组合；runtime＋宿主＋transport |
+| R3-V17：S-53/S-64 | acquireA→releaseA→acquireB→retire，B在途不dispose；正常retire不打断旧call，强制取消同时覆盖runtime/direct；等待超时保留资源/诊断，服务替换另触发S-36 | 待产品实现；transport主验、runtime消费验收 |
+| R3-V18：S-51/S-62 | 两会话同callId/不同dispatch串流拒绝；字节/事件双限分别耗尽、consumer异常和中途关闭有具名结果；结算继续；晚到事件不重开、不可靠重放 | 待实现；runtime＋observer装配 |
+| R3-V19：S-63 | 每个边界事件可关联且不录高基数metrics标签；真实JSONL查询显式tenant过滤、OS权限、runtime fiber撤除后仍能查询；记录retention/采样/丢弃范围 | 待真实sink/query/metrics；验收装配owner |
+| R3-V20：S-63 对照 S-15 | sink写失败/满缓冲不改业务收场，独立退化状态及有界stderr可见；同处替换成opened durable失败则无内容；所有出口失败明确覆盖缺口 | 待故障注入；runtime＋装配 |
+| R3-V21：S-13/S-38 | 真实增量日志任意前缀与全量重算同值；日志身份错/水位竞争/缓存不可用/日志不可用各支；不同历史长度测量新增量工作量 | 待实现；runtime＋storage/log |
+| R3-V22：装配开闸与既有MRR-N7 | 全部required与操作必需provider ACTIVE、真实guard.confirm后才HTTP；confirm失败/迁移失败关闭受理并核pending；测量JSONL opened持久延迟分布，报告负载/存储/样本不猜SLA | 待真实验收应用；assembly＋storage/log |
+| R3-V23：S-38与公开闭包 | transport原T-1～T-20、SC-1～SC-3及D-019比较门全部保留；runtime只能从invokeModel通道出网；实际打包consumer无私有导入/隐藏环境依赖；37模型在生产路径复验 | 待实现；transport＋runtime＋验收装配 |
+
+### v3 覆盖缺口与实施门
+
+| 缺口 | 受阻条款／消费者 | owner与闭合条件 |
+|---|---|---|
+| R3-G1：runtime3/runner3候选接受与接续 | S-28/S-29/S-35/S-50/S-60/S-67；失败主体、默认重试与完整runtime实现 | D-070/D-072/D-073接受相关数据及读取链，LC4已接受；runtime3/runner3仍candidate，主线及各owner完成独立评审/接受与真实接续。P-5声明/登记和runner消费一致采用S-67，身份不增权；不降成LC3 |
+| R3-G2：S-66实际当前输入源与一致性 | S-10/S-21/S-24/S-26/S-66；有效模型及所有发出 | [evaluation-input-store](../../assets/evaluation-input-store/design.md)读取投影已由D-074采用；其owner与OG/runtime/装配仍须完成真实公开参与面、同AtomicStorage授权/源读取、捕获配方与当前资格分离及V3/V4，落实参与异常共同终结。不得fixture、历史manifest、恒真授权或固定设置假成功 |
+| R3-G3：宿主与精确引用实际停止 | S-36/S-53/S-55/S-56/S-61/S-64；hot update、取消、卸载 | runtime、transport、宿主owner；basis外提前解除/登记竞态source-check与V16/V17。构件不响应时不能通过释放资源伪造闭合 |
+| R3-G4：共同日志真实耐久及v4载荷接续 | S-8/S-15/S-17/S-31/S-33；所有服务面、恢复 | session-log-jsonl/runtime/consumer完成L-1～L-6互指、V5/V7/V9～V12与真实崩溃；禁止内存标记或跨SQL假事务替代 |
+| R3-G5：传输比较门、状态码表与脱敏配置 | S-18/S-20/S-38；production transport及成因留痕 | transport与主线给实际来源表、完整显式脱敏参数及D-019门；表外仍unrecognized，不能把研究样本当全模型认证 |
+| R3-G6：真实验收应用与观测持有者 | S-38/S-62/S-63；真实依赖、guard、查询/权限、观测完整性 | 主线指定[apps/model-request-acceptance](../../../apps/model-request-acceptance/README.md)目前候选起草；承担provider清单/真实数据初始化、OS权限、JSONL/query/metrics、guardconfirm及V18～V23。RT-AR1实际恢复与日志owner交接另须R3-G8 |
+| R3-G7：调度构件及完整Duration承载 | S-21/S-55/S-56/S-60；计时/取消等待与默认重试消费 | runtime/装配owner以现有成熟实现或有依据必要自建投影，核精度/溢出/大时长/取消实际停止；不可隐式取整或硬塞数值默认。契约外拒绝政策若必需回主线，不在此发明 |
+| R3-G8：RT-AR1未知opened回执恢复机制 | S-15/S-16/S-17/S-29/S-33/S-51/S-55；首内容门、取消、普通结算、再次发出及恢复 | runtime实现Q-1隔离所有普通结算路径，日志owner/宿主落实Q-2/Q-3旧append与stream实际静止、有效fence及权威恢复读，S-33沿原意图优先表定timing。旧confirmed tail、requestedCancel和ResponseId判重均不代证。L-7需提供者/装配承接互指、R3-V7真实矩阵与独立架构复审；本节点不新开恢复操作/枚举 |
+
+G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和跨进程部署继续在外部owner，本批显式创建真实初选与本机源不关闭它们。当前有限形式任务也不覆盖真实IO失败、租户读取或任意模型行为。
+
+### v3 实际执行
+
+本版产品实现/实际装配尚无。节点文档检查仅检查引用与登记结构；本次实际命令及退出结果随起草交付报告提交。旧六条绑定保持原v2性质、常量与否定配置范围；不改为v3，不为未实施测试写占位binding。
+
+以下为原v2记录，按当时的版本读取；旧seed退避、历史求值读取、旧schema主体等验收不代替上述v3义务。
+
 本页记本节点触发的证据义务、实际跑过什么、覆盖到哪里。原始输入与输出归 [record/evidence](../../../../record/evidence/README.md)；契约层的证据状态归[契约验证入口](../../../../spec/capabilities/model-request-runtime/verification.md)，本页只写它们与本节点的关系。**源码不存在，本节点没有任何实现层的证据。**
 
 ## 证据义务

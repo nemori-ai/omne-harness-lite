@@ -2,11 +2,12 @@ import {
   judgeContentBlock,
   readJsonStrict,
   type ContentBlockRejection,
+  type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import { isObject, snapshot } from './json.ts'
 import { rawBlockTree } from './blocks.ts'
 import { brandMessage, brandRecord, isWireMessage, isWireRecord } from './values.ts'
-import { dispatchedParametersValid } from './parameters.ts'
+import { dispatchedParametersValid, jsonEqual } from './parameters.ts'
 import type { MessageJudgment, LogPrefixView, ModelInvocationJudgment } from './types.ts'
 
 const MESSAGE_TYPES: readonly string[] = Object.freeze([
@@ -141,7 +142,7 @@ export function judgeModelInvocationRecord(value: unknown): ModelInvocationJudgm
     copied === undefined ||
     !isObject(copied) ||
     !isWireRecord(copied) ||
-    (copied.kind === 'model_call_dispatched' && !dispatchedParametersValid(copied))
+    (copied.kind === 'model_call_dispatched' && !dispatchedValid(copied))
   )
     return Object.freeze({ rejected: 'malformed' } as const)
   return Object.freeze({ ok: brandRecord(copied) })
@@ -151,4 +152,20 @@ export function judgeModelInvocationRecordText(text: string): ModelInvocationJud
   return 'failed' in read
     ? Object.freeze({ rejected: 'malformed' } as const)
     : judgeModelInvocationRecord(read.ok)
+}
+
+function dispatchedValid(value: JsonObject): boolean {
+  if (
+    !dispatchedParametersValid(value) ||
+    !isObject(value.adaptation) ||
+    !isObject(value.profileSnapshot) ||
+    !isObject(value.profile) ||
+    !isObject(value.adaptation.definition)
+  )
+    return false
+  return (
+    value.profileSnapshot.adaptation !== undefined &&
+    jsonEqual(value.adaptation, value.profileSnapshot.adaptation) &&
+    value.adaptation.definition.modelId === value.profile.routeName
+  )
 }

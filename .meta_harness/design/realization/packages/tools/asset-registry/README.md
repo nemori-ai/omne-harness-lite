@@ -1,5 +1,21 @@
 # asset-registry
 
+## v3 候选增量（2026-09-27）
+
+- 路径仍为 `packages/tools/asset-registry`；**尚未建包**。新增 [v3-design.md](v3-design.md)，旧已接受 design.md 不改。
+- 契约坐标：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 3)`，catalog candidate；显式采用 AE4、manifest3，并消费同一实际版本的根正文来源。
+
+| 分层状态 | 本版事实 |
+| --- | --- |
+| 语义接受 | 无本版接受；v2 已接受事实保持原范围，本候选待独立评审 |
+| 可实施范围 | AR3-1～AR3-7 已列投影；S-16/S-23/S-24/S-31/S-50 的已确认 C16 根失配映射已投影，普通二次读不到分支保留。AR3-G2 真实现读、AR3-G3 固定根读取面/选版构件与失败原因交接仍待对应 owner 实现和验证；其他缺口见增量设计 |
+| 绑定与证据 | **0 条绑定**；没有本版实现测试。新增 VE-1～VE-13 与原 S-36～S-47/N-1～N-10 并存，不用候选结构自检提升证据 |
+| 实际验证 | **尚无产品验证**。没有真实 registry/manifest/输入源组合、并发、日志顺序或重启验收 |
+
+本版区分每表历史 E1、最近已提交 E2 和实时输入；reuse 保留 E1/O1。SQL 清单与会话 JSONL 分别提交，失败先落日志再收窄表。lookup/list 按类别及 within 分支读取，运行内技能不重判、工具不偷偷换成新正文。详见 [增量设计](v3-design.md)与 [验证义务](verification.md#v3-候选增量)。
+
+## v2 已接受设计与历史状态
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.asset-registry · v2`（[契约](../../../../spec/capabilities/asset-registry/v2/contract.md)，状态 `accepted`，已接受、已冻结；设计依据 PF-002 rev 20、PF-006 rev 19、PF-004 rev 12）
 - 源码位置：`packages/tools/asset-registry`——**尚未建包**。第一层 `tools` 由 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板（tools 取候选 C，注册表归 `tools`）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -32,3 +48,7 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 本轮技术采用
+
+[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。

@@ -8,7 +8,7 @@ import {
   judgeMessage,
   judgeModelInvocationRecord,
   type SchemaDefName,
-} from '@omne-harness-lite/messages'
+} from '@omne-harness-lite/messages/v3'
 
 const design = new URL('../../../../.meta_harness/design/', import.meta.url)
 const examples = readFileSync(new URL('spec/data/messages/v2/examples.md', design), 'utf8')
@@ -60,7 +60,7 @@ describe('V-1 frozen normative rows', () => {
     })
   it('has exactly 43 public definitions and the Schema is frozen-byte identical', () => {
     const original = readFileSync(new URL('spec/data/messages/v3/messages.schema.json', design))
-    const copied = readFileSync(new URL('../schema/messages.schema.json', import.meta.url))
+    const copied = readFileSync(new URL('../schema/v3/messages.schema.json', import.meta.url))
     expect(copied.equals(original)).toBe(true)
     expect(createHash('sha256').update(copied).digest('hex')).toBe(
       '5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005',

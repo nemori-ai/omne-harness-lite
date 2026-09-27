@@ -7,7 +7,7 @@ import {
   judgePairing,
   validate,
   type SchemaDefName,
-} from '@omne-harness-lite/messages'
+} from '@omne-harness-lite/messages/v3'
 import { at, assistant, logged, text, tool } from './helpers.ts'
 
 const identifiers: readonly SchemaDefName[] = [

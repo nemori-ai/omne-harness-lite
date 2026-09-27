@@ -116,3 +116,9 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-067：格式化件技术采用](core-formatter-adoption/README.md)，用户明确追加两 util 包，主调度在委托内接受技术映射，未接受实现或总体交付。
 
 [D-068：core 实施反推的规格一致性修订](core-implementation-spec-reconciliation/README.md)：沿已接受 N32 补共享形状、两示例与八个 core 的显式采用；修订范围已采纳，精确新版候选待审，未接受／冻结／实现。
+
+[D-075 模型凭据来源投影](model-credential-source-projection/README.md)：目录同单元绑定比较、模型副本 sourceRef/AAD 及受限技术组件采用；完整 CCL/OAuth/MCP 不在采用交付范围。
+
+[D-076 模型请求纵线最终规格和装配投影](model-runtime-delivery-adoption/README.md)：RT3/runner3接受，runtime/transport/runner/验收app采用，真实交付待完成。
+
+[D-077 模型输入源接口补充](model-source-interfaces-adoption/README.md)：完整可信部署项与受限固定根读面采用；原装配来源认回及真实新增面验收待完成。

@@ -5,7 +5,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { ModelResponseRejection } from '@omne-harness-lite/model-response'
+import type { ModelResponseRejection } from '@omne-harness-lite/model-response/v3'
 
 export function object(value: JsonValue | undefined): JsonObject {
   if (

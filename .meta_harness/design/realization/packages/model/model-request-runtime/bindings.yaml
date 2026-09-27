@@ -1,4 +1,6 @@
 # 条款到证据的绑定表。
+# 2026-09-27 v3 candidate（S-1～S-67）：新增0条；R3-V4当前核权、R3-V7未知opened回执恢复及R3-V15默认件身份等未实施的R3-V1～V23不登记占位绑定。
+# 以下六条仅保留原v2有限形式任务范围，不作为v3节点实现或真实装配证据。
 # 只绑已登记、且断言被证明会失败的 formal task：model-request-runtime-v2-invocation（Invocation.tla + Invocation.cfg）。
 # 六条不变量各有一份恰拧反一个开关的否定配置，在同一份模型（SHA-256 7dafcaa2…）上实跑出反例，
 # 结果登记在契约验证入口 spec/capabilities/model-request-runtime/verification.md「实际执行」。

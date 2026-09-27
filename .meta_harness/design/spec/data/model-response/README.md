@@ -54,3 +54,7 @@ Schema 的条件约束逐格表达、正反实例逐格演示，在给定规模�
 ## 2026-09-26 D-068 当前 v3
 
 `data.model-response · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+
+## 2026-09-27 v4 候选
+
+[v4 契约](v4/contract.md)、[Schema](v4/model-response.schema.json) 与[规范实例](v4/examples.md) 增加完整模型适配绑定及上游实际执行方，缓存事实继续由既有 usage 承载。[v4 验证说明](verification.md#2026-09-27-v4-候选验证) 记录差异、证据义务与实际状态。本版为 candidate，依赖 model-profile/v3、messages/v4 候选；当前已接受版本仍是上述 v3，旧消费者不自动升级。

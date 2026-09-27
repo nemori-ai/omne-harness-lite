@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.messages v3 的纯消息、运行时记录及日志前缀判定",
+  "description": "data.messages v4 完整判断与显式 v3 纯值采用面",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -13,7 +13,12 @@
       "import": "./dist/index.js"
     },
     "./schema": "./schema/messages.schema.json",
-    "./schema/v2": "./schema/messages.v2.schema.json"
+    "./schema/v2": "./schema/messages.v2.schema.json",
+    "./v3": {
+      "types": "./dist/v3/index.d.ts",
+      "import": "./dist/v3/index.js"
+    },
+    "./schema/v3": "./schema/v3/messages.schema.json"
   },
   "files": [
     "dist",

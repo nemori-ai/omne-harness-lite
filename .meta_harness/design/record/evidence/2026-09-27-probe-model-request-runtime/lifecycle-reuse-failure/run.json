@@ -1,0 +1,22 @@
+{
+  "recordedAfterExecution": true,
+  "argv": [
+    "node",
+    "--input-type=module",
+    "-"
+  ],
+  "stdin": "import {createRequire} from 'node:module';import{probeLifecycle}from'./tools/model-probe/src/lifecycle.mjs'; const require=createRequire(new URL('./packages/core/kernel-basis/package.json',import.meta.url));const{Context}=require('@deepseek-ai/cordis');console.log(JSON.stringify(await probeLifecycle(Context)));",
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "exitCode": 1,
+  "node": "v24.18.0",
+  "platform": "linux",
+  "arch": "x64",
+  "cordis": {
+    "name": "@deepseek-ai/cordis",
+    "version": "4.0.4",
+    "loaded": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/node_modules/.pnpm/@deepseek-ai+cordis@4.0.4/node_modules/@deepseek-ai/cordis/lib/index.js",
+    "sha256": "6a9394c0877ff45218818c6e815edd038f8057e1a1deb390a8d43ec81c57691e"
+  },
+  "scope": "Command and exit recorded from actual tool calls after execution; no elapsed-time measurement captured.",
+  "reconstructedStdin": true
+}

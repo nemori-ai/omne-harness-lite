@@ -1,3 +1,21 @@
+## v4 根设置增量候选（2026-09-27）
+
+- kind：`provider`；节点与源码路径均为 `packages/core/asset-evaluation`。v3 包真实存在；本次只起草 v4 映射，不修改源码。
+- 契约与范围：`capability.asset-evaluation/v4` S-1～S-47（candidate），增量为 S-6/S-7 C15、C16/S-21/S-22/S-45～S-47；精确依赖见 [v4 实现增量](v4-design.md)。范围依据 PF-002 rev 20、PF-004 rev 12、PF-013 rev 13 及[读取链候选](../../../../record/proposals/model-request-adaptation/read-projection.md)。
+- **语义接受：本次 v4 无。** AE4、agent-definition/v1、model-profile/v3 仍 candidate；既有 v3 的接受与冻结保持下列原范围。
+- **可实施：候选路径已写明，尚未接受、尚未实施 v4。** 保留纯函数、默认入口显式演进及未切换消费者的 v3 闭包；候选 `judgeEffectiveAssembly(value): boolean` 按 S-47 供持久读面共用；候选 `selectEvaluationRootSource(input)` 复用第一步选根来源，避免真实输入生产者复制算法或伪造 root 输入。二者不证明来源、当前权限或完整求值正确。本能力无自有 Schema、Cordis 服务或存储。AD1 公开构件/精确采用、真实正文生产者、结果判定、根选择与精确版本比较的实施证据分别为 AE4-1、AE4-6、AE4-7、AE4-8，不能由本包暗读 IO 或猜默认补齐。
+- **绑定与证据：v4 新增 0 条；保留 v3 测试绑定 1 条。** 新 RootSettings 有限正/负检查不作为本节点生产实现绑定，旧证据不换成 v4 坐标。
+- **实际验证：v4 实现与真实组合尚无。** 本次文档检查与待执行义务见 [verification](verification.md#v4-候选增量的证据义务)；下列 168 项等历史结果仅属于原 v3 输入/源码。
+
+| 当前问题 | 入口 |
+|---|---|
+| v4 怎样实现、公开闭包与外部 owner 是谁 | [v4 候选设计](v4-design.md) |
+| 哪些责任仍未验、谁补证据 | [v4 验证义务](verification.md#v4-候选增量的证据义务) |
+| 原 v3 实现与证据 | [原设计](design.md)、[绑定表](bindings.yaml)及下列原事件 |
+
+本段只登记新候选，不取代或提升下列 v3 已接受事件。独立架构评审、技术采用和真实运行均须另记。
+主线已点名真实输入提供者 `packages/assets/evaluation-input-store` 与独立验收装配 `apps/model-request-acceptance`；前者节点尚未成稿，真实正文 IO 及完整交接仍未验。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 11 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
@@ -57,3 +75,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 v4 技术采用
+
+[D-073](../../../../record/decisions/model-current-input-contracts-adoption/decision.md)接受 AE4 及本纯增量设计；此前候选读数保留原字节。AD1/MP3 已由 D072/D070 接受。v4 源码及真实符合性另行核验，旧 v3 的绑定不重标。

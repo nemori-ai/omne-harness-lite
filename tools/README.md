@@ -9,6 +9,7 @@
 | [artifact-builder](artifact-builder/README.md) | 应用归档的开发期文件闭包校验与独占发布；CLI和中心的静态适配经公开入口消费，不进入生产依赖 |
 | [ts-checks](ts-checks/README.md) | 产品源码的结构检查规则（墙钟、`bail`、受限调用点、`./testing` 零 import），每条带「故意违反就失败」自测；pnpm workspace 成员，`pnpm run lint:rules` |
 | [core-verification](core-verification/README.md) | core 包的真实组合与套件有效性验证；开发依赖通过公开入口消费现有提供者，产品 core 不反向依赖 infra |
+| [model-probe](model-probe/README.md) | OpenRouter 公开目录和受预算控制的模型适配探针；Node 标准库工具，显式付费入口，不提供产品 adapter |
 
 设计链自身的身份、登记、冻结与形式任务检查归
 [.meta_harness/tooling](../.meta_harness/tooling/README.md)，**不在这里重复一份**。

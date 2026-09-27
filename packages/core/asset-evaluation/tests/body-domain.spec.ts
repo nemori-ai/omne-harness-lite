@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createAssetModelJudge } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { toolBodyContract } from '@omne-harness-lite/tool-definition'
-import { loopExtensionBodyContract } from '@omne-harness-lite/loop-extension'
+import { loopExtensionBodyContract } from '@omne-harness-lite/loop-extension/v3'
 import { skillBodyContract } from '@omne-harness-lite/skill-package/v2'
 import { mcpBodyContract } from '@omne-harness-lite/mcp-endpoint'
 import { slashCommandBodyContract } from '@omne-harness-lite/slash-command'
@@ -12,7 +12,7 @@ import {
   evaluate,
   type EvaluationInput,
   type NonConnectorEvaluationInput,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 import {
   cap,
   definition,

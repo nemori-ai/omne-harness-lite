@@ -1,5 +1,7 @@
 # 装配清单（窄口）
 
+**2026-09-27 新候选 v3**：[契约](v3/contract.md)在冻结 v2 的四操作之外增加 `readEvaluation(session)`，在一次一致读中固定当前头，再按提交序号读取本会话上界内最近一次 `given`/`mint` 的完整求值与有序组成。空头、投影缺失/畸形和读取不可用分别收场；旧表收窄的 `reuse` 不让该读面回退，但其历史来源仍由原读面保留。本方法只读已提交求值，不代证当下层配值。写方与求值 v4 的采用受 [G-4](v3/contract.md#十已知缺口) 约束；完整 Agent 定义与自动初选不由此闭合。v3 为 **candidate、未接受**；v2 保持 accepted。资源为 `v3/contract.md` 与 [实例](v3/examples.md)，不附能力 Schema，也不新增形式模型；实际检查与未执行义务见 [verification](verification.md#v3-候选求值投影读面2026-09-27)。
+
 **一个会话的[装配清单](../../../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)里，按序号条件追加换表记录、读头与每一类最后一条、按表时刻读回任何一条；另有一个查询：这个会话里某些依赖名此刻在不在场。**
 这是按会话资产注册表对装配清单提供者的要求（R-M1～R-M9）与施工简报「`dependencyPresence` 并入作一个查询」定的**窄口接口**，不是装配清单的契约——那一份归 PF-004 那一程。
 
@@ -46,3 +48,7 @@
 ## 2026-09-26 版本接受
 
 本次接受 `capability.assembly-manifest` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+
+## 2026-09-27 v4 候选：固定头上界的给定记录读取
+
+[完整契约](v4/contract.md)与[规范实例](v4/examples.md)形成 candidate，未接受。继承 v3 五操作，新增只读 readGiven(session,head)，范围内无给定记录明确 none；只选择并无损返回原记录，不解释 filledBy/资产根。 v3 已由 [D-073](../../../record/decisions/model-current-input-contracts-adoption/README.md) 接受且保持冻结；上文早期 v3 候选文字为历史记录，现行接受状态以 [registry](../../../registry/README.md) 为准，新增候选不替代 v3。无新 Schema/身份/状态转移；S-36/S-37 的实际证据与未开始项见 [verification](verification.md#v4-候选原完整填表来源2026-09-27)。

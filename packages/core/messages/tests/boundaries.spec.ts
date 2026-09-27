@@ -13,7 +13,7 @@ import {
   judgeModelInvocationRecordText,
   validate,
   isReadable,
-} from '@omne-harness-lite/messages'
+} from '@omne-harness-lite/messages/v3'
 import { at, text, logged, ref } from './helpers.ts'
 
 function data(source: string) {

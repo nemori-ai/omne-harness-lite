@@ -62,3 +62,64 @@
 | 观察（`connectTimeoutMs`） | 它是 S-21 两个设置项之外的第三处时限来源 | 已在策略配置项表标价，不改 | — |
 | 观察（撤除等待上界） | 若内核先完整撤除本插件再卸 P-2，撤除等待要等在途流自然收尾 | 写明上界「等于流的自然收尾，受 P-2 的时限约束」；撤除函数等最后一条在途收场、池销毁后才返回；内核次序登 kernel-basis probe 候选 | design 装卸表与「撤除的等待上界」一条；本页覆盖缺口 |
 | 契约对齐（主线） | 同一批契约改写还承接了 PAT-N3 的 402／403 两行、PAT-N11（G-22）、PAT-N16、PAT-N17（G-23）、PAT-N14 的 ②③ | 各行改指契约坐标；PAT-N14 只剩「工具条目的来路」，改「待契约（与 MRR-N14 同一件事）」 | design 参数处置表 `maxOutputTokens` 行、策略配置项 `routeWireHints` 行、inject 边与依赖表、PAT-N3、N11、N14、N16、N17；README 分层状态 |
+
+## v3 候选增量验证
+
+2026-09-27，[v3-design.md](v3-design.md) 是 candidate，未接受；旧节的 T/SC/G 义务仍全部保留。本文区分“旧义务继续”与“候选怎样改变输入/判据”，不借新适配器免掉比较门。下文 runtime 指 `capability.model-request-runtime/v3`，profile/messages/response 分别指 `data.model-profile/v3`、`data.messages/v4`、`data.model-response/v4`；arrival-events、call-accounts 为 v2，content-blocks、tool-definition、stream-assembly 为已接受 v3。
+
+### 原验收逐项接续
+
+| 既有编号 | 保留的失败判据与候选影响 | 当前状态 |
+| --- | --- | --- |
+| T-1 | 一次 send 至多一 HTTP；三项固定路由、extra 禁用键不变。新增 37 个 definition 的规划逐项不得改写这组保护字段 | 未开始，保留 |
+| T-2 | 原状态码/首部、错误体上界不变；新版事实对象仍不能用 HTTP 200 覆盖带内 code | 未开始，保留 |
+| T-3 | 工具参数逐字节拼接不变；家族/窄适配不得加一次解析或 schema 改写；使用 content-blocks/3、tool-definition/3 | 未开始，候选消费版本变化 |
+| T-4 | 首部不算内容；任一家族不得以适配初始化、usage、空首帧制造 open；内容可见门另外由 runtime S-55 验 | 未开始，保留 |
+| T-5 / T-5b | 明确凭据、零环境回退、全部失败与诊断的完整/片段哨兵；新增注册配置错误、未知版本与 sink 故障支 | 未开始，候选扩样本 |
+| T-6 | user/session_id/x-session-id/prompt_cache_key 全禁；逐家族启缓存后再抓线核对 | 未开始，候选扩样本 |
+| T-7 | 模态不承载就规划拒绝；声明 text/image 不自动支持音频/视频；每个模型定义实际输入范围都要验 | 未开始，候选扩样本 |
+| T-8 | 上游 id/model/provider 原样，不以请求填缺席。仍保留 provider 中途变化诊断；若实际执行方与固定路由不符，保留原值并交协议来源，业务分类归 runtime S-18 | 未开始，新增 response/4 S-37 对照 |
+| T-9 | 302 不跟随，重定向目标零请求；依旧是真实 Node probe，家族不可自建绕行发送器 | 未开始，保留 |
+| T-10a | 实际 wire、planned、改值/丢项一致，规划后修改源输入/配置不改变发送；新增完整 binding 原值、跨字段相等与旧版本引用 | 未开始，新增 PAT-V3-3 |
+| T-10b | 原参数表逐行继续；缺席 reasoning 不补值，extra 无权覆盖统一项。模型仅允许统一词表内的支持值，不偷塞 xhigh；原 max 未核实处理不可静默改变 | 未开始，候选逐模型验证 |
+| T-11 | 工具名字/调用头逐码点原样，无逆转写；tool-definition/3 的生产者输入必须来自真实公共入口 | 未开始，候选消费版本变化 |
+| T-12 | 真实 stream-assembly/3 接收全部合法增量；length 不封口，stop/tool_calls 对应封口；增加 8 家录制样本和生产解析器实跑 | 未开始，候选消费版本变化 |
+| T-13 | 块标识、visibility、callId 的本流性质不变；会话内唯一仍只列其明确前提，不由有限测试证明全局唯一 | 未开始，保留 |
+| T-14 | 任意切分、多字节、reasoning opaque 与工具参数的拼接性质；每一家窄适配不能变动原文 | 未开始，保留 |
+| T-15 | usage 最终一次 account、缺席不造事件、重复 usage 取值与诊断规则继续；缓存两项各自未知，不由模式补零 | 未开始，候选加缓存来源对照 |
+| T-16 | opaque 严格无损、同路由回放、换路由不误复用、超 2^53 值保真；各家受支持的推理回放须过真实 G 门 | 未开始，保留 |
+| T-17 | 旧消息不丢/不补工具结果/拒 ToolInternalMessage 的判据保持。提醒不再由 routeWireHints 判：OpenAI developer，其余适用专用类型否则 user；所有 37 项配对验证，system 为负控；Compaction 单列 | 未开始，候选替代决策源 |
+| T-18 | 原高精度金额、非法/缺席未知、缓存计数一致性保留；另加已知零/未知/正读、只报读不报写，response/4 不得出现第二份缓存镜像 | 未开始，新增 PAT-V3-4 |
+| T-19 | 原 DNS/连接/带内/断流/协议/非内容首帧/queued 分支全部保留。首内容时限中止 queued 由 runtime 归 unrecognized；取消与触达未知不猜值；取消后须观察 socket 和读循环停止 | 未开始，新增 PAT-V3-6 |
+| T-20 | 原配置非法启动失败、撤除停止新 send、在途跑完/明确取消后再销毁池保持；新增实际 Cordis 模型贡献热更新与直接消费者、宿主替换、多次 acquire 空闲间隔，不靠 disposer 次序 | 未开始，新增 PAT-V3-2/6 |
+| SC-1 | 工具参数路径无中间 JSON 解析；家族、窄适配也在规则范围内 | 未开始，保留 |
+| SC-2 | 包内无 process.env 凭据或 TTL 回退；配置必须来自显式 binding/装配 | 未开始，保留并扩大检查 |
+| SC-3 | 唯一网络出口是 send；plan/factory/注册均不开连接，模型插件没有第二出口 | 未开始，保留 |
+| G：D-019 全十五项及原新增项 | 原表所有路由、身份、费用/generation 对账、私有 replay、重定向、错误、首内容前后断流和 abort、无隐藏重试，以及 max_tokens/max_completion_tokens、store、reasoning、strict、transforms、require_parameters、状态码含义、delta 闭集、cost 单位/BYOK、token 组成、CallId 词法均保留 | 未开始；研究短请求不算完整比较门 |
+| G：新增逐模型适配 | 对 37 模型分别用生产函数与服务路径取角色、参数、工具回传、推理、缓存/精确费用证据；每个指定路由独立认证，禁止一次族代表通过后把整族判通过 | 未开始；研究暖读仅作后续输入 |
+
+### 增量证据义务与覆盖缺口
+
+| 编号与来源条款 | 必须失败的反例 / 所需验收 | 当前状态 | owner 与受阻消费者 |
+| --- | --- | --- | --- |
+| PAT-V3-1：profile S-29～S-31；runtime S-53/S-57 | 工厂/manifest 恰覆盖确认的 37 模型；精确 implementation/definition/configuration 可解释；未知版本、modelId 不等 routeName、缺必需 TTL、非法配置均零 HTTP；同 revision 不同档案 values 不混用 | 尚未实现；候选规范与 core 采用待闭合 | 本节点与目录/core owner；阻断所有新 binding 生产消费 |
+| PAT-V3-2：runtime S-53/S-64 | 真实 Cordis：register→adopt→retire 各失败窗口；acquire/retire 两种次序；旧 runtime/direct 不换版本；重复 release；空闲后再次 acquire；正常排空、超时 remaining_active、强制取消后实际停止；旧清理不得删新版 | 有限模型与原型部分支持，生产注册表未验 | 本节点；阻断模型贡献热替换接受 |
+| PAT-V3-3：runtime S-54④/S-57④；messages S-49；response S-11/S-36 | 真实计划器→实际 send 抓线→耐久已出门→响应 binding 原值逐值对照；旧输入外部变异、配置更新、plan 与 send 之间发布版本都不能改变旧计划；生产入口无二次规划 | 未开始 | 本节点 + runtime/sessionLog 提供者 + 验收装配；阻断“锚点记录就是实际请求”的声称 |
+| PAT-V3-4：response S-37/S-38；call-accounts S-4～S-8 | 每一指定模型路由冷暖运行，read > 0 才命中；automatic 与 explicit 分验；TTL 配置值原样发出，另验 expiry 才可声称保留期；正写不能代读命中；实际 provider 不由请求值补，名称对应未知不猜别名；精确金额与 generation 账一致 | [37 个研究暖读齐](../../../../record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)；本节点生产路径尚无证据。研究没有独占上游缓存，首请求不保证冷；不证明 TTL expiry、完整比较门、所有路由或持续命中 | 本节点 + 主线实测；阻断各模型 official 认证 |
+| PAT-V3-5：runtime S-20/S-63 | 所有生命周期与传输失败支的关联齐全；默认无正文/参数/推理/凭据及片段；慢/抛错/满 sink 有界、独立降级计数可见；相同模型输入正常 outcome 不因 sink 故障改变 | 未开始 | 本节点采集、独立验收装配 sink/权限/查询；阻断全链路观测覆盖声称 |
+| PAT-V3-6：runtime S-53⑤⑥/S-56/S-58/S-59/S-61 | 真实 HTTPS 延迟/不主动 EOF 流；宿主替换、transport 撤除、贡献强制撤除与直接调用交错；abort 后等 socket close/读取终止及回调收口才释放；仅 signal.aborted 或解除 effect 不能通过 | 原型调用者是模拟，无 HTTP、真实时限或持久；仍未闭合 | 本节点 + runtime + kernel-basis + 验收装配；阻断停止已完成及资源不泄漏声称 |
+| PAT-V3-7：runtime S-38、D-019 | 原 T/SC/G 全门生产实现通过，pi 片段 provenance/许可齐；费用/身份丢失即保留反例，不用新 adapter 名称绕过采用门 | 未开始 | 本节点与主线；阻断产品真实发送采用 |
+| PAT-V3-8：runtime S-64；profile S-30；response S-20 | candidate 精确 catalog/采用及 core 新版本就绪；发布管理方、配置政策、诊断 sink、时钟、凭据注入与入口身份核实由装配点名；原始响应附件留存依旧需附件 owner | 候选未接受；runtime v3 尚待 catalog 登记，独立验收装配 `apps/model-request-acceptance` 尚未建立，原 PAT-N15 保持开放 | 主线/spec/core 与 `apps/model-request-acceptance` owner；阻断将此节点读成可独立完成整条纵线 |
+
+配置修订历史判重只由目录负责；本节点测试只核其收到的完整 values 原样解释，不伪造跨目录/注册表事务。有限版本模型中的“一名消费者最多取得一次”由模型构造吸收，不能绑定成可重复 acquire 保证；该缺口必须由生产并发测试覆盖。
+
+### 已有候选依据的实际范围
+
+| 运行 | 输入/结果 | 能支持什么，不能支持什么 | 原始位置 |
+| --- | --- | --- | --- |
+| Adaptation 第二轮 | TLC exit 0，20404 generated / 5430 distinct / 深度 17；两个版本、runtime/direct 两消费者、两个档案范围；Stop/Release/Dispose 弱公平 | 分步采用失败、固定绑定、取得/停准入、无持引用销毁的有限交错；不证明网络、持久提交、重启、超时、任意消费者数 | [run 配置](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-formal-2/Adaptation/run.json)、[输出](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-formal-2/Adaptation/stdout.txt) |
+| Adaptation 三负控 | 各 exit 12；NoAcquireRetired、NoDisposeWithLease、BindingPinned 被对应变异反驳 | 证明这些断言在当前有限模型中能失败，不证明生产代码实现了守卫 | [AcquireRetired](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-formal-2/Adaptation_AcquireRetired/stdout.txt)、[DisposeActive](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-formal-2/Adaptation_DisposeActive/stdout.txt)、[Rebind](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-formal-2/Adaptation_Rebind/stdout.txt) |
+| Cordis 4.0.4 连续调用反例 | acquire A→release A→acquire B→dispose；旧等待已完成，B 在用时 disposed=true，exit 1 | 反驳旧原型的排空方案；不能只引用原三场景通过结论 | [失败](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-reuse-failure/stderr.txt) |
+| Cordis 4.0.4 修正原型 | retiring 后建立当次等待，新增交错及原三场景 exit 0 | 支持提前注销一次、旧 runtime/direct 引用排空、取消后待模拟停止；无 HTTP/生产注册表/超时/耐久事实 | [输入](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-reuse-fixed/input.mjs)、[结果](../../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-reuse-fixed/stdout.txt) |
+
+全部是候选依据，未新登记本节点绑定，未宣称节点已接受或已验证。主线另行独立架构评审；本次起草者不作自我接受。

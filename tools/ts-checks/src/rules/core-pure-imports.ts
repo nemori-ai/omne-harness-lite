@@ -7,6 +7,14 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
   'content-blocks': ['identity-values'],
   'asset-model': ['identity-values', 'offer-expiry', 'content-blocks'],
+  'agent-definition': [
+    'content-blocks',
+    'asset-model',
+    'tool-definition',
+    'model-profile',
+    'identity-values',
+    'offer-expiry',
+  ],
   'model-profile': ['content-blocks', 'identity-values', 'offer-expiry'],
   'call-accounts': ['content-blocks', 'asset-model', 'identity-values', 'offer-expiry'],
   messages: ['content-blocks', 'call-accounts', 'model-profile', 'identity-values', 'offer-expiry'],
@@ -43,6 +51,9 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   'slash-command': ['asset-model', 'content-blocks', 'identity-values', 'skill-package'],
   'stream-assembly': ['arrival-events', 'content-blocks', 'call-accounts'],
   'asset-evaluation': [
+    'agent-definition',
+    'call-accounts',
+    'model-profile',
     'identity-values',
     'asset-model',
     'mcp-endpoint',
@@ -66,9 +77,11 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
 /** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
 export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
   'content-blocks': ['schema-runtime', 'schema/v2'],
-  messages: ['schema/v2'],
-  'model-response': ['schema/v2'],
-  'loop-extension': ['schema/v2'],
+  messages: ['v3', 'schema/v2', 'schema/v3'],
+  'model-profile': ['v2', 'schema/v2'],
+  'model-response': ['v3', 'schema/v2', 'schema/v3'],
+  'loop-extension': ['v3', 'schema/v2', 'schema/v3'],
+  'asset-evaluation': ['v3'],
   'tool-definition': ['schema/v2'],
   'asset-model': ['schema/v2'],
   // D-069: current AM3/AE3/Slash2 consume the exact Skill2 pure value/body boundary.
@@ -78,6 +91,15 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 }
 
 function allowedExternal(pkg: string, dependencies: readonly string[], specifier: string): boolean {
+  // Explicitly retained schema resources share the same owner; no private subpath is opened.
+  if (
+    ['messages', 'model-profile', 'model-response', 'loop-extension'].includes(pkg) &&
+    PUBLIC_SUBPATHS[pkg]?.some(
+      subpath =>
+        subpath.startsWith('schema/') && specifier === `@omne-harness-lite/${pkg}/${subpath}`,
+    )
+  )
+    return true
   // D-068：AM3 的固定资源图显式纳入本包完整 AM2；只批准这个公开资源入口。
   if (pkg === 'asset-model' && specifier === '@omne-harness-lite/asset-model/schema/v2') return true
   if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')

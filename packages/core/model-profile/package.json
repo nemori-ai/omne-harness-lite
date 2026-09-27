@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-profile v2 的纯类型、表示校验与精确引用匹配",
+  "description": "data.model-profile v3 的纯值判定及显式 v2 采用面",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,7 +12,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/model-profile.schema.json"
+    "./schema": "./schema/model-profile.schema.json",
+    "./v2": {
+      "types": "./dist/v2/index.d.ts",
+      "import": "./dist/v2/index.js"
+    },
+    "./schema/v2": "./schema/v2/model-profile.schema.json"
   },
   "files": [
     "dist",

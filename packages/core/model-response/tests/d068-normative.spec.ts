@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { SCHEMA_DEF_NAMES, validate, judgeModelResponse } from '@omne-harness-lite/model-response'
+import {
+  SCHEMA_DEF_NAMES,
+  validate,
+  judgeModelResponse,
+} from '@omne-harness-lite/model-response/v3'
 
 const examples = readFileSync(
   new URL(

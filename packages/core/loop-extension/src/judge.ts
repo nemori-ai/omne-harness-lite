@@ -1,5 +1,6 @@
 import type { JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
 import { isCapabilityName } from '@omne-harness-lite/asset-model'
+import { judgeModelInvocationRecord } from '@omne-harness-lite/messages'
 import type {
   Conclusion,
   ConclusionInputs,
@@ -120,10 +121,42 @@ function injectSourceMismatch(output: JsonObject, name?: JsonValue): boolean {
   const source = output.message.source
   return source.kind !== 'extension' || (name !== undefined && source.extension !== name)
 }
+
+/** Visit only protocol subject slots, leaving arbitrary configuration and opaque JSON untouched. */
+function dispatchedSubjects(definition: SchemaDefName, value: JsonValue): readonly JsonObject[] {
+  if (!object(value)) return []
+  if (definition === 'AfterModelCallFailureSubject' || definition === 'Subject') return [value]
+  const result: JsonObject[] = []
+  const rewrittenSubject = (frame: JsonObject): void => {
+    const output = outputOf(frame)
+    if (output?.kind === 'rewrite' && object(output.subject)) result.push(output.subject)
+  }
+  if (definition === 'ExtensionInput') {
+    if (object(value.subject)) result.push(value.subject)
+    for (const earlier of Array.isArray(value.earlier) ? value.earlier : [])
+      if (object(earlier)) rewrittenSubject(earlier)
+  }
+  if (definition === 'Conclusion') rewrittenSubject(value)
+  if (
+    (definition === 'RewriteOutput' || definition === 'ExtensionOutput') &&
+    value.kind === 'rewrite' &&
+    object(value.subject)
+  )
+    result.push(value.subject)
+  return result
+}
+
 /** Representation judgment. Input-dependent immutable comparisons are added by judgeConclusion. */
 export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<JsonValue> {
   const copied = snapshot(value)
   if (copied === undefined || !ordinaryShape(definition, copied)) return rejected('malformed')
+  for (const subject of dispatchedSubjects(definition, copied))
+    if (Array.isArray(subject.dispatches))
+      for (const dispatch of subject.dispatches) {
+        const record = judgeModelInvocationRecord(dispatch)
+        if (!('ok' in record) || record.ok.kind !== 'model_call_dispatched')
+          return rejected('malformed')
+      }
   const contexts = frames(definition, copied)
   for (const frame of contexts) {
     const about = aboutOf(frame)

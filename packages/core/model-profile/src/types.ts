@@ -24,7 +24,15 @@ export interface ModelRequestParameters {
   readonly extra?: JsonObject
 }
 
+/** Exact selected implementation, definition and immutable configuration revision. */
+export interface ModelAdaptationBinding {
+  readonly implementation: { readonly name: string; readonly revision: string }
+  readonly definition: { readonly modelId: RouteName; readonly revision: string }
+  readonly configuration: { readonly revision: string; readonly values: JsonObject }
+}
+
 export interface ModelProfileContent {
+  readonly adaptation: ModelAdaptationBinding
   readonly routeName: RouteName
   readonly origin: ProfileOrigin
   readonly providers: readonly ProviderName[]
@@ -54,6 +62,7 @@ export type ModelProfileRef =
 /** S-27: copying and preserving this value is the model-request runtime's duty. */
 export type ModelProfileSnapshot = Pick<
   ModelProfile,
+  | 'adaptation'
   | 'providers'
   | 'allowFallback'
   | 'inputModalities'

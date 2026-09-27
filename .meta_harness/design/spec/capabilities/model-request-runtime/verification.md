@@ -1,5 +1,69 @@
 # 验证覆盖与实际证据
 
+## v3 候选变化与证据
+
+**S-36 表达收敛（本次）**：按主线及独立架构确认，明确正常已知收场的 `run_cancelled` 与锚点未知隔离后 S-33 恢复分开；无耐久中断意图时，恢复只据 opened 有无落既有 `runtime_lost` 两支，不声称系统停止原因跨失联已保存。补系统停止后 opened 有/无的规范对照；不新增意图、记录、失败值或恢复禁止政策。仍为 67 条、13 个服务操作，S-55 九项未改，模型未改未重跑；真实故障验收未开始。本轮快照与检查在 `tmp/model-request-runtime/runtime-v3/system-stop-isolation/`。
+
+**RT-AR1 回执未知修订（本次）**：主线裁定区分函数可见序列与耐久 opened 事实。S-15/S-16/S-51/S-52 的立即失败分支限确知未提交；S-17/S-29/S-33/S-55 明确未知回执或取消后迟到提交先隔离、不写普通响应/不重试、真实停止与有效栅栏后按完整权威读回恢复。保留 S-33 两种既有时机、中断意图优先、S-55 独立函数结果；67 条、13 个服务操作及失败枚举不变。新增 SessionLog2 S-22/S-23 实质消费，registry 仍由主线登记。
+
+**新增真实验收义务，未开始**：对已提交但丢回执、未提交但回执未知、取消门等待后迟到成功、旧追加未静止、旧 tail 假空及无 Run 旧属主未退出逐项故障注入；检查恢复前 unavailable/零内容/零重发/无响应，恢复后依据 opened 与中断意图精确结算、timing 一致、账恰一次。owner 为 runtime、真实日志提供者和验收装配；规范实例已补，现有有限模型均不含该真实 IO 范围，本次不改模型、不重跑 TLC。输入快照及检查记录位于 `tmp/model-request-runtime/runtime-v3/opened-ack-unknown/`。
+
+**依赖接受状态对齐（本次）**：按 registry 更新 RT3 首部的七项依赖为 accepted，并同步 G-25、演进说明及版本外入口；依据为 D-070/D-073。RT3 自身仍为 candidate，S-66/S-67、规范行为、精确依赖坐标与条款、模型及元数据依赖均未改变；下文历史起草记录中的 candidate 描述只反映当时状态。
+
+2026-09-27，工作树 `panqiwei/model-request-runtime`，基线 `d4eaf7673bc161bf22f6682385151e080d3323ae`。本轮只起草候选，不改 v2 冻结资源、不接受规格。候选坐标 `(omne-harness-lite-design-2026-09-15, capability.model-request-runtime, 3)`。
+
+**变化的影响**：S-1/S-4/S-7/S-28/S-29/S-33 采用完整适配绑定，直接候选依赖为 model-profile3、messages4、model-response4、目录3、AE4、registry3、LC4。content-blocks/tool-definition/stream-assembly 采用已接受 v3，session-tenancy 采用已接受 v2。先前候选用 manifest3 已提交求值承载设置读取；独立架构反例后，本次由 S-66 当前输入端口取代，manifest3 仅保留历史导航。S-10/S-24 当前 model、S-28 basis 的原选择窗口、S-21/S-29 每次现求两个时限与 S-7 旧调用绑定分开。新会话仍显式 selectModel 写真记录，不猜初选。S-53～S-66 新增函数及投影、引用寿命、内容门、宿主、观察者、诊断及当前输入责任，原十三个业务操作不增加。S-54 发送前取消为外层分支，S-60 retryDelay 为本批技术候选；S-28/S-29 新增已有历史发出的续接规划拒绝分支，均未追认为旧版已有。
+
+需求复核：PF-013 rev 13 只收窄既有验收的据点适用与显示归属，本包不承诺据点持有出厂凭据；PF-012 rev 15 明确结算不受旧尝试栅栏拒绝，原 S-17 已承载。其余采用 PF-009 rev 8、PF-004 rev 12、PF-001 rev 19、PF-015 rev 11。新适配与函数行为由主线施工简报及 model-request-adaptation rev 2 及 read-projection 当前输入增量候选分配，不伪装成产品正文已接受的新 rev。
+
+| 验证对象 | 必须执行的证据 | 本轮状态 |
+|---|---|---|
+| S-53 精确绑定、恢复旧版缺席 | `AdaptationBinding.tla` 正向配置、两个预期反例；真实日志恢复后移除旧实现，核对账不联网/再发 unavailable | 正向无反例、两份否定各得指定反例（实际输出见下）；真实组合未开始 |
+| S-54～S-56 首内容门与取消 | `ContentGate.tla` 正向配置、两个预期反例；所有快照/增量读面门前无内容，gate reject 与 abort 后迟到 resolve | 正向无反例、两份否定各得指定反例（实际输出见下）；实现验收未开始 |
+| S-54 发送前取消与 S-60 retryDelay | 表示校验/规划拒绝/取消的终局次序；none/full/half/decorrelated 的 u=0、u趋近1、D=0、退化区间及非法配置向量 | 规范实例已写；实现符合性验收未开始 |
+| S-9/S-10/S-21/S-66 当前输入与纯求值 | captured standing 只作配方、当前本机成员有效性/内部权限另核、真实 session/root/workspace 配方、当前持有/配值、租户错配、源版本竞争、无 model 无锁、显式初选、每次发出时限现求 | 当前端口候选已写；实际生产者及组合验收未开始；旧 manifest 历史读面不能代证 |
+| S-54/S-60 公开函数独立性 | 无会话/租户/存储/Cordis 的独立消费者；仅一次 send；无合成业务身份；纯判定零副作用 | 未开始 |
+| S-57～S-59 传输构件 | 已有 T1–T20/SC1–SC3 不因本版省略；精确规划→一次 send→流读；原始参数、推理、计费、身份不外传 | 未开始；上游真实模型证据由提供者报告 |
+| S-61 宿主生命周期 | 登记与停止竞争、在途取消实际收口、结算失败与释放次序；独立验证真实组合 | 未开始 |
+| S-62 观察者 | 错会话同 callId、错 dispatch、snapshot/delta 衔接、慢消费者按事件数与字节数分别触顶、消费异常 | 未开始 |
+| S-63 诊断 | 正常/拒绝/失败/取消/恢复全链关联，秘密哨兵、缺 usage 与 0 区分、导出失败、关键诊断缺口状态；对照耐久锚点失败 | 未开始 |
+| 原有运行时义务 | v2 原规范场景与三条真并发/崩溃验收继续；新类型依赖与行为须重新过符合性 | v2 既有证据保留原范围；没有本轮产品实现证据 |
+
+注册/撤除、直接函数与 runtime 共用版本引用的有限模型由主线拥有 `v3/formal/Adaptation.tla` 及其配置；本起草者不以 ContentGate/AdaptationBinding 模型代证该范围。主线实际执行的[正向日志](../../../record/evidence/2026-09-27-probe-model-request-runtime/lifecycle-formal-2/Adaptation/stdout.txt) exit 0，20404 generated、5430 distinct、深度 17；三负控各 exit 12，分别反驳 NoAcquireRetired、NoDisposeWithLease、BindingPinned，原始运行参数与输出在[证据入口](../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md)。RegistrationDoesNotAdopt 与 AdoptionFailureKeepsProfiles 只有正向检查，不声称变异有效性已覆盖。首轮 exit 150 语法错误保留于 lifecycle-formal。新增模型不含真实资源释放、追加失败或多会话状态；限制见[formal 入口](v3/formal/README.md)。
+
+**本轮形式工具实际执行**：2026-09-27 使用 `/usr/local/bin/tlc`，原始 banner 为 `TLC2 Version 2026.09.12.025210 (rev: 867aefb)`。两个正向和四个否定配置均用 1 worker、180 秒外层上限，关闭 deadlock 检查（终态允许无动作，不声称死锁自由）。首轮因两条 action property 写法非法均 exit 150，保留原记录；修正为 stuttering 包裹后第二轮如下：
+
+| 配置 | 实际输出 | exit |
+|---|---|---|
+| ContentGate.cfg | `Model checking completed. No error has been found.`；25 generated、21 distinct、深度 7 | 0 |
+| AdaptationBinding.cfg | 同上；66 generated、49 distinct、深度 9 | 0 |
+| ContentGate_NoWait.cfg | `Invariant NoContentBeforeGate is violated.` | 12 |
+| ContentGate_IgnoreCancel.cfg | `Action property NoRevealAfterCancel is violated.` | 13 |
+| AdaptationBinding_UseLatest.cfg | `Invariant SentUsesOriginal is violated.` | 12 |
+| AdaptationBinding_MissingFallback.cfg | `Invariant SentMatchesRecord is violated.` | 12 |
+
+原始 argv、cwd、输入副本及 SHA-256、raw.log、exitcode、时间已由主线归档至第二轮运行清单（见[运行原始档案](../../../record/evidence/2026-09-27-probe-model-request-runtime/runtime-v3.tar.gz)中对应路径）；首轮原始错误保留在其上级 runtime-v3。两模型 SHA-256 分别为 `ContentGate.tla: 3610b3ba7b7ec3b92d48190de90bd4155dc3b49f56ab4e7c024706ae06d2e95e`、`AdaptationBinding.tla: dcdc3fcf8615a533bf09645c1e3690f4dcb341af68f0e12a2e2a411b5c3d32f4`，配置哈希见输入哈希（见[运行原始档案](../../../record/evidence/2026-09-27-probe-model-request-runtime/runtime-v3.tar.gz)中对应路径）。每个 result.json 保留完整命令，形式为 `tlc -metadir <独立目录> -cleanup -noGenerateSpecTE -workers 1 -config <配置副本> <模型副本>`。归档只对应所列形式输入：后补根属性与读面依赖的契约文字不在该模型输入里，不冒称这些新语义已经运行验证。证据只能支持 formal 入口所列有限范围，不能称为实现证明或接受依据已齐全。
+
+**检查状态**：本轮已运行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`。最后一次完整 raw 在工作树 `tmp/model-request-runtime/runtime-v3/final-candidate/design-check.stdout.txt`、`design-check.stderr.txt`、`design-check-run.json`，exit 1，共 4165 错：主要为主线新归档 response-v4/inputs 的原始 Markdown 快照相对链接被全树检查器扫描为断链，另含进行中的 asset-evaluation/v4 3 锚点与 response-v4 的 6 个 tmp 外链；本 runtime 包没有报错，已报对应 owner。该结果后补 S-40/G-26 的主线模型映射与根读取规范实例；该次检查时新增求值依赖仍待整批对齐；本次对齐后的结构检查另记如下，不能把部分无报错称为整树通过。registry 按任务授权由主线唯一集成，本起草者仅返回条目候选，未自行修改清单。尚无独立评审，未接受。
+
+**本次有限对齐的影响**：只更新消费坐标、精确条款与候选状态，引用主线 read-projection 账本；data.agent-definition/v1 的声明域由 AE4 S-45 消费，不另复制定义。S-9/G-20 初选政策不扩张，原形式输入字节不变，本次未重跑 TLC；归档 tar.gz 链接原样保留。结构自检执行结果在本轮交接快照记录，不把候选齐稿当作实现或验收完成。
+
+**当前输入增量的变化影响（本次）**：独立架构指出历史 E 不能承担 current settings，主线据此裁定 S-66 currentEvaluationInputs.read；manifest3 改为历史参考导航，从直接依赖移除。AE4 增 S-6/S-7/S-15/S-29，session-tenancy/v2 S-8 提供真实租户锚；S-10/S-24 消费当前求值，S-28 basis 保留原选择窗口，S-29/S-30 每次发出只现求两个时限，不改旧调用绑定。输入 IO/一致性由 packages/assets/evaluation-input-store 承担，读取时点/evaluate/错误零出网由 runtime 承担，真实生产者由 acceptance app 验证。
+
+**当前授权来源对账修订**：S-66 捕获 standing 仅作会话求值配方；每次组输入由真实本机权威或明确采用副本另核当前成员有效性和内部调用权限，保持 AE4 PRE-3，不以旧 captured effective 放行，也不逐请求向中心更新会话身份/roles。失败、规范实例与 G-9 增加当前失效、未知、无权以及固定根 C16 失配零 HTTP；runtime 不改 holding 迁就根。AE4 通用输入文字的采用关系由其 owner 修订，本包不改他包。本修订未改形式模型、未重跑 TLC，实际当前授权及输入提供者验收仍未开始；增量结构检查与哈希记录于 `tmp/model-request-runtime/runtime-v3/current-authorization/`。
+
+S2-B1 随 LC4 候选精确采用处理：失败主体保留完整 profile3/messages4 绑定，runner3 为反向消费者候选；不裁字段迁就旧 LC3。续接重新 plan 的输入错误分支按历史已出门计数区分：零次保留首次模态终结，已有发出时三类拒绝均为 invalidInput 并保持原状态；新增 bad-tool→repair 与 new-modality 零 HTTP 规范反例。未更改形式模型，没有重跑旧模型并冒称覆盖 S-66；所有旧 raw 与归档链接保留。
+
+本次结构检查及最终规范输入哈希记录在工作树 `tmp/model-request-runtime/runtime-v3/current-input-port/`；它们验证引用/登记和表达结构，不验证当前数据生产者的真实 IO、并发一致性或恢复新输入行为。候选未接受，actual fresh producer 验收未开始。
+
+**默认重试身份增量**：S-35 指向新增 S-67，由本契约唯一拥有 `{category:loop_extension,name:"omne-official:default-retry"}`，声明位置沿 after_model_call、维度沿 `{ending:failure}`。runtime → LC4 消费补 S-2/S-4/S-5/S-6/S-7/S-20；runner 反向消费本条识别系统件。重试行为、参数、生命周期及替换规则不变，未设出厂 power/onError，未把 retry 或 record 加进 Power。命名由主线技术裁定；实例补身份正反例，实际 runner 识别验收未开始。本次只跑结构及引用检查，不改或重跑形式模型，旧 raw 均保留；原始结果在 `tmp/model-request-runtime/runtime-v3/default-retry-identity/`。
+
+**报给主线**：G-25 直接候选依赖改含 LC4、移除 manifest3，AE4 当前输入条款与 session-tenancy2 已标明，仍待主线登记、独立评审、接受与真实组合验收；G-26 注册/撤除机制接受与真实组合由主线负责；G-27 已给精确关系与向量，仍待技术评审接受。G-9/G-20 已区分候选读取路径与尚无生产者的初选，不吞旧缺口；沿用未关闭的 G-5/G-6/G-11/G-12/G-17/G-22。无词条的旧记录简称与新的函数/端口接口描述名保留为非领域身份，不新造领域对象。
+
+---
+
+以下保留 v2 的历史验证记录；其中起草期 candidate 等措辞不代表当前 registry 状态，也不覆盖 v3 增量。
+
 `capability.model-request-runtime` v2（candidate）的证据义务与执行状态。本文件可更新，位于规范版本目录之外；
 结果始终绑定实际规范、模型与实现修订。
 

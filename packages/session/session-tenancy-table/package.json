@@ -1,0 +1,44 @@
+{
+  "name": "@omne-harness-lite/session-tenancy-table",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ST2 persistent session holding identity; explicitly restricted acceptance seed",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./seed": {
+      "types": "./dist/seed.d.ts",
+      "import": "./dist/seed.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@deepseek-ai/cordis": "catalog:",
+    "zod": "catalog:",
+    "kysely": "catalog:"
+  },
+  "devDependencies": {
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,67 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 25 and seed 4103514187218908068 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 205899] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/.meta_harness/design/spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla
+Parsing file /tmp/tlc-4327186539771441197/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Semantic processing of module Naturals
+Semantic processing of module Adaptation
+Linting of module Adaptation
+Starting... (2026-09-27 04:26:34)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-27 04:26:34.
+Error: Invariant BindingPinned is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ failedAdoption = FALSE
+/\ cancelled = {}
+/\ retired = {}
+/\ original = [runtime |-> 0, direct |-> 0]
+/\ profiles = [official |-> 1, custom |-> 1]
+/\ bound = [runtime |-> 0, direct |-> 0]
+/\ phase = [runtime |-> "idle", direct |-> "idle"]
+/\ registered = {1}
+/\ disposed = {}
+/\ acquiredRetired = {}
+/\ publication = "new"
+
+State 2: <Register line 22, col 13 to line 25, col 71 of module Adaptation>
+/\ failedAdoption = FALSE
+/\ cancelled = {}
+/\ retired = {}
+/\ original = [runtime |-> 0, direct |-> 0]
+/\ profiles = [official |-> 1, custom |-> 1]
+/\ bound = [runtime |-> 0, direct |-> 0]
+/\ phase = [runtime |-> "idle", direct |-> "idle"]
+/\ registered = {1, 2}
+/\ disposed = {}
+/\ acquiredRetired = {}
+/\ publication = "registered"
+
+State 3: <Acquire("runtime","official") line 42, col 17 to line 50, col 60 of module Adaptation>
+/\ failedAdoption = FALSE
+/\ cancelled = {}
+/\ retired = {}
+/\ original = [runtime |-> 1, direct |-> 0]
+/\ profiles = [official |-> 1, custom |-> 1]
+/\ bound = [runtime |-> 1, direct |-> 0]
+/\ phase = [runtime |-> "busy", direct |-> "idle"]
+/\ registered = {1, 2}
+/\ disposed = {}
+/\ acquiredRetired = {}
+/\ publication = "registered"
+
+State 4: <Adopt("official") line 30, col 13 to line 35, col 84 of module Adaptation>
+/\ failedAdoption = FALSE
+/\ cancelled = {}
+/\ retired = {}
+/\ original = [runtime |-> 1, direct |-> 0]
+/\ profiles = [official |-> 2, custom |-> 1]
+/\ bound = [runtime |-> 2, direct |-> 0]
+/\ phase = [runtime |-> "busy", direct |-> "idle"]
+/\ registered = {1, 2}
+/\ disposed = {}
+/\ acquiredRetired = {}
+/\ publication = "registered"
+
+68 states generated, 44 distinct states found, 33 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 00s at (2026-09-27 04:26:34)

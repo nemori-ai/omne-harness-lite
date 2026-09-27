@@ -218,3 +218,75 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
 | **兼容件的非阻断错误固定按 `ignore`，记录与越档同形**：兼容件以来源产品语义下的非阻断错误收场（非零退出、超时、输出不合形状，归属由 `capability.hooks-import/v2#S-19` 定）时，不取有效策略、不进 `onError`，落 `skipped: errored` ＋ `output: observed` ＋ `error`（说明写三种成因之一，非零退出连同退出码）；原生件的报错与兼容件的其余报错照旧按有效策略。关闭 `capability.hooks-import` 的 G-17 | 主线补裁（2026-09-25，第二轮） | [S-13](v2/contract.md#s-13-报错处置策略的执行) 开头一句与新一条、[S-12](v2/contract.md#s-12-不可用与报错runner-怎么分) 表下「兼容件的哪些情形」一条（顺带改正「脚本路径不存在」算起不来的旧说法）、场景 [S-41](v2/contract.md#s-41-不可用报错否决三者分得开) 新一支、第十四节兼容件一行、[examples §7](v2/examples.md#7-兼容件的非阻断错误固定按-ignore记录与越档同形) | **改语义**：S-13 多了一个不取有效策略的情形（此前只有越档，而越档本就等于那一档的默认）。**不另立记录形状**：`data.loop-extension/v2#S-31`「可用却报错」那一种，`data.loop-extension` S-5 末条与 S-8 同步写明这一处例外。「原生件的同样说法不采用」「执行环境被撤下仍按有效策略」是本契约的推导，报主线。catalog 不变：本契约引 hooks-import S-19 只作定义引用（hooks-import 以坐标依赖本契约，登了成环） |
 
 **没有证据因此作废**——本契约此前没有任何执行证据。
+
+## v3 候选：精确消费演进
+
+来源为 model-request-adaptation 提案 rev 2 与本轮主线施工裁定；runner v3 状态仍是 candidate。全部 S-1～S-52、两个操作及九项结构、失败枚举保持；新细化不称为已接受。PF-013 对到当前 rev13，其余八份产品 revision 沿源版本；旧 v2 的冻结原件未改。依赖的接受与冻结以 [registry](../../../registry/README.md) 为唯一权威：本次机械核对时 LC4、messages4、response4、MF3、registry3、AE4 已 accepted，runtime3 仍 candidate；这一状态校正不改变消费坐标、条款或模型。
+
+### 变化的影响
+
+| 增量 | 实质消费与影响 |
+|---|---|
+| LC4、messages4、response4、content-blocks3、runtime3 | 完整适配绑定的失败输入、原发出记录与原绑定响应；保留未解析工具调用的 core 修正，且仍不授予其派发资格 |
+| MF3、registry3、AE4 | S-6 沿 readHead 当前 loop_extension 记录与 readHistory 的同会话表时刻读取；content 精确采用 registry3 S-48 和 AE4 S-47。当前表沿 E1 时不得改拿全局最近 E2；AE 只留 v4 一个语义版本 |
+| 权限读取 | 同 E 的 PermissionValue.allowed 按 observe < rewrite < veto 取最强合法档，空/非法/超所选正文声明为 unavailable，零件求值；不改求值输出、不修补来源 |
+| 默认重试身份 | S-7 引用 runtime3 S-67 的 omne-official:default-retry。出厂 rewrite／有效缺省 record 来自既有 S-26，未新选默认 |
+| 提醒与并发占号 | 作者 inject 供完整身份/时刻；runner 自产提醒取得本日志唯一 ID 与当前 Instant并记入结论。前置冲突按输出不合法；结论提交后同 ID 异内容为 replayInconsistent，不能改原结论或重新生成提醒 |
+| 守卫收场 | S-14/S-26 明确 refused/alreadyEnded/callNotFound/wrongPhase 走原 onError；unavailable 和调用边界 invalidInput 各同名失败，不归罪已通过表示检查的作者输出，保留历史前缀 |
+| 有限模型 | S-35 七义务及三个额外观察断言，有四份正向配置和十份反例配置；不把 TypeOK、固定耐久前提或有限结果当无界证明 |
+
+候选精确元数据在 `tmp/model-request-runtime/runner-v3/candidate-metadata.json`：18 resources、15 dependencies、40 条继承 covers（reviewed=false）、四份正向 formal tasks、无新增 id namespace。registry 由主线唯一 owner 更新，起草者没有写共享清单。正文不新增 Schema，共享数据继续由 data 拥有，操作线上表示沿原组合边界。
+
+### 已实际执行的形状与静态检查
+
+最终使用 `check.py` 与保存的 72 份输入（含 21 份 Schema），exit 0：52 条款、两操作各九项及原枚举的静态核对通过；2 个规范完整值与 9 个变异反例符合预期。跨字段拒绝由纯谓词表达，没有运行产品 runner。两个冻结 v2 文件与 baseline HEAD 字节一致。旧失效实例、修正后输入与历次 raw 分目录保留，没有覆盖失败输出。
+
+输入清单、脚本、stdout.jsonl、stderr.txt、run.json、frozen-v2.json 均在 `tmp/model-request-runtime/runner-v3/`。复跑入口相对执行仓库根：
+
+```sh
+.venv/bin/python tmp/model-request-runtime/runner-v3/check.py \
+  --inputs tmp/model-request-runtime/runner-v3/inputs \
+  --manifest tmp/model-request-runtime/runner-v3/inputs-sha256.json
+```
+
+### TLC 实际执行与范围
+
+`tmp/model-request-runtime/runner-v3/formal-run-2/` 保存实际模型/config 输入、SHA-256、JAR 哈希、Java 版本、每次 argv、退出码及逐字 stdout/stderr。TLC 为实际输出中的 `2026.09.12.025210 (rev: 867aefb)`；下面计数来自对应 raw，不是替代 raw 的凭证。
+
+| 正向配置 | 实际结果 | 不同状态数 | 范围 |
+|---|---|---:|---|
+| Runner.cfg | exit 0，无反例 | 48,016 | 两件一 worker，最多两尝试、一次崩溃，安全性质 |
+| RunnerUnfenced.cfg | exit 0，无反例 | 44,508 | 一件两 worker，无运行栅栏，耐久判重竞争 |
+| RunnerConcurrent.cfg | exit 0，无反例 | 332,712 | 一件两 worker，尝试栅栏和竞争 |
+| RunnerProgress.cfg | exit 0，无反例 | 2,930 | 一件一 worker，显式弱公平与两项进展性质 |
+
+十份 validity-check 均得到指定反例：九份不变量失败 exit 12；answered-stalls 的 AnsweredPassCompletes 进展失败 exit 13。它们是反驳能力检查，不登记为正向 formal task。首轮 formal-run-1 抓出三处布尔赋值缺括号导致 successor 不完整，已修正且完整复跑；该轮 raw 仍保留。更早两件两 worker 的探索在未完成时停止，无 verdict，不据此宣称覆盖；其输入与输出保留在 formal-initial-2。
+
+模型的稳定锚、唯一身份、时钟、可信声明、实际耐久介质与原子存储仍是外部前提。只枚举每件至多一次 ask、二值改写主体、有限尝试/crash；未证明任意链长、两件两 worker 的全部组合、重复多轮 ask、适配绑定/精确 JSON、E1/E2 读取、后置 ID 冲突、嵌套提醒 veto、整批 admit、取消或执行环境。详见 [形式范围](v3/formal/README.md)及 [S-35](v3/contract.md#s-35-形式工件回放的有限行为模型)。
+
+从保存输入复跑单项示例：
+
+```sh
+java -XX:+UseParallelGC -Xmx2g -cp /opt/tlaplus/tla2tools.jar tlc2.TLC \
+  -workers 1 -noGenerateSpecTE -metadir tmp/model-request-runtime/runner-v3/rerun-chain \
+  -config tmp/model-request-runtime/runner-v3/formal-run-2/inputs/Runner.cfg \
+  tmp/model-request-runtime/runner-v3/formal-run-2/inputs/Runner.tla
+```
+
+### 仍需真实执行的验收
+
+| 义务 | 可失败验收场景 | 状态 |
+|---|---|---|
+| 真实链读取 | E1 当前表、别类别 E2 重载、reuse 删除，原 E/原版本正文与次序不变；缺项、空 allowed、超声明不得形成空链或调用件 | 未开始；[examples §9](v3/examples.md#9-当前拓展表仍依-e1另一个类别已提交-e2) |
+| 提醒身份与存储竞争 | 前置异内容冲突、同值认回、结论后 crash、并发抢占同 ID、alreadyRecorded 后不可读；原结论与身份不可改 | 未开始；[examples §10](v3/examples.md#10-提醒身份创建时刻与并发占号) |
+| 全部 guard 收场 | 真实 canDispatchAgain、日志、attempt 栅栏；已提交前缀保留，allowed 后先落后交回，invalidInput 不归罪作者 | 未开始；[examples §11](v3/examples.md#11-candispatchagain-的全部收场映射) |
+| 装配开闸 | 全部提供者 ACTIVE、guard.confirm 完成后才受理；故障撤除和热替换不放宽门 | 未开始；归真实装配 |
+| 原其他场景 | S-36～S-52、取消、卡片、放行、句柄、跨会话隔离等仍各要实际执行 | 沿原义务；不能从新模型推断已交付 |
+
+### 全局检查与报给主线
+
+追加闭合后的 `check_design.py --root .meta_harness/design --formal registered` 实际 exit 0；原始输出及 argv/hash 在 `tmp/model-request-runtime/runner-v3/check-design-closure/`。registered 模式只检查登记；TLC 实际运行是上述保存的直接调用。初稿那次全树缺 asset-evaluation E-10 锚的 exit 1 raw 也保留，未冒充通过。
+
+G-2/G-5 本轮候选补齐；G-3 默认重试半支补齐，模态转换／循环探测仍待 owner；G-14 有限模型工件和可失败断言已给出，登记、独立评审及接受归主线。其余 G-1/6/7/8/9/10/16/17/19/20 不变。本轮遇到的提醒竞争与权限集合歧义均已向主线报告并按其明确裁定落字，没有自行新增 terminal 或失败 token。
+
+全部证据临时路径以代码文本表示，不跨 design root 建规范链接；永久归档由主线完成。candidate 不等于已接受、实现完成或真实模型纵线验收通过。

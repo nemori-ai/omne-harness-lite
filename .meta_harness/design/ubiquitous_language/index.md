@@ -313,4 +313,7 @@
 | [UL-context-compaction](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction) | 上下文压缩 | Context Compaction | **三个目标两两相冲**；能做两件、不能做两件 |
 | [UL-compaction-record](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record) | 压缩记录 | Compaction Record | `CompactionMessage`；**边界不是一条截断线** |
 
+| [UL-model-adaptation-binding](terms/capabilities-and-composition.md#ul-model-adaptation-binding--模型适配绑定--model-adaptation-binding) | 模型适配绑定 | Model Adaptation Binding | 调用所持有的精确适配版本与配置属性，更新不改变旧绑定 |
+| [UL-model-prefix-cache-policy](terms/capabilities-and-composition.md#ul-model-prefix-cache-policy--模型前缀缓存策略--model-prefix-cache-policy) | 模型前缀缓存策略 | Model Prefix Cache Policy | 绑定内的缓存配置属性，不代表真实缓存命中 |
+
 返回[统一语言入口](README.md)

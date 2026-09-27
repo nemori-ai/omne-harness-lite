@@ -1,5 +1,17 @@
 # model-profile-directory
 
+## v3 候选增量（2026-09-27）
+
+新增 [v3-design.md](v3-design.md) 接续本页下方的 v2 已接受基线，不改写旧 design.md；源码路径仍是 `packages/model/model-profile-directory`，**尚未建包**。本轮范围为完整适配绑定读写、同档案配置修订历史判重、真实同存储目录读面，以及独立单机验收的凭据接线；中心／据点同步仍不在本轮。
+
+- **语义接受：契约 v3 已由主线接受，本节点仍是候选。**本轮起草输入为 candidate；随后 [D-070](../../../../record/decisions/model-adaptation-binding-acceptance/decision.md) 接受 `capability.model-profile-directory/v3` S-1～S-35 与 `data.model-profile/v3` S-1～S-31，catalog 已登记。D-070 明确不接受提供者设计；本稿不作接受或实施声明。
+- **可实施：候选责任与存储要求已列出，本机凭据成功路径受阻。**三条内容写路径将档案与历史事实同提交，清单还包括序号与处置；授权顺序、十个操作和租户／组织范围保留。独立评审发现 credentialPresent＋readReplica 不辨实际引用，本候选撤回该成功路径，改为受限绑定读取与 CCL 来源引用匹配，等待 CCL 新增量及共同存储要求闭合。见 [G3-1～G3-7](v3-design.md#归装配及缺口)，不以候选文档授权开包。
+- **绑定证据：0 条。**既有绑定也为空；新事实没有已存在的目录实现测试，不将 Schema 检查、其他节点生命周期模型或旧存储套件提升为本节点证据。
+- **技术投影的许可与失败：候选已明确。**可信 bootstrap 构造／传递 reader，CCL/P-1r 执行；逐 symbol 限制及 P-1r 失败映射见 [v3 设计](v3-design.md)。参与读取的异常必须先使共同 atomic 失败，再在外层转换，不能在 unit 内吞掉。
+- **实际验证：尚无目录实现验证。**本次文档检查结果及真实存储、授权、故障、重启的验收义务见 [v3 验证增量](verification.md#v3-候选增量2026-09-27)。
+
+## v2 已接受基线
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v2`（[契约](../../../../spec/capabilities/model-profile-directory/v2/contract.md)，状态 `accepted`、已冻结）。插件边界与服务键取自 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 接受的 model 拆分 A/A/A 的[装配草图](../../../../record/proposals/capability-split-model/design.md#装配草图与切分理由)（P-1、P-1r）；取值问法单列一个服务键是本节点的细化，理由在 [design.md](design.md#三个服务键取值问法单列)
 - 源码位置：`packages/model/model-profile-directory`——尚未建包。第二层 `model` 由 D-059 拍板，布局见[两层布局](../../../README.md#packages-的两层布局)
@@ -22,3 +34,7 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 模型来源投影采用
+
+[D-075](../../../../record/decisions/model-credential-source-projection/decision.md)技术采用上述精确来源关联与失败/权限投影。旧候选字节和验证范围保留；真实源码及负控待执行，完整 CCL/MCP/OAuth 仍无本事件交付声明。

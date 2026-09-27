@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import schema from '@omne-harness-lite/model-response/schema' with { type: 'json' }
-import { judgeModelResponse, SCHEMA_DEF_NAMES, validate } from '@omne-harness-lite/model-response'
+import {
+  judgeModelResponse,
+  SCHEMA_DEF_NAMES,
+  validate,
+} from '@omne-harness-lite/model-response/v3'
 import { complete, failed, normative, object, openedFailure, r30 } from './fixtures.ts'
 
 describe('V-1 normative roots: accepted frozen examples are the oracle', () => {
@@ -24,7 +28,7 @@ describe('V-1 normative roots: accepted frozen examples are the oracle', () => {
     })
   })
   it('public resource is the exact frozen Schema bytes', () => {
-    const copied = readFileSync(new URL('../schema/model-response.schema.json', import.meta.url))
+    const copied = readFileSync(new URL('../schema/v3/model-response.schema.json', import.meta.url))
     const original = readFileSync(
       new URL(
         '../../../../.meta_harness/design/spec/data/model-response/v3/model-response.schema.json',

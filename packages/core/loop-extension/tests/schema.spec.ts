@@ -2,13 +2,13 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { SCHEMA_DEF_NAMES, schemaId, validate, judgeValue } from '../src/index.ts'
-import schema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import { SCHEMA_DEF_NAMES, schemaId, validate, judgeValue } from '../src/v3/index.ts'
+import schema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import fixture from './normative-examples.json' with { type: 'json' }
 
 describe('frozen normative instances', () => {
   it('LE-FROZEN: full bytes, registry digest and all 42 definitions', () => {
-    const local = readFileSync(new URL('../schema/loop-extension.schema.json', import.meta.url))
+    const local = readFileSync(new URL('../schema/loop-extension.v3.schema.json', import.meta.url))
     const original = readFileSync(
       new URL(
         '../../../../.meta_harness/design/spec/data/loop-extension/v3/loop-extension.schema.json',

@@ -3,7 +3,7 @@ import { createAssetModelJudge, SCHEMA_DEF_NAMES, schemaId } from '@omne-harness
 import modelSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import retainedModelSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
-import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import loopSchema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import {
   judgeContentBlock,
   toOpaqueJson,
@@ -14,7 +14,7 @@ import {
   evaluate,
   evaluationInputFingerprint,
   type NonConnectorEvaluationInput,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 import { cap, definition, holding, root, simple, tool } from './fixtures.ts'
 
 it('D068 current AM3 and TD3/Loop3 ports retain a complete AM2 resource and compile every AM3 definition', () => {

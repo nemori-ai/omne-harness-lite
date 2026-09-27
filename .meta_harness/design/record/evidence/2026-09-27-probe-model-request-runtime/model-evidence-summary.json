@@ -1,0 +1,1142 @@
+{
+  "models": 37,
+  "cacheReadObserved": 37,
+  "requests": 162,
+  "unsettled": 0,
+  "actualUsd": "1.057233989500000000",
+  "cards": [
+    {
+      "id": "openai/gpt-6-astra",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "families-01/79790f8c-7b0b-4c20-99d2-1abf471d6b37.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-01/9e0e9c0b-03f8-4220-9e69-5aaa1477d160.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/08b186ab-e604-4a5c-a544-d05e9a74b589.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/59c0e503-2bbf-4743-8252-a17e9cb64add.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-6-astra-pro",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/35fd07c8-d84b-4248-ae0d-778a3782ed60.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 11584,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/87323230-b354-41c1-b712-be33d26a6e74.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/b5d4f5c8-d9b2-4482-883f-0eafb686040c.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/5a142b50-1cea-4a24-8d06-482166997bc1.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/85f253a7-34fc-429f-85c3-dee77d6408c5.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-6-sol",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/60dd5ed9-d951-48a7-889e-a7724053a4f1.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/e586b656-d28d-4b14-955d-77473fff8bc7.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/303c2368-9036-400a-bb0d-b7427354af09.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/e2083092-24bd-4d75-9da9-983a9a73275f.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-6-sol-pro",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/60bf3f79-1f15-43bf-aca2-feaa71f14214.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/989c2e2c-5700-4492-b1ed-642457929914.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 11584,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/be86ab40-ab25-446b-a82c-5a569b23c49d.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/50592150-baa3-42ad-9ba9-2d31b2c73746.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/74bc21c1-d3d2-4412-a60f-1b4a0eb949e9.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-6-luna",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "pilot-01/8f442707-baf4-49a5-b85f-bd68ca1c5688.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4640,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "pilot-01/9cd4328e-7be6-41db-947c-df945af8198c.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4640,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/ec1b61ec-3726-4d13-98c8-c2b6fba9e723.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4640,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-6-luna-pro",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/2cf609db-70e0-4a2b-8fac-fe2a9e7edbb8.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 5792
+        },
+        {
+          "path": "remaining-01/c454f2d0-b983-497d-b233-3c5a325c562d.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/f4d9ac13-26df-41e0-895e-8278e2514ce8.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/a0a846fa-540d-43d7-a7d9-521cf4e70791.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/d29e0a8a-80ae-4640-9152-8ab3cf0005f2.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 18931,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-5.6-sol",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/c06d938c-86b5-4b6c-9820-991773228b7f.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/f525e71e-7382-47cf-86a4-6e4f4d824c96.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/31b7498e-afc6-4b00-95ca-37f4fd9160a4.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/4e76d540-60c6-4628-8d0d-89748dac6ade.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-5.6-sol-pro",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/2f050939-844c-474e-b314-4fcb87880726.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/5586b7ee-c58f-44b6-970a-913a8a1b6f37.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 17376,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/cb5dd141-dba0-4dec-a6ed-256ea0e61009.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/59c6f29f-dcf5-4617-8b17-1c12d83ee5e3.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/d2cd22c5-02fc-49b0-93aa-fb71842815f4.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-5.6-terra",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/69064169-92c2-4169-8c7c-ae697baabed0.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/6d6f9fcb-29bd-4dbe-a1ca-2ad27fdc3809.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/125f4dd5-cb99-44a5-a3b2-ee93fdd4d2a2.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/758e02a3-3e13-4d6e-9782-48678dc84ad0.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-5.6-terra-pro",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/390a35f5-bc56-4ee4-ad90-6745b9be388d.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/d8909e76-d331-4c1c-b1cc-291df7150532.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 17376,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/dff4ae4d-a0ba-4d2a-81d6-fbc545febfc5.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/12e1f13e-1de8-4145-902f-013e2bc90fd3.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/8acc23d6-0589-4fc4-bd6f-f00d4548440b.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-5.6-luna",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/07b679fb-9d81-42a5-bf54-117dc6d36b93.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/0f7733e8-77d9-4521-92a3-bb71a9b19e8a.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/36191cfc-4b09-4c5b-ac99-191b11d1bb36.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/e2da0153-6f1b-4438-8ab9-2a3fa1af7051.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5792,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "openai/gpt-5.6-luna-pro",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-01/9bb4e164-af3d-41b7-8a85-f55d7cb7abb5.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/c7c3cf8b-a3f3-4cdd-aa08-302333b13798.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-01/cf503443-37de-44ba-a6b0-1c16cba4dd57.json",
+          "provider": "openai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 17376,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/d7f6dd01-0364-4b34-a3ab-1e7f903223c3.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/e08ec8c4-391b-475c-9620-71adfa7a111c.json",
+          "provider": "openai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 24778,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "anthropic/claude-opus-5.5",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "families-01/b253692e-276e-42eb-9881-8aca05848bfd.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 9282,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-01/cd4a2352-381f-46cc-84e6-65d071b08d8c.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 9282,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "anthropic/claude-opus-5",
+      "requests": 4,
+      "warm": [
+        {
+          "path": "fruit-01/481b91d1-1af5-44d2-805d-37cc74a08290.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 8322,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "fruit-01/67dea28b-914e-445d-956a-101e566ae37f.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 8322,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": [
+        "remaining-01/e35d41d1-38bc-4148-abf1-c946de66d16b.json"
+      ]
+    },
+    {
+      "id": "anthropic/claude-sonnet-5",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-02/8e0b279f-f01f-42d0-876d-3d6fa9a5fd98.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 9283,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-02/d169b1cc-e0d0-41ad-8190-711c0001a5e9.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 9283,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "anthropic/claude-fable-5.1",
+      "requests": 4,
+      "warm": [
+        {
+          "path": "fruit-01/199d14ae-c71a-407b-abf7-4efbe8113bf5.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 8322,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "fruit-01/89f16097-19a7-4fb2-bd3e-141e239f0099.json",
+          "provider": "anthropic",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 8322,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": [
+        "remaining-02/1bc5b482-d960-494f-ba37-ad38ffb605c4.json"
+      ]
+    },
+    {
+      "id": "deepseek/deepseek-v4.1-flash",
+      "requests": 6,
+      "warm": [
+        {
+          "path": "families-02/be1cb0eb-f676-4221-a005-db5598516d83.json",
+          "provider": "deepinfra/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5760,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-02/e448f76a-15c4-4cdf-babd-144956e58315.json",
+          "provider": "deepinfra/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5760,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/2c4c1af2-760e-41d5-9117-20627787dcae.json",
+          "provider": "deepinfra/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5760,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/2dfb2364-ff8e-4bb0-b3a6-db8a816b90ff.json",
+          "provider": "deepinfra/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5760,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": [
+        "families-01/4aaf0b5a-77a6-4a37-9690-d194b7e2fddf.json"
+      ]
+    },
+    {
+      "id": "deepseek/deepseek-v4-pro-0813",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-03/33812c8e-9f58-4f58-8921-4d4105b9c975.json",
+          "provider": "deepinfra/fp8",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/a89c21ba-0703-43d4-b039-9d6d9327da3b.json",
+          "provider": "deepinfra/fp8",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/6e9fbd9f-c266-40bc-ac34-51273b55e280.json",
+          "provider": "deepinfra/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/eec5f6de-853a-4186-aeda-b0bf0601cc0f.json",
+          "provider": "deepinfra/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "google/gemini-3.8-flash",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "families-02/d8dbc7a9-5e73-4cf2-a8cd-4a13fd17e157.json",
+          "provider": "google-ai-studio",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4073,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-02/de9a2b84-0544-4262-81b0-4266b303baa1.json",
+          "provider": "google-ai-studio",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4073,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/b7d03388-953e-400f-8b4c-7ecb745b4562.json",
+          "provider": "google-ai-studio",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4073,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "google/gemini-3.7-flash",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-03/182fc986-d273-49ee-9bc8-cfc8d62e930c.json",
+          "provider": "google-ai-studio",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4073,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/a7fb4093-fcfb-4e59-a387-8e5ddfc33b46.json",
+          "provider": "google-ai-studio",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4073,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/cefd316b-a8c4-4b75-ab72-e2b143a04113.json",
+          "provider": "google-ai-studio",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 4073,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "x-ai/grok-4.7",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "families-02/0969ebe2-ee8f-4aa2-8524-1b9397e4ebaa.json",
+          "provider": "xai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 1152,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-02/798eab7b-d501-4c20-b44a-92aa41a4c013.json",
+          "provider": "xai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 6912,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-02/c7b5f96f-fc46-4b05-9cb0-d920469b0826.json",
+          "provider": "xai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 6912,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/545ddd1b-d0b8-4950-bc3d-0ae155084258.json",
+          "provider": "xai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 1152,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/6e881ff6-57b8-45cc-b992-259c5d0edd72.json",
+          "provider": "xai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 6912,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "x-ai/grok-4.6",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-03/8d2e4ae6-0b77-4a6e-81ce-cb9ccb036556.json",
+          "provider": "xai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5888,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/d4b3397d-dab7-4e62-9b4d-7dd4b609ee20.json",
+          "provider": "xai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5888,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/df69a410-b44c-4c2a-a3d1-5fa019a22b1a.json",
+          "provider": "xai",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 128,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/588295b0-5e7b-4a81-909d-71036ce172e1.json",
+          "provider": "xai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5888,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/7d11205d-6246-4ed6-b42d-8f369faa59a6.json",
+          "provider": "xai",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5888,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.8-max-0902",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "families-02/9b5e53bd-cdbf-470f-b16d-1adc1987f704.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-02/c1c823a8-1df1-4acc-bf4b-629a61cf67f3.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.8-max-prime",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/84e44e06-a638-43f6-a713-aa553a485ec2.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/c1dfe5e2-d075-491c-947e-f9a79dff4785.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.8-flash",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/b6a77475-8d6e-45ea-a51b-47c2b39d9550.json",
+          "provider": "alibaba",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 6656,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/d740cfa4-c83d-4719-aba0-33d48068442e.json",
+          "provider": "alibaba",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 6656,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.8-2.4t-a95b",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/440c6af2-813b-4831-8745-461e619efb8c.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/e19ca3cb-9a08-423c-bb6a-449dce494c7d.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.8-27b",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/a0dc4495-44b3-4e39-848a-77eb8127a60e.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/cf65f1e3-c968-461e-b871-8e609fc2725f.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6639,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.7-max",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/140d5677-260c-4eea-8770-1e79a93d7a1e.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6613,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/52537e68-cdf9-42fe-a3da-3558e01d46eb.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6613,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.7-plus",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/45337275-6e2f-47d8-8398-de252e13926f.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6613,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/baf1952e-3bbf-44f3-aeb8-5eba9b9d2f42.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 6613,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "qwen/qwen3.7-flash",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/8e4e6104-0881-4130-a856-ada009c96263.json",
+          "provider": "alibaba",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 6400,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/f99ab606-62dc-4522-bbd5-502ec0b82e43.json",
+          "provider": "alibaba",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 6400,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "moonshotai/kimi-k3",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "families-02/cbf24a7f-7668-4fa1-b206-e09d0380d7c1.json",
+          "provider": "moonshotai/mxfp4",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5888,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-02/e60210e3-566e-4d6d-bfa4-a7920ea2de93.json",
+          "provider": "moonshotai/mxfp4",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5888,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/f866f34a-e7f8-45ee-80c3-1559517d1035.json",
+          "provider": "moonshotai/mxfp4",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5888,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "moonshotai/kimi-k2.7-code",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-03/1a74153b-e61b-4585-a296-6bdc3bd3a708.json",
+          "provider": "moonshotai/int4",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/969a8121-81ad-46d0-b64a-2d2dc0a55355.json",
+          "provider": "moonshotai/int4",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/37423a22-21d9-416c-9543-9c6bd0f151e8.json",
+          "provider": "moonshotai/int4",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "z-ai/glm-5.3",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "families-02/0678e1db-1591-4588-8189-9477fa082d23.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "families-02/489803f5-601b-4f11-86ec-b48046eae56f.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/b371cec1-2f84-4137-8d6c-9779443eed50.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/f1d7fa95-c2d5-4ca1-bf96-baa5dbee99b6.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "z-ai/glm-5.3-prime",
+      "requests": 3,
+      "warm": [
+        {
+          "path": "remaining-03/16c4acf1-a05e-4af6-8fb3-d8bb1306c06d.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/61e2aca3-e379-4e58-9f39-49105c00272d.json",
+          "provider": "alibaba",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5632,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "z-ai/glm-5.3-flash",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-03/09cbdbcf-a3be-4b46-98a5-ada2824393e6.json",
+          "provider": "z-ai/fp8",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/5b805eb1-bda8-40ea-b98b-d864db18c863.json",
+          "provider": "z-ai/fp8",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/1b9b1a44-7952-4933-a0fd-9ba9d63e36ad.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/c3b49310-dc25-47d9-8ac5-95838030a5bd.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "z-ai/glm-5.3-flashx",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-03/53fab9fb-d496-4f27-816e-e2ee6cf87fcc.json",
+          "provider": "z-ai/fp8",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "remaining-03/eecb1509-4b78-4d26-8d27-0c034ba85912.json",
+          "provider": "z-ai/fp8",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/7f4d4bf1-17f9-4732-9529-cdbb92587d83.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/a22fc49d-4610-41ad-ab06-e25ac7706634.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "z-ai/glm-5.2",
+      "requests": 5,
+      "warm": [
+        {
+          "path": "remaining-03/c96abd47-17db-498f-8324-897300019e78.json",
+          "provider": "z-ai/fp8",
+          "mode": "explicit_control_sent",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/017af21b-c8cc-4a46-8a2a-99ce4352b8bf.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        },
+        {
+          "path": "automatic-01/5e40f074-7cb6-468b-837c-8a9aa6e7705a.json",
+          "provider": "z-ai/fp8",
+          "mode": "automatic_no_control",
+          "cacheReadTokens": 5824,
+          "cacheWriteTokens": 0
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

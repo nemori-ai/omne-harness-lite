@@ -246,3 +246,104 @@ reviewer：spec-reviewer，S25 第二轮批 R2b；基线 HUB `8ad37c50`。本批
 ## 2026-09-26 D-068 当前 v3
 
 `data.model-response · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+
+## 2026-09-27 v4 候选验证
+
+本版是 candidate；本文件属于候选交付说明，实际运行不提升接受状态。已接受 v2/v3 的历史结果仍限定于原输入。运行时、生产传输和持久化组合的本版验收尚未开始。
+
+### 变化的影响
+
+来源为 model-request-adaptation 提案 rev 2、UL-D-6 及本轮主线施工裁定。需求 rev 沿 contract.md 抬头，已与各 topic 当前 revision 核对。
+
+| 变化 | 消费者与需要重建的证据 |
+|---|---|
+| model-profile/v3 的 ModelAdaptationBinding，route 与快照均必填 | core/model-response 的 Schema 闭包、纯判定；runtime 的打开调用、每次发出、结算及恢复；所有嵌套 ModelResponse 的显式采用者 |
+| messages/v4 的已出门绑定；AssistantMessage 保留 core 修正 | runtime 的发出锚点与响应绑定对账；不得用 messages/v3 宣称已有新增锚点性质 |
+| servingProvider 可选且保存上游原串 | 传输读取、运行时错配处置、响应序列化、诊断；未报告时不能补请求供应商 |
+| usage 为缓存事实唯一权威，零与 Unknown 分开 | 传输的原始 usage 映射及缓存探针；不得新增另一份 response.cache，实际费用规则保持 |
+
+这是不兼容的表示演进。旧文档缺少完整绑定时不能读成 v4，不迁移或填初值。新增 binding 是已有档案/调用的属性，无新领域身份。未改六处共用形状副本的含义；ParameterAdjustment 与 droppedParameters 的 model-profile 说明升级 v3，messages/v4 的逐字副本须同轮核对。
+
+### 证据义务
+
+| 项 | 条款与能失败的断言 | 证据形式与前提 | 状态 |
+|---|---|---|---|
+| V4-1 | S-26/S-27：全部完整 JSON 实例的 Schema 通过/拒绝符合明确预期；依赖 Schema 可解析 | Draft 2020-12，使用本工作树完整精确依赖；继承实例保留原拒绝目标 | 已执行，见下方实际执行；不代替生产符合性 |
+| V4-2 | S-36：改 implementation 修订、配置值或 modelId，Schema 放过但纯判定为 malformed；两份绑定必须完整相等 | 纯比较的小型检查，精确十进制解析；只覆盖新增两条比较，不声称覆盖完整拒绝次序实现 | 已执行，见下方实际执行；不代替生产符合性 |
+| V4-3 | S-36：配置对象重排仍相等，数组重排不同，精确十进制不同不被舍入成相等 | examples V4-M1 的变异；任意精度数与按值比较 | 已执行，见下方实际执行；不代替生产符合性 |
+| V4-4 | S-36：发布/撤除后历史响应与已出门绑定不变；诊断失败或旧实现不可用不妨碍读历史事实 | 真实运行时、耐久日志、升级/恢复场景 | 未开始 |
+| V4-5 | S-37：未提供实际执行方/模型时不得补请求值；已核实错配保留两方并服从首内容优先规则 | 原始响应与最终 ModelResponse 对照，首 token 前/后两支 | 未开始；Schema 不证明事实来源 |
+| V4-6 | S-38：只报告读时写 Unknown；读为零不等于 Unknown；写为正不推出读取命中；配置不生成计数 | 原始 usage、配置变异、真实缓存冷暖请求 | 未开始；Schema 只验证已写出的值是否合法 |
+| V4-7 | 既有 S-1～S-35：收场、工具调用修正、时序、结算、成本和恢复保持 | topic verification.md 原 V-1～V-14 在 v4 显式重跑；旧运行不冒充本版结果 | 本版生产符合性未开始 |
+| V4-8 | 精确依赖、链接和候选资源登记一致；旧冻结资源摘要不变 | 工作区 check_design.py；registry 由主线唯一写入者机械登记 | 本次运行失败于其他在写候选的 3 处链接；本包无报告错误，候选登记尚待主线 |
+
+### 实际执行
+
+2026-09-27，在指定工作树 `panqiwei/model-request-runtime`（起始提交 `d4eaf7673bc161bf22f6682385151e080d3323ae`）使用本工作树 `.venv/bin/python`，没有安装依赖。
+
+1. `jsonschema.Draft202012Validator` 与 `FormatChecker`、`referencing.Registry` 装入本树全部 Schema；实例 JSON 按 `Decimal` 读取。58 个完整响应实例逐块按明确的预期校验：**22 通过、36 拒绝，0 处不符**。两个原有片段/手算块不是完整 ModelResponse，不作为完整实例冒充覆盖。
+2. 第六节 12 个实例按新增两个绑定相等谓词检查，结果与各自纯判定预期一致；4 个精确值变异（精确十进制相等/不同、对象次序、数组次序）符合预期。随后增加布尔值/数字边界并用区分 JSON 类型的比较重新运行 5 个变异，0 处不符。该小检查没有运行产品实现，也没有证明 S-27 全部拒绝优先级的实现。
+
+先前交互检查输出的关键字段摘录（不是完整原始日志）：
+
+```text
+schema_instances: 58
+passed: 22
+rejected: 36
+incremental_judge_instances: 12
+exact_value_mutations: 4
+mismatches: []
+exact_json_value_mutations: 5; mismatches: 0 (number, object order, array order, boolean type)
+```
+
+3. 工作区检查命令：
+
+```sh
+.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal registered
+```
+
+实际退出 1，输出如下。三项都在并行起草的 runtime 候选内，未在本任务越界修复；37 个现有形式任务只确认登记，未执行。
+
+```text
+ERROR: spec/capabilities/model-request-runtime/v3/contract.md: missing Markdown anchor: ../verification.md#v3-候选变化与证据
+ERROR: spec/capabilities/model-request-runtime/v3/contract.md: broken local link: formal/README.md
+ERROR: spec/capabilities/model-request-runtime/v3/contract.md: broken local link: formal/README.md
+FAIL: design validation found 3 error(s).
+```
+
+以上是本次实际执行记录；最终整批登记与链接修复后由整批拥有者重跑，不能把本次失败改记为通过。
+
+#### 保存脚本与原始输出的实际复跑
+
+2026-09-27 按主线补充任务，将上述 Schema／跨字段验证保存为脚本并实际复跑。其输入是本次抓取的候选及传递依赖快照，不依赖后续编辑中的文件。
+
+- [完整实际检查归档](../../../record/evidence/2026-09-27-probe-model-request-runtime/response-v4.tar.gz) 保存复跑说明、脚本、43份输入与摘要、stdout/stderr、实际命令/环境/退出码。历史 Markdown 快照保留在归档内，未改写内部链接。
+- 读取结论时核对应输入摘要；包内校验不等于生产边界或流解析通过。
+
+该次实际退出 **0**：58 个完整实例为 22 通过、36 拒绝；12 个新增绑定判定、5 个精确 JSON 值变异均符合预期。原始 stdout 含每项结果和拒绝细节，未以汇总替代。stderr 为空。这次复跑没有执行全局设计检查，不改变前述检查器退出 1 的历史记录。
+
+复跑入口从指定工作树根执行：
+
+```sh
+.venv/bin/python tmp/model-request-runtime/response-v4/verify.py \
+  --inputs tmp/model-request-runtime/response-v4/inputs \
+  --manifest tmp/model-request-runtime/response-v4/inputs-sha256.json
+```
+
+这里的链接指向本次工作树内的临时证据；`tmp/` 被 Git 忽略，树退役或候选发布前须由主线保存所需证据并迁移链接，不把本地存在冒称已发布。
+
+### 形式工件
+
+未新增 TLA+ 或 Alloy 工件，未运行形式工具。理由：本次是单份不可变响应数据的字段和纯比较扩展，无新操作、状态转换或独立生命周期；单文档结构由 Schema 和比较反例表达。版本取得/撤除、并发收口、日志提交与恢复的行为模型归对应运行时能力，不能以本 data 的实例验证替代。
+
+### 已知缺口
+
+本次增量未新增 G 编号。继承 G-3（条目壳，owner：loop/主线）、G-4（原始响应保留设置，owner：PF-002/主线）、G-5（脱敏规则，owner：model-request-runtime）、G-9（其余可追溯组成，owner：PF-010 组装/runtime）、G-10（真实费用提供者取证，owner：传输提供者）；旧闭合编号保留，具体见 contract.md。G-8 的表示缺口以 S-37 候选条款补齐，实际名称核实及错配证据仍归 V4-5，未声称生产闭合。
+
+### 报给主线
+
+- 原施工简报拟新增 cache；查实 call-accounts/v2 已有权威字段且没有 TokenAmount/TokenCount 后，主线裁定沿 usage 单一事实源，本版按裁定落 S-38，无另一份计数类型。
+- 主线裁定 servingProvider 可选、缺席不冒填。首内容后错误仍按原 interrupted_mid_reply，未新增成因。
+- messages/v4 与 model-profile/v3 为同批候选依赖。主线已明确采用它们的定型公共形状；本版不能先于依赖被当成完整接受的闭包。
+- registry 由主线唯一写入者落四份清单；本起草者交付精确 candidate 条目与复用范围，不另造第二份持久坐标清单。登记前不声称已登记。
+- 提案的机械 revision 标记仍由主线维护，本版引用本次明确的 rev 2，不把提案当作接受记录。

@@ -7,3 +7,6 @@ node: "session-tenancy-table"
 kind: "provider"
 
 bindings: []
+
+# 2026-09-27 设计 rev 2 候选增量：新增 0 条绑定。
+# seed 精确路径守卫与 StorageUnit 参与读尚未实施，义务为 verification 的 V2-1～V2-6。

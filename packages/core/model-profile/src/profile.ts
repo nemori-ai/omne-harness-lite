@@ -24,6 +24,7 @@ import type {
 
 const contentMembers = [
   'routeName',
+  'adaptation',
   'origin',
   'providers',
   'allowFallback',
@@ -102,6 +103,14 @@ function malformed(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
   }
   const required = kind === 'ModelProfile' ? profileMembers : contentMembers
   if (!hasMembers(value, required, [...required, 'parameters'])) return true
+  if (!validate('ModelAdaptationBinding', value.adaptation).valid) return true
+  const binding = value.adaptation
+  if (
+    !isObject(binding) ||
+    !isObject(binding.definition) ||
+    (value.routeName !== '' && binding.definition.modelId !== value.routeName)
+  )
+    return true
   if (typeof value.allowFallback !== 'boolean') return true
   for (const name of ['providers', 'inputModalities', 'outputModalities']) {
     const items = value[name]

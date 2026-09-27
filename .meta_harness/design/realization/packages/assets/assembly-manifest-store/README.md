@@ -1,5 +1,22 @@
 # assembly-manifest-store
 
+## v3 候选增量（2026-09-27）
+
+- **语义接受：无。** 本节点 v3 增量仍为候选；精确消费 [`capability.assembly-manifest/v3`](../../../../spec/capabilities/assembly-manifest/v3/contract.md)、`capability.asset-evaluation/v4` S-47 与生产者 `capability.asset-registry/v3`。依赖接受状态及采用记录以 [registry catalog](../../../../registry/catalog.json) 为准；下列 v2 接受事实不延伸到新读面。
+- **可实施范围：候选。** [v3 设计](v3-design.md)保留原四操作和两张 SQL 表，增加公开闭包与 Cordis 服务的 `readEvaluation`：同一 ReadTx 固定当前 head，选择本会话 `seq ≤ head` 最近 given/mint 的完整求值；reuse 旧表不令已提交根设置回退。追加仍收任意合法 JSON，新读面单独校验两个投影槽位。源码路径 `packages/assets/assembly-manifest-store` **尚未建包**；共享 AE4 公共 `judgeEffectiveAssembly` 的设计表达已对齐：全量判定五类闭合 DTO 与开放 JSON 槽，完整原值交回；不证明来源或权限。实现与制品消费、生产链及装配仍见 AMS3-1～AMS3-5。
+- **绑定与证据：0 条。** [`bindings.yaml`](bindings.yaml)保持空；旧义务全部保留，新增 ME-1～ME-8 尚待实现后执行。其他 core 节点的既有证据不覆盖本 SQL 读取链。
+- **实际验证：尚无。** 文档检查不代表源代码、真实存储、Cordis 换代或模型纵线通过。独立评审、采用和实际验收由主线另记。
+
+本次技术验收消费者为 `apps/model-request-acceptance`；迁移、同库单属主、升级确认、入口身份与观测接线归该装配。会话 JSONL 仍由其节点承担模型锚点和响应/回复落盘，不与清单建立跨存储原子承诺。新读面只读已提交求值；runtime/v3 S-66 当前输入归 `packages/assets/evaluation-input-store`，本历史读面不能替代其新鲜读取与重求责任。
+
+| 当前问题 | 入口 |
+| --- | --- |
+| 五操作投影、最新已提交求值与旧表来源怎样区分 | [v3 候选设计](v3-design.md) |
+| 原义务保留范围、新增真 IO 与组合验收 | [v3 候选验证义务](verification.md#v3-候选增量的证据义务) |
+| 旧 v2 的设计和接受范围 | [原设计](design.md)及下列历史状态 |
+
+## 既有 v2 设计与接受范围
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.assembly-manifest · v2`（[契约](../../../../spec/capabilities/assembly-manifest/v2/contract.md)，状态 `accepted`，已接受、已冻结）的**全部条款**（四个操作：`readHead`、`append`、`readHistory`、`dependencyPresence`），作为它第十一节说的「本版的最小提供者」（[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
 - 源码位置：`packages/assets/assembly-manifest-store`——**尚未建包**。第一层 `assets` 由 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板；本节点放在这里是本批的划分，真承接者 PF-004 那一程到来时若归别的领域，搬动是「实现换方案」（缺口 AMS-9）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -31,3 +48,7 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 本轮技术采用
+
+[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。

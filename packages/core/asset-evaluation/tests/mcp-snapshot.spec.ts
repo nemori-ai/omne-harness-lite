@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { carrierRecordId } from '@omne-harness-lite/asset-model'
-import { evaluate, type NonConnectorEvaluationInput } from '../src/index.ts'
+import { evaluate, type NonConnectorEvaluationInput } from '../src/v3/index.ts'
 import {
   at,
   assignment,

@@ -17,10 +17,20 @@
 - 绑定与证据：[`bindings.yaml`](bindings.yaml) **0 条**——没有任何已登记的形式任务或测试以本节点的代码为对象；十一条的证据形式是本包的符合性测试（脚本化的本机 HTTP 端），见 [verification](verification.md#证据义务)
 - 实际验证：**尚无**（源码不存在；本节点不复用 minimal-runtime 或 2026-09-16 那次真实短请求作证据——前者未进 main，后者只覆盖一条路由且早于本基线）
 
+## 2026-09-27 v3 候选增量的分层状态
+
+以下接续本轮模型请求纵线；上面的 v2 接受事实和 [design.md](design.md) 保持原范围。新稿见 [v3-design.md](v3-design.md)，目标源码路径仍为 `packages/model/pi-ai-transport`，尚未建包。
+
+- **语义接受：无。** 消费 `capability.model-request-runtime/v3`、`data.model-profile/v3`、`data.messages/v4`、`data.model-response/v4` candidate；既有 D-062 不接受此增量。runtime v3 的 catalog 登记、整批评审与采用由主线完成。
+- **可实施：候选路径已起草，生产实施仍有门。** 共享 plan/send/read、八家家族规则、37 个精确模型窄定义；稳定 `modelTransport` 内管理版本，可信模型插件登记贡献，直接函数消费者也持引用。旧 `routeWireHints`/默认 TTL 由完整 binding 的配置接替。缺口 PAT-V3-1～8 及受阻消费者见 [验证入口](verification.md#v3-候选增量验证)；D-019 比较门不豁免。
+- **绑定证据：0 条。** 有限模型、Cordis 原型与研究缓存探针不以本节点生产实现为对象，不填进 `bindings.yaml` 冒充兑现。
+- **实际验证：生产实现尚无。** 候选依据已有 [有限生命周期模型、原型反例及修正](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md)及 [37 个模型研究暖读](../../../../record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)，仅覆盖其标明范围；完整生产路径的逐模型 official 认证尚未开始。
+
 ## 按当前问题展开
 
 | 当前问题 | 阅读入口 |
 | --- | --- |
+| 精确版本、家族/窄模型适配、动态引用、缓存与有界诊断怎样接续 | [v3 候选设计](v3-design.md)、[逐项验收继承](verification.md#v3-候选增量验证) |
 | 从 pi 取了哪些文件、不取哪些、改了什么、许可与上游追踪 | [fork 边界](design.md#fork-边界) |
 | 公开函数面与 `modelTransport` 服务面各给什么、函数层不承诺什么 | [公开面](design.md#公开面) |
 | 契约十一条各落在哪、上游的流怎样译成到达事件 | [投影表](design.md#契约责任到兑现点)、[流片段翻译](design.md#上游的流怎样译成到达事件) |
@@ -32,3 +42,7 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 最终技术采用
+
+[D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受对应精确规格与本节点投影。旧候选读数和验证历史保留。此事件不代替源码、真实故障/停止或37模型生产认证；新增实际绑定另附运行证据。

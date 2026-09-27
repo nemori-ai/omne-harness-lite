@@ -18,7 +18,7 @@ import {
   type ModelProfileContent,
   type ModelProfileRef,
   type ModelRequestParameters,
-} from '@omne-harness-lite/model-profile'
+} from '@omne-harness-lite/model-profile/v2'
 
 const profile: ModelProfile = {
   routeName: 'vendor-a/chat-large',

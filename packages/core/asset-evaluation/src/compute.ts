@@ -10,7 +10,9 @@ import {
   type PermissionValue,
 } from '@omne-harness-lite/asset-model'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { jsonNumberSource, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
 import { assetJudge } from './defaults.ts'
 import { canonical, copyJson, immutable, object, codePointCompare } from './json.ts'
 import {
@@ -26,6 +28,7 @@ import type {
   EffectiveAsset,
   EffectiveValue,
   EvaluationResult,
+  EvaluationRootSelectionInput,
   FilteredOut,
   HoldingLayer,
   Layer,
@@ -65,12 +68,10 @@ export function versionOf(
     ? definition.versions.at(-1)
     : definition.versions.find(
         version =>
-          Number(jsonNumberSource(version.number)) ===
-          Number(
-            jsonNumberSource(
-              holding.versionSelection.kind === 'pinned' ? holding.versionSelection.number : 0,
-            ),
-          ),
+          holding.versionSelection.kind === 'pinned' &&
+          ExactDecimal.from(version.number).compare(
+            ExactDecimal.from(holding.versionSelection.number),
+          ) === 0,
       )
 }
 function permission(value: unknown): PermissionValue | undefined {
@@ -100,7 +101,7 @@ function declarationsFor(
   return facts.declarations.get(holding) ?? [USABLE_BY_DECLARATION]
 }
 function assignmentsFor(
-  input: NonConnectorEvaluationInput,
+  input: Pick<NonConnectorEvaluationInput, 'tenant' | 'session'>,
   capability: CapabilityId,
   declaration: PermissionDeclaration,
   holdings: readonly AssetHolding[],
@@ -145,17 +146,18 @@ function assignmentsFor(
   return result
 }
 
-export function computeEvaluation(
-  input: NonConnectorEvaluationInput,
-  facts: EvaluationFacts,
-): EvaluationResult {
-  const fail = (condition: Condition, message: string, rejected?: string): EvaluationResult =>
+export function selectAssets(input: EvaluationRootSelectionInput, facts: EvaluationFacts) {
+  const fail = (
+    condition: Condition,
+    message: string,
+    rejected?: string,
+  ): Extract<EvaluationResult, { readonly invalidInput: unknown }> =>
     immutable({
       invalidInput: {
         diagnostics: [{ condition, message, ...(rejected === undefined ? {} : { rejected }) }],
       },
     })
-  if (input.root.definition.category !== 'agent_definition')
+  if (input.rootDefinition.category !== 'agent_definition')
     return fail('C2', 'root is not an Agent Definition')
   if (input.workspace !== undefined && !tenantIdEquals(input.workspace.tenant, input.tenant))
     return fail('C3', 'workspace tenant')
@@ -210,31 +212,6 @@ export function computeEvaluation(
   if (new Set(sessionKeys).size !== sessionKeys.length)
     return fail('C11', 'duplicate session assignment')
   if (input.standing.standing !== 'effective') return fail('C12', 'ineffective membership')
-  const actionKeys = new Set<string>()
-  for (const entry of input.mcpActionSets ?? []) {
-    const token = `${key(entry.endpoint)}:${entry.scope}`
-    if (
-      entry.endpoint.category !== 'mcp' ||
-      !input.holdings.some(
-        holding => same(holding.capability, entry.endpoint) && holding.holder.layer === entry.scope,
-      ) ||
-      actionKeys.has(token) ||
-      entry.actions.kind !== 'fetched'
-    )
-      return fail('C13', 'invalid MCP action set')
-    actionKeys.add(token)
-  }
-  const refs = input.root.references.map(entry => key(entry.capability))
-  if (
-    new Set(refs).size !== refs.length ||
-    input.root.references.some(
-      entry =>
-        entry.resident !== undefined &&
-        entry.capability.category !== 'tool' &&
-        entry.capability.category !== 'skill',
-    )
-  )
-    return fail('C14', 'invalid root references')
   const filtered: FilteredOut[] = []
   const disabled = new Set<string>()
   for (const holding of input.holdings) {
@@ -366,6 +343,56 @@ export function computeEvaluation(
       },
     })
   }
+  return { selected, inEffect, surviving, definitions, usableValues, filtered }
+}
+
+export function computeEvaluation(
+  input: NonConnectorEvaluationInput,
+  facts: EvaluationFacts,
+): EvaluationResult {
+  const fail = (condition: Condition, message: string, rejected?: string): EvaluationResult =>
+    immutable({
+      invalidInput: {
+        diagnostics: [{ condition, message, ...(rejected === undefined ? {} : { rejected }) }],
+      },
+    })
+  const actionKeys = new Set<string>()
+  for (const entry of input.mcpActionSets ?? []) {
+    const token = `${key(entry.endpoint)}:${entry.scope}`
+    if (
+      entry.endpoint.category !== 'mcp' ||
+      !input.holdings.some(
+        holding => same(holding.capability, entry.endpoint) && holding.holder.layer === entry.scope,
+      ) ||
+      actionKeys.has(token) ||
+      entry.actions.kind !== 'fetched'
+    )
+      return fail('C13', 'invalid MCP action set')
+    actionKeys.add(token)
+  }
+  const refs = input.root.references.map(entry => key(entry.capability))
+  if (
+    new Set(refs).size !== refs.length ||
+    input.root.references.some(
+      entry =>
+        entry.resident !== undefined &&
+        entry.capability.category !== 'tool' &&
+        entry.capability.category !== 'skill',
+    )
+  )
+    return fail('C14', 'invalid root references')
+  const selection = selectAssets({ ...input, rootDefinition: input.root.definition }, facts)
+  if ('invalidInput' in selection) return selection
+  const { selected, inEffect, surviving, definitions, usableValues, filtered } = selection
+  const selectedRoot = selected.get(key(input.root.definition))
+  if (
+    selectedRoot !== undefined &&
+    (input.root.source.asset !== selectedRoot.definition.id ||
+      ExactDecimal.from(input.root.source.version).compare(
+        ExactDecimal.from(selectedRoot.version.number),
+      ) !== 0)
+  )
+    return fail('C16', 'root source differs from the selected asset version')
   const composition = new Map<string, CapabilityId>()
   const unresolved: Unresolved[] = []
   let cycle: readonly CapabilityId[] | undefined
@@ -409,11 +436,19 @@ export function computeEvaluation(
       codePointCompare(key(left.capability), key(right.capability)),
     ))
       visit(reference.capability, root, [root])
-  // C10 admits only assignments that are used; root attributes and absent items do not exist in this version.
+  // C10 admits only assignments used by composition or the selected root.
   const validAssignment = (
     assignment: AttributeAssignment,
     declaration: AttributeDeclaration,
+    rootSetting = false,
   ): boolean => {
+    if (rootSetting)
+      return (
+        'ok' in
+        judgeAgentDefinitionBody(
+          copyJson({ references: [], attributes: [{ ...declaration, default: assignment.value }] }),
+        )
+      )
     if (declaration.kind === 'permission') {
       const value = permission(assignment.value)
       return (
@@ -433,7 +468,11 @@ export function computeEvaluation(
     )
   }
   for (const holding of inEffect) {
-    if (!composition.has(key(holding.capability))) continue
+    if (
+      !composition.has(key(holding.capability)) &&
+      !(selected.has(key(root)) && same(holding.capability, root))
+    )
+      continue
     const definition = definitions.get(holding.asset)
     if (definition === undefined) throw new Error('C5 invariant')
     const version = versionOf(holding, definition)
@@ -472,18 +511,25 @@ export function computeEvaluation(
           if (!missingBound) continue
         }
       }
-      if (!validAssignment(assignment, declaration))
+      if (!validAssignment(assignment, declaration, same(holding.capability, root)))
         return fail('C10', 'holding assignment outside its declaration domain')
     }
   }
   for (const entry of input.session ?? []) {
-    if (!composition.has(key(entry.capability))) continue
+    if (
+      !composition.has(key(entry.capability)) &&
+      !(selected.has(key(root)) && same(entry.capability, root))
+    )
+      continue
     const asset = selected.get(key(entry.capability))
     if (asset === undefined) continue
     const declaration = declarationsFor(asset.holding, facts).find(
       item => item.item === entry.assignment.item,
     )
-    if (declaration !== undefined && !validAssignment(entry.assignment, declaration))
+    if (
+      declaration !== undefined &&
+      !validAssignment(entry.assignment, declaration, same(entry.capability, root))
+    )
       return fail('C10', 'session assignment outside effective declaration domain')
   }
   if (cycle !== undefined)
@@ -491,11 +537,11 @@ export function computeEvaluation(
   if (unsupported !== undefined)
     return immutable({ categoryUnsupported: { category: unsupported } })
   const values: EffectiveValue[] = []
-  for (const capability of composition.values()) {
+  for (const capability of [...(selected.has(key(root)) ? [root] : []), ...composition.values()]) {
     const current = selected.get(key(capability))
     if (current === undefined) throw new Error('composition is outside selected assets')
     const declared = declarationsFor(current.holding, facts).filter(
-      entry => entry.item !== 'disabled',
+      entry => entry.item !== 'disabled' && !(same(capability, root) && entry.item === 'usableBy'),
     )
     const permissionHoldings = inEffect.filter(holding => same(holding.capability, capability))
     const ws = permissionHoldings.find(holding => holding.holder.layer === 'workspace')

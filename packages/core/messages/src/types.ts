@@ -19,6 +19,7 @@ import type {
 import type { AttemptId, ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { OpaqueIdentifier, ScopeLayerIdentity } from '@omne-harness-lite/identity-values'
 import type {
+  ModelAdaptationBinding,
   ModelProfileRef,
   ModelProfileSnapshot,
   ModelRequestParameters,
@@ -214,6 +215,7 @@ export type Message =
 export type OutboundMessage = Exclude<Message, ToolInternalMessage>
 export type LoggedMessage = Exclude<Message, SystemMessage>
 export interface ModelCallDispatchedRecord {
+  readonly adaptation: ModelAdaptationBinding
   readonly kind: 'model_call_dispatched'
   readonly call: ModelCallId
   readonly dispatch: JsonNumber

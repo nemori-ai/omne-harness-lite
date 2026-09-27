@@ -55,3 +55,16 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 LC4 提供者候选
+
+[v4-design.md](v4-design.md) 接续已存在的 LC3 纯包，规划根4与显式 `/v3` 纯面，以及独立的 `/schema/v3` 冻结资源。它只承载作者输入/输出表示、纯值判断及单条记录约束，完整批次和落盘控制留给 runner；旧 design.md 与原接受/运行记录保留。
+
+- **语义接受**：data.loop-extension/v4 已由 [D-073](../../../../record/decisions/model-current-input-contracts-adoption/decision.md) 技术接受；本提供者候选尚未接受。
+- **可实施范围**：候选映射详见新稿；现源码仍为 LC3，已显式钉 MP2/MS3 来维持旧语义，尚未提供根4与 `/v3` 双面。AE/MR 旧消费者须显式采用 LC3，ArrivalEvents 的 LC2 枚举复用须对齐，不自动升级。
+- **绑定与证据**：原 LC3 绑定 1 条保留，LC4 新增 0 条；[LV4-1～LV4-6](verification.md#lc4-提供者候选证据义务) 均待实际实施/组合证据。
+- **实际验证**：本稿没有新增 LC4 实现结果；旧 581 项及候选规格检查各属原范围，不能推成新版提供者已验证。
+
+## 2026-09-27 本轮技术采用
+
+[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。

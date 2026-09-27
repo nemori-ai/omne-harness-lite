@@ -1,3 +1,42 @@
+## v3 候选的证据义务
+
+本节只对应 [`data.model-profile/v3`](../../../../spec/data/model-profile/v3/contract.md) 与 [v3 候选投影](v3-design.md)。尚无本版产品实现和接受；下面计划中的测试名称只作义务编号，不登记为已存在的 `test:` 绑定。所有原 v2 结果保持原范围。
+
+| 编号、来源条款与投影行 | 需要什么会失败的证据 | 当前状态 | owner 与闭合条件 |
+| --- | --- | --- | --- |
+| V3-1：S-1～S-2、S-4～S-9、S-12、S-27～S-30；MP3-1/4 | 三种档案必填 adaptation、三组闭合字段、五字符串非空/显式首尾空白、values 缺席/null/{}，全部规范正反实例；原件 Schema 逐字节及 `$id` 校验 | 仅候选 Schema 321 项自检通过；未执行产品实现测试 | 本包实施者：同一组输入分别走公开 Schema 与完整 judge，断言各自范围；不存在绑定时不能补默认 |
+| V3-2：S-18、S-24～S-26、S-31；MP3-5 | Schema 放行的 modelId 错配由完整 judge 拒绝；错配+参数越界/输出超限为 malformed；空 routeName 加合法非空 modelId 保持 route_name_empty；额外 M13 错误仍优先 malformed；建档与档案都检查 | 未开始 | 本包实施者：移除 M14 比较、把它后移或把空路由错配抢先拒绝，各有可失败断言；继承十个拒绝值及旧次序回归全部过 |
+| V3-3：S-30、content-blocks/v2 S-24；MP3-4/6 | 使用真实公开严格读取拒绝深层重复键、NaN、尾逗号；超大整数、极小小数和大指数无损往返；不接受函数、可执行对象冒充 JSON；判定不改输入 | 未开始 | 本包与 JSON 接收 owner：先解析原文本再 judge；明确普通 JSON.parse 已丢失的信息不能由本包修复。检查使用公开 JSON 设施，不能复制第二套值规则 |
+| V3-4：S-8～S-9、S-16、S-18、S-29～S-30；MP3-1/3/6 | 原参数精确边界与跨字段比较回归；values 内同名 seed/temperature/maxOutputTokens 允许 JSON 值、不套参数界；比较 1/1.0、巨大相邻整数、对象换序、数组换序、true/1 | 未开始 | 本包实施者及绑定比较消费者：固定 Schema 视图不泄漏为返回或快照值，数值占位不能参与相等；有限 oracle 标清输入域 |
+| V3-5：S-13～S-14、S-26；MP3-2 | 同路由不同 origin/scope 不匹配；给定同一身份的不同 adaptation 仍匹配同一档案；撤回档案、未注册实现的合法值不被 refMatches 当可用性检查；自建 scope 不从环境补 | 未开始 | 本包实施者：公开 v3 类型与三条重载的独立制品消费；boolean 不被写成已授权/已注册/目录找到 |
+| V3-6：S-27、S-29～S-31；MP3-4 | 快照类型与 Schema 含完整 values、无 routeName/origin/registration；judge 文档种类仍恰四种；复制由实际 runtime 打开调用后修改/撤回档案及原输入深层值的场景验证 | 纯形状未实施；行为待 runtime | 本包验证公开形状与拒绝面；runtime 验证原样副本和在途保持。readonly、Schema 通过或纯副本示例都不能替代真实行为 |
+| V3-7：版本差异及全部精确依赖；MP3-7 | 打包后的 root/schema 钉 v3，候选 v2 两入口钉原 v2；旧档案缺 adaptation 在 v2 通过、v3 拒绝；含 adaptation 的 v3 档案在旧闭合形状拒绝；双版嵌套 Schema 可同时解析 | 未开始 | 本包与主线集成：strict 且 skipLibCheck=false 的独立制品消费者、runtime import 和 Schema `$ref` 解析；全树旧消费者明确采用；旧测试不改成只测新版 |
+
+### 外部 owner 的义务
+
+| 来源条款 | 本纯模块不能独立证明的部分 | owner 与阻断范围 |
+| --- | --- | --- |
+| S-3、S-10～S-12、S-29 | 同格唯一、在册转移、updatedAt、同档案配置 revision 历史不改义，包括 c1→c2→c1 | model-profile-directory；阻断持久目录采用，不阻断纯值起草；在其真实提交对象上验并发及重启 |
+| S-22、S-30 | 配置不含秘密、不载入代码、自建不冒充官方 | 档案写入/配置接收与注册 owner；Schema 不能识别任意秘密字符串；必须审查实际接收和持久路径 |
+| S-5～S-6、S-17、S-21、S-27、S-29～S-31 | 实际路由、参数不静默改丢、缓存策略生效、精确实现/窄定义可用性、在途绑定与释放 | runtime/transport；本包 shape/ref 通过不证明支持任何官方模型 |
+| S-23、S-30 | 每次外部 JSON 接收、跨进程范围重验与序列化 | 目录/runtime/消息与响应接收 owner；独立制品测试只证明本模块的公开读写组合 |
+
+### v3 已有实际执行及范围
+
+| 运行 | 输入与结果 | 证据 | 能支持的范围 |
+| --- | --- | --- | --- |
+| 2026-09-27 候选 Schema 自检（他方已执行，本次引用） | 321 checks、12 defs、31 clauses；原记录 jsonschema 4.26.0；退出 0 | [原输出](../../../../record/evidence/2026-09-27-probe-model-request-runtime/model-profile-v3/schema-check.stdout.txt)、[脚本](../../../../record/evidence/2026-09-27-probe-model-request-runtime/model-profile-v3/check_schema.py)、[输入摘要](../../../../record/evidence/2026-09-27-probe-model-request-runtime/model-profile-v3/schema-check-inputs.json) | Schema 对列举输入的接受/拒绝；明确模型错配仍会通过 Schema。不是实现测试、无损接收或目录行为 |
+
+本次节点文档检查的命令、退出码与结果由交付报告给出；运行 design checker 不提升上述产品证据状态。原始运行的路径按其记录读取，归档不表示在归档位置执行。有限检查均不作无条件证明。
+
+### v3 覆盖缺口
+
+- MP3-G1：契约与节点仍是候选；主线负责独立评审和明确采用范围。
+- MP3-G2：V3-1～V3-7 的产品测试、独立制品与本版代码尚无；旧 v2 的 185 项通过仍只支持 v2。
+- MP3-G3：messages/model-response/loop-extension 的现有 root/schema 导入须按精确采用逐一处理，否则 root 切换会使旧消费者错误读取 v3；主线及消费者 owner 负责同步集成。
+- MP3-G4：外部 owner 表中的行为均未由本纯节点取证；本节点不添加可用性判定、秘密识别或持久历史，以免掩盖未闭合消费路径。
+- 当前绑定共 1 条、全部属于 v2。v3 没有 formal task，不因此免除上述可失败测试；取到真实实现运行后才按精确条款建立新增绑定。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 12 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。

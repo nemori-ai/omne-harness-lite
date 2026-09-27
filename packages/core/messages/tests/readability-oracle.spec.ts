@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { isReadable, judgeCompactionList } from '@omne-harness-lite/messages'
+import { isReadable, judgeCompactionList } from '@omne-harness-lite/messages/v3'
 import { assistant, at, compact, logged, ref } from './helpers.ts'
 const initialSeed = 20260926
 interface Fact {

@@ -55,3 +55,20 @@ N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块�
 ## 2026-09-26 typed表示恢复的实际旧2范围复验
 
 [HUB独立实际运行](../../../../record/evidence/2026-09-26-tests-core-opaque-restoration/README.md)保存四包1700测试/build/type/27规则、原两项TypeError与八组built消费者的输出及精确2输入。只证指定恢复路径/表示与完整业务分离，非全仓opaque数据流/性能/外部runtime/后续3采用。当前3完整回归与逐ID接受仍待，不将旧2运行重标。
+
+## LC4 提供者候选证据义务
+
+[v4 候选设计](v4-design.md) 的契约 LC4 已由 D-073 接受，本提供者修订尚未接受/实施。旧证据状态按 README 的实际日期事件读取；原 LC3 S-37 绑定保留且不改版本，LC4 新绑定为 0。[规格侧检查](../../../../spec/data/loop-extension/verification.md#v4-模型适配绑定闭包) 不替代下列生产纯函数与消费者证据。
+
+| 编号/来源 | 会失败的检查 | 当前状态与 owner |
+|---|---|---|
+| LV4-1：S-1～S-18、S-36/S-39/S-41 | 从实际制品分别导入根4与 `/v3`，编译两侧全部42定义；核 LC4/LC3/LC2 Schema 的原字节/$id；有绑定输入4过3拒、无绑定旧输入3过4拒；环境句柄必有；移掉所需精确资源必须明确失败 | 未开始；本节点实施者，LC4-G1/G2 |
+| LV4-2：S-14/S-37 | 顶层 profile、各 dispatched 自身和其 profileSnapshot 中任何必填 adaptation 缺席都拒绝；Schema 能通过而单条两绑定不等或 modelId 不符时 judgeValue/subject、judgeInput 都给 malformed；混合 unknown position/power 错误仍先 malformed | 未开始；本节点实施者；必须调用 MS4 真单条判定，替为 schema-only 应有反例失败 |
+| LV4-3：S-14/S-36/S-37 | 原始 JSON 任意深度重复键拒绝；配置内相邻超安全整数、小数、true/1、数组顺序保持精确；文本→共享严格读取→实际 LC4 判定→无损写回可核原值。参数/opaque JSON 内同名 dispatches 键不被误当协议路径；类型恢复不抹字段 | 未开始；本节点与 runtime/runner 接收边界 owner。预先舍入的输入不声称被恢复 |
+| LV4-4：S-19～S-29/S-31/S-37/S-40 | 两合法表13变体×8结论×3档逐格核对；十拒绝混合错误次序、辅助 TypeError 与领域拒绝分离；来源 mismatch 原规则；失败位置 observed/retry 仍可、rewrite 仍拒；S-40 推出域/默认和禁止 reserved 项不变；原 LC3 回归明确经 `/v3` 跑 | 未开始；本节点实施者。有限表检查不证明 runner 行为 |
+| LV4-5：版本与正文端口 | AE3/AE4、MR3/MR4 实际公开 import 钉 `/v3`/`schema/v3`，根4载入后仍编译各自固定图；ArrivalEvents2 的 FailureCause 八值与 LC2 逐项相等；两版本声明文件不误指新依赖、不引用私有路径，v3 的 schema 不能跟根4一起替换 | 未开始；本节点与 AE/MR/ArrivalEvents owner，LC4-G3；必须实际 build/打包/独立消费，源码字符串一致不足以通过 |
+| LV4-6：S-14/S-30～S-35/S-41 | runtime3→runner3→默认重试件接到真实完整有序 dispatched 和调用原快照；目录更新不换旧绑定、同条记录都合法但混调用/漏一条/乱序仍由 runner 拒绝；真实落盘后回放保值，句柄由实际调用归属解析 | 未开始；runtime/runner 及验收 assembly owner，LC4-G4。本包纯 judge 可以接收尚待批次核对的值，不冒充已完整验收 |
+
+本节点不创建批次状态机、计时/重试配置或新 formal task。现有有限表检查足以触发该纯值面的反例，实际并发、持久顺序和重放义务继续归 runner。
+
+2026-09-27 本稿实际执行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`，退出 0，输出 `passed gate=internal; formal=skip`。全部 formal 显式跳过；新 v4-design.md 的 Prettier 与节点 `git diff --check` 通过，旧 design.md 与基线无差异。没有执行 LC4 生产函数、独立制品或 runtime/runner 组合测试，以上义务仍未开始。

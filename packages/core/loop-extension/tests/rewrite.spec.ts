@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import { rewriteChangesImmutable } from '../src/rewrite.ts'
+import { rewriteChangesImmutable } from '../src/v3/rewrite.ts'
 import { call, result, user, assistant, visibility } from './helpers.ts'
 
 it('LE-REWRITE-USER: producer immutable, entire user message can change', () => {

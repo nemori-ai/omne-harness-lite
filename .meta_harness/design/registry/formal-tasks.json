@@ -864,6 +864,198 @@
         "spec/capabilities/stream-assembly/v3/formal/Assembly.tla"
       ],
       "timeout_seconds": 600
+    },
+    {
+      "id": "asset-evaluation-v4-root-settings",
+      "kind": "alloy",
+      "artifacts": [
+        "spec/capabilities/asset-evaluation/v4/formal/RootSettings.als",
+        "spec/capabilities/asset-evaluation/v4/formal/Evaluation.als",
+        "spec/capabilities/asset-evaluation/v4/formal/check-root-settings.py"
+      ],
+      "command": [
+        "python3",
+        "spec/capabilities/asset-evaluation/v4/formal/check-root-settings.py",
+        "--output",
+        "tmp/alloy/asset-evaluation-v4-root-settings"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v3-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v3-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v3-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v3-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v3-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v3-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "loop-extension-runner-v3-chain",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-chain",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v3-concurrent",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerConcurrent.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-concurrent",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerConcurrent.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v3-unfenced",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerUnfenced.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-unfenced",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerUnfenced.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v3-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerProgress.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
     }
   ]
 }

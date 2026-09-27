@@ -9,12 +9,12 @@ import {
   type CapabilityId,
 } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { computeEvaluation, type EvaluationFacts } from '../src/compute.ts'
+import { computeEvaluation, type EvaluationFacts } from '../src/v3/compute.ts'
 import {
   readWorkspaceCarrier,
   type EffectiveAssembly,
   type NonConnectorEvaluationInput,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 import {
   assignment,
   audit,

@@ -1,5 +1,9 @@
 # 拓展点协议的数据半边
 
+## 当前采用与 v4 候选
+
+当前已接受版本为 v3（D-068）。[v4 契约](v4/contract.md)、[Schema](v4/loop-extension.schema.json)与[实例](v4/examples.md)是 **candidate**，未接受、未冻结。v4 精确采用 model-profile/v3 和 messages/v4，使失败主体完整保留适配绑定；S-1～S-41、其余依赖、控制顺序和失败枚举保持原规则。runner/v3 与 model-request-runtime/v3 的升级仍为候选，其他消费者不自动切换。变化及证据见[验证入口](verification.md#v4-模型适配绑定闭包)；以下历史记录保留原版本范围。
+
 **Agent Loop 上挂拓展件的那一套，交换的东西长什么样**——十一个位置与两个维度、干预力三档、
 一件拓展件的声明、运行时交给它的输入、它交回的结论（封闭八种）、结论落日志的记录。
 

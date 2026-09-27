@@ -1,5 +1,51 @@
 # 验证覆盖与实际证据
 
+## v4 模型适配绑定
+
+`data.messages/v4` 是从已接受 v3 演进的候选；本节维护本轮变化和实际证据，旧版结果不重标。v4 保留 S-1～S-50，增量落在 S-49，S-37、S-39 及缺席表同步。共用 `ModelAdaptationBinding` 和 `ModelProfileSnapshot` 的正式名称、字段及 S-27/S-29～S-31 已由其起草者确认定型；`data.model-profile/v3` 本身仍是候选。
+
+### v4 变化的影响
+
+- 已出门记录及其快照都必带 `adaptation`，形状经 `$ref` 取同一公共定义；两处相等及 `definition.modelId = profile.routeName` 由单条记录纯校验，失败为已有的 `malformed`，不新增失败值。
+- 缺任一处绑定的历史记录不能作为 v4 记录，禁止用当前档案或最新注册版本补齐。采用者须显式切换，历史读面须按原版本解释；本包不制定存储迁移策略。
+- 七种消息、v3 的非法模型名字未解析调用、严格 JSON 与数无损义务不变；可读性 Alloy 模型与 v3 逐字节相同。模型未包含绑定，不承担新增性质的证据。
+- 直接消费者是候选 `capability.model-request-runtime/v3`、`data.model-response/v4`、会话日志与恢复读面；响应候选已确认采用 messages/v4，循环自定义形状的对齐说明指向 response/v4，不新增反向 catalog 依赖。既有接受版本的消费者不自动升级。
+
+### v4 证据义务
+
+| 性质与条款 | 证据及可失败场景 | 状态与负责者 |
+|---|---|---|
+| S-49 必填形状与精确引用 | `examples.md` 第 14、15 节和全部继承实例经 Draft 2020-12 校验；缺顶层/快照绑定、未知字段、null 配置必须拒绝 | 本轮 Schema 检查见下；生产接收边界验收未开始，core/messages 提供者 |
+| S-49 两处绑定相等及模型 ID 对齐；S-39 `malformed` | 第 15 节形状通过但相等失败的值仍须拒绝；同修订异值、实现修订、窄定义修订、配置修订和模型名分别覆盖；对象顺序变化不造成错拒 | 本轮纯值对照见下；生产拒绝值和优先级验收未开始，core/messages 提供者 |
+| S-37 严格读取、配置数无损 | 任意深度重复配置成员在解析前拒绝；大整数和长小数耐久往返保持精确值，相邻数不被舍入成相等 | 未开始；会话日志及其接收边界，不能由已解析对象的 Schema 通过代替 |
+| S-49 持久绑定与恢复 | 日志先写完整绑定；诊断丢失、档案更新、旧注册不存在时仍从日志取回原绑定；再次发出不改用最新版本 | 未开始；运行时、真实日志提供者与验收装配 |
+| S-49 同调用各次发出不变 | 两条记录各自形状合法、内部绑定相等，但第二次绑定改变时，日志/写入方检查必须失败 | 未开始；运行时与日志序列验收 |
+| v3 core 修正保持 | 正常参数坏名拒绝，完整但未解析的坏名调用可留在 AssistantMessage；Message 定义不变 | 本轮 Schema 两例通过；生产回归未开始，core/messages 提供者 |
+| 继承的 S-28～S-30 可读性结构性质 | 沿 v3 模型、作用域和变异核对；不声称覆盖适配绑定 | 本轮 Alloy 未运行，无新 formal task；验证负责人决定证据复用范围 |
+
+### v4 本轮实际检查
+
+工作树 `panqiwei/model-request-runtime`，源基线 `d4eaf7673bc161bf22f6682385151e080d3323ae`。本轮本地命令使用该工作树 `.venv/bin/python`，`jsonschema 4.26.0` 与 `referencing`，读取设计区所有 Schema `$id`，不访问网络或安装依赖。
+
+- 152 个表格 Schema 实例、第 11 节五条消息的单条形状及两条 core 修订实例，共 159 个 Schema 结果与期望一致，0 不一致；第 15 节 11 个形状通过的值再按完整 JSON 值与模型名做纯值对照，均符合期望，含 `true` 与 `1` 的类型区别、`1` 与 `1.0` 的精确数值相等及相邻大整数不相等。检查不包含日志层判定、原始重复成员文本以及第 11 节消息的组合行为。
+- v3 的两条 fenced AssistantMessage core 修订实例分别得到预期通过/拒绝。所有 Message 的 `$defs` 保持 v3 原约束；本次结构约束变化仅为发出记录及模型切换的档案引用，另更新精确版本说明。与 `model-response/v4` 的 `SelectedBy`、`CredentialScope`、`ParameterAdjustment` 和 `droppedParameters` 在排除说明性注释后逐结构相同；不同含义的说明文字不作为形状比较对象。
+- `Readable.als` 与 v3 字节相同。本轮 TLA+/Alloy **未运行**，未声明新的模型覆盖。
+- 全树 `check_design.py --root .meta_harness/design --formal skip` 最近一次执行退出 1，共 2 个错误，均为并行起草的 model-request-runtime/v3 在 contract 与 formal 入口引用尚不存在的版本外验证锚点；本包无报告错误。整批齐备后仍须重跑，不能将局部无报告记成整树通过。命令显式跳过全部已登记形式任务，未执行 TLA+/Alloy。
+
+这些是候选 Schema 与实例的局部检查，不是生产实现验收、形式证明或规格接受。
+
+### v4 登记输入
+
+本轮按主线指定的唯一 registry 写入 owner 交付如下候选登记输入，**此处不声明已经登记**：catalog 新坐标 `(omne-harness-lite-design-2026-09-15, data.messages, 4)`，`status=candidate`，`acceptance=null`；资源为 `v4/contract.md`、`v4/messages.schema.json`、`v4/examples.md`、`v4/formal/README.md`、`v4/formal/Readable.als`。精确依赖沿 v3 五条，唯 `data.model-profile` 改 v3，消费 `S-2,S-5,S-13,S-15,S-19,S-20,S-27,S-29,S-30,S-31`；content-blocks 保持 v3（含 S-24），其余身份/时刻/调用标识版本和 clauses 不变。
+
+`covers` 沿 v3 的 78 条保留实际覆盖边界，仅把 target.version 改为 4、`reviewed=false` 并注明候选增量待独立复核。S-49 的新绑定细节来源于模型适配增量提案，不冒充已经写入 PF-013 的新产品条款；不造需求锚点。`id-namespaces` 无新编号族；`formal-tasks` 无新增，继承 Alloy 不按退出码登记为正式任务。
+
+### v4 报给主线
+
+- 提案原把 messages 输入写为 v2；主线已确认改为 v3 → v4，本稿采用已接受 v3 并保留 core 修正。
+- 本轮依赖 `data.model-profile/v3` 仍是候选；本包不替该共同数据源接受，也不替运行时裁定旧实现缺失时的操作失败值。
+- 沿用 v3 的 G-1（realization）、G-2（主线/会话）、G-5（PF-008）、G-6（PF-015）、G-7（PF-014）、G-11（PF-009/主线）；本次绑定的值约束没有新增未裁政策。旧缺口的现状复核归各 owner，未在本批擅自关闭。
+
 ## 当前3实际模型运行（2026-09-26）
 
 [2026-09-26-formal-core-v3](../../../record/evidence/2026-09-26-formal-core-v3/README.md) 保存当前3冻结输入的实际执行与指定变异，主调度核原文/工具/冻结资源/归档字节，独立表达对应复核无阻断。按逐command的SAT/UNSAT与有解实例读取，263主读数中Messages11（含五变异），不是按退出0宣称通过；Alloy无正式task/binding。有限scope、被构造吸收的前提及实现范围以run和本版formal入口为准。旧执行输入不重标当前3；产品/真实组合仍独立验收。

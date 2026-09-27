@@ -11,6 +11,7 @@ import { parametersOutOfRange } from './parameters.ts'
 export const schemaId = schema.$id
 export const SCHEMA_DEF_NAMES = [
   'ModelProfile',
+  'ModelAdaptationBinding',
   'ModelProfileContent',
   'ModelProfileSnapshot',
   'ModelProfileRef',

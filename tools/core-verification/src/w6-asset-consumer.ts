@@ -23,7 +23,7 @@ import {
   type NonConnectorAssetContent,
   type NonConnectorAssetDefinition,
   type NonConnectorEvaluationInput,
-} from '@omne-harness-lite/asset-evaluation'
+} from '@omne-harness-lite/asset-evaluation/v3'
 import {
   judgeContentBlock,
   readJsonStrict,

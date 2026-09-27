@@ -1,5 +1,16 @@
 # loop-extension-runner
 
+## v3 候选增量（2026-09-27）
+
+节点仍为 `provider`，路径 `packages/agent-loop/loop-extension-runner`，**尚未建包**。增量入口为 [v3-design.md](v3-design.md)；旧 [design.md](design.md) 与下方 v2 接受事实保持原坐标。
+
+- **语义接受：本节点无。**runner3/runtime3 在 catalog 为 candidate；LC4/MS4/MR4/AE4/AR3/MF3 已 accepted，不能由依赖接受推出本节点接受。技术接受仍待 G3-0；旧 v2 接受不覆盖本版。
+- **可实施范围：完整两操作控制投影已起草；生产实施受候选接受门约束。**RUN3-P1～P8 对应 `dispatch`/`replay`、真实链读取、重试守卫与记录交接；不执行工具或 AgentLoop。S-6/S-19/S-14/S-26 的候选补齐已投影，默认重试件按 runtime3 S-67 识别。模态转换/循环探测身份、公开函数契约及实际来源接线等仍见 G3-1～G3-7，服务闭环尚未验证。
+- **绑定与证据：0 条。**规格侧 Runner.tla 已记录 4 组正向、10 组反例的实际结果，仅覆盖明确有限模型；没有本节点实现测试。范围及未覆盖项见 [verification.md](verification.md#v3-形式证据的有限范围)；其他节点证据不移作本节点证据。
+- **实际验证：尚无生产验证。**本稿检查命令及实际结果见 [verification.md](verification.md#v3-实际执行)；静态检查不证明运行时控制语义。
+
+公开函数、插件边界、共同日志对象与装卸配对见新设计；缺口、受阻消费者与验收反例见 [v3 验证义务](verification.md#v3-候选证据义务)。下方保留历史 v2 状态，不因本候选覆盖范围扩展而提升。
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿；兑现 `omne-harness-lite-design-2026-09-15 · capability.loop-extension-runner · v2`（[契约](../../../../spec/capabilities/loop-extension-runner/v2/contract.md)，状态 `accepted`、已冻结）。插件边界、inject 边与贡献的形状取自 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3) 接受的 tools 拆分候选 C 的[装配草图](../../../../record/proposals/capability-split-tools/design.md#装配草图与为什么这样切)（派发器）
 - 源码位置：`packages/agent-loop/loop-extension-runner`——尚未建包。第二层 `agent-loop` 由 D-059 拍板，布局见[两层布局](../../../README.md#packages-的两层布局)
@@ -24,3 +35,7 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 最终技术采用
+
+[D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受对应精确规格与本节点投影。旧候选读数和验证历史保留。此事件不代替源码、真实故障/停止或37模型生产认证；新增实际绑定另附运行证据。

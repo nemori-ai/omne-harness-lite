@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v3/loop-extension.schema.json",
-  "title": "data.loop-extension v3",
-  "description": "拓展点协议的数据半边：十一个位置与两个维度、干预力三档、报错处置策略、拓展件的声明、运行时交给拓展件的输入、拓展件交回的结论（封闭八种）与结论落日志的记录形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.loop-extension/v3 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。引用的 content-blocks、messages、model-profile、call-accounts、tool-definition、asset-model 都是同一棵设计树里的候选，$ref 目标以它们 v1 的 $defs 为准，见 verification.md「变化的影响」；运行与执行尝试的标识 RunId、AttemptId 的家在 data.call-accounts，本文件只引。正反实例在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v4/loop-extension.schema.json",
+  "title": "data.loop-extension v4",
+  "description": "拓展点协议的数据半边：十一个位置与两个维度、干预力三档、报错处置策略、拓展件的声明、运行时交给拓展件的输入、拓展件交回的结论（封闭八种）与结论落日志的记录形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.loop-extension/v4 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与两张合法组合表（档 × 结论、位置 × 结论），表在 Conclusion 的条件约束里；「rewrite 只改可改成员」「inject 的来源名等于本件名」「select_model 在合法目标集合里」「retry 不推翻事实三类」这些要么需要输入与输出两份实例对照，要么是判定，Schema 管不到，归 contract.md 的条款与 runner 能力。messages 精确采用 v4、model-profile 精确采用 v3，其余 $ref 保持源 loop-extension/v3 的精确版本；完整绑定只经共享定义承载，不在本文件重定义，见 verification.md「v4 模型适配绑定闭包」；运行与执行尝试的标识 RunId、AttemptId 的家在 data.call-accounts，本文件只引。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -226,11 +226,11 @@
       "description": "S-15：调模型之前那个位置看得到的、已经攒好还没发出去的请求，恰四个成员：target 这一次要用的模型——一个路由名（RouteName，PF-013 rev 12；落到哪一行即有效模型，由模型请求运行时按层覆盖解析）、parameters 这一次要发出的请求参数（档案参数与此前改写合成的那一份）、messages 组装出来的消息、tools 这一次带给模型的工具条目（每项是那个条目的模型面名字 ModelToolName，data.tool-definition v3 S-6；作者写的工具与 MCP 来源的动作都指认得到）。可改的只有 parameters 与 messages（经 rewrite）；target 只经 select_model 改；tools 不可改（S-23、S-24）。成员名与模型请求运行时收的调用请求逐字相同。",
       "type": "object",
       "properties": {
-        "target": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/RouteName" },
-        "parameters": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ModelRequestParameters" },
+        "target": { "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/RouteName" },
+        "parameters": { "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ModelRequestParameters" },
         "messages": {
           "type": "array",
-          "items": { "$ref": "../../messages/v3/messages.schema.json#/$defs/Message" }
+          "items": { "$ref": "../../messages/v4/messages.schema.json#/$defs/Message" }
         },
         "tools": {
           "type": "array",
@@ -266,7 +266,7 @@
       "description": "message 还没落盘；producer 是这条消息由谁产生：user 人经交付面说的 / model 模型调用产出的回复 / tool 工具执行交回的 / system 其余（系统或外部来源捎来的）。",
       "type": "object",
       "properties": {
-        "message": { "$ref": "../../messages/v3/messages.schema.json#/$defs/Message" },
+        "message": { "$ref": "../../messages/v4/messages.schema.json#/$defs/Message" },
         "producer": { "enum": ["user", "model", "tool", "system"] }
       },
       "required": ["message", "producer"],
@@ -276,7 +276,7 @@
     "AfterPersistMessageSubject": {
       "title": "消息落盘之后",
       "type": "object",
-      "properties": { "message": { "$ref": "../../messages/v3/messages.schema.json#/$defs/Message" } },
+      "properties": { "message": { "$ref": "../../messages/v4/messages.schema.json#/$defs/Message" } },
       "required": ["message"],
       "additionalProperties": false
     },
@@ -292,7 +292,7 @@
     "AfterCompactionSubject": {
       "title": "压缩之后",
       "type": "object",
-      "properties": { "compaction": { "$ref": "../../messages/v3/messages.schema.json#/$defs/CompactionMessage" } },
+      "properties": { "compaction": { "$ref": "../../messages/v4/messages.schema.json#/$defs/CompactionMessage" } },
       "required": ["compaction"],
       "additionalProperties": false
     },
@@ -310,7 +310,7 @@
       "description": "reply 是已经落盘的那条回复。回复在落盘之前被否决的那次调用、被用户中断的那次调用，都不触发 after_model_call（S-2）。",
       "type": "object",
       "properties": {
-        "reply": { "$ref": "../../messages/v3/messages.schema.json#/$defs/AssistantMessage" },
+        "reply": { "$ref": "../../messages/v4/messages.schema.json#/$defs/AssistantMessage" },
         "usage": { "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Usage" },
         "cost": { "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Cost" }
       },
@@ -320,17 +320,17 @@
 
     "AfterModelCallFailureSubject": {
       "title": "调模型之后 · 失败",
-      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译；inBand 只取 true、只能与 statusCode 同在，在即那个状态码是流已开始之后带内错误的 code、不是 HTTP 状态（与 data.model-response 的 Failure.inBand 同义）；profile 是这次调用绑定的档案快照（data.model-profile v2 的 ModelProfileSnapshot）；dispatches 是这次调用到此为止每一次发出的「已出门」记录（data.messages v3 的 ModelCallDispatchedRecord），按发出序号，含失败的这一次。重试件只凭这几样下结论，不现读目录。",
+      "description": "failure 是这次故障的成因；statusCode 是上游返回的状态码，有才带、原样带，不翻译；inBand 只取 true、只能与 statusCode 同在，在即那个状态码是流已开始之后带内错误的 code、不是 HTTP 状态（与 data.model-response 的 Failure.inBand 同义）；profile 是这次调用绑定的档案快照（data.model-profile v3 的 ModelProfileSnapshot，保留完整 adaptation）；dispatches 是这次调用到此为止每一次发出的「已出门」记录（data.messages v4 的 ModelCallDispatchedRecord，保留自身与 profileSnapshot 内的完整绑定），按发出序号，含失败的这一次。重试件只凭这几样下结论，不现读目录。",
       "type": "object",
       "properties": {
         "failure": { "$ref": "#/$defs/FailureCause" },
         "statusCode": { "type": "integer" },
         "inBand": { "const": true },
-        "profile": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ModelProfileSnapshot" },
+        "profile": { "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ModelProfileSnapshot" },
         "dispatches": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "../../messages/v3/messages.schema.json#/$defs/ModelCallDispatchedRecord" }
+          "items": { "$ref": "../../messages/v4/messages.schema.json#/$defs/ModelCallDispatchedRecord" }
         }
       },
       "required": ["failure", "profile", "dispatches"],
@@ -507,7 +507,7 @@
         "kind": { "const": "inject" },
         "message": {
           "allOf": [
-            { "$ref": "../../messages/v3/messages.schema.json#/$defs/SystemReminderMessage" },
+            { "$ref": "../../messages/v4/messages.schema.json#/$defs/SystemReminderMessage" },
             {
               "type": "object",
               "properties": {
@@ -544,7 +544,7 @@
       "type": "object",
       "properties": {
         "kind": { "const": "select_model" },
-        "profile": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/RouteName" },
+        "profile": { "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/RouteName" },
         "reason": { "type": "string", "minLength": 1 }
       },
       "required": ["kind", "profile"],
@@ -582,7 +582,7 @@
       "description": "S-27：再发一次：发给哪一家供应商（每一次发出只走一家），可选退避多久之后再发。",
       "type": "object",
       "properties": {
-        "provider": { "$ref": "../../model-profile/v2/model-profile.schema.json#/$defs/ProviderName" },
+        "provider": { "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ProviderName" },
         "after": { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/Duration" }
       },
       "required": ["provider"],

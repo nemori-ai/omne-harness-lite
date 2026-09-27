@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evaluate, type NonConnectorEvaluationInput } from '../src/index.ts'
+import { evaluate, type NonConnectorEvaluationInput } from '../src/v3/index.ts'
 import { at, assignment, bob, definition, github, holding, mcp, root, simple } from './fixtures.ts'
 
 function effective(input: NonConnectorEvaluationInput) {

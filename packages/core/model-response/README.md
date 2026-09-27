@@ -35,7 +35,17 @@ const response: ModelResponse = {
   dispatch: 1,
   route: {
     profile: { origin: 'official', routeName: 'vendor/chat' },
+    adaptation: {
+      implementation: { name: 'example-family', revision: 'r1' },
+      definition: { modelId: 'vendor/chat', revision: 'd1' },
+      configuration: { revision: 'c1', values: {} },
+    },
     profileSnapshot: {
+      adaptation: {
+        implementation: { name: 'example-family', revision: 'r1' },
+        definition: { modelId: 'vendor/chat', revision: 'd1' },
+        configuration: { revision: 'c1', values: {} },
+      },
       providers: ['provider-a'],
       allowFallback: false,
       inputModalities: ['text'],
@@ -93,7 +103,17 @@ const response: ModelResponse = {
   dispatch: 1,
   route: {
     profile: { origin: 'official', routeName: 'vendor/chat' },
+    adaptation: {
+      implementation: { name: 'example-family', revision: 'r1' },
+      definition: { modelId: 'vendor/chat', revision: 'd1' },
+      configuration: { revision: 'c1', values: {} },
+    },
     profileSnapshot: {
+      adaptation: {
+        implementation: { name: 'example-family', revision: 'r1' },
+        definition: { modelId: 'vendor/chat', revision: 'd1' },
+        configuration: { revision: 'c1', values: {} },
+      },
       providers: ['provider-a'],
       allowFallback: false,
       inputModalities: ['text'],
@@ -141,3 +161,5 @@ Complete and truncated responses carry a reply and disposition. Mid-reply failur
 Passing validation establishes representation validity. Actual dispatch provenance, identity uniqueness, clock provenance, truthful usage, redaction, snapshot capture and persistence remain the writer's responsibility. A rejected record is a writer defect; it must not be reclassified as a failed model call or used as a reason to automatically resend. This module reads no clocks or stores and performs no model calls.
 
 Public JSON Schema entries are `@omne-harness-lite/model-response/schema` (v3) and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [model profile](../model-profile/README.md).
+
+The default entry and Schema use version4; `./v3` and `./schema/v3` retain version3 values and its exact resource. `./schema/v2` remains a Schema resource only. Choose the consumer version explicitly when restoring invocation records/responses.

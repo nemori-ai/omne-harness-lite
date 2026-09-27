@@ -8,6 +8,38 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 # messages 验证与证据
 
+## v4 候选证据义务
+
+本节只对应 [v4-design.md](v4-design.md) 的 M4-P1～M4-P7；messages4/profile3 尚为 candidate。既有473项等运行继续只说明原输入。本节列的是验收义务，尚无 v4 产品源码运行、技术接受或新增绑定。
+
+| 编号／来源 | 必须出现的正反证据 | 当前状态／owner |
+|---|---|---|
+| M4-V1：S-37、S-49；M4-P1 | 三版 Schema 原字节、`$id`、43 个定义名及完整引用图；删除顶层 adaptation、删除快照 adaptation、values 缺席/null/数组、绑定多余成员必须拒绝；类型消费者缺必填也不能编译 | 待实现；messages owner 与 profile owner |
+| M4-V2：S-39、S-40、S-49；M4-P2/P4 | 对 Schema 通过的输入分别只改 implementation 名/修订、definition 模型/修订、configuration 修订/值，完整 judge 必须 malformed；两处绑定一致但 modelId≠profile.routeName 仍拒绝；调用前后输入与拒绝对象不被修补。证明 shape-only 入口的通过不能替代完整 judge | 待实现；messages owner |
+| M4-V3：S-37、S-49 与 profile3 S-29；M4-P3 | 重排对象键应相等，重排数组不同；1 与 1.0、-0 与 0 按精确数值相等；true 与 1 不同；9007199254740992 与 9007199254740993 不同；深层数值变化不可被修订相同掩盖。须经公开文本入口保留精度，不能先 JSON.parse 再声称覆盖原文 | 待实现；messages owner |
+| M4-V4：S-37、S-49；M4-P3 | 配置任意嵌套重复键及非严格 JSON 被拒；大数和小数精确往返；调用者在返回后改原配置，已返回值不变；不能凭浅冻结或 TS readonly 通过 | 待实现；messages owner；落盘/回读那一跳归 runtime 与日志 owner |
+| M4-V5：S-1～S-40、S-49、S-50；M4-P4/P5 | 全部本版规范实例、14个命名拒绝及组合优先级、参数处置重建、五种记录、三支收场和前缀判定回归；其他四种记录不得错误要求 adaptation；新记录不得混入 Message/OutboundMessage | 待实现；messages owner |
+| M4-V6：S-37、S-49；M4-P6 | 与 response4 四个自定义副本及 dropped 项形状对齐；故意改动任一受约束形状须失败。不引反向 Schema/运行时依赖 | 待实现；response owner 主测，messages owner 配合 |
+| M4-V7：精确版本采用；M4-P7 | 实际打包制品同时 import root4、v3，三份 schema 各编译完整图，v3类型声明不误用profile3代替旧2；旧 dispatched 经 v3完整judge及旧2/3 Schema通过而经4拒绝，新4 dispatched 不被旧图偷偷接受；旧2仅Schema范围不标成完整judge。删除任一传递资源或错接默认版本必须失败 | 待实现，受 M4-G2 阻断；各包和既有消费者 owner |
+| M4-V8：S-49 的外部义务 | 同一调用跨次发出和响应采用同一完整绑定；先写耐久 dispatched 再发送；旧绑定注册缺席仍可读历史、不换最新；有序恢复及首内容锚点故障交错。纯函数测试不能签这组 | 待 runtime/日志真实装配；本节点无持久状态 |
+
+上述测试只在实现后取得实际失败能力，才可按精确坐标登记绑定。Readable 的名单结构模型不覆盖新增绑定比较，不能据模型引用给 S-49 新增 binding。
+
+### v4 实际执行与范围
+
+规格侧已有[研究运行](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md)中的 messages-v4 Schema/纯值探针，归规格起草证据；它们不导入本包 v4 产品实现，也不替代 M4-V1～M4-V8。**本节点 v4 源码验证尚无**。设计结构检查的本次实际输出由起草交付报告给出，不据结构检查提高语义/实现状态。
+
+### v4 覆盖缺口
+
+| 缺口 | 受阻条款／消费者 | owner 与闭合条件 |
+|---|---|---|
+| M4-G1：契约与节点未接受、v4源码未实现 | messages4 S-37/S-39/S-49；新 response4/runtime3 的实施采用 | 主线完成独立审阅与精确接受；messages 实施者完成 M4-V1～V7，运行原始证据归 record/evidence |
+| M4-G2：保留 profile2 的公开纯值与 Schema 端口未实施 | messages2/3 Schema图及 v3 的 ModelProfileSnapshot 类型、参数判定；loop-extension3 与 response3 保留消费者 | profile owner 交付精确2端口；消费者显式接线且实际制品通过 M4-V7，不能把新profile3当旧2 |
+| M4-G3：未来2消费者的采用范围未由本节点决定 | messages2 S-37/S-39；尚未实施而仍钉2的消费者需要的完整判定责任 | 主线/对应消费者按独立采用决定选Schema读取或演进契约；本批保留面仅现有schema/v2，不新增messages2/CB2纯函数。不阻断本节点4/3实现，不能据资源存在声称未来2消费者已具备实现 |
+| M4-G4：耐久及身份不是纯值模块的责任 | messages4 S-9/S-33/S-49 的身份壳、唯一、跨记录绑定、出门前锚点；新runtime服务/恢复消费者 | runtime 写入者、session-log owner及主线指定的真实验收装配完成 M4-V8。新验收装配尚未建立；不把Schema、配置字符串扫描或旧单元测试当作授权/秘密检测/日志耐久证明 |
+
+以下继续保留旧版本的实际事件与义务，不据“未开始”的历史段落否定已有 v3 实现，也不据旧签收提升本节。
+
 ## 当前 core 交付与技术接受（2026-09-26）
 
 - 语义采用：`data.messages/v3`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。

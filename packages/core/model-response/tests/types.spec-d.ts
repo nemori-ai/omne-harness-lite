@@ -40,7 +40,7 @@ import {
   type Timing,
   type RawResponse,
   type ModelResponseJudgment,
-} from '@omne-harness-lite/model-response'
+} from '@omne-harness-lite/model-response/v3'
 
 it('TYPE-HOMES: imported types and the six copy paths remain compatible', () => {
   expectTypeOf<ResponseId>().toEqualTypeOf<AccountResponseId>()

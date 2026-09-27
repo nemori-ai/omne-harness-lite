@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { carrierRecordId } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { evaluate, type NonConnectorEvaluationInput } from '../src/index.ts'
+import { evaluate, type NonConnectorEvaluationInput } from '../src/v3/index.ts'
 import {
   assignment,
   at,

@@ -1,0 +1,6 @@
+version: 1
+node: model-request-acceptance
+kind: assembly
+
+# 尚无本应用实际测试或已登记且适用的形式证据。研究与其他节点的证据不冒作本应用绑定。
+bindings: []

@@ -161,3 +161,13 @@ covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含
 ## D-069 Skill3（2026-09-26）
 
 按[独立复审后的技术接受](../record/decisions/skill-yaml-key-resolution/acceptance.json)新增Skill3：catalog当前64 accepted、318精确依赖、1518覆盖、354冻结资源。351旧冻结hash与37形式任务不变；新3只补未知YAML键最终无法排重时M16，ordinaryunknown仍忽略。其它消费者继续精确Skill2，不自动升级。接受不表明实现／证据／人的总体签字。
+
+## D-070 模型绑定首批（2026-09-27）
+
+[技术接受](../record/decisions/model-adaptation-binding-acceptance/acceptance.json)新增4 accepted、13 frozen资源；354原冻结hash原样保留。其它5候选仍未接受。提供者增量采用另归[D-071](../record/decisions/model-value-provider-adoption/acceptance.json)，不声称真实生产路径已验证。
+
+2026-09-27：[D-072](../record/decisions/agent-definition-read-adoption/decision.md)技术接受 AD1 及纯提供者；新增三份冻结资源，真实源与总体交付状态另核。
+
+2026-09-27：[D-073](../record/decisions/model-current-input-contracts-adoption/decision.md)技术接受 AE4/MF3/AR3/LC4，纯 AE4 投影同步采用；runtime/runner 及 IO 交付另核。
+
+[D-076](../record/decisions/model-runtime-delivery-adoption/decision.md)：RT3/runner3最终精确技术接受，17项RT依赖对齐；四个提供者/装配投影采用，真实交付与认证另核。

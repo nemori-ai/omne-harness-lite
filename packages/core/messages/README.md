@@ -17,7 +17,7 @@ This is an experimental, private workspace package, currently not published on n
 | `isReadable`, `judgePairing`, `judgeCompactionList`                       | Prefix-dependent checks with explicit external inputs                        |
 | `brandMessage`, `brandRecord`, `isWireMessage`, `isWireRecord`, `Wire<T>` | Shape-only transport restoration and wire typing                             |
 | Message/record types, `LogPrefixView`                                     | Seven message types and caller-owned ordered prefixes                        |
-| `validate`, `schemaId`; `./schema`, `./schema/v2`                         | Shape validation; current v3 and retained v2 resources                       |
+| `validate`, `schemaId`; `./schema`, `./schema/v2`                         | Shape validation; current v4 with retained v3/v2 resources                   |
 
 ## Examples
 
@@ -135,3 +135,5 @@ pnpm --filter @omne-harness-lite/messages run test
 ```
 
 Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
+
+The default entry and Schema use version4; `./v3` and `./schema/v3` retain version3 values and its exact resource. `./schema/v2` remains a Schema resource only. Choose the consumer version explicitly when restoring invocation records/responses.

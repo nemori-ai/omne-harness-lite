@@ -13,9 +13,10 @@ import type {
   JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import type { ScopeLayerIdentity } from '@omne-harness-lite/identity-values'
-import type { FailureCause } from '@omne-harness-lite/loop-extension'
+import type { FailureCause } from '@omne-harness-lite/loop-extension/v3'
 import type { AssistantMessage } from '@omne-harness-lite/messages'
 import type {
+  ModelAdaptationBinding,
   ModelProfileRef,
   ModelProfileSnapshot,
   ModelRequestParameters,
@@ -46,6 +47,8 @@ export interface ParameterAdjustment {
   readonly sent: JsonValue
 }
 export interface Route {
+  readonly adaptation: ModelAdaptationBinding
+  readonly servingProvider?: string
   readonly profile: ModelProfileRef
   readonly profileSnapshot: ModelProfileSnapshot
   readonly selectedBy: SelectedBy

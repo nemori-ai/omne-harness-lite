@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, toOpaqueJson } from '@omne-harness-lite/content-blocks'
-import type { EvaluationInput } from '../src/types.ts'
-import { canonical, copyJson, evaluationInputFingerprint } from '../src/json.ts'
+import type { EvaluationInput } from '../src/v3/types.ts'
+import { canonical, copyJson, evaluationInputFingerprint } from '../src/v3/json.ts'
 import { e1, at, assignment, shell, tenant, bob } from './fixtures.ts'
 
 describe('full input fingerprint independently varied fields', () => {

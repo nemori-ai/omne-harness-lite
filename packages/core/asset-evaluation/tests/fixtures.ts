@@ -11,7 +11,7 @@ import type {
   NonConnectorAssetContent,
   NonConnectorAssetDefinition,
   NonConnectorEvaluationInput,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 
 export const at = '2026-09-24T09:00:00Z'
 export const tenant = unwrap(parseTenantId({ organization: 'org_acme', account: 'acc_alice' }))

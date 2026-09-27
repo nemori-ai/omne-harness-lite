@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { SCHEMA_DEF_NAMES, validate, judgeValue } from '@omne-harness-lite/loop-extension'
+import { SCHEMA_DEF_NAMES, validate, judgeValue } from '@omne-harness-lite/loop-extension/v3'
 
 const examples = readFileSync(
   new URL(

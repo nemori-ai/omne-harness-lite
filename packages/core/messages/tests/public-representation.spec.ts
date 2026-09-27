@@ -12,7 +12,7 @@ import {
   judgeMessage,
   judgeModelInvocationRecord,
   validate,
-} from '../src/index.ts'
+} from '@omne-harness-lite/messages/v3'
 
 const at = '2026-09-23T10:00:00Z'
 const visibility = { toHuman: false, toModel: false }

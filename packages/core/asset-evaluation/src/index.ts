@@ -4,5 +4,6 @@ export { classifyPermissionAssignment, boundOf, pickWithinBound } from './permis
 export { evaluationInputFingerprint } from './json.ts'
 export { defaultBodyContracts } from './defaults.ts'
 export type { NonConnectorBodyContracts } from '@omne-harness-lite/asset-model'
-export { evaluate } from './evaluate.ts'
+export { evaluate, selectEvaluationRootSource } from './evaluate.ts'
 export { readWorkspaceCarrier } from './reader.ts'
+export { judgeEffectiveAssembly } from './result.ts'

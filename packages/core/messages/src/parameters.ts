@@ -57,7 +57,7 @@ export function dispatchedParametersValid(record: JsonObject): boolean {
   }
   return validate('ModelRequestParameters', sent).valid
 }
-function jsonEqual(a: JsonValue, b: JsonValue): boolean {
+export function jsonEqual(a: JsonValue, b: JsonValue): boolean {
   if (isJsonNumber(a) && isJsonNumber(b))
     return ExactDecimal.from(a).compare(ExactDecimal.from(b)) === 0
   if (Array.isArray(a) && Array.isArray(b))

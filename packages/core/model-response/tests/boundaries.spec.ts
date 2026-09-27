@@ -7,7 +7,7 @@ import {
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
 import { OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS } from '@omne-harness-lite/identity-values'
-import { judgeModelResponse, validate } from '@omne-harness-lite/model-response'
+import { judgeModelResponse, validate } from '@omne-harness-lite/model-response/v3'
 import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
 import schema from '@omne-harness-lite/model-response/schema' with { type: 'json' }
 import {

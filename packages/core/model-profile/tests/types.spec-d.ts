@@ -17,7 +17,7 @@ import {
   type ModelProfileRef,
   type ModelProfileSnapshot,
   type ModelRequestParameters,
-} from '@omne-harness-lite/model-profile'
+} from '@omne-harness-lite/model-profile/v2'
 
 it('TYPE-MODALITY-NUMBERS: canonical modality and all number domains preserve precision', () => {
   expectTypeOf<Modality>().toEqualTypeOf<CanonicalModality>()

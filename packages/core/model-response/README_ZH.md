@@ -35,7 +35,17 @@ const response: ModelResponse = {
   dispatch: 1,
   route: {
     profile: { origin: 'official', routeName: 'vendor/chat' },
+    adaptation: {
+      implementation: { name: 'example-family', revision: 'r1' },
+      definition: { modelId: 'vendor/chat', revision: 'd1' },
+      configuration: { revision: 'c1', values: {} },
+    },
     profileSnapshot: {
+      adaptation: {
+        implementation: { name: 'example-family', revision: 'r1' },
+        definition: { modelId: 'vendor/chat', revision: 'd1' },
+        configuration: { revision: 'c1', values: {} },
+      },
       providers: ['provider-a'],
       allowFallback: false,
       inputModalities: ['text'],
@@ -93,7 +103,17 @@ const response: ModelResponse = {
   dispatch: 1,
   route: {
     profile: { origin: 'official', routeName: 'vendor/chat' },
+    adaptation: {
+      implementation: { name: 'example-family', revision: 'r1' },
+      definition: { modelId: 'vendor/chat', revision: 'd1' },
+      configuration: { revision: 'c1', values: {} },
+    },
     profileSnapshot: {
+      adaptation: {
+        implementation: { name: 'example-family', revision: 'r1' },
+        definition: { modelId: 'vendor/chat', revision: 'd1' },
+        configuration: { revision: 'c1', values: {} },
+      },
       providers: ['provider-a'],
       allowFallback: false,
       inputModalities: ['text'],
@@ -141,3 +161,5 @@ console.log(
 通过校验只说明表示有效。实际发出来源、身份唯一性、时钟来源、真实用量、脱敏、快照捕获与持久化仍由写入方负责。被拒绝的记录说明写入方有缺陷，不能被重新分类为模型调用故障，也不能据此自动重发。本模块不读时钟或存储，不调用模型。
 
 公开 JSON Schema 入口是 `@omne-harness-lite/model-response/schema`（v3）和 `/schema/v2`。参见[源码导出](src/index.ts)、[测试](tests/)与[模型档案](../model-profile/README_ZH.md)。
+
+默认入口与 Schema 采用 version4；`./v3` 和 `./schema/v3` 保留 version3 纯值入口及精确资源。`./schema/v2` 仍仅为 Schema 资源。恢复请求记录或响应时请显式选择消费版本。

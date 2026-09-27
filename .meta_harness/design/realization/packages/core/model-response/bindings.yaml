@@ -1,6 +1,6 @@
 # 条款到证据的绑定表。
-# 空表：data.model-response v2 没有登记的 formal task；源码不存在，没有测试可绑。
-# 证据义务与缺口记在 verification.md。
+# v4 候选增量：新增绑定 0 条，尚无生产实现证据；规格脚本不冒充实现绑定。
+# 下方保留既有 v3 的 1 条真实测试绑定及其原范围；证据义务见 verification.md。
 version: 1
 node: "model-response"
 kind: "provider"

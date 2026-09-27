@@ -12,7 +12,7 @@ import {
   validate,
   type ModelProfileDocumentKind,
   type SchemaDefName,
-} from '@omne-harness-lite/model-profile'
+} from '@omne-harness-lite/model-profile/v2'
 
 const normative = new URL(
   '../../../../.meta_harness/design/spec/data/model-profile/v2/',
@@ -201,9 +201,9 @@ describe('frozen examples, every local shape and document row', () => {
       )
   })
   it('SCHEMA-BYTES: exported Schema is byte-identical to its frozen source', () => {
-    expect(readFileSync(new URL('../schema/model-profile.schema.json', import.meta.url))).toEqual(
-      readFileSync(new URL('model-profile.schema.json', normative)),
-    )
+    expect(
+      readFileSync(new URL('../schema/v2/model-profile.schema.json', import.meta.url)),
+    ).toEqual(readFileSync(new URL('model-profile.schema.json', normative)))
   })
   it('S10-SHAPE: withdrawn and relisted are representations of the same valid row', () => {
     expect(judgeModelProfileDocument('ModelProfile', { ...c, registration: 'listed' })).toEqual({

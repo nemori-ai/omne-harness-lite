@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v2/model-profile.schema.json",
-  "title": "data.model-profile v2",
-  "description": "模型档案、指向它的引用与统一请求参数词表的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v2 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。模态取 data.content-blocks/v2 的 Modality（该契约 S-6），本文件不另列。Schema 只管形状：route_name_taken（撞名判定，S-3）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24；对 ModelProfile 与 ModelProfileContent 两种）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。正反实例在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v3/model-profile.schema.json",
+  "title": "data.model-profile v3",
+  "description": "模型档案、指向它的引用、统一请求参数词表与模型适配绑定的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v3 内有效。",
+  "$comment": "接受、采用与冻结状态在版本外入口与 registry。模态取 data.content-blocks/v2 的 Modality（该契约 S-6），本文件不另列。Schema 只管形状：route_name_taken（撞名判定，S-3）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24；对 ModelProfile 与 ModelProfileContent 两种）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。S-31 的 definition.modelId 与 routeName 相等同样由表示层跨字段检查；S-30 的配置秘密禁入与修订不改义是写入者义务，Schema 不声明验证它们。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -52,6 +52,7 @@
           "minimum": 1
         },
         "inputConstraints": { "$ref": "#/$defs/InputConstraints" },
+        "adaptation": { "$ref": "#/$defs/ModelAdaptationBinding" },
         "registration": { "$ref": "#/$defs/Registration" },
         "updatedAt": {
           "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant",
@@ -73,6 +74,7 @@
         "maxInputTokens",
         "maxOutputTokens",
         "inputConstraints",
+        "adaptation",
         "registration",
         "updatedAt"
       ],
@@ -94,6 +96,7 @@
         "maxInputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxInputTokens" },
         "maxOutputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxOutputTokens" },
         "inputConstraints": { "$ref": "#/$defs/ModelProfile/properties/inputConstraints" },
+        "adaptation": { "$ref": "#/$defs/ModelProfile/properties/adaptation" },
         "parameters": { "$ref": "#/$defs/ModelProfile/properties/parameters" }
       },
       "required": [
@@ -105,7 +108,8 @@
         "outputModalities",
         "maxInputTokens",
         "maxOutputTokens",
-        "inputConstraints"
+        "inputConstraints",
+        "adaptation"
       ],
       "additionalProperties": false
     },
@@ -155,7 +159,7 @@
 
     "ModelProfileSnapshot": {
       "title": "ModelProfileSnapshot",
-      "description": "S-27：一条档案在某一刻的、发出与重试要用到的那几项属性的副本——允许的供应商及次序、允不允许回退、两组模态、两个上限、请求参数，以及这份记载的 updatedAt。它是值，不是引用：档案后来被改或被撤回，快照不变；指认的是哪一条档案由与它成对交出的 ModelProfileRef 给出。不带路由名、来源、在册状态与送进去之前的限制。规格层值名，不是统一语言词条。",
+      "description": "S-27：一条档案在某一刻的、发出与重试要用到的那几项属性的副本——允许的供应商及次序、允不允许回退、两组模态、两个上限、请求参数、模型适配绑定（含完整配置值），以及这份记载的 updatedAt。它是值，不是引用：档案后来被改或被撤回，快照不变；指认的是哪一条档案由与它成对交出的 ModelProfileRef 给出。不带路由名、来源、在册状态与送进去之前的限制。规格层值名，不是统一语言词条。",
       "$comment": "各成员的取值域与 ModelProfile 同名成员逐字相同（以 $ref 取那一处）。成员集合闭合；parameters 缺席即那一刻档案不给任何一项（S-17）。S-18 的关系（parameters.maxOutputTokens 不超过 maxOutputTokens）在快照上由「照原样复制」保证，是写快照一方的义务；快照不是表示层校验的一种文档，收它的一方不重判、也没有为它设的拒绝值（S-27）。",
       "type": "object",
       "properties": {
@@ -166,9 +170,10 @@
         "maxInputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxInputTokens" },
         "maxOutputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxOutputTokens" },
         "parameters": { "$ref": "#/$defs/ModelProfile/properties/parameters" },
+        "adaptation": { "$ref": "#/$defs/ModelProfile/properties/adaptation" },
         "updatedAt": { "$ref": "#/$defs/ModelProfile/properties/updatedAt" }
       },
-      "required": ["providers", "allowFallback", "inputModalities", "outputModalities", "maxInputTokens", "maxOutputTokens", "updatedAt"],
+      "required": ["providers", "allowFallback", "inputModalities", "outputModalities", "maxInputTokens", "maxOutputTokens", "adaptation", "updatedAt"],
       "additionalProperties": false
     },
 
@@ -260,6 +265,81 @@
         { "reasoningEffort": "none" },
         { "temperature": 0.2, "seed": 42, "extra": { "top_k": 40 } }
       ]
+    },
+
+    "ModelAdaptationBinding": {
+      "title": "模型适配绑定 · Model Adaptation Binding",
+      "description": "S-29～S-31：公共与家族实现、精确模型窄定义和声明式配置的版本绑定。属性，不是独立身份对象。每个修订在自己的命名域内不可原地改义；全部字符串非空且无首尾空白。",
+      "$comment": "implementation.revision 在 name 内、definition.revision 在 modelId 内、configuration.revision 在所在档案身份（独立函数则为调用者提供的配置来源）内解释。完整保留 values，不能只用配置修订取别处配置。注册存在性、配置适用性、秘密禁入、修订不改义与调用快照冻结不是本 Schema 的保证。",
+      "type": "object",
+      "properties": {
+        "implementation": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "name",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "definition": {
+          "type": "object",
+          "properties": {
+            "modelId": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "modelId",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "configuration": {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            },
+            "values": {
+              "type": "object",
+              "description": "S-30：声明式配置对象，允许明确空对象。严格 JSON、重复成员拒绝和十进制数无损沿 data.content-blocks/v2 S-24；该 Schema 没有 JsonObject 定义，本处不造引用。",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "revision",
+            "values"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "implementation",
+        "definition",
+        "configuration"
+      ],
+      "additionalProperties": false
     },
 
     "ReasoningEffort": {

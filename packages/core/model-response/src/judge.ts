@@ -1,6 +1,6 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { isJsonNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
-import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
+import loopSchema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import schema from '@omne-harness-lite/model-response/schema' with { type: 'json' }
 import { isObject, snapshot } from './json.ts'
 import { membersValid, responseValid } from './schema.ts'
@@ -71,6 +71,49 @@ export function judgeModelResponse(value: unknown): ModelResponseJudgment {
     ((reply || delivered) && !firstToken)
   )
     return rejected('first_token_inconsistent')
+  if (!bindingValid(copied)) return rejected('malformed')
   if (!responseValid(copied)) return rejected('malformed')
   return Object.freeze({ ok: true })
+}
+
+function bindingValid(value: JsonObject): boolean {
+  const route = value.route
+  if (
+    !isObject(route) ||
+    !isObject(route.profileSnapshot) ||
+    !isObject(route.adaptation) ||
+    !isObject(route.adaptation.definition) ||
+    !isObject(route.profile)
+  )
+    return false
+  const captured = route.profileSnapshot.adaptation
+  return (
+    captured !== undefined &&
+    equal(route.adaptation, captured) &&
+    route.adaptation.definition.modelId === route.profile.routeName
+  )
+}
+function equal(a: JsonValue, b: JsonValue): boolean {
+  if (isJsonNumber(a) && isJsonNumber(b))
+    return ExactDecimal.from(a).compare(ExactDecimal.from(b)) === 0
+  if (Array.isArray(a) && Array.isArray(b))
+    return (
+      a.length === b.length &&
+      a.every((item, i) => {
+        const other = b[i]
+        return other !== undefined && equal(item, other)
+      })
+    )
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a)
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every(key => {
+        const one = a[key],
+          two = b[key]
+        return one !== undefined && two !== undefined && Object.hasOwn(b, key) && equal(one, two)
+      })
+    )
+  }
+  return a === b
 }

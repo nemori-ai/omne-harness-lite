@@ -1,5 +1,51 @@
 # 验证覆盖与实际证据
 
+## v4 模型适配绑定闭包
+
+本版从已接受 v3 演进，保留 S-1～S-41（含既有 S-41 执行环境句柄）。新增事实仅为精确采用 `data.model-profile/v3` 和 `data.messages/v4`，既有失败主体因此能携带完整模型适配绑定。无新操作、失败枚举、位置、结论、配置政策或独立绑定定义；仍是 candidate，未接受、未冻结。
+
+### v4 变化的影响
+
+- `AfterModelCallFailureSubject.profile`、`dispatches` 原样携带所引快照与发出记录，必填绑定及跨字段纯校验沿共同数据来源；S-14、S-36、S-37 补明完整保留、拒绝与无损读取的边界。
+- 旧 v3 失败输入若没有适配绑定，不能作为 v4 输入；消费者不得剥掉新字段或填默认绑定来兼容旧 Schema。旧日志仍由其原版本解释，本包不制定迁移政策。
+- 候选 runtime/v3 是输入生产者，候选 runner/v3 是消费与交接者；须显式升级这一 Schema 闭包及默认重试路径。其余依赖仍用原 v3 的准确坐标，不因这项改动自动升级。
+- Subject 判别、rewrite 不可改部分、八种结论、十个表示拒绝值、FailureCause、替换件和 runner 控制顺序保持。v3 core 的完整未解析坏名留存及派发禁令继续适用。
+
+### v4 证据义务
+
+| 性质 | 证据与反例 | 状态/owner |
+|---|---|---|
+| S-14 完整 failure subject 可表示 | 新版完整输入通过 v4、被旧 v3 闭包拒绝；缺顶层快照或任一发出记录绑定被 v4 拒绝 | 本轮候选检查见下；生产边界未开始，core/loop-extension |
+| 引用的单条记录合法性与类型保持 | 内部绑定不等、模型 ID 不符时执行 messages/v4 的纯校验；重复键、精度或 JSON 类型改变不能被形状通过掩盖 | 候选纯值对照见下；真实解析、编码与传输未开始，runtime/runner 提供者 |
+| 完整原值从 runtime 传到 runner/重试件 | 记录按发出序号，profile 与 dispatches 来自同一调用；目录更新与回放不换值 | 未开始；runtime/v3、runner/v3 真实组合 |
+| 原有控制规则保持 | v3 所有规范形状实例、四条 core 窄修订用例；失败位置 observed/retry 仍合法，rewrite 仍拒绝；Schema 除两项引用替换外结构不变 | 候选结构对照见下；runner 行为与重放未开始 |
+
+### v4 实际检查
+
+检查针对工作树 `panqiwei/model-request-runtime`、源基线 `d4eaf7673bc161bf22f6682385151e080d3323ae`，使用该工作树 `.venv/bin/python`、`jsonschema 4.26.0`、`referencing 0.37.0`，没有安装依赖或访问网络。
+
+- 114 个表格 Schema 实例、11 个完整走查 JSON、4 个继承的 core 回归共 129 个形状结果符合预期。
+- 4 个新版形状通过的输入完成继承的消息记录跨字段纯值对照；4 个新旧版本断言确认完整绑定由 v4 接收、被 v3 拒绝，无绑定旧输入由 v3 接收、被 v4 拒绝。
+- 失败位置的 `observed`、`retry` 通过，`rewrite` 拒绝，3 个控制形状断言均符合原规则。逆转两项共享数据引用之后，整个 Schema 结构与 v3 相同（不比较注释、标题及 `$id`），没有新本地绑定定义。
+- 原 v2/v3 三份规范资源均与 HEAD 字节相同；`git diff --check` 通过。输入闭包、规范与可复跑脚本的摘要随本轮临时原始输出交主线归档；长期证据入口在主线归档后补，本文不把临时路径当永久证据。
+- 全树 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 退出 0，设计检查通过；全部已登记形式任务按命令显式跳过。上述结果不表示真实解析/传输、runtime-runner 组合或重放已经验证。
+
+本数据包没有状态机，不新增 TLA+/Alloy 工件或 formal task。原有行为义务归 runner；本轮形式工具未运行。
+
+### v4 登记输入与报给主线
+
+由主线唯一 registry owner 应用候选输入，本节不声称已登记：`data.loop-extension` v4，三份规范资源 `contract.md`、`loop-extension.schema.json`、`examples.md`，`status=candidate`、`acceptance=null`；八项依赖中仅 messages 升 v4、model-profile 升 v3。messages clauses 在 v3 清单基础上补 S-39；model-profile 原 S-2/S-5/S-15/S-27 再补 S-29/S-30；其余六项不变。covers 沿 v3 的 50 条实际覆盖边界，只改 target.version=4，`reviewed=false`；无新编号族或 formal task。
+
+### v4 独立规格评审补足
+
+2026-09-27 在执行树复核：本文件的 `v4-模型适配绑定闭包` 标题及上列增量义务已存在，保留原段而不另造重复验证入口。catalog 的候选条目漏列正文已实质消费的 `data.model-profile/v3` S-29/S-30 与 `data.messages/v4` S-39；精确条目及两项差异已交主线唯一 registry owner 应用，本轮不修改 registry。
+
+同时修正 `AfterModelCallFailureSubject.description` 中残留的旧依赖版本说明，现与实际 `$ref` 的 profile/v3、messages/v4 一致；结构约束不变。本轮只检查结构与设计树，不扩展之前 129 个形状结果、4 个纯值、4 个版本边界和3 个控制断言的验证范围；真实组合、编码无损、重放和形式工具仍未验证。已有原始结果与输入摘要保留原范围，修改前 Schema 字节另留给主线归档。
+
+本轮结构检查实际通过：除该 `description` 外 Schema 完全相同，验证入口锚点存在且唯一，交出的元数据含三条遗漏消费。全树 `check_design.py --formal skip` 退出 0、`gate=internal` 通过；`git diff --check` 通过。未重跑规范实例、生产组合或形式工具。
+
+派工所写 S-1～S-40 与源包实际 S-1～S-41 不同，本包完整保留 S-41，已报主线。没有新增无词条概念或产品政策；继承 G-1（PF-010）、G-4（主线/Run）、G-5（词表/tool-definition）、G-6（PF-008）、G-15（主线/PF-010）、G-16（主线/messages）、G-18（主线）的原范围，未擅自关闭。
+
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态：未开始。**`data.loop-extension` v2 是 `candidate`（2026-09-23 起草），未接受、未冻结；尚无提供者设计、无源码、无装配。

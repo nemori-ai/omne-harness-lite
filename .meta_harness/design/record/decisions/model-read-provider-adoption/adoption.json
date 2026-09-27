@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "status": "adopted",
+  "at_utc": "2026-09-27T06:00:38.517019+00:00",
+  "authority": "root primary under user implementation delegation",
+  "decision_path": "record/decisions/model-read-provider-adoption/decision.md",
+  "nodes": [
+    {
+      "node": "packages/assets/evaluation-input-store",
+      "design": "design.md",
+      "input_sha256": {
+        "realization/packages/assets/evaluation-input-store/design.md": "01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4",
+        "realization/packages/assets/evaluation-input-store/README.md": "27abea4eeab4fa1bd3ffd552bdbb0641fa93eb235ab977857cb82e5bab0f1df7",
+        "realization/packages/assets/evaluation-input-store/verification.md": "96c0cb5fa64ff0ccdd060ae604fa8c6e296a2172b465cd15c1b5e6803a855d26",
+        "realization/packages/assets/evaluation-input-store/bindings.yaml": "96697ee668cce678071daf07a546110a2a00e4bc1e21a6af9de2f49b53a7ed7d"
+      }
+    },
+    {
+      "node": "packages/session/session-tenancy-table",
+      "design": "v2-design.md",
+      "input_sha256": {
+        "realization/packages/session/session-tenancy-table/v2-design.md": "bb33103ba4fed85bff68b116ff916e645c4a117c49d83e37470fc6a36b30f0ca",
+        "realization/packages/session/session-tenancy-table/README.md": "84e703c16bd6e2f51e0d1ab4ec30b47ffdf7a72d3d433e699477f8a2c802a242",
+        "realization/packages/session/session-tenancy-table/verification.md": "7a0cafe4e91b39ed13333e45faaae879b23c61220779ebc74f733dd235a25efc",
+        "realization/packages/session/session-tenancy-table/bindings.yaml": "3308f9145d0ff3787d6c6827a5e31b9b95bbb930a8c244e434a72a8370e4aa6e"
+      }
+    },
+    {
+      "node": "packages/assets/assembly-manifest-store",
+      "design": "v3-design.md",
+      "input_sha256": {
+        "realization/packages/assets/assembly-manifest-store/v3-design.md": "26b9324a4b8c0497fb364f8d0fd019a5a5da28aa956b977af46d5ca8a000930f",
+        "realization/packages/assets/assembly-manifest-store/README.md": "efcf0cc76fc960f0bce0e6f07bb5de096c57bc5410ba095033aafc398556eb1a",
+        "realization/packages/assets/assembly-manifest-store/verification.md": "a7be967f4e02069c7438e25bda16ad5ade85ed10c8cb88a0ced51da2d07003ed",
+        "realization/packages/assets/assembly-manifest-store/bindings.yaml": "ced35a691e630683bb7fa61494796a68568b74a694cbc2a8e4b4c63aba67f50d"
+      }
+    },
+    {
+      "node": "packages/tools/asset-registry",
+      "design": "v3-design.md",
+      "input_sha256": {
+        "realization/packages/tools/asset-registry/v3-design.md": "30b4be1f04cc13a8ed98294f422109e98dbbd4df24889d08a6edb20082a81438",
+        "realization/packages/tools/asset-registry/README.md": "9769865fb8c9ef6d0110f4613510a71823638c497f68bf1c62f98222354b7146",
+        "realization/packages/tools/asset-registry/verification.md": "6f6064e275bfb4d7f0c1c481eb54b02d3c70998a475b7195694274314d78b070",
+        "realization/packages/tools/asset-registry/bindings.yaml": "2865c23c4774eb7f46b7a628dc37bd4fab8023d657102c50d0b00f2bc00c0f70"
+      }
+    },
+    {
+      "node": "packages/core/loop-extension",
+      "design": "v4-design.md",
+      "input_sha256": {
+        "realization/packages/core/loop-extension/v4-design.md": "c012b83a3b1501e1f8118a12f318f6df50e16f4aabc646b7350fd509283be26f",
+        "realization/packages/core/loop-extension/README.md": "e025f9ea4d550ba70f7e8847adc6686ed40cd926f9ebf4a5a33ceb2a8038320b",
+        "realization/packages/core/loop-extension/verification.md": "d35fba4f596f852e2f0716974eaa9f4c8dd0a62bc9318060037b4d29fb13f2de",
+        "realization/packages/core/loop-extension/bindings.yaml": "608f625e4812e0270832d549e2b3e72320f8e8118d1fd2b805ca50c63fbf56e3"
+      }
+    }
+  ],
+  "implementation": "pending real code and verification",
+  "human_overall_acceptance": false
+}

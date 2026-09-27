@@ -1,5 +1,25 @@
 # 能力与构成
 
+### UL-model-adaptation-binding · 模型适配绑定 · Model Adaptation Binding
+
+> **中**：一次模型调用所持有的适配属性，指明其公共实现、家族规则与模型窄定义的精确版本，以及采用的配置。同一个绑定内的规则和配置不随后续更新变化。
+>
+> **EN**: The adaptation attribute held by a model invocation, identifying the exact versions of its shared implementation, family rules and narrow model definition, together with the adopted configuration. Rules and configuration in one binding do not change after later updates.
+
+- **形态**：属性
+- **出处**：[UL-D-6](../decisions.md#ul-d-6--模型适配绑定--2026-09-27)
+- **别混**：与模型档案的范围身份、凭据以及 Cordis fiber 实例身份不同；不是独立领域对象。
+
+### UL-model-prefix-cache-policy · 模型前缀缓存策略 · Model Prefix Cache Policy
+
+> **中**：模型适配绑定中控制上游请求前缀缓存的配置属性，明确自动或显式方式及适用配置。该配置不代表上游已写入或读取缓存。
+>
+> **EN**: The configuration attribute of a model adaptation binding that controls upstream prompt-prefix caching, specifying automatic or explicit mode and its applicable configuration. Configuration does not establish that the upstream has written or read a cache.
+
+- **形态**：属性
+- **出处**：[UL-D-6](../decisions.md#ul-d-6--模型适配绑定--2026-09-27)
+- **别混**：与完整响应缓存、缓存命中事实和本系统持久化日志不同。
+
 **这一卷回答：agent 由什么构成，以及它因此能做什么。**
 
 收在这里的是**被持有、被组装的那些东西**，以及它们之间的构成关系。

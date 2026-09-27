@@ -13,7 +13,7 @@ import {
   judgeValue,
   validate,
   type ConclusionInputs,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 import { at, call, inputAt, variants, json, recordAt, reminder } from './helpers.ts'
 
 it('LE-ORDER-1: ordinary malformed wins over position/power/dimension', () => {

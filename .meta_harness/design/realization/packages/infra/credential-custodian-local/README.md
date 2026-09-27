@@ -1,5 +1,16 @@
 # credential-custodian-local
 
+## 模型副本来源绑定候选（2026-09-27）
+
+- **语义接受：无。** [v2-design.md](v2-design.md) 是 CCL2 的提供者增量候选；精确契约接受状态查 [registry catalog](../../../../registry/catalog.json)，下列既有设计接受不覆盖本增量。
+- **可实施范围：候选。** 保留 CCL2 六操作；为目录3 S-19/S-20 提供受限技术子入口，写入时记录实际 sourceRef，同 StorageUnit 锁定当前绑定并比较才交模型副本。旧 generic 写清来源标记，generic 读仍按 tenant。独立 model-only factory 要求真实预置 keyFile，不提供完整 credentialCustodian、不装假 MCP 依赖。rev 2 明列写入结果、参与读异常/外层映射和逐 symbol 的构造/执行许可，不新增领域失败。
+- **绑定与证据：0 条。** [bindings.yaml](bindings.yaml) 仍空；旧七场景/N-1～N-11 全保留，新 MCR-V1～V8 未开始。
+- **实际验证：尚无。** 尚未建包；目录真实事务 helper、来源密文格式、真实 auth/accounts/keyFile 与新装配仍须实现验收。窄组件通过不等于完整 CCL/OAuth 交付。
+
+当前消费者为 `packages/model/model-profile-directory` 的本机 P-1r 与 `apps/model-request-acceptance` 可信 bootstrap。中心送达与登录结束的产品来源缺口未关闭；范围、存储共同对象及装卸责任见[候选设计](v2-design.md)，新增证据义务见[验证增量](verification.md#模型副本来源绑定候选的验证义务)。
+
+## 既有设计与接受范围
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，同日按独立评审 N7 修订（处置见 [verification](verification.md#独立评审)），尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.credential-custodian · v2`（[契约](../../../../spec/capabilities/credential-custodian/v2/contract.md)，状态 `accepted`，已接受、已冻结；设计依据 PF-016 rev 8、PF-002 rev 20、PF-013 rev 13）。它是那份窄口契约的**最小提供者**，取代 `apps/cli` 验收装配里原先的「凭据保管方」替身（[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）；**真承接者是 `infra/secrets` 那一程**（契约 [G-1](../../../../spec/capabilities/credential-custodian/v2/contract.md#十一已知缺口)，cli 缺口 C-5），本节点只兑现窄口，不扩展契约
 - 源码位置：`packages/infra/credential-custodian-local`——**尚未建包**。路径与第一层 `infra` 已由主线裁定（[D-060 §八](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) N-40 ①）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -28,3 +39,7 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 模型来源投影采用
+
+[D-075](../../../../record/decisions/model-credential-source-projection/decision.md)技术采用上述精确来源关联与失败/权限投影。旧候选字节和验证范围保留；真实源码及负控待执行，完整 CCL/MCP/OAuth 仍无本事件交付声明。

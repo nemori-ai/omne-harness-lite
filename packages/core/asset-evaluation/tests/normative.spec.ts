@@ -7,7 +7,7 @@ import {
   type EffectiveAssembly,
   type EvaluationResult,
   type NonConnectorEvaluationInput,
-} from '../src/index.ts'
+} from '../src/v3/index.ts'
 import {
   assignment,
   at,

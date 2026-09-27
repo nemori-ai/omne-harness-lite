@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.loop-extension v3 pure protocol values and judgments",
+  "description": "data.loop-extension v4 pure values and explicit retained v3 adoption",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -13,7 +13,12 @@
       "import": "./dist/index.js"
     },
     "./schema": "./schema/loop-extension.schema.json",
-    "./schema/v2": "./schema/loop-extension.v2.schema.json"
+    "./schema/v2": "./schema/loop-extension.v2.schema.json",
+    "./schema/v3": "./schema/loop-extension.v3.schema.json",
+    "./v3": {
+      "types": "./dist/v3/index.d.ts",
+      "import": "./dist/v3/index.js"
+    }
   },
   "files": [
     "dist",
