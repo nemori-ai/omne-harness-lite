@@ -1,5 +1,11 @@
 # 来源与可复核观察
 
+## 2026-09-27 首两个 OpenAI 固定 route 的窄复核
+
+[本轮读数](reports/2026-09-27-first-two-openai-routes.md)只复核 Sol/Luna 两个固定 openai route，不重查其余35项。[63成员原件归档](first-two-openai-routes-2026-09-27.tar.gz)为463186字节，SHA256 `f7f4509648450cb30db1f0079e9ba8110afe961ea47724d65725bef5fdfa038d`；原62工件manifest SHA `41e2e353117c07fb30948dcb315ec1d542e24aa9b4c2ad8cab91c922727879a5`，主线全部成员逐字读回。官方MCP Markdown与真实HTTP body分别标明取得方式；型号页的首次精确时间未记录，不能补造。
+
+两个新的免费endpoint GET均HTTP200，无凭据访问或模型请求。逐图限制、部分参数条件、native TTL与bridge配置的差别及版本复核信号保持原观察范围；未知不改成空约束或drop。本run没有缓存命中、流式公开制品、输入边界或official认证证据；不重置原付费ledger。包内作者REPORT及首次工具失败原样保留，后续方案选择不在研究中接受。
+
 ## 2026-09-27 第一方与组合复核
 
 [300成员原件归档](first-party-and-joint-2026-09-27.tar.gz)，SHA256 `bd5bb7f26ed868e445d2c3559c18c1519afd5ecd05bd5d87a565bedb0f45ac67`，2395403字节，主线全部成员读回匹配。含三路222原文／工具工件、逐字段facts与JSON pointer、主线重算脚本／结果、五个新endpoint原文、实际脚本／请求／响应／oracle／费用账本和Node24.18.0环境。37身份源精确冻结，源SHA `c093ffe6f6115cd8c0ba0d6a88bab3cb6d9473e2b1fdd662c9180ad2df48fdb0`；没有官方定义采用。

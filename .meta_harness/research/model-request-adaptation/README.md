@@ -7,6 +7,7 @@
 - [当前观察与局限](research.md)
 - [来源与运行证据](evidence.md)
 - [第一方字段与请求组合复核](reports/2026-09-27-first-party-and-joint.md)
+- [首两个 OpenAI 固定 route 的窄复核](reports/2026-09-27-first-two-openai-routes.md)
 - [研究演进](changelog.md)
 
 模型与路由变动、缓存文档或提供者版本变化时重新核验；不把本次结果推广到未测路由。
