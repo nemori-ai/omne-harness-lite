@@ -19,12 +19,19 @@ Python 当前服务于开发工具。
 | [scripts/](../scripts/README.md) | 仓库级开发与 CI/CD 自动化 | 串联现有工具、准备构建输入、整理产物；复杂检查逻辑归工具包 |
 | 各包或应用内的 `src/` | 该成员的实现源码 | TS、Python 都可采用；源码跟随所属包，不汇入根 `src/` |
 | 各成员的 `tests/` | 该成员的验证 | 测试夹具就近维护；共享测试工具按实际消费边界提取 |
-| [docs/](README.md) | **只有项目开发文档**：环境、布局、检查、防御指导 | 产品设计、架构与规格设计、research 一律不进这里 |
+| [docs/](README.md) | 项目开发文档：环境、布局、检查、防御指导；另接入 `blogs/` 子模块 | 设计与 research 的权威正文归 `.meta_harness/` |
+| `docs/blogs/` | 个人技术博客的独立 Git 子模块 | 工程复盘与开发者技术专题；内容和历史由个人博客仓库维护 |
 | [.meta_harness/](../.meta_harness/README.md) | 可独立迁出的私有设计工作区 | 需求、产品正文、统一语言、规格、决定、研究与 agent 能力的**唯一**源 |
 | 根 `.agents/`、`.claude/`、`.codex/` | 指向 `.meta_harness/` 内同名目录的相对软链接 | 只暴露生成产物；源与检查归工作区 |
 
 按用途和所有权选择顶层位置，再按实际依赖选择语言与构建工具。独立包不等于
 独立发布、独立进程或独立微服务，也不要求每个 Cordis 插件单独成包。
+
+`docs/blogs/` 接入 [PanQiWei/omne-harness-blogs](https://github.com/PanQiWei/omne-harness-blogs)，
+用于面向读者的工程复盘与技术传播。博客可据设计、实现和实验材料撰写，
+不承担设计接受、契约定义或研究证据归档的权威职责；这些正文仍归 `.meta_harness/`。
+博客仓库独立管理可见性和访问权限，父仓库只保存 `.gitmodules` 配置和采用的 commit。
+它不属于产品 workspace 或构建依赖；初始化与更新方法见[开发指南](development.md#博客子模块)。
 
 产品包采用 `packages/<能力族>/<职责包>/` 两层：**第一层只组织相关能力，不是 workspace 成员**；
 第二层才拥有 `package.json`、`src`、依赖、公开入口和测试。

@@ -39,13 +39,17 @@ Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项�
 | 已发生的事          | 提案、决定、评审、运行证据                                                    |
 | Agent 能力          | skills 与 roles 的 canonical 源、宿主适配、评估                               |
 
-> **在 `.meta_harness/` 以外，只做项目开发和与开发相关的文档维护。**
+> **在 `.meta_harness/` 以外，除下述技术博客外，只做项目开发和与开发相关的文档维护。**
 > 那是纯粹的系统研发工作：写代码、写工具、写脚本，以及维护
 > 「怎么把这个仓库开发起来」的说明。
 >
 > **产品设计、架构与规格设计、以及产品/系统/算法的 research，都不在外面做，也不在外面留副本。**
 > 一份材料只要回答的是「系统该是什么样」，它的家就在 `.meta_harness/`——
 > **不因为它同时对开发者有用，就在外面再放一份。**
+
+`docs/blogs/` 是个人博客仓库的 Git 子模块，用于工程复盘与面向开发者的技术传播，
+可以据设计资料讲解观点、方案和实验，但不成为第二份设计权威。归属见
+[源码布局](docs/workspace.md#目录与内容归属)；撰写博客加载 `write-blog` skill。
 
 这条边界是硬的：两份权威一定会分叉，而分叉时没人知道该信哪个。
 需要做设计时，进入 `.meta_harness/`，加载 `harness-design-handbook` skill，
@@ -102,11 +106,12 @@ omne-harness-lite/
 ├── CONTRIBUTING.md               贡献范围、可审阅交付与接受入口
 ├── AGENTS.md                     agent 的常驻心智、边界与导航
 ├── CLAUDE.md                     Claude Code 入口，通过 @AGENTS.md 复用同级约定
-├── docs/                         **只有项目开发文档**，四份正文，无子目录
+├── docs/                         项目开发文档与独立博客子模块
 │   ├── development.md            上手、工具链、按问题选检查
 │   ├── workspace.md              源码归属、包边界与两套 workspace
 │   ├── verification.md           每个检查入口覆盖什么、不能声称什么
 │   ├── defensive-patterns.md     十条防御指导，含编号、适用范围与复核触发
+│   ├── blogs/                    个人技术博客仓库的 Git 子模块
 │   └── README.md / AGENTS.md / CLAUDE.md   地图与局部约定
 ├── packages/                     产品可复用包，按 core／infra／领域分组（现状见实现映射）
 ├── apps/                         产品应用与装配入口
