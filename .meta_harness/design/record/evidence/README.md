@@ -1,5 +1,9 @@
 # 运行证据
 
+**2026-09-27 MR5 纯值核心**：[源码、制品和有限技术签收](2026-09-27-tests-model-response-v5-core/README.md)。77 规范块、387 包测试、两份作者制品消费者及独立优先级/制品/行为负控通过；原 Pass with issues 的文字问题已修，317 归档成员逐项核对。纯值范围不关闭 transport/真实写方责任。
+
+**2026-09-27 transport 不透明响应资源**：[实际 TLS 与有限技术签收](2026-09-27-tests-model-transport-opaque-response/README.md)。独立切片 Pass，真实反射/关闭/单 reader/延期读取及两个编译行为负控通过；原测量失败保留，294 归档成员逐项核对。G6、完整响应头交接和完整 PH-V9 未签收。
+
 **2026-09-27 模型目录与凭据副本联验**：[原失败、计时诊断与修正并发运行](2026-09-27-tests-model-credential-joint/README.md)。13个顺序/故障/关闭场景及修正后的三种真实SQLite双连接交错通过；原三次失败保全，V3-15/MCR-V4整体仍Partial，真实认证/runtime与37认证未覆盖。
 
 **2026-09-27 W15日志诊断与公开守卫**：[限定技术签收](2026-09-27-tests-model-request-runtime-guard-log/README.md)。独立产品slice Pass／证据Pass with issues，41最终命令、215主oracle、4真正编译负控及24双语模块执行；1204输入和33063归档成员逐项核对。只签收同步sink隔离与pure dispatchGuard，原804 Fail保留，十三操作、整体P2和37认证未完成。

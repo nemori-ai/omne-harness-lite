@@ -1,3 +1,7 @@
+## MR5 纯值实施签收（2026-09-27）
+
+- 2026-09-27 后续有限实施签收：MR5 显式公开面已由 `9512c80b` 并入 HUB `62da5a5f`；本包 PV1～PV9 的有限纯值实施已技术接受，独立原判定 Pass with issues 的双语导航文字随后更正，代码块未变。[实际运行、原失败、制品和范围](../../../../record/evidence/2026-09-27-tests-model-response-v5-core/README.md)保全 317 成员；MR4/v3/旧 Schema 保留。此更新替代下方起草时“没有新增 v5 源码/待验”的当前口径，不改历史事件和外部写方缺口；不新增绑定或升级其他消费者。
+
 ## 当前采用与可实施范围（2026-09-27，D-090）
 
 - 语义接受：MR5／RT5 已由 [D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 精确接受；本节点 [v5-design rev1](v5-design.md) 同步技术采用。

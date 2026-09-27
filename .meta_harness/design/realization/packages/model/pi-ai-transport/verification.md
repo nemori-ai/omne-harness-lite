@@ -1,3 +1,7 @@
+## D-091 结构切片实际验收
+
+- 2026-09-27 D-091 结构切片实际验收：[原始实际 TLS、制品和主调度有限签收](../../../../record/evidence/2026-09-27-tests-model-transport-opaque-response/README.md)。公开反射/实际 stop 与 stopped/真实 socket close/延期读取/伪造与不同plan/单 reader/零重发及公开 exports 已独立 Pass；两个完整源码变异真实编译后分别被 oracle 拒绝。HUB transport178/runtime147、build/typecheck/格式/规则通过。首次 cleanup 测量失败原样保留，仅校正实际 close 观测，294 成员读回；不签收 G6/full S-20/H/完整 PH-V9/十三操作或37认证，新增绑定0、形式0、付费0。
+
 # pi-ai-transport 验证与证据
 
 ## v5 响应头证据义务

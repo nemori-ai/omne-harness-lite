@@ -1,5 +1,11 @@
 # pi-ai-transport
 
+## D-091 结构切片实际实施签收（2026-09-27）
+
+源码 `300309fd` 已并入 HUB `2fd302ce`，实际成功 R 只含 stop/stopped，Node 响应与请求留在私有 WeakMap；实际 stop/stopped 均返回/兑现 undefined，同 plan 单 reader 保留。主调度据 D-091 限定采用签收该切片：[作者、独立 TLS、编译行为负控和原始证据](../../../../record/evidence/2026-09-27-tests-model-transport-opaque-response/README.md)。HUB transport178/runtime147、build/typecheck/格式/规则通过，独立切片 Pass，294 归档成员逐项核对。
+
+本段替代下方起草时“源码与真实 JS 尚未完成”的结构切片口径，保留旧事件。成功 rawHeaders 仍不公开；G6/S-20 完整政策、PH-G1/G2、完整 PH-V9、H 的真实交接及37认证保持未完成，新增绑定0。
+
 ## RT5 同次响应头增补候选（2026-09-27）
 
 后续 [D-091](../../../../record/decisions/model-transport-response-resource-adoption/decision.md) **部分技术采用** rev2 的真实不透明 R、私有 Node 资源、单 reader 和 `stop()` 实际不泄漏请求对象的结构，独立架构复评 PH-AR1 在设计层无阻断。原候选标签记录起草时状态；PH-G2 完整 S-20 政策取值／匹配仍未采用，公开 `rawHeaders` 的生产出值不可据此施工，源码与 PH-V9 真实 JS 验证均未完成。
