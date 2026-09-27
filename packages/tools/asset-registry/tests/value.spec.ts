@@ -48,7 +48,10 @@ test('full E and caller order produce six immutable tables; collection order doe
     composition: [...f.evaluation.composition].reverse(),
   }
   expect(buildTableContents(reordered, f.order, f.definitions)).toEqual(f.built)
-  expect(Object.keys(f.record.content)).toEqual(['evaluation', 'compositionOrder', 'filledBy'])
+  const content = f.record.content
+  if (content === null || typeof content !== 'object' || Array.isArray(content))
+    throw new Error('fixture manifest content must be an object')
+  expect(Object.keys(content)).toEqual(['evaluation', 'compositionOrder', 'filledBy'])
   expect(extractRootSourceFromFullFillRecord(f.record, 'session_a', 1)).toHaveProperty(
     'rootSource',
     { asset: f.definitions[0]!.id, version: 1 },

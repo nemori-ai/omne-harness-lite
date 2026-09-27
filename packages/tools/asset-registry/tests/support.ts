@@ -6,7 +6,7 @@ export const root = { category: 'agent_definition', name: 'example:root' } as co
 export const b = { category: 'loop_extension', name: 'example:b' } as const
 export const a = { category: 'loop_extension', name: 'example:a' } as const
 export const tool = { category: 'tool', name: 'example:read' } as const
-export const command = { category: 'slash_command', name: 'example:deploy' } as const
+export const command = { category: 'slash_command', name: 'omne-official:deploy' } as const
 export const now = '2026-09-27T00:00:00Z'
 export function definition(capability: CapabilityId, content: unknown): AssetDefinition {
   return {
@@ -78,6 +78,6 @@ export function fixture() {
   }
   const evaluated = evaluate(input)
   if (!('ok' in evaluated))
-    throw new Error(`unit fixture input rejected: ${Object.keys(evaluated)}`)
+    throw new Error(`unit fixture input rejected: ${JSON.stringify(evaluated)}`)
   return { input, definitions, evaluation: evaluated.ok, order: [b, tool, a, command] }
 }
