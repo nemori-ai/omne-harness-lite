@@ -1040,6 +1040,43 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
+  packages/session/session-log-jsonl:
+    dependencies:
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../core/call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../core/content-blocks
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../../core/messages
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/model-response':
+        specifier: workspace:*
+        version: link:../../core/model-response
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
   packages/session/session-tenancy-table:
     dependencies:
       '@deepseek-ai/cordis':
