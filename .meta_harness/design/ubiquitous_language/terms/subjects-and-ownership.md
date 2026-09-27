@@ -19,7 +19,7 @@
 > no scoped objects**.
 
 - **形态**：对象
-- **出处**：[PF-001 §4 账号](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)（rev 19）
+- **出处**：[PF-001 §4 账号](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)（rev 22）
 - **别混**：账号回答「你是谁」，[租户](#ul-tenant--租户--tenant)回答「你的东西归哪儿」。**一个账号对应多个租户**
 - **注意 ①**：一个现实中的人可以持有多个账号；系统**不核验、不关联、也不记录**它们属于同一人。**账号是一个自然人全部 context 的最大边界**，两个账号之间没有任何通路
 - **注意 ②**：**未激活的那条记录有留存期限。**[注册第 1 步](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#11-注册)建立的账号处于未激活状态并占住[登录标识](#ul-login-identifier--登录标识--login-identifier)；期限**按部署配置**，[期限内用同一标识、同一凭据重来认回的是同一条记录，到期则记录清除、登录标识随之释放，连同为它建的个人组织与第一个租户一起消失](../../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)。**这不是账号终止**——被清掉的是一条从未成为可用账号的记录，那三样从未承载过任何东西；**已激活的账号本版没有任何消失路径**
@@ -36,7 +36,7 @@
 > job.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 账号](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)（rev 19）
+- **出处**：[PF-001 §4 账号](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)（rev 22）
 - **别混 ①**：**不是凭据。**凭据是**证明持有**的那个东西，[不以可读形式保存](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)；登录标识是公开的名字。登录标识不可改；凭据可以在[验证当前凭据后主动更换](../../product/PF-001-identity-scope-and-agent-constraints/design.md#主动更换凭据)，不改变账号身份
 - **别混 ②**：**不是规格层用来引用一个账号的那个键。**登录标识是**人输入的名字**；一个账号在契约里被什么键引用、那个键与这个名字是不是同一个值，**产品正文没说，词表也不定义它**
 - **注意 ①**：**本版不可改。**[注册时定下，此后不变](../../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)；[修改登录标识列在非目标里](../../product/PF-001-identity-scope-and-agent-constraints/design.md#非目标)。凭据可主动更换，不改变这一标识
@@ -58,14 +58,14 @@
 > of them is enough to list them all, each with its issue time**.
 
 - **形态**：对象
-- **出处**：[PF-001 §4 登录状态](../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态) · [PF-001 flows §3.2 登录状态](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态) · [PF-001 flows §1.2 登录](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#12-登录)（rev 19）
+- **出处**：[PF-001 §4 登录状态](../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态) · [PF-001 flows §3.2 登录状态](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态) · [PF-001 flows §1.2 登录](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#12-登录)（rev 22）
 - **注意**：寿命与成功业务访问口径归 [PF-001 登录状态](../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)；恢复不能使已失效登录或已换掉凭据重新可用，重新开放条件归 [PF-017 §6.18](../../product/PF-017-governance-center-as-deployable-application/design.md#618-备份与恢复的交付目标)。
 - **别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**一个回答「这次登录还算不算数」，一个是一段协作。**正文刻意不用「会话」称呼它**，英文也不写 `login session`
 - **注意 ①**：登录之后的初始协作范围是**该账号的[个人组织](#ul-personal-organization--个人组织--personal-organization)**
 - **注意 ②**：**正文未述它靠什么标识**，只写明彼此可分辨——重新登录是新的一个，多处登录各是一个
 - **注意 ③**：**可被同账号的其他有效登录状态列出。**[持本账号任一有效登录状态者，可以列出本账号当前全部有效的登录状态，每一个带签发时间](../../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)；**已失效的不在列表里**。独立撤销仍逐个；[主动更换凭据](../../product/PF-001-identity-scope-and-agent-constraints/design.md#主动更换凭据)成功会使全部旧登录失效
 - **注意 ④**：[当前租户身份](#ul-current-tenant-identity--当前租户身份--current-tenant-identity)这项选择**挂在它身上**：它失效，那项选择随之不存在；重新登录从个人组织重新起算
-- **注意 ⑤**：**属于签发它的那个[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**，这是它身份的一部分；换一个中心就是另一套身份（[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 8））
+- **注意 ⑤**：**属于签发它的那个[治理中心](grounding-and-isolation.md#ul-governance-center--治理中心--governance-center)**，这是它身份的一部分；换一个中心就是另一套身份（[PF-016 §4 治理中心](../../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)（rev 10））
 
 ### UL-organization · 组织 · Organization
 
@@ -77,7 +77,7 @@
 > **its creator automatically becomes its super administrator**.
 
 - **形态**：对象
-- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 19）
+- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 22）
 - **别混**：组织**不是**租户，而是租户的一半——另一半是账号
 
 ### UL-personal-organization · 个人组织 · Personal Organization
@@ -92,7 +92,7 @@
 > organization**. Each account has exactly one.
 
 - **形态**：变体（父：[组织](#ul-organization--组织--organization)）
-- **出处**：[PF-001 §4 个人组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织)（rev 19）
+- **出处**：[PF-001 §4 个人组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织)（rev 22）
 - **注意**：「不能邀请他人」是**结构性禁止**，不是一项可被调整的权限设置
 - **注意**：它**永远不与别的组织同在一棵[隶属树](#ul-ancestor-chain--上级链--ancestor-chain)上**，因此永远在所有流转边界之外
 - **注意**：它**唯一的消失路径**是[随一条未激活的账号记录到期被清除](../../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)——它在注册第 2 步随账号记录一并建起，那条记录到期被清时它与[第一个租户](#ul-tenant--租户--tenant)一起消失。**已激活账号的个人组织不会消失**
@@ -106,7 +106,7 @@
 > ones. Not a new concept, merely a word to set against "personal organization".
 
 - **形态**：变体（父：[组织](#ul-organization--组织--organization)）
-- **出处**：[PF-003 §4 承接](../../product/PF-003-asset-transfer-and-sharing/design.md#承接-pf-001-与-pf-002)（rev 5）
+- **出处**：[PF-003 §4 承接](../../product/PF-003-asset-transfer-and-sharing/design.md#承接-pf-001-与-pf-002)（rev 6）
 
 ### UL-parent-organization · 上级组织 · Parent Organization
 
@@ -122,7 +122,7 @@
 > nothing automatically**.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 19）
+- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 22）
 - **别混**：**隶属 ≠ 被管辖**。东西要流过去，走[资产复制](circulation-and-entitlement.md#ul-asset-copy--资产复制--asset-copy)或[资产分享](circulation-and-entitlement.md#ul-asset-sharing--资产分享--asset-sharing)的明确动作
 - **注意**：建立需**双方超级管理员各做一次动作**——一方发出一份[隶属请求](#ul-affiliation-request--隶属请求--affiliation-request)、另一方接受；**解除则任一方单方面可做**，不需要请求
 - **注意**：**创建组织时它恒为空**，[不能在创建时指定](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)——那会是一次单方面指定，而单方面指定正是被明文排除的
@@ -140,7 +140,7 @@
 > root); that tree **is exactly the boundary** within which assets may circulate.
 
 - **形态**：视图
-- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 19） · [PF-003 §5.2](../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)（rev 5）
+- **出处**：[PF-001 §4 组织](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 22） · [PF-003 §5.2](../../product/PF-003-asset-transfer-and-sharing/design.md#52-边界是那棵隶属树不是单个组织)（rev 6）
 - **别混**：**「有共同上级」不是「两条不含自己的链有交集」。**照那种读法，[一个组织与它自己的上级会被判成没有共同上级](../../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)，而它们分明在同一棵树上——团队与它所属的公司反倒成了出树。**必须先把各自算进自己的链**
 - **注意**：个人组织的上级链恒为空，把它自己算进来也只有它一个，所以**任何两个个人组织都不会有共同上级**——不是把门放宽了，**是那把尺子量不到它们**
 
@@ -163,7 +163,7 @@
 > pending sharing invitation.
 
 - **形态**：总称
-- **出处**：[PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 19） · [PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)（rev 5）
+- **出处**：[PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 22） · [PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期)（rev 6）
 - **⚠️ 别混**：**这四样不是同一类东西，也不共享一套身份机制。**四样**各是一个对象**——[邀请](#ul-invitation--邀请--invitation)、[隶属请求](#ul-affiliation-request--隶属请求--affiliation-request)、
   [复制通知](circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice)、[分享邀请](circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation)各有词条与条目，
   关系主体与接受后建立的东西各不相同。**这个词只用来归类，不给这四样一套共同的身份、存储或状态机**
@@ -190,11 +190,11 @@
 > **A personal organization can issue none** — a structural prohibition.
 
 - **形态**：对象
-- **出处**：[PF-001 flows §1.5 邀请与加入](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#15-邀请与加入) · [PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 19）
+- **出处**：[PF-001 flows §1.5 邀请与加入](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#15-邀请与加入) · [PF-001 §4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 22）
 - **别混**：与[隶属请求](#ul-affiliation-request--隶属请求--affiliation-request)是**两种对象**，不是同一样东西的两种用法——[邀请是组织对账号发的、接受产生租户，隶属请求是组织对组织发的、接受只给上级组织属性填上值](../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)。**两者共享过期与接收方可拒绝的终结规则，处理者与结果不同**
 - **注意**：**正文未述它靠什么标识**。有效期正文已述：[这一类有默认时长、发出时发起者可以指定这一份的，组织不存在则自动过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)
 
-- **拒绝的出处**：[PF-001 接收方可以明确拒绝待处理邀约](../../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 19）。此处拒绝是已有对象的动作/终结，不是新身份。
+- **拒绝的出处**：[PF-001 接收方可以明确拒绝待处理邀约](../../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 22）。此处拒绝是已有对象的动作/终结，不是新身份。
 
 ### UL-affiliation-request · 隶属请求 · Affiliation Request
 
@@ -217,12 +217,12 @@
 > affiliation**, and so neither issues nor receives one.
 
 - **形态**：对象
-- **出处**：[PF-001 §4 隶属关系怎么建立与解除](../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除) · [§4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期) · [PF-001 flows §1.7 建立与解除组织隶属](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)（rev 19）
+- **出处**：[PF-001 §4 隶属关系怎么建立与解除](../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除) · [§4 两种邀约都会过期](../../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期) · [PF-001 flows §1.7 建立与解除组织隶属](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)（rev 22）
 - **别混**：与[邀请](#ul-invitation--邀请--invitation)是**两种对象**——[那一个是组织对账号发的，接受产生租户；这一个是组织对组织发的，接受填上一个属性](../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)。**关系主体不同，结果也不同；两者共享过期与接收方可拒绝的终结规则，处理者与结果不同**
 - **注意 ①**：**正文未述它靠什么标识**
 - **注意 ②**：**解除隶属不走这条路**——建立要两边各做一次动作，[解除则任一方单方面即可](../../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)，不需要一份请求
 
-- **拒绝的出处**：[PF-001 接收方可以明确拒绝待处理邀约](../../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 19）。此处拒绝是已有对象的动作/终结，不是新身份。
+- **拒绝的出处**：[PF-001 接收方可以明确拒绝待处理邀约](../../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 22）。此处拒绝是已有对象的动作/终结，不是新身份。
 
 ### UL-tenant · 租户 · Tenant
 
@@ -236,10 +236,33 @@
 > does not carry a role.**
 
 - **形态**：对象
-- **出处**：[PF-001 §4 租户](../../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 19）
+- **出处**：[PF-001 §4 租户](../../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 22）
 - **别混**：不是组织，也不是账号，**是两者的组合**
 - **注意 ①**：跨租户访问**默认拒绝**；**使用成本按租户归属**，且**不随派发层级漂移**
 - **注意 ②**：**身份由那一组合确定，不因成员关系断续而变**——退出组织之后再被邀请加入，[回来的是同一个租户](../../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)；解除期间它的租户级私有部分**不可达，但不销毁**
+
+### UL-tenant-workspace-relation · 租户—工作区关系 · Tenant–Workspace Relation
+
+> **中**：记录一个[租户](#ul-tenant--租户--tenant)与一个[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)之间当前关系的对象。
+> 它区分治理所有者与被授权参与者，另带有效能力、来源和状态；治理中心用有效关系列出该租户当前可感知的工作区。
+> 公开地址的发现不会自动产生这条关系。解除关系即删除该关系条目，中心托管工作区确认销毁后删除指向它的全部租户关系；在未重新显式登记前，该租户的会话使用原本地目录时，只按普通目录处理，不从其中加载工作区装配来源。
+
+> **EN**: A durable object recording the current relationship between a tenant and a workspace. It distinguishes governance ownership from authorized participation and carries effective capabilities, origin, and status. A governance center lists a tenant's workspaces from its active relations; discovering a public address does not create one automatically. Unlinking deletes this relation entry; confirmed destruction of the centrally hosted workspace deletes all tenant relations pointing to it. Until explicitly registered again, subsequent sessions of that tenant treat the former local directory as an ordinary directory, without loading workspace assembly sources from it.
+
+- **形态**：对象
+- **出处**：[PF-020 租户—工作区关系](../../product/PF-020-workspace/design.md#租户工作区关系)（rev 21）
+- **别混**：不是工作区实例，也不是一次会话的选择；实例是关系生效后在部署节点上的装载结果。
+- **参与边界**：有效关系不替代所属组织的[工作区参与限制](scope-and-resolution.md#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction)；该限制针对开发、维护与写入，不拦原有资格下的只读访问。
+
+### UL-workspace-super-administrator · 工作区超级管理员 · Workspace Super Administrator
+
+> **中**：由某个工作区的创建者租户明确授予该工作区超管级别权限的租户。它是该租户相对于此工作区的授权角色，具有销毁该工作区、解除参与租户关系以及退出自身参与关系的资格；退出后失去该工作区的授权。它不是组织超级管理员身份，也不因获授权限而变更工作区的治理归属。创建者自身具有销毁资格，不要求先给自己授予此角色。仅创建者可以授予或撤回该角色，工作区超管不能转授；撤回角色保留参与关系，其余权限依已有授权。
+
+> **EN**: A tenant explicitly granted super-administrator privileges for a particular workspace by that workspace's creator tenant. This workspace-scoped authorization role permits destruction of that workspace, removal of participant relations, and withdrawal of its own participation. Withdrawal ends its authorization for that workspace. It is distinct from an organization super administrator and does not change the workspace's governance ownership. The creator may destroy the workspace without a separate self-grant. Only the creator may grant or revoke this role; its holder cannot delegate it. Revocation preserves the participation relation and other independently granted permissions.
+
+- **形态**：属性
+- **出处**：[PF-020 治理关系解除与中心销毁](../../product/PF-020-workspace/design.md#治理关系解除与中心销毁)（rev 21）
+- **边界**：不能单独删除仍存在的工作区的唯一治理所有者关系；本版不提供所有权移交。仅创建者授予和撤回，工作区超管不可转授；其余管理能力沿既有授权，不因名称推定全平台权限。
 
 ### UL-membership-standing · 成员资格效力 · Membership Standing
 
@@ -257,7 +280,7 @@
 > **which** tenant it is; a change of role changes neither.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 退出之后再加入，回来的是同一个租户](../../product/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户) · [§6.4 隔离](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) · [PF-001 flows §3.3 成员关系](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（rev 19）
+- **出处**：[PF-001 §4 退出之后再加入，回来的是同一个租户](../../product/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户) · [§6.4 隔离](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) · [PF-001 flows §3.3 成员关系](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（rev 22）
 - **别混 ①**：**不是[租户角色](#ul-tenant-role--租户角色--tenant-role)。**角色答「这个身份**能做什么**」，效力答「这个身份**此刻算不算数**」。有效时两样同时成立，[角色调整不改变效力](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)
 - **别混 ②**：**不是[租户](#ul-tenant--租户--tenant)本身。**租户身份是 (组织, 账号) 这一组合**确定的值，不生不灭**；**有效性才是有状态、有写路径、有并发约束的那一面**
 - **别混 ③**：**[PF-001 flows §3.3 把这件事叫作「成员关系」](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)**，那一节画的「无 → 成员 → 无」正是这两个取值。
@@ -283,7 +306,7 @@
 > later changes to this selection leave what was already created untouched.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 当前租户身份](../../product/PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份) · [PF-001 flows §1.8 切换当前组织](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#18-切换当前组织)（rev 19）
+- **出处**：[PF-001 §4 当前租户身份](../../product/PF-001-identity-scope-and-agent-constraints/design.md#当前租户身份) · [PF-001 flows §1.8 切换当前组织](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#18-切换当前组织)（rev 22）
 - **别混 ①**：**不是[协作范围 context](scope-and-resolution.md#ul-collaboration-scope-context--协作范围-context--collaboration-scope-context)。**那一块是 agent 运行时感知到的「我在哪个组织、什么租户身份、什么角色」**整块信息**；这一条只是**其中那个租户身份从哪儿来**的那项选择
 - **别混 ②**：**不是租户本身**，是一项**指向**租户的选择。租户的身份由 (组织, 账号) 确定，与此刻谁选了它无关
 - **注意 ①**：它**不是[范围化对象](scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object)**——不参与任何一层的求值，也不被任何一层配值。它只决定**这一次动作以谁的身份开始**
@@ -302,7 +325,7 @@
 > established or facts already recorded.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 角色](../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色)（rev 19）
+- **出处**：[PF-001 §4 角色](../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色)（rev 22）
 - **别混 ①**：**不是[权限](capabilities-and-composition.md#ul-permission--权限--permission)**——角色是**身份**的属性，权限是**资产**的属性
 - **别混 ②**：**与消息里的 role 字段（user / assistant / system）毫无关系**。**裸写「角色」在跨 topic 的文字里一律不作数**
 
@@ -319,7 +342,7 @@
 > personal scope. **Every organization always has at least one.**
 
 - **形态**：状态
-- **出处**：[PF-001 §4 角色](../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色) · [PF-001 flows §3.3 成员关系](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（rev 19）
+- **出处**：[PF-001 §4 角色](../../product/PF-001-identity-scope-and-agent-constraints/design.md#角色) · [PF-001 flows §3.3 成员关系](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（rev 22）
 - **别混**：**不是平台管理员。**这是最容易读错的一条，读错会把组织级治理当成全局治理
 - **注意**：**本版管理类动作一律只归它**——[邀请新成员、调整他人角色、管理组织的设置权限资产、建立或解除隶属，以及看本组织发出的邀约、收到的隶属请求与已解除的成员，普通成员一概不可](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)。**本版没有「可被授予的管理资格」这样东西**
 - **注意**：**本组织的有效成员名单不在管理类之内**——[它对本组织的每一位有效成员可见](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)，看得见名单不等于持有这个角色；**[成员资格已失效](#ul-membership-standing--成员资格效力--membership-standing)的那些另算，[只有它看得见](../../product/PF-001-identity-scope-and-agent-constraints/flows.md#四角色与操作)**
@@ -343,7 +366,7 @@
 - **形态**：总称
 - **出处**：[PF-017 §4 运维者](../../product/PF-017-governance-center-as-deployable-application/design.md#运维者) ·
   [§5.5](../../product/PF-017-governance-center-as-deployable-application/design.md#55-运维者与超级管理员两条线不交叉) ·
-  [§6.13](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 5）
+  [§6.13](../../product/PF-017-governance-center-as-deployable-application/design.md#613-运维者没有任何一扇门通向账号能做的事)（rev 6）
 - **⚠️ 别混**：**不是[超级管理员](#ul-super-administrator--超级管理员--super-administrator)。**超管是一个组织内的最高治理角色，
   凭自己的登录状态做治理动作；运维者凭对机器与数据的控制让中心在，**手上没有任何登录状态可用**。
   同一个人两头都是，产品也当成两个人

@@ -2,7 +2,7 @@
 id: PF-003
 title: 资产的复制与分享
 status: active
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on:
@@ -10,6 +10,8 @@ relations:
       for: 上级组织与隶属关系、超级管理员与普通成员、拥有/获权/选用、四层作用域、租户级资产的所有者、租户范围到组织范围的提升、作者与所有者、退出后租户不再有效、撤销的效应
     - id: PF-002
       for: 资产的八个种类、能力标识、持有（含租户级持有）、一层由谁管、设置与权限是资产的属性、权限项「谁可以使用它」、plugin 的内含成员
+    - id: PF-020
+      for: 工作区来源、身份与实例边界，相关规则按工作区产品设计求值
   extends: []
 ---
 
@@ -75,7 +77,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 
 ## 状态
 
-- 产品设计：**rev 5，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 6**，本轮工作区一致性增量为草稿；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 5，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
 - 待裁决：**0**；提升时生效分享的现行规格处理已随 D-065 接受，历史候选与来由见 decisions.md。
 - 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留

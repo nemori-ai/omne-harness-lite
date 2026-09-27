@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 定义与装配
 status: active
-revision: 12
+revision: 13
 relations:
   supersedes: []
   depends-on:
@@ -10,6 +10,8 @@ relations:
       for: 身份与四层作用域、Context 两种、撤销的效应、成本按租户归属
     - id: PF-002
       for: 资产八类、能力标识、持有与层级求值、移除与禁用
+    - id: PF-020
+      for: 工作区来源、身份与实例边界，相关规则按工作区产品设计求值
   extends: []
 ---
 
@@ -82,7 +84,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 12，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 13**，本轮工作区一致性增量为草稿；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 12，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**两项**——[「master 的全套机制」包含哪些](design.md#九未决项)、
   [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
 - 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。

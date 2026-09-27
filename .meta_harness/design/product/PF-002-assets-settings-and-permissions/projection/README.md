@@ -1,5 +1,7 @@
 # PF-002-assets-settings-and-permissions 的技术投影
 
+工作区产品定义已演进，旧投影中的相关规则适用范围见[契约入口](../../../spec/data/asset-model/README.md)；既有投影继续保留原来源修订。
+
 | 版本 | 范围与来源 |
 | --- | --- |
 | [v3](v3/projection.md) · [来源](v3/provenance.json) | 原 post-review 设计的行政坐标迁移；当前来源摘要重新固定，依据 [D-066](../../../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md) |
