@@ -24,3 +24,9 @@
 [v3](v3/projection.md)：D052可搬运宿主与共享开发工具的限定实现快照，未包含备份/恢复。
 
 [v4](v4/projection.md)：D053属主竞争和bounded迁移原子幂等修复，补充v3，不覆盖备份/恢复。
+
+当前接续： [v5](v5/projection.md)为D055不停服维护；[v6](v6/projection.md)为D-067 Docker部署提供路径。旧v2“当前”只描述其历史基础范围，Docker增量从v6读取，接受设计不等于实现。
+
+[v7](v7/projection.md)：D-071 当前停止绑定，承接 D-070 的 Docker R4，替换v6对应的三处停止控制；旧v6按历史编号读。设计接受不代表最终制品已验。
+
+[v8](v8/projection.md)：D-072仅接续健康探针同进程公开main绑定，停止协议继续沿v7；新制品与实际验证待完成。

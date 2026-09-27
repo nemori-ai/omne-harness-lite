@@ -1,0 +1,25 @@
+services:
+  maintenance:
+    image: ${OMNE_CENTER_IMAGE:?verified immutable image identity required}
+    user: "${OMNE_CENTER_UID:?uid required}:${OMNE_CENTER_GID:?gid required}"
+    command: [--version]
+    restart: "no"
+    stop_signal: SIGTERM
+    network_mode: none
+    healthcheck:
+      disable: true
+    volumes:
+      - type: bind
+        source: ${OMNE_CENTER_STATE_DIR:?state directory required}
+        target: /state
+    logging:
+      driver: local
+      options:
+        max-size: ${OMNE_CENTER_LOG_MAX_SIZE:-10m}
+        max-file: ${OMNE_CENTER_LOG_MAX_FILE:-3}
+    labels:
+      ai.nemori.omne.project: ${OMNE_CENTER_PROJECT:?project required}
+      ai.nemori.omne.service: maintenance
+      org.opencontainers.image.version: ${OMNE_CENTER_VERSION:?version required}
+      ai.nemori.omne.host-build-id: ${OMNE_CENTER_BUILD_ID:?build id required}
+      ai.nemori.omne.distribution: tenancy-host-docker/1

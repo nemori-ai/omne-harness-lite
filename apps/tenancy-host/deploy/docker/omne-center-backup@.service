@@ -1,0 +1,13 @@
+[Unit]
+Description=Governance center due backup for project %i
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+PassEnvironment=DOCKER_HOST
+ExecStart=/usr/local/libexec/omne-center backup --project %i --only-if-due
+TimeoutStartSec=infinity
+TimeoutStopSec=infinity
+StandardOutput=journal
+StandardError=journal

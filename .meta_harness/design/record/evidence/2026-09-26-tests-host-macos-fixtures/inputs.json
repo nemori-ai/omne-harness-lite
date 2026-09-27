@@ -1,0 +1,12 @@
+{
+  "hubCommit": "bb136475ffdfaaf0f1eb02b4079f16494b0011a7",
+  "workerCommit": "818a7163e00f2f28b5a4fb7b6407c165ff07ed04",
+  "sourceHashes": {
+    "apps/tenancy-host/tests/e2e/deploy.ts": "9ac55fc193e3876c40ca18b1020e0610b696dd46e7055814e336d3b8a6b5433c",
+    "apps/tenancy-host/tests/e2e/e2e.spec.ts": "277723700934029b556347ad3601a3761a56d3681c0466c8ea52228b065c519e",
+    "pnpm-lock.yaml": "b8950c405919ce9b7306f968ca6a9b078d4dbc3fd2f4e9cd85142a904375b7d1",
+    "apps/tenancy-host/tests/maintenance-dispose.process.spec.ts": "54e05b8c04d28b8d2ce5c753098ef5d613e1ac2e9973630ae28abed0061c2c27",
+    "apps/tenancy-host/tests/fixtures/maintenance-dispose-child.ts": "c32240ad90731ffbc3cb2960bb6dcb5f1f855d2d3808399e66565216d92e0340"
+  },
+  "archiveSha256": "1159e7cac8c184c2b5fdac9f0f6bdd42d305be5c54d73e6a8bfaf841248e8b69"
+}

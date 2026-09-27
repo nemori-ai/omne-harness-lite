@@ -47,7 +47,7 @@
 - **`CallId` 的会话内唯一**只能登前提（SHA-256 抗碰撞、`ModelCallId` 会话内唯一），给不出会失败的测试；若评审认为这不够，退路是让 P-2 把 `CallId` 的登记落在会话日志的判重键上——那是 model-request-runtime 一侧的改动，报主线。
 - **状态码表、费用单位、用量换算**都是待核对主张（PAT-N3、N5、N6）；T 系列只核本包照表与照规则做，不核规则本身对不对。
 - **PAT-N4、PAT-N9 已由契约闭合**（D-060 §八 N-40 ④、N-41）：T-19 的带内一支从「两样都交出来」改为断言 `statusCode` = 带内 `code` 且带 `inBand`；T-7、T-17 仍只核本包拒绝且零出站——拒绝值到 `undispatched{modality_mismatch}`／`invalidInput{reason}` 的收场在 P-2，证据归 model-request-runtime 一侧。
-- **P-2 对 `local{queued}` 与无码带内错误的分类**（PAT-N18）：T-19 只核本包交出的事实；P-2 按哪一行收场没有判据，受阻的是场景 S-46 的对应支。
+- **P-2 对 `local{queued}` 与无码带内错误的分类已有判据**（PAT-N18）：MRR v2 S-18/S-21/S-36 已闭合；T-19 仍只核本包交出的事实，P-2 最终成因及撤除收场的场景证据归 model-request-runtime，尚未执行。
 - **跨 fiber 的撤除次序与等待**未核实；本设计的结局不依赖它，T-20 只覆盖同一装配里先撤本插件的那一种。**kernel-basis 的 probe 候选**（候选名 `dispose-order-across-inject`，owner kernel-basis 节点，尚未登记）：提供者 fiber 撤除时，inject 它的依赖方是在提供者的异步撤除函数完成之前还是之后被卸载；它决定本插件撤除的等待是否要等到在途流自然收尾（[design 的撤除等待上界](design.md#成对的装载与撤除)）。
 
 ## 独立评审
@@ -62,3 +62,10 @@
 | 观察（`connectTimeoutMs`） | 它是 S-21 两个设置项之外的第三处时限来源 | 已在策略配置项表标价，不改 | — |
 | 观察（撤除等待上界） | 若内核先完整撤除本插件再卸 P-2，撤除等待要等在途流自然收尾 | 写明上界「等于流的自然收尾，受 P-2 的时限约束」；撤除函数等最后一条在途收场、池销毁后才返回；内核次序登 kernel-basis probe 候选 | design 装卸表与「撤除的等待上界」一条；本页覆盖缺口 |
 | 契约对齐（主线） | 同一批契约改写还承接了 PAT-N3 的 402／403 两行、PAT-N11（G-22）、PAT-N16、PAT-N17（G-23）、PAT-N14 的 ②③ | 各行改指契约坐标；PAT-N14 只剩「工具条目的来路」，改「待契约（与 MRR-N14 同一件事）」 | design 参数处置表 `maxOutputTokens` 行、策略配置项 `routeWireHints` 行、inject 边与依赖表、PAT-N3、N11、N14、N16、N17；README 分层状态 |
+
+
+[D-070 I-B](../../../../record/decisions/core11-integration-coordination/decision.md#生产者铸号)承接 T-13 增补的 [IS-2](../../../../record/proposals/content-blocks-implementation-seams/design.md#验证与消费门)：精确编码、无界整数、等值写法与特殊字符串的确定性，未执行。非法 target、CallId 判重／恢复与原比较门不因该采用闭合。
+
+## 2026-09-27 既有承诺同步
+
+主线与独立 spec-reviewer 定向核对 PAT-N14、PAT-N18、MRR-N15：MRR v2 冻结契约 SHA256 `d7d166da84aaf1f05ac6274abc0f215e57a32dadad79db19f4a7402120f799b9` 已含 D-060 N-42～N-44 的工具条目来源、无码带内错误与排队中止分类，D-066 登记继续承接其语义接受。三处为节点漏同步，按既有条款修正，无新裁决、未改冻结资源。历史评审表保留原时点；未运行源码、T/G 比较门或新的形式验证，其他实施缺口不变。

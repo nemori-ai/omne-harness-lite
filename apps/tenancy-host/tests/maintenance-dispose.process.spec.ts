@@ -11,7 +11,8 @@ import { deployment } from './support/deployment.ts'
 it.each(['controller-error', 'storage-error', 'controller-pending', 'storage-pending'] as const)(
   'observes %s despite Cordis disposer error swallowing',
   async fault => {
-    const d = await deployment(`maintenance-dispose-${fault}`)
+    // Keep the Unix socket path within the macOS pathname limit.
+    const d = await deployment(`dispose-${fault}`)
     const child = spawn(
       process.execPath,
       [
