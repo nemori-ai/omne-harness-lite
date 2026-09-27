@@ -52,6 +52,18 @@ export interface SessionLogOptions {
   readonly policy?: Partial<SessionLogPolicy>
   readonly diagnostic?: (event: SessionLogDiagnostic) => void
 }
+function isolateDiagnostic(
+  sink: (event: SessionLogDiagnostic) => void,
+): (event: SessionLogDiagnostic) => void {
+  return event => {
+    try {
+      sink(event)
+    } catch {
+      // The host owns this borrowed synchronous output and records its own health.
+      // Its failure cannot replace a business result or interrupt physical cleanup.
+    }
+  }
+}
 export function resolveOptions(options: SessionLogOptions): {
   readonly dir: string
   readonly policy: SessionLogPolicy
@@ -104,6 +116,6 @@ export function resolveOptions(options: SessionLogOptions): {
     dir: options.dir,
     policy,
     processOwnership,
-    diagnostic: options.diagnostic ?? (() => {}),
+    diagnostic: isolateDiagnostic(options.diagnostic ?? (() => {})),
   }
 }
