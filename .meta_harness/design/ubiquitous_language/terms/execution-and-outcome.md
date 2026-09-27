@@ -51,7 +51,7 @@
 - **形态**：属性
 - **出处**：[PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
   [工具说明与每个参数的说明，必填](../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 21）
+  [多命令工具的定义里带多少](../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 22）
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是它在数据与治理层面的那一份表示**；
   **同一个身份下可以有平台、组织、租户各自的一份**
@@ -121,7 +121,7 @@
 
 - **形态**：属性
 - **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 19） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 21）
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 22）
 - **别混**：**不是「前台跑多久自动转后台」那一项**——那是允许后台的工具[另一项偏好设置](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)；前台上限对不许后台的工具同样起作用，到点被中断
 - **注意**：**等人的时间不算，是有意的**——[`Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人) 停在前台等人永不过期，把等人算进来，它就成了一个替人签字的到点
 
@@ -137,7 +137,7 @@
 
 - **形态**：属性
 - **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 19） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 21）
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 22）
 - **别混**：**裸写「并发上限」不作数**——它只数同一个会话里的同一个工具，不是会话、租户或整个系统的并发
 
 ### UL-model-call · 一次模型调用 · Model Call
@@ -374,7 +374,7 @@
   [PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 8） ·
   [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 15） ·
   [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 13） ·
-  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 20）
+  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 21）
 - **别混**：**不是[工具产出](#ul-tool-output--工具产出--tool-output)**——产出是给读者的东西，账是关于这次的事实
 - **注意**：工具内部调外部服务产生的费用也记在这里，一次执行可以有多笔
 - **注意 ②**：**一次模型调用「已经开口」也是它账目里的一笔**——第一份内容交到任何人眼前之前落进日志，

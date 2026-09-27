@@ -51,6 +51,7 @@
 | **C-31** | **「X 运行时」出现在规格的能力名里**（「模型请求运行时」「工具执行运行时」） | **同名不同义**（词表 vs 规格层） | [`runtime` 那条写死的规矩](conventions.md#runtime-这个词本系统写死了)要求以 runtime 为中心词的都是**一个协程**：[一次模型调用](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)、[一次工具执行](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)各有一个。而共用契约起草时把**承载所有这类协程的那一项系统能力**也叫「模型请求运行时」「工具执行运行时」——那不是一个协程，是一项能力。[UL-model-call 注意 ②](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) 原写「『模型请求运行时』指执行这一次调用的那个协程」，读到规格里的能力名就会以为两者相等 | **✅ 已闭合（2026-09-25，主线裁定 [D-060 §七 M18](../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)，维持 [§一 T-3](../record/decisions/mainline-self-rulings-2026-09/decision.md#词条批2026-09-24-合回-hub-0256d02c216-词条10-项待裁对账全绿)）**：**名字保留**——规则量的是所指，两项能力的提供者各是一条宿主协程；[`capability.model-request-runtime`](../spec/capabilities/model-request-runtime/README.md) 与 [`capability.tool-execution-runtime`](../spec/capabilities/tool-execution-runtime/README.md) 的 README 各写明「本能力的提供者是运行时协程」。词表侧（2026-09-24）注意 ② 已写明它指「这一次调用的那个协程」、**不是那项能力**，不改。读到这两个能力名的人仍按所在层分清指的是哪一个 |
 | **C-33** | **「动作空间」/ Action Space**（[UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space)）在一次运行的几次尝试之间变不变 | **定义打架**（两份产品正文） | [PF-004 I-4](../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)（rev 12）：「**动作空间只由构成决定**」，一次运行之内权限怎么变它都不变，不可用的条目由[替换件](../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)在原位占着；[PF-012 §5.7](../product/PF-012-agent-loop-and-run/design.md#57-一次尝试三条路通向重新算一遍)（rev 14）：「**重算之后动作空间可能与上一次尝试不同**」，[§7](../product/PF-012-agent-loop-and-run/design.md#七取舍) 同一说法「前后两次尝试的动作空间可能不同」。照 §5.7 字面，每次尝试重算可用性会把用不了的条目从 agent 眼前拿掉；照 PF-004，几次尝试之间变的只是哪些调得通，条目不少。§5.7 下一句「它调一个已经没了的能力，替换件会给它『用不了 + 原因』」与 PF-004 同向 | **待裁决**——归 PF-012 的 owner，已登记在 [PF-012 decisions §四](../product/PF-012-agent-loop-and-run/decisions.md#四已知的来源问题)（2026-09-24，本 rev 只登记）。PM 的读法：§5.7 与 §7 的「动作空间」该读作「调得通的范围」，改措辞即可；改之前要确认该 topic 别处没把「动作空间」当「调得通的范围」用。词条照 PF-004 定义不动，只在「注意」里点明这一处 |
 | **C-34** | **[尝试栅栏](terms/agent-runtime-loop.md#ul-attempt-fence--尝试栅栏--attempt-fence)拦不拦被取代那次尝试迟到的账** | **定义打架**（产品正文 vs 规格） | [PF-012 §5.7](../product/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它)（rev 14）：「只有序号最大的那次尝试的写入被接受；序号更小的尝试，**写什么都被拒**」；同一份正文的 [I-11](../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只给**运行终结之后**开了口：「终结之前已经发起的那些，账在终结之后才到的，照样落账、归这个 Run，并标明是迟到的」。规格把这个口子延到了**尝试已被取代**：[`data.call-accounts` v2 S-39](../spec/data/call-accounts/v2/contract.md#s-39-晚到的账)「它锚定的那次尝试已被新的尝试取代，或它归属的那次运行已经终结——它仍然落下……并标 `late: true`」；[`capability.session-log` v2 S-10](../spec/capabilities/session-log/v2/contract.md#s-10-尝试栅栏) ③ 结算类的写（响应体、账）不带栅栏、照写（主线裁定 [D-060 K14](../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。**照 PF-012 字面**，一次在旧尝试里已经出门的模型发出，它的账与响应体写不进日志，「按 Run 汇总成本」会漏；**照规格**，栅栏只拦推进运行的写 | **已闭合（2026-09-26）**：产品负责人同意修正文，[D-064 ⑮](../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)；PF-012 rev 15 的 §4、§5.7 与 I-11 已对齐，尝试栅栏词条同步。左列保留发现时原文。 |
+| **C-35** | 工作区整体私有与共享 | 定义打架 | 旧文案将共享资源也描述为租户私有，与共享参与和两个目录的边界冲突 | **已对齐**，见下方 C-35 |
 
 ### C-1 的处置：两个概念都不改名，改的是「能不能裸用」
 
@@ -74,6 +75,7 @@ PF-001 说的是「协作范围 context」「个人 context」，PF-010 说的�
 
 **四个所指各有正式名，`Context` 这个词本身不再单独作数。**
 **这一条只定用法，没有改动任何 topic 的产品结论。**
+
 
 ## C-11 与 C-12 的处置：这两个词都不收
 
@@ -125,6 +127,13 @@ C-1 那两个概念都已拍板、都动不了，只能定用法；**这两条�
 **这一条只定用法，不要求任何 topic 回改**——
 现有正文里的「事件」本来就是日常义，[PF-000 §6.7](../product/PF-000-occurrences-and-record-entries/design.md#67-事件在本系统不是术语) 已把这条写进产品规则。
 
+
+## C-35 · 工作区整体私有与跨租户共享 — 已按产品要求对齐
+
+- 观察到的旧说法：[PF-001「路径是地址，不是钥匙」](../product/PF-001-identity-scope-and-agent-constraints/design.md#路径是地址不是钥匙)（rev 20）写“各自的工作区资产与配值互不可见”；[PF-002 验收](../product/PF-002-assets-settings-and-permissions/acceptance.md)（rev 21）写切换租户后“工作区是另一份”。
+- 已有另一说法：[PF-020 工作区](../product/PF-020-workspace/design.md#工作区workspace)（rev 2）写“参与租户的实例仍然指向同一个工作区”。前两处把共享资源也写成了租户私有内容，会使跨租户维护同一工作区无法成立。
+- 处置依据：产品负责人确认共享参与，并于 2026-09-27 明确 `.omne` 与其他获准租户共享、`.omne.local` 仅单租户本地定制，要求落进 PF。来源见 [交流笔记](../product/PF-020-workspace/interviews/2026-09-27-assets-settings-and-attachment.md)。
+- 状态：PF-020 rev 3、PF-001 rev 21、PF-002 rev 22 已对齐；共享资源按关系授权，私有内容仍按租户隔离。组织参与限制不拦有资格的只读，也不授予额外读取权。整包、同步策略与冻结规格的接受状态不因本项对齐而升级。
 
 ## 记的时候写清楚什么
 

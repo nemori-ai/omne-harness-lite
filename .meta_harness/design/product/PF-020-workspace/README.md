@@ -2,7 +2,7 @@
 id: PF-020
 title: 工作区
 status: draft
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on:
@@ -27,6 +27,10 @@ relations:
 仍由 [PF-002](../PF-002-assets-settings-and-permissions/README.md) 负责；本版不提前决定
 中心存储、同步冲突或并发写入的具体策略。
 
+组织可限制本组织租户只参与本组织或同一组织隶属树中的工作区工作，两种限制均不拦只读访问。
+实例目录下的 `.omne` 与 `.omne.local` 结构相同，用于自动发现资产、配置与规范；可用内容取并集，
+同能力资产由 local 覆盖共享来源。`.omne` 的变更进入共享同步，`.omne.local` 只供单个租户本地定制。
+
 ## 关系
 
 | 关系 | 含义 | 本 topic 的情况 |
@@ -45,12 +49,13 @@ relations:
 | 哪些是用户裁定、哪些是 PM 推导、哪些未定 | [决策与来源](decisions.md) |
 | 这块设计如何演变 | [变更历史](changelog.md) |
 | 本轮交流原话 | [设计交流笔记](interviews/2026-09-24-workspace-concept.md) |
+| 组织参与限制、共享与本地目录的确认过程 | [2026-09-27 交流笔记](interviews/2026-09-27-assets-settings-and-attachment.md) |
 
 ## 状态
 
-- 产品设计：**rev 2，草稿**。这是当前讨论的初步落盘，后续仍会补充产品需求与策略。
+- 产品设计：**rev 3，草稿**。已落盘组织参与限制、目录组织与资产合并规则；下一轮讨论 Omne Host 工作区的上传、下载与同步，整包尚未定稿。
 - 未决项：10 项（见 [design.md 第九节](design.md#九未决项)）。
-- 待裁决：0 项；用户已明确的方向与 PM 推导分列在 [decisions.md](decisions.md)。
+- 待讨论策略见 [decisions.md](decisions.md#三待继续讨论)；用户已明确的方向与 PM 推导分列，不为未决项填写默认值。
 - 技术投影：尚未开始。
 
 ## 本包的文件
@@ -63,5 +68,7 @@ PF-020-workspace/
 ├── acceptance.md
 ├── decisions.md
 ├── changelog.md
-└── interviews/2026-09-24-workspace-concept.md
+└── interviews/
+    ├── 2026-09-24-workspace-concept.md
+    └── 2026-09-27-assets-settings-and-attachment.md
 ```

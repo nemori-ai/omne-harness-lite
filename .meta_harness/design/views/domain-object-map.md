@@ -100,7 +100,7 @@
 | [邀请](../domain_objects/objects.md#ul-invitation--邀请) | [UL-invitation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-invitation--邀请--invitation) | [组织](../domain_objects/objects.md#ul-organization--组织)——**发出它的那个组织**：它不存在了，这份邀请随即自动过期。它指向一个账号，但那个账号在接受之前对它没有任何持有；个人组织发不出邀请 | — | PF-001 | — |
 | [隶属请求](../domain_objects/objects.md#ul-affiliation-request--隶属请求) | [UL-affiliation-request](../ubiquitous_language/terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 正文未述。由一个[组织](../domain_objects/objects.md#ul-organization--组织)的超级管理员发出、指向另一个组织；个人组织不参与隶属关系，既发不出也收不到 | — | PF-001 | — |
 | [租户](../domain_objects/objects.md#ul-tenant--租户) | [UL-tenant](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | —（身份由[组织](../domain_objects/objects.md#ul-organization--组织)与[账号](../domain_objects/objects.md#ul-account--账号)共同确定） | — | PF-001 | 011 013 |
-| [租户—工作区关系](../domain_objects/objects.md#ul-tenant-workspace-relation--租户工作区关系) | [UL-tenant-workspace-relation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 一个租户与一个工作区之间的治理关系；关系任一端不存在或不可达时，关系不再有效 | — | PF-020（草稿） | — |
+| [租户—工作区关系](../domain_objects/objects.md#ul-tenant-workspace-relation--租户工作区关系) | [UL-tenant-workspace-relation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 关联一个租户与一个工作区；独立宿主及任一端终止时的处理正文未述，地址不可达不自动表示关系失效 | — | PF-020（草稿） | — |
 
 ## 谁寄宿在谁身上
 

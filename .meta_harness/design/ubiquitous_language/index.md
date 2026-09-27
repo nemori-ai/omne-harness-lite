@@ -54,6 +54,9 @@
 | [UL-workspace-address](terms/scope-and-resolution.md#ul-workspace-address--工作区地址--workspace-address) | 工作区地址 | Workspace Address | 找到或访问工作区/实例的本地或远端地址；有提供者类型，不是工作区身份或访问凭据 |
 | [UL-workspace-category](terms/scope-and-resolution.md#ul-workspace-category--工作区类别--workspace-category) | 工作区类别 | Workspace Category | 工作区的资源与治理语义类别，不等于地址提供者 |
 | [UL-workspace-address-provider](terms/scope-and-resolution.md#ul-workspace-address-provider--工作区地址提供者--workspace-address-provider) | 工作区地址提供者 | Workspace Address Provider | 提供地址的 Omne Host、GitHub、Obsidian、Office 365 等外部系统或宿主类型 |
+| [UL-workspace-shared-directory](terms/scope-and-resolution.md#ul-workspace-shared-directory--工作区共享目录--workspace-shared-directory) | 工作区共享目录 | Workspace Shared Directory | 实例下的 `.omne`，共享资产、配置与规范，变更进入共享同步 |
+| [UL-workspace-local-directory](terms/scope-and-resolution.md#ul-workspace-local-directory--工作区本地目录--workspace-local-directory) | 工作区本地目录 | Workspace Local Directory | 实例下的 `.omne.local`，单租户本地定制，同能力资产优先，不进入共享同步 |
+| [UL-workspace-participation-restriction](terms/scope-and-resolution.md#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction) | 工作区参与限制 | Workspace Participation Restriction | 组织限制本组织租户参与外组织或外树工作区的写入与维护，不拦只读 |
 | [UL-scoped-object](terms/scope-and-resolution.md#ul-scoped-object--范围化对象--scoped-object) | 范围化对象 | Scoped Object | 归属于某一层、参与求值的那类对象 |
 | [UL-capability-identifier](terms/scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier) | 能力标识 | Capability Identifier | 判定两个对象能否互相覆盖的那个标识，资产上是**类别 ＋ name**；模型档案以路由名充当 |
 | [UL-scope-evaluation](terms/scope-and-resolution.md#ul-scope-evaluation--作用域求值--scope-evaluation) | 作用域求值 | Scope Evaluation | 沿层算出这次实际生效的那一份 |

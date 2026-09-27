@@ -571,7 +571,7 @@
   [§5.3](../../product/PF-000-occurrences-and-record-entries/design.md#53-干预力只长在瞬态这一半上)（rev 1） ·
   [PF-012 §5.8 干预力三档](../../product/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的) ·
   [没有「放宽」这一档](../../product/PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 15） ·
-  [PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 21）
+  [PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 22）
 - **注意 ①**：**在拓展件上它是一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)，不是设置**——各层按收窄合成，组织锁在「只观察」，租户就放不宽
 - **注意 ②**：**三档挂了的后果相反**——只观察那一档不影响正在发生的事；可改写那一档不影响，但留一笔「它没跑成」；可否决那一档报错默认当作否决。**「不可用」不是报错**，另有定法
 - **注意 ③**：**否决只在「之前」的位置上有意义**；可否决那一档站在「之后」，多出来的只有等人
@@ -592,7 +592,7 @@
 > error policy**: unavailable means it never ran; an error means it ran and failed.
 
 - **形态**：属性（一件拓展件登记上的一项；系统自带的那几件由系统预先给定）
-- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 15） · [PF-002 §4 不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 21）
+- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 15） · [PF-002 §4 不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 22）
 - **⚠️ 别混**：与[干预力](#ul-intervention-power--干预力--intervention-power)里「报错默认当作否决」那条是两回事——那条管跑了出错，这条管根本没跑
 - **注意 ①**：**「此刻不在」无论按哪种处置，都必须看得见**——日志里有一笔「这一件此刻不在、按 X 处置」
 - **注意 ②**：系统自带的[放行判断](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)的指定挂件是**全拒件**——它不在时，需要判断的动作一律拒绝，不放行、也不出卡问人
@@ -612,7 +612,7 @@
 - **形态**：过程
 - **出处**：[PF-012 §5.8 改了日志就重新组装，同一位置同一次经过只跑一轮](../../product/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)（rev 15）
 - **注意 ①**：**与压缩那一圈同构**——压完再量一次，还超就上交，不再压一轮；不定这条，一个爱改日志的挂件就能把自己无限触发下去
-- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 21），后一件看得到前一件的结论
+- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 22），后一件看得到前一件的结论
 
 ### UL-wait-primitive · 等待原语 · Wait Primitive
 
@@ -684,7 +684,7 @@
 
 - **形态**：过程
 - **出处**：[PF-004 §4 装配](../../product/PF-004-agent-definition-and-assembly/design.md#装配)（rev 12） ·
-  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 21）
+  [PF-002 §5.6](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 22）
 - **别混 ①**：**裸写「装配 / assembly」在跨领域的文字里不作数**——它专指把 agent 定义求值成清单的这个动作
 - **别混 ②**：**它的产物不是一个活物**——
   **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
