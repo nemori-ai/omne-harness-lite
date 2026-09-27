@@ -1,0 +1,66 @@
+# RT4 Settlement 独立有限形式执行：run 2
+
+四态结果：**Pass，仅限指定 revision2 有限模型与全部正负配置的形式执行**。
+本轮不是正文表达评审、契约采用或产品验收；冻结 contract `27f5476…` 的两个表达阻断及作者后续修订由 root/reviewers 接续。
+
+所有十个实际入口均按原判据执行完成：SANY 正常解析/语义处理，三个正向 TLC 完成状态空间、无反例，六个负控 exit12 且逐一命中指定不变量并有真实交错。run1 的 Fail 原件保留，不被改成 Pass，不借用其三正/五负结果代替 run2。
+
+## 精确输入及环境
+
+- 执行 HUB `/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime`，branch `panqiwei/model-request-runtime`，执行前 HEAD `6f4f8c76703f8e3fbeb147dfa3bb378f7a80c788`。
+- 唯一新写路径 `tmp/model-request-runtime/b1-late-coordination/rt4-formal-run-2/**`；未覆盖 run1 或其他任务。
+- 正式模型/cfg 与 29 项候选全部从 root 只读冻结副本 `rt4-review-revision2/inputs/` 抄存并逐哈希核，不从继续修订的作者 v4 目录读取模型。
+- revision2 manifest SHA256 `ce6c18d5884b24dbf81423becaa48f4672b7a45fd84a95ee5a474b8a1405bd64`。
+- Settlement.tla SHA256 `d7f25d31fa24a25560bf67d4bc9adf0ccb9b7a9f66606f9a56023f9e2e9049f5`。
+- contract 仍为 `27f547649025f9a7c94a499355ed25a94c72fed01e875a263e0a38cc0add8772`；本轮不审也不批准正在改的正文。
+- registry candidate SHA256 `f9ac6a5ad2d8601b945cd6ce6887adfdf447aa6c40583b6d2cbc08776de9397c`。
+- 29 项和 run1 frozen manifest 比较，只有 Settlement.tla 哈希改变，其余 28 项和全部 cfg 不变；实际模型 diff 保存在 `model-run1-to-run2.diff`，修订为完整 Boolean RHS 增括号。
+- 64 项旧 RT2/RT3/SL2/SL3 规范按作者只读 registry/frozen 核并抄存。13 个继承形式 source 从作者旧 v3 目录读取、target 对 root revision2 副本核；不重新执行或重标继承模型。
+- Java `/opt/java/jdk-21.0.12.1+1-jre/bin/java`，Temurin `21.0.12.1+1-LTS`，SHA256 `999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1`。
+- JAR `/opt/tlaplus/tla2tools.jar`，TLC `2026.09.12.025210 (rev: 867aefb)`，SANY2 2.2，SHA256 `db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1`。
+
+`inputs-before.json` 和 `inputs-after.json` 的 102 条记录在运行前后与副本全部匹配。运行 cwd 为本次 `inputs/.meta_harness/design/`。三个正向 argv 从 frozen registry 精确取得，只解析指定 Java/JAR 和本次独立 metadir；负配置沿原 brief/formal README。每 TLC 一个 worker，至多三个进程并行；每任务测量期限 300 秒，所有任务未超时、已真实终止。候选 registry 的 180 秒 metadata 在本次 task brief 中由 300 秒测量期限覆盖，不改变产品策略。
+
+## 逐入口与条款对应
+
+| 入口 | 指定判据及范围 | exit | generated / distinct / queued | 结果 |
+|---|---|---:|---|---|
+| SANY Settlement | 新模型实际解析、语义处理和 lint 无错误 | 0 | 不适用 | Pass |
+| Settlement | WithRun=true，superseded，Budget=2，NoiseLimit=1；S69～72 十不变量 | 0 | 29255 / 12194 / 0 | Pass，完成状态空间 |
+| Settlement_EndedUnknown | WithRun=true，ended，UnknownOpened=true；含 S17 强门/timing | 0 | 72403 / 30965 / 0 | Pass，完成状态空间 |
+| Settlement_NoRun | WithRun=false，UnknownOpened=true；S68/70/71/72 原批、unknown、责任 | 0 | 12958 / 6187 / 0 | Pass，完成状态空间 |
+| NoCompare | CheckTail=false；LateCorrect，S69 | 12 | 227 / 143 / 85 | Pass，指定反例，5 状态 |
+| PartialBatch | WholeBatch=false；NoOrphanMessage，S70 | 12 | 124 / 80 / 52 | Pass，指定反例，4 状态 |
+| PartialClaim | WholeBatch=false；ClaimsWholeBatch，S70 | 12 | 124 / 80 / 52 | Pass，指定反例，4 状态 |
+| UnknownAsAbsent | TrustUnknown=true；UnknownNotAbsence，S70 | 12 | 264 / 166 / 100 | Pass，指定反例，5 状态 |
+| DropOwner | KeepOwner=false，Budget=1；PendingOwned，S71/72 | 12 | 527 / 315 / 171 | Pass，提交尝试后耗尽失责，6 状态 |
+| IgnoreOpened | GuardOpened=false；NoSettlementThroughUnknownOpened，S17/70 | 12 | 248 / 157 / 118 | Pass，指定反例，4 状态 |
+
+负配置是在找到指定反例时停止，不宣称完成其全部空间。每入口确切 argv/cwd/start/end/PID/终态/期限/哈希及 stdout/stderr 保存于 `runs/<id>/{started.json,result.json,stdout.log,stderr.log}`；六负额外有 `trace.txt`。实际原日志均已复核，不只消费 results.json 自报结论。
+
+## 六个实际反例亲判
+
+验证者本轮重新读取六份完整轨迹，判断以下事实；具体机器定位及输入哈希见 `trace-assessment.json`。
+
+1. **NoCompare→LateCorrect**：Prepare(1) 读 sent；Boundary 写 superseded 后，Submit/Process(1) 仍按旧前缀写 response。最终 late=false、expectedTail=1、actualTail=2，提交前历史已含边界，真实错误 late。
+2. **PartialBatch→NoOrphanMessage**：Prepare/Submit/Process(2) 后只有 message 没有 response，actor2 却 done/owner=false。实际孤消息，不是任意状态错误。
+3. **PartialClaim→ClaimsWholeBatch**：同一半批交错，claims[2]=2，但日志没有 response、HasWhole=false。单独 cfg 命中自己的 oracle，不以另一个 oracle 的反例代证。
+4. **UnknownAsAbsent→UnknownNotAbsence**：Prepare(1)→Submit(1)→LoseAck(1)→Recover(1)，没有 StopOld；Recover 前后 pending[1]=true、stopped[1]=false，日志只有 sent。Recover 将 pc[1] 从 unknown 改为 prepare，unsafeAbsence 从 false 变 true，真实违反 UnknownNotAbsence。状态完整，不再出现 run1 的 null/exit75。这只证明该有限模型的禁止缺席推断可失败，不证明真实旧写方能被停止。
+5. **DropOwner→PendingOwned**：Prepare(1) 后 Boundary 先写，Submit(1) 使 spent[1]=1；Process(1) 因尾冲突不写 response，随后 Exhaust(1) 在 Budget=1 耗尽时将 owner[1]=false，pc[1]=exhausted。没有 CancelPolicy，不是初始取消假命中。
+6. **IgnoreOpened→NoSettlementThroughUnknownOpened**：anchorKnown=false、anchorPending=true 时仍 Prepare/Submit/Process(1) 写 response；没有 RecoverOpened。最终 response 存在而 anchorKnown 仍 false。
+
+## 测量自检、终态与保全
+
+- 沿用独立执行设施，增加明确 exit75 拒绝向量。11 个分类器向量全部符合期待，包含语义错误、空 exit0、未完成正向队列、错误 invariant、缺 trace、解析错误、exit75 和 timeout 均拒绝。
+- 所有模型任务本轮全新运行一次，未降判据、改常量/不变量或隐式重跑；设施来源/改动记录在 `measurement-origin.json`。run2 顶层实际 exit0，无测量准备失败。
+- 原 run1 所列 209 inventory 文件和归档再次只读核 hash 均保持；旧 Fail/exit75 和准备故障原件未覆盖。结果记录在 `run1-preservation-check.json`。
+- 全部十个任务的实际 Java PID 已不再存在，见 `terminal-process-check.json`。SANY/TLC 的标准模块由指定 JAR 临时解包到工具自身 `/tmp/tlc-*`，相关原始路径保留；没有额外产品数据写入。
+- 最终闭合 archive/inventory 逐项读回核验。没有产品、Schema/spec、registry、绑定、测试、旧证据修改，没有 commit/push/付费；root 正在做的其他工作不回退。
+
+## 严格范围及未覆盖
+
+三正配置都实际检查 TypeOK、OneResponse、TailGuardSound、LateCorrect、NoOrphanMessage、ClaimsWholeBatch、UnknownNotAbsence、PendingOwned、NoSettlementThroughUnknownOpened、FirstTokenCorrect，仅对这些有限常量给结果。OneResponse/FirstTokenCorrect 没有各自独立负开关，不声称其独立 validity 已证；TypeOK 的变量值域不是外部条款证明。
+
+模型只有两个结算者、一个 ResponseId/MessageId 抽象、单序列日志、一个 sent、一个 superseded/ended 边界、至多一个 noise、每方有限 Budget。Budget 是实验边界，不是产品默认。模型没有公平性/活性条件，不证明无饥饿、最终成功、任意无界交错或预算内必有机会；保留 owner 不等于未调度恢复将发生。
+
+稳定业务身份、原绑定/参数/金额、合法完整前缀及读权限和 Run 事实解释由模型构造/假设给定。StopOld/RecoverOpened 只是实际停止/权威恢复的抽象动作，不证明 OS、网络、门回调或日志 writer 响应停止。真实 IO/耐久/恢复、共同 codec/物理对象/所有写方、租户鉴权、全部十三操作返回、观察出口、多值 headers、37 模型认证与完整 runtime 组合都未验证。正文两处表达阻断和后续修订也不在本轮通过范围。最终技术核签/契约采用由 root 负责。

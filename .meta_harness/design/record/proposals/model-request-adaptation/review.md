@@ -1,5 +1,11 @@
 # 评审记录
 
+## 2026-09-27 RT4 结算消费整包独立复审
+
+architecture-reviewer `/root/b1_late_boundary_review` 与 spec-reviewer `/root/p2_narrow_projection_expression_review` 独立只读审初稿和修订；最终contract `4a31cb8bc98ae5bbb55a28c671ff84a8f86520747de7dd07c180787183651689`，manifest `11ec2435be9ae52f9ccc9f32fc9a745fe7b600b8d0123fd0208a82d26c592e15`。表达初审ER1模型完整右值、ER2未知切换却保M1、ER3进展缺实际提交／恢复机会为阻断，ER4已接受入口误标为非阻断；rev2只修模型，rev3只改五文档，两次定向复核四项全部闭合。架构各轮无本范围阻断，最终中高置信度，保留全尾争用、完整读授权、旧写者协作成本；没有新产品政策或状态权威。
+
+最终73条／13个九项操作／17依赖／55未复核covers／6正任务保持，旧64冻结资源／13继承形式与S54～67未改；最终24形式资源与独立run2字节一致。首轮形式实际exit75失败与修订原因没有隐藏，run2只取得有限模型Pass，不提升新正文／四组向量／IO或全部操作验证。全部初稿、修订、原检查及主线忠实归因摘要见 [191文件归档](reviews/model-request-runtime-v4-2026-09-27.tar.gz)，摘要不是逐字报告或人类总体签收。G28～31及继承缺口保持原owner；本次评审意见不构成接受，精确技术接受另归D086。
+
 ## 2026-09-27 SL3 恢复路径识别增补独立复审
 
 architecture-reviewer `/root/b1_late_boundary_review` 与 spec-reviewer `/root/p2_narrow_projection_expression_review` 分别只读核对 recovery rev1及rev2；初稿 SHA `3cb5bee15aef25c797a5c5e95700a46f97ff985b1fabb7e44e09a14ce9f3b82b`，最终 `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`。架构两轮无阻断，置信度中，保留每日志同步、索引信任及宿主退出观察部署的强反方。表达 ER1 指出 RG-V3 将回执丢失／成功截回一律判不可信，ER2 指出 RG-V7 将第一次重建失败一律要求删除；rev2仅修这两行及修订号，两项独立定向复核均闭合，无新增问题。

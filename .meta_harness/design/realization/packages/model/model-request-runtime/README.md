@@ -1,5 +1,7 @@
 # model-request-runtime
 
+**2026-09-27 RT4语义接受**：[D086](../../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md)接受新版73条及SL3精确消费；当前既有v3提供者投影不自动变成RT4，v4投影尚未采用。公共invokeModel／r7有限消费者证据保持原RT3范围，完整十三操作、共同codec／真实Run／合法读权／多值headers与恢复仍待，不据形式Pass升级实现层。
+
 ## revision7 完整定义消费者补证（2026-09-27）
 
 公开invokeModel随完整transport定义迁移更新双语README；当前12个两包TS块在两个独立制品目录逐字编译并实际执行，两个语言runtime helper均实际调用受控HTTPS。runtime源码未改，HUB组件仍6项；[本轮公共增量签收](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)不放行十三操作、耐久服务或整体P2，official认证仍0／37。旧默认pilot已由transport移除，调用者须明确提供完整定义；下方按旧checkpoint保留。

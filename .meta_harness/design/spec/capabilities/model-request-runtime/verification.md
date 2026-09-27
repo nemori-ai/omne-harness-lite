@@ -1,5 +1,9 @@
 # 验证覆盖与实际证据
 
+## 2026-09-27 v4 精确接受与有限形式结果
+
+[D086](../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md)接受最终contract `4a31cb8b…`及27资源，未提升实际验证状态。独立架构／表达复审关闭ER1～4；全部24形式资源与revision2运行输入一致，新增四组规范向量仍待实际执行。运行及输入权威见 [新形式run](../../../record/evidence/2026-09-27-formal-model-request-settlement/README.md)：原run1为Fail，修复模型括号后run2新SANY／3正／6指定负控有限Pass。run2所测contract仍27f547…，不改称最终正文已执行；旧RT3继承形式不重标签为本轮运行。真实IO／完整合法读权／生产Run／共同codec和旧写者实际停止／多值headers、全部十三操作与37认证均未完成。下面candidate／未执行状态按其历史事件读取，当前接受沿D086与registry。
+
 ## v3 候选变化与证据
 
 **S-36 表达收敛（本次）**：按主线及独立架构确认，明确正常已知收场的 `run_cancelled` 与锚点未知隔离后 S-33 恢复分开；无耐久中断意图时，恢复只据 opened 有无落既有 `runtime_lost` 两支，不声称系统停止原因跨失联已保存。补系统停止后 opened 有/无的规范对照；不新增意图、记录、失败值或恢复禁止政策。仍为 67 条、13 个服务操作，S-55 九项未改，模型未改未重跑；真实故障验收未开始。本轮快照与检查在 `tmp/model-request-runtime/runtime-v3/system-stop-isolation/`。
@@ -346,3 +350,40 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 **G-24 闭合（主线裁定 D-060 §八 N-43）**：[S-28](v2/contract.md#s-28-opencall) ① 的 `ModelCallRequest` 加成员 `report`（属于某个 Run 的调用必带，与 runner `dispatch` 的 `admission.report` 同一份；不属于任何 Run 的不带、`within = session`）；③ 加「`report` 与 `run` 同在同缺、必须是这个会话这个运行这一次尝试的」，不合即 `invalidInput`；④ 续接按这一次交来的 `tools` 与 `report` 重取。**改变 `openCall` 的输入**：loop（调用方）每次属于某个 Run 的调用都要交报告。**Schema 不动**：`ModelCallRequest` 没有任何 Schema（capability 不发布 Schema；`data.messages`、`data.model-response` 都不承载请求形状；`data.loop-extension` 的 `ModelRequest` 只含 `target`、`parameters`、`messages`、`tools` 四个共名成员，`report` 与 `run`、`attempt`、`basis` 同在它之外）。没有证据因此作废。
 
 **同日追加（MRR-N15，主线裁定）**：[S-21](v2/contract.md#s-21-两个时限是运行时设置项) `first_token_wait_limit` 那一行「超了算什么」加限定——`upstream_unavailable` 只在请求已到达上游时成立；传输交回 `local{queued}`（排队没拿到连接、对上游零请求）时按 S-18「传输本地」那一行收 `unrecognized`。**收窄**：把一次本地排队到点报成「上游给不出」，重试件会拿它去换家、退避。没有证据因此作废。
+## v4 候选变化与证据
+
+2026-09-27：从 D-076 已接受 RT3 与 D-083 已接受 SL3 起草 [RT4](v4/contract.md)。只改变必要消费：第四实参 condition、全部 withRun 结算者同次完整前缀及提交点 late、完整批认回、unknown 强门、争用政策/耗尽与 owner；十三服务操作、独立 invokeModel、其余十六项精确依赖不变。旧版本冻结字节及旧证据范围保持。本候选未接受，不新增提供者绑定，也不关闭 B1 或总体验收。
+
+| 施工验收项 | 候选规范落点 | 证据义务与状态 |
+|---|---|---|
+| 1 全部 append 显式 condition，保持 fence 分类 | S-8/S-68；实例 V-7 及失败分支 | 完整调用方清单及旧三参数拒绝；真实消费者迁移未开始 |
+| 2 全部 withRun 结算方同次完整前缀、原 attempt、全批 tailEquals；无 run 原义 | S-69/S-72；V-1～V-5/V-7/V-14 | Settlement 三正配置与真实回复/日志交错；正式形式执行及真实组合未开始 |
+| 3 THIS 零写、身份/原值、完整批认回 | S-70；V-4～V-8/V-10/V-13 | NoOrphanMessage、ClaimsWholeBatch、UnknownNotAbsence 正负配置；共同 codec/真实读回未开始 |
+| 4 不增领域状态或失败、耗尽责任保留 | S-14/S-71/S-72；V-11～V-13/V-15 | PendingOwned 正负配置及逐操作返回/恢复故障验收；未开始 |
+| 5 显式可替换争用政策、无默认/紧循环/模型重试许可 | S-71；V-10/V-11 | 参数缺失、耗尽、取消、无限争用有限退出；真实政策符合性未开始；有限模型不给无饥饿证明 |
+| 6 unknown opened 强门/物理旧写者停止 | S-17/S-33/S-70；V-8/V-9/V-15 | NoSettlementThroughUnknownOpened 正负配置；真实门/网络/append/unfenced 写者停止仍未开始，模型 StopOld 仅假设 |
+| 7 共同物理日志/全写方键、生产 Run 和合法完整读取 | S-69/S-70/S-73、G-28～G-30 | 有限模型不代证文件 IO、读取权限或生产 Run 认法；原 owner 缺口保持 |
+| 8 多值头保持原表示 owner 缺口 | G-31 | MR4 不改；TransportFailure 数组不冒充合法持久 string-map；依赖此映射的实现继续受阻 |
+| 9 双向竞争与未知实例齐全 | [15 个新场景](v4/examples.md#v4-增量结算竞争与恢复)，旧操作/失败实例继承 | 规范场景已起草；真实执行未开始 |
+
+**形式工件**：[Settlement](v4/formal/README.md#结算组合模型) 新行为模型、三正配置、六个指定负控；原 RT3 三 TLA/十 cfg 逐字复用，v2 Invocation 仍精确引用原版。新候选登记分别覆盖三个继承任务与三个 Settlement 任务；否定配置不登记正任务。旧运行不改称 RT4 运行，正式 TLC 由独立验证者执行后在本节追加实际输入与结果。
+
+**作者结构检查范围**：逐操作九项、S-1～S-73 编号、27 项候选资源及候选登记、17 个精确依赖、55 项 reviewed=false 覆盖、继承函数/配置字节、局部链接、配置常量与 oracle 名和冻结资源不变性；这些不证明策略正确、模型有反例或真实实现符合。首次检查只报告新验证锚点尚未落盘，补齐本节后，作者定向结构检查通过（930 个本地链接、64 个旧冻结资源不变）；设计检查 `internal / formal=skip` 通过，TLC 明确跳过；新 Settlement 经主线给定 Java/TLA2TOOLS 执行 SANY 解析，退出 0、无语法/语义错误，模型 SHA256 `345bec05910174cfd0e27509b0cb2f753b4ea218ebf6077724d8af9330fe5c86`。SANY 不执行配置、不证明断言或反例。正式语义/表达评审和接受尚未开始。
+
+**变化的影响**：从 RT3/SL2 到 RT4/SL3 必须沿 [consumer-impact](v4/consumer-impact.md) 显式传播到 runtime、JSONL、外部回复、runner 日志写者和验收应用；旧推荐版或提供者单独采用不自动升级消费者。G-28～G-31 只把现有跨 owner 缺口放在本候选消费入口，不在本轮替它们选择政策。条件追加不要求 MS4/MR4/CA2 升版，也不展开完整 Agent Loop、模型认证或通用资产主线。
+
+### v4 独立评审后修订 2、3（候选，待定向复审）
+
+以上作者结构检查及模型哈希是首稿记录，不代表修订后的正文已获接受。独立 run 1 的 `UnknownAsAbsent` 负控退出 75：轨迹 `Prepare(1) → Submit(1) → LoseAck(1) → Recover(1)` 留下 `unsafeAbsence = null`，属于后继状态未完整赋值，**不是指定反例通过**。修订 2 仅给 `unsafeAbsence'` 等式的整个析取右值加括号，未改不变量、常量或 oracle；该模型经作者 SANY 解析退出 0，SHA256 为 `d7f25d31fa24a25560bf67d4bc9adf0ccb9b7a9f66606f9a56023f9e2e9049f5`。原输入、失败原文及最小 diff 已保全在任务临时证据中。独立 run 2 由主线另行执行；本作者未运行 TLC，不把首轮结果移作新模型证据。
+
+修订 3 按主线基于独立表达/架构评审所界定的最小边界修改，当前只交复审，不由起草者判断发现已闭合：
+
+| 发现与变化 | 落点 | 证据与影响 |
+|---|---|---|
+| RT4-ER2：切换追加确知未提交只保证本次无切换；回执未知仍 unavailable，当前选中以 S-9 权威记录为准；读值不识别本次未知命令，旧写者未停缺席读不关闭未知 | S-27⑧/S-43/S-72；examples §4 与补充规范向量 | 不增加命令键、恰一次、自动重放或回滚。同步 S-6/S-32⑧/S-33/S-49⑧：本实例待确认责任不否认已耐久的响应或终结；按原认回与返回规则收口 |
+| RT4-ER3：进展须有合法完整前缀、实际停止/恢复、政策许可内可得的提交机会，恢复实际被调用且可执行 | §八进展首行及续接行、S-17；examples 补充规范向量 | 首次收口触发、保留 owner 都不保证未来成功或获调度；前提不满足仍有未完成义务。没有增加恢复调度或无条件时间界承诺 |
+| RT4-ER4：更新可编辑入口中的采用状态 | topic README；S-4/S-35/G-25；consumer-impact | RT3 与 runner3 按 D-076/当前 registry 标明已接受；runner3 仍精确消费 RT3，不自动升级 RT4；冻结正文和历史记录原样保留 |
+
+编号场景 V-1～V-15 保留，增加四组未执行的补充规范向量。S-1～S-73、十三操作、失败集合、S-54～S-67 独立函数正文与候选登记保持；消费者落实要求同步于 [consumer-impact](v4/consumer-impact.md)。修订 3 的全部 TLA、cfg、oracle 及 formal 说明与修订 2 保持逐字节一致，形式运行不因正文修订被追认为覆盖这些新表述。结构检查只核结构、链接及字节边界，不能代替定向复审、真实故障验收或独立形式执行。
+
+**本修订作者实际检查**：候选结构检查、`check_design.py --gate internal --formal skip`、`git diff --check` 均退出 0；73 条、13 个九项操作、926 个本地链接，64 个旧冻结资源及 13 个继承形式文件不变；全部 24 个 formal 资源相对修订 2 哈希相同。原始 stdout/stderr、argv/cwd/退出码与旧新清单保全在任务目录 `tmp/model-request-runtime/b1-runtime-spec/revision-3/`，供主线冻结交复审。未在本修订重新运行 SANY 或 TLC；新向量的实际执行仍未开始。

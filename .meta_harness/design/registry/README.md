@@ -1,5 +1,7 @@
 # 身份、版本与关系清单
 
+2026-09-27：[D086](../record/decisions/model-runtime-tail-settlement-adoption/decision.md)登记RT4 accepted，新增27冻结资源／17精确依赖／55项reviewed=false covers／6形式任务，原记录及445冻结hash保持；当前catalog79、frozen472、covers2015、formal tasks54。旧推荐不自动升级消费者，后文较早计数按当时事件读取。
+
 这里是设计链全部**坐标与关系**的唯一权威。任何会被机器 join 的事实住在这里，
 其余目录只引用坐标，不复制一份同义登记。
 

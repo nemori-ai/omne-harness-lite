@@ -1,0 +1,80 @@
+# RT4 Settlement 独立有限形式执行：run 1
+
+四态结果：**Fail**。这是冻结候选的形式执行结果，不是对产品实现或整个纵线的最终验收。
+
+SANY 正常解析/语义处理；三个正向 TLC 均完成有限状态空间且无反例。
+六个指定负控中五个命中各自不变量并产生真实轨迹，UnknownAsAbsent 出现
+`Recover` 后继状态未完全定义错误，exit 75，未命中 `UnknownNotAbsence`。
+不得把这次工具执行错误作为预期反例或负控通过。
+
+## 精确输入及环境
+
+- 执行 HUB `/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime`，branch `panqiwei/model-request-runtime`，本次 HEAD `6f4f8c76703f8e3fbeb147dfa3bb378f7a80c788`。
+- 作者只读 worktree `model-request-runtime-b1-runtime-spec`，branch `panqiwei/model-request-runtime-b1-runtime-spec`，base `976534bf17190bbfdaf9e3b87c5abbc2aa70b552`；v4 是未提交候选，不把 base 当作候选内容哈希。
+- 作者 29 项完整候选清单 SHA256 `6e42d6508b34d3574bc15727e74e27cb029a568d024d9573a25fc6dfcb75b693`。
+- contract SHA256 `27f547649025f9a7c94a499355ed25a94c72fed01e875a263e0a38cc0add8772`。
+- Settlement.tla SHA256 `345bec05910174cfd0e27509b0cb2f753b4ea218ebf6077724d8af9330fe5c86`。
+- registry candidate SHA256 `f9ac6a5ad2d8601b945cd6ce6887adfdf447aa6c40583b6d2cbc08776de9397c`。
+- Java `/opt/java/jdk-21.0.12.1+1-jre/bin/java`，Temurin `21.0.12.1+1-LTS`，SHA256 `999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1`。
+- JAR `/opt/tlaplus/tla2tools.jar`，TLC `2026.09.12.025210 (rev: 867aefb)`，SANY2 2.2，SHA256 `db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1`。
+- 所有模型/配置从逐哈希抄存的 `inputs/.meta_harness/design/` 执行，3 个正任务逐项采用候选 registry 的 argv，只替换已指定 Java/JAR 和独立 metadir；六负依 frozen formal README。
+- 每 TLC `-workers 1`，同阶段至多 3 进程；每任务 300 秒测量期限。三个正任务候选 registry 原 metadata 为 180 秒，按独立任务 brief 使用 300 秒；这只是验证任务期限，不是产品预算。所有任务未超时，均真实终止。
+
+`inputs-before.json` 和 `inputs-after.json` 逐项对应 29 候选、64 冻结 RT2/RT3/SL2/SL3 资源、34 作者输入以及 13 继承 TLA/cfg 源/目标比较。共 143 校验记录（含同一路径重复消费，不宣称 143 个不同文件）在运行前后和抄存副本均匹配。13 个继承形式工件不重跑、不重标旧证据。相关 runtime/log realization、D083/D084 与任务书保存在 inputs 内。
+
+## 逐入口结果
+
+| 入口 | 配置及条款 | exit | generated / distinct / queued | 判定 |
+|---|---|---:|---|---|
+| SANY Settlement | frozen model；实际解析、语义处理、lint，无错误 | 0 | 不适用 | Pass |
+| Settlement | WithRun=true，superseded，Budget=2，NoiseLimit=1；S69～72 十不变量 | 0 | 29255 / 12194 / 0 | Pass，完成状态空间 |
+| Settlement_EndedUnknown | WithRun=true，ended，UnknownOpened=true；另含 S17 强门与 timing | 0 | 72403 / 30965 / 0 | Pass，完成状态空间 |
+| Settlement_NoRun | WithRun=false，UnknownOpened=true；S68 原批/unknown/owner | 0 | 12958 / 6187 / 0 | Pass，完成状态空间 |
+| NoCompare | CheckTail=false；LateCorrect，S69 | 12 | 227 / 143 / 85 | Pass，指定反例，5 状态 |
+| PartialBatch | WholeBatch=false；NoOrphanMessage，S70 | 12 | 124 / 80 / 52 | Pass，指定反例，4 状态 |
+| PartialClaim | WholeBatch=false；ClaimsWholeBatch，S70 | 12 | 124 / 80 / 52 | Pass，指定反例，4 状态 |
+| UnknownAsAbsent | TrustUnknown=true；UnknownNotAbsence，S70 | 75 | 265 / 166 / 101 | **Fail：模型未完全定义后继**，5 状态故障轨迹 |
+| DropOwner | KeepOwner=false，Budget=1；PendingOwned，S71/72 | 12 | 527 / 315 / 171 | Pass，真实提交尝试耗尽后失责，6 状态 |
+| IgnoreOpened | GuardOpened=false；NoSettlementThroughUnknownOpened，S17/70 | 12 | 248 / 157 / 118 | Pass，指定反例，4 状态 |
+
+负控是遇到反例即终止，queued 非零与该用途一致；不称其完成全部状态空间。全部结果的确切 argv/cwd/start/end/实际 PID/退出码/时长/输入哈希及 stdout/stderr 哈希见 `runs/<id>/result.json`、`started.json`。`results.json` 只是汇总，判定已复核原始日志。
+
+## 所有反例亲读
+
+以下是验证者逐份读取完整实际 stdout/trace 后的判断，机器提取与具体证据见 `trace-assessment.json`。
+
+- **NoCompare**：Prepare(1) 只读 sent，Boundary 先追加 superseded，再 Submit/Process(1)。最终响应 late=false，expectedTail=1、actualTail=2，响应之前前缀已有 superseded，应为 late=true。真实违反 LateCorrect，不是别的 TypeOK 错误。
+- **PartialBatch**：Prepare/Submit/Process(2)，最终日志只增加 message，没有 response；pc[2]=done、claims[2]=2、owner[2]=false。真实孤消息，NoOrphanMessage 失败。
+- **PartialClaim**：同样的真实半批交错，claims[2]=2，但 HasWhole(log)=false。ClaimsWholeBatch 失败；两份 cfg 分别检各自 oracle，未把其中一个失败泛化为另一个。
+- **DropOwner**：Prepare(1) 后 Boundary 写 superseded，Submit(1) 实际把 spent[1] 从 0 变为 1。Process(1) 因旧尾不相等拒绝、没有 response，随后 Exhaust(1) 在 Budget=1 耗尽时把 owner[1] 置 false；pc[1]=exhausted。PendingOwned 失败。实际 trace 不含 CancelPolicy，未用初始取消制造假命中。
+- **IgnoreOpened**：初始 anchorKnown=false、anchorPending=true；Prepare/Submit/Process(1) 仍写 response 且没有 RecoverOpened。最终 anchorKnown 仍 false。NoSettlementThroughUnknownOpened 失败。
+- **UnknownAsAbsent 故障**：Prepare(1)→Submit(1)→LoseAck(1)→Recover(1)。LoseAck 后 pc[1]=unknown、pending[1]=true、stopped[1]=false；无 StopOld。Recover 后 pc[1]=prepare、仍 pending=true/stopped=false，unsafeAbsence=null。TLC 明确报 `Successor state is not completely specified by action Recover ... unsafeAbsence`，并非 `Invariant UnknownNotAbsence is violated`。该 5 状态轨迹是模型执行错误证据，不是已成立的规范不变量反例。
+
+## 阻断与最小交接
+
+受影响工件为 frozen Settlement.tla Recover 动作，第 112～113 行：
+
+```tla
+/\ unsafeAbsence' = unsafeAbsence \/
+       (~HasWhole(log) /\ (~AllStopped \/ ~anchorKnown))
+```
+
+实际缺陷是新状态变量未完全受约束。候选诊断：`=` 与 `\/` 的结合使整个表达式成为等式与布尔项的析取，第二项为真时没有约束 unsafeAbsence'。具体修订归 spec owner；本验证者没有改写模型、配置、不变量、前提或数值。Root 已收到详细异常及停止通知，并要求保全 run1、作者另出新精确快照，再以 run2 复验。原候选所有此次输出都保留，不默认重跑。
+
+## 测量设施自身检验与故障保全
+
+- `classifier-self-check.json` 的十个测量分类向量全部匹配：正常 SANY、正常完成正向、指定 trace 负控，以及 exit0 空输出、未完成队列、语义错误、错误不变量、无 trace、解析错误、timeout 拒绝路径。
+- 本次真实 exit75 也被分类器拒绝，顶层 runner 实际 exit1；没有因“负控非零”假成功。五份实际 exit12 均由人工确认具体交错和目标断言。
+- 准备脚本两次测量错误已保全于 `preparation-initial-failure.txt`（工具消息转录/原因）：作者 brief 清单 basename 定位错误；TLC -help 的实际正常帮助行为 exit1 被脚本错误要求为 0。Java/TLC 版本探测 argv/退出码及原始 stdout/stderr 分别保留。仅修正测量定位和帮助探测；任何模型 outcome oracle 未降低，SANY/TLC 模型实际执行仅一次。
+- run.py 不覆盖已存在的 run 子目录；再调用会拒绝既有运行，不会自动重跑。闭合归档 helper 不执行模型。
+- 各 Java 实际任务 PID 均已不再存在；没有活进程要重启或等待。Java/JAR 的标准模块解包由工具使用短暂 `/tmp/tlc-*` 目录，日志保留其路径；这不是产品写入或额外用户数据访问。
+
+## 范围与未覆盖
+
+新有限模型只包含两个结算者、一个共同 ResponseId/MessageId 抽象、单序列日志、一次 sent、一个 superseded/ended 边界、最多一个 noise、每方有限 Budget。三正 cfg 均检查 TypeOK/OneResponse/TailGuardSound/LateCorrect/NoOrphanMessage/ClaimsWholeBatch/UnknownNotAbsence/PendingOwned/NoSettlementThroughUnknownOpened/FirstTokenCorrect；这里只给三份配置的有限结果，不作无条件数学证明。Budget 不产生产品默认策略。
+
+模型没有公平性条件，不证明无饥饿、最终成功、无界系统进展或预算内必有机会。身份/原绑定/参数/金额固定、合法完整前缀及其权限、真实 Run 识别由模型构造/前提给定。StopOld/RecoverOpened 是真实停止与权威读取的抽象动作，不证明 OS/网络/回调/追加任务实际停止。
+
+OneResponse/FirstTokenCorrect 只有正检查，没有各自独立负控，不单独声称 validity 已证。未知缺席负控本次未闭合。真实文件耐久与损坏恢复、codec/共同业务键、所有十三操作的具体返回、租户鉴权、外部回复/宿主真实组合、model retry/37 模型认证、多值 headers 均不在本次证据范围。完整契约表达、架构判断与最终采用由相应 reviewers/root 承担；本角色只有测量和交接权。
+
+无源码/spec/registry/绑定/旧证据修改，无 commit/push/付费。所有新写入在派发的 rt4-formal-run-1 任务目录；正式长期归档与采用由 root 接续。
