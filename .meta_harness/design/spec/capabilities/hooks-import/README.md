@@ -1,10 +1,10 @@
 # hooks 导入与方言映射
 
-## 2026-09-27 工作区产品修订的影响
+## 工作区接入的适用范围
 
 事件翻译 S-23／S-24 与纯输入操作仍可按 v2 使用；但 S-9、P-6、G-8 的“工作区 hook 落租户格并写 disabled”不能直接承接原位置发现且候选留工作区层的新路径。落地交接及租户启用表示需要随工作区读入契约演进；默认关闭兼容来源与显式运行授权仍须分开。
 
-[核对依据与消费者边界](../../../../research/workspace-product-technical-impact/research.md)。本次只更新适用范围与缺口，不改冻结规范、既有采用或历史验证，也不展开 PF-020 技术设计。
+依据：[冻结落地交接 S-9](v2/contract.md#s-9-工作区来源的-hook导入即禁用)；[兼容候选归属](../../../product/PF-020-workspace/design.md#同工作区的第三方资产)。
 
 **把 Claude Code 与 Codex 的 hooks 配置导入成[拓展件](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**：
 每一条 command 成为一件兼容件，挂在按研究推出的位置上、带着按事件定的干预力上限；导入者拿到一份逐条的报告——导进来了什么、哪些没进、导进来的与来源产品原来的行为差在哪。

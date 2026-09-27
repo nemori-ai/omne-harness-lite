@@ -1,10 +1,10 @@
 ## 当前推荐与本轮提供者采用：Skill3（2026-09-26）
 
-## 2026-09-27 工作区产品修订的影响
+## 工作区接入的适用范围
 
 v2／v3 的包内路径、资源读取与声明脚本边界与 PF-007 rev19 仍相容；性质表 P-4 所引“资源不在 agent 文件系统视野里”的旧理由已经过时，不能读成禁止经独立 Files／Shell 权限访问本地包。冻结说明随后续规范版本校正，本轮不因这处理由变化改包格式；工作区发现排除软链接不自动取消包内资源自身的既有规则。
 
-[核对依据与消费者边界](../../../../research/workspace-product-technical-impact/research.md)。本次只更新适用范围与缺口，不改冻结规范、既有采用或历史验证，也不展开 PF-020 技术设计。
+依据：[冻结包规则与 P-4](v3/contract.md)；[Skills 产品边界](../../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能)。
 
 精确[新3规范](v3/contract.md)、[Schema](v3/skill-package.schema.json)、[实例](v3/examples.md)已按[D069](../../../record/decisions/skill-yaml-key-resolution/acceptance.json)接受冻结，规则为未知tag canonical关系最终阻止键唯一性判断时malformed/M16，ordinaryunknown仍忽略。根提供者将采用3；完整旧2Schema及纯值／正文保留供AM3／AE3／Slash2实际精确消费，新推荐不自动升级其它契约。新3读入不保留undetermined第三结果，旧2缺口和原运行范围不变。实现／验证状态仍按节点实际证据读取。
 

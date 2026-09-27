@@ -1,10 +1,10 @@
 # 会话资产注册表
 
-## 2026-09-27 工作区产品修订的影响
+## 工作区接入的适用范围
 
 v2 S-23 已是校验与记录追加成功后换目标表，失败不替换；S-24② 明确每次尝试不重读工作区目录。因此本轮无需重做 reload 核心协议。新工作区来源和身份接入受阻于输入读面；后续演进需收窄 S-15／S-20 对变化传播的旧泛称，不把文件变更当已接受治理变更。
 
-[核对依据与消费者边界](../../../../research/workspace-product-technical-impact/research.md)。本次只更新适用范围与缺口，不改冻结规范、既有采用或历史验证，也不展开 PF-020 技术设计。
+依据：[reload 与尝试求值的冻结规则 S-23／S-24](v2/contract.md)；[工作区装配规则](../../../product/PF-002-assets-settings-and-permissions/design.md#工作区)。
 
 **一个会话此刻认得哪些资产、它们此刻能不能用。**按类别一张表，由装配填、由 reload 一族按类别重填；
 [会话斜杠命令集](../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)就是其中一张的视图；

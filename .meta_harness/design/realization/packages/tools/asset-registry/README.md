@@ -1,10 +1,10 @@
 # asset-registry
 
-## 2026-09-27 工作区产品修订的影响
+## 工作区接入的适用范围
 
 新增工作区来源的承接位置仍是 design.md 的 A-2 输入读面缺口。现有 v2 S-23 的候选校验／提交失败不换表及 S-24② 的“工作区沿用上次装配或 reload 内容”已符合本轮规则；不能把 A-2 的“现取”实现成每次尝试重读工作区文件。输入模型变更后再复核精确依赖与组装，当前不重做 reload 协议。
 
-[核对依据与消费者边界](../../../../../research/workspace-product-technical-impact/research.md)。本次只更新适用范围与缺口，不改冻结规范、既有采用或历史验证，也不展开 PF-020 技术设计。
+依据：[现行 reload 契约及输入边界](../../../../spec/capabilities/asset-registry/README.md)。
 
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.asset-registry · v2`（[契约](../../../../spec/capabilities/asset-registry/v2/contract.md)，状态 `accepted`，已接受、已冻结；设计依据 PF-002 rev 20、PF-006 rev 19、PF-004 rev 12）
