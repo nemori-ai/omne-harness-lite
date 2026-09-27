@@ -1,5 +1,11 @@
 # pi-ai-transport
 
+## 完整定义增量采用（2026-09-27）
+
+[D-082](../../../../record/decisions/model-definition-projection-adoption/decision.md) 已采用 [v4-definition-design](v4-definition-design.md) 精确增量：core 能力复用、逐 route 参数／缓存声明与 Schema／解释器同源、四个纯公开面、完整 definitions 及旧集合／默认的迁移。该页历史 candidate 字样保留，实际采用依本决定；旧 v3 字节不变。
+
+可实施公共增量尚未施工，新增绑定0、ND-V1～9未执行；只能先用完整具名非官方 fixtures，不能把37目标ID或旧五字段值当完整官方清单。ND-G1～3事实／配置／模态和G-22仍在，37生产认证0/37。下列实现与证据记录按其各自观察时点读取，不自动升级至新定义代际。
+
 ## 当前分层状态：P2 局部构件（2026-09-27）
 
 - 语义接受仍为 D-076 精确 v3-design；本次仅沿已定规格实现，冻结设计未改。

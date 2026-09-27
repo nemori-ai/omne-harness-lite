@@ -143,3 +143,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-080 注册表与历史正文提供者](model-registry-history-provider-adoption/README.md)：AR4 与 EIS history revision 1 技术采用；真实旧表/旧报告成功恢复待实现验收。
 
 [D-081 模型响应 late 提交协调方向](model-late-coordination-direction/README.md)：采用既有日志追加提交点保护读取尾的演进方向；精确新契约、提供者和消费者尚未采用，withRun 结算仍受阻。
+
+[D-082 完整模型窄定义投影](model-definition-projection-adoption/README.md)：采用 core 能力复用、逐路由规则与 Schema／解释器、明确完整 definitions 迁移；公共实现待施工，37 模型事实与认证未就绪。

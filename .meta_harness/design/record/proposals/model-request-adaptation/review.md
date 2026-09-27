@@ -111,3 +111,11 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 领域读数、独立机制读数、主线对账、精确输入、候选、结构检查和独立意见的**主线汇总**已保存为 [归档](reviews/late-coordination-2026-09-27.tar.gz)，SHA256 `1cbafd04f9ed9828bc99472814e62ae34b1609902339354e8757e191b4b3dff2`；[索引](reviews/late-coordination-2026-09-27.json) 含逐文件校验值，已读回核对。review/primary-summary.json 不是 reviewer 原始全文；reviewer 按角色边界未读主线处置对账表。HUB 合入候选后的 design internal 检查通过，formal 明确 skip。
 
 归档中的主线有限实验实际执行了每模式 360 条历史：普通预读追加出现 96 条错误 late，提交点尾比较模式为 0；后者有 248 次条件冲突、96 次写入静止后重试。实验未覆盖真实 IO、unknown ack、Run 认法、授权、崩溃、旧写方停止、公平性或无限争用，不据此关闭 B1。主线只采用演进方向，见 [D-081](../../decisions/model-late-coordination-direction/decision.md)；SL2 原字节与旧采用不变。
+
+## 2026-09-27 完整模型窄定义投影独立评审
+
+本次为现有提供者的 [完整定义增量](../../../realization/packages/model/pi-ai-transport/v4-definition-design.md)；没有新增产品方案或重新分能力。rev1 SHA256 `226001dd3d7dda5055b334f9140e7e8392a5394d37ef7293242112b8cf58a65c` 的架构阻断 ND-AR1 是旧37五字段集合会在根导入时被新完整校验拒绝、默认 pilot 与真实消费者无迁移方向。主线明确预生产无兼容迁移，作者补齐删除旧集合及默认、显式 definitions、空动态 network owner、旧宿主排空和全部消费者责任；architecture-reviewer 定向复评 rev2 `a7ec2ca698a04f5adae9a5f5756e90419661fbbaabf613486c82eb6fb5cc0411` 关闭 ND-AR1，无新架构阻断或非阻断，ND-V9 仍待实际执行。
+
+独立 spec-reviewer 核对完整定义→content→目录独立采用→acquire 路由联集→plan 本次路由的消费者路径，无表达阻断。唯一非阻断 ND-ER1 是 ND-V2 概括会把当前 maxOutputTokens only-pass 误当 drop/select 正向场景。作者仅改这一行：八项原值／缺席正向，其余允许规则项测 drop/select/adjust，maxOutputTokens drop/select 为非法定义负控，G-22/S-18 保留。reviewer 在内存还原这一行得到原精确哈希，定向确认闭合；最终 SHA256 `13f0bdfe97c885fd521da924b6c1d432577d1f669c22081ea5eafd147f61ceda`。
+
+两个 reviewer 均只读、未运行测试／形式工具、未接受。当前共用实现 revision6 修复不在该表达评审范围；ND-V1～9、37模型完整能力／参数／TTL与布局、跨宿主实际资源及消费者迁移均未验收。[输入、三个修订、结构检查与主线汇总归档](reviews/definition-projection-2026-09-27.tar.gz) SHA256 `1784c3140d8a6172c85ea863f1c5f3fb6a4c684c7d1368138376a0b63e840368` 已读回校验，[索引](reviews/definition-projection-2026-09-27.json) 逐文件登记。汇总不是 reviewer 原始全文；设计合入 HUB 后 internal 检查通过、formal 明确 skip。主线精确技术采用见 [D-082](../../decisions/model-definition-projection-adoption/decision.md)，旧 v3 字节不变。
