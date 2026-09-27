@@ -17,6 +17,7 @@
 | `deriveState`、`acceptable`、状态常量及类型       | 派生状态与统一的可接受谓词                             |
 | `Clock`                                           | `now(): Instant \| 'unavailable'` 接口；不提供时钟实现 |
 | `validate`、`schemaId`；`./schema`、`./schema/v1` | 当前 v2 Schema 与保留的 v1 Schema 资源                 |
+| `compareRfc3339Instants` | 原始 RFC 3339 字符串的精确条件排序；静态非法返回 `Parsed.invalidInput` |
 | `./testing`                                       | 测试用 `testClock` 与 `TestClock`                      |
 
 ## 使用示例
@@ -76,6 +77,36 @@ console.log(
   deriveState({ timing: parsed.ok, settled: null, now: parsed.ok.issuedAt, target: 'absent' }),
 )
 // expired
+```
+
+### 精确比较原始 RFC 3339 字符串
+
+`compareRfc3339Instants(left: unknown, right: unknown)` 返回 `@omne-harness-lite/identity-values` 的 `Parsed<-1 | 0 | 1>`。原始 RFC 3339 字符串需要任意小数位与异偏移的精确排序时使用此入口；已有整数毫秒运算仍使用 `Instant` 和 `compareInstants`。两个入口均不改写原字符串，时点相同不代表载荷字符串全值相同。
+
+新函数对静态可判非法的表示、日历字段与偏移返回固定且不回显输入的 `invalidInput`。合法四位本地年对应的 UTC 时点即使跨出该年范围也能比较。函数同步执行，无时钟或 IO，按输入长度扫描，不设固定小数精度，也不跨调用缓存输入。
+
+排序保证以前后两值确为合法 RFC 3339 时点为前提。`:60` 静态位置须归一化到 UTC 月末最后一分钟，保留在下一分钟的 `:00` 之前；`ok` **不认证**实际闰秒公告。调用方须先确认真实正／负闰秒合法性与时间来源，再用排序结果接收业务数据。只检查形状的 Schema 校验也不能承担此责任。
+
+```ts
+import {
+  compareInstants,
+  compareRfc3339Instants,
+  instantFromRfc3339,
+} from '@omne-harness-lite/offer-expiry'
+
+const left = '2026-09-27T00:00:00.0004Z'
+const right = '2026-09-27T00:00:00.0003Z'
+const exact = compareRfc3339Instants(left, right)
+if (!('ok' in exact)) throw new Error(exact.invalidInput)
+console.log(exact.ok) // 1: every fractional digit participates
+const a = instantFromRfc3339(left)
+const b = instantFromRfc3339(right)
+if (!('ok' in a) || !('ok' in b)) throw new Error('invalid millisecond input')
+console.log(compareInstants(a.ok, b.ok)) // 0: existing millisecond quantization
+const same = compareRfc3339Instants('2026-09-27T08:00:00.0004+08:00', left)
+if (!('ok' in same)) throw new Error(same.invalidInput)
+console.log(same.ok) // 0: equal instants; original strings remain different
+console.log(left, right) // original input strings are unchanged
 ```
 
 ## 边界与失败处理
