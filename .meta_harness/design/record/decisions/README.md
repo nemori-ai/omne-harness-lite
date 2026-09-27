@@ -159,3 +159,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 2026-09-27：[D-090](model-headers-v5-adoption/decision.md)精确接受 MR5／RT5 与 core v5 投影；原根与历史消费者不自动升级，源码／IO／生产验收另核。
 
 2026-09-27：[D-091](model-transport-response-resource-adoption/decision.md)部分技术采用 transport 的不透明响应句柄与私有网络资源；G-6 凭据政策及实际头出值、TLS 与写方验收仍待。
+
+2026-09-27：[D-092](model-auth-bootstrap-adoption/decision.md)精确采用真实身份验收阶段的基础六 fiber 后确认、完整八 fiber 后准入；确认后部分启动失败不整库回退。应用、AB-V1～V8与逐符号守卫未实现验证。

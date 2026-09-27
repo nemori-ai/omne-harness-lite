@@ -109,3 +109,22 @@ A-V13 的所有修订字符串都只在对应完整命名范围内解释；实�
 MAA-AR1/AR2 稿件处置：原不完整五元组已撤换为完整匹配规则，认证对象/机器结果/旧证据复用/失效传播统一；本机查询与导出共用既有 owner 政策并要求显式 tenant 范围。对应 A-V13/A-V14 尚未执行，A-G5/A-G6 的实现证据缺口继续存在，由 app 与相应 provider owner 关闭；本次修订本身不声称评审已闭合。
 
 本应用自己的场景结果不等于独立验收结论，更不等于用户总体签收。实际模型调用数、已花/预留/未知费用、未覆盖项、失败反例和恢复后残余资源必须随总结果一并交付。
+
+## 真实鉴权启动增量：待执行义务
+
+消费 [启动投影 revision 1](v3-auth-bootstrap-design.md)，当前 candidate，未接受。下面只补原 A-V0/A-V1/A-V6 的本机真实鉴权、目录和 model-only CCL 组合，不解除其余场景或完整生产认证门。**以下八项均未执行，绑定仍为 0。**
+
+| 编号／对应责任 | 必须取得的真实证据与失败判据 | owner／限制 |
+| --- | --- | --- |
+| AB-V1：AB-1～AB-5；AI3 S-15/S-26/S-44、OG2 S-63、MD3 S-19/S-20、CC2 S-12 | 真文件库、真 Cordis、一个真实 clock、真实 scrypt／签名组件：完整迁移→六条基础 fiber ACTIVE 与 now 可用→同 guard 确认→目录真实 loadManifest→唯一 CCL→lookup→八条 fiber ACTIVE→真实 register／issue／exchange／currentTenant／standing→可信 pair→bind→store→lookup 同源返回。用实际写入边界和调用先后记录确认后才出现首次目录业务提交，确认前没有账号／登录／成员／绑定／副本／source 回调；明确允许迁移初始元数据和 clock 租约。源码阶段没有 transport／runtime，实际模型 HTTP 为 0 | app 实施及独立验收；不预置 SQL 身份，不 stub 凭据／登录／资格，不把组件包装成完整 CCL |
+| AB-V2：AB-1/AB-4；原 A-2、MD3 S-18/S-23 | 保留一个故意恢复旧顺序的可重跑负控：新库合法正序号空清单→先装目录→后 confirm，原 oracle 必须因确认前 model_manifest_state 的业务采用提交而失败，即使没有任何 profile 行。再以非空清单重复，不能把“无外部调用”或“最终清理了”当成无写。对正常新顺序同一 oracle 通过；Config Schema 只读预检不得调用 loadManifest 或 provider 业务面 | app 验证 owner；只测计数不足，须定位实际受写对象、所属阶段与提交 |
+| AB-V3：AB-1/AB-2/AB-3；storage R-U1～R-U8 | 只读配置／密钥失败、迁移失败、基础 fiber PENDING／FAILED、clock 暂不可用截止均阻止 confirm 与目录／业务准入。含新库及已有库新增迁移两支：确认前失败撤除后依实际 snapshot／pending 核恢复；无迁移无快照不要求撤销基础租约。注入真实 confirm 删除失败、删除后落盘失败和关闭交错，入口保持关闭；报告实际确认结果、pending 和残留，不能用 pending:clear 推断恢复或成功。关闭与 confirm 重叠时不进入确认后业务步骤 | app＋storage／clock owner；已有落盘缺口须如实标明，不借本项宣称全面可回退 |
+| AB-V4：AB-2/AB-5；AI3 S-15/S-44、AR2 S-7～S-12、OG2 S-26/S-63 | 错密码、无有效登录、错误账号／tenant、来源回调拿到的作用域与实际登录不符时，不成功发布副本。真注册后在 issue、exchange、currentTenant、bind、store 各阶段诱发失败：已提交事实保留；不得隐式重跑整个注册／来源链。编译行为负控移除实际 credential-verification 或破坏 tenant/account 检查，原正负 oracle 必须击中；不只让恒假鉴权函数返回期望值 | app 实施及独立验收；显式注册重试仍沿 AR2 原幂等规则 |
+| AB-V5：AB-4/AB-6；MD3 S-18/S-23/S-34 | 确认后清单 N 已真正提交，在后续 provide 失败、CCL key/table 构造失败或 lookup 启动失败处停止：完整阶段门不开放，资源收口但不恢复旧库。重开同 N 认回，旧 N−1 留 manifestNotNewer 诊断且持久 N 不倒退，同序号异内容拒绝；公有目录查询与实际持久状态对照。模拟清单回执缺失也不能删库“重来” | app＋目录 owner；故障注入可在验收控制边界，正常路径必须是公开真实 provider |
+| AB-V6：AB-5；目录 R3-7/R3-8、CCL K-M1/K-M2/K-M4 | 真当前绑定 reader 与唯一 CCL 用同 AtomicStorage；bootstrap 不执行内部 reader／readBoundReplicaIn。来源 A 在 B 轮换后晚到得 stored:false；现读不交 A，B 正确落副本后才可取得 B；有租户绑定但无匹配副本不问 factory。拿同文件不同实例的 Unit 参与为具名缺陷，不能降为正常 absent。保留真实来源调用、锁顺序及外层单元结束证据 | app＋目录／CCL；代表性交错不代替两 provider 的全部并发、PG 或中心送达验证 |
+| AB-V7：AB-3/AB-4/AB-6；clock 原租约责任、MD3 S-23 | 用同一持久 key／库正常重开和真实子进程崩溃重开；旧 clock 租约窗口内真实 now 可答 unavailable，应用按显式截止等待或明确失败。全过程只有一个 clock，不用另造 LeaseClock／fake now 绕过。确认前崩溃按原 guard 恢复，确认后清单提交再崩溃则保留 N；重开观察到的真实清单及身份按原规则核实，不自动补发注册／store | app＋clock／storage；不把所有 ACTIVE 当成 clock 就绪，进展结论带等待策略与环境前提 |
+| AB-V8：AB-5/AB-6；CC2 S-7/S-20、SYS-OBSERVABILITY | 真实阻塞 source／store／lookup 外层 atomic 后发起两次 app.close：新准入拒绝，旧工作各自真实终结后才撤 lookup／close 唯一 CCL，借用 lookup 不能关闭组件；CCL、clock、storage 的实际静止和所有句柄／属主释放可重开验证。部分初始化失败也释放已取得部分；close 拒绝保留残留，不输出清理成功。stdout/stderr、诊断、trace、机器证据和异常动态字段扫描密码／presentation／私钥／模型 key／sourceRef／body／密文哨兵与禁止片段；sink 抛错／满仍保留业务结果并有独立退化计数 | app 实施及独立验收；有限哨兵扫描不等于无条件保密证明，源码制品／双语 README 重要操作例子仍须真实验证 |
+
+AB-G1 的确认点调整需独立评审及技术采用，owner 为主线，受阻的是依赖此顺序的应用实施；AB-G2 的真实身份／来源证据由 AB-V1/V4/V6 承担；AB-G3 的故障／重开／关闭由 AB-V2/V3/V5/V7/V8 承担。AB-G4 所列其他应用阶段、全部 runtime 操作、37 模型、PG、中心与完整 CCL 不因本页完成解除。正文结构检查只验设计树与链接，结果另列，不算上述任何一项 pass。
+
+本候选起草检查：以系统 Python 3.12 执行本检出自己的 `tooling/src/check_design.py --root design --formal skip`（从设计工作区根解析），exit 0，输出 `PASS: design tree … passed gate=internal; formal=skip.`；formal 项明确全部 skipped。`git diff --check` exit 0；原 design.md 与 bindings.yaml 字节未改。未安装依赖，当前检出无 Prettier 可执行文件，格式工具检查未运行。没有执行本应用或上述八项义务；本次不登记符合性绑定。
