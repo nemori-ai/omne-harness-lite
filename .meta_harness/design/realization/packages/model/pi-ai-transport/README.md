@@ -2,6 +2,8 @@
 
 ## RT5 同次响应头增补候选（2026-09-27）
 
+后续 [D-091](../../../../record/decisions/model-transport-response-resource-adoption/decision.md) **部分技术采用** rev2 的真实不透明 R、私有 Node 资源、单 reader 和 `stop()` 实际不泄漏请求对象的结构，独立架构复评 PH-AR1 在设计层无阻断。原候选标签记录起草时状态；PH-G2 完整 S-20 政策取值／匹配仍未采用，公开 `rawHeaders` 的生产出值不可据此施工，源码与 PH-V9 真实 JS 验证均未完成。
+
 - **语义接受**：[D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 已接受 `capability.model-request-runtime/v5` 与 `data.model-response/v5`；本节点 [v5-headers-design rev2](v5-headers-design.md) 仍为候选，尚未采用，不自动升级既有 D-076／D-082 消费。
 - **可实施范围**：候选明确 response 回调先保留、同次 `SendResult.rawHeaders` 唯一交出、错误体／取消分支保全及既有资源 owner；不新增 Cordis 服务或 fiber。rev2 针对独立评审 PH-AR1，将公开 R 改为实际仅 stop/stopped 的句柄，原始 stream／request 留在包内私有 owner，stop 不返回 request；修稿待复评。runtime 公共类型迁移与完整 S-20 政策接线 PH-G1／PH-G2 尚缺，依赖部分不可径直施工。当前源码 revision7 已存在，尚无本增量实现。
 - **绑定证据**：本增量新增 **0 条**，既有绑定不换版本标签；[PH-V／PH-J 验证义务和覆盖缺口](verification.md#v5-响应头证据义务) 区分 transport、invoke 与完整日志写方责任。

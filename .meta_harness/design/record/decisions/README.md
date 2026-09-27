@@ -157,3 +157,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-089 模型时间关联精确比较](model-time-order-projection-adoption/README.md)：采用原offer-expiry节点的条件精确排序rev1，保留任意小数及合法闰秒／偏移顺序；旧毫秒接口不改，真实时间合法来源与完整runtime组合仍待。
 
 2026-09-27：[D-090](model-headers-v5-adoption/decision.md)精确接受 MR5／RT5 与 core v5 投影；原根与历史消费者不自动升级，源码／IO／生产验收另核。
+
+2026-09-27：[D-091](model-transport-response-resource-adoption/decision.md)部分技术采用 transport 的不透明响应句柄与私有网络资源；G-6 凭据政策及实际头出值、TLS 与写方验收仍待。
