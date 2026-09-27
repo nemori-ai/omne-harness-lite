@@ -1,0 +1,1674 @@
+{
+  "cockatiel": {
+    "distTags": {
+      "anyengine": "3.0.0-anyengine.0",
+      "latest": "4.0.0"
+    },
+    "maintainers": [
+      "connor.peet"
+    ],
+    "time": {
+      "created": "2019-11-22T16:41:25.240Z",
+      "modified": "2026-05-26T17:42:49.829Z"
+    },
+    "versions": {
+      "0.1.0": {
+        "published": "2019-11-22T16:41:25.382Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.1": {
+        "published": "2019-12-02T02:20:37.774Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.2": {
+        "published": "2019-12-12T16:33:46.147Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.3": {
+        "published": "2020-01-27T04:07:21.365Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.4": {
+        "published": "2020-02-24T18:07:23.904Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.5": {
+        "published": "2020-03-02T02:02:43.838Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.0": {
+        "published": "2020-06-20T04:36:50.592Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.1": {
+        "published": "2020-06-22T15:45:14.399Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.0": {
+        "published": "2020-07-09T00:12:37.958Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.1": {
+        "published": "2020-07-18T01:30:10.268Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.0": {
+        "published": "2020-09-25T03:17:57.616Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.1": {
+        "published": "2020-12-11T16:47:57.722Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.2": {
+        "published": "2021-06-11T00:32:45.892Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=10 <11 || >=12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.0-beta.0": {
+        "published": "2021-11-14T22:55:28.630Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.0-beta.1": {
+        "published": "2022-05-31T11:56:45.554Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.0": {
+        "published": "2022-08-13T19:50:27.478Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.0-anyengine.0": {
+        "published": "2022-08-26T16:51:49.870Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.0": {
+        "published": "2023-03-10T17:08:26.490Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.1": {
+        "published": "2023-03-15T16:26:32.607Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.2": {
+        "published": "2023-12-14T19:30:50.481Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.3": {
+        "published": "2024-05-04T05:06:27.495Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.2.0": {
+        "published": "2024-07-22T05:22:11.603Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.2.1": {
+        "published": "2024-07-22T16:12:44.922Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.0.0": {
+        "published": "2026-05-26T17:42:49.723Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=22"
+        },
+        "type": "module",
+        "deprecated": null
+      }
+    }
+  },
+  "p-retry": {
+    "distTags": {
+      "version4": "4.6.2",
+      "version7-pre": "7.0.0-0",
+      "latest": "8.0.1"
+    },
+    "maintainers": [
+      "sindresorhus"
+    ],
+    "time": {
+      "created": "2016-10-21T07:50:24.250Z",
+      "modified": "2026-09-01T13:15:38.647Z"
+    },
+    "versions": {
+      "1.0.0": {
+        "published": "2016-10-21T07:50:24.250Z",
+        "dependencies": {
+          "retry": "^0.10.0"
+        },
+        "engines": {
+          "node": ">=4"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.0": {
+        "published": "2018-04-26T19:51:21.523Z",
+        "dependencies": {
+          "retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.0": {
+        "published": "2018-12-12T15:13:25.041Z",
+        "dependencies": {
+          "retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.1": {
+        "published": "2019-01-14T13:57:37.382Z",
+        "dependencies": {
+          "retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.0.0": {
+        "published": "2019-03-11T04:52:00.041Z",
+        "dependencies": {
+          "retry": "^0.12.0",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.1.0": {
+        "published": "2019-03-31T11:56:41.924Z",
+        "dependencies": {
+          "retry": "^0.12.0",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.2.0": {
+        "published": "2019-10-31T11:26:30.643Z",
+        "dependencies": {
+          "retry": "^0.12.0",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.3.0": {
+        "published": "2021-01-23T09:01:40.901Z",
+        "dependencies": {
+          "retry": "^0.12.0",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.4.0": {
+        "published": "2021-02-15T13:07:17.810Z",
+        "dependencies": {
+          "retry": "^0.12.0",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.5.0": {
+        "published": "2021-03-29T07:11:21.760Z",
+        "dependencies": {
+          "retry": "^0.12.0",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.6.0": {
+        "published": "2021-06-24T11:33:04.703Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "4.6.1": {
+        "published": "2021-07-13T23:00:56.004Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "5.0.0": {
+        "published": "2021-11-03T19:13:12.990Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "^0.12.1"
+        },
+        "engines": {
+          "node": "^12.20.0 || ^14.13.1 || >=16.0.0"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "5.1.0": {
+        "published": "2022-03-19T14:21:22.001Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "^0.12.1"
+        },
+        "engines": {
+          "node": "^12.20.0 || ^14.13.1 || >=16.0.0"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "5.1.1": {
+        "published": "2022-04-27T03:23:46.577Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "0.12.1"
+        },
+        "engines": {
+          "node": "^12.20.0 || ^14.13.1 || >=16.0.0"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "4.6.2": {
+        "published": "2022-04-27T05:24:15.822Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "0.12.0"
+        },
+        "engines": {
+          "node": ">=8"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "5.1.2": {
+        "published": "2022-11-23T13:59:34.031Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "0.12.1"
+        },
+        "engines": {
+          "node": "^12.20.0 || ^14.13.1 || >=16.0.0"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "6.0.0": {
+        "published": "2023-08-24T16:58:15.128Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "0.12.2"
+        },
+        "engines": {
+          "node": ">=16.17"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "6.1.0": {
+        "published": "2023-09-26T14:18:31.643Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "0.12.2",
+          "is-network-error": "^1.0.0"
+        },
+        "engines": {
+          "node": ">=16.17"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "6.2.0": {
+        "published": "2023-12-20T20:39:27.636Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "0.12.2",
+          "is-network-error": "^1.0.0"
+        },
+        "engines": {
+          "node": ">=16.17"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "6.2.1": {
+        "published": "2024-11-15T05:48:16.734Z",
+        "dependencies": {
+          "retry": "^0.13.1",
+          "@types/retry": "0.12.2",
+          "is-network-error": "^1.0.0"
+        },
+        "engines": {
+          "node": ">=16.17"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "7.0.0-0": {
+        "published": "2025-05-06T14:50:33.852Z",
+        "dependencies": {
+          "is-network-error": "^1.1.0"
+        },
+        "engines": {
+          "node": ">=20"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "7.0.0": {
+        "published": "2025-08-21T10:22:48.657Z",
+        "dependencies": {
+          "is-network-error": "^1.1.0"
+        },
+        "engines": {
+          "node": ">=20"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "7.1.0": {
+        "published": "2025-10-09T02:57:12.182Z",
+        "dependencies": {
+          "is-network-error": "^1.1.0"
+        },
+        "engines": {
+          "node": ">=20"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "7.1.1": {
+        "published": "2025-12-09T21:15:14.365Z",
+        "dependencies": {
+          "is-network-error": "^1.1.0"
+        },
+        "engines": {
+          "node": ">=20"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "8.0.0": {
+        "published": "2026-03-26T16:08:04.940Z",
+        "dependencies": {
+          "is-network-error": "^1.3.0"
+        },
+        "engines": {
+          "node": ">=22"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "8.0.1": {
+        "published": "2026-09-01T13:15:38.483Z",
+        "dependencies": {
+          "is-network-error": "^1.3.0"
+        },
+        "engines": {
+          "node": ">=22"
+        },
+        "type": "module",
+        "deprecated": null
+      }
+    }
+  },
+  "retry": {
+    "distTags": {
+      "latest": "0.13.1"
+    },
+    "maintainers": [
+      "tim-kos"
+    ],
+    "time": {
+      "created": "2011-05-13T11:26:52.829Z",
+      "modified": "2022-06-26T12:20:05.335Z"
+    },
+    "versions": {
+      "0.0.1": {
+        "published": "2011-05-13T11:26:53.515Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.0": {
+        "published": "2011-05-16T08:10:27.648Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.0": {
+        "published": "2011-05-16T14:32:52.025Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.3.0": {
+        "published": "2011-05-31T14:19:32.882Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.4.0": {
+        "published": "2011-06-05T08:07:17.763Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.5.0": {
+        "published": "2011-11-03T10:55:32.772Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.6.0": {
+        "published": "2012-02-14T08:34:18.028Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.6.1": {
+        "published": "2014-06-26T12:00:56.230Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.7.0": {
+        "published": "2015-09-01T10:16:42.770Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.8.0": {
+        "published": "2015-09-16T18:34:56.522Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.9.0": {
+        "published": "2016-01-26T12:02:25.243Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.10.0": {
+        "published": "2016-08-20T08:35:01.550Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.10.1": {
+        "published": "2016-12-12T15:28:45.566Z",
+        "dependencies": {},
+        "engines": {
+          "node": "*"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.12.0": {
+        "published": "2018-04-09T09:35:27.678Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">= 4"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.13.1": {
+        "published": "2021-06-21T07:45:32.286Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">= 4"
+        },
+        "type": null,
+        "deprecated": null
+      }
+    }
+  },
+  "exponential-backoff": {
+    "distTags": {
+      "latest": "3.1.3"
+    },
+    "maintainers": [
+      "oa-npmcoveo"
+    ],
+    "time": {
+      "created": "2018-07-06T19:14:56.493Z",
+      "modified": "2026-05-13T17:39:49.944Z"
+    },
+    "versions": {
+      "1.0.2": {
+        "published": "2018-07-06T19:14:56.577Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.3": {
+        "published": "2018-07-06T19:31:55.841Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.4": {
+        "published": "2018-07-06T19:57:50.738Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.5": {
+        "published": "2018-07-06T20:01:58.789Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.6": {
+        "published": "2018-07-08T03:05:47.667Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.7": {
+        "published": "2018-07-09T14:47:17.802Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.2.0": {
+        "published": "2019-02-07T17:04:16.809Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": "missing distribution files"
+      },
+      "2.0.0": {
+        "published": "2019-02-09T19:16:06.165Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": "missing distribution files"
+      },
+      "2.1.0": {
+        "published": "2019-02-16T15:22:51.331Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.1.1": {
+        "published": "2019-03-23T01:08:15.154Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.2.0": {
+        "published": "2019-11-04T16:32:59.058Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.2.1": {
+        "published": "2020-03-20T03:19:53.513Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.0": {
+        "published": "2020-04-05T03:17:29.709Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.1": {
+        "published": "2020-06-06T17:02:53.061Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.0": {
+        "published": "2020-08-06T01:37:48.076Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.1": {
+        "published": "2023-02-20T17:39:13.327Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.2": {
+        "published": "2025-02-06T20:05:56.530Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.3": {
+        "published": "2025-10-10T23:10:07.816Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      }
+    }
+  },
+  "async-retry": {
+    "distTags": {
+      "latest": "1.3.3"
+    },
+    "maintainers": [
+      "vercel-release-bot",
+      "zeit-bot"
+    ],
+    "time": {
+      "created": "2016-02-29T18:32:39.129Z",
+      "modified": "2026-02-25T04:30:32.258Z"
+    },
+    "versions": {
+      "0.1.0": {
+        "published": "2016-02-29T18:32:39.129Z",
+        "dependencies": {
+          "retry": "0.9.0",
+          "babel-runtime": "6.5.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.1": {
+        "published": "2016-02-29T18:47:14.434Z",
+        "dependencies": {
+          "retry": "0.9.0",
+          "babel-runtime": "6.5.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.0": {
+        "published": "2016-05-30T20:14:25.123Z",
+        "dependencies": {
+          "retry": "0.9.0",
+          "babel-runtime": "6.5.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.1": {
+        "published": "2016-05-30T21:13:29.375Z",
+        "dependencies": {
+          "retry": "0.9.0",
+          "babel-runtime": "6.5.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.3.0": {
+        "published": "2017-02-14T22:10:01.416Z",
+        "dependencies": {
+          "retry": "0.10.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.0": {
+        "published": "2017-05-27T21:17:20.192Z",
+        "dependencies": {
+          "retry": "0.10.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.0": {
+        "published": "2017-05-27T22:57:23.962Z",
+        "dependencies": {
+          "retry": "0.10.1",
+          "babel-preset-es2015": "^6.24.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.1": {
+        "published": "2017-06-03T15:57:39.424Z",
+        "dependencies": {
+          "retry": "0.10.1",
+          "babel-preset-es2015": "6.24.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.2": {
+        "published": "2017-06-29T12:10:23.426Z",
+        "dependencies": {
+          "retry": "0.10.1",
+          "babel-preset-es2015": "6.24.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.3": {
+        "published": "2017-07-05T07:13:54.577Z",
+        "dependencies": {
+          "retry": "0.10.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.4": {
+        "published": "2017-10-31T22:16:04.762Z",
+        "dependencies": {
+          "retry": "0.10.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.2.0": {
+        "published": "2018-02-27T15:40:27.985Z",
+        "dependencies": {
+          "retry": "0.10.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.2.1": {
+        "published": "2018-02-27T16:12:01.235Z",
+        "dependencies": {
+          "retry": "0.10.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.2.2": {
+        "published": "2018-09-07T09:42:30.158Z",
+        "dependencies": {
+          "retry": "0.12.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.2.3": {
+        "published": "2018-09-07T12:54:47.822Z",
+        "dependencies": {
+          "retry": "0.12.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.3.0": {
+        "published": "2020-01-02T10:45:48.077Z",
+        "dependencies": {
+          "retry": "0.12.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.3.1": {
+        "published": "2020-01-02T18:13:10.433Z",
+        "dependencies": {
+          "retry": "0.12.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.3.3": {
+        "published": "2021-08-17T02:10:33.288Z",
+        "dependencies": {
+          "retry": "0.13.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      }
+    }
+  },
+  "ts-retry-promise": {
+    "distTags": {
+      "latest": "0.8.1",
+      "next": "0.0.9-0"
+    },
+    "maintainers": [
+      "martinmoeller"
+    ],
+    "time": {
+      "created": "2018-02-17T10:48:51.605Z",
+      "modified": "2024-05-19T07:37:45.213Z"
+    },
+    "versions": {
+      "0.0.2": {
+        "published": "2018-02-17T10:48:51.694Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.3": {
+        "published": "2018-02-17T11:10:37.116Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.4-PRE": {
+        "published": "2018-02-17T11:13:44.618Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.4-PRE1": {
+        "published": "2018-02-17T11:16:26.141Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.4-PRE2": {
+        "published": "2018-02-17T11:19:43.091Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.4-PRE3": {
+        "published": "2018-02-17T11:30:38.591Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.4": {
+        "published": "2018-02-17T12:16:42.863Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.5": {
+        "published": "2018-02-17T12:20:40.155Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.6-PRERELEASE": {
+        "published": "2018-02-17T12:24:11.191Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.6": {
+        "published": "2018-02-23T07:12:52.303Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.7": {
+        "published": "2018-02-25T16:54:46.945Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.8": {
+        "published": "2018-02-26T19:13:29.726Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.9-0": {
+        "published": "2018-03-06T20:32:42.125Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.9": {
+        "published": "2018-03-10T15:08:45.238Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.0.10": {
+        "published": "2018-03-11T20:37:49.910Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.1.0": {
+        "published": "2018-03-22T20:35:55.582Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.0": {
+        "published": "2018-03-25T10:32:11.848Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.3.0": {
+        "published": "2020-03-15T21:11:07.499Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.3.1": {
+        "published": "2020-03-16T18:12:30.901Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.4.0": {
+        "published": "2020-05-27T08:21:42.240Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.5.0": {
+        "published": "2020-06-24T07:54:43.074Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.6.0": {
+        "published": "2020-10-24T12:51:21.594Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.6.1": {
+        "published": "2022-01-31T12:39:50.224Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.6.2": {
+        "published": "2022-07-01T08:17:31.148Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.7.0": {
+        "published": "2022-07-25T08:20:21.355Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.7.1": {
+        "published": "2023-08-29T17:34:55.704Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.8.0": {
+        "published": "2024-01-07T09:01:05.445Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "0.8.1": {
+        "published": "2024-05-19T07:37:45.020Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=6"
+        },
+        "type": null,
+        "deprecated": null
+      }
+    }
+  },
+  "@lifeomic/attempt": {
+    "distTags": {
+      "latest": "3.1.0"
+    },
+    "maintainers": [
+      "lifeomicdev",
+      "npm-lifeomicdev-github",
+      "tcallis"
+    ],
+    "time": {
+      "created": "2018-02-13T04:10:42.767Z",
+      "modified": "2026-08-28T18:48:21.661Z"
+    },
+    "versions": {
+      "2.0.1": {
+        "published": "2018-02-13T04:10:43.812Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.2": {
+        "published": "2018-02-13T06:09:53.856Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.3": {
+        "published": "2018-02-13T06:54:28.360Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.4": {
+        "published": "2018-02-14T15:11:00.909Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.5": {
+        "published": "2018-02-16T19:40:01.721Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.6": {
+        "published": "2018-02-16T19:41:36.862Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.0": {
+        "published": "2018-09-12T15:56:17.648Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.7": {
+        "published": "2021-10-22T19:59:18.263Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": "This version was published in error and has breaking changes. Please do not use."
+      },
+      "3.0.1": {
+        "published": "2021-10-22T20:02:19.783Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.2": {
+        "published": "2022-01-17T15:05:49.996Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.0.3": {
+        "published": "2022-04-15T17:00:03.573Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "3.1.0": {
+        "published": "2024-03-21T15:17:01.530Z",
+        "dependencies": {},
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      }
+    }
+  },
+  "promise-retry": {
+    "distTags": {
+      "latest": "2.0.1"
+    },
+    "maintainers": [
+      "achingbrain",
+      "satazor",
+      "carsy"
+    ],
+    "time": {
+      "created": "2015-01-10T16:37:17.444Z",
+      "modified": "2022-06-24T19:02:56.005Z"
+    },
+    "versions": {
+      "0.1.1": {
+        "published": "2015-01-10T16:37:17.444Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.0": {
+        "published": "2015-01-10T17:30:12.798Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.2": {
+        "published": "2015-01-10T17:56:30.549Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.3": {
+        "published": "2015-01-11T01:17:33.175Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.4": {
+        "published": "2015-01-11T01:20:27.229Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.5": {
+        "published": "2015-01-11T01:23:06.218Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.6": {
+        "published": "2015-01-11T18:01:01.035Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.7": {
+        "published": "2015-01-11T18:08:18.178Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.8": {
+        "published": "2015-02-26T18:55:44.187Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "0.2.9": {
+        "published": "2015-03-04T19:52:50.186Z",
+        "dependencies": {
+          "bluebird": "^2.6.2",
+          "err-code": "^0.1.2",
+          "retry": "^0.6.1"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.0": {
+        "published": "2016-01-03T10:50:44.762Z",
+        "dependencies": {
+          "err-code": "^1.0.0",
+          "promise-try": "^1.0.1",
+          "retry": "^0.8.0"
+        },
+        "engines": null,
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.1": {
+        "published": "2016-01-03T10:58:34.655Z",
+        "dependencies": {
+          "err-code": "^1.0.0",
+          "promise-try": "^1.0.1",
+          "retry": "^0.8.0"
+        },
+        "engines": {
+          "node": ">=0.12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "1.0.2": {
+        "published": "2016-01-26T14:18:50.250Z",
+        "dependencies": {
+          "err-code": "^1.0.0",
+          "promise-try": "^1.0.1",
+          "retry": "^0.9.0"
+        },
+        "engines": {
+          "node": ">=0.12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.0": {
+        "published": "2016-03-15T20:13:16.083Z",
+        "dependencies": {
+          "err-code": "^1.0.0",
+          "retry": "^0.9.0"
+        },
+        "engines": {
+          "node": ">=0.12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "1.1.1": {
+        "published": "2016-08-20T10:40:05.614Z",
+        "dependencies": {
+          "err-code": "^1.0.0",
+          "retry": "^0.10.0"
+        },
+        "engines": {
+          "node": ">=0.12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.0": {
+        "published": "2020-06-13T10:12:06.336Z",
+        "dependencies": {
+          "err-code": "^2.0.2",
+          "retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=0.12"
+        },
+        "type": null,
+        "deprecated": null
+      },
+      "2.0.1": {
+        "published": "2020-06-14T13:09:02.848Z",
+        "dependencies": {
+          "err-code": "^2.0.2",
+          "retry": "^0.12.0"
+        },
+        "engines": {
+          "node": ">=10"
+        },
+        "type": null,
+        "deprecated": null
+      }
+    }
+  },
+  "is-network-error": {
+    "distTags": {
+      "latest": "1.3.2"
+    },
+    "maintainers": [
+      "sindresorhus"
+    ],
+    "time": {
+      "created": "2023-09-26T14:15:09.368Z",
+      "modified": "2026-05-08T06:17:49.558Z"
+    },
+    "versions": {
+      "1.0.0": {
+        "published": "2023-09-26T14:15:09.619Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "1.0.1": {
+        "published": "2024-01-04T01:38:41.893Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "1.1.0": {
+        "published": "2024-03-19T12:38:31.098Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "1.2.0": {
+        "published": "2025-09-16T16:41:07.774Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "1.3.0": {
+        "published": "2025-09-18T16:43:20.189Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "1.3.1": {
+        "published": "2026-02-26T13:51:46.844Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": "module",
+        "deprecated": null
+      },
+      "1.3.2": {
+        "published": "2026-05-08T06:17:49.465Z",
+        "dependencies": {},
+        "engines": {
+          "node": ">=16"
+        },
+        "type": "module",
+        "deprecated": null
+      }
+    }
+  },
+  "effect": {
+    "distTags": {
+      "snapshot": "0.0.0-snapshot-6ebc752baf28354006ca2a0ae783a5bccf5de9ad",
+      "beta": "4.0.0-beta.107",
+      "latest": "3.22.2",
+      "rc": "4.0.0-rc.117"
+    },
+    "time": {
+      "created": "2022-11-23T14:29:04.772Z",
+      "modified": "2026-09-21T04:54:14.724Z"
+    },
+    "latest": {
+      "version": "3.22.2",
+      "published": "2026-09-09T06:35:32.571Z"
+    }
+  }
+}

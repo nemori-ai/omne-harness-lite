@@ -1,6 +1,6 @@
 ---
 kind: system-requirement
-ids: [SYS-IDENTITY, SYS-KERNEL, SYS-SPEC, SYS-DEPLOY, SYS-TENANT, SYS-LLM, SYS-EXPERIMENT]
+ids: [SYS-IDENTITY, SYS-KERNEL, SYS-SPEC, SYS-DEPLOY, SYS-TENANT, SYS-LLM, SYS-EXPERIMENT, SYS-OPEN]
 source_baseline: omne-harness-lite-legacy-spec
 source_commit: e3573ca72d18bfe7ddd002df5025551b51eede46
 source_file: docs/requirements/system/constraints.md
@@ -66,3 +66,16 @@ DSH 组件采用 fork，由本项目自行维护、拓展和二次开发。具�
 历史材料的保留不构成兼容承诺。
 
 返回[基础前提](../README.md)。
+
+## SYS-OPEN
+
+2026-09-25 产品负责人确认：本项目按**开源框架**的角度设计，提供最大限度的开发者自定义灵活度。
+调用模型、执行工具这类核心能力，各自是**可公开的、独立的函数闭包**（如 `invokeModel`、`invokeTool`），
+不依赖任何运行时、会话、租户或存储即可单独使用；本项目的 runtime（会话、账本、租户、放行等）只是
+这些闭包的**一种消费者**——harness 自己用的那一种。其他人可以在外面用别的方式包装同一批组件。
+组件的内部构件（解析、装配、判定、投影、传输适配、执行者、转换件、重试件等）同样以可替换、可单独取用的
+形态公开，运行时对它们的编排不是它们存在的前提。
+
+这一条约束提供者与装配的形状（每个节点须区分「公开函数面」与「Cordis 服务面」，前者不得被后者吞没），
+不改变各契约对运行时层承诺的不变量：只在运行时层成立的性质（如「一个逻辑回复只发一次」「停机不重来」）
+由运行时层承担，函数层不作此承诺，节点须写明。

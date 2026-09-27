@@ -1,6 +1,6 @@
 // account-identity 插件：一条 fiber、两个服务面。必需 inject `storage`、`clock`；`credentials` 是可选依赖，调用时解析——
 // 认证换代时本插件不重跑，治理不受波及（节点设计「S-15 归本节点，credentials 作可选依赖、在调用时解析」）。
-// 无定时器、无后台任务、无缓存、无连接池；撤除不做排空（契约 S-28：每个操作要么已提交要么无痕）。
+// 无连接池/后台任务；消费者须排空含事务外凭据准备的业务后撤除，不能以运输连接关闭代替业务静止。
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import {
@@ -10,7 +10,7 @@ import {
 import { isOk, loadVerificationKey } from '@omne-harness-lite/identity-values'
 import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis'
 import type { Clock, Duration } from '@omne-harness-lite/offer-expiry'
-import type { Storage } from '@omne-harness-lite/storage'
+import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { AccountsImpl } from './accounts.ts'
 import type { ServiceDeps } from './deps.ts'
 import { contextNotifier, loggerDiagnostics } from './diagnostics.ts'
@@ -53,9 +53,12 @@ export const accountIdentityPlugin = definePlugin<AccountIdentityConfig>({
       // config 校验已挡住；到这里说明校验与装载不一致，按启动失败处理
       throw new Error('account-identity: verification keys failed to load after validation')
     }
+    const storage = ctx.get('storage') as AtomicStorage
+    if (typeof storage.atomic !== 'function')
+      throw new Error('account-identity: explicit atomic storage is required')
     const diagnostics = loggerDiagnostics(ctx.logger('account-identity'))
     const deps: ServiceDeps = {
-      storage: ctx.get('storage') as Storage,
+      storage,
       clock: ctx.get('clock') as Clock,
       resolveCredentials: () => resolveOptional<CredentialsService>(ctx, CREDENTIALS_SERVICE),
       credentialPolicy: config.credentialPolicy,

@@ -1,0 +1,49 @@
+# D-068：core 规格一致性技术修订范围
+
+状态：技术修订范围已由主调度采用（2026-09-26）；精确八版资源尚未接受与冻结，candidate 完成后须独立 spec-reviewer。依据：用户明确“除了最后总体交付验收要人，其他的可以自行验收（让一个主调度规划者来验收）”，已授权 Implement the plan。源 [固定版本一致性研究](../../../../research/core-spec-conformance-2026-09-26/README.md)、[D060 N32](../mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) 与 [实际反例／只读核查](../../evidence/2026-09-26-core-spec-reconciliation/README.md)。此处不代签用户最后总体门，也不把实施反例改写成既有版本已符合。
+
+## 已定表示与范围
+
+保持 N32：非法模型名字不解析参数，封口原样记为完整、`unparseable:true`、`rawArguments` 的调用，由真正工具执行运行时不执行、即刻 failed。N32 在该分支取代较早 M30 的拒增量说法；不改变其它 M30 结论。CB2 的 S12／Schema 与该选择冲突，新 CB3 仅在这一个未解析分支允许 AR BlockHead 原始非空 string 的 tool；正常 arguments 分支仍是 ModelToolName，ModelToolName 全局定义／注册／查找／执行约束保持原字节，不改名、不补值、不将非法调用当可执行。
+
+采用八份 v3 候选：CB、Messages、MR、Loop、TD 六份有表示域／错误结果／规范示例或精确采用变化；AM、AE 两份显式采用新正文端口，避免 AM2 pin2 却仅供应3资源。这不是 D066 行政迁移或“全部无语义变化”。CB S12 形状例外、TD 指定拒绝变化及 SA §5两示例修正必须在差异表直说。
+
+SA 新版保留第25/26行输入，仅把期望改 head_modality_mismatch，依据表示在先；contract P4 和 formal/README P4 不再将两行当索引错误证据，原第4/5行仍承担。模型执行内容与行为不因这两项改变，但新模型资源／配置与现有证据仍须准确标版本，不能重标旧运行。
+
+保持既有2：AR、CA、MP、Skill、MCP、Slash、Connector；identity1、默认OE2及公开OE1 seam。公开旧Schema资源保留原字节及$id，不能以新版内容冒充2。同名业务函数以当前采用承诺为准，不建立旧产品行为兼容层。AR2 保留需取得完整拒绝等同性的实际反例对照；其余保留条款不触达新增分支，实际资源闭包仍要重核。Connector 仅冻结编译资源，不实施其正文提供者。
+
+## 消费者与接受边界
+
+推荐／接受新版本不自动升级任何消费者。主调度仅在独立审阅后发布这八份，再显式升级相应八个当前 core 提供者、矩阵与证据。仍 pin2 的外部运行时（尤其 TER2、MRR2、工具放行与 runner）在迁移清单记 affected、未迁移；不修改其冻结2，不声称其已实现或 N32 完整执行链已闭合。该阶段仍只交 core 包及用户追加两个util，外部 runtime 的真实执行与持久责任沿原 outside-stage IDs。
+
+完整旧输入、所有旧运行及签收不改；本次候选未审完前仅暂停依赖冲突的两个示例／非法名字封口分支，其他实施继续。
+
+## 2026-09-26 补充：八版清单与产品依据修订号
+
+上文“六份”附近的枚举漏写 SA，并将 AM 的采用说明另列；准确清单为六份数据契约 **CB、Messages、MR、Loop、TD、AM**，两份能力契约 **SA、AE**，共八份。没有第九份或新增外部实施责任。
+
+新 v3 可明确采用现行 PF-005 rev6、PF-012 rev15、PF-013 rev13，同时在差异表保留源 v2 的 rev5／rev14／rev12 与以下限定映射；不修改冻结 v2 或产品正文，不因修订号增加把未实施运行时记为已兑现。
+
+- PF-005 rev6 的新增决定是 hooks 可以落宿主机，子进程环境按名单交付。core 的纯构件不启动 hooks 子进程；相关控制和真实环境验收仍归阶段外运行时 owner。
+- PF-012 rev15 对被取代尝试只拒绝推进运行状态的迟到写入，已经发出的响应和迟到账仍保留。core 不负责尝试栅栏或日志写入；不得从旧修订号的笼统表述推导丢弃全部迟到账的新策略。若候选中的具体条款与此相反，须报告并暂停该依赖分支。
+- PF-013 rev13 只限定本轮界面验收的适用范围；模型／值的 core 规则未改变。不得因此宣称凭据、界面或 PF-016 的外部功能已经交付。
+
+这是候选的新采用依据与范围说明，不是把旧产品修订号或旧运行证据原地替换。
+
+## 2026-09-26：八版精确技术接受与冻结
+
+主调度在用户上述技术验收委托内接受复审对象 `8c49bdef3b884adee458143e716dd44637177907` 的六份 data v3（CB、Messages、MR、Loop、TD、AM）和两份 capability v3（SA、AE），全部原条款及显式缺口。初审两项阻断与两项非阻断均已处置，独立 [复审](../../proposals/message-and-stream-baseline/reviews/2026-09-26-core-v3-spec-review.md) 无阻断。精确32资源与条款范围登记在 [acceptance.json](acceptance.json)，candidate-diff原件摘要保持不变。接受时间 2026-09-26T09:33:22.844605+00:00。
+
+先作本决定，再将8条catalog提升 accepted并追加32冻结hash；原319资源hash、源2、lineage及旧运行不改，334新covers仍reviewed:false，不冒称逐条产品覆盖复核。七形式执行文件与源2同字节仅表示模型内容继承；实际TLC/Alloy本次未跑，历史行政迁移前运行可能含不同注释坐标，继续引用原输入和边界。
+
+这次接受规格，不表示八个实现已采用3、组合验证已通过或用户最后总体签收。八个当前core提供者的显式采用、六公开schema/v2原字节资源、AR2实际拒绝等同性、AM固定资源闭包和SA唯一解析次数由后续实施留证；24外部消费者仍affected、未迁移，Connector真实纵线仍延期。
+
+## 2026-09-26：八提供者采用与技术投影
+
+主调度明确选择当前 core/content-blocks、messages、model-response、loop-extension、tool-definition、asset-model、stream-assembly、asset-evaluation 设计采用本次已接受的精确3。D-062原节点身份/边界不变；这里只取代这八个节点当前采用2的坐标及以下对应投影，源2/历史签收继续保留。源码实际升级仍在实施，旧2运行不标3。
+
+经 [独立架构复核](../../proposals/message-and-stream-baseline/reviews/2026-09-26-core-representation-and-resource-review.md) 无阻断，采用AM3固定资源闭包：六个data3公开原Schema/v2资源；AM加入自身AM2、CB2与私有完整TD2冻结文件，避免产品代码反向import TD。固定资源拷贝唯一依据registry/frozen，不修改$id/内容，不作第二份设计权威或旧业务兼容；端口签名和judge/derive/references所有权不变。只承诺当前25个AM3defs与同契约/$id提供者组合，不扩成任意外部Schema resolver，Connector2只供AM冻结Definition片段，真实纵线延期。
+
+同时采用CB/Msg表示恢复公开入口及Loop/TD诚实typed构造：按完整Schema恢复原定义的领域包装，与完整业务judge分离。Loop原形状接收边界不新增CB/Msg跨成员拒绝；TD先完整判定再恢复。guard只返回boolean，不能把未包装原JSON谎称为领域值。HUB7428be05四包1700测试、原两项反例与8组built消费者实际通过；这是2采用范围修复，不是本次3实现验收。未运行性能/全仓opaque数据流证明。
+
+六保留2的AR/CA/MP/Skill/MCP/Slash，其冻结Schema外部引用必须显式取schema/v2及其它既有精确资源；核心schema-runtime的中性校验可复用，默认业务函数只实现本阶段显式采用。AR2两条禁工具调用的拒绝等同性仍要实际新旧paired输入核对。所有外部24消费者保持affected未迁移；phase221原范围不变，不签Connector延期或人最后总体门。

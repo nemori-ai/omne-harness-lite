@@ -1,4 +1,7 @@
-import { isTestPath, scanLines, type Rule } from '../rule.ts'
+import ts from 'typescript'
+import { isTestPath, type Rule, type Violation } from '../rule.ts'
+import { lineAt } from '../source-text.ts'
+import { nodeName, syntaxOf, visitSyntax } from '../syntax.ts'
 
 /**
  * SC-OE-3（offer-expiry 节点）：消费者不得另用墙钟；领域时间只从 clock 服务取。
@@ -11,12 +14,67 @@ export const noWallClock: Rule = {
   description:
     'core/ 与 tenancy/ 源码里不得出现 Date.now()、new Date()、performance.now()；时间只从 clock 服务取',
   check(files) {
-    return scanLines(
-      this,
-      files,
-      /\bDate\.now\(\)|\bnew Date\(\s*\)|\bperformance\.now\(\)/,
-      '使用了墙钟；领域时间必须来自 clock 服务（Clock.now()）',
-      path => isTestPath(path) || path.startsWith('infra/'),
-    )
+    const out: Violation[] = []
+    for (const file of files) {
+      if (
+        isTestPath(file.path) ||
+        file.path.startsWith('infra/') ||
+        file.path === 'frontend/governance-client-operations/src/observation-time.ts'
+      )
+        continue
+      const syntax = syntaxOf(file)
+      const aliases = new Map<string, string>()
+      const resolve = (node: ts.Expression): string | undefined => {
+        if (ts.isIdentifier(node)) return aliases.get(node.text) ?? node.text
+        if (ts.isParenthesizedExpression(node)) return resolve(node.expression)
+        if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+          const owner = resolve(node.expression)
+          const member = ts.isPropertyAccessExpression(node)
+            ? node.name.text
+            : ts.isStringLiteralLike(node.argumentExpression)
+              ? node.argumentExpression.text
+              : undefined
+          if (owner !== undefined && member !== undefined)
+            return owner === 'globalThis' ? member : `${owner}.${member}`
+        }
+        return undefined
+      }
+      // 同文件 const 别名与解构；不做跨文件或运行期赋值数据流追踪。
+      visitSyntax(syntax, node => {
+        if (
+          !ts.isVariableDeclaration(node) ||
+          node.initializer === undefined ||
+          !ts.isVariableDeclarationList(node.parent) ||
+          !(node.parent.flags & ts.NodeFlags.Const)
+        )
+          return
+        const value = resolve(node.initializer)
+        if (value === undefined) return
+        if (ts.isIdentifier(node.name)) aliases.set(node.name.text, value)
+        if (ts.isObjectBindingPattern(node.name)) {
+          for (const binding of node.name.elements) {
+            const member = nodeName(binding.propertyName ?? binding.name)
+            if (member !== undefined && ts.isIdentifier(binding.name))
+              aliases.set(binding.name.text, `${value}.${member}`)
+          }
+        }
+      })
+      visitSyntax(syntax, node => {
+        const wallClock =
+          (ts.isCallExpression(node) &&
+            ['Date.now', 'performance.now'].includes(resolve(node.expression) ?? '')) ||
+          (ts.isNewExpression(node) &&
+            resolve(node.expression) === 'Date' &&
+            (node.arguments?.length ?? 0) === 0)
+        if (wallClock)
+          out.push({
+            rule: this.id,
+            path: file.path,
+            line: lineAt(file.text, node.getStart(syntax)),
+            message: '使用了墙钟；领域时间必须来自 clock 服务（Clock.now()）',
+          })
+      })
+    }
+    return out
   },
 }

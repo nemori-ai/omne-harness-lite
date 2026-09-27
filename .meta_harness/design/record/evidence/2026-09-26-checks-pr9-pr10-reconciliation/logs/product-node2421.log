@@ -1,0 +1,288 @@
+pnpm run check
+
+> omne-harness-lite-workspace@ check /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile
+> pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm -r run test && pnpm run lint:rules
+
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile
+> ./scripts/format.sh check
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> omne-harness-lite-workspace@ test:format /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile
+> ./scripts/test-formatting.sh
+
+Formatting scope, idempotence, staged-index, real-commit, editor-path, and hook-install tests passed.
+
+> omne-harness-lite-workspace@ build /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile
+> pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' --filter './tools/artifact-builder' run build
+
+Scope: 18 of 19 workspace projects
+packages/core/kernel-basis build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/identity-values build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/storage build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+tools/ts-checks build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/kernel-basis build: Done
+tools/artifact-builder build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/identity-values build: Done
+tools/ts-checks build: Done
+packages/core/storage build: Done
+tools/artifact-builder build: Done
+packages/core/offer-expiry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/infra/storage-sql build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/core/offer-expiry build: Done
+packages/infra/storage-sql build: Done
+.../frontend/governance-center-client build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/infra/clock build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../frontend/governance-center-client build: Done
+packages/infra/clock build: Done
+packages/frontend/client-local-state build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/credential-verification build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/credential-verification build: Done
+packages/frontend/client-local-state build: Done
+.../governance-client-operations build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/account-identity build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+.../governance-client-operations build: Done
+packages/tenancy/account-identity build: Done
+packages/tenancy/organization-governance build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+apps/cli build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+apps/cli build: Done
+packages/tenancy/organization-governance build: Done
+packages/tenancy/account-registration build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/account-registration build: Done
+packages/tenancy/governance-center-entry build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+packages/tenancy/governance-center-entry build: Done
+apps/tenancy-host build$ node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+apps/tenancy-host build: Done
+
+> omne-harness-lite-workspace@ typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile
+> pnpm -r run typecheck
+
+Scope: 18 of 19 workspace projects
+packages/core/identity-values typecheck$ tsc -p tsconfig.test.json
+packages/core/kernel-basis typecheck$ tsc -p tsconfig.test.json
+packages/core/storage typecheck$ tsc -p tsconfig.test.json
+tools/artifact-builder typecheck$ tsc -p tsconfig.test.json
+tools/artifact-builder typecheck: Done
+tools/ts-checks typecheck$ tsc -p tsconfig.test.json
+packages/core/identity-values typecheck: Done
+packages/core/kernel-basis typecheck: Done
+packages/core/storage typecheck: Done
+tools/ts-checks typecheck: Done
+packages/core/offer-expiry typecheck$ tsc -p tsconfig.test.json
+packages/infra/storage-sql typecheck$ tsc -p tsconfig.test.json
+packages/core/offer-expiry typecheck: Done
+packages/infra/storage-sql typecheck: Done
+.../frontend/governance-center-client typecheck$ tsc -p tsconfig.test.json
+packages/infra/clock typecheck$ tsc -p tsconfig.test.json
+.../frontend/governance-center-client typecheck: Done
+packages/infra/clock typecheck: Done
+packages/frontend/client-local-state typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/credential-verification typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/credential-verification typecheck: Done
+packages/frontend/client-local-state typecheck: Done
+.../governance-client-operations typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/account-identity typecheck$ tsc -p tsconfig.test.json
+.../governance-client-operations typecheck: Done
+packages/tenancy/account-identity typecheck: Done
+apps/cli typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/organization-governance typecheck$ tsc -p tsconfig.test.json
+apps/cli typecheck: Done
+packages/tenancy/organization-governance typecheck: Done
+packages/tenancy/account-registration typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/account-registration typecheck: Done
+packages/tenancy/governance-center-entry typecheck$ tsc -p tsconfig.test.json
+packages/tenancy/governance-center-entry typecheck: Done
+apps/tenancy-host typecheck$ tsc -p tsconfig.test.json
+apps/tenancy-host typecheck: Done
+Scope: 18 of 19 workspace projects
+packages/core/identity-values test$ vitest run
+packages/core/kernel-basis test$ vitest run
+packages/core/storage test$ vitest run
+tools/artifact-builder test$ vitest run
+packages/core/storage test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/core/storage test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/core/storage test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/core/storage
+tools/artifact-builder test: Testing types with tsc and vue-tsc is an experimental feature.
+tools/artifact-builder test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+tools/artifact-builder test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/tools/artifact-builder
+packages/core/identity-values test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/core/identity-values test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/core/identity-values test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/core/identity-values
+packages/core/kernel-basis test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/core/kernel-basis test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/core/kernel-basis test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/core/kernel-basis
+tools/artifact-builder test:  Test Files  1 passed (1)
+tools/artifact-builder test:       Tests  1 passed (1)
+tools/artifact-builder test: Type Errors  no errors
+tools/artifact-builder test:    Start at  06:04:09
+tools/artifact-builder test:    Duration  736ms (transform 234ms, setup 0ms, import 271ms, tests 171ms, environment 0ms)
+tools/artifact-builder test: Done
+tools/ts-checks test$ vitest run
+packages/core/kernel-basis test:  Test Files  11 passed (11)
+packages/core/kernel-basis test:       Tests  27 passed (27)
+packages/core/kernel-basis test: Type Errors  no errors
+packages/core/kernel-basis test:    Start at  06:04:09
+packages/core/kernel-basis test:    Duration  1.44s (transform 1.51s, setup 0ms, import 2.93s, tests 537ms, environment 2ms)
+packages/core/kernel-basis test: Done
+tools/ts-checks test: Testing types with tsc and vue-tsc is an experimental feature.
+tools/ts-checks test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+tools/ts-checks test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/tools/ts-checks
+packages/core/identity-values test:  Test Files  6 passed (6)
+packages/core/identity-values test:       Tests  211 passed (211)
+packages/core/identity-values test: Type Errors  no errors
+packages/core/identity-values test:    Start at  06:04:09
+packages/core/identity-values test:    Duration  3.65s (transform 876ms, setup 0ms, import 3.00s, tests 372ms, environment 11ms, typecheck 2.43s)
+packages/core/identity-values test: Done
+tools/ts-checks test:  Test Files  5 passed (5)
+tools/ts-checks test:       Tests  69 passed (69)
+tools/ts-checks test: Type Errors  no errors
+tools/ts-checks test:    Start at  06:04:11
+tools/ts-checks test:    Duration  1.89s (transform 4.19s, setup 0ms, import 4.74s, tests 797ms, environment 1ms)
+tools/ts-checks test: Done
+packages/core/storage test:  Test Files  3 passed (3)
+packages/core/storage test:       Tests  9 passed (9)
+packages/core/storage test: Type Errors  no errors
+packages/core/storage test:    Start at  06:04:09
+packages/core/storage test:    Duration  4.10s (transform 240ms, setup 0ms, import 353ms, tests 21ms, environment 0ms, typecheck 3.60s)
+packages/core/storage test: Done
+packages/core/offer-expiry test$ vitest run
+packages/infra/storage-sql test$ vitest run
+packages/infra/storage-sql test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/infra/storage-sql test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/infra/storage-sql test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/infra/storage-sql
+packages/core/offer-expiry test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/core/offer-expiry test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/core/offer-expiry test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/core/offer-expiry
+packages/core/offer-expiry test:  Test Files  5 passed (5)
+packages/core/offer-expiry test:       Tests  36 passed (36)
+packages/core/offer-expiry test: Type Errors  no errors
+packages/core/offer-expiry test:    Start at  06:04:13
+packages/core/offer-expiry test:    Duration  4.16s (transform 832ms, setup 0ms, import 2.20s, tests 58ms, environment 1ms, typecheck 3.17s)
+packages/core/offer-expiry test: Done
+packages/infra/storage-sql test:  Test Files  23 passed | 2 skipped (25)
+packages/infra/storage-sql test:       Tests  178 passed | 4 skipped (182)
+packages/infra/storage-sql test: Type Errors  no errors
+packages/infra/storage-sql test:    Start at  06:04:13
+packages/infra/storage-sql test:    Duration  10.03s (transform 2.85s, setup 0ms, import 13.08s, tests 31.84s, environment 4ms)
+packages/infra/storage-sql test: Done
+.../frontend/governance-center-client test$ vitest run
+packages/infra/clock test$ vitest run
+.../frontend/governance-center-client test: Testing types with tsc and vue-tsc is an experimental feature.
+.../frontend/governance-center-client test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+.../frontend/governance-center-client test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/frontend/governance-center-client
+packages/infra/clock test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/infra/clock test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/infra/clock test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/infra/clock
+packages/infra/clock test:  Test Files  3 passed (3)
+packages/infra/clock test:       Tests  25 passed (25)
+packages/infra/clock test: Type Errors  no errors
+packages/infra/clock test:    Start at  06:04:24
+packages/infra/clock test:    Duration  1.45s (transform 1.02s, setup 0ms, import 2.20s, tests 999ms, environment 1ms)
+packages/infra/clock test: Done
+.../frontend/governance-center-client test:  Test Files  2 passed (2)
+.../frontend/governance-center-client test:       Tests  90 passed (90)
+.../frontend/governance-center-client test: Type Errors  no errors
+.../frontend/governance-center-client test:    Start at  06:04:24
+.../frontend/governance-center-client test:    Duration  2.79s (transform 163ms, setup 0ms, import 585ms, tests 610ms, environment 0ms, typecheck 1.41s)
+.../frontend/governance-center-client test: Done
+packages/frontend/client-local-state test$ vitest run
+packages/tenancy/credential-verification test$ vitest run
+packages/tenancy/credential-verification test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/credential-verification test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/frontend/client-local-state test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/frontend/client-local-state test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/credential-verification test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/tenancy/credential-verification
+packages/frontend/client-local-state test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/frontend/client-local-state
+packages/tenancy/credential-verification test:  Test Files  2 passed (2)
+packages/tenancy/credential-verification test:       Tests  12 passed | 2 skipped (14)
+packages/tenancy/credential-verification test: Type Errors  no errors
+packages/tenancy/credential-verification test:    Start at  06:04:27
+packages/tenancy/credential-verification test:    Duration  3.37s (transform 175ms, setup 0ms, import 455ms, tests 97ms, environment 0ms, typecheck 2.57s)
+packages/tenancy/credential-verification test: Done
+packages/frontend/client-local-state test:  Test Files  5 passed (5)
+packages/frontend/client-local-state test:       Tests  36 passed (36)
+packages/frontend/client-local-state test: Type Errors  no errors
+packages/frontend/client-local-state test:    Start at  06:04:27
+packages/frontend/client-local-state test:    Duration  7.15s (transform 1.85s, setup 0ms, import 6.96s, tests 10.83s, environment 1ms)
+packages/frontend/client-local-state test: Done
+.../governance-client-operations test$ vitest run
+packages/tenancy/account-identity test$ vitest run
+packages/tenancy/account-identity test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/account-identity test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+.../governance-client-operations test: Testing types with tsc and vue-tsc is an experimental feature.
+.../governance-client-operations test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/account-identity test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/tenancy/account-identity
+.../governance-client-operations test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/frontend/governance-client-operations
+.../governance-client-operations test:  Test Files  6 passed (6)
+.../governance-client-operations test:       Tests  139 passed (139)
+.../governance-client-operations test: Type Errors  no errors
+.../governance-client-operations test:    Start at  06:04:34
+.../governance-client-operations test:    Duration  7.11s (transform 2.16s, setup 0ms, import 21.97s, tests 9.90s, environment 1ms)
+.../governance-client-operations test: Done
+packages/tenancy/account-identity test:  Test Files  6 passed (6)
+packages/tenancy/account-identity test:       Tests  83 passed | 10 skipped (93)
+packages/tenancy/account-identity test: Type Errors  no errors
+packages/tenancy/account-identity test:    Start at  06:04:34
+packages/tenancy/account-identity test:    Duration  9.79s (transform 4.60s, setup 0ms, import 13.30s, tests 7.55s, environment 1ms, typecheck 4.49s)
+packages/tenancy/account-identity test: Done
+apps/cli test$ vitest run
+packages/tenancy/organization-governance test$ vitest run
+packages/tenancy/organization-governance test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/organization-governance test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/organization-governance test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/tenancy/organization-governance
+apps/cli test: Testing types with tsc and vue-tsc is an experimental feature.
+apps/cli test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+apps/cli test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/apps/cli
+apps/cli test:  Test Files  10 passed (10)
+apps/cli test:       Tests  133 passed (133)
+apps/cli test: Type Errors  no errors
+apps/cli test:    Start at  06:04:45
+apps/cli test:    Duration  5.98s (transform 3.49s, setup 0ms, import 24.42s, tests 2.34s, environment 2ms)
+apps/cli test: Done
+packages/tenancy/organization-governance test:  Test Files  10 passed (10)
+packages/tenancy/organization-governance test:       Tests  107 passed | 4 skipped (111)
+packages/tenancy/organization-governance test: Type Errors  no errors
+packages/tenancy/organization-governance test:    Start at  06:04:45
+packages/tenancy/organization-governance test:    Duration  9.13s (transform 9.87s, setup 0ms, import 25.56s, tests 8.27s, environment 10ms, typecheck 2.86s)
+packages/tenancy/organization-governance test: Done
+packages/tenancy/account-registration test$ vitest run
+packages/tenancy/account-registration test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/account-registration test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/account-registration test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/tenancy/account-registration
+packages/tenancy/account-registration test:  Test Files  6 passed (6)
+packages/tenancy/account-registration test:       Tests  60 passed | 1 skipped (61)
+packages/tenancy/account-registration test: Type Errors  no errors
+packages/tenancy/account-registration test:    Start at  06:04:54
+packages/tenancy/account-registration test:    Duration  19.14s (transform 2.04s, setup 0ms, import 5.43s, tests 21.11s, environment 1ms, typecheck 3.12s)
+packages/tenancy/account-registration test: Done
+packages/tenancy/governance-center-entry test$ vitest run
+packages/tenancy/governance-center-entry test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/tenancy/governance-center-entry test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/tenancy/governance-center-entry test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages/tenancy/governance-center-entry
+packages/tenancy/governance-center-entry test:  Test Files  18 passed (18)
+packages/tenancy/governance-center-entry test:       Tests  523 passed | 2 skipped (525)
+packages/tenancy/governance-center-entry test: Type Errors  no errors
+packages/tenancy/governance-center-entry test:    Start at  06:05:14
+packages/tenancy/governance-center-entry test:    Duration  52.05s (transform 5.86s, setup 0ms, import 18.00s, tests 76.96s, environment 3ms, typecheck 3.65s)
+packages/tenancy/governance-center-entry test: Done
+apps/tenancy-host test$ vitest run
+apps/tenancy-host test: Testing types with tsc and vue-tsc is an experimental feature.
+apps/tenancy-host test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+apps/tenancy-host test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/apps/tenancy-host
+apps/tenancy-host test:  Test Files  14 passed | 1 skipped (15)
+apps/tenancy-host test:       Tests  187 passed | 11 skipped (198)
+apps/tenancy-host test: Type Errors  no errors
+apps/tenancy-host test:    Start at  06:06:06
+apps/tenancy-host test:    Duration  74.92s (transform 5.38s, setup 0ms, import 16.74s, tests 207.33s, environment 3ms)
+apps/tenancy-host test: Done
+
+> omne-harness-lite-workspace@ lint:rules /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile
+> pnpm --filter @omne-harness-lite/ts-checks run scan
+
+
+> @omne-harness-lite/ts-checks@0.0.0 scan /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/tools/ts-checks
+> node --experimental-strip-types src/cli.ts ../../packages ../../apps
+
+PASS: ts-checks 20 条规则，扫描 /data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/packages、/data/qiwei/repos/omne-harness-lite/.worktrees/pr10-reconcile/apps，无违反。

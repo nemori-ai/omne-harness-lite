@@ -1,0 +1,240 @@
+{
+  "repo": {
+    "archived": false,
+    "default_branch": "main",
+    "full_name": "vercel/async-retry",
+    "license": "MIT",
+    "open_issues_count": 30,
+    "pushed_at": "2023-07-19T03:46:53Z",
+    "stargazers_count": 1919
+  },
+  "recent_commits": [
+    {
+      "date": "2021-08-17T02:09:21Z",
+      "sha": "9505be1f829ea297e7aff6c731ca3d5bd7052ed7",
+      "subject": "1.3.3"
+    },
+    {
+      "date": "2021-08-17T02:08:55Z",
+      "sha": "4b65583f1db095b2ba326e35ef856bc13def9a7b",
+      "subject": "1.3.2"
+    },
+    {
+      "date": "2021-08-17T02:07:57Z",
+      "sha": "dce9623b8ac713f2c99cec46f27e2c2ec7e27160",
+      "subject": "Move to GitHub Actions. (#86)"
+    }
+  ],
+  "open_issues_and_prs": [
+    {
+      "created_at": "2024-08-11T13:09:41Z",
+      "kind": "issue",
+      "number": 110,
+      "title": "Alternative, in TypeScript",
+      "url": "https://github.com/vercel/async-retry/issues/110"
+    },
+    {
+      "created_at": "2024-06-25T03:34:52Z",
+      "kind": "issue",
+      "number": 109,
+      "title": "randomize default is true not false.",
+      "url": "https://github.com/vercel/async-retry/issues/109"
+    },
+    {
+      "created_at": "2023-07-19T03:46:53Z",
+      "kind": "PR",
+      "number": 108,
+      "title": "Bump word-wrap from 1.2.3 to 1.2.4",
+      "url": "https://github.com/vercel/async-retry/pull/108"
+    },
+    {
+      "created_at": "2023-07-12T15:23:37Z",
+      "kind": "PR",
+      "number": 107,
+      "title": "Bump semver from 5.7.1 to 5.7.2",
+      "url": "https://github.com/vercel/async-retry/pull/107"
+    },
+    {
+      "created_at": "2023-03-09T11:17:27Z",
+      "kind": "issue",
+      "number": 103,
+      "title": "(0 , async_retry_1.retry) is not a function ",
+      "url": "https://github.com/vercel/async-retry/issues/103"
+    },
+    {
+      "created_at": "2023-03-04T03:19:33Z",
+      "kind": "PR",
+      "number": 102,
+      "title": "Bump minimist from 1.2.5 to 1.2.8",
+      "url": "https://github.com/vercel/async-retry/pull/102"
+    },
+    {
+      "created_at": "2023-02-19T18:42:34Z",
+      "kind": "issue",
+      "number": 101,
+      "title": "Set dynamic retry timeout in onRetry",
+      "url": "https://github.com/vercel/async-retry/issues/101"
+    },
+    {
+      "created_at": "2023-02-03T22:50:58Z",
+      "kind": "PR",
+      "number": 100,
+      "title": "Bump http-cache-semantics from 4.1.0 to 4.1.1",
+      "url": "https://github.com/vercel/async-retry/pull/100"
+    },
+    {
+      "created_at": "2023-01-07T04:04:37Z",
+      "kind": "PR",
+      "number": 99,
+      "title": "Bump json5 from 2.2.0 to 2.2.3",
+      "url": "https://github.com/vercel/async-retry/pull/99"
+    },
+    {
+      "created_at": "2022-12-06T04:52:14Z",
+      "kind": "PR",
+      "number": 98,
+      "title": "Setting retry timeout on entire retry operation",
+      "url": "https://github.com/vercel/async-retry/pull/98"
+    },
+    {
+      "created_at": "2022-09-23T16:49:30Z",
+      "kind": "issue",
+      "number": 97,
+      "title": "Option has no retries",
+      "url": "https://github.com/vercel/async-retry/issues/97"
+    },
+    {
+      "created_at": "2022-08-10T05:38:12Z",
+      "kind": "PR",
+      "number": 96,
+      "title": "commonjs -> ecmascript modules",
+      "url": "https://github.com/vercel/async-retry/pull/96"
+    },
+    {
+      "created_at": "2022-06-24T22:29:50Z",
+      "kind": "PR",
+      "number": 95,
+      "title": "Bump node-fetch from 2.6.1 to 2.6.7",
+      "url": "https://github.com/vercel/async-retry/pull/95"
+    },
+    {
+      "created_at": "2022-05-25T23:18:50Z",
+      "kind": "issue",
+      "number": 92,
+      "title": "The documentation for onRetry is wrong",
+      "url": "https://github.com/vercel/async-retry/issues/92"
+    },
+    {
+      "created_at": "2022-03-11T10:25:31Z",
+      "kind": "issue",
+      "number": 90,
+      "title": "Jest test fails without retry",
+      "url": "https://github.com/vercel/async-retry/issues/90"
+    },
+    {
+      "created_at": "2021-10-24T06:56:10Z",
+      "kind": "issue",
+      "number": 87,
+      "title": "Why isn’t it using vercel retry as its base?",
+      "url": "https://github.com/vercel/async-retry/issues/87"
+    },
+    {
+      "created_at": "2021-08-02T10:25:36Z",
+      "kind": "issue",
+      "number": 79,
+      "title": "throw Error inside onRetry",
+      "url": "https://github.com/vercel/async-retry/issues/79"
+    },
+    {
+      "created_at": "2021-07-02T00:11:21Z",
+      "kind": "issue",
+      "number": 78,
+      "title": "Package size increase after async-retry",
+      "url": "https://github.com/vercel/async-retry/issues/78"
+    },
+    {
+      "created_at": "2020-08-03T21:51:36Z",
+      "kind": "issue",
+      "number": 73,
+      "title": "Feature: set a timeout for the entire retry operation",
+      "url": "https://github.com/vercel/async-retry/issues/73"
+    },
+    {
+      "created_at": "2020-03-05T12:15:05Z",
+      "kind": "issue",
+      "number": 69,
+      "title": "bail should prevent any further calls to the retrier function",
+      "url": "https://github.com/vercel/async-retry/issues/69"
+    },
+    {
+      "created_at": "2020-02-17T16:47:48Z",
+      "kind": "issue",
+      "number": 68,
+      "title": "Add ability to override the delay for a particular failed invocation",
+      "url": "https://github.com/vercel/async-retry/issues/68"
+    },
+    {
+      "created_at": "2020-01-02T12:13:22Z",
+      "kind": "PR",
+      "number": 65,
+      "title": "Fix syntax error causing 'randomize' to not be true by default",
+      "url": "https://github.com/vercel/async-retry/pull/65"
+    },
+    {
+      "created_at": "2019-11-13T16:01:52Z",
+      "kind": "issue",
+      "number": 58,
+      "title": "TypeError error e is not a function and TypeError error Function expected",
+      "url": "https://github.com/vercel/async-retry/issues/58"
+    },
+    {
+      "created_at": "2019-11-04T21:35:45Z",
+      "kind": "issue",
+      "number": 57,
+      "title": "Throw previous error if there's a timeout",
+      "url": "https://github.com/vercel/async-retry/issues/57"
+    },
+    {
+      "created_at": "2019-03-25T15:30:30Z",
+      "kind": "PR",
+      "number": 54,
+      "title": "Document onRetry's second parameter",
+      "url": "https://github.com/vercel/async-retry/pull/54"
+    },
+    {
+      "created_at": "2019-01-28T15:55:31Z",
+      "kind": "issue",
+      "number": 52,
+      "title": "How to retry if response data is empty",
+      "url": "https://github.com/vercel/async-retry/issues/52"
+    },
+    {
+      "created_at": "2019-01-23T12:16:00Z",
+      "kind": "issue",
+      "number": 51,
+      "title": "Add option to decide if retry should be attempted?",
+      "url": "https://github.com/vercel/async-retry/issues/51"
+    },
+    {
+      "created_at": "2018-06-28T10:13:57Z",
+      "kind": "issue",
+      "number": 43,
+      "title": "Can onRetry handle async functions?",
+      "url": "https://github.com/vercel/async-retry/issues/43"
+    },
+    {
+      "created_at": "2017-07-11T13:20:10Z",
+      "kind": "issue",
+      "number": 36,
+      "title": "Types for Typescript",
+      "url": "https://github.com/vercel/async-retry/issues/36"
+    },
+    {
+      "created_at": "2016-06-14T17:54:51Z",
+      "kind": "issue",
+      "number": 1,
+      "title": "Bail automatically upon `TypeError`",
+      "url": "https://github.com/vercel/async-retry/issues/1"
+    }
+  ]
+}

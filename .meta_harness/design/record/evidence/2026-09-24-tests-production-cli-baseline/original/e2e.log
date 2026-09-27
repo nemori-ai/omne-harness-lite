@@ -1,0 +1,94 @@
+
+> @omne-harness-lite/tenancy-host@0.0.0 test:e2e /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/tenancy-host
+> vitest run tests/e2e --reporter=default --reporter=json --outputFile=/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/baseline-2026-09-24/e2e-results.json
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/tenancy-host
+
+ ❯ tests/e2e/e2e.spec.ts (46 tests | 1 failed) 29028ms
+     ✓ 测量自检：本套件比对用的四份固定字节与 HB examples §1、§3 标注的 SHA-256 一致 1ms
+     ✓ 测量自检：客户端按 HB S-17 读答复——读得出的四类都认得，读不成的一律问不到，不猜 1ms
+     ✓ 测量自检：证据目录的秘密搜查五种形式都搜得出、遮蔽后搜不出；本目录的源码不 import 任何产品包 4ms
+       ✓ [PF-017 §一「第一次启动，密钥没给」] 退出 1、恰一条 startup-failed 点名部署密钥；什么都没留下 191ms
+       ✓ [PF-017 §一「某一项部署参数没给」；§三「参数缺一不可」] 五项逐一拿掉：各自起不来并点名那一项  925ms
+       ✓ [PF-017 §三「不半开」] 拿掉数据所在（库文件的目录不存在）与 TLS 私钥：同样起不来；各次原因互不相同  367ms
+       ✓ [PF-017 §一「第一次启动成功」「运维者看完整体检」] 运维面完整体检十项按书写次序；参数即配置值；密钥在且完整  306ms
+       ✓ [PF-017 §一「一个还没登录的人看体检」；HB S-15] 公开体检未登录可答、恰三样、同一标识与版本；一次运行期间同一份字节，方法路径与头不看 10ms
+       ✓ [PF-017 §三「生来是空的」；§二「中心里存在一个没人注册过的账号」] 刚立起来：任何标识与凭据都登录不了，答复逐字相同 13ms
+       ✓ [PF-001 §1.1；PF-017 §一「第一个人来」] 注册 ⇒ registered；登录可用；个人组织与第一个租户已在，他是那里的超管；第二、三个人走一模一样的步骤  1128ms
+       ✓ [PF-001 §二 注册 1] 标识已被占用（同凭据、不同凭据同一答复）；凭据不合规则 ⇒ credential-rejected 且标识没被占住；表示层不合格 ⇒ invalid-input 189ms
+       ✓ [PF-001 §1.2、§二 登录 2] 登录交出出示物与句柄；标识不存在与凭据错误的答复逐字相同  370ms
+       ✓ [PF-001 §1.3；PF-017 §一「列出本账号的登录状态」] 列出本账号全部有效登录状态、各带签发时间；逐个撤销、其余不受影响；选中自己即退出；撤销后立刻被拒；列表项当出示物用不了  396ms
+       ✓ [PF-001 §二 撤销登录状态 2] 从没签发过的句柄、别人的句柄 ⇒ login-state-not-found；已失效的那一个再撤 ⇒ ok（EC S-20 的幂等；与 PF-001 字面的出入见证据「异常」）；其余不受影响 10ms
+       ✓ [PF-001 §1.4；PF-017 §一「第二个人来，也建了一个组织」] 团队组织一次建成、创建者即超管；带创建键重发认回同一个；先来者没有特殊待遇 25ms
+       ✓ [PF-001 §1.5、§1.8] 个人组织不能发起邀请；切到团队组织后超管邀请、被邀请者看到并接受、租户产生；默认时长按部署参数 28ms
+       ✓ [PF-001 §二 加入 2；flows §四 角色与操作] 过期与撤回的邀请都不再有效；已是成员再邀被拒；普通成员不能邀请、看不到发出的邀约，但看得到只含有效成员的名单  1536ms
+       ✓ [PF-001 §1.6、§3.3] 本人退出、超管移除；再加入回来的是同一个租户；个人组织退不了；最后一位超管退不了 29ms
+       ✓ [PF-001 §1.7] 两个不同账号建的组织：一方发起、另一方接受才建立；接受不产生租户；解除是单方面的 41ms
+       ✓ [PF-001 §二 建立隶属] 个人组织不参与；撤回与过期的请求不再有效；会成环、己方已有上级 ⇒ 关系未建立；同一人两个组织自发自受  1547ms
+       ✓ [PF-001 §1.8、§二 切换 1] 不在目标组织 ⇒ membershipNotEffective；别人的租户 ⇒ notOwnTenant；切换之后新建的东西落在新组织，之前的不动；账号身份不变 19ms
+       ✓ [PF-001 §二「移除或降级超管：两位超管同时移除或降级对方」、§3.3「同时发生也只有一种收场」] 两位超管在两条连接上同时降级、再同时移除对方：每轮恰一方成立，另一方得到与单次被拒逐字相同的答复，组织始终有一位超管 28ms
+       ✓ [手动演练入口] walk.ts 与套件共用驱动器：另起一个 Node 进程走注册→登录→建组织→邀请→接受；它打印的东西里没有一样能当出示物用  829ms
+       ✓ [PF-017 §二「两个不同的中心标识相同」；§三「从零立两个中心，标识不同」] 另立一个中心 B：标识不同；在 B 签发一个登录状态  888ms
+       ✓ [PF-017 §一 第 7～10 行、§二「四种不认的情形答复不同」、§三「拒绝逐字相同」；EC S-11] 没带、多个、表示层不合格、从没签发、已撤销、别的中心签的、列表句柄、只放在 Authorization 头：同一件事，线上答复逐字节相同（HB examples §3.1 那 137 个字节） 22ms
+       ✓ [PF-017 §一「已撤销的登录状态来」] 账号、组织、成员资格原样都在；重新登录得到一个新的登录状态 184ms
+       ✓ [PF-017 §一 第 17、18 行；§二「版本对不上时还去判了登录状态」；§三「答复的先后」「版本对不上就明说」] 带有效、已撤销、别的中心的、什么都没带四种来：只得 version-mismatch（133 字节），那件事没有发生；同一客户端读公开体检照常 13ms
+       ✓ [PF-017 §一「输入格式就不对」；§三「答复的先后」] 有效登录状态配格式不对的载荷 ⇒ invalid-input；已撤销的配同一份 ⇒ login-state-rejected（先认人，后看输入） 10ms
+       × [PF-017 §一「不问来者是哪台机器、什么程序」；§二「中心记住并区别对待某个客户端」；§三「只认登录状态，不认客户端」] 同一出示物做同一件事：换来源地址、换方法路径与头、换一个程序（openssl s_client），答复逐字节相同 7ms
+       ✓ [PF-017 §二「中心认了客户端说它验过了、运维者说放行」] 信封里夹带「已验过」「运维者放行」的成员 ⇒ invalid-input，那件事没做 8ms
+       ✓ [PF-017 §一「替同事接受邀请、移出、撤销登录状态」；EC S-25] 运维面对任何请求都只答完整体检，事后什么都没变 11ms
+       ✓ [PF-017 §一「运维者想撤销某个同事的登录状态」；§二「运维者有任何一条不经登录状态的路」] 进程入口只有 keygen 与 serve，别的子命令一律用法错误  1051ms
+       ✓ [PF-017 §一「运维者看完整体检」「运维者想看部署密钥的值」；§二「运维者能从产品里看到谁在里面」] 完整体检里没有账号、组织、登录标识、句柄，也没有密钥内容 1ms
+       ✓ [PF-017 §一「中心重启」；§二「重启之后有人被退出登录，或已撤销的又能用了」；§三「重启不让任何人退出登录」] SIGTERM 退出 0 再 serve：标识不变；三个此前有效的照常能用；此前撤销的仍被拒 236ms
+       ✓ [PF-017 §一「强行结束再起来」「崩掉之后马上重启，钟没动过」「停机那一刻邀请刚发出」；§三「停机」；HB S-16、S-20（闸未开不答）] SIGKILL 后马上 serve：等钟那段两张面都问不到、一个字节不写；不报时钟错，工程记录里看得见等待；已答复成功的注册、邀请、撤销都在；回执没到的那份邀请要么完整在、要么不在  10385ms
+       ✓ [PF-017 §一「搬到另一台机器、换了地址」；§三「同一个中心换地址还是它」] 同一份数据换目录、换端口起来：标识相同，登录状态照用 228ms
+       ✓ [PF-017 §一「从零重立一个中心，用同一个地址」] 同一端口上从零立起来的中心：标识不同，原来的登录状态与账号在那里都不作数  535ms
+       ✓ [PF-017 §一「中心开着时，机器上那份部署密钥被删了」「运维者丢了部署密钥」；§二「丢了部署密钥导致读不出来」；§三「密钥不加密任何东西」] 开着时删掉：什么都不变；下次起不来并点名密钥；换一套新密钥起来，一样没少  1529ms
+       ✓ [PF-017 §一「运维者改了一项部署参数」「把邀请的默认时长调短再重启」；§二「改一项部署参数，让一份已经发出的邀约到期时刻变了」；§三「参数…邀约例外」] 已发出的邀请到期时刻始终不变、已过期的始终不可接受；此后新发、没填时长的按新默认  3148ms
+       ✓ [PF-017 §一「运维者从备份恢复」] 恢复出来的还是原来那个中心；备份之后签发的不作数，注册、邀请、加入都不在；备份之后撤销的又有效、移出的成员又回来了  861ms
+       ✓ [PF-017 §一「一份中心数据的备份外泄了」；§三「不交出能直接用的凭证」（备份那一半）；EC S-41] 备份字节里搜不到口令与出示物；备份里每一个字符串值当出示物都被拒、答复逐字相同；两个仍有效的照常能用 179ms
+       ✓ [HB S-4] 握手里出示的叶子证书就是部署配置给的那一张；协议 TLS 1.3 1ms
+       ✓ [PF-017 §二「客户端把报出同一个中心标识的冒牌货当成了中心」；D-029 ①⑤] 同一个中心（同一标识）换一张别的 CA 签的证书起来：客户端握手即拒、不写一个字节；它确实在答（信任那张 CA 的客户端读得到同一标识）  436ms
+       ✓ [D-029 ①②；PF-017 §二「冒牌货」] 冒牌 TLS 端点（别的 CA 签的、或同一 CA 签给别的主机名的）：客户端拒绝，冒牌者收到零字节应用数据；持合格证书的端点收得到（对照）  311ms
+       ✓ [HB S-11、S-12] 客户端一面的每一份答复：状态行与四个头逐字节固定、体无空白且按 RFC 8785 写 10ms
+       ✓ [PF-017 §二「部署密钥的值出现在…任何输出里」「工程记录里出现对端地址，或账号、租户能被还原出来的标识」] 全部答复、两种体检、工程记录、启动失败说明：密钥与口令一处都没有；出示物只在签发它的那一次登录答复里；工程记录里没有来源地址、没有任何账号标识与登录标识  566ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/e2e.spec.ts > e2e：治理中心作为可部署应用的黑盒旅程（部署方式起进程，另一进程只凭线上契约驱动） > 四、中心只认自己签发且此刻有效的登录状态 [PF-017 §一 第 6～10、14、17、18 行；§二 第 2、3、5、6、21、末行；§三] > [PF-017 §一「不问来者是哪台机器、什么程序」；§二「中心记住并区别对待某个客户端」；§三「只认登录状态，不认客户端」] 同一出示物做同一件事：换来源地址、换方法路径与头、换一个程序（openssl s_client），答复逐字节相同
+AssertionError: expected '' to be 'HTTP/1.1 200 OK\r\nContent-Type: appl…' // Object.is equality
+
+- Expected
++ Received
+
+- HTTP/1.1 200 OK
+- Content-Type: application/json
+- Cache-Control: no-store
+- Content-Length: 352
+- Connection: close
+- 
+- {"result":[{"organization":"32bzyr3aqdvak7qr6v244j7tem","account":"mivfl73awu7m34bfx42rjaogzu"},{"organization":"4pnmkp737elb2zp5okuscvklvy","account":"mivfl73awu7m34bfx42rjaogzu"},{"organization":"7irwnihndi5z6qe5mpbxy7pyze","account":"mivfl73awu7m34bfx42rjaogzu"},{"organization":"rf2mauwmzolwf272lkzeqvmc5u","account":"mivfl73awu7m34bfx42rjaogzu"}]}
+
+ ❯ tests/e2e/e2e.spec.ts:1465:28
+    1463|         },
+    1464|       )
+    1465|       expect(text(script)).toBe(text(first))
+       |                            ^
+    1466|       const viaOpenssl = await opensslClient(dA.port, ca.certFile, req…
+    1467|       const wire = {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 45 passed (46)
+Type Errors  no errors
+   Start at  15:12:19
+   Duration  29.18s (transform 56ms, setup 0ms, import 73ms, tests 29.03s, environment 0ms)
+
+JSON report written to /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/baseline-2026-09-24/e2e-results.json
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/tenancy-host:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/tenancy-host@0.0.0 test:e2e: `vitest run tests/e2e --reporter=default --reporter=json --outputFile=/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/production-cli-onboarding/baseline-2026-09-24/e2e-results.json`
+Exit status 1

@@ -1,0 +1,37 @@
+{
+  "name": "@omne-harness-lite/model-profile",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "data.model-profile v2 的纯类型、表示校验与精确引用匹配",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": "./schema/model-profile.schema.json"
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "ajv": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

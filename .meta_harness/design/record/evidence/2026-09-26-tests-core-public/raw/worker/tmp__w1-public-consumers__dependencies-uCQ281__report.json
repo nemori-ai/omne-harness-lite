@@ -1,0 +1,195 @@
+{
+  "kernelSource": {
+    "external": [
+      "@deepseek-ai/cordis",
+      "@standard-schema/spec"
+    ],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/src/fiber-state.ts",
+        "sha256": "ff4fe6da9e8355a973a7c55e66f7d76606bfd0328fc53beb23504eab0f6fdf1d"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/src/index.ts",
+        "sha256": "a18e6b5c783fdf6e8dd36fe6b2bcd0a41328939839d586dfeadea2c16706081e"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/src/outcome.ts",
+        "sha256": "28af11a34ed4000d5d2d186e3bf465bc0e11f51d3fc3a9f50345f59391650492"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/src/plugin.ts",
+        "sha256": "d9f327df27428e5ed22b23b9ee10145c774bcf3926e6175d1aed29d7918ef323"
+      }
+    ]
+  },
+  "kernelDeclarations": {
+    "external": [
+      "@deepseek-ai/cordis",
+      "@standard-schema/spec"
+    ],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/fiber-state.d.ts",
+        "sha256": "3384f2b96785a95bf4718790a81ff101dc3c73d3b77ae8701d03bdde952e7664"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/index.d.ts",
+        "sha256": "d4e312bfddbb92c25c6ba3fbb553f4722c7ec8ed3971055e9c9d591258a47890"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/outcome.d.ts",
+        "sha256": "de92efb448bceb9fa4cb04e098ce0722482374617124738c5cbb8c7e0dfcf6ea"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/plugin.d.ts",
+        "sha256": "b3e6ecbdf1a2324b729df7acd48746db82e82048657babbe36629a96c215b143"
+      }
+    ]
+  },
+  "kernelRuntime": {
+    "external": [],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/fiber-state.js",
+        "sha256": "e7c6fafb76340b5bfd3c1d7084e9a99cf0ea0a8eed3491daa6d0dfd4f185b31a"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/index.js",
+        "sha256": "22cb3a5636469209ae1138ad3301443559e641b1b1a9ec160e48199345e54e62"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/outcome.js",
+        "sha256": "58e97d71c175fcfc1aa1c2b1914df1661d94c31e34d076a345a6dad2fa41be05"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/plugin.js",
+        "sha256": "f8705cb52c369c962713b0b95ae900054dd570a06d591cf8f6c3aaf619691fe8"
+      }
+    ]
+  },
+  "kernelTesting": {
+    "external": [
+      "@deepseek-ai/cordis"
+    ],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/fiber-state.js",
+        "sha256": "e7c6fafb76340b5bfd3c1d7084e9a99cf0ea0a8eed3491daa6d0dfd4f185b31a"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/kernel-basis/dist/testing/index.js",
+        "sha256": "6dea67ba6e3a0f4eeaa984fc262afcfa49fbaeff0cf5373cb819420aba3737d4"
+      }
+    ]
+  },
+  "storageSource": {
+    "external": [
+      "kysely",
+      "kysely/migration"
+    ],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/src/errors.ts",
+        "sha256": "ee16db0443c8970ecb71a756d7d7c0eb4b2935afd26f1a188b4629ce0bae11b7"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/src/index.ts",
+        "sha256": "12422c001df4e94d2968f403c44b37ecb89c26039ab839b809c55d635cd54768"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/src/map.ts",
+        "sha256": "67ccb147fc6fbf4aef0e40adc6af411369632944196821f5a66a5c8b83d9936a"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/src/migration.ts",
+        "sha256": "6d87a7dd9f563f487a8fc30ae680d1b290f966666d933efc6bea4edf3cdc1ab7"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/src/preflight.ts",
+        "sha256": "e18b87b514435a08ceaa6bb2d5a3eff597b2a96b8731d1817a858525f50a3116"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/src/protocol.ts",
+        "sha256": "fde24d0954acb4759a773ba655deef4e3b283113c84a29bc33ac2c126a0a412c"
+      }
+    ]
+  },
+  "storageDeclarations": {
+    "external": [
+      "kysely",
+      "kysely/migration"
+    ],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/errors.d.ts",
+        "sha256": "408c5088e6aa45f31dc2c789909ce279d0f57c1ee50ade4ab02bb25ab374ec96"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/index.d.ts",
+        "sha256": "d74cd593eb70210ba93cccce0862683c568a95694e84b589c279217cebf3bf18"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/map.d.ts",
+        "sha256": "1479a60c19281714bdc7b20dc5dd8bb8ad5b9fda54570a980ee01cee24a6b5bb"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/migration.d.ts",
+        "sha256": "60fbcee7ac7f739f007c04883d55f4dd10de5c9d5b129216fb4d7e30061ec5c8"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/preflight.d.ts",
+        "sha256": "eca141c2a45c8d982f89a0cff6677275328e89a2f52ced6dc2d150ac95f244b5"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/protocol.d.ts",
+        "sha256": "5bd74c9a5edf72b31d9ebb5d2a4b2a3b1a3fe943c28ce34ca636a1a7f85fb2dc"
+      }
+    ]
+  },
+  "storageRuntime": {
+    "external": [],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/errors.js",
+        "sha256": "1c3462a53f1b256e72ddf289c695ad6c0138bdefd4de8aa28c6163ddecc44608"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/index.js",
+        "sha256": "9eca967932409252091d8c9d7174c69766be3315d46110a6687746e4f384444b"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/map.js",
+        "sha256": "480ecfdf8490d8a74d12f4c1dda90af0ec6dd814c861048abd118227fb97c2bc"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/migration.js",
+        "sha256": "3e21d7295c7e19ac2d872faae0c780fc87e63c20369861b2f40e1d85efe3f4a5"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/preflight.js",
+        "sha256": "84f9fc0f8e9dd777826d5c74851d884ccd783bb74905408aadb038730123ab6f"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/protocol.js",
+        "sha256": "63a6e4e76b8024c4957967ad29ab97e03712b9b177765fc646da4221ea16145a"
+      }
+    ]
+  },
+  "storageConformance": {
+    "external": [
+      "kysely",
+      "vitest"
+    ],
+    "files": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/conformance/index.js",
+        "sha256": "370546c296b8cf07f84a42f90cdea6c5dd365c2d2d280f9f0b4ec75b9d118aef"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-public-consumers/packages/core/storage/dist/errors.js",
+        "sha256": "1c3462a53f1b256e72ddf289c695ad6c0138bdefd4de8aa28c6163ddecc44608"
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 67 and seed -5722706101057722154 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 89993] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/assets-runtimes/.meta_harness/design/spec/capabilities/asset-transfer/v1/formal/Transfer.tla
+Parsing file /tmp/tlc-16076394648143194107/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-16076394648143194107/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-16076394648143194107/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Transfer
+Linting of module Transfer
+Starting... (2026-09-24 12:54:10)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-24 12:54:10.
+Progress(8) at 2026-09-24 12:54:13: 177,864 states generated (177,864 s/min), 51,505 distinct states found (51,505 ds/min), 33,143 states left on queue.
+Progress(13) at 2026-09-24 12:55:13: 4,824,477 states generated (4,646,613 s/min), 826,870 distinct states found (775,365 ds/min), 213,983 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 4.6E-7
+  based on the actual fingerprints:  val = 2.5E-7
+8445161 states generated, 1179208 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 20.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 15 and the 95th percentile is 5).
+Finished in 01min 49s at (2026-09-24 12:55:59)

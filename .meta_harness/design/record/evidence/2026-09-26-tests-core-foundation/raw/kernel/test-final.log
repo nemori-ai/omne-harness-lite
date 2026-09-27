@@ -1,0 +1,43 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-kernel/packages/core/kernel-basis
+
+ ✓ tests/basis/isolate-hides-instances-not-data.test.ts > isolate-hides-instances-not-data > 子 isolate 属性解析抛错，不回退父标签已注入的服务 22ms
+ ✓ tests/basis/isolate-hides-instances-not-data.test.ts > isolate-hides-instances-not-data > 隔离不及于数据 4ms
+ ✓ tests/basis/isolate-hides-instances-not-data.test.ts > isolate-hides-instances-not-data > 同标签重复 provide 抛错；同 label 的两次 isolate 合流 10ms
+ ✓ tests/basis/async-control-not-bail.test.ts > async-control-not-bail > bail 把 Promise 当 bail 值：异步「无异议」也会短路，且交回的是 Promise 不是判定 11ms
+ ✓ tests/basis/async-control-not-bail.test.ts > async-control-not-bail > serial 逐个 await 并按解析值判定；emit 丢弃返回值 3ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > 各 effect 的释放并发：慢的先注册、快的后注册，快的先完成 61ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > disposer 抛错不上抛，卸载照常完成 15ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > 同一 effect 内多个 disposer 逆序释放 2ms
+ ✓ tests/basis/effect-disposal-concurrent-not-ordered.test.ts > effect-disposal-concurrent-not-ordered > 已 dispose 后再建 effect 抛 INACTIVE_EFFECT 3ms
+ ✓ tests/basis/inject-has-no-optional-form.test.ts > inject-has-no-optional-form > 可选读取过滤 PENDING、LOADING 与 UNLOADING，只在提供者 ACTIVE 时返回服务 42ms
+ ✓ tests/basis/inject-has-no-optional-form.test.ts > inject-has-no-optional-form > inject 的对象形式也是必需：缺席即 PENDING 8ms
+ ✓ tests/basis/inject-has-no-optional-form.test.ts > inject-has-no-optional-form > ctx.get 不要求 inject：缺席返回 undefined，出现后可取到，换代不重跑调用方 7ms
+ ✓ tests/basis/plugin-throw-fails-fiber.test.ts > plugin-throw-fails-fiber > 插件体抛出 ⇒ FAILED 30ms
+ ✓ tests/basis/plugin-throw-fails-fiber.test.ts > plugin-throw-fails-fiber > config 校验失败 ⇒ FAILED，插件体不跑，服务不出现 18ms
+ ✓ tests/basis/plugin-throw-fails-fiber.test.ts > plugin-throw-fails-fiber > config 合法 ⇒ ACTIVE，且插件体拿到的是校验后的值 7ms
+ ✓ tests/basis/fiber-state-readable.test.ts > fiber-state-readable > 异步 disposer 未完成时真实状态为 UNLOADING（5），完成后才为 DISPOSED 16ms
+ ✓ tests/basis/fiber-state-readable.test.ts > fiber-state-readable > 镜像数值与真实状态一致 28ms
+ ✓ tests/testing.spec.ts > bootAssembly > 先 provide 装配层服务，再装插件；撤除后服务消失 20ms
+ ✓ tests/testing.spec.ts > bootAssembly > 任一插件启动失败 ⇒ 装配整体抛出 8ms
+ ✓ tests/testing.spec.ts > Outcome > 成功与失败形状互斥 1ms
+ ✓ tests/testing.spec.ts > bootAssembly · 清单错误 > 必需服务缺席 ⇒ PENDING 即启动失败并撤已装的 2ms
+ ✓ tests/testing.spec.ts > bootAssembly · 部分失败先撤已装的 > 第二个插件启动失败 ⇒ 第一个插件的 disposer 已执行 14ms
+ ✓ tests/basis/plugin-body-reruns-on-provider-change.test.ts > plugin-body-reruns-on-provider-change > 换提供者重跑，同实例状态变化不重跑 12ms
+ ✓ tests/basis/provide-is-effect-managed.test.ts > provide-is-effect-managed > 撤除提供者 ⇒ 服务不可解析、依赖者 PENDING 9ms
+ ✓ tests/basis/provide-is-effect-managed.test.ts > provide-is-effect-managed > 两个 provide 之间抛出 ⇒ 第一个也随 fiber 撤掉 8ms
+ ✓ tests/basis/emit-listener-throw-propagates.test.ts > emit-listener-throw-propagates > 监听者抛出 ⇒ emit 同步抛出，后续监听者不跑 9ms
+ ✓ tests/basis/emit-listener-throw-propagates.test.ts > emit-listener-throw-propagates > 发方自己 try/catch 只能保住自己：被截断的后续监听者仍然不跑 2ms
+ ✓ tests/basis/logger-level-order-error-lowest.test.ts > logger-level-order-error-lowest > 消息上的 level 数值：error 0、info 1、warn 2、debug 3 8ms
+ ✓ tests/basis/logger-level-order-error-lowest.test.ts > logger-level-order-error-lowest > exporter 无阈值 ⇒ 只到 INFO：warn 与 debug 被丢 2ms
+ ✓ tests/basis/logger-level-order-error-lowest.test.ts > logger-level-order-error-lowest > exporter 给 levels.default = 2 ⇒ warn 可见，debug 仍不可见 1ms
+
+ Test Files  11 passed (11)
+      Tests  30 passed (30)
+Type Errors  no errors
+   Start at  04:31:23
+   Duration  882ms (transform 589ms, setup 0ms, import 1.41s, tests 419ms, environment 2ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-kernel/tmp/w1-kernel/test-results.json

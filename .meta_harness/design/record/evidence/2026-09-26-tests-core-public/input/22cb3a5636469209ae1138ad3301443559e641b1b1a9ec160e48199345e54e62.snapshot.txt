@@ -1,0 +1,5 @@
+// 内核层复用件：Cordis 4.0.4 采用版本下四个 tenancy 插件共用的形态与助手。取证 probe 在 tests/basis/。
+export { succeed, fail, isSuccess } from "./outcome.js";
+export { FIBER_STATE, fiberIsActive } from "./fiber-state.js";
+export { definePlugin, resolveOptional } from "./plugin.js";
+//# sourceMappingURL=index.js.map

@@ -1,0 +1,216 @@
+{
+  "node": "v24.18.0",
+  "boundary": "frozen record array + immutable fragment chain only; protocol work excluded",
+  "samples": [
+    {
+      "count": 32,
+      "repetition": 0,
+      "fills": 256,
+      "setupMs": 0.06607999999999947,
+      "fillMs": 0.5109689999999993,
+      "snapshotMs": 0.1125790000000002,
+      "settleMs": 0.037276000000002085,
+      "retainedHeapDeltaBytes": 184688
+    },
+    {
+      "count": 32,
+      "repetition": 1,
+      "fills": 256,
+      "setupMs": 0.017933999999996786,
+      "fillMs": 0.4632800000000046,
+      "snapshotMs": 0.0324239999999989,
+      "settleMs": 0.004703000000006341,
+      "retainedHeapDeltaBytes": 158200
+    },
+    {
+      "count": 32,
+      "repetition": 2,
+      "fills": 256,
+      "setupMs": 0.01636299999999835,
+      "fillMs": 0.2599390000000028,
+      "snapshotMs": 0.02963100000000196,
+      "settleMs": 0.004440999999999917,
+      "retainedHeapDeltaBytes": 157888
+    },
+    {
+      "count": 32,
+      "repetition": 3,
+      "fills": 256,
+      "setupMs": 0.015815000000003465,
+      "fillMs": 0.3120960000000039,
+      "snapshotMs": 0.030025999999999442,
+      "settleMs": 0.004571000000005654,
+      "retainedHeapDeltaBytes": 158608
+    },
+    {
+      "count": 32,
+      "repetition": 4,
+      "fills": 256,
+      "setupMs": 0.012383999999997286,
+      "fillMs": 0.2474380000000025,
+      "snapshotMs": 0.049523999999998125,
+      "settleMs": 0.004542999999998187,
+      "retainedHeapDeltaBytes": 157784
+    },
+    {
+      "count": 32,
+      "repetition": 5,
+      "fills": 256,
+      "setupMs": 0.012341999999996744,
+      "fillMs": 0.26182099999999764,
+      "snapshotMs": 0.03845100000000201,
+      "settleMs": 0.004545000000000243,
+      "retainedHeapDeltaBytes": 160752
+    },
+    {
+      "count": 32,
+      "repetition": 6,
+      "fills": 256,
+      "setupMs": 0.01692899999999753,
+      "fillMs": 0.24776800000000065,
+      "snapshotMs": 0.02999799999999908,
+      "settleMs": 0.004488999999999521,
+      "retainedHeapDeltaBytes": 154512
+    },
+    {
+      "count": 256,
+      "repetition": 0,
+      "fills": 256,
+      "setupMs": 0.04901999999999873,
+      "fillMs": 1.3142410000000027,
+      "snapshotMs": 0.14983399999999847,
+      "settleMs": 0.04090800000000172,
+      "retainedHeapDeltaBytes": 697864
+    },
+    {
+      "count": 256,
+      "repetition": 1,
+      "fills": 256,
+      "setupMs": 0.06352599999999597,
+      "fillMs": 1.3896209999999982,
+      "snapshotMs": 0.1203389999999942,
+      "settleMs": 0.05704499999999513,
+      "retainedHeapDeltaBytes": 700048
+    },
+    {
+      "count": 256,
+      "repetition": 2,
+      "fills": 256,
+      "setupMs": 0.056607999999997105,
+      "fillMs": 1.1338009999999983,
+      "snapshotMs": 0.08131900000000059,
+      "settleMs": 0.0303610000000063,
+      "retainedHeapDeltaBytes": 698808
+    },
+    {
+      "count": 256,
+      "repetition": 3,
+      "fills": 256,
+      "setupMs": 0.049207000000002665,
+      "fillMs": 1.1742479999999986,
+      "snapshotMs": 0.08199199999999962,
+      "settleMs": 0.0307640000000049,
+      "retainedHeapDeltaBytes": 697816
+    },
+    {
+      "count": 256,
+      "repetition": 4,
+      "fills": 256,
+      "setupMs": 0.0489340000000027,
+      "fillMs": 1.2273309999999924,
+      "snapshotMs": 0.08195399999999609,
+      "settleMs": 0.030605999999991695,
+      "retainedHeapDeltaBytes": 697816
+    },
+    {
+      "count": 256,
+      "repetition": 5,
+      "fills": 256,
+      "setupMs": 0.04901599999999462,
+      "fillMs": 1.1631950000000018,
+      "snapshotMs": 0.0814370000000082,
+      "settleMs": 0.030878000000001293,
+      "retainedHeapDeltaBytes": 697816
+    },
+    {
+      "count": 256,
+      "repetition": 6,
+      "fills": 256,
+      "setupMs": 0.04899000000000342,
+      "fillMs": 1.3360910000000104,
+      "snapshotMs": 0.13066299999999842,
+      "settleMs": 0.03117799999999704,
+      "retainedHeapDeltaBytes": 697816
+    },
+    {
+      "count": 2048,
+      "repetition": 0,
+      "fills": 256,
+      "setupMs": 0.5176150000000064,
+      "fillMs": 9.530200999999991,
+      "snapshotMs": 0.44553499999999246,
+      "settleMs": 0.23681299999999794,
+      "retainedHeapDeltaBytes": 1108768
+    },
+    {
+      "count": 2048,
+      "repetition": 1,
+      "fills": 256,
+      "setupMs": 0.39794299999999794,
+      "fillMs": 10.106589,
+      "snapshotMs": 0.43987099999999657,
+      "settleMs": 0.23719800000000646,
+      "retainedHeapDeltaBytes": 1071328
+    },
+    {
+      "count": 2048,
+      "repetition": 2,
+      "fills": 256,
+      "setupMs": 0.544234000000003,
+      "fillMs": 13.012594000000007,
+      "snapshotMs": 0.8887090000000057,
+      "settleMs": 0.5160340000000048,
+      "retainedHeapDeltaBytes": 1143216
+    },
+    {
+      "count": 2048,
+      "repetition": 3,
+      "fills": 256,
+      "setupMs": 0.47580899999999815,
+      "fillMs": 9.550629999999998,
+      "snapshotMs": 0.6512940000000071,
+      "settleMs": 0.360668000000004,
+      "retainedHeapDeltaBytes": 1108536
+    },
+    {
+      "count": 2048,
+      "repetition": 4,
+      "fills": 256,
+      "setupMs": 0.6186910000000125,
+      "fillMs": 9.62963400000001,
+      "snapshotMs": 0.20464900000001762,
+      "settleMs": 0.272500999999977,
+      "retainedHeapDeltaBytes": 1023976
+    },
+    {
+      "count": 2048,
+      "repetition": 5,
+      "fills": 256,
+      "setupMs": 0.5925170000000151,
+      "fillMs": 9.112486000000018,
+      "snapshotMs": 0.455791999999974,
+      "settleMs": 0.3109829999999931,
+      "retainedHeapDeltaBytes": 1105432
+    },
+    {
+      "count": 2048,
+      "repetition": 6,
+      "fills": 256,
+      "setupMs": 0.5629000000000133,
+      "fillMs": 8.898308999999983,
+      "snapshotMs": 0.43005500000001007,
+      "settleMs": 0.251355000000018,
+      "retainedHeapDeltaBytes": 1105432
+    }
+  ]
+}

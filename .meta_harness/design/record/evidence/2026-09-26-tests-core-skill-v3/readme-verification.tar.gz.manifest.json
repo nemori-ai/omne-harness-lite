@@ -1,0 +1,2977 @@
+{
+  "archive": "readme-verification.tar.gz",
+  "archive_sha256": "641b7908d483dbf55b4eed1cfcc8481ba909ac9e68333ca98b20304b99dc2aa9",
+  "files": [
+    {
+      "path": "W7-readme-format-check-final.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "W7-readme-format-check.log",
+      "bytes": 946,
+      "sha256": "1e2ee1d0f628b9d06f135dbacd35a1f84585ad72e1e53b40520bd2d3d9019068"
+    },
+    {
+      "path": "W7-readme-pairs-final.json",
+      "bytes": 8649,
+      "sha256": "3e73b20beb67e8ef7a5cce793b4209948d86534ee8b3a9355a7f4975eb992ed6"
+    },
+    {
+      "path": "readmes-a/arrival-events-1.log",
+      "bytes": 128,
+      "sha256": "438690039e92736bbf44effc9573ac0a54f607c41dd1195e785aada00548d09f"
+    },
+    {
+      "path": "readmes-a/arrival-events-2.log",
+      "bytes": 110,
+      "sha256": "769bcdb42b2c3868afa14dbaeca6d8c97796ffedcd22035a4a57bbfc9a2742f8"
+    },
+    {
+      "path": "readmes-a/call-accounts-1.log",
+      "bytes": 115,
+      "sha256": "140cf58712c41dcb6b44c16b5e5ca880877baf703f5e06ca8bb990709cd96a5a"
+    },
+    {
+      "path": "readmes-a/call-accounts-2.log",
+      "bytes": 83,
+      "sha256": "b08a2aa8d82b3c7acb1816aad944544c02e08321aa821c4693d3f832f41f5a79"
+    },
+    {
+      "path": "readmes-a/call-accounts-3.log",
+      "bytes": 65,
+      "sha256": "30e239ba14dc8e1da421190d002d61fc7f0ba25cdce858968384160bcc15af16"
+    },
+    {
+      "path": "readmes-a/compiled/arrival-events-1.js",
+      "bytes": 1062,
+      "sha256": "a284e273cf39042a608c36862632df5fc75875f473462607165e51727e857c4c"
+    },
+    {
+      "path": "readmes-a/compiled/arrival-events-2.js",
+      "bytes": 639,
+      "sha256": "58dfdac84fb365c705c51c7b32d03078b67350620a7d294261d49559e6dd8180"
+    },
+    {
+      "path": "readmes-a/compiled/call-accounts-1.js",
+      "bytes": 578,
+      "sha256": "9e9138f20c8bce57a872cab7d9b7ae6d90b2964a1aaf18a46ad7ffc1b86cdaa1"
+    },
+    {
+      "path": "readmes-a/compiled/call-accounts-2.js",
+      "bytes": 1302,
+      "sha256": "ae92e4b816183326e5f37c52899398263b299c56fea43646e473d7c7e189a15c"
+    },
+    {
+      "path": "readmes-a/compiled/call-accounts-3.js",
+      "bytes": 815,
+      "sha256": "6a70fab74bfb619fca990e30bbdfe656679a9ac94ecea08d90948a3cb47c664b"
+    },
+    {
+      "path": "readmes-a/compiled/content-blocks-1.js",
+      "bytes": 406,
+      "sha256": "8b572d664e9b7729886d315e3b9e35af7e133d41be1da201848a054186ffefc7"
+    },
+    {
+      "path": "readmes-a/compiled/content-blocks-2.js",
+      "bytes": 682,
+      "sha256": "7f0ac2f401057d84e0a4428f2a26c158da9b065e2f3f5cebfcf0b96ffa405e05"
+    },
+    {
+      "path": "readmes-a/compiled/content-blocks-3.js",
+      "bytes": 562,
+      "sha256": "f06e5077c82bda8f347b52bae3c8aed73c7fa53dc28ee42b75dc489b97f2e953"
+    },
+    {
+      "path": "readmes-a/compiled/identity-values-1.js",
+      "bytes": 650,
+      "sha256": "7148488b4d4fb5a1576313d09f323464eb54d38d29b505ec33016d71ab29fdc7"
+    },
+    {
+      "path": "readmes-a/compiled/identity-values-2.js",
+      "bytes": 518,
+      "sha256": "e30efaca0029df3fc3cf8ca46bcd74db315c341af2917de611673806a9d457ea"
+    },
+    {
+      "path": "readmes-a/compiled/identity-values-3.js",
+      "bytes": 828,
+      "sha256": "51762881a33c9e6e5806e7213ef9cd6d110fd312a1064231fc6ebe8567f997c1"
+    },
+    {
+      "path": "readmes-a/compiled/kernel-basis-1.js",
+      "bytes": 840,
+      "sha256": "96f341438ec722353355132fc8b545118adb3268d59b016f781bfce3df9e86e7"
+    },
+    {
+      "path": "readmes-a/compiled/kernel-basis-2.js",
+      "bytes": 304,
+      "sha256": "e0464078ceef67c4e750c50bab305aaf61e88fb7a9c3b63a7bd462f8c096e43a"
+    },
+    {
+      "path": "readmes-a/compiled/kernel-basis-3.js",
+      "bytes": 781,
+      "sha256": "81f1329a4a4d8670a7cd3e1e920104a5239111358e056a1693c8b5c73fc5d5f6"
+    },
+    {
+      "path": "readmes-a/compiled/messages-1.js",
+      "bytes": 546,
+      "sha256": "aa49e5b9e6cf4709d9f31ff2ed9f5bc494c5daac9131cc4ad9bd27216404c265"
+    },
+    {
+      "path": "readmes-a/compiled/messages-2.js",
+      "bytes": 1403,
+      "sha256": "c141340bad9a1e8830fa09622c92cabcba4d022564f2ca2ffe142f32eff61312"
+    },
+    {
+      "path": "readmes-a/compiled/messages-3.js",
+      "bytes": 352,
+      "sha256": "a8d72dce1aab38e192e2d14655251885f930c7a7411d418f9daab1a74923a8ae"
+    },
+    {
+      "path": "readmes-a/compiled/offer-expiry-1.js",
+      "bytes": 825,
+      "sha256": "f7f0decb9a97796543e830eed24bb68c453b8af6c6560ffb8ef1aafa442efbef"
+    },
+    {
+      "path": "readmes-a/compiled/offer-expiry-2.js",
+      "bytes": 638,
+      "sha256": "46490b4b643fec21dccbc6ddcd9916859b7bdcd37741085e8b856bfb0c7b465f"
+    },
+    {
+      "path": "readmes-a/compiled/storage-1.js",
+      "bytes": 547,
+      "sha256": "934ebfca7c40c65718e373411b5de401bf5e7c8f069596c349b07abf215458ec"
+    },
+    {
+      "path": "readmes-a/compiled/storage-2.js",
+      "bytes": 600,
+      "sha256": "47902dc1fbe1b42f1e8ecd112fa13a176897acdca5117b80aad2e2b021c2a6f4"
+    },
+    {
+      "path": "readmes-a/compiled/storage-3.js",
+      "bytes": 429,
+      "sha256": "74dc728f734c180e84d221fed7fa261ef18a029386dd6b29cfcd6c23eccb1817"
+    },
+    {
+      "path": "readmes-a/compiled/stream-assembly-1.js",
+      "bytes": 1420,
+      "sha256": "d207592efecf19cf028309bb8d117f9711dfacd4440302a2f520099cb3480668"
+    },
+    {
+      "path": "readmes-a/compiled/stream-assembly-2.js",
+      "bytes": 1090,
+      "sha256": "bf25a0ab67afd81c7ac6b8a76c7b82d7654dfd6c033ec669886240a51338140d"
+    },
+    {
+      "path": "readmes-a/compiled/stream-assembly-3.js",
+      "bytes": 968,
+      "sha256": "6a705ab200fdbb85dbc2425beec6e7f87119aadac974aa418e501258cf7374f3"
+    },
+    {
+      "path": "readmes-a/content-blocks-1.log",
+      "bytes": 97,
+      "sha256": "ca376502357153717f6188b9a788bf4d579b78ee5c39d9bcac34c64e5161d990"
+    },
+    {
+      "path": "readmes-a/content-blocks-2.log",
+      "bytes": 248,
+      "sha256": "7156abce2e5c79df850c57d64ab25b20bf69f2bcfffbd33238342790ed116728"
+    },
+    {
+      "path": "readmes-a/content-blocks-3.log",
+      "bytes": 78,
+      "sha256": "5a4ff8784dd63e0f62333479cbdf8f128a599eb89cb5d879165c9ac1afb78275"
+    },
+    {
+      "path": "readmes-a/examples.json",
+      "bytes": 65609,
+      "sha256": "aeda551675f6a5265fe524f8129b4c69db31afdb533260fb645e10bca804d663"
+    },
+    {
+      "path": "readmes-a/expected-stdout.json",
+      "bytes": 1772,
+      "sha256": "17740a1f28b7c319fbb15c61d6c1b54bbae217ffb4ca800091272c39bd92bfee"
+    },
+    {
+      "path": "readmes-a/format-after.log",
+      "bytes": 817,
+      "sha256": "62ea423dbf6f800bc617c591f6556ad34098814a3502210657d1bec3c83c3f6f"
+    },
+    {
+      "path": "readmes-a/format-before.log",
+      "bytes": 1675,
+      "sha256": "ecf9efc5559b0334f62a23961569211f486b48975958423f8e6ed553bbb2a550"
+    },
+    {
+      "path": "readmes-a/format-final.log",
+      "bytes": 817,
+      "sha256": "62ea423dbf6f800bc617c591f6556ad34098814a3502210657d1bec3c83c3f6f"
+    },
+    {
+      "path": "readmes-a/format-write.log",
+      "bytes": 1539,
+      "sha256": "6ac3596dc793fb7c083e8a085f838ad9dbd7fef0d95f25e1ff2f5822d42d9f9c"
+    },
+    {
+      "path": "readmes-a/identity-values-1.log",
+      "bytes": 133,
+      "sha256": "7c0dd6b49288a1f8b7a4e107a016b3bae1169ac6da72823bdde9b650d4987f12"
+    },
+    {
+      "path": "readmes-a/identity-values-2.log",
+      "bytes": 121,
+      "sha256": "c6eac9a0c98daee2ae8d34f8e410600704ea2c20f6ced5eecc6ff1d42c299cba"
+    },
+    {
+      "path": "readmes-a/identity-values-3.log",
+      "bytes": 81,
+      "sha256": "bf620b712eb9738935150ae6cefb2f12c59ecea17e0de9a593c7006f2d4e8083"
+    },
+    {
+      "path": "readmes-a/inputs/arrival-events-1.ts",
+      "bytes": 1073,
+      "sha256": "37141c80e478e3536bbab673ee11e4d5ad6adcf0bdd6d57c2effa626919823fc"
+    },
+    {
+      "path": "readmes-a/inputs/arrival-events-2.ts",
+      "bytes": 632,
+      "sha256": "f51d9e6012e93d555be291b3685d8e4c5102ac8f5c89caa6568bd0f348837d77"
+    },
+    {
+      "path": "readmes-a/inputs/call-accounts-1.ts",
+      "bytes": 578,
+      "sha256": "5daa9b8c06de31eaa01863783c1a2765ff5e300ddbbf47a551e4d7ff0b20b70f"
+    },
+    {
+      "path": "readmes-a/inputs/call-accounts-2.ts",
+      "bytes": 1254,
+      "sha256": "2f2ecede3527db3d0dd03490aa1db4abe52bf868afae2d1d55ee28865317b6c9"
+    },
+    {
+      "path": "readmes-a/inputs/call-accounts-3.ts",
+      "bytes": 715,
+      "sha256": "a9106a4833aad651afb90c7671b1cfb5a2ea13e501626a6880b02729b72a2f17"
+    },
+    {
+      "path": "readmes-a/inputs/content-blocks-1.ts",
+      "bytes": 397,
+      "sha256": "bd0b6d67e54fbe65793256b86316132668122f286813b341a508e70721db959a"
+    },
+    {
+      "path": "readmes-a/inputs/content-blocks-2.ts",
+      "bytes": 671,
+      "sha256": "fb353163706fe43029e008eece9583dc037e2395f752581eff132b0015a7104f"
+    },
+    {
+      "path": "readmes-a/inputs/content-blocks-3.ts",
+      "bytes": 552,
+      "sha256": "8ba04ed0291c75e40a0c3a983c0526b56ca2f1f4847fdb54387540abd2f88b22"
+    },
+    {
+      "path": "readmes-a/inputs/identity-values-1.ts",
+      "bytes": 644,
+      "sha256": "bd44752cf5b8f28312c467dec6911c82291194608f3823be58da50c23a23ba2e"
+    },
+    {
+      "path": "readmes-a/inputs/identity-values-2.ts",
+      "bytes": 533,
+      "sha256": "75af8caff8aaa76b82149e8858fb2b75a00208a0e1bd2021a5624974f6a98a27"
+    },
+    {
+      "path": "readmes-a/inputs/identity-values-3.ts",
+      "bytes": 814,
+      "sha256": "1b187cdccc208ab5ea3382f9e665ecd63dd6e823c5e7b395e389a783619c7673"
+    },
+    {
+      "path": "readmes-a/inputs/kernel-basis-1.ts",
+      "bytes": 836,
+      "sha256": "c9a9da77f08675000f69f632eda3cb5a6387ee46c765ed281a64e27fea94e8b9"
+    },
+    {
+      "path": "readmes-a/inputs/kernel-basis-2.ts",
+      "bytes": 345,
+      "sha256": "85ecdc01949a8147f7471e9754dbad397ab05170521caf0c2460960e96e7e2e1"
+    },
+    {
+      "path": "readmes-a/inputs/kernel-basis-3.ts",
+      "bytes": 760,
+      "sha256": "3c6f92a239d92bc67f17e98c0ab6dcfa359ab685d8f691a0dbd9f36baf4116da"
+    },
+    {
+      "path": "readmes-a/inputs/messages-1.ts",
+      "bytes": 543,
+      "sha256": "329f6bbdbd02a143a3181d9ec6f055f5353914e0715232c3620c0968f20f17af"
+    },
+    {
+      "path": "readmes-a/inputs/messages-2.ts",
+      "bytes": 1387,
+      "sha256": "224a4a6b64a53d392517eb069017882a984390924b78b360db2067b2ea67e8fe"
+    },
+    {
+      "path": "readmes-a/inputs/messages-3.ts",
+      "bytes": 337,
+      "sha256": "70a302108ede6b9a527dc522acbd5dfea3a6143853c70864bfab1852f0245734"
+    },
+    {
+      "path": "readmes-a/inputs/offer-expiry-1.ts",
+      "bytes": 808,
+      "sha256": "856141c70bafcce4965373a8bf94584dfa695032fe6fa3e9fac98bab48d4844a"
+    },
+    {
+      "path": "readmes-a/inputs/offer-expiry-2.ts",
+      "bytes": 637,
+      "sha256": "c8883c55ccee7ac5ce2289c87d9fe3d0e9ff069b13249161746ec7da574febad"
+    },
+    {
+      "path": "readmes-a/inputs/storage-1.ts",
+      "bytes": 605,
+      "sha256": "14f76f8bcdd137dc6ab81c9e2f92d626ffa4b5250e20ad5ba2a95a96b96d7210"
+    },
+    {
+      "path": "readmes-a/inputs/storage-2.ts",
+      "bytes": 574,
+      "sha256": "5e1eb4faec9d79a23b2a62ff1221ba52e489ec04bd5a5d51a1f2de25a5201694"
+    },
+    {
+      "path": "readmes-a/inputs/storage-3.ts",
+      "bytes": 421,
+      "sha256": "719fea259cf176f1309ef912a3f2968082d4134483c51e510fd8ddf1784d7104"
+    },
+    {
+      "path": "readmes-a/inputs/stream-assembly-1.ts",
+      "bytes": 1350,
+      "sha256": "ead39fa4731555614348350a6e984d98db684d6fc45103b19a13fbe0e8fd55f2"
+    },
+    {
+      "path": "readmes-a/inputs/stream-assembly-2.ts",
+      "bytes": 1052,
+      "sha256": "5bf0d4a7477b07047e06441d881bd90b4eb2b4e8fac59c6928db5b1696fc6003"
+    },
+    {
+      "path": "readmes-a/inputs/stream-assembly-3.ts",
+      "bytes": 944,
+      "sha256": "4a5bda3c7790b762a32d332bc722e53613f0701ad94ba879f23adaa2d6a03830"
+    },
+    {
+      "path": "readmes-a/kernel-basis-1.log",
+      "bytes": 85,
+      "sha256": "89c405549d828d223610c5c6c8e9504aae907342b3e2585e3d72c01b6f5974f2"
+    },
+    {
+      "path": "readmes-a/kernel-basis-2.log",
+      "bytes": 71,
+      "sha256": "9abc6ddaa5afc12c6d690e7fae94fcbc0666716d61f9c5f2ea8037dca5770780"
+    },
+    {
+      "path": "readmes-a/kernel-basis-3.log",
+      "bytes": 65,
+      "sha256": "5ae384aa280bfea9b0e9e5c5010ba63af1c3fe8fcbc91f12d963d1d03a56db9c"
+    },
+    {
+      "path": "readmes-a/local-links.log",
+      "bytes": 121,
+      "sha256": "47ba81b9912c5457420bbfd6621706c6543d0b63b60064fc31c9651147a9ea56"
+    },
+    {
+      "path": "readmes-a/messages-1.log",
+      "bytes": 91,
+      "sha256": "397b2118d836b8f3237c1d202e0af21ff5ddc57af7d3642685c0e8d158f826c6"
+    },
+    {
+      "path": "readmes-a/messages-2.log",
+      "bytes": 118,
+      "sha256": "567aff9ba0e0c3664e03383d4324b9ec2c7334d9ee7a9b6cbd1a65a21dcce762"
+    },
+    {
+      "path": "readmes-a/messages-3.log",
+      "bytes": 73,
+      "sha256": "bc87aef9884a5e9489ab18d8dd3f3d68a368ddcaa0addb2203b8d5d99aabfea4"
+    },
+    {
+      "path": "readmes-a/node-version.log",
+      "bytes": 51,
+      "sha256": "68e8651861942b833074215376cc14f461062788f04b249f360ef1d32ba939e5"
+    },
+    {
+      "path": "readmes-a/offer-expiry-1.log",
+      "bytes": 97,
+      "sha256": "1df6fcc715f79856632d25cc1468465861c453b8f6a77e88dec0e0b6e6cf35ea"
+    },
+    {
+      "path": "readmes-a/offer-expiry-2.log",
+      "bytes": 88,
+      "sha256": "343577c363d9b32154c97ef15a964c391195b5cef5a52e714e16ccbf01f74972"
+    },
+    {
+      "path": "readmes-a/output-oracle.log",
+      "bytes": 440,
+      "sha256": "1567292b71ce62a3a1024ff0b31efc85c81c376b6b7285858ec061a2f52996a4"
+    },
+    {
+      "path": "readmes-a/package.json",
+      "bytes": 35,
+      "sha256": "3b9a5cf9316643e65829080225447f01408107196a7674693ef07eb8062ed00b"
+    },
+    {
+      "path": "readmes-a/report.md",
+      "bytes": 3058,
+      "sha256": "2c9f2bd6d07bc8256abf67f1f6029a39ae148b5561d1964873b1939d295f8476"
+    },
+    {
+      "path": "readmes-a/results.json",
+      "bytes": 12090,
+      "sha256": "d238851b44cbd0e533b3dfcff3c18ae74f4b76317d24937f94dc47ea90c39f8c"
+    },
+    {
+      "path": "readmes-a/scope-status.log",
+      "bytes": 751,
+      "sha256": "e5a873d59aa0f3629f47bc689866b7fc0b4aff1709cdfa598b650a83036e0a3f"
+    },
+    {
+      "path": "readmes-a/storage-1.log",
+      "bytes": 54,
+      "sha256": "e0a2889cfb2b7578c2504e52cc4fcc34a14271fe119c29ecb8cea73bbbfeb8ff"
+    },
+    {
+      "path": "readmes-a/storage-2.log",
+      "bytes": 79,
+      "sha256": "472bfb706f7a4e2d636d699f15f99de38971f4764910bf572ffbe0e653680d30"
+    },
+    {
+      "path": "readmes-a/storage-3.log",
+      "bytes": 94,
+      "sha256": "4a592742e617a98ef3849b2c7ff798968d298f9105aeca9bb6d260aaee8e30f2"
+    },
+    {
+      "path": "readmes-a/stream-assembly-1.log",
+      "bytes": 80,
+      "sha256": "14f53d644ebe26308e1031d5fcf77326f2f58aea3a2443f4e7689bea1f623e29"
+    },
+    {
+      "path": "readmes-a/stream-assembly-2.log",
+      "bytes": 81,
+      "sha256": "f76197cbaedb6730c1978a24fc4ac8eda4d58e0d03fade16b09ff291303ae75e"
+    },
+    {
+      "path": "readmes-a/stream-assembly-3.log",
+      "bytes": 201,
+      "sha256": "228ed8b3903aef0bc5d1ee3acc53c9d723279972106a2eafc7fa6be95a5323d0"
+    },
+    {
+      "path": "readmes-a/tsconfig.json",
+      "bytes": 325,
+      "sha256": "5e012ba9f0ddaf7cb8dfd85e30329659c229e7d5cca50bbc36e1ef04bf79e397"
+    },
+    {
+      "path": "readmes-a/typecheck.log",
+      "bytes": 163,
+      "sha256": "0116c2d913861486c8e723df266656807245bb275f7149d36e6cbdeeaa3e5a36"
+    },
+    {
+      "path": "readmes-a/verify_examples.py",
+      "bytes": 4007,
+      "sha256": "d931070b59bb4260e1d179497c497a40d6c4993a7995cc1643580120083b2183"
+    },
+    {
+      "path": "readmes-a-current/arrival-events-1.log",
+      "bytes": 128,
+      "sha256": "438690039e92736bbf44effc9573ac0a54f607c41dd1195e785aada00548d09f"
+    },
+    {
+      "path": "readmes-a-current/arrival-events-2.log",
+      "bytes": 110,
+      "sha256": "769bcdb42b2c3868afa14dbaeca6d8c97796ffedcd22035a4a57bbfc9a2742f8"
+    },
+    {
+      "path": "readmes-a-current/call-accounts-1.log",
+      "bytes": 115,
+      "sha256": "140cf58712c41dcb6b44c16b5e5ca880877baf703f5e06ca8bb990709cd96a5a"
+    },
+    {
+      "path": "readmes-a-current/call-accounts-2.log",
+      "bytes": 83,
+      "sha256": "b08a2aa8d82b3c7acb1816aad944544c02e08321aa821c4693d3f832f41f5a79"
+    },
+    {
+      "path": "readmes-a-current/call-accounts-3.log",
+      "bytes": 65,
+      "sha256": "30e239ba14dc8e1da421190d002d61fc7f0ba25cdce858968384160bcc15af16"
+    },
+    {
+      "path": "readmes-a-current/compiled/arrival-events-1.js",
+      "bytes": 1062,
+      "sha256": "a284e273cf39042a608c36862632df5fc75875f473462607165e51727e857c4c"
+    },
+    {
+      "path": "readmes-a-current/compiled/arrival-events-2.js",
+      "bytes": 639,
+      "sha256": "58dfdac84fb365c705c51c7b32d03078b67350620a7d294261d49559e6dd8180"
+    },
+    {
+      "path": "readmes-a-current/compiled/call-accounts-1.js",
+      "bytes": 578,
+      "sha256": "9e9138f20c8bce57a872cab7d9b7ae6d90b2964a1aaf18a46ad7ffc1b86cdaa1"
+    },
+    {
+      "path": "readmes-a-current/compiled/call-accounts-2.js",
+      "bytes": 1302,
+      "sha256": "ae92e4b816183326e5f37c52899398263b299c56fea43646e473d7c7e189a15c"
+    },
+    {
+      "path": "readmes-a-current/compiled/call-accounts-3.js",
+      "bytes": 815,
+      "sha256": "6a70fab74bfb619fca990e30bbdfe656679a9ac94ecea08d90948a3cb47c664b"
+    },
+    {
+      "path": "readmes-a-current/compiled/content-blocks-1.js",
+      "bytes": 406,
+      "sha256": "8b572d664e9b7729886d315e3b9e35af7e133d41be1da201848a054186ffefc7"
+    },
+    {
+      "path": "readmes-a-current/compiled/content-blocks-2.js",
+      "bytes": 682,
+      "sha256": "7f0ac2f401057d84e0a4428f2a26c158da9b065e2f3f5cebfcf0b96ffa405e05"
+    },
+    {
+      "path": "readmes-a-current/compiled/content-blocks-3.js",
+      "bytes": 562,
+      "sha256": "f06e5077c82bda8f347b52bae3c8aed73c7fa53dc28ee42b75dc489b97f2e953"
+    },
+    {
+      "path": "readmes-a-current/compiled/identity-values-1.js",
+      "bytes": 650,
+      "sha256": "7148488b4d4fb5a1576313d09f323464eb54d38d29b505ec33016d71ab29fdc7"
+    },
+    {
+      "path": "readmes-a-current/compiled/identity-values-2.js",
+      "bytes": 518,
+      "sha256": "e30efaca0029df3fc3cf8ca46bcd74db315c341af2917de611673806a9d457ea"
+    },
+    {
+      "path": "readmes-a-current/compiled/identity-values-3.js",
+      "bytes": 828,
+      "sha256": "51762881a33c9e6e5806e7213ef9cd6d110fd312a1064231fc6ebe8567f997c1"
+    },
+    {
+      "path": "readmes-a-current/compiled/kernel-basis-1.js",
+      "bytes": 840,
+      "sha256": "96f341438ec722353355132fc8b545118adb3268d59b016f781bfce3df9e86e7"
+    },
+    {
+      "path": "readmes-a-current/compiled/kernel-basis-2.js",
+      "bytes": 304,
+      "sha256": "e0464078ceef67c4e750c50bab305aaf61e88fb7a9c3b63a7bd462f8c096e43a"
+    },
+    {
+      "path": "readmes-a-current/compiled/kernel-basis-3.js",
+      "bytes": 781,
+      "sha256": "81f1329a4a4d8670a7cd3e1e920104a5239111358e056a1693c8b5c73fc5d5f6"
+    },
+    {
+      "path": "readmes-a-current/compiled/messages-1.js",
+      "bytes": 546,
+      "sha256": "aa49e5b9e6cf4709d9f31ff2ed9f5bc494c5daac9131cc4ad9bd27216404c265"
+    },
+    {
+      "path": "readmes-a-current/compiled/messages-2.js",
+      "bytes": 1403,
+      "sha256": "c141340bad9a1e8830fa09622c92cabcba4d022564f2ca2ffe142f32eff61312"
+    },
+    {
+      "path": "readmes-a-current/compiled/messages-3.js",
+      "bytes": 352,
+      "sha256": "a8d72dce1aab38e192e2d14655251885f930c7a7411d418f9daab1a74923a8ae"
+    },
+    {
+      "path": "readmes-a-current/compiled/offer-expiry-1.js",
+      "bytes": 825,
+      "sha256": "f7f0decb9a97796543e830eed24bb68c453b8af6c6560ffb8ef1aafa442efbef"
+    },
+    {
+      "path": "readmes-a-current/compiled/offer-expiry-2.js",
+      "bytes": 638,
+      "sha256": "46490b4b643fec21dccbc6ddcd9916859b7bdcd37741085e8b856bfb0c7b465f"
+    },
+    {
+      "path": "readmes-a-current/compiled/storage-1.js",
+      "bytes": 547,
+      "sha256": "934ebfca7c40c65718e373411b5de401bf5e7c8f069596c349b07abf215458ec"
+    },
+    {
+      "path": "readmes-a-current/compiled/storage-2.js",
+      "bytes": 600,
+      "sha256": "47902dc1fbe1b42f1e8ecd112fa13a176897acdca5117b80aad2e2b021c2a6f4"
+    },
+    {
+      "path": "readmes-a-current/compiled/storage-3.js",
+      "bytes": 429,
+      "sha256": "74dc728f734c180e84d221fed7fa261ef18a029386dd6b29cfcd6c23eccb1817"
+    },
+    {
+      "path": "readmes-a-current/compiled/stream-assembly-1.js",
+      "bytes": 1420,
+      "sha256": "d207592efecf19cf028309bb8d117f9711dfacd4440302a2f520099cb3480668"
+    },
+    {
+      "path": "readmes-a-current/compiled/stream-assembly-2.js",
+      "bytes": 1090,
+      "sha256": "bf25a0ab67afd81c7ac6b8a76c7b82d7654dfd6c033ec669886240a51338140d"
+    },
+    {
+      "path": "readmes-a-current/compiled/stream-assembly-3.js",
+      "bytes": 968,
+      "sha256": "6a705ab200fdbb85dbc2425beec6e7f87119aadac974aa418e501258cf7374f3"
+    },
+    {
+      "path": "readmes-a-current/content-blocks-1.log",
+      "bytes": 97,
+      "sha256": "ca376502357153717f6188b9a788bf4d579b78ee5c39d9bcac34c64e5161d990"
+    },
+    {
+      "path": "readmes-a-current/content-blocks-2.log",
+      "bytes": 248,
+      "sha256": "7156abce2e5c79df850c57d64ab25b20bf69f2bcfffbd33238342790ed116728"
+    },
+    {
+      "path": "readmes-a-current/content-blocks-3.log",
+      "bytes": 78,
+      "sha256": "5a4ff8784dd63e0f62333479cbdf8f128a599eb89cb5d879165c9ac1afb78275"
+    },
+    {
+      "path": "readmes-a-current/examples.json",
+      "bytes": 65609,
+      "sha256": "aeda551675f6a5265fe524f8129b4c69db31afdb533260fb645e10bca804d663"
+    },
+    {
+      "path": "readmes-a-current/expected-stdout.json",
+      "bytes": 1772,
+      "sha256": "17740a1f28b7c319fbb15c61d6c1b54bbae217ffb4ca800091272c39bd92bfee"
+    },
+    {
+      "path": "readmes-a-current/identity-values-1.log",
+      "bytes": 133,
+      "sha256": "7c0dd6b49288a1f8b7a4e107a016b3bae1169ac6da72823bdde9b650d4987f12"
+    },
+    {
+      "path": "readmes-a-current/identity-values-2.log",
+      "bytes": 121,
+      "sha256": "c6eac9a0c98daee2ae8d34f8e410600704ea2c20f6ced5eecc6ff1d42c299cba"
+    },
+    {
+      "path": "readmes-a-current/identity-values-3.log",
+      "bytes": 81,
+      "sha256": "bf620b712eb9738935150ae6cefb2f12c59ecea17e0de9a593c7006f2d4e8083"
+    },
+    {
+      "path": "readmes-a-current/inputs/arrival-events-1.ts",
+      "bytes": 1073,
+      "sha256": "37141c80e478e3536bbab673ee11e4d5ad6adcf0bdd6d57c2effa626919823fc"
+    },
+    {
+      "path": "readmes-a-current/inputs/arrival-events-2.ts",
+      "bytes": 632,
+      "sha256": "f51d9e6012e93d555be291b3685d8e4c5102ac8f5c89caa6568bd0f348837d77"
+    },
+    {
+      "path": "readmes-a-current/inputs/call-accounts-1.ts",
+      "bytes": 578,
+      "sha256": "5daa9b8c06de31eaa01863783c1a2765ff5e300ddbbf47a551e4d7ff0b20b70f"
+    },
+    {
+      "path": "readmes-a-current/inputs/call-accounts-2.ts",
+      "bytes": 1254,
+      "sha256": "2f2ecede3527db3d0dd03490aa1db4abe52bf868afae2d1d55ee28865317b6c9"
+    },
+    {
+      "path": "readmes-a-current/inputs/call-accounts-3.ts",
+      "bytes": 715,
+      "sha256": "a9106a4833aad651afb90c7671b1cfb5a2ea13e501626a6880b02729b72a2f17"
+    },
+    {
+      "path": "readmes-a-current/inputs/content-blocks-1.ts",
+      "bytes": 397,
+      "sha256": "bd0b6d67e54fbe65793256b86316132668122f286813b341a508e70721db959a"
+    },
+    {
+      "path": "readmes-a-current/inputs/content-blocks-2.ts",
+      "bytes": 671,
+      "sha256": "fb353163706fe43029e008eece9583dc037e2395f752581eff132b0015a7104f"
+    },
+    {
+      "path": "readmes-a-current/inputs/content-blocks-3.ts",
+      "bytes": 552,
+      "sha256": "8ba04ed0291c75e40a0c3a983c0526b56ca2f1f4847fdb54387540abd2f88b22"
+    },
+    {
+      "path": "readmes-a-current/inputs/identity-values-1.ts",
+      "bytes": 644,
+      "sha256": "bd44752cf5b8f28312c467dec6911c82291194608f3823be58da50c23a23ba2e"
+    },
+    {
+      "path": "readmes-a-current/inputs/identity-values-2.ts",
+      "bytes": 533,
+      "sha256": "75af8caff8aaa76b82149e8858fb2b75a00208a0e1bd2021a5624974f6a98a27"
+    },
+    {
+      "path": "readmes-a-current/inputs/identity-values-3.ts",
+      "bytes": 814,
+      "sha256": "1b187cdccc208ab5ea3382f9e665ecd63dd6e823c5e7b395e389a783619c7673"
+    },
+    {
+      "path": "readmes-a-current/inputs/kernel-basis-1.ts",
+      "bytes": 836,
+      "sha256": "c9a9da77f08675000f69f632eda3cb5a6387ee46c765ed281a64e27fea94e8b9"
+    },
+    {
+      "path": "readmes-a-current/inputs/kernel-basis-2.ts",
+      "bytes": 345,
+      "sha256": "85ecdc01949a8147f7471e9754dbad397ab05170521caf0c2460960e96e7e2e1"
+    },
+    {
+      "path": "readmes-a-current/inputs/kernel-basis-3.ts",
+      "bytes": 760,
+      "sha256": "3c6f92a239d92bc67f17e98c0ab6dcfa359ab685d8f691a0dbd9f36baf4116da"
+    },
+    {
+      "path": "readmes-a-current/inputs/messages-1.ts",
+      "bytes": 543,
+      "sha256": "329f6bbdbd02a143a3181d9ec6f055f5353914e0715232c3620c0968f20f17af"
+    },
+    {
+      "path": "readmes-a-current/inputs/messages-2.ts",
+      "bytes": 1387,
+      "sha256": "224a4a6b64a53d392517eb069017882a984390924b78b360db2067b2ea67e8fe"
+    },
+    {
+      "path": "readmes-a-current/inputs/messages-3.ts",
+      "bytes": 337,
+      "sha256": "70a302108ede6b9a527dc522acbd5dfea3a6143853c70864bfab1852f0245734"
+    },
+    {
+      "path": "readmes-a-current/inputs/offer-expiry-1.ts",
+      "bytes": 808,
+      "sha256": "856141c70bafcce4965373a8bf94584dfa695032fe6fa3e9fac98bab48d4844a"
+    },
+    {
+      "path": "readmes-a-current/inputs/offer-expiry-2.ts",
+      "bytes": 637,
+      "sha256": "c8883c55ccee7ac5ce2289c87d9fe3d0e9ff069b13249161746ec7da574febad"
+    },
+    {
+      "path": "readmes-a-current/inputs/storage-1.ts",
+      "bytes": 605,
+      "sha256": "14f76f8bcdd137dc6ab81c9e2f92d626ffa4b5250e20ad5ba2a95a96b96d7210"
+    },
+    {
+      "path": "readmes-a-current/inputs/storage-2.ts",
+      "bytes": 574,
+      "sha256": "5e1eb4faec9d79a23b2a62ff1221ba52e489ec04bd5a5d51a1f2de25a5201694"
+    },
+    {
+      "path": "readmes-a-current/inputs/storage-3.ts",
+      "bytes": 421,
+      "sha256": "719fea259cf176f1309ef912a3f2968082d4134483c51e510fd8ddf1784d7104"
+    },
+    {
+      "path": "readmes-a-current/inputs/stream-assembly-1.ts",
+      "bytes": 1350,
+      "sha256": "ead39fa4731555614348350a6e984d98db684d6fc45103b19a13fbe0e8fd55f2"
+    },
+    {
+      "path": "readmes-a-current/inputs/stream-assembly-2.ts",
+      "bytes": 1052,
+      "sha256": "5bf0d4a7477b07047e06441d881bd90b4eb2b4e8fac59c6928db5b1696fc6003"
+    },
+    {
+      "path": "readmes-a-current/inputs/stream-assembly-3.ts",
+      "bytes": 944,
+      "sha256": "4a5bda3c7790b762a32d332bc722e53613f0701ad94ba879f23adaa2d6a03830"
+    },
+    {
+      "path": "readmes-a-current/kernel-basis-1.log",
+      "bytes": 85,
+      "sha256": "89c405549d828d223610c5c6c8e9504aae907342b3e2585e3d72c01b6f5974f2"
+    },
+    {
+      "path": "readmes-a-current/kernel-basis-2.log",
+      "bytes": 71,
+      "sha256": "9abc6ddaa5afc12c6d690e7fae94fcbc0666716d61f9c5f2ea8037dca5770780"
+    },
+    {
+      "path": "readmes-a-current/kernel-basis-3.log",
+      "bytes": 65,
+      "sha256": "5ae384aa280bfea9b0e9e5c5010ba63af1c3fe8fcbc91f12d963d1d03a56db9c"
+    },
+    {
+      "path": "readmes-a-current/messages-1.log",
+      "bytes": 91,
+      "sha256": "397b2118d836b8f3237c1d202e0af21ff5ddc57af7d3642685c0e8d158f826c6"
+    },
+    {
+      "path": "readmes-a-current/messages-2.log",
+      "bytes": 118,
+      "sha256": "567aff9ba0e0c3664e03383d4324b9ec2c7334d9ee7a9b6cbd1a65a21dcce762"
+    },
+    {
+      "path": "readmes-a-current/messages-3.log",
+      "bytes": 73,
+      "sha256": "bc87aef9884a5e9489ab18d8dd3f3d68a368ddcaa0addb2203b8d5d99aabfea4"
+    },
+    {
+      "path": "readmes-a-current/node-version.log",
+      "bytes": 51,
+      "sha256": "68e8651861942b833074215376cc14f461062788f04b249f360ef1d32ba939e5"
+    },
+    {
+      "path": "readmes-a-current/offer-expiry-1.log",
+      "bytes": 97,
+      "sha256": "1df6fcc715f79856632d25cc1468465861c453b8f6a77e88dec0e0b6e6cf35ea"
+    },
+    {
+      "path": "readmes-a-current/offer-expiry-2.log",
+      "bytes": 88,
+      "sha256": "343577c363d9b32154c97ef15a964c391195b5cef5a52e714e16ccbf01f74972"
+    },
+    {
+      "path": "readmes-a-current/package.json",
+      "bytes": 35,
+      "sha256": "3b9a5cf9316643e65829080225447f01408107196a7674693ef07eb8062ed00b"
+    },
+    {
+      "path": "readmes-a-current/results.json",
+      "bytes": 12090,
+      "sha256": "c171833908d23eb34c076487cd4b40a13be661419d7aae8b27d4dc60de513e7e"
+    },
+    {
+      "path": "readmes-a-current/root-oracle-readback.json",
+      "bytes": 4212,
+      "sha256": "0955cdc87513e33218b7d827ae869498bf41af839fab9c49132e9d77665667d0"
+    },
+    {
+      "path": "readmes-a-current/storage-1.log",
+      "bytes": 54,
+      "sha256": "e0a2889cfb2b7578c2504e52cc4fcc34a14271fe119c29ecb8cea73bbbfeb8ff"
+    },
+    {
+      "path": "readmes-a-current/storage-2.log",
+      "bytes": 79,
+      "sha256": "472bfb706f7a4e2d636d699f15f99de38971f4764910bf572ffbe0e653680d30"
+    },
+    {
+      "path": "readmes-a-current/storage-3.log",
+      "bytes": 94,
+      "sha256": "4a592742e617a98ef3849b2c7ff798968d298f9105aeca9bb6d260aaee8e30f2"
+    },
+    {
+      "path": "readmes-a-current/stream-assembly-1.log",
+      "bytes": 80,
+      "sha256": "14f53d644ebe26308e1031d5fcf77326f2f58aea3a2443f4e7689bea1f623e29"
+    },
+    {
+      "path": "readmes-a-current/stream-assembly-2.log",
+      "bytes": 81,
+      "sha256": "f76197cbaedb6730c1978a24fc4ac8eda4d58e0d03fade16b09ff291303ae75e"
+    },
+    {
+      "path": "readmes-a-current/stream-assembly-3.log",
+      "bytes": 201,
+      "sha256": "228ed8b3903aef0bc5d1ee3acc53c9d723279972106a2eafc7fa6be95a5323d0"
+    },
+    {
+      "path": "readmes-a-current/tsconfig.json",
+      "bytes": 325,
+      "sha256": "5e012ba9f0ddaf7cb8dfd85e30329659c229e7d5cca50bbc36e1ef04bf79e397"
+    },
+    {
+      "path": "readmes-a-current/typecheck.log",
+      "bytes": 163,
+      "sha256": "0116c2d913861486c8e723df266656807245bb275f7149d36e6cbdeeaa3e5a36"
+    },
+    {
+      "path": "readmes-a-current/verify_examples.py",
+      "bytes": 4015,
+      "sha256": "0787a6737be6ba89a9991366a560f7fdac810614b05a602f015f6d16387710dc"
+    },
+    {
+      "path": "readmes-b/asset-evaluation-1.mts.runtime.log",
+      "bytes": 79,
+      "sha256": "75e2309f1db56722e368a402e200733aacbd8402660a59e5a46a89e6f1f1b279"
+    },
+    {
+      "path": "readmes-b/asset-evaluation-2.mts.runtime.log",
+      "bytes": 72,
+      "sha256": "dc09620834c8b539ba33c5f393ad46d9c61aa82a09e1a8ff2d452c7d91292800"
+    },
+    {
+      "path": "readmes-b/asset-model-1.mts.runtime.log",
+      "bytes": 87,
+      "sha256": "68f1dbb529a011ac671c199f30b14326d4161e7a93acc0ae2adc3f77d3e87286"
+    },
+    {
+      "path": "readmes-b/compiled/asset-evaluation-1.mjs",
+      "bytes": 2214,
+      "sha256": "baaf6ea1035a84ea5f75674cc2ec007e39d9e01fb175421e8ed50d97e0b463e6"
+    },
+    {
+      "path": "readmes-b/compiled/asset-evaluation-2.mjs",
+      "bytes": 1042,
+      "sha256": "b3efb9c52b310db5f5fbe54e98c7fcea3384c21ae8d8ea4c26b71968686dbff2"
+    },
+    {
+      "path": "readmes-b/compiled/asset-model-1.mjs",
+      "bytes": 861,
+      "sha256": "f68e1613b7638e50603987213c6080097b006994aedda6c9b3aa7bf8c7a8f536"
+    },
+    {
+      "path": "readmes-b/compiled/loop-extension-1.mjs",
+      "bytes": 531,
+      "sha256": "29e386559491042987ed7c8a5a96941fb81d1059298dc520685998f19e6f1bf3"
+    },
+    {
+      "path": "readmes-b/compiled/loop-extension-2.mjs",
+      "bytes": 1366,
+      "sha256": "b3f9716fdbd8f19438a711f135b022523d84e4fa4c2d9c3c405009f86e164aaa"
+    },
+    {
+      "path": "readmes-b/compiled/mcp-endpoint-1.mjs",
+      "bytes": 683,
+      "sha256": "646edde85bc927a424fc0a8a6cfd3f2545b19b81f296e315d80d5f0242f25acb"
+    },
+    {
+      "path": "readmes-b/compiled/mcp-endpoint-2.mjs",
+      "bytes": 1196,
+      "sha256": "1ab2afc02b20bcf768c05a8e44ef07c54f492300a896f7536451d33d4d4c6838"
+    },
+    {
+      "path": "readmes-b/compiled/model-profile-1.mjs",
+      "bytes": 978,
+      "sha256": "9ec61c14dd953883f6dec7666ce38fd3bedb4107ad3976998c1f879172706d2f"
+    },
+    {
+      "path": "readmes-b/compiled/model-profile-2.mjs",
+      "bytes": 907,
+      "sha256": "b481c832797ab580a6aa63c2b48eed60f6db9974772daea425d5efb2ac4c3268"
+    },
+    {
+      "path": "readmes-b/compiled/model-response-1.mjs",
+      "bytes": 1919,
+      "sha256": "48c8ec847c96d1e03874b38d8fe0af3ab84b781bf145b5ca5450af53389f1054"
+    },
+    {
+      "path": "readmes-b/compiled/model-response-2.mjs",
+      "bytes": 1381,
+      "sha256": "bfc30e862fd3f7997060c4eec096d96532cf7f999f0fea2fe0c253302c1d9b42"
+    },
+    {
+      "path": "readmes-b/compiled/slash-command-1.mjs",
+      "bytes": 825,
+      "sha256": "614d86b35b3371289cd6bbfd830d7f7c16e8a7067ad344b0c4a1c0ed0b9c6e7a"
+    },
+    {
+      "path": "readmes-b/compiled/slash-command-2.mjs",
+      "bytes": 869,
+      "sha256": "51dbe417d3b979b62563ff53241083b3ea733d36a3e4099214d683075799b9f9"
+    },
+    {
+      "path": "readmes-b/compiled/slash-command-3.mjs",
+      "bytes": 1264,
+      "sha256": "a4d433dd40032c6a8b9ad1d46d1f9e967bc3b37dd82e05a6d4f91abc1a08322b"
+    },
+    {
+      "path": "readmes-b/compiled/tool-definition-1.mjs",
+      "bytes": 822,
+      "sha256": "d2c5797a8f979737d6bc0e1aac33dad0a2d424172048a481d014fc3f06d6a9af"
+    },
+    {
+      "path": "readmes-b/compiled/tool-definition-2.mjs",
+      "bytes": 890,
+      "sha256": "96c60b0334d4528e7d006acdedfab128612cf175579a50fcd4ef396bebd8a3ad"
+    },
+    {
+      "path": "readmes-b/compiled/tool-definition-3.mjs",
+      "bytes": 661,
+      "sha256": "056bea2410f1a41972a98fed6546178d3df5947cca3492f6ea442347f9f35aa7"
+    },
+    {
+      "path": "readmes-b/documentation-audit.json",
+      "bytes": 2405,
+      "sha256": "8d48d1f6172123f6232ef68ce8615bc3ab69bd03083a7fdc875cb8c328967cac"
+    },
+    {
+      "path": "readmes-b/examples/asset-evaluation-1.mts",
+      "bytes": 2168,
+      "sha256": "21c7d74aa1043f9284991b6dce11281ab14a4982c0cb58b83781946cd877563b"
+    },
+    {
+      "path": "readmes-b/examples/asset-evaluation-2.mts",
+      "bytes": 1077,
+      "sha256": "58e584b8a7e7de1ee5e3f46e1318aac74c6b0ed1eaf4475107bf3f8435c6cba8"
+    },
+    {
+      "path": "readmes-b/examples/asset-model-1.mts",
+      "bytes": 866,
+      "sha256": "175e3768683f2ef71a13addf9ff7dd52f14bb20209791ae504cad7b1ec036cf0"
+    },
+    {
+      "path": "readmes-b/examples/asset-model-2-stable-root.mts",
+      "bytes": 1900,
+      "sha256": "a27eceda6fbf40d88298337e543acbc40e0bef664b203547e52772240f9068a5"
+    },
+    {
+      "path": "readmes-b/examples/asset-model-2.mts",
+      "bytes": 1903,
+      "sha256": "2493fa29afeb9be8c49c833670271f4f28a282390a9ba2b7bb531d8b39e5ff4d"
+    },
+    {
+      "path": "readmes-b/examples/loop-extension-1.mts",
+      "bytes": 580,
+      "sha256": "c0f8985dac30d8624e2c70aab3be581ee15c56bd6adc9d3125c8b93232c48c57"
+    },
+    {
+      "path": "readmes-b/examples/loop-extension-2.mts",
+      "bytes": 1281,
+      "sha256": "75ca8241b423c991b46c155bc9620440686d43d6a22896ad334236f87dfbbc36"
+    },
+    {
+      "path": "readmes-b/examples/mcp-endpoint-1.mts",
+      "bytes": 700,
+      "sha256": "ae81a5366454d98d6711552def3a96b2e1f67e77e47f11f2fc49c4454d78bea9"
+    },
+    {
+      "path": "readmes-b/examples/mcp-endpoint-2.mts",
+      "bytes": 1226,
+      "sha256": "d0d0d74dac6dc2a24a11752dd5535517fcf0a5d5913b68fddd5e042ddf98602c"
+    },
+    {
+      "path": "readmes-b/examples/model-profile-1.mts",
+      "bytes": 992,
+      "sha256": "8a3f984cc92d0b20aa842be3bd7d9d9754e23edcc5ace6c213fc5f268e0d54b9"
+    },
+    {
+      "path": "readmes-b/examples/model-profile-2.mts",
+      "bytes": 960,
+      "sha256": "2a666aff7733a9fe39769ae3c7cbb914884bd782a77d20d7e5988babac2dcb6a"
+    },
+    {
+      "path": "readmes-b/examples/model-response-1.mts",
+      "bytes": 1848,
+      "sha256": "86c9750bd87dc1860639a5a27056c034857cde397b82d161fa724e9271c0ec2e"
+    },
+    {
+      "path": "readmes-b/examples/model-response-2.mts",
+      "bytes": 1346,
+      "sha256": "9f804269f440bc648520b50a6284c8f2dd73deda0758e8f3b1171e05f93618b4"
+    },
+    {
+      "path": "readmes-b/examples/skill-package-1.mts",
+      "bytes": 1414,
+      "sha256": "aef309c0ba10f85136b6d3448dd00807c3b5a96a0d8a95a1e234c32f6cf25966"
+    },
+    {
+      "path": "readmes-b/examples/skill-package-2.mts",
+      "bytes": 1386,
+      "sha256": "b4faf7ee0c0b45041845e0e45cf0945b5d78b4e4c73f1d0b760d71513fb727c7"
+    },
+    {
+      "path": "readmes-b/examples/skill-package-3.mts",
+      "bytes": 927,
+      "sha256": "1258348990c9d1cba32d832ac073e24991e9495e76accb158cf9f6eb41976b13"
+    },
+    {
+      "path": "readmes-b/examples/slash-command-1.mts",
+      "bytes": 865,
+      "sha256": "18b8a38830c9ad0b1ca376a8422149113400472558a8e20e54b3db65553c4898"
+    },
+    {
+      "path": "readmes-b/examples/slash-command-2.mts",
+      "bytes": 909,
+      "sha256": "480e8b1205f3339333acd566abbda7d94421f5053c53b4dc6f8a0342e146e429"
+    },
+    {
+      "path": "readmes-b/examples/slash-command-3.mts",
+      "bytes": 1215,
+      "sha256": "3782da545270e444094b53ad583d3a383ecf988cc1bba9695181df7f0bad9190"
+    },
+    {
+      "path": "readmes-b/examples/tool-definition-1.mts",
+      "bytes": 833,
+      "sha256": "ab0eac3f25925e937208298711957aae274508c5f058a2ef217228ca77b57ec6"
+    },
+    {
+      "path": "readmes-b/examples/tool-definition-2.mts",
+      "bytes": 878,
+      "sha256": "79b23ce8956cba9eb9e1682c3262005a177c01083e23cd8755af9a748f595a09"
+    },
+    {
+      "path": "readmes-b/examples/tool-definition-3.mts",
+      "bytes": 618,
+      "sha256": "7cdac80bbe540605d2cf028ad8f5656f85c01c67c8593954c665b58f55cb7f23"
+    },
+    {
+      "path": "readmes-b/extract.py",
+      "bytes": 2002,
+      "sha256": "13ed47dec177ca9d233ebe8ea45e250645b5c0b6be894ab9f7e4e8956f39cc08"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/SHA256SUMS",
+      "bytes": 11578,
+      "sha256": "35006ac718c23248c387d73c94328735043ad3fc374a7835a3c7f72b092755e2"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/after-artifact-sha256.json",
+      "bytes": 74608,
+      "sha256": "a21fc6d2d41fff4e60d23a414112341a90f5dc416b9098a2777808bc2624f28d"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/asset-evaluation-1.mts.runtime.log",
+      "bytes": 99,
+      "sha256": "4084ed56b7cf125be104ad6c4ccc6ace30837718879a524d36444c6f0ba2b2c5"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/asset-evaluation-2.mts.runtime.log",
+      "bytes": 92,
+      "sha256": "bdb89c085b817f54c99c7d28530a761817a2ee2a54738d70ddb43311953cf7bd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/asset-model-1.mts.runtime.log",
+      "bytes": 107,
+      "sha256": "ebafff0110f09542dd41160bb43c4544dcf9380ce60399c7f3ca196c0f5fe424"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/asset-model-2.mts.runtime.log",
+      "bytes": 228,
+      "sha256": "73e317555d2b1653e0e38d64498efa8da715a25f2746347e106b1963ad3e0b96"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/before-artifact-sha256.json",
+      "bytes": 74608,
+      "sha256": "a21fc6d2d41fff4e60d23a414112341a90f5dc416b9098a2777808bc2624f28d"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/asset-evaluation-1.mjs",
+      "bytes": 2688,
+      "sha256": "312dc1d53d59f44b7b993823985aa4c503023185b6507f66717b2753297f61f9"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/asset-evaluation-2.mjs",
+      "bytes": 1042,
+      "sha256": "b3efb9c52b310db5f5fbe54e98c7fcea3384c21ae8d8ea4c26b71968686dbff2"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/asset-model-1.mjs",
+      "bytes": 861,
+      "sha256": "f68e1613b7638e50603987213c6080097b006994aedda6c9b3aa7bf8c7a8f536"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/asset-model-2.mjs",
+      "bytes": 1859,
+      "sha256": "db22b3ec1b1d1fe4e82c151a7a0195850218892bc10f668377f5fc030adab12a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/loop-extension-1.mjs",
+      "bytes": 547,
+      "sha256": "7de704066b277fa91bff5ceeba6b2d58b080e1fb9757745a2a698d5c561ac0fd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/loop-extension-2.mjs",
+      "bytes": 1520,
+      "sha256": "7e2f3515ca61294e653673a07d37735c0272edf6ac05e7560ebc6ec81e384c22"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/mcp-endpoint-1.mjs",
+      "bytes": 695,
+      "sha256": "64e430573be7e705a38156a14b1b57609c78b9eba029cfdbc81897f9c38dd888"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/mcp-endpoint-2.mjs",
+      "bytes": 1276,
+      "sha256": "13ed21858388e9a066e00d8b4aa82fa3639062134fe9a64b2f2bf8630b452955"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/model-profile-1.mjs",
+      "bytes": 1006,
+      "sha256": "3ab5dfd953a2a217cba772c08c4a0f080647272667425e83e0127ac15252a367"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/model-profile-2.mjs",
+      "bytes": 944,
+      "sha256": "3c559f18055b6d2df981e04361e1252d1bc1e604ac43f7927d9e96c96f5d3f39"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/model-response-1.mjs",
+      "bytes": 2056,
+      "sha256": "94f1ad994614e83524ce946fe474e9d463d641973a5f810daae4372d44153c30"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/model-response-2.mjs",
+      "bytes": 1490,
+      "sha256": "71ef0e9ca7108a7775e7cdc46f9ad3a5813029564eef657511002d2981ac3b08"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/skill-package-1.mjs",
+      "bytes": 1471,
+      "sha256": "9ef85a2c9699b750a532c0e87d7ee905a6e04b436019f1e614737159330c883c"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/skill-package-2.mjs",
+      "bytes": 1500,
+      "sha256": "1c9f6e26da0d2ea9f6add0d95154db1037ab7d95d620074816d83c573696dda9"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/skill-package-3.mjs",
+      "bytes": 1024,
+      "sha256": "b9e9b2cf52e0a220c5ea12eabbf76003d00d3c5817fb08dc0d9cdf269ef50855"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/slash-command-1.mjs",
+      "bytes": 830,
+      "sha256": "6ff44a60577979249367e25c9bd3a20ea0bb9798672fdf921513a2c93f6df5db"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/slash-command-2.mjs",
+      "bytes": 873,
+      "sha256": "f1515a4683dba12afdbc1e54d80e7437329e098f17456903011c474537bd97f9"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/slash-command-3.mjs",
+      "bytes": 1327,
+      "sha256": "927ed3fec2408afd4ee286c49dda843d72122fa0fbd530b8457bac5bacc647b6"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/tool-definition-1.mjs",
+      "bytes": 830,
+      "sha256": "c41bf4e0f9cea0b26fadd2f025722ae7662f6be2655f85ecbbcf48e888ae5304"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/tool-definition-2.mjs",
+      "bytes": 952,
+      "sha256": "909aa85294d75464fa568cf087fba21af6c434c0012fc362ca6123a40a00de24"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/compiled/tool-definition-3.mjs",
+      "bytes": 741,
+      "sha256": "eddf6ebbd565a2b05743ecca4a91056f0afd05f9b2ea50e552bca08b36dcd0ba"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/documentation-audit.json",
+      "bytes": 2270,
+      "sha256": "d8efd965ecc6943a743b5b1c4368fecd7bb29224cbd3331ce5557c405ec855fd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/asset-evaluation-1.mts",
+      "bytes": 2448,
+      "sha256": "858c25f6b0d67f38e278d2e4c00f4b4fe599cf51122350b1082c7725785fbb25"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/asset-evaluation-2.mts",
+      "bytes": 1077,
+      "sha256": "58e584b8a7e7de1ee5e3f46e1318aac74c6b0ed1eaf4475107bf3f8435c6cba8"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/asset-model-1.mts",
+      "bytes": 872,
+      "sha256": "e1a32917af272bc26e8d0a79e237a68e5cdbaed878390e15660d28b8b087ae34"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/asset-model-2.mts",
+      "bytes": 1932,
+      "sha256": "d5e487ae85374aa8af5c8a6108a6d0b7ce942da51cc50bab86283c676cb70ca6"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/loop-extension-1.mts",
+      "bytes": 592,
+      "sha256": "da3790d825cf5c4dd1740e4bb3f61c668a92fdb1b3cb97601f98692041fd7f3a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/loop-extension-2.mts",
+      "bytes": 1423,
+      "sha256": "9140a3ae9544acc5435848feb271326bf86c2e1ff21e6d7b78a8d7e6c12b9169"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/mcp-endpoint-1.mts",
+      "bytes": 730,
+      "sha256": "b365f90bfb3881771462bae894cd9974dc92a8c10762a971bc8681bd28844ecf"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/mcp-endpoint-2.mts",
+      "bytes": 1282,
+      "sha256": "6a333ec884a54e7960eac9e9392eba391fd94a09cc85727b836dae3ec5ffc842"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/model-profile-1.mts",
+      "bytes": 1012,
+      "sha256": "a8e86b585de52f4da49450033da24d653f329ae77937546b9e95070607b57e31"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/model-profile-2.mts",
+      "bytes": 1007,
+      "sha256": "6367438b059fff1089161b61ce2a74a500c1bf9c0b400e8faa0756b054f35692"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/model-response-1.mts",
+      "bytes": 1922,
+      "sha256": "2fe43f9cfbb339d6f9490e219416735e06ddd9a0ffba68f195015309f1a35948"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/model-response-2.mts",
+      "bytes": 1416,
+      "sha256": "b6eeb2650e8b6471320115a485069a4b6219d511cfa6c91b24c02b7c47486d9d"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/skill-package-1.mts",
+      "bytes": 1520,
+      "sha256": "4dd3eba793e936be60462a300f7c00e0b46bc3894a522342988e3d2c9e7607b7"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/skill-package-2.mts",
+      "bytes": 1444,
+      "sha256": "8ea4934d43c89e51cd5db7539a32d5ad456ea6fc1885b03b6ec00eaf958c8592"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/skill-package-3.mts",
+      "bytes": 987,
+      "sha256": "546ec1c2281b333757d9b98b430143d334941021f3c35ced95faf1e08523613a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/slash-command-1.mts",
+      "bytes": 874,
+      "sha256": "9dc0eab355794b2932ff67bcb878031bc8d74f7f341f05b35358ccdf8c134b02"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/slash-command-2.mts",
+      "bytes": 917,
+      "sha256": "4624486e409d0e4746d05b05e4cab3b2c9123c0b16ba8bbb2164199ba2d02118"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/slash-command-3.mts",
+      "bytes": 1252,
+      "sha256": "75079cb34e3bfcd1d9cd50017d69b04c2eef81ffb5173c20a5e2bbd6bb402ecc"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/tool-definition-1.mts",
+      "bytes": 843,
+      "sha256": "028c657b3fa49f57a12771a51531032197fb7f38d77bf84f83383a92c78d0589"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/tool-definition-2.mts",
+      "bytes": 922,
+      "sha256": "4a1d681ac91db004c3e30ba7ecff0432ee9d8fb9be97a35e0f5f9f6044752890"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/examples/tool-definition-3.mts",
+      "bytes": 707,
+      "sha256": "e9c762d2afda4bf6332319ca3f96b9c5c305091b3fb3449d69830f599a07c96a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/extract.py",
+      "bytes": 3447,
+      "sha256": "1c3e2fe3b3e03a7844d2a7e5a2b2d7c0ddcd8f9ae4f69456325067225b12a813"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/loop-extension-1.mts.runtime.log",
+      "bytes": 63,
+      "sha256": "c7528adb7e22e1ae332fb21a1e4626b445750283fb4a781cfcbcdf3da0ac7c51"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/loop-extension-2.mts.runtime.log",
+      "bytes": 75,
+      "sha256": "89f6b133b8b0285a7a36204f196d51443555e3d0266f39a9c96143bc63b713aa"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/manifest.json",
+      "bytes": 5430,
+      "sha256": "83cf4cda7c84a19127806c9dd3e803554b76f5bc4899798cba1abc4d658cb250"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/mcp-endpoint-1.mts.runtime.log",
+      "bytes": 82,
+      "sha256": "39ef556da7ca59b770d8a40bcb293e7bf0254bd86d336773478a9147e5c325d7"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/mcp-endpoint-2.mts.runtime.log",
+      "bytes": 212,
+      "sha256": "e79fa6283f6587eb1033a32760390f57a543027619924cfc581d1edaad98234d"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/model-profile-1.mts.runtime.log",
+      "bytes": 120,
+      "sha256": "7c12341b636af2d01646bea754d4246ffc0095a18a09f3a5fb2878c932d915c1"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/model-profile-2.mts.runtime.log",
+      "bytes": 39,
+      "sha256": "8a2e57dfce87eef45dd32427c360187455d7ab3e3c623bbbf1df9ea47ad71ace"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/model-response-1.mts.runtime.log",
+      "bytes": 79,
+      "sha256": "10ba015e5d35063d588dc2551224943af18be36c0080f69c9187d4d8b9b56581"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/model-response-2.mts.runtime.log",
+      "bytes": 112,
+      "sha256": "71e4c7215f2d8a70e456918b67fa8f42ef63cb72a6b1dc09c304e1b0a3976c8a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/asset-evaluation-1.mts.stdout",
+      "bytes": 71,
+      "sha256": "3e98b055dde58c8d6fc69cb87646bdb054670fff60ebaa0a87c3b41cfa30a069"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/asset-evaluation-2.mts.stdout",
+      "bytes": 64,
+      "sha256": "4c8237db18278031d34edeb88b8e9219601c539810a7232f5e42a2f8cfb05449"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/asset-model-1.mts.stdout",
+      "bytes": 79,
+      "sha256": "2218f54695a6486a45d0432e42ece6334a0330dbe3e4409cedd1fc05fc278ccd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/asset-model-2.mts.stdout",
+      "bytes": 200,
+      "sha256": "a3770116f576c24bcab65b3b0e63a496446e74519eee5b7de9d610181ce40a1d"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/loop-extension-1.mts.stdout",
+      "bytes": 35,
+      "sha256": "6a8667bebd17f4406e5d6af7f8847db056a1092ce8295de9469c14c10dc5cca5"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/loop-extension-2.mts.stdout",
+      "bytes": 47,
+      "sha256": "e30e5740014f6a0984d4b103a11786beb318bd142bf20ec75be0134e2103cc0f"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/mcp-endpoint-1.mts.stdout",
+      "bytes": 54,
+      "sha256": "4b5c430f9f149b47b39a1f66ac6b2e6e06952df4d286c62a1be6490edaa786cd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/mcp-endpoint-2.mts.stdout",
+      "bytes": 184,
+      "sha256": "1ef91dba1c86fc30ccd8c2a8b24a93e543a78bfb0368c42f2a1de4c6fb34357e"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/model-profile-1.mts.stdout",
+      "bytes": 92,
+      "sha256": "4ecd30737bbc9ec96e19fc965331c6ac5cc8d98883e21fd4ecba7a12f19369bd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/model-profile-2.mts.stdout",
+      "bytes": 11,
+      "sha256": "acb2b288b9f028830645d94e3a4417e5ffc574a024576d6f69b53d989e9d93ea"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/model-response-1.mts.stdout",
+      "bytes": 51,
+      "sha256": "95d2bbcc3ddfd90f4d7df965edb25eacc1115591b4efe8f4437dbae565cbdcad"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/model-response-2.mts.stdout",
+      "bytes": 84,
+      "sha256": "49de1f09cc15cd385be692e66b2fbe64a6cc0202d9f9faa8e2ce7a8f89804a56"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/skill-package-1.expected.mjs",
+      "bytes": 207,
+      "sha256": "1791c9f10e8293b949c0f57af10150e5ea5b1d85f5be4c30f2902b9ed97b0f8a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/skill-package-1.mts.stdout",
+      "bytes": 160,
+      "sha256": "7665da50e16c8462d4ab142f7266d57b8fccfb3367f3db76deff7a817b6c6db7"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/skill-package-2.expected.mjs",
+      "bytes": 229,
+      "sha256": "07dce832d4fc0cdbb806ea4ea2b688ddfb1360dc72d46357d519fb9165d3e707"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/skill-package-2.mts.stdout",
+      "bytes": 157,
+      "sha256": "d74dae1e958081b4a4c971e6d0522be4b7c163c0b7f3f557f170c6b57a025339"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/skill-package-3.expected.mjs",
+      "bytes": 109,
+      "sha256": "35d02a125a7330fa1291cc2097fb993df1402309f052709ffc7adc77300f4c24"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/skill-package-3.mts.stdout",
+      "bytes": 70,
+      "sha256": "6e2658219fe17c2068c614d7442eb18a362e09622efd503f292b3517652d53a3"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/slash-command-1.mts.stdout",
+      "bytes": 245,
+      "sha256": "fe4e03ef5699cd591f8530556597986d8865f981a940d0fc9dac1e6c7bb5ac9f"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/slash-command-2.mts.stdout",
+      "bytes": 124,
+      "sha256": "94e258893f22785d8a7988ab3726547d943f5508372b9bd39947d2b0b8334bee"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/slash-command-3.mts.stdout",
+      "bytes": 98,
+      "sha256": "450ad5fbf146e447c485b656dbf00579788fc3ee35f2a0a20f5a9d589b44d29e"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/tool-definition-1.mts.stdout",
+      "bytes": 69,
+      "sha256": "c0d7d4d44ab2d16fc9da8da214a59e4680ee81cabe77ec633050747c937a205e"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/tool-definition-2.mts.stdout",
+      "bytes": 59,
+      "sha256": "1ff42ee9da108ca9b21cc7745250134feff662be234231ea5a52166cbbf478e5"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/oracles/tool-definition-3.mts.stdout",
+      "bytes": 44,
+      "sha256": "96ce2c335d0678d1e12573f607b3226d5f1ea72fb14ef5681d08121f322af732"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/prettier-check.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/asset-evaluation/README.md",
+      "bytes": 6759,
+      "sha256": "628731bc0f248c2e17fee8dff67a6f3ca327ffecee87db796065980beda63a32"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/asset-evaluation/README_ZH.md",
+      "bytes": 6361,
+      "sha256": "ee20a36060c11030f1e61235f62de364d11c8ed6ccc9f040d1a093cbc4b7c67a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/asset-model/README.md",
+      "bytes": 6023,
+      "sha256": "349136ec8a167e43f9c98170b2ec5457f4f60620b6d9788743362b239dd0c5dd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/asset-model/README_ZH.md",
+      "bytes": 5777,
+      "sha256": "b86131d6f9642cebceaca52660c963437dbc08b0255cd3cc6d37d4700aa4e0ff"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/loop-extension/README.md",
+      "bytes": 5190,
+      "sha256": "e01cfc8e8445093914313cf8f721a39a9ed1a0c59c9dc7bf6164e442afc6052e"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/loop-extension/README_ZH.md",
+      "bytes": 4790,
+      "sha256": "3c7ba922485b4c788f4cb0d4f7e26ebc7189345da180abcb86c3b4b1c8e6bc3a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/mcp-endpoint/README.md",
+      "bytes": 4975,
+      "sha256": "7518a914cf3147a054eaaf5ea17c20b7d953c2559ba1ab10a6ae92ceff1abde7"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/mcp-endpoint/README_ZH.md",
+      "bytes": 4612,
+      "sha256": "1ecb5521817b15f9208e961bb271ed9340d7bce19bbdb48d2c9124808f5b9422"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/model-profile/README.md",
+      "bytes": 4765,
+      "sha256": "e505772fd0bb8550f0602e5af51a928ba5fd3aa0d60d775013e2145c145bd72f"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/model-profile/README_ZH.md",
+      "bytes": 4475,
+      "sha256": "604f1c50b0e4f103b84bb50f84e54912388b263c92a5cc53d70bb1230b9ec56a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/model-response/README.md",
+      "bytes": 6428,
+      "sha256": "261900076a4a11585152631e81184a4e32cdbd6bee19d4442c4d0097ebc401d0"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/model-response/README_ZH.md",
+      "bytes": 6043,
+      "sha256": "5bd0a9c1df1db019e6778f67a0c95f746690e24c9d290b13a0dacc104169df69"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/skill-package/README.md",
+      "bytes": 8684,
+      "sha256": "f56ea85a2e969836b306cbf955c76711f35de12741c58d84f6a1c90a944fa67a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/skill-package/README_ZH.md",
+      "bytes": 8091,
+      "sha256": "7e2c2e685423ff0dda7bb5e3c0522932d3e8670fb9c00f5d4c81f5a4b94b7197"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/slash-command/README.md",
+      "bytes": 6415,
+      "sha256": "8dfdab2b7b8fd184e570f4f35542610bcc9d4957b24a71e77870c55b0606f9d6"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/slash-command/README_ZH.md",
+      "bytes": 6069,
+      "sha256": "caa596524b7a209d45637b518078fb4d8fb343778c0680f417d1d4ef1b131de4"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/tool-definition/README.md",
+      "bytes": 5882,
+      "sha256": "cdcad7a2b1092221f4383f0b319e3b1203ea4bd7b4d72b852f107810f2f3bdce"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/readmes/tool-definition/README_ZH.md",
+      "bytes": 5515,
+      "sha256": "4eebbcf4162a4f195523001d173460de7263d7fb52c39821b4741d3d40170a42"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/receipt.md",
+      "bytes": 2702,
+      "sha256": "0e7c5a3e70349939938aa200281cd3cbdd15c3601cce70460a1f1c4c14caa231"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/resolve.log",
+      "bytes": 1510,
+      "sha256": "1f4674340cbebadc0b71959a9bf61a318d5281a0db3c0629afea56929a291a94"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/resolve.mjs",
+      "bytes": 1050,
+      "sha256": "81203f6819b8fcb6b8a34270d6769ea38bd07bfa9a5755f11552e4e93f4a5fc2"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/runtime-results.json",
+      "bytes": 19358,
+      "sha256": "c5e441adf96f84d54c9b2502e6647ec6234a2b0ad3825b00974ab3bac8a1ebac"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/sealing-command-first-attempt.log",
+      "bytes": 154,
+      "sha256": "e5158043d51585cdead1fbf0ae3c80dbbd8ebe55253d12aa3dc7ca58224fb8f0"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/skill-package-1.mts.runtime.log",
+      "bytes": 188,
+      "sha256": "60915ca81aaf440bc85e45b3d033a527146df7eef6bb76854bb412a7abb7ce9a"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/skill-package-2.mts.runtime.log",
+      "bytes": 185,
+      "sha256": "6f9fd2b570b8891933c183273549d31a73e9833de7977bc3c917d79fbe7bfabb"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/skill-package-3.mts.runtime.log",
+      "bytes": 98,
+      "sha256": "3031f67e931c4eabc54a52e5d349890ad3853c69549e3821b7f89a281e8d48da"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/slash-command-1.mts.runtime.log",
+      "bytes": 273,
+      "sha256": "1c00a3317363b3979e5f8033c52c708bdc189490288e3bf1857cb856630f720d"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/slash-command-2.mts.runtime.log",
+      "bytes": 152,
+      "sha256": "47113007312020794bd918b41e158906a435fd360040778eaebabb5b038d94cd"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/slash-command-3.mts.runtime.log",
+      "bytes": 126,
+      "sha256": "2ddfb85278eb2a9b6d648aca2d2cba86529505cef0050c69748727c54e82b481"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/tool-definition-1.mts.runtime.log",
+      "bytes": 97,
+      "sha256": "45022f8847b1636206ececad8d1a5da9ae92a0f4e2ef84508e55076ca2434e56"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/tool-definition-2.mts.runtime.log",
+      "bytes": 87,
+      "sha256": "927c687522aeecbf992c29b7024109a9c2aba0ec390e1e1fe60a77d41d0e139c"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/tool-definition-3.mts.runtime.log",
+      "bytes": 72,
+      "sha256": "201c8a32e7a055b48d1f20b177e5dc63b2ab5a02c1b67ffbe1b70b5ecc5c8645"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/tsconfig.json",
+      "bytes": 1148,
+      "sha256": "3aa6780d862bf4ad88d0cedea167cad37e668b457b97196a980f0ea12c0f6b72"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-b/final-06b85a14/verification.json",
+      "bytes": 82513,
+      "sha256": "8f86d620ad938ad39259c894376d309d94beb3cfbcf81d22b405933137a45aee"
+    },
+    {
+      "path": "readmes-b/finalize.py",
+      "bytes": 3447,
+      "sha256": "1c3e2fe3b3e03a7844d2a7e5a2b2d7c0ddcd8f9ae4f69456325067225b12a813"
+    },
+    {
+      "path": "readmes-b/formatted/asset-evaluation-1.mts.runtime.log",
+      "bytes": 79,
+      "sha256": "75e2309f1db56722e368a402e200733aacbd8402660a59e5a46a89e6f1f1b279"
+    },
+    {
+      "path": "readmes-b/formatted/asset-evaluation-2.mts.runtime.log",
+      "bytes": 72,
+      "sha256": "dc09620834c8b539ba33c5f393ad46d9c61aa82a09e1a8ff2d452c7d91292800"
+    },
+    {
+      "path": "readmes-b/formatted/asset-model-1.mts.runtime.log",
+      "bytes": 87,
+      "sha256": "68f1dbb529a011ac671c199f30b14326d4161e7a93acc0ae2adc3f77d3e87286"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/asset-evaluation-1.mjs",
+      "bytes": 2688,
+      "sha256": "312dc1d53d59f44b7b993823985aa4c503023185b6507f66717b2753297f61f9"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/asset-evaluation-2.mjs",
+      "bytes": 1042,
+      "sha256": "b3efb9c52b310db5f5fbe54e98c7fcea3384c21ae8d8ea4c26b71968686dbff2"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/asset-model-1.mjs",
+      "bytes": 861,
+      "sha256": "f68e1613b7638e50603987213c6080097b006994aedda6c9b3aa7bf8c7a8f536"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/loop-extension-1.mjs",
+      "bytes": 547,
+      "sha256": "7de704066b277fa91bff5ceeba6b2d58b080e1fb9757745a2a698d5c561ac0fd"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/loop-extension-2.mjs",
+      "bytes": 1520,
+      "sha256": "7e2f3515ca61294e653673a07d37735c0272edf6ac05e7560ebc6ec81e384c22"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/mcp-endpoint-1.mjs",
+      "bytes": 695,
+      "sha256": "64e430573be7e705a38156a14b1b57609c78b9eba029cfdbc81897f9c38dd888"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/mcp-endpoint-2.mjs",
+      "bytes": 1276,
+      "sha256": "13ed21858388e9a066e00d8b4aa82fa3639062134fe9a64b2f2bf8630b452955"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/model-profile-1.mjs",
+      "bytes": 1006,
+      "sha256": "3ab5dfd953a2a217cba772c08c4a0f080647272667425e83e0127ac15252a367"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/model-profile-2.mjs",
+      "bytes": 944,
+      "sha256": "3c559f18055b6d2df981e04361e1252d1bc1e604ac43f7927d9e96c96f5d3f39"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/model-response-1.mjs",
+      "bytes": 2056,
+      "sha256": "94f1ad994614e83524ce946fe474e9d463d641973a5f810daae4372d44153c30"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/model-response-2.mjs",
+      "bytes": 1490,
+      "sha256": "71ef0e9ca7108a7775e7cdc46f9ad3a5813029564eef657511002d2981ac3b08"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/slash-command-1.mjs",
+      "bytes": 830,
+      "sha256": "6ff44a60577979249367e25c9bd3a20ea0bb9798672fdf921513a2c93f6df5db"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/slash-command-2.mjs",
+      "bytes": 873,
+      "sha256": "f1515a4683dba12afdbc1e54d80e7437329e098f17456903011c474537bd97f9"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/slash-command-3.mjs",
+      "bytes": 1327,
+      "sha256": "927ed3fec2408afd4ee286c49dda843d72122fa0fbd530b8457bac5bacc647b6"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/tool-definition-1.mjs",
+      "bytes": 830,
+      "sha256": "c41bf4e0f9cea0b26fadd2f025722ae7662f6be2655f85ecbbcf48e888ae5304"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/tool-definition-2.mjs",
+      "bytes": 952,
+      "sha256": "909aa85294d75464fa568cf087fba21af6c434c0012fc362ca6123a40a00de24"
+    },
+    {
+      "path": "readmes-b/formatted/compiled/tool-definition-3.mjs",
+      "bytes": 741,
+      "sha256": "eddf6ebbd565a2b05743ecca4a91056f0afd05f9b2ea50e552bca08b36dcd0ba"
+    },
+    {
+      "path": "readmes-b/formatted/diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-b/formatted/documentation-audit.json",
+      "bytes": 2216,
+      "sha256": "0d1f8a1995e3a7f9b6a5e391e6a9b302b6ee4514076b9fcea89466591a54d587"
+    },
+    {
+      "path": "readmes-b/formatted/examples/asset-evaluation-1.mts",
+      "bytes": 2448,
+      "sha256": "858c25f6b0d67f38e278d2e4c00f4b4fe599cf51122350b1082c7725785fbb25"
+    },
+    {
+      "path": "readmes-b/formatted/examples/asset-evaluation-2.mts",
+      "bytes": 1077,
+      "sha256": "58e584b8a7e7de1ee5e3f46e1318aac74c6b0ed1eaf4475107bf3f8435c6cba8"
+    },
+    {
+      "path": "readmes-b/formatted/examples/asset-model-1.mts",
+      "bytes": 872,
+      "sha256": "e1a32917af272bc26e8d0a79e237a68e5cdbaed878390e15660d28b8b087ae34"
+    },
+    {
+      "path": "readmes-b/formatted/examples/asset-model-2.mts",
+      "bytes": 1932,
+      "sha256": "d5e487ae85374aa8af5c8a6108a6d0b7ce942da51cc50bab86283c676cb70ca6"
+    },
+    {
+      "path": "readmes-b/formatted/examples/loop-extension-1.mts",
+      "bytes": 592,
+      "sha256": "da3790d825cf5c4dd1740e4bb3f61c668a92fdb1b3cb97601f98692041fd7f3a"
+    },
+    {
+      "path": "readmes-b/formatted/examples/loop-extension-2.mts",
+      "bytes": 1423,
+      "sha256": "9140a3ae9544acc5435848feb271326bf86c2e1ff21e6d7b78a8d7e6c12b9169"
+    },
+    {
+      "path": "readmes-b/formatted/examples/mcp-endpoint-1.mts",
+      "bytes": 730,
+      "sha256": "b365f90bfb3881771462bae894cd9974dc92a8c10762a971bc8681bd28844ecf"
+    },
+    {
+      "path": "readmes-b/formatted/examples/mcp-endpoint-2.mts",
+      "bytes": 1282,
+      "sha256": "6a333ec884a54e7960eac9e9392eba391fd94a09cc85727b836dae3ec5ffc842"
+    },
+    {
+      "path": "readmes-b/formatted/examples/model-profile-1.mts",
+      "bytes": 1012,
+      "sha256": "a8e86b585de52f4da49450033da24d653f329ae77937546b9e95070607b57e31"
+    },
+    {
+      "path": "readmes-b/formatted/examples/model-profile-2.mts",
+      "bytes": 1007,
+      "sha256": "6367438b059fff1089161b61ce2a74a500c1bf9c0b400e8faa0756b054f35692"
+    },
+    {
+      "path": "readmes-b/formatted/examples/model-response-1.mts",
+      "bytes": 1922,
+      "sha256": "2fe43f9cfbb339d6f9490e219416735e06ddd9a0ffba68f195015309f1a35948"
+    },
+    {
+      "path": "readmes-b/formatted/examples/model-response-2.mts",
+      "bytes": 1416,
+      "sha256": "b6eeb2650e8b6471320115a485069a4b6219d511cfa6c91b24c02b7c47486d9d"
+    },
+    {
+      "path": "readmes-b/formatted/examples/skill-package-1.mts",
+      "bytes": 1520,
+      "sha256": "4dd3eba793e936be60462a300f7c00e0b46bc3894a522342988e3d2c9e7607b7"
+    },
+    {
+      "path": "readmes-b/formatted/examples/skill-package-2.mts",
+      "bytes": 1444,
+      "sha256": "8ea4934d43c89e51cd5db7539a32d5ad456ea6fc1885b03b6ec00eaf958c8592"
+    },
+    {
+      "path": "readmes-b/formatted/examples/skill-package-3.mts",
+      "bytes": 987,
+      "sha256": "546ec1c2281b333757d9b98b430143d334941021f3c35ced95faf1e08523613a"
+    },
+    {
+      "path": "readmes-b/formatted/examples/slash-command-1.mts",
+      "bytes": 874,
+      "sha256": "9dc0eab355794b2932ff67bcb878031bc8d74f7f341f05b35358ccdf8c134b02"
+    },
+    {
+      "path": "readmes-b/formatted/examples/slash-command-2.mts",
+      "bytes": 917,
+      "sha256": "4624486e409d0e4746d05b05e4cab3b2c9123c0b16ba8bbb2164199ba2d02118"
+    },
+    {
+      "path": "readmes-b/formatted/examples/slash-command-3.mts",
+      "bytes": 1252,
+      "sha256": "75079cb34e3bfcd1d9cd50017d69b04c2eef81ffb5173c20a5e2bbd6bb402ecc"
+    },
+    {
+      "path": "readmes-b/formatted/examples/tool-definition-1.mts",
+      "bytes": 843,
+      "sha256": "028c657b3fa49f57a12771a51531032197fb7f38d77bf84f83383a92c78d0589"
+    },
+    {
+      "path": "readmes-b/formatted/examples/tool-definition-2.mts",
+      "bytes": 922,
+      "sha256": "4a1d681ac91db004c3e30ba7ecff0432ee9d8fb9be97a35e0f5f9f6044752890"
+    },
+    {
+      "path": "readmes-b/formatted/examples/tool-definition-3.mts",
+      "bytes": 707,
+      "sha256": "e9c762d2afda4bf6332319ca3f96b9c5c305091b3fb3449d69830f599a07c96a"
+    },
+    {
+      "path": "readmes-b/formatted/extract.py",
+      "bytes": 2163,
+      "sha256": "ee88bd0b0e1c2e1313c86a9c60e9682d43050901467a574c7dd31980301d70c5"
+    },
+    {
+      "path": "readmes-b/formatted/loop-extension-1.mts.runtime.log",
+      "bytes": 43,
+      "sha256": "6dd73cc09d006fc7338f87887d01df3efe021c5c51b92f99e42a1524fcacba19"
+    },
+    {
+      "path": "readmes-b/formatted/loop-extension-2.mts.runtime.log",
+      "bytes": 55,
+      "sha256": "ab0b2f678f4ac1b5d688bf2991d526247410544e2ff58555764cf79c0c5468a7"
+    },
+    {
+      "path": "readmes-b/formatted/manifest.json",
+      "bytes": 3096,
+      "sha256": "4859a608e58d205fd06a0cb160a0367ea2404ae8328059d741efda410b1dd108"
+    },
+    {
+      "path": "readmes-b/formatted/mcp-endpoint-1.mts.runtime.log",
+      "bytes": 62,
+      "sha256": "6277e9ee9157745aa23a2b907e0e15f566bd96bdd43383ecc7c56c47cc2df0b8"
+    },
+    {
+      "path": "readmes-b/formatted/mcp-endpoint-2.mts.runtime.log",
+      "bytes": 192,
+      "sha256": "5fee7483154c10a1b13c8ed185046f9726791bb1797db935c28939f84d04858a"
+    },
+    {
+      "path": "readmes-b/formatted/model-profile-1.mts.runtime.log",
+      "bytes": 100,
+      "sha256": "9d2c73e8cde1bc5d55bd03b39026469c6be315199971ac3ae178c42b65a2a7d9"
+    },
+    {
+      "path": "readmes-b/formatted/model-profile-2.mts.runtime.log",
+      "bytes": 19,
+      "sha256": "26b56421de731eac516ec34616d83c1242a9a723b15ebe4796e365e44b4a7691"
+    },
+    {
+      "path": "readmes-b/formatted/model-response-1.mts.runtime.log",
+      "bytes": 59,
+      "sha256": "38f8d01353a1f2f472205ab2330aab82a5c6d8332aaf569ba756e70a2a527c43"
+    },
+    {
+      "path": "readmes-b/formatted/model-response-2.mts.runtime.log",
+      "bytes": 92,
+      "sha256": "98fc523986af0d2915b9e5a9e976d7ff6509139417c7a028626e216232f583c8"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/asset-evaluation/README.md",
+      "bytes": 6120,
+      "sha256": "8c1bc84b3e0719d0af08d66e12df59b6ecb0ed21556dedce52b40de4557329e3"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/asset-evaluation/README_ZH.md",
+      "bytes": 5829,
+      "sha256": "f1633b2d3895212de799962f638ec2b4e4c21ab8086dc906f61c15eb65dd0fca"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/asset-model/README.md",
+      "bytes": 5598,
+      "sha256": "7e18ed74a14335e19bf79cc86d041808663f7f000c141880e4e394057bc82bcf"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/asset-model/README_ZH.md",
+      "bytes": 5387,
+      "sha256": "e3e6da496d68b3cd4bf5f43ffc9d8983eafa8ed2faf441517dd5dc893a54d87a"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/loop-extension/README.md",
+      "bytes": 4576,
+      "sha256": "c603406ce17170be86b18ea924e14e6b42ace50e83e8fa371e9b0c81352d4f7b"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/loop-extension/README_ZH.md",
+      "bytes": 4287,
+      "sha256": "e961c46fe476c29e2404aba8ed3b4c55dbc82e7255ee74ead185a93a4fca6eca"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/mcp-endpoint/README.md",
+      "bytes": 4490,
+      "sha256": "baa4a0be5c44686c40dd221f7ff156e55cf01b44502223fd2ff3936d79e2dfde"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/mcp-endpoint/README_ZH.md",
+      "bytes": 4267,
+      "sha256": "c8812c6b3418adab8f215f75f5d3a558bebb7dc054e024ee69a44fe05f5849e0"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/model-profile/README.md",
+      "bytes": 4448,
+      "sha256": "a5fd8d7fdfb156789554c24399acaac3eb440afb3bb04fa187d41f7974ec196f"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/model-profile/README_ZH.md",
+      "bytes": 4231,
+      "sha256": "6443ffa1b819d4a911c678d3f17eda86370677f902ef6d45e5f1f0cd357ca647"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/model-response/README.md",
+      "bytes": 6017,
+      "sha256": "cff405adcb75043acb227107f90cc72f0436ed7f5daadb0ea9e4a363502ba42e"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/model-response/README_ZH.md",
+      "bytes": 5723,
+      "sha256": "e2b43a489582f09b49f1be3a41c627e9f65149eebc294f5deb8772b9aa92aad7"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/skill-package/README.md",
+      "bytes": 7812,
+      "sha256": "a1df7cff1b664af04645d8f15f4316c6073c2550049ed0c85739e808d0a13a88"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/skill-package/README_ZH.md",
+      "bytes": 7315,
+      "sha256": "00fcca90a10d1da4362f8c998c10f11df93bcb873f42f2e6be7a9483599ac277"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/slash-command/README.md",
+      "bytes": 5923,
+      "sha256": "554e058eeb1e4fff690e389ef755c8967b4f2d32d77c27fedd0da3ed820519de"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/slash-command/README_ZH.md",
+      "bytes": 5628,
+      "sha256": "61e4d95557ae739c09d6616962578c78cdc8cbcb846af3f4f195f4ac805ac329"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/tool-definition/README.md",
+      "bytes": 5336,
+      "sha256": "66c87c64475d70044b738513a3bec077259ee806311007b7a26c0218f72c9a70"
+    },
+    {
+      "path": "readmes-b/formatted/pre-format/tool-definition/README_ZH.md",
+      "bytes": 5081,
+      "sha256": "814c2d2c15a95ad46dccc641e99be45f62ac5587f7944f19c100cb54deb27d2f"
+    },
+    {
+      "path": "readmes-b/formatted/prettier-check.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "readmes-b/formatted/prettier-version.log",
+      "bytes": 6,
+      "sha256": "05566dceb1394c0ba52e28e74b18cfc0efb325b12d58183db953af94e4a9e27d"
+    },
+    {
+      "path": "readmes-b/formatted/prettier-write.log",
+      "bytes": 810,
+      "sha256": "61a15f4d4689fe9800276d98801a3ae52dbde20f3ac0e701c93c11cdf7b4044f"
+    },
+    {
+      "path": "readmes-b/formatted/receipt.md",
+      "bytes": 972,
+      "sha256": "109988fd88eb532070dce14846cd72234a5252d539779769250e202558a9503e"
+    },
+    {
+      "path": "readmes-b/formatted/runtime-results.json",
+      "bytes": 5234,
+      "sha256": "6ef250f3729333a287008a2647c611929c1e96e47a2259911e00a1a17c600b07"
+    },
+    {
+      "path": "readmes-b/formatted/slash-command-1.mts.runtime.log",
+      "bytes": 253,
+      "sha256": "24dc87b56c8782599696fe1a77bb06de9238cd9653ed7ff629ddff20e5a574d4"
+    },
+    {
+      "path": "readmes-b/formatted/slash-command-2.mts.runtime.log",
+      "bytes": 132,
+      "sha256": "c00398adec7d899b66ddf08f69b133d26b3df346f0444e9205424da48fbd1169"
+    },
+    {
+      "path": "readmes-b/formatted/slash-command-3.mts.runtime.log",
+      "bytes": 106,
+      "sha256": "eb3090a9391836ad4460c80bdf9cb638e00ab867006f025dcc87fe6d8e94eea4"
+    },
+    {
+      "path": "readmes-b/formatted/tool-definition-1.mts.runtime.log",
+      "bytes": 77,
+      "sha256": "0361b58d910dc5e46f826db85d9a8fa2ab801a9767449333183944a43fc80580"
+    },
+    {
+      "path": "readmes-b/formatted/tool-definition-2.mts.runtime.log",
+      "bytes": 67,
+      "sha256": "c3aa5b84de96973ac1c8cbfb4a16aac24e1504a486b580fdf4efd3b92ef88b8a"
+    },
+    {
+      "path": "readmes-b/formatted/tool-definition-3.mts.runtime.log",
+      "bytes": 52,
+      "sha256": "3b561a3b2995084a05767b94b6f3e2b57ac5e3b8349fd96f7d599436d3267ec2"
+    },
+    {
+      "path": "readmes-b/formatted/tsconfig.json",
+      "bytes": 908,
+      "sha256": "59f732ce4aadde158fe5a9583790f211919681c684a5a050d6905b434b81ceb9"
+    },
+    {
+      "path": "readmes-b/formatted/types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-b/formatted/verification.json",
+      "bytes": 44165,
+      "sha256": "0ef4d654fe9a13553b66d83b455ff664e2d41afdb39329c9c22b2dbc39d30881"
+    },
+    {
+      "path": "readmes-b/local-links.json",
+      "bytes": 349,
+      "sha256": "855e14abeaf6f64f40668d35bb4e7345e5d23b27ff585b28aed48e6ba13a299f"
+    },
+    {
+      "path": "readmes-b/loop-extension-1.mts.runtime.log",
+      "bytes": 43,
+      "sha256": "6dd73cc09d006fc7338f87887d01df3efe021c5c51b92f99e42a1524fcacba19"
+    },
+    {
+      "path": "readmes-b/loop-extension-2.mts.runtime.log",
+      "bytes": 55,
+      "sha256": "ab0b2f678f4ac1b5d688bf2991d526247410544e2ff58555764cf79c0c5468a7"
+    },
+    {
+      "path": "readmes-b/manifest.json",
+      "bytes": 2074,
+      "sha256": "8bdb1c231e86dc9cc89ee289bc52f9141e045fddcd5573c3ce3f754e0b65722f"
+    },
+    {
+      "path": "readmes-b/mcp-endpoint-1.mts.runtime.log",
+      "bytes": 62,
+      "sha256": "6277e9ee9157745aa23a2b907e0e15f566bd96bdd43383ecc7c56c47cc2df0b8"
+    },
+    {
+      "path": "readmes-b/mcp-endpoint-2.mts.runtime.log",
+      "bytes": 192,
+      "sha256": "5fee7483154c10a1b13c8ed185046f9726791bb1797db935c28939f84d04858a"
+    },
+    {
+      "path": "readmes-b/model-profile-1.mts.runtime.log",
+      "bytes": 100,
+      "sha256": "9d2c73e8cde1bc5d55bd03b39026469c6be315199971ac3ae178c42b65a2a7d9"
+    },
+    {
+      "path": "readmes-b/model-profile-2.mts.runtime.log",
+      "bytes": 19,
+      "sha256": "26b56421de731eac516ec34616d83c1242a9a723b15ebe4796e365e44b4a7691"
+    },
+    {
+      "path": "readmes-b/model-response-1.mts.runtime.log",
+      "bytes": 59,
+      "sha256": "38f8d01353a1f2f472205ab2330aab82a5c6d8332aaf569ba756e70a2a527c43"
+    },
+    {
+      "path": "readmes-b/model-response-2.mts.runtime.log",
+      "bytes": 92,
+      "sha256": "98fc523986af0d2915b9e5a9e976d7ff6509139417c7a028626e216232f583c8"
+    },
+    {
+      "path": "readmes-b/package.json",
+      "bytes": 42,
+      "sha256": "609158e6c5fbc237939fa3ddf7faab80ab690bdc0c8d584414a885130103c4e8"
+    },
+    {
+      "path": "readmes-b/runtime-results.json",
+      "bytes": 3075,
+      "sha256": "a5d2d480204bd6f9682302da3ed9739c9e6a402478592de54b1e41ae175dcf14"
+    },
+    {
+      "path": "readmes-b/skill-pending.json",
+      "bytes": 104,
+      "sha256": "8d686a5edc960f19ef227c83f92e85a63c89ff9f2111e9bf8b14680b665b2bf9"
+    },
+    {
+      "path": "readmes-b/slash-command-1.mts.runtime.log",
+      "bytes": 253,
+      "sha256": "24dc87b56c8782599696fe1a77bb06de9238cd9653ed7ff629ddff20e5a574d4"
+    },
+    {
+      "path": "readmes-b/slash-command-2.mts.runtime.log",
+      "bytes": 132,
+      "sha256": "c00398adec7d899b66ddf08f69b133d26b3df346f0444e9205424da48fbd1169"
+    },
+    {
+      "path": "readmes-b/slash-command-3.mts.runtime.log",
+      "bytes": 106,
+      "sha256": "eb3090a9391836ad4460c80bdf9cb638e00ab867006f025dcc87fe6d8e94eea4"
+    },
+    {
+      "path": "readmes-b/stable-root-compiled/asset-model-2-stable-root.mjs",
+      "bytes": 1840,
+      "sha256": "2c9b771752d1f2f2ce6a96dab11fa3008bde9e8f3e7472b17763feb59aadfbe3"
+    },
+    {
+      "path": "readmes-b/stable-root-runtime.log",
+      "bytes": 200,
+      "sha256": "a3770116f576c24bcab65b3b0e63a496446e74519eee5b7de9d610181ce40a1d"
+    },
+    {
+      "path": "readmes-b/stable-root-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-b/tool-definition-1.mts.runtime.log",
+      "bytes": 77,
+      "sha256": "0361b58d910dc5e46f826db85d9a8fa2ab801a9767449333183944a43fc80580"
+    },
+    {
+      "path": "readmes-b/tool-definition-2.mts.runtime.log",
+      "bytes": 67,
+      "sha256": "c3aa5b84de96973ac1c8cbfb4a16aac24e1504a486b580fdf4efd3b92ef88b8a"
+    },
+    {
+      "path": "readmes-b/tool-definition-3.mts.runtime.log",
+      "bytes": 52,
+      "sha256": "3b561a3b2995084a05767b94b6f3e2b57ac5e3b8349fd96f7d599436d3267ec2"
+    },
+    {
+      "path": "readmes-b/tsconfig.json",
+      "bytes": 905,
+      "sha256": "ed55bd1340020c86f1ce58a73f70c580229318d594132fd44aaab8b0b7a02eab"
+    },
+    {
+      "path": "readmes-b/tsconfig.stable-root.json",
+      "bytes": 339,
+      "sha256": "4139b2786028b2f5e9364e9c2e314cef01d7b417deae4269ada61a2584ae4c17"
+    },
+    {
+      "path": "readmes-b/types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-b/verification.json",
+      "bytes": 4858,
+      "sha256": "d22a1cb319db831cb01a7f2ef725c3db8526a427e715b7f6fc84ff895019783c"
+    },
+    {
+      "path": "readmes-b/write_first.py",
+      "bytes": 30646,
+      "sha256": "3e386e9ecec49d32eaeebac362218bbed698c3a2e4f2d6117ba4dea50f1736df"
+    },
+    {
+      "path": "readmes-b/write_second.py",
+      "bytes": 29786,
+      "sha256": "a872d99d7d5a325f56cc0041e4a30e5fd3ff28cceeef6cbc562081305041a9cc"
+    },
+    {
+      "path": "readmes-b/write_skill.py",
+      "bytes": 11927,
+      "sha256": "d0143e232d4ff31e4965b36d11b4fa5a0729d7d2d930d0d4214e08ae0bd7d4ec"
+    },
+    {
+      "path": "readmes-util-infra/check-links.py",
+      "bytes": 765,
+      "sha256": "13820ba9441844a6073684cc1f639f2fd9494ca6b8274d409bc3be3d38322ec3"
+    },
+    {
+      "path": "readmes-util-infra/diff-check.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/diff-check.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/examples/clock-1.ts",
+      "bytes": 1202,
+      "sha256": "c179b3cefb4ab3f04277af9d6a3836092f0726cdf66e845234b199993043a706"
+    },
+    {
+      "path": "readmes-util-infra/examples/clock-2.ts",
+      "bytes": 1552,
+      "sha256": "b3c63c00a5815b263bb1b2e9510ddb2d3e9bb49e8438bf5d6a933ebcaff6a498"
+    },
+    {
+      "path": "readmes-util-infra/examples/storage-sql-1.ts",
+      "bytes": 2385,
+      "sha256": "54c0cd11a121ddaf3b2f34c0460f1cd984db7b9e5ff69d2fe3ee0142e5d855d6"
+    },
+    {
+      "path": "readmes-util-infra/examples/storage-sql-2.ts",
+      "bytes": 1398,
+      "sha256": "2253155abec467bb2528cd8860a0bebb0e474614f2683050ea10363b05ab8c75"
+    },
+    {
+      "path": "readmes-util-infra/examples/storage-sql-3.ts",
+      "bytes": 325,
+      "sha256": "1a3446d913a885d1dc03f46cda2a13dbc15623076868e8e823484d69f5ba4236"
+    },
+    {
+      "path": "readmes-util-infra/examples/unix-format-1.ts",
+      "bytes": 490,
+      "sha256": "5827b680e6f6f7f45b1186c89893551997563b52e44f0f56836c78d3cf5b2dd3"
+    },
+    {
+      "path": "readmes-util-infra/examples/unix-format-2.ts",
+      "bytes": 445,
+      "sha256": "aa676f2713f20c1b607854d96d4e0ec8d6c0ceab8eb0117ae96c2c4efb4d8b21"
+    },
+    {
+      "path": "readmes-util-infra/examples/unix-format-3.ts",
+      "bytes": 493,
+      "sha256": "7daf77d6728a48bb9e34d8a95ad1dc3ac362bed4b78fb86e2a566117fbda1fa5"
+    },
+    {
+      "path": "readmes-util-infra/examples/xml-format-1.ts",
+      "bytes": 641,
+      "sha256": "fc0b6ad693961a455cde1381875bd2b04c73bbdb11c5fe572313036ce5eac57b"
+    },
+    {
+      "path": "readmes-util-infra/examples/xml-format-2.ts",
+      "bytes": 510,
+      "sha256": "47fe519dd0c09b2581c9e9883b5690ae143d79c7574674d286d277f3882ed16d"
+    },
+    {
+      "path": "readmes-util-infra/examples/xml-format-3.ts",
+      "bytes": 525,
+      "sha256": "d8c78e450707106e7e41a6285aff59914af7e4af58d9ec889b68c7a327286aec"
+    },
+    {
+      "path": "readmes-util-infra/latest-run.txt",
+      "bytes": 127,
+      "sha256": "940d210bd21ed86fd77e698568317d2f8f2da229299e581e62bab1f956705fbc"
+    },
+    {
+      "path": "readmes-util-infra/links.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/links.stdout",
+      "bytes": 80,
+      "sha256": "8f6ba059c29de94c55382fc16b545cdb4f9d83a651671e9da4ae5c76a00725b0"
+    },
+    {
+      "path": "readmes-util-infra/package.json",
+      "bytes": 41,
+      "sha256": "e53ad0ba0f7b97445ba916d3eb971c1615d0e12a86dcb77d94b827a71d18416f"
+    },
+    {
+      "path": "readmes-util-infra/prettier.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/prettier.stdout",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/clock-1.ts",
+      "bytes": 1202,
+      "sha256": "c179b3cefb4ab3f04277af9d6a3836092f0726cdf66e845234b199993043a706"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/clock-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/clock-1.ts.stdout",
+      "bytes": 14,
+      "sha256": "45747ef8f6382a9091535dc752279b04f8702bb7b8e5856c4ec0ddf7e2491763"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/clock-2.ts",
+      "bytes": 1552,
+      "sha256": "b3c63c00a5815b263bb1b2e9510ddb2d3e9bb49e8438bf5d6a933ebcaff6a498"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/clock-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/clock-2.ts.stdout",
+      "bytes": 14,
+      "sha256": "8e4c60249009e3002714b193ecb342421f7acd048cf96bd0d3eece538e078408"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/inputs-after.json",
+      "bytes": 55005,
+      "sha256": "7d96852a01f3f902b620ed93538ec3f628e03ed777b0c0f4ad01d8af7380000d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/inputs-before.json",
+      "bytes": 55005,
+      "sha256": "7d96852a01f3f902b620ed93538ec3f628e03ed777b0c0f4ad01d8af7380000d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/receipt.json",
+      "bytes": 9866,
+      "sha256": "62e484e1aded0e234c57f668303e23264103a29671990c6b326ceaffb635a32a"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-1.ts",
+      "bytes": 2217,
+      "sha256": "1efcf41ffb8b840a67eb32dbda85b52b4580b77fd65a19177b90748d3b26e972"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-1.ts.stdout",
+      "bytes": 6,
+      "sha256": "15f25cf11ae365721544d927007afdac0236c627aefc21756c533719cacaa934"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-2.ts",
+      "bytes": 1389,
+      "sha256": "7c61e2536ead4d81d16ee0a640e35d7a47d1a4313fc15308998b9fe221f79733"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-2.ts.stdout",
+      "bytes": 64,
+      "sha256": "72b1e08d5b29b7fa68303ed1b624f9f212d729ce04e8b463ad5156357d1549a8"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-3.ts",
+      "bytes": 325,
+      "sha256": "1a3446d913a885d1dc03f46cda2a13dbc15623076868e8e823484d69f5ba4236"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/storage-sql-3.ts.stdout",
+      "bytes": 9,
+      "sha256": "267da420142b5118ab7eebb2795810ac63c9d455068283a504ea458413abd14c"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/typecheck.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/typecheck.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-1.ts",
+      "bytes": 501,
+      "sha256": "11f3dfae3f891ab2fa75396ae69c82b3937d9130e12feddbf9fc650a6ec13f9e"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-1.ts.stdout",
+      "bytes": 122,
+      "sha256": "a1810d026c394be262fde30fdc1466f21943fa45565b978d8395b083256c09ee"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-2.ts",
+      "bytes": 440,
+      "sha256": "b842bd0d903c81456c712dbdace56fb0cdf8a699f6ea85efad334aae36d81c50"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-2.ts.stdout",
+      "bytes": 73,
+      "sha256": "60c4043f71aeec64ed08c653697dba9abcb4aa5e248a3f4c616e7ebe92cbb086"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-3.ts",
+      "bytes": 500,
+      "sha256": "906ad52566fd7604b8575ee5383e5a56cd2eed2051f84d50733519ef6d17c12a"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/unix-format-3.ts.stdout",
+      "bytes": 153,
+      "sha256": "e99dc61b9eb238fe3a20d601e5c4722677b7b5dcc2a955057f806daf5446be68"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-1.ts",
+      "bytes": 634,
+      "sha256": "b8351c8c6355b6e56c346fd135d8a4fe2e37ff3456cf79b29dd1f23531f91dfb"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-1.ts.stdout",
+      "bytes": 94,
+      "sha256": "7e695c78dc420745bd08c37dadd7f178ec27ef647b75feb1ffea8de037c2ac33"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-2.ts",
+      "bytes": 497,
+      "sha256": "d089678f3da38c8851bea54019d850d084423c545ef598501cef432d90f84a7f"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-2.ts.stdout",
+      "bytes": 115,
+      "sha256": "815307134aa876183c1904d10ec2f39951c0520764aecaec58653ef9addecad9"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-3.ts",
+      "bytes": 519,
+      "sha256": "f0eecb7873be3ee8f8e025ed265db1406c9185e23bed1b336572e986bf1a75c2"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-18-33.252Z/xml-format-3.ts.stdout",
+      "bytes": 41,
+      "sha256": "0f784c439903a8dc296320f36a715de28f83a6107b1063c71968e8128aecff3e"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/clock-1.ts",
+      "bytes": 1202,
+      "sha256": "c179b3cefb4ab3f04277af9d6a3836092f0726cdf66e845234b199993043a706"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/clock-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/clock-1.ts.stdout",
+      "bytes": 14,
+      "sha256": "45747ef8f6382a9091535dc752279b04f8702bb7b8e5856c4ec0ddf7e2491763"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/clock-2.ts",
+      "bytes": 1552,
+      "sha256": "b3c63c00a5815b263bb1b2e9510ddb2d3e9bb49e8438bf5d6a933ebcaff6a498"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/clock-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/clock-2.ts.stdout",
+      "bytes": 14,
+      "sha256": "119196d1ee923b4fd7ba925c51f6bf376e4ccc291a92d4aa30510934e831de5c"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/inputs-after.json",
+      "bytes": 55005,
+      "sha256": "7d96852a01f3f902b620ed93538ec3f628e03ed777b0c0f4ad01d8af7380000d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/inputs-before.json",
+      "bytes": 55005,
+      "sha256": "7d96852a01f3f902b620ed93538ec3f628e03ed777b0c0f4ad01d8af7380000d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/receipt.json",
+      "bytes": 9866,
+      "sha256": "33fe415f2ac6acb17ae18c19622fbe8388cbf145be5c4dc3fff42690cfd624cb"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-1.ts",
+      "bytes": 2385,
+      "sha256": "54c0cd11a121ddaf3b2f34c0460f1cd984db7b9e5ff69d2fe3ee0142e5d855d6"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-1.ts.stdout",
+      "bytes": 6,
+      "sha256": "15f25cf11ae365721544d927007afdac0236c627aefc21756c533719cacaa934"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-2.ts",
+      "bytes": 1398,
+      "sha256": "2253155abec467bb2528cd8860a0bebb0e474614f2683050ea10363b05ab8c75"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-2.ts.stdout",
+      "bytes": 64,
+      "sha256": "72b1e08d5b29b7fa68303ed1b624f9f212d729ce04e8b463ad5156357d1549a8"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-3.ts",
+      "bytes": 325,
+      "sha256": "1a3446d913a885d1dc03f46cda2a13dbc15623076868e8e823484d69f5ba4236"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/storage-sql-3.ts.stdout",
+      "bytes": 9,
+      "sha256": "267da420142b5118ab7eebb2795810ac63c9d455068283a504ea458413abd14c"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/typecheck.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/typecheck.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-1.ts",
+      "bytes": 490,
+      "sha256": "5827b680e6f6f7f45b1186c89893551997563b52e44f0f56836c78d3cf5b2dd3"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-1.ts.stdout",
+      "bytes": 122,
+      "sha256": "a1810d026c394be262fde30fdc1466f21943fa45565b978d8395b083256c09ee"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-2.ts",
+      "bytes": 445,
+      "sha256": "aa676f2713f20c1b607854d96d4e0ec8d6c0ceab8eb0117ae96c2c4efb4d8b21"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-2.ts.stdout",
+      "bytes": 73,
+      "sha256": "60c4043f71aeec64ed08c653697dba9abcb4aa5e248a3f4c616e7ebe92cbb086"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-3.ts",
+      "bytes": 493,
+      "sha256": "7daf77d6728a48bb9e34d8a95ad1dc3ac362bed4b78fb86e2a566117fbda1fa5"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/unix-format-3.ts.stdout",
+      "bytes": 153,
+      "sha256": "e99dc61b9eb238fe3a20d601e5c4722677b7b5dcc2a955057f806daf5446be68"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-1.ts",
+      "bytes": 641,
+      "sha256": "fc0b6ad693961a455cde1381875bd2b04c73bbdb11c5fe572313036ce5eac57b"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-1.ts.stdout",
+      "bytes": 94,
+      "sha256": "7e695c78dc420745bd08c37dadd7f178ec27ef647b75feb1ffea8de037c2ac33"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-2.ts",
+      "bytes": 510,
+      "sha256": "47fe519dd0c09b2581c9e9883b5690ae143d79c7574674d286d277f3882ed16d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-2.ts.stdout",
+      "bytes": 115,
+      "sha256": "815307134aa876183c1904d10ec2f39951c0520764aecaec58653ef9addecad9"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-3.ts",
+      "bytes": 525,
+      "sha256": "d8c78e450707106e7e41a6285aff59914af7e4af58d9ec889b68c7a327286aec"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-20-35.086Z/xml-format-3.ts.stdout",
+      "bytes": 41,
+      "sha256": "0f784c439903a8dc296320f36a715de28f83a6107b1063c71968e8128aecff3e"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/clock-1.ts",
+      "bytes": 1202,
+      "sha256": "c179b3cefb4ab3f04277af9d6a3836092f0726cdf66e845234b199993043a706"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/clock-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/clock-1.ts.stdout",
+      "bytes": 14,
+      "sha256": "45747ef8f6382a9091535dc752279b04f8702bb7b8e5856c4ec0ddf7e2491763"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/clock-2.ts",
+      "bytes": 1552,
+      "sha256": "b3c63c00a5815b263bb1b2e9510ddb2d3e9bb49e8438bf5d6a933ebcaff6a498"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/clock-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/clock-2.ts.stdout",
+      "bytes": 14,
+      "sha256": "f20bf628f6cc47d9ce9538e29b5954e2144195109d9369f29746d000768e1e86"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/inputs-after.json",
+      "bytes": 55005,
+      "sha256": "7d96852a01f3f902b620ed93538ec3f628e03ed777b0c0f4ad01d8af7380000d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/inputs-before.json",
+      "bytes": 55005,
+      "sha256": "7d96852a01f3f902b620ed93538ec3f628e03ed777b0c0f4ad01d8af7380000d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/receipt.json",
+      "bytes": 9866,
+      "sha256": "aeb40c3dfe241b6aa35592c4b49691b1c7649cf5aed7ae1d7c5c2373167a234d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-1.ts",
+      "bytes": 2385,
+      "sha256": "54c0cd11a121ddaf3b2f34c0460f1cd984db7b9e5ff69d2fe3ee0142e5d855d6"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-1.ts.stdout",
+      "bytes": 6,
+      "sha256": "15f25cf11ae365721544d927007afdac0236c627aefc21756c533719cacaa934"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-2.ts",
+      "bytes": 1398,
+      "sha256": "2253155abec467bb2528cd8860a0bebb0e474614f2683050ea10363b05ab8c75"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-2.ts.stdout",
+      "bytes": 64,
+      "sha256": "72b1e08d5b29b7fa68303ed1b624f9f212d729ce04e8b463ad5156357d1549a8"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-3.ts",
+      "bytes": 325,
+      "sha256": "1a3446d913a885d1dc03f46cda2a13dbc15623076868e8e823484d69f5ba4236"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/storage-sql-3.ts.stdout",
+      "bytes": 9,
+      "sha256": "267da420142b5118ab7eebb2795810ac63c9d455068283a504ea458413abd14c"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/typecheck.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/typecheck.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-1.ts",
+      "bytes": 490,
+      "sha256": "5827b680e6f6f7f45b1186c89893551997563b52e44f0f56836c78d3cf5b2dd3"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-1.ts.stdout",
+      "bytes": 122,
+      "sha256": "a1810d026c394be262fde30fdc1466f21943fa45565b978d8395b083256c09ee"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-2.ts",
+      "bytes": 445,
+      "sha256": "aa676f2713f20c1b607854d96d4e0ec8d6c0ceab8eb0117ae96c2c4efb4d8b21"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-2.ts.stdout",
+      "bytes": 73,
+      "sha256": "60c4043f71aeec64ed08c653697dba9abcb4aa5e248a3f4c616e7ebe92cbb086"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-3.ts",
+      "bytes": 493,
+      "sha256": "7daf77d6728a48bb9e34d8a95ad1dc3ac362bed4b78fb86e2a566117fbda1fa5"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/unix-format-3.ts.stdout",
+      "bytes": 153,
+      "sha256": "e99dc61b9eb238fe3a20d601e5c4722677b7b5dcc2a955057f806daf5446be68"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-1.ts",
+      "bytes": 641,
+      "sha256": "fc0b6ad693961a455cde1381875bd2b04c73bbdb11c5fe572313036ce5eac57b"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-1.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-1.ts.stdout",
+      "bytes": 94,
+      "sha256": "7e695c78dc420745bd08c37dadd7f178ec27ef647b75feb1ffea8de037c2ac33"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-2.ts",
+      "bytes": 510,
+      "sha256": "47fe519dd0c09b2581c9e9883b5690ae143d79c7574674d286d277f3882ed16d"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-2.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-2.ts.stdout",
+      "bytes": 115,
+      "sha256": "815307134aa876183c1904d10ec2f39951c0520764aecaec58653ef9addecad9"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-3.ts",
+      "bytes": 525,
+      "sha256": "d8c78e450707106e7e41a6285aff59914af7e4af58d9ec889b68c7a327286aec"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-3.ts.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "readmes-util-infra/run-2026-09-26T16-40-57.886Z/xml-format-3.ts.stdout",
+      "bytes": 41,
+      "sha256": "0f784c439903a8dc296320f36a715de28f83a6107b1063c71968e8128aecff3e"
+    },
+    {
+      "path": "readmes-util-infra/tsconfig.json",
+      "bytes": 505,
+      "sha256": "ca4f07996163e747158643eca04ebdd172cf0744389d2ef7403d6c52412a303d"
+    },
+    {
+      "path": "readmes-util-infra/verify.mjs",
+      "bytes": 5882,
+      "sha256": "8b2d5043dd64bd6f39e5c6ee9b9adf93abc6670a6ba578a5afadd84ddd9f3de8"
+    }
+  ],
+  "all_payload_bytes_read_back": true
+}

@@ -4,30 +4,37 @@
 //                每条：同步查 PENDING（清单错误）→ await（FAILED ⇒ 逆序全撤，storage 撤除时恢复快照）
 //   [全部 ACTIVE] guard.confirm()，断言 snapshotTaken ⇒ snapshotRemoved；migrated ∧ ¬snapshotTaken ⇒ 记「本次升级不可撤回（U-3）」
 //   [确认之后]   兑现 openSignal ⇒ 入口层开闸、发 serving ⇒ 有界地等到 serving，boot() 才返回
-//   [任一次逆序撤完之后] guard.pending()：仍有快照 ⇒「升级未确认：恢复失败，快照在 X」
+//   [任一次逆序撤完之后] guard.pending()：仍有快照 ⇒「升级未确认，快照在 X」；仅此观察不能判定恢复是否尝试。
 // 本节点无领域状态、无提交点、无锁；没有缓存、池、队列、重试。
 import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
 import { clockPreflight } from '@omne-harness-lite/clock'
 import {
+  GovernanceCenterClockTimeoutError,
   SERVING_EVENT,
   type ServingNotice,
   governanceCenterPreflight,
 } from '@omne-harness-lite/governance-center-entry'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
-import { type MigrationFragment, composeMigrations } from '@omne-harness-lite/storage'
+import {
+  SnapshotFailure,
+  type MigrationFragment,
+  composeMigrations,
+} from '@omne-harness-lite/storage'
 import {
   StorageStartupFailure,
   type UpgradeConfirmation,
   type UpgradeGuard,
   createUpgradeGuard,
 } from '@omne-harness-lite/storage-sql'
-import { type HostEnv, readHostConfig } from './config.ts'
+import { readBuildId } from './build-version.ts'
+import { prepareBackupDirectory } from './maintenance-config.ts'
+import { MaintenanceFinalization } from './maintenance-state.ts'
+import { ENV, type HostEnv, readHostConfig } from './config.ts'
 import { HostStartupFailure, describeThrown } from './failure.ts'
 import { verifyKeyPairing } from './keys.ts'
 import { type LogSink, attachLog, stderrSink } from './log.ts'
 import {
   DISPOSE_TIMEOUT_MS,
-  DRAIN_TIMEOUT_MS,
   type HostPluginName,
   type ManifestEntry,
   SERVING_GRACE_MS,
@@ -70,9 +77,9 @@ export interface BootOptions {
 }
 
 export interface HostDisposal {
-  /** 全部 fiber 在撤除总超时内撤完。 */
+  /** 全部fiber真实撤完，两个维护收场槽及升级守卫均已确认。 */
   readonly complete: boolean
-  /** 超时时还没撤完（含没轮到）的 fiber，按撤除次序。 */
+  /** 实际收场仍有错误或未确认的fiber，按撤除次序。 */
   readonly unfinished: readonly HostPluginName[]
 }
 
@@ -116,28 +123,6 @@ async function within<T>(promise: Promise<T>, ms: number): Promise<T | 'timeout'
   }
 }
 
-/** 装载与撤除的次序必须留出余量：入口层排空须小于撤除总超时（design「入口层与运维面的装配」）。 */
-export function assertTimeoutBudget(budget: {
-  readonly drainTimeoutMs: number
-  readonly disposeTimeoutMs: number
-}): void {
-  if (budget.drainTimeoutMs >= budget.disposeTimeoutMs)
-    throw new HostStartupFailure(
-      'config',
-      'the entry drain bound must be smaller than the total dispose timeout',
-      { item: 'drainTimeoutMs' },
-    )
-}
-
-/** 入口层插件体等钟超界时抛出的那条错误（入口层包的说明写「cause: clock」；它没有导出具名错误类）。 */
-function isClockWaitTimeout(name: HostPluginName, error: unknown): boolean {
-  return (
-    name === 'governance-center-entry' &&
-    error instanceof Error &&
-    error.message.includes('(cause: clock)')
-  )
-}
-
 /** 一条 fiber 启动失败 ⇒ 具名阶段。存储插件的具名阶段原样沿用；存储别的失败统一是「存储打不开」。 */
 function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure {
   const thrown = describeThrown(error)
@@ -159,13 +144,19 @@ function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure 
           ...(error.snapshot === undefined ? {} : { snapshot: error.snapshot }),
         },
       )
+    if (error instanceof SnapshotFailure)
+      return new HostStartupFailure(
+        'storage-open',
+        `maintenance work root derived from OMNE_TENANCY_BACKUP_DIR (.quarantine): ${error.kind}; check the directory owner, permissions, marker, free space and other maintenance processes`,
+        { item: ENV.backupDirectory, cause: error },
+      )
     return new HostStartupFailure(
       'storage-open',
       `the storage could not be opened: ${thrown.type}: ${thrown.message}`,
       { item: name, cause: error },
     )
   }
-  if (isClockWaitTimeout(name, error))
+  if (name === 'governance-center-entry' && error instanceof GovernanceCenterClockTimeoutError)
     return new HostStartupFailure(
       'clock-unreadable',
       'the center clock could not be read within the startup bound (OMNE_TENANCY_CLOCK_READY_TIMEOUT)',
@@ -199,43 +190,56 @@ interface Loaded {
 
 /**
  * 按装载的逆序逐个撤除（不 dispose 根 Context：那会让全部 disposer 并发，clock 收回租约的写可能撞上已关准入的存储）。
- * 顺序只约束发起。某个 disposer 挂住时，总超时到点即停止等待，记下未完成（含没轮到）的 fiber 后返回。
+ * 顺序覆盖真实结算；30秒仅诊断仍在停止，不结束等待或放弃属主。
  */
-async function disposeInReverse(loaded: readonly Loaded[], log: Logger): Promise<HostDisposal> {
-  let timer: NodeJS.Timeout | undefined
-  const deadline = new Promise<'timeout'>(resolve => {
-    timer = setTimeout(() => resolve('timeout'), DISPOSE_TIMEOUT_MS)
-  })
-  const unfinished: HostPluginName[] = []
+async function disposeInReverse(
+  loaded: readonly Loaded[],
+  log: Logger,
+  finalization: MaintenanceFinalization,
+): Promise<HostDisposal> {
+  const remaining = [...loaded].reverse()
+  const failed = new Set<HostPluginName>()
+  const timer = setTimeout(
+    () => log.warn({ event: 'still-stopping', unfinished: remaining.map(item => item.name) }),
+    DISPOSE_TIMEOUT_MS,
+  )
   try {
-    for (const { name, fiber } of [...loaded].reverse()) {
-      if (unfinished.length > 0) {
-        unfinished.push(name)
-        continue
+    while (remaining.length > 0) {
+      const item = remaining[0]!
+      try {
+        await item.fiber.dispose()
+      } catch (error) {
+        failed.add(item.name)
+        log.error({
+          event: 'fiber-dispose-failed',
+          plugin: item.name,
+          error: describeThrown(error).type,
+        })
       }
-      // 已撤过的 fiber 再调 dispose() 在 4.0.4 里可能同步返回 undefined（effect 的 disposer 幂等、记的是上一次的任务）
-      const settled = await Promise.race([
-        Promise.resolve(fiber.dispose()).then(
-          () => 'disposed' as const,
-          (error: unknown) => {
-            // 内核自己吞掉 disposer 的异常；这里只防 dispose() 本身拒绝
-            log.error({
-              event: 'fiber-dispose-failed',
-              plugin: name,
-              error: describeThrown(error).type,
-            })
-            return 'disposed' as const
-          },
-        ),
-        deadline,
-      ])
-      if (settled === 'timeout') unfinished.push(name)
-      else log.info({ event: 'fiber-disposed', plugin: name })
+      remaining.shift()
+      log.info({ event: 'fiber-disposed', plugin: item.name })
     }
   } finally {
     clearTimeout(timer)
   }
-  if (unfinished.length > 0) log.error({ event: 'dispose-incomplete', unfinished })
+  if (
+    loaded.some(item => item.name === 'governance-center-ops') &&
+    finalization.controller !== 'clean'
+  )
+    failed.add('governance-center-ops')
+  if (loaded.some(item => item.name === 'storage-sql') && finalization.storage !== 'clean')
+    failed.add('storage-sql')
+  const unfinished = [...loaded]
+    .reverse()
+    .map(item => item.name)
+    .filter(name => failed.has(name))
+  if (unfinished.length > 0)
+    log.error({
+      event: 'dispose-incomplete',
+      unfinished,
+      controller: finalization.controller,
+      storage: finalization.storage,
+    })
   return { complete: unfinished.length === 0, unfinished }
 }
 
@@ -276,9 +280,11 @@ export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
   // 入口层吸收拒绝；它没装上时拒绝也不能成为未处理的拒绝
   open.promise.catch(() => undefined)
   try {
-    assertTimeoutBudget({ drainTimeoutMs: DRAIN_TIMEOUT_MS, disposeTimeoutMs: DISPOSE_TIMEOUT_MS })
     const config = await readHostConfig(options.env ?? process.env)
     verifyKeyPairing(config.keys)
+    const backupDirectory = await prepareBackupDirectory(config)
+    const sourceBuildId = await readBuildId()
+    const finalization = new MaintenanceFinalization()
     const fragments = [...hostMigrationFragments, ...(hooks.extraMigrations ?? [])]
     const built = buildManifest(config, {
       migrations: composeMigrations(fragments),
@@ -289,9 +295,25 @@ export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
       ],
       guard,
       openSignal: open.promise,
+      maintenance: {
+        backupDirectory,
+        sourceBuildId,
+        migrationNames: composedMigrationNames(fragments),
+        storageClosed: finalization.storageClosed,
+        controllerClosed: finalization.controllerClosed,
+      },
     })
     const manifest = hooks.manifest?.(built) ?? built
-    return await assemble(context, log, manifest, guard, open, config.clockReadyTimeoutMs, hooks)
+    return await assemble(
+      context,
+      log,
+      manifest,
+      guard,
+      open,
+      config.clockReadyTimeoutMs,
+      hooks,
+      finalization,
+    )
   } catch (error) {
     throw recordFailure(log, asFailure(error))
   }
@@ -305,6 +327,7 @@ async function assemble(
   open: Deferred<void>,
   clockReadyTimeoutMs: number,
   hooks: BootHooks,
+  finalization: MaintenanceFinalization,
 ): Promise<TenancyHost> {
   const loaded: Loaded[] = []
   const serving = deferred<ServingNotice>()
@@ -314,12 +337,12 @@ async function assemble(
   const abort = async (failure: HostStartupFailure): Promise<HostStartupFailure> => {
     open.reject(failure)
     stopWatching?.()
-    await disposeInReverse(loaded, log)
+    await disposeInReverse(loaded, log, finalization)
     const pending = await guard.pending()
     if (typeof pending === 'object' && failure.stage !== 'restore')
       return new HostStartupFailure(
         'upgrade-unconfirmed',
-        `the upgrade is not confirmed: restoring the upgrade snapshot failed, the snapshot is kept at ${pending.pending.location} (startup had failed at ${failure.stage}: ${failure.message})`,
+        `the upgrade is not confirmed: an upgrade snapshot or absent-database marker may remain at ${pending.pending.location}; restoration is not confirmed (startup had failed at ${failure.stage}: ${failure.message})`,
         {
           snapshot: pending.pending.location,
           cause: failure,
@@ -418,7 +441,14 @@ async function assemble(
     dispose() {
       disposal ??= (async () => {
         stopWatching?.()
-        const result = await disposeInReverse(loaded, log)
+        const result = await disposeInReverse(loaded, log, finalization)
+        const pending = await guard.pending()
+        if (pending !== 'clear') {
+          const unfinished = [...new Set([...result.unfinished, 'storage-sql' as const])]
+          log.error({ event: 'dispose-incomplete', unfinished, upgrade: pending })
+          log.info({ event: 'disposed', complete: false })
+          return { complete: false, unfinished }
+        }
         log.info({ event: 'disposed', complete: result.complete })
         return result
       })()

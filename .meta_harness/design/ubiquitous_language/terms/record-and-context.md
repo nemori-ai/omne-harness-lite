@@ -97,7 +97,7 @@
 
 - **形态**：对象
 - **出处**：[PF-012 §4 会话日志](../../product/PF-012-agent-loop-and-run/design.md#会话日志) ·
-  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 14）
+  [§5.11 外面进来的事，怎么到 agent 眼前](../../product/PF-012-agent-loop-and-run/design.md#511-外面进来的事怎么到-agent-眼前)（rev 15）
 - **别混**：**日志不等于「拿去用的那一份」**——**日志是一份，拿去用的有两份**
 - **⚠️ 注意 ①**：**只增不改没有例外。**[压缩](#ul-context-compaction--上下文压缩--context-compaction)不是例外
   （**它只往后追加一条[压缩记录](#ul-compaction-record--压缩记录--compaction-record)**——摘要是内容，
@@ -124,7 +124,7 @@
 
 - **形态**：视图
 - **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 12）·
-  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 12）**给出了第一个实例**
+  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 13）**给出了第一个实例**
 - **⚠️ 别混**：**不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)。**
   runtime context 是**会话内那三个角色**消费的；**投影多半是给会话外的服务用的**。
   两者有交集但不重合，[判据在 PF-015 §5.5](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)
@@ -183,7 +183,7 @@
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
 - **出处**：[PF-009 §5.6 中断这件事本身，要让 agent 知道](../../product/PF-009-context-message-types/design.md#中断这件事本身要让-agent-知道) ·
   [§6.13](../../product/PF-009-context-message-types/design.md#613-只要发生了中断就补一条提醒)（rev 8） ·
-  [PF-013 §5.5](../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话)（rev 12）
+  [PF-013 §5.5](../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话)（rev 13）
 - **注意 ①**：**它不算一次[触发](agent-runtime-loop.md#ul-trigger--触发--trigger)**——系统为已经发生的中断追补的这一条，[不让待处理消息队列从空变非空](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（PF-014 rev 7），用户叫停之后它不会把 agent 重新叫起来
 - **注意 ②**：**它管的是模型回复那一路。**工具执行没走完就收场的，交代原因的是那次调用位置上的[占位消息](#ul-placeholder-message--占位消息--placeholder-message)，不是它
 
@@ -248,8 +248,31 @@
 - **出处**：[PF-009 §6.5 来源是一个属性，不是另一种消息](../../product/PF-009-context-message-types/design.md#65-来源是一个属性不是另一种消息) ·
   [§4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 8） ·
   [PF-014 §4 入站到达](../../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 7）
-- **别混**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
+- **别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）——那个词条已写明裸写「来源」不作数；**这里的正式名是「来源标记」**
+- **⚠️ 别混 ②**：**不是[来路标记](#ul-origin-tag--来路标记--origin-tag)**——那是**一块文本**身上「这段字从哪条路来」（斜杠命令的留痕、展开物、附带的参数），挂在块上；来源标记挂在到达与消息那一层，答的是「谁捎来的」。人敲一条斜杠命令，**来源仍是用户，来路才是命令**——同一条消息上两者可以都有
 - **弃用**：~~「来源属性」~~（正文的叙述说法，指的就是它）
+
+### UL-origin-tag · 来路标记 · Origin Tag
+
+> **中**：**一块文本身上记着的「这段文字是从哪条路来的」**——人敲[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)时附带的参数、
+> 受理时从命令展开出来的那段正文（① 型的提示词正文、② 型逐字装进来的 skill 正文），还是原命令本身的留痕。
+> **它是[内容块](#ul-content-block--内容块--content-block)上的一项属性，不是另一类块**：原命令与展开后的全文一起留在同一条消息里，靠它分得出哪块是哪个。
+> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。**本版只有斜杠命令的受理会打上它**；取值怎么划分归规格。
+>
+> **EN**: **The mark on a text block recording which path the text came by** — the arguments a person attached
+> when typing a slash command, the text expanded from that command at intake (a type-① prompt body, a type-② skill
+> body copied verbatim), or the record of the command itself as typed. **It is an attribute of a content block, not
+> another kind of block**: the original command and the expanded text sit together in one message, and this mark tells
+> them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it.
+> **In this version only slash-command intake writes it**; how its values are divided belongs to the specification.
+
+- **形态**：属性
+- **出处**：[PF-014 §5.10 斜杠命令在受理时分两路走](../../product/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) ·
+  [§5.6「消息落盘之前」那一刻，看得到什么](../../product/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 7）
+- **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文本上，说的是这段字怎么来的
+- **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
+- **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
+- **注意**：正文的叙述说法是「原命令的标注」（PF-014 §5.6、§5.10）——那里的「标注」指的是它，不是块标注
 
 ### UL-content-block · 内容块 · Content Block
 
@@ -286,7 +309,7 @@
 > the transcript.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 12）
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 13）
 - **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)的占位**——占位替换了原件，派生表示与原件并存
 - **注意**：**取哪一份不需要选择规则**——看模型收得下什么、直接取对应的那份
 
@@ -303,7 +326,7 @@
 > that has one no longer keeps any model out of the legal-target set.**
 
 - **形态**：属性
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) · [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 12）
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) · [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 13）
 - **别混**：**不专指语音转写**——图、视频、文件的兜底文本都叫它
 - **弃用说法**：~~文本那一份~~ ~~块上的文本字段~~
 
@@ -325,7 +348,7 @@
 > type outside the four (a PDF, say) **is not a modality** and any model can read it.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 12）
+- **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 13）
 - **⚠️ 别混**：**七类块 ≠ 四种模态**——块的类型归 [PF-009](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
 - **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
 
@@ -345,7 +368,7 @@
 - **形态**：属性
 - **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 8） ·
   [PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态) ·
-  [§4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 12）
+  [§4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 13）
 - **别混**：**不是块的类型**——块的类型是载体（七类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
 - **注意**：一个文件块**同时命中「模态」键与「媒体类型」键时，媒体类型那个键上的转换件来转**——更具体的压过更一般的
 
@@ -366,7 +389,7 @@
 
 - **形态**：视图
 - **出处**：[PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影) ·
-  [§6.18](../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 12）
+  [§6.18](../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 13）
 - **别混 ①**：**不是「这一次请求里带了哪些模态」**——那随压缩与筛选变；投影说的是整个会话曾经有过什么
 - **别混 ②**：**不是「当前模型收得下哪些模态」**——那是档案说的能力；投影说的是历史
 - **注意**：它是[会话要维护的一项状态，却不是 runtime context](../../product/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)——会话内三个角色都不消费它

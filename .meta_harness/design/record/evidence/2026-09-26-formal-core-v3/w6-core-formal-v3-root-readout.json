@@ -1,0 +1,38 @@
+{
+  "reader": "root independent read-only raw parsing; no solver rerun",
+  "at_utc": "2026-09-26T10:09:58.775199+00:00",
+  "input_snapshots_verified": 40,
+  "accepted_frozen_verified": 32,
+  "tool_binary_hashes_verified": 3,
+  "registered_tlc_argv_exact": true,
+  "TLC": [
+    {
+      "label": "sa3-positive",
+      "exit": 0,
+      "violated_invariant": null
+    },
+    {
+      "label": "sa3-Assembly_OrderByClose",
+      "exit": 12,
+      "violated_invariant": "BlockOrderIsOpenOrder"
+    },
+    {
+      "label": "sa3-Assembly_ReplaceAsAppend",
+      "exit": 12,
+      "violated_invariant": "SplitInvariance"
+    },
+    {
+      "label": "sa3-Assembly_OneShotCloseFirst",
+      "exit": 12,
+      "violated_invariant": "OneShotAccepted"
+    }
+  ],
+  "Alloy_primary_readings": 263,
+  "Alloy_XML_supplements": 28,
+  "primary_expectation_source": "frozen run/check commands and prescribed thirteen AE/five Messages mutation outcomes",
+  "solver_receipt_stderr_and_actual_model_command_agree": true,
+  "XML_actual_instance_relations_and_sha_agree": true,
+  "reader_controls_recorded": 8,
+  "implementation_verified": false,
+  "limits": "Only declared finite model scopes. SA no fairness/deadlock check, two indices/two symbols/max six accepted events; no parameter/representation/error priority proof. Alloy facts/constructions are not producer/implementation evidence."
+}

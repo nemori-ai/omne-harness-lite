@@ -1,0 +1,46 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/governance-center-entry
+
+ ❯ tests/center.spec.ts (15 tests | 1 failed | 14 skipped) 4ms
+     ↓ 没带、两个、三种表示层不合格、查不到、已撤销、撤销落在认人与办事之间：八次都是同一份 137 字节；表示层不合格那三次没调 exchange
+     ↓ 请求体含非法 UTF-8 ⇒ version-mismatch；公开体检一次运行期间是同一份字节，没有 Date 头
+     ↓ 版本对不上 × 四种出示物 ⇒ 四次 version-mismatch；公开体检照常
+     ↓ 数据所在够不着：已撤销得 unavailable、没带得 login-state-rejected；有效配坏载荷 invalid-input、已撤销配同一份 login-state-rejected；注册与登录的坏载荷在存储不可用时仍 invalid-input
+     ↓ 存储不可用时以有效登录状态问事得 unavailable，恢复后同一个登录状态照常；参与方给出集合外的值 ⇒ unavailable 且 defectCount 加一
+     ↓ 登录答复的句柄等于列表里自己那一项；列表项恰 { loginStateHandle, issuedAt }；每个句柄当出示物都得 login-state-rejected，与从没签发过的值逐字节相同，verify 一次都没被调用
+     ↓ 按句柄撤销同账号另一个 ⇒ ok，再撤仍 ok；别的账号的句柄与从没签发过的句柄 ⇒ login-state-not-found 逐字节相同；首尾空白 ⇒ invalid-input 且 revoke 未被调用；abc 原样到达 revoke；只有一次领域调用；撤自己之后再来 ⇒ login-state-rejected
+     ↓ 两条交错：认人与撤销之间目标被别处撤掉 ⇒ ok；发起方被撤掉 ⇒ login-state-rejected
+     ↓ 备份那一半（契约 S-41 后半）：登录三次、撤销一次、停机备份；备份里每一个字符串值当出示物都得 login-state-rejected，与没带时逐字节相同；两个仍有效的照常能用
+     ↓ 切到组织 A 后发邀请由 A 发出；载荷夹带「以组织 B 行事」⇒ invalid-input 且没有邀请被发出；读不在的与不存在的组织 ⇒ notAuthorized；上级链一个不在 ⇒ notAuthorized
+     ↓ 个人组织发邀请 ⇒ issuerIsPersonalOrganization 原样透传
+     ↓ 撤销之后立刻用它 ⇒ login-state-rejected；切换当前租户身份后下一个请求就以新身份行事；解除成员资格后下一次补授权即 notAuthorized
+     ↓ 客户端一面没有读完整体检或写部署事实的路由：发这类 operation 得 invalid-input
+     × 同一个有效登录状态、同一件事，从两个对端地址、以人用客户端与脚本的写法各发一次 ⇒ 答复逐字节相同 3ms
+     ↓ 部署签名私钥、凭据材料、TLS 私钥、出示物（原样、base64url 带与不带填充、十六进制大小写）只出现在登录成功答复里；工程记录里没有对端地址、AccountId、TenantId、载荷值
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/center.spec.ts > T-16 不记住来访、不区别对待来者 > 同一个有效登录状态、同一件事，从两个对端地址、以人用客户端与脚本的写法各发一次 ⇒ 答复逐字节相同
+AssertionError: expected [ '127.0.0.1', '0.0.0.0' ] to not include '127.0.0.1'
+ ❯ tests/center.spec.ts:546:42
+    544|   it('同一个有效登录状态、同一件事，从两个对端地址、以人用客户端与脚本的写法各发一次 ⇒ 答复逐字节相同', async () => {
+    545|     expect(isIPv4(ALTERNATE_SOURCE_ADDRESS), 'alternate source must be…
+    546|     expect(['127.0.0.1', '0.0.0.0']).not.toContain(ALTERNATE_SOURCE_AD…
+       |                                          ^
+    547|     const c = await boot()
+    548|     const ada = await session(c, 'ada@example.invalid')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+Type Errors  no errors
+   Start at  15:30:32
+   Duration  497ms (transform 237ms, setup 0ms, import 422ms, tests 4ms, environment 0ms)
+
+undefined
+/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/governance-center-entry:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/center.spec.ts -t T-16 --reporter=default

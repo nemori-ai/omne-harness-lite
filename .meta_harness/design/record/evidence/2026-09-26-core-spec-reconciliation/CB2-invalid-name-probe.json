@@ -1,0 +1,21 @@
+{
+  "node": "v24.18.0",
+  "block": {
+    "kind": "tool_call",
+    "id": "b",
+    "visibility": {
+      "toHuman": false,
+      "toModel": true
+    },
+    "complete": true,
+    "callId": "c",
+    "tool": "bad:name",
+    "rawArguments": "{}",
+    "unparseable": true
+  },
+  "result": {
+    "rejected": "malformed"
+  },
+  "adoptedContract": "data.content-blocks/v2",
+  "purpose": "actual counterexample to Stream2 S10(2) and N32 jointly consuming CB2; not changed specification"
+}

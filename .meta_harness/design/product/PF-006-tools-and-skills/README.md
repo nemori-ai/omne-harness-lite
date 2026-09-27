@@ -137,20 +137,14 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 19**（rev 17 已定稿，**rev 18–19 待产品负责人确认**）（[依赖声明](design.md#依赖)是一串必需项的抽象名字；
-  [工具说明与每个参数的说明必填](design.md#工具说明与每个参数的说明必填)；[多命令工具在模型面前只有一份紧凑的命令清单](design.md#多命令工具的定义里带多少是工具作者的权衡)；
-  [工具执行自己的 runtime 绑会话，前后台只说 agent runtime 阻不阻塞在它上面](design.md#前台后台说的是-agent-runtime-在不在等它)；
-  [停机时没了的执行落失败，agent 看到追补的「异常中断」，自己决定要不要再调](design.md#停机之后它不重来)；
-  [常驻是引用条目上的偏好类设置](design.md#常驻)；[`help` 可选、带了须与 `inspect` 一致](design.md#53-一份工具定义长什么样)；
-  [MCP 对端每个动作一个工具条目，每一次尝试开始前重取、连不上即不可用](design.md#613-mcp-接入点带来的动作)；
-  [前台上限到点：许后台的转后台、不许的被中断](design.md#前台上限与并发上限)；[本版要等应答的执行只在前台等](design.md#66-前台后台-与-等待态是两个维度)）
+- 产品设计：**rev 19，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
-- 技术投影：**尚未开始**
+- 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留
 
 技术投影按 `harness-design-handbook` skill 展开，
-产物按其步骤 G 落回本包的 `projection/v1/`。
+产物按其步骤 G 落回本包的 `projection/v2/`。
 
 ## 本包的文件
 

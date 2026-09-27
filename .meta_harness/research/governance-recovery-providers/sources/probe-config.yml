@@ -1,0 +1,9 @@
+socket:
+  enabled: true
+  path: /tmp/omne-ls-d2v3a3xj/control.sock
+dbs:
+  - path: /tmp/omne-ls-d2v3a3xj/center.db
+    replica:
+      type: file
+      path: /tmp/omne-ls-d2v3a3xj/replica
+      sync-interval: 1h

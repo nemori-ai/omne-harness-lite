@@ -1,0 +1,29 @@
+{
+  "started_at": "2026-09-26T11:16:09.251828+00:00",
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery",
+  "head": "a53644ad585d433627073c066f46d500f1aee6c6",
+  "branch": "panqiwei/core-delivery",
+  "main": "127d63dadf00358576b52fbfaed66e6e0c3f20dc",
+  "origin_main": "2cb236db7da15e78bb1e96dd8220ee68b6eceb75",
+  "argv": [
+    "make",
+    "check"
+  ],
+  "environment": {
+    "node": "v24.18.0",
+    "pnpm": "10.28.1",
+    "uv": "uv 0.11.24 (x86_64-unknown-linux-gnu)",
+    "python": "Python 3.12.13"
+  },
+  "input_sha256": {
+    "pnpm-lock.yaml": "221b850c48230320ac6bbd7b9b7f4e3bb0ed679b2c3ccbe867e0a5b5e8818ee0",
+    "uv.lock": "ef17937be7534ea74a204b177d549fadd7f9a6be77e70ad661c71970c354b69f",
+    "package.json": "9751ab00c77b73bed725619fa5e689f2bb7e14100f5728ac494dfa1d715f4e42",
+    "scripts/check.sh": "218138208577856ce3ff23a1cbb658e9bf4f9d497a4564ecf82c21bb82be7f7d",
+    "Makefile": "d6dc25ee1e4b4ace0046f84baef453e7116fd9b0d689cbd605273536777e8b13"
+  },
+  "status": "failed",
+  "finished_at": "2026-09-26T11:19:38.379233+00:00",
+  "exit_code": 2,
+  "log_sha256": "e0d02e31f52c8b2ae8540db4dc6ffdb62933623c3791510f346423b489a0f4b5"
+}

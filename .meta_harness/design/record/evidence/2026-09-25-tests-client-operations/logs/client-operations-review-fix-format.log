@@ -1,0 +1,7 @@
+
+> omne-harness-lite-workspace@ format:write /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> ./scripts/format.sh write -- packages/frontend/governance-client-operations/src/cache.ts packages/frontend/governance-client-operations/src/use.ts packages/frontend/governance-client-operations/tests/cache.spec.ts
+
+packages/frontend/governance-client-operations/src/cache.ts 34ms (unchanged)
+packages/frontend/governance-client-operations/src/use.ts 16ms (unchanged)
+packages/frontend/governance-client-operations/tests/cache.spec.ts 17ms

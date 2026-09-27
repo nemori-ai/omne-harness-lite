@@ -1,0 +1,25 @@
+/**
+ * 操作结果：成功值，或契约失败集合里的一个字面。
+ *
+ * `F` 是各契约自己的闭合字面联合（`ai` 用 kebab-case，`og`/`oe`/`cv` 用 camelCase，拼法以契约为准，
+ * 不在此统一）；没有兜底值。失败以返回值到达调用方，不走异常。
+ */
+export type Outcome<T, F extends string> = {
+    readonly ok: T;
+} | {
+    readonly failure: F;
+};
+export declare function succeed<T>(value: T): {
+    readonly ok: T;
+};
+export declare function fail<F extends string>(failure: F): {
+    readonly failure: F;
+};
+export declare function isSuccess<T, F extends string>(outcome: Outcome<T, F>): outcome is {
+    readonly ok: T;
+};
+/** 只有成功与否、没有返回值的操作（契约里的 `ok`）。 */
+export type Ack<F extends string> = 'ok' | {
+    readonly failure: F;
+};
+//# sourceMappingURL=outcome.d.ts.map

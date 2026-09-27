@@ -1,0 +1,82 @@
+{
+  "status": "pass",
+  "node": "v24.21.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "results": [
+    {
+      "name": "CA health",
+      "kind": "health",
+      "sent": true,
+      "applicationBytes": 172
+    },
+    {
+      "name": "untrusted CA does not send synthetic secret",
+      "kind": "trust-or-connect",
+      "code": "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+      "sent": false,
+      "applicationBytes": 0
+    },
+    {
+      "name": "wrong hostname does not send synthetic secret",
+      "kind": "trust-or-connect",
+      "code": "ERR_TLS_CERT_ALTNAME_INVALID",
+      "sent": false,
+      "applicationBytes": 0
+    },
+    {
+      "name": "SPKI alternative",
+      "kind": "health",
+      "sent": true,
+      "applicationBytes": 172
+    },
+    {
+      "name": "wrong SPKI does not send synthetic secret",
+      "kind": "trust-or-connect",
+      "code": "probe-rejection",
+      "sent": false,
+      "applicationBytes": 0
+    },
+    {
+      "name": "exact version bytes precede status",
+      "kind": "version-mismatch",
+      "sent": true,
+      "applicationBytes": 172
+    },
+    {
+      "name": "non-exact version string rejected",
+      "kind": "unavailable",
+      "reason": "shape",
+      "sent": true,
+      "applicationBytes": 172
+    },
+    {
+      "name": "redirect not followed",
+      "kind": "unavailable",
+      "reason": "status",
+      "sent": true,
+      "applicationBytes": 172
+    },
+    {
+      "name": "truncated body rejected",
+      "kind": "unavailable",
+      "reason": "truncated",
+      "sent": true,
+      "applicationBytes": 172
+    },
+    {
+      "name": "other-route success rejected for health",
+      "kind": "unavailable",
+      "reason": "shape",
+      "sent": true,
+      "applicationBytes": 172
+    }
+  ],
+  "limits": [
+    "Synthetic TLS server, not production center",
+    "Only public-health result parser, not 27-route codec",
+    "No Linux test",
+    "No full framing fuzzing, TLS downgrade or elapsed-deadline load test",
+    "No production command or local secret persistence"
+  ]
+}

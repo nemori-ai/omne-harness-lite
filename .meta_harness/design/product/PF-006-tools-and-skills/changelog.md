@@ -29,7 +29,7 @@
 **下游要复核什么**：
 - **规格**：`data.tool-definition` S-7（多命令的模型面生成规则按只有命令清单一种写）与 examples 第 9 节；说明必填的拒绝值（TD-3 已按此起草）；其 verification 里「PF-006 §5.3 待修订」那一行可以关闭。
 - **[PF-007](../PF-007-meta-capabilities/README.md)**：§4「多命令范式」里「门后有多少命令，系统提示词里都不必逐个列出来」与模型面前的一行一命令清单对一遍措辞；[§6.1 `Tools().inspect`](../PF-007-meta-capabilities/design.md#61-tools通向任意非常驻工具)「这个工具收什么参数」照旧成立——多命令工具的参数只从这里问得到。
-- **[D-038](../../record/decisions/message-and-shape-rulings/decision.md) Q5** 的读法：模型面前一个条目、带命令选择，不按命令生成完整参数。
+- **[D-058](../../record/decisions/message-and-shape-rulings/decision.md) Q5** 的读法：模型面前一个条目、带命令选择，不按命令生成完整参数。
 - **统一语言**：[UL-tool-definition](../../ubiquitous_language/terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)「叫什么、收什么参数、返回什么」要不要写进「带说明」，交词表维护者；出处标 PF-006 rev 18 的词条与对象条目逐条复核改 rev。
 
 ## rev 18 · 占位原因与「被中断」触发源写全；前台上限与并发上限有了语义；MCP 动作集按尝试重取；本版只在前台等 — 2026-09-23
@@ -869,3 +869,7 @@ rev 1 只写了工具能声明，技能没地方说，**只能靠猜或者默认
 **读者需要据 rev 判断自己手上的理解是否还成立吗？**需要，就记。
 
 每节至少说清三件事：改了什么含义、为什么、下游要复核什么。
+
+## 2026-09-26 — rev 19 正式接受（状态事件）
+
+产品负责人通过 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。

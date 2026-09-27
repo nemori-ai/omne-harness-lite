@@ -1,0 +1,15 @@
+test_id	status	source	actual_raw_result
+w1.kernel.outcome-public	passed	realization/packages/core/kernel-basis/design.md#能力到-cordis-的投影	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.kernel.public-lifecycle	passed	realization/packages/core/kernel-basis/design.md#状态并发与失败映射	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.kernel.public-assembly-cleanup	passed	realization/packages/core/kernel-basis/design.md#成对的装载与撤除	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.identity.public-values	passed	data.identity-values/v1#S-2; data.identity-values/v1#S-5; data.identity-values/v1#S-7; data.identity-values/v1#S-13	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.identity.in-band-closed-input	passed	data.identity-values/v1#S-10; data.identity-values/v1#S-11; data.identity-values/v1#S-12; data.identity-values/v1#S-31; data.identity-values/v1#S-32; data.identity-values/v1#S-33	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.identity.public-parent-snapshot	passed	data.identity-values/v1#S-14; data.identity-values/v1#S-15	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.identity.public-warrant	passed	data.identity-values/v1#S-35	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.offer.public-time-shape	passed	data.offer-expiry/v1#S-4; data.offer-expiry/v1#S-14; data.offer-expiry/v1#S-22	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.offer.public-evaluation-order	passed	data.offer-expiry/v1#S-8; data.offer-expiry/v1#S-13; data.offer-expiry/v1#S-20	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.storage.exception-dependencies	passed	realization/packages/core/storage/design.md#状态并发与失败映射	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.storage.public-migrations	passed	realization/packages/core/storage/design.md#表结构不在协议里由装配层迁移建立两节点同一约束域	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.content.public-lossless-json	passed	data.content-blocks/v1#S-12; data.content-blocks/v1#S-24; content-blocks/V-11-module	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.content.public-block-judgment	passed	data.content-blocks/v1#S-12; data.content-blocks/v1#S-13; data.content-blocks/v1#S-24; data.content-blocks/v1#S-26; data.content-blocks/v1#S-27	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json
+w1.content.public-metadata-meaning	passed	data.content-blocks/v1#S-6; data.content-blocks/v1#S-7; data.content-blocks/v1#S-20; data.content-blocks/v1#S-21	raw/hub/tmp__w1-public-consumers__normal-afySRP__report.json

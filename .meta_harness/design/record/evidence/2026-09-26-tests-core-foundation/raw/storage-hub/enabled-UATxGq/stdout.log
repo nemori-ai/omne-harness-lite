@@ -1,0 +1,11 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/core-verification
+
+ ✓ fixtures/storage-conformance.spec.ts (19 tests) 218ms
+
+ Test Files  1 passed (1)
+      Tests  19 passed (19)
+   Start at  04:37:35
+   Duration  795ms (transform 197ms, setup 0ms, import 433ms, tests 218ms, environment 0ms)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-verification/enabled-UATxGq/report.json

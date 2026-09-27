@@ -1,9 +1,14 @@
-// capability.account-identity v2 的提供者：`accounts` 与 `logins` 两个服务面。
-// 契约：.meta_harness/design/spec/capabilities/account-identity/v2/contract.md；
+// capability.account-identity v3 的提供者：`accounts` 与 `logins` 两个服务面。
+// 契约：.meta_harness/design/spec/capabilities/account-identity/v3/contract.md；
 // 节点设计：.meta_harness/design/realization/packages/tenancy/account-identity/design.md（「公开入口：导出与类型」）。
 // **不导出**：出示物的产生与 LoginStateId 的派生（`generatePresentation`／`deriveLoginStateId`）、内部判定
 // （`judgeLoginState`）、服务实现类——派生规则在本包之外没有第二份；服务实例经 inject 取得，不经 import。
 export type {
+  AccountParticipation,
+  LoginParticipation,
+  ChangeCredentialFailure,
+  PreparedCredentialChange,
+  PrepareCredentialResult,
   ProduceFailure,
   ProduceResult,
   ActivateFailure,
@@ -28,3 +33,4 @@ export { type LoginStatePresentation, parseLoginStatePresentation } from './pres
 export type { LoginStateId } from '@omne-harness-lite/identity-values'
 export { accountIdentityMigrations, ACCOUNT_TABLE, ACCOUNT_ID_COLUMN } from './schema.ts'
 export { accountIdentityPlugin, AccountIdentityConfigSchema } from './plugin.ts'
+export { accountIdentitySnapshotCheck, ACCOUNT_SNAPSHOT_TABLES } from './snapshot.ts'

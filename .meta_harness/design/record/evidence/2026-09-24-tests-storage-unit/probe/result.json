@@ -1,0 +1,14 @@
+{
+  "checks": [
+    "committed notification",
+    "closed scope rejected",
+    "caught operation error poisons transaction",
+    "cross instance rejected",
+    "overlap rejected and drained",
+    "inflight at callback exit drained before rollback",
+    "P2 handled inside operation remains usable",
+    "rollback discards notification"
+  ],
+  "count": 8,
+  "limits": "Prototype only; not adopted provider or complete lifecycle conformance."
+}

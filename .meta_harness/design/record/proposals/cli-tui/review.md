@@ -103,3 +103,120 @@
   在实验之前，两票同选 A 支撑的是「按现有证据该选 A」，**不是「A 已被验证」**。
 
 返回[本 topic 入口](README.md)。
+
+
+## 治理客户端增量评审 · 2026-09-24
+
+对象为 governance-client r1（任务原稿 SHA-256 `d3322997e140aedddcf1c045fb2c7b5ca8ee0ac9440208ad0493d56546b3e6b8`）；独立 architecture-reviewer 核对 PF-016 rev6、EC1、HT1、D-029及现有节点。只读、未运行测试，不接受机制。
+
+结论：可开始精确规格起草及独立运输取证；一项本地状态采用前阻断，不影响 TLS/公开 health。27条前身路由映射没有伪造权限或把撤回冒充拒绝。中心身份跨两连接竞态及新生产路由均作为已知依赖保留。
+
+| finding | 反例与 owner | r2 处置 |
+|---|---|---|
+| R1 本地写入失败被解释为未保存 | rename完成而目录同步失败，新记录可能已可见；本地状态提供者和共享用例拥有准确结果 | 增加 not-installed/installed/unconfirmed/conflict 与 operationId；持锁重读只报告当前事实，不追认耐久，不自动补偿删除其他进程新记录 |
+| N1 信任材料不是仅路径 | 两连接分别读取被替换的CA路径，保存阶段CAS发现得太晚；信任适配器拥有 | 一次调用捕获已核验材料字节和摘要，两连接复用同一快照 |
+| N2 锁身份随记录替换漂移 | 锁旧inode后rename，新进程锁新inode；本地状态适配器拥有 | 锁身份独立于替换对象，探针须覆盖；SQLite候选另外按事务与进程锁取证 |
+| N3 创建键保存太晚 | 发出组织创建后丢回执，再保存key失败，下一次新key会重复创建；共享用例拥有 | 调用者显式保有key，或自动生成后先确认持久保存，再发请求；未知后不自动另造key |
+
+r2 是主线修订，未冒充已经独立复评。SQLite为新增候选，10场景TLS与双平台容器/本机状态探针见 [实际证据](../../evidence/2026-09-24-probe-governance-client/README.md)；它们不包含完整客户端、真实IME或物理灾备验收。
+
+定向复评 r2（SHA-256 `9b8038491864d35bf10db4463813a96f5468496357d7844067e6e25fea7fe585`）：原 R1 在候选设计层闭合，N1～N3也已补；未发现本次修订范围内新阻断。退出码9残留“未切换”已改为“变更未获确认或冲突”。复评确认 EC1/HT1/D029 足以支持仅公开health的提供者节点，经节点评审后可实施；完整客户端契约与恢复方案不是此无秘密切片的前置。此结论不接受 SQLite 全套语义，不代表其提交未知路径已经过测试。
+
+## 公开 health 提供者节点评审 · 2026-09-24
+
+独立 architecture-reviewer 对 governance-center-client r1 四文件只读评审，design SHA-256 `f3ffdac0dcd00426b601fccf00bf1569527ccf8053689ad54ef2465de090ee4a`；范围内无阻断。已知入口字符串分类、原三字段health、信任快照与无后台实例边界成立。两项实施取证要求：区别ClientRequest/socket/IncomingMessage关闭；保留系统DNS任务不一定取消的限制。没有执行测试或代接受。主线在既有实施授权内以 [D-038](../../decisions/governance-health-client-adoption/README.md) 登记限定采用，其余客户端语义仍为候选。
+
+
+## EC2 业务协议客户端提供者评审 · 2026-09-25
+
+独立architecture-reviewer审阅同节点v2-design，原hash490a55d4c0f070b64c2a1dcb1d72d917fc2120b91308b5437f87a8e1f132c1fd，复核hash3f1e537b02d26a9543df2829a8c9c66d0beca991a4247aeabdd5285797db62f2。本范围无阻断，可依据D044 EC2/HT2在限定采用后实施无状态协议消费，不需先建领域客户端契约。没有运行测试或接受设计。
+
+两项局部修订经复核闭合：requestWritten肯定事实与发送前设置不符，改sendAttempted仅代表可能发出；health保持D038 EC1/HT1独立解码，业务用EC2/HT2，不把旧health字符串行为冒充HT2。非阻断文字校准：HT2 G3是请求接收下限，不能给客户端64KiB响应上限背书，主线已改为提供者自身限额。
+
+远端提交/本地保存/中心绑定责任仍分开；无Context新实例，无自动补偿。CLI状态契约、未知效果呈现与真实平台验证不在本次结论内。
+
+## 本地状态 / 治理组合边界评审 · 2026-09-25
+
+独立architecture-reviewer审§10，原hash5ebc0d6c830ba1b029860f788d252293b3ce461105077dee12b746cb382f64cf，复核hash298f9c43e3bbc07d62341ce77d2b46732257a011a3fb416c435d6e3a22428fd3。B有独立持久记录/CAS/恢复与生命周期价值，组合仍只协调远端事实，不让呈现拥有治理事实。本范围无阻断，未评新规格/缓存键/文件实现，未跑测试。
+
+已闭合：整次TUI使用固定登录；本期所有适用治理读面实际取得的副本须有一致覆盖与来源标记；A/C的内部适配/共享协调器反对意见保留，不能把它们描述成必然错误。双盲未达成如实记载，评审从PF016反查性质，不追认双盲。
+
+若后续本地能力退化成通用存取包装、没有独立恢复承诺，或组合绕开CAS，应复查B边界。完整记录保存副本与登录选择会竞争，冲突结果必须让用户看得懂；这不是已消除的代价。
+
+## CLS1规格与本地提供者复核 · 2026-09-25
+
+spec-reviewer初稿四项阻断为失败集合/凭证域、operationId唯一性、原空记录查证、A→空→B绕过；主线修订后contract hash29b505871829be8ad09a7a7309bc2c7cdc9487d169510fa332eb4079d02bcd61定向复核无阻断，模型hash99b2140d38d55dd7fcf1e3a056e7fb036564e6c665b607a7d94f8b49070d5336未变。未重新跑TLC，读取已有输出确认437distinct/三负控；未覆盖operationId查证/SQL/权限。
+
+architecture-reviewer对本地节点原design hash775d919dd1354c4ba963ca76116c6fb6f695b2b1e5c9ed8fa72e1dbfd59a3d7c指出未登记SQLite句柄关闭与目录入口耐久前提；修订hash5d6d444686d7cbf0a4a94e9b8d3c9e696f80f26dd2199275a696618b7237798d无阻断。主线已修复infra打开失败清理并局部测试；reviewer仅阅读源码未执行。非阻断义务：竞争打开者在元记录可见而初建者尚未同步目录的窗口，须自己完成目录确认才就绪。正常unconfirmed不能吞StorageDefect/未声明异常。
+
+## 2026-09-25 CLS1实现映射定向复核
+
+architecture-reviewer只读核对D046节点与实际源码，最终无剩余架构阻断。发现并修复：①初始化空catalog与后续表数两次观察合成误判；现在同一次readRow返回内部emptyCatalog，固定交错实测。②SQLITE_FULL原落StorageDefect；在infra正确映射正常StorageUnavailable，CLS仍传播其他缺陷，实际容量故障验证。CAS、WeakMap凭证域/持久实例身份、提交后目录同步与close完整排空均有源码承接。评审未独立运行测试，也未评完整应用关闭、物理耐久或CLI/TUI，不代替主线接受。最终所核节点design SHA256 8ff39c1404348c5b185bae8829b868e05b6310d50fbebba59615b3a3a93383bc；源码最终运行快照归[证据](../../evidence/2026-09-25-tests-client-local-state/README.md)。
+
+## 2026-09-25 CG1边界与语义候选复查
+
+architecture-reviewer按CLI-TUI§11与CG1 S1～12作只读语义评审，最终契约SHA256 d338d37cb4ee88e8a5f235ef39833e393fc6c524450345efdbc73f9e9cb5da10，无剩余边界阻断；不包括随后S13～15、Schema/模型或节点。两项修正：隶属接受/解除后OG22 parent也须失效；已知本人降权需停止适用超管读副本，包含OG59(includeIneffective=true)，CAS清理失败不撤销此使用内事实。待办入口须refresh而非永久prefer-copy，归后续应用调用方式。无需用户新产品裁决；取消副本/同一使用换登录/自动重登重放则另需产品裁决。未声称发布就绪或真实运行接受。
+
+## 2026-09-25 CG1规格及节点收口
+
+节点architecture-reviewer最终design hash05752cb3c394205632196c727781e8f0ce62e07266d9420ef26798281f39670b无剩余阻断；fresh必须绑定installed完整条目的反例已关闭。spec-reviewer最终contract hash34fa8dd3c4bc1873b07235ec31461f0604feebe0f7b44ea9c1c305541724cd9a无表达阻断；各轮发现和最后两行修订由D047记录，非主线自行称作独立通过。模型/Schema实际输入与范围归运行包；评审未重新执行。采用后不得原地修改v1正文或资源。
+
+## 2026-09-25 CG1实现映射定向复核
+
+architecture-reviewer独立只读核对D047节点、源码与指定日志；最终本范围无剩余架构阻断。节点design SHA256 26a2e347c59874111175150d69a3d6f2dc354dba5e56fef0bdf281e0581b6f1a，12个源码按相对路径+NUL+内容+NUL聚合SHA256 9a7b2024b73bddafaee0f62514d6e2946041ffb249923da2cc452a6363457d95。根/use完整排空、借用CLS不关闭、具体installed副本例外与显示时刻隔离均有实际承接。
+
+发现并闭合：改密拒绝把含当前/新凭据的payload留入非读路由查询失效规则，延长秘密生命周期。现在只为13读面建立非秘密规范查询串规则，写失败的具名资格失效仍保留；完整close后清空知识并释放runtime/record。带抛出getter的回归会在凭据进入缓存规则时失败，不声称JS内存可靠擦除。no-wall-clock只豁免具名observation-time.ts，其他frontend仍禁墙钟。
+
+reviewer未执行测试，已读修复后106项及Mac/Linux各12组日志；主线实际运行归[本次证据](../../evidence/2026-09-25-tests-client-operations/README.md)。未覆盖CLI/TUI、物理多机、生产密码成本或断电耐久；评审不代替主线接受。主线据D047施工边界确认本提供者增量已实现验证，应用仍须另行装配和验收。
+
+## 2026-09-25 CQ1首轮独立评审
+
+本轮基线为PF016rev7、CG1/CLS1已接受实现、CQ1单次CLI候选；属于同一CLI交付对象的第一轮实质评审，尚未采用或开apps/cli源码。
+
+architecture-reviewer所审contract 4364767c599877bb4c3588b442ae692db77acf4d0a0e619e80694ccedf97b31d、commands 6095e18a51d9cec254bd9dabeea47c3871f74cc21fbd833e813acfff7ff7bfe4、应用governance.md ce37d1ec774ba3aee2b45606f302e473b90bf6dc828e82bc6b76b0e45e9973ca。B职责划分可取，但采用前阻断：TTY模拟器2004状态/同终端/已开始粘贴尾块归属不全；应用新建祖先目录未承接CLS耐久前提；动作前身份预览及其与真正捕获的关系缺失。非阻断但必须接产品：人读统一真实屏幕准入与改密前旧登录全部失效说明。C的反对意见保留：terminal-io可以成为唯一TTY拥有者，不必然争用；第二实际消费者出现时有提取价值。主线接受三条问题，不能用finally或事后报告闭合。
+
+spec-reviewer同一contract/commands、TerminalExit 19131b0be56b309bf45223398b959f2c326ed3e143b36a120f01f93cd47132f3：31路由/13读面/秘密字段正确；阻断为选项许可及Input组装不全、恢复/最终close失败分类不全、模型把输出代理结算且只在关闭时核恢复。须补动作适用选项、失败前后/输出前后收场矩阵、独立能失效的模型性质。建议完整未受理CG报告实例、JSON数值精度保护及稳定输入诊断名。未执行模型/测试，评审不产生接受。
+
+处置方向：默认目录改为可信耐久HOME下单层最终目录，由CLS拥有创建；不新建祖先。TTY不把OS termios与模拟器模式混为一谈，已开始粘贴的残余仍归本次输入至结束标记/连接真正结束。身份预览需要在CG既有责任内承接，不在app用先读后重读或假CLS包装绕过竞态，不覆盖冻结CG1v1。相关新候选与取证完成后才展开第二轮。
+
+## 2026-09-25 CG2交互输入独立收口
+
+architecture-reviewer与spec-reviewer最终无阻断，精确输入hash由D048保存。配置预览的userinfo/证书私钥泄漏反例已在候选中关闭；最终114例补充结果映射。plan-reviewer无阻断，建议统一构建后验证次序已纳入施工计划。评审没有运行提供者测试，不是CLI/TTY审查的通过结论；CQ1首轮阻断继续独立处理。
+
+### CG2实施投影复核
+
+architecture-reviewer对最终13个src文件聚合9b0c3460d874a78ac4b725ab706aa8ca3cc7831660c8a17ba49b32b36f147d42、prepared.spec.ts 6db7ae19c10ffffff1fa32cedb1740cf094555a49fbd9d8a28d62adbaf7dd0e3只读确认，无剩余局部阻断。两处取消仍交付副本的反例先各自重现，再添加交付前取消核对；目标已发后的事实未改写。评审未自行跑测试；主线随后139项和两平台驱动通过。范围不含真实TTY、全部第三方回调行为或完整生产接受。
+
+## CQ1第二轮定向复核
+
+spec-reviewer最后确认正文c709ffba5f46d8eb4a1f4b14a13fe60057dc3f0614c54deb70e06b25fa4f8abd、模型1eb8da93b634e65321c80745cf0ce08bb3ce764f02b68ab50db00d51c1419421无剩余表达阻断：命令白名单、S10关闭失败矩阵、独立workDone、NoEarlyEcho与实际负控、CG2条款逐个登记已闭合。未执行工具，不代表采用。
+
+architecture-reviewer关闭HOME父层、CG2预览、CG→CLS→输出次序问题；保留TTY协议阻断：2004状态查询不能证明内嵌end marker/伪模式答复不是输入内容。文件CLI可独立部分采用，缺失秘密来源明确拒绝、不进入raw/2004，TTY/TUI仍为本期未完成目标。文件入口应以非阻塞/不接管设备方式打开后fstat regular，FIFO无对端/字符设备必须有反例，已补入节点。
+
+CQ文件CLI施工计划经plan-reviewer只读复核无阻断；真实CLI与内部确定故障设施分开取证，不能期待正常CG close自然拒绝，已写入D049。
+
+### D049文件CLI实施投影复核
+
+architecture-reviewer只读复核文件fd所有权、CG2 Preview、信号与关闭/输出，无阻断。非阻断模式一致性问题已定向修补：已支持全局选项前置时，后续语法失败仍保留machine模式；严格准入未放宽。最终parser.ts 2e9e372d461b1069b9359f6abf7b195930dfce77299397ff577a4bdddf27f29f、application.spec.ts 1adba710913260c33f58b46943de1e403d355582f1ac81b24f44958124dc7199获确认。评审未跑工具；主线68项及两平台实际CLI验证随后收口。
+
+## 2026-09-25 · CLI portable路径评审
+
+architecture-reviewer只读审查§13、packaging.md及三平台研究，范围内无阻断。非阻断建议：明确源/dist/锁在构建期间稳定；已纳入节点与施工计划，锁/config变化失败不回滚。工具实际失败路径与最终归档仍待验证。主线D050限定采用。
+
+## 2026-09-25 · D050源码与TUI责任重新比较
+
+D050源码架构复核：tar继承TAR_OPTIONS可排除清单的反例已指出；主线改为独立白名单环境并在GNU容器实测。AppleDouble归档实际清单失配由主线发现后修复，xattr回归保留。最终package.ts 5ad038d3f01f460aa9a7304035dd361ed9b1b465a0cde87051e61ab965448493，无剩余本范围阻断；89项与三平台最终制品运行归证据，不冒称reviewer执行。
+
+§14候选B独立评审阻断：canonical输入尚未Enter时，长路径回显或缩窗已把身份滚出视口；“每屏重印/分页/提交后校验”不能满足PF016 §6.3。主线接受反例，不采用B，回A考察最小终端适配器；秘密文件路径不自动证明终端模式安全，完整Agent编辑器仍下一期。方法上是已有机制后的性质补读，第一遍双盲未达成。reviewer未执行终端探针，新A仍待具体设计/评审。
+
+CQ2最终定向spec评审无阻断，正文2d31eb40d7b2a0fcab7c081c3c1600fcd7b4b3fe22b1fcf63eb8b81642e4c0ee；初始化取消归应用自身，未扩张冻结CG2正常结果。architecture-reviewer确认固定Use/setup分责与精确Undo256/输出配对方案，节点受审6478bad292a96d2ecf14943b5fbda6caf2258d13ef2a2ef037292bd8edb3e618。终端来源假设限定XTerm379普通过滤粘贴同序入队，Mac实际测试仍缺；评审未运行产品实现，采用归D051。
+
+D051首轮源码独立复核（认证恢复后）发现两项阻断：首ESC的50ms取消解释丢失迟到paste前缀；stdin error当EOF且Node setRawMode可emit error而不throw，可能假恢复。QA在固定r1制品独立复现split-paste提前退出，并发现无CG Report时SIGTERM错误返回0（CQ2 S11应2）。主线接受反例，修改键位/输入归属与真实错误观察，不改冻结CQ2、不为profile增加时延假设。旧115项/PTY证据如实保留，不能作为这些交错的通过。新修订尚待定向复评及独立QA。
+
+## 2026-09-25 iTerm候选独立架构评审
+
+review_ai3_provider对节点SHA0d5bdbe6dcdc29b63d6f193d548d29cb26a0456ab0665c76d730a5b7837589fc给出一项阻断：DECRQM reporting:YES绕过普通paste队列，而分块不保护分隔符；合法模式答复可能拆散END并令当前分帧器永不结束。普通文本过滤/普通键延后以及NoSync非true、不接受关闭提示的配置前提成立；纯文本之外文件URL/auto-composer未覆盖。握手控制答复独立分帧可沿CQ2细化，但超时不能抹掉半前缀/迟到答复。评审只读源码，不声称亲自GUI复现。主线后续真实GUI源探针已观察相同交错（非产品启动重现），另立研究run，不能覆盖旧探针。当前不采用allowlist。
+
+R2独立复评（节点SHA7f401784727a5e2b517143d56d818b349d001605434fa1c6660615cdd96faae8）本范围无阻断；无需仅因此升CQ2。特别要求恢复查询失败时仍排半答复，不沿旧finally销毁。未跑新实现或产品GUI。主线采用归D054，原R1反例保留。
+
+D054施工计划独立plan-reviewer无阻断（计划SHAedfd3a3d12cc），只确认所有权/先后与固定D053制品隔离；实现后独立源码review无阻断，ModeReplies SHA6cc858ed4abc1c87a0b2a0456331386e28611a58b0425c83cbee998ad3d99bdd、terminal SHA58b566b32d5309dba15764003cb49e7d4d2bc56f583c8084c003511d5700d76e。133 CLI tests/types/20规则通过；真实GUI与恢复超时由后续单独运行记录承接，不由源码review代验。

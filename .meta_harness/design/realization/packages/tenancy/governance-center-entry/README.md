@@ -1,5 +1,13 @@
 # governance-center-entry
 
+## D055/D056 当前维护增量
+
+EC3/HT3 已采用并实现；业务31路由与协议2保留，opsVersion1增加明确的本机维护操作。现有八fiber承载固定副本、隔离发布、真实资源收场；证据见[维护运行](../../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)。以下 D044/v1 记录按其日期和范围读取。
+
+
+当前增量：D044 已接受 EC2/HT2 与 [v2 提供者映射](v2-design.md)。源码已实现31路由、显式共同提交、改密准备/最终重核、expectedTenant及完整业务排空。新增回归与限制见 [2026-09-25 实际证据](../../../../record/evidence/2026-09-25-tests-entry-production/README.md)。下列v1绑定与运行记载仍对应历史版本，不自动提升为v2证明；CLI/TUI的当前实现与有限验证归 apps/cli。
+
+
 - kind：`provider`
 - 对象与设计修订：状态 `implemented`（源码修订 HUB `c9b5850`），2026-09-23 首稿；兑现 `omne-harness-lite-design-2026-09-15 · composition.governance-center-entry · v1`（[契约](../../../../spec/compositions/governance-center-entry/v1/contract.md)，状态 `accepted`（[D-028](../../../../record/decisions/governance-center-design-acceptance/decision.md)），主责产品依据 [PF-017](../../../../product/PF-017-governance-center-as-deployable-application/README.md) rev 2），落在传输绑定 `composition.governance-center-entry-https-json` v1（`accepted`、已冻结，[D-029](../../../../record/decisions/governance-center-transport-binding-acceptance/decision.md)）上。形状依据[提案 `governance-center-entry`](../../../../record/proposals/governance-center-entry/README.md) 的候选 A，随 D-028 接受为实现路径
 - 源码位置：`packages/tenancy/governance-center-entry`——**已实现（HUB `c9b5850`）**：`src/plugin.ts`（入口层 `governanceCenterEntryPlugin`）、`src/ops/`（运维面 `governanceCenterOpsPlugin`，及两张面共用的 HTTP/1.1 连接层、答复外形与接收上界）、`src/transport/`（TLS 客户端一面）、`src/json.ts`（严格 JSON 读取器）、`src/routing/`（路由表、判定次序、认人、答复字节、工程记录）、`src/center-id/`（迁移片段、读或铸、迁移前核对）、`src/events.ts`（四个通知名）；公开入口 `src/index.ts`。第二层 `tenancy` 是租户领域这个限界上下文的名字（[D-024](../../../../record/decisions/tenancy-domain-name/README.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -39,3 +47,14 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+D055/D056 已采用并实施的维护提供者精化：[maintenance](maintenance.md)。
+
+D056已采用[维护run调用方资源补全](../../../../record/decisions/governance-maintenance-resources-adoption/README.md)，精确提供者修订见决定；实现已完成；实际验证与边界见[维护运行证据](../../../../record/evidence/2026-09-26-tests-governance-maintenance/README.md)。
+
+
+## 2026-09-26 终审修补与最终制品
+
+[最终固定输入、运行与独立QA](../../../../record/evidence/2026-09-26-tests-governance-review-fixes/README.md)接续D055/D056与D057：生产闭包移除测试运行器，初始化未收场责任与叠加故障诊断修复，领域契约不变。18成员最终合并1926通过/34跳过，host最终单独重跑；两包清单、严格独立类型消费、47项独立制品旅程及真实首启故障恢复、三组跨OS与systemd通过。最终host r3、CLI r2的SHA/BUILD_ID在该run；旧记录不提升到新制品。Fable三轮及主线处置均有公开记录，未发现本期阻断。
+
+限定：首次工作根创建须串行；原位源变动精确hash/fstat分支未独立验到；TUI仍限D054 profile，不是任意终端支持；恢复只隔离，同机备份不覆盖整机/磁盘毁损。公司实际部署、Agent工作会话与Web/desktop不属于本次验证。

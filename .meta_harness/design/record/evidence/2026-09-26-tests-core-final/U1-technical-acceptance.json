@@ -1,0 +1,80 @@
+{
+  "authority": "root primary technical planner under explicit user delegation",
+  "at_utc": "2026-09-26T11:42:03.381076+00:00",
+  "source_head": "a53644ad585d433627073c066f46d500f1aee6c6",
+  "source_package_commit": "bf47e1e73f1ea6d3b1f3b9638aa99ced1eb1d35f",
+  "fixed_original_python_source": "6263fed545e48ad9efb5714f3fe76a7c1a0af1b5",
+  "original_python_actually_executed_by_root": true,
+  "root_replay_archive": "U1-original-Python-root-replay.tar.gz",
+  "root_package_tests": {
+    "unix-format": 121,
+    "xml-format": 170
+  },
+  "golden_inputs": 99,
+  "bytes_equal": 98,
+  "accepted_date_spelling_difference": 1,
+  "unknown_differences": 0,
+  "boundary_inputs": 11,
+  "specific_assertion_negative_controls": 2,
+  "accepted_requirements": [
+    {
+      "id": "UF-1",
+      "covered_scope": "121 tests: envelopes/paragraph/empty-hint, public entry + actual fixedPython51 inputs"
+    },
+    {
+      "id": "UF-2",
+      "covered_scope": "lists/tables/Map order, codepoint alignment and row mismatch; independent original Python inputs"
+    },
+    {
+      "id": "UF-3",
+      "covered_scope": "signed start, six-column slot, per-line and width limits; actual original Python signed-start boundary"
+    },
+    {
+      "id": "UF-4",
+      "covered_scope": "default/override/invalid options; negative width current RangeError versus original accepted value recorded"
+    },
+    {
+      "id": "UF-5",
+      "covered_scope": "Unicode codepoints, multiline/control input retained; deterministic finite original51-byte comparisons"
+    },
+    {
+      "id": "UF-6",
+      "covered_scope": "actual121 tests, strict whole workspace + independent packed public types/exports/private denials; no runtime dependencies"
+    },
+    {
+      "id": "XF-1",
+      "covered_scope": "170 tests; declared fields/options/ordering; inherited unknown name rejected, own same-name declared field supported"
+    },
+    {
+      "id": "XF-2",
+      "covered_scope": "content/attribute escaping and XML1.0 invalid Char rejection; actual original NUL/FFFE divergence retained"
+    },
+    {
+      "id": "XF-3",
+      "covered_scope": "conservative ASCII names and all generated duplicate-attribute boundaries; actual original duplicate/name output differences retained"
+    },
+    {
+      "id": "XF-4",
+      "covered_scope": "options/overrides/indent0..8/nesting; actual original indent validation error location/type checked"
+    },
+    {
+      "id": "XF-5",
+      "covered_scope": "99 total originalPython inputs: XML47 equal+one explicitly accepted Date ISO spelling; not universal equivalence"
+    },
+    {
+      "id": "XF-6",
+      "covered_scope": "actual trusted malformed toXml hook retained raw on both languages; callers own fragment legality and effects"
+    },
+    {
+      "id": "XF-7",
+      "covered_scope": "actual170 tests, strict build/public types, independent real tarball consumer and originalPython48 references; namespace/DTD/parser safety excluded"
+    }
+  ],
+  "not_accepted": [
+    "universal cross-language equivalence",
+    "active-hook XML safety",
+    "new core business format policy",
+    "timeout/brand adoption",
+    "human overall acceptance"
+  ]
+}

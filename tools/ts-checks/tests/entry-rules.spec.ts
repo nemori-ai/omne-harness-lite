@@ -108,6 +108,63 @@ describe('ops-import-whitelist', () => {
   })
 })
 
+describe('D055 maintenance import boundary', () => {
+  const ops = file(
+    `${E}src/ops/requests.ts`,
+    "import { readJsonText } from '../json.ts'; import { OnlineMaintenance } from '../maintenance/online.ts'",
+  )
+  it('allows the adopted readonly maintenance dependencies', () => {
+    const source = file(
+      `${E}src/maintenance/input.ts`,
+      [
+        "import { SnapshotFailure } from '@omne-harness-lite/storage'",
+        "import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'",
+        "import { readSnapshotCenterId } from '../center-id/snapshot.ts'",
+        "import { entryValidator } from '../routing/schema.ts'",
+        "import { readJsonText } from '../json.ts'",
+        "import { parseMetadata } from './metadata.ts'",
+      ].join('\n'),
+    )
+    expect(opsImportWhitelist.check([events, ops, source])).toEqual([])
+  })
+  it('checks every permitted readonly leaf instead of trusting its filename', () => {
+    for (const leaf of [
+      'json.ts',
+      'routing/schema.ts',
+      'center-id/snapshot.ts',
+      'center-id/snapshot-structure.ts',
+      'center-id/table.ts',
+    ]) {
+      const unsafe = file(
+        `${E}src/${leaf}`,
+        "import { readOrMint } from './read-or-mint.ts'; import { x } from '@omne-harness-lite/account-identity'",
+      )
+      expect(opsImportWhitelist.check([events, ops, unsafe])).toHaveLength(2)
+    }
+    const schema = file(
+      `${E}src/routing/schema.ts`,
+      "import { createRequire } from 'node:module'; import { Ajv2020 } from 'ajv/dist/2020.js'; const a = require('../../schema/governance-center-entry.schema.json'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
+    )
+    expect(opsImportWhitelist.check([events, ops, schema])).toEqual([])
+  })
+  it('blocks governance and write-capable paths behind an allowed maintenance import', () => {
+    const source = file(
+      `${E}src/maintenance/unsafe.ts`,
+      [
+        "import { x } from '@omne-harness-lite/account-identity'",
+        "import { y } from '@omne-harness-lite/storage-sql'",
+        "import { decide } from '../routing/decide.ts'",
+        "import { readOrMint } from '../center-id/read-or-mint.ts'",
+        "import { plugin } from '../plugin.ts'",
+        'await import(dynamicName)',
+      ].join('\n'),
+    )
+    expect(opsImportWhitelist.check([events, ops, source]).map(v => v.line)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ])
+  })
+})
+
 describe('ops-event-whitelist', () => {
   const header = "import { serving, stopped as off, defect, listening } from '../events.ts'\n"
 
@@ -280,22 +337,27 @@ describe('presentation-only-authn', () => {
     expect(presentationOnlyAuthn.check([clean])).toEqual([])
   })
 
-  it('入口层解析 accounts 服务（inject、ctx.get、resolveOptional、ACCOUNTS_SERVICE 常量）⇒ 报出', () => {
+  it('EC2：accounts 的普通读写不是认人或按名邀请参与面', () => {
     const bad = file(
-      `${E}src/plugin.ts`,
+      `${E}src/routing/routes.ts`,
       [
-        "export const plugin = definePlugin({ inject: ['logins', 'accounts', 'storage'] })", // 1
-        "const accounts = ctx.get('accounts')", // 2
-        "const a = resolveOptional<Accounts>(ctx, 'accounts')", // 3
-        "import { ACCOUNTS_SERVICE } from '@omne-harness-lite/account-identity'", // 4
+        'accounts.read(account)',
+        'services.accounts.produce(identifier, secret)',
+        'services.accounts.activate(account, warrant)',
+        'accounts.purge(account)',
       ].join('\n'),
     )
-    expect(
-      presentationOnlyAuthn
-        .check([bad])
-        .map(v => v.line)
-        .sort(),
-    ).toEqual([1, 2, 3, 4])
+    expect(presentationOnlyAuthn.check([bad]).map(v => v.line)).toEqual([1, 2, 3, 4])
+    const clean = file(
+      `${E}src/plugin.ts`,
+      [
+        "inject: ['logins', 'accounts', 'storage']",
+        "const accounts = ctx.get('accounts')",
+        'const face = accounts.participate(unit)',
+        'services.accounts.resolveActivatedIdentifier(identifier)',
+      ].join('\n'),
+    )
+    expect(presentationOnlyAuthn.check([clean])).toEqual([])
   })
 
   it('合规：inject 里只有路由表点名的服务；字面量 accounts 出现在别处（日志键）不算解析', () => {

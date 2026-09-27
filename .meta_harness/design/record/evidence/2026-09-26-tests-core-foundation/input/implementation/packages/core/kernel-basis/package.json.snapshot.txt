@@ -1,0 +1,38 @@
+{
+  "name": "@omne-harness-lite/kernel-basis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cordis 采用版本的取证 probe、插件层共用件（config 校验、Outcome、存储错误映射、调用时解析）与测试装配工具",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@standard-schema/spec": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:"
+  }
+}

@@ -18,7 +18,7 @@
 ### 存储
 
 - **现象**：工具定义可以指名声明「把附件放进哪个存储」，存储没配好则该工具整个不可用；被卸载的工具结果也「存着，没丢」。但全系统没有任何一处定义它——是对象、是一项设置、还是执行环境的一种设施，没人说过
-- **牵涉**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 19）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 19）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 14）
+- **牵涉**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 19）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 19）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 15）
 - **挂着谁**：[附件](objects.md#ul-attachment--附件)存在它里面，附件的宿主与留存因此都定不下来；被卸载的工具结果存在哪、留多久同样悬着
 - **谁来裁**：PF-006 的 owner
 - **闭合条件**：有一个 topic 定义了它，并立了词条，或明确说它不是一个产品概念
@@ -62,7 +62,7 @@
 ### 使用成本明细
 
 - **现象**：PF-001 要求「一次调用花掉的成本必须能算到发起它的那个租户头上，并能逐条列出来」，同时明说成本怎么算、明细怎么归集与呈现「目前没有对应的产品设计」
-- **牵涉**：[PF-001 §6.4](../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 18）
+- **牵涉**：[PF-001 §6.4](../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 20）
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
 

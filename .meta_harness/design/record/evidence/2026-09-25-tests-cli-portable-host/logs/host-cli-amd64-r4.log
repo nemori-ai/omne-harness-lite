@@ -1,0 +1,16 @@
+Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8790 kB]
+Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [341 kB]
+Fetched 9379 kB in 2s (4696 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+openssl is already the newest version (3.0.20-1~deb12u2).
+openssl set to manually installed.
+0 upgraded, 0 newly installed, 0 to remove and 2 not upgraded.
+OpenSSL 3.0.20 7 Apr 2026 (Library: OpenSSL 3.0.20 7 Apr 2026)
+{"status":"PASS","platform":"linux","arch":"x64","node":"v24.21.0","checks":["real keygen/serve deployment process with new TLS material and file configuration","portable CLI child processes and real PTY preview","two accounts/multiple local clients/full governance journey","production default credential derivation cost","EPIPE exactly one observed target request","SIGTERM restart preserves current identity","duplicate host refused occupied","SIGKILL process restart retains acknowledged identity and old-login revocation","public CLI and host logs contain no credential input"],"scope":"Single OS/container, loopback HTTPS. Actual host process, clock and default credential cost; no accelerated expiry in this driver, physical machine loss, backups, TUI or installed service manager."}

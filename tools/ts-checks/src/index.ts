@@ -3,6 +3,17 @@ import { join, relative } from 'node:path'
 import type { Rule, SourceFile, Violation } from './rule.ts'
 import { aiR8NoCredentialInWrite } from './rules/ai-r8-no-credential-in-write.ts'
 import { credentialsParseOnly } from './rules/credentials-parse-only.ts'
+import { corePureImports } from './rules/core-pure-imports.ts'
+import {
+  bodyProjectionInputs,
+  parameterJudgeCacheOwner,
+  singleToolArgumentParser,
+} from './rules/core-scoped.ts'
+import {
+  identityAccountReferences,
+  identityDecisionInputs,
+  identityScopeColumns,
+} from './rules/identity-shapes.ts'
 import { noBailControl } from './rules/no-bail-control.ts'
 import { noDialectBypass } from './rules/no-dialect-bypass.ts'
 import { noNetworkListenInTenancy } from './rules/no-network-listen-in-tenancy.ts'
@@ -23,9 +34,38 @@ import { terminalOutcomeClosed } from './rules/terminal-outcome-closed.ts'
 
 export type { Rule, SourceFile, Violation } from './rule.ts'
 export { isTestPath, scanLines } from './rule.ts'
+export { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS } from './rules/core-pure-imports.ts'
+export {
+  createBodyProjectionInputs,
+  createParameterJudgeCacheOwner,
+  createSingleToolArgumentParser,
+  createModelToolNameOrigin,
+  createMessageCreatedAtOrder,
+  type CoreFunctionTarget,
+  type BodyProjectionTarget,
+  type ParameterCacheTarget,
+  type ToolArgumentParserInputs,
+  type ModelToolNameOriginTarget,
+  CORE_BODY_PROJECTION_TARGETS,
+  CORE_PARAMETER_CACHE_TARGET,
+  CORE_TOOL_ARGUMENT_PARSER_INPUTS,
+} from './rules/core-scoped.ts'
+export {
+  createIdentityDecisionInputs,
+  IDENTITY_CHECK_INPUTS,
+  type IdentityCheckInputs,
+  type IdentityDecisionTarget,
+} from './rules/identity-shapes.ts'
 export {
   aiR8NoCredentialInWrite,
   credentialsParseOnly,
+  corePureImports,
+  bodyProjectionInputs,
+  parameterJudgeCacheOwner,
+  singleToolArgumentParser,
+  identityAccountReferences,
+  identityDecisionInputs,
+  identityScopeColumns,
   noBailControl,
   noDialectBypass,
   noNetworkListenInTenancy,
@@ -70,6 +110,13 @@ export const RULES: readonly Rule[] = [
   terminalOutcomeClosed,
   ogS42DynamicResolve,
   noDialectBypass,
+  corePureImports,
+  identityDecisionInputs,
+  identityAccountReferences,
+  identityScopeColumns,
+  bodyProjectionInputs,
+  parameterJudgeCacheOwner,
+  singleToolArgumentParser,
 ]
 
 /** 收集 `root` 下全部 `.ts` 源（跳过 node_modules 与 dist），路径相对于 root。 */

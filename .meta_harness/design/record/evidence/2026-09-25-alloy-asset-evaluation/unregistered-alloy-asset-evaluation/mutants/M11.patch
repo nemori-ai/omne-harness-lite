@@ -1,0 +1,11 @@
+--- /data/qiwei/repos/omne-harness-lite/tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/Evaluation.als	2026-09-24 07:59:41.990434136 +0000
++++ /data/qiwei/repos/omne-harness-lite/tmp/formal-runs/asset-evaluation-v1-2026-09-24b/-c/mutants/M11.als	2026-09-24 08:00:09.782183687 +0000
+@@ -268,7 +268,7 @@
+ fun permParticipating[c: Cap, i: Item] : set Assign {
+   { x: Assign | x.acap = c and x.item = i
+       and (x.at = Session
+-           or (x.at in Organization + Tenant and some h: inEffect[c] | h.layer = x.at)) }
++           or (x.at in Organization + Tenant and some h: candidates[c] | h.layer = x.at)) }
+ }
+ 
+ // 界：参与的配值里带锁的那些，以及执行权限上的 {forbid}（账本 S10-b；PF-002 rev 17 §5.3）。

@@ -1,5 +1,7 @@
 # 研发 Agent 评估
 
+- [TUI 开发角色引入](tui-developer-introduction.md)：职责、两端生成与静态验证；未做模型行为评估。
+
 这里保存研发 agent 的评估输入与证据。编译器单元测试归 `tooling/tests/`；
 资产生成、普通 agent 试用、原生宿主加载与精确模型行为分别报告。
 
@@ -12,6 +14,7 @@
 - [开发 agent 防御辅助评估](developer-model/README.md)：自包含协议、格式与公开任务包；证据完整不授权采用。
 - [角色模型复评（Opus 5.5 / GPT-6 Sol）](role-model-reeval/README.md)：各角色的换模依据、提示审计与宿主验证；任务质量对照尚未跑。
 - [共享研发品味单源化](shared-engineering-taste/README.md)：品味从根 AGENTS.md 迁为角色共享正文后的去向、分发覆盖与两端加载验证。
+- [Developer 输入契约强化](developer-input-contract-2026-09-26/README.md)：明确规格与 realization 输入、实施自主范围及五项只读行为试用的有界观察。
 
 角色迁移试用与开发模型采用评估是不同证据面。需要采用评估时明确基线、判据与接受权限；
 需要评估 handbook 或角色修改时只建立覆盖本次变化的任务，不把公开样例称作留出集。

@@ -1,0 +1,24 @@
+{
+  "command": [
+    "fnm",
+    "exec",
+    "--using",
+    "24",
+    "pnpm",
+    "--filter",
+    "@omne-harness-lite/governance-center-entry",
+    "exec",
+    "vitest",
+    "run",
+    "tests/center.spec.ts",
+    "-t",
+    "T-16",
+    "--reporter=default"
+  ],
+  "environment_overrides": {
+    "TMPDIR": "/tmp",
+    "OMNE_TEST_ALTERNATE_SOURCE_ADDRESS": "127.0.0.1"
+  },
+  "exit_code": 1,
+  "expected_failure_observed": false
+}

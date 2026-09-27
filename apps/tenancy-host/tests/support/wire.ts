@@ -13,8 +13,8 @@ export const TLS_FIXTURES = {
   leafKeyPem: readFileSync(join(FIXTURES, 'leaf.key'), 'utf8'),
 } as const
 
-export const REGISTER = 'composition.account-registration/v1#S-8'
-export const LOGIN = 'capability.account-identity/v2#S-15'
+export const REGISTER = 'composition.account-registration/v2#S-8'
+export const LOGIN = 'capability.account-identity/v3#S-15'
 export const HEALTH = 'composition.governance-center-entry/v1#S-18'
 
 /** 取一个此刻空闲的本机端口。 */
@@ -40,7 +40,7 @@ export function httpRequest(body: string): Buffer {
 }
 
 export function envelope(operation: string, payload: Record<string, unknown>): string {
-  return JSON.stringify({ protocolVersion: '1', operation, payload })
+  return JSON.stringify({ protocolVersion: '2', operation, payload })
 }
 
 export const PUBLIC_HEALTH_BODY = JSON.stringify({ operation: HEALTH })
@@ -101,7 +101,11 @@ export function tlsExchange(port: number, body: string, timeoutMs = 10_000): Pro
 /** 经本机套接字发一个请求（运维面：任何请求都答完整体检）。 */
 export function unixExchange(path: string, timeoutMs = 10_000): Promise<Exchange> {
   const socket = netConnect({ path, allowHalfOpen: true })
-  return collect(socket, httpRequest('{}'), timeoutMs)
+  return collect(
+    socket,
+    httpRequest('{"opsVersion":"1","operation":"full-health","payload":{}}'),
+    timeoutMs,
+  )
 }
 
 /** 答复的体（按 JSON 读）；没有答复 ⇒ undefined。 */

@@ -1,0 +1,1 @@
+/opt/java/jdk-21.0.12.1+1-jre/bin/java -cp /opt/tlaplus/tla2tools.jar tlc2.TLC -metadir tmp/tlc/sl-SessionLog -cleanup -noGenerateSpecTE -workers 1 -config spec/capabilities/session-log/v1/formal/SessionLog.cfg spec/capabilities/session-log/v1/formal/SessionLog.tla

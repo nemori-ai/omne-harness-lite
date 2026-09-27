@@ -281,7 +281,7 @@
 > running towards strictness: **it cannot be replaced, disabled or narrowed**.
 
 - **形态**：过程
-- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 14）
+- **出处**：[PF-008 §4 放行判断](../../product/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](../../product/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](../../product/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 15）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
@@ -549,7 +549,7 @@
 - **形态**：总称
 - **出处**：[PF-016 §4 交付面](../../product/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](../../product/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
-  [§5.4](../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 7）
+  [§5.4](../../product/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 9）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -574,7 +574,7 @@
 
 - **形态**：状态
 - **出处**：[PF-016 §4 呈现形式](../../product/PF-016-cli-tui-delivery-surface/design.md#呈现形式) ·
-  [§5.5](../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 7）
+  [§5.5](../../product/PF-016-cli-tui-delivery-surface/design.md#55-两种呈现形式同一份事实)（rev 9）
 - **⚠️ 别混**：**不是[会话运行模式](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode)。**
   那是「**本该问人的那一刻改怎么办**」，是会话的事，**改变领域行为**；
   这一条是「**这份事实交给谁读**」，是交付面的事，**一个字都不改**
@@ -601,7 +601,7 @@
 
 - **形态**：属性
 - **出处**：[PF-016 §4 观感偏好](../../product/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
-  [§6.12](../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 7）
+  [§6.12](../../product/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 9）
 - **⚠️ 别混**：**不是[元 runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)
   那十四项里的第 3 项「账号级的界面偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
   **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)，

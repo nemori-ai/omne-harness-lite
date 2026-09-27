@@ -1,0 +1,28 @@
+{
+  "actual_command": [
+    "node",
+    "tmp/core-delivery/AM3-resource-closure-probe.mjs"
+  ],
+  "working_directory": "repository root",
+  "runtime": "v24.18.0",
+  "source_commit": "9e0103a1b07c6fd4be42e67fc1cbecb786275954",
+  "schema_runtime_source_sha256": "d9659c9c4aa0aeb14048f054cebfcb6fcb6ad231a42b5c39987237eb5a2bcde0",
+  "input_count": 13,
+  "actual_source_and_config_snapshots": "inputs/** plus original probe byte-for-byte",
+  "raw_files": [
+    {
+      "path": "AM3-resource-closure-probe.mjs",
+      "sha256": "177972b5a1e6213c5669d64e4d97fbbbad302432b8f099ad226e38ec1e83c109"
+    },
+    {
+      "path": "AM3-resource-closure-probe.json",
+      "sha256": "3011a1ccc114034407ef04f1ff32481da24cc4bafc5f5f32aeea287dc37f9eb0"
+    },
+    {
+      "path": "AM3-resource-closure-probe.log",
+      "sha256": "76fba6f5906eabfd08ea95c2f70882e333f8bfdbc677793a9cdd7def583a5495"
+    }
+  ],
+  "archive_at_utc": "2026-09-26T09:45:01.494445+00:00",
+  "scope": "Candidate AM3 fixed-definition resource compilation only; no adoption, provider judgment, Connector implementation or domain outcome claim."
+}

@@ -1,0 +1,13 @@
+{
+  "archive": "formal-run.tar.gz",
+  "archive_sha256": "1f17a46d3ca8e2ae8e0bd3247085cfb555d6a5e6feb6a47a2693706f68aac76b",
+  "archive_bytes": 1326146,
+  "source": "panqiwei/core-delivery-stream-guards@8c03105243e1ae25697dd78b0d9c317c43d076bf",
+  "files": 631,
+  "SHA256SUMS_sha256": "a228cbf408af6c22163dd37a3c2faaee5375e96d56d54a8db99863fc7ce7259e",
+  "all_630_source_digests_verified": true,
+  "all_631_archive_members_read_and_byte_equal": true,
+  "preserved_original_paths_inside": "w6-core-formal-v3/",
+  "original_spoke": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-stream-guards/tmp/w6-core-formal",
+  "at_utc": "2026-09-26T10:12:25.526818+00:00"
+}

@@ -1,0 +1,3386 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json",
+  "title": "治理客户端公共动作与结果 · 候选",
+  "$defs": {
+    "Input": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "const": "configure"
+            },
+            "endpoint": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trust": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "ca"
+                    },
+                    "certificateAuthorities": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "mode"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "spki"
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-fA-F]{64}$"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "sha256"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "action",
+            "endpoint",
+            "trust"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "const": "health"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "const": "logout"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "const": "invoke"
+            },
+            "operation": {
+              "enum": [
+                "capability.account-identity/v3#S-16",
+                "capability.account-identity/v3#S-37",
+                "capability.organization-governance/v2#S-21",
+                "capability.organization-governance/v2#S-22",
+                "capability.organization-governance/v2#S-23",
+                "capability.organization-governance/v2#S-24",
+                "capability.organization-governance/v2#S-25",
+                "capability.organization-governance/v2#S-26",
+                "capability.organization-governance/v2#S-27",
+                "capability.organization-governance/v2#S-28",
+                "capability.organization-governance/v2#S-29",
+                "capability.organization-governance/v2#S-30",
+                "capability.organization-governance/v2#S-31",
+                "capability.organization-governance/v2#S-32",
+                "capability.organization-governance/v2#S-33",
+                "capability.organization-governance/v2#S-34",
+                "capability.organization-governance/v2#S-35",
+                "capability.organization-governance/v2#S-36",
+                "capability.organization-governance/v2#S-37",
+                "capability.organization-governance/v2#S-55",
+                "capability.organization-governance/v2#S-56",
+                "capability.organization-governance/v2#S-57",
+                "capability.organization-governance/v2#S-58",
+                "capability.organization-governance/v2#S-59",
+                "capability.organization-governance/v2#S-60",
+                "capability.account-identity/v3#S-50",
+                "capability.organization-governance/v2#S-61",
+                "capability.organization-governance/v2#S-62",
+                "composition.governance-center-entry/v2#S-50"
+              ]
+            },
+            "payload": {
+              "type": "object"
+            },
+            "readMode": {
+              "enum": [
+                "prefer-copy",
+                "refresh"
+              ]
+            }
+          },
+          "required": [
+            "action",
+            "operation",
+            "payload"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.account-identity/v3#S-16"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S16"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.account-identity/v3#S-37"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S37"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-21"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S21"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-22"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S22"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-23"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S23"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-24"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S24"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-25"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S25"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-26"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S26"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-27"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S27"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-28"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S28"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-29"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S29"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-30"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S30"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-31"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S31"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-32"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S32"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-33"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S33"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-34"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S34"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-35"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S35"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-36"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S36"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-37"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S37"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-55"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S55"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-56"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S56"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-57"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S57"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-58"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S58"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-59"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S59"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-60"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S60"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.account-identity/v3#S-50"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S50"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-61"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S61"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.organization-governance/v2#S-62"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_OG_S62"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "const": "composition.governance-center-entry/v2#S-50"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_ENTRY_S50"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "operation": {
+                    "not": {
+                      "enum": [
+                        "capability.account-identity/v3#S-37",
+                        "capability.organization-governance/v2#S-22",
+                        "capability.organization-governance/v2#S-26",
+                        "capability.organization-governance/v2#S-27",
+                        "capability.organization-governance/v2#S-34",
+                        "capability.organization-governance/v2#S-35",
+                        "capability.organization-governance/v2#S-36",
+                        "capability.organization-governance/v2#S-55",
+                        "capability.organization-governance/v2#S-56",
+                        "capability.organization-governance/v2#S-57",
+                        "capability.organization-governance/v2#S-58",
+                        "capability.organization-governance/v2#S-59",
+                        "capability.organization-governance/v2#S-60"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              },
+              "then": {
+                "not": {
+                  "required": [
+                    "readMode"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "const": "login"
+            },
+            "payload": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AI_S15"
+            }
+          },
+          "required": [
+            "action",
+            "payload"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "const": "register"
+            },
+            "payload": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Payload_AR_S8"
+            }
+          },
+          "required": [
+            "action",
+            "payload"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PublicExchange": {
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Exchange"
+            },
+            {
+              "not": {
+                "properties": {
+                  "operation": {
+                    "const": "capability.account-identity/v3#S-15"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "operation": {
+              "const": "capability.account-identity/v3#S-15"
+            },
+            "reply": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "loginStateHandle": {
+                      "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId"
+                    }
+                  },
+                  "required": [
+                    "loginStateHandle"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "operation",
+            "reply"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Exchange"
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "capability.account-identity/v3#S-15"
+                },
+                "reply": {
+                  "not": {
+                    "type": "object",
+                    "required": [
+                      "result"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "operation",
+                "reply"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Output": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "governance-client/1"
+        },
+        "actionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "enum": [
+            "configure",
+            "health",
+            "register",
+            "login",
+            "invoke",
+            "logout",
+            "invalid"
+          ]
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/EnvelopeRouteId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin": {
+          "type": "object",
+          "properties": {
+            "centerId": {
+              "anyOf": [
+                {
+                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/GovernanceCenterId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "accountId": {
+              "anyOf": [
+                {
+                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/AccountId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "loginStateHandle": {
+              "anyOf": [
+                {
+                  "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "expectedTenant": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+            }
+          },
+          "required": [
+            "centerId",
+            "accountId",
+            "loginStateHandle"
+          ],
+          "additionalProperties": false
+        },
+        "admission": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "admitted",
+                "blocked"
+              ]
+            },
+            "reason": {
+              "enum": [
+                "not-configured",
+                "not-logged-in",
+                "selection-changed",
+                "busy",
+                "invalid-input",
+                "reenter-required",
+                "local-unavailable",
+                "invalid-record",
+                "unsupported-format",
+                "identity-unavailable",
+                "center-mismatch",
+                "defect"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "blocked"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "required": [
+                  "reason"
+                ]
+              },
+              "else": {
+                "not": {
+                  "required": [
+                    "reason"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "remote": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "not-attempted",
+                "success",
+                "rejected",
+                "unavailable",
+                "unknown"
+              ]
+            },
+            "stage": {
+              "enum": [
+                "none",
+                "health",
+                "identity",
+                "operation"
+              ]
+            },
+            "sendAttempted": {
+              "type": "boolean"
+            },
+            "reply": {
+              "$ref": "#/$defs/PublicExchange"
+            },
+            "answer": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/EntryAnswer"
+            },
+            "transportFailure": {
+              "enum": [
+                "connection",
+                "trust",
+                "timeout",
+                "cancelled",
+                "response-framing",
+                "response-limit",
+                "response-invalid"
+              ]
+            },
+            "health": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/PublicHealthReply"
+            }
+          },
+          "required": [
+            "status",
+            "stage",
+            "sendAttempted"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "stage": {
+                    "const": "identity"
+                  }
+                },
+                "required": [
+                  "stage"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "sendAttempted": {
+                    "const": false
+                  },
+                  "reply": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-36"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "success"
+                  },
+                  "stage": {
+                    "const": "operation"
+                  }
+                },
+                "required": [
+                  "status",
+                  "stage"
+                ]
+              },
+              "then": {
+                "required": [
+                  "reply"
+                ],
+                "properties": {
+                  "reply": {
+                    "properties": {
+                      "reply": {
+                        "type": "object",
+                        "required": [
+                          "result"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "reply"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "success"
+                  },
+                  "stage": {
+                    "const": "health"
+                  }
+                },
+                "required": [
+                  "status",
+                  "stage"
+                ]
+              },
+              "then": {
+                "required": [
+                  "health"
+                ]
+              }
+            }
+          ]
+        },
+        "local": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "not-requested",
+                "installed",
+                "conflict",
+                "not-installed",
+                "unconfirmed"
+              ]
+            },
+            "reason": {
+              "enum": [
+                "invalid-input",
+                "invalid-record",
+                "unsupported-format",
+                "unavailable"
+              ]
+            },
+            "recovery": {
+              "type": "object",
+              "properties": {
+                "observation": {
+                  "enum": [
+                    "visible-this-operation",
+                    "visible-other-record",
+                    "not-seen",
+                    "different-store",
+                    "unknown"
+                  ]
+                },
+                "current": {
+                  "type": "object",
+                  "properties": {
+                    "centerId": {
+                      "anyOf": [
+                        {
+                          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/GovernanceCenterId"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "accountId": {
+                      "anyOf": [
+                        {
+                          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/AccountId"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "loginStateHandle": {
+                      "anyOf": [
+                        {
+                          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "centerId",
+                    "accountId",
+                    "loginStateHandle",
+                    "revision"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "observation"
+              ],
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "observation": {
+                        "const": "unknown"
+                      }
+                    },
+                    "required": [
+                      "observation"
+                    ]
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "current"
+                      ]
+                    }
+                  },
+                  "else": {
+                    "required": [
+                      "current"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "unconfirmed"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "required": [
+                  "recovery"
+                ]
+              },
+              "else": {
+                "not": {
+                  "required": [
+                    "recovery"
+                  ]
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "not-installed"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "required": [
+                  "reason"
+                ]
+              },
+              "else": {
+                "not": {
+                  "required": [
+                    "reason"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "view": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "enum": [
+                "none",
+                "online",
+                "copy"
+              ]
+            },
+            "acquiredAt": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+            },
+            "data": {
+              "$ref": "#/$defs/PublicExchange"
+            }
+          },
+          "required": [
+            "source"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "source": {
+                    "const": "copy"
+                  }
+                },
+                "required": [
+                  "source"
+                ]
+              },
+              "then": {
+                "required": [
+                  "acquiredAt",
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "enum": [
+                          "capability.account-identity/v3#S-37",
+                          "capability.organization-governance/v2#S-22",
+                          "capability.organization-governance/v2#S-26",
+                          "capability.organization-governance/v2#S-27",
+                          "capability.organization-governance/v2#S-34",
+                          "capability.organization-governance/v2#S-35",
+                          "capability.organization-governance/v2#S-36",
+                          "capability.organization-governance/v2#S-55",
+                          "capability.organization-governance/v2#S-56",
+                          "capability.organization-governance/v2#S-57",
+                          "capability.organization-governance/v2#S-58",
+                          "capability.organization-governance/v2#S-59",
+                          "capability.organization-governance/v2#S-60"
+                        ]
+                      },
+                      "reply": {
+                        "type": "object",
+                        "required": [
+                          "result"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "operation",
+                      "reply"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "source": {
+                    "const": "none"
+                  }
+                },
+                "required": [
+                  "source"
+                ]
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "data"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "acquiredAt"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "source": {
+                    "const": "online"
+                  }
+                },
+                "required": [
+                  "source"
+                ]
+              },
+              "then": {
+                "required": [
+                  "data"
+                ],
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "reply": {
+                        "type": "object",
+                        "required": [
+                          "result"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "reply"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "use": {
+          "enum": [
+            "active",
+            "reenter-required",
+            "ended"
+          ]
+        }
+      },
+      "required": [
+        "format",
+        "actionId",
+        "action",
+        "operation",
+        "origin",
+        "admission",
+        "remote",
+        "local",
+        "view",
+        "use"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "login"
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "then": {
+            "properties": {
+              "operation": {
+                "const": "capability.account-identity/v3#S-15"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "register"
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "then": {
+            "properties": {
+              "operation": {
+                "const": "composition.account-registration/v2#S-8"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "logout"
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "then": {
+            "properties": {
+              "operation": {
+                "const": "capability.account-identity/v3#S-16"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "enum": [
+                  "configure",
+                  "health",
+                  "invalid"
+                ]
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "then": {
+            "properties": {
+              "operation": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "composition.account-registration/v2#S-8"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "composition.account-registration/v2#S-8"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "composition.account-registration/v2#S-8"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.account-identity/v3#S-15"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.account-identity/v3#S-15"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.account-identity/v3#S-15"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.account-identity/v3#S-16"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.account-identity/v3#S-16"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.account-identity/v3#S-16"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.account-identity/v3#S-37"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.account-identity/v3#S-37"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.account-identity/v3#S-37"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-21"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-21"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-21"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-22"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-22"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-22"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-23"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-23"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-23"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-24"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-24"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-24"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-25"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-25"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-25"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-26"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-26"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-26"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-27"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-27"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-27"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-28"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-28"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-28"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-29"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-29"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-29"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-30"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-30"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-30"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-31"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-31"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-31"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-32"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-32"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-32"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-33"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-33"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-33"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-34"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-34"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-34"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-35"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-35"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-35"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-36"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-36"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-36"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-37"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-37"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-37"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-55"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-55"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-55"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-56"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-56"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-56"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-57"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-57"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-57"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-58"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-58"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-58"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-59"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-59"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-59"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-60"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-60"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-60"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.account-identity/v3#S-50"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.account-identity/v3#S-50"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.account-identity/v3#S-50"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-61"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-61"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-61"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "capability.organization-governance/v2#S-62"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "capability.organization-governance/v2#S-62"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "capability.organization-governance/v2#S-62"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "composition.governance-center-entry/v2#S-50"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "view": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "operation": {
+                        "const": "composition.governance-center-entry/v2#S-50"
+                      }
+                    },
+                    "required": [
+                      "operation"
+                    ]
+                  }
+                }
+              },
+              "remote": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage": {
+                          "const": "operation"
+                        }
+                      },
+                      "required": [
+                        "stage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "operation": {
+                              "const": "composition.governance-center-entry/v2#S-50"
+                            }
+                          },
+                          "required": [
+                            "operation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$ref": "#/$defs/Output"
+}

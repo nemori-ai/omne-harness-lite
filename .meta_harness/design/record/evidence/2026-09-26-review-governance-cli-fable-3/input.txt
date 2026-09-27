@@ -1,0 +1,10 @@
+仅复核你上一轮3个P3的最终处置，不重新展开全仓。工作区 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish，用户指定fable，无fallback。只Read/Grep/Glob，不改/运行/派发/外部调用/读取凭据。适用AGENTS约定继续生效。前轮公开报告 tmp/production-cli-onboarding/fable-review-report-r2.md，初轮report-r1.md；原7项与S59初始化路径已被前轮认定闭合。
+
+最终处置：
+P3#1 不改首次并发创建工作根的保守拒绝语义、不自行生成缺失marker；apps/tenancy-host/deploy/README.md新增单命令初始化、并发或crash可留无marker、所有进程真实退出后保留旧根改选新路径、禁止手补marker。已存在的完整marked根仍复用原锁。此为明确操作限制，未宣称竞态消失。
+P3#2 apps/tenancy-host/src/boot.ts abort只声明snapshot或absent-database marker remains/restoration is not confirmed；failure.ts同步注释。不扩充公开stage联合，低层preflight只是现有粗分类，详细message已有ownership retained。新增tests/maintenance-startup.spec.ts真实子进程：Node --import preload令首次marker.close失败仍开，host实际exit1，断言upgrade-unconfirmed、快照位置、ownership retained且不声称restore tried/failed；原marker保留，下一次正常host启动恢复并删除。加原upgrade两文件29通过，日志fable-p3-host-r1.log。
+P3#3 packages/infra/storage-sql/src/upgrade/owner.ts ownerTeardown.finish先留具名恢复错误，再release；双失败AggregateError保两cause。abortStartup同类finally覆盖也修为保result与release/inspection错误；顺序和资源未关闭保锁路径不改。tests/upgrade-failure-combination.spec.ts用真实storage，注入恢复失败+实际release关闭后报告失败，两支检查两个cause均保留，两通过fable-p3-storage-r1.log。测试初次TS missing this注解已补，完整typecheck-r2通过。
+
+仅这些行为改动与操作文档，新D057r2制品正独立重建，BUILD_ID待最终报告，不能把r1 QA当r2证明。D057r1已有独立47运行检查+全清单、全workspace1923pass34skip、3跨OS及systemd通过，完整记录正在封存，均不等于物理灾备或真实部署。无需重新追旧未变源码；请只检查上述diff是否引入实际错误/违反既有D055D056S59和升级规则，若要扩大阅读必须针对具体现象。不把有限测试或未重读说成无bug。不修改/接受/提交。
+
+输出：这3P3处置是否成立（#1仍保留的边界明确记作已记录限制），任何新可行动实际反例，实际读过/未覆盖范围。优先简短具体，避免扩大为未要求的新功能。

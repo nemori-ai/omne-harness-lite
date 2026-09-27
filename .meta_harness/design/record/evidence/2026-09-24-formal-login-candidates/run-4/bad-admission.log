@@ -1,0 +1,75 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 17 and seed 6659716399556533539 with 1 worker on 16 cores with 7122MB heap and 64MB offheap memory [pid: 1] (Linux 6.12.54-linuxkit aarch64, Oracle Corporation 25.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /model/LoginLifetime.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module LoginLifetime
+Starting... (2026-09-24 12:58:41)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-24 12:58:41.
+Error: Invariant NoRevival is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ now = 0
+/\ admittedAt = 0
+/\ lastSuccess = 0
+/\ expired = FALSE
+/\ effects = 0
+/\ phase = "idle"
+/\ resultOK = FALSE
+
+State 2: <Tick line 9, col 9 to line 12, col 74 of module LoginLifetime>
+/\ now = 1
+/\ admittedAt = 0
+/\ lastSuccess = 0
+/\ expired = FALSE
+/\ effects = 0
+/\ phase = "idle"
+/\ resultOK = FALSE
+
+State 3: <Admit line 13, col 10 to line 15, col 70 of module LoginLifetime>
+/\ now = 1
+/\ admittedAt = 1
+/\ lastSuccess = 0
+/\ expired = FALSE
+/\ effects = 0
+/\ phase = "running"
+/\ resultOK = FALSE
+
+State 4: <Tick line 9, col 9 to line 12, col 74 of module LoginLifetime>
+/\ now = 2
+/\ admittedAt = 1
+/\ lastSuccess = 0
+/\ expired = TRUE
+/\ effects = 0
+/\ phase = "running"
+/\ resultOK = FALSE
+
+State 5: <Result line 16, col 15 to line 18, col 77 of module LoginLifetime>
+/\ now = 2
+/\ admittedAt = 1
+/\ lastSuccess = 0
+/\ expired = TRUE
+/\ effects = 0
+/\ phase = "result"
+/\ resultOK = TRUE
+
+State 6: <Finalize line 19, col 13 to line 24, col 63 of module LoginLifetime>
+/\ now = 2
+/\ admittedAt = 1
+/\ lastSuccess = 1
+/\ expired = TRUE
+/\ effects = 1
+/\ phase = "idle"
+/\ resultOK = TRUE
+
+58 states generated, 38 distinct states found, 16 states left on queue.
+The depth of the complete state graph search is 6.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 4 and the 95th percentile is 4).
+Finished in 00s at (2026-09-24 12:58:41)

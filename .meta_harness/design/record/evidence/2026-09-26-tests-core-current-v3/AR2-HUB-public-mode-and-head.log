@@ -1,0 +1,21 @@
+../../tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/negative/mode-and-head.ts(5,7): error TS2322: Type '{ kind: "image"; fill: "append"; }' is not assignable to type 'ReductionMode'.
+  Types of property 'fill' are incompatible.
+    Type '"append"' is not assignable to type '"replace"'.
+../../tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/negative/mode-and-head.ts(6,7): error TS2322: Type '{ t: "open"; index: number; id: BlockId; visibility: { toHuman: true; toModel: true; }; kind: "voice"; fill: "append"; }' is not assignable to type 'OpenEvent'.
+  Type '{ t: "open"; index: number; id: BlockId; visibility: { toHuman: true; toModel: true; }; kind: "voice"; fill: "append"; }' is not assignable to type 'OpenBase & { readonly kind: "voice"; readonly fill: FillMode; readonly head: Omit<BlockHead, "callId" | "tool"> & { readonly callId?: never; readonly tool?: never; } & { ...; }; }'.
+    Property 'head' is missing in type '{ t: "open"; index: number; id: BlockId; visibility: { toHuman: true; toModel: true; }; kind: "voice"; fill: "append"; }' but required in type '{ readonly kind: "voice"; readonly fill: FillMode; readonly head: Omit<BlockHead, "callId" | "tool"> & { readonly callId?: never; readonly tool?: never; } & { readonly mediaType: string; }; }'.
+../../tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/negative/mode-and-head.ts(7,7): error TS2322: Type '{ t: "open"; index: number; id: BlockId; visibility: { toHuman: true; toModel: true; }; kind: "text"; fill: "append"; head: { callId: CallId; tool: string; }; }' is not assignable to type 'OpenEvent'.
+  Types of property 'head' are incompatible.
+    Type '{ callId: CallId; tool: string; }' is not assignable to type 'NonCallHead'.
+      Type '{ callId: CallId; tool: string; }' is not assignable to type '{ readonly callId?: never; readonly tool?: never; }'.
+        Types of property 'callId' are incompatible.
+          Type 'CallId' is not assignable to type 'never'.
+../../tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/negative/mode-and-head.ts(8,7): error TS2322: Type '{ t: "open"; index: number; id: BlockId; visibility: { toHuman: true; toModel: true; }; kind: "tool_result"; fill: "replace"; head: { mediaType: string; }; }' is not assignable to type 'OpenEvent'.
+  Types of property 'head' are incompatible.
+    Type '{ mediaType: string; }' is not assignable to type 'Omit<NonCallHead, "mediaType"> & { readonly mediaType?: never; }'.
+      Type '{ mediaType: string; }' is not assignable to type '{ readonly mediaType?: never; }'.
+        Types of property 'mediaType' are incompatible.
+          Type 'string' is not assignable to type 'never'.
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tools/core-verification:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 2: tsc -p /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/w3-arrival-v3-equivalence/epoch3-eabfff0f/consumer/tsconfig-negative-mode-and-head.json

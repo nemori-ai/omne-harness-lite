@@ -1,0 +1,5 @@
+ERROR: product/README.md:23: 表里写 PF-001 是 rev 17，而它的 README front-matter 是 rev 19
+ERROR: product/README.md:38: 表里写 PF-016 是 rev 6，而它的 README front-matter 是 rev 8
+ERROR: product/README.md:39: 表里写 PF-017 是 rev 2，而它的 README front-matter 是 rev 5
+ERROR: ubiquitous_language/terms/reach-and-availability.md UL-governance-center-reachability「出处」: 标的是 PF-017 rev 2，该 topic 现在是 rev 5——复核后再改 rev
+FAIL: 领域对象对账发现 4 处问题。

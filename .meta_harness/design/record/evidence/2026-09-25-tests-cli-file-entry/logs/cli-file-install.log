@@ -1,0 +1,12 @@
+Scope: all 18 workspace projects
+Progress: resolved 1, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/undici-types error (ECONNRESET). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/obug error (ECONNRESET). Will retry in 10 seconds. 2 retries left.
+Progress: resolved 47, reused 47, downloaded 0, added 0
+ WARN  Request took 10232ms: https://registry.npmjs.org/obug
+Progress: resolved 48, reused 47, downloaded 0, added 0
+ WARN  Request took 10277ms: https://registry.npmjs.org/undici-types
+Already up to date
+Progress: resolved 98, reused 73, downloaded 0, added 0, done
+
+Done in 11.1s using pnpm v10.28.1

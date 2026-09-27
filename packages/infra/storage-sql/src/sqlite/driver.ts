@@ -16,9 +16,12 @@ import {
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { isSqliteBusy, translateSqliteError, type StatementKind } from './errors.ts'
 import { UniqueConstraintResolver } from './constraints.ts'
+import { assertProductionStoragePath } from './protection.ts'
 
 export interface NodeSqliteDialectOptions {
   readonly file: string
+  /** 缺省 NORMAL；治理中心装配按 D-039 显式选 FULL。 */
+  readonly synchronous?: 'normal' | 'full'
   /** 本 Kysely 实例只做读或只做写：提供者为两种事务各开一个实例，事务种类因此在构造期就定了。 */
   readonly role: 'write' | 'read'
   /** 写锁争用的总等待上限；超过 ⇒ StorageUnavailable。 */
@@ -52,7 +55,8 @@ function returnsRows(sql: string): boolean {
   )
 }
 
-class NodeSqliteConnection implements DatabaseConnection {
+/** Internal reusable executor; not exported through the package's public entry. */
+export class NodeSqliteConnection implements DatabaseConnection {
   constructor(
     readonly db: DatabaseSync,
     readonly role: 'write' | 'read',
@@ -94,7 +98,14 @@ class NodeSqliteConnection implements DatabaseConnection {
   }
 }
 
+// Covers failed initialization before a connection can enter the pool.
+const retainedNativeHandles = new Set<DatabaseSync>()
+
 export class NodeSqliteDriver implements Driver {
+  readonly #native = new Set<DatabaseSync>()
+  get resourcesClosed(): boolean {
+    return [...this.#native].every(db => !db.isOpen)
+  }
   #writer: NodeSqliteConnection | undefined
   #readers: NodeSqliteConnection[] = []
   #openReaders = 0
@@ -116,15 +127,32 @@ export class NodeSqliteDriver implements Driver {
   }
 
   #open(role: 'write' | 'read'): DatabaseSync {
+    assertProductionStoragePath(this.options.file)
     const db = new DatabaseSync(this.options.file, {
       enableForeignKeyConstraints: true,
       timeout: role === 'write' ? 0 : 5000,
     })
-    db.exec('PRAGMA journal_mode = WAL')
-    db.exec('PRAGMA synchronous = NORMAL')
-    db.exec('PRAGMA foreign_keys = ON')
-    if (role === 'read') db.exec('PRAGMA query_only = ON')
-    return db
+    this.#native.add(db)
+    try {
+      db.exec('PRAGMA journal_mode = WAL')
+      db.exec(
+        this.options.synchronous === 'full'
+          ? 'PRAGMA synchronous = FULL'
+          : 'PRAGMA synchronous = NORMAL',
+      )
+      db.exec('PRAGMA foreign_keys = ON')
+      if (role === 'read') db.exec('PRAGMA query_only = ON')
+      return db
+    } catch (error) {
+      // The pool does not own this handle until initialization succeeds.
+      try {
+        db.close()
+      } catch (closing) {
+        if (db.isOpen) retainedNativeHandles.add(db)
+        throw new AggregateError([error, closing], 'sqlite initialization and cleanup failed')
+      }
+      throw error
+    }
   }
 
   async acquireConnection(): Promise<DatabaseConnection> {
@@ -133,8 +161,9 @@ export class NodeSqliteDriver implements Driver {
       const idle = this.#readers.pop()
       if (idle !== undefined) return idle
       if (this.#openReaders < MAX_READERS) {
+        const connection = new NodeSqliteConnection(this.#open('read'), 'read', this.#resolver)
         this.#openReaders += 1
-        return new NodeSqliteConnection(this.#open('read'), 'read', this.#resolver)
+        return connection
       }
       // 到上限：排队等一个读句柄被释放
       return new Promise<DatabaseConnection>(resolve => this.#readerWaiters.push(resolve))
@@ -223,12 +252,23 @@ export class NodeSqliteDriver implements Driver {
 
   /** 关准入 → 等在途写排空 → 关全部句柄。 */
   async destroy(): Promise<void> {
-    if (this.#closed) return
     this.#closed = true
     await this.#writeQueue
-    this.#writer?.db.close()
+    const failures: unknown[] = []
+    for (const db of this.#native) {
+      try {
+        if (db.isOpen) db.close()
+      } catch (error) {
+        failures.push(error)
+      }
+      if (db.isOpen) retainedNativeHandles.add(db)
+      else {
+        retainedNativeHandles.delete(db)
+        this.#native.delete(db)
+      }
+    }
+    if (failures.length > 0) throw new AggregateError(failures, 'sqlite handles failed to close')
     this.#writer = undefined
-    for (const reader of this.#readers) reader.db.close()
     this.#readers = []
   }
 }

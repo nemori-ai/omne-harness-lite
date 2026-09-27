@@ -1,0 +1,44 @@
+node:internal/child_process:1160
+    result.error = new ErrnoException(result.error, 'spawnSync ' + options.file);
+                   ^
+
+<ref *1> Error: spawnSync openssl ENOENT
+    at Object.spawnSync (node:internal/child_process:1160:20)
+    at spawnSync (node:child_process:928:24)
+    at execFileSync (node:child_process:971:15)
+    at openssl (file:///repo/apps/tenancy-host/tests/e2e/deploy.ts:36:3)
+    at makeCa (file:///repo/apps/tenancy-host/tests/e2e/deploy.ts:76:3)
+    at file:///repo/tmp/production-cli-onboarding/host-cli-integration/run.mjs:12:12 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'spawnSync openssl',
+  path: 'openssl',
+  spawnargs: [
+    'req',
+    '-x509',
+    '-config',
+    '/tmp/omne-host-cli-gOCafO/ca.cnf',
+    '-extensions',
+    'v3_ca',
+    '-newkey',
+    'ec',
+    '-pkeyopt',
+    'ec_paramgen_curve:P-256',
+    '-nodes',
+    '-keyout',
+    'ca.key',
+    '-out',
+    'ca.pem',
+    '-days',
+    '3'
+  ],
+  error: [Circular *1],
+  status: null,
+  signal: null,
+  output: null,
+  pid: 0,
+  stdout: undefined,
+  stderr: undefined
+}
+
+Node.js v24.21.0

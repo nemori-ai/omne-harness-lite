@@ -1,6 +1,6 @@
 # 研发角色源包
 
-本目录维护 4 个起草者（产品设计、架构、规格、实现映射）、4 个独立 reviewer、5 个开发者与 2 个 TUI 取证／验收角色的共享正文及两端配置。
+本目录维护 4 个起草者（产品设计、架构、规格、实现映射）、4 个独立 reviewer、6 个开发者与 2 个 TUI 取证／验收角色的共享正文及两端配置。
 实际设计事实来自明确工作区的 design/ 或本次输入，实施位置由任务指定；
 不从承载仓库或角色名称推断产品、包结构、能力清单与政策。
 
@@ -19,11 +19,12 @@
 | infrastructure-developer | 实现具体提供者、后端与实际资源/持久性/失败保证；默认 high | [提供者开发](infrastructure-developer/role.md) |
 | application-developer | 消费能力，完成应用装配和 API/CLI/Web 交互；默认 medium | [应用开发](application-developer/role.md) |
 | verification-developer | 实现跨边界场景、故障注入、测量及形式工具适配；默认 high | [验证开发](verification-developer/role.md) |
+| tui-developer | 按已接受契约实现终端交互与呈现、终端生命周期和输出边界；负责修复与自身回归，不代替独立取证或验收；默认 high | [TUI 开发](tui-developer/role.md) |
 | tui-debugger | 对终端界面（TUI）应用的异常现象做**取证**：可重跑的复现、分层证据、假设账本、修复建议，先排除终端特有的嫌疑变量；**不修、不判「修好」**，只写证据目录；默认 high | [TUI 取证](tui-debugger/role.md) |
 | tui-qa | 对 TUI 应用的一个交付增量按给定验收标准在真实装配上做**独立验收**：四态判决、机器证据、逐条对照、缺陷清单，外加终端矩阵、宽字符、resize、退出还原几关；**不修、不接受**，只写场景目录与证据目录；默认 high | [TUI 验收](tui-qa/role.md) |
 
 角色正文拥有职责与边界，`codex.toml`、`claude.yaml` 和可选模型适配段拥有宿主差异。
-共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联：五个开发者在品味之后内联[共同契约](developer-contract.md)，
+共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联：六个开发者在品味之后内联[共同契约](developer-contract.md)，
 固定提示已经包含必要输入、行动授权和停止条件；[派发模板](developer-task.md)提供本次事实，不进入固定提示。
 生成说明见[工具入口](../../tooling/README.md)，生成物归工作区内
 `.codex/agents/` 与 `.claude/agents/`；这些目录由工具生成，未生成时不作为文档链接目标。
@@ -31,7 +32,7 @@
 ## 共享研发品味
 
 [研发品味](engineering-taste.md)是全部设计与研发角色共用的**唯一**品味正文：
-三个技术 drafter、三个技术 reviewer、五个开发者与两个 TUI 角色都把它列为 `shared_prompts` 的第一项，
+三个技术 drafter、三个技术 reviewer、六个开发者与两个 TUI 角色都把它列为 `shared_prompts` 的第一项，
 拼接顺序为 `role.md` → 研发品味 →（开发者）共同契约 → 模型适配段。
 它的导语写明只在各角色自身的职责、判断对象与授权之内生效：评审与验收角色不把品味当独立发现来源或验收判据。
 
@@ -103,16 +104,18 @@ product-design-reviewer 同样只读，但判断对象是产品文档，不走 h
 没有问题只说明本次范围内未发现阻断项。无写入、无执行测试/形式工具、无继续委派；
 报告通过返回消息交付，由派发者按已有授权保存。
 
-## TUI 取证与验收：tui-debugger 与 tui-qa
+## TUI 开发、取证与验收
 
-这一对角色服务于**终端界面（TUI）应用**的运行现象，与 reviewer 判文档、developer 改代码都不同：
+tui-developer 消费应用契约并实现终端交互；派发时给齐共同开发输入及目标终端矩阵、输出契约和真实组合边界。
+
+tui-debugger 与 tui-qa 这一对角色服务于**终端界面（TUI）应用**的运行现象，与 reviewer 判文档、developer 改代码都不同：
 它们**运行被测程序、往指定目录写证据**，但**不改产品源码、不接受结果**。
 设计依据与调研在 [`design/record/proposals/cli-tui`](../../design/record/proposals/cli-tui/README.md)
 与 [`research/agent-debugger-subagents`](../../research/agent-debugger-subagents/README.md)。
 
 | 角色 | 问的问题 | 可写 | 交给谁 |
 |---|---|---|---|
-| developer 五角色 | 怎么把它做出来 | 产品源码、计划划定的测试 | 派发者 |
+| developer 六角色 | 怎么把它做出来 | 产品源码、计划划定的测试 | 派发者 |
 | verification-developer | 验证**设施**怎么建（无头终端驱动、替身后端、故障注入、证据 hook） | `tools/`、测试基础设施 | 派发者 |
 | tui-debugger | 这个异常**怎么发生的** | 只写证据目录；埋点只在显式给定的隔离工作树里且收工前撤净 | 派发者 → developer |
 | tui-qa | 交付的东西按标准**到底过没过** | 只写验收场景目录与证据目录 | 派发者／产品负责人接受 |
@@ -145,7 +148,7 @@ product-design-reviewer 同样只读，但判断对象是产品文档，不走 h
 就绪按本任务的语义、提供者、装配与证据分别判断，内部算法和组织在既定契约内自主选择；
 不能把尚未决定的公共语义交给 worker 猜测，也不为四项输入复制四套长期文档。
 
-接口与前提可消费、写入不冲突时，消费者、提供者、应用和验证可并行；不强制五角色流水线。
+接口与前提可消费、写入不冲突时，消费者、提供者、应用和验证可并行；不强制按角色排流水线。
 每份共享接口/Schema/锁文件/装配资产指定写入负责人，需要组合时指定真实组合交付负责人。
 替身和分支单测只支持其范围；组合责任不附带他人的写权、继续委派、Git 合并或接受权。
 

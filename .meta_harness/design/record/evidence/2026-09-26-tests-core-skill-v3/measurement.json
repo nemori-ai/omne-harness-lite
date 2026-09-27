@@ -1,0 +1,238 @@
+{
+  "source_head": "009997222ff0268d83baa75ffc731990ab3a4587",
+  "original_integrated_head": "06b85a14ab3439b35b4f51211adcb0731fea6908",
+  "core_util_tools_tests": [
+    {
+      "package": "@omne-harness-lite/identity-values",
+      "passed": 259,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/kernel-basis",
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/storage",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/unix-format",
+      "passed": 121,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/xml-format",
+      "passed": 170,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/content-blocks",
+      "passed": 410,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/offer-expiry",
+      "passed": 85,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/ts-checks",
+      "passed": 306,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/asset-model",
+      "passed": 422,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/model-profile",
+      "passed": 185,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/call-accounts",
+      "passed": 602,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/tool-definition",
+      "passed": 282,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/mcp-endpoint",
+      "passed": 157,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/messages",
+      "passed": 473,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/skill-package",
+      "passed": 437,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/loop-extension",
+      "passed": 581,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/slash-command",
+      "passed": 408,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/arrival-events",
+      "passed": 673,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/asset-evaluation",
+      "passed": 168,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/model-response",
+      "passed": 242,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/stream-assembly",
+      "passed": 479,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "package": "@omne-harness-lite/core-verification",
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "total_passed": 6534,
+  "total_failed": 0,
+  "total_skipped": 0,
+  "independent": {
+    "format": 1,
+    "status": "verified-within-assigned-scope",
+    "source_head": "06b85a14ab3439b35b4f51211adcb0731fea6908",
+    "node": "24.18.0",
+    "pnpm": "10.28.1",
+    "typescript": "6.0.3",
+    "yaml": "2.9.1",
+    "behavior_pass": 54,
+    "behavior_fail": 0,
+    "normative_new_text_rows": 14,
+    "normative_new_directory_rows": 3,
+    "strict_typecheck_exit": 0,
+    "negative_control": {
+      "status": "pass",
+      "clean_exit": 0,
+      "mutant_exit": 1,
+      "target_assertion_detected": true,
+      "live_md_unchanged": true,
+      "mutation": {
+        "file": "dist/md.js",
+        "clean_sha256": "f299f4130f93cf71d5395926ae4df119687325cf8f3f7f6f2939a683ba6beb0f",
+        "mutant_sha256": "455a95273f57845f76cad28dabe2b3fb43fe475bc056b4cc1d2bcbd7a8bd9c96",
+        "old_predicate": "keys.tags.size !== 0",
+        "replacement": "false",
+        "scope": "Only unknown scalar canonical ambiguity rejection is suppressed; known duplicate rejection remains enabled"
+      },
+      "matcher_selfcheck": {
+        "module_error_rejected": true,
+        "unrelated_assertion_rejected": true
+      },
+      "limits": [
+        "Scratch copied compiled module only; no product source or HUB dist mutation",
+        "This control detects erroneous admission of the chosen unknown-tag ambiguity, not all reader defects"
+      ]
+    },
+    "input_file_count": 483,
+    "all_live_inputs_unchanged": true,
+    "first_failures_preserved": [
+      "run/",
+      "types.stdout.log",
+      "types.stderr.log"
+    ],
+    "acceptance_authority": false,
+    "human_overall_acceptance": false,
+    "limits": [
+      "entries are caller supplied; no actual filesystem link resolution is claimed",
+      "readers are pure; no real Skills runtime, authorization, scripts, transport, registration or storage is claimed",
+      "finite resource graph compiles each Skill own definition; it does not compile all AM2 definitions",
+      "whole external CS obligations, Connector, production consumers and human final acceptance remain outside this run"
+    ]
+  },
+  "actual_packed_members": 20,
+  "types": 512,
+  "json_exports": 22,
+  "ts_private_path_denials": 138,
+  "readme_pairs": 22,
+  "unique_typescript_examples": 57,
+  "storage_provider_example_limit": "storage1 compiled/loaded injected-provider function; no storage provider invocation",
+  "postgres_readme_limit": "configuration validation only; no PostgreSQL connection or transaction",
+  "archives": [
+    {
+      "archive": "root-packed-consumer.tar.gz",
+      "files": 90,
+      "bytes": 1184091,
+      "sha256": "b3157725aba76aa05342cbc1e7e7f9539eada3edb793275813f0abf20b993d67"
+    },
+    {
+      "archive": "root-integrated-gates.tar.gz",
+      "files": 67,
+      "bytes": 3045830,
+      "sha256": "9cf11f59a987c436e1bb12a9745a22389c03b6f3916d31a5287209e1f547869a"
+    },
+    {
+      "archive": "readme-verification.tar.gz",
+      "files": 594,
+      "bytes": 1466743,
+      "sha256": "641b7908d483dbf55b4eed1cfcc8481ba909ac9e68333ca98b20304b99dc2aa9"
+    },
+    {
+      "archive": "integrated-source-inputs.tar.gz",
+      "files": 1473,
+      "bytes": 20797662,
+      "sha256": "5cf5ab622abc3e8bf415fccbb3acd0b3c98f6171acafcc470a050b3d06282005"
+    },
+    {
+      "archive": "skill-author.tar.gz",
+      "files": 252,
+      "read_back": true
+    },
+    {
+      "archive": "skill-independent.tar.gz",
+      "files": 149,
+      "read_back": true
+    }
+  ],
+  "model_solver_rerun": false
+}

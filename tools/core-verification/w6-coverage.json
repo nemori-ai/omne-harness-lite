@@ -1,0 +1,784 @@
+{
+  "format": 1,
+  "matrix_sha256": "a35621b4bf031272351012b11fa8f5a545f982801895c062640d1c9e65387ad9",
+  "status": "development mapping; external facts not verified",
+  "obligations": [
+    {
+      "id": "storage.real-provider",
+      "sources": [
+        {
+          "path": ".meta_harness/design/realization/packages/core/storage/design.md",
+          "section": "storage 实现设计"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "public openStorage → describeStorageConformance, real temporary SQLite file, two instances",
+      "case_ids": [
+        "storage.conformance.real-sqlite: the unmodified public provider passes every case"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "infra/storage-sql owns engine mappings/WAL behavior; no PostgreSQL evidence",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "storage.suite-mutation",
+      "sources": [
+        {
+          "path": ".meta_harness/design/realization/packages/core/storage/design.md",
+          "section": "storage 实现设计"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "same full public suite against public SqlStorage wrapper with verified PRAGMA foreign_keys=0 before BEGIN",
+      "case_ids": [
+        "storage.conformance.detects-disabled-foreign-keys: C-11/C-12 fail their real assertions"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "test fixture owns only its connection and temporary database; no lockRow-noop inference",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "content-blocks.nested-unique",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/content-blocks/verification.md",
+          "section": "V-3"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "CB judgments → actual Messages recursive message ID boundary",
+      "case_ids": [
+        "w6.messages.nested-unique-boundary"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "session log owns cross-message identity uniqueness and persistence",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "content-blocks.tool-parse-chain",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/content-blocks/verification.md",
+          "section": "V-11"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/content-blocks/verification.md",
+          "section": "SC-2"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "AR envelope → actual SA.accept(close) → CB raw/lossless result → Messages",
+      "case_ids": [
+        "w6.stream.duplicate-parameters-versus-outer-text",
+        "w6.stream.lossless-numbers-and-opaque-arguments",
+        "w6.stream.bad-name-retained-as-unparseable",
+        "w6.stream.cut-incomplete-versus-safe-merge"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "transport owns authentic upstream arrival and late delivery; SA release pending",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "asset-model.six-real-ports",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/verification.md",
+          "section": "V-3"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/verification.md",
+          "section": "V-5"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/verification.md",
+          "section": "SC-6"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "actual five bodyContract references → AM body/record judgments; Connector sixth port deferred",
+      "case_ids": [
+        "w6.asset.five-real-ports",
+        "w6.asset.body-rejections",
+        "w6.asset.reserved-and-duplicate-real-body"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "Connector provider is outside core; AM availability guard must remain explicit",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "call-accounts.stream-account-chain",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/call-accounts/verification.md",
+          "section": "V-3"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/call-accounts/verification.md",
+          "section": "V-7"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/call-accounts/verification.md",
+          "section": "V-8"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "CA account judgment → AR account/trim arrivals → actual SA frame settlement/unknown",
+      "case_ids": [
+        "w6.stream.tool-frame-replace-and-account",
+        "w6.stream.trim-pairing-and-frame-formulas",
+        "w6.stream.reported-and-unknown-accounts"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "tool-execution runtime owns emitted/delivered distinction and late bill ownership",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "messages.stream-boundary",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/messages/verification.md",
+          "section": "V-3"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/messages/verification.md",
+          "section": "V-6"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/messages/verification.md",
+          "section": "V-13"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "actual SA snapshot/closeOut/abandon → Messages judgment and MR shape",
+      "case_ids": [
+        "w6.stream.duplicate-parameters-versus-outer-text",
+        "w6.stream.lossless-numbers-and-opaque-arguments",
+        "w6.stream.cut-incomplete-versus-safe-merge",
+        "w6.stream.nested-message-identity-boundary",
+        "w6.stream.model-settlement-shapes"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "session-log owner owns append and reference existence",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "mcp-endpoint.schema-boundary-chain",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/mcp-endpoint/verification.md",
+          "section": "V-3"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/mcp-endpoint/verification.md",
+          "section": "V-4"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "actual MCP snapshot accepts pathological valid pattern → AM/AE projection → TD unsupported at admission/argument judgment",
+      "case_ids": [
+        "w6.asset.mcp-schema-execution-boundary"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "MCP registry owns fetched snapshot authenticity/pinning; bridge/execution runtime owns real call and timeout",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "arrival-events.stream-grammar",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/arrival-events/verification.md",
+          "section": "V-4"
+        },
+        {
+          "path": ".meta_harness/design/spec/data/arrival-events/verification.md",
+          "section": "V-7"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "AR shape → actual SA sequenceFailure names and unchanged rejected state",
+      "case_ids": [
+        "w6.stream.refusal-priority-and-historical-state",
+        "w6.stream.tool-frame-replace-and-account",
+        "w6.stream.decoded-voice-split-invariance",
+        "w6.stream.reported-and-unknown-accounts"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "transport/runtime owns target routing and event serialization",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "model-response.settlement-chain",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/model-response/verification.md",
+          "section": "V-1"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "actual CA/AR/SA settlement → actual MR judge → runtime-record Messages judge",
+      "case_ids": [
+        "w6.stream.model-settlement-shapes",
+        "w6.stream.lost-failure-delivered-and-in-band",
+        "w6.stream.reported-and-unknown-accounts"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "model-request runtime owns response ID/ref existence, late settlement and durable commit",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "stream-assembly.actual-core-chain",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/capabilities/stream-assembly/verification.md",
+          "section": "V-2"
+        },
+        {
+          "path": ".meta_harness/design/spec/capabilities/stream-assembly/verification.md",
+          "section": "V-4"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "actual CB/CA/AR → SA → Messages/MR, independent hand-calculated bytes/accounts/blocks",
+      "case_ids": [
+        "w6.stream.duplicate-parameters-versus-outer-text",
+        "w6.stream.lossless-numbers-and-opaque-arguments",
+        "w6.stream.bad-name-retained-as-unparseable",
+        "w6.stream.cut-incomplete-versus-safe-merge",
+        "w6.stream.decoded-voice-split-invariance",
+        "w6.stream.tool-frame-replace-and-account",
+        "w6.stream.trim-pairing-and-frame-formulas",
+        "w6.stream.reported-and-unknown-accounts",
+        "w6.stream.refusal-priority-and-historical-state",
+        "w6.stream.snapshot-value-and-branching",
+        "w6.stream.nested-message-identity-boundary",
+        "w6.stream.model-settlement-shapes",
+        "w6.stream.lost-failure-delivered-and-in-band"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "transport owns genuine decoded arrivals; source identities supplied by caller; SA release pending",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "asset-evaluation.six-default-ports",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/capabilities/asset-evaluation/verification.md",
+          "section": "V-2"
+        },
+        {
+          "path": ".meta_harness/design/spec/capabilities/asset-evaluation/verification.md",
+          "section": "V-4"
+        },
+        {
+          "path": ".meta_harness/design/spec/capabilities/asset-evaluation/verification.md",
+          "section": "SC-1"
+        }
+      ],
+      "linked_obligation_ids": [],
+      "core_step": "five actual contracts → AM → AE attributes, replacement/locks/filtering and workspace reading; Connector sixth port deferred",
+      "case_ids": [
+        "w6.asset.five-real-ports",
+        "w6.asset.layer-lock-and-setting-discontinuity",
+        "w6.asset.workspace-normalized-skill-reading",
+        "w6.asset.nonconnector-record-domain"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "PRE1-9 snapshot assembly, effective memberships, transfer validity, factory completeness, FS and MCP pinning owned by runtime/assets/session providers",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "asset-model.walkthrough-cs-1-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
+          "section": "CS-1 求值读一格的持有"
+        }
+      ],
+      "linked_obligation_ids": [
+        "asset-evaluation.filter-replace-lock",
+        "asset-model.record-invariants"
+      ],
+      "core_step": "AM records/holdings → AE disabled-before-lock replacement + selected actual TD declarations",
+      "case_ids": [
+        "w6.asset.layer-lock-and-setting-discontinuity"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "assets registry/input assembler owns one holding per layer/capability and selected version snapshot",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "asset-model.walkthrough-cs-5-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
+          "section": "CS-5 读入一份承载清单"
+        }
+      ],
+      "linked_obligation_ids": [
+        "asset-model.manifest-paths",
+        "asset-evaluation.workspace-carrier"
+      ],
+      "core_step": "AM parseWorkspaceManifestText/carrierRecordId → AE readWorkspaceCarrier/evaluate",
+      "case_ids": [
+        "w6.asset.workspace-normalized-skill-reading"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "workspace/session owner owns real directory reading, identity binding and at timestamp",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "asset-model.walkthrough-cs-6-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
+          "section": "CS-6 一笔账记到一个 MCP 接入点"
+        }
+      ],
+      "linked_obligation_ids": [
+        "asset-model.names-carrier",
+        "call-accounts.closed-values"
+      ],
+      "core_step": "actual AM capabilityCanonicalString(mcp/remote) → CA exact CostItem judgment",
+      "case_ids": [
+        "w6.asset.scope-identity-and-billing"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "MCP execution owner owns whether remote billed and emitted reference correctness",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "asset-model.walkthrough-cs-7-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
+          "section": "CS-7 租户领域的三条走查"
+        }
+      ],
+      "linked_obligation_ids": [
+        "identity-values.tenant-key",
+        "asset-model.record-invariants"
+      ],
+      "core_step": "identity TenantId comparison → AM author/owner/official checks → AE foreign-tenant holding rejection",
+      "case_ids": [
+        "w6.asset.scope-identity-and-billing",
+        "w6.asset.workspace-normalized-skill-reading"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "identity/session/assets owners own current membership, unique keys and persistence",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "asset-model.walkthrough-cs-8-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/asset-model/v3/contract.md",
+          "section": "CS-8 正文契约写推出规则"
+        }
+      ],
+      "linked_obligation_ids": [
+        "asset-model.six-real-ports"
+      ],
+      "core_step": "real TD bodyContract declaration → AM shared attribute declaration/reserved guards → AE values",
+      "case_ids": [
+        "w6.asset.five-real-ports",
+        "w6.asset.reserved-and-duplicate-real-body"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "tool runtime owns consuming declared settings/permission effects; Connector deferred",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "content-blocks.walkthrough-cs-1-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/content-blocks/v3/contract.md",
+          "section": "CS-1 消息层给压缩点名"
+        }
+      ],
+      "linked_obligation_ids": [
+        "messages.log-pure-predicates",
+        "content-blocks.nested-unique"
+      ],
+      "core_step": "CB nested block annotations → Messages recursive identity check and compression projection",
+      "case_ids": [
+        "w6.messages.nested-unique-boundary",
+        "w6.messages.nested-readability-and-compaction"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "session/context owners own persisted exact immutable log and compression records",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "content-blocks.walkthrough-cs-2-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/content-blocks/v3/contract.md",
+          "section": "CS-2 流装配交出封口的块"
+        }
+      ],
+      "linked_obligation_ids": [
+        "content-blocks.tool-parse-chain",
+        "stream-assembly.tool-close-once"
+      ],
+      "core_step": "SA accepted complete close / abandonment → CB complete/unparseable/incomplete → Messages",
+      "case_ids": [
+        "w6.stream.duplicate-parameters-versus-outer-text",
+        "w6.stream.bad-name-retained-as-unparseable",
+        "w6.stream.cut-incomplete-versus-safe-merge"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "tool runtime owns callId registration and nonexecution for unparseable/incomplete",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "content-blocks.walkthrough-cs-3-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/content-blocks/v3/contract.md",
+          "section": "CS-3 上下文组装取块"
+        }
+      ],
+      "linked_obligation_ids": [
+        "messages.readable-conjunction"
+      ],
+      "core_step": "CB readableBlocks nested visibility conjunction under Messages runtime blocks",
+      "case_ids": [
+        "w6.messages.nested-readability-and-compaction"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "context assembler owns choosing target audience and final model projection",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "tool-definition.walkthrough-cs-5-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/tool-definition/v3/contract.md",
+          "section": "CS-5 由 MCP 列举生成定义"
+        }
+      ],
+      "linked_obligation_ids": [
+        "mcp-endpoint.schema-boundary-chain"
+      ],
+      "core_step": "actual MCP snapshot/actionEntryName → TD same inputSchema admission/argument judgment",
+      "case_ids": [
+        "w6.asset.mcp-schema-execution-boundary"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "bridge owns fetched authenticity and safe execution boundary",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "tool-definition.walkthrough-cs-8-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/tool-definition/v3/contract.md",
+          "section": "CS-8 接住一次工具返回"
+        }
+      ],
+      "linked_obligation_ids": [
+        "tool-definition.string-result",
+        "content-blocks.block-model"
+      ],
+      "core_step": "actual toolResultOf JSON-looking string → actual CB text block; no JSON parsing",
+      "case_ids": [
+        "w6.tool.result-to-content"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "tool execution/runtime owns durable result identity and offload bytes",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "messages.walkthrough-cs-4-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/messages/v3/contract.md",
+          "section": "CS-4 流装配收尾"
+        }
+      ],
+      "linked_obligation_ids": [
+        "messages.stream-boundary"
+      ],
+      "core_step": "actual SA closure/settlement → Messages and MR judges",
+      "case_ids": [
+        "w6.stream.model-settlement-shapes",
+        "w6.stream.lost-failure-delivered-and-in-band"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "session/runtime owners own reference existence and durable same-commit writes",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "skill-package.walkthrough-cs-1-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-1 资产模型收一份技能"
+        }
+      ],
+      "linked_obligation_ids": [
+        "skill-package.shape-declarations",
+        "asset-model.six-real-ports"
+      ],
+      "core_step": "actual normalized Skill bodyContract → AM record acceptance/rejection; current3 read/value and actual frozen2 consumer judgment explicitly separate",
+      "case_ids": [
+        "w6.asset.five-real-ports",
+        "w6.asset.body-rejections",
+        "w7.skill.current3-author-ref-rejected-by-frozen2-consumers"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "governance/registry owns real published package bytes/version immutability",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified",
+      "previous_sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-1 资产模型收一份技能"
+        }
+      ]
+    },
+    {
+      "id": "skill-package.walkthrough-cs-5-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-5 ② 型斜杠命令展开一份技能"
+        }
+      ],
+      "linked_obligation_ids": [
+        "slash-command.expansion"
+      ],
+      "core_step": "actual Slash recognize/parseInvocation/expandSkill → verbatim CB text → Messages user judgment; current3 read/value and actual frozen2 consumer judgment explicitly separate",
+      "case_ids": [
+        "w6.skill.slash-expansion-to-messages",
+        "w7.skill.current3-author-ref-rejected-by-frozen2-consumers"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "runtime owns actual effective usableBy before command execution and resource retrieval",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified",
+      "previous_sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-5 ② 型斜杠命令展开一份技能"
+        }
+      ]
+    },
+    {
+      "id": "skill-package.walkthrough-cs-6-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-6 工作区读入目录里的一份技能"
+        }
+      ],
+      "linked_obligation_ids": [
+        "skill-package.normalized-package",
+        "asset-evaluation.workspace-carrier"
+      ],
+      "core_step": "real Skill readSkillPackage normalized file entries → AM manifest/carrier → AE workspace-only holding; current3 read/value and actual frozen2 consumer judgment explicitly separate",
+      "case_ids": [
+        "w6.asset.workspace-normalized-skill-reading",
+        "w7.skill.current3-unknown-key-ambiguity",
+        "w7.skill.ordinary-unknown-and-exact-body",
+        "w7.skill.escape-priority-over-text-ambiguity"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "workspace reader owns filesystem snapshot and symlink containment, not established by provided entries",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified",
+      "previous_sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-6 工作区读入目录里的一份技能"
+        }
+      ]
+    },
+    {
+      "id": "skill-package.walkthrough-cs-7-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-7 属性项投影长出设置页"
+        }
+      ],
+      "linked_obligation_ids": [
+        "skill-package.shape-declarations",
+        "asset-model.six-real-ports"
+      ],
+      "core_step": "real Skill declared tone → AM shared reserved declarations → AE effective value; current3 read/value and actual frozen2 consumer judgment explicitly separate",
+      "case_ids": [
+        "w6.asset.five-real-ports"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "settings UI and Skills runtime own form presentation/consumption; not part of core",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified",
+      "previous_sources": [
+        {
+          "path": ".meta_harness/design/spec/data/skill-package/v3/contract.md",
+          "section": "CS-7 属性项投影长出设置页"
+        }
+      ]
+    },
+    {
+      "id": "mcp-endpoint.walkthrough-cs-2-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/mcp-endpoint/v2/contract.md",
+          "section": "CS-2 求值为一次尝试推出属性项"
+        }
+      ],
+      "linked_obligation_ids": [
+        "mcp-endpoint.names-and-attributes",
+        "asset-evaluation.six-default-ports"
+      ],
+      "core_step": "real fetched MCP snapshot → AM/AE per-action execute permission projection",
+      "case_ids": [
+        "w6.asset.mcp-schema-execution-boundary"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "registry owns attempted pinned action set; unavailable action assignment must be preserved externally",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "arrival-events.walkthrough-cs-1-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/arrival-events/v2/contract.md",
+          "section": "CS-1 装配器拼一条回复"
+        }
+      ],
+      "linked_obligation_ids": [
+        "arrival-events.stream-grammar"
+      ],
+      "core_step": "actual AR open/fill/close/finish → SA ordered complete/incomplete response blocks",
+      "case_ids": [
+        "w6.stream.duplicate-parameters-versus-outer-text",
+        "w6.stream.lossless-numbers-and-opaque-arguments",
+        "w6.stream.cut-incomplete-versus-safe-merge",
+        "w6.stream.model-settlement-shapes"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "model transport owns authentic arrival sequence and max_tokens finish",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "arrival-events.walkthrough-cs-2-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/arrival-events/v2/contract.md",
+          "section": "CS-2 装配器接一段帧流"
+        }
+      ],
+      "linked_obligation_ids": [
+        "arrival-events.stream-grammar",
+        "arrival-events.reduce-payloads"
+      ],
+      "core_step": "actual AR replace-fill progress/log frames → SA interrupted settlement without bill",
+      "case_ids": [
+        "w6.stream.tool-frame-replace-and-account",
+        "w6.stream.lost-failure-delivered-and-in-band",
+        "w6.stream.trim-pairing-and-frame-formulas"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "tool runtime owns frame emission, transport delivery and actual cancellation",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "slash-command.walkthrough-cs-5-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/slash-command/v2/contract.md",
+          "section": "CS-5 发布一条名字带保留前缀的提示词命令"
+        }
+      ],
+      "linked_obligation_ids": [
+        "slash-command.definition-port",
+        "asset-model.six-real-ports"
+      ],
+      "core_step": "actual Slash body in AM customized record → name_reserved vs lexical name_invalid",
+      "case_ids": [
+        "w6.asset.reserved-and-duplicate-real-body"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "asset-governance owns refusing publication and user presentation",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    },
+    {
+      "id": "slash-command.walkthrough-cs-7-core-step",
+      "sources": [
+        {
+          "path": ".meta_harness/design/spec/data/slash-command/v2/contract.md",
+          "section": "CS-7 资产求值推一条命令的属性项"
+        }
+      ],
+      "linked_obligation_ids": [
+        "slash-command.definition-port",
+        "asset-evaluation.six-default-ports"
+      ],
+      "core_step": "actual Slash empty declarations → AM only reserved disabled/usableBy → AE effective values",
+      "case_ids": [
+        "w6.asset.five-real-ports"
+      ],
+      "measurement_status": "executed within stated core step in measurement epoch5 in this spoke; source/command artifacts in task evidence; root acceptance and external premise remain outstanding",
+      "external_owner_and_premise": "runtime owns using effective permission before invocation",
+      "acceptance": "root only; no full external CS closure claimed",
+      "previous_measurement_status": "executed within stated core step in measurement epoch4; see source-bound run manifest; external premise remains unverified"
+    }
+  ],
+  "deferred": [
+    "connector.walkthrough-cs-1-core-step",
+    "connector.walkthrough-cs-5-core-step"
+  ],
+  "spec_epoch": 3,
+  "previous_epoch_source_release": "db04f61f0ed5cd4e9689980bedf71cbc79bde9f0",
+  "scope_note": "221 current scope; Connector two IDs excluded; current Skill3 reader/values remeasured with explicit frozen Skill2 bodies for AM3/AE3/Slash2; external owner/premises and overall human acceptance remain unverified",
+  "measurement_evidence_root": "tmp/core-delivery/skill-v3-implementation",
+  "measurement_epoch": 5,
+  "product_source_release": null,
+  "historical_measurements": [
+    {
+      "measurement_epoch": 4,
+      "source_commit": "f877aeb22924cae33abc884c35402a9732d0e177",
+      "path": "tools/core-verification/w6-coverage.json",
+      "sha256": "53e800e46f7a009a97f6095b388c337c476f54924c1e581bf797cafa1e4c7ff0",
+      "previous_product_source_release": "0ec3eed2d5a5d3323caea5e8775de095fa13f3f0",
+      "scope": "exact prior file retained in Git and copied to this task evidence; do not reinterpret old2/SP3 partial measurements as3"
+    }
+  ],
+  "source_binding": "source-bound working-tree manifest in task evidence; root integration/acceptance supplies final release commit",
+  "matrix_role": "original delivery scope/classification input only; current root acceptance matrix is independent",
+  "skill_coordinates": {
+    "reader": 3,
+    "value_root": 3,
+    "adopted_body_for_AM3_AE3_Slash2": 2
+  }
+}

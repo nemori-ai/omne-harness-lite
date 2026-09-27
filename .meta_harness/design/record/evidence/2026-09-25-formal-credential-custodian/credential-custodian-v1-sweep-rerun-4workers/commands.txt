@@ -1,0 +1,1 @@
+/opt/java/jdk-21.0.12.1+1-jre/bin/java -XX:+UseParallelGC -Xmx8g -cp /opt/tlaplus/tla2tools.jar tlc2.TLC -metadir tmp/tlc/cc-rerun -cleanup -noGenerateSpecTE -workers 4 -config spec/capabilities/credential-custodian/v1/formal/Sweep.cfg spec/capabilities/credential-custodian/v1/formal/Sweep.tla

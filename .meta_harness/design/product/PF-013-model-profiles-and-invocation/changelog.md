@@ -8,7 +8,9 @@
 
 ## 当前修订
 
-**rev 12**（2026-09-24）· 同路由名的档案并存，运行时按层从下往上覆盖（租户 > 组织 > 官方）。**rev 5–12 全文待确认**。
+**rev 13**（2026-09-25）· 验收两处加注：S5b 在据点形态不适用（据点不放出厂凭据，PF-016 §6.20）；S10c「这次用的」呈现归 PF-016。含义只收窄验收适用范围，模型与规则不变；下游只需复核 PF-013 投影 §7.4 第 6、7 条。**rev 5–13 全文待确认**。
+
+**rev 12**（2026-09-24）· 同路由名的档案并存，运行时按层从下往上覆盖（租户 > 组织 > 官方）。
 rev 4 已于 2026-09-23 正式接受（[记录](decisions.md#2026-09-23--接受为正式)）。
 
 ## 历史
@@ -42,7 +44,7 @@ rev 4 已于 2026-09-23 正式接受（[记录](decisions.md#2026-09-23--接受�
 **不改的**：一条档案的身份是（范围，路由名）；同一个范围里一个路由名只有一条；撤回不删行、可恢复；凭据挂在范围上；选中与有效两分；合法目标不得拒绝；不替用户改选（选的是名字，名字没变）。
 
 **下游要复核什么**：
-- **规格**（候选契约，随本程规格批次入库，坐标见[身份清单](../../registry/README.md)）：`data.model-profile` v1 的引用与解析（S-13、S-14：「那项设置的取值是一条精确引用」与「设置记的是路由名、按层取胜者」要对上）、`capability.model-profile-directory` v1 的列表、`capability.model-request-runtime` v1 的有效模型、合法目标与展示列表——按「名字按层覆盖、先滤已撤回与这个范围不允许的、被盖住的只作标注、链上同名都撤回才『已下架』」对一遍。
+- **规格**（候选契约，随本程规格批次入库，坐标见[身份清单](../../registry/README.md)）：`data.model-profile` v2 的引用与解析（S-13、S-14：「那项设置的取值是一条精确引用」与「设置记的是路由名、按层取胜者」要对上）、`capability.model-profile-directory` v2 的列表、`capability.model-request-runtime` v2 的有效模型、合法目标与展示列表——按「名字按层覆盖、先滤已撤回与这个范围不允许的、被盖住的只作标注、链上同名都撤回才『已下架』」对一遍。
 - **[PF-016](../PF-016-cli-tui-delivery-surface/README.md)**：展示列表里被盖住的同名条目怎么呈现。
 - **统一语言与领域对象**：出处标 PF-013 rev 11 的词条与对象条目逐条复核；档案相关词条与「模型档案」对象条目要写进按层覆盖；[选中模型](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model)、[模型切换](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)的定义要写明设置值是名字。
 
@@ -71,13 +73,13 @@ rev 4 已于 2026-09-23 正式接受（[记录](decisions.md#2026-09-23--接受�
 | [§5.11](design.md#511-有-transcript-的块不再把任何模型挡在外面) 代价那段 | 同一处错链改指 §4 转换件，并点明落在交付面对那条消息的呈现上 |
 | [§8](design.md#八边界与依赖)「留给别处的」 | 新增 PF-016 一行：一条被转换过的消息怎么呈现，标在哪、怎么标归交付面 |
 | [acceptance S26b](acceptance.md) | 「用户看得出」补上看得出的方式与链接 |
-| [decisions](decisions.md) | §二新增 rev 11 一节（P40）；§四那一行闭合，PF-016「组织层那一把」那一行随 PF-016 rev 6 一并闭合；裁决 19 代价那一格的错链改指 §4 |
+| [decisions](decisions.md) | §二新增 rev 11 一节（P40）；§四那一行闭合，PF-016「组织层那一把」那一行随 PF-016 rev 8 一并闭合；裁决 19 代价那一格的错链改指 §4 |
 | README | revision、状态、转换件那一段补一句 |
 
 **含义变了什么**：一条原来只写着「产品要负责」的规则，现在有了归属与可验收的样子——**交付面要在那条消息上说出来**。
 
 **下游要复核什么**：
-- **[PF-016](../PF-016-cli-tui-delivery-surface/README.md)**：同批 rev 6 已新增 §6.21 接住这条责任。
+- **[PF-016](../PF-016-cli-tui-delivery-surface/README.md)**：同批 rev 8 已新增 §6.21 接住这条责任。
 - **统一语言**：[UL-modality-converter](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) 若提到「用户看得出」，出处按本版复核。
 
 ### rev 10 · 2026-09-24
@@ -472,3 +474,7 @@ OpenRouter 凭据是**组织或租户身上的一项属性**，不是独立对�
 
 **改变含义就要记，且要改修订号。**读者据修订号判断自己手上的理解是否还成立；
 不记的修订等于让下游无从判断。
+
+## 2026-09-26 — rev 13 正式接受（状态事件）
+
+产品负责人通过 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 接受当前修订；未改变产品含义，不递增 revision。实现、验证与显式缺口状态分别保留。

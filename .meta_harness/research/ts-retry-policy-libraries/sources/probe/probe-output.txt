@@ -1,0 +1,20 @@
+node: "v24.18.0"
+P1 cockatiel noJitter exponent=2 initial=100 max=10000: [100,200,400,800,1600,3200]
+P1 cockatiel noJitter exponent=3 initial=100 max=10000: [100,200,400,800,1600,3200]
+P1 cockatiel decorrelated exponent=3 initial=100 max=10000 (random): [100,355,1143,625,4601,10000]
+P1 retry.createTimeout factor=3 min=100 max=10000: [100,300,900,2700,8100,10000]
+P1 retry.timeouts randomize=true (sorted ascending?): [1766,2788,7800,13367,21310,43199]
+P1 attempt.defaultCalculateDelay factor=3 delay=100 max=10000: [100,300,900,2700,8100,10000]
+P2 cockatiel retry constant 1500ms maxAttempts 3: {"settledAfterMs":1501,"calls":2,"result":"rejected(boom)"}
+P2 p-retry minTimeout 1500 factor 1 retries 3: {"settledAfterMs":100,"calls":1,"result":"rejected(user-abort)"}
+P3 ts-retry-promise retries=1 delay=300 FIXED: {"totalMs":602,"calls":2}
+P3 p-retry retries=1 minTimeout=300: {"totalMs":301,"calls":2}
+P3 cockatiel maxAttempts=1 constant 300: {"totalMs":301,"calls":2}
+P3 exponential-backoff numOfAttempts=2 startingDelay=300: {"totalMs":302,"calls":2}
+P3 async-retry retries=1 minTimeout=300 (randomize default true): {"totalMs":310,"calls":2}
+P3 @lifeomic/attempt maxAttempts=2 delay=300: {"totalMs":301,"calls":2}
+P3 promise-retry retries=1 minTimeout=300: {"totalMs":301,"calls":2}
+P4 p-retry non-network TypeError calls (shouldRetry=>true): 1
+P5 cockatiel per-attempt provider; stops on non-handled cause: {"seen":["A","B"],"finalError":"B","lastCauseSeenByHook":"upstream_unavailable"}
+P5 p-retry per-attempt provider via attemptNumber: {"seen":["A","B","C"],"finalError":"C"}
+P6 node:timers/promises setTimeout 1500ms aborted at 100ms: {"settledAfterMs":101,"result":"rejected(AbortError; cause=user-abort)"}

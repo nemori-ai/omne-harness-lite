@@ -1,0 +1,5 @@
+/** 消费者按自己的表接口收窄 `db`。只是类型断言：协议不核对表是否存在，那由装配的迁移与消费者的测试保证。 */
+export function narrow(tx) {
+    return tx.db;
+}
+//# sourceMappingURL=protocol.js.map

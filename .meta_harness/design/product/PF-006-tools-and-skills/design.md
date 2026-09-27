@@ -791,7 +791,7 @@ agent 在动手之前就读得到，可以直接绕路。
 
 > **本版把「后台 × 在等待」这一格关着：要等应答的执行只在前台等。**
 > 产品负责人 2026-09-23 的原话是「目前我们应该只定了要等待答复的工具只能阻塞在前台，但未来未必」
-> （[D-038 Q15](../../record/decisions/message-and-shape-rulings/decision.md)）。
+> （[D-058 Q15](../../record/decisions/message-and-shape-rulings/decision.md)）。
 > **关着的是这一版的用法，不是这个模型**：两个维度仍然正交，
 > 而一次执行的真实结果落成哪种消息，[只看那个位置上有没有占位](../PF-009-context-message-types/design.md#systemremindermessage)——
 > 没有占位就落成工具返回消息，已经有占位（转了后台）就以提醒到达。**这是一条判断，不是一张按工具分的表**，

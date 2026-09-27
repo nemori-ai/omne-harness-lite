@@ -3,6 +3,7 @@ export { type Parsed, ok, invalidInput, isOk, unwrap } from './parsed.ts'
 export {
   type Branded,
   type OpaqueIdentifier,
+  OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS,
   parseOpaqueIdentifier,
   opaqueIdentifierEquals,
 } from './opaque.ts'
@@ -17,6 +18,8 @@ export {
   type MembershipStanding,
   type MembershipStandingResult,
   type ScopeLayerIdentity,
+  IDENTITY_BRAND_NAMES,
+  IDENTITY_TYPE_NAMES,
   ORGANIZATION_KINDS,
   TENANT_ROLES,
   parseAccountId,

@@ -1,0 +1,40 @@
+{
+  "at_utc": "2026-09-26T17:04:37.619714+00:00",
+  "root_archives": [
+    {
+      "archive": "integrated-source-inputs.tar.gz",
+      "payloads": 1473,
+      "sha256": "5cf5ab622abc3e8bf415fccbb3acd0b3c98f6171acafcc470a050b3d06282005",
+      "every_payload_read_back": true
+    },
+    {
+      "archive": "readme-verification.tar.gz",
+      "payloads": 594,
+      "sha256": "641b7908d483dbf55b4eed1cfcc8481ba909ac9e68333ca98b20304b99dc2aa9",
+      "every_payload_read_back": true
+    },
+    {
+      "archive": "root-integrated-gates.tar.gz",
+      "payloads": 67,
+      "sha256": "9cf11f59a987c436e1bb12a9745a22389c03b6f3916d31a5287209e1f547869a",
+      "every_payload_read_back": true
+    },
+    {
+      "archive": "root-packed-consumer.tar.gz",
+      "payloads": 90,
+      "sha256": "b3157725aba76aa05342cbc1e7e7f9539eada3edb793275813f0abf20b993d67",
+      "every_payload_read_back": true
+    }
+  ],
+  "author252_and_independent149_previously_read_back": true,
+  "prior_final_sealed_files_unchanged": 47,
+  "prior_formal_top_level_sealed_files_unchanged": 39,
+  "prior_formal_630_internal_payloads_rechecked": 630,
+  "source_head": "009997222ff0268d83baa75ffc731990ab3a4587",
+  "current_core_accepted": 221,
+  "additional_U1": 13,
+  "independent_expression_review": "spec-expression-review.md",
+  "remote_main_at_pre_PR_sync": "127d63dadf00358576b52fbfaed66e6e0c3f20dc",
+  "remote_main_is_HUB_ancestor": true,
+  "full_make_and_Actions_not_green": true
+}

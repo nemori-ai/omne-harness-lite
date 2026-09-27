@@ -1,0 +1,6 @@
+[Unit]
+Description=Owned backup trigger probe only
+After=omne-probe-center.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/omne-probe/backup.sh

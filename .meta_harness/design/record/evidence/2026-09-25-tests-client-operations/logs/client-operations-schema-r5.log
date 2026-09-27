@@ -1,0 +1,3 @@
+PASS schema references/compile: Input
+PASS schema references/compile: Output
+PASS candidate examples: 72

@@ -6,7 +6,7 @@ import { type Parsed, invalidInput, ok } from './parsed.ts'
  *
  * 集合与 Schema 的 pattern 逐字对应；不用 `\s`（引擎间集合不同），不用 `$`（Python 会匹配到末尾换行之前）。
  */
-const WHITESPACE_CODE_POINTS: ReadonlySet<number> = new Set([
+export const OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS: readonly number[] = Object.freeze([
   0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x0020, 0x0085, 0x00a0, 0x1680, 0x2000, 0x2001, 0x2002,
   0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f,
   0x3000, 0xfeff,
@@ -39,10 +39,10 @@ export function parseOpaqueIdentifier<B extends string>(
 ): Parsed<OpaqueIdentifier<B>> {
   if (typeof value !== 'string') return invalidInput(`${kind}: not a string`)
   if (value.length === 0) return invalidInput(`${kind}: empty`)
-  if (WHITESPACE_CODE_POINTS.has(firstCodePoint(value))) {
+  if (OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS.includes(firstCodePoint(value))) {
     return invalidInput(`${kind}: leading whitespace`)
   }
-  if (WHITESPACE_CODE_POINTS.has(lastCodePoint(value))) {
+  if (OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS.includes(lastCodePoint(value))) {
     return invalidInput(`${kind}: trailing whitespace`)
   }
   return ok(value as OpaqueIdentifier<B>)

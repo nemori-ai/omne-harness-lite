@@ -37,10 +37,14 @@ export function instantFromRfc3339(value: unknown): Parsed<Instant> {
     string,
   ]
   const millis = frac === undefined ? 0 : Number(`0.${frac}`) * 1000
-  const base = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s))
+  // Date.UTC remaps years 0..99 to 1900..1999; setUTCFullYear preserves
+  // the four-digit RFC 3339 year, including leap year 0000.
+  const check = new Date(0)
+  check.setUTCFullYear(Number(y), Number(mo) - 1, Number(d))
+  check.setUTCHours(Number(h), Number(mi), Number(s), 0)
+  const base = check.getTime()
   if (Number.isNaN(base)) return invalidInput('Instant: invalid calendar value')
-  // 拒绝 Date.UTC 会静默进位的值（如 2026-02-30）。
-  const check = new Date(base)
+  // 拒绝 Date setters 会静默进位的值（如 2026-02-30）。
   if (
     check.getUTCFullYear() !== Number(y) ||
     check.getUTCMonth() !== Number(mo) - 1 ||
@@ -61,9 +65,23 @@ export function instantFromRfc3339(value: unknown): Parsed<Instant> {
   return ok(Math.round(base + millis - offsetMs) as Instant)
 }
 
-/** 规范书写：UTC，毫秒精度，`Z` 结尾。 */
+/**
+ * 规范书写：通常为 UTC 三位毫秒；UTC 年界外采用合法偏移保留四位年。
+ * 无法在 RFC 3339 四位年范围表示时抛 RangeError，不夹紧或截断时间点。
+ */
 export function instantToRfc3339(instant: Instant): string {
-  return new Date(instant).toISOString()
+  const utc = new Date(instant)
+  const year = utc.getUTCFullYear()
+  if (year >= 0 && year <= 9999) return utc.toISOString()
+
+  const offsetMinutes = year < 0 ? 1439 : -1439
+  const local = new Date(instant + offsetMinutes * 60_000)
+  const localYear = local.getUTCFullYear()
+  if (!(localYear >= 0 && localYear <= 9999)) {
+    throw new RangeError('Instant: cannot be represented within the RFC 3339 four-digit year range')
+  }
+  const offset = year < 0 ? '+23:59' : '-23:59'
+  return `${local.toISOString().slice(0, -1)}${offset}`
 }
 
 export function compareInstants(a: Instant, b: Instant): -1 | 0 | 1 {

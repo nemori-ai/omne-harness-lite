@@ -1,0 +1,8 @@
+{
+  "at_utc": "2026-09-26T11:27:44.534889+00:00",
+  "original_archive_sha256": "4d58d134951ae655d5d69f196d9d3b7be1c04dfd3e301eae794217550b94495f",
+  "payloads": 191,
+  "original_manifest_payload_hashes_verified": 189,
+  "replay_directory": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/u1-python-reference-root-replay",
+  "original_results_unchanged": true
+}

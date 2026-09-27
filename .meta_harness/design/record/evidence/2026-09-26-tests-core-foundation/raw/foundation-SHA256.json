@@ -1,0 +1,13 @@
+{
+  "affiliation-query.als": "7cc73e88cee60d9511ea7a95a24e0e5ec0d3166ab6b60f097dcd1bf0abfe32bd",
+  "affiliation-query-suffix.als": "5de73cf7a53b4f9b4a12931eeabb000ef099c894506687be65a2aa067299b3c9",
+  "evidence-index.json": "93b1dfb4b949ef8808b06e7062bbc40018e27fee2f57f070469ad32936711c9b",
+  "README.md": "4572c3650c11708e2c8f9831826b77bde7ed6d80b3728e0f9647bb63fdd6c56c",
+  "verification.log": "9c8529c7917239446a5e441ba07bad7dc297ad5c69aad126a40114719b145a76",
+  "alloy-original/aNonTrivialTree-solution-0.json": "3e9dd28a8c6997366462556742c955015b743aa2337271715a3547bb0f25c074",
+  "alloy-original/receipt.json": "6307a23dbebf2d6e1706be247982ad495feb4105aca57256c60c3b8524b84c8b",
+  "alloy-fixture/receipt.json": "13ab01b048b476bb9ff2f6f35f4f68b180378ad63af6ba74b64ed4807061a27b",
+  "alloy-fixture/coreCorrespondenceFixture-solution-0.json": "bae82bdc1c92435c200141478e30ac1ea6807caca99585880df353686c08d7aa",
+  "consumer/consumer.ts": "742063d625f0f4e6810f705e2eedd26d006045b17420abec6c3867edce295b36",
+  "consumer/package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428"
+}

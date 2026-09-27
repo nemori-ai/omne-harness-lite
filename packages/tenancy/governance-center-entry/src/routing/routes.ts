@@ -1,13 +1,22 @@
 // 封闭的路由表（入口契约 S-17～S-23；入口节点 design「路由到服务方法」）。
-// 一个字面量数组，恰 27 条，键就是路由标识；每条写明：免不免认人、身份怎么推、补什么授权、调哪一个领域操作、
+// 一个字面量数组，恰31条，键就是路由标识；每条写明：免不免认人、身份怎么推、补什么授权、调哪一个领域操作、
 // 领域答复的形状、失败怎么映射（S-14 的共同映射 + 本条的例外）、成功返回怎样投影成 `Result_<路由>`。
 // 没有按名字解析服务或方法的代码：每条的调用是一个写死的函数。
-import type { LoginsService } from '@omne-harness-lite/account-identity'
+import type {
+  LoginsService,
+  AccountsService,
+  LoginParticipation,
+  AccountParticipation,
+  PreparedCredentialChange,
+} from '@omne-harness-lite/account-identity'
 import type { RegistrationService } from '@omne-harness-lite/account-registration'
 import type { CredentialsService } from '@omne-harness-lite/credential-verification'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type {
   MembershipsService,
+  MembershipsParticipation,
+  OrganizationsParticipation,
+  OffersParticipation,
   OffersService,
   OrganizationsService,
 } from '@omne-harness-lite/organization-governance'
@@ -20,11 +29,16 @@ import type { RouteId } from './route-ids.ts'
  * `credentials` 只有 `parse`，`memberships` 没有 `sweepStaleSelections`，`organizations` 没有 `createPersonal`。
  */
 export interface EntryServices {
-  readonly logins: Pick<LoginsService, 'issue' | 'exchange' | 'revoke' | 'listEffective'>
+  readonly accounts: Pick<AccountsService, 'participate'>
+  readonly logins: Pick<
+    LoginsService,
+    'issue' | 'exchange' | 'revoke' | 'listEffective' | 'participate' | 'prepareCredentialChange'
+  >
   readonly registration: Pick<RegistrationService, 'register'>
   readonly credentials: Pick<CredentialsService, 'parse'>
   readonly organizations: Pick<
     OrganizationsService,
+    | 'participate'
     | 'createTeam'
     | 'read'
     | 'dissolveAffiliation'
@@ -34,9 +48,25 @@ export interface EntryServices {
   >
   readonly memberships: Pick<
     MembershipsService,
-    'standing' | 'mine' | 'changeRole' | 'remove' | 'currentTenant' | 'switchCurrentTenant' | 'list'
+    | 'participate'
+    | 'standing'
+    | 'mine'
+    | 'changeRole'
+    | 'remove'
+    | 'currentTenant'
+    | 'switchCurrentTenant'
+    | 'list'
   >
   readonly offers: OffersService
+}
+
+/** Ordinary independent operations are not present in the authenticated unit. */
+export interface AuthenticatedServices {
+  readonly accounts: Pick<AccountParticipation, 'resolveActivatedIdentifier'>
+  readonly logins: LoginParticipation
+  readonly organizations: OrganizationsParticipation
+  readonly memberships: MembershipsParticipation
+  readonly offers: OffersParticipation
 }
 
 /** 载荷已过 `Payload_<路由>`：成员封闭、形状合格。 */
@@ -47,6 +77,7 @@ export interface AuthenticatedInput {
   readonly caller: Caller
   /** 推导所得 `TenantId`：只对要它的路由有值（S-12）。 */
   readonly tenant: TenantId | undefined
+  readonly credentialChange?: PreparedCredentialChange
 }
 
 /** 领域答复的形状（参与方各自的返回约定）。 */
@@ -90,13 +121,15 @@ export interface ExemptRoute extends RouteCommon {
 }
 
 export interface AuthenticatedRoute extends RouteCommon {
+  readonly credentialChange?: true
+  readonly requiresSuperAdministrator?: true
   readonly exempt: false
   /** 要不要推导 `TenantId`（S-12）：只有要它的路由才现读 OG S-36。 */
   readonly derivesTenant: (payload: Payload) => boolean
   /** 补授权（S-13）：要核「调用方在该组织里有效」的组织；不补则缺席。 */
   readonly gate?: (payload: Payload) => readonly unknown[]
   readonly invoke: (
-    services: EntryServices,
+    services: AuthenticatedServices,
     input: AuthenticatedInput,
   ) => Promise<unknown> | unknown
   /** 矛盾清单 ③（OG S-36 返回的 `account` 分量不等于认人所得 `AccountId`）。 */
@@ -241,7 +274,7 @@ const OG_FAILURES = { unavailable: ['unavailable'], representation: ['invalidInp
 
 export const ROUTES: readonly Route[] = [
   {
-    id: 'composition.account-registration/v1#S-8',
+    id: 'composition.account-registration/v2#S-8',
     schema: 'AR_S8',
     exempt: true,
     // 表示层校验在载荷那一步已做完；不合格的从不交进去（交进去的收场是 interrupted）
@@ -258,7 +291,7 @@ export const ROUTES: readonly Route[] = [
     },
   },
   {
-    id: 'capability.account-identity/v2#S-15',
+    id: 'capability.account-identity/v3#S-15',
     schema: 'AI_S15',
     exempt: true,
     invoke: async (services, payload) =>
@@ -276,7 +309,7 @@ export const ROUTES: readonly Route[] = [
     },
   },
   {
-    id: 'capability.account-identity/v2#S-16',
+    id: 'capability.account-identity/v3#S-16',
     schema: 'AI_S16',
     exempt: false,
     derivesTenant: never,
@@ -293,7 +326,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.account-identity/v2#S-37',
+    id: 'capability.account-identity/v3#S-37',
     schema: 'AI_S37',
     exempt: false,
     derivesTenant: never,
@@ -309,11 +342,17 @@ export const ROUTES: readonly Route[] = [
     toWire: value =>
       list(value).map(item => {
         const state = record(item)
-        return { loginStateHandle: state['loginStateId'], issuedAt: instant(state['issuedAt']) }
+        return {
+          loginStateHandle: state['loginStateId'],
+          issuedAt: instant(state['issuedAt']),
+          lastActivityAt: instant(state['lastActivityAt']),
+          absoluteExpiresAt: instant(state['absoluteExpiresAt']),
+          idleExpiresAt: instant(state['idleExpiresAt']),
+        }
       }),
   },
   {
-    id: 'capability.organization-governance/v1#S-21',
+    id: 'capability.organization-governance/v2#S-21',
     schema: 'OG_S21',
     exempt: false,
     derivesTenant: never,
@@ -331,7 +370,7 @@ export const ROUTES: readonly Route[] = [
     toWire: value => record(value)['organization'],
   },
   {
-    id: 'capability.organization-governance/v1#S-22',
+    id: 'capability.organization-governance/v2#S-22',
     schema: 'OG_S22',
     exempt: false,
     derivesTenant: never,
@@ -342,7 +381,7 @@ export const ROUTES: readonly Route[] = [
     toWire: organizationWire,
   },
   {
-    id: 'capability.organization-governance/v1#S-23',
+    id: 'capability.organization-governance/v2#S-23',
     schema: 'OG_S23',
     exempt: false,
     derivesTenant: always,
@@ -378,7 +417,7 @@ export const ROUTES: readonly Route[] = [
     toWire: ok,
   },
   {
-    id: 'capability.organization-governance/v1#S-24',
+    id: 'capability.organization-governance/v2#S-24',
     schema: 'OG_S24',
     exempt: false,
     derivesTenant: always,
@@ -392,7 +431,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.organization-governance/v1#S-25',
+    id: 'capability.organization-governance/v2#S-25',
     schema: 'OG_S25',
     exempt: false,
     derivesTenant: never,
@@ -412,7 +451,7 @@ export const ROUTES: readonly Route[] = [
     toWire: tenantWire,
   },
   {
-    id: 'capability.organization-governance/v1#S-26',
+    id: 'capability.organization-governance/v2#S-26',
     schema: 'OG_S26',
     exempt: false,
     derivesTenant: never,
@@ -423,7 +462,7 @@ export const ROUTES: readonly Route[] = [
     toWire: standingWire,
   },
   {
-    id: 'capability.organization-governance/v1#S-27',
+    id: 'capability.organization-governance/v2#S-27',
     schema: 'OG_S27',
     exempt: false,
     derivesTenant: never,
@@ -434,7 +473,7 @@ export const ROUTES: readonly Route[] = [
     toWire: value => list(value).map(tenantWire),
   },
   {
-    id: 'capability.organization-governance/v1#S-28',
+    id: 'capability.organization-governance/v2#S-28',
     schema: 'OG_S28',
     exempt: false,
     derivesTenant: always,
@@ -452,7 +491,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.organization-governance/v1#S-29',
+    id: 'capability.organization-governance/v2#S-29',
     schema: 'OG_S29',
     exempt: false,
     derivesTenant: always,
@@ -471,7 +510,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.organization-governance/v1#S-30',
+    id: 'capability.organization-governance/v2#S-30',
     schema: 'OG_S30',
     exempt: false,
     derivesTenant: always,
@@ -504,7 +543,7 @@ export const ROUTES: readonly Route[] = [
     toWire: ok,
   },
   {
-    id: 'capability.organization-governance/v1#S-31',
+    id: 'capability.organization-governance/v2#S-31',
     schema: 'OG_S31',
     exempt: false,
     derivesTenant: always,
@@ -521,7 +560,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.organization-governance/v1#S-32',
+    id: 'capability.organization-governance/v2#S-32',
     schema: 'OG_S32',
     exempt: false,
     derivesTenant: always,
@@ -542,7 +581,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.organization-governance/v1#S-33',
+    id: 'capability.organization-governance/v2#S-33',
     schema: 'OG_S33',
     exempt: false,
     derivesTenant: always,
@@ -556,7 +595,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.organization-governance/v1#S-34',
+    id: 'capability.organization-governance/v2#S-34',
     schema: 'OG_S34',
     exempt: false,
     derivesTenant: never,
@@ -578,7 +617,7 @@ export const ROUTES: readonly Route[] = [
     },
   },
   {
-    id: 'capability.organization-governance/v1#S-35',
+    id: 'capability.organization-governance/v2#S-35',
     schema: 'OG_S35',
     exempt: false,
     derivesTenant: never,
@@ -595,7 +634,7 @@ export const ROUTES: readonly Route[] = [
     },
   },
   {
-    id: 'capability.organization-governance/v1#S-36',
+    id: 'capability.organization-governance/v2#S-36',
     schema: 'OG_S36',
     exempt: false,
     derivesTenant: never,
@@ -606,10 +645,10 @@ export const ROUTES: readonly Route[] = [
     contradicts: (value, caller) => record(value)['account'] !== caller.accountId,
   },
   {
-    id: 'capability.organization-governance/v1#S-37',
+    id: 'capability.organization-governance/v2#S-37',
     schema: 'OG_S37',
     exempt: false,
-    derivesTenant: never,
+    derivesTenant: always,
     invoke: (services, { payload, caller }) =>
       services.memberships.switchCurrentTenant(caller.loginStateId, payload['targetTenant']),
     reply: 'ack',
@@ -621,7 +660,7 @@ export const ROUTES: readonly Route[] = [
     toWire: constOk,
   },
   {
-    id: 'capability.organization-governance/v1#S-55',
+    id: 'capability.organization-governance/v2#S-55',
     schema: 'OG_S55',
     exempt: false,
     // 判别式是 `tenant` 才推导；`account` 支交给领域的是认人所得 AccountId
@@ -638,7 +677,7 @@ export const ROUTES: readonly Route[] = [
     toWire: invitationWire,
   },
   {
-    id: 'capability.organization-governance/v1#S-56',
+    id: 'capability.organization-governance/v2#S-56',
     schema: 'OG_S56',
     exempt: false,
     derivesTenant: always,
@@ -649,7 +688,7 @@ export const ROUTES: readonly Route[] = [
     toWire: affiliationRequestWire,
   },
   {
-    id: 'capability.organization-governance/v1#S-57',
+    id: 'capability.organization-governance/v2#S-57',
     schema: 'OG_S57',
     exempt: false,
     derivesTenant: never,
@@ -662,7 +701,7 @@ export const ROUTES: readonly Route[] = [
     toWire: value => list(value).map(invitationWire),
   },
   {
-    id: 'capability.organization-governance/v1#S-58',
+    id: 'capability.organization-governance/v2#S-58',
     schema: 'OG_S58',
     exempt: false,
     derivesTenant: always,
@@ -681,7 +720,7 @@ export const ROUTES: readonly Route[] = [
     },
   },
   {
-    id: 'capability.organization-governance/v1#S-59',
+    id: 'capability.organization-governance/v2#S-59',
     schema: 'OG_S59',
     exempt: false,
     derivesTenant: always,
@@ -694,7 +733,7 @@ export const ROUTES: readonly Route[] = [
     toWire: value => list(value).map(memberWire),
   },
   {
-    id: 'capability.organization-governance/v1#S-60',
+    id: 'capability.organization-governance/v2#S-60',
     schema: 'OG_S60',
     exempt: false,
     derivesTenant: always,
@@ -708,6 +747,99 @@ export const ROUTES: readonly Route[] = [
     reply: 'outcome',
     failures: { pass: ['notAuthorized'], ...OG_FAILURES },
     toWire: value => list(value).map(incomingAffiliationRequestWire),
+  },
+  {
+    id: 'capability.account-identity/v3#S-50',
+    schema: 'AI_S50',
+    exempt: false,
+    credentialChange: true,
+    derivesTenant: never,
+    invoke: (services, input) => {
+      if (input.credentialChange === undefined)
+        throw new TypeError('missing prepared credential change')
+      return services.logins.commitCredentialChange(input.credentialChange)
+    },
+    reply: 'ack',
+    failures: {
+      pass: ['current-credential-rejected', 'credential-rejected'],
+      rejected: ['login-state-rejected'],
+      unavailable: ['storage-unavailable'],
+      representation: ['invalid-input'],
+    },
+    toWire: constOk,
+  },
+  {
+    id: 'capability.organization-governance/v2#S-61',
+    schema: 'OG_S61',
+    exempt: false,
+    derivesTenant: never,
+    invoke: (services, { caller, payload }) =>
+      services.offers.declineInvitation(caller.accountId, payload['invitation']),
+    reply: 'ack',
+    failures: {
+      pass: ['invitationDoesNotExist', 'alreadyConcluded'],
+      unreachable: ['accountDoesNotExist', 'accountNotActivated'],
+      ...OG_FAILURES,
+    },
+    toWire: constOk,
+  },
+  {
+    id: 'capability.organization-governance/v2#S-62',
+    schema: 'OG_S62',
+    exempt: false,
+    derivesTenant: always,
+    invoke: (services, input) =>
+      services.offers.declineAffiliationRequest(
+        derived(input),
+        input.payload['affiliationRequest'],
+      ),
+    reply: 'ack',
+    failures: {
+      pass: ['affiliationRequestDoesNotExist', 'notAuthorized', 'alreadyConcluded'],
+      ...OG_FAILURES,
+    },
+    toWire: constOk,
+  },
+  {
+    id: 'composition.governance-center-entry/v2#S-50',
+    schema: 'ENTRY_S50',
+    exempt: false,
+    derivesTenant: always,
+    requiresSuperAdministrator: true,
+    invoke: async (services, input) => {
+      const found = await services.accounts.resolveActivatedIdentifier(
+        input.payload['loginIdentifier'],
+      )
+      if ('failure' in found) {
+        switch (found.failure) {
+          case 'account-not-found':
+            return { failure: 'accountDoesNotExist' }
+          case 'storage-unavailable':
+            return { failure: 'unavailable' }
+          case 'invalid-input':
+            throw new TypeError('validated identifier rejected by account owner')
+        }
+      }
+      return services.offers.issueInvitation(
+        derived(input),
+        found.ok,
+        input.payload['role'],
+        input.payload['offerTtl'],
+      )
+    },
+    reply: 'outcome',
+    failures: {
+      pass: [
+        'notAuthorized',
+        'accountDoesNotExist',
+        'issuerIsPersonalOrganization',
+        'alreadyAnEffectiveMember',
+        'invalidOfferDuration',
+      ],
+      unreachable: ['accountNotActivated'],
+      ...OG_FAILURES,
+    },
+    toWire: ok,
   },
 ]
 

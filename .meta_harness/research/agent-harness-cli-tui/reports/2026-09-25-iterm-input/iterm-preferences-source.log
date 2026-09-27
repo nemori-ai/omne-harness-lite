@@ -1,0 +1,58 @@
+Unable to find image 'node:24.21.0' locally
+24.21.0: Pulling from library/node
+450fe15cad1e: Pulling fs layer
+e528fa46febd: Pulling fs layer
+328a0fa474a1: Pulling fs layer
+4d3ba406c16b: Pulling fs layer
+93de12f00ca7: Pulling fs layer
+f1ef69d04a21: Pulling fs layer
+aa78086cb2f5: Pulling fs layer
+243b062857a5: Pulling fs layer
+4d3ba406c16b: Waiting
+f1ef69d04a21: Waiting
+93de12f00ca7: Waiting
+aa78086cb2f5: Waiting
+243b062857a5: Waiting
+450fe15cad1e: Verifying Checksum
+450fe15cad1e: Download complete
+450fe15cad1e: Pull complete
+e528fa46febd: Verifying Checksum
+e528fa46febd: Download complete
+e528fa46febd: Pull complete
+93de12f00ca7: Download complete
+328a0fa474a1: Download complete
+328a0fa474a1: Pull complete
+aa78086cb2f5: Verifying Checksum
+aa78086cb2f5: Download complete
+243b062857a5: Verifying Checksum
+243b062857a5: Download complete
+4d3ba406c16b: Verifying Checksum
+4d3ba406c16b: Download complete
+4d3ba406c16b: Pull complete
+93de12f00ca7: Pull complete
+f1ef69d04a21: Verifying Checksum
+f1ef69d04a21: Download complete
+f1ef69d04a21: Pull complete
+aa78086cb2f5: Pull complete
+243b062857a5: Pull complete
+Digest: sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
+Status: Downloaded newer image for node:24.21.0
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+[TypeError: fetch failed] {
+  [cause]: Error: Client network socket disconnected before secure TLS connection was established
+      at TLSSocket.onConnectEnd (node:internal/tls/wrap:1827:19)
+      at TLSSocket.emit (node:events:526:24)
+      at endReadableNT (node:internal/streams/readable:1764:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'ECONNRESET',
+    path: undefined,
+    host: 'api.github.com',
+    port: 443,
+    localAddress: null
+  }
+}
+
+Node.js v24.21.0

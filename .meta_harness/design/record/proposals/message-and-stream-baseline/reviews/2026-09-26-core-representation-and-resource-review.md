@@ -1,0 +1,23 @@
+# core 表示恢复与固定资源闭包独立架构复核
+
+主调度忠实登记 architecture-reviewer 只读返回；未由评审者执行测试或接受。
+
+## AM3 固定资源机制（HUB 9e0103a1）
+
+无阻断。六个当前data3包公开保留原字节schema/v2；AM3经既有BodyContracts端口取当前六类标准正文Schema，另加入本包AM2、CB包CB2及AM私有完整TD2冻结资源。TD2仅编译资源，不引入AM→TD产品代码/import依赖；端口的judge/derive/references和业务所有权不变。真实探针当前AM3的25个defs在只加CB2或AM2时仍22编译/3缺引用，完整补CB2+AM2+TD2才25/0。
+
+适用前提为替代提供者采用同一精确契约/$id及固定可达资源，不承诺任意第三方Schema图；Connector2仅取AM3所消费的Definition片段，无提供者实施。AM2完整AssetContent另引用Loop2、Connector2 DeliveryTarget另引用Messages2：25个AM3defs编译不等于全旧registered资源图全部defs闭合。MCP→AM→AE的connectionTarget/credential/两timeout域、六真实schema/v2公开导出、AR2实际拒绝等同性仍须真实实施验证。
+
+## 两项 opaque 投影缺陷复核（HUB7428be053fc019a6e1b8409c34b8bc67b884c2ea）
+
+实现源1fcdb724，四包仍采用accepted2。独立核查101维护文件SHA全部与HUB相符、源码/公开dist/作者原红新绿；指定范围无阻断、无新增应修或产品政策。
+
+Loop judgeInput/output/conclusion在原判定和一致性比较之后沿规范subject.message/request.messages/reply/递归结果/earlier.output恢复Messages/CB表示；不按任意字段猜位置、不解释opaque。TD在judgeToolReturn完整判定通过后使用CB judge.ok重建content和offload.summary。三个Loopguard及TD isToolReturn的公开源码/d.ts均boolean，不再给原JSON不存在的品牌保证。CB contentBlockFromRepresentation与Msg brandMessage/brandRecord先copy与完整Schema，再恢复；完整CB/Msg仍判跨成员及重复ID，不让Loop形状嵌入新增完整业务拒绝。
+
+反论证“统一完整judge更省事”被实际wav/ogg反例否定：Loop形状嵌入原接受，完整Msg仍malformed；重复ID形状恢复不代表完整消息有效。复制/重复校验成本尚无性能结论。TypeError只用于新表示适配前提非法；无新增领域拒绝。own-member/描述符、精确数字、null/缺席、已有包装及不可变性有源码和局部测试。
+
+根会话简报中Loop2 S43是笔误，正文最大S41；采用实际S14/S36/S38，不据缺号扩大边界。关键source SHA：Loop values a4110f88abcee476973ffc3858670d4b83cf39aae23c1a6e450982232d69ad1c、TD returns a11a2bbefa753dfdb3a3d9d52f3de00f5a0e304f4009bdf7b650a207d29ec035、CB content 0acb58ddc67b6b6bdfbd25cd356c096b33388b8d964cdbae8c4340c479be992e、Msg values 0af762595b771269950fbbf0bf64ba7739e1377f06e6271aca162a8921c04252。
+
+## 未覆盖
+
+评审者未执行；读取作者原红/新绿、八组built消费者及四包测试。指定路径SC3人工复核不是全仓opaque数据流证明，27规则不等于完整opaque lint；任意Proxy、跨进程、外部runner/持久化及后续v3采用均未验证。主调度独立HUB四包1700测试/build/type/27规则及8组真实built消费者已实际另跑，原输出保留在忽略区，本报告不冒充其原始证据或最终用户接受。

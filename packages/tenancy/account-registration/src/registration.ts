@@ -124,6 +124,7 @@ export function createRegistrationService(deps: RegistrationDeps): RegistrationS
     }
     if (!deps.isActive()) return { stopped: 'purge-2' }
     const second = await deps.accounts.purge(accountId, first.ok.warrant)
+    if (!deps.isActive()) return { stopped: 'purge-2' }
     if (second !== 'ok') {
       const failure: PurgeChainFailure = {
         from: 'S-38',
@@ -220,6 +221,7 @@ export function createRegistrationService(deps: RegistrationDeps): RegistrationS
     // ③ 激活：唯一提交点
     if (!deps.isActive()) return 'interrupted'
     const activated = await deps.accounts.activate(accountId, activationWarrant)
+    if (!deps.isActive()) return 'interrupted'
     if (activated === 'ok') return 'registered'
     switch (activated.failure) {
       case 'account-record-expired':

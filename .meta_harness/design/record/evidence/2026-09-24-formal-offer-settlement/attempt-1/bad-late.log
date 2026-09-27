@@ -1,0 +1,39 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 40 and seed -2902751983027977818 with 1 worker on 16 cores with 7122MB heap and 64MB offheap memory [pid: 1] (Linux 6.12.54-linuxkit aarch64, Oracle Corporation 25.0.2 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /model/OfferSettlement.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module OfferSettlement
+Starting... (2026-09-24 13:38:20)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-24 13:38:20.
+Error: Successor state is not completely specified by action Settle of the next-state relation. The following variables are not assigned: acceptEffects, exists, now.
+
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ now = 0
+/\ firstTerminal = "none"
+/\ exists = TRUE
+/\ settledAt = 0
+/\ acceptEffects = 0
+/\ existedAtCommit = TRUE
+/\ settled = "none"
+
+State 2: <Settle line 14, col 17 to line 20, col 43 of module OfferSettlement>
+/\ now = null
+/\ firstTerminal = "accepted"
+/\ exists = null
+/\ settledAt = 0
+/\ acceptEffects = null
+/\ existedAtCommit = TRUE
+/\ settled = "accepted"
+
+4 states generated, 3 distinct states found, 2 states left on queue.
+The depth of the complete state graph search is 2.
+Finished in 00s at (2026-09-24 13:38:20)

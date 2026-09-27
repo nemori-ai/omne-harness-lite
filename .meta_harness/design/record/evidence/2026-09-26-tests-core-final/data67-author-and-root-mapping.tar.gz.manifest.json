@@ -1,0 +1,108 @@
+{
+  "original_directory": "/data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery/tmp/core-delivery/data67-root-readback",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2914,
+      "sha256": "3da5416e635155e248cbca98842a6cd1744c9505128f0e9fcb76151c011244ec"
+    },
+    {
+      "path": "durable-root-artifacts.json",
+      "bytes": 2177,
+      "sha256": "ddf956c1650243eab9533e080b2f1f6d1e89278be572f85f7631f09b7e9c7c91"
+    },
+    {
+      "path": "generation-command.json",
+      "bytes": 13743,
+      "sha256": "d3ac3c0a47894ded368400f5c5c1e600a09519777875e74d188517811895c461"
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 3558,
+      "sha256": "e0a3ab3f34adf232072f4cb59567d8943fae9c4acaeabb78be03c97117003e63"
+    },
+    {
+      "path": "mapping-recipe.json",
+      "bytes": 22958,
+      "sha256": "d1e8c17a1ca49ad3b28806ab9ebe88f988814572a3c6942faabb47eae0d62a4c"
+    },
+    {
+      "path": "matrix-input.json",
+      "bytes": 1325513,
+      "sha256": "eb454167f973f7decab97842f92cb9fa9c9e6392a7537bca2d03167373cc3c80"
+    },
+    {
+      "path": "obligation-map.json",
+      "bytes": 1240156,
+      "sha256": "c3addfb7b38a49c3cf4de1c49556f74116f048acab7ae3c8a4c9b81704dd9164"
+    },
+    {
+      "path": "public-surface.json",
+      "bytes": 8884,
+      "sha256": "3d4ced0a01710f3c3cfe07be7f44109cd6d22baaa5c1ef88be38573bb4771c8a"
+    },
+    {
+      "path": "root-artifacts.json",
+      "bytes": 1787,
+      "sha256": "ec1109d8baa71f4b878bd9cc76dd1ee1b78408b87f0356ea5ad174b7f913aee2"
+    },
+    {
+      "path": "root-readback.json",
+      "bytes": 1116,
+      "sha256": "3e5672018f7d0c2613fd7e4200636e1123629f49b4add13a0c02441311dafd5a"
+    },
+    {
+      "path": "self-check-command-r1.json",
+      "bytes": 12027,
+      "sha256": "3bc79ea4d541424c64b87155ee4d0882ff67435c89265333b168234b3839370c"
+    },
+    {
+      "path": "self-check-command-r2.json",
+      "bytes": 12028,
+      "sha256": "da407c2b7e0b360869b9a2888f1c71b9f256e4999a7b9237f6bf8079dc313777"
+    },
+    {
+      "path": "self-check-command.json",
+      "bytes": 12028,
+      "sha256": "da407c2b7e0b360869b9a2888f1c71b9f256e4999a7b9237f6bf8079dc313777"
+    },
+    {
+      "path": "self-check-failure-r1.json",
+      "bytes": 382,
+      "sha256": "62e0190acd6baa292a7ff6931333e87165eba895ecc0dbd9a3ec7aa53f6c6fe5"
+    },
+    {
+      "path": "self-check-failure-r2.json",
+      "bytes": 448,
+      "sha256": "dd89c1358d2eb9c5c294e9fe9ccde6388a51acbee840b0c3fdce8d907c86af35"
+    },
+    {
+      "path": "self-check.json",
+      "bytes": 4443,
+      "sha256": "9afbb5eb8ebbd311ac2d0173e9cef8fd73701cf7914c5e0003d3e6a585195ad8"
+    },
+    {
+      "path": "source-controls.json",
+      "bytes": 56891,
+      "sha256": "1606f8519c15df97f0c726c0b8af8692b112692c294c6c97feebccddeb6b3a3c"
+    },
+    {
+      "path": "surface-check.json",
+      "bytes": 1057,
+      "sha256": "4e80c0c4233f88aa719759097dd1b97646156acac7086642208d1e2f85fd7e26"
+    },
+    {
+      "path": "test-index.json",
+      "bytes": 1969521,
+      "sha256": "03bd0d0a9ffe2e2d6510ec0f4229cd759f6bf003c87f250586032868469e1a50"
+    }
+  ],
+  "archive": "data67-author-and-root-mapping.tar.gz",
+  "archive_sha256": "6852f95bfc48b3d78d7ab180ef880cec92f641426f4b9f74ff07fe8704e133d3",
+  "verified_payloads": 19,
+  "excluded_rebuildable": [
+    "node_modules",
+    ".venv",
+    "__pycache__"
+  ]
+}

@@ -1,0 +1,9 @@
+
+> omne-harness-lite-workspace@ lint:rules /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish
+> pnpm --filter @omne-harness-lite/ts-checks run scan
+
+
+> @omne-harness-lite/ts-checks@0.0.0 scan /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tools/ts-checks
+> node --experimental-strip-types src/cli.ts ../../packages ../../apps
+
+PASS: ts-checks 20 条规则，扫描 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages、/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps，无违反。

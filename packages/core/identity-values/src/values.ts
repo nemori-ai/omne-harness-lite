@@ -3,9 +3,23 @@ import { type Parsed, invalidInput, isOk, ok } from './parsed.ts'
 
 // ---- 不透明标识（S-1 / S-2 / S-3 / S-9） ----
 
-export type AccountId = OpaqueIdentifier<'AccountId'>
-export type OrganizationId = OpaqueIdentifier<'OrganizationId'>
-export type LoginStateId = OpaqueIdentifier<'LoginStateId'>
+/** 本模块的三个身份品牌，供消费者的静态检查引用；登录标识和交接凭证不是身份。 */
+export const IDENTITY_BRAND_NAMES = Object.freeze([
+  'AccountId',
+  'OrganizationId',
+  'LoginStateId',
+] as const)
+
+/** 身份值类型包含三个品牌及两个结构身份（S-5、S-11）；不包含角色或成员效力。 */
+export const IDENTITY_TYPE_NAMES = Object.freeze([
+  ...IDENTITY_BRAND_NAMES,
+  'TenantId',
+  'ScopeLayerIdentity',
+] as const)
+
+export type AccountId = OpaqueIdentifier<(typeof IDENTITY_BRAND_NAMES)[0]>
+export type OrganizationId = OpaqueIdentifier<(typeof IDENTITY_BRAND_NAMES)[1]>
+export type LoginStateId = OpaqueIdentifier<(typeof IDENTITY_BRAND_NAMES)[2]>
 /** 登录标识是账号的一项属性，不是它的标识（S-2）；品牌不同，与 AccountId 不相容。 */
 export type LoginIdentifier = OpaqueIdentifier<'LoginIdentifier'>
 

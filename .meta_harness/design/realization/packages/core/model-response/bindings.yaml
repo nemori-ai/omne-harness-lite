@@ -1,0 +1,18 @@
+# 条款到证据的绑定表。
+# 空表：data.model-response v2 没有登记的 formal task；源码不存在，没有测试可绑。
+# 证据义务与缺口记在 verification.md。
+version: 1
+node: "model-response"
+kind: "provider"
+
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.model-response/v3#S-27"
+    evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.lost-failure-delivered-and-in-band"
+    assumptions:
+      - "只核实际纯值failed／reply／delivered／inBand的给定优先级样本；不证实际模型请求或late所属记录真实存在。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

@@ -1,0 +1,173 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { writeFile, chmod, symlink, chown, mkdtemp, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { exitStatus } from '../../../packages/frontend/governance-client-operations/dist/index.js'
+import { makeCa, makeServerCertificate, keygen, freePort, opsDirectory, envOf, opsSocketOf, SETTINGS, CenterProcess } from './deploy.ts'
+const root = await mkdtemp(join(await realpath(tmpdir()), 'omne-host-cli-'))
+const commandsLog = []
+const record = line => commandsLog.push(line)
+const ca = makeCa(root, 'ca', record)
+const tls = makeServerCertificate(root, 'leaf', ca, ['DNS:localhost','IP:127.0.0.1'], record)
+const port = await freePort()
+const deployment = { dbFile: join(root,'center.sqlite'), keys: await keygen(join(root,'keys'),record), tls, host: '127.0.0.1', port, opsDir: opsDirectory(root), settings: SETTINGS }
+const env = envOf(deployment), socket = opsSocketOf(deployment)
+let host = CenterProcess.serve('center',env,record)
+const hosts = [host]
+const certs = root+'/'
+const og = n => `capability.organization-governance/v2#S-${n}`
+const ai = n => `capability.account-identity/v3#S-${n}`
+const reports = []
+const commands=JSON.parse(readFileSync(new URL('../../../apps/cli/commands/governance.json',import.meta.url),'utf8'))
+const executable=process.argv[2]??new URL('../../../apps/cli/dist/main.js',import.meta.url).pathname
+let fileCounter=0
+async function inputFile(value){const path=join(root,`input-${fileCounter++}`);await writeFile(path,value,{mode:0o600});return path}
+const allProcessOutput=[]
+const configure = { action: 'configure', endpoint: `https://localhost:${port}/`, trust: {mode:'ca',certificateAuthorities:readFileSync(certs+'ca.pem','utf8')} }
+async function cliArgs(client,input,machine=true){
+  const command=commands.find(c=>c.action===input.action&&(input.action!=='invoke'||c.operation===input.operation))
+  assert.ok(command)
+  const args=[...(machine?['machine']:[]),...command.command,'--state-dir',client.directory]
+  if(input.action==='configure')return [...args,'--endpoint',input.endpoint,'--ca-file',certs+'ca.pem']
+  const payload={...(input.payload??{})}
+  for(const field of command.secretFields){const option=field==='credential'?'credential-file':field==='currentCredential'?'current-credential-file':'new-credential-file';args.push('--'+option,await inputFile(payload[field]));delete payload[field]}
+  if(command.payloadSource!=='none')args.push('--payload-file',await inputFile(JSON.stringify(payload)))
+  if(input.readMode==='refresh')args.push('--refresh')
+  return args
+}
+async function runProcess(command,args,broken=false){
+  return await new Promise((resolve,reject)=>{
+    const child=spawn(command,args,{stdio:['ignore','pipe','pipe'],env:{...process.env,NODE_PATH:''}})
+    let stdout='',stderr=''
+    if(broken)child.stdout.destroy();else child.stdout.on('data',bytes=>stdout+=bytes)
+    child.stderr.on('data',bytes=>stderr+=bytes)
+    child.on('error',reject)
+    child.on('close',(code,signal)=>{assert.equal(signal,null);allProcessOutput.push(stdout,stderr);resolve({code,stdout,stderr})})
+  })
+}
+async function cli(client,input){
+  const execution=await runProcess(process.execPath,[executable,...await cliArgs(client,input)])
+  const report=JSON.parse(execution.stdout)
+  assert.equal(execution.stdout.trim().split('\n').length,1)
+  assert.equal(execution.code,exitStatus(report))
+  return report
+}
+async function setup(name){
+  const client={directory:join(root,name)}
+  assert.equal(exitStatus(await cli(client,configure)),0)
+  return client
+}
+async function action(client,input,expected='success'){
+  const report=await cli(client,input);reports.push(report)
+  assert.equal(report.defect,undefined)
+  assert.equal(report.remote.status,expected,`${input.action} ${input.operation??''}: ${JSON.stringify(report)}`)
+  if(expected==='success')assert.equal(exitStatus(report),report.use==='reenter-required'?4:0)
+  return report
+}
+async function result(client,operation,payload={},read=false) {
+  const report = await action(client,{action:'invoke',operation,payload,...(read?{readMode:'refresh'}:{})})
+  return report.remote.reply.reply.result
+}
+const password='original-password', changed='replacement-password'
+async function login(client,identifier,credential=password) { return action(client,{action:'login',payload:{loginIdentifier:identifier,credential}}) }
+try {
+  await host.ready(socket)
+  const alice=await setup('alice'), bob=await setup('bob'), aliceOther=await setup('alice-other')
+  const bad=join(root,'bad-secret');await writeFile(bad,'TEST-SECRET',{mode:0o640})
+  const link=join(root,'bad-link');await symlink(bad,link)
+  const fifo=join(root,'bad-fifo');assert.equal((await runProcess('mkfifo',[fifo])).code,0)
+  const invalid=join(root,'bad-utf8');await writeFile(invalid,Buffer.from([0xc0,0xaf]),{mode:0o600})
+  const large=join(root,'too-large');await writeFile(large,Buffer.alloc(65537,120),{mode:0o600})
+  const paths=[bad,link,fifo,'/dev/null',invalid,large]
+  if(process.platform==='linux'&&process.getuid()===0){const foreign=join(root,'foreign-owner');await writeFile(foreign,'TEST-SECRET',{mode:0o600});await chown(foreign,65534,65534);paths.push(foreign)}
+  const loginCount=()=>host.records().filter(m=>JSON.stringify(m).includes(ai(15))).length
+  const beforeFiles=loginCount()
+  for(const path of paths){
+    const rejected=await runProcess(process.execPath,[executable,'machine','login','--state-dir',alice.directory,'--login-identifier','alice','--credential-file',path])
+    assert.equal(rejected.code,2);assert.equal(JSON.parse(rejected.stdout).admission.reason,'invalid-input')
+    assert.ok(!rejected.stdout.includes('TEST-SECRET')&&!rejected.stderr.includes('TEST-SECRET'))
+  }
+  assert.equal(loginCount(),beforeFiles)
+  for (const [client,name] of [[alice,'alice'],[bob,'bob']]) {
+    await action(client,{action:'register',payload:{loginIdentifier:name,credential:password}})
+    await login(client,name)
+  }
+  await login(aliceOther,'alice')
+  const alicePersonal=await result(alice,og(36),{},true), bobPersonal=await result(bob,og(36),{},true)
+  const child=await result(alice,og(21),{creationKey:'child'}), parent=await result(alice,og(21),{creationKey:'parent'})
+  const childTenant={organization:child,account:alicePersonal.account}, parentTenant={organization:parent,account:alicePersonal.account}
+  const bobChild={organization:child,account:bobPersonal.account}
+  await result(alice,og(37),{expectedTenant:alicePersonal,targetTenant:childTenant})
+  assert.deepEqual((await action(alice,{action:'invoke',operation:og(58),payload:{expectedTenant:alicePersonal},readMode:'refresh'},'rejected')).remote.reply.reply,{failure:'expectedTenantMismatch'})
+  const invitation=await result(alice,'composition.governance-center-entry/v2#S-50',{expectedTenant:childTenant,loginIdentifier:'bob'})
+  assert.equal((await result(bob,og(57),{},true)).length,1)
+  await result(bob,og(25),{invitation})
+  await result(bob,og(37),{expectedTenant:bobPersonal,targetTenant:bobChild})
+  assert.deepEqual(await result(bob,og(26),{tenant:bobChild},true),{standing:'effective',role:'member'})
+  await result(alice,og(28),{expectedTenant:childTenant,targetTenant:bobChild,role:'superAdministrator'})
+  await result(bob,og(60),{expectedTenant:bobChild},true)
+  await result(alice,og(28),{expectedTenant:childTenant,targetTenant:bobChild,role:'member'})
+  const role=await cli(bob,{action:'invoke',operation:og(26),payload:{tenant:bobChild},readMode:'refresh'})
+  assert.deepEqual(role.remote.reply.reply,{result:{standing:'effective',role:'member'}})
+  const admin=await cli(bob,{action:'invoke',operation:og(60),payload:{expectedTenant:bobChild}})
+  assert.equal(admin.view.source,'none');assert.equal(admin.remote.status,'rejected')
+  const request=await result(alice,og(30),{expectedTenant:childTenant,recipientOrganization:parent,direction:'recipientAsParent'})
+  await result(alice,og(37),{expectedTenant:childTenant,targetTenant:parentTenant})
+  await result(alice,og(32),{expectedTenant:parentTenant,affiliationRequest:request})
+  assert.deepEqual(await result(alice,og(34),{organizations:[child]},true),[parent])
+  await result(alice,og(33),{expectedTenant:parentTenant,childOrganization:child})
+  assert.deepEqual(await result(alice,og(34),{organizations:[child]},true),[])
+  await result(alice,og(37),{expectedTenant:parentTenant,targetTenant:childTenant})
+  await result(alice,og(29),{expectedTenant:childTenant,targetTenant:bobChild})
+  const denied=await action(bob,{action:'invoke',operation:og(26),payload:{tenant:bobChild},readMode:'refresh'},'rejected')
+  assert.deepEqual(denied.remote.reply.reply,{failure:'notAuthorized'})
+  const again=await result(alice,'composition.governance-center-entry/v2#S-50',{expectedTenant:childTenant,loginIdentifier:'bob'})
+  await result(bob,og(61),{invitation:again})
+  assert.deepEqual((await action(bob,{action:'invoke',operation:og(25),payload:{invitation:again}},'rejected')).remote.reply.reply,{failure:'offerNoLongerValid'})
+  const routeCount=()=>host.records().filter(m=>JSON.stringify(m).includes(og(21))).length
+  const beforeCount=routeCount()
+  const broken=await runProcess(process.execPath,[executable,...await cliArgs(alice,{action:'invoke',operation:og(21),payload:{creationKey:'broken-output'}})],true)
+  assert.equal(broken.code,70);assert.ok(broken.stderr.includes('output-failed'))
+  assert.equal(routeCount()-beforeCount,1)
+  const humanArgs=[executable,...await cliArgs(alice,{action:'invoke',operation:og(36),payload:{},readMode:'refresh'},false)]
+  const transcript=join(root,'human.typescript')
+  const quote=value=>"'"+value.replaceAll("'","'\\''")+"'"
+  const human=process.platform==='darwin'
+    ?await runProcess('/usr/bin/script',['-q',transcript,process.execPath,...humanArgs])
+    :await runProcess('/usr/bin/script',['-q','-e','-c',[process.execPath,...humanArgs].map(quote).join(' '),transcript])
+  assert.equal(human.code,0)
+  assert.ok(human.stdout.includes('Operation preview:'))
+  const rendered=human.stdout.split(/\r?\n/).find(line=>line.startsWith('Governance result: '))
+  assert.ok(rendered);const humanReport=JSON.parse(rendered.slice('Governance result: '.length))
+  assert.deepEqual(humanReport.remote.reply.reply.result,childTenant)
+  assert.ok(human.stdout.indexOf('Operation preview:')<human.stdout.indexOf('Governance result:'))
+  const logins=await result(alice,ai(37),{},true)
+  assert.equal(logins.length,2)
+  const dormant = await setup('dormant'); await login(dormant,'alice')
+  await result(alice,ai(50),{currentCredential:password,newCredential:changed})
+  assert.equal((await action(aliceOther,{action:'invoke',operation:og(27),payload:{},readMode:'refresh'},'rejected')).remote.answer,'login-state-rejected')
+  await login(alice,'alice',changed)
+  await action(alice,{action:'logout'})
+  assert.equal((await cli(alice,{action:'invoke',operation:og(27),payload:{}})).admission.reason,'not-logged-in')
+  await login(alice,'alice',changed)
+  const identityBefore = await result(alice,og(36),{},true)
+  const duplicate = CenterProcess.serve('duplicate',env,record); hosts.push(duplicate)
+  assert.equal((await duplicate.exited()).code,1)
+  assert.ok(duplicate.records().some(r=>r.event==='startup-failed'&&r.stage==='occupied'))
+  assert.equal((await host.terminate()).code,0)
+  host = CenterProcess.serve('restarted',env,record); hosts.push(host); await host.ready(socket)
+  assert.deepEqual(await result(alice,og(36),{},true),identityBefore)
+  await host.kill()
+  host = CenterProcess.serve('after-process-crash',env,record); hosts.push(host); await host.ready(socket)
+  assert.deepEqual(await result(alice,og(36),{},true),identityBefore)
+  assert.equal((await action(dormant,{action:'invoke',operation:og(27),payload:{},readMode:'refresh'},'rejected')).remote.answer,'login-state-rejected')
+  const publicBytes=JSON.stringify(reports)+allProcessOutput.join('')+hosts.map(h=>h.stderr()).join('')
+  assert.ok(!publicBytes.includes(password)&&!publicBytes.includes(changed)&&!publicBytes.includes('presentedLoginState')&&!publicBytes.includes('"loginState":'))
+  if (process.argv[3]) await writeFile(process.argv[3], JSON.stringify({ commands:commandsLog, hosts:hosts.map(h=>({label:h.label,stdout:h.stdout(),stderr:h.stderr()})), cliOutput:allProcessOutput },null,2)+'\n')
+  console.log(JSON.stringify({status:'PASS',platform:process.platform,arch:process.arch,node:process.version,checks:['real keygen/serve deployment process with new TLS material and file configuration','portable CLI child processes and real PTY preview','two accounts/multiple local clients/full governance journey','production default credential derivation cost','EPIPE exactly one observed target request','SIGTERM restart preserves current identity','duplicate host refused occupied','SIGKILL process restart retains acknowledged identity and old-login revocation','public CLI and host logs contain no credential input'],scope:'Single OS/container, loopback HTTPS. Actual host process, clock and default credential cost; no accelerated expiry in this driver, physical machine loss, backups, TUI or installed service manager.'}))
+} finally {
+  for (const h of hosts) if(h.running) await h.terminate().catch(()=>h.kill())
+  await rm(root,{recursive:true,force:true})
+}

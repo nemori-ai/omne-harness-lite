@@ -1,0 +1,1 @@
+{"ts":1790234989550,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"config","item":"OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM","errorType":"HostStartupFailure","message":"tenancy-host startup failed at config: OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM: missing: set OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM or OMNE_TENANCY_ENTRY_TLS_PRIVATE_KEY_PEM_FILE"}

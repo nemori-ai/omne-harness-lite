@@ -1,0 +1,9 @@
+# 条款到证据的绑定表：空。
+# 契约 S-24 不选用形式工件（同一格里路由名唯一是单存储里的唯一约束，建模只会复述它），
+# registry 里没有这份契约的 formal task；规范场景 S-25～S-30 与静态检查都没有实现可跑。
+# 义务、状态与受阻原因登记在 verification.md，不在这里写空绑定占位。
+version: 1
+node: "model-profile-directory"
+kind: "provider"
+
+bindings: []

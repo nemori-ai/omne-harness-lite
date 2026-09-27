@@ -1,0 +1,1 @@
+{"status":"PASS","platform":"linux","arch":"arm64","node":"v24.21.0","checks":["registration/login","create/switch","stale identity rejection","named invitation/decline","bounded login list","credential change invalidates old login","new login/logout"],"scope":"Built provider assembly, real Linux SQLite and HTTPS loopback; not CLI/TUI, independent machine or disaster acceptance"}

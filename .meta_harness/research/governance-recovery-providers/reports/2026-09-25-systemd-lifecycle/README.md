@@ -1,0 +1,9 @@
+# systemd 定时触发与长停止的限定观察
+
+2026-09-25，Docker Desktop Linux arm64中实际systemd252.39-1~deb12u2，Node24.21.0 bookworm镜像上的独立探针；不是宿主机安装。镜像sha256:1e6bd25c12d9da8a88666720682cca7c3372928448953dc41e015c8fe5617675，构建日志与输入Dockerfile附带。临时容器使用私有cgroup namespace、privileged及独立/run/tmp，运行时network=none，无宿主目录挂载；仅容器内自建shell服务和units。容器最后stop并由--rm清理，镜像保留供后续限定验证。
+
+实际观察：服务TERM处理需要35秒，TimeoutStopSec=infinity时第31秒仍deactivating且原MainPID151存在，约35.58秒后inactive并写出完成标记。Restart=on-failure没有推翻这次明确stop。之后只带After、不Wants/Requires中心的timer触发备份oneshot：它看到中心inactive后exit1，中心仍MainPID0/inactive。原始命令、stdout/stderr、单位文件及result归run目录。
+
+因此本配置能在这个有限场景等待超过旧host的30秒，并能让定时工具发现停服而不启动中心。不是任意IO的停止时限保证，不是产品backup或host资源排空证据，没有实际每日周期/离线恢复/断电或存储耐久测试；shell触发器也没有读取产品数据库。产品采用需另行决定并以实际host/备份重跑，不能把这个场景替代上线验收。
+
+原始man252网页获取403、精简镜像未安装service/timer man文件；未把这些缺失页面当作已读依据。此报告只陈述实际配置与观察，不从搜索摘要推断更多上游性质。重跑须新的证据目录和独立容器名字，不覆盖本包。

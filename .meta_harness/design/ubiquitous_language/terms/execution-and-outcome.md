@@ -154,10 +154,10 @@
 > that belongs to no run are model calls too**, under the same rules.
 
 - **形态**：对象
-- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 12） ·
-  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 12） ·
+- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 13） ·
+  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 13） ·
   [PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 4） ·
-  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 14）
+  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 15）
 - **别混**：**不是那次请求的内容**——请求体怎么攒出来归 [PF-010](../../product/PF-010-context-management-and-assembly/README.md)；
   **也不是回复怎么流式拼起来**，那归 [PF-009](../../product/PF-009-context-message-types/README.md)
 - **注意**：**这一层归 [PF-013](../../product/PF-013-model-profiles-and-invocation/README.md)**——
@@ -188,7 +188,7 @@
 - **形态**：过程
 - **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
   [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) ·
-  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 12）
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 13）
 - **别混 ①**：**不是一次模型调用**——调用有头有尾、有三个终态；发出是调用里的一次尝试
 - **别混 ②**：**不是[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)**——那是一次运行里第几次起 agent runtime
 - **注意 ①**：**[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出**——「说话中」不回「在途」
@@ -211,12 +211,35 @@
 
 - **形态**：规则
 - **出处**：[PF-013 §5.4「已经开口说话了」优先于其余各类](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) ·
-  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 12） ·
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 13） ·
   [PF-009 §9.2](../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 8）
 - **注意 ①**：**「已经开口」是账，不是在途**——它在第一份内容交到任何人眼前之前，就作为那次调用[账目](#ul-call-account--调用账目--call-account)里的一笔落进日志、带着开口的时刻；停机之后靠它判断
 - **注意 ②**：**判据挂在到达方式上，不挂在模态清单上**——将来多一种内容块，它归哪种到达方式，首 token 就落在哪个时刻
 - **注意 ③**：**首 token 之后的任何故障一律不重试**，而且**优先于策略**——重试挂件也推翻不了；用户插队中断不是故障，不走这一条
 - **注意 ④**：调用状态机上「在途 → 说话中」那一步，就是首 token 到了；**「已开口」「已出门」不另立词条**——前者即首 token 之后，后者即过了出门前两道、进入在途
+
+### UL-model-response · 模型响应体 · Model Response
+
+> **中**：**一次[发出](#ul-upstream-send--一次发出--upstream-send)结束之后留下的那一条耐久记录**——
+> 这一次走了哪一家、什么时候、上游回了什么状态码、这一次是怎么收场的。
+> **每一次发出恰好留一条**：成了、断了、被中断都留；一次都没发出的调用没有它。
+> 它进[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)；**试过又失败的那几条不进方程、也不进模型的上下文**，读它们的是重试挂件与排查的人。
+> 回复是另一样东西——**落成消息的是回复，不是这条记录**。
+>
+> **EN**: **The durable record one upstream send leaves behind once it is over** — which provider this send went
+> through, when, what status the upstream returned, and how this send ended. **Exactly one per send**: a send that
+> succeeded, broke or was interrupted each leaves one; a call that never sent has none. It goes into the session log;
+> **the failed ones enter neither the transition function nor the model-facing context** — the retry extension and
+> whoever investigates read them. The reply is a different thing: **what becomes a message is the reply, not this record**.
+
+- **形态**：对象
+- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·
+  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 13）
+- **⚠️ 别混 ①**：**裸写「响应体」在跨 topic 的文字里不作数**——HTTP 里那个词指上游回来的那段字节；那段字节至多是本条身上的一项留存（注意 ②），不是本条
+- **别混 ②**：**不是[一次发出](#ul-upstream-send--一次发出--upstream-send)**——发出是过程，本条是它留下的东西；**也不是[调用账目](#ul-call-account--调用账目--call-account)**——账是「花了什么」，一次发出的用量与费用落在哪一条上归规格
+- **注意 ①**：**有几条，看首 token 之前发了几次**——[首 token](#ul-first-token--首-token--first-token) 之后不再有第二次发出，所以带回复的至多一条、且是最后一条；停机后照常再发的那一次也是新的一条，两笔钱两条都照实记
+- **注意 ②**：**规格里的「上游原始响应留存」（响应头、原始字节）是它身上的一项属性，排查用，不进上下文、不进任何给人的呈现——不另立词条**；产品正文只要求[状态码原样带着](../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它)、[错误信息外泄之前脱敏](../../product/PF-013-model-profiles-and-invocation/design.md#616-错误信息外泄之前要脱敏)
+- **注意 ③**：正文对失败那几次的叫法是「留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)、[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)）——**两者是不是同一条记录，正文未述**，[对象条目](../../domain_objects/objects.md#ul-model-response--模型响应体)记为未裁
 
 ## 跑的过程中，跟外面说的两种话
 
@@ -349,9 +372,9 @@
 - **形态**：属性
 - **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 19） ·
   [PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 8） ·
-  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 14） ·
-  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 12） ·
-  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 18）
+  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 15） ·
+  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 13） ·
+  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 20）
 - **别混**：**不是[工具产出](#ul-tool-output--工具产出--tool-output)**——产出是给读者的东西，账是关于这次的事实
 - **注意**：工具内部调外部服务产生的费用也记在这里，一次执行可以有多笔
 - **注意 ②**：**一次模型调用「已经开口」也是它账目里的一笔**——第一份内容交到任何人眼前之前落进日志，
@@ -413,7 +436,7 @@
 - **形态**：对象
 - **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 19） ·
   [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 19） ·
-  [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 14）
+  [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 15）
 - **别混 ①**：**不是那条占位**——占位进了消息，带着够用的那部分、有多大、怎么取；
   **这一条是被留在外面的那份全的**
 - **别混 ②**：**不是[附件](#ul-attachment--附件--attachment)**——
@@ -470,9 +493,9 @@
 > cause pointing at the vetoing extension.
 
 - **形态**：属性
-- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 14） ·
+- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 15） ·
   [PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) ·
-  [§5.4](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 12）
+  [§5.4](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 13）
 - **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被否决的回复不是故障，不交给重试挂件，也不算试过一家
 - **注意**：**它非有不可**——一件回回都否决的拓展件，否则会让 loop 永远另起新调用。它挂在哪一层、默认多少，正文只说是一项运行时设置
 
@@ -559,7 +582,7 @@
 
 - **形态**：状态
 - **出处**：[PF-013 §4 什么时候算试尽](../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽) ·
-  [§5.12](../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 12）
+  [§5.12](../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 13）
 - **别混 ①**：**不是「这一次失败了」**——失败之后还有手段可试，这一层就还没了结不了
 - **别混 ②**：**「所有模型都试过了」不是试尽**——换模型是用户的命令，不是这一层的手段
 - **注意 ①**：**只管故障这一维**——落盘前被否决的回复不算，那道上限是[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)
@@ -580,7 +603,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §5.7 上交带什么](../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) ·
-  [§6.14](../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 12）
+  [§6.14](../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 13）
 - **别混**：**被中断不在这里**——用户中断不是非常态，不产出任何成因；落盘前被否决的回复同样不带成因
 - **注意 ①**：**只按「下一步不同」分取值**——「连不上」「超时」「5xx」「被限流」答案一律是「没人，等」，并成一个；差在哪由状态码说
 - **注意 ②**：**成因给分层处置用，状态码给排查的人与重试策略用**

@@ -1,0 +1,2090 @@
+{
+  "source": ".meta_harness/design/spec/data/mcp-endpoint/v2/examples.md",
+  "sourceSha256": "3fd1089fba522a5944c46ae2176fc3053297348eba49adc1dd6daaaf85a6c7f0",
+  "cases": [
+    {
+      "id": "block-1",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": "PT60S"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": true,
+      "sourceLine": null,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "block-2",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": true,
+      "sourceLine": null,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "block-3",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "fetchedAt": "2026-09-23T08:00:00Z",
+        "tools": [
+          {
+            "name": "list_issues",
+            "description": "List issues in a GitHub repository.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner."
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name."
+                }
+              },
+              "required": [
+                "owner",
+                "repo"
+              ]
+            }
+          },
+          {
+            "name": "create_issue",
+            "description": "Create a new issue in a GitHub repository.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner."
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Issue title."
+                },
+                "body": {
+                  "type": "string",
+                  "description": "Issue body."
+                }
+              },
+              "required": [
+                "owner",
+                "repo",
+                "title"
+              ]
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          }
+        ]
+      },
+      "valid": true,
+      "sourceLine": null,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "block-4",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "not_fetched"
+      },
+      "valid": true,
+      "sourceLine": null,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "block-5",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "fetchedAt": "2026-09-23T08:05:00Z",
+        "tools": []
+      },
+      "valid": true,
+      "sourceLine": null,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "block-6",
+      "definition": "AssetHolding",
+      "value": {
+        "holder": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_t1",
+            "account": "acc_a1"
+          }
+        },
+        "capability": {
+          "category": "mcp",
+          "name": "github"
+        },
+        "asset": "ast_4b20",
+        "basis": {
+          "kind": "owned"
+        },
+        "versionSelection": {
+          "kind": "current"
+        },
+        "immutable": false,
+        "assignments": [
+          {
+            "item": "credential",
+            "value": "cred_77f0",
+            "immutable": false,
+            "since": "2026-09-20T09:00:00Z"
+          },
+          {
+            "item": "execute:create_issue",
+            "value": {
+              "allowed": [
+                "ask"
+              ]
+            },
+            "immutable": false,
+            "since": "2026-09-20T09:00:00Z"
+          }
+        ],
+        "since": "2026-09-20T02:00:00Z"
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "block-7",
+      "definition": "AssetHolding",
+      "value": {
+        "holder": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_t1",
+            "account": "acc_a1"
+          }
+        },
+        "capability": {
+          "category": "mcp",
+          "name": "linear"
+        },
+        "asset": "ast_8c31",
+        "basis": {
+          "kind": "owned"
+        },
+        "versionSelection": {
+          "kind": "current"
+        },
+        "immutable": false,
+        "assignments": [
+          {
+            "item": "credential",
+            "value": "cred_91c2",
+            "immutable": false,
+            "since": "2026-09-23T08:10:00Z"
+          }
+        ],
+        "since": "2026-09-23T08:00:00Z"
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "block-8-declaration-1",
+      "definition": "AttributeDeclaration",
+      "value": {
+        "item": "connectionTarget",
+        "kind": "setting",
+        "category": "placement_identity",
+        "domain": {
+          "kind": "open",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json#/$defs/McpTransport"
+          }
+        },
+        "default": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        }
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "block-8-declaration-2",
+      "definition": "AttributeDeclaration",
+      "value": {
+        "item": "credential",
+        "kind": "setting",
+        "category": "placement_identity",
+        "domain": {
+          "kind": "open",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json#/$defs/CredentialRef"
+          }
+        }
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "block-8-declaration-3",
+      "definition": "AttributeDeclaration",
+      "value": {
+        "item": "connectTimeout",
+        "kind": "setting",
+        "category": "preference",
+        "domain": {
+          "kind": "open",
+          "schema": {
+            "allOf": [
+              {
+                "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json#/$defs/Duration"
+              },
+              {
+                "not": {
+                  "pattern": "^PT(?:0+H)?(?:0+M)?(?:0+(?:[.]0+)?S)?(?![\\s\\S])"
+                }
+              }
+            ]
+          }
+        },
+        "default": "PT15S"
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "block-8-declaration-4",
+      "definition": "AttributeDeclaration",
+      "value": {
+        "item": "callTimeout",
+        "kind": "setting",
+        "category": "preference",
+        "domain": {
+          "kind": "open",
+          "schema": {
+            "allOf": [
+              {
+                "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json#/$defs/Duration"
+              },
+              {
+                "not": {
+                  "pattern": "^PT(?:0+H)?(?:0+M)?(?:0+(?:[.]0+)?S)?(?![\\s\\S])"
+                }
+              }
+            ]
+          }
+        },
+        "default": "PT2M"
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "block-8-declaration-5",
+      "definition": "AttributeDeclaration",
+      "value": {
+        "item": "execute:list_issues",
+        "kind": "permission",
+        "domain": {
+          "kind": "enum",
+          "values": [
+            "forbid",
+            "auto",
+            "ask"
+          ]
+        },
+        "default": "ask"
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "block-8-declaration-6",
+      "definition": "AttributeDeclaration",
+      "value": {
+        "item": "execute:save_issue",
+        "kind": "permission",
+        "domain": {
+          "kind": "enum",
+          "values": [
+            "forbid",
+            "auto",
+            "ask"
+          ]
+        },
+        "default": "ask"
+      },
+      "valid": true,
+      "sourceLine": null
+    },
+    {
+      "id": "examples-1-71",
+      "definition": "McpEndpoint",
+      "value": [],
+      "valid": false,
+      "sourceLine": 71,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M1"
+      }
+    },
+    {
+      "id": "examples-2-79",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "/srv/docs"
+        ]
+      },
+      "valid": true,
+      "sourceLine": 79,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-2-80",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "/usr/local/bin/mcp server",
+        "args": []
+      },
+      "valid": true,
+      "sourceLine": 80,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-2-81",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "srv",
+        "args": [
+          "$HOME/x"
+        ]
+      },
+      "valid": true,
+      "sourceLine": 81,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-2-82",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "srv",
+        "args": [
+          ""
+        ]
+      },
+      "valid": true,
+      "sourceLine": 82,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-2-83",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "http://127.0.0.1:8931/mcp"
+      },
+      "valid": true,
+      "sourceLine": 83,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-2-84",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "http://[::1]:3000/mcp?tenant=a"
+      },
+      "valid": true,
+      "sourceLine": 84,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-2-85",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "https://mcp.example.com/mcp?api_key=sk_live_9f"
+      },
+      "valid": true,
+      "sourceLine": 85,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-2-86",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "sse",
+        "url": "https://mcp.example.com/sse"
+      },
+      "valid": false,
+      "sourceLine": 86,
+      "judgment": {
+        "rejected": "transport_unknown"
+      }
+    },
+    {
+      "id": "examples-2-87",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "Stdio",
+        "command": "srv",
+        "args": []
+      },
+      "valid": false,
+      "sourceLine": 87,
+      "judgment": {
+        "rejected": "transport_unknown"
+      }
+    },
+    {
+      "id": "examples-2-88",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "websocket",
+        "url": "wss://mcp.example.com"
+      },
+      "valid": false,
+      "sourceLine": 88,
+      "judgment": {
+        "rejected": "transport_unknown"
+      }
+    },
+    {
+      "id": "examples-2-89",
+      "definition": "McpTransport",
+      "value": {
+        "command": "srv",
+        "args": []
+      },
+      "valid": false,
+      "sourceLine": 89,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M2"
+      }
+    },
+    {
+      "id": "examples-2-90",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "",
+        "args": []
+      },
+      "valid": false,
+      "sourceLine": 90,
+      "judgment": {
+        "rejected": "command_empty"
+      }
+    },
+    {
+      "id": "examples-2-91",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": " 　 ",
+        "args": []
+      },
+      "valid": false,
+      "sourceLine": 91,
+      "judgment": {
+        "rejected": "command_empty"
+      }
+    },
+    {
+      "id": "examples-2-92",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "srv"
+      },
+      "valid": false,
+      "sourceLine": 92,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M3"
+      }
+    },
+    {
+      "id": "examples-2-93",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "srv",
+        "args": "--port 1"
+      },
+      "valid": false,
+      "sourceLine": 93,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M5"
+      }
+    },
+    {
+      "id": "examples-2-94",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "srv",
+        "args": [],
+        "env": {
+          "A=B": "c"
+        }
+      },
+      "valid": false,
+      "sourceLine": 94,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M9"
+      }
+    },
+    {
+      "id": "examples-2-95",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "srv",
+        "args": [],
+        "env": {
+          "LEVEL": 3
+        }
+      },
+      "valid": false,
+      "sourceLine": 95,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M5"
+      }
+    },
+    {
+      "id": "examples-2-96",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "stdio",
+        "command": "srv",
+        "args": [],
+        "cwd": "/tmp"
+      },
+      "valid": false,
+      "sourceLine": 96,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-2-97",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "https://bot:ghp_16C7e42F@mcp.example.com/mcp"
+      },
+      "valid": false,
+      "sourceLine": 97,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-98",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "ftp://mcp.example.com/"
+      },
+      "valid": false,
+      "sourceLine": 98,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-99",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "HTTPS://mcp.example.com/"
+      },
+      "valid": false,
+      "sourceLine": 99,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-100",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "mcp.example.com/mcp"
+      },
+      "valid": false,
+      "sourceLine": 100,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-101",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "https:///mcp"
+      },
+      "valid": false,
+      "sourceLine": 101,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-102",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "https://mcp.example.com/mcp#tools"
+      },
+      "valid": false,
+      "sourceLine": 102,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-103",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "https://mcp.example.com/m cp"
+      },
+      "valid": false,
+      "sourceLine": 103,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-104",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "https://mcp.example.com/mcp\n"
+      },
+      "valid": false,
+      "sourceLine": 104,
+      "judgment": {
+        "rejected": "url_invalid"
+      }
+    },
+    {
+      "id": "examples-2-105",
+      "definition": "McpTransport",
+      "value": {
+        "kind": "streamable_http",
+        "url": "https://mcp.example.com/",
+        "headers": {
+          "Authorization": "Bearer x"
+        }
+      },
+      "valid": false,
+      "sourceLine": 105,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-3-165",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "tools": []
+      },
+      "valid": false,
+      "sourceLine": 165,
+      "judgment": {
+        "rejected": "snapshot_missing_time"
+      }
+    },
+    {
+      "id": "examples-3-166",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "fetchedAt": "2026-09-23",
+        "tools": []
+      },
+      "valid": false,
+      "sourceLine": 166,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M7"
+      }
+    },
+    {
+      "id": "examples-3-167",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "fetchedAt": "2026-09-23T08:00:00Z"
+      },
+      "valid": false,
+      "sourceLine": 167,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M3"
+      }
+    },
+    {
+      "id": "examples-3-168",
+      "definition": "ActionSnapshot",
+      "value": {
+        "tools": []
+      },
+      "valid": false,
+      "sourceLine": 168,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M2"
+      }
+    },
+    {
+      "id": "examples-3-169",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "stale",
+        "fetchedAt": "2026-09-23T08:00:00Z",
+        "tools": []
+      },
+      "valid": false,
+      "sourceLine": 169,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M6"
+      }
+    },
+    {
+      "id": "examples-3-170",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "not_fetched",
+        "tools": []
+      },
+      "valid": false,
+      "sourceLine": 170,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-3-171",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "fetchedAt": "2026-09-23T08:00:00Z",
+        "tools": [
+          {
+            "name": "list_issues",
+            "description": "List issues in a GitHub repository.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner."
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name."
+                }
+              },
+              "required": [
+                "owner",
+                "repo"
+              ]
+            }
+          },
+          {
+            "name": "create_issue",
+            "description": "Create a new issue in a GitHub repository.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner."
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Issue title."
+                },
+                "body": {
+                  "type": "string",
+                  "description": "Issue body."
+                }
+              },
+              "required": [
+                "owner",
+                "repo",
+                "title"
+              ]
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          }
+        ],
+        "resources": []
+      },
+      "valid": false,
+      "sourceLine": 171,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-3-172",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "fetchedAt": "2026-09-23T08:00:00Z",
+        "tools": [
+          {
+            "name": "list_issues",
+            "description": "List issues in a GitHub repository.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner."
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name."
+                }
+              },
+              "required": [
+                "owner",
+                "repo"
+              ]
+            }
+          },
+          {
+            "name": "create_issue",
+            "description": "Create a new issue in a GitHub repository.",
+            "inputSchema": true,
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "sourceLine": 172,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M5"
+      }
+    },
+    {
+      "id": "examples-3-173",
+      "definition": "ActionSnapshot",
+      "value": null,
+      "valid": false,
+      "sourceLine": 173,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M1"
+      }
+    },
+    {
+      "id": "examples-3-179",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "search",
+        "inputSchema": {
+          "type": "object"
+        }
+      },
+      "valid": true,
+      "sourceLine": 179,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-3-180",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "search",
+        "description": "",
+        "inputSchema": {
+          "type": "object"
+        }
+      },
+      "valid": true,
+      "sourceLine": 180,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-3-181",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "repo/admin",
+        "inputSchema": {
+          "type": "object"
+        }
+      },
+      "valid": true,
+      "sourceLine": 181,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-3-182",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "run",
+        "inputSchema": {
+          "type": "string"
+        }
+      },
+      "valid": true,
+      "sourceLine": 182,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-3-183",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "grep",
+        "description": "按正则搜",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "description": "正则",
+              "pattern": "^(a+)+$"
+            }
+          }
+        }
+      },
+      "valid": true,
+      "sourceLine": 183,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-3-184",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "run",
+        "inputSchema": {
+          "type": "object"
+        },
+        "execution": {
+          "taskSupport": "required"
+        }
+      },
+      "valid": true,
+      "sourceLine": 184,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-3-185",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "",
+        "inputSchema": {
+          "type": "object"
+        }
+      },
+      "valid": false,
+      "sourceLine": 185,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M11"
+      }
+    },
+    {
+      "id": "examples-3-186",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "search"
+      },
+      "valid": false,
+      "sourceLine": 186,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M3"
+      }
+    },
+    {
+      "id": "examples-3-187",
+      "definition": "McpToolDescriptor",
+      "value": {
+        "name": "search",
+        "description": 5,
+        "inputSchema": {}
+      },
+      "valid": false,
+      "sourceLine": 187,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M11"
+      }
+    },
+    {
+      "id": "examples-4-195",
+      "definition": "McpActionName",
+      "value": "github:create_issue",
+      "valid": true,
+      "sourceLine": 195,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-4-196",
+      "definition": "McpActionName",
+      "value": "github:issues.list",
+      "valid": false,
+      "sourceLine": 196,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M13"
+      }
+    },
+    {
+      "id": "examples-4-197",
+      "definition": "McpActionName",
+      "value": "github:_private",
+      "valid": false,
+      "sourceLine": 197,
+      "judgment": {
+        "rejected": "name_reserved_sequence"
+      }
+    },
+    {
+      "id": "examples-4-198",
+      "definition": "McpActionName",
+      "value": "github:list__all",
+      "valid": false,
+      "sourceLine": 198,
+      "judgment": {
+        "rejected": "name_reserved_sequence"
+      }
+    },
+    {
+      "id": "examples-4-199",
+      "definition": "McpActionName",
+      "value": "a:b:c",
+      "valid": true,
+      "sourceLine": 199,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-4-200",
+      "definition": "McpActionName",
+      "value": "github:repo/admin",
+      "valid": false,
+      "sourceLine": 200,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M13"
+      }
+    },
+    {
+      "id": "examples-4-201",
+      "definition": "McpActionName",
+      "value": "github:create issue",
+      "valid": false,
+      "sourceLine": 201,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M13"
+      }
+    },
+    {
+      "id": "examples-4-202",
+      "definition": "McpActionName",
+      "value": "create_issue",
+      "valid": false,
+      "sourceLine": 202,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M13"
+      }
+    },
+    {
+      "id": "examples-4-203",
+      "definition": "McpActionName",
+      "value": "mcp:github/create_issue",
+      "valid": false,
+      "sourceLine": 203,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M13"
+      }
+    },
+    {
+      "id": "examples-4.1-213",
+      "definition": "McpEndpointName",
+      "value": "github",
+      "valid": true,
+      "sourceLine": 213,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-4.1-214",
+      "definition": "McpEndpointName",
+      "value": "issue-tracker",
+      "valid": true,
+      "sourceLine": 214,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-4.1-215",
+      "definition": "McpEndpointName",
+      "value": "acme:search",
+      "valid": true,
+      "sourceLine": 215,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-4.1-216",
+      "definition": "McpEndpointName",
+      "value": "acme:",
+      "valid": true,
+      "sourceLine": 216,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-4.1-217",
+      "definition": "McpEndpointName",
+      "value": "git.hub",
+      "valid": false,
+      "sourceLine": 217,
+      "judgment": {
+        "rejected": "name_not_projectable"
+      }
+    },
+    {
+      "id": "examples-4.1-218",
+      "definition": "McpEndpointName",
+      "value": "my_mcp_",
+      "valid": false,
+      "sourceLine": 218,
+      "judgment": {
+        "rejected": "name_not_projectable"
+      }
+    },
+    {
+      "id": "examples-4.1-219",
+      "definition": "McpEndpointName",
+      "value": "a__b",
+      "valid": false,
+      "sourceLine": 219,
+      "judgment": {
+        "rejected": "name_not_projectable"
+      }
+    },
+    {
+      "id": "examples-4.1-220",
+      "definition": "McpEndpointName",
+      "value": "a:_b",
+      "valid": false,
+      "sourceLine": 220,
+      "judgment": {
+        "rejected": "name_not_projectable"
+      }
+    },
+    {
+      "id": "examples-4.1-221",
+      "definition": "McpEndpointName",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": false,
+      "sourceLine": 221,
+      "judgment": {
+        "rejected": "name_not_projectable"
+      }
+    },
+    {
+      "id": "examples-4.1-222",
+      "definition": "McpEndpointName",
+      "value": "x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x:x",
+      "valid": true,
+      "sourceLine": 222,
+      "judgment": {
+        "rejected": "name_not_projectable"
+      }
+    },
+    {
+      "id": "examples-4.1-223",
+      "definition": "McpEndpointName",
+      "value": "git/hub",
+      "valid": false,
+      "sourceLine": 223,
+      "judgment": {
+        "rejected": "name_invalid"
+      }
+    },
+    {
+      "id": "examples-4.1-224",
+      "definition": "McpEndpointName",
+      "value": "",
+      "valid": false,
+      "sourceLine": 224,
+      "judgment": {
+        "rejected": "name_invalid"
+      }
+    },
+    {
+      "id": "examples-5-234",
+      "definition": "OAuthBinding",
+      "value": {
+        "id": "oab_3e1f",
+        "state": "granted",
+        "since": "2026-09-23T08:10:00Z"
+      },
+      "valid": true,
+      "sourceLine": 234,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-5-235",
+      "definition": "OAuthBinding",
+      "value": {
+        "id": "oab_52a0",
+        "state": "pending",
+        "since": "2026-09-23T08:09:00Z"
+      },
+      "valid": true,
+      "sourceLine": 235,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-5-236",
+      "definition": "OAuthBinding",
+      "value": {
+        "id": "oab_52a0",
+        "state": "revoked",
+        "since": "2026-09-23T08:40:00Z"
+      },
+      "valid": true,
+      "sourceLine": 236,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-5-237",
+      "definition": "OAuthBinding",
+      "value": {
+        "id": "oab_3e1f",
+        "state": "expired",
+        "since": "2026-09-23T08:10:00Z"
+      },
+      "valid": false,
+      "sourceLine": 237,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M6"
+      }
+    },
+    {
+      "id": "examples-5-238",
+      "definition": "OAuthBinding",
+      "value": {
+        "id": "oab_3e1f",
+        "state": "granted",
+        "since": "2026-09-23T08:10:00Z",
+        "credential": "cred_91c2"
+      },
+      "valid": false,
+      "sourceLine": 238,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-5-239",
+      "definition": "OAuthBinding",
+      "value": {
+        "id": "oab_3e1f",
+        "state": "granted",
+        "since": "2026-09-23T08:10:00Z",
+        "accessToken": "…"
+      },
+      "valid": false,
+      "sourceLine": 239,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-5-240",
+      "definition": "OAuthBinding",
+      "value": {
+        "id": " oab_3e1f",
+        "state": "granted",
+        "since": "2026-09-23T08:10:00Z"
+      },
+      "valid": false,
+      "sourceLine": 240,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M12"
+      }
+    },
+    {
+      "id": "examples-5-241",
+      "definition": "OAuthBinding",
+      "value": {
+        "state": "granted",
+        "since": "2026-09-23T08:10:00Z"
+      },
+      "valid": false,
+      "sourceLine": 241,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M3"
+      }
+    },
+    {
+      "id": "examples-6-288",
+      "definition": "CredentialRef",
+      "value": "cred_77f0",
+      "valid": true,
+      "sourceLine": 288
+    },
+    {
+      "id": "examples-6-289",
+      "definition": "CredentialRef",
+      "value": {
+        "kind": "not_fetched"
+      },
+      "valid": false,
+      "sourceLine": 289
+    },
+    {
+      "id": "examples-6-290",
+      "definition": "CredentialRef",
+      "value": {
+        "token": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"
+      },
+      "valid": false,
+      "sourceLine": 290
+    },
+    {
+      "id": "examples-6-291",
+      "definition": "CredentialRef",
+      "value": {
+        "kind": "static",
+        "value": "ghp_16C7e42F"
+      },
+      "valid": false,
+      "sourceLine": 291
+    },
+    {
+      "id": "examples-6-292",
+      "definition": "CredentialRef",
+      "value": {
+        "kind": "fetched"
+      },
+      "valid": false,
+      "sourceLine": 292
+    },
+    {
+      "id": "examples-6-293",
+      "definition": "CredentialRef",
+      "value": null,
+      "valid": false,
+      "sourceLine": 293
+    },
+    {
+      "id": "examples-6-294",
+      "definition": "CredentialRef",
+      "value": "",
+      "valid": false,
+      "sourceLine": 294
+    },
+    {
+      "id": "examples-6-295",
+      "definition": "CredentialRef",
+      "value": " cred_77f0",
+      "valid": false,
+      "sourceLine": 295
+    },
+    {
+      "id": "examples-6-296",
+      "definition": "CredentialRef",
+      "value": {
+        "kind": "revoked"
+      },
+      "valid": false,
+      "sourceLine": 296
+    },
+    {
+      "id": "examples-1-54",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ]
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": "PT60S"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": true,
+      "sourceLine": 54,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-1-55",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": "PT60S"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": true,
+      "sourceLine": 55,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-1-56",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "auto"
+          }
+        }
+      },
+      "valid": true,
+      "sourceLine": 56,
+      "judgment": {
+        "ok": true
+      }
+    },
+    {
+      "id": "examples-1-57",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": "PT60S"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "credential": "ghp_16C7e42F292c6912E7710c838347Ae178B4a"
+      },
+      "valid": false,
+      "sourceLine": 57,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-1-58",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": "PT60S"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "credential": "cred_77f0"
+      },
+      "valid": false,
+      "sourceLine": 58,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-1-59",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "oauth": {
+          "id": "oab_3e1f",
+          "state": "granted",
+          "since": "2026-09-23T08:00:00Z"
+        }
+      },
+      "valid": false,
+      "sourceLine": 59,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-1-60",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "actions": {
+          "kind": "not_fetched"
+        }
+      },
+      "valid": false,
+      "sourceLine": 60,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-1-61",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        },
+        "name": "linear"
+      },
+      "valid": false,
+      "sourceLine": 61,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-1-62",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 62,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M3"
+      }
+    },
+    {
+      "id": "examples-1-63",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT0S",
+          "call": "PT60S"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 63,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M8"
+      }
+    },
+    {
+      "id": "examples-1-64",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": "PT0H0M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 64,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M8"
+      }
+    },
+    {
+      "id": "examples-1-65",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": "P1D"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 65,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M8"
+      }
+    },
+    {
+      "id": "examples-1-66",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "stdio",
+          "command": "github-mcp-server",
+          "args": [
+            "stdio"
+          ],
+          "env": {
+            "GITHUB_TOOLSETS": "issues,repos"
+          }
+        },
+        "timeouts": {
+          "connect": "PT10S",
+          "call": 60
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 66,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M8"
+      }
+    },
+    {
+      "id": "examples-1-67",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {}
+      },
+      "valid": false,
+      "sourceLine": 67,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M3"
+      }
+    },
+    {
+      "id": "examples-1-68",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "yolo"
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 68,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M6"
+      }
+    },
+    {
+      "id": "examples-1-69",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": "ask"
+          },
+          "use": {
+            "default": "member"
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 69,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M4"
+      }
+    },
+    {
+      "id": "examples-1-70",
+      "definition": "McpEndpoint",
+      "value": {
+        "transport": {
+          "kind": "streamable_http",
+          "url": "https://mcp.linear.app/mcp"
+        },
+        "timeouts": {
+          "connect": "PT15S",
+          "call": "PT2M"
+        },
+        "permissions": {
+          "execute": {
+            "default": [
+              "ask",
+              "forbid"
+            ]
+          }
+        }
+      },
+      "valid": false,
+      "sourceLine": 70,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M6"
+      }
+    },
+    {
+      "id": "examples-9-duplicate",
+      "definition": "ActionSnapshot",
+      "value": {
+        "kind": "fetched",
+        "fetchedAt": "2026-09-23T08:00:00Z",
+        "tools": [
+          {
+            "name": "list_issues",
+            "description": "List issues in a GitHub repository.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner."
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name."
+                }
+              },
+              "required": [
+                "owner",
+                "repo"
+              ]
+            }
+          },
+          {
+            "name": "list_issues",
+            "description": "Create a new issue in a GitHub repository.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner."
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Issue title."
+                },
+                "body": {
+                  "type": "string",
+                  "description": "Issue body."
+                }
+              },
+              "required": [
+                "owner",
+                "repo",
+                "title"
+              ]
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          }
+        ]
+      },
+      "valid": true,
+      "sourceLine": null,
+      "judgment": {
+        "rejected": "malformed",
+        "malformed": "M10"
+      }
+    },
+    {
+      "id": "examples-9-plaintext-shape",
+      "definition": "CredentialRef",
+      "value": "ghp_16C7e42F292c6912E7710c838347Ae178B4a",
+      "valid": true,
+      "sourceLine": null
+    }
+  ]
+}

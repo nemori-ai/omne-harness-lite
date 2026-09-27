@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/governance-center-entry@0.0.0 build /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/packages/tenancy/governance-center-entry
+> node -e "require('node:fs').rmSync('dist', {recursive:true, force:true})" && tsc -p tsconfig.build.json
+

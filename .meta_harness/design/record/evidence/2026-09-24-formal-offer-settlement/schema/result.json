@@ -1,0 +1,126 @@
+{
+  "checks": [
+    {
+      "definition": "OfferState",
+      "value": "pending",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "OfferState",
+      "value": "accepted",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "OfferState",
+      "value": "withdrawn",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "OfferState",
+      "value": "declined",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "OfferState",
+      "value": "expired",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "OfferState",
+      "value": "cancelled",
+      "expectedValid": false,
+      "valid": false
+    },
+    {
+      "definition": "SettledState",
+      "value": "accepted",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "SettledState",
+      "value": "withdrawn",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "SettledState",
+      "value": "declined",
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "SettledState",
+      "value": "pending",
+      "expectedValid": false,
+      "valid": false
+    },
+    {
+      "definition": "SettledState",
+      "value": "expired",
+      "expectedValid": false,
+      "valid": false
+    },
+    {
+      "definition": "OfferTiming",
+      "value": {
+        "issuedAt": "2026-09-22T09:00:00Z"
+      },
+      "expectedValid": false,
+      "valid": false
+    },
+    {
+      "definition": "OfferTiming",
+      "value": {
+        "issuedAt": "2026-09-22",
+        "expiresAt": "2026-09-29"
+      },
+      "expectedValid": false,
+      "valid": false
+    },
+    {
+      "definition": "OfferTiming",
+      "value": {
+        "issuedAt": "2026-09-22T09:00:00Z",
+        "expiresAt": "2026-09-29T09:00:00Z",
+        "state": "pending"
+      },
+      "expectedValid": false,
+      "valid": false
+    },
+    {
+      "definition": "OfferTiming",
+      "value": {
+        "issuedAt": "2026-09-22T09:00:00Z",
+        "expiresAt": "2026-09-22T09:00:00Z"
+      },
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "OfferTiming",
+      "value": {
+        "issuedAt": "2026-09-22T09:00:00Z",
+        "expiresAt": "2026-09-29T09:00:00Z"
+      },
+      "expectedValid": true,
+      "valid": true
+    },
+    {
+      "definition": "OfferTiming",
+      "value": {
+        "issuedAt": "2026-09-22T17:00:00+08:00",
+        "expiresAt": "2026-09-22T17:00:01+08:00"
+      },
+      "expectedValid": true,
+      "valid": true
+    }
+  ],
+  "count": 17,
+  "limits": "Shape checks only; no temporal, authorization, atomicity or migration evidence."
+}

@@ -1,0 +1,342 @@
+{
+  "archive": "root-integrated-gates.tar.gz",
+  "archive_sha256": "9cf11f59a987c436e1bb12a9745a22389c03b6f3916d31a5287209e1f547869a",
+  "files": [
+    {
+      "path": "W7-integrated-gates/build.command.json",
+      "bytes": 549,
+      "sha256": "917f5df09efce7671169b663b50718fb361fea04634f9434430630891c760449"
+    },
+    {
+      "path": "W7-integrated-gates/build.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/build.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/build.stdout.log",
+      "bytes": 6594,
+      "sha256": "2049a2f9b13852fb041cdb2bd6890a7ba189175791a6d1bf08a2cd444e2a1fbc"
+    },
+    {
+      "path": "W7-integrated-gates/core-tests.command.json",
+      "bytes": 765,
+      "sha256": "ef5a34ba8ea279f8c04395e564954590436a12cc89de882706855cfb0d8cbaa0"
+    },
+    {
+      "path": "W7-integrated-gates/core-tests.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/core-tests.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/core-tests.stderr.log",
+      "bytes": 3995,
+      "sha256": "02037eb922093a63b056817b27213d84899cdaed0a6ed5b71a3fb3500a4c7183"
+    },
+    {
+      "path": "W7-integrated-gates/core-tests.stdout.log",
+      "bytes": 10168,
+      "sha256": "48df9e0647f72713210475f452a9596c08b04a0a9e4efc1b2f6e6d3cb6a7cd33"
+    },
+    {
+      "path": "W7-integrated-gates/format-harness.command.json",
+      "bytes": 555,
+      "sha256": "e54c2286b64b09a77ddbf497b4f5efa38b4625ca7a105d76dd5375716da3889a"
+    },
+    {
+      "path": "W7-integrated-gates/format-harness.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/format-harness.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/format-harness.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/format-harness.stdout.log",
+      "bytes": 239,
+      "sha256": "b9efc5f5d0d1794054245074d4e2a1c0d915cc640cfc76c53246c67124e10d50"
+    },
+    {
+      "path": "W7-integrated-gates/format.command.json",
+      "bytes": 556,
+      "sha256": "095bdf9c3fbed21b80eac0b759eaaf3e71dc0aaffcff32696b6a8dc57c3c2044"
+    },
+    {
+      "path": "W7-integrated-gates/format.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/format.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/format.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/format.stdout.log",
+      "bytes": 201,
+      "sha256": "cd5c508375c5da0fb0b68294e4a4cc800286319acdc7194fde2ebfa125b7614e"
+    },
+    {
+      "path": "W7-integrated-gates/packed.command.json",
+      "bytes": 617,
+      "sha256": "6c1b9e56ab30d0cc5fa72ba1bd5ff90354b505b7d6383b45265beec1efa6668e"
+    },
+    {
+      "path": "W7-integrated-gates/packed.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/packed.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/packed.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/packed.stdout.log",
+      "bytes": 402,
+      "sha256": "eba3e8dad48188ee95c193364510e95cdc411965398ee527da65e5d7494adc38"
+    },
+    {
+      "path": "W7-integrated-gates/python-tests.command.json",
+      "bytes": 537,
+      "sha256": "a613a8ed749fcb88e8e170c8c985cbceafcec74e124baa81a3e107708c1f5a96"
+    },
+    {
+      "path": "W7-integrated-gates/python-tests.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/python-tests.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/python-tests.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/python-tests.stdout.log",
+      "bytes": 1848,
+      "sha256": "b9d10ae89f10345137aa3c2c509d8c56d5407232a7b1b6f72c0f02c9c4838191"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-a.command.json",
+      "bytes": 599,
+      "sha256": "792ac35d2424ed1cd89b5e6126a8c405f93480c302b97cc70f7b639f91ead12b"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-a.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-a.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-a.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-a.stdout.log",
+      "bytes": 524,
+      "sha256": "61994378274583f3f22173ffeccfd37ec7770eaa1f1a269cd379b62535cf21f0"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-util-infra.command.json",
+      "bytes": 580,
+      "sha256": "ae060937c03b1bb654e243640eafa1754cad5ddb0d35ec13d837b36131655f28"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-util-infra.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-util-infra.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-util-infra.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/readmes-util-infra.stdout.log",
+      "bytes": 964,
+      "sha256": "db6bb9082f544ffc6c5ea030033452bc3eb94d53d3ebe4db47d0858a048ae331"
+    },
+    {
+      "path": "W7-integrated-gates/rules.command.json",
+      "bytes": 554,
+      "sha256": "e2b490ccc9b8dd0350b9b40b07ade81bf3af19ab8bcc0b3c4b3b2d1c103f8eb0"
+    },
+    {
+      "path": "W7-integrated-gates/rules.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/rules.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/rules.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/rules.stdout.log",
+      "bytes": 542,
+      "sha256": "ebfe2c2be47a92898a44b62f87dac31d116cb676deea7386ee6f6cf5a4c0e7b8"
+    },
+    {
+      "path": "W7-integrated-gates/stream-and-composition-after-coordinate-fix.command.json",
+      "bytes": 709,
+      "sha256": "e9b7df16a2732d96f0d362ef95e8707df3a9844d568601e4236c339e7318664d"
+    },
+    {
+      "path": "W7-integrated-gates/stream-and-composition-after-coordinate-fix.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "0c495f669b5004ddebd75f8532cdd37fe2b25faa7a8ef130b4507b2229bd592b"
+    },
+    {
+      "path": "W7-integrated-gates/stream-and-composition-after-coordinate-fix.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "0c495f669b5004ddebd75f8532cdd37fe2b25faa7a8ef130b4507b2229bd592b"
+    },
+    {
+      "path": "W7-integrated-gates/stream-and-composition-after-coordinate-fix.stderr.log",
+      "bytes": 296,
+      "sha256": "809e476841886ecc13eae318e775f377c16f193337823e6e61dfc4a3cda14e10"
+    },
+    {
+      "path": "W7-integrated-gates/stream-and-composition-after-coordinate-fix.stdout.log",
+      "bytes": 976,
+      "sha256": "62c8f4efce1c9f5c605a7f54274c34b7cd07539546d76767ed8a73d4df60d332"
+    },
+    {
+      "path": "W7-integrated-gates/stream-format-after-coordinate-fix.command.json",
+      "bytes": 613,
+      "sha256": "ed85f97e826dcdd9781306ba8d74f564c24776a7074fb8df44e4ee0fad9f1412"
+    },
+    {
+      "path": "W7-integrated-gates/stream-format-after-coordinate-fix.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "0c495f669b5004ddebd75f8532cdd37fe2b25faa7a8ef130b4507b2229bd592b"
+    },
+    {
+      "path": "W7-integrated-gates/stream-format-after-coordinate-fix.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "0c495f669b5004ddebd75f8532cdd37fe2b25faa7a8ef130b4507b2229bd592b"
+    },
+    {
+      "path": "W7-integrated-gates/stream-format-after-coordinate-fix.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/stream-format-after-coordinate-fix.stdout.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "path": "W7-integrated-gates/stream-types-after-coordinate-fix.command.json",
+      "bytes": 611,
+      "sha256": "a9f5c24caa598f6d8a49706ca3708455a16af4d0e84533ffda93b486c3ab6afe"
+    },
+    {
+      "path": "W7-integrated-gates/stream-types-after-coordinate-fix.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "0c495f669b5004ddebd75f8532cdd37fe2b25faa7a8ef130b4507b2229bd592b"
+    },
+    {
+      "path": "W7-integrated-gates/stream-types-after-coordinate-fix.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "0c495f669b5004ddebd75f8532cdd37fe2b25faa7a8ef130b4507b2229bd592b"
+    },
+    {
+      "path": "W7-integrated-gates/stream-types-after-coordinate-fix.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/stream-types-after-coordinate-fix.stdout.log",
+      "bytes": 174,
+      "sha256": "7c3940a4fabfa6bc48471140dbddf6c5ab22664d4f91d2c22e1917df42d29a6b"
+    },
+    {
+      "path": "W7-integrated-gates/types.command.json",
+      "bytes": 553,
+      "sha256": "4f47687ec472b77db14885c2515d9077ad940ac5821ff5fd65551e4672762331"
+    },
+    {
+      "path": "W7-integrated-gates/types.inputs-after.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/types.inputs-before.json",
+      "bytes": 115402,
+      "sha256": "4dc1ee96c9911a8107dd6b57ec6b03097aacd130f122ebeb5c7d65b8383a2309"
+    },
+    {
+      "path": "W7-integrated-gates/types.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "W7-integrated-gates/types.stdout.log",
+      "bytes": 4004,
+      "sha256": "7880219bfe254bf7e8030e6caba43930a573bc5b0e0e8321843aa3366177fe4d"
+    },
+    {
+      "path": "run-W7-followups.py",
+      "bytes": 3660,
+      "sha256": "b5e7a5939dd76592cb56a4d6eba6add026930c62be67d8949d895311fa4461f4"
+    },
+    {
+      "path": "run-W7-gates.py",
+      "bytes": 2927,
+      "sha256": "de6c315c473c9e0554111b36c7a884606291c2f80cb97a9be5fae9a81af4d28a"
+    }
+  ],
+  "all_payload_bytes_read_back": true
+}

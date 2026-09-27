@@ -2,7 +2,7 @@
 id: PF-001
 title: 身份、范围与对 Agent 的约束
 status: active
-revision: 18
+revision: 20
 relations:
   supersedes: []
   depends-on: []
@@ -42,10 +42,10 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 18**。rev 16 已定稿（2026-09-23 按产品负责人「rev 完翻正式」的裁决登记为接受）；rev 17–18 的变化仍待产品负责人确认（改了什么见[变更历史](changelog.md)）
-- 未决项：**无**
-- 待裁决：**无**
-- 技术投影：**v3**（2026-09-23，**依据 rev 16**——rev 17 的变化要对它复核，见[变更历史](changelog.md)；记录实现与验收对账；覆盖租户相关领域；由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 与 [D-028](../../record/decisions/governance-center-design-acceptance/README.md) 接受为实施入口；版本表在[投影目录](projection/README.md)）
+- 产品设计：**rev 20**，工作区概念对齐增量仍为草稿；rev 19 的治理产品基线及其评审、确认范围保留，见 [decisions](decisions.md)。本次整合不扩大原接受范围。
+- 未决项：成功业务访问与跨到期访问的规格映射，以及 PF-017 的恢复核对依赖，见 [design §九](design.md#九未决项)
+- 待裁决：本 topic 无新增独立登录政策选择；恢复材料、核对资格与开放等真实依赖由 PF-017 接续
+- 技术投影：**v3**（2026-09-23，依据 rev 16，记录实现与验收对账；覆盖租户相关领域；由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 与 [D-028](../../record/decisions/governance-center-design-acceptance/README.md) 接受为实施入口；版本表在[投影目录](projection/README.md)）
 
 技术投影按 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本包的 `projection/` 下对应版本。
@@ -63,3 +63,5 @@ PF-001-identity-scope-and-agent-constraints/
 ├── interviews/       设计交流笔记（原始材料）
 └── projection/       向 Cordis 的技术设计投影，按版本固化（派生快照，不是权威）
 ```
+
+本次并行修订的来源、编号协调与消费者复核见 [decisions](decisions.md#2026-09-26-并行修订对账)。

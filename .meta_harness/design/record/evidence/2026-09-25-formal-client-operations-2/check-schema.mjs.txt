@@ -1,0 +1,27 @@
+import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+const require = createRequire(resolve('packages/frontend/governance-center-client/package.json'))
+const { Ajv2020 } = require('ajv/dist/2020.js')
+const ajv = new Ajv2020({ strict: true, strictTypes: false, strictRequired: false, validateFormats: false })
+ajv.addKeyword('x-counterexamples')
+for (const path of [
+  '.meta_harness/design/spec/data/identity-values/v1/identity-values.schema.json',
+  '.meta_harness/design/spec/data/offer-expiry/v2/offer-expiry.schema.json',
+  '.meta_harness/design/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json',
+  '.meta_harness/design/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json',
+]) ajv.addSchema(JSON.parse(readFileSync(path, 'utf8')))
+const schema = JSON.parse(readFileSync('.meta_harness/design/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json', 'utf8'))
+for (const definition of ['Input','Output']) {
+  ajv.compile({ $ref: schema.$id + '#/$defs/' + definition })
+  console.log('PASS schema references/compile: ' + definition)
+}
+const examples = JSON.parse(readFileSync('.meta_harness/design/spec/compositions/governance-client-operations/v1/examples.json', 'utf8'))
+for (const example of examples) {
+  const validate = ajv.compile({ $ref: schema.$id + '#/$defs/' + example.definition })
+  const actual = validate(example.value)
+  if (actual !== example.valid) {
+    console.error('FAIL', example.title, JSON.stringify(validate.errors)); process.exitCode = 1
+  }
+}
+if (!process.exitCode) console.log('PASS candidate examples: ' + examples.length)

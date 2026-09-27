@@ -1,0 +1,18 @@
+# 条款到证据的绑定表。
+# 空表：data.arrival-events v2 没有登记的 formal task；源码不存在，没有测试可绑。
+# 证据义务与缺口记在 verification.md。
+version: 1
+node: "arrival-events"
+kind: "provider"
+
+bindings:
+
+# 当前实际实现测试绑定；旧注释／绑定保留其原日期范围。
+
+  - clause: "data.arrival-events/v2#S-19"
+    evidence: "test:tools/core-verification/src/w6-stream-consumer.ts#w6.stream.decoded-voice-split-invariance"
+    assumptions:
+      - "标准base64实际解码字节分片和整片对照，文本拼base64目标拒绝；不证transport产生这些帧。"
+      - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
+      - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
+    alignment_checked: "2026-09-26"

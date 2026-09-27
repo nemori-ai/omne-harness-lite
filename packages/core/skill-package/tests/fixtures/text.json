@@ -1,0 +1,96 @@
+[
+  {
+    "text": "---\nname: code-review\ndescription: see a---b here\n---\n\n# Review\nRun $ARGUMENTS\n",
+    "manifest": {
+      "name": "code-review",
+      "description": "see a---b here"
+    },
+    "body": "\n# Review\nRun $ARGUMENTS\n"
+  },
+  {
+    "text": "---\r\nname: x\r\ndescription: d\r\n---\r\nbody\r\n",
+    "manifest": {
+      "name": "x",
+      "description": "d"
+    },
+    "body": "body\r\n"
+  },
+  {
+    "text": "---\nname: x\ndescription: d\n---",
+    "manifest": {
+      "name": "x",
+      "description": "d"
+    },
+    "body": ""
+  },
+  {
+    "text": "---\nname: no\ndescription: d\n---\n",
+    "manifest": {
+      "name": "no",
+      "description": "d"
+    },
+    "body": ""
+  },
+  {
+    "text": "---\nname: x\ndescription: d\nuser-invocable: false\nversion: 1.2.0\n---\nbody",
+    "manifest": {
+      "name": "x",
+      "description": "d"
+    },
+    "body": "body"
+  },
+  {
+    "text": "---\nname: x\ndescription: d\nallowed-tools: Bash(git:*) Read\n---\n",
+    "manifest": {
+      "name": "x",
+      "description": "d",
+      "allowed-tools": "Bash(git:*) Read"
+    },
+    "body": ""
+  },
+  {
+    "text": "name: x\ndescription: d\n",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "﻿---\nname: x\ndescription: d\n---\n",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "---\nname: x\ndescription: d\n",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "---\nname: x\ndescription: d\n--- \nbody",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "---\nname: x\nname: y\ndescription: d\n---\n",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "---\n---\n",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "---\n- name\n---\n",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "---\nname: x\ndescription: 123\n---\n",
+    "manifest": null,
+    "body": null
+  },
+  {
+    "text": "---\nname: x\ndescription: d\nmetadata:\n  version: 1.0\n---\n",
+    "manifest": null,
+    "body": null
+  }
+]

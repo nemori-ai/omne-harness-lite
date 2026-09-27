@@ -1,0 +1,6 @@
+export { StorageUnavailable, UniqueViolation, ReferenceViolation, StorageDefect, type ReferenceViolationKind, type StorageFailure, } from './errors.ts';
+export { type UntypedDb, type ReadTx, type WriteTx, type Storage, type StorageInstance, narrow, } from './protocol.ts';
+export { mapStorageError } from './map.ts';
+export { type MigrationFragment, composeMigrations, composedMigrationName } from './migration.ts';
+export { type PreflightInput, type PreflightResult, type PreflightCheck } from './preflight.ts';
+//# sourceMappingURL=index.d.ts.map

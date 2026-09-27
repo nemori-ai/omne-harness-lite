@@ -1,0 +1,6 @@
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery
+> ./scripts/format.sh check -- packages/core/mcp-endpoint/tests/body-resource.spec.ts
+
+Checking formatting...
+All matched files use Prettier code style!

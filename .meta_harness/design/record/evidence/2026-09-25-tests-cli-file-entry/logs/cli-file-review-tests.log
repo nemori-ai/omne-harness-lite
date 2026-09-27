@@ -1,0 +1,16 @@
+
+> @omne-harness-lite/cli@0.0.0 test /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/cli
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/apps/cli
+
+
+ Test Files  2 passed (2)
+      Tests  68 passed (68)
+Type Errors  no errors
+   Start at  05:12:10
+   Duration  906ms (transform 341ms, setup 0ms, import 1.04s, tests 63ms, environment 0ms)
+

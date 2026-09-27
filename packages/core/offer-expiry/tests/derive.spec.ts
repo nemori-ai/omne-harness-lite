@@ -10,7 +10,9 @@ import {
 } from '../src/index.ts'
 
 const at = (ms: number): Instant => unwrap(instantFromEpochMs(ms))
-const timing = unwrap(timingFrom(at(1_000), unwrap(parseOfferTtl(500))))
+const madeTiming = timingFrom(at(1_000), unwrap(parseOfferTtl(500)))
+if (madeTiming === 'unavailable') throw new Error('fixture deadline overflow')
+const timing = unwrap(madeTiming)
 
 describe('deriveState（S-8 判定式与求值次序）', () => {
   it('终结记录优先：已撤回且时间已过仍是 withdrawn，不是 expired', () => {
@@ -80,5 +82,19 @@ describe('timingFrom / parseOfferTtl（S-4 / S-14）', () => {
   })
   it('缺席不进解析器：undefined 被当作非法（分流是调用方的事）', () => {
     expect('invalidInput' in parseOfferTtl(undefined)).toBe(true)
+  })
+})
+
+describe('OE2 decline / overflow', () => {
+  it('declined remains final without clock or target and cannot be accepted', () => {
+    expect(
+      deriveState({ timing, settled: 'declined', now: 'unavailable', target: 'unavailable' }),
+    ).toBe('declined')
+    expect(acceptable('declined')).toBe(false)
+  })
+  it('valid positive ttl with unrepresentable deadline is unavailable', () => {
+    expect(timingFrom(at(Number.MAX_SAFE_INTEGER - 1), unwrap(parseOfferTtl(2)))).toBe(
+      'unavailable',
+    )
   })
 })

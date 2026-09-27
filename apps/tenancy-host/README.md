@@ -17,8 +17,8 @@ node apps/tenancy-host/dist/cli.js serve                         # 从环境变�
 
 | 子命令         | 行为                                                                                                                                                     | 退出码                                                     |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `keygen <dir>` | 写四份 Ed25519 PEM（`0600`，目录不存在即以 `0700` 建出）；标准输出一行 JSON 给出四个 `_FILE` 变量与路径，**不含密钥内容**；四份里任一已存在 ⇒ 一份都不写 | 0 成功；1 已存在或写失败；2 用法错误                       |
-| `serve`        | `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出                                                                                               | 0 撤完；1 启动失败或撤除总超时（30 s）内没撤完；2 用法错误 |
+| `keygen <dir>` | 写四份 Ed25519 PEM（`0600`，目录不存在即以 `0700` 建出）；标准输出一行 JSON 给出四个 `_FILE` 变量与路径，**不含密钥内容**；四份里任一已存在 ⇒ 一份都不写 | 0 成功；1 已存在或写失败；64 用法错误                       |
+| `serve`        | `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出                                                                                               | 0 收场确认；1 启动或收场失败；64 用法错误；30 s 仅诊断并继续等 |
 
 **本版不轮换密钥。**重生密钥等于换钥：两步之间的注册与清除会以契约已定义的方式收场（重来即可），但换钥必须在中心停着的时候做。
 
@@ -66,23 +66,20 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 4. **磁盘要多容纳一份库的大小**：有待跑迁移时，迁移之前先建一份完整快照；确认之后删除。
 5. **权限**：运维面套接字目录只属于中心的运行用户、组与其他用户没有任何权限位（否则启动失败，中心不替你改）；
    四份部署密钥与 TLS 私钥文件 `0600`。
-6. **断电边界**：sqlite 以 `synchronous=NORMAL` 运行（D-027）。**中心进程自己崩掉或被强行结束（机器照常开着）不丢任何已答复成功的事**；
-   **机器断电或操作系统崩溃**之后，崩溃前最后一段已答复成功的事可能不在（中心空闲时这一段可能长到约一小时），且不会出现半份——
-   刚注册的账号、刚发的邀请、刚完成的加入与切换可能要重做，**刚退出或撤销的登录状态可能又有效了**，刚移出的成员可能回来了（PF-017 §6.7、§6.8）。
-   机器断过电，运维者应告诉同事把断电前不久做的退出、撤销与移出再做一次。
+6. **同步档位**：本中心按 [D-039](../../.meta_harness/design/record/decisions/governance-sqlite-full/decision.md) 显式使用 SQLite WAL + FULL；没有降档环境变量。耐久性依赖操作系统、文件系统和设备正确兑现同步请求；参数及进程回归不等于物理断电实验，也不涵盖磁盘毁损或旧备份安全恢复。
 7. **同步驱动下热循环会饿死定时器**：`node:sqlite` 是同步驱动；请求都经 I/O 到达，天然让出事件循环。不要在进程里挂别的忙循环任务。
 8. **升级 = 停着的时候换一个版本再启动。**sqlite 上确认之前的任何启动失败都把库恢复到升级前，旧版本照常能起；
    **确认之后开闸那一刻钟读不到**（`serving-timeout`，缺口 U-4）是已接受的残余情形：库已是新版本、旧版本起不来——**核过钟再用同一版本重启**。
    **pg 上迁移提交之后的失败撤不回**（缺口 U-3，本版无手段）：启动日志会有一条 `upgrade-irreversible`。
-9. **网络边界**：`OMNE_TENANCY_ENTRY_LISTEN` 默认只填本机或私有网络地址；公网暴露须有前置的网络边界（入口契约不承诺限流与登录试探防护，注册与登录对任何能到达端口的连接开放）。第一版按「自己人开发与实验」定基调（D-029）：登录状态没有寿命、只有撤销，出实验之前那一条必须先闭合。
-10. **停机**：`SIGTERM` 后入口层先停收、在途请求至多排空 10 s，再逐个撤其余七条；30 s 内没撤完即退出 1 并记下没撤完的插件。
+9. **网络边界**：`OMNE_TENANCY_ENTRY_LISTEN` 默认只填本机或私有网络地址；公网暴露须有前置的网络边界（入口契约不承诺限流与登录试探防护，注册与登录对任何能到达端口的连接开放）。当前按 D040～D044 运行有限登录：最长8小时、成功业务访问后空闲1小时失效，无自动续期；主动更换凭据使全部旧登录失效。限流仍由部署网络边界负责，内网可达不等于任意账号可信。
+10. **停机**：`SIGTERM` 后入口层先停收、在途请求至多排空 10 s，再逐个撤其余七条；30 s 后记录 still-stopping 并继续等待真实收场；controller/storage 两个观察槽和升级守卫均确认后才退出 0，收场失败退出 1。
 
 ## 实现映射：本装配的常量
 
 | 量                              | 取值                                     | 约束                                                                     | 源码                                 |
 | ------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| 入口层排空上界 `drainTimeoutMs` | 10 s                                     | 须小于撤除总超时（启动时核）                                             | `src/manifest.ts` `DRAIN_TIMEOUT_MS` |
-| 撤除总超时                      | 30 s                                     | 盖住入口层排空 10 s + 运维面撤除 3 s + 存储关闭                          | `DISPOSE_TIMEOUT_MS`                 |
+| 入口层排空上界 `drainTimeoutMs` | 10 s                                     | 仅约束业务网络排空                                             | `src/manifest.ts` `DRAIN_TIMEOUT_MS` |
+| 停止诊断阈值                    | 30 s                                     | 记录一次仍在停止，不停止等待或释放源属主                          | `DISPOSE_TIMEOUT_MS`                 |
 | 等 `serving` 的上界             | `OMNE_TENANCY_CLOCK_READY_TIMEOUT` + 1 s | 盖住入口层开闸那一刻再读钟的上界（入口层用同一个 `clockReadyTimeoutMs`） | `SERVING_GRACE_MS`                   |
 | 日志导出阈值                    | WARN（2）                                | basis `logger-level-order-error-lowest`                                  | `src/log.ts`                         |
 | 中心版本 `version`              | 包版本 `0.0.0`                           | 构建常量，测试核与 `package.json` 一致                                   | `src/version.ts`                     |
@@ -93,6 +90,22 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 ## 验证
 
 `pnpm --filter @omne-harness-lite/tenancy-host run test`：真 sqlite 文件库、真 TLS、真 Unix 套接字、真子进程（SIGKILL 模拟崩溃）。
-`tests/slow.spec.ts` 按真实时长跑（租约宽度 10 s、撤除总超时 30 s），约 70 秒。
-`tests/pg.spec.ts` 需要 `OMNE_TEST_PG_URL`（可建库的 PostgreSQL；每条用例自建一个库），缺它整组跳过——**跳过不是通过**。
+`tests/slow.spec.ts` 按真实时长跑（租约宽度 10 s、停止诊断阈值 30 s），约 70 秒。
+有界治理装配当前仅支持 SQLite；PostgreSQL 配置在打开提供者前被拒绝。`tests/pg.spec.ts` 的旧整装义务延期，设置 `OMNE_TEST_PG_URL` 也不会执行；共享存储的 PG 符合性仍在 storage-sql 包。**跳过不是通过**。
 各测试与节点 verification 义务的对应写在每个测试文件的开头注释里。
+
+当前已接入 AI3/OG2/AR2/OE2 与 EC3/HT3。维护命令、可搬运制品及Linux systemd模板已通过限定环境的真实进程验证；精确版本与独立验收范围见[节点验证](../../.meta_harness/design/realization/apps/tenancy-host/verification.md)。实际公司环境部署仍需按下述模板配置。安全重新开放不属于隔离恢复命令。
+
+## 本地可搬运归档
+
+固定Node24.21.0/pnpm10.28.1，安装冻结依赖后运行 `./scripts/package-tenancy-host.sh /absolute/new/center.tar.gz`。目标父目录必须存在，目标不得已存在；脚本通过共享开发工具构建宿主及依赖，离线收集生产闭包并发布清单/BUILD_ID。工具只创建本地新归档，不安装服务、不启动中心或上传。运行时数据与密钥不能放在代码目录。
+
+从可信渠道核对摘要，解压到新的空目录，再执行 `node app/dist/cli.js --version` 查看构建标识；缺失标识的开发构建明确显示development。该分支不读取部署配置、不启动插件或访问数据库。随后按原keygen/serve配置启动；附带README给出相同环境入口。构建中保持源、锁和共享dist稳定；开发工具从公开src入口由Node去类型执行，首次打包不依赖工具dist，完整类型检查仍先执行workspace build。
+
+实际平台和交付限制归[节点验证](../../.meta_harness/design/realization/apps/tenancy-host/verification.md)；生成归档不表示已完成内网部署、服务管理、备份或恢复验收。
+
+## 本机维护与Linux服务
+
+[服务模板与操作步骤](deploy/README.md)包含原socket上的full-health/backup/backup-status，以及不依赖serve配置的verify/restore-isolated。命令输出只报告元信息和结果，等待实际输出完成；退出码见该操作说明。CLI/TUI业务协议仍为2，不随本次opsVersion1要求员工升级。
+
+行为依据归[已采用的维护装配](../../.meta_harness/design/realization/apps/tenancy-host/maintenance-binding.md)和[D055](../../.meta_harness/design/record/decisions/governance-online-maintenance-adoption/README.md)，这里维护安装与运行命令。

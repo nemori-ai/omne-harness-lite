@@ -1,0 +1,4 @@
+version: 1
+node: "unix-format"
+kind: "provider"
+bindings: []

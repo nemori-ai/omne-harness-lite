@@ -1,0 +1,75 @@
+{
+  "sourceSha256": "304122a7b1e8301a468148d31702ff55ed5f7debf06b2e79e0b4df291fee6536",
+  "rows": [
+    {
+      "text": "---\nname: x\ndescription: d\n!opaque a: first\n!opaque b: second\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: x\ndescription: d\n!opaque a: first\n!opaque a: second\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: x\ndescription: d\nunknown:\n  !opaque a: first\n  !opaque b: second\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: x\ndescription: d\n? [!opaque a, fixed]\n: first\n? [!opaque b, fixed]\n: second\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: x\ndescription: d\n? {part: !opaque a}\n: first\n? {part: !opaque b}\n: second\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: x\ndescription: d\n? { !opaque a: first, !opaque b: second }\n: ignored\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: x\ndescription: d\n? &key !opaque a\n: first\n? *key\n: second\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: x\ndescription: d\nunknown: {part: !opaque a}\n---\nbody",
+      "accepted": true,
+      "body": "body"
+    },
+    {
+      "text": "---\nname: x\ndescription: d\nversion: 1.2.0\nuser-invocable: false\n---\n\nRun $ARGUMENTS\n",
+      "accepted": true,
+      "body": "\nRun $ARGUMENTS\n"
+    },
+    {
+      "text": "---\nname: x\ndescription: d\n!opaque a: ignored\n---\nbody",
+      "accepted": true,
+      "body": "body"
+    },
+    {
+      "text": "---\r\nname: x\r\ndescription: d\r\n!opaque a: first\r\n!other a: second\r\n---\r\n\r\nRun $ARGUMENTS\r\n",
+      "accepted": true,
+      "body": "\r\nRun $ARGUMENTS\r\n"
+    },
+    {
+      "text": "---\nname: x\ndescription: d\n? [!opaque a, left]\n: first\n? [!opaque b, right]\n: second\n---\nbody",
+      "accepted": true,
+      "body": "body"
+    },
+    {
+      "text": "---\nname: x\ndescription: d\nunknown: {part: !!int nope}\n---\nbody",
+      "accepted": false,
+      "body": null
+    },
+    {
+      "text": "---\nname: !opaque x\ndescription: d\n---\nbody",
+      "accepted": false,
+      "body": null
+    }
+  ]
+}

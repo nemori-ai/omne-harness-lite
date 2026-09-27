@@ -25,7 +25,13 @@ import {
   readOrganization,
   readOrganizationOwnedBy,
 } from './records.ts'
-import { type Deps, readAccountFacts, withStorage } from './runtime.ts'
+import {
+  type Deps,
+  type OperationContext,
+  readAccountFacts,
+  withOperation,
+  withParticipation,
+} from './runtime.ts'
 import type {
   AncestorChainFailure,
   CreatePersonalFailure,
@@ -90,7 +96,7 @@ async function insertOrganizationWithSuperAdministrator(
 }
 
 async function createPersonal(
-  deps: Deps,
+  deps: OperationContext,
   accountIdInput: unknown,
 ): Promise<Outcome<CreatedOrganization, CreatePersonalFailure>> {
   const parsed = parseAccountId(accountIdInput)
@@ -102,44 +108,42 @@ async function createPersonal(
   if ('failure' in facts) return facts
   if (facts.ok.retentionExpired) return fail('accountRecordExpired')
 
-  return withStorage(() =>
-    deps.storage.write(async tx => {
-      const d = db(tx)
-      const existing = await readOrganizationOwnedBy(d, account)
-      if (existing !== undefined) return succeed(created(existing.id, account))
-      const now = deps.clock.now()
-      if (now === 'unavailable') return fail('unavailable')
-      const id = mintIdentifier('OrganizationId')
-      try {
-        await insertOrganizationWithSuperAdministrator(d, {
-          id,
-          kind: 'personal',
-          ownerAccount: account,
-          creator: account,
-          createdAt: now,
-        })
-      } catch (error) {
-        // R-6：账号行已不在（被清除链先删）⇒ 引用约束在插入时拒绝 ⇒ 这一刻账号不存在
-        if (error instanceof ReferenceViolation && error.kind === 'missing-target') {
-          return fail('accountDoesNotExist')
-        }
-        // 至多一个个人组织：并发插入撞唯一索引 ⇒ 提交内重读返回既有的那一个（⑦ 幂等，不是拒绝）
-        if (
-          error instanceof UniqueViolation &&
-          error.constraint === 'organization_owner_account_unique'
-        ) {
-          const winner = await readOrganizationOwnedBy(d, account)
-          if (winner !== undefined) return succeed(created(winner.id, account))
-        }
-        throw error
+  return deps.mutate(async tx => {
+    const d = db(tx)
+    const existing = await readOrganizationOwnedBy(d, account)
+    if (existing !== undefined) return succeed(created(existing.id, account))
+    const now = deps.clock.now()
+    if (now === 'unavailable') return fail('unavailable')
+    const id = mintIdentifier('OrganizationId')
+    try {
+      await insertOrganizationWithSuperAdministrator(d, {
+        id,
+        kind: 'personal',
+        ownerAccount: account,
+        creator: account,
+        createdAt: now,
+      })
+    } catch (error) {
+      // R-6：账号行已不在（被清除链先删）⇒ 引用约束在插入时拒绝 ⇒ 这一刻账号不存在
+      if (error instanceof ReferenceViolation && error.kind === 'missing-target') {
+        return fail('accountDoesNotExist')
       }
-      return succeed(created(id, account))
-    }),
-  )
+      // 至多一个个人组织：并发插入撞唯一索引 ⇒ 提交内重读返回既有的那一个（⑦ 幂等，不是拒绝）
+      if (
+        error instanceof UniqueViolation &&
+        error.constraint === 'organization_owner_account_unique'
+      ) {
+        const winner = await readOrganizationOwnedBy(d, account)
+        if (winner !== undefined) return succeed(created(winner.id, account))
+      }
+      throw error
+    }
+    return succeed(created(id, account))
+  })
 }
 
 async function createTeam(
-  deps: Deps,
+  deps: OperationContext,
   creatorInput: unknown,
   creationKeyInput?: unknown,
 ): Promise<Outcome<CreatedOrganization, CreateTeamFailure>> {
@@ -158,33 +162,31 @@ async function createTeam(
   if ('failure' in facts) return facts
   if (!facts.ok.activated) return fail('accountNotActivated')
 
-  return withStorage(() =>
-    deps.storage.write(async tx => {
-      const d = db(tx)
-      const now = deps.clock.now()
-      if (now === 'unavailable') return fail('unavailable')
-      const id = mintIdentifier('OrganizationId')
-      if (creationKey !== undefined) {
-        const replay = await registerCreationKey(d, tx, {
-          creator,
-          creationKey,
-          organization: id,
-          now,
-          retention: deps.config.teamCreationKeyRetention,
-        })
-        // 同创建者、同键、仍在保留期内 ⇒ 首次创建的那一个，无二次效果（⑦）
-        if (replay !== undefined) return succeed(created(replay, creator))
-      }
-      await insertOrganizationWithSuperAdministrator(d, {
-        id,
-        kind: 'team',
-        ownerAccount: null,
+  return deps.mutate(async tx => {
+    const d = db(tx)
+    const now = deps.clock.now()
+    if (now === 'unavailable') return fail('unavailable')
+    const id = mintIdentifier('OrganizationId')
+    if (creationKey !== undefined) {
+      const replay = await registerCreationKey(d, tx, {
         creator,
-        createdAt: now,
+        creationKey,
+        organization: id,
+        now,
+        retention: deps.config.teamCreationKeyRetention,
       })
-      return succeed(created(id, creator))
-    }),
-  )
+      // 同创建者、同键、仍在保留期内 ⇒ 首次创建的那一个，无二次效果（⑦）
+      if (replay !== undefined) return succeed(created(replay, creator))
+    }
+    await insertOrganizationWithSuperAdministrator(d, {
+      id,
+      kind: 'team',
+      ownerAccount: null,
+      creator,
+      createdAt: now,
+    })
+    return succeed(created(id, creator))
+  })
 }
 
 /**
@@ -256,44 +258,40 @@ async function registerCreationKey(
 }
 
 async function read(
-  deps: Deps,
+  deps: OperationContext,
   organizationInput: unknown,
 ): Promise<Outcome<OrganizationReading, ReadOrganizationFailure>> {
   const parsed = parseOrganizationId(organizationInput)
   if (!isOk(parsed)) return fail('invalidInput')
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const record = await readOrganization(db(tx), parsed.ok)
-      if (record === undefined) return fail('organizationDoesNotExist')
-      return succeed({ id: record.id, kind: record.kind, parent: record.parent })
-    }),
-  )
+  return deps.query(async tx => {
+    const record = await readOrganization(db(tx), parsed.ok)
+    if (record === undefined) return fail('organizationDoesNotExist')
+    return succeed({ id: record.id, kind: record.kind, parent: record.parent })
+  })
 }
 
 async function dissolveAffiliation(
-  deps: Deps,
+  deps: OperationContext,
   initiatorInput: unknown,
   childInput: unknown,
 ): Promise<Ack<DissolveAffiliationFailure>> {
   const initiator = parseTenantId(initiatorInput)
   const child = parseOrganizationId(childInput)
   if (!isOk(initiator) || !isOk(child)) return fail('invalidInput')
-  const outcome = await withStorage(() =>
-    deps.storage.write(async tx => {
-      await tx.lockSentinel(AFFILIATION_SENTINEL)
-      const d = db(tx)
-      const record = await readOrganization(d, child.ok)
-      // ② 任一方组织的超级管理员，单方面即可（不需要一份隶属请求）
-      const parties =
-        record === undefined ? [] : [record.id, ...(record.parent === null ? [] : [record.parent])]
-      const authorized =
-        parties.includes(initiator.ok.organization) && (await isSuperAdministrator(d, initiator.ok))
-      if (!authorized) return fail('notAuthorized')
-      if (record === undefined || record.parent === null) return fail('noSuchAffiliation')
-      await clearParent(d, record.id)
-      return succeed({ child: record.id, formerParent: record.parent })
-    }),
-  )
+  const outcome = await deps.mutate(async tx => {
+    await tx.lockSentinel(AFFILIATION_SENTINEL)
+    const d = db(tx)
+    const record = await readOrganization(d, child.ok)
+    // ② 任一方组织的超级管理员，单方面即可（不需要一份隶属请求）
+    const parties =
+      record === undefined ? [] : [record.id, ...(record.parent === null ? [] : [record.parent])]
+    const authorized =
+      parties.includes(initiator.ok.organization) && (await isSuperAdministrator(d, initiator.ok))
+    if (!authorized) return fail('notAuthorized')
+    if (record === undefined || record.parent === null) return fail('noSuchAffiliation')
+    await clearParent(d, record.id)
+    return succeed({ child: record.id, formerParent: record.parent })
+  })
   if ('failure' in outcome) return outcome
   deps.notify('affiliation.dissolved', outcome.ok)
   return 'ok'
@@ -312,49 +310,45 @@ async function clearParent(d: Db, child: OrganizationId): Promise<void> {
 }
 
 async function ancestorChain(
-  deps: Deps,
+  deps: OperationContext,
   organizationInput: unknown,
 ): Promise<Outcome<readonly OrganizationId[], AncestorChainFailure>> {
   const parsed = parseOrganizationId(organizationInput)
   if (!isOk(parsed)) return fail('invalidInput')
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      if ((await readOrganization(d, parsed.ok)) === undefined) {
-        return fail('organizationDoesNotExist')
-      }
-      const chain = ancestorChainOf(parsed.ok, await loadParentSnapshot(d, [parsed.ok]))
-      if ('ok' in chain) return succeed(chain.ok)
-      if (chain.failure === 'cycle') throw new ParentChainCycle(parsed.ok)
-      return fail('unavailable')
-    }),
-  )
+  return deps.query(async tx => {
+    const d = db(tx)
+    if ((await readOrganization(d, parsed.ok)) === undefined) {
+      return fail('organizationDoesNotExist')
+    }
+    const chain = ancestorChainOf(parsed.ok, await loadParentSnapshot(d, [parsed.ok]))
+    if ('ok' in chain) return succeed(chain.ok)
+    if (chain.failure === 'cycle') throw new ParentChainCycle(parsed.ok)
+    return fail('unavailable')
+  })
 }
 
 async function shareAncestor(
-  deps: Deps,
+  deps: OperationContext,
   aInput: unknown,
   bInput: unknown,
 ): Promise<Outcome<boolean, AncestorChainFailure>> {
   const a = parseOrganizationId(aInput)
   const b = parseOrganizationId(bInput)
   if (!isOk(a) || !isOk(b)) return fail('invalidInput')
-  return withStorage(() =>
-    deps.storage.read(async tx => {
-      const d = db(tx)
-      if (
-        (await readOrganization(d, a.ok)) === undefined ||
-        (await readOrganization(d, b.ok)) === undefined
-      ) {
-        return fail('organizationDoesNotExist')
-      }
-      // 含自身求交由 identity-values 的纯函数做，不从 ancestorChain 的返回值自己求交（S-34）
-      const result = shareAncestorOf(a.ok, b.ok, await loadParentSnapshot(d, [a.ok, b.ok]))
-      if ('ok' in result) return succeed(result.ok)
-      if (result.failure === 'cycle') throw new ParentChainCycle(a.ok)
-      return fail('unavailable')
-    }),
-  )
+  return deps.query(async tx => {
+    const d = db(tx)
+    if (
+      (await readOrganization(d, a.ok)) === undefined ||
+      (await readOrganization(d, b.ok)) === undefined
+    ) {
+      return fail('organizationDoesNotExist')
+    }
+    // 含自身求交由 identity-values 的纯函数做，不从 ancestorChain 的返回值自己求交（S-34）
+    const result = shareAncestorOf(a.ok, b.ok, await loadParentSnapshot(d, [a.ok, b.ok]))
+    if ('ok' in result) return succeed(result.ok)
+    if (result.failure === 'cycle') throw new ParentChainCycle(a.ok)
+    return fail('unavailable')
+  })
 }
 
 function scopeLayers(tenantInput: unknown): Outcome<ScopeLayers, ScopeLayersFailure> {
@@ -369,12 +363,28 @@ function scopeLayers(tenantInput: unknown): Outcome<ScopeLayers, ScopeLayersFail
 
 export function createOrganizationsService(deps: Deps): OrganizationsService {
   return {
-    createPersonal: accountId => createPersonal(deps, accountId),
-    createTeam: (creator, creationKey) => createTeam(deps, creator, creationKey),
-    read: organizationId => read(deps, organizationId),
-    dissolveAffiliation: (initiator, child) => dissolveAffiliation(deps, initiator, child),
-    ancestorChain: organizationId => ancestorChain(deps, organizationId),
-    shareAncestor: (a, b) => shareAncestor(deps, a, b),
+    createPersonal: accountId => withOperation(deps, context => createPersonal(context, accountId)),
+    createTeam: (creator, creationKey) =>
+      withOperation(deps, context => createTeam(context, creator, creationKey)),
+    read: organizationId => withOperation(deps, context => read(context, organizationId)),
+    dissolveAffiliation: (initiator, child) =>
+      withOperation(deps, context => dissolveAffiliation(context, initiator, child)),
+    ancestorChain: organizationId =>
+      withOperation(deps, context => ancestorChain(context, organizationId)),
+    shareAncestor: (a, b) => withOperation(deps, context => shareAncestor(context, a, b)),
     scopeLayers,
+    participate: unit => ({
+      createTeam: (creator, creationKey) =>
+        withParticipation(deps, unit, context => createTeam(context, creator, creationKey)),
+      read: organizationId =>
+        withParticipation(deps, unit, context => read(context, organizationId)),
+      dissolveAffiliation: (initiator, child) =>
+        withParticipation(deps, unit, context => dissolveAffiliation(context, initiator, child)),
+      ancestorChain: organizationId =>
+        withParticipation(deps, unit, context => ancestorChain(context, organizationId)),
+      shareAncestor: (a, b) =>
+        withParticipation(deps, unit, context => shareAncestor(context, a, b)),
+      scopeLayers: tenant => withParticipation(deps, unit, async () => scopeLayers(tenant)),
+    }),
   }
 }

@@ -1,0 +1,16 @@
+
+> @omne-harness-lite/ts-checks@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-checks/tools/ts-checks
+> vitest run
+
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/core-delivery-checks/tools/ts-checks
+
+
+ Test Files  6 passed (6)
+      Tests  100 passed (100)
+Type Errors  no errors
+   Start at  04:47:47
+   Duration  3.54s (transform 2.22s, setup 0ms, import 8.03s, tests 3.49s, environment 1ms)
+

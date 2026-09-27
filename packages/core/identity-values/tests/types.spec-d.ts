@@ -5,9 +5,19 @@ import type {
   MembershipStandingResult,
   ScopeLayerIdentity,
   TenantId,
+  OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS,
+  IDENTITY_BRAND_NAMES,
+  IDENTITY_TYPE_NAMES,
 } from '../src/index.ts'
 
 describe('编译期挡住的条款', () => {
+  it('公开码点与身份清单只读，三个身份品牌仍对应原名称', () => {
+    expectTypeOf<typeof OPAQUE_IDENTIFIER_WHITESPACE_CODE_POINTS>().toEqualTypeOf<
+      readonly number[]
+    >()
+    expectTypeOf<typeof IDENTITY_BRAND_NAMES>().not.toMatchTypeOf<string[]>()
+    expectTypeOf<typeof IDENTITY_TYPE_NAMES>().not.toMatchTypeOf<string[]>()
+  })
   it('S-2：登录标识与 AccountId 类型不相容', () => {
     expectTypeOf<LoginIdentifier>().not.toMatchTypeOf<AccountId>()
     expectTypeOf<AccountId>().not.toMatchTypeOf<LoginIdentifier>()

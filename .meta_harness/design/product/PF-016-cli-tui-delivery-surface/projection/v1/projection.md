@@ -1,0 +1,28 @@
+# PF-016 rev6 · 首个公开health传输增量
+
+2026-09-24，节点独立评审后固化。仅覆盖已授权治理CLI/TUI中“可信连接与公开体检”的协议消费层；不交付命令行界面。来源坐标和冻结资源哈希见 [provenance](provenance.json)。PF/提供者/决定来源仍可变，对应hash为null，后续变化不能回写本投影。
+
+## 要求与对象
+
+输入为 PF-016 rev6 的治理切片、身份可辨与不可达时不编造结果；PF-017 rev3 的公开体检。领域对象为治理中心及其标识；一次操作没有登录态、租户选择或业务写。客户端代码不推断账号权限。
+
+## 精确契约与采用
+
+- EC1=`composition.governance-center-entry/v1`，S-18、S-27、S-36：公开请求、原三字段与读不到明确失败。
+- HT1=`composition.governance-center-entry-https-json/v1`，S-4/5/9/15/17/18：TLS与信任接口、单次HTTP/1.1请求、按请求判完整答复；精确版本不匹配字节先于状态。
+- D-029提供CA/主机名或已确认SPKI的信任规则；D-038仅接受Node24原生HTTPS的本增量实现路径。
+- 提供者：[governance-center-client](../../../../realization/packages/frontend/governance-center-client/README.md)。新增契约数量0，不改变冻结语义。
+
+## 操作与生命周期
+
+`readPublicHealth`只接HTTPS地址、调用方确认的信任快照、总期限和可选取消信号。配置非法早期抛具名配置错误；只在TLS/信任完成后发送固定公开请求，成功只返原三字段。入口四字符串与运输不可得分开，不以health答复承诺治理就绪。缺席、超限、截断或无法验证均不制造空/成功结果。
+
+一次调用独占请求、socket、定时器与取消订阅；无长期共享状态、Cordis root或Agent进程。结果只定一次；完成时销毁请求并等待本调用ClientRequest和socket关闭，移除signal订阅。Node系统DNS任务可能继续，不承诺取消即进程立即退出。无本地持久提交和业务提交点；取消不被宣称为远端回滚。跨进程只信任被核验的协议事实，不假设本机对象身份可跨边传递。
+
+## 实施顺序与实际证据
+
+节点设计与独立评审→D-038限定采用→同路径建包→运行时/类型检查→两真实中心只读联调→打包产物Linux冒烟，均已执行。47项测试、两个同机中心和Linux五项冒烟的源hash/结果归 [run](../../../../record/evidence/2026-09-24-tests-governance-health-client/README.md)。六条绑定只覆盖其各自前提；没有把合成对端当成内网多机验收。
+
+## 仍待完成
+
+生产登录到期/改密、按名邀请、预期租户共同提交、接收方拒绝、新版入口与灾备机制尚未接受；本地状态与CLI/JSON退出语义待契约；TUI选型E1/E3和真实IME未验证。`apps/cli`尚未建立，不能从本包存在推断完整CLI可启动。下一增量须接续各owner，不把本投影作为这些gap的实施授权。
