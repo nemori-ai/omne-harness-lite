@@ -1,5 +1,12 @@
 # pi-ai-transport
 
+## RT5 同次响应头增补候选（2026-09-27）
+
+- **语义接受**：[D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 已接受 `capability.model-request-runtime/v5` 与 `data.model-response/v5`；本节点 [v5-headers-design rev2](v5-headers-design.md) 仍为候选，尚未采用，不自动升级既有 D-076／D-082 消费。
+- **可实施范围**：候选明确 response 回调先保留、同次 `SendResult.rawHeaders` 唯一交出、错误体／取消分支保全及既有资源 owner；不新增 Cordis 服务或 fiber。rev2 针对独立评审 PH-AR1，将公开 R 改为实际仅 stop/stopped 的句柄，原始 stream／request 留在包内私有 owner，stop 不返回 request；修稿待复评。runtime 公共类型迁移与完整 S-20 政策接线 PH-G1／PH-G2 尚缺，依赖部分不可径直施工。当前源码 revision7 已存在，尚无本增量实现。
+- **绑定证据**：本增量新增 **0 条**，既有绑定不换版本标签；[PH-V／PH-J 验证义务和覆盖缺口](verification.md#v5-响应头证据义务) 区分 transport、invoke 与完整日志写方责任。
+- **实际验证**：本增量尚无产品运行；本次仅设计结构检查，结果见验证入口。旧 `StreamEnd.headers` 设计及当前 `RawResponse.headers`／`TransportFailure.headers` 不能作 RT5 双源消费依据；取代范围在增补正文中明确。RT5-H5、codec 历史格式、全部写方、真实停止和 37 模型认证仍各归原 owner。
+
 ## revision7 公共完整定义增量签收（2026-09-27）
 
 D082的公共实现已由09417eaf合入HUB976534bf，implementation revision7；旧默认37五字段贡献和两pilot删除，供给必须显式完整定义。只读完整声明、逐route配置Schema／解释器、精确参数规则、全值身份固定和lease已实施。[当前实际签收](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)保全HUB175／6、两个独立仓库外制品各50次HTTPS、12双语README块、真r6 A与完整B排空、8行为负控及全部失败；新增有限绑定沿本轮范围，不作为正式37定义、P2整阶段或生产认证。
@@ -66,6 +73,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 
 | 当前问题 | 阅读入口 |
 | --- | --- |
+| RT5 响应头何时捕获、怎样唯一交接，错误和取消后由谁保留 | [v5 头交接候选](v5-headers-design.md)、[增量验证与缺口](verification.md#v5-响应头证据义务) |
 | 精确版本、家族/窄模型适配、动态引用、缓存与有界诊断怎样接续 | [v3 候选设计](v3-design.md)、[逐项验收继承](verification.md#v3-候选增量验证) |
 | 从 pi 取了哪些文件、不取哪些、改了什么、许可与上游追踪 | [fork 边界](design.md#fork-边界) |
 | 公开函数面与 `modelTransport` 服务面各给什么、函数层不承诺什么 | [公开面](design.md#公开面) |
