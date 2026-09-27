@@ -21,16 +21,14 @@ Declare both packages as direct workspace dependencies. Build a `PlanInput` thro
 
 ```ts
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
-import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+import { createPiAiTransport, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
 
 export async function invokeOnce(
-  request: PlanInput, credential: string, signal: AbortSignal,
+  request: PlanInput, transportOptions: TransportOptions, credential: string, signal: AbortSignal,
   beforeFirstContent?: () => Promise<void>,
 ) {
-  const transport = createPiAiTransport({ policy: {
-    maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
-    maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
-  } })
+  const transport = createPiAiTransport(transportOptions)
+  const fragmentLength = transportOptions.policy.credentialFragmentMinLength
   try {
     const handle = invokeModel({
       ...request, transport, credential, signal,
@@ -40,7 +38,12 @@ export async function invokeOnce(
         schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
         firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
         statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
-        redact: text => text.split(credential).join('[redacted]'),
+        redact: text => {
+          let value = text.split(credential).join('█')
+          for (let offset = 0; offset <= credential.length - fragmentLength; offset++)
+            value = value.split(credential.slice(offset, offset + fragmentLength)).join('█')
+          return value
+        },
         diagnostic: event => { console.log(event.kind) },
       },
     })
@@ -49,6 +52,8 @@ export async function invokeOnce(
   } finally { await transport.close() }
 }
 ```
+
+Supply transportOptions.definitions explicitly with verified complete definitions and an owned network policy. There are no default pilot models; officialModelIds lists targets only. Missing/incomplete definitions fail before resources are created. The transport README uses synthetic teaching data; never use it with live credentials.
 
 The status table and redactor are examples of caller policy, not mandatory global defaults. A production caller supplies its complete approved policy. `maxOutputTokens`, provider, snapshot, binding and messages come from the request; the function does not look them up.
 

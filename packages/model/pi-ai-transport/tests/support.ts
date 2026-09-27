@@ -1,3 +1,4 @@
+import { testDefinitions } from './definitions.ts'
 import { createServer, type Server, type ServerOptions } from 'node:https'
 import type { ServerResponse, IncomingHttpHeaders } from 'node:http'
 import { execFileSync } from 'node:child_process'
@@ -16,9 +17,9 @@ import {
   createPiAiTransport,
   type PiAiTransport,
   type PlannedRequest,
-  pilotDefinitions,
   type TransportPolicy,
   type Diagnostic,
+  type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
 
 export const at = '2026-09-27T01:00:00Z'
@@ -43,7 +44,7 @@ export function judgedMessage(raw: unknown): Message {
   return judged.ok
 }
 export function input(anthropic = false): PlanInput {
-  const definition = pilotDefinitions[anthropic ? 1 : 0]
+  const definition = testDefinitions[anthropic ? 1 : 0]
   if (!definition) throw new Error('missing pilot definition')
   return {
     target: {
@@ -173,6 +174,7 @@ export async function fixture(
   handler: Handler,
   overrides: Partial<TransportPolicy> = {},
   onDiagnostic?: (event: Diagnostic) => void,
+  definitions: readonly ModelDefinition[] = testDefinitions,
 ) {
   const requests: CapturedRequest[] = []
   let closedSockets = 0
@@ -202,6 +204,7 @@ export async function fixture(
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('missing HTTPS address')
   const transport = createPiAiTransport({
+    definitions,
     baseUrl: `https://127.0.0.1:${address.port}/api/v1/`,
     tls: { ca: cert.cert },
     policy: { ...networkPolicy, ...overrides },

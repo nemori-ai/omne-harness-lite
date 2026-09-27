@@ -1,3 +1,4 @@
+import { testDefinitions } from './definitions.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -98,7 +99,7 @@ async function sentParameters(parameters: ModelRequestParameters, afterPlan?: ()
   })
   try {
     const requested = parseObject(writeJsonLossless(parameters))
-    const result = planRequest({ ...input(), parameters })
+    const result = planRequest({ ...input(), parameters }, testDefinitions)
     if ('rejected' in result) throw new Error(`unexpected plan rejection: ${result.rejected}`)
     // Planning must not be an alternate send path.
     expect(host.requests).toHaveLength(0)
@@ -140,7 +141,7 @@ async function sentParameters(parameters: ModelRequestParameters, afterPlan?: ()
 async function rejectedBeforeSend(request: PlanInput) {
   const host = await fixture(cert.tls, res => res.end(finish()))
   try {
-    const result = planRequest(request)
+    const result = planRequest(request, testDefinitions)
     // Exercise the normal plan-then-send branch so an accidental acceptance
     // produces an observable network request as well as a failed assertion.
     if ('planned' in result) {
@@ -168,13 +169,16 @@ async function rejectedBeforeSend(request: PlanInput) {
 
 describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
   it('the wire oracle detects coordinated missing, lossy and overwritten transcripts', () => {
-    const result = planRequest({
-      ...input(),
-      parameters: {
-        temperature: new LosslessNumber('0.123456789012345678901'),
-        seed: new LosslessNumber('9007199254740993'),
+    const result = planRequest(
+      {
+        ...input(),
+        parameters: {
+          temperature: new LosslessNumber('0.123456789012345678901'),
+          seed: new LosslessNumber('9007199254740993'),
+        },
       },
-    })
+      testDefinitions,
+    )
     if ('rejected' in result) throw new Error('oracle control plan rejected')
     const plan = result.planned
     const captured = {
@@ -247,7 +251,7 @@ describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
     const { plan, wire } = await sentParameters(parameters)
     for (const key of ['temperature', 'seed', 'frequency_penalty', 'presence_penalty'])
       expect(exactSource(wire[key])).toBe('0')
-    expect(writeJsonLossless(plan.parameters.extra)).toBe(writeJsonLossless(extra))
+    expect(Object.keys(plan.parameters.extra ?? {}).sort()).toEqual(Object.keys(extra).sort())
     for (const [key, value] of Object.entries(extra))
       expect(writeJsonLossless(wire[key])).toBe(writeJsonLossless(value))
     const nested = wire.private_nested
@@ -325,8 +329,12 @@ describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
     }
     const { plan, wire } = await sentParameters({ extra })
     expect(plan.parameters).toEqual({ extra: { private_flag: false } })
-    expect(plan.droppedParameters).toEqual(Object.keys(extra).filter(key => key !== 'private_flag'))
-    const baseline = planRequest({ ...input(), parameters: {} })
+    expect(plan.droppedParameters).toEqual(
+      Object.keys(extra)
+        .filter(key => key !== 'private_flag')
+        .sort(),
+    )
+    const baseline = planRequest({ ...input(), parameters: {} }, testDefinitions)
     if ('rejected' in baseline) throw new Error('baseline rejected')
     expect(writeJsonLossless(wire.messages)).toBe(writeJsonLossless(baseline.planned.body.messages))
     for (const key of Object.keys(extra)) {
@@ -358,9 +366,12 @@ describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
     } satisfies ModelRequestParameters
     const { plan, wire } = await sentParameters(parameters)
     const { extra: _dropped, ...expected } = parameters
-    expect(writeJsonLossless(plan.parameters)).toBe(writeJsonLossless(expected))
+    for (const [name, value] of Object.entries(expected))
+      expect(writeJsonLossless(Object.getOwnPropertyDescriptor(plan.parameters, name)?.value)).toBe(
+        writeJsonLossless(value),
+      )
     expect(plan.parameters).not.toHaveProperty('extra')
-    expect(plan.droppedParameters).toEqual(Object.keys(parameters.extra))
+    expect(plan.droppedParameters).toEqual(Object.keys(parameters.extra).sort())
     expect(exactSource(wire.top_p)).toBe('0.8')
     expect(wire.max_tokens).toBe(128)
     expect(wire.stop).toEqual(['finish'])

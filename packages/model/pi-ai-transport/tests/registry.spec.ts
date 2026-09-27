@@ -1,8 +1,8 @@
+import { testDefinitions } from './definitions.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelTransportService,
-  pilotDefinitions,
   type AdaptationLease,
   type ModelDefinition,
   type ModelTransportService,
@@ -33,7 +33,7 @@ const wait: RetirementPolicy = {
   },
 }
 function definition(anthropic = false): ModelDefinition {
-  const found = pilotDefinitions[anthropic ? 1 : 0]
+  const found = testDefinitions[anthropic ? 1 : 0]
   if (!found) throw new Error('missing pilot')
   return found
 }
@@ -114,7 +114,7 @@ describe('production adaptation ownership', () => {
     }
     const newLease = acquire(service, newInput)
     try {
-      expect(oldLease.binding.definition.revision).toBe('1')
+      expect(oldLease.binding.definition.revision).toBe('fixture-1')
       expect(newLease.binding.definition.revision).toBe('2')
       expect(oldLease.transport.plan(newInput)).toEqual({ rejected: 'invalidInput' })
       const retiring = service.retire(old, wait)
@@ -145,11 +145,19 @@ describe('production adaptation ownership', () => {
       rejected: 'invalidInput',
     })
     expect(
-      service.registerAdaptation({ ...definition(), reminderRole: 'user' }, owner, cleanup),
+      service.registerAdaptation(
+        { ...definition(), capabilities: { ...definition().capabilities, maxInputTokens: 1 } },
+        owner,
+        cleanup,
+      ),
     ).toEqual({ rejected: 'invalidInput' })
     expect(await service.retire(original.registered, wait)).toEqual({ retired: true })
     expect(
-      service.registerAdaptation({ ...definition(), reminderRole: 'user' }, {}, cleanup),
+      service.registerAdaptation(
+        { ...definition(), capabilities: { ...definition().capabilities, maxInputTokens: 1 } },
+        {},
+        cleanup,
+      ),
     ).toEqual({ rejected: 'invalidInput' })
     const replacement = register(service)
     expect(await service.retire(original.registered, wait)).toEqual({ retired: true })

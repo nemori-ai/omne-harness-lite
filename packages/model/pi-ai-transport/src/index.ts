@@ -14,8 +14,27 @@ export {
 } from './http.ts'
 export { readStream, canonicalInteger, generatedCallId } from './stream.ts'
 export { parseSSE, SseProtocolError } from './sse.ts'
-export { pilotDefinitions, type ModelDefinition, type CachePolicy } from './definitions.ts'
-export { officialDefinitions } from './official.ts'
+export {
+  readModelDefinition,
+  type ModelDefinition,
+  type ModelCapabilities,
+  type ModelRoute,
+  type ParameterRule,
+  type ParameterRules,
+  type CachePolicy,
+  type CacheDeclaration,
+  type CacheBreakpoint,
+  type DefinitionCoordinates,
+  type DefinitionResult,
+} from './definitions.ts'
+export {
+  configurationSchema,
+  interpretConfiguration,
+  createOfficialProfileContent,
+  type OfficialProfileOptions,
+  type OfficialProfileContentResult,
+} from './configuration.ts'
+export { officialModelIds } from './official.ts'
 export {
   createModelTransportService,
   type ModelTransportService,
