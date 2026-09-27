@@ -1,5 +1,9 @@
 # model-request-runtime
 
+## revision7 完整定义消费者补证（2026-09-27）
+
+公开invokeModel随完整transport定义迁移更新双语README；当前12个两包TS块在两个独立制品目录逐字编译并实际执行，两个语言runtime helper均实际调用受控HTTPS。runtime源码未改，HUB组件仍6项；[本轮公共增量签收](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)不放行十三操作、耐久服务或整体P2，official认证仍0／37。旧默认pilot已由transport移除，调用者须明确提供完整定义；下方按旧checkpoint保留。
+
 ## revision6 独立函数消费补证（2026-09-27）
 
 [新实际运行](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)补证公开 invokeModel 在实际传输诊断抛错／拒绝／待定时保留正文、Usage 和业务收场；两个仓库外副本分别执行，故障负控恢复未经隔离的 sink 后失败。新增一条 S-54 有限绑定。runtime 组件仍6项，十三操作、租户 service、耐久结算／恢复未完成；该事件不放行整个 P2 或 withRun，也不成为新完整定义代际或官方37认证。

@@ -1,4 +1,6 @@
 # 条款到证据的绑定表。
+# 2026-09-27 revision7：完整定义公共增量七条及当前37目标身份检查，实际 run 见
+# record/evidence/2026-09-27-tests-model-request-runtime-definitions；旧绑定保留其原运行范围。
 # 当前：D-076 采用后 P1 五条、P2 五条及revision4三条、revision5三条局部测试绑定；P2 原文见
 # record/evidence/2026-09-27-tests-model-request-runtime-p2；P1 输入/输出见
 # record/evidence/2026-09-27-tests-model-request-runtime-p1。以下 0 条说明是原历史读数。
@@ -17,6 +19,48 @@ node: "pi-ai-transport"
 kind: "provider"
 
 bindings:
+  - clause: "capability.model-request-runtime/v3#S-57"
+    evidence: "test:packages/model/pi-ai-transport/tests/complete-definitions.spec.ts#rejects missing, old and invalid definitions before resource creation; [] has no models"
+    assumptions:
+      - "revision7有限run；缺席/旧形状/非法及非JSON定义在资源创建前拒绝，根与四纯面零资源；显式空factory仍拥有须close的Agent。独立缺省/旧形状compiled负控实际命中断言；具名非official fixture可实际HTTPS，不证37正式定义"
+    alignment_checked: 2026-09-27
+
+  - clause: "data.model-profile/v3#S-30"
+    evidence: "test:packages/model/pi-ai-transport/tests/complete-definitions.spec.ts#compares raw JSON against independent Draft 2020-12 validation, including custom TTL/layouts"
+    assumptions:
+      - "revision7有限run；两仓库外位置各38配置与独立Ajv2020原JSON对照，35非法配置逐个零HTTP，Schema失配compiled负控命中断言；局部TTL41只证规划/线中字节，不证真实上游TTL接受或全部布局附着"
+    alignment_checked: 2026-09-27
+
+  - clause: "data.model-profile/v3#S-21"
+    evidence: "test:packages/model/pi-ai-transport/tests/complete-definitions.spec.ts#compares decimal and huge integer boundaries exactly, adjusts with both original and actual values"
+    assumptions:
+      - "revision7有限run；真实HTTPS逐无损JSON值核小数/超2^53整数域与七项规则28路径；maxOutputTokens仅pass、G22保持128不夹为1的compiled负控失败；不证上游全部参数或当前正式模型输出上限"
+    alignment_checked: 2026-09-27
+
+  - clause: "data.model-profile/v3#S-20"
+    evidence: "test:packages/model/pi-ai-transport/tests/complete-definitions.spec.ts#orders private keys by Unicode codepoints and retains literal extra. names"
+    assumptions:
+      - "revision7有限run；登记/未知/保护/多项extra留原键、E000先于10000码点序、丢空后省略extra，实际线中与留痕一致；unknown extra透传compiled负控失败，不证任意私有参数被上游接受"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-53"
+    evidence: "test:packages/model/pi-ai-transport/tests/complete-definitions.spec.ts#owns full declaration/configuration values and rejects all same-key content changes"
+    assumptions:
+      - "revision7有限run；同owner及同cleanup下相同全值重用，11个全值改变拒绝，caller与callback不改冻结值；独立同key比较失效负控保持同cleanup仍失败，不证耐久目录采用或跨进程身份"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-58"
+    evidence: "test:packages/model/pi-ai-transport/tests/complete-definitions.spec.ts#allows independently planned bytes only with the identical full declaration and refuses clones"
+    assumptions:
+      - "revision7有限run；clone/异host/改key/空factory拒绝且零HTTP；真实r6 A/r7 B在两位置各一次请求，B接管A的compiled负控实际2请求后指定断言退出1。该负控末server快照socket1且无更晚快照，不能称最终socket0；不证耐久换代"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-64"
+    evidence: "test:packages/model/pi-ai-transport/tests/complete-definitions.spec.ts#does not let an earlier readable declaration acquire after retirement closes admission"
+    assumptions:
+      - "revision7有限run；旧可读观察不绕retire准入，idle/reacquire后实际lease清理；完整新owner实际流/socket/read已停但callback未完成仍不cleanup，完成才释放，旧晚清理保留新声明。两位置正向实际Agent全部destroy且socket/queue0；省略close负控76个Agent未destroy而失败，不证跨进程或耐久服务"
+    alignment_checked: 2026-09-27
+
   - clause: "capability.model-request-runtime/v3#S-58"
     evidence: "test:packages/model/pi-ai-transport/tests/boundaries.spec.ts#%s closure rejects queued and old-lease sends but preserves an active reader and callback"
     assumptions:
@@ -108,9 +152,9 @@ bindings:
     alignment_checked: 2026-09-27
 
   - clause: "capability.model-request-runtime/v3#S-57"
-    evidence: "test:packages/model/pi-ai-transport/tests/official.spec.ts#has exactly the confirmed 37 names and unique precise version identities"
+    evidence: "test:packages/model/pi-ai-transport/tests/official.spec.ts#retains precisely the 37 user-confirmed identities and family counts"
     assumptions:
-      - "P2 run；只证人工确认的37身份/复合版本无缺漏和重复；逐模型提醒/缓存规划在同文件126项另有局部检查；不证完整参数/模态offer或生产认证"
+      - "revision7当前目标身份检查对照历史采用的37集合，只证名字/族计数无缺漏；旧五字段126局部检查及原P2运行保持历史归档、当前默认贡献已退役；不重新批准37产品目标，不证完整能力/配置或生产认证"
     alignment_checked: 2026-09-27
 
   - clause: "capability.model-request-runtime/v3#S-58"

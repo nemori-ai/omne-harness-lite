@@ -1,0 +1,276 @@
+{
+  "frozen_inputs_checked": 2070,
+  "evidence_files_checked": 2628,
+  "positive_locations": {
+    "B": {
+      "root": {
+        "requests": 0,
+        "agents": 1,
+        "terminal": null
+      },
+      "behavior": {
+        "requests": 48,
+        "agents": 76,
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 48
+        }
+      },
+      "migration": {
+        "requests": 1,
+        "agents": 3,
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        }
+      },
+      "newdrain": {
+        "requests": 1,
+        "agents": 1,
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        }
+      }
+    },
+    "relocated": {
+      "root": {
+        "requests": 0,
+        "agents": 1,
+        "terminal": null
+      },
+      "behavior": {
+        "requests": 48,
+        "agents": 76,
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 48
+        }
+      },
+      "migration": {
+        "requests": 1,
+        "agents": 3,
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        }
+      },
+      "newdrain": {
+        "requests": 1,
+        "agents": 1,
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        }
+      }
+    }
+  },
+  "final_control_commands": [
+    {
+      "label": "format-measurement",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-B-root",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-B-behavior",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-B-migration",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-B-newdrain",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-relocated-root",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-relocated-behavior",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-relocated-migration",
+      "exitCode": 0
+    },
+    {
+      "label": "positive-relocated-newdrain",
+      "exitCode": 0
+    },
+    {
+      "label": "restore-default-pilot-syntax-transport.js",
+      "exitCode": 0
+    },
+    {
+      "label": "restore-default-pilot",
+      "exitCode": 1
+    },
+    {
+      "label": "old-shape-auto-completion-syntax-definitions.js",
+      "exitCode": 0
+    },
+    {
+      "label": "old-shape-auto-completion",
+      "exitCode": 1
+    },
+    {
+      "label": "schema-interpreter-mismatch-syntax-configuration.js",
+      "exitCode": 0
+    },
+    {
+      "label": "schema-interpreter-mismatch",
+      "exitCode": 1
+    },
+    {
+      "label": "G22-output-clamp-syntax-plan.js",
+      "exitCode": 0
+    },
+    {
+      "label": "G22-output-clamp",
+      "exitCode": 1
+    },
+    {
+      "label": "unknown-extra-forwarding-syntax-plan.js",
+      "exitCode": 0
+    },
+    {
+      "label": "unknown-extra-forwarding-syntax-plan.js",
+      "exitCode": 0
+    },
+    {
+      "label": "unknown-extra-forwarding",
+      "exitCode": 1
+    },
+    {
+      "label": "new-B-takes-over-A-syntax-plan.js",
+      "exitCode": 0
+    },
+    {
+      "label": "new-B-takes-over-A-syntax-plan.js",
+      "exitCode": 0
+    },
+    {
+      "label": "new-B-takes-over-A",
+      "exitCode": 1
+    },
+    {
+      "label": "same-key-changed-complete-value-syntax-registry.js",
+      "exitCode": 0
+    },
+    {
+      "label": "same-key-changed-complete-value",
+      "exitCode": 1
+    },
+    {
+      "label": "owned-pool-close-omitted-syntax-transport.js",
+      "exitCode": 0
+    },
+    {
+      "label": "owned-pool-close-omitted",
+      "exitCode": 1
+    }
+  ],
+  "negative_controls": [
+    {
+      "name": "restore-default-pilot",
+      "oracle": "ND9.no-default-or-legacy-completion",
+      "exitCode": 1,
+      "requests": 0,
+      "terminal_snapshot": null
+    },
+    {
+      "name": "old-shape-auto-completion",
+      "oracle": "ND9.no-default-or-legacy-completion",
+      "exitCode": 1,
+      "requests": 0,
+      "terminal_snapshot": null
+    },
+    {
+      "name": "schema-interpreter-mismatch",
+      "oracle": "ND4.independent-Draft2020-12-closed-equivalence-zero-http",
+      "exitCode": 1,
+      "requests": 40,
+      "terminal_snapshot": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 40
+      }
+    },
+    {
+      "name": "G22-output-clamp",
+      "oracle": "ND2.G22-only-pass-no-clamp",
+      "exitCode": 1,
+      "requests": 37,
+      "terminal_snapshot": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 37
+      }
+    },
+    {
+      "name": "unknown-extra-forwarding",
+      "oracle": "ND3.literal-extra-protection-empty-and-scalar-order",
+      "exitCode": 1,
+      "requests": 38,
+      "terminal_snapshot": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 38
+      }
+    },
+    {
+      "name": "new-B-takes-over-A",
+      "oracle": "ND9.real-r6-A-vs-new-B-stream-socket-callback-drain",
+      "exitCode": 1,
+      "requests": 2,
+      "terminal_snapshot": {
+        "serverListening": false,
+        "sockets": 1,
+        "socketsClosed": 1
+      }
+    },
+    {
+      "name": "same-key-changed-complete-value",
+      "oracle": "ND5.complete-key-equality-and-acquire-union",
+      "exitCode": 1,
+      "requests": 40,
+      "terminal_snapshot": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 40
+      }
+    },
+    {
+      "name": "owned-pool-close-omitted",
+      "oracle": "resource.actual-https-agents-closed-empty",
+      "exitCode": 1,
+      "requests": 48,
+      "terminal_snapshot": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 48
+      }
+    }
+  ],
+  "public_archive": {
+    "sha256": "f9da1622b6b04854bc824e10e03701bc36541ef73f668a7d9aeec50462720eea",
+    "bytes": 68668315,
+    "regular_files": 64490,
+    "links": 3030,
+    "readback_checked": 67520,
+    "live_credential_pattern_hits": []
+  },
+  "seconds": 31.160613536834717,
+  "errors": []
+}

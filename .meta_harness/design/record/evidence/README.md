@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-09-27 model request runtime revision7公共完整定义**：[独立制品与有限实施签收](2026-09-27-tests-model-request-runtime-definitions/README.md)。HUB175／6、两仓库外制品共100次正向HTTPS、12双语TS块、真r6 A迁移／完整B排空与8指定行为负控，67520制品成员和2648源／运行文件逐字保全。旧默认删除，official完整定义、真实TTL／模态、耐久十三操作和37认证仍未完成；付费0。
+
 **2026-09-27 model request runtime revision6 传输边界**：[实际修复与独立制品有限验收](2026-09-27-tests-model-request-runtime-boundaries/README.md)。transport262／runtime6集成；两个仓库外副本各23场景，84次本机TLS，七类故障负控均检出；原始失败、5659输入及精确制品保全。付费0，不关闭完整定义迁移、耐久服务、全门或37认证。
 
 **2026-09-27 model request runtime revision 4 符合性补证**：[真实反例、修复与仓库外制品](2026-09-27-tests-model-request-runtime-conformance/README.md)。两个既有 T-16／T-8 失败修复后独立 13/13、最终 transport 209／runtime 6、双语 10 例及外部制品通过；旧 P2 run 保留，本轮付费 0。不关闭完整 P2、耐久服务或 37 模型认证。

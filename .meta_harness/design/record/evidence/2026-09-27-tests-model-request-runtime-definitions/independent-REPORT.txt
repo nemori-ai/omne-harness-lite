@@ -1,0 +1,66 @@
+# 完整定义公共增量：独立仓库外验证结果
+
+四态结果：**Pass**，限 D082 完整定义公共增量及明确的进程内迁移。执行者没有最终验收权；本结果不接受交付、不放行全 P2、十三操作 runtime 或 37 个正式模型认证。
+
+源码基线是 HUB `976534bf17190bbfdaf9e3b87c5abbc2aa70b552`。D082/v4-definition-design SHA256 为 `13f0bdfe97c885fd521da924b6c1d432577d1f669c22081ea5eafd147f61ceda`；profile3、runtime3、messages4、response4 和 D076 的其余资源义务保持。最终观察 HEAD 为 `6f4f8c76703f8e3fbeb147dfa3bb378f7a80c788`；这是并行元设计合入事件，冻结输入逐文件哈希无漂移，tracked status 为空。详情见 [source-drift.json](final3/source-drift.json)、[input-hashes.json](input-hashes.json) 和 `inputs/`。
+
+只写本证据目录及唯一 OS 根 `/tmp/omne-p2-definitions-independent-ra9o86wh`。未修改源码、维护测试、README、spec、registry、锁文件或他人证据，未读 `.env`、付费、提交、推送或接受。未把施工方 175 个组件测试、制品或负控当成独立结果。
+
+使用 Node 24.18.0、pnpm 10.28.1、TypeScript 6.0.3、Ajv 8.20.0 Draft 2020-12、真实 Cordis 4.0.4、Python 3.8.10、OpenSSL 1.1.1f。开发编译器与 Node 类型另复制到本 OS 工具目录；产品依赖链接均在各自制品内闭合。请求只允许本机受控 HTTPS 地址和临时 CA，无真实上游或模型费用。
+
+独立从 HUB 实跑两次 pack 和 `deploy --legacy --prod --offline`，用新 pack 覆盖闭合依赖供应的公开包，再复制到第二个目录实际执行。所有 transport dist、两份 README、许可及来源文件与冻结 HUB 字节相同；runtime 新 pack 与两目录实际消费字节相同。pack 对 `workspace:` / `catalog:` 的 manifest 转换单独记录，未误称其与源码 manifest 字节相同。
+
+| 工件 | SHA256／位置 |
+| --- | --- |
+| 独立 transport pack | `6d6e3e99f058fcc5b9b0b89848efd59f4e9e221b0bb3a490a6f5e6b39fa50f56`；[pi-ai-transport.tgz](pi-ai-transport.tgz) |
+| 独立 runtime pack | `e46048027e33b55603a5b6afb009064758cfecf056b05c260eb13255d582e5dc`；[model-request-runtime.tgz](model-request-runtime.tgz) |
+| 真正旧 A 来源 | durable `public-artifact-r6.tar.gz`，`9b0c60a7bd9887b57757b64e79d196267047c414517b39d03cf98eeb5ebd74c6`；只在本 OS 根解包，未触碰旧 OS 制品 |
+| B | `/tmp/omne-p2-definitions-independent-ra9o86wh/B` |
+| 独立重定位 B | `/tmp/omne-p2-definitions-independent-ra9o86wh/relocation/B` |
+
+详细 closure、实际源码／dist／工具环境、peer、链接、manifest 和全部文件哈希见 [location.json](location.json)、[pack-source-equality.json](final3/pack-source-equality.json)、[B-inventory.json](final3/B-inventory.json)、[relocated-inventory.json](final3/relocated-inventory.json)、[A-inventory.json](final3/A-inventory.json)、[toolchain-inventory.json](final3/toolchain-inventory.json)。A 自解包到最终比对字节及链接不变。
+
+验收 oracle 来自 D082 采用表及上述精确 spec，core 表示拒绝由公开 `judgeModelProfileDocument` 独立对照，配置由独立 Ajv2020 对原始 JSON 对照。37 ID oracle 来自被采用历史 research 对应 `model-evidence-summary.json.cards`，没有取当前 `official.ts` 自证；这里只确认与该固定研究集合相同，不声称重新逐 ID 核验原用户批准。读取了 worker HANDOFF／两个脚本了解接口和制品供应方法；其副本在 `reference-only/`，没有采用其运行结果。具名 fixture、场景、测量与负控由本执行者独立编写。
+
+| 条款 | 实际可失败判据与结果 | 不覆盖 |
+| --- | --- | --- |
+| ND-V1；profile3 S-7～9、S-28～31 | 两位置核 37 个目标精确集合及冻结性；完整具名非官方 capabilities、providers、configuration、parameters 到 content 全字段相等；core judge 通过；4 类 core 拒绝原名保留；缺 configuration 拒绝；无 registration/updatedAt | 没有正式 37 full facts，未核上下文窗口换算或 unknown 能力来源，未发布／认证 official content |
+| ND-V2；profile3 S-16～21、runtime3 G-22 | 八项 supplied/absence、none 与缺席分离，xhigh／越界／非整数拒绝零 HTTP；其余七项 28 个 drop／select-drop／adjust／域内原值分支实际发送；任意精度 seed 和小数闭区间两端及越界分别核；maxOutput drop/select 为非法声明，G22 实际发原 128、不按定义 capability=1 夹取 | 未证明 live 模型支持这些参数，不闭合上游当前输出上限来源或跨参数政策 |
+| ND-V3；profile3 S-19～21，response4 S-11 | 已登记、未知、统一项／保护别名、原名含多层 `extra.` 的项；逐项实际 body、parameters、adjustment/drop 名称对应；空 extra 省略且 core judge 通过；U+E000 在 U+10000 前的 scalar 顺序 | 没有任意私有参数在真实路由的支持认证 |
+| ND-V4；profile3 S-30，runtime3 S-57 | 每位置 38 个 route/config 对照、35 个非法配置逐个纯规划零 HTTP；closed 形状、缺字段、mode、TTL、完整布局、重复／未知位置；unknown route unavailable；声明专有 `nonofficial-TTL-41` 实际到 wire；Schema 失配负控失败 | 有限配置样本；没有上游 TTL 采纳、暖读、到期／续期、或缺附着目标时行为证明 |
+| ND-V5；runtime3 S-53/57/58 | 同 owner＋同 cleanup 的同值重登记成功；11 类完整值改变拒旧键；acquire 联集不能绕过明确 route；整个 binding/config 固定；caller 和读取结果修改不改变 bytes；clone、同 key 不同完整声明、外国 host、空 factory 接纯 plan 均零 HTTP 拒绝，完全相同定义的 factory 可发 native pure plan | 有限值样本，无目录采用／历史／授权或跨 owner 原子发布 |
+| ND-V6；messages4 S-35 | 同一个带 openai 前缀的非官方模型按 route 分别 developer/user，标识与位置保留，无 system；automatic 无 manual cache control，explicit last_message 的实际 TTL 与声明相同 | 无 37 official 路由角色／配置事实；未扩展模态、工具或推理重放；未证明所有布局均已有可附着目标 |
+| ND-V7；runtime3 S-53/64 | 读→retire→acquire unavailable；先 idle 归零后再 acquire 仍阻塞 retire；新登记不替旧计划，晚 cleanup 保留新版。另有完整新版 owner 的真实 held stream、精确旧配置、server peer close、read/response stopped、tracked callback 和 cleanup 先后，两个位置实跑 | 只证明列明进程内交错；无跨进程恢复、耐久结算、不中断切换或远端未计费保证 |
+| ND-V8；runtime3 S-20/63，profile3 S-30 | 根及四纯面零池／HTTP且阻断 Cordis/kernel 解析；极长配置键／敏感哨兵只得到有限拒绝，最终 stdout/stderr 无哨兵；读取对象递归不可变；throwing 诊断 sink 的业务结果仍完成 | 不证明真实租户秘密分类、耐久日志／审计或全部观测链 |
+| ND-V9；D082 迁移表 | 根 import、纯面、missing／old／nondata definitions 各阶段池／HTTP 0；accessor reads 0；旧集合无导出；目标 IDs 不可注册；空 factory 建 1 个自有 Agent、plan unavailable，实测 destroy 后 live socket/queue 0。具名 fixture 可实际 HTTPS。真正 A 的原代码 implementation6/definition1 与独立 B 两地点并存排空；B acquire 旧 binding unavailable，不能 send/read 接管旧对象，A 原 bytes／正文／结果保持 | 未建立迁移管理服务，未保证不中断；没有模型目录、租户应用或完整 runtime 交付 |
+
+最终 B 和 relocated-B 各执行 48 个公共行为 HTTPS 请求，服务器观测 `socketsClosed=48`、终态 socket=0；各自真正 r6 A/B 迁移恰 1 请求，另有新版完整 owner 排空恰 1 请求。两种排空均在 peer socket 实际关闭、response/read 停止后仍保留 callback 引用，callback 完成才 cleanup=1；新版晚清理保留新定义。每处 76 个行为 Agent、3 个迁移 Agent、1 个新 owner Agent，以及空 factory 的 1 个 Agent，均由独立 Node HTTPS hook 观测 destroy；所有 live socket／queued request 为 0。这些外部观测与 cleanup actor 是主要判据，provider `inspect()` 只是补充。各服务终态 registrations/references/executions=0，受控服务器不再 listen。
+
+完整正向 raw、阶段状态、事件、实际 wire 和 source-version 测量脚本在 [最后运行](controls-1790523734324222721/commands.json) 及同目录 `positive-{B,relocated}-{root,behavior,migration,newdrain}.{json,stdout,stderr}`；[summary.json](final3/summary.json) 是机器摘要。
+
+两包 README／README_ZH 的 12 个 TS 块分别从本次新 pack 字节逐字提取，没有用重写代码代替例子。[readme-block-hashes.json](readme-block-hashes.json) 保留每块原位置、字节数和 hash，`readme-exact-blocks/` 保留原文。B 和 relocation 各类型编译 12 块、实际执行 12 个模块；含两个语言的真实 public `./plugin` 实例装卸。每个目录的两个原 runtime helper 另经受控 HTTPS 实际 invoke。命令与 raw 在 [首次代码块执行](execution-1790522795465304278/execution-commands.json) 和 [重定位执行](final3/commands.json)。
+
+每份负控都是单独 closed compiled 副本；源码、成功 B 及真正 A 保持不变。每个修改先 `node --check` 成功，再以真实 public 边界触发指定行为 AssertionError，exit=1；不是语法、loader 或类型失败。所有原修改文本、前后 hash、argv/cwd、完整 failure 原文、raw wire 和终态都在 [results.json](controls-1790523734324222721/results.json) 与同目录对应 stdout/stderr/json，compiled 副本在 OS 证据 archive。
+
+| 负控 | 指定 oracle | 请求数／结果 |
+| --- | --- | --- |
+| restore-default-pilot | ND9.no-default-or-legacy-completion | 0；错误恢复缺省模型被检出 |
+| old-shape-auto-completion | ND9.no-default-or-legacy-completion | 0；旧形状补值被检出 |
+| schema-interpreter-mismatch | ND4.independent-Draft2020-12-closed-equivalence-zero-http | 40；两个解释结果失配被检出 |
+| G22-output-clamp | ND2.G22-only-pass-no-clamp | 37；改发 1 而非 128 被检出 |
+| unknown-extra-forwarding | ND3.literal-extra-protection-empty-and-scalar-order | 38；真实 wire 透传陌生项被检出 |
+| new-B-takes-over-A | ND9.real-r6-A-vs-new-B-stream-socket-callback-drain | 2；新版实际接管原 A 计划发出第二请求，被检出 |
+| same-key-changed-complete-value | ND5.complete-key-equality-and-acquire-union | 40；同 owner/cleanup 下偷复用旧键被检出 |
+| owned-pool-close-omitted | resource.actual-https-agents-closed-empty | 48；业务结束与 inspect 归零仍不能掩盖真实 Agent 未 destroy |
+
+负控清理范围限定：`owned-pool-close-omitted` 的真实末快照为 76 个 Agent 均未 destroy，但 liveSockets／queuedRequests 均为 0，服务器不再 listen、socket=0、socketsClosed=48；因 `resource.actual-https-agents-closed-empty` AssertionError 退出，不能把操作结束或 inspect=0 当作 Agent 已关闭。`new-B-takes-over-A` 已发 2 请求，其 `terminal` 在 finally 中 `closeAllConnections()`、等待 `server.close()` 及一个 `setImmediate` 后记录，仍为 serverListening=false、sockets=1、socketsClosed=1；随后 3 个实际 Agent 均观测 destroyed=true、liveSockets=0、queuedRequests=0。现成 subprocess 记录 exitCode=1、3.402287721633911 秒、非 timeout，stderr 为指定 ND9 AssertionError 导致 Node uncaught termination。没有退出前全体活句柄清单或更晚的服务器 socket 快照，故只证明上述快照及子进程已退出，不宣称该负控最终 socket=0。正向两目录的 socket=0 结论不受影响。原始 REPORT 保留于 `REPORT.before-terminal-clarification.md`，原始运行、final3 summary 和制品 archive 均未修改。
+
+保留的测量失败及修订：系统 Python3.8 不支持 tar `filter` 参数；恢复 setup 时已存在 peer link；归档 self-link 的合法目标恰为 package 根。均只修复本任务准备代码，原尝试日志及失败目录保留。场景初版缺一个函数闭括号，`node --check` 拒绝；第二版 eager stringify 正常 RawResponse 遇循环对象；同值重登记初版用了不同 cleanup 函数，按 v3 所有权正确被拒，修订为原同 owner＋cleanup 后验证完整值冲突，并以失效比较负控证明不会假通过。负控初版的 oracle tag 修改 Error.message 未改变已缓存 stack；补独立具名 stderr tag，保留原行为 AssertionError。陌生 extra 初版 mutation 未解除 hasOwn guard，实为无行为变化而 exit0，未计为有效；改为同时破坏 guard 后预期失败。finalize 初版误要求 pack manifest 与源码字节相同；只把已发生的 pnpm 依赖投影单列，dist／README 字节一致要求保持。没有降低断言、删除用例、改 spec 或产品代码。
+
+测量工具也受反例检验：同键比较失效控制排除了 cleanup 身份导致的假拒绝；Schema 单边改动、精确 G22 抓线、新宿主真实第二请求及 Node Agent destroy 省略分别击穿对应 oracle。控制脚本未把惯常非零退出当成发现，而是核具名断言、AssertionError 和实际场景数据。
+
+主要实际入口为：`python3 setup.py`（HUB cwd，fresh pack/offline deploy）；`python3 execute.py`（逐字 README 提取／类型／模块）；`python3 controls.py`（在 B 与 relocated-B 执行四模式和各独立副本）；`python3 finalize.py`（哈希、closure、漂移与重定位原例子）。脚本及每条实际 argv/cwd/exitCode 均保留；重跑需给本次证据和 OS 输出另定新目录，不能覆盖这轮记录。外部核心 argv 是 `node scenarios.mjs <root|behavior|migration|newdrain> <真实A路径> <结果路径>`。无形式模型／机器证明或付费 live 调用，本报告仅是冻结版本、有限输入与受控真实组合符合性证据。
+
+未完成范围为 ND-G1～3、G22 当前上限来源，以及正式 capability/source-to-content 冻结、真实 TTL retention、模态来源与完整 encoder、目录 adoption/history、耐久事实与十三操作 runtime、租户应用、生产观测链和费用账本；正式生产认证仍不由本次改变。没有发现需要修复产品源码的反例。独立验证工作已完成，后续评审、正式 binding 更新和接受交给主线。
+
+闭合制品、真正 A、开发工具及全部独立 compiled 副本保全在 [closed-public-artifacts.tar.gz](closed-public-artifacts.tar.gz)，SHA256 `f9da1622b6b04854bc824e10e03701bc36541ef73f668a7d9aeec50462720eea`，68,668,315 bytes。67,520 个 file/link 成员已逐文件从 archive 回读比对哈希或 link 原文，[artifact-archive.json](artifact-archive.json) 保存结果；初期未闭合 deploy／失败准备目录仅留原 OS 根诊断，不冒充闭合消费者。全部本地证据文件清单归 [evidence-files.json](evidence-files.json)。本 HUB tmp 和 OS 根仍有活跃交接消费者，未经主线保存和释放前不清理。

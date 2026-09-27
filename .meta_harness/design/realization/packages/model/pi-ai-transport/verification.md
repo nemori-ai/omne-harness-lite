@@ -1,5 +1,13 @@
 # pi-ai-transport 验证与证据
 
+## Revision 7 完整定义公共增量有限签收（2026-09-27）
+
+[本轮实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)记录主线技术签收与独立两目录公开制品验证：HUB transport175／runtime6、源码规则和构建／类型检查通过；冻结2070输入无漂移，2628证据文件核对、67520制品成员与2648源码／运行归档文件逐字读回完成。当前7条新增绑定仅对应已执行断言；旧默认37五字段贡献及两pilot已删除，旧126项检查和原P2运行保留原历史范围。
+
+完整声明／配置、八项参数值与缺席、精确域、Unicode extra原项名、全值同key比较、零HTTP拒绝、真实r6 A／r7 B迁移和新版owner排空取得有限证据。8个独立compiled行为负控先解析成功、均指定AssertionError失败；两个model包双语12个TS块在两仓库外目录编译且执行24个模块。正向全部真实Agent已destroy，socket／queue归零；B接管A负控末服务器快照仍socket1且无更晚快照，不能泛称所有负控socket0。
+
+签收公共机制，不将fixtures升为37正式定义。ND-V1正式来源值、ND-V6全部official role／配置、全部布局真实附着及ND-G1～3保持待验；当前输入窗口／单图计量、跨参数约束、模态来源、G22上限、真实TTL冷暖／到期、完整T／SC／G及十三操作未由本轮闭合。新增付费0、形式执行0、生产认证仍0／37。
+
 ## Revision 5 参数表与公开制品补证（2026-09-27）
 
 [实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-parameters/README.md)保留初次测试判据修正、测量器 TS2322、独立实际 21/22 产品失败及不变判据修复后22/22。保护 extra 全丢时省略它，丢项与实际字节不改；公开 profile3 judge由malformed变ok。八项统一参数的缺席、合法0值、精确数字、推理档、保护键、冻结及非法配置零HTTP取得有限T10证据。

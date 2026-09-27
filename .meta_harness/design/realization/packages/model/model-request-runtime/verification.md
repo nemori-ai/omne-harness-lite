@@ -1,5 +1,9 @@
 # model-request-runtime 验证与证据
 
+## Revision 7 公共消费者补证（2026-09-27）
+
+[实际完整定义 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)包含当前两model包双语12个TS块的两仓库外目录编译／执行，以及两语言公开runtime helper的实际受控HTTPS调用；HUB既有runtime6项通过，受测源码无漂移。此处仅登记公共消费者证据，不新增十三操作绑定、不将transport机制验证升为耐久service、租户装配、结算恢复或完整P2签收。37正式生产认证仍0／37。
+
 ## P2 函数消费者实际验证（2026-09-27）
 
 [新 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p2/README.md)保存 runtime 6 项、伴随 transport 196 项与仓库外实际制品。调用在异步开始前固定请求/政策；真实 Cordis 模型贡献 force 时，direct 与 invokeModel 的 socket/读循环都实际停止，独立 gate/callback 的 track 未完成仍保留引用、fiber 等待，完成后才清理。这是 S-53/S-56/S-64 的独立函数消费者局部责任，P-2 耐久服务尚未建立；不证多个 dispatch、retry/reply_pending 或持久结算后的 release。

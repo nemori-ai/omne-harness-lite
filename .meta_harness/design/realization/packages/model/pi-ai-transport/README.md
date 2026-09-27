@@ -1,5 +1,11 @@
 # pi-ai-transport
 
+## revision7 公共完整定义增量签收（2026-09-27）
+
+D082的公共实现已由09417eaf合入HUB976534bf，implementation revision7；旧默认37五字段贡献和两pilot删除，供给必须显式完整定义。只读完整声明、逐route配置Schema／解释器、精确参数规则、全值身份固定和lease已实施。[当前实际签收](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)保全HUB175／6、两个独立仓库外制品各50次HTTPS、12双语README块、真r6 A与完整B排空、8行为负控及全部失败；新增有限绑定沿本轮范围，不作为正式37定义、P2整阶段或生产认证。
+
+ND-G1～3及G22保持：37完整能力／配置、跨项约束、实际模态、TTL到期、目录采用／耐久服务未闭合，official认证0／37。下方“未施工／默认pilot／旧37贡献”的段落是其各自历史checkpoint，不是当前供给状态。根及四纯面不建资源；显式空factory可建自有Agent且必须close，不混称纯面。
+
 ## revision6 有限实施验收（2026-09-27）
 
 主线技术签收已合入 HUB `a6285a7f` 的关闭准入、诊断故障隔离、递归脱敏／键碰撞、extra 原项名和全未知 Usage 来源修复；D-076 的精确传输义务不变。[本次实际证据](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)保全所有失败、262／6 项集成、两个独立仓库外副本各 23 场景、共 84 次本机 TLS 和七类预期失败负控。新增六条有限绑定，均带前提；不是全传输门或耐久 runtime 服务验收。
