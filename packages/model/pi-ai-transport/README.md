@@ -84,7 +84,7 @@ Direct send/read representation errors return `{ rejected: "invalidInput" }`; a 
 
 HTTP failures retain redacted actual response headers, including separate repeated values. Inconsistent token subtraction produces unknown counts and a diagnostic; it does not fabricate zero. These facts do not establish upstream billing semantics.
 
-Reasoning fragments join only when all other metadata matches. Different detail identities or unknown metadata remain separate opaque values for same-route replay. A reported provider change keeps the first value and emits `model_transport.serving_provider_changed`. These shared parsing rules use implementation revision 4; earlier revision 3 evidence does not certify them.
+Reasoning fragments join only when all other metadata matches. Different detail identities or unknown metadata remain separate opaque values for same-route replay. A reported provider change keeps the first value and emits `model_transport.serving_provider_changed`. The shared implementation is revision 5. When every `extra` entry is protected and dropped, the actual parameter record omits `extra`; it never keeps an invalid empty object. Earlier revision 3 or 4 evidence does not certify this revision.
 
 ## Register and retire precise versions
 

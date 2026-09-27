@@ -278,7 +278,8 @@ export function planRequest(
         extra[key] = value
       }
     }
-    parameters.extra = Object.freeze(extra)
+    if (Object.keys(extra).length > 0) parameters.extra = Object.freeze(extra)
+    else delete parameters.extra
   }
   if (cache.mode === 'explicit') {
     const control: JsonObject = { type: 'ephemeral', ttl: cache.ttl }

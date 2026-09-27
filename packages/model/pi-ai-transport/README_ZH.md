@@ -84,7 +84,7 @@ await transport.close()
 
 HTTP 失败保留脱敏后的实际响应头，重复值分别保存。token 减法不一致时交出未知计数和诊断，不填成零；这些事实不能替代上游计费语义的核对。
 
-推理片段只有在其余全部元数据相同时才拼接；不同明细身份或未知元数据分别保存在 opaque 中，供同路由回放。上游报告的供应商发生变化时保留首次原值，并输出 `model_transport.serving_provider_changed`。这些共享解析规则使用 implementation revision 4；先前 revision 3 的证据不构成此修订认证。
+推理片段只有在其余全部元数据相同时才拼接；不同明细身份或未知元数据分别保存在 opaque 中，供同路由回放。上游报告的供应商发生变化时保留首次原值，并输出 `model_transport.serving_provider_changed`。共享实现当前为 implementation revision 5。`extra` 中所有键均受保护而被丢弃时，实际参数记录省略 `extra`，不保留非法的空对象。先前 revision 3 或 4 的证据不构成此修订认证。
 
 ## 登记与撤除精确版本
 

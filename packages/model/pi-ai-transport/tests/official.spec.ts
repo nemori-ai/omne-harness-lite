@@ -186,7 +186,7 @@ describe('P2 confirmed official model definitions', () => {
     expect(definition(value.modelId)).toEqual({
       modelId: value.modelId,
       revision: '1',
-      implementation: { name: `omne-official:openrouter-${value.family}`, revision: '4' },
+      implementation: { name: `omne-official:openrouter-${value.family}`, revision: '5' },
       reminderRole: value.reminderRole,
       routes: { [value.route]: value.mode },
     })

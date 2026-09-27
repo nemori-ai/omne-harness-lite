@@ -3,7 +3,7 @@
 ## 当前分层状态：P2 局部构件（2026-09-27）
 
 - 语义接受仍为 D-076 精确 v3-design；本次仅沿已定规格实现，冻结设计未改。
-- 已实施：共享公开传输、进程内 register/acquire/retire 与固定 lease、稳定 Cordis 服务和可信模型贡献插件；37 个显式身份/reminder/路由缓存窄定义已导出，当前 implementation revision 4、definition revision 1。默认静态集仍为两 pilot，完整逐模型参数/模态 offer 与配置 Schema 尚未交付。
+- 已实施：共享公开传输、进程内 register/acquire/retire 与固定 lease、稳定 Cordis 服务和可信模型贡献插件；37 个显式身份/reminder/路由缓存窄定义已导出，当前 implementation revision 5、definition revision 1。默认静态集仍为两 pilot，完整逐模型参数/模态 offer 与配置 Schema 尚未交付。
 - 绑定与证据：新增具体可失败的局部绑定，见 [bindings.yaml](bindings.yaml)。[本轮实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p2/README.md)保存 transport 196 项、实际 Cordis/双 HTTPS 取消与回调排空、仓库外制品、双语示例和失败记录；不是完整 T/SC/G 或 P2 放行。
 - 实际验证：HTTP 脱敏头与负 usage 关系、37 个离线规划、版本保留/超时/强制实际停止取得局部证据；目录 adopt、完整服务宿主替换、耐久收口、全部观测、TTL 到期和官方认证仍待，完整认证 0/37。本轮无付费请求；之前 r2 上游读数只属于 revision 2。
 

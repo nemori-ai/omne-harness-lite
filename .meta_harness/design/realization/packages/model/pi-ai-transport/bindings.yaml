@@ -1,5 +1,5 @@
 # 条款到证据的绑定表。
-# 当前：D-076 采用后 P1 五条、P2 五条及revision4三条局部测试绑定；P2 原文见
+# 当前：D-076 采用后 P1 五条、P2 五条及revision4三条、revision5三条局部测试绑定；P2 原文见
 # record/evidence/2026-09-27-tests-model-request-runtime-p2；P1 输入/输出见
 # record/evidence/2026-09-27-tests-model-request-runtime-p1。以下 0 条说明是原历史读数。
 # 本节点 0 条：源码不存在，没有任何已登记的形式任务或测试以本节点的代码为对象。
@@ -17,6 +17,24 @@ node: "pi-ai-transport"
 kind: "provider"
 
 bindings:
+  - clause: "data.model-profile/v3#S-17"
+    evidence: "test:packages/model/pi-ai-transport/tests/parameters.spec.ts#protected upstream spellings cannot override present unified values"
+    assumptions:
+      - "parameter run r5；实际HTTPS/公开judge，全部extra保护键丢弃后实际parameters省略extra、不留空对象，逐键drop记录及线上字节不变；不证全部模型参数支持"
+    alignment_checked: 2026-09-27
+
+  - clause: "data.model-profile/v3#S-21"
+    evidence: "test:packages/model/pi-ai-transport/tests/parameters.spec.ts#maps all seven unified fields without clamping or losing decimal and integer precision"
+    assumptions:
+      - "parameter run r5；实际HTTPS抓线以公开无损JSON逐字段复核统一参数与实际parameters，含超2^53整数/小数；只限已执行有限输入，不证上游接受"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v3#S-57"
+    evidence: "test:packages/model/pi-ai-transport/tests/parameters.spec.ts#sends the frozen planned values after the caller changes its parameters"
+    assumptions:
+      - "parameter run r5；调用方改变原参数及嵌套值后，生产plan/send实际字节仍等于冻结规划；不证耐久service绑定或全部字段生命周期"
+    alignment_checked: 2026-09-27
+
   - clause: "data.content-blocks/v3#S-9"
     evidence: "test:packages/model/pi-ai-transport/tests/conformance.spec.ts#T-16: independent opaque identities and changing unknown metadata survive same-route replay without merging"
     assumptions:

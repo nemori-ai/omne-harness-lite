@@ -1,5 +1,11 @@
 # pi-ai-transport 验证与证据
 
+## Revision 5 参数表与公开制品补证（2026-09-27）
+
+[实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-parameters/README.md)保留初次测试判据修正、测量器 TS2322、独立实际 21/22 产品失败及不变判据修复后22/22。保护 extra 全丢时省略它，丢项与实际字节不改；公开 profile3 judge由malformed变ok。八项统一参数的缺席、合法0值、精确数字、推理档、保护键、冻结及非法配置零HTTP取得有限T10证据。
+
+共享实现revision5/definition1，整包transport231/runtime6和类型／格式／源码规则通过。重新打包的仓库外制品及异目录迁移、根入口无Cordis依赖、真实TLS/停止/贡献排空和恢复旧缺陷必须失败的负控通过。未执行OpenRouter付费、TTL、完整service或37认证，旧r4事实不移作r5认证；完整义务继续保留。
+
 ## Revision 4 符合性补证（2026-09-27）
 
 [实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-conformance/README.md)保留修复前 10/12 通过、T-16 与 T-8 两个实际失败、85 文件输入／源码／dist 快照及修复后独立 13/13。最终整包 209 项、runtime 6 项、类型及维护范围格式／源码规则检查、双语 10 示例通过。仓库外制品所有模块解析保持内部闭合，明确 Cordis peer，根入口拒绝解析插件依赖仍可用，控制 HTTPS／实际取消与贡献装卸通过。
