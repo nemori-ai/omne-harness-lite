@@ -128,3 +128,11 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 [精确两轮输入、差异、结构检查和主线汇总归档](reviews/session-log-v3-2026-09-27.tar.gz)，SHA256 `28c424b0be9efb9869d23930ec83f2df357e21bf5b6059c97c899ed97725f5ee`；[索引](reviews/session-log-v3-2026-09-27.json)登记409文件，全部读回。primary-summary.json是主线据独立消息写的摘要，不是reviewer逐字全文。53项作者观察输入按精确hash保全：其中旧候选verification从已封存revision1取字节，brief为明确task虚拟路径；前两次归档来源解析失败保留，不冒称全部来自当前HUB。
 
 独立形式执行 [run1](../../evidence/2026-09-27-formal-session-log-v3/README.md)只绑定旧正文及有限前提；未变模型继续适用，不重标成新正文已跑。两个reviewer未执行模型／产品工具或接受。本次最终技术接受见[D083](../../decisions/session-log-tail-condition-adoption/decision.md)；生产Run认法、完整批／共同键、真实IO与旧writer停止及RT3→新消费传播仍须原owner闭合，withRun尚未放行。
+
+## 2026-09-27 SL3 JSONL 提供者投影独立评审
+
+依据D083已接受SL3，独立architecture-reviewer和spec-reviewer核既有[JSONL节点增量](../../../realization/packages/session/session-log-jsonl/v3-design.md)。rev1 SHA256 `c26b03b9ee84c3bd809e61cd1bf2538d819ff4734e7178100d041d9897335849` 的架构评审无阻断；表达唯一SLJ3-ER1为旧verification V5的截回失败读旧确认尾与新不可信三操作unavailable验收相冲突。
+
+作者rev2仅升修订号及两处明确替代：旧design该读取行为和旧V5对应预期改由SLJ3-V8承接，成功截回、其余故障注入／机制与部署前提保持。两位reviewer定向复核无本次阻断／新增非阻断；最终SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`，28项输入无漂移，汇总摘要 `6e57ee89189bc356eca20b93e4fa6ae03fb991d8cdfc46a35ed068bf8a0e9bd9`。旧四件套及v2输入在评审时字节不变；表达检查20链接、SL3 24资源和旧SL2 10冻结资源符合。
+
+[输入、两修订、差异、作者结构检查及主线评审摘要](reviews/session-log-jsonl-v3-2026-09-27.tar.gz)，SHA256 `70b5b1eb70c43f35b899e0a33952874d3659a773491636bbe9161ff62c874360`；[索引](reviews/session-log-jsonl-v3-2026-09-27.json)47文件已逐字读回。primary-summary不是reviewer逐字原文。11新oracle及所有真实IO尚未执行、bindings0；评审未运行产品或形式工具。索引信任、重启停顿／全量扫描和文件机制取证成本作为强反方保留。技术采用见[D084](../../decisions/session-log-jsonl-v3-projection-adoption/decision.md)，不自动升级RT3/SL2依赖或证明Run认法／旧writer停止。

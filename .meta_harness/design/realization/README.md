@@ -261,3 +261,5 @@ D045扩展[协议客户端](packages/frontend/governance-center-client/README.md
 ## 2026-09-26 core 最终签收与发布授权
 
 18 core与两util的本阶段责任已完成：当前221/221、U1另13项，由主调度技术签收；产品负责人给出的Skill完成后总体发布授权条件已满足。22包44份双语README、57个TS例子已验证。原217/221、SP3和人的总体门待签描述属于前一输入事件，由[当前运行与签收](../record/evidence/2026-09-26-tests-core-skill-v3/README.md)接续。Connector仅自身纵线延期，90外部义务及未来运行时未签；全仓make继承main三个失败，不是全仓绿灯。
+
+2026-09-27：[D-084](../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md)采用[session-log-jsonl的SL3增量](packages/session/session-log-jsonl/v3-design.md)。四参数条件在同一entries.jsonl比较／整批确认，不可信态正常三操作拒绝；旧首稿V5该分支替代范围明确。当前尚未实现、bindings0，runtime精确版本和全部实际写方迁移／生产Run／真实恢复仍须原owner交付。
