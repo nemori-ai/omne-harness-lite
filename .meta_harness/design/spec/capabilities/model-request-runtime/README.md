@@ -1,3 +1,5 @@
+**2026-09-27 当前规范接受（D-090）**：v5 全73条／27资源已接受并冻结；只将规范 MR4→MR5 并明确同次头事实交接。[决定](../../../record/decisions/model-headers-v5-adoption/decision.md)。D-087 已技术采用 v4-design rev2；v5 runtime/transport/codec 提供者尚待精确投影与采用，当前源码不自动升级，十三操作与真实链未完成。下方早期状态按原事件读取。
+
 # 模型请求运行时
 
 **2026-09-27 当前接受**：[D086](../../../record/decisions/model-runtime-tail-settlement-adoption/decision.md)接受v4全部73条／27资源，精确消费SL3。新版提供者投影尚未采用，十三操作及真实组合未完成；冻结版本起草时candidate标签不覆盖registry接受状态。
@@ -55,3 +57,9 @@
 ## v4 接受：采用 SL3 的结算消费
 
 [契约](v4/contract.md)从 D-076 已接受 v3 演进，保留十三操作和独立 invokeModel，消费 D-083 已接受 session-log v3；S-68～S-73 补显式 condition、实际提交点 late、完整批认回、未知结果与争用耗尽责任。[实例](v4/examples.md#v4-增量结算竞争与恢复)、[形式义务](v4/formal/README.md#结算组合模型)、[消费者传播](v4/consumer-impact.md)与[证据状态](verification.md#v4-候选变化与证据)分别可查。v4 已由D086接受27资源，旧 v3仍沿registry冻结，新版不自动升级任何消费者；本轮不改变既有模型/参数/缓存或其他十六项精确依赖，不为生产 Run 认法、共同 codec、多值头或真实组合补默认。
+
+## v5 候选：多值响应头事实交接
+
+[完整契约](v5/contract.md)继承 D-086 已接受 v4 的 73 条、十三服务操作及九项和 SL3 结算/恢复，仅将 MR4 精确依赖换为 [MR5 candidate](../../data/model-response/v5/contract.md)。同次 send 的公共可选 rawHeaders 经 invoke 未结算结果交到完整响应，保留已取得且留存的 string／有序 string[] 原值；取消和读体失败不擦掉事实，头不进入内容门、观察者或诊断。[规范实例](v5/examples.md#v5-增量同次响应头的交接与留存)、[消费者传播](v5/consumer-impact.md)、[形式继承边界](v5/formal/README.md)与[证据义务](verification.md#v5-候选变化与证据)分别维护。
+
+MR5/RT5 尚未接受；旧提供者与任何消费者均不自动升级。G-31 仅有候选表示/交接，core 公开接收、transport/runtime/codec 投影、全部真实写方和 TLS→invoke→append/reopen 仍待。四 TLA、十九配置逐字继承，六任务仅登记未运行，不能证明头事实留存或实际停止；其余原缺口保持。

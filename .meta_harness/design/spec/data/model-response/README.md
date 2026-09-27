@@ -1,3 +1,5 @@
+**2026-09-27 当前规范接受（D-090）**：[v5](v5/contract.md) 全38条／3资源已接受并冻结；core 显式 v5 提供者采用与旧根保持见 [决定](../../../record/decisions/model-headers-v5-adoption/decision.md)。真实采集、脱敏、交接与持久链仍待，规范内 candidate 标签按起草时间读取。
+
 # 一次发出的完整模型响应体
 
 **一次[模型调用](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)每向上游[发出](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)一次，留下的那一条[模型响应体](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)**：
@@ -58,3 +60,11 @@ Schema 的条件约束逐格表达、正反实例逐格演示，在给定规模�
 ## 2026-09-27 v4 候选
 
 [v4 契约](v4/contract.md)、[Schema](v4/model-response.schema.json) 与[规范实例](v4/examples.md) 增加完整模型适配绑定及上游实际执行方，缓存事实继续由既有 usage 承载。[v4 验证说明](verification.md#2026-09-27-v4-候选验证) 记录差异、证据义务与实际状态。本版为 candidate，依赖 model-profile/v3、messages/v4 候选；当前已接受版本仍是上述 v3，旧消费者不自动升级。
+
+## 2026-09-27 v5 多值响应头候选
+
+本轮基线是 [D-078 承接接受的 v4](../../../record/decisions/model-main-integration-coordination/acceptance.json)，上节候选措辞保留其历史范围。新增 [v5 完整契约](v5/contract.md)、[Schema](v5/model-response.schema.json) 与[规范实例](v5/examples.md)，坐标为 `(omne-harness-lite-design-2026-09-15, data.model-response, 5)`，仍为 **candidate，未接受、未冻结**。
+
+v5 仅将 `raw.headers` 的值扩展为字符串或有序字符串数组，保存采得且脱敏后的值形状、数组顺序、重复和空值；其余 38 条约束的含义及七个精确依赖沿 v4。规范资源恰三份，无新操作、编号族或形式任务。catalog 新增候选坐标，covers 继承 28 条范围并保持 `reviewed: false`；不改变旧 accepted、frozen 或消费者精确采用。
+
+[v5 验证说明](verification.md#2026-09-27-v5-多值响应头候选验证) 列出 MR5-H1～MR5-H6、产品 rev 继承边界及消费传播。真实运输事实交接、写前脱敏、同次追加和重开读取均未验证；MR5 Schema 通过不关闭运行时 G-31。完整响应的新读写链须由运行时、core 提供者、transport 与验收装配分别显式采用。
