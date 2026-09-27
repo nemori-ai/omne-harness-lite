@@ -1,5 +1,40 @@
 # pi-ai-transport 验证与证据
 
+## v5 响应头证据义务
+
+2026-09-27：[v5-headers-design rev2](v5-headers-design.md) 是 D-090 后的本节点候选投影，**未采用、未实现、未取得产品运行证据，新增绑定 0 条**。rev1 独立架构评审的唯一阻断 PH-AR1 是公开 `RawResponse.stream.headers` 仍可泄密；本次补句柄封装和 PH-V9，尚未独立复评，不以文档修改关闭实际漏洞。下表均为待执行义务，不是测试 ID。既有 `bindings.yaml` 的旧版运行范围保持；RT5 六份形式任务不承载新增头性质，本页也不以形式登记代证真实采集。规范 oracle 来自 [RT5-H1～H6](../../../../spec/capabilities/model-request-runtime/v5/examples.md#v5-增量同次响应头的交接与留存) 和 [MR5 完整实例](../../../../spec/data/model-response/v5/examples.md)。
+
+| ID／来源条款 | 可执行场景与必须观察的判据 | 当前状态、owner 与完成边界 |
+| --- | --- | --- |
+| PH-V1：RT5 S-58；MR5 S-20；RT5-H1/H2 | 在采用 Node 上用真实本机 TLS 的 2xx 和非 2xx，送普通串、逗号串、重复 set-cookie、空串，比较 Node 实际采得 map 与同次公共 rawHeaders；wire 行序、头名大小写及 HTTP 库合并不能被冒称为本包保证。另用完整公共端口 literal H 覆盖单元素数组、重复／乱序／空成员、空数组／map，缺席独立检查；这些 literal 不能写成真实线上采得证据 | 未执行；transport 验证 owner。新候选捕获构件若有可独立纯边界，可直接验证其自身；不能靠只跑 core Schema 代替 send |
+| PH-V2：RT5 S-58/S-59；MR5 S-21/S-22；RT5-H1 | send 交出后修改底层原 map／数组、调用者尝试赋值／删除、释放 R，再观察原 H；正常成员与特殊键保留，不调用用户 getter/toJSON 或混进继承成员。坏值 null／数字／对象／混合数组等用违规提供者负例显式暴露，不 coercion、静默滤项或缺省；缺席绝不补空 map | 未执行；transport＋公共端口验证 owner。Node 不提供某 literal 时分别报告字面边界与真实运输覆盖，不伪造端到端证明 |
+| PH-V3：RT5 S-18/S-58/S-59；RT5-H2 | 控制 TLS 非 2xx：错误体读完、非法 JSON、超界、先 flush headers 再断 socket、挂起正文后 cancel；分别安排 request.error/readError 的先后。每个已采 H 的公共结果保留原值，failed 仍是实际 HTTP 状态和来源，不退成 connect；取消按原 aborted 事实供 invoke 判 interrupted。没有 response 的 connect/cancel 分支缺 H；发出最多一次 | 未执行；transport owner。保留真实 HTTP 次数、分支轨迹、断开与 reader 完成证据；仅回调打点不足 |
+| PH-V4：RT5 S-20/S-63；MR5 S-21；RT5-H5 秘密部分 | 显式给出三项 S-20 测试政策：同次完整凭据、达到配置长度的片段、名单头、独立形态哨兵；覆盖普通键／值和数组每项、遮罩键碰撞、正常非敏感 H。send 成功／HTTP 失败／取消、read 原错误与诊断都不能漏哨兵；剥除指定头，其他值保原形。缺政策和非法政策在出网前拒绝，零 HTTP | **受阻 PH-G2**；runtime 政策 owner 明确公共构件与配置后，transport 验证真实出值。测试参数不成为生产默认；仍须 PH-J1 的全部写方检查 |
+| PH-V5：RT5 S-54/S-55/S-58/S-59/S-63；RT5-H2/H3 | 真 TLS→send→invoke：complete、truncated、带内有／无码错误、解析失败、首内容前／后断流、门失败、门等待取消、reader 未进入。H 从公共 send 保留到四 outcome；只有头且正文暂停时，gate、snapshot 内容、onAccepted、arrival、firstTokenAt 均无新增；diagnostic.detail、上下文及默认呈现无 H | **待 joint 接线**；runtime 与 transport owner。当前只有 SSE reader，若宣称另有 JSON 读取面，必须点名实际入口并分别实测，不能虚造已存在的 JSON reader |
+| PH-V6：RT5 S-54/S-58/S-59；RT5-H3 无双源 | 用只提供读取能力的不透明 R 和公共 H；再加带冲突私有 headers 的违规 R／StreamEnd，invoke 只保留 H；去掉 H 时不能从旧字段补回。旧 RawResponse.headers 与 TransportFailure.headers 的生产出口及旧消费迁移核查；不是为双源建立优先级 | **受阻 PH-G1/PH-G3**；runtime 公共类型／invoke owner，transport 同步测试。违规 reader 不合规由负控暴露，不能将其当正常第二权威 |
+| PH-V7：RT5 S-53/S-56/S-58/S-64；RT5-H2/H4 | 真实 Cordis 4.0.4 与直接工厂、固定 lease：收头后取消／retire／close，complete 先定后晚 cancel、取消先定后晚数据、R 从未 read 的 stop；观察准入关闭、一次发送、实际 socket 关闭、read／错误体任务结束、track 回调和引用释放，旧 H 不变。保留旧队列／旧清理不删新贡献与原参数／usage／绑定回归 | 未执行；transport 与资源 owner。signal、结果返回、fiber 开始 UNLOADING 都不等于实际停止；范围不扩大到完整宿主恢复 |
+| PH-V8：RT5-H6；SYS-OPEN | 构建并打包后在两个新建仓库外消费者中仅用公开入口执行上述合法／非法 literal 和可控 TLS；执行 README.md／README_ZH.md 全部修改的例子。至少实际编译四类行为变体：数组 join／取首、取得头后取消删 H、从旧双源补头、把头当首 token；原版 oracle 成功，变体以对应 AssertionError 非零，编译失败／超时不算命中 | 未执行；独立验证 owner，分别变异真实承担行为的 transport 或 runtime 制品。若 core 仍从 MR4 入口拒数组，另负控断言公共精确 MR5 消费失败；源码类型通过不能代替实际制品 |
+| PH-V9：RT5 S-20/S-58⑤/S-59/S-53/S-56；PH-AR1 | 真实 TLS 2xx 回显 secret／片段／指定头／形态哨兵并暂停正文；显式 S-20 政策已令 send.rawHeaders 安全，**reader 尚未进入**。实际 JS 消费者检查 R 的直接取值、`in`、Reflect.ownKeys、属性描述符、Symbols、原型及可达自定义成员，确保只有 stop/stopped、无原始 stream/request/socket/redactor/headers；不能用 TS 访问报错、非枚举或 JSON.stringify 当证明。另一次调用 stop，断言返回严格 undefined，await stopped 的履约值也为 undefined；检查返回／拒绝信息和诊断不携原始对象／秘密。句柄复制／伪造／错 plan／错 host 被拒；真实句柄只允许一个 reader，保持原取消／实际停止／lease track 排空。打包根与 plugin exports 不导出私有表或解包函数，未声明的包子路径不可作公开旁路 | 未执行；transport 实施与独立制品验证 owner，完整政策仍依 PH-G2。至少两项真实 compiled 负控：重新公开 stream（含不可枚举／Symbol 等旁路变体）和恢复表达式 stop 返回 req，分别以预期可达性／返回值 AssertionError 非零；不以编译失败算命中。观察限正常 JS 公共面，不声称同进程调试器／内存沙箱 |
+| PH-J1：RT5 S-17/S-20/S-68～S-73；MR5 S-20～S-22；RT5-H5 | 同次 H 经 runtime 完整响应构造、MR5 公共接收、共同 codec、全部真实写方：runtime rsp＋账和 persisted msg＋rsp＋账；真实 append 后关闭原物理 writer 再 reopen，完整批身份／费用／binding／头原值一致，秘密哨兵不出现在输出或日志。raw.body 独立缺席及原附件责任另验，不增加 transport IO | **其他 owner pending**；runtime／共同 codec／消息写方／session-log-jsonl／验收装配。transport 单包通过不关闭它；旧 mrr/1 解释和混用政策必须先由 codec owner 明确采用 |
+| PH-J2：RT5 S-17/S-33/S-36/S-64/S-68～S-73；RT5-H5 | 已提交批 H 与后来候选 H2 竞争，保留原完整批；unknown opened／response、迟到提交、原写方未停、进程丢失未持久 H：沿原强门／恢复且不重发，不凭 H 绕过锚点。全部实际写方和共同 tail/判重边界参与 | **其他 owner pending**；耐久 runtime／日志／Run 与消息写方。G28/G29/G30/TL-G1 未闭合不由本页豁免；未持久且进程丢失的头不要求伪造恢复 |
+
+### v5 响应头覆盖缺口
+
+| 缺口 | 精确受阻处／事实 | owner、闭合条件与仍可继续部分 |
+| --- | --- | --- |
+| PH-G1 | RT5 S-58 的 SendResult 与 MR5 RawHeaders 公开消费；当前只有旧结果／重复头出口，core 新入口未在本观察基线实施 | core、runtime 公共类型 owner、主线明确采用与实际构建／pack；transport 按本稿同步，不能先靠断言或私有路径开工。局部采集和竞态设计仍可完成 |
+| PH-G2 | RT5 S-20/S-58/S-63；当前缺 credential_header_names／credential_patterns 的公共接线及匹配实现，只有片段最小长度与字符串 redactor | runtime 政策实现与主线明确完整构件、参数解释及出值前交付机制；验收装配显式给值。本文不选默认名单、regex 方言或新的失败政策；完整秘密符合性和 PH-V4 受阻 |
+| PH-G3 | RT5 S-54/S-59；runtime 现未从公共 rawHeaders 接收到四种 outcome，也未采用本增量 | runtime 节点投影／实际 invoke 接线及 PH-V5/V6，先于 joint 验收；本节点单独传输结果通过不冒充函数链闭合 |
+| PH-G4 | RT5 S-17/S-68～S-73；完整 MR5 响应的 codec 格式、mrr/1 历史解释、全部写方与真实日志链 | 对应原 owner 明确采用并跑 PH-J1/J2；本稿不改 wrapper、业务键或混用语义。G31 仍开；不妨碍独立 transport 测试 |
+| PH-G5 | RT5 S-53/S-56/S-58；Node 实际关闭次序与 header map 采集边界未在本增补运行 | transport 验证 owner 以采用 Node 版本真实 TLS 及行为负控取证；basis 中有 probe 的 Cordis条目只支持相应内核性质，不代证 HTTP |
+| PH-G6 | RT5 S-20/S-58⑤；rev1 未封装原始 stream，当前源码 stop 表达式还会返回 ClientRequest，类型 void 不能隔离它 | rev2 已起草私有响应所有权／真实句柄及迁移，**独立复评与 PH-V9 源实现／实际制品验证均待**；transport owner 闭合。不将本行与 PH-G2 的政策解释合并成一个假通过 |
+
+### v5 本次起草实际检查
+
+本次以该检出的检查源码实际运行 `check_design.py --root .meta_harness/design --formal skip`：首次系统 Python 缺少 `PurePosixPath.is_relative_to`，exit 1，未完成设计判定；改用本机已有 Python 3.12 后，实际输出 `passed gate=internal; formal=skip`、exit 0。未安装依赖。该检查只覆盖结构／引用／登记等确定检查，不是产品测试或形式证明。原始两次命令、PID、退出码和输出交由主线保全；没有新产品测试、形式工具运行或绑定，独立评审与技术采用均归主线，起草者不作接受。
+
+以上为 rev1 起草检查历史。rev2 的 PH-AR1 修稿另以本机已有 Python 3.12 运行同一检出的检查源码：实际 PID166611、exit 0，输出 `passed gate=internal; formal=skip`。原 rev1 与本次输入／输出分别保全，未覆盖范围不变；本增量的产品验证仍为零。
+
 ## Revision 7 完整定义公共增量有限签收（2026-09-27）
 
 [本轮实际 run](../../../../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)记录主线技术签收与独立两目录公开制品验证：HUB transport175／runtime6、源码规则和构建／类型检查通过；冻结2070输入无漂移，2628证据文件核对、67520制品成员与2648源码／运行归档文件逐字读回完成。当前7条新增绑定仅对应已执行断言；旧默认37五字段贡献及两pilot已删除，旧126项检查和原P2运行保留原历史范围。
