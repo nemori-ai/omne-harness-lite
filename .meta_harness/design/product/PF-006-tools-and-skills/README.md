@@ -139,7 +139,7 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 20**，本轮工作区一致性增量为草稿；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 19，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 20**，本次工作区一致性增量**已正式接受**（2026-09-27，依据[本次登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；此前 rev 19 的正式接受范围保留（[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），现存未决与技术投影状态分别保留。
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
