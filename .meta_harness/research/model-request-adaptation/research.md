@@ -2,6 +2,12 @@
 
 最近核对：2026-09-27。固定名单来自用户确认，OpenRouter 公共目录中 37 项均存在。目录存在不表示模型由产品提供。
 
+## 本轮第一方与组合观察
+
+[2026-09-27新增复核](reports/2026-09-27-first-party-and-joint.md)从原JSON重算37个精确身份／唯一所选route和字段；18条输入上限为数值、19条为null，模态属于模型层声明。新增15次非流式OpenRouter请求实际取得Luna／Astra的正数reasoning及工具调用；Luna low的checksum错误原样保留。Opus5.5／Fable5.1返回带signature的reasoning，保留和仅移除旧提醒的两种续接均200；账号条件和native-wire未知，没有执行签名损坏负控，不能证明未来账号的prefix／签名检查规则。没有完整正式定义或生产认证结论。
+
+222工件逐字摘要匹配只证明原件完整；未亲核的native报告内容仍标为仅转述。新增15笔实际费用USD0.1452249，整个原账本185 settled／0 unsettled、USD1.285185289500000000；以下162次及USD1.057233989500000000只属于原缓存探针run。原观察不覆盖新适配实现、TTL或全部37认证。变更先记于[changelog](changelog.md)，原始来源和请求沿[本轮证据索引](evidence.md#2026-09-27-第一方与组合复核)。
+
 ## 37 个模型均出现缓存暖读
 
 受控探针共 162 次发送，37 个模型均至少一次返回 `cached_tokens > 0`，实际账务累计 USD `1.057233989500000000`，未结算请求为零。[逐模型读数](../../design/record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)、[账本快照](../../design/record/evidence/2026-09-27-probe-model-request-runtime/ledger-snapshot.json)。
