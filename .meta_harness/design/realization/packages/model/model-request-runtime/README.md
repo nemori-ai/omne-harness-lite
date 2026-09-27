@@ -1,5 +1,7 @@
 # model-request-runtime
 
+**2026-09-27 W16纯重试延迟技术签收**：公开 `retryDelay` 经[独立双制品及主线逐项核对](../../../../record/evidence/2026-09-27-tests-model-request-runtime-retry-delay/README.md)有限签收，两目录各2181断言、两个真编译行为负控、当前双语literal及实际TLS集成通过；整体证据Pass with issues保留早期driver PID记账缺口。只新增S60 half／decorrelated两条窄绑定，不替实际调度／默认重试件／十三操作或P2。当前共享codec施工46项通过、精确时间core实施与MR5 headers候选起草并行；完整结算及生产认证仍待。以下checkpoint按原范围读取。
+
 **2026-09-27 W15纯守卫技术签收**：公开 `dispatchGuard` 已实际合入，经[独立双制品及主线核对](../../../../record/evidence/2026-09-27-tests-model-request-runtime-guard-log/README.md)有限签收；两目录各85oracle、unknown／终态顺序compiled负控、严格输入与pure根通过，新增一条只覆盖S-60中守卫成员的有限绑定。当前HUB另合入 `retryDelay`，组合120项及6个双语TS块通过，尚待自身独立验收。下方旧checkpoint保留原范围；五共同结算构件、完整十三操作及37认证仍未交付。
 
 **2026-09-27 共同业务编码技术采用**：[D088](../../../../record/decisions/model-runtime-log-codec-adoption/decision.md)采用[增补rev2](v4-log-codec-design.md)的精确字节，原candidate正文作为冻结修订保留。语义仍为D086／D087，纯共同键／载荷／成员检查可实施；本增补源码及C-V1～10未交付，新增bindings0。G29-P实际全写方与物理来源、G29-H历史与停止、G28／G30／G31及十三操作和37认证继续受阻；评审与采用不提升实际验证层。

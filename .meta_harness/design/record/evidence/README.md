@@ -193,3 +193,5 @@ evidence/
 [2026-09-27 Docker 离线维护 TERM](2026-09-27-tests-docker-offline-cancel/README.md)：真实 known-ID helper取消、31秒后仍持资源、同根busy、释放后cancelled/exit2及永久隔离；三轮测量失败保留，SIGKILL／失联与异根并行仍待。
 
 [2026-09-27 revision5 参数与公开制品](2026-09-27-tests-model-request-runtime-parameters/README.md)：独立22项、非法空extra反例及不变判据修复、231项整包、两个外部制品目录和实际TLS/停止负控；无付费、TTL或37认证。
+
+[2026-09-27 W16 retryDelay有限签收](2026-09-27-tests-model-request-runtime-retry-delay/README.md)：双闭合制品、独立Fraction矩阵、严格输入与公开双语literal，两个真编译行为负控；保留早期测量记账局限，不签收实际调度／十三操作／整体P2。

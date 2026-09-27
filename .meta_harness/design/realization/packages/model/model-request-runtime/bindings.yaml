@@ -27,6 +27,18 @@ kind: "provider"
 
 bindings:
   - clause: "capability.model-request-runtime/v4#S-60"
+    evidence: "test:packages/model/model-request-runtime/tests/retry-delay.spec.ts#constant half"
+    assumptions:
+      - "W16-b683独立双制品有限纯计算；3kind×4jitter由独立Fraction2133矩阵/目录核验，half-uses-full compiled副本命中同Fraction指定AssertionError。此绑定只承接half延迟关系，不证明实际等待/重试调度或整个S60；源/负控在record/evidence/2026-09-27-tests-model-request-runtime-retry-delay。"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v4#S-60"
+    evidence: "test:packages/model/model-request-runtime/tests/retry-delay.spec.ts#decorrelated base exceeds max accepted"
+    assumptions:
+      - "W16-b683独立有限输入；decorrelated-lo-unclamped compiled副本在base>max的同Fraction指定AssertionError失败，证明lo按max封顶边界可反驳。仅纯延迟关系，n/previous/sample显式输入、TD3/精确数；不证明真实策略来源、取消/等待、十三服务或全域形式正确。完整原件同W16 evidence。"
+    alignment_checked: 2026-09-27
+
+  - clause: "capability.model-request-runtime/v4#S-60"
     evidence: "test:packages/model/model-request-runtime/tests/dispatch-guard.spec.ts#does not answer wrongPhase or allowed by skipping unknown call, phase or opening facts"
     assumptions:
       - "W15-d7独立run仅dispatchGuard成员；双制品各85具名oracle及unknown-as-false、terminal-after-opened两个compiled副本在同一oracle指定AssertionError，完整事实纯输入/TD3/原snapshot/顺序通过；不证S-60其他构件或十三操作当前事实/权限接线。完整源与负控在record/evidence/2026-09-27-tests-model-request-runtime-guard-log。"
