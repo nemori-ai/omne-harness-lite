@@ -16,6 +16,10 @@ The current implementation is the standalone function slice. The durable thirtee
 | `DispatchGuardInput`, `DispatchGuardResult`, `DispatchGuardFact<T>` | Readonly guard inputs, closed answers and explicit known/unknown facts |
 | `TransportAdapter`, `PlanInput` | Consumer-owned planning/send/read ports and explicit request context |
 | `InvocationPolicy`, `ModelInvocationResult` | Scheduling/redaction/diagnostic policy and an unsettled result projection |
+| `modelLogFormat`, `encodeModelLogKey`, `decodeModelLogKey` | D088 `mrr/1` closed business keys; reversible UTF16 encoding and exact dispatch normalization |
+| `captureModelLogValue`, `prepareModelLogEntry`, `inspectModelLogEntry` | Strict owned values, position-free candidates and reverse validation of actual log entries |
+| `inspectSettlementMembers` | Check complete response/message members and original associations from one complete prefix |
+| `modelLogJsonEqual`, `recognizeMessageValue` | Exact full JSON equality and recognition retaining the original captured message |
 
 ## Call an explicitly supplied request
 
@@ -109,6 +113,92 @@ if (!('allowed' in answer)) throw new Error('Expected this example retry plan to
 ```
 
 `after` is the shared ISO duration string (`PT` hours/minutes/seconds), with no numeric ceiling or conversion to milliseconds. Omission means no wait; this function never waits. Answers are `{ allowed: true }`, `{ refused: { why } }` or `{ rejected }` (`wrongPhase` also carries `phase`). Refusal reasons are `already_spoke`, `fact_class` and `provider_not_allowed`. Rejections are `invalidInput`, `callNotFound`, `alreadyEnded`, `wrongPhase` and `unavailable`. Permission applies only to the supplied facts; a later actual operation rechecks state, host stopping and dependencies. The durable `canDispatchAgain`/`dispatchAgain` service is still pending.
+
+## Capture, prepare and recognize log values
+
+These pure functions implement the [D088 adopted format](../../../.meta_harness/design/record/decisions/model-runtime-log-codec-adoption/decision.md). Static root imports and calls do not open a log, install Cordis, read environment credentials, obtain a clock or generate identities. `SessionLog` types are borrowed from that package's public root. Every session, tenant, run/attempt pair, purpose and message prefix is explicit. A supplied message prefix must be the complete legal prefix before that message; `null` means unavailable and is rejected for a log message.
+
+Text reception and value reception are different modes. Nested duplicate object members, getters, `toJSON`, unsupported objects and fake number brands are rejected. The returned capture retains the original immutable JSON and number spellings. The response judge checks the capture; it does not manufacture an owned `ModelResponse` from `{ ok: true }`.
+
+```ts
+import { captureModelLogValue } from '@omne-harness-lite/model-request-runtime'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+
+const captured = captureModelLogValue({
+  category: 'record',
+  input: { kind: 'text', text: '{"kind":"model_call_opened","call":"example-call","dispatch":1.0,"firstTokenAt":"2026-09-27T00:00:01Z"}' },
+})
+if (!('ok' in captured)) throw new Error(captured.reason)
+if (!writeJsonLossless(captured.ok.value).includes('"dispatch":1.0'))
+  throw new Error('Original numeric spelling must survive capture')
+```
+
+Prepare a candidate with no durable position. Append ownership, authorization, fence and condition belong to its actual writer. Selection records have no dedupe key. Every other dedupe key also appears explicitly in `readKeys`; reads validate the complete key set without requiring its array order. Persisted assistant messages use `{ kind: 'persistedMessage', response: capturedResponse }` and the response's complete reply. Independent assistant writes and SystemMessage log writes are rejected.
+
+```ts
+import { captureModelLogValue, prepareModelLogEntry, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { parseTenantId } from '@omne-harness-lite/identity-values'
+
+const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
+const message = captureModelLogValue({ category: 'message', input: { kind: 'value', value: {
+  id: 'example-message', type: 'user', createdAt: '2026-09-27T00:00:00Z', blocks: [],
+} } })
+if (!('ok' in tenant) || !('ok' in message)) throw new Error('Invalid example value')
+const prepared = prepareModelLogEntry({
+  session: 'example-session', shell: { tenant: tenant.ok }, captured: message.ok,
+  purpose: { kind: 'message' }, messagePrefix: [],
+})
+if (!('ok' in prepared)) throw new Error(prepared.reason)
+const key = encodeModelLogKey({ kind: 'message', message: 'example-message' })
+if (!('ok' in key) || prepared.ok.dedupeKey !== key.ok || !prepared.ok.readKeys.includes(key.ok))
+  throw new Error('D and R must explicitly share the MessageId key')
+if ('position' in prepared.ok) throw new Error('A candidate has no durable position')
+```
+
+Full-value recognition compares numeric mathematical values, unordered object members, ordered arrays and exact strings. Absence differs from `null`. It returns the original capture rather than rewriting its number spelling. An id-only or same-source check cannot substitute for full equality.
+
+```ts
+import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+
+const original = '{"id":"example-reminder","type":"system_reminder","nature":"event","source":{"kind":"extension","extension":"teaching","payload":{"amount":1.00}},"blocks":[],"createdAt":"2026-09-27T00:00:00Z"}'
+const candidate = original.replace('1.00', '1e0')
+const recognized = recognizeMessageValue({
+  candidate: { kind: 'text', text: candidate }, original: { kind: 'text', text: original },
+})
+if (!('same' in recognized)) throw new Error('Expected the same mathematical JSON value')
+if (!writeJsonLossless(recognized.original.value).includes('1.00'))
+  throw new Error('Recognition must retain the original value')
+```
+
+`inspectModelLogEntry` accepts an actual `LogEntry`, the expected session/tenant, explicit purpose and the message prefix before its position. It checks the closed wrapper `{ format, category, value }`, the shell, position and reconstructed D/R. `inspectSettlementMembers` accepts `{ mode: 'read', session, tenant, prefix: { entries, tail }, target: { call, dispatch, response }, anchors: { dispatched, opened, intent }, current }`. `current` is either `null` or the previously designated `{ messageId, disposition }`; the absent members of that pair use `null`. Write mode additionally requires the complete `candidates` array of position-free `OwnedLogEntry` values.
+
+Read mode recognizes an existing batch using its own MessageId, ResponseId, binding, parameters, amounts and full reply before checking a losing candidate's occupancy. A different losing MessageId, even one occupied by another message, cannot invalidate a lawful original batch. Only when no original batch exists does candidate occupancy prevent `absent`. `completeMembers` contains the original captures and entries, plus `disposition: 'same' | 'firstWinner' | 'unrequested'`; a different lawful disposition retains the winner. Pure results do not map these answers to a service operation's success or `alreadyEnded`.
+
+Member checking does **not** prove one physical append, lawful history, read permission, Run lifecycle, or actual old-task stop. H1 once `[M,R]` and H2 separately `[M]`/`[R]` can expose identical SL3 read results. G29-P/H remain host/all-writer responsibilities. WithRun late recognition currently returns `undetermined: true, reason: 'run_history_unavailable'` pending the original G28 production interpreter; it does not treat unknown history as false or use the accounting attempt as the original attempt. The thirteen-operation service, actual runner/app adoption, G30/G31 and production model certification remain pending.
+
+The member checker consumes the [D089 adopted](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) `offer-expiry` root comparator on the captured original timing strings. It checks `sentAt <= firstTokenAt <= endedAt`, or `sentAt <= endedAt` when no first token exists. Static invalid dates and reversed order cannot return complete members. Arbitrary fractional digits and offset-equivalent instants keep their precision; the original opened string must still match exactly.
+
+```ts
+import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
+
+const sent = '2026-09-27T00:00:00.0004Z'
+const first = '2026-09-27T00:00:00.0003Z'
+const order = compareRfc3339Instants(sent, first)
+if (!('ok' in order) || order.ok !== 1) throw new Error('Sub-millisecond reverse order must remain visible')
+const alias = '2026-09-27T01:00:00.0003+01:00'
+const sameInstant = compareRfc3339Instants(first, alias)
+if (!('ok' in sameInstant) || sameInstant.ok !== 0) throw new Error('Expected offset-equivalent instants')
+if (modelLogJsonEqual(first, alias)) throw new Error('Original strings remain different')
+const opened = captureModelLogValue({ category: 'record', input: { kind: 'value', value: {
+  kind: 'model_call_opened', call: 'example-call', dispatch: 1, firstTokenAt: first,
+} } })
+if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opened.ok.record.firstTokenAt !== first)
+  throw new Error('Capture must retain the original opened string')
+```
+
+The comparator and `completeMembers` operate within the declared legal RFC3339 input domain. They do not certify actual time sources, leap announcements, legal history or physical commits. The producer/host/history owner must establish TL-G1 at the real production boundary; unconfirmed external values or history remain unavailable there. The old millisecond Instant/Clock interfaces keep their original behavior.
 
 ## Development
 

@@ -980,6 +980,12 @@ importers:
       '@omne-harness-lite/model-response':
         specifier: workspace:*
         version: link:../../core/model-response
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../core/offer-expiry
+      '@omne-harness-lite/session-log-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-log-jsonl
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../../core/stream-assembly

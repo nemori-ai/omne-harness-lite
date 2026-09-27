@@ -9,3 +9,4 @@ export type {
   DispatchGuardInput,
   DispatchGuardResult,
 } from './dispatch-guard.ts'
+export * from './log-codec.ts'
