@@ -1,0 +1,70 @@
+{
+  "status": "fail",
+  "pid": 175909,
+  "events": [
+    {
+      "phase": "setupComplete",
+      "atMs": 645.977963
+    },
+    {
+      "phase": "firstStoreLaunched",
+      "atMs": 646.423022
+    },
+    {
+      "phase": "readerBarrierReached",
+      "atMs": 647.215979
+    },
+    {
+      "phase": "secondBindLaunched",
+      "atMs": 647.238606
+    },
+    {
+      "phase": "barrierReleased",
+      "atMs": 697.442736
+    },
+    {
+      "phase": "firstStoreResolved",
+      "atMs": 697.972278,
+      "outcome": "stored"
+    },
+    {
+      "phase": "secondBindResolved",
+      "atMs": 713.149313,
+      "outcome": "unavailable"
+    },
+    {
+      "phase": "closed:probe",
+      "atMs": 713.348544
+    },
+    {
+      "phase": "closed:custodian",
+      "atMs": 713.3689
+    },
+    {
+      "phase": "closed:directory2",
+      "atMs": 715.049302
+    },
+    {
+      "phase": "closed:directory1",
+      "atMs": 715.951538
+    },
+    {
+      "phase": "closed:connection2",
+      "atMs": 716.400429
+    },
+    {
+      "phase": "closed:storage",
+      "atMs": 726.057874
+    },
+    {
+      "phase": "scratchRemoved",
+      "atMs": 727.150137
+    }
+  ],
+  "outcomes": {
+    "standingBeforeContention": "success",
+    "firstStore": "stored",
+    "secondBind": "unavailable",
+    "releaseWithin100Ms": true
+  }
+}

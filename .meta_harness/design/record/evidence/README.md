@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-09-27 模型目录与凭据副本联验**：[原失败、计时诊断与修正并发运行](2026-09-27-tests-model-credential-joint/README.md)。13个顺序/故障/关闭场景及修正后的三种真实SQLite双连接交错通过；原三次失败保全，V3-15/MCR-V4整体仍Partial，真实认证/runtime与37认证未覆盖。
+
 **2026-09-27 W15日志诊断与公开守卫**：[限定技术签收](2026-09-27-tests-model-request-runtime-guard-log/README.md)。独立产品slice Pass／证据Pass with issues，41最终命令、215主oracle、4真正编译负控及24双语模块执行；1204输入和33063归档成员逐项核对。只签收同步sink隔离与pure dispatchGuard，原804 Fail保留，十三操作、整体P2和37认证未完成。
 
 **2026-09-27 RT4结算有限形式**：[两轮独立执行与主线核对](2026-09-27-formal-model-request-settlement/README.md)。run1保留Fail／exit75，修复后run2新SANY／3正／6指定反例通过；403归档成员读回、102输入核对，最终24形式资源未变，不提升新版正文／实际IO或十三操作验证。
