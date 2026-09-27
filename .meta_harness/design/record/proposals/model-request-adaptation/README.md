@@ -12,5 +12,6 @@
 | 哪些保证新增、由谁承担 | [设计正文](design.md) |
 | 共用实现及模型插件怎样选择 | [候选比较](alternatives.md) |
 | 独立评审与处置 | [评审记录](review.md) |
+| 已发出响应按实际提交顺序判定 late 的三种演进方向 | [迟到结算候选比较](late-coordination.md)，选择记录见 [D-081](../../decisions/model-late-coordination-direction/README.md) |
 
 排期、执行负责人和实时状态留在任务区；本包不维护第二份实施计划。

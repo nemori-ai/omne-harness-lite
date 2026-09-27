@@ -101,3 +101,13 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 逐条复核97项出处、83个章节，更新140个版本字段；仅3个UL定义、参与限制注意栏及2个对象范围校正，没有发明寿命宿主或外仓终结策略。官方对象视图生成／默认对账通过：241词条、44对象、8待裁。原rev25的47项复核独立保留。
 
 [产品输入与独立评审摘要／逐条审计](reviews/workspace-products-2026-09-27.tar.gz) SHA256：`8207a31693c1b633a2b39af05248b7741578b40b74e3648b8af6b15b30c0d440`。归档保存远程原稿、正式化后追加裁决前快照、最终产品／词条／对象／视图与源审计。review-summary.json明确为主线据独立消息汇总，不冒充reviewer原始全文；输入、未覆盖及user原话单列。技术新规格和模型消费者仍沿条件PU阶段接续，既有冻结契约不变。
+
+## 2026-09-27 late 提交协调方向独立架构评审
+
+独立 architecture-reviewer `b1_late_boundary_review` 只读评审 [三候选正文](late-coordination.md)，精确 SHA256 `ba2e68bf7e404a9fdb1d6ef16f8e7bd9df86891eb6096b14dfc6eb8814538c05`，观察基线 `ea000728`。结论：本次方向选择无阻断、无新增非阻断，支持 B 在已有 session-log 的权威追加提交点保护日志尾一致；存储仍不解释 Run 或响应，runtime／回复写方拥有 late 与完整批次。评审不是接受。
+
+该边界依赖从同一次合法完整日志读取取得事实与尾，所有响应写方采用保护，以及丢回执后先认回原完整批次。独立评审保留 A 的完整相关写方链、C 的全历史派生读面作为有力替代；若 B 的实际无关争用妨碍所承诺进展、合法前缀不可得，或三操作恢复无法闭合，必须重比候选而非削弱保证。确切新契约／失败优先级、形式模型、真实日志 IO／重启、Run 终结认法、旧写方实际停止、权限、重试上界与消费者迁移均未验收。
+
+领域读数、独立机制读数、主线对账、精确输入、候选、结构检查和独立意见的**主线汇总**已保存为 [归档](reviews/late-coordination-2026-09-27.tar.gz)，SHA256 `1cbafd04f9ed9828bc99472814e62ae34b1609902339354e8757e191b4b3dff2`；[索引](reviews/late-coordination-2026-09-27.json) 含逐文件校验值，已读回核对。review/primary-summary.json 不是 reviewer 原始全文；reviewer 按角色边界未读主线处置对账表。HUB 合入候选后的 design internal 检查通过，formal 明确 skip。
+
+归档中的主线有限实验实际执行了每模式 360 条历史：普通预读追加出现 96 条错误 late，提交点尾比较模式为 0；后者有 248 次条件冲突、96 次写入静止后重试。实验未覆盖真实 IO、unknown ack、Run 认法、授权、崩溃、旧写方停止、公平性或无限争用，不据此关闭 B1。主线只采用演进方向，见 [D-081](../../decisions/model-late-coordination-direction/decision.md)；SL2 原字节与旧采用不变。
