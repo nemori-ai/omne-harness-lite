@@ -2,7 +2,7 @@
 id: PF-001
 title: 身份、范围与对 Agent 的约束
 status: active
-revision: 21
+revision: 22
 relations:
   supersedes: []
   depends-on: []
@@ -42,7 +42,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 21**，工作区概念对齐增量仍为草稿；rev 19 的治理产品基线及其评审、确认范围保留，见 [decisions](decisions.md)。本次整合不扩大原接受范围。
+- 产品设计：**rev 22**，工作区概念对齐增量仍为草稿；rev 19 的治理产品基线及其评审、确认范围保留，见 [decisions](decisions.md)。本次整合不扩大原接受范围。
 - 未决项：成功业务访问与跨到期访问的规格映射，以及 PF-017 的恢复核对依赖，见 [design §九](design.md#九未决项)
 - 待裁决：本 topic 无新增独立登录政策选择；恢复材料、核对资格与开放等真实依赖由 PF-017 接续
 - 技术投影：**v3**（2026-09-23，依据 rev 16，记录实现与验收对账；覆盖租户相关领域；由 [D-023](../../record/decisions/tenant-domain-design-acceptance/README.md) 与 [D-028](../../record/decisions/governance-center-design-acceptance/README.md) 接受为实施入口；版本表在[投影目录](projection/README.md)）

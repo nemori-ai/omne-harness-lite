@@ -143,7 +143,7 @@
 
 - **形态**：视图
 - **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
-  [§4「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 22） ·
+  [§4「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 23） ·
   [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 9）
 - **别混 ①**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——reload 重填的是注册表，不是一次完整的重新装配，**不改写正在跑的运行已经捕获的构成**
 - **别混 ②**：**裸写「注册表」不作数**——设计链里的 registry 是设计对象的身份清单，另有所指

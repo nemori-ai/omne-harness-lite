@@ -2,7 +2,7 @@
 id: PF-002
 title: 设置、权限与资产的展开
 status: active
-revision: 22
+revision: 23
 relations:
   supersedes: []
   depends-on:
@@ -47,7 +47,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 22**，工作区本体与资产层分离的增量为草稿；**rev 20 已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），其接受范围与 OAuth 到期人工重授权的已知缺口保留。本次工作区增量不自动继承该接受状态。
+- 产品设计：**rev 23**，工作区本体与资产层分离的增量为草稿；**rev 20 已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），其接受范围与 OAuth 到期人工重授权的已知缺口保留。本次工作区增量不自动继承该接受状态。
 - 未决项：**一项**（[§九](design.md#九未决项)）——同一份连接件送来的一条事件，走两种投递方式的哪一路；另有一处缺口**归会话那一块**（新会话以哪个 agent definition、哪个租户身份建），§九只指路
 - 待裁决：**一项**（D-6，同上），见 [decisions §三](decisions.md#三待裁决)；D-2～D-4 已于 2026-09-24 裁定，D-5 的现行主线裁定已由 D-065 确认
 - 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留

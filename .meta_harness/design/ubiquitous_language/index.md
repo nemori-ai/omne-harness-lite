@@ -35,6 +35,7 @@
 | [UL-affiliation-request](terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 隶属请求 | Affiliation Request | 发给另一个组织的建立隶属邀约，**接受即填上上级组织属性、不产生租户**；**与邀请是两种对象，只是过期规则相同** |
 | [UL-tenant](terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | 租户 | Tenant | (组织, 账号) 这一组合，归属与隔离的单位 |
 | [UL-tenant-workspace-relation](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 租户—工作区关系 | Tenant–Workspace Relation | 记录租户对工作区的治理所有权或参与授权，治理中心从有效关系列出工作区 |
+| [UL-workspace-super-administrator](terms/subjects-and-ownership.md#ul-workspace-super-administrator--工作区超级管理员--workspace-super-administrator) | 工作区超级管理员 | Workspace Super Administrator | 创建者授予某租户的工作区级超管角色，具有该工作区销毁资格 |
 | [UL-membership-standing](terms/subjects-and-ownership.md#ul-membership-standing--成员资格效力--membership-standing) | 成员资格效力 | Membership Standing | 这个租户此刻算不算数，**只有有效/无效两个取值**；**「目标范围不可用」不是第三个取值，那是失败** |
 | [UL-current-tenant-identity](terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity) | 当前租户身份 | Current Tenant Identity | 登录状态上的一项选择，**创建那一刻被捕获，之后切换不影响已创建的** |
 | [UL-tenant-role](terms/subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role) | 租户角色 | Tenant Role | 租户在其组织内当前能做什么 |
@@ -54,6 +55,8 @@
 | [UL-workspace-address](terms/scope-and-resolution.md#ul-workspace-address--工作区地址--workspace-address) | 工作区地址 | Workspace Address | 找到或访问工作区/实例的本地或远端地址；有提供者类型，不是工作区身份或访问凭据 |
 | [UL-workspace-category](terms/scope-and-resolution.md#ul-workspace-category--工作区类别--workspace-category) | 工作区类别 | Workspace Category | 工作区的资源与治理语义类别，不等于地址提供者 |
 | [UL-workspace-address-provider](terms/scope-and-resolution.md#ul-workspace-address-provider--工作区地址提供者--workspace-address-provider) | 工作区地址提供者 | Workspace Address Provider | 提供地址的 Omne Host、GitHub、Obsidian、Office 365 等外部系统或宿主类型 |
+| [UL-workspace-management-type](terms/scope-and-resolution.md#ul-workspace-management-type--工作区管理类型--workspace-management-type) | 工作区管理类型 | Workspace Management Type | 资源持久保存、版本管理与实例同步采用的模型；Omne Host 创建时选择，首版仅 Git |
+| [UL-git-workspace](terms/scope-and-resolution.md#ul-git-workspace--git-工作区--git-workspace) | Git 工作区 | Git Workspace | Workspace 的 GitBasedWorkspace 特化，共享资源与实例复用 Git |
 | [UL-workspace-shared-directory](terms/scope-and-resolution.md#ul-workspace-shared-directory--工作区共享目录--workspace-shared-directory) | 工作区共享目录 | Workspace Shared Directory | 实例下的 `.omne`，共享资产、配置与规范，变更进入共享同步 |
 | [UL-workspace-local-directory](terms/scope-and-resolution.md#ul-workspace-local-directory--工作区本地目录--workspace-local-directory) | 工作区本地目录 | Workspace Local Directory | 实例下的 `.omne.local`，单租户本地定制，同能力资产优先，不进入共享同步 |
 | [UL-workspace-participation-restriction](terms/scope-and-resolution.md#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction) | 工作区参与限制 | Workspace Participation Restriction | 组织限制本组织租户参与外组织或外树工作区的写入与维护，不拦只读 |
