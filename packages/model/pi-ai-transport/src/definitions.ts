@@ -64,7 +64,7 @@ function definition(
   return Object.freeze({
     modelId,
     revision: '1',
-    implementation: Object.freeze({ name: `omne-official:openrouter-${family}`, revision: '5' }),
+    implementation: Object.freeze({ name: `omne-official:openrouter-${family}`, revision: '6' }),
     reminderRole,
     routes: Object.freeze(routes),
   })

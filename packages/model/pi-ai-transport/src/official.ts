@@ -10,7 +10,7 @@ function familyDefinitions(
   return modelIds.map(modelId => ({
     modelId,
     revision: '1',
-    implementation: { name: `omne-official:openrouter-${family}`, revision: '5' },
+    implementation: { name: `omne-official:openrouter-${family}`, revision: '6' },
     reminderRole,
     routes: { [route]: cacheMode },
   }))

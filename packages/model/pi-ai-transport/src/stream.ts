@@ -15,7 +15,8 @@ import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-value
 import type { ArrivalEvent, OpenEvent } from '@omne-harness-lite/arrival-events'
 import type { StreamEnd, TransportFailure } from '@omne-harness-lite/model-request-runtime'
 import { parseSSE, SseProtocolError } from './sse.ts'
-import { strictObject, object } from './json.ts'
+import { strictObject, object, redactObject } from './json.ts'
+import { reportDiagnostic } from './diagnostics.ts'
 import { accountFromUsage } from './accounts.ts'
 import { claimResponse, type RawResponse, type Diagnostic } from './http.ts'
 import type { PlannedRequest } from './plan.ts'
@@ -87,6 +88,8 @@ export async function* readStream(
     upstreamRequestId?: string
     stopReason?: string
   } = {}
+  const originalServing: typeof serving = {}
+  const diagnostic = (event: Diagnostic) => reportDiagnostic(deps.diagnostic, event)
   function block(kind: 'text' | 'thinking'): Block {
     const index = new LosslessNumber(String(blocks.length))
     const opened: OpenEvent = {
@@ -124,9 +127,11 @@ export async function* readStream(
     value: JsonValue | undefined,
   ) {
     if (typeof value !== 'string') return
-    if (serving[key] === undefined) serving[key] = value
-    else if (serving[key] !== value)
-      deps.diagnostic({
+    if (originalServing[key] === undefined) {
+      originalServing[key] = value
+      serving[key] = response.redact(value)
+    } else if (originalServing[key] !== value)
+      diagnostic({
         kind:
           key === 'servingProvider'
             ? 'model_transport.serving_provider_changed'
@@ -151,9 +156,7 @@ export async function* readStream(
       remember('upstreamModel', frame.model)
       remember('servingProvider', frame.provider)
       if (object(frame.error)) {
-        const error = strictObject(response.redact(writeJsonLossless(frame.error))) ?? {
-          message: 'upstream stream error',
-        }
+        const error = redactObject(frame.error, response.redact)
         const code = frame.error.code
         failed = isNonNegativeJsonInteger(code)
           ? {
@@ -167,7 +170,7 @@ export async function* readStream(
         break
       }
       if (object(frame.usage)) {
-        if (usage) deps.diagnostic({ kind: 'model_transport.usage_repeated', level: 'info' })
+        if (usage) diagnostic({ kind: 'model_transport.usage_repeated', level: 'info' })
         usage = frame.usage
       }
       if (!Array.isArray(frame.choices) || frame.choices.length === 0) continue
@@ -291,9 +294,9 @@ export async function* readStream(
         if (finish !== undefined && finish !== choice.finish_reason)
           throw new SseProtocolError('finish_reason changed')
         finish = choice.finish_reason
-        serving.stopReason = finish
+        serving.stopReason = response.redact(finish)
         if (!['stop', 'tool_calls', 'length'].includes(finish)) {
-          failed = { source: 'in_band', upstreamError: { code: finish } }
+          failed = { source: 'in_band', upstreamError: { code: response.redact(finish) } }
           break
         }
       }
@@ -347,7 +350,7 @@ export async function* readStream(
         }
     }
   }
-  if (usage) yield { t: 'account', ...accountFromUsage(usage, deps.diagnostic) }
+  if (usage) yield { t: 'account', ...accountFromUsage(usage, diagnostic) }
   return failed
     ? { failed, ...serving }
     : { ended: finish === 'length' ? 'max_tokens' : 'end', ...serving }

@@ -84,7 +84,13 @@ await transport.close()
 
 HTTP 失败保留脱敏后的实际响应头，重复值分别保存。token 减法不一致时交出未知计数和诊断，不填成零；这些事实不能替代上游计费语义的核对。
 
-推理片段只有在其余全部元数据相同时才拼接；不同明细身份或未知元数据分别保存在 opaque 中，供同路由回放。上游报告的供应商发生变化时保留首次原值，并输出 `model_transport.serving_provider_changed`。共享实现当前为 implementation revision 5。`extra` 中所有键均受保护而被丢弃时，实际参数记录省略 `extra`，不保留非法的空对象。先前 revision 3 或 4 的证据不构成此修订认证。
+凭据脱敏覆盖解析后的上游错误字符串与键、响应头的名字与值、实报模型／供应商／请求标识以及收尾原因。凭据中的引号和反斜线不会因 JSON 转义而绕过脱敏；替换标记自身及其拼接处也不会重新生成允许的 ASCII 凭据或受保护片段。脱敏键撞名时保留全部成员及已有普通键；普通上游字段与精确数字保持原值。
+
+直接调用 `sendRequest` 和 `readStream` 时，诊断回调同步抛错、异步拒绝或长期 pending 均不控制业务执行；函数不等待诊断完成，调用者负责借入 sink 的健康状态。工厂仍通过既有 `diagnostics()` 计数报告失败、在途投递和丢弃，诊断不改变模型结果。
+
+四项基础 token 计数全未知时，usage 使用 `source: "none"` 并省略 `reasoning_tokens`；独立报告的费用仍可保留。任一有效基础计数（包括零）存在时，仍使用 `source: "upstream"`。
+
+推理片段只有在其余全部元数据相同时才拼接；不同明细身份或未知元数据分别保存在 opaque 中，供同路由回放。上游报告的供应商发生变化时保留首次脱敏值，并输出 `model_transport.serving_provider_changed`。共享实现当前为 implementation revision 6，定义修订仍为 1。被丢弃的 `extra` 参数在 `droppedParameters` 中使用原键。`extra` 中所有键均受保护而被丢弃时，实际参数记录省略 `extra`，不保留非法的空对象。先前 revision 3、4 或 5 的证据不构成此修订认证。
 
 ## 登记与撤除精确版本
 
@@ -114,6 +120,8 @@ console.log(await service.close(retirement)) // 没有发出 HTTP 请求
 取得引用后使用 `lease.transport`，通过 `lease.track(handle.outcome)` 保留调用结果的完成条件。其他异步内容门、回调、结算或交接也要在 release 前登记完成条件。工作收口后调用 `lease.release()`，重复 release 无副作用。release 关闭该持有者的新工作准入，未完成的已登记工作继续保留资源；调用者仍负责释放引用。
 
 撤除立即停止新 acquire。`force: true` 通过引用信号和传输请求取消。等待超时返回 `remaining_active`，资源仍保留，abort 本身不是完成证据。清理失败保持可见所有权。贡献和所属连接池实际停止后，`service.closed` 才完成。登记仅在当前进程生效，不负责发布档案、租户授权或版本持久化。
+
+单个贡献退役后，既有 lease 仍可发送。关闭整个服务则立即拒绝旧 lease 的新发送以及正在等待连接的请求，返回 `unavailable`。`force: false` 时，已发出的请求仍可自然读完；lease 及其登记的工作全部收口后才销毁共享连接池。
 
 ## 使用可信 Cordis 贡献
 

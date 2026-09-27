@@ -38,6 +38,7 @@ export function accountFromUsage(
     }
   }
   const output = isNonNegativeJsonInteger(raw.completion_tokens) ? raw.completion_tokens : 'unknown'
+  const knownBase = [input, output, cacheRead, cacheWrite].some(value => value !== 'unknown')
   const reasoning = member(raw.completion_tokens_details, 'reasoning_tokens')
   const reportedCost = raw.cost
   const upstream = member(raw.cost_details, 'upstream_inference_cost')
@@ -47,8 +48,8 @@ export function accountFromUsage(
       output_tokens: output,
       cache_read_tokens: cacheRead,
       cache_write_tokens: cacheWrite,
-      source: 'upstream',
-      ...(isNonNegativeJsonInteger(reasoning) ? { reasoning_tokens: reasoning } : {}),
+      source: knownBase ? 'upstream' : 'none',
+      ...(knownBase && isNonNegativeJsonInteger(reasoning) ? { reasoning_tokens: reasoning } : {}),
     },
     cost:
       isJsonNumber(reportedCost) &&

@@ -112,12 +112,7 @@ describe('S57 exact pilot binding and wire projection', () => {
         },
       },
     })
-    expect(result.droppedParameters).toEqual([
-      'reasoningEffort',
-      'extra.provider',
-      'extra.user',
-      'extra.model',
-    ])
+    expect(result.droppedParameters).toEqual(['reasoningEffort', 'provider', 'user', 'model'])
     expect(result.parameters).not.toHaveProperty('reasoningEffort')
     expect(result.parameters.extra).not.toHaveProperty('provider')
     expect(result.serialized).toContain('0.123456789012345678901')

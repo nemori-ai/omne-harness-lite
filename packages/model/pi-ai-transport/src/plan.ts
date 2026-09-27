@@ -272,7 +272,7 @@ export function planRequest(
   if (input.parameters.extra !== undefined) {
     const extra: MutableObject = {}
     for (const [key, value] of Object.entries(input.parameters.extra)) {
-      if (protectedKeys.has(key)) dropped.push(`extra.${key}`)
+      if (protectedKeys.has(key)) dropped.push(key)
       else {
         body[key] = value
         extra[key] = value
