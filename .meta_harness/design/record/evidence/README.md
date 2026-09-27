@@ -195,3 +195,5 @@ evidence/
 [2026-09-27 revision5 参数与公开制品](2026-09-27-tests-model-request-runtime-parameters/README.md)：独立22项、非法空extra反例及不变判据修复、231项整包、两个外部制品目录和实际TLS/停止负控；无付费、TTL或37认证。
 
 [2026-09-27 W16 retryDelay有限签收](2026-09-27-tests-model-request-runtime-retry-delay/README.md)：双闭合制品、独立Fraction矩阵、严格输入与公开双语literal，两个真编译行为负控；保留早期测量记账局限，不签收实际调度／十三操作／整体P2。
+
+[2026-09-27 W17 core精确RFC3339比较](2026-09-27-tests-core-rfc3339-order/README.md)：D089 B/R1有限签收；150测试、两闭合公开根各9475oracle、12literal及两真编译行为负控，4542归档成员/198输入核对。保留首次测量记账缺项；TL-G1与runtime组合/十三操作/37认证未闭。

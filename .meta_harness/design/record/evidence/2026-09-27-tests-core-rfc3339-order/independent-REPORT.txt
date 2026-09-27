@@ -1,0 +1,69 @@
+# W17 RFC3339 精确时序独立验证
+
+**结论：Pass with issues；D089 B/R1 的 core 条件排序切片为 Pass。** 未发现产品反例。ISSUE-1 是首次产品运行前的 oracle 元数据脚本失败没有独立 PID/完整本地 stderr，无法补写成首次原始证据。所有最终产品运行、编译、行为负控及源码检查保留 argv/cwd/PID/actual wait/exit/时间和完整 raw。此报告交 root 判断，不替代最终签收。
+
+**版本 W17-56d69e3-r1**；spoke `/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-rfc3339-order-verification`，branch `panqiwei/model-request-runtime-p2-rfc3339-order-verification`，HEAD `56d69e3647636cc13acb58d5ec0bd667fab3d191`，common-dir `/data/qiwei/repos/omne-harness-lite/.git`。起始和末次 tracked clean。仅自己的 tmp、忽略工具环境/dist和自建仓库外制品有写入；受维护产品/设计/旧证据未改。没有 Cordis 安装、模型请求、.env 读取、提交、合并或推送。
+
+## 输入与独立方法
+
+正式采用来自 D089 decision/acceptance：原正文标题仍 candidate；实际采用 B/R1 的精确 rev1 SHA `249c68ea3239977131cc44be3d75dbd31474e0659355258c2606833eb2bfaab2`。亲读采用、OE1 S22/OE2、相关 Schema、原 offer-expiry design/verification 和 MR4 S17/D088 背景。R1 的 ok 只表示静态接收和合法时点前提下顺序，不认证闰秒公告。原 millis API 的用途与结果保持。
+
+36 派发原字节资料已逐 hash 核；施工150/作者消费者及root七项结果仅参考。自有 Node24.18.0/pnpm10.28.1 冻结离线安装、依赖和core顺序build、strict typecheck、150测试、TS格式/source rules/diff均实际完成；源端检查完成后才freeze/pack/消费者读取。Python3.8.10只用stdlib。最终198份冻结输入＝142相关维护输入＋56 dist，保存全部原字节；75原施工输入72保护相同、3采用变动准确；78最终源/dist及作者两正常归档模块与自己build相同。
+
+独立 oracle.py 不导入产品，不复制作者 expected。Gregorian 日序用 stdlib date/calendar 的400年周期提升；小数用 Fraction。`utcMinute*61 + second + fraction` 仅为标签顺序嵌入，不是 elapsed seconds、Unix/TAI 时间。种子20260927；1800普通域生成样本，年份区间0..799及1600..2399的February周期；选定年份全部月份有效/非法月底；300偏移同点；小数1/3/9/17/64/137及长尾12001/12002位。7662案例＋1798传递三元组，另15个纯面/失败/旧面检查，共每目录9475具名通过。该有限集不是全域形式证明。
+
+2015-06-30 与2016-12-31真实夹具的公告前提分别亲核 [IERS49](https://datacenter.iers.org/data/html/bulletinc-049.html)、[IERS52](https://hpiers.obspm.fr/iers/bul/bulc/bulletinc.52)，原工具返回保全；[RFC3339](https://www.rfc-editor.org/rfc/rfc3339.html)仅作已引用标准的来源核对。Jan2030及UTC边界合成60值明确只证条件内核，不冒称存在过或生产认证。
+
+## 逐项覆盖
+
+| 项 | 本切片判定 | 实际覆盖 | 未覆盖/限制 |
+|---|---|---|---|
+| TO-V1 | Pass | Independent .0004>.0003 public assertion in both actual packs; quantized compiled control fails exact first oracle. | MR4 sent/first production rejection or actual runtime composition. |
+| TO-V2 | Pass | Missing fraction/tail zero equality; >nanosecond and 12001/12002-digit finite tails; before/after epoch; strings unchanged. Independent exact Fraction expectation, no millisecond conversion. | Captured timing/log payload preservation by runtime; unlimited-input mathematical machine proof. |
+| TO-V3 | Pass | Entire string/calendar/field/offset checks, both sides and both invalid; 10 nonstring classes, throwing and revoked Proxy; no getter/toJSON/coercion accesses; fixed redacted diagnostic. Pattern-only schema accepts illegal calendar that compare rejects. | External leap announcement authentication or negative leap label existence. |
+| TO-V4 | Pass | T/t,Z/z, +/-00:00, generated +/-1439 minute aliases, reverse-lex offset, local0000/9999 UTC-bound crossings, exact fraction. Lexical compiled control fails designated oracle. | Locale/IANA/RFC9557 domains outside adopted four-digit grammar. |
+| TO-V5 | Pass within R1 premise | IERS-qualified 2015/2016 59.x<60<60.x<next0, offset aliases and trailing zeros. Impossible UTC month-end-minute60 rejected. Other-month synthetic Jan2030 and UTC boundary conditional fixtures prevent a June/December-only implementation. | TL-G1 actual producers/hosts/announcements; negative leap occurrence; future synthetic fixtures are not certified historical instants. |
+| TO-V6 | Pass in finite instrumented scope | Public Parsed<-1|0|1> strict consumer types; kernel/Cordis truly absent. 41 active port probes (40 distinct names), all 7662 vectors/1798 triples repeated under deny; business effects/async resources zero, resources=[] and FD21->21 in both. Cross-call result stability and varied facts; source module uses local state/no retained input cache. Normal import separated from business interval. | Unconditional proof of every hypothetical port, heap non-retention under arbitrary inputs, runtime lifecycle/Clock provenance. |
+| TO-V7 core | Pass | Fresh pack from own locked build; two independent relocated closed consumers each878 regular/0links,63 product members byte identical. Six exact literal TS blocks per root, strict NodeNext/skipLibCheck:false compile and12 actual node executions. | Runtime three/two timing, opened full-value equality, actual producer/legal history/physical batch. README_ZH is maintained-source literal, not published by existing package files policy. |
+| TO-V8 | Pass | Own actual150 tests=85 old+64 new behavior+1 new type, no skip/failure. Protected old source/test/schema/package bytes unchanged from90fafe89; old time.ts exact adopted hash. Public original millisecond quantization/formatter preserved; no old API rewrite. | No full monorepo acceptance or unrelated consumer upgrade. |
+| TO-V9 | Pass in finite scope | Independent stdlib Gregorian date/calendar 400-year lift+Fraction ordered61-label-minute embedding; seed20260927,1800 samples,7662 cases,1798 triples, two full400-year interval pairs,300 offset aliases, fractional12002 max. Own public executions. Author cost raw personally checked under explicit brief allowance, same78 source/dist and normal archived modules;20 calls at1001/10001/100001/1000001 digits. | Cost is author measurement, not independent rerun. No proof of arbitrary constant time/memory, elapsed time/TAI model or machine/formal theorem. |
+| compiled behavior controls | Pass | Two distinct strict TS compiled replacements, sole public product-member delta dist/rfc3339-order.js. compile0/syntax0/same positive oracle AssertionError1 at named numeric assertion. | Additional runtime/announcement/all individual parser mutation controls. |
+
+## 公开制品、字面示例与负控
+
+自有 fresh pack：identity-values SHA `c5b910d02642ff2aa2378802988604dd31e87723f65d79a3af897773ea2041a2`；offer-expiry SHA `111a06099d6d40a63cc62f4210c7e13c18713f6a463ae4759ffd53fe5cfd2b14`。公开产品全部63成员和package隐藏metadata逐字节匹配，两目录各798外部依赖文件源到copy一致；8依赖来自此spoke自己的锁定安装。两物理目录 `/tmp/omne-rfc3339-independent-1svi_9gl/B` 与 `/tmp/omne-rfc3339-independent-1svi_9gl/relocated/C` 各878 regular/0links，12 package.json含consumer，依赖闭合，无工作树dist/软链逃逸。每一文件含metadata均进入consumer-*-manifest.json及最终闭合归档。
+
+六 literal TS 块逐字提取：英/中各3，每目录strict NodeNext、ES2024、skipLibCheck:false，全部执行actual node退出0。没有改样例类型/隐藏提供者。英文来自真正pack README，中文从被冻结的维护README_ZH原字节取；现有files策略未发布中文文档，此处不冒称其已在tgz中。实际公开Parsed签名编译/运行0，错误解包及品牌混用有@ts-expect-error编译判据。
+
+最终 consumers run `consumers-1790541865937360321`；B public PID122446/C122523各exit0并实际wait，随后两公开类型及12 literal节点全0。最终 controls run `controls-1790541951687562861`：
+- `quantized`：compile0/syntax0/behavior AssertionError1，PID123027，oracle `TO-V1.submillisecond`，expected `{"ok": 1}`、actual `{"ok": 0}`。仅受测复制包的 `dist/rfc3339-order.js` 被替换，编译源码/模块hash见summary。
+- `lexical`：compile0/syntax0/behavior AssertionError1，PID123063，oracle `TO-V4.reverse-lex-offset`，expected `{"ok": -1}`、actual `{"ok": 1}`。仅受测复制包的 `dist/rfc3339-order.js` 被替换，编译源码/模块hash见summary。
+
+两个负控皆经过实际公开根加载，复用正向同一脚本/vectors；不是 loader、syntax、timeout 或类型错误计数。副本位于独立 closed OS 根，正常两包未改。
+
+## 资源、成本与真实停止
+
+正常module/schema加载在业务instrument之前发生并单列。纯函数无装卸/Cordis配置/IO贡献。kernel/Cordis实际不存在，真实dynamic import ERR_MODULE_NOT_FOUND，而不是假provider。业务阻断器主动自检41次/40不同名称，覆盖env、Date各取时面、performance/hrtime、随机、timer/microtask、命名同步FS及http/https/net端口；所有7662数值案例及1798三元组在阻断区再执行。effects=[]、asyncResources=[]；B/C初末activeResources=[]，实际FD各21→21。该21是进程基线，未称全进程FD0。
+
+两负控在数值首段就按预定断言退出，最后失败观测activeResources=[]/FD21；不冒称它们执行过末尾资源阻断区。所有owned child实际wait结束、无timeout/kill，无后台产品reader。末次审计核全部既定子PID不再存在（不替代wait）。本纯函数没有关闭/Agent/socket职责；没有假TLS/Cordis/Clock来补数。
+
+TO-V9按brief明确允许亲核作者已有成本。reused-cost原字节与来源hash、argv/PID/exit/hash逐核，两个normal归档模块和78源/dist一致。Node24.18，每档20次，1001/10001/100001/1000001位：作者A复测约2.33/4.00/30.88/302.90ms、B约2.12/4.01/30.41/301.83ms；保留before/live/released内存。没有独立成本rerun、不将有限样本或内存快照当峰值、任意输入恒定上界或无限计算证明。
+
+## 首次失败与测量修订
+
+- MEAS-1：The maintained formatter rejects README.md, which is outside its TS/JS scope. Product source untouched. Continuation formats the four adopted TS members and runs the remaining source gates before packing.
+- MEAS-2：Path was not imported for final generator metadata hashing after full vectors were written. First direct exec did not retain an independent PID/full local stderr. This cannot be repaired retroactively. r2 only added Path and produced identical vectors; r3 removes an unsupported exact diagnostic wording assumption before any product execution. Numerical expectations unchanged.
+- MEAS-3：crypto.getRandomValues is a non-configurable getter. No intended business call in the final active-instrument block had run. Every earlier finite oracle passed. Revised measurement intercepts the actual configurable WebCrypto prototype delegate, then self-tests all installed ports including the exposed crypto wrapper. All vectors and triples rechecked under denial. Product and numerical oracle unchanged.
+- ORACLE-POLICY：Adopted design specifies fixed redacted diagnostic, not author literal wording. Before product execution, invalid expected values became a private boolean marker; the actual result still must have exactly invalidInput:string, be nonempty and fixed across invalid values, and not echo the marked secret. No numerical expectations changed.
+
+首次formatter/public仪表 raw均完整保存；oracle metadata首次失败只有源、当时生成vectors和工具摘要，PID/完整本地stderr缺失是ISSUE-1，后续成功不覆盖它，也未伪造原始trace。原B首次9474早段检查已通过不被写回通过整个入口；修正后的独立run才支持9475及主动资源结论。新仪表实测 exposed crypto.getRandomValues→WebCrypto configurable delegate 拦截，未删除该端口。
+
+## 回跑、归档与边界
+
+公开artifact不需要仓库：解出closed-evidence.tar.gz后在consumers/B及consumers/relocated/C执行 `node public.mjs <新的绝对结果路径>`；用各目录自带 `node_modules/typescript/bin/tsc` 和原 command.json 参数编译。12 literal源码/编译结果、两个负控candidate源码/compiled模块、所有deps和公开包均保全。source-side命令及oracle生成脚本在evidence中按冻结head/环境回跑；原raw路径不可覆盖，应采用新run标签。
+
+archive.json是归档完成后的独立结果，记录完整manifest SHA、artifact SHA/尺寸、所有成员回读hash/数量和actual archive wait；REPORT/summary版本及hash统一其中。为避免循环，归档本体、最终archive.json、archiver活动stdout/stderr/最终wait不被打入自身；原始launch-input PID/argv在manifest内，最终wait在外部archive.json。没有把任何应保留的产品/raw/完整OS目录排除。
+
+最终来源审计 `audit-1790542101626310754`：198/36/78全核零漂移、两个public实际pack逐成员0差异，tracked clean。无持续冻结HUB，停止本任务reader，保留本spoke/OS制品供root回读；没有退休授权。
+
+**未闭**：TL-G1实际时间生产者/宿主/合法历史和外部公告、runtime三/两timing及opened原值/来源关系、G28/G29-P/H/物理同批/G30/G31、十三操作/五settlement/37官方认证、完整P2～P6。此切片不接受这些范围，也不替代独立架构评审或root最终接受。

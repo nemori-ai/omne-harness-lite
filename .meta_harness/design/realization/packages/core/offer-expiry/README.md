@@ -48,3 +48,5 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
 
 2026-09-25增量：D042/D043范围内的新版本局部实现及测试见[证据](../../../../record/evidence/2026-09-25-tests-governance-participation/README.md)。旧bindings不整批升级；新entry/host组合未验，不声明生产开闸。
+
+**2026-09-27 W17 条件比较签收**：[限定技术签收](../../../../record/evidence/2026-09-27-tests-core-rfc3339-order/README.md)接受D089 B/R1公开纯比较；HUB56d69e36/core150、两闭合制品各9475oracle、12literal、两真编译行为负控及4542归档成员亲核。产品slice Pass、证据Pass with issues，首次oracle脚本PID/完整stderr缺项保留；源码878f8bf8已集成。TL-G1真实合法来源与runtime三/两timing及opened关联未闭，新增规范bindings0，旧源码/Schema/Clock保持。

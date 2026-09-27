@@ -1,0 +1,13 @@
+{
+  "README.md": "d656b8c329f2a1dc63c51306c0f09c0ab2d15a77cda0d28189855858fcd66374",
+  "acceptance-summary.json": "ab5aa8225487b6699fff7db8dffb9e4251abfbd3eb3654a1c8f25ccc8709a66d",
+  "archive-manifest.json": "4e37be7881a195e6eab66a0b51a6015479e1eae2c2941151903fd17e6a034ab3",
+  "closed-public-artifacts-and-runs.tar.gz": "8cd8e512c714f10383ac6a4ab94636c92d6b90146efb825ae8563a0f8e0ed53a",
+  "independent-REPORT.txt": "a1e73da2a7e4800559d3a11fe906cc85a78b87174e835f5af8e90ca1937088df",
+  "independent-archive.json": "eb7c676a0d5685881c9e1a4635da3d33b099c90bb7b0f0d7778ba4308d65019b",
+  "independent-summary.json": "5ad54ffed641627269f834bcb9b0614bf5e851f2851139e5a93a24708633f3d3",
+  "input-hashes.json": "a70a4c5a53de38343ba15fdd826049461ad36da85aca14ba38fb21d71b0b5fd2",
+  "post-registration-checks.tar.gz": "8e66672ef69a8647de6d13185bd49b4bbd995ce6370c420ecad05a7f976096d8",
+  "root-verification-runs.tar.gz": "6183373848d4bc141d29b3f71e1e344255ac0ab99129c5248791141e3f9d61e1",
+  "root-verification.json": "c160181c07006edf0cb64d5115397ea4fe2d96f4bb8cf97b286b5d3438578002"
+}
