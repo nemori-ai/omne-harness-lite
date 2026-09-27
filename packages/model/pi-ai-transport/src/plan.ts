@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import {
   writeJsonLossless,
   readOpaqueJson,
+  copyJsonValue,
   isJsonNumber,
   type JsonObject,
   type JsonValue,
@@ -14,8 +15,21 @@ import type {
   PlanResult,
   PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime'
-import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import { pilotDefinitions, type ModelDefinition, type CachePolicy } from './definitions.ts'
+import {
+  judgeModelProfileDocument,
+  type ModelRequestParameters,
+} from '@omne-harness-lite/model-profile'
+import {
+  ownDefinitions,
+  codePointOrder,
+  jsonEqual,
+  parameterOrder,
+  protectedParameterKeys,
+  ruleAccepts,
+  type ModelDefinition,
+  type ParameterRule,
+} from './definitions.ts'
+import { interpretConfiguration } from './configuration.ts'
 import { object, ownedObject } from './json.ts'
 import { ownPlanInput } from './input.ts'
 
@@ -24,65 +38,37 @@ export interface PlannedRequest extends PlannedSemantics {
   readonly serialized: string
 }
 const plans = new WeakSet<PlannedRequest>()
+const planDefinitions = new WeakMap<PlannedRequest, ModelDefinition>()
+const planOwners = new WeakMap<PlannedRequest, object>()
+/** Internal signing boundary; host identity is never part of the durable binding. */
+export function claimPlan(planned: PlannedRequest, owner: object): void {
+  const prior = planOwners.get(planned)
+  if (!plans.has(planned) || (prior && prior !== owner)) throw new TypeError('foreign plan')
+  planOwners.set(planned, owner)
+}
+export function planAvailable(
+  planned: PlannedRequest,
+  owner: object,
+  definitions: readonly ModelDefinition[],
+): boolean {
+  const prior = planOwners.get(planned)
+  if (prior) return prior === owner
+  const declaration = planDefinitions.get(planned)
+  if (!declaration) return false
+  const copied = copyJsonValue(declaration)
+  return (
+    'ok' in copied &&
+    definitions.some(definition => {
+      const other = copyJsonValue(definition)
+      return 'ok' in other && jsonEqual(copied.ok, other.ok)
+    })
+  )
+}
 type MutableObject = { [key: string]: JsonValue }
 export function isPlannedRequest(value: PlannedRequest): boolean {
   return plans.has(value)
 }
 export const PI_AI_CARRIABLE_MODALITIES = Object.freeze(['text', 'image'] as const)
-const protectedKeys = new Set([
-  'model',
-  'messages',
-  'stream',
-  'stream_options',
-  'provider',
-  'models',
-  'route',
-  'tools',
-  'tool_choice',
-  'user',
-  'session_id',
-  'prompt_cache_key',
-  'store',
-  'transforms',
-  'plugins',
-  'cache_control',
-  'temperature',
-  'top_p',
-  'seed',
-  'stop',
-  'frequency_penalty',
-  'presence_penalty',
-  'max_tokens',
-  'max_completion_tokens',
-  'reasoning',
-  'reasoning_effort',
-])
-
-export function cachePolicy(
-  values: JsonObject,
-  expected: CachePolicy['mode'],
-): CachePolicy | undefined {
-  if (Object.keys(values).some(key => key !== 'cache')) return undefined
-  const cache = values.cache
-  if (!object(cache) || cache.mode !== expected) return undefined
-  if (expected === 'automatic')
-    return Object.keys(cache).length === 1 ? { mode: 'automatic' } : undefined
-  if (
-    Object.keys(cache).some(key => !['mode', 'ttl', 'breakpoints'].includes(key)) ||
-    typeof cache.ttl !== 'string' ||
-    !['5m', '1h'].includes(cache.ttl) ||
-    !Array.isArray(cache.breakpoints) ||
-    !cache.breakpoints.length
-  )
-    return undefined
-  const breakpoints: ('system' | 'last_tool' | 'last_message')[] = []
-  for (const key of cache.breakpoints) {
-    if (key !== 'system' && key !== 'last_tool' && key !== 'last_message') return undefined
-    if (breakpoints.includes(key)) return undefined
-    breakpoints.push(key)
-  }
-  return { mode: 'explicit', ttl: cache.ttl, breakpoints }
-}
 function normalizeToolCallId(id: string): string {
   // Deterministic request-local rewrite; invocation and result share the same transform.
   return /^[A-Za-z0-9_-]{1,64}$/.test(id)
@@ -132,12 +118,19 @@ function addBreakpoint(message: MutableObject, control: JsonObject): void {
 }
 export function planRequest(
   raw: PlanInput,
-  definitions: readonly ModelDefinition[] = pilotDefinitions,
+  definitions: readonly ModelDefinition[],
 ): PlanResult<PlannedRequest> {
+  let ownedDefinitions: readonly ModelDefinition[]
+  try {
+    ownedDefinitions = ownDefinitions(definitions)
+  } catch (error) {
+    if (error instanceof TypeError) return { rejected: 'invalidInput' }
+    throw error
+  }
   const input = ownPlanInput(raw)
   if (!input) return { rejected: 'invalidInput' }
   const binding = input.snapshot.adaptation
-  const definition = definitions.find(
+  const definition = ownedDefinitions.find(
     d =>
       d.modelId === input.routeName &&
       d.revision === binding.definition.revision &&
@@ -145,12 +138,17 @@ export function planRequest(
       d.implementation.revision === binding.implementation.revision,
   )
   if (!definition) return { rejected: 'unavailable' }
-  const mode = Object.hasOwn(definition.routes, input.provider)
+  const route = Object.hasOwn(definition.routes, input.provider)
     ? definition.routes[input.provider]
     : undefined
-  if (!mode) return { rejected: 'unavailable' }
-  const cache = cachePolicy(binding.configuration.values, mode)
-  if (!cache) return { rejected: 'invalidInput' }
+  if (!route) return { rejected: 'unavailable' }
+  const interpreted = interpretConfiguration(
+    definition,
+    binding.configuration.values,
+    input.provider,
+  )
+  if ('rejected' in interpreted) return interpreted
+  const cache = interpreted.ok
   const images = input.snapshot.inputModalities.includes('image')
   const messages: MutableObject[] = []
   const calls = new Set<string>(),
@@ -220,7 +218,7 @@ export function planRequest(
     } else {
       const role =
         message.type === 'system_reminder'
-          ? definition.reminderRole
+          ? route.reminderRole
           : message.type === 'compaction'
             ? 'user'
             : message.type
@@ -247,40 +245,71 @@ export function planRequest(
     messages,
     ...(tools.length ? { tools } : {}),
   }
-  const parameters: { -readonly [K in keyof ModelRequestParameters]: ModelRequestParameters[K] } = {
-    ...input.parameters,
-  }
+  const actual: MutableObject = {}
   const dropped: string[] = []
-  const mapping = [
-    ['temperature', 'temperature'],
-    ['topP', 'top_p'],
-    ['seed', 'seed'],
-    ['maxOutputTokens', 'max_tokens'],
-    ['stopSequences', 'stop'],
-    ['frequencyPenalty', 'frequency_penalty'],
-    ['presencePenalty', 'presence_penalty'],
-  ] as const
-  for (const [name, wire] of mapping) {
-    const value = input.parameters[name]
-    if (value !== undefined) body[wire] = value
+  const adjustments: NonNullable<PlannedSemantics['parameterAdjustments']>[number][] = []
+  function apply(
+    name: string,
+    value: JsonValue,
+    rule: ParameterRule<JsonValue> | undefined,
+  ): JsonValue | undefined {
+    if (
+      !rule ||
+      rule.kind === 'drop' ||
+      (rule.kind === 'select' && !ruleAccepts(rule, value) && 'drop' in rule.otherwise)
+    ) {
+      dropped.push(name)
+      return undefined
+    }
+    if (rule.kind === 'select' && !ruleAccepts(rule, value) && 'adjustTo' in rule.otherwise) {
+      const sent = rule.otherwise.adjustTo
+      adjustments.push({ name, requested: value, sent })
+      return sent
+    }
+    return value
   }
-  if (input.parameters.reasoningEffort === 'max') {
-    dropped.push('reasoningEffort')
-    delete parameters.reasoningEffort
-  } else if (input.parameters.reasoningEffort !== undefined)
-    body.reasoning = { effort: input.parameters.reasoningEffort }
+  const wireNames = {
+    temperature: 'temperature',
+    topP: 'top_p',
+    seed: 'seed',
+    maxOutputTokens: 'max_tokens',
+    stopSequences: 'stop',
+    frequencyPenalty: 'frequency_penalty',
+    presencePenalty: 'presence_penalty',
+  } as const
+  for (const name of parameterOrder) {
+    const value = input.parameters[name]
+    if (value === undefined) continue
+    const sent = apply(name, value, route.parameters[name])
+    if (sent === undefined) continue
+    actual[name] = sent
+    if (name === 'reasoningEffort') body.reasoning = { effort: sent }
+    else body[wireNames[name]] = sent
+  }
   if (input.parameters.extra !== undefined) {
     const extra: MutableObject = {}
-    for (const [key, value] of Object.entries(input.parameters.extra)) {
-      if (protectedKeys.has(key)) dropped.push(key)
-      else {
-        body[key] = value
-        extra[key] = value
-      }
+    for (const key of Object.keys(input.parameters.extra).sort(codePointOrder)) {
+      const value = input.parameters.extra[key]
+      if (value === undefined) throw new Error('owned private parameter missing')
+      const rule =
+        !protectedParameterKeys.has(key) && Object.hasOwn(route.extra, key)
+          ? route.extra[key]
+          : undefined
+      const sent = apply(key, value, rule)
+      if (sent === undefined) continue
+      Object.defineProperty(body, key, {
+        value: sent,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      })
+      Object.defineProperty(extra, key, { value: sent, enumerable: true })
     }
-    if (Object.keys(extra).length > 0) parameters.extra = Object.freeze(extra)
-    else delete parameters.extra
+    if (Object.keys(extra).length) actual.extra = extra
   }
+  const parameters = ownedObject(actual)
+  if (!parameters || !actualParameters(parameters))
+    throw new Error('parameter rules produced invalid public parameters')
   if (cache.mode === 'explicit') {
     const control: JsonObject = { type: 'ephemeral', ttl: cache.ttl }
     for (const breakpoint of cache.breakpoints) {
@@ -304,11 +333,19 @@ export function planRequest(
   if (!owned) throw new Error('planned wire body is not JSON')
   const planned = Object.freeze({
     input,
-    parameters: Object.freeze(parameters),
+    parameters,
     body: owned,
     serialized: writeJsonLossless(owned),
+    ...(adjustments.length
+      ? { parameterAdjustments: Object.freeze(adjustments.map(value => Object.freeze(value))) }
+      : {}),
     ...(dropped.length ? { droppedParameters: Object.freeze(dropped) } : {}),
   })
   plans.add(planned)
+  planDefinitions.set(planned, definition)
   return { planned }
+}
+
+function actualParameters(value: unknown): value is ModelRequestParameters {
+  return 'ok' in judgeModelProfileDocument('ModelRequestParameters', value)
 }

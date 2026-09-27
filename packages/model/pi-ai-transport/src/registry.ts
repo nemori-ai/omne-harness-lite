@@ -1,14 +1,10 @@
 import { validate, type ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
-import {
-  isJsonNumber,
-  writeJsonLossless,
-  type JsonValue,
-  type JsonObject,
-} from '@omne-harness-lite/content-blocks'
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import type { TransportAdapter, PlanInput } from '@omne-harness-lite/model-request-runtime'
-import { ownDefinitions, type ModelDefinition } from './definitions.ts'
+import { ownDefinitions, jsonEqual, type ModelDefinition } from './definitions.ts'
+import { interpretConfiguration } from './configuration.ts'
 import { ownedObject } from './json.ts'
-import { cachePolicy, planRequest, type PlannedRequest } from './plan.ts'
+import { planRequest, type PlannedRequest } from './plan.ts'
 import { createOwnedTransport, type TransportOptions } from './transport.ts'
 import type { RawResponse } from './http.ts'
 
@@ -70,7 +66,7 @@ interface Entry {
   readonly registration: AdaptationRegistration
   readonly owner: object
   readonly cleanup: () => void | Promise<void>
-  readonly content: string
+  readonly content: ModelDefinition
   readonly key: string
   readonly users: Set<User>
   readonly completed: Promise<RetirementResult>
@@ -111,30 +107,21 @@ function ownBinding(binding: ModelAdaptationBinding): ModelAdaptationBinding | u
     configuration: Object.freeze({ revision: binding.configuration.revision, values }),
   })
 }
-function jsonObject(value: JsonValue): value is JsonObject {
-  return !!value && typeof value === 'object' && !Array.isArray(value) && !isJsonNumber(value)
-}
-function canonicalValue(value: JsonValue): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalValue).join(',')}]`
-  if (jsonObject(value))
-    return `{${Object.entries(value)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([name, item]) => `${JSON.stringify(name)}:${canonicalValue(item)}`)
-      .join(',')}}`
-  return writeJsonLossless(value)
-}
-
 /** Process-local adaptation ownership. There is no directory, authorization or durable state. */
 export function createModelTransportService(
   options: Omit<TransportOptions, 'definitions'>,
 ): ModelTransportService {
-  const { transport: network, stopAdmission } = createOwnedTransport({
+  const {
+    transport: network,
+    stopAdmission,
+    claim,
+  } = createOwnedTransport({
     ...options,
     definitions: [],
   })
   const entries = new Map<string, Entry>()
   // Retiring does not authorize reusing a revision for different immutable content.
-  const declarations = new Map<string, string>()
+  const declarations = new Map<string, ModelDefinition>()
   const registrations = new WeakMap<AdaptationRegistration, Entry>()
   let accepting = true,
     networkClosing = false
@@ -240,18 +227,20 @@ export function createModelTransportService(
         implementation: owned.implementation,
         definition: { modelId: owned.modelId, revision: owned.revision },
       })
-      const content = JSON.stringify([
-        owned.reminderRole,
-        Object.entries(owned.routes).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-      ])
-      if (declarations.has(exact) && declarations.get(exact) !== content)
-        return { rejected: 'invalidInput' }
+      const content = owned
+      const equivalent = (other: ModelDefinition) => {
+        const left = copyJsonValue(content),
+          right = copyJsonValue(other)
+        return 'ok' in left && 'ok' in right && jsonEqual(left.ok, right.ok)
+      }
+      const declaration = declarations.get(exact)
+      if (declaration && !equivalent(declaration)) return { rejected: 'invalidInput' }
       const prior = entries.get(exact)
       if (prior)
         return !prior.retiring &&
           prior.owner === owner &&
           prior.cleanup === cleanup &&
-          prior.content === content
+          equivalent(prior.content)
           ? { registered: prior.registration }
           : { rejected: 'invalidInput' }
       const registration = Object.freeze({ definition: owned })
@@ -285,8 +274,9 @@ export function createModelTransportService(
       if (!accepting || !entry || entry.retiring) return { rejected: 'unavailable' }
       const definition = entry.registration.definition
       if (
-        !Object.values(definition.routes).some(mode =>
-          cachePolicy(owned.configuration.values, mode),
+        !Object.keys(definition.routes).some(
+          provider =>
+            'ok' in interpretConfiguration(definition, owned.configuration.values, provider),
         )
       )
         return { rejected: 'invalidInput' }
@@ -304,15 +294,17 @@ export function createModelTransportService(
           input.routeName === routeName &&
           key(actual) === key(fixedBinding) &&
           actual.configuration.revision === fixedBinding.configuration.revision &&
-          canonicalValue(actual.configuration.values) ===
-            canonicalValue(fixedBinding.configuration.values)
+          jsonEqual(actual.configuration.values, fixedBinding.configuration.values)
         )
       }
       const transport = Object.freeze<AdaptationLease['transport']>({
         plan: (input: PlanInput) => {
           if (user.released || !sameBinding(input)) return { rejected: 'invalidInput' }
           const result = planRequest(input, [definition])
-          if ('planned' in result) issuedPlans.add(result.planned)
+          if ('planned' in result) {
+            claim(result.planned)
+            issuedPlans.add(result.planned)
+          }
           return result
         },
         send: (planned, credential, cancellation) => {

@@ -1,3 +1,4 @@
+import { testDefinitions } from './definitions.ts'
 import { describe, expect, it } from 'vitest'
 import {
   LosslessNumber,
@@ -8,7 +9,7 @@ import { planRequest, canonicalInteger, generatedCallId } from '@omne-harness-li
 import { input, message, judgedMessage } from './support.ts'
 
 function plan(request = input()) {
-  const result = planRequest(request)
+  const result = planRequest(request, testDefinitions)
   if ('rejected' in result) throw new Error(result.rejected)
   return result.planned
 }
@@ -59,42 +60,54 @@ describe('S57 exact pilot binding and wire projection', () => {
   ])('rejects uninterpretable explicit cache config without defaulting', values => {
     const request = input(true)
     expect(
-      planRequest({
-        ...request,
-        snapshot: {
-          ...request.snapshot,
-          adaptation: { ...request.snapshot.adaptation, configuration: { revision: 'c2', values } },
+      planRequest(
+        {
+          ...request,
+          snapshot: {
+            ...request.snapshot,
+            adaptation: {
+              ...request.snapshot.adaptation,
+              configuration: { revision: 'c2', values },
+            },
+          },
         },
-      }),
+        testDefinitions,
+      ),
     ).toEqual({ rejected: 'invalidInput' })
   })
   it('never guesses a definition from a model prefix or substitutes another revision', () => {
     const request = input()
     const adaptation = request.snapshot.adaptation
     expect(
-      planRequest({
-        ...request,
-        snapshot: {
-          ...request.snapshot,
-          adaptation: {
-            ...adaptation,
-            implementation: { ...adaptation.implementation, revision: 'not-installed' },
+      planRequest(
+        {
+          ...request,
+          snapshot: {
+            ...request.snapshot,
+            adaptation: {
+              ...adaptation,
+              implementation: { ...adaptation.implementation, revision: 'not-installed' },
+            },
           },
         },
-      }),
+        testDefinitions,
+      ),
     ).toEqual({ rejected: 'unavailable' })
     expect(
-      planRequest({
-        ...request,
-        routeName: 'openai/not-listed',
-        snapshot: {
-          ...request.snapshot,
-          adaptation: {
-            ...adaptation,
-            definition: { modelId: 'openai/not-listed', revision: '1' },
+      planRequest(
+        {
+          ...request,
+          routeName: 'openai/not-listed',
+          snapshot: {
+            ...request.snapshot,
+            adaptation: {
+              ...adaptation,
+              definition: { modelId: 'openai/not-listed', revision: '1' },
+            },
           },
         },
-      }),
+        testDefinitions,
+      ),
     ).toEqual({ rejected: 'unavailable' })
   })
   it('preserves decimal spellings and drops protected overrides before send', () => {
@@ -112,7 +125,7 @@ describe('S57 exact pilot binding and wire projection', () => {
         },
       },
     })
-    expect(result.droppedParameters).toEqual(['reasoningEffort', 'provider', 'user', 'model'])
+    expect(result.droppedParameters).toEqual(['reasoningEffort', 'model', 'provider', 'user'])
     expect(result.parameters).not.toHaveProperty('reasoningEffort')
     expect(result.parameters.extra).not.toHaveProperty('provider')
     expect(result.serialized).toContain('0.123456789012345678901')
@@ -179,7 +192,7 @@ describe('S57 exact pilot binding and wire projection', () => {
       { tool_calls: [{ id: expect.stringMatching(/^call_/), function: { arguments: '{"x":' } }] },
       { role: 'tool', tool_call_id: expect.stringMatching(/^call_/), content: 'ok' },
     ])
-    expect(planRequest({ ...input(), messages: [assistant] })).toEqual({
+    expect(planRequest({ ...input(), messages: [assistant] }, testDefinitions)).toEqual({
       rejected: 'orphan_tool_call',
     })
   })

@@ -1,3 +1,4 @@
+import { testDefinitions } from './definitions.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import {
@@ -8,7 +9,6 @@ import {
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import {
   createModelTransportService,
-  pilotDefinitions,
   type AdaptationLease,
   type AdaptationRegistration,
   type ModelDefinition,
@@ -57,7 +57,7 @@ function retirement(force = false, onDeadline = () => {}): RetirementPolicy {
 }
 
 function firstDefinition(): ModelDefinition {
-  const definition = pilotDefinitions[0]
+  const definition = testDefinitions[0]
   if (!definition) throw new Error('pilot definition missing')
   return definition
 }

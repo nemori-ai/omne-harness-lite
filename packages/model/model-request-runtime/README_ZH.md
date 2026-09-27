@@ -21,16 +21,14 @@
 
 ```ts
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
-import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+import { createPiAiTransport, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
 
 export async function invokeOnce(
-  request: PlanInput, credential: string, signal: AbortSignal,
+  request: PlanInput, transportOptions: TransportOptions, credential: string, signal: AbortSignal,
   beforeFirstContent?: () => Promise<void>,
 ) {
-  const transport = createPiAiTransport({ policy: {
-    maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
-    maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
-  } })
+  const transport = createPiAiTransport(transportOptions)
+  const fragmentLength = transportOptions.policy.credentialFragmentMinLength
   try {
     const handle = invokeModel({
       ...request, transport, credential, signal,
@@ -40,7 +38,12 @@ export async function invokeOnce(
         schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
         firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
         statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
-        redact: text => text.split(credential).join('[redacted]'),
+        redact: text => {
+          let value = text.split(credential).join('█')
+          for (let offset = 0; offset <= credential.length - fragmentLength; offset++)
+            value = value.split(credential.slice(offset, offset + fragmentLength)).join('█')
+          return value
+        },
         diagnostic: event => { console.log(event.kind) },
       },
     })
@@ -49,6 +52,8 @@ export async function invokeOnce(
   } finally { await transport.close() }
 }
 ```
+
+transportOptions.definitions 必须显式给已核实的完整定义与自持网络政策。没有默认 pilot，officialModelIds 只列目标；缺定义或旧形状在资源建立前失败。传输 README 的教学值不能配真实凭据使用。
 
 示例状态码表和脱敏器属于调用者政策，不是全局强制默认值。生产调用者应交入完整已确认政策。输出上限、供应商、快照、绑定和消息全部来自 request，函数不自行查找。
 

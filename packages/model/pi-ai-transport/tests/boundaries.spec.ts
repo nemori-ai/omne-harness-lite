@@ -1,3 +1,4 @@
+import { testDefinitions } from './definitions.ts'
 import { Agent } from 'node:https'
 import type { ServerResponse } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -12,7 +13,6 @@ import {
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import {
   createModelTransportService,
-  pilotDefinitions,
   readStream,
   sendRequest,
   planRequest,
@@ -116,7 +116,7 @@ describe('host admission closes before references drain, with actual HTTPS', () 
         throw new Error('closure not configured')
       }
       try {
-        const definition = pilotDefinitions[0]
+        const definition = testDefinitions[0]
         if (!definition) throw new Error('missing definition')
         if (mode === 'cordis') {
           const provider: Plugin.Object = {
@@ -596,12 +596,15 @@ describe('factory diagnostic counters retain their declared meaning', () => {
 })
 
 it('records dropped extra parameter names exactly as profile v3 S-20 requires', () => {
-  const result = planRequest({
-    ...input(),
-    parameters: { reasoningEffort: 'max', extra: { model: 'override', max_tokens: 2 } },
-  })
+  const result = planRequest(
+    {
+      ...input(),
+      parameters: { reasoningEffort: 'max', extra: { model: 'override', max_tokens: 2 } },
+    },
+    testDefinitions,
+  )
   if ('rejected' in result) throw new Error('plan rejected')
-  expect(result.planned.droppedParameters).toEqual(['reasoningEffort', 'model', 'max_tokens'])
+  expect(result.planned.droppedParameters).toEqual(['reasoningEffort', 'max_tokens', 'model'])
   expect(result.planned.parameters).not.toHaveProperty('extra')
 })
 

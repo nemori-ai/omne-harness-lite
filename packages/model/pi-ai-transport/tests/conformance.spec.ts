@@ -1,3 +1,4 @@
+import { testDefinitions } from './definitions.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   LosslessNumber,
@@ -132,7 +133,7 @@ function assistantWith(blocks: AssemblySettlement['blocks']) {
   })
 }
 function replayBody(request: PlanInput, blocks: AssemblySettlement['blocks']) {
-  const result = planRequest({ ...request, messages: [assistantWith(blocks)] })
+  const result = planRequest({ ...request, messages: [assistantWith(blocks)] }, testDefinitions)
   if ('rejected' in result) throw new Error(`replay planning rejected: ${result.rejected}`)
   const messages = result.planned.body.messages
   if (!Array.isArray(messages)) throw new Error('planned messages missing')

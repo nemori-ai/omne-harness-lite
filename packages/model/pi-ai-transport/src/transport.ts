@@ -1,6 +1,6 @@
 import { Agent, type RequestOptions } from 'node:https'
 import type { TransportAdapter } from '@omne-harness-lite/model-request-runtime'
-import { planRequest, type PlannedRequest } from './plan.ts'
+import { planRequest, claimPlan, planAvailable, type PlannedRequest } from './plan.ts'
 import {
   sendRequest,
   type RawResponse,
@@ -9,7 +9,7 @@ import {
   type Diagnostic,
 } from './http.ts'
 import { readStream } from './stream.ts'
-import { pilotDefinitions, ownDefinitions, type ModelDefinition } from './definitions.ts'
+import { ownDefinitions, type ModelDefinition } from './definitions.ts'
 import { connectionAdmission } from './connections.ts'
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/'
@@ -18,7 +18,7 @@ export interface TransportOptions {
   /** Public function tests may use an explicit HTTPS endpoint; product plugin stays fixed. */
   readonly baseUrl?: string
   readonly tls?: Pick<RequestOptions, 'ca'>
-  readonly definitions?: readonly ModelDefinition[]
+  readonly definitions: readonly ModelDefinition[]
   readonly onDiagnostic?: (event: Diagnostic) => void | Promise<void>
 }
 export interface PiAiTransport extends TransportAdapter<PlannedRequest, RawResponse> {
@@ -37,6 +37,7 @@ export function createPiAiTransport(options: TransportOptions): PiAiTransport {
 export function createOwnedTransport(options: TransportOptions): {
   readonly transport: PiAiTransport
   readonly stopAdmission: () => void
+  readonly claim: (planned: PlannedRequest) => void
 } {
   const policy = Object.freeze({ ...options.policy })
   for (const key of [
@@ -62,7 +63,9 @@ export function createOwnedTransport(options: TransportOptions): {
     !baseUrl.pathname.endsWith('/')
   )
     throw new TypeError('explicit HTTPS base URL required')
-  const definitions = ownDefinitions(options.definitions ?? pilotDefinitions)
+  const definitions = ownDefinitions(options.definitions)
+  const owner = Object.freeze({})
+  const claim = (planned: PlannedRequest) => claimPlan(planned, owner)
   const agent = new Agent({
     keepAlive: true,
     maxSockets: policy.maxConnections,
@@ -114,13 +117,23 @@ export function createOwnedTransport(options: TransportOptions): {
     diagnostic,
   }
   const transport: PiAiTransport = {
-    plan: input => (closed ? { rejected: 'unavailable' } : planRequest(input, definitions)),
-    send: (planned, credential, signal) => sendRequest(planned, credential, signal, resources),
-    read: (response, planned, signal) =>
-      readStream(response, planned, signal, {
+    plan: input => {
+      if (closed) return { rejected: 'unavailable' }
+      const result = planRequest(input, definitions)
+      if ('planned' in result) claim(result.planned)
+      return result
+    },
+    send: (planned, credential, signal) =>
+      planAvailable(planned, owner, definitions)
+        ? sendRequest(planned, credential, signal, resources)
+        : Promise.resolve({ rejected: 'invalidInput' }),
+    read: async function* (response, planned, signal) {
+      if (!planAvailable(planned, owner, definitions)) return { rejected: 'invalidInput' }
+      return yield* readStream(response, planned, signal, {
         maxSseEventBytes: policy.maxSseEventBytes,
         diagnostic,
-      }),
+      })
+    },
     diagnostics: () => Object.freeze({ failed, pending, dropped }),
     close: async () => {
       stopAdmission()
@@ -128,5 +141,5 @@ export function createOwnedTransport(options: TransportOptions): {
       await Promise.all([...active])
     },
   }
-  return { transport: Object.freeze(transport), stopAdmission }
+  return { transport: Object.freeze(transport), stopAdmission, claim }
 }

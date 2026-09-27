@@ -2,33 +2,58 @@
 
 [English](README.md)
 
-规划单次 OpenRouter 请求，经 HTTPS 发出，并把 SSE 响应译为公开到达事件。本包是实验性的 ESM workspace 成员，使用 pi 0.86.1 定向 fork，尚未发布到 npm。
+规划一次 OpenRouter 请求，通过 HTTPS 发送，再把 SSE 转为公开到达事件。本包是实验性 ESM workspace 成员，使用 pi 0.86.1 定向 fork，尚未发布到 npm。
 
-缺省静态试运行定义只有 `openai/gpt-6-sol` 和 `anthropic/claude-sonnet-5`。另行导出的 `officialDefinitions` 包含确认的 37 个模型身份、提醒角色及路由/缓存规则，需要显式选择。存在定义或成功登记不代表模型、缓存已经认证。完整能力声明、目录发布及真实模型认证仍待完成。已接受范围和验证状态见[实现映射](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/README.md)。
+调用者必须显式提供完整模型定义，没有默认模型。`officialModelIds` 是冻结的 37 个已确认**目标身份**，不是可注册定义或已认证提供清单。官方完整能力、路由配置事实及真实认证尚待闭合，不补造未知值。状态见[实现映射](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/README.md)。
 
 ## 公开接口
 
 | 导出 | 用途 |
 | --- | --- |
-| `planRequest` | 纯校验与不可变线上规划，返回拒绝及丢弃参数 |
-| `sendRequest`、`readStream` | 接受显式网络资源、可分别复用的发送和读取函数 |
-| `createPiAiTransport` | 持有连接池，提供 `plan`、`send`、`read`、`close` 和诊断计数 |
-| `pilotDefinitions`、`officialDefinitions`、`ModelDefinition` | 显式静态模型/实现修订及供应商路由策略 |
-| `createModelTransportService` | 持有共享池及进程内适配注册表 |
-| `AdaptationLease`、`RetirementPolicy` | 固定绑定、执行保留及显式撤除调度 |
-| `parseSSE`、`canonicalInteger`、`generatedCallId` | 严格分帧与精确、确定性的调用身份辅助函数 |
-| `OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES` | 缺省端点和可承载输入模态 |
+| `ModelDefinition`、`ModelRoute`、`ParameterRule`、`ParameterRules` | 完整能力及逐路由提醒、八项参数规则、已认得的私有键和缓存允许值 |
+| `readModelDefinition(definitions, coordinates)` | 精确版本的不可变观察，不取得使用权 |
+| `configurationSchema(definition, provider)` | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值 |
+| `interpretConfiguration(definition, values, provider)` | 从同一路由声明严格、无损解释配置 |
+| `createOfficialProfileContent(definition, options)` | 构造并判定 core 内容，不写目录、不登记、不生成时间 |
+| `planRequest(input, definitions)` | 纯不可变规划，含实际参数、调整和丢项原键 |
+| `createPiAiTransport(options)` | 显式定义与自持连接池的 plan/send/read/close、诊断计数 |
+| `sendRequest`、`readStream` | 借用明确网络资源的独立函数 |
+| `createModelTransportService`、`AdaptationLease`、`RetirementPolicy` | 进程内精确登记、固定引用和显式排空 |
+| `parseSSE`、`canonicalInteger`、`generatedCallId` | 分帧与精确确定性标识辅助 |
+| `officialModelIds`、`OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES` | 目标身份、产品端点与当前可承载的 text/image 输入 |
 
-## 只规划提醒，不发送请求
+纯读取返回 `{ ok }`、invalidInput 或 unavailable。内容构造器保留 core 表示拒绝原名（如 parameter_out_of_range、max_output_exceeds_profile）；定义/路由/配置一致性失败仍为提供者 invalidInput。陌生精确版本/路由不可用，非法定义/配置为输入错误。失败只给有限拒绝类别，不输出配置正文。根入口不加载 Cordis；`./plugin` 显式依赖 Cordis 4.0.4。
+
+## 显式声明教学定义
+
+保存为 `example-definition.ts`，后面的例子引用这些值。能力和参数事实都是用于本地受控测试的合成教学值，不描述官方模型，禁止发布或用于真实路由。生产定义需要已核实事实与明确采用的配置来源。
 
 ```ts
-import { planRequest, pilotDefinitions } from '@omne-harness-lite/pi-ai-transport'
+import type { ModelDefinition, RetirementPolicy, TransportPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
-const definition = pilotDefinitions.find(d => d.modelId === 'openai/gpt-6-sol')
-if (!definition) throw new Error('Definition not installed')
+// Synthetic teaching data for controlled tests only. Never publish or call this as a live model.
+export const definition: ModelDefinition = {
+  modelId: 'example/controlled-text', revision: 'example-1',
+  implementation: { name: 'example:openrouter-text', revision: '7' },
+  capabilities: {
+    inputModalities: ['text'], outputModalities: ['text'],
+    maxInputTokens: 1024, maxOutputTokens: 128, inputConstraints: {},
+  },
+  routes: { 'example-provider': {
+    reminderRole: 'developer',
+    parameters: {
+      reasoningEffort: { kind: 'pass' }, temperature: { kind: 'pass' },
+      topP: { kind: 'pass' }, seed: { kind: 'pass' }, maxOutputTokens: { kind: 'pass' },
+      stopSequences: { kind: 'pass' }, frequencyPenalty: { kind: 'pass' },
+      presencePenalty: { kind: 'pass' },
+    },
+    extra: { example_flag: { kind: 'pass' } }, cache: { mode: 'automatic' },
+  } },
+}
+export const definitions: readonly ModelDefinition[] = [definition]
 const reminder = judgeMessage({
   id: 'reminder-example', type: 'system_reminder', nature: 'event',
   source: { kind: 'extension', extension: 'example:reminder' },
@@ -37,123 +62,130 @@ const reminder = judgeMessage({
     visibility: { toHuman: true, toModel: true } }],
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
-const input: PlanInput = {
+export const request: PlanInput = {
   target: { kind: 'model_call', callId: unwrap(parseOpaqueIdentifier('call-example', 'ModelCallId')), dispatch: 1 },
-  routeName: definition.modelId, provider: 'openai', messages: [reminder.ok], tools: [],
-  parameters: { maxOutputTokens: 128 },
+  routeName: definition.modelId, provider: 'example-provider', messages: [reminder.ok], tools: [],
+  parameters: { maxOutputTokens: 64 },
   snapshot: {
     adaptation: {
       implementation: definition.implementation,
       definition: { modelId: definition.modelId, revision: definition.revision },
       configuration: { revision: 'example-automatic-1', values: { cache: { mode: 'automatic' } } },
     },
-    providers: ['openai'], allowFallback: false,
+    providers: ['example-provider'], allowFallback: false,
     inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 128000, maxOutputTokens: 4096, updatedAt: '2026-09-27T00:00:00Z',
+    maxInputTokens: 1024, maxOutputTokens: 128, updatedAt: '2026-09-27T00:00:00Z',
   },
 }
-const result = planRequest(input)
-if ('rejected' in result) throw new Error(result.rejected)
-console.log(result.planned.body.messages) // role: developer; no network operation
+export const networkPolicy: TransportPolicy = {
+  maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
+  maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
+}
+export const retirement: RetirementPolicy = {
+  waitMilliseconds: 1000, force: false,
+  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
+}
 ```
 
-精确修订或路由未知时返回 unavailable；无法解释的配置返回 invalidInput。自动缓存不发显式控制。Anthropic 试运行定义要求 `configuration.values.cache = { mode: 'explicit', ttl: '5m' | '1h', breakpoints: [...] }`，断点名支持 `system`、`last_tool`、`last_message`。TTL 必须显式传入。缓存命中只取上游 usage，规划不能证明命中。
+## 只规划提醒不发送请求
+
+四个纯公开面与规划不依赖 runtime、目录、租户或连接池。
+
+```ts
+import {
+  readModelDefinition, configurationSchema, interpretConfiguration,
+  createOfficialProfileContent, planRequest,
+} from '@omne-harness-lite/pi-ai-transport'
+import { definition, definitions, request } from './example-definition.js'
+
+const binding = request.snapshot.adaptation
+console.log(readModelDefinition(definitions, { implementation: binding.implementation, definition: binding.definition }))
+console.log(configurationSchema(definition, request.provider))
+console.log(interpretConfiguration(definition, binding.configuration.values, request.provider))
+const content = createOfficialProfileContent(definition, {
+  providers: request.snapshot.providers, allowFallback: false, configuration: binding.configuration,
+})
+if ('rejected' in content) throw new Error(content.rejected)
+// This is a construction example only; it does not publish the synthetic content.
+const result = planRequest(request, definitions)
+if ('rejected' in result) throw new Error(result.rejected)
+console.log(result.planned.body.messages) // developer; no HTTP request
+```
+
+提醒角色由精确路由声明决定，不按模型名前缀猜策略。OpenAI 路由使用 developer，其他路由使用已核实的合适专用角色或 user。保留提醒身份/次序与单独的 compaction 映射。
+
+pass 保持原值，drop 记录项名，select 接受明确值集合或数值区间，否则按声明丢弃或调整。缺席不补值；小数和整数比较不经 Number 舍入。当前 G-22 下 maxOutputTokens 只可 pass，档案/请求表示上限照常校验。陌生或受保护私有键按**原键**丢弃留痕，键名原本以 extra. 开头也不剥前缀；实际 extra 为空时省略。
+
+自动缓存配置恰为 `{ cache: { mode: 'automatic' } }`，不发送手工控制。显式路由声明 ttlValues 与完整 breakpointLayouts；配置必须给 mode、TTL 和一个已列完整布局。共享代码不写死 TTL、默认值或布局组合。Schema 和解释器同源；规划控制不代表上游采纳、命中或到期行为。
 
 ## 持有传输资源
 
 ```ts
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+import { definitions, request, networkPolicy } from './example-definition.js'
 
-const transport = createPiAiTransport({
-  policy: {
-    maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
-    maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
-  },
-  onDiagnostic: event => { console.log(event.kind) },
-})
-// transport.plan(input), then transport.send(planned, credential, signal),
-// then transport.read(response, planned, signal), or use invokeModel.
-await transport.close()
+const transport = createPiAiTransport({ definitions, policy: networkPolicy })
+try {
+  const result = transport.plan(request)
+  if ('rejected' in result) throw new Error(result.rejected)
+  console.log(result.planned.parameters)
+  // To send: supply a real complete definition, owned credential and AbortSignal,
+  // then use send/read or invokeModel from the companion package.
+} finally { await transport.close() }
 ```
 
-调用配套 runtime 包的 `invokeModel` 可使用流装配、首内容门、时限和最终结果。独立调用者明确传入凭据与取消信号，持有资源直到实际停止。没有环境凭据查找、重试、供应商回退或重定向。每个响应只用原计划读取一次。工具参数片段与精确数字保留原文；传输不解析工具参数 JSON，也不生成宿主的 finish 事件。
+definitions 必填，缺席、undefined、非数组或不完整定义在建立连接池前同步抛 TypeError；纯 planRequest 对应报 invalidInput。明确 definitions: [] 合法，静态合法请求规划均 unavailable；动态服务内部用它建立空网络 owner，不授予通用发送权。宿主签发的计划不能交另一个宿主，send 只消费固定字节，不读最新定义或重新解释配置。
 
-公开测试调用者可传入显式 HTTPS `baseUrl` 与 CA；产品端点为 OpenRouter。这些选项不构成其他生产提供者的支持承诺。
+独立消费者显式给凭据/取消，持有资源到执行停止，并以原计划只读一次响应。没有环境凭据回退、隐藏重试、供应商回退或重定向。装配、首内容门与时限使用配套 invokeModel。测试可显式给 HTTPS baseUrl 与 CA，产品模型路由仍是 OpenRouter。
 
-直接 send/read 的表示错误返回 `{ rejected: "invalidInput" }`，已关闭传输返回 `unavailable`。竞争读取同一响应会被拒绝，不启动第二次读取。
+凭据脱敏覆盖解码后的错误键/值、首部键/值、实报模型/供应商/请求 ID 与结束原因。转义不能绕过；非 ASCII 替换不会重造合法 ASCII 凭据或保护片段；键碰撞保留普通成员与精确数字。直接 send/read 隔离抛错、拒绝或未决诊断，借用 sink 健康由调用者负责。factory 的 failed/pending/dropped 计数不改业务结果。
 
-HTTP 失败保留脱敏后的实际响应头，重复值分别保存。token 减法不一致时交出未知计数和诊断，不填成零；这些事实不能替代上游计费语义的核对。
+四项基础 token 都未知时 source 为 none，省略 reasoning_tokens；任一有效基础计数（含零）则 source 为 upstream，费用独立保留。推理 opaque 元数据与供应商变化保留 revision 6 行为。本完整定义公共实现为 revision 7，旧证据不自动认证它；definition/configuration 修订归实际事实与配置来源拥有者。
 
-凭据脱敏覆盖解析后的上游错误字符串与键、响应头的名字与值、实报模型／供应商／请求标识以及收尾原因。凭据中的引号和反斜线不会因 JSON 转义而绕过脱敏；替换标记自身及其拼接处也不会重新生成允许的 ASCII 凭据或受保护片段。脱敏键撞名时保留全部成员及已有普通键；普通上游字段与精确数字保持原值。
-
-直接调用 `sendRequest` 和 `readStream` 时，诊断回调同步抛错、异步拒绝或长期 pending 均不控制业务执行；函数不等待诊断完成，调用者负责借入 sink 的健康状态。工厂仍通过既有 `diagnostics()` 计数报告失败、在途投递和丢弃，诊断不改变模型结果。
-
-四项基础 token 计数全未知时，usage 使用 `source: "none"` 并省略 `reasoning_tokens`；独立报告的费用仍可保留。任一有效基础计数（包括零）存在时，仍使用 `source: "upstream"`。
-
-推理片段只有在其余全部元数据相同时才拼接；不同明细身份或未知元数据分别保存在 opaque 中，供同路由回放。上游报告的供应商发生变化时保留首次脱敏值，并输出 `model_transport.serving_provider_changed`。共享实现当前为 implementation revision 6，定义修订仍为 1。被丢弃的 `extra` 参数在 `droppedParameters` 中使用原键。`extra` 中所有键均受保护而被丢弃时，实际参数记录省略 `extra`，不保留非法的空对象。先前 revision 3、4 或 5 的证据不构成此修订认证。
-
-## 登记与撤除精确版本
-
-`createModelTransportService(options)` 初始没有贡献。交入定义、所有者对象及清理函数完成登记，取得精确 binding，再用登记返回的 token 撤除。相同精确修订不能换成不同内容，已撤除后同样拒绝。未知或 retiring 的版本返回 unavailable，不改取新版。
+## 登记、取得与撤除精确版本
 
 ```ts
-import {
-  createModelTransportService, officialDefinitions, type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
+import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
+import { definition, request, networkPolicy, retirement } from './example-definition.js'
 
-const retirement: RetirementPolicy = {
-  waitMilliseconds: 1000, force: false,
-  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
-}
-const service = createModelTransportService({ policy: {
-  maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
-  maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
-} })
-const definition = officialDefinitions.find(d => d.modelId === 'openai/gpt-6-sol')
-if (!definition) throw new Error('Definition not installed')
+const service = createModelTransportService({ policy: networkPolicy })
 const registered = service.registerAdaptation(definition, {}, () => {})
 if ('rejected' in registered) throw new Error(registered.rejected)
+const acquired = service.acquire(request.snapshot.adaptation, request.routeName)
+if ('rejected' in acquired) throw new Error(acquired.rejected)
+const lease = acquired.lease
+try {
+  const result = lease.transport.plan(request)
+  if ('rejected' in result) throw new Error(result.rejected)
+  console.log(result.planned.parameters)
+} finally { lease.release() }
 console.log(await service.retire(registered.registered, retirement))
-console.log(await service.close(retirement)) // 没有发出 HTTP 请求
+console.log(await service.close(retirement)) // no HTTP request
 ```
 
-取得引用后使用 `lease.transport`，通过 `lease.track(handle.outcome)` 保留调用结果的完成条件。其他异步内容门、回调、结算或交接也要在 release 前登记完成条件。工作收口后调用 `lease.release()`，重复 release 无副作用。release 关闭该持有者的新工作准入，未完成的已登记工作继续保留资源；调用者仍负责释放引用。
+注册递归拥有并校验完整声明。同键不同能力、规则、角色、TTL 或布局均拒绝，撤除后也不改同修订含义。读得到不等于可取得；acquire 验路由联集，plan 验本次明确供应商。lease 固定完整配置值，不只固定修订名。
 
-撤除立即停止新 acquire。`force: true` 通过引用信号和传输请求取消。等待超时返回 `remaining_active`，资源仍保留，abort 本身不是完成证据。清理失败保持可见所有权。贡献和所属连接池实际停止后，`service.closed` 才完成。登记仅在当前进程生效，不负责发布档案、租户授权或版本持久化。
-
-单个贡献退役后，既有 lease 仍可发送。关闭整个服务则立即拒绝旧 lease 的新发送以及正在等待连接的请求，返回 `unavailable`。`force: false` 时，已发出的请求仍可自然读完；lease 及其登记的工作全部收口后才销毁共享连接池。
+调用用 lease.transport，执行用 lease.track(handle.outcome)。独立内容门、回调、结算和交接先登记再释放。release 幂等，停本持有者新工作，已登记工作继续持有资源。撤单项贡献停新 acquire，旧引用仍可使用；关整个服务立即停旧 lease 新发送及排队准入。force false 时已发送工作可自然结束；强制取消本身不是释放证明。remaining_active 保留可见所有权，service.closed 在实际流/回调排空及池关闭后才完成。注册不持久化、不发布目录档案、不授权租户。
 
 ## 使用可信 Cordis 贡献
 
-`./plugin` 子入口导出 `piAiTransportPlugin`、`createModelPlugin` 与 `MODEL_TRANSPORT_SERVICE`，要求 Cordis 4.0.4，使用共用内核插件助手。包根入口可以不加载 Cordis。稳定插件提供一个 `modelTransport`，模型贡献插件在该服务内登记精确版本并共用连接池。
-
 ```ts
 import { Context } from '@deepseek-ai/cordis'
-import { officialDefinitions } from '@omne-harness-lite/pi-ai-transport'
 import { piAiTransportPlugin, createModelPlugin } from '@omne-harness-lite/pi-ai-transport/plugin'
+import { definition, networkPolicy, retirement } from './example-definition.js'
 
 const ctx = new Context()
-const retirement = {
-  waitMilliseconds: 1000, force: false,
-  schedule: (ms: number, callback: () => void) => {
-    const timer = setTimeout(callback, ms)
-    return () => clearTimeout(timer)
-  },
-}
-const stable = ctx.plugin(piAiTransportPlugin, { retirement, policy: {
-  maxConnections: 4, idleConnectionTimeoutMs: 30000, connectTimeoutMs: 10000,
-  maxErrorBodyBytes: 65536, maxSseEventBytes: 8388608, credentialFragmentMinLength: 8,
-} })
+const stable = ctx.plugin(piAiTransportPlugin, { retirement, policy: networkPolicy })
 await stable
-const definition = officialDefinitions.find(d => d.modelId === 'openai/gpt-6-sol')
-if (!definition) throw new Error('Definition not installed')
 const contribution = ctx.plugin(createModelPlugin(definition, retirement), {})
 await contribution
 await contribution.dispose()
-await stable.dispose() // 没有 acquire，也没有 HTTP 请求
+await stable.dispose() // no acquired lease and no HTTP request
 ```
 
-缺少必需服务时贡献处于 pending；插件配置错误在发布前失败。新增模型贡献不替换稳定服务，档案采用与撤旧是独立动作。撤除期间，活动引用或已登记回调会在报告超时后继续阻止清理完成。贡献用于可信装配代码，租户声明式配置不作为可执行插件代码。
+稳定插件提供 modelTransport，起步没有隐式贡献；可信模型插件登记完整声明、共享池。非法配置不发布；缺必需服务时贡献待定。租户配置只是声明式数据，不可执行插件代码。
+
+先登记新版，再由目录明确采用，最后撤旧，三个动作分开。包代际迁移时保留旧宿主 A 的原代码/数据至实际流与回调排空；新宿主 B 不接管 A 计划/lease，也不以 latest 重建缺失旧绑定。没有独立并存宿主所有权时，先排空 A 再启动 B，不承诺无中断。
 
 ## 开发与验证
 
@@ -163,4 +195,4 @@ pnpm --filter @omne-harness-lite/pi-ai-transport run typecheck
 pnpm --filter @omne-harness-lite/pi-ai-transport run test
 ```
 
-测试使用真实临时 HTTPS 服务、公开 runtime/core 装配器和真实 Cordis 生命周期。当前检查不构成全模型真实路由、缓存到期、耐久恢复或完整可观测链认证。fork 来源和许可见 [UPSTREAM.md](UPSTREAM.md)、[provenance.json](provenance.json) 和 [LICENSE.pi](LICENSE.pi)。
+测试使用完整非官方 fixture、真实临时 HTTPS、公开 core 判定/装配器、独立 Schema validator 和真实 Cordis 生命周期。它们不认证 37 个真实模型、工具/replay/模态、TTL 到期、耐久恢复或完整观测链。fork 来源：[UPSTREAM.md](UPSTREAM.md)、[provenance.json](provenance.json)、[LICENSE.pi](LICENSE.pi)。
