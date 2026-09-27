@@ -1,0 +1,32 @@
+{
+  "name": "@omne-harness-lite/credential-custodian-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local model replica component and shared AES-GCM sealing primitives",
+  "engines": { "node": ">=24 <25" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./model-replica": { "types": "./dist/model-replica.d.ts", "import": "./dist/model-replica.js" },
+    "./migrations": { "types": "./dist/migrations.d.ts", "import": "./dist/migrations.js" }
+  },
+  "files": ["dist", "README.md", "README_ZH.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "kysely": "catalog:"
+  },
+  "devDependencies": {
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
