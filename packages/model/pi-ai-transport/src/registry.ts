@@ -9,7 +9,7 @@ import type { TransportAdapter, PlanInput } from '@omne-harness-lite/model-reque
 import { ownDefinitions, type ModelDefinition } from './definitions.ts'
 import { ownedObject } from './json.ts'
 import { cachePolicy, planRequest, type PlannedRequest } from './plan.ts'
-import { createPiAiTransport, type TransportOptions } from './transport.ts'
+import { createOwnedTransport, type TransportOptions } from './transport.ts'
 import type { RawResponse } from './http.ts'
 
 export interface RetirementPolicy {
@@ -128,7 +128,10 @@ function canonicalValue(value: JsonValue): string {
 export function createModelTransportService(
   options: Omit<TransportOptions, 'definitions'>,
 ): ModelTransportService {
-  const network = createPiAiTransport({ ...options, definitions: [] })
+  const { transport: network, stopAdmission } = createOwnedTransport({
+    ...options,
+    definitions: [],
+  })
   const entries = new Map<string, Entry>()
   // Retiring does not authorize reusing a revision for different immutable content.
   const declarations = new Map<string, string>()
@@ -372,6 +375,7 @@ export function createModelTransportService(
     async close(policy) {
       if (!retirementPolicyValid(policy)) return { rejected: 'invalidInput' }
       accepting = false
+      stopAdmission()
       const results = await Promise.all(
         [...entries.values()].map(entry => retire(entry.registration, policy)),
       )

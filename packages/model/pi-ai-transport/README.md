@@ -84,7 +84,13 @@ Direct send/read representation errors return `{ rejected: "invalidInput" }`; a 
 
 HTTP failures retain redacted actual response headers, including separate repeated values. Inconsistent token subtraction produces unknown counts and a diagnostic; it does not fabricate zero. These facts do not establish upstream billing semantics.
 
-Reasoning fragments join only when all other metadata matches. Different detail identities or unknown metadata remain separate opaque values for same-route replay. A reported provider change keeps the first value and emits `model_transport.serving_provider_changed`. The shared implementation is revision 5. When every `extra` entry is protected and dropped, the actual parameter record omits `extra`; it never keeps an invalid empty object. Earlier revision 3 or 4 evidence does not certify this revision.
+Credential redaction applies to decoded upstream error strings and keys, response header names and values, reported model/provider/request IDs, and stop reasons. Quotes and backslashes in a credential cannot bypass it through JSON escaping. The replacement marker cannot recreate any accepted ASCII credential or a protected fragment. Redacted key collisions preserve every member, including existing ordinary keys. Ordinary upstream fields and exact numbers remain unchanged.
+
+Direct `sendRequest` and `readStream` calls isolate diagnostic callbacks that throw, reject or remain pending. They do not wait for diagnostics to complete; callers own the borrowed sink's health reporting. The factory keeps its existing `diagnostics()` counters for failures, pending deliveries and dropped events. Diagnostics do not change the model result.
+
+When all four base token counts are unknown, usage has `source: "none"` and omits `reasoning_tokens`; independently reported cost remains available. Any valid base count, including zero, retains `source: "upstream"`.
+
+Reasoning fragments join only when all other metadata matches. Different detail identities or unknown metadata remain separate opaque values for same-route replay. A reported provider change keeps the first redacted value and emits `model_transport.serving_provider_changed`. The shared implementation is revision 6; definition revisions remain 1. Dropped `extra` parameters use their original keys in `droppedParameters`. When every `extra` entry is protected and dropped, the actual parameter record omits `extra`; it never keeps an invalid empty object. Earlier revision 3, 4 or 5 evidence does not certify this revision.
 
 ## Register and retire precise versions
 
@@ -114,6 +120,8 @@ console.log(await service.close(retirement)) // no HTTP request was made
 After acquisition, use `lease.transport` and retain the invocation's outcome with `lease.track(handle.outcome)`. Track any additional asynchronous gate, callback, settlement or handoff before release. Call `lease.release()` once your work has settled; repeated release is harmless. Release closes that holder's admission but pending tracked work still retains its resources. The caller remains responsible for releasing its lease.
 
 Retirement closes new acquisition immediately. `force: true` requests cancellation through the lease signal and the transport. `remaining_active` reports an expired wait while resources are still held; abort alone is not completion. Cleanup failure retains visible ownership. `service.closed` resolves only after contributions and the owned pool have stopped. Registration is process-local and does not publish a profile, authorize a tenant or persist a version.
+
+Retiring one contribution preserves an existing lease's ability to send. Closing the entire service immediately rejects new sends through old leases and requests waiting for a connection with `unavailable`. Requests already sent can finish reading naturally when `force: false`; the shared pool is destroyed only after leases and their tracked work have drained.
 
 ## Use trusted Cordis contributions
 

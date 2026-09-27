@@ -2,7 +2,8 @@ import { Agent, request, type RequestOptions } from 'node:https'
 import type { IncomingMessage } from 'node:http'
 import type { TransportFailure, SendResult } from '@omne-harness-lite/model-request-runtime'
 import { isPlannedRequest, type PlannedRequest } from './plan.ts'
-import { strictObject } from './json.ts'
+import { strictObject, redactObject, redactedEntries } from './json.ts'
+import { reportDiagnostic } from './diagnostics.ts'
 
 export interface TransportPolicy {
   readonly maxConnections: number
@@ -46,10 +47,12 @@ export function claimResponse(response: RawResponse, planned: PlannedRequest): b
 /** Deliberate substring removal; no hashing of credentials and no unbounded regex. */
 export function credentialRedactor(secret: string, minimum: number): (text: string) => string {
   return text => {
-    let value = text.split(secret).join('[redacted]')
+    // sendRequest accepts ASCII credentials only. A non-ASCII marker cannot itself
+    // contain a credential or join retained ASCII text into a credential fragment.
+    let value = text.split(secret).join('█')
     if (secret.length >= minimum) {
       for (let n = 0; n <= secret.length - minimum; n++)
-        value = value.split(secret.slice(n, n + minimum)).join('[redacted]')
+        value = value.split(secret.slice(n, n + minimum)).join('█')
     }
     return value
   }
@@ -73,7 +76,10 @@ export async function sendRequest(
   const release = await resources.acquireConnection(signal)
   if (!release) {
     if (signal.aborted)
-      resources.diagnostic({ kind: 'model_transport.queue_cancelled', level: 'info' })
+      reportDiagnostic(resources.diagnostic, {
+        kind: 'model_transport.queue_cancelled',
+        level: 'info',
+      })
     return signal.aborted ? { aborted: true, queued: true } : { rejected: 'unavailable' }
   }
   if (signal.aborted || resources.closed()) {
@@ -149,7 +155,7 @@ export async function sendRequest(
     req.once('response', res => {
       disposeConnect()
       const headers: Record<string, string | readonly string[]> = {}
-      for (const [key, value] of Object.entries(res.headers))
+      for (const [key, value] of redactedEntries(Object.entries(res.headers), redact))
         if (value !== undefined)
           headers[key] = Array.isArray(value) ? Object.freeze(value.map(redact)) : redact(value)
       const response: RawResponse = Object.freeze({
@@ -177,7 +183,10 @@ export async function sendRequest(
             if (bytes > resources.policy.maxErrorBodyBytes) {
               tooLarge = true
               req.destroy()
-              resources.diagnostic({ kind: 'model_transport.error_body_limit', level: 'error' })
+              reportDiagnostic(resources.diagnostic, {
+                kind: 'model_transport.error_body_limit',
+                level: 'error',
+              })
               break
             }
             chunks.push(chunk)
@@ -190,9 +199,8 @@ export async function sendRequest(
           settle({ aborted: true })
           return
         }
-        const raw = tooLarge
-          ? undefined
-          : strictObject(redact(Buffer.concat(chunks).toString('utf8')))
+        const parsed = tooLarge ? undefined : strictObject(Buffer.concat(chunks).toString('utf8'))
+        const raw = parsed ? redactObject(parsed, redact) : undefined
         const failed: TransportFailure = {
           source: 'http_status',
           statusCode: response.statusCode,
@@ -203,7 +211,7 @@ export async function sendRequest(
       }
       void readError().catch(reject)
     })
-    resources.diagnostic({ kind: 'model_transport.send_started', level: 'info' })
+    reportDiagnostic(resources.diagnostic, { kind: 'model_transport.send_started', level: 'info' })
     req.end(planned.serialized)
     if (signal.aborted) abort()
   })

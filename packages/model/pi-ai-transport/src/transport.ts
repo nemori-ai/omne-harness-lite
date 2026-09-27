@@ -30,6 +30,14 @@ export interface PiAiTransport extends TransportAdapter<PlannedRequest, RawRespo
   }
 }
 export function createPiAiTransport(options: TransportOptions): PiAiTransport {
+  return createOwnedTransport(options).transport
+}
+
+/** Module-internal owner controls keep stopping admission separate from pool destruction. */
+export function createOwnedTransport(options: TransportOptions): {
+  readonly transport: PiAiTransport
+  readonly stopAdmission: () => void
+} {
   const policy = Object.freeze({ ...options.policy })
   for (const key of [
     'maxConnections',
@@ -91,6 +99,10 @@ export function createPiAiTransport(options: TransportOptions): PiAiTransport {
   }
   const active = new Set<Promise<void>>()
   const admission = connectionAdmission(policy.maxConnections)
+  const stopAdmission = () => {
+    closed = true
+    admission.close()
+  }
   const resources: NetworkResources = {
     agent,
     baseUrl,
@@ -111,11 +123,10 @@ export function createPiAiTransport(options: TransportOptions): PiAiTransport {
       }),
     diagnostics: () => Object.freeze({ failed, pending, dropped }),
     close: async () => {
-      closed = true
-      admission.close()
+      stopAdmission()
       agent.destroy()
       await Promise.all([...active])
     },
   }
-  return Object.freeze(transport)
+  return { transport: Object.freeze(transport), stopAdmission }
 }

@@ -325,11 +325,7 @@ describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
     }
     const { plan, wire } = await sentParameters({ extra })
     expect(plan.parameters).toEqual({ extra: { private_flag: false } })
-    expect(plan.droppedParameters).toEqual(
-      Object.keys(extra)
-        .filter(key => key !== 'private_flag')
-        .map(key => `extra.${key}`),
-    )
+    expect(plan.droppedParameters).toEqual(Object.keys(extra).filter(key => key !== 'private_flag'))
     const baseline = planRequest({ ...input(), parameters: {} })
     if ('rejected' in baseline) throw new Error('baseline rejected')
     expect(writeJsonLossless(wire.messages)).toBe(writeJsonLossless(baseline.planned.body.messages))
@@ -364,7 +360,7 @@ describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
     const { extra: _dropped, ...expected } = parameters
     expect(writeJsonLossless(plan.parameters)).toBe(writeJsonLossless(expected))
     expect(plan.parameters).not.toHaveProperty('extra')
-    expect(plan.droppedParameters).toEqual(Object.keys(parameters.extra).map(key => `extra.${key}`))
+    expect(plan.droppedParameters).toEqual(Object.keys(parameters.extra))
     expect(exactSource(wire.top_p)).toBe('0.8')
     expect(wire.max_tokens).toBe(128)
     expect(wire.stop).toEqual(['finish'])

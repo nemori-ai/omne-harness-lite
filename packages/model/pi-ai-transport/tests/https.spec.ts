@@ -689,8 +689,10 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
         expect(result.failed.headers).toMatchObject({
           'x-upstream-request-id': 'upstream-id',
           'set-cookie': ['first=1', 'second=2'],
-          'x-credential-echo': '[redacted]',
         })
+        const redacted = writeJsonLossless(result.failed)
+        for (let index = 0; index <= credential.length - 8; index++)
+          expect(redacted).not.toContain(credential.slice(index, index + 8))
         expect(Object.isFrozen(result.failed.headers)).toBe(true)
         expect(Object.isFrozen(result.failed.headers?.['set-cookie'])).toBe(true)
         expect(writeJsonLossless(result.failed)).not.toContain(credential)
