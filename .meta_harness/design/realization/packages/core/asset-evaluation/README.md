@@ -1,3 +1,9 @@
+## 工作区接入的适用范围
+
+当前 AE3 的 C3／PRE-5、readWorkspaceCarrier、S-27／S-28 及兼容 hook 的租户格例外不能直接承载新版工作区输入。需等待相关身份／资产／读入契约接续，再更新本节点与验证。现有显式输入的求值测试不证明双来源选择、真实目录发现或关系授权；既有权限过滤规则继续有效。
+
+依据：[契约适用范围与待演进部分](../../../../spec/capabilities/asset-evaluation/README.md)。
+
 ## v4 根设置增量候选（2026-09-27）
 
 - kind：`provider`；节点与源码路径均为 `packages/core/asset-evaluation`。v3 包真实存在；本次只起草 v4 映射，不修改源码。

@@ -51,7 +51,7 @@
 - **形态**：属性
 - **出处**：[PF-006 §5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
   [工具说明与每个参数的说明，必填](../../product/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 19） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 20）
+  [多命令工具的定义里带多少](../../product/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 20） · [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 24）
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是它在数据与治理层面的那一份表示**；
   **同一个身份下可以有平台、组织、租户各自的一份**
@@ -76,7 +76,7 @@
 > and the new coroutine resumes waiting.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 Tool Execution](../../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 19） · [§5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 19） · [§6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 19）
+- **出处**：[PF-006 §4 Tool Execution](../../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 20） · [§5.2](../../product/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 20） · [§6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 20）
 - **注意 ①**：**是哪次运行、哪个 agent runtime 发起的，都记得下来，但都不绑生命周期**；取消一次运行时前台的落「被中断」、原因「运行被取消」，是因为那一步不要了
 - **注意 ②**：**[会话被归档](../../product/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)时仍未结束的，不论前后台，收场都是[被中断](#ul-execution-outcome--执行收场--execution-outcome)**——
   收件人都没了；**这一刀不可逆**，撤销归档不会把它接回来
@@ -96,7 +96,7 @@
 > values. It is **a dimension separate from the wait state** — all four combinations are possible.
 
 - **形态**：状态
-- **出处**：[PF-006 §6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 19）
+- **出处**：[PF-006 §6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 20）
 - **注意 ①**：**默认往保守的那一边倒**——**没表过态，不等于表了同意**
 - **注意 ②**：**「发起时就在后台」与「中途转后台」的决定权不同**——
   前者[由 agent 自己定](../../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)，前台那一次调用当场以转后台收场，**不算一次「转」**；
@@ -120,8 +120,8 @@
 > limit**.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 19） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 20）
+- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 20） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 24）
 - **别混**：**不是「前台跑多久自动转后台」那一项**——那是允许后台的工具[另一项偏好设置](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)；前台上限对不许后台的工具同样起作用，到点被中断
 - **注意**：**等人的时间不算，是有意的**——[`Ask()`](../../product/PF-007-meta-capabilities/design.md#611-ask通向人) 停在前台等人永不过期，把等人算进来，它就成了一个替人签字的到点
 
@@ -136,8 +136,8 @@
 > holding layer may change it; **left unset, there is no such limit**.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 19） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 20）
+- **出处**：[PF-006 §6.6 前台上限与并发上限](../../product/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 20） ·
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 24）
 - **别混**：**裸写「并发上限」不作数**——它只数同一个会话里的同一个工具，不是会话、租户或整个系统的并发
 
 ### UL-model-call · 一次模型调用 · Model Call
@@ -268,7 +268,7 @@
 > system knows it is waiting, and knows what shape it waits for.**
 
 - **形态**：状态
-- **出处**：[PF-006 §4 等待态](../../product/PF-006-tools-and-skills/design.md#等待态)（rev 19）
+- **出处**：[PF-006 §4 等待态](../../product/PF-006-tools-and-skills/design.md#等待态)（rev 20）
 - **⚠️ 别混**：**裸写「等待态」不作数。**它有两个所指——
   这一条挂在**一次工具执行**上，另一条
   [运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)挂在**一个运行**上，
@@ -298,7 +298,7 @@
 > opened, how it is to be filled), **with nothing declared up front**.
 
 - **形态**：过程
-- **出处**：[PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 19） ·
+- **出处**：[PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 20） ·
   [PF-009 §5.8](../../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 8）
 - **注意**：它补的是一个具体的窟窿——用户看着界面写着「正在调用某个工具」，**然后就没有下文了**：
   **它是卡住了，还是在正常地跑一件慢活，此前分不出来**
@@ -349,7 +349,7 @@
 > cannot see at all**.
 
 - **形态**：总称
-- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 19）
+- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 20）
 - **注意 ①**：前两部分要分，**是因为有些产出根本不适合进对话**——一张图、一个几十兆的文件。
   硬塞进去，**一条消息就把上下文吃光了**
 - **注意 ②**：**帧不顶替结果。**一个工具把过程播报得再细，**跑完照样要给结果**——
@@ -370,11 +370,11 @@
 > attempt, summed per run.
 
 - **形态**：属性
-- **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 19） ·
+- **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 20） ·
   [PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 8） ·
   [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 15） ·
   [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 13） ·
-  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 19）
+  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 22）
 - **别混**：**不是[工具产出](#ul-tool-output--工具产出--tool-output)**——产出是给读者的东西，账是关于这次的事实
 - **注意**：工具内部调外部服务产生的费用也记在这里，一次执行可以有多笔
 - **注意 ②**：**一次模型调用「已经开口」也是它账目里的一笔**——第一份内容交到任何人眼前之前落进日志，
@@ -392,7 +392,7 @@
 > agent fetches it itself**.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 19）
+- **出处**：[PF-006 §4 工具的产出](../../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 20）
 - **注意**：**产出带附件的工具需要[声明自己依赖的存储](reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)**，
   并且得有一个能从那个存储把它读出来的工具
 
@@ -411,7 +411,7 @@
 > doing**.
 
 - **形态**：过程
-- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 19） · [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 19）
+- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 20） · [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 20）
 - **别混**：**裸写「卸载」不作数**——那个词在别处指卸载插件、卸载软件
 - **⚠️ 注意**：**「换成」说的是相对于原始结果，不是在记录里替换。**
   [会话日志里从头到尾只有占位那一条](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)——
@@ -434,8 +434,8 @@
 > than putting the original back where the placeholder sits.
 
 - **形态**：对象
-- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 19） ·
-  [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 19） ·
+- **出处**：[PF-006 §4 卸载](../../product/PF-006-tools-and-skills/design.md#卸载)（rev 20） ·
+  [§6.10](../../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 20） ·
   [PF-012 §5.10](../../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 15）
 - **别混 ①**：**不是那条占位**——占位进了消息，带着够用的那部分、有多大、怎么取；
   **这一条是被留在外面的那份全的**
@@ -468,14 +468,14 @@
 > arrives as a reminder) carrying the semantics; **not one of them is raised at it as an error.**
 
 - **形态**：状态
-- **出处**：[PF-006 §5.5](../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 19） · [§6.7](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 19）
+- **出处**：[PF-006 §5.5](../../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 20） · [§6.7](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)（rev 20）
 - **别混**：**与 [Run 的「收束」不是一回事](agent-runtime-loop.md#ul-run--运行--run)**——
   **粒度差着好几层**。**裸写「收场」只指工具这一层的这六种**
 - **注意 ①**：**四种「非完成」里只有一种是失败。**混成一种，agent 的下一步必然错：
   **该绕路时死磕，该等待时重来，用户刚叫停它又跑一遍**
 - **注意 ②**：**报错不带语义，agent 只能猜**——这是六种都走正常返回的理由
 - **注意 ③**：**「异常中断」属于失败那一格写给 agent 的原因，不是「被中断」**——
-  据点停机时没了的工具执行[停了就不重来](../../product/PF-006-tools-and-skills/design.md#停机之后它不重来)（rev 19），
+  据点停机时没了的工具执行[停了就不重来](../../product/PF-006-tools-and-skills/design.md#停机之后它不重来)（rev 20），
   恢复时[对账追补](../../product/PF-012-agent-loop-and-run/design.md#先对账再进方程)的那一条收场是失败、原因写异常中断（rev 14）
 - **注意 ④**：**参数说完了却解析不了的调用，收场是失败**——[不执行，原因写参数解析不了，照常回给 agent](../../product/PF-006-tools-and-skills/design.md#参数说完了却解析不了的调用不执行以失败回给-agent)；
   与流断在半路时没长完的半截调用不是一回事

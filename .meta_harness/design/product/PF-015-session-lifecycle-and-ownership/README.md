@@ -2,7 +2,7 @@
 id: PF-015
 title: 会话怎么建、活成什么样、什么时候归档，以及会话之间是什么关系
 status: draft
-revision: 11
+revision: 13
 relations:
   supersedes: []
   depends-on:
@@ -20,6 +20,8 @@ relations:
       for: 系统拦截卡片的四档选项，以及它与语义化授权的分界
     - id: PF-012
       for: Run 的终态、会话日志只增不改、Loop 拓展点
+    - id: PF-020
+      for: 工作区身份、有效参与关系、共享实例、显式登记与异步资源同步
     - id: PF-014
       for: 受理是一个动作——业务流程拓展点拦在受理之前
   extends: []
@@ -58,7 +60,7 @@ relations:
 | 关系 | 含义 | 本 topic 的情况 |
 |---|---|---|
 | `supersedes` | 对方全部内容被吸收 | **无。**本 topic 是新开的，不取代任何人 |
-| `depends-on` | 引用对方定义，不重复展开 | **九个**，见 front-matter。其中 [PF-007](../PF-007-meta-capabilities/README.md) 与 [PF-012](../PF-012-agent-loop-and-run/README.md) 咬得最紧 |
+| `depends-on` | 引用对方定义，不重复展开 | **十个**，见 front-matter。其中 [PF-007](../PF-007-meta-capabilities/README.md) 与 [PF-012](../PF-012-agent-loop-and-run/README.md) 咬得最紧 |
 | `extends` | 扩展对方范围，对方继续有效 | **无** |
 
 **四个此前无家可归的概念，本 topic 全部收下：**
@@ -76,7 +78,7 @@ relations:
 
 ## 状态
 
-**draft，rev 11。**[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
+**draft，rev 12。**[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
 [会话类型](design.md#会话类型)、[业务流程拓展点](design.md#业务流程拓展点)、
 [会话运行模式](design.md#会话运行模式)与[存储要守住的两件事](design.md#58-存储要守住的两件事)
 六块已由产品负责人拍板（[decisions](decisions.md#一拍板记录)，共 59 条），可以被下游引用；
