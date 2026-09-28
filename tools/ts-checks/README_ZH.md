@@ -137,7 +137,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 ## 模型凭据的逐符号结构守卫
 
-`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。它采用 [D-075](../../.meta_harness/design/record/decisions/model-credential-source-projection/decision.md)、目录 v3 V3-10、CCL rev2 MCR-V7 与 [D-092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md) 的装配权限。
+`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。它采用 [D-075](../../.meta_harness/design/record/decisions/model-credential-source-projection/decision.md)、目录 v3 V3-10、CCL rev2 MCR-V7 与 [D-092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md) 的装配权限。
 
 | 符号 | 允许点 |
 | --- | --- |
@@ -177,7 +177,7 @@ const source: SourceFile = {
 assert.deepEqual(modelCredentialBoundary.check([source]), [])
 const violation = { ...source, text: source.text.replace(
   'const reader = createCredentialBindingReader(storage);',
-  'const reader = createCredentialBindingReader(storage); await reader(unit, tenant);',
+  'const reader = createCredentialBindingReader(storage); const thunk = () => reader; const illicit = thunk(); await illicit(unit, tenant);',
 ) }
 assert(modelCredentialBoundary.check([violation]).some(v => v.message.includes('binding-reader execution')))
 ```
@@ -196,6 +196,6 @@ const violations = runRules([{
 assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ```
 
-守卫跟踪同文件词法绑定、赋值别名、具名／namespace 导入、普通解构、字面计算成员及有界聚合别名。已识别的受限值不能通过未知参数、构造器、返回／导出、回调结果、对象写入或文本呈现逃逸；非字面成员报错。无关的 `.close` 不按名字误报。产品测试路径豁免，规则负控使用真实产品路径。
+守卫跟踪同文件词法绑定、赋值别名、具名／namespace 导入、普通解构、字面计算成员及有界聚合别名。本地表达式体箭头的调用结果保留已识别能力来源；表达式体与块体中的受限返回均保守拒绝。已识别的受限值不能通过未知参数、构造器、返回／导出、回调结果、对象写入或文本呈现逃逸；非字面成员报错。普通箭头结果保持可用，无关的 `.close` 不按名字误报。产品测试路径豁免，规则负控使用真实产品路径。专门 CLI 回归使用构建后的 `dist/` 制品，运行测试前须先构建本工具。
 
 限制：不解释任意 JavaScript，不推导无类型的跨文件值，不证明真实来源对、共同事务、运行期唯一实例、反射隔离或资源实际关闭。模块别名解析定位 provider，不增加权限。缺席 app 的扫描通过不是 app 合规证据；最终冻结 app 仍须集成扫描和独立联合验收，工具自测不能单独关闭 MCR-V7 或 P3。

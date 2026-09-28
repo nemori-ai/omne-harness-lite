@@ -334,6 +334,7 @@ export const modelCredentialBoundary: Rule = {
           return merge(
             called.has('binding-factory') ? value('binding-reader') : empty,
             called.has('replica-factory') ? value('replica') : empty,
+            member(called, 'callback'),
           )
         }
         if (ts.isConditionalExpression(node))
@@ -548,18 +549,26 @@ export const modelCredentialBoundary: Rule = {
           report(node, 'restricted closure or component cannot escape through throw')
         if (ts.isTemplateSpan(node) && sensitive(evaluate(node.expression)))
           report(node, 'restricted closure or component cannot be rendered into text')
+        const returned = ts.isReturnStatement(node)
+          ? node.expression
+          : ts.isArrowFunction(node) && !ts.isBlock(node.body)
+            ? node.body
+            : undefined
         if (
-          ts.isReturnStatement(node) &&
-          sensitive(evaluate(node.expression)) &&
+          sensitive(evaluate(returned)) &&
           !(
             component &&
-            functionName(node.parent.parent) === 'createModelReplicaCustodian' &&
-            [...evaluate(node.expression)].every(token =>
+            functionName(ts.isArrowFunction(node) ? node : node.parent.parent) ===
+              'createModelReplicaCustodian' &&
+            [...evaluate(returned)].every(token =>
               ['storeBoundReplica:store', 'readBoundReplicaIn:read', 'close:close'].includes(token),
             )
           )
         )
-          report(node, 'restricted closure or component cannot escape through return')
+          report(
+            ts.isReturnStatement(node) ? node : (returned ?? node),
+            'restricted closure or component cannot escape through return',
+          )
         if (ts.isExportAssignment(node) && sensitive(evaluate(node.expression)))
           report(node, 'restricted closure or component cannot escape through export')
         if (

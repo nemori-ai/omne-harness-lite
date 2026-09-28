@@ -16,7 +16,7 @@ pnpm --filter @omne-harness-lite/ts-checks test
 pnpm run lint:rules
 ```
 
-The CLI exits 1 on violations and prints their rule, source path and line. A successful scan of an absent consumer supplies no evidence about that consumer. The CLI's repository scan uses this tool's checkout; explicit CLI arguments choose additional package roots, not an arbitrary replacement repository.
+The CLI exits 1 on violations and prints their rule, source path and line. A successful scan of an absent consumer supplies no evidence about that consumer. The CLI's repository scan uses this tool's checkout; explicit CLI arguments choose additional package roots, not an arbitrary replacement repository. The repository collector normalizes its root before reading configurations, so a trailing slash does not change root `tsconfig` alias resolution.
 
 | Built module | Public surface |
 | --- | --- |
@@ -53,7 +53,7 @@ const source: SourceFile = {
 assert.deepEqual(modelCredentialBoundary.check([source]), [])
 const violation = { ...source, text: source.text.replace(
   'const reader = createCredentialBindingReader(storage);',
-  'const reader = createCredentialBindingReader(storage); await reader(unit, tenant);',
+  'const reader = createCredentialBindingReader(storage); const thunk = () => reader; const illicit = thunk(); await illicit(unit, tenant);',
 ) }
 assert(modelCredentialBoundary.check([violation]).some(v => v.message.includes('binding-reader execution')))
 ```
@@ -85,7 +85,7 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 | `readBoundReplicaIn` | App `start` only passes it as lookup configuration; P1r and the CCL component execute it |
 | Component `close` | App `closeResources` and the owning CCL implementation; borrowers cannot receive it |
 
-The checker follows same-file lexical declarations, assignment aliases, named/namespace imports, ordinary destructuring, literal computed members and bounded aggregate aliases. Recognized restricted values may not escape through unknown arguments, constructors, return/export, callback results, object assignment or rendering. Non-literal member access on such a value fails. Unrelated `close` methods are not matched merely by name. Product test paths are excluded; negative fixtures use actual product paths.
+The checker follows same-file lexical declarations, assignment aliases, named/namespace imports, ordinary destructuring, literal computed members and bounded aggregate aliases. Local expression-body arrow results retain recognized capability provenance when called; restricted returns fail closed for both expression and block bodies. Recognized restricted values may not escape through unknown arguments, constructors, return/export, callback results, object assignment or rendering. Non-literal member access on such a value fails. Ordinary arrow results remain valid, and unrelated `close` methods are not matched merely by name. Product test paths are excluded; negative fixtures use actual product paths. The dedicated CLI regression uses the built `dist/` artifact, so build the tool before running its tests.
 
 The static scope is deliberately explicit: this tool does not interpret arbitrary JavaScript, infer unannotated cross-file values, prove source-pair authenticity, common-unit transaction ordering, runtime singleton behavior, reflection isolation or actual cleanup. Resolved import aliases identify providers; they do not grant new consumer permissions. The app's final frozen source must still pass the integrated scan and independent joint acceptance. Tool self-tests cannot close MCR-V7 or the whole P3 stage.
 

@@ -1,7 +1,9 @@
 import { expect, test } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { cpSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { modelCredentialBoundary } from '../src/index.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from '../src/repository.ts'
 
@@ -337,3 +339,219 @@ test.each([
 ])('CCL has no reverse directory package dependency, including root/type/private modules', text =>
   expect(check(text, ccl)).not.toEqual([]),
 )
+
+test.each([
+  [
+    'reader',
+    'const thunk = () => reader; const illicit = thunk(); await illicit(unit, tenant);',
+    'binding-reader',
+  ],
+  [
+    'replica read',
+    'const thunk = () => replica.readBoundReplicaIn; const illicit = thunk(); await illicit(unit, tenant, ref);',
+    'read',
+  ],
+  [
+    'literal read',
+    "const thunk = () => replica['readBoundReplicaIn']; const illicit = thunk(); await illicit(unit, tenant, ref);",
+    'read',
+  ],
+  [
+    'destructured read',
+    'const { readBoundReplicaIn: read } = replica; const thunk = () => read; const illicit = thunk(); await illicit(unit, tenant, ref);',
+    'read',
+  ],
+  [
+    'returned aggregate',
+    "const thunk = () => ({ ['read']: replica.readBoundReplicaIn }); const { read: illicit } = thunk(); await illicit(unit, tenant, ref);",
+    'read',
+  ],
+  [
+    'aliased thunk',
+    'const first = () => reader; const thunk = first; const illicit = thunk(); await illicit(unit, tenant);',
+    'binding-reader',
+  ],
+  [
+    'thunk in aggregate',
+    'const holder = { thunk: () => reader }; const { thunk } = holder; const illicit = thunk(); await illicit(unit, tenant);',
+    'binding-reader',
+  ],
+  [
+    'conditional thunk',
+    'const thunk = condition ? () => reader : () => reader; const illicit = thunk(); await illicit(unit, tenant);',
+    'binding-reader',
+  ],
+  [
+    'parenthesized result',
+    'const thunk = () => (reader); const illicit = thunk(); await illicit(unit, tenant);',
+    'binding-reader',
+  ],
+  [
+    'nested thunk',
+    'const thunk = () => () => reader; const illicit = thunk()(); await illicit(unit, tenant);',
+    'binding-reader',
+  ],
+  [
+    'async thunk',
+    'const thunk = async () => reader; const illicit = await thunk(); await illicit(unit, tenant);',
+    'binding-reader',
+  ],
+])(
+  'expression-body %s retains permission at the resulting execution line',
+  (_name, wrapper, token) => {
+    const text = valid.replace('ctx.plugin(lookup,', `\n${wrapper} // HERE\nctx.plugin(lookup,`)
+    const line = text.split('\n').findIndex(row => row.includes('// HERE')) + 1
+    expect(check(text)).toContainEqual({
+      rule: 'model-credential-boundary',
+      path: bootstrap,
+      line,
+      message: `${token} execution is outside its permitted semantic function`,
+    })
+  },
+)
+
+test('namespace construction and a typed local arrow parameter cannot hide reader execution', () => {
+  const text = valid
+    .replace(
+      imports,
+      `import * as binding from '@omne-harness-lite/model-profile-directory/tx-reads';\nimport type { ReadCredentialBindingIn as BindingRead } from '@omne-harness-lite/model-profile-directory/tx-reads';\n${imports}`,
+    )
+    .replace('makeReader(storage)', "binding['createCredentialBindingReader'](storage)")
+    .replace(
+      'ctx.plugin(lookup,',
+      '\nconst thunk = (selected: BindingRead) => selected; const illicit = thunk(reader); await illicit(unit, tenant); // HERE\nctx.plugin(lookup,',
+    )
+  const line = text.split('\n').findIndex(row => row.includes('// HERE')) + 1
+  expect(
+    check(text).some(v => v.line === line && v.message.includes('binding-reader execution')),
+  ).toBe(true)
+})
+
+test.each([
+  'const thunk = () => borrowed.close;',
+  "const thunk = () => borrowed['close'];",
+  'const { close: end } = borrowed; const thunk = () => end;',
+])('P1r root-type alias and %s preserve forbidden close execution', wrapper => {
+  const text = `import type { ModelReplicaCustodian as Borrowed } from '@omne-harness-lite/credential-custodian-local';
+export const localCredentialLookupPlugin = {
+ async apply(ctx, options) {
+  const borrowed: Borrowed = supplied;
+  ${wrapper} const illicit = thunk();
+  await illicit(); // HERE
+  await options.readBoundReplicaIn(unit, tenant, ref);
+ }
+};`
+  const line = text.split('\n').findIndex(row => row.includes('// HERE')) + 1
+  expect(check(text, p1r)).toContainEqual({
+    rule: 'model-credential-boundary',
+    path: p1r,
+    line,
+    message: 'close execution is outside its permitted semantic function',
+  })
+})
+
+test.each([
+  'const thunk = () => reader;',
+  'const thunk = () => () => () => () => () => reader;',
+  'const thunk = () => { return reader; };',
+])('restricted return fails closed before any unknown recipient: %s', wrapper => {
+  const text = valid.replace('ctx.plugin(lookup,', `\n${wrapper} // RETURN\nctx.plugin(lookup,`)
+  const line = text.split('\n').findIndex(row => row.includes('// RETURN')) + 1
+  expect(
+    check(text).some(v => v.line === line && v.message.includes('escape through return')),
+  ).toBe(true)
+})
+
+test('expression-body operation results and unrelated returned close remain valid', () => {
+  const text = valid
+    .replace(
+      'function publishCredential() { return replica.storeBoundReplica(input); }',
+      'const publishCredential = () => replica.storeBoundReplica(input);',
+    )
+    .replace(
+      'async function closeResources() { await replica?.close(); }',
+      'const closeResources = async () => await replica?.close();',
+    )
+    .replace(
+      'ctx.plugin(lookup,',
+      'const plain = () => socket.close; const end = plain(); await end(); const number = () => 1; consume(number()); ctx.plugin(lookup,',
+    )
+  expect(check(text)).toEqual([])
+})
+
+test('root configured aliases have collector and actual built CLI parity', () => {
+  const root = mkdtempSync(join(tmpdir(), 'omne-model-credential-cli-'))
+  try {
+    const directory = join(root, 'packages/model/model-profile-directory/src')
+    const source = join(root, 'apps/model-request-acceptance/src')
+    const tool = join(root, 'tools/ts-checks')
+    mkdirSync(directory, { recursive: true })
+    mkdirSync(source, { recursive: true })
+    mkdirSync(tool, { recursive: true })
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'NodeNext',
+          moduleResolution: 'NodeNext',
+          paths: { '@binding': ['./packages/model/model-profile-directory/src/tx-reads.ts'] },
+        },
+      }),
+    )
+    writeFileSync(
+      join(directory, 'tx-reads.ts'),
+      'export const createCredentialBindingReader = () => () => undefined;',
+    )
+    const allowed = valid.replace('@omne-harness-lite/model-profile-directory/tx-reads', '@binding')
+    const forbidden = allowed.replace(
+      'ctx.plugin(lookup,',
+      '\nawait reader(unit, tenant); // HERE\nctx.plugin(lookup,',
+    )
+    writeFileSync(join(source, 'bootstrap.ts'), forbidden)
+    const roots = [root, `${root}/`]
+    const inputs = roots.map(collectRepositorySources)
+    for (const files of inputs) {
+      expect(files.find(file => file.path === bootstrap)?.resolvedModules?.['@binding']).toBe(
+        'packages/model/model-profile-directory/src/tx-reads.ts',
+      )
+      expect(
+        modelCredentialBoundary
+          .check(files)
+          .some(v => v.message.includes('binding-reader execution')),
+      ).toBe(true)
+    }
+    expect(modelCredentialBoundary.check(inputs[0] ?? [])).toEqual(
+      modelCredentialBoundary.check(inputs[1] ?? []),
+    )
+    // The built public CLI derives its repository root with a trailing slash.
+    // Copy its emitted bytes, preserving the real tools/ layout and locked dependencies.
+    cpSync(fileURLToPath(new URL('../dist', import.meta.url)), join(tool, 'dist'), {
+      recursive: true,
+    })
+    writeFileSync(join(tool, 'package.json'), JSON.stringify({ type: 'module' }))
+    symlinkSync(
+      fileURLToPath(new URL('../node_modules', import.meta.url)),
+      join(root, 'node_modules'),
+      'dir',
+    )
+    const invalid = spawnSync(process.execPath, [join(tool, 'dist/cli.js'), 'packages', 'apps'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+    expect(invalid.error).toBeUndefined()
+    expect(invalid.status).toBe(1)
+    expect(invalid.stderr).toContain('[model-credential-boundary] binding-reader execution')
+    writeFileSync(join(source, 'bootstrap.ts'), allowed)
+    for (const repositoryRoot of roots)
+      expect(modelCredentialBoundary.check(collectRepositorySources(repositoryRoot))).toEqual([])
+    const validCLI = spawnSync(process.execPath, [join(tool, 'dist/cli.js'), 'packages', 'apps'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+    expect(validCLI.error).toBeUndefined()
+    expect(validCLI.status).toBe(0)
+    expect(validCLI.stdout).toContain('PASS: ts-checks')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
