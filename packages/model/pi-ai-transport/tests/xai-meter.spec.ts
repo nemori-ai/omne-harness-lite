@@ -193,7 +193,8 @@ describe('Grok 4.6 limited visible text/tool estimate', () => {
           meterRevision: 'grok-build-visible-text-tools-offset141-1',
         })
         const evidence = planned.planned.inputLimitEvidence
-        if (evidence.inputTokens.kind !== 'estimated') throw new Error('expected estimate')
+        if (evidence.inputTokens.kind !== 'estimated' || evidence.admissionTokens === undefined)
+          throw new Error('expected estimate and admitted token count')
         expect(Number(jsonNumberSource(evidence.admissionTokens))).toBe(
           Math.ceil(Number(jsonNumberSource(evidence.inputTokens.tokens)) * 1.2) + 32,
         )
