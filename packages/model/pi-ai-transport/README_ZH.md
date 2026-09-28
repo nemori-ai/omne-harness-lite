@@ -34,7 +34,7 @@ import type {
   RetirementPolicy,
   TransportPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -117,7 +117,7 @@ export const networkPolicy: TransportPolicy = {
   connectTimeoutMs: 10000,
   maxErrorBodyBytes: 65536,
   maxSseEventBytes: 8388608,
-  credentialFragmentMinLength: 8,
+  credentialRedaction: openRouterCredentialRedactionConfig,
 }
 export const retirement: RetirementPolicy = {
   waitMilliseconds: 1000,
@@ -192,11 +192,48 @@ definitions 必填，缺席、undefined、非数组或不完整定义在建立�
 
 独立消费者显式给凭据/取消，持有资源到执行停止，并以原计划只读一次响应。没有环境凭据回退、隐藏重试、供应商回退或重定向。装配、首内容门与时限使用配套 invokeModel。测试可显式给 HTTPS baseUrl 与 CA，产品模型路由仍是 OpenRouter。
 
-成功的 `sendRequest` 返回冻结、无原型的不透明 `RawResponse` 句柄，公开成员仅有 `stop(): void` 和 `stopped: Promise<void>`。`stop()` 请求关闭网络，实际返回 `undefined`；请求关闭后 `stopped` 才结算。以原计划通过 `readStream(response, originalPlan, signal, deps)` 或所属传输的 `read` 仅读正文一次。原始 Node 流、状态、脱敏器和成功响应头均不能从句柄取得；这个中间修订尚不输出成功响应头。HTTP 状态失败仍有旧版 `failed.headers` 字段，完整响应头交接和凭据政策待后续实施，不能将本次句柄修改视为 RT5 S-20 或完整响应头支持。
+成功的 `sendRequest` 返回冻结、无原型的不透明 `RawResponse` 句柄，公开成员仅有 `stop(): void` 和 `stopped: Promise<void>`。`stop()` 请求关闭网络，实际返回 `undefined`；请求/响应与拥有的回调任务实际停止、连接名额释放后，`stopped` 才结算。以原计划通过 `readStream(response, originalPlan, signal, deps)` 或所属传输的 `read` 仅读正文一次。原始 Node 流、状态、脱敏器和成功响应头均不能从句柄取得；同次 send 的 response、failed、aborted 分支可带自有不可变 `rawHeaders`；没有 `failed.headers` 或 reader 头出口。完整配置在排队/连接之前，通过 runtime 公开凭据策略校验、复制和绑定。头捕获先于错误体读取，后续正文/流处理失败保持已采头与真实状态事实。本实现消费 D095 凭据接线；回复文本和工具参数保持原值，完整 S-20 内容保护与真实模型认证仍待完成。
 
-凭据脱敏覆盖解码后的错误键/值、首部键/值、实报模型/供应商/请求 ID 与结束原因。转义不能绕过；非 ASCII 替换不会重造合法 ASCII 凭据或保护片段；键碰撞保留普通成员与精确数字。直接 send/read 隔离抛错、拒绝或未决诊断，借用 sink 健康由调用者负责。factory 的 failed/pending/dropped 计数不改业务结果。
+凭据脱敏覆盖解码后的错误键/值、首部键/值、实报模型/供应商/请求 ID 与结束原因。转义不能绕过；非 ASCII 替换不会重造合法 ASCII 凭据或保护片段；键碰撞保留普通成员；独立的 HTTP/带内状态及 usage/cost 保留精确值，raw/error 中匹配的数字、布尔和 null 则替换。直接 send/read 隔离抛错、拒绝或未决诊断，借用 sink 健康由调用者负责。factory 的 failed/pending/dropped 计数不改业务结果。
 
 四项基础 token 都未知时 source 为 none，省略 reasoning_tokens；任一有效基础计数（含零）则 source 为 upstream，费用独立保留。推理 opaque 元数据与供应商变化保留 revision 6 行为。本完整定义公共实现为 revision 7，旧证据不自动认证它；definition/configuration 修订归实际事实与配置来源拥有者。
+
+
+此路径采用 [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md) 与 [transport 凭据投影 revision 3](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v6-credential-path-design.md)。将下例保存为 `execute-once.ts`，传入拥有已核实完整定义的 transport。函数借用 transport，保留同次已处理 H 并在返回前停止响应；transport 拥有者在使用完毕后关闭它。
+
+```ts
+import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+
+export async function executeOnce(
+  transport: PiAiTransport,
+  request: PlanInput,
+  credential: string,
+  signal: AbortSignal,
+) {
+  const plan = transport.plan(request)
+  if ('rejected' in plan) return plan
+  const sent = await transport.send(plan.planned, credential, signal)
+  if (!('response' in sent)) return sent
+  const reader = transport.read(sent.response, plan.planned, signal)
+  const events: ArrivalEvent[] = []
+  try {
+    while (true) {
+      const next = await reader.next()
+      if (next.done)
+        return { events, end: next.value, ...('rawHeaders' in sent ? { rawHeaders: sent.rawHeaders } : {}) }
+      events.push(next.value)
+    }
+  } finally {
+    try { await reader.return({ aborted: true }) }
+    finally {
+      sent.response.stop()
+      await sent.response.stopped
+    }
+  }
+}
+```
 
 ## 登记、取得与撤除精确版本
 

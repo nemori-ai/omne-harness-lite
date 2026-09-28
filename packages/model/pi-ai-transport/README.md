@@ -34,7 +34,7 @@ import type {
   RetirementPolicy,
   TransportPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -117,7 +117,7 @@ export const networkPolicy: TransportPolicy = {
   connectTimeoutMs: 10000,
   maxErrorBodyBytes: 65536,
   maxSseEventBytes: 8388608,
-  credentialFragmentMinLength: 8,
+  credentialRedaction: openRouterCredentialRedactionConfig,
 }
 export const retirement: RetirementPolicy = {
   waitMilliseconds: 1000,
@@ -192,11 +192,48 @@ Definitions are required. Missing, undefined, non-array or incomplete definition
 
 Standalone consumers supply credentials and cancellation explicitly, hold resources until execution stops and read a response once with its original plan. There is no environment credential lookup, hidden retry, provider fallback or redirect. For assembly, gating and deadlines use the companion `invokeModel`. Test callers may supply an explicit HTTPS baseUrl and CA; the product route remains OpenRouter.
 
-A successful `sendRequest` returns an opaque, frozen, null-prototype `RawResponse` handle. Its only public members are `stop(): void` and `stopped: Promise<void>`; `stop()` requests network shutdown and actually returns `undefined`, while `stopped` settles after the request closes. Read the body once through `readStream(response, originalPlan, signal, deps)` or the owning transport's `read`. The raw Node stream, status, redactor and successful response headers are not accessible through the handle. Successful response headers are not emitted by this intermediate implementation. The existing `failed.headers` on an HTTP-status failure is a legacy field; the complete response-header handoff and credential policy remain pending. Do not treat this handle change as RT5 S-20 or full response-header support.
+A successful `sendRequest` returns an opaque, frozen, null-prototype `RawResponse` handle. Its only public members are `stop(): void` and `stopped: Promise<void>`; `stop()` requests network shutdown and actually returns `undefined`, while `stopped` settles after request/response and owned callback tasks stop and the connection slot is released. Read the body once through `readStream(response, originalPlan, signal, deps)` or the owning transport's `read`. The raw Node stream, status, redactor and successful response headers are not accessible through the handle. The same send result carries optional immutable `rawHeaders` on response, failed or aborted branches. There is no `failed.headers` or reader header outlet. All explicit configuration is validated, copied and bound through the runtime public credential policy before queuing or connecting. Header capture precedes error-body reading; later body/stream processing failures preserve acquired headers and actual status facts. This implements the D095 credential path; reply text and tool arguments are unchanged, and full S-20 content protection and live model certification remain open.
 
-Credential redaction covers decoded error strings/keys, header names/values, serving model/provider/request IDs and stop reasons. Escaping cannot bypass it; non-ASCII replacements cannot recreate accepted ASCII credentials or protected fragments. Collisions preserve ordinary members and exact numbers. Direct send/read isolates throwing, rejecting and pending diagnostic callbacks; callers own the borrowed sink's health. Factory diagnostics expose failed/pending/dropped counts without changing business outcomes.
+Credential redaction covers decoded error keys and every scalar, header names/values, serving model/provider/request IDs and stop reasons. Escaping cannot bypass it; non-ASCII replacements cannot recreate accepted ASCII credentials or protected fragments. Collisions preserve ordinary members; independent HTTP/in-band status and usage/cost retain exact values. Matching raw/error numbers, booleans and null are replaced. Direct send/read isolates throwing, rejecting and pending diagnostic callbacks; callers own the borrowed sink's health. Factory diagnostics expose failed/pending/dropped counts without changing business outcomes.
 
 Unknown base token counts retain source none and omit reasoning_tokens; any valid base count, including zero, has source upstream. Cost remains independently available. Opaque reasoning metadata and serving-provider changes preserve the revision 6 behavior. This complete-definition implementation is revision 7; previous evidence does not certify it. Definition/configuration revisions remain owned by their actual fact/configuration sources.
+
+
+This path adopts [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md) and the [transport credential projection, revision 3](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v6-credential-path-design.md). Save the following as `execute-once.ts` and call it with a transport owning a verified complete definition. It borrows that transport, retains the same processed H and stops the response before returning; the owner closes the transport when finished.
+
+```ts
+import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+
+export async function executeOnce(
+  transport: PiAiTransport,
+  request: PlanInput,
+  credential: string,
+  signal: AbortSignal,
+) {
+  const plan = transport.plan(request)
+  if ('rejected' in plan) return plan
+  const sent = await transport.send(plan.planned, credential, signal)
+  if (!('response' in sent)) return sent
+  const reader = transport.read(sent.response, plan.planned, signal)
+  const events: ArrivalEvent[] = []
+  try {
+    while (true) {
+      const next = await reader.next()
+      if (next.done)
+        return { events, end: next.value, ...('rawHeaders' in sent ? { rawHeaders: sent.rawHeaders } : {}) }
+      events.push(next.value)
+    }
+  } finally {
+    try { await reader.return({ aborted: true }) }
+    finally {
+      sent.response.stop()
+      await sent.response.stopped
+    }
+  }
+}
+```
 
 ## Register and retire precise versions
 

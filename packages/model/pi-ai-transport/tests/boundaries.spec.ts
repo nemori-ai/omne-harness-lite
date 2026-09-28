@@ -29,6 +29,7 @@ import {
 } from '@omne-harness-lite/pi-ai-transport/plugin'
 import {
   certificate,
+  networkPolicy,
   content,
   finish,
   fixture,
@@ -377,15 +378,20 @@ describe('credentials cannot return through upstream non-content facts', () => {
               )
           }
         },
-        { credentialFragmentMinLength: minimum },
+        {
+          credentialRedaction: {
+            ...networkPolicy.credentialRedaction,
+            credential_fragment_min_length: minimum,
+          },
+        },
         event => diagnostics.push(event),
       )
       try {
         const request = planned(host.transport)
         const sent = await host.transport.send(request, sentinel, new AbortController().signal)
         if ('response' in sent) {
-          // Successful response headers have no public outlet until the S-20 policy
-          // and the same-result rawHeaders handoff are adopted together.
+          // H is separate from the opaque body handle and already processed.
+          clean(sent.rawHeaders)
           expect(Reflect.ownKeys(sent.response).sort()).toEqual(['stop', 'stopped'])
           const result = await drain(
             host.transport.read(sent.response, request, new AbortController().signal),

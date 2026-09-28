@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import type {
   PlanInput,
   InvocationPolicy,
@@ -94,7 +95,7 @@ export const networkPolicy: TransportPolicy = {
   connectTimeoutMs: 5000,
   maxErrorBodyBytes: 4096,
   maxSseEventBytes: 16384,
-  credentialFragmentMinLength: 8,
+  credentialRedaction: openRouterCredentialRedactionConfig,
 }
 export function policy(): InvocationPolicy {
   return {
@@ -111,7 +112,7 @@ export function policy(): InvocationPolicy {
       '503': 'upstream_unavailable',
       '400': 'request_rejected',
     },
-    redact: value => value,
+    credentialRedaction: openRouterCredentialRedactionConfig,
     diagnostic: () => {},
   }
 }
