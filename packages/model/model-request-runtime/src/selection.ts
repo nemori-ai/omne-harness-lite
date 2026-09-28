@@ -1,4 +1,4 @@
-import { copyJsonValue, type Modality } from '@omne-harness-lite/content-blocks'
+import type { Modality } from '@omne-harness-lite/content-blocks'
 import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import {
   judgeModelProfileDocument,
@@ -29,6 +29,7 @@ import type {
   SelectionProjection,
   SelectionRows,
 } from './selection-types.ts'
+import { captureSelectionJson } from './selection-capture.ts'
 
 function object(value: unknown): value is Readonly<Record<string, unknown>> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -129,8 +130,7 @@ function chain(value: readonly ProfileRow[]): boolean {
 }
 function copy(value: unknown): unknown {
   try {
-    const copied = copyJsonValue(value)
-    return 'ok' in copied ? copied.ok : undefined
+    return captureSelectionJson(value)
   } catch {
     // Ordinary not-JSON is a result above. Unexpected capture defects remain errors.
     throw new Error('model selection JSON capture failed')

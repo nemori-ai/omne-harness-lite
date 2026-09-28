@@ -182,6 +182,8 @@ if (!('ok' in rawError) || writeJsonLossless(rawError.ok) !== '["█",null,90071
 
 下列教学数据无需凭据或服务即可验证三个操作。公开 import 所用的 runtime 与 model-profile-directory 须声明为直接依赖；它不是可发送的官方模型定义。
 
+档案里的所有数字，包括深层适配配置与参数 extra，均在档案及胜出行判断之前复制。有限 JavaScript 数字和标准 `LosslessNumber` 保留边界上的精确值与数字拼写；普通子类继承可信公开 source getter 时同样支持。外来的 source accessor 或数据覆盖会返回 `invalidInput`，不调用它。数值捕获直接把可信 getter 应用于有真实私有品牌的接收者，再构造自有标准数字，调用者原型上的 Proxy `get` 不能替换数值。输入 getter 与 `toJSON` 均不调用。意外捕获缺陷抛固定普通错误 `model selection JSON capture failed`，不保留原异常或 cause。
+
 ```ts
 import {
   legalTargets, displayList, effectiveModel, type SelectionCompatibility,
