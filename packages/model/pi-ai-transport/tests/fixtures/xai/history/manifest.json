@@ -1,0 +1,68 @@
+[
+  {
+    "file": "4.6-fit-short.request.json",
+    "model": "x-ai/grok-4.6",
+    "scenario": "fit-short",
+    "sourceFileSha256": "714e01658546eaef6629cda5fbfbe1004bab2c74f3e1ed0387b7b0c7dca1c670",
+    "finalWireSha256": "b331d811064c9e0638af84ca611bb2ddadf1d85afc98ec0082a3fa15c5f301be",
+    "detailsSha256": "605760fc795e9bf221f78fe75972b0d2c97afc1fb9976dc592b01eb27cf7d742",
+    "originalOutcomeSha256": "5859daac7dd92c73b888939f781c741cb15d930a8f5ac23fab6ba3264376158e",
+    "nativeReasoningTokens": 165,
+    "candidateEstimateTokens": 455
+  },
+  {
+    "file": "4.6-fit-multilingual.request.json",
+    "model": "x-ai/grok-4.6",
+    "scenario": "fit-multilingual",
+    "sourceFileSha256": "2f5448bb075f5746a6e21a2f34c2128b8641a25c7bf760e89049d9dee49c9aec",
+    "finalWireSha256": "ed5387eefa77e5b696b045a42a6e5393f04b5f9e2ce95027c30c3fd8a199ef7c",
+    "detailsSha256": "14885d7813312baa6f2b9f70f8ab5f201dc59109826a7080c8351ba16724b466",
+    "originalOutcomeSha256": "a8bc855d4b37ff5c8303f2356770adee5b9e52c0f88f7c82dca49f3b303cce0d",
+    "nativeReasoningTokens": 944,
+    "candidateEstimateTokens": 1282
+  },
+  {
+    "file": "4.6-holdout-tool-history.request.json",
+    "model": "x-ai/grok-4.6",
+    "scenario": "holdout-tool-history",
+    "sourceFileSha256": "85183c766ce3b999674787325b295dc7fea9928fc78d931dbd613fa35a573c2d",
+    "finalWireSha256": "a8f1cd63fd185b747d5c18d90d659bad5c03f8102baf8a3abdeb2194c561f4f8",
+    "detailsSha256": "10f2f14882a1154b8b90435e528e1048b2de648e945e455ef0bceb83d7d37587",
+    "originalOutcomeSha256": "7e191a4e8e5a9c0f0afc353642f800bed47e067f5113eb7caccb3cf41c069c1d",
+    "nativeReasoningTokens": 257,
+    "candidateEstimateTokens": 715
+  },
+  {
+    "file": "4.7-fit-short.request.json",
+    "model": "x-ai/grok-4.7",
+    "scenario": "fit-short",
+    "sourceFileSha256": "41b0dc4eeae586165768610280385895693aad341560050801fa83abe5785cd2",
+    "finalWireSha256": "ebdeec1e6a0420455e7851ec28f9ef0fa7f297bb9a4328634fe49f570a0f84c1",
+    "detailsSha256": "2f47ac797dede18b30c2f8e4d62432eefbebc03d492249ae7fa685ca606f01b2",
+    "originalOutcomeSha256": "67d3911f415cfa5eba4270abf74b9e81c72a5f41d4b815c27233c1a8516d29e5",
+    "nativeReasoningTokens": 117,
+    "candidateEstimateTokens": 1481
+  },
+  {
+    "file": "4.7-fit-multilingual.request.json",
+    "model": "x-ai/grok-4.7",
+    "scenario": "fit-multilingual",
+    "sourceFileSha256": "3d6d7e3df099aace9d46472089ebeaf724bdffd2839f0bf42a5f295529c9940b",
+    "finalWireSha256": "fc3fe26e70d1c74c1edbe7306a492b1c2b86b1fa2dc921cd957b47cd1640fba1",
+    "detailsSha256": "5e362df64b07fb4bd421210be4a6f7aee9a2226156ccd8c324cadbb063e1cd89",
+    "originalOutcomeSha256": "843a3d08423075f3e897864d2d0e10a5f203fdccd7a637f520b80a8eb26449e1",
+    "nativeReasoningTokens": 590,
+    "candidateEstimateTokens": 1984
+  },
+  {
+    "file": "4.7-holdout-tool-history.request.json",
+    "model": "x-ai/grok-4.7",
+    "scenario": "holdout-tool-history",
+    "sourceFileSha256": "df7ca36c0d8fc076142519fe678b93207c076662a0f82f6ce7314eb697b41cc2",
+    "finalWireSha256": "f94512320c9caad858ecd37a82dabdbd35bcbbf2038b9359af47608c7012594c",
+    "detailsSha256": "699b78c3b51abf1c77f6a40ff70e361ae75e50f774554e6fdffc651b0e63e4d6",
+    "originalOutcomeSha256": "f2568710dfa9ffc9be3c69b5c50b82516d456854104eb405b52ffc287fac18e9",
+    "nativeReasoningTokens": 132,
+    "candidateEstimateTokens": 1658
+  }
+]

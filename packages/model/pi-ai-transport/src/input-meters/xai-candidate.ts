@@ -6,6 +6,7 @@ import {
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import { createXaiInputMeter } from './xai.ts'
 
 // xAI grok-build f0e3be1 uses UTF-8 bytes / 4 and 765 per image for its own
 // compaction estimate. This projection counts final OpenRouter JSON framing too;
@@ -123,6 +124,104 @@ export function createXaiCandidateInputMeter(definition: ModelDefinition): Input
         Math.floor(Buffer.byteLength(writeJsonLossless(projected), 'utf8') / bytesPerToken) +
         images * imageTokens
       return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
+    },
+  }
+  return Object.freeze(meter)
+}
+
+/**
+ * Unbound same-route history candidate. A single OpenRouter xai-responses-v1
+ * summary followed by its encrypted item projects to one native reasoning item;
+ * the ordinary JSON envelope remains in the established visible-wire estimate.
+ * The ciphertext and order in the owned send body are never changed.
+ */
+export function createXaiHistoryCandidateInputMeter(
+  definition: ModelDefinition,
+): InputMeter | undefined {
+  const visible = createXaiInputMeter(definition)
+  if (!visible) return undefined
+  const meter: InputMeter = {
+    modelId: visible.modelId,
+    definitionRevision: visible.definitionRevision,
+    implementation: visible.implementation,
+    provider: visible.provider,
+    algorithmRevision: `${visible.algorithmRevision}-xai-responses-v1-history-candidate-1`,
+    evidence:
+      'xai-org/grok-build f0e3be1100ef5252488e3be8bb0e91cf68d8c305 state.rs:87-92; OpenRouter xai-responses-v1 summary/encrypted replay; final-wire envelope plus existing visible calibration, estimated only',
+    measure({ body, serialized }): TokenMeasurement {
+      if (writeJsonLossless(body) !== serialized || !Array.isArray(body.messages))
+        return { kind: 'unavailable' }
+      const messages: JsonValue[] = []
+      let encodedPayloadBytes = 0
+      let nativeReasoningTokens = 0
+      let sawHistory = false
+      for (const raw of body.messages) {
+        if (!object(raw)) return { kind: 'unavailable' }
+        if (!Object.hasOwn(raw, 'reasoning_details')) {
+          messages.push(raw)
+          continue
+        }
+        if (raw.role !== 'assistant' || raw.reasoning !== undefined) return { kind: 'unavailable' }
+        const details = raw.reasoning_details
+        if (!Array.isArray(details) || (details.length !== 1 && details.length !== 2))
+          return { kind: 'unavailable' }
+        const summary = details.length === 2 ? details[0] : undefined
+        const encrypted = details[details.length - 1]
+        if (
+          (summary !== undefined &&
+            (!object(summary) ||
+              Object.keys(summary).some(
+                key => !['type', 'summary', 'format', 'index'].includes(key),
+              ) ||
+              summary.type !== 'reasoning.summary' ||
+              summary.format !== 'xai-responses-v1' ||
+              summary.index !== 0 ||
+              typeof summary.summary !== 'string')) ||
+          !object(encrypted) ||
+          Object.keys(encrypted).some(
+            key => !['type', 'data', 'format', 'id', 'index'].includes(key),
+          ) ||
+          encrypted.type !== 'reasoning.encrypted' ||
+          encrypted.format !== 'xai-responses-v1' ||
+          encrypted.index !== (summary ? 1 : 0) ||
+          typeof encrypted.id !== 'string' ||
+          encrypted.id.length === 0 ||
+          typeof encrypted.data !== 'string' ||
+          encrypted.data.length === 0 ||
+          !/^[A-Za-z0-9+/_=-]+\.[A-Za-z0-9+/_=-]+$/u.test(encrypted.data)
+        )
+          return { kind: 'unavailable' }
+        const summaryText = summary && typeof summary.summary === 'string' ? summary.summary : ''
+        const summaryBytes = Buffer.byteLength(summaryText, 'utf8')
+        const ciphertextBytes = Buffer.byteLength(encrypted.data, 'utf8')
+        // Grok Build counts visible and encrypted representations as the same
+        // reasoning, using max(text bytes, encrypted bytes * 3/4) / 4.
+        nativeReasoningTokens += Math.floor(
+          Math.max(summaryBytes, Math.floor((ciphertextBytes * 3) / 4)) / bytesPerToken,
+        )
+        encodedPayloadBytes += Buffer.byteLength(writeJsonLossless(encrypted.data), 'utf8')
+        if (summary)
+          encodedPayloadBytes += Buffer.byteLength(writeJsonLossless(summaryText), 'utf8')
+        const { reasoning_details: _details, ...rest } = raw
+        messages.push(rest)
+        sawHistory = true
+      }
+      if (!sawHistory) return visible.measure({ body, serialized })
+      const visibleBody = { ...body, messages }
+      const visibleSerialized = writeJsonLossless(visibleBody)
+      const base = visible.measure({ body: visibleBody, serialized: visibleSerialized })
+      if (base.kind !== 'estimated' || typeof base.tokens !== 'number')
+        return { kind: 'unavailable' }
+      const visibleBytes = Buffer.byteLength(visibleSerialized, 'utf8')
+      const envelopeBytes =
+        Buffer.byteLength(serialized, 'utf8') - visibleBytes - encodedPayloadBytes
+      if (!Number.isSafeInteger(envelopeBytes) || envelopeBytes < 0) return { kind: 'unavailable' }
+      const offset = base.tokens - Math.floor(visibleBytes / bytesPerToken)
+      const tokens =
+        Math.floor((visibleBytes + envelopeBytes) / bytesPerToken) + offset + nativeReasoningTokens
+      return Number.isSafeInteger(tokens) && tokens >= 0
+        ? { kind: 'estimated', tokens }
+        : { kind: 'unavailable' }
     },
   }
   return Object.freeze(meter)
