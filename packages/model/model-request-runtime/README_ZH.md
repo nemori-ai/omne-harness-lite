@@ -20,45 +20,37 @@
 
 ## 调用显式传入的请求
 
-将两个包声明为直接 workspace 依赖。先按[传输示例](../pi-ai-transport/README_ZH.md#只规划提醒不发送请求)构造 `PlanInput`，再交入明确持有的凭据和取消信号。示例函数只在被调用时发送，不读环境凭据。
+传入完整 `PlanInput`、明确持有的类型化适配器、凭据与取消信号。本例只导入 runtime 公开包并使用实际流装配器，将它声明为直接依赖；适配器须配置相同的完整凭据政策。资源由调用者持有，在 outcome 与独立门任务实际停止后释放。不读环境凭据。
 
 ```ts
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
-import { createPiAiTransport, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import {
+  invokeModel, openRouterCredentialRedactionConfig,
+  type PlanInput, type PlannedSemantics, type TransportAdapter, type InvocationPolicy,
+} from '@omne-harness-lite/model-request-runtime'
 
-export async function invokeOnce(
-  request: PlanInput, transportOptions: TransportOptions, credential: string, signal: AbortSignal,
+export const callerPolicy: InvocationPolicy = {
+  now: () => new Date().toISOString(),
+  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
+  firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
+  statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
+  credentialRedaction: openRouterCredentialRedactionConfig,
+  diagnostic: event => { console.log(event.kind) },
+}
+
+export async function invokeOnce<P extends PlannedSemantics, R>(
+  request: PlanInput, transport: TransportAdapter<P, R>, credential: string, signal: AbortSignal,
   beforeFirstContent?: () => Promise<void>,
 ) {
-  const transport = createPiAiTransport(transportOptions)
-  const fragmentLength = transportOptions.policy.credentialFragmentMinLength
-  try {
-    const handle = invokeModel({
-      ...request, transport, credential, signal,
-      ...(beforeFirstContent ? { beforeFirstContent } : {}),
-      policy: {
-        now: () => new Date().toISOString(),
-        schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
-        firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
-        statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
-        redact: text => {
-          let value = text.split(credential).join('█')
-          for (let offset = 0; offset <= credential.length - fragmentLength; offset++)
-            value = value.split(credential.slice(offset, offset + fragmentLength)).join('█')
-          return value
-        },
-        diagnostic: event => { console.log(event.kind) },
-      },
-    })
-    console.log(handle.snapshot().position)
-    return await handle.outcome
-  } finally { await transport.close() }
+  const handle = invokeModel({ ...request, transport, credential, signal, policy: callerPolicy,
+    ...(beforeFirstContent ? { beforeFirstContent } : {}),
+  })
+  return await handle.outcome
 }
 ```
 
-transportOptions.definitions 必须显式给已核实的完整定义与自持网络政策。没有默认 pilot，officialModelIds 只列目标；缺定义或旧形状在资源建立前失败。传输 README 的教学值不能配真实凭据使用。
+实际 OpenRouter 适配器通过[传输包](../pi-ai-transport/README_ZH.md)传入已核实完整定义与自持网络政策。没有默认 pilot；officialModelIds 只列目标，教学数据不能配真实凭据使用。
 
-示例状态码表和脱敏器属于调用者政策，不是全局强制默认值。生产调用者应交入完整已确认政策。输出上限、供应商、快照、绑定和消息全部来自 request，函数不自行查找。
+示例时限与状态表由调用者选择。`credentialRedaction` 是必需的完整显式配置，在规划和发送前校验、绑定；缺失或非法配置返回 `invalidInput` 且不发送。旧任意 `redact` 回调已删除，没有兼容回退。模型、供应商、档案、参数和消息均来自传入请求。
 
 异步工作开始前，调用固定自己持有的请求值及政策成员；借用函数和资源的寿命仍归调用者。使用动态适配引用时，交入 `lease.transport`，用 `lease.track(...)` 登记调用结果及独立的异步内容门/结算，等待它们实际停止后释放。
 
@@ -365,3 +357,11 @@ export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
 通过实际 SL3 提供者**一次追加整个返回数组**。v2 检查按 MR4 读取 `mrr/1`，按 MR5 读取 `mrr/2`，保留原载荷格式、值与位置；未知格式或谎标 `mrr/1` 的数组头会拒绝。数组次序、重复、精确数以及头缺席／空 map 均保留。检查结果与条目相邻不能认证物理同批；G29-P/H、合法全读、旧写方实际停止及完整 runtime 仍由宿主负责。
 
 捕获归属于产生它的 codec 域，根与 v2 捕获不能互换。v2 历史捕获不能直接准备为写候选：须对原值显式调用 v2 `captureModelLogValue`，再次通过完整接收。旧根捕获／构造行为保持，不自动重写历史或升级消费者。采用依据为 [D094](../../../.meta_harness/design/record/decisions/model-log-codec-v2-adoption/decision.md)。
+
+## RT5 单次响应头交接
+
+`SendResult` 仅 response／failed／aborted 分支可带 `rawHeaders`，rejected 分支不带；`TransportFailure.headers` 和 `StreamEnd` 的第二头口不存在。sender 必须已按同一显式政策处理并持有自有不可变 MR5 头 map。invoke 立即保留这一原值，有序数组重复／空值、缺席与空 map 在四种收场、内容门取消中均不丢失，不再运行第二次头脱敏。非法或可变头表示是整份端口违约，请求实际 reader 停止；独立 HTTP 失败事实仍保留。
+
+上游错误与本地文本经绑定的共享 JSON／text 政策处理，raw/error 的 key 与所有 scalar 都覆盖；独立协议状态和真实 usage/cost 即使字面值与凭据巧合仍保真。处理拒绝或 defect 时省略不安全载荷，交固定阶段诊断，已持有 H 保留。发送前 bind defect 以受控阶段异常拒绝 outcome，不造发出结果；诊断 sink 失败不改变业务。
+
+业务 reply／工具片段保持原装配语义。本实现不关闭内容回显政策、raw.body 附件、完整 S20、生产 TLS 组合或耐久服务。精确采用范围见 [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md)。

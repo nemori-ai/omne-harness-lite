@@ -12,8 +12,10 @@ import type {
   Timing,
   ResponseOutcome,
   ParameterAdjustment,
-} from '@omne-harness-lite/model-response'
+  RawHeaders,
+} from '@omne-harness-lite/model-response/v5'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
+import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 
 export interface PlanInput {
@@ -48,8 +50,6 @@ export interface ServingFacts {
 export type TransportFailure = {
   readonly source: 'local' | 'connect' | 'http_status' | 'in_band' | 'stream_broken' | 'protocol'
   readonly httpStatus?: number
-  /** Actual response facts after credential redaction; repeated values stay separate. */
-  readonly headers?: Readonly<Record<string, string | readonly string[]>>
   readonly upstreamError?: Failure['upstreamError']
   readonly localError?: string
   readonly queued?: true
@@ -71,9 +71,9 @@ export type StreamEnd = ServingFacts &
     | { readonly failed: TransportFailure }
   )
 export type SendResult<R> =
-  | { readonly response: R }
-  | { readonly failed: TransportFailure }
-  | { readonly aborted: true; readonly queued?: true }
+  | { readonly response: R; readonly rawHeaders?: RawHeaders }
+  | { readonly failed: TransportFailure; readonly rawHeaders?: RawHeaders }
+  | { readonly aborted: true; readonly queued?: true; readonly rawHeaders?: RawHeaders }
   | { readonly rejected: 'invalidInput' | 'unavailable' }
 export interface TransportAdapter<P extends PlannedSemantics, R> {
   readonly plan: (input: PlanInput) => PlanResult<P>
@@ -93,7 +93,7 @@ export interface InvocationPolicy {
   readonly statusCauseTable: Readonly<
     Record<string, 'credential_unavailable' | 'request_rejected' | 'upstream_unavailable'>
   >
-  readonly redact: (value: string) => string
+  readonly credentialRedaction: CredentialRedactionConfig
   readonly diagnostic: (event: { readonly kind: string; readonly detail?: JsonValue }) => void
 }
 export interface InvocationInput<P extends PlannedSemantics, R> extends PlanInput {
@@ -106,6 +106,7 @@ export interface InvocationInput<P extends PlannedSemantics, R> extends PlanInpu
   readonly onAccepted?: (event: ArrivalEvent, snapshot: AssemblySnapshot) => void
 }
 export interface ModelInvocationResult extends ServingFacts {
+  readonly rawHeaders?: RawHeaders
   readonly outcome: ResponseOutcome
   readonly blocks: readonly ContentBlock[]
   readonly ending?: AssistantEnding
