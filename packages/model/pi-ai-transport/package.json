@@ -34,6 +34,8 @@
   },
   "dependencies": {
     "@huggingface/tokenizers": "catalog:",
+    "js-tiktoken": "catalog:",
+    "image-size": "catalog:",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/arrival-events": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
