@@ -14,3 +14,7 @@
 本采用接续而不改写 D-100/D-104：core 旧 MR7 根与 runtime 仅严格时刻假设须按当前消费者同批破坏性迁移，不留旧入口、猜版、兼容分流。冻结规范所需的精确旧 Schema 依赖仍按各自契约保存。新增绑定0；core V8-1～5、runtime T12-V1～11及新增组合场景均仍待实现和验收。
 
 L1 永久撤除后 L2 的原 owner 交接、G-28/withRun、原产品来源归并未裁项均不在本次关闭范围。原 handle 查询不提供交接权；只可在真实恢复前提具备的同代际及冷恢复 noRun 分支实施。demo/主线装配、真实 kill/reopen、竞争、费用与逐模型 public/service 认证另验；本记录不使其自动完成。
+
+## 2026-09-28 恢复作用域留存的窄实施采用
+
+主线依同一持续实施与技术验收委托，采用 [恢复任务与作用域补充 revision 1](../../../realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，精确 SHA256 `49484bf1597667c7b2e27279d5084e8acca958f82136b8f7625b40696e8b6ba7`。独立窄评及 concurrent=1 反例处置归[原提案评审](../../proposals/model-request-adaptation/review.md#2026-09-28-恢复任务留存窄评)。这将 D102/D105 的既有任务与未知结果责任具体落实到长期 reconcile 组件及统一 close，不改变冻结 v12 或 MR8/RT9，不新增 scope 授权口、持久对象或产品政策。当前消费者破坏性迁移到 `{reconcile,close}`，复用现有控制追加 tracker，并修正它对第二份并发配额的依赖。新增绑定0，补充中的六项实际验收尚待；真实宿主恢复、L1/L2、G28 不随采用完成。

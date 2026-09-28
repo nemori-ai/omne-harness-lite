@@ -1,3 +1,5 @@
+2026-09-28：[D105 留存增补采用](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md#2026-09-28-恢复作用域留存的窄实施采用) 精确采用 [恢复任务与 scope 留存](v12-recovery-owner-supplement.md) revision 1；可实施，六项运行义务待验，新增绑定0。
+
 2026-09-28：[D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) 技术采用 [v12 恢复时序映射](v12-recovery-timing-design.md)。MR8/RT9语义已接受，具体接口可施工；新增绑定0，T12及组合停止验收待完成。L1/L2与G-28保持原缺口。
 
 # model-request-runtime

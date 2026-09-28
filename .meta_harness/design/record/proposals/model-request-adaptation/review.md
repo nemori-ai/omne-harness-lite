@@ -194,3 +194,7 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 主线据实际角色报告保存的归因摘要，非逐字报告：core v8 rev1 `8dd767477baff940b9bddea396a5d90944bf598f73e574c99b11b38971d72b7f` 与 runtime v12 revision1 `66da0f35031af73e2994c778e23d5bdcbe8fccefca83f4337084b134b2c4aa11`，独立 architecture-reviewer 与 spec-reviewer 均无本范围阻断；后者核两检出D104各55资源均匹配。持久null与Pending/普通invoke实际时刻、判定优先级、mrr/3、原owner事实、实际停止、原完整批优先与SL3共同对象表达一致。没有新增事实权威、plugin或旁账；L1/L2和G-28显式未闭。
 
 架构N1非阻断建议把未停时observedFacts unavailable、停后稳定owned值、结算仍unknown时保留原handle/登记、最后认回唯一释放合跑；主线在runtime verification补明，两个正文不变，补文不冒充独立重审。强反方为全局nullable减少改动、一次Schema判定更简单、只缓存outcome或caller传值更省接口、新format可隔离旧reader；代价由分支严格类型/混合错误负控/真实owner关联/当前消费者同批迁移承担。没有运行实现、kill/reopen、HTTP或形式工具；验证仍归实施与独立验收。技术采用见[D-105](../../decisions/model-recovery-timing-provider-adoption/decision.md)。
+
+## 2026-09-28 恢复任务留存窄评
+
+独立 architecture-reviewer 只读审阅 runtime `v12-recovery-owner-supplement.md` revision 1。初稿 b2b9b03 的复用路径在合法 concurrent=1 下持有未知追加配额又申请读配额，造成实际停止后仍不能认回；主线改为沿原 registration 串行认回、全部 task 实际停止后唯一释放，且旧读未停不叠加新读。最终 SHA49484bf1597667c7b2e27279d5084e8acca958f82136b8f7625b40696e8b6ba7 无本范围阻断或新增非阻断发现。留存 scope/coordinator、迟到 enter、统一 close、原完整批优先符合 D102/D105；L1/L2、G28 不在此次闭合范围。评审仅核机制与已有源码，没有运行测试、形式工具或真实 I/O，不提升实施与验证状态。
