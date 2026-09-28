@@ -602,6 +602,9 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../identity-values
+      '@omne-harness-lite/mcp-endpoint':
+        specifier: workspace:*
+        version: link:../mcp-endpoint
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../messages
@@ -611,6 +614,12 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../offer-expiry
+      '@omne-harness-lite/skill-package':
+        specifier: workspace:*
+        version: link:../skill-package
+      '@omne-harness-lite/slash-command':
+        specifier: workspace:*
+        version: link:../slash-command
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../tool-definition
@@ -711,6 +720,9 @@ importers:
 
   packages/core/model-response:
     dependencies:
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../asset-model
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../call-accounts
@@ -723,6 +735,9 @@ importers:
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../loop-extension
+      '@omne-harness-lite/mcp-endpoint':
+        specifier: workspace:*
+        version: link:../mcp-endpoint
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../messages
@@ -732,6 +747,15 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../offer-expiry
+      '@omne-harness-lite/skill-package':
+        specifier: workspace:*
+        version: link:../skill-package
+      '@omne-harness-lite/slash-command':
+        specifier: workspace:*
+        version: link:../slash-command
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
