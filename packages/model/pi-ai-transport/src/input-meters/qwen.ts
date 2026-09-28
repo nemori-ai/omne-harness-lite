@@ -32,6 +32,8 @@ type PublicQwenModelId = keyof typeof sources
 const hostedMaxModelId = 'qwen/qwen3.8-max-0902'
 const hostedFlashModelId = 'qwen/qwen3.8-flash'
 const hosted37FlashModelId = 'qwen/qwen3.7-flash'
+const hosted37PlusModelId = 'qwen/qwen3.7-plus'
+const hosted37MaxModelId = 'qwen/qwen3.7-max'
 const visualModelId = 'qwen/qwen3.8-27b'
 // Fixed-route observations: three text calibrations plus an untouched fourth
 // holdout had the same difference from the published ChatML/tokenizer proxy.
@@ -51,11 +53,30 @@ const hostedFinalTextRoutes = {
     evidence:
       'Qwen/Qwen3.8-2.4T-A95B public tokenizer and hosted-Max published ChatML wrapper are only a proxy; exact OpenRouter qwen/qwen3.7-flash Alibaba final text-array wire three calibrations +0 and untouched holdout +0, four original observation sha256:c59e5998555714ad12125bf4e0a6106ffc19b4056e86ab83ff63160d64a086e6/8ed2d813c4dc6516a47e76357820b636384ac8edeec552b55de32187e29351a6/91728d0980386b9b6d16d327ff1a27c9d244a695e92b43b5d82f562847427d62/6aae593a5739617af9957e1d94452ed92e6e8dd176fd2e2db10cd4bfa4095466, generation verification sha256:953e8aaa5f0bfc70a1110faa74364a3c279e4467d33686789ff8ecfd8c5000fc; single-user text-part estimate only',
   },
+  [hosted37PlusModelId]: {
+    implementationRevision: 'mp4-5',
+    algorithmRevision: 'qwen-37-hosted-plus-chatml-offset-1',
+    offset: 0,
+    evidence:
+      'Qwen/Qwen3.8-2.4T-A95B public tokenizer and hosted-Max published ChatML wrapper are only a proxy; exact OpenRouter qwen/qwen3.7-plus Alibaba final text-array wire three calibrations +0 and untouched holdout +0, independent generation verification sha256:747bc040657396a640fa1e4c0e0fb1f8b403b78cc9e6d50002eab128f40b6056; single-user text-part estimate only',
+  },
+  [hosted37MaxModelId]: {
+    implementationRevision: 'mp4-5',
+    algorithmRevision: 'qwen-37-hosted-max-chatml-offset-1',
+    offset: 0,
+    evidence:
+      'Qwen/Qwen3.8-2.4T-A95B public tokenizer and hosted-Max published ChatML wrapper are only a proxy; exact OpenRouter qwen/qwen3.7-max Alibaba final text-array wire three calibrations +0 and untouched holdout +0, independent generation verification sha256:05a86372c5c7c60591ae47292240d22fea371c475bf7334d8a1dae5ce3fa70fe; single-user text-part estimate only',
+  },
 } as const
 const tokenizerSha256 = '0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3'
 
 function hostedFinalTextRoute(modelId: string) {
-  if (modelId === hostedFlashModelId || modelId === hosted37FlashModelId)
+  if (
+    modelId === hostedFlashModelId ||
+    modelId === hosted37FlashModelId ||
+    modelId === hosted37PlusModelId ||
+    modelId === hosted37MaxModelId
+  )
     return hostedFinalTextRoutes[modelId]
   return undefined
 }

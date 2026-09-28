@@ -219,7 +219,9 @@ export const qwenDefinitions = ownDefinitions(
         implementation: {
           name: 'pi-ai:qwen',
           revision:
-            modelId === 'qwen/qwen3.7-flash'
+            modelId === 'qwen/qwen3.7-flash' ||
+            modelId === 'qwen/qwen3.7-plus' ||
+            modelId === 'qwen/qwen3.7-max'
               ? 'mp4-5'
               : modelId === 'qwen/qwen3.8-flash'
                 ? 'mp4-4'
