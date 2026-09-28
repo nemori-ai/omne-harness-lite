@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { selectionHost, AT, ROOT } from './session-selection-fixture.ts'
+import { selectionHost, AT, ROOT, profile } from './session-selection-fixture.ts'
 import { inspectModelLogEntry } from '@omne-harness-lite/model-request-runtime/log-codec/v2'
-import { deferred } from './settlement-fixture.ts'
+import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
+import { parseTenantId } from '@omne-harness-lite/identity-values'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import type {
+  SettlementRegistration,
+  SettlementTaskKind,
+} from '@omne-harness-lite/model-request-runtime'
 
 describe('RT5 real session model selection and current evaluation', () => {
   it('requires explicit selection, commits one codec record, repeats without writing and recognizes reopen', async () => {
@@ -177,6 +183,297 @@ describe('RT5 real session model selection and current evaluation', () => {
       await selecting
       expect(await closing).toEqual({ released: true })
       expect(owner.active).toBe(0)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('validates current legality before repeat; actual withdrawn private row cannot bypass the command check', async () => {
+    const host = await selectionHost()
+    try {
+      const {
+        registration: _registration,
+        updatedAt: _updatedAt,
+        ...content
+      } = profile('example/private-model')
+      const registered = await host.catalog.registerProfile(
+        host.tenant,
+        { layer: 'tenant', tenant: host.tenant },
+        { ...content, origin: 'custom' },
+      )
+      if ('failure' in registered)
+        throw new Error(`Real profile registration failed: ${registered.failure}`)
+      const component = host.create().component
+      expect(await component.selectModel('example/private-model')).toEqual({
+        selected: 'example/private-model',
+      })
+      expect(await host.catalog.withdrawProfile(host.tenant, registered.ref)).toMatchObject({
+        registration: 'withdrawn',
+      })
+      expect(await component.selectModel('example/private-model')).toEqual({
+        notLegalTarget: { because: ['withdrawn'] },
+      })
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { routeName: 'example/private-model', selectedBy: 'session' },
+      })
+      const prefix = await host.log.readSince(host.session, 0)
+      expect(prefix).toMatchObject({ entries: [expect.anything()] })
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('malformed acknowledgement retains a physically committed command without certifying it from later selected reads', async () => {
+    const host = await selectionHost()
+    try {
+      const log = host.log
+      const malformed = { ...log }
+      let calls = 0
+      Reflect.set(malformed, 'append', async (...args: Parameters<typeof log.append>) => {
+        calls++
+        await log.append(...args)
+        return {}
+      })
+      const generation = Object.freeze({})
+      const { component, owner } = host.create({
+        binding: {
+          session: host.session,
+          tenant: host.tenant,
+          log: malformed,
+          generation,
+          currentGeneration: () => generation,
+        },
+      })
+      expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { selected: 'example/model-a' },
+      })
+      expect(await component.close()).toEqual({ unavailable: true })
+      expect(owner.active).toBe(1)
+      expect(calls).toBe(1)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('an incomplete dense prefix or wrong holding tenant is unavailable and adds no selection record', async () => {
+    const host = await selectionHost()
+    try {
+      const component = host.create().component
+      await component.selectModel('example/model-a')
+      await component.selectModel('example/model-b')
+      const log = host.log
+      const incomplete = {
+        ...log,
+        async readSince(...args: Parameters<typeof log.readSince>) {
+          const read = await log.readSince(...args)
+          return 'failure' in read ? read : { ...read, entries: read.entries.slice(1) }
+        },
+      }
+      const generation = Object.freeze({})
+      const badPrefix = host.create({
+        binding: {
+          session: host.session,
+          tenant: host.tenant,
+          log: incomplete,
+          generation,
+          currentGeneration: () => generation,
+        },
+      }).component
+      expect(await badPrefix.effectiveModel()).toEqual({ unavailable: true })
+      expect(await badPrefix.selectModel('example/model-a')).toEqual({ unavailable: true })
+      const otherTenant = parseTenantId({ ...host.tenant, account: 'other-account' })
+      if (!('ok' in otherTenant)) throw new Error('Wrong tenant test syntax')
+      const wrong = host.create({
+        binding: {
+          session: host.session,
+          tenant: otherTenant.ok,
+          log,
+          generation,
+          currentGeneration: () => generation,
+        },
+      }).component
+      expect(await wrong.effectiveModel()).toEqual({ unavailable: true })
+      expect(await wrong.selectModel('example/model-a')).toEqual({ unavailable: true })
+      expect(await log.readSince(host.session, 0)).toMatchObject({
+        entries: [expect.anything(), expect.anything()],
+      })
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('explicit concurrency rejects another operation while the original real source read owns its registration', async () => {
+    const host = await selectionHost()
+    try {
+      const entered = deferred<void>(),
+        release = deferred<void>()
+      const reader = host.reader
+      const { component, owner } = host.create({
+        concurrent: 1,
+        currentEvaluationInputs: {
+          async read(...args) {
+            entered.resolve()
+            await release.promise
+            return await reader.read(...args)
+          },
+        },
+      })
+      await component.selectModel('example/model-a')
+      const reading = component.effectiveModel()
+      await entered.promise
+      expect(owner.active).toBe(1)
+      expect(await component.selectModel('example/model-b')).toEqual({ unavailable: true })
+      release.resolve()
+      expect(await reading).toMatchObject({ ok: { selected: 'example/model-a' } })
+      expect(owner.active).toBe(0)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('a readonly stop request defect still stops every other task and releases only after actual late stop', async () => {
+    const host = await selectionHost()
+    try {
+      const owner = new ControlledSettlementOwner()
+      const barrier = deferred<void>(),
+        readEntered = deferred<void>()
+      const acquire = owner.acquire
+      let stopCalls = 0,
+        failedDiagnostics = 0
+      Reflect.set(owner, 'acquire', (limit: JsonNumber) => {
+        const acquired = acquire(limit)
+        if ('unavailable' in acquired) return acquired
+        const original = acquired.registration
+        const registration: SettlementRegistration = {
+          start<T>(kind: SettlementTaskKind, operation: (signal: AbortSignal) => Promise<T>) {
+            const task = original.start(kind, operation)
+            return {
+              ...task,
+              requestStop() {
+                stopCalls++
+                if (stopCalls === 1) throw new Error('stop request defect')
+                task.requestStop()
+              },
+            }
+          },
+          release: original.release,
+        }
+        return { registration }
+      })
+      const { component } = host.create({
+        owner,
+        currentEvaluationInputs: {
+          async read(...args) {
+            const result = await host.reader.read(...args)
+            readEntered.resolve()
+            return result
+          },
+        },
+        diagnostic(event) {
+          if (event.stage === 'close' && event.outcome === 'unavailable') failedDiagnostics++
+        },
+      })
+      await component.selectModel('example/model-a')
+      const initialStarts = owner.starts.length
+      owner.stopBarrier = barrier.promise
+      const reading = component.effectiveModel()
+      await readEntered.promise
+      let closeReceipt = false
+      const closing = component.close().then(value => {
+        closeReceipt = true
+        return value
+      })
+      expect(stopCalls).toBe(owner.starts.length - initialStarts)
+      expect(stopCalls).toBeGreaterThan(1)
+      expect(failedDiagnostics).toBe(1)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(closeReceipt).toBe(false)
+      expect(owner.active).toBe(1)
+      barrier.resolve()
+      await reading
+      expect(await closing).toEqual({ released: true })
+      expect(owner.active).toBe(0)
+      expect(owner.releases).toBe(2)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('a late unknown writer remains physically owned across stop and may still durably change selection', async () => {
+    const host = await selectionHost()
+    try {
+      const entered = deferred<void>(),
+        release = deferred<void>()
+      const log = host.log,
+        generation = Object.freeze({})
+      const { component, owner } = host.create({
+        binding: {
+          session: host.session,
+          tenant: host.tenant,
+          log: {
+            ...log,
+            async append(...args) {
+              entered.resolve()
+              await release.promise
+              await log.append(...args)
+              return { failure: 'unavailable' }
+            },
+          },
+          generation,
+          currentGeneration: () => generation,
+        },
+      })
+      const selecting = component.selectModel('example/model-a')
+      await entered.promise
+      let closeReceipt = false
+      const closing = component.close().then(value => {
+        closeReceipt = true
+        return value
+      })
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(closeReceipt).toBe(false)
+      expect(owner.active).toBe(1)
+      expect(await log.readSince(host.session, 0)).toMatchObject({ entries: [] })
+      release.resolve()
+      expect(await selecting).toEqual({ unavailable: true })
+      expect(await closing).toEqual({ unavailable: true })
+      expect(owner.active).toBe(1)
+      expect(await log.readSince(host.session, 0)).toMatchObject({ entries: [expect.anything()] })
+    } finally {
+      await host.close()
+    }
+  })
+  it('a rejected actual-stop receipt remains unfinished and never releases the original registration', async () => {
+    const host = await selectionHost()
+    try {
+      const owner = new ControlledSettlementOwner()
+      const acquire = owner.acquire
+      Reflect.set(owner, 'acquire', (limit: JsonNumber) => {
+        const acquired = acquire(limit)
+        if ('unavailable' in acquired) return acquired
+        const original = acquired.registration
+        const registration: SettlementRegistration = {
+          start<T>(kind: SettlementTaskKind, operation: (signal: AbortSignal) => Promise<T>) {
+            const task = original.start(kind, operation)
+            return {
+              ...task,
+              stopped: task.stopped.then(() => {
+                throw new Error('cleanup receipt failed')
+              }),
+            }
+          },
+          release: original.release,
+        }
+        return { registration }
+      })
+      const { component } = host.create({ owner })
+      expect(await component.legalTargets()).toMatchObject({
+        ok: ['example/model-a', 'example/model-b'],
+      })
+      expect(await component.close()).toEqual({ unavailable: true })
+      expect(owner.active).toBe(1)
+      expect(owner.releases).toBe(0)
     } finally {
       await host.close()
     }

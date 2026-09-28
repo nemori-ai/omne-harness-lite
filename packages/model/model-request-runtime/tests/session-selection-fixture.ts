@@ -54,8 +54,10 @@ import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-di
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory/migrations'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { createSessionModelSelection } from '../src/session-selection.ts'
-import type { SessionModelSelectionInput } from '../src/session-selection-types.ts'
+import {
+  createSessionModelSelection,
+  type SessionModelSelectionInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 
 export const ROOT = { category: 'agent_definition', name: 'example:selection-root' } as const
@@ -291,7 +293,7 @@ export async function selectionHost(model = true) {
   let owned: ReturnType<typeof createSessionModelSelection>[] = []
   function create(overrides: Partial<SessionModelSelectionInput> = {}) {
     const owner = new ControlledSettlementOwner()
-    const component = createSessionModelSelection({
+    const input: SessionModelSelectionInput = {
       binding: { session, tenant, log, generation, currentGeneration: () => generation },
       owner,
       concurrent: 2,
@@ -314,9 +316,10 @@ export async function selectionHost(model = true) {
       diagnostic() {},
       onDiagnosticFailure() {},
       ...overrides,
-    })
+    }
+    const component = createSessionModelSelection(input)
     owned.push(component)
-    return { component, owner }
+    return { component, owner, input }
   }
   return {
     dir,
