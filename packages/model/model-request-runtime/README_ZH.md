@@ -8,23 +8,24 @@
 
 ## 公开接口
 
-| 导出 | 用途 |
-| --- | --- |
-| `invokeModel(input)` | 返回包含 `outcome`、`snapshot()` 与 `abort()` 的句柄 |
-| `classifyCause(facts, hasContent, table)` | 按显式状态码表分类来源，保留原始状态码 |
-| `dispatchGuard(input)` | 按显式调用、发出与档案事实同步判定一次重试计划 |
-| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>` | 只读守卫输入、闭合答案与明确的已知／未知事实 |
-| `retryDelay(input)`、`RetryBackoffPolicy`、`RetryDelayInput`、`RetryDelayResult` | 按显式政策、重试序号、sample 及 decorrelated 前值计算精确 TD3 Duration |
-| `TransportAdapter`、`PlanInput` | 调用者持有的 plan/send/read 端口与显式请求输入 |
-| `InvocationPolicy`、`ModelInvocationResult` | 调度、脱敏、诊断政策与尚未结算的结果投影 |
-| `createSessionModelSelection(input)` | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口 |
-| `interpretCallHistory({ prefix, callId })` | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
-| `projectCallState({ session, callId, history, local? })` | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任 |
-| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型 | 十三操作的显式服务契约与必需宿主端口；类型契约本身不安装可运行服务 |
-| `createCallContainerStore()` | 按会话和调用持有进程资源，以及有界、可取消的短 reservation |
-| `createRuntimeReads(construction)` | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()` |
-| `createServiceCalls(construction)`、`createServiceControl(construction)` | 面向共享 runtime 装配的独立调用与控制方法组合件 |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)` | 原句柄回复处分与只读恢复消费者；对账目前只认回已结算且不属于 Run 的调用 |
+| 导出                                                                             | 用途                                                                                                 |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `invokeModel(input)`                                                             | 返回包含 `outcome`、`snapshot()` 与 `abort()` 的句柄                                                 |
+| `classifyCause(facts, hasContent, table)`                                        | 按显式状态码表分类来源，保留原始状态码                                                               |
+| `dispatchGuard(input)`                                                           | 按显式调用、发出与档案事实同步判定一次重试计划                                                       |
+| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`              | 只读守卫输入、闭合答案与明确的已知／未知事实                                                         |
+| `retryDelay(input)`、`RetryBackoffPolicy`、`RetryDelayInput`、`RetryDelayResult` | 按显式政策、重试序号、sample 及 decorrelated 前值计算精确 TD3 Duration                               |
+| `TransportAdapter`、`PlanInput`                                                  | 调用者持有的 plan/send/read 端口与显式请求输入                                                       |
+| `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与尚未结算的结果投影                                                             |
+| `createSessionModelSelection(input)`                                             | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口        |
+| `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
+| `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                    |
+| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型              | 十三操作的显式服务契约与必需宿主端口；类型契约本身不安装可运行服务                                   |
+| `createCallContainerStore()`                                                     | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                           |
+| `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                           |
+| `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                      |
+| `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain   |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与只读恢复消费者；对账目前只认回已结算且不属于 Run 的调用                              |
 
 ## 仍在集成的 Cordis 服务装配
 
@@ -34,7 +35,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createModelRuntimePlugin,
-  type ModelRuntimeAssembly, type ModelRuntimeAssemblyOwner,
+  type ModelRuntimeAssembly,
+  type ModelRuntimeAssemblyOwner,
 } from '@omne-harness-lite/model-request-runtime/plugin'
 
 const retained = new Set<ModelRuntimeAssemblyOwner>()
@@ -89,7 +91,11 @@ export async function inspectEffectiveModel(
 先由已认证的会话日志绑定与已登记读取任务经 `readSettlementPrefix` 取得 `prefix`。它会拒绝缺号、租户或会话错误、提供者代际变化。解释器只读该完整前缀，不发送、不写入，也不猜 Run 终结。对不属于 Run 的调用，完整响应批得出的耐久终态优先于旧的本地 `reply_pending` 责任。调用方在凭缺席决定重新发出前，仍须处理未停止的旧写者。
 
 ```ts
-import { interpretCallHistory, projectCallState, type SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
+import {
+  interpretCallHistory,
+  projectCallState,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
 
 export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
@@ -106,24 +112,46 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 
 ```ts
 import {
-  invokeModel, openRouterCredentialRedactionConfig,
-  type PlanInput, type PlannedSemantics, type TransportAdapter, type InvocationPolicy,
+  invokeModel,
+  openRouterCredentialRedactionConfig,
+  type PlanInput,
+  type PlannedSemantics,
+  type TransportAdapter,
+  type InvocationPolicy,
 } from '@omne-harness-lite/model-request-runtime'
 
 export const callerPolicy: InvocationPolicy = {
   now: () => new Date().toISOString(),
-  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
-  firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
-  statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
+  schedule: (ms, callback) => {
+    const timer = setTimeout(callback, ms)
+    return () => clearTimeout(timer)
+  },
+  firstContentTimeoutMs: 60000,
+  idleContentTimeoutMs: 60000,
+  statusCauseTable: {
+    '401': 'credential_unavailable',
+    '429': 'upstream_unavailable',
+    '503': 'upstream_unavailable',
+  },
   credentialRedaction: openRouterCredentialRedactionConfig,
-  diagnostic: event => { console.log(event.kind) },
+  diagnostic: event => {
+    console.log(event.kind)
+  },
 }
 
 export async function invokeOnce<P extends PlannedSemantics, R>(
-  request: PlanInput, transport: TransportAdapter<P, R>, credential: string, signal: AbortSignal,
+  request: PlanInput,
+  transport: TransportAdapter<P, R>,
+  credential: string,
+  signal: AbortSignal,
   beforeFirstContent?: () => Promise<void>,
 ) {
-  const handle = invokeModel({ ...request, transport, credential, signal, policy: callerPolicy,
+  const handle = invokeModel({
+    ...request,
+    transport,
+    credential,
+    signal,
+    policy: callerPolicy,
     ...(beforeFirstContent ? { beforeFirstContent } : {}),
   })
   return await handle.outcome
@@ -159,24 +187,37 @@ import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 const input: DispatchGuardInput = {
   session: 'example-session',
   callId: 'example-call',
-  call: { known: {
-    session: 'example-session', callId: 'example-call', phase: { known: 'awaiting_decision' },
-  } },
-  dispatches: { known: {
-    session: 'example-session', callId: 'example-call', opened: [{ known: false }],
-  } },
-  latestFailure: { known: 'upstream_unavailable' },
-  snapshot: { known: {
-    adaptation: {
-      implementation: { name: 'teaching', revision: 'one' },
-      definition: { modelId: 'teaching/model', revision: 'one' },
-      configuration: { revision: 'one', values: {} },
+  call: {
+    known: {
+      session: 'example-session',
+      callId: 'example-call',
+      phase: { known: 'awaiting_decision' },
     },
-    providers: ['first', 'second'], allowFallback: true,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: new LosslessNumber('9007199254740993'), maxOutputTokens: 10,
-    updatedAt: '2026-09-27T00:00:00Z',
-  } },
+  },
+  dispatches: {
+    known: {
+      session: 'example-session',
+      callId: 'example-call',
+      opened: [{ known: false }],
+    },
+  },
+  latestFailure: { known: 'upstream_unavailable' },
+  snapshot: {
+    known: {
+      adaptation: {
+        implementation: { name: 'teaching', revision: 'one' },
+        definition: { modelId: 'teaching/model', revision: 'one' },
+        configuration: { revision: 'one', values: {} },
+      },
+      providers: ['first', 'second'],
+      allowFallback: true,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: new LosslessNumber('9007199254740993'),
+      maxOutputTokens: 10,
+      updatedAt: '2026-09-27T00:00:00Z',
+    },
+  },
   plan: { provider: 'second', after: 'PT9007199254740993.0000000001S' },
 }
 const answer = dispatchGuard(input)
@@ -195,14 +236,17 @@ import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 
 const delay = retryDelay({
   policy: { kind: 'exponential', base: 'PT10S', factor: 2, max: 'PT25S', jitter: 'half' },
-  n: 3, uniformSample: new LosslessNumber('0.999'),
+  n: 3,
+  uniformSample: new LosslessNumber('0.999'),
 })
 if ('invalidInput' in delay) throw new Error(delay.invalidInput.reason)
 if (delay.ok !== 'PT24.9875S') throw new Error('unexpected exact delay')
 
 const next = retryDelay({
   policy: { kind: 'constant', base: 'PT1M', factor: 1.5, max: 'PT2M', jitter: 'decorrelated' },
-  n: 1, uniformSample: 0.25, previousDelay: 'PT60S',
+  n: 1,
+  uniformSample: 0.25,
+  previousDelay: 'PT60S',
 })
 if ('invalidInput' in next) throw new Error(next.invalidInput.reason)
 if (next.ok !== 'PT67.5S') throw new Error('unexpected decorrelated delay')
@@ -223,7 +267,9 @@ console.log(delay.ok, next.ok)
 
 ```ts
 import {
-  createCredentialRedactionPolicy, openRouterCredentialRedactionConfig, redact,
+  createCredentialRedactionPolicy,
+  openRouterCredentialRedactionConfig,
+  redact,
 } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
@@ -232,10 +278,18 @@ const binding = policy.bind('teaching-secret')
 if (!('ok' in binding)) throw new Error(binding.rejected)
 const text = binding.ok.text('teaching-secret / Bearer example-token')
 if (!('ok' in text) || text.ok !== '█ / █') throw new Error('Unexpected safe text')
-const headers = binding.ok.headers({ Authorization: 'discard', X: ['', 'teaching-secret', 'again', 'again'], Empty: [] })
+const headers = binding.ok.headers({
+  Authorization: 'discard',
+  X: ['', 'teaching-secret', 'again', 'again'],
+  Empty: [],
+})
 if (!('ok' in headers) || 'Authorization' in headers.ok || headers.ok.X?.length !== 4)
   throw new Error('Expected safe headers with their original array shape')
-const rawError = redact([true, null, new LosslessNumber('9007199254740993')], 'true', openRouterCredentialRedactionConfig)
+const rawError = redact(
+  [true, null, new LosslessNumber('9007199254740993')],
+  'true',
+  openRouterCredentialRedactionConfig,
+)
 if (!('ok' in rawError) || writeJsonLossless(rawError.ok) !== '["█",null,9007199254740993]')
   throw new Error('Expected redacted boolean and unchanged exact number')
 ```
@@ -260,25 +314,36 @@ if (!('ok' in rawError) || writeJsonLossless(rawError.ok) !== '["█",null,90071
 
 ```ts
 import {
-  legalTargets, displayList, effectiveModel, type SelectionCompatibility,
+  legalTargets,
+  displayList,
+  effectiveModel,
+  type SelectionCompatibility,
 } from '@omne-harness-lite/model-request-runtime'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 
-const rows: readonly ProfileRow[] = [{
-  ref: { origin: 'official', routeName: 'teaching/model' },
-  profile: {
-    routeName: 'teaching/model', origin: 'official', registration: 'listed',
-    adaptation: {
-      implementation: { name: 'teaching', revision: 'one' },
-      definition: { modelId: 'teaching/model', revision: 'one' },
-      configuration: { revision: 'one', values: {} },
+const rows: readonly ProfileRow[] = [
+  {
+    ref: { origin: 'official', routeName: 'teaching/model' },
+    profile: {
+      routeName: 'teaching/model',
+      origin: 'official',
+      registration: 'listed',
+      adaptation: {
+        implementation: { name: 'teaching', revision: 'one' },
+        definition: { modelId: 'teaching/model', revision: 'one' },
+        configuration: { revision: 'one', values: {} },
+      },
+      providers: ['teaching-provider'],
+      allowFallback: false,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 100,
+      maxOutputTokens: 10,
+      inputConstraints: {},
+      updatedAt: '2026-09-27T00:00:00Z',
     },
-    providers: ['teaching-provider'], allowFallback: false,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 100, maxOutputTokens: 10, inputConstraints: {},
-    updatedAt: '2026-09-27T00:00:00Z',
   },
-}]
+]
 const compatible: SelectionCompatibility = (profile, projection) => {
   const blocked = projection.filter(modality => !profile.inputModalities.includes(modality))
   return blocked.length === 0 ? { ok: true } : { blocked }
@@ -291,8 +356,12 @@ if (!('ok' in legal) || legal.ok[0] !== 'teaching/model') throw new Error('Expec
 const list = displayList({ known: rows }, allowed, projection, compatible, selected, {
   known: [{ ref: { origin: 'official', routeName: 'teaching/model' }, present: { known: false } }],
 })
-if (!('ok' in list) || !list.ok[0]?.selected ||
-  !list.ok[0].annotations.includes('credential_missing')) throw new Error('Expected missing-credential annotation')
+if (
+  !('ok' in list) ||
+  !list.ok[0]?.selected ||
+  !list.ok[0].annotations.includes('credential_missing')
+)
+  throw new Error('Expected missing-credential annotation')
 const effective = effectiveModel(selected, { known: 'teaching/model' }, { known: rows }, allowed)
 if (!('ok' in effective) || effective.ok.selectedBy !== 'layer_lock')
   throw new Error('An equal-name lock keeps its source')
@@ -312,6 +381,7 @@ pnpm --filter @omne-harness-lite/model-request-runtime run test
 ```
 
 配套传输测试用真实本地 HTTPS 和公开 core 装配器验证本函数。完整服务/耐久保证及真实模型认证仍需后续阶段验收。
+
 ## 日志值的捕获、构造与认回
 
 成员检查消费 [D089 已采用](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) 的 offer-expiry 公共根比较器，在捕获的原 timing 字符串上核 `sentAt <= firstTokenAt <= endedAt`；首 token 缺席时核 `sentAt <= endedAt`。静态非法日期和逆序不能返回成员完整。任意小数与时区同点保留精度，opened 的原字符串仍须精确相同。
@@ -326,7 +396,10 @@ import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const captured = captureModelLogValue({
   category: 'record',
-  input: { kind: 'text', text: '{"kind":"model_call_opened","call":"example-call","dispatch":1.0,"firstTokenAt":"2026-09-27T00:00:01Z"}' },
+  input: {
+    kind: 'text',
+    text: '{"kind":"model_call_opened","call":"example-call","dispatch":1.0,"firstTokenAt":"2026-09-27T00:00:01Z"}',
+  },
 })
 if (!('ok' in captured)) throw new Error(captured.reason)
 if (!writeJsonLossless(captured.ok.value).includes('"dispatch":1.0'))
@@ -336,17 +409,33 @@ if (!writeJsonLossless(captured.ok.value).includes('"dispatch":1.0'))
 构造条目时显式交会话、租户、成对 run/attempt、用途及这条消息之前的完整合法消息前缀。`messagePrefix: null` 表示前缀不可得，日志消息会拒绝，不能偷偷代传空数组。写前 OwnedLogEntry 没有耐久 position。实际写方负责权限、栅栏、condition、追加和清理；selection 恒无判重键，其余 D 必须显式出现在 R 中。persisted AssistantMessage 使用 `{ kind: 'persistedMessage', response: capturedResponse }`，与响应的完整 reply 一致；普通 assistant 和 SystemMessage 不得独立写入。
 
 ```ts
-import { captureModelLogValue, prepareModelLogEntry, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  encodeModelLogKey,
+} from '@omne-harness-lite/model-request-runtime'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 
 const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
-const message = captureModelLogValue({ category: 'message', input: { kind: 'value', value: {
-  id: 'example-message', type: 'user', createdAt: '2026-09-27T00:00:00Z', blocks: [],
-} } })
+const message = captureModelLogValue({
+  category: 'message',
+  input: {
+    kind: 'value',
+    value: {
+      id: 'example-message',
+      type: 'user',
+      createdAt: '2026-09-27T00:00:00Z',
+      blocks: [],
+    },
+  },
+})
 if (!('ok' in tenant) || !('ok' in message)) throw new Error('Invalid example value')
 const prepared = prepareModelLogEntry({
-  session: 'example-session', shell: { tenant: tenant.ok }, captured: message.ok,
-  purpose: { kind: 'message' }, messagePrefix: [],
+  session: 'example-session',
+  shell: { tenant: tenant.ok },
+  captured: message.ok,
+  purpose: { kind: 'message' },
+  messagePrefix: [],
 })
 if (!('ok' in prepared)) throw new Error(prepared.reason)
 const key = encodeModelLogKey({ kind: 'message', message: 'example-message' })
@@ -361,10 +450,12 @@ if ('position' in prepared.ok) throw new Error('A candidate has no durable posit
 import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
-const original = '{"id":"example-reminder","type":"system_reminder","nature":"event","source":{"kind":"extension","extension":"teaching","payload":{"amount":1.00}},"blocks":[],"createdAt":"2026-09-27T00:00:00Z"}'
+const original =
+  '{"id":"example-reminder","type":"system_reminder","nature":"event","source":{"kind":"extension","extension":"teaching","payload":{"amount":1.00}},"blocks":[],"createdAt":"2026-09-27T00:00:00Z"}'
 const candidate = original.replace('1.00', '1e0')
 const recognized = recognizeMessageValue({
-  candidate: { kind: 'text', text: candidate }, original: { kind: 'text', text: original },
+  candidate: { kind: 'text', text: candidate },
+  original: { kind: 'text', text: original },
 })
 if (!('same' in recognized)) throw new Error('Expected the same mathematical JSON value')
 if (!writeJsonLossless(recognized.original.value).includes('1.00'))
@@ -384,15 +475,30 @@ import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 const sent = '2026-09-27T00:00:00.0004Z'
 const first = '2026-09-27T00:00:00.0003Z'
 const order = compareRfc3339Instants(sent, first)
-if (!('ok' in order) || order.ok !== 1) throw new Error('Sub-millisecond reverse order must remain visible')
+if (!('ok' in order) || order.ok !== 1)
+  throw new Error('Sub-millisecond reverse order must remain visible')
 const alias = '2026-09-27T01:00:00.0003+01:00'
 const sameInstant = compareRfc3339Instants(first, alias)
-if (!('ok' in sameInstant) || sameInstant.ok !== 0) throw new Error('Expected offset-equivalent instants')
+if (!('ok' in sameInstant) || sameInstant.ok !== 0)
+  throw new Error('Expected offset-equivalent instants')
 if (modelLogJsonEqual(first, alias)) throw new Error('Original strings remain different')
-const opened = captureModelLogValue({ category: 'record', input: { kind: 'value', value: {
-  kind: 'model_call_opened', call: 'example-call', dispatch: 1, firstTokenAt: first,
-} } })
-if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opened.ok.record.firstTokenAt !== first)
+const opened = captureModelLogValue({
+  category: 'record',
+  input: {
+    kind: 'value',
+    value: {
+      kind: 'model_call_opened',
+      call: 'example-call',
+      dispatch: 1,
+      firstTokenAt: first,
+    },
+  },
+})
+if (
+  !('ok' in opened) ||
+  opened.ok.record?.kind !== 'model_call_opened' ||
+  opened.ok.record.firstTokenAt !== first
+)
   throw new Error('Capture must retain the original opened string')
 ```
 
@@ -406,7 +512,9 @@ if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opene
 
 ```ts
 import {
-  captureModelLogValue, prepareModelLogEntry, inspectSettlementMembers,
+  captureModelLogValue,
+  prepareModelLogEntry,
+  inspectSettlementMembers,
   type InspectSettlementMembersInput,
 } from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -414,19 +522,37 @@ import type { LogPrefixView } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 
 export function prepareReplyBatch(
-  session: string, tenant: TenantId, responseValue: unknown, messagePrefix: LogPrefixView,
+  session: string,
+  tenant: TenantId,
+  responseValue: unknown,
+  messagePrefix: LogPrefixView,
 ): readonly OwnedLogEntry[] {
-  const response = captureModelLogValue({ category: 'response', input: { kind: 'value', value: responseValue } })
+  const response = captureModelLogValue({
+    category: 'response',
+    input: { kind: 'value', value: responseValue },
+  })
   if (!('ok' in response)) throw new Error(response.reason)
-  const r = prepareModelLogEntry({ session, shell: { tenant }, captured: response.ok,
-    purpose: { kind: 'response' }, messagePrefix })
+  const r = prepareModelLogEntry({
+    session,
+    shell: { tenant },
+    captured: response.ok,
+    purpose: { kind: 'response' },
+    messagePrefix,
+  })
   if (!('ok' in r)) throw new Error(r.reason)
   if (response.ok.response?.replyDisposition !== 'persisted') return [r.ok]
-  const message = captureModelLogValue({ category: 'message',
-    input: { kind: 'value', value: response.ok.response.reply } })
+  const message = captureModelLogValue({
+    category: 'message',
+    input: { kind: 'value', value: response.ok.response.reply },
+  })
   if (!('ok' in message)) throw new Error(message.reason)
-  const m = prepareModelLogEntry({ session, shell: { tenant }, captured: message.ok,
-    purpose: { kind: 'persistedMessage', response: response.ok }, messagePrefix })
+  const m = prepareModelLogEntry({
+    session,
+    shell: { tenant },
+    captured: message.ok,
+    purpose: { kind: 'persistedMessage', response: response.ok },
+    messagePrefix,
+  })
   if (!('ok' in m)) throw new Error(m.reason)
   return [m.ok, r.ok]
 }
@@ -573,7 +699,6 @@ export function chooseRetry(subject: AfterModelCallFailureSubject) {
 ```
 
 不允许回退时，本纯函数依据默认扩展已经记录的结论计数；同厂商续接不消耗那一次默认重试。若消费者不能取得完整结论历史，须返回 `unavailable`，不能补造结论；完整 P-5 接线仍待完成。
-
 
 ## 在耐久调用中携带工具
 

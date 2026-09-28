@@ -1,0 +1,910 @@
+[
+  {
+    "message": {
+      "id": "reply-92115ac5-1a82-4aaa-a742-65a65de97a74",
+      "type": "assistant",
+      "response": "response-92115ac5-1a82-4aaa-a742-65a65de97a74",
+      "createdAt": "2026-09-28T12:29:12.132Z",
+      "ending": "complete",
+      "blocks": [
+        {
+          "id": "b0",
+          "visibility": {
+            "toHuman": true,
+            "toModel": true
+          },
+          "kind": "thinking",
+          "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+          "opaque": {
+            "routeName": "deepseek/deepseek-v4-pro-0813",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+                "format": "unknown",
+                "index": 0
+              }
+            ]
+          }
+        },
+        {
+          "id": "b1",
+          "visibility": {
+            "toHuman": true,
+            "toModel": true
+          },
+          "kind": "text",
+          "text": "ORCHID-742"
+        }
+      ]
+    },
+    "response": {
+      "id": "response-92115ac5-1a82-4aaa-a742-65a65de97a74",
+      "dispatch": 1,
+      "call": {
+        "callId": "call-92115ac5-1a82-4aaa-a742-65a65de97a74"
+      },
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "pi-ai:deepseek",
+            "revision": "mp4-1"
+          },
+          "definition": {
+            "modelId": "deepseek/deepseek-v4-pro-0813",
+            "revision": "2"
+          },
+          "configuration": {
+            "revision": "1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              }
+            }
+          }
+        },
+        "profile": {
+          "origin": "official",
+          "routeName": "deepseek/deepseek-v4-pro-0813"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "pi-ai:deepseek",
+              "revision": "mp4-1"
+            },
+            "definition": {
+              "modelId": "deepseek/deepseek-v4-pro-0813",
+              "revision": "2"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                }
+              }
+            }
+          },
+          "providers": [
+            "deepinfra/fp8"
+          ],
+          "allowFallback": false,
+          "inputModalities": [
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 1032192,
+          "maxOutputTokens": 16384,
+          "inputConstraints": {},
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            }
+          },
+          "updatedAt": "2026-09-28T12:29:10.784Z"
+        },
+        "selectedBy": "session",
+        "provider": "deepinfra/fp8",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+            "account": "w2ymt67ysphb3iajklhlc2irju"
+          }
+        },
+        "parameters": {
+          "reasoningEffort": "low",
+          "maxOutputTokens": 1024
+        },
+        "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+        "servingProvider": "DeepInfra",
+        "upstreamRequestId": "gen-1790598551-RHrX3TqRhbfUBpEEErZV"
+      },
+      "outcome": "complete",
+      "reply": {
+        "id": "reply-92115ac5-1a82-4aaa-a742-65a65de97a74",
+        "type": "assistant",
+        "response": "response-92115ac5-1a82-4aaa-a742-65a65de97a74",
+        "createdAt": "2026-09-28T12:29:12.132Z",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b0",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "kind": "thinking",
+            "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+            "opaque": {
+              "routeName": "deepseek/deepseek-v4-pro-0813",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          },
+          {
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "kind": "text",
+            "text": "ORCHID-742"
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-28T12:29:11.509Z",
+        "firstTokenAt": "2026-09-28T12:29:11.910Z",
+        "endedAt": "2026-09-28T12:29:12.132Z"
+      },
+      "usage": {
+        "input_tokens": 24,
+        "output_tokens": 46,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 36
+      },
+      "cost": {
+        "cost_usd": "0.0001508",
+        "source": "upstream_usage",
+        "upstream_inference_cost_usd": 0.0001508
+      },
+      "stopReason": "stop",
+      "raw": {
+        "headers": {
+          "date": "Mon, 28 Sep 2026 12:29:11 GMT",
+          "content-type": "text/event-stream",
+          "transfer-encoding": "chunked",
+          "connection": "keep-alive",
+          "server-timing": "cfEdge;dur=2,cfOrigin;dur=0,cfWorker;dur=184",
+          "access-control-allow-origin": "*",
+          "cache-control": "no-cache",
+          "x-generation-id": "gen-1790598551-RHrX3TqRhbfUBpEEErZV",
+          "access-control-expose-headers": "X-Generation-Id,X-Provider-Name,request-id,cf-ray",
+          "permissions-policy": "payment=(self \"https://checkout.stripe.com\" \"https://connect-js.stripe.com\" \"https://js.stripe.com\" \"https://*.js.stripe.com\" \"https://hooks.stripe.com\")",
+          "referrer-policy": "no-referrer, strict-origin-when-cross-origin",
+          "x-content-type-options": "nosniff",
+          "server": "cloudflare",
+          "cf-ray": "a422c09329adb6ed-CMH"
+        }
+      }
+    },
+    "batch": {
+      "v": 1,
+      "session": "demo-53356785-cbc5-432b-9c79-edf0236b5168",
+      "first": 5,
+      "entries": [
+        {
+          "tenant": {
+            "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+            "account": "w2ymt67ysphb3iajklhlc2irju"
+          },
+          "dedupeKey": "mrr/3/[\"\\u006d\\u0065\\u0073\\u0073\\u0061\\u0067\\u0065\",\"\\u0072\\u0065\\u0070\\u006c\\u0079\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]",
+          "readKeys": [
+            "mrr/3/[\"\\u006d\\u0065\\u0073\\u0073\\u0061\\u0067\\u0065\",\"\\u0072\\u0065\\u0070\\u006c\\u0079\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]",
+            "mrr/3/[\"\\u0061\\u006c\\u006c\"]",
+            "mrr/3/[\"\\u006d\\u0065\\u0073\\u0073\\u0061\\u0067\\u0065\\u0073\"]",
+            "mrr/3/[\"\\u0063\\u0061\\u006c\\u006c\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]",
+            "mrr/3/[\"\\u0064\\u0069\\u0073\\u0070\\u0061\\u0074\\u0063\\u0068\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\",\"\\u0031\\u0065\\u0030\"]",
+            "mrr/3/[\"\\u0073\\u0065\\u0074\\u0074\\u006c\\u0065\\u006d\\u0065\\u006e\\u0074\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]"
+          ],
+          "payload": {
+            "format": "mrr/3",
+            "category": "message",
+            "value": {
+              "id": "reply-92115ac5-1a82-4aaa-a742-65a65de97a74",
+              "type": "assistant",
+              "response": "response-92115ac5-1a82-4aaa-a742-65a65de97a74",
+              "createdAt": "2026-09-28T12:29:12.132Z",
+              "ending": "complete",
+              "blocks": [
+                {
+                  "id": "b0",
+                  "visibility": {
+                    "toHuman": true,
+                    "toModel": true
+                  },
+                  "kind": "thinking",
+                  "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+                  "opaque": {
+                    "routeName": "deepseek/deepseek-v4-pro-0813",
+                    "reasoning_details": [
+                      {
+                        "type": "reasoning.text",
+                        "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+                        "format": "unknown",
+                        "index": 0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "b1",
+                  "visibility": {
+                    "toHuman": true,
+                    "toModel": true
+                  },
+                  "kind": "text",
+                  "text": "ORCHID-742"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tenant": {
+            "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+            "account": "w2ymt67ysphb3iajklhlc2irju"
+          },
+          "dedupeKey": "mrr/3/[\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]",
+          "readKeys": [
+            "mrr/3/[\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]",
+            "mrr/3/[\"\\u0061\\u006c\\u006c\"]",
+            "mrr/3/[\"\\u0063\\u0061\\u006c\\u006c\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]",
+            "mrr/3/[\"\\u0064\\u0069\\u0073\\u0070\\u0061\\u0074\\u0063\\u0068\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\",\"\\u0031\\u0065\\u0030\"]",
+            "mrr/3/[\"\\u0073\\u0065\\u0074\\u0074\\u006c\\u0065\\u006d\\u0065\\u006e\\u0074\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0039\\u0032\\u0031\\u0031\\u0035\\u0061\\u0063\\u0035\\u002d\\u0031\\u0061\\u0038\\u0032\\u002d\\u0034\\u0061\\u0061\\u0061\\u002d\\u0061\\u0037\\u0034\\u0032\\u002d\\u0036\\u0035\\u0061\\u0036\\u0035\\u0064\\u0065\\u0039\\u0037\\u0061\\u0037\\u0034\"]"
+          ],
+          "payload": {
+            "format": "mrr/3",
+            "category": "response",
+            "value": {
+              "id": "response-92115ac5-1a82-4aaa-a742-65a65de97a74",
+              "dispatch": 1,
+              "call": {
+                "callId": "call-92115ac5-1a82-4aaa-a742-65a65de97a74"
+              },
+              "route": {
+                "adaptation": {
+                  "implementation": {
+                    "name": "pi-ai:deepseek",
+                    "revision": "mp4-1"
+                  },
+                  "definition": {
+                    "modelId": "deepseek/deepseek-v4-pro-0813",
+                    "revision": "2"
+                  },
+                  "configuration": {
+                    "revision": "1",
+                    "values": {
+                      "cache": {
+                        "mode": "automatic"
+                      }
+                    }
+                  }
+                },
+                "profile": {
+                  "origin": "official",
+                  "routeName": "deepseek/deepseek-v4-pro-0813"
+                },
+                "profileSnapshot": {
+                  "adaptation": {
+                    "implementation": {
+                      "name": "pi-ai:deepseek",
+                      "revision": "mp4-1"
+                    },
+                    "definition": {
+                      "modelId": "deepseek/deepseek-v4-pro-0813",
+                      "revision": "2"
+                    },
+                    "configuration": {
+                      "revision": "1",
+                      "values": {
+                        "cache": {
+                          "mode": "automatic"
+                        }
+                      }
+                    }
+                  },
+                  "providers": [
+                    "deepinfra/fp8"
+                  ],
+                  "allowFallback": false,
+                  "inputModalities": [
+                    "text"
+                  ],
+                  "outputModalities": [
+                    "text"
+                  ],
+                  "maxInputTokens": 1032192,
+                  "maxOutputTokens": 16384,
+                  "inputConstraints": {},
+                  "upstreamInputLimits": {
+                    "maxInputTokens": {
+                      "status": "unknown"
+                    },
+                    "maxRequestBytes": {
+                      "status": "unknown"
+                    }
+                  },
+                  "updatedAt": "2026-09-28T12:29:10.784Z"
+                },
+                "selectedBy": "session",
+                "provider": "deepinfra/fp8",
+                "credentialScope": {
+                  "layer": "tenant",
+                  "tenant": {
+                    "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+                    "account": "w2ymt67ysphb3iajklhlc2irju"
+                  }
+                },
+                "parameters": {
+                  "reasoningEffort": "low",
+                  "maxOutputTokens": 1024
+                },
+                "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+                "servingProvider": "DeepInfra",
+                "upstreamRequestId": "gen-1790598551-RHrX3TqRhbfUBpEEErZV"
+              },
+              "outcome": "complete",
+              "reply": {
+                "id": "reply-92115ac5-1a82-4aaa-a742-65a65de97a74",
+                "type": "assistant",
+                "response": "response-92115ac5-1a82-4aaa-a742-65a65de97a74",
+                "createdAt": "2026-09-28T12:29:12.132Z",
+                "ending": "complete",
+                "blocks": [
+                  {
+                    "id": "b0",
+                    "visibility": {
+                      "toHuman": true,
+                      "toModel": true
+                    },
+                    "kind": "thinking",
+                    "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+                    "opaque": {
+                      "routeName": "deepseek/deepseek-v4-pro-0813",
+                      "reasoning_details": [
+                        {
+                          "type": "reasoning.text",
+                          "text": "We need respond with code only. User asks \"Remember this exact code for our conversation: ORCHID-742. Reply with that code only.\" So output exactly ORCHID-742.",
+                          "format": "unknown",
+                          "index": 0
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "b1",
+                    "visibility": {
+                      "toHuman": true,
+                      "toModel": true
+                    },
+                    "kind": "text",
+                    "text": "ORCHID-742"
+                  }
+                ]
+              },
+              "replyDisposition": "persisted",
+              "timing": {
+                "sentAt": "2026-09-28T12:29:11.509Z",
+                "firstTokenAt": "2026-09-28T12:29:11.910Z",
+                "endedAt": "2026-09-28T12:29:12.132Z"
+              },
+              "usage": {
+                "input_tokens": 24,
+                "output_tokens": 46,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 0,
+                "source": "upstream",
+                "reasoning_tokens": 36
+              },
+              "cost": {
+                "cost_usd": "0.0001508",
+                "source": "upstream_usage",
+                "upstream_inference_cost_usd": 0.0001508
+              },
+              "stopReason": "stop",
+              "raw": {
+                "headers": {
+                  "date": "Mon, 28 Sep 2026 12:29:11 GMT",
+                  "content-type": "text/event-stream",
+                  "transfer-encoding": "chunked",
+                  "connection": "keep-alive",
+                  "server-timing": "cfEdge;dur=2,cfOrigin;dur=0,cfWorker;dur=184",
+                  "access-control-allow-origin": "*",
+                  "cache-control": "no-cache",
+                  "x-generation-id": "gen-1790598551-RHrX3TqRhbfUBpEEErZV",
+                  "access-control-expose-headers": "X-Generation-Id,X-Provider-Name,request-id,cf-ray",
+                  "permissions-policy": "payment=(self \"https://checkout.stripe.com\" \"https://connect-js.stripe.com\" \"https://js.stripe.com\" \"https://*.js.stripe.com\" \"https://hooks.stripe.com\")",
+                  "referrer-policy": "no-referrer, strict-origin-when-cross-origin",
+                  "x-content-type-options": "nosniff",
+                  "server": "cloudflare",
+                  "cf-ray": "a422c09329adb6ed-CMH"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "message": {
+      "id": "reply-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+      "type": "assistant",
+      "response": "response-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+      "createdAt": "2026-09-28T12:29:13.639Z",
+      "ending": "complete",
+      "blocks": [
+        {
+          "id": "b0",
+          "visibility": {
+            "toHuman": true,
+            "toModel": true
+          },
+          "kind": "thinking",
+          "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+          "opaque": {
+            "routeName": "deepseek/deepseek-v4-pro-0813",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+                "format": "unknown",
+                "index": 0
+              }
+            ]
+          }
+        },
+        {
+          "id": "b1",
+          "visibility": {
+            "toHuman": true,
+            "toModel": true
+          },
+          "kind": "text",
+          "text": "ORCHID-742"
+        }
+      ]
+    },
+    "response": {
+      "id": "response-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+      "dispatch": 1,
+      "call": {
+        "callId": "call-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e"
+      },
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "pi-ai:deepseek",
+            "revision": "mp4-1"
+          },
+          "definition": {
+            "modelId": "deepseek/deepseek-v4-pro-0813",
+            "revision": "2"
+          },
+          "configuration": {
+            "revision": "1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              }
+            }
+          }
+        },
+        "profile": {
+          "origin": "official",
+          "routeName": "deepseek/deepseek-v4-pro-0813"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "pi-ai:deepseek",
+              "revision": "mp4-1"
+            },
+            "definition": {
+              "modelId": "deepseek/deepseek-v4-pro-0813",
+              "revision": "2"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                }
+              }
+            }
+          },
+          "providers": [
+            "deepinfra/fp8"
+          ],
+          "allowFallback": false,
+          "inputModalities": [
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 1032192,
+          "maxOutputTokens": 16384,
+          "inputConstraints": {},
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            }
+          },
+          "updatedAt": "2026-09-28T12:29:10.784Z"
+        },
+        "selectedBy": "session",
+        "provider": "deepinfra/fp8",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+            "account": "w2ymt67ysphb3iajklhlc2irju"
+          }
+        },
+        "parameters": {
+          "reasoningEffort": "low",
+          "maxOutputTokens": 1024
+        },
+        "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+        "servingProvider": "DeepInfra",
+        "upstreamRequestId": "gen-1790598552-hDwvgEYlD2XlI1RayeOE"
+      },
+      "outcome": "complete",
+      "reply": {
+        "id": "reply-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+        "type": "assistant",
+        "response": "response-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+        "createdAt": "2026-09-28T12:29:13.639Z",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b0",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "kind": "thinking",
+            "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+            "opaque": {
+              "routeName": "deepseek/deepseek-v4-pro-0813",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          },
+          {
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "kind": "text",
+            "text": "ORCHID-742"
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-28T12:29:12.571Z",
+        "firstTokenAt": "2026-09-28T12:29:12.856Z",
+        "endedAt": "2026-09-28T12:29:13.639Z"
+      },
+      "usage": {
+        "input_tokens": 49,
+        "output_tokens": 42,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 34
+      },
+      "cost": {
+        "cost_usd": "0.0001729",
+        "source": "upstream_usage",
+        "upstream_inference_cost_usd": 0.0001729
+      },
+      "stopReason": "stop",
+      "raw": {
+        "headers": {
+          "date": "Mon, 28 Sep 2026 12:29:12 GMT",
+          "content-type": "text/event-stream",
+          "transfer-encoding": "chunked",
+          "connection": "keep-alive",
+          "server-timing": "cfEdge;dur=3,cfOrigin;dur=0,cfWorker;dur=81",
+          "access-control-allow-origin": "*",
+          "cache-control": "no-cache",
+          "x-generation-id": "gen-1790598552-hDwvgEYlD2XlI1RayeOE",
+          "access-control-expose-headers": "X-Generation-Id,X-Provider-Name,request-id,cf-ray",
+          "permissions-policy": "payment=(self \"https://checkout.stripe.com\" \"https://connect-js.stripe.com\" \"https://js.stripe.com\" \"https://*.js.stripe.com\" \"https://hooks.stripe.com\")",
+          "referrer-policy": "no-referrer, strict-origin-when-cross-origin",
+          "x-content-type-options": "nosniff",
+          "server": "cloudflare",
+          "cf-ray": "a422c0999f1cb6ed-CMH"
+        }
+      }
+    },
+    "batch": {
+      "v": 1,
+      "session": "demo-53356785-cbc5-432b-9c79-edf0236b5168",
+      "first": 10,
+      "entries": [
+        {
+          "tenant": {
+            "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+            "account": "w2ymt67ysphb3iajklhlc2irju"
+          },
+          "dedupeKey": "mrr/3/[\"\\u006d\\u0065\\u0073\\u0073\\u0061\\u0067\\u0065\",\"\\u0072\\u0065\\u0070\\u006c\\u0079\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]",
+          "readKeys": [
+            "mrr/3/[\"\\u006d\\u0065\\u0073\\u0073\\u0061\\u0067\\u0065\",\"\\u0072\\u0065\\u0070\\u006c\\u0079\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]",
+            "mrr/3/[\"\\u0061\\u006c\\u006c\"]",
+            "mrr/3/[\"\\u006d\\u0065\\u0073\\u0073\\u0061\\u0067\\u0065\\u0073\"]",
+            "mrr/3/[\"\\u0063\\u0061\\u006c\\u006c\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]",
+            "mrr/3/[\"\\u0064\\u0069\\u0073\\u0070\\u0061\\u0074\\u0063\\u0068\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\",\"\\u0031\\u0065\\u0030\"]",
+            "mrr/3/[\"\\u0073\\u0065\\u0074\\u0074\\u006c\\u0065\\u006d\\u0065\\u006e\\u0074\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]"
+          ],
+          "payload": {
+            "format": "mrr/3",
+            "category": "message",
+            "value": {
+              "id": "reply-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+              "type": "assistant",
+              "response": "response-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+              "createdAt": "2026-09-28T12:29:13.639Z",
+              "ending": "complete",
+              "blocks": [
+                {
+                  "id": "b0",
+                  "visibility": {
+                    "toHuman": true,
+                    "toModel": true
+                  },
+                  "kind": "thinking",
+                  "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+                  "opaque": {
+                    "routeName": "deepseek/deepseek-v4-pro-0813",
+                    "reasoning_details": [
+                      {
+                        "type": "reasoning.text",
+                        "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+                        "format": "unknown",
+                        "index": 0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "b1",
+                  "visibility": {
+                    "toHuman": true,
+                    "toModel": true
+                  },
+                  "kind": "text",
+                  "text": "ORCHID-742"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tenant": {
+            "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+            "account": "w2ymt67ysphb3iajklhlc2irju"
+          },
+          "dedupeKey": "mrr/3/[\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]",
+          "readKeys": [
+            "mrr/3/[\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]",
+            "mrr/3/[\"\\u0061\\u006c\\u006c\"]",
+            "mrr/3/[\"\\u0063\\u0061\\u006c\\u006c\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]",
+            "mrr/3/[\"\\u0064\\u0069\\u0073\\u0070\\u0061\\u0074\\u0063\\u0068\",\"\\u0063\\u0061\\u006c\\u006c\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\",\"\\u0031\\u0065\\u0030\"]",
+            "mrr/3/[\"\\u0073\\u0065\\u0074\\u0074\\u006c\\u0065\\u006d\\u0065\\u006e\\u0074\",\"\\u0072\\u0065\\u0073\\u0070\\u006f\\u006e\\u0073\\u0065\\u002d\\u0065\\u0037\\u0033\\u0061\\u0063\\u0032\\u0035\\u0063\\u002d\\u0033\\u0062\\u0036\\u0062\\u002d\\u0034\\u0039\\u0065\\u0037\\u002d\\u0038\\u0064\\u0036\\u0065\\u002d\\u0035\\u0066\\u0064\\u0031\\u0036\\u0062\\u0034\\u0065\\u0035\\u0066\\u0036\\u0065\"]"
+          ],
+          "payload": {
+            "format": "mrr/3",
+            "category": "response",
+            "value": {
+              "id": "response-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+              "dispatch": 1,
+              "call": {
+                "callId": "call-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e"
+              },
+              "route": {
+                "adaptation": {
+                  "implementation": {
+                    "name": "pi-ai:deepseek",
+                    "revision": "mp4-1"
+                  },
+                  "definition": {
+                    "modelId": "deepseek/deepseek-v4-pro-0813",
+                    "revision": "2"
+                  },
+                  "configuration": {
+                    "revision": "1",
+                    "values": {
+                      "cache": {
+                        "mode": "automatic"
+                      }
+                    }
+                  }
+                },
+                "profile": {
+                  "origin": "official",
+                  "routeName": "deepseek/deepseek-v4-pro-0813"
+                },
+                "profileSnapshot": {
+                  "adaptation": {
+                    "implementation": {
+                      "name": "pi-ai:deepseek",
+                      "revision": "mp4-1"
+                    },
+                    "definition": {
+                      "modelId": "deepseek/deepseek-v4-pro-0813",
+                      "revision": "2"
+                    },
+                    "configuration": {
+                      "revision": "1",
+                      "values": {
+                        "cache": {
+                          "mode": "automatic"
+                        }
+                      }
+                    }
+                  },
+                  "providers": [
+                    "deepinfra/fp8"
+                  ],
+                  "allowFallback": false,
+                  "inputModalities": [
+                    "text"
+                  ],
+                  "outputModalities": [
+                    "text"
+                  ],
+                  "maxInputTokens": 1032192,
+                  "maxOutputTokens": 16384,
+                  "inputConstraints": {},
+                  "upstreamInputLimits": {
+                    "maxInputTokens": {
+                      "status": "unknown"
+                    },
+                    "maxRequestBytes": {
+                      "status": "unknown"
+                    }
+                  },
+                  "updatedAt": "2026-09-28T12:29:10.784Z"
+                },
+                "selectedBy": "session",
+                "provider": "deepinfra/fp8",
+                "credentialScope": {
+                  "layer": "tenant",
+                  "tenant": {
+                    "organization": "npfr2scza5sqvjy7lu62ixbbxm",
+                    "account": "w2ymt67ysphb3iajklhlc2irju"
+                  }
+                },
+                "parameters": {
+                  "reasoningEffort": "low",
+                  "maxOutputTokens": 1024
+                },
+                "upstreamModel": "deepseek/deepseek-v4-pro-0813",
+                "servingProvider": "DeepInfra",
+                "upstreamRequestId": "gen-1790598552-hDwvgEYlD2XlI1RayeOE"
+              },
+              "outcome": "complete",
+              "reply": {
+                "id": "reply-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+                "type": "assistant",
+                "response": "response-e73ac25c-3b6b-49e7-8d6e-5fd16b4e5f6e",
+                "createdAt": "2026-09-28T12:29:13.639Z",
+                "ending": "complete",
+                "blocks": [
+                  {
+                    "id": "b0",
+                    "visibility": {
+                      "toHuman": true,
+                      "toModel": true
+                    },
+                    "kind": "thinking",
+                    "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+                    "opaque": {
+                      "routeName": "deepseek/deepseek-v4-pro-0813",
+                      "reasoning_details": [
+                        {
+                          "type": "reasoning.text",
+                          "text": "We need answer user asks \"What exact code did I ask you to remember? Reply with that code only.\" We must reply with code only: ORCHID-742.",
+                          "format": "unknown",
+                          "index": 0
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "b1",
+                    "visibility": {
+                      "toHuman": true,
+                      "toModel": true
+                    },
+                    "kind": "text",
+                    "text": "ORCHID-742"
+                  }
+                ]
+              },
+              "replyDisposition": "persisted",
+              "timing": {
+                "sentAt": "2026-09-28T12:29:12.571Z",
+                "firstTokenAt": "2026-09-28T12:29:12.856Z",
+                "endedAt": "2026-09-28T12:29:13.639Z"
+              },
+              "usage": {
+                "input_tokens": 49,
+                "output_tokens": 42,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 0,
+                "source": "upstream",
+                "reasoning_tokens": 34
+              },
+              "cost": {
+                "cost_usd": "0.0001729",
+                "source": "upstream_usage",
+                "upstream_inference_cost_usd": 0.0001729
+              },
+              "stopReason": "stop",
+              "raw": {
+                "headers": {
+                  "date": "Mon, 28 Sep 2026 12:29:12 GMT",
+                  "content-type": "text/event-stream",
+                  "transfer-encoding": "chunked",
+                  "connection": "keep-alive",
+                  "server-timing": "cfEdge;dur=3,cfOrigin;dur=0,cfWorker;dur=81",
+                  "access-control-allow-origin": "*",
+                  "cache-control": "no-cache",
+                  "x-generation-id": "gen-1790598552-hDwvgEYlD2XlI1RayeOE",
+                  "access-control-expose-headers": "X-Generation-Id,X-Provider-Name,request-id,cf-ray",
+                  "permissions-policy": "payment=(self \"https://checkout.stripe.com\" \"https://connect-js.stripe.com\" \"https://js.stripe.com\" \"https://*.js.stripe.com\" \"https://hooks.stripe.com\")",
+                  "referrer-policy": "no-referrer, strict-origin-when-cross-origin",
+                  "x-content-type-options": "nosniff",
+                  "server": "cloudflare",
+                  "cf-ray": "a422c0999f1cb6ed-CMH"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+]

@@ -8,27 +8,28 @@ The current implementation contains standalone invocation, pure policy functions
 
 ## Public API
 
-| Export | Purpose |
-| --- | --- |
-| `invokeModel(input)` | Return a handle containing `outcome`, `snapshot()` and `abort()` |
-| `classifyCause(facts, hasContent, table)` | Classify failure sources using an explicit status table without altering raw status |
-| `dispatchGuard(input)` | Synchronously check one retry plan against explicit call, dispatch and profile facts |
-| `DispatchGuardInput`, `DispatchGuardResult`, `DispatchGuardFact<T>` | Readonly guard inputs, closed answers and explicit known/unknown facts |
-| `retryDelay(input)`, `RetryBackoffPolicy`, `RetryDelayInput`, `RetryDelayResult` | Compute an exact TD3 Duration from explicit policy, retry ordinal, sample and decorrelated previous delay |
-| `TransportAdapter`, `PlanInput` | Consumer-owned planning/send/read ports and explicit request context |
-| `InvocationPolicy`, `ModelInvocationResult` | Scheduling/redaction/diagnostic policy and an unsettled result projection |
-| `modelLogFormat`, `encodeModelLogKey`, `decodeModelLogKey` | Current `mrr/3` payload with closed business keys, reversible UTF16 encoding and exact dispatch normalization |
-| `captureModelLogValue`, `prepareModelLogEntry`, `inspectModelLogEntry` | Strict owned values, position-free candidates and reverse validation of actual log entries |
-| `inspectSettlementMembers` | Check complete response/message members and original associations from one complete prefix |
-| `modelLogJsonEqual`, `recognizeMessageValue` | Exact full JSON equality and recognition retaining the original captured message |
-| `createSessionModelSelection(input)` | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup |
-| `interpretCallHistory({ prefix, callId })` | Interpret one no-Run call from a complete, owned SL3 prefix with the current `mrr/3` codec; incomplete or Run history remains unavailable |
-| `projectCallState({ session, callId, history, local? })` | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it |
-| `ModelRuntimeService`, `RuntimeConstruction` and operation input/result types | Explicit thirteen-operation service contract and required host ports; the type contract does not itself install a running service |
-| `createCallContainerStore()` | Process-owned per-session/call resources and bounded, cancellable short reservations |
-| `createRuntimeReads(construction)` | Six selection and history methods plus `close()` for borrowed-provider ownership |
-| `createServiceCalls(construction)`, `createServiceControl(construction)` | Independent call and control method composers for the shared runtime assembly |
-| `createRuntimeSettleReply(input)`, `createRuntimeReconcile(input)` | Original-handle reply disposition and read-only recovery consumers; reconciliation currently recognizes only already-settled no-Run calls |
+| Export                                                                           | Purpose                                                                                                                                                   |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invokeModel(input)`                                                             | Return a handle containing `outcome`, `snapshot()` and `abort()`                                                                                          |
+| `classifyCause(facts, hasContent, table)`                                        | Classify failure sources using an explicit status table without altering raw status                                                                       |
+| `dispatchGuard(input)`                                                           | Synchronously check one retry plan against explicit call, dispatch and profile facts                                                                      |
+| `DispatchGuardInput`, `DispatchGuardResult`, `DispatchGuardFact<T>`              | Readonly guard inputs, closed answers and explicit known/unknown facts                                                                                    |
+| `retryDelay(input)`, `RetryBackoffPolicy`, `RetryDelayInput`, `RetryDelayResult` | Compute an exact TD3 Duration from explicit policy, retry ordinal, sample and decorrelated previous delay                                                 |
+| `TransportAdapter`, `PlanInput`                                                  | Consumer-owned planning/send/read ports and explicit request context                                                                                      |
+| `InvocationPolicy`, `ModelInvocationResult`                                      | Scheduling/redaction/diagnostic policy and an unsettled result projection                                                                                 |
+| `modelLogFormat`, `encodeModelLogKey`, `decodeModelLogKey`                       | Current `mrr/3` payload with closed business keys, reversible UTF16 encoding and exact dispatch normalization                                             |
+| `captureModelLogValue`, `prepareModelLogEntry`, `inspectModelLogEntry`           | Strict owned values, position-free candidates and reverse validation of actual log entries                                                                |
+| `inspectSettlementMembers`                                                       | Check complete response/message members and original associations from one complete prefix                                                                |
+| `modelLogJsonEqual`, `recognizeMessageValue`                                     | Exact full JSON equality and recognition retaining the original captured message                                                                          |
+| `createSessionModelSelection(input)`                                             | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup                                |
+| `interpretCallHistory({ prefix, callId })`                                       | Interpret one no-Run call from a complete, owned SL3 prefix with the current `mrr/3` codec; incomplete or Run history remains unavailable                 |
+| `projectCallState({ session, callId, history, local? })`                         | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it                                              |
+| `ModelRuntimeService`, `RuntimeConstruction` and operation input/result types    | Explicit thirteen-operation service contract and required host ports; the type contract does not itself install a running service                         |
+| `createCallContainerStore()`                                                     | Process-owned per-session/call resources and bounded, cancellable short reservations                                                                      |
+| `createRuntimeReads(construction)`                                               | Six selection and history methods plus `close()` for borrowed-provider ownership                                                                          |
+| `createServiceCalls(construction)`, `createServiceControl(construction)`         | Independent call and control method composers for the shared runtime assembly                                                                             |
+| `createServiceDispatch(construction)`                                            | Dispatch and dispatchAgain through the fixed profile and exact transport lease, current session facts, durable anchors and the original invocation handle |
+| `createRuntimeSettleReply(input)`, `createRuntimeReconcile(input)`               | Original-handle reply disposition and read-only recovery consumers; reconciliation currently recognizes only already-settled no-Run calls                 |
 
 ## Cordis service assembly under development
 
@@ -38,7 +39,8 @@ The current implementation contains standalone invocation, pure policy functions
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createModelRuntimePlugin,
-  type ModelRuntimeAssembly, type ModelRuntimeAssemblyOwner,
+  type ModelRuntimeAssembly,
+  type ModelRuntimeAssemblyOwner,
 } from '@omne-harness-lite/model-request-runtime/plugin'
 
 const retained = new Set<ModelRuntimeAssemblyOwner>()
@@ -93,7 +95,11 @@ export async function inspectEffectiveModel(
 Obtain `prefix` with `readSettlementPrefix` from an authenticated session-log binding and a registered read task. That function rejects gaps, wrong tenant, foreign session and provider generation changes. The interpreter only reads that full prefix; it never sends, writes or infers a Run ending. For a no-Run call with a complete response batch, its durable terminal phase wins over an old local `reply_pending` responsibility. The caller must still handle any unresolved old writer before deciding that a missing record permits a new send.
 
 ```ts
-import { interpretCallHistory, projectCallState, type SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
+import {
+  interpretCallHistory,
+  projectCallState,
+  type SettlementPrefix,
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
 
 export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
@@ -110,24 +116,46 @@ Supply a complete `PlanInput`, an explicitly owned typed adapter, credential and
 
 ```ts
 import {
-  invokeModel, openRouterCredentialRedactionConfig,
-  type PlanInput, type PlannedSemantics, type TransportAdapter, type InvocationPolicy,
+  invokeModel,
+  openRouterCredentialRedactionConfig,
+  type PlanInput,
+  type PlannedSemantics,
+  type TransportAdapter,
+  type InvocationPolicy,
 } from '@omne-harness-lite/model-request-runtime'
 
 export const callerPolicy: InvocationPolicy = {
   now: () => new Date().toISOString(),
-  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
-  firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
-  statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
+  schedule: (ms, callback) => {
+    const timer = setTimeout(callback, ms)
+    return () => clearTimeout(timer)
+  },
+  firstContentTimeoutMs: 60000,
+  idleContentTimeoutMs: 60000,
+  statusCauseTable: {
+    '401': 'credential_unavailable',
+    '429': 'upstream_unavailable',
+    '503': 'upstream_unavailable',
+  },
   credentialRedaction: openRouterCredentialRedactionConfig,
-  diagnostic: event => { console.log(event.kind) },
+  diagnostic: event => {
+    console.log(event.kind)
+  },
 }
 
 export async function invokeOnce<P extends PlannedSemantics, R>(
-  request: PlanInput, transport: TransportAdapter<P, R>, credential: string, signal: AbortSignal,
+  request: PlanInput,
+  transport: TransportAdapter<P, R>,
+  credential: string,
+  signal: AbortSignal,
   beforeFirstContent?: () => Promise<void>,
 ) {
-  const handle = invokeModel({ ...request, transport, credential, signal, policy: callerPolicy,
+  const handle = invokeModel({
+    ...request,
+    transport,
+    credential,
+    signal,
+    policy: callerPolicy,
     ...(beforeFirstContent ? { beforeFirstContent } : {}),
   })
   return await handle.outcome
@@ -163,24 +191,37 @@ import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 const input: DispatchGuardInput = {
   session: 'example-session',
   callId: 'example-call',
-  call: { known: {
-    session: 'example-session', callId: 'example-call', phase: { known: 'awaiting_decision' },
-  } },
-  dispatches: { known: {
-    session: 'example-session', callId: 'example-call', opened: [{ known: false }],
-  } },
-  latestFailure: { known: 'upstream_unavailable' },
-  snapshot: { known: {
-    adaptation: {
-      implementation: { name: 'teaching', revision: 'one' },
-      definition: { modelId: 'teaching/model', revision: 'one' },
-      configuration: { revision: 'one', values: {} },
+  call: {
+    known: {
+      session: 'example-session',
+      callId: 'example-call',
+      phase: { known: 'awaiting_decision' },
     },
-    providers: ['first', 'second'], allowFallback: true,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: new LosslessNumber('9007199254740993'), maxOutputTokens: 10,
-    updatedAt: '2026-09-27T00:00:00Z',
-  } },
+  },
+  dispatches: {
+    known: {
+      session: 'example-session',
+      callId: 'example-call',
+      opened: [{ known: false }],
+    },
+  },
+  latestFailure: { known: 'upstream_unavailable' },
+  snapshot: {
+    known: {
+      adaptation: {
+        implementation: { name: 'teaching', revision: 'one' },
+        definition: { modelId: 'teaching/model', revision: 'one' },
+        configuration: { revision: 'one', values: {} },
+      },
+      providers: ['first', 'second'],
+      allowFallback: true,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: new LosslessNumber('9007199254740993'),
+      maxOutputTokens: 10,
+      updatedAt: '2026-09-27T00:00:00Z',
+    },
+  },
   plan: { provider: 'second', after: 'PT9007199254740993.0000000001S' },
 }
 const answer = dispatchGuard(input)
@@ -199,14 +240,17 @@ import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 
 const delay = retryDelay({
   policy: { kind: 'exponential', base: 'PT10S', factor: 2, max: 'PT25S', jitter: 'half' },
-  n: 3, uniformSample: new LosslessNumber('0.999'),
+  n: 3,
+  uniformSample: new LosslessNumber('0.999'),
 })
 if ('invalidInput' in delay) throw new Error(delay.invalidInput.reason)
 if (delay.ok !== 'PT24.9875S') throw new Error('unexpected exact delay')
 
 const next = retryDelay({
   policy: { kind: 'constant', base: 'PT1M', factor: 1.5, max: 'PT2M', jitter: 'decorrelated' },
-  n: 1, uniformSample: 0.25, previousDelay: 'PT60S',
+  n: 1,
+  uniformSample: 0.25,
+  previousDelay: 'PT60S',
 })
 if ('invalidInput' in next) throw new Error(next.invalidInput.reason)
 if (next.ok !== 'PT67.5S') throw new Error('unexpected decorrelated delay')
@@ -248,7 +292,10 @@ import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
 const captured = captureModelLogValue({
   category: 'record',
-  input: { kind: 'text', text: '{"kind":"model_call_opened","call":"example-call","dispatch":1.0,"firstTokenAt":"2026-09-27T00:00:01Z"}' },
+  input: {
+    kind: 'text',
+    text: '{"kind":"model_call_opened","call":"example-call","dispatch":1.0,"firstTokenAt":"2026-09-27T00:00:01Z"}',
+  },
 })
 if (!('ok' in captured)) throw new Error(captured.reason)
 if (!writeJsonLossless(captured.ok.value).includes('"dispatch":1.0'))
@@ -258,17 +305,33 @@ if (!writeJsonLossless(captured.ok.value).includes('"dispatch":1.0'))
 Prepare a candidate with no durable position. Append ownership, authorization, fence and condition belong to its actual writer. Selection records have no dedupe key. Every other dedupe key also appears explicitly in `readKeys`; reads validate the complete key set without requiring its array order. Persisted assistant messages use `{ kind: 'persistedMessage', response: capturedResponse }` and the response's complete reply. Independent assistant writes and SystemMessage log writes are rejected.
 
 ```ts
-import { captureModelLogValue, prepareModelLogEntry, encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  encodeModelLogKey,
+} from '@omne-harness-lite/model-request-runtime'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 
 const tenant = parseTenantId({ organization: 'example-organization', account: 'example-account' })
-const message = captureModelLogValue({ category: 'message', input: { kind: 'value', value: {
-  id: 'example-message', type: 'user', createdAt: '2026-09-27T00:00:00Z', blocks: [],
-} } })
+const message = captureModelLogValue({
+  category: 'message',
+  input: {
+    kind: 'value',
+    value: {
+      id: 'example-message',
+      type: 'user',
+      createdAt: '2026-09-27T00:00:00Z',
+      blocks: [],
+    },
+  },
+})
 if (!('ok' in tenant) || !('ok' in message)) throw new Error('Invalid example value')
 const prepared = prepareModelLogEntry({
-  session: 'example-session', shell: { tenant: tenant.ok }, captured: message.ok,
-  purpose: { kind: 'message' }, messagePrefix: [],
+  session: 'example-session',
+  shell: { tenant: tenant.ok },
+  captured: message.ok,
+  purpose: { kind: 'message' },
+  messagePrefix: [],
 })
 if (!('ok' in prepared)) throw new Error(prepared.reason)
 const key = encodeModelLogKey({ kind: 'message', message: 'example-message' })
@@ -283,10 +346,12 @@ Full-value recognition compares numeric mathematical values, unordered object me
 import { recognizeMessageValue } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
-const original = '{"id":"example-reminder","type":"system_reminder","nature":"event","source":{"kind":"extension","extension":"teaching","payload":{"amount":1.00}},"blocks":[],"createdAt":"2026-09-27T00:00:00Z"}'
+const original =
+  '{"id":"example-reminder","type":"system_reminder","nature":"event","source":{"kind":"extension","extension":"teaching","payload":{"amount":1.00}},"blocks":[],"createdAt":"2026-09-27T00:00:00Z"}'
 const candidate = original.replace('1.00', '1e0')
 const recognized = recognizeMessageValue({
-  candidate: { kind: 'text', text: candidate }, original: { kind: 'text', text: original },
+  candidate: { kind: 'text', text: candidate },
+  original: { kind: 'text', text: original },
 })
 if (!('same' in recognized)) throw new Error('Expected the same mathematical JSON value')
 if (!writeJsonLossless(recognized.original.value).includes('1.00'))
@@ -308,15 +373,30 @@ import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 const sent = '2026-09-27T00:00:00.0004Z'
 const first = '2026-09-27T00:00:00.0003Z'
 const order = compareRfc3339Instants(sent, first)
-if (!('ok' in order) || order.ok !== 1) throw new Error('Sub-millisecond reverse order must remain visible')
+if (!('ok' in order) || order.ok !== 1)
+  throw new Error('Sub-millisecond reverse order must remain visible')
 const alias = '2026-09-27T01:00:00.0003+01:00'
 const sameInstant = compareRfc3339Instants(first, alias)
-if (!('ok' in sameInstant) || sameInstant.ok !== 0) throw new Error('Expected offset-equivalent instants')
+if (!('ok' in sameInstant) || sameInstant.ok !== 0)
+  throw new Error('Expected offset-equivalent instants')
 if (modelLogJsonEqual(first, alias)) throw new Error('Original strings remain different')
-const opened = captureModelLogValue({ category: 'record', input: { kind: 'value', value: {
-  kind: 'model_call_opened', call: 'example-call', dispatch: 1, firstTokenAt: first,
-} } })
-if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opened.ok.record.firstTokenAt !== first)
+const opened = captureModelLogValue({
+  category: 'record',
+  input: {
+    kind: 'value',
+    value: {
+      kind: 'model_call_opened',
+      call: 'example-call',
+      dispatch: 1,
+      firstTokenAt: first,
+    },
+  },
+})
+if (
+  !('ok' in opened) ||
+  opened.ok.record?.kind !== 'model_call_opened' ||
+  opened.ok.record.firstTokenAt !== first
+)
   throw new Error('Capture must retain the original opened string')
 ```
 
@@ -332,7 +412,9 @@ The comparator and `completeMembers` operate within the declared legal RFC3339 i
 
 ```ts
 import {
-  createCredentialRedactionPolicy, openRouterCredentialRedactionConfig, redact,
+  createCredentialRedactionPolicy,
+  openRouterCredentialRedactionConfig,
+  redact,
 } from '@omne-harness-lite/model-request-runtime'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 
@@ -341,10 +423,18 @@ const binding = policy.bind('teaching-secret')
 if (!('ok' in binding)) throw new Error(binding.rejected)
 const text = binding.ok.text('teaching-secret / Bearer example-token')
 if (!('ok' in text) || text.ok !== '█ / █') throw new Error('Unexpected safe text')
-const headers = binding.ok.headers({ Authorization: 'discard', X: ['', 'teaching-secret', 'again', 'again'], Empty: [] })
+const headers = binding.ok.headers({
+  Authorization: 'discard',
+  X: ['', 'teaching-secret', 'again', 'again'],
+  Empty: [],
+})
 if (!('ok' in headers) || 'Authorization' in headers.ok || headers.ok.X?.length !== 4)
   throw new Error('Expected safe headers with their original array shape')
-const rawError = redact([true, null, new LosslessNumber('9007199254740993')], 'true', openRouterCredentialRedactionConfig)
+const rawError = redact(
+  [true, null, new LosslessNumber('9007199254740993')],
+  'true',
+  openRouterCredentialRedactionConfig,
+)
 if (!('ok' in rawError) || writeJsonLossless(rawError.ok) !== '["█",null,9007199254740993]')
   throw new Error('Expected redacted boolean and unchanged exact number')
 ```
@@ -369,25 +459,36 @@ All profile numbers, including nested adaptation configuration and parameter ext
 
 ```ts
 import {
-  legalTargets, displayList, effectiveModel, type SelectionCompatibility,
+  legalTargets,
+  displayList,
+  effectiveModel,
+  type SelectionCompatibility,
 } from '@omne-harness-lite/model-request-runtime'
 import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
 
-const rows: readonly ProfileRow[] = [{
-  ref: { origin: 'official', routeName: 'teaching/model' },
-  profile: {
-    routeName: 'teaching/model', origin: 'official', registration: 'listed',
-    adaptation: {
-      implementation: { name: 'teaching', revision: 'one' },
-      definition: { modelId: 'teaching/model', revision: 'one' },
-      configuration: { revision: 'one', values: {} },
+const rows: readonly ProfileRow[] = [
+  {
+    ref: { origin: 'official', routeName: 'teaching/model' },
+    profile: {
+      routeName: 'teaching/model',
+      origin: 'official',
+      registration: 'listed',
+      adaptation: {
+        implementation: { name: 'teaching', revision: 'one' },
+        definition: { modelId: 'teaching/model', revision: 'one' },
+        configuration: { revision: 'one', values: {} },
+      },
+      providers: ['teaching-provider'],
+      allowFallback: false,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 100,
+      maxOutputTokens: 10,
+      inputConstraints: {},
+      updatedAt: '2026-09-27T00:00:00Z',
     },
-    providers: ['teaching-provider'], allowFallback: false,
-    inputModalities: ['text'], outputModalities: ['text'],
-    maxInputTokens: 100, maxOutputTokens: 10, inputConstraints: {},
-    updatedAt: '2026-09-27T00:00:00Z',
   },
-}]
+]
 const compatible: SelectionCompatibility = (profile, projection) => {
   const blocked = projection.filter(modality => !profile.inputModalities.includes(modality))
   return blocked.length === 0 ? { ok: true } : { blocked }
@@ -400,8 +501,12 @@ if (!('ok' in legal) || legal.ok[0] !== 'teaching/model') throw new Error('Expec
 const list = displayList({ known: rows }, allowed, projection, compatible, selected, {
   known: [{ ref: { origin: 'official', routeName: 'teaching/model' }, present: { known: false } }],
 })
-if (!('ok' in list) || !list.ok[0]?.selected ||
-  !list.ok[0].annotations.includes('credential_missing')) throw new Error('Expected missing-credential annotation')
+if (
+  !('ok' in list) ||
+  !list.ok[0]?.selected ||
+  !list.ok[0].annotations.includes('credential_missing')
+)
+  throw new Error('Expected missing-credential annotation')
 const effective = effectiveModel(selected, { known: 'teaching/model' }, { known: rows }, allowed)
 if (!('ok' in effective) || effective.ok.selectedBy !== 'layer_lock')
   throw new Error('An equal-name lock keeps its source')
@@ -430,7 +535,9 @@ The following standalone example prepares a complete persisted `[M,R]` batch or 
 
 ```ts
 import {
-  captureModelLogValue, prepareModelLogEntry, inspectSettlementMembers,
+  captureModelLogValue,
+  prepareModelLogEntry,
+  inspectSettlementMembers,
   type InspectSettlementMembersInput,
 } from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -438,19 +545,37 @@ import type { LogPrefixView } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 
 export function prepareReplyBatch(
-  session: string, tenant: TenantId, responseValue: unknown, messagePrefix: LogPrefixView,
+  session: string,
+  tenant: TenantId,
+  responseValue: unknown,
+  messagePrefix: LogPrefixView,
 ): readonly OwnedLogEntry[] {
-  const response = captureModelLogValue({ category: 'response', input: { kind: 'value', value: responseValue } })
+  const response = captureModelLogValue({
+    category: 'response',
+    input: { kind: 'value', value: responseValue },
+  })
   if (!('ok' in response)) throw new Error(response.reason)
-  const r = prepareModelLogEntry({ session, shell: { tenant }, captured: response.ok,
-    purpose: { kind: 'response' }, messagePrefix })
+  const r = prepareModelLogEntry({
+    session,
+    shell: { tenant },
+    captured: response.ok,
+    purpose: { kind: 'response' },
+    messagePrefix,
+  })
   if (!('ok' in r)) throw new Error(r.reason)
   if (response.ok.response?.replyDisposition !== 'persisted') return [r.ok]
-  const message = captureModelLogValue({ category: 'message',
-    input: { kind: 'value', value: response.ok.response.reply } })
+  const message = captureModelLogValue({
+    category: 'message',
+    input: { kind: 'value', value: response.ok.response.reply },
+  })
   if (!('ok' in message)) throw new Error(message.reason)
-  const m = prepareModelLogEntry({ session, shell: { tenant }, captured: message.ok,
-    purpose: { kind: 'persistedMessage', response: response.ok }, messagePrefix })
+  const m = prepareModelLogEntry({
+    session,
+    shell: { tenant },
+    captured: message.ok,
+    purpose: { kind: 'persistedMessage', response: response.ok },
+    messagePrefix,
+  })
   if (!('ok' in m)) throw new Error(m.reason)
   return [m.ok, r.ok]
 }
