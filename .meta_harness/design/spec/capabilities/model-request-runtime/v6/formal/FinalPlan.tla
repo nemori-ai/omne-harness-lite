@@ -16,11 +16,11 @@ Choose == /\ phase = "input"
           /\ phase' = "planned"
           /\ UNCHANGED <<checked, anchor, sent, sentAmount, refusal>>
 Evaluate == /\ phase = "planned"
-            /\ checked' = measured <= Cap
-            /\ refusal' = IF measured <= Cap THEN "none"
+            /\ checked' = (measured <= Cap)
+            /\ refusal' = IF (measured <= Cap) THEN "none"
                           ELSE IF evidence = "exact" \/ ~DistinguishBound
                                THEN "exceeded" ELSE "unavailable"
-            /\ phase' = IF measured <= Cap THEN "ready" ELSE "rejected"
+            /\ phase' = IF (measured <= Cap) THEN "ready" ELSE "rejected"
             /\ UNCHANGED <<original, current, evidence, measured, anchor, sent, sentAmount>>
 MutateCaller == /\ phase \in {"planned", "ready", "anchored"}
                 /\ current' \in 1..3
