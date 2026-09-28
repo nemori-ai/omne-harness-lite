@@ -444,12 +444,13 @@ describe('real model service retry and control', () => {
     const methods: unknown = Object.getPrototypeOf(probe)
     if (!syncMethod(methods)) throw new Error('actual file sync method unavailable')
     const original = methods.datasync
-    let fail = false,
+    let failNextSync = false,
       attempted = 0
     const spy = vi.spyOn(methods, 'datasync').mockImplementation(async function (
       this: Pick<FileHandle, 'datasync'>,
     ) {
-      if (fail) {
+      if (failNextSync) {
+        failNextSync = false
         attempted++
         throw Object.assign(new Error('controlled append failure'), { code: 'EIO' })
       }
@@ -459,7 +460,7 @@ describe('real model service retry and control', () => {
       const callId = await openCall(fixture, 'append-fault')
       const dispatch = service.dispatch({ session, callId })
       await entered.promise
-      fail = true
+      failNextSync = true
       expect(await service.interrupt({ session, callId, initiator: 'user' })).toEqual({
         unavailable: true,
       })
@@ -468,13 +469,12 @@ describe('real model service retry and control', () => {
         kinds(await logKeys(app, who, session), callId).filter(kind => kind === 'intent'),
       ).toHaveLength(0)
       expect(tls.closedSockets()).toBe(0)
-      fail = false
       release.resolve()
       await tls.contentSent.promise
       expect(tls.requests).toHaveLength(1)
-      await dispatch
+      expect(await dispatch).toMatchObject({ replyPending: { outcome: 'complete' } })
     } finally {
-      fail = false
+      failNextSync = false
       release.resolve()
       spy.mockRestore()
       await probe.close()
