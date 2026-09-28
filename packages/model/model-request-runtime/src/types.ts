@@ -135,6 +135,8 @@ export interface InvocationInput<P extends PlannedSemantics, R> extends PlanInpu
   readonly credential: string
   readonly signal: AbortSignal
   readonly policy: InvocationPolicy
+  /** Synchronous final send admission; the caller owns the predicate's actual source. */
+  readonly beforeSend?: () => boolean
   readonly beforeFirstContent?: () => Promise<void>
   /** Direct consumer's synchronous delivery; service bounded observers wrap this port. */
   readonly onAccepted?: (event: ArrivalEvent, snapshot: AssemblySnapshot) => void

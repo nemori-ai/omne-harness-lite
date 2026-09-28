@@ -578,6 +578,33 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
 })
 
 describe('D105 original invocation facts', () => {
+  it('requires a synchronous boolean send-admission decision at the final send boundary', async () => {
+    const deniedPort = adapter()
+    const denied = invoke(deniedPort, 'credential', { beforeSend: () => false })
+    expect(await denied.outcome).toEqual({ cancelledBeforeSend: true })
+    expect(deniedPort.sends()).toBe(0)
+    expect(denied.observedFacts()).not.toHaveProperty('facts.sentAt')
+    const malformedPort = adapter()
+    const malformed = Reflect.apply(invoke, undefined, [
+      malformedPort,
+      'credential',
+      {
+        beforeSend: () => undefined,
+      },
+    ])
+    expect(await malformed.outcome).toEqual({ rejected: 'unavailable' })
+    expect(malformedPort.sends()).toBe(0)
+    expect(malformed.observedFacts()).not.toHaveProperty('facts.sentAt')
+    const port = adapter()
+    const thrown = invoke(port, 'credential', {
+      beforeSend() {
+        throw new Error('admission source unavailable')
+      },
+    })
+    expect(await thrown.outcome).toEqual({ rejected: 'unavailable' })
+    expect(port.sends()).toBe(0)
+    expect(thrown.observedFacts()).not.toHaveProperty('facts.sentAt')
+  })
   it('records the actual send boundary after fallible scheduling and the final cancel check', async () => {
     const noSend = adapter()
     const unscheduled = invoke(noSend, 'credential', {

@@ -449,6 +449,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       expect(outcome.settled.settled.response.value).toMatchObject({
         outcome: 'interrupted',
         initiator: 'run_cancelled',
+        timing: { sentAt: null },
       })
       expect(t.sends()).toBe(0)
       expect(h.writes.map(w => w.count)).toEqual([1, 1])
@@ -456,6 +457,56 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       expect(h.released()).toBe(1)
     })
   })
+  it.each(['scheduler', 'clock'] as const)(
+    'a %s stop after durable dispatch records interrupted with null sentAt and zero HTTP sends',
+    async boundary => {
+      await harness(async h => {
+        const t = transport()
+        let triggered = false
+        const handle = createAnchoredModelInvocation({
+          ...h.input,
+          transport: t.adapter,
+          policy: {
+            ...h.input.policy,
+            schedule(milliseconds, callback) {
+              if (boundary === 'scheduler' && !triggered) {
+                triggered = true
+                h.controller.abort()
+              }
+              return h.input.policy.schedule(milliseconds, callback)
+            },
+            now() {
+              if (boundary === 'clock' && !triggered) {
+                triggered = true
+                h.controller.abort()
+              }
+              return h.input.policy.now()
+            },
+          },
+        })
+        const outcome = await handle.outcome
+        expect(triggered).toBe(true)
+        if (!('settled' in outcome)) throw new Error('missing settled interruption')
+        expect(outcome.settled.settled.response.value).toMatchObject({
+          outcome: 'interrupted',
+          initiator: 'run_cancelled',
+          timing: { sentAt: null },
+        })
+        expect(t.sends()).toBe(0)
+        const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+        if (!('entries' in read)) throw new Error('actual JSONL read')
+        expect(read.entries).toHaveLength(2)
+        const [dispatch, response] = read.entries
+        if (!dispatch || !response) throw new Error('missing JSONL records')
+        expect(payload(dispatch)).toHaveProperty('kind', 'model_call_dispatched')
+        expect(payload(response)).toMatchObject({
+          outcome: 'interrupted',
+          timing: { sentAt: null },
+        })
+        expect(await handle.close()).toEqual({ released: true })
+      })
+    },
+  )
   it('one plan, dispatched before send, opened before visible, one complete [M,R], exact reopened MR5', async () => {
     await harness(async h => {
       let appendNumber = 0,

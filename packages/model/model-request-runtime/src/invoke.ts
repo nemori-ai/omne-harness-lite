@@ -100,6 +100,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
     /[^\x20-\x7e]/.test(input.credential) ||
     !(input.signal instanceof AbortSignal) ||
     !policyValid(input.policy) ||
+    (input.beforeSend !== undefined && typeof input.beforeSend !== 'function') ||
     (input.beforeFirstContent !== undefined && typeof input.beforeFirstContent !== 'function') ||
     (input.onAccepted !== undefined && typeof input.onAccepted !== 'function')
   )
@@ -267,8 +268,16 @@ export function invokeModel<P extends PlannedSemantics, R>(
       planned = plan.planned
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
       deadline(input.policy.firstContentTimeoutMs)
-      if (controller.signal.aborted) return { cancelledBeforeSend: true }
-      sentAt = input.policy.now()
+      const actualAt = input.policy.now()
+      let admitted: unknown = true
+      try {
+        if (input.beforeSend !== undefined) admitted = input.beforeSend()
+      } catch {
+        return { rejected: 'unavailable' }
+      }
+      if (admitted !== true && admitted !== false) return { rejected: 'unavailable' }
+      if (!admitted || controller.signal.aborted) return { cancelledBeforeSend: true }
+      sentAt = actualAt
       const sent = await input.transport.send(planned, input.credential, controller.signal)
       if ('rejected' in sent)
         return sent.rejected === 'invalidInput'

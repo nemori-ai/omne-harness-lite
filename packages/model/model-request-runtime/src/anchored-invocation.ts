@@ -16,6 +16,7 @@ import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import {
   constructPendingModelResponse,
   constructModelResponse,
+  constructAnchoredInterruption,
   type ResponseConstructionInput,
 } from './response-construction.ts'
 import type {
@@ -34,6 +35,7 @@ import type {
   AnchoredInvocationHandle,
   AnchoredInvocationInput,
   AnchoredInvocationOutcome,
+  ResponseConstructionResult,
 } from './anchored-invocation-types.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
@@ -253,6 +255,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   let firstTokenAt: string | null = null
   let invocation: ModelInvocationHandle | undefined
   let construction: ResponseConstructionInput | undefined
+  let interruption: Extract<ResponseConstructionResult, { readonly response: unknown }> | undefined
   let settled = false
   let dispatchConfirmed = false
   let anchoredStopped = false
@@ -358,9 +361,13 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     disposition: ReplyDisposition | null,
     withoutReply = false,
   ): Promise<SettlementResult> {
-    if (!construction || quarantined || unresolved.size > 0)
+    if ((!construction && !interruption) || quarantined || unresolved.size > 0)
       return { unavailable: true, reason: 'opened_unknown' }
-    const candidate = constructModelResponse(construction, disposition, withoutReply)
+    const candidate =
+      interruption ??
+      (construction === undefined
+        ? { rejected: 'invalidInput' as const }
+        : constructModelResponse(construction, disposition, withoutReply))
     if ('rejected' in candidate) return { unavailable: true, reason: 'candidate' }
     await drain()
     const handle = coordinator.settle({
@@ -387,35 +394,16 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       if (!(await receipt(dispatchTask))) return unavailable
       dispatchConfirmed = true
       if (!usable()) {
-        const at = policy.now()
-        construction = {
+        const candidate = constructAnchoredInterruption({
           dispatched,
-          messageId: input.messageId,
+          planned,
+          observed: null,
           firstTokenAt: null,
-          result: {
-            outcome: 'interrupted',
-            blocks: [],
-            timing: { sentAt: at, endedAt: at },
-            usage: {
-              input_tokens: 'unknown',
-              output_tokens: 'unknown',
-              cache_read_tokens: 'unknown',
-              cache_write_tokens: 'unknown',
-              source: 'none',
-            },
-            cost: { cost_usd: 'unknown', source: 'none' },
-            routeName: requested.routeName,
-            provider: requested.provider,
-            adaptation: requested.snapshot.adaptation,
-            parameters: planned.parameters,
-            ...(planned.parameterAdjustments === undefined
-              ? {}
-              : { parameterAdjustments: planned.parameterAdjustments }),
-            ...(planned.droppedParameters === undefined
-              ? {}
-              : { droppedParameters: planned.droppedParameters }),
-          },
-        }
+          endedAt: policy.now(),
+          initiator: 'run_cancelled',
+        })
+        if ('rejected' in candidate) return unavailable
+        interruption = candidate
         const stoppedSettlement = await settleCandidate(null)
         return 'settled' in stoppedSettlement ? { settled: stoppedSettlement } : unavailable
       }
@@ -429,15 +417,13 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
             ...requested,
             transport: {
               plan: () => ({ planned }),
-              send: async (...args) => {
-                if (!usable()) return { aborted: true, queued: true }
-                return transport.send(...args)
-              },
+              send: (...args) => transport.send(...args),
               read: transport.read,
             },
             credential: input.credential,
             policy,
             signal: controller.signal,
+            beforeSend: usable,
             ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
             beforeFirstContent: () =>
               start('wait', async () => {
@@ -488,36 +474,20 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       }
       if (!('outcome' in result)) {
         if (!('cancelledBeforeSend' in result)) return unavailable
-        const at = policy.now()
-        const stoppedResult: ModelInvocationResult = {
-          outcome: 'interrupted',
-          blocks: [],
-          timing: { sentAt: at, endedAt: at },
-          usage: {
-            input_tokens: 'unknown',
-            output_tokens: 'unknown',
-            cache_read_tokens: 'unknown',
-            cache_write_tokens: 'unknown',
-            source: 'none',
-          },
-          cost: { cost_usd: 'unknown', source: 'none' },
-          routeName: requested.routeName,
-          provider: requested.provider,
-          adaptation: requested.snapshot.adaptation,
-          parameters: planned.parameters,
-          ...(planned.parameterAdjustments === undefined
-            ? {}
-            : { parameterAdjustments: planned.parameterAdjustments }),
-          ...(planned.droppedParameters === undefined
-            ? {}
-            : { droppedParameters: planned.droppedParameters }),
-        }
-        construction = {
+        await work.stopped
+        const original = invocation?.observedFacts()
+        if (original !== undefined && !('facts' in original)) return unavailable
+        if (original !== undefined && original.facts.sentAt !== undefined) return unavailable
+        const candidate = constructAnchoredInterruption({
           dispatched,
-          result: stoppedResult,
-          messageId: input.messageId,
+          planned,
+          observed: original?.facts ?? null,
           firstTokenAt: null,
-        }
+          endedAt: policy.now(),
+          initiator: 'run_cancelled',
+        })
+        if ('rejected' in candidate) return unavailable
+        interruption = candidate
         const stoppedSettlement = await settleCandidate(null)
         return 'settled' in stoppedSettlement ? { settled: stoppedSettlement } : unavailable
       }
