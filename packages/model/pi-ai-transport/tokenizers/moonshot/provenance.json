@@ -8,13 +8,17 @@
   "k3": {
     "source": "https://huggingface.co/moonshotai/Kimi-K3/tree/f831ab66814297da540d832a5235f8e904f29d06",
     "template": "encoding_k3.py",
+    "templateSha256": "49ff03305fdc4be26867972788d36150b67f8a9e852e62bb7959d87482223676",
     "config": "k3-tokenizer_config.json",
+    "configSha256": "5d0803c94db9cd78763499e0956c95fd5a225c14a727e5a6cf5db3f96f010a6e",
     "license": "LICENSE.K3"
   },
   "k27Code": {
     "source": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/tree/74797c9c62378b951a1f6fcf5c4631024e9b8bef",
     "template": "chat_template.jinja",
+    "templateSha256": "8d21200dff7e85beaf51c8b110952e039ffd0779f615d64d63293d74773360f9",
     "config": "k27-tokenizer_config.json",
+    "configSha256": "6dfafeacca3d44748fc4a2fcc6725be5ea616ecc5b95f5a8b4277077c06e7d9f",
     "license": "LICENSE.K27"
   }
 }

@@ -2,6 +2,7 @@
 // K2.7 Code chat_template.jinja at 74797c9; see tokenizers/moonshot/provenance.json.
 // OpenRouter may transform the prompt, so both results are estimates.
 import {
+  isJsonNumber,
   writeJsonLossless,
   type JsonObject,
   type JsonValue,
@@ -14,6 +15,41 @@ import { countSegments, moonshotTokenizer } from './moonshot-tokenizer.ts'
 type Segment = { readonly text: string; readonly control: boolean }
 type Route = 'k3' | 'k27'
 const unavailable = { kind: 'unavailable' } as const
+const accountedBodyFields = new Set([
+  'model',
+  'messages',
+  'tools',
+  'reasoning',
+  // Transport and generation controls do not enter the public input template.
+  'provider',
+  'stream',
+  'stream_options',
+  'store',
+  'max_tokens',
+  'temperature',
+  'top_p',
+  'seed',
+  'stop',
+  'frequency_penalty',
+  'presence_penalty',
+])
+
+function deepSort(value: JsonValue): JsonValue {
+  if (value === null || typeof value !== 'object' || isJsonNumber(value)) return value
+  if (Array.isArray(value)) return value.map(deepSort)
+  const sorted: { [key: string]: JsonValue } = {}
+  for (const [key, item] of Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+    sorted[key] = deepSort(item)
+  return sorted
+}
+
+function jinjaJson(value: JsonValue): string {
+  return writeJsonLossless(deepSort(value))
+    .replaceAll('<', '\\u003c')
+    .replaceAll('>', '\\u003e')
+    .replaceAll('&', '\\u0026')
+    .replaceAll("'", '\\u0027')
+}
 
 function text(value: string): Segment {
   return { text: value, control: false }
@@ -27,10 +63,28 @@ function contents(value: JsonValue | undefined): string | undefined {
   if (!Array.isArray(value)) return undefined
   let result = ''
   for (const part of value) {
-    if (!object(part) || part.type !== 'text' || typeof part.text !== 'string') return undefined
+    if (
+      !object(part) ||
+      part.type !== 'text' ||
+      typeof part.text !== 'string' ||
+      Object.keys(part).some(key => key !== 'type' && key !== 'text')
+    )
+      return undefined
     result += part.text
   }
   return result
+}
+
+function k3ContentSegments(value: JsonValue | undefined): Segment[] | undefined {
+  if (typeof value === 'string') return [text(value)]
+  if (value === null || value === undefined) return []
+  if (!Array.isArray(value)) return undefined
+  const segments: Segment[] = []
+  for (const part of value) {
+    if (!object(part) || part.type !== 'text' || typeof part.text !== 'string') return undefined
+    segments.push(text(part.text))
+  }
+  return segments
 }
 function messages(body: JsonObject): readonly JsonObject[] | undefined {
   if (!Array.isArray(body.messages)) return undefined
@@ -39,6 +93,24 @@ function messages(body: JsonObject): readonly JsonObject[] | undefined {
     if (!object(item) || typeof item.role !== 'string' || contents(item.content) === undefined)
       return undefined
     if (!['system', 'developer', 'user', 'assistant', 'tool'].includes(item.role)) return undefined
+    // The public templates do not explain opaque provider reasoning details.
+    if (item.reasoning_details !== undefined) return undefined
+    if (
+      Object.keys(item).some(
+        key =>
+          ![
+            'role',
+            'name',
+            'content',
+            'reasoning',
+            'reasoning_content',
+            'tool_calls',
+            'tool_call_id',
+          ].includes(key),
+      )
+    )
+      return undefined
+    if (item.name !== undefined && typeof item.name !== 'string') return undefined
     result.push(item)
   }
   return result
@@ -61,6 +133,11 @@ function calls(message: JsonObject): readonly JsonObject[] | undefined {
     if (!object(item) || !object(item.function) || typeof item.function.name !== 'string')
       return undefined
     if (typeof item.function.arguments !== 'string') return undefined
+    if (item.id !== undefined && typeof item.id !== 'string') return undefined
+    if (item.type !== undefined && item.type !== 'function') return undefined
+    if (Object.keys(item).some(key => !['id', 'type', 'function'].includes(key))) return undefined
+    if (Object.keys(item.function).some(key => !['name', 'arguments'].includes(key)))
+      return undefined
     result.push(item)
   }
   return result
@@ -137,7 +214,7 @@ function renderK3(
     result.push(
       ...systemK3(
         'tool-declare',
-        `# Tools\nHere are the available tools, described in JSONSchema.\n\n\`\`\`json\n${writeJsonLossless(schemas)}\n\`\`\``,
+        `# Tools\nHere are the available tools, described in JSONSchema.\n\n\`\`\`json\n${writeJsonLossless(deepSort(schemas))}\n\`\`\``,
       ),
     )
   const reasoning = body.reasoning
@@ -156,7 +233,8 @@ function renderK3(
   for (const message of history) {
     const role = message.role
     const content = contents(message.content)
-    if (content === undefined || typeof role !== 'string') return undefined
+    const contentSegments = k3ContentSegments(message.content)
+    if (content === undefined || !contentSegments || typeof role !== 'string') return undefined
     if (role === 'developer') return undefined // no documented K3 developer projection
     if (role === 'tool') {
       resultIndex++
@@ -171,10 +249,12 @@ function renderK3(
           ['index', String(resultIndex)],
         ]),
       )
-      result.push(text(content), ...close('message'), control('<|end_of_msg|>'))
+      result.push(...contentSegments, ...close('message'), control('<|end_of_msg|>'))
       continue
     }
-    result.push(...open('message', [['role', role]]))
+    const attrs: [string, string][] = [['role', role]]
+    if (typeof message.name === 'string' && message.name) attrs.push(['name', message.name])
+    result.push(...open('message', attrs))
     if (role === 'assistant') {
       const toolCalls = calls(message)
       if (!toolCalls) return undefined
@@ -184,7 +264,7 @@ function renderK3(
       const reasoningText = message.reasoning_content ?? message.reasoning
       if (typeof reasoningText === 'string') result.push(text(reasoningText))
       else if (reasoningText !== undefined) return undefined
-      result.push(...close('think'), ...open('response'), text(content), ...close('response'))
+      result.push(...close('think'), ...open('response'), ...contentSegments, ...close('response'))
       if (toolCalls.length) {
         result.push(...open('tools'))
         for (const [index, call] of toolCalls.entries()) {
@@ -194,7 +274,7 @@ function renderK3(
         }
         result.push(...close('tools'))
       }
-    } else result.push(text(content))
+    } else result.push(...contentSegments)
     result.push(...close('message'), control('<|end_of_msg|>'))
   }
   result.push(...open('message', [['role', 'assistant']]), ...open('think'))
@@ -211,7 +291,7 @@ function renderK27(
       control('<|im_system|>'),
       text('tool_declare'),
       control('<|im_middle|>'),
-      text(writeJsonLossless(schemas)),
+      text(jinjaJson(schemas)),
       control('<|im_end|>'),
     )
   for (const message of history) {
@@ -220,7 +300,11 @@ function renderK27(
     if (content === undefined || typeof role !== 'string') return undefined
     const marker =
       role === 'user' ? '<|im_user|>' : role === 'assistant' ? '<|im_assistant|>' : '<|im_system|>'
-    result.push(control(marker), text(role), control('<|im_middle|>'))
+    result.push(
+      control(marker),
+      text(typeof message.name === 'string' && message.name ? message.name : role),
+      control('<|im_middle|>'),
+    )
     if (role === 'assistant') {
       const toolCalls = calls(message)
       if (!toolCalls) return undefined
@@ -258,6 +342,25 @@ function renderK27(
   return result
 }
 
+/** @internal Pinned prompt projection, exposed only from this package-private module. */
+export function renderMoonshotPromptSegments(
+  route: Route,
+  body: JsonObject,
+): readonly Segment[] | undefined {
+  if (Object.keys(body).some(key => !accountedBodyFields.has(key))) return undefined
+  if (
+    route === 'k3' &&
+    body.reasoning !== undefined &&
+    (!object(body.reasoning) || typeof body.reasoning.effort !== 'string')
+  )
+    return undefined
+  if (route === 'k27' && body.reasoning !== undefined) return undefined
+  const history = messages(body)
+  const schemas = tools(body)
+  if (!history || !schemas) return undefined
+  return route === 'k3' ? renderK3(body, history, schemas) : renderK27(history, schemas)
+}
+
 function meter(
   route: Route,
   definition: ModelDefinition,
@@ -270,7 +373,7 @@ function meter(
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider,
-    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-1' : 'moonshot-k27-jinja-1',
+    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-2' : 'moonshot-k27-jinja-2',
     evidence: `moonshotai/${source}; tiktoken.model sha256:b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103`,
     measure({
       body,
@@ -278,18 +381,11 @@ function meter(
     }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return unavailable
-      const history = messages(body)
-      const schemas = tools(body)
-      if (!history || !schemas) return unavailable
-      const rendered =
-        route === 'k3' ? renderK3(body, history, schemas) : renderK27(history, schemas)
+      const rendered = renderMoonshotPromptSegments(route, body)
       if (!rendered) return unavailable
-      // The serialized envelope counts route/configuration/other provider fields
-      // that the public template does not model. Intentional overlap is an
-      // estimate, not an asserted upper bound on OpenRouter's private transform.
-      const tokens =
-        countSegments(tokenizer, rendered) + tokenizer.encode(serialized, [], []).length
-      return { kind: 'estimated', tokens }
+      // Only public prompt-template segments enter the raw estimate. OpenRouter
+      // conversion uncertainty is represented by estimated + caller tokenMargin.
+      return { kind: 'estimated', tokens: countSegments(tokenizer, rendered) }
     },
   })
 }
