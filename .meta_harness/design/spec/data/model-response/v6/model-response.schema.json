@@ -364,7 +364,7 @@
       ],
       "properties": {
         "cause": {
-          "$ref": "../../loop-extension/v3/loop-extension.schema.json#/$defs/FailureCause",
+          "$ref": "../../loop-extension/v5/loop-extension.schema.json#/$defs/FailureCause",
           "$comment": "取值不在八个之内：cause_unknown（S-27）。withdrawn / scope_disallowed / modality_mismatch 三个值形状上放过，但按 S-16 不出现在任何一条响应体上——那是判定层的约束，Schema 不管。"
         },
         "statusCode": {

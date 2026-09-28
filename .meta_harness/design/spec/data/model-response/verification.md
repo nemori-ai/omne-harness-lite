@@ -429,7 +429,7 @@ catalog 当前五条指向 MR 的消费边为 RT2/3/4、runner2/3；现有其他
 
 ### 变化的影响
 
-- 按 PF-013 rev 14 / D-096，消费 `data.model-profile/v4` 完整限制快照及 `data.messages/v5`；其余五个数据依赖坐标保持。历史 v5 及更早的读取/结算保持各自 codec，不从现行目录补 cap。消费者须显式采用 v6。
+- 按 PF-013 rev 14 / D-096，消费 `data.model-profile/v4` 完整限制快照及 `data.messages/v5`；整批评审后失败主体与 FailureCause 同步到 `data.loop-extension/v5`，其余四个数据依赖坐标保持。历史 v5 及更早的读取/结算保持各自 codec，不从现行目录补 cap。消费者须显式采用 v6。
 - S-39 唯一拥有 `PendingModelResponse`；回复必填、只允许非故障有回复收场，禁止处置/晚到。持久根仍要求 reply 对应处置。Schema 共用条件提取不改变原约束；S-39 完整事实、相等关系、脱敏、提交时晚到和实际持久性不能靠 Schema 宣称完成。
 - 全部 v5 规范 JSON 块在新例中仅增设显式的虚构项目 cap/上游事实以满足新版快照；这些不是默认值或历史迁移值。新增 12 个 pending 正反实例及提交场景。
 - 本批 registry 由主线唯一集成；起草者已提供 catalog/covers/id-namespaces/formal-tasks 四份可集成片段。S-/G- 复用现有局部编号空间，无新全局前缀；不登记空形式任务。中央清单及冻结文件未改。
@@ -475,3 +475,22 @@ PendingModelResponse: cross-field writer violation accepted by shape; missing li
 ```
 
 这些断言只核形状边界；写入者关系违约的报告与真实交接证据仍未开始。检查器由主线整批集成运行，本轮未重跑；TLA+/Alloy 未运行。旧冻结版本与 registry 未改。
+
+
+### 2026-09-28 独立整批评审修订：完整失败主体闭包
+
+主线确认原 MR6 的 LC3 S-14 引用无法承载完整 MP4/MS5 值。本轮将页首依赖、S-2/S-3/S-5/S-23、历史规则的现行消费引用及 `Failure.cause` Schema ref 统一到 LC5；完整失败主体另明确消费 S-43 的已生效重试结论。registry catalog 片段同步为 LC5，clauses 为 S-2/S-14/S-17/S-25/S-43，中央清单仍由主线集成。S-2 中消息/档案的遗留版本标签同步到实际采用 MS5/MP4；旧冻结版本未改。
+
+LC3/LC5 的 `FailureCause` **整个定义逐字相同**，本次没有改变成因域、拒绝优先级或 MR5；MR6 Schema 仅将该 `$ref` 从 LC3 改到 LC5。当前 Schema SHA-256：`051d72139d25cacf9eaaea9a39ac7a39b26b28e9836eb174d9b54ae7d52fa005`。新增 [MR6-lc5-failure](v6/examples.md#mr6-lc5-failure--由-e-5-的同一批事实形成主体)，以 E-5 的同一份 MP4 image 快照、发出身份与绑定形成完整 LC5 失败主体。
+
+本地 `.venv/bin/python` 实际输出（Draft202012Validator + referencing，沿本次 sibling 精确候选）：
+
+```text
+FailureCause LC3/LC5 full definition equality: PASS
+MR6 E-5 + LC5 AfterModelCallFailureSubject + MP4 caps: PASS
+LC3 rejects complete subject; LC5 rejects missing retry history, subject limits, dispatch limits: PASS (4 assertions)
+catalog closure: MR6→LC5→MS5→MP4; no path back to MR6: PASS
+LC5/MS5/MP4 schema refs contain no model-response backreference: PASS
+```
+
+检查使用现有 catalog 加四包候选片段作消费图遍历，检查 LC5/MS5/MP4 Schema 的外部 `$ref`，未发现返回 MR6 的消费环；说明性反向指路不计依赖。既有 78 块回归、12 个 pending 实例与反向恢复引用后的结构等价检查仍通过。本例同时核对两份主体快照与响应 route 快照逐值相等及 response 标识对应；真实日志归属/完整性、写入责任仍未运行。整批检查器由主线执行，本轮未重跑；TLA+/Alloy 未运行。

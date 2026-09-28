@@ -12381,3 +12381,163 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 **预期**：两个实例均通过各自 Schema；响应体接收方不因 `2 > 1` 增加表示层拒绝。该快照违反 MP4 S-33，表明写快照一方违反 MP4 S-27 的原样复制义务，须在该写入责任的证据中暴露；Schema 通过不表示写入者合规，也不授予新发送许可。反例是接收方额外复判 S-33 并返回 `malformed`。
 
 再分别从上述两值删除 `route.profileSnapshot.upstreamInputLimits`：**预期均拒绝 `malformed`**，因为缺必填成员属于快照形状错误。不得据“不重判写入者关系”接受缺字段的快照。
+
+
+## 七、MR6 与 LC5 完整失败主体的组合边界
+
+### MR6-lc5-failure · 由 E-5 的同一批事实形成主体
+
+校验目标为 `data.loop-extension/v5#/$defs/AfterModelCallFailureSubject`，**不是 ModelResponse 根**。预期通过。E-5 响应体自身仍通过 MR6 根校验；下列 `profile`、`dispatches[0].profileSnapshot` 与 E-5 的 `route.profileSnapshot` 是同一份完整 MP4 值，保留 image cap 与全部适用上游事实。`dispatches[0].response` 等于 E-5 的 `id`，call、dispatch、provider、绑定及本例未改写参数也对应同一次发出。本例日志此前确无已生效 retry，故 `retryConclusions` 显式为 `[]`；空数组不是缺历史时的默认值。首 token 后故障不因这一完整主体而取得重发许可。
+
+```json
+{
+  "failure": "interrupted_mid_reply",
+  "statusCode": 429,
+  "inBand": true,
+  "profile": {
+    "adaptation": {
+      "implementation": {
+        "name": "example-family",
+        "revision": "impl-1"
+      },
+      "definition": {
+        "modelId": "anthropic/claude-sonnet-4.5",
+        "revision": "model-1"
+      },
+      "configuration": {
+        "revision": "config-1",
+        "values": {}
+      }
+    },
+    "providers": [
+      "anthropic",
+      "amazon-bedrock",
+      "google-vertex",
+      "openai"
+    ],
+    "allowFallback": true,
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "outputModalities": [
+      "text",
+      "image"
+    ],
+    "maxInputTokens": 200000,
+    "maxOutputTokens": 64000,
+    "updatedAt": "2026-09-20T08:00:00Z",
+    "inputConstraints": {
+      "maxImageBytes": 5242880
+    },
+    "upstreamInputLimits": {
+      "maxInputTokens": {
+        "status": "unknown"
+      },
+      "maxRequestBytes": {
+        "status": "unknown"
+      },
+      "maxImageBytes": {
+        "status": "unknown"
+      },
+      "maxImages": {
+        "status": "unknown"
+      }
+    }
+  },
+  "dispatches": [
+    {
+      "kind": "model_call_dispatched",
+      "call": "mc_1f04",
+      "dispatch": 1,
+      "response": "resp_9a61d2",
+      "provider": "anthropic",
+      "profile": {
+        "origin": "custom",
+        "scope": {
+          "layer": "organization",
+          "organization": "org_7fd2c1"
+        },
+        "routeName": "anthropic/claude-sonnet-4.5"
+      },
+      "profileSnapshot": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "providers": [
+          "anthropic",
+          "amazon-bedrock",
+          "google-vertex",
+          "openai"
+        ],
+        "allowFallback": true,
+        "inputModalities": [
+          "text",
+          "image"
+        ],
+        "outputModalities": [
+          "text",
+          "image"
+        ],
+        "maxInputTokens": 200000,
+        "maxOutputTokens": 64000,
+        "updatedAt": "2026-09-20T08:00:00Z",
+        "inputConstraints": {
+          "maxImageBytes": 5242880
+        },
+        "upstreamInputLimits": {
+          "maxInputTokens": {
+            "status": "unknown"
+          },
+          "maxRequestBytes": {
+            "status": "unknown"
+          },
+          "maxImageBytes": {
+            "status": "unknown"
+          },
+          "maxImages": {
+            "status": "unknown"
+          }
+        }
+      },
+      "adaptation": {
+        "implementation": {
+          "name": "example-family",
+          "revision": "impl-1"
+        },
+        "definition": {
+          "modelId": "anthropic/claude-sonnet-4.5",
+          "revision": "model-1"
+        },
+        "configuration": {
+          "revision": "config-1",
+          "values": {}
+        }
+      },
+      "parameters": {},
+      "selectedBy": "session",
+      "credentialScope": {
+        "layer": "tenant",
+        "tenant": {
+          "organization": "org_7fd2c1",
+          "account": "acc_91ab40"
+        }
+      }
+    }
+  ],
+  "retryConclusions": []
+}
+```
+
+反向边界：该完整值交给 LC3 的同名主体 Schema 必须拒绝（其采用旧闭合 MP2/MS3，且没有 retryConclusions）。在 LC5 上分别删除 `retryConclusions`、`profile.upstreamInputLimits`、`dispatches[0].profileSnapshot.inputConstraints`，每一支均须拒绝 `malformed`。跨记录相等、同调用归属、日志历史完整性仍是契约义务，不由这些形状检查证明。
