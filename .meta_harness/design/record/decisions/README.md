@@ -188,3 +188,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 2026-09-28：[D-099：输入限制与失败交接](model-input-limit-consumer-contract-adoption/README.md)接受六份后继契约，独立复评问题闭合；不提升实现和真实计量状态。
 
 2026-09-28：[D-105：恢复时序提供者实施采用](model-recovery-timing-provider-adoption/README.md)，技术采用core v8及runtime v12，实际实现及恢复验收另核。
+
+2026-09-28：[D-106 runner当前纯构件](runner-current-pure-provider-adoption/README.md)采用精确v5 revision3的键、结论codec、效果与历史解释器；真实服务组合及实现证据另核。

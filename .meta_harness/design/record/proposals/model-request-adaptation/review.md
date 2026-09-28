@@ -198,3 +198,11 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 ## 2026-09-28 恢复任务留存窄评
 
 独立 architecture-reviewer 只读审阅 runtime `v12-recovery-owner-supplement.md` revision 1。初稿 b2b9b03 的复用路径在合法 concurrent=1 下持有未知追加配额又申请读配额，造成实际停止后仍不能认回；主线改为沿原 registration 串行认回、全部 task 实际停止后唯一释放，且旧读未停不叠加新读。最终 SHA49484bf1597667c7b2e27279d5084e8acca958f82136b8f7625b40696e8b6ba7 无本范围阻断或新增非阻断发现。留存 scope/coordinator、迟到 enter、统一 close、原完整批优先符合 D102/D105；L1/L2、G28 不在此次闭合范围。评审仅核机制与已有源码，没有运行测试、形式工具或真实 I/O，不提升实施与验证状态。
+
+## 2026-09-28 runner当前投影独立窄评
+
+对象v5 revision1 SHA e26287c5ff37b0c7995b070e37a40caa73ebd4df3971abae43a0aece052ff432，经architecture-reviewer与spec-reviewer分别核Runner5/LC6/MS6/SL3/RT9/MR8。表达评审指出composeEffect只有结论没有原主体、noRun after_model_call无法生成合法LC6；revision2改为显式initial且函数和服务一致拒绝非法noRun。架构评审更正此前允许该noRun函数组合的判断。两者均确认纯codec/效果/历史构件可单独采用。
+
+revision2 SHA895e9e0df93e1dc3c5886584c83de8ccbfd41b101d005d44b8f270ac67a68ff6新增G3同prefix闭包与G5长期owner；两评审指出G5异值一律拒绝会误伤同锚合法竞争胜者（仅at不同亦触发）。revision3 SHA1a85cfa993a42dc721e39a68ce1492e474d1be96c25067a16561fa1975db7f13明确区分本提交认回与胜者采用，保留完整胜者及提醒副本、真实停止前未知责任，MessageId异值仍拒绝；两评审仅对该差异复核，无剩余本范围阻断。V5-12补对应正反与错误实现负控，尚未执行。
+
+G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5采用日志先实际关闭/恢复、owner后drain，避免循环等待。反论是严格比较防伪认回，但不应抹掉合法胜者；修订分支回应。真实runtime回调、日志宿主接线与P-5/G28仍未闭合。评审只读，未运行行为或形式工具，未自作接受；最终独立纯构件范围由D-106采用。

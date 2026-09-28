@@ -1,5 +1,14 @@
 # loop-extension-runner
 
+## v5 当前提供者增补（2026-09-28）
+
+入口：[v5-current-design.md](v5-current-design.md)，revision 3，**candidate，尚未技术采用**。节点仍为 `packages/agent-loop/loop-extension-runner`，尚未建包；下方历史 v3/v2 状态按各自版本读取，不覆盖接受记录。
+
+- **语义接受：有。**[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 已接受 Runner5 全 S-1～S-54、LC6/MS6；catalog 与 contract SHA 已核对。D-076 接受旧 v3 provider，不等于本稿被接受。Runner5 的冻结依赖仍为 RT7/MR7/SL2，本稿的 RT9/MR8/SL3 实现绑定须显式技术采用。
+- **可实施范围：当前投影已起草，采用／接线门未闭。**RUN5-P1～P8 保留完整 dispatch/replay 控制并补 LC6 Conclusion、modelCallId 同次落盘、共享提醒键、同 prefix 重试历史、P-5、未知结果及资源收口。**RUN5-G1：Runner5 S-21①②与 LC6 S-11 均禁止 noRun after_model_call，公开 runPass 和服务均拒绝**；纯 codec/历史解释/效果合成，以及合法 before_persist_message 组合可独立推进。composeEffect 显式接原主体；有 Run 的函数测试不替代生产 Run 来源。RUN5-G6 的 Run 终结认法／RT9 G-28 另阻 withRun late 与恢复。G2～G5 的技术采用、失败来源接线、贡献者与真实停止分别登记；同 prefix 调用级闭包和任务 owner 已给候选端口/所有权，跨 runtime 及日志宿主接线仍待采用，不把各缺口扩大为所有纯构件受阻。
+- **绑定证据：新增 0，总数 0。**现有纯值包、codec、日志及规格有限模型均不代证真实 runner。必要组合、故障与并发义务见 [v5 验证](verification.md#v5-当前投影验证义务)。
+- **实际验证：尚无 runner 实现或运行验证。**本轮只作精确来源核对和文档静态检查，实际命令／输出见 [v5 实际检查](verification.md#v5-实际检查)。完整纵线装配未由本任务建立；demo 的封闭域空历史不能扩为生产有 runner 时的空历史。
+
 ## v3 候选增量（2026-09-27）
 
 节点仍为 `provider`，路径 `packages/agent-loop/loop-extension-runner`，**尚未建包**。增量入口为 [v3-design.md](v3-design.md)；旧 [design.md](design.md) 与下方 v2 接受事实保持原坐标。
@@ -39,3 +48,7 @@
 ## 2026-09-27 最终技术采用
 
 [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受对应精确规格与本节点投影。旧候选读数和验证历史保留。此事件不代替源码、真实故障/停止或37模型生产认证；新增实际绑定另附运行证据。
+
+## 2026-09-28 当前纯构件技术采用
+
+[D-106](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)精确采用v5 revision3的passKeys、完整结论codec、composeEffect及retry历史解释器。候选抬头保留原稿事实，当前可施工范围以D-106为准。源码尚待本轮实施；绑定0，未有本节点实现证据。完整服务及G3/G5/G28未随采用关闭。

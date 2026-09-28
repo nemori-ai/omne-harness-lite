@@ -1,5 +1,59 @@
 # loop-extension-runner 验证与证据
 
+## v5 当前投影验证义务
+
+对象：[v5-current-design.md](v5-current-design.md) revision 3。Runner5 语义已接受，本 provider 增补仍 candidate、源码尚无。新增 bindings 0；下列测试名是义务编号，不是现存测试，不能提前写入 bindings。已有 v3 Runner 模型、v5 FailureHistory 有限模型和邻节点测试不提升本节点的实现证据层。
+
+| 编号／条款 | 必须能失败的证据与观察 | owner／阻塞范围 |
+|---|---|---|
+| V5-1；S-21/S-22、RT9 S-24/S-50/S-76、MR8 S-10/S-14/S-36 | 固定 RT7→RT9／MR7→MR8／SL2→SL3 差异；服务准入和两操作封闭失败枚举逐分支核，SL3 每次有显式 fence/condition；缺 condition 负控失败。noRun after_model_call 在服务与公开 runPass **均必须 invalidInput，零求值／零写**；LC6 ExtensionInput 校验不可跳过 | runner＋主线；RUN5-G1 不允许为测试偷改服务边界，G2 需技术采用 |
+| V5-2；S-10/S-11/S-18/S-21/S-22/S-28/S-53 | 公共 runPass 在明确有 Run/attempt 的受控测试前提下接真实日志与原锚、合法 LC6 输入，failed 主体→真实带 modelCallId Conclusion→在 effect 返回前后分别退出→实际重开日志→纯结论读取／composeEffect／重复 runPass。已给件调用计数不增加，原值／id／at 不变；结论确认前不得调用下一件。在合法服务输入上另测 replay 只返 Conclusion[] 且零写、重复 dispatch 只补合法缺提醒。错误关联、旧缺字段或禁止位置含字段必须拒绝 | runner＋SL3；受控 Run 为测试前提，不签收生产 Run 来源；合法 noRun before_persist_message 另测 |
+| V5-3；S-53/S-54、LC6 S-42/S-43、RT9 S-76 | 同样 dispatch 供应商 `[A,A]`：一支 runtime_lost 续接没有默认 retry（h=0），另一支默认件已给再失败（h=1）；前者仍有默认件名额，后者无。混自定义结论不能计作默认件；已给未发计入；两个不同经过完整值相同的 retry 必保留两位置；乱序／去重／按 dispatch 数计数／仅默认件过滤各负控失败 | runner 纯解释器＋runtime decideRetry/source；RUN5-G3/G4 |
+| V5-4；S-22/S-53/S-54、RT9 S-29/S-34/S-76 | 同 session 不同 modelCallId、不同 session 同字符串、同 Run 两调用交叉；只读同一真实完整 prefix。失败响应先成功提交而来源 unavailable→readAttempts 整体 unavailable、不重写响应／不发模型；源恢复后重取完整主体。删除条目、换尾、跨代拼前缀、空历史默认、demo 空源用于 runner 日志均须失败 | runtime 组合 owner＋runner；确认 source 输入来自同一 owned prefix，不能只测返回类型 |
+| V5-5；S-19/S-28、MS6 S-32、SL3 S-22/S-23 | 真追加丢回执／延迟物理完成／close 前晚写：unknown 不当 absent，原稳定候选被留存；实际停止并恢复后只认同键原完整条目。已有原条目仍等待旧写者静止才能释放责任。新实例读空但旧写者稍后写入的负控须阻恢复开闸；第二次 fence 拒绝不消除第一轮 unknown | runner＋日志宿主；RUN5-G5，不由 D-105 runtime scope 代管 |
+| V5-6；S-19/S-28、LC6 S-30/S-42 | Conclusion 提交前作者提醒 ID 同值／异值、自产 ID 碰撞、结论提交后别写者抢号；同 ID 异值不得 alreadyRecorded 成功。两写方共享 mrr/3 消息键，完整比较精确数字／成员／数组次序。一层嵌套 veto 后提醒不落盘；嵌套 unavailable/fence 返回外层同名失败；重启不重铸、不无限 inject | runner＋runtime codec＋SL3；纯值对比不替代真实竞争 |
+| V5-7；S-7/S-14/S-26/S-54、RT9 S-30/S-35/S-50/S-60/S-67 | 真 P-5 登记／重复登记失败／注销／在途代际替换；真实策略与采样。canDispatchAgain 每个分支；retry 已落后再发前已开口／终结／来源失败／限额拒绝→零发送、原 retry 保留。故意违规贡献者对 partial/interrupted_mid_reply 给 retry，真实守卫必须拒绝；failed 策略结论、runtime_lost 续接和 complete_reply 不混同 | runtime P-5＋runner＋调用者；纯默认策略可单测；真实贡献者函数测试需合法 Run 输入，生产服务成功链仍受 G3/G5/G6 阻 |
+| V5-8；S-33/S-34、SL3 S-10/S-14、RT9 S-69 | X5-1 两种提交顺序真并发；X5-2 runner 改 tail 与 runtime 响应条件提交竞争，旧尾必零写。日志提供者换代／runner dispose 与贡献注销并发，旧经过不能把全链记成缺席否决；已入提交口照原提交收场。句柄失效、迟到 rejection 被消费、未知 owner 不丢；只断言 disposer 调用不够 | runner＋kernel-basis＋日志／runtime owner；ACTIVE 精确时序须 source-check。G28 未闭只证受控场景提交机制，不声称生产 late 判法 |
+| V5-9；S-6～S-19/S-21/S-29/S-30/S-50 | 沿 v3 V3-1～V3-14 的完整控制矩阵：同 E 同版正文、末位、power、缺席／报错、五效果、ask 回放、批次 admit、报告三者、连续否决、完整／不完整模型结果、租户→环境句柄、取消。结构检查服务复用同一 runPass；删非 retry 分支负控不能通过 | runner；工具／卡片／环境未闭点沿原 G-16/G-17/G-19/G-20；本次不签收执行工具 |
+| V5-10；S-15/S-22、LC6 S-11/S-13 | composeEffect 显式原主体：空链、全 observed、多个 rewrite/select_model 顺序、每种终止、错维度/改写不可变字段、从 replay 原输入重建与重复 dispatch 一致。负控删除 initial 参数后空链必须失败；noRun after_model_call 不得进入 invoke，before_persist_message 有 Run 壳时贡献输入仍不得泄露 run/attempt | runner 纯函数；独立于 G3/G5/G6；不得以伪造 Run 消除 noRun 负例 |
+| V5-11；S-53/S-54、RT9 S-76 | 候选调用级闭包捕获同 owned prefix 全值：另一租户/调用、缺项/重排/同值去重、第二前缀拼接、已 release/代际变更全部拒；普通新追加后旧前缀仍真实，不能新造 tail 锁。成功返回 authoritativeSubject 原完整值；构造失败/正常/取消路径均释放使用权。readAttempts 返回裸值后再读不能冒充此绑定 | runtime 消费组合＋runner；纯端口测试与真实全读来源/回调交接分开签收，RUN5-G3 |
+| V5-12；S-33/S-34、SL3 S-22/S-23 | runner owner 先登记再 execute；关准入后 start 拒绝，原 completion 晚拒绝被消费；unknown 留存使 drain 不假成功。实际日志宿主关闭旧日志/可信退出并恢复后，通过受控 readRecovered 分辨本提交同值认回／合法竞争结论采用／非法条目拒绝／可信缺席；换实例、新日志读空或 stopped=true 均不能放行；共享日志不被 runner disposer 单独关闭。A(C1) append unknown、B(C2) 占同经过同件键，C1/C2 仅 at 不同与内容合法不同两支：旧写者真停止后采用完整 C2，零重求值/零 C1 补写，不声称 C1 提交；不同合法 attempt 不误拒。错 anchor/name/modelCallId/LC6 必拒，实际提醒同 MessageId 异内容仍拒。负控把 C2≠C1 一律判 replayInconsistent 必须失败 | runner＋日志宿主，RUN5-G5；模拟恢复闭包只能证明条件单元，不签收真实停止 |
+
+## v5 覆盖缺口
+
+RUN5-G1～G6 的 owner、精确条款与阻塞消费者以[设计缺口表](v5-current-design.md#关键选择与缺口)为准。尤其 Runner5 S-21／LC6 S-11 的 noRun 输入限制与 RT9 G-28／run-attempt-facts2 G-3 是**两件独立事项**：前者已明确禁止 noRun after_model_call 的函数和服务成功链，后者是尚缺生产 Run 终结认法。两者不阻纯 codec/效果合成/历史解释器、合法 before_persist_message 组合或明确受控 Run 前提的函数测试。
+
+当前未建立完整纵线 assembly。实际宿主仍须落实：同一日志及 tenant 来源、合法完整读取权、可信旧写者停止与恢复准入、runner 长期 owner 留存、稳定经过锚与入口身份核实、首次提醒发号与时钟、P-5 设置与采样、同 prefix source 的消费接线。modelRuntime 宿主 scope 仅拥有自身任务；示例目录迁移不转移这些责任。没有新增 secret 存储面，模型凭据继续由 runtime／凭据 owner 与装配承接。
+
+## v5 实际检查
+
+2026-09-28：源码读取基线为 `544f39fdc6b963704a4105b8422527a7caae25fa`。实际核对 Runner5、LC6、MS6、SL3、RT9、MR8 的 catalog 坐标／accepted 状态与接受记录 contract SHA256，六项均相等；run-attempt-facts2 为 catalog accepted，其 G-3 保持未定。本轮不运行实现测试、模型检查或 paid 请求。
+
+本工作树未建 `.venv`；未安装依赖。首次以系统 `python3` 执行检查器退出 1，原因为该解释器不支持 `PurePosixPath.is_relative_to`（`AttributeError`），没有形成设计检查结论。随后使用已安装的 Python 3.12、读取本工作树检查器源码运行：
+
+```text
+python3.12 .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip
+PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-runner-current-design/.meta_harness/design passed gate=internal; formal=skip.
+```
+
+实际退出 0，formal 全部显式跳过；`git diff --check` 退出 0。静态通过不提升 V5-1～V5-9 的未执行状态，不证明来源真实性、并发、持久或停止。冻结旧 design.md/v3-design.md 与 bindings.yaml 未改。
+
+### revision 2 静态检查与表达修订
+
+2026-09-28：修正 composeEffect 缺原主体、noRun after_model_call 绕过 LC6 输入两处表达阻断；不改变契约。公开签名、完整键编码、调用级失败历史绑定及 runner 任务 owner 已展开为候选接口，V5-10～V5-12 是新增验收义务，**尚未执行**。SL3 条款范围改至 S-37；Runner5 冻结 PF-013 rev14 来源与当前 rev15 增量复核分别标明。
+
+实际运行 Python 3.12 脚本核对 catalog accepted 状态与六份 contract 在 acceptance 文件中的 SHA，六项均匹配；当前契约字节未改。实际执行本工作树检查器（formal 显式 skip）与 git diff --check，均退出 0；检查器末行：
+
+```text
+PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-runner-current-design/.meta_harness/design passed gate=internal; formal=skip.
+```
+
+没有安装依赖、运行模型请求或实现测试；没有新增绑定、接受决定或产品规则。旧 design.md/v3-design.md/bindings.yaml 字节保持不变。静态结果不证明候选接口已经实现，也不关闭 RUN5-G3/G5/G6 的组合缺口。
+
+### revision 3 恢复分支窄修
+
+2026-09-28：依据 Runner5 S-21②/S-28，将未知结论恢复分为“认回本次提交”和“采用合法竞争胜者”；S-19 的实际提醒 MessageId 异值拒绝保持。V5-12 增加 C1 未知／C2 胜出及非法胜者反例；这些行为测试仍未执行，不扩大纯构件或恢复的验收状态。再次运行本工作树 Python 3.12 设计检查器（formal=skip）及 git diff --check，均退出 0，检查器末行仍为上列同路径 PASS。没有改动契约、绑定或冻结历史稿。
+
 ## v3 候选验证（2026-09-27）
 
 对象为 [v3-design.md](v3-design.md) 和 `capability.loop-extension-runner/v3`；本版未接受、没有生产源码或实现运行，绑定保持 0 条。下方 v2 的历史记录不换标签。本次覆盖是两操作的控制语义与模型请求纵线真实交接；工具执行、AgentLoop 产品和卡片完整闭环不由此声明完成。
