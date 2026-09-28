@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import {
   appendControlRecord,
@@ -126,11 +126,12 @@ describe('RT7 S-31/S-68 actual control append', () => {
       opened: () => ({ confirmed: true }),
       unresolvedWrites: () => [],
     }
+    const session = unwrap(parseOpaqueIdentifier('control-session', 'SessionRef'))
     const generation = Object.freeze({})
     try {
       const result = await appendControlRecord({
         binding: {
-          session: 'control-session',
+          session,
           tenant: parsedTenant.ok,
           log,
           generation,
@@ -145,7 +146,7 @@ describe('RT7 S-31/S-68 actual control append', () => {
       })
       expect(result).toEqual({ appended: true })
       expect(releases).toBe(1)
-      const read = await log.readSince('control-session', 0)
+      const read = await log.readSince(session, 0)
       if ('failure' in read) throw new Error(read.failure)
       expect(read.entries).toHaveLength(1)
       expect(read.entries[0]?.payload).toEqual({
@@ -203,11 +204,12 @@ describe('RT7 S-31/S-68 actual control append', () => {
       opened: () => ({ confirmed: true }),
       unresolvedWrites: () => (retained === undefined ? [] : [retained.task]),
     }
+    const session = unwrap(parseOpaqueIdentifier('control-session', 'SessionRef'))
     const generation = Object.freeze({})
     try {
       const result = await appendControlRecord({
         binding: {
-          session: 'control-session',
+          session,
           tenant: parsedTenant.ok,
           log: {
             readSince: log.readSince.bind(log),
@@ -231,7 +233,7 @@ describe('RT7 S-31/S-68 actual control append', () => {
       expect(result).toEqual({ unavailable: true })
       expect(releases).toBe(0)
       expect(retained).toBeDefined()
-      const read = await log.readSince('control-session', 0)
+      const read = await log.readSince(session, 0)
       if ('failure' in read) throw new Error(read.failure)
       expect(read.entries).toHaveLength(1)
       expect(read.entries[0]?.payload).toMatchObject({
