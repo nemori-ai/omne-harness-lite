@@ -54,12 +54,26 @@ describe('demo unified service path', () => {
       })
       if (!('ok' in user) || user.ok.type !== 'user') throw new Error('user fixture invalid')
       const deliveries: string[] = []
+      let visibleChecked = false
+      let openedBeforeVisible = false
       const openedObserver = await app.openModelObserver(
         who,
         prepared.session,
         undefined,
         async serialized => {
           deliveries.push(serialized)
+          if (serialized.includes('"t":"fill"')) {
+            const history = await app.readSessionLog(who, prepared.session)
+            openedBeforeVisible =
+              'entries' in history &&
+              history.entries.some(entry =>
+                entry.readKeys.some(key => {
+                  const decoded = decodeModelLogKey(key)
+                  return 'ok' in decoded && decoded.ok.kind === 'opened'
+                }),
+              )
+            visibleChecked = true
+          }
         },
       )
       if (!('endpoint' in openedObserver)) throw new Error('observer grant unavailable')
@@ -81,6 +95,8 @@ describe('demo unified service path', () => {
       expect(tls.requests).toHaveLength(1)
       await expect.poll(() => deliveries.length, { timeout: 1000 }).toBeGreaterThan(0)
       expect(deliveries[0]).toContain('"kind":"snapshot"')
+      await expect.poll(() => visibleChecked, { timeout: 1000 }).toBe(true)
+      expect(openedBeforeVisible).toBe(true)
       const settled = await app.persistModelReply(who, prepared.session, sent.result.replyPending)
       if (!('settled' in settled))
         throw new Error(`reply commit unavailable: ${JSON.stringify(settled)}`)

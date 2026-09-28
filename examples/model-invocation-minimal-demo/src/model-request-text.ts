@@ -1,12 +1,4 @@
-import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
-import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
-import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import {
-  LosslessNumber,
-  modalityOf,
-  type ContentBlock,
-  type Modality,
-} from '@omne-harness-lite/content-blocks'
+import { modalityOf, type ContentBlock, type Modality } from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import type {
   SettlementPrefix,
@@ -129,39 +121,4 @@ export async function historyProjection(prefix: SettlementPrefix): Promise<Selec
 export const nativeCompatibility: SelectionCompatibility = (profile, projection) => {
   const blocked = projection.filter(modality => !profile.inputModalities.includes(modality))
   return blocked.length ? { blocked } : { ok: true }
-}
-/** M1 partial numeric scheduler: prove the exact value before any conversion to Number. */
-export function durationMilliseconds(value: unknown): number | null {
-  if (typeof value !== 'string') return null
-  const parsed = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)(?:\.(\d+))?S)?$/.exec(value)
-  if (parsed === null || parsed.slice(1).every(part => part === undefined)) return null
-  const hours = BigInt(parsed[1] ?? '0') * 3600000n
-  const minutes = BigInt(parsed[2] ?? '0') * 60000n
-  const fraction = parsed[4] ?? ''
-  const seconds = ExactDecimal.from(
-    new LosslessNumber(`${BigInt(`${parsed[3] ?? '0'}${fraction}`)}e${3 - fraction.length}`),
-  )
-  const exact = ExactDecimal.from(new LosslessNumber((hours + minutes).toString())).add(seconds)
-  if (
-    !exact.isInteger ||
-    exact.compare(ExactDecimal.from(0)) <= 0 ||
-    exact.compare(ExactDecimal.from(Number.MAX_SAFE_INTEGER)) > 0
-  )
-    return null
-  return Number(exact.toString())
-}
-export function currentTimeLimits(evaluation: EffectiveAssembly) {
-  function value(item: string) {
-    const values = evaluation.values.filter(
-      value =>
-        capabilityCanonicalString(value.capability) ===
-          capabilityCanonicalString(evaluation.root) && value.item === item,
-    )
-    return values.length === 1 ? durationMilliseconds(values[0]?.value) : null
-  }
-  const firstContentTimeoutMs = value('first_token_wait_limit'),
-    idleContentTimeoutMs = value('post_first_token_stall_limit')
-  return firstContentTimeoutMs === null || idleContentTimeoutMs === null
-    ? null
-    : { firstContentTimeoutMs, idleContentTimeoutMs }
 }

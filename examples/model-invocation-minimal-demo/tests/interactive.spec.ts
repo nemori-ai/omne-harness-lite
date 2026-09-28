@@ -210,7 +210,7 @@ describe('real interactive durable conversation', () => {
       await tls.close()
     }
   })
-  it('SIGINT while startTextCall has not returned a handle waits for the owned call and closes it', async () => {
+  it('SIGINT before the service send admits its host prevents a late physical call', async () => {
     const root = await setup('start-window-'),
       tls = await createLocalTls(join(root, 'tls'))
     const credential = Buffer.from('controlled-start-window-key'),
