@@ -19,14 +19,18 @@ import type { ModelDefinition } from '../src/definitions.ts'
 import { certificate, content, finish, fixture, judgedMessage, policy } from './support.ts'
 
 interface Golden {
+  readonly modelId: string
   readonly scenario: string
   readonly body: JsonObject
   readonly wireSha256: string
   readonly requestBytes: number
   readonly totalPromptTokens: number
 }
-const rows: readonly Golden[] = JSON.parse(
-  readFileSync(new URL('./fixtures/xai/grok46-text-calibration.json', import.meta.url), 'utf8'),
+const rows: readonly Golden[] = [
+  'grok46-text-calibration.json',
+  'grok47-text-calibration.json',
+].flatMap(name =>
+  JSON.parse(readFileSync(new URL(`./fixtures/xai/${name}`, import.meta.url), 'utf8')),
 )
 const definition = xaiDefinitions.find(item => item.modelId === 'x-ai/grok-4.6')!
 function requiredMeter(value: ModelDefinition) {
@@ -36,28 +40,42 @@ function requiredMeter(value: ModelDefinition) {
 }
 const meter = requiredMeter(definition)
 
-describe('Grok 4.6 limited visible text/tool estimate', () => {
+describe('Grok limited visible text/tool estimates', () => {
   it.each(rows)(
-    'keeps exact frozen $scenario wire and independent complete prompt observation',
+    'keeps exact frozen $modelId/$scenario wire and independent complete prompt observation',
     row => {
+      const meter = requiredMeter(xaiDefinitions.find(item => item.modelId === row.modelId)!)
       const serialized = writeJsonLossless(row.body)
       expect(Buffer.byteLength(serialized, 'utf8')).toBe(row.requestBytes)
       expect(createHash('sha256').update(serialized).digest('hex')).toBe(row.wireSha256)
       const expected =
-        row.scenario === 'fit-short' ? 219 : row.scenario === 'fit-multilingual' ? 241 : 369
+        row.modelId === 'x-ai/grok-4.6'
+          ? row.scenario === 'fit-short'
+            ? 219
+            : row.scenario === 'fit-multilingual'
+              ? 241
+              : 369
+          : row.scenario === 'fit-short'
+            ? 1274
+            : row.scenario === 'fit-multilingual'
+              ? 1298
+              : 1426
       expect(meter.measure({ body: row.body, serialized })).toEqual({
         kind: 'estimated',
         tokens: expected,
       })
       expect(expected - row.totalPromptTokens).toBe(
-        row.scenario === 'fit-short' ? 0 : row.scenario === 'fit-multilingual' ? 1 : 35,
+        row.scenario === 'fit-short'
+          ? 0
+          : row.scenario === 'fit-multilingual'
+            ? 1
+            : row.modelId === 'x-ai/grok-4.6'
+              ? 35
+              : 34,
       )
     },
   )
-  it('binds only exact current 4.6 definition, never uncalibrated 4.7 or old revision', () => {
-    expect(
-      createXaiInputMeter(xaiDefinitions.find(item => item.modelId === 'x-ai/grok-4.7')!),
-    ).toBeUndefined()
+  it.each(xaiDefinitions)('$modelId binds only its exact current definition', definition => {
     expect(
       createXaiInputMeter({
         ...definition,
@@ -79,52 +97,58 @@ describe('Grok 4.6 limited visible text/tool estimate', () => {
     })
     expect(meter.measure({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
   })
-  it('refuses opaque/media/unknown controls without removing historical input', () => {
-    const body = rows[2]!.body
-    const original = writeJsonLossless(body)
-    const unsupported = [
-      {
-        ...body,
-        messages: [
-          ...(body.messages as readonly JsonObject[]),
-          {
-            role: 'assistant',
-            content: 'prior',
-            reasoning_details: [{ type: 'reasoning.encrypted', data: 'ciphertext' }],
-          },
-        ],
-      },
-      {
-        ...body,
-        messages: [
-          ...(body.messages as readonly JsonObject[]),
-          {
-            role: 'user',
-            content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,YQ==' } }],
-          },
-        ],
-      },
-      {
-        ...body,
-        messages: [
-          ...(body.messages as readonly JsonObject[]),
-          {
-            role: 'user',
-            content: [{ type: 'input_audio', input_audio: { data: 'YQ==', format: 'wav' } }],
-          },
-        ],
-      },
-      { ...body, reasoning: { effort: 'low' } },
-      { ...body, temperature: new LosslessNumber('0.5') },
-      { ...body, tools: [{ type: 'web_search' }] },
-    ]
-    for (const input of unsupported)
-      expect(meter.measure({ body: input, serialized: writeJsonLossless(input) })).toEqual({
-        kind: 'unavailable',
-      })
-    expect(writeJsonLossless(body)).toBe(original)
-  })
-  it.each(xaiDefinitions.filter(item => item.modelId === 'x-ai/grok-4.6'))(
+  it.each(xaiDefinitions)(
+    '$modelId refuses opaque/media/unknown controls without removing historical input',
+    definition => {
+      const meter = requiredMeter(definition)
+      const body = rows.find(
+        row => row.modelId === definition.modelId && row.scenario === 'holdout-tool-history',
+      )!.body
+      const original = writeJsonLossless(body)
+      const unsupported = [
+        {
+          ...body,
+          messages: [
+            ...(body.messages as readonly JsonObject[]),
+            {
+              role: 'assistant',
+              content: 'prior',
+              reasoning_details: [{ type: 'reasoning.encrypted', data: 'ciphertext' }],
+            },
+          ],
+        },
+        {
+          ...body,
+          messages: [
+            ...(body.messages as readonly JsonObject[]),
+            {
+              role: 'user',
+              content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,YQ==' } }],
+            },
+          ],
+        },
+        {
+          ...body,
+          messages: [
+            ...(body.messages as readonly JsonObject[]),
+            {
+              role: 'user',
+              content: [{ type: 'input_audio', input_audio: { data: 'YQ==', format: 'wav' } }],
+            },
+          ],
+        },
+        { ...body, reasoning: { effort: 'low' } },
+        { ...body, temperature: new LosslessNumber('0.5') },
+        { ...body, tools: [{ type: 'web_search' }] },
+      ]
+      for (const input of unsupported)
+        expect(meter.measure({ body: input, serialized: writeJsonLossless(input) })).toEqual({
+          kind: 'unavailable',
+        })
+      expect(writeJsonLossless(body)).toBe(original)
+    },
+  )
+  it.each(xaiDefinitions)(
     '$modelId plans once and sends identical candidate-measured bytes over local TLS',
     async definition => {
       const profile = createOfficialProfileContent(definition, {
@@ -190,7 +214,10 @@ describe('Grok 4.6 limited visible text/tool estimate', () => {
         if ('rejected' in planned) throw new Error(planned.rejected)
         expect(planned.planned.inputLimitEvidence).toMatchObject({
           inputTokens: { kind: 'estimated' },
-          meterRevision: 'grok-build-visible-text-tools-offset141-1',
+          meterRevision:
+            definition.modelId === 'x-ai/grok-4.6'
+              ? 'grok-build-visible-text-tools-offset141-1'
+              : 'grok-build-visible-text-tools-offset1181-1',
         })
         const evidence = planned.planned.inputLimitEvidence
         if (evidence.inputTokens.kind !== 'estimated' || evidence.admissionTokens === undefined)

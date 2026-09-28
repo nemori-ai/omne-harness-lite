@@ -10,6 +10,19 @@ import { object } from '../json.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { xaiDefinitions } from '../official-models/xai.ts'
 
+// Per-model fit-only offsets; shared wire algorithm and scope below.
+const calibrations: Readonly<
+  Record<string, { readonly offset: number; readonly evidence: string }>
+> = {
+  'x-ai/grok-4.6': {
+    offset: 141,
+    evidence: '2026-09-28 complete prompt fit219/240, independent tool holdout334',
+  },
+  'x-ai/grok-4.7': {
+    offset: 1181,
+    evidence: '2026-09-28 nonce complete prompt fit1274/1297, independent tool holdout1392',
+  },
+}
 const bodyKeys = new Set([
   'model',
   'provider',
@@ -33,9 +46,9 @@ function functionCall(value: JsonValue): boolean {
     typeof value.function.arguments === 'string'
   )
 }
-function supported(body: JsonObject): boolean {
+function supported(body: JsonObject, modelId: string): boolean {
   if (
-    body.model !== 'x-ai/grok-4.6' ||
+    body.model !== modelId ||
     Object.keys(body).some(key => !bodyKeys.has(key)) ||
     body.stream !== true ||
     body.store !== false ||
@@ -104,10 +117,12 @@ function supported(body: JsonObject): boolean {
 
 /** Limited rough estimator: visible text/tools, no opaque or media history. */
 export function createXaiInputMeter(definition: ModelDefinition): InputMeter | undefined {
-  const canonical = xaiDefinitions.find(item => item.modelId === 'x-ai/grok-4.6')
+  const calibration = calibrations[definition.modelId]
+  const canonical = xaiDefinitions.find(item => item.modelId === definition.modelId)
   const candidate = copyJsonValue(definition)
   const expected = copyJsonValue(canonical)
   if (
+    !calibration ||
     !('ok' in candidate) ||
     !('ok' in expected) ||
     !jsonEqual(candidate.ok, expected.ok) ||
@@ -119,9 +134,8 @@ export function createXaiInputMeter(definition: ModelDefinition): InputMeter | u
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'xai',
-    algorithmRevision: 'grok-build-visible-text-tools-offset141-1',
-    evidence:
-      'xai-org/grok-build f0e3be1 bytes/4; 2026-09-28 grok-4.6 complete prompt fit219/240, independent tool holdout334; rough estimate, no error bound',
+    algorithmRevision: `grok-build-visible-text-tools-offset${calibration.offset}-1`,
+    evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; rough estimate, no error bound`,
     measure({
       body,
       serialized,
@@ -129,10 +143,11 @@ export function createXaiInputMeter(definition: ModelDefinition): InputMeter | u
       readonly body: JsonObject
       readonly serialized: string
     }): TokenMeasurement {
-      if (writeJsonLossless(body) !== serialized || !supported(body)) return { kind: 'unavailable' }
+      if (writeJsonLossless(body) !== serialized || !supported(body, definition.modelId))
+        return { kind: 'unavailable' }
       // First-party byte estimate projected onto final wire; fixed offset derived
-      // only from two fit cases: max(219 - 78, 240 - 100). No holdout fitting.
-      const tokens = Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + 141
+      // only from two fit cases per model. No cross-model or holdout fitting.
+      const tokens = Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + calibration.offset
       return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
     },
   })

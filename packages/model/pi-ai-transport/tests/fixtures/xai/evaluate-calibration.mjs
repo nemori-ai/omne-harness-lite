@@ -1,5 +1,5 @@
 // Evaluate root-owned observed JSONL without converting two fit points into a
-// production margin. Holdout rows never influence the fit ratio.
+// production margin. Holdout rows never influence the fit offset.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
@@ -67,16 +67,16 @@ for (const [modelId, group] of byModel) {
     group.holdout.length !== (process.argv.includes('--text-only') ? 1 : 2)
   )
     throw new Error(`incomplete split: ${modelId}`)
-  const fitRatio = Math.max(...group.fit.map(item => item.actual / item.estimate))
+  const fitOffset = Math.max(0, ...group.fit.map(item => item.actual - item.estimate))
   report.push({
     modelId,
     totalPromptBasis: 'input_tokens + cache_read_tokens + cache_write_tokens; any unknown rejects',
     fit: group.fit,
-    observedMinimumFitMultiplier: fitRatio,
+    fitOnlyOffset: fitOffset,
     holdout: group.holdout.map(item => ({
       ...item,
-      predictedWithFitRatio: Math.ceil(item.estimate * fitRatio),
-      coveredByFitRatio: Math.ceil(item.estimate * fitRatio) >= item.actual,
+      predictedWithFitOffset: item.estimate + fitOffset,
+      residual: item.estimate + fitOffset - item.actual,
     })),
     conclusion: 'limited calibration only; no production margin or route certification',
   })

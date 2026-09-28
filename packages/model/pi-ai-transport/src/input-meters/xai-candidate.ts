@@ -83,8 +83,7 @@ export function createXaiCandidateInputMeter(definition: ModelDefinition): Input
     (definition.modelId !== 'x-ai/grok-4.6' && definition.modelId !== 'x-ai/grok-4.7') ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:xai' ||
-    definition.implementation.revision !==
-      (definition.modelId === 'x-ai/grok-4.6' ? 'mp4-2' : 'mp4-1') ||
+    definition.implementation.revision !== 'mp4-2' ||
     !Object.hasOwn(definition.routes, 'xai')
   )
     throw new TypeError('unsupported xAI candidate binding')
