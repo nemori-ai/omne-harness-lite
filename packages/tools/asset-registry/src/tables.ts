@@ -7,7 +7,7 @@ import {
   type TargetEnvironment,
 } from '@omne-harness-lite/tool-definition'
 import { skillDependencies, type SkillPackage } from '@omne-harness-lite/skill-package/v2'
-import type { LoopExtensionDefinition } from '@omne-harness-lite/loop-extension/v3'
+import type { LoopExtensionDefinition } from '@omne-harness-lite/loop-extension'
 import { equal, own, requiredOwn } from './json.ts'
 import {
   assetJudge,

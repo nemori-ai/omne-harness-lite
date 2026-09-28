@@ -12,7 +12,7 @@ import type {
   JsonNumber,
 } from '@omne-harness-lite/content-blocks'
 import type { Usage, Cost, ModelCallId, TrimReason } from '@omne-harness-lite/call-accounts'
-import type { FailureCause } from '@omne-harness-lite/loop-extension/v3'
+import type { FailureCause } from '@omne-harness-lite/loop-extension'
 
 export type ArrivalTarget =
   | { readonly kind: 'model_call'; readonly callId: ModelCallId; readonly dispatch: JsonNumber }

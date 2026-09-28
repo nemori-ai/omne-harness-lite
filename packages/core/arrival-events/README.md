@@ -4,6 +4,8 @@
 
 Pure validation of arrival envelopes and reduction of one block's fills. The same data vocabulary describes model-response streams and tool execution frames; this package supplies no transport or reliable-delivery mechanism.
 
+Failure cause types come from the current `@omne-harness-lite/loop-extension` public entry.
+
 ## Workspace use
 
 This is an experimental, private workspace package, currently not published on npm. In a repository checkout, use the [development setup](../../../docs/development.md), build the workspace, and declare `"@omne-harness-lite/arrival-events": "workspace:*"` in the consuming member. Declare other packages imported by an example as direct dependencies too. Import through the public package entry; do not import sibling `src/` paths.

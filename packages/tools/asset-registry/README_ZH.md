@@ -4,6 +4,8 @@
 
 实验性会话资产表实现。本包是未发布的 ESM workspace 骨架：已有声明和构建，但组件检查尚未通过，完整服务没有交付通过。model-runtime 纵线会先补齐所需投影。状态见[实现映射](../../../.meta_harness/design/realization/packages/tools/asset-registry/README.md)。
 
+扩展声明使用 `@omne-harness-lite/loop-extension` 当前公开类型。
+
 ## 已声明公开面
 
 | 导出 | 用途 |

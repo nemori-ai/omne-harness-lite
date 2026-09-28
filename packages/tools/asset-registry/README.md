@@ -4,6 +4,8 @@
 
 Experimental session asset-table implementation. It is an unpublished ESM workspace scaffold: declarations/build exist, but its component checks are not passing and the full service is not accepted as delivered. The model-runtime vertical will complete only its required projection first. See [realization status](../../../.meta_harness/design/realization/packages/tools/asset-registry/README.md).
 
+Loop extension declarations use the current `@omne-harness-lite/loop-extension` public types.
+
 ## Declared public surface
 
 | Export | Purpose |
