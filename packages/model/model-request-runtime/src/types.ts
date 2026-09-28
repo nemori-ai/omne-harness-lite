@@ -16,6 +16,7 @@ import type {
 } from '@omne-harness-lite/model-response'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
+import type { DiagnosticEmitter, DiagnosticReference } from './diagnostics-types.ts'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 import type { DiagnosticFact, DiagnosticOutcome } from './diagnostics-types.ts'
 
@@ -119,6 +120,11 @@ export interface TransportDiagnosticFact {
 export interface TransportExecutionDiagnostics {
   readonly record: (fact: TransportDiagnosticFact) => void
 }
+/** Explicit free correlation for one public invocation; it carries no inferred domain identity. */
+export interface PublicDiagnosticAssociation {
+  readonly executionId: string
+  readonly causedBy?: DiagnosticReference
+}
 export interface TransportAdapter<P extends PlannedSemantics, R> {
   readonly plan: (input: PlanInput) => PlanResult<P>
   readonly send: (
@@ -151,6 +157,12 @@ export interface InvocationInput<P extends PlannedSemantics, R> extends PlanInpu
   readonly credential: string
   readonly signal: AbortSignal
   readonly policy: InvocationPolicy
+  /** The invocation sanitizes these free strings at its credential-owning boundary. */
+  readonly diagnosticAssociation?: PublicDiagnosticAssociation
+  /** Returns one call-owned emitter; its collector/scope are bound by the caller. */
+  readonly diagnosticEmitterFactory?: (
+    association?: PublicDiagnosticAssociation,
+  ) => DiagnosticEmitter
   /** Synchronous final send admission; the caller owns the predicate's actual source. */
   readonly beforeSend?: () => boolean
   readonly beforeFirstContent?: () => Promise<void>

@@ -10,7 +10,12 @@ import type {
   DiagnosticScope,
 } from '../src/diagnostics-types.ts'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
-import type { TransportDiagnosticFact, TransportExecutionDiagnostics } from '../src/types.ts'
+import type {
+  InvocationInput,
+  PublicDiagnosticAssociation,
+  TransportDiagnosticFact,
+  TransportExecutionDiagnostics,
+} from '../src/types.ts'
 
 expectTypeOf(createDiagnosticCollector).toBeFunction()
 expectTypeOf<DiagnosticRecord['format']>().toEqualTypeOf<'model-diagnostics/1'>()
@@ -24,6 +29,15 @@ expectTypeOf<DiagnosticAssociation['dispatch']>().toEqualTypeOf<JsonNumber | und
 expectTypeOf<DiagnosticAssociation['attempt']>().toEqualTypeOf<JsonNumber | undefined>()
 expectTypeOf<Extract<DiagnosticScope, { kind: 'tenant' }>['tenant']>().toEqualTypeOf<TenantId>()
 expectTypeOf<TransportExecutionDiagnostics['record']>().toBeFunction()
+expectTypeOf<PublicDiagnosticAssociation['causedBy']>().toEqualTypeOf<
+  { readonly collectorId: string; readonly sequence: string } | undefined
+>()
+expectTypeOf<InvocationInput<never, never>['diagnosticEmitterFactory']>().toEqualTypeOf<
+  | ((
+      association?: PublicDiagnosticAssociation,
+    ) => import('../src/diagnostics-types.ts').DiagnosticEmitter)
+  | undefined
+>()
 const transportFact: TransportDiagnosticFact = {
   stage: 'send',
   outcome: 'accepted',
