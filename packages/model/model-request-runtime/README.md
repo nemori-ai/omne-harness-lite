@@ -4,7 +4,7 @@
 
 Invoke one explicit model transport and assemble its stream into a final result, with cancellation, content deadlines and an asynchronous first-content gate. This experimental ESM workspace package is not published on npm.
 
-The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and a pure no-Run call-history interpreter. Internal construction now defines typed inputs/results for all thirteen operations and a process-local call container. Its short `(session, callId)` reservation is released during a stream while actual stop tasks, the exact transport lease, a pending reply and unknown log writers remain owned. These construction files are not yet root exports or a completed thirteen-operation service or Cordis plugin. See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed success still needs a real Run-history interpreter.
+The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and a pure no-Run call-history interpreter. Internal construction now defines typed inputs/results for all thirteen operations and a process-local call container with explicit, bounded reservation waiting. The `./plugin` entry can provide an application-supplied thirteen-operation assembly through Cordis; that assembly is still being integrated and is not a completed thirteen-operation service. Reply disposition uses the original anchored invocation handle and recognizes a completed no-Run batch from an owned recovery scope after the local container is gone. Recovery currently only recognizes already settled no-Run calls. Missing-response recovery is unavailable until the original send time has a durable source. See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed success still needs a real Run-history interpreter.
 
 ## Public API
 
@@ -17,13 +17,34 @@ The current implementation contains standalone invocation, pure policy functions
 | `retryDelay(input)`, `RetryBackoffPolicy`, `RetryDelayInput`, `RetryDelayResult` | Compute an exact TD3 Duration from explicit policy, retry ordinal, sample and decorrelated previous delay |
 | `TransportAdapter`, `PlanInput` | Consumer-owned planning/send/read ports and explicit request context |
 | `InvocationPolicy`, `ModelInvocationResult` | Scheduling/redaction/diagnostic policy and an unsettled result projection |
-| `modelLogFormat`, `encodeModelLogKey`, `decodeModelLogKey` | D088 `mrr/1` closed business keys; reversible UTF16 encoding and exact dispatch normalization |
+| `modelLogFormat`, `encodeModelLogKey`, `decodeModelLogKey` | Current `mrr/3` payload with closed business keys, reversible UTF16 encoding and exact dispatch normalization |
 | `captureModelLogValue`, `prepareModelLogEntry`, `inspectModelLogEntry` | Strict owned values, position-free candidates and reverse validation of actual log entries |
 | `inspectSettlementMembers` | Check complete response/message members and original associations from one complete prefix |
 | `modelLogJsonEqual`, `recognizeMessageValue` | Exact full JSON equality and recognition retaining the original captured message |
 | `createSessionModelSelection(input)` | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup |
-| `interpretCallHistory({ prefix, callId })` | Interpret one no-Run call from a complete, owned SL3 prefix with the shared mrr/1+mrr/2 codec; incomplete or Run history remains unavailable |
+| `interpretCallHistory({ prefix, callId })` | Interpret one no-Run call from a complete, owned SL3 prefix with the current `mrr/3` codec; incomplete or Run history remains unavailable |
 | `projectCallState({ session, callId, history, local? })` | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it |
+
+## Cordis service assembly under development
+
+`@omne-harness-lite/model-request-runtime/plugin` exports `createModelRuntimePlugin` and the `modelRuntime` service key. The application supplies a complete `ModelRuntimeAssembly` through `construct`; this plugin does not fill missing operations. Cordis waits for the declared required providers before construction. One cleanup effect closes admission to `openCall`, `dispatch`, and `dispatchAgain`, then awaits the assembly's own stop and resource cleanup. Existing references can still invoke allowed settlement and read operations during shutdown. An unavailable close remains an owned recovery obligation and is logged; it is not a settled call.
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createModelRuntimePlugin,
+  type ModelRuntimeAssembly,
+} from '@omne-harness-lite/model-request-runtime/plugin'
+
+export async function installRuntime(
+  ctx: Context,
+  construct: () => Promise<ModelRuntimeAssembly>,
+) {
+  return ctx.plugin(createModelRuntimePlugin({ construct }), {})
+}
+```
+
+The internal `createCallContainerStore().waitReserve(...)` takes an explicit positive waiter limit and timeout plus an owned scheduler and abort signal. Once a call container is inserted, the active reservation attaches the original anchored invocation handle. Releasing the reservation leaves that handle, pending reply, unknown writers and exact transport lease with the container. `container.close()` releases the lease only after the original handle reports actual release and the remaining owner checks pass. The reservation does not create durable authorization.
 
 ## Read a call without promoting local state to durable fact
 
@@ -359,9 +380,9 @@ pnpm --filter @omne-harness-lite/model-request-runtime run test
 
 The companion transport tests exercise this function against actual local HTTPS and the public core assembler. Complete service/durability and live model certification require their later acceptance stages.
 
-## Explicit MR5 log codec
+## Current model log codec
 
-Import `@omne-harness-lite/model-request-runtime/log-codec/v2` explicitly for MR5 responses, including ordered string-array `raw.headers`. It exports the same codec functions and types listed above. Its `modelLogFormat` is `mrr/2`; the root remains MR4 and `mrr/1`. Payload format and business-key namespace are separate: both writers retain the same `mrr/1` dedupe keys for each MessageId and ResponseId.
+The package root exports one current codec for MS6 records and messages and MR7 responses. Its payload and business-key format is `mrr/3`. It preserves ordered string-array `raw.headers`, exact numbers, and the difference between absent and empty values. Previous `mrr/1` and `mrr/2` records are rejected as unknown format; there is no versioned runtime codec export or compatibility reader.
 
 The following standalone example prepares a complete persisted `[M,R]` batch or one nonpersisted response. Supply the complete actual response and legal message prefix; the example performs no IO and grants no log permission. Declare the imported packages as direct dependencies.
 
@@ -369,12 +390,12 @@ The following standalone example prepares a complete persisted `[M,R]` batch or 
 import {
   captureModelLogValue, prepareModelLogEntry, inspectSettlementMembers,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+} from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 
-export function prepareReplyBatchV2(
+export function prepareReplyBatch(
   session: string, tenant: TenantId, responseValue: unknown, messagePrefix: LogPrefixView,
 ): readonly OwnedLogEntry[] {
   const response = captureModelLogValue({ category: 'response', input: { kind: 'value', value: responseValue } })
@@ -392,18 +413,16 @@ export function prepareReplyBatchV2(
   return [m.ok, r.ok]
 }
 
-export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
+export function inspectReplyBatch(input: InspectSettlementMembersInput) {
   return inspectSettlementMembers(input)
 }
 ```
 
-Append the **entire returned array once** through the actual SL3 provider. V2 inspection reads `mrr/1` with MR4 and `mrr/2` with MR5, retains original payload format/value/position, and rejects unknown formats or arrays falsely tagged `mrr/1`. It preserves ordered duplicates, exact numbers, and absent versus empty headers. Neither inspection nor adjacency certifies a physical batch; G29-P/H, lawful reads, old-writer stop and the full runtime remain the host's responsibility.
+Append the **entire returned array once** through the actual SL3 provider. The current inspector retains original payload value and position but does not certify a physical batch, lawful read, or the cessation of old writers. Captures from this codec are only valid for this codec's write boundary; a recognized historical value must be explicitly recaptured before making a new candidate. The current representation is specified by [RT7](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v7/contract.md) and its [v8 codec projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md).
 
-Captures belong to their originating codec domain. Root and v2 captures cannot be interchanged. V2 history captures cannot be prepared for writing: explicitly call v2 `captureModelLogValue` on the original value and pass complete reception again. Existing root capture/prepare behavior remains unchanged. No automatic history rewrite or consumer upgrade occurs. Adoption is fixed by [D094](../../../.meta_harness/design/record/decisions/model-log-codec-v2-adoption/decision.md).
+## Single response-header handoff
 
-## RT5 single response-header handoff
-
-`SendResult` may carry `rawHeaders` on its response, failed or aborted branch, and never on rejected. `TransportFailure.headers` and a second header field on `StreamEnd` are absent. The sender must already process and own an immutable MR5 header map under the same explicit policy. Invoke immediately retains that exact value, including ordered array duplicates, empty values, absent versus empty map, across all four outcomes and content-gate cancellation; it does not re-run header redaction. Invalid or mutable header representation fails the entire port and requests actual reader stop; independently known HTTP failure facts survive.
+`SendResult` may carry `rawHeaders` on its response, failed or aborted branch, and never on rejected. `TransportFailure.headers` and a second header field on `StreamEnd` are absent. The sender must already process and own an immutable MR7 header map under the same explicit policy. Invoke immediately retains that exact value, including ordered array duplicates, empty values, absent versus empty map, across all four outcomes and content-gate cancellation; it does not re-run header redaction. Invalid or mutable header representation fails the entire port and requests actual reader stop; independently known HTTP failure facts survive.
 
 Upstream error/local text pass through the bound shared JSON/text policy. Raw/error keys and all scalar tokens are processed, while independent protocol status and actual usage/cost remain intact even if their literal value equals the credential. Processing rejection/defect omits unsafe payload and emits fixed stage diagnostics; an already retained H survives. A pre-send bind defect rejects the outcome with a controlled stage error and no fabricated sent result. Diagnostic-sink failure does not alter business behavior.
 
@@ -411,7 +430,7 @@ Business reply/tool fragments retain their original assembler semantics. This im
 
 ## Durable settlement components
 
-`readSettlementPrefix`, `interpretSettlementPrefix`, and `createSettlementCoordinator` are standalone components. They use the actual SL3 log and the explicit `/log-codec/v2` representation. The first delivered path is noRun: one unfenced, unconditional append contains either the entire `[message, response]` or `[response]` batch. Existing legal batches win with their original identities, format and accounting. The coordinator never plans or sends a model request.
+`readSettlementPrefix`, `interpretSettlementPrefix`, and `createSettlementCoordinator` are standalone components. They use the actual SL3 log and the root `mrr/3` representation. The first delivered path is noRun: one unfenced, unconditional append contains either the entire `[message, response]` or `[response]` batch. Existing legal batches win with their original identities, format and accounting. The coordinator never plans or sends a model request.
 
 Supply the host's actual session/tenant/log-generation binding and registered owner. `SettlementRegistration.start` must register before invoking the operation; `stopped` means actual resource cessation. The owner enforces shared concurrency admission and supplies the actual opened receipt plus all unresolved old writers. These structural ports grant no authorization or historical batch certification. Required named contention limits and the exact monotonic scheduler are explicit; no default attempts, timer or waiting policy is installed.
 
@@ -440,7 +459,7 @@ export async function settleResponse(
 
 `completion` reports settlement or an unavailable reason. `requestStop` requests cancellation; `stopped` and `close()` wait for actual owned tasks and permit release. A committed batch can be recognized while an old task is still live; that task keeps its original owner. An absent read never permits resubmission after an unknown receipt. Opened unknown blocks ordinary responses. Recovered absence must be established by the original host at the existing S-33 recovery boundary, after all old writers stop; this component adds no online recovery API.
 
-The example takes actual host dependencies and a complete MR5 response, without installing a service. The thirteen-operation `modelRuntime` service, official model certification, production withRun interpretation (G28), lawful read wiring and all-writer provenance remain pending. Adoption: [D087/v4 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md), [D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md).
+The example takes actual host dependencies and a complete MR7 response, without installing a service. Full thirteen-operation composition, official model certification, production withRun interpretation (G28), lawful read wiring and all-writer provenance remain pending. Adoption: [D087/v4 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md), [v8 current codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md).
 
 ## Durable noRun invocation
 
@@ -454,11 +473,10 @@ authorization or credential provenance. It borrows the exact transport for this
 call; this delivery does not implement transport hot replacement.
 
 The original transport plans once. The confirmed dispatched record precedes
-HTTP, and the confirmed opened record precedes visible content. The complete MR5
+HTTP, and the confirmed opened record precedes visible content. The complete MR7
 response uses that original opened timestamp, actual usage/cost/upstream facts
 and the same invocation's safe headers. Complete and truncated replies remain
-caller-owned pending candidates: `responseFor(disposition)` declares a validated
-candidate without asserting that it committed. `settleReply('persisted')` uses
+caller-owned full `PendingModelResponse` facts without disposition or lateness. The lower-level `settleReply('persisted')` uses
 the shared coordinator for one `[AssistantMessage, ModelResponse]` append;
 explicit vetoed/consumed dispositions use one response append. Determinate
 failure and system interruption settle a response before outcome resolves;
@@ -481,7 +499,7 @@ import {
   type AnchoredInvocationInput,
   type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime'
-import type { ReplyDisposition } from '@omne-harness-lite/model-response/v5'
+import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
 export async function runPreparedInvocation<P extends PlannedSemantics, R>(

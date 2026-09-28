@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。内部施工已定义十三个操作各自的输入／结果类型和进程内调用容器。容器以 `(session, callId)` 短暂独占状态转换；流式等待期间让出短暂准入，同时继续持有实际停止任务、精确传输租约、待处分回复与回执未知的日志写者。这些文件尚未从包根导出，也不代表十三操作服务或 Cordis 插件已完成。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。内部施工已定义十三个操作各自的输入／结果类型和进程内调用容器，并提供显式有界的 reservation 等待。`./plugin` 可把应用已组成的十三操作服务交给 Cordis，但统一服务仍在集成，不能声称十三操作已经交付。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。恢复目前只认回已结算调用，缺响应的追补因原发出时刻没有耐久来源而保持不可用。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
 
 ## 公开接口
 
@@ -18,8 +18,29 @@
 | `TransportAdapter`、`PlanInput` | 调用者持有的 plan/send/read 端口与显式请求输入 |
 | `InvocationPolicy`、`ModelInvocationResult` | 调度、脱敏、诊断政策与尚未结算的结果投影 |
 | `createSessionModelSelection(input)` | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口 |
-| `interpretCallHistory({ prefix, callId })` | 从完整自有 SL3 前缀经共同 mrr/1+mrr/2 codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
+| `interpretCallHistory({ prefix, callId })` | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
 | `projectCallState({ session, callId, history, local? })` | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任 |
+
+## 仍在集成的 Cordis 服务装配
+
+`@omne-harness-lite/model-request-runtime/plugin` 导出 `createModelRuntimePlugin` 与 `modelRuntime` 服务键。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再等待装配自身的实际停止和资源清理。已有服务引用在撤除期间仍可执行允许的结算和读取。收口不可用仍是具名持有的恢复责任并被记录，不表示调用已经结算。
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createModelRuntimePlugin,
+  type ModelRuntimeAssembly,
+} from '@omne-harness-lite/model-request-runtime/plugin'
+
+export async function installRuntime(
+  ctx: Context,
+  construct: () => Promise<ModelRuntimeAssembly>,
+) {
+  return ctx.plugin(createModelRuntimePlugin({ construct }), {})
+}
+```
+
+内部 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、未知写者或精确传输租约。`container.close()` 只有在原句柄报告实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。
 
 ## 读取调用，不把本地状态当作耐久事实
 
@@ -335,9 +356,9 @@ if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opene
 
 比较器与 completeMembers 在声明的合法 RFC3339 输入域内给条件性结果，不认证实际时间来源、闰秒公告、合法历史或物理提交。真正生产边界的生产者／宿主／历史 owner 仍须兑现 TL-G1；未核外部值或历史在该边界保持 unavailable。旧毫秒 Instant／Clock 行为保持原状。
 
-## 显式使用 MR5 日志 codec
+## 当前模型日志 codec
 
-显式导入 `@omne-harness-lite/model-request-runtime/log-codec/v2` 以接收 MR5 响应，包括有序字符串数组 `raw.headers`。它导出前述相同的 codec 函数和类型。新入口的 `modelLogFormat` 是 `mrr/2`；根入口仍是 MR4 与 `mrr/1`。载荷格式与业务键命名空间分开：两种写方对同一 MessageId／ResponseId 仍使用相同的 `mrr/1` 判重键。
+包根只导出当前 codec，接收 MS6 记录与消息、MR7 响应。载荷与业务键格式为 `mrr/3`，保留有序字符串数组 `raw.headers`、精确数字以及缺席与空值的区别。旧 `mrr/1`、`mrr/2` 被识别为未知格式并拒绝；没有旧版运行 codec 导出或兼容读取器。
 
 下面的独立示例构造完整 persisted `[M,R]` 批或一条非持久回复响应。传入完整实际响应与合法消息前缀；示例不执行 IO，也不授予日志权限。将导入的包声明为直接依赖。
 
@@ -345,12 +366,12 @@ if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opene
 import {
   captureModelLogValue, prepareModelLogEntry, inspectSettlementMembers,
   type InspectSettlementMembersInput,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+} from '@omne-harness-lite/model-request-runtime'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 
-export function prepareReplyBatchV2(
+export function prepareReplyBatch(
   session: string, tenant: TenantId, responseValue: unknown, messagePrefix: LogPrefixView,
 ): readonly OwnedLogEntry[] {
   const response = captureModelLogValue({ category: 'response', input: { kind: 'value', value: responseValue } })
@@ -368,18 +389,16 @@ export function prepareReplyBatchV2(
   return [m.ok, r.ok]
 }
 
-export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
+export function inspectReplyBatch(input: InspectSettlementMembersInput) {
   return inspectSettlementMembers(input)
 }
 ```
 
-通过实际 SL3 提供者**一次追加整个返回数组**。v2 检查按 MR4 读取 `mrr/1`，按 MR5 读取 `mrr/2`，保留原载荷格式、值与位置；未知格式或谎标 `mrr/1` 的数组头会拒绝。数组次序、重复、精确数以及头缺席／空 map 均保留。检查结果与条目相邻不能认证物理同批；G29-P/H、合法全读、旧写方实际停止及完整 runtime 仍由宿主负责。
+通过实际 SL3 提供者**一次追加整个返回数组**。当前检查器保留原载荷值与位置，但不认证物理同批、合法读取或旧写方实际停止。历史值若要成为新的写入候选，须在当前 codec 重新捕获。当前表示依据 [RT7](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v7/contract.md) 与 [v8 codec 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md)。
 
-捕获归属于产生它的 codec 域，根与 v2 捕获不能互换。v2 历史捕获不能直接准备为写候选：须对原值显式调用 v2 `captureModelLogValue`，再次通过完整接收。旧根捕获／构造行为保持，不自动重写历史或升级消费者。采用依据为 [D094](../../../.meta_harness/design/record/decisions/model-log-codec-v2-adoption/decision.md)。
+## 单次响应头交接
 
-## RT5 单次响应头交接
-
-`SendResult` 仅 response／failed／aborted 分支可带 `rawHeaders`，rejected 分支不带；`TransportFailure.headers` 和 `StreamEnd` 的第二头口不存在。sender 必须已按同一显式政策处理并持有自有不可变 MR5 头 map。invoke 立即保留这一原值，有序数组重复／空值、缺席与空 map 在四种收场、内容门取消中均不丢失，不再运行第二次头脱敏。非法或可变头表示是整份端口违约，请求实际 reader 停止；独立 HTTP 失败事实仍保留。
+`SendResult` 仅 response／failed／aborted 分支可带 `rawHeaders`，rejected 分支不带；`TransportFailure.headers` 和 `StreamEnd` 的第二头口不存在。sender 必须已按同一显式政策处理并持有自有不可变 MR7 头 map。invoke 立即保留这一原值，有序数组重复／空值、缺席与空 map 在四种收场、内容门取消中均不丢失，不再运行第二次头脱敏。非法或可变头表示是整份端口违约，请求实际 reader 停止；独立 HTTP 失败事实仍保留。
 
 上游错误与本地文本经绑定的共享 JSON／text 政策处理，raw/error 的 key 与所有 scalar 都覆盖；独立协议状态和真实 usage/cost 即使字面值与凭据巧合仍保真。处理拒绝或 defect 时省略不安全载荷，交固定阶段诊断，已持有 H 保留。发送前 bind defect 以受控阶段异常拒绝 outcome，不造发出结果；诊断 sink 失败不改变业务。
 
@@ -387,7 +406,7 @@ export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
 
 ## 耐久结算构件
 
-`readSettlementPrefix`、`interpretSettlementPrefix` 和 `createSettlementCoordinator` 是可独立取用的构件，消费实际 SL3 日志和显式 `/log-codec/v2` 表示。首个交付路径为 noRun：一次 unfenced、unconditional 追加完整 `[消息,响应]` 或 `[响应]` 批。合法原批优先，保留其身份、格式和原账；协调器不会规划或发出模型请求。
+`readSettlementPrefix`、`interpretSettlementPrefix` 和 `createSettlementCoordinator` 是可独立取用的构件，消费实际 SL3 日志和包根 `mrr/3` 表示。首个交付路径为 noRun：一次 unfenced、unconditional 追加完整 `[消息,响应]` 或 `[响应]` 批。合法原批优先，保留其身份、格式和原账；协调器不会规划或发出模型请求。
 
 由宿主提供实际 session/tenant/log 代际绑定与已登记 owner。`SettlementRegistration.start` 必须先登记、再执行；`stopped` 表示资源实际停止。owner 负责同一所有者的并发准入，并提供实际 opened 回执及全部尚未确认的旧写方。这些接口形状不授予权限或认证历史物理同批。具名争用预算和精确单调调度器须显式提供，不安装默认次数、计时器或等待政策。
 
@@ -416,7 +435,7 @@ export async function settleResponse(
 
 `completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 和 `close()` 等实际任务停止后才释放额度。旧任务仍在途时可认回已提交原批，但仍保留旧任务的真实 owner；unknown 后的一次缺席读取不允许重交。opened unknown 阻断普通响应。恢复后的缺席只能由原宿主在既有 S-33 时机、全部旧写方停止之后建立，本构件没有新增在线恢复 API。
 
-示例接收实际宿主依赖与完整 MR5 响应，不注册服务。十三操作 `modelRuntime` 服务、官方模型认证、生产 withRun 认法 G28、合法读权接线及全部写方来源仍待交付。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md)。
+示例接收实际宿主依赖与完整 MR7 响应，不注册服务。十三操作统一组合、官方模型认证、生产 withRun 认法 G28、合法读权接线及全部写方来源仍待交付。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[v8 当前 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md)。
 
 ## 耐久 noRun 调用
 
@@ -426,10 +445,9 @@ export async function settleResponse(
 本函数校验这些值；形状不证明授权或凭据来源。一次调用借用精确传输引用，当前交付没有
 实现传输热替换。
 
-原传输只规划一次。dispatched 确认先于 HTTP，opened 确认先于任何可见内容。完整 MR5
+原传输只规划一次。dispatched 确认先于 HTTP，opened 确认先于任何可见内容。完整 MR7
 响应使用原 opened 时刻、实际用量与费用、上游事实和同次调用已交接的安全响应头。
-成功或截断回复先交给调用者承担待处置责任；`responseFor(disposition)` 声明已校验候选，
-不声称提交成功。`settleReply('persisted')` 通过同一协调器一次追加
+成功或截断回复先交给调用者承担完整的 `PendingModelResponse`，尚无处置或晚到标记；底层 `settleReply('persisted')` 通过同一协调器一次追加
 `[AssistantMessage, ModelResponse]`；明确的 vetoed/consumed 处置只追加响应。
 确定的失败和系统中断在 outcome 返回前结算；系统中断没有回复，已交付内容保留在 delivered。
 
@@ -447,7 +465,7 @@ import {
   type AnchoredInvocationInput,
   type PlannedSemantics,
 } from '@omne-harness-lite/model-request-runtime'
-import type { ReplyDisposition } from '@omne-harness-lite/model-response/v5'
+import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 
 /** Supply actual host preparation and an explicit caller disposition. */
 export async function runPreparedInvocation<P extends PlannedSemantics, R>(
