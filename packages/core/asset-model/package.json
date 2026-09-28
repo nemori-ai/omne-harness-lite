@@ -13,7 +13,8 @@
       "import": "./dist/index.js"
     },
     "./schema": "./schema/asset-model.schema.json",
-    "./schema/v2": "./schema/asset-model.v2.schema.json"
+    "./schema/v2": "./schema/asset-model.v2.schema.json",
+    "./schema/connector/v2": "./schema/resources/connector.schema.json"
   },
   "files": [
     "dist",
