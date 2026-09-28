@@ -4,7 +4,10 @@ import { inspectModelLogEntry } from '@omne-harness-lite/model-request-runtime/l
 import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
-import type { SettlementRegistration, SettlementTaskKind } from '../src/settlement-types.ts'
+import type {
+  SettlementRegistration,
+  SettlementTaskKind,
+} from '@omne-harness-lite/model-request-runtime'
 
 describe('RT5 real session model selection and current evaluation', () => {
   it('requires explicit selection, commits one codec record, repeats without writing and recognizes reopen', async () => {
@@ -329,15 +332,15 @@ describe('RT5 real session model selection and current evaluation', () => {
     }
   })
 
-  it('a throwing stop request cannot skip other actual tasks or report released; all stopped barriers still drain', async () => {
+  it('a readonly stop request defect still stops every other task and releases only after actual late stop', async () => {
     const host = await selectionHost()
     try {
       const owner = new ControlledSettlementOwner()
       const barrier = deferred<void>(),
-        appendEntered = deferred<void>()
-      owner.stopBarrier = barrier.promise
+        readEntered = deferred<void>()
       const acquire = owner.acquire
-      let stopCalls = 0
+      let stopCalls = 0,
+        failedDiagnostics = 0
       Reflect.set(owner, 'acquire', (limit: JsonNumber) => {
         const acquired = acquire(limit)
         if ('unavailable' in acquired) return acquired
@@ -358,36 +361,40 @@ describe('RT5 real session model selection and current evaluation', () => {
         }
         return { registration }
       })
-      const log = host.log,
-        generation = Object.freeze({})
       const { component } = host.create({
         owner,
-        binding: {
-          session: host.session,
-          tenant: host.tenant,
-          log: {
-            ...log,
-            async append(...args) {
-              const result = await log.append(...args)
-              appendEntered.resolve()
-              return result
-            },
+        currentEvaluationInputs: {
+          async read(...args) {
+            const result = await host.reader.read(...args)
+            readEntered.resolve()
+            return result
           },
-          generation,
-          currentGeneration: () => generation,
+        },
+        diagnostic(event) {
+          if (event.stage === 'close' && event.outcome === 'unavailable') failedDiagnostics++
         },
       })
-      const selecting = component.selectModel('example/model-a')
-      await appendEntered.promise
-      const closing = component.close()
-      expect(stopCalls).toBe(owner.starts.length)
+      await component.selectModel('example/model-a')
+      const initialStarts = owner.starts.length
+      owner.stopBarrier = barrier.promise
+      const reading = component.effectiveModel()
+      await readEntered.promise
+      let closeReceipt = false
+      const closing = component.close().then(value => {
+        closeReceipt = true
+        return value
+      })
+      expect(stopCalls).toBe(owner.starts.length - initialStarts)
       expect(stopCalls).toBeGreaterThan(1)
+      expect(failedDiagnostics).toBe(1)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(closeReceipt).toBe(false)
       expect(owner.active).toBe(1)
       barrier.resolve()
-      await selecting
-      expect(await closing).toEqual({ unavailable: true })
-      expect(owner.active).toBe(1)
-      expect(owner.releases).toBe(0)
+      await reading
+      expect(await closing).toEqual({ released: true })
+      expect(owner.active).toBe(0)
+      expect(owner.releases).toBe(2)
     } finally {
       await host.close()
     }
@@ -433,6 +440,40 @@ describe('RT5 real session model selection and current evaluation', () => {
       expect(await closing).toEqual({ unavailable: true })
       expect(owner.active).toBe(1)
       expect(await log.readSince(host.session, 0)).toMatchObject({ entries: [expect.anything()] })
+    } finally {
+      await host.close()
+    }
+  })
+  it('a rejected actual-stop receipt remains unfinished and never releases the original registration', async () => {
+    const host = await selectionHost()
+    try {
+      const owner = new ControlledSettlementOwner()
+      const acquire = owner.acquire
+      Reflect.set(owner, 'acquire', (limit: JsonNumber) => {
+        const acquired = acquire(limit)
+        if ('unavailable' in acquired) return acquired
+        const original = acquired.registration
+        const registration: SettlementRegistration = {
+          start<T>(kind: SettlementTaskKind, operation: (signal: AbortSignal) => Promise<T>) {
+            const task = original.start(kind, operation)
+            return {
+              ...task,
+              stopped: task.stopped.then(() => {
+                throw new Error('cleanup receipt failed')
+              }),
+            }
+          },
+          release: original.release,
+        }
+        return { registration }
+      })
+      const { component } = host.create({ owner })
+      expect(await component.legalTargets()).toMatchObject({
+        ok: ['example/model-a', 'example/model-b'],
+      })
+      expect(await component.close()).toEqual({ unavailable: true })
+      expect(owner.active).toBe(1)
+      expect(owner.releases).toBe(0)
     } finally {
       await host.close()
     }

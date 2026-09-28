@@ -49,10 +49,9 @@ function profileRows(value: unknown): value is readonly ProfileRow[] {
 
 interface Operation {
   registration: SettlementRegistration
-  readonly tasks: Set<SettlementTask<unknown>>
+  readonly tasks: Map<SettlementTask<unknown>, Promise<boolean>>
   unknownWrite: boolean
   stopping: boolean
-  stopFailed: boolean
   readonly drained: Promise<void>
   readonly finish: () => void
 }
@@ -64,6 +63,7 @@ export function createSessionModelSelection(
   const binding = Object.freeze({
     ...input.binding,
     tenant: Object.freeze({ ...input.binding.tenant }),
+    currentGeneration: input.binding.currentGeneration.bind(input.binding),
     log: Object.freeze({
       append: input.binding.log.append.bind(input.binding.log),
       readSince: input.binding.log.readSince.bind(input.binding.log),
@@ -113,11 +113,10 @@ export function createSessionModelSelection(
       }
     }
   }
-  function requestStop(operation: Operation, task: SettlementTask<unknown>) {
+  function requestStop(task: SettlementTask<unknown>) {
     try {
       task.requestStop()
     } catch {
-      operation.stopFailed = true
       emit('close', 'unavailable')
     }
   }
@@ -143,24 +142,30 @@ export function createSessionModelSelection(
     })
     const operation: Operation = {
       registration: acquired.registration,
-      tasks: new Set(),
+      tasks: new Map(),
       unknownWrite: false,
       stopping: false,
-      stopFailed: false,
       drained,
       finish() {
         finish?.()
       },
     }
     const original = acquired.registration
+    const release = original.release.bind(original)
     const tracked: SettlementRegistration = {
       start(kind, effect) {
         const task = original.start(kind, effect)
-        operation.tasks.add(task)
-        if (operation.stopping) requestStop(operation, task)
+        operation.tasks.set(
+          task,
+          task.stopped.then(
+            () => true,
+            () => false,
+          ),
+        )
+        if (operation.stopping) requestStop(task)
         return task
       },
-      release: original.release,
+      release,
     }
     // One mutable operation identity is retained by both close and the command.
     operation.registration = tracked
@@ -180,13 +185,23 @@ export function createSessionModelSelection(
       emit(stage, 'unavailable')
       return unavailable()
     } finally {
-      await Promise.all([...operation.tasks].map(task => task.stopped))
+      const stopped = await Promise.all(operation.tasks.values())
+      const cleanupFailed = stopped.some(fulfilled => !fulfilled)
       live.delete(operation)
-      if (operation.unknownWrite || operation.stopFailed) unknown.add(operation)
-      else original.release()
+      if (operation.unknownWrite || cleanupFailed) unknown.add(operation)
+      else {
+        try {
+          release()
+        } catch {
+          unknown.add(operation)
+          emit('close', 'unavailable')
+        }
+      }
+      if (cleanupFailed) emit('close', 'unavailable')
       operation.finish()
     }
   }
+
   async function prefix(operation: Operation) {
     const received = await readSettlementPrefix({ binding, registration: operation.registration })
     if ('unavailable' in received || !current(operation)) return unavailable()
@@ -385,7 +400,7 @@ export function createSessionModelSelection(
       const operations = [...live]
       for (const operation of operations) {
         operation.stopping = true
-        for (const task of operation.tasks) requestStop(operation, task)
+        for (const task of operation.tasks.keys()) requestStop(task)
       }
       closing = (async () => {
         await Promise.all(operations.map(operation => operation.drained))
