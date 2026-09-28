@@ -15,6 +15,8 @@ Read owned evaluation input from immutable local publications, actual session te
 
 ## Read current input
 
+Session references are checked through the current `@omne-harness-lite/messages` root entry. These reads do not decode conversation message bodies.
+
 Supply the same `AtomicStorage` used by actual governance, a session-tenancy reader, explicit `storeKey`, trusted deployed entries `{ capability, meta }`, diagnostic/failure ports and a monotonic measurement clock. Establish a real session mapping and capture its recipe first.
 
 ```ts

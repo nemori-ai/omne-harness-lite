@@ -1,5 +1,5 @@
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { validate as messageValidate } from '@omne-harness-lite/messages/v3'
+import { validate as messageValidate } from '@omne-harness-lite/messages'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import { BodyProviderUnavailableError } from '@omne-harness-lite/asset-model'
 import {

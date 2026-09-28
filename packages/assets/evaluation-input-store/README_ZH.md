@@ -15,6 +15,8 @@
 
 ## 读取当前输入
 
+会话引用通过 `@omne-harness-lite/messages` 当前根入口校验；这些读取不解码对话消息正文。
+
 明确交入与实际治理共用的 `AtomicStorage`、会话归属读取器、`storeKey`、可信部署条目 `{ capability, meta }`、诊断/失败端口和单调计时函数。先建立真实会话映射并捕获它的 recipe。
 
 ```ts

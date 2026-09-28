@@ -7,7 +7,7 @@ import {
 } from '@omne-harness-lite/asset-evaluation'
 import { BodyProviderUnavailableError } from '@omne-harness-lite/asset-model'
 import { parseTenantId, tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
-import { validate as validateMessage } from '@omne-harness-lite/messages/v3'
+import { validate as validateMessage } from '@omne-harness-lite/messages'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import {
   assetJudge,

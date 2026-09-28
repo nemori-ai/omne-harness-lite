@@ -4,7 +4,7 @@ import {
   type AssetHolding,
   type HoldingScope,
 } from '@omne-harness-lite/asset-model'
-import { validate as messageValidate } from '@omne-harness-lite/messages/v3'
+import { validate as messageValidate } from '@omne-harness-lite/messages'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { narrow, StorageUnavailable, type ReadTx } from '@omne-harness-lite/storage'
 import {

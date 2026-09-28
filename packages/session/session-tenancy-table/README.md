@@ -13,6 +13,8 @@ Read a session's persistent tenant identity through public Storage, either stand
 
 ## Read the actual tenant
 
+Session references use the current `@omne-harness-lite/messages` public types. The stored tenancy mapping is validated independently of message bodies.
+
 ```ts
 import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
 import type { Storage } from '@omne-harness-lite/storage'

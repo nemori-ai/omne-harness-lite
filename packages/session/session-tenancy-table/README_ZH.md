@@ -13,6 +13,8 @@
 
 ## 读取实际租户
 
+会话引用使用 `@omne-harness-lite/messages` 当前公开类型；持久租户映射的校验独立于消息正文。
+
 ```ts
 import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
 import type { Storage } from '@omne-harness-lite/storage'

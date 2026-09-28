@@ -8,7 +8,7 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { StorageDefect } from '@omne-harness-lite/storage'
-import type { SessionRef } from '@omne-harness-lite/messages/v3'
+import type { SessionRef } from '@omne-harness-lite/messages'
 
 // Compile only the shared SessionRef definition; do not admit a current message as an ST2 prerequisite.
 const validator = createSchemaRuntime([schema]).compile({ $ref: `${schema.$id}#/$defs/SessionRef` })
