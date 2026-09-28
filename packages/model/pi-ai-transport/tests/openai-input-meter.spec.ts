@@ -201,6 +201,7 @@ describe('OpenAI model-specific input estimator', () => {
     for (const modelId of baseModels) {
       const high = measuredTokens(modelId, imageBody(modelId, url('1024x1024.png'), 'high'))
       const highBudget = measuredTokens(modelId, imageBody(modelId, url('2048x2048.png'), 'high'))
+      const highRect = measuredTokens(modelId, imageBody(modelId, url('2048x1536.png'), 'high'))
       const low = measuredTokens(modelId, imageBody(modelId, url('1024x1024.png'), 'low'))
       const smallHigh = measuredTokens(modelId, imageBody(modelId, url('1x1.png'), 'high'))
       const smallLow = measuredTokens(modelId, imageBody(modelId, url('1x1.png'), 'low'))
@@ -210,6 +211,9 @@ describe('OpenAI model-specific input estimator', () => {
       })
       expect(high - smallHigh).toBe(1227)
       expect(highBudget - smallHigh).toBe(2998)
+      // 2048x1536 first fits exactly; the 2500-patch shrink gives 1824x1368,
+      // 2451 patches and 2942 image tokens.
+      expect(highRect - smallHigh).toBe(2940)
       expect(low - smallLow).toBe(306)
       expect(low).toBeGreaterThan(noImage)
       const unsupported = imageBody(modelId, url('1x1.png'), 'ultra')
@@ -219,6 +223,12 @@ describe('OpenAI model-specific input estimator', () => {
           serialized: writeJsonLossless(unsupported),
         }),
       ).toEqual({ kind: 'unavailable' })
+      // Non-integral 2048-pixel fit exercises this estimate's stated floor convention.
+      const fractionalFit = measuredTokens(
+        modelId,
+        imageBody(modelId, url('2049x2903.png'), 'high'),
+      )
+      expect(fractionalFit - smallHigh).toBe(2901)
     }
   })
 

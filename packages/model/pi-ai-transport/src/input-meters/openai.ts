@@ -49,6 +49,8 @@ function openAiBaseImageTokens(
 
   const maxDimension = detail === 'low' ? 512 : detail === 'high' ? 2048 : 65535
   const pixelScale = Math.min(1, maxDimension / Math.max(width, height))
+  // The guide says to round the first fit to whole pixels without specifying
+  // a direction. Floor is this estimator's convention, not an upstream-exact claim.
   let scaledWidth = pixelScale === 1 ? width : Math.floor(width * pixelScale)
   let scaledHeight = pixelScale === 1 ? height : Math.floor(height * pixelScale)
   if (scaledWidth < 1 || scaledHeight < 1) return undefined
