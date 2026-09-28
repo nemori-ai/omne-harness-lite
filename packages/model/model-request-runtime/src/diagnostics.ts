@@ -16,6 +16,7 @@ import type {
   DiagnosticQuery,
   DiagnosticQueryResult,
   DiagnosticRecord,
+  DiagnosticReportCategory,
   DiagnosticReference,
   DiagnosticScope,
   DiagnosticSource,
@@ -167,6 +168,7 @@ const configurationKeys = [
   'schedule',
   'store',
   'sink',
+  'stderr',
 ]
 const stageFactKind: Readonly<Record<DiagnosticStage, DiagnosticFact['kind']>> = {
   admission: 'decision',
@@ -505,6 +507,7 @@ function validateConfig(config: DiagnosticCollectorConfig): DiagnosticScope {
     typeof config.wallClock !== 'function' ||
     typeof config.monotonicClock !== 'function' ||
     typeof config.schedule !== 'function' ||
+    (config.stderr !== undefined && typeof config.stderr !== 'function') ||
     typeof config.store?.append !== 'function' ||
     typeof config.store?.flush !== 'function' ||
     typeof config.store?.close !== 'function' ||
@@ -592,12 +595,26 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
   let closingTask: Promise<void> | undefined
   let startMono: number | undefined
   let startedAt: string | undefined
+  let stderrReports = 0
+
+  function report(category: DiagnosticReportCategory, count: Counter): void {
+    if (!config.stderr || stderrReports >= config.stderrMaxReports) return
+    stderrReports++
+    try {
+      config.stderr(category, count)
+    } catch {
+      counters.stderrFailures = increment(counters.stderrFailures)
+      failureCounters.stderr = increment(failureCounters.stderr)
+      coverage = 'degraded'
+    }
+  }
 
   function failure(name: FailureName): void {
     failureCounters[name] = increment(failureCounters[name])
     const key = `${name}Failures` as keyof typeof counters
     counters[key] = increment(counters[key])
     coverage = 'degraded'
+    if (name !== 'stderr') report(name, failureCounters[name])
   }
 
   function drop(reason: DropName): void {
@@ -607,6 +624,7 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     if (reason === 'unsupported') counters.unsupportedEvents = increment(counters.unsupportedEvents)
     if (reason === 'oversize') counters.oversize = increment(counters.oversize)
     coverage = 'degraded'
+    report(reason, dropCounters[reason])
   }
 
   function queueSink(record: DiagnosticRecord, bytes: number): void {

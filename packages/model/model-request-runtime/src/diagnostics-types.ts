@@ -336,6 +336,21 @@ export type DiagnosticOutputSink =
       readonly maxQueuedBytes: number
     }
 
+export type DiagnosticReportCategory =
+  | 'write'
+  | 'flush'
+  | 'query'
+  | 'export'
+  | 'clock'
+  | 'sink'
+  | 'invalid'
+  | 'unsupported'
+  | 'oversize'
+  | 'queue_full'
+  | 'closed'
+  | 'retention'
+  | 'io_failed'
+
 export interface DiagnosticCollectorConfig {
   readonly collectorId: string
   readonly scope: DiagnosticScope
@@ -361,6 +376,8 @@ export interface DiagnosticCollectorConfig {
   readonly schedule: (durationMs: number, callback: () => void) => { readonly cancel: () => void }
   readonly store: DiagnosticJournalStore
   readonly sink?: DiagnosticOutputSink
+  /** Independent, bounded category-only stderr port; no Error or raw text is passed. */
+  readonly stderr?: (category: DiagnosticReportCategory, count: number | 'unknown') => void
 }
 
 export interface DiagnosticEmitter {

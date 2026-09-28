@@ -36,6 +36,7 @@ function fixture(
     maxFieldBytes?: number
     schedule?: DiagnosticCollectorConfig['schedule']
     sink?: DiagnosticOutputSink
+    stderr?: DiagnosticCollectorConfig['stderr']
   } = {},
 ) {
   const records: DiagnosticRecord[] = []
@@ -109,6 +110,7 @@ function fixture(
       }),
     store,
     ...(options.sink ? { sink: options.sink } : {}),
+    ...(options.stderr ? { stderr: options.stderr } : {}),
   }
   return {
     collector: createDiagnosticCollector(config),
@@ -416,5 +418,30 @@ describe('diagnostic collector', () => {
     expect(collector.record(inexact as DiagnosticEvent, local)).toEqual({ dropped: 'invalid' })
     await collector.close()
     expect(records[0]?.facts).toEqual(settlement.facts)
+  })
+
+  it('bounds category-only fallback reports and isolates a failing reporter', async () => {
+    const categories: string[] = []
+    const { collector } = fixture({
+      stderr(category) {
+        categories.push(category)
+      },
+    })
+    for (let index = 0; index < 4; index++) {
+      const invalid: unknown = { ...event, facts: { kind: 'transport', raw: 'secret' } }
+      expect(collector.record(invalid as DiagnosticEvent, local)).toEqual({ dropped: 'invalid' })
+    }
+    expect(categories).toEqual(['invalid', 'invalid', 'invalid'])
+    await collector.close()
+
+    const broken = fixture({
+      stderr() {
+        throw new Error('private stderr failure')
+      },
+    })
+    const invalid: unknown = { ...event, facts: { kind: 'transport', raw: 'secret' } }
+    broken.collector.record(invalid as DiagnosticEvent, local)
+    expect(broken.collector.health()).toMatchObject({ stderrFailures: 1, coverage: 'degraded' })
+    await broken.collector.close()
   })
 })
