@@ -418,3 +418,38 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 2026-09-27，本树自身 .venv 执行 internal/formal=skip：最终候选检查 PID 125605 退出 0，60 项 formal 均明确 skip；结构/旧字节检查 PID 125661 退出 0；git diff --check PID 125583 退出 0。73 条、十三个九项服务操作、27 规范资源、17 精确依赖已核；472 冻结原文件、7 个 root 所有输入、20 个提供输入均无漂移。catalog/covers/tasks 的原 80/2043/54 条记录原字节保留，仅增加 1/55/6；四 TLA 与十九 cfg 字节等同 RT4。
 
 首次候选检查 PID 124834 退出 1：catalog 缺必填 acceptance:null、实例标题锚点遗漏，前者连带使新 task 的资源未入 catalog。已修复；首次结构助手 PID 125086 退出 1（漏算四级条款标题），第二次 PID 125178 退出 1（依赖归属表在 S-2，助手误列 S-4），只修正助手，不放宽规格保证。原 raw/argv/PID/exit/wait 保留于本次施工证据，修复后通过不抹去首次失败。工具输出截断导致的首次 apply_patch 拒绝另有记录，未修改规范。没有执行 TLC、Alloy、模型请求、真实 IO、实现测试或新的 Schema 检查。完成证据追加后的最终复查及交接归档索引由施工 HANDOFF 记录。
+
+
+## v6 候选变化与证据
+
+2026-09-28：RT6 candidate 从 D-090 已接受 RT5 复制后定点演进；未接受，未冻结，未提交。76 条（原73+S74～S76）；原十三操作九项保留，七个 TLA 模块、二十九配置，共四十资源。能力层不新发 Schema，唯一值引用 MP4/MS5/MR6/LC5；PendingModelResponse 与 ModelRetryConclusion 由各 data owner 拥有。
+
+### 变化的影响
+
+- PF-013 rev14/D-096：完整 cap/upstreamInputLimits 固定在快照；每次实际 plan 在新锚点/HTTP之前计量，公开函数与服务同门，保守界不可判与准确超限分开。old codec保留历史，禁止借新目录补旧cap。
+- MR6 S39/S40：带回复返回完整 PendingModelResponse，禁止 disposition/late；只有显式处分后构造持久响应，实际提交时 late 原义不变。原头/取消/未知锚点/凭据/完整批保证保留。
+- LC5 S42/S43：失败维结论明确 modelCallId，主体完整 retryConclusions。默认件按自身已生效结论计数，已给未发计入，失联续接与自定义件不冒充自身重试。
+- 原四模型与十九配置逐字继承 RT5；新 FinalPlan/PendingReply/RetryHistory 及四正配置、六负配置为新增义务。跨包 Schema 不由本包复制；其他产品 rev 仍沿契约抬头的继承范围。
+
+### 本次实际检查
+
+- `python3 tooling/src/check_design.py` 首次因解释器过旧中止：`AttributeError: 'PurePosixPath' object has no attribute 'is_relative_to'`。随后使用工作区已存在的 Python3.12，不安装依赖。
+- 第一次 Python3.12 检查实际输出 `FAIL: design validation found 9 error(s).`：3处新 verification 导航尚未写入，6处链接目标为本 spoke 未集成的 MS5/MR6/LC5 包。前三处由本节补齐；后六处保留 G-32，在批集成后检查。
+- 最终 Python3.12 原工作树检查实际输出 `FAIL: design validation found 6 error(s).`（退出1）：仅本 spoke 尚未集成的 MS5 S49/S50、MR6 S39 与 examples、LC5 S42/S43 六处链接。各 owner 已给稳定锚点；共同批集成与复查归主线，不能将这个失败报告成通过。
+- 本包结构核对实际输出 `PASS: RT6 has 76 unique clauses; all 13 service operations have nine items; all 23 inherited formal files byte-identical; 40 candidate resources present; catalog fragment has 17 exact dependencies.`；`git diff --check` 退出0。该核对不验证业务语义或形式模型。
+- 临时原始输出为本次 `runtime6-fragments/check-design-final.log`、`local-audit.log`，登记片段由主线收存；它们不是 record/evidence 的已发布证据。
+
+### 未开始的证据义务
+
+| 义务 | 规范落点 | 状态与负责者 |
+|---|---|---|
+| 十三操作原完整动作链、headers、credential、cancel/late/unknown 实际组合 | 原实例及 RT5-H1～H6、S68～S73 | 未开始本版验收；原owner保持 |
+| 每模型/供应商的可靠计量、所有实际发送模态/工具/协议、UTF8最终体 | RT6-I1～I9、S74、FinalPlan | 未开始；计量/传输/runtime提供者，G33 |
+| 完整pending数据交接、无默认处分、持久schema门与多写方 | RT6-P1～P3、S75、PendingReply | 未开始；MR/core/runtime/codec/实际回复写方 |
+| 已给未发、[A,A]两历史、跨调用与自定义结论、旧格式拒猜 | RT6-R1～R4、S76、RetryHistory | 未开始；LC/runner/runtime/日志提供者 |
+| TLC 正反配置 | v6/formal/README.md 的精确映射 | 未运行；主线整批执行正负配置，不声明无反例 |
+| 数据 Schema 与真实生产读取、Run 终结认法 | MR6/LC5/MP4 owner；G28～G35 | 本包不代证；无 generic bool/fixture 闭合 |
+
+### 登记边界
+
+本 spoke 不修改中央 registry。提供 `catalog.fragment.json`（1候选/17依赖/40资源）、`covers.fragment.json`（58条 reviewed:false）、`formal-tasks.fragment.json`（10正任务候选）、`id-namespaces.fragment.json`（复用S-/G-、无新增前缀）的待集成片段；它们不等于中央已登记。负配置不列formal task。主线在共同批集成后落唯一清单并复核精确消费，接受另行。
