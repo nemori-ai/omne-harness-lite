@@ -1,5 +1,6 @@
 import type { ModelRoute } from '../definitions.ts'
 
+// Family route policies only; complete definitions use the same shared validator as DeepSeek.
 // These are route rules, not complete official model definitions. In particular,
 // neither image input limits nor the K3 video input path have been certified.
 const common = {

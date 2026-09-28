@@ -1,6 +1,7 @@
 import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
 import { readModelDefinition, type ModelDefinition, type ModelRoute } from '../definitions.ts'
 
+// Family route policies: shared by model-specific declarations below.
 // A declared supplied subset, not a claim that DeepInfra lacks the dropped parameters.
 // Native sampling conditions do not establish DeepInfra's conditional behavior.
 const automaticDeepInfraRoute = {
@@ -38,6 +39,7 @@ const automaticDeepInfraRoute = {
 // Automatic means no manual cache controls; a cache hit needs separate evidence.
 export const deepseekV41FlashDeepInfraRoute = automaticDeepInfraRoute
 
+// Complete Pro definition: capabilities and exact revisions use the common validator.
 const declaration = {
   modelId: 'deepseek/deepseek-v4-pro-0813',
   revision: '1',

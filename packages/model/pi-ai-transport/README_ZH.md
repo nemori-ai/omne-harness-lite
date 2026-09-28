@@ -324,12 +324,30 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 
 本次只验证本地构造和纯规划。seed／stop 真正生效、完整参数调优与生产 public／service 认证仍待完成。首次端到端调用只使用已有观察的 `low` 与 `1024`。另一个固定 DeepSeek 模型需另行补齐事实与窄定义，不会自动发现或纳入模型。
 
-### Moonshot 路由实现进展
+### 家族策略与完整模型定义
 
-Kimi K3 和 K2.7 Code 的内部路由规则复用公共规划器的带标识 user 提醒及自动缓存配置。K3 提供文档列出的 low/high/max 推理强度子集；K2.7 Code 丢弃显式 effort 请求并保留参数处置记录。不在当前供给子集中的采样控制同样在丢弃时留痕。
+`src/official-models/` 中有两个不同的实现层次：
 
-这些规则尚未作为公开模型定义或可选官方档案提供。图像大小政策、K3 视频传输及完整模型认证仍待完成。离线测试使用虚构容量，仅验证请求规划。在本包目录运行：
+1. 家族复用 `ModelRoute` 策略片段，各型号／供应商的具名路由记录实际差异。这些声明交给同一套参数、提醒、缓存与消息规划器。
+2. 完整 `ModelDefinition` 还需要能力属性、精确实现／定义修订和供应商路由。整份值统一经 `readModelDefinition` 校验和拥有；显式配置与 `createOfficialProfileContent` 再产生目录输入。插件注册沿既有贡献生命周期。
+
+目前 `deepseek.ts` 的 Pro 包含两层，Flash 只有路由策略；`moonshot.ts` 的 K3 与 K2.7 Code 目前只有第一层。这是完成程度的差异，不是另一种 adapter 架构。完整定义均沿公共校验与配置路径，各家不另写注册、连接池或生命周期。
+
+| 家族 | 已有内部路由策略的目标型号数 | 提醒角色 | 声明的缓存配置 |
+| --- | ---: | --- | --- |
+| OpenAI | 12 | developer | automatic |
+| Anthropic | 4 | user | explicit；调用方显式选择已声明的 `1h` TTL 与 `last_message` 布局 |
+| DeepSeek | 2 | user | automatic |
+| Google | 2 | user | automatic；显式列出 Google AI Studio 与 Vertex 路由 |
+| xAI | 2 | user | automatic |
+| Qwen | 8 | user | 六款显式 `5m`／`system`；两款 Flash 为 automatic |
+| Moonshot | 2 | user | automatic |
+| Z.ai | 5 | user | 四款 automatic；Prime 有 Alibaba 显式缓存路由策略 |
+
+这些内部规则不等于新增公开定义或可选官方档案。目前只导出了上文完整的 DeepSeek Pro 定义。测试按精确型号验证公共规划器的规则，多家还通过本地 HTTPS／SSE 验证下一轮工具与推理历史；其中的合成容量夹具不发布真实模型能力，也不认证上游行为。未知上游限制、有限供给上限、多模态承载及真实 public／service 认证仍须逐项完成。缓存声明或历史暖读不能证明 TTL 保留期。
+
+在本包目录运行家族测试：
 
 ```sh
-pnpm exec vitest run tests/official-moonshot-routes.spec.ts
+pnpm exec vitest run tests/official-*.spec.ts
 ```

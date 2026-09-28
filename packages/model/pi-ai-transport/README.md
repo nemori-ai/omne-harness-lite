@@ -324,12 +324,30 @@ The configuration is an explicitly selected source value (`revision: '1'`, `valu
 
 Pure construction and planning are verified locally. Seed/stop effectiveness, full parameter tuning and production public/service certification remain pending. The first end-to-end call uses only the previously observed `low` and `1024` parameters. Adding the other fixed DeepSeek model requires its own complete facts and leaf, without automatic model discovery.
 
-### Moonshot route work in progress
+### Family policies and complete model definitions
 
-Internal route rules for Kimi K3 and K2.7 Code share the planner's marked user reminders and automatic-cache configuration. K3 supplies the documented low/high/max reasoning-effort subset; K2.7 Code drops an explicit effort request with the usual parameter trace. Sampling controls outside the supplied subset are also traced when dropped.
+The files under `src/official-models/` contain two distinct implementation layers:
 
-These rules are not public model definitions or selectable official profiles. Image size policy, K3 video transport and complete model certification are still pending. Offline tests use synthetic capacities and exercise request planning only. To run those checks from this package directory:
+1. A family shares `ModelRoute` policy fragments; named model/provider routes record the actual differences. These are declarative inputs to the same parameter, reminder, cache and message planner.
+2. A complete `ModelDefinition` also supplies capabilities, exact implementation/definition revisions and provider routes. `readModelDefinition` validates and owns that whole value. Explicit configuration and `createOfficialProfileContent` then produce catalog input. Plugin registration uses the existing contribution lifecycle.
+
+`deepseek.ts` currently contains both layers for Pro; Flash has its route policy only. `moonshot.ts` currently contains only the first layer for K3 and K2.7 Code. The difference is completion status, not a second adapter architecture. Complete definitions must follow the shared validation and configuration path; families do not implement their own registration, connection pool or lifecycle.
+
+| Family | Target models with internal route policies | Reminder role | Declared cache configuration |
+| --- | ---: | --- | --- |
+| OpenAI | 12 | developer | automatic |
+| Anthropic | 4 | user | explicit; caller selects the declared `1h` TTL and `last_message` layout |
+| DeepSeek | 2 | user | automatic |
+| Google | 2 | user | automatic; Google AI Studio and Vertex routes are explicit |
+| xAI | 2 | user | automatic |
+| Qwen | 8 | user | six explicit `5m`/`system` routes; two automatic Flash routes |
+| Moonshot | 2 | user | automatic |
+| Z.ai | 5 | user | four automatic routes; Prime has an explicit Alibaba route policy |
+
+These internal rules are not additional public definitions or selectable official profiles. Only the complete DeepSeek Pro definition above is currently exported. Tests exercise exact per-model policy choices through the common planner; several families also run local HTTPS/SSE and next-turn tool/reasoning replay. Their synthetic capacity fixtures do not publish real capabilities or certify upstream behavior. Unknown upstream limits, finite supplied caps, multimodal carriage and real public/service certification remain explicit release work. A cache declaration or a historical warm read does not prove TTL retention.
+
+From this package directory, run the family checks with:
 
 ```sh
-pnpm exec vitest run tests/official-moonshot-routes.spec.ts
+pnpm exec vitest run tests/official-*.spec.ts
 ```
