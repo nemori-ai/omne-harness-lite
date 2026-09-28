@@ -15,7 +15,8 @@ import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-value
 import type { ArrivalEvent, OpenEvent } from '@omne-harness-lite/arrival-events'
 import type { StreamEnd, TransportFailure } from '@omne-harness-lite/model-request-runtime'
 import { parseSSE, SseProtocolError } from './sse.ts'
-import { strictObject, object, redactObject } from './json.ts'
+import { strictObject, object } from './json.ts'
+import { processedText, processedObject, CredentialProcessingFailure } from './credential-policy.ts'
 import { reportDiagnostic } from './diagnostics.ts'
 import { accountFromUsage } from './accounts.ts'
 import { claimResponse, type RawResponse, type Diagnostic } from './http.ts'
@@ -130,7 +131,7 @@ export async function* readStream(
     if (typeof value !== 'string') return
     if (originalServing[key] === undefined) {
       originalServing[key] = value
-      serving[key] = state.redact(value)
+      serving[key] = processedText(state.credentialPolicy, value, 'serving_text_policy')
     } else if (originalServing[key] !== value)
       diagnostic({
         kind:
@@ -153,23 +154,34 @@ export async function* readStream(
       if (done) throw new SseProtocolError('event after DONE')
       const frame = strictObject(data)
       if (!frame) throw new SseProtocolError('invalid SSE JSON')
-      remember('upstreamRequestId', frame.id)
-      remember('upstreamModel', frame.model)
-      remember('servingProvider', frame.provider)
       if (object(frame.error)) {
-        const error = redactObject(frame.error, state.redact)
+        // Independent protocol status is obtained before processing its untrusted JSON copy.
         const code = frame.error.code
         failed = isNonNegativeJsonInteger(code)
           ? {
               source: 'in_band',
-              httpStatus: state.statusCode,
+              ...(state.statusCode === undefined ? {} : { httpStatus: state.statusCode }),
               statusCode: code,
               inBand: true,
-              upstreamError: { raw: error },
             }
-          : { source: 'in_band', httpStatus: state.statusCode, upstreamError: { raw: error } }
+          : {
+              source: 'in_band',
+              ...(state.statusCode === undefined ? {} : { httpStatus: state.statusCode }),
+            }
+        remember('upstreamRequestId', frame.id)
+        remember('upstreamModel', frame.model)
+        remember('servingProvider', frame.provider)
+        failed = {
+          ...failed,
+          upstreamError: {
+            raw: processedObject(state.credentialPolicy, frame.error, 'in_band_error_policy'),
+          },
+        }
         break
       }
+      remember('upstreamRequestId', frame.id)
+      remember('upstreamModel', frame.model)
+      remember('servingProvider', frame.provider)
       if (object(frame.usage)) {
         if (usage) diagnostic({ kind: 'model_transport.usage_repeated', level: 'info' })
         usage = frame.usage
@@ -295,9 +307,11 @@ export async function* readStream(
         if (finish !== undefined && finish !== choice.finish_reason)
           throw new SseProtocolError('finish_reason changed')
         finish = choice.finish_reason
-        serving.stopReason = state.redact(finish)
-        if (!['stop', 'tool_calls', 'length'].includes(finish)) {
-          failed = { source: 'in_band', upstreamError: { code: state.redact(finish) } }
+        const abnormal = !['stop', 'tool_calls', 'length'].includes(finish)
+        if (abnormal) failed = { source: 'in_band' }
+        serving.stopReason = processedText(state.credentialPolicy, finish, 'stop_reason_policy')
+        if (abnormal) {
+          failed = { source: 'in_band', upstreamError: { code: serving.stopReason } }
           break
         }
       }
@@ -310,7 +324,15 @@ export async function* readStream(
     }
   } catch (error) {
     if (!signal.aborted) {
-      if (error instanceof SseProtocolError)
+      if (error instanceof CredentialProcessingFailure) {
+        failed = { ...(failed ?? { source: 'local' }), localError: error.stage }
+        diagnostic({
+          kind: error.rejected
+            ? 'model_transport.text_or_json_policy_rejected'
+            : 'model_transport.text_or_json_policy_defect',
+          level: 'error',
+        })
+      } else if (error instanceof SseProtocolError)
         failed = { source: 'protocol', localError: error.message }
       else if (
         error instanceof Error &&

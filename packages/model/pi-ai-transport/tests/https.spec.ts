@@ -686,15 +686,15 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
         if (!('failed' in result)) throw new Error('expected actual HTTP failure')
         expect(result.failed.statusCode).toBe(status)
         expect(result.failed.source).toBe('http_status')
-        expect(result.failed.headers).toMatchObject({
+        expect(result.rawHeaders).toMatchObject({
           'x-upstream-request-id': 'upstream-id',
-          'set-cookie': ['first=1', 'second=2'],
         })
+        expect(result.rawHeaders).not.toHaveProperty('set-cookie')
         const redacted = writeJsonLossless(result.failed)
         for (let index = 0; index <= credential.length - 8; index++)
           expect(redacted).not.toContain(credential.slice(index, index + 8))
-        expect(Object.isFrozen(result.failed.headers)).toBe(true)
-        expect(Object.isFrozen(result.failed.headers?.['set-cookie'])).toBe(true)
+        expect(Object.isFrozen(result.rawHeaders)).toBe(true)
+        expect(result.failed).not.toHaveProperty('headers')
         expect(writeJsonLossless(result.failed)).not.toContain(credential)
         expect(host.requests).toHaveLength(1)
         // A fully consumed error response may leave an idle keep-alive socket.
@@ -723,7 +723,7 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
         new AbortController().signal,
       )
       if (!('failed' in result)) throw new Error('expected actual HTTP failure')
-      expect(result.failed.headers?.['x-upstream-request-id']).toBe('oversized-id')
+      expect(result.rawHeaders?.['x-upstream-request-id']).toBe('oversized-id')
       expect(result.failed.statusCode).toBe(429)
       expect(result.failed.upstreamError).toBeUndefined()
       await expect.poll(host.closedSockets).toBe(1)
@@ -755,9 +755,7 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
       supplied.now = () => {
         throw new Error('late policy replacement')
       }
-      supplied.redact = () => {
-        throw new Error('late policy replacement')
-      }
+      supplied.credentialRedaction = { ...supplied.credentialRedaction, credential_patterns: [] }
       respond()
       const result = invocation(await handle.outcome)
       expect(result.failure?.cause).toBe('upstream_unavailable')

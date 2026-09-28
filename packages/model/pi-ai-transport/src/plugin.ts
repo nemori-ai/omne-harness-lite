@@ -8,6 +8,7 @@ import {
   type ModelTransportService,
   type RetirementPolicy,
 } from './registry.ts'
+import { ownCredentialConfiguration } from './credential-policy.ts'
 import type { Diagnostic } from './http.ts'
 
 export const MODEL_TRANSPORT_SERVICE = 'modelTransport'
@@ -42,7 +43,40 @@ const configuration = z
         connectTimeoutMs: positive.nullable(),
         maxErrorBodyBytes: positive,
         maxSseEventBytes: positive,
-        credentialFragmentMinLength: positive,
+        credentialRedaction: z
+          .object({
+            credential_fragment_min_length: positive,
+            credential_header_names: z.array(z.string()).readonly(),
+            credential_patterns: z
+              .array(
+                z.discriminatedUnion('kind', [
+                  z
+                    .object({
+                      kind: z.literal('prefix-token'),
+                      prefix: z.string(),
+                      alphabet: z.enum(['key', 'auth']),
+                    })
+                    .strict(),
+                  z
+                    .object({
+                      kind: z.literal('scheme-token'),
+                      scheme: z.string(),
+                      alphabet: z.enum(['key', 'auth']),
+                    })
+                    .strict(),
+                ]),
+              )
+              .readonly(),
+          })
+          .strict()
+          .refine(value => {
+            try {
+              ownCredentialConfiguration(value)
+              return true
+            } catch {
+              return false
+            }
+          }),
       })
       .strict(),
     retirement,

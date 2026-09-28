@@ -10,6 +10,7 @@ import {
 } from './http.ts'
 import { readStream } from './stream.ts'
 import { ownDefinitions, type ModelDefinition } from './definitions.ts'
+import { ownCredentialConfiguration } from './credential-policy.ts'
 import { connectionAdmission } from './connections.ts'
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/'
@@ -39,13 +40,15 @@ export function createOwnedTransport(options: TransportOptions): {
   readonly stopAdmission: () => void
   readonly claim: (planned: PlannedRequest) => void
 } {
-  const policy = Object.freeze({ ...options.policy })
+  const policy = Object.freeze({
+    ...options.policy,
+    credentialRedaction: ownCredentialConfiguration(options.policy.credentialRedaction),
+  })
   for (const key of [
     'maxConnections',
     'idleConnectionTimeoutMs',
     'maxErrorBodyBytes',
     'maxSseEventBytes',
-    'credentialFragmentMinLength',
   ] as const)
     if (!Number.isSafeInteger(policy[key]) || policy[key] < 1) throw new TypeError(`invalid ${key}`)
   if (
