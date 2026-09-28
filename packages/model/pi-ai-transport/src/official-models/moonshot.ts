@@ -1,8 +1,7 @@
-import type { ModelRoute } from '../definitions.ts'
+import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
+import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
 
-// Family route policies only; complete definitions use the same shared validator as DeepSeek.
-// These are route rules, not complete official model definitions. In particular,
-// neither image input limits nor the K3 video input path have been certified.
+// Shared route policy; the two narrow effort rules live with their model routes.
 const common = {
   reminderRole: 'user',
   parameters: {
@@ -44,3 +43,52 @@ export const moonshotModelRoutes = {
   'moonshotai/kimi-k3': { 'moonshotai/mxfp4': kimiK3MoonshotRoute },
   'moonshotai/kimi-k2.7-code': { 'moonshotai/int4': kimiK27CodeMoonshotRoute },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
+
+// The selected OpenRouter endpoints report shared context windows and maximum
+// completion sizes, but no independent max_prompt_tokens value. These project
+// input caps reserve each route's full reported completion budget. Their source
+// facts remain unknown, not an assertion that the upstream input is unbounded.
+const unknownImageInputLimits = {
+  maxInputTokens: { status: 'unknown' },
+  maxRequestBytes: { status: 'unknown' },
+  maxImageBytes: { status: 'unknown' },
+  maxImages: { status: 'unknown' },
+} as const
+
+/** Complete MP4 declarations for the selected Moonshot OpenRouter endpoints. */
+export const moonshotDefinitions = ownDefinitions([
+  {
+    modelId: 'moonshotai/kimi-k3',
+    revision: '1',
+    implementation: { name: 'pi-ai:moonshot', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['image', 'text', 'video'],
+      outputModalities: ['text'],
+      maxInputTokens: 104858,
+      maxOutputTokens: 943718,
+      inputConstraints: { maxImageBytes: 4194304 },
+      upstreamInputLimits: unknownImageInputLimits,
+    },
+    routes: moonshotModelRoutes['moonshotai/kimi-k3'],
+  },
+  {
+    modelId: 'moonshotai/kimi-k2.7-code',
+    revision: '1',
+    implementation: { name: 'pi-ai:moonshot', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['image', 'text'],
+      outputModalities: ['text'],
+      maxInputTokens: 26215,
+      maxOutputTokens: 235929,
+      inputConstraints: { maxImageBytes: 4194304 },
+      upstreamInputLimits: unknownImageInputLimits,
+    },
+    routes: moonshotModelRoutes['moonshotai/kimi-k2.7-code'],
+  },
+] satisfies readonly ModelDefinition[])
+
+/** An explicit source configuration; no request or registration installs it by default. */
+export const moonshotAutomaticConfiguration = Object.freeze({
+  revision: '1',
+  values: Object.freeze({ cache: Object.freeze({ mode: 'automatic' }) }),
+}) satisfies ModelAdaptationBinding['configuration']
