@@ -8,6 +8,7 @@ import {
   appendControlRecord,
   classifyInterrupt,
   classifyRelease,
+  OwnedAppendTracker,
   OwnedReadTracker,
   withOwnedReads,
   type ControlFacts,
@@ -63,6 +64,58 @@ it('close requests read stop and waits for actual stopped before releasing its o
   expect(await pending).toEqual({ unavailable: true })
   expect(owner.active).toBe(0)
   expect(await withOwnedReads(owner, 1, tracker, async () => true)).toEqual({ unavailable: true })
+})
+
+it('close retains a started append until its backend has actually stopped', async () => {
+  const owner = new ControlledSettlementOwner()
+  const entered = deferred<void>()
+  const backend = deferred<AppendResult>()
+  const stopped = deferred<void>()
+  owner.stopBarrier = stopped.promise
+  const parsedTenant = parseTenantId({ organization: 'control-org', account: 'control-account' })
+  if (!('ok' in parsedTenant)) throw new Error('invalid fixture tenant')
+  const session = unwrap(parseOpaqueIdentifier('control-session', 'SessionRef'))
+  const generation = Object.freeze({})
+  const appends = new OwnedAppendTracker()
+  const pending = appendControlRecord({
+    binding: {
+      session,
+      tenant: parsedTenant.ok,
+      log: {
+        readSince: async () => ({ failure: 'unavailable' }),
+        readByKey: async () => ({ failure: 'unavailable' }),
+        append: async () => {
+          entered.resolve(undefined)
+          return await backend.promise
+        },
+      },
+      generation,
+      currentGeneration: () => generation,
+    },
+    owner,
+    concurrent: 1,
+    record: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
+    retainUnknown() {
+      throw new Error('known receipt unexpectedly quarantined')
+    },
+    trackTask: task => appends.track(task),
+  })
+  await entered.promise
+  expect(owner.active).toBe(1)
+  let finished = false
+  const closing = appends.close().then(result => {
+    finished = true
+    return result
+  })
+  await Promise.resolve()
+  expect(finished).toBe(false)
+  backend.resolve({ positions: [1], tail: 1 })
+  await Promise.resolve()
+  expect(finished).toBe(false)
+  stopped.resolve(undefined)
+  expect(await pending).toEqual({ appended: true })
+  expect(await closing).toEqual({ released: true })
+  expect(owner.active).toBe(0)
 })
 
 describe('RT7 S-31/S-32 control admission from owned facts', () => {

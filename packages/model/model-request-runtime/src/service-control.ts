@@ -85,6 +85,44 @@ export class OwnedReadTracker {
   }
 }
 
+/** Append tasks stay visible to service close until their caller transfers or releases ownership. */
+export class OwnedAppendTracker {
+  readonly #tasks = new Map<SettlementTask<AppendResult>, Promise<void>>()
+  #closed = false
+
+  track(task: SettlementTask<AppendResult>): () => void {
+    let done: (() => void) | undefined
+    const completed = new Promise<void>(resolve => {
+      done = resolve
+    })
+    this.#tasks.set(task, completed)
+    if (this.#closed) this.stop(task)
+    return () => {
+      this.#tasks.delete(task)
+      done?.()
+    }
+  }
+
+  private stop(task: SettlementTask<AppendResult>): void {
+    try {
+      task.requestStop()
+    } catch {
+      // Only the actual stopped result can release the owner.
+    }
+  }
+
+  async close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+    this.#closed = true
+    const tasks = [...this.#tasks]
+    for (const [task] of tasks) this.stop(task)
+    const settled = await Promise.allSettled(tasks.map(([task]) => task.stopped))
+    await Promise.all(tasks.map(([, done]) => done))
+    return settled.every(result => result.status === 'fulfilled')
+      ? { released: true }
+      : { unavailable: true }
+  }
+}
+
 /** A read-only operation's backend tasks remain owned until actual stop. */
 export async function withOwnedReads<T>(
   owner: SettlementOwner,
@@ -233,6 +271,7 @@ export interface ControlAppendInput {
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
   ) => void
+  readonly trackTask?: (task: SettlementTask<AppendResult>) => () => void
 }
 
 /** S-68/S-70: one actual SL3 unconditional commit, with the original Run fence if present.
@@ -285,44 +324,49 @@ export async function appendControlRecord(
     registration.release()
     return { unavailable: true }
   }
-  let raw: unknown
+  const untrack = input.trackTask?.(task)
   try {
-    raw = await task.completion
-  } catch {
-    if (started) {
+    let raw: unknown
+    try {
+      raw = await task.completion
+    } catch {
+      if (started) {
+        input.retainUnknown(registration, task)
+        return { unavailable: true }
+      }
+      try {
+        await task.stopped
+        registration.release()
+      } catch {
+        input.retainUnknown(registration, task)
+      }
+      return { unavailable: true }
+    }
+    const receipt = settlementAppendReceipt(raw, 1)
+    if (
+      started &&
+      (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
+    ) {
       input.retainUnknown(registration, task)
       return { unavailable: true }
     }
     try {
       await task.stopped
-      registration.release()
     } catch {
       input.retainUnknown(registration, task)
+      return { unavailable: true }
     }
-    return { unavailable: true }
+    try {
+      registration.release()
+    } catch {
+      return { unavailable: true }
+    }
+    return started && receipt !== null && !('failure' in receipt)
+      ? { appended: true }
+      : { unavailable: true }
+  } finally {
+    untrack?.()
   }
-  const receipt = settlementAppendReceipt(raw, 1)
-  if (
-    started &&
-    (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
-  ) {
-    input.retainUnknown(registration, task)
-    return { unavailable: true }
-  }
-  try {
-    await task.stopped
-  } catch {
-    input.retainUnknown(registration, task)
-    return { unavailable: true }
-  }
-  try {
-    registration.release()
-  } catch {
-    return { unavailable: true }
-  }
-  return started && receipt !== null && !('failure' in receipt)
-    ? { appended: true }
-    : { unavailable: true }
 }
 
 interface UnknownControlWrite {
@@ -349,6 +393,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   const unknown = new Map<string, UnknownControlWrite[]>()
   const reads = new OwnedReadTracker()
   const reconcileReads = new OwnedReadTracker()
+  const appends = new OwnedAppendTracker()
   const backgroundEnds = new Map<string, Promise<void>>()
   const backgroundFailed = new Map<
     string,
@@ -490,6 +535,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       if ('unknown' in owner.opened() || owner.unresolvedWrites().length !== 0)
         return { unavailable: true }
       const appended = await appendControlRecord({
+        trackTask: task => appends.track(task),
         binding: session.log,
         owner,
         concurrent: runtime.settlementContention.limits.concurrent,
@@ -571,6 +617,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       if (closing) return { unavailable: true }
       if (!admission.intentExists) {
         const appended = await appendControlRecord({
+          trackTask: task => appends.track(task),
           binding: session.log,
           owner,
           concurrent: runtime.settlementContention.limits.concurrent,
@@ -588,6 +635,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         if (!backgroundEnds.has(keyOf(key))) {
           let committed = false
           const ending = appendControlRecord({
+            trackTask: task => appends.track(task),
             binding: session.log,
             owner,
             concurrent: runtime.settlementContention.limits.concurrent,
@@ -666,6 +714,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   const close = async (): Promise<{ readonly released: true } | { readonly unavailable: true }> => {
     closing = true
     const readResult = await reads.close()
+    const appendResult = await appends.close()
     try {
       await Promise.all(backgroundEnds.values())
     } catch {
@@ -736,6 +785,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     if (
       unknown.size !== 0 ||
       'unavailable' in readResult ||
+      'unavailable' in appendResult ||
       'unavailable' in recoveryReads ||
       'unavailable' in finalRecoveryReads ||
       backgroundFailed.size !== 0

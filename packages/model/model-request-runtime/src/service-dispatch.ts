@@ -10,7 +10,12 @@ import { createAnchoredModelInvocation } from './anchored-invocation.ts'
 import { resolveCallTools } from './call-tools.ts'
 import { dispatchGuard, type DispatchGuardPhase } from './dispatch-guard.ts'
 import { UnknownAppendTracker } from './service-calls.ts'
-import { appendControlRecord, OwnedReadTracker, withOwnedReads } from './service-control.ts'
+import {
+  appendControlRecord,
+  OwnedAppendTracker,
+  OwnedReadTracker,
+  withOwnedReads,
+} from './service-control.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
@@ -225,6 +230,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
 ): ServiceDispatch {
   const retainedReads = new OwnedReadTracker()
+  const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
   let closing = false
 
@@ -326,6 +332,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         const first = 'absent' in history || history.known.dispatches.length === 0
         const ending = first ? 'undispatched' : 'released'
         const appended = await appendControlRecord({
+          trackTask: task => appends.track(task),
           binding: session.log,
           owner,
           concurrent: runtime.settlementContention.limits.concurrent,
@@ -472,6 +479,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         if (outcome.rejected === 'modality_not_carried') {
           if (dispatchNumber > 1) return { invalidInput: { reason: 'modality_mismatch' } }
           const appended = await appendControlRecord({
+            trackTask: task => appends.track(task),
             binding: session.log,
             owner: view.owner,
             concurrent: runtime.settlementContention.limits.concurrent,
@@ -508,11 +516,12 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     close: async () => {
       closing = true
       const reads = await retainedReads.close()
+      const appendResult = await appends.close()
       const writes = await unknownWrites.close({
         concurrent: runtime.settlementContention.limits.concurrent,
         call: runtime.history.call,
       })
-      return 'released' in reads && 'released' in writes
+      return 'released' in reads && 'released' in appendResult && 'released' in writes
         ? ({ released: true } as const)
         : ({ unavailable: true } as const)
     },

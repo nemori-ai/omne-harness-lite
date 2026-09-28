@@ -18,7 +18,12 @@ import { winningRow, type ProfileRow } from '@omne-harness-lite/model-profile-di
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { resolveCallTools } from './call-tools.ts'
 import { createCallContainer } from './service-container.ts'
-import { appendControlRecord, OwnedReadTracker, withOwnedReads } from './service-control.ts'
+import {
+  appendControlRecord,
+  OwnedAppendTracker,
+  OwnedReadTracker,
+  withOwnedReads,
+} from './service-control.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { CallHistoryResult } from './call-history.ts'
@@ -327,6 +332,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
 ): ServiceCalls {
   const retainedReads = new OwnedReadTracker()
+  const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
   let closing = false
   async function historyFor(
@@ -511,6 +517,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       if ('undispatched' in checked) {
         if (closing) return { runtimeStopped: true }
         const written = await appendControlRecord({
+          trackTask: task => appends.track(task),
           binding: session.log,
           owner,
           concurrent: runtime.settlementContention.limits.concurrent,
@@ -555,6 +562,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           if (planned.rejected === 'modality_not_carried') {
             if (closing) return { runtimeStopped: true }
             const written = await appendControlRecord({
+              trackTask: task => appends.track(task),
               binding: session.log,
               owner,
               concurrent: runtime.settlementContention.limits.concurrent,
@@ -646,11 +654,12 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   const close = async () => {
     closing = true
     const reads = await retainedReads.close()
+    const appendResult = await appends.close()
     const writes = await unknownWrites.close({
       concurrent: runtime.settlementContention.limits.concurrent,
       call: runtime.history.call,
     })
-    return 'released' in reads && 'released' in writes
+    return 'released' in reads && 'released' in appendResult && 'released' in writes
       ? ({ released: true } as const)
       : ({ unavailable: true } as const)
   }
