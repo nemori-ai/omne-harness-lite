@@ -5,7 +5,7 @@ import { isTestPath } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { nodeName, syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 
-const bootstrap = 'apps/model-request-acceptance/src/bootstrap.ts'
+const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const directory = 'packages/model/model-profile-directory/src/'
 const custodian = 'packages/infra/credential-custodian-local/src/'
 const bindingEntry = '@omne-harness-lite/model-profile-directory/tx-reads'
@@ -38,7 +38,7 @@ function merge(...inputs: Value[]): Value {
 function pathOf(file: SourceFile): string {
   const path = file.path.replaceAll('\\', '/').replace(/^\.\//u, '')
   if (/^(?:model|infra)\//u.test(path)) return `packages/${path}`
-  if (path.startsWith('model-request-acceptance/')) return `apps/${path}`
+  if (path.startsWith('model-invocation-minimal-demo/')) return `examples/${path}`
   return path
 }
 function target(file: SourceFile, specifier: string): string {

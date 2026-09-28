@@ -13,6 +13,9 @@
 
 [治理CLI](cli/README.md)已按D049建立文件输入增量；只装配CG2/CLS，尚无TUI或Agent据点，独立安装制品待验证。
 
+暂时的模型请求验收装配现位于[可运行示例](../examples/model-invocation-minimal-demo/README_ZH.md)，
+以开发示例身份演示已接受能力；`apps/` 不再为它保留重复成员。
+
 ## 历史
 
 2026-09-20 与 packages/ 一同回退到骨架：此前的 `local-harness` 装配基线及其契约随旧设计链退役，

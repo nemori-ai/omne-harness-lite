@@ -3,8 +3,8 @@ import { evaluationPublicationBoundary } from '../src/rules/evaluation-publicati
 const entry = '@omne-harness-lite/evaluation-input-store/publication'
 const imported = `import { publishLocalInputs, captureSessionRecipe } from '${entry}';`
 test.each([
-  'apps/model-request-acceptance/src/bootstrap.ts',
-  'apps/model-request-acceptance/tests/bootstrap.spec.ts',
+  'examples/model-invocation-minimal-demo/src/bootstrap.ts',
+  'examples/model-invocation-minimal-demo/tests/bootstrap.spec.ts',
   'packages/assets/evaluation-input-store/tests/crash-worker.mjs',
   'packages/assets/evaluation-input-store/tests/source.spec.ts',
   'packages/model/model-request-runtime/tests/session-selection-fixture.ts',
@@ -16,7 +16,9 @@ test.each([
   'packages/model/model-request-runtime/src/session-selection-fixture.ts',
   'packages/model/model-request-runtime/tests/unapproved-publication.ts',
   'packages/tools/asset-registry/src/index.ts',
-  'apps/model-request-acceptance/src/runtime.ts',
+  'examples/model-invocation-minimal-demo/src/runtime.ts',
+  'apps/model-request-acceptance/src/bootstrap.ts',
+  'examples/unrelated/tests/test.ts',
   'apps/cli/src/bootstrap.ts',
   'scripts/forward.mjs',
 ])('unapproved publisher %s', path => {
@@ -30,7 +32,7 @@ test.each([
 ])('forwarding or private entry is rejected: %s', text => {
   expect(
     evaluationPublicationBoundary.check([
-      { path: 'apps/model-request-acceptance/src/bootstrap.ts', text },
+      { path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts', text },
     ]),
   ).not.toEqual([])
 })

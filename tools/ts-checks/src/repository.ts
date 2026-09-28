@@ -100,7 +100,7 @@ export function collectRepositorySources(root: string): SourceFile[] {
       }
     }
   }
-  for (const directory of ['packages', 'apps', 'tools', 'scripts']) {
+  for (const directory of ['packages', 'apps', 'examples', 'tools', 'scripts']) {
     const full = join(root, directory)
     try {
       if (statSync(full).isDirectory()) walk(full)

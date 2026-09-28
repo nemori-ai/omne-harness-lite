@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { createAcceptanceApplication } from '@omne-harness-lite/model-request-acceptance'
+import { createAcceptanceApplication } from '@omne-harness-lite/model-invocation-minimal-demo'
 
 const [file, checkpoint] = process.argv.slice(2)
 const values = JSON.parse(await readFile(file, 'utf8'))

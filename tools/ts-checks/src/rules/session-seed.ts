@@ -6,9 +6,13 @@ import { lineAt } from '../source-text.ts'
 
 const seedEntry = '@omne-harness-lite/session-tenancy-table/seed'
 const seedImplementation = 'packages/session/session-tenancy-table/src/seed.ts'
-const bootstrap = 'apps/model-request-acceptance/src/bootstrap.ts'
+const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 function allowed(path: string): boolean {
-  return path === bootstrap || /^apps\/(?:model-request-acceptance|cli)\/tests\/.+\.ts$/u.test(path)
+  return (
+    path === bootstrap ||
+    /^apps\/cli\/tests\/.+\.ts$/u.test(path) ||
+    /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
+  )
 }
 function resolved(path: string, specifier: string): string {
   if (specifier.startsWith('.'))

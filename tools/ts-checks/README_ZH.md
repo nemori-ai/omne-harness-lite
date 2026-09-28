@@ -2,7 +2,7 @@
 
 `evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
-产品源码（`packages/` 与 `apps/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
+产品源码与开发示例（`packages/`、`apps/` 与 `examples/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
 规则检查文本、路径与 TypeScript 语法，不做跨文件类型分析。类型层的检查（失败集合闭合等）
 在各包的 `tests/*.spec-d.ts` 里，不在这里。
 
@@ -38,7 +38,7 @@
 | `no-dialect-bypass`              | 架构评审 N-2；storage-sql 节点「Driver 的边界」；tenancy-host「同一存储、同一约束域」 | `tenancy/*/src` 不从 `@omne-harness-lite/storage-sql` 导入 `NodeSqliteDialect`、`NodeSqliteDriver`、`SqlStorage`、`openStorage`（具名导入，或命名空间／默认导入的成员），不 `new Kysely(`；测试豁免                                                                                                                                                                                      | 经别的包转手取得连接；`kysely` 的其他构造入口                                                                                                         |
 
 ```sh
-pnpm run lint:rules          # 根：扫描 packages/ 与 apps/，有违反即退出 1
+pnpm run lint:rules          # 根：扫描 packages/、apps/ 与 examples/，有违反即退出 1
 pnpm --filter @omne-harness-lite/ts-checks test   # 规则自测
 ```
 
@@ -139,7 +139,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 ## 模型凭据的逐符号结构守卫
 
-`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。它采用 [D-075](../../.meta_harness/design/record/decisions/model-credential-source-projection/decision.md)、目录 v3 V3-10、CCL rev2 MCR-V7 与 [D-092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md) 的装配权限。
+`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。它采用 [D-075](../../.meta_harness/design/record/decisions/model-credential-source-projection/decision.md)、目录 v3 V3-10、CCL rev2 MCR-V7 与 [D-092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md) 的装配权限。
 
 | 符号 | 允许点 |
 | --- | --- |
@@ -159,7 +159,7 @@ import assert from 'node:assert/strict'
 import { modelCredentialBoundary, type SourceFile } from './dist/index.js'
 
 const source: SourceFile = {
-  path: 'apps/model-request-acceptance/src/bootstrap.ts',
+  path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   text: `
     import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
     import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';

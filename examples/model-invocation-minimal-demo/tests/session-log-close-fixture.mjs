@@ -3,7 +3,7 @@ import { readFile, chmod } from 'node:fs/promises'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { createAcceptanceApplication } from '@omne-harness-lite/model-request-acceptance'
+import { createAcceptanceApplication } from '@omne-harness-lite/model-invocation-minimal-demo'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 
 const values = JSON.parse(await readFile(process.argv[2], 'utf8'))
