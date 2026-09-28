@@ -31,6 +31,7 @@ import {
 } from './credential-redaction.ts'
 import { ownedHeaders, processFailure } from './invoke-policy.ts'
 import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
+import { createInvocationDiagnostics } from './invocation-diagnostics.ts'
 
 export function classifyCause(
   fact: TransportFailure,
@@ -127,13 +128,41 @@ export function invokeModel<P extends PlannedSemantics, R>(
       abort: () => {},
     })
   }
+  const diagnose = (kind: string) => {
+    try {
+      input.policy.diagnostic({ kind })
+    } catch {
+      /* Separate diagnostic subdomain; it never changes the invocation result. */
+    }
+  }
+  const diagnostics = createInvocationDiagnostics(input, bound, diagnose)
+  diagnostics.record({
+    source: 'invocation',
+    stage: 'admission',
+    outcome: 'started',
+    facts: { kind: 'decision' },
+  })
+  diagnostics.record({
+    source: 'invocation',
+    stage: 'credential',
+    outcome: 'accepted',
+    facts: { kind: 'decision', credentialPresent: true },
+  })
   if (
     !input.transport ||
     typeof input.transport.plan !== 'function' ||
     typeof input.transport.send !== 'function' ||
     typeof input.transport.read !== 'function'
-  )
+  ) {
+    diagnostics.record({
+      source: 'invocation',
+      stage: 'admission',
+      outcome: 'unavailable',
+      facts: { kind: 'decision' },
+    })
+    diagnostics.close()
     return rejectionHandle({ rejected: 'unavailable' })
+  }
   if (missing) {
     const preflight = input.transport.plan(input)
     if (
@@ -142,15 +171,33 @@ export function invokeModel<P extends PlannedSemantics, R>(
         preflight.rejected === 'modality_not_carried' ||
         preflight.rejected === 'orphan_tool_call' ||
         preflight.rejected === 'tool_internal_in_request')
-    )
+    ) {
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'planning',
+        outcome: 'rejected',
+        facts: { kind: 'decision' },
+      })
+      diagnostics.close()
       return rejectionHandle(preflight)
+    }
+    diagnostics.record({
+      source: 'invocation',
+      stage: 'planning',
+      outcome: 'rejected',
+      facts: { kind: 'decision' },
+    })
+    diagnostics.close()
     return rejectionHandle({
       rejected: 'invalidInput',
       reason: 'input_limit_missing',
       metrics: missing.metrics,
     })
   }
-  if (!requested) return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
+  if (!requested) {
+    diagnostics.close()
+    return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
+  }
   // Capture this invocation's values and borrowed ports before any asynchronous work.
   // The caller still owns the lifetime of each function/resource it supplied.
   input = Object.freeze({
@@ -167,8 +214,16 @@ export function invokeModel<P extends PlannedSemantics, R>(
     }),
   })
   const initial = start(input.target)
-  if ('rejected' in initial)
+  if ('rejected' in initial) {
+    diagnostics.close()
     return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
+  }
+  diagnostics.record({
+    source: 'invocation',
+    stage: 'admission',
+    outcome: 'accepted',
+    facts: { kind: 'decision' },
+  })
   let state: AssemblyState = initial.ok
   const controller = new AbortController()
   let terminal = false,
@@ -184,18 +239,17 @@ export function invokeModel<P extends PlannedSemantics, R>(
   let completed: ModelInvocationResult | undefined
   const gates = new Set<Promise<'accepted' | 'failed'>>()
   let disposeTimer: () => void = () => {}
-  const diagnose = (kind: string) => {
-    try {
-      input.policy.diagnostic({ kind })
-    } catch {
-      /* Separate diagnostic subdomain; it never changes the invocation result. */
-    }
-  }
   const cancel = () => {
     if (!terminal) {
       explicitlyCancelled = true
       controller.abort()
       diagnose('model_invocation.cancel_requested')
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'stream_end',
+        outcome: 'cancel_requested',
+        facts: { kind: 'transport' },
+      })
     }
   }
   input.signal.addEventListener('abort', cancel, { once: true })
@@ -207,6 +261,12 @@ export function invokeModel<P extends PlannedSemantics, R>(
         timedOut = true
         controller.abort()
         diagnose('model_invocation.deadline')
+        diagnostics.record({
+          source: 'invocation',
+          stage: 'stream_end',
+          outcome: 'cancel_requested',
+          facts: { kind: 'transport' },
+        })
       }
     })
   }
@@ -225,6 +285,12 @@ export function invokeModel<P extends PlannedSemantics, R>(
   async function firstGate(): Promise<boolean> {
     if (!input.beforeFirstContent) return !controller.signal.aborted
     diagnose('model_invocation.gate_waiting')
+    diagnostics.record({
+      source: 'invocation',
+      stage: 'content_gate',
+      outcome: 'waiting',
+      facts: { kind: 'transport', gate: 'waiting' },
+    })
     let remove = () => {}
     const cancelled = new Promise<'cancelled'>(resolve => {
       const abort = () => resolve('cancelled')
@@ -246,10 +312,22 @@ export function invokeModel<P extends PlannedSemantics, R>(
       const result = await Promise.race([gate, cancelled])
       if (result === 'failed') {
         diagnose('model_invocation.gate_failed')
+        diagnostics.record({
+          source: 'invocation',
+          stage: 'content_gate',
+          outcome: 'failed',
+          facts: { kind: 'transport', gate: 'failed' },
+        })
         return false
       }
       if (result !== 'accepted' || controller.signal.aborted) return false
       diagnose('model_invocation.gate_accepted')
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'content_gate',
+        outcome: 'accepted',
+        facts: { kind: 'transport', gate: 'accepted' },
+      })
       return true
     } finally {
       remove()
@@ -263,9 +341,57 @@ export function invokeModel<P extends PlannedSemantics, R>(
       headerFailure: TransportFailure | undefined
     try {
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'planning',
+        outcome: 'started',
+        facts: { kind: 'decision' },
+      })
       const plan = input.transport.plan(input)
-      if ('rejected' in plan) return plan
+      if ('rejected' in plan) {
+        diagnostics.record({
+          source: 'invocation',
+          stage: 'planning',
+          outcome: 'rejected',
+          facts: { kind: 'decision' },
+        })
+        return plan
+      }
       planned = plan.planned
+      const adaptation = input.snapshot.adaptation
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'binding',
+        outcome: 'accepted',
+        binding: {
+          implementation: adaptation.implementation.name,
+          implementationRevision: adaptation.implementation.revision,
+          modelId: adaptation.definition.modelId,
+          definitionRevision: adaptation.definition.revision,
+          configurationRevision: adaptation.configuration.revision,
+        },
+        facts: { kind: 'decision' },
+      })
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'planning',
+        outcome: 'accepted',
+        facts: { kind: 'decision' },
+      })
+      try {
+        for (const parameter of planned.droppedParameters ?? []) {
+          const checked = bound.text(parameter)
+          if ('ok' in checked && checked.ok === parameter)
+            diagnostics.record({
+              source: 'invocation',
+              stage: 'planning',
+              outcome: 'accepted',
+              facts: { kind: 'decision', adjustment: 'omitted', parameter },
+            })
+        }
+      } catch {
+        diagnose('model_invocation.diagnostic_projection_failed')
+      }
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
       deadline(input.policy.firstContentTimeoutMs)
       const actualAt = input.policy.now()
@@ -278,7 +404,24 @@ export function invokeModel<P extends PlannedSemantics, R>(
       if (admitted !== true && admitted !== false) return { rejected: 'unavailable' }
       if (!admitted || controller.signal.aborted) return { cancelledBeforeSend: true }
       sentAt = actualAt
-      const sent = await input.transport.send(planned, input.credential, controller.signal)
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'send',
+        outcome: 'started',
+        facts: { kind: 'transport', requestedProvider: input.provider },
+      })
+      const sent = await input.transport.send(
+        planned,
+        input.credential,
+        controller.signal,
+        diagnostics.transport,
+      )
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'send',
+        outcome: 'response' in sent ? 'accepted' : 'failed',
+        facts: { kind: 'transport', requestedProvider: input.provider },
+      })
       if ('rejected' in sent)
         return sent.rejected === 'invalidInput'
           ? { rejected: 'invalidInput', reason: 'malformed' }
@@ -297,7 +440,12 @@ export function invokeModel<P extends PlannedSemantics, R>(
         }
       }
       if ('response' in sent) {
-        const reader = input.transport.read(sent.response, planned, controller.signal)
+        const reader = input.transport.read(
+          sent.response,
+          planned,
+          controller.signal,
+          diagnostics.transport,
+        )
         readerStopped = false
         try {
           while (true) {
@@ -328,6 +476,13 @@ export function invokeModel<P extends PlannedSemantics, R>(
               deadline(input.policy.idleContentTimeoutMs)
             if (controller.signal.aborted) continue
             consume(event)
+            if (becameContent && snapshot(state).firstContentAt !== undefined)
+              diagnostics.record({
+                source: 'invocation',
+                stage: 'first_content',
+                outcome: 'accepted',
+                facts: { kind: 'transport', stream: 'first_content' },
+              })
           }
         } finally {
           await reader.return({ aborted: true })
@@ -336,6 +491,18 @@ export function invokeModel<P extends PlannedSemantics, R>(
       } else end = sent
       if (end === undefined) throw new Error('transport omitted terminal facts')
       retainedServing = end
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'stream_end',
+        outcome: 'ended' in end ? 'completed' : 'failed',
+        facts: {
+          kind: 'transport',
+          stream: 'ended' in end ? 'ended' : 'lost',
+          ...('servingProvider' in end && typeof end.servingProvider === 'string'
+            ? { servingProvider: end.servingProvider }
+            : {}),
+        },
+      })
       if (headerFailure !== undefined) end = { failed: headerFailure }
       const visible = snapshot(state).firstContentAt !== undefined
       let failure: Failure | undefined, reason: 'end' | 'max_tokens' | 'interrupted' | 'lost'
@@ -457,6 +624,28 @@ export function invokeModel<P extends PlannedSemantics, R>(
         ...(hasTrims(account.trims) ? { trims: account.trims } : {}),
       }
       completed = Object.freeze(value)
+      diagnostics.record({
+        source: 'invocation',
+        stage: 'reply_handoff',
+        outcome: 'completed',
+        facts: {
+          kind: 'progress',
+          ...(outcome === 'truncated' ? {} : { responseOutcome: outcome }),
+          ...(account.usage.input_tokens === 'unknown'
+            ? {}
+            : { inputTokens: account.usage.input_tokens }),
+          ...(account.usage.output_tokens === 'unknown'
+            ? {}
+            : { outputTokens: account.usage.output_tokens }),
+          ...(account.usage.cache_read_tokens === 'unknown'
+            ? {}
+            : { cacheReadTokens: account.usage.cache_read_tokens }),
+          ...(account.usage.cache_write_tokens === 'unknown'
+            ? {}
+            : { cacheWriteTokens: account.usage.cache_write_tokens }),
+          ...(account.cost.cost_usd === 'unknown' ? {} : { costUsd: account.cost.cost_usd }),
+        },
+      })
       return completed
     } finally {
       // The original assembler owns accepted account and trim facts. A stopped stream
@@ -475,6 +664,14 @@ export function invokeModel<P extends PlannedSemantics, R>(
       input.signal.removeEventListener('abort', cancel)
       runStopped = readerStopped
       diagnose('model_invocation.stopped')
+      if (runStopped)
+        diagnostics.record({
+          source: 'invocation',
+          stage: 'stream_end',
+          outcome: 'stopped',
+          facts: { kind: 'transport' },
+        })
+      diagnostics.close()
     }
   }
   const outcome = run()
