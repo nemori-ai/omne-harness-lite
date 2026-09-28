@@ -246,6 +246,9 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
       }),
     ).toEqual({ kind: 'unavailable' })
     expect(
+      measured({ ...body, messages: [{ role: 'assistant', content: 'ok', reasoning: 'thought' }] }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
       measured({
         ...body,
         messages: [

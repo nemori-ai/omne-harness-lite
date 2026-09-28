@@ -42,11 +42,11 @@ function pythonJson(value: JsonValue): string {
     .join(', ')}}`
 }
 
-function exactKeys(value: JsonObject, allowed: readonly string[]): boolean {
+export function exactKeys(value: JsonObject, allowed: readonly string[]): boolean {
   return Object.keys(value).every(key => allowed.includes(key))
 }
 
-function visibleText(value: JsonValue | undefined): string | undefined {
+export function visibleText(value: JsonValue | undefined): string | undefined {
   if (typeof value === 'string') return value
   if (!Array.isArray(value)) return undefined
   let text = ''
@@ -58,7 +58,7 @@ function visibleText(value: JsonValue | undefined): string | undefined {
   return text
 }
 
-function toolSchemas(value: JsonValue | undefined): string | undefined {
+export function toolSchemas(value: JsonValue | undefined): string | undefined {
   if (value === undefined) return ''
   if (!Array.isArray(value)) return undefined
   const schemas: string[] = []
@@ -81,7 +81,7 @@ function toolSchemas(value: JsonValue | undefined): string | undefined {
     : ''
 }
 
-function toolCalls(value: JsonValue | undefined): string | undefined {
+export function toolCalls(value: JsonValue | undefined): string | undefined {
   if (value === undefined) return ''
   if (!Array.isArray(value)) return undefined
   let rendered = ''
@@ -94,7 +94,8 @@ function toolCalls(value: JsonValue | undefined): string | undefined {
     if (typeof fn.arguments !== 'string') return undefined
     const decoded = readJsonStrict(fn.arguments)
     if (!('ok' in decoded) || !object(decoded.ok)) return undefined
-    rendered += `\n<tool_call>${fn.name}`
+    if (!rendered) rendered = '\n'
+    rendered += `<tool_call>${fn.name}`
     for (const [key, item] of Object.entries(decoded.ok))
       rendered += `<arg_key>${key}</arg_key><arg_value>${typeof item === 'string' ? item : pythonJson(item)}</arg_value>`
     rendered += '</tool_call>'
@@ -127,9 +128,6 @@ export function renderGlm52Prompt(body: JsonObject): string | undefined {
   )
     return undefined
   let rendered = prefix + `<|system|>Reasoning Effort: ${effort ? 'High' : 'Max'}` + schemas
-  let lastUser = -1
-  for (const [index, raw] of body.messages.entries())
-    if (object(raw) && raw.role === 'user') lastUser = index
   for (const [index, raw] of body.messages.entries()) {
     if (!object(raw) || typeof raw.role !== 'string') return undefined
     if (raw.role === 'system' || raw.role === 'user') {
@@ -140,21 +138,13 @@ export function renderGlm52Prompt(body: JsonObject): string | undefined {
     } else if (raw.role === 'assistant') {
       if (!exactKeys(raw, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']))
         return undefined
-      if (raw.reasoning_details !== undefined) return undefined
+      // The final OpenRouter wire sends reasoning/reasoning_details, whereas
+      // the published template consumes reasoning_content. Their mapping is
+      // not proven for this route, so retaining either requires another meter.
+      if (raw.reasoning !== undefined || raw.reasoning_details !== undefined) return undefined
       const content = visibleText(raw.content)
-      if (
-        content === undefined ||
-        content.includes('</think>') ||
-        (raw.reasoning !== undefined && typeof raw.reasoning !== 'string')
-      )
-        return undefined
-      // GLM's template keeps prior reasoning only when clear_thinking=false or
-      // after the last user. The final wire has no clear_thinking switch.
-      const reasoning = raw.reasoning
-      const thinking =
-        typeof reasoning === 'string' && index > lastUser
-          ? `<think>${reasoning}</think>`
-          : '<think></think>'
+      if (content === undefined || content.includes('</think>')) return undefined
+      const thinking = '<think></think>'
       const calls = toolCalls(raw.tool_calls)
       if (calls === undefined) return undefined
       rendered += `<|assistant|>${thinking}${content.trim()}${calls}${calls ? '\n' : ''}`
@@ -184,7 +174,7 @@ function pinnedJson(name: string, sha256: string): JsonObject {
   return parsed
 }
 
-function tokenizer(): Tokenizer {
+export function glm5Tokenizer(): Tokenizer {
   sharedTokenizer ??= new Tokenizer(
     pinnedJson('tokenizer.json', tokenizerSha256),
     pinnedJson('tokenizer_config.json', configSha256),
@@ -202,7 +192,7 @@ export function createGlm52InputMeter(definition: ModelDefinition): InputMeter {
     !Object.hasOwn(definition.routes, 'z-ai/fp8')
   )
     throw new TypeError('unsupported GLM-5.2 input-meter binding')
-  const encoder = tokenizer()
+  const encoder = glm5Tokenizer()
   const meter: InputMeter = {
     modelId: definition.modelId,
     definitionRevision: definition.revision,
