@@ -1,6 +1,6 @@
 # pi-ai-transport：完整输入声明与最终固定计划候选
 
-2026-09-28，rev 1，**candidate，未接受、未实施、未验证**。这是现有 `packages/model/pi-ai-transport` 节点增量；沿节点四件套，不新建插件、服务、存储或附件平台。新增实现名字均为候选；现有同名函数的下述扩展尚不是可调用 API。
+2026-09-28，rev 2，**candidate，未接受、未实施、未验证**。这是现有 `packages/model/pi-ai-transport` 节点增量；沿节点四件套，不新建插件、服务、存储或附件平台。新增实现名字均为候选；现有同名函数的下述扩展尚不是可调用 API。rev 2 按主线明确的分段交付裁定增加纯 MP4 子入口与执行代际隔离，等待独立定点复核；不以 rev 1 的评审结论代替该新增选择的核对。
 
 ## 基线与四层状态
 
@@ -9,7 +9,7 @@
 | 层 | 本增量状态 |
 | --- | --- |
 | 语义接受 | 无。baseline `omne-harness-lite-design-2026-09-15` 的 `data.model-profile/v4`（MP4）与 `capability.model-request-runtime/v6`（RT6）在 catalog 均为 candidate；D-096 只接受产品规则 |
-| 可实施 | 下列声明扩展、纯校验、固定计划及确定性字节计量已有候选路径，须先独立评审和采用。生产 token 计量规则仍缺逐模型/供应商依据，不能靠接口存在声称具备 |
+| 可实施 | 分段 A 的纯 MP4 声明子入口与旧执行隔离、分段 B 的 RT6 固定计划及计量已有候选路径，须先按范围独立核对和采用。A 不等待 token 规则，B 不因 A 交付而自动可实施 |
 | 绑定证据 | 新增 0 条；已有 bindings 仅支持原版本范围。本页 IL-V 为待执行义务 |
 | 实际验证 | 新增实现验证尚无。源码观察基线 `be026d6c`：八家路线模块存在，ModelCapabilities 尚为五项，planner 尚未执行 RT6 S-74 |
 
@@ -25,6 +25,26 @@
 | RT6 S-20/S-54/S-63：无秘密的失败可解释性 | 原 diagnostic / 调用结果仅交指标、具名原因、合法数值与精确绑定；错误处理沿 D-095 | 无请求内容、图片字节或工具参数进入诊断 | IL-V8；保留来源政策、同次 H 和真实停止义务 |
 
 ## 公共完整声明与八家模块
+
+### 分段公开面与执行代际隔离
+
+**分段 A 先交纯声明，分段 B 才切执行代际。**这是本候选的明确施工边界，不是按形状猜版本的兼容层；下文注册、lease、计量及发送的新代际扩展均属于 B，不能在 A 顺手接入旧 planner。
+
+| 段 / 公开入口（候选） | 明确消费与允许的公开面 | 不可混接边界 |
+| --- | --- | --- |
+| A：既有包根 `.` 与 `./plugin` | 现有定义、执行与注册面继续显式消费 MP3；保留当前已验证 demo 的原调用路径 | 现有 Pro 声明仍为 MP3，不标作 MP4，不把新六项声明送入旧 register/plan |
+| A：新增 `./definitions/v4` | 只公开 MP4 `ModelDefinition`、`readModelDefinition`、`readAdaptationConfigurationSchema`、`createOfficialProfileContent` 与八家共 37 个完整定义数据；上述函数名在明确子入口内复用，配置读取沿既有 configurationSchema 的同源规则实现 | 不导出 plan/send/read-stream、factory、register、service 或贡献插件；无网络、连接池、全局注册、凭据读取。主根不自动重导出这些 MP4 值 |
+| B：后续根入口显式切代 | RT6 与 MP4 消费链、S-74 全部计量前提及固定计划/发送门实际就绪后，才按明确采用切换执行；消费者显式迁移 | A 的读取、建档成功不是 B 的执行准入，不能通过删除 upstreamInputLimits 或改写修订把 MP4 定义送回旧执行 |
+
+MP4 类型与判定由本批明确升级的 core 根入口提供，旧执行显式改用 core `/v3`，不能让旧执行随默认导出悄然升级。两条定义路径共用现有 route/configuration/parameter 的纯解释构件；只有能力版本判定与相应公开包装分别固定，不复制八套 Schema，也不在共同实现里按缺字段猜旧版。复用旧纯 route/config 处理前必须已经通过 core MP4 全量形状及跨字段判定，不能以删除 upstreamInputLimits 后旧 parser 的成功替代新判定。模型叶子按同样的公共 route map 加模型窄能力数据构造 MP4 声明，所有 cap 明确给值，无推导默认。
+
+分段 A 的候选类型/import 约定：消费者从 `@omne-harness-lite/pi-ai-transport/definitions/v4` 取得本代 `ModelDefinition`；本代 `ModelCapabilities` 是 `@omne-harness-lite/model-profile` 根入口 MP4 `ModelProfileContent` 的六项 `Pick`，route 成员复用现有 `ModelRoute`。旧执行及其类型/判定明确 import `@omne-harness-lite/model-profile/v3`；本轮不增设 core `/v4` 别名。八家统一导出 `<family>Definitions` 与 `<family>ModelRoutes`，family 为 openai、anthropic、google、deepseek、xai、qwen、moonshot、zai；这些数据只在纯 v4 子入口统一导出。旧根 Pro 的原精确导出保持 MP3。模型供给值由本批已明确的来源输入填写，声明工厂不重新推导默认 cap。
+
+MP4 声明绑定使用明确的新 `implementation.revision`，精确值由该批采用与源码发布记录确定；A 中不意味着该执行已登记。具体防混接须同时覆盖：六项 MP4 原值进入旧 read/register/factory/plan 的形状校验时沿各边界既有非法输入/配置收场；**只装载旧贡献的宿主**不能以新 binding 取得执行，plan/acquire 返回 unavailable。实现和调用方不得建设剥字段桥接、按形状 fallback 或自动降级，不因 JSON 校验成功宣称 MP4 被旧执行支持。既有 declared implementation 允许可信调用者自定义名称/修订，不增加修订字符串黑名单或保留前缀。
+
+若可信调用者手工构造另一份合法 MP3 声明，那是明确的旧版本供给，不是本节点能从字符串或字段推断来源被篡改的 MP4 值；本节点不声称防止同进程可信代码重新定义数据。旧注册的同键不同内容仍沿已有全值等价规则拒绝。版本隔离验收必须说明装载集合与输入原值，不能以“伪降级也必拒”的无前提声明代替这些可验证边界。
+
+新纯入口读到旧五项定义按 MP4 拒绝；旧根读到新六项定义按 MP3 拒绝。两入口不自动迁移值、不在 fallback 中重新尝试另一版。共享同一个 npm 包与同一个家族 route 数据不改变这个边界。A 的 README/README_ZH 例子必须显式 import 子入口，说明 37 份完整声明的可读/可建档范围；当前 demo 的旧 import 与旧 binding 保持原样且实际回归，不宣称已满足 RT6 S-74。
 
 候选 `ModelCapabilities` 精确复用 MP4 `ModelProfileContent` 的六项：`inputModalities`、`outputModalities`、`maxInputTokens`、`maxOutputTokens`、`inputConstraints`、`upstreamInputLimits`。没有第七份本地限额 DTO，不给 ModelAdaptationBinding 加字段。所有适用性、三态对象、正有限数及同口径比较都消费 core MP4；definitionValid 的闭合成员检查和投影判定一起更新，不能只改 TS 类型。
 
@@ -89,6 +109,7 @@ Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-ver
 | 共享完整声明解释器，八家仅数据与真实窄差异 | 每家独立类能自由处理厂商变化 | 公共解释器变更影响所有叶子，需全族回归；高 |
 | 保留现有贡献插件/lease，不增加计量服务 | 独立服务便于单独换算法 | 算法修订随实现发布，不能在旧调用中热换；换来固定前提，较高 |
 | 声明发布独立于实际发送与认证 | 一个 ready 状态更易向调用者呈现 | 消费者须区分合法声明与可运行范围，README 必须明确；高 |
+| A 用显式 `./definitions/v4` 纯入口，B 就绪后切根执行 | 立即升级根入口避免同时解释两版 API | 有限过渡期维护两个明确版本入口及隔离测试；可保留现有 demo 且不会让旧 planner 绕过新限额，较高。A 不承诺永久双版本执行支持 |
 | 未获可靠 token 规则的请求明确不可计量 | 经验系数可立即让更多请求发送 | 暂时限制这些请求的新版发送；满足 RT6，而不能用“可插拔”掩盖缺证据；高 |
 
 新代际所有定义必须显式给六项能力，旧五项定义不自动补 unknown/cap；旧绑定在新宿主未登记则 unavailable，不能用同 modelId 取最新版本。已记录旧请求按原 codec 读取/结算，不补写限制；旧 snapshot 的新发送沿 RT6 S-74/G-34。迁移在途宿主沿 D-082：旧 owner 排空后退出，不能让 Cordis 重载自动接管旧对象。本增量不承诺兼容导出或新增迁移管理服务。
@@ -97,7 +118,7 @@ Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-ver
 
 ## 实施清单与缺口
 
-按独立依赖推进：① core MP4 已采用实现就绪后，定义/读取/建档/全值等价及八家声明、对应包双语 README 可并行；② 确定性字节计量、阶段化拒绝、固定计划与 public/Cordis 负控；③ 逐精确模型/供应商补计量算法证据后接入 token 构件和完整发送。① 不等③，①完成不得把③标为完成。详细 oracle 与缺口见 [验证入口](verification.md#v7-完整输入限制候选验证)。
+按独立依赖推进：① 分段 A 在 core MP4 已采用实现就绪后，交 `./definitions/v4` 的定义/读取/建档、八家声明、根执行隔离与对应包双语 README，执行 IL-V9 及 IL-V1～3 的纯声明部分；② 并行准备确定性字节计量、阶段化拒绝、固定计划与 public/Cordis 负控；③ 逐精确模型/供应商补计量算法证据，RT6 消费链就绪且全部新执行义务通过后按分段 B 显式切根代际，补 IL-V1～3 的新注册/lease 部分及 IL-V4～8。① 不等③，①完成不得把③标为完成。详细 oracle 与缺口见 [验证入口](verification.md#v7-完整输入限制候选验证)。
 
 | 缺口 | 条款 / 受阻消费者 / 闭合 owner |
 | --- | --- |

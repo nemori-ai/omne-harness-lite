@@ -8,6 +8,8 @@
 
 [v7 候选投影](v7-input-limits-design.md)消费 MP4/RT6 candidate，以下是待执行 oracle，**不是运行结果**；新增 bindings 0。既有四件套及有限传输证据不证明本增量，正式采用由主线另行完成。
 
+rev 2 的分段 A 验收 IL-V9 与 IL-V1～3 中纯声明/配置/建档部分；新代际 register/lease 以及 IL-V4～8 留待分段 B。不得以 A 的通过宣称 MP4 值已经可由当前根执行，亦不得为了测过 A 偷接旧 planner。
+
 | ID / 条款 | 验收 oracle 与必须失败的负控 |
 | --- | --- |
 | IL-V1 / MP4 S-8/S-9/S-32/S-33 | 六项能力在 read/own/build/register 各面都保真；unknown 配有限 cap 合法，缺事实、缺必需 cap、limited 比项目 cap 小、非 image 带图片限制及非法三态均拒。图片档案只发文字也不能绕过缺单图 cap；恢复旧五项 validator 或 unknown→unbounded 默认必须失败 |
@@ -18,6 +20,7 @@
 | IL-V6 / RT6 S-74/G-33 | 对每个采用的 meter 保存模型/provider/算法版本/适用域与准确性或上界论证，独立核对全部输入贡献。词表正确但漏消息/工具包装、漏特殊 token/模态、用样本最大系数冒充全域上界、仅凭 callback 标签通过均作为拒收反例。token 证据未知时 size_unavailable、缺构件时 unavailable；尚无合格算法不可声称通过本项 |
 | IL-V7 / RT6 S-53/S-58/S-64/S-74 | 真实两代 lease 交错：旧引用固定 A cap/算法，B 发布只影响新取得；规划后输入改动及 A 退役不改变抓线，旧清理不删 B；伪造/复制/跨宿主 plan 不能 send。取消/停止时所有实际 reader/socket/callback 沿既有 owner 排空，不能只断言 disposer 已调用 |
 | IL-V8 / RT6 S-20/S-54/S-63/S-74 | 独立公开 invoke 与真实 Cordis/runtime 路径分别验零新增锚点/HTTP/响应/终结；合法固定输入仍能通过，不能用全拒绝替代 gate。诊断只含允许指标、数字与绑定，敏感 sentinel 不出现，既有取消、H、故障归属不回归；runtime/日志组装未建成时保留对应覆盖缺口 |
+| IL-V9 / MP4 S-28/S-29；RT6 S-53/S-57/S-74；分段 A | 独立制品实际 import `./definitions/v4`，公开可达面仅有纯定义读取、配置 Schema、建档及数据；网络/Agent/注册构造次数为零。37 个完整新定义经 core 根 MP4 判定，读取与建档全部保真；对旧五项定义拒绝。旧执行明确 import core `/v3`，将六项新定义原值交旧根 read/register/factory/plan 各边界均拒；在仅装载旧贡献的实际宿主，用新 binding 的 plan/acquire 返回 unavailable 且零 HTTP。同键不同内容沿旧规则拒绝；不限制可信调用者另行定义合法 MP3 值的名称/修订。检查实现和调用方没有剥字段桥接或自动降级，不声称能判断手工重造值的来源。原 MP3 demo 实际旧路径仍可跑，输出不冒称 v4；两个语言 README 的 imports 实际执行。负控为旧执行误用 core 根 MP4、六项值被静默裁剪后进入旧执行、恢复猜形状 fallback、未匹配精确 binding 就使用旧贡献，必须各自失败 |
 
 覆盖缺口：**IL-G1**（MP4/RT6 采用与 core 实现，阻塞正式源码升级）、**IL-G2**（逐模型可靠 token 依据，阻塞相应新版成功发送）、**IL-G3**（runtime 拒绝/锚点/历史分发及产品装配，阻塞纵线验收）、**IL-G4**（既有缓存与实际多模态认证，阻塞对应提供范围）。owner、精确边界与闭合条件归[候选稿缺口表](v7-input-limits-design.md#实施清单与缺口)。声明的未知上游数值不是全批声明阻断；file 元数据不是新增 PDF 平台义务。没有已运行且在删掉上述语义时失败的证据，不把 IL-V 填入 bindings。
 
