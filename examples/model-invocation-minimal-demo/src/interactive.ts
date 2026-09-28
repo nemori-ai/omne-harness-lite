@@ -3,6 +3,18 @@ import type { Readable, Writable } from 'node:stream'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import type { DemoConversation } from './demo.ts'
+import type { DemoTotals } from './demo.ts'
+
+function summary(value: DemoTotals['cost']): string {
+  const known = value.knownSum.toString()
+  return value.unknownCount === 0 ? known : `${known} known + ${value.unknownCount} unknown`
+}
+function footer(totals: DemoTotals): string {
+  const { usage, cost } = totals
+  const incomplete =
+    cost.unknownCount > 0 || Object.values(usage).some(value => value.unknownCount > 0)
+  return `Cumulative${incomplete ? ' (incomplete)' : ''}: input ${summary(usage.input_tokens)}, output ${summary(usage.output_tokens)}, cache read ${summary(usage.cache_read_tokens)}, cache write ${summary(usage.cache_write_tokens)} tokens; actual USD ${summary(cost)}\n`
+}
 
 /** One active turn. The actual runtime owns cancellation, durable settlement and borrowed resources. */
 export async function runInteractive(
@@ -63,6 +75,7 @@ export async function runInteractive(
           output.write('\nRequest refused before sending; no automatic retry.\n')
         } else {
           current = started.call
+          let durablySettled = false
           if (stopping) current.abort()
           const outcome = await current.outcome
           output.write('\n')
@@ -74,11 +87,14 @@ export async function runInteractive(
               output.write(
                 'Reply commit is unconfirmed; retained responsibility, no next request.\n',
               )
-            } else
+            } else {
+              durablySettled = true
               output.write(
                 `Saved. ${writeJsonLossless({ outcome: candidate.response.outcome, usage: candidate.response.usage, cost: candidate.response.cost })}\n`,
               )
+            }
           } else if ('settled' in outcome) {
+            durablySettled = true
             if (outcome.settled.settled.response.response?.outcome === 'failed') {
               modelFailed = true
               complete = false
@@ -94,6 +110,7 @@ export async function runInteractive(
             output.write('Call resources remain owned; close is incomplete.\n')
           }
           current = undefined
+          if (durablySettled) output.write(footer(await conversation.totals()))
           if (!complete || stopping) break
         }
       }

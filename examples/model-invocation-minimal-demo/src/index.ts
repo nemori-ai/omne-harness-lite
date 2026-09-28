@@ -28,6 +28,6 @@ export {
   type ScenarioResult,
 } from './types.ts'
 
-export { openDemo, readPrivateFile, type DemoConversation } from './demo.ts'
+export { openDemo, readPrivateFile, type DemoConversation, type DemoTotals } from './demo.ts'
 export { runInteractive } from './interactive.ts'
 export { createDemoConfig, MODEL } from './deployment.ts'
