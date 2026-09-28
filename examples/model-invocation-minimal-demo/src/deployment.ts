@@ -137,7 +137,7 @@ export function createDemoConfig(
       affiliationRequestTtlDefault: ttl.ok,
       teamCreationKeyRetention: ttl.ok,
     },
-    officialManifest: { ordinal: 2, entries: [profile.ok, flashProfile.ok] },
+    officialManifest: { ordinal: 3, entries: [profile.ok, flashProfile.ok] },
     wait: {
       clockTimeoutMs: 15_000,
       pollMs: 10,

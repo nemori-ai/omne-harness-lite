@@ -54,9 +54,15 @@ describe('real interactive durable conversation', () => {
     tls.setMode('http503')
     const credential = Buffer.from('controlled-503-private-key')
     try {
-      const demo = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, credential, {
-        developmentTransport: tls.developmentTransport,
-      })
+      const demo = await openDemo(
+        data,
+        { multiplier: 1.1, reserveTokens: 256 },
+        16384,
+        credential,
+        {
+          developmentTransport: tls.developmentTransport,
+        },
+      )
       const out = output()
       expect(
         await runInteractive(
@@ -94,9 +100,15 @@ describe('real interactive durable conversation', () => {
     tls.setMode('reasoning')
     const credential = Buffer.from('controlled-demo-private-key')
     try {
-      const first = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, credential, {
-        developmentTransport: tls.developmentTransport,
-      })
+      const first = await openDemo(
+        data,
+        { multiplier: 1.1, reserveTokens: 256 },
+        16384,
+        credential,
+        {
+          developmentTransport: tls.developmentTransport,
+        },
+      )
       const session = first.session,
         out = output()
       const result = await runInteractive(
@@ -138,9 +150,15 @@ describe('real interactive durable conversation', () => {
           ],
         })
       const key = await readFile(join(data, 'model-key'))
-      const resumed = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, undefined, {
-        developmentTransport: tls.developmentTransport,
-      })
+      const resumed = await openDemo(
+        data,
+        { multiplier: 1.1, reserveTokens: 256 },
+        16384,
+        undefined,
+        {
+          developmentTransport: tls.developmentTransport,
+        },
+      )
       expect(resumed.session).toBe(session)
       expect(await resumed.history()).toHaveLength(4)
       expect(await readFile(join(data, 'model-key'))).toEqual(key)
@@ -186,6 +204,7 @@ describe('real interactive durable conversation', () => {
       const demo = await openDemo(
         join(root, 'data'),
         { multiplier: 1.1, reserveTokens: 256 },
+        16384,
         credential,
         {
           developmentTransport: tls.developmentTransport,
@@ -222,6 +241,7 @@ describe('real interactive durable conversation', () => {
       const actual = await openDemo(
         join(root, 'data'),
         { multiplier: 1.1, reserveTokens: 256 },
+        16384,
         credential,
         {
           developmentTransport: tls.developmentTransport,
@@ -257,7 +277,7 @@ describe('real interactive durable conversation', () => {
       tls = await createLocalTls(join(root, 'tls')),
       data = join(root, 'data')
     try {
-      const demo = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, undefined, {
+      const demo = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, 16384, undefined, {
           developmentTransport: tls.developmentTransport,
         }),
         out = output()
@@ -268,7 +288,7 @@ describe('real interactive durable conversation', () => {
       expect(tls.requests).toHaveLength(0)
       const key = await readFile(join(data, 'model-key'))
       await expect(
-        openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, Buffer.from('bad\nkey'), {
+        openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, 16384, Buffer.from('bad\nkey'), {
           developmentTransport: tls.developmentTransport,
         }),
       ).rejects.toThrow('printable ASCII')

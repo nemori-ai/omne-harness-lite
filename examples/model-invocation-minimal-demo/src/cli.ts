@@ -7,6 +7,7 @@ const { values } = parseArgs({
   options: {
     data: { type: 'string' },
     'key-file': { type: 'string' },
+    'max-output-tokens': { type: 'string' },
     'token-margin-multiplier': { type: 'string' },
     'token-margin-reserve': { type: 'string' },
     help: { type: 'boolean' },
@@ -17,10 +18,15 @@ const tokenMargin = readTokenMargin(
   values['token-margin-multiplier'],
   values['token-margin-reserve'],
 )
+const outputLimit = values['max-output-tokens'] ?? '16384'
+const maxOutputTokens = /^[1-9][0-9]*$/u.test(outputLimit) ? Number(outputLimit) : NaN
 if (values.help) {
   process.stdout.write(
-    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory --token-margin-multiplier 1.1 --token-margin-reserve 256 [--key-file /private/openrouter-key]\nFrom this example directory: node dist/cli.js with the same options.\nBoth token margin options are required. Admission uses ceil(estimate * multiplier) + reserve; this is not a guaranteed upstream token bound.\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
+    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory --token-margin-multiplier 1.1 --token-margin-reserve 256 [--key-file /private/openrouter-key] [--max-output-tokens 16384]\nFrom this example directory: node dist/cli.js with the same options.\n--max-output-tokens defaults to 16384; the selected model profile enforces its maximum. Both token margin options are required. Admission uses ceil(estimate * multiplier) + reserve; this is not a guaranteed upstream token bound.\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
   )
+} else if (!Number.isSafeInteger(maxOutputTokens)) {
+  process.stderr.write('--max-output-tokens must be a positive safe integer. Use --help.\n')
+  process.exitCode = 2
 } else if (!values.data) {
   process.stderr.write('An explicit --data directory is required. Use --help.\n')
   process.exitCode = 2
@@ -46,7 +52,7 @@ if (values.help) {
       }
     } else if (process.env.OPENROUTER_API_KEY)
       credential = Buffer.from(process.env.OPENROUTER_API_KEY)
-    const conversation = await openDemo(values.data, tokenMargin, credential)
+    const conversation = await openDemo(values.data, tokenMargin, maxOutputTokens, credential)
     credential?.fill(0)
     const result = await runInteractive(
       conversation,

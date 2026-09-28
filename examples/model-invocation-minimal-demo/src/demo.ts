@@ -177,10 +177,13 @@ const defaultObserverBounds: DemoObserverBounds = Object.freeze({ events: 256, b
 export async function openDemo(
   dataDirectory: string,
   tokenMargin: TokenMargin,
+  maxOutputTokens: number,
   credential?: Uint8Array,
   testOptions?: Partial<Parameters<typeof createAcceptanceApplication>[1]>,
   observerBounds: DemoObserverBounds = defaultObserverBounds,
 ): Promise<DemoConversation> {
+  if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens <= 0)
+    throw new Error('max output tokens must be a positive safe integer')
   if (
     !Number.isSafeInteger(observerBounds.events) ||
     observerBounds.events <= 0 ||
@@ -308,7 +311,7 @@ export async function openDemo(
           ) {
             grant = opened
             const sent = await app.startServiceTextCall(actor, session, {
-              parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+              parameters: { reasoningEffort: 'low', maxOutputTokens },
               host: host.host,
               observer: {
                 session: parsedSession.ok,

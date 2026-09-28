@@ -43,6 +43,7 @@ describe('interactive model commands on the real demo assembly', () => {
       const actual = await openDemo(
         join(root, 'data'),
         { multiplier: 1.1, reserveTokens: 256 },
+        16384,
         credential,
         { developmentTransport: tls.developmentTransport },
       )
@@ -80,9 +81,15 @@ describe('interactive model commands on the real demo assembly', () => {
     const data = join(root, 'data')
     const credential = Buffer.from('controlled-model-commands-key')
     try {
-      const first = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, credential, {
-        developmentTransport: tls.developmentTransport,
-      })
+      const first = await openDemo(
+        data,
+        { multiplier: 1.1, reserveTokens: 256 },
+        16384,
+        credential,
+        {
+          developmentTransport: tls.developmentTransport,
+        },
+      )
       const session = first.session
       const before = capture()
       expect(
@@ -116,9 +123,10 @@ describe('interactive model commands on the real demo assembly', () => {
       expect(before.text().match(/Cumulative:/gu)).toHaveLength(2)
       expect(tls.requests).toHaveLength(2)
       expect(tls.requests.map(request => request.body)).toMatchObject([
-        { model: MODEL },
+        { model: MODEL, max_tokens: 16384 },
         {
           model: FLASH,
+          max_tokens: 16384,
           messages: [
             { role: 'user', content: [{ type: 'text', text: 'first prompt' }] },
             { role: 'assistant', content: 'first second', reasoning: 'private reasoning' },
@@ -131,9 +139,15 @@ describe('interactive model commands on the real demo assembly', () => {
       expect(log).toContain(FLASH)
       expect(log.match(/model_selection_changed/gu)).toHaveLength(2)
 
-      const reopened = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, undefined, {
-        developmentTransport: tls.developmentTransport,
-      })
+      const reopened = await openDemo(
+        data,
+        { multiplier: 1.1, reserveTokens: 256 },
+        8192,
+        undefined,
+        {
+          developmentTransport: tls.developmentTransport,
+        },
+      )
       expect(reopened.session).toBe(session)
       const current = await reopened.currentModel()
       expect(current).toMatchObject({
@@ -154,6 +168,7 @@ describe('interactive model commands on the real demo assembly', () => {
       expect(tls.requests).toHaveLength(3)
       expect(tls.requests[2]?.body).toMatchObject({
         model: FLASH,
+        max_tokens: 8192,
         messages: [
           { role: 'user', content: [{ type: 'text', text: 'first prompt' }] },
           { role: 'assistant', content: 'first second', reasoning: 'private reasoning' },
