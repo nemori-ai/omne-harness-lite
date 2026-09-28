@@ -6,6 +6,8 @@ import type {
   CreateCallContainerInput,
   OpenCallInput,
   ModelCallHost,
+  CallObserverBinding,
+  ModelObserverQueue,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
 import {
@@ -43,6 +45,7 @@ function fixture(
   systemStop: CreateCallContainerInput<PlannedSemantics, never>['systemStop'] = async () => ({
     released: true,
   }),
+  observer?: Omit<CallObserverBinding, 'queue'>,
 ) {
   const generation = {}
   const log = { session: sessionId, tenant: { organization: 'test', account: 'test' }, generation }
@@ -90,6 +93,7 @@ function fixture(
       },
     },
     systemStop,
+    ...(observer === undefined ? {} : { observer }),
   } as unknown as CreateCallContainerInput<PlannedSemantics, never>
   const container = createCallContainer(input)
   return {
@@ -157,6 +161,72 @@ describe('call container admission and retention', () => {
     expect(unregisters).toBe(1)
     expect(await registered?.()).toEqual({ released: true })
     expect(unregisters).toBe(1)
+  })
+
+  it('keeps the old observer until its receiver actually stops before the next dispatch', async () => {
+    let oldStopped = false
+    let nextConstructed = 0
+    let authorizationCloses = 0
+    const observer: Omit<CallObserverBinding, 'queue'> = {
+      request: {
+        session: sessionRef('session'),
+        endpoint: {
+          open: () => ({
+            receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+            stop() {},
+            stopped: Promise.resolve(),
+          }),
+        },
+        observer_max_buffered_events: 1,
+        observer_max_buffered_bytes: 100,
+      },
+      authorization: {
+        check: () => ({ valid: true }),
+        open: () => ({ unavailable: true }),
+        close: async () => {
+          authorizationCloses += 1
+          return { released: true }
+        },
+      },
+    }
+    const f = fixture('session', 'call', async () => ({ released: true }), observer)
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const admitted = store.reserve(f.container.key)
+    if (!('reservation' in admitted)) throw new Error('reservation absent')
+    expect(store.insert(admitted.reservation, f.container)).toBe(true)
+    const oldQueue: ModelObserverQueue = {
+      offer: () => ({ accepted: true }),
+      start: () => ({ accepted: true }),
+      close: async () => (oldStopped ? { released: true } : { unavailable: true }),
+    }
+    const nextQueue: ModelObserverQueue = {
+      offer: () => ({ accepted: true }),
+      start: () => ({ accepted: true }),
+      close: async () => ({ released: true }),
+    }
+    expect(await admitted.reservation.replaceObserverQueue(() => oldQueue)).toEqual({
+      queue: oldQueue,
+    })
+    expect(
+      await admitted.reservation.replaceObserverQueue(() => {
+        nextConstructed += 1
+        return nextQueue
+      }),
+    ).toEqual({ unavailable: true })
+    expect(nextConstructed).toBe(0)
+    expect(f.container.view().observer?.queue).toBe(oldQueue)
+    oldStopped = true
+    expect(
+      await admitted.reservation.replaceObserverQueue(() => {
+        nextConstructed += 1
+        return nextQueue
+      }),
+    ).toEqual({ queue: nextQueue })
+    expect(nextConstructed).toBe(1)
+    admitted.reservation.release()
+    expect(await store.close()).toEqual({ released: true })
+    expect(authorizationCloses).toBe(1)
+    expect(f.leaseReleases).toBe(1)
   })
   it('closes every session call while retaining only the unresolved owner for retry', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
