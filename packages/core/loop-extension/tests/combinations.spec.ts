@@ -6,7 +6,7 @@ import {
   validate,
   POWER_CONCLUSIONS,
   POSITION_CONCLUSIONS,
-} from '../src/v3/index.ts'
+} from '../src/index.ts'
 import { variants, inputAt, outputsAt, recordAt } from './helpers.ts'
 
 const powers = [

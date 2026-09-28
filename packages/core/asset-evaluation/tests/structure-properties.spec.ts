@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { evaluate } from '../src/v3/index.ts'
+import { evaluate } from '../src/index.ts'
 import { assignment, definition, holding, root, shell, simple, tenant, tool } from './fixtures.ts'
 
 describe('bounded structural properties corresponding to Alloy obligations', () => {

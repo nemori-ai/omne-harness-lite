@@ -14,7 +14,7 @@
 | `loopExtensionBodyContract`                                        | 为资产模型提供拓展件定义规则       |
 | `validate`、`judgeValue`                                           | 使用 Schema 与通用判定面           |
 
-根入口采用 v4，包含显式模型适配绑定。单独保留的 v3 契约从 `/v3` 导入，不静默升级消费者。
+根入口采用 `data.loop-extension/v6`。模型调用失败输入必须带完整、有序的 `retryConclusions`；该位置落下的每条结论都必须带与输入相符的 `modelCallId`。`/schema/v3` 与 `/schema/v2` 仅提供当前规范引用所需的精确资源，不是旧版可执行 API。
 
 ## 接收拓展件定义
 
@@ -114,4 +114,23 @@ console.log(
 
 改写保留对应位置的不可改成员。拓展件不能把无法解析的工具调用修补成已解析参数。注入提醒必须以真实拓展件名作为来源。依赖、策略执行、持久化与恢复归消费者负责。
 
-公开 JSON Schema 入口是 `@omne-harness-lite/loop-extension/schema`（v4）、`/schema/v3` 和 `/schema/v2`。参见[源码导出](src/index.ts)、[测试](tests/)与[工具定义](../tool-definition/README_ZH.md)。
+公开 JSON Schema 入口是 `@omne-harness-lite/loop-extension/schema`（v6）、`/schema/v3` 和 `/schema/v2`。参见[源码导出](src/index.ts)、[测试](tests/)与[工具定义](../tool-definition/README_ZH.md)。
+
+## 校验已记录的重试结论
+
+重试历史保留完整结论，包括模型调用身份、作者、时刻及方案。`judgeInput` 校验完整失败主体，并核对每条发出记录及重试结论都属于同一个模型调用；完整日志前缀仍由运行时取得。
+
+```ts
+import { judgeValue } from '@omne-harness-lite/loop-extension'
+
+const result = judgeValue('ModelRetryConclusion', {
+  extension: 'default-retry',
+  position: 'after_model_call',
+  dimension: { ending: 'failure' },
+  modelCallId: 'mc_01',
+  power: 'rewrite',
+  output: { kind: 'retry', plan: { provider: 'provider-b', after: 'PT2S' } },
+  at: '2026-09-28T10:00:00Z',
+})
+console.log('ok' in result) // true
+```

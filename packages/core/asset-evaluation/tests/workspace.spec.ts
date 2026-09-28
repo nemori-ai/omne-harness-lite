@@ -3,7 +3,7 @@ import {
   createAssetModelJudge,
   type WorkspaceCarrierManifest,
 } from '@omne-harness-lite/asset-model'
-import { readWorkspaceCarrier, defaultBodyContracts } from '../src/v3/index.ts'
+import { readWorkspaceCarrier, defaultBodyContracts } from '../src/index.ts'
 import { workspace, shell } from './fixtures.ts'
 
 describe('complete workspace carrier input domain', () => {

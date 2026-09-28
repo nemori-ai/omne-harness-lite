@@ -14,7 +14,7 @@ This package is an unpublished, private ESM workspace member. Use it from this r
 | `evaluationInputFingerprint` | Fingerprint the full evaluation input                                        |
 | Permission helpers           | Classify assignments and calculate bounds                                    |
 
-Root entry `.` adopts v4; `/v3` retains the explicit v3 consumer. `selectEvaluationRootSource` selects the actual immutable root source; `judgeEffectiveAssembly` reads a represented result without repairing its fields.
+Root entry `.` adopts v4. `selectEvaluationRootSource` selects the actual immutable root source; `judgeEffectiveAssembly` reads a represented result without repairing its fields. The default loop-extension body port uses the current declaration behavior with the exact LC3 Schema resource that asset-model v3 references. It accepts the seven declaration definitions used by that model; other definitions fail as invalid port configuration.
 
 ## Evaluate a complete input
 
@@ -65,7 +65,10 @@ const input: NonConnectorEvaluationInput = {
         {
           number: 1,
           publishedAt: at,
-          content: { category: 'agent_definition', body: toOpaqueJson({ references: rootReferences, attributes: [] }) },
+          content: {
+            category: 'agent_definition',
+            body: toOpaqueJson({ references: rootReferences, attributes: [] }),
+          },
         },
       ],
     },

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, toOpaqueJson } from '@omne-harness-lite/content-blocks'
-import type { EvaluationInput } from '../src/v3/types.ts'
-import { canonical, copyJson, evaluationInputFingerprint } from '../src/v3/json.ts'
+import type { EvaluationInput } from '../src/types.ts'
+import { canonical, copyJson, evaluationInputFingerprint } from '../src/json.ts'
 import { e1, at, assignment, shell, tenant, bob } from './fixtures.ts'
 
 describe('full input fingerprint independently varied fields', () => {
@@ -53,7 +53,12 @@ describe('full input fingerprint independently varied fields', () => {
   it('object member order is immaterial, including integer-looking and Unicode keys', () => {
     const original = e1()
     const reversed = {
-      root: { references: original.root.references, definition: original.root.definition },
+      root: {
+        references: original.root.references,
+        definition: original.root.definition,
+        attributes: original.root.attributes,
+        source: original.root.source,
+      },
       definitions: original.definitions,
       holdings: original.holdings,
       tenant: { account: tenant.account, organization: tenant.organization },
@@ -88,12 +93,17 @@ describe('full input fingerprint independently varied fields', () => {
     const input: EvaluationInput = {
       tenant,
       standing: { standing: 'effective', role: 'member' },
-      root: { definition: { category: 'agent_definition', name: 'assistant' }, references: [] },
+      root: {
+        definition: { category: 'agent_definition', name: 'assistant' },
+        references: [],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
       holdings: [],
       definitions: [],
     }
     const bytes =
-      '{"definitions":[],"holdings":[],"root":{"definition":{"category":"agent_definition","name":"assistant"},"references":[]},"standing":{"role":"member","standing":"effective"},"tenant":{"account":"acc_alice","organization":"org_acme"}}'
+      '{"definitions":[],"holdings":[],"root":{"attributes":[],"definition":{"category":"agent_definition","name":"assistant"},"references":[],"source":{"asset":"ast_root","version":1}},"standing":{"role":"member","standing":"effective"},"tenant":{"account":"acc_alice","organization":"org_acme"}}'
     expect(evaluationInputFingerprint(input)).toBe(
       createHash('sha256').update(bytes, 'utf8').digest('hex'),
     )

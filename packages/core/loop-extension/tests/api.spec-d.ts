@@ -12,7 +12,7 @@ import type {
   FailureCause,
   LogHandle,
   DecisionCardDraft,
-} from '../src/v3/index.ts'
+} from '../src/index.ts'
 import {
   loopExtensionBodyContract,
   judgeDefinition,
@@ -23,7 +23,7 @@ import {
   isExtensionInput,
   isExtensionOutput,
   isConclusion,
-} from '@omne-harness-lite/loop-extension/v3'
+} from '@omne-harness-lite/loop-extension'
 
 declare const validLog: LogHandle
 declare const validCallId: CallId
@@ -129,7 +129,7 @@ it('LE-TYPE-REPRESENTATION: boolean shape guards cannot counterfeit domain brand
   }
   if (isExtensionOutput(value)) {
     // @ts-expect-error Schema-only validity does not brand the original unknown value
-    const output: import('../src/v3/index.ts').ExtensionOutput = value
+    const output: import('../src/index.ts').ExtensionOutput = value
     void output
   }
   if (isConclusion(value)) {

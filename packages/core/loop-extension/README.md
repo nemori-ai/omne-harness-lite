@@ -14,7 +14,7 @@ This package is an unpublished, private ESM workspace member. Use it from this r
 | `loopExtensionBodyContract`                                        | Supply definition rules to the asset model                        |
 | `validate`, `judgeValue`                                           | Use the schema and generic judgment surfaces                      |
 
-The root entry adopts v4, including explicit model adaptation bindings. Import `/v3` for the separately retained v3 contract; versions are not silently upgraded.
+The root entry adopts `data.loop-extension/v6`. A failed model-call input includes its complete, ordered `retryConclusions` and every recorded conclusion at that position carries the matching `modelCallId`. Existing `/schema/v3` and `/schema/v2` paths publish exact resources required by current schema references; they are not executable older APIs.
 
 ## Admit a definition
 
@@ -114,4 +114,23 @@ A valid conclusion is not dispatch authorization. The caller supplies the effect
 
 Rewrites preserve the immutable members for their position. An unparseable tool call cannot be repaired into parsed arguments by an extension. Injected reminders must name the actual extension as their source. Dependencies, policy execution, persistence and recovery belong to consumers.
 
-Public JSON Schema entries are `@omne-harness-lite/loop-extension/schema` (v4), `/schema/v3` and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [tool definition](../tool-definition/README.md).
+Public JSON Schema entries are `@omne-harness-lite/loop-extension/schema` (v6), `/schema/v3` and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [tool definition](../tool-definition/README.md).
+
+## Admit a recorded retry
+
+The retry history contains full recorded conclusions, including their call identity, author, time and plan. `judgeInput` validates the complete failure subject and checks that every dispatch and retry belongs to its one model call; the runtime must still obtain the complete log prefix.
+
+```ts
+import { judgeValue } from '@omne-harness-lite/loop-extension'
+
+const result = judgeValue('ModelRetryConclusion', {
+  extension: 'default-retry',
+  position: 'after_model_call',
+  dimension: { ending: 'failure' },
+  modelCallId: 'mc_01',
+  power: 'rewrite',
+  output: { kind: 'retry', plan: { provider: 'provider-b', after: 'PT2S' } },
+  at: '2026-09-28T10:00:00Z',
+})
+console.log('ok' in result) // true
+```

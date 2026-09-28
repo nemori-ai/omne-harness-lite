@@ -8,8 +8,8 @@ import {
   type CapabilityId,
 } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { computeEvaluation, type EvaluationFacts } from '../src/v3/compute.ts'
-import type { EffectiveAssembly, NonConnectorEvaluationInput } from '../src/v3/index.ts'
+import { computeEvaluation, type EvaluationFacts } from '../src/compute.ts'
+import type { EffectiveAssembly, NonConnectorEvaluationInput } from '../src/index.ts'
 import { assignment, cap, definition, holding, shell, simple, tool } from './fixtures.ts'
 
 // E4 supplies declarations as its given facts. They are fed into the same private
@@ -89,7 +89,12 @@ function inputOf(
   ]
   const input: NonConnectorEvaluationInput = {
     ...simple(),
-    root: { definition: helper, references: [{ capability: shell, resident: true }] },
+    root: {
+      definition: helper,
+      references: [{ capability: shell, resident: true }],
+      attributes: [],
+      source: { asset: 'ast_root', version: 1 },
+    },
     definitions,
     holdings,
   }

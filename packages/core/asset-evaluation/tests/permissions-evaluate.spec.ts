@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evaluate } from '../src/v3/index.ts'
+import { evaluate } from '../src/index.ts'
 import { assignment, definition, holding, shell, simple, tool } from './fixtures.ts'
 
 const p = (...allowed: string[]) => ({ allowed })

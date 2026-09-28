@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { carrierRecordId } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { evaluate, type NonConnectorEvaluationInput } from '../src/v3/index.ts'
+import { evaluate, type NonConnectorEvaluationInput } from '../src/index.ts'
 import {
   assignment,
   at,
@@ -168,6 +168,8 @@ describe('input conditions and multi-error priority', () => {
         root: {
           definition: root,
           references: [{ capability: shell }, { capability: shell, resident: true }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
         },
       },
       'C14',
@@ -175,7 +177,12 @@ describe('input conditions and multi-error priority', () => {
     invalid(
       {
         ...base,
-        root: { definition: root, references: [{ capability: github, resident: false }] },
+        root: {
+          definition: root,
+          references: [{ capability: github, resident: false }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
+        },
       },
       'C14',
     )
@@ -234,6 +241,8 @@ describe('input conditions and multi-error priority', () => {
         root: {
           definition: root,
           references: [{ capability: plugin }, { capability: root }, { capability: shell }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
         },
         session: [{ capability: shell, assignment: assignment('execute', { allowed: ['yolo'] }) }],
       },
@@ -304,7 +313,12 @@ describe('workspace restrictions, resident, version selection and caller ownersh
         holding('workspace', github, mcpAsset),
         holding('workspace', hook, hookAsset),
       ],
-      root: { definition: root, references: [{ capability: github }, { capability: hook }] },
+      root: {
+        definition: root,
+        references: [{ capability: github }, { capability: hook }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
     }
     const effective = result(input)
     expect(effective.composition).toEqual([])

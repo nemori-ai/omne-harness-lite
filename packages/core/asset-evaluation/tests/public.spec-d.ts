@@ -12,7 +12,7 @@ import {
   type EvaluationResult,
   type CarrierReadOutcome,
   type NonConnectorBodyContracts,
-} from '../src/v3/index.ts'
+} from '../src/index.ts'
 
 declare const complete: EvaluationInput
 declare const input: NonConnectorEvaluationInput

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.asset-evaluation v4 pure evaluation, root selection and result reading; explicit v3 adoption",
+  "description": "capability.asset-evaluation v4 pure evaluation, root selection and result reading",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -11,10 +11,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./v3": {
-      "types": "./dist/v3/index.d.ts",
-      "import": "./dist/v3/index.js"
     }
   },
   "files": [

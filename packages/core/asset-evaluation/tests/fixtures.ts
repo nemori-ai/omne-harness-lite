@@ -11,7 +11,7 @@ import type {
   NonConnectorAssetContent,
   NonConnectorAssetDefinition,
   NonConnectorEvaluationInput,
-} from '../src/v3/index.ts'
+} from '../src/index.ts'
 
 export const at = '2026-09-24T09:00:00Z'
 export const tenant = unwrap(parseTenantId({ organization: 'org_acme', account: 'acc_alice' }))
@@ -175,7 +175,12 @@ export function simple(
   return {
     tenant,
     standing: { standing: 'effective', role: 'member' },
-    root: { definition: root, references: [{ capability: reference }] },
+    root: {
+      definition: root,
+      references: [{ capability: reference }],
+      attributes: [],
+      source: { asset: 'ast_root', version: 1 },
+    },
     holdings: [holding('factory', root, 'ast_root'), holding('factory', reference, 'ast_value')],
     definitions: [
       definition('ast_root', root, { category: 'agent_definition', body: toOpaqueJson({}) }),
@@ -240,6 +245,8 @@ export function e1(): NonConnectorEvaluationInput {
     workspace,
     root: {
       definition: root,
+      attributes: [],
+      source: { asset: 'ast_off_assistant', version: 1 },
       references: [
         { capability: shell, resident: true },
         { capability: audit },

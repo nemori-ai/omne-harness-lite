@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
-import { judgeConclusion, judgeInput, validate, type ConclusionInputs } from '../src/v3/index.ts'
-import { object } from '../src/v3/json.ts'
+import { judgeConclusion, judgeInput, validate, type ConclusionInputs } from '../src/index.ts'
+import { object } from '../src/json.ts'
 import {
   at,
   variants,

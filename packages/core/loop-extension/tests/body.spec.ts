@@ -8,7 +8,7 @@ import {
   judgeDefinition,
   loopExtensionAttributeDeclarations,
   loopExtensionReferences,
-} from '../src/v3/index.ts'
+} from '../src/index.ts'
 import { json } from './helpers.ts'
 
 const declarationJudge = createSchemaRuntime([assetSchema, loopSchema]).compile({
@@ -119,7 +119,7 @@ it('LE-BODY-IDENTITY: exact codepoint name, no builtin asset reference or implic
   expect(() => loopExtensionBodyContract.references({})).toThrow(TypeError)
 })
 it('LE-BODY-OPAQUE: no execution environment resolving export or mutable schema', async () => {
-  const api = await import('../src/v3/index.ts')
+  const api = await import('../src/index.ts')
   expect(Object.keys(api).some(name => /resolve|environment/i.test(name))).toBe(false)
   expect(Object.isFrozen(loopExtensionBodyContract)).toBe(true)
   expect(Object.isFrozen(loopExtensionBodyContract.schema)).toBe(true)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { boundOf, classifyPermissionAssignment, pickWithinBound } from '../src/v3/permissions.ts'
-import type { PermissionDeclaration } from '../src/v3/types.ts'
-import { resolvePermission } from '../src/v3/permissions.ts'
+import { boundOf, classifyPermissionAssignment, pickWithinBound } from '../src/permissions.ts'
+import type { PermissionDeclaration } from '../src/types.ts'
+import { resolvePermission } from '../src/permissions.ts'
 
 const execute: PermissionDeclaration = {
   item: 'execute',

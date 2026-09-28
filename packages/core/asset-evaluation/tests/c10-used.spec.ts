@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evaluate, type NonConnectorEvaluationInput } from '../src/v3/index.ts'
+import { evaluate, type NonConnectorEvaluationInput } from '../src/index.ts'
 import { at, assignment, bob, definition, github, holding, mcp, root, simple } from './fixtures.ts'
 
 function effective(input: NonConnectorEvaluationInput) {
@@ -11,7 +11,12 @@ const common: NonConnectorEvaluationInput = {
   ...simple(),
   definitions: [...simple().definitions, definition('ast_mcp', github, mcp())],
   holdings: [...simple().holdings, holding('factory', github, 'ast_mcp')],
-  root: { definition: root, references: [{ capability: github }] },
+  root: {
+    definition: root,
+    references: [{ capability: github }],
+    attributes: [],
+    source: { asset: 'ast_root', version: 1 },
+  },
 }
 const replaced: NonConnectorEvaluationInput = {
   ...common,

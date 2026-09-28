@@ -14,7 +14,7 @@ import {
   evaluate,
   evaluationInputFingerprint,
   type NonConnectorEvaluationInput,
-} from '../src/v3/index.ts'
+} from '../src/index.ts'
 import { cap, definition, holding, root, simple, tool } from './fixtures.ts'
 
 it('D068 current AM3 and TD3/Loop3 ports retain a complete AM2 resource and compile every AM3 definition', () => {
@@ -51,7 +51,12 @@ for (const [label, name, rejection] of [
       ...base,
       definitions: [base.definitions[0] ?? entry, entry],
       holdings: [holding('factory', root, 'ast_root'), holding('factory', capability, entry.id)],
-      root: { definition: root, references: [{ capability }] },
+      root: {
+        definition: root,
+        references: [{ capability }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
     }
     const body = createAssetModelJudge(defaultBodyContracts).judgeAssetValue(
       'AssetDefinition',

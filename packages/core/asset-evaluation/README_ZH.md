@@ -14,7 +14,7 @@
 | `evaluationInputFingerprint` | 为完整求值输入生成指纹                       |
 | 权限辅助函数                 | 分类配值并计算约束                           |
 
-根入口 `.` 采用 v4，`/v3` 保留显式 v3 消费。`selectEvaluationRootSource` 选择实际不可变根来源，`judgeEffectiveAssembly` 读取结果表示而不补字段。
+根入口 `.` 采用 v4。`selectEvaluationRootSource` 选择实际不可变根来源，`judgeEffectiveAssembly` 读取结果表示而不补字段。默认 Loop Extension 正文端口复用当前声明行为，向资产模型 v3 提供它精确引用的 LC3 Schema 资源；只接受资产模型用到的七个声明定义，其他定义作为无效端口配置报错。
 
 ## 求值一份完整输入
 
@@ -65,7 +65,10 @@ const input: NonConnectorEvaluationInput = {
         {
           number: 1,
           publishedAt: at,
-          content: { category: 'agent_definition', body: toOpaqueJson({ references: rootReferences, attributes: [] }) },
+          content: {
+            category: 'agent_definition',
+            body: toOpaqueJson({ references: rootReferences, attributes: [] }),
+          },
         },
       ],
     },
