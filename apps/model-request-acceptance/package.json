@@ -1,0 +1,47 @@
+{
+  "name": "@omne-harness-lite/model-request-acceptance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local real-authentication and model credential acceptance assembly",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/account-identity": "workspace:*",
+    "@omne-harness-lite/account-registration": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/credential-custodian-local": "workspace:*",
+    "@omne-harness-lite/credential-verification": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/model-profile-directory": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
