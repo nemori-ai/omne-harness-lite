@@ -290,3 +290,34 @@ java -XX:+UseParallelGC -Xmx2g -cp /opt/tlaplus/tla2tools.jar tlc2.TLC \
 G-2/G-5 本轮候选补齐；G-3 默认重试半支补齐，模态转换／循环探测仍待 owner；G-14 有限模型工件和可失败断言已给出，登记、独立评审及接受归主线。其余 G-1/6/7/8/9/10/16/17/19/20 不变。本轮遇到的提醒竞争与权限集合歧义均已向主线报告并按其明确裁定落字，没有自行新增 terminal 或失败 token。
 
 全部证据临时路径以代码文本表示，不跨 design root 建规范链接；永久归档由主线完成。candidate 不等于已接受、实现完成或真实模型纵线验收通过。
+
+## v4 候选：完整失败历史
+
+### 变化的影响
+
+2026-09-28，从 accepted v3 派生 v4 candidate，PF-013 rev14/D-096，原 S-1～S-52、两个操作各九项、失败集合和全部 Runner 模型/config 保留。新增 S-53 使 after_model_call/failure 的所有 Conclusion 在写前具有唯一 modelCallId，S-54 保留完整 retryConclusions，结论已落而 dispatch 未发生仍按原结论回放；LC5 S-42/S-43、RT6 S-76 是新实质消费。MS5/MR6 更新完整快照，v4 示例保留 image 模态与原绑定。原 v3 的实际执行记录仍只证明 v3 输入，不挪作 v4 通过。
+
+简报已裁：共享名字、modelCallId 适用条件、唯一调用取自 dispatches、完整历史不滤不去重、默认件只计自己的已生效结论。派生细化：沿既有 invalidInput/unavailable/replayInconsistent 将写前表示/跨值不符、来源不可读、已落记录不符分开，理由是保持原失败集合和不改历史原则；不新增政策。
+
+### 证据义务
+
+- S-53/S-54 完整 JSON 形状、跨字段及原值保留的规范场景见 v4/examples §8/§12。真实 runner、真实日志前缀完整性/会话归属、默认件计次与实际再发组合验收：**未开始**。
+- 原 Runner 七义务、额外三断言、四份正向与十份 validity-check 全部继承；新增 FailureHistory 四个可失败断言及四份 validity-check，前提和未覆盖范围见 v4/formal/README。
+- 能力不发布 Schema；data 定义是唯一形状权威。不新建 Alloy：新增关系由 LC5 形状约束、跨记录规范场景及有界行为模型承担，未新增独立结构对象。
+
+### 缺口与报给主线
+
+继承 G-1/3/6/7/8/9/10/16/17/19/20 及其 owner；G-14 保留有限证明范围及真实符合性证据义务。没有新产品问题或新术语。共享数据与 RT6 的冻结/接受、跨包整合检查和 registry 正式合入归主线，本包仍 candidate。
+
+### 本次实际检查与范围
+
+证据根为 `tmp/model-request-runtime/input-limit-successor/runner4-checks/`（任务区，正式保留由主线处理）。
+
+- `check.py` 的 `schema-static.json`：**36 项，0 失败**，包括八个完整 JSON 正例、六个表示反例、同值双结论历史正例、54 唯一条款/两操作各九项/失败枚举未变，以及 16 份继承模型与配置的逐字比较。Schema 输入保存于 `inputs/` 并带 SHA256；采用的 LC5 后续只改 description/comment，结构未变。这里是 Schema/静态检查，不是实际 runner 运行。
+- `formal-runs.json`：四份继承正向配置 exit 0，distinct states 分别 Runner **48,016**、RunnerConcurrent **332,712**、RunnerUnfenced **44,508**、RunnerProgress **2,930**。十份继承 validity-check 均达到指定断言，九份 invariant exit 12、一份 AnsweredPassCompletes 进展 exit 13。
+- `formal-correction/runs.json`：最终 FailureHistory 正向 exit 0，**4,306 distinct states**；mixed-model-call、lost-retry-history、return-before-conclusion、reevaluate-concluded 分别使 CallAssociation、LosslessHistory、WriteBeforeReturn、ReplayNoReevaluation 失败，均 exit 12。新模型首轮负控三处发现布尔赋值缺括号导致 successor 未完整赋值（exit 75），修正并重跑全部五份新配置；首轮输入与 raw 保留，未把该轮记作断言通过。
+- `actual-final-run.json`：本 spoke 的 `check_design.py --root .meta_harness/design --formal registered` **exit 1**，仅 6 个未合并兄弟包 LC5/RT6 的本地链接缺失；无权将兄弟包或中央 registry 写入本 spoke。`overlay-3-run.json`：任务区复制完整设计上下文和六个兄弟候选包及各 topic 导航后运行同一检查器，**exit 0 / PASS**。此为可组合的文档/Schema 检查；overlay 保留 baseline registry，不能声称五份 v4 formal task 已中央登记或正式集成。
+- `fragment-validation.json`：24 个资源路径、15 个依赖坐标的全部消费条款、40 条 covers 的本包条款可达，无缺失；5 个正向 formal task，负控不登记。四份片段在 `tmp/model-request-runtime/input-limit-successor/runner4-fragments/{catalog,covers,id-namespaces,formal-tasks}.fragment.json`；id-namespaces 明确无新增全局前缀。中央清单未改。
+- 旧 v2/v3 文件 `git diff --exit-code` 无差异。真实存储、崩溃介质、历史前缀完整性、身份授权与默认件/网络再发仍为未开始；有限模型不证明这些前提。
+
+可复跑：本 spoke `.venv/bin/python` 执行证据目录 `check.py`（共享 Schema 与全组模型）、`rerun-new.py`（最终新模型及负控）、`check-overlay.py`（独立文档上下文）。每轮配置、raw、argv、退出码与输入哈希在该目录；本版没有发布或接受声明。
