@@ -276,6 +276,7 @@ describe('RT7 S-31/S-68 actual control append', () => {
       | undefined
     let active = 0
     let acquires = 0
+    const kinds: string[] = []
     const owner: SettlementOwner = {
       name: 'control-unknown',
       admission: () => 'open',
@@ -285,7 +286,8 @@ describe('RT7 S-31/S-68 actual control append', () => {
         active++
         return {
           registration: {
-            start(_kind, operation) {
+            start(kind, operation) {
+              kinds.push(kind)
               const completion = Promise.resolve().then(() =>
                 operation(new AbortController().signal),
               )
@@ -345,6 +347,7 @@ describe('RT7 S-31/S-68 actual control append', () => {
         },
       })
       expect(result).toEqual({ unavailable: true })
+      expect(kinds).toEqual(['controlAppend'])
       expect(releases).toBe(0)
       expect(active).toBe(1)
       expect(acquires).toBe(1)
@@ -377,6 +380,7 @@ describe('RT7 S-31/S-68 actual control append', () => {
       expect(releases).toBe(1)
       expect(active).toBe(0)
       expect(acquires).toBe(1)
+      expect(kinds).toEqual(['controlAppend', 'read', 'read'])
     } finally {
       await log.close()
       await rm(dir, { recursive: true, force: true })

@@ -314,7 +314,7 @@ export async function appendControlRecord(
   let started = false
   let task: SettlementTask<AppendResult>
   try {
-    task = registration.start('append', async () => {
+    task = registration.start('controlAppend', async () => {
       if (owner.admission() !== 'open' || !settlementGenerationCurrent(binding))
         return { failure: 'unavailable' } as const
       started = true

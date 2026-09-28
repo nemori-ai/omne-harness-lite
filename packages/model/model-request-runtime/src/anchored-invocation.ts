@@ -374,9 +374,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
           registration: {
             start<T>(kind: SettlementTaskKind, operation: (signal: AbortSignal) => Promise<T>) {
               if (released) throw new TypeError('control borrow closed')
-              // ServiceControl owns recognition of control writes. The host's generic
-              // append fence belongs to response writers and cannot retire this intent.
-              const task = registration.start(kind === 'append' ? 'controlAppend' : kind, operation)
+              const task = registration.start(kind, operation)
               tasks.push(task)
               ownTasks.add(task)
               liveTasks.add(task)
