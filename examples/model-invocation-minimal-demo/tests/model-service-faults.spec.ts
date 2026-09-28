@@ -145,7 +145,8 @@ describe('real unified service boundaries in the demo', () => {
       expect(await app.persistModelReply(who, 's1', first.result.replyPending)).toMatchObject({
         unavailable: true,
       })
-      expect(await send(app, who, 's1', host, 'second')).toMatchObject({ unavailable: true })
+      expect(await app.reconcileModelRuntime(who, 's1')).toEqual({ unavailable: true })
+      expect(await send(app, who, 's1', host, 'second')).toEqual({ failure: 'stageClosed' })
       expect(tls.requests).toHaveLength(1)
       expect((await app.close()).complete).toBe(false)
     } finally {

@@ -423,6 +423,7 @@ export function createAcceptanceApplication(
   >()
   const callHosts = new Map<SessionRef, Set<DemoCallHost>>()
   const sessionTasks = new Map<SessionRef, Set<Promise<unknown>>>()
+  const recoveryTasks = new Set<Promise<unknown>>()
   const recoveryAdmission = new Set<SessionRef>()
   const recoveryBusy = new Set<SessionRef>()
   const recoveryReady = new Map<
@@ -514,6 +515,17 @@ export function createAcceptanceApplication(
     job.then(finish, finish)
     return job
   }
+  function trackSessionInput<T>(session: unknown, work: () => Promise<T>): Promise<T> {
+    const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+    return stage === 'modelRequest' && isOk(parsed) ? trackSession(parsed.ok, work) : track(work)
+  }
+  function trackRecovery<T>(work: () => Promise<T>): Promise<T> {
+    const job = track(work)
+    recoveryTasks.add(job)
+    const finish = () => recoveryTasks.delete(job)
+    job.then(finish, finish)
+    return job
+  }
   function retainCall(session: SessionRef, callId: string): void {
     const container = calls.find({ session, callId })
     if (container === undefined) return
@@ -550,9 +562,11 @@ export function createAcceptanceApplication(
     closing = true
     gateOpen = false
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
-    cleanupPromise = (async () => {
+    const attempt = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
       await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
+      // Recovery may still need this runtime's service, binding and JSONL owner.
+      await Promise.allSettled([...recoveryTasks])
       const stoppedRuntime = await modelRuntime?.close()
       const stoppedSelections = await Promise.allSettled(
         [...sessionBorrows.values()].map(borrow => borrow.selector.close()),
@@ -642,7 +656,14 @@ export function createAcceptanceApplication(
       })
       return result
     })()
-    return cleanupPromise
+    cleanupPromise = attempt
+    const clearIncomplete = (result: CloseResult) => {
+      if (!result.complete && cleanupPromise === attempt) cleanupPromise = undefined
+    }
+    attempt.then(clearIncomplete, () => {
+      if (cleanupPromise === attempt) cleanupPromise = undefined
+    })
+    return attempt
   }
   async function start(): Promise<{ readonly confirmation: UpgradeConfirmation }> {
     try {
@@ -1027,6 +1048,7 @@ export function createAcceptanceApplication(
               )
                 return { unavailable: true }
               ready.scopeIssued = true
+              record({ event: 'operation', phase: 'recovery', outcome: 'entered' })
               let closed = false
               return {
                 scope: {
@@ -1056,6 +1078,7 @@ export function createAcceptanceApplication(
                     closed = true
                     recoveryReady.delete(input.session)
                     recoveryAdmission.delete(input.session)
+                    record({ event: 'operation', phase: 'recovery', outcome: 'closed' })
                   },
                 },
               }
@@ -1253,7 +1276,7 @@ export function createAcceptanceApplication(
     session: unknown,
   ): Promise<ScenarioResult<PreparedSession>> {
     if (!preparationStage || !admit()) return Promise.resolve({ failure: 'stageClosed' })
-    return track(async () => {
+    return trackSessionInput(session, async () => {
       try {
         const checked = await checkActor(actor)
         if (!('account' in checked)) return checked
@@ -1262,6 +1285,7 @@ export function createAcceptanceApplication(
         const parsed = parseOpaqueIdentifier(session, 'SessionRef')
         if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
           return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
+        if (recoveryAdmission.has(parsed.ok)) return { failure: 'stageClosed' }
         let held = await sessionTenancy.holdingTenant(parsed.ok)
         if ('failure' in held) {
           if (held.failure !== 'sessionNotFound') return { step: 'holdingTenant', result: held }
@@ -1292,7 +1316,7 @@ export function createAcceptanceApplication(
     session: unknown,
   ): Promise<ScenarioResult<ReadResult>> {
     if (!logStage || !admit()) return Promise.resolve({ failure: 'stageClosed' })
-    return track(async () => {
+    return trackSessionInput(session, async () => {
       try {
         const checked = await checkActor(actor)
         if (!('account' in checked)) return checked
@@ -1301,6 +1325,7 @@ export function createAcceptanceApplication(
         const parsed = parseOpaqueIdentifier(session, 'SessionRef')
         if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
           return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
+        if (recoveryAdmission.has(parsed.ok)) return { failure: 'stageClosed' }
         const held = await sessionTenancy.holdingTenant(parsed.ok)
         if ('failure' in held) return { step: 'holdingTenant', result: held }
         if (!tenantIdEquals(held.tenant, checked.tenant)) return { failure: 'identityMismatch' }
@@ -1315,7 +1340,7 @@ export function createAcceptanceApplication(
     session: unknown,
   ): Promise<ScenarioResult<{ readonly prepared: true }>> {
     if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
-    return track(async () => {
+    return trackSessionInput(session, async () => {
       try {
         const checked = await checkActor(actor)
         if (!('account' in checked)) return checked
@@ -1329,6 +1354,7 @@ export function createAcceptanceApplication(
         const parsed = parseOpaqueIdentifier(session, 'SessionRef')
         if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
           return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
+        if (recoveryAdmission.has(parsed.ok)) return { failure: 'stageClosed' }
         const held = await sessionTenancy.holdingTenant(parsed.ok)
         if ('failure' in held) return { step: 'holdingTenant', result: held }
         if (!tenantIdEquals(held.tenant, checked.tenant)) return { failure: 'identityMismatch' }
@@ -1414,9 +1440,10 @@ export function createAcceptanceApplication(
     session: unknown,
   ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>> {
     if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
-    return track(async () => {
+    return trackSessionInput(session, async () => {
       const access = await sessionAccess(actor, session)
       if (!('borrow' in access)) return access
+      if (recoveryAdmission.has(access.borrow.binding.session)) return { failure: 'stageClosed' }
       if (modelRuntime === undefined) return { failure: 'stageClosed' }
       runtimeActors.set(access.borrow.binding.session, access.checked)
       return { service: boundModelService(access.checked, access.borrow.binding.session) }
@@ -1491,116 +1518,120 @@ export function createAcceptanceApplication(
       typeof owner.host?.register !== 'function'
     )
       return Promise.resolve({ failure: 'stageClosed' })
-    return track(async () => {
+    return trackSessionInput(session, async () => {
       const access = await sessionAccess(actor, session)
       if (!('borrow' in access)) return access
       const key = access.borrow.binding.session
       if (recoveryAdmission.has(key)) return { failure: 'stageClosed' }
       const owners = callHosts.get(key) ?? new Set<DemoCallHost>()
+      for (const previous of owners) if (previous.released?.()) owners.delete(previous)
       owners.add(owner)
       callHosts.set(key, owners)
       runtimeActors.set(key, access.checked)
       return { attached: true }
     })
   }
-  async function reconcileModelRuntime(
+  function reconcileModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
   ): Promise<ScenarioResult<ReconcileResult>> {
-    if (stage !== 'modelRequest' || !admit()) return { failure: 'stageClosed' }
-    const access = await sessionAccess(actor, session)
-    if (!('borrow' in access)) return access
-    const key = access.borrow.binding.session
-    if (recoveryBusy.has(key) || modelRuntime === undefined || requestDeployment === undefined)
-      return { unavailable: true }
-    recoveryBusy.add(key)
-    recoveryAdmission.add(key)
-    try {
-      await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
-      await access.borrow.owner.drain()
-      let ready = recoveryReady.get(key)
-      if (ready === undefined) {
-        const owners = callHosts.get(key)
-        const ownedCalls = trackedCalls.get(key)
-        const binding = runtimeBindings.get(key)
-        if (owners === undefined || owners.size === 0 || binding === undefined)
-          return { unavailable: true }
-        if (
-          binding.log !== access.borrow.binding ||
-          binding.log.currentGeneration() !== binding.log.generation
-        )
-          return { unavailable: true }
-        const captured = new Map<string, AnchoredInvocationHandle>()
-        for (const [callId, container] of ownedCalls ?? []) {
-          const view = container.view()
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    return trackRecovery(async () => {
+      const access = await sessionAccess(actor, session)
+      if (!('borrow' in access)) return access
+      if (closing) return { failure: 'stageClosed' }
+      const key = access.borrow.binding.session
+      if (recoveryBusy.has(key) || modelRuntime === undefined || requestDeployment === undefined)
+        return { unavailable: true }
+      recoveryBusy.add(key)
+      recoveryAdmission.add(key)
+      try {
+        await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
+        await access.borrow.owner.drain()
+        let ready = recoveryReady.get(key)
+        if (ready === undefined) {
+          const owners = callHosts.get(key)
+          const ownedCalls = trackedCalls.get(key)
+          const binding = runtimeBindings.get(key)
+          if (owners === undefined || binding === undefined) return { unavailable: true }
+          for (const previous of owners) if (previous.released?.()) owners.delete(previous)
           if (
-            view.key.session !== key ||
-            view.key.callId !== callId ||
-            view.session !== binding ||
-            view.owner !== access.borrow.owner.owner
+            binding.log !== access.borrow.binding ||
+            binding.log.currentGeneration() !== binding.log.generation
           )
             return { unavailable: true }
-          if (view.invocation !== undefined) captured.set(callId, view.invocation)
-        }
-        const stopped = await Promise.allSettled([...owners].map(owner => owner.stop()))
-        if (
-          stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
-          [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
-        )
-          return { unavailable: true }
-        await access.borrow.owner.drain()
-        if (
-          access.borrow.owner.retained() ||
-          access.borrow.owner.owner.admission() !== 'open' ||
-          'unknown' in access.borrow.owner.owner.opened() ||
-          access.borrow.owner.owner.unresolvedWrites().length !== 0
-        )
-          return { unavailable: true }
-        const admitted = access.borrow.owner.owner.acquire(
-          requestDeployment.settlement.contention.limits.concurrent,
-        )
-        if ('unavailable' in admitted) return { unavailable: true }
-        const prefix = await readSettlementPrefix({
-          binding: access.borrow.binding,
-          registration: admitted.registration,
-        })
-        await access.borrow.owner.drain()
-        admitted.registration.release()
-        if ('unavailable' in prefix) return { unavailable: true }
-        for (const entry of prefix.prefix.entries) {
-          for (const rawKey of entry.readKeys) {
-            const decoded = decodeModelLogKey(rawKey)
-            if ('ok' in decoded && 'call' in decoded.ok && !ownedCalls?.has(decoded.ok.call))
+          const captured = new Map<string, AnchoredInvocationHandle>()
+          for (const [callId, container] of ownedCalls ?? []) {
+            const view = container.view()
+            if (
+              view.key.session !== key ||
+              view.key.callId !== callId ||
+              view.session !== binding ||
+              view.owner !== access.borrow.owner.owner
+            )
               return { unavailable: true }
+            if (view.invocation !== undefined) captured.set(callId, view.invocation)
           }
-        }
-        const originals = new Map<
-          string,
-          { readonly target: ModelLogSettlementTarget; readonly handle: AnchoredInvocationHandle }
-        >()
-        for (const [callId, handle] of captured) {
-          const history = interpretCallHistory({ prefix: prefix.prefix, callId })
-          if (!('known' in history)) return { unavailable: true }
-          const last = history.known.dispatches.at(-1)
-          if (last === undefined || last.response !== null) continue
-          originals.set(callId, {
-            target: {
-              call: callId,
-              dispatch: last.record.dispatch,
-              response: last.record.response,
-            },
-            handle,
+          const stopped = await Promise.allSettled([...owners].map(owner => owner.stop()))
+          if (
+            stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
+            [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
+          )
+            return { unavailable: true }
+          await access.borrow.owner.drain()
+          if (
+            access.borrow.owner.retained() ||
+            access.borrow.owner.owner.admission() !== 'open' ||
+            'unknown' in access.borrow.owner.owner.opened() ||
+            access.borrow.owner.owner.unresolvedWrites().length !== 0
+          )
+            return { unavailable: true }
+          const admitted = access.borrow.owner.owner.acquire(
+            requestDeployment.settlement.contention.limits.concurrent,
+          )
+          if ('unavailable' in admitted) return { unavailable: true }
+          const prefix = await readSettlementPrefix({
+            binding: access.borrow.binding,
+            registration: admitted.registration,
           })
+          await access.borrow.owner.drain()
+          admitted.registration.release()
+          if ('unavailable' in prefix) return { unavailable: true }
+          for (const entry of prefix.prefix.entries) {
+            for (const rawKey of entry.readKeys) {
+              const decoded = decodeModelLogKey(rawKey)
+              if ('ok' in decoded && 'call' in decoded.ok && !ownedCalls?.has(decoded.ok.call))
+                return { unavailable: true }
+            }
+          }
+          const originals = new Map<
+            string,
+            { readonly target: ModelLogSettlementTarget; readonly handle: AnchoredInvocationHandle }
+          >()
+          for (const [callId, handle] of captured) {
+            const history = interpretCallHistory({ prefix: prefix.prefix, callId })
+            if (!('known' in history)) return { unavailable: true }
+            const last = history.known.dispatches.at(-1)
+            if (last === undefined || last.response !== null) continue
+            originals.set(callId, {
+              target: {
+                call: callId,
+                dispatch: last.record.dispatch,
+                response: last.record.response,
+              },
+              handle,
+            })
+          }
+          ready = { binding, owner: access.borrow.owner, originals, scopeIssued: false }
+          recoveryReady.set(key, ready)
         }
-        ready = { binding, owner: access.borrow.owner, originals, scopeIssued: false }
-        recoveryReady.set(key, ready)
+        return await modelRuntime.service.reconcile({ session: key })
+      } catch {
+        return { unavailable: true }
+      } finally {
+        recoveryBusy.delete(key)
       }
-      return await modelRuntime.service.reconcile({ session: key })
-    } catch {
-      return { unavailable: true }
-    } finally {
-      recoveryBusy.delete(key)
-    }
+    })
   }
   function openModelObserver(
     actor: AuthenticatedActor,
@@ -1622,10 +1653,11 @@ export function createAcceptanceApplication(
       callId === undefined ? undefined : parseOpaqueIdentifier(callId, 'ModelCallId')
     if ((parsedCall !== undefined && !isOk(parsedCall)) || typeof consume !== 'function')
       return Promise.resolve({ rejected: 'invalidInput' })
-    return track(async () => {
+    return trackSessionInput(session, async () => {
       const access = await sessionAccess(actor, session)
       if (!('borrow' in access)) return access
-      if (closing) return { failure: 'stageClosed' }
+      if (closing || recoveryAdmission.has(access.borrow.binding.session))
+        return { failure: 'stageClosed' }
       const { borrow, checked } = access
       const endpoint = createDemoObserverEndpoint(consume)
       const original = observerAccess.grant({
@@ -1871,14 +1903,23 @@ export function createAcceptanceApplication(
       if (closingPromise !== undefined) return closingPromise
       closing = true
       gateOpen = false
-      closingPromise = (async () => {
+      const attempt = (async () => {
         await ready.then(
           () => undefined,
           () => undefined,
         )
         return closeResources()
       })()
-      return closingPromise
+      closingPromise = attempt
+      attempt.then(
+        result => {
+          if (!result.complete && closingPromise === attempt) closingPromise = undefined
+        },
+        () => {
+          if (closingPromise === attempt) closingPromise = undefined
+        },
+      )
+      return attempt
     },
     status() {
       return {

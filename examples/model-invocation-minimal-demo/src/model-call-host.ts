@@ -4,11 +4,14 @@ import type { ModelCallHost, RuntimeCloseResult } from '@omne-harness-lite/model
 export interface DemoCallHost {
   readonly host: ModelCallHost
   readonly stop: () => Promise<RuntimeCloseResult>
+  /** True only after every registered container has actually released. */
+  readonly released?: () => boolean
 }
 export function createDemoCallHost(): DemoCallHost {
   const controller = new AbortController()
   const registrations = new Set<() => Promise<RuntimeCloseResult>>()
   let stopping = false
+  let released = false
   let closing: Promise<RuntimeCloseResult> | undefined
 
   const host: ModelCallHost = {
@@ -43,9 +46,8 @@ export function createDemoCallHost(): DemoCallHost {
             if (close !== undefined) registrations.delete(close)
           }
         }
-        return registrations.size === 0
-          ? ({ released: true } as const)
-          : ({ unavailable: true } as const)
+        released = registrations.size === 0
+        return released ? ({ released: true } as const) : ({ unavailable: true } as const)
       })
       .finally(() => {
         closing = undefined
@@ -53,5 +55,5 @@ export function createDemoCallHost(): DemoCallHost {
     return closing
   }
 
-  return { host, stop }
+  return { host, stop, released: () => released }
 }
