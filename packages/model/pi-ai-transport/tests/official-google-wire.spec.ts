@@ -11,6 +11,8 @@ import { certificate, content, finish, fixture, judgedMessage, message, sse } fr
 const at = '2026-09-28T00:00:00Z'
 const provider = 'google-ai-studio'
 const visible = { toHuman: true, toModel: true }
+const tinyPng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='
 const tool: ModelToolEntry = {
   name: 'lookup__google',
   description: 'Look up a value',
@@ -101,7 +103,7 @@ function request(definition: (typeof googleDefinitions)[number]): PlanInput {
             id: 'google-image',
             kind: 'image',
             mediaType: 'image/png',
-            data: { inline: 'eA==' },
+            data: { inline: tinyPng },
             visibility: visible,
           },
         ],
@@ -181,7 +183,7 @@ describe('Google official routes: controlled wire projection only', () => {
         expect(serialized).not.toContain('cache_control')
         expect(serialized).not.toContain('ttl')
         expect(inputLimitEvidence.requestBytes).toBe(Buffer.byteLength(serialized, 'utf8'))
-        expect(inputLimitEvidence.imageBytes).toEqual([1])
+        expect(inputLimitEvidence.imageBytes).toEqual([70])
         expect(inputLimitEvidence.images).toBe(1)
 
         const sent = await host.transport.send(
