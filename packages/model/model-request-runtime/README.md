@@ -782,3 +782,5 @@ export function invokeWithTools<P extends PlannedSemantics, R>(
 ```
 
 The runtime sends definitions and assembles streamed tool calls; the caller supplies each corresponding tool result in subsequent history. No tool is executed or automatically fed back by this function. Invalid definitions, duplicate names and orphan calls are rejected before a new dispatched anchor or HTTP request. The internal service composition helper now resolves names through the captured session or Run report scope; it is not a public tool execution API. The interactive demo still supplies an empty tool list.
+
+`RuntimeConstruction.transport.acquire(binding, routeName)` preserves three results: an exact lease, `{unavailable:true}` for an unavailable implementation, or `{invalidInput:{reason:"malformed"}}` for invalid binding/configuration. Both new calls and acquisition from an existing anchor retain the refusal before planning or sending; the enclosing operation still owns its normal cleanup.

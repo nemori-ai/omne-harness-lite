@@ -17,6 +17,11 @@ declare const call: OpenCallInput
 declare const construction: RuntimeConstruction<PlannedSemantics, never>
 declare const ids: ModelIdentitySource
 
+const invalidAcquisition: ReturnType<typeof construction.transport.acquire> = {
+  invalidInput: { reason: 'malformed' },
+}
+void invalidAcquisition
+
 expectTypeOf(construction.tokenMargin).toEqualTypeOf<TokenMargin>()
 expectTypeOf(ids.message()).toEqualTypeOf<import('@omne-harness-lite/messages').MessageId>()
 const exactExcess: ServiceInvalidInput = {

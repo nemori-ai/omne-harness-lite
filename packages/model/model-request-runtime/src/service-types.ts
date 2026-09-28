@@ -417,7 +417,10 @@ export interface ExactTransportAcquirer<P extends PlannedSemantics, R> {
   readonly acquire: (
     binding: ModelAdaptationBinding,
     routeName: RouteName,
-  ) => { readonly lease: ExactTransportLease<P, R> } | { readonly unavailable: true }
+  ) =>
+    | { readonly lease: ExactTransportLease<P, R> }
+    | { readonly unavailable: true }
+    | { readonly invalidInput: { readonly reason: 'malformed' } }
 }
 export interface PreparedCallBinding<P extends PlannedSemantics, R> {
   readonly profile: ModelProfileRef

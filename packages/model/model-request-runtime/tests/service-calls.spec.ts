@@ -314,208 +314,231 @@ test('observer association rejects a wrong call before catalog reads or transpor
   expect(calls.find({ session, callId: 'observer-call' })).toBeUndefined()
 })
 
-test('opens two distinct noRun calls against the actual empty JSONL prefix without an open record', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'mrr-open-call-'))
-  const log = await openJsonlSessionLog({
-    dir,
-    processOwnership: {
-      current: `open-call:${process.pid}`,
-      async observeExit() {
-        return 'unknown'
-      },
-    },
-  })
-  const tenant = unwrap(parseTenantId({ organization: 'open-org', account: 'open-account' }))
-  const generation = Object.freeze({})
-  const stopped: SettlementTask<unknown>[] = []
-  const owner: SettlementOwner = {
-    name: 'open-call-owner',
-    admission: () => 'open',
-    acquire: () => ({
-      registration: {
-        start(_kind, operation) {
-          const completion = Promise.resolve().then(() => operation(new AbortController().signal))
-          const task = {
-            completion,
-            requestStop() {},
-            stopped: completion.then(
-              () => undefined,
-              () => undefined,
-            ),
-          }
-          stopped.push(task)
-          return task
+test.each(['lease', 'invalidInput', 'unavailable'] as const)(
+  'preserves transport acquisition %s against the actual empty JSONL prefix',
+  async acquisition => {
+    const dir = await mkdtemp(join(tmpdir(), 'mrr-open-call-'))
+    const log = await openJsonlSessionLog({
+      dir,
+      processOwnership: {
+        current: `open-call:${process.pid}`,
+        async observeExit() {
+          return 'unknown'
         },
-        release() {},
       },
-    }),
-    opened: () => ({ confirmed: true }),
-    unresolvedWrites: () => [],
-  }
-  const logBinding = { session, tenant, log, generation, currentGeneration: () => generation }
-  const profile = {
-    routeName: 'model_a',
-    origin: 'official',
-    registration: 'listed',
-    providers: ['openrouter'],
-    allowFallback: false,
-    inputModalities: ['text'],
-    outputModalities: ['text'],
-    maxInputTokens: 100,
-    maxOutputTokens: 100,
-    inputConstraints: {},
-    upstreamInputLimits: {
-      maxInputTokens: { status: 'limited', value: 100 },
-      maxRequestBytes: { status: 'limited', value: 1000 },
-    },
-    adaptation: {
-      implementation: { name: 'adapter', revision: '1' },
-      definition: { modelId: 'model_a', revision: '1' },
-      configuration: { revision: '1', values: {} },
-    },
-    updatedAt: '2026-09-28T00:00:00Z',
-  }
-  const catalog = {
-    listProfiles: async () => [{ ref: { origin: 'official', routeName: 'model_a' }, profile }],
-    credentialPresent: async () => ({ present: true, scope: { layer: 'factory' } }),
-  }
-  let observerClosed = 0
-  const observerRequest = {
-    session,
-    endpoint: {
-      open: () => ({
-        receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
-        stop() {},
-        stopped: Promise.resolve(),
-      }),
-    },
-    observer_max_buffered_events: 2,
-    observer_max_buffered_bytes: 4096,
-  }
-  const replacementObserverRequest = {
-    ...observerRequest,
-    endpoint: { open: observerRequest.endpoint.open },
-  }
-  let forceResumable = false
-  const binding = {
-    log: logBinding,
-    selection: {
-      binding: logBinding,
-      owner,
-      sessionTenancy: { holdingTenant: async () => ({ tenant }) },
-      compatible: () => ({ ok: true }),
-      projection: async () => ({ known: [] }),
-    },
-    catalog,
-    tools: { lookup: vi.fn() },
-    observers: {
-      authorize: ({ request: asked }: { request: typeof observerRequest }) => ({
-        observer: {
-          check: () => ({ valid: true as const }),
-          open: () => ({ receiver: asked.endpoint.open() }),
-          close: async () => {
-            observerClosed++
-            return { released: true as const }
-          },
-        },
-      }),
-    },
-  } as unknown as SessionRuntimeBinding
-  const calls = createCallContainerStore<PlannedSemantics, never>()
-  const planned = vi.fn(input => ({ planned: { input, parameters: input.parameters } }))
-  let next = 0
-  const runtime = {
-    sessions: { bind: async () => ({ binding }) },
-    calls,
-    transport: {
+    })
+    const tenant = unwrap(parseTenantId({ organization: 'open-org', account: 'open-account' }))
+    const generation = Object.freeze({})
+    const stopped: SettlementTask<unknown>[] = []
+    const owner: SettlementOwner = {
+      name: 'open-call-owner',
+      admission: () => 'open',
       acquire: () => ({
-        lease: {
-          transport: { plan: planned },
-          release() {},
-          signal: new AbortController().signal,
-          track: async (value: Promise<unknown>) => await value,
-        },
-      }),
-    },
-    settlementContention: {
-      name: 'test',
-      limits: { submissions: 1, elapsedMs: 100, retainedBytes: 1000, concurrent: 2 },
-      decide: () => ({ stop: true }),
-    },
-    settlementScheduler: {
-      nowMonotonicMs: () => 0,
-      wait: () => {
-        throw new Error('wait not expected')
-      },
-    },
-    reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
-    tokenMargin: { multiplier: 1.25, reserveTokens: 8 },
-    policy: { diagnostic() {} },
-    identities: { call: () => `call_${++next}` },
-    history: {
-      call: (prefix: Parameters<typeof interpretCallHistory>[0]['prefix'], callId: string) =>
-        forceResumable && callId === 'call_1'
-          ? {
-              known: {
-                session,
-                callId,
-                phase: 'resumable',
-                dispatches: [],
-                intent: null,
-                ending: null,
-              },
+        registration: {
+          start(_kind, operation) {
+            const completion = Promise.resolve().then(() => operation(new AbortController().signal))
+            const task = {
+              completion,
+              requestStop() {},
+              stopped: completion.then(
+                () => undefined,
+                () => undefined,
+              ),
             }
-          : interpretCallHistory({ prefix, callId }),
-    },
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
-  try {
-    const service = createServiceCalls(runtime)
-    const first = await service.openCall({ ...request({ observer: observerRequest }), host })
-    const second = await service.openCall({ ...request(), host })
-    expect(first).toEqual({ callId: 'call_1', state: 'open' })
-    expect(second).toEqual({ callId: 'call_2', state: 'open' })
-    forceResumable = true
-    expect(
-      await service.openCall({
-        ...request({ callId: 'call_1', observer: replacementObserverRequest }),
-        host,
-      }),
-    ).toEqual({ callId: 'call_1', state: 'resumable' })
-    forceResumable = false
-    expect(calls.find({ session, callId: 'call_1' })?.view().observer?.request.endpoint).toBe(
-      replacementObserverRequest.endpoint,
-    )
-    expect(observerClosed).toBe(1)
-    expect(planned).toHaveBeenCalledTimes(2)
-    expect(planned.mock.calls[0]?.[0].tokenMargin).toEqual({ multiplier: 1.25, reserveTokens: 8 })
-    expect(calls.find({ session, callId: 'call_1' })).toBeDefined()
-    expect(calls.find({ session, callId: 'call_2' })).toBeDefined()
-    const read = await log.readSince(session, 0)
-    if ('failure' in read) throw new Error(read.failure)
-    expect(read.entries).toHaveLength(0)
-    expect(await calls.close()).toEqual({ released: true })
-    expect(observerClosed).toBe(2)
-    const stoppedRead = await log.readSince(session, 0)
-    if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
-    expect(stoppedRead.entries).toHaveLength(2)
-    for (const callId of ['call_1', 'call_2']) {
-      const entry = stoppedRead.entries.find(item =>
-        JSON.stringify(item.payload).includes(`\"call\":\"${callId}\"`),
-      )
-      expect(entry?.payload).toMatchObject({
-        value: {
-          kind: 'model_call_ended',
-          call: callId,
-          ending: 'interrupted',
-          initiator: 'run_cancelled',
+            stopped.push(task)
+            return task
+          },
+          release() {},
         },
-      })
+      }),
+      opened: () => ({ confirmed: true }),
+      unresolvedWrites: () => [],
     }
-    expect(JSON.stringify(stoppedRead.entries)).not.toContain('model_call_interrupt_intent')
-    expect(await service.close()).toEqual({ released: true })
-    expect(stopped.length).toBeGreaterThan(0)
-  } finally {
-    await log.close()
-    await rm(dir, { recursive: true, force: true })
-  }
-})
+    const logBinding = { session, tenant, log, generation, currentGeneration: () => generation }
+    const profile = {
+      routeName: 'model_a',
+      origin: 'official',
+      registration: 'listed',
+      providers: ['openrouter'],
+      allowFallback: false,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 100,
+      maxOutputTokens: 100,
+      inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'limited', value: 100 },
+        maxRequestBytes: { status: 'limited', value: 1000 },
+      },
+      adaptation: {
+        implementation: { name: 'adapter', revision: '1' },
+        definition: { modelId: 'model_a', revision: '1' },
+        configuration: { revision: '1', values: {} },
+      },
+      updatedAt: '2026-09-28T00:00:00Z',
+    }
+    const catalog = {
+      listProfiles: async () => [{ ref: { origin: 'official', routeName: 'model_a' }, profile }],
+      credentialPresent: async () => ({ present: true, scope: { layer: 'factory' } }),
+    }
+    let observerClosed = 0
+    const observerRequest = {
+      session,
+      endpoint: {
+        open: () => ({
+          receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+          stop() {},
+          stopped: Promise.resolve(),
+        }),
+      },
+      observer_max_buffered_events: 2,
+      observer_max_buffered_bytes: 4096,
+    }
+    const replacementObserverRequest = {
+      ...observerRequest,
+      endpoint: { open: observerRequest.endpoint.open },
+    }
+    let forceResumable = false
+    const binding = {
+      log: logBinding,
+      selection: {
+        binding: logBinding,
+        owner,
+        sessionTenancy: { holdingTenant: async () => ({ tenant }) },
+        compatible: () => ({ ok: true }),
+        projection: async () => ({ known: [] }),
+      },
+      catalog,
+      tools: { lookup: vi.fn() },
+      observers: {
+        authorize: ({ request: asked }: { request: typeof observerRequest }) => ({
+          observer: {
+            check: () => ({ valid: true as const }),
+            open: () => ({ receiver: asked.endpoint.open() }),
+            close: async () => {
+              observerClosed++
+              return { released: true as const }
+            },
+          },
+        }),
+      },
+    } as unknown as SessionRuntimeBinding
+    const calls = createCallContainerStore<PlannedSemantics, never>()
+    const planned = vi.fn(input => ({ planned: { input, parameters: input.parameters } }))
+    let next = 0
+    const runtime = {
+      sessions: { bind: async () => ({ binding }) },
+      calls,
+      transport: {
+        acquire: () =>
+          acquisition === 'invalidInput'
+            ? { invalidInput: { reason: 'malformed' } }
+            : acquisition === 'unavailable'
+              ? { unavailable: true }
+              : {
+                  lease: {
+                    transport: { plan: planned },
+                    release() {},
+                    signal: new AbortController().signal,
+                    track: async (value: Promise<unknown>) => await value,
+                  },
+                },
+      },
+      settlementContention: {
+        name: 'test',
+        limits: { submissions: 1, elapsedMs: 100, retainedBytes: 1000, concurrent: 2 },
+        decide: () => ({ stop: true }),
+      },
+      settlementScheduler: {
+        nowMonotonicMs: () => 0,
+        wait: () => {
+          throw new Error('wait not expected')
+        },
+      },
+      reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+      tokenMargin: { multiplier: 1.25, reserveTokens: 8 },
+      policy: { diagnostic() {} },
+      identities: { call: () => `call_${++next}` },
+      history: {
+        call: (prefix: Parameters<typeof interpretCallHistory>[0]['prefix'], callId: string) =>
+          forceResumable && callId === 'call_1'
+            ? {
+                known: {
+                  session,
+                  callId,
+                  phase: 'resumable',
+                  dispatches: [],
+                  intent: null,
+                  ending: null,
+                },
+              }
+            : interpretCallHistory({ prefix, callId }),
+      },
+    } as unknown as RuntimeConstruction<PlannedSemantics, never>
+    try {
+      const service = createServiceCalls(runtime)
+      const first = await service.openCall({ ...request({ observer: observerRequest }), host })
+      if (acquisition !== 'lease') {
+        expect(first).toEqual(
+          acquisition === 'invalidInput'
+            ? { invalidInput: { reason: 'malformed' } }
+            : { unavailable: true },
+        )
+        expect(planned).not.toHaveBeenCalled()
+        expect(calls.find({ session, callId: 'call_1' })).toBeUndefined()
+        expect(await service.close()).toEqual({ released: true })
+        expect(await calls.close()).toEqual({ released: true })
+        const prefix = await log.readSince(session, 0)
+        if ('failure' in prefix) throw new Error(prefix.failure)
+        expect(prefix.entries).toHaveLength(0)
+        return
+      }
+      const second = await service.openCall({ ...request(), host })
+      expect(first).toEqual({ callId: 'call_1', state: 'open' })
+      expect(second).toEqual({ callId: 'call_2', state: 'open' })
+      forceResumable = true
+      expect(
+        await service.openCall({
+          ...request({ callId: 'call_1', observer: replacementObserverRequest }),
+          host,
+        }),
+      ).toEqual({ callId: 'call_1', state: 'resumable' })
+      forceResumable = false
+      expect(calls.find({ session, callId: 'call_1' })?.view().observer?.request.endpoint).toBe(
+        replacementObserverRequest.endpoint,
+      )
+      expect(observerClosed).toBe(1)
+      expect(planned).toHaveBeenCalledTimes(2)
+      expect(planned.mock.calls[0]?.[0].tokenMargin).toEqual({ multiplier: 1.25, reserveTokens: 8 })
+      expect(calls.find({ session, callId: 'call_1' })).toBeDefined()
+      expect(calls.find({ session, callId: 'call_2' })).toBeDefined()
+      const read = await log.readSince(session, 0)
+      if ('failure' in read) throw new Error(read.failure)
+      expect(read.entries).toHaveLength(0)
+      expect(await calls.close()).toEqual({ released: true })
+      expect(observerClosed).toBe(2)
+      const stoppedRead = await log.readSince(session, 0)
+      if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
+      expect(stoppedRead.entries).toHaveLength(2)
+      for (const callId of ['call_1', 'call_2']) {
+        const entry = stoppedRead.entries.find(item =>
+          JSON.stringify(item.payload).includes(`\"call\":\"${callId}\"`),
+        )
+        expect(entry?.payload).toMatchObject({
+          value: {
+            kind: 'model_call_ended',
+            call: callId,
+            ending: 'interrupted',
+            initiator: 'run_cancelled',
+          },
+        })
+      }
+      expect(JSON.stringify(stoppedRead.entries)).not.toContain('model_call_interrupt_intent')
+      expect(await service.close()).toEqual({ released: true })
+      expect(stopped.length).toBeGreaterThan(0)
+    } finally {
+      await log.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+  },
+)

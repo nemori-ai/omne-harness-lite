@@ -768,3 +768,5 @@ export function invokeWithTools<P extends PlannedSemantics, R>(
 ```
 
 runtime 负责发送定义并装配流式工具调用；调用者负责在后续历史中提供各调用对应的工具结果。该函数不执行工具，也不自动回填结果。非法定义、重名或孤儿调用在新的 dispatched 锚点和 HTTP 请求之前拒绝。内部服务组合构件已能按捕获的会话或 Run 报告范围解析名字；这不是公开的工具执行 API。交互 demo 仍传空工具列表。
+
+`RuntimeConstruction.transport.acquire(binding, routeName)` 保留三种结果：精确 lease、实现不可取得的 `{unavailable:true}`、绑定或配置非法的 `{invalidInput:{reason:"malformed"}}`。新调用与原锚点重新取得都在 plan/send 前保留拒绝类别；外层操作仍负责既有收口。

@@ -589,6 +589,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           )
             return { unavailable: true }
           const acquired = runtime.transport.acquire(anchor.adaptation, anchor.profile.routeName)
+          if ('invalidInput' in acquired) return acquired
           if ('unavailable' in acquired) return { unavailable: true }
           const lease = acquired.lease
           let transferred = false
@@ -712,6 +713,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         if (snapshot.adaptation.definition.modelId !== request.target)
           return { invalidInput: { reason: 'malformed' } }
         const acquired = runtime.transport.acquire(snapshot.adaptation, request.target)
+        if ('invalidInput' in acquired) return acquired
         if ('unavailable' in acquired) return { unavailable: true }
         const lease = acquired.lease
         let transferred = false
