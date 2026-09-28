@@ -274,27 +274,37 @@ describe('RT7 S-31/S-68 actual control append', () => {
           readonly task: SettlementTask<AppendResult>
         }
       | undefined
+    let active = 0
+    let acquires = 0
     const owner: SettlementOwner = {
       name: 'control-unknown',
       admission: () => 'open',
-      acquire: () => ({
-        registration: {
-          start(_kind, operation) {
-            const completion = Promise.resolve().then(() => operation(new AbortController().signal))
-            return {
-              completion,
-              requestStop() {},
-              stopped: completion.then(
-                () => undefined,
-                () => undefined,
-              ),
-            }
+      acquire: () => {
+        acquires++
+        if (active !== 0) return { unavailable: true }
+        active++
+        return {
+          registration: {
+            start(_kind, operation) {
+              const completion = Promise.resolve().then(() =>
+                operation(new AbortController().signal),
+              )
+              return {
+                completion,
+                requestStop() {},
+                stopped: completion.then(
+                  () => undefined,
+                  () => undefined,
+                ),
+              }
+            },
+            release() {
+              releases++
+              active--
+            },
           },
-          release() {
-            releases++
-          },
-        },
-      }),
+        }
+      },
       opened: () => ({ confirmed: true }),
       unresolvedWrites: () => (retained === undefined ? [] : [retained.task]),
     }
@@ -336,6 +346,8 @@ describe('RT7 S-31/S-68 actual control append', () => {
       })
       expect(result).toEqual({ unavailable: true })
       expect(releases).toBe(0)
+      expect(active).toBe(1)
+      expect(acquires).toBe(1)
       expect(retained).toBeDefined()
       const read = await log.readSince(session, 0)
       if ('failure' in read) throw new Error(read.failure)
@@ -351,7 +363,9 @@ describe('RT7 S-31/S-68 actual control append', () => {
           call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
         }),
       ).toEqual({ unavailable: true })
-      expect(releases).toBe(1)
+      expect(releases).toBe(0)
+      expect(active).toBe(1)
+      expect(acquires).toBe(1)
       readAvailable = true
       expect(
         await tracker.close({
@@ -360,7 +374,9 @@ describe('RT7 S-31/S-68 actual control append', () => {
         }),
       ).toEqual({ released: true })
       expect(completeReads).toBe(1)
-      expect(releases).toBe(3)
+      expect(releases).toBe(1)
+      expect(active).toBe(0)
+      expect(acquires).toBe(1)
     } finally {
       await log.close()
       await rm(dir, { recursive: true, force: true })
