@@ -403,3 +403,58 @@ export async function settleResponse(
 `completion` reports settlement or an unavailable reason. `requestStop` requests cancellation; `stopped` and `close()` wait for actual owned tasks and permit release. A committed batch can be recognized while an old task is still live; that task keeps its original owner. An absent read never permits resubmission after an unknown receipt. Opened unknown blocks ordinary responses. Recovered absence must be established by the original host at the existing S-33 recovery boundary, after all old writers stop; this component adds no online recovery API.
 
 The example takes actual host dependencies and a complete MR5 response, without installing a service. A1b dispatch/opened coordination, the thirteen-operation `modelRuntime` service, official model certification, production withRun interpretation (G28), lawful read wiring and all-writer provenance remain pending. Adoption: [D087/v4 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md), [D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md).
+
+## Durable noRun invocation
+
+`createAnchoredModelInvocation` composes the standalone `invokeModel` with a real
+SessionLog binding and the shared settlement coordinator. Its current delivery
+supports a single noRun dispatch with an empty tool list. The host supplies fixed
+call/response/message identities, the complete profile binding and selection
+source, the actual credential scope/value, policy, transport, owner and log
+generation. The function validates these values; their shape does not establish
+authorization or credential provenance. It borrows the exact transport for this
+call; this delivery does not implement transport hot replacement.
+
+The original transport plans once. The confirmed dispatched record precedes
+HTTP, and the confirmed opened record precedes visible content. The complete MR5
+response uses that original opened timestamp, actual usage/cost/upstream facts
+and the same invocation's safe headers. Complete and truncated replies remain
+caller-owned pending candidates: `responseFor(disposition)` declares a validated
+candidate without asserting that it committed. `settleReply('persisted')` uses
+the shared coordinator for one `[AssistantMessage, ModelResponse]` append;
+explicit vetoed/consumed dispositions use one response append. Determinate
+failure and system interruption settle a response before outcome resolves;
+system interruption retains any delivered content without creating a reply.
+
+`abort()` requests system stop. User interruption needs the separate durable
+intent protocol and is outside this slice. `close()` closes admission, requests
+stop and waits for actual invocation, gate, append and settlement tasks to stop.
+Only confirmed settlement (or no dispatch) permits `releaseBorrowed`. Unknown
+anchors or settlement return unavailable and retain the handle, candidate and
+borrowed references for the actual host's recovery responsibility. This function
+does not perform S-33 recovery, resend, or turn unknown acknowledgement into
+confirmed absence.
+
+After actual host preparation, pass its input and an explicit reply disposition to the example below. Retain the returned call and its host owner while close is unavailable. The complete thirteen-operation service, Run integration and production-model certification remain pending.
+
+```ts
+import {
+  createAnchoredModelInvocation,
+  type AnchoredInvocationInput,
+  type PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
+import type { ReplyDisposition } from '@omne-harness-lite/model-response/v5'
+
+/** Supply actual host preparation and an explicit caller disposition. */
+export async function runPreparedInvocation<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+  disposition: ReplyDisposition,
+) {
+  const call = createAnchoredModelInvocation(input)
+  const outcome = await call.outcome
+  const settlement = 'replyPending' in outcome ? await call.settleReply(disposition) : null
+  const close = await call.close()
+  // Retain call and its host owner when close is unavailable; neither abort nor outcome proves release.
+  return { call, outcome, settlement, close }
+}
+```

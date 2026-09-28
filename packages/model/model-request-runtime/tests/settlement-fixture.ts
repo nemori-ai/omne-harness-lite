@@ -113,6 +113,7 @@ export async function controlled(
     binding: SettlementLogBinding
     owner: ControlledSettlementOwner
     dir: string
+    reopen: () => Promise<SettlementLogBinding>
     wrap: (log: SessionLog) => SettlementLogBinding
     coordinator: ReturnType<typeof createSettlementCoordinator>
     submissions: { fence: unknown; condition: unknown; count: number }[]
@@ -135,7 +136,7 @@ export async function controlled(
     .get(session)
   const parsed = parseTenantId(row)
   if (!('ok' in parsed)) throw new Error('actual SQL tenant mapping')
-  const log = await openJsonlSessionLog({
+  let log = await openJsonlSessionLog({
     dir: join(dir, 'log'),
     processOwnership: {
       current: `settlement-controlled:${process.pid}`,
@@ -146,14 +147,14 @@ export async function controlled(
   })
   const submissions: { fence: unknown; condition: unknown; count: number }[] = []
   const port: SessionLog = {
-    readSince: log.readSince,
-    readByKey: log.readByKey,
+    readSince: async (...args) => await log.readSince(...args),
+    readByKey: async (...args) => await log.readByKey(...args),
     async append(s, entries, fence, condition) {
       submissions.push({ fence, condition, count: entries.length })
       return await log.append(s, entries, fence, condition)
     },
   }
-  const generation = Object.freeze({})
+  let generation = Object.freeze({})
   const wrap = (source: SessionLog): SettlementLogBinding => ({
     session,
     tenant: parsed.ok,
@@ -161,6 +162,20 @@ export async function controlled(
     generation,
     currentGeneration: () => generation,
   })
+  const reopen = async () => {
+    await log.close()
+    generation = Object.freeze({})
+    log = await openJsonlSessionLog({
+      dir: join(dir, 'log'),
+      processOwnership: {
+        current: `settlement-reopened:${process.pid}`,
+        async observeExit() {
+          return 'unknown'
+        },
+      },
+    })
+    return wrap(port)
+  }
   const binding = wrap(port),
     owner = new ControlledSettlementOwner()
   const coordinator = createSettlementCoordinator({
@@ -181,7 +196,7 @@ export async function controlled(
       { kind: 'unconditional' },
     )
     if ('failure' in added) throw new Error('initial anchors')
-    await work({ binding, owner, dir, wrap, coordinator, submissions })
+    await work({ binding, owner, dir, reopen, wrap, coordinator, submissions })
     const prefix = await log.readSince(session, 0)
     await writeFile(join(dir, 'readback.json'), writeJsonLossless(prefix))
   } finally {

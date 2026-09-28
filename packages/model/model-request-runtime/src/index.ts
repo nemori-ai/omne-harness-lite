@@ -30,3 +30,8 @@ export type {
   SettlementInterpretation,
 } from './settlement-prefix.ts'
 export { createSettlementCoordinator } from './settlement-coordinator.ts'
+
+export { createAnchoredModelInvocation } from './anchored-invocation.ts'
+export type * from './anchored-invocation-types.ts'
+export { constructModelResponse, constructAssistantReply } from './response-construction.ts'
+export type { ResponseConstructionInput } from './response-construction.ts'
