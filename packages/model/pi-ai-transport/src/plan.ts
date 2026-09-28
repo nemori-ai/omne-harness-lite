@@ -202,20 +202,25 @@ export function planRequest(
         thinking: string[] = [],
         tools: JsonObject[] = [],
         details: JsonValue[] = []
+      let independentPlainThinking = false
       for (const block of message.blocks) {
         if (!block.visibility.toModel) continue
         if (block.kind === 'text') content.push(block.text)
         else if (block.kind === 'thinking') {
           thinking.push(block.text)
+          let replayedOpaque = false
           if (block.opaque) {
             const opaque = readOpaqueJson(block.opaque)
             if (
               object(opaque) &&
               opaque.routeName === input.routeName &&
               Array.isArray(opaque.reasoning_details)
-            )
+            ) {
               details.push(...opaque.reasoning_details)
+              replayedOpaque = opaque.reasoning_details.length > 0
+            }
           }
+          if (!replayedOpaque && block.text.length > 0) independentPlainThinking = true
         } else if (block.kind === 'tool_call' && block.complete) {
           calls.add(block.callId)
           tools.push({
@@ -230,6 +235,9 @@ export function planRequest(
           })
         } else return { rejected: 'modality_not_carried' }
       }
+      // The selected route has no verified lossless mapping for an additional
+      // independent plaintext thinking block beside replayable opaque details.
+      if (details.length && independentPlainThinking) return { rejected: 'unavailable' }
       messages.push({
         role: 'assistant',
         content: content.join(''),

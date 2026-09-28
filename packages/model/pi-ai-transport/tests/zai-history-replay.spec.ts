@@ -2,12 +2,13 @@ import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readOpaqueJson, toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { start, accept, closeOut } from '@omne-harness-lite/stream-assembly'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import { createZaiCommercialInputMeter } from '../src/input-meters/zai-commercial.ts'
 import { createZaiHistoryCandidateMeter } from '../src/input-meters/zai-candidate.ts'
 import { planRequest } from '../src/plan.ts'
 import { object } from '../src/json.ts'
 import { definition, histories, historyInput, jsonBody } from './fixtures/zai/history-cases.ts'
-import { at, certificate, fixture, judgedMessage, message } from './support.ts'
+import { at, certificate, fixture, judgedMessage, message, policy } from './support.ts'
 
 let cert: ReturnType<typeof certificate>
 beforeAll(() => {
@@ -113,9 +114,7 @@ describe('authentic complete ZAI reasoning through production stream and assembl
     },
   )
 
-  // Known shared-planner defect: preserving this expected failure prevents the
-  // candidate's finite count from being mistaken for lossless mixed history.
-  it.fails('preserves additional plain thinking beside same-route opaque thinking', () => {
+  it('refuses a lossy same-route opaque A plus independent plain B before HTTP', async () => {
     const modelId = 'z-ai/glm-5.3-flashx'
     const model = definition(modelId)
     const request = historyInput(modelId)
@@ -144,15 +143,97 @@ describe('authentic complete ZAI reasoning through production stream and assembl
         },
       ],
     })
-    let captured: JsonObject | undefined
-    const meter = createZaiCommercialInputMeter(model)
-    planRequest({ ...request, messages: [...request.messages, assistant] }, [model], {
-      ...meter,
-      measure(value) {
-        captured = value.body
-        return meter.measure(value)
-      },
-    })
-    expect(JSON.stringify(captured)).toContain('unique plain B')
+    const original = JSON.stringify(assistant)
+    const complete = { ...request, messages: [...request.messages, assistant] }
+    const host = await fixture(
+      cert.tls,
+      response => response.end('unexpected network request'),
+      {},
+      undefined,
+      [model],
+    )
+    try {
+      expect(planRequest(complete, [model], createZaiCommercialInputMeter(model))).toEqual({
+        rejected: 'unavailable',
+      })
+      expect(host.transport.plan(complete)).toEqual({ rejected: 'unavailable' })
+      const invocation = invokeModel({
+        ...complete,
+        transport: host.transport,
+        credential: 'local-zai-replay-secret',
+        signal: new AbortController().signal,
+        policy: policy(),
+      })
+      expect(await invocation.outcome).toEqual({ rejected: 'unavailable' })
+      expect(host.requests).toHaveLength(0)
+      expect(JSON.stringify(assistant)).toBe(original)
+      expect(assistant.blocks[0]).toMatchObject({ text: 'opaque A' })
+      expect(assistant.blocks[1]).toMatchObject({ text: 'unique plain B' })
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('retains the supported plain-only path and does not mistake one opaque block for two', () => {
+    const modelId = 'z-ai/glm-5.3-flashx'
+    const model = definition(modelId)
+    const request = historyInput(modelId)
+    const makeAssistant = (opaque: boolean) =>
+      judgedMessage({
+        type: 'assistant',
+        id: opaque ? 'single-opaque' : 'plain-only',
+        response: 'reasoning-response',
+        ending: 'complete',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'a',
+            kind: 'thinking',
+            text: 'one thought',
+            ...(opaque
+              ? {
+                  opaque: toOpaqueJson({
+                    routeName: modelId,
+                    reasoning_details: [{ type: 'reasoning.text', text: 'one thought', index: 0 }],
+                  }),
+                }
+              : {}),
+            visibility: { toModel: true, toHuman: true },
+          },
+        ],
+      })
+    for (const opaque of [false, true]) {
+      let captured: JsonObject | undefined
+      const meter = opaque
+        ? createZaiCommercialInputMeter(model)
+        : createZaiHistoryCandidateMeter(model)
+      const result = planRequest(
+        { ...request, messages: [...request.messages, makeAssistant(opaque)] },
+        [model],
+        {
+          ...meter,
+          measure(value) {
+            captured = value.body
+            return meter.measure(value)
+          },
+        },
+      )
+      expect(captured).toBeDefined()
+      const messages = captured?.messages
+      if (!Array.isArray(messages)) throw new Error('no captured messages')
+      const assistantWire = messages.find(value => object(value) && value.role === 'assistant')
+      if (opaque) {
+        expect(assistantWire).toHaveProperty('reasoning_details')
+        expect(assistantWire).not.toHaveProperty('reasoning')
+        expect(result).toMatchObject({
+          rejected: 'invalidInput',
+          reason: 'input_size_unavailable',
+        })
+      } else {
+        expect(assistantWire).toMatchObject({ reasoning: 'one thought' })
+        expect(assistantWire).not.toHaveProperty('reasoning_details')
+        expect(result).toHaveProperty('planned')
+      }
+    }
   })
 })
