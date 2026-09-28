@@ -31,6 +31,47 @@ function expectedImageType(mime: string): string | undefined {
   }
 }
 
+// OpenAI's vision input list permits GIF only when it has one frame. image-size
+// reads GIF dimensions from the header, so inspect the block chain as well.
+function singleFrameGif(bytes: Buffer): boolean {
+  const version = bytes.toString('ascii', 0, 6)
+  if (bytes.length < 14 || (version !== 'GIF87a' && version !== 'GIF89a')) return false
+  let offset = 13
+  const screenFlags = bytes[10]
+  if (screenFlags === undefined) return false
+  if (screenFlags & 0x80) offset += 3 * 2 ** ((screenFlags & 0x07) + 1)
+  let frames = 0
+  function skipSubBlocks(): boolean {
+    while (offset < bytes.length) {
+      const size = bytes[offset++]
+      if (size === undefined) return false
+      if (size === 0) return true
+      offset += size
+      if (offset > bytes.length) return false
+    }
+    return false
+  }
+  while (offset < bytes.length) {
+    const marker = bytes[offset++]
+    if (marker === 0x3b) return frames === 1 && offset === bytes.length
+    if (marker === 0x21) {
+      if (offset >= bytes.length) return false
+      offset++ // extension label; all extension payloads are sub-block chains
+      if (!skipSubBlocks()) return false
+      continue
+    }
+    if (marker !== 0x2c || ++frames > 1 || offset + 9 > bytes.length) return false
+    const imageFlags = bytes[offset + 8]
+    if (imageFlags === undefined) return false
+    offset += 9
+    if (imageFlags & 0x80) offset += 3 * 2 ** ((imageFlags & 0x07) + 1)
+    if (offset >= bytes.length) return false
+    offset++ // LZW minimum code size
+    if (!skipSubBlocks()) return false
+  }
+  return false
+}
+
 /** Named GPT-5.6 base image rules; private route conversion still makes the total estimated. */
 function openAiBaseImageTokens(
   width: number,
@@ -91,6 +132,7 @@ function imageTokens(part: JsonObject, rule: ImageRule): number | undefined {
   if (!match?.[1] || !match[2]) return undefined
   const decoded = Buffer.from(match[2], 'base64')
   if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
+  if (match[1] === 'image/gif' && !singleFrameGif(decoded)) return undefined
   try {
     const dimensions = imageSize(decoded)
     if (dimensions.type !== expectedImageType(match[1])) return undefined
@@ -164,9 +206,9 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const imageRule = imageRuleFor(definition.modelId)
   if (
     !imageRule ||
-    definition.revision !== '2' ||
+    definition.revision !== '3' ||
     definition.implementation.name !== 'pi-ai:openai' ||
-    definition.implementation.revision !== 'mp4-2' ||
+    definition.implementation.revision !== 'mp4-3' ||
     !Object.hasOwn(definition.routes, 'openai')
   )
     throw new TypeError('unsupported OpenAI input-meter binding')
@@ -176,7 +218,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'openai',
-    algorithmRevision: 'openai-gpt-5.6-o200k-base-2',
+    algorithmRevision: 'openai-gpt-5.6-o200k-base-3',
     evidence:
       'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated',
     measure({ body, serialized }): TokenMeasurement {

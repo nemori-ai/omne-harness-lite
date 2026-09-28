@@ -116,10 +116,10 @@ export const openaiDefinitions = ownDefinitions(
     ([modelId, routes]) =>
       ({
         modelId,
-        revision: gpt56MeteredIds.has(modelId) ? '2' : '1',
+        revision: gpt56MeteredIds.has(modelId) ? '3' : '1',
         implementation: {
           name: 'pi-ai:openai',
-          revision: gpt56MeteredIds.has(modelId) ? 'mp4-2' : 'mp4-1',
+          revision: gpt56MeteredIds.has(modelId) ? 'mp4-3' : 'mp4-1',
         },
         capabilities,
         routes,

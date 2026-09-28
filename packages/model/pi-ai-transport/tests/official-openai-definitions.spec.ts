@@ -54,9 +54,9 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       const metered = modelId.startsWith('openai/gpt-5.6-')
       expect(definition.implementation).toEqual({
         name: 'pi-ai:openai',
-        revision: metered ? 'mp4-2' : 'mp4-1',
+        revision: metered ? 'mp4-3' : 'mp4-1',
       })
-      expect(definition.revision).toBe(metered ? '2' : '1')
+      expect(definition.revision).toBe(metered ? '3' : '1')
       expect(definition.capabilities).toEqual({
         inputModalities: ['image', 'text'],
         outputModalities: ['text'],

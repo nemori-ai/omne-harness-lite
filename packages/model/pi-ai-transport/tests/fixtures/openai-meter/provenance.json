@@ -1,6 +1,6 @@
 {
   "kind": "generated-test-images",
-  "generator": "Python 3 standard-library struct, zlib and CRC32; the original 1x1 and 1024x1024 are grayscale, while the 2048x2048, 2048x1536 and 2049x2903 fixtures are opaque RGBA; each uses one solid scanline repeated to the stated dimensions",
+  "generator": "PNG: Python 3 standard-library struct, zlib and CRC32; the original 1x1 and 1024x1024 are grayscale, while the 2048x2048, 2048x1536 and 2049x2903 fixtures are opaque RGBA; each uses one solid scanline repeated to the stated dimensions. GIF: Python 3 standard-library bytes from GIF89a 1x1 logical screen, two-color global table and one 1x1 LZW image block; duplicate the image block for two-frame.gif, remove the final image-data bytes and trailer for truncated.gif",
   "images": {
     "1x1.png": {
       "width": 1,
@@ -26,7 +26,25 @@
       "width": 2049,
       "height": 2903,
       "sha256": "06f9eebd6f12ca7dc47fe22da0ff5101b07bbf1a5f554b5c6b7a270ec8480ece"
+    },
+    "single-frame.gif": {
+      "width": 1,
+      "height": 1,
+      "frames": 1,
+      "sha256": "6c63cc5063ac82d8bbc925f9a31adf3a87f1510c021e0fde51854d60484b5019"
+    },
+    "two-frame.gif": {
+      "width": 1,
+      "height": 1,
+      "frames": 2,
+      "sha256": "b4e316bbc0522008977c7fc9c99e0e3ae950a2390f862a41715b3d32cab0b25f"
+    },
+    "truncated.gif": {
+      "width": 1,
+      "height": 1,
+      "frames": "incomplete",
+      "sha256": "848a1a4aa18887ede5b615b72c150bf5629c68a5adaab769870b3d57abced71b"
     }
   },
-  "oracle": "https://developers.openai.com/api/docs/guides/images-vision gives 1,229 tokens for a 1024x1024 GPT-6 Astra high image. The same 32-pixel patch and 1.2 multiplier explicitly applies to named GPT-5.6 base models with omitted/auto original detail at this size."
+  "oracle": "https://developers.openai.com/api/docs/guides/images-vision gives 1,229 tokens for a 1024x1024 GPT-6 Astra high image. The same 32-pixel patch and 1.2 multiplier explicitly applies to named GPT-5.6 base models with omitted/auto original detail at this size. The same guide lists non-animated GIF among supported image formats; the binary GIF fixtures derive independently from GIF89a block structure."
 }

@@ -14,6 +14,7 @@ import {
   finish,
   fixture,
   judgedMessage,
+  message,
   input as testInput,
   sse,
 } from './support.ts'
@@ -31,7 +32,8 @@ const gpt6Models = [
 ]
 const image = (name: string) =>
   readFileSync(new URL(`./fixtures/openai-meter/${name}`, import.meta.url))
-const url = (name: string) => `data:image/png;base64,${image(name).toString('base64')}`
+const url = (name: string) =>
+  `data:image/${name.endsWith('.gif') ? 'gif' : 'png'};base64,${image(name).toString('base64')}`
 
 function definition(modelId: string) {
   const found = openaiDefinitions.find(item => item.modelId === modelId)
@@ -87,12 +89,13 @@ describe('OpenAI model-specific input estimator', () => {
   it('binds only six exact GPT-5.6 leaves and the fixed OpenAI provider', () => {
     for (const modelId of [...baseModels, ...proModels]) {
       const meter = createOpenAiInputMeter(definition(modelId))
-      expect(meter).toMatchObject({ modelId, provider: 'openai', definitionRevision: '2' })
+      expect(meter).toMatchObject({ modelId, provider: 'openai', definitionRevision: '3' })
+      expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-3')
       expect(meter.algorithmRevision).toContain('gpt-5.6')
     }
     for (const modelId of gpt6Models)
       expect(() => createOpenAiInputMeter(definition(modelId))).toThrow(TypeError)
-    expect(() => createOpenAiInputMeter({ ...definition(baseModel), revision: '1' })).toThrow(
+    expect(() => createOpenAiInputMeter({ ...definition(baseModel), revision: '2' })).toThrow(
       TypeError,
     )
     expect(() => createOpenAiInputMeter({ ...definition(baseModel), routes: {} })).toThrow(
@@ -232,6 +235,21 @@ describe('OpenAI model-specific input estimator', () => {
     }
   })
 
+  it('meters a single-frame GIF and refuses animated or incomplete GIF data', () => {
+    const modelId = baseModel
+    const singleFrame = imageBody(modelId, url('single-frame.gif'), 'low')
+    expect(measuredTokens(modelId, singleFrame)).toBe(
+      measuredTokens(modelId, imageBody(modelId, url('1x1.png'), 'low')),
+    )
+    const meter = createOpenAiInputMeter(definition(modelId))
+    for (const name of ['two-frame.gif', 'truncated.gif']) {
+      const body = imageBody(modelId, url(name), 'low')
+      expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+        kind: 'unavailable',
+      })
+    }
+  })
+
   it('admits a real projected developer reminder and image, with external margin and exact bytes', () => {
     const selected = definition(baseModel)
     const profile = createOfficialProfileContent(selected, {
@@ -310,78 +328,227 @@ describe('OpenAI model-specific input estimator', () => {
     })
   })
 
-  it('sends one fixed OpenAI request with the real meter through the public factory', async () => {
-    const selected = definition(baseModel)
-    const meter = createOpenAiInputMeter(selected)
-    const profile = createOfficialProfileContent(selected, {
-      providers: ['openai'],
-      allowFallback: false,
-      configuration: openaiConfiguration,
-    })
-    if ('rejected' in profile) throw new Error(profile.rejected)
-    const host = await fixture(
-      cert.tls,
-      res =>
-        res.end(
-          content('ok') +
-            sse({
-              choices: [],
-              usage: {
-                prompt_tokens: 240,
-                completion_tokens: 2,
-                prompt_tokens_details: { cached_tokens: 20 },
+  it.each([...baseModels, ...proModels])(
+    '%s sends full reasoning and tool history with the real meter through the public factory',
+    async modelId => {
+      const selected = definition(modelId)
+      const meter = createOpenAiInputMeter(selected)
+      const profile = createOfficialProfileContent(selected, {
+        providers: ['openai'],
+        allowFallback: false,
+        configuration: openaiConfiguration,
+      })
+      if ('rejected' in profile) throw new Error(profile.rejected)
+      const host = await fixture(
+        cert.tls,
+        res =>
+          res.end(
+            content('ok') +
+              sse({
+                choices: [],
+                usage: {
+                  prompt_tokens: 240,
+                  completion_tokens: 2,
+                  prompt_tokens_details: { cached_tokens: 20 },
+                },
+              }) +
+              finish(),
+          ),
+        {},
+        undefined,
+        [selected],
+      )
+      const transport = createPiAiTransport({
+        ...host.options,
+        definitions: [selected],
+        inputMeters: [meter],
+      })
+      try {
+        const original = testInput()
+        const previousAssistant = judgedMessage({
+          id: 'opaque-assistant',
+          type: 'assistant',
+          response: 'opaque-response',
+          ending: 'complete',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'opaque-thinking',
+              kind: 'thinking',
+              text: '',
+              opaque: {
+                routeName: selected.modelId,
+                reasoning_details: [
+                  { type: 'reasoning.encrypted', data: 'fixture-only', index: 0 },
+                ],
               },
-            }) +
-            finish(),
-        ),
-      {},
-      undefined,
-      [selected],
-    )
-    const transport = createPiAiTransport({
-      ...host.options,
-      definitions: [selected],
-      inputMeters: [meter],
-    })
-    try {
-      const original = testInput()
-      const input = {
-        ...original,
-        routeName: selected.modelId,
-        provider: 'openai',
-        tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
-        parameters: { reasoningEffort: 'medium' as const, maxOutputTokens: 64 },
-        snapshot: {
-          ...original.snapshot,
-          adaptation: profile.ok.adaptation,
-          providers: profile.ok.providers,
-          allowFallback: profile.ok.allowFallback,
-          inputModalities: profile.ok.inputModalities,
-          outputModalities: profile.ok.outputModalities,
-          maxInputTokens: profile.ok.maxInputTokens,
-          maxOutputTokens: profile.ok.maxOutputTokens,
-          inputConstraints: profile.ok.inputConstraints,
-          upstreamInputLimits: profile.ok.upstreamInputLimits,
-        },
+              visibility: { toHuman: false, toModel: true },
+            },
+            {
+              id: 'opaque-call',
+              kind: 'tool_call',
+              callId: 'call with spaces',
+              tool: 'lookup',
+              complete: true,
+              unparseable: true,
+              rawArguments: '{"city":"Paris"}',
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        })
+        const previousTool = judgedMessage({
+          id: 'opaque-result',
+          type: 'tool',
+          callId: 'call with spaces',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'opaque-result-block',
+              kind: 'tool_result',
+              callId: 'call with spaces',
+              outcome: 'completed',
+              visibility: { toHuman: true, toModel: true },
+              blocks: [
+                {
+                  id: 'opaque-result-text',
+                  kind: 'text',
+                  text: 'Sunny in Paris',
+                  visibility: { toHuman: true, toModel: true },
+                },
+              ],
+            },
+          ],
+        })
+        const visual = judgedMessage({
+          id: 'single-frame-visual',
+          type: 'user',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'single-frame-image',
+              kind: 'image',
+              mediaType: 'image/gif',
+              data: { inline: image('single-frame.gif').toString('base64') },
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        })
+        const input = {
+          ...original,
+          routeName: selected.modelId,
+          provider: 'openai',
+          tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
+          parameters: { reasoningEffort: 'medium' as const, maxOutputTokens: 64 },
+          tools: [
+            {
+              name: 'lookup',
+              description: 'Look up a forecast',
+              parameters: {
+                type: 'object',
+                properties: { city: { type: 'string' } },
+                required: ['city'],
+                additionalProperties: false,
+              },
+            },
+          ],
+          messages: [
+            ...original.messages,
+            previousAssistant,
+            previousTool,
+            message('user', 'And tomorrow?', 'tomorrow'),
+            ...(!modelId.endsWith('-pro') ? [visual] : []),
+          ],
+          snapshot: {
+            ...original.snapshot,
+            adaptation: profile.ok.adaptation,
+            providers: profile.ok.providers,
+            allowFallback: profile.ok.allowFallback,
+            inputModalities: profile.ok.inputModalities,
+            outputModalities: profile.ok.outputModalities,
+            maxInputTokens: profile.ok.maxInputTokens,
+            maxOutputTokens: profile.ok.maxOutputTokens,
+            inputConstraints: profile.ok.inputConstraints,
+            upstreamInputLimits: profile.ok.upstreamInputLimits,
+          },
+        }
+        const planned = transport.plan(input)
+        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+        expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+        expect(planned.planned.serialized).toContain('"reasoning_details"')
+        expect(planned.planned.serialized).toContain('fixture-only')
+        expect(planned.planned.serialized).toContain('"tool_calls"')
+        expect(planned.planned.serialized).toContain('"tool_call_id"')
+        expect(planned.planned.serialized).toContain('"tools"')
+        expect(planned.planned.inputLimitEvidence.images).toBe(modelId.endsWith('-pro') ? 0 : 1)
+        expect(planned.planned.serialized.includes('"image_url"')).toBe(!modelId.endsWith('-pro'))
+        if (!modelId.endsWith('-pro')) {
+          const animated = judgedMessage({
+            id: 'animated-visual',
+            type: 'user',
+            createdAt: at,
+            blocks: [
+              {
+                id: 'animated-image',
+                kind: 'image',
+                mediaType: 'image/gif',
+                data: { inline: image('two-frame.gif').toString('base64') },
+                visibility: { toHuman: true, toModel: true },
+              },
+            ],
+          })
+          expect(
+            transport.plan({ ...input, messages: [...original.messages, animated] }),
+          ).toMatchObject({
+            rejected: 'invalidInput',
+            reason: 'input_size_unavailable',
+            metrics: ['maxInputTokens'],
+          })
+        }
+        const foreignThinking = judgedMessage({
+          id: 'foreign-assistant',
+          type: 'assistant',
+          response: 'foreign-response',
+          ending: 'complete',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'foreign-thinking',
+              kind: 'thinking',
+              text: '',
+              opaque: {
+                routeName: gpt6Models[0],
+                reasoning_details: [{ type: 'reasoning.encrypted', data: 'foreign-fixture' }],
+              },
+              visibility: { toHuman: false, toModel: true },
+            },
+          ],
+        })
+        const foreign = transport.plan({
+          ...input,
+          messages: [...original.messages, foreignThinking],
+        })
+        if ('rejected' in foreign) throw new Error(JSON.stringify(foreign))
+        expect(foreign.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+        expect(foreign.planned.serialized).not.toContain('reasoning_details')
+        expect(foreign.planned.serialized).not.toContain('foreign-fixture')
+        expect(host.requests).toHaveLength(0)
+        const signal = new AbortController().signal
+        const sent = await transport.send(planned.planned, 'controlled-test-credential', signal)
+        if (!('response' in sent)) throw new Error(JSON.stringify(sent))
+        const events = []
+        for await (const event of transport.read(sent.response, planned.planned, signal))
+          events.push(event)
+        expect(events).toContainEqual(expect.objectContaining({ t: 'account' }))
+        expect(host.requests).toHaveLength(1)
+        expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+        expect(host.requests[0]?.body).toContain('"role":"developer"')
+        expect(host.requests[0]?.body).toContain('"reasoning":{"effort":"medium"}')
+        expect(host.requests[0]?.body).toContain('"reasoning_details"')
+        expect(host.requests[0]?.body).not.toContain('cache_control')
+      } finally {
+        await transport.close()
+        await host.close()
       }
-      const planned = transport.plan(input)
-      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-      expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
-      const signal = new AbortController().signal
-      const sent = await transport.send(planned.planned, 'controlled-test-credential', signal)
-      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
-      const events = []
-      for await (const event of transport.read(sent.response, planned.planned, signal))
-        events.push(event)
-      expect(events).toContainEqual(expect.objectContaining({ t: 'account' }))
-      expect(host.requests).toHaveLength(1)
-      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
-      expect(host.requests[0]?.body).toContain('"role":"developer"')
-      expect(host.requests[0]?.body).toContain('"reasoning":{"effort":"medium"}')
-      expect(host.requests[0]?.body).not.toContain('cache_control')
-    } finally {
-      await transport.close()
-      await host.close()
-    }
-  })
+    },
+  )
 })
