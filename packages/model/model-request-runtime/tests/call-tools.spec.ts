@@ -127,12 +127,15 @@ test('each continuation resolves the supplied names against its own report', asy
     async (_session, _category, _name, within) => {
       if (typeof within !== 'object' || within === null || !('report' in within))
         throw new Error('expected a report-scoped lookup')
+      const snapshot = within.report
+      if (typeof snapshot !== 'object' || snapshot === null || !('attempt' in snapshot))
+        throw new Error('expected captured attempt')
       return {
         entry: {
           ...entry(),
           content: {
             category: 'tool',
-            definition: within.report === firstReport ? old : current,
+            definition: snapshot.attempt === 1 ? old : current,
           },
         },
       }
@@ -149,6 +152,65 @@ test('each continuation resolves the supplied names against its own report', asy
     }),
   ).toEqual({ tools: [modelEntry(current)] })
   expect(lookup).toHaveBeenCalledTimes(2)
+})
+
+test('captures names, session and the full report before a pending lookup can yield', async () => {
+  const later = { ...definition, name: 'example:later', description: 'Later tool' }
+  const originalReport = {
+    session,
+    runId: 'run_a',
+    attempt: 1,
+    snapshots: [{ category: 'tool', filledAt: 1 }],
+    effectivePermissions: { [toolName]: { source: { revision: 'old' } } },
+  }
+  const originalTools = [toolName, modelName(later.name)]
+  const input = {
+    session,
+    tools: originalTools,
+    run: 'run_a',
+    attempt: 1,
+    report: originalReport as unknown as AvailabilityReport,
+  }
+  let release: ((result: { entry: RegistryEntry }) => void) | undefined
+  const lookup = vi.fn<AssetRegistryService['lookup']>((_session, _category, name) => {
+    if (name === toolName)
+      return new Promise(resolve => {
+        release = resolve
+      })
+    return Promise.resolve({
+      entry: {
+        ...entry(),
+        capability: { category: 'tool', name: later.name },
+        content: { category: 'tool', definition: later },
+      },
+    })
+  })
+  const pending = resolveCallTools(input, { lookup })
+  expect(lookup).toHaveBeenCalledTimes(1)
+  input.session = unwrap(parseOpaqueIdentifier('session_mutated', 'SessionRef'))
+  input.tools[1] = 'example__mutated'
+  originalReport.snapshots[0]!.filledAt = 2
+  originalReport.effectivePermissions[toolName]!.source.revision = 'new'
+  if (release === undefined) throw new Error('first lookup did not start')
+  release({ entry: entry() })
+  expect(await pending).toEqual({ tools: [modelEntry(definition), modelEntry(later)] })
+  expect(lookup).toHaveBeenCalledTimes(2)
+  expect(lookup.mock.calls.map(call => [call[0], call[2]])).toEqual([
+    [session, toolName],
+    [session, modelName(later.name)],
+  ])
+  const firstScope = lookup.mock.calls[0]![3]
+  const nextScope = lookup.mock.calls[1]![3]
+  expect(nextScope).toBe(firstScope)
+  expect(firstScope).toMatchObject({
+    kind: 'run',
+    report: {
+      session,
+      snapshots: [{ category: 'tool', filledAt: 1 }],
+      effectivePermissions: { [toolName]: { source: { revision: 'old' } } },
+    },
+  })
+  expect((firstScope as { report: unknown }).report).not.toBe(originalReport)
 })
 
 test('real registry preserves report snapshot and refuses an unreadable report instead of falling back to current', async () => {

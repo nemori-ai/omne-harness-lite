@@ -4,6 +4,8 @@ import {
   type AttemptId,
   type RunId,
 } from '@omne-harness-lite/call-accounts'
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type {
   AssetRegistryService,
@@ -52,23 +54,55 @@ function reportMatches(request: CallToolRequest): boolean {
   return ExactDecimal.from(report.attempt).compare(ExactDecimal.from(request.attempt)) === 0
 }
 
+function capture(request: CallToolRequest): CallToolRequest | undefined {
+  const { session, run, attempt, report, tools } = request
+  if (
+    !('ok' in parseOpaqueIdentifier(session, 'SessionRef')) ||
+    (run !== undefined && !('ok' in judgeAccountValue('RunId', run)))
+  )
+    return undefined
+  const copiedTools = copyJsonValue(tools)
+  if (!('ok' in copiedTools) || !Array.isArray(copiedTools.ok)) return undefined
+  const names: ModelToolName[] = []
+  const seen = new Set<string>()
+  for (const value of copiedTools.ok) {
+    if (typeof value !== 'string' || value.length === 0 || seen.has(value)) return undefined
+    seen.add(value)
+    names.push(value)
+  }
+  const copiedAttempt = attempt === undefined ? undefined : copyJsonValue(attempt)
+  if (copiedAttempt !== undefined && !('ok' in copiedAttempt)) return undefined
+  if (copiedAttempt !== undefined && !('ok' in judgeAccountValue('AttemptId', copiedAttempt.ok)))
+    return undefined
+  const copiedReport = report === undefined ? undefined : copyJsonValue(report)
+  if (copiedReport !== undefined && !('ok' in copiedReport)) return undefined
+  // The source is typed as AvailabilityReport. The public JSON copy owns its entire tree;
+  // registry.lookup performs the provider's full report check when the scoped read occurs.
+  const captured: CallToolRequest = {
+    session,
+    tools: Object.freeze(names),
+    ...(run === undefined ? {} : { run }),
+    ...(copiedAttempt === undefined ? {} : { attempt: copiedAttempt.ok as AttemptId }),
+    ...(copiedReport === undefined
+      ? {}
+      : { report: copiedReport.ok as unknown as AvailabilityReport }),
+  }
+  return reportMatches(captured) ? Object.freeze(captured) : undefined
+}
+
 /** RT5 S-28: resolve model-facing names at this call's registry scope. */
 export async function resolveCallTools(
   request: CallToolRequest,
   registry: Pick<AssetRegistryService, 'lookup'>,
 ): Promise<CallToolResolution> {
-  if (!reportMatches(request) || !Array.isArray(request.tools)) return { failure: 'invalidInput' }
-  const seen = new Set<string>()
-  for (const name of request.tools) {
-    if (typeof name !== 'string' || name.length === 0 || seen.has(name))
-      return { failure: 'invalidInput' }
-    seen.add(name)
-  }
-  const within: Within =
-    request.report === undefined ? { kind: 'session' } : { kind: 'run', report: request.report }
+  const captured = capture(request)
+  if (captured === undefined) return { failure: 'invalidInput' }
+  const within: Within = Object.freeze(
+    captured.report === undefined ? { kind: 'session' } : { kind: 'run', report: captured.report },
+  )
   const tools: ModelToolEntry[] = []
-  for (const name of request.tools) {
-    const result = await registry.lookup(request.session, 'tool', name, within)
+  for (const name of captured.tools) {
+    const result = await registry.lookup(captured.session, 'tool', name, within)
     if ('none' in result) return { failure: 'invalidInput', reason: 'unknownTool' }
     if ('failure' in result) {
       if (result.failure === 'invalidInput') return { failure: 'invalidInput' }
