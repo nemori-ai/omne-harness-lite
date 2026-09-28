@@ -52,6 +52,7 @@ const observerSlots = new WeakMap<
       create: () => ModelObserverQueue,
       valid: () => boolean,
     ) => Promise<{ readonly queue: ModelObserverQueue } | { readonly unavailable: true }>
+    refresh: () => Promise<{ readonly ready: true } | { readonly unavailable: true }>
   }
 >()
 const releaseHooks = new WeakMap<object, () => RuntimeCloseResult>()
@@ -101,6 +102,9 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   let stopFailed = false
   let invocation: AnchoredInvocationHandle | undefined
   let observer: CallObserverBinding | undefined = input.observer
+  const pendingObserverCleanup = new Set<AuthorizedCallObserver>()
+  let oldObserverStopping = false
+  let observerReplacementInFlight = false
   let nextTask = 0
   const stopped = new Map<number, Promise<void>>()
 
@@ -155,12 +159,23 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     const queue = observer?.queue
     const authorization = observer?.authorization
     const attached = invocation
+    const orphaned = [...pendingObserverCleanup]
     const results = await Promise.allSettled([
       ...(attached === undefined ? [] : [Promise.resolve().then(() => attached.close())]),
       ...(queue === undefined ? [] : [Promise.resolve().then(() => queue.close())]),
       ...(authorization === undefined ? [] : [Promise.resolve().then(() => authorization.close())]),
+      ...orphaned.map(item => Promise.resolve().then(() => item.close())),
       Promise.resolve().then(() => coordinator.close()),
     ])
+    const orphanOffset =
+      (attached === undefined ? 0 : 1) +
+      (queue === undefined ? 0 : 1) +
+      (authorization === undefined ? 0 : 1)
+    orphaned.forEach((item, index) => {
+      const result = results[orphanOffset + index]
+      if (result?.status === 'fulfilled' && 'released' in result.value)
+        pendingObserverCleanup.delete(item)
+    })
     let outstanding: boolean
     try {
       outstanding = 'unknown' in owner.opened() || owner.unresolvedWrites().length !== 0
@@ -182,6 +197,8 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       stopFailed ||
       operation.phase !== 'ready' ||
       outstanding ||
+      pendingObserverCleanup.size > 0 ||
+      observerReplacementInFlight ||
       releaseAttempted
     )
       return { unavailable: true }
@@ -211,6 +228,8 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         coordinator,
         ...(invocation === undefined ? {} : { invocation }),
         ...(observer === undefined ? {} : { observer }),
+        observerReplacementPending:
+          observerReplacementInFlight || oldObserverStopping || pendingObserverCleanup.size > 0,
         operation,
       })
     },
@@ -293,28 +312,84 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     })
   })
   observerSlots.set(container, {
+    async refresh() {
+      if (observerReplacementInFlight) return { unavailable: true }
+      for (const item of [...pendingObserverCleanup]) {
+        try {
+          const result = await item.close()
+          if (!('released' in result)) return { unavailable: true }
+          pendingObserverCleanup.delete(item)
+        } catch {
+          return { unavailable: true }
+        }
+      }
+      if (oldObserverStopping && observer !== undefined) {
+        try {
+          const queueResult = await observer.queue?.close()
+          if (queueResult !== undefined && !('released' in queueResult))
+            return { unavailable: true }
+          const result = await observer.authorization.close()
+          if (!('released' in result)) return { unavailable: true }
+          oldObserverStopping = false
+        } catch {
+          return { unavailable: true }
+        }
+      }
+      return { ready: true }
+    },
     async replaceBinding(next, valid) {
+      const incoming = next?.authorization
+      if (incoming !== undefined) pendingObserverCleanup.add(incoming)
+      const reject = async (): Promise<{ readonly unavailable: true }> => {
+        if (incoming !== undefined) {
+          try {
+            const result = await incoming.close()
+            if ('released' in result) pendingObserverCleanup.delete(incoming)
+          } catch {
+            // An unavailable close remains owned by this original call.
+          }
+        }
+        return { unavailable: true }
+      }
       if (
         admissionClosed ||
         released ||
         releaseAttempted ||
         operation.phase !== 'ready' ||
-        !valid()
+        !valid() ||
+        observerReplacementInFlight ||
+        oldObserverStopping ||
+        pendingObserverCleanup.size > (incoming === undefined ? 0 : 1)
       )
-        return { unavailable: true }
+        return await reject()
+      observerReplacementInFlight = true
       const prior = observer
-      if (prior?.queue !== undefined) {
-        const result = await prior.queue.close()
-        if (!('released' in result) || admissionClosed || observer !== prior || !valid())
-          return { unavailable: true }
+      try {
+        if (prior?.queue !== undefined) {
+          const result = await prior.queue.close()
+          if (!('released' in result) || admissionClosed || observer !== prior || !valid()) {
+            oldObserverStopping = true
+            return await reject()
+          }
+        }
+        if (prior !== undefined) {
+          const result = await prior.authorization.close()
+          if (!('released' in result) || admissionClosed || observer !== prior || !valid()) {
+            oldObserverStopping = true
+            return await reject()
+          }
+        }
+        if (admissionClosed || !valid()) return await reject()
+        observer = next
+        if (incoming !== undefined) pendingObserverCleanup.delete(incoming)
+        oldObserverStopping = false
+        return { replaced: true }
+      } catch {
+        oldObserverStopping = prior !== undefined
+        return await reject()
+      } finally {
+        observerReplacementInFlight = false
       }
-      if (prior !== undefined) {
-        const result = await prior.authorization.close()
-        if (!('released' in result) || admissionClosed || observer !== prior || !valid())
-          return { unavailable: true }
-      }
-      observer = next
-      return { replaced: true }
     },
     async replaceQueue(create, valid) {
       const prior = observer
@@ -665,7 +740,6 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         update(request)
       },
       async replaceObserverBinding(next?: Omit<CallObserverBinding, 'queue'>) {
-        if (closed || owns(reservation) === undefined) return { unavailable: true } as const
         const container = current(ownedKey)
         const slot = container === undefined ? undefined : observerSlots.get(container)
         if (slot === undefined) return { unavailable: true } as const
@@ -673,6 +747,16 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
           next,
           () => !closed && owns(reservation) !== undefined && current(ownedKey) === container,
         )
+        return closed || owns(reservation) === undefined || current(ownedKey) !== container
+          ? ({ unavailable: true } as const)
+          : result
+      },
+      async refreshObserverReplacement() {
+        if (closed || owns(reservation) === undefined) return { unavailable: true } as const
+        const container = current(ownedKey)
+        const slot = container === undefined ? undefined : observerSlots.get(container)
+        if (slot === undefined) return { unavailable: true } as const
+        const result = await slot.refresh()
         return closed || owns(reservation) === undefined || current(ownedKey) !== container
           ? ({ unavailable: true } as const)
           : result

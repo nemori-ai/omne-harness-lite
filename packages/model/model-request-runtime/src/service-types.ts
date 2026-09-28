@@ -512,6 +512,7 @@ export interface CallContainerView<P extends PlannedSemantics, R> {
   /** The original dispatch handle owns the opened writer and reply settlement. */
   readonly invocation?: AnchoredInvocationHandle
   readonly observer?: CallObserverBinding
+  readonly observerReplacementPending: boolean
   readonly operation: CallOperationState
 }
 export interface CallObserverBinding {
@@ -569,6 +570,7 @@ export interface CallReservation<P extends PlannedSemantics, R> {
   readonly replaceObserverBinding: (
     next?: Omit<CallObserverBinding, 'queue'>,
   ) => Promise<{ readonly replaced: true } | ServiceUnavailable>
+  readonly refreshObserverReplacement: () => Promise<{ readonly ready: true } | ServiceUnavailable>
   /** The next dispatch may proceed without observation while an old receiver is still stopping. */
   readonly replaceObserverQueue: (
     create: () => ModelObserverQueue,

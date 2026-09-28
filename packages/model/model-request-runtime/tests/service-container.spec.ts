@@ -310,6 +310,66 @@ describe('call container admission and retention', () => {
     expect(authorizationCloses).toBe(1)
     expect(f.leaseReleases).toBe(1)
   })
+
+  it('retains a newly authorized resume observer when the old receiver cannot stop', async () => {
+    let canStop = false
+    let incomingCloses = 0
+    const observer: Omit<CallObserverBinding, 'queue'> = {
+      request: {
+        session: sessionRef('session'),
+        endpoint: {
+          open: () => ({
+            receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+            stop() {},
+            stopped: Promise.resolve(),
+          }),
+        },
+        observer_max_buffered_events: 1,
+        observer_max_buffered_bytes: 100,
+      },
+      authorization: {
+        check: () => ({ valid: true }),
+        open: () => ({ unavailable: true }),
+        close: async () => ({ released: true }),
+      },
+    }
+    const f = fixture('session', 'call', async () => ({ released: true }), observer)
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const admitted = store.reserve(f.container.key)
+    if (!('reservation' in admitted)) throw new Error('reservation absent')
+    expect(store.insert(admitted.reservation, f.container)).toBe(true)
+    const oldQueue: ModelObserverQueue = {
+      offer: () => ({ accepted: true }),
+      start: () => ({ accepted: true }),
+      close: async () => (canStop ? { released: true } : { unavailable: true }),
+    }
+    expect(await admitted.reservation.replaceObserverQueue(() => oldQueue)).toEqual({
+      queue: oldQueue,
+    })
+    const incoming: Omit<CallObserverBinding, 'queue'> = {
+      request: observer.request,
+      authorization: {
+        check: () => ({ valid: true }),
+        open: () => ({ unavailable: true }),
+        close: async () => {
+          incomingCloses += 1
+          return canStop ? { released: true } : { unavailable: true }
+        },
+      },
+    }
+    expect(await admitted.reservation.replaceObserverBinding(incoming)).toEqual({
+      unavailable: true,
+    })
+    expect(f.container.view().observer?.authorization).toBe(observer.authorization)
+    expect(f.container.view().observerReplacementPending).toBe(true)
+    expect(await admitted.reservation.refreshObserverReplacement()).toEqual({ unavailable: true })
+    canStop = true
+    expect(await admitted.reservation.refreshObserverReplacement()).toEqual({ ready: true })
+    expect(f.container.view().observerReplacementPending).toBe(false)
+    expect(incomingCloses).toBe(3)
+    admitted.reservation.release()
+    expect(await store.close()).toEqual({ released: true })
+  })
   it('closes every session call while retaining only the unresolved owner for retry', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const blocked = fixture('session-a', 'same-call')
