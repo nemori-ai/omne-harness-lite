@@ -30,6 +30,36 @@ function aboveLimit(values, limit) {
   const bound = aligned.pop()
   return aligned.reduce((sum, value) => sum + value, 0n) > bound
 }
+function acknowledgedHold(entry) {
+  const history = entry.budgetHoldAcknowledgments
+  if (history === undefined) return undefined
+  if (!Array.isArray(history) || !history.length) throw new Error('Invalid budget hold audit')
+  for (const hold of history) {
+    if (
+      !hold ||
+      !['unknown', 'reserved'].includes(hold.state) ||
+      typeof hold.reason !== 'string' ||
+      !hold.reason.trim() ||
+      typeof hold.source !== 'string' ||
+      !hold.source.trim() ||
+      typeof hold.acknowledgedAt !== 'string' ||
+      !Number.isFinite(Date.parse(hold.acknowledgedAt)) ||
+      !aboveLimit([hold.holdUsd], '0') ||
+      aboveLimit([entry.estimateUsd], hold.holdUsd)
+    )
+      throw new Error('Invalid budget hold audit')
+  }
+  const latest = history.at(-1)
+  return latest.state === entry.state ? latest : undefined
+}
+function exposure(entry) {
+  return entry.state === 'settled'
+    ? entry.actualUsd
+    : (acknowledgedHold(entry)?.holdUsd ?? entry.estimateUsd)
+}
+function unresolved(entry) {
+  return entry.state !== 'settled' && !acknowledgedHold(entry)
+}
 export function estimateReservation(pricing, inputBytes, outputTokens) {
   if (
     !Number.isSafeInteger(inputBytes) ||
@@ -61,9 +91,7 @@ export async function openLedger(
   { limitUsd, researchLimitUsd },
   { reconciliation = false } = {},
 ) {
-  const limit = usdUnits(limitUsd)
-  const researchLimit = usdUnits(researchLimitUsd)
-  if (researchLimit > limit || limit > usdUnits('100'))
+  if (aboveLimit([researchLimitUsd], limitUsd) || aboveLimit([limitUsd], '100'))
     throw new Error('Budget exceeds approved scope')
   await mkdir(dirname(path), { recursive: true })
   const lock = await open(`${path}.lock`, 'wx', 0o600)
@@ -82,7 +110,18 @@ export async function openLedger(
       !Array.isArray(state.entries)
     )
       throw new Error('Ledger/config mismatch')
-    if (!reconciliation && state.entries.some(e => e.state !== 'settled'))
+    for (const entry of state.entries) {
+      if (
+        !['settled', 'unknown', 'reserved'].includes(entry.state) ||
+        !['research', 'acceptance'].includes(entry.stage) ||
+        (entry.state !== 'settled' && entry.actualUsd !== undefined)
+      )
+        throw new Error('Invalid ledger entry')
+      usdUnits(entry.estimateUsd)
+      acknowledgedHold(entry)
+      if (entry.state === 'settled') usdUnits(entry.actualUsd)
+    }
+    if (!reconciliation && state.entries.some(unresolved))
       throw new Error('Unsettled request: reconcile before sending')
   } catch (error) {
     await lock.close()
@@ -106,17 +145,18 @@ export async function openLedger(
       await directory.close()
     }
   }
+  function exceedsBudget(entries) {
+    return (
+      aboveLimit(entries.map(exposure), limitUsd) ||
+      aboveLimit(entries.filter(e => e.stage === 'research').map(exposure), researchLimitUsd)
+    )
+  }
   return {
     async reserve({ model, provider, stage, estimateUsd }) {
       if (!['research', 'acceptance'].includes(stage)) throw new Error('Invalid verification stage')
-      if (state.entries.some(e => e.state !== 'settled')) throw new Error('Unsettled request: stop')
-      const spent = state.entries.map(e => e.actualUsd)
-      const researchSpent = state.entries.filter(e => e.stage === 'research').map(e => e.actualUsd)
+      if (state.entries.some(unresolved)) throw new Error('Unsettled request: stop')
       usdUnits(estimateUsd)
-      if (
-        aboveLimit([...spent, estimateUsd], limitUsd) ||
-        (stage === 'research' && aboveLimit([...researchSpent, estimateUsd], researchLimitUsd))
-      )
+      if (exceedsBudget([...state.entries, { stage, estimateUsd, state: 'reserved' }]))
         throw new Error('Budget reservation refused')
       const id = randomUUID()
       state.entries.push({ id, model, provider, stage, estimateUsd, state: 'reserved' })
@@ -132,13 +172,41 @@ export async function openLedger(
         throw new Error('Actual cost unknown: stop paid verification')
       }
       usdUnits(actualUsd)
+      const allowance = acknowledgedHold(entry)?.holdUsd ?? entry.estimateUsd
       entry.actualUsd = actualUsd
       entry.state = 'settled'
       await persist()
-      if (aboveLimit([actualUsd], entry.estimateUsd))
+      if (exceedsBudget(state.entries)) throw new Error('Budget exceeded: stop paid verification')
+      if (aboveLimit([actualUsd], allowance))
         throw new Error('Reservation underestimated: stop paid verification')
     },
     snapshot: () => structuredClone(state),
+    async acknowledgeBudgetHold(id, holdUsd, { reason, source } = {}) {
+      if (
+        !reconciliation ||
+        typeof reason !== 'string' ||
+        !reason.trim() ||
+        typeof source !== 'string' ||
+        !source.trim()
+      )
+        throw new Error('Explicit budget hold maintenance reason and source required')
+      const entry = state.entries.find(e => e.id === id)
+      if (!entry || !['unknown', 'reserved'].includes(entry.state))
+        throw new Error('Invalid budget hold entry')
+      if (!aboveLimit([holdUsd], '0') || aboveLimit([entry.estimateUsd], holdUsd))
+        throw new Error('Budget hold must be positive and at least the original estimate')
+      const candidate = {
+        ...entry,
+        budgetHoldAcknowledgments: [
+          ...(entry.budgetHoldAcknowledgments ?? []),
+          { holdUsd, reason, source, state: entry.state, acknowledgedAt: new Date().toISOString() },
+        ],
+      }
+      if (exceedsBudget(state.entries.map(e => (e === entry ? candidate : e))))
+        throw new Error('Budget hold refused')
+      entry.budgetHoldAcknowledgments = candidate.budgetHoldAcknowledgments
+      await persist()
+    },
     async reconcile(id, actualUsd, source) {
       if (
         !reconciliation ||
@@ -151,12 +219,13 @@ export async function openLedger(
       const entry = state.entries.find(e => e.id === id)
       if (!entry || entry.state === 'settled') throw new Error('Invalid reconciliation')
       usdUnits(actualUsd)
+      const allowance = acknowledgedHold(entry)?.holdUsd ?? entry.estimateUsd
       entry.actualUsd = actualUsd
       entry.state = 'settled'
       entry.costSource = source
       await persist()
-      if (aboveLimit([actualUsd], entry.estimateUsd))
-        throw new Error('Reconciled cost exceeds reservation')
+      if (exceedsBudget(state.entries)) throw new Error('Reconciled cost exceeds budget')
+      if (aboveLimit([actualUsd], allowance)) throw new Error('Reconciled cost exceeds reservation')
     },
     async close() {
       await lock.close()

@@ -3,14 +3,14 @@ import { resolve } from 'node:path'
 import { openLedger } from './budget.mjs'
 
 /** Production verification never creates a replacement ledger or accepts an alternative path. */
-export async function openProductionLedger(path, approvedPath, budget) {
+export async function openProductionLedger(path, approvedPath, budget, options) {
   const expected = await realpath(approvedPath)
   const actual = await realpath(path)
   if (actual !== expected) throw new Error('Production ledger path differs from approved ledger')
   const stat = await lstat(expected)
   if (!stat.isFile() || stat.uid !== process.getuid() || (stat.mode & 0o777) !== 0o600)
     throw new Error('Production ledger must be an owner-only regular file')
-  return openLedger(expected, budget)
+  return openLedger(expected, budget, options)
 }
 export async function privateOutputDirectory(path) {
   const destination = resolve(path)
