@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { parseFacts } from '../../../../tools/model-probe/src/network.mjs'
 import { estimateReservation } from '../../../../tools/model-probe/src/budget.mjs'
 import { decimalCost, prepare } from './fixtures/qwen/probe-six/run.mjs'
+import { bridgeSha256 } from './fixtures/qwen/probe-six/bridge.mjs'
 
 test('frozen six-case wire bytes match the source manifest identities', async () => {
   const root = new URL('./fixtures/qwen/probe-six/', import.meta.url)
@@ -65,4 +66,15 @@ test('a changed endpoint snapshot is rejected offline before any paid effect', a
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+test('single-case Max bridge changes only original 08 content representation', async () => {
+  const root = new URL('./fixtures/qwen/probe-six/', import.meta.url)
+  const original = JSON.parse(await readFile(new URL('08-qwen3.8-max-0902-english.json', root)))
+  const wire = await readFile(new URL('08-qwen3.8-max-0902-english-text-array.json', root))
+  const changed = JSON.parse(wire)
+  assert.equal(createHash('sha256').update(wire).digest('hex'), bridgeSha256)
+  assert.equal(typeof original.messages[0].content, 'string')
+  original.messages[0].content = [{ type: 'text', text: original.messages[0].content }]
+  assert.deepEqual(changed, original)
 })
