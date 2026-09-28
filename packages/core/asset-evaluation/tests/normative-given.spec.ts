@@ -355,7 +355,7 @@ describe('original given normative sets through the actual shared kernel', () =>
           definition: helper,
           references: [{ capability: c }],
           attributes: [],
-          source: { asset: 'ast_root', version: 1 },
+          source: { asset: 'ast_off_helper6', version: 1 },
         },
         holdings: [
           holding('factory', helper, 'ast_off_helper6', [], false, whose),
@@ -432,7 +432,7 @@ describe('original given normative sets through the actual shared kernel', () =>
           references:
             branch === 'B' ? [{ capability: c }] : [{ capability: t }, { capability: helper }],
           attributes: [],
-          source: { asset: 'ast_root', version: 1 },
+          source: { asset: 'ast_t_helper7', version: 1 },
         },
         definitions: [
           definition(
@@ -497,7 +497,7 @@ describe('original given normative sets through the actual shared kernel', () =>
         definition: helper,
         references: [{ capability: t }, { capability: plugin }],
         attributes: [],
-        source: { asset: 'ast_root', version: 1 },
+        source: { asset: 'ast_off_helper8', version: 1 },
       },
       definitions: [
         definition('ast_off_helper8', helper, {

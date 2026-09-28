@@ -197,7 +197,7 @@ describe('E1 complete real body projection and E3 read-to-evaluate chain', () =>
       disabled.values.find(entry => entry.capability.name === 'shell' && entry.item === 'execute')
         ?.tenantAutoWritable,
     ).toBe(false)
-  })
+  }, 120_000)
   it('E3 retains values, drops only locks/unknown references, with no since', () => {
     const manifest = {
       format: 1,

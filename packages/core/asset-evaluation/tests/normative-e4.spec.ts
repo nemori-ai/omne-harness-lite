@@ -93,7 +93,7 @@ function inputOf(
       definition: helper,
       references: [{ capability: shell, resident: true }],
       attributes: [],
-      source: { asset: 'ast_root', version: 1 },
+      source: { asset: 'ast_off_helper3', version: 1 },
     },
     definitions,
     holdings,
