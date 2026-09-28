@@ -1,5 +1,9 @@
 # 拓展点协议的数据半边
 
+## v5 候选：完整快照与重试结论历史
+
+当前已接受版本为 v4，以 registry 精确坐标为准。[v5 契约](v5/contract.md)、[Schema](v5/loop-extension.schema.json)与[实例](v5/examples.md)是 **candidate**，未接受、未冻结。本版精确采用 model-profile/v4、messages/v5 的完整输入限制快照，追加 S-42 失败结论的 `modelCallId` 与 S-43 完整有序 `retryConclusions`。13 种主体位置、权限、结论种类与回放规则保持；runtime/v6、runner/v4 须显式采用，其他消费者不自动升级。变化及实际检查见[验证入口](verification.md#v5-完整快照与重试结论历史)。以下 v4 及更早记录保留其发生时的范围。
+
 ## 当前采用与 v4 候选
 
 当前已接受版本为 v3（D-068）。[v4 契约](v4/contract.md)、[Schema](v4/loop-extension.schema.json)与[实例](v4/examples.md)是 **candidate**，未接受、未冻结。v4 精确采用 model-profile/v3 和 messages/v4，使失败主体完整保留适配绑定；S-1～S-41、其余依赖、控制顺序和失败枚举保持原规则。runner/v3 与 model-request-runtime/v3 的升级仍为候选，其他消费者不自动切换。变化及证据见[验证入口](verification.md#v4-模型适配绑定闭包)；以下历史记录保留原版本范围。
