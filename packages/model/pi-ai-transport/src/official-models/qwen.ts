@@ -1,0 +1,104 @@
+import type { ModelRoute, ParameterRules } from '../definitions.ts'
+
+/** Exact target identities. These route facts are not complete official definitions. */
+export const qwenAlibabaModelIds = Object.freeze([
+  'qwen/qwen3.8-max-0902',
+  'qwen/qwen3.8-max-prime',
+  'qwen/qwen3.8-flash',
+  'qwen/qwen3.8-2.4t-a95b',
+  'qwen/qwen3.8-27b',
+  'qwen/qwen3.7-max',
+  'qwen/qwen3.7-plus',
+  'qwen/qwen3.7-flash',
+] as const)
+
+export type QwenAlibabaModelId = (typeof qwenAlibabaModelIds)[number]
+
+// A supplied request subset. Dropped parameters remain visible in planning
+// history; this does not assert that Alibaba's models reject those parameters.
+const common = {
+  temperature: { kind: 'drop' },
+  topP: { kind: 'drop' },
+  seed: { kind: 'drop' },
+  maxOutputTokens: { kind: 'pass' },
+  stopSequences: { kind: 'drop' },
+  frequencyPenalty: { kind: 'drop' },
+  presencePenalty: { kind: 'drop' },
+} as const
+
+const unverifiedEffort = {
+  ...common,
+  reasoningEffort: { kind: 'drop' },
+} satisfies ParameterRules
+
+// The fixed Alibaba endpoint rejects `none` on Max and 2.4T, while OpenRouter
+// observed `high` and `max` accepted. `minimal` is not in the unified domain.
+const mandatoryReasoning = {
+  ...common,
+  reasoningEffort: {
+    kind: 'select',
+    accepted: { values: ['high', 'max'] },
+    otherwise: { drop: true },
+  },
+} satisfies ParameterRules
+
+// OpenRouter observed `none` on 27B via Alibaba; other values below share the
+// same controlled observation as Max and 2.4T.
+const switchableReasoning = {
+  ...common,
+  reasoningEffort: {
+    kind: 'select',
+    accepted: { values: ['none', 'high', 'max'] },
+    otherwise: { drop: true },
+  },
+} satisfies ParameterRules
+
+export const qwenAlibabaParameters = Object.freeze({
+  'qwen/qwen3.8-max-0902': mandatoryReasoning,
+  'qwen/qwen3.8-max-prime': unverifiedEffort,
+  'qwen/qwen3.8-flash': unverifiedEffort,
+  'qwen/qwen3.8-2.4t-a95b': mandatoryReasoning,
+  'qwen/qwen3.8-27b': switchableReasoning,
+  'qwen/qwen3.7-max': unverifiedEffort,
+  'qwen/qwen3.7-plus': unverifiedEffort,
+  'qwen/qwen3.7-flash': unverifiedEffort,
+} satisfies Record<QwenAlibabaModelId, ParameterRules>)
+
+// The controlled probe sent this exact 5m control on the system text block for
+// six Alibaba routes and received HTTP 200 with warm reads. That does not prove
+// the upstream honored the control or retained a cache for five minutes.
+const explicitSystemCache = {
+  mode: 'explicit',
+  ttlValues: ['5m'],
+  breakpointLayouts: [['system']],
+} as const
+
+function explicitRoute(parameters: ParameterRules): ModelRoute {
+  return { reminderRole: 'user', parameters, extra: {}, cache: explicitSystemCache }
+}
+
+// The two Flash routes had warm reads without any explicit control.
+export const qwen38FlashAlibabaRoute = {
+  reminderRole: 'user',
+  parameters: qwenAlibabaParameters['qwen/qwen3.8-flash'],
+  extra: {},
+  cache: { mode: 'automatic' },
+} satisfies ModelRoute
+
+export const qwen37FlashAlibabaRoute = {
+  reminderRole: 'user',
+  parameters: qwenAlibabaParameters['qwen/qwen3.7-flash'],
+  extra: {},
+  cache: { mode: 'automatic' },
+} satisfies ModelRoute
+
+export const qwenAlibabaRoutes = Object.freeze({
+  'qwen/qwen3.8-max-0902': explicitRoute(qwenAlibabaParameters['qwen/qwen3.8-max-0902']),
+  'qwen/qwen3.8-max-prime': explicitRoute(qwenAlibabaParameters['qwen/qwen3.8-max-prime']),
+  'qwen/qwen3.8-flash': qwen38FlashAlibabaRoute,
+  'qwen/qwen3.8-2.4t-a95b': explicitRoute(qwenAlibabaParameters['qwen/qwen3.8-2.4t-a95b']),
+  'qwen/qwen3.8-27b': explicitRoute(qwenAlibabaParameters['qwen/qwen3.8-27b']),
+  'qwen/qwen3.7-max': explicitRoute(qwenAlibabaParameters['qwen/qwen3.7-max']),
+  'qwen/qwen3.7-plus': explicitRoute(qwenAlibabaParameters['qwen/qwen3.7-plus']),
+  'qwen/qwen3.7-flash': qwen37FlashAlibabaRoute,
+} satisfies Record<QwenAlibabaModelId, ModelRoute>)
