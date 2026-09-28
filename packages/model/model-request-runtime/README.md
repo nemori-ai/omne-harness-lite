@@ -4,7 +4,7 @@
 
 Invoke one explicit model transport and assemble its stream into a final result, with cancellation, content deadlines and an asynchronous first-content gate. This experimental ESM workspace package is not published on npm.
 
-The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and a pure no-Run call-history interpreter. Internal construction now defines typed inputs/results for all thirteen operations and a process-local call container with explicit, bounded reservation waiting. The `./plugin` entry can provide an application-supplied thirteen-operation assembly through Cordis; that assembly is still being integrated and is not a completed thirteen-operation service. Reply disposition uses the original anchored invocation handle and recognizes a completed no-Run batch from an owned recovery scope after the local container is gone. Recovery currently only recognizes already settled no-Run calls. Missing-response recovery is unavailable until the original send time has a durable source. See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed success still needs a real Run-history interpreter.
+The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and a pure no-Run call-history interpreter. `createModelRuntime` now composes thirteen typed methods under one process-local call owner; complete recovery and Run-backed paths remain pending. The `./plugin` entry exposes an application-retained assembly through Cordis. Reply disposition uses the original anchored invocation handle and recognizes a completed no-Run batch from an owned recovery scope after the local container is gone. Recovery currently only recognizes already settled no-Run calls. Missing-response recovery is unavailable until the original send time has a durable source. See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md), [D102 owner-close mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v10-owner-assembly-design.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed success still needs a real Run-history interpreter.
 
 ## Public API
 
@@ -30,6 +30,7 @@ The current implementation contains standalone invocation, pure policy functions
 | `createServiceCalls(construction)`, `createServiceControl(construction)`         | Independent call and control method composers for the shared runtime assembly                                                                             |
 | `createServiceDispatch(construction)`                                            | Dispatch and dispatchAgain through the fixed profile and exact transport lease, current session facts, durable anchors and the original invocation handle |
 | `createRuntimeSettleReply(input)`, `createRuntimeReconcile(input)`               | Original-handle reply disposition and read-only recovery consumers; reconciliation currently recognizes only already-settled no-Run calls                 |
+| `createModelRuntime(construction)`                                               | Compose the thirteen methods under one call store and one retryable close owner; no Cordis context is required                                             |
 
 ## Cordis service assembly under development
 
@@ -68,11 +69,33 @@ export async function installRuntime(
 
 The internal `createCallContainerStore().waitReserve(...)` takes an explicit positive waiter limit and timeout plus an owned scheduler and abort signal. Once a call container is inserted, the active reservation attaches the original anchored invocation handle. Releasing the reservation leaves that handle, pending reply, unknown writers and exact transport lease with the container. `container.close()` releases the lease only after the original handle reports actual release and the remaining owner checks pass. The reservation does not create durable authorization. An unavailable anchored close retains its coordinator and borrowed references. Once the original work has actually stopped and settlement facts become available, call `close()` again; concurrent closes share one attempt, and a released close is idempotent.
 
+For direct use, supply one fully bound `RuntimeConstruction` and give its call store to exactly one runtime. The host retains the returned owner while it holds provider resources. `close()` synchronously stops new service admission, asks every call and component to stop, waits for registered operations, and returns `released` only after their actual cleanup. If it returns `unavailable`, keep the same owner and retry after the blocking fact changes. The call store does not erase durable history.
+
+```ts
+import { createModelRuntime } from '@omne-harness-lite/model-request-runtime'
+import type { SessionRef } from '@omne-harness-lite/messages'
+
+export async function inspectWithRuntime(
+  construction: Parameters<typeof createModelRuntime>[0],
+  session: SessionRef,
+  retain: (owner: ReturnType<typeof createModelRuntime>) => void,
+) {
+  const runtime = createModelRuntime(construction)
+  try {
+    return await runtime.service.effectiveModel({ session })
+  } finally {
+    const stopped = await runtime.close()
+    if ('unavailable' in stopped) retain(runtime)
+  }
+}
+```
+
 The service host supplies distinct `call()`, `response()` and `message()` identity sources. The reply's `MessageId` comes from `message()` for that send; it is neither copied from the `ResponseId` nor chosen by the adapter.
 
 Each new plan requires a complete `tokenMargin: { multiplier, reserveTokens }` supplied by the host or direct caller. The runtime captures it for that plan and never supplies a default. Missing applicable profile caps or upstream input-limit facts reject as `input_limit_missing` before a new anchor or HTTP request. An estimated token limit rejection retains `basis: 'estimated'`, `estimatedTokens`, `admissionTokens` and `limit`; an exact excess retains `basis: 'exact'`, `actual` and `limit`. Neither estimate is upstream usage or cost. See the adopted [RT8 input limit contract](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划) and [runtime v9 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md).
 
 The read composer owns its borrowed selection providers until its `close()` actually releases them. Pass an explicit `RuntimeConstruction` from the host; it supplies authorized same-session bindings and the required policies.
+An unknown selection-write receipt remains an unknown business outcome. Once that original writer and callback have actually stopped, the component can release its physical registration; it does not replay the write or infer success from the current route. Concurrent closes share the active attempt, and only `released` is cached.
 
 ```ts
 import { createRuntimeReads } from '@omne-harness-lite/model-request-runtime'

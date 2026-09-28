@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。内部施工已定义十三个操作各自的输入／结果类型和进程内调用容器，并提供显式有界的 reservation 等待。`./plugin` 可把应用已组成的十三操作服务交给 Cordis，但统一服务仍在集成，不能声称十三操作已经交付。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。恢复目前只认回已结算调用，缺响应的追补因原发出时刻没有耐久来源而保持不可用。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；完整恢复与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。恢复目前只认回已结算调用，缺响应的追补因原发出时刻没有耐久来源而保持不可用。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D102 owner 收口映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v10-owner-assembly-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
 
 ## 公开接口
 
@@ -26,6 +26,7 @@
 | `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                      |
 | `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain   |
 | `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与只读恢复消费者；对账目前只认回已结算且不属于 Run 的调用                              |
+| `createModelRuntime(construction)`                                               | 十三方法共用一份调用 store 与可重试收口 owner；无需 Cordis Context                                  |
 
 ## 仍在集成的 Cordis 服务装配
 
@@ -64,11 +65,33 @@ export async function installRuntime(
 
 内部 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、未知写者或精确传输租约。`container.close()` 只有在原句柄报告实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。锚定调用的 `close()` 返回 `unavailable` 时仍保留原协调器与借用引用；原工作实际停止且结算事实可读取后，可再次调用 `close()`。并发关闭共用同一次尝试，已释放后的关闭幂等。
 
+直接使用时，宿主给出完整绑定的 `RuntimeConstruction`，一份 call store 只交给一个 runtime，并在仍持有提供者资源时留住返回的 owner。`close()` 同步关闭新服务准入，请求全部调用和组件停止，等待已登记操作；仅在它们实际收口后返回 `released`。返回 `unavailable` 时继续持有同一个 owner，阻断事实消除后重试。call store 不清除耐久历史。
+
+```ts
+import { createModelRuntime } from '@omne-harness-lite/model-request-runtime'
+import type { SessionRef } from '@omne-harness-lite/messages'
+
+export async function inspectWithRuntime(
+  construction: Parameters<typeof createModelRuntime>[0],
+  session: SessionRef,
+  retain: (owner: ReturnType<typeof createModelRuntime>) => void,
+) {
+  const runtime = createModelRuntime(construction)
+  try {
+    return await runtime.service.effectiveModel({ session })
+  } finally {
+    const stopped = await runtime.close()
+    if ('unavailable' in stopped) retain(runtime)
+  }
+}
+```
+
 服务宿主分别提供 `call()`、`response()` 和 `message()` 身份来源。回复的 `MessageId` 在那次发送时由 `message()` 产生，不复用 `ResponseId`，也不交由适配器自定。
 
 每次新规划都要求宿主或直接调用者完整给出 `tokenMargin: { multiplier, reserveTokens }`；运行时为该计划捕获它，不补默认值。适用档案上限或上游输入限制事实缺失时，以 `input_limit_missing` 拒绝，不写新锚点、不发 HTTP。估算超门拒绝保留 `basis: 'estimated'`、`estimatedTokens`、`admissionTokens` 和 `limit`；准确超限保留 `basis: 'exact'`、`actual` 和 `limit`。估算值不是上游实际 usage 或费用。采用依据见 [RT8 输入上限契约](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划)及 [runtime v9 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md)。
 
 读面组合件在 `close()` 真正释放之前持有借用的选择提供者。由宿主显式传入 `RuntimeConstruction`，其中包含同会话的授权绑定与必需政策。
+未知选模写入的回执仍是未知业务结果。原写者及回调实际停止后，组件可以释放其物理登记；它不会重放写入，也不会从当前 route 猜测成功。并发收口共享在途尝试，仅缓存 `released`。
 
 ```ts
 import { createRuntimeReads } from '@omne-harness-lite/model-request-runtime'

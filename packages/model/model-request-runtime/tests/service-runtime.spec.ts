@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import type { SessionRuntimeBinding } from '../src/service-types.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
+import { interpretCallHistory } from '../src/call-history.ts'
+import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
+import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
+import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
+import { selectionHost } from './session-selection-fixture.ts'
 
 const parsed = parseOpaqueIdentifier('runtime-session', 'SessionRef')
 if (!('ok' in parsed)) throw new Error('session fixture invalid')
@@ -85,6 +91,150 @@ function construction(
 }
 
 describe('D102 unified model runtime owner', () => {
+  it('runs selection, open, dispatch, reply settlement, durable read and close on real SQLite/JSONL', async () => {
+    const host = await selectionHost(true, true)
+    try {
+      const selected = host.create()
+      const wire = transport()
+      const calls = createCallContainerStore<TestPlan, object>()
+      let released = 0
+      let nextCall = 0
+      let holdBind = false
+      const bound = deferred<{ readonly binding: SessionRuntimeBinding }>()
+      const binding: SessionRuntimeBinding = {
+        log: selected.input.binding,
+        selection: { ...selected.input, projection: async () => ({ known: [] }) },
+        catalog: host.catalog,
+        currentEvaluationInputs: host.reader,
+        credentials: {
+          async value() {
+            return {
+              scope: { layer: 'factory' as const },
+              value: new TextEncoder().encode('test-secret'),
+            }
+          },
+        },
+        tools: {
+          async lookup() {
+            throw new Error('no tools requested')
+          },
+        },
+      }
+      const construction: RuntimeConstruction<TestPlan, object> = {
+        sessions: { bind: async () => (holdBind ? await bound.promise : { binding }) },
+        calls,
+        transport: {
+          acquire: () => ({
+            lease: {
+              binding: {
+                implementation: { name: 'test', revision: '1' },
+                definition: { modelId: 'example/model-a', revision: '1' },
+                configuration: { revision: '1', values: {} },
+              },
+              transport: wire.adapter,
+              signal: new AbortController().signal,
+              async track<T>(completion: Promise<T>) {
+                return await completion
+              },
+              release() {
+                released++
+              },
+            },
+          }),
+        },
+        settlementContention: settlementPolicy(),
+        settlementScheduler: noWaitScheduler,
+        reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+        tokenMargin: { multiplier: 1, reserveTokens: 0 },
+        policy: { ...invocationPolicy(), schedule: () => () => {} },
+        identities: {
+          call: () => `runtime-call-${++nextCall}`,
+          response: () => 'runtime-response',
+          message: () => messageId,
+        },
+        history: {
+          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+          failure: () => ({ unavailable: true }),
+          run: () => ({ unavailable: true }),
+        },
+        recovery: { enter: async () => ({ unavailable: true }) },
+        diagnostic() {},
+      }
+      const runtime = createModelRuntime(construction)
+      expect(
+        await runtime.service.selectModel({ session: host.session, routeName: 'example/model-a' }),
+      ).toEqual({ selected: 'example/model-a' })
+      const effective = await runtime.service.effectiveModel({ session: host.session })
+      if (!('effectiveModel' in effective)) throw new Error('effective model absent')
+      const opened = await runtime.service.openCall({
+        session: host.session,
+        target: effective.effectiveModel.routeName,
+        basis: effective.effectiveModel,
+        messages: [],
+        tools: [],
+        host: binding,
+      })
+      expect(opened).toEqual({ callId: 'runtime-call-1', state: 'open' })
+      const dispatched = await runtime.service.dispatch({
+        session: host.session,
+        callId: 'runtime-call-1',
+      })
+      expect(dispatched).toHaveProperty('replyPending')
+      expect(wire.sends()).toBe(1)
+      const settled = await runtime.service.settleReply({
+        session: host.session,
+        callId: 'runtime-call-1',
+        disposition: { vetoed: { by: 'runtime-gate' } },
+      })
+      expect(settled).toEqual({ callId: 'runtime-call-1', state: 'complete' })
+      const attempts = await runtime.service.readAttempts({
+        session: host.session,
+        callId: 'runtime-call-1',
+      })
+      expect(attempts).toMatchObject({ state: 'complete' })
+      const log = await host.log.readSince(host.session, 0)
+      if (!('entries' in log)) throw new Error('durable log unavailable')
+      expect(log.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
+        'model_selection_changed',
+        'model_call_dispatched',
+        'model_call_opened',
+      ])
+      expect(
+        await runtime.service.openCall({
+          session: host.session,
+          target: effective.effectiveModel.routeName,
+          basis: effective.effectiveModel,
+          messages: [],
+          tools: [],
+          host: binding,
+        }),
+      ).toEqual({ callId: 'runtime-call-2', state: 'open' })
+      holdBind = true
+      const lateOpen = runtime.service.openCall({
+        session: host.session,
+        target: effective.effectiveModel.routeName,
+        basis: effective.effectiveModel,
+        messages: [],
+        tools: [],
+        host: binding,
+      })
+      let closeFinished = false
+      const closing = runtime.close().then(result => {
+        closeFinished = true
+        return result
+      })
+      await Promise.resolve()
+      expect(closeFinished).toBe(false)
+      expect(await runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
+      bound.finish({ binding })
+      expect(await lateOpen).toEqual({ unavailable: true })
+      expect(await closing).toEqual({ released: true })
+      expect(released).toBe(2)
+    } finally {
+      await host.close()
+    }
+  })
+
   it('composes all thirteen actual methods and closes their shared healthy owners', async () => {
     const runtime = createModelRuntime(construction())
     expect(Object.keys(runtime.service)).toHaveLength(13)
