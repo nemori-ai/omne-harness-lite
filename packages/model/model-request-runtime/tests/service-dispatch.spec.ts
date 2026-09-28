@@ -138,6 +138,11 @@ test('service dispatch writes both anchors before handing out a complete pending
     let evaluationReads = 0
     let credentialAvailable = true
     const calls = createCallContainerStore<TestPlan, object>()
+    const lifecycleHost = {
+      signal: new AbortController().signal,
+      stopping: () => false,
+      register: () => ({ registration: { unregister() {} } }),
+    }
     let released = 0
     const binding: SessionRuntimeBinding = {
       log: selected.input.binding,
@@ -237,7 +242,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       basis: effective.ok,
       messages: [],
       tools: [],
-      host: binding,
+      host: lifecycleHost,
     })
     expect(opened).toEqual({ callId: 'actual-call-1', state: 'open' })
     const dispatch = createServiceDispatch(runtime)
@@ -269,7 +274,7 @@ test('service dispatch writes both anchors before handing out a complete pending
         basis: effective.ok,
         messages: [],
         tools: [],
-        host: binding,
+        host: lifecycleHost,
       }),
     ).toEqual({ callId: 'actual-call-2', state: 'open' })
     finalPlanFailure = {
@@ -309,7 +314,7 @@ test('service dispatch writes both anchors before handing out a complete pending
         basis: effective.ok,
         messages: [],
         tools: [],
-        host: binding,
+        host: lifecycleHost,
       }),
     ).toEqual({ callId: 'actual-call-3', state: 'open' })
     const failed = await dispatch.dispatch({ session: host.session, callId: 'actual-call-3' })
@@ -351,7 +356,7 @@ test('service dispatch writes both anchors before handing out a complete pending
         basis: effective.ok,
         messages: [],
         tools: [],
-        host: binding,
+        host: lifecycleHost,
       }),
     ).toEqual({ callId: 'actual-call-4', state: 'open' })
     selected.owner.openedState = {
@@ -374,7 +379,7 @@ test('service dispatch writes both anchors before handing out a complete pending
         basis: effective.ok,
         messages: [],
         tools: [],
-        host: binding,
+        host: lifecycleHost,
       }),
     ).toEqual({ callId: 'actual-call-5', state: 'open' })
     credentialAvailable = false
@@ -394,7 +399,7 @@ test('service dispatch writes both anchors before handing out a complete pending
         basis: effective.ok,
         messages: [],
         tools: [],
-        host: binding,
+        host: lifecycleHost,
       }),
     ).toEqual({ callId: 'actual-call-6', state: 'open' })
     const control = createServiceControl(runtime)

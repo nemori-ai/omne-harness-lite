@@ -9,6 +9,7 @@ import { createCallContainerStore } from '../src/service-container.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import type {
   OpenCallInput,
+  ModelCallHost,
   RuntimeConstruction,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
@@ -16,7 +17,11 @@ import type { PlannedSemantics } from '../src/types.ts'
 import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_open_call', 'SessionRef'))
-const host = {} as SessionRuntimeBinding
+const host: ModelCallHost = {
+  signal: new AbortController().signal,
+  stopping: () => false,
+  register: () => ({ registration: { unregister() {} } }),
+}
 
 function request(change: Partial<OpenCallInput> = {}): OpenCallInput {
   return {
@@ -71,6 +76,40 @@ test('rejects changed target without provenance, mismatched basis, and incomplet
   expect(ownOpenCallInput(incomplete as OpenCallInput)).toEqual({
     invalidInput: { reason: 'malformed' },
   })
+})
+
+test('rejects a data-only host and malformed or cross-session observer policy before binding', () => {
+  expect(ownOpenCallInput({ ...request(), host: {} } as OpenCallInput)).toEqual({
+    invalidInput: { reason: 'malformed' },
+  })
+  const endpoint = {
+    open() {
+      return {
+        receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+        stop() {},
+        stopped: Promise.resolve(),
+      }
+    },
+  }
+  const observer = {
+    session,
+    endpoint,
+    observer_max_buffered_events: 1,
+    observer_max_buffered_bytes: 1024,
+  }
+  expect(
+    ownOpenCallInput(request({ observer: { ...observer, observer_max_buffered_events: 0 } })),
+  ).toEqual({ invalidInput: { reason: 'malformed' } })
+  expect(
+    ownOpenCallInput(
+      request({
+        observer: {
+          ...observer,
+          session: unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')),
+        },
+      }),
+    ),
+  ).toEqual({ invalidInput: { reason: 'observer_scope_mismatch' } })
 })
 
 test('opens two distinct noRun calls against the actual empty JSONL prefix without an open record', async () => {
@@ -188,8 +227,8 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
   } as unknown as RuntimeConstruction<PlannedSemantics, never>
   try {
     const service = createServiceCalls(runtime)
-    const first = await service.openCall({ ...request(), host: binding })
-    const second = await service.openCall({ ...request(), host: binding })
+    const first = await service.openCall({ ...request(), host })
+    const second = await service.openCall({ ...request(), host })
     expect(first).toEqual({ callId: 'call_1', state: 'open' })
     expect(second).toEqual({ callId: 'call_2', state: 'open' })
     expect(planned).toHaveBeenCalledTimes(2)

@@ -4,6 +4,7 @@ import {
   validate as contentShape,
   copyJsonValue,
   isJsonNumber,
+  isNonNegativeJsonInteger,
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
@@ -67,8 +68,7 @@ function basis(value: unknown): value is EffectiveModel {
   )
 }
 
-/** Capture request-owned JSON before any asynchronous directory, registry or lease read.
- * The host is a capability port and is checked against the authoritative bind separately. */
+/** Capture request-owned JSON before asynchronous preparation; host/endpoint remain capability refs. */
 export function ownOpenCallInput(
   input: OpenCallInput,
 ): { readonly request: OpenCallInput } | ServiceInvalidInput {
@@ -88,10 +88,29 @@ export function ownOpenCallInput(
       !contentShape('CapabilityId', input.targetChangedBy).valid) ||
     input.host === null ||
     typeof input.host !== 'object' ||
+    !(input.host.signal instanceof AbortSignal) ||
+    typeof input.host.stopping !== 'function' ||
+    typeof input.host.register !== 'function' ||
     !Array.isArray(input.messages) ||
     !Array.isArray(input.tools)
   )
     return { invalidInput: { reason: 'malformed' } }
+  const observer = input.observer
+  if (observer !== undefined) {
+    if (
+      !object(observer) ||
+      !('ok' in parseOpaqueIdentifier(observer.session, 'SessionRef')) ||
+      !object(observer.endpoint) ||
+      typeof observer.endpoint.open !== 'function' ||
+      !isNonNegativeJsonInteger(observer.observer_max_buffered_events) ||
+      ExactDecimal.from(observer.observer_max_buffered_events).compare(ExactDecimal.from(0)) <= 0 ||
+      !isNonNegativeJsonInteger(observer.observer_max_buffered_bytes) ||
+      ExactDecimal.from(observer.observer_max_buffered_bytes).compare(ExactDecimal.from(0)) <= 0
+    )
+      return { invalidInput: { reason: 'malformed' } }
+    if (observer.session !== input.session)
+      return { invalidInput: { reason: 'observer_scope_mismatch' } }
+  }
   if (input.targetChangedBy === undefined && input.target !== input.basis?.routeName)
     return { invalidInput: { reason: 'malformed' } }
   if (
@@ -169,6 +188,16 @@ export function ownOpenCallInput(
     messages: Object.freeze(messages),
     tools: Object.freeze(tools),
     host: input.host,
+    ...(observer === undefined
+      ? {}
+      : {
+          observer: Object.freeze({
+            session: observer.session,
+            endpoint: observer.endpoint,
+            observer_max_buffered_events: observer.observer_max_buffered_events,
+            observer_max_buffered_bytes: observer.observer_max_buffered_bytes,
+          }),
+        }),
   }
   const request: OpenCallInput =
     input.run === undefined
@@ -312,7 +341,6 @@ export class UnknownAppendTracker {
 
 export function boundSession(session: SessionRuntimeBinding, request: OpenCallInput): boolean {
   return (
-    session === request.host &&
     session.log.session === request.session &&
     session.selection.binding.session === request.session &&
     tenantIdEquals(session.log.tenant, session.selection.binding.tenant) &&
