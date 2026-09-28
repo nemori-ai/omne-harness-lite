@@ -82,3 +82,7 @@
 ## MR5 codec显式接续（2026-09-28）
 
 [D-094](../../../../record/decisions/model-log-codec-v2-adoption/decision.md)技术采用[v5-log-codec-design rev1](v5-log-codec-design.md)精确be656394：新显式入口写mrr/2/MR5、逐域混读、共同mrr/1键及捕获域保护。原根入口与旧历史保留原接收。该采用允许纯构件实施；LC5-V1～V6、全写方/真实日志组合未验，新增bindings0，不提升完整S20、十三操作或37认证。
+
+## RT5来源政策与头交接采用（2026-09-28）
+
+[D-095](../../../../record/decisions/model-credential-path-adoption/decision.md)精确采用[v6-credential-path-design rev3](v6-credential-path-design.md)，消费已接受RT5/MR5并复用D093完整纯政策。文件v6不是RT6采用；实际实现/CP-V及PH-V/TLS收口尚待，新增bindings0。

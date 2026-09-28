@@ -166,3 +166,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 
 
 2026-09-28：[D-094 MR5 codec显式接续](model-log-codec-v2-adoption/README.md)采用现有runtime节点纯构件投影；新入口与历史域分开，源实施和真实组合尚待，不新增规范版本。
+
+2026-09-28：[D-095 来源政策接线](model-credential-path-adoption/README.md)采用现有runtime/transport的显式完整共享配置、单次H及处理缺陷映射；源码与实际IO验证另核，无新规范版本。
