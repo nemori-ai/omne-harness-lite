@@ -136,6 +136,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
                 scope: {
                   binding: sessionBinding,
                   owner,
+                  originalInvocation: () => ({ absent: true }),
                   async close() {
                     recoveryCloses++
                   },
@@ -272,6 +273,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
                 scope: {
                   binding: { log: binding } as SessionRuntimeBinding,
                   owner,
+                  originalInvocation: () => ({ absent: true }),
                   async close() {
                     closed++
                   },

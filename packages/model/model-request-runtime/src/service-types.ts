@@ -29,6 +29,7 @@ import type {
 } from '@omne-harness-lite/model-response'
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { CallHistoryDispatch, CallHistoryResult } from './call-history.ts'
+import type { ModelLogSettlementTarget } from './log-codec.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type {
   SessionModelSelectionInput,
@@ -459,6 +460,14 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
 export interface RuntimeRecoveryScope {
   readonly binding: SessionRuntimeBinding
   readonly owner: SettlementOwner
+  /** The host checks original session, tenant, call, dispatch and ResponseId ownership. */
+  readonly originalInvocation: (
+    key: CallKey,
+    target: ModelLogSettlementTarget,
+  ) =>
+    | { readonly original: AnchoredInvocationHandle }
+    | { readonly absent: true }
+    | { readonly unavailable: true }
   /** Leaves the new host's recovery admission after its own work actually stops. */
   readonly close: () => Promise<void>
 }
