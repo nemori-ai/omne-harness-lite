@@ -1,5 +1,48 @@
 # 验证覆盖与实际证据
 
+## v5 完整快照与重试结论历史
+
+**candidate，未接受、未冻结。**从 registry 已接受的 LC4 演进；规范条款 43 条，定义项 43 项。新增 S-42/S-43，既有 S-1～S-41、13 种主体位置和控制规则继续适用。本数据契约无操作，操作九项及其 TLA+ 行为义务由 runtime/runner 承担。
+
+### v5 变化的影响
+
+- 精确采用 `data.model-profile/v4` 与 `data.messages/v5`；失败主体的快照、每条发出记录的快照都保留项目供给输入限制及对应上游事实，不从当前目录补齐旧值。
+- `Conclusion.modelCallId` 仅在失败位置必填，其余位置禁止；工具动作的 `callId` 保持原含义。原已接受 LC4 及更早规范未改。
+- 失败主体的必填 `retryConclusions` 原样保留同会话同调用、截至主体所依据合法完整日志前缀的全部有效重试结论；包含自定义件及已给但未发出的结论。空数组只表示已确认没有，不能用缺失或不可用冒充。
+- 元素复用 `Conclusion` 并精化为 `ModelRetryConclusion`；Schema 不证明历史完整性、条目重数、顺序或同会话/调用归属。默认件次数的政策由 runtime 拥有，不在数据上增设计数，不新增 messages 字段。
+- `capability.model-request-runtime/v6` 消费 S-42/S-43 生产完整主体并区分自身次数；`capability.loop-extension-runner/v4` 消费这两条，在写前核对调用关联、透传完整历史，已有最终结论不重跑。旧版读/结算保持旧版边界，不自动迁移。
+
+### v5 证据义务
+
+| 条款/性质 | 能失败的证据与前提 | 状态与 owner |
+|---|---|---|
+| S-14/S-36 完整 MP4/MS5 闭包 | 合法实例通过，删顶层/嵌套上游事实拒绝；依赖固定精确资源 | 本轮候选形状检查已执行；实际生产/传输未开始，runtime/runner |
+| S-42 调用关联 | 13 种位置分别带/不带成员；失败三种记录均必填；另须把不同调用 dispatch 混入主体或改 Conclusion.modelCallId 后，真实写边界拒绝且不写记录 | 形状检查已执行；真实写边界未开始，runner |
+| S-43 历史完整性 | 对照日志，漏项、错序、同条目重复、跨会话/调用、改 extension/plan/at 均拒；等值不同条目保留两次 | Schema 接收合法重复值已执行；原日志边界未开始，runtime/runner |
+| S-32/S-43 已给而未发出 | 默认 retry 落盘后停在再次发出前，恢复读已有结论，不能多给一次；事实取不到不得补空历史 | 未开始，runtime/runner 行为与真实组合 |
+| S-43 默认件与自定义件 | 规范实例第 12 节：相同 dispatches=[A,A] 的续接/重试历史分开，同 Run 两调用分开，保留全部自定义结论但不冒充默认件次数 | 未开始，runtime 默认件及组合场景 |
+| 继承位置、权限、回放 | 去除本轮批准的增量并逆转两项依赖后，Schema 结构等于 LC4；原规范实例仍符合形状预期；真实回放保持 | 结构/实例已执行；回放与控制行为未开始，runner |
+
+不新增 Alloy/TLA+ 工件或 formal task：本包没有新行为状态，形状由 Schema 表达，跨记录关系由对照原日志的场景核实；结论提交、完整前缀生产和恢复由 runtime/runner 行为模型及真实组合证据承接。形式工具本轮**未运行**，不把数据形状检查登记成行为或完整性证明。
+
+### v5 本轮实际检查
+
+2026-09-28，spoke `panqiwei/model-request-runtime-loop5-spec`，基线 `fd4c87f2bc2809843ecec7937834a235906b2163`。使用本工作树 `.venv/bin/python`：Python 3.12.13、jsonschema 4.26.0、referencing 0.37.0；没有安装依赖或访问网络。离线解析本树既有 Schema，并加入兄弟起草树已确认定型的 MP4 与 MS5 Schema；实际输入摘要随临时检查输出交主线保存。
+
+实际输出：`PASS normative table rows 114`、`PASS normative JSON blocks 17`、`PASS LC4 schema preserved except approved refs/modelCallId/history additions`、`PASS assertions 179 defs 43 subject positions 13`。共 179 个形状断言符合预期；结构回退对照说明本轮没有暗改其余 LC4 Schema 规则。该脚本不判具体拒绝值优先级，不验证生产日志完整性、无损传输、真实回放或默认件执行行为。
+
+本 spoke 源树执行 `check_design.py --root .meta_harness/design --formal skip`：`FAIL: design validation found 7 error(s).`，全部是 MP4/MS5 尚未合入本树导致的依赖链接缺失。随后在临时副本中加入已定型的 MP4/MS5 完整包、对应验证入口及三份候选的 catalog/covers 片段，实际输出 `PASS: design tree …/overlay/.meta_harness/design passed gate=internal; formal=skip.`（退出 0）。该结果只覆盖这份依赖副本，不声称原树或最终七包集成已通过。
+
+`git diff --check` 通过；43 条编号 S-1～S-43 唯一且连续；LC1～LC4 全部规范文件与基线逐字节一致。临时脚本、输入摘要和原始输出交主线保存，尚无长期证据入口，不把临时路径作为永久依据。
+
+### v5 登记输入与报给主线
+
+本任务由主线独占 registry 写入；已交候选输入而非声称登记完成：catalog 一项（3 份规范资源、8 项精确依赖、candidate、acceptance=null）；covers 50 项继承边界，补 S-42/S-43 实质覆盖、全部 reviewed=false；id-namespaces 和 formal-tasks 为无新增声明。主线须在集成时应用并检查跨包引用。
+
+主线裁定项：MP4/MS5 坐标、条件 modelCallId、完整 retryConclusions 及复用 Conclusion 的精化类型、给出即计入且默认件只数自身。起草推导项：沿 `malformed` 表达已确认非法（沿 S-37/S-38，不新立失败值）、跨记录正确性列为日志边界证据（Schema 无法证明）。`ModelRetryConclusion` 是同 owner 的结构定义项，不是另造领域对象/词条。
+
+报给主线：没有新增产品政策问题；本轮没有关闭继承缺口。待集成的精确消费为 runtime/v6 与 runner/v4；旧 LC4 无关联记录不自动补造，具体历史转换若要支持另行裁定。继承 G-1（PF-010）、G-4（主线/Run）、G-5（词表/tool-definition）、G-6（PF-008）、G-15（主线/PF-010）、G-16（主线/messages）、G-18（主线）仍开放，范围见 v5 契约第十四节。
+
 ## v4 模型适配绑定闭包
 
 本版从已接受 v3 演进，保留 S-1～S-41（含既有 S-41 执行环境句柄）。新增事实仅为精确采用 `data.model-profile/v3` 和 `data.messages/v4`，既有失败主体因此能携带完整模型适配绑定。无新操作、失败枚举、位置、结论、配置政策或独立绑定定义；仍是 candidate，未接受、未冻结。
