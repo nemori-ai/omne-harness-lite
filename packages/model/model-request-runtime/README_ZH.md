@@ -139,6 +139,41 @@ console.log(delay.ok, next.ok)
 
 函数复制并校验 JSON 数据、不读取 getter、不改调用者输入，也不取整到毫秒。算术结果不表示已经允许重试，不执行等待、发送、回退或默认重试贡献。实际定时精度和大时长调度仍受 R3-G7 约束；P-5/runner 接线及 37 模型认证尚待交付。
 
+## 显式共享凭据脱敏
+
+`createCredentialRedactionPolicy(config)` 构造 [D093](../../../.meta_harness/design/record/decisions/model-credential-policy-adoption/decision.md) 采用的纯政策。三个具名参数缺一不可。`openRouterCredentialRedactionConfig` 是显式交入、深度不可变的 `openrouter-redaction/1` 基线：片段最小长度 8、已采用的 11 项头名单与 sk-/Bearer/Basic 三个有限描述。算法没有隐式配置、环境、网络、存储或 Cordis 依赖。
+
+`policy.bind(knownCredential)` 返回 `{ ok: bound }` 或 `{ rejected: 'invalidInput' }`。冻结的闭包只公开 `text(value)`、`headers(value)`、`json(value)`，三个操作沿同一明确结果壳。已知凭据须为非空可打印 ASCII；完整凭据即使短于片段阈值也会保护。所有匹配均从原输入求区间并集，每段变为 `█`，不正规化、不猜未知编码、不执行开放正则。头先按原键的 ASCII 大小写折叠剥除名单项，再处理键和值；字符串／有序字符串数组的形状、重复与空值保留。JSON 处理键及全部 scalar token，包括精确数字、布尔和 null；命中的非字符串 scalar 整体变成标记字符串，未命中的类型与数字词法保持。输出独立且冻结，安全值再次处理在值意义上相等。 精确数字准入在模块初始化时捕获可信的公开 LosslessNumber source getter，显式读取品牌源后立即复制为标准自有数字；token 匹配在这份副本上调用 jsonNumberSource，调用者原型的 Get trap 不能替换该数字 token。
+
+`redact(value, knownCredential, params)` 是独立 RT5 S60 JSON／字符串函数，复用同一内核。实际响应头应调用 `bound.headers`，它还会剥除名单项。精确数字示例需把本包和 content-blocks 声明为直接依赖；示例只处理合成数据，不发送请求。
+
+```ts
+import {
+  createCredentialRedactionPolicy, openRouterCredentialRedactionConfig, redact,
+} from '@omne-harness-lite/model-request-runtime'
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+
+const policy = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig)
+const binding = policy.bind('teaching-secret')
+if (!('ok' in binding)) throw new Error(binding.rejected)
+const text = binding.ok.text('teaching-secret / Bearer example-token')
+if (!('ok' in text) || text.ok !== '█ / █') throw new Error('Unexpected safe text')
+const headers = binding.ok.headers({ Authorization: 'discard', X: ['', 'teaching-secret', 'again', 'again'], Empty: [] })
+if (!('ok' in headers) || 'Authorization' in headers.ok || headers.ok.X?.length !== 4)
+  throw new Error('Expected safe headers with their original array shape')
+const rawError = redact([true, null, new LosslessNumber('9007199254740993')], 'true', openRouterCredentialRedactionConfig)
+if (!('ok' in rawError) || writeJsonLossless(rawError.ok) !== '["█",null,9007199254740993]')
+  throw new Error('Expected redacted boolean and unchanged exact number')
+```
+
+静态配置非法时抛固定文字、无输入或 cause 的 `CredentialRedactionConfigurationError`。凭据或数据准入非法返回 invalidInput，不调用 getter 或 toJSON。未预期内部处理缺陷抛固定文字、无输入的普通 Error，不伪报非法输入、不返回原文；这个异常表示缺陷，不是成功脱敏或新增领域失败。
+
+通用构造接收最小长度 1～64、最多 128 个小写 ASCII HTTP-token 头名及最多 64 个有限描述，允许显式空名单。这不授予生产配置资格。已采用基线必须保留全部 11 项头与 3 个描述；生产加强配置可以增加项目或将阈值降低到 1～8，仍须单独核资源与误遮罩。大于 8 的值须另一个被接受的生产修订。未来装配 owner 负责核资格，并向两个消费者交入同一完整快照。
+
+本构件处理 raw／error JSON。必需业务状态、身份和费用事实沿各自契约，不能把完整 ModelResponse 交给通用 mapper 改值。raw.body 字节／附件投影、transport/runtime policy 迁移、实际 send/read/头输出及完整 S20 验收尚待对应增量。现有 invoke/transport 回调保留原行为，直到明确的迁移完成。
+
+设凭据长 k、输入长 n、最小片段 m、描述数 d；内核建立最多 k 个固定宽窗口及四个线性终点数组，每个位置最多比较 d 个长度不超过 64 的 literal。工作界为 O(km + n(m + 64d) + output)，以 Set 的精确字符串相等为判据，不以 hash 相同代相等；终点工作内存 O(n)，另有窗口／配置和输出数据。JSON 准入与投影使用迭代遍历，键碰撞后缀的工作包含所需输出键的大小。有限极端输入量测不证明无限输入或同进程沙箱，闭包也不承诺物理内存擦除。
+
 ## 开发与验证
 
 ```sh
