@@ -1,3 +1,35 @@
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import {
+  refMatches,
+  judgeModelProfileDocument,
+  type ModelRequestParameters,
+} from '@omne-harness-lite/model-profile'
+import {
+  createSessionModelSelection,
+  createAnchoredModelInvocation,
+  readSettlementPrefix,
+  type SessionModelSelection,
+  type SettlementLogBinding,
+  type SessionSelectModelResult,
+  type LegalTargetsResult,
+  type SessionEffectiveModelResult,
+  type AnchoredInvocationHandle,
+  type InvocationInput,
+  type PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import { judgeMessage, type SessionRef } from '@omne-harness-lite/messages'
+import { winningRow } from '@omne-harness-lite/model-profile-directory'
+import { createRequestOwner } from './model-request-owner.ts'
+import {
+  textPrefix,
+  textProjection,
+  nativeTextCompatibility,
+  currentTimeLimits,
+} from './model-request-text.ts'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import {
   createEvaluationInputStorePlugin,
@@ -229,6 +261,30 @@ export interface AcceptanceApplication {
     actor: AuthenticatedActor,
     session: unknown,
   ): Promise<ScenarioResult<{ readonly prepared: true }>>
+  legalTargets(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<LegalTargetsResult>>
+  selectModel(
+    actor: AuthenticatedActor,
+    session: unknown,
+    routeName: unknown,
+  ): Promise<ScenarioResult<SessionSelectModelResult>>
+  effectiveModel(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<SessionEffectiveModelResult>>
+  startTextCall(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: TextCallRequest,
+  ): Promise<
+    ScenarioResult<
+      | { readonly call: AnchoredInvocationHandle }
+      | { readonly rejected: 'invalidInput' | 'unavailable' }
+      | Exclude<SessionEffectiveModelResult, { readonly ok: unknown }>
+    >
+  >
   close(): Promise<CloseResult>
   status(): {
     readonly serving: boolean
@@ -279,6 +335,16 @@ export function createAcceptanceApplication(
     lookup: CredentialLookup | undefined,
     registration: Pick<RegistrationService, 'register'> | undefined,
     sessionTenancy: SessionTenancyService | undefined
+  const sessionBorrows = new Map<
+    SessionRef,
+    {
+      binding: SettlementLogBinding
+      owner: ReturnType<typeof createRequestOwner>
+      selector: SessionModelSelection
+    }
+  >()
+  const calls = new Set<AnchoredInvocationHandle>()
+  const borrowedCredentials = new Set<Uint8Array>()
   let gateOpen = false,
     closing = false,
     diagnosticFailures = 0
@@ -367,7 +433,35 @@ export function createAcceptanceApplication(
     gateOpen = false
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     cleanupPromise = (async () => {
+      // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
+      const stoppedCalls = await Promise.allSettled([...calls].map(call => call.close()))
+      const stoppedSelections = await Promise.allSettled(
+        [...sessionBorrows.values()].map(borrow => borrow.selector.close()),
+      )
       await Promise.allSettled([...admitted])
+      // An admitted setup may have installed a handle while close was awaiting a provider read.
+      const lateCalls = await Promise.allSettled([...calls].map(call => call.close()))
+      const consumerUnavailable = [...stoppedCalls, ...stoppedSelections, ...lateCalls].some(
+        result => result.status === 'rejected' || 'unavailable' in result.value,
+      )
+      if (
+        consumerUnavailable ||
+        borrowedCredentials.size !== 0 ||
+        [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
+      ) {
+        return {
+          complete: false,
+          unfinished: [
+            'modelRequestConsumers',
+            'transportOwner',
+            'evaluationInputs',
+            'sessionLogOwner',
+            'storageOwner',
+          ],
+          pending: await guard.pending(),
+        }
+      }
+      for (const borrow of sessionBorrows.values()) borrow.owner.release()
       const unfinished: string[] = []
       const order: readonly (StageFiber | 'replica' | 'sessionLogOwner' | 'transportOwner')[] = [
         ...(stage === 'modelRequest' ? (['transportOwner', 'evaluationInputs'] as const) : []),
@@ -959,13 +1053,17 @@ export function createAcceptanceApplication(
         if (!tenantIdEquals(held.tenant, checked.tenant)) return { failure: 'identityMismatch' }
         const source = await requestDeployment.evaluationInputs.prepare(checked, parsed.ok)
         const published = await publishLocalInputs(inputSource, source.publication)
-        if ('failure' in published) return { step: 'publishLocalInputs', result: published }
+        if ('failure' in published) {
+          return { step: 'publishLocalInputs', result: published }
+        }
         const captured = await captureSessionRecipe(inputSource, {
           ...source.recipe,
           session: parsed.ok,
           tenant: held.tenant,
         })
-        if ('failure' in captured) return { step: 'captureSessionRecipe', result: captured }
+        if ('failure' in captured) {
+          return { step: 'captureSessionRecipe', result: captured }
+        }
         const current = await currentInputs.read(parsed.ok, held.tenant)
         if ('failure' in current) return { step: 'currentInputs', result: current }
         const evaluated = evaluate(current.input)
@@ -973,6 +1071,314 @@ export function createAcceptanceApplication(
         return { prepared: true }
       } catch (error) {
         throw operationError(error, 'prepareModelInputs')
+      }
+    })
+  }
+  async function sessionAccess(actor: AuthenticatedActor, session: unknown) {
+    const checked = await checkActor(actor)
+    if (!('account' in checked)) return checked
+    if (
+      sessionTenancy === undefined ||
+      sessionLogOwner === undefined ||
+      currentInputs === undefined ||
+      catalog === undefined ||
+      requestDeployment === undefined
+    )
+      throw new AcceptanceOperationDefect('modelRequest')
+    const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+    if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+      return { step: 'holdingTenant' as const, result: { failure: 'invalidInput' as const } }
+    const held = await sessionTenancy.holdingTenant(parsed.ok)
+    if ('failure' in held) return { step: 'holdingTenant' as const, result: held }
+    if (!tenantIdEquals(held.tenant, checked.tenant))
+      return { failure: 'identityMismatch' as const }
+    if (closing) return { failure: 'stageClosed' as const }
+    let borrow = sessionBorrows.get(parsed.ok)
+    if (borrow === undefined) {
+      const generation = Object.freeze({})
+      const log = sessionLogOwner
+      const binding: SettlementLogBinding = {
+        session: parsed.ok,
+        tenant: held.tenant,
+        log,
+        generation,
+        currentGeneration: () =>
+          sessionLogOwner === log && allActive(requiredFibers) ? generation : null,
+      }
+      const owner = createRequestOwner(`app:${config.runId}:${parsed.ok}`)
+      const selector = createSessionModelSelection({
+        binding,
+        owner: owner.owner,
+        concurrent: requestDeployment.settlement.contention.limits.concurrent,
+        sessionTenancy,
+        catalog,
+        currentEvaluationInputs: currentInputs,
+        projection: textProjection,
+        compatible: nativeTextCompatibility,
+        now: requestDeployment.invocation.now,
+        diagnostic: event =>
+          record({ event: 'operation', phase: event.stage, outcome: event.outcome }),
+        onDiagnosticFailure: () => {
+          diagnosticFailures++
+        },
+      })
+      borrow = { binding, owner, selector }
+      sessionBorrows.set(parsed.ok, borrow)
+    }
+    return { borrow, checked }
+  }
+  function selectionOperation<T>(
+    actor: AuthenticatedActor,
+    session: unknown,
+    work: (selection: SessionModelSelection) => Promise<T>,
+  ): Promise<ScenarioResult<T>> {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      try {
+        const access = await sessionAccess(actor, session)
+        return 'borrow' in access ? await work(access.borrow.selector) : access
+      } catch (error) {
+        throw operationError(error, 'modelSelection')
+      }
+    })
+  }
+  function startTextCall(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: TextCallRequest,
+  ): Promise<
+    ScenarioResult<
+      | { readonly call: AnchoredInvocationHandle }
+      | { readonly rejected: 'invalidInput' | 'unavailable' }
+      | Exclude<SessionEffectiveModelResult, { readonly ok: unknown }>
+    >
+  > {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    if (!object(request)) return Promise.resolve({ rejected: 'invalidInput' })
+    const copiedParameters = copyJsonValue(request.parameters)
+    const callId = parseOpaqueIdentifier(request.callId, 'ModelCallId'),
+      replyId = parseOpaqueIdentifier(request.replyId, 'MessageId'),
+      responseId = parseOpaqueIdentifier(request.responseId, 'ResponseId')
+    const user = judgeMessage(request.user)
+    const onAccepted = request.onAccepted
+    if (
+      'failed' in copiedParameters ||
+      !parametersFace(copiedParameters.ok) ||
+      request.noRun !== true ||
+      !Array.isArray(request.tools) ||
+      request.tools.length !== 0 ||
+      !isOk(callId) ||
+      !isOk(replyId) ||
+      !isOk(responseId) ||
+      'rejected' in user ||
+      user.ok.type !== 'user' ||
+      user.ok.blocks.some(block => block.kind !== 'text') ||
+      (onAccepted !== undefined && typeof onAccepted !== 'function')
+    )
+      return Promise.resolve({ rejected: 'invalidInput' })
+    const original = Object.freeze({
+      parameters: copiedParameters.ok,
+      user: user.ok,
+      ...(onAccepted === undefined ? {} : { onAccepted }),
+    })
+    return track(async () => {
+      try {
+        const access = await sessionAccess(actor, session)
+        if (!('borrow' in access)) return access
+        const { borrow, checked } = access
+        const basis = await borrow.selector.effectiveModel()
+        if (!('ok' in basis)) return basis
+        if (
+          catalog === undefined ||
+          lookup === undefined ||
+          transportOwner === undefined ||
+          requestDeployment === undefined ||
+          currentInputs === undefined
+        )
+          throw new AcceptanceOperationDefect('startTextCall')
+        const rows = await catalog.listProfiles(checked.tenant)
+        if ('failure' in rows) return { step: 'listProfiles', result: rows }
+        const row = winningRow(rows, basis.ok.routeName, [
+          ...new Set(rows.map(row => row.ref.routeName)),
+        ])
+        if (
+          row === undefined ||
+          !refMatches(
+            basis.ok.profile,
+            row.profile,
+            row.ref.origin === 'custom' ? row.ref.scope : undefined,
+          )
+        )
+          return { rejected: 'unavailable' }
+        const provider = row.profile.providers[0]
+        if (provider === undefined) return { rejected: 'unavailable' }
+        const acquired = borrow.owner.owner.acquire(
+          requestDeployment.settlement.contention.limits.concurrent,
+        )
+        if ('unavailable' in acquired) return { rejected: 'unavailable' }
+        let messages: readonly import('@omne-harness-lite/messages').LoggedMessage[]
+        let messageUnknown = false
+        try {
+          const prefix = await readSettlementPrefix({
+            binding: borrow.binding,
+            registration: acquired.registration,
+          })
+          if ('unavailable' in prefix) return { rejected: 'unavailable' }
+          const projected = textPrefix(prefix.prefix)
+          if ('unavailable' in projected) return { rejected: 'unavailable' }
+          const captured = captureModelLogValue({
+            category: 'message',
+            input: { kind: 'value', value: original.user },
+          })
+          if ('invalidValue' in captured) return { rejected: 'invalidInput' }
+          const entry = prepareModelLogEntry({
+            session: borrow.binding.session,
+            shell: { tenant: checked.tenant },
+            captured: captured.ok,
+            purpose: { kind: 'message' },
+            messagePrefix: projected.messages,
+          })
+          if ('invalidValue' in entry) return { rejected: 'invalidInput' }
+          const appended = acquired.registration.start(
+            'append',
+            async () =>
+              await borrow.binding.log.append(
+                borrow.binding.session,
+                [entry.ok],
+                { kind: 'unfenced' },
+                { kind: 'tailEquals', tail: prefix.prefix.tail },
+              ),
+          )
+          const receipt = await appended.completion.catch(error => {
+            messageUnknown = true
+            throw error
+          })
+          if ('failure' in receipt && receipt.failure === 'unavailable') messageUnknown = true
+          await appended.stopped
+          if ('failure' in receipt) return { rejected: 'unavailable' }
+          messages = [...projected.messages, original.user]
+        } finally {
+          await borrow.owner.drain()
+          if (!messageUnknown) acquired.registration.release()
+        }
+        // A fresh dispatch read of AE limits preserves the already chosen model binding.
+        const current = await currentInputs.read(borrow.binding.session, checked.tenant)
+        if ('failure' in current) return { step: 'currentInputs', result: current }
+        const evaluation = evaluate(current.input)
+        if (!('ok' in evaluation)) return { step: 'evaluate', result: evaluation }
+        const limits = currentTimeLimits(evaluation.ok)
+        if (limits === null || closing) return { rejected: 'unavailable' }
+        const credential = await lookup.value(checked.tenant, row.ref.origin)
+        if ('failure' in credential) return { step: 'lookup', result: credential }
+        const bytes = credential.value
+        borrowedCredentials.add(bytes)
+        let borrowed = true
+        const releaseBorrowed = async () => {
+          if (borrowed) {
+            borrowed = false
+            bytes.fill(0)
+            borrowedCredentials.delete(bytes)
+          }
+        }
+        if (
+          !bytes.length ||
+          bytes.some(byte => byte < 0x20 || byte > 0x7e) ||
+          bytes.every(byte => byte === 0x20)
+        ) {
+          await releaseBorrowed()
+          return { rejected: 'invalidInput' }
+        }
+        if (
+          (credential.scope.layer === 'tenant' &&
+            !tenantIdEquals(credential.scope.tenant, checked.tenant)) ||
+          (credential.scope.layer === 'factory' && row.ref.origin !== 'official')
+        ) {
+          await releaseBorrowed()
+          return { rejected: 'unavailable' }
+        }
+        if (closing) {
+          await releaseBorrowed()
+          return { rejected: 'unavailable' }
+        }
+        const {
+          adaptation,
+          providers,
+          allowFallback,
+          inputModalities,
+          outputModalities,
+          maxInputTokens,
+          maxOutputTokens,
+          updatedAt,
+          parameters,
+        } = row.profile
+        let handle: AnchoredInvocationHandle
+        try {
+          handle = createAnchoredModelInvocation({
+            planInput: {
+              target: { kind: 'model_call', callId: callId.ok, dispatch: 1 },
+              routeName: basis.ok.routeName,
+              provider,
+              snapshot: {
+                adaptation,
+                providers,
+                allowFallback,
+                inputModalities,
+                outputModalities,
+                maxInputTokens,
+                maxOutputTokens,
+                updatedAt,
+                ...(parameters === undefined ? {} : { parameters }),
+              },
+              parameters: original.parameters,
+              messages,
+              tools: [],
+            },
+            transport: transportOwner,
+            credential: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString(
+              'ascii',
+            ),
+            policy: {
+              ...requestDeployment.invocation,
+              ...limits,
+              diagnostic: event =>
+                record({ event: 'operation', phase: 'invocation', outcome: event.kind }),
+            },
+            signal: new AbortController().signal,
+            responseId: responseId.ok,
+            messageId: replyId.ok,
+            profile: row.ref,
+            selectedBy: basis.ok.selectedBy,
+            credentialScope: credential.scope,
+            settlement: {
+              binding: borrow.binding,
+              owner: borrow.owner.owner,
+              settlementContention: requestDeployment.settlement.contention,
+              settlementScheduler: requestDeployment.settlement.scheduler,
+              diagnostic: () =>
+                record({ event: 'operation', phase: 'settlement', outcome: 'event' }),
+            },
+            ...(original.onAccepted === undefined ? {} : { onAccepted: original.onAccepted }),
+            releaseBorrowed,
+          })
+        } catch (error) {
+          await releaseBorrowed()
+          throw error
+        }
+        const wrapped: AnchoredInvocationHandle = {
+          outcome: handle.outcome,
+          snapshot: handle.snapshot,
+          abort: handle.abort,
+          settleReply: handle.settleReply,
+          async close() {
+            const result = await handle.close()
+            if ('released' in result) calls.delete(wrapped)
+            return result
+          },
+        }
+        calls.add(wrapped)
+        return { call: wrapped }
+      } catch (error) {
+        throw operationError(error, 'startTextCall')
       }
     })
   }
@@ -998,6 +1404,13 @@ export function createAcceptanceApplication(
     prepareSession,
     readSessionLog,
     prepareModelInputs,
+    legalTargets: (actor, session) =>
+      selectionOperation(actor, session, selection => selection.legalTargets()),
+    selectModel: (actor, session, routeName) =>
+      selectionOperation(actor, session, selection => selection.selectModel(routeName)),
+    effectiveModel: (actor, session) =>
+      selectionOperation(actor, session, selection => selection.effectiveModel()),
+    startTextCall,
     close() {
       if (closingPromise !== undefined) return closingPromise
       closing = true
@@ -1035,3 +1448,18 @@ export type CaptureRecipeFailure = Extract<
   Awaited<ReturnType<typeof captureSessionRecipe>>,
   { readonly failure: string }
 >
+
+export interface TextCallRequest {
+  readonly parameters: ModelRequestParameters
+  readonly user: unknown
+  readonly callId: unknown
+  readonly responseId: unknown
+  readonly replyId: unknown
+  readonly noRun: true
+  readonly tools: readonly []
+  readonly onAccepted?: InvocationInput<PlannedSemantics, unknown>['onAccepted']
+}
+
+function parametersFace(value: unknown): value is ModelRequestParameters {
+  return 'ok' in judgeModelProfileDocument('ModelRequestParameters', value)
+}

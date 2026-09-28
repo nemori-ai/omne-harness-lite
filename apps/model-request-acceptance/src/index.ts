@@ -3,6 +3,7 @@ export {
   AcceptanceStartupFailure,
   AcceptanceOperationDefect,
   type AcceptanceApplication,
+  type TextCallRequest,
 } from './bootstrap.ts'
 export {
   BASE_FIBERS,

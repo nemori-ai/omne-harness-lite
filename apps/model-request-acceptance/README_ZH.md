@@ -8,7 +8,7 @@
 
 认证返回真实账号、登录态和当前租户；每次凭据或准备操作重新核对该登录态和有效成员关系。可信来源回调同时提供账号、租户、reference 和 body，作用域不符时拒绝。提供者的失败值和 `stored: false` 原样可见。`close()` 停止新准入、等待在途操作、先撤除 lookup 再关闭其借用的副本，最后关闭实际存储；重复调用共享同一个关闭 Promise。
 
-此阶段不发送模型 HTTP 请求，也不提供完整 Session/Inbound 产品、模型 runtime 十三操作 API、Agent Loop、OAuth、资产注册表或完整 credential custodian。示例的空清单是明确的验收输入，不代表已经提供模型目录。诊断事件携带操作分类和关联，不包含密码、密钥材料、凭据 reference 或 body；同步诊断回调不承担耐久审计存储。
+显式 `modelRequest` 阶段可以经生产 OpenRouter transport 发送文本请求，早期阶段不发送模型 HTTP。这个开发验收装配不提供完整 Session/Inbound 产品、模型 runtime 十三操作 API、Agent Loop、OAuth、资产注册表或完整 credential custodian。示例的空清单是明确的验收输入，不代表已经提供模型目录。诊断事件携带操作分类和关联，不包含密码、密钥材料、凭据 reference 或 body；同步诊断回调不承担耐久审计存储。
 
 `readOfficialProfiles(actor)` 用现核租户调用真实目录，只返回 official 行，完整保留 `profile`、`updatedAt` 与 `adaptation`；确定空清单与具名提供者失败分开。`prepareSession(actor, session)` 校验共享 SessionRef 表示、先读持久归属，仅在无记录时由受限 bootstrap 入口在同一实际 storage atomic 中 seed，然后真实读回核租户，返回 `{ session, tenant }`。同租户重复保持原映射，异租户收到裁剪后的 `UniqueViolation`；归属不可读不授权 seed。默认认证阶段不准入这两个操作。seed 成功后的读若失败，已提交映射仍保留；身份现核与 seed 是分别提交。
 
@@ -20,11 +20,55 @@
 
 关闭先排空已准入操作，再实际 await JSONL owner 关闭，成功后才撤日志贡献和其余提供者。物理清理失败时 `complete` 为 false，`unfinished` 保留 owner、贡献与依赖，不继续撤除；文件、历史和未释放锁责任仍保留。同库同日志目录重开经真实属主与恢复核验读回提交值。诊断 sink 故障独立计数，不替换读取或关闭结果。
 
-`modelRequest` 技术阶段当前加入真实 EIS `currentEvaluationInputs` 贡献，成为固定十一项 `MODEL_REQUEST_FIBERS`；迁移在同一 guard 确认前合成。本增量准备真实来源并拥有静态生产 transport，选择与调用另行接线，当前增量尚未开放发送入口。
+`modelRequest` 技术阶段加入真实 EIS `currentEvaluationInputs` 贡献，成为固定十一项 `MODEL_REQUEST_FIBERS`；迁移在同一 guard 确认前合成。应用拥有生产 transport，每个真实认证会话借用实际日志、当前输入源、目录和私有凭据 reader；句柄开放这个有限消费者的 `legalTargets`、`selectModel`、`effectiveModel` 和 `startTextCall`。
 
 `modelRequest.evaluationInputs` 明确配置 `storeKey`、完整 `deployedOfficial`、单调 clock 和可信 `prepare(actor, session)` 回调；回调返回完整 `LocalPublication` 与 recipe。另须完整 production definitions/transport policy、调用时钟/调度/状态码/脱敏政策和结算争用/调度政策，不提供模型或时限默认值。生产 transport 固定使用 OpenRouter；可信 `developmentTransport` 只允许本机受控 HTTPS 测试端点。
 
-真实 `prepareSession` 后，`prepareModelInputs(actor, session)` 重新核身份与归属，依次执行真实 publication、recipe capture、current read 和 AE 求值；全部成功才返回 `{ prepared: true }`，否则保留具名提供者结果。factory/organization/tenant 三源均须明确供给，缺源不补空。来源发布与会话建立是独立提交；重复准备不隐藏 conflict，不重放未知提交。关闭先排空来源操作，再关闭 transport、撤 EIS，随后关闭 JSONL owner 与既有依赖。constructor 或来源准备成功不认证模型调用。
+真实 `prepareSession` 后，`prepareModelInputs(actor, session)` 重新核身份与归属，依次执行真实 publication、recipe capture、current read 和 AE 求值；全部成功才返回 `{ prepared: true }`，否则保留具名提供者结果。factory/organization/tenant 三源均须明确供给，缺源不补空。来源发布与会话建立是独立提交；重复准备不隐藏 conflict，不重放未知提交。关闭先排空来源操作，再关闭 transport、撤 EIS，随后关闭 JSONL owner 与既有依赖。constructor 或来源准备成功不认证模型调用。来源发布失败不证明提交、不授权重放；关闭仍等待实际来源操作与存储事务。
+
+## 显式选择与文本调用
+
+先准备真实会话及当前输入来源、发布凭据，再显式选择合法路由。没有目录首行或根默认模型的自动初选。真实 EIS/AE 事实确定上层锁，包括同名锁；源失败不能解释成无锁。`startTextCall` 在首次异步身份读取前取得本次请求的自有值，要求真实文本 UserMessage、调用者提供且每次唯一的三个 ID、`noRun: true`、空 tools 和显式 `ModelRequestParameters`，不在 profile 填隐藏请求默认值。每次调用使用新 ID；下例的 ID 仅供执行一次。
+
+发送前重新读根时限，并保留已选 binding。当前 M1 消费者只处理现有调用调度器能够精确表示的正整数安全毫秒时长；不能表示的值在模型锚点与 HTTP 前返回 unavailable。这是临时消费者覆盖缺口，不是 AD Duration 的领域上限。
+
+每次物理调用私下 fresh 借用真实作用域的凭据字节。非法 ASCII 或移交前构造失败清零一次；移交后须等待调用实际 release 才清零。dispatched 确认后才 HTTP，opened 确认后才交内容。调用者明确选择完整或截断回复的结算 disposition；`persisted` 在同一批提交 reply 与完整 ModelResponse。未知写入保留原责任及借用依赖。`abort()` 和应用关闭是系统停止，不制造用户中断意图或回复。
+
+下列公开函数需要已 ready 的 `modelRequest` 应用及由该应用认证的 actor。调用函数会发送模型请求；须显式供给真实 official profile、生产政策、可信 EIS 发布／recipe 和凭据。本机测试使用可信本机 HTTPS override 与合成凭据。保留并检查具名失败及 settlement/close 的 unavailable，不当作成功。
+
+```ts
+import type {
+  AcceptanceApplication,
+  AuthenticatedActor,
+  TextCallRequest,
+} from '@omne-harness-lite/model-request-acceptance'
+
+// The host has already prepared the actual session/source and published its credential.
+export async function selectedTextCall(
+  app: AcceptanceApplication,
+  actor: AuthenticatedActor,
+  session: string,
+  user: TextCallRequest['user'],
+) {
+  const selected = await app.selectModel(actor, session, 'deepseek/deepseek-v4-pro-0813')
+  if (!('selected' in selected)) return selected
+  const started = await app.startTextCall(actor, session, {
+    noRun: true,
+    tools: [],
+    callId: 'example-call',
+    responseId: 'example-response',
+    replyId: 'example-reply',
+    user,
+    parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+    onAccepted: event => console.log(event.t),
+  })
+  if (!('call' in started)) return started
+  const outcome = await started.call.outcome
+  if (!('replyPending' in outcome)) return { outcome, closed: await started.call.close() }
+  const settlement = await started.call.settleReply('persisted')
+  return { reply: outcome.replyPending.reply, settlement, closed: await started.call.close() }
+}
+```
 
 ## 从公共 API 运行
 
