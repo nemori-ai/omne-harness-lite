@@ -446,3 +446,7 @@ pnpm exec vitest run tests/official-*.spec.ts
 具体估算实现集中在 [`src/input-meters/`](src/input-meters/)：[`deepseek-v4-pro.ts`](src/input-meters/deepseek-v4-pro.ts)、[`deepseek-v41-flash.ts`](src/input-meters/deepseek-v41-flash.ts) 和 [`openai.ts`](src/input-meters/openai.ts)。同一家族在事实依据允许时共用算法，每个供给模型及供应商路由明确绑定；消息编码或 tokenizer 确有差异时可拆独立模块。公共接口、余量及绑定校验保留在 [`input-meter.ts`](src/input-meter.ts)，最终输入限额检查在 [`input-limits.ts`](src/input-limits.ts)。消费者从包根导入工厂。
 
 Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配置 TTL，分写入／读取／过期三个命令执行。它记录公开调用结果、已接收的到达事件和响应头；`capture.rawSseBody: false`、`capture.protocolFailureFrame: false` 表示没有捕获原始 SSE 正文及被拒绝帧。不能仅凭协议失败确定触发字段或重建缺失字节。非空且不受支持的 `images`、`audio` 和 `refusal` 内容仍按协议失败处理。
+
+`src/input-meters/openai.ts` 中尚未绑定的 Sol/Luna 可见多轮候选以 o200k 对完整 low-effort 文本与工具历史的无损 JSON 估算；密文推理和媒体仍拒绝。它不是官方模型绑定，也不从包根导出。运行 `pnpm exec vitest run tests/openai-visible-history-candidate.spec.ts` 可验证六个冻结的规划／TLS 场景；正式采用仍需真实路由验证。
+
+Moonshot 图片探针分别验证 PNG 完整性与生产输入限额：`node --test tests/fixtures/moonshot/repair-image.test.mjs` 和 `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`。这些本机检查不证明上游接受或缓存命中。
