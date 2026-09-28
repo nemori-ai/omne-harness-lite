@@ -30,6 +30,7 @@ import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
+  CallPreparationOwner,
   CallObserverBinding,
   OpenCallInput,
   OpenCallResult,
@@ -364,6 +365,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   const retainedReads = new OwnedReadTracker()
   const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
+  const preparations = new Set<CallPreparationOwner<P, R>>()
   let closing = false
   async function historyFor(
     session: SessionRuntimeBinding,
@@ -434,6 +436,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       existing === undefined ? createCallPreparationOwner<P, R>(request.host) : undefined
     if (prepared !== undefined && !('owner' in prepared)) return prepared
     const preparation = prepared?.owner
+    if (preparation !== undefined) preparations.add(preparation)
     let preparationAttached = false
     let published = false
     const execute = async (): Promise<OpenCallResult> => {
@@ -771,17 +774,36 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       const cleaned = preparationAttached ? await preparation.close() : await preparation.discard()
       if ('unavailable' in cleaned) return { unavailable: true }
     }
+    if (preparation !== undefined) preparations.delete(preparation)
     if (request.host.signal.aborted || request.host.stopping()) return { runtimeStopped: true }
     return result
   }
   const close = async () => {
     closing = true
-    const [reads, appendResult] = await Promise.all([retainedReads.close(), appends.close()])
+    const [reads, appendResult, prepared] = await Promise.all([
+      retainedReads.close(),
+      appends.close(),
+      Promise.all(
+        [...preparations].map(async owner => {
+          try {
+            const result = await owner.close()
+            if ('released' in result) preparations.delete(owner)
+            return result
+          } catch {
+            return { unavailable: true } as const
+          }
+        }),
+      ),
+    ])
     const writes = await unknownWrites.close({
       concurrent: runtime.settlementContention.limits.concurrent,
       call: runtime.history.call,
     })
-    return 'released' in reads && 'released' in appendResult && 'released' in writes
+    return 'released' in reads &&
+      'released' in appendResult &&
+      'released' in writes &&
+      prepared.every(result => 'released' in result) &&
+      preparations.size === 0
       ? ({ released: true } as const)
       : ({ unavailable: true } as const)
   }

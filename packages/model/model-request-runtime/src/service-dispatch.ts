@@ -410,14 +410,30 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             opening = opened
             throw new Error('observer open rejected')
           }
-          return createModelObserverQueue({
-            scope: { session: key.session, tenant: session.log.tenant, target },
-            authorization: observer.authorization,
-            receiver: opened.receiver,
-            maxBufferedEvents: observer.request.observer_max_buffered_events,
-            maxBufferedBytes: observer.request.observer_max_buffered_bytes,
-            diagnostic: observerDiagnostic,
-          })
+          try {
+            return createModelObserverQueue({
+              scope: { session: key.session, tenant: session.log.tenant, target },
+              authorization: observer.authorization,
+              receiver: opened.receiver,
+              maxBufferedEvents: observer.request.observer_max_buffered_events,
+              maxBufferedBytes: observer.request.observer_max_buffered_bytes,
+              diagnostic: observerDiagnostic,
+            })
+          } catch (error) {
+            // An opened receiver is a physical owner even if queue construction fails.
+            const container = runtime.calls.find(key)
+            container?.retainStopped(
+              opened.receiver.stopped instanceof Promise
+                ? opened.receiver.stopped
+                : Promise.reject(new TypeError('observer receiver has no stopped fact')),
+            )
+            try {
+              opened.receiver.stop()
+            } catch {
+              // The retained stopped fact, not the stop request, gates physical release.
+            }
+            throw error
+          }
         })
         if ('queue' in replaced) observerQueue = replaced.queue
         else if (opening !== undefined)

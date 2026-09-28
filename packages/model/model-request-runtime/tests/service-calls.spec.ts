@@ -167,6 +167,38 @@ test('host stop during session binding prevents a late call publication and unre
   expect(calls.find({ session, callId: 'late-call' })).toBeUndefined()
 })
 
+test('service close stops and retains a registered preparation until binding actually finishes', async () => {
+  let finishBind: ((value: { readonly failure: 'unavailable' }) => void) | undefined
+  const bind = vi.fn(
+    () =>
+      new Promise<{ readonly failure: 'unavailable' }>(resolve => {
+        finishBind = resolve
+      }),
+  )
+  const unregister = vi.fn()
+  const register = vi.fn(() => ({ registration: { unregister } }))
+  const calls = createCallContainerStore<PlannedSemantics, never>()
+  const runtime = {
+    identities: { call: () => 'closing-preparation-call' },
+    sessions: { bind },
+    calls,
+    settlementContention: { limits: { concurrent: 1 } },
+    history: { call: vi.fn() },
+  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  const service = createServiceCalls(runtime)
+  const pending = service.openCall(
+    request({ host: { signal: host.signal, stopping: () => false, register } }),
+  )
+  expect(bind).toHaveBeenCalledTimes(1)
+  expect(await service.close()).toEqual({ unavailable: true })
+  expect(unregister).not.toHaveBeenCalled()
+  finishBind?.({ failure: 'unavailable' })
+  expect(await pending).toEqual({ runtimeStopped: true })
+  expect(unregister).toHaveBeenCalledTimes(1)
+  expect(await service.close()).toEqual({ released: true })
+  expect(calls.find({ session, callId: 'closing-preparation-call' })).toBeUndefined()
+})
+
 test('observer association rejects a wrong call before catalog reads or transport acquisition', async () => {
   const tenant = unwrap(parseTenantId({ organization: 'open-org', account: 'open-account' }))
   const generation = Object.freeze({})
