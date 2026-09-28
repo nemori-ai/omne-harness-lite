@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isJsonNumber } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
@@ -16,6 +17,8 @@ function construction(
   binding: SessionRuntimeBinding,
   reads: { value: number; append: number; credential: number; transport: number },
 ): RuntimeConstruction<PlannedSemantics, unknown> {
+  const message = parseOpaqueIdentifier('unused-reply-message', 'MessageId')
+  if (!('ok' in message)) throw new Error('reply message identity')
   return {
     sessions: {
       async bind(session) {
@@ -58,7 +61,11 @@ function construction(
       },
       diagnostic() {},
     },
-    identities: { call: () => 'unused-call', response: () => 'unused-response' },
+    identities: {
+      call: () => 'unused-call',
+      response: () => 'unused-response',
+      message: () => message.ok,
+    },
     history: {
       call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
       failure() {
