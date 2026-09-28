@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/recovery-timing-validation/run.py", line 31, in <module>
+    blocks=[json.loads(m) for m in re.findall(r'```json\s*([\s\S]*?)```',examples[:examples.index('## 三、')])]
+            ^^^^^^^^^^^^^
+  File "/data/qiwei/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/qiwei/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/json/decoder.py", line 341, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 1 column 10 (char 9)

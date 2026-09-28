@@ -246,7 +246,7 @@
 | [UL-model-call](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | 一次模型调用 | Model Call | 发出请求到拿回完整一份；**与工具执行是兄弟** |
 | [UL-upstream-send](terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send) | 一次发出 | Upstream Send | 调用里经**一家**供应商发出的那一次；失败的每次留痕、不进方程；**一次调用可多次发出、只有一份回复** |
 | [UL-first-token](terms/execution-and-outcome.md#ul-first-token--首-token--first-token) | 首 token | First Token | 回复交出的**第一样内容**，不论模态；它之后一律不重发、不回在途 |
-| [UL-model-response](terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | 模型响应体 | Model Response | 一次发出结束后留下的那条耐久记录，**每次发出恰一条**，进日志不进上下文；**裸写「响应体」不作数** |
+| [UL-model-response](terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | 模型响应体 | Model Response | 每份已确认模型请求责任的收场记录；**记录存在不证明已发送**，进日志不进上下文；**裸写「响应体」不作数** |
 | [UL-tool-wait-state](terms/execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state) | 工具等待态 | Tool Wait State | 一次工具执行停下来等一个应答，**「谁来应答」不是它的一部分** |
 | [UL-frame-emission](terms/execution-and-outcome.md#ul-frame-emission--发帧--frame-emission) | 发帧 | Frame Emission | 跑的过程中交出「我正在干什么」，**不承诺任何事** |
 | [UL-execution-frame](terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) | 执行帧 | Execution Frame | **一条 `ToolInternalMessage` 的到达增量**，走与模型回复同一套到达语法 |

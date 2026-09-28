@@ -1,3 +1,5 @@
+2026-09-28：[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 接受本次恢复时序后继 v8 的全部规范资源；当前精确范围以该决定与 registry 为准。下文候选标签记录起草时状态，提供者迁移及真实恢复另验。
+
 > **历史起草记录（当时状态）**：**2026-09-28 新候选**：[v6](v6/contract.md)（S-1～S-40）引用 MP4/MS5，新增待提交回复表示；未接受、未冻结。完整输入限制快照、持久根/待提交边界与证据见 [v6 验证说明](verification.md#2026-09-28-v6-候选验证)。当前已接受 v5 保持原采用。
 
 2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v7 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
@@ -77,3 +79,8 @@ v5 仅将 `raw.headers` 的值扩展为字符串或有序字符串数组，保�
 [v5 验证说明](verification.md#2026-09-27-v5-多值响应头候选验证) 列出 MR5-H1～MR5-H6、产品 rev 继承边界及消费传播。真实运输事实交接、写前脱敏、同次追加和重开读取均未验证；MR5 Schema 通过不关闭运行时 G-31。完整响应的新读写链须由运行时、core 提供者、transport 与验收装配分别显式采用。
 
 2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v6；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
+
+
+## 2026-09-28 MR8 恢复时序候选
+
+[v8 契约](v8/contract.md) 为 candidate，未接受、未冻结；只补已确认锚点的中断结算中实际 sentAt 不可用表示。当前采用不自动升级，证据与消费者责任见[验证入口](verification.md#恢复时序候选)。

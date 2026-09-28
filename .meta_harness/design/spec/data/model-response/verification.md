@@ -528,3 +528,20 @@ LC5/MS5/MP4 schema refs contain no model-response backreference: PASS
 ```
 
 检查使用现有 catalog 加四包候选片段作消费图遍历，检查 LC5/MS5/MP4 Schema 的外部 `$ref`，未发现返回 MR6 的消费环；说明性反向指路不计依赖。既有 78 块回归、12 个 pending 实例与反向恢复引用后的结构等价检查仍通过。本例同时核对两份主体快照与响应 route 快照逐值相等及 response 标识对应；真实日志归属/完整性、写入责任仍未运行。整批检查器由主线执行，本轮未重跑；TLA+/Alloy 未运行。
+
+
+## 恢复时序候选
+
+2026-09-28：[MR8 契约](v8/contract.md) 与候选登记起草完成；未接受、未冻结。变化的影响：只扩展已锚定 interrupted 的 sentAt:null 表示，保留真实已知时刻，禁止时间代填与据 null 重发。首 token、实际账、十三操作、全部计量余量政策和原精确数据依赖不变。Scope/可用性/真实事实仍由能力与写入者兑现，纯 Schema 不提供其证据。
+
+- 契约与 registry 内部检查：本次以 uv 缓存 CPython 3.12、spoke 自身 tooling/src/check_design.py 执行 `--gate internal --formal registered`，退出 0（输出 `/tmp/recovery-timing-check-4.log`）；该工具不执行 Schema 实例或 TLC，不把登记通过称为形式验证。Schema 实例验证待执行。
+- 新形式工件：RT9 RecoveryTiming 一正配置四负控；工具链未提供，未运行。旧模型逐字继承；本版未重跑，不复述旧执行为本次通过。
+- 真实实现符合性：未开始。runtime/response/codec owner 须验证两种相同完整前缀（锚点后未 send、send 后丢时刻）、opened 保留、已知时刻保留、零 HTTP、未知门与完整批认回，以及 Pending/独立 invoke 禁 null。具体验收向量见 RT9 examples 的 v9 节。
+- 新编号族：无，沿 registry/id-namespaces.json 的 S-/G-；旧 accepted/frozen 不修改。覆盖复制为 reviewed:false，候选依赖不提升接受状态。
+- 报给主线：loop-extension-runner/v5 仅消费 MR7 S-10/S-14/S-36，没有 Timing/根 Schema 的实质依赖，不需连锁升版；实现若私下依赖应收回对应实现边界。恢复 provider、核心响应与日志 codec 的采用/实现由主线另派，不在本包起草权内。
+
+- G-15（MR8）补充裁定已落：主线允许窄澄清同次固定计划与真实发送关系；MR8 S-9/S-11、RT9 S-33 同步更新。正常发送必须实际一致，零 send／不可判中断沿锚点原样还原适配结果，不猜发送/费用/重试；候选待独立审查，未接受。
+
+## 2026-09-28 恢复时序有限执行
+
+[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 已接受；[10个Schema边界与1正4负有限形式结果](../../../record/evidence/2026-09-28-formal-model-recovery-timing/README.md)实际执行通过预期。不是完整旧例回归、纯判定拒绝优先级、真实恢复或提供者迁移证据。

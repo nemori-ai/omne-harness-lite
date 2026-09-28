@@ -533,3 +533,27 @@ PF-013 rev15 产品语义由用户明确确认，正文来源 a61cc601 与 §8 �
 FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态；公开无日志：8545）；九份负配置均退出 12，分别命中 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、EstimateCanProceed、MarginApplied、EstimateNotActual、MissingPriority、BytesExact、UsageFromUpstream。模型允许 estimated≤cap 而实际上游 token>cap 的发送；这不是本契约承诺排除的状态。首次运行使用异类型集合导致 TLC 指纹错误退出 75，原日志保留；改成带标签记录后另存最终输入重跑。未重跑其他继承模型，未运行 Alloy 或真实 IO。
 
 本次本地证据位于 spoke 的 `tmp/model-request-runtime/token-estimate/`：`checks/checks.json`、`checks/check-design-run.json` 及原始输出；`formal-run-1/` 保留首次工具失败，`formal-run-2/runs.json`、`formal-run-2/sha256.json` 与各配置原始输出保存最终形式输入和结果；`fragments/` 保存八份待集成登记片段，`CHANGE-AUDIT.md` 记录最小变动与推导项。主线需归档这些临时证据；它们不是已经归入 record 的接受材料。
+
+
+## 恢复时序候选
+
+2026-09-28：[RT9 契约](v9/contract.md) 与候选登记起草完成；未接受、未冻结。变化的影响：只扩展已锚定 interrupted 的 sentAt:null 表示，保留真实已知时刻，禁止时间代填与据 null 重发。首 token、实际账、十三操作、全部计量余量政策和原精确数据依赖不变。Scope/可用性/真实事实仍由能力与写入者兑现，纯 Schema 不提供其证据。
+
+- 契约与 registry 内部检查：本次以 uv 缓存 CPython 3.12、spoke 自身 tooling/src/check_design.py 执行 `--gate internal --formal registered`，退出 0（输出 `/tmp/recovery-timing-check-4.log`）；该工具不执行 Schema 实例或 TLC，不把登记通过称为形式验证。Schema 实例验证待执行。
+- 新形式工件：RT9 RecoveryTiming 一正配置四负控；工具链未提供，未运行。旧模型逐字继承；本版未重跑，不复述旧执行为本次通过。
+- 真实实现符合性：未开始。runtime/response/codec owner 须验证两种相同完整前缀（锚点后未 send、send 后丢时刻）、opened 保留、已知时刻保留、零 HTTP、未知门与完整批认回，以及 Pending/独立 invoke 禁 null。具体验收向量见 RT9 examples 的 v9 节。
+- 新编号族：无，沿 registry/id-namespaces.json 的 S-/G-；旧 accepted/frozen 不修改。覆盖复制为 reviewed:false，候选依赖不提升接受状态。
+- 报给主线：loop-extension-runner/v5 仅消费 MR7 S-10/S-14/S-36，没有 Timing/根 Schema 的实质依赖，不需连锁升版；实现若私下依赖应收回对应实现边界。恢复 provider、核心响应与日志 codec 的采用/实现由主线另派，不在本包起草权内。
+
+- G-15（MR8）补充裁定已落：主线允许窄澄清同次固定计划与真实发送关系；MR8 S-9/S-11、RT9 S-33 同步更新。正常发送必须实际一致，零 send／不可判中断沿锚点原样还原适配结果，不猜发送/费用/重试；候选待独立审查，未接受。
+
+
+### 恢复时序候选的独立评审修订
+
+2026-09-28：按主线转交的独立表达发现，S-17/S-33 三个追补分支与撤除说明统一为“保留同次可信真实事实，不可得部分才 unknown”，不从 sentAt:null 丢已知账。可信来源限定原执行 owner 持有且经过既有传输/归一化边界确认的同次事实／原完整批，禁止任意 caller 声称；不增加采信入口、账修补或 HTTP 重查。修正 §十四 RT8→RT9 来源和 G-31 采用坐标。新增规范正反场景；真实故障注入、Schema/TLC 执行状态不因此提升。UL/领域对象的表达对齐由主线其他 owner 处理，本包未越权修改。
+
+上述修订后同命令 internal/formal registered 实际退出 0，输出 `/tmp/recovery-timing-check-5.log`；`git diff --check` 通过。仍未执行 Schema 实例与 TLC。
+
+## 2026-09-28 恢复时序有限执行
+
+[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 已接受；[10个Schema边界与1正4负有限形式结果](../../../record/evidence/2026-09-28-formal-model-recovery-timing/README.md)实际执行通过预期。不是完整旧例回归、纯判定拒绝优先级、真实恢复或提供者迁移证据。

@@ -1,3 +1,5 @@
+2026-09-28：[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 接受本次恢复时序后继 v9 的全部规范资源；当前精确范围以该决定与 registry 为准。下文候选标签记录起草时状态，提供者迁移及真实恢复另验。
+
 **v6 起草时摘要（历史；后由 D-099 接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-候选变化与证据)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。
 
 2026-09-28：[D-101](../../../record/decisions/model-token-estimate-adoption/decision.md)接受本次MP6/RT8计量后继；规范资源冻结，下面candidate标签保留起草事件，实际计量实现与发送验收另计。
@@ -78,3 +80,8 @@
 ## v8 token 估算候选
 
 [v8 契约](v8/contract.md)仅调整 PF-013 rev15 已由用户确认的 tokenizer 估算与可配置余量保证；尚未技术接受。字段与纯判定、十三操作及其他精确消费者范围保持。[验证与变化](verification.md#v8-估算计量保证)记录实际证据与限制。
+
+
+## 2026-09-28 RT9 恢复时序候选
+
+[v9 契约](v9/contract.md) 为 candidate，未接受、未冻结；只补已确认锚点的中断结算中实际 sentAt 不可用表示。当前采用不自动升级，证据与消费者责任见[验证入口](verification.md#恢复时序候选)。

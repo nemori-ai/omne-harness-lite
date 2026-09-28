@@ -1,0 +1,73 @@
+{
+  "schema_sha256": "4378aa6a11ec5775565a90cf6269eeff76ebe76356110ef301f0bfc04fda1da3",
+  "examples_sha256": "b60980e124e1eff02ad78932f3e39385d28b9a5dd06b5fb2b4f81b26df910fbf",
+  "cases": [
+    {
+      "name": "恢复时没有可用实际发送时刻",
+      "expected": true,
+      "actual": true,
+      "matched": true,
+      "errors": []
+    },
+    {
+      "name": "恢复时已开口但实际发送时刻丢失",
+      "expected": true,
+      "actual": true,
+      "matched": true,
+      "errors": []
+    },
+    {
+      "name": "锚点后零 send 的取消",
+      "expected": true,
+      "actual": true,
+      "matched": true,
+      "errors": []
+    },
+    {
+      "name": "正常回复不能使用 null",
+      "expected": false,
+      "actual": false,
+      "matched": true,
+      "errors": [
+        "None is not of type 'string'"
+      ]
+    },
+    {
+      "name": "pending actual",
+      "expected": true,
+      "actual": true,
+      "matched": true
+    },
+    {
+      "name": "pending null",
+      "expected": false,
+      "actual": false,
+      "matched": true
+    },
+    {
+      "name": "failed null",
+      "expected": false,
+      "actual": false,
+      "matched": true
+    },
+    {
+      "name": "truncated null",
+      "expected": false,
+      "actual": false,
+      "matched": true
+    },
+    {
+      "name": "missing sentAt",
+      "expected": false,
+      "actual": false,
+      "matched": true
+    },
+    {
+      "name": "null Timing",
+      "expected": false,
+      "actual": false,
+      "matched": true
+    }
+  ],
+  "scope": "New MR8 timing shape and Pending boundary only; no semantic truth or pure-validation error precedence assertion"
+}

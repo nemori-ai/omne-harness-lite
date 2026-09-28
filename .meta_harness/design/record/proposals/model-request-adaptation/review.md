@@ -182,3 +182,9 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 主线据独立 architecture-reviewer 实际报告保存的归因摘要：v11 前稿 `1f09e797adb8dc6444b0d8b4138c280d51e5a677e751d24fdfe96abf3d0bceeb` 对 RT8 S-51/S-61/S-62 和 D-102 无本次架构阻断。真实 endpoint 私有关联、准备 owner 先登记、每 dispatch 接收端、双限含在途且 stopped 才回额度能够承载既有性质；没有新业务结果或持久事务保证。慢接收者对吞吐的代价保留，不前置并发优化。
 
 非阻断 N1 要求把 H-V6/H-V11 合跑：旧 receiver 未停时合法 dispatch2 模型发送和结算继续、零新 receiver、旧端零新 target；停止后仅后续 dispatch 重建。另提醒 S-36 收口措辞不得误导为 S-31 写中断意图。作者最终正文 `80f680b2cee1362b0820cd930174c9adb6968500731aa2c4bbed157126ce1814` 已窄修这两项并明确 D-102 采用范围；主线核差分，无独立最终复审声明。未执行 H-V、真实 Cordis 或接收任务验证；L1/L2 未覆盖。技术采用见 [D-103](../../decisions/model-runtime-host-observer-adoption/decision.md)。
+
+## 2026-09-28 MR8／RT9 恢复表示独立评审
+
+主线据实际 reviewer 报告保存的归因摘要：MR8 contract `34b78e9c55df99fa8ea3756c98010914fae92a56375a429316e7fdafb966fe13`、最终 RT9 `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb`，独立 architecture-reviewer 与 spec-reviewer 最终均无所审范围阻断。初审S33全未知与已知账保留冲突已按可信同次来源消歧；词表／对象旧“未发无记录”已按既有RT8责任修正（C-40）；RT9来源残留已修。Schema description 的旧概括随后由主线同步，不改验证条件，无独立重审声明。
+
+架构判断：nullable 不改变首 token／意图重试资格，恢复仍实际停止、权威前缀、完整原批优先且零HTTP；一份null合并零发送／发送不可判，不丢本次消费者需要的区别，因为账与实际发送均不能由null推出。MS6锚点与runner5消费边不须连锁升级。两评审未执行工具或实现；原L1/L2和对象未裁项不在关闭范围。有限运行另见[证据](../../evidence/2026-09-28-formal-model-recovery-timing/README.md)，技术接受见[D-104](../../decisions/model-recovery-timing-adoption/decision.md)。
