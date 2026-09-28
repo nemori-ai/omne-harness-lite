@@ -15,6 +15,7 @@ import type {
   DiagnosticDropReason,
   DiagnosticEmitter,
   DiagnosticEvent,
+  DiagnosticExportLimits,
   DiagnosticExportResult,
   DiagnosticFact,
   DiagnosticHealth,
@@ -1006,18 +1007,16 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     })
   }
 
-  function validQuery(value: unknown, exportMode: boolean): DiagnosticQuery | 'forbidden' | null {
+  function validQuery(value: unknown): DiagnosticQuery | 'forbidden' | null {
     const query = ownData(value, ['scope', 'after', 'through', 'limit', 'maxBytes'])
     if (!query) return null
     const requestedScope = validScope(query.scope, config.maxFieldBytes)
     if (!requestedScope || !sameScope(scope, requestedScope)) return 'forbidden'
-    const maxRecords = exportMode ? config.exportMaxRecords : config.queryMaxRecords
-    const maxBytes = exportMode ? config.exportMaxBytes : config.queryMaxBytes
     if (
       !positiveInteger(query.limit) ||
-      query.limit > maxRecords ||
+      query.limit > config.queryMaxRecords ||
       !positiveInteger(query.maxBytes) ||
-      query.maxBytes > maxBytes
+      query.maxBytes > config.queryMaxBytes
     )
       return null
     const after =
@@ -1041,7 +1040,7 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
   }
 
   async function query(value: DiagnosticQuery): Promise<DiagnosticQueryResult> {
-    const checked = validQuery(value, false)
+    const checked = validQuery(value)
     if (checked === 'forbidden') return { rejected: 'forbidden' }
     if (!checked) return { rejected: 'invalidInput' }
     if (writeState === 'closing') return { rejected: 'busy' }
@@ -1059,13 +1058,28 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     }
   }
 
-  async function exportPage(value: DiagnosticQuery): Promise<DiagnosticExportResult> {
-    const checked = validQuery(value, true)
+  async function exportPage(
+    value: DiagnosticQuery,
+    inputLimits: DiagnosticExportLimits,
+  ): Promise<DiagnosticExportResult> {
+    const checked = validQuery(value)
     if (checked === 'forbidden') return { rejected: 'forbidden' }
     if (!checked) return { rejected: 'invalidInput' }
+    const limits = ownData(inputLimits, ['maxRecords', 'maxBytes'])
+    if (
+      !limits ||
+      !positiveInteger(limits.maxRecords) ||
+      limits.maxRecords > config.exportMaxRecords ||
+      !positiveInteger(limits.maxBytes) ||
+      limits.maxBytes > config.exportMaxBytes
+    )
+      return { rejected: 'invalidInput' }
     if (writeState === 'closing') return { rejected: 'busy' }
     try {
-      const result = await config.store.exportPage(checked)
+      const result = await config.store.exportPage(checked, {
+        maxRecords: limits.maxRecords,
+        maxBytes: limits.maxBytes,
+      })
       if ('rejected' in result) failure('export')
       return result
     } catch {

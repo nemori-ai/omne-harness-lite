@@ -192,6 +192,17 @@ export type DiagnosticCoverage = 'complete' | 'degraded' | 'unknown'
 export type DiagnosticReadRejection =
   'invalidInput' | 'forbidden' | 'busy' | 'timeout' | 'cursor_expired' | 'unavailable' | 'corrupt'
 
+export interface DiagnosticExportLimits {
+  readonly maxRecords: number
+  readonly maxBytes: number
+}
+
+export interface DiagnosticCursorExpired {
+  readonly rejected: 'cursor_expired'
+  readonly earliest?: DiagnosticReference
+  readonly coverage: DiagnosticCoverage
+}
+
 export interface DiagnosticQuery {
   readonly scope: DiagnosticScope
   readonly after?: DiagnosticReference
@@ -209,13 +220,15 @@ export interface DiagnosticPage<T> {
 
 export type DiagnosticQueryResult =
   | { readonly page: DiagnosticPage<DiagnosticRecord> }
-  | { readonly rejected: DiagnosticReadRejection }
+  | { readonly rejected: Exclude<DiagnosticReadRejection, 'cursor_expired'> }
+  | DiagnosticCursorExpired
 
 export type DiagnosticExportResult =
   | {
       readonly page: Omit<DiagnosticPage<DiagnosticRecord>, 'records'> & { readonly jsonl: string }
     }
-  | { readonly rejected: DiagnosticReadRejection }
+  | { readonly rejected: Exclude<DiagnosticReadRejection, 'cursor_expired'> }
+  | DiagnosticCursorExpired
 
 export interface DiagnosticHealth {
   readonly collectorId: string
@@ -307,7 +320,10 @@ export interface DiagnosticJournalStore {
   readonly append: (record: DiagnosticRecord) => Promise<'written' | 'retention_full'>
   readonly flush: () => Promise<void>
   readonly query: (query: DiagnosticQuery) => Promise<DiagnosticQueryResult>
-  readonly exportPage: (query: DiagnosticQuery) => Promise<DiagnosticExportResult>
+  readonly exportPage: (
+    query: DiagnosticQuery,
+    limits: DiagnosticExportLimits,
+  ) => Promise<DiagnosticExportResult>
   readonly close: () => Promise<DiagnosticCloseResult>
   readonly health: () => Pick<
     DiagnosticHealth,
@@ -397,7 +413,10 @@ export interface DiagnosticCollector {
     association?: DiagnosticAssociation,
   ) => DiagnosticEmitter
   readonly query: (query: DiagnosticQuery) => Promise<DiagnosticQueryResult>
-  readonly exportPage: (query: DiagnosticQuery) => Promise<DiagnosticExportResult>
+  readonly exportPage: (
+    query: DiagnosticQuery,
+    limits: DiagnosticExportLimits,
+  ) => Promise<DiagnosticExportResult>
   readonly health: () => DiagnosticHealth
   readonly metrics: (
     scope: DiagnosticScope,

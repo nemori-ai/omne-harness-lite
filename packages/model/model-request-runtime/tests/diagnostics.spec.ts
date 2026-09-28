@@ -223,12 +223,21 @@ describe('diagnostic collector', () => {
       rejected: 'forbidden',
     })
     expect(
-      await collector.exportPage({
-        scope: { kind: 'tenant', tenant: 'tenant-b' },
-        limit: 1,
-        maxBytes: 4096,
-      }),
+      await collector.exportPage(
+        {
+          scope: { kind: 'tenant', tenant: 'tenant-b' },
+          limit: 1,
+          maxBytes: 4096,
+        },
+        { maxRecords: 1, maxBytes: 4096 },
+      ),
     ).toEqual({ rejected: 'forbidden' })
+    expect(
+      await collector.exportPage(
+        { scope: tenant, limit: 1, maxBytes: 4096 },
+        { maxRecords: 4, maxBytes: 4096 },
+      ),
+    ).toEqual({ rejected: 'invalidInput' })
     expect(fixtureValue.queryCalls).toBe(0)
     expect(fixtureValue.exportCalls).toBe(0)
     expect(collector.metrics(local)).toEqual({ rejected: 'forbidden' })
