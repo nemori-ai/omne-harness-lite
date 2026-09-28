@@ -1,0 +1,383 @@
+{
+  "status": "synthetic-request-fixtures-from-observed-baseline",
+  "cases": [
+    {
+      "id": "gpt6-1-baseline",
+      "set": "fit",
+      "modelId": "openai/gpt-6-astra",
+      "provider": "openai",
+      "variant": "baseline",
+      "requestSha256": "221570eed6a002674dc5e297a82f9f3ca90e9b3f3b2bc573050e97ab5588e397",
+      "bytes": 514,
+      "features": {
+        "utf8ProjectedBytes": 514,
+        "o200kProjectedTokens": 135,
+        "namedImageTokens": 0,
+        "candidateTokens": 135
+      },
+      "wire": "{\"model\":\"openai/gpt-6-astra\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: ready\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+      "body": {
+        "model": "openai/gpt-6-astra",
+        "provider": {
+          "order": ["openai"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "system",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer briefly and truthfully."
+              }
+            ]
+          },
+          {
+            "role": "developer",
+            "content": [
+              {
+                "type": "text",
+                "text": "[system_reminder \"reminder\"]"
+              },
+              {
+                "type": "text",
+                "text": "Preserve the preceding conversation."
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Reply with exactly: ready"
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "low"
+        },
+        "max_tokens": 16
+      }
+    },
+    {
+      "id": "gpt6-2-baseline",
+      "set": "fit",
+      "modelId": "openai/gpt-6-astra-pro",
+      "provider": "openai",
+      "variant": "baseline",
+      "requestSha256": "475f6f58485a23a372b73b853f76688b57cb54a0b77b58df372399e0c4fceffa",
+      "bytes": 522,
+      "features": {
+        "utf8ProjectedBytes": 522,
+        "o200kProjectedTokens": 138,
+        "namedImageTokens": 0,
+        "candidateTokens": 138
+      },
+      "wire": "{\"model\":\"openai/gpt-6-astra-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: 已就绪\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+      "body": {
+        "model": "openai/gpt-6-astra-pro",
+        "provider": {
+          "order": ["openai"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "system",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer briefly and truthfully."
+              }
+            ]
+          },
+          {
+            "role": "developer",
+            "content": [
+              {
+                "type": "text",
+                "text": "[system_reminder \"reminder\"]"
+              },
+              {
+                "type": "text",
+                "text": "Preserve the preceding conversation."
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Reply with exactly: 已就绪"
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "low"
+        },
+        "max_tokens": 16
+      }
+    },
+    {
+      "id": "gpt6-3-baseline",
+      "set": "fit",
+      "modelId": "openai/gpt-6-sol",
+      "provider": "openai",
+      "variant": "baseline",
+      "requestSha256": "c2863e321d92959042fbd1e416db93be58c86e7db3d5c105792a91f34316750e",
+      "bytes": 529,
+      "features": {
+        "utf8ProjectedBytes": 529,
+        "o200kProjectedTokens": 140,
+        "namedImageTokens": 0,
+        "candidateTokens": 140
+      },
+      "wire": "{\"model\":\"openai/gpt-6-sol\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+      "body": {
+        "model": "openai/gpt-6-sol",
+        "provider": {
+          "order": ["openai"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "system",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer briefly and truthfully."
+              }
+            ]
+          },
+          {
+            "role": "developer",
+            "content": [
+              {
+                "type": "text",
+                "text": "[system_reminder \"reminder\"]"
+              },
+              {
+                "type": "text",
+                "text": "Preserve the preceding conversation."
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Reply with exactly: {\"status\":\"ready\"}"
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "low"
+        },
+        "max_tokens": 16
+      }
+    },
+    {
+      "id": "gpt6-4-baseline",
+      "set": "fit",
+      "modelId": "openai/gpt-6-sol-pro",
+      "provider": "openai",
+      "variant": "baseline",
+      "requestSha256": "58f520c6851da8bd741339730be6befa7d572ee9ff9ad234df18d7a40879e01e",
+      "bytes": 527,
+      "features": {
+        "utf8ProjectedBytes": 527,
+        "o200kProjectedTokens": 139,
+        "namedImageTokens": 0,
+        "candidateTokens": 139
+      },
+      "wire": "{\"model\":\"openai/gpt-6-sol-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: αβγ — ready\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+      "body": {
+        "model": "openai/gpt-6-sol-pro",
+        "provider": {
+          "order": ["openai"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "system",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer briefly and truthfully."
+              }
+            ]
+          },
+          {
+            "role": "developer",
+            "content": [
+              {
+                "type": "text",
+                "text": "[system_reminder \"reminder\"]"
+              },
+              {
+                "type": "text",
+                "text": "Preserve the preceding conversation."
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Reply with exactly: αβγ — ready"
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "low"
+        },
+        "max_tokens": 16
+      }
+    },
+    {
+      "id": "gpt6-5-baseline",
+      "set": "fit",
+      "modelId": "openai/gpt-6-luna",
+      "provider": "openai",
+      "variant": "baseline",
+      "requestSha256": "61253ff91ed0001ca00b4b093c0cab2831283832afc24d7efaa192b079211ff6",
+      "bytes": 541,
+      "features": {
+        "utf8ProjectedBytes": 541,
+        "o200kProjectedTokens": 142,
+        "namedImageTokens": 0,
+        "candidateTokens": 142
+      },
+      "wire": "{\"model\":\"openai/gpt-6-luna\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: function ready() { return true; }\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+      "body": {
+        "model": "openai/gpt-6-luna",
+        "provider": {
+          "order": ["openai"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "system",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer briefly and truthfully."
+              }
+            ]
+          },
+          {
+            "role": "developer",
+            "content": [
+              {
+                "type": "text",
+                "text": "[system_reminder \"reminder\"]"
+              },
+              {
+                "type": "text",
+                "text": "Preserve the preceding conversation."
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Reply with exactly: function ready() { return true; }"
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "low"
+        },
+        "max_tokens": 16
+      }
+    },
+    {
+      "id": "gpt6-6-baseline",
+      "set": "fit",
+      "modelId": "openai/gpt-6-luna-pro",
+      "provider": "openai",
+      "variant": "baseline",
+      "requestSha256": "b6d872bb82364c596d5937b8a44de05172cada9b66ba99eee8f2273f33c4aec3",
+      "bytes": 529,
+      "features": {
+        "utf8ProjectedBytes": 529,
+        "o200kProjectedTokens": 142,
+        "namedImageTokens": 0,
+        "candidateTokens": 142
+      },
+      "wire": "{\"model\":\"openai/gpt-6-luna-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: READY! 0123456789\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+      "body": {
+        "model": "openai/gpt-6-luna-pro",
+        "provider": {
+          "order": ["openai"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "system",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer briefly and truthfully."
+              }
+            ]
+          },
+          {
+            "role": "developer",
+            "content": [
+              {
+                "type": "text",
+                "text": "[system_reminder \"reminder\"]"
+              },
+              {
+                "type": "text",
+                "text": "Preserve the preceding conversation."
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Reply with exactly: READY! 0123456789"
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "low"
+        },
+        "max_tokens": 16
+      }
+    }
+  ]
+}

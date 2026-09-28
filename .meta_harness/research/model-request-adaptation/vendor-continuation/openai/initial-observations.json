@@ -1,0 +1,65 @@
+{
+  "run": "openai-fit-afd30ca4-01d9-41f7-9354-6d128b56949b",
+  "rows": [
+    {
+      "id": "gpt6-1-baseline",
+      "requestSha256": "221570eed6a002674dc5e297a82f9f3ca90e9b3f3b2bc573050e97ab5588e397",
+      "modelId": "openai/gpt-6-astra",
+      "provider": "OpenAI",
+      "promptTokens": 39,
+      "completionTokens": 5,
+      "sourceFile": "gpt6-1-baseline-observation.json",
+      "sourceSha256": "4c64ad379843d453db4c4daf19ec45a3d5de3a45a9cd65752255a96702921a90"
+    },
+    {
+      "id": "gpt6-2-baseline",
+      "requestSha256": "475f6f58485a23a372b73b853f76688b57cb54a0b77b58df372399e0c4fceffa",
+      "modelId": "openai/gpt-6-astra-pro",
+      "provider": "OpenAI",
+      "promptTokens": 1561,
+      "completionTokens": 29,
+      "sourceFile": "gpt6-2-baseline-observation.json",
+      "sourceSha256": "2d2f3d34211696aba4dea61349a05b4d80248cf94684ffae489698ba72d14cc1"
+    },
+    {
+      "id": "gpt6-3-baseline",
+      "requestSha256": "c2863e321d92959042fbd1e416db93be58c86e7db3d5c105792a91f34316750e",
+      "modelId": "openai/gpt-6-sol",
+      "provider": "OpenAI",
+      "promptTokens": 43,
+      "completionTokens": 9,
+      "sourceFile": "gpt6-3-baseline-observation.json",
+      "sourceSha256": "088199519e25ff03bac2288e1b182048a220d63de0e9c55eb9f53d7100d71062"
+    },
+    {
+      "id": "gpt6-4-baseline",
+      "requestSha256": "58f520c6851da8bd741339730be6befa7d572ee9ff9ad234df18d7a40879e01e",
+      "modelId": "openai/gpt-6-sol-pro",
+      "provider": "OpenAI",
+      "promptTokens": 1514,
+      "completionTokens": 33,
+      "sourceFile": "gpt6-4-baseline-observation.json",
+      "sourceSha256": "a41fc7b4e844f7439cf03c16d23adb9a87a6600f383b6e3a422b5d998555f26b"
+    },
+    {
+      "id": "gpt6-5-baseline",
+      "requestSha256": "61253ff91ed0001ca00b4b093c0cab2831283832afc24d7efaa192b079211ff6",
+      "modelId": "openai/gpt-6-luna",
+      "provider": "OpenAI",
+      "promptTokens": 46,
+      "completionTokens": 12,
+      "sourceFile": "gpt6-5-baseline-observation.json",
+      "sourceSha256": "71c2cd066a6928a32d48b524ea30257e55c6db3cbb48f7b19f6e1da58176d714"
+    },
+    {
+      "id": "gpt6-6-baseline",
+      "requestSha256": "b6d872bb82364c596d5937b8a44de05172cada9b66ba99eee8f2273f33c4aec3",
+      "modelId": "openai/gpt-6-luna-pro",
+      "provider": "OpenAI",
+      "promptTokens": 1524,
+      "completionTokens": 37,
+      "sourceFile": "gpt6-6-baseline-observation.json",
+      "sourceSha256": "543a8f49334b0ad5e927ece4084764cd55a7058bf66f104c79bbbf25d0a1b85f"
+    }
+  ]
+}
