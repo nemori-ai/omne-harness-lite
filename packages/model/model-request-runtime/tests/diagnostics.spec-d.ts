@@ -27,6 +27,9 @@ expectTypeOf<DiagnosticAssociation['causedBy']>().toEqualTypeOf<
 >()
 expectTypeOf<DiagnosticAssociation['dispatch']>().toEqualTypeOf<JsonNumber | undefined>()
 expectTypeOf<DiagnosticAssociation['attempt']>().toEqualTypeOf<JsonNumber | undefined>()
+expectTypeOf<Extract<DiagnosticFact, { kind: 'progress' }>['responseOutcome']>().toEqualTypeOf<
+  'complete' | 'truncated' | 'failed' | 'interrupted' | undefined
+>()
 expectTypeOf<Extract<DiagnosticScope, { kind: 'tenant' }>['tenant']>().toEqualTypeOf<TenantId>()
 expectTypeOf<TransportExecutionDiagnostics['record']>().toBeFunction()
 expectTypeOf<PublicDiagnosticAssociation['causedBy']>().toEqualTypeOf<

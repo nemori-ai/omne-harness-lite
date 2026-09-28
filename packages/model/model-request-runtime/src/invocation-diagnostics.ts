@@ -51,7 +51,7 @@ function association(
 }
 
 /** Never await a diagnostic callback on the business path. Drain a violating thenable rejection. */
-function drainThenable(value: unknown): boolean {
+export function drainDiagnosticThenable(value: unknown): boolean {
   if ((typeof value !== 'object' || value === null) && typeof value !== 'function') return false
   try {
     if (typeof (value as { then?: unknown }).then !== 'function') return false
@@ -72,6 +72,18 @@ export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
   readonly close: () => void
 } {
   let emitter: DiagnosticEmitter | undefined
+  let recordEnabled = true
+  let reportEnabled = true
+  let closeAttempted = false
+  const reportFailure = (kind: string): void => {
+    if (!reportEnabled) return
+    try {
+      const returned: unknown = report(kind)
+      if (drainDiagnosticThenable(returned)) reportEnabled = false
+    } catch {
+      reportEnabled = false
+    }
+  }
   if (input.diagnosticEmitterFactory !== undefined) {
     try {
       const fixed =
@@ -79,7 +91,8 @@ export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
           ? undefined
           : association(input.diagnosticAssociation, bound)
       const produced: unknown = input.diagnosticEmitterFactory(fixed)
-      if (drainThenable(produced)) report('model_invocation.diagnostic_contract_violation')
+      if (drainDiagnosticThenable(produced))
+        reportFailure('model_invocation.diagnostic_contract_violation')
       else if (
         produced !== null &&
         typeof produced === 'object' &&
@@ -87,18 +100,22 @@ export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
         typeof (produced as DiagnosticEmitter).close === 'function'
       )
         emitter = produced as DiagnosticEmitter
-      else report('model_invocation.diagnostic_contract_violation')
+      else reportFailure('model_invocation.diagnostic_contract_violation')
     } catch {
-      report('model_invocation.diagnostic_sink_failed')
+      reportFailure('model_invocation.diagnostic_sink_failed')
     }
   }
   const record = (event: DiagnosticEvent): void => {
-    if (!emitter) return
+    if (!emitter || !recordEnabled) return
     try {
       const returned: unknown = emitter.record(event)
-      if (drainThenable(returned)) report('model_invocation.diagnostic_contract_violation')
+      if (drainDiagnosticThenable(returned)) {
+        recordEnabled = false
+        reportFailure('model_invocation.diagnostic_contract_violation')
+      }
     } catch {
-      report('model_invocation.diagnostic_sink_failed')
+      recordEnabled = false
+      reportFailure('model_invocation.diagnostic_sink_failed')
     }
   }
   const transport: TransportExecutionDiagnostics | undefined = emitter
@@ -109,12 +126,14 @@ export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
       })
     : undefined
   const close = (): void => {
-    if (!emitter) return
+    if (!emitter || !recordEnabled || closeAttempted) return
+    closeAttempted = true
     try {
       const returned: unknown = emitter.close()
-      if (drainThenable(returned)) report('model_invocation.diagnostic_contract_violation')
+      if (drainDiagnosticThenable(returned))
+        reportFailure('model_invocation.diagnostic_contract_violation')
     } catch {
-      report('model_invocation.diagnostic_sink_failed')
+      reportFailure('model_invocation.diagnostic_sink_failed')
     }
   }
   return { record, ...(transport ? { transport } : {}), close }

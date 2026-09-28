@@ -139,6 +139,28 @@ function fixture(
 }
 
 describe('diagnostic collector', () => {
+  it('accepts the exact truncated outcome but rejects an unlisted response outcome', async () => {
+    const { collector, records } = fixture()
+    const truncated: DiagnosticEvent = {
+      source: 'invocation',
+      stage: 'reply_handoff',
+      outcome: 'completed',
+      facts: { kind: 'progress', responseOutcome: 'truncated' },
+    }
+    expect(collector.record(truncated, local)).toHaveProperty('recorded')
+    expect(
+      collector.record(
+        {
+          ...truncated,
+          facts: { kind: 'progress', responseOutcome: 'mystery' },
+        } as unknown as DiagnosticEvent,
+        local,
+      ),
+    ).toEqual({ dropped: 'invalid' })
+    await collector.close()
+    expect(records[0]?.facts).toEqual({ kind: 'progress', responseOutcome: 'truncated' })
+  })
+
   it('preserves an independently sourced HTTP 503 and rejects unlisted raw details before append', async () => {
     const { collector, records } = fixture()
     expect(collector.record(event, local)).toEqual({

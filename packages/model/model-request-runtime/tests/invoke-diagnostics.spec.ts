@@ -99,8 +99,10 @@ describe('per-invocation engineering diagnostics', () => {
     expect(seen).toEqual([{ executionId: 'safe-execution' }, undefined])
   })
 
-  it('isolates throwing and thenable diagnostic ports from response and drains rejections', async () => {
+  it('stops after the first async record contract violation and drains only its rejection', async () => {
     const failures: string[] = []
+    let records = 0
+    let closes = 0
     const handle = invokeModel({
       ...request(),
       transport: adapter().transport,
@@ -110,16 +112,95 @@ describe('per-invocation engineering diagnostics', () => {
       diagnosticEmitterFactory() {
         return {
           record() {
+            records++
             return Promise.reject(new Error('sink failed')) as never
           },
           close() {
-            throw new Error('close failed')
+            closes++
           },
         }
       },
     })
     expect(await handle.outcome).toHaveProperty('outcome', 'complete')
-    expect(failures).toContain('model_invocation.diagnostic_contract_violation')
-    expect(failures).toContain('model_invocation.diagnostic_sink_failed')
+    expect(records).toBe(1)
+    expect(closes).toBe(0)
+    expect(
+      failures.filter(kind => kind === 'model_invocation.diagnostic_contract_violation'),
+    ).toHaveLength(1)
+  })
+
+  it('drains a rejected factory and legacy report without changing the response', async () => {
+    let factoryCalls = 0
+    let reportCalls = 0
+    const handle = invokeModel({
+      ...request(),
+      transport: adapter().transport,
+      credential: 'secret-value',
+      signal: new AbortController().signal,
+      policy: policy(() => {
+        reportCalls++
+        return Promise.reject(new Error('report failed'))
+      }),
+      diagnosticEmitterFactory() {
+        factoryCalls++
+        return Promise.reject(new Error('factory failed')) as never
+      },
+    })
+    expect(await handle.outcome).toHaveProperty('outcome', 'complete')
+    expect(factoryCalls).toBe(1)
+    expect(reportCalls).toBe(1)
+  })
+
+  it('observes one rejected close without retrying it or changing the response', async () => {
+    const failures: string[] = []
+    let closes = 0
+    const handle = invokeModel({
+      ...request(),
+      transport: adapter().transport,
+      credential: 'secret-value',
+      signal: new AbortController().signal,
+      policy: policy(event => failures.push(event.kind)),
+      diagnosticEmitterFactory() {
+        return {
+          record: () => ({ dropped: 'closed' }),
+          close() {
+            closes++
+            return Promise.reject(new Error('close failed')) as never
+          },
+        }
+      },
+    })
+    expect(await handle.outcome).toHaveProperty('outcome', 'complete')
+    expect(closes).toBe(1)
+    expect(
+      failures.filter(kind => kind === 'model_invocation.diagnostic_contract_violation'),
+    ).toHaveLength(1)
+  })
+
+  it('records the actual truncated response outcome', async () => {
+    const seen: DiagnosticEvent[] = []
+    const handle = invokeModel({
+      ...request(),
+      transport: adapter({ end: { ended: 'max_tokens' } }).transport,
+      credential: 'secret-value',
+      signal: new AbortController().signal,
+      policy: policy(),
+      diagnosticEmitterFactory() {
+        return {
+          record(event) {
+            seen.push(event)
+            return { dropped: 'closed' }
+          },
+          close() {},
+        }
+      },
+    })
+    expect(await handle.outcome).toHaveProperty('outcome', 'truncated')
+    expect(seen).toContainEqual({
+      source: 'invocation',
+      stage: 'reply_handoff',
+      outcome: 'completed',
+      facts: expect.objectContaining({ kind: 'progress', responseOutcome: 'truncated' }),
+    })
   })
 })

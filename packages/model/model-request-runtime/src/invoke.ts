@@ -31,7 +31,7 @@ import {
 } from './credential-redaction.ts'
 import { ownedHeaders, processFailure } from './invoke-policy.ts'
 import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
-import { createInvocationDiagnostics } from './invocation-diagnostics.ts'
+import { createInvocationDiagnostics, drainDiagnosticThenable } from './invocation-diagnostics.ts'
 
 export function classifyCause(
   fact: TransportFailure,
@@ -117,7 +117,10 @@ export function invokeModel<P extends PlannedSemantics, R>(
     if (error instanceof CredentialRedactionConfigurationError)
       return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
     try {
-      input.policy.diagnostic({ kind: 'model_invocation.policy_bind_defect' })
+      const returned: unknown = input.policy.diagnostic({
+        kind: 'model_invocation.policy_bind_defect',
+      })
+      drainDiagnosticThenable(returned)
     } catch {
       /* isolated diagnostic sink */
     }
@@ -128,11 +131,14 @@ export function invokeModel<P extends PlannedSemantics, R>(
       abort: () => {},
     })
   }
+  let legacyDiagnosticEnabled = true
   const diagnose = (kind: string) => {
+    if (!legacyDiagnosticEnabled) return
     try {
-      input.policy.diagnostic({ kind })
+      const returned: unknown = input.policy.diagnostic({ kind })
+      if (drainDiagnosticThenable(returned)) legacyDiagnosticEnabled = false
     } catch {
-      /* Separate diagnostic subdomain; it never changes the invocation result. */
+      legacyDiagnosticEnabled = false
     }
   }
   const diagnostics = createInvocationDiagnostics(input, bound, diagnose)
@@ -630,7 +636,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
         outcome: 'completed',
         facts: {
           kind: 'progress',
-          ...(outcome === 'truncated' ? {} : { responseOutcome: outcome }),
+          responseOutcome: outcome,
           ...(account.usage.input_tokens === 'unknown'
             ? {}
             : { inputTokens: account.usage.input_tokens }),

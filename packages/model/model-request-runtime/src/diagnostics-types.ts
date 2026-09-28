@@ -102,7 +102,7 @@ export type DiagnosticFact =
       readonly kind: 'progress'
       readonly cause?: DiagnosticCause
       readonly settlement?: 'unsettled' | 'submitted' | 'committed' | 'unknown'
-      readonly responseOutcome?: 'complete' | 'failed' | 'interrupted'
+      readonly responseOutcome?: 'complete' | 'truncated' | 'failed' | 'interrupted'
       readonly anchor?: 'dispatched' | 'opened' | 'response' | 'ended'
       readonly anchorId?: string
       readonly retry?: 'again' | 'refused' | 'without_resend'

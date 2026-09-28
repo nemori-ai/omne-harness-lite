@@ -396,7 +396,7 @@ function validFacts(
       return null
     if (
       record.responseOutcome !== undefined &&
-      !oneOf(record.responseOutcome, ['complete', 'failed', 'interrupted'])
+      !oneOf(record.responseOutcome, ['complete', 'truncated', 'failed', 'interrupted'])
     )
       return null
     if (
