@@ -1,5 +1,5 @@
 import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
-import { readModelDefinition, type ModelDefinition, type ModelRoute } from '../definitions.ts'
+import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
 
 // Family route policies: shared by model-specific declarations below.
 // A declared supplied subset, not a claim that DeepInfra lacks the dropped parameters.
@@ -33,10 +33,8 @@ const automaticDeepInfraRoute = {
   cache: { mode: 'automatic' },
 } satisfies ModelRoute
 
-// V4.1 Flash uses this same supplied DeepInfra request policy. Its known image
-// modality cannot yet be published as a complete official definition: profile3
-// would interpret the unknown route-specific image limit as no upstream limit.
-// Automatic means no manual cache controls; a cache hit needs separate evidence.
+// V4.1 Flash uses the same supplied DeepInfra request policy. Automatic means
+// no manual cache controls; a cache hit needs separate evidence.
 export const deepseekV41FlashDeepInfraRoute = automaticDeepInfraRoute
 
 /** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
@@ -45,36 +43,63 @@ export const deepseekModelRoutes = {
   'deepseek/deepseek-v4-pro-0813': { 'deepinfra/fp8': automaticDeepInfraRoute },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
 
-// Complete Pro definition: capabilities and exact revisions use the common validator.
-const declaration = {
-  modelId: 'deepseek/deepseek-v4-pro-0813',
-  revision: '1',
-  implementation: { name: 'pi-ai:deepseek', revision: 'd095-1' },
-  capabilities: {
-    inputModalities: ['text'],
-    outputModalities: ['text'],
-    // Shared route window 1048576, reserving its complete 16384 output capacity.
-    // This is the S8 input-only budget, not an upstream max_prompt_tokens value.
-    maxInputTokens: 1032192,
-    maxOutputTokens: 16384,
-    // No active image constraint in this model's confirmed text-only declaration.
-    inputConstraints: {},
+// The selected DeepInfra endpoint reports no independent max_prompt_tokens.
+// Both project input caps reserve the selected endpoint's full output allowance
+// from its shared context window; neither cap is an upstream input-limit fact.
+// Source: official-definition-inputs.json, rows 16–17 (archived endpoint bodies).
+export const deepseekDefinitions = ownDefinitions([
+  {
+    modelId: 'deepseek/deepseek-v4.1-flash',
+    revision: '1',
+    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['image', 'text'],
+      outputModalities: ['text'],
+      maxInputTokens: 917504,
+      maxOutputTokens: 131072,
+      inputConstraints: { maxImageBytes: 4194304 },
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+        maxImageBytes: { status: 'unknown' },
+        maxImages: { status: 'unknown' },
+      },
+    },
+    routes: deepseekModelRoutes['deepseek/deepseek-v4.1-flash'],
   },
-  routes: deepseekModelRoutes['deepseek/deepseek-v4-pro-0813'],
-} satisfies ModelDefinition
+  {
+    modelId: 'deepseek/deepseek-v4-pro-0813',
+    revision: '2',
+    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 1032192,
+      maxOutputTokens: 16384,
+      inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
+    },
+    routes: deepseekModelRoutes['deepseek/deepseek-v4-pro-0813'],
+  },
+] satisfies readonly ModelDefinition[])
 
-// The same public boundary owns and validates every nested declaration value.
-const owned = readModelDefinition([declaration], {
-  implementation: declaration.implementation,
-  definition: { modelId: declaration.modelId, revision: declaration.revision },
-})
-if ('rejected' in owned) throw new TypeError('invalid official DeepSeek definition')
+const flashDefinition = deepseekDefinitions[0]
+const proDefinition = deepseekDefinitions[1]
+if (!flashDefinition || !proDefinition) throw new TypeError('missing official DeepSeek definition')
 
-/** One explicit official leaf; registration and provider selection remain caller-owned. */
-export const deepseekV4Pro0813Definition = owned.ok
+/** Complete Flash leaf; actual model/provider send certification is separate. */
+export const deepseekV41FlashDefinition = flashDefinition
+/** Complete Pro leaf; this is the revision-2 entry in the owned family list. */
+export const deepseekV4Pro0813Definition = proDefinition
 
-/** An explicit source configuration; no factory installs it as a hidden default. */
-export const deepseekV4Pro0813Configuration = Object.freeze({
+/** Explicit source configuration; no factory installs it as a hidden default. */
+const automaticConfiguration = Object.freeze({
   revision: '1',
   values: Object.freeze({ cache: Object.freeze({ mode: 'automatic' }) }),
 }) satisfies ModelAdaptationBinding['configuration']
+
+export const deepseekV41FlashConfiguration = automaticConfiguration
+export const deepseekV4Pro0813Configuration = automaticConfiguration

@@ -1,7 +1,5 @@
-import type { ModelRoute } from '../definitions.ts'
+import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
 
-// Route rules only. The currently accepted profile cannot publish an unknown
-// image/video bound as a complete official definition for the multimodal leaves.
 // Dropped parameters are outside this supplied subset, not upstream negatives.
 const zAiFp8Common = {
   reminderRole: 'user',
@@ -31,8 +29,8 @@ export const glm53ZAiFp8Route = {
 } satisfies ModelRoute
 
 // Prime's observed Alibaba warm read used a per-message cache breakpoint.
-// The captured read did not prove that a requested TTL was honored. No
-// complete definition or production configuration is published.
+// The captured read did not prove that a requested TTL was honored. The TTL
+// remains caller-selected, and declaration validity is not cache certification.
 export const glm53PrimeAlibabaRoute = {
   ...zAiFp8Common,
   parameters: { ...zAiFp8Common.parameters, reasoningEffort: published53Efforts },
@@ -72,3 +70,93 @@ export const zaiModelRoutes = {
   'z-ai/glm-5.3-flashx': { 'z-ai/fp8': glm53FlashxZAiFp8Route },
   'z-ai/glm-5.2': { 'z-ai/fp8': glm52ZAiFp8Route },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
+
+// Selected endpoint evidence is in the tracked ZAI route-facts report. The
+// project caps reserve full reported output capacity from the context window.
+// Unknown upstream limits are explicit facts; project input caps do not imply
+// that the upstream accepts every request below those caps.
+const unknown = { status: 'unknown' } as const
+
+/** Complete MP4 declarations; routing, configuration, and validation are shared. */
+export const zaiDefinitions = ownDefinitions([
+  {
+    modelId: 'z-ai/glm-5.3',
+    revision: '1',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 917504,
+      maxOutputTokens: 131072,
+      inputConstraints: {},
+      upstreamInputLimits: { maxInputTokens: unknown, maxRequestBytes: unknown },
+    },
+    routes: zaiModelRoutes['z-ai/glm-5.3'],
+  },
+  {
+    modelId: 'z-ai/glm-5.3-prime',
+    revision: '1',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 868928,
+      maxOutputTokens: 131072,
+      inputConstraints: {},
+      upstreamInputLimits: { maxInputTokens: unknown, maxRequestBytes: unknown },
+    },
+    routes: zaiModelRoutes['z-ai/glm-5.3-prime'],
+  },
+  {
+    modelId: 'z-ai/glm-5.3-flash',
+    revision: '1',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['image', 'text', 'video'],
+      outputModalities: ['text'],
+      maxInputTokens: 917504,
+      maxOutputTokens: 131072,
+      inputConstraints: { maxImageBytes: 4194304 },
+      upstreamInputLimits: {
+        maxInputTokens: unknown,
+        maxRequestBytes: unknown,
+        maxImageBytes: unknown,
+        maxImages: unknown,
+      },
+    },
+    routes: zaiModelRoutes['z-ai/glm-5.3-flash'],
+  },
+  {
+    modelId: 'z-ai/glm-5.3-flashx',
+    revision: '1',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['image', 'text', 'video'],
+      outputModalities: ['text'],
+      maxInputTokens: 917504,
+      maxOutputTokens: 131072,
+      inputConstraints: { maxImageBytes: 4194304 },
+      upstreamInputLimits: {
+        maxInputTokens: unknown,
+        maxRequestBytes: unknown,
+        maxImageBytes: unknown,
+        maxImages: unknown,
+      },
+    },
+    routes: zaiModelRoutes['z-ai/glm-5.3-flashx'],
+  },
+  {
+    modelId: 'z-ai/glm-5.2',
+    revision: '1',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    capabilities: {
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 917504,
+      maxOutputTokens: 131072,
+      inputConstraints: {},
+      upstreamInputLimits: { maxInputTokens: unknown, maxRequestBytes: unknown },
+    },
+    routes: zaiModelRoutes['z-ai/glm-5.2'],
+  },
+] satisfies readonly ModelDefinition[])

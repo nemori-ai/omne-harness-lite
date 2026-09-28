@@ -73,6 +73,8 @@ function input(parameters: ModelRequestParameters = {}): PlanInput {
       outputModalities: content.outputModalities,
       maxInputTokens: content.maxInputTokens,
       maxOutputTokens: content.maxOutputTokens,
+      inputConstraints: content.inputConstraints,
+      upstreamInputLimits: content.upstreamInputLimits,
       updatedAt: at,
     },
     parameters,

@@ -1,4 +1,9 @@
-import type { ModelRoute, ParameterRules } from '../definitions.ts'
+import {
+  ownDefinitions,
+  type ModelDefinition,
+  type ModelRoute,
+  type ParameterRules,
+} from '../definitions.ts'
 
 // A supplied request subset. Dropped parameters remain visible in planning
 // history; this does not assert that Alibaba's models reject those parameters.
@@ -39,7 +44,7 @@ const switchableReasoning = {
   },
 } satisfies ParameterRules
 
-/** Exact target identities. These route facts are not complete official definitions. */
+/** Exact target identities. */
 export const qwenAlibabaModelIds = Object.freeze([
   'qwen/qwen3.8-max-0902',
   'qwen/qwen3.8-max-prime',
@@ -114,3 +119,106 @@ export const qwenModelRoutes = {
   'qwen/qwen3.7-plus': { alibaba: qwenAlibabaRoutes['qwen/qwen3.7-plus'] },
   'qwen/qwen3.7-flash': { alibaba: qwenAlibabaRoutes['qwen/qwen3.7-flash'] },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
+
+// Selected Alibaba endpoint facts are recorded per model in
+// research/model-request-adaptation/first-party-and-joint-2026-09-27.tar.gz.
+// Project input caps reserve the endpoint's full reported output capacity from
+// the shared 1,000,000-token window. A numeric max_prompt_tokens remains an
+// independent upstream fact even when the project cap is smaller.
+const unknown = { status: 'unknown' } as const
+const reportedPrompt = { status: 'limited', value: 983616 } as const
+const imageConstraints = { maxImageBytes: 4 * 1024 * 1024 } as const
+const imageFacts = { maxImageBytes: unknown, maxImages: unknown } as const
+
+const offer = {
+  'qwen/qwen3.8-max-0902': {
+    inputModalities: ['image', 'text', 'video'],
+    maxInputTokens: 868928,
+    maxOutputTokens: 131072,
+    inputConstraints: imageConstraints,
+    upstreamInputLimits: {
+      maxInputTokens: reportedPrompt,
+      maxRequestBytes: unknown,
+      ...imageFacts,
+    },
+  },
+  'qwen/qwen3.8-max-prime': {
+    inputModalities: ['image', 'text', 'video'],
+    maxInputTokens: 868928,
+    maxOutputTokens: 131072,
+    inputConstraints: imageConstraints,
+    upstreamInputLimits: {
+      maxInputTokens: reportedPrompt,
+      maxRequestBytes: unknown,
+      ...imageFacts,
+    },
+  },
+  'qwen/qwen3.8-flash': {
+    inputModalities: ['image', 'text', 'video'],
+    maxInputTokens: 868928,
+    maxOutputTokens: 131072,
+    inputConstraints: imageConstraints,
+    upstreamInputLimits: {
+      maxInputTokens: reportedPrompt,
+      maxRequestBytes: unknown,
+      ...imageFacts,
+    },
+  },
+  'qwen/qwen3.8-2.4t-a95b': {
+    inputModalities: ['text'],
+    maxInputTokens: 868928,
+    maxOutputTokens: 131072,
+    inputConstraints: {},
+    upstreamInputLimits: { maxInputTokens: unknown, maxRequestBytes: unknown },
+  },
+  'qwen/qwen3.8-27b': {
+    inputModalities: ['image', 'text', 'video'],
+    maxInputTokens: 868928,
+    maxOutputTokens: 131072,
+    inputConstraints: imageConstraints,
+    upstreamInputLimits: { maxInputTokens: unknown, maxRequestBytes: unknown, ...imageFacts },
+  },
+  'qwen/qwen3.7-max': {
+    inputModalities: ['text'],
+    maxInputTokens: 868928,
+    maxOutputTokens: 131072,
+    inputConstraints: {},
+    upstreamInputLimits: { maxInputTokens: reportedPrompt, maxRequestBytes: unknown },
+  },
+  'qwen/qwen3.7-plus': {
+    inputModalities: ['image', 'text'],
+    maxInputTokens: 868928,
+    maxOutputTokens: 131072,
+    inputConstraints: imageConstraints,
+    upstreamInputLimits: {
+      maxInputTokens: reportedPrompt,
+      maxRequestBytes: unknown,
+      ...imageFacts,
+    },
+  },
+  'qwen/qwen3.7-flash': {
+    inputModalities: ['image', 'text', 'video'],
+    maxInputTokens: 934464,
+    maxOutputTokens: 65536,
+    inputConstraints: imageConstraints,
+    upstreamInputLimits: {
+      maxInputTokens: reportedPrompt,
+      maxRequestBytes: unknown,
+      ...imageFacts,
+    },
+  },
+} as const
+
+/** Complete MP4 declarations. Reading and registration use the common validator. */
+export const qwenDefinitions = ownDefinitions(
+  qwenAlibabaModelIds.map(
+    modelId =>
+      ({
+        modelId,
+        revision: '1',
+        implementation: { name: 'pi-ai:qwen', revision: 'mp4-1' },
+        capabilities: { ...offer[modelId], outputModalities: ['text'] },
+        routes: qwenModelRoutes[modelId],
+      }) satisfies ModelDefinition,
+  ),
+)

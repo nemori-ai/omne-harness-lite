@@ -6,6 +6,8 @@ export type {
   ProfileOrigin,
   ProviderName,
   InputConstraints,
+  InputLimitFact,
+  UpstreamInputLimits,
   Registration,
   ModelProfileRef,
   ModelRequestParameters,

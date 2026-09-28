@@ -57,7 +57,12 @@ export type CachePolicy =
     }
 export type ModelCapabilities = Pick<
   ModelProfileContent,
-  'inputModalities' | 'outputModalities' | 'maxInputTokens' | 'maxOutputTokens' | 'inputConstraints'
+  | 'inputModalities'
+  | 'outputModalities'
+  | 'maxInputTokens'
+  | 'maxOutputTokens'
+  | 'inputConstraints'
+  | 'upstreamInputLimits'
 >
 export interface ModelRoute {
   readonly reminderRole: 'developer' | 'user'
@@ -180,7 +185,8 @@ export function ruleAccepts(rule: ParameterRule<JsonValue>, value: JsonValue): b
 function ruleValid(raw: JsonValue, name?: UnifiedParameterName): boolean {
   if (!object(raw)) return false
   if (raw.kind === 'pass') return members(raw, ['kind'])
-  if (name === 'maxOutputTokens') return false // G-22: no source for the current upstream limit.
+  // G-22 retains the caller's requested output cap after profile validation.
+  if (name === 'maxOutputTokens') return false
   if (raw.kind === 'drop') return members(raw, ['kind'])
   if (
     raw.kind !== 'select' ||
@@ -261,6 +267,7 @@ function definitionValid(value: unknown): value is ModelDefinition {
       'maxInputTokens',
       'maxOutputTokens',
       'inputConstraints',
+      'upstreamInputLimits',
     ]) ||
     Object.keys(value.routes).length === 0
   )

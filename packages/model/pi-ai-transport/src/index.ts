@@ -36,6 +36,22 @@ export {
 } from './configuration.ts'
 export { officialModelIds } from './official.ts'
 export {
+  openaiDefinitions,
+  openaiModelRoutes,
+  openaiConfiguration,
+} from './official-models/openai.ts'
+export { anthropicDefinitions, anthropicModelRoutes } from './official-models/anthropic.ts'
+export { googleDefinitions, googleModelRoutes } from './official-models/google.ts'
+export { deepseekDefinitions, deepseekModelRoutes } from './official-models/deepseek.ts'
+export { xaiDefinitions, xaiModelRoutes } from './official-models/xai.ts'
+export { qwenDefinitions, qwenModelRoutes } from './official-models/qwen.ts'
+export {
+  moonshotDefinitions,
+  moonshotModelRoutes,
+  moonshotAutomaticConfiguration,
+} from './official-models/moonshot.ts'
+export { zaiDefinitions, zaiModelRoutes } from './official-models/zai.ts'
+export {
   createModelTransportService,
   type ModelTransportService,
   type AdaptationRegistration,
@@ -45,6 +61,8 @@ export {
 } from './registry.ts'
 
 export {
+  deepseekV41FlashDefinition,
+  deepseekV41FlashConfiguration,
   deepseekV4Pro0813Definition,
   deepseekV4Pro0813Configuration,
 } from './official-models/deepseek.ts'

@@ -4,7 +4,7 @@
 
 规划一次 OpenRouter 请求，通过 HTTPS 发送，再把 SSE 转为公开到达事件。本包是实验性 ESM workspace 成员，使用 pi 0.86.1 定向 fork，尚未发布到 npm。
 
-调用者必须显式提供完整模型定义，没有默认模型。`officialModelIds` 是冻结的 37 个已确认**目标身份**，不是可注册定义或已认证提供清单。官方完整能力、路由配置事实及真实认证尚待闭合，不补造未知值。状态见[实现映射](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/README.md)。
+调用者必须显式提供完整模型定义，没有默认模型。`officialModelIds` 从八个公开的 `<family>Definitions` 列表派生；这 37 个已确认模型均已有 MP4 六项能力的完整声明。项目供给上限明确且有限，未知的上游限制显式写为 `unknown`。完整声明可供纯读取和建档，真实模型／供应商发送与缓存认证仍需另行验证。状态见[实现映射](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/README.md)。
 
 ## 公开接口
 
@@ -20,7 +20,8 @@
 | `sendRequest`、`readStream`                                             | 借用明确网络资源的独立函数                                     |
 | `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`    | 进程内精确登记、固定引用和显式排空                             |
 | `parseSSE`、`canonicalInteger`、`generatedCallId`                       | 分帧与精确确定性标识辅助                                       |
-| `officialModelIds`、`OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES` | 目标身份、产品端点与当前可承载的 text/image 输入               |
+| `officialModelIds`、八个 `<family>Definitions` 与 `<family>ModelRoutes` | 完整 MP4 声明、精确路由策略及派生的目标身份                    |
+| `OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES`                     | 产品端点与当前可承载的 text/image 输入                         |
 
 纯读取返回 `{ ok }`、invalidInput 或 unavailable。内容构造器保留 core 表示拒绝原名（如 parameter_out_of_range、max_output_exceeds_profile）；定义/路由/配置一致性失败仍为提供者 invalidInput。陌生精确版本/路由不可用，非法定义/配置为输入错误。失败只给有限拒绝类别，不输出配置正文。根入口不加载 Cordis；`./plugin` 显式依赖 Cordis 4.0.4。
 
@@ -34,7 +35,10 @@ import type {
   RetirementPolicy,
   TransportPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
-import { openRouterCredentialRedactionConfig, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  openRouterCredentialRedactionConfig,
+  type PlanInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -49,6 +53,10 @@ export const definition: ModelDefinition = {
     maxInputTokens: 1024,
     maxOutputTokens: 128,
     inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
   },
   routes: {
     'example-provider': {
@@ -108,6 +116,8 @@ export const request: PlanInput = {
     outputModalities: ['text'],
     maxInputTokens: 1024,
     maxOutputTokens: 128,
+    inputConstraints: definition.capabilities.inputConstraints,
+    upstreamInputLimits: definition.capabilities.upstreamInputLimits,
     updatedAt: '2026-09-27T00:00:00Z',
   },
 }
@@ -198,7 +208,6 @@ definitions 必填，缺席、undefined、非数组或不完整定义在建立�
 
 四项基础 token 都未知时 source 为 none，省略 reasoning_tokens；任一有效基础计数（含零）则 source 为 upstream，费用独立保留。推理 opaque 元数据与供应商变化保留 revision 6 行为。本完整定义公共实现为 revision 7，旧证据不自动认证它；definition/configuration 修订归实际事实与配置来源拥有者。
 
-
 此路径采用 [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md) 与 [transport 凭据投影 revision 3](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v6-credential-path-design.md)。将下例保存为 `execute-once.ts`，传入拥有已核实完整定义的 transport。函数借用 transport，保留同次已处理 H 并在返回前停止响应；transport 拥有者在使用完毕后关闭它。
 
 ```ts
@@ -222,12 +231,17 @@ export async function executeOnce(
     while (true) {
       const next = await reader.next()
       if (next.done)
-        return { events, end: next.value, ...('rawHeaders' in sent ? { rawHeaders: sent.rawHeaders } : {}) }
+        return {
+          events,
+          end: next.value,
+          ...('rawHeaders' in sent ? { rawHeaders: sent.rawHeaders } : {}),
+        }
       events.push(next.value)
     }
   } finally {
-    try { await reader.return({ aborted: true }) }
-    finally {
+    try {
+      await reader.return({ aborted: true })
+    } finally {
       sent.response.stop()
       await sent.response.stopped
     }
@@ -294,13 +308,13 @@ pnpm --filter @omne-harness-lite/pi-ai-transport run test
 
 ### 显式的 DeepSeek Pro 定义
 
-`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / d095-1`，定义修订为 `1`。导入不会注册模型、分配连接池或发送请求。
+`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / mp4-1`，定义修订为 `2`。导入不会注册模型、分配连接池或发送请求。
 
-模型记载的能力是文本输入、文本输出。所选路由提供 1,048,576 token 共享窗口和 16,384 token 输出容量；1,032,192 token 输入预算预留了完整输出容量。这是换算的只计输入预算，不是路由 `max_prompt_tokens` 的原值，也不是极值请求实测。空输入限制对象只表示该纯文本声明没有活动的图片限制，不代表无限大小的图片输入。
+模型记载的能力是文本输入、文本输出。所选路由提供 1,048,576 token 共享窗口和 16,384 token 输出容量；1,032,192 token 输入预算预留了完整输出容量。这是换算的只计输入预算，不是路由 `max_prompt_tokens` 的原值，也不是极值请求实测。空输入限制对象表示该纯文本声明没有活动的图片限制；两个适用的上游事实明确为 `unknown`，不表示无限。
 
 系统提醒映射为带标识的 `user` 消息。自动前缀缓存采用下面的显式配置，不配置 TTL 或断点。该路由的历史请求曾在没有手工缓存控制时报告缓存读取 token；这不保证下一次命中，也不认证生产 runtime。
 
-首修订主动只提供 `reasoningEffort: 'low'`、`seed: 0` 和 `stopSequences: ['END']`，其它值丢弃并记录项名。temperature、top-p 和两种 penalty 主动不提供，丢弃均留痕；不会把路由所报支持或原生条件行为改说成“不支持”。`maxOutputTokens` 通过档案通常的输出上限核对后原样发送，不根据动态元数据夹取。私有 `extra` 项的提供集合为空。
+当前供给策略主动只提供 `reasoningEffort: 'low'`、`seed: 0` 和 `stopSequences: ['END']`，其它值丢弃并记录项名。temperature、top-p 和两种 penalty 主动不提供，丢弃均留痕；不会把路由所报支持或原生条件行为改说成“不支持”。`maxOutputTokens` 通过档案通常的输出上限核对后原样发送，不根据动态元数据夹取。私有 `extra` 项的提供集合为空。
 
 ```ts
 import {
@@ -322,7 +336,7 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 
 配置是明确选用的来源值（`revision: '1'`、`values: { cache: { mode: 'automatic' } }`），不会作为隐藏的传输默认值。静态传输需显式传入定义，动态使用经既有模型贡献插件登记；目录发布和租户准入分别归已有 owner。
 
-本次只验证本地构造和纯规划。seed／stop 真正生效、完整参数调优与生产 public／service 认证仍待完成。首次端到端调用只使用已有观察的 `low` 与 `1024`。另一个固定 DeepSeek 模型需另行补齐事实与窄定义，不会自动发现或纳入模型。
+本次只验证本地构造和纯规划。seed／stop 真正生效、完整参数调优与生产 public／service 认证仍待完成。首次端到端调用只使用已有观察的 `low` 与 `1024`。Flash 已在 `deepseekDefinitions` 中单独声明，有限单图上限和未知上游图片事实明确记录；这两条声明都不证明图片真实发送已通过。
 
 ### 家族策略与完整模型定义
 
@@ -331,32 +345,41 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 1. 家族复用 `ModelRoute` 策略片段，各型号／供应商的具名路由记录实际差异。这些声明交给同一套参数、提醒、缓存与消息规划器。
 2. 完整 `ModelDefinition` 还需要能力属性、精确实现／定义修订和供应商路由。整份值统一经 `readModelDefinition` 校验和拥有；显式配置与 `createOfficialProfileContent` 再产生目录输入。插件注册沿既有贡献生命周期。
 
-八个模块均使用同一个内部入口形状：`<family>ModelRoutes[modelId][providerId]`，模型 ID 和供应商 slug 都明确列出。每份文件先写公共策略，再写模型差异，随后列出精确映射。已有完整定义和配置放在最后；DeepSeek Pro 直接从 `deepseekModelRoutes` 取得路由。已有具名路由导出复用同一组值。
+八个模块均使用同一个内部入口形状：`<family>ModelRoutes[modelId][providerId]`，模型 ID 和供应商 slug 都明确列出。每份文件先写公共策略，再写模型差异，随后列出精确映射。全部 37 条六字段定义放在最后，有来源的显式配置按需列出；DeepSeek Pro 直接从 `deepseekModelRoutes` 取得路由。已有具名路由导出复用同一组值。
 
-例如，在本包内部，两家的选择方式相同：
+例如，从包根可用同一方式选择两家的路由和完整定义：
 
 ```ts
-import { deepseekModelRoutes } from './official-models/deepseek.ts'
-import { moonshotModelRoutes } from './official-models/moonshot.ts'
+import {
+  deepseekDefinitions,
+  deepseekModelRoutes,
+  moonshotDefinitions,
+  moonshotModelRoutes,
+} from '@omne-harness-lite/pi-ai-transport'
 
 const deepseekRoute = deepseekModelRoutes['deepseek/deepseek-v4-pro-0813']['deepinfra/fp8']
 const moonshotRoute = moonshotModelRoutes['moonshotai/kimi-k3']['moonshotai/mxfp4']
+const deepseek = deepseekDefinitions.find(item => item.modelId === 'deepseek/deepseek-v4-pro-0813')
+const moonshot = moonshotDefinitions.find(item => item.modelId === 'moonshotai/kimi-k3')
+if (!deepseek || !moonshot) throw new Error('missing official definition')
 ```
 
-这些映射是包内部入口，没有增加包的公开导出。完整定义沿公共校验与配置路径接入；家族不另行实现注册、连接池或生命周期。
+这些映射和八个完整定义列表均由包根公开导出。完整定义沿公共校验与配置路径接入；家族不另行实现注册、连接池或生命周期。
 
-| 家族 | 已有内部路由策略的目标型号数 | 提醒角色 | 声明的缓存配置 |
-| --- | ---: | --- | --- |
-| OpenAI | 12 | developer | automatic |
-| Anthropic | 4 | user | explicit；调用方显式选择已声明的 `1h` TTL 与 `last_message` 布局 |
-| DeepSeek | 2 | user | automatic |
-| Google | 2 | user | automatic；显式列出 Google AI Studio 与 Vertex 路由 |
-| xAI | 2 | user | automatic |
-| Qwen | 8 | user | 六款显式 `5m`／`system`；两款 Flash 为 automatic |
-| Moonshot | 2 | user | automatic |
-| Z.ai | 5 | user | 四款 automatic；Prime 有 Alibaba 显式缓存路由策略 |
+| 家族      | 已有内部路由策略的目标型号数 | 提醒角色  | 声明的缓存配置                                                   |
+| --------- | ---------------------------: | --------- | ---------------------------------------------------------------- |
+| OpenAI    |                           12 | developer | automatic                                                        |
+| Anthropic |                            4 | user      | explicit；调用方显式选择已声明的 `1h` TTL 与 `last_message` 布局 |
+| DeepSeek  |                            2 | user      | automatic                                                        |
+| Google    |                            2 | user      | automatic；显式列出 Google AI Studio 与 Vertex 路由              |
+| xAI       |                            2 | user      | automatic                                                        |
+| Qwen      |                            8 | user      | 六款显式 `5m`／`system`；两款 Flash 为 automatic                 |
+| Moonshot  |                            2 | user      | automatic                                                        |
+| Z.ai      |                            5 | user      | 四款 automatic；Prime 有 Alibaba 显式缓存路由策略                |
 
-这些内部规则不等于新增公开定义或可选官方档案。目前只导出了上文完整的 DeepSeek Pro 定义。测试按精确型号验证公共规划器的规则，多家还通过本地 HTTPS／SSE 验证下一轮工具与推理历史；其中的合成容量夹具不发布真实模型能力，也不认证上游行为。未知上游限制、有限供给上限、多模态承载及真实 public／service 认证仍须逐项完成。缓存声明或历史暖读不能证明 TTL 保留期。
+Google 路由映射还列有 Vertex；首批完整 Google 定义只绑定已有输入限制事实的所选 AI Studio 端点。路由映射本身不会把第二端点变成完整官方供给。
+
+37 条完整定义现为公开数据，可用来构造官方档案内容；导入它们不会自动安装可选档案。测试按精确型号验证公共规划器的规则，多家还通过本地 HTTPS／SSE 验证下一轮工具与推理历史；其中的合成容量夹具不发布真实模型能力，也不认证上游行为。有限项目上限与未知上游事实已显式声明；多模态承载、逐型号输入计量及真实 public／service 认证仍须逐项完成。缓存声明或历史暖读不能证明 TTL 保留期。
 
 在本包目录运行家族测试：
 

@@ -1,8 +1,8 @@
-import type { ModelRoute } from '../definitions.ts'
+import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
+import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
 
-// These are route rules, not complete official definitions. OpenAI model pages
-// and the selected OpenRouter endpoint have not established complete image
-// constraints or all conditional parameter domains for any of the 12 profiles.
+// These rules cover the supplied route behavior; parameter drops do not claim
+// that the upstream models lack those parameters. Route certification is separate.
 const common = {
   reminderRole: 'developer',
   parameters: {
@@ -79,3 +79,44 @@ export const openaiModelRoutes = {
   'openai/gpt-5.6-luna': { openai: openaiRoutes['openai/gpt-5.6-luna'] },
   'openai/gpt-5.6-luna-pro': { openai: openaiRoutes['openai/gpt-5.6-luna-pro'] },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
+
+// Source: .meta_harness/research/model-request-adaptation/reports/
+// 2026-09-28-openai-twelve-route-facts.md and its archived endpoint bodies.
+// All 12 selected OpenAI endpoints report the same 1,050,000-token shared
+// window, 922,000-token max prompt, and 128,000-token max completion. Reserve
+// the complete output capacity when setting the project's input-only cap.
+// The 4 MiB decoded-image cap is this project's explicit offering; selected
+// endpoint metadata does not establish a per-image upstream byte limit.
+const capabilities = {
+  inputModalities: ['image', 'text'],
+  outputModalities: ['text'],
+  maxInputTokens: 922000,
+  maxOutputTokens: 128000,
+  inputConstraints: { maxImageBytes: 4194304 },
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'limited', value: 922000 },
+    maxRequestBytes: { status: 'unknown' },
+    maxImageBytes: { status: 'unknown' },
+    maxImages: { status: 'unknown' },
+  },
+} as const satisfies ModelDefinition['capabilities']
+
+/** Complete MP4 declarations for the exact 12 selected OpenAI routes. */
+export const openaiDefinitions = ownDefinitions(
+  Object.entries(openaiModelRoutes).map(
+    ([modelId, routes]) =>
+      ({
+        modelId,
+        revision: '1',
+        implementation: { name: 'pi-ai:openai', revision: 'mp4-1' },
+        capabilities,
+        routes,
+      }) satisfies ModelDefinition,
+  ),
+)
+
+/** Explicit source configuration for automatic caching; never a factory default. */
+export const openaiConfiguration = Object.freeze({
+  revision: '1',
+  values: Object.freeze({ cache: Object.freeze({ mode: 'automatic' }) }),
+}) satisfies ModelAdaptationBinding['configuration']

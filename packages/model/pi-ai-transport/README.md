@@ -4,23 +4,24 @@
 
 Plan one OpenRouter request, send it over HTTPS, and translate SSE into public arrival events. This experimental ESM workspace package contains a targeted pi 0.86.1 fork and is not published on npm.
 
-Every caller supplies complete model definitions explicitly. There are no default models. `officialModelIds` is a frozen list of the 37 confirmed **target identities**, not registrable definitions or certified offers. Complete official capability facts, route configuration values and live certification are pending; no unknown values are filled in. See the [realization status](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/README.md).
+Every caller supplies complete model definitions explicitly. There are no default models. `officialModelIds` is derived from the eight public `<family>Definitions` lists, which now carry complete MP4 declarations for all 37 confirmed identities. Every project cap is finite; unavailable upstream limits are explicitly `unknown`. A complete declaration supports pure reading and profile construction, while real model/provider sending and cache certification require separate evidence. See the [realization status](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/README.md).
 
 ## Public API
 
-| Export                                                                  | Purpose                                                                                                                |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `ModelDefinition`, `ModelRoute`, `ParameterRule`, `ParameterRules`      | Complete capabilities and explicit per-route reminder, eight parameter rules, recognized private keys and cache values |
-| `readModelDefinition(definitions, coordinates)`                         | Immutable exact-version observation; does not acquire usage rights                                                     |
-| `configurationSchema(definition, provider)`                             | Closed Draft 2020-12 Schema, generated from route data without defaults                                                |
-| `interpretConfiguration(definition, values, provider)`                  | The same route's strict, lossless configuration interpretation                                                         |
-| `createOfficialProfileContent(definition, options)`                     | Construct and judge core content; no directory write, registration or timestamp                                        |
-| `planRequest(input, definitions)`                                       | Pure immutable wire plan, actual parameters, adjustments and dropped original keys                                     |
-| `createPiAiTransport(options)`                                          | Explicit definitions and owned pool with plan/send/read/close and diagnostic counters                                  |
-| `sendRequest`, `readStream`                                             | Independent functions borrowing explicit network resources                                                             |
-| `createModelTransportService`, `AdaptationLease`, `RetirementPolicy`    | Process-local precise registration, fixed leases and explicit draining                                                 |
-| `parseSSE`, `canonicalInteger`, `generatedCallId`                       | Framing and exact deterministic identity helpers                                                                       |
-| `officialModelIds`, `OPENROUTER_BASE_URL`, `PI_AI_CARRIABLE_MODALITIES` | Target IDs, product endpoint and currently carried text/image input                                                    |
+| Export                                                                    | Purpose                                                                                                                |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `ModelDefinition`, `ModelRoute`, `ParameterRule`, `ParameterRules`        | Complete capabilities and explicit per-route reminder, eight parameter rules, recognized private keys and cache values |
+| `readModelDefinition(definitions, coordinates)`                           | Immutable exact-version observation; does not acquire usage rights                                                     |
+| `configurationSchema(definition, provider)`                               | Closed Draft 2020-12 Schema, generated from route data without defaults                                                |
+| `interpretConfiguration(definition, values, provider)`                    | The same route's strict, lossless configuration interpretation                                                         |
+| `createOfficialProfileContent(definition, options)`                       | Construct and judge core content; no directory write, registration or timestamp                                        |
+| `planRequest(input, definitions)`                                         | Pure immutable wire plan, actual parameters, adjustments and dropped original keys                                     |
+| `createPiAiTransport(options)`                                            | Explicit definitions and owned pool with plan/send/read/close and diagnostic counters                                  |
+| `sendRequest`, `readStream`                                               | Independent functions borrowing explicit network resources                                                             |
+| `createModelTransportService`, `AdaptationLease`, `RetirementPolicy`      | Process-local precise registration, fixed leases and explicit draining                                                 |
+| `parseSSE`, `canonicalInteger`, `generatedCallId`                         | Framing and exact deterministic identity helpers                                                                       |
+| `officialModelIds`, eight `<family>Definitions` and `<family>ModelRoutes` | Complete MP4 declarations, exact route policies and derived target IDs                                                 |
+| `OPENROUTER_BASE_URL`, `PI_AI_CARRIABLE_MODALITIES`                       | Product endpoint and currently carried text/image input                                                                |
 
 Pure reads return `{ ok }`, `invalidInput` or `unavailable`. The content builder preserves core representation rejection names such as `parameter_out_of_range` and `max_output_exceeds_profile`; definition/route/configuration consistency failures are provider `invalidInput`. Unknown exact versions/routes are unavailable; illegal declarations/configurations are invalid input. Errors contain finite rejection categories, not configuration contents. The root entry does not load Cordis. `./plugin` is the explicit Cordis 4.0.4 entry.
 
@@ -34,7 +35,10 @@ import type {
   RetirementPolicy,
   TransportPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
-import { openRouterCredentialRedactionConfig, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  openRouterCredentialRedactionConfig,
+  type PlanInput,
+} from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -49,6 +53,10 @@ export const definition: ModelDefinition = {
     maxInputTokens: 1024,
     maxOutputTokens: 128,
     inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
   },
   routes: {
     'example-provider': {
@@ -108,6 +116,8 @@ export const request: PlanInput = {
     outputModalities: ['text'],
     maxInputTokens: 1024,
     maxOutputTokens: 128,
+    inputConstraints: definition.capabilities.inputConstraints,
+    upstreamInputLimits: definition.capabilities.upstreamInputLimits,
     updatedAt: '2026-09-27T00:00:00Z',
   },
 }
@@ -198,7 +208,6 @@ Credential redaction covers decoded error keys and every scalar, header names/va
 
 Unknown base token counts retain source none and omit reasoning_tokens; any valid base count, including zero, has source upstream. Cost remains independently available. Opaque reasoning metadata and serving-provider changes preserve the revision 6 behavior. This complete-definition implementation is revision 7; previous evidence does not certify it. Definition/configuration revisions remain owned by their actual fact/configuration sources.
 
-
 This path adopts [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md) and the [transport credential projection, revision 3](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v6-credential-path-design.md). Save the following as `execute-once.ts` and call it with a transport owning a verified complete definition. It borrows that transport, retains the same processed H and stops the response before returning; the owner closes the transport when finished.
 
 ```ts
@@ -222,12 +231,17 @@ export async function executeOnce(
     while (true) {
       const next = await reader.next()
       if (next.done)
-        return { events, end: next.value, ...('rawHeaders' in sent ? { rawHeaders: sent.rawHeaders } : {}) }
+        return {
+          events,
+          end: next.value,
+          ...('rawHeaders' in sent ? { rawHeaders: sent.rawHeaders } : {}),
+        }
       events.push(next.value)
     }
   } finally {
-    try { await reader.return({ aborted: true }) }
-    finally {
+    try {
+      await reader.return({ aborted: true })
+    } finally {
       sent.response.stop()
       await sent.response.stopped
     }
@@ -294,13 +308,13 @@ Tests use complete nonofficial fixtures, actual temporary HTTPS, public core jud
 
 ### Explicit DeepSeek Pro definition
 
-`deepseekV4Pro0813Definition` provides one fixed leaf for `deepseek/deepseek-v4-pro-0813` through `deepinfra/fp8`. It shares the OpenRouter planner and DeepSeek family rules under `pi-ai:deepseek / d095-1`; its definition revision is `1`. Importing it does not register a model, allocate a connection pool or send a request.
+`deepseekV4Pro0813Definition` provides one fixed leaf for `deepseek/deepseek-v4-pro-0813` through `deepinfra/fp8`. It shares the OpenRouter planner and DeepSeek family rules under `pi-ai:deepseek / mp4-1`; its definition revision is `2`. Importing it does not register a model, allocate a connection pool or send a request.
 
-The model's recorded capability is text input and text output. Its route reports a 1,048,576-token shared window and 16,384-token output capacity. The 1,032,192-token input budget reserves that complete output capacity; it is a derived input-only budget, not the route's `max_prompt_tokens` field or an extreme-size request test. The empty input-constraint object has no active image constraint in this text-only declaration; it does not assert unlimited image input.
+The model's recorded capability is text input and text output. Its route reports a 1,048,576-token shared window and 16,384-token output capacity. The 1,032,192-token input budget reserves that complete output capacity; it is a derived input-only budget, not the route's `max_prompt_tokens` field or an extreme-size request test. The empty input-constraint object has no active image constraint in this text-only declaration. Its two applicable upstream facts are explicitly `unknown`, not unlimited.
 
 System reminders become marked `user` messages. Automatic prefix caching uses the explicit configuration below, with no TTL or breakpoints. Historical requests on this route reported cache-read tokens without manual cache controls. That observation does not guarantee a future hit or certify the production runtime.
 
-This first revision deliberately provides `reasoningEffort: 'low'`, `seed: 0`, and `stopSequences: ['END']`. Other values are dropped with their names recorded. Temperature, top-p and both penalties are deliberately not provided and are traced when dropped. Their route-advertised support and native conditional behavior are not reclassified as unsupported. `maxOutputTokens` passes unchanged after the profile's ordinary output-bound check; no dynamic metadata clamping occurs. No private `extra` keys are provided.
+This supplied route policy deliberately provides `reasoningEffort: 'low'`, `seed: 0`, and `stopSequences: ['END']`. Other values are dropped with their names recorded. Temperature, top-p and both penalties are deliberately not provided and are traced when dropped. Their route-advertised support and native conditional behavior are not reclassified as unsupported. `maxOutputTokens` passes unchanged after the profile's ordinary output-bound check; no dynamic metadata clamping occurs. No private `extra` keys are provided.
 
 ```ts
 import {
@@ -322,7 +336,7 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 
 The configuration is an explicitly selected source value (`revision: '1'`, `values: { cache: { mode: 'automatic' } }`), never a hidden transport default. Pass the definition explicitly to a static transport, or register it through the existing model contribution plugin. Catalog publication and tenant authorization remain with their respective owners.
 
-Pure construction and planning are verified locally. Seed/stop effectiveness, full parameter tuning and production public/service certification remain pending. The first end-to-end call uses only the previously observed `low` and `1024` parameters. Adding the other fixed DeepSeek model requires its own complete facts and leaf, without automatic model discovery.
+Pure construction and planning are verified locally. Seed/stop effectiveness, full parameter tuning and production public/service certification remain pending. The first end-to-end call uses only the previously observed `low` and `1024` parameters. The separate Flash definition is present in `deepseekDefinitions`; its image cap and unknown upstream image facts are explicit. Neither declaration proves live image carriage.
 
 ### Family policies and complete model definitions
 
@@ -331,32 +345,41 @@ The files under `src/official-models/` contain two distinct implementation layer
 1. A family shares `ModelRoute` policy fragments; named model/provider routes record the actual differences. These are declarative inputs to the same parameter, reminder, cache and message planner.
 2. A complete `ModelDefinition` also supplies capabilities, exact implementation/definition revisions and provider routes. `readModelDefinition` validates and owns that whole value. Explicit configuration and `createOfficialProfileContent` then produce catalog input. Plugin registration uses the existing contribution lifecycle.
 
-All eight modules have the same internal entry shape: `<family>ModelRoutes[modelId][providerId]`, with exact model IDs and provider slugs. Each file puts shared policy first, model differences next, and its explicit map after those rules. Complete definitions and configurations follow when available; DeepSeek Pro takes its routes directly from `deepseekModelRoutes`. Existing named route exports reuse the same values.
+All eight modules have the same internal entry shape: `<family>ModelRoutes[modelId][providerId]`, with exact model IDs and provider slugs. Each file puts shared policy first, model differences next, and its explicit map after those rules. Complete six-field definitions follow for all 37 models; explicit source configurations follow where offered; DeepSeek Pro takes its routes directly from `deepseekModelRoutes`. Existing named route exports reuse the same values.
 
-For example, inside this package, both families are selected in the same way:
+For example, the package root exposes the same selection pattern for both families:
 
 ```ts
-import { deepseekModelRoutes } from './official-models/deepseek.ts'
-import { moonshotModelRoutes } from './official-models/moonshot.ts'
+import {
+  deepseekDefinitions,
+  deepseekModelRoutes,
+  moonshotDefinitions,
+  moonshotModelRoutes,
+} from '@omne-harness-lite/pi-ai-transport'
 
 const deepseekRoute = deepseekModelRoutes['deepseek/deepseek-v4-pro-0813']['deepinfra/fp8']
 const moonshotRoute = moonshotModelRoutes['moonshotai/kimi-k3']['moonshotai/mxfp4']
+const deepseek = deepseekDefinitions.find(item => item.modelId === 'deepseek/deepseek-v4-pro-0813')
+const moonshot = moonshotDefinitions.find(item => item.modelId === 'moonshotai/kimi-k3')
+if (!deepseek || !moonshot) throw new Error('missing official definition')
 ```
 
-These maps are package internals, not extra package exports. Complete definitions use the shared validation and configuration path; families do not implement their own registration, connection pool or lifecycle.
+These maps and the eight complete definition lists are public package exports. Complete definitions use the shared validation and configuration path; families do not implement their own registration, connection pool or lifecycle.
 
-| Family | Target models with internal route policies | Reminder role | Declared cache configuration |
-| --- | ---: | --- | --- |
-| OpenAI | 12 | developer | automatic |
-| Anthropic | 4 | user | explicit; caller selects the declared `1h` TTL and `last_message` layout |
-| DeepSeek | 2 | user | automatic |
-| Google | 2 | user | automatic; Google AI Studio and Vertex routes are explicit |
-| xAI | 2 | user | automatic |
-| Qwen | 8 | user | six explicit `5m`/`system` routes; two automatic Flash routes |
-| Moonshot | 2 | user | automatic |
-| Z.ai | 5 | user | four automatic routes; Prime has an explicit Alibaba route policy |
+| Family    | Target models with internal route policies | Reminder role | Declared cache configuration                                             |
+| --------- | -----------------------------------------: | ------------- | ------------------------------------------------------------------------ |
+| OpenAI    |                                         12 | developer     | automatic                                                                |
+| Anthropic |                                          4 | user          | explicit; caller selects the declared `1h` TTL and `last_message` layout |
+| DeepSeek  |                                          2 | user          | automatic                                                                |
+| Google    |                                          2 | user          | automatic; Google AI Studio and Vertex routes are explicit               |
+| xAI       |                                          2 | user          | automatic                                                                |
+| Qwen      |                                          8 | user          | six explicit `5m`/`system` routes; two automatic Flash routes            |
+| Moonshot  |                                          2 | user          | automatic                                                                |
+| Z.ai      |                                          5 | user          | four automatic routes; Prime has an explicit Alibaba route policy        |
 
-These internal rules are not additional public definitions or selectable official profiles. Only the complete DeepSeek Pro definition above is currently exported. Tests exercise exact per-model policy choices through the common planner; several families also run local HTTPS/SSE and next-turn tool/reasoning replay. Their synthetic capacity fixtures do not publish real capabilities or certify upstream behavior. Unknown upstream limits, finite supplied caps, multimodal carriage and real public/service certification remain explicit release work. A cache declaration or a historical warm read does not prove TTL retention.
+Google's route map also names Vertex, while the first complete Google definitions bind the selected AI Studio endpoint whose limit facts are recorded. A route map alone does not publish a second endpoint as a complete official offer.
+
+The 37 complete definitions are public data values and can be used to construct official profile content. They are not automatically installed as selectable profiles. Tests exercise exact per-model policy choices through the common planner; several families also run local HTTPS/SSE and next-turn tool/reasoning replay. Their synthetic capacity fixtures do not publish real capabilities or certify upstream behavior. Finite project caps and explicit unknown upstream facts are declared. Multimodal carriage, model-specific input measurement and real public/service certification remain explicit release work. A cache declaration or a historical warm read does not prove TTL retention.
 
 From this package directory, run the family checks with:
 

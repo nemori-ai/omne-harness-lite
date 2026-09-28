@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-profile v3 的纯值判定及显式 v2 采用面",
+  "description": "data.model-profile v4 的纯值判定及显式 v2 采用面",
   "engines": {
     "node": ">=24.18.0 <25"
   },

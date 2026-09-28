@@ -49,6 +49,10 @@ function capabilityFixture(modelId: string, route: ModelRoute): ModelDefinition 
       maxInputTokens: 1024,
       maxOutputTokens: 128,
       inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
     },
     routes: { [provider]: route },
   }
@@ -81,6 +85,8 @@ function request(
         outputModalities: profile.ok.outputModalities,
         maxInputTokens: profile.ok.maxInputTokens,
         maxOutputTokens: profile.ok.maxOutputTokens,
+        inputConstraints: profile.ok.inputConstraints,
+        upstreamInputLimits: profile.ok.upstreamInputLimits,
         updatedAt: at,
       },
       parameters,
