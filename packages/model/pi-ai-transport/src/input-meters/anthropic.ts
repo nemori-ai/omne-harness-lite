@@ -61,7 +61,7 @@ const messageFields = new Set([
   'reasoning_details',
 ])
 
-function supportedTextBody(body: JsonObject): boolean {
+function supportedTextBody(body: JsonObject, ttlValues: ReadonlySet<string>): boolean {
   if (
     Object.keys(body).some(
       key => key !== 'messages' && key !== 'tools' && !requestControls.has(key),
@@ -163,7 +163,8 @@ function supportedTextBody(body: JsonObject): boolean {
           (!object(part.cache_control) ||
             Object.keys(part.cache_control).some(key => key !== 'type' && key !== 'ttl') ||
             part.cache_control.type !== 'ephemeral' ||
-            part.cache_control.ttl !== '1h'))
+            typeof part.cache_control.ttl !== 'string' ||
+            !ttlValues.has(part.cache_control.ttl)))
       )
         return false
     }
@@ -193,6 +194,9 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     !Object.hasOwn(definition.routes, 'anthropic')
   )
     throw new TypeError('unsupported Anthropic input-meter binding')
+  const cache = definition.routes.anthropic?.cache
+  if (cache?.mode !== 'explicit') throw new TypeError('unsupported Anthropic cache declaration')
+  const ttlValues = new Set(cache.ttlValues)
   const tokenizer = encoder()
   const meter: InputMeter = {
     modelId: definition.modelId,
@@ -205,7 +209,8 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     measure({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
-      if (!Array.isArray(body.messages) || !supportedTextBody(body)) return { kind: 'unavailable' }
+      if (!Array.isArray(body.messages) || !supportedTextBody(body, ttlValues))
+        return { kind: 'unavailable' }
       try {
         // The archived first-party implementation applies NFKC and permits its
         // own special tokens. Keep all supported input-bearing final-wire fields.

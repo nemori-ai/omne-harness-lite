@@ -109,6 +109,66 @@ describe('four exact Anthropic projected-input rough estimates', () => {
     expect(() =>
       createAnthropicInputMeter({ ...definition(modelIds[0] ?? ''), modelId: 'anthropic/unknown' }),
     ).toThrow(TypeError)
+    const selected = definition(modelIds[0] ?? '')
+    const route = selected.routes.anthropic
+    if (!route) throw new Error('missing selected Anthropic route')
+    expect(() =>
+      createAnthropicInputMeter({
+        ...selected,
+        routes: { anthropic: { ...route, cache: { mode: 'automatic' } } },
+      }),
+    ).toThrow(TypeError)
+  })
+
+  it.each(modelIds)('%s validates cache markers against its bound route declaration', model => {
+    const selected = definition(model)
+    const cache = selected.routes.anthropic?.cache
+    if (cache?.mode !== 'explicit') throw new Error('missing explicit Anthropic cache policy')
+    expect(cache.ttlValues).toEqual(['1h'])
+    const ttl = cache.ttlValues[0]
+    if (!ttl) throw new Error('missing declared Anthropic TTL')
+    const base = {
+      model,
+      provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'Reuse this exact text.' }] }],
+    }
+    const marked = {
+      ...base,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Reuse this exact text.',
+              cache_control: { type: 'ephemeral', ttl },
+            },
+          ],
+        },
+      ],
+    }
+    expect(measuredTokens(model, marked)).toBe(measuredTokens(model, base))
+    const unsupported = {
+      ...marked,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Reuse this exact text.',
+              cache_control: { type: 'ephemeral', ttl: '5m' },
+            },
+          ],
+        },
+      ],
+    }
+    expect(
+      createAnthropicInputMeter(selected).measure({
+        body: unsupported,
+        serialized: writeJsonLossless(unsupported),
+      }),
+    ).toEqual({ kind: 'unavailable' })
   })
 
   it('counts complete text, tools, results and reminder while excluding request controls', () => {
