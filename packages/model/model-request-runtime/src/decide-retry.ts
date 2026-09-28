@@ -1,7 +1,6 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { judgeValue } from '@omne-harness-lite/loop-extension'
-import type { Duration } from '@omne-harness-lite/tool-definition'
 import { retryDelay } from './retry-delay.ts'
 import type { RetryBackoffPolicy, RetryDelayResult } from './retry-delay-types.ts'
 import type { DecideRetryInput, DecideRetryResult } from './decide-retry-types.ts'
@@ -133,8 +132,9 @@ export function decideRetry(value: DecideRetryInput): DecideRetryResult {
   let n: number
   if (profile.allowFallback) {
     const latestIndex = providers.indexOf(latest.provider)
-    next = providers.slice(latestIndex + 1).find(provider => !used.has(provider))
-    if (next === undefined) return observed
+    const immediate = providers[latestIndex + 1]
+    if (typeof immediate !== 'string' || used.has(immediate)) return observed
+    next = immediate
     n = used.size
   } else {
     const first = providers[0]

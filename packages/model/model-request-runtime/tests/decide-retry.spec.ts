@@ -94,6 +94,15 @@ describe('RT5 S-35/S-60 finite default retry decision', () => {
     })
   })
 
+  it('does not skip an already tried immediate successor after a custom retry changed the order', () => {
+    // A custom piece may legally dispatch A -> B -> A. After the latest A,
+    // S-35 names B as the immediate next provider. B has already been tried;
+    // skipping it to C would invent a different default fallback rule.
+    expect(decideRetry(input(['A', 'B', 'C'], ['A', 'B', 'A']))).toEqual({
+      kind: 'observed',
+    })
+  })
+
   it('cannot distinguish a resumed dispatch from an already consumed same-provider retry', () => {
     // Legal history 1: A was interrupted before first content, S-33 reconciled,
     // then dispatch continued to A and failed. The default piece has not retried.
