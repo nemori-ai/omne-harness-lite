@@ -1,7 +1,10 @@
 import type { AssetRegistryService, AvailabilityReport } from '@omne-harness-lite/asset-registry'
+import type { ArrivalEvent, ArrivalTarget } from '@omne-harness-lite/arrival-events'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/evaluation-input-store'
 import type { AttemptId, ModelCallId, RunId } from '@omne-harness-lite/call-accounts'
-import type { CapabilityId } from '@omne-harness-lite/content-blocks'
+import type { CapabilityId, JsonNumber } from '@omne-harness-lite/content-blocks'
+import type { TenantId } from '@omne-harness-lite/identity-values'
+import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 import type {
   AfterModelCallFailureSubject,
   ModelRequest,
@@ -117,6 +120,83 @@ export type OpenCallRun =
       readonly report: AvailabilityReport
     }
   | { readonly run?: never; readonly attempt?: never; readonly report?: never }
+
+/** The original call's actual lifetime owner, independent of session identity. */
+export interface ModelCallHost {
+  readonly signal: AbortSignal
+  readonly stopping: () => boolean
+  readonly register: (
+    close: () => Promise<RuntimeCloseResult>,
+  ) =>
+    | { readonly registration: { readonly unregister: () => void } }
+    | ServiceRuntimeStopped
+    | ServiceUnavailable
+}
+
+export type ModelArrivalTarget = Extract<ArrivalTarget, { readonly kind: 'model_call' }>
+export interface ObserverScope {
+  readonly session: SessionRef
+  readonly tenant: TenantId
+  readonly target: ModelArrivalTarget
+}
+export interface ObserverReceiveTask {
+  readonly completion: Promise<void>
+  readonly stopped: Promise<void>
+}
+export interface ObserverReceiver {
+  readonly receive: (serialized: string, signal: AbortSignal) => ObserverReceiveTask
+  readonly stop: () => void
+  readonly stopped: Promise<void>
+}
+export interface ModelObserverEndpoint {
+  readonly open: (scope: ObserverScope) => ObserverReceiver
+}
+export interface ModelObserverRequest {
+  readonly session: SessionRef
+  readonly endpoint: ModelObserverEndpoint
+  readonly observer_max_buffered_events: JsonNumber
+  readonly observer_max_buffered_bytes: JsonNumber
+}
+export type ObserverScopeResult =
+  | { readonly valid: true }
+  | { readonly invalidInput: { readonly reason: 'observer_scope_mismatch' } }
+  | ServiceUnavailable
+export interface AuthorizedCallObserver {
+  readonly check: (target: ModelArrivalTarget) => ObserverScopeResult
+  readonly open: (
+    target: ModelArrivalTarget,
+  ) =>
+    { readonly receiver: ObserverReceiver } | Exclude<ObserverScopeResult, { readonly valid: true }>
+  readonly close: () => Promise<RuntimeCloseResult>
+}
+export interface SessionObserverAccess {
+  readonly authorize: (input: {
+    readonly request: ModelObserverRequest
+    readonly session: SessionRef
+    readonly tenant: TenantId
+    readonly callId: ModelCallId
+  }) =>
+    | { readonly observer: AuthorizedCallObserver }
+    | Exclude<ObserverScopeResult, { readonly valid: true }>
+}
+export type ObserverDelivery =
+  | {
+      readonly scope: ObserverScope
+      readonly kind: 'snapshot'
+      readonly snapshot: AssemblySnapshot
+    }
+  | {
+      readonly scope: ObserverScope
+      readonly kind: 'event'
+      readonly position: JsonNumber
+      readonly event: ArrivalEvent
+    }
+export type ObserverOfferResult =
+  | { readonly accepted: true }
+  | { readonly invalidInput: { readonly reason: 'malformed' | 'observer_scope_mismatch' } }
+  | ServiceUnavailable
+  | { readonly rejected: { readonly reason: 'buffer_full' | 'consumer_failed' } }
+
 export type OpenCallInput = OpenCallRun & {
   readonly session: SessionRef
   readonly callId?: ModelCallId
@@ -126,8 +206,8 @@ export type OpenCallInput = OpenCallRun & {
   readonly basis: EffectiveModel
   readonly parameters?: ModelRequestParameters
   readonly tools: readonly ModelToolName[]
-  /** The host has already bound authorization and lifecycle to this session. */
-  readonly host: SessionRuntimeBinding
+  readonly host: ModelCallHost
+  readonly observer?: ModelObserverRequest
 }
 export type OpenCallResult =
   | { readonly callId: ModelCallId; readonly state: 'open' | 'resumable' }
@@ -280,6 +360,7 @@ export interface SessionRuntimeBinding {
   readonly catalog: ModelCatalogRead
   readonly credentials: CredentialLookup
   readonly currentEvaluationInputs: CurrentEvaluationInputs
+  readonly observers?: SessionObserverAccess
 }
 export interface RuntimeSessionAccess {
   /** Every bind checks the request identity against all returned session/tenant/generation owners. */
