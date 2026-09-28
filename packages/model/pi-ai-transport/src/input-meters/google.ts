@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
-import { copyJsonValue, isJsonNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
+import {
+  copyJsonValue,
+  isJsonNumber,
+  writeJsonLossless,
+  type JsonObject,
+} from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
 import { jsonEqual } from '../definitions.ts'
 import type { ModelDefinition } from '../definitions.ts'
@@ -149,8 +154,12 @@ export function createGoogleInputMeter(definition: ModelDefinition): InputMeter 
     provider: 'google-ai-studio',
     algorithmRevision,
     evidence: 'google-gemma4-pilot-2026-09-28:fit-F1-F2/holdout-H1-H2;rough-estimated',
-    measure({ body }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {
-      if (!supported(body, definition.modelId)) return { kind: 'unavailable' }
+    measure({
+      body,
+      serialized,
+    }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {
+      if (writeJsonLossless(body) !== serialized || !supported(body, definition.modelId))
+        return { kind: 'unavailable' }
       const features = googleCandidateFeatures(
         body,
         text => tokenizer.encode(text, { add_special_tokens: false }).ids.length,

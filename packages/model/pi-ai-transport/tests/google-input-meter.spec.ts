@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
   createModelTransportService,
   createPiAiTransport,
@@ -73,28 +74,50 @@ describe('Google AI Studio rough text/tool input meter', () => {
         reason: 'input_size_unavailable',
         metrics: ['maxInputTokens'],
       })
-      expect(
-        meter.measure({
-          body: {
-            model: definition.modelId,
-            provider: {
-              order: ['google-ai-studio'],
-              allow_fallbacks: false,
-              require_parameters: true,
-            },
-            stream: true,
-            store: false,
-            messages: [
-              {
-                role: 'assistant',
-                content: '',
-                reasoning_details: [{ type: 'reasoning.encrypted', data: 'opaque' }],
-              },
-            ],
+      const opaqueBody = {
+        model: definition.modelId,
+        provider: {
+          order: ['google-ai-studio'],
+          allow_fallbacks: false,
+          require_parameters: true,
+        },
+        stream: true,
+        store: false,
+        messages: [
+          {
+            role: 'assistant',
+            content: '',
+            reasoning_details: [{ type: 'reasoning.encrypted', data: 'opaque' }],
           },
-          serialized: '',
-        }),
-      ).toEqual({ kind: 'unavailable' })
+        ],
+      }
+      expect(
+        meter.measure({ body: opaqueBody, serialized: writeJsonLossless(opaqueBody) }),
+      ).toEqual({
+        kind: 'unavailable',
+      })
+    },
+  )
+
+  it.each(googleDefinitions)(
+    '$modelId rejects body/serialized drift before counting',
+    definition => {
+      const meter = createGoogleInputMeter(definition)
+      if (!meter) throw new Error('Google meter unavailable')
+      const planned = planRequest(
+        googleCalibrationRequest(definition.modelId, 'F2'),
+        [definition],
+        meter,
+      )
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      const { body, serialized } = planned.planned
+      expect(meter.measure({ body, serialized })).toEqual({ kind: 'estimated', tokens: 90 })
+      expect(meter.measure({ body, serialized: `${serialized} ` })).toEqual({
+        kind: 'unavailable',
+      })
+      expect(meter.measure({ body: { ...body, max_tokens: 64 }, serialized })).toEqual({
+        kind: 'unavailable',
+      })
     },
   )
 
