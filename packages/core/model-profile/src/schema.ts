@@ -70,7 +70,8 @@ function project(value: JsonValue, context: NumericContext, member?: string): un
       ['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(member ?? '')
     )
       return 1
-    if (context === 'ModelRequestParameters' && member === 'topP') return 1
+    if (context === 'ModelRequestParameters' && (member === 'topP' || member === 'maxOutputTokens'))
+      return 1
     if (
       (context === 'ModelProfile' ||
         context === 'ModelProfileContent' ||
@@ -109,7 +110,7 @@ function childContext(context: NumericContext, key: string): NumericContext {
     (context === 'InputConstraints' &&
       ['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(key)) ||
     (context === 'InputLimitFact' && key === 'value') ||
-    (context === 'ModelRequestParameters' && key === 'topP')
+    (context === 'ModelRequestParameters' && ['topP', 'maxOutputTokens'].includes(key))
   )
     return context
   return 'generic'
