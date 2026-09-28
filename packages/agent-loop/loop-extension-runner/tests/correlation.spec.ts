@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, jsonNumberSource, isJsonNumber } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import { judgeInput, type Conclusion } from '@omne-harness-lite/loop-extension'
+import { judgePositionedSubject, type Conclusion } from '@omne-harness-lite/loop-extension'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import {
@@ -150,16 +150,11 @@ describe('runner correlation and exact values', () => {
   })
 
   it('applies a rewrite followed by model selection to a fresh subject', () => {
-    const input = judgeInput({
+    const input = judgePositionedSubject({
       position: 'before_model_call',
       subject: {
         request: { target: 'vendor-a/chat-large', parameters: {}, messages: [], tools: [] },
       },
-      earlier: [],
-      log: 'log',
-      environment: 'env',
-      run: 'run',
-      attempt: 1,
     })
     if (!('ok' in input)) throw new Error('fixture rejected')
     const initial = input.ok
@@ -197,5 +192,68 @@ describe('runner correlation and exact values', () => {
     const temperature = result.effect.subject.request.parameters.temperature
     expect(isJsonNumber(temperature) && jsonNumberSource(temperature)).toBe('0.2')
     expect(initial.subject.request.target).toBe('vendor-a/chat-large')
+  })
+
+  it('composes a failed model-call retry from a pure subject with no execution shell', () => {
+    const adaptation = {
+      implementation: { name: 'vendor-a.family', revision: '1' },
+      definition: { modelId: 'vendor-a/chat-large', revision: '1' },
+      configuration: { revision: '1', values: {} },
+    }
+    const profile = {
+      providers: ['provider-a'],
+      allowFallback: true,
+      inputModalities: ['text'],
+      outputModalities: ['text'],
+      maxInputTokens: 200000,
+      maxOutputTokens: 64000,
+      inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
+      adaptation,
+      updatedAt: at,
+    }
+    const dispatch = {
+      adaptation,
+      kind: 'model_call_dispatched',
+      call: 'model-call-1',
+      dispatch: 1,
+      provider: 'provider-a',
+      response: 'response-1',
+      profile: { origin: 'official', routeName: 'vendor-a/chat-large' },
+      profileSnapshot: profile,
+      parameters: {},
+      selectedBy: 'session',
+      credentialScope: { layer: 'factory' },
+    }
+    const admitted = judgePositionedSubject({
+      position: 'after_model_call',
+      dimension: { ending: 'failure' },
+      subject: {
+        failure: 'upstream_unavailable',
+        profile,
+        dispatches: [dispatch],
+        retryConclusions: [],
+      },
+    })
+    if (!('ok' in admitted)) throw new Error(`failure fixture rejected: ${admitted.rejected}`)
+    const retry = {
+      extension: 'extension-a',
+      position: 'after_model_call',
+      dimension: { ending: 'failure' },
+      modelCallId: 'model-call-1',
+      power: 'rewrite',
+      at,
+      output: { kind: 'retry', plan: { provider: 'provider-a' } },
+    } as Conclusion
+    expect(composeEffect(admitted.ok, [retry])).toEqual({
+      effect: { kind: 'retry', plan: { provider: 'provider-a' } },
+    })
+    const wrongCall = { ...retry, modelCallId: 'another' } as Conclusion
+    expect(composeEffect(admitted.ok, [wrongCall])).toEqual({
+      invalidInput: true,
+    })
   })
 })

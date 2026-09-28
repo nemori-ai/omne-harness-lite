@@ -59,6 +59,6 @@ if ('invalidInput' in result) throw new Error('inconsistent conclusion')
 console.log(result.effect.kind) // proceed
 ```
 
-For every position other than `before_persist_message`, the caller must provide an actual `{ kind: 'withRun', run, attempt }` shell. `before_persist_message` may inherit a real outer fence while its extension input omits Run fields. `composeEffect` currently uses local validation placeholders to call the core LC6 judgment; that implementation detail is under integration review and does not supply a production Run. Reminder message IDs use the same `mrr/3` message key as model runtime; the stored conclusion includes the full reminder copy for later exact comparison.
+For every position other than `before_persist_message`, the caller must provide an actual `{ kind: 'withRun', run, attempt }` shell when preparing a durable conclusion. `before_persist_message` may inherit a real outer fence while its extension input omits Run fields. `composeEffect` uses the core pure subject and conclusion judgments; it needs no Run or handle and proves no execution occurred. Reminder message IDs use the same `mrr/3` message key as model runtime; the stored conclusion includes the full reminder copy for later exact comparison.
 
 All functions are synchronous and use no network, clock, random source, or hidden storage. Their returned values do not themselves certify a successful append or a complete authorized read.

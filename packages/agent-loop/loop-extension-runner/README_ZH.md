@@ -59,6 +59,6 @@ if ('invalidInput' in result) throw new Error('结论与原主体不一致')
 console.log(result.effect.kind) // proceed
 ```
 
-除 `before_persist_message` 外，调用方须提供真实的 `{ kind: 'withRun', run, attempt }` 壳；`before_persist_message` 可以继承外层真实栅栏，但不会把 Run 字段传给拓展件。`composeEffect` 当前为调用 core 的 LC6 判定而使用局部校验占位值；此实现细节仍待集成审查，不能成为生产 Run 的来源。提醒的 MessageId 采用与模型运行时相同的 `mrr/3` 消息键；结论内同时保留完整提醒副本，以便恢复时精确比对。
+除 `before_persist_message` 外，准备耐久结论时调用方须提供真实的 `{ kind: 'withRun', run, attempt }` 壳；`before_persist_message` 可以继承外层真实栅栏，但不会把 Run 字段传给拓展件。`composeEffect` 使用 core 的纯主体与结论判定，无需 Run 或句柄，也不证明曾发生执行。提醒的 MessageId 采用与模型运行时相同的 `mrr/3` 消息键；结论内同时保留完整提醒副本，以便恢复时精确比对。
 
 所有函数均为同步纯函数，不访问网络、时钟、随机源或隐藏存储。返回值本身不证明已经写入，也不证明读取具有授权和完整性。

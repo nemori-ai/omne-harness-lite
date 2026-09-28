@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import { judgeInput, type Conclusion } from '@omne-harness-lite/loop-extension'
+import { judgePositionedSubject, type Conclusion } from '@omne-harness-lite/loop-extension'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import {
   composeEffect,
@@ -14,15 +14,12 @@ import {
 const tenant = { organization: 'org', account: 'account' } as TenantId
 const otherTenant = { organization: 'other', account: 'account' } as TenantId
 const at = '2026-09-28T10:00:00Z'
-const initialJudgment = judgeInput({
+const initialJudgment = judgePositionedSubject({
   position: 'before_persist_message',
   subject: {
     message: { id: 'msg1', type: 'user', blocks: [], createdAt: at },
     producer: 'user',
   },
-  earlier: [],
-  log: 'log',
-  environment: 'env',
 })
 if (!('ok' in initialJudgment)) throw new Error('initial fixture rejected')
 const initial = initialJudgment.ok
