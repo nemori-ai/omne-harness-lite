@@ -121,6 +121,11 @@
 | [UL-selected-model](terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model) | 选中模型 | Selected Model | 会话当前指向的那个档案路由名，**只因切换而变的取值**，落到哪一行按层覆盖现算；没切换过时取「用哪个模型」沿层级求值的那个名字 |
 | [UL-effective-model](terms/capabilities-and-composition.md#ul-effective-model--有效模型--effective-model) | 有效模型 | Effective Model | 这一次请求实际用的那条档案，**每次现算**；可与选中的不同，算不出是非常态 |
 | [UL-model-switch](terms/capabilities-and-composition.md#ul-model-switch--模型切换--model-switch) | 模型切换 | Model Switch | 用户把选中模型换成另一个合法目标路由名，**先是日志里一条事实**（记的是名字），下一次请求前生效，不添分支 |
+| [UL-scheduling-capability](terms/capabilities-and-composition.md#ul-scheduling-capability--日程能力--scheduling-capability) | 日程能力 | Scheduling Capability | 创建和管理跨时间工作安排、调度到期工作并触发对应执行或通知动作的可插拔能力，供系统安排自身机械工作，也供 harness agent 与用户推进短、中、长期事务与目标。 |
+| [UL-routine](terms/capabilities-and-composition.md#ul-routine--工作例程--routine) | 工作例程 | Routine | Schedule 内的工作描述数据，无独立身份或生命周期；各次 Job 共用其工作定义，执行状态与成果分别记录。 |
+| [UL-notification-capability](terms/capabilities-and-composition.md#ul-notification-capability--通知能力--notification-capability) | 通知能力 | Notification Capability | 系统和 agent 发送通知并送达到明确目标租户；不要求先有 Schedule 或 Job。 |
+| [UL-calendar-service](terms/capabilities-and-composition.md#ul-calendar-service--日历服务--calendar-service) | 日历服务 | Calendar Service | 支持日历配置、管理、选择切换和数据更新维护，供应业务日历及其版本并提供日期计算的服务统称；作为独立产品应用交付，是日程能力的计算依赖。 |
+
 
 ## [流转与授权](terms/circulation-and-entitlement.md)
 
@@ -184,6 +189,8 @@
 | [UL-cancellation-follows-host](terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) | 取消跟着宿主走 | Cancellation Follows Host | **宿主没了它就没了**；工具执行前后台都挂在会话上，**转后台不换宿主**；回收 agent runtime 不是取消 |
 | [UL-graceful-cancellation](terms/agent-runtime-loop.md#ul-graceful-cancellation--优雅取消--graceful-cancellation) | 优雅取消 | Graceful Cancellation | 显式动作：先不接新活，等停当，再释放（旧名**实例退役**） |
 | [UL-forced-stop](terms/agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop) | 强制停止 | Forced Stop | 立刻撤销执行资格，**外部效果收不回来** |
+| [UL-job-session](terms/agent-runtime-loop.md#ul-job-session--作业会话--job-session) | 作业会话 | Job Session | 为一个需要 agent 执行的定时作业新建并专属承接其执行部分的会话子类型；沿用会话身份与生命周期，强制附加面向该作业的成果提交或上报工具，以及检查其目标完成情况的 Loop 拓展。 |
+
 
 ## [落地与隔离](terms/grounding-and-isolation.md)
 
@@ -256,6 +263,16 @@
 | [UL-retry-exhaustion](terms/execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion) | 试尽 | Retry Exhaustion | 模型调用这一层**不再有可试的手段**，是拓展件的判断；**只管故障** |
 | [UL-model-call-escalation-cause](terms/execution-and-outcome.md#ul-model-call-escalation-cause--模型调用上交成因--model-call-escalation-cause) | 模型调用上交成因 | Model-Call Escalation Cause | 上交时带的**恰八个**分类，答「谁能让它不再发生」；状态码另外原样带着 |
 | [UL-terminal-disposition](terms/execution-and-outcome.md#ul-terminal-disposition--终局--terminal-disposition) | 终局 | Terminal Disposition | 交到头也回不去了；**落终局的是那件事，不是那一层** |
+| [UL-schedule](terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 日程 | Schedule | 包含一份工作例程描述的日程安排，同时持有一次性或重复的时间规则、边界与补跑／重叠声明；每次实际形成的工作以定时作业区分。 |
+| [UL-system-schedule](terms/execution-and-outcome.md#ul-system-schedule--系统日程--system-schedule) | 系统日程 | System Schedule | 系统自身拥有、只触发机械操作的日程；不归账号、组织或租户，不启动 agent 会话。 |
+| [UL-scheduled-job](terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 定时作业 | Scheduled Job | 一份日程在某个具体到期时刻对应的单次工作实例，支持执行、通知、执行并通知三种工作类型，有可指认的来源和本次处置结果；agent 执行使用专属新会话，系统自用的机械执行不创建会话，包含通知时按本次声明承担目标租户的通知。 |
+| [UL-scheduled-execution](terms/execution-and-outcome.md#ul-scheduled-execution--定时执行--scheduled-execution) | 定时执行 | Scheduled Execution | 日程到期后履行执行工作的过程；系统自用日程触发机械操作，租户日程为本次作业新建专属会话并装配 agent 来完成工作目标。 |
+| [UL-scheduled-notification](terms/execution-and-outcome.md#ul-scheduled-notification--定时通知--scheduled-notification) | 定时通知 | Scheduled Notification | 日程到期工作中向目标租户发送通知的过程，可由纯通知作业承担，也可与执行组合在同一个作业中；通知动作本身不另建 agent 工作会话。 |
+| [UL-schedule-date-policy](terms/execution-and-outcome.md#ul-schedule-date-policy--日程日期处理策略--schedule-date-policy) | 日程日期处理策略 | Schedule Date Policy | 基础候选遇非工作日时保持、跳过或向前／向后移到工作日。 |
+| [UL-schedule-catch-up-policy](terms/execution-and-outcome.md#ul-schedule-catch-up-policy--日程补跑策略--schedule-catch-up-policy) | 日程补跑策略 | Schedule Catch-up Policy | 日程声明是否补跑及当前时刻前最近最多补多少次；不重跑已有 Job。 |
+| [UL-schedule-overlap-policy](terms/execution-and-outcome.md#ul-schedule-overlap-policy--日程重叠策略--schedule-overlap-policy) | 日程重叠策略 | Schedule Overlap Policy | 同一日程的新工作遇到先前未结束动作时，选择跳过、停止先前后执行、独立并行或等待执行。 |
+| [UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) | 作业通知策略 | Job Notification Policy | Routine 内声明执行事件与通知内容要求，各 Job 持有自身采用的声明。 |
+
 
 ## [交互与派发](terms/interaction-and-dispatch.md)
 
@@ -323,5 +340,7 @@
 | [UL-prefix-consistency](terms/record-and-context.md#ul-prefix-consistency--前缀一致--prefix-consistency) | 前缀一致 | Prefix Consistency | 开头那段与上一次逐字相同，**尽可能最大化** |
 | [UL-context-compaction](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction) | 上下文压缩 | Context Compaction | **三个目标两两相冲**；能做两件、不能做两件 |
 | [UL-compaction-record](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record) | 压缩记录 | Compaction Record | `CompactionMessage`；**边界不是一条截断线** |
+| [UL-business-calendar](terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 业务日历 | Business Calendar | 具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。 |
+| [UL-business-calendar-version](terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 业务日历版本 | Business Calendar Version | 某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。 |
 
 返回[统一语言入口](README.md)

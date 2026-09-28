@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/PF-*/{README,design,flows}.md`（rev、指向词条的链接）
-- 生成时间：2026-09-27
+- 生成时间：2026-09-28
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **44** 个，变体 **25** 个，形态未定的词条 **0** 个，待裁 **8** 项。
+对象 **48** 个，变体 **27** 个，形态未定的词条 **0** 个，待裁 **9** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -17,7 +17,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [会话](../domain_objects/objects.md#ul-session--会话) | [UL-session](../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) | —（归属于[租户](../domain_objects/objects.md#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变） | 主会话、子会话 | PF-015（草稿） | 002 007 011 012 014 016 |
+| [会话](../domain_objects/objects.md#ul-session--会话) | [UL-session](../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) | —（归属于[租户](../domain_objects/objects.md#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变） | 主会话、子会话、作业会话 | PF-015（草稿） | 002 007 011 012 014 016 |
 | [运行](../domain_objects/objects.md#ul-run--运行) | [UL-run](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | [会话](../domain_objects/objects.md#ul-session--会话)（附着在恰好一个会话上） | — | PF-012 | 007 011 014 015（草稿） 016 |
 | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [UL-agent-runtime](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | 正文未指定；由「一个会话任一时刻至多一个活跃的 agent runtime」推断为[会话](../domain_objects/objects.md#ul-session--会话) | — | PF-012 | 011 015（草稿） |
 | [装配清单](../domain_objects/objects.md#ul-assembly-manifest--装配清单) | [UL-assembly-manifest](../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | —（为恰好一个[会话](../domain_objects/objects.md#ul-session--会话)求值） | — | PF-004 | — |
@@ -48,6 +48,8 @@
 | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) | [UL-model-response](../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——它是一条效力为留痕的[记录条目](../domain_objects/objects.md#ul-record-entry--记录条目)的载荷，随日志留着；试过又失败的那几条不进方程、不进模型的上下文 | — | PF-013 | 000 |
 | [附件](../domain_objects/objects.md#ul-attachment--附件) | [UL-attachment](../ubiquitous_language/terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 产出它的那次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里 | — | PF-006 | 016 |
 | [被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果) | [UL-offloaded-result](../ubiquitous_language/terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 正文未述。它由一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——日志里只有那条占位；它自己「存起来」在哪、寿命跟着谁，没有说 | — | PF-006 | 012 |
+| [日程](../domain_objects/objects.md#ul-schedule--日程) | [UL-schedule](../ubiquitous_language/terms/execution-and-outcome.md#ul-schedule--日程--schedule) | 正文未述；系统或租户归属不等于生命周期宿主 | 系统日程 | PF-021 | — |
+| [定时作业](../domain_objects/objects.md#ul-scheduled-job--定时作业) | [UL-scheduled-job](../ubiquitous_language/terms/execution-and-outcome.md#ul-scheduled-job--定时作业--scheduled-job) | 正文未述；与来源日程和执行会话的关联不等于随它们消失 | — | PF-021 | — |
 
 ## 落地与隔离
 
@@ -82,6 +84,8 @@
 | [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009 | 015（草稿） |
 | [内容块](../domain_objects/objects.md#ul-content-block--内容块) | [UL-content-block](../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) | [消息](../domain_objects/objects.md#ul-message--消息) | — | PF-009 | 014 |
 | [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PF-007 | 015（草稿） |
+| [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PF-021 | — |
+| [业务日历版本](../domain_objects/objects.md#ul-business-calendar-version--业务日历版本) | [UL-business-calendar-version](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 正文未述；所属业务日历可追溯，未规定随其退出而删除 | — | PF-021 | — |
 
 ## 作用域与求值
 
@@ -143,6 +147,7 @@
 | [外部 harness 的 agent](../domain_objects/pending.md#外部-harness-的-agent) | PF-007 的 owner |
 | [使用成本明细](../domain_objects/pending.md#使用成本明细) | 产品负责人——「观测与计量」这一块还没有 topic |
 | [压缩策略](../domain_objects/pending.md#压缩策略) | PF-010 与 PF-015 的 owner |
+| [通知发送与投递结果](../domain_objects/pending.md#通知发送与投递结果) | 系统架构与规格，按 PF-021 已定查询单位、租户边界和送达判据决定记录分解及身份；不得以技术重试改变通知条数或业务历史范围 |
 
 ### 没有任何产品正文链接到的对象词条
 
