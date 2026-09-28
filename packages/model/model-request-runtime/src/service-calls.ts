@@ -21,6 +21,7 @@ import { resolveCallTools } from './call-tools.ts'
 import { createCallContainer } from './service-container.ts'
 import {
   appendControlRecord,
+  createOriginalSystemStop,
   OwnedAppendTracker,
   OwnedReadTracker,
   withOwnedReads,
@@ -473,6 +474,12 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             key,
             session,
             request,
+            systemStop: createOriginalSystemStop(
+              runtime,
+              key,
+              (binding, originalOwner, registration, task) =>
+                unknownWrites.keep(key, binding, originalOwner, registration, task),
+            ),
             binding: {
               profile: anchor.profile,
               snapshot: anchor.profileSnapshot,
@@ -653,6 +660,12 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           key,
           session,
           request: { ...request, callId },
+          systemStop: createOriginalSystemStop(
+            runtime,
+            key,
+            (binding, originalOwner, registration, task) =>
+              unknownWrites.keep(key, binding, originalOwner, registration, task),
+          ),
           binding: {
             profile: winner.ref,
             snapshot,

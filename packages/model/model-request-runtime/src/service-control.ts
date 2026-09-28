@@ -14,6 +14,8 @@ import type { CallHistoryResult } from './call-history.ts'
 import type {
   CallKey,
   CallOperationState,
+  SystemStopControl,
+  RuntimeCloseResult,
   InterruptInput,
   InterruptResult,
   ReleaseCallResult,
@@ -383,6 +385,89 @@ export interface ServiceControl {
   readonly releaseCall: (key: CallKey) => Promise<ReleaseCallResult>
   readonly interrupt: (input: InterruptInput) => Promise<InterruptResult>
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
+}
+
+/** The original call's S-36 system stop. It never manufactures a user interrupt intent. */
+export function createOriginalSystemStop<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  key: CallKey,
+  retainUnknown: (
+    binding: SettlementLogBinding,
+    owner: SettlementOwner,
+    registration: SettlementRegistration,
+    task: SettlementTask<AppendResult>,
+  ) => void,
+): (
+  control: SystemStopControl<P, R>,
+) => Promise<{ readonly released: true } | { readonly unavailable: true }> {
+  const reads = new OwnedReadTracker()
+  return async control => {
+    const attempt = async (): Promise<RuntimeCloseResult> => {
+      let view: ReturnType<SystemStopControl<P, R>['view']>
+      try {
+        view = control.view()
+        if (view.key.session !== key.session || view.key.callId !== key.callId)
+          return { unavailable: true }
+        if (view.invocation !== undefined && 'unavailable' in (await view.invocation.close()))
+          return { unavailable: true }
+        const received = await withOwnedReads(
+          view.owner,
+          runtime.settlementContention.limits.concurrent,
+          reads,
+          async registration => {
+            const result = await readSettlementPrefix({ binding: view.session.log, registration })
+            return 'unavailable' in result
+              ? ({ unavailable: true } as const)
+              : runtime.history.call(result.prefix, key.callId)
+          },
+        )
+        if ('unavailable' in received || 'unavailable' in received.ok) return { unavailable: true }
+        const history = received.ok
+        if (
+          'known' in history &&
+          (history.known.phase === 'complete' ||
+            history.known.phase === 'interrupted' ||
+            history.known.phase === 'handed_up')
+        ) {
+          control.publishStopped()
+          return { released: true }
+        }
+        if (
+          'known' in history &&
+          history.known.phase !== null &&
+          history.known.phase !== 'awaiting_decision' &&
+          history.known.phase !== 'resumable'
+        )
+          return { unavailable: true }
+        if ('unknown' in view.owner.opened() || view.owner.unresolvedWrites().length !== 0)
+          return { unavailable: true }
+        const appended = await appendControlRecord({
+          binding: view.session.log,
+          owner: view.owner,
+          concurrent: runtime.settlementContention.limits.concurrent,
+          record: {
+            kind: 'model_call_ended',
+            call: key.callId,
+            ending: 'interrupted',
+            initiator:
+              'known' in history && history.known.intent !== null
+                ? history.known.intent.initiator
+                : 'run_cancelled',
+          },
+          retainUnknown: (registration, task) =>
+            retainUnknown(view.session.log, view.owner, registration, task),
+        })
+        if ('unavailable' in appended) return { unavailable: true }
+        control.publishStopped()
+        return { released: true }
+      } catch {
+        return { unavailable: true }
+      }
+    }
+    const result = await attempt()
+    const drained = await reads.drain()
+    return 'unavailable' in drained ? { unavailable: true } : result
+  }
 }
 
 /** The service instance retains uncertain append owners across calls. A later complete read is

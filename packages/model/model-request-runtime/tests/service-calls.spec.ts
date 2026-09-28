@@ -238,6 +238,24 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     const read = await log.readSince(session, 0)
     if ('failure' in read) throw new Error(read.failure)
     expect(read.entries).toHaveLength(0)
+    expect(await calls.close()).toEqual({ released: true })
+    const stoppedRead = await log.readSince(session, 0)
+    if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
+    expect(stoppedRead.entries).toHaveLength(2)
+    for (const callId of ['call_1', 'call_2']) {
+      const entry = stoppedRead.entries.find(item =>
+        JSON.stringify(item.payload).includes(`\"call\":\"${callId}\"`),
+      )
+      expect(entry?.payload).toMatchObject({
+        value: {
+          kind: 'model_call_ended',
+          call: callId,
+          ending: 'interrupted',
+          initiator: 'run_cancelled',
+        },
+      })
+    }
+    expect(JSON.stringify(stoppedRead.entries)).not.toContain('model_call_interrupt_intent')
     expect(await service.close()).toEqual({ released: true })
     expect(stopped.length).toBeGreaterThan(0)
   } finally {
