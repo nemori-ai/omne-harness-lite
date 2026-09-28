@@ -90,6 +90,8 @@
 
 ## 当前主题
 
+- [PF-021 前置调查：omne-next 的日程与日历](omne-next-schedule-calendar/README.md)：原始诉求、十六份核心需求、后续修正与实现边界；上游 `6263fed545e48ad9efb5714f3fe76a7c1a0af1b5`，取证 2026-09-27，消费者 PF-021。
+
 - [治理中心恢复提供者](governance-recovery-providers/README.md)：Litestream v0.5.17 的同步接口、同机文件副本探针及应用恢复边界；未采用。
 
 ### 上游与模型
