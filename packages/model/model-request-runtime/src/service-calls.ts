@@ -653,8 +653,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   }
   const close = async () => {
     closing = true
-    const reads = await retainedReads.close()
-    const appendResult = await appends.close()
+    const [reads, appendResult] = await Promise.all([retainedReads.close(), appends.close()])
     const writes = await unknownWrites.close({
       concurrent: runtime.settlementContention.limits.concurrent,
       call: runtime.history.call,

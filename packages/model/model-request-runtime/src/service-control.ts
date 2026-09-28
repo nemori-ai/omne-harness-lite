@@ -713,8 +713,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   }
   const close = async (): Promise<{ readonly released: true } | { readonly unavailable: true }> => {
     closing = true
-    const readResult = await reads.close()
-    const appendResult = await appends.close()
+    const [readResult, appendResult] = await Promise.all([reads.close(), appends.close()])
     try {
       await Promise.all(backgroundEnds.values())
     } catch {
