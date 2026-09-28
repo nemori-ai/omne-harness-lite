@@ -2,232 +2,95 @@
 
 [English](README.md)
 
-表示一次模型发出的记录：路由快照、实际参数、响应收场、时序、已交付内容、用量与费用。本包判定完整记录，不发送模型请求、不拥有持久化。
+本包实现 MR7 的纯响应体表示与有序判定。一条 `ModelResponse` 记录一次实际发出的路由和档案快照、收场、时序、回复或已交付的部分、实际用量与费用，以及可选的原始响应引用。`PendingModelResponse` 是交给消息写入者的完整待提交回复事实；写入者完成自己的提交决定后，才给持久响应填 `replyDisposition`，并在适用时判断 `late`。本包不发起模型请求，也不持久化记录。
 
-本包是尚未发布的私有 ESM workspace 成员。请在本仓库内使用声明的 Node 与 pnpm 版本，环境准备见[开发指南](../../../docs/development.md)。以下导入均使用包的公开入口，每个示例都可以独立使用。
+本包是工作区内的私有 ESM 包。当前公开入口只有包根和 `./schema`。旧响应版本没有可执行子入口。不兼容的历史值会明确拒绝，不会从当前模型目录补齐缺失字段。
 
-包根入口和 `./schema` 精确采用 **MR4**；有序字符串数组响应头须显式导入 `./v5` 与 `./schema/v5`。保留的 `./v3`、`./schema/v3`、`./schema/v2` 维持原版本。同步判定不取得调用方输入的所有权，也不证明头值来自哪里。
+## 判定待提交回复和持久响应
 
-## 显式 MR5 完整响应与原始头
+下列例子可在构建工作区包后作为 ESM 文件运行。它构造的是纯文本档案。真实运行时必须从实际发出和上游交接获取路由、时刻、用量、费用与回复，不能为通过判定而伪造事实。
 
-下面用公开 v5 判定完整响应，并校验 `RawHeaders`。空数组、空串与缺席各自独立；旧根 MR4 仍拒绝混合数组值。
-
-```ts
+```js
 import assert from 'node:assert/strict'
-import { judgeModelResponse as judgeV4 } from '@omne-harness-lite/model-response'
 import {
   judgeModelResponse,
+  judgePendingModelResponse,
   validate,
-  type ModelResponse,
-  type RawHeaders,
-} from '@omne-harness-lite/model-response/v5'
+} from '@omne-harness-lite/model-response'
 
-const headers: RawHeaders = {
-  'x-one': 'a,b',
-  'x-many': ['second', 'first', 'first', ''],
-  'x-empty-array': [],
-  'x-empty-string': '',
-}
 const adaptation = {
-  implementation: { name: 'example-family', revision: 'impl-1' },
-  definition: { modelId: 'vendor/chat', revision: 'model-1' },
-  configuration: { revision: 'config-1', values: {} },
+  implementation: { name: 'example-family', revision: '1' },
+  definition: { modelId: 'example/chat', revision: '1' },
+  configuration: { revision: '1', values: {} },
 }
-const response: ModelResponse = {
-  id: 'response_1',
+const pending = {
+  id: 'resp_1',
   call: { callId: 'model_call_1' },
   dispatch: 1,
   route: {
     adaptation,
-    profile: { origin: 'official', routeName: 'vendor/chat' },
+    profile: { origin: 'official', routeName: 'example/chat' },
     profileSnapshot: {
       adaptation,
-      providers: ['provider-a'],
+      providers: ['example'],
       allowFallback: false,
       inputModalities: ['text'],
       outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
+      maxInputTokens: 1000,
+      maxOutputTokens: 100,
+      inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
+      updatedAt: '2026-09-28T10:00:00Z',
     },
     selectedBy: 'session',
-    provider: 'provider-a',
+    provider: 'example',
     credentialScope: { layer: 'factory' },
     parameters: {},
   },
-  outcome: 'interrupted',
-  initiator: 'user',
-  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
-  usage: {
-    input_tokens: 'unknown',
-    output_tokens: 'unknown',
-    cache_read_tokens: 'unknown',
-    cache_write_tokens: 'unknown',
-    source: 'none',
-  },
-  cost: { cost_usd: 'unknown', source: 'none' },
-  raw: { headers },
-}
-assert.deepEqual(validate('RawHeaders', headers), { valid: true })
-assert.deepEqual(judgeModelResponse(response), { ok: true })
-assert.deepEqual(judgeV4(response), { rejected: 'malformed' })
-assert.deepEqual(headers['x-empty-array'], [])
-```
-
-| 公开 API                                      | 用途                         |
-| --------------------------------------------- | ---------------------------- |
-| `ModelResponse`、`Route`、`Failure`、`Timing` | 描述响应的条件形状           |
-| `judgeModelResponse`                          | 按次序判定独立成员与收场关系 |
-| `validate`、`SCHEMA_DEF_NAMES`、`schemaId`    | 使用 Schema 校验面           |
-
-## 判定完整响应
-
-通过公开 API 构造带类型身份的消息与块。此记录使用官方档案与出厂凭据范围。
-
-```ts
-import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-
-const block = judgeContentBlock({
-  id: 'block_1',
-  kind: 'text',
-  text: 'Ready.',
-  visibility: { toHuman: true, toModel: true },
-})
-if ('rejected' in block || block.ok.kind !== 'text') throw new Error('Text block required')
-const { origin: _origin, ...replyBlock } = block.ok
-const response: ModelResponse = {
-  id: 'response_1',
-  call: { callId: 'model_call_1' },
-  dispatch: 1,
-  route: {
-    profile: { origin: 'official', routeName: 'vendor/chat' },
-    adaptation: {
-      implementation: { name: 'example-family', revision: 'r1' },
-      definition: { modelId: 'vendor/chat', revision: 'd1' },
-      configuration: { revision: 'c1', values: {} },
-    },
-    profileSnapshot: {
-      adaptation: {
-        implementation: { name: 'example-family', revision: 'r1' },
-        definition: { modelId: 'vendor/chat', revision: 'd1' },
-        configuration: { revision: 'c1', values: {} },
-      },
-      providers: ['provider-a'],
-      allowFallback: false,
-      inputModalities: ['text'],
-      outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
-    },
-    selectedBy: 'session',
-    provider: 'provider-a',
-    credentialScope: { layer: 'factory' },
-    parameters: { maxOutputTokens: 64 },
-  },
   outcome: 'complete',
   reply: {
-    id: unwrap(parseOpaqueIdentifier('message_1', 'MessageId')),
+    id: 'message_1',
     type: 'assistant',
-    response: 'response_1',
+    response: 'resp_1',
     ending: 'complete',
-    blocks: [replyBlock],
-    createdAt: '2026-09-26T10:00:02Z',
+    blocks: [
+      {
+        id: 'block_1',
+        kind: 'text',
+        text: 'Hello.',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+    createdAt: '2026-09-28T10:00:02Z',
   },
-  replyDisposition: 'persisted',
   timing: {
-    sentAt: '2026-09-26T10:00:00Z',
-    firstTokenAt: '2026-09-26T10:00:01Z',
-    endedAt: '2026-09-26T10:00:02Z',
+    sentAt: '2026-09-28T10:00:00Z',
+    firstTokenAt: '2026-09-28T10:00:01Z',
+    endedAt: '2026-09-28T10:00:02Z',
   },
   usage: {
-    input_tokens: 12,
-    output_tokens: 2,
+    input_tokens: 1,
+    output_tokens: 1,
     cache_read_tokens: 0,
     cache_write_tokens: 0,
     source: 'upstream',
   },
   cost: { cost_usd: 0.0001, source: 'upstream_usage' },
+  raw: { headers: { 'x-example': ['first', 'first', ''] } },
 }
-console.log(judgeModelResponse(response)) // { ok: true }
-console.log(
-  judgeModelResponse({ ...response, reply: { ...response.reply, ending: 'truncated_at_limit' } }),
-)
-// { rejected: 'reply_ending_mismatch' }
+
+assert.deepEqual(judgePendingModelResponse(pending), { ok: true })
+assert.equal(validate('ModelResponse', pending).valid, false)
+
+// 消息写入者在确认自己的提交决定之后才提供这个事实。
+const persisted = { ...pending, replyDisposition: 'persisted' }
+assert.deepEqual(judgeModelResponse(persisted), { ok: true })
+assert.deepEqual(persisted.raw.headers['x-example'], ['first', 'first', ''])
 ```
 
-## 判定故障与拒绝次序
+`validate(defName, value)` 校验 MR7 的 19 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR7 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明上游确实返回这些事实，也不证明回复已提交或响应体已耐久；这些保证由运行时和写入者承担。
 
-未知费用保留为未知；带内故障与状态码的关系，在具名响应关系之后检查。
-
-```ts
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-
-const response: ModelResponse = {
-  id: 'response_failed',
-  call: { callId: 'model_call_2' },
-  dispatch: 1,
-  route: {
-    profile: { origin: 'official', routeName: 'vendor/chat' },
-    adaptation: {
-      implementation: { name: 'example-family', revision: 'r1' },
-      definition: { modelId: 'vendor/chat', revision: 'd1' },
-      configuration: { revision: 'c1', values: {} },
-    },
-    profileSnapshot: {
-      adaptation: {
-        implementation: { name: 'example-family', revision: 'r1' },
-        definition: { modelId: 'vendor/chat', revision: 'd1' },
-        configuration: { revision: 'c1', values: {} },
-      },
-      providers: ['provider-a'],
-      allowFallback: false,
-      inputModalities: ['text'],
-      outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
-    },
-    selectedBy: 'session',
-    provider: 'provider-a',
-    credentialScope: { layer: 'factory' },
-    parameters: {},
-  },
-  outcome: 'failed',
-  failure: { cause: 'request_rejected', statusCode: 429 },
-  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
-  usage: {
-    input_tokens: 'unknown',
-    output_tokens: 'unknown',
-    cache_read_tokens: 'unknown',
-    cache_write_tokens: 'unknown',
-    source: 'none',
-  },
-  cost: { cost_usd: 'unknown', source: 'none' },
-}
-console.log(judgeModelResponse(response)) // { ok: true }
-console.log(judgeModelResponse({ ...response, outcome: 'future', dispatch: 0 }))
-// { rejected: 'outcome_unknown' }
-console.log(
-  judgeModelResponse({
-    ...response,
-    outcome: 'interrupted',
-    initiator: 'user',
-    failure: { cause: 'request_rejected', inBand: true },
-  }),
-) // { rejected: 'failure_on_interrupted' }
-```
-
-## 失败与边界
-
-`judgeModelResponse` 返回 `{ ok: true }` 或一个 `{ rejected }`。优先次序是：未知收场、小于一的整数发出序号、未知故障成因、其他独立成员形状错误；随后依次是 `reply_missing`、`reply_on_failure`、`reply_and_delivered`、`failure_missing`、`failure_on_interrupted`、`failure_on_success`、`reply_ending_mismatch`、`first_token_inconsistent`；剩余跨成员违例是 `malformed`。例如 `failure.inBand: true` 缺 `statusCode` 不会盖过 `failure_on_interrupted`。只检查 Schema 的 `validate` 返回形状是否有效，不表达上述拒绝次序。
-
-完整与截断响应带回复及其去向。回复中途故障带 `delivered` 与首 token 时刻，不带回复。中断有自己的条件形状，不属于故障。`late` 只属于关联运行的响应。计数与费用使用精确的 `JsonNumber`，未知金额不会被替换为零。
-
-通过校验只说明表示有效。实际发出来源、身份唯一性、时钟来源、真实用量、脱敏、快照捕获与持久化仍由写入方负责。被拒绝的记录说明写入方有缺陷，不能被重新分类为模型调用故障，也不能据此自动重发。本模块不读时钟或存储，不调用模型。
-
-公开 JSON Schema 入口是 `@omne-harness-lite/model-response/schema`（v4）、`/schema/v5`、`/schema/v3` 和 `/schema/v2`。参见[源码导出](src/index.ts)、[测试](tests/)与[模型档案](../model-profile/README_ZH.md)。
-
-默认入口与 Schema 采用 version4；`./v3` 和 `./schema/v3` 保留 version3 纯值入口及精确资源。`./schema/v2` 仍仅为 Schema 资源。恢复请求记录或响应时请显式选择消费版本。
+MR7 Schema 通过各 owner 的公开 Schema 入口装配固定的 22 份规范资源；资源缺失或错版会明确导致初始化失败。接受的[MR7 契约](../../../.meta_harness/design/spec/data/model-response/v7/contract.md)和[本包 v7 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v7-design.md)是语义依据。

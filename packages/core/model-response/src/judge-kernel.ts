@@ -8,6 +8,7 @@ export interface JudgmentSchema {
   readonly causes: readonly string[]
   readonly membersValid: (value: JsonValue) => boolean
   readonly responseValid: (value: JsonValue) => boolean
+  readonly pending?: true
 }
 
 function rejected(value: ModelResponseRejection): ModelResponseJudgment {
@@ -49,6 +50,14 @@ export function judgeModelResponseWithSchema(
   const failure = copied.failure
   const cause = isObject(failure) ? failure.cause : undefined
   if (typeof cause === 'string' && !schema.causes.includes(cause)) return rejected('cause_unknown')
+  if (
+    schema.pending &&
+    (outcome === 'failed' ||
+      !Object.hasOwn(copied, 'reply') ||
+      Object.hasOwn(copied, 'failure') ||
+      Object.hasOwn(copied, 'delivered'))
+  )
+    return rejected('malformed')
   if (!schema.membersValid(copied) || !amountsValid(copied)) return rejected('malformed')
 
   const reply = Object.hasOwn(copied, 'reply')

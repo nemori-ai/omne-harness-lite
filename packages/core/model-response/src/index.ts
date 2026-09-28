@@ -6,4 +6,4 @@ export {
   type SchemaValidation,
   validate,
 } from './schema.ts'
-export { judgeModelResponse } from './judge.ts'
+export { judgeModelResponse, judgePendingModelResponse } from './judge.ts'

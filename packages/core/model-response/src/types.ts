@@ -13,7 +13,7 @@ import type {
   JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import type { ScopeLayerIdentity } from '@omne-harness-lite/identity-values'
-import type { FailureCause } from '@omne-harness-lite/loop-extension/v3'
+import type { FailureCause } from '@omne-harness-lite/loop-extension'
 import type { AssistantMessage } from '@omne-harness-lite/messages'
 import type {
   ModelAdaptationBinding,
@@ -80,10 +80,11 @@ export interface Timing {
   readonly firstTokenAt?: string
   readonly endedAt: string
 }
+export type RawHeaders = Readonly<Record<string, string | readonly string[]>>
 export type RawResponse = {
-  readonly headers?: Readonly<Record<string, string>>
+  readonly headers?: RawHeaders
   readonly body?: AttachmentRef
-} & ({ readonly headers: Readonly<Record<string, string>> } | { readonly body: AttachmentRef })
+} & ({ readonly headers: RawHeaders } | { readonly body: AttachmentRef })
 interface ResponseBase {
   readonly id: ResponseId
   readonly dispatch: JsonNumber
@@ -161,6 +162,40 @@ type FailedResponse = NoReply & {
 export type ModelResponse = ResponseBase &
   RunContext &
   (SuccessfulResponse | InterruptedResponse | FailedResponse)
+/** S-39: complete reply facts before the writer determines disposition and lateness. */
+export type PendingModelResponse = ResponseBase &
+  (
+    | {
+        readonly call: { readonly callId: ModelCallId; readonly runId: RunId }
+        readonly attemptId: AttemptId
+      }
+    | {
+        readonly call: { readonly callId: ModelCallId; readonly runId?: never }
+        readonly attemptId?: never
+      }
+  ) &
+  NoFailure & {
+    readonly late?: never
+    readonly replyDisposition?: never
+    readonly delivered?: never
+    readonly timing: OpenedTiming
+  } & (
+    | {
+        readonly outcome: 'complete'
+        readonly initiator?: never
+        readonly reply: AssistantMessage & { readonly ending: 'complete' }
+      }
+    | {
+        readonly outcome: 'truncated'
+        readonly initiator?: never
+        readonly reply: AssistantMessage & { readonly ending: 'truncated_at_limit' }
+      }
+    | {
+        readonly outcome: 'interrupted'
+        readonly initiator: 'user' | 'run_cancelled'
+        readonly reply: AssistantMessage & { readonly ending: 'interrupted_by_user' }
+      }
+  )
 export type ModelResponseRejection =
   | 'outcome_unknown'
   | 'dispatch_zero'

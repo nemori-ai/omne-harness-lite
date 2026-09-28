@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v4/model-response.schema.json",
-  "title": "data.model-response v4",
-  "description": "一次发出的完整响应体：回复（若有）、出错断时已交付而不成消息的部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序、上游原始响应的引用。一次模型调用每发出一次留一条。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v4 内有效。",
-  "$comment": "v4 candidate，未接受、未冻结。继承 v3 已接受闭包与收场规则。route.adaptation 及 profileSnapshot.adaptation 必填；二者完整相等、definition.modelId 等于 profile.routeName 由 contract.md S-36 的纯判定在 Schema 之外检查，错配按 S-27 返回 malformed。缓存计数继续只在 usage 中；真实来源和缺席不得冒填由 S-37、S-38 的写入者义务保证。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v7/model-response.schema.json",
+  "title": "data.model-response v7",
+  "description": "一次发出的完整响应体：回复（若有）、出错断时已交付而不成消息的部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序、上游原始响应的引用。一次模型调用每发出一次留一条。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v7 内有效。",
+  "$comment": "v6 candidate。持久 ModelResponse 保留 v5 全部约束；PendingModelResponse 仅供 S-39 的待提交交接，禁止 replyDisposition/late。S-40 消费完整 MP5 快照与 MS6 回复。Schema 外相等关系、真实事实及提交时 late 判定仍由写入者校验。",
   "$ref": "#/$defs/ModelResponse",
   "$defs": {
     "ResponseId": {
@@ -233,19 +233,19 @@
       ],
       "properties": {
         "profile": {
-          "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ModelProfileRef",
+          "$ref": "../../model-profile/v5/model-profile.schema.json#/$defs/ModelProfileRef",
           "description": "这一次的有效模型（UL-effective-model）。"
         },
         "profileSnapshot": {
-          "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ModelProfileSnapshot",
+          "$ref": "../../model-profile/v5/model-profile.schema.json#/$defs/ModelProfileSnapshot",
           "description": "这次调用打开时绑定的那条档案在那一刻的副本：发出与重试消费的那些属性与 updatedAt（S-9）。档案后来改了，这里不变。"
         },
         "selectedBy": {
           "$ref": "#/$defs/SelectedBy"
         },
         "provider": {
-          "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ProviderName",
-          "description": "本层为这一次发出指定的那一家；每一次发出只走一家（S-24）。它在 profileSnapshot.providers 里；dispatch = 1 时是第一家；profileSnapshot.allowFallback = false 时恒是第一家（S-9，data.model-profile/v3#S-5、#S-6）——跨成员，Schema 不管。"
+          "$ref": "../../model-profile/v5/model-profile.schema.json#/$defs/ProviderName",
+          "description": "本层为这一次发出指定的那一家；每一次发出只走一家（S-24）。它在 profileSnapshot.providers 里；dispatch = 1 时是第一家；profileSnapshot.allowFallback = false 时恒是第一家（S-9，data.model-profile/v5#S-5、#S-6）——跨成员，Schema 不管。"
         },
         "credentialScope": {
           "$ref": "#/$defs/CredentialScope"
@@ -261,7 +261,7 @@
           "description": "上游给这次请求的 id（OpenRouter 的 generation id），原样，用于事后对账。上游没给时缺席。"
         },
         "parameters": {
-          "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ModelRequestParameters",
+          "$ref": "../../model-profile/v5/model-profile.schema.json#/$defs/ModelRequestParameters",
           "description": "这一次实际发给上游的那一组请求参数，以统一词表表示：按原值发出的项记原值，改了值再发出的项记实际发出的值，没发出的项不在这里（S-11）。译成上游的字段名不是改值。一项都没发出时是 {}。"
         },
         "parameterAdjustments": {
@@ -280,10 +280,10 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "要求的那一组里没有发给上游的那些项的名字（S-11）：统一项以成员名为名，extra 项以它的键为名（data.model-profile/v3#S-20），两者一视同仁。缺席即一项也没丢；空数组不是合法写法。这些名字都不在 parameters 里——跨成员，Schema 不管。"
+          "description": "要求的那一组里没有发给上游的那些项的名字（S-11）：统一项以成员名为名，extra 项以它的键为名（data.model-profile/v5#S-20），两者一视同仁。缺席即一项也没丢；空数组不是合法写法。这些名字都不在 parameters 里——跨成员，Schema 不管。"
         },
         "adaptation": {
-          "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/ModelAdaptationBinding",
+          "$ref": "../../model-profile/v5/model-profile.schema.json#/$defs/ModelAdaptationBinding",
           "description": "S-36：调用绑定的完整值，与 profileSnapshot.adaptation 精确相等，definition.modelId 与 profile.routeName 逐码点相等；Schema 之后执行纯判定。"
         },
         "servingProvider": {
@@ -295,8 +295,8 @@
     },
     "ParameterAdjustment": {
       "title": "改了值再发出的一项（contract.md S-11）",
-      "description": "name 是项名（data.model-profile/v3#S-20：统一项以成员名为名，extra 项以它的键为名）；requested 是它在要求的那一组（档案参数经本次覆盖合并之后）里的值；sent 是实际发出的值，等于 Route.parameters 里这一项的值，且与 requested 不同。统一项的 sent 必须在那一项的取值域里（它也出现在 parameters 里）；extra 项的两个值是任意 JSON。",
-      "$comment": "requested 与 sent 不按项名分别收窄取值域：那要按 name 逐项写条件，而 sent 的取值域已由 Route.parameters 管住；requested 的取值域在它进入要求的那一组之前已由 data.model-profile/v3#S-24 校验过。",
+      "description": "name 是项名（data.model-profile/v5#S-20：统一项以成员名为名，extra 项以它的键为名）；requested 是它在要求的那一组（档案参数经本次覆盖合并之后）里的值；sent 是实际发出的值，等于 Route.parameters 里这一项的值，且与 requested 不同。统一项的 sent 必须在那一项的取值域里（它也出现在 parameters 里）；extra 项的两个值是任意 JSON。",
+      "$comment": "requested 与 sent 不按项名分别收窄取值域：那要按 name 逐项写条件，而 sent 的取值域已由 Route.parameters 管住；requested 的取值域在它进入要求的那一组之前已由 data.model-profile/v5#S-24 校验过。",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -364,7 +364,7 @@
       ],
       "properties": {
         "cause": {
-          "$ref": "../../loop-extension/v3/loop-extension.schema.json#/$defs/FailureCause",
+          "$ref": "../../loop-extension/v6/loop-extension.schema.json#/$defs/FailureCause",
           "$comment": "取值不在八个之内：cause_unknown（S-27）。withdrawn / scope_disallowed / modality_mismatch 三个值形状上放过，但按 S-16 不出现在任何一条响应体上——那是判定层的约束，Schema 不管。"
         },
         "statusCode": {
@@ -408,6 +408,24 @@
         }
       }
     },
+    "RawHeaders": {
+      "title": "上游响应头的 JSON 表示（contract.md S-20）",
+      "description": "采得且脱敏后的头对象；值保持字符串或有序字符串数组原形，数组的次序、重复和空字符串均保留。允许空字符串、空数组与空对象，各自区别于缺席；不规定头名规范化或同名合并。Schema 只约束值域，不证明实际采集、脱敏或留存原样。",
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "RawResponse": {
       "title": "上游原始响应留存（contract.md S-20）",
       "description": "排查用，不进给模型的上下文，也不进任何面向人的呈现。headers 是上游响应头，脱敏之后原样，不得含凭据（S-21）；body 是上游原始响应的字节存进附件存储之后的引用，保留期是设置项，过期清理之后引用可能取不到（S-20）。两项都没有就不写这个成员。它是模型响应体身上的一项属性，不另立词条。",
@@ -416,10 +434,7 @@
       "minProperties": 1,
       "properties": {
         "headers": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+          "$ref": "#/$defs/RawHeaders"
         },
         "body": {
           "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/AttachmentRef"
@@ -482,7 +497,7 @@
           "description": "上游原样的 finish / stop reason，不翻译；上游没给时缺席。消费者不得据它推断收场，收场只看 outcome（S-12）。"
         },
         "reply": {
-          "$ref": "../../messages/v4/messages.schema.json#/$defs/AssistantMessage",
+          "$ref": "../../messages/v6/messages.schema.json#/$defs/AssistantMessage",
           "description": "这一次拿回来的那份回复（S-14）。它成没成为消息看 replyDisposition。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
         },
         "replyDisposition": {
@@ -551,6 +566,64 @@
           "$ref": "#/$defs/RawResponse"
         }
       },
+      "allOf": [
+        {
+          "$ref": "#/$defs/ResponseFactsConstraints"
+        },
+        {
+          "$comment": "malformed（跨成员，无专名，contract.md S-27）：凡 reply 存在即必带 replyDisposition。",
+          "if": {
+            "required": [
+              "reply"
+            ]
+          },
+          "then": {
+            "required": [
+              "replyDisposition"
+            ]
+          }
+        },
+        {
+          "$comment": "malformed（跨成员，无专名）：没有 reply 就不带 replyDisposition。",
+          "if": {
+            "not": {
+              "required": [
+                "reply"
+              ]
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "replyDisposition"
+              ]
+            }
+          }
+        },
+        {
+          "$comment": "malformed（跨成员，无专名）：late 只在带 call.runId 的那一条上——不属于任何运行的调用没有尝试可被栅栏关掉（S-35）。",
+          "if": {
+            "required": [
+              "late"
+            ]
+          },
+          "then": {
+            "properties": {
+              "call": {
+                "required": [
+                  "runId"
+                ]
+              }
+            },
+            "required": [
+              "call"
+            ]
+          }
+        }
+      ]
+    },
+    "ResponseFactsConstraints": {
+      "$comment": "同 owner 共用约束；不单独作为公开输入形状，S-13/S-17/S-27。",
       "allOf": [
         {
           "$comment": "reply_missing：complete / truncated 必带 reply（S-13 第一、二行）。",
@@ -866,36 +939,6 @@
           ]
         },
         {
-          "$comment": "malformed（跨成员，无专名，contract.md S-27）：凡 reply 存在即必带 replyDisposition。",
-          "if": {
-            "required": [
-              "reply"
-            ]
-          },
-          "then": {
-            "required": [
-              "replyDisposition"
-            ]
-          }
-        },
-        {
-          "$comment": "malformed（跨成员，无专名）：没有 reply 就不带 replyDisposition。",
-          "if": {
-            "not": {
-              "required": [
-                "reply"
-              ]
-            }
-          },
-          "then": {
-            "not": {
-              "required": [
-                "replyDisposition"
-              ]
-            }
-          }
-        },
-        {
           "$comment": "malformed（跨成员，无专名）：initiator 在 interrupted 上必有、在别处必无（S-12）。",
           "if": {
             "properties": {
@@ -965,26 +1008,6 @@
                 "attemptId"
               ]
             }
-          }
-        },
-        {
-          "$comment": "malformed（跨成员，无专名）：late 只在带 call.runId 的那一条上——不属于任何运行的调用没有尝试可被栅栏关掉（S-35）。",
-          "if": {
-            "required": [
-              "late"
-            ]
-          },
-          "then": {
-            "properties": {
-              "call": {
-                "required": [
-                  "runId"
-                ]
-              }
-            },
-            "required": [
-              "call"
-            ]
           }
         },
         {
@@ -1082,6 +1105,142 @@
           }
         }
       ]
+    },
+    "PendingModelResponse": {
+      "title": "PendingModelResponse（S-39）",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "call",
+        "dispatch",
+        "route",
+        "outcome",
+        "timing",
+        "usage",
+        "cost",
+        "reply"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ResponseId"
+        },
+        "call": {
+          "$ref": "#/$defs/ModelCallRef"
+        },
+        "dispatch": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "这是该次调用的第几次发出，从 1 起、逐次加一、跨尝试连续（S-8）。小于 1：dispatch_zero。",
+          "$comment": "整数但小于 1：dispatch_zero；不是整数：malformed（S-27）。"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/AttemptId",
+          "description": "这一次发出在那次运行的第几次执行尝试里出门（S-8）。call.runId 在则必有、不在则必无。它不是归属：这笔账归哪次尝试以承载本条的条目为准。"
+        },
+        "route": {
+          "$ref": "#/$defs/Route"
+        },
+        "outcome": {
+          "$ref": "#/$defs/ResponseOutcome"
+        },
+        "initiator": {
+          "enum": [
+            "user",
+            "run_cancelled",
+            "runtime_lost"
+          ],
+          "description": "谁中断了这一次发出，只在 outcome 为 interrupted 时出现、且在那里必有（S-12）：user 用户中断了这次调用；run_cancelled 这次调用所在的运行被取消或它的宿主停下、被撤下——系统发起的这几种在途的流被放弃、不带 reply，只有用户取消运行时才可能带 reply（S-13，Schema 管不到）；runtime_lost 失去了连续性、由恢复时的对账补写。"
+        },
+        "stopReason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "上游原样的 finish / stop reason，不翻译；上游没给时缺席。消费者不得据它推断收场，收场只看 outcome（S-12）。"
+        },
+        "reply": {
+          "$ref": "../../messages/v6/messages.schema.json#/$defs/AssistantMessage",
+          "description": "这一次拿回来的那份回复（S-14）。它成没成为消息看 replyDisposition。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
+        },
+        "delivered": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/ContentBlock"
+          },
+          "description": "开了口却没有回复的那一次，已交付、不成为消息的那部分：首 token 之后的故障，或开了口之后被中断而没有交出回复（S-14）。缺席即没有；空数组不是合法写法。"
+        },
+        "failure": {
+          "$ref": "#/$defs/Failure"
+        },
+        "timing": {
+          "$ref": "#/$defs/Timing"
+        },
+        "usage": {
+          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Usage"
+        },
+        "cost": {
+          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Cost"
+        },
+        "trims": {
+          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/TrimSummary",
+          "description": "这一次发出的流上合并与截掉的汇总（S-19）。缺席即一次也没砍；全零的汇总不是合法写法。",
+          "$comment": "全零即没砍，只有缺席这一种写法：四个计数里至少一个大于零（截短单个增量只计在 byReason.frame_too_long 与 omittedBytes 里，不计 merged、cut）。",
+          "anyOf": [
+            {
+              "properties": {
+                "merged": {
+                  "minimum": 1
+                }
+              }
+            },
+            {
+              "properties": {
+                "cut": {
+                  "minimum": 1
+                }
+              }
+            },
+            {
+              "properties": {
+                "omittedBytes": {
+                  "minimum": 1
+                }
+              }
+            },
+            {
+              "properties": {
+                "byReason": {
+                  "properties": {
+                    "frame_too_long": {
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "raw": {
+          "$ref": "#/$defs/RawResponse"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/ResponseFactsConstraints"
+        },
+        {
+          "properties": {
+            "outcome": {
+              "enum": [
+                "complete",
+                "truncated",
+                "interrupted"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "完整待提交回复事实，唯一不含 replyDisposition 和 late；不是可保存的 ModelResponse。"
     }
   }
 }

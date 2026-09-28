@@ -2,232 +2,95 @@
 
 [中文](README_ZH.md)
 
-Represent the record of one model dispatch: its route snapshot, actual parameters, response outcome, timing, delivered content, usage and cost. The package judges complete records without sending model requests or owning persistence.
+Pure MR7 response representation and ordered judgments. A `ModelResponse` records one dispatched model attempt, including its immutable route and profile snapshot, outcome, timing, reply or delivered partial content, actual usage, cost, and optional raw response reference. `PendingModelResponse` is the complete reply fact passed to a message writer before that writer decides whether the reply became a message and whether the record is late. Neither judgment sends a request or persists a record.
 
-This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
+This is a private ESM workspace package. Its current public entries are the package root and `./schema`. Historical response versions have no executable package entry. Incompatible stored values fail admission; the package never fills their missing fields from a current model directory.
 
-The package root and `./schema` use **MR4**. Import `./v5` and `./schema/v5` explicitly for ordered string-array response headers. The retained `./v3`, `./schema/v3`, and `./schema/v2` entries keep their original versions. Judging is synchronous and does not capture ownership of the caller's input or establish where headers came from.
+## Judge a pending reply, then a persisted response
 
-## Explicit MR5 complete response and raw headers
+The example is runnable as an ESM file after building the workspace package. It uses a text-only profile. In a real runtime the route, timestamps, usage, cost, and reply come from the actual dispatch and provider boundary; a caller must not invent them to make an invalid record pass.
 
-This example exercises the public v5 judge and the `RawHeaders` definition. Empty arrays and strings remain distinct from absent keys; MR4 still rejects the mixed array value.
-
-```ts
+```js
 import assert from 'node:assert/strict'
-import { judgeModelResponse as judgeV4 } from '@omne-harness-lite/model-response'
 import {
   judgeModelResponse,
+  judgePendingModelResponse,
   validate,
-  type ModelResponse,
-  type RawHeaders,
-} from '@omne-harness-lite/model-response/v5'
+} from '@omne-harness-lite/model-response'
 
-const headers: RawHeaders = {
-  'x-one': 'a,b',
-  'x-many': ['second', 'first', 'first', ''],
-  'x-empty-array': [],
-  'x-empty-string': '',
-}
 const adaptation = {
-  implementation: { name: 'example-family', revision: 'impl-1' },
-  definition: { modelId: 'vendor/chat', revision: 'model-1' },
-  configuration: { revision: 'config-1', values: {} },
+  implementation: { name: 'example-family', revision: '1' },
+  definition: { modelId: 'example/chat', revision: '1' },
+  configuration: { revision: '1', values: {} },
 }
-const response: ModelResponse = {
-  id: 'response_1',
+const pending = {
+  id: 'resp_1',
   call: { callId: 'model_call_1' },
   dispatch: 1,
   route: {
     adaptation,
-    profile: { origin: 'official', routeName: 'vendor/chat' },
+    profile: { origin: 'official', routeName: 'example/chat' },
     profileSnapshot: {
       adaptation,
-      providers: ['provider-a'],
+      providers: ['example'],
       allowFallback: false,
       inputModalities: ['text'],
       outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
+      maxInputTokens: 1000,
+      maxOutputTokens: 100,
+      inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
+      updatedAt: '2026-09-28T10:00:00Z',
     },
     selectedBy: 'session',
-    provider: 'provider-a',
+    provider: 'example',
     credentialScope: { layer: 'factory' },
     parameters: {},
   },
-  outcome: 'interrupted',
-  initiator: 'user',
-  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
-  usage: {
-    input_tokens: 'unknown',
-    output_tokens: 'unknown',
-    cache_read_tokens: 'unknown',
-    cache_write_tokens: 'unknown',
-    source: 'none',
-  },
-  cost: { cost_usd: 'unknown', source: 'none' },
-  raw: { headers },
-}
-assert.deepEqual(validate('RawHeaders', headers), { valid: true })
-assert.deepEqual(judgeModelResponse(response), { ok: true })
-assert.deepEqual(judgeV4(response), { rejected: 'malformed' })
-assert.deepEqual(headers['x-empty-array'], [])
-```
-
-| Public API                                    | Use                                                          |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| `ModelResponse`, `Route`, `Failure`, `Timing` | Type the conditional response shapes                         |
-| `judgeModelResponse`                          | Judge independent members and outcome relationships in order |
-| `validate`, `SCHEMA_DEF_NAMES`, `schemaId`    | Access the schema validation surface                         |
-
-## Judge a complete response
-
-Create branded message and block identities through public APIs. This record uses an official profile and a factory credential scope.
-
-```ts
-import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-
-const block = judgeContentBlock({
-  id: 'block_1',
-  kind: 'text',
-  text: 'Ready.',
-  visibility: { toHuman: true, toModel: true },
-})
-if ('rejected' in block || block.ok.kind !== 'text') throw new Error('Text block required')
-const { origin: _origin, ...replyBlock } = block.ok
-const response: ModelResponse = {
-  id: 'response_1',
-  call: { callId: 'model_call_1' },
-  dispatch: 1,
-  route: {
-    profile: { origin: 'official', routeName: 'vendor/chat' },
-    adaptation: {
-      implementation: { name: 'example-family', revision: 'r1' },
-      definition: { modelId: 'vendor/chat', revision: 'd1' },
-      configuration: { revision: 'c1', values: {} },
-    },
-    profileSnapshot: {
-      adaptation: {
-        implementation: { name: 'example-family', revision: 'r1' },
-        definition: { modelId: 'vendor/chat', revision: 'd1' },
-        configuration: { revision: 'c1', values: {} },
-      },
-      providers: ['provider-a'],
-      allowFallback: false,
-      inputModalities: ['text'],
-      outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
-    },
-    selectedBy: 'session',
-    provider: 'provider-a',
-    credentialScope: { layer: 'factory' },
-    parameters: { maxOutputTokens: 64 },
-  },
   outcome: 'complete',
   reply: {
-    id: unwrap(parseOpaqueIdentifier('message_1', 'MessageId')),
+    id: 'message_1',
     type: 'assistant',
-    response: 'response_1',
+    response: 'resp_1',
     ending: 'complete',
-    blocks: [replyBlock],
-    createdAt: '2026-09-26T10:00:02Z',
+    blocks: [
+      {
+        id: 'block_1',
+        kind: 'text',
+        text: 'Hello.',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+    createdAt: '2026-09-28T10:00:02Z',
   },
-  replyDisposition: 'persisted',
   timing: {
-    sentAt: '2026-09-26T10:00:00Z',
-    firstTokenAt: '2026-09-26T10:00:01Z',
-    endedAt: '2026-09-26T10:00:02Z',
+    sentAt: '2026-09-28T10:00:00Z',
+    firstTokenAt: '2026-09-28T10:00:01Z',
+    endedAt: '2026-09-28T10:00:02Z',
   },
   usage: {
-    input_tokens: 12,
-    output_tokens: 2,
+    input_tokens: 1,
+    output_tokens: 1,
     cache_read_tokens: 0,
     cache_write_tokens: 0,
     source: 'upstream',
   },
   cost: { cost_usd: 0.0001, source: 'upstream_usage' },
+  raw: { headers: { 'x-example': ['first', 'first', ''] } },
 }
-console.log(judgeModelResponse(response)) // { ok: true }
-console.log(
-  judgeModelResponse({ ...response, reply: { ...response.reply, ending: 'truncated_at_limit' } }),
-)
-// { rejected: 'reply_ending_mismatch' }
+
+assert.deepEqual(judgePendingModelResponse(pending), { ok: true })
+assert.equal(validate('ModelResponse', pending).valid, false)
+
+// The message writer supplies this fact only after its own commit decision.
+const persisted = { ...pending, replyDisposition: 'persisted' }
+assert.deepEqual(judgeModelResponse(persisted), { ok: true })
+assert.deepEqual(persisted.raw.headers['x-example'], ['first', 'first', ''])
 ```
 
-## Judge failure and rejection precedence
+`validate(defName, value)` checks one of the 19 MR7 JSON Schema definitions and returns `{ valid: boolean }`. `judgeModelResponse(value)` and `judgePendingModelResponse(value)` return `{ ok: true }` or `{ rejected: reason }` with the MR7 S-27 rejection order. They preserve exact JSON numbers and never mutate input. A valid representation does not prove the provider actually returned the stated facts, that a reply was committed, or that the response is durable; those guarantees belong to the runtime and writer.
 
-Unknown cost remains unknown. An in-band status-code relationship is checked after the named response relationships.
-
-```ts
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-
-const response: ModelResponse = {
-  id: 'response_failed',
-  call: { callId: 'model_call_2' },
-  dispatch: 1,
-  route: {
-    profile: { origin: 'official', routeName: 'vendor/chat' },
-    adaptation: {
-      implementation: { name: 'example-family', revision: 'r1' },
-      definition: { modelId: 'vendor/chat', revision: 'd1' },
-      configuration: { revision: 'c1', values: {} },
-    },
-    profileSnapshot: {
-      adaptation: {
-        implementation: { name: 'example-family', revision: 'r1' },
-        definition: { modelId: 'vendor/chat', revision: 'd1' },
-        configuration: { revision: 'c1', values: {} },
-      },
-      providers: ['provider-a'],
-      allowFallback: false,
-      inputModalities: ['text'],
-      outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
-    },
-    selectedBy: 'session',
-    provider: 'provider-a',
-    credentialScope: { layer: 'factory' },
-    parameters: {},
-  },
-  outcome: 'failed',
-  failure: { cause: 'request_rejected', statusCode: 429 },
-  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
-  usage: {
-    input_tokens: 'unknown',
-    output_tokens: 'unknown',
-    cache_read_tokens: 'unknown',
-    cache_write_tokens: 'unknown',
-    source: 'none',
-  },
-  cost: { cost_usd: 'unknown', source: 'none' },
-}
-console.log(judgeModelResponse(response)) // { ok: true }
-console.log(judgeModelResponse({ ...response, outcome: 'future', dispatch: 0 }))
-// { rejected: 'outcome_unknown' }
-console.log(
-  judgeModelResponse({
-    ...response,
-    outcome: 'interrupted',
-    initiator: 'user',
-    failure: { cause: 'request_rejected', inBand: true },
-  }),
-) // { rejected: 'failure_on_interrupted' }
-```
-
-## Failures and boundaries
-
-`judgeModelResponse` returns `{ ok: true }` or one `{ rejected }`. Precedence is: unknown outcome, integer dispatch below one, unknown failure cause, other independent member malformation; then `reply_missing`, `reply_on_failure`, `reply_and_delivered`, `failure_missing`, `failure_on_interrupted`, `failure_on_success`, `reply_ending_mismatch`, `first_token_inconsistent`; remaining cross-member violations are `malformed`. For example, missing `statusCode` with `failure.inBand: true` does not hide `failure_on_interrupted`. Schema-only `validate` reports shape validity rather than this rejection order.
-
-Complete and truncated responses carry a reply and disposition. Mid-reply failure carries `delivered` and a first-token time, with no reply. Interruption has its own shapes and is not a failure. `late` belongs only to a response associated with a run. Numeric counts and costs use exact `JsonNumber` values, and unknown amounts are not replaced with zero.
-
-Passing validation establishes representation validity. Actual dispatch provenance, identity uniqueness, clock provenance, truthful usage, redaction, snapshot capture and persistence remain the writer's responsibility. A rejected record is a writer defect; it must not be reclassified as a failed model call or used as a reason to automatically resend. This module reads no clocks or stores and performs no model calls.
-
-Public JSON Schema entries are `@omne-harness-lite/model-response/schema` (v4), `/schema/v5`, `/schema/v3` and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [model profile](../model-profile/README.md).
-
-The default entry and Schema use version4; `./v3` and `./schema/v3` retain version3 values and its exact resource. `./schema/v2` remains a Schema resource only. Choose the consumer version explicitly when restoring invocation records/responses.
+MR7's schema compiles against a fixed transitive set of 22 normative resources supplied through the owning packages' public schema entries. Missing or incorrect resources make package initialization fail clearly. The accepted contract is [MR7](../../../.meta_harness/design/spec/data/model-response/v7/contract.md); the provider mapping is [model-response v7](../../../.meta_harness/design/realization/packages/core/model-response/v7-design.md).

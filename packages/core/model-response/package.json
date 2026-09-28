@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-response v4 默认、显式 v5 与保留 v3 的纯值采用面",
+  "description": "data.model-response v7 current response and pending-reply judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,18 +12,7 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/model-response.schema.json",
-    "./schema/v2": "./schema/model-response.v2.schema.json",
-    "./v3": {
-      "types": "./dist/v3/index.d.ts",
-      "import": "./dist/v3/index.js"
-    },
-    "./schema/v3": "./schema/v3/model-response.schema.json",
-    "./v5": {
-      "types": "./dist/v5/index.d.ts",
-      "import": "./dist/v5/index.js"
-    },
-    "./schema/v5": "./schema/v5/model-response.schema.json"
+    "./schema": "./schema/model-response.schema.json"
   },
   "files": [
     "dist",
@@ -37,13 +26,18 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@omne-harness-lite/asset-model": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/loop-extension": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*"
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/skill-package": "workspace:*",
+    "@omne-harness-lite/mcp-endpoint": "workspace:*",
+    "@omne-harness-lite/slash-command": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
