@@ -66,7 +66,7 @@ export const googleDefinitions = ownDefinitions([
   {
     modelId: 'google/gemini-3.8-flash',
     revision: '1',
-    implementation: { name: 'pi-ai:google', revision: 'mp4-1' },
+    implementation: { name: 'pi-ai:google', revision: 'mp4-2' },
     capabilities: flashCapabilities,
     routes: {
       'google-ai-studio': googleModelRoutes['google/gemini-3.8-flash']['google-ai-studio'],
@@ -75,7 +75,7 @@ export const googleDefinitions = ownDefinitions([
   {
     modelId: 'google/gemini-3.7-flash',
     revision: '1',
-    implementation: { name: 'pi-ai:google', revision: 'mp4-1' },
+    implementation: { name: 'pi-ai:google', revision: 'mp4-2' },
     capabilities: flashCapabilities,
     routes: {
       'google-ai-studio': googleModelRoutes['google/gemini-3.7-flash']['google-ai-studio'],
