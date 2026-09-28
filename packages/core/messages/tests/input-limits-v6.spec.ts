@@ -52,4 +52,24 @@ describe('MS6 current complete snapshot reception', () => {
     )
     expect(writeJsonLossless(read.ok)).toBe(before)
   })
+
+  it('retains adjacent unsafe integers in project caps and upstream facts', () => {
+    const source = examples.cases.find(test => test.name === 'all_caps_equal_upstream')?.value
+    if (source === undefined) throw new Error('missing current fixture')
+    const text = writeJsonLossless(source)
+      .replace('"maxRequestBytes":1000', '"maxRequestBytes":9007199254740992')
+      .replace(
+        '"maxRequestBytes":{"status":"limited","value":1000}',
+        '"maxRequestBytes":{"status":"limited","value":9007199254740993}',
+      )
+    const read = readJsonStrict(text)
+    if ('failed' in read) throw new Error(read.failed)
+    const judged = judgeModelInvocationRecord(read.ok)
+    if ('rejected' in judged || judged.ok.kind !== 'model_call_dispatched')
+      throw new Error('current record rejected')
+    const restored = writeJsonLossless(judged.ok)
+    expect(restored).toContain('"maxRequestBytes":9007199254740992')
+    expect(restored).toContain('"value":9007199254740993')
+    expect(restored).toBe(text)
+  })
 })
