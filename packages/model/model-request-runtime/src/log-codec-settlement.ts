@@ -160,7 +160,11 @@ function purpose(
     ? { kind: 'persistedMessage', response }
     : null
 }
-function foreignReserved(value: JsonObject): boolean {
+/** Shared internal recognition: any legacy model key reserves this entry for the model codec. */
+export function foreignReserved(value: {
+  readonly dedupeKey?: unknown
+  readonly readKeys?: unknown
+}): boolean {
   return [value.dedupeKey, ...(Array.isArray(value.readKeys) ? value.readKeys : [])].some(
     key => typeof key === 'string' && key.startsWith('mrr/'),
   )
