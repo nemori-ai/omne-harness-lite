@@ -123,7 +123,7 @@ describe('per-invocation engineering diagnostics', () => {
     })
     expect(await handle.outcome).toHaveProperty('outcome', 'complete')
     expect(records).toBe(1)
-    expect(closes).toBe(0)
+    expect(closes).toBe(1)
     expect(
       failures.filter(kind => kind === 'model_invocation.diagnostic_contract_violation'),
     ).toHaveLength(1)

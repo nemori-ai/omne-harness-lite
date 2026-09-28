@@ -126,7 +126,7 @@ export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
       })
     : undefined
   const close = (): void => {
-    if (!emitter || !recordEnabled || closeAttempted) return
+    if (!emitter || closeAttempted) return
     closeAttempted = true
     try {
       const returned: unknown = emitter.close()
