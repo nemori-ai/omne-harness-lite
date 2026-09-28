@@ -1,0 +1,212 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { openProductionLedger } from '../../../../../../tools/model-probe/src/production-gate.mjs'
+import {
+  assertCalibrationWire,
+  decimalUsd,
+  exactEndpoint,
+  runPaidCase,
+  wholeContextReservation,
+} from './paid-calibration.mjs'
+
+const endpoint = {
+  context_length: 1000000,
+  max_completion_tokens: 128,
+  provider_name: 'xAI',
+  pricing: { prompt: '0.000002', completion: '0.000008' },
+}
+async function isolatedLedger(action, limitUsd = '100') {
+  const directory = await mkdtemp(join(tmpdir(), 'xai-ledger-test-'))
+  const path = join(directory, 'ledger.json')
+  const budget = { limitUsd, researchLimitUsd: limitUsd }
+  await writeFile(path, JSON.stringify({ format: 1, ...budget, entries: [] }), { mode: 0o600 })
+  await chmod(path, 0o600)
+  const ledger = await openProductionLedger(path, path, budget)
+  try {
+    await action(ledger, path)
+  } finally {
+    await ledger.close()
+    await rm(directory, { recursive: true, force: true })
+  }
+}
+const completed = cost => ({
+  outcome: 'complete',
+  usage: { source: 'upstream', input_tokens: 25, output_tokens: 10 },
+  cost: { source: 'upstream_usage', cost_usd: cost },
+  servingProvider: 'xAI',
+})
+const base = {
+  model: 'x-ai/grok-4.7',
+  endpoint,
+  outputTokens: 128,
+  identity: { scenario: 'fit-short' },
+  body: {
+    model: 'x-ai/grok-4.7',
+    max_tokens: 128,
+    provider: { order: ['xai'], allow_fallbacks: false },
+  },
+}
+
+test('reserves full context before sole effect and settles every scientific decimal digit', async () => {
+  await isolatedLedger(async (ledger, path) => {
+    const rows = []
+    let calls = 0
+    await runPaidCase({
+      ...base,
+      ledger,
+      append: row => rows.push(row),
+      invoke: async () => {
+        calls++
+        const disk = JSON.parse(await readFile(path, 'utf8'))
+        assert.equal(disk.entries[0].state, 'reserved')
+        assert.equal(disk.entries[0].estimateUsd, '2.001024000000000000')
+        assert.equal(rows[0].stage, 'before_send')
+        assert.equal(rows[0].reservation, disk.entries[0].id)
+        return completed(new LosslessNumber('1.234567890123456789012345e-7'))
+      },
+    })
+    assert.equal(calls, 1)
+    assert.equal(ledger.snapshot().entries[0].state, 'settled')
+    assert.equal(ledger.snapshot().entries[0].actualUsd, '0.0000001234567890123456789012345')
+    assert.equal(rows[1].costUsd, '0.0000001234567890123456789012345')
+  })
+})
+for (const variant of ['unknown', 'throw'])
+  test(`${variant} retains unresolved reservation and prevents another send`, async () => {
+    await isolatedLedger(async ledger => {
+      let calls = 0
+      const rows = []
+      const invoke = async () => {
+        calls++
+        if (variant === 'throw') throw new Error('SECRET raw error')
+        return completed('unknown')
+      }
+      const request = { ...base, ledger, append: row => rows.push(row), invoke }
+      await assert.rejects(runPaidCase(request), /Actual cost unknown/)
+      assert.equal(ledger.snapshot().entries[0].state, 'unknown')
+      assert.equal(ledger.snapshot().entries[0].actualUsd, undefined)
+      assert.equal(rows[1].costUsd, null)
+      assert.ok(!JSON.stringify(rows).includes('SECRET'))
+      await assert.rejects(runPaidCase(request), /Unsettled/)
+      assert.equal(calls, 1)
+    })
+  })
+test('insufficient full-context budget sends nothing and creates no reservation', async () => {
+  await isolatedLedger(async ledger => {
+    let calls = 0
+    await assert.rejects(
+      runPaidCase({
+        ...base,
+        ledger,
+        append: () => {},
+        invoke: async () => {
+          calls++
+          return completed(0)
+        },
+      }),
+      /Budget reservation refused/,
+    )
+    assert.equal(calls, 0)
+    assert.deepEqual(ledger.snapshot().entries, [])
+  }, '1')
+})
+test('receipt is settled but incomplete/provider mismatch stops the case', async () => {
+  await isolatedLedger(async ledger => {
+    await assert.rejects(
+      runPaidCase({
+        ...base,
+        ledger,
+        append: () => {},
+        invoke: async () => ({
+          ...completed(new LosslessNumber('4.2e-5')),
+          servingProvider: 'different',
+        }),
+      }),
+      /Incomplete calibration/,
+    )
+    assert.equal(ledger.snapshot().entries[0].actualUsd, '0.000042')
+  })
+})
+test('catalog uses original endpoint source and explicit freshness, not model-card context', () => {
+  const now = Date.parse('2026-09-28T18:00:00Z')
+  const snapshot = {
+    cards: [{ contextLength: 1 }],
+    endpointSources: {
+      model: {
+        observedAt: '2026-09-28T17:30:00Z',
+        raw: JSON.stringify({ data: { endpoints: [{ ...endpoint, tag: 'xai' }] } }),
+      },
+    },
+  }
+  assert.equal(exactEndpoint(snapshot, 'model', 1800000, now).context_length, 1000000)
+  assert.throws(() => exactEndpoint(snapshot, 'model', 1799999, now), /stale/)
+  assert.throws(() => exactEndpoint(snapshot, 'other', 1800000, now), /missing/)
+})
+test('budget accounts for cache, image, fee and rejects nonzero unbudgeted charges', () => {
+  assert.equal(
+    wholeContextReservation(
+      {
+        ...endpoint,
+        pricing: {
+          ...endpoint.pricing,
+          input_cache_write_1h: '6e-6',
+          image: '0.01',
+          request: '0.001',
+          web_search: '0',
+        },
+      },
+      128,
+    ),
+    '6.012024000000000000',
+  )
+  assert.throws(
+    () =>
+      wholeContextReservation(
+        {
+          ...endpoint,
+          pricing: {
+            ...endpoint.pricing,
+            unexpected_charge: '0.001',
+          },
+        },
+        128,
+      ),
+    /Unbudgeted/,
+  )
+  assert.equal(decimalUsd(new LosslessNumber('2e3')), '2000')
+  assert.throws(() => decimalUsd(new LosslessNumber('-1e-9')), /nonnegative/)
+})
+
+test('fixed-wire gate rejects web search and provider fallback before payment', () => {
+  assertCalibrationWire(base.body)
+  for (const change of [
+    { plugins: [{ id: 'web' }] },
+    { model: 'x-ai/grok-4.7:online' },
+    { tools: [{ type: 'web_search' }] },
+    { provider: { order: ['xai'], allow_fallbacks: true } },
+  ])
+    assert.throws(() => assertCalibrationWire({ ...base.body, ...change }), /wire capability/)
+})
+
+test('highest long-context override determines the reservation, not the small fixture estimate', () => {
+  assert.equal(
+    wholeContextReservation(
+      {
+        ...endpoint,
+        context_length: 500000,
+        pricing: {
+          prompt: '0.000002',
+          completion: '0.000006',
+          web_search: '0.005',
+          overrides: [{ min_prompt_tokens: 200000, prompt: '0.000004', completion: '0.000012' }],
+        },
+      },
+      128,
+    ),
+    '2.001536000000000000',
+  )
+})

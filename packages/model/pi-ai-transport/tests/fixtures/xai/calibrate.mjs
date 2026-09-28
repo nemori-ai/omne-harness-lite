@@ -1,7 +1,15 @@
 // Root-owned paid calibration harness. Dry-run makes no network request.
 // Usage: node packages/model/pi-ai-transport/tests/fixtures/xai/calibrate.mjs --dry-run
-// Root may run --execute only after its exclusive ledger check and with an explicit key.
-import { closeSync, fsyncSync, openSync, writeSync } from 'node:fs'
+// Execute requires explicit root-owned credential/ledger/snapshot paths; never auto-retries.
+import { closeSync, fsyncSync, openSync, readFileSync, writeSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import {
+  openProductionLedger,
+  privateOutputDirectory,
+} from '../../../../../../tools/model-probe/src/production-gate.mjs'
+import { readCredential } from '../../../../../../tools/model-probe/src/network.mjs'
+import { assertCalibrationWire, exactEndpoint, runPaidCase } from './paid-calibration.mjs'
 import { createHash } from 'node:crypto'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
@@ -188,7 +196,7 @@ function input(definition, name) {
     tools: name === 'holdout-tool-history' ? [tool] : [],
   }
 }
-function record(definition, name, planned, outcome) {
+function record(definition, name, planned) {
   const evidence = planned.inputLimitEvidence
   return {
     modelId: definition.modelId,
@@ -200,37 +208,54 @@ function record(definition, name, planned, outcome) {
     requestBytes: evidence.requestBytes,
     images: evidence.images,
     wireSha256: createHash('sha256').update(planned.serialized).digest('hex'),
-    ...(outcome === undefined
-      ? {}
-      : {
-          outcome: 'outcome' in outcome ? outcome.outcome : outcome.rejected,
-          upstreamInputTokens: 'usage' in outcome ? outcome.usage.input_tokens : null,
-          upstreamUsageSource: 'usage' in outcome ? outcome.usage.source : null,
-          upstreamOutputTokens: 'usage' in outcome ? outcome.usage.output_tokens : null,
-          costUsd: 'cost' in outcome ? outcome.cost.cost_usd : null,
-          costSource: 'cost' in outcome ? outcome.cost.source : null,
-          upstreamRequestId: 'upstreamRequestId' in outcome ? outcome.upstreamRequestId : null,
-          servingProvider: 'servingProvider' in outcome ? outcome.servingProvider : null,
-        }),
   }
 }
 const args = process.argv.slice(2)
 const execute = args.includes('--execute')
 if (execute === args.includes('--dry-run'))
   throw new Error('choose exactly one of --dry-run or --execute')
-const outIndex = args.indexOf('--out')
-if (outIndex < 0 || !args[outIndex + 1])
-  throw new Error('required: --out <root-owned-ledger-adjacent-path>')
-const key = execute ? process.env.OPENROUTER_API_KEY : undefined
-if (execute && !key) throw new Error('OPENROUTER_API_KEY required for root-owned execution')
-const journal = openSync(args[outIndex + 1], 'wx', 0o600)
+function option(name, fallback) {
+  const index = args.indexOf(name)
+  if (index < 0 && fallback !== undefined) return fallback
+  if (index < 0 || !args[index + 1] || args[index + 1].startsWith('--'))
+    throw new Error(`required: ${name} <value>`)
+  return args[index + 1]
+}
+const output = option('--out')
+let ledger
+let key
+let snapshot
+let snapshotSha256
+const maxAgeMs = Number(option('--max-snapshot-age-ms', '86400000'))
+if (execute) {
+  const source = readFileSync(option('--snapshot'), 'utf8')
+  snapshot = JSON.parse(source)
+  snapshotSha256 = createHash('sha256').update(source).digest('hex')
+  // Validate both fixed endpoints before obtaining the ledger or loading a credential.
+  for (const definition of xaiDefinitions) exactEndpoint(snapshot, definition.modelId, maxAgeMs)
+  const ledgerPath = option('--ledger')
+  const approved = option('--approved-ledger')
+  const stored = JSON.parse(readFileSync(ledgerPath, 'utf8'))
+  await privateOutputDirectory(dirname(output))
+  key = await readCredential(option('--credential-file'))
+  ledger = await openProductionLedger(ledgerPath, approved, {
+    limitUsd: stored.limitUsd,
+    researchLimitUsd: stored.researchLimitUsd,
+  })
+}
+let journal
 let completed = 0
-let stopped = false
 function append(row) {
-  writeSync(journal, `${JSON.stringify(row)}\n`)
+  // Identity and independent usage/fees are structured; redact possible upstream
+  // request/provider echoes before serialization. Never retain raw error messages.
+  if (key)
+    for (const field of ['upstreamRequestId', 'servingProvider'])
+      if (typeof row[field] === 'string') row[field] = row[field].replaceAll(key, '[REDACTED]')
+  writeSync(journal, `${writeJsonLossless(row)}\n`)
   fsyncSync(journal)
 }
 try {
+  journal = openSync(output, 'wx', 0o600)
   for (const definition of xaiDefinitions) {
     const meter = createXaiCandidateInputMeter(definition)
     const transport = createPiAiTransport({
@@ -242,51 +267,50 @@ try {
       for (const name of names) {
         const request = input(definition, name)
         const planned = transport.plan(request)
-        if ('rejected' in planned)
-          throw new Error(`plan refused ${definition.modelId}/${name}: ${JSON.stringify(planned)}`)
-        const identity = record(definition, name, planned.planned)
-        append({ stage: execute ? 'before_send' : 'dry_plan', ...identity })
-        let outcome
+        if ('rejected' in planned) throw new Error('Fixed calibration plan refused')
+        assertCalibrationWire(planned.planned.body)
+        const identity = {
+          ...record(definition, name, planned.planned),
+          ...(execute ? { snapshotSha256 } : {}),
+        }
         if (execute) {
-          outcome = await invokeModel({
-            ...request,
-            transport,
-            credential: key,
-            signal: new AbortController().signal,
-            policy,
-          }).outcome
-        }
-        if (execute)
-          append({ stage: 'observed', ...record(definition, name, planned.planned, outcome) })
+          const endpoint = exactEndpoint(snapshot, definition.modelId, maxAgeMs)
+          await runPaidCase({
+            ledger,
+            model: definition.modelId,
+            endpoint,
+            outputTokens: request.parameters.maxOutputTokens,
+            identity,
+            body: planned.planned.body,
+            append,
+            invoke: async () => {
+              const invocation = invokeModel({
+                ...request,
+                transport,
+                credential: key,
+                signal: new AbortController().signal,
+                policy,
+              })
+              // outcome resolves after invocation's finally/stream stop; transport
+              // owner is drained below even when settlement or the oracle fails.
+              return await invocation.outcome
+            },
+          })
+        } else append({ stage: 'dry_plan', ...identity })
         completed++
-        // One failed or unknown request stops the batch; no hidden retry or spend continuation.
-        if (
-          execute &&
-          (!outcome ||
-            !('outcome' in outcome) ||
-            outcome.outcome !== 'complete' ||
-            !('usage' in outcome) ||
-            outcome.usage.source !== 'upstream' ||
-            !Number.isSafeInteger(outcome.usage.input_tokens) ||
-            !('cost' in outcome) ||
-            outcome.cost.cost_usd === 'unknown')
-        ) {
-          stopped = true
-          break
-        }
       }
     } finally {
       await transport.close()
     }
-    if (stopped) break
   }
+} catch {
+  // Do not print arbitrary upstream/runtime exceptions or credential paths.
+  process.stderr.write(
+    'Calibration stopped; inspect private evidence and original ledger. No retry.\n',
+  )
+  process.exitCode = 1
 } finally {
-  closeSync(journal)
+  if (journal !== undefined) closeSync(journal)
+  if (ledger) await ledger.close()
 }
-console.log(
-  JSON.stringify({
-    mode: execute ? 'execute' : 'dry-run',
-    cases: completed,
-    output: args[outIndex + 1],
-  }),
-)
+console.log(JSON.stringify({ mode: execute ? 'execute' : 'dry-run', cases: completed, output }))
