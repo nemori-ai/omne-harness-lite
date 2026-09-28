@@ -129,6 +129,12 @@ describe('C14 actual supervised worker', () => {
       if (failed.kind === 'failed') expect(failed.response).toBeDefined()
       expect((await conversation.totals()).responses).toBe(2)
       expect((await conversation.close()).complete).toBe(true)
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      const successor = await supervisor.open()
+      expect(successor.workerIdentity).not.toBe(conversation.workerIdentity)
+      expect(successor.session).toBe(conversation.session)
+      expect((await successor.totals()).responses).toBe(2)
+      expect((await successor.close()).complete).toBe(true)
     } finally {
       await server.close()
     }
