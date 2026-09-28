@@ -66,7 +66,7 @@ async function runServicePath(upstream: UpstreamMode, sink: SinkMode) {
         body: Buffer.from('controlled-local-credential'),
       })),
     ).toEqual({ stored: true })
-    const dispatch = app.startServiceTextCall(who, prepared.session, {
+    const dispatch = app.startServiceCall(who, prepared.session, {
       user: userMessage(label),
       parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
       host: host.host,
