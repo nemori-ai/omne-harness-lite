@@ -417,6 +417,16 @@ describe('real model service retry and control', () => {
       const dispatch = service.dispatch({ session, callId })
       await tls.contentSent.promise
       expect(tls.requests).toHaveLength(1)
+      await expect
+        .poll(
+          async () =>
+            kinds(await logKeys(app, who, session), callId).filter(kind => kind === 'opened')
+              .length,
+          {
+            timeout: 5000,
+          },
+        )
+        .toBe(1)
       expect(await service.interrupt({ session, callId, initiator: 'user' })).toEqual({
         stage: 'speaking',
       })
