@@ -35,3 +35,22 @@ Offline checks:
 ```sh
 node --test packages/model/pi-ai-transport/tests/qwen-six-probe.test.mjs
 ```
+
+The later Max 0902 bridge is a **separate one-request experiment**. `bridge.mjs` changes only case 08's `messages[0].content` from the original string to an equal text-part array; all other request fields stay frozen. Its wire SHA-256 is `14fa3e510ce17797079c751c818c1e3cfca3300cc10073a8ce98fec87f7f8d78`. Run `bridge.mjs dry --snapshot SNAPSHOT` first, then `bridge.mjs run` with the same nine explicit private/budget options as `run.mjs run` above and a fresh empty output directory. The single-result comparison is against original case 08's observed 68 prompt tokens; it establishes only this one content-shape difference under non-streaming conditions.
+
+The actual public planner also emits `stream:true` and `store:false`. `formal-invoke.mjs` constructs the project `PlanInput`, runs the real Qwen definition, meter, and `planRequest`, and rejects any serialized byte difference from `08-qwen3.8-max-0902-english-formal-plan.json` (SHA-256 `05980a21733b774d261ec231e71a94671d9372f07051ce2ee473cf5120f56c26`). The frozen formal wire differs from the bridge only in those two fields. Its `run` command uses `invokeModel` with the real HTTPS transport, limits the audited send boundary to one matching request, and owns the ledger reservation before the effect. It writes the full **domain outcome** and send-boundary hash owner-only and fsyncs the file and directory before settling actual cost. This public boundary does not expose the raw SSE body; `observed.json` says so. An unknown cost or incomplete outcome stops without replay. Only root operates it with the campaign-approved credential and ledger:
+
+```sh
+node packages/model/pi-ai-transport/tests/fixtures/qwen/probe-six/formal-invoke.mjs dry \
+  --snapshot tmp/model-request-runtime/vendor-completion-root/catalog-20260928-live.json
+node packages/model/pi-ai-transport/tests/fixtures/qwen/probe-six/formal-invoke.mjs run \
+  --snapshot tmp/model-request-runtime/vendor-completion-root/catalog-20260928-live.json \
+  --ledger /absolute/path/to/existing-approved-ledger.json \
+  --approved-ledger /absolute/path/to/existing-approved-ledger.json \
+  --credential-file /absolute/path/to/existing-private-credential.env \
+  --output tmp/model-request-runtime/vendor-completion-root/qwen-formal-new-empty-output \
+  --limit-usd EXISTING_LEDGER_LIMIT \
+  --research-limit-usd EXISTING_LEDGER_RESEARCH_LIMIT
+```
+
+The full-context reservation remains `$2.500096000000000000`; it is exposure, not predicted actual cost. Local TLS verification is `node --test packages/model/pi-ai-transport/tests/qwen-formal-invoke.test.mjs`.

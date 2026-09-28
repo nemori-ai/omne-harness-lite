@@ -299,6 +299,27 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     }
   })
 
+  it('freezes the actual Max planner projection for the original 08 English prompt', () => {
+    const modelId = 'qwen/qwen3.8-max-0902'
+    const selected = definition(modelId)
+    const input = {
+      ...request(modelId),
+      messages: [message('user', 'Reply with the single word OK.', 'hosted-max-english')],
+      tools: [],
+      parameters: { maxOutputTokens: 16 },
+    }
+    const planned = planRequest(input, [selected], createQwenInputMeter(selected))
+    if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+    const frozen = readFileSync(
+      new URL(
+        './fixtures/qwen/probe-six/08-qwen3.8-max-0902-english-formal-plan.json',
+        import.meta.url,
+      ),
+      'utf8',
+    )
+    expect(planned.planned.serialized).toBe(frozen.trimEnd())
+  })
+
   it('pins the eight credentialed certification case identities and accepted cache configurations', () => {
     const raw: unknown = JSON.parse(
       readFileSync(new URL('./fixtures/qwen/authentication-cases.json', import.meta.url), 'utf8'),

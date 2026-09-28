@@ -78,3 +78,20 @@ test('single-case Max bridge changes only original 08 content representation', a
   original.messages[0].content = [{ type: 'text', text: original.messages[0].content }]
   assert.deepEqual(changed, original)
 })
+
+test('frozen formal Max plan differs from bridge only in stream and store', async () => {
+  const root = new URL('./fixtures/qwen/probe-six/', import.meta.url)
+  const bridge = JSON.parse(
+    await readFile(new URL('08-qwen3.8-max-0902-english-text-array.json', root)),
+  )
+  const wire = await readFile(new URL('08-qwen3.8-max-0902-english-formal-plan.json', root))
+  const planned = JSON.parse(wire)
+  assert.equal(
+    createHash('sha256').update(wire).digest('hex'),
+    '05980a21733b774d261ec231e71a94671d9372f07051ce2ee473cf5120f56c26',
+  )
+  assert.equal(bridge.stream, false)
+  bridge.stream = true
+  bridge.store = false
+  assert.deepEqual(planned, bridge)
+})
