@@ -1,8 +1,8 @@
 # 消息
 
-## 当前采用与 v4 候选
+## 当前采用与 v5 候选
 
-当前已接受版本为 `data.messages/v3`（D-068）；[v4 契约](v4/contract.md)、[Schema](v4/messages.schema.json)及[实例](v4/examples.md)是模型适配绑定增量的 **candidate**，未接受、未冻结，不替代 v3，也不自动升级消费者。v4 从 v3 继承 core 修正，采用 `data.model-profile/v3`，在已出门记录和档案快照中必带完整 `adaptation`；跨字段相等与模型 ID 对齐由接收边界纯校验。变化与证据见[验证入口](verification.md#v4-模型适配绑定)。以下历史条目保留其原版本范围。
+当前已接受版本为 `data.messages/v4`（[D-078](../../../record/decisions/model-main-integration-coordination/acceptance.json)）；[v5 契约](v5/contract.md)、[Schema](v5/messages.schema.json)、[实例](v5/examples.md)与[输入限制实例](v5/input-limit-examples.json)是 **candidate**。v5 精确采用 `data.model-profile/v4`，只扩展 S-49 的完整输入限制快照留存；七种消息与已有运行时记录语义保留。版本变化与证据见[验证入口](verification.md#v5-完整输入限制快照)。v5 未接受或冻结，旧消费者不自动升级；以下历史条目保留原版本范围。
 
 **一份会话日志里的消息：七种各自是什么、带什么、谁感知得到、出门怎么办。**
 提醒的来源是一张怎样的闭合表、说状态的要带什么；压缩名单长什么样、什么样的名单合法；
