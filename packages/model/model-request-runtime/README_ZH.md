@@ -323,3 +323,45 @@ if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opene
 ```
 
 比较器与 completeMembers 在声明的合法 RFC3339 输入域内给条件性结果，不认证实际时间来源、闰秒公告、合法历史或物理提交。真正生产边界的生产者／宿主／历史 owner 仍须兑现 TL-G1；未核外部值或历史在该边界保持 unavailable。旧毫秒 Instant／Clock 行为保持原状。
+
+## 显式使用 MR5 日志 codec
+
+显式导入 `@omne-harness-lite/model-request-runtime/log-codec/v2` 以接收 MR5 响应，包括有序字符串数组 `raw.headers`。它导出前述相同的 codec 函数和类型。新入口的 `modelLogFormat` 是 `mrr/2`；根入口仍是 MR4 与 `mrr/1`。载荷格式与业务键命名空间分开：两种写方对同一 MessageId／ResponseId 仍使用相同的 `mrr/1` 判重键。
+
+下面的独立示例构造完整 persisted `[M,R]` 批或一条非持久回复响应。传入完整实际响应与合法消息前缀；示例不执行 IO，也不授予日志权限。将导入的包声明为直接依赖。
+
+```ts
+import {
+  captureModelLogValue, prepareModelLogEntry, inspectSettlementMembers,
+  type InspectSettlementMembersInput,
+} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import type { TenantId } from '@omne-harness-lite/identity-values'
+import type { LogPrefixView } from '@omne-harness-lite/messages'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+
+export function prepareReplyBatchV2(
+  session: string, tenant: TenantId, responseValue: unknown, messagePrefix: LogPrefixView,
+): readonly OwnedLogEntry[] {
+  const response = captureModelLogValue({ category: 'response', input: { kind: 'value', value: responseValue } })
+  if (!('ok' in response)) throw new Error(response.reason)
+  const r = prepareModelLogEntry({ session, shell: { tenant }, captured: response.ok,
+    purpose: { kind: 'response' }, messagePrefix })
+  if (!('ok' in r)) throw new Error(r.reason)
+  if (response.ok.response?.replyDisposition !== 'persisted') return [r.ok]
+  const message = captureModelLogValue({ category: 'message',
+    input: { kind: 'value', value: response.ok.response.reply } })
+  if (!('ok' in message)) throw new Error(message.reason)
+  const m = prepareModelLogEntry({ session, shell: { tenant }, captured: message.ok,
+    purpose: { kind: 'persistedMessage', response: response.ok }, messagePrefix })
+  if (!('ok' in m)) throw new Error(m.reason)
+  return [m.ok, r.ok]
+}
+
+export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
+  return inspectSettlementMembers(input)
+}
+```
+
+通过实际 SL3 提供者**一次追加整个返回数组**。v2 检查按 MR4 读取 `mrr/1`，按 MR5 读取 `mrr/2`，保留原载荷格式、值与位置；未知格式或谎标 `mrr/1` 的数组头会拒绝。数组次序、重复、精确数以及头缺席／空 map 均保留。检查结果与条目相邻不能认证物理同批；G29-P/H、合法全读、旧写方实际停止及完整 runtime 仍由宿主负责。
+
+捕获归属于产生它的 codec 域，根与 v2 捕获不能互换。v2 历史捕获不能直接准备为写候选：须对原值显式调用 v2 `captureModelLogValue`，再次通过完整接收。旧根捕获／构造行为保持，不自动重写历史或升级消费者。采用依据为 [D094](../../../.meta_harness/design/record/decisions/model-log-codec-v2-adoption/decision.md)。

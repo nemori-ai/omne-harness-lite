@@ -328,3 +328,45 @@ pnpm --filter @omne-harness-lite/model-request-runtime run test
 ```
 
 The companion transport tests exercise this function against actual local HTTPS and the public core assembler. Complete service/durability and live model certification require their later acceptance stages.
+
+## Explicit MR5 log codec
+
+Import `@omne-harness-lite/model-request-runtime/log-codec/v2` explicitly for MR5 responses, including ordered string-array `raw.headers`. It exports the same codec functions and types listed above. Its `modelLogFormat` is `mrr/2`; the root remains MR4 and `mrr/1`. Payload format and business-key namespace are separate: both writers retain the same `mrr/1` dedupe keys for each MessageId and ResponseId.
+
+The following standalone example prepares a complete persisted `[M,R]` batch or one nonpersisted response. Supply the complete actual response and legal message prefix; the example performs no IO and grants no log permission. Declare the imported packages as direct dependencies.
+
+```ts
+import {
+  captureModelLogValue, prepareModelLogEntry, inspectSettlementMembers,
+  type InspectSettlementMembersInput,
+} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import type { TenantId } from '@omne-harness-lite/identity-values'
+import type { LogPrefixView } from '@omne-harness-lite/messages'
+import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+
+export function prepareReplyBatchV2(
+  session: string, tenant: TenantId, responseValue: unknown, messagePrefix: LogPrefixView,
+): readonly OwnedLogEntry[] {
+  const response = captureModelLogValue({ category: 'response', input: { kind: 'value', value: responseValue } })
+  if (!('ok' in response)) throw new Error(response.reason)
+  const r = prepareModelLogEntry({ session, shell: { tenant }, captured: response.ok,
+    purpose: { kind: 'response' }, messagePrefix })
+  if (!('ok' in r)) throw new Error(r.reason)
+  if (response.ok.response?.replyDisposition !== 'persisted') return [r.ok]
+  const message = captureModelLogValue({ category: 'message',
+    input: { kind: 'value', value: response.ok.response.reply } })
+  if (!('ok' in message)) throw new Error(message.reason)
+  const m = prepareModelLogEntry({ session, shell: { tenant }, captured: message.ok,
+    purpose: { kind: 'persistedMessage', response: response.ok }, messagePrefix })
+  if (!('ok' in m)) throw new Error(m.reason)
+  return [m.ok, r.ok]
+}
+
+export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
+  return inspectSettlementMembers(input)
+}
+```
+
+Append the **entire returned array once** through the actual SL3 provider. V2 inspection reads `mrr/1` with MR4 and `mrr/2` with MR5, retains original payload format/value/position, and rejects unknown formats or arrays falsely tagged `mrr/1`. It preserves ordered duplicates, exact numbers, and absent versus empty headers. Neither inspection nor adjacency certifies a physical batch; G29-P/H, lawful reads, old-writer stop and the full runtime remain the host's responsibility.
+
+Captures belong to their originating codec domain. Root and v2 captures cannot be interchanged. V2 history captures cannot be prepared for writing: explicitly call v2 `captureModelLogValue` on the original value and pass complete reception again. Existing root capture/prepare behavior remains unchanged. No automatic history rewrite or consumer upgrade occurs. Adoption is fixed by [D094](../../../.meta_harness/design/record/decisions/model-log-codec-v2-adoption/decision.md).
