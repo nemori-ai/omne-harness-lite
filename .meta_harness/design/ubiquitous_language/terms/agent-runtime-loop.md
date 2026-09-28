@@ -505,7 +505,7 @@
 
 - **形态**：过程
 - **出处**：[PF-012 §4 Run 是三样东西的归属单位](../../product/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 15） ·
-  [PF-013 §5.13 它只有一个宿主](../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 14）
+  [PF-013 §5.13 它只有一个宿主](../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 15）
 - **别混**：**不是[插队](interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump)**——插队的那句话要进队列、被这次运行看到；旁路提问碰不到运行
 - **注意**：**模型调用的全套规则对它照样成立**——宿主是 agent runtime，同样按档案与有效模型出门、看首 token、由重试挂件决定试不试；
   归属规则本身归 [PF-015](../../product/PF-015-session-lifecycle-and-ownership/README.md)

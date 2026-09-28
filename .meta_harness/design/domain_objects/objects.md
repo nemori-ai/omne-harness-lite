@@ -103,7 +103,7 @@
 - **宿主**：—。建在出厂默认、组织或租户自己那一层；它不是资产，「用哪个模型」那项设置记的是路由名，同名的几条在范围链上按层取最具体一格的那一条（租户 > 组织 > 官方）
 - **身份**：**（所在范围, 路由名）**——同一个范围里一个路由名只对应一条（在册的、已撤回的都算），不同范围里可以各有一条同名的；路由名一旦定下不可改，改了就是另一条档案
 - **生灭**：建档（建档者持有该范围的配置资格，且这个范围里还没有同路由名的）→ 在册 ⇄ 已撤回（**没有终态**：撤回不删行，那一行永远保留；恢复在册的还是原来那一条，谁撤得了谁恢复得了）。在册期间自建档案可以修订，**路由名与来源除外**——换路由名就是另建一条、撤回旧的。「这个范围不再允许它」不是它的状态转移，是作用域求值的结果变了
-- **依据**：[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 14）；[PF-013 §4 档案的身份](../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 14）；[PF-013 flows §3.1](../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 14）；[PF-013 flows §四](../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 14）；[PF-013 §6.4](../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 14）
+- **依据**：[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 15）；[PF-013 §4 档案的身份](../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 15）；[PF-013 flows §3.1](../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 15）；[PF-013 flows §四](../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 15）；[PF-013 §6.4](../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 15）
 
 ### UL-meta-capability · meta 能力
 
@@ -254,7 +254,7 @@
 - **宿主**：[agent runtime](#ul-agent-runtime--agent-runtime)（永远；转不了后台）——主流程那一次、拓展件为运行发起的、压缩时生成摘要的、**不属于任何运行的[旁路提问](../ubiquitous_language/terms/agent-runtime-loop.md#ul-side-question--旁路提问--side-question)**都一样；不属于任何运行的那几次，花的钱归会话那一级。**转换件本版不发起模型调用**
 - **身份**：正文未述；每次调用要留下「实际用了哪条档案」的留痕
 - **生灭**：待发出 → 在途（可在本层换一家或退避）→ 说话中（首 token 到，不可逆）→ 完整一份。三个终态：完整一份 · 上交 · 被中断。完整一份在落盘前被否决，**这次调用仍停在「完整一份」**，记下被谁否决，loop 另起新调用。停机恢复看首 token：之前可重发，之后一律不重发、收场原因记为运行时失联
-- **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 14）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 14）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 14）
+- **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 15）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 15）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 15）
 - **并入**：「模型请求的运行时」（PF-013 §5.13 的叫法，指执行这一次调用的那个协程——**不是规格里以「模型请求运行时」为名的那项能力**，见 [C-31](../ubiquitous_language/conflicts.md#现有冲突)）「模型请求」「进行中的模型响应」——正文没给它们各自的身份，是这一个对象的运行时面。**一次调用里的每一次[发出](../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)不另立对象**：它是过程，留下的是[模型响应体](#ul-model-response--模型响应体)
 
 ### UL-model-response · 模型响应体
@@ -262,7 +262,7 @@
 - **宿主**：[会话日志](#ul-session-log--会话日志)——它是一条效力为留痕的[记录条目](#ul-record-entry--记录条目)的载荷，随日志留着；试过又失败的那几条不进方程、不进模型的上下文
 - **身份**：正文未述；只要求分得出是哪次[模型调用](#ul-model-call--一次模型调用)的哪一次发出——哪一家、什么时候、上游回了什么状态码
 - **生灭**：一次发出结束（成了 · 断了 · 被中断）时写下 → 写下后不改，要补靠追加（费用晚到的补一条）→ 随会话日志留着；一次都没发出的调用没有它；首 token 之后这次调用不再有下一条
-- **依据**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)（rev 14）；[PF-013 §5.13 停机之后](../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 14）；[PF-000 §4 条目效力](../product/PF-000-occurrences-and-record-entries/design.md#条目效力--entry-standing)（rev 1）
+- **依据**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)（rev 15）；[PF-013 §5.13 停机之后](../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 15）；[PF-000 §4 条目效力](../product/PF-000-occurrences-and-record-entries/design.md#条目效力--entry-standing)（rev 1）
 - **并入**：「留痕」（PF-013 §5.5 对试过又失败的那几次的叫法）——正文当同一物用：每一家一条、哪一家、什么时候、状态码
 - **未裁**：正文只对失败的那几次说「每一家一条留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)，rev 13；[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)，rev 12）——两者是不是同一条记录，正文未述；规格 `data.model-response` 按「每一次发出恰一条」把两样合在一条上。归 PF-013 的 owner；本轮未记入其 decisions
 
