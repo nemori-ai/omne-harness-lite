@@ -11,6 +11,7 @@ export interface ControlFacts {
         readonly intentExists: boolean
       }
     | { readonly absent: true }
+    | { readonly noDispatch: true; readonly intentExists: boolean }
     | { readonly unavailable: true }
   readonly operation?: Pick<CallOperationState, 'phase'>
   readonly localCall: boolean
@@ -25,7 +26,8 @@ export function controlFactsFromHistory(
   let durable: ControlFacts['durable']
   if ('unavailable' in history) durable = { unavailable: true }
   else if ('absent' in history) durable = { absent: true }
-  else if (history.known.phase === null) durable = { unavailable: true }
+  else if (history.known.phase === null)
+    durable = { noDispatch: true, intentExists: history.known.intent !== null }
   else durable = { phase: history.known.phase, intentExists: history.known.intent !== null }
   return { durable, localCall, ...(operation === undefined ? {} : { operation }) }
 }
@@ -43,6 +45,7 @@ function phase(facts: ControlFacts): DispatchGuardPhase | 'absent' | 'unknown' {
   const durable = facts.durable
   if ('unavailable' in durable) return 'unknown'
   if ('absent' in durable) return facts.localCall ? 'open' : 'absent'
+  if ('noDispatch' in durable) return facts.localCall ? 'open' : 'unknown'
   if (
     durable.phase !== 'complete' &&
     durable.phase !== 'handed_up' &&

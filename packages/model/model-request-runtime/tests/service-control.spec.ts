@@ -18,6 +18,12 @@ describe('RT7 S-31/S-32 control admission from owned facts', () => {
       stage: 'before_dispatch',
       intentExists: false,
     })
+    expect(
+      classifyInterrupt({ durable: { noDispatch: true, intentExists: true }, localCall: true }),
+    ).toEqual({ stage: 'before_dispatch', intentExists: true })
+    expect(
+      classifyInterrupt({ durable: { noDispatch: true, intentExists: true }, localCall: false }),
+    ).toEqual({ rejected: 'unavailable' })
   })
 
   it('returns the durable control stage and preserves an existing intent', () => {
