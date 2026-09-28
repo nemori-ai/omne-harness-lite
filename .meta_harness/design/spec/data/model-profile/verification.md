@@ -2,6 +2,54 @@
 
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
+## v4 候选与证据义务
+
+本版在 `panqiwei/model-request-runtime-profile4-spec`、基线 `84260cac` 起草。PF-013 rev 14 / D-096 已核对；本包状态 **candidate**。v2/v3 冻结资源没有改动；下列历史 v3 起草记录不改变它后来已接受的状态。
+
+| 条款 / 性质 | 能失败的证据义务 | 状态与 owner |
+|---|---|---|
+| S-8/S-9/S-32 形状、必填、适用性、三态闭合 | examples.json 全部 74 条 Schema 正反例；三个宿主同条件；精确外部 $ref 全部可解析 | 本次本地检查结果见下；实现符合性未开始，core/model-profile |
+| S-24/S-25/S-31/S-33 表示层跨字段与优先级 | 四指标 N/N+1、上限冲突与输出冲突同时发生、缺 cap 与空 providers 同时发生；不能只跑 Schema | 规范中的比较谓词自检见下；真实 validator 对全部拒绝值的符合性未开始，core/model-profile |
+| S-11/S-28 相等与时间 | 只改 cap、只改事实、只改配置、对象键次序/模态次序、时间源不后退；记录是否实际改写均有断言 | 未开始，directory |
+| S-27 完整不可变快照 | 拷贝后修改原对象与当前目录，旧快照精确不变；新输入重计；MS/MR/LC 三位置往返不丢字段 | 未开始，runtime / codec |
+| S-8 准确计量或可靠保守界 | 有独立来源 oracle；消息/system/tools/协议/模态全部计入，保守界超 cap 但真值未知不得声称测得超限 | 未开始，模型计量提供者；G-15 |
+| S-9/S-33 字节、图数、请求体独立指标 | 严格 base64 实际解码值、重复图项、逐图都过而总数或完整请求体失败；附件 bytes 不能放行 | 未开始，runtime / transport；数据形状检查不替代最终门 |
+| S-3/S-10/S-29/S-30 继承义务 | 同格原子判重、同身份恢复、修订不改义、配置无秘密、严格 JSON 无损 | 原证据保留原范围；v4 提供者符合性未开始 |
+| S-27 历史读取与新发送 | 旧快照只按旧版本读取/结算，不用当前目录回填；新版缺成员拒绝且无新发送 | 未开始，runtime / codec；G-16 |
+
+### v4 变化的影响
+
+本轮将 S-8/S-9 的项目供给与 S-32 的上游事实分开，S-33 在既有 malformed 下增加跨字段一致性，S-11 更新六项时间语义，S-27 完整保存两组限制；Schema 增加两个共享定义并在档案、建档内容与快照上采用相同 image 条件。身份、registration、绑定修订与参数词表未改变。新增指标是既有档案属性的技术投影，没有新增领域对象。
+
+本批需要精确迁移的消费面：directory4 的整值写读与 updatedAt；runtime6 的同一快照和最终门；messages5、response6、loop-extension5 的完整快照；runner4 的失败主体透传。旧版本与旧记录保持原采用，不能因为 root 推荐候选而升级。
+
+本次起草只交 catalog/covers/lineage 及 namespaces/formal disposition **片段**给集成 owner；中央 registry 尚未由本执行者改动或登记。沿用 S-/G-/M 编号族，不增 namespace。lineage.json 现行口径仅跨 baseline，故不造同 baseline 的 relations；同 baseline 演进与实际消费者迁移清单交给 root 集成。
+
+### v4 形式化范围
+
+本数据包没有新增并发协议、共享操作代数或装卸状态机。三态与有限数值是单文档结构，Schema 与 S-33 比较即可表达；时间、目录提交及快照不可变需要消费者场景，模型责任归目录/runtime。**不新增 TLA+/Alloy，不登记 formal task，形式工具未运行**；不能把形状校验说成 token 计量或并发保证已证明。
+
+### v4 本次实际检查
+
+2026-09-28，在本 spoke 的 `.venv/bin/python`（Python 3.12、jsonschema 4.26.0）执行本地实例检查，实际输出：
+
+```text
+PASS: Draft202012 schema valid; 42 exact $refs resolved; 74 schema cases matched; all 14 definitions covered; 9 S-33 declarative comparisons matched.
+NOT RUN: production representation validator/rejection priority; directory time/transactions; snapshot/codec scenarios; actual token/media metering; formal tools.
+```
+
+命令 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 实际返回 0：
+
+```text
+PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-profile4-spec/.meta_harness/design passed gate=internal; formal=skip.
+```
+
+`git diff --check` 返回 0；v2/v3 路径的 `git diff --quiet` 返回 0。首次系统 Python 3.8 尝试因 `PurePosixPath.is_relative_to` 不存在中止；随后 Python 3.12 的一次检查点名尚未补齐的 verification 锚点，补齐后上列重跑通过。均不把早期失败记成通过。
+
+上述本地原始日志与可重跑实例脚本交 root 保存在本次任务区，未归档成 record/evidence。Schema 自检不是实现验收，规范比较谓词自检不代替生产 validator。检查器本次未集成候选中央登记，主线整批集成后还须核对新消费坐标与登记片段。
+
+独立表达复评点名的两处残留已修：Schema 描述中的旧 v3 作用域；抬头继承产品来源复核到 PF-001 rev23 §6.1、PF-004 rev13 §6.6（适用性质未变）。没有修改 Schema 结构。
+
 ## v3 候选与证据义务
 
 2026-09-27：在 `panqiwei/model-request-runtime`、基线 `d4eaf767` 上起草
