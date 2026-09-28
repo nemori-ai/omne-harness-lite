@@ -1,5 +1,5 @@
 // xAI calibration only; no credential access or network in this helper.
-import { jsonNumberSource } from '@omne-harness-lite/content-blocks'
+import { jsonNumberSource, readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { usdString, usdUnits } from '../../../../../../tools/model-probe/src/budget.mjs'
 import { paidInvocation } from '../../../../../../tools/model-probe/src/production-gate.mjs'
 
@@ -163,7 +163,8 @@ export async function runPaidCase({
         complete:
           outcome.outcome === 'complete' &&
           outcome.usage?.source === 'upstream' &&
-          Number.isSafeInteger(outcome.usage.input_tokens) &&
+          safeTokenCount(outcome.usage.input_tokens) !== undefined &&
+          safeTokenCount(outcome.usage.output_tokens) !== undefined &&
           outcome.servingProvider === endpoint.provider_name,
       }
     },
@@ -171,4 +172,80 @@ export async function runPaidCase({
   if (!result.receipt.complete)
     throw new Error('Incomplete calibration case: stop after settlement')
   return result
+}
+
+// The runtime returns JsonNumber (usually LosslessNumber), not necessarily Number.
+// Convert only after proving an exact, nonnegative integer fits the safe range.
+export function safeTokenCount(value) {
+  try {
+    const expanded = decimalUsd(jsonNumberSource(value))
+    const [whole, fraction = ''] = expanded.split('.')
+    if (/[^0]/.test(fraction)) return undefined
+    const integer = BigInt(whole)
+    if (integer > BigInt(Number.MAX_SAFE_INTEGER)) return undefined
+    return Number(integer)
+  } catch {
+    return undefined
+  }
+}
+
+// Explicit one-case recovery for the preexisting oracle failure. This never
+// retries a failed/unknown send, nor accepts an arbitrary subset of eight cases.
+export function resumeSuccessfulFirstCase(source, expected, endpoint, ledgerSnapshot) {
+  const lines = source.trim().split('\n')
+  if (lines.length !== 2) throw new Error('Resume requires exactly one complete pair')
+  const rows = lines.map(line => {
+    const parsed = readJsonStrict(line)
+    if (
+      !('ok' in parsed) ||
+      !parsed.ok ||
+      Array.isArray(parsed.ok) ||
+      typeof parsed.ok !== 'object'
+    )
+      throw new Error('Invalid resume journal')
+    return parsed.ok
+  })
+  const [before, observed] = rows
+  if (before.stage !== 'before_send' || observed.stage !== 'observed')
+    throw new Error('Invalid resume pair order')
+  for (const key of ['modelId', 'scenario', 'partition', 'candidateRevision', 'wireSha256'])
+    if (before[key] !== expected[key] || observed[key] !== expected[key])
+      throw new Error('Resume wire/candidate identity mismatch')
+  for (const key of ['estimatedTokens', 'admissionTokens', 'requestBytes', 'images'])
+    if (
+      safeTokenCount(before[key]) !== safeTokenCount(expected[key]) ||
+      safeTokenCount(observed[key]) !== safeTokenCount(expected[key]) ||
+      safeTokenCount(expected[key]) === undefined
+    )
+      throw new Error('Resume plan evidence mismatch')
+  if (
+    before.snapshotSha256 !== observed.snapshotSha256 ||
+    typeof before.snapshotSha256 !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(before.snapshotSha256) ||
+    observed.outcome !== 'complete' ||
+    observed.upstreamUsageSource !== 'upstream' ||
+    safeTokenCount(observed.upstreamInputTokens) === undefined ||
+    safeTokenCount(observed.upstreamOutputTokens) === undefined ||
+    observed.servingProvider !== endpoint.provider_name ||
+    observed.costSource !== 'upstream_usage' ||
+    typeof observed.costUsd !== 'string' ||
+    !/^\d+(?:\.\d+)?$/.test(observed.costUsd) ||
+    typeof observed.upstreamRequestId !== 'string' ||
+    !observed.upstreamRequestId ||
+    typeof before.reservation !== 'string' ||
+    before.reservation !== observed.reservation
+  )
+    throw new Error('Resume requires known complete upstream evidence')
+  const receipts = ledgerSnapshot.entries.filter(entry => entry.id === before.reservation)
+  if (
+    receipts.length !== 1 ||
+    receipts[0].state !== 'settled' ||
+    receipts[0].model !== expected.modelId ||
+    receipts[0].provider !== 'xai' ||
+    receipts[0].stage !== 'research' ||
+    receipts[0].estimateUsd !== before.estimateUsd ||
+    receipts[0].actualUsd !== observed.costUsd
+  )
+    throw new Error('Resume receipt does not match original settled ledger')
+  return rows
 }

@@ -3,13 +3,15 @@ import assert from 'node:assert/strict'
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { openProductionLedger } from '../../../../../../tools/model-probe/src/production-gate.mjs'
 import {
   assertCalibrationWire,
   decimalUsd,
   exactEndpoint,
   runPaidCase,
+  safeTokenCount,
+  resumeSuccessfulFirstCase,
   wholeContextReservation,
 } from './paid-calibration.mjs'
 
@@ -35,9 +37,14 @@ async function isolatedLedger(action, limitUsd = '100') {
 }
 const completed = cost => ({
   outcome: 'complete',
-  usage: { source: 'upstream', input_tokens: 25, output_tokens: 10 },
+  usage: {
+    source: 'upstream',
+    input_tokens: new LosslessNumber('25'),
+    output_tokens: new LosslessNumber('10'),
+  },
   cost: { source: 'upstream_usage', cost_usd: cost },
   servingProvider: 'xAI',
+  upstreamRequestId: 'controlled-request',
 })
 const base = {
   model: 'x-ai/grok-4.7',
@@ -209,4 +216,117 @@ test('highest long-context override determines the reservation, not the small fi
     ),
     '2.001536000000000000',
   )
+})
+
+test('safe token oracle consumes real core numbers without changing recorded usage', async () => {
+  for (const [source, expected] of [
+    ['103', 103],
+    ['1.03e2', 103],
+    ['0', 0],
+    ['9007199254740991', Number.MAX_SAFE_INTEGER],
+    ['9007199254740992', undefined],
+    ['103.0000000000000000000001', undefined],
+    ['-1', undefined],
+  ])
+    assert.equal(safeTokenCount(new LosslessNumber(source)), expected)
+  assert.equal(safeTokenCount('103'), undefined)
+  await isolatedLedger(async ledger => {
+    const usage = new LosslessNumber('1.03e2')
+    const rows = []
+    await runPaidCase({
+      ...base,
+      ledger,
+      append: row => rows.push(row),
+      invoke: async () => ({
+        ...completed(new LosslessNumber('0.0008512')),
+        usage: { source: 'upstream', input_tokens: usage, output_tokens: new LosslessNumber('47') },
+      }),
+    })
+    assert.strictEqual(rows[1].upstreamInputTokens, usage)
+    assert.match(writeJsonLossless(rows[1]), /"upstreamInputTokens":1.03e2/)
+    assert.equal(ledger.snapshot().entries[0].state, 'settled')
+  })
+})
+
+test('explicit resume accepts only one exact successful first-case pair with original settled receipt', async () => {
+  await isolatedLedger(async ledger => {
+    const identity = {
+      modelId: base.model,
+      scenario: 'fit-short',
+      partition: 'fit',
+      candidateRevision: 'grok-build-wire-projection-candidate-1',
+      wireSha256: 'a'.repeat(64),
+      snapshotSha256: 'b'.repeat(64),
+      estimatedTokens: 78,
+      admissionTokens: 78,
+      requestBytes: 314,
+      images: 0,
+    }
+    const rows = []
+    let calls = 0
+    await runPaidCase({
+      ...base,
+      identity,
+      ledger,
+      append: row => rows.push(row),
+      invoke: async () => {
+        calls++
+        return completed(new LosslessNumber('0.0008512'))
+      },
+    })
+    const source = rows.map(writeJsonLossless).join('\n') + '\n'
+    const ledgerBefore = ledger.snapshot()
+    const copied = resumeSuccessfulFirstCase(source, identity, endpoint, ledgerBefore)
+    assert.equal(copied.length, 2)
+    assert.equal(calls, 1)
+    assert.deepEqual(ledger.snapshot(), ledgerBefore)
+    assert.equal(copied[1].reservation, rows[1].reservation)
+    for (const key of ['modelId', 'scenario', 'candidateRevision', 'wireSha256'])
+      assert.throws(
+        () =>
+          resumeSuccessfulFirstCase(
+            source,
+            { ...identity, [key]: 'changed' },
+            endpoint,
+            ledgerBefore,
+          ),
+        /identity mismatch/,
+      )
+    const journal = changes =>
+      rows
+        .map((row, index) => writeJsonLossless(index === 1 ? { ...row, ...changes } : row))
+        .join('\n')
+    for (const changes of [
+      { outcome: 'failed' },
+      { costUsd: null },
+      { servingProvider: 'Other' },
+      { upstreamInputTokens: new LosslessNumber('9007199254740992') },
+      { reservation: 'other' },
+    ])
+      assert.throws(
+        () => resumeSuccessfulFirstCase(journal(changes), identity, endpoint, ledgerBefore),
+        /evidence/,
+      )
+    for (const entryChanges of [
+      { state: 'unknown' },
+      { actualUsd: '0.0008513' },
+      { model: 'other' },
+    ])
+      assert.throws(
+        () =>
+          resumeSuccessfulFirstCase(source, identity, endpoint, {
+            ...ledgerBefore,
+            entries: [{ ...ledgerBefore.entries[0], ...entryChanges }],
+          }),
+        /original settled ledger/,
+      )
+    assert.throws(
+      () => resumeSuccessfulFirstCase(source + source, identity, endpoint, ledgerBefore),
+      /exactly one/,
+    )
+    assert.throws(
+      () => resumeSuccessfulFirstCase(writeJsonLossless(rows[0]), identity, endpoint, ledgerBefore),
+      /exactly one/,
+    )
+  })
 })

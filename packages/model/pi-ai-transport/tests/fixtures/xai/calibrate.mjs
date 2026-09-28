@@ -9,7 +9,12 @@ import {
   privateOutputDirectory,
 } from '../../../../../../tools/model-probe/src/production-gate.mjs'
 import { readCredential } from '../../../../../../tools/model-probe/src/network.mjs'
-import { assertCalibrationWire, exactEndpoint, runPaidCase } from './paid-calibration.mjs'
+import {
+  assertCalibrationWire,
+  exactEndpoint,
+  resumeSuccessfulFirstCase,
+  runPaidCase,
+} from './paid-calibration.mjs'
 import { createHash } from 'node:crypto'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
@@ -222,6 +227,8 @@ function option(name, fallback) {
   return args[index + 1]
 }
 const output = option('--out')
+const resumePath = args.includes('--resume-from') ? option('--resume-from') : undefined
+if (resumePath && !execute) throw new Error('--resume-from requires --execute')
 let ledger
 let key
 let snapshot
@@ -245,6 +252,9 @@ if (execute) {
 }
 let journal
 let completed = 0
+let resumed = 0
+let sent = 0
+let resumeSource
 function append(row) {
   // Identity and independent usage/fees are structured; redact possible upstream
   // request/provider echoes before serialization. Never retain raw error messages.
@@ -255,6 +265,7 @@ function append(row) {
   fsyncSync(journal)
 }
 try {
+  if (resumePath) resumeSource = readFileSync(resumePath, 'utf8')
   journal = openSync(output, 'wx', 0o600)
   for (const definition of xaiDefinitions) {
     const meter = createXaiCandidateInputMeter(definition)
@@ -275,6 +286,19 @@ try {
         }
         if (execute) {
           const endpoint = exactEndpoint(snapshot, definition.modelId, maxAgeMs)
+          if (resumeSource !== undefined && completed === 0) {
+            const rows = resumeSuccessfulFirstCase(
+              resumeSource,
+              identity,
+              endpoint,
+              ledger.snapshot(),
+            )
+            const resumeSourceSha256 = createHash('sha256').update(resumeSource).digest('hex')
+            for (const row of rows) append({ ...row, resumeSourceSha256 })
+            resumed++
+            completed++
+            continue
+          }
           await runPaidCase({
             ledger,
             model: definition.modelId,
@@ -284,6 +308,7 @@ try {
             body: planned.planned.body,
             append,
             invoke: async () => {
+              sent++
               const invocation = invokeModel({
                 ...request,
                 transport,
@@ -313,4 +338,12 @@ try {
   if (journal !== undefined) closeSync(journal)
   if (ledger) await ledger.close()
 }
-console.log(JSON.stringify({ mode: execute ? 'execute' : 'dry-run', cases: completed, output }))
+console.log(
+  JSON.stringify({
+    mode: execute ? 'execute' : 'dry-run',
+    cases: completed,
+    resumed,
+    sent,
+    output,
+  }),
+)
