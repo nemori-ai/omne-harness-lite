@@ -1,0 +1,20 @@
+{
+  "vocabulary": {
+    "source": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/tiktoken.model",
+    "alsoUsedBy": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/tiktoken.model",
+    "sha256": "b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103",
+    "license": "See LICENSE.K3 and LICENSE.K27"
+  },
+  "k3": {
+    "source": "https://huggingface.co/moonshotai/Kimi-K3/tree/f831ab66814297da540d832a5235f8e904f29d06",
+    "template": "encoding_k3.py",
+    "config": "k3-tokenizer_config.json",
+    "license": "LICENSE.K3"
+  },
+  "k27Code": {
+    "source": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/tree/74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+    "template": "chat_template.jinja",
+    "config": "k27-tokenizer_config.json",
+    "license": "LICENSE.K27"
+  }
+}
