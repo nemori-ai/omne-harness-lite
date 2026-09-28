@@ -1,7 +1,7 @@
 # PF-015：会话的生命周期与归属
 
 - 修订：rev 13，2026-09-27 · [变更历史](changelog.md)
-- 状态：草稿，**部分待定**——未决项见 [§9](#九未决项)
+- 状态：已正式接受（active）；**保留显式未决项**，见 [§9](#九未决项)。接受依据见 [D-074](../../record/decisions/session-workspace-product-acceptance/decision.md)。
 
 ---
 

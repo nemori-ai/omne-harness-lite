@@ -34,7 +34,7 @@
 
 - **现象**：PF-015 说 runtime context「是一块一块的，不是一个大袋子，每一块是一份数据」，每块有生产者与消费者、就地更新、要能恢复。词条 UL-runtime-context 指的是整批（形态为总称），真正可指认的单位「块」没有词条；而十四项里有的是实时算的、没有持久状态
 - **牵涉**：[PF-015 §4 runtime context](../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 13）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 13）
-- **谁来裁**：PF-015 的 owner（该 topic 仍是草稿）
+- **谁来裁**：PF-015 的 owner
 - **闭合条件**：正文写明「块」是不是一个要被标识的单位；是的话给它名字并立词条
 
 ### 一次派发

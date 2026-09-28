@@ -17,9 +17,9 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [会话](../domain_objects/objects.md#ul-session--会话) | [UL-session](../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) | —（归属于[租户](../domain_objects/objects.md#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变） | 主会话、子会话、作业会话 | PF-015（草稿） | 002 007 011 012 014 016 |
-| [运行](../domain_objects/objects.md#ul-run--运行) | [UL-run](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | [会话](../domain_objects/objects.md#ul-session--会话)（附着在恰好一个会话上） | — | PF-012 | 007 011 014 015（草稿） 016 |
-| [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [UL-agent-runtime](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | 正文未指定；由「一个会话任一时刻至多一个活跃的 agent runtime」推断为[会话](../domain_objects/objects.md#ul-session--会话) | — | PF-012 | 011 015（草稿） |
+| [会话](../domain_objects/objects.md#ul-session--会话) | [UL-session](../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) | —（归属于[租户](../domain_objects/objects.md#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变） | 主会话、子会话、作业会话 | PF-015 | 002 007 011 012 014 016 |
+| [运行](../domain_objects/objects.md#ul-run--运行) | [UL-run](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | [会话](../domain_objects/objects.md#ul-session--会话)（附着在恰好一个会话上） | — | PF-012 | 007 011 014 015 016 |
+| [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [UL-agent-runtime](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | 正文未指定；由「一个会话任一时刻至多一个活跃的 agent runtime」推断为[会话](../domain_objects/objects.md#ul-session--会话) | — | PF-012 | 011 015 |
 | [装配清单](../domain_objects/objects.md#ul-assembly-manifest--装配清单) | [UL-assembly-manifest](../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | —（为恰好一个[会话](../domain_objects/objects.md#ul-session--会话)求值） | — | PF-004 | — |
 
 ## 能力与构成
@@ -58,7 +58,7 @@
 | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境) | [UL-execution-environment](../ubiquitous_language/terms/grounding-and-isolation.md#ul-execution-environment--执行环境--execution-environment) | — | 沙箱、宿主机 | PF-005 | 004 |
 | [沙箱实现](../domain_objects/objects.md#ul-sandbox-implementation--沙箱实现) | [UL-sandbox-implementation](../ubiquitous_language/terms/grounding-and-isolation.md#ul-sandbox-implementation--沙箱实现--sandbox-implementation) | 正文未述——正文只说它是**装配时可选装配**的，没说装配之后它的寿命跟着谁 | — | PF-005 | — |
 | [无状态沙箱](../domain_objects/objects.md#ul-stateless-sandbox--无状态沙箱) | [UL-stateless-sandbox](../ubiquitous_language/terms/grounding-and-isolation.md#ul-stateless-sandbox--无状态沙箱--stateless-sandbox) | 一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) | — | PF-005 | — |
-| [会话级沙箱](../domain_objects/objects.md#ul-session-sandbox--会话级沙箱) | [UL-session-sandbox](../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox) | [会话](../domain_objects/objects.md#ul-session--会话) | — | PF-005 | 015（草稿） |
+| [会话级沙箱](../domain_objects/objects.md#ul-session-sandbox--会话级沙箱) | [UL-session-sandbox](../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox) | [会话](../domain_objects/objects.md#ul-session--会话) | — | PF-005 | 015 |
 | [租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱) | [UL-tenant-sandbox](../ubiquitous_language/terms/grounding-and-isolation.md#ul-tenant-sandbox--租户级沙箱--tenant-scoped-sandbox) | [租户](../domain_objects/objects.md#ul-tenant--租户) | — | PF-005 | — |
 | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) | [UL-sandbox-data](../ubiquitous_language/terms/grounding-and-isolation.md#ul-sandbox-data--沙箱数据--sandbox-data) | [租户](../domain_objects/objects.md#ul-tenant--租户)（寿命上）；[租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱)（归属上） | — | PF-005 | — |
 | [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) | [UL-terminal-session](../ubiquitous_language/terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没） | — | PF-007 | 016 |
@@ -71,19 +71,19 @@
 |---|---|---|---|---|---|
 | [派发报告](../domain_objects/objects.md#ul-dispatch-report--派发报告) | [UL-dispatch-report](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 它所属的那次派发 | — | PF-007 | — |
 | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) | [UL-decision-card](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | [会话](../domain_objects/objects.md#ul-session--会话)（归属）；被它阻塞的是一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)或一次[运行](../domain_objects/objects.md#ul-run--运行) | — | PF-008 | — |
-| [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [UL-session-authorization-context](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | [会话](../domain_objects/objects.md#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在） | — | PF-007 | 015（草稿） |
+| [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [UL-session-authorization-context](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | [会话](../domain_objects/objects.md#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在） | — | PF-007 | 015 |
 | [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) | [UL-authorization-expression](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，它[落成租户层的权限设置值](../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度) | — | PF-007 | — |
-| [入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达) | [UL-inbound-arrival](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | [会话](../domain_objects/objects.md#ul-session--会话)（恰好一个；没有「飘着的到达」） | 控制指令、插队 | PF-014 | 015（草稿） |
+| [入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达) | [UL-inbound-arrival](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | [会话](../domain_objects/objects.md#ul-session--会话)（恰好一个；没有「飘着的到达」） | 控制指令、插队 | PF-014 | 015 |
 
 ## 记录与上下文
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
 | [记录条目](../domain_objects/objects.md#ul-record-entry--记录条目) | [UL-record-entry](../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry) | 它声明的寿命宿主——首批取值是会话 · 运行 · 执行尝试 · agent runtime · 租户，默认会话，取值表未封板 | — | PF-000 | — |
-| [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [UL-session-log](../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log) | [会话](../domain_objects/objects.md#ul-session--会话)（归会话，不归运行） | — | PF-012 | 015（草稿） |
-| [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009 | 015（草稿） |
+| [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [UL-session-log](../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log) | [会话](../domain_objects/objects.md#ul-session--会话)（归会话，不归运行） | — | PF-012 | 015 |
+| [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009 | 015 |
 | [内容块](../domain_objects/objects.md#ul-content-block--内容块) | [UL-content-block](../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) | [消息](../domain_objects/objects.md#ul-message--消息) | — | PF-009 | 014 |
-| [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PF-007 | 015（草稿） |
+| [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PF-007 | 015 |
 | [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PF-021 | — |
 | [业务日历版本](../domain_objects/objects.md#ul-business-calendar-version--业务日历版本) | [UL-business-calendar-version](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 正文未述；所属业务日历可追溯，未规定随其退出而删除 | — | PF-021 | — |
 
@@ -91,8 +91,8 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [租户](../domain_objects/objects.md#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与 | Git 工作区 | PF-020（草稿） | 002 |
-| [工作区实例](../domain_objects/objects.md#ul-workspace-instance--工作区实例) | [UL-workspace-instance](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 部署节点上的一次工作区装载，可接入用户已有的本地目录；它代表一个工作区，但不拥有工作区 | — | PF-020（草稿） | — |
+| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [租户](../domain_objects/objects.md#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与 | Git 工作区 | PF-020 | 002 |
+| [工作区实例](../domain_objects/objects.md#ul-workspace-instance--工作区实例) | [UL-workspace-instance](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 部署节点上的一次工作区装载，可接入用户已有的本地目录；它代表一个工作区，但不拥有工作区 | — | PF-020 | — |
 
 ## 主体与归属
 
@@ -104,7 +104,7 @@
 | [邀请](../domain_objects/objects.md#ul-invitation--邀请) | [UL-invitation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-invitation--邀请--invitation) | [组织](../domain_objects/objects.md#ul-organization--组织)——**发出它的那个组织**：它不存在了，这份邀请随即自动过期。它指向一个账号，但那个账号在接受之前对它没有任何持有；个人组织发不出邀请 | — | PF-001 | — |
 | [隶属请求](../domain_objects/objects.md#ul-affiliation-request--隶属请求) | [UL-affiliation-request](../ubiquitous_language/terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 正文未述。由一个[组织](../domain_objects/objects.md#ul-organization--组织)的超级管理员发出、指向另一个组织；个人组织不参与隶属关系，既发不出也收不到 | — | PF-001 | — |
 | [租户](../domain_objects/objects.md#ul-tenant--租户) | [UL-tenant](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | —（身份由[组织](../domain_objects/objects.md#ul-organization--组织)与[账号](../domain_objects/objects.md#ul-account--账号)共同确定） | — | PF-001 | 011 013 |
-| [租户—工作区关系](../domain_objects/objects.md#ul-tenant-workspace-relation--租户工作区关系) | [UL-tenant-workspace-relation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 关联一个租户与一个工作区；独立宿主及租户端终止时的处理正文未述；中心托管工作区确认销毁后删除其全部租户关系，地址不可达不自动表示关系失效 | — | PF-020（草稿） | — |
+| [租户—工作区关系](../domain_objects/objects.md#ul-tenant-workspace-relation--租户工作区关系) | [UL-tenant-workspace-relation](../ubiquitous_language/terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 关联一个租户与一个工作区；独立宿主及租户端终止时的处理正文未述；中心托管工作区确认销毁后删除其全部租户关系，地址不可达不自动表示关系失效 | — | PF-020 | — |
 
 ## 谁寄宿在谁身上
 
@@ -141,7 +141,7 @@
 |---|---|
 | [存储](../domain_objects/pending.md#存储) | PF-006 的 owner |
 | [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人——它要不要做、归哪个 topic，都还没有人说过；已记入 PF-007 decisions「已知的来源问题」 |
-| [runtime context 的一块](../domain_objects/pending.md#runtime-context-的一块) | PF-015 的 owner（该 topic 仍是草稿） |
+| [runtime context 的一块](../domain_objects/pending.md#runtime-context-的一块) | PF-015 的 owner |
 | [一次派发](../domain_objects/pending.md#一次派发) | PF-007 的 owner，连带 PF-015（同一个子会话上能不能同时跑两次派发） |
 | [agent 之间的消息](../domain_objects/pending.md#agent-之间的消息) | PF-007 与 PF-014 的 owner |
 | [外部 harness 的 agent](../domain_objects/pending.md#外部-harness-的-agent) | PF-007 的 owner |

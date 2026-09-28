@@ -1,7 +1,7 @@
 ---
 id: PF-015
 title: 会话怎么建、活成什么样、什么时候归档，以及会话之间是什么关系
-status: draft
+status: active
 revision: 13
 relations:
   supersedes: []
@@ -78,7 +78,7 @@ relations:
 
 ## 状态
 
-**draft，rev 12。**[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
+**active，rev 13，已正式接受。**接受依据见 [D-074](../../record/decisions/session-workspace-product-acceptance/decision.md)。[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
 [会话类型](design.md#会话类型)、[业务流程拓展点](design.md#业务流程拓展点)、
 [会话运行模式](design.md#会话运行模式)与[存储要守住的两件事](design.md#58-存储要守住的两件事)
 六块已由产品负责人拍板（[decisions](decisions.md#一拍板记录)，共 59 条），可以被下游引用；

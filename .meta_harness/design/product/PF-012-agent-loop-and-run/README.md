@@ -194,7 +194,7 @@ relations:
 
 - 产品设计：**rev 15，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - **没有待裁决项**；[对账那条裁决](decisions.md#一拍板记录)有一处 PM 读法[由 D-065 确认](decisions.md#四已知的来源问题)（追补前提含「工具执行运行时里找不到它」）
-- **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 7，仍是草稿）。
+- **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 13，已正式接受；显式未决项保留）。
   **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
   而 [§6.6](design.md#66-终态不可逆且只有一个出口) 说的三个终态**是 Run 的，不是会话的**，两者从来不是一回事
 - **不欠别人的账**：[悬着的东西不许被压掉](design.md#611-悬着的东西不许被压掉)

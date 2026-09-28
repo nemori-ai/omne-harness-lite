@@ -5,6 +5,11 @@
 
 ## 一、拍板记录
 
+### 2026-09-28 · 正式接受 rev 13
+
+产品负责人明确要求 PF-015 与 PF-020 转正，并在主分支提交、推送。原话与接受范围见 [D-074](../../record/decisions/session-workspace-product-acceptance/decision.md)。
+本包置为 active，产品规则与修订号不变；第九节未决项及已知来源问题保留，不因接受而填写默认值。
+
 ### 2026-09-22 · 工作区在创建时显式指定，不指定就是空
 
 **裁决记在 [PF-002](../PF-002-assets-settings-and-permissions/decisions.md#2026-09-22--工作区是一级治理不是目录会话创建时-opt-in挂上就自动加载)**——
