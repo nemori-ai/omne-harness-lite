@@ -1,0 +1,27 @@
+{
+  "jinja2": "2.10.1",
+  "templateSha256": "3740abcea51c45830cb3ca562084ad5fb2ef53589376f73332e9886f93ade41c",
+  "historiesSha256": "827812a4c5897e55998370691cabff981131dd0e30bcfff2d3d688e5173c39c0",
+  "goldens": [
+    {
+      "id": "prime-control",
+      "promptSha256": "a4e7a1e81f4d9f5b056a73affd35135307c2964a20f61a099378112cc1034c9e"
+    },
+    {
+      "id": "prime-long",
+      "promptSha256": "7a8a800ccd7dcaa46402f228c0f1dacd661c683848ae534ce49a32a27c29c7b5"
+    },
+    {
+      "id": "prime-base",
+      "promptSha256": "bd836bd2f4ff9b4fbd6fc3359f231162756755198836dd2d4088c09146c5635e"
+    },
+    {
+      "id": "flashx-long",
+      "promptSha256": "1190b10bbb2e8eccd7837fefcbb06bcb64fb4284ed03a039c636d51411866a7a"
+    },
+    {
+      "id": "flashx-mixed",
+      "promptSha256": "05d901cd686ab9aa98c9a5ccceeb4be402b14d674b464d0a37e0a6c93ba30d9f"
+    }
+  ]
+}

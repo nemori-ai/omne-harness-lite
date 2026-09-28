@@ -10,13 +10,14 @@ type TextMessage = Readonly<{ role: 'system' | 'user'; content: string }>
 type AssistantMessage = Readonly<{
   role: 'assistant'
   content: string
+  reasoning: string
   calls: string
   callIds: readonly string[]
 }>
 type ToolMessage = Readonly<{ role: 'tool'; content: string; callId: string }>
 type Message = TextMessage | AssistantMessage | ToolMessage
 
-function messages(body: JsonObject): readonly Message[] | undefined {
+function messages(body: JsonObject, plainHistory: boolean): readonly Message[] | undefined {
   if (!Array.isArray(body.messages)) return undefined
   const parsed: Message[] = []
   for (const raw of body.messages) {
@@ -32,7 +33,11 @@ function messages(body: JsonObject): readonly Message[] | undefined {
       // The published templates consume reasoning_content, while the final
       // OpenRouter body uses reasoning/reasoning_details. No observed mapping
       // proves they are equivalent; do not silently discard either.
-      if (raw.reasoning !== undefined || raw.reasoning_details !== undefined) return undefined
+      if (
+        raw.reasoning_details !== undefined ||
+        (raw.reasoning !== undefined && (!plainHistory || typeof raw.reasoning !== 'string'))
+      )
+        return undefined
       const content = visibleText(raw.content)
       const calls = toolCalls(raw.tool_calls)
       if (content === undefined || content.includes('</think>') || calls === undefined)
@@ -45,7 +50,13 @@ function messages(body: JsonObject): readonly Message[] | undefined {
           callIds.push(call.id)
         }
       }
-      parsed.push({ role: 'assistant', content, calls, callIds })
+      parsed.push({
+        role: 'assistant',
+        content,
+        reasoning: typeof raw.reasoning === 'string' ? raw.reasoning : '',
+        calls,
+        callIds,
+      })
     } else if (raw.role === 'tool') {
       if (
         !exactKeys(raw, ['role', 'tool_call_id', 'content']) ||
@@ -79,6 +90,17 @@ function renderToolBlock(group: readonly ToolMessage[], previous: Message | unde
 
 /** Published GLM-5.3 and Flash text/tool templates, narrowed to the final wire subset. */
 export function renderGlm53Prompt(body: JsonObject, flash: boolean): string | undefined {
+  return renderPrompt(body, flash, false)
+}
+
+/** Offline candidate: map plaintext reasoning to the template's reasoning_content.
+ * This is not a verified OpenRouter conversion and is not used by production meters.
+ */
+export function renderGlm53HistoryCandidatePrompt(body: JsonObject): string | undefined {
+  return renderPrompt(body, false, true)
+}
+
+function renderPrompt(body: JsonObject, flash: boolean, plainHistory: boolean): string | undefined {
   if (
     !exactKeys(body, [
       'model',
@@ -92,7 +114,7 @@ export function renderGlm53Prompt(body: JsonObject, flash: boolean): string | un
     ])
   )
     return undefined
-  const parsed = messages(body)
+  const parsed = messages(body, plainHistory)
   const schemas = toolSchemas(body.tools)
   if (!parsed || schemas === undefined) return undefined
   if (flash && body.reasoning !== undefined) return undefined
@@ -114,7 +136,7 @@ export function renderGlm53Prompt(body: JsonObject, flash: boolean): string | un
     if (message.role === 'system') prompt += `<|system|>${message.content}`
     else if (message.role === 'user') prompt += `<|user|>${message.content}`
     else if (message.role === 'assistant')
-      prompt += `<|assistant|><think></think>${message.content.trim()}${message.calls}${message.calls ? '\n' : ''}`
+      prompt += `<|assistant|><think>${message.reasoning}</think>${message.content.trim()}${message.calls}${message.calls ? '\n' : ''}`
     else {
       if (index > 0 && parsed[index - 1]?.role === 'tool') continue
       const group: ToolMessage[] = []

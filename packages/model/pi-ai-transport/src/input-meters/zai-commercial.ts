@@ -21,7 +21,10 @@ function commercialModelId(value: string): value is CommercialModelId {
   return Object.hasOwn(commercialRoutes, value)
 }
 
-function projectedBody(body: JsonObject, modelId: CommercialModelId): JsonObject | undefined {
+export function projectZaiCommercialBody(
+  body: JsonObject,
+  modelId: CommercialModelId,
+): JsonObject | undefined {
   const provider = commercialRoutes[modelId]
   if (
     body.model !== modelId ||
@@ -107,7 +110,7 @@ function projectedBody(body: JsonObject, modelId: CommercialModelId): JsonObject
 /** Supported final-wire subset, projected through the pinned public template. */
 export function renderZaiCommercialPrompt(body: JsonObject): string | undefined {
   if (typeof body.model !== 'string' || !commercialModelId(body.model)) return undefined
-  const projected = projectedBody(body, body.model)
+  const projected = projectZaiCommercialBody(body, body.model)
   return projected ? renderGlm53Prompt(projected, false) : undefined
 }
 
