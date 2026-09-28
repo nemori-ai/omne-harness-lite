@@ -443,3 +443,30 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
   return { call, outcome, settlement, close }
 }
 ```
+
+### 会话模型的耐久选择
+
+`createSessionModelSelection` 从真实会话日志的完整前缀、当前目录行和当前求值输入提供者读取事实。`selectModel` 是交付面的显式命令：先核合法，再核重复，选中名字变化时追加一条共享 codec 记录。没有模型切换记录的会话仍不可得；目录次序和根设置都不会自动制造初选。
+
+`effectiveModel` 返回既有选择 basis 与实际当前 `EffectiveAssembly`，包含根设置。会话层之上的模型锁得到 `layer_lock`，即使锁定名字与选中名字相同。当前读失败不能变成已知无锁。
+
+```ts
+import {
+  createSessionModelSelection,
+  type SessionModelSelectionInput,
+} from '@omne-harness-lite/model-request-runtime'
+
+// ports come from the authenticated host's actual scoped providers.
+export async function initializeExplicitSelection(
+  ports: SessionModelSelectionInput,
+  requestedRoute: string,
+) {
+  const selection = createSessionModelSelection(ports)
+  const selected = await selection.selectModel(requestedRoute)
+  if (!('selected' in selected)) return { selection, selected }
+  const basis = await selection.effectiveModel()
+  return { selection, selected, basis }
+}
+```
+
+保留返回组件，直到它借用的提供者生命周期结束。关闭提供者前先等待 `selection.close()`；若得到 `{ unavailable: true }`，说明原未知写入或清理责任尚保留，应继续持有依赖，不能当作已经释放。每项操作在调用提供者前登记工作，实际停止之后才解除登记。宿主负责真实身份授权、同范围提供者、真正由完整前缀所得的模态投影，以及显式并发上限；类型形状和回调不认证生产来源。本组件不登记完整十三操作服务、不拥有提供者，也不发送模型 HTTP。

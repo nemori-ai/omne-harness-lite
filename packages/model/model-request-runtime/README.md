@@ -458,3 +458,30 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
   return { call, outcome, settlement, close }
 }
 ```
+
+### Durable session model selection
+
+`createSessionModelSelection` reads a complete real session-log prefix, current catalog rows, and the current evaluation-input provider. `selectModel` is an explicit delivery command: it validates legality before repeat detection and appends one codec record when the selected name changes. A session with no selection record remains unavailable; the catalog order and root setting never create an initial selection.
+
+`effectiveModel` returns the existing selection basis together with the actual current `EffectiveAssembly`, including its root settings. Above-session model locks produce `layer_lock`, even when the locked name matches the session selection. A failed current read cannot become a known absence of a lock.
+
+```ts
+import {
+  createSessionModelSelection,
+  type SessionModelSelectionInput,
+} from '@omne-harness-lite/model-request-runtime'
+
+// ports come from the authenticated host's actual scoped providers.
+export async function initializeExplicitSelection(
+  ports: SessionModelSelectionInput,
+  requestedRoute: string,
+) {
+  const selection = createSessionModelSelection(ports)
+  const selected = await selection.selectModel(requestedRoute)
+  if (!('selected' in selected)) return { selection, selected }
+  const basis = await selection.effectiveModel()
+  return { selection, selected, basis }
+}
+```
+
+Keep the returned component for its borrowed provider lifetime. Await `selection.close()` before closing those providers. `{ unavailable: true }` means an unconfirmed original write or retained cleanup responsibility remains; keep the dependencies owned rather than treating the component as released. Operations register work before calling providers and await actual task stop. The host supplies actor authorization, real same-scope provider ports, a genuine complete-prefix modality projection, and an explicit concurrency limit. Type shapes and projection callbacks do not certify production provenance. This component does not register the full thirteen-operation runtime service, own the providers, or send model HTTP.
