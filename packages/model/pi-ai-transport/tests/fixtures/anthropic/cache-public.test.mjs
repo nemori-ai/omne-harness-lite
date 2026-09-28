@@ -48,7 +48,7 @@ test('four real mp4-4 dry plans and exact reservation/cost conversion', async ()
   assert.equal(wholeContextReservation(endpoint, 512), '0.401024000000000000')
 })
 
-for (const mode of ['complete', 'failed-known', 'unknown'])
+for (const mode of ['complete', 'failed-known', 'unknown', 'protocol'])
   test(`real public HTTPS ${mode}: preserve before settlement, no phase replay`, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'anthropic-cache-test-'))
     const output = join(directory, 'evidence')
@@ -87,6 +87,17 @@ for (const mode of ['complete', 'failed-known', 'unknown'])
         sends++
         captured = Buffer.concat(chunks).toString('utf8')
         res.setHeader('Content-Type', 'text/event-stream')
+        if (mode === 'protocol') {
+          // Controlled refusal counterexample, not a reconstruction of the unknown
+          // field that caused the live Opus 5 failure.
+          res.end(
+            frame({
+              provider: 'Anthropic',
+              choices: [{ delta: { refusal: 'Synthetic refused content' } }],
+            }),
+          )
+          return
+        }
         res.write(
           frame({
             id: 'synthetic-generation',
@@ -148,16 +159,29 @@ for (const mode of ['complete', 'failed-known', 'unknown'])
       else
         await assert.rejects(
           invokePhase(options),
-          mode === 'unknown' ? /Actual cost unknown/ : /complete/,
+          ['unknown', 'protocol'].includes(mode) ? /Actual cost unknown/ : /complete/,
         )
       assert.equal(sends, 1)
       assert.equal(captured, identity.plannedSerialized)
       const observedSource = await readFile(join(output, 'write-observed.json'), 'utf8')
       assert(!observedSource.includes(credential))
       const observed = await load(join(output, 'write-observed.json'))
-      assert.equal(observed.result.outcome, mode === 'failed-known' ? 'failed' : 'complete')
+      assert.equal(
+        observed.result.outcome,
+        ['failed-known', 'protocol'].includes(mode) ? 'failed' : 'complete',
+      )
+      assert.deepEqual(observed.capture, {
+        domainOutcome: true,
+        rawSseBody: false,
+        protocolFailureFrame: false,
+      })
+      if (mode === 'protocol') {
+        assert.equal(observed.result.failure.localError, 'unsupported content member')
+        assert.equal(observed.result.failure.upstreamError, undefined)
+        assert(!observedSource.includes('Synthetic refused content'))
+      }
       const entry = ledger.snapshot().entries[0]
-      if (mode === 'unknown') assert.equal(entry.state, 'unknown')
+      if (['unknown', 'protocol'].includes(mode)) assert.equal(entry.state, 'unknown')
       else {
         assert.equal(entry.state, 'settled')
         assert.equal(entry.actualUsd, '0.0000001234567890123456789')

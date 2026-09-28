@@ -211,6 +211,11 @@ export async function invokePhase({
       attempts,
       sentSerialized,
       events,
+      capture: {
+        domainOutcome: result !== undefined,
+        rawSseBody: false,
+        protocolFailureFrame: false,
+      },
       ...(result !== undefined ? { result } : {}),
       ...(exception !== undefined ? { exception } : {}),
     })
