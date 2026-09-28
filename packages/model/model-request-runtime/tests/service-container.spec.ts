@@ -198,6 +198,53 @@ describe('call container admission and retention', () => {
     expect(unregisters).toBe(1)
   })
 
+  it('transfers the same authorized observer to the published call without double close', async () => {
+    let closes = 0
+    let unregisters = 0
+    const host: ModelCallHost = {
+      signal: new AbortController().signal,
+      stopping: () => false,
+      register: () => ({
+        registration: {
+          unregister: () => {
+            unregisters += 1
+          },
+        },
+      }),
+    }
+    const prepared = createCallPreparationOwner<PlannedSemantics, never>(host)
+    if (!('owner' in prepared)) throw new Error('host registration failed')
+    const authorization = prepared.owner.retainObserver({
+      check: () => ({ valid: true }),
+      open: () => ({ unavailable: true }),
+      close: async () => {
+        closes += 1
+        return { released: true }
+      },
+    })
+    const observer: Omit<CallObserverBinding, 'queue'> = {
+      request: {
+        session: sessionRef('session'),
+        endpoint: {
+          open: () => ({
+            receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+            stop() {},
+            stopped: Promise.resolve(),
+          }),
+        },
+        observer_max_buffered_events: 1,
+        observer_max_buffered_bytes: 100,
+      },
+      authorization,
+    }
+    const call = fixture('session', 'call', async () => ({ released: true }), observer)
+    prepared.owner.attach(call.container)
+    expect(await call.container.close()).toEqual({ released: true })
+    expect(await prepared.owner.close()).toEqual({ released: true })
+    expect(closes).toBe(1)
+    expect(unregisters).toBe(1)
+  })
+
   it('keeps the old observer until its receiver actually stops before the next dispatch', async () => {
     let oldStopped = false
     let nextConstructed = 0
