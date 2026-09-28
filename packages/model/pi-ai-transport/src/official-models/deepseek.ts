@@ -3,7 +3,7 @@ import { readModelDefinition, type ModelDefinition, type ModelRoute } from '../d
 
 // A declared supplied subset, not a claim that DeepInfra lacks the dropped parameters.
 // Native sampling conditions do not establish DeepInfra's conditional behavior.
-const automaticTextRoute = {
+const automaticDeepInfraRoute = {
   reminderRole: 'user',
   parameters: {
     reasoningEffort: {
@@ -32,6 +32,12 @@ const automaticTextRoute = {
   cache: { mode: 'automatic' },
 } satisfies ModelRoute
 
+// V4.1 Flash uses this same supplied DeepInfra request policy. Its known image
+// modality cannot yet be published as a complete official definition: profile3
+// would interpret the unknown route-specific image limit as no upstream limit.
+// Automatic means no manual cache controls; a cache hit needs separate evidence.
+export const deepseekV41FlashDeepInfraRoute = automaticDeepInfraRoute
+
 const declaration = {
   modelId: 'deepseek/deepseek-v4-pro-0813',
   revision: '1',
@@ -46,7 +52,7 @@ const declaration = {
     // No active image constraint in this model's confirmed text-only declaration.
     inputConstraints: {},
   },
-  routes: { 'deepinfra/fp8': automaticTextRoute },
+  routes: { 'deepinfra/fp8': automaticDeepInfraRoute },
 } satisfies ModelDefinition
 
 // The same public boundary owns and validates every nested declaration value.
