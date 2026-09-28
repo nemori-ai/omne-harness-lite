@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import {
   createModelTransportService,
   createPiAiTransport,
@@ -9,7 +11,7 @@ import { createGoogleInputMeter } from '../src/input-meters/google.ts'
 import { googleDefinitions } from '../src/official-models/google.ts'
 import { googleCalibrationRequest } from './fixtures/google/calibration.ts'
 import { googleCertificationRequest } from './fixtures/google/cases.ts'
-import { certificate, content, finish, fixture, sse } from './support.ts'
+import { certificate, content, finish, fixture, policy, sse } from './support.ts'
 
 const expected = { F1: 16, F2: 90, H1: 34, H2: 154 } as const
 const retirement = {
@@ -197,6 +199,140 @@ describe('Google AI Studio rough text/tool input meter', () => {
         const media = direct.plan(googleCertificationRequest(definition.modelId))
         expect(media).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
         expect(host.requests).toHaveLength(2)
+      } finally {
+        await direct.close()
+        await service.close(retirement)
+        await host.close()
+        cert.dispose()
+      }
+    },
+  )
+
+  it.each(googleDefinitions)(
+    '$modelId completes public and leased invokeModel text/tool roundtrips with the actual meter',
+    async definition => {
+      const cert = certificate()
+      let responses = 0
+      const host = await fixture(
+        cert.tls,
+        res => {
+          responses++
+          const body =
+            responses === 1
+              ? content('Google text reply')
+              : sse({
+                  choices: [
+                    {
+                      delta: {
+                        tool_calls: [
+                          {
+                            index: 0,
+                            id: 'call_google_next',
+                            type: 'function',
+                            function: { name: 'lookup__google', arguments: '{"key":"next"}' },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                })
+          res.end(
+            body +
+              sse({
+                id: `google-local-${responses}`,
+                model: definition.modelId,
+                provider: 'google-ai-studio',
+                choices: [],
+                usage: {
+                  prompt_tokens: 94,
+                  completion_tokens: 3,
+                  prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+                  cost: 0.000001,
+                },
+              }) +
+              finish(responses === 1 ? 'stop' : 'tool_calls'),
+          )
+        },
+        {},
+        undefined,
+        [definition],
+      )
+      const meter = createGoogleInputMeter(definition)
+      if (!meter) throw new Error('Google meter unavailable')
+      const direct = createPiAiTransport({
+        ...host.options,
+        definitions: [definition],
+        inputMeters: [meter],
+      })
+      const service = createModelTransportService(host.options)
+      const registered = service.registerAdaptation(definition, meter, {}, () => {})
+      if ('rejected' in registered) throw new Error('Google service registration failed')
+      try {
+        const input = googleCalibrationRequest(definition.modelId, 'H2')
+        const planned = direct.plan(input)
+        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+        expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
+          kind: 'estimated',
+          tokens: 154,
+        })
+        const publicResult = await invokeModel({
+          ...input,
+          transport: direct,
+          credential: 'google-local-credential',
+          signal: new AbortController().signal,
+          policy: policy(),
+        }).outcome
+        if (!('outcome' in publicResult)) throw new Error(JSON.stringify(publicResult))
+        expect(publicResult.outcome).toBe('complete')
+        expect(publicResult.blocks).toMatchObject([{ kind: 'text', text: 'Google text reply' }])
+        expect(publicResult.servingProvider).toBe('google-ai-studio')
+        if (publicResult.usage.input_tokens === 'unknown') throw new Error('missing upstream usage')
+        expect(
+          ExactDecimal.from(publicResult.usage.input_tokens).compare(ExactDecimal.from(94)),
+        ).toBe(0)
+        expect(writeJsonLossless(publicResult.cost)).toContain('0.000001')
+
+        const acquired = service.acquire(input.snapshot.adaptation, input.routeName)
+        if ('rejected' in acquired) throw new Error('Google service lease unavailable')
+        const lease = acquired.lease
+        try {
+          const serviceResult = await lease.track(
+            invokeModel({
+              ...input,
+              transport: lease.transport,
+              credential: 'google-local-credential',
+              signal: lease.signal,
+              policy: policy(),
+            }).outcome,
+          )
+          if (!('outcome' in serviceResult)) throw new Error(JSON.stringify(serviceResult))
+          expect(serviceResult.outcome).toBe('complete')
+          expect(serviceResult.blocks).toMatchObject([
+            {
+              kind: 'tool_call',
+              tool: 'lookup__google',
+              complete: true,
+              arguments: { key: 'next' },
+            },
+          ])
+          expect(serviceResult.servingProvider).toBe('google-ai-studio')
+          if (serviceResult.usage.input_tokens === 'unknown')
+            throw new Error('missing upstream usage')
+          expect(
+            ExactDecimal.from(serviceResult.usage.input_tokens).compare(ExactDecimal.from(94)),
+          ).toBe(0)
+          expect(writeJsonLossless(serviceResult.cost)).toContain('0.000001')
+        } finally {
+          lease.release()
+        }
+        expect(host.requests).toHaveLength(2)
+        expect(host.requests.map(request => request.body)).toEqual([
+          planned.planned.serialized,
+          planned.planned.serialized,
+        ])
+        expect(host.requests.every(request => request.path === '/api/v1/chat/completions')).toBe(
+          true,
+        )
       } finally {
         await direct.close()
         await service.close(retirement)
