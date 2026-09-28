@@ -36,3 +36,9 @@ export const gemini37FlashRoutes = {
   'google-ai-studio': flashRoute,
   'google-vertex': flashRoute,
 } satisfies Readonly<Record<string, ModelRoute>>
+
+/** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
+export const googleModelRoutes = {
+  'google/gemini-3.8-flash': gemini38FlashRoutes,
+  'google/gemini-3.7-flash': gemini37FlashRoutes,
+} as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>

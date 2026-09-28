@@ -331,7 +331,19 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 1. 家族复用 `ModelRoute` 策略片段，各型号／供应商的具名路由记录实际差异。这些声明交给同一套参数、提醒、缓存与消息规划器。
 2. 完整 `ModelDefinition` 还需要能力属性、精确实现／定义修订和供应商路由。整份值统一经 `readModelDefinition` 校验和拥有；显式配置与 `createOfficialProfileContent` 再产生目录输入。插件注册沿既有贡献生命周期。
 
-目前 `deepseek.ts` 的 Pro 包含两层，Flash 只有路由策略；`moonshot.ts` 的 K3 与 K2.7 Code 目前只有第一层。这是完成程度的差异，不是另一种 adapter 架构。完整定义均沿公共校验与配置路径，各家不另写注册、连接池或生命周期。
+八个模块均使用同一个内部入口形状：`<family>ModelRoutes[modelId][providerId]`，模型 ID 和供应商 slug 都明确列出。每份文件先写公共策略，再写模型差异，随后列出精确映射。已有完整定义和配置放在最后；DeepSeek Pro 直接从 `deepseekModelRoutes` 取得路由。已有具名路由导出复用同一组值。
+
+例如，在本包内部，两家的选择方式相同：
+
+```ts
+import { deepseekModelRoutes } from './official-models/deepseek.ts'
+import { moonshotModelRoutes } from './official-models/moonshot.ts'
+
+const deepseekRoute = deepseekModelRoutes['deepseek/deepseek-v4-pro-0813']['deepinfra/fp8']
+const moonshotRoute = moonshotModelRoutes['moonshotai/kimi-k3']['moonshotai/mxfp4']
+```
+
+这些映射是包内部入口，没有增加包的公开导出。完整定义沿公共校验与配置路径接入；家族不另行实现注册、连接池或生命周期。
 
 | 家族 | 已有内部路由策略的目标型号数 | 提醒角色 | 声明的缓存配置 |
 | --- | ---: | --- | --- |

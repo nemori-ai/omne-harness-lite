@@ -331,7 +331,19 @@ The files under `src/official-models/` contain two distinct implementation layer
 1. A family shares `ModelRoute` policy fragments; named model/provider routes record the actual differences. These are declarative inputs to the same parameter, reminder, cache and message planner.
 2. A complete `ModelDefinition` also supplies capabilities, exact implementation/definition revisions and provider routes. `readModelDefinition` validates and owns that whole value. Explicit configuration and `createOfficialProfileContent` then produce catalog input. Plugin registration uses the existing contribution lifecycle.
 
-`deepseek.ts` currently contains both layers for Pro; Flash has its route policy only. `moonshot.ts` currently contains only the first layer for K3 and K2.7 Code. The difference is completion status, not a second adapter architecture. Complete definitions must follow the shared validation and configuration path; families do not implement their own registration, connection pool or lifecycle.
+All eight modules have the same internal entry shape: `<family>ModelRoutes[modelId][providerId]`, with exact model IDs and provider slugs. Each file puts shared policy first, model differences next, and its explicit map after those rules. Complete definitions and configurations follow when available; DeepSeek Pro takes its routes directly from `deepseekModelRoutes`. Existing named route exports reuse the same values.
+
+For example, inside this package, both families are selected in the same way:
+
+```ts
+import { deepseekModelRoutes } from './official-models/deepseek.ts'
+import { moonshotModelRoutes } from './official-models/moonshot.ts'
+
+const deepseekRoute = deepseekModelRoutes['deepseek/deepseek-v4-pro-0813']['deepinfra/fp8']
+const moonshotRoute = moonshotModelRoutes['moonshotai/kimi-k3']['moonshotai/mxfp4']
+```
+
+These maps are package internals, not extra package exports. Complete definitions use the shared validation and configuration path; families do not implement their own registration, connection pool or lifecycle.
 
 | Family | Target models with internal route policies | Reminder role | Declared cache configuration |
 | --- | ---: | --- | --- |

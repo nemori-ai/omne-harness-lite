@@ -28,3 +28,9 @@ const xaiReasoningRoute = {
 // revision without deriving route behavior from a model-id prefix.
 export const grok47XaiRoute = xaiReasoningRoute
 export const grok46XaiRoute = xaiReasoningRoute
+
+/** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
+export const xaiModelRoutes = {
+  'x-ai/grok-4.7': { xai: grok47XaiRoute },
+  'x-ai/grok-4.6': { xai: grok46XaiRoute },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>

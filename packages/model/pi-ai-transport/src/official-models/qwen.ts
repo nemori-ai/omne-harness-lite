@@ -1,19 +1,5 @@
 import type { ModelRoute, ParameterRules } from '../definitions.ts'
 
-/** Exact target identities. These route facts are not complete official definitions. */
-export const qwenAlibabaModelIds = Object.freeze([
-  'qwen/qwen3.8-max-0902',
-  'qwen/qwen3.8-max-prime',
-  'qwen/qwen3.8-flash',
-  'qwen/qwen3.8-2.4t-a95b',
-  'qwen/qwen3.8-27b',
-  'qwen/qwen3.7-max',
-  'qwen/qwen3.7-plus',
-  'qwen/qwen3.7-flash',
-] as const)
-
-export type QwenAlibabaModelId = (typeof qwenAlibabaModelIds)[number]
-
 // A supplied request subset. Dropped parameters remain visible in planning
 // history; this does not assert that Alibaba's models reject those parameters.
 const common = {
@@ -52,6 +38,20 @@ const switchableReasoning = {
     otherwise: { drop: true },
   },
 } satisfies ParameterRules
+
+/** Exact target identities. These route facts are not complete official definitions. */
+export const qwenAlibabaModelIds = Object.freeze([
+  'qwen/qwen3.8-max-0902',
+  'qwen/qwen3.8-max-prime',
+  'qwen/qwen3.8-flash',
+  'qwen/qwen3.8-2.4t-a95b',
+  'qwen/qwen3.8-27b',
+  'qwen/qwen3.7-max',
+  'qwen/qwen3.7-plus',
+  'qwen/qwen3.7-flash',
+] as const)
+
+export type QwenAlibabaModelId = (typeof qwenAlibabaModelIds)[number]
 
 export const qwenAlibabaParameters = Object.freeze({
   'qwen/qwen3.8-max-0902': mandatoryReasoning,
@@ -102,3 +102,15 @@ export const qwenAlibabaRoutes = Object.freeze({
   'qwen/qwen3.7-plus': explicitRoute(qwenAlibabaParameters['qwen/qwen3.7-plus']),
   'qwen/qwen3.7-flash': qwen37FlashAlibabaRoute,
 } satisfies Record<QwenAlibabaModelId, ModelRoute>)
+
+/** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
+export const qwenModelRoutes = {
+  'qwen/qwen3.8-max-0902': { alibaba: qwenAlibabaRoutes['qwen/qwen3.8-max-0902'] },
+  'qwen/qwen3.8-max-prime': { alibaba: qwenAlibabaRoutes['qwen/qwen3.8-max-prime'] },
+  'qwen/qwen3.8-flash': { alibaba: qwenAlibabaRoutes['qwen/qwen3.8-flash'] },
+  'qwen/qwen3.8-2.4t-a95b': { alibaba: qwenAlibabaRoutes['qwen/qwen3.8-2.4t-a95b'] },
+  'qwen/qwen3.8-27b': { alibaba: qwenAlibabaRoutes['qwen/qwen3.8-27b'] },
+  'qwen/qwen3.7-max': { alibaba: qwenAlibabaRoutes['qwen/qwen3.7-max'] },
+  'qwen/qwen3.7-plus': { alibaba: qwenAlibabaRoutes['qwen/qwen3.7-plus'] },
+  'qwen/qwen3.7-flash': { alibaba: qwenAlibabaRoutes['qwen/qwen3.7-flash'] },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>

@@ -37,3 +37,11 @@ export const claudeOpus55AnthropicRoute = common
 export const claudeOpus5AnthropicRoute = common
 export const claudeSonnet5AnthropicRoute = common
 export const claudeFable51AnthropicRoute = common
+
+/** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
+export const anthropicModelRoutes = {
+  'anthropic/claude-opus-5.5': { anthropic: claudeOpus55AnthropicRoute },
+  'anthropic/claude-opus-5': { anthropic: claudeOpus5AnthropicRoute },
+  'anthropic/claude-sonnet-5': { anthropic: claudeSonnet5AnthropicRoute },
+  'anthropic/claude-fable-5.1': { anthropic: claudeFable51AnthropicRoute },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
