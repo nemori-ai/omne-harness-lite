@@ -20,6 +20,7 @@
   "files": [
     "dist",
     "tokenizers/deepseek-v4",
+    "tokenizers/deepseek-v41-flash",
     "LICENSE.pi",
     "UPSTREAM.md",
     "provenance.json",
