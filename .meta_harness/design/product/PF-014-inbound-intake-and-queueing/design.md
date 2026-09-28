@@ -576,10 +576,10 @@ PF-013 写了「中断这一次调用，不动别的」。**受理面接住的�
 | **一次工具执行转了后台** | 那次调用的位置先落一条**占位** `ToolMessage` | 同上 |
 | **一次[后台执行](../../ubiquitous_language/terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution)完成回传** | **`SystemReminderMessage`**——那次调用的位置已被占位填掉，**结果回来时没有它的位置** | 同上；**这一条正是[「好了告诉我」那个用户故事](#三用户与场景)的落点** |
 | **[runtime context](../PF-015-session-lifecycle-and-ownership/design.md#runtime-context) 的某一块被生产方推来了变更，而此刻有运行在跑** | `SystemReminderMessage`（**说状态的，[写清「从什么变成了什么」](../PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)**） | 同上 + [§6.10](#610-注入的上下文变了没有运行在跑时什么都不做)。**会话空闲时推来的不在这张表里——它根本不产生一条到达** |
-| **到点了**（日程 / 定时） | `SystemReminderMessage` | [触发的定义明写「定时到点」是其中一种](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-trigger--触发--trigger)。**但这类能力尚无 topic**，见 [§9.1](#91-有几类来源的能力还没开题) |
+| **到点了**（日程 / 定时） | `SystemReminderMessage` | [触发的定义明写「定时到点」是其中一种](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-trigger--触发--trigger)。日程能力归 [PF-021](../PF-021-schedule-and-calendar/design.md#63-机械执行与每次-agent-执行的新会话)：agent 工作先建专属租户会话，再沿本处受理；纯通知不入 agent 队列 |
 | **别的会话捎来一句**（含子 agent 派发回来的） | `SystemReminderMessage` | 同上——**能力尚无 topic**，本 topic 为它预留的是**去处，不是能力** |
 
-> **前八行是今天已有依据的，后两行不是。**
+> **日程来源的产品依据见 PF-021；跨会话消息来源的剩余缺口见 §9.1。**
 > **列出来不等于它们已经存在**——[§9.1](#91-有几类来源的能力还没开题) 如实记着缺口的形状。
 > **第四行的依据只到「有这一路」**：新会话怎么建，还等会话那一块给出定义。
 
@@ -946,7 +946,7 @@ PF-013 写了「中断这一次调用，不动别的」。**受理面接住的�
 | **一次取走队列里的全部，不按来源挑** | 不必维护「哪些算追加」的判据，**也没有「挑剩的什么时候轮到」这个问题** | 一条不相干的触发**会掺进正在跑的那个运行**——而[运行本来就不等于「一件事」](#59-一个运行内部会多次取队列) |
 | **用户自己发的东西不去重** | 不会吞掉用户的话 | 他手抖发两遍，**agent 真的会看到两条** |
 | **没有「撤回一个排队项」** | 队列这个概念**不必为它加一层间接** | 用户改口只能**再说一句**，而前一句 agent 照样看得到 |
-| **穷举列出尚无 topic 的那两类来源** | 缺口的形状**看得见** | 读者可能把它们当成已有能力，**所以每一处都标了** |
+| **穷举来源并指明其产品拥有者或缺口** | 缺口的形状**看得见** | 读者可能把它们当成已有能力，**所以每一处都标了** |
 
 ---
 
@@ -969,7 +969,8 @@ PF-013 写了「中断这一次调用，不动别的」。**受理面接住的�
 | 留给谁 | 什么 |
 |---|---|
 | [**PF-015**](../PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**[生命周期的四个状态](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)**、**被归档那一刻队列里还排着的东西怎么了结**（[那边至今没有答案](../PF-015-session-lifecycle-and-ownership/design.md#九未决项)） |
-| **尚无 topic 的那几类来源** | **日程 / 定时触发**、**跨会话消息与子 agent 派发**（[§9.1](#91-有几类来源的能力还没开题)）。本 topic 为它们预留的是**去处，不是能力** |
+| [**PF-021 日程与日历**](../PF-021-schedule-and-calendar/README.md) | 日程定义、到期 Job、专属新会话、漏跑与通知；本 topic 只承接需要 agent 的输入 |
+| **尚无 topic 的来源能力** | **跨会话消息与子 agent 派发**（[§9.1](#91-有几类来源的能力还没开题)）。本 topic 为它们预留的是**去处，不是能力** |
 | **技术设计** | 队列怎么从日志算出来、[不漏不重](#67-不漏不重)怎么保证、去重怎么实现、通知怎么送达、**队列非空的空闲会话怎么被拉起来** |
 | **[拓展件](../PF-002-assets-settings-and-permissions/design.md#loop-extension)那一侧** | 挂在「消息落盘之前」的那些东西**各自干什么**。本 topic 只定**那一刻看得到什么** |
 
@@ -981,16 +982,15 @@ PF-013 写了「中断这一次调用，不动别的」。**受理面接住的�
 
 ### 9.1 有几类来源的能力还没开题
 
-[§5.7 的穷举](#57-穷举一什么会让队列从空变成非空)里有两行，**今天没有任何 topic 定义它们**：
+[§5.7 的穷举](#57-穷举一什么会让队列从空变成非空)中，跨会话消息与子 agent 派发的完整来源能力仍未由独立 topic 定义：
 
 | 这一类来源 | 现在有什么 | 缺什么 |
 |---|---|---|
-| **到点了**（日程 / 定时） | [触发的词条明写「定时到点」是其中一种](../../ubiquitous_language/terms/agent-runtime-loop.md#ul-trigger--触发--trigger)；[PF-012 也把「系统自己触发一次运行」记到了本 topic 名下](../PF-012-agent-loop-and-run/design.md#八边界与依赖) | **谁定日程、到点了做什么、错过了怎么办**——一个都没有 |
 | **别的会话捎来一句**（含子 agent 派发） | 词表里有 [agent 派发](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-agent-dispatch--agent-派发--agent-dispatch)与 [agent 间通信](../../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication) | **跨会话的消息怎么被授权、怎么投递、目标不存在怎么办**——没有 topic |
 
 > **本 topic 为它们留的是去处，不是能力。**
 > 去处这一层不必等它们：**它们真出现的那天，问[那两个问题](#三个去处)就知道落在哪。**
-> **反过来，不要因为这里列了它们，就当成我们已经有了这两样能力。**
+> **反过来，不要因为这里列了它们，就当成我们已经实现这些来源能力。**
 
 ### 9.2 会话被归档那一刻，队列怎么办
 

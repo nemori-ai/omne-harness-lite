@@ -721,4 +721,25 @@
   **「哪些块还模型可读」**，**它们可能落在最后一条摘要之前**。
   见 [PF-010 §5.9](../../product/PF-010-context-management-and-assembly/design.md#59-块级标记解释了组装边界为什么不是一条线)
 
+
+### UL-business-calendar · 业务日历 · Business Calendar
+
+> **中**：具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。
+>
+> **EN**: An identifiable and selectable body of date-classification knowledge with a stated applicability scope, supplied through traceable versions to answer questions such as whether a date is a working day or holiday.
+
+- **形态**：对象
+- **出处**：[PF-021 §4 业务日历与版本](../../product/PF-021-schedule-and-calendar/design.md#业务日历与版本)（rev 8）
+- **别混**：一个国家可有不同适用范围的日历；美国联邦假日不等于全国统一放假。
+
+### UL-business-calendar-version · 业务日历版本 · Business Calendar Version
+
+> **中**：某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。
+>
+> **EN**: An immutable, distinguishable publication of validated business-calendar data, carrying its coverage interval, knowledge-as-of time and authoritative provenance. Corrections are expressed as new versions.
+
+- **形态**：对象
+- **出处**：[PF-021 §4 业务日历与版本](../../product/PF-021-schedule-and-calendar/design.md#业务日历与版本)（rev 8）
+- **别混**：覆盖日期与信息截至时点是两个不同维度，更新失败不产生有效的新版本。
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

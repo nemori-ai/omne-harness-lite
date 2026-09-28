@@ -34,7 +34,7 @@
 
 - **现象**：PF-015 说 runtime context「是一块一块的，不是一个大袋子，每一块是一份数据」，每块有生产者与消费者、就地更新、要能恢复。词条 UL-runtime-context 指的是整批（形态为总称），真正可指认的单位「块」没有词条；而十四项里有的是实时算的、没有持久状态
 - **牵涉**：[PF-015 §4 runtime context](../product/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 13）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 13）
-- **谁来裁**：PF-015 的 owner（该 topic 仍是草稿）
+- **谁来裁**：PF-015 的 owner
 - **闭合条件**：正文写明「块」是不是一个要被标识的单位；是的话给它名字并立词条
 
 ### 一次派发
@@ -72,3 +72,10 @@
 - **牵涉**：[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 13）
 - **谁来裁**：PF-010 与 PF-015 的 owner
 - **闭合条件**：PF-010 认领它并说明它挂在哪
+
+### 通知发送与投递结果
+
+- **现象**：PF-021 已确定一次发送请求及其结果是用户可查询的单位，技术重试不成为多份独立用户通知，业务历史保留；通知、发送尝试与投递子记录如何分解及标识尚未定义
+- **牵涉**：[PF-021 §6.5 通知发送与租户送达](../product/PF-021-schedule-and-calendar/design.md#65-通知发送与租户送达)（rev 8）；[技术设计交接](../product/PF-021-schedule-and-calendar/design.md#十技术设计交接事项)（rev 8）
+- **谁来裁**：系统架构与规格，按 PF-021 已定查询单位、租户边界和送达判据决定记录分解及身份；不得以技术重试改变通知条数或业务历史范围
+- **闭合条件**：明确记录关系、身份和生命周期，按所判形态补统一语言与对象条目，或说明投影到哪个既有对象；技术问题不再等待一项产品记录建模政策

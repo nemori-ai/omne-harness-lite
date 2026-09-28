@@ -1,7 +1,7 @@
 # PF-015：会话的生命周期与归属
 
 - 修订：rev 13，2026-09-27 · [变更历史](changelog.md)
-- 状态：本次工作区一致性增量已正式接受；此前接受范围、现存未决与技术投影状态见 [README](README.md#状态)。
+- 状态：已正式接受（active）；**保留显式未决项**，见 [§9](#九未决项)。接受依据见 [D-074](../../record/decisions/session-workspace-product-acceptance/decision.md)。
 
 ---
 
@@ -146,6 +146,9 @@
 
 **会话类型在会话建立时算定，此后不随它的来源变化。**
 同一份 AgentDefinition 后来改了、下线了、换了类目，**已经存在的会话不跟着变**。
+
+承接定时工作的 [Job Session](../PF-021-schedule-and-calendar/design.md#作业会话) 表达独立的执行约束，
+不增加第六种用途，也不从 AgentDefinition 的用途推断。其新建、成果交付和单次取消要求由 PF-021 定义；会话身份、主子关系与生命周期仍沿本 topic。
 
 ### 业务流程拓展点
 

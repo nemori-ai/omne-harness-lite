@@ -626,4 +626,95 @@
   一次 Run 早就落了终态，那件非常态**照样可能还在往外交**
 - **注意**：**只有走到根那一层才落得了**，因为只有在那里才谈得上「外面没有层了」
 
+
+### UL-schedule · 日程 · Schedule
+
+> **中**：包含一份工作例程描述的日程安排，同时持有一次性或重复的时间规则、边界与补跑／重叠声明；每次实际形成的工作以定时作业区分。
+>
+> **EN**: An identifiable schedule containing its own routine description together with one-off or recurring timing rules, temporal bounds, and catch-up and overlap declarations. Actual work instances are represented by scheduled jobs.
+
+- **形态**：对象
+- **出处**：[PF-021 §4 日程](../../product/PF-021-schedule-and-calendar/design.md#日程)（rev 8）
+- **别混**：Routine 是它所包含的工作描述；Scheduled Job 是据它开展的某一次工作，不是日程自身。
+
+### UL-system-schedule · 系统日程 · System Schedule
+
+> **中**：由系统自身拥有、用于系统自用机械操作的一类日程；不归任何账号、组织或租户，沿用日程身份与生命周期，其执行不启动 agent 会话。
+>
+> **EN**: A schedule owned by the system itself for its own predefined mechanical operations. It belongs to no account, organization, or tenant, retains schedule identity and lifecycle semantics, and does not start an agent session for execution.
+
+- **形态**：变体（父：[日程](#ul-schedule--日程--schedule)）
+- **出处**：[PF-021 §4 系统日程与出厂内容](../../product/PF-021-schedule-and-calendar/design.md#系统日程与出厂内容)（rev 8）
+- **别混**：系统出厂提供 Routine，不使采用它的租户日程归系统；系统负责调度一份日程也不决定其所有者。
+
+### UL-scheduled-job · 定时作业 · Scheduled Job
+
+> **中**：一份日程在某个具体到期时刻对应的单次工作实例，支持执行、通知、执行并通知三种工作类型，有可指认的来源和本次处置结果；agent 执行使用专属新会话，系统自用的机械执行不创建会话，包含通知时按本次声明承担目标租户的通知。
+>
+> **EN**: An identifiable instance of work due under a schedule at a particular occurrence. Its work type is execution, notification, or execution with notification. Agent execution uses a newly created dedicated session, while mechanical execution for the system itself creates no session; work that includes notification fulfils its declared notification obligations to the target tenant.
+
+- **形态**：对象
+- **出处**：[PF-021 §4 定时作业](../../product/PF-021-schedule-and-calendar/design.md#定时作业)（rev 8）
+- **别混**：agent 执行的 Job 关联会话，不以单个 Run 作为直接业务承接单位；机械执行无作业会话，执行并通知仍是同一个 Job。
+
+### UL-scheduled-execution · 定时执行 · Scheduled Execution
+
+> **中**：日程到期后履行执行工作的过程；系统自用日程触发机械操作，租户日程为本次作业新建专属会话并装配 agent 来完成工作目标。
+>
+> **EN**: The process of carrying out due work: schedules owned by the system itself trigger mechanical actions, while tenant-owned schedules create a dedicated new session and assemble an agent for the job objective.
+
+- **形态**：过程
+- **出处**：[PF-021 §4 两种定时动作](../../product/PF-021-schedule-and-calendar/design.md#两种定时动作)（rev 8）
+- **别混**：agent 执行时，成果工具与完成检查不随 AgentDefinition 被省略；系统自用日程不借机械执行之名调用 agent。
+
+### UL-scheduled-notification · 定时通知 · Scheduled Notification
+
+> **中**：日程到期工作中向目标租户发送通知的过程，可由纯通知作业承担，也可与执行组合在同一个作业中；通知动作本身不另建 agent 工作会话。
+>
+> **EN**: The process of notifying a target tenant as part of scheduled work, either in a notification-only job or combined with execution in the same job. The notification action does not create an additional agent work session.
+
+- **形态**：过程
+- **出处**：[PF-021 §4 两种定时动作](../../product/PF-021-schedule-and-calendar/design.md#两种定时动作)（rev 8）
+- **别混**：执行并通知同时承担两部分工作，不等于纯通知，也不拆成两个到期 Job；通知时机与送达判据由产品规则定义。
+
+### UL-schedule-date-policy · 日程日期处理策略 · Schedule Date Policy
+
+> **中**：日程时间安排的属性，声明基础候选日期遇到非工作日时保持原日、跳过、移到前一个工作日或移到后一个工作日；与基础重复规则、显式排除日期及补跑声明分别表达。
+>
+> **EN**: A property of a schedule specifying whether a base candidate on a non-working date is retained, skipped, or moved to the preceding or following working date. It is distinct from recurrence rules, explicit excluded dates, and catch-up policy.
+
+- **形态**：属性
+- **出处**：[PF-021 §6.2 线性与非线性表达](../../product/PF-021-schedule-and-calendar/design.md#62-线性与非线性表达)（rev 8）
+- **别混**：它改变未接受候选的日期，不移动已有 Job，也不把未来候选提前接受为工作。
+
+### UL-schedule-catch-up-policy · 日程补跑策略 · Schedule Catch-up Policy
+
+> **中**：日程声明的属性，决定是否补调度尚未形成作业的漏过时刻；启用时声明以恢复处理的当前时刻为界，最近最多多少次漏过工作可补，不重跑已经创建的作业。
+>
+> **EN**: A schedule property specifying whether missed occurrences that have not produced jobs may be caught up and, when enabled, the maximum number of most recent missed occurrences selected relative to the recovery processing time. It does not rerun existing jobs.
+
+- **形态**：属性
+- **出处**：[PF-021 §6.11 日历重算与补跑](../../product/PF-021-schedule-and-calendar/design.md#611-日历重算与补跑)（rev 8）
+- **别混**：补跑上限不是时间长度，也不是一次分页大小；已经创建但等待执行的 Job 不是漏过时刻。
+
+### UL-schedule-overlap-policy · 日程重叠策略 · Schedule Overlap Policy
+
+> **中**：日程声明的属性，决定新的到期工作遇到本日程先前尚未结束的动作时，是跳过本次、停掉先前工作后执行、相互独立地并行执行，还是等待先前工作结束再执行；不改变不同作业的身份与成果归属。
+>
+> **EN**: A schedule property choosing how new due work interacts with earlier unfinished actions of the same schedule: skip the new occurrence, stop prior work before starting it, run independently in parallel, or wait and execute in order. Job identities and result ownership remain separate.
+
+- **形态**：属性
+- **出处**：[PF-021 §6.12 重叠处理](../../product/PF-021-schedule-and-calendar/design.md#612-重叠处理)（rev 8）
+- **别混**：并行不合并会话或结果；停止是新增控制事实，不回写先前 Job 的工作要求或撤销已发生外部效果。
+
+### UL-job-notification-policy · 作业通知策略 · Job Notification Policy
+
+> **中**：日程内工作例程的属性，声明执行并通知工作在哪些执行事件发生时通知目标租户，以及各事件的通知内容要求；每个作业采用自身创建时的声明，不把通知投递失败再次当作执行失败通知事件。
+>
+> **EN**: A property of the routine contained in a schedule that declares which execution events trigger notifications to the target tenant and the content requirements for each event. Each job retains its creation-time declaration; notification delivery failure does not recursively trigger an execution-failure notification.
+
+- **形态**：属性
+- **出处**：[PF-021 §6.13 通知声明与完成](../../product/PF-021-schedule-and-calendar/design.md#613-通知声明与完成)（rev 8）
+- **别混**：纯通知在到期时发送已定义内容；通知事件、发送尝试、送达与已读是不同事实。此属性不另立可管理对象。
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

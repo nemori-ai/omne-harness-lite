@@ -49,7 +49,7 @@
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | 一次运行**怎么走完**，停机之后又怎么接着走；**只看日志怎么判断该不该起一副协程**；**agent runtime 与取消怎么传播** | rev 15 |
 | [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 13 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 8 |
-| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**活成什么样、什么时候被归档**、会话与会话之间是什么关系、**会话带着哪些 runtime context**、**运行模式**、**存储要守住什么** | rev 13（草稿） |
+| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**活成什么样、什么时候被归档**、会话与会话之间是什么关系、**会话带着哪些 runtime context**、**运行模式**、**存储要守住什么** | rev 13 |
 
 **十六个全部有正文了。**
 **PF-015 同样属于架构内核**——它立的是别人赖以成立的前提：
@@ -60,7 +60,7 @@ rev 1 把那个名字定为[归档](PF-015-session-lifecycle-and-ownership/desig
 > **五块大纲现已全部有落点**：工具权限那条腿由
 > [PF-007 §5.6](PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住
 > （执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)）。
-> 它仍是草稿，接受前改它的半径以[本 rev 覆盖到哪](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)为准。
+> 它的接受范围见 [D-074](../record/decisions/session-workspace-product-acceptance/decision.md)，改动半径以[本 rev 覆盖到哪](PF-015-session-lifecycle-and-ownership/README.md#本-rev-覆盖到哪)为准。
 
 ## 改一个架构内核 PF 意味着什么
 
@@ -141,3 +141,9 @@ PF-004 用 PF-002 的定义、PF-003 的流动，PF-005 又接 PF-004 装配与�
 **挡的就是上面这个错。**
 
 返回[产品设计入口](README.md)。
+
+## 日程与日历的接续
+
+[PF-021 日程与日历](PF-021-schedule-and-calendar/README.md)（rev 8，已接受）位于内核之外，
+消费已有会话、Run、装配与权限语义。其作业会话扩展通过产品引用衔接既有用途、受理和交付面，
+不以此改变架构内核清单；具体范围见该包的边界与来源问题。

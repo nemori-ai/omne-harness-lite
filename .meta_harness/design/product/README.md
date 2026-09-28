@@ -38,6 +38,7 @@
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 10 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 6 |
 | [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
+| [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |
 
 ## 已排定、尚未开题的编号
 
@@ -47,9 +48,8 @@
 |---|---|---|
 | PF-018 | WebUI 交付面 | 预留编号，尚未开题 |
 | PF-019 | Desktop 交付面 | 预留编号，尚未开题 |
-| PF-021 | 日程和日历 | PF-020 之后讨论的第二个独立主题，尚未开题 |
 
-**接下来从 PF-020 开始使用编号**：本会话先讨论 PF-020「工作区」，再讨论 PF-021「日程和日历」。
+PF-020「工作区」与 [PF-021「日程与日历」](PF-021-schedule-and-calendar/README.md) 已按原定顺序开题；其余预留主题尚未开题。
 
 **PF-015 于 2026-09-21 开题**，见 [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md)。
 它是 2026-09-17「agent-loop / session / inbound 会是多个 PF，不是单个」那条裁决
@@ -71,7 +71,7 @@ inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)，**四个全
 > **PF-015 五块大纲现已全部有落点**（2026-09-23）：工具权限那条腿由
 > [PF-007 §5.6](PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住——
 > 三档执行权限各落放行四步里的一处；执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)。
-> PF-015 的工作区一致性增量已正式接受；其余接受范围与未决项见包内状态。
+> PF-015 rev 13 已正式接受，范围与保留未决项见 [D-074](../record/decisions/session-workspace-product-acceptance/decision.md)。
 
 > **2026-09-20**：**产品正文统一去历史化。**产品负责人的要求：
 > **`design.md` 只记录最终正式确定的设计**——「之前怎么样、现在怎么样」与推导过程

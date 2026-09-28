@@ -78,7 +78,7 @@ relations:
 
 ## 状态
 
-**active，rev 13；本次工作区一致性增量已正式接受**（2026-09-27，依据[本次登记](decisions.md#2026-09-27-工作区增量正式状态登记)）。既有产品范围与未决分别保留；[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
+**active，rev 13，已正式接受。**接受依据见 [D-074](../../record/decisions/session-workspace-product-acceptance/decision.md)。[生命周期](design.md#会话的生命周期)、[会话间的传导](design.md#52-会话与会话之间)、
 [会话类型](design.md#会话类型)、[业务流程拓展点](design.md#业务流程拓展点)、
 [会话运行模式](design.md#会话运行模式)与[存储要守住的两件事](design.md#58-存储要守住的两件事)
 六块已由产品负责人拍板（[decisions](decisions.md#一拍板记录)，共 59 条），可以被下游引用；
