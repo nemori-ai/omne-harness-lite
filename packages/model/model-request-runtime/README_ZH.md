@@ -8,28 +8,28 @@
 
 ## 公开接口
 
-| 导出                                                                             | 用途                                                                                                 |
-| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `invokeModel(input)`                                                             | 返回包含 `outcome`、`snapshot()`、`observedFacts()` 与 `abort()` 的句柄                               |
-| `classifyCause(facts, hasContent, table)`                                        | 按显式状态码表分类来源，保留原始状态码                                                               |
-| `dispatchGuard(input)`                                                           | 按显式调用、发出与档案事实同步判定一次重试计划                                                       |
-| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`              | 只读守卫输入、闭合答案与明确的已知／未知事实                                                         |
-| `retryDelay(input)`、`RetryBackoffPolicy`、`RetryDelayInput`、`RetryDelayResult` | 按显式政策、重试序号、sample 及 decorrelated 前值计算精确 TD3 Duration                               |
-| `TransportAdapter`、`PlanInput`                                                  | 调用者持有的 plan/send/read 端口与显式请求输入                                                       |
-| `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                         |
-| `createSessionModelSelection(input)`                                             | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口        |
-| `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
-| `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                    |
-| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型              | 十三操作的显式服务契约与必需宿主端口；类型契约本身不安装可运行服务                                   |
-| `createCallContainerStore()`                                                     | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                           |
-| `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                |
-| `createCallPreparationOwner(host)`                                              | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                             |
-| `createModelObserverQueue(input)`                                               | 每次 dispatch 快照优先的观察队列；按真实 UTF-8 字节和事件数双限，接纳不等于接收者完成               |
-| `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                           |
-| `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                      |
-| `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain   |
+| 导出                                                                             | 用途                                                                                                                                                                 |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invokeModel(input)`                                                             | 返回包含 `outcome`、`snapshot()`、`observedFacts()` 与 `abort()` 的句柄                                                                                              |
+| `classifyCause(facts, hasContent, table)`                                        | 按显式状态码表分类来源，保留原始状态码                                                                                                                               |
+| `dispatchGuard(input)`                                                           | 按显式调用、发出与档案事实同步判定一次重试计划                                                                                                                       |
+| `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`              | 只读守卫输入、闭合答案与明确的已知／未知事实                                                                                                                         |
+| `retryDelay(input)`、`RetryBackoffPolicy`、`RetryDelayInput`、`RetryDelayResult` | 按显式政策、重试序号、sample 及 decorrelated 前值计算精确 TD3 Duration                                                                                               |
+| `TransportAdapter`、`PlanInput`                                                  | 调用者持有的 plan/send/read 端口与显式请求输入                                                                                                                       |
+| `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                                                                                         |
+| `createSessionModelSelection(input)`                                             | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口                                                                        |
+| `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用                                                                 |
+| `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                                                                                    |
+| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型              | 十三操作的显式服务契约与必需宿主端口；类型契约本身不安装可运行服务                                                                                                   |
+| `createCallContainerStore()`                                                     | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                                                                                           |
+| `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                 | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                                                                                 |
+| `createCallPreparationOwner(host)`                                               | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                                                                                             |
+| `createModelObserverQueue(input)`                                                | 每次 dispatch 快照优先的观察队列；按真实 UTF-8 字节和事件数双限，接纳不等于接收者完成                                                                                |
+| `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                           |
+| `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                      |
+| `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                   |
 | `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与不属于 Run 的对账；重复处分通过 `sessions.bind` 读取耐久结果，不停止会话。对账返回 `{ reconcile, close }`，原 scope 留到实际停止与完整前缀认回后收口 |
-| `createModelRuntime(construction)`                                               | 十三方法共用一份调用 store 与可重试收口 owner；无需 Cordis Context                                  |
+| `createModelRuntime(construction)`                                               | 十三方法共用一份调用 store 与可重试收口 owner；无需 Cordis Context                                                                                                   |
 
 `createRuntimeReconcile(input)` 返回 `{ reconcile, close }`。事实或写入未决而返回 `unavailable` 时，组件保留原恢复作用域；下一次对账会先沿同一作用域认回，不为同会话另开一个恢复入口。`close()` 关闭新对账准入，停止有归属的任务，从原绑定读取完整前缀；仅在物理工作有确定结果后释放各作用域。收口不追加业务记录。若返回 `unavailable`，宿主须继续持有同一组件，在原任务或读取来源恢复后重试；`createModelRuntime` 已将此收口纳入自身的可重试收口。
 
@@ -77,10 +77,16 @@ export async function installRuntime(
 可选的 `OpenCallInput.observer` 交入真实 endpoint 和显式正数事件／字节上限。已授权的会话绑定必须为该 endpoint 与 call 提供 `observers.authorize`；每次 dispatch 在建立接收者及交付文本前重新核对具体目标。独立可用的队列接收原始 `ArrivalEvent` 和原装配快照。`start(snapshot)` 先交付该可见快照，丢掉位置不晚于它的发前暂存增量，然后按序交付更新增量。两个上限均包含在途接收任务，直到它的 `stopped` promise 完成。慢速或失败的观察者不改变模型响应，也不引起重新发出；实际停止未知时 `close()` 保留接收端 owner。宿主须保留不可用的 owner，在真实停止后重试。见 [D103 的归属与接收映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v11-host-observer-design.md)。
 
 ```ts
-import { createModelObserverQueue, type ModelObserverQueueInput } from '@omne-harness-lite/model-request-runtime'
+import {
+  createModelObserverQueue,
+  type ModelObserverQueueInput,
+} from '@omne-harness-lite/model-request-runtime'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 
-export async function beginObservedDispatch(input: ModelObserverQueueInput, visible: AssemblySnapshot) {
+export async function beginObservedDispatch(
+  input: ModelObserverQueueInput,
+  visible: AssemblySnapshot,
+) {
   const queue = createModelObserverQueue(input)
   const first = queue.start(visible)
   // 即使快照被拒收，也要留住队列：实际停止前 close 可能返回 unavailable。
@@ -665,8 +671,7 @@ export async function settleResponse(
 `[AssistantMessage, ModelResponse]`；明确的 vetoed/consumed 处置只追加响应。
 确定的失败和系统中断在 outcome 返回前结算；系统中断没有回复，已交付内容保留在 delivered。
 
-`abort()` 请求系统停止。用户中断需要另有耐久意图协议，不在本切片范围内。`close()`
-关闭准入、请求停止，并等待调用、门回调、追加与结算的实际任务停止。只有已确认结算
+`abort()` 请求系统停止。runtime 服务先持久化用户中断意图，再调用锚定句柄的 `interrupt(initiator)`；调用者通过 `runtime.interrupt` 使用完整协议。在途调用在原 owner 登记内执行短控制任务，并发上限为一时同样可用。控制追加回执未知时，实际任务停止后仍须由同一日志的完整权威前缀认回才释放登记；未决响应写入另行保留。`close()` 关闭准入、请求停止，并等待调用、门回调、追加与结算的实际任务停止。只有已确认结算
 或从未发出才调用 `releaseBorrowed`。未知锚点或未知结算返回 unavailable，保留句柄、
 候选和借用引用，由真实宿主承担恢复责任。本函数不执行 S-33 恢复、不重发，也不把
 未知回执解释成确定缺席。
