@@ -96,6 +96,9 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           },
           owner,
           coordinator,
+          // This S-49 fixture has already settled through the real coordinator before cleanup.
+          systemStop: async control =>
+            control.view().operation.phase === 'ready' ? { released: true } : { unavailable: true },
         } as unknown as CreateCallContainerInput<PlannedSemantics, never>)
         const opening = calls.reserve({ session, callId: 'call' })
         if (!('reservation' in opening)) throw new Error('opening reservation absent')

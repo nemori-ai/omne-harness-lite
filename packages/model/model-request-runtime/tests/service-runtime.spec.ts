@@ -242,7 +242,7 @@ describe('D102 unified model runtime owner', () => {
       expect(closeFinished).toBe(false)
       expect(await runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
       bound.finish({ binding })
-      expect(await lateOpen).toEqual({ unavailable: true })
+      expect(await lateOpen).toEqual({ runtimeStopped: true })
       expect(await closing).toEqual({ released: true })
       expect(released).toBe(2)
       expect(registrations.size).toBe(0)
