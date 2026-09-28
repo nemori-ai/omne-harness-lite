@@ -1,0 +1,76 @@
+[
+  {
+    "modelId": "x-ai/grok-4.7",
+    "body": {
+      "model": "x-ai/grok-4.7",
+      "provider": { "order": ["xai"], "allow_fallbacks": false, "require_parameters": true },
+      "stream": true,
+      "store": false,
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "Answer briefly" }] },
+        {
+          "role": "user",
+          "content": [
+            { "type": "text", "text": "[system_reminder \"xai-reminder\"]" },
+            { "type": "text", "text": "Keep the cited value" }
+          ]
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "Use lookup__xai to find alpha" }] }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup__xai",
+            "description": "Look up a value by key",
+            "parameters": {
+              "type": "object",
+              "properties": { "key": { "type": "string" } },
+              "required": ["key"],
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "reasoning": { "effort": "high" },
+      "max_tokens": 128
+    }
+  },
+  {
+    "modelId": "x-ai/grok-4.6",
+    "body": {
+      "model": "x-ai/grok-4.6",
+      "provider": { "order": ["xai"], "allow_fallbacks": false, "require_parameters": true },
+      "stream": true,
+      "store": false,
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "Answer briefly" }] },
+        {
+          "role": "user",
+          "content": [
+            { "type": "text", "text": "[system_reminder \"xai-reminder\"]" },
+            { "type": "text", "text": "Keep the cited value" }
+          ]
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "Use lookup__xai to find alpha" }] }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup__xai",
+            "description": "Look up a value by key",
+            "parameters": {
+              "type": "object",
+              "properties": { "key": { "type": "string" } },
+              "required": ["key"],
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "reasoning": { "effort": "high" },
+      "max_tokens": 128
+    }
+  }
+]
