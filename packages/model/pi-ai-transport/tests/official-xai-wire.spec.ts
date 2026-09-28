@@ -15,6 +15,8 @@ import { certificate, content, finish, fixture, judgedMessage, policy, sse } fro
 
 const at = '2026-09-28T00:00:00Z'
 const visible = { toHuman: true, toModel: true }
+const pixel =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/yWQAAAAASUVORK5CYII='
 const tool: ModelToolEntry = {
   name: 'lookup__xai',
   description: 'Look up a value by key',
@@ -136,7 +138,7 @@ function multiRoundInput(definition: (typeof definitions)[number]): PlanInput {
           id: 'xai-image',
           kind: 'image',
           mediaType: 'image/png',
-          data: { inline: 'eA==' },
+          data: { inline: pixel },
           visibility: visible,
         },
       ],
@@ -191,18 +193,61 @@ function authenticationInput(definition: (typeof definitions)[number]): PlanInpu
   }
 }
 
+function imageAuthenticationInput(definition: (typeof definitions)[number]): PlanInput {
+  return {
+    ...request(definition, { maxOutputTokens: 128 }),
+    messages: [
+      judgedMessage({
+        id: 'xai-image-user',
+        type: 'user',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'xai-image-question',
+            kind: 'text',
+            text: 'Describe this image',
+            visibility: visible,
+          },
+          {
+            id: 'xai-auth-image',
+            kind: 'image',
+            mediaType: 'image/png',
+            data: { inline: pixel },
+            visibility: visible,
+          },
+        ],
+      }),
+    ],
+  }
+}
+
 describe.each(definitions)('$modelId fixed xai request', definition => {
-  it('keeps the credential-free authentication case body aligned with the public planner', () => {
-    const planned = planRequest(
-      authenticationInput(definition),
-      [definition],
-      syntheticInputMeter(definition, 'xai'),
-    )
-    if ('rejected' in planned) throw new Error(planned.rejected)
+  it('keeps credential-free authentication cases aligned with the public planner', () => {
     const cases: unknown = JSON.parse(
       readFileSync(new URL('./fixtures/xai/authentication-cases.json', import.meta.url), 'utf8'),
     )
-    expect(cases).toContainEqual({ modelId: definition.modelId, body: planned.planned.body })
+    if (!Array.isArray(cases)) throw new Error('invalid xAI authentication cases')
+    const rows: readonly unknown[] = cases
+    for (const [scenario, input] of [
+      ['tool_text', authenticationInput(definition)],
+      ['image', imageAuthenticationInput(definition)],
+    ] as const) {
+      const planned = planRequest(input, [definition], syntheticInputMeter(definition, 'xai'))
+      if ('rejected' in planned) throw new Error(planned.rejected)
+      const body: unknown = JSON.parse(planned.planned.serialized)
+      const selected = rows.find(
+        row =>
+          typeof row === 'object' &&
+          row !== null &&
+          'modelId' in row &&
+          row.modelId === definition.modelId &&
+          'scenario' in row &&
+          row.scenario === scenario,
+      )
+      if (!selected || typeof selected !== 'object' || !('body' in selected))
+        throw new Error(`missing xAI authentication case: ${definition.modelId}/${scenario}`)
+      expect(selected.body).toEqual(body)
+    }
   })
 
   it('keeps the exact contribution unavailable without an applicable model meter and sends no HTTP', async () => {
@@ -246,7 +291,7 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
     expect(planned.planned.inputLimitEvidence).toMatchObject({
       meterRevision: 'synthetic-route-tests-1',
       requestBytes: Buffer.byteLength(planned.planned.serialized),
-      imageBytes: [1],
+      imageBytes: [68],
       images: 1,
     })
     const parsed = readJsonStrict(planned.planned.serialized)
@@ -272,7 +317,7 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
           role: 'user',
           content: [
             { type: 'text', text: 'Describe this image' },
-            { type: 'image_url', image_url: { url: 'data:image/png;base64,eA==' } },
+            { type: 'image_url', image_url: { url: `data:image/png;base64,${pixel}` } },
           ],
         },
       ],
