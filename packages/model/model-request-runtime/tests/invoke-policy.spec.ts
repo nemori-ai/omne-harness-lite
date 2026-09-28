@@ -24,6 +24,24 @@ function invoke(
   })
 }
 describe('D095 runtime CP policy wiring with actual public stream-assembly', () => {
+  it('passes positive fractional Duration values to the supplied scheduler unchanged', async () => {
+    const scheduled: number[] = []
+    const port = adapter()
+    const handle = invoke(port, '503', {
+      policy: {
+        ...policy(),
+        firstContentTimeoutMs: 0.1,
+        idleContentTimeoutMs: 0.25,
+        schedule(milliseconds) {
+          scheduled.push(milliseconds)
+          return () => {}
+        },
+      },
+    })
+    expect(await handle.outcome).toHaveProperty('outcome')
+    expect(scheduled).toEqual([0.1, 0.25])
+    expect(port.sends()).toBe(1)
+  })
   it.each([
     { rejected: 'invalidInput', reason: 'input_limit_missing', metrics: ['maxInputTokens'] },
     { rejected: 'invalidInput', reason: 'input_size_unavailable', metrics: ['maxRequestBytes'] },

@@ -50,7 +50,7 @@ function validPolicy(policy: InvocationPolicy): boolean {
         ['credential_unavailable', 'request_rejected', 'upstream_unavailable'].includes(v),
     ) &&
     [policy.firstContentTimeoutMs, policy.idleContentTimeoutMs].every(
-      v => Number.isSafeInteger(v) && v > 0,
+      v => Number.isFinite(v) && v > 0,
     )
   )
 }

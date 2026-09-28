@@ -8,6 +8,27 @@ import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+  it('accepts positive fractional durations at the anchored boundary without rounding them', async () => {
+    await harness(async h => {
+      const scheduled: number[] = []
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        policy: {
+          ...h.input.policy,
+          firstContentTimeoutMs: 0.1,
+          idleContentTimeoutMs: 0.25,
+          schedule(milliseconds) {
+            scheduled.push(milliseconds)
+            return () => {}
+          },
+        },
+      })
+      expect(await handle.outcome).toHaveProperty('replyPending')
+      expect(scheduled).toContain(0.1)
+      expect(scheduled).toContain(0.25)
+      expect(await handle.close()).toEqual({ released: true })
+    })
+  })
   it.each([
     { rejected: 'invalidInput', reason: 'input_limit_missing', metrics: ['maxInputTokens'] },
     { rejected: 'invalidInput', reason: 'input_size_unavailable', metrics: ['maxRequestBytes'] },

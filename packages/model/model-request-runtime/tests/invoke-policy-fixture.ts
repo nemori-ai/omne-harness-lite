@@ -16,6 +16,7 @@ export function request(): PlanInput {
   const call = parseOpaqueIdentifier('policy-call', 'ModelCallId')
   if (!('ok' in call)) throw new Error('call')
   return {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: { kind: 'model_call', callId: call.ok, dispatch: 1 },
     routeName: 'teaching/model',
     provider: 'openai',
