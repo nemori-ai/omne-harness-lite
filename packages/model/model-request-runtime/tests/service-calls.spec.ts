@@ -112,6 +112,61 @@ test('rejects a data-only host and malformed or cross-session observer policy be
   ).toEqual({ invalidInput: { reason: 'observer_scope_mismatch' } })
 })
 
+test('a stopped host rejects registration before any asynchronous session preparation', async () => {
+  const bind = vi.fn()
+  const register = vi.fn(() => ({ runtimeStopped: true as const }))
+  const runtime = {
+    identities: { call: () => 'stopped-call' },
+    sessions: { bind },
+    calls: createCallContainerStore<PlannedSemantics, never>(),
+  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  const service = createServiceCalls(runtime)
+  expect(
+    await service.openCall(
+      request({
+        host: {
+          signal: new AbortController().signal,
+          stopping: () => true,
+          register,
+        },
+      }),
+    ),
+  ).toEqual({ runtimeStopped: true })
+  expect(register).toHaveBeenCalledTimes(1)
+  expect(bind).not.toHaveBeenCalled()
+})
+
+test('host stop during session binding prevents a late call publication and unregisters once', async () => {
+  const controller = new AbortController()
+  let finishBind: ((value: { readonly failure: 'unavailable' }) => void) | undefined
+  const bind = vi.fn(
+    () =>
+      new Promise<{ readonly failure: 'unavailable' }>(resolve => {
+        finishBind = resolve
+      }),
+  )
+  const unregister = vi.fn()
+  const register = vi.fn(() => ({ registration: { unregister } }))
+  const calls = createCallContainerStore<PlannedSemantics, never>()
+  const runtime = {
+    identities: { call: () => 'late-call' },
+    sessions: { bind },
+    calls,
+  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  const pending = createServiceCalls(runtime).openCall(
+    request({
+      host: { signal: controller.signal, stopping: () => controller.signal.aborted, register },
+    }),
+  )
+  expect(register).toHaveBeenCalledTimes(1)
+  expect(bind).toHaveBeenCalledTimes(1)
+  controller.abort()
+  finishBind?.({ failure: 'unavailable' })
+  expect(await pending).toEqual({ runtimeStopped: true })
+  expect(unregister).toHaveBeenCalledTimes(1)
+  expect(calls.find({ session, callId: 'late-call' })).toBeUndefined()
+})
+
 test('opens two distinct noRun calls against the actual empty JSONL prefix without an open record', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'mrr-open-call-'))
   const log = await openJsonlSessionLog({

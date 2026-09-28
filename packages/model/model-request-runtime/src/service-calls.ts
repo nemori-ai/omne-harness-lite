@@ -18,7 +18,7 @@ import {
 import { winningRow, type ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { resolveCallTools } from './call-tools.ts'
-import { createCallContainer } from './service-container.ts'
+import { createCallContainer, createCallPreparationOwner } from './service-container.ts'
 import {
   appendControlRecord,
   createOriginalSystemStop,
@@ -387,19 +387,6 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     if ('invalidInput' in owned) return owned
     const request = owned.request
     if (request.run !== undefined) return { unavailable: true } // G-4: no real Run interpreter.
-    let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
-    try {
-      bound = await runtime.sessions.bind(request.session)
-    } catch {
-      return { unavailable: true }
-    }
-    if ('failure' in bound)
-      return bound.failure === 'invalidInput'
-        ? { invalidInput: { reason: 'malformed' } }
-        : { unavailable: true }
-    const session = bound.binding
-    if (!boundSession(session, request)) return { unavailable: true }
-    if (session.selection.owner.admission() !== 'open') return { runtimeStopped: true }
     let callId = request.callId
     if (callId === undefined) {
       try {
@@ -410,62 +397,283 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       if (!('ok' in judgeAccountValue('ModelCallId', callId))) return { unavailable: true }
     }
     const key = { session: request.session, callId }
-    const gate = await runtime.calls.waitReserve(key, {
-      policy: runtime.reservationWaitPolicy,
-      scheduler: runtime.settlementScheduler,
-      signal: new AbortController().signal,
-    })
-    if ('unavailable' in gate) return { unavailable: true }
-    const reservation = gate.reservation
-    try {
-      if (closing) return { runtimeStopped: true }
-      const local = reservation.view()
-      if (request.callId !== undefined && local !== undefined) {
-        if (local.session !== session || local.request.session !== request.session)
-          return { unavailable: true }
-        const history = await historyFor(session, callId)
-        if ('unavailable' in history) return { unavailable: true }
-        if ('absent' in history) return { wrongPhase: { phase: 'open' } }
-        if (history.known.phase !== 'resumable')
-          return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
-        if (local.operation.phase !== 'ready') return { unavailable: true }
-        const resolved = await resolveCallTools(request, session.tools)
-        if ('failure' in resolved)
-          return resolved.failure === 'unavailable'
-            ? { unavailable: true }
-            : { invalidInput: { reason: resolved.reason ?? 'malformed' } }
-        if (closing) return { runtimeStopped: true }
-        reservation.updateRequest(request)
-        return { callId, state: 'resumable' }
+    const existing = request.callId === undefined ? undefined : runtime.calls.find(key)
+    const prepared =
+      existing === undefined ? createCallPreparationOwner<P, R>(request.host) : undefined
+    if (prepared !== undefined && !('owner' in prepared)) return prepared
+    const preparation = prepared?.owner
+    let preparationAttached = false
+    let published = false
+    const execute = async (): Promise<OpenCallResult> => {
+      let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+      try {
+        bound = await runtime.sessions.bind(request.session)
+      } catch {
+        return preparation?.stopping() ? { runtimeStopped: true } : { unavailable: true }
       }
-      if (local !== undefined) return { unavailable: true }
-      if (request.callId !== undefined) {
-        const history = await historyFor(session, callId)
-        if ('unavailable' in history) return { unavailable: true }
-        if ('absent' in history) return { callNotFound: true }
-        if (history.known.phase !== 'resumable')
-          return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
-        const last = history.known.dispatches.at(-1)
-        if (last === undefined) return { unavailable: true }
+      if (preparation?.stopping()) return { runtimeStopped: true }
+      if ('failure' in bound)
+        return bound.failure === 'invalidInput'
+          ? { invalidInput: { reason: 'malformed' } }
+          : { unavailable: true }
+      const session = bound.binding
+      if (!boundSession(session, request)) return { unavailable: true }
+      if (session.selection.owner.admission() !== 'open') return { runtimeStopped: true }
+      if (preparation?.stopping() || request.host.signal.aborted || request.host.stopping())
+        return { runtimeStopped: true }
+      const gate = await runtime.calls.waitReserve(key, {
+        policy: runtime.reservationWaitPolicy,
+        scheduler: runtime.settlementScheduler,
+        signal: preparation?.signal ?? request.host.signal,
+      })
+      if ('unavailable' in gate)
+        return preparation?.stopping() || request.host.signal.aborted
+          ? { runtimeStopped: true }
+          : { unavailable: true }
+      const reservation = gate.reservation
+      try {
+        if (closing) return { runtimeStopped: true }
+        const local = reservation.view()
+        if (request.callId !== undefined && local !== undefined) {
+          if (
+            local.session !== session ||
+            local.request.session !== request.session ||
+            local.request.host !== request.host
+          )
+            return { unavailable: true }
+          const history = await historyFor(session, callId)
+          if ('unavailable' in history) return { unavailable: true }
+          if ('absent' in history) return { wrongPhase: { phase: 'open' } }
+          if (history.known.phase !== 'resumable')
+            return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
+          if (local.operation.phase !== 'ready') return { unavailable: true }
+          const resolved = await resolveCallTools(request, session.tools)
+          if ('failure' in resolved)
+            return resolved.failure === 'unavailable'
+              ? { unavailable: true }
+              : { invalidInput: { reason: resolved.reason ?? 'malformed' } }
+          if (closing) return { runtimeStopped: true }
+          reservation.updateRequest(request)
+          return { callId, state: 'resumable' }
+        }
+        if (local !== undefined) return { unavailable: true }
+        if (existing !== undefined) return { unavailable: true }
+        if (request.callId !== undefined) {
+          const history = await historyFor(session, callId)
+          if ('unavailable' in history) return { unavailable: true }
+          if ('absent' in history) return { callNotFound: true }
+          if (history.known.phase !== 'resumable')
+            return { wrongPhase: { phase: history.known.phase ?? 'in_flight' } }
+          const last = history.known.dispatches.at(-1)
+          if (last === undefined) return { unavailable: true }
+          const resolved = await resolveCallTools(request, session.tools)
+          if ('failure' in resolved)
+            return resolved.failure === 'unavailable'
+              ? { unavailable: true }
+              : { invalidInput: { reason: resolved.reason ?? 'malformed' } }
+          const anchor = last.record
+          if (
+            anchor.adaptation.definition.modelId !== anchor.profile.routeName ||
+            anchor.profileSnapshot.adaptation.definition.modelId !== anchor.profile.routeName
+          )
+            return { unavailable: true }
+          const acquired = runtime.transport.acquire(anchor.adaptation, anchor.profile.routeName)
+          if ('unavailable' in acquired) return { unavailable: true }
+          const lease = acquired.lease
+          let transferred = false
+          try {
+            const coordinator = createSettlementCoordinator({
+              binding: session.log,
+              owner: session.selection.owner,
+              settlementContention: runtime.settlementContention,
+              settlementScheduler: runtime.settlementScheduler,
+              diagnostic: event => runtime.policy.diagnostic({ kind: event.kind }),
+            })
+            const container = createCallContainer({
+              key,
+              session,
+              request,
+              systemStop: createOriginalSystemStop(
+                runtime,
+                key,
+                (binding, originalOwner, registration, task) =>
+                  unknownWrites.keep(key, binding, originalOwner, registration, task),
+              ),
+              binding: {
+                profile: anchor.profile,
+                snapshot: anchor.profileSnapshot,
+                parameters: anchor.parameters,
+                selectedBy: anchor.selectedBy,
+                lease,
+              },
+              owner: session.selection.owner,
+              coordinator,
+            })
+            if (closing || preparation?.stopping()) return { runtimeStopped: true }
+            preparation?.attach(container)
+            preparationAttached = true
+            transferred = true
+            if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
+            published = true
+            return { callId, state: 'resumable' }
+          } finally {
+            if (!transferred) lease.release()
+          }
+        }
         const resolved = await resolveCallTools(request, session.tools)
         if ('failure' in resolved)
           return resolved.failure === 'unavailable'
             ? { unavailable: true }
             : { invalidInput: { reason: resolved.reason ?? 'malformed' } }
-        const anchor = last.record
-        if (
-          anchor.adaptation.definition.modelId !== anchor.profile.routeName ||
-          anchor.profileSnapshot.adaptation.definition.modelId !== anchor.profile.routeName
+        const owner = session.selection.owner
+        const facts = await withOwnedReads(
+          owner,
+          runtime.settlementContention.limits.concurrent,
+          retainedReads,
+          async registration => {
+            const holding = await registration.start(
+              'read',
+              async () => await session.selection.sessionTenancy.holdingTenant(request.session),
+            ).completion
+            if (!('tenant' in holding) || !tenantIdEquals(holding.tenant, session.log.tenant))
+              return { unavailable: true } as const
+            const rawRows = await registration.start(
+              'read',
+              async () => await session.catalog.listProfiles(holding.tenant),
+            ).completion
+            const rows = readRows(rawRows)
+            if (rows === undefined) return { unavailable: true } as const
+            const matching = rows.filter(row => row.ref.routeName === request.target)
+            if (matching.length === 0) return { profileNotFound: true } as const
+            const winner = winningRow(rows, request.target, [request.target])
+            if (winner === undefined) return { undispatched: 'withdrawn' } as const
+            const prefix = await readSettlementPrefix({ binding: session.log, registration })
+            if ('unavailable' in prefix) return { unavailable: true } as const
+            const projection = await registration.start(
+              'read',
+              async () => await session.selection.projection(prefix.prefix),
+            ).completion
+            if ('unknown' in projection) return { unavailable: true } as const
+            const compatible = session.selection.compatible(winner.profile, projection.known)
+            if ('invalidInput' in compatible || 'unavailable' in compatible)
+              return { unavailable: true } as const
+            if ('blocked' in compatible) return { undispatched: 'modality_mismatch' } as const
+            const present = await registration.start(
+              'read',
+              async () =>
+                await session.catalog.credentialPresent(session.log.tenant, winner.ref.origin),
+            ).completion
+            if ('failure' in present) return { unavailable: true } as const
+            if (!present.present) return { undispatched: 'credential_unavailable' } as const
+            return { winner } as const
+          },
         )
-          return { unavailable: true }
-        const acquired = runtime.transport.acquire(anchor.adaptation, anchor.profile.routeName)
+        if ('unavailable' in facts || 'unavailable' in facts.ok) return { unavailable: true }
+        const checked = facts.ok
+        if ('profileNotFound' in checked) return { profileNotFound: true }
+        if ('undispatched' in checked) {
+          if (closing) return { runtimeStopped: true }
+          const written = await appendControlRecord({
+            trackTask: task => appends.track(task),
+            binding: session.log,
+            owner,
+            concurrent: runtime.settlementContention.limits.concurrent,
+            record: {
+              kind: 'model_call_ended',
+              call: callId,
+              ending: 'undispatched',
+              cause: checked.undispatched,
+            },
+            retainUnknown(registration, task) {
+              unknownWrites.keep(key, session.log, owner, registration, task)
+            },
+          })
+          return 'appended' in written
+            ? { callId, state: 'handed_up', undispatched: checked.undispatched }
+            : { unavailable: true }
+        }
+        const { winner } = checked
+        const snapshot = snapshotOf(winner.profile)
+        if (snapshot === undefined) return { unavailable: true }
+        const merged = mergedParameters(winner.profile, request.parameters)
+        if ('invalidInput' in merged) return merged
+        if (snapshot.adaptation.definition.modelId !== request.target)
+          return { invalidInput: { reason: 'malformed' } }
+        const acquired = runtime.transport.acquire(snapshot.adaptation, request.target)
         if ('unavailable' in acquired) return { unavailable: true }
         const lease = acquired.lease
         let transferred = false
         try {
+          const planned = lease.transport.plan({
+            tokenMargin: runtime.tokenMargin,
+            target: { kind: 'model_call', callId, dispatch: 1 },
+            routeName: request.target,
+            provider: snapshot.providers[0] ?? '',
+            snapshot,
+            parameters: merged.parameters,
+            messages: request.messages,
+            tools: resolved.tools,
+          })
+          if ('rejected' in planned) {
+            if (planned.rejected === 'unavailable') return { unavailable: true }
+            if (planned.rejected === 'modality_not_carried') {
+              if (closing) return { runtimeStopped: true }
+              const written = await appendControlRecord({
+                trackTask: task => appends.track(task),
+                binding: session.log,
+                owner,
+                concurrent: runtime.settlementContention.limits.concurrent,
+                record: {
+                  kind: 'model_call_ended',
+                  call: callId,
+                  ending: 'undispatched',
+                  cause: 'modality_mismatch',
+                },
+                retainUnknown(registration, task) {
+                  unknownWrites.keep(key, session.log, owner, registration, task)
+                },
+              })
+              return 'appended' in written
+                ? { callId, state: 'handed_up', undispatched: 'modality_mismatch' }
+                : { unavailable: true }
+            }
+            if (planned.rejected === 'invalidInput') {
+              if (
+                planned.reason === 'input_limit_missing' ||
+                planned.reason === 'input_size_unavailable'
+              )
+                return { invalidInput: { reason: planned.reason, metrics: planned.metrics } }
+              if (planned.reason === 'input_limit_exceeded')
+                return planned.basis === 'exact'
+                  ? {
+                      invalidInput: {
+                        reason: planned.reason,
+                        basis: 'exact',
+                        metric: planned.metric,
+                        actual: planned.actual,
+                        limit: planned.limit,
+                      },
+                    }
+                  : {
+                      invalidInput: {
+                        reason: planned.reason,
+                        basis: 'estimated',
+                        metric: planned.metric,
+                        estimatedTokens: planned.estimatedTokens,
+                        admissionTokens: planned.admissionTokens,
+                        limit: planned.limit,
+                      },
+                    }
+            }
+            return {
+              invalidInput: {
+                reason: 'malformed',
+              },
+            }
+          }
           const coordinator = createSettlementCoordinator({
             binding: session.log,
-            owner: session.selection.owner,
+            owner,
             settlementContention: runtime.settlementContention,
             settlementScheduler: runtime.settlementScheduler,
             diagnostic: event => runtime.policy.diagnostic({ kind: event.kind }),
@@ -473,7 +681,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           const container = createCallContainer({
             key,
             session,
-            request,
+            request: { ...request, callId },
             systemStop: createOriginalSystemStop(
               runtime,
               key,
@@ -481,216 +689,46 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
                 unknownWrites.keep(key, binding, originalOwner, registration, task),
             ),
             binding: {
-              profile: anchor.profile,
-              snapshot: anchor.profileSnapshot,
-              parameters: anchor.parameters,
-              selectedBy: anchor.selectedBy,
+              profile: winner.ref,
+              snapshot,
+              parameters: merged.parameters,
+              selectedBy:
+                request.targetChangedBy === undefined
+                  ? request.basis.selectedBy
+                  : { extension: capabilityCanonicalString(request.targetChangedBy) },
               lease,
             },
-            owner: session.selection.owner,
+            owner,
             coordinator,
           })
-          if (closing) return { runtimeStopped: true }
-          if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
+          if (closing || preparation?.stopping()) return { runtimeStopped: true }
+          preparation?.attach(container)
+          preparationAttached = true
           transferred = true
-          return { callId, state: 'resumable' }
+          if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
+          published = true
+          return { callId, state: 'open' }
         } finally {
           if (!transferred) lease.release()
         }
-      }
-      const resolved = await resolveCallTools(request, session.tools)
-      if ('failure' in resolved)
-        return resolved.failure === 'unavailable'
-          ? { unavailable: true }
-          : { invalidInput: { reason: resolved.reason ?? 'malformed' } }
-      const owner = session.selection.owner
-      const facts = await withOwnedReads(
-        owner,
-        runtime.settlementContention.limits.concurrent,
-        retainedReads,
-        async registration => {
-          const holding = await registration.start(
-            'read',
-            async () => await session.selection.sessionTenancy.holdingTenant(request.session),
-          ).completion
-          if (!('tenant' in holding) || !tenantIdEquals(holding.tenant, session.log.tenant))
-            return { unavailable: true } as const
-          const rawRows = await registration.start(
-            'read',
-            async () => await session.catalog.listProfiles(holding.tenant),
-          ).completion
-          const rows = readRows(rawRows)
-          if (rows === undefined) return { unavailable: true } as const
-          const matching = rows.filter(row => row.ref.routeName === request.target)
-          if (matching.length === 0) return { profileNotFound: true } as const
-          const winner = winningRow(rows, request.target, [request.target])
-          if (winner === undefined) return { undispatched: 'withdrawn' } as const
-          const prefix = await readSettlementPrefix({ binding: session.log, registration })
-          if ('unavailable' in prefix) return { unavailable: true } as const
-          const projection = await registration.start(
-            'read',
-            async () => await session.selection.projection(prefix.prefix),
-          ).completion
-          if ('unknown' in projection) return { unavailable: true } as const
-          const compatible = session.selection.compatible(winner.profile, projection.known)
-          if ('invalidInput' in compatible || 'unavailable' in compatible)
-            return { unavailable: true } as const
-          if ('blocked' in compatible) return { undispatched: 'modality_mismatch' } as const
-          const present = await registration.start(
-            'read',
-            async () =>
-              await session.catalog.credentialPresent(session.log.tenant, winner.ref.origin),
-          ).completion
-          if ('failure' in present) return { unavailable: true } as const
-          if (!present.present) return { undispatched: 'credential_unavailable' } as const
-          return { winner } as const
-        },
-      )
-      if ('unavailable' in facts || 'unavailable' in facts.ok) return { unavailable: true }
-      const checked = facts.ok
-      if ('profileNotFound' in checked) return { profileNotFound: true }
-      if ('undispatched' in checked) {
-        if (closing) return { runtimeStopped: true }
-        const written = await appendControlRecord({
-          trackTask: task => appends.track(task),
-          binding: session.log,
-          owner,
-          concurrent: runtime.settlementContention.limits.concurrent,
-          record: {
-            kind: 'model_call_ended',
-            call: callId,
-            ending: 'undispatched',
-            cause: checked.undispatched,
-          },
-          retainUnknown(registration, task) {
-            unknownWrites.keep(key, session.log, owner, registration, task)
-          },
-        })
-        return 'appended' in written
-          ? { callId, state: 'handed_up', undispatched: checked.undispatched }
-          : { unavailable: true }
-      }
-      const { winner } = checked
-      const snapshot = snapshotOf(winner.profile)
-      if (snapshot === undefined) return { unavailable: true }
-      const merged = mergedParameters(winner.profile, request.parameters)
-      if ('invalidInput' in merged) return merged
-      if (snapshot.adaptation.definition.modelId !== request.target)
-        return { invalidInput: { reason: 'malformed' } }
-      const acquired = runtime.transport.acquire(snapshot.adaptation, request.target)
-      if ('unavailable' in acquired) return { unavailable: true }
-      const lease = acquired.lease
-      let transferred = false
-      try {
-        const planned = lease.transport.plan({
-          tokenMargin: runtime.tokenMargin,
-          target: { kind: 'model_call', callId, dispatch: 1 },
-          routeName: request.target,
-          provider: snapshot.providers[0] ?? '',
-          snapshot,
-          parameters: merged.parameters,
-          messages: request.messages,
-          tools: resolved.tools,
-        })
-        if ('rejected' in planned) {
-          if (planned.rejected === 'unavailable') return { unavailable: true }
-          if (planned.rejected === 'modality_not_carried') {
-            if (closing) return { runtimeStopped: true }
-            const written = await appendControlRecord({
-              trackTask: task => appends.track(task),
-              binding: session.log,
-              owner,
-              concurrent: runtime.settlementContention.limits.concurrent,
-              record: {
-                kind: 'model_call_ended',
-                call: callId,
-                ending: 'undispatched',
-                cause: 'modality_mismatch',
-              },
-              retainUnknown(registration, task) {
-                unknownWrites.keep(key, session.log, owner, registration, task)
-              },
-            })
-            return 'appended' in written
-              ? { callId, state: 'handed_up', undispatched: 'modality_mismatch' }
-              : { unavailable: true }
-          }
-          if (planned.rejected === 'invalidInput') {
-            if (
-              planned.reason === 'input_limit_missing' ||
-              planned.reason === 'input_size_unavailable'
-            )
-              return { invalidInput: { reason: planned.reason, metrics: planned.metrics } }
-            if (planned.reason === 'input_limit_exceeded')
-              return planned.basis === 'exact'
-                ? {
-                    invalidInput: {
-                      reason: planned.reason,
-                      basis: 'exact',
-                      metric: planned.metric,
-                      actual: planned.actual,
-                      limit: planned.limit,
-                    },
-                  }
-                : {
-                    invalidInput: {
-                      reason: planned.reason,
-                      basis: 'estimated',
-                      metric: planned.metric,
-                      estimatedTokens: planned.estimatedTokens,
-                      admissionTokens: planned.admissionTokens,
-                      limit: planned.limit,
-                    },
-                  }
-          }
-          return {
-            invalidInput: {
-              reason: 'malformed',
-            },
-          }
-        }
-        const coordinator = createSettlementCoordinator({
-          binding: session.log,
-          owner,
-          settlementContention: runtime.settlementContention,
-          settlementScheduler: runtime.settlementScheduler,
-          diagnostic: event => runtime.policy.diagnostic({ kind: event.kind }),
-        })
-        const container = createCallContainer({
-          key,
-          session,
-          request: { ...request, callId },
-          systemStop: createOriginalSystemStop(
-            runtime,
-            key,
-            (binding, originalOwner, registration, task) =>
-              unknownWrites.keep(key, binding, originalOwner, registration, task),
-          ),
-          binding: {
-            profile: winner.ref,
-            snapshot,
-            parameters: merged.parameters,
-            selectedBy:
-              request.targetChangedBy === undefined
-                ? request.basis.selectedBy
-                : { extension: capabilityCanonicalString(request.targetChangedBy) },
-            lease,
-          },
-          owner,
-          coordinator,
-        })
-        if (closing) return { runtimeStopped: true }
-        if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
-        transferred = true
-        return { callId, state: 'open' }
+      } catch {
+        return { unavailable: true }
       } finally {
-        if (!transferred) lease.release()
+        reservation.release()
       }
-    } catch {
-      return { unavailable: true }
-    } finally {
-      reservation.release()
     }
+    let result: OpenCallResult
+    try {
+      result = await execute()
+    } catch {
+      result = { unavailable: true }
+    }
+    if (preparation !== undefined && !published) {
+      const cleaned = preparationAttached ? await preparation.close() : await preparation.discard()
+      if ('unavailable' in cleaned) return { unavailable: true }
+    }
+    if (preparation?.stopping()) return { runtimeStopped: true }
+    return result
   }
   const close = async () => {
     closing = true
