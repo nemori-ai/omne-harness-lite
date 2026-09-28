@@ -136,6 +136,25 @@ Declare content-blocks as a direct dependency when constructing `LosslessNumber`
 
 The function copies and validates JSON data without reading getters, leaves caller data unchanged, and calculates without rounding to milliseconds. This arithmetic result supplies neither retry permission nor waiting, sending, fallback or a default retry contribution. Actual timer precision and large-duration scheduling remain subject to R3-G7; P-5/runner integration and the 37-model certification are pending.
 
+## Decide a bounded default retry
+
+`decideRetry` consumes the complete LC4 failure subject and explicit backoff inputs. It returns the LC4 `retry` or `observed` result, or a rejection. It performs no waiting or sending; an actual retry still needs `dispatchGuard` and the durable call service. The policy values below are caller choices, not runtime defaults.
+
+```ts
+import { decideRetry } from '@omne-harness-lite/model-request-runtime'
+import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
+
+export function chooseRetry(subject: AfterModelCallFailureSubject) {
+  return decideRetry({
+    subject: { known: subject },
+    policy: { kind: 'exponential', base: 'PT1S', factor: 2, max: 'PT10S', jitter: 'none' },
+    uniformSample: 0,
+  })
+}
+```
+
+This implementation is incomplete for a no-fallback call with multiple sends to the same provider: the current failure subject cannot distinguish a runtime-loss continuation from an already-used retry. It returns `unavailable` instead of inferring either outcome. Complete P-5 integration remains pending.
+
 ## Capture, prepare and recognize log values
 
 These pure functions implement the [D088 adopted format](../../../.meta_harness/design/record/decisions/model-runtime-log-codec-adoption/decision.md). Static root imports and calls do not open a log, install Cordis, read environment credentials, obtain a clock or generate identities. `SessionLog` types are borrowed from that package's public root. Every session, tenant, run/attempt pair, purpose and message prefix is explicit. A supplied message prefix must be the complete legal prefix before that message; `null` means unavailable and is rejected for a log message.
@@ -403,13 +422,13 @@ export async function settleResponse(
 
 `completion` reports settlement or an unavailable reason. `requestStop` requests cancellation; `stopped` and `close()` wait for actual owned tasks and permit release. A committed batch can be recognized while an old task is still live; that task keeps its original owner. An absent read never permits resubmission after an unknown receipt. Opened unknown blocks ordinary responses. Recovered absence must be established by the original host at the existing S-33 recovery boundary, after all old writers stop; this component adds no online recovery API.
 
-The example takes actual host dependencies and a complete MR5 response, without installing a service. A1b dispatch/opened coordination, the thirteen-operation `modelRuntime` service, official model certification, production withRun interpretation (G28), lawful read wiring and all-writer provenance remain pending. Adoption: [D087/v4 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md), [D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md).
+The example takes actual host dependencies and a complete MR5 response, without installing a service. The thirteen-operation `modelRuntime` service, official model certification, production withRun interpretation (G28), lawful read wiring and all-writer provenance remain pending. Adoption: [D087/v4 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md), [D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md).
 
 ## Durable noRun invocation
 
 `createAnchoredModelInvocation` composes the standalone `invokeModel` with a real
 SessionLog binding and the shared settlement coordinator. Its current delivery
-supports a single noRun dispatch with an empty tool list. The host supplies fixed
+supports a single noRun dispatch with an explicit list of resolved model tools. The host supplies fixed
 call/response/message identities, the complete profile binding and selection
 source, the actual credential scope/value, policy, transport, owner and log
 generation. The function validates these values; their shape does not establish
@@ -491,3 +510,28 @@ export async function initializeExplicitSelection(
 ```
 
 Keep the returned component for its borrowed provider lifetime. Await `selection.close()` before closing those providers. `{ unavailable: true }` means an unconfirmed original write or retained cleanup responsibility remains; keep the dependencies owned rather than treating the component as released. Operations register work before calling providers and await actual task stop. The host supplies actor authorization, real same-scope provider ports, a genuine complete-prefix modality projection, and an explicit concurrency limit. Type shapes and projection callbacks do not certify production provenance. This component does not register the full thirteen-operation runtime service, own the providers, or send model HTTP.
+
+## Supply tools to a durable invocation
+
+Pass resolved `ModelToolEntry` values through `planInput.tools`. `modelEntry` converts a validated tool definition to that model-facing shape. Declare tool-definition as a direct dependency when using this example.
+
+```ts
+import {
+  createAnchoredModelInvocation,
+  type AnchoredInvocationInput,
+  type PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
+import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
+
+export function invokeWithTools<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+  definitions: readonly ToolDefinition[],
+) {
+  return createAnchoredModelInvocation({
+    ...input,
+    planInput: { ...input.planInput, tools: definitions.map(modelEntry) },
+  })
+}
+```
+
+The runtime sends definitions and assembles streamed tool calls; the caller supplies each corresponding tool result in subsequent history. No tool is executed or automatically fed back by this function. Invalid definitions, duplicate names and orphan calls are rejected before a new dispatched anchor or HTTP request. The internal service composition helper now resolves names through the captured session or Run report scope; it is not a public tool execution API. The interactive demo still supplies an empty tool list.

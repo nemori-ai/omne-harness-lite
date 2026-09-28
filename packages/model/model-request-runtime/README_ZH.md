@@ -398,12 +398,12 @@ export async function settleResponse(
 
 `completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 和 `close()` 等实际任务停止后才释放额度。旧任务仍在途时可认回已提交原批，但仍保留旧任务的真实 owner；unknown 后的一次缺席读取不允许重交。opened unknown 阻断普通响应。恢复后的缺席只能由原宿主在既有 S-33 时机、全部旧写方停止之后建立，本构件没有新增在线恢复 API。
 
-示例接收实际宿主依赖与完整 MR5 响应，不注册服务。A1b 的发出/opened 协调、十三操作 `modelRuntime` 服务、官方模型认证、生产 withRun 认法 G28、合法读权接线及全部写方来源仍待交付。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md)。
+示例接收实际宿主依赖与完整 MR5 响应，不注册服务。十三操作 `modelRuntime` 服务、官方模型认证、生产 withRun 认法 G28、合法读权接线及全部写方来源仍待交付。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md)。
 
 ## 耐久 noRun 调用
 
 `createAnchoredModelInvocation` 将独立 `invokeModel`、真实 SessionLog 绑定与共同结算协调器
-直接组合。当前交付范围是单次 noRun 发出，工具列表必须为空。宿主提供固定的调用、响应与
+直接组合。当前交付范围是单次 noRun 发出，工具列表可包含已解析的模型面工具定义。宿主提供固定的调用、响应与
 消息身份、完整档案绑定和选中来源、实际凭据范围与值、策略、传输、owner 和日志代际。
 本函数校验这些值；形状不证明授权或凭据来源。一次调用借用精确传输引用，当前交付没有
 实现传输热替换。
@@ -476,3 +476,48 @@ export async function initializeExplicitSelection(
 ```
 
 保留返回组件，直到它借用的提供者生命周期结束。关闭提供者前先等待 `selection.close()`；若得到 `{ unavailable: true }`，说明原未知写入或清理责任尚保留，应继续持有依赖，不能当作已经释放。每项操作在调用提供者前登记工作，实际停止之后才解除登记。宿主负责真实身份授权、同范围提供者、真正由完整前缀所得的模态投影，以及显式并发上限；类型形状和回调不认证生产来源。本组件不登记完整十三操作服务、不拥有提供者，也不发送模型 HTTP。
+
+## 默认重试的有限决策
+
+`decideRetry` 消费完整 LC4 失败主体和显式退避输入，返回 LC4 的 `retry`／`observed` 或拒绝值。它不等待、不发送；实际再发仍须经过 `dispatchGuard` 和耐久调用服务。下面的政策值由调用者明确选择，不是 runtime 默认值。
+
+```ts
+import { decideRetry } from '@omne-harness-lite/model-request-runtime'
+import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
+
+export function chooseRetry(subject: AfterModelCallFailureSubject) {
+  return decideRetry({
+    subject: { known: subject },
+    policy: { kind: 'exponential', base: 'PT1S', factor: 2, max: 'PT10S', jitter: 'none' },
+    uniformSample: 0,
+  })
+}
+```
+
+不允许回退且同一家已有多次发出时，当前失败主体无法区分运行时失联后的续接与已用掉的一次重试。因此本实现返回 `unavailable`，不猜测是否试尽；完整 P-5 接线仍待完成。
+
+
+## 在耐久调用中携带工具
+
+通过 `planInput.tools` 传入已解析的 `ModelToolEntry`。`modelEntry` 把已校验的工具定义转换为模型面形状；使用下面示例的消费者应直接依赖 tool-definition 包。
+
+```ts
+import {
+  createAnchoredModelInvocation,
+  type AnchoredInvocationInput,
+  type PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
+import { modelEntry, type ToolDefinition } from '@omne-harness-lite/tool-definition'
+
+export function invokeWithTools<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+  definitions: readonly ToolDefinition[],
+) {
+  return createAnchoredModelInvocation({
+    ...input,
+    planInput: { ...input.planInput, tools: definitions.map(modelEntry) },
+  })
+}
+```
+
+runtime 负责发送定义并装配流式工具调用；调用者负责在后续历史中提供各调用对应的工具结果。该函数不执行工具，也不自动回填结果。非法定义、重名或孤儿调用在新的 dispatched 锚点和 HTTP 请求之前拒绝。内部服务组合构件已能按捕获的会话或 Run 报告范围解析名字；这不是公开的工具执行 API。交互 demo 仍传空工具列表。

@@ -11,6 +11,8 @@ export type {
 } from './dispatch-guard.ts'
 export type { RetryBackoffPolicy, RetryDelayInput, RetryDelayResult } from './retry-delay-types.ts'
 export { retryDelay } from './retry-delay.ts'
+export { decideRetry } from './decide-retry.ts'
+export type { DecideRetryInput, DecideRetryResult, RetryFailureFact } from './decide-retry-types.ts'
 export * from './log-codec.ts'
 export {
   createCredentialRedactionPolicy,
