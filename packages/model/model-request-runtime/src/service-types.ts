@@ -41,7 +41,13 @@ import type {
   SettlementOwner,
   SettlementScheduler,
 } from './settlement-types.ts'
-import type { InvocationPolicy, PlannedSemantics, TransportAdapter } from './types.ts'
+import type {
+  InputLimitRejection,
+  InvocationPolicy,
+  PlannedSemantics,
+  TokenMargin,
+  TransportAdapter,
+} from './types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 
 /** The pair is always the identity; a callId alone is not an access key. */
@@ -59,9 +65,16 @@ export type ServiceInvalidReason =
   | 'input_limit_missing'
   | 'input_limit_exceeded'
   | 'input_size_unavailable'
-export type ServiceInvalidInput = {
-  readonly invalidInput: { readonly reason: ServiceInvalidReason }
-}
+type PlainInvalidReason = Exclude<
+  ServiceInvalidReason,
+  'input_limit_missing' | 'input_limit_exceeded' | 'input_size_unavailable'
+>
+type WrapInputLimitRejection<T> = T extends InputLimitRejection
+  ? { readonly invalidInput: Omit<T, 'rejected'> }
+  : never
+export type ServiceInvalidInput =
+  | { readonly invalidInput: { readonly reason: PlainInvalidReason } }
+  | WrapInputLimitRejection<InputLimitRejection>
 export type ServiceUnavailable = { readonly unavailable: true }
 export type ServiceCallNotFound = { readonly callNotFound: true }
 export type ServiceAlreadyEnded = { readonly alreadyEnded: true }
@@ -325,6 +338,8 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly settlementContention: SettlementContention
   readonly settlementScheduler: SettlementScheduler
   readonly policy: InvocationPolicy
+  /** Captured anew by each plan; no runtime fallback or inferred zero margin. */
+  readonly tokenMargin: TokenMargin
   readonly identities: ModelIdentitySource
   readonly history: CurrentHistoryReaders
   readonly reservationWaitPolicy: ReservationWaitPolicy
