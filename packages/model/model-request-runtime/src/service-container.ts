@@ -97,8 +97,10 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       }
     }
     try {
-      if (invocation !== undefined && 'unavailable' in (await invocation.close()))
-        return { unavailable: true }
+      if (invocation !== undefined) {
+        const stopped = await invocation.close()
+        if (!('released' in stopped) || stopped.released !== true) return { unavailable: true }
+      }
       await coordinator.close()
       while (stopped.size > 0) await Promise.all([...stopped.values()])
       if (

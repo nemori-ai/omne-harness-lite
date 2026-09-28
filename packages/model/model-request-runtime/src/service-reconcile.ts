@@ -115,7 +115,8 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       if ('callId' in result || 'alreadyEnded' in result) {
         reservation.publish({ phase: 'ready' })
         // Durable success does not depend on whether optional resource cleanup completes now.
-        if ('released' in (await container.close())) input.calls.remove(reservation)
+        const stopped = await container.close()
+        if ('released' in stopped && stopped.released === true) input.calls.remove(reservation)
       } else {
         reservation.publish(view.operation)
       }

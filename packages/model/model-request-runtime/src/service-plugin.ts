@@ -64,7 +64,7 @@ export function createModelRuntimePlugin(input: {
       let released = false
       async function closeOwner(): Promise<RuntimeCloseResult> {
         const result = await owner.close()
-        if ('released' in result && !released) {
+        if ('released' in result && result.released === true && !released) {
           owner.release()
           released = true
         }
