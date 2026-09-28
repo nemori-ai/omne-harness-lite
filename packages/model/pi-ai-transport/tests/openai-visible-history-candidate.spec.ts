@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import {
   createOpenAiInputMeter,
@@ -19,6 +20,7 @@ import {
   input,
   judgedMessage,
   message,
+  policy,
   sse,
 } from './support.ts'
 import packet from './fixtures/openai/visible-history-candidate-cases.json' with { type: 'json' }
@@ -281,6 +283,73 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
         expect(host.requests.at(-1)?.body).toBe(c.wire)
       }
       expect(host.requests).toHaveLength(6)
+    } finally {
+      await transport.close()
+      await host.close()
+    }
+  })
+
+  it('invokes Luna official history through the public function with one TLS send and one content gate', async () => {
+    const c = packet.cases.find(value => value.id === 'luna-tool-reminder-holdout')
+    if (!c) throw new Error('missing Luna holdout')
+    const selected = definition(c.modelId)
+    const host = await fixture(
+      cert.tls,
+      res =>
+        res.end(
+          sse({
+            id: 'gen-local-luna-history',
+            model: 'openai/gpt-6-luna-20260922',
+            provider: 'OpenAI',
+            choices: [{ delta: { content: 'ALPHA' } }],
+          }) +
+            sse({ choices: [], usage: { prompt_tokens: 236, completion_tokens: 2 } }) +
+            finish(),
+        ),
+      {},
+      undefined,
+      [selected],
+    )
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [selected],
+      inputMeters: [createOpenAiInputMeter(selected)],
+    })
+    try {
+      const requested = request(c)
+      const planned = transport.plan(requested)
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      expect(planned.planned.serialized).toBe(c.wire)
+      expect(planned.planned.serialized).toContain('"max_tokens":64')
+      expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
+        kind: 'estimated',
+        tokens: 410,
+      })
+      let contentGates = 0
+      const accepted: string[] = []
+      const result = await invokeModel({
+        ...requested,
+        transport,
+        credential: 'controlled-local-credential',
+        signal: new AbortController().signal,
+        policy: policy(),
+        beforeFirstContent: async () => {
+          contentGates++
+        },
+        onAccepted: event => {
+          accepted.push(event.t)
+        },
+      }).outcome
+      if (!('outcome' in result)) throw new Error(JSON.stringify(result))
+      expect(result.outcome).toBe('complete')
+      expect(result.blocks).toMatchObject([{ kind: 'text', text: 'ALPHA' }])
+      expect(result.servingProvider).toBe('OpenAI')
+      expect(contentGates).toBe(1)
+      expect(accepted.filter(type => type === 'fill')).toHaveLength(1)
+      expect(accepted.filter(type => type === 'account')).toHaveLength(1)
+      expect(accepted.filter(type => type === 'finish')).toHaveLength(1)
+      expect(host.requests).toHaveLength(1)
+      expect(host.requests[0]?.body).toBe(c.wire)
     } finally {
       await transport.close()
       await host.close()
