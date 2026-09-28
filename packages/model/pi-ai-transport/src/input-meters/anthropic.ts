@@ -54,6 +54,19 @@ function supportedTextBody(body: JsonObject): boolean {
         message.role !== 'tool')
     )
       return false
+    // Text reasoning remains in the serialized estimate. Encrypted or unknown
+    // replay is opaque provider state: its ciphertext length does not measure
+    // the model's retained reasoning input.
+    if (Object.hasOwn(message, 'reasoning_details')) {
+      if (
+        !Array.isArray(message.reasoning_details) ||
+        !message.reasoning_details.every(
+          detail =>
+            object(detail) && detail.type === 'reasoning.text' && typeof detail.text === 'string',
+        )
+      )
+        return false
+    }
     if (typeof message.content === 'string') continue
     if (!Array.isArray(message.content)) return false
     for (const part of message.content) {
@@ -87,7 +100,7 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     !supportedModel(definition.modelId) ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:anthropic' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== 'mp4-2' ||
     !Object.hasOwn(definition.routes, 'anthropic')
   )
     throw new TypeError('unsupported Anthropic input-meter binding')
@@ -97,9 +110,9 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'anthropic',
-    algorithmRevision: 'anthropic-legacy-claude-bpe-rough-1',
+    algorithmRevision: 'anthropic-legacy-claude-bpe-rough-text-only-2',
     evidence:
-      'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation; Claude 4.7+ tokenizer and OpenRouter private chat formatting differ; text-only estimate',
+      'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation; Claude 4.7+ tokenizer and OpenRouter private chat formatting differ; text-only estimate, encrypted reasoning replay unavailable',
     measure({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
