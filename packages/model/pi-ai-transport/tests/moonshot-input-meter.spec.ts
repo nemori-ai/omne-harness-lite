@@ -5,6 +5,7 @@ import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-bl
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   createMoonshotInputMeter,
+  referenceMoonshotImageTokens,
   renderMoonshotPromptSegments,
 } from '../src/input-meters/moonshot.ts'
 import { moonshotTokenizer } from '../src/input-meters/moonshot-tokenizer.ts'
@@ -16,6 +17,10 @@ import { createOfficialProfileContent } from '../src/configuration.ts'
 import { planRequest } from '../src/plan.ts'
 import { object } from '../src/json.ts'
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+import {
+  createModelTransportService,
+  type RetirementPolicy,
+} from '@omne-harness-lite/pi-ai-transport'
 import {
   certificate,
   content,
@@ -73,6 +78,18 @@ function moonshotFixture(name: 'multi-turn' | 'parallel-results') {
   )
   if (!('ok' in parsed) || !object(parsed.ok)) throw new Error('invalid pinned Moonshot fixture')
   return parsed.ok
+}
+
+const tinyPng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='
+const inlinePng = `data:image/png;base64,${tinyPng}`
+const retirement: RetirementPolicy = {
+  waitMilliseconds: 20,
+  force: false,
+  schedule: (milliseconds, callback) => {
+    const timer = setTimeout(callback, milliseconds)
+    return () => clearTimeout(timer)
+  },
 }
 
 describe('Moonshot pinned public tokenizers and route templates', () => {
@@ -150,7 +167,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       }
       const meter = createMoonshotInputMeter(definition)
       expect(meter.algorithmRevision).toBe(
-        index === 0 ? 'moonshot-k3-xtml-3' : 'moonshot-k27-jinja-2',
+        index === 0 ? 'moonshot-k3-xtml-image-4' : 'moonshot-k27-jinja-image-3',
       )
       expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'estimated',
@@ -263,7 +280,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
   })
 
   it.each([0, 1] as const)(
-    'accounts for tools, results, history and rejects unsupported image on model %i',
+    'accounts for tools, results, history and rejects malformed image on model %i',
     index => {
       const definition = moonshotDefinitions[index]
       if (!definition) throw new Error('missing Moonshot definition')
@@ -330,6 +347,58 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       expect(meter.measure({ body: base, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     },
   )
+
+  it.each([
+    ['k3', 1, 1, 1],
+    ['k27', 1, 1, 1],
+    ['k3', 544, 544, 400],
+    ['k27', 544, 544, 400],
+    ['k3', 2048, 2048, 5476],
+    ['k27', 2048, 2048, 4225],
+  ] as const)(
+    'uses pinned %s processor for %ix%i image = %i patches',
+    (route, width, height, expected) => {
+      expect(referenceMoonshotImageTokens(route, width, height)).toBe(expected)
+    },
+  )
+
+  it.each([0, 1] as const)('counts every inline image in model %i complete history', index => {
+    const definition = moonshotDefinitions[index]
+    if (!definition) throw new Error('missing Moonshot definition')
+    const meter = createMoonshotInputMeter(definition)
+    const image = { type: 'image_url', image_url: { url: inlinePng } }
+    const base = {
+      model: definition.modelId,
+      messages: [
+        { role: 'user', content: [{ type: 'text', text: 'First image' }, image] },
+        { role: 'assistant', reasoning: 'I saw one image', content: 'Noted.' },
+        { role: 'user', content: [{ type: 'text', text: 'Compare with second' }, image] },
+      ],
+      ...(index === 0 ? { reasoning: { effort: 'high' } } : {}),
+    }
+    const first = { ...base, messages: base.messages.slice(0, 1) }
+    const measure = (body: typeof base | typeof first) =>
+      meter.measure({ body, serialized: writeJsonLossless(body) })
+    const firstCount = measure(first)
+    const allCount = measure(base)
+    expect(firstCount.kind).toBe('estimated')
+    expect(allCount.kind).toBe('estimated')
+    if (firstCount.kind !== 'estimated' || allCount.kind !== 'estimated')
+      throw new Error('image estimate unavailable')
+    expect(Number(String(allCount.tokens))).toBeGreaterThan(Number(String(firstCount.tokens)))
+    const remote = {
+      ...base,
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'image_url', image_url: { url: 'https://example.test/image.png' } }],
+        },
+      ],
+    }
+    expect(meter.measure({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
+      kind: 'unavailable',
+    })
+  })
 
   it.each([0, 1] as const)(
     'admits model %i replayed plain reasoning and paired tool result',
@@ -506,6 +575,222 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         expect(wire.body).not.toContain('test-only')
       } finally {
         await transport.close()
+        await host.close()
+      }
+    },
+  )
+
+  it.each([0, 1] as const)(
+    'sends both model %i images in complete prior/current history through its fixed TLS plan',
+    async index => {
+      const definition = moonshotDefinitions[index]
+      if (!definition) throw new Error('missing Moonshot definition')
+      const host = await fixture(
+        cert.tls,
+        res => {
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          res.end(
+            content('Two images received.') +
+              sse({ choices: [], usage: { prompt_tokens: 500, completion_tokens: 5 } }) +
+              finish(),
+          )
+        },
+        {},
+        undefined,
+        moonshotDefinitions,
+      )
+      const transport = createPiAiTransport({
+        ...host.options,
+        definitions: moonshotDefinitions,
+        inputMeters: moonshotDefinitions.map(createMoonshotInputMeter),
+      })
+      const red = readFileSync(
+        new URL('./fixtures/deepseek-v41-flash/public-red-544.png', import.meta.url),
+      )
+      const blue = readFileSync(
+        new URL('./fixtures/deepseek-v41-flash/public-blue-1024.png', import.meta.url),
+      )
+      const imageTurn = (id: string, bytes: Buffer, words: string) =>
+        judgedMessage({
+          type: 'user',
+          id,
+          createdAt: '2026-09-28T00:00:00Z',
+          blocks: [
+            {
+              id: `${id}-text`,
+              kind: 'text',
+              text: words,
+              visibility: { toHuman: true, toModel: true },
+            },
+            {
+              id: `${id}-image`,
+              kind: 'image',
+              mediaType: 'image/png',
+              data: { inline: bytes.toString('base64') },
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        })
+      const plannedInput = {
+        ...request(index),
+        messages: [
+          message('system', 'Compare the colors.'),
+          imageTurn('moonshot-red', red, 'Remember the first image.'),
+          judgedMessage({
+            id: 'moonshot-intervening',
+            type: 'assistant',
+            response: 'moonshot-previous-response',
+            ending: 'complete',
+            createdAt: '2026-09-28T00:00:00Z',
+            blocks: [
+              {
+                id: 'moonshot-intervening-text',
+                kind: 'text',
+                text: 'I remember it.',
+                visibility: { toHuman: true, toModel: true },
+              },
+            ],
+          }),
+          imageTurn('moonshot-blue', blue, 'Compare this image to the first.'),
+        ],
+      }
+      try {
+        const plan = transport.plan(plannedInput)
+        if ('rejected' in plan) throw new Error(JSON.stringify(plan))
+        expect(plan.planned.inputLimitEvidence.images).toBe(2)
+        expect(plan.planned.inputLimitEvidence.imageBytes).toEqual([red.length, blue.length])
+        expect(plan.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+        const result = await invokeModel({
+          ...plannedInput,
+          transport,
+          credential: 'controlled-test-only',
+          signal: new AbortController().signal,
+          policy: policy(),
+        }).outcome
+        if (!('outcome' in result)) throw new Error(JSON.stringify(result))
+        expect(result.outcome).toBe('complete')
+        expect(host.requests).toHaveLength(1)
+        expect(host.requests[0]?.body).toBe(plan.planned.serialized)
+        const wire = readJsonStrict(plan.planned.serialized)
+        if (!('ok' in wire) || !object(wire.ok) || !Array.isArray(wire.ok.messages))
+          throw new Error('invalid captured Moonshot wire')
+        expect(wire.ok.messages.slice(-3)).toEqual([
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Remember the first image.' },
+              {
+                type: 'image_url',
+                image_url: { url: `data:image/png;base64,${red.toString('base64')}` },
+              },
+            ],
+          },
+          { role: 'assistant', content: 'I remember it.' },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Compare this image to the first.' },
+              {
+                type: 'image_url',
+                image_url: { url: `data:image/png;base64,${blue.toString('base64')}` },
+              },
+            ],
+          },
+        ])
+      } finally {
+        await transport.close()
+        await host.close()
+      }
+    },
+  )
+
+  it.each([0, 1] as const)(
+    'leases exact model %i through service with image estimate and automatic-cache wire',
+    async index => {
+      const definition = moonshotDefinitions[index]
+      if (!definition) throw new Error('missing Moonshot definition')
+      const host = await fixture(
+        cert.tls,
+        res => {
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          res.end(
+            content('I see the image.') +
+              sse({
+                choices: [],
+                usage: {
+                  prompt_tokens: 100,
+                  completion_tokens: 5,
+                  prompt_tokens_details: { cached_tokens: 20 },
+                },
+              }) +
+              finish(),
+          )
+        },
+        {},
+        undefined,
+        moonshotDefinitions,
+      )
+      const service = createModelTransportService(host.options)
+      const registered = service.registerAdaptation(
+        definition,
+        createMoonshotInputMeter(definition),
+        {},
+        () => {},
+      )
+      if ('rejected' in registered) throw new Error(registered.rejected)
+      const base = request(index)
+      const plannedInput = {
+        ...base,
+        messages: [
+          ...base.messages,
+          judgedMessage({
+            type: 'user',
+            id: `moonshot-service-image-${index}`,
+            createdAt: '2026-09-28T00:00:00Z',
+            blocks: [
+              {
+                id: 'question',
+                kind: 'text',
+                text: 'Describe this tiny image.',
+                visibility: { toHuman: true, toModel: true },
+              },
+              {
+                id: 'image',
+                kind: 'image',
+                mediaType: 'image/png',
+                data: { inline: tinyPng },
+                visibility: { toHuman: true, toModel: true },
+              },
+            ],
+          }),
+        ],
+      }
+      const acquired = service.acquire(plannedInput.snapshot.adaptation, plannedInput.routeName)
+      if ('rejected' in acquired) throw new Error(acquired.rejected)
+      const lease = acquired.lease
+      try {
+        const plan = lease.transport.plan(plannedInput)
+        if ('rejected' in plan) throw new Error(JSON.stringify(plan))
+        expect(plan.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+        const result = await lease.track(
+          invokeModel({
+            ...plannedInput,
+            transport: lease.transport,
+            credential: 'controlled-test-only',
+            signal: lease.signal,
+            policy: policy(),
+          }).outcome,
+        )
+        if (!('outcome' in result)) throw new Error(JSON.stringify(result))
+        expect(result.outcome).toBe('complete')
+        expect(result.usage.cache_read_tokens).toBe(20)
+        expect(host.requests).toHaveLength(1)
+        expect(host.requests[0]?.body).toBe(plan.planned.serialized)
+        expect(host.requests[0]?.body).not.toContain('cache_control')
+      } finally {
+        lease.release()
+        await service.close(retirement)
+        await service.closed
         await host.close()
       }
     },

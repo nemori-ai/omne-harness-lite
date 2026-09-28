@@ -11,10 +11,111 @@ import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { object } from '../json.ts'
 import { countSegments, moonshotTokenizer } from './moonshot-tokenizer.ts'
+import { imageSize } from 'image-size'
 
 type Segment = { readonly text: string; readonly control: boolean }
 type Route = 'k3' | 'k27'
 const unavailable = { kind: 'unavailable' } as const
+const inlineImage =
+  /^data:(image\/(?:png|jpeg|webp));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
+
+function imageDimensions(part: JsonValue): { width: number; height: number } | undefined {
+  if (
+    !object(part) ||
+    part.type !== 'image_url' ||
+    Object.keys(part).some(key => key !== 'type' && key !== 'image_url')
+  )
+    return undefined
+  const image = part.image_url
+  if (
+    !object(image) ||
+    Object.keys(image).some(key => key !== 'url') ||
+    typeof image.url !== 'string'
+  )
+    return undefined
+  const match = inlineImage.exec(image.url)
+  if (!match?.[1] || !match[2]) return undefined
+  const bytes = Buffer.from(match[2], 'base64')
+  if (!bytes.length || bytes.toString('base64') !== match[2]) return undefined
+  try {
+    const dimensions = imageSize(bytes)
+    if (dimensions.type !== (match[1] === 'image/jpeg' ? 'jpg' : match[1].slice(6)))
+      return undefined
+    if (
+      !Number.isSafeInteger(dimensions.width) ||
+      !Number.isSafeInteger(dimensions.height) ||
+      dimensions.width < 1 ||
+      dimensions.height < 1
+    )
+      return undefined
+    return { width: dimensions.width, height: dimensions.height }
+  } catch {
+    return undefined
+  }
+}
+
+// Moonshot's pinned media_utils.py navit_resize_image with model-specific
+// preprocessor_config.json. This is a reference serving estimate, not an
+// OpenRouter token count or a conservative upper bound.
+export function referenceMoonshotImageTokens(
+  route: Route,
+  width: number,
+  height: number,
+): number | undefined {
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width > 65535 ||
+    height > 65535
+  )
+    return undefined
+  const patch = 14
+  const merge = 2
+  const sideLimit = 512
+  const patchLimit = route === 'k3' ? 65536 : 16384
+  const scale = Math.min(
+    1,
+    Math.sqrt(
+      patchLimit /
+        (Math.max(1, Math.floor(width / patch)) * Math.max(1, Math.floor(height / patch))),
+    ),
+    (sideLimit * patch) / width,
+    (sideLimit * patch) / height,
+  )
+  const resizedWidth = Math.min(Math.max(1, Math.trunc(width * scale)), sideLimit * patch)
+  const resizedHeight = Math.min(Math.max(1, Math.trunc(height * scale)), sideLimit * patch)
+  const factor = merge * patch
+  return Math.ceil(resizedWidth / factor) * Math.ceil(resizedHeight / factor)
+}
+
+function imageSegments(route: Route, dimensions: { width: number; height: number }): Segment[] {
+  return [
+    control('<|media_begin|>'),
+    text(route === 'k3' ? `image ${dimensions.width}x${dimensions.height}` : 'image'),
+    control('<|media_content|>'),
+    control('<|media_pad|>'),
+    control('<|media_end|>'),
+  ]
+}
+
+function mediaTokens(route: Route, history: readonly JsonObject[]): number | undefined {
+  let tokens = 0
+  for (const message of history) {
+    if (!Array.isArray(message.content)) continue
+    for (const part of message.content) {
+      if (!object(part) || part.type !== 'image_url') continue
+      if (message.role !== 'user') return undefined
+      const dimensions = imageDimensions(part)
+      if (!dimensions) return undefined
+      const count = referenceMoonshotImageTokens(route, dimensions.width, dimensions.height)
+      if (count === undefined) return undefined
+      tokens += count - 1 // the prompt already contains one media_pad token
+    }
+  }
+  return tokens
+}
 const accountedBodyFields = new Set([
   'model',
   'messages',
@@ -63,6 +164,7 @@ function contents(value: JsonValue | undefined): string | undefined {
   if (!Array.isArray(value)) return undefined
   let result = ''
   for (const part of value) {
+    if (object(part) && part.type === 'image_url' && imageDimensions(part)) continue
     if (
       !object(part) ||
       part.type !== 'text' ||
@@ -75,14 +177,24 @@ function contents(value: JsonValue | undefined): string | undefined {
   return result
 }
 
-function k3ContentSegments(value: JsonValue | undefined): Segment[] | undefined {
+function contentSegments(route: Route, value: JsonValue | undefined): Segment[] | undefined {
   if (typeof value === 'string') return [text(value)]
   if (value === null || value === undefined) return []
   if (!Array.isArray(value)) return undefined
   const segments: Segment[] = []
   for (const part of value) {
-    if (!object(part) || part.type !== 'text' || typeof part.text !== 'string') return undefined
-    segments.push(text(part.text))
+    if (!object(part)) return undefined
+    if (part.type === 'image_url') {
+      const dimensions = imageDimensions(part)
+      if (!dimensions) return undefined
+      segments.push(...imageSegments(route, dimensions))
+    } else if (
+      part.type === 'text' &&
+      typeof part.text === 'string' &&
+      Object.keys(part).every(key => key === 'type' || key === 'text')
+    )
+      segments.push(text(part.text))
+    else return undefined
   }
   return segments
 }
@@ -93,6 +205,12 @@ function messages(body: JsonObject): readonly JsonObject[] | undefined {
     if (!object(item) || typeof item.role !== 'string' || contents(item.content) === undefined)
       return undefined
     if (!['system', 'developer', 'user', 'assistant', 'tool'].includes(item.role)) return undefined
+    if (
+      item.role !== 'user' &&
+      Array.isArray(item.content) &&
+      item.content.some(part => object(part) && part.type === 'image_url')
+    )
+      return undefined
     // The public templates do not explain opaque provider reasoning details.
     if (item.reasoning_details !== undefined) return undefined
     if (
@@ -275,8 +393,8 @@ function renderK3(
   for (const message of orderedK3History(history)) {
     const role = message.role
     const content = contents(message.content)
-    const contentSegments = k3ContentSegments(message.content)
-    if (content === undefined || !contentSegments || typeof role !== 'string') return undefined
+    const renderedContent = contentSegments('k3', message.content)
+    if (content === undefined || !renderedContent || typeof role !== 'string') return undefined
     if (role === 'developer') return undefined // no documented K3 developer projection
     if (role === 'tool') {
       resultIndex++
@@ -291,7 +409,7 @@ function renderK3(
           ['index', String(resultIndex)],
         ]),
       )
-      result.push(...contentSegments, ...close('message'), control('<|end_of_msg|>'))
+      result.push(...renderedContent, ...close('message'), control('<|end_of_msg|>'))
       continue
     }
     const attrs: [string, string][] = [['role', role]]
@@ -306,7 +424,7 @@ function renderK3(
       const reasoningText = message.reasoning_content ?? message.reasoning
       if (typeof reasoningText === 'string') result.push(text(reasoningText))
       else if (reasoningText !== undefined) return undefined
-      result.push(...close('think'), ...open('response'), ...contentSegments, ...close('response'))
+      result.push(...close('think'), ...open('response'), ...renderedContent, ...close('response'))
       if (toolCalls.length) {
         result.push(...open('tools'))
         for (const [index, call] of toolCalls.entries()) {
@@ -316,7 +434,7 @@ function renderK3(
         }
         result.push(...close('tools'))
       }
-    } else result.push(...contentSegments)
+    } else result.push(...renderedContent)
     result.push(...close('message'), control('<|end_of_msg|>'))
   }
   result.push(...open('message', [['role', 'assistant']]), ...open('think'))
@@ -339,7 +457,8 @@ function renderK27(
   for (const message of history) {
     const role = message.role
     const content = contents(message.content)
-    if (content === undefined || typeof role !== 'string') return undefined
+    const renderedContent = contentSegments('k27', message.content)
+    if (content === undefined || !renderedContent || typeof role !== 'string') return undefined
     const marker =
       role === 'user' ? '<|im_user|>' : role === 'assistant' ? '<|im_assistant|>' : '<|im_system|>'
     result.push(
@@ -352,7 +471,7 @@ function renderK27(
       if (!toolCalls) return undefined
       const reasoningText = message.reasoning ?? message.reasoning_content ?? ''
       if (typeof reasoningText !== 'string') return undefined
-      result.push(control('<think>'), text(reasoningText), control('</think>'), text(content))
+      result.push(control('<think>'), text(reasoningText), control('</think>'), ...renderedContent)
       if (toolCalls.length) {
         result.push(control('<|tool_calls_section_begin|>'))
         for (const call of toolCalls) {
@@ -371,8 +490,8 @@ function renderK27(
       }
     } else if (role === 'tool') {
       if (typeof message.tool_call_id !== 'string') return undefined
-      result.push(text(`## Return of ${message.tool_call_id}\n${content}`))
-    } else result.push(text(content))
+      result.push(text(`## Return of ${message.tool_call_id}\n`), ...renderedContent)
+    } else result.push(...renderedContent)
     result.push(control('<|im_end|>'))
   }
   result.push(
@@ -415,8 +534,8 @@ function meter(
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider,
-    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-3' : 'moonshot-k27-jinja-2',
-    evidence: `moonshotai/${source}; tiktoken.model sha256:b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103`,
+    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-image-4' : 'moonshot-k27-jinja-image-3',
+    evidence: `moonshotai/${source}; tiktoken.model sha256:b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103; image processor/config ${route === 'k3' ? 'd122b30b/4be33360' : '498e2075/bd9a1f5d'}`,
     measure({
       body,
       serialized,
@@ -425,9 +544,13 @@ function meter(
         return unavailable
       const rendered = renderMoonshotPromptSegments(route, body)
       if (!rendered) return unavailable
+      const history = messages(body)
+      if (!history) return unavailable
+      const patches = mediaTokens(route, history)
+      if (patches === undefined) return unavailable
       // Only public prompt-template segments enter the raw estimate. OpenRouter
       // conversion uncertainty is represented by estimated + caller tokenMargin.
-      return { kind: 'estimated', tokens: countSegments(tokenizer, rendered) }
+      return { kind: 'estimated', tokens: countSegments(tokenizer, rendered) + patches }
     },
   })
 }
