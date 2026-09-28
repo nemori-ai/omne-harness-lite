@@ -30,6 +30,7 @@ import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
+  CallObserverBinding,
   OpenCallInput,
   OpenCallResult,
   RuntimeConstruction,
@@ -381,6 +382,37 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     )
     return 'unavailable' in read ? { unavailable: true, reason: 'prefix' } : read.ok
   }
+  function authorizeObserver(
+    session: SessionRuntimeBinding,
+    request: OpenCallInput,
+    callId: NonNullable<OpenCallInput['callId']>,
+  ):
+    | { readonly observer: Omit<CallObserverBinding, 'queue'> }
+    | ServiceInvalidInput
+    | { readonly unavailable: true } {
+    if (request.observer === undefined || session.observers === undefined)
+      return { unavailable: true }
+    try {
+      const result = session.observers.authorize({
+        request: request.observer,
+        session: request.session,
+        tenant: session.log.tenant,
+        callId,
+      })
+      if (!('observer' in result)) return result
+      if (
+        result.observer === null ||
+        typeof result.observer !== 'object' ||
+        typeof result.observer.check !== 'function' ||
+        typeof result.observer.open !== 'function' ||
+        typeof result.observer.close !== 'function'
+      )
+        return { unavailable: true }
+      return { observer: { request: request.observer, authorization: result.observer } }
+    } catch {
+      return { unavailable: true }
+    }
+  }
   const openCall = async (input: OpenCallInput): Promise<OpenCallResult> => {
     if (closing) return { runtimeStopped: true }
     const owned = ownOpenCallInput(input)
@@ -421,6 +453,16 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       if (session.selection.owner.admission() !== 'open') return { runtimeStopped: true }
       if (preparation?.stopping() || request.host.signal.aborted || request.host.stopping())
         return { runtimeStopped: true }
+      let observer: Omit<CallObserverBinding, 'queue'> | undefined
+      if (existing === undefined && request.observer !== undefined) {
+        const authorized = authorizeObserver(session, request, callId)
+        if (!('observer' in authorized)) return authorized
+        if (preparation === undefined) return { unavailable: true }
+        observer = {
+          request: authorized.observer.request,
+          authorization: preparation.retainObserver(authorized.observer.authorization),
+        }
+      }
       const gate = await runtime.calls.waitReserve(key, {
         policy: runtime.reservationWaitPolicy,
         scheduler: runtime.settlementScheduler,
@@ -499,6 +541,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
                 (binding, originalOwner, registration, task) =>
                   unknownWrites.keep(key, binding, originalOwner, registration, task),
               ),
+              ...(observer === undefined ? {} : { observer }),
               binding: {
                 profile: anchor.profile,
                 snapshot: anchor.profileSnapshot,
@@ -688,6 +731,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               (binding, originalOwner, registration, task) =>
                 unknownWrites.keep(key, binding, originalOwner, registration, task),
             ),
+            ...(observer === undefined ? {} : { observer }),
             binding: {
               profile: winner.ref,
               snapshot,
@@ -727,7 +771,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       const cleaned = preparationAttached ? await preparation.close() : await preparation.discard()
       if ('unavailable' in cleaned) return { unavailable: true }
     }
-    if (preparation?.stopping()) return { runtimeStopped: true }
+    if (request.host.signal.aborted || request.host.stopping()) return { runtimeStopped: true }
     return result
   }
   const close = async () => {

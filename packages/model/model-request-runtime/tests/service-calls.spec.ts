@@ -167,6 +167,52 @@ test('host stop during session binding prevents a late call publication and unre
   expect(calls.find({ session, callId: 'late-call' })).toBeUndefined()
 })
 
+test('observer association rejects a wrong call before catalog reads or transport acquisition', async () => {
+  const tenant = unwrap(parseTenantId({ organization: 'open-org', account: 'open-account' }))
+  const generation = Object.freeze({})
+  const logBinding = { session, tenant, generation, currentGeneration: () => generation }
+  const authorize = vi.fn(() => ({ invalidInput: { reason: 'observer_scope_mismatch' as const } }))
+  const catalogRead = vi.fn()
+  const binding = {
+    log: logBinding,
+    selection: { binding: logBinding, owner: { admission: () => 'open' } },
+    observers: { authorize },
+    catalog: { listProfiles: catalogRead },
+  } as unknown as SessionRuntimeBinding
+  const acquire = vi.fn()
+  const calls = createCallContainerStore<PlannedSemantics, never>()
+  const runtime = {
+    identities: { call: () => 'observer-call' },
+    sessions: { bind: async () => ({ binding }) },
+    calls,
+    transport: { acquire },
+  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  const observer = {
+    session,
+    endpoint: {
+      open: () => ({
+        receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+        stop() {},
+        stopped: Promise.resolve(),
+      }),
+    },
+    observer_max_buffered_events: 1,
+    observer_max_buffered_bytes: 1024,
+  }
+  expect(await createServiceCalls(runtime).openCall(request({ observer }))).toEqual({
+    invalidInput: { reason: 'observer_scope_mismatch' },
+  })
+  expect(authorize).toHaveBeenCalledWith({
+    request: observer,
+    session,
+    tenant,
+    callId: 'observer-call',
+  })
+  expect(catalogRead).not.toHaveBeenCalled()
+  expect(acquire).not.toHaveBeenCalled()
+  expect(calls.find({ session, callId: 'observer-call' })).toBeUndefined()
+})
+
 test('opens two distinct noRun calls against the actual empty JSONL prefix without an open record', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'mrr-open-call-'))
   const log = await openJsonlSessionLog({
@@ -232,6 +278,19 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     listProfiles: async () => [{ ref: { origin: 'official', routeName: 'model_a' }, profile }],
     credentialPresent: async () => ({ present: true, scope: { layer: 'factory' } }),
   }
+  let observerClosed = 0
+  const observerRequest = {
+    session,
+    endpoint: {
+      open: () => ({
+        receive: () => ({ completion: Promise.resolve(), stopped: Promise.resolve() }),
+        stop() {},
+        stopped: Promise.resolve(),
+      }),
+    },
+    observer_max_buffered_events: 2,
+    observer_max_buffered_bytes: 4096,
+  }
   const binding = {
     log: logBinding,
     selection: {
@@ -243,6 +302,18 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     },
     catalog,
     tools: { lookup: vi.fn() },
+    observers: {
+      authorize: () => ({
+        observer: {
+          check: () => ({ valid: true as const }),
+          open: () => ({ receiver: observerRequest.endpoint.open() }),
+          close: async () => {
+            observerClosed++
+            return { released: true as const }
+          },
+        },
+      }),
+    },
   } as unknown as SessionRuntimeBinding
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const planned = vi.fn(input => ({ planned: { input, parameters: input.parameters } }))
@@ -282,7 +353,7 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
   } as unknown as RuntimeConstruction<PlannedSemantics, never>
   try {
     const service = createServiceCalls(runtime)
-    const first = await service.openCall({ ...request(), host })
+    const first = await service.openCall({ ...request({ observer: observerRequest }), host })
     const second = await service.openCall({ ...request(), host })
     expect(first).toEqual({ callId: 'call_1', state: 'open' })
     expect(second).toEqual({ callId: 'call_2', state: 'open' })
@@ -294,6 +365,7 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     if ('failure' in read) throw new Error(read.failure)
     expect(read.entries).toHaveLength(0)
     expect(await calls.close()).toEqual({ released: true })
+    expect(observerClosed).toBe(1)
     const stoppedRead = await log.readSince(session, 0)
     if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
     expect(stoppedRead.entries).toHaveLength(2)
