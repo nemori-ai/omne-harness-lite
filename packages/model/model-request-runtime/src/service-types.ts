@@ -7,7 +7,7 @@ import type {
   ModelRequest,
   RetryPlan,
 } from '@omne-harness-lite/loop-extension'
-import type { SessionRef } from '@omne-harness-lite/messages'
+import type { MessageId, SessionRef } from '@omne-harness-lite/messages'
 import type {
   ModelAdaptationBinding,
   ModelProfileRef,
@@ -293,6 +293,8 @@ export interface RuntimeSessionAccess {
 export interface ModelIdentitySource {
   readonly call: () => ModelCallId
   readonly response: () => ResponseId
+  /** Distinct actual MessageId for a handed-off assistant reply. */
+  readonly message: () => MessageId
 }
 
 /** The exact acquired version remains owned until real work stops. */

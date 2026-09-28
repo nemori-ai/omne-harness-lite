@@ -7,6 +7,7 @@ import type {
   DispatchSuccess,
   RuntimeConstruction,
   ServiceInvalidInput,
+  ModelIdentitySource,
 } from '../src/service-types.ts'
 import type { PlannedSemantics, TokenMargin } from '../src/types.ts'
 
@@ -14,8 +15,10 @@ declare const service: ModelRuntimeService
 declare const session: SessionRef
 declare const call: OpenCallInput
 declare const construction: RuntimeConstruction<PlannedSemantics, never>
+declare const ids: ModelIdentitySource
 
 expectTypeOf(construction.tokenMargin).toEqualTypeOf<TokenMargin>()
+expectTypeOf(ids.message()).toEqualTypeOf<import('@omne-harness-lite/messages').MessageId>()
 const exactExcess: ServiceInvalidInput = {
   invalidInput: {
     reason: 'input_limit_exceeded',

@@ -57,6 +57,8 @@ export async function installRuntime(
 
 内部 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、未知写者或精确传输租约。`container.close()` 只有在原句柄报告实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。锚定调用的 `close()` 返回 `unavailable` 时仍保留原协调器与借用引用；原工作实际停止且结算事实可读取后，可再次调用 `close()`。并发关闭共用同一次尝试，已释放后的关闭幂等。
 
+服务宿主分别提供 `call()`、`response()` 和 `message()` 身份来源。回复的 `MessageId` 在那次发送时由 `message()` 产生，不复用 `ResponseId`，也不交由适配器自定。
+
 每次新规划都要求宿主或直接调用者完整给出 `tokenMargin: { multiplier, reserveTokens }`；运行时为该计划捕获它，不补默认值。估算超门拒绝保留 `basis: 'estimated'`、`estimatedTokens`、`admissionTokens` 和 `limit`；准确超限保留 `basis: 'exact'`、`actual` 和 `limit`。估算值不是上游实际 usage 或费用。采用依据见 [RT8 输入上限契约](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划)及 [runtime v9 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md)。
 
 ## 读取调用，不把本地状态当作耐久事实
