@@ -10,6 +10,7 @@ import type {
 import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
+import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 
 function deferred() {
   let resolve: (() => void) | undefined
@@ -90,6 +91,80 @@ function fixture(sessionId: string, callId: string) {
 }
 
 describe('call container admission and retention', () => {
+  it('replaces a released send only under a still-owned ready reservation', async () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const f = fixture('session', 'call')
+    const first = store.reserve(f.container.key)
+    if (!('reservation' in first)) throw new Error('first reservation absent')
+    expect(store.insert(first.reservation, f.container)).toBe(true)
+    const gate = deferred()
+    let closes = 0
+    const old = {
+      outcome: Promise.resolve({ unavailable: true }),
+      snapshot: () => ({ blocks: [], position: 0 }),
+      abort() {},
+      async close() {
+        closes++
+        await gate.promise
+        return { released: true } as const
+      },
+      async settleReply() {
+        return { unavailable: true, reason: 'candidate' } as const
+      },
+    } as AnchoredInvocationHandle
+    const next = {
+      outcome: Promise.resolve({ unavailable: true }),
+      snapshot: () => ({ blocks: [], position: 0 }),
+      abort() {},
+      async close() {
+        return { released: true } as const
+      },
+      async settleReply() {
+        return { unavailable: true, reason: 'candidate' } as const
+      },
+    } as AnchoredInvocationHandle
+    first.reservation.attachInvocation(old)
+    first.reservation.release()
+    let created = 0
+    const create = () => {
+      created++
+      return next
+    }
+    const pending = store.reserve(f.container.key)
+    if (!('reservation' in pending)) throw new Error('pending reservation absent')
+    pending.reservation.publish({ phase: 'reply_pending', pending: {} as PendingModelResponse })
+    expect(await pending.reservation.replaceInvocation(create)).toEqual({ unavailable: true })
+    expect(created).toBe(0)
+    pending.reservation.publish({ phase: 'ready' })
+    f.setOpened({
+      unknown: { completion: Promise.resolve(), stopped: Promise.resolve(), requestStop() {} },
+    })
+    expect(await pending.reservation.replaceInvocation(create)).toEqual({ unavailable: true })
+    expect(created).toBe(0)
+    f.setOpened({ confirmed: true })
+    const interrupted = pending.reservation.replaceInvocation(create)
+    await Promise.resolve()
+    pending.reservation.release()
+    gate.finish()
+    expect(await interrupted).toEqual({ unavailable: true })
+    expect(created).toBe(0)
+    expect(f.container.view().invocation).toBe(old)
+    expect(f.leaseReleases).toBe(0)
+    const retry = store.reserve(f.container.key)
+    if (!('reservation' in retry)) throw new Error('retry reservation absent')
+    expect(
+      await retry.reservation.replaceInvocation(() => {
+        throw new Error('construction failed')
+      }),
+    ).toEqual({ unavailable: true })
+    expect(retry.reservation.view()?.invocation).toBe(old)
+    expect(await retry.reservation.replaceInvocation(create)).toEqual({ attached: next })
+    expect(created).toBe(1)
+    expect(closes).toBe(3)
+    expect(retry.reservation.view()?.invocation).toBe(next)
+    expect(f.leaseReleases).toBe(0)
+    retry.reservation.release()
+  })
   it('updates only the same call resume request without carrying old optional fields', () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const f = fixture('session', 'call')

@@ -23,6 +23,16 @@ import type { SettlementScheduler } from './settlement-types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 
 const invocationSlots = new WeakMap<object, (handle: AnchoredInvocationHandle) => void>()
+const replacementSlots = new WeakMap<
+  object,
+  {
+    eligible: (old: AnchoredInvocationHandle) => boolean
+    replace: (
+      old: AnchoredInvocationHandle,
+      create: () => AnchoredInvocationHandle,
+    ) => { readonly attached: AnchoredInvocationHandle } | { readonly unavailable: true }
+  }
+>()
 const requestSlots = new WeakMap<object, (request: OpenCallInput) => void>()
 
 function sameKey(left: CallKey, right: CallKey): boolean {
@@ -160,6 +170,40 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       throw new TypeError('original invocation already attached')
     invocation = handle
   })
+  function eligibleForReplacement(old: AnchoredInvocationHandle): boolean {
+    return (
+      invocation === old &&
+      !released &&
+      !releaseAttempted &&
+      !admissionClosed &&
+      operation.phase === 'ready' &&
+      !('unknown' in owner.opened()) &&
+      owner.unresolvedWrites().length === 0
+    )
+  }
+  replacementSlots.set(container, {
+    eligible: eligibleForReplacement,
+    replace(old, create) {
+      if (!eligibleForReplacement(old)) return { unavailable: true }
+      let next: AnchoredInvocationHandle
+      try {
+        next = create()
+      } catch {
+        return { unavailable: true }
+      }
+      if (
+        next === old ||
+        next === null ||
+        typeof next !== 'object' ||
+        typeof next.close !== 'function' ||
+        typeof next.settleReply !== 'function'
+      )
+        return { unavailable: true }
+      // The factory is synchronous: attach in the same turn as construction.
+      invocation = next
+      return { attached: next }
+    },
+  })
   requestSlots.set(container, next => {
     if (released || releaseAttempted || admissionClosed || operation.phase !== 'ready')
       throw new TypeError('call container cannot update request')
@@ -273,6 +317,30 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         const attach = invocationSlots.get(container)
         if (attach === undefined) throw new TypeError('call container ownership absent')
         attach(handle)
+      },
+      async replaceInvocation(create: () => AnchoredInvocationHandle) {
+        if (owns(reservation) === undefined || typeof create !== 'function')
+          return { unavailable: true } as const
+        const container = current(ownedKey)
+        const old = container?.view().invocation
+        const slot = container === undefined ? undefined : replacementSlots.get(container)
+        if (old === undefined || slot === undefined || !slot.eligible(old))
+          return { unavailable: true } as const
+        let stopped: Awaited<ReturnType<AnchoredInvocationHandle['close']>>
+        try {
+          stopped = await old.close()
+        } catch {
+          return { unavailable: true } as const
+        }
+        if (
+          !('released' in stopped) ||
+          stopped.released !== true ||
+          owns(reservation) === undefined ||
+          current(ownedKey) !== container ||
+          !slot.eligible(old)
+        )
+          return { unavailable: true } as const
+        return slot.replace(old, create)
       },
       updateRequest(request: OpenCallInput): void {
         if (owns(reservation) === undefined) throw new TypeError('reservation released')
