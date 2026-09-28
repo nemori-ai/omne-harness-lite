@@ -7,6 +7,68 @@ import { judgeModelResponse } from '@omne-harness-lite/model-response/v5'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+  it('actual log tenant shell mismatch refuses dispatched before HTTP', async () => {
+    await harness(async h => {
+      const other = parseTenantId({ organization: 'other-org', account: 'other-account' })
+      if (!('ok' in other)) throw new Error('tenant')
+      expect(
+        await h.log.append(
+          h.input.settlement.binding.session,
+          [{ tenant: other.ok, payload: null, readKeys: [] }],
+          { kind: 'unfenced' },
+          { kind: 'unconditional' },
+        ),
+      ).toHaveProperty('positions')
+      const t = transport()
+      const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+      expect(await handle.outcome).toEqual({ unavailable: true })
+      expect(t.sends()).toBe(0)
+      expect(await handle.close()).toEqual({ released: true })
+    })
+  })
+  it('generation revoked while confirmed dispatched returns closes HTTP admission and retains unsettled responsibility', async () => {
+    await harness(async h => {
+      h.wrap({
+        ...h.log,
+        async append(...args) {
+          const result = await h.log.append(...args)
+          h.revoke()
+          return result
+        },
+      })
+      const t = transport()
+      const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+      expect(await handle.outcome).toEqual({ unavailable: true })
+      expect(t.sends()).toBe(0)
+      expect(h.writes).toHaveLength(1)
+      expect(await handle.close()).toEqual({ unavailable: true })
+      expect(h.released()).toBe(0)
+    })
+  })
+  it('another-session read cannot settle the current complete candidate', async () => {
+    await harness(async h => {
+      h.wrap({
+        ...h.log,
+        async readSince(...args) {
+          const read = await h.log.readSince(...args)
+          if ('failure' in read) return read
+          // Actual read values, with a deliberate JS host routing defect in the returned shell.
+          for (const entry of read.entries) {
+            const changed = { ...entry }
+            Reflect.set(changed, 'session', 'other-session')
+            return { ...read, entries: [changed, ...read.entries.slice(1)] }
+          }
+          return read
+        },
+      })
+      const handle = createAnchoredModelInvocation(h.input)
+      expect(await handle.outcome).toHaveProperty('replyPending')
+      expect(await handle.settleReply('persisted')).toHaveProperty('unavailable')
+      expect(h.writes).toHaveLength(2)
+      expect(await handle.close()).toEqual({ unavailable: true })
+      expect(h.released()).toBe(0)
+    })
+  })
   for (const [name, raw] of [
     ['null', null],
     ['undefined', undefined],
@@ -282,9 +344,25 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
   })
   it('one plan, dispatched before send, opened before visible, one complete [M,R], exact reopened MR5', async () => {
     await harness(async h => {
+      let appendNumber = 0,
+        confirmedOpened = false
+      h.wrap({
+        ...h.log,
+        async append(...args) {
+          const number = ++appendNumber
+          const result = await h.log.append(...args)
+          if (number === 2 && 'positions' in result) confirmedOpened = true
+          return result
+        },
+      })
       const t = transport({
         beforeSend: async () => {
           expect(h.writes).toHaveLength(1)
+          const actual = await h.log.readSince(h.input.settlement.binding.session, 0)
+          if (!('entries' in actual)) throw new Error('actual dispatched read')
+          expect(actual.entries.map(payload).map(record => record.kind)).toEqual([
+            'model_call_dispatched',
+          ])
         },
       })
       let tick = 0,
@@ -296,6 +374,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         onAccepted(_event, snapshot) {
           if (snapshot.firstContentAt !== undefined) {
             expect(h.writes).toHaveLength(2)
+            expect(confirmedOpened).toBe(true)
             visible++
           }
         },

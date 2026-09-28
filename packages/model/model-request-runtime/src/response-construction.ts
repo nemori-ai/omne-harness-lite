@@ -28,6 +28,7 @@ function ordered(a: string, b: string): boolean {
   const order = compareRfc3339Instants(a, b)
   return 'ok' in order && order.ok <= 0
 }
+/** This noRun slice treats interruption as S-36 system stop: delivered content, no reply. */
 export function constructAssistantReply(input: ResponseConstructionInput): AssistantMessage | null {
   if (
     input.result.ending === undefined ||
