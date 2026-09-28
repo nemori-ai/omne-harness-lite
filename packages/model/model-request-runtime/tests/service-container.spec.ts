@@ -8,7 +8,11 @@ import type {
   ModelCallHost,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
-import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
+import {
+  createCallContainer,
+  createCallContainerStore,
+  createCallPreparationOwner,
+} from '../src/service-container.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
@@ -33,7 +37,13 @@ function sessionRef(value: string) {
   return parsed.ok
 }
 
-function fixture(sessionId: string, callId: string) {
+function fixture(
+  sessionId: string,
+  callId: string,
+  systemStop: CreateCallContainerInput<PlannedSemantics, never>['systemStop'] = async () => ({
+    released: true,
+  }),
+) {
   const generation = {}
   const log = { session: sessionId, tenant: { organization: 'test', account: 'test' }, generation }
   const selectionLog = { ...log, tenant: { ...log.tenant } }
@@ -79,7 +89,7 @@ function fixture(sessionId: string, callId: string) {
         coordinatorCloses++
       },
     },
-    systemStop: async () => ({ released: true }),
+    systemStop,
   } as unknown as CreateCallContainerInput<PlannedSemantics, never>
   const container = createCallContainer(input)
   return {
@@ -98,6 +108,56 @@ function fixture(sessionId: string, callId: string) {
 }
 
 describe('call container admission and retention', () => {
+  it('requests other owners even when semantic stop throws, and retries without releasing early', async () => {
+    let fail = true
+    const f = fixture('session', 'call', async () => {
+      if (fail) throw new Error('semantic stop unavailable')
+      return { released: true }
+    })
+    expect(await f.container.close()).toEqual({ unavailable: true })
+    expect(f.coordinatorCloses).toBe(1)
+    expect(f.leaseReleases).toBe(0)
+    fail = false
+    expect(await f.container.close()).toEqual({ released: true })
+    expect(f.leaseReleases).toBe(1)
+  })
+
+  it('registers before preparation and retains a late call until actual stop', async () => {
+    const controller = new AbortController()
+    const pending = deferred()
+    let registered:
+      (() => Promise<{ readonly released: true } | { readonly unavailable: true }>) | undefined
+    let unregisters = 0
+    const host: ModelCallHost = {
+      signal: controller.signal,
+      stopping: () => controller.signal.aborted,
+      register(close) {
+        registered = close
+        return {
+          registration: {
+            unregister: () => {
+              unregisters += 1
+            },
+          },
+        }
+      },
+    }
+    const prepared = createCallPreparationOwner<PlannedSemantics, never>(host)
+    if (!('owner' in prepared)) throw new Error('host registration failed')
+    expect(registered).toBeTypeOf('function')
+    prepared.owner.retainStopped(pending.promise)
+    controller.abort()
+    expect(prepared.owner.signal.aborted).toBe(true)
+    expect(await prepared.owner.close()).toEqual({ unavailable: true })
+    prepared.owner.attach(fixture('session', 'call').container)
+    expect(await prepared.owner.close()).toEqual({ unavailable: true })
+    pending.finish()
+    await Promise.resolve()
+    expect(await prepared.owner.close()).toEqual({ released: true })
+    expect(unregisters).toBe(1)
+    expect(await registered?.()).toEqual({ released: true })
+    expect(unregisters).toBe(1)
+  })
   it('closes every session call while retaining only the unresolved owner for retry', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const blocked = fixture('session-a', 'same-call')

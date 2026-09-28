@@ -136,12 +136,21 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         }),
       ),
     ])
+    const queue = observer?.queue
+    const authorization = observer?.authorization
+    const attached = invocation
     const results = await Promise.allSettled([
-      ...(invocation === undefined ? [] : [invocation.close()]),
-      ...(observer?.queue === undefined ? [] : [observer.queue.close()]),
-      ...(observer === undefined ? [] : [observer.authorization.close()]),
-      coordinator.close(),
+      ...(attached === undefined ? [] : [Promise.resolve().then(() => attached.close())]),
+      ...(queue === undefined ? [] : [Promise.resolve().then(() => queue.close())]),
+      ...(authorization === undefined ? [] : [Promise.resolve().then(() => authorization.close())]),
+      Promise.resolve().then(() => coordinator.close()),
     ])
+    let outstanding: boolean
+    try {
+      outstanding = 'unknown' in owner.opened() || owner.unresolvedWrites().length !== 0
+    } catch {
+      outstanding = true
+    }
     if (
       semantic.some(result => result.status === 'rejected') ||
       semantic.some(result => result.status === 'fulfilled' && 'unavailable' in result.value) ||
@@ -156,8 +165,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       stopped.size > 0 ||
       stopFailed ||
       operation.phase !== 'ready' ||
-      'unknown' in owner.opened() ||
-      owner.unresolvedWrites().length !== 0 ||
+      outstanding ||
       releaseAttempted
     )
       return { unavailable: true }
