@@ -59,6 +59,28 @@ describe('Google candidate calibration boundary', () => {
     }
   })
 
+  it('does not drop opaque reasoning details from the semantic projection', () => {
+    const short = googleCandidateFeatures(
+      {
+        messages: [
+          { role: 'assistant', reasoning_details: [{ type: 'reasoning.text', text: 'a' }] },
+        ],
+      },
+      countCharacters,
+    )
+    const longer = googleCandidateFeatures(
+      {
+        messages: [
+          { role: 'assistant', reasoning_details: [{ type: 'reasoning.text', text: 'abc' }] },
+        ],
+      },
+      countCharacters,
+    )
+    if (!short || !longer) throw new Error('reasoning detail rejected')
+    expect(longer.textTokens - short.textTokens).toBe(2)
+    expect(longer.objects).toBe(short.objects)
+  })
+
   it('fits only one offset and does not infer token counts for media', () => {
     const features = { textTokens: 10, messages: 1, tools: 0, objects: 1, arrays: 1 }
     const fit = fitGoogleCandidate('google/gemini-3.8-flash', {
