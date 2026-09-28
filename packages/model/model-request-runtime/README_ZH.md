@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；完整恢复与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账现在可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图而无在途发出的终结记录路径仍待补齐。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；生产恢复宿主与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
 
 ## 公开接口
 
@@ -28,7 +28,7 @@
 | `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                           |
 | `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                      |
 | `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain   |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与同一整批协调器上的不属于 Run 的对账；来源或写入不可判时保持 unavailable              |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与不属于 Run 的对账；对账返回 `{ reconcile, close }`，原 scope 留到实际停止与完整前缀认回后收口 |
 | `createModelRuntime(construction)`                                               | 十三方法共用一份调用 store 与可重试收口 owner；无需 Cordis Context                                  |
 
 独立调用的可选 `beforeSend` 是一次传输发送前的同步最终准入。只有字面值 `true` 继续；`false` 在发送前取消，抛错或非法返回保持不可用。锚定服务在这里提供当前停止／代际检查。`observedFacts()` 只在原执行的 reader 和门任务实际停止后读取；不可用不能改判为缺席。它保留的真实发送时刻、部分账和响应头可供恢复使用，而耐久的「已出门」「已开口」记录仍是结算权威。

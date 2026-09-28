@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   judgePendingModelResponse,
   type PendingModelResponse,
@@ -17,6 +17,7 @@ import type {
   SessionRuntimeBinding,
   SettleReplyInput,
   SystemStopControl,
+  RuntimeRecoveryScope,
 } from '../src/service-types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
@@ -24,7 +25,7 @@ import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-bl
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { dispatched as dispatchedFixture, prepare, session } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
-import { controlled, noWaitScheduler, policy, request } from './settlement-fixture.ts'
+import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
 
 function originalInvocation(coordinator: {
   settle: (candidate: typeof request) => {
@@ -261,6 +262,233 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
   })
 })
 
+describe('S-33 retained recovery ownership', () => {
+  it('keeps a late enter owned after close and never starts business work', async () => {
+    await controlled('service-reconcile-late-enter', async ({ binding, owner, submissions }) => {
+      const gate = deferred<{ scope: RuntimeRecoveryScope }>()
+      let enters = 0
+      let closes = 0
+      const component = createRuntimeReconcile({
+        contention: policy(),
+        scheduler: noWaitScheduler,
+        now: () => '2026-09-27T00:00:03Z',
+        diagnostic() {},
+        recovery: {
+          enter() {
+            enters++
+            return gate.promise
+          },
+        },
+      })
+      const pending = component.reconcile({ session })
+      await vi.waitFor(() => expect(enters).toBe(1))
+      expect(await component.close()).toEqual({ unavailable: true })
+      gate.resolve({
+        scope: {
+          binding: { log: binding } as SessionRuntimeBinding,
+          owner,
+          originalInvocation: () => ({ absent: true }),
+          async close() {
+            closes++
+          },
+        },
+      })
+      expect(await pending).toEqual({ unavailable: true })
+      expect(await component.close()).toEqual({ released: true })
+      expect(await component.close()).toEqual({ released: true })
+      expect(closes).toBe(1)
+      expect(enters).toBe(1)
+      expect(submissions.map(item => item.count)).toEqual([2])
+    })
+  })
+
+  it('retains the original scope while a read task has not actually stopped', async () => {
+    await controlled('service-reconcile-held-read', async ({ binding, owner }) => {
+      const barrier = deferred<void>()
+      owner.stopBarrier = barrier.promise
+      let scopeCloses = 0
+      const component = createRuntimeReconcile({
+        contention: policy(),
+        scheduler: noWaitScheduler,
+        now: () => '2026-09-27T00:00:03Z',
+        diagnostic() {},
+        recovery: {
+          async enter() {
+            return {
+              scope: {
+                binding: { log: binding } as SessionRuntimeBinding,
+                owner,
+                originalInvocation: () => ({ absent: true }) as const,
+                async close() {
+                  scopeCloses++
+                },
+              },
+            }
+          },
+        },
+      })
+      const pending = component.reconcile({ session })
+      await vi.waitFor(() => expect(owner.starts).toContain('read'))
+      const firstClose = component.close()
+      const concurrentClose = component.close()
+      expect(concurrentClose).toBe(firstClose)
+      expect(await firstClose).toEqual({ unavailable: true })
+      expect(scopeCloses).toBe(0)
+      expect(owner.active).toBe(1)
+      barrier.resolve()
+      expect(await pending).toEqual({ unavailable: true })
+      expect(await component.close()).toEqual({ released: true })
+      expect(scopeCloses).toBe(1)
+      expect(owner.active).toBe(0)
+    })
+  })
+
+  it('recognizes a committed no-dispatch ended record after an unknown receipt without reappend', async () => {
+    await controlled(
+      'service-reconcile-ended-unknown',
+      async ({ binding, owner, wrap, coordinator, submissions }) => {
+        const settled = coordinator.settle(request)
+        expect(await settled.completion).toHaveProperty('settled')
+        await settled.stopped
+        const intent = prepare(
+          'record',
+          { kind: 'model_call_interrupt_intent', call: 'fresh-call', initiator: 'user' },
+          { kind: 'record' },
+        )
+        const appendedIntent = await binding.log.append(
+          session,
+          [intent],
+          { kind: 'unfenced' },
+          { kind: 'unconditional' },
+        )
+        if ('failure' in appendedIntent) throw new Error('intent fixture')
+        let endedWrites = 0
+        const unknownEnded: SessionLog = {
+          ...binding.log,
+          async append(...args) {
+            const actual = await binding.log.append(...args)
+            if (writeJsonLossless(args[1]).includes('model_call_ended')) {
+              endedWrites++
+              return { failure: 'unavailable' }
+            }
+            return actual
+          },
+        }
+        let scopeCloses = 0
+        let enters = 0
+        const component = createRuntimeReconcile({
+          contention: { ...policy(), limits: { ...policy().limits, concurrent: 1 } },
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async enter() {
+              enters++
+              return {
+                scope: {
+                  binding: { log: wrap(unknownEnded) } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {
+                    scopeCloses++
+                  },
+                },
+              }
+            },
+          },
+        })
+        expect(await component.reconcile({ session })).toEqual({ unavailable: true })
+        expect(endedWrites).toBe(1)
+        expect(scopeCloses).toBe(0)
+        expect(owner.active).toBe(1)
+        expect(await component.reconcile({ session })).toEqual({
+          calls: [
+            { callId: 'call', state: 'complete' },
+            { callId: 'fresh-call', state: 'interrupted' },
+          ],
+        })
+        expect(endedWrites).toBe(1)
+        expect(enters).toBe(1)
+        expect(scopeCloses).toBe(1)
+        expect(owner.active).toBe(0)
+        expect(submissions.map(item => item.count)).toEqual([2, 2, 1, 1])
+        expect(await component.close()).toEqual({ released: true })
+      },
+    )
+  })
+
+  it('holds an unknown original response until the same binding reads its complete batch', async () => {
+    await controlled(
+      'service-reconcile-response-unknown',
+      async ({ binding, owner, wrap, submissions }) => {
+        let readable = true
+        let responseWrites = 0
+        const unknownResponse: SessionLog = {
+          ...binding.log,
+          async readSince(...args) {
+            return readable ? binding.log.readSince(...args) : { failure: 'unavailable' }
+          },
+          async append(...args) {
+            const actual = await binding.log.append(...args)
+            if ('failure' in actual) return actual
+            responseWrites++
+            readable = false
+            return { failure: 'unavailable' }
+          },
+        }
+        let scopeCloses = 0
+        let enters = 0
+        const component = createRuntimeReconcile({
+          contention: policy(),
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async enter() {
+              enters++
+              return {
+                scope: {
+                  binding: { log: wrap(unknownResponse) } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {
+                    scopeCloses++
+                  },
+                },
+              }
+            },
+          },
+        })
+        expect(await component.reconcile({ session })).toEqual({ unavailable: true })
+        expect(responseWrites).toBe(1)
+        expect(scopeCloses).toBe(0)
+        expect(await component.reconcile({ session })).toEqual({ unavailable: true })
+        expect(enters).toBe(1)
+        expect(await component.close()).toEqual({ unavailable: true })
+        expect(scopeCloses).toBe(0)
+        readable = true
+        expect(await component.close()).toEqual({ released: true })
+        expect(scopeCloses).toBe(1)
+        expect(enters).toBe(1)
+        const raw = await binding.log.readSince(session, 0)
+        if ('failure' in raw) throw new Error('actual response readback')
+        const checked = inspectCurrentModelLogPrefix({
+          session,
+          tenant: binding.tenant,
+          prefix: raw,
+        })
+        if (!('ok' in checked)) throw new Error('complete response batch')
+        const actual = checked.ok.filter(item => item.captured.response !== null)
+        expect(actual).toHaveLength(1)
+        expect(actual[0]?.captured.response?.id).toBe('response')
+        expect(actual[0]?.captured.response?.timing.sentAt).toBeNull()
+        expect(submissions.map(item => item.count)).toEqual([2, 1])
+        expect(owner.active).toBe(0)
+      },
+    )
+  })
+})
+
 describe('S-33 noRun recovered full-prefix read', () => {
   it('cold-recovers a durable opened call with null actual send time and no resend', async () => {
     await controlled(
@@ -289,7 +517,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
             },
           },
         })
-        expect(await reconcile({ session })).toEqual({
+        expect(await reconcile.reconcile({ session })).toEqual({
           calls: [{ callId: 'call', state: 'interrupted' }],
         })
         const raw = await binding.log.readSince(session, 0)
@@ -309,7 +537,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
         const h = coordinator.settle(request)
         expect(await h.completion).toMatchObject({ settled: { mode: 'read' } })
         await h.stopped
-        expect(await reconcile({ session })).toEqual({
+        expect(await reconcile.reconcile({ session })).toEqual({
           calls: [{ callId: 'call', state: 'interrupted' }],
         })
         expect(submissions.map(item => item.count)).toEqual([2, 1])
@@ -348,10 +576,10 @@ describe('S-33 noRun recovered full-prefix read', () => {
             },
           },
         })
-        expect(await reconcile({ session })).toEqual({
+        expect(await reconcile.reconcile({ session })).toEqual({
           calls: [{ callId: 'call', state: 'complete' }],
         })
-        expect(await reconcile({ session })).toEqual({
+        expect(await reconcile.reconcile({ session })).toEqual({
           calls: [{ callId: 'call', state: 'complete' }],
         })
         expect(queried).toBe(0)
@@ -400,10 +628,10 @@ describe('S-33 noRun recovered full-prefix read', () => {
           },
         },
       })
-      expect(await reconcile({ session })).toEqual({ unavailable: true })
+      expect(await reconcile.reconcile({ session })).toEqual({ unavailable: true })
       expect(submissions.map(item => item.count)).toEqual([2, 1, 1])
       secondAvailable = true
-      expect(await reconcile({ session })).toEqual({
+      expect(await reconcile.reconcile({ session })).toEqual({
         calls: [
           { callId: 'call', state: 'interrupted' },
           { callId: 'second-call', state: 'resumable' },
@@ -472,7 +700,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
             },
           },
         })
-        expect(await reconcile({ session })).toEqual({
+        expect(await reconcile.reconcile({ session })).toEqual({
           calls: [{ callId: 'call', state: 'interrupted' }],
         })
         const raw = await binding.log.readSince(session, 0)
