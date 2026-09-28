@@ -45,6 +45,12 @@ import {
   SESSION_TENANCY_SERVICE,
   type SessionTenancyService,
 } from '@omne-harness-lite/session-tenancy-table'
+import {
+  openJsonlSessionLog,
+  type JsonlSessionLog,
+  type ReadResult,
+} from '@omne-harness-lite/session-log-jsonl'
+import { sessionLogContribution, prepareSessionLogDeployment } from './session-log-owner.ts'
 import { seedHoldingTenant } from '@omne-harness-lite/session-tenancy-table/seed'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import {
@@ -76,6 +82,7 @@ import {
   BASE_FIBERS,
   STAGE_FIBERS,
   REQUEST_PREPARATION_FIBERS,
+  SESSION_LOG_FIBERS,
   type AcceptanceStage,
   type PreparedSession,
   type AcceptanceConfig,
@@ -188,6 +195,7 @@ export interface AcceptanceApplication {
     actor: AuthenticatedActor,
     session: unknown,
   ): Promise<ScenarioResult<PreparedSession>>
+  readSessionLog(actor: AuthenticatedActor, session: unknown): Promise<ScenarioResult<ReadResult>>
   close(): Promise<CloseResult>
   status(): {
     readonly serving: boolean
@@ -208,7 +216,13 @@ export function createAcceptanceApplication(
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
-  const requiredFibers = stage === 'requestPreparation' ? REQUEST_PREPARATION_FIBERS : STAGE_FIBERS
+  const preparationStage = stage === 'requestPreparation' || stage === 'sessionLog'
+  const requiredFibers =
+    stage === 'sessionLog'
+      ? SESSION_LOG_FIBERS
+      : preparationStage
+        ? REQUEST_PREPARATION_FIBERS
+        : STAGE_FIBERS
   const context = new Context()
   const guard = createUpgradeGuard()
   const fibers = new Map<StageFiber, Fiber>()
@@ -216,6 +230,7 @@ export function createAcceptanceApplication(
   const hooks = options.hooks
   let storage: SqlStorage | undefined
   let replica: ModelReplicaCustodian | undefined
+  let sessionLogOwner: JsonlSessionLog | undefined
   let logins: LoginFace | undefined,
     memberships: MembershipFace | undefined,
     catalog: CatalogFace | undefined,
@@ -305,8 +320,9 @@ export function createAcceptanceApplication(
     cleanupPromise = (async () => {
       await Promise.allSettled([...admitted])
       const unfinished: string[] = []
-      const order: readonly (StageFiber | 'replica')[] = [
-        ...(stage === 'requestPreparation' ? (['sessionTenancy'] as const) : []),
+      const order: readonly (StageFiber | 'replica' | 'sessionLogOwner')[] = [
+        ...(stage === 'sessionLog' ? (['sessionLogOwner', 'sessionLog'] as const) : []),
+        ...(preparationStage ? (['sessionTenancy'] as const) : []),
         'lookup',
         'directory',
         'replica',
@@ -319,7 +335,8 @@ export function createAcceptanceApplication(
       ]
       for (const [index, name] of order.entries()) {
         try {
-          if (name === 'replica') await replica?.close()
+          if (name === 'sessionLogOwner') await sessionLogOwner?.close()
+          else if (name === 'replica') await replica?.close()
           else await fibers.get(name)?.dispose()
           record({ event: 'close', phase: name, outcome: 'closed' })
         } catch {
@@ -361,15 +378,17 @@ export function createAcceptanceApplication(
   }
   async function start(): Promise<{ readonly confirmation: UpgradeConfirmation }> {
     try {
-      if (stage !== 'authentication' && stage !== 'requestPreparation')
+      if (stage !== 'authentication' && stage !== 'requestPreparation' && stage !== 'sessionLog')
         throw new Error('acceptance stage invalid')
+      const logDeployment =
+        stage === 'sessionLog' ? await prepareSessionLogDeployment(config.sessionLog) : undefined
       const prepared = await prepare(config)
       assertNotClosing()
       record({ event: 'stage', phase: 'prepare', outcome: 'ready' })
       phase = 'storage'
       category = 'storage'
       const fragments = [
-        ...(stage === 'requestPreparation' ? requestPreparationMigrations : acceptanceMigrations),
+        ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
         ...(hooks?.extraMigrations ?? []),
       ]
       storage = await openStorage(
@@ -525,11 +544,27 @@ export function createAcceptanceApplication(
           },
         },
       })
-      if (stage === 'requestPreparation') {
+      if (preparationStage) {
         await load('sessionTenancy', sessionTenancyTablePlugin, {})
         const value: unknown = context.get(SESSION_TENANCY_SERVICE)
         if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
         sessionTenancy = value
+      }
+      if (stage === 'sessionLog') {
+        phase = 'sessionLog'
+        category = 'failed'
+        assertNotClosing()
+        if (logDeployment === undefined) throw new Error('acceptance log deployment absent')
+        sessionLogOwner = await openJsonlSessionLog({
+          ...logDeployment,
+          diagnostic: event =>
+            record({
+              event: 'sessionLog',
+              phase: event.stage,
+              outcome: event.outcome ?? event.level,
+            }),
+        })
+        await load('sessionLog', sessionLogContribution(sessionLogOwner), {})
       }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
         membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
@@ -716,8 +751,7 @@ export function createAcceptanceApplication(
   function readOfficialProfiles(
     actor: AuthenticatedActor,
   ): Promise<ScenarioResult<readonly ProfileRow[]>> {
-    if (stage !== 'requestPreparation' || !admit())
-      return Promise.resolve({ failure: 'stageClosed' })
+    if (!preparationStage || !admit()) return Promise.resolve({ failure: 'stageClosed' })
     return track(async () => {
       try {
         const checked = await checkActor(actor)
@@ -736,8 +770,7 @@ export function createAcceptanceApplication(
     actor: AuthenticatedActor,
     session: unknown,
   ): Promise<ScenarioResult<PreparedSession>> {
-    if (stage !== 'requestPreparation' || !admit())
-      return Promise.resolve({ failure: 'stageClosed' })
+    if (!preparationStage || !admit()) return Promise.resolve({ failure: 'stageClosed' })
     return track(async () => {
       try {
         const checked = await checkActor(actor)
@@ -772,6 +805,29 @@ export function createAcceptanceApplication(
       }
     })
   }
+  function readSessionLog(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<ReadResult>> {
+    if (stage !== 'sessionLog' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      try {
+        const checked = await checkActor(actor)
+        if (!('account' in checked)) return checked
+        if (sessionTenancy === undefined || sessionLogOwner === undefined)
+          throw new AcceptanceOperationDefect('readSessionLog')
+        const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+        if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+          return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
+        const held = await sessionTenancy.holdingTenant(parsed.ok)
+        if ('failure' in held) return { step: 'holdingTenant', result: held }
+        if (!tenantIdEquals(held.tenant, checked.tenant)) return { failure: 'identityMismatch' }
+        return await sessionLogOwner.readSince(parsed.ok, 0)
+      } catch (error) {
+        throw operationError(error, 'readSessionLog')
+      }
+    })
+  }
   return {
     ready,
     register(identifier, password) {
@@ -792,6 +848,7 @@ export function createAcceptanceApplication(
     verifyCredential,
     readOfficialProfiles,
     prepareSession,
+    readSessionLog,
     close() {
       if (closingPromise !== undefined) return closingPromise
       closing = true

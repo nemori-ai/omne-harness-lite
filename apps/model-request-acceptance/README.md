@@ -1,8 +1,8 @@
 # Model request acceptance application
 
-`@omne-harness-lite/model-request-acceptance` is a local application assembly for the real authentication, model credential and explicit request preparation stages of model request acceptance. It combines the public account registration, password verification, login, organization membership, model directory and model replica APIs with one SQLite storage owner and Cordis context.
+`@omne-harness-lite/model-request-acceptance` is a local application assembly for the real authentication, model credential, request preparation and session log stages of model request acceptance. It combines the public account registration, password verification, login, organization membership, model directory and model replica APIs with one SQLite storage owner and Cordis context.
 
-The public root exports `createAcceptanceApplication`, its configuration and result types, and the fixed base/stage fiber names. The returned application exposes `ready`, `register`, `authenticate`, `publishCredential`, `verifyCredential`, `readOfficialProfiles`, `prepareSession`, `status` and `close`. It keeps the storage, credential reader, replica owner and service context inside the application. `AcceptanceHooks` is a trusted fault-testing port; tenant input must never control it.
+The public root exports `createAcceptanceApplication`, its configuration and result types, and the fixed base/stage fiber names. The returned application exposes `ready`, `register`, `authenticate`, `publishCredential`, `verifyCredential`, `readOfficialProfiles`, `prepareSession`, `readSessionLog`, `status` and `close`. It keeps the storage, credential reader, replica owner and service context inside the application. `AcceptanceHooks` is a trusted fault-testing port; tenant input must never control it.
 
 Startup completes every stage migration, waits for the six base fibers and the actual clock, and confirms the same storage upgrade guard. Directory management and the single model replica owner load after confirmation. The default `authentication` stage opens admission when all eight `STAGE_FIBERS` are active. Passing `{ stage: 'requestPreparation' }` as the second argument selects a fixed nine-fiber set (`REQUEST_PREPARATION_FIBERS`). That stage appends the session-tenancy migration before confirmation, then loads the actual `sessionTenancy` plugin after directory and lookup startup. Every operation rechecks the selected set and closing gate. A startup failure rejects `ready` with `AcceptanceStartupFailure`; its `cleanup` records incomplete cleanup and any remaining upgrade marker. A failure after confirmation preserves already committed migrations and manifest adoption.
 
@@ -14,11 +14,17 @@ This assembly performs no model HTTP requests and provides no complete Session/I
 
 `close()` drains admitted directory, holding-tenant and seed work before withdrawing the session reader and existing providers, then closes storage. The selected stage and migration prefix must remain consistent when reopening a deployment.
 
+The explicit `sessionLog` stage uses the fixed ten `SESSION_LOG_FIBERS`: the preparation stage plus a real log contribution. Supply `sessionLog.dir` as an existing owner directory with mode `0700`, trusted `processOwnership`, and both positive policy limits. The application opens one actual JSONL owner and lends only its three operations to its Cordis contribution. It does not expose that service or append authority through the application handle.
+
+`readSessionLog(actor, session)` rechecks the actual login, current tenant, effective membership and persistent `holdingTenant` on every read, then returns the real `readSince(session, 0)` result. Missing ownership returns the provider failure and does not seed; unreadable logs return `unavailable`, distinct from an empty log. A prepared session is not a reusable authorization grant. Reads in either earlier stage or after close receive `stageClosed`.
+
+Closing drains admitted operations, awaits the actual JSONL owner close, then withdraws its contribution and the remaining providers. If physical log cleanup fails, `complete` is false and `unfinished` retains the owner, contribution and dependencies; their teardown does not proceed. Reopening the same database and log directory reads committed entries through the provider's real ownership and recovery checks. Diagnostic sink failures are counted independently and never replace read or close results.
+
 ## Run through the public API
 
 Use Node 24.18 or later in the Node 24 line. Supply an existing absolute deployment directory owned by the current OS user with mode `0700`. Provision `activation-private.pem`/`activation-public.pem` and `purge-private.pem`/`purge-public.pem` as matching Ed25519 PKCS8/SPKI pairs, and `model-key` as exactly 32 bytes. All five must be regular owner files with mode `0600`. The application checks these inputs and never generates or replaces keys. If `db.sqlite` already exists it must also be an owner regular file with mode `0600`.
 
-Create owner-only `password` and `model-credential` files in that directory for this local example. Run this code once with the deployment directory as the first argument. A repeated registration is reported by the provider; use another explicit identifier for another scenario. Scrypt costs, retention, governance durations and the clock wait policy below are explicit example inputs that the deployment can change.
+Create `session-logs` beneath that directory with mode `0700`. The example ownership marker is explicit and conservatively reports every previous owner as `unknown`; after an unclean exit, supply an actual trusted lifecycle observer before recovery. A marker string or PID alone does not prove exit. Create owner-only `password` and `model-credential` files in that directory for this local example. Run this code once with the deployment directory as the first argument. A repeated registration is reported by the provider; use another explicit identifier for another scenario. Scrypt costs, retention, governance durations and the clock wait policy below are explicit example inputs that the deployment can change.
 
 ```ts
 import assert from 'node:assert/strict'
@@ -39,6 +45,11 @@ if (!isOk(ttl) || !isOk(sourceRef)) throw new Error('example configuration inval
 const events: string[] = []
 const app = createAcceptanceApplication(
   {
+    sessionLog: {
+      dir: join(directory, 'session-logs'),
+      processOwnership: { current: 'readme-owner', async observeExit() { return 'unknown' } },
+      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
+    },
     runId: 'readme-local',
     databaseFile: join(directory, 'db.sqlite'),
     keys: {
@@ -59,7 +70,7 @@ const app = createAcceptanceApplication(
     wait: { clockTimeoutMs: 15_000, pollMs: 10, monotonicNow: () => performance.now(), sleep },
   },
   {
-    stage: 'requestPreparation',
+    stage: 'sessionLog',
     diagnostics: { record: event => events.push(`${event.event}:${event.phase}:${event.outcome}`) },
   },
 )
@@ -74,6 +85,7 @@ try {
   assert.deepEqual(await app.prepareSession(actor, 'readme-session'), {
     session: 'readme-session', tenant: actor.tenant,
   })
+  assert.deepEqual(await app.readSessionLog(actor, 'readme-session'), { entries: [], tail: 0 })
   body = await readFile(join(directory, 'model-credential'))
   const pair = { account: actor.account, tenant: actor.tenant, sourceRef: sourceRef.ok, body }
   assert.deepEqual(await app.publishCredential(actor, async () => pair), { stored: true })
@@ -102,6 +114,6 @@ pnpm --filter @omne-harness-lite/model-request-acceptance typecheck
 pnpm --filter @omne-harness-lite/model-request-acceptance test
 ```
 
-Tests use real SQLite, Cordis fibers, scrypt, signing keys and deployment key files. They exercise startup ordering, a controlled old-order negative case, actual confirmation deletion/fsync failures, identity and source rejection, late stores, close interleavings, process crash/reopen and clock deadline failure. Preparation tests add real official row reads, persistent tenant ownership, identity rejection, provider unavailability, nine-fiber failure and close interleavings. Author evidence is not independent acceptance and does not close the separate symbol-permission gate or the complete model request runtime delivery.
+Tests use real SQLite, Cordis fibers, scrypt, signing keys and deployment key files. They exercise startup ordering, a controlled old-order negative case, actual confirmation deletion/fsync failures, identity and source rejection, late stores, close interleavings, process crash/reopen and clock deadline failure. Log tests add full committed reads and reopen, ten-fiber admission, current authorization, physical owner exclusion, read draining, and incomplete filesystem cleanup. Preparation tests add real official row reads, persistent tenant ownership, identity rejection, provider unavailability, nine-fiber failure and close interleavings. Author evidence is not independent acceptance and does not close the separate symbol-permission gate or the complete model request runtime delivery.
 
 The adopted scope is D074/D075/D076 with D092's exact app auth-bootstrap revision. Maintainers can navigate to the authoritative [application realization](../../.meta_harness/design/realization/apps/model-request-acceptance/README.md) and its verification obligations. This README describes how to consume the implementation; those accepted design inputs own its semantics.
