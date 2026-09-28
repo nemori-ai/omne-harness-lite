@@ -1546,21 +1546,31 @@ export function createAcceptanceApplication(
       recoveryBusy.add(key)
       recoveryAdmission.add(key)
       try {
-        await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
-        await access.borrow.owner.drain()
         let ready = recoveryReady.get(key)
         if (ready === undefined) {
           const owners = callHosts.get(key)
-          const ownedCalls = trackedCalls.get(key)
-          const binding = runtimeBindings.get(key)
-          if (owners === undefined || binding === undefined) return { unavailable: true }
+          if (owners === undefined) return { unavailable: true }
           for (const previous of owners) if (previous.released?.()) owners.delete(previous)
+          // Capture the original handle before stop may remove the container from the store.
+          const captured = new Map<string, AnchoredInvocationHandle>()
+          for (const [callId, container] of trackedCalls.get(key) ?? []) {
+            const handle = container.view().invocation
+            if (handle !== undefined) captured.set(callId, handle)
+          }
+          // Stop active HTTP dispatch before draining admitted work: that work can be
+          // waiting for the very abort which the host owns.
+          const stopping = Promise.allSettled([...owners].map(async owner => await owner.stop()))
+          await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
+          const stopped = await stopping
+          await access.borrow.owner.drain()
+          const binding = runtimeBindings.get(key)
+          const ownedCalls = trackedCalls.get(key)
+          if (binding === undefined) return { unavailable: true }
           if (
             binding.log !== access.borrow.binding ||
             binding.log.currentGeneration() !== binding.log.generation
           )
             return { unavailable: true }
-          const captured = new Map<string, AnchoredInvocationHandle>()
           for (const [callId, container] of ownedCalls ?? []) {
             const view = container.view()
             if (
@@ -1570,15 +1580,14 @@ export function createAcceptanceApplication(
               view.owner !== access.borrow.owner.owner
             )
               return { unavailable: true }
-            if (view.invocation !== undefined) captured.set(callId, view.invocation)
+            if (!captured.has(callId) && view.invocation !== undefined)
+              captured.set(callId, view.invocation)
           }
-          const stopped = await Promise.allSettled([...owners].map(owner => owner.stop()))
           if (
             stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
             [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
           )
             return { unavailable: true }
-          await access.borrow.owner.drain()
           if (
             access.borrow.owner.retained() ||
             access.borrow.owner.owner.admission() !== 'open' ||
@@ -1624,6 +1633,9 @@ export function createAcceptanceApplication(
           }
           ready = { binding, owner: access.borrow.owner, originals, scopeIssued: false }
           recoveryReady.set(key, ready)
+        } else {
+          await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
+          await access.borrow.owner.drain()
         }
         return await modelRuntime.service.reconcile({ session: key })
       } catch {

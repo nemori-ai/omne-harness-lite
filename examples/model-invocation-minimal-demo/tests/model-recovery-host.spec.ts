@@ -28,6 +28,68 @@ function user(id: string) {
 }
 
 describe('demo real recovery host', () => {
+  it('stops a held real HTTPS dispatch before draining the call and closing the application', async () => {
+    const config = await callDeployment('demo-recovery-held-http')
+    const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
+    tls.setMode('hold')
+    const app = createAcceptanceApplication(config, {
+      stage: 'modelRequest',
+      developmentTransport: tls.developmentTransport,
+      diagnostics: { record() {} },
+    })
+    const host = createDemoCallHost()
+    const stopStarted = deferred()
+    try {
+      await app.ready
+      const who = await actor(app)
+      const prepared = await app.prepareSession(who, 'recovery-held-http')
+      if (!('session' in prepared)) throw new Error('session unavailable')
+      expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
+      expect(await app.selectModel(who, prepared.session, MODEL)).toEqual({ selected: MODEL })
+      expect(
+        await app.publishCredential(who, async checked => ({
+          account: checked.account,
+          tenant: checked.tenant,
+          sourceRef: ref('recovery-held-key'),
+          body: Buffer.from('controlled-recovery-key'),
+        })),
+      ).toEqual({ stored: true })
+      expect(
+        await app.attachModelCallHost(who, prepared.session, {
+          host: host.host,
+          async stop() {
+            stopStarted.resolve()
+            return await host.stop()
+          },
+          released: () => host.released?.() === true,
+        }),
+      ).toEqual({ attached: true })
+      const dispatch = app.startServiceTextCall(who, prepared.session, {
+        user: user('held'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: host.host,
+      })
+      await tls.contentSent.promise
+      expect(tls.requests).toHaveLength(1)
+      const recovering = app.reconcileModelRuntime(who, prepared.session)
+      await stopStarted.promise
+      const closing = app.close()
+      // The server never finishes its held SSE body; only host cancellation may close the socket.
+      await tls.socketClosed.promise
+      const sent = await dispatch
+      if (!('callId' in sent)) throw new Error('held call never opened')
+      expect(await recovering).toEqual({ calls: [{ callId: sent.callId, state: 'interrupted' }] })
+      expect(host.released?.()).toBe(true)
+      expect((await closing).complete).toBe(true)
+      expect(tls.requests).toHaveLength(1)
+    } finally {
+      tls.finishHeld()
+      await host.stop()
+      await app.close()
+      await tls.close()
+    }
+  })
+
   it('authenticates, stops the real call host, and recognizes the original JSONL batch twice without another HTTP request', async () => {
     const config = await callDeployment('demo-recovery-complete')
     const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
