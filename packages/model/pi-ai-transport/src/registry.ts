@@ -32,6 +32,8 @@ export interface AdaptationLease {
   readonly release: () => void
 }
 export interface ModelTransportService {
+  /** Instance-local network diagnostic delivery health, including after close. */
+  readonly diagnostics: () => Readonly<{ failed: number; pending: number; dropped: number }>
   readonly registerAdaptation: (
     definition: ModelDefinition,
     meter: InputMeter,
@@ -216,6 +218,7 @@ export function createModelTransportService(
   const service: ModelTransportService = {
     closed,
     inspect: status,
+    diagnostics: network.diagnostics,
     retire,
     registerAdaptation(definition, meterSource, owner, cleanup) {
       if (!accepting || !owner || typeof owner !== 'object' || typeof cleanup !== 'function')

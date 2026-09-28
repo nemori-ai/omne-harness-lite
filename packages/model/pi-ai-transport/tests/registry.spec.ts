@@ -56,6 +56,60 @@ function acquire(service: ModelTransportService, request = input()): AdaptationL
   return result.lease
 }
 describe('production adaptation ownership', () => {
+  it('reads the same network diagnostic health through retirement and close without a lease', async () => {
+    const host = await fixture(cert.tls, res => res.end(content('ok') + finish()))
+    let rejectDelivery: (reason?: unknown) => void = () => {}
+    const service = createModelTransportService({
+      ...host.options,
+      policy: { ...host.options.policy, maxConnections: 1 },
+      onDiagnostic: () =>
+        new Promise<void>((_, reject) => {
+          rejectDelivery = reject
+        }),
+    })
+    const registration = register(service)
+    const lease = acquire(service)
+    const handle = invokeModel({
+      ...input(),
+      transport: lease.transport,
+      credential: 'test-secret',
+      signal: new AbortController().signal,
+      policy: policy(),
+    })
+    const second = invokeModel({
+      ...input(),
+      transport: lease.transport,
+      credential: 'test-secret',
+      signal: new AbortController().signal,
+      policy: policy(),
+    })
+    try {
+      expect(invocation(await handle.outcome).outcome).toBe('complete')
+      expect(invocation(await second.outcome).outcome).toBe('complete')
+      expect(host.requests).toHaveLength(2)
+      const active = service.diagnostics()
+      expect(active.pending).toBe(1)
+      expect(active.dropped).toBeGreaterThan(0)
+      expect(Object.isFrozen(active)).toBe(true)
+      expect(service.inspect().references).toBe(1)
+      lease.release()
+      expect(await service.retire(registration, wait)).toEqual({ retired: true })
+      expect(service.diagnostics()).toEqual(active)
+      expect(await service.close(wait)).toEqual({ retired: true })
+      expect(service.diagnostics()).toEqual(active)
+      rejectDelivery(new Error('diagnostic sink failure'))
+      await expect.poll(() => service.diagnostics().pending).toBe(0)
+      expect(service.diagnostics()).toEqual({ failed: 1, pending: 0, dropped: active.dropped })
+    } finally {
+      rejectDelivery(new Error('diagnostic sink cleanup'))
+      handle.abort()
+      second.abort()
+      lease.release()
+      await service.close({ ...wait, force: true })
+      await host.close()
+    }
+  })
+
   it('retirement after an earlier idle interval still waits for the current lease', async () => {
     const service = createModelTransportService({ policy: networkPolicy })
     let disposed = 0
