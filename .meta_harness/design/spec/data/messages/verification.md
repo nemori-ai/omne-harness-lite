@@ -6,6 +6,7 @@
 
 ### v5 变化的影响
 
+- 整批评审后的说明修正：Schema 根 description 的本版号改为 MS5，根 `$comment` 与 ModelSelectionChangedRecord.description 的档案来源改为 MP4，RuntimeContextChangedSource 的“须出 v2”改为“须发布下一版本”。仅四处元数据变化；递归去掉 title／description／$comment 后的 JSON 结构与修正前完全相同。新 Schema SHA-256：`aa568d823f0ed4b2ae30221387f20d69bdb99a1cefaca26d9fffe4eea969de04`。实际输出 `PASS: stripped title/description/$comment JSON structures equal; only metadata changed`；`git diff --check` 通过。未重跑全树或形式工具，之前 166 实例的执行输入摘要保留在下方，不重标为本次执行。
 - S-49 的 `profileSnapshot` 引 MP4，完整保留供给 cap、适用上游事实和 `updatedAt`，不能按当前目录重建。S-37 的引用、缺席表、部署责任表与实例同步；条款仍为 S-1～S-50，表示层十四个拒绝值和 S-50 收场不变。
 - 43 个 Schema 定义除 MP4 引用及已出门说明外，与 MS4 相同；AssistantMessage、工具／未解析调用原文、历史含义保持。不新增重试关联字段，失败干预结论由 loop-extension 的后继契约拥有。
 - 新记录只经显式采用 v5 的读写面；旧记录按原精确版本读取／结算，不补 cap 或事实。运行时的新发送检查与历史版本分发不因数据规格成稿获得实现证据。
