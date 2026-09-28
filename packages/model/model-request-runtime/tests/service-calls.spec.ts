@@ -323,6 +323,11 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     observer_max_buffered_events: 2,
     observer_max_buffered_bytes: 4096,
   }
+  const replacementObserverRequest = {
+    ...observerRequest,
+    endpoint: { open: observerRequest.endpoint.open },
+  }
+  let forceResumable = false
   const binding = {
     log: logBinding,
     selection: {
@@ -335,10 +340,10 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     catalog,
     tools: { lookup: vi.fn() },
     observers: {
-      authorize: () => ({
+      authorize: ({ request: asked }: { request: typeof observerRequest }) => ({
         observer: {
           check: () => ({ valid: true as const }),
-          open: () => ({ receiver: observerRequest.endpoint.open() }),
+          open: () => ({ receiver: asked.endpoint.open() }),
           close: async () => {
             observerClosed++
             return { released: true as const }
@@ -380,7 +385,18 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     identities: { call: () => `call_${++next}` },
     history: {
       call: (prefix: Parameters<typeof interpretCallHistory>[0]['prefix'], callId: string) =>
-        interpretCallHistory({ prefix, callId }),
+        forceResumable && callId === 'call_1'
+          ? {
+              known: {
+                session,
+                callId,
+                phase: 'resumable',
+                dispatches: [],
+                intent: null,
+                ending: null,
+              },
+            }
+          : interpretCallHistory({ prefix, callId }),
     },
   } as unknown as RuntimeConstruction<PlannedSemantics, never>
   try {
@@ -389,6 +405,18 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     const second = await service.openCall({ ...request(), host })
     expect(first).toEqual({ callId: 'call_1', state: 'open' })
     expect(second).toEqual({ callId: 'call_2', state: 'open' })
+    forceResumable = true
+    expect(
+      await service.openCall({
+        ...request({ callId: 'call_1', observer: replacementObserverRequest }),
+        host,
+      }),
+    ).toEqual({ callId: 'call_1', state: 'resumable' })
+    forceResumable = false
+    expect(calls.find({ session, callId: 'call_1' })?.view().observer?.request.endpoint).toBe(
+      replacementObserverRequest.endpoint,
+    )
+    expect(observerClosed).toBe(1)
     expect(planned).toHaveBeenCalledTimes(2)
     expect(planned.mock.calls[0]?.[0].tokenMargin).toEqual({ multiplier: 1.25, reserveTokens: 8 })
     expect(calls.find({ session, callId: 'call_1' })).toBeDefined()
@@ -397,7 +425,7 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     if ('failure' in read) throw new Error(read.failure)
     expect(read.entries).toHaveLength(0)
     expect(await calls.close()).toEqual({ released: true })
-    expect(observerClosed).toBe(1)
+    expect(observerClosed).toBe(2)
     const stoppedRead = await log.readSince(session, 0)
     if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
     expect(stoppedRead.entries).toHaveLength(2)

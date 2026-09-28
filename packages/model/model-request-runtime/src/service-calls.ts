@@ -32,6 +32,7 @@ import type { CallHistoryResult } from './call-history.ts'
 import type {
   CallPreparationOwner,
   CallObserverBinding,
+  ModelObserverRequest,
   OpenCallInput,
   OpenCallResult,
   RuntimeConstruction,
@@ -275,6 +276,23 @@ function readRows(value: unknown): readonly ProfileRow[] | undefined {
     : undefined
 }
 
+function sameObserverRequest(
+  left: ModelObserverRequest | undefined,
+  right: ModelObserverRequest | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right
+  return (
+    left.session === right.session &&
+    left.endpoint === right.endpoint &&
+    ExactDecimal.from(left.observer_max_buffered_events).compare(
+      ExactDecimal.from(right.observer_max_buffered_events),
+    ) === 0 &&
+    ExactDecimal.from(left.observer_max_buffered_bytes).compare(
+      ExactDecimal.from(right.observer_max_buffered_bytes),
+    ) === 0
+  )
+}
+
 interface UnknownAppend {
   readonly key: CallKey
   readonly binding: SettlementLogBinding
@@ -480,6 +498,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         if (closing) return { runtimeStopped: true }
         const local = reservation.view()
         if (request.callId !== undefined && local !== undefined) {
+          if (preparation !== undefined) return { unavailable: true }
           if (
             local.session !== session ||
             local.request.session !== request.session ||
@@ -497,6 +516,21 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             return resolved.failure === 'unavailable'
               ? { unavailable: true }
               : { invalidInput: { reason: resolved.reason ?? 'malformed' } }
+          if (local.observerReplacementPending) {
+            const refreshed = await reservation.refreshObserverReplacement()
+            if (!('ready' in refreshed)) return { unavailable: true }
+          }
+          if (!sameObserverRequest(local.observer?.request, request.observer)) {
+            let next: Omit<CallObserverBinding, 'queue'> | undefined
+            if (request.observer !== undefined) {
+              const authorized = authorizeObserver(session, request, callId)
+              if (!('observer' in authorized)) return authorized
+              next = authorized.observer
+            }
+            // The container adopts a new authorization before closing old resources.
+            const replaced = await reservation.replaceObserverBinding(next)
+            if (!('replaced' in replaced)) return { unavailable: true }
+          }
           if (closing) return { runtimeStopped: true }
           reservation.updateRequest(request)
           return { callId, state: 'resumable' }
