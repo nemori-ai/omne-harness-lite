@@ -4,19 +4,19 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；完整恢复与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。恢复目前只认回已结算调用，缺响应的追补因原发出时刻没有耐久来源而保持不可用。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D102 owner 收口映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v10-owner-assembly-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；完整恢复与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账现在可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图而无在途发出的终结记录路径仍待补齐。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
 
 ## 公开接口
 
 | 导出                                                                             | 用途                                                                                                 |
 | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `invokeModel(input)`                                                             | 返回包含 `outcome`、`snapshot()` 与 `abort()` 的句柄                                                 |
+| `invokeModel(input)`                                                             | 返回包含 `outcome`、`snapshot()`、`observedFacts()` 与 `abort()` 的句柄                               |
 | `classifyCause(facts, hasContent, table)`                                        | 按显式状态码表分类来源，保留原始状态码                                                               |
 | `dispatchGuard(input)`                                                           | 按显式调用、发出与档案事实同步判定一次重试计划                                                       |
 | `DispatchGuardInput`、`DispatchGuardResult`、`DispatchGuardFact<T>`              | 只读守卫输入、闭合答案与明确的已知／未知事实                                                         |
 | `retryDelay(input)`、`RetryBackoffPolicy`、`RetryDelayInput`、`RetryDelayResult` | 按显式政策、重试序号、sample 及 decorrelated 前值计算精确 TD3 Duration                               |
 | `TransportAdapter`、`PlanInput`                                                  | 调用者持有的 plan/send/read 端口与显式请求输入                                                       |
-| `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与尚未结算的结果投影                                                             |
+| `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                         |
 | `createSessionModelSelection(input)`                                             | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口        |
 | `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
 | `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                    |
@@ -28,8 +28,10 @@
 | `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                           |
 | `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                      |
 | `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain   |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与只读恢复消费者；对账目前只认回已结算且不属于 Run 的调用                              |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与同一整批协调器上的不属于 Run 的对账；来源或写入不可判时保持 unavailable              |
 | `createModelRuntime(construction)`                                               | 十三方法共用一份调用 store 与可重试收口 owner；无需 Cordis Context                                  |
+
+独立调用的可选 `beforeSend` 是一次传输发送前的同步最终准入。只有字面值 `true` 继续；`false` 在发送前取消，抛错或非法返回保持不可用。锚定服务在这里提供当前停止／代际检查。`observedFacts()` 只在原执行的 reader 和门任务实际停止后读取；不可用不能改判为缺席。它保留的真实发送时刻、部分账和响应头可供恢复使用，而耐久的「已出门」「已开口」记录仍是结算权威。
 
 ## 仍在集成的 Cordis 服务装配
 
@@ -424,7 +426,7 @@ pnpm --filter @omne-harness-lite/model-request-runtime run test
 
 ## 日志值的捕获、构造与认回
 
-成员检查消费 [D089 已采用](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) 的 offer-expiry 公共根比较器，在捕获的原 timing 字符串上核 `sentAt <= firstTokenAt <= endedAt`；首 token 缺席时核 `sentAt <= endedAt`。静态非法日期和逆序不能返回成员完整。任意小数与时区同点保留精度，opened 的原字符串仍须精确相同。
+成员检查消费 [D089 已采用](../../../.meta_harness/design/record/decisions/model-time-order-projection-adoption/decision.md) 的 offer-expiry 公共根比较器：实际 `sentAt` 已知时核 `sentAt <= firstTokenAt <= endedAt`，首 token 缺席时核 `sentAt <= endedAt`。[D105](../../../.meta_harness/design/record/decisions/model-recovery-timing-provider-adoption/decision.md) 下仅已锚定的 `interrupted` 响应允许 `sentAt: null`；首 token 与 ended 的比较、opened 原值相等仍须核对。null 表示实际发送时刻不可用，不证明零次发送或零费用。普通调用结果和待处分响应仍须有实际字符串时刻。静态非法日期与已知时刻逆序不能返回成员完整；任意小数、时区同点与 opened 原字符串均照原样保留。
 
 本包根入口公开 `modelLogFormat`、`encodeModelLogKey`、`decodeModelLogKey`、`captureModelLogValue`、`prepareModelLogEntry`、`inspectModelLogEntry`、`inspectSettlementMembers`、`modelLogJsonEqual`、`recognizeMessageValue` 及其类型，消费 [D088 的精确采用](../../../.meta_harness/design/record/decisions/model-runtime-log-codec-adoption/decision.md)。所有这些构件均为纯函数；静态导入和调用不打开日志、不装 Cordis、不读取环境凭据或时钟、不发号。日志类型只从 session-log-jsonl 根入口借用。
 
