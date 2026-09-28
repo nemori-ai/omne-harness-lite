@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { openDemo } from '../src/demo.ts'
 import { MODEL } from '../src/deployment.ts'
 import { runInteractive } from '../src/interactive.ts'
@@ -33,6 +33,44 @@ async function durableLog(directory: string): Promise<string> {
 }
 
 describe('interactive model commands on the real demo assembly', () => {
+  it('closes the application when startup model status cannot be shown', async () => {
+    const parent = resolve('tmp/model-request-runtime/model-commands-tests')
+    await mkdir(parent, { recursive: true, mode: 0o700 })
+    const root = await mkdtemp(join(parent, 'startup-failure-'))
+    const tls = await createLocalTls(join(root, 'tls'))
+    const credential = Buffer.from('controlled-startup-status-key')
+    try {
+      const actual = await openDemo(
+        join(root, 'data'),
+        { multiplier: 1.1, reserveTokens: 256 },
+        credential,
+        { developmentTransport: tls.developmentTransport },
+      )
+      const close = vi.fn(actual.close)
+      const output = capture()
+      await expect(
+        runInteractive(
+          {
+            ...actual,
+            close,
+            async currentModel() {
+              throw new Error('controlled status read failure')
+            },
+          },
+          Readable.from(['unsent prompt\n']),
+          output.stream,
+          false,
+        ),
+      ).rejects.toThrow('controlled status read failure')
+      expect(close).toHaveBeenCalledOnce()
+      expect(tls.requests).toHaveLength(0)
+      expect(output.text()).toContain('Closed.')
+    } finally {
+      credential.fill(0)
+      await tls.close()
+    }
+  })
+
   it('switches the same durable session while preserving history and request accounting', async () => {
     const parent = resolve('tmp/model-request-runtime/model-commands-tests')
     await mkdir(parent, { recursive: true, mode: 0o700 })
