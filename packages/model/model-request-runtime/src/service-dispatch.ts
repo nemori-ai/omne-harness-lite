@@ -488,7 +488,11 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         handle = replaced.attached
       }
       const attached = handle
-      reservation.publish({ phase: 'dispatching', abort: attached.abort })
+      reservation.publish({
+        phase: 'dispatching',
+        abort: attached.abort,
+        interrupt: attached.interrupt,
+      })
       observerQueue?.start(attached.snapshot())
       dispatchNumber = admission.dispatch
     } catch {

@@ -436,6 +436,8 @@ describe('call container admission and retention', () => {
       snapshot: () => ({ blocks: [], position: 0 }),
       observedFacts: () => ({ unavailable: true }),
       abort() {},
+      borrowControl: () => ({ unavailable: true }),
+      interrupt() {},
       async close() {
         await gate.promise
         return { released: true } as const
@@ -476,6 +478,8 @@ describe('call container admission and retention', () => {
       snapshot: () => ({ blocks: [], position: 0 }),
       observedFacts: () => ({ unavailable: true }),
       abort() {},
+      borrowControl: () => ({ unavailable: true }),
+      interrupt() {},
       async close() {
         closes++
         await gate.promise
@@ -490,6 +494,8 @@ describe('call container admission and retention', () => {
       snapshot: () => ({ blocks: [], position: 0 }),
       observedFacts: () => ({ unavailable: true }),
       abort() {},
+      borrowControl: () => ({ unavailable: true }),
+      interrupt() {},
       async close() {
         return { released: true } as const
       },
@@ -570,7 +576,7 @@ describe('call container admission and retention', () => {
     expect(() => first.reservation.updateRequest({ ...next, host: { ...old.host } })).toThrow(
       'call request ownership mismatch',
     )
-    first.reservation.publish({ phase: 'dispatching', abort() {} })
+    first.reservation.publish({ phase: 'dispatching', abort() {}, interrupt() {} })
     expect(() => first.reservation.updateRequest(next)).toThrow('cannot update request')
     first.reservation.release()
     expect(() => first.reservation.updateRequest(next)).toThrow('reservation released')
@@ -642,6 +648,9 @@ describe('call container admission and retention', () => {
     opening.reservation.publish({
       phase: 'dispatching',
       abort: () => {
+        aborts++
+      },
+      interrupt: () => {
         aborts++
       },
     })

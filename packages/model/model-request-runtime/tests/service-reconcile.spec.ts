@@ -142,6 +142,8 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
             outcome: Promise.resolve({ replyPending: pending() }),
             snapshot: () => ({ blocks: [], position: 0 }),
             abort() {},
+            borrowControl: () => ({ unavailable: true }),
+            interrupt() {},
             observedFacts: () => ({ unavailable: true }),
           } as AnchoredInvocationHandle
           const settlement = original.settleReply
@@ -834,6 +836,8 @@ describe('S-33 noRun recovered full-prefix read', () => {
           outcome: Promise.resolve({ unavailable: true }),
           snapshot: () => ({ blocks: [], position: 0 }),
           abort() {},
+          borrowControl: () => ({ unavailable: true }),
+          interrupt() {},
           observedFacts(target) {
             if (
               target.call !== 'call' ||

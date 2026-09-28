@@ -516,7 +516,11 @@ export interface CallContainerStore<P extends PlannedSemantics, R> {
 }
 export type CallOperationState =
   | { readonly phase: 'ready' }
-  | { readonly phase: 'dispatching'; readonly abort: () => void }
+  | {
+      readonly phase: 'dispatching'
+      readonly abort: () => void
+      readonly interrupt: (initiator: 'user' | 'run_cancelled') => void
+    }
   | { readonly phase: 'reply_pending'; readonly pending: PendingModelResponse }
   | { readonly phase: 'settling' }
 export interface CallContainerView<P extends PlannedSemantics, R> {

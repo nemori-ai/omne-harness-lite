@@ -45,6 +45,28 @@ async function inputs() {
   return { dispatched, result, messageId: message.ok, firstTokenAt: '2026-09-28T00:00:00Z' }
 }
 describe('MR5 pure complete construction (actual provenance belongs to caller)', () => {
+  it('keeps confirmed user interruption distinct from system abandonment', async () => {
+    const input = await inputs()
+    const interrupted: ModelInvocationResult = {
+      ...input.result,
+      outcome: 'interrupted',
+      ending: 'interrupted_by_user',
+    }
+    const confirmed = { ...input, result: interrupted, interruptInitiator: 'user' as const }
+    const pending = constructAssistantReply(confirmed)
+    expect(pending).toMatchObject({ ending: 'interrupted_by_user' })
+    const userResponse = constructModelResponse(confirmed, 'persisted')
+    if (!('response' in userResponse)) throw new Error('confirmed user response rejected')
+    expect(userResponse.response).toMatchObject({
+      outcome: 'interrupted',
+      initiator: 'user',
+      reply: { ending: 'interrupted_by_user' },
+    })
+    const system = constructModelResponse({ ...input, result: interrupted }, null)
+    if (!('response' in system)) throw new Error('system interruption rejected')
+    expect(system.response).toMatchObject({ outcome: 'interrupted', initiator: 'run_cancelled' })
+    expect(system.response).not.toHaveProperty('reply')
+  })
   it('no hidden default disposition, complete AssistantMessage and exact opened time', async () => {
     const input = await inputs()
     expect(constructModelResponse(input, null)).toEqual({ rejected: 'invalidInput' })

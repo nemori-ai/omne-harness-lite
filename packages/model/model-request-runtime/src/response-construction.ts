@@ -23,6 +23,8 @@ export interface ResponseConstructionInput {
   readonly messageId: MessageId
   /** Actual confirmed original opened timestamp; null means definitively unopened. */
   readonly firstTokenAt: string | null
+  /** Present only after the original S-31 intent append was confirmed. */
+  readonly interruptInitiator?: 'user' | 'run_cancelled'
 }
 /** Only an owner that confirmed a durable dispatched anchor may call this path. */
 export interface AnchoredInterruptionInput {
@@ -49,12 +51,13 @@ function ordered(a: string, b: string): boolean {
   const order = compareRfc3339Instants(a, b)
   return 'ok' in order && order.ok <= 0
 }
-/** This noRun slice treats interruption as S-36 system stop: delivered content, no reply. */
+/** S-31 may return interrupted content; S-36 abandons it without a reply. */
 export function constructAssistantReply(input: ResponseConstructionInput): AssistantMessage | null {
   if (
     input.result.ending === undefined ||
     input.firstTokenAt === null ||
-    input.result.outcome === 'interrupted'
+    (input.result.outcome === 'interrupted' &&
+      (input.interruptInitiator === undefined || input.result.ending !== 'interrupted_by_user'))
   )
     return null
   const judged = judgeMessage({
@@ -104,7 +107,13 @@ function responseFacts(
       ...(r.upstreamRequestId === undefined ? {} : { upstreamRequestId: r.upstreamRequestId }),
     },
     outcome,
-    ...(outcome === 'interrupted' ? { initiator: 'run_cancelled' } : {}),
+    ...(outcome === 'interrupted'
+      ? {
+          initiator: systemStopWithoutReply
+            ? 'run_cancelled'
+            : (input.interruptInitiator ?? 'run_cancelled'),
+        }
+      : {}),
     ...(reply === null
       ? {}
       : disposition === undefined

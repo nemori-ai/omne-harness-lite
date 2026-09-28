@@ -17,7 +17,11 @@ import type {
   PlanFailure,
   ModelInvocationHandle,
 } from './types.ts'
-import type { SettlementCoordinatorInput, SettlementResult } from './settlement-types.ts'
+import type {
+  SettlementCoordinatorInput,
+  SettlementOwner,
+  SettlementResult,
+} from './settlement-types.ts'
 import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
 
 export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
@@ -55,6 +59,12 @@ export interface AnchoredInvocationHandle {
   ) => ReturnType<ModelInvocationHandle['observedFacts']>
   /** System stop (S-36); user interruption requires the separate durable intent protocol. */
   readonly abort: () => void
+  /** Called only after S-31's original intent was durably confirmed. */
+  readonly interrupt: (initiator: 'user' | 'run_cancelled') => void
+  /** Borrow the original in-flight registration for S-31's ordered read and intent append. */
+  readonly borrowControl: () =>
+    | { readonly owner: SettlementOwner; readonly release: () => void }
+    | { readonly unavailable: true }
   /** Caller-owned settlement through the same whole-batch coordinator, including persisted [M,R]. */
   readonly settleReply: (disposition: ReplyDisposition) => Promise<SettlementResult>
   /** Closes admission; unresolved durable responsibility retains borrowed references. */

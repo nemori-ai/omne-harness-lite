@@ -67,6 +67,8 @@ function terminalHandle(
     snapshot: () => ({ blocks: [], position: 0 }),
     observedFacts: () => ({ unavailable: true }),
     abort() {},
+    interrupt() {},
+    borrowControl: () => unavailable,
     async settleReply() {
       return { unavailable: true, reason: 'closed' }
     },
@@ -259,6 +261,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   let settled = false
   let dispatchConfirmed = false
   let anchoredStopped = false
+  let interruptInitiator: 'user' | 'run_cancelled' | undefined
+  let draining: Promise<void> | undefined
+  const controlBorrows = new Set<Promise<void>>()
   let closePromise: ReturnType<AnchoredInvocationHandle['close']> | undefined
   const owner: SettlementOwner = {
     name: originalOwner.name,
@@ -311,11 +316,98 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     if (controller.signal.aborted) task.requestStop()
     return task
   }
-  async function drain() {
-    await Promise.all(tasks.map(task => task.stopped))
-    if (!registrationReleased) {
-      registration.release()
-      registrationReleased = true
+  function drain(): Promise<void> {
+    draining ??= (async () => {
+      while (controlBorrows.size > 0) await Promise.race(controlBorrows)
+      await Promise.all(tasks.map(task => task.stopped))
+      if (!registrationReleased) {
+        registration.release()
+        registrationReleased = true
+      }
+    })()
+    return draining
+  }
+  function borrowControl(): ReturnType<AnchoredInvocationHandle['borrowControl']> {
+    if (
+      registrationReleased ||
+      closed ||
+      quarantined ||
+      (draining !== undefined && controlBorrows.size === 0)
+    )
+      return unavailable
+    let finish: (() => void) | undefined
+    const stopped = new Promise<void>(resolve => {
+      finish = resolve
+    })
+    controlBorrows.add(stopped)
+    let active = 0
+    let closingBorrow = false
+    let admissionBusy = false
+    const liveTasks = new Set<SettlementTask<unknown>>()
+    const complete = () => {
+      if (closingBorrow && active === 0) {
+        controlBorrows.delete(stopped)
+        finish?.()
+      }
+    }
+    const borrowedOwner: SettlementOwner = {
+      name: owner.name,
+      admission: owner.admission,
+      opened: owner.opened,
+      unresolvedWrites: owner.unresolvedWrites,
+      // The original registration already holds the configured owner slot. Its control
+      // tasks share that ownership; a second owner.acquire would deadlock at limit 1.
+      acquire: _limit => {
+        if (
+          owner.admission() !== 'open' ||
+          admissionBusy ||
+          liveTasks.size !== 0 ||
+          (closingBorrow && active === 0)
+        )
+          return unavailable
+        admissionBusy = true
+        active++
+        let released = false
+        const ownTasks = new Set<SettlementTask<unknown>>()
+        return {
+          registration: {
+            start<T>(
+              kind: 'read' | 'append' | 'wait',
+              operation: (signal: AbortSignal) => Promise<T>,
+            ) {
+              if (released) throw new TypeError('control borrow closed')
+              const task = registration.start(kind, operation)
+              tasks.push(task)
+              ownTasks.add(task)
+              liveTasks.add(task)
+              task.stopped.then(
+                () => {
+                  ownTasks.delete(task)
+                  liveTasks.delete(task)
+                  if (liveTasks.size === 0) admissionBusy = false
+                },
+                () => undefined,
+              )
+              return task
+            },
+            release() {
+              if (released || ownTasks.size !== 0)
+                throw new TypeError('control borrow still active')
+              released = true
+              active--
+              if (liveTasks.size === 0) admissionBusy = false
+              complete()
+            },
+          },
+        }
+      },
+    }
+    return {
+      owner: borrowedOwner,
+      release: () => {
+        closingBorrow = true
+        complete()
+      },
     }
   }
   function append(entry: OwnedLogEntry): SettlementTask<AppendResult> {
@@ -400,7 +492,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
           observed: null,
           firstTokenAt: null,
           endedAt: policy.now(),
-          initiator: 'run_cancelled',
+          initiator: interruptInitiator ?? 'run_cancelled',
         })
         if ('rejected' in candidate) return unavailable
         interruption = candidate
@@ -484,7 +576,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
           observed: original?.facts ?? null,
           firstTokenAt: null,
           endedAt: policy.now(),
-          initiator: 'run_cancelled',
+          initiator: interruptInitiator ?? 'run_cancelled',
         })
         if ('rejected' in candidate) return unavailable
         interruption = candidate
@@ -492,7 +584,13 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         return 'settled' in stoppedSettlement ? { settled: stoppedSettlement } : unavailable
       }
       if (!settlementGenerationCurrent(binding)) return unavailable
-      construction = Object.freeze({ dispatched, result, messageId: input.messageId, firstTokenAt })
+      construction = Object.freeze({
+        dispatched,
+        result,
+        messageId: input.messageId,
+        firstTokenAt,
+        ...(interruptInitiator === undefined ? {} : { interruptInitiator }),
+      })
       await drain()
       const reply = constructPendingModelResponse(construction)
       if ('pending' in reply) return { replyPending: reply.pending }
@@ -538,6 +636,13 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       }
     },
     abort: stop,
+    interrupt(initiator) {
+      if (initiator !== 'user' && initiator !== 'run_cancelled')
+        throw new TypeError('invalid interrupt initiator')
+      interruptInitiator ??= initiator
+      stop()
+    },
+    borrowControl,
     async settleReply(disposition) {
       if (closed) return { unavailable: true, reason: 'closed' }
       const finished = await outcome

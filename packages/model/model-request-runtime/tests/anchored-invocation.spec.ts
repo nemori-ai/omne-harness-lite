@@ -4,10 +4,213 @@ import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { join } from 'node:path'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { appendControlRecord } from '../src/service-control.ts'
 import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+  it('borrows the original owner slot for a durable intent during a live stream', async () => {
+    await harness(async h => {
+      const entered = deferred<void>()
+      const resume = deferred<void>()
+      const wire = transport({
+        afterContent: async () => {
+          entered.resolve()
+          await resume.promise
+        },
+      })
+      const contention = h.input.settlement.settlementContention
+      if (contention === undefined) throw new Error('test settlement policy absent')
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        transport: wire.adapter,
+        settlement: {
+          ...h.input.settlement,
+          settlementContention: {
+            ...contention,
+            limits: { ...contention.limits, concurrent: 1 },
+          },
+        },
+      })
+      try {
+        await entered.promise
+        expect(h.owner.active).toBe(1)
+        expect(h.owner.acquire(1)).toEqual({ unavailable: true })
+        const borrowed = handle.borrowControl()
+        if (!('owner' in borrowed)) throw new Error('original registration unavailable')
+        const read = borrowed.owner.acquire(1)
+        if (!('registration' in read)) throw new Error('borrowed read unavailable')
+        const readTask = read.registration.start('read', () =>
+          h.log.readSince(h.input.settlement.binding.session, 0),
+        )
+        const prefix = await readTask.completion
+        expect(prefix).toHaveProperty('entries')
+        await readTask.stopped
+        read.registration.release()
+        expect(
+          await appendControlRecord({
+            binding: h.input.settlement.binding,
+            owner: borrowed.owner,
+            concurrent: 1,
+            record: {
+              kind: 'model_call_interrupt_intent',
+              call: h.input.planInput.target.callId,
+              initiator: 'user',
+            },
+            retainUnknown() {
+              throw new Error('actual JSONL intent receipt became unknown')
+            },
+          }),
+        ).toEqual({ appended: true })
+        const recorded = await h.log.readSince(h.input.settlement.binding.session, 0)
+        if (!('entries' in recorded)) throw new Error('actual log unreadable')
+        expect(recorded.entries.map(payload)).toContainEqual({
+          kind: 'model_call_interrupt_intent',
+          call: h.input.planInput.target.callId,
+          initiator: 'user',
+        })
+        borrowed.release()
+        handle.interrupt('user')
+      } finally {
+        resume.resolve()
+      }
+      const outcome = await handle.outcome
+      if ('replyPending' in outcome) {
+        expect(outcome.replyPending).toMatchObject({
+          outcome: 'interrupted',
+          initiator: 'user',
+          reply: { ending: 'interrupted_by_user' },
+        })
+        expect(await handle.settleReply('persisted')).toHaveProperty('settled')
+      } else {
+        expect(outcome).toHaveProperty('settled')
+      }
+      const closed = await handle.close()
+      expect({ outcome, closed, active: h.owner.active }).toMatchObject({
+        closed: { released: true },
+        active: 0,
+      })
+      expect(h.owner.active).toBe(0)
+    })
+  })
+  it('keeps the original owner registration until a borrowed control task actually stops', async () => {
+    await harness(async h => {
+      const entered = deferred<void>()
+      const resume = deferred<void>()
+      const readStopped = deferred<void>()
+      const held = deferred<void>()
+      const wire = transport({
+        afterContent: async () => {
+          entered.resolve()
+          await resume.promise
+        },
+        stop: async () => readStopped.resolve(),
+      })
+      const handle = createAnchoredModelInvocation({ ...h.input, transport: wire.adapter })
+      await entered.promise
+      const borrow = handle.borrowControl()
+      if (!('owner' in borrow)) throw new Error('original owner unavailable')
+      const acquired = borrow.owner.acquire(1)
+      if (!('registration' in acquired)) throw new Error('control task unavailable')
+      const task = acquired.registration.start('read', async () => {
+        await held.promise
+        return true
+      })
+      borrow.release()
+      let finished = false
+      const outcome = handle.outcome.then(result => {
+        finished = true
+        return result
+      })
+      handle.abort()
+      resume.resolve()
+      await readStopped.promise
+      await Promise.resolve()
+      expect(finished).toBe(false)
+      expect(h.owner.active).toBe(1)
+      held.resolve()
+      await task.stopped
+      acquired.registration.release()
+      await outcome
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.owner.active).toBe(0)
+    })
+  })
+  it('retains an unknown intent writer and permits an owned read to recognize its actual log fact', async () => {
+    await harness(async h => {
+      const entered = deferred<void>()
+      const resume = deferred<void>()
+      const readStopped = deferred<void>()
+      const wire = transport({
+        afterContent: async () => {
+          entered.resolve()
+          await resume.promise
+        },
+        stop: async () => readStopped.resolve(),
+      })
+      let appends = 0
+      h.wrap({
+        ...h.log,
+        async append(...args) {
+          const result = await h.log.append(...args)
+          return ++appends === 3 ? { failure: 'unavailable' } : result
+        },
+      })
+      const handle = createAnchoredModelInvocation({ ...h.input, transport: wire.adapter })
+      await entered.promise
+      const borrow = handle.borrowControl()
+      if (!('owner' in borrow)) throw new Error('original owner unavailable')
+      let unknown: { readonly release: () => void } | undefined
+      expect(
+        await appendControlRecord({
+          binding: h.input.settlement.binding,
+          owner: borrow.owner,
+          concurrent: 1,
+          record: {
+            kind: 'model_call_interrupt_intent',
+            call: h.input.planInput.target.callId,
+            initiator: 'user',
+          },
+          retainUnknown(registration) {
+            unknown = registration
+          },
+        }),
+      ).toEqual({ unavailable: true })
+      expect(unknown).toBeDefined()
+      borrow.release()
+      let finished = false
+      const outcome = handle.outcome.then(result => {
+        finished = true
+        return result
+      })
+      resume.resolve()
+      await readStopped.promise
+      await Promise.resolve()
+      expect(finished).toBe(false)
+      expect(h.owner.active).toBe(1)
+      const acquired = borrow.owner.acquire(1)
+      if (!('registration' in acquired)) throw new Error('unknown writer blocked recognition')
+      const read = acquired.registration.start('read', () =>
+        h.log.readSince(h.input.settlement.binding.session, 0),
+      )
+      const prefix = await read.completion
+      if (!('entries' in prefix)) throw new Error('authoritative prefix unavailable')
+      expect(prefix.entries.map(payload)).toContainEqual({
+        kind: 'model_call_interrupt_intent',
+        call: h.input.planInput.target.callId,
+        initiator: 'user',
+      })
+      await read.stopped
+      acquired.registration.release()
+      if (unknown === undefined) throw new Error('unknown writer registration was lost')
+      unknown.release()
+      const result = await outcome
+      if ('replyPending' in result)
+        expect(await handle.settleReply('persisted')).toHaveProperty('settled')
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.owner.active).toBe(0)
+    })
+  })
   it('accepts positive fractional durations at the anchored boundary without rounding them', async () => {
     await harness(async h => {
       const scheduled: number[] = []

@@ -681,12 +681,20 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     const reservationReleased = new Promise<void>(resolve => {
       releaseReservation = resolve
     })
+    let borrowed: { readonly owner: SettlementOwner; readonly release: () => void } | undefined
+    let borrowedTransferred = false
     try {
       const local = reservation.view()
       const owner = local?.owner ?? session.selection.owner
       if (owner.admission() !== 'open' || !settlementGenerationCurrent(session.log))
         return { unavailable: true }
-      const history = await read(session, owner, key)
+      if (local?.operation.phase === 'dispatching') {
+        const access = local.invocation?.borrowControl()
+        if (access === undefined || 'unavailable' in access) return { unavailable: true }
+        borrowed = access
+      }
+      const controlOwner = borrowed?.owner ?? owner
+      const history = await read(session, controlOwner, key)
       const admission = classifyInterrupt(
         controlFactsFromHistory(history, local !== undefined, local?.operation),
       )
@@ -697,14 +705,16 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       }
       // A durable in-flight call needs its original local abort port. A detached old producer
       // belongs to reconcile; merely writing an intent here would falsely promise a signal.
-      const abort = local?.operation.phase === 'dispatching' ? local.operation.abort : undefined
-      if (admission.stage !== 'before_dispatch' && abort === undefined) return { unavailable: true }
+      const signalInterrupt =
+        local?.operation.phase === 'dispatching' ? local.operation.interrupt : undefined
+      if (admission.stage !== 'before_dispatch' && signalInterrupt === undefined)
+        return { unavailable: true }
       if (closing) return { unavailable: true }
       if (!admission.intentExists) {
         const appended = await appendControlRecord({
           trackTask: task => appends.track(task),
           binding: session.log,
-          owner,
+          owner: controlOwner,
           concurrent: runtime.settlementContention.limits.concurrent,
           record: {
             kind: 'model_call_interrupt_intent',
@@ -712,17 +722,25 @@ export function createServiceControl<P extends PlannedSemantics, R>(
             initiator: input.initiator,
           },
           retainUnknown: (registration, task) =>
-            retain(key, session.log, owner, registration, task),
+            retain(key, session.log, controlOwner, registration, task),
         })
         if ('unavailable' in appended) return { unavailable: true }
       }
       if (admission.stage === 'before_dispatch') {
+        // The local anchor may still be committing its dispatched record. Once the
+        // intent is durable, stop that path before it can start a network request.
+        if (local?.operation.phase === 'dispatching')
+          signalInterrupt?.(
+            'known' in history && history.known.intent !== null
+              ? history.known.intent.initiator
+              : input.initiator,
+          )
         if (!backgroundEnds.has(keyOf(key))) {
           let committed = false
           const ending = appendControlRecord({
             trackTask: task => appends.track(task),
             binding: session.log,
-            owner,
+            owner: controlOwner,
             concurrent: runtime.settlementContention.limits.concurrent,
             record: {
               kind: 'model_call_ended',
@@ -734,7 +752,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
                   : input.initiator,
             },
             retainUnknown: (registration, task) =>
-              retain(key, session.log, owner, registration, task),
+              retain(key, session.log, controlOwner, registration, task),
           })
             .then(result => {
               if ('appended' in result) committed = true
@@ -780,18 +798,31 @@ export function createServiceControl<P extends PlannedSemantics, R>(
             .finally(() => {
               backgroundEnds.delete(keyOf(key))
             })
+          if (borrowed !== undefined) {
+            const controlBorrow = borrowed
+            borrowedTransferred = true
+            void ending.then(
+              () => controlBorrow.release(),
+              () => controlBorrow.release(),
+            )
+          }
           backgroundEnds.set(keyOf(key), cleanup)
           if (local !== undefined) runtime.calls.find(key)?.retainStopped(ending)
         }
       } else {
         try {
-          abort?.()
+          signalInterrupt?.(
+            'known' in history && history.known.intent !== null
+              ? history.known.intent.initiator
+              : input.initiator,
+          )
         } catch {
           return { unavailable: true }
         }
       }
       return { stage: admission.stage }
     } finally {
+      if (!borrowedTransferred) borrowed?.release()
       reservation.release()
       releaseReservation?.()
     }
