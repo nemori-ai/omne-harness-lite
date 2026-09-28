@@ -14,6 +14,7 @@ import {
   exactEndpoint,
   resumeSuccessfulFirstCase,
   runPaidCase,
+  saveOutcomeEvidence,
 } from './paid-calibration.mjs'
 import { createHash } from 'node:crypto'
 import { judgeMessage } from '@omne-harness-lite/messages'
@@ -226,8 +227,19 @@ function option(name, fallback) {
     throw new Error(`required: ${name} <value>`)
   return args[index + 1]
 }
+const selectedModel = args.includes('--model') ? option('--model') : undefined
+const textOnly = args.includes('--text-only')
+if (selectedModel !== undefined && selectedModel !== 'x-ai/grok-4.6')
+  throw new Error('This explicit partial run supports only x-ai/grok-4.6')
+if (textOnly !== (selectedModel !== undefined))
+  throw new Error('Use --model x-ai/grok-4.6 together with --text-only')
+const selectedDefinitions = selectedModel
+  ? xaiDefinitions.filter(item => item.modelId === selectedModel)
+  : xaiDefinitions
+const selectedNames = textOnly ? names.filter(name => name !== 'holdout-image') : names
 const output = option('--out')
 const resumePath = args.includes('--resume-from') ? option('--resume-from') : undefined
+if (resumePath && textOnly) throw new Error('Partial text selection cannot resume another batch')
 if (resumePath && !execute) throw new Error('--resume-from requires --execute')
 let ledger
 let key
@@ -239,7 +251,8 @@ if (execute) {
   snapshot = JSON.parse(source)
   snapshotSha256 = createHash('sha256').update(source).digest('hex')
   // Validate both fixed endpoints before obtaining the ledger or loading a credential.
-  for (const definition of xaiDefinitions) exactEndpoint(snapshot, definition.modelId, maxAgeMs)
+  for (const definition of selectedDefinitions)
+    exactEndpoint(snapshot, definition.modelId, maxAgeMs)
   const ledgerPath = option('--ledger')
   const approved = option('--approved-ledger')
   const stored = JSON.parse(readFileSync(ledgerPath, 'utf8'))
@@ -267,7 +280,7 @@ function append(row) {
 try {
   if (resumePath) resumeSource = readFileSync(resumePath, 'utf8')
   journal = openSync(output, 'wx', 0o600)
-  for (const definition of xaiDefinitions) {
+  for (const definition of selectedDefinitions) {
     const meter = createXaiCandidateInputMeter(definition)
     const transport = createPiAiTransport({
       definitions: [definition],
@@ -275,7 +288,7 @@ try {
       policy: networkPolicy,
     })
     try {
-      for (const name of names) {
+      for (const name of selectedNames) {
         const request = input(definition, name)
         const planned = transport.plan(request)
         if ('rejected' in planned) throw new Error('Fixed calibration plan refused')
@@ -307,6 +320,8 @@ try {
             identity,
             body: planned.planned.body,
             append,
+            persistOutcome: (reservation, outcome) =>
+              saveOutcomeEvidence(dirname(output), reservation, outcome, key),
             invoke: async () => {
               sent++
               const invocation = invokeModel({
@@ -341,6 +356,7 @@ try {
 console.log(
   JSON.stringify({
     mode: execute ? 'execute' : 'dry-run',
+    scope: textOnly ? 'grok-4.6-text-only-3-of-8' : 'fixed-eight-cases',
     cases: completed,
     resumed,
     sent,

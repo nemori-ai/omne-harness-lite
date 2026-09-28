@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { openProductionLedger } from '../../../../../../tools/model-probe/src/production-gate.mjs'
 import {
@@ -13,6 +13,7 @@ import {
   safeTokenCount,
   resumeSuccessfulFirstCase,
   wholeContextReservation,
+  saveOutcomeEvidence,
 } from './paid-calibration.mjs'
 
 const endpoint = {
@@ -50,6 +51,7 @@ const base = {
   model: 'x-ai/grok-4.7',
   endpoint,
   outputTokens: 128,
+  persistOutcome: async () => {},
   identity: { scenario: 'fit-short' },
   body: {
     model: 'x-ai/grok-4.7',
@@ -330,3 +332,78 @@ test('explicit resume accepts only one exact successful first-case pair with ori
     )
   })
 })
+
+for (const known of [true, false])
+  test(`failed domain outcome preserves raw before ${known ? 'known' : 'unknown'} settlement`, async () => {
+    await isolatedLedger(async (ledger, path) => {
+      const failure = {
+        outcome: 'failed',
+        blocks: [],
+        failure: {
+          cause: 'upstream_unavailable',
+          statusCode: new LosslessNumber('503'),
+          upstreamError: {
+            code: 'overloaded',
+            message: 'credential echo 503',
+            raw: {
+              error: {
+                message: '503',
+                value: new LosslessNumber('503'),
+                precise: new LosslessNumber('1.234567890123456789e-20'),
+              },
+            },
+          },
+        },
+        rawHeaders: { 'content-type': 'application/json', authorization: 'Bearer 503' },
+        timing: { sentAt: '2026-09-28T17:00:00Z', endedAt: '2026-09-28T17:00:01Z' },
+        usage: {
+          source: known ? 'upstream' : 'none',
+          input_tokens: known ? new LosslessNumber('503') : 'unknown',
+          output_tokens: known ? new LosslessNumber('0') : 'unknown',
+          cache_read_tokens: 'unknown',
+          cache_write_tokens: 'unknown',
+        },
+        cost: {
+          source: known ? 'upstream_usage' : 'none',
+          cost_usd: known ? new LosslessNumber('8.512e-4') : 'unknown',
+        },
+        routeName: base.model,
+        provider: 'xai',
+        servingProvider: 'xAI',
+        upstreamRequestId: 'gen-controlled-failure',
+        adaptation: { key: 'pi-ai:xai', revision: 'candidate' },
+        parameters: { maxOutputTokens: new LosslessNumber('128') },
+      }
+      let evidence
+      await assert.rejects(
+        runPaidCase({
+          ...base,
+          ledger,
+          invoke: async () => failure,
+          append: () => {},
+          persistOutcome: async (reservation, outcome) => {
+            assert.equal(ledger.snapshot().entries[0].state, 'reserved')
+            await saveOutcomeEvidence(dirname(path), reservation, outcome, '503')
+            const file = join(dirname(path), `${reservation}.outcome.json`)
+            evidence = await readFile(file, 'utf8')
+            assert.equal((await stat(file)).mode & 0o777, 0o600)
+          },
+        }),
+        known ? /Incomplete calibration/ : /Actual cost unknown/,
+      )
+      assert.match(evidence, /"statusCode":503/)
+      assert.match(evidence, /"precise":1.234567890123456789e-20/)
+      assert.match(evidence, /"upstreamRequestId":"gen-controlled-failure"/)
+      assert.ok(!evidence.includes('credential echo 503'))
+      assert.ok(!evidence.includes('Bearer 503'))
+      assert.ok(!evidence.includes('"value":503'))
+      assert.equal(failure.failure.upstreamError.raw.error.message, '503')
+      if (known) {
+        assert.match(evidence, /"input_tokens":503/)
+        assert.match(evidence, /"cost_usd":8.512e-4/)
+      }
+      const entry = ledger.snapshot().entries[0]
+      assert.equal(entry.state, known ? 'settled' : 'unknown')
+      assert.equal(entry.actualUsd, known ? '0.0008512' : undefined)
+    })
+  })

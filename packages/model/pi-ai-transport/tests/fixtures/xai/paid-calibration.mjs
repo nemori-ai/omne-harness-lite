@@ -1,7 +1,20 @@
 // xAI calibration only; no credential access or network in this helper.
-import { jsonNumberSource, readJsonStrict } from '@omne-harness-lite/content-blocks'
+import {
+  jsonNumberSource,
+  readJsonStrict,
+  copyJsonValue,
+  writeJsonLossless,
+} from '@omne-harness-lite/content-blocks'
 import { usdString, usdUnits } from '../../../../../../tools/model-probe/src/budget.mjs'
-import { paidInvocation } from '../../../../../../tools/model-probe/src/production-gate.mjs'
+import { join } from 'node:path'
+import {
+  createCredentialRedactionPolicy,
+  openRouterCredentialRedactionConfig,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  paidInvocation,
+  writePrivateEvidence,
+} from '../../../../../../tools/model-probe/src/production-gate.mjs'
 
 // Expand the retained JSON lexeme, never round money through Number.
 export function decimalUsd(value) {
@@ -106,6 +119,7 @@ export async function runPaidCase({
   body,
   append,
   invoke,
+  persistOutcome,
 }) {
   // No server/web-search request exists in these fixed plain-model fixtures.
   // The separate web_search rate is therefore inapplicable, not rounded to zero.
@@ -137,6 +151,8 @@ export async function runPaidCase({
         })
         return { actualUsd: undefined, complete: false }
       }
+      // Persist the actual domain result before any receipt interpretation/assertion.
+      await persistOutcome(reservation, outcome)
       let actualUsd
       try {
         if (outcome.cost?.cost_usd !== undefined && outcome.cost.cost_usd !== 'unknown')
@@ -248,4 +264,37 @@ export function resumeSuccessfulFirstCase(source, expected, endpoint, ledgerSnap
   )
     throw new Error('Resume receipt does not match original settled ledger')
   return rows
+}
+
+export async function saveOutcomeEvidence(directory, reservation, outcome, credential) {
+  const copied = copyJsonValue(outcome)
+  if (!('ok' in copied) || !copied.ok || typeof copied.ok !== 'object' || Array.isArray(copied.ok))
+    throw new Error('Invocation outcome is not domain JSON data')
+  const bound = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig).bind(
+    credential,
+  )
+  if (!('ok' in bound)) throw new Error('Credential redaction unavailable')
+  const take = result => {
+    if (!('ok' in result)) throw new Error('Evidence redaction unavailable')
+    return result.ok
+  }
+  const value = { ...copied.ok }
+  // These fields come from upstream payloads/errors. Independent status, usage,
+  // cost, timing and chosen adaptation/route facts retain their original JSON values.
+  if (value.rawHeaders !== undefined) value.rawHeaders = take(bound.ok.headers(value.rawHeaders))
+  if (value.blocks !== undefined) value.blocks = take(bound.ok.json(value.blocks))
+  for (const field of ['upstreamRequestId', 'upstreamModel', 'servingProvider', 'stopReason'])
+    if (typeof value[field] === 'string') value[field] = take(bound.ok.text(value[field]))
+  if (value.failure) {
+    value.failure = { ...value.failure }
+    if (value.failure.upstreamError !== undefined)
+      value.failure.upstreamError = take(bound.ok.json(value.failure.upstreamError))
+    if (value.failure.localError !== undefined)
+      value.failure.localError = take(bound.ok.text(value.failure.localError))
+  }
+  if (!/^[a-f0-9-]+$/.test(reservation)) throw new Error('Invalid evidence reservation')
+  await writePrivateEvidence(
+    join(directory, `${reservation}.outcome.json`),
+    writeJsonLossless(value) + '\n',
+  )
 }
