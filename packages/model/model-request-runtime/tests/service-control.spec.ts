@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { classifyInterrupt, classifyRelease, type ControlFacts } from '../src/service-control.ts'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { parseTenantId } from '@omne-harness-lite/identity-values'
+import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import {
+  appendControlRecord,
+  classifyInterrupt,
+  classifyRelease,
+  type ControlFacts,
+} from '../src/service-control.ts'
+import type {
+  SettlementOwner,
+  SettlementRegistration,
+  SettlementTask,
+} from '../src/settlement-types.ts'
+import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
 
 const absent: ControlFacts = { durable: { absent: true }, localCall: false }
 const unavailable: ControlFacts = { durable: { unavailable: true }, localCall: true }
@@ -62,8 +78,172 @@ describe('RT7 S-31/S-32 control admission from owned facts', () => {
     expect(classifyRelease(known('awaiting_decision'))).toEqual({ allowed: true })
     expect(classifyRelease(known('resumable'))).toEqual({ allowed: true })
     expect(classifyRelease(known('in_flight'))).toEqual({ wrongPhase: 'in_flight' })
+    expect(classifyRelease(known('awaiting_decision', true))).toEqual({
+      rejected: 'unavailable',
+    })
     expect(classifyRelease({ durable: { absent: true }, localCall: true })).toEqual({
       wrongPhase: 'open',
     })
+  })
+})
+
+describe('RT7 S-31/S-68 actual control append', () => {
+  it('writes one current-format intent before a caller may signal abort', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mrr-control-'))
+    const log = await openJsonlSessionLog({
+      dir,
+      processOwnership: {
+        current: `control-test:${process.pid}`,
+        async observeExit() {
+          return 'unknown'
+        },
+      },
+    })
+    const parsedTenant = parseTenantId({ organization: 'control-org', account: 'control-account' })
+    if (!('ok' in parsedTenant)) throw new Error('invalid fixture tenant')
+    let releases = 0
+    const owner: SettlementOwner = {
+      name: 'control-test',
+      admission: () => 'open',
+      acquire: () => ({
+        registration: {
+          start(_kind, operation) {
+            const completion = Promise.resolve().then(() => operation(new AbortController().signal))
+            return {
+              completion,
+              requestStop() {},
+              stopped: completion.then(
+                () => undefined,
+                () => undefined,
+              ),
+            }
+          },
+          release() {
+            releases++
+          },
+        },
+      }),
+      opened: () => ({ confirmed: true }),
+      unresolvedWrites: () => [],
+    }
+    const generation = Object.freeze({})
+    try {
+      const result = await appendControlRecord({
+        binding: {
+          session: 'control-session',
+          tenant: parsedTenant.ok,
+          log,
+          generation,
+          currentGeneration: () => generation,
+        },
+        owner,
+        concurrent: 1,
+        record: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
+        retainUnknown() {
+          throw new Error('known receipt unexpectedly quarantined')
+        },
+      })
+      expect(result).toEqual({ appended: true })
+      expect(releases).toBe(1)
+      const read = await log.readSince('control-session', 0)
+      if ('failure' in read) throw new Error(read.failure)
+      expect(read.entries).toHaveLength(1)
+      expect(read.entries[0]?.payload).toEqual({
+        format: 'mrr/3',
+        category: 'record',
+        value: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
+      })
+    } finally {
+      await log.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('retains ownership when the log committed but the receipt is unconfirmed', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mrr-control-unknown-'))
+    const log = await openJsonlSessionLog({
+      dir,
+      processOwnership: {
+        current: `control-unknown:${process.pid}`,
+        async observeExit() {
+          return 'unknown'
+        },
+      },
+    })
+    const parsedTenant = parseTenantId({ organization: 'control-org', account: 'control-account' })
+    if (!('ok' in parsedTenant)) throw new Error('invalid fixture tenant')
+    let releases = 0
+    let retained:
+      | {
+          readonly registration: SettlementRegistration
+          readonly task: SettlementTask<AppendResult>
+        }
+      | undefined
+    const owner: SettlementOwner = {
+      name: 'control-unknown',
+      admission: () => 'open',
+      acquire: () => ({
+        registration: {
+          start(_kind, operation) {
+            const completion = Promise.resolve().then(() => operation(new AbortController().signal))
+            return {
+              completion,
+              requestStop() {},
+              stopped: completion.then(
+                () => undefined,
+                () => undefined,
+              ),
+            }
+          },
+          release() {
+            releases++
+          },
+        },
+      }),
+      opened: () => ({ confirmed: true }),
+      unresolvedWrites: () => (retained === undefined ? [] : [retained.task]),
+    }
+    const generation = Object.freeze({})
+    try {
+      const result = await appendControlRecord({
+        binding: {
+          session: 'control-session',
+          tenant: parsedTenant.ok,
+          log: {
+            readSince: log.readSince.bind(log),
+            readByKey: log.readByKey.bind(log),
+            async append(...args) {
+              const actual = await log.append(...args)
+              if ('failure' in actual) return actual
+              return { failure: 'unavailable' }
+            },
+          },
+          generation,
+          currentGeneration: () => generation,
+        },
+        owner,
+        concurrent: 1,
+        record: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
+        retainUnknown(registration, task) {
+          retained = { registration, task }
+        },
+      })
+      expect(result).toEqual({ unavailable: true })
+      expect(releases).toBe(0)
+      expect(retained).toBeDefined()
+      const read = await log.readSince('control-session', 0)
+      if ('failure' in read) throw new Error(read.failure)
+      expect(read.entries).toHaveLength(1)
+      expect(read.entries[0]?.payload).toMatchObject({
+        format: 'mrr/3',
+        value: { kind: 'model_call_interrupt_intent', call: 'control-call' },
+      })
+      await retained?.task.stopped
+      retained?.registration.release()
+      expect(releases).toBe(1)
+    } finally {
+      await log.close()
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })
