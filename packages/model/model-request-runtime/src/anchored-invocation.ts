@@ -1,7 +1,5 @@
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
-import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
-import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response/v5'
@@ -13,6 +11,7 @@ import {
 } from './credential-redaction.ts'
 import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from './log-codec-v2.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
+import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import {
   constructAssistantReply,
@@ -311,10 +310,15 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     return task
   }
   async function receipt(task: SettlementTask<AppendResult>): Promise<boolean> {
-    let result: AppendResult
+    let raw: unknown
     try {
-      result = await task.completion
+      raw = await task.completion
     } catch {
+      quarantined = true
+      return false
+    }
+    const result = settlementAppendReceipt(raw, 1)
+    if (result === null) {
       quarantined = true
       return false
     }
@@ -326,18 +330,6 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         unresolved.delete(task)
         if (task === openedTask) openedKnownAbsent = true
       }
-      return false
-    }
-    const position = Array.isArray(result.positions) ? result.positions[0] : undefined
-    if (
-      !Array.isArray(result.positions) ||
-      result.positions.length !== 1 ||
-      !isNonNegativeJsonInteger(position) ||
-      ExactDecimal.from(position).compare(ExactDecimal.from(0)) <= 0 ||
-      !isNonNegativeJsonInteger(result.tail) ||
-      !modelLogJsonEqual(position, result.tail)
-    ) {
-      quarantined = true
       return false
     }
     unresolved.delete(task)
