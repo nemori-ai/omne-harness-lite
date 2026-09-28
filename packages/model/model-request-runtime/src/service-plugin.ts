@@ -4,10 +4,14 @@ import type { ModelRuntimeService, RuntimeCloseResult } from './service-types.ts
 
 export const MODEL_RUNTIME_SERVICE = 'modelRuntime'
 
+/** The host retains this owner before construction resolves; release only removes that retention. */
+export interface ModelRuntimeAssemblyOwner {
+  readonly close: () => Promise<RuntimeCloseResult>
+  readonly release: () => void
+}
 export interface ModelRuntimeAssembly {
   readonly service: ModelRuntimeService
-  /** Closes actual call/selection owners; unavailable retains unfinished responsibility. */
-  readonly close: () => Promise<RuntimeCloseResult>
+  readonly owner: ModelRuntimeAssemblyOwner
 }
 const methodNames = [
   'legalTargets',
@@ -48,13 +52,26 @@ export function createModelRuntimePlugin(input: {
       if (
         assembled === null ||
         typeof assembled !== 'object' ||
-        typeof assembled.close !== 'function' ||
+        assembled.owner === null ||
+        typeof assembled.owner !== 'object' ||
+        typeof assembled.owner.close !== 'function' ||
+        typeof assembled.owner.release !== 'function' ||
         assembled.service === null ||
         typeof assembled.service !== 'object'
       )
         throw new TypeError('invalid model runtime assembly')
+      const { owner } = assembled
+      let released = false
+      async function closeOwner(): Promise<RuntimeCloseResult> {
+        const result = await owner.close()
+        if ('released' in result && !released) {
+          owner.release()
+          released = true
+        }
+        return result
+      }
       if (methodNames.some(name => typeof assembled.service[name] !== 'function')) {
-        await assembled.close()
+        await closeOwner()
         throw new TypeError('incomplete model runtime service')
       }
       let admissionClosed = false
@@ -62,7 +79,7 @@ export function createModelRuntimePlugin(input: {
       function close(): Promise<RuntimeCloseResult> {
         admissionClosed = true
         if (closing !== undefined) return closing
-        closing = assembled.close()
+        closing = closeOwner()
         return closing
       }
       const original = assembled.service

@@ -27,18 +27,33 @@ The current implementation contains standalone invocation, pure policy functions
 
 ## Cordis service assembly under development
 
-`@omne-harness-lite/model-request-runtime/plugin` exports `createModelRuntimePlugin` and the `modelRuntime` service key. The application supplies a complete `ModelRuntimeAssembly` through `construct`; this plugin does not fill missing operations. Cordis waits for the declared required providers before construction. One cleanup effect closes admission to `openCall`, `dispatch`, and `dispatchAgain`, then awaits the assembly's own stop and resource cleanup. Existing references can still invoke allowed settlement and read operations during shutdown. An unavailable close remains an owned recovery obligation and is logged; it is not a settled call.
+`@omne-harness-lite/model-request-runtime/plugin` exports `createModelRuntimePlugin` and the `modelRuntime` service key. The application supplies a complete `ModelRuntimeAssembly` through `construct`; this plugin does not fill missing operations. Cordis waits for the declared required providers before construction. The host retains `assembly.owner` before `construct` resolves. One cleanup effect closes admission to `openCall`, `dispatch`, and `dispatchAgain`, then calls that owner's `close()`. It calls `owner.release()` exactly once only after actual close reports `released`. If close is unavailable, the host keeps the same owner after the fiber unloads and must later complete stop/recovery and retry close; a diagnostic alone cannot release it. Existing references can still invoke allowed settlement and read operations during shutdown.
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createModelRuntimePlugin,
-  type ModelRuntimeAssembly,
+  type ModelRuntimeAssembly, type ModelRuntimeAssemblyOwner,
 } from '@omne-harness-lite/model-request-runtime/plugin'
+
+const retained = new Set<ModelRuntimeAssemblyOwner>()
+export function retainRuntime(
+  service: ModelRuntimeAssembly['service'],
+  close: ModelRuntimeAssemblyOwner['close'],
+): ModelRuntimeAssembly {
+  const owner: ModelRuntimeAssemblyOwner = {
+    close,
+    release() {
+      if (!retained.delete(owner)) throw new Error('runtime owner was not retained')
+    },
+  }
+  retained.add(owner)
+  return { service, owner }
+}
 
 export async function installRuntime(
   ctx: Context,
-  construct: () => Promise<ModelRuntimeAssembly>,
+  construct: () => Promise<ModelRuntimeAssembly>, // must retain before resolving
 ) {
   return ctx.plugin(createModelRuntimePlugin({ construct }), {})
 }

@@ -2,7 +2,11 @@ import { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis'
 import { z } from 'zod'
 import { describe, expect, it } from 'vitest'
-import { createModelRuntimePlugin, MODEL_RUNTIME_SERVICE } from '../src/service-plugin.ts'
+import {
+  createModelRuntimePlugin,
+  MODEL_RUNTIME_SERVICE,
+  type ModelRuntimeAssemblyOwner,
+} from '../src/service-plugin.ts'
 import type { ModelRuntimeService } from '../src/service-types.ts'
 
 const unavailable = async () => ({ unavailable: true }) as const
@@ -24,6 +28,24 @@ function service(): ModelRuntimeService {
   }
 }
 
+async function dependencies(ctx: Context) {
+  return await ctx.plugin(
+    definePlugin({
+      name: 'runtime-test-dependencies',
+      Config: z.object({}).strict(),
+      apply(inner) {
+        inner.provide('sessionLog', {})
+        inner.provide('modelCatalogRead', {})
+        inner.provide('credentialLookup', {})
+        inner.provide('modelTransport', {})
+        inner.provide('storage', {})
+        inner.provide('clock', {})
+      },
+    }),
+    {},
+  )
+}
+
 describe('Cordis P-2 runtime assembly', () => {
   it('waits for required providers and closes admission before actual assembly close completes', async () => {
     const ctx = new Context()
@@ -33,36 +55,32 @@ describe('Cordis P-2 runtime assembly', () => {
     const closing = new Promise<void>(resolve => {
       finishClose = resolve
     })
+    const retained = new Set<ModelRuntimeAssemblyOwner>()
+    let releases = 0
     const plugin = createModelRuntimePlugin({
       async construct() {
         constructed++
-        return {
-          service: service(),
+        const owner: ModelRuntimeAssemblyOwner = {
           async close() {
             closeStarted = true
             await closing
-            return { released: true } as const
+            return { released: true }
           },
+          release() {
+            if (!retained.delete(owner)) throw new Error('owner not retained')
+            releases++
+          },
+        }
+        retained.add(owner)
+        return {
+          service: service(),
+          owner,
         }
       },
     })
     const consumer = await ctx.plugin(plugin, {})
     expect(constructed).toBe(0)
-    const provider = await ctx.plugin(
-      definePlugin({
-        name: 'runtime-test-dependencies',
-        Config: z.object({}).strict(),
-        apply(inner) {
-          inner.provide('sessionLog', {})
-          inner.provide('modelCatalogRead', {})
-          inner.provide('credentialLookup', {})
-          inner.provide('modelTransport', {})
-          inner.provide('storage', {})
-          inner.provide('clock', {})
-        },
-      }),
-      {},
-    )
+    const provider = await dependencies(ctx)
     await consumer.await()
     expect(constructed).toBe(1)
     const offered = ctx.get(MODEL_RUNTIME_SERVICE)
@@ -82,6 +100,46 @@ describe('Cordis P-2 runtime assembly', () => {
     })
     finishClose?.()
     await disposing
+    expect(retained.size).toBe(0)
+    expect(releases).toBe(1)
     await consumer.dispose()
+  })
+
+  it('leaves an unavailable owner with its real host after the Cordis fiber unloads', async () => {
+    const ctx = new Context()
+    const retained = new Set<ModelRuntimeAssemblyOwner>()
+    let actualStop = false
+    let releases = 0
+    const plugin = createModelRuntimePlugin({
+      async construct() {
+        const owner: ModelRuntimeAssemblyOwner = {
+          async close() {
+            return actualStop ? { released: true } : { unavailable: true }
+          },
+          release() {
+            if (!retained.delete(owner)) throw new Error('owner not retained')
+            releases++
+          },
+        }
+        retained.add(owner)
+        return { service: service(), owner }
+      },
+    })
+    const consumer = await ctx.plugin(plugin, {})
+    const provider = await dependencies(ctx)
+    await consumer.await()
+    expect(retained.size).toBe(1)
+    await provider.dispose()
+    await consumer.dispose()
+    expect(ctx.get(MODEL_RUNTIME_SERVICE)).toBeUndefined()
+    expect(retained.size).toBe(1)
+    expect(releases).toBe(0)
+    const original = [...retained][0]
+    if (original === undefined) throw new Error('host lost the original owner')
+    actualStop = true
+    expect(await original.close()).toEqual({ released: true })
+    original.release()
+    expect(retained.size).toBe(0)
+    expect(releases).toBe(1)
   })
 })

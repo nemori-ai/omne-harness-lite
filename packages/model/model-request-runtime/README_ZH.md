@@ -23,18 +23,33 @@
 
 ## 仍在集成的 Cordis 服务装配
 
-`@omne-harness-lite/model-request-runtime/plugin` 导出 `createModelRuntimePlugin` 与 `modelRuntime` 服务键。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再等待装配自身的实际停止和资源清理。已有服务引用在撤除期间仍可执行允许的结算和读取。收口不可用仍是具名持有的恢复责任并被记录，不表示调用已经结算。
+`@omne-harness-lite/model-request-runtime/plugin` 导出 `createModelRuntimePlugin` 与 `modelRuntime` 服务键。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。宿主在 `construct` 返回前保留 `assembly.owner`。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再调用该 owner 的 `close()`；只有真实收口返回 `released` 才恰一次调用 `owner.release()`。若收口不可用，宿主在 fiber 卸载后继续持有同一个 owner，负责之后的实际停止／恢复及再次收口；诊断日志不能替代释放。已有服务引用在撤除期间仍可执行允许的结算和读取。
 
 ```ts
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createModelRuntimePlugin,
-  type ModelRuntimeAssembly,
+  type ModelRuntimeAssembly, type ModelRuntimeAssemblyOwner,
 } from '@omne-harness-lite/model-request-runtime/plugin'
+
+const retained = new Set<ModelRuntimeAssemblyOwner>()
+export function retainRuntime(
+  service: ModelRuntimeAssembly['service'],
+  close: ModelRuntimeAssemblyOwner['close'],
+): ModelRuntimeAssembly {
+  const owner: ModelRuntimeAssemblyOwner = {
+    close,
+    release() {
+      if (!retained.delete(owner)) throw new Error('runtime owner was not retained')
+    },
+  }
+  retained.add(owner)
+  return { service, owner }
+}
 
 export async function installRuntime(
   ctx: Context,
-  construct: () => Promise<ModelRuntimeAssembly>,
+  construct: () => Promise<ModelRuntimeAssembly>, // 返回前须由宿主持有
 ) {
   return ctx.plugin(createModelRuntimePlugin({ construct }), {})
 }
