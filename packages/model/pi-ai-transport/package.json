@@ -21,6 +21,7 @@
     "dist",
     "tokenizers/deepseek-v4",
     "tokenizers/deepseek-v41-flash",
+    "tokenizers/anthropic-legacy",
     "LICENSE.pi",
     "UPSTREAM.md",
     "provenance.json",

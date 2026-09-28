@@ -78,3 +78,4 @@ export {
 } from './official-models/deepseek.ts'
 
 export { createOpenAiInputMeter } from './input-meters/openai.ts'
+export { createAnthropicInputMeter } from './input-meters/anthropic.ts'
