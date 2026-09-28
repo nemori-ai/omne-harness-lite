@@ -240,4 +240,29 @@ describe('Google official routes: controlled wire projection only', () => {
       rejected: 'modality_not_carried',
     })
   })
+
+  it.each(googleDefinitions)('$modelId rejects video without a wire projection', definition => {
+    const input = request(definition)
+    const video = judgedMessage({
+      id: 'google-video',
+      type: 'user',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'google-video-file',
+          kind: 'file',
+          attachment: {
+            storage: 'attachments',
+            key: 'obj_google_video',
+            mediaType: 'video/mp4',
+            name: 'clip.mp4',
+          },
+          visibility: visible,
+        },
+      ],
+    })
+    expect(planRequest({ ...input, messages: [...input.messages, video] }, [definition])).toEqual({
+      rejected: 'modality_not_carried',
+    })
+  })
 })
