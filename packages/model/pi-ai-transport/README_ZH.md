@@ -203,6 +203,8 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createOpenAiInputMeter(definition)` 仅绑定 OpenAI 供应商下修订 1 的六个 GPT-5.6 Sol／Terra／Luna 基础版与 Pro 定义。它使用固定版本 `js-tiktoken` 的 `o200k_base` 编码器，依据是 [OpenAI 当前 tiktoken 源码](https://github.com/openai/tiktoken/blob/4e71bbe0c078468e00fefbf94b39849389f346e5/tiktoken/model.py) 对 GPT-5 的映射；已发布的 tiktoken 0.12.0 不能逐名识别 GPT-5.6，因此这是**估算**，并非各模型精确 tokenizer 认证。估算覆盖最终序列化的多轮消息、`developer` 提醒、工具定义和结果、推理与协议字段；内联图片以标记替换，不把 base64 当文本编码。三个基础版在省略／`auto` 图片精度时采用 [OpenAI 图像指南](https://developers.openai.com/api/docs/guides/images-vision) 明列的 32 像素 patch 和 1.2 倍规则。Pro 的图片尚无变体专属计量依据，返回 `input_size_unavailable`；远程、非法或无法判断尺寸的图片同样发前拒绝。GPT-6 缺模型 tokenizer 映射依据，不能构建此 meter。每次请求显式余量承担估算风险，实际 usage 和费用仍取上游。
 
+`createAnthropicInputMeter(definition)` 仅绑定 `anthropic` 供应商下修订 1 的四个指定 Claude 5.x 定义。它使用固定的 [Anthropic 旧版 Claude BPE](https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b)；Anthropic 将其称为自 Claude 3 起的**非常粗略估算**。[Claude 4.7 及后续型号使用新 tokenizer](https://platform.claude.com/docs/en/build-with-claude/token-counting)，本构件不是那个 tokenizer，也没有统一误差上界。它把 OpenRouter Chat 最终完整 JSON 的多轮文字、user 提醒、工具定义与结果、推理详情、缓存标记及供应商字段一并编码为固定路由估算；OpenRouter 的私有转换仍未知。图片没有适用计量依据，发送前返回不可计量。每次请求必须显式配置余量，逐型号真实认证还须对照上游 usage 与本粗估误差；估算及余量不替代实际上游 usage 或费用。Google 3.7／3.8 Flash 目前缺少有依据的本地 tokenizer 绑定，本包尚无这两项官方计量构件。
+
 ## 持有传输资源
 
 ```ts
