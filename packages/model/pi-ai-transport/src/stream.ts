@@ -13,11 +13,15 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { ArrivalEvent, OpenEvent } from '@omne-harness-lite/arrival-events'
-import type { StreamEnd, TransportFailure } from '@omne-harness-lite/model-request-runtime'
+import type {
+  StreamEnd,
+  TransportFailure,
+  TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
 import { parseSSE, SseProtocolError } from './sse.ts'
 import { strictObject, object } from './json.ts'
 import { processedText, processedObject, CredentialProcessingFailure } from './credential-policy.ts'
-import { reportDiagnostic } from './diagnostics.ts'
+import { reportDiagnostic, reportExecutionDiagnostic } from './diagnostics.ts'
 import { accountFromUsage } from './accounts.ts'
 import { claimResponse, type RawResponse, type Diagnostic } from './http.ts'
 import type { PlannedRequest } from './plan.ts'
@@ -72,9 +76,16 @@ export async function* readStream(
   response: RawResponse,
   planned: PlannedRequest,
   signal: AbortSignal,
-  deps: { maxSseEventBytes: number; diagnostic: (event: Diagnostic) => void },
+  deps: {
+    maxSseEventBytes: number
+    diagnostic: (event: Diagnostic) => void
+    executionDiagnostics?: TransportExecutionDiagnostics
+  },
 ): AsyncGenerator<ArrivalEvent, StreamEnd> {
-  const claimed = signal instanceof AbortSignal ? claimResponse(response, planned) : undefined
+  const claimed =
+    signal instanceof AbortSignal
+      ? claimResponse(response, planned, deps.executionDiagnostics)
+      : undefined
   if (!claimed) return { rejected: 'invalidInput' }
   const state = claimed
   const blocks: Block[] = []
@@ -91,7 +102,9 @@ export async function* readStream(
     stopReason?: string
   } = {}
   const originalServing: typeof serving = {}
-  const diagnostic = (event: Diagnostic) => reportDiagnostic(deps.diagnostic, event)
+  const diagnostic = (event: Diagnostic) => {
+    if (!deps.executionDiagnostics) reportDiagnostic(deps.diagnostic, event)
+  }
   function block(kind: 'text' | 'thinking'): Block {
     const index = new LosslessNumber(String(blocks.length))
     const opened: OpenEvent = {
@@ -341,14 +354,28 @@ export async function* readStream(
         )
       )
         failed = { source: 'stream_broken', localError: 'upstream stream disconnected' }
-      else throw error
+      else {
+        reportExecutionDiagnostic(deps.executionDiagnostics, {
+          stage: 'stream_end',
+          outcome: 'failed',
+          facts: { kind: 'transport', stream: 'lost' },
+        })
+        throw error
+      }
     }
   } finally {
     response.stop()
     await response.stopped
     signal.removeEventListener('abort', abort)
   }
-  if (signal.aborted) return { aborted: true, ...serving }
+  if (signal.aborted) {
+    reportExecutionDiagnostic(deps.executionDiagnostics, {
+      stage: 'stream_end',
+      outcome: 'stopped',
+      facts: { kind: 'transport', stream: 'lost' },
+    })
+    return { aborted: true, ...serving }
+  }
   if (!failed && finish !== 'length') {
     for (const b of blocks) {
       if (b.opened.kind === 'tool_call') yield { t: 'close', index: b.opened.index }
@@ -374,6 +401,11 @@ export async function* readStream(
     }
   }
   if (usage) yield { t: 'account', ...accountFromUsage(usage, diagnostic) }
+  reportExecutionDiagnostic(deps.executionDiagnostics, {
+    stage: 'stream_end',
+    outcome: failed ? 'failed' : 'completed',
+    facts: { kind: 'transport', stream: failed ? 'lost' : 'ended' },
+  })
   return failed
     ? { failed, ...serving }
     : { ended: finish === 'length' ? 'max_tokens' : 'end', ...serving }

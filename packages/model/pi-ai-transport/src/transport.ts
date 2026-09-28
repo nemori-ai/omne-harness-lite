@@ -1,5 +1,8 @@
 import { Agent, type RequestOptions } from 'node:https'
-import type { TransportAdapter } from '@omne-harness-lite/model-request-runtime'
+import type {
+  TransportAdapter,
+  TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
 import { planRequest, claimPlan, planAvailable, type PlannedRequest } from './plan.ts'
 import {
   sendRequest,
@@ -172,16 +175,17 @@ export function createOwnedTransport(options: TransportOptions): {
       if ('planned' in result) claim(result.planned)
       return result
     },
-    send: (planned, credential, signal) =>
+    send: (planned, credential, signal, diagnostics) =>
       planAvailable(planned, owner, definitions, inputMeters)
-        ? sendRequest(planned, credential, signal, resources)
+        ? sendRequest(planned, credential, signal, resources, diagnostics)
         : Promise.resolve({ rejected: 'invalidInput' }),
-    read: async function* (response, planned, signal) {
+    read: async function* (response, planned, signal, diagnostics?: TransportExecutionDiagnostics) {
       if (!planAvailable(planned, owner, definitions, inputMeters))
         return { rejected: 'invalidInput' }
       return yield* readStream(response, planned, signal, {
         maxSseEventBytes: policy.maxSseEventBytes,
         diagnostic,
+        ...(diagnostics ? { executionDiagnostics: diagnostics } : {}),
       })
     },
     diagnostics: () => Object.freeze({ failed, pending, dropped }),

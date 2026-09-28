@@ -1,6 +1,10 @@
 import { validate, type ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
-import type { TransportAdapter, PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type {
+  TransportAdapter,
+  PlanInput,
+  TransportExecutionDiagnostics,
+} from '@omne-harness-lite/model-request-runtime'
 import { ownDefinitions, jsonEqual, type ModelDefinition } from './definitions.ts'
 import { interpretConfiguration } from './configuration.ts'
 import { ownedObject } from './json.ts'
@@ -327,7 +331,7 @@ export function createModelTransportService(
           }
           return result
         },
-        send: (planned, credential, cancellation) => {
+        send: (planned, credential, cancellation, diagnostics?: TransportExecutionDiagnostics) => {
           if (
             user.released ||
             !issuedPlans.has(planned) ||
@@ -336,14 +340,19 @@ export function createModelTransportService(
           )
             return Promise.resolve({ rejected: 'invalidInput' })
           const completion = network
-            .send(planned, credential, AbortSignal.any([signal, cancellation]))
+            .send(planned, credential, AbortSignal.any([signal, cancellation]), diagnostics)
             .then(result => {
               if ('response' in result) retain(entry, user, result.response.stopped)
               return result
             })
           return retain(entry, user, completion)
         },
-        read: async function* (response, planned, cancellation) {
+        read: async function* (
+          response,
+          planned,
+          cancellation,
+          diagnostics?: TransportExecutionDiagnostics,
+        ) {
           if (
             user.released ||
             !issuedPlans.has(planned) ||
@@ -360,7 +369,12 @@ export function createModelTransportService(
             }),
           )
           try {
-            return yield* network.read(response, planned, AbortSignal.any([signal, cancellation]))
+            return yield* network.read(
+              response,
+              planned,
+              AbortSignal.any([signal, cancellation]),
+              diagnostics,
+            )
           } finally {
             done()
           }

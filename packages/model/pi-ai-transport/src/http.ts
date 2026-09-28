@@ -6,6 +6,7 @@ import {
   type BoundCredentialRedaction,
   type TransportFailure,
   type SendResult,
+  type TransportExecutionDiagnostics,
 } from '@omne-harness-lite/model-request-runtime'
 import { isPlannedRequest, type PlannedRequest } from './plan.ts'
 import { strictObject } from './json.ts'
@@ -15,7 +16,7 @@ import {
   CredentialProcessingFailure,
 } from './credential-policy.ts'
 import type { RawHeaders } from '@omne-harness-lite/model-response'
-import { reportDiagnostic } from './diagnostics.ts'
+import { reportDiagnostic, reportExecutionDiagnostic } from './diagnostics.ts'
 
 export interface TransportPolicy {
   readonly maxConnections: number
@@ -48,6 +49,7 @@ interface ResponseState {
   readonly statusCode: number | undefined
   readonly credentialPolicy: BoundCredentialRedaction
   readonly planned: PlannedRequest
+  readonly executionDiagnostics: TransportExecutionDiagnostics | undefined
   claimed: boolean
 }
 const responses = new WeakMap<RawResponse, ResponseState>()
@@ -55,9 +57,16 @@ const responses = new WeakMap<RawResponse, ResponseState>()
 export function claimResponse(
   response: RawResponse,
   planned: PlannedRequest,
+  diagnostics?: TransportExecutionDiagnostics,
 ): ResponseState | undefined {
   const state = responses.get(response)
-  if (!state || state.claimed || state.planned !== planned) return undefined
+  if (
+    !state ||
+    state.claimed ||
+    state.planned !== planned ||
+    state.executionDiagnostics !== diagnostics
+  )
+    return undefined
   state.claimed = true
   return state
 }
@@ -66,7 +75,13 @@ export async function sendRequest(
   credential: string,
   signal: AbortSignal,
   resources: NetworkResources,
+  diagnostics?: TransportExecutionDiagnostics,
 ): Promise<SendResult<RawResponse>> {
+  const execution = (fact: Parameters<TransportExecutionDiagnostics['record']>[0]) =>
+    reportExecutionDiagnostic(diagnostics, fact)
+  const instance = (event: Diagnostic) => {
+    if (!diagnostics) reportDiagnostic(resources.diagnostic, event)
+  }
   if (
     !isPlannedRequest(planned) ||
     typeof credential !== 'string' ||
@@ -87,10 +102,11 @@ export async function sendRequest(
   try {
     binding = credentialPolicy.bind(credential)
   } catch {
-    reportDiagnostic(resources.diagnostic, {
+    instance({
       kind: 'model_transport.bind_policy_defect',
       level: 'error',
     })
+    execution({ stage: 'send', outcome: 'failed', facts: { kind: 'transport' } })
     return { failed: { source: 'local', localError: 'bind_policy' } }
   }
   if ('rejected' in binding) return { rejected: 'invalidInput' }
@@ -99,15 +115,22 @@ export async function sendRequest(
   const maxErrorBodyBytes = resources.policy.maxErrorBodyBytes
   if (resources.closed()) return { rejected: 'unavailable' }
   if (signal.aborted) return { aborted: true }
+  execution({ stage: 'queue', outcome: 'waiting', facts: { kind: 'transport' } })
   const release = await resources.acquireConnection(signal)
   if (!release) {
+    execution({
+      stage: 'queue',
+      outcome: signal.aborted ? 'stopped' : 'unavailable',
+      facts: { kind: 'transport', touch: 'queued' },
+    })
     if (signal.aborted)
-      reportDiagnostic(resources.diagnostic, {
+      instance({
         kind: 'model_transport.queue_cancelled',
         level: 'info',
       })
     return signal.aborted ? { aborted: true, queued: true } : { rejected: 'unavailable' }
   }
+  execution({ stage: 'queue', outcome: 'accepted', facts: { kind: 'transport' } })
   if (signal.aborted || resources.closed()) {
     release()
     return signal.aborted ? { aborted: true } : { rejected: 'unavailable' }
@@ -143,6 +166,14 @@ export async function sendRequest(
     const settle = (result: SendResult<RawResponse>) => {
       if (!resolved) {
         resolved = true
+        if ('failed' in result)
+          execution({
+            stage: 'send',
+            outcome: 'failed',
+            facts: { kind: 'transport' },
+          })
+        else if ('aborted' in result)
+          execution({ stage: 'send', outcome: 'stopped', facts: { kind: 'transport' } })
         resolve(result)
       }
     }
@@ -161,8 +192,22 @@ export async function sendRequest(
       responseStream?.destroy()
       req.destroy()
     }
-    const abort = () => stop()
+    let cancelReported = false
+    const abort = () => {
+      if (!cancelReported) {
+        cancelReported = true
+        execution({ stage: 'send', outcome: 'cancel_requested', facts: { kind: 'transport' } })
+      }
+      stop()
+    }
     signal.addEventListener('abort', abort, { once: true })
+    req.once('finish', () =>
+      execution({
+        stage: 'send',
+        outcome: 'accepted',
+        facts: { kind: 'transport', touch: 'touched' },
+      }),
+    )
     req.once('socket', socket => {
       attached = true
       if (connectTimeoutMs !== null && socket.connecting) {
@@ -217,6 +262,12 @@ export async function sendRequest(
       })
       disposeConnect()
       const statusCode = res.statusCode
+      if (statusCode !== undefined)
+        execution({
+          stage: 'send',
+          outcome: 'completed',
+          facts: { kind: 'transport', httpStatus: statusCode },
+        })
       const httpFailure = statusCode !== undefined && !(statusCode >= 200 && statusCode < 300)
       let rawHeaders: RawHeaders | undefined,
         invalidHeaders = false
@@ -228,7 +279,7 @@ export async function sendRequest(
       try {
         captured = bound.headers(headers)
       } catch {
-        reportDiagnostic(resources.diagnostic, {
+        instance({
           kind: 'model_transport.headers_policy_defect',
           level: 'error',
         })
@@ -237,7 +288,7 @@ export async function sendRequest(
         if ('ok' in captured) rawHeaders = captured.ok
         else {
           invalidHeaders = true
-          reportDiagnostic(resources.diagnostic, {
+          instance({
             kind: 'model_transport.headers_policy_rejected',
             level: 'error',
           })
@@ -257,6 +308,7 @@ export async function sendRequest(
           statusCode,
           credentialPolicy: bound,
           planned,
+          executionDiagnostics: diagnostics,
           claimed: false,
         })
         callbackFinished = true
@@ -288,7 +340,7 @@ export async function sendRequest(
             if (bytes > maxErrorBodyBytes) {
               tooLarge = true
               stop()
-              reportDiagnostic(resources.diagnostic, {
+              instance({
                 kind: 'model_transport.error_body_limit',
                 level: 'error',
               })
@@ -317,7 +369,7 @@ export async function sendRequest(
           } catch (error) {
             if (!(error instanceof CredentialProcessingFailure)) throw error
             failed = actualFailure(error.stage)
-            reportDiagnostic(resources.diagnostic, {
+            instance({
               kind: error.rejected
                 ? 'model_transport.error_body_policy_rejected'
                 : 'model_transport.error_body_policy_defect',
@@ -345,7 +397,8 @@ export async function sendRequest(
         )
         .catch(reject)
     })
-    reportDiagnostic(resources.diagnostic, { kind: 'model_transport.send_started', level: 'info' })
+    execution({ stage: 'send', outcome: 'started', facts: { kind: 'transport' } })
+    instance({ kind: 'model_transport.send_started', level: 'info' })
     req.end(planned.serialized)
     if (signal.aborted) abort()
   })
