@@ -201,6 +201,8 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。内联图片每次计入 1,024 个估算 token，依据是模型公开的 `vision_max_n_token` 和参考图像处理器；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
+`createOpenAiInputMeter(definition)` 仅绑定 OpenAI 供应商下修订 1 的六个 GPT-5.6 Sol／Terra／Luna 基础版与 Pro 定义。它使用固定版本 `js-tiktoken` 的 `o200k_base` 编码器，依据是 [OpenAI 当前 tiktoken 源码](https://github.com/openai/tiktoken/blob/4e71bbe0c078468e00fefbf94b39849389f346e5/tiktoken/model.py) 对 GPT-5 的映射；已发布的 tiktoken 0.12.0 不能逐名识别 GPT-5.6，因此这是**估算**，并非各模型精确 tokenizer 认证。估算覆盖最终序列化的多轮消息、`developer` 提醒、工具定义和结果、推理与协议字段；内联图片以标记替换，不把 base64 当文本编码。三个基础版在省略／`auto` 图片精度时采用 [OpenAI 图像指南](https://developers.openai.com/api/docs/guides/images-vision) 明列的 32 像素 patch 和 1.2 倍规则。Pro 的图片尚无变体专属计量依据，返回 `input_size_unavailable`；远程、非法或无法判断尺寸的图片同样发前拒绝。GPT-6 缺模型 tokenizer 映射依据，不能构建此 meter。每次请求显式余量承担估算风险，实际 usage 和费用仍取上游。
+
 ## 持有传输资源
 
 ```ts
