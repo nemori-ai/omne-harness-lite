@@ -272,6 +272,12 @@ describe('real model service retry and control', () => {
       expect(
         kinds(await logKeys(app, who, session), first).filter(kind => kind === 'ended'),
       ).toHaveLength(1)
+      expect(await service.interrupt({ session, callId: first, initiator: 'user' })).toEqual({
+        alreadyEnded: true,
+      })
+      expect(
+        kinds(await logKeys(app, who, session), first).filter(kind => kind === 'intent'),
+      ).toHaveLength(1)
     } finally {
       await fixture.close()
     }
@@ -398,6 +404,12 @@ describe('real model service retry and control', () => {
       release.resolve()
       expect(await dispatch).toMatchObject({ settled: { outcome: 'interrupted' } })
       expect(tls.requests).toHaveLength(1)
+      expect(await service.interrupt({ session, callId, initiator: 'user' })).toEqual({
+        alreadyEnded: true,
+      })
+      expect(
+        kinds(await logKeys(app, who, session), callId).filter(kind => kind === 'intent'),
+      ).toHaveLength(1)
       expect(await service.readAttempts({ session, callId: other })).toEqual({
         state: 'open',
         dispatches: [],
@@ -445,6 +457,12 @@ describe('real model service retry and control', () => {
           disposition: { consumed: { by: 'side_query' } },
         }),
       ).toEqual({ callId, state: 'interrupted' })
+      expect(await service.interrupt({ session, callId, initiator: 'user' })).toEqual({
+        alreadyEnded: true,
+      })
+      expect(
+        kinds(await logKeys(app, who, session), callId).filter(kind => kind === 'intent'),
+      ).toHaveLength(1)
       expect(tls.requests).toHaveLength(1)
     } finally {
       tls.finishHeld()
