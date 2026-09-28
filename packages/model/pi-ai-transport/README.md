@@ -323,3 +323,13 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 The configuration is an explicitly selected source value (`revision: '1'`, `values: { cache: { mode: 'automatic' } }`), never a hidden transport default. Pass the definition explicitly to a static transport, or register it through the existing model contribution plugin. Catalog publication and tenant authorization remain with their respective owners.
 
 Pure construction and planning are verified locally. Seed/stop effectiveness, full parameter tuning and production public/service certification remain pending. The first end-to-end call uses only the previously observed `low` and `1024` parameters. Adding the other fixed DeepSeek model requires its own complete facts and leaf, without automatic model discovery.
+
+### Moonshot route work in progress
+
+Internal route rules for Kimi K3 and K2.7 Code share the planner's marked user reminders and automatic-cache configuration. K3 supplies the documented low/high/max reasoning-effort subset; K2.7 Code drops an explicit effort request with the usual parameter trace. Sampling controls outside the supplied subset are also traced when dropped.
+
+These rules are not public model definitions or selectable official profiles. Image size policy, K3 video transport and complete model certification are still pending. Offline tests use synthetic capacities and exercise request planning only. To run those checks from this package directory:
+
+```sh
+pnpm exec vitest run tests/official-moonshot-routes.spec.ts
+```

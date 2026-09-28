@@ -323,3 +323,13 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 配置是明确选用的来源值（`revision: '1'`、`values: { cache: { mode: 'automatic' } }`），不会作为隐藏的传输默认值。静态传输需显式传入定义，动态使用经既有模型贡献插件登记；目录发布和租户准入分别归已有 owner。
 
 本次只验证本地构造和纯规划。seed／stop 真正生效、完整参数调优与生产 public／service 认证仍待完成。首次端到端调用只使用已有观察的 `low` 与 `1024`。另一个固定 DeepSeek 模型需另行补齐事实与窄定义，不会自动发现或纳入模型。
+
+### Moonshot 路由实现进展
+
+Kimi K3 和 K2.7 Code 的内部路由规则复用公共规划器的带标识 user 提醒及自动缓存配置。K3 提供文档列出的 low/high/max 推理强度子集；K2.7 Code 丢弃显式 effort 请求并保留参数处置记录。不在当前供给子集中的采样控制同样在丢弃时留痕。
+
+这些规则尚未作为公开模型定义或可选官方档案提供。图像大小政策、K3 视频传输及完整模型认证仍待完成。离线测试使用虚构容量，仅验证请求规划。在本包目录运行：
+
+```sh
+pnpm exec vitest run tests/official-moonshot-routes.spec.ts
+```
