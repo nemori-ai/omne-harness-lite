@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
-import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { createMoonshotInputMeter } from '../src/input-meters/moonshot.ts'
 import { moonshotTokenizer } from '../src/input-meters/moonshot-tokenizer.ts'
 import {
@@ -11,7 +11,22 @@ import {
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { planRequest } from '../src/plan.ts'
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
-import { input, networkPolicy } from './support.ts'
+import {
+  certificate,
+  content,
+  finish,
+  fixture,
+  input,
+  networkPolicy,
+  policy,
+  sse,
+} from './support.ts'
+
+let cert: ReturnType<typeof certificate>
+beforeAll(() => {
+  cert = certificate()
+})
+afterAll(() => cert.dispose())
 
 function request(index: 0 | 1): PlanInput {
   const definition = moonshotDefinitions[index]
@@ -193,4 +208,69 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       await transport.close()
     }
   })
+
+  it.each([0, 1] as const)(
+    'sends model %i through the real meter and controlled TLS transport',
+    async index => {
+      const host = await fixture(
+        cert.tls,
+        res => {
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          res.end(
+            content('Measured reply.') +
+              sse({
+                choices: [],
+                usage: {
+                  prompt_tokens: 80,
+                  completion_tokens: 4,
+                  prompt_tokens_details: { cached_tokens: 5, cache_write_tokens: 0 },
+                },
+              }) +
+              finish(),
+          )
+        },
+        {},
+        undefined,
+        moonshotDefinitions,
+      )
+      const transport = createPiAiTransport({
+        ...host.options,
+        definitions: moonshotDefinitions,
+        inputMeters: moonshotDefinitions.map(createMoonshotInputMeter),
+      })
+      try {
+        const result = await invokeModel({
+          ...request(index),
+          transport,
+          credential: 'controlled-test-only',
+          signal: new AbortController().signal,
+          policy: policy(),
+        }).outcome
+        if (!('outcome' in result)) throw new Error(JSON.stringify(result))
+        expect(result.outcome).toBe('complete')
+        expect(result.blocks).toMatchObject([{ kind: 'text', text: 'Measured reply.' }])
+        expect(result.usage).toMatchObject({ output_tokens: 4, source: 'upstream' })
+        expect(writeJsonLossless(result.usage)).toContain('"input_tokens":75')
+        expect(host.requests).toHaveLength(1)
+        const wire = host.requests[0]
+        if (!wire) throw new Error('missing controlled request')
+        const parsed = readJsonStrict(wire.body)
+        if (!('ok' in parsed)) throw new Error('invalid controlled request')
+        expect(parsed.ok).toMatchObject({
+          model: moonshotDefinitions[index]?.modelId,
+          provider: {
+            order: [index === 0 ? 'moonshotai/mxfp4' : 'moonshotai/int4'],
+            allow_fallbacks: false,
+            require_parameters: true,
+          },
+          max_tokens: 128,
+        })
+        expect(wire.body).not.toContain('cache_control')
+        expect(wire.body).not.toContain('test-only')
+      } finally {
+        await transport.close()
+        await host.close()
+      }
+    },
+  )
 })
