@@ -1,7 +1,12 @@
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import {
+  LosslessNumber,
+  modalityOf,
+  type ContentBlock,
+  type Modality,
+} from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import type {
   SettlementPrefix,
@@ -14,8 +19,8 @@ import {
   inspectModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime/log-codec/v2'
 
-/** All actual prefix entries are recognized; unsupported message content stays unknown. */
-export function textPrefix(
+/** Decode the complete log prefix without imposing a demo-specific message/block whitelist. */
+export function messagePrefix(
   prefix: SettlementPrefix,
 ): { readonly messages: readonly LoggedMessage[] } | { readonly unavailable: true } {
   const messages: LoggedMessage[] = []
@@ -91,24 +96,38 @@ export function textPrefix(
       }
     }
   }
-  if (
-    messages.some(
-      message =>
-        !['user', 'assistant'].includes(message.type) ||
-        message.blocks.some(block => block.kind !== 'text'),
-    )
-  )
-    return { unavailable: true }
   return { messages }
 }
-export async function textProjection(prefix: SettlementPrefix): Promise<SelectionProjection> {
-  const text = textPrefix(prefix)
-  return 'unavailable' in text ? { unknown: true } : { known: text.messages.length ? ['text'] : [] }
+/** MP2 S-5 / CB3 S-6: project original model-visible blocks, without changing the messages. */
+export async function historyProjection(prefix: SettlementPrefix): Promise<SelectionProjection> {
+  const history = messagePrefix(prefix)
+  if ('unavailable' in history) return { unknown: true }
+  const modalities = new Set<Modality>()
+  function visit(blocks: readonly ContentBlock[]): void {
+    for (const block of blocks) {
+      if (!block.visibility.toModel) continue
+      if (block.kind === 'tool_result') {
+        visit(block.blocks)
+        continue
+      }
+      if ('transcript' in block) continue
+      const modality =
+        block.kind === 'file'
+          ? modalityOf(block.attachment.mediaType)
+          : block.kind === 'voice'
+            ? 'audio'
+            : block.kind === 'image'
+              ? 'image'
+              : 'text'
+      if (modality !== undefined) modalities.add(modality)
+    }
+  }
+  for (const message of history.messages) visit(message.blocks)
+  return { known: [...modalities] }
 }
-export const nativeTextCompatibility: SelectionCompatibility = (profile, projection) => {
-  const blocked = projection.filter(
-    modality => modality !== 'text' || !profile.inputModalities.includes(modality),
-  )
+/** MP2 S-7: compatibility belongs to the selected profile's declared inputs. */
+export const nativeCompatibility: SelectionCompatibility = (profile, projection) => {
+  const blocked = projection.filter(modality => !profile.inputModalities.includes(modality))
   return blocked.length ? { blocked } : { ok: true }
 }
 /** M1 partial numeric scheduler: prove the exact value before any conversion to Number. */

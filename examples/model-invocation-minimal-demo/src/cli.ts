@@ -8,7 +8,7 @@ const { values } = parseArgs({
 })
 if (values.help) {
   process.stdout.write(
-    'Usage: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory [--key-file /private/openrouter-key]\nCredential: OPENROUTER_API_KEY, owner-only key file, or existing encrypted replica. Keys are never command-line values.\n',
+    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory [--key-file /private/openrouter-key]\nFrom this example directory: node dist/cli.js --data /private/new-directory [--key-file /private/openrouter-key]\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
   )
 } else if (!values.data) {
   process.stderr.write('An explicit --data directory is required. Use --help.\n')

@@ -91,6 +91,7 @@ describe('real interactive durable conversation', () => {
     const root = await setup('multi-'),
       tls = await createLocalTls(join(root, 'tls')),
       data = join(root, 'data')
+    tls.setMode('reasoning')
     const credential = Buffer.from('controlled-demo-private-key')
     try {
       const first = await openDemo(data, credential, {
@@ -108,6 +109,7 @@ describe('real interactive durable conversation', () => {
       expect(out.text()).toContain('Assistant> first second')
       expect(out.text()).toContain('user: first prompt')
       expect(out.text()).toContain('assistant: first second')
+      expect(out.text()).not.toContain('private reasoning')
       expect(out.text()).toContain(
         'Cumulative: input 5, output 3, cache read 4, cache write 0 tokens; actual USD 0.0000117',
       )
@@ -120,13 +122,14 @@ describe('real interactive durable conversation', () => {
       expect(tls.requests[1]?.body).toMatchObject({
         messages: [
           { role: 'user', content: [{ type: 'text', text: 'first prompt' }] },
-          { role: 'assistant', content: 'first second' },
+          { role: 'assistant', content: 'first second', reasoning: 'private reasoning' },
           { role: 'user', content: [{ type: 'text', text: 'second prompt' }] },
         ],
       })
       const before = await batches(join(data, 'session-logs'))
       const paired = before.filter(batch => JSON.stringify(batch).includes('"type":"assistant"'))
       expect(paired).toHaveLength(2)
+      expect(JSON.stringify(paired)).toContain('"kind":"thinking"')
       for (const batch of paired)
         expect(batch).toMatchObject({
           entries: [
@@ -157,9 +160,9 @@ describe('real interactive durable conversation', () => {
       expect(tls.requests[2]?.body).toMatchObject({
         messages: [
           { role: 'user', content: [{ type: 'text', text: 'first prompt' }] },
-          { role: 'assistant', content: 'first second' },
+          { role: 'assistant', content: 'first second', reasoning: 'private reasoning' },
           { role: 'user', content: [{ type: 'text', text: 'second prompt' }] },
-          { role: 'assistant', content: 'first second' },
+          { role: 'assistant', content: 'first second', reasoning: 'private reasoning' },
           { role: 'user', content: [{ type: 'text', text: 'third prompt' }] },
         ],
       })

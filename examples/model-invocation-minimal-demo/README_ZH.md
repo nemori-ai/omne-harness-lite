@@ -2,7 +2,7 @@
 
 这是一个可在终端交互、真实流式输出且持久化的多轮模型对话示例。它使用真实本地账号、组织资格、会话归属、当前求值输入、官方模型档案、加密凭据副本、OpenRouter 传输和 JSONL 会话日志。原 `model-request-acceptance` 装配迁入此示例；可复用能力仍在 `packages/`。
 
-示例显式选择 **`deepseek/deepseek-v4-pro-0813`**，固定供应商路由 **`deepinfra/fp8`**，禁止回退。每轮只用文本、无工具、无 Run，参数为 `reasoningEffort: low` 和 `maxOutputTokens: 1024`。回答实时流到终端，完整回复与模型响应在同一耐久批次结算后才进入下一轮。`/history` 读真实会话日志。使用相同数据路径重启会重新认证并恢复原会话，不重放注册、来源发布或模型选择。
+示例显式选择 **`deepseek/deepseek-v4-pro-0813`**，固定供应商路由 **`deepinfra/fp8`**，禁止回退。每轮接收文本输入、无工具、无 Run，参数为 `reasoningEffort: low` 和 `maxOutputTokens: 1024`。回答实时流到终端，完整回复与模型响应在同一耐久批次结算后才进入下一轮。每次请求把校验后的完整消息历史（包括先前的推理和媒体块）交给调用层，不加纯文本白名单。可见性和模型兼容遵循公共契约；当前固定的纯文本模型不能承载未转换的图片。命令行目前仅提供文本输入。`/history` 读真实会话日志。使用相同数据路径重启会重新认证并恢复原会话，不重放注册、来源发布或模型选择。
 
 ## 运行
 
@@ -14,6 +14,12 @@ pnpm run build
 umask 077
 export OPENROUTER_API_KEY='你的实际 OpenRouter 密钥'
 node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-model-demo"
+```
+
+如果终端已经位于 `examples/model-invocation-minimal-demo`，则从当前目录直接运行编译产物：
+
+```sh
+node dist/cli.js --data ../../tmp/my-model-demo
 ```
 
 首次运行的 `--data` 必须是**尚不存在**的目录；示例会以仅所有者可访问的权限创建它。正常 `/exit` 或输入结束后，仍用相同路径继续。也可将密钥放在仅所有者可读的文件中，通过 `--key-file /absolute/private/key` 传入路径；不要在命令行传密钥值。该文件须为 0600 权限且只包含密钥原始字节，不解析 `.env` 格式；文件末尾一个换行会被忽略。密钥通过真实加密副本发布成功后，正常重启可省略环境变量和 `--key-file`；再次提供密钥会通过真实凭据发布 API 替换。

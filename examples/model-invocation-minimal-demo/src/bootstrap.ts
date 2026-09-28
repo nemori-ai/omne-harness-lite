@@ -25,9 +25,9 @@ import { judgeMessage, type SessionRef } from '@omne-harness-lite/messages'
 import { winningRow } from '@omne-harness-lite/model-profile-directory'
 import { createRequestOwner } from './model-request-owner.ts'
 import {
-  textPrefix,
-  textProjection,
-  nativeTextCompatibility,
+  messagePrefix,
+  historyProjection,
+  nativeCompatibility,
   currentTimeLimits,
 } from './model-request-text.ts'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
@@ -1117,8 +1117,8 @@ export function createAcceptanceApplication(
         sessionTenancy,
         catalog,
         currentEvaluationInputs: currentInputs,
-        projection: textProjection,
-        compatible: nativeTextCompatibility,
+        projection: historyProjection,
+        compatible: nativeCompatibility,
         now: requestDeployment.invocation.now,
         diagnostic: event =>
           record({ event: 'operation', phase: event.stage, outcome: event.outcome }),
@@ -1228,7 +1228,7 @@ export function createAcceptanceApplication(
             registration: acquired.registration,
           })
           if ('unavailable' in prefix) return { rejected: 'unavailable' }
-          const projected = textPrefix(prefix.prefix)
+          const projected = messagePrefix(prefix.prefix)
           if ('unavailable' in projected) return { rejected: 'unavailable' }
           const captured = captureModelLogValue({
             category: 'message',

@@ -54,7 +54,7 @@ export async function createLocalTls(
     socketClosed = deferred()
   const pending = new Set<Promise<void>>()
   const failures: unknown[] = []
-  let mode: 'complete' | 'hold' | 'http503' = 'complete',
+  let mode: 'complete' | 'reasoning' | 'hold' | 'http503' = 'complete',
     closedSockets = 0,
     held: ServerResponse | undefined
   const server = createServer({ key: await readFile(key), cert: certBytes }, (req, res) => {
@@ -78,6 +78,10 @@ export async function createLocalTls(
         'x-request-id': 'independent-upstream-id',
         'set-cookie': ['safe-one=1', 'safe-two=2'],
       })
+      if (mode === 'reasoning')
+        res.write(
+          `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: 'private reasoning' }, finish_reason: null }] })}\n\n`,
+        )
       res.write(
         `data: ${JSON.stringify({ id: 'independent-generation', model: MODEL, provider: 'DeepInfra', choices: [{ delta: { role: 'assistant', content: 'first ' }, finish_reason: null }] })}\n\n`,
       )

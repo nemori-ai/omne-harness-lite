@@ -2,7 +2,7 @@
 
 An interactive command-line example of a durable, streaming, multi-turn model conversation. It uses the real local account, organization standing, session ownership, current evaluation input, official model profile, encrypted credential replica, OpenRouter transport, and JSONL session log. The former model-request-acceptance assembly now lives in this example. Reusable capabilities remain in `packages/`.
 
-The demo explicitly selects **`deepseek/deepseek-v4-pro-0813`** and fixes its provider route to **`deepinfra/fp8`** with fallback disabled. Each turn uses text, no tools, no Run, `reasoningEffort: low`, and `maxOutputTokens: 1024`. The answer streams to the terminal. A completed reply and its model response settle in one durable batch before the next turn. `/history` reads the actual session log. Restart with the same data path to authenticate again and resume the session; registration, source publication and model selection are not replayed.
+The demo explicitly selects **`deepseek/deepseek-v4-pro-0813`** and fixes its provider route to **`deepinfra/fp8`** with fallback disabled. Each turn accepts text input, no tools, no Run, `reasoningEffort: low`, and `maxOutputTokens: 1024`. The answer streams to the terminal. A completed reply and its model response settle in one durable batch before the next turn. Each request passes the complete validated message history, including prior reasoning and media blocks, to the invocation layer without a text-only whitelist. Visibility and model compatibility follow the shared contracts; this fixed text-only model cannot consume an unconverted image. The CLI currently accepts text input only. `/history` reads the actual session log. Restart with the same data path to authenticate again and resume the session; registration, source publication and model selection are not replayed.
 
 ## Run
 
@@ -14,6 +14,12 @@ pnpm run build
 umask 077
 export OPENROUTER_API_KEY='your actual OpenRouter key'
 node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-model-demo"
+```
+
+If your shell is already in `examples/model-invocation-minimal-demo`, run the built file relative to that directory instead:
+
+```sh
+node dist/cli.js --data ../../tmp/my-model-demo
 ```
 
 The `--data` path must be a **new** path on first run. The demo creates it with owner-only permissions. Use the same path to resume after `/exit` or end-of-file. Alternatively, place the credential in an owner-only file and pass `--key-file /absolute/private/key`; never pass a key value as a command-line argument. The file must have mode 0600 and contain only raw key bytes, not `.env` syntax; one final newline is ignored. After successful publication into the encrypted replica, a normal restart can omit the environment variable and `--key-file`. A supplied key on restart is a replacement through the actual credential publication API.
