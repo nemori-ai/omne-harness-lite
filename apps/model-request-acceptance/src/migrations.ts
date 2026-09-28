@@ -7,6 +7,7 @@ import { clockMigrations } from '@omne-harness-lite/clock'
 import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory/migrations'
 import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance'
+import { sessionTenancyMigrations } from '@omne-harness-lite/session-tenancy-table'
 import {
   composedMigrationName,
   type MigrationFragment,
@@ -23,6 +24,11 @@ export const acceptanceMigrations: readonly MigrationFragment[] = Object.freeze(
   ...clockMigrations,
   ...modelProfileDirectoryMigrations,
   ...replicaMigrations,
+])
+
+export const requestPreparationMigrations: readonly MigrationFragment[] = Object.freeze([
+  ...acceptanceMigrations,
+  ...sessionTenancyMigrations,
 ])
 
 export function migrationPrefixCheck(fragments: readonly MigrationFragment[]): PreflightCheck {
