@@ -95,11 +95,15 @@ async function runServicePath(upstream: UpstreamMode, sink: SinkMode) {
     })
     const diagnosticFailures = app.status().diagnosticFailures
     const close = await app.close()
+    const diagnosticFailuresAfterClose = app.status().diagnosticFailures
     return {
       sent,
+      session: prepared.session,
+      tenant: prepared.tenant,
       history,
       close,
       diagnosticFailures,
+      diagnosticFailuresAfterClose,
       recorded,
       requestCount: tls.requests.length,
       closedSockets: tls.closedSockets(),
@@ -126,6 +130,7 @@ describe('real demo service diagnostic boundary', () => {
     expect(damaged.close.complete).toBe(true)
     expect(baseline.diagnosticFailures).toBe(0)
     expect(damaged.diagnosticFailures).toBeGreaterThan(0)
+    expect(damaged.diagnosticFailuresAfterClose).toBeGreaterThanOrEqual(damaged.diagnosticFailures)
     if (!('state' in baseline.history) || !('state' in damaged.history))
       throw new Error('real call history unavailable')
     expect(damaged.history.state).toBe(baseline.history.state)
@@ -136,6 +141,26 @@ describe('real demo service diagnostic boundary', () => {
           ? 'interrupted'
           : 'awaiting_decision',
     )
+    const billing = (history: typeof baseline.history) =>
+      'dispatches' in history
+        ? history.dispatches.map(item => ({
+            usage: item.response?.projection.usage,
+            cost: item.response?.projection.cost,
+          }))
+        : []
+    expect(billing(damaged.history)).toEqual(billing(baseline.history))
+    if (upstream === 'complete') {
+      const settlement = damaged.recorded.filter(event => event.settlement !== undefined)
+      expect(settlement.length).toBeGreaterThan(0)
+      expect(settlement.every(event => event.settlement?.session === damaged.session)).toBe(true)
+      expect(
+        settlement.every(event => event.settlement?.tenant.account === damaged.tenant.account),
+      ).toBe(true)
+      expect(settlement.every(event => event.settlement?.call === damaged.sent.callId)).toBe(true)
+      expect(settlement.every(event => (event.settlement?.response.length ?? 0) > 0)).toBe(true)
+      expect(settlement.every(event => event.settlement?.owner.startsWith('app:'))).toBe(true)
+      expect(settlement.every(event => (event.settlement?.policy.length ?? 0) > 0)).toBe(true)
+    }
     expect(damaged.recorded).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ event: 'operation', phase: 'publish', outcome: 'stored' }),

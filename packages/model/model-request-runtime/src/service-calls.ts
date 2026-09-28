@@ -599,7 +599,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               owner: session.selection.owner,
               settlementContention: runtime.settlementContention,
               settlementScheduler: runtime.settlementScheduler,
-              diagnostic: event => runtime.policy.diagnostic({ kind: event.kind }),
+              diagnostic: event => runtime.policy.diagnostic(event),
             })
             const container = createCallContainer({
               key,
@@ -790,7 +790,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             owner,
             settlementContention: runtime.settlementContention,
             settlementScheduler: runtime.settlementScheduler,
-            diagnostic: event => runtime.policy.diagnostic({ kind: event.kind }),
+            diagnostic: event => runtime.policy.diagnostic(event),
           })
           const container = createCallContainer({
             key,

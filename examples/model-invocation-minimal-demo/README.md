@@ -16,6 +16,8 @@ Both token margin options are explicit, required deployment choices. This exampl
 
 The observer defaults to a finite 256 events and 262,144 bytes; programmatic callers can configure both positive bounds. Delivery diagnostics and backpressure never substitute for persisted history or settlement.
 
+The programmatic `AcceptanceDiagnostics.record` port now receives typed `settlement` and `observer` correlation on the applicable operation events. Settlement events retain tenant, session, call, dispatch, response, owner, policy and contention counts. Observer rejection events retain tenant, session, call, dispatch, position and buffer counts. The assembly projects only these existing fields; request text, credential values, tool data and configuration bodies stay out of this diagnostic port. A throwing or asynchronous sink increments `status().diagnosticFailures` independently of the model result; the counter remains readable after `close()`. The port is synchronous and best-effort, with no durable diagnostic store, query or completeness guarantee.
+
 ## Run
 
 Use the Node and pnpm versions declared at the repository root. From the repository root:

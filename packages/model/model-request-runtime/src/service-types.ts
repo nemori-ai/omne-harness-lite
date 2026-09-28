@@ -450,7 +450,12 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly transport: ExactTransportAcquirer<P, R>
   readonly settlementContention: SettlementContention
   readonly settlementScheduler: SettlementScheduler
-  readonly policy: InvocationPolicy
+  readonly policy: Omit<InvocationPolicy, 'diagnostic'> & {
+    /** Service settlement diagnostics carry their existing durable correlation. */
+    readonly diagnostic: (
+      event: Parameters<InvocationPolicy['diagnostic']>[0] | SettlementDiagnostic,
+    ) => void
+  }
   /** Captured anew by each plan; no runtime fallback or inferred zero margin. */
   readonly tokenMargin: TokenMargin
   readonly identities: ModelIdentitySource

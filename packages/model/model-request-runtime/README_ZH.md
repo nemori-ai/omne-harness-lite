@@ -35,6 +35,8 @@
 
 独立调用的可选 `beforeSend` 是一次传输发送前的同步最终准入。只有字面值 `true` 继续；`false` 在发送前取消，抛错或非法返回保持不可用。锚定服务在这里提供当前停止／代际检查。`observedFacts()` 只在原执行的 reader 和门任务实际停止后读取；不可用不能改判为缺席。它保留的真实发送时刻、部分账和响应头可供恢复使用，而耐久的「已出门」「已开口」记录仍是结算权威。
 
+服务通过 `RuntimeConstruction.policy.diagnostic` 完整转交既有 `SettlementDiagnostic` 的租户、会话、调用、dispatch、响应、owner、policy 及争用计数；观察投递诊断仍在 `detail` 中携带类型化作用域、位置和缓冲计数。诊断回调只作尽力投递，其失败不改变结算或观察投递的业务结果；应用应独立保留输出失败状态。这些端口不提供耐久追踪库或查询 API。工程关联与内容边界见 RT9 S-63。
+
 ## 仍在集成的 Cordis 服务装配
 
 `@omne-harness-lite/model-request-runtime/plugin` 导出 `createModelRuntimePlugin` 与 `modelRuntime` 服务键。应用通过 `construct` 交入完整的 `ModelRuntimeAssembly`；插件不会替缺失操作填占位实现。Cordis 等声明的必需提供者齐备才构造。宿主在 `construct` 返回前保留 `assembly.owner`。单个收口 effect 先关闭 `openCall`、`dispatch`、`dispatchAgain` 的新准入，再调用该 owner 的 `close()`；只有真实收口返回 `released` 才恰一次调用 `owner.release()`。若收口不可用，宿主在 fiber 卸载后继续持有同一个 owner，负责之后的实际停止／恢复及再次收口；诊断日志不能替代释放。已有服务引用在撤除期间仍可执行允许的结算和读取。

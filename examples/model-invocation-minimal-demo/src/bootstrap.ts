@@ -1,4 +1,4 @@
-import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, isJsonNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
 import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
@@ -36,6 +36,8 @@ import {
   type CallContainer,
   type AnchoredInvocationHandle,
   type ModelLogSettlementTarget,
+  type ObserverDiagnostic,
+  type SettlementDiagnostic,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
@@ -504,6 +506,71 @@ export function createAcceptanceApplication(
     } catch {
       diagnosticFailures += 1
     }
+  }
+  function recordSettlement(event: SettlementDiagnostic): void {
+    record({
+      event: 'operation',
+      phase: 'settlement',
+      outcome: event.kind,
+      settlement: {
+        kind: event.kind,
+        tenant: { organization: event.tenant.organization, account: event.tenant.account },
+        session: event.session,
+        call: event.call,
+        dispatch: event.dispatch,
+        response: event.response,
+        owner: event.owner,
+        policy: event.policy,
+        submissions: event.submissions,
+        tailConflicts: event.tailConflicts,
+      },
+    })
+  }
+  function observerProjection(value: unknown): ObserverDiagnostic | undefined {
+    if (!object(value)) return undefined
+    const tenant = parseTenantId(value.tenant)
+    const session = parseOpaqueIdentifier(value.session, 'SessionRef')
+    const callId = parseOpaqueIdentifier(value.callId, 'ModelCallId')
+    if (
+      !isOk(tenant) ||
+      !isOk(session) ||
+      !isOk(callId) ||
+      !isJsonNumber(value.dispatch) ||
+      !isJsonNumber(value.bufferedEvents) ||
+      !isJsonNumber(value.bufferedBytes) ||
+      (value.position !== undefined && !isJsonNumber(value.position)) ||
+      (value.stage !== 'offer' && value.stage !== 'delivery' && value.stage !== 'close') ||
+      (value.reason !== 'malformed' &&
+        value.reason !== 'observer_scope_mismatch' &&
+        value.reason !== 'unavailable' &&
+        value.reason !== 'buffer_full' &&
+        value.reason !== 'consumer_failed')
+    )
+      return undefined
+    return {
+      tenant: tenant.ok,
+      session: session.ok,
+      callId: callId.ok,
+      dispatch: value.dispatch,
+      stage: value.stage,
+      reason: value.reason,
+      bufferedEvents: value.bufferedEvents,
+      bufferedBytes: value.bufferedBytes,
+      ...(value.position === undefined ? {} : { position: value.position }),
+    }
+  }
+  function recordInvocationDiagnostic(event: {
+    readonly kind: string
+    readonly detail?: JsonValue
+  }): void {
+    const observer =
+      event.kind === 'model_observer.delivery' ? observerProjection(event.detail) : undefined
+    record({
+      event: 'operation',
+      phase: 'invocation',
+      outcome: event.kind,
+      ...(observer === undefined ? {} : { observer }),
+    })
   }
   // Provider diagnostics retain correlation and category, never dynamic arguments or causes.
   context.logger.exporter({
@@ -1091,7 +1158,7 @@ export function createAcceptanceApplication(
           policy: {
             ...deployment.invocation,
             diagnostic: event =>
-              record({ event: 'operation', phase: 'invocation', outcome: event.kind }),
+              'tenant' in event ? recordSettlement(event) : recordInvocationDiagnostic(event),
           },
           tokenMargin: deployment.tokenMargin,
           identities: {
@@ -1155,8 +1222,7 @@ export function createAcceptanceApplication(
               }
             },
           },
-          diagnostic: event =>
-            record({ event: 'operation', phase: 'settlement', outcome: event.kind }),
+          diagnostic: recordSettlement,
         }
         modelRuntime = createModelRuntime(construction)
       }
@@ -1880,8 +1946,7 @@ export function createAcceptanceApplication(
         owner: access.borrow.owner.owner,
         contention: requestDeployment.settlement.contention,
         scheduler: requestDeployment.settlement.scheduler,
-        diagnostic: event =>
-          record({ event: 'operation', phase: 'settlement', outcome: event.kind }),
+        diagnostic: recordSettlement,
       })
     }
     return isOk(parsed) ? trackSession(parsed.ok, work) : track(work)

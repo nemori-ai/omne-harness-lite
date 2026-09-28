@@ -21,6 +21,8 @@ import type {
   SettlementContention,
   SettlementScheduler,
   ReservationWaitPolicy,
+  ObserverDiagnostic,
+  SettlementDiagnostic,
 } from '@omne-harness-lite/model-request-runtime'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
@@ -149,6 +151,9 @@ export interface AcceptanceEvent {
   readonly confirmation?: UpgradeConfirmation
   readonly tenant?: TenantId
   readonly sourceMatch?: boolean
+  /** Correlation-only projections from the runtime's typed diagnostic sources. */
+  readonly settlement?: SettlementDiagnostic
+  readonly observer?: ObserverDiagnostic
 }
 export interface AcceptanceDiagnostics {
   record(event: AcceptanceEvent): void
