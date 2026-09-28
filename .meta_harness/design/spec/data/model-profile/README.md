@@ -61,3 +61,5 @@
 ## 2026-09-26 版本接受
 
 本次接受 `data.model-profile` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+
+2026-09-28：[D-097](../../../record/decisions/model-profile-v4-limit-contract-adoption/decision.md)独立技术接受 v4 输入限制契约；四资源冻结。core 提供者、新调用消费者与 37 模型供给仍分别采用和验证，候选原文保留起草状态。

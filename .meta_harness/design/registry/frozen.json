@@ -503,6 +503,10 @@
     "spec/capabilities/model-request-runtime/v5/formal/validity-check/Settlement_NoCompare.cfg": "1b9e96c5b3c7de63cdc7184ee87df68163ba835757ed88c091a023d44a537351",
     "spec/capabilities/model-request-runtime/v5/formal/validity-check/Settlement_PartialBatch.cfg": "c4f98db4130ae844c69ea542c6e290c79c91e916d3da6264d1ccf70081e973bd",
     "spec/capabilities/model-request-runtime/v5/formal/validity-check/Settlement_PartialClaim.cfg": "20b9a65ab13bc80efdea5602e53513494da41380460f8841fa0e9f79ca4b1646",
-    "spec/capabilities/model-request-runtime/v5/formal/validity-check/Settlement_UnknownAsAbsent.cfg": "cbf40b958583869ec7a3f3269bda84128336cc185ec40b65afdc41f9d1c7275f"
+    "spec/capabilities/model-request-runtime/v5/formal/validity-check/Settlement_UnknownAsAbsent.cfg": "cbf40b958583869ec7a3f3269bda84128336cc185ec40b65afdc41f9d1c7275f",
+    "spec/data/model-profile/v4/contract.md": "7c682a8d9f7e64a58fcafee1184f1bdf5077b498c7b7d9b3a72737b6428552b2",
+    "spec/data/model-profile/v4/model-profile.schema.json": "cfdb0878cab32f961cfd8e1471e714c0abf2f8ca6d360e4326f7e0e076c72278",
+    "spec/data/model-profile/v4/examples.md": "6f387c302af9ac3b11ce2284449e7aa58d547428fb8675339e5d95b511e6da6f",
+    "spec/data/model-profile/v4/examples.json": "fd860f09603fc7f6ad84855290cbf2d52899ce14979e72addc4274a7e9760219"
   }
 }

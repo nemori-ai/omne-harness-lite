@@ -9779,7 +9779,7 @@
       },
       "family": "data",
       "topic": "model-profile",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/model-profile/v4/contract.md",
       "resources": [
         "spec/data/model-profile/v4/contract.md",
@@ -9787,7 +9787,7 @@
         "spec/data/model-profile/v4/examples.md",
         "spec/data/model-profile/v4/examples.json"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-profile-v4-limit-contract-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {

@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_path": "record/decisions/model-profile-v4-limit-contract-adoption/decision.md",
+  "authority": "root primary technical owner under user implementation and acceptance delegation; overall delivery acceptance excluded",
+  "at_utc": "2026-09-28T10:09:13.893436+00:00",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.model-profile",
+        "version": 4
+      },
+      "resources": {
+        "spec/data/model-profile/v4/contract.md": "7c682a8d9f7e64a58fcafee1184f1bdf5077b498c7b7d9b3a72737b6428552b2",
+        "spec/data/model-profile/v4/model-profile.schema.json": "cfdb0878cab32f961cfd8e1471e714c0abf2f8ca6d360e4326f7e0e076c72278",
+        "spec/data/model-profile/v4/examples.md": "6f387c302af9ac3b11ce2284449e7aa58d547428fb8675339e5d95b511e6da6f",
+        "spec/data/model-profile/v4/examples.json": "fd860f09603fc7f6ad84855290cbf2d52899ce14979e72addc4274a7e9760219"
+      },
+      "scope_clauses": [
+        "S-1..S-33"
+      ]
+    }
+  ],
+  "human_overall_acceptance": false
+}
