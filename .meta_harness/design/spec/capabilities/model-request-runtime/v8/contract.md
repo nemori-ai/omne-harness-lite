@@ -11,13 +11,13 @@
 - **设计依据**：RT5 的未变化承诺沿 D-090；输入限制增量依据 PF-013 rev15 用户裁定；原输入 cap 来源沿 [D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)。继承 S-74 最终固定计划门、S-75 未处分响应交接及 S-76 重试历史；本候选只调整 S-74 的 token 计量保证；原 SL3 结算、头事实、凭据、取消与精确适配保证完整保留。
 - **精确适用需求来源**：PF-013 rev15、PF-012 rev15、PF-009 rev8；PF-004 **rev13 §6.6**、PF-001 **rev23 §6.4**、PF-015 **rev13 §6.12 及「第一件：会话睡一觉醒来，还得是原来那个」**。后三份按本契约实际消费义务核对当前正文，核对范围见下表；未消费的工作区增量由其所属契约承接，不沿用旧 rev 作为本版依据，也不改写 RT5 冻结来源。
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记；接受状态以 [registry](../../../../registry/README.md) 为准）：
-  - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v5`（candidate，G-32）
+  - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v5`（accepted，D-100）
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v6`（candidate，G-32）
-  - `omne-harness-lite-design-2026-09-15 · data.model-response · v7`（candidate，G-32）
-  - `omne-harness-lite-design-2026-09-15 · data.loop-extension · v6`（candidate，G-32）
+  - `omne-harness-lite-design-2026-09-15 · data.model-response · v7`（accepted，D-100）
+  - `omne-harness-lite-design-2026-09-15 · data.loop-extension · v6`（accepted，D-100）
   - `omne-harness-lite-design-2026-09-15 · data.call-accounts · v2`（accepted）
   - `omne-harness-lite-design-2026-09-15 · data.content-blocks · v3`（accepted）
-  - `omne-harness-lite-design-2026-09-15 · data.messages · v6`（candidate，G-32）
+  - `omne-harness-lite-design-2026-09-15 · data.messages · v6`（accepted，D-100）
   - `omne-harness-lite-design-2026-09-15 · data.tool-definition · v3`（accepted）
   - `omne-harness-lite-design-2026-09-15 · data.identity-values · v1`（accepted）
   - `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`（accepted，只取时间点 `Instant`）
@@ -1675,7 +1675,7 @@ S-29 带回复分支交接 MR7 唯一拥有的 `PendingModelResponse`（共享�
 | G-22 | **上游此刻的输出上限没有来源**（2026-09-25 修订波）：`data.model-profile/v6#S-18` 要传输适配在上游此刻的输出上限低于参数时改值再发、记下实际发出的值；本程传输不取上游模型目录（依据 D-019「目录估价不得冒充」；主线已接受这一读法，D-060 §八 N-41），手里没有这一事实。**闭合之前（主线裁定，D-060 §八 N-40 ④）：不改值、按参数原样发**（那份契约 S-18 已标「有前提」）；上游因此拒收时照 [S-18](#s-18-成因按来源分类三类事实由守卫兑现) 归成因，不另造一种收场 | 主线 → `data.model-profile` 的新版本 | 这一事实有家并交进传输适配的规划——候选：将来 `data.model-profile` 新版本的档案属性 |
 | G-23 | **已由 D-076 采用；实现证据仍独立**：原临时 `routeWireHints` 由 `data.model-profile/v6#S-29`～`#S-31` 的 `adaptation` 及 S-53/S-57 替代。缓存和提醒采用精确模型定义/配置，不按路由前缀猜，不保留空配置默认即可发出的旧读法 | 主线与 model-profile/传输提供者 owner | v3 数据、v3 runtime 与提供者映射整批对齐并接受，消费者显式切换 |
 | G-24 | **已闭合（主线裁定，[D-060 §八 N-43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）**：`ModelCallRequest` 加成员 `report`——属于某个 Run 的调用必带，就是 `capability.loop-extension-runner/v3#S-21` ① `admission.report` 的同一份；不属于任何 Run 的调用不带、以 `within = session` 取条目。落在 [S-28](#s-28-opencall) ①（成员与 `within`）、③（与 `run` 同在同缺、核会话运行尝试三者）、④（续接重取）。不按当前快照代读报告那一份的理由原样保留：尝试中途有人 reload，当前快照与报告所依的就不是同一份 | — | — |
-| G-25 | **本版新增候选依赖闭包**：RT5 原采用保留历史；本版明确消费 MP5/Directory5/MS6/MR7/LC6，S-4 登记新增实质条款。session-log v3 及其余不变依赖保持；runner5 是反向消费者，需显式采用，不自动升级。manifest3 只作历史导航 | 主线 registry owner 与相关候选 owner | RT7 与五份后继依赖精确登记、批内对齐、独立评审及正式采用；真实提供者、S-66 当前输入与读取验收分别完成，候选不代表实现 |
+| G-25 | **本版候选采用边界**：D-100 已接受 RT7 与 MP5/Directory5/MS6/MR7/LC6；本轮仅 MP6/RT8 是后继候选，RT8 直接消费 MP6 计量保证，Directory5/MS6/MR7/LC6 及其 MP5 表示资源保持。session-log v3 及其余不变依赖保持；runner5 是反向消费者，其采用关系不因本轮自动升级。manifest3 只作历史导航 | 主线 registry owner 与 MP6/RT8 owner | MP6/RT8 精确登记、独立评审及正式采用；真实提供者、S-66 当前输入与读取验收分别完成，规格接受不代表实现 |
 | G-26 | **精确版本引用与撤除的提供者保证仍待真实组合验收**：S-53/S-64 要取得与停准入有顺序、旧引用收口后才释放；主线 Adaptation 模型补充有限引用/撤除行为，不能代证外部执行实际停止与真实资源释放 | 主线与注册提供者 owner | 对照注册/撤除模型与否定配置完成真实组合证据，经独立评审接受；旧模型与原型不代证产品实现 |
 | G-27 | **已由 D-076 采用，未改变关系**：S-60 按主线技术裁定补 uniformSample、n、previousDelay 及四种 jitter 关系，不指定 RNG、不填初值、不取整 | 主线与重试政策 owner | 评审新关系与端点/非法配置场景，显式接受后才能声称已采用；不能拿旧版接受当作新关系的依据 |
 
@@ -1686,7 +1686,7 @@ S-29 带回复分支交接 MR7 唯一拥有的 `PendingModelResponse`（共享�
 
 ---
 
-| G-32 | MP5/Directory5/MS6/MR7/LC6 候选须定型并整批解析引用；PendingModelResponse/MR7 S-39、输入历史/MR7 S-40 与 retryConclusions/LC6 S-42/S-43 的正式锚点已由 drafter 定型，跨树资源尚待整批集成，中央 registry 只提交候选片段前不得称已登记 | 主线与对应 data/capability drafter | 精确字段/条款、消费 registry 和 Schema 解析全部对齐；正式采用另行 |
+| G-32 | MP6/RT8 两候选须完成精确引用与登记集成；D-100 已接受的 Directory5/MS6/MR7/LC6 不再列为本轮待采用候选。PendingModelResponse/MR7 S-39、输入历史/MR7 S-40 与 retryConclusions/LC6 S-42/S-43 的既有精确字段及锚点保持；本轮直接采用 MP6 语义，其他包对 MP5 的表示引用不变。两候选的中央 registry 仅有片段时不得称已登记 | 主线 registry owner 与 MP6/RT8 drafter | 两候选精确条款、消费 registry 和 Schema 解析全部对齐；MP6/RT8 正式采用另行，既有真实读写方与组合证据缺口不因此闭合 |
 | G-33 | 适用 tokenizer 估算/准确计数/可靠上界依据及合法固定附件材料未普遍建立；不得以无模型依据字符比例或 AttachmentRef.bytes 放行 | 模型/计量/传输提供者与输入材料 owner | 逐模型、供应商、版本明确 tokenizer 估算或准确计数/可靠上界证据；引用取得另有明确授权端口 |
 | G-34 | 当前格式的精确采用、不兼容旧值的明确拒绝及当前在途责任保留尚需真实证据 | 主线、当前格式读写方、runtime 与全部写方 owner | 不建立旧 codec 或旧读取/认回/结算路径，不回填/改写/清空用户旧数据；当前代际的原事实、未知结果及恢复释放责任保持 |
 | G-35 | 候选最小源字段已由主线确定：LC6 modelCallId/retryConclusions；当前格式真实 writer/reader 与不兼容值拒绝证据未完成 | LC6、runner5、runtime/日志提供者与主线 | 新结论实际带关联，构造完整原历史；已给未发、跨调用、自定义件与失联续接反例完成，不以候选或 unavailable 代实际交付 |

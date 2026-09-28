@@ -12193,7 +12193,7 @@
       },
       "family": "data",
       "topic": "model-profile",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/model-profile/v6/contract.md",
       "resources": [
         "spec/data/model-profile/v6/contract.md",
@@ -12201,7 +12201,7 @@
         "spec/data/model-profile/v6/examples.md",
         "spec/data/model-profile/v6/model-profile.schema.json"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-token-estimate-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -12253,9 +12253,9 @@
       },
       "family": "capabilities",
       "topic": "model-request-runtime",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/model-request-runtime/v8/contract.md",
-      "acceptance": null,
+      "acceptance": "record/decisions/model-token-estimate-adoption/acceptance.json",
       "resources": [
         "spec/capabilities/model-request-runtime/v8/consumer-impact.md",
         "spec/capabilities/model-request-runtime/v8/contract.md",

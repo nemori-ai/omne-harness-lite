@@ -1,5 +1,7 @@
 # 模型档案
 
+2026-09-28：[D-101](../../../record/decisions/model-token-estimate-adoption/decision.md)接受本次MP6/RT8计量后继；规范资源冻结，下面candidate标签保留起草事件，实际计量实现与发送验收另计。
+
 2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
 
 **当前候选 `data.model-profile/v6`**：[契约](v6/contract.md)与[变化及证据](verification.md#v6-估算计量保证)。依据 PF-013 rev15，仅调整 token 估算与显式余量保证；尚未技术接受。已接受基线 v5 的采用依据是上方 D-100；以下各旧版本段落按当时事件读取，不能覆盖当前接受状态。

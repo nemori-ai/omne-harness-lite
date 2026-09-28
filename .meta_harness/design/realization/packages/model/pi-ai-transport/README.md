@@ -1,6 +1,6 @@
 # pi-ai-transport
 
-当前新增候选：[v10-token-estimate-design.md](v10-token-estimate-design.md)，MP6/RT8计量政策；待精确规格和映射接受，新增绑定0，真实发送尚未验收。下列接受/候选段分别按所述版本读取。
+当前计量映射：[v10-token-estimate-design.md](v10-token-estimate-design.md)，MP6/RT8计量政策；已由[D-101](../../../../record/decisions/model-token-estimate-adoption/decision.md)技术采用；新增绑定0，真实发送尚未验收。下列接受/候选段分别按所述版本读取。
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v9-current-design.md](v9-current-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
 

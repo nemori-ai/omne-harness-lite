@@ -1,6 +1,6 @@
 # model-request-runtime
 
-当前新增候选：[v9-token-estimate-design.md](v9-token-estimate-design.md)，MP6/RT8计量政策；待精确规格和映射接受，新增绑定0，真实发送尚未验收。下列接受/候选段分别按所述版本读取。
+当前计量映射：[v9-token-estimate-design.md](v9-token-estimate-design.md)，MP6/RT8计量政策；已由[D-101](../../../../record/decisions/model-token-estimate-adoption/decision.md)技术采用；新增绑定0，真实发送尚未验收。下列接受/候选段分别按所述版本读取。
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [当前共享接口及迁移](v7-current-design.md)，释放公共接口/调用容器与noRun施工；十三操作实际验收仍未完成，来源与计量门按分支保留。
 

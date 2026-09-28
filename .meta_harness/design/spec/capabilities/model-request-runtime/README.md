@@ -1,5 +1,7 @@
 **v6 起草时摘要（历史；后由 D-099 接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-候选变化与证据)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。
 
+2026-09-28：[D-101](../../../record/decisions/model-token-estimate-adoption/decision.md)接受本次MP6/RT8计量后继；规范资源冻结，下面candidate标签保留起草事件，实际计量实现与发送验收另计。
+
 2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v7 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
 
 **当前候选 `capability.model-request-runtime/v8`**：[契约](v8/contract.md)与[变化及证据](verification.md#v8-估算计量保证)。依据 PF-013 rev15，仅调整 token 估算与显式余量保证；尚未技术接受。已接受基线 v7 的采用依据是上方 D-100；以下各旧版本段落按当时事件读取，不能覆盖当前接受状态。
