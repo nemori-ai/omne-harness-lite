@@ -440,6 +440,71 @@ describe('S-33 retained recovery ownership', () => {
     )
   })
 
+  it('does not treat a stopped unknown end write with a verified absence as a terminal call', async () => {
+    await controlled(
+      'service-reconcile-ended-absent',
+      async ({ binding, owner, wrap, coordinator }) => {
+        const settled = coordinator.settle(request)
+        expect(await settled.completion).toHaveProperty('settled')
+        await settled.stopped
+        const intent = prepare(
+          'record',
+          { kind: 'model_call_interrupt_intent', call: 'fresh-call', initiator: 'user' },
+          { kind: 'record' },
+        )
+        const appendedIntent = await binding.log.append(
+          session,
+          [intent],
+          { kind: 'unfenced' },
+          { kind: 'unconditional' },
+        )
+        if ('failure' in appendedIntent) throw new Error('intent fixture')
+        let attempts = 0
+        const firstAbsent: SessionLog = {
+          ...binding.log,
+          async append(...args) {
+            if (writeJsonLossless(args[1]).includes('model_call_ended')) {
+              attempts++
+              if (attempts === 1) return { failure: 'unavailable' }
+            }
+            return binding.log.append(...args)
+          },
+        }
+        let enters = 0
+        const component = createRuntimeReconcile({
+          contention: { ...policy(), limits: { ...policy().limits, concurrent: 1 } },
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async enter() {
+              enters++
+              return {
+                scope: {
+                  binding: { log: wrap(firstAbsent) } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {},
+                },
+              }
+            },
+          },
+        })
+        expect(await component.reconcile({ session })).toEqual({ unavailable: true })
+        expect(attempts).toBe(1)
+        expect(await component.reconcile({ session })).toEqual({
+          calls: [
+            { callId: 'call', state: 'complete' },
+            { callId: 'fresh-call', state: 'interrupted' },
+          ],
+        })
+        expect(attempts).toBe(2)
+        expect(enters).toBe(1)
+        expect(owner.active).toBe(0)
+      },
+    )
+  })
+
   it('holds an unknown original response until the same binding reads its complete batch', async () => {
     await controlled(
       'service-reconcile-response-unknown',
