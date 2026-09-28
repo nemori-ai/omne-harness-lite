@@ -370,3 +370,36 @@ Captures belong to their originating codec domain. Root and v2 captures cannot b
 Upstream error/local text pass through the bound shared JSON/text policy. Raw/error keys and all scalar tokens are processed, while independent protocol status and actual usage/cost remain intact even if their literal value equals the credential. Processing rejection/defect omits unsafe payload and emits fixed stage diagnostics; an already retained H survives. A pre-send bind defect rejects the outcome with a controlled stage error and no fabricated sent result. Diagnostic-sink failure does not alter business behavior.
 
 Business reply/tool fragments retain their original assembler semantics. This implementation does not close the outstanding content-echo policy, raw-body attachments, full S20, production TLS composition or durable service. Exact scope is adopted by [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md).
+
+## Durable settlement components
+
+`readSettlementPrefix`, `interpretSettlementPrefix`, and `createSettlementCoordinator` are standalone components. They use the actual SL3 log and the explicit `/log-codec/v2` representation. The first delivered path is noRun: one unfenced, unconditional append contains either the entire `[message, response]` or `[response]` batch. Existing legal batches win with their original identities, format and accounting. The coordinator never plans or sends a model request.
+
+Supply the host's actual session/tenant/log-generation binding and registered owner. `SettlementRegistration.start` must register before invoking the operation; `stopped` means actual resource cessation. The owner enforces shared concurrency admission and supplies the actual opened receipt plus all unresolved old writers. These structural ports grant no authorization or historical batch certification. Required named contention limits and the exact monotonic scheduler are explicit; no default attempts, timer or waiting policy is installed.
+
+```typescript
+import {
+  createSettlementCoordinator,
+  type SettlementCoordinatorInput,
+  type SettlementRequest,
+} from '@omne-harness-lite/model-request-runtime'
+
+export async function settleResponse(
+  dependencies: SettlementCoordinatorInput,
+  request: SettlementRequest,
+) {
+  const coordinator = createSettlementCoordinator(dependencies)
+  try {
+    const task = coordinator.settle(request)
+    const result = await task.completion
+    await task.stopped
+    return result
+  } finally {
+    await coordinator.close()
+  }
+}
+```
+
+`completion` reports settlement or an unavailable reason. `requestStop` requests cancellation; `stopped` and `close()` wait for actual owned tasks and permit release. A committed batch can be recognized while an old task is still live; that task keeps its original owner. An absent read never permits resubmission after an unknown receipt. Opened unknown blocks ordinary responses. Recovered absence must be established by the original host at the existing S-33 recovery boundary, after all old writers stop; this component adds no online recovery API.
+
+The example takes actual host dependencies and a complete MR5 response, without installing a service. A1b dispatch/opened coordination, the thirteen-operation `modelRuntime` service, official model certification, production withRun interpretation (G28), lawful read wiring and all-writer provenance remain pending. Adoption: [D087/v4 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md), [D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md).

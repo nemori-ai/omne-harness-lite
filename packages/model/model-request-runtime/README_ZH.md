@@ -365,3 +365,36 @@ export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
 上游错误与本地文本经绑定的共享 JSON／text 政策处理，raw/error 的 key 与所有 scalar 都覆盖；独立协议状态和真实 usage/cost 即使字面值与凭据巧合仍保真。处理拒绝或 defect 时省略不安全载荷，交固定阶段诊断，已持有 H 保留。发送前 bind defect 以受控阶段异常拒绝 outcome，不造发出结果；诊断 sink 失败不改变业务。
 
 业务 reply／工具片段保持原装配语义。本实现不关闭内容回显政策、raw.body 附件、完整 S20、生产 TLS 组合或耐久服务。精确采用范围见 [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md)。
+
+## 耐久结算构件
+
+`readSettlementPrefix`、`interpretSettlementPrefix` 和 `createSettlementCoordinator` 是可独立取用的构件，消费实际 SL3 日志和显式 `/log-codec/v2` 表示。首个交付路径为 noRun：一次 unfenced、unconditional 追加完整 `[消息,响应]` 或 `[响应]` 批。合法原批优先，保留其身份、格式和原账；协调器不会规划或发出模型请求。
+
+由宿主提供实际 session/tenant/log 代际绑定与已登记 owner。`SettlementRegistration.start` 必须先登记、再执行；`stopped` 表示资源实际停止。owner 负责同一所有者的并发准入，并提供实际 opened 回执及全部尚未确认的旧写方。这些接口形状不授予权限或认证历史物理同批。具名争用预算和精确单调调度器须显式提供，不安装默认次数、计时器或等待政策。
+
+```typescript
+import {
+  createSettlementCoordinator,
+  type SettlementCoordinatorInput,
+  type SettlementRequest,
+} from '@omne-harness-lite/model-request-runtime'
+
+export async function settleResponse(
+  dependencies: SettlementCoordinatorInput,
+  request: SettlementRequest,
+) {
+  const coordinator = createSettlementCoordinator(dependencies)
+  try {
+    const task = coordinator.settle(request)
+    const result = await task.completion
+    await task.stopped
+    return result
+  } finally {
+    await coordinator.close()
+  }
+}
+```
+
+`completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 和 `close()` 等实际任务停止后才释放额度。旧任务仍在途时可认回已提交原批，但仍保留旧任务的真实 owner；unknown 后的一次缺席读取不允许重交。opened unknown 阻断普通响应。恢复后的缺席只能由原宿主在既有 S-33 时机、全部旧写方停止之后建立，本构件没有新增在线恢复 API。
+
+示例接收实际宿主依赖与完整 MR5 响应，不注册服务。A1b 的发出/opened 协调、十三操作 `modelRuntime` 服务、官方模型认证、生产 withRun 认法 G28、合法读权接线及全部写方来源仍待交付。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md)。
