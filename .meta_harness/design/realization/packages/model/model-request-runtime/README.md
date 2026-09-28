@@ -1,5 +1,14 @@
 # model-request-runtime
 
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [当前共享接口及迁移](v7-current-design.md)，释放公共接口/调用容器与noRun施工；十三操作实际验收仍未完成，来源与计量门按分支保留。
+
+## 2026-09-28 当前格式与十三操作公共施工面候选
+
+- **语义接受**：D-076/D-087 的十三操作投影及 D-099 的 RT6 增量已接受；[v7-current-design rev1](v7-current-design.md) 的 RT7/MP5/MS6/MR7/LC6/directory5/runner5 目标链为候选，当前检出尚未登记采用。
+- **可实施**：本增补只做当前依赖迁移、单 root codec、完整 PendingModelResponse/失败历史/输入限额投影，以及 root 公共类型与 A/B/C 施工分工，不重做十三操作设计。R7-G1 是采用门；G2 只挡缺计量的发送，G3 只挡真实失败主体/default retry，G4 只挡需要原 Run 判定的 withRun；不扩成选择/noRun 全局阻断。
+- **绑定证据**：新增 0，原 bindings 保持其版本和范围；[R7 验证义务](verification.md#r7-当前格式与服务施工义务) 全为待执行。
+- **实际验证**：本增量尚无；十三操作不能由纯构件或候选签名推定完成。旧 codec 过渡投影仅是历史采用读数，本候选要求当前消费者一起迁移；冻结契约的替代接受仍须主线完成。
+
 ## 2026-09-27 G-6 脱敏政策候选
 
 - **语义接受**：[D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 已接受 RT5/MR5；本次 [v5-redaction-design rev2](v5-redaction-design.md) 的三参数生产基线与匹配选择仍为 candidate，未接受。rev1 独立评审的 R5R-AR1 处置已起草，待复评。

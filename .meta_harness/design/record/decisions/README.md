@@ -1,5 +1,7 @@
 # 决定
 
+[D-100：模型纵线当前代际直接替换](model-runtime-current-generation-adoption/README.md)：接受七后继与当前迁移映射，撤销旧实现兼容过渡；实现验收分别推进。
+
 2026-09-27：[D086：RT4结算消费](model-runtime-tail-settlement-adoption/README.md)接受73条／27资源，传播SL3与实际提交late／未知责任；旧消费者不自动升级，新版提供者与实际十三操作／IO仍待。
 
 2026-09-27：[D085：SL3恢复路径识别](session-log-recovery-projection-adoption/README.md)技术采用既有JSONL提供者的窄增补；不改变日志契约，不表示真实退出观察／恢复或P2验收完成。

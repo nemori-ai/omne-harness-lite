@@ -1,3 +1,14 @@
+## v6 当前格式迁移候选（2026-09-28）
+
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
+- 语义接受：**本版无**；目标 MS6/MP5 尚待候选发布、catalog 登记和主线采用。D-099 已接受的是 MS5/MP4，不能替代本版接受。
+- 可实施：候选明确 root/schema 单一当前格式、完整限制快照、精确七资源闭包和当前消费者迁移；不保留旧 messages 运行入口。契约最终资源与消费者精确采用未闭合前，不提升为可正式施工。
+- 绑定证据：本版 **0 条**；`bindings.yaml` 的历史 v3 单条保持原范围。
+- 实际验证：**本版尚无实现验证**；本次只有窄迁移设计与结构检查，旧测试不重标。
+
+入口：[v6 候选设计](v6-design.md) · [六项验收与受阻消费者](verification.md#v6-当前格式迁移候选义务)。以下旧段落按各自版本和日期读取；v4 的保留旧入口方向不再是本轮候选方案。
+
 ## v4 候选增量（2026-09-27）
 
 - kind：`provider`；节点及源码位置仍为 `packages/core/messages`，已有 v3 源码。本次是[独立的 v4 增量设计](v4-design.md)，不覆盖已接受的 [design.md](design.md)。

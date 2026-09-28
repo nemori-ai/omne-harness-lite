@@ -93,3 +93,27 @@ N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块�
 ## D-068 当前验证epoch
 
 当前设计输入为 `data.model-response · v3`，规范资源在 [acceptance.json](../../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json) 精确冻结。原包义务和既有证据保留原输入；补CB坏名未解析、TD指定拒绝、SA两行表示优先／工具名字128/129长度或AM/AE新标准正文闭包的本节点增量。完整source release、旧资源公开闭包、W6组合和逐ID接受尚待执行；用户最终整体接受未发生。历史formal run实际版本及注释差异分别核对，不把登记任务当已跑。
+
+
+## v7 当前格式直接迁移候选
+
+对象：[v7-design.md](v7-design.md) R7-P1～P6；本次新增绑定 0、产品运行 0、形式执行 0。以下均为待验义务，旧 MR5 证据不迁标签。
+
+| ID | 必须能失败的验收与反例 | owner／状态 |
+|---|---|---|
+| V7-1／P1/P5 | 最终接受 MR7 完整 Schema 原字节/$id 一致；19 defs 精确清单及元 Schema；公开根/schema 实际 pack 消费并编译每个定义，依赖 IDs 无缺失/重复错版；分别记录全文件引用环和实际编译可达图，不从“有环”推断失败或从静态可达推断通过 | 本包/Schema owner；待验 |
+| V7-2／P1 | 全部规范正反例、有序拒绝和多处同时非法回归；未知 outcome 优先、dispatch 精确小于一、原 cause/ending/firstToken/绑定错配次序；不改输入，无浮点往返 | 本包；待验 |
+| V7-3／P2 | complete/truncated/有回复 interrupted 的完整 Pending 正例；缺 reply、failed、disposition/late 任一出现为 malformed，unknown outcome 优先；持久根缺 disposition 仍拒绝；同一合法 Pending 由真实写方确定处置与 late 后可成持久根，其余事实不丢 | core 负责纯值；runtime/回复写方负责实际提交；待验 |
+| V7-4／P3 | 快照缺任一新版必填、类型或条件域错误拒绝；形状合法但 MP5 S-18/S-33 写方关系不合的样本，MR 接收不额外拒绝；S-36 完整适配绑定错配仍拒绝。计数/金额/配置嵌套 exact 值不损失 | 本包；待验 |
+| V7-5／P1/P3 | RawHeaders 字符串/混合数组/空 map/空数组/重复值均按规范；缺席与空不同；非法嵌套值拒绝；极大整数、极小费用、未知缓存不改为零；数组头贯通真实 transport→runtime→codec→reopen | 本包纯值与外部链分别报告；待验 |
+| V7-6／P4 | MR FailureCause 精确 LC6；LC6 完整失败主体含当前完整快照、所有 dispatches/完整 retryConclusions。运行时按同一日志前缀保留顺序/重数/未发出的有效重试；读不全返回 unavailable，不能补空数组；MR 不增加主体构造器或历史 IO | core/loop-extension 与 runtime/runner；待验 |
+| V7-7／P5 | MR-1 五组同义定义断言比较保留；真实包循环导入检查；破坏副本、错版 `$ref` 必须使相应检查失败；精确依赖 CB2/IV1/OE1 不因全仓 latest 悄悄改变 | 本包/集成；待验 |
+| V7-8／公开迁移 | pack exports 和文件清单仅当前响应；旧子入口 import/JSON import 必须失败；旧 shape 在当前 root 拒绝，不测试“旧 judge 仍通过”；全仓当前消费者无遗留旧引用。冻结历史材料/证据不需改写 | 集成；待验 |
+| V7-9／文档与边界 | README/README_ZH 完整根判定、Pending 与 RawHeaders 示例用实际包严格编译执行；纯模块无 Cordis/存储/网络/计时/凭据；缺 Schema/编译错不得冒充 malformed | 本包/独立验证；待验 |
+
+### v7 缺口与受阻消费者
+
+- **G7-1（MR6 S-40 → MR7，LC6/MS6/MP5 精确闭包）**：本基线 catalog 仅已接受旧坐标；后继未接受/最终 hash 未发布。主线完成后继规范接受、提供者采用和精确资源锁定后关闭；阻断宣布当前根迁移可交付，不要求恢复兼容。
+- **G7-2（MR7 S-26/S-40、LC6 精确引用）**：22 份完整资源含现行资产契约要求的 LC2/3、MP2、MS2/3 以及递归边。各资源 owner 保留必要公开 schema 子入口，执行面仍删除旧 codec/旧 API；本包以现有共享编译器完整构建 MR7 definitions，并在实际 pack 中证明循环解析、无缺资源及精确 ID。未跑编译前不得称已验证；不重做共享 resolver 或扩展资产规格。
+- **G7-3（MR7 S-16～S-25/S-35/S-39；LC6 S-14/S-43）**：完整事实捕获、Pending 交接后事务、late 判定、失败主体完整历史及首 token 耐久均归 runtime、runner、日志与回复写方。它们须在共同真实日志提交边界提供证据；本 data 包无自己的存储要求和同提交机制。阻断相关十三操作整体验收。
+- **G7-4（MR7 S-40 与当前代际责任）**：runtime/transport/demo/session-log 测试及制品脚本须同批迁移；旧用户数据只拒绝，不修改/删除/回填。当前已发送请求的停止、结算和恢复仍归原运行 owner，不因破坏性重构消失。真实调用身份、时钟、密钥、日志装配待对应实施者验证，示例多轮成功不能替代完整装配接受。

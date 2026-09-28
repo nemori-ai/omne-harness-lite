@@ -8,6 +8,26 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 # messages 验证与证据
 
+## v6 当前格式迁移候选义务
+
+本节对应 [v6-design.md](v6-design.md) 的 M6-P1～P6。MS6/MP5 尚待发布、登记和采用；本节没有运行通过声明、没有新增 binding，不改写既有证据。
+
+| 编号 | 必须执行的验收 | owner／当前状态 |
+| --- | --- | --- |
+| M6-V1：Schema 闭包 | 实际包制品加载 MS6、MP5、CB3、CB2、CA2、IV1、OE1 七份原字节 Schema；编译全部 43 定义、核对 `$id`/资源 hash；故意缺一个传递资源必须失败，不能远程补取或旧 id 指新字节 | messages/profile owner；待最终资源、实现与运行 |
+| M6-V2：缺字段与拒绝边界 | 已出门快照缺 `inputConstraints`、`upstreamInputLimits` 或其必填/适用成员时，真实文本/root judge 均 malformed，返回前后输入不变；不补 unknown/default。合法 shape 但 cap 大于已知 fact 的快照不额外重跑 MP5 S-33，写入者责任另验 | messages owner；待运行 |
+| M6-V3：原数与完整复制 | 经公开严格文本入口读取、品牌恢复和序列化，新增两对象及嵌套配置大整数/小数精确往返；重复键拒绝，调用后改原对象不改返回值；对象换键序相等、数组换序不同、1/1.0 数值相等、相邻超安全整数不等。两处绑定仅改任一层成员应由完整 judge 拒绝 | messages owner；待运行，不以 JSON.parse fixture 冒充原数文本 |
+| M6-V4：现有语义与跨包 | 当前规范实例、十四拒绝顺序、参数重建、七消息/五记录/三收场、可读名单配对回归；MS6 与 MR7 自定义副本对齐。接收记录仍不能证明日志唯一、耐久或跨记录同绑 | messages/response owner；待运行 |
+| M6-V5：公开制品与消费者 | 清理 dist 后 build/typecheck，独立制品 root/schema 可用；`/v3` 与私有旧执行文件不可导入；`/schema/v2`、`/schema/v3` 保留原字节供设计点名的现行精确依赖，不进入本包 MS6 运行图，也不被用来降级接收旧 model 记录。设计消费者清单全部采用或报告精确受阻条款，不改冻结 `$ref` 假装迁移；当前 runtime/demo 集成拒绝旧格式且旧数据字节不变 | 集成者与各消费者 owner；待采用及运行 |
+| M6-V6：双语文档示例 | messages README/README_ZH 更新当前版本、两面边界与完整快照示例，真实执行公开导入示例；移除旧版本使用示例，其他修改包同样维护双语 README | 各包 owner；待实现 |
+
+### v6 覆盖缺口
+
+- **M6-G1**：MS6 S-37/S-49、MP5 S-27 最终规范资源、catalog 与采用未完成，hash 不预填。受阻消费者为本包及设计清单中的当前链；契约 owner 发布、主线接受后核对本稿坐标与字段再施工。
+- **M6-G2**：本包及清单中旧入口消费者尚未迁移；资产三处与 session-tenancy-table 均仅使用 SessionRef，迁 root 纯值面时须验证该子集形状同构。现行 connector2 及 MR7→LC6→AM3→LC3 等精确 Schema 依赖保留必要原字节资源，不扩资产平台；仅当发现要求旧模型执行 codec 的具体条款才报主线，本节点不改契约、不保留兼容替身。
+- **M6-G3**：MS6 S-49 写入者完整快照、跨记录同绑与发前耐久，以及 S-9/S-32 身份/唯一仍归 runtime 和日志 owner 的真实组合；没有新增产品 app，也没有本节点证据覆盖这些外部责任。当前代际已接纳调用的未完成责任不因删除旧格式 codec 而消失。
+
+
 ## v4 候选证据义务
 
 本节只对应 [v4-design.md](v4-design.md) 的 M4-P1～M4-P7；messages4/profile3 尚为 candidate。既有473项等运行继续只说明原输入。本节列的是验收义务，尚无 v4 产品源码运行、技术接受或新增绑定。

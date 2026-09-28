@@ -1,5 +1,10 @@
 # 拓展点协议的数据半边
 
+2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v6 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+
+**当前候选 `data.loop-extension/v6`**：[契约](v6/contract.md)与[变化及证据](verification.md#v6-发布前破坏性演进)。由已接受 v5 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+
+
 ## v5 候选：完整快照与重试结论历史
 
 当前已接受版本为 v4，以 registry 精确坐标为准。[v5 契约](v5/contract.md)、[Schema](v5/loop-extension.schema.json)与[实例](v5/examples.md)是 **candidate**，未接受、未冻结。本版精确采用 model-profile/v4、messages/v5 的完整输入限制快照，追加 S-42 失败结论的 `modelCallId` 与 S-43 完整有序 `retryConclusions`。13 种主体位置、权限、结论种类与回放规则保持；runtime/v6、runner/v4 须显式采用，其他消费者不自动升级。变化及实际检查见[验证入口](verification.md#v5-完整快照与重试结论历史)。以下 v4 及更早记录保留其发生时的范围。

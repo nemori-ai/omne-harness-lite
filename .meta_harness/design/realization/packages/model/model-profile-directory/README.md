@@ -1,5 +1,7 @@
 # model-profile-directory
 
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v5-current-design.md](v5-current-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
 ## v4 候选增量（2026-09-28）
 
 新增 [v4-design.md](v4-design.md)，只投影完整输入供给与上游事实。源码包 `packages/model/model-profile-directory` **已存在**，本次读取基线 `be026d6cc430a891177035a046a4d8aa8a4530a7`；下方“尚未建包”保留为历史采用时状态，不代表当前源码。

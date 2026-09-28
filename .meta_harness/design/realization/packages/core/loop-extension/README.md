@@ -1,5 +1,7 @@
 ## 最终 core 阶段签收（2026-09-26）
 
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
 本节点本阶段的 6 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
 Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
 [新原始运行与逐项签收](../../../../record/evidence/2026-09-26-tests-core-skill-v3/README.md)记录6534项适用回归、54项Skill独立检查、真实20制品消费，以及22包57个双语公开示例。
@@ -68,3 +70,12 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 ## 2026-09-27 本轮技术采用
 
 [D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。
+
+## 2026-09-28 LC6 直接迁移候选
+
+[v6-design.md](v6-design.md) 接续当前实际 LC4 根实现，目标统一 LC6 根与 Schema，删除旧 LC3 运行实现；现行精确契约仍引用的 LC3/LC2 及传递 Schema 资源仅按其依赖用途保留。本段是新候选，不改旧采用及证据字节。
+
+- **语义接受**：LC5 已由 [D099](../../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md) 接受；LC6/MP5/MS6 后继尚待主线释放及登记，LC6 尚未接受。
+- **可实施范围**：纯值层、完整重试结论、调用关联和现有消费者直接迁移的候选映射已列出；后继精确输入与 provider 采用未闭合前不作为施工授权。不增加 Cordis 服务、runner 或工具执行。
+- **绑定证据**：原 LC3 绑定 1 条不动，本候选新增 0 条；LV6-1～LV6-7 全部待验。
+- **实际验证**：本次只起草实现映射，未修改或验证 LC6 源码。旧 581 项不得重标；同会话完整历史及真实落盘仍为 runtime/runner 的外部义务。

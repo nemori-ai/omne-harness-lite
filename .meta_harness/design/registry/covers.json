@@ -38886,6 +38886,4902 @@
       },
       "reviewed": false,
       "note": "2026-09-28 runner v4 candidate；继承 v3 同号条款并追加失败结论调用关联/完整历史，未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-8",
+          "S-9",
+          "S-12",
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模态"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-2",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#在册--已撤回"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#官方档案--自建档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#56-凭据挂在范围上不挂在档案上"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#什么时候算试尽"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#系统自带一件默认的所以开箱就有重试"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#61-档案是一个对象那项设置的取值是对它的引用"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-1",
+          "S-2",
+          "S-12",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#62-凭据挂在范围上档案自己不存"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#63-官方与自建在同一份列表里"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-4",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#511-有-transcript-的块不再把任何模型挡在外面"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#64-撤回不删行会话指向被撤回的档案时说已下架"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-3",
+          "S-10",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#617-本-topic-不出现任何时限数值"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-16",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#七取舍"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#31-一条模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-3",
+          "S-10",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-1",
+          "S-2",
+          "S-3",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#要求五组装的输入里必须有当下生效的那份模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-8",
+          "S-9",
+          "S-11",
+          "S-12",
+          "S-27",
+          "S-28",
+          "S-32",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 5,
+        "clauses": [
+          "S-8",
+          "S-9",
+          "S-27",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-14",
+          "S-18",
+          "S-36",
+          "S-37",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#在册--已撤回"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-15",
+          "S-18",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#官方档案--自建档案"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-8",
+          "S-14",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#51-一条档案三种身份的人碰得到它"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-3",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#56-凭据挂在范围上不挂在档案上"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-19",
+          "S-20",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#510-合法目标集合与展示列表是两件事"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-17",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#61-档案是一个对象那项设置的取值是对它的引用"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-16"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#62-凭据挂在范围上档案自己不存"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-19",
+          "S-20",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#63-官方与自建在同一份列表里"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#64-撤回不删行会话指向被撤回的档案时说已下架"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-15",
+          "S-16",
+          "S-18",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#69-合法目标算不出来时不替用户改选"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#616-错误信息外泄之前要脱敏"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#31-一条模型档案"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-14",
+          "S-15",
+          "S-18",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#四角色与操作"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-10",
+          "S-14",
+          "S-15",
+          "S-19",
+          "S-31",
+          "S-32",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-6",
+          "S-14",
+          "S-17",
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#组织那一层为什么不持有"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-19",
+          "S-20",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#二分支与异常"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-14",
+          "S-15",
+          "S-18",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-016-cli-tui-delivery-surface",
+        "clause": "design.md#611-秘密不进任何一份呈现"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-3",
+          "S-7",
+          "S-12",
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#66-撤销不等于强制停止"
+      },
+      "target": {
+        "contract_id": "capability.model-profile-directory",
+        "version": 5,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#七种消息按谁在说话分"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-7",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#说话的有四个消息却有七种"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-7",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-2",
+          "S-7",
+          "S-32",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#七种消息各自谁感知得到"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#三件容易搞错的事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#出门的时候七种分三类"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-34",
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#52-我们自己那两种在各家落成什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#62-我们自己那两种每一家都要有落点不许落空也不许丢"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-35",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#53-落到对面之后agent-还得分得出这不是人说的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-15",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#63-提醒的标识由系统加产生提醒的那一处交的是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-15",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#消息的内容是一串块不是一段文本"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-2",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#66-内容是块不在进日志时压成文本"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-2",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#每个块带两个标注给人看吗给模型看吗"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#611-每个块都带给人看--给模型看两个标注"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#systemremindermessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-12",
+          "S-15",
+          "S-18",
+          "S-19",
+          "S-22",
+          "S-23",
+          "S-24",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#65-来源是一个属性不是另一种消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-12",
+          "S-15",
+          "S-18",
+          "S-19",
+          "S-22",
+          "S-23",
+          "S-24",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#51-systemremindermessage-凭什么独立而不是一条带标记的用户消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#61-一条消息是谁说的永远查得到且不靠解析内容"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#54-提醒说的是现在什么样还是刚才发生了什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#64-说状态的写清变化说事的写清发生消息一律追加"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#55-一条消息是分次到达的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#半条消息不是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#67-分次到达的东西不进消息类型清单"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#68-组装的结果与一次性拿到的必须相同"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-10",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#中断这件事本身要让-agent-知道"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#610-没收齐的工具调用参数不解析不执行"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#613-只要发生了中断就补一条提醒"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#57-一份会话日志两种组装"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-5",
+          "S-7",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#612-日志完整删减只发生在组装那一步"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-5",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#toolinternalmessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#58-toolinternalmessage工具说它正在干什么"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#614-工具帧不进模型的上下文"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-13",
+          "S-14",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#compactionmessage"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#compactionmessage-凭什么单独成一种两条"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#91-这四件事归-pf-010不是本-topic-的缺口"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#92-流式不留到达的过程"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#55-几样东西各自落成哪一种消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#那两个标注仍然是这件事的前提"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#名单跟着摘要走是为了让日志能重放"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#610-压缩只能做两件事且落成同一条消息"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#611-压缩只管给模型看那一侧"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#58-压缩不能做的有三件事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#612-记录里的消息一条都不能擦除"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#613-上一次模型请求之后新来的消息不许压"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#614-悬着的东西不许被点名"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#615-组装边界要看哪些块还模型可读不是最后一条摘要在哪"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-28",
+          "S-29",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#给模型那一侧两块分别组装"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-6",
+          "S-7",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#616-压缩之后meta-runtime-context-要重新给一份完整的"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#先对账再进方程"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#每一次尝试开始都要做四件事"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-20",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#64-每一次尝试开始agent-都要知道"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#执行尝试"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#59-循环守卫四级阶梯"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#511-外面进来的事怎么到-agent-眼前"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#611-悬着的东西不许被压掉"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#会话日志"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#只增不改怎么和压缩卸载共存"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#57-穷举一什么会让队列从空变成非空"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-8",
+          "S-12",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#610-注入的上下文变了没有运行在跑时什么都不做"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#68-变更了要不要告诉-agent看谁消费它"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-17",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#69-模型看见一块-runtime-context只有两种形态"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-17",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#55-一次工具执行的收场有六种"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#转后台是前台那一次调用的收场后台执行另有自己的收场"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#占位消息一律要说清原因"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#612-工具执行的运行时可以被单独控制而它停了就不重来"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-14",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#54-为什么系统提示词必须落在第三列"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#决策卡片"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#等待态的两个维度"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#65-不回答是合法答复"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#68-三种来源的卡片同一个形状选项与记录不同"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#入站到达"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#执行帧就是这条消息的到达增量"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#54-插队停在哪就怎么办"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#67-生效点收到那条事实之后下一次模型请求之前"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-49"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#513-模型请求的运行时可以被单独控制而它停了看首-token"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-49",
+          "S-50"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#上游限制与档案提供的上限"
+      },
+      "target": {
+        "contract_id": "data.messages",
+        "version": 6,
+        "clauses": [
+          "S-49"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#试过又失败的那几次留痕不进方程"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-4",
+          "S-8",
+          "S-23",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#32-一次模型调用"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-4",
+          "S-12",
+          "S-16",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-11"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#已经开口说话了优先于其余各类"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-13",
+          "S-14",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#最后一行不再往下细分"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-16",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#还有一种没走完它不在这张表里"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#判据怎么用三个例子"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-5",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#57-上交带什么原样带着状态码不翻译它"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-13",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#它看得到什么"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-3",
+          "S-5",
+          "S-8",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#停机之后能不能重来只看首-token"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-5",
+          "S-12",
+          "S-17",
+          "S-18",
+          "S-19",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#611-成因在这个边界上分类不丢进外层按异常形态分"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#612-事实判断归本-topic策略归拓展件"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#有三件事它改不动"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#616-错误信息外泄之前要脱敏"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#56-凭据挂在范围上不挂在档案上"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#到达的过程有它自己的语法"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#66-模型在每次请求时确定"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-3",
+          "S-9",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#61-不变式"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#成本两层缺哪一层都会算错"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-3",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-13",
+          "S-14",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#610-能干预的拓展件必须留下结论"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#617-run-这一层的七条不变式"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-3",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-response",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#十一个位置是推出来的不是挑出来的"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#53-改日志的动作与纯派生的动作"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前每条消息都经过它不只是输入"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-14",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#两个位置带维度"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-2",
+          "S-3"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#按位置命名不按功能命名"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#能做什么不能做什么"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-19",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#第二条是硬的因为它护着-f-的纯性"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-19",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#干预力三档直接用-pf-000-的"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-4",
+          "S-5",
+          "S-20",
+          "S-25",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#拓展件是可插拔的服务不可用即卸载报错按策略"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-6",
+          "S-9",
+          "S-31",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#没有放宽这一档"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#改参数先落一条生效参数"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#三种形态两种装得进一种拆两半"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-13",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#等人是-loop-的原语"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#协程不在了靠日志不靠记忆"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-28",
+          "S-32"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#写拓展件的人要守的一条"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#一批动作先全部判完再执行任何一个"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#两个地方等不了"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-21",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#69-拓展件只能靠改日志起作用"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-32",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#610-能干预的拓展件必须留下结论"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-30",
+          "S-31",
+          "S-42"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#66-终态不可逆且只有一个出口"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#运行终态"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#615-取消先落日志再发信号"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#617-run-这一层的七条不变式"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-18",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#执行尝试"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-000-occurrences-and-record-entries",
+        "clause": "design.md#干预力--intervention-power"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-000-occurrences-and-record-entries",
+        "clause": "design.md#53-干预力只长在瞬态这一半上"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-4",
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#loop-extension"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-4",
+          "S-6",
+          "S-7",
+          "S-8",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#身份是类别--name其余归实现"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#52-设置与权限是资产的两种属性"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-4",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#设置项分四类资产声明每一项时必须标类别"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#510-合法目标集合与展示列表是两件事"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#57-上交带什么原样带着状态码不翻译它"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#54-三类事实归本层定死其余照状态码"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-17",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#还有一种没走完它不在这张表里"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-2",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#612-事实判断归本-topic策略归拓展件"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-14",
+          "S-27",
+          "S-42",
+          "S-43"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#52-那个判断函数"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#决策卡片"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#68-三种来源的卡片同一个形状选项与记录不同"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#69-人拒绝之后agent-分得出那是拒绝"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-25",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-014-inbound-intake-and-queueing",
+        "clause": "design.md#56-消息落盘之前那一刻看得到什么"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-11",
+          "S-14",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-006-tools-and-skills",
+        "clause": "design.md#610-结果太大时卸载而卸载是第三个维度"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#59-循环守卫四级阶梯"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#系统自带的几件不可用时各有定法"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#不可用处置是这一件自己的声明"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-6",
+          "S-40"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-005-execution-environments-and-sandboxes",
+        "clause": "design.md#63-会话级沙箱到点销毁数据不留存"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-41"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "data.loop-extension",
+        "version": 6,
+        "clauses": [
+          "S-41"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-7",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#66-模型在每次请求时确定"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-15",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-15",
+          "S-29",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#613-取消跟着宿主走"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-31",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#615-取消先落日志再发信号"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-31",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#先对账再进方程"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-15",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#成本两层缺哪一层都会算错"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-5",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#挂件自己花的钱算它插手的那个-run"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-5",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#等人是-loop-的原语"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-15",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#510-合法目标集合与展示列表是两件事"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#511-有-transcript-的块不再把任何模型挡在外面"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#513-模型请求的运行时可以被单独控制而它停了看首-token"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-15",
+          "S-31",
+          "S-33",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#54-三类事实归本层定死其余照状态码"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-16",
+          "S-18",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#55-上交交给谁看模型说没说出话"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-22",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#56-凭据挂在范围上不挂在档案上"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#62-凭据挂在范围上档案自己不存"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#63-官方与自建在同一份列表里"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-12",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25",
+          "S-26",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#64-撤回不删行会话指向被撤回的档案时说已下架"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#14-走一遍选中的模型被下架了"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#57-上交带什么原样带着状态码不翻译它"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#59-换模型一条事实一个生效点零个新分支"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#610-模态兼容挡在算合法目标那一刻不挡在出门那一刻"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#611-成因在这个边界上分类不丢进外层按异常形态分"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#612-事实判断归本-topic策略归拓展件"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#613-试尽由拓展件判定档案的两项声明是它的输入"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#616-错误信息外泄之前要脱敏"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#617-本-topic-不出现任何时限数值"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-21",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#618-模态投影要答得快而且是增量维护出来的"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#65-切换是用户的直接命令合法目标不得拒绝"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-11",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#67-生效点收到那条事实之后下一次模型请求之前"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#68-不为切换新增分支"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#69-合法目标算不出来时不替用户改选"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#什么时候算试尽"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#停机之后能不能重来只看首-token"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-15",
+          "S-31",
+          "S-33",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#判据怎么用三个例子"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#单独控制中断这一次调用不动别的"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#它只有一个宿主所以只有一种结局"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-5",
+          "S-15",
+          "S-31",
+          "S-33",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#已经开口说话了优先于其余各类"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-16",
+          "S-18",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#有三件事它改不动"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#系统自带一件默认的所以开箱就有重试"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#617-run-这一层的七条不变式"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-17",
+          "S-68",
+          "S-69",
+          "S-70",
+          "S-71",
+          "S-72",
+          "S-73"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-17",
+          "S-29",
+          "S-49",
+          "S-75"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#系统自带的几件不可用时各有定法"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#第一件会话睡一觉醒来还得是原来那个"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#试过又失败的那几次留痕不进方程"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-22",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#还有一种没走完它不在这张表里"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#32-一次模型调用"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-5",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#33-一个会话的选中模型"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-9",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#34-一个会话的模态投影"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-7",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#上游限制与档案提供的上限"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-7",
+          "S-28",
+          "S-29",
+          "S-30",
+          "S-53",
+          "S-54",
+          "S-57",
+          "S-58",
+          "S-74"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-74"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 7,
+        "clauses": [
+          "S-35",
+          "S-60",
+          "S-76"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#十一个位置是推出来的不是挑出来的"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#按位置命名不按功能命名"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-5",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#三种形态两种装得进一种拆两半"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-10",
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#拓展件是可插拔的服务不可用即卸载报错按策略"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-7",
+          "S-12",
+          "S-13",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#系统自带的几件各站在哪"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-7",
+          "S-12",
+          "S-13",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#系统自带的几件不可用时各有定法"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-7",
+          "S-12",
+          "S-13",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#不可用处置是这一件自己的声明"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-7",
+          "S-12",
+          "S-13",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#干预力三档直接用-pf-000-的"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-13",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-23",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前每条消息都经过它不只是输入"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#没有放宽这一档"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-15"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#改参数先落一条生效参数"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-24"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#改了日志就重新组装同一位置同一次经过只跑一轮"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-18",
+          "S-19",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#等人是-loop-的原语"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-27",
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#协程不在了靠日志不靠记忆"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-27",
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#写拓展件的人要守的一条"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-9",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#一批动作先全部判完再执行任何一个"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-27",
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#agent-runtime-被回收时"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-27",
+          "S-28",
+          "S-29",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#第二条是硬的因为它护着-f-的纯性"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#59-循环守卫四级阶梯"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#67-检测状态从日志派生不另存"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-8",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#69-拓展件只能靠改日志起作用"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-8",
+          "S-11",
+          "S-15",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#610-能干预的拓展件必须留下结论"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-11",
+          "S-28",
+          "S-53",
+          "S-54"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#613-取消跟着宿主走"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-23",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#615-取消先落日志再发信号"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-21",
+          "S-23",
+          "S-34"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#同一个-run-同一时刻只有一副协程在推它"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#52-那个判断函数"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-27",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#53-一批卡片与答完是什么意思"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-27",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#68-三种来源的卡片同一个形状选项与记录不同"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-27",
+          "S-28",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#61-永远等着系统不替人作答"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-008-human-in-the-loop",
+        "clause": "design.md#65-不回答是合法答复"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#loop-extension"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-002-assets-settings-and-permissions",
+        "clause": "design.md#57-工作区那一级不参与权限计算"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#装配清单"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#67-装配清单的生与失效"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-6",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-17",
+          "S-26",
+          "S-53",
+          "S-54"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#转换件"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-17",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-000-occurrences-and-record-entries",
+        "clause": "design.md#53-干预力只长在瞬态这一半上"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-13",
+          "S-23"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-005-execution-environments-and-sandboxes",
+        "clause": "design.md#63-会话级沙箱到点销毁数据不留存"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-50"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "capability.loop-extension-runner",
+        "version": 5,
+        "clauses": [
+          "S-50"
+        ]
+      },
+      "reviewed": false,
+      "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
     }
   ],
   "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。\nPR #9 的 covers 随规格坐标迁移追加；reviewed 标记保持原值。"

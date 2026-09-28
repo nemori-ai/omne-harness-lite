@@ -1,5 +1,10 @@
 # 模型档案
 
+2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+
+**当前候选 `data.model-profile/v5`**：[契约](v5/contract.md)与[变化及证据](verification.md#v5-发布前破坏性演进)。由已接受 v4 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+
+
 **当前候选 v4**：区分有限供给上限与上游三态事实，完整快照保留两者；[契约](v4/contract.md)、[Schema](v4/model-profile.schema.json)、[规范实例](v4/examples.md)、[机读实例](v4/examples.json)、[验证与影响](verification.md#v4-变化的影响)。v4 未接受、未冻结；候选登记片段交唯一 registry owner 集成，本入口不声称中央登记已完成。
 
 **v3 已接受并冻结**，精确采用依据见 [D-078 接受记录](../../../record/decisions/model-main-integration-coordination/acceptance.json)与 catalog；v2 同样保留历史采用。下面早期 v2/v3 记录按当时语境读取，不改变 registry 的现行状态。

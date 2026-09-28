@@ -1,5 +1,10 @@
 **v6 candidate（2026-09-28，未接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-候选变化与证据)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。
 
+2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v7 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+
+**当前候选 `capability.model-request-runtime/v7`**：[契约](v7/contract.md)与[变化及证据](verification.md#v7-发布前破坏性演进)。由已接受 v6 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+
+
 **2026-09-27 当前规范接受（D-090）**：v5 全73条／27资源已接受并冻结；只将规范 MR4→MR5 并明确同次头事实交接。[决定](../../../record/decisions/model-headers-v5-adoption/decision.md)。D-087 已技术采用 v4-design rev2；v5 runtime/transport/codec 提供者尚待精确投影与采用，当前源码不自动升级，十三操作与真实链未完成。下方早期状态按原事件读取。
 
 # 模型请求运行时

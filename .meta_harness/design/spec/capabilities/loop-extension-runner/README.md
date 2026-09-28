@@ -1,5 +1,10 @@
 # 拓展点协议的操作半边
 
+2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+
+**当前候选 `capability.loop-extension-runner/v5`**：[契约](v5/contract.md)与[变化及证据](verification.md#v5-发布前破坏性演进)。由已接受 v4 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+
+
 当前接受坐标为 `capability.loop-extension-runner/v3`（[D-076](../../../record/decisions/model-runtime-delivery-adoption/decision.md)）；当前新草稿为 [v4 candidate](v4/contract.md)，尚未接受。下面的 v2 导航保留其原采用范围，v3/v4 增量入口见文末。
 
 ## v2 已发布版本导航

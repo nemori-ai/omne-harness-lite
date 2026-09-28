@@ -1,5 +1,7 @@
 # pi-ai-transport
 
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v9-current-design.md](v9-current-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
 ## v8 统一公开面与破坏性迁移候选（2026-09-28）
 
 按用户“不需要兼容任何旧版”的最新要求，[v8 增量](v8-input-limits-design.md)撤销下面 v7 的过渡子入口与旧执行保留方案：当前根、插件、八家定义、runtime 消费和 demo 一起迁到 MP4/RT6；不保留旧 Pro 特例，不为历史兼容保留旧 schema/codec。用户数据不删除，不兼容输入明确失败。缺可靠计量时新版请求发前拒绝，不能通过旧执行旁路保持成功发送。

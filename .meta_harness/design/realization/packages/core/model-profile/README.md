@@ -1,5 +1,7 @@
 ## v4 破坏性迁移增补（2026-09-28）
 
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v5-current-design.md](v5-current-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
 用户明确取消现阶段旧版兼容要求；[破坏性迁移增补](v4-breaking-migration.md)据此提出替代 D-098 的旧入口与 codec 保留路径，原 [v4-design.md](v4-design.md) 采用字节不变。root/schema 直接 MP4；不新增 v3 端口，既有 v2 端口在实际消费者同步迁移后移除。旧用户数据不改，版本不兼容明确拒绝。
 
 | 层次 | 本次增补事实 |

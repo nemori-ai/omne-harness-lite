@@ -183,3 +183,20 @@ G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和�
 ## 2026-09-28 G6纯构件实施与有限验证
 
 [D093实施事件](../../../../record/decisions/model-credential-policy-adoption/decision.md#2026-09-28-纯构件有限实施签收)及[完整实际原档](../../../../record/evidence/2026-09-28-tests-model-credential-redaction-pure/README.md)记录源码f6a5d1f2／HUB7f580351、独立GI1–7有限Pass及当前HUB4a268c91专用字节与组合回归。限定签收显式配置／纯text/header/raw-error JSON政策构件；新增规范绑定0，不签收raw.body／附件、生产H和完整S20、G4必需事实、十三操作或37模型认证。历史“源码尚待”属于2026-09-27的状态。
+
+## R7 当前格式与服务施工义务
+
+2026-09-28：[v7-current-design rev1](v7-current-design.md) 为候选增量，未接受，新增 bindings 0。本节全部为**待执行**；现有纯函数、RT6 有限模型和旧 paid demo 不证明当前十三操作通过。
+
+| 义务 | 必须实际发生的反例与观察 | owner/未覆盖 |
+|---|---|---|
+| R7-V1 | 当前 MP5→MS6→MR7/LC6 全字段保真；旧 codec 导出消失，旧输入拒绝且旧用户目录字节不变；无 required-cap 回填；current unknown 任务未被遗弃 | root/core/codec/各消费者；R7-G1 采用后运行 |
+| R7-V2 | 上限恰等于/超出、unknown upstream、有依据上界、全 tools/system/模态/包装；调用后 mutation 与伪 planned；每个拒绝断言零新 anchor/HTTP/response/ending，成功 send 与计量 bytes 相同 | B/transport；缺真实 meter 的模型不得列交付 |
+| R7-V3 | MR7 Pending 全事实、无 disposition/late；服务 S-49 显式拒 persisted；外部 persisted 原 [M,R] 同批；重复同处置认回、异处置 alreadyEnded、回执丢失保留 owner | B/C/真实外部调用者，不能只测 responseFor 工厂 |
+| R7-V4 | 同 [A,A] 发出分别配 0/1 条默认 retry 得不同结果；已给未发计数、自定义件保留但不算默认次数、跨调用/同时间戳不误归/不去重 | A/runner5/P-5；真实 writer/reader，不拿输入 fixture 作来源证明 |
+| R7-V5 | failed 与账已提交而结论源暂不可读，dispatch/readAttempts unavailable；恢复后 S-34 同前缀取回完整主体，计数/HTTP/日志条数不因重取变化；并发新结论后再次读更新，guard 仍现算 | A/B/runner5，R7-G3 |
+| R7-V6 | 同调用双 dispatch 至多一个新锚点；流式等待时 interrupt 能先落意图再发信号；opened unknown、append completion 先于真实 stopped、后次 THIS 零写不消旧 unknown | root/B/C/真实日志；mock abort 不证停止 |
+| R7-V7 | withRun 读尾 t 后新 attempt/Run 终结竞争导致旧尾零写；反序原批不追改。noRun 不调用 G28、无 late；G28 缺席不阻选择与 noRun 正常链 | C/原 loop/宿主；真实 Run 解释缺口 R7-G4 |
+| R7-V8 | 十三方法精确失败次序/非法跨 session/服务重载关闭/缺依赖；root exports、独立包使用、EN/ZH 示例；各组共享一个容器、codec 与结算实现 | root 集成；R7-G5。逐操作实际结果才增加完成计数 |
+
+覆盖缺口：R7-G1～G5 逐条沿 design；未建立新的正式产品装配节点。examples 的开发宿主可提供本次真实验证环境，但只有它实际承接的入口身份、时钟、全读权限、恢复开闸和停止责任可以计入证据。`bindings.yaml` 不增加待执行场景；仍只绑定已经存在且会失败的原有证据。
