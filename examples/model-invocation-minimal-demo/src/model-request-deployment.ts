@@ -31,7 +31,8 @@ export function prepareModelRequestDeployment(
     input.reservationWaitPolicy === undefined ||
     input.settlement === undefined ||
     input.settlement.contention === undefined ||
-    input.settlement.scheduler === undefined
+    input.settlement.scheduler === undefined ||
+    (input.assetRegistry !== undefined && typeof input.assetRegistry.lookup !== 'function')
   )
     throw new Error('acceptance request deployment invalid')
   createCredentialRedactionPolicy(input.invocation.credentialRedaction)

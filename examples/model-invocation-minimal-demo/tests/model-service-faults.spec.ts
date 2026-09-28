@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path'
 import { open, type FileHandle } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
-import { judgeMessage, type UserMessage } from '@omne-harness-lite/messages'
+import { judgeMessage, type ToolMessage, type UserMessage } from '@omne-harness-lite/messages'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment, publication, ROOT } from './model-request-support.ts'
@@ -27,6 +27,33 @@ function user(id: string): UserMessage {
     ],
   })
   if (!('ok' in judged) || judged.ok.type !== 'user') throw new Error('test user invalid')
+  return judged.ok
+}
+function toolResult(id: string): ToolMessage {
+  const judged = judgeMessage({
+    type: 'tool',
+    id: `tool-${id}`,
+    callId: id,
+    createdAt: AT,
+    blocks: [
+      {
+        id: `result-${id}`,
+        kind: 'tool_result',
+        callId: id,
+        outcome: 'completed',
+        blocks: [
+          {
+            id: `result-text-${id}`,
+            kind: 'text',
+            text: 'value=42',
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  if (!('ok' in judged) || judged.ok.type !== 'tool') throw new Error('tool result fixture invalid')
   return judged.ok
 }
 function send(
@@ -71,6 +98,29 @@ describe('real unified service boundaries in the demo', () => {
       await app.prepareModelInputs(who, 's1')
       await app.selectModel(who, 's1', MODEL)
       expect(await app.attachModelCallHost(who, 's1', host)).toEqual({ attached: true })
+      const before = await app.readSessionLog(who, 's1')
+      expect(
+        await app.startServiceCall(who, 's1', {
+          user: user('missing-registry'),
+          tools: ['example__read'],
+          parameters: {},
+          host: host.host,
+        }),
+      ).toEqual({ unavailable: true })
+      expect(await app.readSessionLog(who, 's1')).toEqual(before)
+      expect(
+        await app.appendServiceToolResult(who, 's1', {
+          message: toolResult('orphan'),
+          host: host.host,
+        }),
+      ).toEqual({ invalidInput: { reason: 'malformed' } })
+      expect(
+        await app.appendServiceToolResult(other, 's1', {
+          message: toolResult('orphan'),
+          host: host.host,
+        }),
+      ).toEqual({ failure: 'identityMismatch' })
+      expect(await app.readSessionLog(who, 's1')).toEqual(before)
       expect(await send(app, other, 's1', host, 'cross')).toEqual({ failure: 'identityMismatch' })
       expect(
         await app.startServiceCall(who, 's1', {

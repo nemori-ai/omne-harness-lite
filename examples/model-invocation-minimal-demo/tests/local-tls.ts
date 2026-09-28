@@ -55,7 +55,7 @@ export async function createLocalTls(
     socketClosed = deferred()
   const pending = new Set<Promise<void>>()
   const failures: unknown[] = []
-  let mode: 'complete' | 'reasoning' | 'hold' | 'http503' = 'complete',
+  let mode: 'complete' | 'reasoning' | 'hold' | 'http503' | 'tool' = 'complete',
     closedSockets = 0,
     held: ServerResponse | undefined
   const server = createServer({ key: await readFile(key), cert: certBytes }, (req, res) => {
@@ -79,6 +79,13 @@ export async function createLocalTls(
         'x-request-id': 'independent-upstream-id',
         'set-cookie': ['safe-one=1', 'safe-two=2'],
       })
+      if (mode === 'tool') {
+        res.end(
+          `data: ${JSON.stringify({ id: 'independent-generation', model, provider: 'DeepInfra', choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_exact', function: { name: 'example__read', arguments: '{}' } }] }, finish_reason: null }] })}\n\n` +
+            `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 9, completion_tokens: 3, total_tokens: 12, prompt_tokens_details: { cached_tokens: 4, cache_write_tokens: 0 }, cost: 0.0000117 } })}\n\ndata: [DONE]\n\n`,
+        )
+        return
+      }
       if (mode === 'reasoning')
         res.write(
           `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: 'private reasoning' }, finish_reason: null }] })}\n\n`,

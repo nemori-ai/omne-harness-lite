@@ -20,6 +20,7 @@ import {
   type RuntimeCloseResult,
   type SessionObserverAccess,
   type SettlementResult,
+  type SettlementOwner,
   type SessionModelSelection,
   type SessionModelSelectionInput,
   type SettlementLogBinding,
@@ -42,7 +43,15 @@ import {
   prepareModelLogEntry,
   modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
-import { judgeMessage, type SessionRef, type UserMessage } from '@omne-harness-lite/messages'
+import {
+  judgeMessage,
+  judgePairing,
+  type SessionRef,
+  type UserMessage,
+  type ToolMessage,
+  type LoggedMessage,
+} from '@omne-harness-lite/messages'
+import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { createRequestOwner } from './model-request-owner.ts'
 import { createDemoObserverAccess, createDemoObserverEndpoint } from './model-observer-endpoint.ts'
@@ -100,6 +109,7 @@ import {
   isOk,
   parseOpaqueIdentifier,
   parseTenantId,
+  type TenantId,
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
@@ -345,12 +355,24 @@ export interface AcceptanceApplication {
     request: {
       readonly callId?: unknown
       readonly user: UserMessage
+      readonly tools?: readonly ModelToolName[]
       readonly parameters: ModelRequestParameters
       readonly host: ModelCallHost
       readonly observer?: ModelObserverRequest
     },
   ): Promise<
     ScenarioResult<{ readonly callId: string; readonly result: DispatchResult } | OpenCallResult>
+  >
+  appendServiceToolResult(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: { readonly message: ToolMessage; readonly host: ModelCallHost },
+  ): Promise<
+    ScenarioResult<
+      | { readonly appended: true }
+      | { readonly invalidInput: { readonly reason: 'malformed' } }
+      | { readonly unavailable: true }
+    >
   >
   close(): Promise<CloseResult>
   status(): {
@@ -966,9 +988,9 @@ export function createAcceptanceApplication(
                 credentials: lookup,
                 currentEvaluationInputs: currentInputs,
                 observers: observerAccess.access,
-                tools: {
+                tools: requestDeployment?.assetRegistry ?? {
                   async lookup() {
-                    return { none: true }
+                    return { failure: 'unavailable' }
                   },
                 },
               }
@@ -1435,6 +1457,107 @@ export function createAcceptanceApplication(
     }
     return { borrow, checked }
   }
+  async function appendServiceMessage(
+    binding: SettlementLogBinding,
+    owner: SettlementOwner,
+    tenant: TenantId,
+    message: UserMessage | ToolMessage,
+  ): Promise<
+    | { readonly messages: readonly LoggedMessage[] }
+    | { readonly invalidInput: { readonly reason: 'malformed' } }
+    | { readonly unavailable: true }
+  > {
+    if (requestDeployment === undefined) return { unavailable: true }
+    const acquired = owner.acquire(requestDeployment.settlement.contention.limits.concurrent)
+    if ('unavailable' in acquired) return { unavailable: true }
+    let unknownWrite = false
+    try {
+      const prefix = await readSettlementPrefix({ binding, registration: acquired.registration })
+      if ('unavailable' in prefix) return { unavailable: true }
+      const projected = messagePrefix(prefix.prefix)
+      if ('unavailable' in projected) return { unavailable: true }
+      if (message.type === 'tool') {
+        const pairing = judgePairing(message, projected.messages)
+        if (!('valid' in pairing) || !pairing.valid)
+          return { invalidInput: { reason: 'malformed' } }
+      }
+      const captured = captureModelLogValue({
+        category: 'message',
+        input: { kind: 'value', value: message },
+      })
+      if ('invalidValue' in captured) return { invalidInput: { reason: 'malformed' } }
+      const entry = prepareModelLogEntry({
+        session: binding.session,
+        shell: { tenant },
+        captured: captured.ok,
+        purpose: { kind: 'message' },
+        messagePrefix: projected.messages,
+      })
+      if ('invalidValue' in entry) return { invalidInput: { reason: 'malformed' } }
+      const append = acquired.registration.start(
+        'append',
+        async () =>
+          await binding.log.append(
+            binding.session,
+            [entry.ok],
+            { kind: 'unfenced' },
+            { kind: 'tailEquals', tail: prefix.prefix.tail },
+          ),
+      )
+      let receipt: Awaited<typeof append.completion>
+      try {
+        receipt = await append.completion
+      } catch {
+        unknownWrite = true
+        return { unavailable: true }
+      } finally {
+        await append.stopped
+      }
+      if ('failure' in receipt) {
+        if (receipt.failure === 'unavailable') unknownWrite = true
+        return { unavailable: true }
+      }
+      return { messages: [...projected.messages, message] }
+    } finally {
+      if (!unknownWrite) acquired.registration.release()
+    }
+  }
+  function appendServiceToolResult(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: { readonly message: ToolMessage; readonly host: ModelCallHost },
+  ): Promise<
+    ScenarioResult<
+      | { readonly appended: true }
+      | { readonly invalidInput: { readonly reason: 'malformed' } }
+      | { readonly unavailable: true }
+    >
+  > {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    const judged = judgeMessage(request?.message)
+    if (!('ok' in judged)) return Promise.resolve({ invalidInput: { reason: 'malformed' } })
+    const message = judged.ok
+    if (message.type !== 'tool') return Promise.resolve({ invalidInput: { reason: 'malformed' } })
+    return trackSessionInput(session, async () => {
+      const access = await sessionAccess(actor, session)
+      if (!('borrow' in access)) return access
+      const { borrow, checked } = access
+      if (recoveryAdmission.has(borrow.binding.session)) return { failure: 'stageClosed' }
+      if (
+        ![...(callHosts.get(borrow.binding.session) ?? [])].some(
+          owner => owner.host === request.host && !owner.host.stopping(),
+        )
+      )
+        return { failure: 'stageClosed' }
+      const appended = await appendServiceMessage(
+        borrow.binding,
+        borrow.owner.owner,
+        checked.tenant,
+        message,
+      )
+      return 'messages' in appended ? { appended: true } : appended
+    })
+  }
   function bindModelRuntime(
     actor: AuthenticatedActor,
     session: unknown,
@@ -1731,6 +1854,7 @@ export function createAcceptanceApplication(
     request: {
       readonly callId?: unknown
       readonly user: UserMessage
+      readonly tools?: readonly ModelToolName[]
       readonly parameters: ModelRequestParameters
       readonly host: ModelCallHost
       readonly observer?: ModelObserverRequest
@@ -1745,15 +1869,25 @@ export function createAcceptanceApplication(
         : parseOpaqueIdentifier(request.callId, 'ModelCallId')
     const message = judgeMessage(request?.user)
     const copiedParameters = copyJsonValue(request?.parameters)
+    const copiedTools = copyJsonValue(request?.tools ?? [])
     if (
       (callId !== undefined && !isOk(callId)) ||
       !('ok' in message) ||
       message.ok.type !== 'user' ||
-      !('ok' in copiedParameters)
+      !('ok' in copiedParameters) ||
+      !('ok' in copiedTools) ||
+      !Array.isArray(copiedTools.ok)
     )
       return Promise.resolve({ invalidInput: { reason: 'malformed' } })
     const copiedUser = message.ok
     const parameters = copiedParameters.ok
+    const tools: ModelToolName[] = []
+    for (const raw of copiedTools.ok) {
+      const name: unknown = raw
+      if (typeof name !== 'string' || name.length === 0 || tools.includes(name))
+        return Promise.resolve({ invalidInput: { reason: 'malformed' } })
+      tools.push(name)
+    }
     if (!parametersFace(parameters))
       return Promise.resolve({ invalidInput: { reason: 'malformed' } })
     const parsedSession = parseOpaqueIdentifier(session, 'SessionRef')
@@ -1778,74 +1912,29 @@ export function createAcceptanceApplication(
       )
         return { failure: 'stageClosed' }
       if (modelRuntime === undefined) return { unavailable: true }
+      if (tools.length !== 0 && requestDeployment?.assetRegistry === undefined)
+        return { unavailable: true }
       runtimeActors.set(borrow.binding.session, checked)
       const effective = await modelRuntime.service.effectiveModel({
         session: borrow.binding.session,
       })
       if (!('effectiveModel' in effective)) return effective
       if (requestDeployment === undefined) return { unavailable: true }
-      const acquired = borrow.owner.owner.acquire(
-        requestDeployment.settlement.contention.limits.concurrent,
+      const appended = await appendServiceMessage(
+        borrow.binding,
+        borrow.owner.owner,
+        checked.tenant,
+        copiedUser,
       )
-      if ('unavailable' in acquired) return { unavailable: true }
-      let messages: readonly import('@omne-harness-lite/messages').LoggedMessage[]
-      let unknownWrite = false
-      try {
-        const prefix = await readSettlementPrefix({
-          binding: borrow.binding,
-          registration: acquired.registration,
-        })
-        if ('unavailable' in prefix) return { unavailable: true }
-        const projected = messagePrefix(prefix.prefix)
-        if ('unavailable' in projected) return { unavailable: true }
-        const captured = captureModelLogValue({
-          category: 'message',
-          input: { kind: 'value', value: copiedUser },
-        })
-        if ('invalidValue' in captured) return { invalidInput: { reason: 'malformed' } }
-        const entry = prepareModelLogEntry({
-          session: borrow.binding.session,
-          shell: { tenant: checked.tenant },
-          captured: captured.ok,
-          purpose: { kind: 'message' },
-          messagePrefix: projected.messages,
-        })
-        if ('invalidValue' in entry) return { invalidInput: { reason: 'malformed' } }
-        const append = acquired.registration.start(
-          'append',
-          async () =>
-            await borrow.binding.log.append(
-              borrow.binding.session,
-              [entry.ok],
-              { kind: 'unfenced' },
-              { kind: 'tailEquals', tail: prefix.prefix.tail },
-            ),
-        )
-        let receipt: Awaited<typeof append.completion>
-        try {
-          receipt = await append.completion
-        } catch {
-          unknownWrite = true
-          return { unavailable: true }
-        } finally {
-          await append.stopped
-        }
-        if ('failure' in receipt) {
-          if (receipt.failure === 'unavailable') unknownWrite = true
-          return { unavailable: true }
-        }
-        messages = [...projected.messages, copiedUser]
-      } finally {
-        if (!unknownWrite) acquired.registration.release()
-      }
+      if (!('messages' in appended)) return appended
       const opened = await modelRuntime.service.openCall({
         session: borrow.binding.session,
         ...(callId === undefined ? {} : { callId: callId.ok }),
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,
-        messages,
+        messages: appended.messages,
         parameters,
-        tools: [],
+        tools,
         host: request.host,
         ...(request.observer === undefined ? {} : { observer: request.observer }),
       })
@@ -1910,6 +1999,7 @@ export function createAcceptanceApplication(
     attachModelCallHost,
     reconcileModelRuntime,
     startServiceCall,
+    appendServiceToolResult,
     close() {
       if (closingPromise !== undefined) return closingPromise
       closing = true

@@ -63,6 +63,8 @@ Closed. Start again with the same --data path to resume.
 
 程序消费者可通过 `startServiceCall(actor, session, { user, parameters, host, observer? })` 提交完整且已校验的 `UserMessage`，包括图片块。装配在打开调用前原样耐久追加消息，由所选模型和传输检查兼容性。本地受控 TLS 测试覆盖两轮真实 Flash 服务调用、两张不同 PNG、持久 JSONL 历史与第二轮完整线上请求。交互命令行仍只接收文本；此入口不增加附件命令语法、工具执行或 Run。
 
+可信部署可提供借用的 `modelRequest.assetRegistry`（`AssetRegistryService.lookup` 端口）。此时 `startServiceCall` 可带 `tools: ModelToolName[]`，由运行时在该会话的真实注册表中解析；缺注册表而给出非空工具名单则返回 unavailable。外部工具结果写方在完整模型工具调用已经持久化后，可用 `appendServiceToolResult(actor, session, { message, host })` 提交已校验的 `ToolMessage`。装配先核当前身份、宿主归属及完整耐久前缀中的配对，再做一次条件追加；不执行工具，也不虚构 Run。借用注册表的所有者须保持它存活直到应用关闭；命令行不配置此端口。本地受控 TLS 测试覆盖真实注册表／清单／求值输入填表、工具声明、助手调用和响应持久化、配对结果、下一轮线上历史、拒绝分支和关闭。
+
 本地检查：`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run build`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run typecheck`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run test`，以及从仓库根运行 `python3 examples/model-invocation-minimal-demo/tests/pty-check.py`。测试使用本地受控 TLS 端点，不消费真实生产密钥。服务、选择、观察端和恢复映射依据见 [RT9](../../.meta_harness/design/spec/capabilities/model-request-runtime/v9/contract.md)、[D103](../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 和[runtime realization](../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；持久响应语义见 [MR8](../../.meta_harness/design/spec/data/model-response/v8/contract.md)。
 
 此前统一服务装配已有[真实 OpenRouter PTY 三轮有界运行证据](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-service/README.md)。本次模型切换修订只在本地受控 TLS 与 PTY 下验证，尚无跨模型付费请求认证。
