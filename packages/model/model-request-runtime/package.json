@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./log-codec/v2": {
+      "types": "./dist/log-codec-v2.d.ts",
+      "import": "./dist/log-codec-v2.js"
     }
   },
   "files": [
