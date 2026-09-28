@@ -159,7 +159,10 @@ describe('demo runtime with Cordis transport contributions', () => {
     const flash = createOfficialProfileContent(deepseekV41FlashDefinition, {
       providers: ['deepinfra/fp8'],
       allowFallback: false,
-      configuration: deepseekV41FlashConfiguration,
+      configuration: {
+        ...deepseekV41FlashConfiguration,
+        revision: 'hotupdate-flash-configuration',
+      },
     })
     if ('rejected' in flash) throw new Error('Flash profile fixture invalid')
     let preparedSources = 0
@@ -306,6 +309,11 @@ describe('demo runtime with Cordis transport contributions', () => {
         expect(
           await app.persistModelReply(who, 'hotupdate-new', second.result.replyPending),
         ).toHaveProperty('settled')
+      const newHistory = await app.readSessionLog(who, 'hotupdate-new')
+      if (!('entries' in newHistory)) throw new Error('new durable history unavailable')
+      const durable = JSON.stringify(newHistory.entries)
+      expect(durable).toContain('hotupdate-flash-configuration')
+      expect(durable).toContain(FLASH)
       expect(oldRetired).toBe(false)
       tls.finishHeld()
       const first = await oldCall
