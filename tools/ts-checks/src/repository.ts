@@ -20,6 +20,7 @@ export const REPOSITORY_RULES = [
   modelCredentialBoundary,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {
+  root = resolve(root)
   const sources: SourceFile[] = []
   const optionsCache = new Map<string, ts.CompilerOptions>()
   function readOptions(config: string): ts.CompilerOptions {
