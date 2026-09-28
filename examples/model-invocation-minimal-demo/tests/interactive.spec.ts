@@ -47,6 +47,44 @@ async function batches(directory: string): Promise<unknown[]> {
   return result
 }
 describe('real interactive durable conversation', () => {
+  it('HTTP 503 records a failed response but exits nonzero with a safe generic message', async () => {
+    const root = await setup('http503-'),
+      tls = await createLocalTls(join(root, 'tls')),
+      data = join(root, 'data')
+    tls.setMode('http503')
+    const credential = Buffer.from('controlled-503-private-key')
+    try {
+      const demo = await openDemo(data, credential, {
+        developmentTransport: tls.developmentTransport,
+      })
+      const out = output()
+      expect(
+        await runInteractive(
+          demo,
+          Readable.from(['trigger failure\n', '/exit\n']),
+          out.stream,
+          false,
+        ),
+      ).toEqual({ complete: false, interrupted: false })
+      expect(out.text()).toContain(
+        'Model request failed; durable response recorded. No automatic retry.',
+      )
+      expect(out.text()).toContain('Closed after model failure.')
+      expect(out.text()).not.toContain('Close incomplete')
+      expect(out.text()).not.toContain('controlled failure')
+      expect(out.text()).not.toContain(credential.toString())
+      expect(tls.requests).toHaveLength(1)
+      expect(tls.failures).toEqual([])
+      const commits = await batches(join(data, 'session-logs'))
+      const durable = JSON.stringify(commits)
+      expect(durable.match(/"outcome":"failed"/gu)).toHaveLength(1)
+      expect(durable).not.toContain('"type":"assistant"')
+      expect((await demo.application.close()).complete).toBe(true)
+    } finally {
+      credential.fill(0)
+      await tls.close()
+    }
+  })
   it('streams two turns, closes, and a new startup sends both prior pairs in the third turn', async () => {
     const root = await setup('multi-'),
       tls = await createLocalTls(join(root, 'tls')),

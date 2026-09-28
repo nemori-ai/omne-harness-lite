@@ -5,10 +5,11 @@ import { runInteractive } from '../../dist/index.js'
 import { createLocalTls } from '../local-tls.ts'
 
 const [data, mode] = process.argv.slice(2)
-if (!data || !['complete', 'hold'].includes(mode))
+if (!data || !['complete', 'hold', 'http503'].includes(mode))
   throw new Error('explicit data path and controlled mode required')
 const tls = await createLocalTls(join(dirname(data), `pty-tls-${process.pid}`))
 if (mode === 'hold') tls.setMode('hold')
+if (mode === 'http503') tls.setMode('http503')
 const credential = Buffer.from('private-controlled-pty-key')
 let complete = false
 try {
