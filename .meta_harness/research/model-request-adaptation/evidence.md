@@ -1,5 +1,17 @@
 # 来源与可复核观察
 
+## 2026-09-28 输入计量来源与离线复现
+
+[主线报告](reports/2026-09-28-input-meter-sources.md)对应[241 成员归档](input-meter-research-2026-09-28.tar.gz)，1,461,523 字节，SHA256 `59864709a9f3d48e0de38733443d0c2995cc23e8f237740536f5b812146e688a`。内含 `SHA256-manifest.json` 及 240 个逐字摘要工件；主线读回全部匹配。`anthropic/`、`closed/`、`open/` 为三路原交付，`root/` 为主线独立复现和七个关键原文重新 GET 的收据。原报告是作者输出，不因归档或摘要通过成为独立证据。
+
+主线亲核范围：Anthropic 官方 token-counting 页和固定 ctok README 的能力／已知差异；pi 与 OpenCode 固定估算函数；OpenAI input-token count、Google Developer countTokens、Cloud 3.7/3.8 支持列表和 xAI TokenizeText 页；DeepSeek 两版 encoder、Flash image processor／配置、Qwen 2.4T 商业差异说明、Moonshot estimate API 和 ZAI tokenizer schema。前述七项原文重新下载的字节与作者一致，URL、时间、摘要见 `root/source-refetch.json`。tiktoken／Google loader 和公开模板还通过实际离线抽取执行核验具体分支。
+
+主线独立环境重跑结果见 `root/*-result.json`：Claude 历史 66 项及五条合成文本一致；OpenAI／Google 映射及 JSON 数值、开放模型模板／图片数学探针解析后完全一致。首次 Claude 核验缺少 JS 第二步导致字段不齐，补完整复现步骤后通过；未修改期望数值。66 项期望是上游作者历史采集，**本轮没有独立取得的 API 真值**。图像探针不解码图片；模板探针记录字节而非 token。复现方法见 `anthropic/evidence/REPRODUCE.md`、`closed/README.md`、`open/report.md`；大的 ctok／o200k 词表按固定清单重新下载，不将缓存或 venv 归档。
+
+主线逐字核对来源 manifest 的 38 个 Anthropic 工件、123 个开放模型工件，以及 41 个 closed 工件的压缩前后摘要；这是完整性核验。原稿中的其他社区 issue、DSH／omne-next 扩展调用链、各模型许可具体适用判断，以及未列入前述亲核范围的叙述仍为**仅转述，未核原文**。公开仓列表由固定下载资料定位，不把词表上游元数据摘要称为已下载验证。官方页是厂商声明，社区样本是作者记录，两者均没有当前 OR route 等值保证。
+
+查重与差异处理：三路重复读取的 OpenRouter overview／公开索引只算一项“此次未找到统一预发计数端点”的观察；403 原始下载与浏览工具读到文本不冲突，浏览摘取不提供 HTTP 原件摘要。Google Cloud 明确覆盖与本地 loader 拒绝也不冲突，二者是不同接口。三个报告没有发现需择一采信的计数结果冲突。closed 原稿的“另行授权”指作者任务未获在线请求权限；它不撤销主线已有授权，也不构成本项目新增审批条件。本轮零厂商计量／推理请求，不更新付费账本，不改变 37 模型认证数。
+
 ## 2026-09-27 首两个 OpenAI 固定 route 的窄复核
 
 [本轮读数](reports/2026-09-27-first-two-openai-routes.md)只复核 Sol/Luna 两个固定 openai route，不重查其余35项。[63成员原件归档](first-two-openai-routes-2026-09-27.tar.gz)为463186字节，SHA256 `f7f4509648450cb30db1f0079e9ba8110afe961ea47724d65725bef5fdfa038d`；原62工件manifest SHA `41e2e353117c07fb30948dcb315ec1d542e24aa9b4c2ad8cab91c922727879a5`，主线全部成员逐字读回。官方MCP Markdown与真实HTTP body分别标明取得方式；型号页的首次精确时间未记录，不能补造。
