@@ -1,5 +1,7 @@
 # model-request-runtime
 
+2026-09-28：[D-103](../../../../record/decisions/model-runtime-host-observer-adoption/decision.md) 技术采用 [v11 宿主与观察接口](v11-host-observer-design.md)，精确正文保留受审候选标记，以本采用记录判当前状态。RT8 S-51/S-61/S-62 的行为已接受；具体接口可施工，新增 bindings 0，H-V1～12 及真实宿主／观察接收端尚待实现验收。L1/L2 与恢复规格不在本次采用范围。
+
 2026-09-28：[D-102](../../../../record/decisions/model-runtime-owner-close-adoption/decision.md) 独立采用 [v10](v10-owner-assembly-design.md) 的统一 store／组合 close 实施面。原文候选标记保留其受审字节；L1/L2 交接未采用，实际统一服务与收口验收尚未完成。
 
 当前计量映射：[v9-token-estimate-design.md](v9-token-estimate-design.md)，MP6/RT8计量政策；已由[D-101](../../../../record/decisions/model-token-estimate-adoption/decision.md)技术采用；新增绑定0，真实发送尚未验收。下列接受/候选段分别按所述版本读取。

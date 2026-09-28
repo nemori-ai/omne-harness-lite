@@ -1,5 +1,26 @@
 # model-request-runtime 验证与证据
 
+## v11 宿主与观察端口候选义务
+
+对应 [v11 revision 1](v11-host-observer-design.md)，全部待实施、待运行；新增 bindings 0，不把检查器通过当行为验证。
+
+| 编号／条款 | 可失败场景与断言 | owner |
+|---|---|---|
+| H-V1：RT8 S-61 | stop 先于 register；register 插入后重入 stop；准备 await 期间 stop。均无漏取消、无停止后发布，失败资源归还一次；删登记临界段负控须失败 | C + 宿主 |
+| H-V2：S-28/S-61 | 数据型旧 host、缺 register/signal/stopping 拒绝；已停止 runtimeStopped；登记抛错 unavailable；零 send/锚点 | B |
+| H-V3：S-36/S-61 | open 已返回且短 reservation 释放后 host stop，未发 call 有 interrupted/run_cancelled 终结；在途 abandon 不产回复；重复 stop 与主动结算不重复响应，close 不自锁 | B |
+| H-V4：S-61/S-64 | 真实 Cordis 撤除时 receiver/append 未停：fiber 消失原 owner 仍可定位；迟到 stopped 后再 close 才 unregister/release 一次；部分构造失败同测 | C + 装配 |
+| H-V5：S-62①② | 同名 callId 的跨会话/租户 endpoint；伪造同形对象；关联未知与明确错配分别 unavailable/observer_scope_mismatch，open 可判分支零联网 | 装配 + B |
+| H-V6：S-62②③ | dispatch 2 使用 dispatch 1 限定接收端：零发出；合法 dispatch 2 且 dispatch 1 receiver 未 actual stopped 时，不新建 receiver、旧端零新 target 文本，模型 send/结算继续；与 H-V11 合跑，stopped 后仅下次 dispatch 重建。旧 stream 迟到事件不能进入新队列。去目标核验负控须失败 | B |
+| H-V7：S-62② | authorize 后撤权、endpoint.open 重入撤权、入队后消费前撤权；真实关联检查拒收而非接收方过滤，零错域正文 | 装配 + C |
+| H-V8：S-51⑧⑨ | opened 门阻塞时 snapshot 无内容；start 与首 onAccepted 交错，p 前由原快照覆盖、p 后仅已接受增量；不重复、不发 rawHeaders、不造第二装配状态 | B |
+| H-V9：S-62④⑧ | 缺任一双限/零/负/分数拒绝；中文/转义及大 snapshot 按实际 UTF-8 字节；等待+在途恰界 accepted，超界 buffer_full，不改变业务 response | C |
+| H-V10：S-62④⑥⑨ | receiver 永不完成时 send/结算仍完成、队列不越双限；sync throw/completion reject 各记 consumer_failed 与计数，ModelResponse cause 不变 | C |
+| H-V11：S-62⑧⑨ | completion 先完成而 stopped 待定，额度仍被占、无第二 receive；close 返回 unavailable 并保留任务，后台实际退出后 released；与 H-V6 合跑，dispatch 1 receiver 未停时合法 dispatch 2 继续 send/结算但零新增 receiver、零旧端新 target 文本；stopped 不在 dispatch 2 中途复活观察，仅下一次 dispatch 重建。晚到 offer 不复活 | C + 接收适配 |
+| H-V12：S-62⑤⑦⑨/S-63 | accepted 后异步失败有单独诊断；close 丢弃逐项计数，sink 抛错隔离；重复观察不重做 send/结算，完整事实由原日志可读 | 装配 |
+
+覆盖缺口 H-G1/H-G2：候选未采用且真实宿主/观察提供者未接线，完整服务消费者仍受阻。上述测试既要受控交错，也要实际接收资源（例如终端写入完成/关闭）和真实宿主登记组合；mock valid/stopped 不代证。原恢复缺口 H-G3 仍由主线负责，不扩大本组验证结论。
+
 ## RT4 结算投影采用（2026-09-27）
 
 [D087](../../../../record/decisions/model-runtime-v4-projection-adoption/decision.md)技术采用[v4-design rev2](v4-design.md)；R4-V1～V13全部待执行，原R3-V1～V23及T／SC／G、公开制品、双语示例和37生产认证义务保留。两类独立设计评审无阻断不构成运行结果；本次新增bindings0，没有IO／真实十三操作／宿主恢复验收。G28～31及R4-G1～G6沿原owner保留；旧证据不改标签，runner3及源码不自动采用RT4。

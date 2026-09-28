@@ -176,3 +176,9 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 主线据独立 architecture-reviewer 消息保存的归因摘要（非逐字原件）：受审 runtime v10 SHA256 `9237c1744b3c3bec233274f50ad1ae0a7c039ca842880e30c765f57f95637be7`，新增“统一组合的全部调用收口”段无新阻断；唯一store owner、同步关准入、全部容器停止、迟到资源回收和全部实际释放后成功均有具体承载。原B1跨L1/L2未知调用责任交接仍阻断该分支，不扩大到healthy noRun。
 
 独立评审认可 root 对 selection 的条款解释：RT8 S27⑧保持原命令结果未知，SL3 S22/S35没有给无键命令恰一次认回保证；原追加和回调均实际停止后，可释放该命令物理registration，不追认成功或自动重放，不移除日志提供者自己的IO责任。已知反方“迟到旧selection覆盖新选择”要求留住仍活跃writer，不支持已停止后永久持有。最小验证必须区分ack未知且writer活跃/已停，零重放且原返回均不升级成功。未执行测试或接受；主线范围采用另见[D-102](../../decisions/model-runtime-owner-close-adoption/decision.md)。
+
+## 2026-09-28 宿主与流式观察接口窄评审
+
+主线据独立 architecture-reviewer 实际报告保存的归因摘要：v11 前稿 `1f09e797adb8dc6444b0d8b4138c280d51e5a677e751d24fdfe96abf3d0bceeb` 对 RT8 S-51/S-61/S-62 和 D-102 无本次架构阻断。真实 endpoint 私有关联、准备 owner 先登记、每 dispatch 接收端、双限含在途且 stopped 才回额度能够承载既有性质；没有新业务结果或持久事务保证。慢接收者对吞吐的代价保留，不前置并发优化。
+
+非阻断 N1 要求把 H-V6/H-V11 合跑：旧 receiver 未停时合法 dispatch2 模型发送和结算继续、零新 receiver、旧端零新 target；停止后仅后续 dispatch 重建。另提醒 S-36 收口措辞不得误导为 S-31 写中断意图。作者最终正文 `80f680b2cee1362b0820cd930174c9adb6968500731aa2c4bbed157126ce1814` 已窄修这两项并明确 D-102 采用范围；主线核差分，无独立最终复审声明。未执行 H-V、真实 Cordis 或接收任务验证；L1/L2 未覆盖。技术采用见 [D-103](../../decisions/model-runtime-host-observer-adoption/decision.md)。
