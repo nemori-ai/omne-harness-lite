@@ -439,7 +439,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 - 本包结构核对实际输出 `PASS: RT6 has 76 unique clauses; all 13 service operations have nine items; all 23 inherited formal files byte-identical; 40 candidate resources present; catalog fragment has 17 exact dependencies.`；`git diff --check` 退出0。该核对不验证业务语义或形式模型。
 - 临时原始输出为本次 `runtime6-fragments/check-design-final.log`、`local-audit.log`，登记片段由主线收存；它们不是 record/evidence 的已发布证据。
 
-### 未开始的证据义务
+### 证据义务及状态
 
 | 义务 | 规范落点 | 状态与负责者 |
 |---|---|---|
@@ -447,7 +447,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 | 每模型/供应商的可靠计量、所有实际发送模态/工具/协议、UTF8最终体 | RT6-I1～I9、S74、FinalPlan | 未开始；计量/传输/runtime提供者，G33 |
 | 完整pending数据交接、无默认处分、持久schema门与多写方 | RT6-P1～P3、S75、PendingReply | 未开始；MR/core/runtime/codec/实际回复写方 |
 | 已给未发、[A,A]两历史、跨调用与自定义结论、旧格式拒猜 | RT6-R1～R4、S76、RetryHistory | 未开始；LC/runner/runtime/日志提供者 |
-| TLC 正反配置 | v6/formal/README.md 的精确映射 | 未运行；主线整批执行正负配置，不声明无反例 |
+| TLC 正反配置 | v6/formal/README.md 的精确映射 | 新增四正退出0、六负指定断言退出12；精确独立证据见下节。继承配置未重跑 |
 | 数据 Schema 与真实生产读取、Run 终结认法 | MR6/LC5/MP4 owner；G28～G35 | 本包不代证；无 generic bool/fixture 闭合 |
 
 ### 登记边界
@@ -457,3 +457,19 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 ### v6 候选修复：FinalPlan 比较表达式
 
 2026-09-28 独立 TLC 首跑 FinalPlan.cfg 退出150，原始输出为 `Error: Parsing or semantic analysis failed.`，尚未进行性质检查，不是预期负配置反例。起因是 `checked' = measured <= Cap` 的运算符歧义；候选仅将 Evaluate 的三处 `measured <= Cap` 显式括起，性质、常量与配置不变。修后 FinalPlan.tla SHA-256 为 `bdc58e64ef05a4c598340386a7c2d8305393cc2dc1f55a89b4526c02324bbf92`；已交独立验证者另存输入并复跑两正三负，复跑结果尚未取得。旧失败日志保留在本次独立验证任务目录，执行归档由主线统一收存。`git diff --check` 通过；未重跑全仓检查或旧字节未变配置。
+
+
+### v6 当前需求来源核对与独立形式结果
+
+2026-09-28：按本版实际义务重读 PF-004 rev13 §6.6、PF-001 rev23 §6.4、PF-015 rev13 §6.12 与会话恢复段，并核对各包工作区增量的变化范围。对应请求时模型绑定、租户隔离/成本归属、固定会话租户与恢复义务仍成立；contract 的来源元数据及表改引这些当前精确来源。共享工作区、参与治理、reload、实例/多 worktree 和 AGENTS.md 上下文变化不由本版新增保证，归其所属契约。不是盲改 rev，也不改变旧冻结版来源。
+
+[独立有限 TLC 证据](../../../record/evidence/2026-09-28-formal-model-input-successors/README.md)已完成本版新增三模型的四正六负：FinalPlan.cfg 退出0/49不同状态，FinalPlan_Public.cfg 退出0/43，PendingReply.cfg 退出0/8，RetryHistory.cfg 退出0/42；六负均退出12且分别命中 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、NoInventedDisposition、CompleteHandoff、CountsOwnConclusions。已实际读取本轮 REPORT.md 与首次失败日志；记录中的工具为 TLC2 2026.09.12.025210（rev867aefb），Java21.0.12.1。首次 FinalPlan 解析失败退出150的记录保留，修后模型哈希仍为 `bdc58e64ef05a4c598340386a7c2d8305393cc2dc1f55a89b4526c02324bbf92`，不是把解析失败当预期反例。
+
+此结果仅支持 formal 入口列出的有限安全范围及输入前提；不证明实际计量、附件取得、Schema完备性、完整日志来源、真实多写方/资源或生产Run识别。旧字节不变配置未重跑；Alloy、规范场景及真实IO未运行。证据目录由主线迁入，候选包本轮未修改 record/registry，也未接受规格。
+
+
+### v6 变化的影响：失败主体的只读重取
+
+2026-09-28 整批表达检查发现：S29 已提交失败响应但 history 暂不可用后，原只读面未返回完整失败主体。主线裁定在现有 S34 readAttempts 的④⑤⑦⑧补 failureSubject 分支，S76.2/.5明确引用：awaiting_decision且最近实际响应failed时，同一合法完整前缀决定状态、响应、dispatches及完整retryConclusions；必要源不可判整体unavailable，恢复后重复读取可重取。其他状态不附主体，读取没有写入/发送/凭据/计次副作用，后续dispatchAgain仍核当时状态/守卫/fence。十三操作数目不变，旧冻结版未改。
+
+新增 RT6-R5～R8 覆盖源恢复、缺历史整体失败、并发前缀一致和S33后重取，真实消费者场景**未开始**。此变更只补现有读取的结果关系，不新增耐久状态或写入交错；不扩张现有 RetryHistory 模型覆盖。上述独立四正六负仅验证原已建模范围，不声称已验证这一重取路径。consumer-impact同步；本轮不改registry或接受记录。
