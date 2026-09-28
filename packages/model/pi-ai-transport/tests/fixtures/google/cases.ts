@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
@@ -8,10 +9,11 @@ import { judgedMessage, message } from '../../support.ts'
 export const googleCertificationAt = '2026-09-28T00:00:00Z'
 export const googleCertificationProvider = 'google-ai-studio'
 export const googleCertificationVisibility = { toHuman: true, toModel: true }
-// A real one-pixel PNG, so this case can later be used in an authorized
-// online certification run without replacing a fake image payload.
-const tinyPng =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='
+// Valid, checksum-tested test material. This does not expand the production
+// Google meter's finite media scope or establish provider acceptance.
+const tinyPng = readFileSync(new URL('../moonshot/valid-red-1x1.png', import.meta.url)).toString(
+  'base64',
+)
 export const googleCertificationTool: ModelToolEntry = {
   name: 'lookup__google',
   description: 'Look up a value',
