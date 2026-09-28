@@ -14,6 +14,7 @@ import {
   resumeSuccessfulFirstCase,
   wholeContextReservation,
   saveOutcomeEvidence,
+  totalPromptTokens,
 } from './paid-calibration.mjs'
 
 const endpoint = {
@@ -40,6 +41,8 @@ const completed = cost => ({
   outcome: 'complete',
   usage: {
     source: 'upstream',
+    cache_read_tokens: new LosslessNumber('0'),
+    cache_write_tokens: new LosslessNumber('0'),
     input_tokens: new LosslessNumber('25'),
     output_tokens: new LosslessNumber('10'),
   },
@@ -241,7 +244,13 @@ test('safe token oracle consumes real core numbers without changing recorded usa
       append: row => rows.push(row),
       invoke: async () => ({
         ...completed(new LosslessNumber('0.0008512')),
-        usage: { source: 'upstream', input_tokens: usage, output_tokens: new LosslessNumber('47') },
+        usage: {
+          source: 'upstream',
+          input_tokens: usage,
+          output_tokens: new LosslessNumber('47'),
+          cache_read_tokens: new LosslessNumber('0'),
+          cache_write_tokens: new LosslessNumber('0'),
+        },
       }),
     })
     assert.strictEqual(rows[1].upstreamInputTokens, usage)
@@ -407,3 +416,22 @@ for (const known of [true, false])
       assert.equal(entry.actualUsd, known ? '0.0008512' : undefined)
     })
   })
+
+test('full prompt includes both disjoint cache components; missing is never zero', () => {
+  const usage = {
+    source: 'upstream',
+    input_tokens: new LosslessNumber('112'),
+    cache_read_tokens: new LosslessNumber('128'),
+    cache_write_tokens: new LosslessNumber('0'),
+  }
+  assert.equal(totalPromptTokens(usage), 240)
+  assert.equal(totalPromptTokens({ ...usage, cache_write_tokens: new LosslessNumber('3') }), 243)
+  for (const missing of ['input_tokens', 'cache_read_tokens', 'cache_write_tokens']) {
+    assert.equal(totalPromptTokens({ ...usage, [missing]: 'unknown' }), undefined)
+    assert.equal(totalPromptTokens({ ...usage, [missing]: undefined }), undefined)
+  }
+  assert.equal(
+    totalPromptTokens({ ...usage, input_tokens: new LosslessNumber('9007199254740991') }),
+    undefined,
+  )
+})

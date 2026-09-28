@@ -198,7 +198,17 @@ function input(definition, name) {
       maxOutputTokens: 128,
       ...(name === 'holdout-tool-history' ? { reasoningEffort: 'high' } : {}),
     },
-    messages: scenarioMessages(name),
+    messages: scenarioMessages(name).map((item, index, all) => {
+      if (!nonce || index !== all.length - 1) return item
+      return message({
+        ...item,
+        blocks: item.blocks.map(block =>
+          block.kind === 'text'
+            ? { ...block, text: `${block.text}\nCalibration nonce: ${nonce}/${name}` }
+            : block,
+        ),
+      })
+    }),
     tools: name === 'holdout-tool-history' ? [tool] : [],
   }
 }
@@ -229,10 +239,21 @@ function option(name, fallback) {
 }
 const selectedModel = args.includes('--model') ? option('--model') : undefined
 const textOnly = args.includes('--text-only')
-if (selectedModel !== undefined && selectedModel !== 'x-ai/grok-4.6')
-  throw new Error('This explicit partial run supports only x-ai/grok-4.6')
+if (selectedModel !== undefined && !['x-ai/grok-4.6', 'x-ai/grok-4.7'].includes(selectedModel))
+  throw new Error('Unknown explicit model selection')
 if (textOnly !== (selectedModel !== undefined))
-  throw new Error('Use --model x-ai/grok-4.6 together with --text-only')
+  throw new Error('Use --model together with --text-only')
+const nonce = args.includes('--nonce') ? option('--nonce') : undefined
+if (selectedModel === 'x-ai/grok-4.7' && !nonce)
+  throw new Error('Fresh 4.7 text calibration requires --nonce')
+if (
+  nonce !== undefined &&
+  (selectedModel !== 'x-ai/grok-4.7' || !/^[A-Za-z0-9_-]{1,80}$/.test(nonce))
+)
+  throw new Error('Nonce is limited to the explicit fresh 4.7 text batch')
+const frozen = nonce && execute ? JSON.parse(readFileSync(option('--manifest'), 'utf8')) : undefined
+if (frozen && (!Array.isArray(frozen) || frozen.length !== 3))
+  throw new Error('Expected three frozen cases')
 const selectedDefinitions = selectedModel
   ? xaiDefinitions.filter(item => item.modelId === selectedModel)
   : xaiDefinitions
@@ -297,6 +318,18 @@ try {
           ...record(definition, name, planned.planned),
           ...(execute ? { snapshotSha256 } : {}),
         }
+        if (frozen) {
+          const matches = frozen.filter(
+            row => row.modelId === definition.modelId && row.scenario === name,
+          )
+          if (
+            matches.length !== 1 ||
+            matches[0].wireSha256 !== identity.wireSha256 ||
+            matches[0].candidateRevision !== identity.candidateRevision ||
+            matches[0].request !== planned.planned.serialized
+          )
+            throw new Error('Frozen request mismatch')
+        }
         if (execute) {
           const endpoint = exactEndpoint(snapshot, definition.modelId, maxAgeMs)
           if (resumeSource !== undefined && completed === 0) {
@@ -336,7 +369,7 @@ try {
               return await invocation.outcome
             },
           })
-        } else append({ stage: 'dry_plan', ...identity })
+        } else append({ stage: 'dry_plan', ...identity, request: planned.planned.serialized })
         completed++
       }
     } finally {
@@ -356,7 +389,7 @@ try {
 console.log(
   JSON.stringify({
     mode: execute ? 'execute' : 'dry-run',
-    scope: textOnly ? 'grok-4.6-text-only-3-of-8' : 'fixed-eight-cases',
+    scope: textOnly ? `${selectedModel}-text-only-three-cases` : 'fixed-eight-cases',
     cases: completed,
     resumed,
     sent,

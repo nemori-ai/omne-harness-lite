@@ -167,6 +167,9 @@ export async function runPaidCase({
         outcome: outcome.outcome ?? outcome.rejected,
         upstreamInputTokens: outcome.usage?.input_tokens ?? null,
         upstreamUsageSource: outcome.usage?.source ?? null,
+        upstreamCacheReadTokens: outcome.usage?.cache_read_tokens ?? null,
+        upstreamCacheWriteTokens: outcome.usage?.cache_write_tokens ?? null,
+        totalPromptTokens: totalPromptTokens(outcome.usage) ?? null,
         upstreamOutputTokens: outcome.usage?.output_tokens ?? null,
         costUsd: actualUsd ?? null,
         costSource: outcome.cost?.source ?? null,
@@ -179,7 +182,7 @@ export async function runPaidCase({
         complete:
           outcome.outcome === 'complete' &&
           outcome.usage?.source === 'upstream' &&
-          safeTokenCount(outcome.usage.input_tokens) !== undefined &&
+          totalPromptTokens(outcome.usage) !== undefined &&
           safeTokenCount(outcome.usage.output_tokens) !== undefined &&
           outcome.servingProvider === endpoint.provider_name,
       }
@@ -297,4 +300,15 @@ export async function saveOutcomeEvidence(directory, reservation, outcome, crede
     join(directory, `${reservation}.outcome.json`),
     writeJsonLossless(value) + '\n',
   )
+}
+
+/** S-6 inputs are disjoint: cached reads/writes must be included for context. */
+export function totalPromptTokens(usage) {
+  if (usage?.source !== 'upstream') return undefined
+  const parts = ['input_tokens', 'cache_read_tokens', 'cache_write_tokens'].map(key =>
+    safeTokenCount(usage[key]),
+  )
+  if (parts.some(value => value === undefined)) return undefined
+  const sum = parts.reduce((total, value) => total + BigInt(value), 0n)
+  return sum <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(sum) : undefined
 }
