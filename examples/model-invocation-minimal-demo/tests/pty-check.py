@@ -6,6 +6,7 @@ python3 examples/model-invocation-minimal-demo/tests/pty-check.py
 """
 
 import os
+import json
 import pty
 import select
 import shutil
@@ -54,7 +55,9 @@ def run(data: Path, commands: list[tuple[bytes, bytes]], mode="complete", expect
             expect(fd, marker, transcript, start)
         _, status = os.waitpid(pid, 0)
         assert os.WIFEXITED(status) and os.WEXITSTATUS(status) == expected_exit, bytes(transcript[-500:])
-        return bytes(transcript)
+        model_record = json.loads((data.parent / f"pty-models-{pid}.json").read_text())
+        assert model_record["rawAfter"] is False
+        return bytes(transcript), model_record["models"]
     finally:
         os.close(fd)
 
@@ -62,25 +65,33 @@ def run(data: Path, commands: list[tuple[bytes, bytes]], mode="complete", expect
 def main():
     with tempfile.TemporaryDirectory(prefix="omne-demo-pty-") as tmp:
         data = Path(tmp) / "conversation"
-        first = run(data, [
+        first, first_models = run(data, [
+            (b"/help\n", b"/model <identifier>"),
+            (b"/models\n", b"deepseek/deepseek-v4.1-flash"),
             (b"first prompt\n", b"Saved."),
+            (b"/model deepseek/deepseek-v4.1-flash\n", b"Effective: deepseek/deepseek-v4.1-flash"),
             (b"second prompt\n", b"Saved."),
             (b"/history\n", b"assistant: first second"),
             (b"/exit\n", b"Closed."),
         ])
         assert b"first second" in first
-        second = run(data, [
+        assert first_models == ["deepseek/deepseek-v4-pro-0813", "deepseek/deepseek-v4.1-flash"]
+        second, second_models = run(data, [
+            (b"/model\n", b"Effective: deepseek/deepseek-v4.1-flash"),
             (b"/history\n", b"user: second prompt"),
             (b"third prompt\n", b"Saved."),
             (b"/exit\n", b"Closed."),
         ])
         assert b"third prompt" in second
-        held = run(Path(tmp) / "held", [(b"held request\n", b"Assistant> first "), (b"\x03", b"Closed.")], "hold")
+        assert second_models == ["deepseek/deepseek-v4.1-flash"]
+        held, held_models = run(Path(tmp) / "held", [(b"held request\n", b"Assistant> first "), (b"\x03", b"Closed.")], "hold")
         assert b"Saved." not in held
-        failed = run(Path(tmp) / "failed", [(b"fail request\n", b"Closed after model failure.")], "http503", 1)
+        assert held_models == ["deepseek/deepseek-v4-pro-0813"]
+        failed, failed_models = run(Path(tmp) / "failed", [(b"fail request\n", b"Closed after model failure.")], "http503", 1)
+        assert failed_models == ["deepseek/deepseek-v4-pro-0813"]
         assert b"Model request failed; durable response recorded." in failed
         assert b"controlled failure" not in failed and b"private-controlled-pty-key" not in failed
-        print("PASS: OS PTY two turns, restart third turn, held TLS Ctrl+C, HTTP 503 process exit 1 with safe text")
+        print("PASS: OS PTY model selection and persisted restart, actual request model, raw mode restored, held TLS Ctrl+C, HTTP 503 safe exit")
 
 
 if __name__ == "__main__":

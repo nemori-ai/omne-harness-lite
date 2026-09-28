@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { dirname, join } from 'node:path'
+import { writeFile } from 'node:fs/promises'
 import { openDemo } from '../../dist/index.js'
 import { runInteractive } from '../../dist/index.js'
 import { createLocalTls } from '../local-tls.ts'
@@ -19,6 +20,13 @@ try {
   credential.fill(0)
   const result = await runInteractive(demo, process.stdin, process.stdout, true)
   complete = result.complete
+  await writeFile(
+    join(dirname(data), `pty-models-${process.pid}.json`),
+    JSON.stringify({
+      models: tls.requests.map(request => request.body.model),
+      rawAfter: process.stdin.isRaw === true,
+    }),
+  )
 } finally {
   credential.fill(0)
   await tls.close()

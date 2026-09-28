@@ -116,10 +116,12 @@ async function initialize(directory: string): Promise<{ state: LocalState; fresh
 }
 
 export interface DemoConversation {
-  readonly model: string
   readonly session: string
   readonly application: AcceptanceApplication
   readonly actor: AuthenticatedActor
+  readonly models: () => ReturnType<AcceptanceApplication['displayList']>
+  readonly currentModel: () => ReturnType<AcceptanceApplication['effectiveModel']>
+  readonly selectModel: (routeName: string) => ReturnType<AcceptanceApplication['selectModel']>
   readonly send: (
     text: string,
     onDelivery: (serialized: string, signal: AbortSignal) => Promise<void>,
@@ -133,10 +135,31 @@ export interface DemoConversation {
 export type DemoSendResult =
   | { readonly kind: 'saved'; readonly response: ModelResponse; readonly released: boolean }
   | { readonly kind: 'failed'; readonly response: ModelResponse; readonly released: boolean }
-  | { readonly kind: 'refused' | 'unconfirmed'; readonly released: boolean }
+  | { readonly kind: 'refused'; readonly reason: string; readonly released: boolean }
+  | { readonly kind: 'unconfirmed'; readonly released: boolean }
 type DemoSendOutcome =
   | { readonly kind: 'saved' | 'failed'; readonly response: ModelResponse }
-  | { readonly kind: 'refused' | 'unconfirmed' }
+  | { readonly kind: 'refused'; readonly reason: string }
+  | { readonly kind: 'unconfirmed' }
+
+function refusalReason(
+  sent: Awaited<ReturnType<AcceptanceApplication['startServiceTextCall']>>,
+): string {
+  const value = 'result' in sent ? sent.result : sent
+  if ('undispatched' in value) return value.undispatched
+  if ('released' in value) return value.released.cause
+  if ('retryRefused' in value) return value.retryRefused.why
+  if ('wrongPhase' in value) return `wrongPhase:${value.wrongPhase.phase}`
+  if ('invalidInput' in value) return 'invalidInput'
+  if ('profileNotFound' in value) return 'profileNotFound'
+  if ('runtimeStopped' in value) return 'runtimeStopped'
+  if ('callNotFound' in value) return 'callNotFound'
+  if ('alreadyEnded' in value) return 'alreadyEnded'
+  if ('unavailable' in value) return 'unavailable'
+  if ('failure' in value) return value.failure
+  if ('step' in value) return `provider:${value.step}`
+  return 'unavailable'
+}
 
 export interface DemoTotals {
   readonly responses: number
@@ -201,19 +224,15 @@ export async function openDemo(
     if (!('session' in prepared)) throw new Error('demo session preparation rejected')
     const bound = await app.bindModelRuntime(actor, session)
     if (!('service' in bound)) throw new Error('demo model runtime unavailable')
-    const modelRuntime = bound.service
     if (initialized.fresh) {
       if (!('prepared' in (await app.prepareModelInputs(actor, session))))
         throw new Error('demo input preparation rejected')
-      const selected = await modelRuntime.selectModel({
-        session: prepared.session,
-        routeName: MODEL,
-      })
+      const selected = await app.selectModel(actor, session, MODEL)
       if (!('selected' in selected)) throw new Error('explicit demo model selection rejected')
     }
-    const effective = await modelRuntime.effectiveModel({ session: prepared.session })
-    if (!('effectiveModel' in effective) || effective.effectiveModel.profile.routeName !== MODEL)
-      throw new Error('fixed demo model or current source is unavailable')
+    const effective = await app.effectiveModel(actor, session)
+    if (!('effectiveModel' in effective))
+      throw new Error('demo selected model or current source is unavailable')
     if (credential !== undefined) {
       const ref = parseOpaqueIdentifier(`demo-credential-${randomUUID()}`, 'CredentialRef')
       if (!isOk(ref)) throw new Error('credential reference invalid')
@@ -237,12 +256,14 @@ export async function openDemo(
     let activeHost: ReturnType<typeof createDemoCallHost> | undefined
     let stopped = false
     return {
-      model: MODEL,
       session,
       application: app,
       actor,
+      models: () => app.displayList(actor, session),
+      currentModel: () => app.effectiveModel(actor, session),
+      selectModel: routeName => app.selectModel(actor, session, routeName),
       async send(text, onDelivery) {
-        if (stopped) return { kind: 'refused', released: true }
+        if (stopped) return { kind: 'refused', reason: 'runtimeStopped', released: true }
         const id = randomUUID()
         const host = createDemoCallHost()
         activeHost = host
@@ -252,8 +273,18 @@ export async function openDemo(
               { readonly endpoint: object }
             >
           | undefined
-        let result: DemoSendOutcome = { kind: 'refused' }
+        let result: DemoSendOutcome = { kind: 'refused', reason: 'unavailable' }
         try {
+          const attached = await app.attachModelCallHost(actor, session, host)
+          if (!('attached' in attached)) {
+            const stopped = await host.stop()
+            if (activeHost === host) activeHost = undefined
+            return {
+              kind: 'refused',
+              reason: 'failure' in attached ? attached.failure : 'unavailable',
+              released: 'released' in stopped,
+            }
+          }
           const opened = await app.openModelObserver(actor, session, undefined, onDelivery)
           const parsedSession = parseOpaqueIdentifier(session, 'SessionRef')
           const user = judgeMessage({
@@ -295,8 +326,8 @@ export async function openDemo(
               else result = { kind: 'saved', response: response as unknown as ModelResponse }
             } else if ('result' in sent && 'settled' in sent.result) {
               result = { kind: 'failed', response: sent.result.settled }
-            }
-          }
+            } else result = { kind: 'refused', reason: refusalReason(sent) }
+          } else result = { kind: 'refused', reason: 'observerUnavailable' }
         } catch {
           result = { kind: 'unconfirmed' }
         }
@@ -307,7 +338,9 @@ export async function openDemo(
           'released' in stopResult && (revoked === undefined || 'released' in revoked)
         return 'response' in result
           ? { kind: result.kind, response: result.response, released }
-          : { kind: result.kind, released }
+          : result.kind === 'refused'
+            ? { kind: 'refused', reason: result.reason, released }
+            : { kind: 'unconfirmed', released }
       },
       stopActive() {
         stopped = true

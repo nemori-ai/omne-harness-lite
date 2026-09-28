@@ -8,8 +8,11 @@ import type { CapabilityId, AssetDefinition, AssetHolding } from '@omne-harness-
 import {
   createOfficialProfileContent,
   createDeepSeekV4ProInputMeter,
+  createDeepSeekV41FlashInputMeter,
   deepseekV4Pro0813Configuration,
   deepseekV4Pro0813Definition,
+  deepseekV41FlashConfiguration,
+  deepseekV41FlashDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
   openRouterCredentialRedactionConfig,
@@ -117,6 +120,12 @@ export function createDemoConfig(
     configuration: deepseekV4Pro0813Configuration,
   })
   if ('rejected' in profile) throw new Error('frozen first model declaration rejected')
+  const flashProfile = createOfficialProfileContent(deepseekV41FlashDefinition, {
+    providers: ['deepinfra/fp8'],
+    allowFallback: false,
+    configuration: deepseekV41FlashConfiguration,
+  })
+  if ('rejected' in flashProfile) throw new Error('frozen second model declaration rejected')
   return {
     runId,
     databaseFile: join(directory, 'db.sqlite'),
@@ -128,7 +137,7 @@ export function createDemoConfig(
       affiliationRequestTtlDefault: ttl.ok,
       teamCreationKeyRetention: ttl.ok,
     },
-    officialManifest: { ordinal: 1, entries: [profile.ok] },
+    officialManifest: { ordinal: 2, entries: [profile.ok, flashProfile.ok] },
     wait: {
       clockTimeoutMs: 15_000,
       pollMs: 10,
@@ -159,8 +168,11 @@ export function createDemoConfig(
         },
       },
       transport: {
-        definitions: [deepseekV4Pro0813Definition],
-        inputMeters: [createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)],
+        definitions: [deepseekV4Pro0813Definition, deepseekV41FlashDefinition],
+        inputMeters: [
+          createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition),
+          createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition),
+        ],
         policy: {
           maxConnections: 1,
           idleConnectionTimeoutMs: 5000,

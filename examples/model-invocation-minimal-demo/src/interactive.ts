@@ -1,4 +1,4 @@
-import { createInterface } from 'node:readline'
+import { createInterface, type Interface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
 import {
   LosslessNumber,
@@ -14,6 +14,55 @@ import {
 } from '@omne-harness-lite/stream-assembly'
 import type { DemoConversation } from './demo.ts'
 import type { DemoTotals } from './demo.ts'
+import type {
+  ModelDisplayAnnotation,
+  ModelDisplayEntry,
+} from '@omne-harness-lite/model-request-runtime'
+
+/** Untrusted model and catalog text may not control the terminal. */
+function safeText(value: string, multiline = false): string {
+  return Array.from(value, character => {
+    const code = character.codePointAt(0)
+    if (code === undefined) return ''
+    if (multiline && character === '\n') return character
+    if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) return `\\u{${code.toString(16)}}`
+    return character
+  }).join('')
+}
+
+function failure(
+  value:
+    | Awaited<ReturnType<DemoConversation['models']>>
+    | Awaited<ReturnType<DemoConversation['currentModel']>>
+    | Awaited<ReturnType<DemoConversation['selectModel']>>,
+): string {
+  if ('notLegalTarget' in value)
+    return `Model is not a legal target (${value.notLegalTarget.because.join(', ')}).`
+  if ('profileNotFound' in value) return 'Model profile was not found.'
+  if ('invalidInput' in value) return 'Invalid model identifier.'
+  if ('unavailable' in value) return 'Model state is unavailable; no change is confirmed.'
+  if ('failure' in value) return `Model operation failed (${value.failure}).`
+  return 'Model operation is unavailable; no change is confirmed.'
+}
+
+function annotation(value: ModelDisplayAnnotation): string {
+  return typeof value === 'string' ? value : `overridden_by:${value.overridden_by.scope.layer}`
+}
+
+function source(entry: ModelDisplayEntry['ref']): string {
+  return entry.origin === 'official' ? 'official' : `custom:${entry.scope.layer}`
+}
+
+function modelLine(entry: ModelDisplayEntry): string {
+  const notes = entry.annotations.map(annotation).join(', ')
+  return `${entry.selected ? '* ' : '  '}${safeText(entry.routeName)} [${source(entry.ref)}] ${notes}\n`
+}
+
+function currentLine(result: Awaited<ReturnType<DemoConversation['currentModel']>>): string {
+  if (!('effectiveModel' in result)) return `${failure(result)}\n`
+  const current = result.effectiveModel
+  return `Selected: ${safeText(current.selected)}\nEffective: ${safeText(current.routeName)} (${current.selectedBy}, ${source(current.profile)})\n`
+}
 
 function summary(value: DemoTotals['cost']): string {
   const known = value.knownSum.toString()
@@ -41,32 +90,63 @@ export async function runInteractive(
   output: Writable,
   terminal: boolean,
 ): Promise<{ readonly complete: boolean; readonly interrupted: boolean }> {
-  const lines = createInterface({ input, output, terminal })
+  let lines: Interface | undefined
   let stopping = false,
     complete = true,
     modelFailed = false
   const interrupt = () => {
     stopping = true
     conversation.stopActive()
-    lines.close()
+    lines?.close()
   }
-  lines.on('SIGINT', interrupt)
   process.on('SIGINT', interrupt)
-  output.write(
-    `Model invocation minimal demo\nModel: ${conversation.model}\nProvider route: deepinfra/fp8\nConversation: ${conversation.session}\nEach submitted message can incur OpenRouter charges. /help lists commands.\n`,
-  )
-  output.write('You> ')
   try {
+    output.write(
+      `Model invocation minimal demo\nAccount: ${safeText(conversation.actor.account)}\nOrganization: ${safeText(conversation.actor.tenant.organization)}\nConversation: ${safeText(conversation.session)}\nEach submitted message can incur OpenRouter charges. /help lists commands.\n`,
+    )
+    output.write(currentLine(await conversation.currentModel()))
+    lines = createInterface({ input, output, terminal })
+    lines.on('SIGINT', interrupt)
+    if (stopping) lines.close()
+    output.write('You> ')
     for await (const line of lines) {
       if (stopping) break
-      if (line === '/exit') break
-      if (line === '/help') {
+      const command = line.trim()
+      if (command === '/exit') break
+      if (command === '/help') {
         output.write(
-          '/history — read persisted messages; /exit — close; Ctrl+C — stop and close.\n',
+          '/models — list model profiles; /model — show selected and effective model; /model <identifier> — select for later requests; /history — read persisted messages; /exit — close; Ctrl+C — stop and close.\n',
         )
-      } else if (line === '/history') {
+      } else if (command === '/models') {
+        const listed = await conversation.models()
+        if (!('displayList' in listed)) output.write(`${failure(listed)}\n`)
+        else {
+          for (const entry of listed.displayList) {
+            output.write(modelLine(entry))
+            for (const covered of entry.covered)
+              output.write(
+                `    covered [${source(covered.ref)}] ${covered.annotations.map(annotation).join(', ')}\n`,
+              )
+          }
+        }
+      } else if (command === '/model') {
+        output.write(currentLine(await conversation.currentModel()))
+      } else if (/^\/model\s/u.test(command)) {
+        const match = /^\/model\s+(\S+)$/u.exec(command)
+        if (match === null || match[1] === undefined) output.write('Usage: /model <identifier>\n')
+        else {
+          const selected = await conversation.selectModel(match[1])
+          if (!('selected' in selected)) output.write(`${failure(selected)}\n`)
+          else {
+            output.write(`Selected: ${safeText(selected.selected)}\n`)
+            output.write(currentLine(await conversation.currentModel()))
+          }
+        }
+      } else if (command === '/history') {
         for (const message of await conversation.history())
-          output.write(`${message.role}: ${message.text}\n`)
+          output.write(`${safeText(message.role)}: ${safeText(message.text, true)}\n`)
+      } else if (command.startsWith('/')) {
+        output.write('Unknown command. Use /help.\n')
       } else if (line.trim()) {
         let rendered = ''
         let assembly: AssemblyState | undefined
@@ -86,12 +166,13 @@ export async function runInteractive(
             })
             .join('')
         const render = async (text: string) => {
-          const delta = text.startsWith(rendered)
-            ? text.slice(rendered.length)
-            : text !== rendered
-              ? `\n[updated answer] ${text}`
+          const safe = safeText(text, true)
+          const delta = safe.startsWith(rendered)
+            ? safe.slice(rendered.length)
+            : safe !== rendered
+              ? `\n[updated answer] ${safe}`
               : ''
-          rendered = text
+          rendered = safe
           if (delta)
             await new Promise<void>((resolve, reject) => {
               output.write(delta, error => (error ? reject(error) : resolve()))
@@ -136,7 +217,10 @@ export async function runInteractive(
         } else if (sent.kind === 'unconfirmed') {
           complete = false
           output.write('Reply commit is unconfirmed; retained responsibility, no next request.\n')
-        } else output.write('Request refused before sending; no automatic retry.\n')
+        } else
+          output.write(
+            `Request refused before sending (${safeText(sent.reason)}); no automatic retry.\n`,
+          )
         if (!sent.released) {
           complete = false
           output.write('Call resources remain owned; close is incomplete.\n')
@@ -148,7 +232,7 @@ export async function runInteractive(
       if (!stopping) output.write('You> ')
     }
   } finally {
-    lines.close()
+    lines?.close()
     process.removeListener('SIGINT', interrupt)
     if (stopping) conversation.stopActive()
     const closed = await conversation.close()
