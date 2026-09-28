@@ -262,6 +262,158 @@ function threeMessageTextTokens(
   return tokens
 }
 
+function onlyKeys(value: JsonObject, allowed: readonly string[]): boolean {
+  return Object.keys(value).every(key => allowed.includes(key))
+}
+
+function visibleTextParts(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      part =>
+        object(part) &&
+        onlyKeys(part, ['type', 'text']) &&
+        part.type === 'text' &&
+        typeof part.text === 'string',
+    )
+  )
+}
+
+/** Research candidate for fully visible GPT-6 Sol/Luna history, not an official binding. */
+function visibleHistoryTokens(
+  body: JsonObject,
+  modelId: string,
+  tokenizer: ReturnType<typeof encoder>,
+): number | undefined {
+  if (
+    body.model !== modelId ||
+    !onlyKeys(body, [
+      'model',
+      'provider',
+      'stream',
+      'store',
+      'messages',
+      'tools',
+      'reasoning',
+      'max_tokens',
+    ]) ||
+    !object(body.provider) ||
+    !onlyKeys(body.provider, ['order', 'allow_fallbacks', 'require_parameters']) ||
+    !Array.isArray(body.provider.order) ||
+    body.provider.order.length !== 1 ||
+    body.provider.order[0] !== 'openai' ||
+    body.provider.allow_fallbacks !== false ||
+    body.provider.require_parameters !== true ||
+    body.stream !== true ||
+    body.store !== false ||
+    !object(body.reasoning) ||
+    !onlyKeys(body.reasoning, ['effort']) ||
+    body.reasoning.effort !== 'low' ||
+    (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
+    !Array.isArray(body.messages) ||
+    !body.messages.length ||
+    (body.tools !== undefined && (!Array.isArray(body.tools) || !body.tools.length))
+  )
+    return undefined
+
+  for (const message of body.messages) {
+    if (!object(message) || typeof message.role !== 'string') return undefined
+    switch (message.role) {
+      case 'system':
+      case 'developer':
+      case 'user':
+        if (!onlyKeys(message, ['role', 'content']) || !visibleTextParts(message.content))
+          return undefined
+        break
+      case 'assistant':
+        if (
+          !onlyKeys(message, ['role', 'content', 'tool_calls', 'reasoning']) ||
+          typeof message.content !== 'string' ||
+          (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
+          (message.tool_calls !== undefined &&
+            (!Array.isArray(message.tool_calls) ||
+              !message.tool_calls.length ||
+              !message.tool_calls.every(
+                call =>
+                  object(call) &&
+                  onlyKeys(call, ['id', 'type', 'function']) &&
+                  typeof call.id === 'string' &&
+                  call.type === 'function' &&
+                  object(call.function) &&
+                  onlyKeys(call.function, ['name', 'arguments']) &&
+                  typeof call.function.name === 'string' &&
+                  typeof call.function.arguments === 'string',
+              )))
+        )
+          return undefined
+        break
+      case 'tool':
+        if (
+          !onlyKeys(message, ['role', 'tool_call_id', 'content']) ||
+          typeof message.tool_call_id !== 'string' ||
+          typeof message.content !== 'string'
+        )
+          return undefined
+        break
+      default:
+        return undefined
+    }
+  }
+
+  if (Array.isArray(body.tools))
+    for (const tool of body.tools) {
+      if (
+        !object(tool) ||
+        !onlyKeys(tool, ['type', 'function']) ||
+        tool.type !== 'function' ||
+        !object(tool.function) ||
+        !onlyKeys(tool.function, ['name', 'description', 'parameters']) ||
+        typeof tool.function.name !== 'string' ||
+        typeof tool.function.description !== 'string' ||
+        !object(tool.function.parameters)
+      )
+        return undefined
+    }
+
+  const visible: JsonObject = {
+    messages: body.messages,
+    ...(body.tools === undefined ? {} : { tools: body.tools }),
+  }
+  return tokenizer.encode(writeJsonLossless(visible)).length
+}
+
+/** Unbound candidate. A later, independently verified definition revision must adopt it. */
+export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefinition): InputMeter {
+  if (
+    (definition.modelId !== 'openai/gpt-6-sol' && definition.modelId !== 'openai/gpt-6-luna') ||
+    definition.revision !== '2' ||
+    definition.implementation.name !== 'pi-ai:openai' ||
+    definition.implementation.revision !== 'mp4-2' ||
+    !Object.hasOwn(definition.routes, 'openai')
+  )
+    throw new TypeError('unsupported OpenAI visible-history candidate binding')
+  const tokenizer = encoder()
+  const meter: InputMeter = {
+    modelId: definition.modelId,
+    definitionRevision: definition.revision,
+    implementation: definition.implementation,
+    provider: 'openai',
+    algorithmRevision: 'openai-gpt-6-visible-history-json-o200k-candidate-1',
+    evidence:
+      'Unbound research candidate: o200k_base lossless JSON of complete visible messages and tools; OpenRouter OpenAI Sol/Luna low effort prior tool receipts and six frozen request probes; no framing bound or live history certification',
+    measure({ body, serialized }): TokenMeasurement {
+      if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
+      try {
+        const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
+        return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
+      } catch {
+        return { kind: 'unavailable' }
+      }
+    },
+  }
+  return Object.freeze(meter)
+}
+
 /** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
   const gpt6Text =

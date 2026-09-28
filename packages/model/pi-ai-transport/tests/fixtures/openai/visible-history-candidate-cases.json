@@ -1,0 +1,54 @@
+{
+  "sourceSha256": "532259bd58c591b0a337203f5b9222623a4150cc0bacb87b1bdd0467c220dbc9",
+  "status": "research-candidate-only",
+  "cases": [
+    {
+      "id": "sol-plain-history",
+      "modelId": "openai/gpt-6-sol",
+      "set": "fit",
+      "requestSha256": "15815c0bd355a14aa538fb56fb90f67690c09c1ef67b411674e81f01f5472b7f",
+      "expectedTokens": 123,
+      "wire": "{\"model\":\"openai/gpt-6-sol\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\"}]},{\"role\":\"assistant\",\"content\":\"{\\\"status\\\":\\\"ready\\\"}\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Repeat your previous answer exactly.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "sol-paired-tool-history",
+      "modelId": "openai/gpt-6-sol",
+      "set": "fit",
+      "requestSha256": "b539bddc728f5db086b9167de94102d8a10a22b1e537a4c019d9d198fc9a8b7a",
+      "expectedTokens": 296,
+      "wire": "{\"model\":\"openai/gpt-6-sol\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"The tool has completed. State the returned value without calling another tool.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "sol-tool-reminder-holdout",
+      "modelId": "openai/gpt-6-sol",
+      "set": "holdout",
+      "requestSha256": "8bee1b6be437aad10913172b7432b47c49032cb49b8108343c407e5498bbfc61",
+      "expectedTokens": 404,
+      "wire": "{\"model\":\"openai/gpt-6-sol\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"later-reminder\\\"]\"},{\"type\":\"text\",\"text\":\"保留完整工具历史。不要再调用工具。\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"请只返回工具给出的值；format: {\\\"value\\\":\\\"...\\\"}.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"unused_status\",\"description\":\"An unrelated synthetic tool, do not call.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"description\":\"Short status label.\",\"enum\":[\"READY\",\"WAIT\"]}},\"required\":[\"label\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "luna-plain-history",
+      "modelId": "openai/gpt-6-luna",
+      "set": "fit",
+      "requestSha256": "d0183e36b8f1dd0063d258456490e4b59e17b197a13b67599a332fa4caadf859",
+      "expectedTokens": 126,
+      "wire": "{\"model\":\"openai/gpt-6-luna\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: function ready() { return true; }\"}]},{\"role\":\"assistant\",\"content\":\"function ready() { return true; }\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Repeat your previous answer exactly.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "luna-paired-tool-history",
+      "modelId": "openai/gpt-6-luna",
+      "set": "fit",
+      "requestSha256": "e27e340f553a0a9d1e3e7c39d7d821d9394ee45455e0465a3c22c140099ef537",
+      "expectedTokens": 302,
+      "wire": "{\"model\":\"openai/gpt-6-luna\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_0ZalZkizqbUeDeZAcFl9A9kx\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_0ZalZkizqbUeDeZAcFl9A9kx\",\"content\":\"ALPHA\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"The tool has completed. State the returned value without calling another tool.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "luna-tool-reminder-holdout",
+      "modelId": "openai/gpt-6-luna",
+      "set": "holdout",
+      "requestSha256": "201876451581384ed0e1f22fa3856b45934f8af70cac523e0a5c207c22b1f9b5",
+      "expectedTokens": 410,
+      "wire": "{\"model\":\"openai/gpt-6-luna\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_0ZalZkizqbUeDeZAcFl9A9kx\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_0ZalZkizqbUeDeZAcFl9A9kx\",\"content\":\"ALPHA\"},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"later-reminder\\\"]\"},{\"type\":\"text\",\"text\":\"保留完整工具历史。不要再调用工具。\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"请只返回工具给出的值；format: {\\\"value\\\":\\\"...\\\"}.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"unused_status\",\"description\":\"An unrelated synthetic tool, do not call.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"description\":\"Short status label.\",\"enum\":[\"READY\",\"WAIT\"]}},\"required\":[\"label\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    }
+  ]
+}
