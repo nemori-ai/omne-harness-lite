@@ -1,5 +1,8 @@
 # assembly-manifest-store
 
+> 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
+
+
 ## v3 候选增量（2026-09-27）
 
 - **语义接受：无。** 本节点 v3 增量仍为候选；精确消费 [`capability.assembly-manifest/v3`](../../../../spec/capabilities/assembly-manifest/v3/contract.md)、`capability.asset-evaluation/v4` S-47 与生产者 `capability.asset-registry/v3`。依赖接受状态及采用记录以 [registry catalog](../../../../registry/catalog.json) 为准；下列 v2 接受事实不延伸到新读面。

@@ -1,5 +1,8 @@
 # session-tenancy-table
 
+> 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
+
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.session-tenancy · v2`（[契约](../../../../spec/capabilities/session-tenancy/v2/contract.md)，状态 `accepted`，已接受、已冻结）的**全部条款**（S-5～S-11，一个读），作为它第十一节说的「本版的最小提供者」（[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
 - 源码位置：`packages/session/session-tenancy-table`——**尚未建包**。第一层 `session` 已由产品负责人接受（[D-064 ⑱](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)

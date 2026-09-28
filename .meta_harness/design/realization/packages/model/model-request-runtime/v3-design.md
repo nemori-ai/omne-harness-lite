@@ -156,7 +156,7 @@ Node的实际socket停止、AbortSignal对门等待/调度的影响，以及采�
 
 装配以真实storage/clock、目录、加密凭据副本、sessionTenancy、sessionLog、OG成员资格、当前输入store、assetRegistry、runner及传输贡献构成闭包；经真实治理公开操作建立租户与资格、发布根资产/层配值、提交会话归属，再由输入provider实际捕获standing，调用selectModel初始化并按真实尝试生成report。OG与输入store使用同一实际AtomicStorage；会话映射种子面采用范围另由其owner确认，两步创建不冒充跨owner原子事务。用故障注入传输做错误演练可以，但不得以临时tenant字符串、effective常量、固定设置或恒真授权函数代替真实提供者及最终OpenRouter路径验收。
 
-应用必须持有真实storage-sql `createUpgradeGuard()` 返回的guard：等待全部必需及本批操作必需的调用时提供者ACTIVE，再对附着该实例的guard.confirm确认、核对返回及pending，最后开放外部受理。确认失败或PENDING/FAILED不允许模型请求；清理后核pending暴露恢复失败。runtime插件不自行confirm，也不在已provide时假定应用已开闸。[应用节点](../../../apps/model-request-acceptance/README.md)目前为候选起草，R3-G6/R3-G8保留真实装配及恢复交接义务；指定owner不等于已装配。
+应用必须持有真实storage-sql `createUpgradeGuard()` 返回的guard：等待全部必需及本批操作必需的调用时提供者ACTIVE，再对附着该实例的guard.confirm确认、核对返回及pending，最后开放外部受理。确认失败或PENDING/FAILED不允许模型请求；清理后核pending暴露恢复失败。runtime插件不自行confirm，也不在已provide时假定应用已开闸。[应用节点](../../../retired/model-request-acceptance/README.md)目前为候选起草，R3-G6/R3-G8保留真实装配及恢复交接义务；指定owner不等于已装配。
 
 配置政策一致：必需静态配置形状非法、缺诊断界限/脱敏政策/调度构件等使启动失败，不provide半套服务；业务中某会话缺时限、版本不可用、凭据未配置则按精确契约的运行期具名失败。factory凭据本来可缺席，不改成强制启动条件。所有数字由显式配置/声明提供，不写默认TTL、队列长度或等待期限。
 

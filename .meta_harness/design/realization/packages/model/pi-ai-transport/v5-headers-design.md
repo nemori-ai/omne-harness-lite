@@ -100,7 +100,7 @@ RT5 S-20 的三项政策由 runtime／可信装配拥有：`credential_fragment_
 | 依赖或装配事项 | owner 与缺席后的影响 |
 | --- | --- |
 | MR5 公开 RawHeaders，runtime 公共 S-58 类型和 S-54 接收 | core/model-response 与 model/model-request-runtime；各自明确采用、实际 build/pack 到场前 PH-G1 不闭合 |
-| 完整 S-20 政策、真实凭据来源、时钟／取消／诊断输出 | [model-request-acceptance](../../../apps/model-request-acceptance/design.md) 承接技术验收装配；独立调用者承担同样显式输入，产品装配由其 owner 采用。应用设计已沿 D-076 接受但源码未建，不能以测试夹具冒充真实租户来源 |
+| 完整 S-20 政策、真实凭据来源、时钟／取消／诊断输出 | [model-request-acceptance](../../../retired/model-request-acceptance/design.md) 承接技术验收装配；独立调用者承担同样显式输入，产品装配由其 owner 采用。应用设计已沿 D-076 接受但源码未建，不能以测试夹具冒充真实租户来源 |
 | OpenRouter endpoint、固定版本贡献、配置 | 原 transport 插件固定 OpenRouter；本机 TLS 仅用于显式受控函数测试，不把任意 endpoint 配置交给产品插件；模型家族、完整窄定义和 TTL 不因 H 变化 |
 | 完整响应及附件 IO、共同 codec、全部实际写方 | runtime／session-log-jsonl／调用方原 owner；`raw.body` 不归 transport 新增 IO，头不使旧历史解释自动升级 |
 

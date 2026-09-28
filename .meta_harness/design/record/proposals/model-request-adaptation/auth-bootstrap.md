@@ -1,6 +1,6 @@
 # 真实鉴权验收阶段的确认与目录装载
 
-2026-09-27。本提案补本包独立验收应用的一个实际启动循环，范围限于真实身份、目录和 model-only CCL。依据是 [D-075](../../decisions/model-credential-source-projection/decision.md)、[D-076](../../decisions/model-runtime-delivery-adoption/decision.md) 与原应用 [design.md](../../../realization/apps/model-request-acceptance/design.md)，不重开产品目标或提供者领域契约。
+2026-09-27。本提案补本包独立验收应用的一个实际启动循环，范围限于真实身份、目录和 model-only CCL。依据是 [D-075](../../decisions/model-credential-source-projection/decision.md)、[D-076](../../decisions/model-runtime-delivery-adoption/decision.md) 与原应用 [design.md](../../../realization/retired/model-request-acceptance/design.md)，不重开产品目标或提供者领域契约。
 
 原应用要求全部 mandatory fiber ACTIVE 才确认升级且确认前无业务提交；目录已接受的 preprovide loadManifest 却先耐久采用清单再发布。合法空清单同样提交正序号。原计划独立评审据实际源码发现 `confirm → manifest commit → directory ACTIVE → confirm`，现有公共接口没有只构造但不采用清单的模式。不能由仅有 app 权限的实施者自行选择绕过。
 
@@ -14,6 +14,6 @@
 
 推荐 A，并把确认后无法整库回退作为明确采用成本。必要共同对象仍是同一个实际 AtomicStorage 和 `model_credential_binding(tenant)` 行；不新增跨 owner 原子启动，不把确认当目录业务事实提交，不自动重放注册/bind/store。来源与权限保持 D-075 的逐符号许可。
 
-精确投影是 [v3-auth-bootstrap rev1](../../../realization/apps/model-request-acceptance/v3-auth-bootstrap-design.md)，SHA `838952d20f001a224033ec68eedfb4e6a6eb4e6f13900dd3ec1429ed1a1e4be7`。独立 architecture-reviewer 只读核对实际 UpgradeGuard、clock 与六基础 provider 启动体、目录提交、真实 currentTenant/standing 和关闭所有权；本次范围内无阻断。基础 provider 初始化不调用业务方法，clock 租约是明示基础元数据；currentTenant 实际核真实 login，仍再调用 standing 核当前资格。该判断不替代 AB-V1～V8 的真实运行或符号守卫。
+精确投影是 [v3-auth-bootstrap rev1](../../../realization/retired/model-request-acceptance/v3-auth-bootstrap-design.md)，SHA `838952d20f001a224033ec68eedfb4e6a6eb4e6f13900dd3ec1429ed1a1e4be7`。独立 architecture-reviewer 只读核对实际 UpgradeGuard、clock 与六基础 provider 启动体、目录提交、真实 currentTenant/standing 和关闭所有权；本次范围内无阻断。基础 provider 初始化不调用业务方法，clock 租约是明示基础元数据；currentTenant 实际核真实 login，仍再调用 standing 核当前资格。该判断不替代 AB-V1～V8 的真实运行或符号守卫。
 
 改票条件：基础启动体出现业务提交、必须恢复“所有后半启动失败也整库回退”、storage serving/confirm 或目录发布顺序改变，均重新比较 A/B/C。未验真实注册/认证、确认故障、关闭交错、重开、资源或秘密泄漏；没有模型网络和付费。选择归 [D-092](../../decisions/model-auth-bootstrap-adoption/decision.md)，本文本身不具有接受效力。

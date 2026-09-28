@@ -69,7 +69,7 @@ baseline `omne-harness-lite-design-2026-09-15` 的 [RT5](../../../../spec/capabi
 
 ## 配置来源、装配与失败
 
-可信部署配置是唯一来源。候选基线作为普通数据导出；[model-request-acceptance](../../../apps/model-request-acceptance/design.md) 以及实际产品装配 owner 在启动前显式选择修订与完整值，先用同一纯构造器生成政策，再交给 transport 工厂与 invoke/P-2。两端不各自读 env、不接受 model profile/请求/上游建议覆盖、不用 Cordis intercept 混出部分字段。将来改变参数以新完整配置构造新 provider；活动请求保留旧快照，新请求只使用新完整快照，不在 response 到达后查“最新政策”。本稿不定义配置发布 API 或租户授权面。
+可信部署配置是唯一来源。候选基线作为普通数据导出；[model-request-acceptance](../../../retired/model-request-acceptance/design.md) 以及实际产品装配 owner 在启动前显式选择修订与完整值，先用同一纯构造器生成政策，再交给 transport 工厂与 invoke/P-2。两端不各自读 env、不接受 model profile/请求/上游建议覆盖、不用 Cordis intercept 混出部分字段。将来改变参数以新完整配置构造新 provider；活动请求保留旧快照，新请求只使用新完整快照，不在 response 到达后查“最新政策”。本稿不定义配置发布 API 或租户授权面。
 
 本候选通用构件能表达的值域不等于生产已批准配置：装配必须核已采用修订与完整值（或上表允许的只加强变体）。允许变体的增加名单/描述、降低 m 仍有资源/误遮罩验收；变体值自身全部保存在非秘密部署配置，不只保存一个碰撞可混淆的摘要。精确 baseline 的采用、实现与测试范围分别记录。
 

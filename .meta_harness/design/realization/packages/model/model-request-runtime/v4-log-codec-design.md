@@ -141,7 +141,7 @@ G29-P 由实际应用／宿主和全部写方 owner 交付：列全真实 append
 | owner／消费者 | 必须实际采用的面及撤除配对 |
 | --- | --- |
 | runtime P-2 实施者 | dispatched/opened/intent/ended/selection 全部普通记录构造与读取；普通响应、settleReply、interrupt 后续、host close、reconcile、readAttempts 同用 codec／协调器。取得自有值后由原调用容器持有；停止准入并按 D087 收口，pending 值不冒充耐久记录 |
-| 外部 persisted 回复 owner | 至少 [model-request-acceptance](../../../apps/model-request-acceptance/README.md) 的一个真实写方调用共同 prepare＋协调器，一次 append `[M,R]`；close 后实际旧任务停止或明确保留责任，不把 unknown 匿名交给日志。无需先交付整个 Agent Loop |
+| 外部 persisted 回复 owner | 至少 [model-request-acceptance](../../../retired/model-request-acceptance/README.md) 的一个真实写方调用共同 prepare＋协调器，一次 append `[M,R]`；close 后实际旧任务停止或明确保留责任，不把 unknown 匿名交给日志。无需先交付整个 Agent Loop |
 | 实际纳入装配的 runner 消息路径 | 使用同一 `["message",MessageId]` 和 wrapper、完整值比较；同 ID 同值认回、异值按 runner S-19/S-28 阶段映射。run fence／SL3 condition 显式采用仍归 runner；不迁移其全部拓展结论业务键、不新增环状运行时调用。纯 import 不读取 modelRuntime service |
 | 日志 owner与实际宿主 | 对同根全写方清点、关闭旧准入并确认实际停止，沿 D084/D085 排空／恢复／独占后开新格式；未确认不启动相关生产写面。权限、时钟、凭据和所有者接续继续由原应用负责 |
 | 文档、制品与真正调用者 owner | 实施后同步 runtime README/README_ZH 的真实导出和三种接收／写入／认回示例，实际应用与 runner 双语说明更新；独立制品运行公开例并证明无私导，不把候选写成既有 API |

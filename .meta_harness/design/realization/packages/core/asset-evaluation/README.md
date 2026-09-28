@@ -1,5 +1,8 @@
 ## 工作区接入的适用范围
 
+> 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
+
+
 当前 AE3 的 C3／PRE-5、readWorkspaceCarrier、S-27／S-28 及兼容 hook 的租户格例外不能直接承载新版工作区输入。需等待相关身份／资产／读入契约接续，再更新本节点与验证。现有显式输入的求值测试不证明双来源选择、真实目录发现或关系授权；既有权限过滤规则继续有效。
 
 依据：[契约适用范围与待演进部分](../../../../spec/capabilities/asset-evaluation/README.md)。

@@ -145,7 +145,7 @@ SL3 readSince 没有分页／流式资源限额；`retainedBytes` 是协调器�
 
 沿 S-63 的结构化采集增加：结算进入／原批认回／碰撞不可认回／tailChanged 的 THIS 范围／unknown 保留／策略名称与预算计数／等待与实际停止／耗尽／恢复读取与完成。事件关联 tenant、session、call、dispatch、原 ResponseId、适用 Run／原 attempt 和绑定修订；高基数身份不当 metrics 标签。诊断不记录整段前缀、消息正文、原业务键、凭据或 raw headers，相关内容裁剪和 secrets 处理沿原 S-20。
 
-业务不可用、策略拒绝、日志不可用和诊断投递失败分别可解释；sink/query 持有者仍为 [model-request-acceptance](../../../apps/model-request-acceptance/README.md) 装配。已实际停止但尚未结算的状态必须在工程诊断可见，不能以“disposed”抹掉；诊断不可读时明确覆盖缺口，不据其缺席推断日志没写。业务恢复只读权威日志。
+业务不可用、策略拒绝、日志不可用和诊断投递失败分别可解释；sink/query 持有者仍为 [model-request-acceptance](../../../retired/model-request-acceptance/README.md) 装配。已实际停止但尚未结算的状态必须在工程诊断可见，不能以“disposed”抹掉；诊断不可读时明确覆盖缺口，不据其缺席推断日志没写。业务恢复只读权威日志。
 
 | 消费者 | 必需变更与采用边界 |
 | --- | --- |

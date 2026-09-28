@@ -137,7 +137,7 @@ SL3 是四实参公开面：不保留三实参默认 unconditional 的兼容路�
 
 当前 runtime3 明确依赖 SL2，不能直接连接本候选；[consumer-impact](../../../../spec/capabilities/session-log/v3/consumer-impact.md) 列出的 runtime／runner／tools／facts 关系分别由各 owner 显式传播。本节点不替普通结论选择 unconditional，不替响应方构造 tailEquals、业务键、late 或认回结果。实现完成时每个编辑包即时更新 README.md／README_ZH.md 的公开面、四参数示例、close 责任与失败结果；历史三参数示例只保留在旧版本证据，不能继续出现在新版可运行教程。
 
-本纵线装配 owner 为 [model-request-acceptance](../../../apps/model-request-acceptance/design.md)；产品据点前提沿 [cli](../../../apps/cli/design.md)。它们负责真实数据根及本地 FS、owner 权限、根不受外部改写、只装一个物理日志写者、入口身份／合法完整读权、holdingTenant 来源、旧业务参与者停止与新运行承载、存储升级确认后开闸、日志重启和诊断 sink。时钟、发号、凭据仍由消费者装配给，日志不生成；当前完整验收装配源码未完成，采用本候选后的互指与实际接线尚待主线。
+本纵线装配 owner 为 [model-request-acceptance](../../../retired/model-request-acceptance/design.md)；产品据点前提沿 [cli](../../../apps/cli/design.md)。它们负责真实数据根及本地 FS、owner 权限、根不受外部改写、只装一个物理日志写者、入口身份／合法完整读权、holdingTenant 来源、旧业务参与者停止与新运行承载、存储升级确认后开闸、日志重启和诊断 sink。时钟、发号、凭据仍由消费者装配给，日志不生成；当前完整验收装配源码未完成，采用本候选后的互指与实际接线尚待主线。
 
 | 选择 | 落选方最强论证 | 本方弱点／反证信号 | 置信度 |
 | --- | --- | --- | --- |

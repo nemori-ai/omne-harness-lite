@@ -1,5 +1,8 @@
 # credential-custodian-local
 
+> 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
+
+
 ## 模型副本来源绑定候选（2026-09-27）
 
 - **语义接受：无。** [v2-design.md](v2-design.md) 是 CCL2 的提供者增量候选；精确契约接受状态查 [registry catalog](../../../../registry/catalog.json)，下列既有设计接受不覆盖本增量。

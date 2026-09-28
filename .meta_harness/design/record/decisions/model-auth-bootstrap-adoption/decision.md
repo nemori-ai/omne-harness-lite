@@ -1,6 +1,6 @@
 # D-092：真实鉴权验收启动投影的精确技术采用
 
-2026-09-27。主线依用户对 model-request-runtime 实施、严格按接受设计施工及主调度/验收的授权，技术采用 [auth-bootstrap 三候选](../../proposals/model-request-adaptation/auth-bootstrap.md)的 A，以及 [应用 v3-auth-bootstrap rev1](../../../realization/apps/model-request-acceptance/v3-auth-bootstrap-design.md)，原设计字节 SHA `838952d20f001a224033ec68eedfb4e6a6eb4e6f13900dd3ec1429ed1a1e4be7`。精确替代范围是 D-076 应用 revision2 的 A-1/A-2/A-6 与 bootstrap2/3，仅在真实身份、目录、model-only CCL 阶段。原 design.md 字节和其它阶段、provider 契约保持原坐标。
+2026-09-27。主线依用户对 model-request-runtime 实施、严格按接受设计施工及主调度/验收的授权，技术采用 [auth-bootstrap 三候选](../../proposals/model-request-adaptation/auth-bootstrap.md)的 A，以及 [应用 v3-auth-bootstrap rev1](../../../realization/retired/model-request-acceptance/v3-auth-bootstrap-design.md)，原设计字节 SHA `838952d20f001a224033ec68eedfb4e6a6eb4e6f13900dd3ec1429ed1a1e4be7`。精确替代范围是 D-076 应用 revision2 的 A-1/A-2/A-6 与 bootstrap2/3，仅在真实身份、目录、model-only CCL 阶段。原 design.md 字节和其它阶段、provider 契约保持原坐标。
 
 采用的顺序：同一个 guard 打开同一个实际 storage，先完成本阶段全部迁移；局部 storage 贡献、clock、credentials、AI、OG、registration 固定六 fiber 全 ACTIVE 且真实 clock 可用后确认升级；成功确认后才加载目录 management、唯一 CCL 与借用 lookup；固定完整八 fiber 全 ACTIVE 且未开始关闭才开放真实注册/issue/exchange/currentTenant/standing/source/bind/store 场景。配置、预置密钥、显式等待策略、真实资格与可信来源对遵守投影。bootstrap构造/传递reader，不执行受限读取；CCL 唯一 close owner 为应用。
 

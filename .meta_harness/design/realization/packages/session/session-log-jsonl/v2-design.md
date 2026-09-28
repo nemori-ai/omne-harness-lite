@@ -149,7 +149,7 @@ SQL 中的派生缓存可以重算，不能与 JSONL 追加合称同一事务。
 
 上游主张只引既有 basis：配置/插件异常沿 [plugin-throw-fails-fiber](../../../../basis/cordis/plugin-throw-fails-fiber.md)；required 日志变化触发消费者重跑沿 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)；清理并发且异常仅记录沿 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)。三者版本为 4.0.4 且有 probe；这里不把它们扩张成“在途调用被取消”“所有 disposer 成功”或“必定先放旧锁再跑新体”。原 SLJ-4 与 provide-is-effect-managed 的精确时序仍是**待核对主张**，见 G2-4，未补 probe 前不作为恢复正确性的依据。
 
-本纵线的具体装配 owner 是已由 D-076 采用的 [apps/model-request-acceptance](../../../apps/model-request-acceptance/design.md)，其已有日志锁/句柄生命周期和未知 opened 场景应显式采用本候选后互指。它负责：固定实际数据根与本地文件系统；只装一份 provider；根的 owner 权限及禁止外部改写；入口身份核实；写方获取真实 holdingTenant；真实尝试开始、取消及会话重新承载时机；旧业务参与者静止；日志重启和新锁取得的实际证据；恢复完成后才允许继续场景；受限诊断 sink。时间/发号由 runtime、runner 的装配端口提供，日志不生成这些值。存储升级确认后才开闸，沿原 [cli 前提](../../../apps/cli/design.md#升级确认在第一次受理之前)，验收应用同样必须执行；不增产品 CLI。
+本纵线的具体装配 owner 是已由 D-076 采用的 [apps/model-request-acceptance](../../../retired/model-request-acceptance/design.md)，其已有日志锁/句柄生命周期和未知 opened 场景应显式采用本候选后互指。它负责：固定实际数据根与本地文件系统；只装一份 provider；根的 owner 权限及禁止外部改写；入口身份核实；写方获取真实 holdingTenant；真实尝试开始、取消及会话重新承载时机；旧业务参与者静止；日志重启和新锁取得的实际证据；恢复完成后才允许继续场景；受限诊断 sink。时间/发号由 runtime、runner 的装配端口提供，日志不生成这些值。存储升级确认后才开闸，沿原 [cli 前提](../../../apps/cli/design.md#升级确认在第一次受理之前)，验收应用同样必须执行；不增产品 CLI。
 
 ### 关键取舍
 

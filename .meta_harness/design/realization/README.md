@@ -36,6 +36,8 @@ realization/
 `packages/` 与 `apps/` 对应实际源码归属，不是又一层分类。节点名与它实现的包或应用同名，
 使「读设计」和「读源码」用同一个词。
 
+2026-09-28，原 `apps/model-request-acceptance` 的实现已迁到开发示例 `examples/model-invocation-minimal-demo`；同名产品 app 不再是当前交付节点。D-076、D-092 所采用的原技术投影移至[退出现行映射的历史节点](retired/model-request-acceptance/README.md)，保留原路径与 SHA 的采用时证据。现行 `apps/` 目录仅列产品应用；历史设计里仍出现的旧装配 owner 是当时读数，不表示现有示例已经承接完整十三操作、37 模型认证或相关生产责任。后续完整纵线必须逐个重新落实这些未承接责任。
+
 ## packages 的两层布局
 
 **这里的目录结构直接指导承载仓库根下 `packages/` 的目录结构**：节点路径 `packages/<group>/<node>` 就是将来源码包的路径，
