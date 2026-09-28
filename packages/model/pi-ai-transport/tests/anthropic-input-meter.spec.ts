@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
+  isJsonNumber,
   readJsonStrict,
   writeJsonLossless,
   type JsonObject,
@@ -10,6 +11,7 @@ import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-ru
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
+import { object } from '../src/json.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
 import { planRequest } from '../src/plan.ts'
 import { createPiAiTransport } from '../src/transport.ts'
@@ -48,19 +50,39 @@ function measuredTokens(modelId: string, body: JsonObject) {
   return Number(result.tokens)
 }
 
-describe('four exact Anthropic legacy-BPE rough estimates', () => {
-  it('matches independent @anthropic-ai/tokenizer 0.0.4 vectors through js-tiktoken/lite', () => {
+describe('four exact Anthropic projected-input rough estimates', () => {
+  it('matches an external-tokenizer fixture for full text/tool history with cache marker', () => {
+    const parsed = readJsonStrict(
+      readFileSync(new URL('./fixtures/anthropic/reference-input.json', import.meta.url), 'utf8'),
+    )
+    if (!('ok' in parsed) || !object(parsed.ok) || !object(parsed.ok.body))
+      throw new Error('invalid Anthropic reference fixture')
+    const { body, referenceTokens } = parsed.ok
+    if (!isJsonNumber(referenceTokens)) throw new Error('missing reference token count')
+    const result = createAnthropicInputMeter(definition('anthropic/claude-opus-5.5')).measure({
+      body,
+      serialized: writeJsonLossless(body),
+    })
+    if (result.kind !== 'estimated') throw new Error('reference input became unmeasurable')
+    expect(ExactDecimal.from(result.tokens).compare(ExactDecimal.from(referenceTokens))).toBe(0)
+  })
+
+  it('matches independently run @anthropic-ai/tokenizer 0.0.4 on the projected input', () => {
     const model = modelIds[0]
     if (!model) throw new Error('missing model')
-    // Independently run @anthropic-ai/tokenizer 0.0.4 counted these complete
-    // JSON bodies as 32, 35 and 46 (raw content alone: 7, 9 and 20).
+    // Independently run @anthropic-ai/tokenizer 0.0.4 on the canonical
+    // {messages:[{role:'user',content:text}]} projection: 18, 21 and 32.
     const vectors = [
-      ['Hello, 世界!', 32],
-      ['{"role":"user","content":"hello"}', 35],
-      ['{"role":"tool","tool_call_id":"call_1","content":"sunny"}', 46],
+      ['Hello, 世界!', 18],
+      ['{"role":"user","content":"hello"}', 21],
+      ['{"role":"tool","tool_call_id":"call_1","content":"sunny"}', 32],
     ] as const
     for (const [text, expected] of vectors) {
-      const body = { model, messages: [{ role: 'user', content: text }] }
+      const body = {
+        model,
+        provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
+        messages: [{ role: 'user', content: text }],
+      }
       expect(measuredTokens(model, body)).toBe(expected)
     }
   })
@@ -69,7 +91,8 @@ describe('four exact Anthropic legacy-BPE rough estimates', () => {
     for (const modelId of modelIds) {
       const meter = createAnthropicInputMeter(definition(modelId))
       expect(meter).toMatchObject({ modelId, definitionRevision: '1', provider: 'anthropic' })
-      expect(meter.algorithmRevision).toContain('rough')
+      expect(meter.algorithmRevision).toBe('anthropic-legacy-claude-bpe-input-projection-3')
+      expect(meter.evidence).toContain('very rough approximation')
     }
     expect(() =>
       createAnthropicInputMeter({ ...definition(modelIds[0] ?? ''), revision: '2' }),
@@ -88,7 +111,7 @@ describe('four exact Anthropic legacy-BPE rough estimates', () => {
     ).toThrow(TypeError)
   })
 
-  it('counts the complete text, tools, results, reminder, cache and provider body', () => {
+  it('counts complete text, tools, results and reminder while excluding request controls', () => {
     const model = modelIds[0]
     if (!model) throw new Error('missing model')
     const body = {
@@ -156,7 +179,32 @@ describe('four exact Anthropic legacy-BPE rough estimates', () => {
       }),
     ).not.toBe(complete)
     const { reasoning: _reasoning, ...withoutReasoning } = body
-    expect(measuredTokens(model, withoutReasoning)).not.toBe(complete)
+    expect(measuredTokens(model, withoutReasoning)).toBe(complete)
+    expect(
+      measuredTokens(model, {
+        ...body,
+        max_tokens: 123456,
+        stop: ['A long stop sequence that is not prompt input'],
+        reasoning: { effort: 'max' },
+        stream: false,
+        store: true,
+      }),
+    ).toBe(complete)
+    expect(
+      measuredTokens(model, {
+        ...body,
+        messages: body.messages.map(message =>
+          message.role === 'user' && Array.isArray(message.content)
+            ? {
+                ...message,
+                content: message.content.map(part =>
+                  'cache_control' in part ? { type: 'text', text: part.text } : part,
+                ),
+              }
+            : message,
+        ),
+      }),
+    ).toBe(complete)
     const meter = createAnthropicInputMeter(definition(model))
     expect(meter.measure({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     expect(
@@ -165,12 +213,26 @@ describe('four exact Anthropic legacy-BPE rough estimates', () => {
         serialized: writeJsonLossless({ ...body, model: 'anthropic/other' }),
       }),
     ).toEqual({ kind: 'unavailable' })
+    for (const unknownInput of [
+      {
+        ...body,
+        provider: { order: ['other'], allow_fallbacks: false, require_parameters: true },
+      },
+      { ...body, tool_choice: { type: 'function', function: { name: 'weather' } } },
+      { ...body, messages: [...body.messages, { role: 'user', content: 'x', name: 'alice' }] },
+      { ...body, tools: [{ type: 'function', function: { name: 'weather', prompt: 'hidden' } }] },
+    ]) {
+      expect(
+        meter.measure({ body: unknownInput, serialized: writeJsonLossless(unknownInput) }),
+      ).toEqual({ kind: 'unavailable' })
+    }
   })
 
   it('refuses encrypted reasoning replay rather than counting ciphertext as model input', () => {
     for (const model of modelIds) {
       const textBody = {
         model,
+        provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
         messages: [
           { role: 'assistant', content: '', reasoning: 'Need to check the result.' },
           {
@@ -271,6 +333,22 @@ describe('four exact Anthropic legacy-BPE rough estimates', () => {
     })
     expect(planned.planned.inputLimitEvidence.requestBytes).toBe(
       Buffer.byteLength(planned.planned.serialized),
+    )
+    const controlled = planRequest(
+      { ...input, parameters: { reasoningEffort: 'low', maxOutputTokens: 10 } },
+      [selected],
+      meter,
+    )
+    const controlledAgain = planRequest(
+      { ...input, parameters: { reasoningEffort: 'max', maxOutputTokens: 100 } },
+      [selected],
+      meter,
+    )
+    if ('rejected' in controlled || 'rejected' in controlledAgain)
+      throw new Error('valid Anthropic generation controls rejected')
+    expect(controlled.planned.serialized).not.toBe(controlledAgain.planned.serialized)
+    expect(measuredTokens(selected.modelId, controlled.planned.body)).toBe(
+      measuredTokens(selected.modelId, controlledAgain.planned.body),
     )
     const exceeded = planRequest(
       { ...input, tokenMargin: { multiplier: 1, reserveTokens: 872000 } },

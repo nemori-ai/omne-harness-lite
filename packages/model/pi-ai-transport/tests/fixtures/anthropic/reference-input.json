@@ -1,0 +1,44 @@
+{
+  "source": "@anthropic-ai/tokenizer 0.0.4 countTokens on canonical projected JSON; text-only rough BPE reference, not Claude 5 usage",
+  "referenceTokens": 150,
+  "body": {
+    "model": "anthropic/claude-opus-5.5",
+    "provider": { "order": ["anthropic"], "allow_fallbacks": false, "require_parameters": true },
+    "stream": true,
+    "store": false,
+    "reasoning": { "effort": "high" },
+    "max_tokens": 64,
+    "messages": [
+      { "role": "system", "content": [{ "type": "text", "text": "Read the weather." }] },
+      { "role": "user", "content": [{ "type": "text", "text": "What is it?" }] },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "id": "call_1",
+            "type": "function",
+            "function": { "name": "weather", "arguments": "{\"city\":\"Paris\"}" }
+          }
+        ]
+      },
+      { "role": "tool", "tool_call_id": "call_1", "content": "Sunny, 22 C" },
+      {
+        "role": "user",
+        "content": [
+          { "type": "text", "text": "Tomorrow?", "cache_control": { "type": "ephemeral", "ttl": "1h" } }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "weather",
+          "description": "Read forecasts",
+          "parameters": { "type": "object", "properties": { "city": { "type": "string" } } }
+        }
+      }
+    ]
+  }
+}
