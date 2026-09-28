@@ -13,7 +13,7 @@ import type {
   ResponseOutcome,
   ParameterAdjustment,
   RawHeaders,
-} from '@omne-harness-lite/model-response/v5'
+} from '@omne-harness-lite/model-response'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
