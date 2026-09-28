@@ -1,0 +1,698 @@
+[
+  {
+    "id": "prime-control",
+    "requestSha256": "ec0993a53805ca47cde9454334c74ade46a4a7224d6215823129625932ec98dd",
+    "promptTokens": 210,
+    "request": {
+      "model": "z-ai/glm-5.3-prime",
+      "provider": {
+        "order": [
+          "alibaba"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer the final question in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Compute 17 times 19 with the lookup tool."
+        },
+        {
+          "role": "assistant",
+          "content": "The arithmetic result is 323.",
+          "tool_calls": [
+            {
+              "id": "history_call_1",
+              "type": "function",
+              "function": {
+                "name": "lookup",
+                "arguments": "{\"value\":17}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "history_call_1",
+          "content": "17 × 19 = 323"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What arithmetic result was given?",
+              "cache_control": {
+                "type": "ephemeral",
+                "ttl": "5m"
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup",
+            "description": "Return a number",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "prime-long",
+    "requestSha256": "e341b7d25f68e8055bfcdeab1d4b72313ff38e14e7882f3984fea3a63b9e6b00",
+    "promptTokens": 883,
+    "request": {
+      "model": "z-ai/glm-5.3-prime",
+      "provider": {
+        "order": [
+          "alibaba"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer the final question in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Compute 17 times 19 with the lookup tool."
+        },
+        {
+          "role": "assistant",
+          "content": "The arithmetic result is 323.",
+          "tool_calls": [
+            {
+              "id": "history_call_1",
+              "type": "function",
+              "function": {
+                "name": "lookup",
+                "arguments": "{\"value\":17}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "history_call_1",
+          "content": "17 × 19 = 323"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What arithmetic result was given? Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. ",
+              "cache_control": {
+                "type": "ephemeral",
+                "ttl": "5m"
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup",
+            "description": "Return a number",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "flashx-control",
+    "requestSha256": "6ca5845c3ec6c151e2f714cef43869ef44e0d6259c529b22d2626274220ed80c",
+    "promptTokens": 210,
+    "request": {
+      "model": "z-ai/glm-5.3-flashx",
+      "provider": {
+        "order": [
+          "z-ai/fp8"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer the final question in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Compute 17 times 19 with the lookup tool."
+        },
+        {
+          "role": "assistant",
+          "content": "The arithmetic result is 323.",
+          "tool_calls": [
+            {
+              "id": "history_call_1",
+              "type": "function",
+              "function": {
+                "name": "lookup",
+                "arguments": "{\"value\":17}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "history_call_1",
+          "content": "17 × 19 = 323"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What arithmetic result was given?"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup",
+            "description": "Return a number",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "flashx-long",
+    "requestSha256": "1f123a5f97c7285cafbada8c9bfb7fc8a176fa9a5b169554a563239f29a8e014",
+    "promptTokens": 883,
+    "request": {
+      "model": "z-ai/glm-5.3-flashx",
+      "provider": {
+        "order": [
+          "z-ai/fp8"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer the final question in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Compute 17 times 19 with the lookup tool."
+        },
+        {
+          "role": "assistant",
+          "content": "The arithmetic result is 323.",
+          "tool_calls": [
+            {
+              "id": "history_call_1",
+              "type": "function",
+              "function": {
+                "name": "lookup",
+                "arguments": "{\"value\":17}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "history_call_1",
+          "content": "17 × 19 = 323"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What arithmetic result was given? Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. "
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup",
+            "description": "Return a number",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "prime-base",
+    "requestSha256": "55a112761797445b7ada44cb37b4d5951bbb229417b012256dcc879b69fab093",
+    "promptTokens": 241,
+    "request": {
+      "model": "z-ai/glm-5.3-prime",
+      "provider": {
+        "order": [
+          "alibaba"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "仅核验记录中的数值；一句话作答。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "请调用 audit_value 核验十七乘十九。"
+        },
+        {
+          "role": "assistant",
+          "content": "我已核验。",
+          "tool_calls": [
+            {
+              "id": "holdout_call_1",
+              "type": "function",
+              "function": {
+                "name": "audit_value",
+                "arguments": "{\"左\":17,\"右\":19}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "holdout_call_1",
+          "content": "核验值：323。状态：有效。"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请读完工具记录后，只回答核验数值。",
+              "cache_control": {
+                "type": "ephemeral",
+                "ttl": "5m"
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "audit_value",
+            "description": "核验两个整数的积",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "左": {
+                  "type": "integer"
+                },
+                "右": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "左",
+                "右"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "prime-mixed",
+    "requestSha256": "8b54209983eeba812f20abb82bf86916d85c432f08388b70f8e5789ee913117a",
+    "promptTokens": 561,
+    "request": {
+      "model": "z-ai/glm-5.3-prime",
+      "provider": {
+        "order": [
+          "alibaba"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "仅核验记录中的数值；一句话作答。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "请调用 audit_value 核验十七乘十九。"
+        },
+        {
+          "role": "assistant",
+          "content": "我已核验。",
+          "tool_calls": [
+            {
+              "id": "holdout_call_1",
+              "type": "function",
+              "function": {
+                "name": "audit_value",
+                "arguments": "{\"左\":17,\"右\":19}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "holdout_call_1",
+          "content": "核验值：323。状态：有效。"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请读完工具记录后，只回答核验数值。\n代码与 JSON 仅作上下文：\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n",
+              "cache_control": {
+                "type": "ephemeral",
+                "ttl": "5m"
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "audit_value",
+            "description": "核验两个整数的积",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "左": {
+                  "type": "integer"
+                },
+                "右": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "左",
+                "右"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "flashx-base",
+    "requestSha256": "65870616eccfe5da85556c5cb14a05d724543a41cfa1605ce52aab794a6bb14c",
+    "promptTokens": 241,
+    "request": {
+      "model": "z-ai/glm-5.3-flashx",
+      "provider": {
+        "order": [
+          "z-ai/fp8"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "仅核验记录中的数值；一句话作答。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "请调用 audit_value 核验十七乘十九。"
+        },
+        {
+          "role": "assistant",
+          "content": "我已核验。",
+          "tool_calls": [
+            {
+              "id": "holdout_call_1",
+              "type": "function",
+              "function": {
+                "name": "audit_value",
+                "arguments": "{\"左\":17,\"右\":19}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "holdout_call_1",
+          "content": "核验值：323。状态：有效。"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请读完工具记录后，只回答核验数值。"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "audit_value",
+            "description": "核验两个整数的积",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "左": {
+                  "type": "integer"
+                },
+                "右": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "左",
+                "右"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "flashx-mixed",
+    "requestSha256": "bd28a73d6d219b1bed61e4c124038314c7a243fab07a0f3ed99fa6f591998f6d",
+    "promptTokens": 561,
+    "request": {
+      "model": "z-ai/glm-5.3-flashx",
+      "provider": {
+        "order": [
+          "z-ai/fp8"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "仅核验记录中的数值；一句话作答。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "请调用 audit_value 核验十七乘十九。"
+        },
+        {
+          "role": "assistant",
+          "content": "我已核验。",
+          "tool_calls": [
+            {
+              "id": "holdout_call_1",
+              "type": "function",
+              "function": {
+                "name": "audit_value",
+                "arguments": "{\"左\":17,\"右\":19}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "holdout_call_1",
+          "content": "核验值：323。状态：有效。"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请读完工具记录后，只回答核验数值。\n代码与 JSON 仅作上下文：\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "audit_value",
+            "description": "核验两个整数的积",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "左": {
+                  "type": "integer"
+                },
+                "右": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "左",
+                "右"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+]
