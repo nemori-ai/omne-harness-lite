@@ -11,6 +11,7 @@ import { object } from '../src/json.ts'
 import {
   createQwenInputMeter,
   qwenUnscaledImageTokens,
+  renderQwenHostedFlashPrompt,
   renderQwenHostedMaxPrompt,
   renderQwenPrompt,
 } from '../src/input-meters/qwen.ts'
@@ -33,6 +34,9 @@ import {
 
 const ids = ['qwen/qwen3.8-2.4t-a95b', 'qwen/qwen3.8-27b'] as const
 const commercial = qwenAlibabaModelIds.filter(modelId => !ids.some(id => id === modelId))
+const unboundCommercial = commercial.filter(
+  modelId => modelId !== 'qwen/qwen3.8-max-0902' && modelId !== 'qwen/qwen3.8-flash',
+)
 const localResponse =
   content('done') +
   sse({
@@ -168,6 +172,168 @@ beforeAll(() => {
 afterAll(() => cert.dispose())
 
 describe('Qwen3.8 public tokenizer input meters', () => {
+  it('fits the independent Flash offset and matches its untouched final-wire holdout', () => {
+    const selected = definition('qwen/qwen3.8-flash')
+    const meter = createQwenInputMeter(selected)
+    expect(selected.implementation.revision).toBe('mp4-4')
+    expect(meter.algorithmRevision).toBe('qwen-38-hosted-flash-chatml-offset-1')
+    const golden: unknown = JSON.parse(
+      readFileSync(new URL('./fixtures/qwen/flash-route-golden.json', import.meta.url), 'utf8'),
+    )
+    if (!object(golden) || !Array.isArray(golden.rows)) throw new Error('invalid Flash golden')
+    expect(golden.sourceResultSha256).toBe(
+      '32a526bb147b4fffd26de4e669d6132592190ce1100d88c6fc81b74fed8d6c11',
+    )
+    expect(golden.sourceGenerationVerificationSha256).toBe(
+      'bbc15cae1443828472b6d026ae2894c01bc144413da00c1ded306be103952c03',
+    )
+    const fitted: number[] = []
+    let heldout: number | undefined
+    for (const row of golden.rows) {
+      if (
+        !object(row) ||
+        typeof row.file !== 'string' ||
+        typeof row.fileSha256 !== 'string' ||
+        typeof row.sentSha256 !== 'string' ||
+        typeof row.proxyTokens !== 'number' ||
+        typeof row.observedInputTokens !== 'number'
+      )
+        throw new Error('invalid Flash golden row')
+      const file = readFileSync(new URL(`./fixtures/qwen/flash-route/${row.file}`, import.meta.url))
+      expect(createHash('sha256').update(file).digest('hex')).toBe(row.fileSha256)
+      const serialized = file.toString('utf8').trimEnd()
+      expect(createHash('sha256').update(serialized).digest('hex')).toBe(row.sentSha256)
+      const body: unknown = JSON.parse(serialized)
+      if (!object(body)) throw new Error('invalid Flash body')
+      const prompt = renderQwenHostedFlashPrompt(body)
+      expect(prompt).toContain('<|im_start|>assistant\n<think>\n')
+      expect(meter.measure({ body, serialized })).toEqual({
+        kind: 'estimated',
+        tokens: row.observedInputTokens,
+      })
+      const residual = row.observedInputTokens - row.proxyTokens
+      if (row.phase === 'fit') fitted.push(residual)
+      else if (row.phase === 'untouched-holdout') heldout = residual
+      else throw new Error('invalid Flash golden phase')
+    }
+    expect(fitted).toEqual([51, 51, 51])
+    expect(heldout).toBe(fitted[0])
+  })
+
+  it('rejects Flash shapes outside the observed single text-part final wire', () => {
+    const selected = definition('qwen/qwen3.8-flash')
+    const meter = createQwenInputMeter(selected)
+    const base = JSON.parse(
+      readFileSync(
+        new URL(
+          './fixtures/qwen/flash-route/formal-18-qwen3.8-flash-english.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    )
+    for (const changed of [
+      { ...base, stream: false },
+      { ...base, store: null },
+      { ...base, messages: [{ role: 'user', content: 'Reply with the single word OK.' }] },
+      { ...base, messages: [{ role: 'user', content: null }] },
+      { ...base, messages: [{ role: 'user', content: [{ type: 'text', text: '' }] }] },
+      { ...base, messages: [{ role: 'system', content: 'Be brief.' }, ...base.messages] },
+      { ...base, messages: [...base.messages, ...base.messages] },
+      {
+        ...base,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'a' },
+              { type: 'text', text: 'b' },
+            ],
+          },
+        ],
+      },
+      {
+        ...base,
+        messages: [
+          {
+            role: 'user',
+            content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
+          },
+        ],
+      },
+      { ...base, tools: [{ type: 'function', function: { name: 'lookup', parameters: {} } }] },
+      { ...base, reasoning: { effort: 'high' } },
+      { ...base, model: 'qwen/qwen3.8-max-0902' },
+      { ...base, provider: { order: ['other'], allow_fallbacks: false, require_parameters: true } },
+      {
+        ...base,
+        provider: { order: ['alibaba'], allow_fallbacks: false, require_parameters: false },
+      },
+    ])
+      expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+        kind: 'unavailable',
+      })
+    const long = {
+      ...base,
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'x'.repeat(16_384) }] }],
+    }
+    expect(meter.measure({ body: long, serialized: writeJsonLossless(long) })).toMatchObject({
+      kind: 'estimated',
+    })
+  })
+
+  it('plans and sends Flash through the real meter and local TLS final-wire path', async () => {
+    const modelId = 'qwen/qwen3.8-flash'
+    const selected = definition(modelId)
+    const meter = createQwenInputMeter(selected)
+    const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [selected],
+      inputMeters: [meter],
+    })
+    try {
+      const input = {
+        ...request(modelId),
+        messages: [message('user', 'Reply with the single word OK.', 'flash-english')],
+        tools: [],
+        parameters: { maxOutputTokens: 16 },
+      }
+      const planned = transport.plan(input)
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      const frozen = readFileSync(
+        new URL(
+          './fixtures/qwen/flash-route/formal-18-qwen3.8-flash-english.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ).trimEnd()
+      expect(planned.planned.serialized).toBe(frozen)
+      expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
+        kind: 'estimated',
+        tokens: 68,
+      })
+      const sent = await transport.send(
+        planned.planned,
+        'qwen-local-only-credential',
+        new AbortController().signal,
+      )
+      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
+      for await (const _event of transport.read(
+        sent.response,
+        planned.planned,
+        new AbortController().signal,
+      )) {
+        // Consume the local fixture and release its network resource.
+      }
+      expect(host.requests).toHaveLength(1)
+      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+    } finally {
+      await transport.close()
+      await host.close()
+    }
+  })
+
   it("renders Alibaba's hosted Max Hi/11-token template and applies the route estimate", () => {
     const modelId = 'qwen/qwen3.8-max-0902'
     const meter = createQwenInputMeter(definition(modelId))
@@ -789,7 +955,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     },
   )
 
-  it.each(commercial)(
+  it.each(unboundCommercial)(
     '%s projects its actual definition to local HTTPS wire with a synthetic meter only',
     async modelId => {
       const selected = definition(modelId)
