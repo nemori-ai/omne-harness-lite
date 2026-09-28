@@ -94,3 +94,9 @@ The checker follows same-file lexical declarations, assignment aliases, named/na
 The static scope is deliberately explicit: this tool does not interpret arbitrary JavaScript, infer unannotated cross-file values, prove source-pair authenticity, common-unit transaction ordering, runtime singleton behavior, reflection isolation or actual cleanup. Resolved import aliases identify providers; they do not grant new consumer permissions. The example assembly's final frozen source must still pass the integrated scan and independent joint acceptance. Tool self-tests cannot close MCR-V7 or the whole P3 stage.
 
 Existing pure-core, tenancy, entry and repository rules are described in the [Chinese catalogue](README_ZH.md). Add a focused rule with its accepted source clause, positive and deliberate negative fixtures, and coverage limits; register package rules in `RULES` or repository rules in `REPOSITORY_RULES` according to the paths and resolution they require.
+
+## Current core schema imports
+
+`core-pure-imports` uses an exact public-subpath list, including `model-profile/schema/v3` and `asset-model/schema/connector/v2`. Consumers still need an approved package dependency. Frozen schemas required by current contracts remain available; retired model execution entry points, adjacent private paths, and unknown versions are rejected. The response and loop schema graphs include their explicitly adopted dependencies.
+
+Run `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/core-rules.spec.ts` for the positive and negative boundary checks.

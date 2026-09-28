@@ -76,10 +76,11 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 旧 asset-model/schema-runtime 已随实际提供者迁移移出登记，即使消费者仍依赖 asset-model 也会拒绝；相邻私有路径不获准。
 本包内部复用走相对路径，子入口登记不增加未经采用的 self import 或任意包依赖。
 
-D-068 资源接线登记精确的 content-blocks、messages、model-response、loop-extension、tool-definition、asset-model `schema/v2`，
-仍要求消费者已有该包的依赖；相邻路径、未知版本、私有入口不接受，OE `schema/v1` 保留。
-这只是检查器入口配置，不表示各产品包已经公开该资源，也不表示新候选 v3 已接受。
-当前纯 core 依赖图没有 model-response 的消费者，该项目前只核登记配置与拒绝未批准依赖。
+当前允许的精确 Schema 子入口以 `src/rules/core-pure-imports.ts` 的 `PUBLIC_SUBPATHS` 为准，
+包括 model-profile 的 `schema/v3` 和 asset-model 的 `schema/connector/v2`，只授予已有依赖的消费者。
+messages、model-response、loop-extension、asset-evaluation 的旧执行入口已移除；保留的冻结 Schema 用于现行契约的精确依赖，
+不恢复旧实现。相邻路径、未知版本和私有源码仍拒绝。model-response/loop-extension 的完整资源图也按已采用的依赖显式登记。
+可运行 `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/core-rules.spec.ts` 核对允许与拒绝边界。
 
 新增范围化规则的实际注册在 `src/rules/core-scoped.ts`：
 
