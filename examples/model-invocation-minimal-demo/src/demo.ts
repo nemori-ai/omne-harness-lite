@@ -21,6 +21,7 @@ import { createDemoCallHost } from './model-call-host.ts'
 import type { AuthenticatedActor } from './types.ts'
 import { createDemoConfig, MODEL } from './deployment.ts'
 import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 
 interface LocalState {
   readonly version: 1
@@ -118,6 +119,7 @@ async function initialize(directory: string): Promise<{ state: LocalState; fresh
 
 export interface DemoConversation {
   readonly session: string
+  readonly identity: { readonly account: string; readonly organization: string }
   readonly application: AcceptanceApplication
   readonly actor: AuthenticatedActor
   readonly models: () => ReturnType<AcceptanceApplication['displayList']>
@@ -142,6 +144,12 @@ type DemoSendOutcome =
   | { readonly kind: 'saved' | 'failed'; readonly response: ModelResponse }
   | { readonly kind: 'refused'; readonly reason: string }
   | { readonly kind: 'unconfirmed' }
+
+export class DemoStartupFailure extends Error {
+  constructor(readonly cleanupComplete: boolean) {
+    super('demo startup unavailable')
+  }
+}
 
 function refusalReason(
   sent: Awaited<ReturnType<AcceptanceApplication['startServiceCall']>>,
@@ -183,6 +191,7 @@ export async function openDemo(
   credential?: Uint8Array,
   testOptions?: Partial<Parameters<typeof createAcceptanceApplication>[1]>,
   observerBounds: DemoObserverBounds = defaultObserverBounds,
+  host?: { readonly processOwnership: ProcessOwnership; readonly covered: boolean },
 ): Promise<DemoConversation> {
   if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens <= 0)
     throw new Error('max output tokens must be a positive safe integer')
@@ -208,11 +217,19 @@ export async function openDemo(
     if (value === undefined || value === 'unavailable') throw new Error('lease clock unavailable')
     return value
   }
-  const config = createDemoConfig(directory, randomUUID(), now, tokenMargin, retirement)
+  const config = createDemoConfig(
+    directory,
+    randomUUID(),
+    now,
+    tokenMargin,
+    retirement,
+    host?.processOwnership,
+  )
   app = createAcceptanceApplication(config, {
     ...testOptions,
     stage: 'modelRequest',
     diagnostics: testOptions?.diagnostics ?? { record() {} },
+    coldRecovery: { covered: host?.covered ?? initialized.fresh },
   })
   try {
     await app.ready
@@ -225,8 +242,15 @@ export async function openDemo(
     const actor = await app.authenticate(initialized.state.identifier, initialized.state.password)
     if (!('account' in actor)) throw new Error('demo authentication rejected')
     const session = initialized.state.session
+    if (!initialized.fresh) {
+      const existing = await app.readSessionLog(actor, session)
+      if (!('entries' in existing)) throw new Error('demo session ownership or log unavailable')
+    }
     const prepared = await app.prepareSession(actor, session)
     if (!('session' in prepared)) throw new Error('demo session preparation rejected')
+    const reconciled = await app.reconcileModelRuntime(actor, session)
+    if (!('calls' in reconciled))
+      throw new Error('demo recovery unavailable; no new request admitted')
     const bound = await app.bindModelRuntime(actor, session)
     if (!('service' in bound)) throw new Error('demo model runtime unavailable')
     if (initialized.fresh) {
@@ -262,6 +286,7 @@ export async function openDemo(
     let stopped = false
     return {
       session,
+      identity: { account: actor.account, organization: actor.tenant.organization },
       application: app,
       actor,
       models: () => app.displayList(actor, session),
@@ -415,8 +440,7 @@ export async function openDemo(
     }
   } catch (error) {
     const closed = await app.close()
-    if (!closed.complete)
-      throw new Error('demo startup failed; durable responsibility remains unfinished')
+    if (!closed.complete) throw new DemoStartupFailure(false)
     throw error
   }
 }

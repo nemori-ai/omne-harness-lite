@@ -466,7 +466,7 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
 }
 /** The host actually stops old effect-capable writers before returning a scope. */
 export interface RuntimeRecoveryScope {
-  readonly binding: SessionRuntimeBinding
+  readonly binding: { readonly log: SettlementLogBinding }
   readonly owner: SettlementOwner
   /** The host checks original session, tenant, call, dispatch and ResponseId ownership. */
   readonly originalInvocation: (

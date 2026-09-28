@@ -20,6 +20,7 @@ import {
   type TokenMargin,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
+import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 
 export const MODEL = deepseekV4Pro0813Definition.modelId
 export const DEMO_ROOT: CapabilityId = {
@@ -106,6 +107,7 @@ export function createDemoConfig(
   now: () => string,
   tokenMargin: TokenMargin,
   retirement: RetirementPolicy,
+  processOwnership?: ProcessOwnership,
 ): AcceptanceConfig {
   const keys = {
     activationSigning: join(directory, 'activation-private.pem'),
@@ -149,10 +151,8 @@ export function createDemoConfig(
     sessionLog: {
       dir: join(directory, 'session-logs'),
       processOwnership: {
-        current: runId,
-        async observeExit() {
-          return 'unknown'
-        },
+        current: processOwnership?.current ?? runId,
+        observeExit: processOwnership?.observeExit ?? (async () => 'unknown'),
       },
       policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
     },

@@ -410,6 +410,8 @@ export function createAcceptanceApplication(
     readonly stage?: AcceptanceStage
     /** Trusted local controlled HTTPS only; never read from a tenant request. */
     readonly developmentTransport?: Pick<TransportOptions, 'baseUrl' | 'tls'>
+    /** Trusted host evidence. Only a supervisor that saw the old worker exit may set covered. */
+    readonly coldRecovery?: { readonly covered: boolean }
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
@@ -450,8 +452,8 @@ export function createAcceptanceApplication(
     {
       binding: SettlementLogBinding
       owner: ReturnType<typeof createRequestOwner>
-      selector: SessionModelSelection
-      selectionInput: SessionModelSelectionInput
+      selector?: SessionModelSelection
+      selectionInput?: SessionModelSelectionInput
     }
   >()
   const runtimeActors = new Map<SessionRef, AuthenticatedActor>()
@@ -469,7 +471,7 @@ export function createAcceptanceApplication(
   const recoveryReady = new Map<
     SessionRef,
     {
-      readonly binding: SessionRuntimeBinding
+      readonly binding: Pick<SessionRuntimeBinding, 'log'>
       readonly owner: ReturnType<typeof createRequestOwner>
       readonly originals: ReadonlyMap<
         string,
@@ -478,6 +480,8 @@ export function createAcceptanceApplication(
           readonly handle: AnchoredInvocationHandle
         }
       >
+      readonly coldTargets: ReadonlyMap<string, ModelLogSettlementTarget>
+      readonly coldAbsent: boolean
       scopeIssued: boolean
     }
   >()
@@ -675,7 +679,9 @@ export function createAcceptanceApplication(
       await Promise.allSettled([...recoveryTasks])
       const stoppedRuntime = await modelRuntime?.close()
       const stoppedSelections = await Promise.allSettled(
-        [...sessionBorrows.values()].map(borrow => borrow.selector.close()),
+        [...sessionBorrows.values()].flatMap(borrow =>
+          borrow.selector === undefined ? [] : [borrow.selector.close()],
+        ),
       )
       await Promise.allSettled([...admitted])
       const lateObservers = await Promise.allSettled(
@@ -1116,18 +1122,17 @@ export function createAcceptanceApplication(
               if (!('borrow' in access)) return { failure: 'unavailable' }
               if (catalog === undefined || lookup === undefined || currentInputs === undefined)
                 return { failure: 'unavailable' }
+              const selectionInput = ensureSelection(access.borrow)
+              if (selectionInput === undefined) return { failure: 'unavailable' }
               const existing = runtimeBindings.get(session)
               if (existing !== undefined) {
-                if (
-                  existing.log !== access.borrow.binding ||
-                  existing.selection !== access.borrow.selectionInput
-                )
+                if (existing.log !== access.borrow.binding || existing.selection !== selectionInput)
                   return { failure: 'unavailable' }
                 return { binding: existing }
               }
               const binding: SessionRuntimeBinding = {
                 log: access.borrow.binding,
-                selection: access.borrow.selectionInput,
+                selection: selectionInput,
                 catalog,
                 credentials: lookup,
                 currentEvaluationInputs: currentInputs,
@@ -1196,13 +1201,24 @@ export function createAcceptanceApplication(
                     if (key.session !== input.session || key.callId !== target.call)
                       return { unavailable: true }
                     const original = ready.originals.get(key.callId)
+                    if (original !== undefined) {
+                      if (
+                        original.target.response !== target.response ||
+                        !modelLogJsonEqual(original.target.dispatch, target.dispatch)
+                      )
+                        return { unavailable: true }
+                      return { original: original.handle }
+                    }
+                    const cold = ready.coldTargets.get(key.callId)
                     if (
-                      original === undefined ||
-                      original.target.response !== target.response ||
-                      !modelLogJsonEqual(original.target.dispatch, target.dispatch)
+                      !ready.coldAbsent ||
+                      cold === undefined ||
+                      cold.response !== target.response ||
+                      !modelLogJsonEqual(cold.dispatch, target.dispatch) ||
+                      trackedCalls.get(key.session)?.has(key.callId)
                     )
                       return { unavailable: true }
-                    return { original: original.handle }
+                    return { absent: true }
                   },
                   async close() {
                     if (closed) return
@@ -1521,13 +1537,7 @@ export function createAcceptanceApplication(
   async function sessionAccess(actor: AuthenticatedActor, session: unknown) {
     const checked = await checkActor(actor)
     if (!('account' in checked)) return checked
-    if (
-      sessionTenancy === undefined ||
-      sessionLogOwner === undefined ||
-      currentInputs === undefined ||
-      catalog === undefined ||
-      requestDeployment === undefined
-    )
+    if (sessionTenancy === undefined || sessionLogOwner === undefined)
       throw new AcceptanceOperationDefect('modelRequest')
     const parsed = parseOpaqueIdentifier(session, 'SessionRef')
     if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
@@ -1550,27 +1560,44 @@ export function createAcceptanceApplication(
           sessionLogOwner === log && allActive(requiredFibers) ? generation : null,
       }
       const owner = createRequestOwner(`app:${config.runId}:${parsed.ok}`)
-      const selectionInput: SessionModelSelectionInput = {
-        binding,
-        owner: owner.owner,
-        concurrent: requestDeployment.settlement.contention.limits.concurrent,
-        sessionTenancy,
-        catalog,
-        currentEvaluationInputs: currentInputs,
-        projection: historyProjection,
-        compatible: nativeCompatibility,
-        now: requestDeployment.invocation.now,
-        diagnostic: event =>
-          record({ event: 'operation', phase: event.stage, outcome: event.outcome }),
-        onDiagnosticFailure: () => {
-          diagnosticFailures++
-        },
-      }
-      const selector = createSessionModelSelection(selectionInput)
-      borrow = { binding, owner, selector, selectionInput }
+      borrow = { binding, owner }
       sessionBorrows.set(parsed.ok, borrow)
     }
     return { borrow, checked }
+  }
+  function ensureSelection(borrow: {
+    binding: SettlementLogBinding
+    owner: ReturnType<typeof createRequestOwner>
+    selector?: SessionModelSelection
+    selectionInput?: SessionModelSelectionInput
+  }): SessionModelSelectionInput | undefined {
+    if (borrow.selectionInput !== undefined) return borrow.selectionInput
+    if (
+      sessionTenancy === undefined ||
+      currentInputs === undefined ||
+      catalog === undefined ||
+      requestDeployment === undefined
+    )
+      return undefined
+    const selectionInput: SessionModelSelectionInput = {
+      binding: borrow.binding,
+      owner: borrow.owner.owner,
+      concurrent: requestDeployment.settlement.contention.limits.concurrent,
+      sessionTenancy,
+      catalog,
+      currentEvaluationInputs: currentInputs,
+      projection: historyProjection,
+      compatible: nativeCompatibility,
+      now: requestDeployment.invocation.now,
+      diagnostic: event =>
+        record({ event: 'operation', phase: event.stage, outcome: event.outcome }),
+      onDiagnosticFailure: () => {
+        diagnosticFailures++
+      },
+    }
+    borrow.selector = createSessionModelSelection(selectionInput)
+    borrow.selectionInput = selectionInput
+    return selectionInput
   }
   async function appendServiceMessage(
     binding: SettlementLogBinding,
@@ -1787,8 +1814,10 @@ export function createAcceptanceApplication(
         let ready = recoveryReady.get(key)
         if (ready === undefined) {
           const owners = callHosts.get(key)
-          if (owners === undefined) return { unavailable: true }
-          for (const previous of owners) if (previous.released?.()) owners.delete(previous)
+          const cold = owners === undefined
+          if (cold && (runtimeBindings.has(key) || trackedCalls.has(key)))
+            return { unavailable: true }
+          for (const previous of owners ?? []) if (previous.released?.()) owners?.delete(previous)
           // Capture the original handle before stop may remove the container from the store.
           const captured = new Map<string, AnchoredInvocationHandle>()
           for (const [callId, container] of trackedCalls.get(key) ?? []) {
@@ -1797,16 +1826,18 @@ export function createAcceptanceApplication(
           }
           // Stop active HTTP dispatch before draining admitted work: that work can be
           // waiting for the very abort which the host owns.
-          const stopping = Promise.allSettled([...owners].map(async owner => await owner.stop()))
+          const stopping = Promise.allSettled(
+            [...(owners ?? [])].map(async owner => await owner.stop()),
+          )
           await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
           const stopped = await stopping
           await access.borrow.owner.drain()
-          const binding = runtimeBindings.get(key)
+          const warmBinding = runtimeBindings.get(key)
           const ownedCalls = trackedCalls.get(key)
-          if (binding === undefined) return { unavailable: true }
           if (
-            binding.log !== access.borrow.binding ||
-            binding.log.currentGeneration() !== binding.log.generation
+            (!cold && warmBinding === undefined) ||
+            (warmBinding !== undefined && warmBinding.log !== access.borrow.binding) ||
+            access.borrow.binding.currentGeneration() !== access.borrow.binding.generation
           )
             return { unavailable: true }
           for (const [callId, container] of ownedCalls ?? []) {
@@ -1814,7 +1845,7 @@ export function createAcceptanceApplication(
             if (
               view.key.session !== key ||
               view.key.callId !== callId ||
-              view.session !== binding ||
+              view.session !== warmBinding ||
               view.owner !== access.borrow.owner.owner
             )
               return { unavailable: true }
@@ -1844,11 +1875,28 @@ export function createAcceptanceApplication(
           await access.borrow.owner.drain()
           admitted.registration.release()
           if ('unavailable' in prefix) return { unavailable: true }
+          const callIds = new Set<string>()
           for (const entry of prefix.prefix.entries) {
             for (const rawKey of entry.readKeys) {
               const decoded = decodeModelLogKey(rawKey)
-              if ('ok' in decoded && 'call' in decoded.ok && !ownedCalls?.has(decoded.ok.call))
-                return { unavailable: true }
+              if ('ok' in decoded && 'call' in decoded.ok) {
+                callIds.add(decoded.ok.call)
+                if (!cold && !ownedCalls?.has(decoded.ok.call)) return { unavailable: true }
+              }
+            }
+          }
+          const coldTargets = new Map<string, ModelLogSettlementTarget>()
+          if (cold) {
+            for (const callId of callIds) {
+              const history = interpretCallHistory({ prefix: prefix.prefix, callId })
+              if (!('known' in history)) return { unavailable: true }
+              const last = history.known.dispatches.at(-1)
+              if (last === undefined || last.response !== null) continue
+              coldTargets.set(callId, {
+                call: callId,
+                dispatch: last.record.dispatch,
+                response: last.record.response,
+              })
             }
           }
           const originals = new Map<
@@ -1869,7 +1917,14 @@ export function createAcceptanceApplication(
               handle,
             })
           }
-          ready = { binding, owner: access.borrow.owner, originals, scopeIssued: false }
+          ready = {
+            binding: { log: access.borrow.binding },
+            owner: access.borrow.owner,
+            originals,
+            coldTargets,
+            coldAbsent: cold && options.coldRecovery?.covered === true,
+            scopeIssued: false,
+          }
           recoveryReady.set(key, ready)
         } else {
           await Promise.allSettled([...(sessionTasks.get(key) ?? [])])

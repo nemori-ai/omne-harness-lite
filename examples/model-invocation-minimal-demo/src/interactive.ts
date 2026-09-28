@@ -12,8 +12,7 @@ import {
   type AssemblyState,
   type AssemblySnapshot,
 } from '@omne-harness-lite/stream-assembly'
-import type { DemoConversation } from './demo.ts'
-import type { DemoTotals } from './demo.ts'
+import type { DemoConversation, DemoTotals } from './demo.ts'
 import type {
   ModelDisplayAnnotation,
   ModelDisplayEntry,
@@ -84,8 +83,20 @@ function record(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 /** One active turn. The actual runtime owns cancellation, durable settlement and borrowed resources. */
+export type InteractiveConversation = Pick<
+  DemoConversation,
+  | 'session'
+  | 'identity'
+  | 'models'
+  | 'currentModel'
+  | 'selectModel'
+  | 'send'
+  | 'stopActive'
+  | 'history'
+  | 'totals'
+> & { readonly close: () => Promise<{ readonly complete: boolean }> }
 export async function runInteractive(
-  conversation: DemoConversation,
+  conversation: InteractiveConversation,
   input: Readable,
   output: Writable,
   terminal: boolean,
@@ -102,7 +113,7 @@ export async function runInteractive(
   process.on('SIGINT', interrupt)
   try {
     output.write(
-      `Model invocation minimal demo\nAccount: ${safeText(conversation.actor.account)}\nOrganization: ${safeText(conversation.actor.tenant.organization)}\nConversation: ${safeText(conversation.session)}\nEach submitted message can incur OpenRouter charges. /help lists commands.\n`,
+      `Model invocation minimal demo\nAccount: ${safeText(conversation.identity.account)}\nOrganization: ${safeText(conversation.identity.organization)}\nConversation: ${safeText(conversation.session)}\nEach submitted message can incur OpenRouter charges. /help lists commands.\n`,
     )
     output.write(currentLine(await conversation.currentModel()))
     lines = createInterface({ input, output, terminal })

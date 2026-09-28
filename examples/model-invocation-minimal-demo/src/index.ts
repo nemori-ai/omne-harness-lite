@@ -28,5 +28,10 @@ export {
 } from './types.ts'
 
 export { openDemo, readPrivateFile, type DemoConversation, type DemoTotals } from './demo.ts'
-export { runInteractive } from './interactive.ts'
+export {
+  createDemoSupervisor,
+  type DemoSupervisorOptions,
+  type SupervisedDemoConversation,
+} from './demo-supervisor.ts'
+export { runInteractive, type InteractiveConversation } from './interactive.ts'
 export { createDemoConfig, MODEL } from './deployment.ts'
