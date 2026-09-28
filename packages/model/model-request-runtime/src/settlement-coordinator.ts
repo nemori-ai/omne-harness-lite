@@ -33,6 +33,8 @@ import type {
   SettlementUnavailableReason,
 } from './settlement-types.ts'
 
+import { settlementAppendReceipt } from './settlement-receipt.ts'
+
 const unavailable = (reason: SettlementUnavailableReason): SettlementResult =>
   Object.freeze({ unavailable: true, reason })
 function failedHandle(reason: SettlementUnavailableReason): SettlementHandle {
@@ -184,7 +186,13 @@ export function createSettlementCoordinator(
     }
     function stop() {
       controller.abort()
-      for (const task of tasks) task.requestStop()
+      for (const task of tasks) {
+        try {
+          task.requestStop()
+        } catch {
+          diagnostic('settlement.stop_request_failed')
+        }
+      }
     }
     function diagnostic(kind: string) {
       try {
@@ -287,7 +295,8 @@ export function createSettlementCoordinator(
         })
         const finished = await waiting.completion
         await waiting.stopped
-        if (finished !== 'elapsed') return 'cancelled'
+        if (finished === 'cancelled') return 'cancelled'
+        if (finished !== 'elapsed') return 'policy'
       } catch {
         return 'policy'
       }
@@ -385,7 +394,13 @@ export function createSettlementCoordinator(
           )
         })
         try {
-          appended = await task.completion
+          const receipt = settlementAppendReceipt(await task.completion, batch.length)
+          if (receipt === null) {
+            unknownWrites.add(task)
+            diagnostic('settlement.receipt_unconfirmed')
+            return unavailable('write_unknown')
+          }
+          appended = receipt
         } catch {
           unknownWrites.add(task)
           diagnostic('settlement.unknown_retained')

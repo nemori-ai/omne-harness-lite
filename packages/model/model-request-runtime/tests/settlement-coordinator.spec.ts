@@ -29,7 +29,7 @@ function noReply(): JsonObject {
 }
 describe('A1a actual SQL/SL3 coordinator; controlled all-writer scope', () => {
   it('once whole [M,R], exact MR5 original value and close/reopen', async () => {
-    await controlled('whole', async ({ coordinator, binding, owner, submissions, dir }) => {
+    await controlled('whole', async ({ coordinator, binding, owner, submissions, dir, reopen }) => {
       const handle = coordinator.settle(request)
       const result = await handle.completion
       expect(result).toHaveProperty('settled')
@@ -52,7 +52,22 @@ describe('A1a actual SQL/SL3 coordinator; controlled all-writer scope', () => {
       // The actual log owner must close independently; this coordinator does not own it.
       const prefix = await binding.log.readSince(session, 0)
       expect(prefix).toHaveProperty('tail', 4)
-      // Reopen is asserted in a separate actual-owner test below.
+      const reopened = await reopen()
+      const restored = createSettlementCoordinator({
+        binding: reopened,
+        owner,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      const recognized = restored.settle(request)
+      const original = await recognized.completion
+      expect(original).toMatchObject({ origin: 'recognized' })
+      if (!('settled' in original)) throw new Error('reopened original')
+      expect(writeJsonLossless(original.settled.response.value)).toBe(writeJsonLossless(responseV5))
+      await recognized.stopped
+      await restored.close()
+      expect(submissions).toHaveLength(2)
       expect(dir).toContain('whole-')
     })
   })
