@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { Tokenizer } from '@huggingface/tokenizers'
+import { imageSize } from 'image-size'
 import { copyJsonValue, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createPiAiTransport } from '../src/transport.ts'
@@ -109,6 +110,74 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
       expect(referenceImageTokens(width, height)).toBe(tokens)
     expect(referenceImageTokens(0, 10)).toBeUndefined()
     expect(referenceImageTokens(65536, 1)).toBeUndefined()
+  })
+
+  it('counts each earlier and current decoded PNG image span across complete history', () => {
+    const meter = createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)
+    const images = [
+      [
+        'public-red-544.png',
+        544,
+        544,
+        184,
+        '25d49a363289e427414a8cc4ede861499569431630135063c3c4e09ba192b5ce',
+      ],
+      [
+        'public-blue-1024.png',
+        1024,
+        1024,
+        652,
+        'cd282082985dd7623f38d4bf0d082314c7b0f519da0891dee14930247b4cf9f2',
+      ],
+      [
+        'reference-green-1920x1080.png',
+        1920,
+        1080,
+        968,
+        '061a4c1a21c521cdb447d3bfa31e3d7f1f9cb0dda92b93a48cb4d1425c5434d0',
+      ],
+    ] as const
+    const dataUrls = images.map(([name, width, height, span, digest]) => {
+      const bytes = readFileSync(new URL(`./fixtures/deepseek-v41-flash/${name}`, import.meta.url))
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(digest)
+      expect(imageSize(bytes)).toMatchObject({ width, height, type: 'png' })
+      expect(referenceImageTokens(width, height)).toBe(span)
+      return `data:image/png;base64,${bytes.toString('base64')}`
+    })
+    const measure = (earlier: string, current: string) => {
+      const image = (url: string) => ({ type: 'image_url', image_url: { url } })
+      const body = {
+        model: deepseekV41FlashDefinition.modelId,
+        messages: [
+          { role: 'system', content: 'Describe colors accurately.' },
+          { role: 'user', content: [{ type: 'text', text: 'First image.' }, image(earlier)] },
+          { role: 'assistant', content: 'I see the first image.' },
+          { role: 'user', content: [{ type: 'text', text: 'Second image.' }, image(current)] },
+        ],
+      }
+      return meter.measure({ body, serialized: writeJsonLossless(body) })
+    }
+    const [smallImage, mediumImage, largeImage] = dataUrls
+    if (!smallImage || !mediumImage || !largeImage) throw new Error('missing PNG fixture')
+    const baseline = measure(smallImage, smallImage)
+    const changed = measure(smallImage, mediumImage)
+    const large = measure(smallImage, largeImage)
+    const changedEarlier = measure(mediumImage, smallImage)
+    expect(measure('https://example.invalid/earlier.png', smallImage)).toEqual({
+      kind: 'unavailable',
+    })
+    for (const result of [baseline, changed, large, changedEarlier])
+      expect(result.kind).toBe('estimated')
+    if (
+      baseline.kind === 'unavailable' ||
+      changed.kind === 'unavailable' ||
+      large.kind === 'unavailable' ||
+      changedEarlier.kind === 'unavailable'
+    )
+      throw new Error('known PNG spans were unavailable')
+    expect(Number(changed.tokens) - Number(baseline.tokens)).toBe(652 - 184)
+    expect(Number(large.tokens) - Number(baseline.tokens)).toBe(968 - 184)
+    expect(Number(changedEarlier.tokens) - Number(baseline.tokens)).toBe(652 - 184)
   })
 
   it('uses documented dimension-based inline image projection and refuses unknown material', () => {
