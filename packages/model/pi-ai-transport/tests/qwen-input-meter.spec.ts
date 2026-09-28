@@ -320,6 +320,58 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     expect(planned.planned.serialized).toBe(frozen.trimEnd())
   })
 
+  it('uses the independently observed Max text-array and formal input counts only for metering', () => {
+    const golden: unknown = JSON.parse(
+      readFileSync(
+        new URL('./fixtures/qwen/max0902-formal-conversion-golden.json', import.meta.url),
+        'utf8',
+      ),
+    )
+    if (!object(golden) || !object(golden.textArrayBridge) || !object(golden.formalInvocation))
+      throw new Error('invalid Max conversion golden')
+    const bridge = readFileSync(
+      new URL(
+        './fixtures/qwen/probe-six/08-qwen3.8-max-0902-english-text-array.json',
+        import.meta.url,
+      ),
+    )
+    const formal = readFileSync(
+      new URL(
+        './fixtures/qwen/probe-six/08-qwen3.8-max-0902-english-formal-plan.json',
+        import.meta.url,
+      ),
+    )
+    expect(createHash('sha256').update(bridge).digest('hex')).toBe(
+      golden.textArrayBridge.wireSha256,
+    )
+    expect(createHash('sha256').update(formal).digest('hex')).toBe(
+      golden.formalInvocation.wireSha256,
+    )
+    expect(golden.textArrayBridge.promptTokens).toBe(68)
+    expect(golden.formalInvocation.promptTokens).toBe(68)
+    expect(golden.formalInvocation).toMatchObject({
+      usageSource: 'upstream',
+      providerEcho: 'Alibaba',
+      sendAttempts: 1,
+      outcome: 'truncated',
+      ending: 'truncated_at_limit',
+      outputTokens: 16,
+      reasoningTokens: 16,
+      rawSseCaptured: false,
+    })
+    const selected = definition('qwen/qwen3.8-max-0902')
+    const body = JSON.parse(formal.toString('utf8'))
+    expect(
+      createQwenInputMeter(selected).measure({
+        body,
+        serialized: formal.toString('utf8').trimEnd(),
+      }),
+    ).toEqual({
+      kind: 'estimated',
+      tokens: golden.formalInvocation.promptTokens,
+    })
+  })
+
   it('pins the eight credentialed certification case identities and accepted cache configurations', () => {
     const raw: unknown = JSON.parse(
       readFileSync(new URL('./fixtures/qwen/authentication-cases.json', import.meta.url), 'utf8'),

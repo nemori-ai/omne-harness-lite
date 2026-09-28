@@ -54,3 +54,5 @@ node packages/model/pi-ai-transport/tests/fixtures/qwen/probe-six/formal-invoke.
 ```
 
 The full-context reservation remains `$2.500096000000000000`; it is exposure, not predicted actual cost. Local TLS verification is `node --test packages/model/pi-ai-transport/tests/qwen-formal-invoke.test.mjs`.
+
+Root's controlled bridge reported 68 input tokens, matching original case 08's 68. The formal invocation also reported 68 upstream input tokens on the exact frozen planner wire, but its 16-token output cap was consumed entirely by reasoning and the outcome was `truncated_at_limit`. The formal probe's original complete-result oracle correctly did not write a pass file. The separate derived input-conversion record is `.meta_harness/research/model-request-adaptation/vendor-continuation/qwen/2026-09-28-max0902-formal-input-conversion.md`; it supports only this estimated meter's formal planner input shape, not a completed response or service certification.
