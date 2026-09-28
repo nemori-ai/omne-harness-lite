@@ -1,0 +1,1231 @@
+{
+  "contract": "data.messages/v5",
+  "cases": [
+    {
+      "name": "all_caps_equal_upstream",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": true,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 8,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {
+              "status": "limited",
+              "value": 8
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "S-49 完整保留 MP4 值；cap 等于已知上游值。"
+    },
+    {
+      "name": "missing_project_image_cap",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": false,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {
+              "status": "limited",
+              "value": 8
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "malformed；缺成员不能补齐。"
+    },
+    {
+      "name": "missing_upstream_facts",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": false,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 8,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "malformed；缺成员不能补齐。"
+    },
+    {
+      "name": "image_profile_without_image_cap",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": false,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {
+              "status": "limited",
+              "value": 8
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "malformed；image 档案必填单图 cap。"
+    },
+    {
+      "name": "missing_request_fact",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": false,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 8,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxImageBytes": {
+              "status": "limited",
+              "value": 8
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "malformed；适用事实不能缺席。"
+    },
+    {
+      "name": "empty_fact",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": false,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 8,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {},
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "malformed；空对象不等于 unknown/unbounded。"
+    },
+    {
+      "name": "explicit_unknown",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": true,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 8,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "上游 unknown 保留为 unknown，仍有有限项目 cap。"
+    },
+    {
+      "name": "explicit_unbounded",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": true,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 8,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {
+              "status": "unbounded"
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "有依据的无上游上限与 unknown 不同；项目 cap 仍留存。"
+    },
+    {
+      "name": "text_profile_complete",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": true,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {},
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "非 image 档案不带 image 指标；完整保留适用事实。"
+    },
+    {
+      "name": "text_profile_has_image_limits",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": false,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 8,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {
+              "status": "limited",
+              "value": 8
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "malformed；image 指标不适用。"
+    },
+    {
+      "name": "v4_record_is_not_v5",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": false,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "旧已出门记录仍由 MS4 codec 读取/结算，不能修补后作为 MS5。"
+    },
+    {
+      "name": "writer_must_reject_cap_above_upstream",
+      "definition": "ModelCallDispatchedRecord",
+      "schemaValid": true,
+      "value": {
+        "kind": "model_call_dispatched",
+        "call": "mc_01",
+        "dispatch": 1,
+        "provider": "provider-x",
+        "response": "rsp_01",
+        "profile": {
+          "origin": "official",
+          "routeName": "vendor-a/chat-large"
+        },
+        "profileSnapshot": {
+          "providers": [
+            "provider-x",
+            "provider-y"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-23T08:00:00Z",
+          "adaptation": {
+            "implementation": {
+              "name": "shared-chat",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "vendor-a/chat-large",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {
+                "cache": {
+                  "mode": "automatic"
+                },
+                "limits": [
+                  1,
+                  2
+                ]
+              }
+            }
+          },
+          "inputConstraints": {
+            "maxImageBytes": 9,
+            "maxImages": 2,
+            "maxRequestBytes": 1000
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "limited",
+              "value": 200000
+            },
+            "maxRequestBytes": {
+              "status": "limited",
+              "value": 1000
+            },
+            "maxImageBytes": {
+              "status": "limited",
+              "value": 8
+            },
+            "maxImages": {
+              "status": "limited",
+              "value": 2
+            }
+          }
+        },
+        "parameters": {
+          "temperature": 0.2
+        },
+        "selectedBy": "session",
+        "credentialScope": {
+          "layer": "factory"
+        },
+        "adaptation": {
+          "implementation": {
+            "name": "shared-chat",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "vendor-a/chat-large",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {
+              "cache": {
+                "mode": "automatic"
+              },
+              "limits": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "meaning": "Schema 通过不代表写入者合法；MP4 S-33 与 MS5 S-49 要求写入者拒绝产生该快照，不新增接收方跨字段拒绝值。"
+    }
+  ]
+}

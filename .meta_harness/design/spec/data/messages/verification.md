@@ -1,5 +1,36 @@
 # 验证覆盖与实际证据
 
+## v5 完整输入限制快照
+
+本版从已接受且冻结的 MS4 起草，依据 PF-013 rev 14／D-096；MP4 公共名称、S-1～S-33 与 Schema 已由主线确认定型，仍为候选输入。MP4 Schema SHA-256 为 `cfdb0878cab32f961cfd8e1471e714c0abf2f8ca6d360e4326f7e0e076c72278`。初报的 `46c969…` 后只改根 description 的版本说明，主线确认无结构变化，本轮检查使用新摘要。
+
+### v5 变化的影响
+
+- S-49 的 `profileSnapshot` 引 MP4，完整保留供给 cap、适用上游事实和 `updatedAt`，不能按当前目录重建。S-37 的引用、缺席表、部署责任表与实例同步；条款仍为 S-1～S-50，表示层十四个拒绝值和 S-50 收场不变。
+- 43 个 Schema 定义除 MP4 引用及已出门说明外，与 MS4 相同；AssistantMessage、工具／未解析调用原文、历史含义保持。不新增重试关联字段，失败干预结论由 loop-extension 的后继契约拥有。
+- 新记录只经显式采用 v5 的读写面；旧记录按原精确版本读取／结算，不补 cap 或事实。运行时的新发送检查与历史版本分发不因数据规格成稿获得实现证据。
+- 可读性 Alloy 原字节继承，新增限制留存不由该模型覆盖；不新增行为模型或 formal task。旧执行结果保留旧输入范围，本轮形式工具未运行。
+- 新增十二个完整实例，继承的已出门实例补齐 MP4 输入字段，测试数值不是官方供给或默认值。无新政策或新术语；继承 G-1/G-2/G-5/G-6/G-7/G-11 仍由正文所列 owner 负责。
+- 本轮限域核对 PF-004 rev 13、PF-006 rev 20、PF-014 rev 8、PF-015 rev 13 的 changelog：变化归工作区来源／显式 reload／会话工作区引用与感知，不改变本契约的消息值；S-17/S-25 保持不透明值及 G-6，不替 runtime context 选结构。头部当前依据同步，历史复核文字不改。
+
+### v5 证据义务
+
+| 条款／性质 | 可失败证据 | 状态与 owner |
+|---|---|---|
+| S-49 完整 MP4 形状与三态保留 | 缺 cap、适用事实、空事实或错误适用域拒绝；unknown、unbounded、limited 分别往返 | 规范实例形状检查已运行；生产接收边界未开始，core/messages owner |
+| S-49 完整复制及同调用快照不变 | 当前目录改 cap／事实后，读回原记录仍相同；下一次发出只改一个 cap／事实必须暴露违约 | 未开始；runtime 与日志 owner |
+| MP4 S-33 写入者关系 | 形状合法但 cap 大于有限事实不能产生快照 | 规范实例数值 oracle 已运行；真实写路径未开始，profile 与 runtime owner |
+| S-37 无损耐久往返与历史读取 | 精确旧 codec 保留旧字节，新 codec 拒绝缺字段旧记录；无默认补齐 | 规范形状反例已运行；真实历史恢复／耐久往返未开始，codec 与日志 owner |
+| S-1～S-50 继承语义 | MS4 Schema 定义差异守卫；继承实例与坏名未解析调用正反例 | 本轮形状检查已运行；生产回归未开始，core/messages owner |
+
+### v5 本轮实际检查
+
+2026-09-28，spoke `panqiwei/model-request-runtime-messages5-spec`，基线 `fd4c87f2`。本地 `.venv/bin/python`、jsonschema 4.26.0、Draft 2020-12 与 format checker；按 `$id` 注册设计树与上述 MP4 文件，不取网络内容。实际输出：`PASS: inherited table rows 152; fenced core cases 2; new cases 12; total 166`，`reference closure 93 resolved resources/fragments`；43 定义差异守卫、Alloy 字节对照与 S-1～S-50 编号守卫通过。MS5 Schema SHA-256：`80c829391ef4f5e736c36a93e6e103467f2890125375ae09ff16f64b11d2485e`。
+
+这些检查只涵盖规范实例形状、一个跨字段数值反例和静态差异，不是生产校验器、持久化、恢复或实际模型计量证据。检查脚本及原始输出在本次任务的 `tmp/model-request-runtime/input-limit-successor/messages5/`，未作为长期权威。中央 registry 不在本 spoke 写权限内；候选 catalog、79 条 covers（均 reviewed:false）、零新增命名空间和零 formal task 已准备为四份片段，等待主线整批集成。
+
+`check_design.py --root .meta_harness/design --formal skip` 本轮实际返回 `FAIL: design validation found 16 error(s)`：14 个 MP4 链接因 sibling 候选未合入本 spoke 而不存在，另 2 个新验证锚点在当时尚未写入；本轮已补锚点。此运行不能声称通过。主线明确承担七包合并后的整批检查，本 spoke 不复制依赖包或改中央登记来伪造完整环境；整批 checker 结果待主线实际运行。形式任务均显式 skip。
+
 ## v4 模型适配绑定
 
 `data.messages/v4` 是从已接受 v3 演进的候选；本节维护本轮变化和实际证据，旧版结果不重标。v4 保留 S-1～S-50，增量落在 S-49，S-37、S-39 及缺席表同步。共用 `ModelAdaptationBinding` 和 `ModelProfileSnapshot` 的正式名称、字段及 S-27/S-29～S-31 已由其起草者确认定型；`data.model-profile/v3` 本身仍是候选。
