@@ -101,14 +101,26 @@ const capabilities = {
   },
 } as const satisfies ModelDefinition['capabilities']
 
+const gpt56MeteredIds = new Set([
+  'openai/gpt-5.6-sol',
+  'openai/gpt-5.6-sol-pro',
+  'openai/gpt-5.6-terra',
+  'openai/gpt-5.6-terra-pro',
+  'openai/gpt-5.6-luna',
+  'openai/gpt-5.6-luna-pro',
+])
+
 /** Complete MP4 declarations for the exact 12 selected OpenAI routes. */
 export const openaiDefinitions = ownDefinitions(
   Object.entries(openaiModelRoutes).map(
     ([modelId, routes]) =>
       ({
         modelId,
-        revision: '1',
-        implementation: { name: 'pi-ai:openai', revision: 'mp4-1' },
+        revision: gpt56MeteredIds.has(modelId) ? '2' : '1',
+        implementation: {
+          name: 'pi-ai:openai',
+          revision: gpt56MeteredIds.has(modelId) ? 'mp4-2' : 'mp4-1',
+        },
         capabilities,
         routes,
       }) satisfies ModelDefinition,

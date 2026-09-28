@@ -13,6 +13,7 @@ import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 // deliberately excludes GPT-6: that source does not provide a GPT-6 mapping.
 // Source: openai/tiktoken 4e71bbe0c078468e00fefbf94b39849389f346e5/model.py.
 type ImageRule = 'patch' | 'unknown'
+type ImageDetail = 'low' | 'high' | 'original' | 'auto'
 const dataUrl =
   /^data:(image\/(?:png|jpeg|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
 function expectedImageType(mime: string): string | undefined {
@@ -30,13 +31,59 @@ function expectedImageType(mime: string): string | undefined {
   }
 }
 
+/** Named GPT-5.6 base image rules; private route conversion still makes the total estimated. */
+export function openAiBaseImageTokens(
+  width: number,
+  height: number,
+  detail: ImageDetail,
+): number | undefined {
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width <= 0 ||
+    height <= 0 ||
+    width > 65535 ||
+    height > 65535
+  )
+    return undefined
+
+  const maxDimension = detail === 'low' ? 512 : detail === 'high' ? 2048 : 65535
+  const pixelScale = Math.min(1, maxDimension / Math.max(width, height))
+  let scaledWidth = pixelScale === 1 ? width : Math.floor(width * pixelScale)
+  let scaledHeight = pixelScale === 1 ? height : Math.floor(height * pixelScale)
+  if (scaledWidth < 1 || scaledHeight < 1) return undefined
+
+  let patches = Math.ceil(scaledWidth / 32) * Math.ceil(scaledHeight / 32)
+  if (detail === 'high' && patches > 2500) {
+    const shrink = Math.sqrt((32 * 32 * 2500) / (scaledWidth * scaledHeight))
+    const adjusted =
+      shrink *
+      Math.min(
+        Math.floor((scaledWidth * shrink) / 32) / ((scaledWidth * shrink) / 32),
+        Math.floor((scaledHeight * shrink) / 32) / ((scaledHeight * shrink) / 32),
+      )
+    scaledWidth = Math.floor(scaledWidth * adjusted)
+    scaledHeight = Math.floor(scaledHeight * adjusted)
+    if (scaledWidth < 1 || scaledHeight < 1) return undefined
+    patches = Math.ceil(scaledWidth / 32) * Math.ceil(scaledHeight / 32)
+  }
+  if (patches > 30000) return undefined
+  return Math.ceil((patches * 6) / 5)
+}
+
 function imageTokens(part: JsonObject, rule: ImageRule): number | undefined {
   if (rule !== 'patch') return undefined
   if (Object.keys(part).some(key => key !== 'type' && key !== 'image_url')) return undefined
   const image = part.image_url
   if (!object(image) || Object.keys(image).some(key => key !== 'url' && key !== 'detail'))
     return undefined
-  if (image.detail !== undefined && image.detail !== 'auto' && image.detail !== 'original')
+  if (
+    image.detail !== undefined &&
+    image.detail !== 'auto' &&
+    image.detail !== 'original' &&
+    image.detail !== 'low' &&
+    image.detail !== 'high'
+  )
     return undefined
   const match = typeof image.url === 'string' ? dataUrl.exec(image.url) : null
   if (!match?.[1] || !match[2]) return undefined
@@ -44,24 +91,8 @@ function imageTokens(part: JsonObject, rule: ImageRule): number | undefined {
   if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
   try {
     const dimensions = imageSize(decoded)
-    const width = dimensions.width
-    const height = dimensions.height
-    if (
-      dimensions.type !== expectedImageType(match[1]) ||
-      !Number.isSafeInteger(width) ||
-      !Number.isSafeInteger(height) ||
-      width <= 0 ||
-      height <= 0 ||
-      width > 65535 ||
-      height > 65535
-    )
-      return undefined
-    // For the three named GPT-5.6 base models, omitted/auto detail is original:
-    // 32 px patches, no enlargement, and rejection beyond 30,000 patches.
-    // Source: developers.openai.com/api/docs/guides/images-vision.
-    const patches = Math.ceil(width / 32) * Math.ceil(height / 32)
-    if (patches > 30000) return undefined
-    return Math.ceil((patches * 6) / 5)
+    if (dimensions.type !== expectedImageType(match[1])) return undefined
+    return openAiBaseImageTokens(dimensions.width, dimensions.height, image.detail ?? 'auto')
   } catch {
     return undefined
   }
@@ -131,9 +162,9 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const imageRule = imageRuleFor(definition.modelId)
   if (
     !imageRule ||
-    definition.revision !== '1' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:openai' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== 'mp4-2' ||
     !Object.hasOwn(definition.routes, 'openai')
   )
     throw new TypeError('unsupported OpenAI input-meter binding')
@@ -143,9 +174,9 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'openai',
-    algorithmRevision: 'openai-gpt-5.6-o200k-base-1',
+    algorithmRevision: 'openai-gpt-5.6-o200k-base-2',
     evidence:
-      'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; OpenAI vision guide GPT-5.6 base named patch rules; OpenRouter/OpenAI private chat formatting estimated',
+      'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated',
     measure({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
       const projected = sanitizedBody(body, imageRule)

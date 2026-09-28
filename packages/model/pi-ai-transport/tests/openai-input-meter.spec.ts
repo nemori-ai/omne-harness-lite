@@ -1,16 +1,34 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
+import { createOpenAiInputMeter, openAiBaseImageTokens } from '../src/input-meters/openai.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
+import { createPiAiTransport } from '../src/transport.ts'
 import { planRequest } from '../src/plan.ts'
-import { at, judgedMessage, input as testInput } from './support.ts'
+import {
+  at,
+  certificate,
+  content,
+  finish,
+  fixture,
+  judgedMessage,
+  input as testInput,
+  sse,
+} from './support.ts'
 
 const baseModel = 'openai/gpt-5.6-sol'
 const baseModels = [baseModel, 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
 const proModels = baseModels.map(id => `${id}-pro`)
+const gpt6Models = [
+  'openai/gpt-6-astra',
+  'openai/gpt-6-astra-pro',
+  'openai/gpt-6-sol',
+  'openai/gpt-6-sol-pro',
+  'openai/gpt-6-luna',
+  'openai/gpt-6-luna-pro',
+]
 const image = (name: string) =>
   readFileSync(new URL(`./fixtures/openai-meter/${name}`, import.meta.url))
 const url = (name: string) => `data:image/png;base64,${image(name).toString('base64')}`
@@ -33,7 +51,7 @@ function measuredTokens(
   return Number(result.tokens)
 }
 
-function imageBody(modelId: string, imageUrl: string) {
+function imageBody(modelId: string, imageUrl: string, detail?: string) {
   return {
     model: modelId,
     messages: [
@@ -41,7 +59,7 @@ function imageBody(modelId: string, imageUrl: string) {
         role: 'user',
         content: [
           { type: 'text', text: 'Describe this image.' },
-          { type: 'image_url', image_url: { url: imageUrl } },
+          { type: 'image_url', image_url: { url: imageUrl, ...(detail ? { detail } : {}) } },
         ],
       },
     ],
@@ -49,6 +67,11 @@ function imageBody(modelId: string, imageUrl: string) {
 }
 
 describe('OpenAI model-specific input estimator', () => {
+  let cert: ReturnType<typeof certificate>
+  beforeAll(() => {
+    cert = certificate()
+  })
+  afterAll(() => cert.dispose())
   it('matches independent OpenAI tiktoken 0.12.0 o200k_base vectors', () => {
     const encoding = getEncoding('o200k_base')
     expect(encoding.encode('Hello, 世界!')).toEqual([13225, 11, 185558, 0])
@@ -64,11 +87,12 @@ describe('OpenAI model-specific input estimator', () => {
   it('binds only six exact GPT-5.6 leaves and the fixed OpenAI provider', () => {
     for (const modelId of [...baseModels, ...proModels]) {
       const meter = createOpenAiInputMeter(definition(modelId))
-      expect(meter).toMatchObject({ modelId, provider: 'openai', definitionRevision: '1' })
+      expect(meter).toMatchObject({ modelId, provider: 'openai', definitionRevision: '2' })
       expect(meter.algorithmRevision).toContain('gpt-5.6')
     }
-    expect(() => createOpenAiInputMeter(definition('openai/gpt-6-astra'))).toThrow(TypeError)
-    expect(() => createOpenAiInputMeter({ ...definition(baseModel), revision: '2' })).toThrow(
+    for (const modelId of gpt6Models)
+      expect(() => createOpenAiInputMeter(definition(modelId))).toThrow(TypeError)
+    expect(() => createOpenAiInputMeter({ ...definition(baseModel), revision: '1' })).toThrow(
       TypeError,
     )
     expect(() => createOpenAiInputMeter({ ...definition(baseModel), routes: {} })).toThrow(
@@ -173,6 +197,34 @@ describe('OpenAI model-specific input estimator', () => {
     })
   })
 
+  it('uses independent OpenAI patch examples and low/high sizing limits', () => {
+    expect(openAiBaseImageTokens(1024, 1024, 'original')).toBe(1229)
+    expect(openAiBaseImageTokens(1024, 1024, 'high')).toBe(1229)
+    expect(openAiBaseImageTokens(2048, 2048, 'high')).toBe(3000)
+    expect(openAiBaseImageTokens(1024, 1024, 'low')).toBe(308)
+    expect(openAiBaseImageTokens(1, 1, 'low')).toBe(2)
+    for (const modelId of baseModels) {
+      const high = measuredTokens(modelId, imageBody(modelId, url('1024x1024.png'), 'high'))
+      const low = measuredTokens(modelId, imageBody(modelId, url('1024x1024.png'), 'low'))
+      const smallHigh = measuredTokens(modelId, imageBody(modelId, url('1x1.png'), 'high'))
+      const smallLow = measuredTokens(modelId, imageBody(modelId, url('1x1.png'), 'low'))
+      const noImage = measuredTokens(modelId, {
+        model: modelId,
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'Describe this image.' }] }],
+      })
+      expect(high - smallHigh).toBe(1227)
+      expect(low - smallLow).toBe(306)
+      expect(low).toBeGreaterThan(noImage)
+      const unsupported = imageBody(modelId, url('1x1.png'), 'ultra')
+      expect(
+        createOpenAiInputMeter(definition(modelId)).measure({
+          body: unsupported,
+          serialized: writeJsonLossless(unsupported),
+        }),
+      ).toEqual({ kind: 'unavailable' })
+    }
+  })
+
   it('admits a real projected developer reminder and image, with external margin and exact bytes', () => {
     const selected = definition(baseModel)
     const profile = createOfficialProfileContent(selected, {
@@ -249,5 +301,80 @@ describe('OpenAI model-specific input estimator', () => {
       basis: 'estimated',
       metric: 'maxInputTokens',
     })
+  })
+
+  it('sends one fixed OpenAI request with the real meter through the public factory', async () => {
+    const selected = definition(baseModel)
+    const meter = createOpenAiInputMeter(selected)
+    const profile = createOfficialProfileContent(selected, {
+      providers: ['openai'],
+      allowFallback: false,
+      configuration: openaiConfiguration,
+    })
+    if ('rejected' in profile) throw new Error(profile.rejected)
+    const host = await fixture(
+      cert.tls,
+      res =>
+        res.end(
+          content('ok') +
+            sse({
+              choices: [],
+              usage: {
+                prompt_tokens: 240,
+                completion_tokens: 2,
+                prompt_tokens_details: { cached_tokens: 20 },
+              },
+            }) +
+            finish(),
+        ),
+      {},
+      undefined,
+      [selected],
+    )
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [selected],
+      inputMeters: [meter],
+    })
+    try {
+      const original = testInput()
+      const input = {
+        ...original,
+        routeName: selected.modelId,
+        provider: 'openai',
+        tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
+        parameters: { reasoningEffort: 'medium' as const, maxOutputTokens: 64 },
+        snapshot: {
+          ...original.snapshot,
+          adaptation: profile.ok.adaptation,
+          providers: profile.ok.providers,
+          allowFallback: profile.ok.allowFallback,
+          inputModalities: profile.ok.inputModalities,
+          outputModalities: profile.ok.outputModalities,
+          maxInputTokens: profile.ok.maxInputTokens,
+          maxOutputTokens: profile.ok.maxOutputTokens,
+          inputConstraints: profile.ok.inputConstraints,
+          upstreamInputLimits: profile.ok.upstreamInputLimits,
+        },
+      }
+      const planned = transport.plan(input)
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+      const signal = new AbortController().signal
+      const sent = await transport.send(planned.planned, 'controlled-test-credential', signal)
+      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
+      const events = []
+      for await (const event of transport.read(sent.response, planned.planned, signal))
+        events.push(event)
+      expect(events).toContainEqual(expect.objectContaining({ t: 'account' }))
+      expect(host.requests).toHaveLength(1)
+      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+      expect(host.requests[0]?.body).toContain('"role":"developer"')
+      expect(host.requests[0]?.body).toContain('"reasoning":{"effort":"medium"}')
+      expect(host.requests[0]?.body).not.toContain('cache_control')
+    } finally {
+      await transport.close()
+      await host.close()
+    }
   })
 })
