@@ -1,7 +1,7 @@
 import schema from '@omne-harness-lite/agent-definition/schema' with { type: 'json' }
 import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
-import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
+import profileSchema from '@omne-harness-lite/model-profile/schema/v3' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
 import retainedContentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }

@@ -122,7 +122,7 @@ console.log(refMatches(ref, profile, bob)) // false
 
 JSON Schema 通过 `@omne-harness-lite/model-profile/schema` 公开。参见[源码导出](src/index.ts)、[测试](tests/)与[模型响应](../model-response/README_ZH.md)。
 
-默认入口与 Schema 采用 `data.model-profile/v5`；当前档案必须提供全部必填事实。`./schema/v2` 资源仅供当前规范的精确依赖引用，不提供 `./v2` 可执行入口。支持图片的档案即使本次只发文本，也必须提供项目 `maxImageBytes` 有限上限以及上游 `maxImageBytes`、`maxImages` 事实。上游为 `unknown` 或 `unbounded` 时，项目上限仍须有限。
+默认入口与 Schema 采用 `data.model-profile/v5`；当前档案必须提供全部必填事实。逐字保留的 `./schema/v2` 与 `./schema/v3` 资源只供钉定规范的精确引用，包括 AD1 所需的 MP3 `RouteName`；二者均无旧版可执行入口。支持图片的档案即使本次只发文本，也必须提供项目 `maxImageBytes` 有限上限以及上游 `maxImageBytes`、`maxImages` 事实。上游为 `unknown` 或 `unbounded` 时，项目上限仍须有限。
 
 ```ts
 const imageProfile: ModelProfile = {

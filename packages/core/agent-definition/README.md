@@ -19,7 +19,9 @@ not supply missing attributes or defaults. Keep the complete original body when 
 it; the extraction result contains only the two slots.
 
 The `./schema` export publishes the exact normative resource. Its root is unconstrained;
-select `#/$defs/AgentDefinitionBody` or `#/$defs/AssetReference` explicitly. The two functions
+select `#/$defs/AgentDefinitionBody` or `#/$defs/AssetReference` explicitly. Its fixed reference
+graph loads the byte-exact `@omne-harness-lite/model-profile/schema/v3` resource for AD1's
+MP3 `RouteName`; the current MP5 Schema does not substitute for that resource. The two functions
 also check capability and item uniqueness, which schema shape alone cannot establish.
 
 The [adopted provider design](../../../.meta_harness/design/realization/packages/core/agent-definition/README.md)

@@ -122,7 +122,7 @@ Numeric fields accept `JsonNumber`, including `LosslessNumber`; judgments compar
 
 The JSON Schema is available through `@omne-harness-lite/model-profile/schema`. See [source exports](src/index.ts), [tests](tests/) and [model response](../model-response/README.md).
 
-The default entry and Schema use `data.model-profile/v5`. Current profiles must supply all required facts. The `./schema/v2` resource remains available solely for exact references in current specification dependencies; there is no `./v2` executable entry. An image-capable profile requires an explicit project `maxImageBytes` cap plus upstream `maxImageBytes` and `maxImages` facts, even for text-only calls. Project caps remain finite when an upstream fact is `unknown` or `unbounded`.
+The default entry and Schema use `data.model-profile/v5`. Current profiles must supply all required facts. The byte-exact `./schema/v2` and `./schema/v3` resources remain available solely for pinned normative references, including AD1's MP3 `RouteName`; neither has a versioned executable entry. An image-capable profile requires an explicit project `maxImageBytes` cap plus upstream `maxImageBytes` and `maxImages` facts, even for text-only calls. Project caps remain finite when an upstream fact is `unknown` or `unbounded`.
 
 ```ts
 const imageProfile: ModelProfile = {
