@@ -2,9 +2,11 @@ import { mkdtemp, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { openDemo } from '../src/demo.ts'
 import { record } from '../src/demo-ipc.ts'
 import { createDemoSupervisor, type DemoSupervisorOptions } from '../src/demo-supervisor.ts'
-import { createLocalTls } from './local-tls.ts'
+import { createLocalTls, deferred } from './local-tls.ts'
+import { demoRetirement } from './model-request-support.ts'
 
 async function durableEntries(dataDirectory: string): Promise<string> {
   const logRoot = join(dataDirectory, 'session-logs')
@@ -15,6 +17,26 @@ async function durableEntries(dataDirectory: string): Promise<string> {
 }
 
 describe('C14 actual supervised worker', () => {
+  it('keeps the clock available for owned work but not after physical application close', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-clock-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    try {
+      const conversation = await openDemo(
+        join(root, 'data'),
+        { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
+        128,
+        Buffer.from('controlled-clock-key'),
+        { developmentTransport: server.developmentTransport },
+      )
+      expect(conversation.application.currentTime()).not.toBe('unavailable')
+      expect((await conversation.close()).complete).toBe(true)
+      expect(conversation.application.currentTime()).toBe('unavailable')
+    } finally {
+      await server.close()
+    }
+  }, 30_000)
+
   it('reserves the data root before asynchronous startup', async () => {
     const root = await mkdtemp(join(tmpdir(), 'cold-demo-race-'))
     const supervisor = createDemoSupervisor({
@@ -160,6 +182,49 @@ describe('C14 actual supervised worker', () => {
     }
   }, 50_000)
 
+  it('recognizes the original complete batch when the worker receipt is lost', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-lost-receipt-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    const keyFile = join(root, 'key')
+    await writeFile(keyFile, 'controlled-key', { mode: 0o600 })
+    const dataDirectory = join(root, 'data')
+    const supervisor = createDemoSupervisor({
+      dataDirectory,
+      keyFile,
+      multiplier: '1.1',
+      reserveTokens: '256',
+      maxOutputTokens: 128,
+      retirementWaitMilliseconds: 2000,
+      maxPacketBytes: 1_048_576,
+      maxCommands: 1,
+      dedicatedRoot: true,
+      developmentTransport: {
+        baseUrl: server.developmentTransport.baseUrl,
+        ca: server.developmentTransport.tls.ca,
+      },
+    })
+    try {
+      const first = await supervisor.open()
+      const dropped = supervisor.dropNextSendResult()
+      if (dropped === undefined) throw new Error('receipt loss was not armed')
+      const sending = first.send('complete then lose receipt', async () => undefined)
+      expect(await dropped).toBe(true)
+      const originalBytes = await durableEntries(dataDirectory)
+      expect(originalBytes).toContain('"outcome":"complete"')
+      expect(server.requests).toHaveLength(1)
+      expect(supervisor.signalWorker('SIGKILL')).toBe(true)
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      expect((await sending).kind).toBe('unconfirmed')
+      const successor = await supervisor.open()
+      expect(await durableEntries(dataDirectory)).toBe(originalBytes)
+      expect((await successor.totals()).responses).toBe(1)
+      expect(server.requests).toHaveLength(1)
+      expect((await successor.close()).complete).toBe(true)
+    } finally {
+      await server.close()
+    }
+  }, 45_000)
+
   it('preserves exact upstream usage and cost and an empty HTTP failure through real IPC', async () => {
     const root = await mkdtemp(join(tmpdir(), 'cold-demo-exact-ipc-'))
     const server = await createLocalTls(
@@ -270,6 +335,102 @@ describe('C14 actual supervised worker', () => {
     expect((await supervisor.waitWorkerExit(false)).exited).toBe(true)
     await expect(supervisor.open()).rejects.toThrow('exit or resource close is unconfirmed')
   }, 30_000)
+
+  it('stops a held send while close crosses the IPC control path', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-close-race-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    server.setMode('hold')
+    const keyFile = join(root, 'key')
+    await writeFile(keyFile, 'controlled-key', { mode: 0o600 })
+    const supervisor = createDemoSupervisor({
+      dataDirectory: join(root, 'data'),
+      keyFile,
+      multiplier: '1.1',
+      reserveTokens: '256',
+      maxOutputTokens: 128,
+      retirementWaitMilliseconds: 2000,
+      maxPacketBytes: 1_048_576,
+      maxCommands: 1,
+      dedicatedRoot: true,
+      developmentTransport: {
+        baseUrl: server.developmentTransport.baseUrl,
+        ca: server.developmentTransport.tls.ca,
+      },
+    })
+    try {
+      const conversation = await supervisor.open()
+      const sending = conversation.send('held close', async () => undefined)
+      await server.received.promise
+      await expect(conversation.history()).rejects.toThrow('remote history unavailable')
+      conversation.stopActive()
+      const closing = conversation.close()
+      await server.socketClosed.promise
+      expect((await closing).complete).toBe(true)
+      expect((await sending).kind).not.toBe('saved')
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      expect(server.requests).toHaveLength(1)
+    } finally {
+      server.finishHeld()
+      await server.close()
+    }
+  }, 45_000)
+
+  it('keeps the close control path available while terminal delivery is slow', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-slow-output-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    const keyFile = join(root, 'key')
+    const dataDirectory = join(root, 'data')
+    await writeFile(keyFile, 'controlled-key', { mode: 0o600 })
+    const supervisor = createDemoSupervisor({
+      dataDirectory,
+      keyFile,
+      multiplier: '1.1',
+      reserveTokens: '256',
+      maxOutputTokens: 128,
+      retirementWaitMilliseconds: 2000,
+      maxPacketBytes: 1_048_576,
+      maxCommands: 1,
+      dedicatedRoot: true,
+      developmentTransport: {
+        baseUrl: server.developmentTransport.baseUrl,
+        ca: server.developmentTransport.tls.ca,
+      },
+    })
+    const observed = deferred()
+    const release = deferred()
+    try {
+      const conversation = await supervisor.open()
+      const sending = conversation.send('slow terminal', async () => {
+        observed.resolve()
+        await release.promise
+      })
+      await observed.promise
+      await server.contentSent.promise
+      conversation.stopActive()
+      let closeSettled = false
+      const closing = conversation.close().then(result => {
+        closeSettled = true
+        return result
+      })
+      await vi.waitFor(() => expect(closeSettled).toBe(true), { timeout: 3_000 })
+      expect((await closing).complete).toBe(false)
+      expect(supervisor.inspect().state).toBe('alive')
+      release.resolve()
+      const sent = await sending
+      expect(sent.kind).not.toBe('saved')
+      // This result records the first stop attempt while observer delivery was still held.
+      expect(sent.released).toBe(false)
+      await vi.waitFor(async () => expect((await conversation.close()).complete).toBe(true), {
+        timeout: 10_000,
+      })
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      expect(server.requests).toHaveLength(1)
+      expect(await durableEntries(dataDirectory)).toContain('"outcome":"interrupted"')
+    } finally {
+      release.resolve()
+      await server.close()
+    }
+  }, 45_000)
 
   it('does not transfer exit authority to a newly started supervisor', async () => {
     const root = await mkdtemp(join(tmpdir(), 'cold-demo-unknown-'))

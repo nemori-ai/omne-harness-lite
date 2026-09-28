@@ -2120,7 +2120,9 @@ export function createAcceptanceApplication(
   return {
     ready,
     currentTime() {
-      if (!admit() || activeClock === undefined) return 'unavailable'
+      // Admitted model work may still need its terminal timestamp after the
+      // application closes admission but before the clock fiber is disposed.
+      if (activeClock === undefined) return 'unavailable'
       const now = activeClock.now()
       return now === 'unavailable' ? now : new Date(now).toISOString()
     },

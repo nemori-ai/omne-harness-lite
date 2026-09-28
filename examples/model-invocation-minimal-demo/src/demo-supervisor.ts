@@ -26,6 +26,7 @@ export interface DemoSupervisorOptions {
 
 type Request = {
   readonly kind: 'start' | 'command' | 'close'
+  readonly commandName?: string
   readonly resolve: (value: unknown) => void
   readonly delivery?: (serialized: string, signal: AbortSignal) => Promise<void>
 }
@@ -120,6 +121,8 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
   readonly open: () => Promise<SupervisedDemoConversation>
   readonly signalWorker: (signal: NodeJS.Signals) => boolean
   readonly disconnectWorkerIpc: () => boolean
+  /** Controlled fault injection: lose one send receipt after the worker's durable work. */
+  readonly dropNextSendResult: () => Promise<boolean> | undefined
   readonly inspect: () => {
     readonly state: 'none' | 'starting' | 'alive' | 'exited'
     readonly pid?: number
@@ -148,6 +151,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
   let rootIdentity: { readonly dev: bigint; readonly ino: bigint } | undefined
   let shuttingDown = false
   let opening = false
+  let dropNextSendResult: ((dropped: boolean) => void) | undefined
 
   async function checkRoot(): Promise<void> {
     try {
@@ -211,8 +215,15 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     )
       return Promise.resolve(undefined)
     const id = randomUUID()
+    const commandName =
+      kind === 'command' && record(body) && typeof body.name === 'string' ? body.name : undefined
     const answer = new Promise<unknown>(resolve =>
-      managed.pending.set(id, { kind, resolve, ...(delivery === undefined ? {} : { delivery }) }),
+      managed.pending.set(id, {
+        kind,
+        resolve,
+        ...(commandName === undefined ? {} : { commandName }),
+        ...(delivery === undefined ? {} : { delivery }),
+      }),
     )
     if (!send(managed, kind, id, body)) {
       managed.pending.delete(id)
@@ -265,6 +276,12 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
       return
     const waiting = managed.pending.get(message.id)
     if (waiting === undefined) return
+    if (message.kind === 'result' && waiting.commandName === 'send' && dropNextSendResult) {
+      const notify = dropNextSendResult
+      dropNextSendResult = undefined
+      notify(true)
+      return
+    }
     managed.pending.delete(message.id)
     waiting.resolve(message.kind === 'failure' ? undefined : body)
   }
@@ -354,6 +371,10 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     child.on('exit', () => {
       managed.state = 'exited'
       managed.exitObserved = true
+      if (active === managed && dropNextSendResult !== undefined) {
+        dropNextSendResult(false)
+        dropNextSendResult = undefined
+      }
       exitDone()
       for (const pending of managed.pending.values()) pending.resolve(undefined)
       managed.pending.clear()
@@ -456,6 +477,12 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
       if (active?.state !== 'alive' || !active.child.connected) return false
       active.child.disconnect()
       return true
+    },
+    dropNextSendResult() {
+      if (active?.state !== 'alive' || dropNextSendResult !== undefined) return undefined
+      return new Promise<boolean>(resolve => {
+        dropNextSendResult = resolve
+      })
     },
     inspect() {
       return active === undefined
