@@ -6,6 +6,7 @@ import type { CredentialVerificationConfig } from '@omne-harness-lite/credential
 import type { SessionRef } from '@omne-harness-lite/messages/v3'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organization-governance'
+import type { ProcessOwnership, SessionLogPolicy } from '@omne-harness-lite/session-log-jsonl'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
 import type {
@@ -27,8 +28,12 @@ export const REQUEST_PREPARATION_FIBERS = Object.freeze([
   ...STAGE_FIBERS,
   'sessionTenancy',
 ] as const)
-export type AcceptanceStage = 'authentication' | 'requestPreparation'
-export type StageFiber = (typeof REQUEST_PREPARATION_FIBERS)[number]
+export const SESSION_LOG_FIBERS = Object.freeze([
+  ...REQUEST_PREPARATION_FIBERS,
+  'sessionLog',
+] as const)
+export type AcceptanceStage = 'authentication' | 'requestPreparation' | 'sessionLog'
+export type StageFiber = (typeof SESSION_LOG_FIBERS)[number]
 export interface PreparedSession {
   readonly session: SessionRef
   readonly tenant: TenantId
@@ -36,7 +41,13 @@ export interface PreparedSession {
 export type StartupPhase =
   'prepare' | 'storage' | StageFiber | 'clockReady' | 'confirm' | 'replica' | 'admission'
 
+export interface SessionLogDeployment {
+  readonly dir: string
+  readonly processOwnership: ProcessOwnership
+  readonly policy: SessionLogPolicy
+}
 export interface AcceptanceConfig {
+  readonly sessionLog?: SessionLogDeployment
   readonly runId: string
   readonly databaseFile: string
   readonly keys: {
@@ -66,6 +77,7 @@ export interface AcceptanceEvent {
     | 'gate'
     | 'operation'
     | 'directory'
+    | 'sessionLog'
     | 'replica'
     | 'provider'
     | 'close'

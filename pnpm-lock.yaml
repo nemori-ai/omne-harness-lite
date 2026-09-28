@@ -134,12 +134,18 @@ importers:
       '@omne-harness-lite/model-profile-directory':
         specifier: workspace:*
         version: link:../../packages/model/model-profile-directory
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../../packages/model/model-request-runtime
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../packages/tenancy/organization-governance
+      '@omne-harness-lite/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-transport
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../../packages/session/session-log-jsonl

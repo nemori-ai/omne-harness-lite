@@ -492,24 +492,61 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
     }
   })
   it('a missing first-content deadline stops an actual heartbeat-only socket', async () => {
+    let heartbeatWritten = false,
+      responseReceived = false,
+      fired = 0
+    let firstDeadline: (() => void) | undefined
+    const scheduledMilliseconds: number[] = []
     const host = await fixture(cert.tls, res => {
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.write(sse({ choices: [{ delta: { role: 'assistant' } }] }))
+      heartbeatWritten = true
     })
     try {
-      const result = invocation(
-        await invokeModel({
-          ...input(),
-          transport: host.transport,
-          credential: 'test-secret',
-          signal: new AbortController().signal,
-          policy: { ...policy(), firstContentTimeoutMs: 40 },
-        }).outcome,
-      )
+      const handle = invokeModel({
+        ...input(),
+        transport: {
+          ...host.transport,
+          send: async (...args: Parameters<typeof host.transport.send>) => {
+            const sent = await host.transport.send(...args)
+            if ('response' in sent) responseReceived = true
+            return sent
+          },
+        },
+        credential: 'test-secret',
+        signal: new AbortController().signal,
+        policy: {
+          ...policy(),
+          firstContentTimeoutMs: 40,
+          // This case tests stopping an acquired heartbeat response. A wall-clock
+          // deadline may instead win before TLS exists when other suites compete.
+          schedule: (milliseconds, callback) => {
+            scheduledMilliseconds.push(milliseconds)
+            firstDeadline = () => {
+              fired++
+              callback()
+            }
+            return () => {
+              firstDeadline = undefined
+            }
+          },
+        },
+      })
+      await expect.poll(() => host.requests.length).toBe(1)
+      await expect.poll(() => responseReceived).toBe(true)
+      expect(heartbeatWritten).toBe(true)
+      expect(scheduledMilliseconds).toEqual([40])
+      const fire = firstDeadline
+      if (!fire) throw new Error('first-content deadline was not registered')
+      fire()
+      const result = invocation(await handle.outcome)
+      expect(fired).toBe(1)
+      expect(firstDeadline).toBeUndefined()
       expect(result.outcome).toBe('failed')
       expect(result.failure?.localError).toBe('first_content_timeout')
       expect(result.timing.firstTokenAt).toBeUndefined()
       expect(result.blocks).toEqual([])
+      expect(host.requests).toHaveLength(1)
       await expect.poll(host.closedSockets).toBe(1)
     } finally {
       await host.close()

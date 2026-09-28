@@ -8,6 +8,8 @@ export {
   BASE_FIBERS,
   STAGE_FIBERS,
   REQUEST_PREPARATION_FIBERS,
+  SESSION_LOG_FIBERS,
+  type SessionLogDeployment,
   type AcceptanceStage,
   type PreparedSession,
   type StageFiber,
