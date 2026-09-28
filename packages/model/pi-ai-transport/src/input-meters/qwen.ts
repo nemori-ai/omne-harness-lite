@@ -1,5 +1,5 @@
-// Narrow text/tool projection of the pinned Qwen3.8 public chat templates.
-// OpenRouter/Alibaba's private conversion is unknown: results are estimates.
+// Narrow projections from pinned Qwen3.8 public templates and Alibaba's
+// published hosted-Max example. OpenRouter conversion remains estimated.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
@@ -28,6 +28,7 @@ const sources = {
   },
 } as const
 type PublicQwenModelId = keyof typeof sources
+const hostedMaxModelId = 'qwen/qwen3.8-max-0902'
 const tokenizerSha256 = '0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3'
 
 function sourceFor(modelId: string): (typeof sources)[PublicQwenModelId] | undefined {
@@ -253,25 +254,52 @@ export function renderQwenPrompt(body: JsonObject): string | undefined {
   return `${prompt}<|im_start|>assistant\n<think>\n`
 }
 
-/** Published-tokenizer estimate for the two exact public Alibaba leaves. */
+/** Single-user text projection from Alibaba's published Qwen3.8-Max example. */
+export function renderQwenHostedMaxPrompt(body: JsonObject): string | undefined {
+  if (
+    body.model !== hostedMaxModelId ||
+    Object.keys(body).some(
+      key =>
+        key !== 'model' &&
+        key !== 'provider' &&
+        key !== 'stream' &&
+        key !== 'store' &&
+        key !== 'messages' &&
+        key !== 'tools' &&
+        key !== 'max_tokens',
+    )
+  )
+    return undefined
+  const sequence = messages(body.messages)
+  const definitions = tools(body.tools)
+  if (!sequence || sequence.length !== 1 || sequence[0]?.role !== 'user' || !definitions)
+    return undefined
+  if (definitions.length) return undefined
+  return `<|im_start|>user\n${sequence[0].content}<|im_end|>\n<|im_start|>assistant\n<think>\n`
+}
+
+/** Pinned-tokenizer estimates for the supported exact Alibaba leaves. */
 export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
   const source = sourceFor(definition.modelId)
+  const hostedMax = definition.modelId === hostedMaxModelId
   if (
-    !source ||
+    (!source && !hostedMax) ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:qwen' ||
     definition.implementation.revision !== 'mp4-2' ||
     !Object.hasOwn(definition.routes, 'alibaba')
   )
     throw new TypeError('unsupported Qwen definition')
-  const encoder = tokenizer(source.directory)
+  const encoder = tokenizer(source?.directory ?? 'qwen-38-24t')
   const meter: InputMeter = {
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'alibaba',
-    algorithmRevision: 'qwen-38-public-template-2',
-    evidence: `${source.repository} ${source.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; text/tools subset; OpenRouter/Alibaba conversion remains estimated`,
+    algorithmRevision: hostedMax ? 'qwen-38-hosted-max-chatml-1' : 'qwen-38-public-template-2',
+    evidence: hostedMax
+      ? `https://help.aliyun.com/en/model-studio/text-generation Qwen3.8-Max Hi/11-token ChatML example; Qwen/Qwen3.8-2.4T-A95B tokenizer.json sha256:${tokenizerSha256} independently reproduces it; single-user text only; exact OpenRouter conversion unknown`
+      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; text/tools subset; OpenRouter/Alibaba conversion remains estimated`,
     measure({ body, serialized }): TokenMeasurement {
       if (
         body.model !== definition.modelId ||
@@ -283,7 +311,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
         writeJsonLossless(body) !== serialized
       )
         return { kind: 'unavailable' }
-      const prompt = renderQwenPrompt(body)
+      const prompt = hostedMax ? renderQwenHostedMaxPrompt(body) : renderQwenPrompt(body)
       if (prompt === undefined) return { kind: 'unavailable' }
       try {
         return {

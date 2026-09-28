@@ -8,7 +8,11 @@ import { createOfficialProfileContent, interpretConfiguration } from '../src/con
 import { createPiAiTransport } from '../src/transport.ts'
 import { planRequest } from '../src/plan.ts'
 import { object } from '../src/json.ts'
-import { createQwenInputMeter, renderQwenPrompt } from '../src/input-meters/qwen.ts'
+import {
+  createQwenInputMeter,
+  renderQwenHostedMaxPrompt,
+  renderQwenPrompt,
+} from '../src/input-meters/qwen.ts'
 import {
   qwenAlibabaModelIds,
   qwenDefinitions,
@@ -163,6 +167,99 @@ beforeAll(() => {
 afterAll(() => cert.dispose())
 
 describe('Qwen3.8 public tokenizer input meters', () => {
+  it("reproduces Alibaba's hosted Max Hi/11-token example and rejects unmodeled shapes", () => {
+    const modelId = 'qwen/qwen3.8-max-0902'
+    const meter = createQwenInputMeter(definition(modelId))
+    const body = {
+      model: modelId,
+      provider: { order: ['alibaba'], allow_fallbacks: false, require_parameters: true },
+      stream: true,
+      messages: [{ role: 'user', content: 'Hi' }],
+      max_tokens: 16,
+    }
+    const prompt = renderQwenHostedMaxPrompt(body)
+    expect(prompt).toBe(
+      readFileSync(new URL('./fixtures/qwen/hosted-max-hi.txt', import.meta.url), 'utf8'),
+    )
+    expect(meter.algorithmRevision).toBe('qwen-38-hosted-max-chatml-1')
+    expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+      kind: 'estimated',
+      tokens: 11,
+    })
+    const chineseBody = {
+      ...body,
+      messages: [{ role: 'user', content: '你好' }],
+    }
+    expect(renderQwenHostedMaxPrompt(chineseBody)).toBe(
+      readFileSync(new URL('./fixtures/qwen/hosted-max-nihao.txt', import.meta.url), 'utf8'),
+    )
+    expect(
+      meter.measure({ body: chineseBody, serialized: writeJsonLossless(chineseBody) }),
+    ).toEqual({ kind: 'estimated', tokens: 11 })
+    for (const changed of [
+      { ...body, messages: [{ role: 'system', content: 'Be brief' }, ...body.messages] },
+      { ...body, tools: [{ type: 'function', function: { name: 'lookup', parameters: {} } }] },
+      { ...body, reasoning: { effort: 'high' } },
+      {
+        ...body,
+        messages: [
+          {
+            role: 'user',
+            content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
+          },
+        ],
+      },
+    ]) {
+      expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+        kind: 'unavailable',
+      })
+    }
+  })
+
+  it('plans and sends the hosted Max narrow text estimate through the real factory', async () => {
+    const modelId = 'qwen/qwen3.8-max-0902'
+    const selected = definition(modelId)
+    const meter = createQwenInputMeter(selected)
+    const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [selected],
+      inputMeters: [meter],
+    })
+    try {
+      const input = {
+        ...request(modelId),
+        messages: [message('user', 'Hi', 'hosted-max-hi')],
+        tools: [],
+        parameters: { maxOutputTokens: 16 },
+      }
+      const planned = transport.plan(input)
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
+        kind: 'estimated',
+        tokens: 11,
+      })
+      const sent = await transport.send(
+        planned.planned,
+        'qwen-local-only-credential',
+        new AbortController().signal,
+      )
+      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
+      for await (const _event of transport.read(
+        sent.response,
+        planned.planned,
+        new AbortController().signal,
+      )) {
+        // Consume the bounded local fixture to release its response resource.
+      }
+      expect(host.requests).toHaveLength(1)
+      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+    } finally {
+      await transport.close()
+      await host.close()
+    }
+  })
+
   it('pins the eight credentialed certification case identities and accepted cache configurations', () => {
     const raw: unknown = JSON.parse(
       readFileSync(new URL('./fixtures/qwen/authentication-cases.json', import.meta.url), 'utf8'),
