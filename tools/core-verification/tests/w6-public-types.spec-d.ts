@@ -3,7 +3,7 @@ import type {
   NonConnectorAssetContent,
   NonConnectorBodyContracts,
   EvaluationResult,
-} from '@omne-harness-lite/asset-evaluation/v3'
+} from '@omne-harness-lite/asset-evaluation'
 import type {
   ToolCallBlock,
   IncompleteToolCallBlock,
