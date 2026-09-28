@@ -374,9 +374,10 @@ export async function appendControlRecord(
 interface UnknownControlWrite {
   readonly key: CallKey
   readonly binding: SettlementLogBinding
-  readonly owner: SettlementOwner
   readonly registration: SettlementRegistration
   readonly task: SettlementTask<AppendResult>
+  readonly readTasks: Set<SettlementTask<unknown>>
+  recognizing: Promise<CallHistoryResult> | undefined
   stopped: boolean
   stopFailed: boolean
   released: boolean
@@ -502,7 +503,6 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   function retain(
     key: CallKey,
     binding: SettlementLogBinding,
-    owner: SettlementOwner,
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
   ): void {
@@ -515,9 +515,10 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     const write: UnknownControlWrite = {
       key,
       binding,
-      owner,
       registration,
       task,
+      readTasks: new Set(),
+      recognizing: undefined,
       stopped: false,
       stopFailed: false,
       released: false,
@@ -533,14 +534,77 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     )
   }
 
+  async function recognizeUnknown(
+    writes: readonly UnknownControlWrite[],
+  ): Promise<CallHistoryResult> {
+    const first = writes.find(write => !write.released)
+    if (first === undefined) return { unavailable: true, reason: 'history' }
+    if (first.recognizing !== undefined) return await first.recognizing
+    const attempt = (async (): Promise<CallHistoryResult> => {
+      if (writes.some(write => !write.stopped || write.stopFailed))
+        return { unavailable: true, reason: 'history' }
+      const previous = await Promise.allSettled([...first.readTasks].map(task => task.stopped))
+      if (previous.some(result => result.status === 'rejected'))
+        return { unavailable: true, reason: 'prefix' }
+      first.readTasks.clear()
+      let received: Awaited<ReturnType<typeof readSettlementPrefix>>
+      try {
+        received = await readSettlementPrefix({
+          binding: first.binding,
+          registration: {
+            start(kind, operation) {
+              const task = first.registration.start(kind, operation)
+              first.readTasks.add(task)
+              return task
+            },
+            release: first.registration.release,
+          },
+        })
+      } catch {
+        return { unavailable: true, reason: 'prefix' }
+      }
+      const stopped = await Promise.allSettled([...first.readTasks].map(task => task.stopped))
+      if (stopped.some(result => result.status === 'rejected'))
+        return { unavailable: true, reason: 'prefix' }
+      first.readTasks.clear()
+      if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
+      let history: CallHistoryResult
+      try {
+        history = runtime.history.call(received.prefix, first.key.callId)
+      } catch {
+        return { unavailable: true, reason: 'history' }
+      }
+      if ('unavailable' in history) return history
+      try {
+        for (const write of writes) {
+          if (write.released) continue
+          write.registration.release()
+          write.released = true
+        }
+      } catch {
+        return { unavailable: true, reason: 'history' }
+      }
+      const token = keyOf(first.key)
+      const remaining = unknown.get(token)?.filter(write => !write.released)
+      if (remaining?.length) unknown.set(token, remaining)
+      else unknown.delete(token)
+      return history
+    })()
+    first.recognizing = attempt
+    try {
+      return await attempt
+    } finally {
+      if (first.recognizing === attempt) first.recognizing = undefined
+    }
+  }
+
   async function read(
     session: SessionRuntimeBinding,
     owner: SettlementOwner,
     key: CallKey,
   ): Promise<CallHistoryResult> {
     const waiting = unknown.get(keyOf(key))
-    if (waiting?.some(write => !write.stopped || write.stopFailed))
-      return { unavailable: true, reason: 'history' }
+    if (waiting !== undefined) return await recognizeUnknown([...waiting])
     const received = await withOwnedReads(
       owner,
       runtime.settlementContention.limits.concurrent,
@@ -557,18 +621,6 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       return { unavailable: true, reason: 'history' }
     }
     if ('unavailable' in history) return history
-    if (waiting !== undefined) {
-      try {
-        for (const write of waiting) {
-          if (write.released) continue
-          write.registration.release()
-          write.released = true
-        }
-      } catch {
-        return { unavailable: true, reason: 'history' }
-      }
-      unknown.delete(keyOf(key))
-    }
     return history
   }
 
@@ -629,7 +681,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         owner,
         concurrent: runtime.settlementContention.limits.concurrent,
         record: { kind: 'model_call_ended', call: key.callId, ending: 'released' },
-        retainUnknown: (registration, task) => retain(key, session.log, owner, registration, task),
+        retainUnknown: (registration, task) => retain(key, session.log, registration, task),
       })
       if ('appended' in appended && local !== undefined) {
         const container = runtime.calls.find(key)
@@ -725,8 +777,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
             call: key.callId,
             initiator: input.initiator,
           },
-          retainUnknown: (registration, task) =>
-            retain(key, session.log, controlOwner, registration, task),
+          retainUnknown: (registration, task) => retain(key, session.log, registration, task),
         })
         if ('unavailable' in appended) {
           const pending = unknown.get(keyOf(key))
@@ -790,8 +841,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
                   ? history.known.intent.initiator
                   : input.initiator,
             },
-            retainUnknown: (registration, task) =>
-              retain(key, session.log, controlOwner, registration, task),
+            retainUnknown: (registration, task) => retain(key, session.log, registration, task),
           })
             .then(result => {
               if ('appended' in result) committed = true
@@ -882,35 +932,16 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       } catch {
         // The stopped promise, not a requested cancellation, is authoritative.
       }
-    }
-    await Promise.allSettled(writes.map(write => write.task.stopped))
-    for (const [token, group] of unknown) {
-      if (group.some(write => !write.stopped || write.stopFailed)) continue
-      const first = group[0]
-      if (first === undefined) continue
-      const received = await withOwnedReads(
-        first.owner,
-        runtime.settlementContention.limits.concurrent,
-        reconcileReads,
-        async registration => {
-          const result = await readSettlementPrefix({ binding: first.binding, registration })
-          return 'unavailable' in result
-            ? ({ unavailable: true } as const)
-            : runtime.history.call(result.prefix, first.key.callId)
-        },
-      )
-      if ('unavailable' in received || 'unavailable' in received.ok) continue
-      try {
-        for (const write of group) {
-          if (write.released) continue
-          write.registration.release()
-          write.released = true
+      for (const task of write.readTasks) {
+        try {
+          task.requestStop()
+        } catch {
+          // The retained read cannot be released until its actual stopped fact.
         }
-        unknown.delete(token)
-      } catch {
-        // A failed release keeps the original owner reachable for another close attempt.
       }
     }
+    await Promise.allSettled(writes.map(write => write.task.stopped))
+    for (const group of [...unknown.values()]) await recognizeUnknown([...group])
     const recoveryReads = await reconcileReads.drain()
     for (const [token, failed] of backgroundFailed) {
       if (unknown.has(token)) continue
