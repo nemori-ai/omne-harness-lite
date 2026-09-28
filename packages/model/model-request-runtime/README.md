@@ -795,7 +795,7 @@ The runtime sends definitions and assembles streamed tool calls; the caller supp
 
 `createDiagnosticCollector(config)` accepts typed observations into a bounded queue and keeps per-call association in an explicit emitter. Supply the complete `DiagnosticCollectorConfig`, including a `DiagnosticJournalStore`, one local or tenant scope, clocks, scheduler and every capacity/timeout. The collector does not supply file storage. `recorded` means accepted in memory; inspect health for written/flushed watermarks and incomplete close. Query/export require the same scope and explicit page bounds. Exact numeric facts retain their JSON number representation.
 
-These are engineering records, separate from the session log and recovery authority. The example below takes the real host configuration and observed HTTP status. Give each invocation its own emitter; retain the collector if close reports incomplete. The example JSONL provider and complete runtime/transport wiring remain in progress.
+These are engineering records, separate from the session log and recovery authority. The example below takes the real host configuration and observed HTTP status. Give each invocation its own emitter; retain the collector if close reports incomplete. The example supplies a separate JSONL provider; complete runtime/transport wiring remains in progress. Health reports retained records/bytes and expired/evicted records/bytes; unavailable storage counts stay unknown.
 
 ```ts
 import {

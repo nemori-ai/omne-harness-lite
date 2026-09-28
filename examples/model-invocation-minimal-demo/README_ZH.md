@@ -8,7 +8,6 @@
 
 每轮接收文本输入、无工具、无 Run，参数为 `reasoningEffort: low` 和 `maxOutputTokens: 16384`。已认证会话绑定统一的 `createModelRuntime` 服务；服务打开并派发调用，由绑定会话授权且有双重缓冲上限的观察端把流送到终端。每次发送前先登记实际调用宿主，并在物理停止前保留其所有权。打开既有对话时先认证、核实会话归属、对账耐久模型日志，然后才开放新调用；不会自动重发。完整回复与模型响应由示例在同一耐久批次结算后才进入下一轮。每次请求把校验后的完整消息历史（包括先前的推理和媒体块）交给调用层，不加纯文本白名单。可见性和模型兼容遵循公共契约；命令行目前仅提供文本输入。`/history` 读真实会话日志。使用相同数据路径重启会重新认证并恢复原会话，不重放注册或来源发布。
 
-
 用 `--max-output-tokens <正整数>` 配置每次响应的输出上限，默认 16,384。所选模型的档案仍校验其上限，demo 不会静默截小过大的配置。此额度包含上游计入输出的推理 tokens。使用相同 `--data` 和新上限重启，保留原会话历史。
 当前开发格式在每次调用快照中完整携带项目输入上限及上游限制事实。旧开发版本产生的不兼容数据不会自动转换；验证当前版本请显式使用新的 `--data` 目录，原目录保持不动。
 
@@ -78,3 +77,27 @@ Closed. Start again with the same --data path to resume.
 本地检查：`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run build`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run typecheck`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run test`，以及从仓库根运行 `python3 examples/model-invocation-minimal-demo/tests/pty-check.py`。测试使用本地受控 TLS 端点，不消费真实生产密钥。服务、选择、观察端和恢复映射依据见 [RT9](../../.meta_harness/design/spec/capabilities/model-request-runtime/v9/contract.md)、[D103](../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 和[runtime realization](../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；持久响应语义见 [MR8](../../.meta_harness/design/spec/data/model-response/v8/contract.md)。
 
 此前统一服务装配已有[真实 OpenRouter PTY 三轮有界运行证据](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-service/README.md)。本次模型切换修订只在本地受控 TLS 与 PTY 下验证，尚无跨模型付费请求认证。
+
+### 本机工程日志
+
+`createDiagnosticJournal(config)` 在私有根下独占创建新的 collector 目录；`openDiagnosticJournalReader(config)` 在关闭或重启后只读重开。显式提供完整 `DiagnosticJournalConfig`，包括 scope、时钟、调度、保留策略和查询／导出界限。此提供者可独立使用；默认 CLI 接线仍在推进。
+
+```ts
+import {
+  createDiagnosticJournal,
+  type DiagnosticJournalConfig,
+} from '@omne-harness-lite/model-invocation-minimal-demo'
+
+export async function readEngineeringPage(config: DiagnosticJournalConfig) {
+  const journal = await createDiagnosticJournal(config)
+  const page = await journal.query({
+    scope: config.scope,
+    limit: config.queryMaxRecords,
+    maxBytes: config.queryMaxBytes,
+  })
+  const closed = await journal.close()
+  return { page, closed, health: journal.health() }
+}
+```
+
+查询和 `exportPage(query, { maxRecords, maxBytes })` 必须传完全相同的 scope。空日志的 `through.sequence='0'` 固定空快照，不是记录身份。游标过期、损坏、超时与并发满有明确结果。TTL 清理只在所有者活跃时运行，进程退出后不会继续。保留健康面同时报告条数和字节，删除失败或 I/O 尚未结束不算空间释放。这是工程日志，与会话历史分开。

@@ -35,3 +35,9 @@ export {
 } from './demo-supervisor.ts'
 export { runInteractive, type InteractiveConversation } from './interactive.ts'
 export { createDemoConfig, MODEL } from './deployment.ts'
+
+export {
+  createDiagnosticJournal,
+  openDiagnosticJournalReader,
+  type DiagnosticJournalConfig,
+} from './diagnostic-journal.ts'

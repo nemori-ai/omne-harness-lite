@@ -782,7 +782,7 @@ runtime 负责发送定义并装配流式工具调用；调用者负责在后续
 
 `createDiagnosticCollector(config)` 将类型化观测接入有界队列，用独立 emitter 保留每次调用的关联。调用者须完整提供 `DiagnosticCollectorConfig`，包括 `DiagnosticJournalStore`、单个 local 或 tenant scope、时钟、调度器及全部容量和超时。collector 本身不提供文件存储。`recorded` 只表示内存接纳；written/flushed 水位及未完成关闭从 health 读取。query/export 要求相同 scope 和显式分页界限，精确数值保留 JSON number 表示。
 
-这些是工程诊断记录，与会话日志和恢复权威分开。下例接收真实宿主配置及观测到的 HTTP 状态，每次调用使用独立 emitter；close 返回 incomplete 时继续持有 collector。示例 JSONL 提供者和完整 runtime/transport 接线仍在推进。
+这些是工程诊断记录，与会话日志和恢复权威分开。下例接收真实宿主配置及观测到的 HTTP 状态，每次调用使用独立 emitter；close 返回 incomplete 时继续持有 collector。示例已提供独立 JSONL 实现；完整 runtime/transport 接线仍在推进。健康面同时报告保留、过期和淘汰的条数与字节；无法取得的存储计数保持 unknown。
 
 ```ts
 import {

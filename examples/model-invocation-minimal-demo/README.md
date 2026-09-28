@@ -8,7 +8,6 @@ The model request stage installs a Cordis `modelTransport` service and one trust
 
 Each turn accepts text input, no tools, no Run, `reasoningEffort: low`, and `maxOutputTokens: 16384`. The authenticated session binds the unified `createModelRuntime` service. The service opens and dispatches a call; its bounded, session-authorized observer delivers the stream to the terminal. The demo registers each call's host owner before sending and retains that owner through physical stop. Opening an existing conversation authenticates, checks session ownership, and reconciles the durable model log before any new call; it never resends automatically. The demo persists a completed reply and its model response in one durable batch before the next turn. Each request passes the complete validated message history, including prior reasoning and media blocks, to the invocation layer without a text-only whitelist. Visibility and model compatibility follow the shared contracts; the CLI currently accepts text input only. `/history` reads the actual session log. Restart with the same data path to authenticate again and resume the session; registration and source publication are not replayed.
 
-
 Use `--max-output-tokens <positive-integer>` to change the per-response limit (default: 16,384). The selected model profile still enforces its maximum; the demo does not silently clamp an excessive value. This limit includes reasoning tokens counted in output usage. Restarting with the same `--data` and a different limit preserves the session history.
 The current development format carries the complete project input limits and upstream limit facts in every call snapshot. Data created by an older incompatible development version is not automatically converted; use a new explicit `--data` directory for this version and retain any old directory unchanged.
 
@@ -78,3 +77,27 @@ The preceding unified-service assembly has [bounded real OpenRouter PTY evidence
 Programmatic callers can use `startServiceCall(actor, session, { user, parameters, host, observer? })` with a complete judged `UserMessage`, including image blocks. The assembly appends that exact message before opening the call and lets the chosen model and transport check compatibility. A controlled TLS test exercises two actual Flash service turns with different PNGs, persistent JSONL history, and the full second-turn wire request. The interactive CLI still accepts text only; this API does not add attachment syntax, tool execution, or a Run.
 
 Trusted deployments may supply `modelRequest.assetRegistry` as a borrowed `AssetRegistryService.lookup` port. Then `startServiceCall` accepts `tools: ModelToolName[]`, resolved by the runtime against that session's real registry; absent registry plus nonempty tools returns unavailable. An external tool-result writer can call `appendServiceToolResult(actor, session, { message, host })` with a judged `ToolMessage` after a complete model tool call has been persisted. The application checks current identity, host ownership, and pairing against the full durable prefix before one conditional append. It does not execute the tool or invent a Run. The owner of the borrowed registry must keep it available until application close; the CLI does not configure one. A controlled TLS test covers actual registry/manifest/evaluation-input fill, tool declaration, persisted assistant call and response, paired result, subsequent wire history, rejection paths, and close.
+
+### Local engineering journal
+
+`createDiagnosticJournal(config)` creates and exclusively owns a new collector directory under a private root; `openDiagnosticJournalReader(config)` reopens it read-only after close or restart. Supply `DiagnosticJournalConfig` explicitly, including scope, clocks, scheduler, retention and query/export limits. This provider is available independently; default CLI wiring is still in progress.
+
+```ts
+import {
+  createDiagnosticJournal,
+  type DiagnosticJournalConfig,
+} from '@omne-harness-lite/model-invocation-minimal-demo'
+
+export async function readEngineeringPage(config: DiagnosticJournalConfig) {
+  const journal = await createDiagnosticJournal(config)
+  const page = await journal.query({
+    scope: config.scope,
+    limit: config.queryMaxRecords,
+    maxBytes: config.queryMaxBytes,
+  })
+  const closed = await journal.close()
+  return { page, closed, health: journal.health() }
+}
+```
+
+Queries and `exportPage(query, { maxRecords, maxBytes })` require the exact bound scope. Empty `through.sequence='0'` fixes an empty snapshot, not a record identity. Expired cursors, corruption, timeout and capacity exhaustion have explicit results. TTL cleanup runs while an owner is active; it does not continue after process exit. Retention health reports records and bytes, and failed deletion or unfinished I/O never counts as freed space. These engineering records are separate from session history.

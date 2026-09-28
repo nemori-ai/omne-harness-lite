@@ -202,7 +202,7 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createOpenAiInputMeter(definition)` 绑定 `openai` 供应商下修订 3（`pi-ai:openai` `mp4-3`）的六个 GPT-5.6 Sol／Terra／Luna 基础版与 Pro 定义。它按[固定 GPT-5 前缀映射](https://github.com/openai/tiktoken/blob/4e71bbe0c078468e00fefbf94b39849389f346e5/tiktoken/model.py)使用固定版本 `js-tiktoken` 的 `o200k_base`，不认证 GPT-5.6 精确型号词表。估算覆盖最终序列化的多轮消息、`developer` 提醒、工具定义与结果、推理及协议字段；内联图片的 base64 在文本分词前替换为标记。三个基础版按[OpenAI 图像指南](https://developers.openai.com/api/docs/guides/images-vision)计 low（512 像素）、high（2048 像素且最多 2500 patches）、original／auto（最多 30000 patches），使用 32 像素 patch 和 1.2 倍系数。首次像素尺寸缩放向下取整是本地估算约定，指南未指定该步的取整方向；之后的 patch 预算缩放遵循已给公式。OpenRouter／OpenAI 的私有 chat 格式仍使整请求结果只能标为 `estimated`。GIF 必须具有一个完整帧；动画或截断 GIF 不可计量。Pro 图片、远程／非法／尺寸未知图片以及超出本 meter 支持尺寸的图片均在发送前判不可用。GPT-6 Astra 及全部 GPT-6 Pro 型号仍无计量绑定；下述 Sol／Luna 限定估算不证明真实 tokenizer。调用方逐次显式给出 `tokenMargin`；实际 usage 与费用只取上游。
 
-`createOpenAiInputMeter(definition)` 也绑定 definition revision 2／`mp4-2` 的 GPT-6 Sol 与 Luna：对最终文本块用 `o200k_base` 代理计数，加上分别观测的 14-token 包装估算。当前仅覆盖固定 OpenAI 路由、`low` effort、system/developer/user 三条消息及 1/2/1 文本块；普通提醒包含 developer 标签块。工具、媒体、assistant 历史、不透明推理及其他消息结构或 effort 明确不可计量，不删除上下文。这不是多轮支持或完整认证。样本长度不构成新增硬上限，更长文本仍是误差未知的粗估；现有 profile 容量门和调用方余量保持。输出限额继续独立配置；线上校准只用 16，更大的输出控制目前仅本机验证。
+`createOpenAiInputMeter(definition)` 保留 GPT-6 Sol 的 definition revision 2／`mp4-2`：仅在固定 OpenAI 路由和 `low` effort 下，对 system/developer/user 三消息文本形状用 `o200k_base` 文本 token 加观测得到的 14-token 包装代理估算。只有 GPT-6 Luna 升为 definition revision 3／`mp4-4`：共用可见历史函数计入最终完整消息与工具定义的无损 JSON，包含 developer 提醒、assistant 可见文本与明文推理、配对工具调用及结果和后续轮次。三次冻结完整 wire 的 OpenRouter/OpenAI Luna 请求，上游实际输入为 70／178／236 token，对应既定估算 126／302／410；样本不证明精确或误差上界。调用方逐次提供 token 余量。不透明推理、媒体、未覆盖的 effort／路由和未知字段在 HTTP 前判不可计量，不删历史。Sol 可见历史仍是未绑定研究候选，Luna 的实机结果不能替 Sol 认证。实际 usage 与费用只取上游；公开调用的认证仍须单独完成。
 
 `createAnthropicInputMeter(definition)` 仅绑定 `anthropic` 供应商下修订 1 的四个指定 Claude 5.x 定义。它使用固定的 [Anthropic 旧版 Claude BPE](https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b)；Anthropic 将其称为自 Claude 3 起的**非常粗略估算**。[Claude 4.7 及后续型号使用新 tokenizer](https://platform.claude.com/docs/en/build-with-claude/token-counting)，本构件不是那个 tokenizer，也没有统一误差上界。它先核完整最终 wire 值的一致性，再对承载输入的消息和工具投影估算，保留多轮文字、user 提醒、工具结果与明文推理。生成、路由和缓存控制值不增加提示词 token；合法 TTL 取自绑定路由声明。该 JSON 输入投影仍是对私有转换的粗略近似。用户及工具结果历史中的内联 PNG/JPEG/WebP/GIF 图片沿 Claude 4.7+ 文档的 28 像素视觉图块估算（2576 像素边长、4784 图块限制），请求中保留原始图片。加密或未知推理回放仍在发送前返回不可计量；密文字节长度不是保留推理 token 数的依据。四份定义绑定 `pi-ai:anthropic/mp4-4`。每次请求必须显式配置余量，逐型号真实认证还须对照上游 usage 与本粗估误差；估算及余量不替代实际上游 usage 或费用。
 
@@ -447,7 +447,7 @@ pnpm exec vitest run tests/official-*.spec.ts
 
 Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配置 TTL，分写入／读取／过期三个命令执行。它记录公开调用结果、已接收的到达事件和响应头；`capture.rawSseBody: false`、`capture.protocolFailureFrame: false` 表示没有捕获原始 SSE 正文及被拒绝帧。不能仅凭协议失败确定触发字段或重建缺失字节。非空且不受支持的 `images`、`audio` 和 `refusal` 内容仍按协议失败处理。
 
-`src/input-meters/openai.ts` 中尚未绑定的 Sol/Luna 可见多轮候选以 o200k 对完整 low-effort 文本与工具历史的无损 JSON 估算；密文推理和媒体仍拒绝。它不是官方模型绑定，也不从包根导出。运行 `pnpm exec vitest run tests/openai-visible-history-candidate.spec.ts` 可验证六个冻结的规划／TLS 场景；正式采用仍需真实路由验证。
+`src/input-meters/openai.ts` 的共用可见历史函数同时供 GPT-6 Luna 正式 `mp4-4` 绑定与尚未绑定的 Sol 研究候选使用。`tests/openai-visible-history-candidate.spec.ts` 验证六条冻结 planner／本地 TLS 样本，覆盖 Luna 正式绑定和 Sol 候选，并关联三条已独立核对的 Luna 真实路由观测。它既不让 Sol 自动成为正式历史绑定，也不替代公开调用路径的路由核验。
 
 Moonshot 图片探针分别验证 PNG 完整性与生产输入限额：`node --test tests/fixtures/moonshot/repair-image.test.mjs` 和 `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`。这些本机检查不证明上游接受或缓存命中。
 
