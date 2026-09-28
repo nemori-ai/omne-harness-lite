@@ -536,6 +536,8 @@ export interface CallPreparationOwner<P extends PlannedSemantics, R> {
   readonly signal: AbortSignal
   readonly stopping: () => boolean
   readonly retainStopped: (actualStop: Promise<void>) => void
+  /** Wrap and retain an early authorization; attach transfers this exact wrapper to the container. */
+  readonly retainObserver: (observer: AuthorizedCallObserver) => AuthorizedCallObserver
   readonly attach: (container: CallContainer<P, R>) => void
   readonly discard: () => Promise<RuntimeCloseResult>
   readonly close: () => Promise<RuntimeCloseResult>

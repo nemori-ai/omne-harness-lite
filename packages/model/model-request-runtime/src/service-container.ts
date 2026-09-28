@@ -20,6 +20,8 @@ import type {
   ModelCallHost,
   CallObserverBinding,
   ModelObserverQueue,
+  AuthorizedCallObserver,
+  ModelArrivalTarget,
   OpenCallInput,
   RuntimeCloseResult,
   ReservationWaitPolicy,
@@ -52,6 +54,7 @@ const observerSlots = new WeakMap<
     ) => Promise<{ readonly queue: ModelObserverQueue } | { readonly unavailable: true }>
   }
 >()
+const releaseHooks = new WeakMap<object, () => RuntimeCloseResult>()
 
 function sameKey(left: CallKey, right: CallKey): boolean {
   return left.session === right.session && left.callId === right.callId
@@ -94,6 +97,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   let admissionClosed = false
   let released = false
   let releaseAttempted = false
+  let leaseReleased = false
   let stopFailed = false
   let invocation: AnchoredInvocationHandle | undefined
   let observer: CallObserverBinding | undefined = input.observer
@@ -117,6 +121,18 @@ export function createCallContainer<P extends PlannedSemantics, R>(
 
   async function closeOnce(): Promise<RuntimeCloseResult> {
     if (released) return { released: true }
+    if (releaseAttempted) {
+      if (!leaseReleased) return { unavailable: true }
+      try {
+        const hook = releaseHooks.get(container)
+        const result = hook?.() ?? { released: true }
+        if (!('released' in result)) return { unavailable: true }
+        released = true
+        return { released: true }
+      } catch {
+        return { unavailable: true }
+      }
+    }
     admissionClosed = true
     if (operation.phase === 'dispatching') {
       try {
@@ -172,6 +188,10 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     try {
       releaseAttempted = true
       binding.lease.release()
+      leaseReleased = true
+      const hook = releaseHooks.get(container)
+      const result = hook?.() ?? { released: true }
+      if (!('released' in result)) return { unavailable: true }
       released = true
       return { released: true }
     } catch {
@@ -344,6 +364,7 @@ export function createCallPreparationOwner<P extends PlannedSemantics, R>(
   let discarded = false
   let released = false
   let stopFailed = false
+  let preparedObserver: AuthorizedCallObserver | undefined
   let closing: Promise<RuntimeCloseResult> | undefined
   let nextStop = 0
   const stopped = new Map<number, Promise<void>>()
@@ -358,9 +379,18 @@ export function createCallPreparationOwner<P extends PlannedSemantics, R>(
       } catch {
         resource = { unavailable: true }
       }
-    } else if (discarded) {
-      resource = { released: true }
+    } else {
+      if (preparedObserver !== undefined) {
+        try {
+          const result = await preparedObserver.close()
+          if (!('released' in result)) return { unavailable: true }
+        } catch {
+          return { unavailable: true }
+        }
+      }
+      if (discarded) resource = { released: true }
     }
+    if (released) return { released: true }
     if (!('released' in resource) || stopped.size !== 0 || stopFailed || registration === undefined)
       return { unavailable: true }
     try {
@@ -401,10 +431,67 @@ export function createCallPreparationOwner<P extends PlannedSemantics, R>(
       )
       stopped.set(token, tracked)
     },
+    retainObserver(observer: AuthorizedCallObserver): AuthorizedCallObserver {
+      if (
+        released ||
+        container !== undefined ||
+        preparedObserver !== undefined ||
+        observer === null ||
+        typeof observer !== 'object' ||
+        typeof observer.check !== 'function' ||
+        typeof observer.open !== 'function' ||
+        typeof observer.close !== 'function'
+      )
+        throw new TypeError('invalid preparation observer')
+      let observing = false
+      let closed = false
+      let attempt: Promise<RuntimeCloseResult> | undefined
+      const retained: AuthorizedCallObserver = Object.freeze({
+        check: (target: ModelArrivalTarget) => observer.check(target),
+        open: (target: ModelArrivalTarget) => observer.open(target),
+        close: () => {
+          if (closed) return Promise.resolve({ released: true } as const)
+          if (attempt !== undefined) return attempt
+          observing = true
+          attempt = Promise.resolve()
+            .then(() => observer.close())
+            .then(
+              result => {
+                if ('released' in result) closed = true
+                return result
+              },
+              () => ({ unavailable: true }) as const,
+            )
+            .finally(() => {
+              attempt = undefined
+              observing = false
+            })
+          return attempt
+        },
+      })
+      preparedObserver = retained
+      if (abort.signal.aborted && !observing) onHostAbort()
+      return retained
+    },
     attach(next: CallContainer<P, R>) {
       if (released || discarded || container !== undefined)
         throw new TypeError('preparation owner already handed off')
+      if (
+        preparedObserver !== undefined &&
+        next.view().observer?.authorization !== preparedObserver
+      )
+        throw new TypeError('preparation observer was not transferred')
       container = next
+      releaseHooks.set(next, () => {
+        if (released) return { released: true }
+        if (stopped.size !== 0 || stopFailed || registration === undefined)
+          return { unavailable: true }
+        registration.unregister()
+        host.signal.removeEventListener('abort', onHostAbort)
+        released = true
+        return { released: true }
+      })
+      preparedObserver = undefined
       if (abort.signal.aborted) onHostAbort()
     },
     discard() {

@@ -154,6 +154,19 @@ describe('per-dispatch observer queue', () => {
     expect(await queue.close()).toEqual({ released: true })
   })
 
+  it('releases a synchronous receive failure after the receiver actually stops', async () => {
+    const { queue, diagnostics } = fixture(() => {
+      throw new Error('receiver refused')
+    })
+    expect(queue.start(snapshot)).toEqual({ accepted: true })
+    await Promise.resolve()
+    expect(diagnostics.filter(item => item.reason === 'consumer_failed')).toHaveLength(1)
+    expect(queue.offer(event, { ...snapshot, position: 1 })).toEqual({
+      rejected: { reason: 'consumer_failed' },
+    })
+    expect(await queue.close()).toEqual({ released: true })
+  })
+
   it('rejects a revoked target before handing text to the receiver', async () => {
     let allowed = true
     let receives = 0

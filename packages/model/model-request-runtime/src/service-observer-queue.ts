@@ -225,6 +225,8 @@ export function createModelObserverQueue(input: ModelObserverQueueInput): ModelO
       )
         throw new TypeError('observer receive task missing')
     } catch {
+      current = undefined
+      uncount(item)
       fail(item.position)
       return
     }

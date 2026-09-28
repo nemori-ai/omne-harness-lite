@@ -153,13 +153,48 @@ describe('call container admission and retention', () => {
     controller.abort()
     expect(prepared.owner.signal.aborted).toBe(true)
     expect(await prepared.owner.close()).toEqual({ unavailable: true })
-    prepared.owner.attach(fixture('session', 'call').container)
+    const container = fixture('session', 'call').container
+    prepared.owner.attach(container)
     expect(await prepared.owner.close()).toEqual({ unavailable: true })
     pending.finish()
     await Promise.resolve()
-    expect(await prepared.owner.close()).toEqual({ released: true })
+    expect(await container.close()).toEqual({ released: true })
     expect(unregisters).toBe(1)
     expect(await registered?.()).toEqual({ released: true })
+    expect(unregisters).toBe(1)
+  })
+
+  it('retains early observer authorization through failed preparation and retries its close', async () => {
+    let canClose = false
+    let closes = 0
+    let unregisters = 0
+    const host: ModelCallHost = {
+      signal: new AbortController().signal,
+      stopping: () => false,
+      register: () => ({
+        registration: {
+          unregister: () => {
+            unregisters += 1
+          },
+        },
+      }),
+    }
+    const prepared = createCallPreparationOwner<PlannedSemantics, never>(host)
+    if (!('owner' in prepared)) throw new Error('host registration failed')
+    const observer = prepared.owner.retainObserver({
+      check: () => ({ valid: true }),
+      open: () => ({ unavailable: true }),
+      close: async () => {
+        closes += 1
+        return canClose ? { released: true } : { unavailable: true }
+      },
+    })
+    expect(await prepared.owner.discard()).toEqual({ unavailable: true })
+    expect(unregisters).toBe(0)
+    canClose = true
+    expect(await observer.close()).toEqual({ released: true })
+    expect(await prepared.owner.close()).toEqual({ released: true })
+    expect(closes).toBe(2)
     expect(unregisters).toBe(1)
   })
 
