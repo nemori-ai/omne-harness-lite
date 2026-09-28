@@ -1,3 +1,10 @@
+import {
+  isNonNegativeJsonInteger,
+  isJsonNumber,
+  jsonNumberSource,
+  writeJsonLossless,
+} from '@omne-harness-lite/content-blocks'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type {
   DiagnosticAssociation,
   DiagnosticBinding,
@@ -218,7 +225,7 @@ function ownData(value: unknown, allowed: readonly string[]): Record<string, unk
       if (!allowed.includes(key) || key === '__proto__') return null
       const descriptor = Object.getOwnPropertyDescriptor(value, key)
       if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return null
-      result[key] = descriptor.value
+      if (descriptor.value !== undefined) result[key] = descriptor.value
     }
     return result
   } catch {
@@ -235,7 +242,13 @@ function optionalString(record: Record<string, unknown>, key: string, maxBytes: 
 }
 
 function optionalCount(record: Record<string, unknown>, key: string): boolean {
-  return record[key] === undefined || finiteInteger(record[key])
+  return record[key] === undefined || exactNonnegativeInteger(record[key])
+}
+
+function exactNonnegativeInteger(value: unknown): value is JsonNumber {
+  return typeof value === 'number'
+    ? Number.isSafeInteger(value) && value >= 0
+    : isNonNegativeJsonInteger(value)
 }
 
 function validReference(value: unknown, maxBytes: number): DiagnosticReference | null {
@@ -279,9 +292,9 @@ function validAssociation(value: unknown, maxBytes: number): DiagnosticAssociati
     ...(causedBy ? { causedBy } : {}),
     ...(record.session === undefined ? {} : { session: record.session as string }),
     ...(record.run === undefined ? {} : { run: record.run as string }),
-    ...(record.attempt === undefined ? {} : { attempt: record.attempt as number }),
+    ...(record.attempt === undefined ? {} : { attempt: record.attempt as JsonNumber }),
     ...(record.call === undefined ? {} : { call: record.call as string }),
-    ...(record.dispatch === undefined ? {} : { dispatch: record.dispatch as number }),
+    ...(record.dispatch === undefined ? {} : { dispatch: record.dispatch as JsonNumber }),
     ...(record.response === undefined ? {} : { response: record.response as string }),
   }
   return Object.freeze(association)
@@ -387,9 +400,11 @@ function validFacts(
     }
     if (
       record.costUsd !== undefined &&
-      (typeof record.costUsd !== 'string' ||
-        !/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(record.costUsd) ||
-        Buffer.byteLength(record.costUsd) > maxBytes)
+      (!isJsonNumber(record.costUsd) ||
+        (typeof record.costUsd === 'number' &&
+          (!Number.isFinite(record.costUsd) || record.costUsd < 0)) ||
+        jsonNumberSource(record.costUsd).startsWith('-') ||
+        Buffer.byteLength(jsonNumberSource(record.costUsd)) > maxBytes)
     )
       return null
   } else if (header.kind === 'registration') {
@@ -826,7 +841,7 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
       ...(observedAt ? { observedAt } : {}),
       ...(elapsedMs === undefined ? {} : { elapsedMs }),
     })
-    const bytes = Buffer.byteLength(JSON.stringify(full)) + 1
+    const bytes = Buffer.byteLength(writeJsonLossless(full)) + 1
     if (bytes > config.maxRecordBytes) {
       drop('oversize')
       return { dropped: 'oversize' }

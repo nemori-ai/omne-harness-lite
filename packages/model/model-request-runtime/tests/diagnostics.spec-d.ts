@@ -1,4 +1,5 @@
 import { expectTypeOf } from 'vitest'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type {
   DiagnosticAssociation,
   DiagnosticEvent,
@@ -16,6 +17,8 @@ expectTypeOf<Extract<DiagnosticFact, { kind: 'transport' }>['httpStatus']>().toE
 expectTypeOf<DiagnosticAssociation['causedBy']>().toEqualTypeOf<
   { readonly collectorId: string; readonly sequence: string } | undefined
 >()
+expectTypeOf<DiagnosticAssociation['dispatch']>().toEqualTypeOf<JsonNumber | undefined>()
+expectTypeOf<DiagnosticAssociation['attempt']>().toEqualTypeOf<JsonNumber | undefined>()
 expectTypeOf<DiagnosticQueryResult>().toMatchTypeOf<
   { readonly page: unknown } | { readonly rejected: string }
 >()

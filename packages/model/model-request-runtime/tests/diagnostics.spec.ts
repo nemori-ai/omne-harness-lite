@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
 import type {
   DiagnosticCollectorConfig,
@@ -402,22 +403,48 @@ describe('diagnostic collector', () => {
     expect(delivered).toBe(2)
   })
 
-  it('records exact decimal cost text and rejects an inferred floating-point cost', async () => {
+  it('preserves exact JSON-number identities, usage and cost beyond JS safe integers', async () => {
     const { collector, records } = fixture()
+    const large = new LosslessNumber('9007199254740993')
+    const exactCost = new LosslessNumber('0.000000000000000001')
     const settlement: DiagnosticEvent = {
       source: 'runtime',
       stage: 'settlement',
       outcome: 'completed',
-      facts: { kind: 'progress', settlement: 'committed', costUsd: '0.000000000000000001' },
+      facts: {
+        kind: 'progress',
+        settlement: 'committed',
+        submissions: large,
+        tailConflicts: large,
+        inputTokens: large,
+        costUsd: exactCost,
+      },
     }
-    expect(collector.record(settlement, local)).toHaveProperty('recorded')
+    expect(
+      collector.record(settlement, local, {
+        executionId: 'exact',
+        attempt: large,
+        dispatch: large,
+      }),
+    ).toHaveProperty('recorded')
     const inexact: unknown = {
       ...settlement,
-      facts: { kind: 'progress', settlement: 'committed', costUsd: 0.1 },
+      facts: { kind: 'progress', settlement: 'committed', submissions: Number('9007199254740993') },
     }
     expect(collector.record(inexact as DiagnosticEvent, local)).toEqual({ dropped: 'invalid' })
+    expect(
+      collector.record(settlement, local, {
+        executionId: 'rounded',
+        dispatch: Number('9007199254740993'),
+      }),
+    ).toEqual({ dropped: 'invalid' })
     await collector.close()
     expect(records[0]?.facts).toEqual(settlement.facts)
+    const encoded = writeJsonLossless(records[0])
+    expect(encoded).toContain('"dispatch":9007199254740993')
+    expect(encoded).toContain('"attempt":9007199254740993')
+    expect(encoded).toContain('"submissions":9007199254740993')
+    expect(encoded).toContain('"costUsd":0.000000000000000001')
   })
 
   it('bounds category-only fallback reports and isolates a failing reporter', async () => {

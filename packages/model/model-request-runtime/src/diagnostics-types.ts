@@ -1,4 +1,5 @@
 /** Engineering observations are neither session-log records nor recovery evidence. */
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 export type DiagnosticSource = 'runtime' | 'invocation' | 'transport' | 'observer' | 'assembly'
 
 export type DiagnosticStage =
@@ -48,9 +49,9 @@ export interface DiagnosticAssociation {
   readonly causedBy?: DiagnosticReference
   readonly session?: string
   readonly run?: string
-  readonly attempt?: number
+  readonly attempt?: JsonNumber
   readonly call?: string
-  readonly dispatch?: number
+  readonly dispatch?: JsonNumber
   readonly response?: string
 }
 
@@ -105,29 +106,28 @@ export type DiagnosticFact =
       readonly retry?: 'again' | 'refused' | 'without_resend'
       readonly owner?: string
       readonly policy?: string
-      readonly submissions?: number
-      readonly tailConflicts?: number
-      readonly inputTokens?: number
-      readonly outputTokens?: number
-      readonly cacheReadTokens?: number
-      readonly cacheWriteTokens?: number
-      /** Exact nonnegative JSON decimal source, not a floating-point approximation. */
-      readonly costUsd?: string
+      readonly submissions?: JsonNumber
+      readonly tailConflicts?: JsonNumber
+      readonly inputTokens?: JsonNumber
+      readonly outputTokens?: JsonNumber
+      readonly cacheReadTokens?: JsonNumber
+      readonly cacheWriteTokens?: JsonNumber
+      readonly costUsd?: JsonNumber
     }
   | {
       readonly kind: 'registration'
       readonly phase?: 'published' | 'admitted' | 'retiring' | 'closed'
-      readonly references?: number
-      readonly executions?: number
+      readonly references?: JsonNumber
+      readonly executions?: JsonNumber
       readonly cancellation?: 'requested' | 'stopped' | 'remaining_active' | 'cleanup_failed'
     }
   | {
       readonly kind: 'observer'
       readonly observerStage: 'delivery' | 'snapshot' | 'increment' | 'close'
       readonly reason: 'buffer_full' | 'consumer_failed' | 'scope_mismatch' | 'closed'
-      readonly position?: number
-      readonly bufferedEvents?: number
-      readonly bufferedBytes?: number
+      readonly position?: JsonNumber
+      readonly bufferedEvents?: JsonNumber
+      readonly bufferedBytes?: JsonNumber
     }
   | {
       readonly kind: 'diagnostics'
@@ -140,7 +140,7 @@ export type DiagnosticFact =
         | 'transport_retention_full'
         | 'close_incomplete'
         | 'export_failed'
-      readonly count?: number
+      readonly count?: JsonNumber
     }
 
 type DiagnosticEventBase = {
