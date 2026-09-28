@@ -5,6 +5,7 @@ import {
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   DiagnosticAssociation,
   DiagnosticBinding,
@@ -274,8 +275,16 @@ function validScope(value: unknown, maxBytes: number): DiagnosticScope | null {
   if (!record) return null
   if (record.kind === 'local' && !Object.hasOwn(record, 'tenant'))
     return Object.freeze({ kind: 'local' })
-  if (record.kind === 'tenant' && boundedString(record.tenant, maxBytes)) {
-    return Object.freeze({ kind: 'tenant', tenant: record.tenant })
+  if (record.kind === 'tenant') {
+    const pair = ownData(record.tenant, ['organization', 'account'])
+    if (
+      !pair ||
+      !boundedString(pair.organization, maxBytes) ||
+      !boundedString(pair.account, maxBytes)
+    )
+      return null
+    const parsed = parseTenantId(pair)
+    if ('ok' in parsed) return Object.freeze({ kind: 'tenant', tenant: Object.freeze(parsed.ok) })
   }
   return null
 }
@@ -283,7 +292,8 @@ function validScope(value: unknown, maxBytes: number): DiagnosticScope | null {
 function sameScope(left: DiagnosticScope, right: DiagnosticScope): boolean {
   return (
     left.kind === right.kind &&
-    (left.kind === 'local' || (right.kind === 'tenant' && left.tenant === right.tenant))
+    (left.kind === 'local' ||
+      (right.kind === 'tenant' && tenantIdEquals(left.tenant, right.tenant)))
   )
 }
 

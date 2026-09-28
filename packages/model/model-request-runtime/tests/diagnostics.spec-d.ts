@@ -1,11 +1,13 @@
 import { expectTypeOf } from 'vitest'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import type { TenantId } from '@omne-harness-lite/identity-values'
 import type {
   DiagnosticAssociation,
   DiagnosticEvent,
   DiagnosticFact,
   DiagnosticQueryResult,
   DiagnosticRecord,
+  DiagnosticScope,
 } from '../src/diagnostics-types.ts'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
 import type { TransportDiagnosticFact, TransportExecutionDiagnostics } from '../src/types.ts'
@@ -20,6 +22,7 @@ expectTypeOf<DiagnosticAssociation['causedBy']>().toEqualTypeOf<
 >()
 expectTypeOf<DiagnosticAssociation['dispatch']>().toEqualTypeOf<JsonNumber | undefined>()
 expectTypeOf<DiagnosticAssociation['attempt']>().toEqualTypeOf<JsonNumber | undefined>()
+expectTypeOf<Extract<DiagnosticScope, { kind: 'tenant' }>['tenant']>().toEqualTypeOf<TenantId>()
 expectTypeOf<TransportExecutionDiagnostics['record']>().toBeFunction()
 const transportFact: TransportDiagnosticFact = {
   stage: 'send',

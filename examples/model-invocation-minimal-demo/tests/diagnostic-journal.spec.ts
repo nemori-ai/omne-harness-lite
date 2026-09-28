@@ -3,11 +3,19 @@ import * as fs from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import type { DiagnosticRecord, DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
 import { createDiagnosticJournal, openDiagnosticJournalReader } from '../src/diagnostic-journal.ts'
 import type { DiagnosticJournalConfig } from '../src/diagnostic-journal.ts'
 
-const scope: DiagnosticScope = { kind: 'tenant', tenant: 'tenant-a' }
+const scope: DiagnosticScope = {
+  kind: 'tenant',
+  tenant: unwrap(parseTenantId({ organization: 'tenant-org', account: 'tenant-a' })),
+}
+const wrongScope: DiagnosticScope = {
+  kind: 'tenant',
+  tenant: unwrap(parseTenantId({ organization: 'tenant-org', account: 'tenant-b' })),
+}
 const workspaceTmp = resolve(process.cwd(), '../../tmp')
 let temporary: string
 let rootDir: string
@@ -187,7 +195,6 @@ describe('example diagnostic JSONL journal', () => {
       }),
     )
     await journal.append(record(1))
-    const wrongScope = { kind: 'tenant' as const, tenant: 'tenant-b' }
     expect(await journal.query({ scope: wrongScope, limit: 1, maxBytes: 1024 })).toEqual({
       rejected: 'forbidden',
     })
@@ -198,6 +205,25 @@ describe('example diagnostic JSONL journal', () => {
       ),
     ).toEqual({ rejected: 'invalidInput' })
     expect(opens).toBe(0)
+    await journal.close()
+  })
+
+  it('copies the configured TenantId and rejects a mutated caller object', async () => {
+    if (scope.kind !== 'tenant' || wrongScope.kind !== 'tenant') throw new Error('fixture')
+    const supplied: DiagnosticScope = { kind: 'tenant', tenant: { ...scope.tenant } }
+    const journal = await createDiagnosticJournal(config({ scope: supplied }))
+    Reflect.set(supplied.tenant, 'account', wrongScope.tenant.account)
+    await journal.append(record(1))
+    expect(await journal.query({ scope: supplied, limit: 1, maxBytes: 1024 })).toEqual({
+      rejected: 'forbidden',
+    })
+    expect(
+      await journal.query({
+        scope: { kind: 'tenant', tenant: { ...scope.tenant } },
+        limit: 1,
+        maxBytes: 1024,
+      }),
+    ).toHaveProperty('page.records.0.sequence', '1')
     await journal.close()
   })
 
@@ -341,13 +367,13 @@ describe('example diagnostic JSONL journal', () => {
     const gate = deferred()
     const journal = await createDiagnosticJournal(
       config({
-        maxRecordBytes: 300,
-        segmentMaxBytes: 300,
-        retainedMaxBytes: 300,
+        maxRecordBytes: 450,
+        segmentMaxBytes: 450,
+        retainedMaxBytes: 450,
         retainedMaxSegments: 1,
-        queryMaxBytes: 300,
-        queryScanMaxBytes: 300,
-        exportMaxBytes: 300,
+        queryMaxBytes: 450,
+        queryScanMaxBytes: 450,
+        exportMaxBytes: 450,
         queryMaxDurationMs: 10,
         fs: {
           ...fs,
@@ -370,7 +396,7 @@ describe('example diagnostic JSONL journal', () => {
       }),
     )
     expect(await journal.append(record(1))).toBe('written')
-    expect(await journal.query({ scope, limit: 1, maxBytes: 300 })).toEqual({ rejected: 'timeout' })
+    expect(await journal.query({ scope, limit: 1, maxBytes: 450 })).toEqual({ rejected: 'timeout' })
     expect(journal.health().openQueryHandles).toBe(1)
     expect(journal.health().retainedBytes).toEqual(expect.any(Number))
     expect(await journal.append(record(2))).toBe('retention_full')
@@ -385,13 +411,13 @@ describe('example diagnostic JSONL journal', () => {
   it('rolls segments under the configured one-segment budget and reports an expired cursor', async () => {
     const journal = await createDiagnosticJournal(
       config({
-        maxRecordBytes: 300,
-        segmentMaxBytes: 300,
-        retainedMaxBytes: 300,
+        maxRecordBytes: 450,
+        segmentMaxBytes: 450,
+        retainedMaxBytes: 450,
         retainedMaxSegments: 1,
-        queryMaxBytes: 300,
-        queryScanMaxBytes: 300,
-        exportMaxBytes: 300,
+        queryMaxBytes: 450,
+        queryScanMaxBytes: 450,
+        exportMaxBytes: 450,
       }),
     )
     expect(await journal.append(record(1))).toBe('written')
@@ -409,7 +435,7 @@ describe('example diagnostic JSONL journal', () => {
         scope,
         after: { collectorId: 'collector-a', sequence: '1' },
         limit: 1,
-        maxBytes: 300,
+        maxBytes: 450,
       }),
     ).toEqual({
       rejected: 'cursor_expired',
@@ -422,13 +448,13 @@ describe('example diagnostic JSONL journal', () => {
   it('does not count deleted bytes when eviction unlink fails', async () => {
     const journal = await createDiagnosticJournal(
       config({
-        maxRecordBytes: 300,
-        segmentMaxBytes: 300,
-        retainedMaxBytes: 300,
+        maxRecordBytes: 450,
+        segmentMaxBytes: 450,
+        retainedMaxBytes: 450,
         retainedMaxSegments: 1,
-        queryMaxBytes: 300,
-        queryScanMaxBytes: 300,
-        exportMaxBytes: 300,
+        queryMaxBytes: 450,
+        queryScanMaxBytes: 450,
+        exportMaxBytes: 450,
         fs: {
           ...fs,
           unlink: async () => {
@@ -473,18 +499,18 @@ describe('example diagnostic JSONL journal', () => {
   it('advances an empty page when the bounded scan finds only expired lines', async () => {
     const journal = await createDiagnosticJournal(
       config({
-        maxRecordBytes: 300,
-        segmentMaxBytes: 600,
-        retainedMaxBytes: 1200,
+        maxRecordBytes: 450,
+        segmentMaxBytes: 900,
+        retainedMaxBytes: 1800,
         retentionMs: 10_000,
-        queryScanMaxBytes: 300,
-        queryMaxBytes: 300,
-        exportMaxBytes: 300,
+        queryScanMaxBytes: 450,
+        queryMaxBytes: 450,
+        exportMaxBytes: 450,
       }),
     )
     await journal.append({ ...record(1), observedAt: '2026-09-28T00:00:00.000Z' })
     await journal.append(record(2))
-    const first = await journal.query({ scope, limit: 2, maxBytes: 300 })
+    const first = await journal.query({ scope, limit: 2, maxBytes: 450 })
     expect(first).toEqual({
       page: {
         records: [],
@@ -504,7 +530,7 @@ describe('example diagnostic JSONL journal', () => {
       after: { collectorId: 'collector-a', sequence: '1' },
       through: { collectorId: 'collector-a', sequence: '2' },
       limit: 2,
-      maxBytes: 300,
+      maxBytes: 450,
     })
     expect(next).toMatchObject({ page: { records: [record(2)] } })
     await journal.close()

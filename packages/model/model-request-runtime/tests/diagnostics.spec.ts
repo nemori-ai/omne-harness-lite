@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
 import type {
   DiagnosticCollectorConfig,
@@ -11,7 +12,14 @@ import type {
 } from '../src/diagnostics-types.ts'
 
 const local: DiagnosticScope = { kind: 'local' }
-const tenant: DiagnosticScope = { kind: 'tenant', tenant: 'tenant-a' }
+const tenant: DiagnosticScope = {
+  kind: 'tenant',
+  tenant: unwrap(parseTenantId({ organization: 'tenant-org', account: 'tenant-a' })),
+}
+const otherTenant: DiagnosticScope = {
+  kind: 'tenant',
+  tenant: unwrap(parseTenantId({ organization: 'tenant-org', account: 'tenant-b' })),
+}
 const event: DiagnosticEvent = {
   source: 'transport',
   stage: 'send',
@@ -229,7 +237,7 @@ describe('diagnostic collector', () => {
     expect(
       await collector.exportPage(
         {
-          scope: { kind: 'tenant', tenant: 'tenant-b' },
+          scope: otherTenant,
           limit: 1,
           maxBytes: 4096,
         },
@@ -246,6 +254,20 @@ describe('diagnostic collector', () => {
     expect(fixtureValue.exportCalls).toBe(0)
     expect(collector.metrics(local)).toEqual({ rejected: 'forbidden' })
     await collector.close()
+  })
+
+  it('copies a validated TenantId pair and compares its two components by value', async () => {
+    const supplied: DiagnosticScope = { kind: 'tenant', tenant: { ...tenant.tenant } }
+    const { collector, records } = fixture({ scope: supplied })
+    if (supplied.kind !== 'tenant' || otherTenant.kind !== 'tenant') throw new Error('fixture')
+    Reflect.set(supplied.tenant, 'account', otherTenant.tenant.account)
+    expect(
+      collector.record(event, { kind: 'tenant', tenant: { ...tenant.tenant } }),
+    ).toHaveProperty('recorded')
+    expect(collector.record(event, otherTenant)).toEqual({ dropped: 'invalid' })
+    expect(collector.metrics(otherTenant)).toEqual({ rejected: 'forbidden' })
+    await collector.close()
+    expect(records[0]?.scope).toEqual(tenant)
   })
 
   it('allows zero only as the fixed through watermark of an empty journal', async () => {

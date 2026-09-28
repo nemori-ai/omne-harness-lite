@@ -1,5 +1,6 @@
 /** Engineering observations are neither session-log records nor recovery evidence. */
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import type { TenantId } from '@omne-harness-lite/identity-values'
 export type DiagnosticSource = 'runtime' | 'invocation' | 'transport' | 'observer' | 'assembly'
 
 export type DiagnosticStage =
@@ -36,7 +37,7 @@ export type DiagnosticOutcome =
   | 'dropped'
 
 export type DiagnosticScope =
-  { readonly kind: 'local' } | { readonly kind: 'tenant'; readonly tenant: string }
+  { readonly kind: 'local' } | { readonly kind: 'tenant'; readonly tenant: TenantId }
 
 export interface DiagnosticReference {
   readonly collectorId: string

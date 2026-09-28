@@ -8,6 +8,7 @@ import {
   readJsonStrict,
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
+import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   DiagnosticCloseResult,
   DiagnosticCollectorConfig,
@@ -76,19 +77,40 @@ function positive(value: unknown): value is number {
 }
 
 function sameScope(a: DiagnosticScope, b: DiagnosticScope): boolean {
-  return a.kind === b.kind && (a.kind === 'local' || (b.kind === 'tenant' && a.tenant === b.tenant))
+  return (
+    a.kind === b.kind &&
+    (a.kind === 'local' || (b.kind === 'tenant' && tenantIdEquals(a.tenant, b.tenant)))
+  )
 }
 
-function validScope(value: unknown): value is DiagnosticScope {
-  if (value === null || typeof value !== 'object') return false
-  const item = value as Record<string, unknown>
-  if (item.kind === 'local') return Object.keys(item).length === 1
-  return (
-    item.kind === 'tenant' &&
-    Object.keys(item).length === 2 &&
-    typeof item.tenant === 'string' &&
-    item.tenant.length > 0
-  )
+function ownData(value: unknown, allowed: readonly string[]): Record<string, unknown> | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
+  try {
+    const keys = Reflect.ownKeys(value)
+    if (keys.some(key => typeof key !== 'string' || !allowed.includes(key))) return null
+    const copied: Record<string, unknown> = {}
+    for (const key of keys) {
+      if (typeof key !== 'string') return null
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return null
+      Object.defineProperty(copied, key, { value: descriptor.value, enumerable: true })
+    }
+    return copied
+  } catch {
+    return null
+  }
+}
+
+function ownScope(value: unknown): DiagnosticScope | null {
+  const item = ownData(value, ['kind', 'tenant'])
+  if (!item) return null
+  if (item.kind === 'local' && !Object.hasOwn(item, 'tenant'))
+    return Object.freeze({ kind: 'local' })
+  if (item.kind !== 'tenant') return null
+  const pair = ownData(item.tenant, ['organization', 'account'])
+  if (!pair) return null
+  const parsed = parseTenantId(pair)
+  return 'ok' in parsed ? Object.freeze({ kind: 'tenant', tenant: Object.freeze(parsed.ok) }) : null
 }
 
 function sequenceOf(
@@ -142,6 +164,7 @@ async function checkedFile(handle: FileHandle): Promise<void> {
 }
 
 function validatedConfig(input: DiagnosticJournalConfig): DiagnosticJournalConfig {
+  const scope = ownScope(input.scope)
   if (
     process.platform === 'win32' ||
     process.getuid === undefined ||
@@ -150,7 +173,7 @@ function validatedConfig(input: DiagnosticJournalConfig): DiagnosticJournalConfi
     input.rootDir.includes('\0') ||
     typeof input.collectorId !== 'string' ||
     !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u.test(input.collectorId) ||
-    !validScope(input.scope) ||
+    !scope ||
     [
       input.maxRecordBytes,
       input.segmentMaxBytes,
@@ -175,7 +198,7 @@ function validatedConfig(input: DiagnosticJournalConfig): DiagnosticJournalConfi
     typeof input.schedule !== 'function'
   )
     throw new Error('invalid diagnostic journal configuration')
-  return Object.freeze({ ...input, scope: Object.freeze({ ...input.scope }) })
+  return Object.freeze({ ...input, scope })
 }
 
 function readClock(config: DiagnosticJournalConfig): number | undefined {
@@ -577,7 +600,8 @@ async function openJournal(
         readonly maxBytes: number
       }
     | Rejection {
-    if (!validScope(value?.scope) || !sameScope(config.scope, value.scope))
+    const requestedScope = ownScope(value?.scope)
+    if (!requestedScope || !sameScope(config.scope, requestedScope))
       return { rejected: 'forbidden' }
     const after = sequenceOf(value.after, config.collectorId)
     const through =
@@ -914,6 +938,7 @@ function validStoredRecord(
   collectorId: string,
   scope: DiagnosticScope,
 ): value is Record<string, unknown> & { sequence: string } {
+  const storedScope = ownScope(value.scope)
   if (
     !only(value, [
       'format',
@@ -931,8 +956,8 @@ function validStoredRecord(
     ]) ||
     value.format !== 'model-diagnostics/1' ||
     value.collectorId !== collectorId ||
-    !validScope(value.scope) ||
-    !sameScope(value.scope, scope) ||
+    !storedScope ||
+    !sameScope(storedScope, scope) ||
     typeof value.sequence !== 'string' ||
     !/^[1-9][0-9]*$/u.test(value.sequence) ||
     !['runtime', 'invocation', 'transport', 'observer', 'assembly'].includes(
