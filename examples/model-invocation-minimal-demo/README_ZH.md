@@ -4,13 +4,17 @@
 
 示例装入 **`deepseek/deepseek-v4-pro-0813`** 与 **`deepseek/deepseek-v4.1-flash`** 两条官方档案，均固定供应商路由 **`deepinfra/fp8`** 并禁止回退。Pro 只是首次会话的显式初选。`/models` 读取当前目录展示列表，`/model` 显示选中和有效路由，`/model <标识>` 耐久切换后续请求的选中路由；不会重建会话或清空历史。上层锁可能让有效路由不同于选中路由，重启后仍读原耐久选择。其他已发布模型定义未随之自动具备可用的档案、适配与输入计量。
 
+模型请求阶段安装 Cordis `modelTransport` 服务，并为每组精确定义与输入计量构件装入可信贡献 fiber。运行时为每次调用取得该服务的固定租约；发布新贡献不会改变旧调用。撤旧先禁止该版本的新取得，再等待租约、HTTPS 读取及回调实际停止。应用关闭先收口运行时，再卸载贡献与传输服务。本机受控 HTTPS 测试覆盖旧调用在途时的 Pro／Flash 贡献更替，也核验无法解释的配置在 HTTP 和模型锚点之前返回 `invalidInput`。这只是进程内热更切片；目录采用与旧版显式撤除仍由调用方负责。
+
 每轮接收文本输入、无工具、无 Run，参数为 `reasoningEffort: low` 和 `maxOutputTokens: 16384`。已认证会话绑定统一的 `createModelRuntime` 服务；服务打开并派发调用，由绑定会话授权且有双重缓冲上限的观察端把流送到终端。每次发送前先登记实际调用宿主，并在物理停止前保留其所有权。装配也提供认证后的恢复对账入口，但交互 CLI 没有恢复命令或自动重发。完整回复与模型响应由示例在同一耐久批次结算后才进入下一轮。每次请求把校验后的完整消息历史（包括先前的推理和媒体块）交给调用层，不加纯文本白名单。可见性和模型兼容遵循公共契约；命令行目前仅提供文本输入。`/history` 读真实会话日志。使用相同数据路径重启会重新认证并恢复原会话，不重放注册或来源发布。
 
 
 用 `--max-output-tokens <正整数>` 配置每次响应的输出上限，默认 16,384。所选模型的档案仍校验其上限，demo 不会静默截小过大的配置。此额度包含上游计入输出的推理 tokens。使用相同 `--data` 和新上限重启，保留原会话历史。
 当前开发格式在每次调用快照中完整携带项目输入上限及上游限制事实。旧开发版本产生的不兼容数据不会自动转换；验证当前版本请显式使用新的 `--data` 目录，原目录保持不动。
 
-两个 token 余量选项均须显式配置。示例用 `ceil(estimatedTokens * 1.1) + 256` 与项目输入上限比较；固定版本的 DeepSeek tokenizer 估算最终输入，余量可调整，不保证与上游实际计数一致。实际 token 用量及费用仍仅采用上游响应。程序调用通过第二个参数配置：`openDemo(dataDirectory, tokenMargin, maxOutputTokens, credential?, testOptions?, observerBounds?)`。观察队列默认有明确的 256 事件与 262,144 字节上限，程序调用可分别调整这两个正整数。投递诊断及背压不能代替持久历史或结算。
+两个 token 余量选项均须显式配置。示例用 `ceil(estimatedTokens * 1.1) + 256` 与项目输入上限比较；固定版本的 DeepSeek tokenizer 估算最终输入，余量可调整，不保证与上游实际计数一致。实际 token 用量及费用仍仅采用上游响应。程序调用通过第二个参数配置：`openDemo(dataDirectory, tokenMargin, retirement, maxOutputTokens, credential?, testOptions?, observerBounds?)`。部署的 `modelRequest.transport.retirement` 必须提供正整数 `waitMilliseconds`、`force` 与可替换的 `schedule`；等待超时仍保留资源所有权，不冒称清理完毕。CLI 明确设 `force=false`，撤除等待默认为 10,000 毫秒，可用 `--transport-retirement-wait-ms <正整数>` 调整。
+
+观察队列默认有明确的 256 事件与 262,144 字节上限，程序调用可分别调整这两个正整数。投递诊断及背压不能代替持久历史或结算。
 
 ## 运行
 

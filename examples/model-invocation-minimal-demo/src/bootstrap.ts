@@ -74,13 +74,17 @@ import {
   type SessionRecipeInput,
 } from '@omne-harness-lite/evaluation-input-store/publication'
 import {
-  createPiAiTransport,
-  OPENROUTER_BASE_URL,
-  type PiAiTransport,
+  createModelTransportService,
+  type ModelTransportService,
   type PlannedRequest,
   type RawResponse,
   type TransportOptions,
 } from '@omne-harness-lite/pi-ai-transport'
+import {
+  createModelPlugin,
+  MODEL_TRANSPORT_SERVICE,
+  piAiTransportPlugin,
+} from '@omne-harness-lite/pi-ai-transport/plugin'
 import { prepareModelRequestDeployment } from './model-request-deployment.ts'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
@@ -232,6 +236,17 @@ function sessionTenancyFace(value: unknown): value is SessionTenancyService {
 }
 function currentInputFace(value: unknown): value is CurrentEvaluationInputs {
   return object(value) && typeof value.read === 'function'
+}
+function modelTransportFace(value: unknown): value is ModelTransportService {
+  return (
+    object(value) &&
+    typeof value.registerAdaptation === 'function' &&
+    typeof value.acquire === 'function' &&
+    typeof value.retire === 'function' &&
+    typeof value.close === 'function' &&
+    typeof value.inspect === 'function' &&
+    value.closed instanceof Promise
+  )
 }
 function sourceMembershipFace(value: unknown): value is InputSourceDependencies['memberships'] {
   return object(value) && typeof value.participate === 'function'
@@ -414,7 +429,8 @@ export function createAcceptanceApplication(
   let storage: SqlStorage | undefined
   let replica: ModelReplicaCustodian | undefined
   let sessionLogOwner: JsonlSessionLog | undefined
-  let transportOwner: PiAiTransport | undefined
+  let transportService: ModelTransportService | undefined
+  const modelContributions: Fiber[] = []
   let modelRuntime:
     | { readonly service: ModelRuntimeService; readonly close: () => Promise<RuntimeCloseResult> }
     | undefined
@@ -463,7 +479,6 @@ export function createAcceptanceApplication(
       scopeIssued: boolean
     }
   >()
-  const transportLeases = new Set<object>()
   const observerAccess = createDemoObserverAccess()
   const observerGrants = new Set<{ readonly revoke: () => Promise<RuntimeCloseResult> }>()
   let gateOpen = false,
@@ -513,7 +528,9 @@ export function createAcceptanceApplication(
       allActive(requiredFibers) &&
       replica !== undefined &&
       (stage !== 'modelRequest' ||
-        (transportOwner !== undefined && currentInputs !== undefined && inputSource !== undefined))
+        (transportService !== undefined &&
+          currentInputs !== undefined &&
+          inputSource !== undefined))
     )
   }
   function track<T>(work: () => Promise<T>): Promise<T> {
@@ -603,14 +620,16 @@ export function createAcceptanceApplication(
       if (
         consumerUnavailable ||
         (stoppedRuntime !== undefined && 'unavailable' in stoppedRuntime) ||
-        transportLeases.size !== 0 ||
+        (transportService !== undefined &&
+          (transportService.inspect().references !== 0 ||
+            transportService.inspect().executions !== 0)) ||
         [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
       ) {
         return {
           complete: false,
           unfinished: [
             'modelRequestConsumers',
-            'transportOwner',
+            'modelTransport',
             'evaluationInputs',
             'sessionLogOwner',
             'storageOwner',
@@ -622,24 +641,32 @@ export function createAcceptanceApplication(
       runtimeActors.clear()
       runtimeBindings.clear()
       const unfinished: string[] = []
-      const order: readonly (StageFiber | 'replica' | 'sessionLogOwner' | 'transportOwner')[] = [
-        ...(stage === 'modelRequest' ? (['transportOwner', 'evaluationInputs'] as const) : []),
-        ...(logStage ? (['sessionLogOwner', 'sessionLog'] as const) : []),
-        ...(preparationStage ? (['sessionTenancy'] as const) : []),
-        'lookup',
-        'directory',
-        'replica',
-        'registration',
-        'governance',
-        'accountIdentity',
-        'credentials',
-        'clock',
-        'storage',
-      ]
+      const order: readonly (StageFiber | 'replica' | 'sessionLogOwner' | 'modelContributions')[] =
+        [
+          ...(stage === 'modelRequest'
+            ? (['modelContributions', 'modelTransport', 'evaluationInputs'] as const)
+            : []),
+          ...(logStage ? (['sessionLogOwner', 'sessionLog'] as const) : []),
+          ...(preparationStage ? (['sessionTenancy'] as const) : []),
+          'lookup',
+          'directory',
+          'replica',
+          'registration',
+          'governance',
+          'accountIdentity',
+          'credentials',
+          'clock',
+          'storage',
+        ]
       for (const [index, name] of order.entries()) {
         try {
-          if (name === 'transportOwner') await transportOwner?.close()
-          else if (name === 'sessionLogOwner') await sessionLogOwner?.close()
+          if (name === 'modelContributions') {
+            const retired = await Promise.allSettled(
+              [...modelContributions].reverse().map(fiber => fiber.dispose()),
+            )
+            if (retired.some(result => result.status === 'rejected'))
+              throw new Error('model contribution cleanup failed')
+          } else if (name === 'sessionLogOwner') await sessionLogOwner?.close()
           else if (name === 'replica') await replica?.close()
           else await fibers.get(name)?.dispose()
           record({ event: 'close', phase: name, outcome: 'closed' })
@@ -925,14 +952,65 @@ export function createAcceptanceApplication(
         phase = 'transport'
         category = 'failed'
         assertNotClosing()
-        transportOwner = createPiAiTransport({
-          ...requestDeployment.transport,
-          baseUrl: OPENROUTER_BASE_URL,
-          ...options.developmentTransport,
-          onDiagnostic: event =>
-            record({ event: 'transport', phase: 'provider', outcome: event.level }),
-        })
-        record({ event: 'transport', phase: 'constructor', outcome: 'ready' })
+        const transportConfiguration = requestDeployment.transport
+        if (transportConfiguration.inputMeters.length !== transportConfiguration.definitions.length)
+          throw new Error('one exact input meter per model contribution required')
+        const onDiagnostic = (event: { readonly level: string }) =>
+          record({ event: 'transport', phase: 'provider', outcome: event.level })
+        if (options.developmentTransport === undefined) {
+          await load('modelTransport', piAiTransportPlugin, {
+            policy: transportConfiguration.policy,
+            retirement: transportConfiguration.retirement,
+            onDiagnostic,
+          })
+        } else {
+          const developmentTransport = options.developmentTransport
+          await load(
+            'modelTransport',
+            {
+              name: 'acceptance-controlled-model-transport',
+              apply(ctx: Context) {
+                const service = createModelTransportService({
+                  ...developmentTransport,
+                  policy: transportConfiguration.policy,
+                  onDiagnostic,
+                })
+                ctx.effect(() => async () => {
+                  const result = await service.close(transportConfiguration.retirement)
+                  if ('cleanup_failed' in result || 'rejected' in result)
+                    throw new Error('model transport cleanup failed')
+                  await service.closed
+                })
+                ctx.provide(MODEL_TRANSPORT_SERVICE, service)
+              },
+            },
+            undefined,
+          )
+        }
+        const provided: unknown = context.get(MODEL_TRANSPORT_SERVICE)
+        if (!modelTransportFace(provided)) throw new Error('model transport service absent')
+        transportService = provided
+        for (const definition of transportConfiguration.definitions) {
+          const meters = transportConfiguration.inputMeters.filter(
+            meter =>
+              meter.modelId === definition.modelId &&
+              meter.definitionRevision === definition.revision &&
+              meter.implementation.name === definition.implementation.name &&
+              meter.implementation.revision === definition.implementation.revision &&
+              Object.hasOwn(definition.routes, meter.provider),
+          )
+          if (meters.length !== 1 || meters[0] === undefined)
+            throw new Error('one exact input meter per model contribution required')
+          const fiber = context.plugin(
+            createModelPlugin(definition, meters[0], transportConfiguration.retirement),
+            {},
+          )
+          modelContributions.push(fiber)
+          await hooks?.modelContributionCreated?.(definition, fiber)
+          await fiber
+          if (fiber.state !== FIBER_STATE.ACTIVE) throw new Error('model contribution not active')
+        }
+        record({ event: 'transport', phase: 'contributions', outcome: 'ready' })
       }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
         membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
@@ -953,11 +1031,10 @@ export function createAcceptanceApplication(
       lookup = lookupValue
       registration = registrationValue
       if (stage === 'modelRequest') {
-        if (requestDeployment === undefined || transportOwner === undefined)
+        if (requestDeployment === undefined || transportService === undefined)
           throw new Error('model runtime construction prerequisites absent')
         const deployment = requestDeployment
-        const transport = transportOwner
-        const exactDefinitions = deployment.transport.definitions
+        const transport = transportService
         function newId<B extends string>(label: string, brand: B) {
           const parsed = parseOpaqueIdentifier(`${label}-${randomUUID()}`, brand)
           if (!isOk(parsed)) throw new Error('model identity source invalid')
@@ -1001,40 +1078,12 @@ export function createAcceptanceApplication(
           calls,
           transport: {
             acquire(binding, routeName) {
-              const exact = exactDefinitions.find(
-                definition =>
-                  definition.modelId === routeName &&
-                  definition.modelId === binding.definition.modelId &&
-                  definition.revision === binding.definition.revision &&
-                  definition.implementation.name === binding.implementation.name &&
-                  definition.implementation.revision === binding.implementation.revision,
-              )
-              if (exact === undefined || closing) return { unavailable: true }
-              const owned = { active: 0, releaseRequested: false }
-              transportLeases.add(owned)
-              const retire = () => {
-                if (owned.releaseRequested && owned.active === 0) transportLeases.delete(owned)
-              }
-              return {
-                lease: {
-                  binding,
-                  transport,
-                  signal: new AbortController().signal,
-                  async track<T>(completion: Promise<T>): Promise<T> {
-                    owned.active++
-                    try {
-                      return await completion
-                    } finally {
-                      owned.active--
-                      retire()
-                    }
-                  },
-                  release() {
-                    owned.releaseRequested = true
-                    retire()
-                  },
-                },
-              }
+              if (closing) return { unavailable: true }
+              const acquired = transport.acquire(binding, routeName)
+              if ('lease' in acquired) return acquired
+              return acquired.rejected === 'invalidInput'
+                ? { invalidInput: { reason: 'malformed' } }
+                : { unavailable: true }
             },
           },
           settlementContention: deployment.settlement.contention,

@@ -10,7 +10,11 @@ import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organizati
 import type { ProcessOwnership, SessionLogPolicy } from '@omne-harness-lite/session-log-jsonl'
 import type { DeployedOfficialEntry } from '@omne-harness-lite/evaluation-input-store'
 import type { ModelInputSource, PublishSourceFailure, CaptureRecipeFailure } from './bootstrap.ts'
-import type { TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import type {
+  TransportOptions,
+  RetirementPolicy,
+  ModelDefinition,
+} from '@omne-harness-lite/pi-ai-transport'
 import type {
   InvocationPolicy,
   TokenMargin,
@@ -46,6 +50,7 @@ export const SESSION_LOG_FIBERS = Object.freeze([
 export const MODEL_REQUEST_FIBERS = Object.freeze([
   ...SESSION_LOG_FIBERS,
   'evaluationInputs',
+  'modelTransport',
 ] as const)
 export type AcceptanceStage =
   'authentication' | 'requestPreparation' | 'sessionLog' | 'modelRequest'
@@ -81,7 +86,9 @@ export interface ModelRequestDeployment {
     /** Trusted deployment preparation; never a tenant-controlled publishing callback. */
     readonly prepare: (actor: AuthenticatedActor, session: SessionRef) => Promise<ModelInputSource>
   }
-  readonly transport: Pick<TransportOptions, 'definitions' | 'inputMeters' | 'policy'>
+  readonly transport: Pick<TransportOptions, 'definitions' | 'inputMeters' | 'policy'> & {
+    readonly retirement: RetirementPolicy
+  }
   readonly invocation: Pick<
     InvocationPolicy,
     | 'now'
@@ -151,6 +158,10 @@ export interface AcceptanceHooks {
   readonly extraMigrations?: readonly MigrationFragment[]
   readonly storageOpened?: (storage: AtomicStorage, guard: UpgradeGuard) => void | Promise<void>
   readonly fiberCreated?: (name: StageFiber, fiber: Fiber) => void | Promise<void>
+  readonly modelContributionCreated?: (
+    definition: ModelDefinition,
+    fiber: Fiber,
+  ) => void | Promise<void>
   readonly beforeConfirm?: (guard: UpgradeGuard) => void | Promise<void>
   readonly afterConfirm?: () => void | Promise<void>
   readonly beforeReplica?: () => void | Promise<void>

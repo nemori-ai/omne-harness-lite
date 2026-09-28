@@ -99,7 +99,8 @@ describe('A2b source and transport preparation', () => {
         expect((await next.close()).complete).toBe(true)
       }
       const closed = events.filter(e => e.event === 'close').map(e => e.phase)
-      expect(closed.indexOf('transportOwner')).toBeLessThan(closed.indexOf('evaluationInputs'))
+      expect(closed.indexOf('modelContributions')).toBeLessThan(closed.indexOf('modelTransport'))
+      expect(closed.indexOf('modelTransport')).toBeLessThan(closed.indexOf('evaluationInputs'))
       expect(closed.indexOf('evaluationInputs')).toBeLessThan(closed.indexOf('sessionLogOwner'))
     } finally {
       await first.close()

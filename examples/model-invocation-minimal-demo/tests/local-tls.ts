@@ -22,7 +22,7 @@ export async function createLocalTls(
   directory: string,
   onReceive: () => Promise<void> = async () => {},
   cacheWrite: number | undefined = 0,
-  model: string = MODEL,
+  model: string | ((body: unknown) => string) = MODEL,
 ) {
   await mkdir(directory, { mode: 0o700 })
   const key = join(directory, 'local-key.pem'),
@@ -66,6 +66,7 @@ export async function createLocalTls(
         chunks.push(chunk)
       }
       const body: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+      const responseModel = typeof model === 'function' ? model(body) : model
       requests.push({ body, authorization: req.headers.authorization })
       await onReceive()
       received.resolve()
@@ -81,7 +82,7 @@ export async function createLocalTls(
       })
       if (mode === 'tool') {
         res.end(
-          `data: ${JSON.stringify({ id: 'independent-generation', model, provider: 'DeepInfra', choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_exact', function: { name: 'example__read', arguments: '{}' } }] }, finish_reason: null }] })}\n\n` +
+          `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider: 'DeepInfra', choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_exact', function: { name: 'example__read', arguments: '{}' } }] }, finish_reason: null }] })}\n\n` +
             `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 9, completion_tokens: 3, total_tokens: 12, prompt_tokens_details: { cached_tokens: 4, cache_write_tokens: 0 }, cost: 0.0000117 } })}\n\ndata: [DONE]\n\n`,
         )
         return
@@ -91,7 +92,7 @@ export async function createLocalTls(
           `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: 'private reasoning' }, finish_reason: null }] })}\n\n`,
         )
       res.write(
-        `data: ${JSON.stringify({ id: 'independent-generation', model, provider: 'DeepInfra', choices: [{ delta: { role: 'assistant', content: 'first ' }, finish_reason: null }] })}\n\n`,
+        `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider: 'DeepInfra', choices: [{ delta: { role: 'assistant', content: 'first ' }, finish_reason: null }] })}\n\n`,
       )
       contentSent.resolve()
       if (mode === 'hold') {

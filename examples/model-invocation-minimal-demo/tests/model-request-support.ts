@@ -11,6 +11,7 @@ import {
   createDeepSeekV41FlashInputMeter,
   deepseekV41FlashConfiguration,
   createOfficialProfileContent,
+  type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelRequestDeployment } from '../src/index.ts'
@@ -21,6 +22,16 @@ export const ROOT: CapabilityId = {
   name: 'acceptance:model-request-root',
 }
 const AT = '2026-09-28T00:00:00Z'
+export function demoRetirement(): RetirementPolicy {
+  return {
+    waitMilliseconds: 30,
+    force: false,
+    schedule(milliseconds, callback) {
+      const timer = setTimeout(callback, milliseconds)
+      return () => clearTimeout(timer)
+    },
+  }
+}
 const URI =
   'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/'
 export function rootBody(): JsonObject {
@@ -152,6 +163,7 @@ export async function callDeployment(
           maxSseEventBytes: 65536,
           credentialRedaction,
         },
+        retirement: demoRetirement(),
       },
       invocation: {
         now: () => AT,

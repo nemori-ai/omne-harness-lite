@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { openDemo } from '../src/demo.ts'
 import { runInteractive } from '../src/interactive.ts'
 import { createLocalTls } from './local-tls.ts'
+import { demoRetirement } from './model-request-support.ts'
 
 function latch() {
   let release: () => void = () => undefined
@@ -57,6 +58,7 @@ describe('real interactive durable conversation', () => {
       const demo = await openDemo(
         data,
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         16384,
         credential,
         {
@@ -103,6 +105,7 @@ describe('real interactive durable conversation', () => {
       const first = await openDemo(
         data,
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         16384,
         credential,
         {
@@ -153,6 +156,7 @@ describe('real interactive durable conversation', () => {
       const resumed = await openDemo(
         data,
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         16384,
         undefined,
         {
@@ -204,6 +208,7 @@ describe('real interactive durable conversation', () => {
       const demo = await openDemo(
         join(root, 'data'),
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         16384,
         credential,
         {
@@ -241,6 +246,7 @@ describe('real interactive durable conversation', () => {
       const actual = await openDemo(
         join(root, 'data'),
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         16384,
         credential,
         {
@@ -277,9 +283,16 @@ describe('real interactive durable conversation', () => {
       tls = await createLocalTls(join(root, 'tls')),
       data = join(root, 'data')
     try {
-      const demo = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, 16384, undefined, {
-          developmentTransport: tls.developmentTransport,
-        }),
+      const demo = await openDemo(
+          data,
+          { multiplier: 1.1, reserveTokens: 256 },
+          demoRetirement(),
+          16384,
+          undefined,
+          {
+            developmentTransport: tls.developmentTransport,
+          },
+        ),
         out = output()
       expect(
         await runInteractive(demo, Readable.from(['unsent\n', '/exit\n']), out.stream, false),
@@ -288,9 +301,16 @@ describe('real interactive durable conversation', () => {
       expect(tls.requests).toHaveLength(0)
       const key = await readFile(join(data, 'model-key'))
       await expect(
-        openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, 16384, Buffer.from('bad\nkey'), {
-          developmentTransport: tls.developmentTransport,
-        }),
+        openDemo(
+          data,
+          { multiplier: 1.1, reserveTokens: 256 },
+          demoRetirement(),
+          16384,
+          Buffer.from('bad\nkey'),
+          {
+            developmentTransport: tls.developmentTransport,
+          },
+        ),
       ).rejects.toThrow('printable ASCII')
       expect(await readFile(join(data, 'model-key'))).toEqual(key)
       expect(tls.requests).toHaveLength(0)

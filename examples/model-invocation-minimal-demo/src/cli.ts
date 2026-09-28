@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util'
 import { openDemo, readPrivateFile } from './demo.ts'
 import { runInteractive } from './interactive.ts'
 import { readTokenMargin } from './token-margin.ts'
+import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
 
 const { values } = parseArgs({
   options: {
@@ -10,6 +11,7 @@ const { values } = parseArgs({
     'max-output-tokens': { type: 'string' },
     'token-margin-multiplier': { type: 'string' },
     'token-margin-reserve': { type: 'string' },
+    'transport-retirement-wait-ms': { type: 'string' },
     help: { type: 'boolean' },
   },
   allowPositionals: false,
@@ -20,12 +22,29 @@ const tokenMargin = readTokenMargin(
 )
 const outputLimit = values['max-output-tokens'] ?? '16384'
 const maxOutputTokens = /^[1-9][0-9]*$/u.test(outputLimit) ? Number(outputLimit) : NaN
+const retirementWaitSource = values['transport-retirement-wait-ms'] ?? '10000'
+const retirementWaitMilliseconds = /^[1-9][0-9]*$/u.test(retirementWaitSource)
+  ? Number(retirementWaitSource)
+  : NaN
+const retirement: RetirementPolicy = {
+  waitMilliseconds: retirementWaitMilliseconds,
+  force: false,
+  schedule(milliseconds, callback) {
+    const timer = setTimeout(callback, milliseconds)
+    return () => clearTimeout(timer)
+  },
+}
 if (values.help) {
   process.stdout.write(
-    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory --token-margin-multiplier 1.1 --token-margin-reserve 256 [--key-file /private/openrouter-key] [--max-output-tokens 16384]\nFrom this example directory: node dist/cli.js with the same options.\n--max-output-tokens defaults to 16384; the selected model profile enforces its maximum. Both token margin options are required. Admission uses ceil(estimate * multiplier) + reserve; this is not a guaranteed upstream token bound.\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
+    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory --token-margin-multiplier 1.1 --token-margin-reserve 256 [--key-file /private/openrouter-key] [--max-output-tokens 16384] [--transport-retirement-wait-ms 10000]\nFrom this example directory: node dist/cli.js with the same options.\n--max-output-tokens defaults to 16384; the selected model profile enforces its maximum. --transport-retirement-wait-ms defaults to 10000; force=false. It bounds each retirement wait, not actual cleanup. Both token margin options are required. Admission uses ceil(estimate * multiplier) + reserve; this is not a guaranteed upstream token bound.\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
   )
 } else if (!Number.isSafeInteger(maxOutputTokens)) {
   process.stderr.write('--max-output-tokens must be a positive safe integer. Use --help.\n')
+  process.exitCode = 2
+} else if (!Number.isSafeInteger(retirementWaitMilliseconds) || retirementWaitMilliseconds <= 0) {
+  process.stderr.write(
+    '--transport-retirement-wait-ms must be a positive safe integer. Use --help.\n',
+  )
   process.exitCode = 2
 } else if (!values.data) {
   process.stderr.write('An explicit --data directory is required. Use --help.\n')
@@ -52,7 +71,13 @@ if (values.help) {
       }
     } else if (process.env.OPENROUTER_API_KEY)
       credential = Buffer.from(process.env.OPENROUTER_API_KEY)
-    const conversation = await openDemo(values.data, tokenMargin, maxOutputTokens, credential)
+    const conversation = await openDemo(
+      values.data,
+      tokenMargin,
+      retirement,
+      maxOutputTokens,
+      credential,
+    )
     credential?.fill(0)
     const result = await runInteractive(
       conversation,

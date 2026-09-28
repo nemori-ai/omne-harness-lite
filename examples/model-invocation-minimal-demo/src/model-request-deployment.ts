@@ -1,6 +1,16 @@
 import { createCredentialRedactionPolicy } from '@omne-harness-lite/model-request-runtime'
-import { type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import { type RetirementPolicy, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
 import type { ModelRequestDeployment } from './types.ts'
+
+function validRetirement(value: RetirementPolicy | undefined): value is RetirementPolicy {
+  return (
+    value != null &&
+    Number.isSafeInteger(value.waitMilliseconds) &&
+    value.waitMilliseconds > 0 &&
+    typeof value.force === 'boolean' &&
+    typeof value.schedule === 'function'
+  )
+}
 
 export function prepareModelRequestDeployment(
   input: ModelRequestDeployment | undefined,
@@ -17,7 +27,9 @@ export function prepareModelRequestDeployment(
     typeof input.evaluationInputs.prepare !== 'function' ||
     input.transport === undefined ||
     !Array.isArray(input.transport.definitions) ||
+    !Array.isArray(input.transport.inputMeters) ||
     input.transport.policy === undefined ||
+    !validRetirement(input.transport.retirement) ||
     input.invocation === undefined ||
     typeof input.invocation.now !== 'function' ||
     typeof input.invocation.schedule !== 'function' ||
@@ -51,6 +63,7 @@ export function prepareModelRequestDeployment(
       definitions: input.transport.definitions,
       inputMeters: input.transport.inputMeters,
       policy: input.transport.policy,
+      retirement: Object.freeze({ ...input.transport.retirement }),
     }),
     invocation: Object.freeze({ ...input.invocation }),
     settlement: Object.freeze({ ...input.settlement }),

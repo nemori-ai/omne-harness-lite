@@ -14,9 +14,24 @@ if (mode === 'http503') tls.setMode('http503')
 const credential = Buffer.from('private-controlled-pty-key')
 let complete = false
 try {
-  const demo = await openDemo(data, { multiplier: 1.1, reserveTokens: 256 }, 16384, credential, {
-    developmentTransport: tls.developmentTransport,
-  })
+  const retirement = {
+    waitMilliseconds: 30,
+    force: false,
+    schedule(milliseconds, callback) {
+      const timer = setTimeout(callback, milliseconds)
+      return () => clearTimeout(timer)
+    },
+  }
+  const demo = await openDemo(
+    data,
+    { multiplier: 1.1, reserveTokens: 256 },
+    retirement,
+    16384,
+    credential,
+    {
+      developmentTransport: tls.developmentTransport,
+    },
+  )
   credential.fill(0)
   const result = await runInteractive(demo, process.stdin, process.stdout, true)
   complete = result.complete

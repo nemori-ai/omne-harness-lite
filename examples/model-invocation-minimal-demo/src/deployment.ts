@@ -13,6 +13,7 @@ import {
   deepseekV4Pro0813Definition,
   deepseekV41FlashConfiguration,
   deepseekV41FlashDefinition,
+  type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
   openRouterCredentialRedactionConfig,
@@ -104,6 +105,7 @@ export function createDemoConfig(
   runId: string,
   now: () => string,
   tokenMargin: TokenMargin,
+  retirement: RetirementPolicy,
 ): AcceptanceConfig {
   const keys = {
     activationSigning: join(directory, 'activation-private.pem'),
@@ -181,6 +183,7 @@ export function createDemoConfig(
           maxSseEventBytes: 65536,
           credentialRedaction: openRouterCredentialRedactionConfig,
         },
+        retirement,
       },
       invocation: {
         now,

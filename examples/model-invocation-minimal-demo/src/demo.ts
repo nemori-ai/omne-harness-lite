@@ -20,6 +20,7 @@ import { createAcceptanceApplication, type AcceptanceApplication } from './boots
 import { createDemoCallHost } from './model-call-host.ts'
 import type { AuthenticatedActor } from './types.ts'
 import { createDemoConfig, MODEL } from './deployment.ts'
+import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
 
 interface LocalState {
   readonly version: 1
@@ -177,6 +178,7 @@ const defaultObserverBounds: DemoObserverBounds = Object.freeze({ events: 256, b
 export async function openDemo(
   dataDirectory: string,
   tokenMargin: TokenMargin,
+  retirement: RetirementPolicy,
   maxOutputTokens: number,
   credential?: Uint8Array,
   testOptions?: Partial<Parameters<typeof createAcceptanceApplication>[1]>,
@@ -206,7 +208,7 @@ export async function openDemo(
     if (value === undefined || value === 'unavailable') throw new Error('lease clock unavailable')
     return value
   }
-  const config = createDemoConfig(directory, randomUUID(), now, tokenMargin)
+  const config = createDemoConfig(directory, randomUUID(), now, tokenMargin, retirement)
   app = createAcceptanceApplication(config, {
     ...testOptions,
     stage: 'modelRequest',

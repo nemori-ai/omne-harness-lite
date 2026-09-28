@@ -6,6 +6,7 @@ import { openDemo } from '../src/demo.ts'
 import { MODEL } from '../src/deployment.ts'
 import { runInteractive } from '../src/interactive.ts'
 import { createLocalTls } from './local-tls.ts'
+import { demoRetirement } from './model-request-support.ts'
 
 const FLASH = 'deepseek/deepseek-v4.1-flash'
 
@@ -43,6 +44,7 @@ describe('interactive model commands on the real demo assembly', () => {
       const actual = await openDemo(
         join(root, 'data'),
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         16384,
         credential,
         { developmentTransport: tls.developmentTransport },
@@ -84,6 +86,7 @@ describe('interactive model commands on the real demo assembly', () => {
       const first = await openDemo(
         data,
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         16384,
         credential,
         {
@@ -142,6 +145,7 @@ describe('interactive model commands on the real demo assembly', () => {
       const reopened = await openDemo(
         data,
         { multiplier: 1.1, reserveTokens: 256 },
+        demoRetirement(),
         8192,
         undefined,
         {
