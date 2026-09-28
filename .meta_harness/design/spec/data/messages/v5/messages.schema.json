@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v5/messages.schema.json",
   "title": "data.messages v5",
-  "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v4 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v3；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v2 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot、ModelAdaptationBinding 取自 data.model-profile v3（S-2、S-5、S-13、S-15、S-27、S-29）；S-49 的两处绑定相等与模型 ID 对齐由接收边界纯校验，失败 malformed；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v4 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope、ParameterAdjustment 与「已出门」上 droppedParameters 的就地形状同一理由按那份契约的 S-10、S-9、S-11 逐字自定义（互引成环的登记口径：D-060 §七 M2，写在 registry README；对齐义务在 verification）。正反实例在同目录 examples.md。",
+  "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v5 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v3；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v2 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot、ModelAdaptationBinding 取自 data.model-profile v4（S-2、S-5、S-13、S-15、S-27、S-29）；S-49 的两处绑定相等与模型 ID 对齐由接收边界纯校验，失败 malformed；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v4 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope、ParameterAdjustment 与「已出门」上 droppedParameters 的就地形状同一理由按那份契约的 S-10、S-9、S-11 逐字自定义（互引成环的登记口径：D-060 §七 M2，写在 registry README；对齐义务在 verification）。正反实例在同目录 examples.md。",
 
   "$defs": {
 
@@ -524,7 +524,7 @@
     "RuntimeContextChangedSource": {
       "title": "runtime context 的某一块变了（contract.md S-17、S-25）",
       "description": "说状态的：block 是哪一块；previous 必填——这个会话在日志里最后感知到的那一份，从未感知过则为 null；current 必填、不为 null——这一次的值。缺 previous 即表示层拒绝 reminder_state_without_previous（S-39），不补成 null。",
-      "$comment": "current 不许为 null，是为了让 previous: null 只有「从未感知过」这一个意思；若 runtime context 契约让某一块的值可以是 null，本定义须出 v2（G-6）。",
+      "$comment": "current 不许为 null，是为了让 previous: null 只有「从未感知过」这一个意思；若 runtime context 契约让某一块的值可以是 null，本定义须发布下一版本（G-6）。",
       "type": "object",
       "properties": {
         "kind": { "const": "runtime_context_changed" },
@@ -767,7 +767,7 @@
 
     "ModelSelectionChangedRecord": {
       "title": "模型切换落下的那条记录（contract.md S-49）",
-      "description": "模型切换（UL-model-switch）这个动作落下的那条记录：会话的选中模型切到了另一个名字，在切换生效之前写下。routeName 是切到的那个路由名（data.model-profile v3 的 RouteName）——记的是名字，不是某一行；这个名字落到哪一行由按层覆盖定（PF-013 rev 12）。at 是切换的时刻。哪个会话、谁发出的命令由承载它的记录条目给出（S-33）——只有交付面的切换命令写它，发命令的租户身份就是会话持有的那一个。不是消息。",
+      "description": "模型切换（UL-model-switch）这个动作落下的那条记录：会话的选中模型切到了另一个名字，在切换生效之前写下。routeName 是切到的那个路由名（data.model-profile v4 的 RouteName）——记的是名字，不是某一行；这个名字落到哪一行由按层覆盖定（PF-013 rev 12）。at 是切换的时刻。哪个会话、谁发出的命令由承载它的记录条目给出（S-33）——只有交付面的切换命令写它，发命令的租户身份就是会话持有的那一个。不是消息。",
       "type": "object",
       "properties": {
         "kind": { "const": "model_selection_changed" },
