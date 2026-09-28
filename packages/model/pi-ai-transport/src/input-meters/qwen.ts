@@ -31,6 +31,9 @@ const sources = {
 type PublicQwenModelId = keyof typeof sources
 const hostedMaxModelId = 'qwen/qwen3.8-max-0902'
 const visualModelId = 'qwen/qwen3.8-27b'
+// Fixed-route observations: three text calibrations plus an untouched fourth
+// holdout had the same difference from the published ChatML/tokenizer proxy.
+const hostedMaxRouteOffset = 51
 const tokenizerSha256 = '0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3'
 
 function sourceFor(modelId: string): (typeof sources)[PublicQwenModelId] | undefined {
@@ -355,7 +358,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:qwen' ||
     definition.implementation.revision !==
-      (definition.modelId === visualModelId ? 'mp4-3' : 'mp4-2') ||
+      (hostedMax || definition.modelId === visualModelId ? 'mp4-3' : 'mp4-2') ||
     !Object.hasOwn(definition.routes, 'alibaba')
   )
     throw new TypeError('unsupported Qwen definition')
@@ -366,12 +369,12 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     implementation: definition.implementation,
     provider: 'alibaba',
     algorithmRevision: hostedMax
-      ? 'qwen-38-hosted-max-chatml-1'
+      ? 'qwen-38-hosted-max-chatml-offset-2'
       : definition.modelId === visualModelId
         ? 'qwen-38-public-template-image-3'
         : 'qwen-38-public-template-2',
     evidence: hostedMax
-      ? `https://help.aliyun.com/en/model-studio/text-generation Qwen3.8-Max Hi/11-token ChatML example; Qwen/Qwen3.8-2.4T-A95B tokenizer.json sha256:${tokenizerSha256} independently reproduces it; single-user text only; exact OpenRouter conversion unknown`
+      ? `https://help.aliyun.com/en/model-studio/text-generation Qwen3.8-Max Hi/11-token ChatML example; Qwen/Qwen3.8-2.4T-A95B tokenizer.json sha256:${tokenizerSha256}; OpenRouter Alibaba fixed-route three text calibrations +51 and untouched holdout +51, observations sha256:464c029984e310a928b3ae74a152e2d15726d6d456dfb154aca8d593d25822e, provider verification sha256:1bb421e92fc128045d1dfdb24907aba73e7c5ba9bafc1af2b79eb6b6ad880836; single-user text estimate only`
       : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated`,
     measure({ body, serialized }): TokenMeasurement {
       if (
@@ -391,7 +394,10 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
       try {
         return {
           kind: 'estimated',
-          tokens: encoder.encode(prompt, { add_special_tokens: false }).ids.length + imageTokens,
+          tokens:
+            encoder.encode(prompt, { add_special_tokens: false }).ids.length +
+            imageTokens +
+            (hostedMax ? hostedMaxRouteOffset : 0),
         }
       } catch {
         return { kind: 'unavailable' }

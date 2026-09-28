@@ -219,10 +219,10 @@ export const qwenDefinitions = ownDefinitions(
         implementation: {
           name: 'pi-ai:qwen',
           revision:
-            modelId === 'qwen/qwen3.8-max-0902' || modelId === 'qwen/qwen3.8-2.4t-a95b'
-              ? 'mp4-2'
-              : modelId === 'qwen/qwen3.8-27b'
-                ? 'mp4-3'
+            modelId === 'qwen/qwen3.8-max-0902' || modelId === 'qwen/qwen3.8-27b'
+              ? 'mp4-3'
+              : modelId === 'qwen/qwen3.8-2.4t-a95b'
+                ? 'mp4-2'
                 : 'mp4-1',
         },
         capabilities: { ...offer[modelId], outputModalities: ['text'] },

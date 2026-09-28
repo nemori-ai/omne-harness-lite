@@ -168,7 +168,7 @@ beforeAll(() => {
 afterAll(() => cert.dispose())
 
 describe('Qwen3.8 public tokenizer input meters', () => {
-  it("reproduces Alibaba's hosted Max Hi/11-token example and rejects unmodeled shapes", () => {
+  it("renders Alibaba's hosted Max Hi/11-token template and applies the route estimate", () => {
     const modelId = 'qwen/qwen3.8-max-0902'
     const meter = createQwenInputMeter(definition(modelId))
     const body = {
@@ -182,10 +182,10 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     expect(prompt).toBe(
       readFileSync(new URL('./fixtures/qwen/hosted-max-hi.txt', import.meta.url), 'utf8'),
     )
-    expect(meter.algorithmRevision).toBe('qwen-38-hosted-max-chatml-1')
+    expect(meter.algorithmRevision).toBe('qwen-38-hosted-max-chatml-offset-2')
     expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
       kind: 'estimated',
-      tokens: 11,
+      tokens: 62,
     })
     const chineseBody = {
       ...body,
@@ -196,7 +196,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     )
     expect(
       meter.measure({ body: chineseBody, serialized: writeJsonLossless(chineseBody) }),
-    ).toEqual({ kind: 'estimated', tokens: 11 })
+    ).toEqual({ kind: 'estimated', tokens: 62 })
     for (const changed of [
       { ...body, messages: [{ role: 'system', content: 'Be brief' }, ...body.messages] },
       { ...body, tools: [{ type: 'function', function: { name: 'lookup', parameters: {} } }] },
@@ -215,6 +215,44 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         kind: 'unavailable',
       })
     }
+  })
+
+  it('matches three fixed-route Max calibrations and the untouched text holdout', () => {
+    const raw: unknown = JSON.parse(
+      readFileSync(new URL('./fixtures/qwen/max0902-route-golden.json', import.meta.url), 'utf8'),
+    )
+    if (!object(raw) || !Array.isArray(raw.rows)) throw new Error('invalid Max route golden')
+    expect(raw.sourceObservationsSha256).toBe(
+      '464c029984e310a928b3ae74a152e2d15726d6d456dfb154aca8d593d25822e',
+    )
+    expect(raw.sourceProviderVerificationSha256).toBe(
+      '1bb421e92fc128045d1dfdb24907aba73e7c5ba9bafc1af2b79eb6b6ad880836',
+    )
+    const meter = createQwenInputMeter(definition('qwen/qwen3.8-max-0902'))
+    const fit: number[] = []
+    let heldout: number | undefined
+    for (const row of raw.rows) {
+      if (
+        !object(row) ||
+        typeof row.file !== 'string' ||
+        typeof row.sha256 !== 'string' ||
+        typeof row.publicTemplateTokens !== 'number' ||
+        typeof row.observedPromptTokens !== 'number'
+      )
+        throw new Error('invalid Max route golden row')
+      const bytes = readFileSync(new URL(`./fixtures/qwen/probe-six/${row.file}`, import.meta.url))
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(row.sha256)
+      const body: unknown = JSON.parse(bytes.toString('utf8'))
+      if (!object(body)) throw new Error('invalid frozen Max request')
+      const result = meter.measure({ body, serialized: writeJsonLossless(body) })
+      expect(result).toEqual({ kind: 'estimated', tokens: row.observedPromptTokens })
+      const offset = row.observedPromptTokens - row.publicTemplateTokens
+      if (row.phase === 'calibration') fit.push(offset)
+      else if (row.phase === 'heldout') heldout = offset
+      else throw new Error('invalid Max route golden phase')
+    }
+    expect(fit).toEqual([51, 51, 51])
+    expect(heldout).toBe(fit[0])
   })
 
   it('plans and sends the hosted Max narrow text estimate through the real factory', async () => {
@@ -238,7 +276,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
         kind: 'estimated',
-        tokens: 11,
+        tokens: 62,
       })
       const sent = await transport.send(
         planned.planned,
