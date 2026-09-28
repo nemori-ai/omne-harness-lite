@@ -249,6 +249,9 @@ importers:
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../packages/infra/storage-sql
+      '@omne-harness-lite/stream-assembly':
+        specifier: workspace:*
+        version: link:../../packages/core/stream-assembly
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

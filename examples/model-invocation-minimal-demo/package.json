@@ -50,7 +50,8 @@
     "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
-    "@omne-harness-lite/storage-sql": "workspace:*"
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/stream-assembly": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
