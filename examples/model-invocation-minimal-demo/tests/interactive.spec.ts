@@ -70,6 +70,8 @@ describe('real interactive durable conversation', () => {
         'Model request failed; durable response recorded. No automatic retry.',
       )
       expect(out.text()).toContain('Closed after model failure.')
+      expect(out.text()).toContain('Cumulative (incomplete): input 0 known + 1 unknown')
+      expect(out.text()).toContain('actual USD 0 known + 1 unknown')
       expect(out.text()).not.toContain('Close incomplete')
       expect(out.text()).not.toContain('controlled failure')
       expect(out.text()).not.toContain(credential.toString())
@@ -106,6 +108,13 @@ describe('real interactive durable conversation', () => {
       expect(out.text()).toContain('Assistant> first second')
       expect(out.text()).toContain('user: first prompt')
       expect(out.text()).toContain('assistant: first second')
+      expect(out.text()).toContain(
+        'Cumulative: input 5, output 3, cache read 4, cache write 0 tokens; actual USD 0.0000117',
+      )
+      expect(out.text()).toContain(
+        'Cumulative: input 1e1, output 6, cache read 8, cache write 0 tokens; actual USD 234e-7',
+      )
+      expect(out.text().match(/Cumulative:/gu)).toHaveLength(2)
       expect(out.text()).not.toContain(credential.toString())
       expect(tls.requests).toHaveLength(2)
       expect(tls.requests[1]?.body).toMatchObject({
@@ -132,14 +141,19 @@ describe('real interactive durable conversation', () => {
       expect(resumed.session).toBe(session)
       expect(await resumed.history()).toHaveLength(4)
       expect(await readFile(join(data, 'model-key'))).toEqual(key)
+      const resumedOutput = output()
       expect(
         await runInteractive(
           resumed,
           Readable.from(['third prompt\n', '/exit\n']),
-          output().stream,
+          resumedOutput.stream,
           false,
         ),
       ).toEqual({ complete: true, interrupted: false })
+      expect(resumedOutput.text()).toContain(
+        'Cumulative: input 15, output 9, cache read 12, cache write 0 tokens; actual USD 351e-7',
+      )
+      expect(resumedOutput.text().match(/Cumulative:/gu)).toHaveLength(1)
       expect(tls.requests[2]?.body).toMatchObject({
         messages: [
           { role: 'user', content: [{ type: 'text', text: 'first prompt' }] },

@@ -8,6 +8,13 @@ import {
   parseOpaqueIdentifier,
 } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
+import {
+  ExactDecimal,
+  summarizeUsage,
+  type Summary,
+  type UsageSummary,
+} from '@omne-harness-lite/call-accounts'
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response/v5'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime/log-codec/v2'
 import {
   createAcceptanceApplication,
@@ -121,7 +128,14 @@ export interface DemoConversation {
     onAccepted: TextCallRequest['onAccepted'],
   ) => ReturnType<AcceptanceApplication['startTextCall']>
   readonly history: () => Promise<readonly { role: string; text: string }[]>
+  readonly totals: () => Promise<DemoTotals>
   readonly close: AcceptanceApplication['close']
+}
+
+export interface DemoTotals {
+  readonly responses: number
+  readonly usage: UsageSummary
+  readonly cost: Summary
 }
 
 /** Production is the default; controlled TLS is available only through the existing trusted test hook. */
@@ -247,6 +261,40 @@ export async function openDemo(
           })
         }
         return history
+      },
+      async totals() {
+        const read = await app.readSessionLog(actor, session)
+        if (!('entries' in read)) throw new Error('durable response history unavailable')
+        const responses: ModelResponse[] = []
+        for (const entry of read.entries) {
+          const responseKeys = entry.readKeys.flatMap(key => {
+            const decoded = decodeModelLogKey(key)
+            return 'ok' in decoded && decoded.ok.kind === 'response' ? [decoded.ok.response] : []
+          })
+          if (!responseKeys.length) continue
+          if (responseKeys.length !== 1) throw new Error('response identity ambiguous')
+          const payload: unknown = entry.payload
+          if (typeof payload !== 'object' || payload === null || !('value' in payload))
+            throw new Error('durable response value unavailable')
+          if (!('ok' in judgeModelResponse(payload.value)))
+            throw new Error('durable response invalid')
+          // The public judge validated the complete MR5 value before narrowing.
+          const response = payload.value as ModelResponse
+          if (response.id !== responseKeys[0]) throw new Error('durable response key mismatch')
+          responses.push(response)
+        }
+        const usage = summarizeUsage(
+          responses.map(response => ({ responseId: response.id, usage: response.usage })),
+        )
+        if ('rejected' in usage || 'failed' in usage)
+          throw new Error('durable usage summary unavailable')
+        let knownSum = ExactDecimal.from(0),
+          unknownCount = 0
+        for (const response of responses) {
+          if (response.cost.cost_usd === 'unknown') unknownCount++
+          else knownSum = knownSum.add(ExactDecimal.from(response.cost.cost_usd))
+        }
+        return { responses: responses.length, usage, cost: { knownSum, unknownCount } }
       },
       close: () => app.close(),
     }
