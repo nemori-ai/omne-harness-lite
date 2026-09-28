@@ -369,4 +369,147 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
       await host.close()
     }
   })
+
+  it('replays streamed reasoning and a completed tool call on the same exact route', async () => {
+    const input = authenticationInput(definition)
+    const host = await fixture(
+      cert.tls,
+      res => {
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(
+          host.requests.length === 1
+            ? sse({
+                choices: [
+                  {
+                    delta: {
+                      reasoning_details: [
+                        {
+                          type: 'reasoning.text',
+                          text: 'Lookup required',
+                          signature: 'xai-opaque',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              }) +
+                sse({
+                  choices: [
+                    {
+                      delta: {
+                        tool_calls: [
+                          {
+                            index: 0,
+                            id: 'call_xai_stream',
+                            function: { name: tool.name, arguments: '{"key":' },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                }) +
+                sse({
+                  choices: [
+                    { delta: { tool_calls: [{ index: 0, function: { arguments: '"alpha"}' } }] } },
+                  ],
+                }) +
+                finish('tool_calls')
+            : content('alpha=42') + finish(),
+        )
+      },
+      {},
+      undefined,
+      [definition],
+    )
+    try {
+      const first = await invokeModel({
+        ...input,
+        transport: host.transport,
+        credential: 'local-test-secret',
+        signal: new AbortController().signal,
+        policy: policy(),
+      }).outcome
+      if (!('outcome' in first)) throw new Error(`first request refused: ${JSON.stringify(first)}`)
+      expect(first.outcome).toBe('complete')
+      const thinking = first.blocks.find(block => block.kind === 'thinking')
+      const call = first.blocks.find(block => block.kind === 'tool_call')
+      if (!thinking || thinking.kind !== 'thinking' || !thinking.opaque)
+        throw new Error('streamed reasoning was not retained')
+      if (!call || call.kind !== 'tool_call' || !call.complete)
+        throw new Error('streamed tool call was not completed')
+      expect(call).toMatchObject({
+        callId: expect.stringMatching(/^call_/),
+        tool: tool.name,
+        arguments: { key: 'alpha' },
+      })
+
+      const assistant = judgedMessage({
+        id: 'xai-stream-assistant',
+        type: 'assistant',
+        response: 'xai-stream-response',
+        ending: 'complete',
+        createdAt: at,
+        blocks: first.blocks,
+      })
+      const toolResult = judgedMessage({
+        id: 'xai-stream-tool',
+        type: 'tool',
+        callId: call.callId,
+        createdAt: at,
+        blocks: [
+          {
+            id: 'xai-stream-result',
+            kind: 'tool_result',
+            callId: call.callId,
+            outcome: 'completed',
+            visibility: visible,
+            blocks: [
+              { id: 'xai-stream-value', kind: 'text', text: 'alpha=42', visibility: visible },
+            ],
+          },
+        ],
+      })
+      const second = await invokeModel({
+        ...input,
+        target: { kind: 'model_call', callId: 'xai-stream-second-call', dispatch: 1 },
+        messages: [...input.messages, assistant, toolResult],
+        transport: host.transport,
+        credential: 'local-test-secret',
+        signal: new AbortController().signal,
+        policy: policy(),
+      }).outcome
+      if (!('outcome' in second))
+        throw new Error(`second request refused: ${JSON.stringify(second)}`)
+      expect(second.outcome).toBe('complete')
+      expect(host.requests).toHaveLength(2)
+      const wire = host.requests[1]
+      if (!wire) throw new Error('second HTTP request missing')
+      const parsed = readJsonStrict(wire.body)
+      if (!('ok' in parsed)) throw new Error(parsed.failed)
+      expect(parsed.ok).toMatchObject({
+        model: definition.modelId,
+        provider: { order: ['xai'], allow_fallbacks: false, require_parameters: true },
+        messages: [
+          { role: 'system' },
+          { role: 'user' },
+          { role: 'user' },
+          {
+            role: 'assistant',
+            reasoning_details: [
+              { type: 'reasoning.text', text: 'Lookup required', signature: 'xai-opaque' },
+            ],
+            tool_calls: [
+              {
+                id: call.callId,
+                function: { name: tool.name, arguments: '{"key":"alpha"}' },
+              },
+            ],
+          },
+          { role: 'tool', tool_call_id: call.callId, content: 'alpha=42' },
+        ],
+      })
+    } finally {
+      await host.close()
+    }
+  })
 })
