@@ -145,7 +145,7 @@ export interface ModelInvocationResult extends ServingFacts {
   readonly blocks: readonly ContentBlock[]
   readonly ending?: AssistantEnding
   readonly failure?: Failure
-  readonly timing: Timing
+  readonly timing: Timing & { readonly sentAt: string }
   readonly usage: Usage
   readonly cost: Cost
   readonly trims?: TrimSummary
@@ -155,6 +155,14 @@ export interface ModelInvocationResult extends ServingFacts {
   readonly parameters: ModelRequestParameters
   readonly parameterAdjustments?: readonly ParameterAdjustment[]
   readonly droppedParameters?: readonly string[]
+}
+/** Stable, owned facts retained by the original send, including an incomplete outcome. */
+export interface InvocationObservedFacts extends ServingFacts {
+  readonly sentAt?: string
+  readonly rawHeaders?: RawHeaders
+  readonly usage: Usage
+  readonly cost: Cost
+  readonly trims?: TrimSummary
 }
 export type InvocationOutcome =
   ModelInvocationResult | { readonly cancelledBeforeSend: true } | PlanFailure
