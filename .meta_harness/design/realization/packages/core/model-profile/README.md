@@ -1,3 +1,16 @@
+## v4 增量候选（2026-09-28）
+
+节点仍为 `packages/core/model-profile` 纯值 provider。[v4-design.md](v4-design.md)接续 `(omne-harness-lite-design-2026-09-15, data.model-profile, 4)`，引入明确项目 cap、上游三态及完整限制快照；无新增 Cordis 插件、服务或存储。
+
+| 层次 | 当前事实 |
+| --- | --- |
+| 语义接受 | **无本版接受**；MP4 在 catalog 为 candidate，PF-013 rev 14／D-096 的产品接受不替代契约及节点接受 |
+| 可实施范围 | MP4-1～MP4-5 已给出候选兑现点；现有源码 root 实际为 v3，v4 尚未实施。root/schema 升 v4，现有精确 v3 消费显式转到候选 v3 入口 |
+| 绑定与证据 | 既有 1 条 v2 绑定保留；v4 新增 0 条。V4-1～V4-5 是待执行义务，不是运行结果 |
+| 实际验证 | **尚无 v4 产品实现验收**；本次文档检查只支持设计信息树一致性，不支持完整模型定义、目录写入或真实发送 |
+
+阅读：[候选投影、公开面及取舍](v4-design.md)、[验证与消费者缺口](verification.md#v4-候选的证据义务)。MP4-G1～G3 分别归主线采用、本包实施、目录/runtime/transport 消费者。以下旧日期记录保持各自范围；其“v3 尚未实现”不代表当前源码。
+
 ## v3 增量候选（2026-09-27）
 
 - kind：`provider`，节点和源码路径均为 `packages/core/model-profile`；现有包已实现 v2，本次不是新建包。
