@@ -5,8 +5,8 @@ const named = `import { createRegistryInputReader } from '${entry}'; const reade
 test.each([
   'packages/tools/asset-registry/src/input.ts',
   'packages/tools/asset-registry/tests/source.spec.ts',
-  'apps/model-request-acceptance/src/bootstrap.ts',
-  'apps/model-request-acceptance/tests/sources.spec.ts',
+  'examples/model-invocation-minimal-demo/src/bootstrap.ts',
+  'examples/model-invocation-minimal-demo/tests/sources.spec.ts',
   'packages/assets/evaluation-input-store/tests/registry.spec.ts',
 ])('approved exact path %s', path => {
   expect(registryInputBoundary.check([{ path, text: named }])).toEqual([])
@@ -15,7 +15,7 @@ test.each([
   'packages/model/model-request-runtime/src/runtime.ts',
   'packages/model/pi-ai-transport/src/index.ts',
   'packages/tools/other/src/input.ts',
-  'apps/model-request-acceptance/src/runtime.ts',
+  'examples/model-invocation-minimal-demo/src/runtime.ts',
   'scripts/forward.mjs',
   'tools/some-helper/src/index.ts',
   'packages/assets/evaluation-input-store/src/index.ts',

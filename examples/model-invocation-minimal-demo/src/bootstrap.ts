@@ -238,6 +238,8 @@ function operationError(error: unknown, step: string): Error {
 
 export interface AcceptanceApplication {
   readonly ready: Promise<{ readonly confirmation: UpgradeConfirmation }>
+  /** Read the already-owned lease Clock; no second wall-clock authority. */
+  currentTime(): string | 'unavailable'
   register(
     identifier: unknown,
     password: unknown,
@@ -348,6 +350,7 @@ export function createAcceptanceApplication(
   let gateOpen = false,
     closing = false,
     diagnosticFailures = 0
+  let activeClock: Clock | undefined
   let cleanupPromise: Promise<CloseResult> | undefined,
     closingPromise: Promise<CloseResult> | undefined
   let phase: StartupPhase = 'prepare'
@@ -615,6 +618,7 @@ export function createAcceptanceApplication(
       category = 'clockUnavailable'
       const clock: unknown = context.get('clock')
       if (!clockFace(clock)) throw new Error('acceptance clock absent')
+      activeClock = clock
       const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs
       let waiting = false
       while (clock.now() === 'unavailable') {
@@ -1384,6 +1388,11 @@ export function createAcceptanceApplication(
   }
   return {
     ready,
+    currentTime() {
+      if (!admit() || activeClock === undefined) return 'unavailable'
+      const now = activeClock.now()
+      return now === 'unavailable' ? now : new Date(now).toISOString()
+    },
     register(identifier, password) {
       if (!admit()) return Promise.resolve({ failure: 'stageClosed' })
       return track(async () => {

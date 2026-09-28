@@ -8,17 +8,20 @@ import { runRules } from '../src/index.ts'
 
 const seed = '@omne-harness-lite/session-tenancy-table/seed'
 const use = `import { seedHoldingTenant as seed } from '${seed}'; await seed(tx, session, tenant);`
-const bootstrap = 'apps/model-request-acceptance/src/bootstrap.ts'
+const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 test.each([
   bootstrap,
-  'apps/model-request-acceptance/tests/real-sql.spec.ts',
+  'examples/model-invocation-minimal-demo/tests/real-sql.spec.ts',
   'apps/cli/tests/session.spec.ts',
 ])('precise approved consumer %s can invoke the closure', path => {
   expect(sessionSeedBoundary.check([{ path, text: use }])).toEqual([])
 })
 test.each([
-  'apps/model-request-acceptance/src/test.ts',
+  'examples/model-invocation-minimal-demo/src/test.ts',
   'apps/cli/src/run.ts',
+  'apps/model-request-acceptance/src/bootstrap.ts',
+  'examples/unrelated/src/bootstrap.ts',
+  'examples/unrelated/tests/test.ts',
   'packages/model/runtime/src/index.ts',
   'packages/session/session-tenancy-table/tests/seed.spec.ts',
   'apps/unrelated/tests/acceptance.spec.ts',

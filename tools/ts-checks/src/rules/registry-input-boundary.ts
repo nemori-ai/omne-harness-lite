@@ -10,8 +10,8 @@ function allowed(path: string): boolean {
   return (
     /^packages\/tools\/asset-registry\/(?:src|tests)\/.+\.ts$/u.test(path) ||
     /^packages\/assets\/evaluation-input-store\/tests\/.+\.spec(?:-d)?\.ts$/u.test(path) ||
-    path === 'apps/model-request-acceptance/src/bootstrap.ts' ||
-    /^apps\/model-request-acceptance\/tests\/.+\.ts$/u.test(path)
+    path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
+    /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
   )
 }
 function restricted(file: SourceFile, specifier: string): boolean {

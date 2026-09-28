@@ -2,11 +2,11 @@ import { expect, test } from 'vitest'
 import { registryHistoryBoundary } from '../src/rules/registry-history-boundary.ts'
 const entry = '@omne-harness-lite/evaluation-input-store/registry-history'
 const factory = `import {createRegistryHistoryReader as create} from '${entry}'; const reader = create(deps)`
-const bootstrap = 'apps/model-request-acceptance/src/bootstrap.ts'
+const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const registry = 'packages/tools/asset-registry/src/registry.ts'
 test.each([
   bootstrap,
-  'apps/model-request-acceptance/tests/chain.ts',
+  'examples/model-invocation-minimal-demo/tests/chain.ts',
   'packages/tools/asset-registry/tests/real.spec.ts',
   'packages/assets/evaluation-input-store/tests/history.spec.ts',
 ])('only trusted construction path %s admits the actual factory', path => {

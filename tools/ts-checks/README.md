@@ -6,7 +6,7 @@ Structural checks for this repository's TypeScript product sources and trusted a
 
 ## Run and consume
 
-Use the repository's locked Node and pnpm versions. The normal command scans `packages/` and `apps/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `tools/` and `scripts/`:
+Use the repository's locked Node and pnpm versions. The normal command scans `packages/`, `apps/` and `examples/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `examples/`, `tools/` and `scripts/`:
 
 ```sh
 pnpm --filter @omne-harness-lite/identity-values build
@@ -33,7 +33,7 @@ import assert from 'node:assert/strict'
 import { modelCredentialBoundary, type SourceFile } from './dist/index.js'
 
 const source: SourceFile = {
-  path: 'apps/model-request-acceptance/src/bootstrap.ts',
+  path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   text: `
     import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
     import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
@@ -91,6 +91,6 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 
 The checker follows same-file lexical declarations, assignment aliases, named/namespace imports, ordinary destructuring, literal computed members and bounded aggregate aliases. Local expression-body arrow results retain recognized capability provenance when called; restricted returns fail closed for both expression and block bodies. Recognized restricted values may not escape through unknown arguments, constructors, return/export, callback results, object assignment or rendering. Non-literal member access on such a value fails. Ordinary arrow results remain valid, and unrelated `close` methods are not matched merely by name. Product test paths are excluded; negative fixtures use actual product paths. The dedicated CLI regression uses the built `dist/` artifact, so build the tool before running its tests.
 
-The static scope is deliberately explicit: this tool does not interpret arbitrary JavaScript, infer unannotated cross-file values, prove source-pair authenticity, common-unit transaction ordering, runtime singleton behavior, reflection isolation or actual cleanup. Resolved import aliases identify providers; they do not grant new consumer permissions. The app's final frozen source must still pass the integrated scan and independent joint acceptance. Tool self-tests cannot close MCR-V7 or the whole P3 stage.
+The static scope is deliberately explicit: this tool does not interpret arbitrary JavaScript, infer unannotated cross-file values, prove source-pair authenticity, common-unit transaction ordering, runtime singleton behavior, reflection isolation or actual cleanup. Resolved import aliases identify providers; they do not grant new consumer permissions. The example assembly's final frozen source must still pass the integrated scan and independent joint acceptance. Tool self-tests cannot close MCR-V7 or the whole P3 stage.
 
 Existing pure-core, tenancy, entry and repository rules are described in the [Chinese catalogue](README_ZH.md). Add a focused rule with its accepted source clause, positive and deliberate negative fixtures, and coverage limits; register package rules in `RULES` or repository rules in `REPOSITORY_RULES` according to the paths and resolution they require.

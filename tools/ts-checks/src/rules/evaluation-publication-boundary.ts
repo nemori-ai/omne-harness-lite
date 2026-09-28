@@ -12,8 +12,8 @@ function allowed(path: string): boolean {
     owner(path) ||
     /^packages\/assets\/evaluation-input-store\/tests\/.+\.(?:ts|mjs)$/u.test(path) ||
     path === 'packages/model/model-request-runtime/tests/session-selection-fixture.ts' ||
-    path === 'apps/model-request-acceptance/src/bootstrap.ts' ||
-    /^apps\/model-request-acceptance\/tests\/.+\.ts$/u.test(path)
+    path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
+    /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
   )
 }
 function reference(file: SourceFile, specifier: string): boolean {

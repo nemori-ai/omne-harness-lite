@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { modelCredentialBoundary } from '../src/index.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from '../src/repository.ts'
 
-const bootstrap = 'apps/model-request-acceptance/src/bootstrap.ts'
+const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const p1r = 'packages/model/model-profile-directory/src/plugin.ts'
 const ccl = 'packages/infra/credential-custodian-local/src/model-replica.ts'
 const imports = `import { createCredentialBindingReader as makeReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
@@ -27,8 +27,8 @@ const valid = app(
 test('natural trusted construction, transfer, publication and cleanup are separate permissions', () =>
   expect(check(valid)).toEqual([]))
 test.each([
-  'apps/model-request-acceptance/src/bootstrap.ts',
-  'model-request-acceptance/src/bootstrap.ts',
+  'examples/model-invocation-minimal-demo/src/bootstrap.ts',
+  'model-invocation-minimal-demo/src/bootstrap.ts',
 ])('app-root and repository paths %s', path => expect(check(valid, path)).toEqual([]))
 test('namespace, literal computed members, destructuring and ordinary aliases keep the same permissions', () => {
   const text = `import * as d from '@omne-harness-lite/model-profile-directory/tx-reads'; import * as c from '@omne-harness-lite/credential-custodian-local/model-replica'; import * as plugins from '@omne-harness-lite/model-profile-directory/plugin';
@@ -213,7 +213,7 @@ test('actual repository collector resolves an alias and installs the repository 
   const root = mkdtempSync(join(tmpdir(), 'omne-model-credential-rule-'))
   try {
     const directory = join(root, 'packages/model/model-profile-directory/src')
-    const source = join(root, 'apps/model-request-acceptance/src')
+    const source = join(root, 'examples/model-invocation-minimal-demo/src')
     mkdirSync(directory, { recursive: true })
     mkdirSync(source, { recursive: true })
     writeFileSync(
@@ -483,7 +483,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
   const root = mkdtempSync(join(tmpdir(), 'omne-model-credential-cli-'))
   try {
     const directory = join(root, 'packages/model/model-profile-directory/src')
-    const source = join(root, 'apps/model-request-acceptance/src')
+    const source = join(root, 'examples/model-invocation-minimal-demo/src')
     const tool = join(root, 'tools/ts-checks')
     mkdirSync(directory, { recursive: true })
     mkdirSync(source, { recursive: true })
@@ -534,24 +534,48 @@ test('root configured aliases have collector and actual built CLI parity', () =>
       join(root, 'node_modules'),
       'dir',
     )
-    const invalid = spawnSync(process.execPath, [join(tool, 'dist/cli.js'), 'packages', 'apps'], {
-      cwd: root,
-      encoding: 'utf8',
-    })
+    const invalid = spawnSync(
+      process.execPath,
+      [join(tool, 'dist/cli.js'), 'packages', 'examples'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      },
+    )
     expect(invalid.error).toBeUndefined()
     expect(invalid.status).toBe(1)
     expect(invalid.stderr).toContain('[model-credential-boundary] binding-reader execution')
     writeFileSync(join(source, 'bootstrap.ts'), allowed)
     for (const repositoryRoot of roots)
       expect(modelCredentialBoundary.check(collectRepositorySources(repositoryRoot))).toEqual([])
-    const validCLI = spawnSync(process.execPath, [join(tool, 'dist/cli.js'), 'packages', 'apps'], {
-      cwd: root,
-      encoding: 'utf8',
-    })
+    const validCLI = spawnSync(
+      process.execPath,
+      [join(tool, 'dist/cli.js'), 'packages', 'examples'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      },
+    )
     expect(validCLI.error).toBeUndefined()
     expect(validCLI.status).toBe(0)
     expect(validCLI.stdout).toContain('PASS: ts-checks')
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('retired app and unrelated example cannot own model credential factories', () => {
+  for (const path of [
+    'apps/model-request-acceptance/src/bootstrap.ts',
+    'examples/unrelated/src/bootstrap.ts',
+  ]) {
+    expect(
+      modelCredentialBoundary.check([
+        {
+          path,
+          text: "import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica = await createModelReplicaCustodian(options);",
+        },
+      ]),
+    ).not.toEqual([])
   }
 })

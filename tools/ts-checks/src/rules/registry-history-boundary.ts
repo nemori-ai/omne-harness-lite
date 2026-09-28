@@ -13,9 +13,9 @@ function ownSource(path: string): boolean {
 }
 function valueAllowed(path: string): boolean {
   return (
-    path === 'apps/model-request-acceptance/src/bootstrap.ts' ||
+    path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
     /^packages\/tools\/asset-registry\/tests\/.+\.ts$/u.test(path) ||
-    /^apps\/model-request-acceptance\/tests\/.+\.ts$/u.test(path)
+    /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
   )
 }
 function typeAllowed(path: string): boolean {

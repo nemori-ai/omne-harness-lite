@@ -28,7 +28,7 @@ is_format_target() {
         .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/format.yml)
             return 0
             ;;
-        packages/*|apps/*|tools/*|scripts/*)
+        packages/*|apps/*|examples/*|tools/*|scripts/*)
             case "$name" in
                 *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|package.json|tsconfig*.json|vitest.config.*)
                     return 0
