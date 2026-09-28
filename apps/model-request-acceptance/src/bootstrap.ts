@@ -1,3 +1,24 @@
+import { evaluate } from '@omne-harness-lite/asset-evaluation'
+import {
+  createEvaluationInputStorePlugin,
+  evaluationInputMigrations,
+  CURRENT_EVALUATION_INPUTS_SERVICE,
+  type CurrentEvaluationInputs,
+  type InputSourceDependencies,
+} from '@omne-harness-lite/evaluation-input-store'
+import {
+  publishLocalInputs,
+  captureSessionRecipe,
+  type LocalPublication,
+  type SessionRecipeInput,
+} from '@omne-harness-lite/evaluation-input-store/publication'
+import {
+  createPiAiTransport,
+  OPENROUTER_BASE_URL,
+  type PiAiTransport,
+  type TransportOptions,
+} from '@omne-harness-lite/pi-ai-transport'
+import { prepareModelRequestDeployment } from './model-request-deployment.ts'
 import { timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
@@ -83,7 +104,9 @@ import {
   STAGE_FIBERS,
   REQUEST_PREPARATION_FIBERS,
   SESSION_LOG_FIBERS,
+  MODEL_REQUEST_FIBERS,
   type AcceptanceStage,
+  type ModelRequestDeployment,
   type PreparedSession,
   type AcceptanceConfig,
   type AcceptanceDiagnostics,
@@ -138,6 +161,12 @@ function lookupFace(value: unknown): value is CredentialLookup {
 }
 function sessionTenancyFace(value: unknown): value is SessionTenancyService {
   return object(value) && typeof value.holdingTenant === 'function'
+}
+function currentInputFace(value: unknown): value is CurrentEvaluationInputs {
+  return object(value) && typeof value.read === 'function'
+}
+function sourceMembershipFace(value: unknown): value is InputSourceDependencies['memberships'] {
+  return object(value) && typeof value.participate === 'function'
 }
 function clockFace(value: unknown): value is Clock {
   return object(value) && typeof value.now === 'function'
@@ -196,6 +225,10 @@ export interface AcceptanceApplication {
     session: unknown,
   ): Promise<ScenarioResult<PreparedSession>>
   readSessionLog(actor: AuthenticatedActor, session: unknown): Promise<ScenarioResult<ReadResult>>
+  prepareModelInputs(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<{ readonly prepared: true }>>
   close(): Promise<CloseResult>
   status(): {
     readonly serving: boolean
@@ -213,16 +246,21 @@ export function createAcceptanceApplication(
     readonly diagnostics: AcceptanceDiagnostics
     readonly hooks?: AcceptanceHooks
     readonly stage?: AcceptanceStage
+    /** Trusted local controlled HTTPS only; never read from a tenant request. */
+    readonly developmentTransport?: Pick<TransportOptions, 'baseUrl' | 'tls'>
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
-  const preparationStage = stage === 'requestPreparation' || stage === 'sessionLog'
+  const preparationStage = stage !== 'authentication'
+  const logStage = stage === 'sessionLog' || stage === 'modelRequest'
   const requiredFibers =
-    stage === 'sessionLog'
-      ? SESSION_LOG_FIBERS
-      : preparationStage
-        ? REQUEST_PREPARATION_FIBERS
-        : STAGE_FIBERS
+    stage === 'modelRequest'
+      ? MODEL_REQUEST_FIBERS
+      : stage === 'sessionLog'
+        ? SESSION_LOG_FIBERS
+        : preparationStage
+          ? REQUEST_PREPARATION_FIBERS
+          : STAGE_FIBERS
   const context = new Context()
   const guard = createUpgradeGuard()
   const fibers = new Map<StageFiber, Fiber>()
@@ -231,6 +269,10 @@ export function createAcceptanceApplication(
   let storage: SqlStorage | undefined
   let replica: ModelReplicaCustodian | undefined
   let sessionLogOwner: JsonlSessionLog | undefined
+  let transportOwner: PiAiTransport | undefined
+  let currentInputs: CurrentEvaluationInputs | undefined
+  let inputSource: InputSourceDependencies | undefined
+  let requestDeployment: ModelRequestDeployment | undefined
   let logins: LoginFace | undefined,
     memberships: MembershipFace | undefined,
     catalog: CatalogFace | undefined,
@@ -277,7 +319,14 @@ export function createAcceptanceApplication(
     return names.every(name => fibers.get(name)?.state === FIBER_STATE.ACTIVE)
   }
   function admit(): boolean {
-    return gateOpen && !closing && allActive(requiredFibers) && replica !== undefined
+    return (
+      gateOpen &&
+      !closing &&
+      allActive(requiredFibers) &&
+      replica !== undefined &&
+      (stage !== 'modelRequest' ||
+        (transportOwner !== undefined && currentInputs !== undefined && inputSource !== undefined))
+    )
   }
   function track<T>(work: () => Promise<T>): Promise<T> {
     const job = Promise.resolve().then(work)
@@ -320,8 +369,9 @@ export function createAcceptanceApplication(
     cleanupPromise = (async () => {
       await Promise.allSettled([...admitted])
       const unfinished: string[] = []
-      const order: readonly (StageFiber | 'replica' | 'sessionLogOwner')[] = [
-        ...(stage === 'sessionLog' ? (['sessionLogOwner', 'sessionLog'] as const) : []),
+      const order: readonly (StageFiber | 'replica' | 'sessionLogOwner' | 'transportOwner')[] = [
+        ...(stage === 'modelRequest' ? (['transportOwner', 'evaluationInputs'] as const) : []),
+        ...(logStage ? (['sessionLogOwner', 'sessionLog'] as const) : []),
         ...(preparationStage ? (['sessionTenancy'] as const) : []),
         'lookup',
         'directory',
@@ -335,7 +385,8 @@ export function createAcceptanceApplication(
       ]
       for (const [index, name] of order.entries()) {
         try {
-          if (name === 'sessionLogOwner') await sessionLogOwner?.close()
+          if (name === 'transportOwner') await transportOwner?.close()
+          else if (name === 'sessionLogOwner') await sessionLogOwner?.close()
           else if (name === 'replica') await replica?.close()
           else await fibers.get(name)?.dispose()
           record({ event: 'close', phase: name, outcome: 'closed' })
@@ -378,10 +429,20 @@ export function createAcceptanceApplication(
   }
   async function start(): Promise<{ readonly confirmation: UpgradeConfirmation }> {
     try {
-      if (stage !== 'authentication' && stage !== 'requestPreparation' && stage !== 'sessionLog')
+      if (
+        stage !== 'authentication' &&
+        stage !== 'requestPreparation' &&
+        stage !== 'sessionLog' &&
+        stage !== 'modelRequest'
+      )
         throw new Error('acceptance stage invalid')
-      const logDeployment =
-        stage === 'sessionLog' ? await prepareSessionLogDeployment(config.sessionLog) : undefined
+      const logDeployment = logStage
+        ? await prepareSessionLogDeployment(config.sessionLog)
+        : undefined
+      requestDeployment =
+        stage === 'modelRequest'
+          ? prepareModelRequestDeployment(config.modelRequest, options.developmentTransport)
+          : undefined
       const prepared = await prepare(config)
       assertNotClosing()
       record({ event: 'stage', phase: 'prepare', outcome: 'ready' })
@@ -389,6 +450,7 @@ export function createAcceptanceApplication(
       category = 'storage'
       const fragments = [
         ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
+        ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
         ...(hooks?.extraMigrations ?? []),
       ]
       storage = await openStorage(
@@ -550,7 +612,7 @@ export function createAcceptanceApplication(
         if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
         sessionTenancy = value
       }
-      if (stage === 'sessionLog') {
+      if (logStage) {
         phase = 'sessionLog'
         category = 'failed'
         assertNotClosing()
@@ -565,6 +627,51 @@ export function createAcceptanceApplication(
             }),
         })
         await load('sessionLog', sessionLogContribution(sessionLogOwner), {})
+      }
+      if (stage === 'modelRequest') {
+        if (
+          requestDeployment === undefined ||
+          sessionTenancy === undefined ||
+          storage === undefined
+        )
+          throw new Error('acceptance request deployment absent')
+        const actualMemberships: unknown = context.get(MEMBERSHIPS_SERVICE)
+        if (!sourceMembershipFace(actualMemberships))
+          throw new Error('acceptance source memberships absent')
+        const ports = {
+          monotonicNow: requestDeployment.evaluationInputs.monotonicNow,
+          diagnostics: () =>
+            record({ event: 'evaluationInputs', phase: 'provider', outcome: 'observed' }),
+          onDiagnosticFailure: () => {
+            diagnosticFailures += 1
+          },
+        }
+        inputSource = {
+          ...ports,
+          storage,
+          memberships: actualMemberships,
+          sessionTenancy,
+          storeKey: requestDeployment.evaluationInputs.storeKey,
+          deployedOfficial: requestDeployment.evaluationInputs.deployedOfficial,
+        }
+        await load('evaluationInputs', createEvaluationInputStorePlugin(ports), {
+          storeKey: inputSource.storeKey,
+          deployedOfficial: [...inputSource.deployedOfficial],
+        })
+        const value: unknown = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
+        if (!currentInputFace(value)) throw new Error('acceptance input service absent')
+        currentInputs = value
+        phase = 'transport'
+        category = 'failed'
+        assertNotClosing()
+        transportOwner = createPiAiTransport({
+          ...requestDeployment.transport,
+          baseUrl: OPENROUTER_BASE_URL,
+          ...options.developmentTransport,
+          onDiagnostic: event =>
+            record({ event: 'transport', phase: 'provider', outcome: event.level }),
+        })
+        record({ event: 'transport', phase: 'constructor', outcome: 'ready' })
       }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
         membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
@@ -809,7 +916,7 @@ export function createAcceptanceApplication(
     actor: AuthenticatedActor,
     session: unknown,
   ): Promise<ScenarioResult<ReadResult>> {
-    if (stage !== 'sessionLog' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    if (!logStage || !admit()) return Promise.resolve({ failure: 'stageClosed' })
     return track(async () => {
       try {
         const checked = await checkActor(actor)
@@ -825,6 +932,47 @@ export function createAcceptanceApplication(
         return await sessionLogOwner.readSince(parsed.ok, 0)
       } catch (error) {
         throw operationError(error, 'readSessionLog')
+      }
+    })
+  }
+  function prepareModelInputs(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<{ readonly prepared: true }>> {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      try {
+        const checked = await checkActor(actor)
+        if (!('account' in checked)) return checked
+        if (
+          sessionTenancy === undefined ||
+          currentInputs === undefined ||
+          inputSource === undefined ||
+          requestDeployment === undefined
+        )
+          throw new AcceptanceOperationDefect('prepareModelInputs')
+        const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+        if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+          return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
+        const held = await sessionTenancy.holdingTenant(parsed.ok)
+        if ('failure' in held) return { step: 'holdingTenant', result: held }
+        if (!tenantIdEquals(held.tenant, checked.tenant)) return { failure: 'identityMismatch' }
+        const source = await requestDeployment.evaluationInputs.prepare(checked, parsed.ok)
+        const published = await publishLocalInputs(inputSource, source.publication)
+        if ('failure' in published) return { step: 'publishLocalInputs', result: published }
+        const captured = await captureSessionRecipe(inputSource, {
+          ...source.recipe,
+          session: parsed.ok,
+          tenant: held.tenant,
+        })
+        if ('failure' in captured) return { step: 'captureSessionRecipe', result: captured }
+        const current = await currentInputs.read(parsed.ok, held.tenant)
+        if ('failure' in current) return { step: 'currentInputs', result: current }
+        const evaluated = evaluate(current.input)
+        if (!('ok' in evaluated)) return { step: 'evaluate', result: evaluated }
+        return { prepared: true }
+      } catch (error) {
+        throw operationError(error, 'prepareModelInputs')
       }
     })
   }
@@ -849,6 +997,7 @@ export function createAcceptanceApplication(
     readOfficialProfiles,
     prepareSession,
     readSessionLog,
+    prepareModelInputs,
     close() {
       if (closingPromise !== undefined) return closingPromise
       closing = true
@@ -873,3 +1022,16 @@ export function createAcceptanceApplication(
     },
   }
 }
+
+export interface ModelInputSource {
+  readonly publication: LocalPublication
+  readonly recipe: Omit<SessionRecipeInput, 'session' | 'tenant'>
+}
+export type PublishSourceFailure = Extract<
+  Awaited<ReturnType<typeof publishLocalInputs>>,
+  { readonly failure: string }
+>
+export type CaptureRecipeFailure = Extract<
+  Awaited<ReturnType<typeof captureSessionRecipe>>,
+  { readonly failure: string }
+>
