@@ -77,3 +77,8 @@
 ## 2026-09-28 G6纯构件实施与有限验证
 
 [D093实施事件](../../../../record/decisions/model-credential-policy-adoption/decision.md#2026-09-28-纯构件有限实施签收)及[完整实际原档](../../../../record/evidence/2026-09-28-tests-model-credential-redaction-pure/README.md)记录源码f6a5d1f2／HUB7f580351、独立GI1–7有限Pass及当前HUB4a268c91专用字节与组合回归。限定签收显式配置／纯text/header/raw-error JSON政策构件；新增规范绑定0，不签收raw.body／附件、生产H和完整S20、G4必需事实、十三操作或37模型认证。历史“源码尚待”属于2026-09-27的状态。
+
+
+## MR5 codec显式接续（2026-09-28）
+
+[D-094](../../../../record/decisions/model-log-codec-v2-adoption/decision.md)技术采用[v5-log-codec-design rev1](v5-log-codec-design.md)精确be656394：新显式入口写mrr/2/MR5、逐域混读、共同mrr/1键及捕获域保护。原根入口与旧历史保留原接收。该采用允许纯构件实施；LC5-V1～V6、全写方/真实日志组合未验，新增bindings0，不提升完整S20、十三操作或37认证。

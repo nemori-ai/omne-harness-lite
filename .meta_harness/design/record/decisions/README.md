@@ -163,3 +163,6 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 2026-09-27：[D-092](model-auth-bootstrap-adoption/decision.md)精确采用真实身份验收阶段的基础六 fiber 后确认、完整八 fiber 后准入；确认后部分启动失败不整库回退。应用、AB-V1～V8与逐符号守卫未实现验证。
 
 2026-09-27：[D-093](model-credential-policy-adoption/decision.md)限定采用G-6显式配置基线及纯text/header/raw-error JSON共有构件；跨包接线、附件、必需事实碰撞与完整S-20/H未放行。
+
+
+2026-09-28：[D-094 MR5 codec显式接续](model-log-codec-v2-adoption/README.md)采用现有runtime节点纯构件投影；新入口与历史域分开，源实施和真实组合尚待，不新增规范版本。
