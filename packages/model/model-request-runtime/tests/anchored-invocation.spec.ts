@@ -7,6 +7,34 @@ import { judgeModelResponse } from '@omne-harness-lite/model-response/v5'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+  for (const [name, raw] of [
+    ['null', null],
+    ['undefined', undefined],
+    ['empty', {}],
+    ['unknownFailure', { failure: 'fabricated' }],
+    ['falseFailure', { failure: false }],
+  ] as const)
+    for (const stage of ['dispatched', 'opened'] as const)
+      it(`JS ${stage} receipt ${name} stays unknown with no candidate/release`, async () => {
+        await harness(async h => {
+          const port = { ...h.log }
+          let count = 0
+          expect(
+            Reflect.set(port, 'append', async (...args: Parameters<typeof h.log.append>) => {
+              if (++count === (stage === 'dispatched' ? 1 : 2)) return raw
+              return h.log.append(...args)
+            }),
+          ).toBe(true)
+          h.wrap(port)
+          const t = transport()
+          const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+          expect(await handle.outcome).toEqual({ unavailable: true })
+          expect(t.sends()).toBe(stage === 'dispatched' ? 0 : 1)
+          expect(handle.snapshot().firstContentAt).toBeUndefined()
+          expect(await handle.close()).toEqual({ unavailable: true })
+          expect(h.released()).toBe(0)
+        })
+      })
   it('original owner unresolved opened blocks a new dispatch even after that IO actually stopped', async () => {
     await harness(async h => {
       h.owner.openedState = {
