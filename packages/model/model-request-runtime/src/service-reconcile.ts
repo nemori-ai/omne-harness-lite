@@ -3,6 +3,7 @@ import {
   validate as validateModelResponse,
 } from '@omne-harness-lite/model-response'
 import type { PendingModelResponse, ReplyDisposition } from '@omne-harness-lite/model-response'
+import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import type {
   CallContainerStore,
   ReconcileInput,
@@ -54,6 +55,7 @@ interface RecoveryEntry {
   readonly settlements: Set<RecoverySettlement>
   readonly unknownControl: UnknownAppendTracker
   readonly pendingControl: Set<CallKey['callId']>
+  readonly controlTasks: Set<SettlementTask<AppendResult>>
   entered?: Promise<Awaited<ReturnType<RuntimeRecoveryAccess['enter']>>>
   scope?: RuntimeRecoveryScope
   active: Promise<ReconcileResult> | undefined
@@ -402,6 +404,7 @@ export function createRuntimeReconcile(input: {
             settlements: new Set(),
             unknownControl: new UnknownAppendTracker(),
             pendingControl: new Set(),
+            controlTasks: new Set(),
             active: undefined,
             releasing: undefined,
             exitAttempted: false,
@@ -445,6 +448,13 @@ export function createRuntimeReconcile(input: {
         for (const settlement of entry.settlements) {
           try {
             settlement.task?.requestStop()
+          } catch {
+            // Actual stopped remains authoritative.
+          }
+        }
+        for (const task of entry.controlTasks) {
+          try {
+            task.requestStop()
           } catch {
             // Actual stopped remains authoritative.
           }
@@ -545,6 +555,17 @@ async function readRecoveredCalls(
             registration,
             task,
           )
+        },
+        trackTask(task) {
+          entry.controlTasks.add(task)
+          if (closed()) {
+            try {
+              task.requestStop()
+            } catch {
+              // The original task remains tracked until actual stop.
+            }
+          }
+          return () => entry.controlTasks.delete(task)
         },
       })
       if ('unavailable' in appended) return { unavailable: true }

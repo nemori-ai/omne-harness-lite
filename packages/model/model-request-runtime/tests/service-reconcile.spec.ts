@@ -532,6 +532,58 @@ describe('S-33 retained recovery ownership', () => {
       },
     )
   })
+
+  it('keeps a response writer that was already appending when close sealed admission', async () => {
+    await controlled(
+      'service-reconcile-response-close-race',
+      async ({ binding, owner, wrap, submissions }) => {
+        const started = deferred<void>()
+        const allowAppend = deferred<void>()
+        let writes = 0
+        const gated: SessionLog = {
+          ...binding.log,
+          async append(...args) {
+            writes++
+            started.resolve()
+            await allowAppend.promise
+            return binding.log.append(...args)
+          },
+        }
+        let scopeCloses = 0
+        const component = createRuntimeReconcile({
+          contention: policy(),
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async enter() {
+              return {
+                scope: {
+                  binding: { log: wrap(gated) } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {
+                    scopeCloses++
+                  },
+                },
+              }
+            },
+          },
+        })
+        const pending = component.reconcile({ session })
+        await started.promise
+        expect(await component.close()).toEqual({ unavailable: true })
+        expect(scopeCloses).toBe(0)
+        allowAppend.resolve()
+        expect(await pending).toEqual({ unavailable: true })
+        expect(await component.close()).toEqual({ released: true })
+        expect(scopeCloses).toBe(1)
+        expect(writes).toBe(1)
+        expect(submissions.map(item => item.count)).toEqual([2, 1])
+        expect(owner.active).toBe(0)
+      },
+    )
+  })
 })
 
 describe('S-33 noRun recovered full-prefix read', () => {
