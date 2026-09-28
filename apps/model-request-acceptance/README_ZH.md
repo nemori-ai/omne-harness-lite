@@ -20,6 +20,12 @@
 
 关闭先排空已准入操作，再实际 await JSONL owner 关闭，成功后才撤日志贡献和其余提供者。物理清理失败时 `complete` 为 false，`unfinished` 保留 owner、贡献与依赖，不继续撤除；文件、历史和未释放锁责任仍保留。同库同日志目录重开经真实属主与恢复核验读回提交值。诊断 sink 故障独立计数，不替换读取或关闭结果。
 
+`modelRequest` 技术阶段当前加入真实 EIS `currentEvaluationInputs` 贡献，成为固定十一项 `MODEL_REQUEST_FIBERS`；迁移在同一 guard 确认前合成。本增量准备真实来源并拥有静态生产 transport，选择与调用另行接线，当前增量尚未开放发送入口。
+
+`modelRequest.evaluationInputs` 明确配置 `storeKey`、完整 `deployedOfficial`、单调 clock 和可信 `prepare(actor, session)` 回调；回调返回完整 `LocalPublication` 与 recipe。另须完整 production definitions/transport policy、调用时钟/调度/状态码/脱敏政策和结算争用/调度政策，不提供模型或时限默认值。生产 transport 固定使用 OpenRouter；可信 `developmentTransport` 只允许本机受控 HTTPS 测试端点。
+
+真实 `prepareSession` 后，`prepareModelInputs(actor, session)` 重新核身份与归属，依次执行真实 publication、recipe capture、current read 和 AE 求值；全部成功才返回 `{ prepared: true }`，否则保留具名提供者结果。factory/organization/tenant 三源均须明确供给，缺源不补空。来源发布与会话建立是独立提交；重复准备不隐藏 conflict，不重放未知提交。关闭先排空来源操作，再关闭 transport、撤 EIS，随后关闭 JSONL owner 与既有依赖。constructor 或来源准备成功不认证模型调用。
+
 ## 从公共 API 运行
 
 使用 Node 24 系列的 24.18 或更新版本。传入已经存在的绝对部署目录，目录须属于当前 OS 用户且权限为 `0700`。预置匹配的 Ed25519 PKCS8/SPKI 密钥对 `activation-private.pem`/`activation-public.pem` 和 `purge-private.pem`/`purge-public.pem`，以及恰好 32 字节的 `model-key`。这五个文件须为当前用户的普通文件，权限为 `0600`。应用校验输入，不生成或替换密钥。已存在的 `db.sqlite` 同样须为当前用户的 `0600` 普通文件。

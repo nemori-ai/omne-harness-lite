@@ -7,6 +7,14 @@ import type { SessionRef } from '@omne-harness-lite/messages/v3'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organization-governance'
 import type { ProcessOwnership, SessionLogPolicy } from '@omne-harness-lite/session-log-jsonl'
+import type { DeployedOfficialEntry } from '@omne-harness-lite/evaluation-input-store'
+import type { ModelInputSource, PublishSourceFailure, CaptureRecipeFailure } from './bootstrap.ts'
+import type { TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import type {
+  InvocationPolicy,
+  SettlementContention,
+  SettlementScheduler,
+} from '@omne-harness-lite/model-request-runtime'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
 import type {
@@ -32,21 +40,53 @@ export const SESSION_LOG_FIBERS = Object.freeze([
   ...REQUEST_PREPARATION_FIBERS,
   'sessionLog',
 ] as const)
-export type AcceptanceStage = 'authentication' | 'requestPreparation' | 'sessionLog'
-export type StageFiber = (typeof SESSION_LOG_FIBERS)[number]
+export const MODEL_REQUEST_FIBERS = Object.freeze([
+  ...SESSION_LOG_FIBERS,
+  'evaluationInputs',
+] as const)
+export type AcceptanceStage =
+  'authentication' | 'requestPreparation' | 'sessionLog' | 'modelRequest'
+export type StageFiber = (typeof MODEL_REQUEST_FIBERS)[number]
 export interface PreparedSession {
   readonly session: SessionRef
   readonly tenant: TenantId
 }
 export type StartupPhase =
-  'prepare' | 'storage' | StageFiber | 'clockReady' | 'confirm' | 'replica' | 'admission'
+  | 'prepare'
+  | 'storage'
+  | StageFiber
+  | 'clockReady'
+  | 'confirm'
+  | 'replica'
+  | 'transport'
+  | 'admission'
 
 export interface SessionLogDeployment {
   readonly dir: string
   readonly processOwnership: ProcessOwnership
   readonly policy: SessionLogPolicy
 }
+export type { ModelInputSource } from './bootstrap.ts'
+export interface ModelRequestDeployment {
+  readonly evaluationInputs: {
+    readonly storeKey: string
+    readonly deployedOfficial: readonly DeployedOfficialEntry[]
+    readonly monotonicNow: () => bigint
+    /** Trusted deployment preparation; never a tenant-controlled publishing callback. */
+    readonly prepare: (actor: AuthenticatedActor, session: SessionRef) => Promise<ModelInputSource>
+  }
+  readonly transport: Pick<TransportOptions, 'definitions' | 'policy'>
+  readonly invocation: Pick<
+    InvocationPolicy,
+    'now' | 'schedule' | 'statusCauseTable' | 'credentialRedaction'
+  >
+  readonly settlement: {
+    readonly contention: SettlementContention
+    readonly scheduler: SettlementScheduler
+  }
+}
 export interface AcceptanceConfig {
+  readonly modelRequest?: ModelRequestDeployment
   readonly sessionLog?: SessionLogDeployment
   readonly runId: string
   readonly databaseFile: string
@@ -78,6 +118,8 @@ export interface AcceptanceEvent {
     | 'operation'
     | 'directory'
     | 'sessionLog'
+    | 'evaluationInputs'
+    | 'transport'
     | 'replica'
     | 'provider'
     | 'close'
@@ -134,6 +176,28 @@ export type ProviderRejection =
       readonly result: Extract<
         Awaited<ReturnType<ModelCatalog['listProfiles']>>,
         { readonly failure: string }
+      >
+    }
+  | {
+      readonly step: 'publishLocalInputs'
+      readonly result: PublishSourceFailure
+    }
+  | {
+      readonly step: 'captureSessionRecipe'
+      readonly result: CaptureRecipeFailure
+    }
+  | {
+      readonly step: 'currentInputs'
+      readonly result: Extract<
+        import('@omne-harness-lite/evaluation-input-store').CurrentInputResult,
+        { readonly failure: string }
+      >
+    }
+  | {
+      readonly step: 'evaluate'
+      readonly result: Exclude<
+        import('@omne-harness-lite/asset-evaluation').EvaluationResult,
+        { readonly ok: unknown }
       >
     }
   | {
