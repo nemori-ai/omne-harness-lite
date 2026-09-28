@@ -1,0 +1,185 @@
+[
+  {
+    "stage": "dry_plan",
+    "modelId": "x-ai/grok-4.6",
+    "scenario": "fit-short",
+    "partition": "fit",
+    "candidateRevision": "grok-build-wire-projection-candidate-1",
+    "estimatedTokens": 78,
+    "admissionTokens": 78,
+    "requestBytes": 314,
+    "images": 0,
+    "wireSha256": "ce5d7468baf96048a68ec82c45766b0563cab0fab5dcf6ff35b18a365201f5a3",
+    "totalPromptTokens": 219,
+    "body": {
+      "model": "x-ai/grok-4.6",
+      "provider": {
+        "order": ["xai"],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "store": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer briefly."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Reply with one word: cedar."
+            }
+          ]
+        }
+      ],
+      "max_tokens": 128
+    }
+  },
+  {
+    "stage": "dry_plan",
+    "modelId": "x-ai/grok-4.6",
+    "scenario": "fit-multilingual",
+    "partition": "fit",
+    "candidateRevision": "grok-build-wire-projection-candidate-1",
+    "estimatedTokens": 100,
+    "admissionTokens": 100,
+    "requestBytes": 403,
+    "images": 0,
+    "wireSha256": "6c967f076a6d08ed2a8eb854b016556c40abf3dcbff46f9097b92d7aa3fab916",
+    "totalPromptTokens": 240,
+    "body": {
+      "model": "x-ai/grok-4.6",
+      "provider": {
+        "order": ["xai"],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "store": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "回答要简短。Keep exact punctuation."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请把「夏天的星空」翻译为英文，然后写一个十字以内的中文理由。"
+            }
+          ]
+        }
+      ],
+      "max_tokens": 128
+    }
+  },
+  {
+    "stage": "dry_plan",
+    "modelId": "x-ai/grok-4.6",
+    "scenario": "holdout-tool-history",
+    "partition": "holdout",
+    "candidateRevision": "grok-build-wire-projection-candidate-1",
+    "estimatedTokens": 228,
+    "admissionTokens": 228,
+    "requestBytes": 912,
+    "images": 0,
+    "wireSha256": "d9c2379ab44c38965c62b1c58b37458386ad4dab10eecda55c0e913076435850",
+    "totalPromptTokens": 334,
+    "body": {
+      "model": "x-ai/grok-4.6",
+      "provider": {
+        "order": ["xai"],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "store": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Preserve the supplied tool history."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Find alpha, then summarize the value."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_xai_1",
+              "type": "function",
+              "function": {
+                "name": "lookup__xai",
+                "arguments": "{\"key\":\"alpha\"}"
+              }
+            }
+          ],
+          "reasoning": "Lookup alpha."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_xai_1",
+          "content": "alpha=42"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What was alpha?"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup__xai",
+            "description": "Look up a value by key",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                }
+              },
+              "required": ["key"],
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "reasoning": {
+        "effort": "high"
+      },
+      "max_tokens": 128
+    }
+  }
+]
