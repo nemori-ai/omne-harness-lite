@@ -229,6 +229,41 @@ if (!('ok' in opened) || opened.ok.record?.kind !== 'model_call_opened' || opene
 
 The comparator and `completeMembers` operate within the declared legal RFC3339 input domain. They do not certify actual time sources, leap announcements, legal history or physical commits. The producer/host/history owner must establish TL-G1 at the real production boundary; unconfirmed external values or history remain unavailable there. The old millisecond Instant/Clock interfaces keep their original behavior.
 
+## Explicit shared credential redaction
+
+`createCredentialRedactionPolicy(config)` constructs the pure policy adopted by [D093](../../../.meta_harness/design/record/decisions/model-credential-policy-adoption/decision.md). All three named parameters are required. `openRouterCredentialRedactionConfig` is the deeply immutable, explicit `openrouter-redaction/1` baseline: minimum fragment length 8, the 11 adopted denylist headers and the three finite sk-/Bearer/Basic descriptors. The algorithm has no implicit configuration, environment, network, storage or Cordis dependency.
+
+`policy.bind(knownCredential)` returns `{ ok: bound }` or `{ rejected: 'invalidInput' }`. The frozen bound closure only exposes `text(value)`, `headers(value)` and `json(value)`, each returning the same explicit result shell. Known credentials must be nonempty printable ASCII. Full credentials shorter than the fragment minimum remain protected. All matches use the original input and their interval union becomes `█`; scanning does not normalize, decode unknown encodings or evaluate open regular expressions. Headers first remove original denylist keys with ASCII case folding, then redact keys and values; string versus ordered string-array shape, duplicates and empty values survive. JSON processes keys and all scalar tokens, including exact numbers, booleans and null. A matching nonstring scalar becomes a marker string; unhit types and exact numeric spelling remain. Outputs are independent and frozen, and processing the safe value again gives the same value. Exact-number admission captures the trusted public LosslessNumber source getter at module initialization, reads the branded source explicitly, and immediately clones a standard owned number; token matching uses jsonNumberSource on that clone. Caller prototype Get traps cannot substitute that numeric token.
+
+`redact(value, knownCredential, params)` is the standalone RT5 S60 JSON/string function and uses this same kernel. For actual response headers use `bound.headers`, which also strips denylist entries. Declare this package and `content-blocks` as direct dependencies for the exact-number example; it uses synthetic data and makes no request.
+
+```ts
+import {
+  createCredentialRedactionPolicy, openRouterCredentialRedactionConfig, redact,
+} from '@omne-harness-lite/model-request-runtime'
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+
+const policy = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig)
+const binding = policy.bind('teaching-secret')
+if (!('ok' in binding)) throw new Error(binding.rejected)
+const text = binding.ok.text('teaching-secret / Bearer example-token')
+if (!('ok' in text) || text.ok !== '█ / █') throw new Error('Unexpected safe text')
+const headers = binding.ok.headers({ Authorization: 'discard', X: ['', 'teaching-secret', 'again', 'again'], Empty: [] })
+if (!('ok' in headers) || 'Authorization' in headers.ok || headers.ok.X?.length !== 4)
+  throw new Error('Expected safe headers with their original array shape')
+const rawError = redact([true, null, new LosslessNumber('9007199254740993')], 'true', openRouterCredentialRedactionConfig)
+if (!('ok' in rawError) || writeJsonLossless(rawError.ok) !== '["█",null,9007199254740993]')
+  throw new Error('Expected redacted boolean and unchanged exact number')
+```
+
+Illegal static configuration throws `CredentialRedactionConfigurationError` with fixed text and no input/cause. Illegal credential or data admission returns `invalidInput`; getters and `toJSON` are not called. Unexpected internal processing defects throw a fixed, input-free ordinary Error instead of being reported as invalid input or returning original data. Such an exception is a defect, not a successful redaction or a new domain failure.
+
+Generic construction accepts minimum lengths 1–64, at most 128 lowercase ASCII HTTP-token header names and at most 64 finite descriptors; explicitly empty lists are permitted in the generic function. This does not approve a production configuration. The adopted baseline must retain every one of its 11 headers and three descriptors; production strengthening may add entries or lower the minimum to 1–8, with its own resource and false-positive verification. Values above 8 require a separately accepted production revision. The future assembly owner must verify that eligibility and supply one complete snapshot to both consumers.
+
+This surface processes raw/error JSON. Required business status, identity and cost facts must follow their own contracts; do not pass a complete ModelResponse through this general mapper. Raw body byte/attachment projection, transport/runtime policy migration, actual send/read/header publication and full S20 acceptance remain outside this increment. Existing invoke/transport callbacks retain their prior behavior until their explicit migration is delivered.
+
+For credential length k, input length n, minimum m and descriptor count d, the kernel builds at most k fixed-width windows and four linear endpoint arrays, then compares at most d literals of length at most 64 per position. Work is bounded by O(km + n(m + 64d) + output), with exact Set string equality rather than hash equality as authority; endpoint working memory is O(n), plus window/configuration and output data. JSON admission and projection use iterative traversal. Key-collision suffix work includes the size of the required output names. Finite adversarial measurements do not prove unlimited input or same-process sandboxing, and closures do not promise physical memory erasure.
+
 ## Development
 
 ```sh
