@@ -12,3 +12,5 @@ export type {
 export type { RetryBackoffPolicy, RetryDelayInput, RetryDelayResult } from './retry-delay-types.ts'
 export { retryDelay } from './retry-delay.ts'
 export * from './log-codec.ts'
+export { legalTargets, displayList, effectiveModel } from './selection.ts'
+export type * from './selection-types.ts'
