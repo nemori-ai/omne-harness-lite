@@ -9839,13 +9839,13 @@
       },
       "family": "capabilities",
       "topic": "model-profile-directory",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/model-profile-directory/v4/contract.md",
       "resources": [
         "spec/capabilities/model-profile-directory/v4/contract.md",
         "spec/capabilities/model-profile-directory/v4/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-limit-consumer-contract-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -9946,7 +9946,7 @@
       },
       "family": "data",
       "topic": "messages",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/messages/v5/contract.md",
       "resources": [
         "spec/data/messages/v5/contract.md",
@@ -9956,7 +9956,7 @@
         "spec/data/messages/v5/formal/Readable.als",
         "spec/data/messages/v5/input-limit-examples.json"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-limit-consumer-contract-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -10053,14 +10053,14 @@
       },
       "family": "data",
       "topic": "model-response",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/model-response/v6/contract.md",
       "resources": [
         "spec/data/model-response/v6/contract.md",
         "spec/data/model-response/v6/model-response.schema.json",
         "spec/data/model-response/v6/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-limit-consumer-contract-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -10137,13 +10137,14 @@
           "coordinate": {
             "baseline_id": "omne-harness-lite-design-2026-09-15",
             "contract_id": "data.loop-extension",
-            "version": 3
+            "version": 5
           },
           "clauses": [
             "S-2",
             "S-14",
             "S-17",
-            "S-25"
+            "S-25",
+            "S-43"
           ],
           "rebase_relation": null
         },
@@ -10181,9 +10182,9 @@
       },
       "family": "capabilities",
       "topic": "model-request-runtime",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/model-request-runtime/v6/contract.md",
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-limit-consumer-contract-adoption/acceptance.json",
       "resources": [
         "spec/capabilities/model-request-runtime/v6/consumer-impact.md",
         "spec/capabilities/model-request-runtime/v6/contract.md",
@@ -10561,14 +10562,14 @@
       },
       "family": "data",
       "topic": "loop-extension",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/loop-extension/v5/contract.md",
       "resources": [
         "spec/data/loop-extension/v5/contract.md",
         "spec/data/loop-extension/v5/loop-extension.schema.json",
         "spec/data/loop-extension/v5/examples.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-limit-consumer-contract-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -10695,7 +10696,7 @@
       },
       "family": "capabilities",
       "topic": "loop-extension-runner",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/loop-extension-runner/v4/contract.md",
       "resources": [
         "spec/capabilities/loop-extension-runner/v4/contract.md",
@@ -10723,7 +10724,7 @@
         "spec/capabilities/loop-extension-runner/v4/formal/validity-check/volatile-replay.cfg",
         "spec/capabilities/loop-extension-runner/v4/formal/validity-check/volatile-subject.cfg"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-limit-consumer-contract-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {

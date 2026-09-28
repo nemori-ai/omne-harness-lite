@@ -1,0 +1,31 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 12 and seed 8106337663793364994 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 21088] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-runtime6-spec/tmp/model-request-runtime/input-limit-successor/independent-formal/rt6/input/FinalPlan.tla
+***Parse Error***
+
+  Precedence conflict between ops = in block line 19, col 25 to line 19, col 25 of module FinalPlan and \leq.
+
+Residual stack trace follows:
+ExtendableExpr starting at line 19, column 27.
+ExtendableExpr starting at line 19, column 16.
+Expression starting at line 19, column 16.
+Junction Item starting at line 19, column 13.
+AND-OR Junction starting at line 18, column 13.
+
+
+Fatal errors while parsing TLA+ spec in file FinalPlan
+
+In module FinalPlan
+
+Could not parse module FinalPlan from file FinalPlan.tla
+*** Errors: 1
+
+In module FinalPlan
+
+Could not parse module FinalPlan from file FinalPlan.tla
+
+
+
+Starting... (2026-09-28 09:52:40)
+Error: Parsing or semantic analysis failed.
+Finished in 00s at (2026-09-28 09:52:40)

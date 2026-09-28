@@ -70,3 +70,5 @@ Schema 的条件约束逐格表达、正反实例逐格演示，在给定规模�
 v5 仅将 `raw.headers` 的值扩展为字符串或有序字符串数组，保存采得且脱敏后的值形状、数组顺序、重复和空值；其余 38 条约束的含义及七个精确依赖沿 v4。规范资源恰三份，无新操作、编号族或形式任务。catalog 新增候选坐标，covers 继承 28 条范围并保持 `reviewed: false`；不改变旧 accepted、frozen 或消费者精确采用。
 
 [v5 验证说明](verification.md#2026-09-27-v5-多值响应头候选验证) 列出 MR5-H1～MR5-H6、产品 rev 继承边界及消费传播。真实运输事实交接、写前脱敏、同次追加和重开读取均未验证；MR5 Schema 通过不关闭运行时 G-31。完整响应的新读写链须由运行时、core 提供者、transport 与验收装配分别显式采用。
+
+2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v6；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。

@@ -47,3 +47,5 @@
 ## 2026-09-27 模型来源投影采用
 
 [D-075](../../../../record/decisions/model-credential-source-projection/decision.md)技术采用上述精确来源关联与失败/权限投影。旧候选字节和验证范围保留；真实源码及负控待执行，完整 CCL/MCP/OAuth 仍无本事件交付声明。
+
+2026-09-28：[D-098](../../../../record/decisions/model-input-limit-provider-adoption/decision.md)完成独立架构复评后的分段技术采用；精确范围见决定。MP4 已由 D-097 接受，其余消费者已由 D-099 接受；起草状态文字保留，实施和验证仍须单独交付。

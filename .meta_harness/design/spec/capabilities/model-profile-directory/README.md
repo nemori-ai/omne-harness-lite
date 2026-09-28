@@ -44,3 +44,5 @@
 ## 2026-09-26 版本接受
 
 本次接受 `capability.model-profile-directory` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+
+2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v4；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。

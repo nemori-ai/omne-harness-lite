@@ -65,3 +65,5 @@
 [完整契约](v5/contract.md)继承 D-086 已接受 v4 的 73 条、十三服务操作及九项和 SL3 结算/恢复，仅将 MR4 精确依赖换为 [MR5 candidate](../../data/model-response/v5/contract.md)。同次 send 的公共可选 rawHeaders 经 invoke 未结算结果交到完整响应，保留已取得且留存的 string／有序 string[] 原值；取消和读体失败不擦掉事实，头不进入内容门、观察者或诊断。[规范实例](v5/examples.md#v5-增量同次响应头的交接与留存)、[消费者传播](v5/consumer-impact.md)、[形式继承边界](v5/formal/README.md)与[证据义务](verification.md#v5-候选变化与证据)分别维护。
 
 MR5/RT5 尚未接受；旧提供者与任何消费者均不自动升级。G-31 仅有候选表示/交接，core 公开接收、transport/runtime/codec 投影、全部真实写方和 TLS→invoke→append/reopen 仍待。四 TLA、十九配置逐字继承，六任务仅登记未运行，不能证明头事实留存或实际停止；其余原缺口保持。
+
+2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v6；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。

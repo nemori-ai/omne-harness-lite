@@ -110,3 +110,5 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 ## RT5来源政策与头交接采用（2026-09-28）
 
 [D-095](../../../../record/decisions/model-credential-path-adoption/decision.md)精确采用[v6-credential-path-design rev3](v6-credential-path-design.md)，消费已接受RT5/MR5并复用D093完整纯政策。文件v6不是RT6采用；实际实现/CP-V及PH-V/TLS收口尚待，新增bindings0。
+
+2026-09-28：[D-098](../../../../record/decisions/model-input-limit-provider-adoption/decision.md)完成独立架构复评后的分段技术采用；精确范围见决定。MP4 已由 D-097 接受，其余消费者已由 D-099 接受；起草状态文字保留，实施和验证仍须单独交付。

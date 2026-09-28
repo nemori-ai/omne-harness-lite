@@ -70,3 +70,5 @@
 ## 2026-09-28 v4 候选
 
 [v4 契约](v4/contract.md)继承 v3 的 52 条款，新增 [S-53](v4/contract.md#s-53-失败结论的模型调用关联) 与 [S-54](v4/contract.md#s-54-重试结论历史与回放)，消费 LC5/MS5/MR6/RT6；两个操作、失败集合和先落后算保持。[规范场景](v4/examples.md#12-v4失败结论关联完整历史与提交后回放)、[形式工件](v4/formal/README.md)、[变化与证据](verification.md#v4-候选完整失败历史)可分别展开。候选尚未接受，不改 v2/v3 冻结工件，不自动迁移旧消费者；登记片段由主线统一合入 registry。
+
+2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v4；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
