@@ -401,6 +401,8 @@ describe('real model service retry and control', () => {
       const beforeServerRelease = await logKeys(app, who, session)
       expect(kinds(beforeServerRelease, callId).filter(kind => kind === 'intent')).toHaveLength(1)
       expect(kinds(beforeServerRelease, other)).toHaveLength(0)
+      await tls.socketClosed.promise
+      expect(tls.closedSockets()).toBeGreaterThan(0)
       release.resolve()
       expect(await dispatch).toMatchObject({ settled: { outcome: 'interrupted' } })
       expect(tls.requests).toHaveLength(1)
@@ -450,6 +452,8 @@ describe('real model service retry and control', () => {
         throw new Error(`speaking interrupt did not hand off reply: ${JSON.stringify(result)}`)
       expect(result.replyPending.outcome).toBe('interrupted')
       expect(result.replyPending).toMatchObject({ initiator: 'user' })
+      await tls.socketClosed.promise
+      expect(tls.closedSockets()).toBeGreaterThan(0)
       expect(
         await service.settleReply({
           session,
