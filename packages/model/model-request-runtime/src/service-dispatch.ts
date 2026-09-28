@@ -7,6 +7,7 @@ import { validate as loopShape, type RetryPlan } from '@omne-harness-lite/loop-e
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { createAnchoredModelInvocation } from './anchored-invocation.ts'
+import { createModelObserverQueue } from './service-observer-queue.ts'
 import { resolveCallTools } from './call-tools.ts'
 import { dispatchGuard, type DispatchGuardPhase } from './dispatch-guard.ts'
 import { UnknownAppendTracker } from './service-calls.ts'
@@ -28,6 +29,8 @@ import type {
   DispatchAgainResult,
   RuntimeConstruction,
   SessionRuntimeBinding,
+  ModelObserverQueue,
+  ObserverDiagnostic,
 } from './service-types.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
@@ -234,6 +237,27 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
   const unknownWrites = new UnknownAppendTracker()
   let closing = false
 
+  function observerDiagnostic(event: ObserverDiagnostic): void {
+    try {
+      runtime.policy.diagnostic({
+        kind: 'model_observer.delivery',
+        detail: {
+          session: event.session,
+          tenant: { organization: event.tenant.organization, account: event.tenant.account },
+          callId: event.callId,
+          dispatch: event.dispatch,
+          stage: event.stage,
+          reason: event.reason,
+          bufferedEvents: event.bufferedEvents,
+          bufferedBytes: event.bufferedBytes,
+          ...(event.position === undefined ? {} : { position: event.position }),
+        },
+      })
+    } catch {
+      // A diagnostic sink cannot change the model settlement or delivery owner.
+    }
+  }
+
   async function retire(reservation: CallReservation<P, R>): Promise<void> {
     const container = runtime.calls.find(reservation.key)
     if (container === undefined) return
@@ -278,6 +302,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     if ('unavailable' in gate) return { unavailable: true }
     const reservation = gate.reservation
     let handle: ReturnType<typeof createAnchoredModelInvocation<P, R>> | undefined
+    let observerQueue: ModelObserverQueue | undefined
     let dispatchNumber = 0
     try {
       if (closing) return { runtimeStopped: true }
@@ -315,6 +340,8 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       if (!('allowed' in admission)) return admission
       if (local === undefined) return { unavailable: true }
       if (local.operation.phase !== 'ready') return { unavailable: true }
+      if (local.request.host.signal.aborted || local.request.host.stopping())
+        return { runtimeStopped: true }
       // A Run call cannot be inferred from a missing attempt, or vice versa.
       if (input.attempt !== undefined) return { invalidInput: { reason: 'malformed' } }
       const prepared = await prepareSend(
@@ -357,6 +384,58 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             }
       }
       const { planInput, credential, credentialScope, policy } = prepared.prepared
+      if (local.observer !== undefined) {
+        const observer = local.observer
+        const target = planInput.target
+        let checked: ReturnType<typeof observer.authorization.check>
+        try {
+          checked = observer.authorization.check(target)
+        } catch {
+          return { unavailable: true }
+        }
+        if (!('valid' in checked) || checked.valid !== true)
+          return 'invalidInput' in checked ? checked : { unavailable: true }
+        let opening:
+          | Exclude<ReturnType<typeof observer.authorization.open>, { readonly receiver: object }>
+          | undefined
+        const replaced = await reservation.replaceObserverQueue(() => {
+          let opened: ReturnType<typeof observer.authorization.open>
+          try {
+            opened = observer.authorization.open(target)
+          } catch {
+            opening = { unavailable: true }
+            throw new Error('observer open unavailable')
+          }
+          if (!('receiver' in opened)) {
+            opening = opened
+            throw new Error('observer open rejected')
+          }
+          return createModelObserverQueue({
+            scope: { session: key.session, tenant: session.log.tenant, target },
+            authorization: observer.authorization,
+            receiver: opened.receiver,
+            maxBufferedEvents: observer.request.observer_max_buffered_events,
+            maxBufferedBytes: observer.request.observer_max_buffered_bytes,
+            diagnostic: observerDiagnostic,
+          })
+        })
+        if ('queue' in replaced) observerQueue = replaced.queue
+        else if (opening !== undefined)
+          return 'invalidInput' in opening ? opening : { unavailable: true }
+        else if (observer.queue === undefined) return { unavailable: true }
+        else
+          observerDiagnostic({
+            session: key.session,
+            tenant: session.log.tenant,
+            callId: key.callId,
+            dispatch: admission.dispatch,
+            stage: 'offer',
+            reason: 'consumer_failed',
+            bufferedEvents: 0,
+            bufferedBytes: 0,
+          })
+      }
+      const deliveryQueue = observerQueue
       const create = () =>
         createAnchoredModelInvocation({
           planInput,
@@ -364,7 +443,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           credential,
           credentialScope,
           policy,
-          signal: local.binding.lease.signal,
+          signal: AbortSignal.any([local.binding.lease.signal, local.request.host.signal]),
           responseId: runtime.identities.response(),
           messageId: runtime.identities.message(),
           profile: local.binding.profile,
@@ -376,6 +455,9 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             settlementScheduler: runtime.settlementScheduler,
             diagnostic: runtime.diagnostic,
           },
+          ...(deliveryQueue === undefined
+            ? {}
+            : { onAccepted: (event, snapshot) => void deliveryQueue.offer(event, snapshot) }),
         })
       if (local.invocation === undefined) {
         handle = create()
@@ -387,6 +469,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       }
       const attached = handle
       reservation.publish({ phase: 'dispatching', abort: attached.abort })
+      observerQueue?.start(attached.snapshot())
       dispatchNumber = admission.dispatch
     } catch {
       return { unavailable: true }

@@ -137,6 +137,9 @@ test('service dispatch writes both anchors before handing out a complete pending
     let failSend = false
     let evaluationReads = 0
     let credentialAvailable = true
+    const observed: unknown[] = []
+    let observerTargetAllowed = false
+    let observerOpenCount = 0
     const calls = createCallContainerStore<TestPlan, object>()
     const lifecycleHost = {
       signal: new AbortController().signal,
@@ -168,6 +171,30 @@ test('service dispatch writes both anchors before handing out a complete pending
         async lookup() {
           throw new Error('no tools requested')
         },
+      },
+      observers: {
+        authorize: () => ({
+          observer: {
+            check: () =>
+              observerTargetAllowed
+                ? { valid: true as const }
+                : { invalidInput: { reason: 'observer_scope_mismatch' as const } },
+            open: () => {
+              observerOpenCount++
+              return {
+                receiver: {
+                  receive(serialized: string) {
+                    observed.push(JSON.parse(serialized))
+                    return { completion: Promise.resolve(), stopped: Promise.resolve() }
+                  },
+                  stop() {},
+                  stopped: Promise.resolve(),
+                },
+              }
+            },
+            close: async () => ({ released: true as const }),
+          },
+        }),
       },
     }
     const runtime: RuntimeConstruction<TestPlan, object> = {
@@ -243,9 +270,25 @@ test('service dispatch writes both anchors before handing out a complete pending
       messages: [],
       tools: [],
       host: lifecycleHost,
+      observer: {
+        session: host.session,
+        endpoint: {
+          open: () => {
+            throw new Error('authorized endpoint owns open')
+          },
+        },
+        observer_max_buffered_events: 16,
+        observer_max_buffered_bytes: 100_000,
+      },
     })
     expect(opened).toEqual({ callId: 'actual-call-1', state: 'open' })
     const dispatch = createServiceDispatch(runtime)
+    expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })).toEqual({
+      invalidInput: { reason: 'observer_scope_mismatch' },
+    })
+    expect(sendCount).toBe(0)
+    expect(observerOpenCount).toBe(0)
+    observerTargetAllowed = true
     const result = await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })
     const read = await host.log.readSince(host.session, 0)
     if (!('entries' in read)) throw new Error('log read')
@@ -257,8 +300,17 @@ test('service dispatch writes both anchors before handing out a complete pending
     ])
     expect(result).toHaveProperty('replyPending')
     expect(wire.sends()).toBe(1)
-    expect(evaluationReads).toBe(1)
+    expect(evaluationReads).toBe(2)
     expect(sendCount).toBe(1)
+    expect(observerOpenCount).toBe(1)
+    expect(observed[0]).toMatchObject({
+      kind: 'snapshot',
+      scope: {
+        session: host.session,
+        target: { kind: 'model_call', callId: 'actual-call-1', dispatch: 1 },
+      },
+    })
+    expect(JSON.stringify(observed)).not.toContain('rawHeaders')
     expect(
       calls.find({ session: host.session, callId: 'actual-call-1' })?.view().operation.phase,
     ).toBe('reply_pending')
@@ -331,7 +383,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     })
     expect(retry).toHaveProperty('replyPending')
     expect(sendCount).toBe(3)
-    expect(evaluationReads).toBe(5)
+    expect(evaluationReads).toBe(6)
     const afterRetry = await host.log.readSince(host.session, 0)
     if (!('entries' in afterRetry)) throw new Error('log read')
     expect(afterRetry.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
@@ -370,7 +422,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       unavailable: true,
     })
     expect(sendCount).toBe(3)
-    expect(evaluationReads).toBe(5)
+    expect(evaluationReads).toBe(6)
     selected.owner.openedState = { confirmed: true }
     expect(
       await opening.openCall({
