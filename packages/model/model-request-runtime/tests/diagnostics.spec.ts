@@ -71,8 +71,11 @@ function fixture(
         timedOutQueries: 0,
         queryCloseFailures: 0,
         expired: 0,
+        expiredBytes: 0,
         evicted: 0,
+        evictedBytes: 0,
         retainedBytes: 0,
+        retainedRecords: 0,
         retainedSegments: 0,
         coverage: 'complete',
       }
@@ -365,6 +368,11 @@ describe('diagnostic collector', () => {
   it('rejects illegal construction limits instead of creating an unbounded collector', () => {
     const valid = fixture()
     expect(valid.collector.health().writeState).toBe('open')
+    expect(valid.collector.health()).toMatchObject({
+      retainedRecords: 0,
+      expiredBytes: 0,
+      evictedBytes: 0,
+    })
     expect(() => fixture({ maxFieldBytes: 0 })).toThrow('invalid diagnostic configuration')
   })
 

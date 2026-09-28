@@ -979,8 +979,11 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
       pendingSinks: sinkTasks.size + sinkQueue.length,
       ...counters,
       expired: store?.expired ?? 'unknown',
+      expiredBytes: store?.expiredBytes ?? 'unknown',
       evicted: store?.evicted ?? 'unknown',
+      evictedBytes: store?.evictedBytes ?? 'unknown',
       retainedBytes: store?.retainedBytes ?? 'unknown',
+      retainedRecords: store?.retainedRecords ?? 'unknown',
       retainedSegments: store?.retainedSegments ?? 'unknown',
       ...(store?.oldestAvailableSequence
         ? { oldestAvailableSequence: store.oldestAvailableSequence }
