@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { isJsonNumber, writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
+import { imageSize } from 'image-size'
 import { Tiktoken } from 'js-tiktoken/lite'
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
@@ -11,6 +12,69 @@ import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 // https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b
 const artifactSha256 = '58dad83d85e9cd57be209172449ebfbc395df2b455c11fe8b7e5b661e6f462ad'
 const artifact = new URL('../../tokenizers/anthropic-legacy/claude.json', import.meta.url)
+const dataUrl =
+  /^data:(image\/(?:png|jpeg|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
+const highResolutionEdge = 2576
+const highResolutionVisualTokens = 4784
+
+function expectedImageType(mime: string): string | undefined {
+  switch (mime) {
+    case 'image/png':
+      return 'png'
+    case 'image/jpeg':
+      return 'jpg'
+    case 'image/webp':
+      return 'webp'
+    case 'image/gif':
+      return 'gif'
+    default:
+      return undefined
+  }
+}
+
+function visualTokens(width: number, height: number): number | undefined {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
+    return undefined
+  const patchTokens = (w: number, h: number): number => Math.ceil(w / 28) * Math.ceil(h / 28)
+  const fits = (w: number, h: number): boolean =>
+    Math.ceil(w / 28) * 28 <= highResolutionEdge &&
+    Math.ceil(h / 28) * 28 <= highResolutionEdge &&
+    patchTokens(w, h) <= highResolutionVisualTokens
+  if (fits(width, height)) return patchTokens(width, height)
+
+  // Anthropic's published resize reference searches the longest edge for the
+  // largest aspect-preserving size satisfying both limits. Its private image
+  // preprocessing and OpenRouter conversion still make this an estimate.
+  const longEdge = Math.max(width, height)
+  const shortEdge = Math.min(width, height)
+  const aspect = longEdge / shortEdge
+  let lo = 1,
+    hi = longEdge
+  while (lo + 1 < hi) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (fits(mid, Math.max(Math.round(mid / aspect), 1))) lo = mid
+    else hi = mid
+  }
+  const resized = Math.max(Math.round(lo / aspect), 1)
+  return patchTokens(lo, resized)
+}
+
+function imageTokens(part: JsonObject): number | undefined {
+  if (Object.keys(part).some(key => key !== 'type' && key !== 'image_url')) return undefined
+  const image = part.image_url
+  if (!object(image) || Object.keys(image).some(key => key !== 'url')) return undefined
+  const match = typeof image.url === 'string' ? dataUrl.exec(image.url) : null
+  if (!match?.[1] || !match[2]) return undefined
+  const decoded = Buffer.from(match[2], 'base64')
+  if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
+  try {
+    const dimensions = imageSize(decoded)
+    if (dimensions.type !== expectedImageType(match[1])) return undefined
+    return visualTokens(dimensions.width, dimensions.height)
+  } catch {
+    return undefined
+  }
+}
 
 function legacyEncoder(): Tiktoken {
   const bytes = readFileSync(artifact)
@@ -61,7 +125,11 @@ const messageFields = new Set([
   'reasoning_details',
 ])
 
-function supportedTextBody(body: JsonObject, ttlValues: ReadonlySet<string>): boolean {
+function supportedInputBody(
+  body: JsonObject,
+  ttlValues: ReadonlySet<string>,
+  images: Map<JsonObject, number>,
+): boolean {
   if (
     Object.keys(body).some(
       key => key !== 'messages' && key !== 'tools' && !requestControls.has(key),
@@ -152,6 +220,12 @@ function supportedTextBody(body: JsonObject, ttlValues: ReadonlySet<string>): bo
     if (typeof message.content === 'string') continue
     if (!Array.isArray(message.content)) return false
     for (const part of message.content) {
+      if (object(part) && part.type === 'image_url') {
+        const tokens = message.role === 'user' ? imageTokens(part) : undefined
+        if (tokens === undefined) return false
+        images.set(part, tokens)
+        continue
+      }
       if (
         !object(part) ||
         part.type !== 'text' ||
@@ -184,13 +258,13 @@ function supportedModel(modelId: string): boolean {
   }
 }
 
-/** Four exact Anthropic routes share one legacy Claude BPE, strictly as a rough estimate. */
+/** Four exact Anthropic routes share one narrow estimated-input implementation. */
 export function createAnthropicInputMeter(definition: ModelDefinition): InputMeter {
   if (
     !supportedModel(definition.modelId) ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:anthropic' ||
-    definition.implementation.revision !== 'mp4-3' ||
+    definition.implementation.revision !== 'mp4-4' ||
     !Object.hasOwn(definition.routes, 'anthropic')
   )
     throw new TypeError('unsupported Anthropic input-meter binding')
@@ -203,38 +277,47 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'anthropic',
-    algorithmRevision: 'anthropic-legacy-claude-bpe-input-projection-3',
+    algorithmRevision: 'anthropic-legacy-bpe-plus-vision-patches-4',
     evidence:
-      'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation; final OpenRouter messages/tool input projected without routing/generation/cache controls; Claude 5 and private chat formatting remain uncertain; image and encrypted reasoning replay unavailable',
+      'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation for text; Anthropic Vision https://platform.claude.com/docs/en/build-with-claude/vision high-resolution 28px patches / 2576px edge / 4784 visual-token ceiling for Claude 4.7+; final OpenRouter messages/tools/images projected without routing/generation/cache controls; private conversion and Claude 5 text framing uncertain; encrypted reasoning replay unavailable',
     measure({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
-      if (!Array.isArray(body.messages) || !supportedTextBody(body, ttlValues))
+      const images = new Map<JsonObject, number>()
+      if (!Array.isArray(body.messages) || !supportedInputBody(body, ttlValues, images))
         return { kind: 'unavailable' }
       try {
         // The archived first-party implementation applies NFKC and permits its
         // own special tokens. Keep all supported input-bearing final-wire fields.
         // Cache markers select reuse of the same text; their TTL is not prompt
         // text. This JSON shape approximates the private prompt format.
+        let visualTotal = 0
         const messages = body.messages.map(message => {
           if (!object(message) || !Array.isArray(message.content)) return message
           return {
             ...message,
-            content: message.content.map(part =>
-              object(part) && part.type === 'text' && typeof part.text === 'string'
-                ? { type: 'text', text: part.text }
-                : part,
-            ),
+            content: message.content.map(part => {
+              if (!object(part)) return part
+              if (part.type === 'text' && typeof part.text === 'string')
+                return { type: 'text', text: part.text }
+              if (part.type === 'image_url') {
+                const tokens = images.get(part)
+                if (tokens === undefined) throw new Error('validated Anthropic image missing')
+                visualTotal += tokens
+                return { type: 'image_url', image_url: { url: '[image]' } }
+              }
+              return part
+            }),
           }
         })
         const projected = {
           messages,
           ...(body.tools === undefined ? {} : { tools: body.tools }),
         }
-        const tokens = tokenizer.encode(
-          writeJsonLossless(projected).normalize('NFKC'),
-          'all',
-        ).length
+        const tokens =
+          tokenizer.encode(writeJsonLossless(projected).normalize('NFKC'), 'all').length +
+          visualTotal
+        if (!Number.isSafeInteger(tokens)) return { kind: 'unavailable' }
         return { kind: 'estimated', tokens }
       } catch {
         return { kind: 'unavailable' }

@@ -91,7 +91,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
     for (const modelId of modelIds) {
       const meter = createAnthropicInputMeter(definition(modelId))
       expect(meter).toMatchObject({ modelId, definitionRevision: '1', provider: 'anthropic' })
-      expect(meter.algorithmRevision).toBe('anthropic-legacy-claude-bpe-input-projection-3')
+      expect(meter.algorithmRevision).toBe('anthropic-legacy-bpe-plus-vision-patches-4')
       expect(meter.evidence).toContain('very rough approximation')
     }
     expect(() =>
@@ -324,10 +324,69 @@ describe('four exact Anthropic projected-input rough estimates', () => {
     }
   })
 
-  it('refuses image and unknown content blocks before final token admission', () => {
+  it('matches the published high-resolution visual-token example plus independent BPE frame', () => {
+    const image = readFileSync(
+      new URL('./fixtures/anthropic/reference-green-1920x1080.png', import.meta.url),
+    )
     for (const model of modelIds) {
       const body = {
         model,
+        provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: { url: `data:image/png;base64,${image.toString('base64')}` },
+              },
+            ],
+          },
+        ],
+      }
+      // Anthropic Vision: 1920x1080 high-resolution = 2691 patches;
+      // @anthropic-ai/tokenizer 0.0.4: projected frame with [image] = 27.
+      expect(measuredTokens(model, body)).toBe(2718)
+    }
+  })
+
+  it('uses the first GIF frame and refuses a false image MIME declaration', () => {
+    const image = readFileSync(
+      new URL('./fixtures/anthropic/reference-single-frame.gif', import.meta.url),
+    )
+    const url = `data:image/gif;base64,${image.toString('base64')}`
+    for (const model of modelIds) {
+      const body = {
+        model,
+        provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
+        messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url } }] }],
+      }
+      expect(measuredTokens(model, body)).toBe(28)
+      const wrongMime = {
+        ...body,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: url.replace('image/gif', 'image/png') } },
+            ],
+          },
+        ],
+      }
+      expect(
+        createAnthropicInputMeter(definition(model)).measure({
+          body: wrongMime,
+          serialized: writeJsonLossless(wrongMime),
+        }),
+      ).toEqual({ kind: 'unavailable' })
+    }
+  })
+
+  it('refuses malformed image, unsupported media and unknown content blocks', () => {
+    for (const model of modelIds) {
+      const body = {
+        model,
+        provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
         messages: [
           {
             role: 'user',
@@ -339,6 +398,16 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         createAnthropicInputMeter(definition(model)).measure({
           body,
           serialized: writeJsonLossless(body),
+        }),
+      ).toEqual({ kind: 'unavailable' })
+      const unknown = {
+        ...body,
+        messages: [{ role: 'user', content: [{ type: 'audio_url', audio_url: { url: 'x' } }] }],
+      }
+      expect(
+        createAnthropicInputMeter(definition(model)).measure({
+          body: unknown,
+          serialized: writeJsonLossless(unknown),
         }),
       ).toEqual({ kind: 'unavailable' })
     }
@@ -421,7 +490,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       basis: 'estimated',
       metric: 'maxInputTokens',
     })
-    const inline = readFileSync(new URL('./fixtures/openai-meter/1x1.png', import.meta.url))
+    const inline = readFileSync(new URL('./fixtures/anthropic/reference-1x1.png', import.meta.url))
     const visual = judgedMessage({
       type: 'user',
       id: 'visual',
@@ -436,16 +505,15 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         },
       ],
     })
-    const imageRefusal = planRequest(
+    const imagePlan = planRequest(
       { ...input, messages: [...input.messages, visual] },
       [selected],
       meter,
     )
-    expect(imageRefusal).toMatchObject({
-      rejected: 'invalidInput',
-      reason: 'input_size_unavailable',
-      metrics: ['maxInputTokens'],
-    })
+    if ('rejected' in imagePlan) throw new Error(JSON.stringify(imagePlan))
+    expect(imagePlan.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+    expect(imagePlan.planned.inputLimitEvidence.images).toBe(1)
+    expect(imagePlan.planned.inputLimitEvidence.imageBytes).toEqual([inline.byteLength])
     const encryptedReplay = judgedMessage({
       type: 'assistant',
       id: 'opaque-assistant',
@@ -551,6 +619,21 @@ describe('four exact Anthropic projected-input rough estimates', () => {
           },
         ],
       })
+      const image = readFileSync(new URL('./fixtures/anthropic/reference-1x1.png', import.meta.url))
+      const visual = judgedMessage({
+        type: 'user',
+        id: 'prior-visual',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'prior-image',
+            kind: 'image',
+            mediaType: 'image/png',
+            data: { inline: image.toString('base64') },
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+      })
       const base = testInput()
       const input: PlanInput = {
         ...base,
@@ -561,6 +644,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         tools: [tool],
         messages: [
           ...base.messages,
+          visual,
           assistant,
           toolResult,
           message('user', 'And tomorrow?', 'tomorrow'),
@@ -639,6 +723,15 @@ describe('four exact Anthropic projected-input rough estimates', () => {
             { role: 'system' },
             { role: 'user' },
             { role: 'user' },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: `data:image/png;base64,${image.toString('base64')}` },
+                },
+              ],
+            },
             { role: 'assistant', tool_calls: [{ id: 'call_1' }] },
             { role: 'tool', tool_call_id: 'call_1', content: 'Sunny in Paris' },
             {
