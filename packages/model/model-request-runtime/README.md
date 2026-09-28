@@ -24,6 +24,11 @@ The current implementation contains standalone invocation, pure policy functions
 | `createSessionModelSelection(input)` | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup |
 | `interpretCallHistory({ prefix, callId })` | Interpret one no-Run call from a complete, owned SL3 prefix with the current `mrr/3` codec; incomplete or Run history remains unavailable |
 | `projectCallState({ session, callId, history, local? })` | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it |
+| `ModelRuntimeService`, `RuntimeConstruction` and operation input/result types | Explicit thirteen-operation service contract and required host ports; the type contract does not itself install a running service |
+| `createCallContainerStore()` | Process-owned per-session/call resources and bounded, cancellable short reservations |
+| `createRuntimeReads(construction)` | Six selection and history methods plus `close()` for borrowed-provider ownership |
+| `createServiceCalls(construction)`, `createServiceControl(construction)` | Independent call and control method composers for the shared runtime assembly |
+| `createRuntimeSettleReply(input)`, `createRuntimeReconcile(input)` | Original-handle reply disposition and read-only recovery consumers; reconciliation currently recognizes only already-settled no-Run calls |
 
 ## Cordis service assembly under development
 
@@ -63,7 +68,25 @@ The internal `createCallContainerStore().waitReserve(...)` takes an explicit pos
 
 The service host supplies distinct `call()`, `response()` and `message()` identity sources. The reply's `MessageId` comes from `message()` for that send; it is neither copied from the `ResponseId` nor chosen by the adapter.
 
-Each new plan requires a complete `tokenMargin: { multiplier, reserveTokens }` supplied by the host or direct caller. The runtime captures it for that plan and never supplies a default. An estimated token limit rejection retains `basis: 'estimated'`, `estimatedTokens`, `admissionTokens` and `limit`; an exact excess retains `basis: 'exact'`, `actual` and `limit`. Neither estimate is upstream usage or cost. See the adopted [RT8 input limit contract](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划) and [runtime v9 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md).
+Each new plan requires a complete `tokenMargin: { multiplier, reserveTokens }` supplied by the host or direct caller. The runtime captures it for that plan and never supplies a default. Missing applicable profile caps or upstream input-limit facts reject as `input_limit_missing` before a new anchor or HTTP request. An estimated token limit rejection retains `basis: 'estimated'`, `estimatedTokens`, `admissionTokens` and `limit`; an exact excess retains `basis: 'exact'`, `actual` and `limit`. Neither estimate is upstream usage or cost. See the adopted [RT8 input limit contract](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划) and [runtime v9 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md).
+
+The read composer owns its borrowed selection providers until its `close()` actually releases them. Pass an explicit `RuntimeConstruction` from the host; it supplies authorized same-session bindings and the required policies.
+
+```ts
+import { createRuntimeReads } from '@omne-harness-lite/model-request-runtime'
+import type { SessionRef } from '@omne-harness-lite/messages'
+
+export async function inspectEffectiveModel(
+  construction: Parameters<typeof createRuntimeReads>[0],
+  session: SessionRef,
+) {
+  const reads = createRuntimeReads(construction)
+  const result = await reads.methods.effectiveModel({ session })
+  const closed = await reads.close()
+  // Keep reads and its borrowed providers if closed is unavailable; retry after actual stop.
+  return { result, closed, reads }
+}
+```
 
 ## Read a call without promoting local state to durable fact
 
@@ -196,7 +219,7 @@ The function copies and validates JSON data without reading getters, leaves call
 
 ## Decide a bounded default retry
 
-`decideRetry` consumes the complete LC4 failure subject and explicit backoff inputs. It returns the LC4 `retry` or `observed` result, or a rejection. It performs no waiting or sending; an actual retry still needs `dispatchGuard` and the durable call service. The policy values below are caller choices, not runtime defaults.
+`decideRetry` consumes the complete LC6 failure subject, including its per-call `retryConclusions`, and explicit backoff inputs. It returns the LC6 `retry` or `observed` result, or a rejection. It performs no waiting or sending; an actual retry still needs `dispatchGuard` and the durable call service. The policy values below are caller choices, not runtime defaults.
 
 ```ts
 import { decideRetry } from '@omne-harness-lite/model-request-runtime'
@@ -211,7 +234,7 @@ export function chooseRetry(subject: AfterModelCallFailureSubject) {
 }
 ```
 
-This implementation is incomplete for a no-fallback call with multiple sends to the same provider: the current failure subject cannot distinguish a runtime-loss continuation from an already-used retry. It returns `unavailable` instead of inferring either outcome. Complete P-5 integration remains pending.
+The no-fallback branch counts the default extension's recorded conclusions, so a same-provider continuation does not spend its one default retry. If the complete conclusion history cannot be established, the consumer must return `unavailable` rather than invent one. Complete P-5 integration remains pending.
 
 ## Capture, prepare and recognize log values
 

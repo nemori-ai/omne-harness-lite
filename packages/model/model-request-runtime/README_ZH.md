@@ -20,6 +20,11 @@
 | `createSessionModelSelection(input)` | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口 |
 | `interpretCallHistory({ prefix, callId })` | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
 | `projectCallState({ session, callId, history, local? })` | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任 |
+| `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型 | 十三操作的显式服务契约与必需宿主端口；类型契约本身不安装可运行服务 |
+| `createCallContainerStore()` | 按会话和调用持有进程资源，以及有界、可取消的短 reservation |
+| `createRuntimeReads(construction)` | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()` |
+| `createServiceCalls(construction)`、`createServiceControl(construction)` | 面向共享 runtime 装配的独立调用与控制方法组合件 |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)` | 原句柄回复处分与只读恢复消费者；对账目前只认回已结算且不属于 Run 的调用 |
 
 ## 仍在集成的 Cordis 服务装配
 
@@ -59,7 +64,25 @@ export async function installRuntime(
 
 服务宿主分别提供 `call()`、`response()` 和 `message()` 身份来源。回复的 `MessageId` 在那次发送时由 `message()` 产生，不复用 `ResponseId`，也不交由适配器自定。
 
-每次新规划都要求宿主或直接调用者完整给出 `tokenMargin: { multiplier, reserveTokens }`；运行时为该计划捕获它，不补默认值。估算超门拒绝保留 `basis: 'estimated'`、`estimatedTokens`、`admissionTokens` 和 `limit`；准确超限保留 `basis: 'exact'`、`actual` 和 `limit`。估算值不是上游实际 usage 或费用。采用依据见 [RT8 输入上限契约](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划)及 [runtime v9 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md)。
+每次新规划都要求宿主或直接调用者完整给出 `tokenMargin: { multiplier, reserveTokens }`；运行时为该计划捕获它，不补默认值。适用档案上限或上游输入限制事实缺失时，以 `input_limit_missing` 拒绝，不写新锚点、不发 HTTP。估算超门拒绝保留 `basis: 'estimated'`、`estimatedTokens`、`admissionTokens` 和 `limit`；准确超限保留 `basis: 'exact'`、`actual` 和 `limit`。估算值不是上游实际 usage 或费用。采用依据见 [RT8 输入上限契约](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划)及 [runtime v9 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md)。
+
+读面组合件在 `close()` 真正释放之前持有借用的选择提供者。由宿主显式传入 `RuntimeConstruction`，其中包含同会话的授权绑定与必需政策。
+
+```ts
+import { createRuntimeReads } from '@omne-harness-lite/model-request-runtime'
+import type { SessionRef } from '@omne-harness-lite/messages'
+
+export async function inspectEffectiveModel(
+  construction: Parameters<typeof createRuntimeReads>[0],
+  session: SessionRef,
+) {
+  const reads = createRuntimeReads(construction)
+  const result = await reads.methods.effectiveModel({ session })
+  const closed = await reads.close()
+  // close 不可用时继续持有 reads 及其借用提供者，待实际停止后重试。
+  return { result, closed, reads }
+}
+```
 
 ## 读取调用，不把本地状态当作耐久事实
 
@@ -534,7 +557,7 @@ export async function initializeExplicitSelection(
 
 ## 默认重试的有限决策
 
-`decideRetry` 消费完整 LC4 失败主体和显式退避输入，返回 LC4 的 `retry`／`observed` 或拒绝值。它不等待、不发送；实际再发仍须经过 `dispatchGuard` 和耐久调用服务。下面的政策值由调用者明确选择，不是 runtime 默认值。
+`decideRetry` 消费完整 LC6 失败主体（包括按调用归属的 `retryConclusions`）和显式退避输入，返回 LC6 的 `retry`／`observed` 或拒绝值。它不等待、不发送；实际再发仍须经过 `dispatchGuard` 和耐久调用服务。下面的政策值由调用者明确选择，不是 runtime 默认值。
 
 ```ts
 import { decideRetry } from '@omne-harness-lite/model-request-runtime'
@@ -549,7 +572,7 @@ export function chooseRetry(subject: AfterModelCallFailureSubject) {
 }
 ```
 
-不允许回退且同一家已有多次发出时，当前失败主体无法区分运行时失联后的续接与已用掉的一次重试。因此本实现返回 `unavailable`，不猜测是否试尽；完整 P-5 接线仍待完成。
+不允许回退时，本纯函数依据默认扩展已经记录的结论计数；同厂商续接不消耗那一次默认重试。若消费者不能取得完整结论历史，须返回 `unavailable`，不能补造结论；完整 P-5 接线仍待完成。
 
 
 ## 在耐久调用中携带工具

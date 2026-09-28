@@ -61,7 +61,21 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
   it('uses the stored original handle and recognizes the settled disposition after container removal', async () => {
     await controlled(
       'service-settle-original-handle',
-      async ({ binding, owner, coordinator, submissions }) => {
+      async ({ binding, owner, wrap, submissions }) => {
+        const unknownReceipt: SessionLog = {
+          ...binding.log,
+          async append(...args) {
+            await binding.log.append(...args)
+            return { failure: 'unavailable' }
+          },
+        }
+        const coordinator = createSettlementCoordinator({
+          binding: wrap(unknownReceipt),
+          owner,
+          settlementContention: policy(),
+          settlementScheduler: noWaitScheduler,
+          diagnostic() {},
+        })
         const calls = createCallContainerStore<PlannedSemantics, never>()
         let released = 0
         let recoveryCloses = 0
@@ -126,15 +140,19 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
             },
           },
         })
+        expect(await settleReply(vetoed)).toEqual({ unavailable: true })
+        expect(container.view().operation.phase).toBe('reply_pending')
+        expect(released).toBe(0)
+        expect(calls.find({ session, callId: 'call' })).toBe(container)
         expect(await settleReply(vetoed)).toEqual({ callId: 'call', state: 'complete' })
-        expect(invocations).toBe(1)
+        expect(invocations).toBe(2)
         expect(released).toBe(1)
         expect(calls.find({ session, callId: 'call' })).toBeUndefined()
         expect(await settleReply(vetoed)).toEqual({ callId: 'call', state: 'complete' })
         expect(
           await settleReply({ ...vetoed, disposition: { consumed: { by: 'side_query' } } }),
         ).toEqual({ alreadyEnded: true })
-        expect(invocations).toBe(1)
+        expect(invocations).toBe(2)
         expect(recoveryCloses).toBe(2)
         expect(submissions.map(item => item.count)).toEqual([2, 1])
       },
