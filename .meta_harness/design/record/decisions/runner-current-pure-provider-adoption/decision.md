@@ -17,3 +17,11 @@
 新包须有公开入口、严格类型、build/typecheck/test、README与README_ZH及可运行示例。验收至少覆盖键编码碰撞及非法输入、完整值/壳关联、MessageId冲突、非法runner标记、完整前缀与有序重复结论、空链/observed原主体、rewrite/select_model和控制效果；程序不可获取时钟、随机、网络或隐藏存储。消费者跨包仅用公开入口。无旧格式兼容分流。
 
 新增bindings0。源码实施、真实日志往返、制品消费者与所有V5义务仍按实际运行分别核对；此记录不宣布节点完整实现或服务验收通过。
+
+## 2026-09-28 追加：core 纯主体入口技术采用
+
+主线依本决定同一用户实施与技术验收委托，现技术采用 [core/loop-extension v7 纯主体增补](../../../realization/packages/core/loop-extension/v7-subject-judgment-design.md)，精确 SHA256 `53573d393e7fa61afdeb7d6d5abe3aaac93e2703626ced3214fda3835e7fd3a5`。依据为既有[模型适配提案](../../proposals/model-request-adaptation/design.md)及该提案[本次独立窄评与处置](../../proposals/model-request-adaptation/review.md)。实现反例是 runner 候选885ac84f的composeEffect为复用完整判定而制造固定执行壳；选定两完整公共纯判断入口复用同一个私有判定流水线，避免复制规则或制造执行事实。
+
+释放 `judgePositionedSubject`、`judgeConclusionForSubject` 与 `ConclusionSubjectInputs` 公共纯面，以及 runner 删除固定Run/log/environment/attempt并直接消费它们。仅抽取现有core检查；不迁移LC6 S-14生产者/runner batch/result来源关联责任，不修改LC6规范/Schema，原完整judgeInput/judgeConclusion仍保留真实完整输入前提及既有错误顺序。新增绑定0，不新增Cordis服务、运行身份或存储。精确旧规范依赖不自动升级，故本次无registry契约冻结变化。
+
+独立architecture-reviewer完成原稿及最终窄复核，无该范围剩余阻断；主线核对最终SHA、公共签名和责任范围后接受施工，候选正文的原“未采用”保留为起草时事实，以此追加限定当前采用。两入口及runner消费者必须完成SV-1～6、既有回归、严格类型、真实制品和双语示例，才能分别记实现与验证完成。完整runner、Run来源及G28等此前保留项仍未关闭。

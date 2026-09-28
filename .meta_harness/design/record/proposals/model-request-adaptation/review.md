@@ -206,3 +206,9 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 revision2 SHA895e9e0df93e1dc3c5886584c83de8ccbfd41b101d005d44b8f270ac67a68ff6新增G3同prefix闭包与G5长期owner；两评审指出G5异值一律拒绝会误伤同锚合法竞争胜者（仅at不同亦触发）。revision3 SHA1a85cfa993a42dc721e39a68ce1492e474d1be96c25067a16561fa1975db7f13明确区分本提交认回与胜者采用，保留完整胜者及提醒副本、真实停止前未知责任，MessageId异值仍拒绝；两评审仅对该差异复核，无剩余本范围阻断。V5-12补对应正反与错误实现负控，尚未执行。
 
 G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5采用日志先实际关闭/恢复、owner后drain，避免循环等待。反论是严格比较防伪认回，但不应抹掉合法胜者；修订分支回应。真实runtime回调、日志宿主接线与P-5/G28仍未闭合。评审只读，未运行行为或形式工具，未自作接受；最终独立纯构件范围由D-106采用。
+
+## 2026-09-28 core 纯主体入口增补窄评
+
+独立 architecture-reviewer 对 core/loop-extension v7 候选 SHA eab0c2fd5dc94a0bbedb3dd107b3804558b02cfb8b1ab46e35d2053c065ed627 审阅：两完整纯判断入口复用私有内核、原完整输入入口保留前提的边界无阻断；发现候选将 LC6 S-14 原属生产者/runner 的 batch/result 关联纳入 core 等价口径。主线明确仅抽取现有 core 判断，不迁移该责任，保留原 immutable 改写结果检查。
+
+作者定点修订后 SHA 为 53573d393e7fa61afdeb7d6d5abe3aaac93e2703626ced3214fda3835e7fd3a5。独立同 reviewer 复核该精确字节：上一轮责任项已闭合，无新增阻断/非阻断；未执行测试或重审全树，SV-1～6及真实runner/来源验证仍待实施。两轮检查不替代技术采用；原评审/候选字节保留工作树记录，本段不宣称实现通过。

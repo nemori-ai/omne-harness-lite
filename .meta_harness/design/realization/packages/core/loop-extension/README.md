@@ -79,3 +79,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 - **可实施范围**：纯值层、完整重试结论、调用关联和现有消费者直接迁移的候选映射已列出；后继精确输入与 provider 采用未闭合前不作为施工授权。不增加 Cordis 服务、runner 或工具执行。
 - **绑定证据**：原 LC3 绑定 1 条不动，本候选新增 0 条；LV6-1～LV6-7 全部待验。
 - **实际验证**：本次只起草实现映射，未修改或验证 LC6 源码。旧 581 项不得重标；同会话完整历史及真实落盘仍为 runtime/runner 的外部义务。
+
+## 2026-09-28 纯主体判断增补采用
+
+[D-106追加](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)技术采用[v7纯主体增补](v7-subject-judgment-design.md)精确SHA 53573d393e7fa61afdeb7d6d5abe3aaac93e2703626ced3214fda3835e7fd3a5。只释放两个公共纯判断及共享私有流水线的施工，LC6与Schema不变，S-14外部责任不迁移。原完整输入入口不降低前提；源码/制品/SV-1～6尚待，新增绑定0，不提升完整runner服务状态。
