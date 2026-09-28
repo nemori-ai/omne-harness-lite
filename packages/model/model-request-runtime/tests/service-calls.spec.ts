@@ -178,6 +178,7 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
       },
     },
     reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+    tokenMargin: { multiplier: 1.25, reserveTokens: 8 },
     policy: { diagnostic() {} },
     identities: { call: () => `call_${++next}` },
     history: {
@@ -192,6 +193,7 @@ test('opens two distinct noRun calls against the actual empty JSONL prefix witho
     expect(first).toEqual({ callId: 'call_1', state: 'open' })
     expect(second).toEqual({ callId: 'call_2', state: 'open' })
     expect(planned).toHaveBeenCalledTimes(2)
+    expect(planned.mock.calls[0]?.[0].tokenMargin).toEqual({ multiplier: 1.25, reserveTokens: 8 })
     expect(calls.find({ session, callId: 'call_1' })).toBeDefined()
     expect(calls.find({ session, callId: 'call_2' })).toBeDefined()
     const read = await log.readSince(session, 0)

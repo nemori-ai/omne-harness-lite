@@ -236,7 +236,7 @@ function readRows(value: unknown): readonly ProfileRow[] | undefined {
 
 /** A read-only operation's backend tasks remain owned until actual stop, even after a
  * completion rejection. The caller retains unsuccessful cleanup for lifecycle close. */
-async function withOwnedReads<T>(
+export async function withOwnedReads<T>(
   owner: SettlementOwner,
   concurrent: import('@omne-harness-lite/content-blocks').JsonNumber,
   retained: Set<SettlementRegistration>,
@@ -284,7 +284,7 @@ async function withOwnedReads<T>(
   }
 }
 
-function boundSession(session: SessionRuntimeBinding, request: OpenCallInput): boolean {
+export function boundSession(session: SessionRuntimeBinding, request: OpenCallInput): boolean {
   return (
     session === request.host &&
     session.log.session === request.session &&
@@ -514,6 +514,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       let transferred = false
       try {
         const planned = lease.transport.plan({
+          tokenMargin: runtime.tokenMargin,
           target: { kind: 'model_call', callId, dispatch: 1 },
           routeName: request.target,
           provider: snapshot.providers[0] ?? '',
@@ -543,9 +544,37 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               ? { callId, state: 'handed_up', undispatched: 'modality_mismatch' }
               : { unavailable: true }
           }
+          if (planned.rejected === 'invalidInput') {
+            if (
+              planned.reason === 'input_limit_missing' ||
+              planned.reason === 'input_size_unavailable'
+            )
+              return { invalidInput: { reason: planned.reason, metrics: planned.metrics } }
+            if (planned.reason === 'input_limit_exceeded')
+              return planned.basis === 'exact'
+                ? {
+                    invalidInput: {
+                      reason: planned.reason,
+                      basis: 'exact',
+                      metric: planned.metric,
+                      actual: planned.actual,
+                      limit: planned.limit,
+                    },
+                  }
+                : {
+                    invalidInput: {
+                      reason: planned.reason,
+                      basis: 'estimated',
+                      metric: planned.metric,
+                      estimatedTokens: planned.estimatedTokens,
+                      admissionTokens: planned.admissionTokens,
+                      limit: planned.limit,
+                    },
+                  }
+          }
           return {
             invalidInput: {
-              reason: 'reason' in planned ? planned.reason : 'malformed',
+              reason: 'malformed',
             },
           }
         }
