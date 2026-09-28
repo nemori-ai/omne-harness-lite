@@ -52,6 +52,7 @@ interface Operation {
   readonly tasks: Set<SettlementTask<unknown>>
   unknownWrite: boolean
   stopping: boolean
+  stopFailed: boolean
   readonly drained: Promise<void>
   readonly finish: () => void
 }
@@ -112,6 +113,14 @@ export function createSessionModelSelection(
       }
     }
   }
+  function requestStop(operation: Operation, task: SettlementTask<unknown>) {
+    try {
+      task.requestStop()
+    } catch {
+      operation.stopFailed = true
+      emit('close', 'unavailable')
+    }
+  }
   function current(operation: Operation): boolean {
     return (
       !closed &&
@@ -137,6 +146,7 @@ export function createSessionModelSelection(
       tasks: new Set(),
       unknownWrite: false,
       stopping: false,
+      stopFailed: false,
       drained,
       finish() {
         finish?.()
@@ -147,7 +157,7 @@ export function createSessionModelSelection(
       start(kind, effect) {
         const task = original.start(kind, effect)
         operation.tasks.add(task)
-        if (operation.stopping) task.requestStop()
+        if (operation.stopping) requestStop(operation, task)
         return task
       },
       release: original.release,
@@ -172,7 +182,7 @@ export function createSessionModelSelection(
     } finally {
       await Promise.all([...operation.tasks].map(task => task.stopped))
       live.delete(operation)
-      if (operation.unknownWrite) unknown.add(operation)
+      if (operation.unknownWrite || operation.stopFailed) unknown.add(operation)
       else original.release()
       operation.finish()
     }
@@ -375,7 +385,7 @@ export function createSessionModelSelection(
       const operations = [...live]
       for (const operation of operations) {
         operation.stopping = true
-        for (const task of operation.tasks) task.requestStop()
+        for (const task of operation.tasks) requestStop(operation, task)
       }
       closing = (async () => {
         await Promise.all(operations.map(operation => operation.drained))
