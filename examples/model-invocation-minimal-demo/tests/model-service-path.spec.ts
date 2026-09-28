@@ -29,6 +29,7 @@ describe('demo unified service path', () => {
       expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
       const bound = await app.bindModelRuntime(who, prepared.session)
       if (!('service' in bound)) throw new Error('runtime binding failed')
+      expect(await app.attachModelCallHost(who, prepared.session, host)).toEqual({ attached: true })
       expect(
         await bound.service.selectModel({ session: prepared.session, routeName: MODEL }),
       ).toEqual({ selected: MODEL })

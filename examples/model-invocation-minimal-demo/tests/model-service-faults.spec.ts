@@ -70,6 +70,7 @@ describe('real unified service boundaries in the demo', () => {
       await app.prepareSession(who, 's1')
       await app.prepareModelInputs(who, 's1')
       await app.selectModel(who, 's1', MODEL)
+      expect(await app.attachModelCallHost(who, 's1', host)).toEqual({ attached: true })
       expect(await send(app, other, 's1', host, 'cross')).toEqual({ failure: 'identityMismatch' })
       expect(
         await app.startServiceTextCall(who, 's1', {
@@ -130,6 +131,7 @@ describe('real unified service boundaries in the demo', () => {
       await app.prepareSession(who, 's1')
       await app.prepareModelInputs(who, 's1')
       await app.selectModel(who, 's1', MODEL)
+      expect(await app.attachModelCallHost(who, 's1', host)).toEqual({ attached: true })
       await app.publishCredential(who, async checked => ({
         account: checked.account,
         tenant: checked.tenant,
@@ -217,6 +219,7 @@ describe('real unified service boundaries in the demo', () => {
       await app.prepareSession(who, 's1')
       await app.prepareModelInputs(who, 's1')
       await app.selectModel(who, 's1', MODEL)
+      expect(await app.attachModelCallHost(who, 's1', host)).toEqual({ attached: true })
       await app.publishCredential(who, async checked => ({
         account: checked.account,
         tenant: checked.tenant,
@@ -236,8 +239,8 @@ describe('real unified service boundaries in the demo', () => {
         'settled',
       )
       const current = await app.effectiveModel(who, 's1')
-      if (!('ok' in current)) throw new Error('current model unavailable')
-      expect(current.ok.selectedBy).toBe('session')
+      if (!('effectiveModel' in current)) throw new Error('current model unavailable')
+      expect(current.effectiveModel.selectedBy).toBe('session')
       expect(tls.requests).toHaveLength(1)
     } finally {
       resume.resolve()

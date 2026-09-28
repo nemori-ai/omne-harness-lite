@@ -1,10 +1,11 @@
 import type { ModelCallHost, RuntimeCloseResult } from '@omne-harness-lite/model-request-runtime'
 
 /** One explicit lifetime for calls opened by this CLI session. */
-export function createDemoCallHost(): {
+export interface DemoCallHost {
   readonly host: ModelCallHost
   readonly stop: () => Promise<RuntimeCloseResult>
-} {
+}
+export function createDemoCallHost(): DemoCallHost {
   const controller = new AbortController()
   const registrations = new Set<() => Promise<RuntimeCloseResult>>()
   let stopping = false

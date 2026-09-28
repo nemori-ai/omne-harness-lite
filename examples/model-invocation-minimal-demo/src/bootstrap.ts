@@ -26,10 +26,21 @@ import {
   type SessionSelectModelResult,
   type LegalTargetsResult,
   type SessionEffectiveModelResult,
+  type ServiceEffectiveModelResult,
+  type ServiceLegalTargetsResult,
+  type ServiceSelectModelResult,
+  type DisplayListResult,
+  type ServiceDisplayListResult,
+  type ReconcileResult,
+  type CallContainer,
+  type AnchoredInvocationHandle,
+  type ModelLogSettlementTarget,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
+  decodeModelLogKey,
   prepareModelLogEntry,
+  modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage, type SessionRef, type UserMessage } from '@omne-harness-lite/messages'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
@@ -37,6 +48,7 @@ import { createRequestOwner } from './model-request-owner.ts'
 import { createDemoObserverAccess, createDemoObserverEndpoint } from './model-observer-endpoint.ts'
 import { persistDemoModelReply } from './persist-model-reply.ts'
 import { readDemoNoRunFailure } from './no-run-failure-history.ts'
+import type { DemoCallHost } from './model-call-host.ts'
 import { messagePrefix, historyProjection, nativeCompatibility } from './model-request-text.ts'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import {
@@ -280,16 +292,29 @@ export interface AcceptanceApplication {
   legalTargets(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<LegalTargetsResult>>
+  ): Promise<ScenarioResult<LegalTargetsResult | ServiceLegalTargetsResult>>
   selectModel(
     actor: AuthenticatedActor,
     session: unknown,
     routeName: unknown,
-  ): Promise<ScenarioResult<SessionSelectModelResult>>
+  ): Promise<ScenarioResult<SessionSelectModelResult | ServiceSelectModelResult>>
   effectiveModel(
     actor: AuthenticatedActor,
     session: unknown,
-  ): Promise<ScenarioResult<SessionEffectiveModelResult>>
+  ): Promise<ScenarioResult<SessionEffectiveModelResult | ServiceEffectiveModelResult>>
+  displayList(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<DisplayListResult | ServiceDisplayListResult>>
+  attachModelCallHost(
+    actor: AuthenticatedActor,
+    session: unknown,
+    owner: DemoCallHost,
+  ): Promise<ScenarioResult<{ readonly attached: true }>>
+  reconcileModelRuntime(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<ReconcileResult>>
   openModelObserver(
     actor: AuthenticatedActor,
     session: unknown,
@@ -391,6 +416,30 @@ export function createAcceptanceApplication(
   >()
   const runtimeActors = new Map<SessionRef, AuthenticatedActor>()
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
+  const calls = createCallContainerStore<PlannedRequest, RawResponse>()
+  const trackedCalls = new Map<
+    SessionRef,
+    Map<string, CallContainer<PlannedRequest, RawResponse>>
+  >()
+  const callHosts = new Map<SessionRef, Set<DemoCallHost>>()
+  const sessionTasks = new Map<SessionRef, Set<Promise<unknown>>>()
+  const recoveryAdmission = new Set<SessionRef>()
+  const recoveryBusy = new Set<SessionRef>()
+  const recoveryReady = new Map<
+    SessionRef,
+    {
+      readonly binding: SessionRuntimeBinding
+      readonly owner: ReturnType<typeof createRequestOwner>
+      readonly originals: ReadonlyMap<
+        string,
+        {
+          readonly target: ModelLogSettlementTarget
+          readonly handle: AnchoredInvocationHandle
+        }
+      >
+      scopeIssued: boolean
+    }
+  >()
   const transportLeases = new Set<object>()
   const observerAccess = createDemoObserverAccess()
   const observerGrants = new Set<{ readonly revoke: () => Promise<RuntimeCloseResult> }>()
@@ -452,6 +501,25 @@ export function createAcceptanceApplication(
       () => admitted.delete(job),
     )
     return job
+  }
+  function trackSession<T>(session: SessionRef, work: () => Promise<T>): Promise<T> {
+    const tasks = sessionTasks.get(session) ?? new Set<Promise<unknown>>()
+    sessionTasks.set(session, tasks)
+    const job = track(work)
+    tasks.add(job)
+    const finish = () => {
+      tasks.delete(job)
+      if (tasks.size === 0) sessionTasks.delete(session)
+    }
+    job.then(finish, finish)
+    return job
+  }
+  function retainCall(session: SessionRef, callId: string): void {
+    const container = calls.find({ session, callId })
+    if (container === undefined) return
+    const sessionCalls = trackedCalls.get(session) ?? new Map()
+    sessionCalls.set(callId, container)
+    trackedCalls.set(session, sessionCalls)
   }
   async function load<C>(
     name: StageFiber,
@@ -887,7 +955,7 @@ export function createAcceptanceApplication(
               return { binding }
             },
           },
-          calls: createCallContainerStore<PlannedRequest, RawResponse>(),
+          calls,
           transport: {
             acquire(binding, routeName) {
               const exact = exactDefinitions.find(
@@ -945,7 +1013,54 @@ export function createAcceptanceApplication(
             run: () => ({ unavailable: true }),
           },
           reservationWaitPolicy: deployment.reservationWaitPolicy,
-          recovery: { enter: async () => ({ unavailable: true }) },
+          recovery: {
+            async enter(input) {
+              const ready = recoveryReady.get(input.session)
+              if (
+                ready === undefined ||
+                ready.scopeIssued ||
+                !recoveryAdmission.has(input.session) ||
+                ready.binding.log.currentGeneration() !== ready.binding.log.generation ||
+                ready.owner.owner.admission() !== 'open' ||
+                'unknown' in ready.owner.owner.opened() ||
+                ready.owner.owner.unresolvedWrites().length !== 0
+              )
+                return { unavailable: true }
+              ready.scopeIssued = true
+              let closed = false
+              return {
+                scope: {
+                  binding: ready.binding,
+                  owner: ready.owner.owner,
+                  originalInvocation(key, target) {
+                    if (key.session !== input.session || key.callId !== target.call)
+                      return { unavailable: true }
+                    const original = ready.originals.get(key.callId)
+                    if (
+                      original === undefined ||
+                      original.target.response !== target.response ||
+                      !modelLogJsonEqual(original.target.dispatch, target.dispatch)
+                    )
+                      return { unavailable: true }
+                    return { original: original.handle }
+                  },
+                  async close() {
+                    if (closed) return
+                    await ready.owner.drain()
+                    if (
+                      ready.owner.retained() ||
+                      ready.owner.owner.unresolvedWrites().length !== 0 ||
+                      ready.binding.log.currentGeneration() !== ready.binding.log.generation
+                    )
+                      throw new Error('recovery owner retained')
+                    closed = true
+                    recoveryReady.delete(input.session)
+                    recoveryAdmission.delete(input.session)
+                  },
+                },
+              }
+            },
+          },
           diagnostic: event =>
             record({ event: 'operation', phase: 'settlement', outcome: event.kind }),
         }
@@ -1304,8 +1419,188 @@ export function createAcceptanceApplication(
       if (!('borrow' in access)) return access
       if (modelRuntime === undefined) return { failure: 'stageClosed' }
       runtimeActors.set(access.borrow.binding.session, access.checked)
-      return { service: modelRuntime.service }
+      return { service: boundModelService(access.checked, access.borrow.binding.session) }
     })
+  }
+  function boundModelService(actor: AuthenticatedActor, session: SessionRef): ModelRuntimeService {
+    if (modelRuntime === undefined) throw new AcceptanceOperationDefect('modelRuntime')
+    const service = modelRuntime.service
+    function invoke<I extends { readonly session: SessionRef }, R>(
+      input: I,
+      operation: (value: I) => Promise<R>,
+      denied: R,
+    ): Promise<R> {
+      if (input?.session !== session || closing || recoveryAdmission.has(session))
+        return Promise.resolve(denied)
+      return trackSession(session, async () => {
+        const access = await sessionAccess(actor, session)
+        if (!('borrow' in access) || recoveryAdmission.has(session)) return denied
+        runtimeActors.set(session, access.checked)
+        return operation(input)
+      })
+    }
+    return {
+      legalTargets: input =>
+        invoke(input, value => service.legalTargets(value), { unavailable: true }),
+      displayList: input =>
+        invoke(input, value => service.displayList(value), { unavailable: true }),
+      effectiveModel: input =>
+        invoke(input, value => service.effectiveModel(value), { unavailable: true }),
+      selectModel: input =>
+        invoke(input, value => service.selectModel(value), { unavailable: true }),
+      openCall: input =>
+        invoke(
+          input,
+          async value => {
+            if (![...(callHosts.get(session) ?? [])].some(owner => owner.host === value.host))
+              return { runtimeStopped: true } as const
+            const result = await service.openCall(value)
+            if ('callId' in result) retainCall(session, result.callId)
+            return result
+          },
+          { runtimeStopped: true },
+        ),
+      dispatch: input => invoke(input, value => service.dispatch(value), { runtimeStopped: true }),
+      dispatchAgain: input =>
+        invoke(input, value => service.dispatchAgain(value), { runtimeStopped: true }),
+      interrupt: input => invoke(input, value => service.interrupt(value), { unavailable: true }),
+      releaseCall: input =>
+        invoke(input, value => service.releaseCall(value), { unavailable: true }),
+      reconcile: async input => {
+        if (input.session !== session) return { unavailable: true }
+        const result = await reconcileModelRuntime(actor, session)
+        return 'calls' in result || 'invalidInput' in result ? result : { unavailable: true }
+      },
+      readAttempts: input =>
+        invoke(input, value => service.readAttempts(value), { unavailable: true }),
+      settleReply: input =>
+        invoke(input, value => service.settleReply(value), { unavailable: true }),
+      canDispatchAgain: input =>
+        invoke(input, value => service.canDispatchAgain(value), { unavailable: true }),
+    }
+  }
+  function attachModelCallHost(
+    actor: AuthenticatedActor,
+    session: unknown,
+    owner: DemoCallHost,
+  ): Promise<ScenarioResult<{ readonly attached: true }>> {
+    if (
+      stage !== 'modelRequest' ||
+      !admit() ||
+      typeof owner?.stop !== 'function' ||
+      typeof owner.host?.register !== 'function'
+    )
+      return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      const access = await sessionAccess(actor, session)
+      if (!('borrow' in access)) return access
+      const key = access.borrow.binding.session
+      if (recoveryAdmission.has(key)) return { failure: 'stageClosed' }
+      const owners = callHosts.get(key) ?? new Set<DemoCallHost>()
+      owners.add(owner)
+      callHosts.set(key, owners)
+      runtimeActors.set(key, access.checked)
+      return { attached: true }
+    })
+  }
+  async function reconcileModelRuntime(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<ReconcileResult>> {
+    if (stage !== 'modelRequest' || !admit()) return { failure: 'stageClosed' }
+    const access = await sessionAccess(actor, session)
+    if (!('borrow' in access)) return access
+    const key = access.borrow.binding.session
+    if (recoveryBusy.has(key) || modelRuntime === undefined || requestDeployment === undefined)
+      return { unavailable: true }
+    recoveryBusy.add(key)
+    recoveryAdmission.add(key)
+    try {
+      await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
+      await access.borrow.owner.drain()
+      let ready = recoveryReady.get(key)
+      if (ready === undefined) {
+        const owners = callHosts.get(key)
+        const ownedCalls = trackedCalls.get(key)
+        const binding = runtimeBindings.get(key)
+        if (owners === undefined || owners.size === 0 || binding === undefined)
+          return { unavailable: true }
+        if (
+          binding.log !== access.borrow.binding ||
+          binding.log.currentGeneration() !== binding.log.generation
+        )
+          return { unavailable: true }
+        const captured = new Map<string, AnchoredInvocationHandle>()
+        for (const [callId, container] of ownedCalls ?? []) {
+          const view = container.view()
+          if (
+            view.key.session !== key ||
+            view.key.callId !== callId ||
+            view.session !== binding ||
+            view.owner !== access.borrow.owner.owner
+          )
+            return { unavailable: true }
+          if (view.invocation !== undefined) captured.set(callId, view.invocation)
+        }
+        const stopped = await Promise.allSettled([...owners].map(owner => owner.stop()))
+        if (
+          stopped.some(result => result.status === 'rejected' || 'unavailable' in result.value) ||
+          [...(ownedCalls?.values() ?? [])].some(container => !container.canRemove())
+        )
+          return { unavailable: true }
+        await access.borrow.owner.drain()
+        if (
+          access.borrow.owner.retained() ||
+          access.borrow.owner.owner.admission() !== 'open' ||
+          'unknown' in access.borrow.owner.owner.opened() ||
+          access.borrow.owner.owner.unresolvedWrites().length !== 0
+        )
+          return { unavailable: true }
+        const admitted = access.borrow.owner.owner.acquire(
+          requestDeployment.settlement.contention.limits.concurrent,
+        )
+        if ('unavailable' in admitted) return { unavailable: true }
+        const prefix = await readSettlementPrefix({
+          binding: access.borrow.binding,
+          registration: admitted.registration,
+        })
+        await access.borrow.owner.drain()
+        admitted.registration.release()
+        if ('unavailable' in prefix) return { unavailable: true }
+        for (const entry of prefix.prefix.entries) {
+          for (const rawKey of entry.readKeys) {
+            const decoded = decodeModelLogKey(rawKey)
+            if ('ok' in decoded && 'call' in decoded.ok && !ownedCalls?.has(decoded.ok.call))
+              return { unavailable: true }
+          }
+        }
+        const originals = new Map<
+          string,
+          { readonly target: ModelLogSettlementTarget; readonly handle: AnchoredInvocationHandle }
+        >()
+        for (const [callId, handle] of captured) {
+          const history = interpretCallHistory({ prefix: prefix.prefix, callId })
+          if (!('known' in history)) return { unavailable: true }
+          const last = history.known.dispatches.at(-1)
+          if (last === undefined || last.response !== null) continue
+          originals.set(callId, {
+            target: {
+              call: callId,
+              dispatch: last.record.dispatch,
+              response: last.record.response,
+            },
+            handle,
+          })
+        }
+        ready = { binding, owner: access.borrow.owner, originals, scopeIssued: false }
+        recoveryReady.set(key, ready)
+      }
+      return await modelRuntime.service.reconcile({ session: key })
+    } catch {
+      return { unavailable: true }
+    } finally {
+      recoveryBusy.delete(key)
+    }
   }
   function openModelObserver(
     actor: AuthenticatedActor,
@@ -1357,9 +1652,11 @@ export function createAcceptanceApplication(
     pending: PendingModelResponse,
   ): Promise<ScenarioResult<SettlementResult>> {
     if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
-    return track(async () => {
+    const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+    const work = async (): Promise<ScenarioResult<SettlementResult>> => {
       const access = await sessionAccess(actor, session)
       if (!('borrow' in access)) return access
+      if (recoveryAdmission.has(access.borrow.binding.session)) return { failure: 'stageClosed' }
       if (requestDeployment === undefined) return { unavailable: true, reason: 'dependency' }
       return await persistDemoModelReply({
         pending,
@@ -1370,22 +1667,19 @@ export function createAcceptanceApplication(
         diagnostic: event =>
           record({ event: 'operation', phase: 'settlement', outcome: event.kind }),
       })
-    })
+    }
+    return isOk(parsed) ? trackSession(parsed.ok, work) : track(work)
   }
-  function selectionOperation<T>(
+  async function modelSelectionOperation<T>(
     actor: AuthenticatedActor,
     session: unknown,
-    work: (selection: SessionModelSelection) => Promise<T>,
+    work: (service: ModelRuntimeService, session: SessionRef) => Promise<T>,
   ): Promise<ScenarioResult<T>> {
-    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
-    return track(async () => {
-      try {
-        const access = await sessionAccess(actor, session)
-        return 'borrow' in access ? await work(access.borrow.selector) : access
-      } catch (error) {
-        throw operationError(error, 'modelSelection')
-      }
-    })
+    const bound = await bindModelRuntime(actor, session)
+    if (!('service' in bound)) return bound
+    const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+    if (!isOk(parsed)) return { failure: 'stageClosed' }
+    return work(bound.service, parsed.ok)
   }
   function startServiceTextCall(
     actor: AuthenticatedActor,
@@ -1419,10 +1713,27 @@ export function createAcceptanceApplication(
     const parameters = copiedParameters.ok
     if (!parametersFace(parameters))
       return Promise.resolve({ invalidInput: { reason: 'malformed' } })
-    return track(async () => {
+    const parsedSession = parseOpaqueIdentifier(session, 'SessionRef')
+    const run = isOk(parsedSession)
+      ? (
+          work: () => Promise<
+            ScenarioResult<
+              { readonly callId: string; readonly result: DispatchResult } | OpenCallResult
+            >
+          >,
+        ) => trackSession(parsedSession.ok, work)
+      : track
+    return run(async () => {
       const access = await sessionAccess(actor, session)
       if (!('borrow' in access)) return access
       const { borrow, checked } = access
+      if (recoveryAdmission.has(borrow.binding.session)) return { failure: 'stageClosed' }
+      if (
+        ![...(callHosts.get(borrow.binding.session) ?? [])].some(
+          owner => owner.host === request.host,
+        )
+      )
+        return { failure: 'stageClosed' }
       if (modelRuntime === undefined) return { unavailable: true }
       runtimeActors.set(borrow.binding.session, checked)
       const effective = await modelRuntime.service.effectiveModel({
@@ -1495,6 +1806,7 @@ export function createAcceptanceApplication(
         host: request.host,
         ...(request.observer === undefined ? {} : { observer: request.observer }),
       })
+      if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
       if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
         return opened
       const result = await modelRuntime.service.dispatch({
@@ -1532,14 +1844,28 @@ export function createAcceptanceApplication(
     readSessionLog,
     prepareModelInputs,
     legalTargets: (actor, session) =>
-      selectionOperation(actor, session, selection => selection.legalTargets()),
+      modelSelectionOperation(actor, session, (service, boundSession) =>
+        service.legalTargets({ session: boundSession }),
+      ),
     selectModel: (actor, session, routeName) =>
-      selectionOperation(actor, session, selection => selection.selectModel(routeName)),
+      typeof routeName === 'string'
+        ? modelSelectionOperation(actor, session, (service, boundSession) =>
+            service.selectModel({ session: boundSession, routeName }),
+          )
+        : Promise.resolve({ invalidInput: { reason: 'malformed' } }),
     effectiveModel: (actor, session) =>
-      selectionOperation(actor, session, selection => selection.effectiveModel()),
+      modelSelectionOperation(actor, session, (service, boundSession) =>
+        service.effectiveModel({ session: boundSession }),
+      ),
+    displayList: (actor, session) =>
+      modelSelectionOperation(actor, session, (service, boundSession) =>
+        service.displayList({ session: boundSession }),
+      ),
     openModelObserver,
     persistModelReply,
     bindModelRuntime,
+    attachModelCallHost,
+    reconcileModelRuntime,
     startServiceTextCall,
     close() {
       if (closingPromise !== undefined) return closingPromise
