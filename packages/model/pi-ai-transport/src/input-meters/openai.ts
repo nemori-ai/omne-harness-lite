@@ -1,4 +1,5 @@
 import {
+  isJsonNumber,
   writeJsonLossless,
   type JsonObject,
   type JsonValue,
@@ -10,7 +11,8 @@ import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 
 // The OpenAI tiktoken source maps gpt-5* to o200k_base. This exact allowlist
-// deliberately excludes GPT-6: that source does not provide a GPT-6 mapping.
+// does not establish a GPT-6 mapping. The separately calibrated GPT-6 path below
+// uses this encoding only as a surrogate and never claims tokenizer identity.
 // Source: openai/tiktoken 4e71bbe0c078468e00fefbf94b39849389f346e5/model.py.
 type ImageRule = 'patch' | 'unknown'
 type ImageDetail = 'low' | 'high' | 'original' | 'auto'
@@ -201,14 +203,75 @@ function imageRuleFor(modelId: string): ImageRule | undefined {
   }
 }
 
-/** A model-specific GPT-5.6 estimator; private OpenRouter/OpenAI formatting remains unknown. */
+// Calibrated independently for GPT-6 Sol and Luna on the fixed OpenAI route:
+// baseline, length perturbation and untouched CJK/code holdout. The fixed +14
+// matched those observations, not a proof of exact framing or an error bound.
+function threeMessageTextTokens(
+  body: JsonObject,
+  modelId: string,
+  tokenizer: ReturnType<typeof encoder>,
+): number | undefined {
+  if (
+    body.model !== modelId ||
+    Object.keys(body).some(
+      key =>
+        !['model', 'provider', 'stream', 'store', 'messages', 'reasoning', 'max_tokens'].includes(
+          key,
+        ),
+    ) ||
+    !object(body.provider) ||
+    Object.keys(body.provider).some(
+      key => !['order', 'allow_fallbacks', 'require_parameters'].includes(key),
+    ) ||
+    !Array.isArray(body.provider.order) ||
+    body.provider.order.length !== 1 ||
+    body.provider.order[0] !== 'openai' ||
+    body.provider.allow_fallbacks !== false ||
+    body.provider.require_parameters !== true ||
+    body.stream !== true ||
+    body.store !== false ||
+    !object(body.reasoning) ||
+    Object.keys(body.reasoning).length !== 1 ||
+    body.reasoning.effort !== 'low' ||
+    (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
+    !Array.isArray(body.messages) ||
+    body.messages.length !== 3
+  )
+    return undefined
+  let tokens = 14
+  for (const [index, message] of body.messages.entries()) {
+    if (
+      !object(message) ||
+      Object.keys(message).some(key => key !== 'role' && key !== 'content') ||
+      message.role !== ['system', 'developer', 'user'][index] ||
+      !Array.isArray(message.content) ||
+      message.content.length !== [1, 2, 1][index]
+    )
+      return undefined
+    for (const part of message.content) {
+      if (
+        !object(part) ||
+        Object.keys(part).some(key => key !== 'type' && key !== 'text') ||
+        part.type !== 'text' ||
+        typeof part.text !== 'string'
+      )
+        return undefined
+      tokens += tokenizer.encode(part.text).length
+    }
+  }
+  return tokens
+}
+
+/** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
+  const gpt6Text =
+    definition.modelId === 'openai/gpt-6-sol' || definition.modelId === 'openai/gpt-6-luna'
   const imageRule = imageRuleFor(definition.modelId)
   if (
-    !imageRule ||
-    definition.revision !== '3' ||
+    (!gpt6Text && !imageRule) ||
+    definition.revision !== (gpt6Text ? '2' : '3') ||
     definition.implementation.name !== 'pi-ai:openai' ||
-    definition.implementation.revision !== 'mp4-3' ||
+    definition.implementation.revision !== (gpt6Text ? 'mp4-2' : 'mp4-3') ||
     !Object.hasOwn(definition.routes, 'openai')
   )
     throw new TypeError('unsupported OpenAI input-meter binding')
@@ -218,11 +281,23 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'openai',
-    algorithmRevision: 'openai-gpt-5.6-o200k-base-3',
-    evidence:
-      'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated',
+    algorithmRevision: gpt6Text
+      ? 'openai-gpt-6-text-three-message-o200k-surrogate-1'
+      : 'openai-gpt-5.6-o200k-base-3',
+    evidence: gpt6Text
+      ? 'OpenRouter OpenAI GPT-6 Sol/Luna separate low-effort three-message baseline/fit/holdout, frozen o200k text surrogate +14; openai-v2-sol-luna-80fe189b-8a59-4d1b-89da-02cd553c97e8 (2026-09-28); exact tokenizer and whole-domain error unknown'
+      : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated',
     measure({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
+      if (gpt6Text) {
+        try {
+          const tokens = threeMessageTextTokens(body, definition.modelId, tokenizer)
+          return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
+        } catch {
+          return { kind: 'unavailable' }
+        }
+      }
+      if (!imageRule) return { kind: 'unavailable' }
       const projected = sanitizedBody(body, imageRule)
       if (!projected) return { kind: 'unavailable' }
       try {

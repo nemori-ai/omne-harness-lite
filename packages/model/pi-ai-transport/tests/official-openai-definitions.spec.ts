@@ -52,11 +52,12 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       if ('rejected' in read) throw new Error(read.rejected)
       expect(read.ok).toEqual(definition)
       const metered = modelId.startsWith('openai/gpt-5.6-')
+      const textMetered = modelId === 'openai/gpt-6-sol' || modelId === 'openai/gpt-6-luna'
       expect(definition.implementation).toEqual({
         name: 'pi-ai:openai',
-        revision: metered ? 'mp4-3' : 'mp4-1',
+        revision: metered ? 'mp4-3' : textMetered ? 'mp4-2' : 'mp4-1',
       })
-      expect(definition.revision).toBe(metered ? '3' : '1')
+      expect(definition.revision).toBe(metered ? '3' : textMetered ? '2' : '1')
       expect(definition.capabilities).toEqual({
         inputModalities: ['image', 'text'],
         outputModalities: ['text'],

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "gpt6-v2-gpt-6-sol-fit",
+    "set": "fit",
+    "modelId": "openai/gpt-6-sol",
+    "wire": "{\"model\":\"openai/gpt-6-sol\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\\nReference data, do not quote it:\\nRecord 0: amber river, quiet forest, silver cloud, stable stone.\\nRecord 1: amber river, quiet forest, silver cloud, stable stone.\\nRecord 2: amber river, quiet forest, silver cloud, stable stone.\\nRecord 3: amber river, quiet forest, silver cloud, stable stone.\\nRecord 4: amber river, quiet forest, silver cloud, stable stone.\\nRecord 5: amber river, quiet forest, silver cloud, stable stone.\\nRecord 6: amber river, quiet forest, silver cloud, stable stone.\\nRecord 7: amber river, quiet forest, silver cloud, stable stone.\\nRecord 8: amber river, quiet forest, silver cloud, stable stone.\\nRecord 9: amber river, quiet forest, silver cloud, stable stone.\\nRecord 10: amber river, quiet forest, silver cloud, stable stone.\\nRecord 11: amber river, quiet forest, silver cloud, stable stone.\\nRecord 12: amber river, quiet forest, silver cloud, stable stone.\\nRecord 13: amber river, quiet forest, silver cloud, stable stone.\\nRecord 14: amber river, quiet forest, silver cloud, stable stone.\\nRecord 15: amber river, quiet forest, silver cloud, stable stone.\\nRecord 16: amber river, quiet forest, silver cloud, stable stone.\\nRecord 17: amber river, quiet forest, silver cloud, stable stone.\\nRecord 18: amber river, quiet forest, silver cloud, stable stone.\\nRecord 19: amber river, quiet forest, silver cloud, stable stone.\\nRecord 20: amber river, quiet forest, silver cloud, stable stone.\\nRecord 21: amber river, quiet forest, silver cloud, stable stone.\\nRecord 22: amber river, quiet forest, silver cloud, stable stone.\\nRecord 23: amber river, quiet forest, silver cloud, stable stone.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+    "requestSha256": "496161e88dc83d31e8bbc61499da6341873873956a04c5fa1bc03b3e524a49be",
+    "features": {
+      "o200kTextTokens": 421,
+      "candidateTokens": 421
+    }
+  },
+  {
+    "id": "gpt6-v2-gpt-6-luna-fit",
+    "set": "fit",
+    "modelId": "openai/gpt-6-luna",
+    "wire": "{\"model\":\"openai/gpt-6-luna\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: function ready() { return true; }\\nReference data, do not quote it:\\nRecord 0: amber river, quiet forest, silver cloud, stable stone.\\nRecord 1: amber river, quiet forest, silver cloud, stable stone.\\nRecord 2: amber river, quiet forest, silver cloud, stable stone.\\nRecord 3: amber river, quiet forest, silver cloud, stable stone.\\nRecord 4: amber river, quiet forest, silver cloud, stable stone.\\nRecord 5: amber river, quiet forest, silver cloud, stable stone.\\nRecord 6: amber river, quiet forest, silver cloud, stable stone.\\nRecord 7: amber river, quiet forest, silver cloud, stable stone.\\nRecord 8: amber river, quiet forest, silver cloud, stable stone.\\nRecord 9: amber river, quiet forest, silver cloud, stable stone.\\nRecord 10: amber river, quiet forest, silver cloud, stable stone.\\nRecord 11: amber river, quiet forest, silver cloud, stable stone.\\nRecord 12: amber river, quiet forest, silver cloud, stable stone.\\nRecord 13: amber river, quiet forest, silver cloud, stable stone.\\nRecord 14: amber river, quiet forest, silver cloud, stable stone.\\nRecord 15: amber river, quiet forest, silver cloud, stable stone.\\nRecord 16: amber river, quiet forest, silver cloud, stable stone.\\nRecord 17: amber river, quiet forest, silver cloud, stable stone.\\nRecord 18: amber river, quiet forest, silver cloud, stable stone.\\nRecord 19: amber river, quiet forest, silver cloud, stable stone.\\nRecord 20: amber river, quiet forest, silver cloud, stable stone.\\nRecord 21: amber river, quiet forest, silver cloud, stable stone.\\nRecord 22: amber river, quiet forest, silver cloud, stable stone.\\nRecord 23: amber river, quiet forest, silver cloud, stable stone.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+    "requestSha256": "b5231dab69e7ead626b5ec827af5934a835e1306efa526d05812daa549b84d65",
+    "features": {
+      "o200kTextTokens": 424,
+      "candidateTokens": 424
+    }
+  },
+  {
+    "id": "gpt6-v2-gpt-6-sol-holdout",
+    "set": "holdout",
+    "modelId": "openai/gpt-6-sol",
+    "wire": "{\"model\":\"openai/gpt-6-sol\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\\nReference data, do not quote it:\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\nconst result = [1, 2, 3].map(x => ({ value: x * x, ready: true }));\\nUnicode: αβγ — café 🦉. Reply with the original requested phrase only.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+    "requestSha256": "651339d26e557f45bb16e7c49793e73ebe6092300f1773076a4c3b300fb949f0",
+    "features": {
+      "o200kTextTokens": 225,
+      "candidateTokens": 225
+    }
+  },
+  {
+    "id": "gpt6-v2-gpt-6-luna-holdout",
+    "set": "holdout",
+    "modelId": "openai/gpt-6-luna",
+    "wire": "{\"model\":\"openai/gpt-6-luna\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: function ready() { return true; }\\nReference data, do not quote it:\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\n资料：保持完整上下文；不要遗漏此前的消息。\\nconst result = [1, 2, 3].map(x => ({ value: x * x, ready: true }));\\nUnicode: αβγ — café 🦉. Reply with the original requested phrase only.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":16}",
+    "requestSha256": "287e9158f8ef92b8d5aa2b6d323b723102b13c9afb3bdd865261134fb594c62b",
+    "features": {
+      "o200kTextTokens": 228,
+      "candidateTokens": 228
+    }
+  }
+]

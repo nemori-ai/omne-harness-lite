@@ -109,6 +109,7 @@ const gpt56MeteredIds = new Set([
   'openai/gpt-5.6-luna',
   'openai/gpt-5.6-luna-pro',
 ])
+const gpt6TextMeteredIds = new Set(['openai/gpt-6-sol', 'openai/gpt-6-luna'])
 
 /** Complete MP4 declarations for the exact 12 selected OpenAI routes. */
 export const openaiDefinitions = ownDefinitions(
@@ -116,10 +117,14 @@ export const openaiDefinitions = ownDefinitions(
     ([modelId, routes]) =>
       ({
         modelId,
-        revision: gpt56MeteredIds.has(modelId) ? '3' : '1',
+        revision: gpt56MeteredIds.has(modelId) ? '3' : gpt6TextMeteredIds.has(modelId) ? '2' : '1',
         implementation: {
           name: 'pi-ai:openai',
-          revision: gpt56MeteredIds.has(modelId) ? 'mp4-3' : 'mp4-1',
+          revision: gpt56MeteredIds.has(modelId)
+            ? 'mp4-3'
+            : gpt6TextMeteredIds.has(modelId)
+              ? 'mp4-2'
+              : 'mp4-1',
         },
         capabilities,
         routes,

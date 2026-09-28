@@ -94,7 +94,9 @@ describe('OpenAI model-specific input estimator', () => {
       expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-3')
       expect(meter.algorithmRevision).toContain('gpt-5.6')
     }
-    for (const modelId of gpt6Models)
+    for (const modelId of gpt6Models.filter(
+      id => id !== 'openai/gpt-6-sol' && id !== 'openai/gpt-6-luna',
+    ))
       expect(() => createOpenAiInputMeter(definition(modelId))).toThrow(TypeError)
     expect(() => createOpenAiInputMeter({ ...definition(baseModel), revision: '2' })).toThrow(
       TypeError,

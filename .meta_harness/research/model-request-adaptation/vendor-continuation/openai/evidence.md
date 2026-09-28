@@ -14,3 +14,11 @@
 普通型号三点的纯文本特征分别 25、29、32，计算来自同树锁定的 `js-tiktoken` 与逐 text block 求和。此处没有重新命名词表为 GPT-6 tokenizer。
 
 本轮属于对[原十二路由复核](../../reports/2026-09-28-openai-twelve-route-facts.md)的**补充**：原报告保留；新核的 Pro slug 对应缩小了此前原生身份未闭合的范围，没有补足原生转换细节或实际完整认证。
+
+## Sol/Luna 实际续验
+
+主调度的 owner 原件在 HUB `tmp/model-request-runtime/openai-v2-sol-luna-80fe189b-8a59-4d1b-89da-02cd553c97e8/`。[四条摘录](sol-luna-observations.json)保留每个原始 observation 的 SHA-256、请求哈希、精确 prompt/completion 用量和费用字符串。
+
+冻结输入原件已保全于主检出 `tmp/model-request-runtime/retired-20260928-completion3/model-request-runtime-vendor3-openai/tmp/model-request-runtime/vendor-completion/openai/calibration-v2.json`，SHA-256 为 `aca7ddd87f7b76fb2d6325c0220074f01bbb64477c815d8f7b6e6f0cf7883d58`。本轮逐条核对四条 observation 的请求摘要与该原件对应 wire；没有重建输入来追配结果。实际执行时间在输入冻结之后。可公开的合成测试输入另存于 transport 的 `tests/fixtures/openai/sol-luna-text-cases.json`。
+
+本分支没有发出新的模型请求；它只读上述原件、使用本树词表重新计算特征，并运行受控本机 TLS 验证。受控 TLS 的响应不冒充上述上游回执或模型完整 service 认证。
