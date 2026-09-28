@@ -14,7 +14,7 @@ import {
   processedObject,
   CredentialProcessingFailure,
 } from './credential-policy.ts'
-import type { RawHeaders } from '@omne-harness-lite/model-response/v5'
+import type { RawHeaders } from '@omne-harness-lite/model-response'
 import { reportDiagnostic } from './diagnostics.ts'
 
 export interface TransportPolicy {
