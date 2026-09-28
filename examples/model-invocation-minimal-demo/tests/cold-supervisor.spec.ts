@@ -1,9 +1,18 @@
 import { mkdtemp, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { record } from '../src/demo-ipc.ts'
 import { createDemoSupervisor, type DemoSupervisorOptions } from '../src/demo-supervisor.ts'
 import { createLocalTls } from './local-tls.ts'
+
+async function durableEntries(dataDirectory: string): Promise<string> {
+  const logRoot = join(dataDirectory, 'session-logs')
+  const files = (await readdir(logRoot, { recursive: true })).filter(path =>
+    path.endsWith('entries.jsonl'),
+  )
+  return (await Promise.all(files.map(path => readFile(join(logRoot, path), 'utf8')))).join('\n')
+}
 
 describe('C14 actual supervised worker', () => {
   it('reserves the data root before asynchronous startup', async () => {
@@ -90,6 +99,67 @@ describe('C14 actual supervised worker', () => {
     }
   }, 45_000)
 
+  it('preserves a durable first-token time when the old worker dies after opening', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-opened-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    server.setMode('hold')
+    const keyFile = join(root, 'key')
+    await writeFile(keyFile, 'controlled-key', { mode: 0o600 })
+    const dataDirectory = join(root, 'data')
+    const supervisor = createDemoSupervisor({
+      dataDirectory,
+      keyFile,
+      multiplier: '1.1',
+      reserveTokens: '256',
+      maxOutputTokens: 128,
+      retirementWaitMilliseconds: 2000,
+      maxPacketBytes: 1_048_576,
+      maxCommands: 1,
+      dedicatedRoot: true,
+      developmentTransport: {
+        baseUrl: server.developmentTransport.baseUrl,
+        ca: server.developmentTransport.tls.ca,
+      },
+    })
+    try {
+      const first = await supervisor.open()
+      const sending = first.send('opened but unfinished', async () => undefined)
+      await server.contentSent.promise
+      await vi.waitFor(
+        async () => expect(await durableEntries(dataDirectory)).toContain('model_call_opened'),
+        {
+          timeout: 10_000,
+        },
+      )
+      const before = await durableEntries(dataDirectory)
+      let firstTokenAt: unknown
+      for (const line of before.split('\n').filter(Boolean)) {
+        const batch: unknown = JSON.parse(line)
+        if (!record(batch) || !Array.isArray(batch.entries)) continue
+        for (const entry of batch.entries) {
+          if (!record(entry) || !record(entry.payload) || !record(entry.payload.value)) continue
+          if (entry.payload.value.kind === 'model_call_opened')
+            firstTokenAt = entry.payload.value.firstTokenAt
+        }
+      }
+      expect(typeof firstTokenAt).toBe('string')
+      if (typeof firstTokenAt !== 'string') throw new Error('opened first-token time missing')
+      expect(supervisor.signalWorker('SIGKILL')).toBe(true)
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      expect((await sending).kind).toBe('unconfirmed')
+      const reopened = await supervisor.open()
+      const after = await durableEntries(dataDirectory)
+      expect(after).toContain('"outcome":"interrupted"')
+      expect(after.split(firstTokenAt).length).toBeGreaterThan(2)
+      expect(server.requests).toHaveLength(1)
+      expect((await reopened.totals()).cost.unknownCount).toBe(1)
+      expect((await reopened.close()).complete).toBe(true)
+    } finally {
+      server.finishHeld()
+      await server.close()
+    }
+  }, 50_000)
+
   it('preserves exact upstream usage and cost and an empty HTTP failure through real IPC', async () => {
     const root = await mkdtemp(join(tmpdir(), 'cold-demo-exact-ipc-'))
     const server = await createLocalTls(
@@ -172,13 +242,7 @@ describe('C14 actual supervised worker', () => {
       await unlink(keyFile)
       await expect(supervisor.open()).rejects.toThrow('demo worker start unavailable')
       expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
-      const logRoot = join(dataDirectory, 'session-logs')
-      const files = (await readdir(logRoot, { recursive: true })).filter(path =>
-        path.endsWith('entries.jsonl'),
-      )
-      const serialized = (
-        await Promise.all(files.map(path => readFile(join(logRoot, path), 'utf8')))
-      ).join('\n')
+      const serialized = await durableEntries(dataDirectory)
       expect(serialized).toContain('runtime_lost')
       expect(server.requests).toHaveLength(1)
     } finally {
