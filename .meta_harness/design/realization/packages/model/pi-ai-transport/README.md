@@ -1,5 +1,11 @@
 # pi-ai-transport
 
+## v7 输入声明与最终计量候选（2026-09-28）
+
+[v7-input-limits-design](v7-input-limits-design.md)接续 D-082 完整定义与 D-095 来源/头交接。**语义接受：无**，消费 MP4/RT6 candidate；**可实施：候选投影已起草，待独立评审及采用**；**新增绑定：0**；**新增实现验证：尚无**。它明确八家共同的六项 capabilities、纯读取/建档/全值等价与迁移，并把声明发布与实际输入计量、缓存/模态认证分开。
+
+计量依据 IL-G2 只阻塞不能证明限额合规的新版发送，不阻塞合法完整声明收齐；unknown 上游事实须有显式有限项目 cap。精确范围、计量前提及归装配事项见该稿；IL-V1～8 和 IL-G1～4 见[验证入口](verification.md#v7-完整输入限制候选验证)。已有接受与运行证据继续保持各自原范围。
+
 ## D-091 结构切片实际实施签收（2026-09-27）
 
 源码 `300309fd` 已并入 HUB `2fd302ce`，实际成功 R 只含 stop/stopped，Node 响应与请求留在私有 WeakMap；实际 stop/stopped 均返回/兑现 undefined，同 plan 单 reader 保留。主调度据 D-091 限定采用签收该切片：[作者、独立 TLS、编译行为负控和原始证据](../../../../record/evidence/2026-09-27-tests-model-transport-opaque-response/README.md)。HUB transport178/runtime147、build/typecheck/格式/规则通过，独立切片 Pass，294 归档成员逐项核对。
