@@ -210,7 +210,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     if (
       next.session !== ownedKey.session ||
       next.callId !== ownedKey.callId ||
-      next.host !== session ||
+      next.host !== request.host ||
       next.run !== request.run ||
       (next.run === undefined && (next.attempt !== undefined || next.report !== undefined)) ||
       (next.run !== undefined && (next.attempt === undefined || next.report === undefined)) ||

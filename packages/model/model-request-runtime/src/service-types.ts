@@ -197,6 +197,32 @@ export type ObserverOfferResult =
   | ServiceUnavailable
   | { readonly rejected: { readonly reason: 'buffer_full' | 'consumer_failed' } }
 
+export interface ObserverDiagnostic {
+  readonly session: SessionRef
+  readonly tenant: TenantId
+  readonly callId: ModelCallId
+  readonly dispatch: JsonNumber
+  readonly stage: 'offer' | 'delivery' | 'close'
+  readonly reason:
+    'malformed' | 'observer_scope_mismatch' | 'unavailable' | 'buffer_full' | 'consumer_failed'
+  readonly position?: JsonNumber
+  readonly bufferedEvents: JsonNumber
+  readonly bufferedBytes: JsonNumber
+}
+export interface ModelObserverQueue {
+  readonly offer: (event: ArrivalEvent, snapshot: AssemblySnapshot) => ObserverOfferResult
+  readonly start: (snapshot: AssemblySnapshot) => ObserverOfferResult
+  readonly close: () => Promise<RuntimeCloseResult>
+}
+export interface ModelObserverQueueInput {
+  readonly scope: ObserverScope
+  readonly authorization: AuthorizedCallObserver
+  readonly receiver: ObserverReceiver
+  readonly maxBufferedEvents: JsonNumber
+  readonly maxBufferedBytes: JsonNumber
+  readonly diagnostic: (event: ObserverDiagnostic) => void
+}
+
 export type OpenCallInput = OpenCallRun & {
   readonly session: SessionRef
   readonly callId?: ModelCallId
