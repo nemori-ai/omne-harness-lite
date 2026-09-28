@@ -189,6 +189,9 @@ importers:
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../../packages/core/asset-model
+      '@omne-harness-lite/asset-registry':
+        specifier: workspace:*
+        version: link:../../packages/tools/asset-registry
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../packages/core/call-accounts
@@ -252,6 +255,9 @@ importers:
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../../packages/core/stream-assembly
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-definition
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
