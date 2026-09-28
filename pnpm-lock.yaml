@@ -1179,6 +1179,30 @@ importers:
         specifier: workspace:*
         version: link:../../core/tool-definition
     devDependencies:
+      '@omne-harness-lite/account-identity':
+        specifier: workspace:*
+        version: link:../../tenancy/account-identity
+      '@omne-harness-lite/account-registration':
+        specifier: workspace:*
+        version: link:../../tenancy/account-registration
+      '@omne-harness-lite/clock':
+        specifier: workspace:*
+        version: link:../../infra/clock
+      '@omne-harness-lite/credential-verification':
+        specifier: workspace:*
+        version: link:../../tenancy/credential-verification
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
