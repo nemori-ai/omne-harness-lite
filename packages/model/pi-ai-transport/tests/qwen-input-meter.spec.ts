@@ -15,11 +15,13 @@ import {
   type QwenAlibabaModelId,
 } from '../src/official-models/qwen.ts'
 import {
+  at,
   certificate,
   content,
   finish,
   fixture,
   input as testInput,
+  judgedMessage,
   message,
   sse,
 } from './support.ts'
@@ -70,12 +72,64 @@ function request(modelId: QwenAlibabaModelId): PlanInput {
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   const baseline = testInput()
+  const assistant = judgedMessage({
+    id: 'qwen-assistant',
+    type: 'assistant',
+    response: 'qwen-response-1',
+    ending: 'complete',
+    createdAt: at,
+    blocks: [
+      {
+        id: 'qwen-thinking',
+        kind: 'thinking',
+        text: 'Need an exact lookup.',
+        visibility: { toHuman: false, toModel: true },
+      },
+      {
+        id: 'qwen-call',
+        kind: 'tool_call',
+        callId: 'call_alpha',
+        tool: tool.name,
+        complete: true,
+        arguments: { query: 'alpha' },
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  const toolResult = judgedMessage({
+    id: 'qwen-tool',
+    type: 'tool',
+    callId: 'call_alpha',
+    createdAt: at,
+    blocks: [
+      {
+        id: 'qwen-tool-result',
+        kind: 'tool_result',
+        callId: 'call_alpha',
+        outcome: 'completed',
+        visibility: { toHuman: true, toModel: true },
+        blocks: [
+          {
+            id: 'qwen-tool-text',
+            kind: 'text',
+            text: 'value=42',
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+      },
+    ],
+  })
   return {
     ...baseline,
     routeName: modelId,
     provider: 'alibaba',
     parameters: { maxOutputTokens: 64 },
-    messages: [...baseline.messages, message('user', 'A second question', 'second')],
+    messages: [
+      ...baseline.messages,
+      assistant,
+      toolResult,
+      message('user', 'A second question', 'second'),
+    ],
     tools: [tool],
     tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
     snapshot: {
@@ -220,6 +274,34 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     }
   })
 
+  it.each(ids)('%s drops unverified sampling controls before final template metering', modelId => {
+    const selected = definition(modelId)
+    const meter = createQwenInputMeter(selected)
+    const baseline = planRequest(request(modelId), [selected], meter)
+    const withSampling = planRequest(
+      {
+        ...request(modelId),
+        parameters: {
+          maxOutputTokens: 64,
+          temperature: 0.5,
+          topP: 0.8,
+          seed: 7,
+        },
+      },
+      [selected],
+      meter,
+    )
+    if ('rejected' in baseline || 'rejected' in withSampling)
+      throw new Error('official Qwen final plan unavailable')
+    expect(withSampling.planned.body).toEqual(baseline.planned.body)
+    expect(withSampling.planned.inputLimitEvidence.inputTokens).toEqual(
+      baseline.planned.inputLimitEvidence.inputTokens,
+    )
+    expect(withSampling.planned.droppedParameters).toEqual(
+      expect.arrayContaining(['temperature', 'topP', 'seed']),
+    )
+  })
+
   it.each(ids)(
     '%s plans and sends the identical counted wire body through the real factory',
     async modelId => {
@@ -239,7 +321,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
           multiplier: 1.1,
           reserveTokens: 64,
         })
-        expect(planned.planned.body.messages).toHaveLength(4)
+        expect(planned.planned.body.messages).toHaveLength(6)
         expect(planned.planned.body.tools).toHaveLength(1)
         const sent = await transport.send(
           planned.planned,
@@ -259,6 +341,8 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         expect(host.requests[0]?.body).toBe(planned.planned.serialized)
         expect(host.requests[0]?.body).toContain('lookup__exact')
         expect(host.requests[0]?.body).toContain('system_reminder')
+        expect(host.requests[0]?.body).toContain('value=42')
+        expect(host.requests[0]?.body).toContain('Need an exact lookup.')
         expect(host.requests[0]?.body).not.toContain('qwen-local-only-credential')
         expect(planned.planned.serialized).toContain('"ttl":"5m"')
         const account = events.find(event => event.t === 'account')
@@ -295,6 +379,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         expect(host.requests[0]?.body).toBe(planned.planned.serialized)
         expect(host.requests[0]?.body).toContain(modelId)
         expect(host.requests[0]?.body).toContain('lookup__exact')
+        expect(host.requests[0]?.body).toContain('value=42')
         expect(host.requests[0]?.body).not.toContain('qwen-local-only-credential')
         expect(planned.planned.serialized.includes('cache_control')).toBe(
           selected.routes.alibaba?.cache.mode === 'explicit',
