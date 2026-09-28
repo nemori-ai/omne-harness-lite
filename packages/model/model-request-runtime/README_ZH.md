@@ -398,3 +398,48 @@ export async function settleResponse(
 `completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 和 `close()` 等实际任务停止后才释放额度。旧任务仍在途时可认回已提交原批，但仍保留旧任务的真实 owner；unknown 后的一次缺席读取不允许重交。opened unknown 阻断普通响应。恢复后的缺席只能由原宿主在既有 S-33 时机、全部旧写方停止之后建立，本构件没有新增在线恢复 API。
 
 示例接收实际宿主依赖与完整 MR5 响应，不注册服务。A1b 的发出/opened 协调、十三操作 `modelRuntime` 服务、官方模型认证、生产 withRun 认法 G28、合法读权接线及全部写方来源仍待交付。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[D094/MR5 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v5-log-codec-design.md)。
+
+## 耐久 noRun 调用
+
+`createAnchoredModelInvocation` 将独立 `invokeModel`、真实 SessionLog 绑定与共同结算协调器
+直接组合。当前交付范围是单次 noRun 发出，工具列表必须为空。宿主提供固定的调用、响应与
+消息身份、完整档案绑定和选中来源、实际凭据范围与值、策略、传输、owner 和日志代际。
+本函数校验这些值；形状不证明授权或凭据来源。一次调用借用精确传输引用，当前交付没有
+实现传输热替换。
+
+原传输只规划一次。dispatched 确认先于 HTTP，opened 确认先于任何可见内容。完整 MR5
+响应使用原 opened 时刻、实际用量与费用、上游事实和同次调用已交接的安全响应头。
+成功或截断回复先交给调用者承担待处置责任；`responseFor(disposition)` 声明已校验候选，
+不声称提交成功。`settleReply('persisted')` 通过同一协调器一次追加
+`[AssistantMessage, ModelResponse]`；明确的 vetoed/consumed 处置只追加响应。
+确定的失败和系统中断在 outcome 返回前结算；系统中断没有回复，已交付内容保留在 delivered。
+
+`abort()` 请求系统停止。用户中断需要另有耐久意图协议，不在本切片范围内。`close()`
+关闭准入、请求停止，并等待调用、门回调、追加与结算的实际任务停止。只有已确认结算
+或从未发出才调用 `releaseBorrowed`。未知锚点或未知结算返回 unavailable，保留句柄、
+候选和借用引用，由真实宿主承担恢复责任。本函数不执行 S-33 恢复、不重发，也不把
+未知回执解释成确定缺席。
+
+完成实际宿主准备后，把输入和明确的回复处置传给下例。close 为 unavailable 时，保留返回的 call 和实际宿主 owner。完整十三操作服务、Run 集成与生产模型认证仍待交付。
+
+```ts
+import {
+  createAnchoredModelInvocation,
+  type AnchoredInvocationInput,
+  type PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
+import type { ReplyDisposition } from '@omne-harness-lite/model-response/v5'
+
+/** Supply actual host preparation and an explicit caller disposition. */
+export async function runPreparedInvocation<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+  disposition: ReplyDisposition,
+) {
+  const call = createAnchoredModelInvocation(input)
+  const outcome = await call.outcome
+  const settlement = 'replyPending' in outcome ? await call.settleReply(disposition) : null
+  const close = await call.close()
+  // Retain call and its host owner when close is unavailable; neither abort nor outcome proves release.
+  return { call, outcome, settlement, close }
+}
+```
