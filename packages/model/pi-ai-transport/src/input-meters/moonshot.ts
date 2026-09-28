@@ -561,7 +561,7 @@ export function createMoonshotInputMeter(definition: ModelDefinition): InputMete
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:moonshot' ||
     definition.implementation.revision !==
-      (definition.modelId === 'moonshotai/kimi-k3' ? 'mp4-2' : 'mp4-1')
+      (definition.modelId === 'moonshotai/kimi-k3' ? 'mp4-3' : 'mp4-2')
   )
     throw new TypeError('unsupported Moonshot input-meter binding')
   if (

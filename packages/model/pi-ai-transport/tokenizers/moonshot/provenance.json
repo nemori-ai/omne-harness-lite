@@ -23,6 +23,10 @@
   },
   "imageEstimate": {
     "algorithm": "media_utils.py navit_resize_image, model-specific preprocessor_config.json; selected OpenRouter route remains estimated",
+    "implementationBindings": {
+      "moonshotai/kimi-k3": "pi-ai:moonshot@mp4-3; moonshot-k3-xtml-image-4",
+      "moonshotai/kimi-k2.7-code": "pi-ai:moonshot@mp4-2; moonshot-k27-jinja-image-3"
+    },
     "k3": {
       "visionSource": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/kimi_k3_vision_processing.py",
       "visionSha256": "d122b30bfd3a51a6f05d4bfcfda1e657827322b1353f7caefeebc2835d7736b5",

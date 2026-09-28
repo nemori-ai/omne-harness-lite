@@ -498,6 +498,20 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
     const selected = moonshotDefinitions[0]
     if (!selected) throw new Error('missing Moonshot definition')
     expect(() => createMoonshotInputMeter({ ...selected, revision: '2' })).toThrow(TypeError)
+    expect(() =>
+      createMoonshotInputMeter({
+        ...selected,
+        implementation: { ...selected.implementation, revision: 'mp4-2' },
+      }),
+    ).toThrow(TypeError)
+    const selectedK27 = moonshotDefinitions[1]
+    if (!selectedK27) throw new Error('missing K2.7 Code definition')
+    expect(() =>
+      createMoonshotInputMeter({
+        ...selectedK27,
+        implementation: { ...selectedK27.implementation, revision: 'mp4-1' },
+      }),
+    ).toThrow(TypeError)
     expect(() => createMoonshotInputMeter({ ...selected, routes: {} })).toThrow(TypeError)
     const absent = planRequest(request(0), moonshotDefinitions)
     expect(absent).toEqual({ rejected: 'unavailable' })

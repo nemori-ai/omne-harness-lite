@@ -60,7 +60,7 @@ export const moonshotDefinitions = ownDefinitions([
   {
     modelId: 'moonshotai/kimi-k3',
     revision: '1',
-    implementation: { name: 'pi-ai:moonshot', revision: 'mp4-2' },
+    implementation: { name: 'pi-ai:moonshot', revision: 'mp4-3' },
     capabilities: {
       inputModalities: ['image', 'text', 'video'],
       outputModalities: ['text'],
@@ -74,7 +74,7 @@ export const moonshotDefinitions = ownDefinitions([
   {
     modelId: 'moonshotai/kimi-k2.7-code',
     revision: '1',
-    implementation: { name: 'pi-ai:moonshot', revision: 'mp4-1' },
+    implementation: { name: 'pi-ai:moonshot', revision: 'mp4-2' },
     capabilities: {
       inputModalities: ['image', 'text'],
       outputModalities: ['text'],
