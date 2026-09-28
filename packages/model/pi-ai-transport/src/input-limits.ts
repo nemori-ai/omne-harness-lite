@@ -152,8 +152,22 @@ export function measureFinalInput(input: {
   if (!meter || !meterMatches(meter, definition, provider)) return { rejected: 'unavailable' }
   const image = imageMeasurements(body)
   const requestBytes = Buffer.byteLength(serialized, 'utf8')
-  const token = meter.measure(Object.freeze({ body, serialized }))
-  if (!tokenMeasurementValid(token)) throw new TypeError('invalid token-meter result')
+  let token: TokenMeasurement
+  try {
+    token = meter.measure(Object.freeze({ body, serialized }))
+    if (!tokenMeasurementValid(token))
+      return {
+        rejected: 'invalidInput',
+        reason: 'input_size_unavailable',
+        metrics: ['maxInputTokens'],
+      }
+  } catch {
+    return {
+      rejected: 'invalidInput',
+      reason: 'input_size_unavailable',
+      metrics: ['maxInputTokens'],
+    }
+  }
   const measured = new Map<Metric, { value: JsonNumber; exact: boolean }>([
     ['maxRequestBytes', { value: requestBytes, exact: true }],
     ['maxImages', { value: image.count, exact: true }],

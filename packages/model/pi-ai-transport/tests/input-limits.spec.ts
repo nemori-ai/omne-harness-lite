@@ -185,6 +185,34 @@ describe('S-74 final serialized admission', () => {
     })
   })
 
+  it('fails closed when a bound meter throws or returns an invalid measurement', () => {
+    const cases = [
+      {
+        ...meter,
+        measure: () => {
+          throw new Error('meter failure')
+        },
+      },
+      { ...meter, measure: () => ({ kind: 'estimated' as const, tokens: -1 }) },
+    ]
+    for (const failed of cases)
+      expect(
+        measureFinalInput({
+          definition,
+          provider: 'openai',
+          snapshot: base.snapshot,
+          body,
+          serialized,
+          meter: failed,
+          tokenMargin: { multiplier: 1, reserveTokens: 0 },
+        }),
+      ).toEqual({
+        rejected: 'invalidInput',
+        reason: 'input_size_unavailable',
+        metrics: ['maxInputTokens'],
+      })
+  })
+
   it('counts repeated inline images and their exact decoded bytes', () => {
     const image = { type: 'image_url', image_url: { url: 'data:image/png;base64,YWJjZA==' } }
     const imageBody = { messages: [{ content: [image, image] }] }
