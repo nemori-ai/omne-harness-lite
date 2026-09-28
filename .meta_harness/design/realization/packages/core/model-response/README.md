@@ -1,3 +1,12 @@
+2026-09-28：[D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) 技术采用 [v8 实施映射](v8-design.md)。精确受审正文保留候选标记，以采用记录判当前状态；新增绑定0，V8实际实现验证待完成。
+
+## MR8 恢复时序实施候选（2026-09-28）
+
+- 入口：[v8-design.md](v8-design.md)。纯包根/schema 从 MR7 直接迁移 MR8，Timing.sentAt 允许显式 null，但仅合法 interrupted 持久响应能使用；Pending 仍必须为实际时刻。
+- **语义接受**：MR8/RT9 已由 [D104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) 接受。**可实施**：本次窄提供者映射仍为 candidate，未声称采用。
+- **绑定证据**：新增 0 条。**实际验证**：本次没有产品测试；已归档 10 Schema 边界与一正四负 TLC 只支持原有限规格范围。
+- 消费者编译、拒绝优先级、精确依赖与外部写方责任见 [V8 验收](verification.md#v8-恢复时序实施候选)。null 不证明未发、零费用或可重试；原来源未裁项不由本增量处置。以下历史事件保留原范围。
+
 ## 当前格式直接迁移候选（2026-09-28）
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v7-design.md](v7-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。

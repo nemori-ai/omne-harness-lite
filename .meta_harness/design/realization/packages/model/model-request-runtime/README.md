@@ -1,4 +1,13 @@
+2026-09-28：[D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) 技术采用 [v12 恢复时序映射](v12-recovery-timing-design.md)。MR8/RT9语义已接受，具体接口可施工；新增绑定0，T12及组合停止验收待完成。L1/L2与G-28保持原缺口。
+
 # model-request-runtime
+
+## 2026-09-28 MR8／RT9 恢复时序候选
+
+- **语义接受**：[D-104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) 已接受 MR8/RT9；[v12 runtime 投影](v12-recovery-timing-design.md) revision 1 尚未技术采用。
+- **可实施**：候选给出当前 codec、正常／恢复构造、原可信事实读面及 reconcile 接线；D-102/D-103 的既有采用保持，L1/L2 与 G-28 不在此次闭合范围。
+- **绑定证据**：新增 0；T12-V1～V11 为待执行义务，D-104 有限验证不代实际 I/O。
+- **实际验证**：本增补无源码或真实恢复验收；T12-G1～G4 分别约束采用、换代交接、withRun 与实际证据，不阻无关已可实施分支。
 
 2026-09-28：[D-103](../../../../record/decisions/model-runtime-host-observer-adoption/decision.md) 技术采用 [v11 宿主与观察接口](v11-host-observer-design.md)，精确正文保留受审候选标记，以本采用记录判当前状态。RT8 S-51/S-61/S-62 的行为已接受；具体接口可施工，新增 bindings 0，H-V1～12 及真实宿主／观察接收端尚待实现验收。L1/L2 与恢复规格不在本次采用范围。
 

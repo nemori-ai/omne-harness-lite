@@ -1,5 +1,27 @@
 # model-request-runtime 验证与证据
 
+## v12 恢复时序候选义务
+
+对应 [v12 revision 1](v12-recovery-timing-design.md)，全部待运行，新增 bindings 0。有限 Schema/TLC 证据只沿 D-104 原范围读取。
+
+| 编号／条款 | 必须可失败的断言 | owner |
+|---|---|---|
+| T12-V1：MR8 S-17/S-27 | interrupted/null 当前 codec 往返保持原值；complete/truncated/failed/null 拒绝；null 不进日期比较，firstTokenAt>endedAt 仍失败 | C + core |
+| T12-V2：RT9 S-54/S-75，MR8 S-39 | 普通 ModelInvocationResult/ResponseConstructionInput 与 Pending 编译及运行边界拒绝 null，实际已开始 send 的时刻保持原 string | B + C |
+| T12-V3：RT9 S-17/S-36/S-54 | 两处锚点后 send 前取消分别 0 send、一响应、sentAt:null；无锚点取消零响应；恢复或锚点 now 代填负控必须失败 | B |
+| T12-V4：MR8 S-11 | 非平凡调整/丢项的固定计划在零 send 与失联恢复中三项逐字保留；不是 requested，也不清空。mrr/3 key/payload/去重保持一致，旧标记不能报 absent | C |
+| T12-V5：RT9 S-17/S-33 | 实际 send 时刻、部分用量/已知零/费用、多值头、实际执行身份已知后 opened ack 未知；原执行停后仍保留，全 unknown/null 替换负控失败。未形成完整 outcome 但 send 已开始的拒绝分支也保留真实时刻 | B + C |
+| T12-V6：RT9 S-33 | 伪造 caller 事实、跨 session/tenant/call/dispatch/ResponseId 原 handle 拒绝；原 owner unavailable 不降成 absent；冷启动确无 owner 才 null/unknown，不宣称零费用 | C + 宿主 |
+| T12-V7：RT9 S-33 | 同样只有 dispatched 的权威前缀，真实 kill 分别发生 send 前/后；重开恢复均可 null/无首 token/resumable、恢复 HTTP=0；去零 HTTP 保护负控失败 | 独立验收 + 装配 |
+| T12-V8：RT9 S-17/S-33/S-69 | 原完整批含真实时刻/账/头，与恢复追加竞争；只认回原批不覆盖，不刷新 endedAt；批缺成员不假成功，每个 ResponseId 至多一完整批 | C + SL3 |
+| T12-V9：RT9 S-15/S-33 | 旧 opened writer 未停、日志非权威全尾或源不可读时 unavailable 零结算/零发送；停后权威 opened 时刻与恢复 firstTokenAt 一致，null 不删除首 token | C + 装配 |
+| T12-V10：RT9 S-33 | 意图优先、无 opened runtime_lost 可续接、有 opened 为终态；多 call 中途写失败整体 unavailable，再调仅补未完成行；无实际 Run 解释继续 unavailable | C |
+| T12-V11：RT9 S-6/S-22/S-34/S-50/S-76 | null/非空 sentAt 对同一 interrupted 事实不改变状态；有 opened 不再发；failed 真主体仍保留原时刻；重复 reconcile/观察不新增 HTTP、重试计次或改原批 | A + C |
+
+T12-V5/V9 须合跑一次实际停止与关闭责任的组合场景：outcome 已返回但原门回调或 writer 未 stopped 时，observedFacts() 仍 unavailable；实际停止后可重复取得稳定 owned 值。此时若耐久结算仍 unavailable，close 保留原 handle 引用与登记；最终认回后只释放一次。观察接收端有独立停止责任，不能因此阻塞业务结算。本项来自独立架构评审 N1，仍为待执行义务。
+
+覆盖缺口 T12-G1～G4 沿正文；真实 L1/L2 责任交接和 withRun 不由这些局部测试代签收。验收需直接统计恢复 transport 的 plan/send/read 及所有 HTTP 出口均零，不只 mock 一个 send；真实重启/权威日志证据与受控时序测试分开报告。
+
 ## v11 宿主与观察端口候选义务
 
 对应 [v11 revision 1](v11-host-observer-design.md)，全部待实施、待运行；新增 bindings 0，不把检查器通过当行为验证。

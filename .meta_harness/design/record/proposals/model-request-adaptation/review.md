@@ -188,3 +188,9 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 主线据实际 reviewer 报告保存的归因摘要：MR8 contract `34b78e9c55df99fa8ea3756c98010914fae92a56375a429316e7fdafb966fe13`、最终 RT9 `3ae5ee1843a31cb229a11c77a35c2bdc66e51100953322be0febed1ef37e64fb`，独立 architecture-reviewer 与 spec-reviewer 最终均无所审范围阻断。初审S33全未知与已知账保留冲突已按可信同次来源消歧；词表／对象旧“未发无记录”已按既有RT8责任修正（C-40）；RT9来源残留已修。Schema description 的旧概括随后由主线同步，不改验证条件，无独立重审声明。
 
 架构判断：nullable 不改变首 token／意图重试资格，恢复仍实际停止、权威前缀、完整原批优先且零HTTP；一份null合并零发送／发送不可判，不丢本次消费者需要的区别，因为账与实际发送均不能由null推出。MS6锚点与runner5消费边不须连锁升级。两评审未执行工具或实现；原L1/L2和对象未裁项不在关闭范围。有限运行另见[证据](../../evidence/2026-09-28-formal-model-recovery-timing/README.md)，技术接受见[D-104](../../decisions/model-recovery-timing-adoption/decision.md)。
+
+## 2026-09-28 MR8／RT9 提供者映射独立评审
+
+主线据实际角色报告保存的归因摘要，非逐字报告：core v8 rev1 `8dd767477baff940b9bddea396a5d90944bf598f73e574c99b11b38971d72b7f` 与 runtime v12 revision1 `66da0f35031af73e2994c778e23d5bdcbe8fccefca83f4337084b134b2c4aa11`，独立 architecture-reviewer 与 spec-reviewer 均无本范围阻断；后者核两检出D104各55资源均匹配。持久null与Pending/普通invoke实际时刻、判定优先级、mrr/3、原owner事实、实际停止、原完整批优先与SL3共同对象表达一致。没有新增事实权威、plugin或旁账；L1/L2和G-28显式未闭。
+
+架构N1非阻断建议把未停时observedFacts unavailable、停后稳定owned值、结算仍unknown时保留原handle/登记、最后认回唯一释放合跑；主线在runtime verification补明，两个正文不变，补文不冒充独立重审。强反方为全局nullable减少改动、一次Schema判定更简单、只缓存outcome或caller传值更省接口、新format可隔离旧reader；代价由分支严格类型/混合错误负控/真实owner关联/当前消费者同批迁移承担。没有运行实现、kill/reopen、HTTP或形式工具；验证仍归实施与独立验收。技术采用见[D-105](../../decisions/model-recovery-timing-provider-adoption/decision.md)。

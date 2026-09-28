@@ -117,3 +117,22 @@ N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块�
 - **G7-2（MR7 S-26/S-40、LC6 精确引用）**：22 份完整资源含现行资产契约要求的 LC2/3、MP2、MS2/3 以及递归边。各资源 owner 保留必要公开 schema 子入口，执行面仍删除旧 codec/旧 API；本包以现有共享编译器完整构建 MR7 definitions，并在实际 pack 中证明循环解析、无缺资源及精确 ID。未跑编译前不得称已验证；不重做共享 resolver 或扩展资产规格。
 - **G7-3（MR7 S-16～S-25/S-35/S-39；LC6 S-14/S-43）**：完整事实捕获、Pending 交接后事务、late 判定、失败主体完整历史及首 token 耐久均归 runtime、runner、日志与回复写方。它们须在共同真实日志提交边界提供证据；本 data 包无自己的存储要求和同提交机制。阻断相关十三操作整体验收。
 - **G7-4（MR7 S-40 与当前代际责任）**：runtime/transport/demo/session-log 测试及制品脚本须同批迁移；旧用户数据只拒绝，不修改/删除/回填。当前已发送请求的停止、结算和恢复仍归原运行 owner，不因破坏性重构消失。真实调用身份、时钟、密钥、日志装配待对应实施者验证，示例多轮成功不能替代完整装配接受。
+
+
+## v8 恢复时序实施候选
+
+对象：[v8-design.md](v8-design.md) R8-P1～P4；MR8/RT9 规范已接受，本映射未接受；新增绑定 0，生产实现验证尚无。既有 [有限规格验证](../../../../record/evidence/2026-09-28-formal-model-recovery-timing/README.md) 不替代以下生产判定、声明与真实消费证据。
+
+| ID／投影 | 必须执行的正反例 | owner／状态 |
+|---|---|---|
+| V8-1／P1 | MR8 Schema 原字节/$id、完整22资源及私有成员资源；19 defs 用现有实际编译器全部编译；故意缺 MP5/误连 MP6 必须失败，必要历史资源正常闭环。实际 pack 根/schema 为当前，旧运行入口不可导入 | 本包与集成；待验 |
+| V8-2／P1/P3 | Timing 独立接受 null，持久 interrupted 合法各分支 null/实际时间均按规范；缺 sentAt、整数、空字符串及 Timing:null 拒绝；complete/truncated/failed null 拒绝，Pending（含 interrupted）null 拒绝。严格类型用例：普通分支/任意 Pending null 不可赋值，持久 interrupted 可赋值 | 本包；待验 |
+| V8-3／P2/P3 | 持久 complete 无 reply + null → reply_missing；failed 无 failure + null → failure_missing；有 reply 无 firstTokenAt + null → first_token_inconsistent；除 null 外均合法的非 interrupted → 最后 malformed。Pending null + ending 错配 → 成员 malformed；unknown outcome/dispatch_zero/cause_unknown 仍按 S-27 先于成员错误。反向注入“把 null 提前判”及“剥 Pending timing.allOf”必须使对应断言失败 | 本包独立验证；待验，不从 Schema 通过推导 judge 顺序 |
+| V8-4／P4 | 合法 null 与已知 exact 用量/费用、多值头、完整原适配参数/快照并存，判定不改输入、不补空、不清零；原 S-36 绑定错配、S-40 shape-only、首 token 条件与无损数回归均保留 | 本包；待验 |
+| V8-5／消费传播 | runtime invoke/Pending 精确时刻收窄，codec 捕获与 reopen 合法 null；sentAt:null 时仍拒绝 firstTokenAt 晚于 endedAt，实际时刻已知时仍验证完整顺序。demo、日志测试和 core-verification 当前消费者严格编译；中英文 README 原文示例编译执行 | runtime/集成与本包；待验 |
+
+### v8 外部缺口与边界
+
+- **G8-1（MR8 S-16/S-17/S-24；RT9 S-33/S-36）**：真实 durable dispatched、已知实际时刻保留、未知不代填、锚点后零 send 和失联恢复的正确分支归 runtime/transport/日志 owner；纯 core 不能证明。完整批认回、竞争提交、实际停止与 zero-HTTP 恢复须另验，不把 null 当授权。
+- **G8-2（MR8 S-9/S-11/S-19/S-21）**：可信同次事实与原固定计划、已知账/头/身份保留由写方验证，未知费用不被 null 覆盖为零或已知；本包无 IO、配置及日志后端。来源政策未裁项继续原状态，不因本映射打开或关闭。
+- **G8-3（MR8 S-26/S-27/S-39/S-40）**：本映射待采用、实现与验收；根 Schema 精确依赖仍含 MP5 而非随最新根自动升级。直接消费者须完成类型/资源闭包迁移，不能靠旧格式执行或类型断言消除差异。归本包与各当前消费者 owner。
