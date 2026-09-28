@@ -241,6 +241,10 @@ describe('real model service retry and control', () => {
         state: 'open',
         dispatches: [],
       })
+      expect(await service.releaseCall({ session, callId: first })).toEqual({
+        wrongPhase: { phase: 'open' },
+      })
+      expect(tls.requests).toHaveLength(0)
       expect(await service.interrupt({ session, callId: first, initiator: 'user' })).toEqual({
         stage: 'before_dispatch',
       })
@@ -325,6 +329,38 @@ describe('real model service retry and control', () => {
       expect(attempts.dispatches).toHaveLength(2)
     } finally {
       release.resolve()
+      await fixture.close()
+    }
+  })
+
+  it('refuses another send after a response has spoken and the stream ends early', async () => {
+    const fixture = await ready('retry-already-spoke')
+    const { app, tls, who, session, service } = fixture
+    try {
+      tls.setMode('hold')
+      const callId = await openCall(fixture, 'already-spoke')
+      const dispatch = service.dispatch({ session, callId })
+      await tls.contentSent.promise
+      tls.finishHeld()
+      const first = await dispatch
+      if (!('settled' in first) || first.settled.outcome !== 'failed')
+        throw new Error(`early stream ending did not settle failed: ${JSON.stringify(first)}`)
+      expect(first.settled).toMatchObject({ failure: { cause: 'interrupted_mid_reply' } })
+      expect(await service.readAttempts({ session, callId })).toMatchObject({
+        state: 'awaiting_decision',
+      })
+      const before = await logKeys(app, who, session)
+      const plan = { provider: PROVIDER }
+      expect(await service.canDispatchAgain({ session, callId, plan })).toEqual({
+        refused: { why: 'already_spoke' },
+      })
+      expect(await service.dispatchAgain({ session, callId, plan })).toEqual({
+        retryRefused: { why: 'already_spoke' },
+      })
+      expect(await logKeys(app, who, session)).toEqual(before)
+      expect(tls.requests).toHaveLength(1)
+    } finally {
+      tls.finishHeld()
       await fixture.close()
     }
   })
