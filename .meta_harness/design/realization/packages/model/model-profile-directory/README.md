@@ -1,5 +1,14 @@
 # model-profile-directory
 
+## v4 候选增量（2026-09-28）
+
+新增 [v4-design.md](v4-design.md)，只投影完整输入供给与上游事实。源码包 `packages/model/model-profile-directory` **已存在**，本次读取基线 `be026d6cc430a891177035a046a4d8aa8a4530a7`；下方“尚未建包”保留为历史采用时状态，不代表当前源码。
+
+- **语义接受：本增量无。**catalog 中 `data.model-profile/v4`、`capability.model-profile-directory/v4` 均为 candidate；[D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)仅接受 PF-013 rev 14 产品规则。
+- **可实施：候选投影已列明，待主线采用及 core v4 校验交付。**沿现有类型、插件和完整 JSON 行，落实完整写读、六项时标比较、旧行不可用；不新增服务或表。存量升级资料缺口 G4-2 只阻断旧库升级，不阻断具备完整输入的新库路径。
+- **绑定证据：仍为 0 条。**既有源码测试不自动证明新增条款；本次不修改空绑定表，不虚构 v4 已执行测试。
+- **实际验证：v4 行为尚无。**本次设计检查与待执行真实存储验收见 [v4 验证增量](verification.md#v4-候选增量2026-09-28)。实现者还需同步包的 README 与 README_ZH，不能以设计稿代替社区用法文档。
+
 ## v3 候选增量（2026-09-27）
 
 新增 [v3-design.md](v3-design.md) 接续本页下方的 v2 已接受基线，不改写旧 design.md；源码路径仍是 `packages/model/model-profile-directory`，**尚未建包**。本轮范围为完整适配绑定读写、同档案配置修订历史判重、真实同存储目录读面，以及独立单机验收的凭据接线；中心／据点同步仍不在本轮。
