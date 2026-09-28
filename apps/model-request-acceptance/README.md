@@ -2,13 +2,13 @@
 
 `@omne-harness-lite/model-request-acceptance` is a local application assembly for the real authentication, model credential, request preparation and session log stages of model request acceptance. It combines the public account registration, password verification, login, organization membership, model directory and model replica APIs with one SQLite storage owner and Cordis context.
 
-The public root exports `createAcceptanceApplication`, its configuration and result types, and the fixed base/stage fiber names. The returned application exposes `ready`, `register`, `authenticate`, `publishCredential`, `verifyCredential`, `readOfficialProfiles`, `prepareSession`, `readSessionLog`, `status` and `close`. It keeps the storage, credential reader, replica owner and service context inside the application. `AcceptanceHooks` is a trusted fault-testing port; tenant input must never control it.
+The public root exports `createAcceptanceApplication`, its configuration and result types, and the fixed base/stage fiber names. The returned application exposes `ready`, `register`, `authenticate`, `publishCredential`, `verifyCredential`, `readOfficialProfiles`, `prepareSession`, `readSessionLog`, `prepareModelInputs`, `legalTargets`, `selectModel`, `effectiveModel`, `startTextCall`, `status` and `close`. It keeps the storage, credential reader, replica owner and service context inside the application. `AcceptanceHooks` is a trusted fault-testing port; tenant input must never control it.
 
 Startup completes every stage migration, waits for the six base fibers and the actual clock, and confirms the same storage upgrade guard. Directory management and the single model replica owner load after confirmation. The default `authentication` stage opens admission when all eight `STAGE_FIBERS` are active. Passing `{ stage: 'requestPreparation' }` as the second argument selects a fixed nine-fiber set (`REQUEST_PREPARATION_FIBERS`). That stage appends the session-tenancy migration before confirmation, then loads the actual `sessionTenancy` plugin after directory and lookup startup. Every operation rechecks the selected set and closing gate. A startup failure rejects `ready` with `AcceptanceStartupFailure`; its `cleanup` records incomplete cleanup and any remaining upgrade marker. A failure after confirmation preserves already committed migrations and manifest adoption.
 
 Authentication returns an actual account, login state and current tenant. Every credential or preparation operation rechecks that login and effective membership. The trusted source callback supplies the account, tenant, reference and body together; a mismatched pair is rejected. Provider failure values and `stored: false` remain visible. `close()` stops new admission, drains admitted work, withdraws lookup before closing its borrowed replica, and closes the actual storage last. Repeated calls share one closing promise.
 
-This assembly performs no model HTTP requests and provides no complete Session/Inbound product, model runtime thirteen-operation API, agent loop, OAuth flow, asset registry or full credential custodian. An empty manifest in the example is an explicit acceptance input, not a supported model catalog. Diagnostic events contain operation categories and correlation rather than passwords, key material, credential references or bodies; the synchronous diagnostic callback is not a durable audit sink.
+The explicit `modelRequest` stage can send text requests through the production OpenRouter transport. The earlier stages perform no model HTTP requests. This development assembly does not provide a complete Session/Inbound product, the model runtime thirteen-operation API, an agent loop, OAuth flow, asset registry or full credential custodian. An empty manifest in the example is an explicit acceptance input, not a supported model catalog. Diagnostic events contain operation categories and correlation rather than passwords, key material, credential references or bodies; the synchronous diagnostic callback is not a durable audit sink.
 
 `readOfficialProfiles(actor)` calls the real directory with the checked tenant and returns only official rows, preserving their complete `profile`, `updatedAt` and `adaptation`. A confirmed empty list differs from a named provider failure. `prepareSession(actor, session)` accepts the shared SessionRef representation, reads persistent ownership first, and seeds only a missing mapping through the restricted bootstrap entry in the same actual storage atomic unit. It reads back the held tenant before returning `{ session, tenant }`. Same-tenant repeats preserve the mapping; a different tenant receives a sanitized `UniqueViolation`. Unreadable ownership never authorizes a seed. Neither operation is admitted in the default authentication stage. A successful seed remains committed if the later read fails; identity verification and seed are separate commits.
 
@@ -20,11 +20,55 @@ The explicit `sessionLog` stage uses the fixed ten `SESSION_LOG_FIBERS`: the pre
 
 Closing drains admitted operations, awaits the actual JSONL owner close, then withdraws its contribution and the remaining providers. If physical log cleanup fails, `complete` is false and `unfinished` retains the owner, contribution and dependencies; their teardown does not proceed. Reopening the same database and log directory reads committed entries through the provider's real ownership and recovery checks. Diagnostic sink failures are counted independently and never replace read or close results.
 
-The `modelRequest` technical stage currently adds the real EIS `currentEvaluationInputs` contribution as the eleventh fixed `MODEL_REQUEST_FIBERS` member. Its migrations join the same guard before confirmation. This increment prepares sources and owns a static production transport; model selection and invocation are being connected separately and are not exposed by this increment.
+The `modelRequest` technical stage adds the real EIS `currentEvaluationInputs` contribution as the eleventh fixed `MODEL_REQUEST_FIBERS` member. Its migrations join the same guard before confirmation. It owns the production transport and borrows the actual session log, current input source, directory and private credential reader for each authenticated session. `legalTargets`, `selectModel`, `effectiveModel` and `startTextCall` expose this limited consumer through the application handle.
 
 Supply `modelRequest.evaluationInputs` with an explicit `storeKey`, full `deployedOfficial` manifest, monotonic clock and trusted `prepare(actor, session)` callback returning a complete `LocalPublication` and recipe. Supply full production transport definitions/policy, invocation clock/scheduler/status/redaction policy and settlement contention/scheduler. There are no model or timeout defaults. Production transport uses OpenRouter; the trusted `developmentTransport` option accepts only a local HTTPS endpoint for controlled tests.
 
-After actual `prepareSession`, `prepareModelInputs(actor, session)` rechecks current authorization and ownership, then runs real publication, recipe capture, current read and AE evaluation in that order. It returns `{ prepared: true }` only on success, otherwise the named provider result. All factory/organization/tenant sources must be explicitly supplied; a missing source is not filled with an empty scope. Publication and session creation are separate commits, and repeated preparation does not hide a publication conflict or replay an unknown commit. Closing drains admitted source operations, closes transport, withdraws EIS, then closes the JSONL owner and the existing dependencies. Neither a constructor nor source preparation certifies a model call.
+After actual `prepareSession`, `prepareModelInputs(actor, session)` rechecks current authorization and ownership, then runs real publication, recipe capture, current read and AE evaluation in that order. It returns `{ prepared: true }` only on success, otherwise the named provider result. All factory/organization/tenant sources must be explicitly supplied; a missing source is not filled with an empty scope. Publication and session creation are separate commits, and repeated preparation does not hide a publication conflict or replay an unknown commit. Closing drains admitted source operations, closes transport, withdraws EIS, then closes the JSONL owner and the existing dependencies. Neither a constructor nor source preparation certifies a model call. Source publication failures do not prove commit or authorize replay; closing still drains actual source operations and storage transactions.
+
+## Selected text invocation
+
+Prepare the real session and current input sources, publish its credential, and explicitly select a legal route before starting a call. There is no directory-first or root-default selection. Current EIS/AE facts determine a real above-session lock, including a lock to the same route; source failures do not mean no lock. `startTextCall` owns the request values before its first asynchronous identity read. It requires an actual text UserMessage, three caller-owned unique IDs, `noRun: true`, an empty tools array and explicit `ModelRequestParameters`. It does not place hidden request defaults in the profile. Choose new IDs for each call; the IDs below are for one execution.
+
+The host reads current root time limits again before dispatch and preserves the selected binding. This M1 consumer accepts only durations that can be represented as exact positive safe integer milliseconds by the existing invocation scheduler; unsupported values return unavailable before model anchors or HTTP. This is a temporary consumer coverage limit, not an AD Duration domain cap.
+
+Every physical invocation privately borrows fresh scoped credential bytes. Invalid ASCII or a pre-transfer construction failure clears that borrow once; after transfer, clearing waits for actual invocation release. Dispatched is confirmed before HTTP and opened before content visibility. The caller explicitly settles a complete or truncated reply; `persisted` commits the reply and complete ModelResponse in one batch. Unknown writes retain their original responsibility and borrowed dependencies. `abort()` and application close are system stops; they do not manufacture user interruption intent or a reply.
+
+The following public function requires an already-ready `modelRequest` application and an actor authenticated by that application. Calling it sends a model request; provision the actual official profile, production policy, trusted EIS publication/recipe and credential explicitly. A local test must supply the trusted local HTTPS override rather than a real key. Examine provider failures and an unavailable settlement/close without treating them as success.
+
+```ts
+import type {
+  AcceptanceApplication,
+  AuthenticatedActor,
+  TextCallRequest,
+} from '@omne-harness-lite/model-request-acceptance'
+
+// The host has already prepared the actual session/source and published its credential.
+export async function selectedTextCall(
+  app: AcceptanceApplication,
+  actor: AuthenticatedActor,
+  session: string,
+  user: TextCallRequest['user'],
+) {
+  const selected = await app.selectModel(actor, session, 'deepseek/deepseek-v4-pro-0813')
+  if (!('selected' in selected)) return selected
+  const started = await app.startTextCall(actor, session, {
+    noRun: true,
+    tools: [],
+    callId: 'example-call',
+    responseId: 'example-response',
+    replyId: 'example-reply',
+    user,
+    parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+    onAccepted: event => console.log(event.t),
+  })
+  if (!('call' in started)) return started
+  const outcome = await started.call.outcome
+  if (!('replyPending' in outcome)) return { outcome, closed: await started.call.close() }
+  const settlement = await started.call.settleReply('persisted')
+  return { reply: outcome.replyPending.reply, settlement, closed: await started.call.close() }
+}
+```
 
 ## Run through the public API
 
