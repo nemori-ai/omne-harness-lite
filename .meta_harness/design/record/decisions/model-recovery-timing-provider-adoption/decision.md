@@ -18,3 +18,10 @@ L1 永久撤除后 L2 的原 owner 交接、G-28/withRun、原产品来源归并
 ## 2026-09-28 恢复作用域留存的窄实施采用
 
 主线依同一持续实施与技术验收委托，采用 [恢复任务与作用域补充 revision 1](../../../realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，精确 SHA256 `49484bf1597667c7b2e27279d5084e8acca958f82136b8f7625b40696e8b6ba7`。独立窄评及 concurrent=1 反例处置归[原提案评审](../../proposals/model-request-adaptation/review.md#2026-09-28-恢复任务留存窄评)。这将 D102/D105 的既有任务与未知结果责任具体落实到长期 reconcile 组件及统一 close，不改变冻结 v12 或 MR8/RT9，不新增 scope 授权口、持久对象或产品政策。当前消费者破坏性迁移到 `{reconcile,close}`，复用现有控制追加 tracker，并修正它对第二份并发配额的依赖。新增绑定0，补充中的六项实际验收尚待；真实宿主恢复、L1/L2、G28 不随采用完成。
+
+
+## 2026-09-28 noRun 示例冷宿主实施采用
+
+主线依用户持续实施、主调度与技术验收委托，采用 [v14 冷宿主映射](../../../realization/packages/model/model-request-runtime/v14-cold-demo-host-design.md) 的精确 SHA256 `6c93be03de144bdcae4a866efd8eb78899e48b6be26bfdc59c09e6387f21f8b5`。来源及独立评审归[原适配提案评审](../../proposals/model-request-adaptation/review.md#2026-09-28-冷宿主与工程观测窄映射评审)。继承 RT9/D105 与 SLJ 专用根前提，只采用主管见证的长期 worker 链、真实退出/独占/恢复准入三项分离、窄授权日志 binding 与先恢复后新调用。worker 本地公开函数保持可独立取用，CLI 的 remote facade 明确另设；不是每模型请求起进程。正常 settleReply 已提交原批认回只读，不取得恢复权。
+
+这是已有职责的具体实施选择，不发布新规格、产品 app 或通用进程平台。Node child 退出与 IPC 的精确来源核对须在依赖实施前完成；C14-V1～V9仍待真实验收，新增bindings0。主管自身重启的陌生历史、外部主管交替接手、withRun和L1/L2未闭合，不能把这些限制写成已交付。候选正文保留受审标记，采用状态由本追加记录决定。

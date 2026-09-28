@@ -216,3 +216,12 @@ G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5�
 ## 2026-09-28 acquire 结果投影独立窄评
 
 审阅对象为 runtime [v13 acquire 结果补正](../../../realization/packages/model/model-request-runtime/v13-acquire-result-design.md)，revision1，SHA256 `777ae873be40ef1c6661a69036b91c034c7e809ebe65d3ebaafc05a4114f306c`。独立 architecture-reviewer 的四组结论：阻断无、非阻断无、范围外新增政策待裁无；未覆盖实现和测试、完整lease生命周期及D4。评审确认RT9 S-53.1及transport既有非法配置结果未被v7端口表达，core档案形状判断不解释模型cache/TTL；恢复三分结果不增加业务边界。两处acquire保持前置历史/归属/准入顺序，失败不取得lease、不plan/send、不创造响应终结。主线接受见D-100追加；实现验收仍须保留更早失败及finally清理结果优先关系。
+
+
+## 2026-09-28 冷宿主与工程观测窄映射评审
+
+主线据独立 architecture-reviewer 实际报告保存归因摘要。冷宿主 v14 revision1 原SHA `a3488f65efbab47d2447fdb2fb226b961df85d3d686243f97d3a634ccea3fe32` 在继承 SLJ 目录专用前提及正常 settleReply 同步修正后无本范围阻断。非阻断意见要求明确主管存活期间根仅交其 worker 链，锁空窗不允许别的主管插入后仍声称覆盖；正常处分认回使用现有授权 session bind/log/owner，不进入恢复、不停止会话其他调用；陌生 clean 未收场历史不能经当前 worker 退出洗成可信覆盖。最终原页 SHA `6c93be03de144bdcae4a866efd8eb78899e48b6be26bfdc59c09e6387f21f8b5` 由主线核对上述定点补文与 worker 本地 openDemo/明确 remote facade 边界，未声称独立重审最终字节。Node child/IPC 真实行为及 C14-V1～V9 尚未验证，主管整体重启、withRun、L1/L2仍有缺口。
+
+工程观测 v15 revision1 SHA `596e21ad1a7e75f0e2d5382cf644c5cb87882ef1c4742bfc2d0d625a01d73f9f` 的 AR1 指出查询截止不等真实 I/O/close 停止；AR2要求多代 transport 健康句柄的装配总量有界。revision2 SHA `c026f6e9b4963dd216d0b4819a07ba823bea73c0370823c49f4f0184a95edbcf` 明确超时仅结束调用者等待、真实任务占原并发额度及健康暴露直到收口；换代创建前检查配置总量，活动旧实例不被终态快照淘汰冒充释放。独立 reviewer 定点复核 AR1/AR2 均闭合、无本范围阻断，未运行实现/Node/POSIX或扩大规格表达审查。
+
+反方分别是同进程少 IPC、OS 来源覆盖主管重启、插件自写日志方便独立安装、自动追踪减少接线、成熟后端省分页。当前选择代价明确归示例长期主管、显式关联和有限本机存储，不能因此宣布冷恢复或完整D6已完成。两项新增bindings均0；技术采用及范围分别见 D105/D076 追加。

@@ -1,3 +1,5 @@
+2026-09-28：主线技术采用 [v14 冷宿主](v14-cold-demo-host-design.md)与 [v15 工程观测](v15-diagnostics-demo-design.md)，精确采用分别见 [D105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md#2026-09-28-norun-示例冷宿主实施采用)与 [D076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md#2026-09-28-工程观测示例实施采用)。可实施范围及前提沿原页，新增bindings0，实际多进程/JSONL/query/export验收尚待，不提升完整交付状态。
+
 2026-09-28：[D105 留存增补采用](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md#2026-09-28-恢复作用域留存的窄实施采用) 精确采用 [恢复任务与 scope 留存](v12-recovery-owner-supplement.md) revision 1；可实施，六项运行义务待验，新增绑定0。
 
 2026-09-28：[D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) 技术采用 [v12 恢复时序映射](v12-recovery-timing-design.md)。MR8/RT9语义已接受，具体接口可施工；新增绑定0，T12及组合停止验收待完成。L1/L2与G-28保持原缺口。
