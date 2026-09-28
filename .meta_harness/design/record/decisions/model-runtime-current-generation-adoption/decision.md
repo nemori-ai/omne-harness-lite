@@ -27,3 +27,9 @@ HUB 中央候选登记与 internal/formal=registered 检查通过；实现验证
 ## 当前 codec 承载字节的实施接续
 
 根调度选择并技术采用 [mrr/3 精确增补](../../../realization/packages/model/model-request-runtime/v8-current-codec-design.md)：payload.format 与本域键前缀统一 mrr/3，业务身份与结算义务不变。旧实现原为 mrr/1 键＋mrr/1 或 mrr/2 载荷的双轨；本次删除其执行面，仅在本域接收边界识别unsupported并拒绝，不转换旧数据、不把它当absent。该选择在用户允许实现技术选项的范围内明确既定直接替换方案，不另立产品政策或新增操作。实际代码和负控仍待实施。
+
+## 2026-09-28 追加：精确传输取得的非法配置结果
+
+主线依本决定的实施与技术验收委托，接受 [v13 acquire 结果投影补正](../../../realization/packages/model/model-request-runtime/v13-acquire-result-design.md)，revision 1，SHA256 `777ae873be40ef1c6661a69036b91c034c7e809ebe65d3ebaafc05a4114f306c`。依据为[模型适配提案](../../proposals/model-request-adaptation/design.md)及[本次独立窄评](../../proposals/model-request-adaptation/review.md)。RT9 S-53.1 本已区分绑定/配置非法与实现不可取得；本增量纠正 v7 ExactTransportAcquirer 只列 lease/unavailable 的投影遗漏，原冻结规范不变。
+
+独立 architecture-reviewer 核对精确稿，在本次结果投影范围未发现阻断；未执行测试。技术采用三分取得结果及两处调用的保真返回，保持更早准入/历史检查、finally 收口和真实 lease 生命周期。允许破坏性同步当前消费者，不留旧接口兼容。新增绑定0，不接受完整 D4、热更/恢复或十三操作；实现、真实提供者非法配置的零发送和零新增记录、续接失败顺序及现有回归仍须实测。起草稿 candidate 状态由此精确采用覆盖，不改写其冻结字节。

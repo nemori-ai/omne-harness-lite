@@ -114,3 +114,7 @@
 [D-095](../../../../record/decisions/model-credential-path-adoption/decision.md)精确采用[v6-credential-path-design rev3](v6-credential-path-design.md)，消费已接受RT5/MR5并复用D093完整纯政策。文件v6不是RT6采用；实际实现/CP-V及PH-V/TLS收口尚待，新增bindings0。
 
 D-100 实施接续另采用 [mrr/3 当前承载字节](v8-current-codec-design.md)；它不表示codec迁移或旧数据拒绝测试已完成。
+
+## 2026-09-28 精确传输取得结果补正
+
+[D-100追加](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md)技术采用[v13 acquire结果补正](v13-acquire-result-design.md)的三分结果，纠正v7遗漏RT9 S-53.1非法配置拒绝的投影。仅允许现有端口与消费者保真迁移，不改变冻结规范、lease责任或操作数量。新增绑定0；实现和真实组合验证仍按实际证据记录，未接受完整D4。

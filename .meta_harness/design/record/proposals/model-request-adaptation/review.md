@@ -212,3 +212,7 @@ G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5�
 独立 architecture-reviewer 对 core/loop-extension v7 候选 SHA eab0c2fd5dc94a0bbedb3dd107b3804558b02cfb8b1ab46e35d2053c065ed627 审阅：两完整纯判断入口复用私有内核、原完整输入入口保留前提的边界无阻断；发现候选将 LC6 S-14 原属生产者/runner 的 batch/result 关联纳入 core 等价口径。主线明确仅抽取现有 core 判断，不迁移该责任，保留原 immutable 改写结果检查。
 
 作者定点修订后 SHA 为 53573d393e7fa61afdeb7d6d5abe3aaac93e2703626ced3214fda3835e7fd3a5。独立同 reviewer 复核该精确字节：上一轮责任项已闭合，无新增阻断/非阻断；未执行测试或重审全树，SV-1～6及真实runner/来源验证仍待实施。两轮检查不替代技术采用；原评审/候选字节保留工作树记录，本段不宣称实现通过。
+
+## 2026-09-28 acquire 结果投影独立窄评
+
+审阅对象为 runtime [v13 acquire 结果补正](../../../realization/packages/model/model-request-runtime/v13-acquire-result-design.md)，revision1，SHA256 `777ae873be40ef1c6661a69036b91c034c7e809ebe65d3ebaafc05a4114f306c`。独立 architecture-reviewer 的四组结论：阻断无、非阻断无、范围外新增政策待裁无；未覆盖实现和测试、完整lease生命周期及D4。评审确认RT9 S-53.1及transport既有非法配置结果未被v7端口表达，core档案形状判断不解释模型cache/TTL；恢复三分结果不增加业务边界。两处acquire保持前置历史/归属/准入顺序，失败不取得lease、不plan/send、不创造响应终结。主线接受见D-100追加；实现验收仍须保留更早失败及finally清理结果优先关系。
