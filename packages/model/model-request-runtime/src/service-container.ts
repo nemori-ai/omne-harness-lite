@@ -105,7 +105,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       // An already running dispatch may publish its final state during host shutdown.
       if (admissionClosed && operation.phase !== 'dispatching' && operation.phase !== 'settling')
         throw new TypeError('call container admission closed')
-      operation = Object.freeze(next)
+      operation = Object.freeze({ ...next })
     },
     retainStopped,
     close(): Promise<RuntimeCloseResult> {

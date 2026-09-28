@@ -27,7 +27,10 @@ import type {
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { CallHistoryDispatch, CallHistoryResult } from './call-history.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import type { SessionModelSelectionInput } from './session-selection-types.ts'
+import type {
+  SessionModelSelectionInput,
+  SessionSelectModelResult,
+} from './session-selection-types.ts'
 import type { EffectiveModel, ModelDisplayEntry } from './selection-types.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import type {
@@ -67,11 +70,10 @@ export type ServiceRetryRefused = {
 }
 export type ServiceAlreadySpoke = { readonly retryRefused: { readonly why: 'already_spoke' } }
 export type ServiceProfileNotFound = { readonly profileNotFound: true }
-export type ServiceNotLegalTarget = {
-  readonly notLegalTarget: {
-    readonly because: readonly ['withdrawn' | 'scope_disallowed' | 'modality_mismatch']
-  }
-}
+export type ServiceNotLegalTarget = Extract<
+  SessionSelectModelResult,
+  { readonly notLegalTarget: object }
+>
 
 export type ServiceLegalTargetsResult =
   { readonly legalTargets: readonly RouteName[] } | ServiceInvalidInput | ServiceUnavailable
