@@ -17,7 +17,10 @@ import {
   CURRENT_EVALUATION_INPUTS_SERVICE,
   type CurrentEvaluationInputs,
 } from '@omne-harness-lite/evaluation-input-store'
-import { createRegistryHistoryReader } from '@omne-harness-lite/evaluation-input-store/registry-history'
+import {
+  createRegistryHistoryReader,
+  type RegistryHistoryReader,
+} from '@omne-harness-lite/evaluation-input-store/registry-history'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import {
   MEMBERSHIPS_SERVICE,
@@ -162,7 +165,7 @@ describe('service tool declaration and externally supplied result', () => {
     })
     const host = createDemoCallHost()
     let manifest: ReturnType<typeof createAssemblyManifestStore> | undefined
-    let history: ReturnType<typeof createRegistryHistoryReader> | undefined
+    let history: RegistryHistoryReader | undefined
     try {
       await app.ready
       if (storage === undefined || context === undefined)
