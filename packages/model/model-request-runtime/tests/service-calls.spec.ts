@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
-import { createServiceCalls, ownOpenCallInput } from '../src/service-calls.ts'
+import { createServiceCalls, ownOpenCallInput, UnknownAppendTracker } from '../src/service-calls.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import type {
@@ -14,7 +14,12 @@ import type {
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
-import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
+import type {
+  SettlementLogBinding,
+  SettlementOwner,
+  SettlementRegistration,
+  SettlementTask,
+} from '../src/settlement-types.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_open_call', 'SessionRef'))
 const host: ModelCallHost = {
@@ -22,6 +27,70 @@ const host: ModelCallHost = {
   stopping: () => false,
   register: () => ({ registration: { unregister() {} } }),
 }
+
+test('unknown append recognition reuses its only registration before release', async () => {
+  const generation = Object.freeze({})
+  const tenant = unwrap(parseTenantId({ organization: 'open-org', account: 'open-account' }))
+  let readable = false
+  let releaseRead = () => {}
+  const readGate = new Promise<void>(resolve => {
+    releaseRead = resolve
+  })
+  const readSince = vi.fn(async () =>
+    readable ? readGate.then(() => ({ entries: [], tail: 0 })) : { failure: 'unavailable' },
+  )
+  const binding = {
+    session,
+    tenant,
+    generation,
+    currentGeneration: () => generation,
+    log: { readSince },
+  } as unknown as SettlementLogBinding
+  let released = 0
+  const start: SettlementRegistration['start'] = (_kind, operation) => {
+    const completion = Promise.resolve().then(() => operation(new AbortController().signal))
+    return { completion, stopped: completion.then(() => undefined), requestStop() {} }
+  }
+  const registration: SettlementRegistration = {
+    start,
+    release() {
+      released++
+    },
+  }
+  const acquire = vi.fn(() => ({ unavailable: true as const }))
+  const owner: SettlementOwner = {
+    name: 'single-slot',
+    admission: () => 'open',
+    acquire,
+    opened: () => ({ confirmed: true }),
+    unresolvedWrites: () => [],
+  }
+  const tracker = new UnknownAppendTracker()
+  tracker.keep({ session, callId: 'unknown-call' }, binding, owner, registration, {
+    completion: Promise.resolve({ failure: 'unavailable' }),
+    stopped: Promise.resolve(),
+    requestStop() {},
+  })
+  expect(await tracker.close({ concurrent: 1, call: () => ({ absent: true }) })).toEqual({
+    unavailable: true,
+  })
+  expect(released).toBe(0)
+  readable = true
+  const first = tracker.close({ concurrent: 1, call: () => ({ absent: true }) })
+  const concurrent = tracker.close({ concurrent: 1, call: () => ({ absent: true }) })
+  expect(concurrent).toBe(first)
+  await vi.waitFor(() => expect(readSince).toHaveBeenCalledTimes(2))
+  expect(released).toBe(0)
+  releaseRead()
+  expect(await Promise.all([first, concurrent])).toEqual([{ released: true }, { released: true }])
+  expect(acquire).not.toHaveBeenCalled()
+  expect(readSince).toHaveBeenCalledTimes(2)
+  expect(released).toBe(1)
+  expect(await tracker.close({ concurrent: 1, call: () => ({ absent: true }) })).toEqual({
+    released: true,
+  })
+  expect(released).toBe(1)
+})
 
 function request(change: Partial<OpenCallInput> = {}): OpenCallInput {
   return {

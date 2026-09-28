@@ -299,12 +299,13 @@ interface UnknownAppend {
   readonly owner: SettlementOwner
   readonly registration: SettlementRegistration
   readonly task: SettlementTask<AppendResult>
+  readonly readTasks: Set<SettlementTask<unknown>>
 }
 
 /** Unknown append receipts retain their original writer until it stops and a full prefix is read. */
 export class UnknownAppendTracker {
   readonly #writes = new Set<UnknownAppend>()
-  readonly #reads = new OwnedReadTracker()
+  #closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
 
   keep(
     key: CallKey,
@@ -313,10 +314,24 @@ export class UnknownAppendTracker {
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
   ): void {
-    this.#writes.add({ key, binding, owner, registration, task })
+    this.#writes.add({ key, binding, owner, registration, task, readTasks: new Set() })
   }
 
-  async close(input: {
+  close(input: {
+    readonly concurrent: import('@omne-harness-lite/content-blocks').JsonNumber
+    readonly call: CurrentHistoryReaders['call']
+  }): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+    if (this.#closing !== undefined) return this.#closing
+    const attempt = this.#closeOnce(input)
+    this.#closing = attempt
+    const finish = () => {
+      if (this.#closing === attempt) this.#closing = undefined
+    }
+    void attempt.then(finish, finish)
+    return attempt
+  }
+
+  async #closeOnce(input: {
     readonly concurrent: import('@omne-harness-lite/content-blocks').JsonNumber
     readonly call: CurrentHistoryReaders['call']
   }): Promise<{ readonly released: true } | { readonly unavailable: true }> {
@@ -334,18 +349,38 @@ export class UnknownAppendTracker {
       } catch {
         continue
       }
-      const read = await withOwnedReads(
-        write.owner,
-        input.concurrent,
-        this.#reads,
-        async registration => {
-          const result = await readSettlementPrefix({ binding: write.binding, registration })
-          return 'unavailable' in result
-            ? ({ unavailable: true } as const)
-            : input.call(result.prefix, write.key.callId)
-        },
-      )
-      if ('unavailable' in read || 'unavailable' in read.ok) continue
+      // The original writer still owns the only registration when concurrent=1.
+      // Reuse it for recognition instead of waiting for a second owner grant.
+      const priorReads = await Promise.allSettled([...write.readTasks].map(task => task.stopped))
+      if (priorReads.some(result => result.status === 'rejected')) continue
+      write.readTasks.clear()
+      let read: Awaited<ReturnType<typeof readSettlementPrefix>>
+      try {
+        read = await readSettlementPrefix({
+          binding: write.binding,
+          registration: {
+            start(kind, operation) {
+              const task = write.registration.start(kind, operation)
+              write.readTasks.add(task)
+              return task
+            },
+            release: write.registration.release,
+          },
+        })
+      } catch {
+        continue
+      }
+      const stopped = await Promise.allSettled([...write.readTasks].map(task => task.stopped))
+      if (stopped.some(result => result.status === 'rejected')) continue
+      write.readTasks.clear()
+      if ('unavailable' in read) continue
+      let recognized: ReturnType<CurrentHistoryReaders['call']>
+      try {
+        recognized = input.call(read.prefix, write.key.callId)
+      } catch {
+        continue
+      }
+      if ('unavailable' in recognized) continue
       try {
         write.registration.release()
         this.#writes.delete(write)
@@ -353,10 +388,7 @@ export class UnknownAppendTracker {
         // A failed writer release remains owned for a later close attempt.
       }
     }
-    const reads = await this.#reads.drain()
-    return this.#writes.size === 0 && 'released' in reads
-      ? { released: true }
-      : { unavailable: true }
+    return this.#writes.size === 0 ? { released: true } : { unavailable: true }
   }
 }
 
