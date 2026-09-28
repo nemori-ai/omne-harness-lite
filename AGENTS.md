@@ -10,7 +10,7 @@
 
 Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项目 fork 维护；设计时将这些 fork 视为可按需求与项目契约演化的自有模块。维护边界归 [SYS-KERNEL](.meta_harness/design/foundation/cross-system-constraints/requirements.md#sys-kernel)，判断方法见 `harness-design-handbook` skill 的 `references/architecture/assurance/judgment.md`「复杂度与复用」。
 
-当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。接受有明确设计和验证依据的大胆重构，不为旧版本保留未经要求的实现兼容层；历史材料的保留不构成兼容承诺。
+当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。研发演进要求依据新规格直接做破坏性重构，同步迁移当前消费者并删除被替代的实现，不给旧版实现保留兼容过渡；历史材料的保留不构成兼容承诺。这是第一版正式发布前的阶段政策，发布时须重新制定兼容与迁移规则；权威正文见[研发品味](.meta_harness/agents/roles/engineering-taste.md#通用判断)。
 
 仓库按 monorepo 组织，产品实现以 TypeScript 为主，Python 当前用于开发工具。`packages/` 放产品包，`apps/` 放应用装配，`tools/` 放开发工具，`scripts/` 放仓库自动化；源码放在所属成员的 `src/`，跨包使用公开入口。完整归属与各语言 workspace 分工见[源码布局](docs/workspace.md)。
 
