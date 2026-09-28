@@ -8,6 +8,7 @@ import { evaluationPublicationBoundary } from './rules/evaluation-publication-bo
 import { manifestImmutable } from './rules/manifest-immutable.ts'
 import { registryHistoryBoundary } from './rules/registry-history-boundary.ts'
 import { syntaxImports, syntaxOf } from './syntax.ts'
+import { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
 
 export const REPOSITORY_RULES = [
   sessionSeedBoundary,
@@ -16,6 +17,7 @@ export const REPOSITORY_RULES = [
   evaluationPublicationBoundary,
   manifestImmutable,
   registryHistoryBoundary,
+  modelCredentialBoundary,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {
   const sources: SourceFile[] = []
