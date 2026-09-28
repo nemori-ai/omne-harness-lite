@@ -4,7 +4,7 @@
 
 Invoke one explicit model transport and assemble its stream into a final result, with cancellation, content deadlines and an asynchronous first-content gate. This experimental ESM workspace package is not published on npm.
 
-The current implementation contains standalone invocation, pure policy functions and bounded durable consumers, including four session selection/query operations. The complete thirteen-operation service and its Cordis plugin remain pending. See the [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md) for exact adoption and coverage.
+The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and a pure no-Run call-history interpreter. The thirteen-operation service interface remains unframed while the pending-reply result is reconciled with the required final response disposition; no thirteen-operation service or Cordis plugin is provided yet. See the [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md) for exact adoption and coverage.
 
 ## Public API
 
@@ -22,6 +22,24 @@ The current implementation contains standalone invocation, pure policy functions
 | `inspectSettlementMembers` | Check complete response/message members and original associations from one complete prefix |
 | `modelLogJsonEqual`, `recognizeMessageValue` | Exact full JSON equality and recognition retaining the original captured message |
 | `createSessionModelSelection(input)` | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup |
+| `interpretCallHistory({ prefix, callId })` | Interpret one no-Run call from a complete, owned SL3 prefix with the shared mrr/1+mrr/2 codec; incomplete or Run history remains unavailable |
+| `projectCallState({ session, callId, history, local? })` | Overlay a process-owned `open` or `reply_pending` responsibility only while no durable response overrides it |
+
+## Read a call without promoting local state to durable fact
+
+Obtain `prefix` with `readSettlementPrefix` from an authenticated session-log binding and a registered read task. That function rejects gaps, wrong tenant, foreign session and provider generation changes. The interpreter only reads that full prefix; it never sends, writes or infers a Run ending. For a no-Run call with a complete response batch, its durable terminal phase wins over an old local `reply_pending` responsibility. The caller must still handle any unresolved old writer before deciding that a missing record permits a new send.
+
+```ts
+import { interpretCallHistory, projectCallState, type SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
+import type { SessionRef } from '@omne-harness-lite/messages'
+
+export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
+  const history = interpretCallHistory({ prefix, callId })
+  return projectCallState({ session, callId, history })
+}
+```
+
+The returned `CallHistoryDispatch` keeps original dispatched log entries, their opened anchor, the validated complete original response value, and its projection. A returned `in_flight` or `speaking` describes the durable frontier, not proof that the old physical request or writer has stopped. An intent without a dispatch remains visible in history with `phase: null` for reconciliation; the state projection returns `unavailable` until its outcome is known. Unknown model-log formats also return `unavailable`, never absence. With-Run history reports `run_history_unavailable` pending the accepted original Run/attempt recognizer.
 
 ## Call an explicitly supplied request
 

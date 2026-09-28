@@ -40,3 +40,7 @@ export type { ResponseConstructionInput } from './response-construction.ts'
 
 export { createSessionModelSelection } from './session-selection.ts'
 export type * from './session-selection-types.ts'
+export { interpretCallHistory } from './call-history.ts'
+export type * from './call-history.ts'
+export { projectCallState } from './call-state.ts'
+export type * from './call-state.ts'

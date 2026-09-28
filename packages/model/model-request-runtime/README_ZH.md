@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数与限定范围的耐久消费者，包括四项会话选择／查询操作。完整十三操作服务及其 Cordis 插件尚待交付。精确采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。十三操作服务接口仍需厘清待交回回复与最终响应处置的形状；尚未提供完整十三操作服务或 Cordis 插件。精确采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。
 
 ## 公开接口
 
@@ -18,6 +18,24 @@
 | `TransportAdapter`、`PlanInput` | 调用者持有的 plan/send/read 端口与显式请求输入 |
 | `InvocationPolicy`、`ModelInvocationResult` | 调度、脱敏、诊断政策与尚未结算的结果投影 |
 | `createSessionModelSelection(input)` | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口 |
+| `interpretCallHistory({ prefix, callId })` | 从完整自有 SL3 前缀经共同 mrr/1+mrr/2 codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用 |
+| `projectCallState({ session, callId, history, local? })` | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任 |
+
+## 读取调用，不把本地状态当作耐久事实
+
+先由已认证的会话日志绑定与已登记读取任务经 `readSettlementPrefix` 取得 `prefix`。它会拒绝缺号、租户或会话错误、提供者代际变化。解释器只读该完整前缀，不发送、不写入，也不猜 Run 终结。对不属于 Run 的调用，完整响应批得出的耐久终态优先于旧的本地 `reply_pending` 责任。调用方在凭缺席决定重新发出前，仍须处理未停止的旧写者。
+
+```ts
+import { interpretCallHistory, projectCallState, type SettlementPrefix } from '@omne-harness-lite/model-request-runtime'
+import type { SessionRef } from '@omne-harness-lite/messages'
+
+export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, callId: string) {
+  const history = interpretCallHistory({ prefix, callId })
+  return projectCallState({ session, callId, history })
+}
+```
+
+返回的 `CallHistoryDispatch` 保留原「已出门」条目、「已开口」锚点、经验证的完整原响应值及其投影。`in_flight`、`speaking` 只描述耐久事实前沿，不证明旧网络请求或写者已实际停止。只有中断意图、没有发出记录时，历史保留 `phase: null` 供对账，状态投影在收场未明前返回 `unavailable`。未知模型日志格式也返回 `unavailable`，不冒充缺席。属于 Run 的历史在原 Run/attempt 认法被正式采用前返回 `run_history_unavailable`。
 
 ## 调用显式传入的请求
 

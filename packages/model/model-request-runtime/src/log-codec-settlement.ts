@@ -26,7 +26,11 @@ import {
 } from './log-codec-key.ts'
 import type { CapturedModelLogValue } from './log-codec-value.ts'
 
-import { legacyCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
+import {
+  currentCodecDomain,
+  legacyCodecDomain,
+  type ModelLogCodecDomain,
+} from './log-codec-domain.ts'
 
 export interface ModelLogSettlementTarget {
   readonly call: string
@@ -43,7 +47,7 @@ export interface ModelLogSettlementCurrent {
   readonly messageId: string | null
   readonly disposition: ReplyDisposition | null
 }
-interface SettlementInputBase {
+interface CompletePrefixInput {
   readonly session: string
   readonly tenant: TenantId
   /**
@@ -52,6 +56,8 @@ interface SettlementInputBase {
    * the conditional comparator does not certify time sources or leap announcements.
    */
   readonly prefix: { readonly entries: readonly LogEntry[]; readonly tail: JsonNumber }
+}
+interface SettlementInputBase extends CompletePrefixInput {
   readonly target: ModelLogSettlementTarget
   readonly anchors: ModelLogSettlementAnchors
   readonly current: ModelLogSettlementCurrent | null
@@ -160,7 +166,11 @@ function purpose(
     ? { kind: 'persistedMessage', response }
     : null
 }
-function foreignReserved(value: JsonObject): boolean {
+/** Shared internal recognition: any legacy model key reserves this entry for the model codec. */
+export function foreignReserved(value: {
+  readonly dedupeKey?: unknown
+  readonly readKeys?: unknown
+}): boolean {
   return [value.dedupeKey, ...(Array.isArray(value.readKeys) ? value.readKeys : [])].some(
     key => typeof key === 'string' && key.startsWith('mrr/'),
   )
@@ -168,13 +178,10 @@ function foreignReserved(value: JsonObject): boolean {
 export function createSettlementCodec(domain: ModelLogCodecDomain) {
   const { captureWrapper, inspectModelLogEntry, prepareModelLogEntry } = createEntryCodec(domain)
   function fullPrefix(
-    input: SettlementInputBase,
+    input: CompletePrefixInput,
   ): { readonly ok: readonly InspectedModelLogEntry[] } | SettlementMembersResult {
     if (
       !identity(input.session) ||
-      !identity(input.target.call) ||
-      !identity(input.target.response) ||
-      !positiveInteger(input.target.dispatch) ||
       !isNonNegativeJsonInteger(input.prefix.tail) ||
       ExactDecimal.from(input.prefix.tail).compare(
         ExactDecimal.from(input.prefix.entries.length),
@@ -487,6 +494,12 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     return inspectOwnedMembers({ ...input, current: current.ok })
   }
   function inspectOwnedMembers(input: InspectSettlementMembersInput): SettlementMembersResult {
+    if (
+      !identity(input.target.call) ||
+      !identity(input.target.response) ||
+      !positiveInteger(input.target.dispatch)
+    )
+      return inconsistent('prefix')
     const prefix = fullPrefix(input)
     if (!('ok' in prefix)) return prefix
     const all = prefix.ok
@@ -610,6 +623,9 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     return 'ok' in copied ? copied.ok : undefined
   }
 
-  return inspectSettlementMembers
+  return { inspectSettlementMembers, inspectCompletePrefix: fullPrefix }
 }
-export const inspectSettlementMembers = createSettlementCodec(legacyCodecDomain)
+export const { inspectSettlementMembers } = createSettlementCodec(legacyCodecDomain)
+/** Same complete-prefix recognition used by v2 settlement, kept internal to this package. */
+export const { inspectCompletePrefix: inspectCurrentModelLogPrefix } =
+  createSettlementCodec(currentCodecDomain)
