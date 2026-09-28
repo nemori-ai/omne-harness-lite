@@ -704,6 +704,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
       )
       if ('failure' in added) throw new Error('second durable dispatch')
       let secondAvailable = false
+      let enters = 0
       const reconcile = createRuntimeReconcile({
         contention: policy(),
         scheduler: noWaitScheduler,
@@ -711,6 +712,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
         diagnostic() {},
         recovery: {
           async enter() {
+            enters++
             return {
               scope: {
                 binding: { log: binding } as SessionRuntimeBinding,
@@ -735,6 +737,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
         ],
       })
       expect(submissions.map(item => item.count)).toEqual([2, 1, 1, 1])
+      expect(enters).toBe(1)
       expect(owner.active).toBe(0)
     })
   })
