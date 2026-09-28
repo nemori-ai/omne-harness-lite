@@ -204,13 +204,13 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createAnthropicInputMeter(definition)` 仅绑定 `anthropic` 供应商下修订 1 的四个指定 Claude 5.x 定义。它使用固定的 [Anthropic 旧版 Claude BPE](https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b)；Anthropic 将其称为自 Claude 3 起的**非常粗略估算**。[Claude 4.7 及后续型号使用新 tokenizer](https://platform.claude.com/docs/en/build-with-claude/token-counting)，本构件不是那个 tokenizer，也没有统一误差上界。它先核完整最终 wire 值的一致性，再对承载输入的消息和工具投影估算，保留多轮文字、user 提醒、工具结果与明文推理。生成、路由和缓存控制值不增加提示词 token；合法 TTL 取自绑定路由声明。该 JSON 输入投影仍是对私有转换的粗略近似。用户及工具结果历史中的内联 PNG/JPEG/WebP/GIF 图片沿 Claude 4.7+ 文档的 28 像素视觉图块估算（2576 像素边长、4784 图块限制），请求中保留原始图片。加密或未知推理回放仍在发送前返回不可计量；密文字节长度不是保留推理 token 数的依据。四份定义绑定 `pi-ai:anthropic/mp4-4`。每次请求必须显式配置余量，逐型号真实认证还须对照上游 usage 与本粗估误差；估算及余量不替代实际上游 usage 或费用。
 
-`createQwenInputMeter(definition)` 使用固定公开词表和 Jinja 模板，计量 Qwen3.8 2.4T-A95B（`mp4-2`）与 27B（`mp4-3`）的文本、提醒、工具和多轮历史。27B 另支持已在阿里云文档无缩放尺寸区间内、且按 32 像素对齐的内联 PNG 粗估；需要缩放、远程图片及其他视觉形态仍不可计量。Max 0902（`mp4-2`）依据阿里云公开 ChatML 示例提供单条用户文本估算，不声称托管模型采用公开词表；其余五个商业叶仍不可计量。显式 reasoning effort 和 opaque 回放尚未计量。公开模板遵循 Jinja 的 Unicode 转义和键序，未核实的 Python JSON 浮点渲染返回不可用。调用方显式配置 token 余量。
+`createQwenInputMeter(definition)` 使用固定公开词表和 Jinja 模板，计量 Qwen3.8 2.4T-A95B（`mp4-2`）与 27B（`mp4-3`）的文本、提醒、工具和多轮历史。27B 另支持已在阿里云文档无缩放尺寸区间内、且按 32 像素对齐的内联 PNG 粗估；需要缩放、远程图片及其他视觉形态仍不可计量。Max 0902（`mp4-3`）依据阿里云公开 ChatML 示例提供单条用户文本估算，加上三个固定路由拟合样本得到、并由独立留出验证的 51-token 偏移，不声称托管模型采用公开词表；其余五个商业叶仍不可计量。显式 reasoning effort 和 opaque 回放尚未计量。公开模板遵循 Jinja 的 Unicode 转义和键序，未核实的 Python JSON 浮点渲染返回不可用。调用方显式配置 token 余量。
 
 `createGlm52InputMeter(definition)` 与 `createGlm53InputMeter(definition)` 使用固定公开模板和词表，覆盖 GLM-5.2、GLM-5.3、GLM-5.3-Flash 的文本与工具请求。结果是固定 OpenRouter 路由的估算，调用方显式提供余量。历史推理、不支持的媒体及未证的 effort 映射返回不可用；Prime、FlashX 尚无有据词表绑定。各自上游许可随 tokenizer 原件打包，其中 GLM-5.3 使用独立许可。
 
 `createGoogleInputMeter(definition)` 绑定两个 Gemini 3.7／3.8 Flash AI Studio 定义的 `mp4-2`。它以固定 Gemma4 对照词表和冻结的逐型号偏置计入可见文本及工具，结果明确为粗略 `estimated`，调用方必须显式给余量。八次固定路由观测区分拟合与留出输入：样本中最多少估 10 token，最大绝对误差 60；这两个数都不是误差上界，也不是 Gemini 自身 tokenizer。媒体、不透明推理回放、请求级 reasoning effort 及未知控制字段仍不可计量。词表和许可随包提供给独立制品消费者。
 
-`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6（`mp4-2`）提供可见文本／工具粗估：将第一方 Grok Build 的 UTF-8 字节算法投影到最终 wire，加上两个 fit 样本得出的 141-token 偏移；独立工具历史 holdout 对完整输入高估 35 token。它不是精确 tokenizer 或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。opaque reasoning、媒体和未覆盖 effort 保持不可计量，不删除历史；完整模型认证仍未完成。Grok 4.7 暂无生产计量器。
+`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7（`mp4-2`）提供可见文本／工具粗估：将第一方 Grok Build 的 UTF-8 字节算法投影到最终 wire，加上各型号仅用两个 fit 样本得出的偏移（4.6 为 141、4.7 为 1181 token）；独立工具历史 holdout 分别对完整输入高估 35、34 token。它不是精确 tokenizer 或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。opaque reasoning、媒体和未覆盖 effort 保持不可计量，不删除历史；完整模型认证仍未完成。
 
 ```ts
 import { createXaiInputMeter, xaiDefinitions } from '@omne-harness-lite/pi-ai-transport'
