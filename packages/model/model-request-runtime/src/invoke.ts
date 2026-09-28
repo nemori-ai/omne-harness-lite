@@ -20,7 +20,7 @@ import type {
   InvocationPolicy,
   PlanFailure,
 } from './types.ts'
-import { ownPlanInput } from './input.ts'
+import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,
@@ -76,9 +76,10 @@ export function invokeModel<P extends PlannedSemantics, R>(
   input: InvocationInput<P, R>,
 ): ModelInvocationHandle {
   const requested = input && ownPlanInput(input)
+  const missing = input && !requested ? preflightMissingInputLimits(input) : null
   if (
     !input ||
-    !requested ||
+    (!requested && !missing) ||
     typeof input.credential !== 'string' ||
     !input.credential.trim() ||
     /[^\x20-\x7e]/.test(input.credential) ||
@@ -116,6 +117,23 @@ export function invokeModel<P extends PlannedSemantics, R>(
     typeof input.transport.read !== 'function'
   )
     return rejectionHandle({ rejected: 'unavailable' })
+  if (missing) {
+    const preflight = input.transport.plan(input)
+    if (
+      'rejected' in preflight &&
+      ((preflight.rejected === 'invalidInput' && preflight.reason === 'malformed') ||
+        preflight.rejected === 'modality_not_carried' ||
+        preflight.rejected === 'orphan_tool_call' ||
+        preflight.rejected === 'tool_internal_in_request')
+    )
+      return rejectionHandle(preflight)
+    return rejectionHandle({
+      rejected: 'invalidInput',
+      reason: 'input_limit_missing',
+      metrics: missing.metrics,
+    })
+  }
+  if (!requested) return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
   // Capture this invocation's values and borrowed ports before any asynchronous work.
   // The caller still owns the lifetime of each function/resource it supplied.
   input = Object.freeze({

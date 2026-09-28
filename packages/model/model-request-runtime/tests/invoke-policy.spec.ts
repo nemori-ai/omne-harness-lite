@@ -48,9 +48,19 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
     {
       rejected: 'invalidInput',
       reason: 'input_limit_exceeded',
+      basis: 'exact',
       metric: 'maxImages',
       actual: 3,
       limit: 2,
+    },
+    {
+      rejected: 'invalidInput',
+      reason: 'input_limit_exceeded',
+      basis: 'estimated',
+      metric: 'maxInputTokens',
+      estimatedTokens: new LosslessNumber('9007199254740993'),
+      admissionTokens: new LosslessNumber('11258999068426243'),
+      limit: new LosslessNumber('11258999068426242'),
     },
   ] satisfies PlanFailure[])(
     'preserves the complete plan refusal before send: $reason',
@@ -64,6 +74,117 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
       expect(port.reads()).toBe(0)
     },
   )
+  it('maps a missing current cap after earlier planning refusals without sending', async () => {
+    const port = adapter()
+    const { maxInputTokens: _missing, ...snapshot } = request().snapshot
+    const raw = { ...request(), snapshot }
+    const missing = Reflect.apply(invokeModel, undefined, [
+      {
+        ...raw,
+        transport: port.transport,
+        credential: '503',
+        signal: new AbortController().signal,
+        policy: policy(),
+      },
+    ])
+    expect(await missing.outcome).toEqual({
+      rejected: 'invalidInput',
+      reason: 'input_limit_missing',
+      metrics: ['maxInputTokens'],
+    })
+    expect(port.sends()).toBe(0)
+    const sawOriginalCap: boolean[] = []
+    const prior = Reflect.apply(invokeModel, undefined, [
+      {
+        ...raw,
+        transport: {
+          ...port.transport,
+          plan(value: typeof raw) {
+            sawOriginalCap.push(Object.hasOwn(value.snapshot, 'maxInputTokens'))
+            return { rejected: 'modality_not_carried' }
+          },
+        },
+        credential: '503',
+        signal: new AbortController().signal,
+        policy: policy(),
+      },
+    ])
+    expect(await prior.outcome).toEqual({ rejected: 'modality_not_carried' })
+    expect(sawOriginalCap).toEqual([false])
+    expect(port.sends()).toBe(0)
+  })
+  it('captures the explicit margin before asynchronous planning', async () => {
+    const port = adapter()
+    const margin = { multiplier: 1.25, reserveTokens: 2 }
+    const input = request()
+    const seen: unknown[] = []
+    const handle = invokeModel({
+      ...input,
+      tokenMargin: margin,
+      transport: {
+        ...port.transport,
+        plan(value) {
+          seen.push(value.tokenMargin)
+          return port.transport.plan(value)
+        },
+      },
+      credential: '503',
+      signal: new AbortController().signal,
+      policy: policy(),
+    })
+    margin.multiplier = 99
+    margin.reserveTokens = 99
+    expect(await handle.outcome).toHaveProperty('outcome')
+    expect(seen).toEqual([{ multiplier: 1.25, reserveTokens: 2 }])
+  })
+  it('maps a missing required upstream fact to its metric', async () => {
+    const port = adapter()
+    const base = request()
+    const { maxRequestBytes: _missing, ...upstreamInputLimits } = base.snapshot.upstreamInputLimits
+    const handle = Reflect.apply(invokeModel, undefined, [
+      {
+        ...base,
+        snapshot: { ...base.snapshot, upstreamInputLimits },
+        transport: port.transport,
+        credential: '503',
+        signal: new AbortController().signal,
+        policy: policy(),
+      },
+    ])
+    expect(await handle.outcome).toEqual({
+      rejected: 'invalidInput',
+      reason: 'input_limit_missing',
+      metrics: ['maxRequestBytes'],
+    })
+    expect(port.sends()).toBe(0)
+  })
+  it('does not invent a margin and does not hide unrelated malformed snapshot data', async () => {
+    const port = adapter()
+    const noMargin = Reflect.apply(invokeModel, undefined, [
+      {
+        ...request(),
+        tokenMargin: undefined,
+        transport: port.transport,
+        credential: '503',
+        signal: new AbortController().signal,
+        policy: policy(),
+      },
+    ])
+    expect(await noMargin.outcome).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
+    const { maxInputTokens: _missing, ...snapshot } = request().snapshot
+    const malformed = Reflect.apply(invokeModel, undefined, [
+      {
+        ...request(),
+        snapshot: { ...snapshot, maxOutputTokens: null },
+        transport: port.transport,
+        credential: '503',
+        signal: new AbortController().signal,
+        policy: policy(),
+      },
+    ])
+    expect(await malformed.outcome).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
+    expect(port.sends()).toBe(0)
+  })
   for (const credential of ['503', 'true', 'null'])
     it(`CP-V1 redacts raw scalar/key/error ${credential} but retains independent status`, async () => {
       const fact: TransportFailure = {

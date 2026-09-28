@@ -35,9 +35,19 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
     {
       rejected: 'invalidInput',
       reason: 'input_limit_exceeded',
+      basis: 'exact',
       metric: 'maxImages',
       actual: 3,
       limit: 2,
+    },
+    {
+      rejected: 'invalidInput',
+      reason: 'input_limit_exceeded',
+      basis: 'estimated',
+      metric: 'maxInputTokens',
+      estimatedTokens: 9,
+      admissionTokens: 12,
+      limit: 11,
     },
   ] satisfies PlanFailure[])(
     'preserves the complete anchored refusal without a log write: $reason',
@@ -55,6 +65,23 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       })
     },
   )
+  it('rejects a missing current cap before durable dispatched anchor or HTTP', async () => {
+    await harness(async h => {
+      const { maxInputTokens: _missing, ...snapshot } = h.input.planInput.snapshot
+      const t = transport()
+      const handle = Reflect.apply(createAnchoredModelInvocation, undefined, [
+        { ...h.input, planInput: { ...h.input.planInput, snapshot }, transport: t.adapter },
+      ])
+      expect(await handle.outcome).toEqual({
+        rejected: 'invalidInput',
+        reason: 'input_limit_missing',
+        metrics: ['maxInputTokens'],
+      })
+      expect(t.sends()).toBe(0)
+      expect(h.writes).toHaveLength(0)
+      expect(await handle.close()).toEqual({ released: true })
+    })
+  })
   it('actual log tenant shell mismatch refuses dispatched before HTTP', async () => {
     await harness(async h => {
       const other = parseTenantId({ organization: 'other-org', account: 'other-account' })

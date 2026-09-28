@@ -9,7 +9,7 @@ import { judgeMessage } from '@omne-harness-lite/messages'
 import { validate as toolShape, type ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { start } from '@omne-harness-lite/stream-assembly'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { PlanInput, TokenMargin } from './types.ts'
+import type { InputLimitMetric, PlanInput, TokenMargin } from './types.ts'
 
 function snapshot(value: unknown): value is ModelProfileSnapshot {
   return profileShape('ModelProfileSnapshot', value).valid
@@ -34,6 +34,73 @@ function margin(value: unknown): value is TokenMargin {
     ExactDecimal.from(value.reserveTokens).isInteger &&
     ExactDecimal.from(value.reserveTokens).compare(ExactDecimal.from(0)) >= 0
   )
+}
+function object(value: unknown): value is Record<string, unknown> {
+  return (
+    value !== null && typeof value === 'object' && !Array.isArray(value) && !isJsonNumber(value)
+  )
+}
+
+/** Bounded validation-only copy for the three planning refusals that precede missing limits. */
+export function preflightMissingInputLimits(input: PlanInput): {
+  readonly input: PlanInput
+  readonly metrics: readonly [InputLimitMetric, ...InputLimitMetric[]]
+} | null {
+  if (!input || typeof input !== 'object') return null
+  const copied = copyJsonValue(input.snapshot)
+  if (!('ok' in copied) || !object(copied.ok)) return null
+  const profile = copied.ok
+  const image = Array.isArray(profile.inputModalities) && profile.inputModalities.includes('image')
+  const constraints = profile.inputConstraints
+  if (constraints !== undefined && !object(constraints)) return null
+  const upstream = profile.upstreamInputLimits
+  if (upstream !== undefined && !object(upstream)) return null
+  const metrics: InputLimitMetric[] = []
+  const add = (metric: InputLimitMetric) => {
+    if (!metrics.includes(metric)) metrics.push(metric)
+  }
+  if (!Object.hasOwn(profile, 'maxInputTokens')) add('maxInputTokens')
+  if (image && (!object(constraints) || !Object.hasOwn(constraints, 'maxImageBytes')))
+    add('maxImageBytes')
+  for (const metric of [
+    'maxInputTokens',
+    ...(image ? (['maxImageBytes', 'maxImages'] as const) : []),
+    'maxRequestBytes',
+  ] as const)
+    if (!object(upstream) || !Object.hasOwn(upstream, metric)) add(metric)
+  const [first, ...rest] = metrics
+  if (first === undefined) return null
+  const candidate = {
+    ...profile,
+    maxInputTokens: Object.hasOwn(profile, 'maxInputTokens') ? profile.maxInputTokens : 1,
+    inputConstraints:
+      image && (!object(constraints) || !Object.hasOwn(constraints, 'maxImageBytes'))
+        ? { ...(object(constraints) ? constraints : {}), maxImageBytes: 1 }
+        : constraints,
+    upstreamInputLimits: {
+      ...(object(upstream) ? upstream : {}),
+      ...Object.fromEntries(
+        [
+          'maxInputTokens',
+          ...(image ? (['maxImageBytes', 'maxImages'] as const) : []),
+          'maxRequestBytes',
+        ]
+          .filter(metric => !object(upstream) || !Object.hasOwn(upstream, metric))
+          .map(metric => [metric, { status: 'unknown' }]),
+      ),
+    },
+  }
+  if (!snapshot(candidate)) return null
+  const suppliedMargin = copyJsonValue(input.tokenMargin)
+  const preflight = ownPlanInput({
+    ...input,
+    snapshot: candidate,
+    tokenMargin:
+      'ok' in suppliedMargin && margin(suppliedMargin.ok)
+        ? suppliedMargin.ok
+        : { multiplier: 1, reserveTokens: 0 },
+  })
+  return preflight === undefined ? null : { input: preflight, metrics: [first, ...rest] }
 }
 /** Standalone invocation boundary, before planning and pre-send cancellation. */
 export function ownPlanInput(input: PlanInput): PlanInput | undefined {

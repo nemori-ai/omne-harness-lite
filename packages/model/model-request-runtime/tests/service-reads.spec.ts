@@ -23,6 +23,7 @@ function construction(
       },
     },
     calls: createCallContainerStore(),
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     transport: {
       acquire() {
         reads.transport++

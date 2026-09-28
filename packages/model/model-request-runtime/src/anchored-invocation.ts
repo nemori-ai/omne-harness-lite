@@ -3,7 +3,7 @@ import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
-import { ownPlanInput } from './input.ts'
+import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
 import { invokeModel } from './invoke.ts'
 import {
   createCredentialRedactionPolicy,
@@ -84,7 +84,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   input = Object.freeze({ ...input })
   const terminal = (value: AnchoredInvocationOutcome) =>
     terminalHandle(value, input.releaseBorrowed)
-  const requested = ownPlanInput(input.planInput)
+  const owned = ownPlanInput(input.planInput)
+  const missing = owned === undefined ? preflightMissingInputLimits(input.planInput) : null
+  const requested = owned ?? missing?.input
   if (
     !requested ||
     !(input.signal instanceof AbortSignal) ||
@@ -177,6 +179,22 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     statusCauseTable: Object.freeze({ ...input.policy.statusCauseTable }),
   })
   if (input.signal.aborted) return terminal({ cancelledBeforeDispatch: true })
+  if (missing) {
+    const preflight = transport.plan(input.planInput)
+    if (
+      'rejected' in preflight &&
+      ((preflight.rejected === 'invalidInput' && preflight.reason === 'malformed') ||
+        preflight.rejected === 'modality_not_carried' ||
+        preflight.rejected === 'orphan_tool_call' ||
+        preflight.rejected === 'tool_internal_in_request')
+    )
+      return terminal(preflight)
+    return terminal({
+      rejected: 'invalidInput',
+      reason: 'input_limit_missing',
+      metrics: missing.metrics,
+    })
+  }
   const plan = transport.plan(requested)
   if ('rejected' in plan) return terminal(plan)
   const planned = plan.planned
