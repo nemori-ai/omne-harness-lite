@@ -2,11 +2,38 @@ import { describe, expect, it } from 'vitest'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { join } from 'node:path'
+import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
 import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+  it.each([
+    { rejected: 'invalidInput', reason: 'input_limit_missing', metrics: ['maxInputTokens'] },
+    { rejected: 'invalidInput', reason: 'input_size_unavailable', metrics: ['maxRequestBytes'] },
+    {
+      rejected: 'invalidInput',
+      reason: 'input_limit_exceeded',
+      metric: 'maxImages',
+      actual: 3,
+      limit: 2,
+    },
+  ] satisfies PlanFailure[])(
+    'preserves the complete anchored refusal without a log write: $reason',
+    async failure => {
+      await harness(async h => {
+        const t = transport()
+        const handle = createAnchoredModelInvocation({
+          ...h.input,
+          transport: { ...t.adapter, plan: () => failure },
+        })
+        expect(await handle.outcome).toEqual(failure)
+        expect(t.sends()).toBe(0)
+        expect(h.writes).toHaveLength(0)
+        expect(await handle.close()).toEqual({ released: true })
+      })
+    },
+  )
   it('actual log tenant shell mismatch refuses dispatched before HTTP', async () => {
     await harness(async h => {
       const other = parseTenantId({ organization: 'other-org', account: 'other-account' })
@@ -693,7 +720,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
           transport: t.adapter,
           ...change,
         })
-        expect(await handle.outcome).toEqual({ rejected: 'invalidInput' })
+        expect(await handle.outcome).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
         await handle.close()
       }
       h.revoke()

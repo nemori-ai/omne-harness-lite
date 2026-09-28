@@ -18,6 +18,7 @@ import type {
   StreamEnd,
   TransportFailure,
   InvocationPolicy,
+  PlanFailure,
 } from './types.ts'
 import { ownPlanInput } from './input.ts'
 import {
@@ -63,9 +64,9 @@ function policyValid(policy: InvocationPolicy): boolean {
     )
   )
 }
-function rejectionHandle(reason: 'invalidInput' | 'unavailable'): ModelInvocationHandle {
+function rejectionHandle(failure: PlanFailure): ModelInvocationHandle {
   return Object.freeze({
-    outcome: Promise.resolve({ rejected: reason }),
+    outcome: Promise.resolve(failure),
     snapshot: () => ({ blocks: [], position: 0 }),
     abort: () => {},
   })
@@ -86,16 +87,17 @@ export function invokeModel<P extends PlannedSemantics, R>(
     (input.beforeFirstContent !== undefined && typeof input.beforeFirstContent !== 'function') ||
     (input.onAccepted !== undefined && typeof input.onAccepted !== 'function')
   )
-    return rejectionHandle('invalidInput')
+    return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
   let bound: BoundCredentialRedaction
   try {
     const policy = createCredentialRedactionPolicy(input.policy.credentialRedaction)
     const binding = policy.bind(input.credential)
-    if ('rejected' in binding) return rejectionHandle('invalidInput')
+    if ('rejected' in binding)
+      return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
     bound = binding.ok
   } catch (error) {
     if (error instanceof CredentialRedactionConfigurationError)
-      return rejectionHandle('invalidInput')
+      return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
     try {
       input.policy.diagnostic({ kind: 'model_invocation.policy_bind_defect' })
     } catch {
@@ -113,7 +115,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
     typeof input.transport.send !== 'function' ||
     typeof input.transport.read !== 'function'
   )
-    return rejectionHandle('unavailable')
+    return rejectionHandle({ rejected: 'unavailable' })
   // Capture this invocation's values and borrowed ports before any asynchronous work.
   // The caller still owns the lifetime of each function/resource it supplied.
   input = Object.freeze({
@@ -130,7 +132,8 @@ export function invokeModel<P extends PlannedSemantics, R>(
     }),
   })
   const initial = start(input.target)
-  if ('rejected' in initial) return rejectionHandle('invalidInput')
+  if ('rejected' in initial)
+    return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
   let state: AssemblyState = initial.ok
   const controller = new AbortController()
   let terminal = false,
@@ -223,7 +226,10 @@ export function invokeModel<P extends PlannedSemantics, R>(
       sentAt = input.policy.now()
       deadline(input.policy.firstContentTimeoutMs)
       const sent = await input.transport.send(planned, input.credential, controller.signal)
-      if ('rejected' in sent) return { rejected: sent.rejected }
+      if ('rejected' in sent)
+        return sent.rejected === 'invalidInput'
+          ? { rejected: 'invalidInput', reason: 'malformed' }
+          : { rejected: 'unavailable' }
       if (sent.rawHeaders !== undefined) {
         if (ownedHeaders(sent.rawHeaders)) rawHeaders = sent.rawHeaders
         else {

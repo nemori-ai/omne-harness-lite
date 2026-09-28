@@ -4,6 +4,7 @@ import {
   invokeModel,
   type InvocationInput,
   type PlannedSemantics,
+  type PlanFailure,
   type TransportFailure,
 } from '@omne-harness-lite/model-request-runtime'
 import { adapter, content, deferred, policy, request, result } from './invoke-policy-fixture.ts'
@@ -23,6 +24,28 @@ function invoke(
   })
 }
 describe('D095 runtime CP policy wiring with actual public stream-assembly', () => {
+  it.each([
+    { rejected: 'invalidInput', reason: 'input_limit_missing', metrics: ['maxInputTokens'] },
+    { rejected: 'invalidInput', reason: 'input_size_unavailable', metrics: ['maxRequestBytes'] },
+    {
+      rejected: 'invalidInput',
+      reason: 'input_limit_exceeded',
+      metric: 'maxImages',
+      actual: 3,
+      limit: 2,
+    },
+  ] satisfies PlanFailure[])(
+    'preserves the complete plan refusal before send: $reason',
+    async failure => {
+      const port = adapter()
+      const handle = invoke(port, '503', {
+        transport: { ...port.transport, plan: () => failure },
+      })
+      expect(await handle.outcome).toEqual(failure)
+      expect(port.sends()).toBe(0)
+      expect(port.reads()).toBe(0)
+    },
+  )
   for (const credential of ['503', 'true', 'null'])
     it(`CP-V1 redacts raw scalar/key/error ${credential} but retains independent status`, async () => {
       const fact: TransportFailure = {
@@ -92,7 +115,7 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
       policy: { ...policy(), credentialRedaction, redact: (text: string) => text },
     }
     const handle = Reflect.apply(invokeModel, undefined, [input])
-    expect(await handle.outcome).toEqual({ rejected: 'invalidInput' })
+    expect(await handle.outcome).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     expect(port.sends()).toBe(0)
   })
   it('CP-V2 old redact-only policy is not a fallback', async () => {
@@ -107,7 +130,7 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
         policy: { ...remaining, redact: (text: string) => text },
       },
     ])
-    expect(await handle.outcome).toEqual({ rejected: 'invalidInput' })
+    expect(await handle.outcome).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     expect(port.sends()).toBe(0)
   })
   it('CP-V2 config is bound before asynchronous send waits', async () => {

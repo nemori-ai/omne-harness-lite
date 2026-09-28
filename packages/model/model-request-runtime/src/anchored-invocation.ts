@@ -100,12 +100,12 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     (input.credentialScope.layer === 'tenant' &&
       !tenantIdEquals(input.credentialScope.tenant, input.settlement.binding.tenant))
   )
-    return terminal({ rejected: 'invalidInput' })
+    return terminal({ rejected: 'invalidInput', reason: 'malformed' })
   try {
     const bound = createCredentialRedactionPolicy(input.policy.credentialRedaction).bind(
       input.credential,
     )
-    if ('rejected' in bound) return terminal({ rejected: 'invalidInput' })
+    if ('rejected' in bound) return terminal({ rejected: 'invalidInput', reason: 'malformed' })
     const config = input.policy.credentialRedaction
     const sourceOwner = input.settlement.owner
     const sourceLog = input.settlement.binding.log
@@ -155,7 +155,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     })
   } catch (error) {
     if (error instanceof CredentialRedactionConfigurationError)
-      return terminal({ rejected: 'invalidInput' })
+      return terminal({ rejected: 'invalidInput', reason: 'malformed' })
     throw error
   }
   const binding = Object.freeze({ ...input.settlement.binding })
@@ -180,7 +180,8 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   const plan = transport.plan(requested)
   if ('rejected' in plan) return terminal(plan)
   const planned = plan.planned
-  if (!modelLogJsonEqual(planned.input, requested)) return terminal({ rejected: 'invalidInput' })
+  if (!modelLogJsonEqual(planned.input, requested))
+    return terminal({ rejected: 'invalidInput', reason: 'malformed' })
   const captured = captureModelLogValue({
     category: 'record',
     input: {
@@ -207,7 +208,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     },
   })
   if ('invalidValue' in captured || captured.ok.record?.kind !== 'model_call_dispatched')
-    return terminal({ rejected: 'invalidInput' })
+    return terminal({ rejected: 'invalidInput', reason: 'malformed' })
   const dispatched: ModelCallDispatchedRecord = captured.ok.record
   const prepared = prepareModelLogEntry({
     session: binding.session,
@@ -216,7 +217,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     purpose: { kind: 'record' },
     messagePrefix: null,
   })
-  if ('invalidValue' in prepared) return terminal({ rejected: 'invalidInput' })
+  if ('invalidValue' in prepared) return terminal({ rejected: 'invalidInput', reason: 'malformed' })
   const acquired = originalOwner.acquire(contention.limits.concurrent)
   if ('unavailable' in acquired) return terminal(unavailable)
   const registration: SettlementRegistration = acquired.registration

@@ -157,7 +157,7 @@ describe('anchored noRun tool definitions and history', () => {
           planInput: { ...h.input.planInput, tools },
           transport: t.adapter,
         })
-        expect(await handle.outcome).toEqual({ rejected: 'invalidInput' })
+        expect(await handle.outcome).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
         expect(await handle.close()).toEqual({ released: true })
       }
       expect(t.plans()).toBe(0)

@@ -14,7 +14,7 @@ import type {
   PlannedSemantics,
   TransportAdapter,
   InvocationPolicy,
-  PlanRejection,
+  PlanFailure,
   ModelInvocationHandle,
 } from './types.ts'
 import type { SettlementCoordinatorInput, SettlementResult } from './settlement-types.ts'
@@ -42,7 +42,7 @@ export type ResponseConstructionResult =
 export type AnchoredInvocationOutcome =
   | { readonly replyPending: PendingModelResponse }
   | { readonly settled: Extract<SettlementResult, { readonly settled: unknown }> }
-  | { readonly rejected: PlanRejection }
+  | PlanFailure
   | { readonly cancelledBeforeDispatch: true }
   | { readonly unavailable: true }
 export interface AnchoredInvocationHandle {
