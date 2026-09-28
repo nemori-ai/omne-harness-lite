@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。十三操作服务接口仍需厘清待交回回复与最终响应处置的形状；尚未提供完整十三操作服务或 Cordis 插件。精确采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。内部施工已定义十三个操作各自的输入／结果类型和进程内调用容器。容器以 `(session, callId)` 短暂独占状态转换；流式等待期间让出短暂准入，同时继续持有实际停止任务、精确传输租约、待处分回复与回执未知的日志写者。这些文件尚未从包根导出，也不代表十三操作服务或 Cordis 插件已完成。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
 
 ## 公开接口
 

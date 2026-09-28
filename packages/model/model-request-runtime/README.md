@@ -4,7 +4,7 @@
 
 Invoke one explicit model transport and assemble its stream into a final result, with cancellation, content deadlines and an asynchronous first-content gate. This experimental ESM workspace package is not published on npm.
 
-The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and a pure no-Run call-history interpreter. The thirteen-operation service interface remains unframed while the pending-reply result is reconciled with the required final response disposition; no thirteen-operation service or Cordis plugin is provided yet. See the [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md) for exact adoption and coverage.
+The current implementation contains standalone invocation, pure policy functions, bounded durable consumers, four session selection/query operations, and a pure no-Run call-history interpreter. Internal construction now defines typed inputs/results for all thirteen operations and a process-local call container. Its short `(session, callId)` reservation is released during a stream while actual stop tasks, the exact transport lease, a pending reply and unknown log writers remain owned. These construction files are not yet root exports or a completed thirteen-operation service or Cordis plugin. See the [current service design](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md) and [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md); Run-backed success still needs a real Run-history interpreter.
 
 ## Public API
 
