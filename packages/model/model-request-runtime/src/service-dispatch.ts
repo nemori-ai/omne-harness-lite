@@ -16,6 +16,7 @@ import type { CallHistoryResult } from './call-history.ts'
 import type {
   CallOperationState,
   CallKey,
+  CallReservation,
   DispatchAgainInput,
   DispatchInput,
   DispatchResult,
@@ -227,6 +228,13 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
   const retainedReads = new Set<SettlementRegistration>()
   const unknownWrites = new Set<SettlementRegistration>()
 
+  async function retire(reservation: CallReservation<P, R>): Promise<void> {
+    const container = runtime.calls.find(reservation.key)
+    if (container === undefined) return
+    const closed = await container.close()
+    if ('released' in closed) runtime.calls.remove(reservation)
+  }
+
   function run(input: DispatchInput, again: false): Promise<DispatchResult>
   function run(input: DispatchAgainInput, again: true): Promise<DispatchAgainResult>
   async function run(
@@ -329,6 +337,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           },
         })
         if ('unavailable' in appended) return { unavailable: true }
+        await retire(reservation)
         return first
           ? { callId: key.callId, state: 'handed_up', undispatched: 'credential_unavailable' }
           : {
@@ -418,9 +427,11 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           if ('unavailable' in got || 'unavailable' in got.ok) return { unavailable: true }
           return { settled: response, failureSubject: got.ok.subject }
         }
-        return response.outcome === 'interrupted' && !('reply' in response)
-          ? { settled: response }
-          : { unavailable: true }
+        if (response.outcome === 'interrupted' && !('reply' in response)) {
+          await retire(finish.reservation)
+          return { settled: response }
+        }
+        return { unavailable: true }
       }
       if ('rejected' in outcome) {
         const closed = await handle.close()
@@ -471,6 +482,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
               unknownWrites.add(registration)
             },
           })
+          if ('appended' in appended) await retire(finish.reservation)
           return 'appended' in appended
             ? { callId: key.callId, state: 'handed_up', undispatched: 'modality_mismatch' }
             : { unavailable: true }

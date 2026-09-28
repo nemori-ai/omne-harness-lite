@@ -135,6 +135,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     let sendCount = 0
     let failSend = false
     let evaluationReads = 0
+    let credentialAvailable = true
     const calls = createCallContainerStore<TestPlan, object>()
     let released = 0
     const binding: SessionRuntimeBinding = {
@@ -149,7 +150,12 @@ test('service dispatch writes both anchors before handing out a complete pending
       },
       credentials: {
         async value() {
-          return { scope: { layer: 'factory' }, value: new TextEncoder().encode('test-secret') }
+          return credentialAvailable
+            ? {
+                scope: { layer: 'factory' as const },
+                value: new TextEncoder().encode('test-secret'),
+              }
+            : { failure: 'credentialUnavailable' as const }
         },
       },
       tools: {
@@ -360,6 +366,25 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(sendCount).toBe(3)
     expect(evaluationReads).toBe(5)
     selected.owner.openedState = { confirmed: true }
+    expect(
+      await opening.openCall({
+        session: host.session,
+        target: effective.ok.routeName,
+        basis: effective.ok,
+        messages: [],
+        tools: [],
+        host: binding,
+      }),
+    ).toEqual({ callId: 'actual-call-5', state: 'open' })
+    credentialAvailable = false
+    expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-5' })).toEqual({
+      callId: 'actual-call-5',
+      state: 'handed_up',
+      undispatched: 'credential_unavailable',
+    })
+    expect(sendCount).toBe(3)
+    expect(released).toBe(1)
+    expect(calls.find({ session: host.session, callId: 'actual-call-5' })).toBeUndefined()
   } finally {
     await host.close()
   }
