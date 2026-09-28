@@ -183,6 +183,9 @@ importers:
       '@omne-harness-lite/agent-definition':
         specifier: workspace:*
         version: link:../../packages/core/agent-definition
+      '@omne-harness-lite/assembly-manifest-store':
+        specifier: workspace:*
+        version: link:../../packages/assets/assembly-manifest-store
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../packages/core/asset-evaluation

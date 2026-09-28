@@ -29,6 +29,7 @@
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
     "@omne-harness-lite/agent-definition": "workspace:*",
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
     "@omne-harness-lite/asset-evaluation": "workspace:*",
     "@omne-harness-lite/asset-model": "workspace:*",
     "@omne-harness-lite/asset-registry": "workspace:*",
