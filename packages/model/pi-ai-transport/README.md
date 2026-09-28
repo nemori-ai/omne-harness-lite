@@ -210,7 +210,15 @@ Automatic cache configuration is exactly `{ cache: { mode: 'automatic' } }` and 
 
 `createGoogleInputMeter(definition)` binds the two Gemini 3.7/3.8 Flash AI Studio definitions at `mp4-2`. It counts visible text and tools with the pinned Gemma4 comparator and a frozen per-model offset, returning a rough `estimated` result with an explicit caller margin. Eight fixed-route observations included separate fit and holdout inputs: maximum observed undercount was 10 tokens and maximum absolute error was 60; neither is an error bound. This is not the Gemini tokenizer. Media, opaque reasoning replay, request-level reasoning effort and unknown controls remain unavailable. The bundled tokenizer and license are included in packed consumers.
 
-xAI Grok 4.6/4.7 still have no production meter. Their local HTTPS projection tests use synthetic meters and do not make their definitions sendable in production.
+`createXaiInputMeter(definition)` binds Grok 4.6 (`mp4-2`) to a rough visible-text/tool estimate on the pinned xai route. It projects the first-party Grok Build UTF-8 byte heuristic over the final wire and adds a 141-token offset fitted on two observations; the independent tool-history holdout overestimated complete input by 35 tokens. This is neither an exact tokenizer nor a proven upper bound; callers configure the margin. Complete context input includes uncached input plus both cache-read/cache-write components. Unknown components leave the total unknown. Opaque reasoning, media and unsupported effort remain unavailable without deleting history; complete model certification remains outstanding. Grok 4.7 has no production meter yet.
+
+```ts
+import { createXaiInputMeter, xaiDefinitions } from '@omne-harness-lite/pi-ai-transport'
+
+const definition = xaiDefinitions.find(item => item.modelId === 'x-ai/grok-4.6')!
+const meter = createXaiInputMeter(definition)
+// Supply this meter to createPiAiTransport({ ..., inputMeters: [meter!] }).
+```
 
 `createMoonshotInputMeter(definition)` binds Kimi K3 and K2.7 Code to their pinned vocabulary and distinct XTML/Jinja prompt templates. Text, plain reasoning and paired tool history are estimated; the complete JSON envelope is not counted again. K3 `mp4-3` orders consecutive parallel tool results by the preceding call IDs for its prompt estimate, following the pinned encoder. The transmitted history remains unchanged; K2.7 uses `mp4-2`. Both models estimate inline PNG/JPEG/WebP image tokens with their pinned model-specific visual processors, including images in complete text/tool history. Remote images, video, encrypted/unknown reasoning and unrecognized model-input fields remain unavailable. These estimates do not certify OpenRouter usage or cache retention. The caller supplies the token margin. Bundled `LICENSE.K3` and `LICENSE.K27` retain the respective upstream licensing and attribution conditions.
 
@@ -434,3 +442,5 @@ pnpm exec vitest run tests/official-*.spec.ts
 ## Input meter source layout
 
 Concrete estimators live in [`src/input-meters/`](src/input-meters/): [`deepseek-v4-pro.ts`](src/input-meters/deepseek-v4-pro.ts), [`deepseek-v41-flash.ts`](src/input-meters/deepseek-v41-flash.ts), and [`openai.ts`](src/input-meters/openai.ts). A family shares its algorithm wherever the evidence supports it; each supplied model/provider route has an explicit binding. Distinct prompt encodings or tokenizers can have separate modules. The common interface and margin/binding checks stay in [`input-meter.ts`](src/input-meter.ts); final input limits stay in [`input-limits.ts`](src/input-limits.ts). Consumers import the factories from the package root.
+
+The Anthropic cache probe (`tests/fixtures/anthropic/cache-public.mjs`) uses explicit TTL configuration and separate write/read/expiry commands. It records public invocation outcomes, accepted arrival events and retained response headers. `capture.rawSseBody: false` and `capture.protocolFailureFrame: false` state that the original SSE body and rejected frame are not captured. A protocol failure cannot identify the offending field or reconstruct missing bytes. Nonempty unsupported `images`, `audio` and `refusal` content remains a protocol failure.

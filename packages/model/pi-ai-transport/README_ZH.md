@@ -210,7 +210,15 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createGoogleInputMeter(definition)` 绑定两个 Gemini 3.7／3.8 Flash AI Studio 定义的 `mp4-2`。它以固定 Gemma4 对照词表和冻结的逐型号偏置计入可见文本及工具，结果明确为粗略 `estimated`，调用方必须显式给余量。八次固定路由观测区分拟合与留出输入：样本中最多少估 10 token，最大绝对误差 60；这两个数都不是误差上界，也不是 Gemini 自身 tokenizer。媒体、不透明推理回放、请求级 reasoning effort 及未知控制字段仍不可计量。词表和许可随包提供给独立制品消费者。
 
-xAI Grok 4.6／4.7 仍无生产计量器；其本机 HTTPS 投影测试使用合成 meter，不代表这些定义已经能生成可发送的生产计划。
+`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6（`mp4-2`）提供可见文本／工具粗估：将第一方 Grok Build 的 UTF-8 字节算法投影到最终 wire，加上两个 fit 样本得出的 141-token 偏移；独立工具历史 holdout 对完整输入高估 35 token。它不是精确 tokenizer 或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。opaque reasoning、媒体和未覆盖 effort 保持不可计量，不删除历史；完整模型认证仍未完成。Grok 4.7 暂无生产计量器。
+
+```ts
+import { createXaiInputMeter, xaiDefinitions } from '@omne-harness-lite/pi-ai-transport'
+
+const definition = xaiDefinitions.find(item => item.modelId === 'x-ai/grok-4.6')!
+const meter = createXaiInputMeter(definition)
+// 向 createPiAiTransport({ ..., inputMeters: [meter!] }) 显式传入计量器。
+```
 
 `createMoonshotInputMeter(definition)` 将 Kimi K3 与 K2.7 Code 绑定到固定词表及各自 XTML／Jinja 提示词模板。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 的 `mp4-3` 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序，K2.7 使用 `mp4-2`。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史；远程图片、视频、加密／未知推理及未识别模型输入字段仍返回不可用。此估算不代表已认证 OpenRouter 实际用量或缓存保留期；余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
 
@@ -434,3 +442,5 @@ pnpm exec vitest run tests/official-*.spec.ts
 ## 计量源码布局
 
 具体估算实现集中在 [`src/input-meters/`](src/input-meters/)：[`deepseek-v4-pro.ts`](src/input-meters/deepseek-v4-pro.ts)、[`deepseek-v41-flash.ts`](src/input-meters/deepseek-v41-flash.ts) 和 [`openai.ts`](src/input-meters/openai.ts)。同一家族在事实依据允许时共用算法，每个供给模型及供应商路由明确绑定；消息编码或 tokenizer 确有差异时可拆独立模块。公共接口、余量及绑定校验保留在 [`input-meter.ts`](src/input-meter.ts)，最终输入限额检查在 [`input-limits.ts`](src/input-limits.ts)。消费者从包根导入工厂。
+
+Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配置 TTL，分写入／读取／过期三个命令执行。它记录公开调用结果、已接收的到达事件和响应头；`capture.rawSseBody: false`、`capture.protocolFailureFrame: false` 表示没有捕获原始 SSE 正文及被拒绝帧。不能仅凭协议失败确定触发字段或重建缺失字节。非空且不受支持的 `images`、`audio` 和 `refusal` 内容仍按协议失败处理。
