@@ -18,7 +18,13 @@ import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 
+/** Explicit per-plan estimate policy; never used as upstream usage. */
+export interface TokenMargin {
+  readonly multiplier: JsonNumber
+  readonly reserveTokens: JsonNumber
+}
 export interface PlanInput {
+  readonly tokenMargin: TokenMargin
   readonly target: Extract<ArrivalTarget, { kind: 'model_call' }>
   readonly routeName: string
   readonly provider: string
@@ -39,11 +45,7 @@ export type PlanRejection =
   | 'modality_not_carried'
   | 'orphan_tool_call'
   | 'tool_internal_in_request'
-export type InputLimitMetric =
-  | 'maxInputTokens'
-  | 'maxRequestBytes'
-  | 'maxImageBytes'
-  | 'maxImages'
+export type InputLimitMetric = 'maxInputTokens' | 'maxRequestBytes' | 'maxImageBytes' | 'maxImages'
 /** Non-content facts from the same fixed plan; an upper bound is not an actual excess. */
 export type InputLimitRejection =
   | {
@@ -54,16 +56,25 @@ export type InputLimitRejection =
   | {
       readonly rejected: 'invalidInput'
       readonly reason: 'input_limit_exceeded'
+      readonly basis: 'exact'
       readonly metric: InputLimitMetric
       readonly actual: JsonNumber
+      readonly limit: JsonNumber
+    }
+  | {
+      readonly rejected: 'invalidInput'
+      readonly reason: 'input_limit_exceeded'
+      readonly basis: 'estimated'
+      readonly metric: 'maxInputTokens'
+      readonly estimatedTokens: JsonNumber
+      readonly admissionTokens: JsonNumber
       readonly limit: JsonNumber
     }
 export type PlanFailure =
   | InputLimitRejection
   | { readonly rejected: 'invalidInput'; readonly reason: 'malformed' }
   | { readonly rejected: Exclude<PlanRejection, 'invalidInput'> }
-export type PlanResult<P extends PlannedSemantics> =
-  { readonly planned: P } | PlanFailure
+export type PlanResult<P extends PlannedSemantics> = { readonly planned: P } | PlanFailure
 export interface ServingFacts {
   readonly upstreamModel?: string
   readonly servingProvider?: string
@@ -146,9 +157,7 @@ export interface ModelInvocationResult extends ServingFacts {
   readonly droppedParameters?: readonly string[]
 }
 export type InvocationOutcome =
-  | ModelInvocationResult
-  | { readonly cancelledBeforeSend: true }
-  | PlanFailure
+  ModelInvocationResult | { readonly cancelledBeforeSend: true } | PlanFailure
 export interface ModelInvocationHandle {
   readonly outcome: Promise<InvocationOutcome>
   readonly snapshot: () => AssemblySnapshot

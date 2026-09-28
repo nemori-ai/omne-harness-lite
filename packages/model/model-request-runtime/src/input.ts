@@ -1,4 +1,4 @@
-import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, isJsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   validate as profileShape,
   judgeModelProfileDocument,
@@ -9,7 +9,7 @@ import { judgeMessage } from '@omne-harness-lite/messages'
 import { validate as toolShape, type ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { start } from '@omne-harness-lite/stream-assembly'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { PlanInput } from './types.ts'
+import type { PlanInput, TokenMargin } from './types.ts'
 
 function snapshot(value: unknown): value is ModelProfileSnapshot {
   return profileShape('ModelProfileSnapshot', value).valid
@@ -19,6 +19,21 @@ function parameters(value: unknown): value is ModelRequestParameters {
 }
 function tool(value: unknown): value is ModelToolEntry {
   return toolShape('ModelToolEntry', value).valid
+}
+function margin(value: unknown): value is TokenMargin {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 2 &&
+    'multiplier' in value &&
+    isJsonNumber(value.multiplier) &&
+    ExactDecimal.from(value.multiplier).compare(ExactDecimal.from(1)) >= 0 &&
+    'reserveTokens' in value &&
+    isJsonNumber(value.reserveTokens) &&
+    ExactDecimal.from(value.reserveTokens).isInteger &&
+    ExactDecimal.from(value.reserveTokens).compare(ExactDecimal.from(0)) >= 0
+  )
 }
 /** Standalone invocation boundary, before planning and pre-send cancellation. */
 export function ownPlanInput(input: PlanInput): PlanInput | undefined {
@@ -53,6 +68,8 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     ) > 0
   )
     return undefined
+  const tokenMargin = copyJsonValue(input.tokenMargin)
+  if (!('ok' in tokenMargin) || !margin(tokenMargin.ok)) return undefined
   const messages = []
   for (const raw of input.messages) {
     const judged = judgeMessage(raw)
@@ -68,6 +85,7 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     tools.push(copied.ok)
   }
   return Object.freeze({
+    tokenMargin: Object.freeze(tokenMargin.ok),
     target: Object.freeze({
       kind: 'model_call',
       callId: input.target.callId,
