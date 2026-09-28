@@ -242,6 +242,11 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
   const occupied = new Map<string, Set<string>>()
   const reservations = new WeakMap<CallReservation<P, R>, ReservationState<P, R>>()
   const waiters = new Map<string, Map<string, Set<() => void>>>()
+  const activeReservations = new Set<CallReservation<P, R>>()
+  const activeWaiters = new Set<{ readonly stop: () => void }>()
+  let closed = false
+  let released = false
+  let closing: Promise<RuntimeCloseResult> | undefined
 
   function waiting(key: CallKey): Set<() => void> {
     let session = waiters.get(key.session)
@@ -274,6 +279,7 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
   function unlock(state: ReservationState<P, R>): void {
     if (!state.active) return
     state.active = false
+    activeReservations.delete(state.reservation)
     const session = occupied.get(state.key.session)
     session?.delete(state.key.callId)
     if (session?.size === 0) occupied.delete(state.key.session)
@@ -282,7 +288,10 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
 
   function reserve(
     key: CallKey,
-  ): { readonly reservation: CallReservation<P, R> } | { readonly occupied: true } {
+  ):
+    | { readonly reservation: CallReservation<P, R> }
+    | { readonly occupied: true }
+    | { readonly closed: true } {
     if (
       typeof key.session !== 'string' ||
       key.session.length === 0 ||
@@ -290,6 +299,7 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       key.callId.length === 0
     )
       throw new TypeError('invalid call key')
+    if (closed) return { closed: true } as const
     let session = occupied.get(key.session)
     if (session?.has(key.callId)) return { occupied: true } as const
     if (session === undefined) {
@@ -312,6 +322,7 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       },
       attachInvocation(handle: AnchoredInvocationHandle): void {
         if (owns(reservation) === undefined) throw new TypeError('reservation released')
+        if (closed) throw new TypeError('reservation admission closed')
         const container = current(ownedKey)
         if (container === undefined) throw new TypeError('call container absent')
         const attach = invocationSlots.get(container)
@@ -319,7 +330,7 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         attach(handle)
       },
       async replaceInvocation(create: () => AnchoredInvocationHandle) {
-        if (owns(reservation) === undefined || typeof create !== 'function')
+        if (closed || owns(reservation) === undefined || typeof create !== 'function')
           return { unavailable: true } as const
         const container = current(ownedKey)
         const old = container?.view().invocation
@@ -335,6 +346,7 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         if (
           !('released' in stopped) ||
           stopped.released !== true ||
+          closed ||
           owns(reservation) === undefined ||
           current(ownedKey) !== container ||
           !slot.eligible(old)
@@ -344,6 +356,7 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       },
       updateRequest(request: OpenCallInput): void {
         if (owns(reservation) === undefined) throw new TypeError('reservation released')
+        if (closed) throw new TypeError('reservation admission closed')
         const container = current(ownedKey)
         if (container === undefined) throw new TypeError('call container absent')
         const update = requestSlots.get(container)
@@ -356,7 +369,31 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       },
     })
     reservations.set(reservation, { key: ownedKey, reservation, active: true })
+    activeReservations.add(reservation)
     return { reservation } as const
+  }
+
+  async function closeOnce(): Promise<RuntimeCloseResult> {
+    const pending: Promise<RuntimeCloseResult>[] = []
+    for (const session of containers.values()) {
+      for (const container of session.values()) {
+        try {
+          pending.push(container.close())
+        } catch {
+          pending.push(Promise.resolve({ unavailable: true }))
+        }
+      }
+    }
+    await Promise.allSettled(pending)
+    for (const [sessionId, session] of containers) {
+      for (const [callId, container] of session) {
+        if (container.canRemove()) session.delete(callId)
+      }
+      if (session.size === 0) containers.delete(sessionId)
+    }
+    return containers.size === 0 && activeReservations.size === 0 && activeWaiters.size === 0
+      ? { released: true }
+      : { unavailable: true }
   }
 
   return Object.freeze({
@@ -371,7 +408,8 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       },
     ) {
       const { policy, scheduler, signal } = input
-      if (!validWaitPolicy(policy) || signal.aborted) return { unavailable: true } as const
+      if (closed || !validWaitPolicy(policy) || signal.aborted)
+        return { unavailable: true } as const
       if (typeof scheduler.nowMonotonicMs !== 'function' || typeof scheduler.wait !== 'function')
         return { unavailable: true } as const
       let started: JsonNumber
@@ -386,7 +424,19 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         return { unavailable: true } as const
       const callbacks = waiting(key)
       let wake: (() => void) | undefined
+      let stopTimer: (() => void) | undefined
+      let stopFailed = false
       let notified: Promise<void> = Promise.resolve()
+      const waiter = {
+        stop() {
+          wake?.()
+          try {
+            stopTimer?.()
+          } catch {
+            stopFailed = true
+          }
+        },
+      }
       function subscribe(): void {
         notified = new Promise<void>(resolve => {
           wake = resolve
@@ -394,11 +444,13 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         })
       }
       subscribe()
+      activeWaiters.add(waiter)
       try {
         for (;;) {
-          if (signal.aborted) return { unavailable: true } as const
+          if (closed || signal.aborted) return { unavailable: true } as const
           const attempt = reserve(key)
           if ('reservation' in attempt) return attempt
+          if ('closed' in attempt) return { unavailable: true } as const
           let now: JsonNumber
           try {
             now = scheduler.nowMonotonicMs()
@@ -426,6 +478,8 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
           }
           try {
             const timer = scheduler.wait(remaining.toJsonNumber(), controller.signal)
+            stopTimer = () => timer.requestStop()
+            if (closed) waiter.stop()
             try {
               const result = await Promise.race([
                 notified.then(() => 'released' as const),
@@ -434,8 +488,15 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
               ])
               if (result !== 'released') return { unavailable: true } as const
             } finally {
-              timer.requestStop()
-              await timer.stopped
+              try {
+                timer.requestStop()
+                await timer.stopped
+              } catch {
+                stopFailed = true
+                throw new Error('reservation timer did not stop')
+              } finally {
+                stopTimer = undefined
+              }
             }
           } catch {
             return { unavailable: true } as const
@@ -448,11 +509,13 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         }
       } finally {
         if (wake !== undefined) removeWaiter(key, wake)
+        if (!stopFailed) activeWaiters.delete(waiter)
       }
     },
     insert(reservation: CallReservation<P, R>, prepared: CallContainer<P, R>): boolean {
       const state = owns(reservation)
       if (
+        closed ||
         state === undefined ||
         !sameKey(state.key, prepared.key) ||
         current(state.key) !== undefined
@@ -475,6 +538,23 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       session?.delete(state.key.callId)
       if (session?.size === 0) containers.delete(state.key.session)
       return true
+    },
+    close(): Promise<RuntimeCloseResult> {
+      if (released) return Promise.resolve({ released: true })
+      if (closing !== undefined) return closing
+      closed = true
+      for (const waiter of activeWaiters) waiter.stop()
+      const attempt = closeOnce()
+      closing = attempt
+        .then(result => {
+          if ('released' in result) released = true
+          return result
+        })
+        .catch(() => ({ unavailable: true }) as const)
+        .finally(() => {
+          closing = undefined
+        })
+      return closing
     },
   })
 }

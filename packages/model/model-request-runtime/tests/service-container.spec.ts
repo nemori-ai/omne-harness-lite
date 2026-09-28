@@ -91,6 +91,60 @@ function fixture(sessionId: string, callId: string) {
 }
 
 describe('call container admission and retention', () => {
+  it('closes every session call while retaining only the unresolved owner for retry', async () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const blocked = fixture('session-a', 'same-call')
+    const healthy = fixture('session-b', 'same-call')
+    for (const item of [blocked, healthy]) {
+      const admitted = store.reserve(item.container.key)
+      if (!('reservation' in admitted)) throw new Error('reservation absent')
+      expect(store.insert(admitted.reservation, item.container)).toBe(true)
+      admitted.reservation.release()
+    }
+    blocked.setOpened({
+      unknown: { completion: Promise.resolve(), stopped: Promise.resolve(), requestStop() {} },
+    })
+    const first = store.close()
+    expect(store.reserve(blocked.container.key)).toEqual({ closed: true })
+    expect(await first).toEqual({ unavailable: true })
+    expect(blocked.leaseReleases).toBe(0)
+    expect(healthy.leaseReleases).toBe(1)
+    expect(store.find(blocked.container.key)).toBe(blocked.container)
+    expect(store.find(healthy.container.key)).toBeUndefined()
+    blocked.setOpened({ confirmed: true })
+    expect(await store.close()).toEqual({ released: true })
+    expect(await store.close()).toEqual({ released: true })
+    expect(blocked.leaseReleases).toBe(1)
+    expect(healthy.leaseReleases).toBe(1)
+  })
+
+  it('closes admission before a late insert or invocation replacement can publish', async () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const item = fixture('session', 'call')
+    const admitted = store.reserve(item.container.key)
+    if (!('reservation' in admitted)) throw new Error('reservation absent')
+    const closing = store.close()
+    expect(store.insert(admitted.reservation, item.container)).toBe(false)
+    expect(() => admitted.reservation.attachInvocation({} as AnchoredInvocationHandle)).toThrow(
+      'reservation admission closed',
+    )
+    expect(() => admitted.reservation.updateRequest(item.container.view().request)).toThrow(
+      'reservation admission closed',
+    )
+    let created = 0
+    expect(
+      await admitted.reservation.replaceInvocation(() => {
+        created++
+        return {} as AnchoredInvocationHandle
+      }),
+    ).toEqual({ unavailable: true })
+    expect(created).toBe(0)
+    expect(await closing).toEqual({ unavailable: true })
+    admitted.reservation.release()
+    expect(await store.close()).toEqual({ released: true })
+    expect(item.leaseReleases).toBe(0)
+  })
+
   it('replaces a released send only under a still-owned ready reservation', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const f = fixture('session', 'call')

@@ -49,6 +49,26 @@ function controlledScheduler() {
 }
 
 describe('bounded call reservation waiting', () => {
+  it('wakes a waiter on close and waits for its timer to stop before final release', async () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const first = store.reserve(key)
+    if (!('reservation' in first)) throw new Error('first reservation')
+    const { scheduler, timers } = controlledScheduler()
+    const waiting = store.waitReserve(key, {
+      policy,
+      scheduler,
+      signal: new AbortController().signal,
+    })
+    expect(timers).toHaveLength(1)
+    const closing = store.close()
+    expect(store.reserve(key)).toEqual({ closed: true })
+    expect(await waiting).toEqual({ unavailable: true })
+    expect(timers[0]?.stopped).toBe(true)
+    expect(await closing).toEqual({ unavailable: true })
+    first.reservation.release()
+    expect(await store.close()).toEqual({ released: true })
+  })
+
   it('subscribes before checking occupation, then wakes without losing another call identity', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const first = store.reserve(key)

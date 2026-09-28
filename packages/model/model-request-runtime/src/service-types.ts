@@ -373,7 +373,10 @@ export interface CallContainerStore<P extends PlannedSemantics, R> {
   readonly find: (key: CallKey) => CallContainer<P, R> | undefined
   readonly reserve: (
     key: CallKey,
-  ) => { readonly reservation: CallReservation<P, R> } | { readonly occupied: true }
+  ) =>
+    | { readonly reservation: CallReservation<P, R> }
+    | { readonly occupied: true }
+    | { readonly closed: true }
   readonly waitReserve: (
     key: CallKey,
     input: {
@@ -384,6 +387,8 @@ export interface CallContainerStore<P extends PlannedSemantics, R> {
   ) => Promise<{ readonly reservation: CallReservation<P, R> } | { readonly unavailable: true }>
   readonly insert: (reservation: CallReservation<P, R>, prepared: CallContainer<P, R>) => boolean
   readonly remove: (reservation: CallReservation<P, R>) => boolean
+  /** Closes new admission synchronously and attempts to release every owned call. */
+  readonly close: () => Promise<RuntimeCloseResult>
 }
 export type CallOperationState =
   | { readonly phase: 'ready' }
