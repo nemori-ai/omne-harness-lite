@@ -1,4 +1,11 @@
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import {
+  isJsonNumber,
+  isNonNegativeJsonInteger,
+  LosslessNumber,
+  type JsonNumber,
+} from '@omne-harness-lite/content-blocks'
 import type { PlannedSemantics } from './types.ts'
 import type {
   CallContainer,
@@ -9,10 +16,27 @@ import type {
   CallReservation,
   CreateCallContainerInput,
   RuntimeCloseResult,
+  ReservationWaitPolicy,
 } from './service-types.ts'
+import type { SettlementScheduler } from './settlement-types.ts'
 
 function sameKey(left: CallKey, right: CallKey): boolean {
   return left.session === right.session && left.callId === right.callId
+}
+function positive(value: JsonNumber): boolean {
+  return (
+    isNonNegativeJsonInteger(value) && ExactDecimal.from(value).compare(ExactDecimal.from(0)) > 0
+  )
+}
+function negative(value: JsonNumber): JsonNumber {
+  const source = ExactDecimal.from(value).toString()
+  return new LosslessNumber(source.startsWith('-') ? source.slice(1) : `-${source}`)
+}
+function nonnegative(value: unknown): value is JsonNumber {
+  return isJsonNumber(value) && ExactDecimal.from(value).compare(ExactDecimal.from(0)) >= 0
+}
+function validWaitPolicy(policy: ReservationWaitPolicy): boolean {
+  return positive(policy.maxWaitersPerCall) && positive(policy.timeoutMs)
 }
 
 /** Captures process resources only. Log facts and authorization remain with their providers. */
@@ -134,6 +158,28 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
   const containers = new Map<string, Map<string, CallContainer<P, R>>>()
   const occupied = new Map<string, Set<string>>()
   const reservations = new WeakMap<CallReservation<P, R>, ReservationState<P, R>>()
+  const waiters = new Map<string, Map<string, Set<() => void>>>()
+
+  function waiting(key: CallKey): Set<() => void> {
+    let session = waiters.get(key.session)
+    if (session === undefined) {
+      session = new Map()
+      waiters.set(key.session, session)
+    }
+    let call = session.get(key.callId)
+    if (call === undefined) {
+      call = new Set()
+      session.set(key.callId, call)
+    }
+    return call
+  }
+  function removeWaiter(key: CallKey, wake: () => void): void {
+    const session = waiters.get(key.session)
+    const call = session?.get(key.callId)
+    call?.delete(wake)
+    if (call?.size === 0) session?.delete(key.callId)
+    if (session?.size === 0) waiters.delete(key.session)
+  }
 
   function current(key: CallKey): CallContainer<P, R> | undefined {
     return containers.get(key.session)?.get(key.callId)
@@ -148,45 +194,138 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
     const session = occupied.get(state.key.session)
     session?.delete(state.key.callId)
     if (session?.size === 0) occupied.delete(state.key.session)
+    for (const wake of waiters.get(state.key.session)?.get(state.key.callId) ?? []) wake()
+  }
+
+  function reserve(
+    key: CallKey,
+  ): { readonly reservation: CallReservation<P, R> } | { readonly occupied: true } {
+    if (
+      typeof key.session !== 'string' ||
+      key.session.length === 0 ||
+      typeof key.callId !== 'string' ||
+      key.callId.length === 0
+    )
+      throw new TypeError('invalid call key')
+    let session = occupied.get(key.session)
+    if (session?.has(key.callId)) return { occupied: true } as const
+    if (session === undefined) {
+      session = new Set<string>()
+      occupied.set(key.session, session)
+    }
+    session.add(key.callId)
+    const ownedKey = Object.freeze({ session: key.session, callId: key.callId })
+    const reservation: CallReservation<P, R> = Object.freeze({
+      key: ownedKey,
+      view: () => {
+        if (owns(reservation) === undefined) throw new TypeError('reservation released')
+        return current(ownedKey)?.view()
+      },
+      publish(next: CallOperationState): void {
+        if (owns(reservation) === undefined) throw new TypeError('reservation released')
+        const container = current(ownedKey)
+        if (container === undefined) throw new TypeError('call container absent')
+        container.publish(next)
+      },
+      release(): void {
+        const state = reservations.get(reservation)
+        if (state !== undefined) unlock(state)
+      },
+    })
+    reservations.set(reservation, { key: ownedKey, reservation, active: true })
+    return { reservation } as const
   }
 
   return Object.freeze({
     find: current,
-    reserve(key: CallKey) {
-      if (
-        typeof key.session !== 'string' ||
-        key.session.length === 0 ||
-        typeof key.callId !== 'string' ||
-        key.callId.length === 0
-      )
-        throw new TypeError('invalid call key')
-      let session = occupied.get(key.session)
-      if (session?.has(key.callId)) return { occupied: true } as const
-      if (session === undefined) {
-        session = new Set<string>()
-        occupied.set(key.session, session)
+    reserve,
+    async waitReserve(
+      key: CallKey,
+      input: {
+        readonly policy: ReservationWaitPolicy
+        readonly scheduler: SettlementScheduler
+        readonly signal: AbortSignal
+      },
+    ) {
+      const { policy, scheduler, signal } = input
+      if (!validWaitPolicy(policy) || signal.aborted) return { unavailable: true } as const
+      if (typeof scheduler.nowMonotonicMs !== 'function' || typeof scheduler.wait !== 'function')
+        return { unavailable: true } as const
+      let started: JsonNumber
+      try {
+        started = scheduler.nowMonotonicMs()
+        if (!nonnegative(started)) return { unavailable: true } as const
+      } catch {
+        return { unavailable: true } as const
       }
-      session.add(key.callId)
-      const ownedKey = Object.freeze({ session: key.session, callId: key.callId })
-      const reservation: CallReservation<P, R> = Object.freeze({
-        key: ownedKey,
-        view: () => {
-          if (owns(reservation) === undefined) throw new TypeError('reservation released')
-          return current(ownedKey)?.view()
-        },
-        publish(next: CallOperationState): void {
-          if (owns(reservation) === undefined) throw new TypeError('reservation released')
-          const container = current(ownedKey)
-          if (container === undefined) throw new TypeError('call container absent')
-          container.publish(next)
-        },
-        release(): void {
-          const state = reservations.get(reservation)
-          if (state !== undefined) unlock(state)
-        },
-      })
-      reservations.set(reservation, { key: ownedKey, reservation, active: true })
-      return { reservation } as const
+      const existing = waiters.get(key.session)?.get(key.callId)?.size ?? 0
+      if (ExactDecimal.from(existing).compare(ExactDecimal.from(policy.maxWaitersPerCall)) >= 0)
+        return { unavailable: true } as const
+      const callbacks = waiting(key)
+      let wake: (() => void) | undefined
+      let notified: Promise<void> = Promise.resolve()
+      function subscribe(): void {
+        notified = new Promise<void>(resolve => {
+          wake = resolve
+          callbacks.add(resolve)
+        })
+      }
+      subscribe()
+      try {
+        for (;;) {
+          if (signal.aborted) return { unavailable: true } as const
+          const attempt = reserve(key)
+          if ('reservation' in attempt) return attempt
+          let now: JsonNumber
+          try {
+            now = scheduler.nowMonotonicMs()
+            if (!nonnegative(now) || ExactDecimal.from(now).compare(ExactDecimal.from(started)) < 0)
+              return { unavailable: true } as const
+          } catch {
+            return { unavailable: true } as const
+          }
+          const elapsed = ExactDecimal.from(now).add(ExactDecimal.from(negative(started)))
+          const remaining = ExactDecimal.from(policy.timeoutMs).add(
+            ExactDecimal.from(negative(elapsed.toJsonNumber())),
+          )
+          if (remaining.compare(ExactDecimal.from(0)) <= 0) return { unavailable: true } as const
+          const controller = new AbortController()
+          const abort = () => controller.abort()
+          let notifyAbort: (() => void) | undefined
+          const cancelled = new Promise<'cancelled'>(resolve => {
+            notifyAbort = () => resolve('cancelled')
+            signal.addEventListener('abort', notifyAbort, { once: true })
+          })
+          signal.addEventListener('abort', abort, { once: true })
+          if (signal.aborted) {
+            controller.abort()
+            notifyAbort?.()
+          }
+          try {
+            const timer = scheduler.wait(remaining.toJsonNumber(), controller.signal)
+            try {
+              const result = await Promise.race([
+                notified.then(() => 'released' as const),
+                timer.completion,
+                cancelled,
+              ])
+              if (result !== 'released') return { unavailable: true } as const
+            } finally {
+              timer.requestStop()
+              await timer.stopped
+            }
+          } catch {
+            return { unavailable: true } as const
+          } finally {
+            signal.removeEventListener('abort', abort)
+            if (notifyAbort !== undefined) signal.removeEventListener('abort', notifyAbort)
+          }
+          if (wake !== undefined) removeWaiter(key, wake)
+          subscribe()
+        }
+      } finally {
+        if (wake !== undefined) removeWaiter(key, wake)
+      }
     },
     insert(reservation: CallReservation<P, R>, prepared: CallContainer<P, R>): boolean {
       const state = owns(reservation)

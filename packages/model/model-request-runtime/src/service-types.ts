@@ -325,8 +325,15 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly policy: InvocationPolicy
   readonly identities: ModelIdentitySource
   readonly history: CurrentHistoryReaders
+  readonly reservationWaitPolicy: ReservationWaitPolicy
 }
 export type RuntimeCloseResult = { readonly released: true } | { readonly unavailable: true }
+
+/** Process-local admission budget, independent of durable settlement contention. */
+export interface ReservationWaitPolicy {
+  readonly maxWaitersPerCall: import('@omne-harness-lite/content-blocks').JsonNumber
+  readonly timeoutMs: import('@omne-harness-lite/content-blocks').JsonNumber
+}
 
 /** Process-local admission only; durable status remains in the owned full log prefix. */
 export interface CallContainerStore<P extends PlannedSemantics, R> {
@@ -334,6 +341,14 @@ export interface CallContainerStore<P extends PlannedSemantics, R> {
   readonly reserve: (
     key: CallKey,
   ) => { readonly reservation: CallReservation<P, R> } | { readonly occupied: true }
+  readonly waitReserve: (
+    key: CallKey,
+    input: {
+      readonly policy: ReservationWaitPolicy
+      readonly scheduler: SettlementScheduler
+      readonly signal: AbortSignal
+    },
+  ) => Promise<{ readonly reservation: CallReservation<P, R> } | { readonly unavailable: true }>
   readonly insert: (reservation: CallReservation<P, R>, prepared: CallContainer<P, R>) => boolean
   readonly remove: (reservation: CallReservation<P, R>) => boolean
 }
