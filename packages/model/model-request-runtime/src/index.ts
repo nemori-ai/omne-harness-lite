@@ -35,3 +35,6 @@ export { createAnchoredModelInvocation } from './anchored-invocation.ts'
 export type * from './anchored-invocation-types.ts'
 export { constructModelResponse, constructAssistantReply } from './response-construction.ts'
 export type { ResponseConstructionInput } from './response-construction.ts'
+
+export { createSessionModelSelection } from './session-selection.ts'
+export type * from './session-selection-types.ts'
