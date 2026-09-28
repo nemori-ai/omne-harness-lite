@@ -63,3 +63,12 @@ export const glm52ZAiFp8Route = {
     },
   },
 } satisfies ModelRoute
+
+/** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
+export const zaiModelRoutes = {
+  'z-ai/glm-5.3': { 'z-ai/fp8': glm53ZAiFp8Route },
+  'z-ai/glm-5.3-prime': { alibaba: glm53PrimeAlibabaRoute },
+  'z-ai/glm-5.3-flash': { 'z-ai/fp8': glm53FlashZAiFp8Route },
+  'z-ai/glm-5.3-flashx': { 'z-ai/fp8': glm53FlashxZAiFp8Route },
+  'z-ai/glm-5.2': { 'z-ai/fp8': glm52ZAiFp8Route },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>

@@ -39,6 +39,12 @@ const automaticDeepInfraRoute = {
 // Automatic means no manual cache controls; a cache hit needs separate evidence.
 export const deepseekV41FlashDeepInfraRoute = automaticDeepInfraRoute
 
+/** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
+export const deepseekModelRoutes = {
+  'deepseek/deepseek-v4.1-flash': { 'deepinfra/fp8': deepseekV41FlashDeepInfraRoute },
+  'deepseek/deepseek-v4-pro-0813': { 'deepinfra/fp8': automaticDeepInfraRoute },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
+
 // Complete Pro definition: capabilities and exact revisions use the common validator.
 const declaration = {
   modelId: 'deepseek/deepseek-v4-pro-0813',
@@ -54,7 +60,7 @@ const declaration = {
     // No active image constraint in this model's confirmed text-only declaration.
     inputConstraints: {},
   },
-  routes: { 'deepinfra/fp8': automaticDeepInfraRoute },
+  routes: deepseekModelRoutes['deepseek/deepseek-v4-pro-0813'],
 } satisfies ModelDefinition
 
 // The same public boundary owns and validates every nested declaration value.

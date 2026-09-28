@@ -38,3 +38,9 @@ export const kimiK27CodeMoonshotRoute = {
   ...common,
   parameters: { ...common.parameters, reasoningEffort: { kind: 'drop' } },
 } satisfies ModelRoute
+
+/** Exact model ID → provider ID → shared route policy; no prefix or provider fallback. */
+export const moonshotModelRoutes = {
+  'moonshotai/kimi-k3': { 'moonshotai/mxfp4': kimiK3MoonshotRoute },
+  'moonshotai/kimi-k2.7-code': { 'moonshotai/int4': kimiK27CodeMoonshotRoute },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
