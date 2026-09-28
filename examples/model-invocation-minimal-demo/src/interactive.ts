@@ -14,7 +14,8 @@ export async function runInteractive(
   const lines = createInterface({ input, output, terminal })
   let stopping = false,
     current: AnchoredInvocationHandle | undefined,
-    complete = true
+    complete = true,
+    modelFailed = false
   const interrupt = () => {
     stopping = true
     current?.abort()
@@ -78,7 +79,11 @@ export async function runInteractive(
                 `Saved. ${writeJsonLossless({ outcome: candidate.response.outcome, usage: candidate.response.usage, cost: candidate.response.cost })}\n`,
               )
           } else if ('settled' in outcome) {
-            output.write('Call settled without a conversation reply.\n')
+            if (outcome.settled.settled.response.response?.outcome === 'failed') {
+              modelFailed = true
+              complete = false
+              output.write('Model request failed; durable response recorded. No automatic retry.\n')
+            } else output.write('Call settled without a conversation reply.\n')
           } else if ('unavailable' in outcome) {
             complete = false
             output.write('Call state is unavailable; retained responsibility, no next request.\n')
@@ -107,7 +112,9 @@ export async function runInteractive(
     output.write(
       complete
         ? '\nClosed. Start again with the same --data path to resume.\n'
-        : '\nClose incomplete; preserved files and durable responsibility. Do not reset or automatically resend.\n',
+        : modelFailed && closed.complete
+          ? '\nClosed after model failure. Start again with the same --data path to inspect history.\n'
+          : '\nClose incomplete; preserved files and durable responsibility. Do not reset or automatically resend.\n',
     )
   }
   return { complete, interrupted: stopping }
