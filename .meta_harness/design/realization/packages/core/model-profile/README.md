@@ -72,3 +72,5 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+2026-09-28：[D-098](../../../../record/decisions/model-input-limit-provider-adoption/decision.md)在独立架构评审无阻断后技术采用 v4 增量。MP4 契约由 D-097 接受；源码与验证另行推进，旧正文的 candidate 为起草状态。

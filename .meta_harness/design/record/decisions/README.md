@@ -178,3 +178,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 2026-09-28：[D-096 模型档案输入上限产品增量](model-profile-input-limits-product-adoption/README.md)接受 PF-013 rev 14 的上游未知与自有有限上限政策；精确后继规格、提供者与实现另行采用，不提升模型认证状态。
 
 2026-09-28：[D-097：模型档案 v4](model-profile-v4-limit-contract-adoption/README.md)接受上游三态与项目有限 cap 契约；未接受其余后继消费者或实际模型供给。
+
+2026-09-28：[D-098：输入限制提供者分段采用](model-input-limit-provider-adoption/README.md)先采用 core/model-profile v4；其余节点及实际交付分别核对。

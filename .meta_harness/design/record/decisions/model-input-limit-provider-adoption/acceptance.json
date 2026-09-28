@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "status": "partially_accepted",
+  "decision_path": "record/decisions/model-input-limit-provider-adoption/decision.md",
+  "authority": "root primary technical owner under user implementation delegation",
+  "at_utc": "2026-09-28T10:11:57.653801+00:00",
+  "nodes": [
+    {
+      "node": "packages/core/model-profile",
+      "design_path": "realization/packages/core/model-profile/v4-design.md",
+      "sha256": "51dd8ad98fc4e933e18d3cc630ca68a610efc7922e9cb7f7e6e537fd642133bc",
+      "scope": "MP4 pure values and explicit historical entry points; old consumers pinned in same integration",
+      "implementation": "pending actual implementation and verification"
+    }
+  ],
+  "human_overall_acceptance": false
+}
