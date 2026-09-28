@@ -232,7 +232,7 @@ describe('RT5 real session model selection and current evaluation', () => {
       await host.close()
     }
   })
-  it('lost acknowledgement retains the original registration even after selected read; never replays the unknown command', async () => {
+  it('lost acknowledgement stays unknown without replay after the writer stops and releases its registration', async () => {
     const host = await selectionHost()
     try {
       let appendCount = 0
@@ -261,9 +261,44 @@ describe('RT5 real session model selection and current evaluation', () => {
       })
       expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
       expect(appendCount).toBe(1)
-      expect(owner.active).toBe(1)
-      expect(await component.close()).toEqual({ unavailable: true })
-      expect(owner.active).toBe(1)
+      expect(owner.active).toBe(0)
+      expect(owner.releases).toBeGreaterThan(0)
+      expect(await component.close()).toEqual({ released: true })
+      expect(await component.close()).toEqual({ released: true })
+      expect(await component.selectModel('example/model-b')).toEqual({ unavailable: true })
+      expect(appendCount).toBe(1)
+      expect(owner.active).toBe(0)
+    } finally {
+      await host.close()
+    }
+  })
+  it('stopped unknown append with no durable entry releases its lease without replay or inferred success', async () => {
+    const host = await selectionHost()
+    try {
+      let appends = 0
+      const generation = Object.freeze({})
+      const { component, owner } = host.create({
+        binding: {
+          session: host.session,
+          tenant: host.tenant,
+          log: {
+            ...host.log,
+            async append() {
+              appends++
+              return { failure: 'unavailable' }
+            },
+          },
+          generation,
+          currentGeneration: () => generation,
+        },
+      })
+      expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
+      expect(owner.active).toBe(0)
+      expect(await host.log.readSince(host.session, 0)).toMatchObject({ entries: [] })
+      expect(await component.close()).toEqual({ released: true })
+      expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
+      expect(appends).toBe(1)
+      expect(owner.active).toBe(0)
     } finally {
       await host.close()
     }
@@ -329,7 +364,7 @@ describe('RT5 real session model selection and current evaluation', () => {
     }
   })
 
-  it('malformed acknowledgement retains a physically committed command without certifying it from later selected reads', async () => {
+  it('malformed acknowledgement remains unknown without retaining a stopped physical writer', async () => {
     const host = await selectionHost()
     try {
       const log = host.log
@@ -354,8 +389,8 @@ describe('RT5 real session model selection and current evaluation', () => {
       expect(await component.effectiveModel()).toMatchObject({
         ok: { selected: 'example/model-a' },
       })
-      expect(await component.close()).toEqual({ unavailable: true })
-      expect(owner.active).toBe(1)
+      expect(await component.close()).toEqual({ released: true })
+      expect(owner.active).toBe(0)
       expect(calls).toBe(1)
     } finally {
       await host.close()
@@ -512,7 +547,7 @@ describe('RT5 real session model selection and current evaluation', () => {
     }
   })
 
-  it('a late unknown writer remains physically owned across stop and may still durably change selection', async () => {
+  it('a late unknown writer stays owned until actual stop, then releases without certifying the command', async () => {
     const host = await selectionHost()
     try {
       const entered = deferred<void>(),
@@ -539,7 +574,9 @@ describe('RT5 real session model selection and current evaluation', () => {
       const selecting = component.selectModel('example/model-a')
       await entered.promise
       let closeReceipt = false
-      const closing = component.close().then(value => {
+      const firstClose = component.close()
+      expect(component.close()).toBe(firstClose)
+      const closing = firstClose.then(value => {
         closeReceipt = true
         return value
       })
@@ -547,11 +584,15 @@ describe('RT5 real session model selection and current evaluation', () => {
       expect(closeReceipt).toBe(false)
       expect(owner.active).toBe(1)
       expect(await log.readSince(host.session, 0)).toMatchObject({ entries: [] })
+      expect(await component.selectModel('example/model-b')).toEqual({ unavailable: true })
       release.resolve()
       expect(await selecting).toEqual({ unavailable: true })
-      expect(await closing).toEqual({ unavailable: true })
-      expect(owner.active).toBe(1)
+      expect(await closing).toEqual({ released: true })
+      expect(owner.active).toBe(0)
+      expect(owner.releases).toBe(1)
       expect(await log.readSince(host.session, 0)).toMatchObject({ entries: [expect.anything()] })
+      expect(await component.close()).toEqual({ released: true })
+      expect(owner.releases).toBe(1)
     } finally {
       await host.close()
     }
@@ -583,7 +624,11 @@ describe('RT5 real session model selection and current evaluation', () => {
       expect(await component.legalTargets()).toMatchObject({
         ok: ['example/model-a', 'example/model-b'],
       })
-      expect(await component.close()).toEqual({ unavailable: true })
+      const firstClose = component.close()
+      expect(await firstClose).toEqual({ unavailable: true })
+      const retry = component.close()
+      expect(retry).not.toBe(firstClose)
+      expect(await retry).toEqual({ unavailable: true })
       expect(owner.active).toBe(1)
       expect(owner.releases).toBe(0)
     } finally {

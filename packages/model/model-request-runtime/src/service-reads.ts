@@ -363,14 +363,22 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       closed = true
       for (const operation of active) operation.stop()
       closing = (async () => {
-        await Promise.all([...active].map(item => item.done))
-        await Promise.all([...selectionLocks.values()])
-        const ended = await Promise.all(
-          [...selections.values()].map(item => item.selection.close()),
-        )
-        return ended.every(item => 'released' in item) && active.size === 0 && !readCleanupFailed
-          ? { released: true }
-          : unavailable()
+        try {
+          await Promise.all([...active].map(item => item.done))
+          await Promise.all([...selectionLocks.values()])
+          const ended = await Promise.all(
+            [...selections.values()].map(item => item.selection.close()),
+          )
+          const result =
+            ended.every(item => 'released' in item) && active.size === 0 && !readCleanupFailed
+              ? ({ released: true } as const)
+              : unavailable()
+          if ('unavailable' in result) closing = undefined
+          return result
+        } catch {
+          closing = undefined
+          return unavailable()
+        }
       })()
       return closing
     },

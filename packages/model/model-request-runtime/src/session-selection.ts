@@ -93,7 +93,9 @@ export function createSessionModelSelection(
   let closed = false
   let closing: ReturnType<SessionModelSelection['close']> | undefined
   const live = new Set<Operation>()
+  // An unknown command result is distinct from a registration still owning physical work.
   const unknown = new Set<Operation>()
+  const unreleased = new Set<Operation>()
   function emit(
     stage: SessionSelectionDiagnostic['stage'],
     outcome: SessionSelectionDiagnostic['outcome'],
@@ -190,11 +192,13 @@ export function createSessionModelSelection(
       const cleanupFailed = stopped.some(fulfilled => !fulfilled)
       live.delete(operation)
       if (operation.unknownWrite || cleanupFailed) unknown.add(operation)
+      if (cleanupFailed) unreleased.add(operation)
       else {
         try {
           release()
         } catch {
           unknown.add(operation)
+          unreleased.add(operation)
           emit('close', 'unavailable')
         }
       }
@@ -476,8 +480,9 @@ export function createSessionModelSelection(
       }
       closing = (async () => {
         await Promise.all(operations.map(operation => operation.drained))
-        const result = unknown.size === 0 ? ({ released: true } as const) : unavailable()
+        const result = unreleased.size === 0 ? ({ released: true } as const) : unavailable()
         emit('close', 'released' in result ? 'success' : 'unavailable')
+        if ('unavailable' in result) closing = undefined
         return result
       })()
       return closing

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isJsonNumber } from '@omne-harness-lite/content-blocks'
+import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
@@ -9,9 +9,11 @@ import type { SessionModelSelectionInput } from '../src/session-selection-types.
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
+import type { SettlementRegistration, SettlementTaskKind } from '../src/settlement-types.ts'
 import { selectionHost, AT } from './session-selection-fixture.ts'
 import { dispatched, opened } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
+import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
 
 function construction(
   binding: SessionRuntimeBinding,
@@ -109,6 +111,133 @@ function currentSelection(
 }
 
 describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
+  it('does not cache unavailable close while an actual-stop receipt remains unresolved', async () => {
+    const host = await selectionHost()
+    const held = host.create()
+    await held.component.close()
+    const owner = new ControlledSettlementOwner()
+    const acquire = owner.acquire
+    Reflect.set(owner, 'acquire', (limit: JsonNumber) => {
+      const acquired = acquire(limit)
+      if ('unavailable' in acquired) return acquired
+      const original = acquired.registration
+      const registration: SettlementRegistration = {
+        start<T>(kind: SettlementTaskKind, operation: (signal: AbortSignal) => Promise<T>) {
+          const task = original.start(kind, operation)
+          return {
+            ...task,
+            stopped: task.stopped.then(() => {
+              throw new Error('actual stop not confirmed')
+            }),
+          }
+        },
+        release: original.release,
+      }
+      return { registration }
+    })
+    const binding: SessionRuntimeBinding = {
+      log: held.input.binding,
+      selection: currentSelection({ ...held.input, owner }),
+      tools: {
+        async lookup() {
+          return { failure: 'unavailable' }
+        },
+      },
+      catalog: host.catalog,
+      credentials: {
+        async value() {
+          return { failure: 'unavailable' }
+        },
+      },
+      currentEvaluationInputs: host.reader,
+    }
+    const runtime = createRuntimeReads(
+      construction(binding, { value: 0, append: 0, credential: 0, transport: 0 }),
+    )
+    try {
+      expect(await runtime.methods.legalTargets({ session: host.session })).toEqual({
+        legalTargets: ['example/model-a', 'example/model-b'],
+      })
+      const firstClose = runtime.close()
+      expect(await firstClose).toEqual({ unavailable: true })
+      const retry = runtime.close()
+      expect(retry).not.toBe(firstClose)
+      expect(await retry).toEqual({ unavailable: true })
+      expect(owner.active).toBe(1)
+      expect(owner.releases).toBe(0)
+      expect(await runtime.methods.legalTargets({ session: host.session })).toEqual({
+        unavailable: true,
+      })
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('keeps an unknown selection writer registered until actual stop and closes admission once', async () => {
+    const host = await selectionHost()
+    const held = host.create()
+    await held.component.close()
+    const entered = deferred<void>()
+    const release = deferred<void>()
+    let appends = 0
+    const selectionBinding = {
+      ...held.input.binding,
+      log: {
+        ...host.log,
+        async append() {
+          appends++
+          entered.resolve()
+          await release.promise
+          return { failure: 'unavailable' } as const
+        },
+      },
+    }
+    const binding: SessionRuntimeBinding = {
+      log: selectionBinding,
+      selection: currentSelection({ ...held.input, binding: selectionBinding }),
+      tools: {
+        async lookup() {
+          return { failure: 'unavailable' }
+        },
+      },
+      catalog: host.catalog,
+      credentials: {
+        async value() {
+          return { failure: 'unavailable' }
+        },
+      },
+      currentEvaluationInputs: host.reader,
+    }
+    const runtime = createRuntimeReads(
+      construction(binding, { value: 0, append: 0, credential: 0, transport: 0 }),
+    )
+    try {
+      const selecting = runtime.methods.selectModel({
+        session: host.session,
+        routeName: 'example/model-a',
+      })
+      await entered.promise
+      const closing = runtime.close()
+      expect(runtime.close()).toBe(closing)
+      expect(held.owner.active).toBe(1)
+      expect(await host.log.readSince(host.session, 0)).toMatchObject({ entries: [] })
+      expect(
+        await runtime.methods.selectModel({ session: host.session, routeName: 'example/model-b' }),
+      ).toEqual({ unavailable: true })
+      release.resolve()
+      expect(await selecting).toEqual({ unavailable: true })
+      expect(await closing).toEqual({ released: true })
+      expect(held.owner.active).toBe(0)
+      expect(held.owner.releases).toBe(1)
+      expect(await runtime.close()).toEqual({ released: true })
+      expect(appends).toBe(1)
+    } finally {
+      release.resolve()
+      await runtime.close()
+      await host.close()
+    }
+  })
+
   it('uses the same current evaluation and one durable selection writer across calls', async () => {
     const host = await selectionHost()
     const held = host.create()
