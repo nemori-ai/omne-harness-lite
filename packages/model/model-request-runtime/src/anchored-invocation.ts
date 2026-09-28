@@ -88,7 +88,6 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   const requested = ownPlanInput(input.planInput)
   if (
     !requested ||
-    requested.tools.length !== 0 ||
     !(input.signal instanceof AbortSignal) ||
     !input.policy ||
     !validPolicy(input.policy) ||
