@@ -107,6 +107,12 @@ importers:
       '@omne-harness-lite/account-registration':
         specifier: workspace:*
         version: link:../../packages/tenancy/account-registration
+      '@omne-harness-lite/agent-definition':
+        specifier: workspace:*
+        version: link:../../packages/core/agent-definition
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../packages/core/asset-evaluation
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../../packages/core/asset-model
@@ -122,6 +128,9 @@ importers:
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../packages/tenancy/credential-verification
+      '@omne-harness-lite/evaluation-input-store':
+        specifier: workspace:*
+        version: link:../../packages/assets/evaluation-input-store
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../packages/core/identity-values
@@ -131,12 +140,18 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../../packages/core/model-profile
       '@omne-harness-lite/model-profile-directory':
         specifier: workspace:*
         version: link:../../packages/model/model-profile-directory
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../packages/model/model-request-runtime
+      '@omne-harness-lite/model-response':
+        specifier: workspace:*
+        version: link:../../packages/core/model-response
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry
@@ -1115,12 +1130,21 @@ importers:
       '@omne-harness-lite/arrival-events':
         specifier: workspace:*
         version: link:../../core/arrival-events
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../core/asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../../core/asset-model
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/evaluation-input-store':
+        specifier: workspace:*
+        version: link:../../assets/evaluation-input-store
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -1145,6 +1169,9 @@ importers:
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../../session/session-log-jsonl
+      '@omne-harness-lite/session-tenancy-table':
+        specifier: workspace:*
+        version: link:../../session/session-tenancy-table
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../../core/stream-assembly
