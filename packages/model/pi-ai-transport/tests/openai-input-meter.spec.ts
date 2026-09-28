@@ -6,6 +6,7 @@ import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { createPiAiTransport } from '../src/transport.ts'
+import { createModelTransportService } from '../src/registry.ts'
 import { planRequest } from '../src/plan.ts'
 import {
   at,
@@ -547,6 +548,114 @@ describe('OpenAI model-specific input estimator', () => {
         expect(host.requests[0]?.body).not.toContain('cache_control')
       } finally {
         await transport.close()
+        await host.close()
+      }
+    },
+  )
+
+  it.each([...baseModels, ...proModels])(
+    '%s serves the same bound meter and final wire through a service lease',
+    async modelId => {
+      const selected = definition(modelId)
+      const meter = createOpenAiInputMeter(selected)
+      const profile = createOfficialProfileContent(selected, {
+        providers: ['openai'],
+        allowFallback: false,
+        configuration: openaiConfiguration,
+      })
+      if ('rejected' in profile) throw new Error(profile.rejected)
+      const host = await fixture(
+        cert.tls,
+        res =>
+          res.end(
+            content('ready') +
+              sse({ choices: [], usage: { prompt_tokens: 48, completion_tokens: 1 } }) +
+              finish(),
+          ),
+        {},
+        undefined,
+        [selected],
+      )
+      const service = createModelTransportService(host.options)
+      let lease: ReturnType<typeof service.acquire> | undefined
+      try {
+        const registered = service.registerAdaptation(selected, meter, {}, () => {})
+        if ('rejected' in registered) throw new Error(registered.rejected)
+        const request = testInput()
+        const input = {
+          ...request,
+          routeName: modelId,
+          provider: 'openai',
+          tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
+          snapshot: {
+            ...request.snapshot,
+            adaptation: profile.ok.adaptation,
+            providers: profile.ok.providers,
+            allowFallback: profile.ok.allowFallback,
+            inputModalities: profile.ok.inputModalities,
+            outputModalities: profile.ok.outputModalities,
+            maxInputTokens: profile.ok.maxInputTokens,
+            maxOutputTokens: profile.ok.maxOutputTokens,
+            inputConstraints: profile.ok.inputConstraints,
+            upstreamInputLimits: profile.ok.upstreamInputLimits,
+          },
+        }
+        lease = service.acquire(input.snapshot.adaptation, modelId)
+        if ('rejected' in lease) throw new Error(lease.rejected)
+        const unsupportedImage = modelId.endsWith('-pro') ? '1x1.png' : 'two-frame.gif'
+        const visual = judgedMessage({
+          id: 'service-unavailable-image',
+          type: 'user',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'service-unavailable-image-block',
+              kind: 'image',
+              mediaType: unsupportedImage.endsWith('.gif') ? 'image/gif' : 'image/png',
+              data: { inline: image(unsupportedImage).toString('base64') },
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        })
+        expect(
+          lease.lease.transport.plan({ ...input, messages: [...input.messages, visual] }),
+        ).toMatchObject({
+          rejected: 'invalidInput',
+          reason: 'input_size_unavailable',
+          metrics: ['maxInputTokens'],
+        })
+        expect(host.requests).toHaveLength(0)
+        const planned = lease.lease.transport.plan(input)
+        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+        expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+        const signal = new AbortController().signal
+        const sent = await lease.lease.transport.send(
+          planned.planned,
+          'controlled-service-credential',
+          signal,
+        )
+        if (!('response' in sent)) throw new Error(JSON.stringify(sent))
+        const events = []
+        for await (const event of lease.lease.transport.read(
+          sent.response,
+          planned.planned,
+          signal,
+        ))
+          events.push(event)
+        expect(events).toContainEqual(expect.objectContaining({ t: 'account' }))
+        expect(host.requests).toHaveLength(1)
+        expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+      } finally {
+        if (lease && 'lease' in lease) lease.lease.release()
+        await service.close({
+          force: false,
+          waitMilliseconds: 20,
+          schedule(ms, callback) {
+            const timer = setTimeout(callback, ms)
+            return () => clearTimeout(timer)
+          },
+        })
+        await service.closed
         await host.close()
       }
     },
