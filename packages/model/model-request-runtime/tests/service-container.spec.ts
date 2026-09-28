@@ -434,6 +434,7 @@ describe('call container admission and retention', () => {
     const old: AnchoredInvocationHandle = {
       outcome: Promise.resolve({ unavailable: true }),
       snapshot: () => ({ blocks: [], position: 0 }),
+      observedFacts: () => ({ unavailable: true }),
       abort() {},
       async close() {
         await gate.promise
@@ -473,6 +474,7 @@ describe('call container admission and retention', () => {
     const old = {
       outcome: Promise.resolve({ unavailable: true }),
       snapshot: () => ({ blocks: [], position: 0 }),
+      observedFacts: () => ({ unavailable: true }),
       abort() {},
       async close() {
         closes++
@@ -486,6 +488,7 @@ describe('call container admission and retention', () => {
     const next = {
       outcome: Promise.resolve({ unavailable: true }),
       snapshot: () => ({ blocks: [], position: 0 }),
+      observedFacts: () => ({ unavailable: true }),
       abort() {},
       async close() {
         return { released: true } as const

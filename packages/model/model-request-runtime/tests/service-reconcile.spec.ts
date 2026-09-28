@@ -4,6 +4,8 @@ import {
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { modelLogJsonEqual } from '../src/log-codec.ts'
+import { inspectCurrentModelLogPrefix } from '../src/log-codec-settlement.ts'
 import {
   createRuntimeReconcile,
   createRuntimeSettleReply,
@@ -18,8 +20,9 @@ import type {
 } from '../src/service-types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
-import { session } from './log-codec-fixture.ts'
+import { dispatched as dispatchedFixture, prepare, session } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { controlled, noWaitScheduler, policy, request } from './settlement-fixture.ts'
 
@@ -113,6 +116,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           outcome: Promise.resolve({ replyPending: pending() }),
           snapshot: () => ({ blocks: [], position: 0 }),
           abort() {},
+          observedFacts: () => ({ unavailable: true }),
         } as AnchoredInvocationHandle
         const settlement = original.settleReply
         const owned = {
@@ -258,7 +262,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
 })
 
 describe('S-33 noRun recovered full-prefix read', () => {
-  it('returns unavailable without partial state for a missing response, then reads a settled original without a new append', async () => {
+  it('cold-recovers a durable opened call with null actual send time and no resend', async () => {
     await controlled(
       'service-reconcile-no-run',
       async ({ binding, owner, coordinator, submissions }) => {
@@ -266,6 +270,9 @@ describe('S-33 noRun recovered full-prefix read', () => {
         let closed = 0
         const reconcile = createRuntimeReconcile({
           contention: policy(),
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
           recovery: {
             async enter() {
               entered++
@@ -282,17 +289,207 @@ describe('S-33 noRun recovered full-prefix read', () => {
             },
           },
         })
-        expect(await reconcile({ session })).toEqual({ unavailable: true })
+        expect(await reconcile({ session })).toEqual({
+          calls: [{ callId: 'call', state: 'interrupted' }],
+        })
+        const raw = await binding.log.readSince(session, 0)
+        if ('failure' in raw) throw new Error('recovered prefix')
+        const inspected = inspectCurrentModelLogPrefix({
+          session,
+          tenant: binding.tenant,
+          prefix: raw,
+        })
+        if (!('ok' in inspected)) throw new Error('recovered model prefix')
+        const restored = inspected.ok.find(item => item.captured.response !== null)?.captured
+          .response
+        expect(restored?.timing.sentAt).toBeNull()
+        expect(restored?.timing.firstTokenAt).toBe('2026-09-27T00:00:01Z')
+        expect(restored?.usage.input_tokens).toBe('unknown')
+        expect(restored?.cost.cost_usd).toBe('unknown')
         const h = coordinator.settle(request)
-        expect(await h.completion).toHaveProperty('settled')
+        expect(await h.completion).toMatchObject({ settled: { mode: 'read' } })
         await h.stopped
         expect(await reconcile({ session })).toEqual({
-          calls: [{ callId: 'call', state: 'complete' }],
+          calls: [{ callId: 'call', state: 'interrupted' }],
         })
-        expect(submissions.map(item => item.count)).toEqual([2, 2])
+        expect(submissions.map(item => item.count)).toEqual([2, 1])
         expect(entered).toBe(2)
         expect(closed).toBe(2)
         expect(owner.active).toBe(0)
+      },
+    )
+  })
+  it('recognizes an original complete batch before asking for original handle facts', async () => {
+    await controlled(
+      'service-reconcile-original-winner',
+      async ({ binding, owner, coordinator, submissions }) => {
+        const task = coordinator.settle(request)
+        expect(await task.completion).toHaveProperty('settled')
+        await task.stopped
+        let queried = 0
+        const reconcile = createRuntimeReconcile({
+          contention: policy(),
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async enter() {
+              return {
+                scope: {
+                  binding: { log: binding } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => {
+                    queried++
+                    return { unavailable: true } as const
+                  },
+                  async close() {},
+                },
+              }
+            },
+          },
+        })
+        expect(await reconcile({ session })).toEqual({
+          calls: [{ callId: 'call', state: 'complete' }],
+        })
+        expect(await reconcile({ session })).toEqual({
+          calls: [{ callId: 'call', state: 'complete' }],
+        })
+        expect(queried).toBe(0)
+        expect(submissions.map(item => item.count)).toEqual([2, 2])
+        expect(owner.active).toBe(0)
+      },
+    )
+  })
+  it('withholds all calls on one unavailable original, then resumes only unresolved rows', async () => {
+    await controlled('service-reconcile-partial', async ({ binding, owner, submissions }) => {
+      const additional = prepare(
+        'record',
+        {
+          ...dispatchedFixture,
+          call: 'second-call',
+          response: 'second-response',
+        },
+        { kind: 'record' },
+      )
+      const added = await binding.log.append(
+        session,
+        [additional],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in added) throw new Error('second durable dispatch')
+      let secondAvailable = false
+      const reconcile = createRuntimeReconcile({
+        contention: policy(),
+        scheduler: noWaitScheduler,
+        now: () => '2026-09-27T00:00:03Z',
+        diagnostic() {},
+        recovery: {
+          async enter() {
+            return {
+              scope: {
+                binding: { log: binding } as SessionRuntimeBinding,
+                owner,
+                originalInvocation: (key: { callId: string }) =>
+                  key.callId === 'second-call' && !secondAvailable
+                    ? ({ unavailable: true } as const)
+                    : ({ absent: true } as const),
+                async close() {},
+              },
+            }
+          },
+        },
+      })
+      expect(await reconcile({ session })).toEqual({ unavailable: true })
+      expect(submissions.map(item => item.count)).toEqual([2, 1, 1])
+      secondAvailable = true
+      expect(await reconcile({ session })).toEqual({
+        calls: [
+          { callId: 'call', state: 'interrupted' },
+          { callId: 'second-call', state: 'resumable' },
+        ],
+      })
+      expect(submissions.map(item => item.count)).toEqual([2, 1, 1, 1])
+      expect(owner.active).toBe(0)
+    })
+  })
+  it('preserves stable original send, account and header facts after an opened call', async () => {
+    await controlled(
+      'service-reconcile-original-facts',
+      async ({ binding, owner, submissions }) => {
+        const original: AnchoredInvocationHandle = {
+          outcome: Promise.resolve({ unavailable: true }),
+          snapshot: () => ({ blocks: [], position: 0 }),
+          abort() {},
+          observedFacts(target) {
+            if (
+              target.call !== 'call' ||
+              target.response !== 'response' ||
+              !modelLogJsonEqual(target.dispatch, 1)
+            )
+              return { unavailable: true }
+            return {
+              facts: {
+                sentAt: '2026-09-27T00:00:00Z',
+                upstreamRequestId: 'actual-upstream-request',
+                usage: {
+                  input_tokens: 0,
+                  output_tokens: 2,
+                  cache_read_tokens: 'unknown',
+                  cache_write_tokens: 0,
+                  source: 'upstream',
+                },
+                cost: {
+                  cost_usd: new LosslessNumber('0.0000000000000000000000000310'),
+                  source: 'upstream_usage',
+                },
+                rawHeaders: { 'x-actual': ['first', 'second'] },
+              },
+            }
+          },
+          async settleReply() {
+            return { unavailable: true, reason: 'candidate' }
+          },
+          async close() {
+            return { released: true }
+          },
+        }
+        const reconcile = createRuntimeReconcile({
+          contention: policy(),
+          scheduler: noWaitScheduler,
+          now: () => '2026-09-27T00:00:03Z',
+          diagnostic() {},
+          recovery: {
+            async enter() {
+              return {
+                scope: {
+                  binding: { log: binding } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ original }),
+                  async close() {},
+                },
+              }
+            },
+          },
+        })
+        expect(await reconcile({ session })).toEqual({
+          calls: [{ callId: 'call', state: 'interrupted' }],
+        })
+        const raw = await binding.log.readSince(session, 0)
+        if ('failure' in raw) throw new Error('actual prefix')
+        const checked = inspectCurrentModelLogPrefix({
+          session,
+          tenant: binding.tenant,
+          prefix: raw,
+        })
+        if (!('ok' in checked)) throw new Error('actual model prefix')
+        const response = checked.ok.find(item => item.captured.response !== null)?.captured.response
+        expect(response?.timing.sentAt).toBe('2026-09-27T00:00:00Z')
+        expect(response?.usage.input_tokens).toBe(0)
+        expect(writeJsonLossless(response?.cost.cost_usd)).toBe('0.0000000000000000000000000310')
+        expect(response?.raw).toEqual({ headers: { 'x-actual': ['first', 'second'] } })
+        expect(response?.route.upstreamRequestId).toBe('actual-upstream-request')
+        expect(submissions.map(item => item.count)).toEqual([2, 1])
       },
     )
   })

@@ -17,10 +17,15 @@ import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
 import { interpretCallHistory } from './call-history.ts'
 import { readSettlementPrefix } from './settlement-prefix.ts'
+import type { SettlementPrefix } from './settlement-prefix.ts'
 import { modelLogJsonEqual } from './log-codec.ts'
+import { createSettlementCoordinator } from './settlement-coordinator.ts'
+import { constructAnchoredInterruption } from './response-construction.ts'
+import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type { PlannedSemantics } from './types.ts'
 import type {
   SettlementContention,
+  SettlementDiagnostic,
   SettlementRegistration,
   SettlementScheduler,
   SettlementTask,
@@ -219,6 +224,9 @@ async function readSettledReply(
 export function createRuntimeReconcile(input: {
   readonly recovery: RuntimeRecoveryAccess
   readonly contention: SettlementContention
+  readonly scheduler: SettlementScheduler
+  readonly now: () => string
+  readonly diagnostic: (event: SettlementDiagnostic) => void
 }): (request: ReconcileInput) => Promise<ReconcileResult> {
   return async request => {
     if (typeof request.session !== 'string' || request.session.length === 0)
@@ -233,7 +241,7 @@ export function createRuntimeReconcile(input: {
     const { scope } = entered
     let result: ReconcileResult = { unavailable: true }
     try {
-      result = await readRecoveredCalls(request, scope, input.contention)
+      result = await readRecoveredCalls(request, scope, input)
     } catch {
       result = { unavailable: true }
     }
@@ -249,11 +257,127 @@ export function createRuntimeReconcile(input: {
 async function readRecoveredCalls(
   request: ReconcileInput,
   scope: RuntimeRecoveryScope,
-  contention: SettlementContention,
+  input: {
+    readonly contention: SettlementContention
+    readonly scheduler: SettlementScheduler
+    readonly now: () => string
+    readonly diagnostic: (event: SettlementDiagnostic) => void
+  },
 ): Promise<ReconcileResult> {
   const binding = scope.binding.log
   if (
     binding.session !== request.session ||
+    scope.owner.admission() !== 'open' ||
+    'unknown' in scope.owner.opened() ||
+    scope.owner.unresolvedWrites().length !== 0
+  )
+    return { unavailable: true }
+  const firstRead = await readRecoveryPrefix(scope, input.contention)
+  if ('unavailable' in firstRead) return { unavailable: true }
+  const inspected = inspectCurrentModelLogPrefix({
+    session: binding.session,
+    tenant: binding.tenant,
+    prefix: firstRead.prefix,
+  })
+  if (!('ok' in inspected)) return { unavailable: true }
+  const callIds = new Set<string>()
+  for (const item of inspected.ok) {
+    const record = item.captured.record
+    if (record !== null && 'call' in record) callIds.add(record.call)
+    if (item.captured.response !== null) callIds.add(item.captured.response.call.callId)
+  }
+  const calls: Extract<ReconcileResult, { readonly calls: unknown }>['calls'][number][] = []
+  for (const callId of callIds) {
+    const read = await readRecoveryPrefix(scope, input.contention)
+    if ('unavailable' in read) return { unavailable: true }
+    const rowInspected = inspectCurrentModelLogPrefix({
+      session: binding.session,
+      tenant: binding.tenant,
+      prefix: read.prefix,
+    })
+    if (!('ok' in rowInspected)) return { unavailable: true }
+    const history = interpretCallHistory({ prefix: read.prefix, callId })
+    if (!('known' in history)) return { unavailable: true }
+    const previous = history.known.dispatches.slice(0, -1)
+    if (previous.some(item => item.response === null)) return { unavailable: true }
+    const last = history.known.dispatches.at(-1)
+    if (last !== undefined && last.response === null) {
+      const target = {
+        call: callId,
+        dispatch: last.record.dispatch,
+        response: last.record.response,
+      }
+      const association = scope.originalInvocation({ session: request.session, callId }, target)
+      if ('unavailable' in association) return { unavailable: true }
+      const observed = 'absent' in association ? null : association.original.observedFacts(target)
+      if (observed !== null && 'unavailable' in observed) return { unavailable: true }
+      const firstTokenAt =
+        last.opened === null
+          ? null
+          : rowInspected.ok.find(item => modelLogJsonEqual(item.entry, last.opened))?.captured
+              .record
+      if (firstTokenAt !== null && firstTokenAt?.kind !== 'model_call_opened')
+        return { unavailable: true }
+      const candidate = constructAnchoredInterruption({
+        dispatched: last.record,
+        observed: observed === null ? null : observed.facts,
+        firstTokenAt: firstTokenAt === null ? null : firstTokenAt.firstTokenAt,
+        endedAt: input.now(),
+        initiator: history.known.intent?.initiator ?? 'runtime_lost',
+      })
+      if ('rejected' in candidate) return { unavailable: true }
+      const coordinator = createSettlementCoordinator({
+        binding,
+        owner: scope.owner,
+        settlementContention: input.contention,
+        settlementScheduler: input.scheduler,
+        diagnostic: input.diagnostic,
+      })
+      try {
+        const task = coordinator.settle({
+          target,
+          current: { messageId: null, disposition: null },
+          response: candidate.response,
+        })
+        const settled = await task.completion
+        await task.stopped
+        if (!('settled' in settled)) return { unavailable: true }
+      } finally {
+        await coordinator.close()
+      }
+      const reread = await readRecoveryPrefix(scope, input.contention)
+      if ('unavailable' in reread) return { unavailable: true }
+      const after = interpretCallHistory({ prefix: reread.prefix, callId })
+      if (!('known' in after)) return { unavailable: true }
+      const state = after.known.phase
+      if (!recoveredState(state)) return { unavailable: true }
+      calls.push({ callId, state })
+      continue
+    }
+    const state = history.known.phase
+    if (!recoveredState(state)) return { unavailable: true }
+    calls.push({ callId, state })
+  }
+  return { calls: Object.freeze(calls) }
+}
+
+function recoveredState(
+  state: DispatchGuardPhase | null,
+): state is Extract<ReconcileResult, { readonly calls: unknown }>['calls'][number]['state'] {
+  return (
+    state === 'resumable' ||
+    state === 'awaiting_decision' ||
+    state === 'interrupted' ||
+    state === 'complete' ||
+    state === 'handed_up'
+  )
+}
+
+async function readRecoveryPrefix(
+  scope: RuntimeRecoveryScope,
+  contention: SettlementContention,
+): Promise<{ readonly prefix: SettlementPrefix } | { readonly unavailable: true }> {
+  if (
     scope.owner.admission() !== 'open' ||
     'unknown' in scope.owner.opened() ||
     scope.owner.unresolvedWrites().length !== 0
@@ -271,36 +395,8 @@ async function readRecoveredCalls(
     release: admitted.registration.release,
   }
   try {
-    const read = await readSettlementPrefix({ binding, registration })
-    if ('unavailable' in read) return { unavailable: true }
-    const inspected = inspectCurrentModelLogPrefix({
-      session: binding.session,
-      tenant: binding.tenant,
-      prefix: read.prefix,
-    })
-    if (!('ok' in inspected)) return { unavailable: true }
-    const callIds = new Set<string>()
-    for (const item of inspected.ok) {
-      const record = item.captured.record
-      if (record !== null && 'call' in record) callIds.add(record.call)
-      if (item.captured.response !== null) callIds.add(item.captured.response.call.callId)
-    }
-    const calls: Extract<ReconcileResult, { readonly calls: unknown }>['calls'][number][] = []
-    for (const callId of callIds) {
-      const history = interpretCallHistory({ prefix: read.prefix, callId })
-      if (!('known' in history)) return { unavailable: true }
-      const state = history.known.phase
-      if (
-        state !== 'resumable' &&
-        state !== 'awaiting_decision' &&
-        state !== 'interrupted' &&
-        state !== 'complete' &&
-        state !== 'handed_up'
-      )
-        return { unavailable: true }
-      calls.push({ callId, state })
-    }
-    return { calls: Object.freeze(calls) }
+    const read = await readSettlementPrefix({ binding: scope.binding.log, registration })
+    return 'prefix' in read ? read : { unavailable: true }
   } finally {
     await Promise.all(tasks.map(task => task.stopped))
     admitted.registration.release()

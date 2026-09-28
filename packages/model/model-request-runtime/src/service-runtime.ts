@@ -37,6 +37,9 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const reconcile = createRuntimeReconcile({
     recovery: construction.recovery,
     contention: construction.settlementContention,
+    scheduler: construction.settlementScheduler,
+    now: construction.policy.now,
+    diagnostic: construction.diagnostic,
   })
   ownedStores.add(construction.calls)
 
