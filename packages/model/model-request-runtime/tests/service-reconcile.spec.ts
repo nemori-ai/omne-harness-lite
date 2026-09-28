@@ -14,6 +14,7 @@ import type {
   CreateCallContainerInput,
   SessionRuntimeBinding,
   SettleReplyInput,
+  SystemStopControl,
 } from '../src/service-types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
@@ -97,7 +98,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           owner,
           coordinator,
           // This S-49 fixture has already settled through the real coordinator before cleanup.
-          systemStop: async control =>
+          systemStop: async (control: SystemStopControl<PlannedSemantics, never>) =>
             control.view().operation.phase === 'ready' ? { released: true } : { unavailable: true },
         } as unknown as CreateCallContainerInput<PlannedSemantics, never>)
         const opening = calls.reserve({ session, callId: 'call' })
