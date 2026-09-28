@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.loop-extension v4 pure values and explicit retained v3 adoption",
+  "description": "data.loop-extension v6 pure values and judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -14,11 +14,7 @@
     },
     "./schema": "./schema/loop-extension.schema.json",
     "./schema/v2": "./schema/loop-extension.v2.schema.json",
-    "./schema/v3": "./schema/loop-extension.v3.schema.json",
-    "./v3": {
-      "types": "./dist/v3/index.d.ts",
-      "import": "./dist/v3/index.js"
-    }
+    "./schema/v3": "./schema/loop-extension.v3.schema.json"
   },
   "files": [
     "dist",
@@ -40,6 +36,9 @@
     "@omne-harness-lite/model-profile": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/mcp-endpoint": "workspace:*",
+    "@omne-harness-lite/skill-package": "workspace:*",
+    "@omne-harness-lite/slash-command": "workspace:*",
     "ajv": "catalog:"
   },
   "devDependencies": {

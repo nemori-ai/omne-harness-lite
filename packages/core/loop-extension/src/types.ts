@@ -9,7 +9,7 @@ import type {
   ToolResultBlock,
 } from '@omne-harness-lite/content-blocks'
 import type { OpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import type { AttemptId, Cost, RunId, Usage } from '@omne-harness-lite/call-accounts'
+import type { AttemptId, Cost, ModelCallId, RunId, Usage } from '@omne-harness-lite/call-accounts'
 import type {
   AssistantMessage,
   CompactionMessage,
@@ -143,6 +143,7 @@ export type AfterModelCallFailureSubject = {
   readonly failure: FailureCause
   readonly profile: ModelProfileSnapshot
   readonly dispatches: readonly [ModelCallDispatchedRecord, ...ModelCallDispatchedRecord[]]
+  readonly retryConclusions: readonly ModelRetryConclusion[]
 } & (
   | { readonly statusCode?: JsonNumber; readonly inBand?: never }
   | { readonly statusCode: JsonNumber; readonly inBand: true }
@@ -324,26 +325,41 @@ export type ExtensionOutput =
   | AskOutput
 export type OutputKind = ExtensionOutput['kind']
 type ActionIdentity =
-  | { readonly position: 'before_action'; readonly dimension?: never; readonly callId: CallId }
+  | {
+      readonly position: 'before_action'
+      readonly dimension?: never
+      readonly callId: CallId
+      readonly modelCallId?: never
+    }
   | {
       readonly position: 'after_action'
       readonly dimension: { readonly scope: 'each' }
       readonly callId: CallId
+      readonly modelCallId?: never
     }
   | {
       readonly position: 'after_action'
       readonly dimension: { readonly scope: 'batch' }
       readonly callId?: never
+      readonly modelCallId?: never
     }
   | {
       readonly position: 'after_model_call'
-      readonly dimension: { readonly ending: 'complete_reply' | 'failure' }
+      readonly dimension: { readonly ending: 'complete_reply' }
       readonly callId?: never
+      readonly modelCallId?: never
+    }
+  | {
+      readonly position: 'after_model_call'
+      readonly dimension: { readonly ending: 'failure' }
+      readonly callId?: never
+      readonly modelCallId: ModelCallId
     }
   | {
       readonly position: Exclude<Position, 'before_action' | 'after_action' | 'after_model_call'>
       readonly dimension?: never
       readonly callId?: never
+      readonly modelCallId?: never
     }
 export type Conclusion = ActionIdentity & {
   readonly extension: CapabilityName
@@ -373,6 +389,15 @@ export type Conclusion = ActionIdentity & {
         readonly unavailability?: never
       }
   )
+export type ModelRetryConclusion = Extract<
+  Conclusion,
+  { readonly position: 'after_model_call'; readonly dimension: { readonly ending: 'failure' } }
+> & {
+  readonly output: RetryOutput
+  readonly skipped?: never
+  readonly error?: never
+  readonly unavailability?: never
+}
 export type Rejection =
   | 'malformed'
   | 'position_unknown'

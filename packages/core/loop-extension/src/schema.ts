@@ -1,13 +1,24 @@
 import schema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import retainedLoopSchemaV3 from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
+import retainedLoopSchemaV2 from '@omne-harness-lite/loop-extension/schema/v2' with { type: 'json' }
 import retainedContentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
 import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
 import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
+import retainedAssetSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
+import connectorSchema from '@omne-harness-lite/asset-model/schema/connector/v2' with { type: 'json' }
 import accountsSchema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
 import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
+import retainedProfileSchema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
 import messageSchema from '@omne-harness-lite/messages/schema' with { type: 'json' }
+import retainedMessageSchemaV3 from '@omne-harness-lite/messages/schema/v3' with { type: 'json' }
+import retainedMessageSchemaV2 from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
+import retainedToolSchema from '@omne-harness-lite/tool-definition/schema/v2' with { type: 'json' }
+import mcpSchema from '@omne-harness-lite/mcp-endpoint/schema' with { type: 'json' }
+import skillSchema from '@omne-harness-lite/skill-package/schema/v2' with { type: 'json' }
+import slashSchema from '@omne-harness-lite/slash-command/schema' with { type: 'json' }
 import {
   createSchemaRuntime,
   type SchemaDocument,
@@ -59,6 +70,7 @@ export const SCHEMA_DEF_NAMES = Object.freeze([
   'AskOutput',
   'ExtensionOutput',
   'Conclusion',
+  'ModelRetryConclusion',
 ] as const)
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 const resources = [
@@ -67,10 +79,21 @@ const resources = [
   contentSchema,
   retainedContentSchema,
   assetSchema,
+  retainedAssetSchema,
+  connectorSchema,
   accountsSchema,
   profileSchema,
+  retainedProfileSchema,
   messageSchema,
+  retainedMessageSchemaV3,
+  retainedMessageSchemaV2,
   toolSchema,
+  retainedToolSchema,
+  retainedLoopSchemaV3,
+  retainedLoopSchemaV2,
+  mcpSchema,
+  skillSchema,
+  slashSchema,
   schema,
 ]
 const runtime = createSchemaRuntime(resources)

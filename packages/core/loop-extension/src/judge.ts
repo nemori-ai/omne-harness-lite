@@ -145,18 +145,28 @@ function dispatchedSubjects(definition: SchemaDefName, value: JsonValue): readon
     result.push(value.subject)
   return result
 }
+function failureCallAssociation(subject: JsonObject): boolean {
+  if (!Array.isArray(subject.dispatches) || subject.dispatches.length === 0) return false
+  const first = subject.dispatches[0]
+  if (!object(first) || typeof first.call !== 'string') return false
+  if (subject.dispatches.some(item => !object(item) || item.call !== first.call)) return false
+  if (!Array.isArray(subject.retryConclusions)) return false
+  return subject.retryConclusions.every(item => object(item) && item.modelCallId === first.call)
+}
 
 /** Representation judgment. Input-dependent immutable comparisons are added by judgeConclusion. */
 export function judgeValue(definition: SchemaDefName, value: unknown): Judgment<JsonValue> {
   const copied = snapshot(value)
   if (copied === undefined || !ordinaryShape(definition, copied)) return rejected('malformed')
   for (const subject of dispatchedSubjects(definition, copied))
-    if (Array.isArray(subject.dispatches))
+    if (Array.isArray(subject.dispatches)) {
+      if (!failureCallAssociation(subject)) return rejected('malformed')
       for (const dispatch of subject.dispatches) {
         const record = judgeModelInvocationRecord(dispatch)
         if (!('ok' in record) || record.ok.kind !== 'model_call_dispatched')
           return rejected('malformed')
       }
+    }
   const contexts = frames(definition, copied)
   for (const frame of contexts) {
     const about = aboutOf(frame)
@@ -291,6 +301,18 @@ export function judgeConclusion(value: unknown, inputs: ConclusionInputs): Judgm
   if ('rejected' in admitted) throw new TypeError('ConclusionInputs.input is not admitted')
   const input = snapshot(admitted.ok)
   if (!object(input) || !object(input.subject)) throw new Error('admitted input has no subject')
+  if (
+    input.position === 'after_model_call' &&
+    object(input.dimension) &&
+    input.dimension.ending === 'failure'
+  ) {
+    if (!failureCallAssociation(input.subject)) return rejected('malformed')
+    const dispatches = input.subject.dispatches
+    if (!Array.isArray(dispatches)) return rejected('malformed')
+    const firstDispatch = dispatches[0]
+    if (!object(firstDispatch) || record.modelCallId !== firstDispatch.call)
+      return rejected('malformed')
+  }
   const callId =
     input.position === 'before_action' && object(input.subject.call)
       ? input.subject.call.callId
