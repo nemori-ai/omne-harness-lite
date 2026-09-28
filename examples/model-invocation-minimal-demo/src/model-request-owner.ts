@@ -4,6 +4,7 @@ import type {
   SettlementOwner,
   SettlementTask,
   SettlementRegistration,
+  SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
 
@@ -57,7 +58,7 @@ export function createRequestOwner(name: string) {
       const owned = new Set<SettlementTask<unknown>>()
       const registration: SettlementRegistration = {
         start<T>(
-          kind: 'read' | 'append' | 'wait',
+          kind: SettlementTaskKind,
           operation: (signal: AbortSignal) => Promise<T>,
         ): SettlementTask<T> {
           if (done || released) throw new Error('request owner closed')
@@ -71,6 +72,8 @@ export function createRequestOwner(name: string) {
           const task = { completion, stopped, requestStop: () => controller.abort() }
           tasks.add(task)
           owned.add(task)
+          // The runtime's control tracker owns uncertain intent/ending writes through
+          // recognition. This host fence is only for unresolved response writers.
           if (kind === 'append') {
             const writer: SettlementTask<AppendResult> = {
               completion: completion.then(appendReceipt, () => ({ failure: 'unavailable' })),

@@ -23,7 +23,8 @@ export interface SettlementTask<T> {
   /** Actual effect-capable operation and its resources have stopped, independently of completion. */
   readonly stopped: Promise<void>
 }
-export type SettlementTaskKind = 'read' | 'append' | 'wait'
+/** Control appends retain their own unknown-write responsibility; append is a response writer. */
+export type SettlementTaskKind = 'read' | 'append' | 'controlAppend' | 'wait'
 export interface SettlementRegistration {
   /** Register synchronously before invoking operation; retain it until actual stopped. */
   readonly start: <T>(

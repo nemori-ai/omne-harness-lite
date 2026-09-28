@@ -480,6 +480,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   const reconcileReads = new OwnedReadTracker()
   const appends = new OwnedAppendTracker()
   const backgroundEnds = new Map<string, Promise<void>>()
+  const recoveries = new Set<Promise<void>>()
   const backgroundFailed = new Map<
     string,
     {
@@ -549,6 +550,13 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
     const result = received.ok
     if ('unavailable' in result) return { unavailable: true, reason: 'prefix' }
+    let history: CallHistoryResult
+    try {
+      history = runtime.history.call(result.prefix, key.callId)
+    } catch {
+      return { unavailable: true, reason: 'history' }
+    }
+    if ('unavailable' in history) return history
     if (waiting !== undefined) {
       try {
         for (const write of waiting) {
@@ -561,11 +569,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       }
       unknown.delete(keyOf(key))
     }
-    try {
-      return runtime.history.call(result.prefix, key.callId)
-    } catch {
-      return { unavailable: true, reason: 'history' }
-    }
+    return history
   }
 
   const releaseCall = async (key: CallKey): Promise<ReleaseCallResult> => {
@@ -724,7 +728,42 @@ export function createServiceControl<P extends PlannedSemantics, R>(
           retainUnknown: (registration, task) =>
             retain(key, session.log, controlOwner, registration, task),
         })
-        if ('unavailable' in appended) return { unavailable: true }
+        if ('unavailable' in appended) {
+          const pending = unknown.get(keyOf(key))
+          if (borrowed !== undefined && pending !== undefined) {
+            // The failed receipt cannot authorize a stop. Once the actual writer stops,
+            // reconcile its effect from a complete prefix without requiring a retry call.
+            const recoveryOwner = borrowed.owner
+            const recovery = (async () => {
+              await reservationReleased
+              await Promise.allSettled(pending.map(write => write.task.stopped))
+              const next = await runtime.calls.waitReserve(key, {
+                policy: runtime.reservationWaitPolicy,
+                scheduler: runtime.settlementScheduler,
+                signal: new AbortController().signal,
+              })
+              if ('unavailable' in next) return
+              try {
+                await read(session, recoveryOwner, key)
+              } finally {
+                next.reservation.release()
+              }
+            })()
+            recoveries.add(recovery)
+            void recovery.then(
+              () => recoveries.delete(recovery),
+              () => {
+                recoveries.delete(recovery)
+                try {
+                  runtime.policy.diagnostic({ kind: 'model_control.unknown_recovery_failed' })
+                } catch {
+                  // An observer cannot complete or erase the unresolved write.
+                }
+              },
+            )
+          }
+          return { unavailable: true }
+        }
       }
       if (admission.stage === 'before_dispatch') {
         // The local anchor may still be committing its dispatched record. Once the
@@ -830,6 +869,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   const close = async (): Promise<{ readonly released: true } | { readonly unavailable: true }> => {
     closing = true
     const [readResult, appendResult] = await Promise.all([reads.close(), appends.close()])
+    await Promise.allSettled(recoveries)
     try {
       await Promise.all(backgroundEnds.values())
     } catch {

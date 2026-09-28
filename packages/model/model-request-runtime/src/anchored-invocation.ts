@@ -30,6 +30,7 @@ import type {
   SettlementRegistration,
   SettlementResult,
   SettlementOwner,
+  SettlementTaskKind,
 } from './settlement-types.ts'
 import type {
   AnchoredInvocationHandle,
@@ -371,12 +372,11 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         const ownTasks = new Set<SettlementTask<unknown>>()
         return {
           registration: {
-            start<T>(
-              kind: 'read' | 'append' | 'wait',
-              operation: (signal: AbortSignal) => Promise<T>,
-            ) {
+            start<T>(kind: SettlementTaskKind, operation: (signal: AbortSignal) => Promise<T>) {
               if (released) throw new TypeError('control borrow closed')
-              const task = registration.start(kind, operation)
+              // ServiceControl owns recognition of control writes. The host's generic
+              // append fence belongs to response writers and cannot retire this intent.
+              const task = registration.start(kind === 'append' ? 'controlAppend' : kind, operation)
               tasks.push(task)
               ownTasks.add(task)
               liveTasks.add(task)

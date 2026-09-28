@@ -47,6 +47,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         expect(prefix).toHaveProperty('entries')
         await readTask.stopped
         read.registration.release()
+        const beforeIntent = h.owner.starts.length
         expect(
           await appendControlRecord({
             binding: h.input.settlement.binding,
@@ -62,6 +63,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
             },
           }),
         ).toEqual({ appended: true })
+        expect(h.owner.starts.slice(beforeIntent)).toEqual(['controlAppend'])
         const recorded = await h.log.readSince(h.input.settlement.binding.session, 0)
         if (!('entries' in recorded)) throw new Error('actual log unreadable')
         expect(recorded.entries.map(payload)).toContainEqual({
@@ -186,6 +188,16 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       resume.resolve()
       await readStopped.promise
       await Promise.resolve()
+      expect(finished).toBe(false)
+      expect(h.owner.active).toBe(1)
+      const failedRead = borrow.owner.acquire(1)
+      if (!('registration' in failedRead)) throw new Error('retained control read unavailable')
+      const failedTask = failedRead.registration.start('read', async () => ({
+        failure: 'unavailable' as const,
+      }))
+      expect(await failedTask.completion).toEqual({ failure: 'unavailable' })
+      await failedTask.stopped
+      failedRead.registration.release()
       expect(finished).toBe(false)
       expect(h.owner.active).toBe(1)
       const acquired = borrow.owner.acquire(1)
