@@ -596,6 +596,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
           },
         ],
       })
+      const image = readFileSync(new URL('./fixtures/anthropic/reference-1x1.png', import.meta.url))
       const toolResult = judgedMessage({
         type: 'tool',
         id: 'previous-result',
@@ -615,11 +616,17 @@ describe('four exact Anthropic projected-input rough estimates', () => {
                 text: 'Sunny in Paris',
                 visibility: { toHuman: true, toModel: true },
               },
+              {
+                id: 'previous-result-image',
+                kind: 'image',
+                mediaType: 'image/png',
+                data: { inline: image.toString('base64') },
+                visibility: { toHuman: true, toModel: true },
+              },
             ],
           },
         ],
       })
-      const image = readFileSync(new URL('./fixtures/anthropic/reference-1x1.png', import.meta.url))
       const visual = judgedMessage({
         type: 'user',
         id: 'prior-visual',
@@ -691,6 +698,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         const planned = transport.plan(input)
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+        expect(planned.planned.inputLimitEvidence.images).toBe(2)
         const handle = invokeModel({
           ...input,
           transport,
@@ -734,6 +742,15 @@ describe('four exact Anthropic projected-input rough estimates', () => {
             },
             { role: 'assistant', tool_calls: [{ id: 'call_1' }] },
             { role: 'tool', tool_call_id: 'call_1', content: 'Sunny in Paris' },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: `data:image/png;base64,${image.toString('base64')}` },
+                },
+              ],
+            },
             {
               role: 'user',
               content: [
