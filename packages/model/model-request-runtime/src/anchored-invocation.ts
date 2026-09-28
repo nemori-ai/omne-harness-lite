@@ -529,21 +529,31 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       if (closePromise) return closePromise
       closed = true
       stop()
-      closePromise = (async () => {
+      const attempt = (async () => {
         await outcome
         await drain()
         if (!settled && construction && !quarantined) await settleCandidate(null, true)
-        await coordinator.close()
         input.signal.removeEventListener('abort', stop)
         if (quarantined || unresolved.size > 0 || (dispatchConfirmed && !settled))
           return unavailable
+        await coordinator.close()
         if (!borrowedReleased) {
           await input.releaseBorrowed?.()
           borrowedReleased = true
         }
-        return { released: true }
+        return { released: true } as const
       })()
-      return closePromise
+      closePromise = attempt
+      // An unavailable attempt retains the coordinator and borrowed references for a later retry.
+      void attempt.then(
+        result => {
+          if ('unavailable' in result && closePromise === attempt) closePromise = undefined
+        },
+        () => {
+          if (closePromise === attempt) closePromise = undefined
+        },
+      )
+      return attempt
     },
   })
 }

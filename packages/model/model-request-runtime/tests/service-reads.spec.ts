@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isJsonNumber } from '@omne-harness-lite/content-blocks'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
+import { createCallContainerStore } from '../src/service-container.ts'
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import type { SessionModelSelectionInput } from '../src/session-selection-types.ts'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
@@ -21,20 +22,7 @@ function construction(
         return session === binding.log.session ? { binding } : { failure: 'invalidInput' }
       },
     },
-    calls: {
-      find() {
-        return undefined
-      },
-      reserve() {
-        return { occupied: true }
-      },
-      insert() {
-        return false
-      },
-      remove() {
-        return false
-      },
-    },
+    calls: createCallContainerStore(),
     transport: {
       acquire() {
         reads.transport++
@@ -79,6 +67,13 @@ function construction(
         return { unavailable: true }
       },
     },
+    reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 1 },
+    recovery: {
+      enter() {
+        throw new Error('read operation must not enter recovery')
+      },
+    },
+    diagnostic() {},
   }
 }
 

@@ -215,9 +215,49 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       if (!('replyPending' in outcome)) throw new Error('reply')
       expect(await handle.settleReply('persisted')).toHaveProperty('unavailable')
       expect(await handle.close()).toEqual({ unavailable: true })
+      expect(await handle.close()).toEqual({ unavailable: true })
       expect(h.writes.map(w => w.count)).toEqual([1, 1, 2])
       expect(h.released()).toBe(0)
       expect(outcome.replyPending.reply.id).toBe('anchored-message')
+    })
+  })
+  it('shares a pending close, then retries after transient settlement read failure and releases once', async () => {
+    await harness(async h => {
+      const entered = deferred<void>(),
+        resume = deferred<void>()
+      let reads = 0
+      h.wrap({
+        ...h.log,
+        async readSince(...args) {
+          if (++reads === 1) {
+            entered.resolve()
+            await resume.promise
+            return { failure: 'unavailable' }
+          }
+          return h.log.readSince(...args)
+        },
+      })
+      const t = transport()
+      const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+      expect(await handle.outcome).toHaveProperty('replyPending')
+      const first = handle.close()
+      const concurrent = handle.close()
+      expect(concurrent).toBe(first)
+      await entered.promise
+      expect(h.released()).toBe(0)
+      resume.resolve()
+      expect(await first).toEqual({ unavailable: true })
+      expect(h.released()).toBe(0)
+      expect(t.stopped()).toBe(1)
+      expect(h.owner.active).toBe(0)
+      expect(h.writes.map(w => w.count)).toEqual([1, 1])
+      const retry = handle.close()
+      expect(retry).not.toBe(first)
+      expect(await retry).toEqual({ released: true })
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.released()).toBe(1)
+      expect(t.sends()).toBe(1)
+      expect(h.writes.map(w => w.count)).toEqual([1, 1, 1])
     })
   })
   it('system close of unhandled reply settles no-reply interrupted delivered facts through A1a [R]', async () => {
