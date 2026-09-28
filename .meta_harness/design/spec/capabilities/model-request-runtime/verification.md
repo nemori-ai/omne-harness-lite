@@ -453,3 +453,7 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 ### 登记边界
 
 本 spoke 不修改中央 registry。提供 `catalog.fragment.json`（1候选/17依赖/40资源）、`covers.fragment.json`（58条 reviewed:false）、`formal-tasks.fragment.json`（10正任务候选）、`id-namespaces.fragment.json`（复用S-/G-、无新增前缀）的待集成片段；它们不等于中央已登记。负配置不列formal task。主线在共同批集成后落唯一清单并复核精确消费，接受另行。
+
+### v6 候选修复：FinalPlan 比较表达式
+
+2026-09-28 独立 TLC 首跑 FinalPlan.cfg 退出150，原始输出为 `Error: Parsing or semantic analysis failed.`，尚未进行性质检查，不是预期负配置反例。起因是 `checked' = measured <= Cap` 的运算符歧义；候选仅将 Evaluate 的三处 `measured <= Cap` 显式括起，性质、常量与配置不变。修后 FinalPlan.tla SHA-256 为 `bdc58e64ef05a4c598340386a7c2d8305393cc2dc1f55a89b4526c02324bbf92`；已交独立验证者另存输入并复跑两正三负，复跑结果尚未取得。旧失败日志保留在本次独立验证任务目录，执行归档由主线统一收存。`git diff --check` 通过；未重跑全仓检查或旧字节未变配置。
