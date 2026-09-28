@@ -151,6 +151,10 @@ const fixtureBody = JSON.parse(
   readFileSync(new URL('./fixtures/qwen/text-tool-history.json', import.meta.url), 'utf8'),
 )
 if (!object(fixtureBody)) throw new Error('invalid Qwen golden fixture')
+const unicodeBody = JSON.parse(
+  readFileSync(new URL('./fixtures/qwen/unicode-tool-history.json', import.meta.url), 'utf8'),
+)
+if (!object(unicodeBody)) throw new Error('invalid Qwen Unicode fixture')
 
 let cert: ReturnType<typeof certificate>
 beforeAll(() => {
@@ -191,7 +195,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         definitionRevision: selected.revision,
         implementation: selected.implementation,
         provider: 'alibaba',
-        algorithmRevision: 'qwen-38-public-template-1',
+        algorithmRevision: 'qwen-38-public-template-2',
       })
       expect(meter.evidence).toContain(
         'sha256:0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3',
@@ -238,6 +242,91 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       if (result.kind === 'unavailable') throw new Error('altered fixture unavailable')
       expect(result.tokens).not.toBe(originalResult.tokens)
     }
+  })
+
+  it.each(ids)('%s matches independent Jinja Unicode and multi-call history golden', modelId => {
+    const body = { ...unicodeBody, model: modelId }
+    const rendered = renderQwenPrompt(body)
+    expect(rendered).toBe(
+      readFileSync(
+        new URL(
+          `./fixtures/qwen/public-template-unicode-${modelId === ids[0] ? '24t' : '27b'}.txt`,
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    )
+    expect(
+      createQwenInputMeter(definition(modelId)).measure({
+        body,
+        serialized: writeJsonLossless(body),
+      }),
+    ).toEqual({ kind: 'estimated', tokens: 552 })
+  })
+
+  it.each(ids)('%s meters a real final plan with Unicode tool schema', modelId => {
+    const selected = definition(modelId)
+    const meter = createQwenInputMeter(selected)
+    const input = request(modelId)
+    const planned = planRequest(
+      {
+        ...input,
+        tools: [{ ...tool, description: '查询 <地点> 🙂' }],
+      },
+      [selected],
+      meter,
+    )
+    if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+    expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+    expect(planned.planned.serialized).toContain('查询 <地点> 🙂')
+    expect(renderQwenPrompt(planned.planned.body)).toContain(
+      '\\u67e5\\u8be2 \\u003c\\u5730\\u70b9\\u003e \\ud83d\\ude42',
+    )
+    expect(
+      meter.measure({
+        body: planned.planned.body,
+        serialized: planned.planned.serialized,
+      }),
+    ).toEqual(planned.planned.inputLimitEvidence.inputTokens)
+  })
+
+  it('rejects a user message consisting only of a wrapped tool response', () => {
+    const body = {
+      ...unicodeBody,
+      messages: [
+        { role: 'system', content: 'Answer accurately.' },
+        { role: 'user', content: '<tool_response>orphan</tool_response>' },
+      ],
+    }
+    expect(renderQwenPrompt(body)).toBeUndefined()
+    expect(
+      createQwenInputMeter(definition(ids[0])).measure({
+        body,
+        serialized: writeJsonLossless(body),
+      }),
+    ).toEqual({ kind: 'unavailable' })
+  })
+
+  it('leaves noncanonical numeric tool JSON unavailable until Python normalization is modeled', () => {
+    const body = {
+      ...unicodeBody,
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'lookup',
+            parameters: { type: 'object', minimum: 1e-7 },
+          },
+        },
+      ],
+    }
+    expect(renderQwenPrompt(body)).toBeUndefined()
+    expect(
+      createQwenInputMeter(definition(ids[0])).measure({
+        body,
+        serialized: writeJsonLossless(body),
+      }),
+    ).toEqual({ kind: 'unavailable' })
   })
 
   it('rejects visual blocks instead of treating encoded image bytes as text tokens', () => {

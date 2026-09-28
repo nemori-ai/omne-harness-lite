@@ -11,7 +11,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { ModelDefinition } from '../definitions.ts'
+import { codePointOrder, type ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { object } from '../json.ts'
 
@@ -46,22 +46,41 @@ function tokenizer(directory: string): Tokenizer {
   return new Tokenizer(JSON.parse(data.toString('utf8')), JSON.parse(config))
 }
 
-// Jinja's default tojson sorts object keys, retains separator spaces, and
-// escapes HTML-sensitive characters. The JSON number source stays lossless.
-function jinjaJson(value: JsonValue): string {
-  if (isJsonNumber(value)) return jsonNumberSource(value)
+// Jinja's default tojson sorts keys by Unicode code point, retains separator
+// spaces, escapes non-ASCII code units, and escapes HTML-sensitive characters.
+// Python's JSON loader changes decimal/exponent spellings before tojson; only
+// canonical safe integers can be rendered directly from their wire spelling.
+function jinjaJson(value: JsonValue): string | undefined {
+  if (isJsonNumber(value)) {
+    const source = jsonNumberSource(value)
+    return source !== '-0' &&
+      /^-?(?:0|[1-9][0-9]*)$/u.test(source) &&
+      Number.isSafeInteger(Number(source))
+      ? source
+      : undefined
+  }
   if (value === null || typeof value !== 'object')
     return JSON.stringify(value)
+      .replace(
+        /[\u007f-\uffff]/g,
+        character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+      )
       .replace(/</g, '\\u003c')
       .replace(/>/g, '\\u003e')
       .replace(/&/g, '\\u0026')
       .replace(/'/g, '\\u0027')
-  if (Array.isArray(value)) return `[${value.map(jinjaJson).join(', ')}]`
+  if (Array.isArray(value)) {
+    const items = value.map(jinjaJson)
+    return items.some(item => item === undefined) ? undefined : `[${items.join(', ')}]`
+  }
   if (!object(value)) throw new TypeError('JSON object required')
-  return `{${Object.keys(value)
-    .sort()
-    .map(key => `${jinjaJson(key)}: ${jinjaJson(value[key] ?? null)}`)
-    .join(', ')}}`
+  const entries: string[] = []
+  for (const key of Object.keys(value).sort(codePointOrder)) {
+    const rendered = jinjaJson(value[key] ?? null)
+    if (rendered === undefined) return undefined
+    entries.push(`${jinjaJson(key)}: ${rendered}`)
+  }
+  return `{${entries.join(', ')}}`
 }
 
 function content(value: JsonValue | undefined): string | undefined {
@@ -117,7 +136,17 @@ function messages(value: JsonValue | undefined): PromptMessage[] | undefined {
       toolCalls: calls.filter(object),
     })
   }
-  if (!result.some(message => message.role === 'user')) return undefined
+  if (
+    !result.some(
+      message =>
+        message.role === 'user' &&
+        !(
+          message.content.startsWith('<tool_response>') &&
+          message.content.endsWith('</tool_response>')
+        ),
+    )
+  )
+    return undefined
   if (result.some((message, index) => message.role === 'system' && index !== 0)) return undefined
   return result
 }
@@ -157,8 +186,11 @@ function renderToolCalls(calls: readonly JsonObject[], priorContent: string): st
     if (!('ok' in parsed) || !object(parsed.ok)) return undefined
     output += index === 0 && priorContent.trim() ? '\n\n' : index > 0 ? '\n' : ''
     output += `<tool_call>\n<function=${fn.name}>\n`
-    for (const [name, value] of Object.entries(parsed.ok))
-      output += `<parameter=${name}>\n${typeof value === 'string' ? value : jinjaJson(value)}\n</parameter>\n`
+    for (const [name, value] of Object.entries(parsed.ok)) {
+      const rendered = typeof value === 'string' ? value : jinjaJson(value)
+      if (rendered === undefined) return undefined
+      output += `<parameter=${name}>\n${rendered}\n</parameter>\n`
+    }
     output += '</function>\n</tool_call>'
   }
   return output
@@ -189,7 +221,11 @@ export function renderQwenPrompt(body: JsonObject): string | undefined {
   let prompt = ''
   if (definitions.length) {
     prompt = `<|im_start|>system\n${xhighInstruction}\n\n${toolPrefix}`
-    for (const definition of definitions) prompt += `\n${jinjaJson(definition)}`
+    for (const definition of definitions) {
+      const rendered = jinjaJson(definition)
+      if (rendered === undefined) return undefined
+      prompt += `\n${rendered}`
+    }
     prompt += toolSuffix
     if (first.role === 'system' && first.content) prompt += `\n\n${first.content}`
     prompt += '<|im_end|>\n'
@@ -224,7 +260,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     !source ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:qwen' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== 'mp4-2' ||
     !Object.hasOwn(definition.routes, 'alibaba')
   )
     throw new TypeError('unsupported Qwen definition')
@@ -234,7 +270,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'alibaba',
-    algorithmRevision: 'qwen-38-public-template-1',
+    algorithmRevision: 'qwen-38-public-template-2',
     evidence: `${source.repository} ${source.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; text/tools subset; OpenRouter/Alibaba conversion remains estimated`,
     measure({ body, serialized }): TokenMeasurement {
       if (

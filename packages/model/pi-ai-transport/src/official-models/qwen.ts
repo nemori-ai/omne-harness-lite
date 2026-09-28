@@ -216,7 +216,13 @@ export const qwenDefinitions = ownDefinitions(
       ({
         modelId,
         revision: '1',
-        implementation: { name: 'pi-ai:qwen', revision: 'mp4-1' },
+        implementation: {
+          name: 'pi-ai:qwen',
+          revision:
+            modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b'
+              ? 'mp4-2'
+              : 'mp4-1',
+        },
         capabilities: { ...offer[modelId], outputModalities: ['text'] },
         routes: qwenModelRoutes[modelId],
       }) satisfies ModelDefinition,
