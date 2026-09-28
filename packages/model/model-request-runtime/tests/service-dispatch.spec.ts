@@ -1,5 +1,13 @@
 import { expect, test } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
+import { createCallContainerStore } from '../src/service-container.ts'
+import { createServiceCalls } from '../src/service-calls.ts'
+import { createServiceDispatch } from '../src/service-dispatch.ts'
+import { interpretCallHistory } from '../src/call-history.ts'
+import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
+import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
+import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
+import { selectionHost } from './session-selection-fixture.ts'
 import {
   dispatchAdmission,
   dispatchAgainAdmission,
@@ -7,6 +15,8 @@ import {
 } from '../src/service-dispatch.ts'
 import type { CallHistoryResult } from '../src/call-history.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
+import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
+import type { PlanFailure } from '../src/types.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_dispatch', 'SessionRef'))
 const key = { session, callId: 'call_dispatch' }
@@ -106,4 +116,147 @@ test('retry checks the same fact-class and provider rules as the public guard', 
       provider: 'outsider',
     }),
   ).toEqual({ retryRefused: { why: 'provider_not_allowed' } })
+})
+
+test('service dispatch writes both anchors before handing out a complete pending response', async () => {
+  const host = await selectionHost(true, true)
+  try {
+    const selected = host.create()
+    expect(await selected.component.selectModel('example/model-a')).toEqual({
+      selected: 'example/model-a',
+    })
+    const effective = await selected.component.effectiveModel()
+    if (!('ok' in effective)) throw new Error('effective model')
+    const wire = transport()
+    let finalPlanFailure: PlanFailure | undefined
+    let nextCall = 0
+    const calls = createCallContainerStore<TestPlan, object>()
+    let released = 0
+    const binding: SessionRuntimeBinding = {
+      log: selected.input.binding,
+      selection: { ...selected.input, projection: async () => ({ known: [] }) },
+      catalog: host.catalog,
+      currentEvaluationInputs: host.reader,
+      credentials: {
+        async value() {
+          return { scope: { layer: 'factory' }, value: new TextEncoder().encode('test-secret') }
+        },
+      },
+      tools: {
+        async lookup() {
+          throw new Error('no tools requested')
+        },
+      },
+    }
+    const runtime: RuntimeConstruction<TestPlan, object> = {
+      sessions: { bind: async () => ({ binding }) },
+      calls,
+      transport: {
+        acquire: () => ({
+          lease: {
+            binding: {
+              implementation: { name: 'test', revision: '1' },
+              definition: { modelId: 'example/model-a', revision: '1' },
+              configuration: { revision: '1', values: {} },
+            },
+            transport: {
+              ...wire.adapter,
+              plan(input) {
+                return finalPlanFailure ?? wire.adapter.plan(input)
+              },
+            },
+            signal: new AbortController().signal,
+            async track<T>(completion: Promise<T>) {
+              return await completion
+            },
+            release() {
+              released++
+            },
+          },
+        }),
+      },
+      settlementContention: settlementPolicy(),
+      settlementScheduler: noWaitScheduler,
+      reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+      tokenMargin: { multiplier: 1, reserveTokens: 0 },
+      policy: { ...invocationPolicy(), schedule: () => () => {} },
+      identities: {
+        call: () => `actual-call-${++nextCall}`,
+        response: () => 'actual-response',
+        message: () => unwrap(parseOpaqueIdentifier('actual-message', 'MessageId')),
+      },
+      history: {
+        call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+        failure: () => ({ unavailable: true }),
+        run: () => ({ unavailable: true }),
+      },
+      recovery: { enter: async () => ({ unavailable: true }) },
+      diagnostic() {},
+    }
+    const opening = createServiceCalls(runtime)
+    const opened = await opening.openCall({
+      session: host.session,
+      target: effective.ok.routeName,
+      basis: effective.ok,
+      messages: [],
+      tools: [],
+      host: binding,
+    })
+    expect(opened).toEqual({ callId: 'actual-call-1', state: 'open' })
+    const dispatch = createServiceDispatch(runtime)
+    const result = await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })
+    const read = await host.log.readSince(host.session, 0)
+    if (!('entries' in read)) throw new Error('log read')
+    const records = read.entries.map(entry => payload(entry).kind).filter(Boolean)
+    expect(records).toEqual([
+      'model_selection_changed',
+      'model_call_dispatched',
+      'model_call_opened',
+    ])
+    expect(result).toHaveProperty('replyPending')
+    expect(wire.sends()).toBe(1)
+    expect(
+      calls.find({ session: host.session, callId: 'actual-call-1' })?.view().operation.phase,
+    ).toBe('reply_pending')
+    expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })).toEqual({
+      alreadyEnded: true,
+    })
+    expect(wire.sends()).toBe(1)
+    expect(released).toBe(0)
+    expect(
+      await opening.openCall({
+        session: host.session,
+        target: effective.ok.routeName,
+        basis: effective.ok,
+        messages: [],
+        tools: [],
+        host: binding,
+      }),
+    ).toEqual({ callId: 'actual-call-2', state: 'open' })
+    finalPlanFailure = {
+      rejected: 'invalidInput',
+      reason: 'input_limit_exceeded',
+      basis: 'estimated',
+      metric: 'maxInputTokens',
+      estimatedTokens: 101,
+      admissionTokens: 111,
+      limit: 100,
+    }
+    expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-2' })).toEqual({
+      invalidInput: {
+        reason: 'input_limit_exceeded',
+        basis: 'estimated',
+        metric: 'maxInputTokens',
+        estimatedTokens: 101,
+        admissionTokens: 111,
+        limit: 100,
+      },
+    })
+    expect(wire.sends()).toBe(1)
+    const finalLog = await host.log.readSince(host.session, 0)
+    if (!('entries' in finalLog)) throw new Error('log read')
+    expect(finalLog.entries).toHaveLength(3)
+  } finally {
+    await host.close()
+  }
 })

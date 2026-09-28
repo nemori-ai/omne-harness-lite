@@ -287,16 +287,14 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       if ('unavailable' in received) return { unavailable: true }
       const history = received.ok
       if ('unavailable' in history) return { unavailable: true }
-      if (again && local === undefined) return { unavailable: true }
+      const retrySnapshot =
+        local?.binding.snapshot ??
+        ('known' in history ? history.known.dispatches.at(-1)?.record.profileSnapshot : undefined)
+      if (again && retrySnapshot === undefined)
+        return 'absent' in history ? { callNotFound: true } : { unavailable: true }
       const admission =
-        again && 'plan' in input && local !== undefined
-          ? dispatchAgainAdmission(
-              key,
-              history,
-              local.operation,
-              local.binding.snapshot,
-              input.plan,
-            )
+        again && 'plan' in input && retrySnapshot !== undefined
+          ? dispatchAgainAdmission(key, history, local?.operation, retrySnapshot, input.plan)
           : dispatchAdmission(history, local?.operation, local?.binding.snapshot.providers[0] ?? '')
       if (!('allowed' in admission)) return admission
       if (local === undefined) return { unavailable: true }
