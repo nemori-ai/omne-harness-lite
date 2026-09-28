@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用与纯政策函数。耐久十三操作服务、Cordis 插件、租户准入、恢复、重试编排和回复结算尚待交付。精确采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。
+当前提供独立调用、纯政策函数与限定范围的耐久消费者，包括四项会话选择／查询操作。完整十三操作服务及其 Cordis 插件尚待交付。精确采用与覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。
 
 ## 公开接口
 
@@ -17,6 +17,7 @@
 | `retryDelay(input)`、`RetryBackoffPolicy`、`RetryDelayInput`、`RetryDelayResult` | 按显式政策、重试序号、sample 及 decorrelated 前值计算精确 TD3 Duration |
 | `TransportAdapter`、`PlanInput` | 调用者持有的 plan/send/read 端口与显式请求输入 |
 | `InvocationPolicy`、`ModelInvocationResult` | 调度、脱敏、诊断政策与尚未结算的结果投影 |
+| `createSessionModelSelection(input)` | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口 |
 
 ## 调用显式传入的请求
 
@@ -219,7 +220,7 @@ console.log(legal.ok[0], list.ok[0].annotations, effective.ok.selectedBy)
 
 合法目标不因凭据缺失或据点传输能力而过滤。租户行撤回后在册的更一般行可以胜出；胜出行缺凭据或模态不符时不回退。没有胜出行时，落点先取最具体在册行，再取已撤回行。展示列表为合法名字加选中名字，每条附自有不可变 ref 与注记；被覆盖行只作注记，不能另选。没有胜出行只标恰一个 `withdrawn` 或 `scope_disallowed`，不问该行的凭据或模态。
 
-成功为 `{ ok: value }`；非法或缺必需数据返回 `{ invalidInput: { reason } }`，必需事实明确未知或兼容回调意外抛错返回 `{ unavailable: true }`，不交出原异常或部分集合。选中／有效名字在链上查无行时返回 `{ profileNotFound: true }`。凭据有无按完整胜出 ref 与来源匹配：缺必需事实是 malformed，显式未知有无是 unavailable。结果自持且深度不可变；借用回调寿命仍归调用者。十三操作耐久服务、实际当前求值读取及持久投影缓存尚待交付。
+成功为 `{ ok: value }`；非法或缺必需数据返回 `{ invalidInput: { reason } }`，必需事实明确未知或兼容回调意外抛错返回 `{ unavailable: true }`，不交出原异常或部分集合。选中／有效名字在链上查无行时返回 `{ profileNotFound: true }`。凭据有无按完整胜出 ref 与来源匹配：缺必需事实是 malformed，显式未知有无是 unavailable。结果自持且深度不可变；借用回调寿命仍归调用者。完整十三操作耐久服务与持久投影缓存尚待交付；当前读取的限定消费者见下文「会话模型的耐久选择」。
 
 ## 开发与验证
 
@@ -450,6 +451,8 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
 
 `effectiveModel` 返回既有选择 basis 与实际当前 `EffectiveAssembly`，包含根设置。会话层之上的模型锁得到 `layer_lock`，即使锁定名字与选中名字相同。当前读失败不能变成已知无锁。
 
+`legalTargets` 和 `selectModel` 每次都独立读取当前 EvaluationInput，并调用采用的 AE4 evaluator 后再计算合法目标。根可选 `model` 缺席仍合法；模型锁不筛选合法目标集合。`displayList()` 读取本次合法目标和权威最后选中，再按每条展示胜出行的来源调用目录 `credentialPresent(tenant, origin)`，返回每个路由一条的当前来源、被覆盖行、注记和选中标记。选中名字全被撤回时仍展示；目录没有该选中名字的任何一行时返回 `profileNotFound`；输入读不到返回 `unavailable`。presence 读不暴露凭据本体或引用，也不保证后续取值成功。兑现范围为 [RT5 S9–S14/S24–S27/S66](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-24-legaltargets)，沿采用的 [R3-P2 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md#契约到-cordis-的投影)。
+
 ```ts
 import {
   createSessionModelSelection,
@@ -462,10 +465,13 @@ export async function initializeExplicitSelection(
   requestedRoute: string,
 ) {
   const selection = createSessionModelSelection(ports)
+  const legal = await selection.legalTargets()
+  if (!('ok' in legal)) return { selection, legal }
   const selected = await selection.selectModel(requestedRoute)
   if (!('selected' in selected)) return { selection, selected }
+  const display = await selection.displayList()
   const basis = await selection.effectiveModel()
-  return { selection, selected, basis }
+  return { selection, selected, display, basis }
 }
 ```
 

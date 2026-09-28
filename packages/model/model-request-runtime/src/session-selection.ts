@@ -11,11 +11,11 @@ import {
   inspectModelLogEntry,
   prepareModelLogEntry,
 } from './log-codec-v2.ts'
-import { effectiveModel, legalTargets } from './selection.ts'
+import { displayList, effectiveModel, legalTargets } from './selection.ts'
 import { captureSelectionJson } from './selection-capture.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
-import type { SelectionProjection } from './selection-types.ts'
+import type { RowCredentialFact, SelectionProjection } from './selection-types.ts'
 import type { SettlementRegistration, SettlementTask } from './settlement-types.ts'
 import type {
   SessionEffectiveModelResult,
@@ -56,7 +56,7 @@ interface Operation {
   readonly finish: () => void
 }
 
-/** RT5 S9/S10/S11/S26/S27. No initial selection, history substitution, or provider ownership. */
+/** RT5 S9–S14/S24–S27/S66. No initial selection, history substitution, or provider ownership. */
 export function createSessionModelSelection(
   input: SessionModelSelectionInput,
 ): SessionModelSelection {
@@ -83,6 +83,7 @@ export function createSessionModelSelection(
   const limit = concurrent
   const holdingTenant = input.sessionTenancy.holdingTenant.bind(input.sessionTenancy)
   const listProfiles = input.catalog.listProfiles.bind(input.catalog)
+  const credentialPresent = input.catalog.credentialPresent.bind(input.catalog)
   const readInputs = input.currentEvaluationInputs.read.bind(input.currentEvaluationInputs)
   const projection = input.projection,
     compatible = input.compatible,
@@ -257,6 +258,16 @@ export function createSessionModelSelection(
     const captured = captureSelectionJson(result)
     if (!profileRows(captured)) return unavailable()
     const ownedRows = captured
+    if (
+      ownedRows.some(
+        row =>
+          row.ref.origin === 'custom' &&
+          (row.ref.scope.layer === 'tenant'
+            ? !tenantIdEquals(row.ref.scope.tenant, binding.tenant)
+            : row.ref.scope.organization !== binding.tenant.organization),
+      )
+    )
+      return unavailable()
     const validation = effectiveModel(
       { known: null },
       { known: null },
@@ -269,9 +280,30 @@ export function createSessionModelSelection(
       allowed: Object.freeze([...new Set(ownedRows.map(row => row.ref.routeName))]),
     }
   }
+  async function evaluation(operation: Operation) {
+    const currentInputs = await operation.registration.start(
+      'read',
+      async () => await readInputs(binding.session, binding.tenant),
+    ).completion
+    if (
+      !('input' in currentInputs) ||
+      !current(operation) ||
+      !tenantIdEquals(currentInputs.input.tenant, binding.tenant) ||
+      currentInputs.input.standing.standing !== 'effective'
+    )
+      return unavailable()
+    const evaluated = evaluate(currentInputs.input)
+    if (!('ok' in evaluated)) return unavailable()
+    return {
+      root: capabilityCanonicalString(currentInputs.input.root.definition),
+      evaluation: evaluated.ok,
+    }
+  }
   async function legal(operation: Operation) {
     const catalog = await rows(operation)
     if ('unavailable' in catalog) return catalog
+    const evaluated = await evaluation(operation)
+    if ('unavailable' in evaluated) return evaluated
     const history = await prefix(operation)
     if ('unavailable' in history) return history
     const projected: SelectionProjection = await operation.registration.start(
@@ -285,7 +317,7 @@ export function createSessionModelSelection(
       projected,
       compatible,
     )
-    return { catalog, history, result }
+    return { catalog, history, projected, result }
   }
   return Object.freeze({
     async legalTargets() {
@@ -359,28 +391,58 @@ export function createSessionModelSelection(
         return { selected: name }
       })
     },
+    async displayList() {
+      return await run('displayList', async operation => {
+        const facts = await legal(operation)
+        if ('unavailable' in facts) return facts
+        if (!('ok' in facts.result)) return facts.result
+        const selected = facts.history.selected
+        if (selected === null) return unavailable()
+        if (!facts.catalog.rows.some(row => row.ref.routeName === selected))
+          return { profileNotFound: true } as const
+        const credentials: RowCredentialFact[] = []
+        for (const name of new Set([...facts.result.ok, selected])) {
+          const winner = winningRow(facts.catalog.rows, name, facts.catalog.allowed)
+          // With no winner S12 judges only withdrawal; credentials cannot help it.
+          if (winner === undefined) continue
+          const presence = await operation.registration.start(
+            'read',
+            async () => await credentialPresent(binding.tenant, winner.ref.origin),
+          ).completion
+          if ('failure' in presence || !current(operation)) return unavailable()
+          if (presence.present !== true && presence.present !== false) return unavailable()
+          if (
+            presence.present &&
+            (presence.scope.layer === 'factory'
+              ? winner.ref.origin !== 'official'
+              : presence.scope.layer !== 'tenant' ||
+                !tenantIdEquals(presence.scope.tenant, binding.tenant))
+          )
+            return unavailable()
+          credentials.push({ ref: winner.ref, present: { known: presence.present } })
+        }
+        return displayList(
+          { known: facts.catalog.rows },
+          { known: facts.catalog.allowed },
+          facts.projected,
+          compatible,
+          { known: selected },
+          { known: credentials },
+        )
+      })
+    },
     async effectiveModel(): Promise<SessionEffectiveModelResult> {
       return await run('effectiveModel', async operation => {
         const catalog = await rows(operation)
         if ('unavailable' in catalog) return catalog
         const history = await prefix(operation)
         if ('unavailable' in history || history.selected === null) return unavailable()
-        const currentInputs = await operation.registration.start(
-          'read',
-          async () => await readInputs(binding.session, binding.tenant),
-        ).completion
-        if (
-          !('input' in currentInputs) ||
-          !current(operation) ||
-          !tenantIdEquals(currentInputs.input.tenant, binding.tenant) ||
-          currentInputs.input.standing.standing !== 'effective'
-        )
-          return unavailable()
-        const root = capabilityCanonicalString(currentInputs.input.root.definition)
-        const evaluated = evaluate(currentInputs.input)
-        if (!('ok' in evaluated)) return unavailable()
-        const values = evaluated.ok.values.filter(
-          value => value.item === 'model' && capabilityCanonicalString(value.capability) === root,
+        const evaluated = await evaluation(operation)
+        if ('unavailable' in evaluated) return evaluated
+        const values = evaluated.evaluation.values.filter(
+          value =>
+            value.item === 'model' &&
+            capabilityCanonicalString(value.capability) === evaluated.root,
         )
         if (values.length > 1) return unavailable()
         const model = values[0]
@@ -396,7 +458,7 @@ export function createSessionModelSelection(
           { known: catalog.rows },
           { known: catalog.allowed },
         )
-        return 'ok' in result ? { ok: result.ok, evaluation: evaluated.ok } : result
+        return 'ok' in result ? { ok: result.ok, evaluation: evaluated.evaluation } : result
       })
     },
     close() {
