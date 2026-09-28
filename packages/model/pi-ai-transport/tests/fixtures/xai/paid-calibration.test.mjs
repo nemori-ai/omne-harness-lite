@@ -435,3 +435,22 @@ test('full prompt includes both disjoint cache components; missing is never zero
     undefined,
   )
 })
+
+test('request output hint does not cap billed reasoning; reserve endpoint completion capacity', () => {
+  assert.equal(
+    wholeContextReservation(
+      {
+        ...endpoint,
+        context_length: 500000,
+        max_completion_tokens: 450000,
+        pricing: { prompt: '0.000004', completion: '0.000012' },
+      },
+      128,
+    ),
+    '7.400000000000000000',
+  )
+  assert.throws(
+    () => wholeContextReservation({ ...endpoint, max_completion_tokens: undefined }, 128),
+    /token bounds/,
+  )
+})

@@ -48,14 +48,19 @@ export function exactEndpoint(snapshot, model, maxAgeMs, now = Date.now()) {
 
 export function wholeContextReservation(endpoint, outputTokens) {
   const context = endpoint.context_length
+  const completionBound = endpoint.max_completion_tokens
   if (
     !Number.isSafeInteger(context) ||
     context <= 0 ||
     !Number.isSafeInteger(outputTokens) ||
     outputTokens <= 0 ||
-    (endpoint.max_completion_tokens != null && outputTokens > endpoint.max_completion_tokens)
+    !Number.isSafeInteger(completionBound) ||
+    completionBound <= 0 ||
+    outputTokens > completionBound
   )
     throw new Error('Invalid endpoint token bounds')
+  // Observed reasoning-inclusive output exceeded requested max_tokens=128.
+  // Only the endpoint completion capacity bounds this budget reservation.
   const rates = [endpoint.pricing, ...(endpoint.pricing?.overrides ?? [])]
   const known = new Set([
     'prompt',
@@ -90,7 +95,7 @@ export function wholeContextReservation(endpoint, outputTokens) {
   // Fixed fixtures contain at most one image. Include any distinct per-image charge
   // for every case as a deliberate over-reservation, in addition to all context tokens.
   const image = max(rates.map(rate => units(rate.image ?? '0')))
-  return usdString(BigInt(context) * input + BigInt(outputTokens) * output + request + image)
+  return usdString(BigInt(context) * input + BigInt(completionBound) * output + request + image)
 }
 
 export function assertCalibrationWire(body) {
