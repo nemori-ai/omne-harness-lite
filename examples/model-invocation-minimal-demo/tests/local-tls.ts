@@ -22,6 +22,7 @@ export async function createLocalTls(
   directory: string,
   onReceive: () => Promise<void> = async () => {},
   cacheWrite: number | undefined = 0,
+  model: string = MODEL,
 ) {
   await mkdir(directory, { mode: 0o700 })
   const key = join(directory, 'local-key.pem'),
@@ -83,7 +84,7 @@ export async function createLocalTls(
           `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: 'private reasoning' }, finish_reason: null }] })}\n\n`,
         )
       res.write(
-        `data: ${JSON.stringify({ id: 'independent-generation', model: MODEL, provider: 'DeepInfra', choices: [{ delta: { role: 'assistant', content: 'first ' }, finish_reason: null }] })}\n\n`,
+        `data: ${JSON.stringify({ id: 'independent-generation', model, provider: 'DeepInfra', choices: [{ delta: { role: 'assistant', content: 'first ' }, finish_reason: null }] })}\n\n`,
       )
       contentSent.resolve()
       if (mode === 'hold') {

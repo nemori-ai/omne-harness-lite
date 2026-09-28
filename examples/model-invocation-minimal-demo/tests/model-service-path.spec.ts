@@ -78,7 +78,7 @@ describe('demo unified service path', () => {
         },
       )
       if (!('endpoint' in openedObserver)) throw new Error('observer grant unavailable')
-      const sent = await app.startServiceTextCall(who, prepared.session, {
+      const sent = await app.startServiceCall(who, prepared.session, {
         parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
         host: host.host,
         observer: {

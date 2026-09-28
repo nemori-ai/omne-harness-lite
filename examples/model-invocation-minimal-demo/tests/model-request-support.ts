@@ -7,6 +7,9 @@ import {
   deepseekV4Pro0813Definition,
   createDeepSeekV4ProInputMeter,
   deepseekV4Pro0813Configuration,
+  deepseekV41FlashDefinition,
+  createDeepSeekV41FlashInputMeter,
+  deepseekV41FlashConfiguration,
   createOfficialProfileContent,
 } from '@omne-harness-lite/pi-ai-transport'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
@@ -93,6 +96,7 @@ export function publication(
 }
 export async function callDeployment(
   label: string,
+  model: 'pro' | 'flash' = 'pro',
 ): Promise<AcceptanceConfig & { readonly modelRequest: ModelRequestDeployment }> {
   const base = await deployment(label),
     dir = join(dirname(base.databaseFile), 'logs')
@@ -103,10 +107,16 @@ export async function callDeployment(
     configuration: deepseekV4Pro0813Configuration,
   })
   if ('rejected' in profile) throw new Error('actual first model profile invalid')
+  const flashProfile = createOfficialProfileContent(deepseekV41FlashDefinition, {
+    providers: ['deepinfra/fp8'],
+    allowFallback: false,
+    configuration: deepseekV41FlashConfiguration,
+  })
+  if ('rejected' in flashProfile) throw new Error('actual Flash profile invalid')
   const credentialRedaction = openRouterCredentialRedactionConfig
   return {
     ...base,
-    officialManifest: { ordinal: 1, entries: [profile.ok] },
+    officialManifest: { ordinal: 1, entries: model === 'flash' ? [flashProfile.ok] : [profile.ok] },
     sessionLog: {
       dir,
       processOwnership: {
@@ -128,8 +138,12 @@ export async function callDeployment(
         },
       },
       transport: {
-        definitions: [deepseekV4Pro0813Definition],
-        inputMeters: [createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)],
+        definitions:
+          model === 'flash' ? [deepseekV41FlashDefinition] : [deepseekV4Pro0813Definition],
+        inputMeters:
+          model === 'flash'
+            ? [createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)]
+            : [createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)],
         policy: {
           maxConnections: 1,
           idleConnectionTimeoutMs: 5000,

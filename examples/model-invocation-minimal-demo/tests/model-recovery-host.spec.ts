@@ -64,7 +64,7 @@ describe('demo real recovery host', () => {
           released: () => host.released?.() === true,
         }),
       ).toEqual({ attached: true })
-      const dispatch = app.startServiceTextCall(who, prepared.session, {
+      const dispatch = app.startServiceCall(who, prepared.session, {
         user: user('held'),
         parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
         host: host.host,
@@ -124,7 +124,7 @@ describe('demo real recovery host', () => {
           body: Buffer.from('controlled-recovery-key'),
         })),
       ).toEqual({ stored: true })
-      const sent = await app.startServiceTextCall(who, prepared.session, {
+      const sent = await app.startServiceCall(who, prepared.session, {
         user: user('first'),
         parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
         host: host.host,
@@ -154,7 +154,7 @@ describe('demo real recovery host', () => {
       expect(await app.attachModelCallHost(who, prepared.session, nextHost)).toEqual({
         attached: true,
       })
-      const next = await app.startServiceTextCall(who, prepared.session, {
+      const next = await app.startServiceCall(who, prepared.session, {
         user: user('second'),
         parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
         host: nextHost.host,

@@ -36,7 +36,7 @@ function send(
   host: ReturnType<typeof createDemoCallHost>,
   id: string,
 ) {
-  return app.startServiceTextCall(who, session, {
+  return app.startServiceCall(who, session, {
     user: user(id),
     parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
     host: host.host,
@@ -73,7 +73,7 @@ describe('real unified service boundaries in the demo', () => {
       expect(await app.attachModelCallHost(who, 's1', host)).toEqual({ attached: true })
       expect(await send(app, other, 's1', host, 'cross')).toEqual({ failure: 'identityMismatch' })
       expect(
-        await app.startServiceTextCall(who, 's1', {
+        await app.startServiceCall(who, 's1', {
           user: {} as UserMessage,
           parameters: {},
           host: host.host,

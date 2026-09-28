@@ -339,7 +339,7 @@ export interface AcceptanceApplication {
     actor: AuthenticatedActor,
     session: unknown,
   ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>>
-  startServiceTextCall(
+  startServiceCall(
     actor: AuthenticatedActor,
     session: unknown,
     request: {
@@ -1725,7 +1725,7 @@ export function createAcceptanceApplication(
     if (!isOk(parsed)) return { failure: 'stageClosed' }
     return work(bound.service, parsed.ok)
   }
-  function startServiceTextCall(
+  function startServiceCall(
     actor: AuthenticatedActor,
     session: unknown,
     request: {
@@ -1749,7 +1749,6 @@ export function createAcceptanceApplication(
       (callId !== undefined && !isOk(callId)) ||
       !('ok' in message) ||
       message.ok.type !== 'user' ||
-      message.ok.blocks.some(block => block.kind !== 'text') ||
       !('ok' in copiedParameters)
     )
       return Promise.resolve({ invalidInput: { reason: 'malformed' } })
@@ -1910,7 +1909,7 @@ export function createAcceptanceApplication(
     bindModelRuntime,
     attachModelCallHost,
     reconcileModelRuntime,
-    startServiceTextCall,
+    startServiceCall,
     close() {
       if (closingPromise !== undefined) return closingPromise
       closing = true

@@ -143,7 +143,7 @@ type DemoSendOutcome =
   | { readonly kind: 'unconfirmed' }
 
 function refusalReason(
-  sent: Awaited<ReturnType<AcceptanceApplication['startServiceTextCall']>>,
+  sent: Awaited<ReturnType<AcceptanceApplication['startServiceCall']>>,
 ): string {
   const value = 'result' in sent ? sent.result : sent
   if ('undispatched' in value) return value.undispatched
@@ -310,7 +310,7 @@ export async function openDemo(
             user.ok.type === 'user'
           ) {
             grant = opened
-            const sent = await app.startServiceTextCall(actor, session, {
+            const sent = await app.startServiceCall(actor, session, {
               parameters: { reasoningEffort: 'low', maxOutputTokens },
               host: host.host,
               observer: {
