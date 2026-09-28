@@ -6,6 +6,10 @@ import {
   inspectModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime/log-codec/v2'
 import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
+import {
+  captureModelLogValue as captureLegacy,
+  prepareModelLogEntry as prepareLegacy,
+} from '@omne-harness-lite/model-request-runtime'
 import { narrow } from '@omne-harness-lite/storage'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -104,6 +108,10 @@ describe('RT5 real session model selection and current evaluation', () => {
       const component = host.create().component
       expect(await component.selectModel('never-in-directory')).toEqual({ profileNotFound: true })
       expect(await component.selectModel(' ')).toEqual({ invalidInput: { reason: 'malformed' } })
+      expect(await component.selectModel('')).toEqual({
+        invalidInput: { reason: 'route_name_empty' },
+      })
+      expect(await component.selectModel(null)).toEqual({ invalidInput: { reason: 'malformed' } })
       const unknown = host.create({
         async projection() {
           return { unknown: true }
@@ -631,6 +639,56 @@ describe('RT5 real session model selection and current evaluation', () => {
       })
     } finally {
       await other.close()
+    }
+  })
+  it('mixed mrr/1 and mrr/2 selection follows durable position rather than timestamps', async () => {
+    const host = await selectionHost()
+    try {
+      const legacy = captureLegacy({
+        category: 'record',
+        input: {
+          kind: 'value',
+          value: {
+            kind: 'model_selection_changed',
+            routeName: 'example/model-b',
+            at: '2100-01-01T00:00:00Z',
+          },
+        },
+      })
+      if ('invalidValue' in legacy) throw new Error('Legacy selection admission')
+      const entry = prepareLegacy({
+        session: host.session,
+        shell: { tenant: host.tenant },
+        captured: legacy.ok,
+        purpose: { kind: 'record' },
+        messagePrefix: null,
+      })
+      if ('invalidValue' in entry) throw new Error('Legacy selection encoding')
+      const appended = await host.log.append(
+        host.session,
+        [entry.ok],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in appended) throw new Error('Legacy actual append')
+      const component = host.create().component
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { selected: 'example/model-b' },
+      })
+      expect(await component.selectModel('example/model-a')).toEqual({
+        selected: 'example/model-a',
+      })
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { selected: 'example/model-a' },
+      })
+      const prefix = await host.log.readSince(host.session, 0)
+      if ('failure' in prefix) throw new Error('Mixed actual read')
+      expect(prefix.entries.map(value => value.payload)).toMatchObject([
+        { format: 'mrr/1' },
+        { format: 'mrr/2' },
+      ])
+    } finally {
+      await host.close()
     }
   })
 })
