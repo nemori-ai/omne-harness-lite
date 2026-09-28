@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import {
   invokeModel,
   type InvocationInput,
   type PlannedSemantics,
   type PlanFailure,
   type TransportFailure,
+  type StreamEnd,
 } from '@omne-harness-lite/model-request-runtime'
 import { adapter, content, deferred, policy, request, result } from './invoke-policy-fixture.ts'
 const headers = Object.freeze({ 'x-values': Object.freeze(['b', '', 'b', 'a']), 'x-empty': '' })
@@ -381,7 +383,9 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
     expect(value.outcome).toBe('interrupted')
     expect(value.rawHeaders).toBe(headers)
     expect(value.blocks).toEqual([])
+    expect(handle.observedFacts()).toEqual({ unavailable: true })
     gate.resolve()
+    await expect.poll(() => 'facts' in handle.observedFacts()).toBe(true)
   })
   it('CP-V3 distinguishes absent headers and a frozen empty map', async () => {
     const absent = result(await invoke(adapter()).outcome)
@@ -570,5 +574,91 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
     )
     expect(value.failure).toEqual({ cause: 'unrecognized', localError: '█' })
     expect(value.rawHeaders).toBe(headers)
+  })
+})
+
+describe('D105 original invocation facts', () => {
+  it('records the actual send boundary after fallible scheduling and the final cancel check', async () => {
+    const noSend = adapter()
+    const unscheduled = invoke(noSend, 'credential', {
+      policy: {
+        ...policy(),
+        schedule() {
+          throw new Error('scheduler unavailable')
+        },
+      },
+    })
+    await expect(unscheduled.outcome).rejects.toThrow('scheduler unavailable')
+    expect(noSend.sends()).toBe(0)
+    expect(unscheduled.observedFacts()).toMatchObject({ facts: { usage: { source: 'none' } } })
+    expect(unscheduled.observedFacts()).not.toHaveProperty('facts.sentAt')
+
+    let sent = 0
+    const port = adapter()
+    const throwing = invoke(port, 'credential', {
+      transport: {
+        ...port.transport,
+        send() {
+          sent++
+          throw new Error('send threw synchronously')
+        },
+      },
+    })
+    await expect(throwing.outcome).rejects.toThrow('send threw synchronously')
+    expect(sent).toBe(1)
+    expect(throwing.observedFacts()).toMatchObject({
+      facts: { sentAt: '2026-09-28T00:00:00Z', usage: { source: 'none' } },
+    })
+  })
+
+  it('keeps accepted partial account and exact frozen multi-value headers when result fails', async () => {
+    const account = content().find(event => event.t === 'account')
+    if (account === undefined) throw new Error('account fixture absent')
+    let readerStopped = false
+    const port = adapter({ sent: { response: {}, rawHeaders: headers } })
+    const handle = invoke(port, 'credential', {
+      transport: {
+        ...port.transport,
+        async *read(): AsyncGenerator<ArrivalEvent, StreamEnd> {
+          try {
+            yield account
+            throw new Error('reader lost continuity')
+          } finally {
+            readerStopped = true
+          }
+        },
+      },
+    })
+    expect(handle.observedFacts()).toEqual({ unavailable: true })
+    await expect(handle.outcome).rejects.toThrow('reader lost continuity')
+    expect(readerStopped).toBe(true)
+    const observed = handle.observedFacts()
+    if (!('facts' in observed)) throw new Error('stopped facts unavailable')
+    expect(observed.facts.sentAt).toBe('2026-09-28T00:00:00Z')
+    expect(observed.facts.usage).toMatchObject({
+      input_tokens: 503,
+      cache_read_tokens: 0,
+      cache_write_tokens: 'unknown',
+    })
+    expect(observed.facts.cost.cost_usd).toEqual(new LosslessNumber('503.00'))
+    expect(observed.facts.rawHeaders).toEqual(headers)
+    expect(writeJsonLossless(observed.facts.rawHeaders)).toContain('["b","","b","a"]')
+    expect(handle.observedFacts()).toEqual(observed)
+  })
+
+  it('retains a frame-too-long trim even when no frame was cut', async () => {
+    const port = adapter({
+      events: [...content(), { t: 'trim', reason: 'frame_too_long', omittedBytes: 3 }],
+    })
+    const handle = invoke(port)
+    const value = result(await handle.outcome)
+    if (value.trims === undefined) throw new Error('known trim disappeared')
+    expect(writeJsonLossless(value.trims)).toContain('"cut":0')
+    expect(writeJsonLossless(value.trims)).toContain('"frame_too_long":1')
+    const observed = handle.observedFacts()
+    if (!('facts' in observed) || observed.facts.trims === undefined)
+      throw new Error('observed trim disappeared')
+    expect(writeJsonLossless(observed.facts.trims)).toContain('"cut":0')
+    expect(writeJsonLossless(observed.facts.trims)).toContain('"frame_too_long":1')
   })
 })

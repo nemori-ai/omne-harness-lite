@@ -2,11 +2,14 @@ import {
   start,
   snapshot,
   accept,
+  abandon,
   closeOut,
   type AssemblyState,
+  type ModelAssemblyAccount,
 } from '@omne-harness-lite/stream-assembly'
 import type { ArrivalEvent, ArrivalError } from '@omne-harness-lite/arrival-events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import type { TrimSummary } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { Failure, RawHeaders } from '@omne-harness-lite/model-response'
 import type {
@@ -14,6 +17,7 @@ import type {
   ModelInvocationHandle,
   InvocationOutcome,
   ModelInvocationResult,
+  InvocationObservedFacts,
   PlannedSemantics,
   StreamEnd,
   TransportFailure,
@@ -43,6 +47,16 @@ export function classifyCause(
   }
   return 'unrecognized'
 }
+function hasTrims(value: TrimSummary): boolean {
+  return (
+    ExactDecimal.from(value.merged).compare(ExactDecimal.from(0)) !== 0 ||
+    ExactDecimal.from(value.cut).compare(ExactDecimal.from(0)) !== 0 ||
+    ExactDecimal.from(value.omittedBytes).compare(ExactDecimal.from(0)) !== 0 ||
+    Object.values(value.byReason).some(
+      count => ExactDecimal.from(count).compare(ExactDecimal.from(0)) !== 0,
+    )
+  )
+}
 function policyValid(policy: InvocationPolicy): boolean {
   return (
     policy !== undefined &&
@@ -68,6 +82,7 @@ function rejectionHandle(failure: PlanFailure): ModelInvocationHandle {
   return Object.freeze({
     outcome: Promise.resolve(failure),
     snapshot: () => ({ blocks: [], position: 0 }),
+    observedFacts: () => ({ unavailable: true }) as const,
     abort: () => {},
   })
 }
@@ -107,6 +122,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
     return Object.freeze({
       outcome: Promise.reject(new Error('model_invocation.policy_bind_defect')),
       snapshot: () => ({ blocks: [], position: 0 }),
+      observedFacts: () => ({ unavailable: true }) as const,
       abort: () => {},
     })
   }
@@ -159,6 +175,13 @@ export function invokeModel<P extends PlannedSemantics, R>(
     timedOut = false,
     sentAt: string | undefined,
     firstTokenAt: string | undefined
+  let runStopped = false
+  let readerStopped = true
+  let retainedAccount: ModelAssemblyAccount | undefined
+  let retainedHeaders: RawHeaders | undefined
+  let retainedServing: StreamEnd | undefined
+  let completed: ModelInvocationResult | undefined
+  const gates = new Set<Promise<'accepted' | 'failed'>>()
   let disposeTimer: () => void = () => {}
   const diagnose = (kind: string) => {
     try {
@@ -216,6 +239,8 @@ export function invokeModel<P extends PlannedSemantics, R>(
         () => 'accepted' as const,
         () => 'failed' as const,
       )
+    gates.add(gate)
+    gate.then(() => gates.delete(gate))
     try {
       const result = await Promise.race([gate, cancelled])
       if (result === 'failed') {
@@ -241,16 +266,19 @@ export function invokeModel<P extends PlannedSemantics, R>(
       if ('rejected' in plan) return plan
       planned = plan.planned
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
-      sentAt = input.policy.now()
       deadline(input.policy.firstContentTimeoutMs)
+      if (controller.signal.aborted) return { cancelledBeforeSend: true }
+      sentAt = input.policy.now()
       const sent = await input.transport.send(planned, input.credential, controller.signal)
       if ('rejected' in sent)
         return sent.rejected === 'invalidInput'
           ? { rejected: 'invalidInput', reason: 'malformed' }
           : { rejected: 'unavailable' }
       if (sent.rawHeaders !== undefined) {
-        if (ownedHeaders(sent.rawHeaders)) rawHeaders = sent.rawHeaders
-        else {
+        if (ownedHeaders(sent.rawHeaders)) {
+          rawHeaders = sent.rawHeaders
+          retainedHeaders = sent.rawHeaders
+        } else {
           diagnose('model_invocation.response_headers_port_violation')
           headerFailure =
             'failed' in sent
@@ -261,11 +289,13 @@ export function invokeModel<P extends PlannedSemantics, R>(
       }
       if ('response' in sent) {
         const reader = input.transport.read(sent.response, planned, controller.signal)
+        readerStopped = false
         try {
           while (true) {
             const next = await reader.next()
             if (next.done) {
               end = next.value
+              readerStopped = true
               break
             }
             const event = next.value
@@ -292,9 +322,11 @@ export function invokeModel<P extends PlannedSemantics, R>(
           }
         } finally {
           await reader.return({ aborted: true })
+          readerStopped = true
         }
       } else end = sent
       if (end === undefined) throw new Error('transport omitted terminal facts')
+      retainedServing = end
       if (headerFailure !== undefined) end = { failed: headerFailure }
       const visible = snapshot(state).firstContentAt !== undefined
       let failure: Failure | undefined, reason: 'end' | 'max_tokens' | 'interrupted' | 'lost'
@@ -373,6 +405,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
       if ('rejected' in settled || !('usage' in settled.ok.account))
         throw new Error('model assembler did not settle')
       const account = settled.ok.account
+      retainedAccount = account
       const outcome =
         reason === 'end'
           ? 'complete'
@@ -412,19 +445,49 @@ export function invokeModel<P extends PlannedSemantics, R>(
         ...(end.servingProvider ? { servingProvider: end.servingProvider } : {}),
         ...(end.upstreamRequestId ? { upstreamRequestId: end.upstreamRequestId } : {}),
         ...(end.stopReason ? { stopReason: end.stopReason } : {}),
-        ...(ExactDecimal.from(account.trims.merged).compare(ExactDecimal.from(0)) !== 0 ||
-        ExactDecimal.from(account.trims.cut).compare(ExactDecimal.from(0)) !== 0
-          ? { trims: account.trims }
-          : {}),
+        ...(hasTrims(account.trims) ? { trims: account.trims } : {}),
       }
-      return Object.freeze(value)
+      completed = Object.freeze(value)
+      return completed
     } finally {
+      // The original assembler owns accepted account and trim facts. A stopped stream
+      // without a finish is abandoned only inside this terminated invocation owner.
+      if (readerStopped && retainedAccount === undefined) {
+        try {
+          const closed = closeOut(state)
+          const settled = 'ok' in closed ? closed : abandon(state)
+          if ('ok' in settled && 'usage' in settled.ok.account) retainedAccount = settled.ok.account
+        } catch {
+          // Without an actual assembler settlement, facts remain unavailable.
+        }
+      }
       terminal = true
       disposeTimer()
       input.signal.removeEventListener('abort', cancel)
+      runStopped = readerStopped
       diagnose('model_invocation.stopped')
     }
   }
   const outcome = run()
-  return Object.freeze({ outcome, snapshot: () => snapshot(state), abort: cancel })
+  function observedFacts():
+    { readonly facts: InvocationObservedFacts } | { readonly unavailable: true } {
+    if (!runStopped || gates.size !== 0 || retainedAccount === undefined)
+      return { unavailable: true }
+    const account = completed ?? retainedAccount
+    const end = completed ?? retainedServing
+    const trims = completed?.trims ?? retainedAccount.trims
+    const facts: InvocationObservedFacts = Object.freeze({
+      ...(sentAt === undefined ? {} : { sentAt }),
+      ...(retainedHeaders === undefined ? {} : { rawHeaders: retainedHeaders }),
+      usage: account.usage,
+      cost: account.cost,
+      ...(hasTrims(trims) ? { trims } : {}),
+      ...(end?.upstreamModel === undefined ? {} : { upstreamModel: end.upstreamModel }),
+      ...(end?.servingProvider === undefined ? {} : { servingProvider: end.servingProvider }),
+      ...(end?.upstreamRequestId === undefined ? {} : { upstreamRequestId: end.upstreamRequestId }),
+      ...(end?.stopReason === undefined ? {} : { stopReason: end.stopReason }),
+    })
+    return { facts }
+  }
+  return Object.freeze({ outcome, snapshot: () => snapshot(state), observedFacts, abort: cancel })
 }

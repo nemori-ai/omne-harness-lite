@@ -169,5 +169,8 @@ export type InvocationOutcome =
 export interface ModelInvocationHandle {
   readonly outcome: Promise<InvocationOutcome>
   readonly snapshot: () => AssemblySnapshot
+  /** Available only once this invocation and all its owned asynchronous work actually stop. */
+  readonly observedFacts: () =>
+    { readonly facts: InvocationObservedFacts } | { readonly unavailable: true }
   readonly abort: () => void
 }

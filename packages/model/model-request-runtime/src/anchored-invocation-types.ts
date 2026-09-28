@@ -18,6 +18,7 @@ import type {
   ModelInvocationHandle,
 } from './types.ts'
 import type { SettlementCoordinatorInput, SettlementResult } from './settlement-types.ts'
+import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
 
 export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
   readonly planInput: PlanInput
@@ -48,6 +49,10 @@ export type AnchoredInvocationOutcome =
 export interface AnchoredInvocationHandle {
   readonly outcome: Promise<AnchoredInvocationOutcome>
   readonly snapshot: ModelInvocationHandle['snapshot']
+  /** Original same-target facts are readable only after all owned work actually stops. */
+  readonly observedFacts: (
+    target: ModelLogSettlementTarget,
+  ) => ReturnType<ModelInvocationHandle['observedFacts']>
   /** System stop (S-36); user interruption requires the separate durable intent protocol. */
   readonly abort: () => void
   /** Caller-owned settlement through the same whole-batch coordinator, including persisted [M,R]. */

@@ -63,6 +63,7 @@ function terminalHandle(
   return {
     outcome: Promise.resolve(value),
     snapshot: () => ({ blocks: [], position: 0 }),
+    observedFacts: () => ({ unavailable: true }),
     abort() {},
     async settleReply() {
       return { unavailable: true, reason: 'closed' }
@@ -254,6 +255,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   let construction: ResponseConstructionInput | undefined
   let settled = false
   let dispatchConfirmed = false
+  let anchoredStopped = false
   let closePromise: ReturnType<AnchoredInvocationHandle['close']> | undefined
   const owner: SettlementOwner = {
     name: originalOwner.name,
@@ -529,13 +531,42 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       return 'settled' in resultSettlement ? { settled: resultSettlement } : unavailable
     } finally {
       // Unknown append may outlive invoke; close retains and awaits its actual stopped fact.
-      if (!quarantined) await drain()
+      if (!quarantined) {
+        await drain()
+        anchoredStopped = registrationReleased
+      }
     }
   }
   const outcome = run()
   return Object.freeze<AnchoredInvocationHandle>({
     outcome,
     snapshot: () => invocation?.snapshot() ?? { blocks: [], position: 0 },
+    observedFacts(target) {
+      if (
+        !dispatchConfirmed ||
+        !anchoredStopped ||
+        quarantined ||
+        target.call !== dispatched.call ||
+        !modelLogJsonEqual(target.dispatch, dispatched.dispatch) ||
+        target.response !== dispatched.response ||
+        'unknown' in owner.opened() ||
+        owner.unresolvedWrites().length !== 0
+      )
+        return { unavailable: true }
+      if (invocation !== undefined) return invocation.observedFacts()
+      return {
+        facts: Object.freeze({
+          usage: Object.freeze({
+            input_tokens: 'unknown',
+            output_tokens: 'unknown',
+            cache_read_tokens: 'unknown',
+            cache_write_tokens: 'unknown',
+            source: 'none',
+          }),
+          cost: Object.freeze({ cost_usd: 'unknown', source: 'none' }),
+        }),
+      }
+    },
     abort: stop,
     async settleReply(disposition) {
       if (closed) return { unavailable: true, reason: 'closed' }
