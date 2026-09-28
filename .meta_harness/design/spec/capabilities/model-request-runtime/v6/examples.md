@@ -340,3 +340,14 @@ RT5-H5 还须覆盖完整响应 raw.body 独立缺席／按原附件责任留存
 | RT6-R4 | retryConclusions 缺失、归属混杂、日志历史不可读 | 形状/确定错配 invalidInput，不能确认来源 unavailable；不补[]、不计供应商次数；新runner缺modelCallId须拒写 |
 
 旧实例中的“交回响应体”在带回复路径按 S-75 解释为 MR6 PendingModelResponse；在最后显式处分及提交之后才是 ModelResponse。旧失败/无回复分支及 RT5-H1～H6 保持完整响应语义。真实 Run 终结识别不得用通用 bool 或 fixture 关闭 G-28。
+
+### v6 补充：失败主体的只读重取
+
+以下为 S-34/S-76 新只读分支的消费者场景；尚未执行，不由现有 RetryHistory 模型的有限通过代证。
+
+| 场景 | 输入/交错 | 预期与负控 |
+|---|---|---|
+| RT6-R5 来源恢复后重取 | S29 的 failed 响应已提交，retry 历史暂不可读而 unavailable；随后来源恢复 | 调用保留 awaiting_decision，readAttempts 返回状态、发出和完整 failureSubject；重复读同一前缀返回同值，无HTTP/追加/凭据读取/新增结论/次数消耗。负控：要求重调dispatch、重新写失败响应或读取次数增加h均失败 |
+| RT6-R6 未能构造完整主体 | awaiting_decision/最新failed，但缺一段结论历史或响应来源无法确认 | readAttempts 整体 unavailable；不得返回成功却缺failureSubject、部分retryConclusions或默认[]。其他状态不附failureSubject，不借旧failed响应伪造当前主体 |
+| RT6-R7 并发变化 | 读取完整前缀P期间或之后追加新的retry结论/发出 | 单次返回所有事实均来自P，不拼P的dispatches与P′的结论；之后再次读可见P′。原返回不授权下一次发送，dispatchAgain自身核当时状态/守卫/fence。负控：mixed-tail主体或据旧结果绕过wrongPhase/alreadyEnded均失败 |
+| RT6-R8 恢复对账路径 | S33确认原failed并返回awaiting_decision | 调用者经S34取完整failureSubject；不新增恢复操作、不重新发送、不重复原最终结论；历史仍不可读时沿R6保留责任 |

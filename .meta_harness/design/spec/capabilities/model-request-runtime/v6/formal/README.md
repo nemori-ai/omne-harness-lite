@@ -1,6 +1,6 @@
 # v6 行为模型与继承范围
 
-本目录没有运行结果；本版十个正配置均未运行，执行结果只进[版本外验证入口](../../verification.md#v6-候选变化与证据)。
+本目录不保存运行产物；新增四个正配置已由独立 TLC 执行且退出0，六个否定配置各以指定断言反例退出12。继承六个正配置本轮不重跑。执行证据见[版本外验证入口](../../verification.md#v6-候选变化与证据)与[独立有限模型记录](../../../../../record/evidence/2026-09-28-formal-model-input-successors/README.md)。
 执行使用主线给定的 TLC 工具链，精确版本、输入哈希、原始输出、退出码及修复前失败记录在版本外验证入口定位；模型与配置存在不等于已运行或实现符合。
 
 ## 原状态机的采用边界
@@ -71,7 +71,7 @@ S-15/S-16/S-17/S-33/S-55 的 opened 回执未知及取消后迟到提交分支�
 
 **新增头事实没有建模**：这些模型没有 rawHeaders 或它与最终结果的交接，不得以 TypeOK、内容门或 CancelEventuallyStops 声称已证明值原形、空值/缺席、凭据脱敏、取消后保留、公开制品接收或真实 TLS→invoke→append/reopen。相应可失败 oracle 在 [RT5-H1～H6](../examples.md#v5-增量同次响应头的交接与留存)，须由端口符合性及真实多写方组合/负控执行；本轮未运行 TLC/Alloy 或任何真实 IO。旧执行结果只绑定旧精确输入，不是 v6 重跑或新头性质证据。
 
-## v6 新增行为义务（未运行）
+## v6 新增行为义务
 
 不引入 Alloy：共享值形状唯一由 MP4/MR6/LC5 Schema 拥有；跨时点的计划固定、处分顺序及历史计次由以下有限行为模型表达。所有新配置仅查安全性质，不设公平性、不声明进展。常量中的实验 cap=2、数量1..3不是产品初值。
 
@@ -92,4 +92,4 @@ FinalPlan 把可靠计量前提建入 Choose（准确或保守）；不得据 Se
 | PendingReply_DropFacts.cfg | PreserveFacts=FALSE | CompleteHandoff |
 | RetryHistory_DispatchCount.cfg | UseDispatchCount=TRUE | CountsOwnConclusions |
 
-本次 TLC/Alloy **未运行**；主线在收口时提供了已安装的 tlc/alloy 入口，正负执行由主线整批进行；不存在运行通过声明。正配置候选登记见主线待集成 fragment；否定配置预期失败，不作为正式正任务登记。继承 RT5 的四模型十九配置保持逐字节相同；新三模型十配置不代替旧范围。
+新增模型独立 TLC 结果：FinalPlan 两正配置分别49/43个不同状态，PendingReply正配置8，RetryHistory正配置42；四正均退出0，六负均退出12并命中上表指定断言。FinalPlan首次解析失败退出150仍保留，修后复跑结果不覆盖原失败；[证据](../../../../../record/evidence/2026-09-28-formal-model-input-successors/README.md)绑定精确输入哈希与工具。未运行Alloy或真实IO；不据有限模型声称计量、历史来源或实现符合性已验证。否定配置不作为正式正任务登记。继承 RT5 的四模型十九配置保持逐字节相同；新三模型十配置不代替旧范围。
