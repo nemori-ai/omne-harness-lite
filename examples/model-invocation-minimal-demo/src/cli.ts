@@ -1,17 +1,33 @@
 import { parseArgs } from 'node:util'
 import { openDemo, readPrivateFile } from './demo.ts'
 import { runInteractive } from './interactive.ts'
+import { readTokenMargin } from './token-margin.ts'
 
 const { values } = parseArgs({
-  options: { data: { type: 'string' }, 'key-file': { type: 'string' }, help: { type: 'boolean' } },
+  options: {
+    data: { type: 'string' },
+    'key-file': { type: 'string' },
+    'token-margin-multiplier': { type: 'string' },
+    'token-margin-reserve': { type: 'string' },
+    help: { type: 'boolean' },
+  },
   allowPositionals: false,
 })
+const tokenMargin = readTokenMargin(
+  values['token-margin-multiplier'],
+  values['token-margin-reserve'],
+)
 if (values.help) {
   process.stdout.write(
-    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory [--key-file /private/openrouter-key]\nFrom this example directory: node dist/cli.js --data /private/new-directory [--key-file /private/openrouter-key]\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
+    'From repository root: node examples/model-invocation-minimal-demo/dist/cli.js --data /private/new-directory --token-margin-multiplier 1.1 --token-margin-reserve 256 [--key-file /private/openrouter-key]\nFrom this example directory: node dist/cli.js with the same options.\nBoth token margin options are required. Admission uses ceil(estimate * multiplier) + reserve; this is not a guaranteed upstream token bound.\nCredential: OPENROUTER_API_KEY, owner-only raw-key file (not .env), or existing encrypted replica. Keys are never command-line values.\n',
   )
 } else if (!values.data) {
   process.stderr.write('An explicit --data directory is required. Use --help.\n')
+  process.exitCode = 2
+} else if (tokenMargin === undefined) {
+  process.stderr.write(
+    'Explicit --token-margin-multiplier >= 1 and --token-margin-reserve integer >= 0 are required. Use --help.\n',
+  )
   process.exitCode = 2
 } else {
   let credential: Buffer | undefined
@@ -30,7 +46,7 @@ if (values.help) {
       }
     } else if (process.env.OPENROUTER_API_KEY)
       credential = Buffer.from(process.env.OPENROUTER_API_KEY)
-    const conversation = await openDemo(values.data, credential)
+    const conversation = await openDemo(values.data, tokenMargin, credential)
     credential?.fill(0)
     const result = await runInteractive(
       conversation,

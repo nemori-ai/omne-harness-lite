@@ -7,7 +7,7 @@ import {
 import {
   captureModelLogValue,
   prepareModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+} from '@omne-harness-lite/model-request-runtime'
 import {
   createOfficialProfileContent,
   deepseekV4Pro0813Definition,
@@ -114,6 +114,12 @@ describe('complete demo history without a text-only whitelist', () => {
       capabilities: {
         ...deepseekV4Pro0813Definition.capabilities,
         inputModalities: ['text', 'image'],
+        inputConstraints: { maxImageBytes: 1048576 },
+        upstreamInputLimits: {
+          ...deepseekV4Pro0813Definition.capabilities.upstreamInputLimits,
+          maxImageBytes: { status: 'unknown' },
+          maxImages: { status: 'unknown' },
+        },
       },
     }
     const imageProfile = profile(definition)
@@ -123,6 +129,7 @@ describe('complete demo history without a text-only whitelist', () => {
     })
     const planned = planRequest(
       {
+        tokenMargin: { multiplier: 1, reserveTokens: 0 },
         target: {
           kind: 'model_call',
           callId: unwrap(parseOpaqueIdentifier('history-call', 'ModelCallId')),
@@ -134,6 +141,8 @@ describe('complete demo history without a text-only whitelist', () => {
           inputModalities: definition.capabilities.inputModalities,
           outputModalities: definition.capabilities.outputModalities,
           maxInputTokens: definition.capabilities.maxInputTokens,
+          inputConstraints: imageProfile.inputConstraints,
+          upstreamInputLimits: imageProfile.upstreamInputLimits,
           maxOutputTokens: definition.capabilities.maxOutputTokens,
           adaptation: imageProfile.adaptation,
           providers: imageProfile.providers,
@@ -145,6 +154,15 @@ describe('complete demo history without a text-only whitelist', () => {
         messages: history.messages,
       },
       [definition],
+      {
+        modelId: definition.modelId,
+        definitionRevision: definition.revision,
+        implementation: definition.implementation,
+        provider: 'deepinfra/fp8',
+        algorithmRevision: 'synthetic-history-1',
+        evidence: 'Controlled projection only; no upstream measurement claim',
+        measure: () => ({ kind: 'exact', tokens: 1 }),
+      },
     )
     if ('rejected' in planned) throw new Error(planned.rejected)
     expect(planned.planned.body.messages).toMatchObject([

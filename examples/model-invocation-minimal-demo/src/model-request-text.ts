@@ -17,7 +17,7 @@ import {
   captureModelLogValue,
   decodeModelLogKey,
   inspectModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+} from '@omne-harness-lite/model-request-runtime'
 
 /** Decode the complete log prefix without imposing a demo-specific message/block whitelist. */
 export function messagePrefix(

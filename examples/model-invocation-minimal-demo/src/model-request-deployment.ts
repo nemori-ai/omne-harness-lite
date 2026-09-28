@@ -41,6 +41,7 @@ export function prepareModelRequestDeployment(
     evaluationInputs: Object.freeze({ ...input.evaluationInputs }),
     transport: Object.freeze({
       definitions: input.transport.definitions,
+      inputMeters: input.transport.inputMeters,
       policy: input.transport.policy,
     }),
     invocation: Object.freeze({ ...input.invocation }),

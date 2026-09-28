@@ -4,10 +4,7 @@ import { createServer, type ServerOptions } from 'node:https'
 import { execFileSync } from 'node:child_process'
 import { readFile, mkdir, open, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import {
-  inspectModelLogEntry,
-  decodeModelLogKey,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import { inspectModelLogEntry, decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication, type TextCallRequest } from '../src/index.ts'
 import { durationMilliseconds } from '../src/model-request-text.ts'
 import { actor, ref, latch } from './support.ts'
@@ -574,9 +571,7 @@ describe('A2b actual first-model consumer', () => {
       expect(await app.prepareModelInputs(who, 's1')).toEqual({ prepared: true })
       const outcome = await start.call.outcome
       if (!('replyPending' in outcome)) throw new Error('reply')
-      const original = outcome.replyPending.responseFor('persisted')
-      if (!('response' in original)) throw new Error('response')
-      expect(original.response.route.selectedBy).toBe('layer_lock')
+      expect(outcome.replyPending.route.selectedBy).toBe('layer_lock')
       expect(await start.call.settleReply('persisted')).toHaveProperty('settled')
       expect(await start.call.close()).toEqual({ released: true })
       const current = await app.effectiveModel(who, 's1')

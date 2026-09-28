@@ -36,6 +36,10 @@ const official: OfficialManifest['entries'][number] = {
   maxInputTokens: 1024,
   maxOutputTokens: 512,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' as const },
+    maxRequestBytes: { status: 'unknown' as const },
+  },
   adaptation: {
     implementation: { name: 'explicit-fixture', revision: 'i1' },
     definition: { modelId: 'acceptance/official', revision: 'd1' },

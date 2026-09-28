@@ -20,7 +20,7 @@ import {
 import {
   captureModelLogValue,
   prepareModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+} from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage, type SessionRef } from '@omne-harness-lite/messages'
 import { winningRow } from '@omne-harness-lite/model-profile-directory'
 import { createRequestOwner } from './model-request-owner.ts'
@@ -1312,6 +1312,8 @@ export function createAcceptanceApplication(
           outputModalities,
           maxInputTokens,
           maxOutputTokens,
+          inputConstraints,
+          upstreamInputLimits,
           updatedAt,
           parameters,
         } = row.profile
@@ -1319,6 +1321,7 @@ export function createAcceptanceApplication(
         try {
           handle = createAnchoredModelInvocation({
             planInput: {
+              tokenMargin: requestDeployment.tokenMargin,
               target: { kind: 'model_call', callId: callId.ok, dispatch: 1 },
               routeName: basis.ok.routeName,
               provider,
@@ -1330,6 +1333,8 @@ export function createAcceptanceApplication(
                 outputModalities,
                 maxInputTokens,
                 maxOutputTokens,
+                inputConstraints,
+                upstreamInputLimits,
                 updatedAt,
                 ...(parameters === undefined ? {} : { parameters }),
               },

@@ -80,9 +80,9 @@ export async function runInteractive(
           const outcome = await current.outcome
           output.write('\n')
           if ('replyPending' in outcome) {
-            const candidate = outcome.replyPending.responseFor('persisted')
             const settlement = await current.settleReply('persisted')
-            if (!('settled' in settlement) || !('response' in candidate)) {
+            const response = 'settled' in settlement ? settlement.settled.response.response : null
+            if (response === null) {
               complete = false
               output.write(
                 'Reply commit is unconfirmed; retained responsibility, no next request.\n',
@@ -90,7 +90,7 @@ export async function runInteractive(
             } else {
               durablySettled = true
               output.write(
-                `Saved. ${writeJsonLossless({ outcome: candidate.response.outcome, usage: candidate.response.usage, cost: candidate.response.cost })}\n`,
+                `Saved. ${writeJsonLossless({ outcome: response.outcome, usage: response.usage, cost: response.cost })}\n`,
               )
             }
           } else if ('settled' in outcome) {

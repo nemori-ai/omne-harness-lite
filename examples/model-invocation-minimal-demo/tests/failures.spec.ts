@@ -271,6 +271,10 @@ describe('AB-V3 / V5: startup failures preserve the correct side of confirmation
               maxInputTokens: 1024,
               maxOutputTokens: 512,
               inputConstraints: {},
+              upstreamInputLimits: {
+                maxInputTokens: { status: 'unknown' as const },
+                maxRequestBytes: { status: 'unknown' as const },
+              },
               adaptation: {
                 implementation: { name: 'synthetic-conflict', revision: 'i1' },
                 definition: { modelId: 'synthetic-conflict-profile', revision: 'd1' },

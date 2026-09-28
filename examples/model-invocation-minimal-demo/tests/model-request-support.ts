@@ -5,6 +5,7 @@ import type { AssetDefinition, AssetHolding, CapabilityId } from '@omne-harness-
 import type { LocalPublication } from '@omne-harness-lite/evaluation-input-store/publication'
 import {
   deepseekV4Pro0813Definition,
+  createDeepSeekV4ProInputMeter,
   deepseekV4Pro0813Configuration,
   createOfficialProfileContent,
 } from '@omne-harness-lite/pi-ai-transport'
@@ -117,6 +118,7 @@ export async function callDeployment(
       policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
     },
     modelRequest: {
+      tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
       evaluationInputs: {
         storeKey: label,
         deployedOfficial: [{ capability: ROOT, meta: false }],
@@ -127,6 +129,7 @@ export async function callDeployment(
       },
       transport: {
         definitions: [deepseekV4Pro0813Definition],
+        inputMeters: [createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)],
         policy: {
           maxConnections: 1,
           idleConnectionTimeoutMs: 5000,

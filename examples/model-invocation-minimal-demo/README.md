@@ -4,6 +4,10 @@ An interactive command-line example of a durable, streaming, multi-turn model co
 
 The demo explicitly selects **`deepseek/deepseek-v4-pro-0813`** and fixes its provider route to **`deepinfra/fp8`** with fallback disabled. Each turn accepts text input, no tools, no Run, `reasoningEffort: low`, and `maxOutputTokens: 1024`. The answer streams to the terminal. A completed reply and its model response settle in one durable batch before the next turn. Each request passes the complete validated message history, including prior reasoning and media blocks, to the invocation layer without a text-only whitelist. Visibility and model compatibility follow the shared contracts; this fixed text-only model cannot consume an unconverted image. The CLI currently accepts text input only. `/history` reads the actual session log. Restart with the same data path to authenticate again and resume the session; registration, source publication and model selection are not replayed.
 
+The current development format carries the complete project input limits and upstream limit facts in every call snapshot. Data created by an older incompatible development version is not automatically converted; use a new explicit `--data` directory for this version and retain any old directory unchanged.
+
+Both token margin options are explicit, required deployment choices. This example uses `ceil(estimatedTokens * 1.1) + 256` against the project input cap. The pinned DeepSeek tokenizer estimates the final input; the margin is configurable and does not guarantee equality with upstream counting. Actual token usage and cost still come only from upstream responses. Programmatic callers supply the same policy as the second argument to `openDemo(dataDirectory, tokenMargin, credential?, testOptions?)`.
+
 ## Run
 
 Use the Node and pnpm versions declared at the repository root. From the repository root:
@@ -13,13 +17,13 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm run build
 umask 077
 export OPENROUTER_API_KEY='your actual OpenRouter key'
-node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-model-demo"
+node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-model-demo" --token-margin-multiplier 1.1 --token-margin-reserve 256
 ```
 
 If your shell is already in `examples/model-invocation-minimal-demo`, run the built file relative to that directory instead:
 
 ```sh
-node dist/cli.js --data ../../tmp/my-model-demo
+node dist/cli.js --data ../../tmp/my-model-demo --token-margin-multiplier 1.1 --token-margin-reserve 256
 ```
 
 The `--data` path must be a **new** path on first run. The demo creates it with owner-only permissions. Use the same path to resume after `/exit` or end-of-file. Alternatively, place the credential in an owner-only file and pass `--key-file /absolute/private/key`; never pass a key value as a command-line argument. The file must have mode 0600 and contain only raw key bytes, not `.env` syntax; one final newline is ignored. After successful publication into the encrypted replica, a normal restart can omit the environment variable and `--key-file`. A supplied key on restart is a replacement through the actual credential publication API.
@@ -47,6 +51,6 @@ The data directory contains SQLite state, JSONL session history, generated signi
 
 The public root also exports `createAcceptanceApplication`, its configuration and result types, and fixed stage fiber names for development consumers. The assembly owns its Cordis context and lifecycle. Its `currentTime()` is a narrow read of its existing lease Clock for this example's message and invocation timestamps; an unavailable clock prevents a send. Its `AcceptanceHooks` and `developmentTransport` are trusted test controls, not tenant input. The authentication-only stage sends no model request.
 
-Validate with `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run build`, `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run typecheck`, and `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run test`. Tests use a local controlled TLS endpoint and never a production credential. Semantics are traced from [D076](../../.meta_harness/design/record/decisions/model-runtime-delivery-adoption/decision.md), [D092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md), [RT5](../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md), [MR5](../../.meta_harness/design/spec/data/model-response/v5/contract.md), and the [assembly realization](../../.meta_harness/design/realization/retired/model-request-acceptance/README.md).
+Validate with `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run build`, `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run typecheck`, and `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run test`. Tests use a local controlled TLS endpoint and never a production credential. Semantics are traced from [D076](../../.meta_harness/design/record/decisions/model-runtime-delivery-adoption/decision.md), [D092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md), [RT8](../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md), [MR7](../../.meta_harness/design/spec/data/model-response/v7/contract.md), and the [assembly realization](../../.meta_harness/design/realization/retired/model-request-acceptance/README.md).
 
-A real OpenRouter PTY run verified two turns in one process and a third after restart, with durable reply/response pairs and actual cumulative costs. See the [bounded run evidence](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-multiturn/README.md) for the exact model, inputs and limits.
+A historical OpenRouter PTY run, predating the current token-admission migration, verified two turns in one process and a third after restart, with durable reply/response pairs and actual cumulative costs. See the [bounded run evidence](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-multiturn/README.md) for the exact model, inputs and limits.

@@ -14,8 +14,8 @@ import {
   type Summary,
   type UsageSummary,
 } from '@omne-harness-lite/call-accounts'
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response/v5'
-import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
+import { decodeModelLogKey, type TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import {
   createAcceptanceApplication,
   type AcceptanceApplication,
@@ -141,6 +141,7 @@ export interface DemoTotals {
 /** Production is the default; controlled TLS is available only through the existing trusted test hook. */
 export async function openDemo(
   dataDirectory: string,
+  tokenMargin: TokenMargin,
   credential?: Uint8Array,
   testOptions?: Partial<Parameters<typeof createAcceptanceApplication>[1]>,
 ): Promise<DemoConversation> {
@@ -159,7 +160,7 @@ export async function openDemo(
     if (value === undefined || value === 'unavailable') throw new Error('lease clock unavailable')
     return value
   }
-  const config = createDemoConfig(directory, randomUUID(), now)
+  const config = createDemoConfig(directory, randomUUID(), now, tokenMargin)
   app = createAcceptanceApplication(config, {
     ...testOptions,
     stage: 'modelRequest',

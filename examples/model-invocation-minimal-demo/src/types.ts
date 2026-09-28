@@ -3,7 +3,7 @@ import type { AccountId, LoginStateId, TenantId } from '@omne-harness-lite/ident
 import type { AccountIdentityConfig } from '@omne-harness-lite/account-identity'
 import type { CredentialRef } from '@omne-harness-lite/asset-model'
 import type { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification'
-import type { SessionRef } from '@omne-harness-lite/messages/v3'
+import type { SessionRef } from '@omne-harness-lite/messages'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organization-governance'
 import type { ProcessOwnership, SessionLogPolicy } from '@omne-harness-lite/session-log-jsonl'
@@ -12,6 +12,7 @@ import type { ModelInputSource, PublishSourceFailure, CaptureRecipeFailure } fro
 import type { TransportOptions } from '@omne-harness-lite/pi-ai-transport'
 import type {
   InvocationPolicy,
+  TokenMargin,
   SettlementContention,
   SettlementScheduler,
 } from '@omne-harness-lite/model-request-runtime'
@@ -68,6 +69,7 @@ export interface SessionLogDeployment {
 }
 export type { ModelInputSource } from './bootstrap.ts'
 export interface ModelRequestDeployment {
+  readonly tokenMargin: TokenMargin
   readonly evaluationInputs: {
     readonly storeKey: string
     readonly deployedOfficial: readonly DeployedOfficialEntry[]
@@ -75,7 +77,7 @@ export interface ModelRequestDeployment {
     /** Trusted deployment preparation; never a tenant-controlled publishing callback. */
     readonly prepare: (actor: AuthenticatedActor, session: SessionRef) => Promise<ModelInputSource>
   }
-  readonly transport: Pick<TransportOptions, 'definitions' | 'policy'>
+  readonly transport: Pick<TransportOptions, 'definitions' | 'inputMeters' | 'policy'>
   readonly invocation: Pick<
     InvocationPolicy,
     'now' | 'schedule' | 'statusCauseTable' | 'credentialRedaction'

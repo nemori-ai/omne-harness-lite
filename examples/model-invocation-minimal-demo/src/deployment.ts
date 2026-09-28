@@ -7,10 +7,14 @@ import { toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks
 import type { CapabilityId, AssetDefinition, AssetHolding } from '@omne-harness-lite/asset-model'
 import {
   createOfficialProfileContent,
+  createDeepSeekV4ProInputMeter,
   deepseekV4Pro0813Configuration,
   deepseekV4Pro0813Definition,
 } from '@omne-harness-lite/pi-ai-transport'
-import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import {
+  openRouterCredentialRedactionConfig,
+  type TokenMargin,
+} from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
 
 export const MODEL = deepseekV4Pro0813Definition.modelId
@@ -96,6 +100,7 @@ export function createDemoConfig(
   directory: string,
   runId: string,
   now: () => string,
+  tokenMargin: TokenMargin,
 ): AcceptanceConfig {
   const keys = {
     activationSigning: join(directory, 'activation-private.pem'),
@@ -141,6 +146,7 @@ export function createDemoConfig(
       policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
     },
     modelRequest: {
+      tokenMargin,
       evaluationInputs: {
         storeKey: 'model-invocation-minimal-demo',
         deployedOfficial: [{ capability: DEMO_ROOT, meta: false }],
@@ -154,6 +160,7 @@ export function createDemoConfig(
       },
       transport: {
         definitions: [deepseekV4Pro0813Definition],
+        inputMeters: [createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)],
         policy: {
           maxConnections: 1,
           idleConnectionTimeoutMs: 5000,

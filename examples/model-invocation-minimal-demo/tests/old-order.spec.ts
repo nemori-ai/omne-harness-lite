@@ -20,6 +20,10 @@ describe('AB-V2 original ordering negative control', () => {
               maxInputTokens: 1024,
               maxOutputTokens: 512,
               inputConstraints: {},
+              upstreamInputLimits: {
+                maxInputTokens: { status: 'unknown' as const },
+                maxRequestBytes: { status: 'unknown' as const },
+              },
               adaptation: {
                 implementation: { name: 'synthetic-acceptance', revision: 'i1' },
                 definition: { modelId: 'synthetic-acceptance-profile', revision: 'd1' },

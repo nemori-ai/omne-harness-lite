@@ -4,6 +4,10 @@
 
 示例显式选择 **`deepseek/deepseek-v4-pro-0813`**，固定供应商路由 **`deepinfra/fp8`**，禁止回退。每轮接收文本输入、无工具、无 Run，参数为 `reasoningEffort: low` 和 `maxOutputTokens: 1024`。回答实时流到终端，完整回复与模型响应在同一耐久批次结算后才进入下一轮。每次请求把校验后的完整消息历史（包括先前的推理和媒体块）交给调用层，不加纯文本白名单。可见性和模型兼容遵循公共契约；当前固定的纯文本模型不能承载未转换的图片。命令行目前仅提供文本输入。`/history` 读真实会话日志。使用相同数据路径重启会重新认证并恢复原会话，不重放注册、来源发布或模型选择。
 
+当前开发格式在每次调用快照中完整携带项目输入上限及上游限制事实。旧开发版本产生的不兼容数据不会自动转换；验证当前版本请显式使用新的 `--data` 目录，原目录保持不动。
+
+两个 token 余量选项均须显式配置。示例用 `ceil(estimatedTokens * 1.1) + 256` 与项目输入上限比较；固定版本的 DeepSeek tokenizer 估算最终输入，余量可调整，不保证与上游实际计数一致。实际 token 用量及费用仍仅采用上游响应。程序调用通过第二个参数配置：`openDemo(dataDirectory, tokenMargin, credential?, testOptions?)`。
+
 ## 运行
 
 采用仓库根目录声明的 Node 与 pnpm 版本，在仓库根目录执行：
@@ -13,13 +17,13 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm run build
 umask 077
 export OPENROUTER_API_KEY='你的实际 OpenRouter 密钥'
-node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-model-demo"
+node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-model-demo" --token-margin-multiplier 1.1 --token-margin-reserve 256
 ```
 
 如果终端已经位于 `examples/model-invocation-minimal-demo`，则从当前目录直接运行编译产物：
 
 ```sh
-node dist/cli.js --data ../../tmp/my-model-demo
+node dist/cli.js --data ../../tmp/my-model-demo --token-margin-multiplier 1.1 --token-margin-reserve 256
 ```
 
 首次运行的 `--data` 必须是**尚不存在**的目录；示例会以仅所有者可访问的权限创建它。正常 `/exit` 或输入结束后，仍用相同路径继续。也可将密钥放在仅所有者可读的文件中，通过 `--key-file /absolute/private/key` 传入路径；不要在命令行传密钥值。该文件须为 0600 权限且只包含密钥原始字节，不解析 `.env` 格式；文件末尾一个换行会被忽略。密钥通过真实加密副本发布成功后，正常重启可省略环境变量和 `--key-file`；再次提供密钥会通过真实凭据发布 API 替换。
@@ -47,6 +51,6 @@ Closed. Start again with the same --data path to resume.
 
 公共根入口还导出 `createAcceptanceApplication`、配置与结果类型及固定阶段 fiber 名，供开发消费者使用。装配拥有 Cordis Context 和生命周期。`currentTime()` 只读取它已有的租约 Clock，供示例的消息与调用时间使用；时钟不可用则禁止发送。`AcceptanceHooks` 与 `developmentTransport` 是可信测试控制，不交给租户输入。仅认证阶段不发送模型请求。
 
-本地检查：`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run build`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run typecheck`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run test`。测试使用本地受控 TLS 端点，不消费真实生产密钥。语义依据见 [D076](../../.meta_harness/design/record/decisions/model-runtime-delivery-adoption/decision.md)、[D092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md)、[RT5](../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md)、[MR5](../../.meta_harness/design/spec/data/model-response/v5/contract.md) 和[装配 realization](../../.meta_harness/design/realization/retired/model-request-acceptance/README.md)。
+本地检查：`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run build`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run typecheck`、`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo run test`。测试使用本地受控 TLS 端点，不消费真实生产密钥。语义依据见 [D076](../../.meta_harness/design/record/decisions/model-runtime-delivery-adoption/decision.md)、[D092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md)、[RT8](../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md)、[MR7](../../.meta_harness/design/spec/data/model-response/v7/contract.md) 和[装配 realization](../../.meta_harness/design/realization/retired/model-request-acceptance/README.md)。
 
-已通过一次真实 OpenRouter PTY 验证：同进程两轮及重开后的第三轮，检查回复／响应体同批落盘和累计实际费用。精确模型、输入与范围见[有限运行证据](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-multiturn/README.md)。
+在本轮输入计量迁移之前曾通过一次真实 OpenRouter PTY 验证（不代表当前版本已验收）：同进程两轮及重开后的第三轮，检查回复／响应体同批落盘和累计实际费用。精确模型、输入与范围见[有限运行证据](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-multiturn/README.md)。
