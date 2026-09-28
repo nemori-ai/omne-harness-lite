@@ -1,0 +1,1 @@
+{"model":"qwen/qwen3.8-max-0902","provider":{"order":["alibaba"],"allow_fallbacks":false,"require_parameters":true},"stream":false,"messages":[{"role":"user","content":"请用一个词回答：北京。"}],"max_tokens":16}
