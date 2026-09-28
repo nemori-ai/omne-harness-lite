@@ -272,6 +272,8 @@ Set inputs use readonly arrays with no duplicates. Each input is explicitly `{ k
 
 The following teaching data exercises all three functions without a credential or service. Declare the runtime and model-profile-directory packages as direct dependencies for these public imports. The example is not a live official model definition.
 
+All profile numbers, including nested adaptation configuration and parameter extras, are copied before any profile or winner decision. Finite JavaScript numbers and standard `LosslessNumber` tokens retain their exact boundary value and spelling. Ordinary subclasses inheriting the trusted public source getter are supported; a foreign source accessor or data override returns `invalidInput` without invoking it. Numeric capture directly calls the trusted getter on the branded receiver and creates an owned standard number, so a caller's prototype Proxy `get` cannot substitute a value. Input getters and `toJSON` are never called. Unexpected capture defects throw the fixed ordinary error `model selection JSON capture failed` without retaining the original error or cause.
+
 ```ts
 import {
   legalTargets, displayList, effectiveModel, type SelectionCompatibility,
