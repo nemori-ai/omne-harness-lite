@@ -43,7 +43,7 @@ const tools = [
 ]
 
 export const cases = Object.freeze([
-  ...['control', 'plain', 'details', 'inline'].map(variant => ({
+  ...['seed', 'control', 'plain', 'details'].map(variant => ({
     id: `glm53-${variant}`,
     model: 'z-ai/glm-5.3',
     provider: 'z-ai/fp8',
@@ -63,31 +63,105 @@ export const cases = Object.freeze([
   })),
 ])
 
-export function makeBody(testCase) {
-  if (!cases.some(item => item.id === testCase.id)) throw new Error('Unapproved probe case')
-  const assistant = { role: 'assistant', content: finalAnswer, tool_calls: toolCalls }
-  if (testCase.variant === 'plain') assistant.reasoning = historyText
-  if (testCase.variant === 'details')
-    assistant.reasoning_details = [
-      { type: 'reasoning.text', text: historyText.slice(0, 240), index: 0 },
-      { type: 'reasoning.text', text: historyText.slice(240), index: 1 },
-    ]
-  if (testCase.variant === 'inline')
-    assistant.content = `<think>${historyText}</think>${finalAnswer}`
-  const long = testCase.variant === 'long'
-  const user = long
-    ? `What arithmetic result was given? ${'Read all earlier material before answering. '.repeat(96)}`
-    : 'What arithmetic result was given?'
-  const system = { type: 'text', text: 'Answer the final question in one short sentence.' }
-  const finalUserContent = [{ type: 'text', text: user }]
-  if (testCase.provider === 'alibaba')
-    finalUserContent[0].cache_control = { type: 'ephemeral', ttl: '5m' }
+const previewHistory = {
+  content: finalAnswer,
+  reasoning: historyText,
+  details: [{ type: 'reasoning.text', text: historyText, index: 0 }],
+}
+
+export function seedHistory(facts) {
+  let content = ''
+  let reasoning = ''
+  const details = []
+  const indexes = new Set()
+  let detailsComplete = true
+  for (const frame of facts.frames) {
+    for (const choice of frame.choices ?? []) {
+      const delta = choice.delta
+      if (!delta || typeof delta !== 'object') continue
+      if (typeof delta.content === 'string') content += delta.content
+      if (typeof delta.reasoning === 'string') reasoning += delta.reasoning
+      if (delta.reasoning_details !== undefined) {
+        if (!Array.isArray(delta.reasoning_details)) detailsComplete = false
+        else
+          for (const detail of delta.reasoning_details) {
+            if (
+              !detail ||
+              typeof detail !== 'object' ||
+              !Number.isSafeInteger(detail.index) ||
+              detail.index < 0 ||
+              indexes.has(detail.index)
+            ) {
+              detailsComplete = false
+              continue
+            }
+            indexes.add(detail.index)
+            details.push(detail)
+          }
+      }
+    }
+  }
+  if (!reasoning && !details.length) return undefined
   return {
+    content,
+    reasoning: reasoning || undefined,
+    // A repeated index may be a streamed fragment or amended signature. Do
+    // not guess how to merge it into a replayable upstream detail.
+    details: detailsComplete && details.length ? details : undefined,
+    sourceRequestId: facts.requestId ?? null,
+  }
+}
+
+export function makeBody(testCase, history = previewHistory) {
+  if (!cases.some(item => item.id === testCase.id)) throw new Error('Unapproved probe case')
+  const common = {
     model: testCase.model,
     provider: { order: [testCase.provider], allow_fallbacks: false, require_parameters: true },
     stream: true,
     stream_options: { include_usage: true },
     max_tokens: 64,
+  }
+  const system = { type: 'text', text: 'Answer the final question in one short sentence.' }
+  if (testCase.variant === 'seed')
+    return {
+      ...common,
+      reasoning: { effort: 'high' },
+      messages: [
+        { role: 'system', content: [system] },
+        { role: 'user', content: 'Compute 17 times 19. Give the result in one short sentence.' },
+      ],
+    }
+  if (testCase.model === 'z-ai/glm-5.3') {
+    const assistant = { role: 'assistant', content: history.content }
+    if (testCase.variant === 'plain') {
+      if (!history.reasoning) throw new Error('Actual seed has no plain reasoning')
+      assistant.reasoning = history.reasoning
+    }
+    if (testCase.variant === 'details') {
+      if (!history.details) throw new Error('Actual seed has no complete replayable details')
+      assistant.reasoning_details = history.details
+    }
+    return {
+      ...common,
+      reasoning: { effort: 'high' },
+      messages: [
+        { role: 'system', content: [system] },
+        { role: 'user', content: 'Compute 17 times 19. Give the result in one short sentence.' },
+        assistant,
+        { role: 'user', content: 'What arithmetic result did you give?' },
+      ],
+    }
+  }
+  const assistant = { role: 'assistant', content: finalAnswer, tool_calls: toolCalls }
+  const long = testCase.variant === 'long'
+  const user = long
+    ? `What arithmetic result was given? ${'Read all earlier material before answering. '.repeat(96)}`
+    : 'What arithmetic result was given?'
+  const finalUserContent = [{ type: 'text', text: user }]
+  if (testCase.provider === 'alibaba')
+    finalUserContent[0].cache_control = { type: 'ephemeral', ttl: '5m' }
+  return {
+    ...common,
     messages: [
       { role: 'system', content: [system] },
       { role: 'user', content: 'Compute 17 times 19 with the lookup tool.' },
@@ -110,7 +184,6 @@ export function summarize(records) {
     glm53: {
       plainMinusControl: delta('glm53-control', 'glm53-plain'),
       detailsMinusControl: delta('glm53-control', 'glm53-details'),
-      inlineMinusControl: delta('glm53-control', 'glm53-inline'),
       conclusion:
         'Usage deltas diagnose whether history affects this selected route; they do not establish the private reasoning_content transform or clear_thinking setting alone.',
     },
@@ -167,12 +240,14 @@ async function execute(values) {
     const endpoint = card?.endpoints?.find(item => item.tag === testCase.provider)
     if (!endpoint?.pricing || !endpoint.provider)
       throw new Error(`Exact endpoint/pricing missing: ${testCase.id}`)
-    return { testCase, endpoint, body: makeBody(testCase) }
+    return { testCase, endpoint }
   })
   if (values.dryRun) {
     for (const item of selected)
       process.stdout.write(
-        `${item.testCase.id} ${item.testCase.provider} ${createHash('sha256').update(JSON.stringify(item.body)).digest('hex')}\n`,
+        `${item.testCase.id} ${item.testCase.provider} ${createHash('sha256')
+          .update(JSON.stringify(makeBody(item.testCase)))
+          .digest('hex')}\n`,
       )
     return
   }
@@ -188,7 +263,22 @@ async function execute(values) {
     if ((await readdir(directory)).length)
       throw new Error('Evidence directory must be empty before paid execution')
     const records = []
-    for (const { testCase, endpoint, body } of selected) {
+    const skipped = []
+    let history
+    for (const { testCase, endpoint } of selected) {
+      if (testCase.id === 'glm53-control' && !history) {
+        skipped.push({ id: testCase.id, reason: 'seed_returned_no_reasoning' })
+        continue
+      }
+      if (testCase.id === 'glm53-plain' && !history?.reasoning) {
+        skipped.push({ id: testCase.id, reason: 'seed_returned_no_plain_reasoning' })
+        continue
+      }
+      if (testCase.id === 'glm53-details' && !history?.details) {
+        skipped.push({ id: testCase.id, reason: 'seed_details_not_complete_or_absent' })
+        continue
+      }
+      const body = makeBody(testCase, history)
       const serialized = JSON.stringify(body)
       const estimateUsd = estimateReservation(endpoint.pricing, Buffer.byteLength(serialized), 64)
       const reservation = await ledger.reserve({
@@ -246,10 +336,11 @@ async function execute(values) {
       if (facts.provider !== endpoint.provider)
         throw new Error(`Provider mismatch ${testCase.id}: stop after persisted evidence`)
       records.push(record)
+      if (testCase.variant === 'seed') history = seedHistory(facts)
     }
     await writePrivateEvidence(
       join(directory, 'summary.json'),
-      JSON.stringify({ snapshotSha256, records, analysis: summarize(records) }, null, 2),
+      JSON.stringify({ snapshotSha256, records, skipped, analysis: summarize(records) }, null, 2),
     )
   } finally {
     await ledger.close()
