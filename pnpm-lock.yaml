@@ -1139,6 +1139,9 @@ importers:
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../../core/asset-model
+      '@omne-harness-lite/asset-registry':
+        specifier: workspace:*
+        version: link:../../tools/asset-registry
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
