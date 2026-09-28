@@ -150,3 +150,7 @@
 [README front-matter](README.md)（**以它为准**）、[design.md 抬头](design.md)、本页最新一节、
 以及产品区那两张手写的表（[topic 一览](../README.md#当前-topic)、[架构内核清单](../architecture-core.md#清单)
 ——**本 topic [在架构内核之外](../architecture-core.md#内核之外的-pf)，所以只登记在前一张**）。
+
+## 2026-09-28 · PF-021 引用对齐（无语义修订）
+
+接续 PF-021 日程来源、作业执行约束及通知／单次控制入口的产品引用；本 topic 既有规则、修订号与接受范围不变，不以引用表示技术实现已交付。

@@ -960,4 +960,45 @@
 - **注意 ②**：**agent 可以代用户执行一条明确的切换指令，但不能为了绕开一次失败自己换**——[换模型不是模型调用那一层的手段](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)
 - **弃用**：~~「切换事实」~~作为概念名——那是这个动作落下的那条[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)，不另立
 
+
+### UL-scheduling-capability · 日程能力 · Scheduling Capability
+
+> **中**：创建和管理跨时间工作安排、调度到期工作并触发对应执行或通知动作的可插拔能力，供系统安排自身机械工作，也供 harness agent 与用户推进短、中、长期事务与目标。
+>
+> **EN**: A pluggable capability for creating and managing work arranged over time, scheduling due work, and triggering execution or notification actions, supporting the system’s own mechanical work as well as short-, medium-, and long-term undertakings for harness agents and users.
+
+- **形态**：总称
+- **出处**：[PF-021 §4 日程能力](../../product/PF-021-schedule-and-calendar/design.md#日程能力)（rev 8）
+- **别混**：能力本身不同于一份 Schedule。
+
+### UL-routine · 工作例程 · Routine
+
+> **中**：一份日程内描述各次定时作业共同工作要求的数据属性，说明机械操作或 agent 工作目标以及适用的通知内容与目标租户；不含时间规则，也不承载单次作业的进度与成果，无独立身份或生命周期。出厂形式是供填入该属性的预置描述数据。
+>
+> **EN**: The work-description data held within a schedule, specifying the mechanical action or agent objective and applicable notification content and target tenant for its jobs. It excludes timing rules and per-job progress or results, and has no independent identity or lifecycle. Factory-provided forms are preset descriptions used to populate this data.
+
+- **形态**：属性
+- **出处**：[PF-021 §4 工作例程](../../product/PF-021-schedule-and-calendar/design.md#工作例程)（rev 8）
+- **别混**：各次 Job 共用工作定义，不共享执行状态；不同 Schedule 不共同引用一个可变 Routine 对象。
+
+### UL-calendar-service · 日历服务 · Calendar Service
+
+> **中**：支持日历配置、管理、选择切换和数据更新维护，供应业务日历及其版本并提供日期计算的服务统称；作为独立产品应用交付，是日程能力的计算依赖。
+>
+> **EN**: The service capability for calendar configuration, management, selection and switching, data maintenance, versioned calendar supply, and date calculations. It is delivered as an independent product application and serves as a computational dependency of scheduling.
+
+- **形态**：总称
+- **出处**：[PF-021 §4 日历服务](../../product/PF-021-schedule-and-calendar/design.md#日历服务)（rev 8）
+- **别混**：独立产品应用与部署位置是不同维度；“计算器”是日程讨论中的简称。
+
+### UL-notification-capability · 通知能力 · Notification Capability
+
+> **中**：供系统和 agent 发送通知并送达到明确目标租户的能力；支持定时来源，也支持无日程或作业来源的通知。
+>
+> **EN**: A capability used by both the system and agents to send notifications and deliver them to an explicitly identified target tenant, with or without a schedule or scheduled job as their source.
+
+- **形态**：总称
+- **出处**：[PF-021 §4 通知能力](../../product/PF-021-schedule-and-calendar/design.md#通知能力)（rev 8）
+- **别混**：不是成果上报、普通会话回复或复制通知邀约本身；目标租户沿既有租户身份，送达不自动等于已读。
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

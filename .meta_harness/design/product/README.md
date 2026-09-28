@@ -38,6 +38,7 @@
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 10 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 6 |
 | [PF-020 工作区](PF-020-workspace/README.md) | draft | 21 |
+| [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |
 
 ## 已排定、尚未开题的编号
 
@@ -47,9 +48,8 @@
 |---|---|---|
 | PF-018 | WebUI 交付面 | 预留编号，尚未开题 |
 | PF-019 | Desktop 交付面 | 预留编号，尚未开题 |
-| PF-021 | 日程和日历 | PF-020 之后讨论的第二个独立主题，尚未开题 |
 
-**接下来从 PF-020 开始使用编号**：本会话先讨论 PF-020「工作区」，再讨论 PF-021「日程和日历」。
+PF-020「工作区」与 [PF-021「日程与日历」](PF-021-schedule-and-calendar/README.md) 已按原定顺序开题；其余预留主题尚未开题。
 
 **PF-015 于 2026-09-21 开题**，见 [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md)。
 它是 2026-09-17「agent-loop / session / inbound 会是多个 PF，不是单个」那条裁决

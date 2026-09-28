@@ -129,3 +129,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-071：Docker 正常终止请求与真实退出](governance-docker-stop-adoption/README.md)采用R5三处停止绑定，固定Engine条件与unknown结果；最终helper及两架构制品仍待验收。
 
 [D-072：健康探针单进程绑定](governance-docker-health-binding/README.md)接受已有公开main的同进程调用及原期限/资源清理约束；不改变EC3/HT3，不代表新制品已验。
+
+[D-073：接受 PF-021 rev 8 日程与日历产品设计](pf021-product-acceptance/README.md)：依据 INT-030 授权，补齐日期处理与单次取消、完成独立复核后接受；不表示架构、契约、实现或运行验证完成。

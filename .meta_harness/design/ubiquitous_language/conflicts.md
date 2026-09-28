@@ -167,3 +167,17 @@ C-1 那两个概念都已拍板、都动不了，只能定用法；**这两条�
 - **已发现**：PF-002 flows/acceptance 仍将 `.omne.local` 归某个租户私有；PF-015 §6.13 限制只能选租户持有的工作区；PF-016 的流程与验收把目录候选当作默认附着，并将仅本机候选清单当作工作区关系的全部。治理存储与实例生命周期的归属也需要分开。
 - **处置范围**：修订现行产品正文、流程、验收及关联术语，对实际语义变更升 rev。历史访谈、裁决原话与冻结规格不改写，旧结论的取代范围在各包 changelog/decisions 记录；不因此扩大整包接受或实现状态。
 - **状态**：现行产品投影已修正，PF-002/003/004/005/006/007/014/015/016/017 分别升 rev；PF-001 已一致，无须升 rev。完整逐 PF 结果见 [PF-020 回顾](../product/PF-020-workspace/decisions.md#2026-09-27-跨-pf-一致性回顾)。冻结规格差异仍由新规格承接。
+
+### C-38：作业会话与现有会话类型的适用范围
+
+- **两处输入**：[PF-015 §4 会话类型](../product/PF-015-session-lifecycle-and-ownership/design.md#会话类型)（rev 13）说「它由用户创建会话时选定的 AgentDefinition 算出来」「当前有五类」；[PF-021 §4 作业会话](../product/PF-021-schedule-and-calendar/design.md#作业会话)（rev 1）要求无论选哪份 AgentDefinition，都附加统一成果工具与目标完成检查，作为会话子类型。
+- **差别**：前者是用途分类，后者是承接 Job 的执行约束。将后者加成第六种用途或绑定专用 AgentDefinition，会违背 PF-021 的明确要求。
+- **当前处置**：新词条 UL-job-session 明确该含义，父仍是会话；不同于 parent-child 关系的子会话。已有 UL-session-type 的用途定义保持不变；PF-015 增加对作业执行约束的引用。
+- **状态**：词义与产品引用已对齐；PF-015 明确引用作业执行约束，PF-021 沿既有装配与生命周期，实际机制承接归技术设计，依据为 [PF-021 来源问题](../product/PF-021-schedule-and-calendar/decisions.md#四已知的来源问题)。不将已有规格视为已支持新子类型。
+
+### C-39：Routine 的独立对象与内含属性
+
+- **两处输入**：PF-021 rev 4 §4 工作例程原文为「Routine 具有可区别的身份，精确标识规则未定；其变更传播、删除与留存未定」；[PF-021 §4 工作例程](../product/PF-021-schedule-and-calendar/design.md#工作例程)（rev 5）明确「Routine 没有独立身份、归属或生命周期，随 Schedule 一起创建、读取和修改」。
+- **差别**：前者会产生独立 Routine 存储身份、引用、管理工具及共享更新；后者由一份 Schedule 包含工作数据，各次 Job 共用定义而非可变状态。
+- **裁定依据**：[INT-022/023](../product/PF-021-schedule-and-calendar/interviews/2026-09-28-product-discussion.md#int-022schedule-包含-routine-工作描述) 的包含关系与完整更新指令；早期工具候选不足以支持独立对象，取代范围见该包 changelog rev 5。
+- **状态**：已在现行产品与词表落实，UL-routine 保留 ID 并改为属性，独立对象条目移除；出厂预置只是提供描述的来源，不据此恢复运行期 Routine 对象。历史访谈与 changelog 原话不改写。

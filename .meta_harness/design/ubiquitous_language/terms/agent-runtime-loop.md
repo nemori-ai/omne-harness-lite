@@ -826,4 +826,15 @@
 - **注意**：**它与[优雅取消](#ul-graceful-cancellation--优雅取消--graceful-cancellation)是同一件事的两级**，
   **传播范围则一样**——都照[取消跟着宿主走](#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)
 
+
+### UL-job-session · 作业会话 · Job Session
+
+> **中**：为一个需要 agent 执行的定时作业新建并专属承接其执行部分的会话子类型；沿用会话身份与生命周期，强制附加面向该作业的成果提交或上报工具，以及检查其目标完成情况的 Loop 拓展。
+>
+> **EN**: A session subtype created for the agent-executed part of one scheduled job, whether execution-only or execution with notification; mechanical system jobs do not use this subtype. It retains session identity and lifecycle semantics while requiring a job-result reporting tool and a loop extension that checks objective completion, regardless of the selected agent definition.
+
+- **形态**：变体（父：[会话](#ul-session--会话--session)）
+- **出处**：[PF-021 §4 作业会话](../../product/PF-021-schedule-and-calendar/design.md#作业会话)（rev 8）
+- **别混**：这不是 PF-015 从 AgentDefinition 推导的用途分类，也不自动表示 parent-child 关系中的子会话。
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
