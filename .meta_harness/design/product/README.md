@@ -32,7 +32,7 @@
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 6 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 4 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 15 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 14 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 15 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 8 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 13 |
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 10 |

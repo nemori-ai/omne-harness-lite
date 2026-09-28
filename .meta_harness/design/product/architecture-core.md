@@ -47,7 +47,7 @@
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | 消息**怎么组装**成给模型看的那一份，装不下时怎么办 | rev 6 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | 事情没按正常走的时候，**谁接手、接不住了往哪交** | rev 4 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | 一次运行**怎么走完**，停机之后又怎么接着走；**只看日志怎么判断该不该起一副协程**；**agent runtime 与取消怎么传播** | rev 15 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 14 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | 我们能调哪些模型 · 把请求发出去 · 这一层失败了能做什么 · 什么时候算试尽 · 用户怎么换 | rev 15 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | 外面进来的事怎么被收下、排队、什么时候被取走；**控制指令的受理** | rev 8 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | 会话怎么建、**活成什么样、什么时候被归档**、会话与会话之间是什么关系、**会话带着哪些 runtime context**、**运行模式**、**存储要守住什么** | rev 13 |
 
