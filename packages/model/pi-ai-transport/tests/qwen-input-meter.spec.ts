@@ -10,6 +10,7 @@ import { planRequest } from '../src/plan.ts'
 import { object } from '../src/json.ts'
 import {
   createQwenInputMeter,
+  qwenUnscaledImageTokens,
   renderQwenHostedMaxPrompt,
   renderQwenPrompt,
 } from '../src/input-meters/qwen.ts'
@@ -292,7 +293,8 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         definitionRevision: selected.revision,
         implementation: selected.implementation,
         provider: 'alibaba',
-        algorithmRevision: 'qwen-38-public-template-2',
+        algorithmRevision:
+          modelId === ids[1] ? 'qwen-38-public-template-image-3' : 'qwen-38-public-template-2',
       })
       expect(meter.evidence).toContain(
         'sha256:0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3',
@@ -426,21 +428,64 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     ).toEqual({ kind: 'unavailable' })
   })
 
-  it('rejects visual blocks instead of treating encoded image bytes as text tokens', () => {
+  it('counts unscaled inline PNG grids from an independent golden, preserving prior images', () => {
     const meter = createQwenInputMeter(definition(ids[1]))
-    const body = {
+    const golden: unknown = JSON.parse(
+      readFileSync(new URL('./fixtures/qwen/unscaled-image-golden.json', import.meta.url), 'utf8'),
+    )
+    if (!object(golden) || !Array.isArray(golden.images)) throw new Error('invalid image golden')
+    const images = golden.images.map(row => {
+      if (
+        !object(row) ||
+        typeof row.file !== 'string' ||
+        typeof row.sha256 !== 'string' ||
+        typeof row.width !== 'number' ||
+        typeof row.height !== 'number' ||
+        typeof row.imageTokens !== 'number' ||
+        typeof row.templateSupplement !== 'number'
+      )
+        throw new Error('invalid image golden row')
+      const bytes = readFileSync(new URL(`./fixtures/qwen/${row.file}`, import.meta.url))
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(row.sha256)
+      expect(qwenUnscaledImageTokens(row.width, row.height)).toBe(row.imageTokens)
+      expect(row.imageTokens - 3).toBe(row.templateSupplement)
+      return `data:image/png;base64,${bytes.toString('base64')}`
+    })
+    const [red, blue] = images
+    if (!red || !blue) throw new Error('missing image golden')
+    const image = (url: string) => ({ type: 'image_url', image_url: { url } })
+    const makeBody = (first: string, second: string) => ({
       ...fixtureBody,
       model: ids[1],
       messages: [
-        {
-          role: 'user',
-          content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
-        },
+        { role: 'user', content: [{ type: 'text', text: 'First image.' }, image(first)] },
+        { role: 'assistant', content: 'I saw red.' },
+        { role: 'user', content: [{ type: 'text', text: 'Second image.' }, image(second)] },
       ],
-    }
-    expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
-      kind: 'unavailable',
     })
+    const body = makeBody(red, blue)
+    const measure = (input: Parameters<typeof renderQwenPrompt>[0]) =>
+      meter.measure({ body: input, serialized: writeJsonLossless(input) })
+    const both = measure(body)
+    const bothRed = measure(makeBody(red, red))
+    const earlierBlue = measure(makeBody(blue, red))
+    expect(both.kind).toBe('estimated')
+    expect(bothRed.kind).toBe('estimated')
+    if (
+      both.kind === 'unavailable' ||
+      bothRed.kind === 'unavailable' ||
+      earlierBlue.kind === 'unavailable'
+    )
+      throw new Error('image estimate unavailable')
+    expect(Number(both.tokens) - Number(bothRed.tokens)).toBe(1026 - 291)
+    expect(Number(earlierBlue.tokens) - Number(bothRed.tokens)).toBe(1026 - 291)
+    expect(renderQwenPrompt(body)).toContain('<|vision_start|><|image_pad|><|vision_end|>')
+    for (const url of ['https://example.invalid/image.png', 'data:image/png;base64,AAAA']) {
+      const changed = { ...body, messages: [{ role: 'user', content: [image(url)] }] }
+      expect(measure(changed)).toEqual({ kind: 'unavailable' })
+    }
+    expect(qwenUnscaledImageTokens(10, 10)).toBeUndefined()
+    expect(qwenUnscaledImageTokens(4000, 4000)).toBeUndefined()
   })
 
   it.each(ids)('%s refuses unmapped OpenRouter high/max reasoning effort', modelId => {
@@ -458,6 +503,97 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         ),
       ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
     }
+  })
+
+  it('plans and sends the 27B inline image estimate through local TLS', async () => {
+    const modelId = ids[1]
+    const selected = definition(modelId)
+    const meter = createQwenInputMeter(selected)
+    const bytes = readFileSync(new URL('./fixtures/qwen/public-red-544.png', import.meta.url))
+    const visualTurn = judgedMessage({
+      id: 'qwen-visual-turn',
+      type: 'user',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'qwen-visual-text',
+          kind: 'text',
+          text: 'Describe this image.',
+          visibility: { toHuman: true, toModel: true },
+        },
+        {
+          id: 'qwen-visual-image',
+          kind: 'image',
+          mediaType: 'image/png',
+          data: { inline: bytes.toString('base64') },
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [selected],
+      inputMeters: [meter],
+    })
+    try {
+      const baseline = request(modelId)
+      const input = { ...baseline, messages: [...baseline.messages, visualTurn] }
+      const planned = transport.plan(input)
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+      expect(planned.planned.inputLimitEvidence.images).toBe(1)
+      expect(planned.planned.inputLimitEvidence.imageBytes).toEqual([bytes.length])
+      expect(planned.planned.serialized).toContain('data:image/png;base64,')
+      const sent = await transport.send(
+        planned.planned,
+        'qwen-local-only-credential',
+        new AbortController().signal,
+      )
+      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
+      for await (const _event of transport.read(
+        sent.response,
+        planned.planned,
+        new AbortController().signal,
+      )) {
+        // Drain the bounded local fixture.
+      }
+      expect(host.requests).toHaveLength(1)
+      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+    } finally {
+      await transport.close()
+      await host.close()
+    }
+  })
+
+  it('rejects an image needing undocumented resize at the final 27B plan gate', () => {
+    const modelId = ids[1]
+    const selected = definition(modelId)
+    const small = judgedMessage({
+      id: 'qwen-small-visual',
+      type: 'user',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'qwen-small-image',
+          kind: 'image',
+          mediaType: 'image/png',
+          data: {
+            inline:
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
+          },
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    const baseline = request(modelId)
+    expect(
+      planRequest(
+        { ...baseline, messages: [...baseline.messages, small] },
+        [selected],
+        createQwenInputMeter(selected),
+      ),
+    ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
   })
 
   it.each(ids)('%s drops unverified sampling controls before final template metering', modelId => {

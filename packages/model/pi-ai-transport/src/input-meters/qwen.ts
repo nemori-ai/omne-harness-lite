@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
+import { imageSize } from 'image-size'
 import {
   isJsonNumber,
   jsonNumberSource,
@@ -29,6 +30,7 @@ const sources = {
 } as const
 type PublicQwenModelId = keyof typeof sources
 const hostedMaxModelId = 'qwen/qwen3.8-max-0902'
+const visualModelId = 'qwen/qwen3.8-27b'
 const tokenizerSha256 = '0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3'
 
 function sourceFor(modelId: string): (typeof sources)[PublicQwenModelId] | undefined {
@@ -84,12 +86,26 @@ function jinjaJson(value: JsonValue): string | undefined {
   return `{${entries.join(', ')}}`
 }
 
-function content(value: JsonValue | undefined): string | undefined {
+const visionPlaceholder = '<|vision_start|><|image_pad|><|vision_end|>'
+const inlinePng = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/u
+
+function content(value: JsonValue | undefined, allowImages: boolean): string | undefined {
   if (typeof value === 'string') return value
   if (value === null) return ''
   if (!Array.isArray(value)) return undefined
   let text = ''
   for (const part of value) {
+    if (allowImages && object(part) && part.type === 'image_url') {
+      if (
+        Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
+        !object(part.image_url) ||
+        Object.keys(part.image_url).some(key => key !== 'url') ||
+        typeof part.image_url.url !== 'string'
+      )
+        return undefined
+      text += visionPlaceholder
+      continue
+    }
     if (!object(part) || part.type !== 'text' || typeof part.text !== 'string') return undefined
     if (Object.keys(part).some(key => key !== 'type' && key !== 'text' && key !== 'cache_control'))
       return undefined
@@ -105,7 +121,7 @@ type PromptMessage = {
   readonly toolCalls: readonly JsonObject[]
 }
 
-function messages(value: JsonValue | undefined): PromptMessage[] | undefined {
+function messages(value: JsonValue | undefined, allowImages: boolean): PromptMessage[] | undefined {
   if (!Array.isArray(value) || value.length === 0) return undefined
   const result: PromptMessage[] = []
   for (const raw of value) {
@@ -121,7 +137,7 @@ function messages(value: JsonValue | undefined): PromptMessage[] | undefined {
           : ['role', 'content']
     if (Object.keys(raw).some(key => !allowed.includes(key))) return undefined
     if (raw.reasoning_details !== undefined || raw.reasoning_content !== undefined) return undefined
-    const rendered = content(raw.content)
+    const rendered = content(raw.content, allowImages && role === 'user')
     if (rendered === undefined) return undefined
     if (role !== 'assistant' && (raw.reasoning !== undefined || raw.tool_calls !== undefined))
       return undefined
@@ -214,7 +230,7 @@ export function renderQwenPrompt(body: JsonObject): string | undefined {
     body.reasoning !== undefined
   )
     return undefined
-  const sequence = messages(body.messages)
+  const sequence = messages(body.messages, body.model === visualModelId)
   const definitions = tools(body.tools)
   if (!sequence || !definitions) return undefined
   const first = sequence[0]
@@ -270,12 +286,64 @@ export function renderQwenHostedMaxPrompt(body: JsonObject): string | undefined 
     )
   )
     return undefined
-  const sequence = messages(body.messages)
+  const sequence = messages(body.messages, false)
   const definitions = tools(body.tools)
   if (!sequence || sequence.length !== 1 || sequence[0]?.role !== 'user' || !definitions)
     return undefined
   if (definitions.length) return undefined
   return `<|im_start|>user\n${sequence[0].content}<|im_end|>\n<|im_start|>assistant\n<think>\n`
+}
+
+/** Alibaba's image formula for source dimensions requiring no resize. */
+export function qwenUnscaledImageTokens(width: number, height: number): number | undefined {
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width < 32 ||
+    height < 32 ||
+    width % 32 !== 0 ||
+    height % 32 !== 0
+  )
+    return undefined
+  const pixels = width * height
+  if (pixels < 65_536 || pixels > 2_621_440) return undefined
+  return pixels / 1_024 + 2
+}
+
+function inlineImageTokens(body: JsonObject): number | undefined {
+  if (!Array.isArray(body.messages)) return undefined
+  let tokens = 0
+  for (const message of body.messages) {
+    if (!object(message) || !Array.isArray(message.content)) continue
+    for (const part of message.content) {
+      if (!object(part) || part.type !== 'image_url') continue
+      if (
+        message.role !== 'user' ||
+        Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
+        !object(part.image_url) ||
+        Object.keys(part.image_url).some(key => key !== 'url') ||
+        typeof part.image_url.url !== 'string'
+      )
+        return undefined
+      const encoded = inlinePng.exec(part.image_url.url)?.[1]
+      if (!encoded) return undefined
+      const bytes = Buffer.from(encoded, 'base64')
+      if (!bytes.length || bytes.length > 4 * 1024 * 1024 || bytes.toString('base64') !== encoded)
+        return undefined
+      try {
+        const dimensions = imageSize(bytes)
+        if (dimensions.type !== 'png') return undefined
+        const imageTokens = qwenUnscaledImageTokens(dimensions.width, dimensions.height)
+        if (imageTokens === undefined) return undefined
+        // The public template's three markers include the single image pad.
+        // Alibaba's image formula counts the two surrounding vision markers.
+        tokens += imageTokens - 3
+      } catch {
+        return undefined
+      }
+    }
+  }
+  return tokens
 }
 
 /** Pinned-tokenizer estimates for the supported exact Alibaba leaves. */
@@ -286,7 +354,8 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     (!source && !hostedMax) ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:qwen' ||
-    definition.implementation.revision !== 'mp4-2' ||
+    definition.implementation.revision !==
+      (definition.modelId === visualModelId ? 'mp4-3' : 'mp4-2') ||
     !Object.hasOwn(definition.routes, 'alibaba')
   )
     throw new TypeError('unsupported Qwen definition')
@@ -296,10 +365,14 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'alibaba',
-    algorithmRevision: hostedMax ? 'qwen-38-hosted-max-chatml-1' : 'qwen-38-public-template-2',
+    algorithmRevision: hostedMax
+      ? 'qwen-38-hosted-max-chatml-1'
+      : definition.modelId === visualModelId
+        ? 'qwen-38-public-template-image-3'
+        : 'qwen-38-public-template-2',
     evidence: hostedMax
       ? `https://help.aliyun.com/en/model-studio/text-generation Qwen3.8-Max Hi/11-token ChatML example; Qwen/Qwen3.8-2.4T-A95B tokenizer.json sha256:${tokenizerSha256} independently reproduces it; single-user text only; exact OpenRouter conversion unknown`
-      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; text/tools subset; OpenRouter/Alibaba conversion remains estimated`,
+      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated`,
     measure({ body, serialized }): TokenMeasurement {
       if (
         body.model !== definition.modelId ||
@@ -313,10 +386,12 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
         return { kind: 'unavailable' }
       const prompt = hostedMax ? renderQwenHostedMaxPrompt(body) : renderQwenPrompt(body)
       if (prompt === undefined) return { kind: 'unavailable' }
+      const imageTokens = definition.modelId === visualModelId ? inlineImageTokens(body) : 0
+      if (imageTokens === undefined) return { kind: 'unavailable' }
       try {
         return {
           kind: 'estimated',
-          tokens: encoder.encode(prompt, { add_special_tokens: false }).ids.length,
+          tokens: encoder.encode(prompt, { add_special_tokens: false }).ids.length + imageTokens,
         }
       } catch {
         return { kind: 'unavailable' }
