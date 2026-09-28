@@ -38,6 +38,7 @@
     "@omne-harness-lite/model-profile-directory": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*"

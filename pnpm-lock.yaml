@@ -140,6 +140,9 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../packages/tenancy/organization-governance
+      '@omne-harness-lite/session-log-jsonl':
+        specifier: workspace:*
+        version: link:../../packages/session/session-log-jsonl
       '@omne-harness-lite/session-tenancy-table':
         specifier: workspace:*
         version: link:../../packages/session/session-tenancy-table
