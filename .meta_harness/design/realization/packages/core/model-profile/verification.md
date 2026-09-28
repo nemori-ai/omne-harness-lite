@@ -1,3 +1,15 @@
+## v4 破坏性迁移的证据义务
+
+[迁移增补](v4-breaking-migration.md)申请替代原 V4-5 的多版制品与历史读取验收；V4-1～4 的本版纯值/目录/快照义务保持。状态：待主线采用、尚未执行。
+
+| 编号 | 可失败的检查 | owner |
+| --- | --- | --- |
+| V4-B1 | root/schema 精确 MP4；独立制品的旧 v2/v3 导出解析失败；源码/Schema 注册图无悬空旧 profile 依赖，清理旧 dist 后验证 | core 实施者与消费者集成者 |
+| V4-B2 | 旧 profile 与旧 snapshot 在当前真实接收边界明确拒绝；没有自动降级、字段回填或读取当前目录修复；旧用户数据测试前后字节完全一致 | 目录、数据 codec、runtime/demo owner |
+| V4-B3 | 迁移增补消费者表全部当前 typecheck/build 和 Schema 解析通过；中英文公开示例只用显式 MP4 值；新数据目录多轮 demo 通过 | 本包、数据包、目录、transport、runtime、demo owner |
+
+本增补新增 binding 0 条；V4-B1～3 未运行，不以删除旧测试冒充验收。旧规范与证据保留不构成运行兼容承诺；identity-values/content-blocks 等既定精确依赖不在清理范围。
+
 ## v4 候选的证据义务
 
 来源为 [v4 契约](../../../../spec/data/model-profile/v4/contract.md)及 [MP4-1～MP4-5](v4-design.md#契约责任到实现的投影)。下表全部为**未执行的产品验收义务**；不借用旧绑定或候选 Schema 自检宣称实现通过。
