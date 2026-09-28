@@ -1,0 +1,20 @@
+{
+  "beforeSha256": "c065f044a963a2e928924f86475fcb5e65a18c2db793017e508929c2955c1a71",
+  "entry": {
+    "id": "d9eed402-aaa9-4323-8efa-99a3b4d6172b",
+    "model": "deepseek/deepseek-v4-pro-0813",
+    "provider": "deepinfra/fp8",
+    "stage": "acceptance",
+    "estimateUsd": "1.365811200000000000",
+    "state": "unknown",
+    "budgetHoldAcknowledgments": [
+      {
+        "holdUsd": "1.365811200000000000",
+        "reason": "Actual charge remains unknown after upstream 429 and generation query 404; retain the entire original reservation as budget allowance, never zero actual usage or cost.",
+        "source": "User standing delivery authorization and unknown-cost nonblocking budget policy; observed run demo-multiturn-b697ebd6-0e31-4eb2-8080-d01d37f31ec0/generation-query.json",
+        "state": "unknown",
+        "acknowledgedAt": "2026-09-28T14:20:48.732Z"
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "pass": true,
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "provider": "deepinfra/fp8",
+  "turns": [
+    {
+      "turn": 1,
+      "reservation": "c471741b-17d9-4616-b372-2e6a82406a95",
+      "actualUsd": "0.0001352",
+      "outcome": "complete",
+      "usage": {
+        "input_tokens": 24,
+        "output_tokens": 40,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 30
+      },
+      "answer": "ORCHID-742"
+    },
+    {
+      "turn": 2,
+      "reservation": "89cba932-915f-469f-a600-7c5c5d80187d",
+      "actualUsd": "0.0001833",
+      "outcome": "complete",
+      "usage": {
+        "input_tokens": 49,
+        "output_tokens": 46,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 38
+      },
+      "answer": "ORCHID-742"
+    },
+    {
+      "turn": 3,
+      "reservation": "1f46f0ed-4d02-4967-b75f-ff6f003f3aea",
+      "actualUsd": "0.0002262",
+      "outcome": "complete",
+      "usage": {
+        "input_tokens": 78,
+        "output_tokens": 48,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 40
+      },
+      "answer": "ORCHID-742"
+    }
+  ],
+  "scope": "Two turns in one real PTY process; third turn after close/reopen; actual OpenRouter usage/cost and atomic durable reply/response pairs. Not full 13-operation or 37-model certification."
+}

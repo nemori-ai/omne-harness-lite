@@ -1,3 +1,7 @@
+## 2026-09-28 统一 service demo 有限实测
+
+[实际证据](../../../../record/evidence/2026-09-28-tests-model-invocation-demo-service/README.md)：1b2a6a0b／产品776989fd，真实PTY同进程两轮及关闭重开第三轮通过，原批持久回复/响应和实际USD0.0005447；前一次429未知费用保留。HUB runtime628、demo85有限测试通过；不是独立QA或完整十三操作/37认证，不覆盖后续恢复留存修订。
+
 # model-request-runtime 验证与证据
 
 ## v12 恢复时序候选义务

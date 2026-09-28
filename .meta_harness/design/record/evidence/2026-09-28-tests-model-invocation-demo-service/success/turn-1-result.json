@@ -1,0 +1,15 @@
+{
+  "turn": 1,
+  "reservation": "c471741b-17d9-4616-b372-2e6a82406a95",
+  "actualUsd": "0.0001352",
+  "outcome": "complete",
+  "usage": {
+    "input_tokens": 24,
+    "output_tokens": 40,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 0,
+    "source": "upstream",
+    "reasoning_tokens": 30
+  },
+  "answer": "ORCHID-742"
+}
