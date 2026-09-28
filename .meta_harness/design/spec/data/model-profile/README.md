@@ -1,7 +1,8 @@
 # 模型档案
 
-**v3 候选已起草**：在已接受的 v2 上新增必填的模型适配绑定；[v3 契约](v3/contract.md)、[Schema](v3/model-profile.schema.json)、[实例](v3/examples.md) 与[验证/消费者升级入口](verification.md#v3-变化的影响)。
-本候选未接受、未冻结，不替换任何消费者的既有采用坐标；registry 由本批唯一集成 owner 登记，不能从本目录存在推断已登记。
+**当前候选 v4**：区分有限供给上限与上游三态事实，完整快照保留两者；[契约](v4/contract.md)、[Schema](v4/model-profile.schema.json)、[规范实例](v4/examples.md)、[机读实例](v4/examples.json)、[验证与影响](verification.md#v4-变化的影响)。v4 未接受、未冻结；候选登记片段交唯一 registry owner 集成，本入口不声称中央登记已完成。
+
+**v3 已接受并冻结**，精确采用依据见 [D-078 接受记录](../../../record/decisions/model-main-integration-coordination/acceptance.json)与 catalog；v2 同样保留历史采用。下面早期 v2/v3 记录按当时语境读取，不改变 registry 的现行状态。
 
 **关于一个可被调用的模型的全部事实**——上游认哪个名字、能走哪几家供应商、收得下和给得出哪几种模态、
 一次能吃多少吐多少、送进去之前还有什么限制、随它带上哪些请求参数——各是什么形状；
