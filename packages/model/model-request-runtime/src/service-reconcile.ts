@@ -4,12 +4,14 @@ import {
 } from '@omne-harness-lite/model-response'
 import type { PendingModelResponse, ReplyDisposition } from '@omne-harness-lite/model-response'
 import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   CallContainerStore,
   ReconcileInput,
   ReconcileResult,
   RuntimeRecoveryAccess,
   RuntimeRecoveryScope,
+  RuntimeSessionAccess,
   SettleReplyInput,
   SettleReplyResult,
   ReservationWaitPolicy,
@@ -36,6 +38,8 @@ import type {
   SettlementRegistration,
   SettlementScheduler,
   SettlementTask,
+  SettlementLogBinding,
+  SettlementOwner,
 } from './settlement-types.ts'
 
 interface RecoveryRead {
@@ -114,7 +118,7 @@ export async function settlePendingReply(input: {
 /** The original invocation is the only owner that can submit this handed-off reply. */
 export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
   readonly calls: CallContainerStore<P, R>
-  readonly recovery: RuntimeRecoveryAccess
+  readonly sessions: RuntimeSessionAccess
   readonly contention: SettlementContention
   readonly scheduler: SettlementScheduler
   readonly reservationWaitPolicy: ReservationWaitPolicy
@@ -169,38 +173,36 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
 async function recognizeSettledReply(
   request: SettleReplyInput,
   input: {
-    readonly recovery: RuntimeRecoveryAccess
+    readonly sessions: RuntimeSessionAccess
     readonly contention: SettlementContention
   },
 ): Promise<SettleReplyResult> {
-  let entered: Awaited<ReturnType<RuntimeRecoveryAccess['enter']>>
   try {
-    entered = await input.recovery.enter({ session: request.session })
+    // S-49 repeats only read an authoritative completed batch. They neither stop
+    // the session nor acquire the S-33 authority to reconstruct missing results.
+    const bound = await input.sessions.bind(request.session)
+    if ('failure' in bound) return { unavailable: true }
+    const { log, selection } = bound.binding
+    if (
+      log.session !== request.session ||
+      selection.binding.session !== request.session ||
+      log.log !== selection.binding.log ||
+      log.generation !== selection.binding.generation ||
+      !tenantIdEquals(log.tenant, selection.binding.tenant)
+    )
+      return { unavailable: true }
+    return await readSettledReply(request, log, selection.owner, input.contention)
   } catch {
     return { unavailable: true }
   }
-  if ('unavailable' in entered) return { unavailable: true }
-  let result: SettleReplyResult
-  try {
-    result = await readSettledReply(request, entered.scope, input.contention)
-  } catch {
-    result = { unavailable: true }
-  }
-  try {
-    await entered.scope.close()
-  } catch {
-    return { unavailable: true }
-  }
-  return result
 }
 
 async function readSettledReply(
   request: SettleReplyInput,
-  scope: RuntimeRecoveryScope,
+  log: SettlementLogBinding,
+  owner: SettlementOwner,
   contention: SettlementContention,
 ): Promise<SettleReplyResult> {
-  const log = scope.binding.log
-  const owner = scope.owner
   if (log.session !== request.session) return { unavailable: true }
   if (
     owner.admission() !== 'open' ||

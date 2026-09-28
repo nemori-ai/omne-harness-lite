@@ -29,7 +29,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const control = createServiceControl(construction)
   const settleReply = createRuntimeSettleReply({
     calls: construction.calls,
-    recovery: construction.recovery,
+    sessions: construction.sessions,
     contention: construction.settlementContention,
     scheduler: construction.settlementScheduler,
     reservationWaitPolicy: construction.reservationWaitPolicy,

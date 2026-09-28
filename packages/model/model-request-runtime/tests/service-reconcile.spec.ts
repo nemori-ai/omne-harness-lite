@@ -27,6 +27,7 @@ import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { dispatched as dispatchedFixture, prepare, session } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
+import { selectionHost } from './session-selection-fixture.ts'
 
 function originalInvocation(coordinator: {
   settle: (candidate: typeof request) => {
@@ -65,109 +66,128 @@ const vetoed: SettleReplyInput = {
 
 describe('S-49 reply disposition through the real JSONL settlement coordinator', () => {
   it('uses the stored original handle and recognizes the settled disposition after container removal', async () => {
-    await controlled(
-      'service-settle-original-handle',
-      async ({ binding, owner, wrap, submissions }) => {
-        const unknownReceipt: SessionLog = {
-          ...binding.log,
-          async append(...args) {
-            await binding.log.append(...args)
-            return { failure: 'unavailable' }
-          },
-        }
-        const coordinator = createSettlementCoordinator({
-          binding: wrap(unknownReceipt),
-          owner,
-          settlementContention: policy(),
-          settlementScheduler: noWaitScheduler,
-          diagnostic() {},
-        })
-        const calls = createCallContainerStore<PlannedSemantics, never>()
-        let released = 0
-        let recoveryCloses = 0
-        const sessionBinding = {
-          log: binding,
-          selection: { binding },
-        } as SessionRuntimeBinding
-        const container = createCallContainer({
-          key: { session, callId: 'call' },
-          session: sessionBinding,
-          request: { session, callId: 'call' },
-          binding: {
-            lease: {
-              release: () => {
-                released++
+    const host = await selectionHost()
+    try {
+      await controlled(
+        'service-settle-original-handle',
+        async ({ binding, owner, wrap, submissions }) => {
+          const unknownReceipt: SessionLog = {
+            ...binding.log,
+            async append(...args) {
+              await binding.log.append(...args)
+              return { failure: 'unavailable' }
+            },
+          }
+          const coordinator = createSettlementCoordinator({
+            binding: wrap(unknownReceipt),
+            owner,
+            settlementContention: policy(),
+            settlementScheduler: noWaitScheduler,
+            diagnostic() {},
+          })
+          const calls = createCallContainerStore<PlannedSemantics, never>()
+          let released = 0
+          let sessionReads = 0
+          const sessionBinding: SessionRuntimeBinding = {
+            log: binding,
+            selection: {
+              ...host.create().input,
+              binding,
+              owner,
+              async projection() {
+                throw new Error('readback must not evaluate model selection')
               },
             },
-          },
-          owner,
-          coordinator,
-          // This S-49 fixture has already settled through the real coordinator before cleanup.
-          systemStop: async (control: SystemStopControl<PlannedSemantics, never>) =>
-            control.view().operation.phase === 'ready' ? { released: true } : { unavailable: true },
-        } as unknown as CreateCallContainerInput<PlannedSemantics, never>)
-        const opening = calls.reserve({ session, callId: 'call' })
-        if (!('reservation' in opening)) throw new Error('opening reservation absent')
-        expect(calls.insert(opening.reservation, container)).toBe(true)
-        let invocations = 0
-        const original = {
-          ...originalInvocation(coordinator),
-          async close() {
-            return { released: true } as const
-          },
-          outcome: Promise.resolve({ replyPending: pending() }),
-          snapshot: () => ({ blocks: [], position: 0 }),
-          abort() {},
-          observedFacts: () => ({ unavailable: true }),
-        } as AnchoredInvocationHandle
-        const settlement = original.settleReply
-        const owned = {
-          ...original,
-          settleReply: async (disposition: SettleReplyInput['disposition']) => {
-            invocations++
-            return settlement(disposition)
-          },
-        } as AnchoredInvocationHandle
-        opening.reservation.attachInvocation(owned)
-        opening.reservation.publish({ phase: 'reply_pending', pending: pending() })
-        opening.reservation.release()
-        const settleReply = createRuntimeSettleReply({
-          calls,
-          contention: policy(),
-          scheduler: noWaitScheduler,
-          reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 100 },
-          recovery: {
-            async enter() {
-              return {
-                scope: {
-                  binding: sessionBinding,
-                  owner,
-                  originalInvocation: () => ({ absent: true }),
-                  async close() {
-                    recoveryCloses++
-                  },
-                },
-              }
+            catalog: host.catalog,
+            currentEvaluationInputs: host.reader,
+            credentials: {
+              async value() {
+                throw new Error('readback must not acquire credentials')
+              },
             },
-          },
-        })
-        expect(await settleReply(vetoed)).toEqual({ unavailable: true })
-        expect(container.view().operation.phase).toBe('reply_pending')
-        expect(released).toBe(0)
-        expect(calls.find({ session, callId: 'call' })).toBe(container)
-        expect(await settleReply(vetoed)).toEqual({ callId: 'call', state: 'complete' })
-        expect(invocations).toBe(2)
-        expect(released).toBe(1)
-        expect(calls.find({ session, callId: 'call' })).toBeUndefined()
-        expect(await settleReply(vetoed)).toEqual({ callId: 'call', state: 'complete' })
-        expect(
-          await settleReply({ ...vetoed, disposition: { consumed: { by: 'side_query' } } }),
-        ).toEqual({ alreadyEnded: true })
-        expect(invocations).toBe(2)
-        expect(recoveryCloses).toBe(2)
-        expect(submissions.map(item => item.count)).toEqual([2, 1])
-      },
-    )
+            tools: {
+              async lookup() {
+                throw new Error('readback must not resolve tools')
+              },
+            },
+          }
+          const container = createCallContainer({
+            key: { session, callId: 'call' },
+            session: sessionBinding,
+            request: { session, callId: 'call' },
+            binding: {
+              lease: {
+                release: () => {
+                  released++
+                },
+              },
+            },
+            owner,
+            coordinator,
+            // This S-49 fixture has already settled through the real coordinator before cleanup.
+            systemStop: async (control: SystemStopControl<PlannedSemantics, never>) =>
+              control.view().operation.phase === 'ready'
+                ? { released: true }
+                : { unavailable: true },
+          } as unknown as CreateCallContainerInput<PlannedSemantics, never>)
+          const opening = calls.reserve({ session, callId: 'call' })
+          if (!('reservation' in opening)) throw new Error('opening reservation absent')
+          expect(calls.insert(opening.reservation, container)).toBe(true)
+          let invocations = 0
+          const original = {
+            ...originalInvocation(coordinator),
+            async close() {
+              return { released: true } as const
+            },
+            outcome: Promise.resolve({ replyPending: pending() }),
+            snapshot: () => ({ blocks: [], position: 0 }),
+            abort() {},
+            observedFacts: () => ({ unavailable: true }),
+          } as AnchoredInvocationHandle
+          const settlement = original.settleReply
+          const owned = {
+            ...original,
+            settleReply: async (disposition: SettleReplyInput['disposition']) => {
+              invocations++
+              return settlement(disposition)
+            },
+          } as AnchoredInvocationHandle
+          opening.reservation.attachInvocation(owned)
+          opening.reservation.publish({ phase: 'reply_pending', pending: pending() })
+          opening.reservation.release()
+          const settleReply = createRuntimeSettleReply({
+            calls,
+            contention: policy(),
+            scheduler: noWaitScheduler,
+            reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 100 },
+            sessions: {
+              async bind(requestedSession) {
+                expect(requestedSession).toBe(session)
+                sessionReads++
+                return { binding: sessionBinding }
+              },
+            },
+          })
+          expect(await settleReply(vetoed)).toEqual({ unavailable: true })
+          expect(container.view().operation.phase).toBe('reply_pending')
+          expect(released).toBe(0)
+          expect(calls.find({ session, callId: 'call' })).toBe(container)
+          expect(await settleReply(vetoed)).toEqual({ callId: 'call', state: 'complete' })
+          expect(invocations).toBe(2)
+          expect(released).toBe(1)
+          expect(calls.find({ session, callId: 'call' })).toBeUndefined()
+          expect(await settleReply(vetoed)).toEqual({ callId: 'call', state: 'complete' })
+          expect(
+            await settleReply({ ...vetoed, disposition: { consumed: { by: 'side_query' } } }),
+          ).toEqual({ alreadyEnded: true })
+          expect(invocations).toBe(2)
+          expect(sessionReads).toBe(2)
+          expect(submissions.map(item => item.count)).toEqual([2, 1])
+        },
+      )
+    } finally {
+      await host.close()
+    }
   })
   it('writes one complete vetoed response and recognizes the original on repeat or competing disposition', async () => {
     await controlled('service-settle-veto', async ({ coordinator, submissions, binding }) => {
