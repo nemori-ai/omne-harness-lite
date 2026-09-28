@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import type { SessionRuntimeBinding } from '../src/service-types.ts'
+import type { ModelCallHost, SessionRuntimeBinding } from '../src/service-types.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
@@ -95,6 +95,21 @@ describe('D102 unified model runtime owner', () => {
     const host = await selectionHost(true, true)
     try {
       const selected = host.create()
+      const registrations = new Set<Parameters<ModelCallHost['register']>[0]>()
+      const callHost: ModelCallHost = {
+        signal: new AbortController().signal,
+        stopping: () => false,
+        register(close) {
+          registrations.add(close)
+          return {
+            registration: {
+              unregister() {
+                if (!registrations.delete(close)) throw new Error('call owner released twice')
+              },
+            },
+          }
+        },
+      }
       const wire = transport()
       const calls = createCallContainerStore<TestPlan, object>()
       let released = 0
@@ -172,7 +187,7 @@ describe('D102 unified model runtime owner', () => {
         basis: effective.effectiveModel,
         messages: [],
         tools: [],
-        host: binding,
+        host: callHost,
       })
       expect(opened).toEqual({ callId: 'runtime-call-1', state: 'open' })
       const dispatched = await runtime.service.dispatch({
@@ -206,7 +221,7 @@ describe('D102 unified model runtime owner', () => {
           basis: effective.effectiveModel,
           messages: [],
           tools: [],
-          host: binding,
+          host: callHost,
         }),
       ).toEqual({ callId: 'runtime-call-2', state: 'open' })
       holdBind = true
@@ -216,7 +231,7 @@ describe('D102 unified model runtime owner', () => {
         basis: effective.effectiveModel,
         messages: [],
         tools: [],
-        host: binding,
+        host: callHost,
       })
       let closeFinished = false
       const closing = runtime.close().then(result => {
@@ -230,6 +245,12 @@ describe('D102 unified model runtime owner', () => {
       expect(await lateOpen).toEqual({ unavailable: true })
       expect(await closing).toEqual({ released: true })
       expect(released).toBe(2)
+      expect(registrations.size).toBe(0)
+      const closedLog = await host.log.readSince(host.session, 0)
+      if (!('entries' in closedLog)) throw new Error('durable log unavailable after close')
+      expect(
+        closedLog.entries.filter(entry => payload(entry).kind === 'model_call_ended'),
+      ).toHaveLength(1)
     } finally {
       await host.close()
     }
