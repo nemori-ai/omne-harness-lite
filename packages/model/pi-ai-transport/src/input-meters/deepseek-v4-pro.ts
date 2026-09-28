@@ -1,5 +1,5 @@
-// Projection adapted from DeepSeek-V4.1-Flash encoding/encoding.py at
-// dba1be0a40aa45a94ad051997016db3960a90277 (MIT; tokenizers/deepseek-v41-flash/LICENSE).
+// Projection adapted from DeepSeek-V4-Pro encoding/encoding_dsv4.py at
+// b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; tokenizers/deepseek-v4/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
 // its private prompt construction is byte-identical to the public reference.
 import { createHash } from 'node:crypto'
@@ -12,20 +12,17 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import { object } from './json.ts'
-import type { InputMeter, TokenMeasurement } from './input-meter.ts'
-import type { ModelDefinition } from './definitions.ts'
+import { object } from '../json.ts'
+import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { ModelDefinition } from '../definitions.ts'
 
 const BOS = '<｜begin▁of▁sentence｜>'
 const EOS = '<｜end▁of▁sentence｜>'
 const USER = '<｜User｜>'
 const ASSISTANT = '<｜Assistant｜>'
-const SYSTEM = '<｜System｜>'
-const IMAGE = '<｜deepseek_image｜>'
 const THINK = '<think>'
 const END_THINK = '</think>'
 const DSML = '｜DSML｜'
-const MAX_REFERENCE_IMAGE_TOKENS = 1024
 
 type TextBlock = { readonly type: 'text'; readonly text: string }
 type ToolResultBlock = {
@@ -33,10 +30,9 @@ type ToolResultBlock = {
   readonly content: string
   readonly id: string
 }
-type ImageBlock = { readonly type: 'image'; readonly url: string }
-type MergedBlock = TextBlock | ToolResultBlock | ImageBlock
+type MergedBlock = TextBlock | ToolResultBlock
 type PromptMessage = {
-  readonly role: 'system' | 'user' | 'assistant'
+  readonly role: 'system' | 'developer' | 'user' | 'assistant'
   readonly content: string
   readonly reasoning: string
   readonly toolCalls: readonly JsonObject[]
@@ -53,41 +49,14 @@ function pythonJson(value: JsonValue): string {
 }
 
 function contentText(value: JsonValue | undefined): string | undefined {
-  if (typeof value === 'string') return value.includes(IMAGE) ? undefined : value
+  if (typeof value === 'string') return value
   if (!Array.isArray(value)) return undefined
-  const text: string[] = []
+  let text = ''
   for (const part of value) {
-    if (
-      !object(part) ||
-      part.type !== 'text' ||
-      typeof part.text !== 'string' ||
-      part.text.includes(IMAGE)
-    )
-      return undefined
-    text.push(part.text)
+    if (!object(part) || part.type !== 'text' || typeof part.text !== 'string') return undefined
+    text += part.text
   }
-  return text.join('\n\n')
-}
-
-function userBlocks(value: JsonValue | undefined): MergedBlock[] | undefined {
-  if (typeof value === 'string')
-    return value.includes(IMAGE) ? undefined : [{ type: 'text', text: value }]
-  if (!Array.isArray(value)) return undefined
-  const blocks: MergedBlock[] = []
-  for (const part of value) {
-    if (!object(part)) return undefined
-    if (part.type === 'text' && typeof part.text === 'string') {
-      if (part.text.includes(IMAGE)) return undefined
-      blocks.push({ type: 'text', text: part.text })
-    } else if (
-      part.type === 'image_url' &&
-      object(part.image_url) &&
-      typeof part.image_url.url === 'string'
-    ) {
-      blocks.push({ type: 'image', url: part.image_url.url })
-    } else return undefined
-  }
-  return blocks
+  return text
 }
 
 function toolArguments(value: string): string | undefined {
@@ -103,7 +72,7 @@ function toolArguments(value: string): string | undefined {
     const isString = typeof item === 'string'
     const rendered = isString ? item : pythonJson(item)
     parameters.push(
-      `<${DSML} parameter name="${name}" string="${isString}">${rendered}</${DSML} parameter>`,
+      `<${DSML}parameter name="${name}" string="${isString}">${rendered}</${DSML}parameter>`,
     )
   }
   return parameters.join('\n')
@@ -118,17 +87,17 @@ function renderTools(tools: readonly JsonObject[]): string {
     .join('\n')
   return `## Tools
 
-You have access to a set of tools to help answer the user's question. You can invoke tools by writing a "<${DSML} calls>" block like the following:
+You have access to a set of tools to help answer the user's question. You can invoke tools by writing a "<${DSML}tool_calls>" block like the following:
 
-<${DSML} calls>
-<${DSML} invoke name="$TOOL_NAME">
-<${DSML} parameter name="$PARAMETER_NAME" string="true|false">$PARAMETER_VALUE</${DSML} parameter>
+<${DSML}tool_calls>
+<${DSML}invoke name="$TOOL_NAME">
+<${DSML}parameter name="$PARAMETER_NAME" string="true|false">$PARAMETER_VALUE</${DSML}parameter>
 ...
-</${DSML} invoke>
-<${DSML} invoke name="$TOOL_NAME2">
+</${DSML}invoke>
+<${DSML}invoke name="$TOOL_NAME2">
 ...
-</${DSML} invoke>
-</${DSML} calls>
+</${DSML}invoke>
+</${DSML}tool_calls>
 
 String parameters should be specified as is and set \`string="true"\`. For all other types (numbers, booleans, arrays, objects), pass the value in JSON format and set \`string="false"\`.
 
@@ -153,16 +122,10 @@ function mergeMessages(value: JsonValue | undefined): PromptMessage[] | undefine
       raw.role === 'assistant' && (raw.content === null || raw.content === undefined)
         ? ''
         : contentText(raw.content)
-    const blocks = raw.role === 'user' ? userBlocks(raw.content) : undefined
-    if (raw.role === 'user' && !blocks) return undefined
-    if (raw.role !== 'user' && content === undefined) return undefined
+    if (content === undefined) return undefined
     if (raw.role === 'tool') {
       if (typeof raw.tool_call_id !== 'string') return undefined
-      const block: ToolResultBlock = {
-        type: 'tool_result',
-        content: content ?? '',
-        id: raw.tool_call_id,
-      }
+      const block: ToolResultBlock = { type: 'tool_result', content, id: raw.tool_call_id }
       const previous = merged.at(-1)
       if (previous?.role === 'user') {
         merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
@@ -177,15 +140,21 @@ function mergeMessages(value: JsonValue | undefined): PromptMessage[] | undefine
       }
       continue
     }
-    if (raw.role !== 'system' && raw.role !== 'user' && raw.role !== 'assistant') return undefined
+    if (
+      raw.role !== 'system' &&
+      raw.role !== 'developer' &&
+      raw.role !== 'user' &&
+      raw.role !== 'assistant'
+    )
+      return undefined
     if (raw.role === 'user') {
-      if (!blocks) return undefined
       const previous = merged.at(-1)
+      const block: TextBlock = { type: 'text', text: content }
       if (previous?.role === 'user') {
-        merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, ...blocks] }
+        merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
         continue
       }
-      merged.push({ role: 'user', content: '', reasoning: '', toolCalls: [], blocks })
+      merged.push({ role: 'user', content, reasoning: '', toolCalls: [], blocks: [block] })
       continue
     }
     const toolCalls: JsonObject[] = []
@@ -198,7 +167,7 @@ function mergeMessages(value: JsonValue | undefined): PromptMessage[] | undefine
     }
     merged.push({
       role: raw.role,
-      content: content ?? '',
+      content,
       reasoning:
         typeof raw.reasoning_content === 'string'
           ? raw.reasoning_content
@@ -209,41 +178,13 @@ function mergeMessages(value: JsonValue | undefined): PromptMessage[] | undefine
       blocks: [],
     })
   }
-  let order = new Map<string, number>()
-  for (const [index, message] of merged.entries()) {
-    if (message.role === 'assistant' && message.toolCalls.length) {
-      order = new Map(
-        message.toolCalls.map((call, callIndex) => [String(call.id ?? ''), callIndex]),
-      )
-    } else if (message.role === 'user' && order.size) {
-      const toolResults = message.blocks.filter(
-        (block): block is ToolResultBlock => block.type === 'tool_result',
-      )
-      const sorted = [...toolResults].sort(
-        (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
-      )
-      let next = 0
-      const reordered: MergedBlock[] = []
-      for (const block of message.blocks) {
-        if (block.type !== 'tool_result') {
-          reordered.push(block)
-          continue
-        }
-        const result = sorted[next++]
-        if (!result) return undefined
-        reordered.push(result)
-      }
-      merged[index] = { ...message, blocks: reordered }
-    }
-  }
   return merged
 }
 
-/** The official V4.1 prompt projection for the OpenAI-compatible subset we send. */
-export function renderDeepSeekV41Prompt(
+/** The official V4 text/tool prompt projection for the OpenAI-compatible subset we send. */
+export function renderDeepSeekV4Prompt(
   body: JsonObject,
   thinkingMode: 'chat' | 'thinking',
-  effort: 'low' | 'high' | 'max' = 'high',
 ): string | undefined {
   const messages = mergeMessages(body.messages)
   if (!messages) return undefined
@@ -258,31 +199,27 @@ export function renderDeepSeekV41Prompt(
     tools = checked
   }
   let prompt = BOS
-  if (tools.length && messages[0]?.role !== 'system') {
+  if (tools.length && messages[0]?.role !== 'system' && messages[0]?.role !== 'developer') {
     // The official encoder attaches OpenAI-format tools to an instruction message.
     messages.unshift({ role: 'system', content: '', reasoning: '', toolCalls: [], blocks: [] })
   }
   const lastUser = messages.findLastIndex(
-    (message, index) => message.role === 'user' || (index > 0 && message.role === 'system'),
+    message => message.role === 'user' || message.role === 'developer',
   )
   const dropThinking = tools.length === 0
   for (const [index, message] of messages.entries()) {
-    if (index === 0 && (message.role === 'system' || thinkingMode === 'thinking')) prompt += SYSTEM
-    if (index === 0 && thinkingMode === 'thinking')
-      prompt += `Reasoning Effort: ${effort === 'low' ? 50 : effort === 'max' ? 100 : 75} (range 1-100, the higher the value, the more thorough the reasoning)\n\n`
     if (message.role === 'system') {
-      if (index > 0) prompt += SYSTEM
       prompt += message.content
+      if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
+    } else if (message.role === 'developer') {
+      if (!message.content) return undefined
+      prompt += USER + message.content
       if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
     } else if (message.role === 'user') {
       prompt += USER
       prompt += message.blocks
         .map(block =>
-          block.type === 'text'
-            ? block.text
-            : block.type === 'image'
-              ? IMAGE
-              : `<tool_result>${block.content}</tool_result>`,
+          block.type === 'text' ? block.text : `<tool_result>${block.content}</tool_result>`,
         )
         .join('\n\n')
     } else {
@@ -297,15 +234,15 @@ export function renderDeepSeekV41Prompt(
             return undefined
           const args = toolArguments(fn.arguments)
           if (args === undefined) return undefined
-          calls.push(`<${DSML} invoke name="${fn.name}">\n${args}\n</${DSML} invoke>`)
+          calls.push(`<${DSML}invoke name="${fn.name}">\n${args}\n</${DSML}invoke>`)
         }
-        prompt += `\n\n<${DSML} calls>\n${calls.join('\n')}\n</${DSML} calls>`
+        prompt += `\n\n<${DSML}tool_calls>\n${calls.join('\n')}\n</${DSML}tool_calls>`
       }
       prompt += EOS
     }
     const next = messages[index + 1]
     if (
-      (message.role === 'user' || (message.role === 'system' && index > 0)) &&
+      (message.role === 'user' || message.role === 'developer') &&
       (!next || next.role === 'assistant')
     )
       prompt +=
@@ -315,16 +252,16 @@ export function renderDeepSeekV41Prompt(
   return prompt
 }
 
-const TOKENIZER_SHA256 = 'c90dfa01249db1be4245780a052ede752e1361c612ac6d08e2bdada7d599476b'
+const TOKENIZER_SHA256 = '8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf'
 const CONFIG_SHA256 = '6ac8c8dc065ed118161d02dd532749ae3f52c243deac27872134fae2f50d8547'
 let sharedTokenizer: Tokenizer | undefined
 
 function pinnedFile(name: string, sha256: string): JsonObject {
-  const bytes = readFileSync(new URL(`../tokenizers/deepseek-v41-flash/${name}`, import.meta.url))
+  const bytes = readFileSync(new URL(`../../tokenizers/deepseek-v4/${name}`, import.meta.url))
   if (createHash('sha256').update(bytes).digest('hex') !== sha256)
-    throw new TypeError(`DeepSeek V4.1 Flash ${name} failed pinned hash`)
+    throw new TypeError(`DeepSeek V4 ${name} failed pinned hash`)
   const value: unknown = JSON.parse(bytes.toString('utf8'))
-  if (!object(value)) throw new TypeError(`DeepSeek V4.1 Flash ${name} is not an object`)
+  if (!object(value)) throw new TypeError(`DeepSeek V4 ${name} is not an object`)
   return value
 }
 
@@ -344,38 +281,11 @@ function omittedContent(value: JsonValue | undefined): JsonValue | undefined {
   for (const part of value) {
     if (!object(part)) return undefined
     const extra = Object.fromEntries(
-      Object.entries(part).filter(
-        ([name]) => name !== 'type' && name !== 'text' && name !== 'image_url',
-      ),
+      Object.entries(part).filter(([name]) => name !== 'type' && name !== 'text'),
     )
     if (Object.keys(extra).length) omitted.push(extra)
   }
   return omitted.length ? omitted : undefined
-}
-
-const inlineImage =
-  /^data:[^;,]+;base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/u
-
-function inlineImageCount(body: JsonObject): number | undefined {
-  if (!Array.isArray(body.messages)) return undefined
-  let count = 0
-  for (const message of body.messages) {
-    if (!object(message) || !Array.isArray(message.content)) continue
-    for (const part of message.content) {
-      if (!object(part) || part.type !== 'image_url') continue
-      const image = part.image_url
-      if (
-        Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
-        !object(image) ||
-        Object.keys(image).some(key => key !== 'url') ||
-        typeof image.url !== 'string' ||
-        !inlineImage.test(image.url)
-      )
-        return undefined
-      count++
-    }
-  }
-  return count
 }
 
 /** Wire fields not rendered by the public prompt reference still enter the estimate. */
@@ -406,14 +316,6 @@ function supplemental(body: JsonObject): JsonObject | undefined {
         const extras = Object.fromEntries(
           Object.entries(call).filter(([name]) => name !== 'function'),
         )
-        if (object(call.function)) {
-          const functionExtra = Object.fromEntries(
-            Object.entries(call.function).filter(
-              ([name]) => name !== 'name' && name !== 'arguments',
-            ),
-          )
-          if (Object.keys(functionExtra).length) extras.function = functionExtra
-        }
         if (Object.keys(extras).length) calls.push(extras)
       }
       if (calls.length) extra.toolCallMetadata = calls
@@ -436,36 +338,29 @@ function supplemental(body: JsonObject): JsonObject | undefined {
   }
 }
 
-/** One pinned Flash model/provider route; Pro has a distinct encoder and binding. */
-export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): InputMeter {
+/** One pinned model/provider route; other V4 variants require their own tokenizer evidence. */
+export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): InputMeter {
   if (
-    definition.modelId !== 'deepseek/deepseek-v4.1-flash' ||
-    definition.revision !== '1' ||
+    definition.modelId !== 'deepseek/deepseek-v4-pro-0813' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
     definition.implementation.revision !== 'mp4-1' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
-    throw new TypeError('unsupported DeepSeek V4.1 Flash definition')
+    throw new TypeError('unsupported DeepSeek V4 Pro definition')
   const encoder = tokenizer()
   const meter: InputMeter = {
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v41-flash-reference-1',
+    algorithmRevision: 'deepseek-v4-pro-reference-1',
     evidence:
-      'DeepSeek-V4.1-Flash dba1be0a40aa45a94ad051997016db3960a90277 encoding/encoding.py + tokenizer.json c90dfa01 + inference image processor/config vision_max_n_token=1024; OpenRouter/DeepInfra private projection remains estimated',
+      'DeepSeek-V4-Pro b5968e9190ef611bbf34a7229255be88a0e937c1 encoding_dsv4.py + tokenizer.json 8f9f37ca; OpenRouter/DeepInfra private projection remains estimated',
     measure({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-      const images = inlineImageCount(body)
-      if (images === undefined) return { kind: 'unavailable' }
-      if (
-        body.reasoning !== undefined &&
-        (!object(body.reasoning) || body.reasoning.effort !== 'low')
-      )
-        return { kind: 'unavailable' }
       const mode = object(body.reasoning) && body.reasoning.effort === 'low' ? 'thinking' : 'chat'
-      const prompt = renderDeepSeekV41Prompt(body, mode, 'low')
+      const prompt = renderDeepSeekV4Prompt(body, mode)
       const extra = supplemental(body)
       if (prompt === undefined || extra === undefined) return { kind: 'unavailable' }
       try {
@@ -473,10 +368,7 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
         const extraTokens = encoder.encode(writeJsonLossless(extra), {
           add_special_tokens: false,
         }).ids.length
-        return {
-          kind: 'estimated',
-          tokens: mainTokens + extraTokens + images * MAX_REFERENCE_IMAGE_TOKENS,
-        }
+        return { kind: 'estimated', tokens: mainTokens + extraTokens }
       } catch {
         return { kind: 'unavailable' }
       }

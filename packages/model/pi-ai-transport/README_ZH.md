@@ -409,3 +409,7 @@ Google 路由映射还列有 Vertex；首批完整 Google 定义只绑定已有�
 ```sh
 pnpm exec vitest run tests/official-*.spec.ts
 ```
+
+## 计量源码布局
+
+具体估算实现集中在 [`src/input-meters/`](src/input-meters/)：[`deepseek-v4-pro.ts`](src/input-meters/deepseek-v4-pro.ts)、[`deepseek-v41-flash.ts`](src/input-meters/deepseek-v41-flash.ts) 和 [`openai.ts`](src/input-meters/openai.ts)。同一家族在事实依据允许时共用算法，每个供给模型及供应商路由明确绑定；消息编码或 tokenizer 确有差异时可拆独立模块。公共接口、余量及绑定校验保留在 [`input-meter.ts`](src/input-meter.ts)，最终输入限额检查在 [`input-limits.ts`](src/input-limits.ts)。消费者从包根导入工厂。

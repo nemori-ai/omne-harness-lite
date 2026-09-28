@@ -9,7 +9,7 @@ import { input as testInput } from './support.ts'
 import {
   createDeepSeekV4ProInputMeter,
   renderDeepSeekV4Prompt,
-} from '../src/deepseek-input-meter.ts'
+} from '../src/input-meters/deepseek-v4-pro.ts'
 import {
   deepseekV4Pro0813Configuration,
   deepseekV4Pro0813Definition,

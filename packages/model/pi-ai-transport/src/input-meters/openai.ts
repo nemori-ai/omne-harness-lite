@@ -5,9 +5,9 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { getEncoding } from 'js-tiktoken'
 import { imageSize } from 'image-size'
-import { object } from './json.ts'
-import type { ModelDefinition } from './definitions.ts'
-import type { InputMeter, TokenMeasurement } from './input-meter.ts'
+import { object } from '../json.ts'
+import type { ModelDefinition } from '../definitions.ts'
+import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 
 // The OpenAI tiktoken source maps gpt-5* to o200k_base. This exact allowlist
 // deliberately excludes GPT-6: that source does not provide a GPT-6 mapping.

@@ -6,11 +6,14 @@ export {
 } from './transport.ts'
 export { planRequest, PI_AI_CARRIABLE_MODALITIES, type PlannedRequest } from './plan.ts'
 export { type InputMeter, type TokenMeasurement } from './input-meter.ts'
-export { createDeepSeekV4ProInputMeter, renderDeepSeekV4Prompt } from './deepseek-input-meter.ts'
+export {
+  createDeepSeekV4ProInputMeter,
+  renderDeepSeekV4Prompt,
+} from './input-meters/deepseek-v4-pro.ts'
 export {
   createDeepSeekV41FlashInputMeter,
   renderDeepSeekV41Prompt,
-} from './deepseek-v41-input-meter.ts'
+} from './input-meters/deepseek-v41-flash.ts'
 export { measureFinalInput, type FinalInputEvidence } from './input-limits.ts'
 export {
   sendRequest,
@@ -73,3 +76,5 @@ export {
   deepseekV4Pro0813Definition,
   deepseekV4Pro0813Configuration,
 } from './official-models/deepseek.ts'
+
+export { createOpenAiInputMeter } from './input-meters/openai.ts'

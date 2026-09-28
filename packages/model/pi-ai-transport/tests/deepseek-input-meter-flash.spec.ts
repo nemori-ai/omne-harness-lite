@@ -9,7 +9,7 @@ import { at, judgedMessage, input as testInput } from './support.ts'
 import {
   createDeepSeekV41FlashInputMeter,
   renderDeepSeekV41Prompt,
-} from '../src/deepseek-v41-input-meter.ts'
+} from '../src/input-meters/deepseek-v41-flash.ts'
 import {
   deepseekV41FlashConfiguration,
   deepseekV41FlashDefinition,
