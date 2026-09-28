@@ -19,6 +19,7 @@
   },
   "files": [
     "dist",
+    "tokenizers/deepseek-v4",
     "LICENSE.pi",
     "UPSTREAM.md",
     "provenance.json",
@@ -31,6 +32,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@huggingface/tokenizers": "catalog:",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/arrival-events": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",

@@ -15,6 +15,9 @@ catalogs:
     '@eslint-community/regexpp':
       specifier: 4.12.2
       version: 4.12.2
+    '@huggingface/tokenizers':
+      specifier: 0.2.0
+      version: 0.2.0
     '@standard-schema/spec':
       specifier: 1.1.0
       version: 1.1.0
@@ -1251,6 +1254,9 @@ importers:
 
   packages/model/pi-ai-transport:
     dependencies:
+      '@huggingface/tokenizers':
+        specifier: 'catalog:'
+        version: 0.2.0
       '@omne-harness-lite/arrival-events':
         specifier: workspace:*
         version: link:../../core/arrival-events
@@ -1847,6 +1853,9 @@ packages:
     resolution: {integrity: sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew==}
     engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
 
+  '@huggingface/tokenizers@0.2.0':
+    resolution: {integrity: sha512-LidMHe1FpcSYH4vcSjXooda34pC0M8m1gmDOv7SQi6Iv+ib1zX7J3sHBCC9/3FPCkn2k1b55FneVqMRxrr99pg==}
+
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
 
@@ -2377,6 +2386,8 @@ snapshots:
       marked: 18.0.11
 
   '@eslint-community/regexpp@4.12.2': {}
+
+  '@huggingface/tokenizers@0.2.0': {}
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
