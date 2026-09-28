@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import type { SettlementTask } from '../src/settlement-types.ts'
-import type { CreateCallContainerInput, SessionRuntimeBinding } from '../src/service-types.ts'
+import type {
+  CreateCallContainerInput,
+  OpenCallInput,
+  SessionRuntimeBinding,
+} from '../src/service-types.ts'
 import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
@@ -57,6 +61,7 @@ function fixture(sessionId: string, callId: string) {
       session: sessionId,
       messages: [],
       target: 'model',
+      parameters: { marker: 'old' },
       basis: {},
       tools: [],
       host: session,
@@ -85,6 +90,42 @@ function fixture(sessionId: string, callId: string) {
 }
 
 describe('call container admission and retention', () => {
+  it('updates only the same call resume request without carrying old optional fields', () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const f = fixture('session', 'call')
+    const first = store.reserve(f.container.key)
+    if (!('reservation' in first)) throw new Error('first reservation absent')
+    expect(store.insert(first.reservation, f.container)).toBe(true)
+    const old = f.container.view().request
+    const originalBinding = f.container.view().binding
+    const messages: OpenCallInput['messages'] = []
+    const tools: OpenCallInput['tools'] = []
+    const next = {
+      session: old.session,
+      callId: f.container.key.callId,
+      host: old.host,
+      messages,
+      target: old.target,
+      basis: old.basis,
+      tools,
+    } as OpenCallInput
+    first.reservation.updateRequest(next)
+    expect(f.container.view().request).not.toBe(old)
+    expect(f.container.view().request.messages).not.toBe(messages)
+    expect(f.container.view().request.tools).not.toBe(tools)
+    expect(f.container.view().request.parameters).toBeUndefined()
+    expect(f.container.view().binding).toBe(originalBinding)
+    expect(() => first.reservation.updateRequest({ ...next, callId: 'other' })).toThrow(
+      'call request ownership mismatch',
+    )
+    expect(() =>
+      first.reservation.updateRequest({ ...next, host: {} as SessionRuntimeBinding }),
+    ).toThrow('call request ownership mismatch')
+    first.reservation.publish({ phase: 'dispatching', abort() {} })
+    expect(() => first.reservation.updateRequest(next)).toThrow('cannot update request')
+    first.reservation.release()
+    expect(() => first.reservation.updateRequest(next)).toThrow('reservation released')
+  })
   it('binds only the original invocation under a reservation and keeps it through close', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const f = fixture('session', 'call')

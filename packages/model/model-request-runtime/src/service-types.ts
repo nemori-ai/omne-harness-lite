@@ -402,6 +402,8 @@ export interface CallReservation<P extends PlannedSemantics, R> {
   readonly publish: (next: CallOperationState) => void
   /** Bind only the original invocation under this short admission. */
   readonly attachInvocation: (handle: AnchoredInvocationHandle) => void
+  /** Replace the current resume request, retaining the original call binding and lease. */
+  readonly updateRequest: (request: OpenCallInput) => void
   readonly release: () => void
 }
 

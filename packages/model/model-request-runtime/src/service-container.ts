@@ -15,6 +15,7 @@ import type {
   CallOperationState,
   CallReservation,
   CreateCallContainerInput,
+  OpenCallInput,
   RuntimeCloseResult,
   ReservationWaitPolicy,
 } from './service-types.ts'
@@ -22,6 +23,7 @@ import type { SettlementScheduler } from './settlement-types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 
 const invocationSlots = new WeakMap<object, (handle: AnchoredInvocationHandle) => void>()
+const requestSlots = new WeakMap<object, (request: OpenCallInput) => void>()
 
 function sameKey(left: CallKey, right: CallKey): boolean {
   return left.session === right.session && left.callId === right.callId
@@ -46,7 +48,8 @@ function validWaitPolicy(policy: ReservationWaitPolicy): boolean {
 export function createCallContainer<P extends PlannedSemantics, R>(
   input: CreateCallContainerInput<P, R>,
 ): CallContainer<P, R> {
-  const { key, session, binding, request, owner, coordinator } = input
+  const { key, session, binding, owner, coordinator } = input
+  let request = input.request
   if (
     key.session !== request.session ||
     key.session !== session.log.session ||
@@ -155,6 +158,26 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       throw new TypeError('original invocation already attached')
     invocation = handle
   })
+  requestSlots.set(container, next => {
+    if (released || releaseAttempted || admissionClosed || operation.phase !== 'ready')
+      throw new TypeError('call container cannot update request')
+    if (
+      next.session !== ownedKey.session ||
+      next.callId !== ownedKey.callId ||
+      next.host !== session ||
+      next.run !== request.run ||
+      (next.run === undefined && (next.attempt !== undefined || next.report !== undefined)) ||
+      (next.run !== undefined && (next.attempt === undefined || next.report === undefined)) ||
+      'unknown' in owner.opened() ||
+      owner.unresolvedWrites().length !== 0
+    )
+      throw new TypeError('call request ownership mismatch')
+    request = Object.freeze({
+      ...next,
+      messages: Object.freeze([...next.messages]),
+      tools: Object.freeze([...next.tools]),
+    })
+  })
   return Object.freeze(container)
 }
 
@@ -248,6 +271,14 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         const attach = invocationSlots.get(container)
         if (attach === undefined) throw new TypeError('call container ownership absent')
         attach(handle)
+      },
+      updateRequest(request: OpenCallInput): void {
+        if (owns(reservation) === undefined) throw new TypeError('reservation released')
+        const container = current(ownedKey)
+        if (container === undefined) throw new TypeError('call container absent')
+        const update = requestSlots.get(container)
+        if (update === undefined) throw new TypeError('call container ownership absent')
+        update(request)
       },
       release(): void {
         const state = reservations.get(reservation)

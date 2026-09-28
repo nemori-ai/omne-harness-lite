@@ -180,6 +180,17 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           invocation: originalInvocation(coordinator),
         }),
       ).toEqual({ invalidInput: { reason: 'malformed' } })
+      const malformed = {
+        ...vetoed,
+        disposition: { consumed: { by: 'side_query' }, vetoed: { by: 'gate' } },
+      } as unknown as SettleReplyInput
+      expect(
+        await settlePendingReply({
+          request: malformed,
+          pending: pending(),
+          invocation: originalInvocation(coordinator),
+        }),
+      ).toEqual({ invalidInput: { reason: 'malformed' } })
       expect(submissions.map(item => item.count)).toEqual([2])
     })
   })
