@@ -5,6 +5,7 @@ import type { SettlementTask } from '../src/settlement-types.ts'
 import type {
   CreateCallContainerInput,
   OpenCallInput,
+  ModelCallHost,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
 import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
@@ -39,6 +40,11 @@ function fixture(sessionId: string, callId: string) {
   // Unused provider members belong to the host; this test exercises only local resource ownership.
   const session = { log, selection: { binding: selectionLog } } as unknown as SessionRuntimeBinding
   const oldWrites: SettlementTask<AppendResult>[] = []
+  const host: ModelCallHost = {
+    signal: new AbortController().signal,
+    stopping: () => false,
+    register: () => ({ registration: { unregister() {} } }),
+  }
   let opened: ReturnType<CreateCallContainerInput<PlannedSemantics, never>['owner']['opened']> = {
     confirmed: true,
   }
@@ -65,7 +71,7 @@ function fixture(sessionId: string, callId: string) {
       parameters: { marker: 'old' },
       basis: {},
       tools: [],
-      host: session,
+      host,
     },
     owner: { opened: () => opened, unresolvedWrites: () => oldWrites },
     coordinator: {
@@ -73,6 +79,7 @@ function fixture(sessionId: string, callId: string) {
         coordinatorCloses++
       },
     },
+    systemStop: async () => ({ released: true }),
   } as unknown as CreateCallContainerInput<PlannedSemantics, never>
   const container = createCallContainer(input)
   return {
@@ -285,9 +292,9 @@ describe('call container admission and retention', () => {
     expect(() => first.reservation.updateRequest({ ...next, callId: 'other' })).toThrow(
       'call request ownership mismatch',
     )
-    expect(() =>
-      first.reservation.updateRequest({ ...next, host: {} as SessionRuntimeBinding }),
-    ).toThrow('call request ownership mismatch')
+    expect(() => first.reservation.updateRequest({ ...next, host: { ...old.host } })).toThrow(
+      'call request ownership mismatch',
+    )
     first.reservation.publish({ phase: 'dispatching', abort() {} })
     expect(() => first.reservation.updateRequest(next)).toThrow('cannot update request')
     first.reservation.release()

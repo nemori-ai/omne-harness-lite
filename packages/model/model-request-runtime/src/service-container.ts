@@ -14,7 +14,12 @@ import type {
   CallKey,
   CallOperationState,
   CallReservation,
+  CallPreparationOwner,
+  CallPreparationResult,
   CreateCallContainerInput,
+  ModelCallHost,
+  CallObserverBinding,
+  ModelObserverQueue,
   OpenCallInput,
   RuntimeCloseResult,
   ReservationWaitPolicy,
@@ -34,6 +39,19 @@ const replacementSlots = new WeakMap<
   }
 >()
 const requestSlots = new WeakMap<object, (request: OpenCallInput) => void>()
+const observerSlots = new WeakMap<
+  object,
+  {
+    replaceBinding: (
+      next: Omit<CallObserverBinding, 'queue'> | undefined,
+      valid: () => boolean,
+    ) => Promise<{ readonly replaced: true } | { readonly unavailable: true }>
+    replaceQueue: (
+      create: () => ModelObserverQueue,
+      valid: () => boolean,
+    ) => Promise<{ readonly queue: ModelObserverQueue } | { readonly unavailable: true }>
+  }
+>()
 
 function sameKey(left: CallKey, right: CallKey): boolean {
   return left.session === right.session && left.callId === right.callId
@@ -78,6 +96,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   let releaseAttempted = false
   let stopFailed = false
   let invocation: AnchoredInvocationHandle | undefined
+  let observer: CallObserverBinding | undefined = input.observer
   let nextTask = 0
   const stopped = new Map<number, Promise<void>>()
 
@@ -106,23 +125,43 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         return { unavailable: true }
       }
     }
+    const semantic = await Promise.allSettled([
+      Promise.resolve().then(() =>
+        input.systemStop({
+          view: () => container.view(),
+          publishStopped: () => {
+            if (released || releaseAttempted) throw new TypeError('call already released')
+            operation = Object.freeze({ phase: 'ready' })
+          },
+        }),
+      ),
+    ])
+    const results = await Promise.allSettled([
+      ...(invocation === undefined ? [] : [invocation.close()]),
+      ...(observer?.queue === undefined ? [] : [observer.queue.close()]),
+      ...(observer === undefined ? [] : [observer.authorization.close()]),
+      coordinator.close(),
+    ])
+    if (
+      semantic.some(result => result.status === 'rejected') ||
+      semantic.some(result => result.status === 'fulfilled' && 'unavailable' in result.value) ||
+      results.some(result => result.status === 'rejected') ||
+      results.some(
+        result =>
+          result.status === 'fulfilled' &&
+          typeof result.value === 'object' &&
+          result.value !== null &&
+          'unavailable' in result.value,
+      ) ||
+      stopped.size > 0 ||
+      stopFailed ||
+      operation.phase !== 'ready' ||
+      'unknown' in owner.opened() ||
+      owner.unresolvedWrites().length !== 0 ||
+      releaseAttempted
+    )
+      return { unavailable: true }
     try {
-      if (invocation !== undefined) {
-        const stopped = await invocation.close()
-        if (!('released' in stopped) || stopped.released !== true) return { unavailable: true }
-      }
-      await coordinator.close()
-      while (stopped.size > 0) await Promise.all([...stopped.values()])
-      if (
-        stopFailed ||
-        operation.phase === 'dispatching' ||
-        operation.phase === 'reply_pending' ||
-        operation.phase === 'settling'
-      )
-        return { unavailable: true }
-      if ('unknown' in owner.opened() || owner.unresolvedWrites().length !== 0)
-        return { unavailable: true }
-      if (releaseAttempted) return { unavailable: true }
       releaseAttempted = true
       binding.lease.release()
       released = true
@@ -143,6 +182,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         owner,
         coordinator,
         ...(invocation === undefined ? {} : { invocation }),
+        ...(observer === undefined ? {} : { observer }),
         operation,
       })
     },
@@ -224,7 +264,173 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       tools: Object.freeze([...next.tools]),
     })
   })
+  observerSlots.set(container, {
+    async replaceBinding(next, valid) {
+      if (
+        admissionClosed ||
+        released ||
+        releaseAttempted ||
+        operation.phase !== 'ready' ||
+        !valid()
+      )
+        return { unavailable: true }
+      const prior = observer
+      if (prior?.queue !== undefined) {
+        const result = await prior.queue.close()
+        if (!('released' in result) || admissionClosed || observer !== prior || !valid())
+          return { unavailable: true }
+      }
+      if (prior !== undefined) {
+        const result = await prior.authorization.close()
+        if (!('released' in result) || admissionClosed || observer !== prior || !valid())
+          return { unavailable: true }
+      }
+      observer = next
+      return { replaced: true }
+    },
+    async replaceQueue(create, valid) {
+      const prior = observer
+      if (prior === undefined || admissionClosed || released || releaseAttempted || !valid())
+        return { unavailable: true }
+      if (prior.queue !== undefined) {
+        const result = await prior.queue.close()
+        if (!('released' in result) || admissionClosed || observer !== prior || !valid())
+          return { unavailable: true }
+      }
+      let queue: ModelObserverQueue
+      try {
+        queue = create()
+      } catch {
+        return { unavailable: true }
+      }
+      if (
+        queue === null ||
+        typeof queue !== 'object' ||
+        typeof queue.offer !== 'function' ||
+        typeof queue.start !== 'function' ||
+        typeof queue.close !== 'function'
+      )
+        return { unavailable: true }
+      observer = Object.freeze({ ...prior, queue })
+      return { queue }
+    },
+  })
   return Object.freeze(container)
+}
+
+/** One host registration precedes preparation and remains through physical call release. */
+export function createCallPreparationOwner<P extends PlannedSemantics, R>(
+  host: ModelCallHost,
+): CallPreparationResult<P, R> {
+  if (
+    host === null ||
+    typeof host !== 'object' ||
+    !(host.signal instanceof AbortSignal) ||
+    typeof host.stopping !== 'function' ||
+    typeof host.register !== 'function'
+  )
+    return { invalidInput: { reason: 'malformed' } }
+  const abort = new AbortController()
+  let registration: { readonly unregister: () => void } | undefined
+  let container: CallContainer<P, R> | undefined
+  let discarded = false
+  let released = false
+  let stopFailed = false
+  let closing: Promise<RuntimeCloseResult> | undefined
+  let nextStop = 0
+  const stopped = new Map<number, Promise<void>>()
+
+  async function closeOnce(): Promise<RuntimeCloseResult> {
+    if (released) return { released: true }
+    abort.abort()
+    let resource: RuntimeCloseResult = { unavailable: true }
+    if (container !== undefined) {
+      try {
+        resource = await container.close()
+      } catch {
+        resource = { unavailable: true }
+      }
+    } else if (discarded) {
+      resource = { released: true }
+    }
+    if (!('released' in resource) || stopped.size !== 0 || stopFailed || registration === undefined)
+      return { unavailable: true }
+    try {
+      registration.unregister()
+      host.signal.removeEventListener('abort', onHostAbort)
+      released = true
+      return { released: true }
+    } catch {
+      return { unavailable: true }
+    }
+  }
+  function close(): Promise<RuntimeCloseResult> {
+    if (closing !== undefined) return closing
+    closing = closeOnce().finally(() => {
+      closing = undefined
+    })
+    return closing
+  }
+  function onHostAbort(): void {
+    void close().catch(() => {
+      // The registered owner remains reachable for a later close attempt.
+    })
+  }
+  const owner: CallPreparationOwner<P, R> = Object.freeze({
+    signal: abort.signal,
+    stopping: () => abort.signal.aborted || host.signal.aborted || host.stopping(),
+    retainStopped(actualStop: Promise<void>) {
+      if (released) throw new TypeError('preparation owner released')
+      const token = ++nextStop
+      const tracked = actualStop.then(
+        () => {
+          stopped.delete(token)
+        },
+        () => {
+          stopFailed = true
+          stopped.delete(token)
+        },
+      )
+      stopped.set(token, tracked)
+    },
+    attach(next: CallContainer<P, R>) {
+      if (released || discarded || container !== undefined)
+        throw new TypeError('preparation owner already handed off')
+      container = next
+      if (abort.signal.aborted) onHostAbort()
+    },
+    discard() {
+      if (container !== undefined) return Promise.resolve({ unavailable: true } as const)
+      discarded = true
+      return close()
+    },
+    close,
+  })
+  let registered: ReturnType<ModelCallHost['register']>
+  try {
+    registered = host.register(close)
+  } catch {
+    return { unavailable: true }
+  }
+  if (registered === null || typeof registered !== 'object') return { unavailable: true }
+  if ('runtimeStopped' in registered) return { runtimeStopped: true }
+  if ('unavailable' in registered) return { unavailable: true }
+  if (!('registration' in registered) || typeof registered.registration.unregister !== 'function')
+    return { unavailable: true }
+  registration = registered.registration
+  host.signal.addEventListener('abort', onHostAbort)
+  try {
+    if (host.signal.aborted || host.stopping()) {
+      discarded = true
+      onHostAbort()
+      return { runtimeStopped: true }
+    }
+  } catch {
+    discarded = true
+    onHostAbort()
+    return { unavailable: true }
+  }
+  return { owner }
 }
 
 interface ReservationState<P extends PlannedSemantics, R> {
@@ -362,6 +568,32 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         const update = requestSlots.get(container)
         if (update === undefined) throw new TypeError('call container ownership absent')
         update(request)
+      },
+      async replaceObserverBinding(next?: Omit<CallObserverBinding, 'queue'>) {
+        if (closed || owns(reservation) === undefined) return { unavailable: true } as const
+        const container = current(ownedKey)
+        const slot = container === undefined ? undefined : observerSlots.get(container)
+        if (slot === undefined) return { unavailable: true } as const
+        const result = await slot.replaceBinding(
+          next,
+          () => !closed && owns(reservation) !== undefined && current(ownedKey) === container,
+        )
+        return closed || owns(reservation) === undefined || current(ownedKey) !== container
+          ? ({ unavailable: true } as const)
+          : result
+      },
+      async replaceObserverQueue(create: () => ModelObserverQueue) {
+        if (closed || owns(reservation) === undefined) return { unavailable: true } as const
+        const container = current(ownedKey)
+        const slot = container === undefined ? undefined : observerSlots.get(container)
+        if (slot === undefined) return { unavailable: true } as const
+        const result = await slot.replaceQueue(
+          create,
+          () => !closed && owns(reservation) !== undefined && current(ownedKey) === container,
+        )
+        return closed || owns(reservation) === undefined || current(ownedKey) !== container
+          ? ({ unavailable: true } as const)
+          : result
       },
       release(): void {
         const state = reservations.get(reservation)

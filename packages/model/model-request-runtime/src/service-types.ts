@@ -511,7 +511,13 @@ export interface CallContainerView<P extends PlannedSemantics, R> {
   readonly coordinator: SettlementCoordinator
   /** The original dispatch handle owns the opened writer and reply settlement. */
   readonly invocation?: AnchoredInvocationHandle
+  readonly observer?: CallObserverBinding
   readonly operation: CallOperationState
+}
+export interface CallObserverBinding {
+  readonly request: ModelObserverRequest
+  readonly authorization: AuthorizedCallObserver
+  readonly queue?: ModelObserverQueue
 }
 export interface CallContainer<P extends PlannedSemantics, R> {
   readonly key: CallKey
@@ -525,6 +531,26 @@ export interface CallContainer<P extends PlannedSemantics, R> {
   /** True only after close has released its exact lease. */
   readonly canRemove: () => boolean
 }
+/** Registered before preparation; owns a late resource even if store publication loses a race. */
+export interface CallPreparationOwner<P extends PlannedSemantics, R> {
+  readonly signal: AbortSignal
+  readonly stopping: () => boolean
+  readonly retainStopped: (actualStop: Promise<void>) => void
+  readonly attach: (container: CallContainer<P, R>) => void
+  readonly discard: () => Promise<RuntimeCloseResult>
+  readonly close: () => Promise<RuntimeCloseResult>
+}
+export type CallPreparationResult<P extends PlannedSemantics, R> =
+  | { readonly owner: CallPreparationOwner<P, R> }
+  | ServiceInvalidInput
+  | ServiceRuntimeStopped
+  | ServiceUnavailable
+
+export interface SystemStopControl<P extends PlannedSemantics, R> {
+  readonly view: () => CallContainerView<P, R>
+  /** Only the same original owner's S-36 closure may settle and clear a stopped operation. */
+  readonly publishStopped: () => void
+}
 export interface CallReservation<P extends PlannedSemantics, R> {
   readonly key: CallKey
   readonly view: () => CallContainerView<P, R> | undefined
@@ -537,6 +563,14 @@ export interface CallReservation<P extends PlannedSemantics, R> {
   ) => Promise<{ readonly attached: AnchoredInvocationHandle } | { readonly unavailable: true }>
   /** Replace the current resume request, retaining the original call binding and lease. */
   readonly updateRequest: (request: OpenCallInput) => void
+  /** Old queue and authorization must actually stop before a new endpoint can own this call. */
+  readonly replaceObserverBinding: (
+    next?: Omit<CallObserverBinding, 'queue'>,
+  ) => Promise<{ readonly replaced: true } | ServiceUnavailable>
+  /** The next dispatch may proceed without observation while an old receiver is still stopping. */
+  readonly replaceObserverQueue: (
+    create: () => ModelObserverQueue,
+  ) => Promise<{ readonly queue: ModelObserverQueue } | ServiceUnavailable>
   readonly release: () => void
 }
 
@@ -547,4 +581,7 @@ export interface CreateCallContainerInput<P extends PlannedSemantics, R> {
   readonly request: OpenCallInput
   readonly owner: SettlementOwner
   readonly coordinator: SettlementCoordinator
+  readonly observer?: Omit<CallObserverBinding, 'queue'>
+  /** The original call's durable S-36 stop, before physical invocation/lease release. */
+  readonly systemStop: (control: SystemStopControl<P, R>) => Promise<RuntimeCloseResult>
 }
