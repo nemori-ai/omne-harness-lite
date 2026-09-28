@@ -1,3 +1,4 @@
+import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { PlannedSemantics } from './types.ts'
 import type {
   CallContainer,
@@ -23,7 +24,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     key.session !== request.session ||
     key.session !== session.log.session ||
     key.session !== session.selection.binding.session ||
-    session.log.tenant !== session.selection.binding.tenant ||
+    !tenantIdEquals(session.log.tenant, session.selection.binding.tenant) ||
     session.log.generation !== session.selection.binding.generation ||
     (request.callId !== undefined && request.callId !== key.callId)
   )

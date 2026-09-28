@@ -29,8 +29,9 @@ function sessionRef(value: string) {
 function fixture(sessionId: string, callId: string) {
   const generation = {}
   const log = { session: sessionId, tenant: { organization: 'test', account: 'test' }, generation }
+  const selectionLog = { ...log, tenant: { ...log.tenant } }
   // Unused provider members belong to the host; this test exercises only local resource ownership.
-  const session = { log, selection: { binding: log } } as unknown as SessionRuntimeBinding
+  const session = { log, selection: { binding: selectionLog } } as unknown as SessionRuntimeBinding
   const oldWrites: SettlementTask<AppendResult>[] = []
   let opened: ReturnType<CreateCallContainerInput<PlannedSemantics, never>['owner']['opened']> = {
     confirmed: true,
