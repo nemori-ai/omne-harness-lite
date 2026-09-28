@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "pnpm",
+    "install",
+    "--offline",
+    "--frozen-lockfile"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "head": "b1a9dc47d7cfdc94deb1d918fc857475e262233b",
+  "started_at": "2026-09-28T00:28:19.574220+00:00",
+  "completed_at": "2026-09-28T00:28:20.637139+00:00",
+  "exit_code": 0,
+  "output_sha256": "f1685f1a87c2274303abc95259e38963c06c240955d8085a6de006c5bf136f7e"
+}

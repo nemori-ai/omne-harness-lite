@@ -73,3 +73,7 @@
 ## G-6 纯政策构件当前采用（2026-09-27）
 
 [D-093](../../../../record/decisions/model-credential-policy-adoption/decision.md)限定采用[v5-redaction-design rev2](v5-redaction-design.md)的显式配置基线及text/header/raw-error JSON共有构件。独立安全复评在此范围内无剩余阻断；源码与实际制品尚待。R5R-G2跨包接线、G3附件、G4必需事实碰撞、完整S-20及生产H出值不放行，新增绑定0。
+
+## 2026-09-28 G6纯构件实施与有限验证
+
+[D093实施事件](../../../../record/decisions/model-credential-policy-adoption/decision.md#2026-09-28-纯构件有限实施签收)及[完整实际原档](../../../../record/evidence/2026-09-28-tests-model-credential-redaction-pure/README.md)记录源码f6a5d1f2／HUB7f580351、独立GI1–7有限Pass及当前HUB4a268c91专用字节与组合回归。限定签收显式配置／纯text/header/raw-error JSON政策构件；新增规范绑定0，不签收raw.body／附件、生产H和完整S20、G4必需事实、十三操作或37模型认证。历史“源码尚待”属于2026-09-27的状态。

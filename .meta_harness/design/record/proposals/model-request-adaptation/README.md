@@ -19,3 +19,5 @@
 | 多值响应头表示与独立函数事实交接 | [两轴候选比较](header-handoff.md)，MR5／RT5仍待精确采用与真实链验收 |
 
 排期、执行负责人和实时状态留在任务区；本包不维护第二份实施计划。
+
+2026-09-28 导航补记：上表保留起草时的候选状态。多值响应头 MR5／RT5 的精确技术采用见 [D-090](../../decisions/model-headers-v5-adoption/decision.md)，后续不透明资源边界的限定采用见 [D-091](../../decisions/model-transport-response-resource-adoption/decision.md)。共享脱敏的纯构件实施与有限验证见 [D-093 的后续签收](../../decisions/model-credential-policy-adoption/decision.md#2026-09-28-纯构件有限实施签收)。设计采用不等于完整头链、十三操作或模型认证已经交付。

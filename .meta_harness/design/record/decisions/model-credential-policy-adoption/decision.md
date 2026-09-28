@@ -9,3 +9,7 @@
 本次**不采用为完整可实施保证**的范围：raw.body保真字节/附件留存（R5R-G3）、runtime/transport所有出值路径与公共policy迁移（R5R-G2）、涉及必需事实的处理冲突（R5R-G4）。V=503与真实HTTP503的碰撞仍归契约owner，不自行收紧凭据准入、改变状态/身份/费用或宣称豁免；也不把完整ModelResponse交给通用redactor改值。完整S-20、PH-G2、生产rawHeaders/H出值、invoke→append/reopen链及37认证未放行。该限定采用不替代后续接线的精确provider投影与真实TLS验收。
 
 新增绑定0，规范/Schema/registry契约版本不变。v5-redaction-design的candidate字样保留起草历史，当前可消费范围以本决定为准。人的总体交付接受未发生。
+
+## 2026-09-28 纯构件有限实施签收
+
+主调度在既有用户实施与验收授权内，依据 [实际证据](../../evidence/2026-09-28-tests-model-credential-redaction-pure/README.md)，技术签收本决定已限定的纯配置／绑定／text/header/raw-error JSON 实施。源码f6a5d1f2合入7f580351，当前HUB4a268c91核对专用源码未变；独立GI1–7有限Pass、两原档1088＋437成员逐字读回、实际HUB组件和组合检查通过。原失败、scope与性能限制沿原档保留。此事件只提升该纯构件的实施／有限验证层，不重做本决定的设计选择、不增加规范绑定；生产接线、附件、G4、完整S20／头链、十三操作及37认证继续未完成，人的总体交付接受未发生。

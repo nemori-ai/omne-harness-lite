@@ -203,3 +203,5 @@ evidence/
 [2026-09-27 W16 retryDelay有限签收](2026-09-27-tests-model-request-runtime-retry-delay/README.md)：双闭合制品、独立Fraction矩阵、严格输入与公开双语literal，两个真编译行为负控；保留早期测量记账局限，不签收实际调度／十三操作／整体P2。
 
 [2026-09-27 W17 core精确RFC3339比较](2026-09-27-tests-core-rfc3339-order/README.md)：D089 B/R1有限签收；150测试、两闭合公开根各9475oracle、12literal及两真编译行为负控，4542归档成员/198输入核对。保留首次测量记账缺项；TL-G1与runtime组合/十三操作/37认证未闭。
+
+[2026-09-28 G6共享脱敏纯构件](2026-09-28-tests-model-credential-redaction-pure/README.md)：D093限定实施签收，GI1–7独立Pass、1525原归档成员与实际HUB组合检查；生产接线、附件、G4及完整S20仍未完成。
