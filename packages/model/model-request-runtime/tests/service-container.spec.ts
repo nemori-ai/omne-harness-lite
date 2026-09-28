@@ -145,6 +145,44 @@ describe('call container admission and retention', () => {
     expect(item.leaseReleases).toBe(0)
   })
 
+  it('does not invoke a delayed replacement factory after close begins', async () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const item = fixture('session', 'call')
+    const first = store.reserve(item.container.key)
+    if (!('reservation' in first)) throw new Error('reservation absent')
+    expect(store.insert(first.reservation, item.container)).toBe(true)
+    const gate = deferred()
+    const old: AnchoredInvocationHandle = {
+      outcome: Promise.resolve({ unavailable: true }),
+      snapshot: () => ({ blocks: [], position: 0 }),
+      abort() {},
+      async close() {
+        await gate.promise
+        return { released: true } as const
+      },
+      async settleReply() {
+        return { unavailable: true, reason: 'candidate' } as const
+      },
+    }
+    first.reservation.attachInvocation(old)
+    first.reservation.release()
+    const current = store.reserve(item.container.key)
+    if (!('reservation' in current)) throw new Error('reservation absent')
+    let created = 0
+    const replacing = current.reservation.replaceInvocation(() => {
+      created++
+      return old
+    })
+    const closing = store.close()
+    gate.finish()
+    expect(await replacing).toEqual({ unavailable: true })
+    expect(created).toBe(0)
+    expect(await closing).toEqual({ unavailable: true })
+    current.reservation.release()
+    expect(await store.close()).toEqual({ released: true })
+    expect(item.leaseReleases).toBe(1)
+  })
+
   it('replaces a released send only under a still-owned ready reservation', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const f = fixture('session', 'call')

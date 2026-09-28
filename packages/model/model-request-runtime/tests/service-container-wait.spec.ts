@@ -69,6 +69,37 @@ describe('bounded call reservation waiting', () => {
     expect(await store.close()).toEqual({ released: true })
   })
 
+  it('keeps the store unavailable while a cancelled waiter timer has not actually stopped', async () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const first = store.reserve(key)
+    if (!('reservation' in first)) throw new Error('first reservation')
+    let finishTimer: (() => void) | undefined
+    const stopped = new Promise<void>(resolve => {
+      finishTimer = resolve
+    })
+    let cancel: (() => void) | undefined
+    const scheduler: SettlementScheduler = {
+      nowMonotonicMs: () => 0,
+      wait() {
+        const completion = new Promise<'cancelled'>(resolve => {
+          cancel = () => resolve('cancelled')
+        })
+        return { completion, stopped, requestStop: () => cancel?.() }
+      },
+    }
+    const waiting = store.waitReserve(key, {
+      policy,
+      scheduler,
+      signal: new AbortController().signal,
+    })
+    expect(await store.close()).toEqual({ unavailable: true })
+    first.reservation.release()
+    expect(await store.close()).toEqual({ unavailable: true })
+    finishTimer?.()
+    expect(await waiting).toEqual({ unavailable: true })
+    expect(await store.close()).toEqual({ released: true })
+  })
+
   it('subscribes before checking occupation, then wakes without losing another call identity', async () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const first = store.reserve(key)
