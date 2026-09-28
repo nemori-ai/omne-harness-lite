@@ -7,6 +7,9 @@ export {
 export {
   BASE_FIBERS,
   STAGE_FIBERS,
+  REQUEST_PREPARATION_FIBERS,
+  type AcceptanceStage,
+  type PreparedSession,
   type StageFiber,
   type AcceptanceConfig,
   type AcceptanceDiagnostics,

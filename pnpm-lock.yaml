@@ -113,6 +113,9 @@ importers:
       '@omne-harness-lite/clock':
         specifier: workspace:*
         version: link:../../packages/infra/clock
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../../packages/core/content-blocks
       '@omne-harness-lite/credential-custodian-local':
         specifier: workspace:*
         version: link:../../packages/infra/credential-custodian-local
@@ -125,6 +128,9 @@ importers:
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/core/kernel-basis
+      '@omne-harness-lite/messages':
+        specifier: workspace:*
+        version: link:../../packages/core/messages
       '@omne-harness-lite/model-profile-directory':
         specifier: workspace:*
         version: link:../../packages/model/model-profile-directory
@@ -134,6 +140,9 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../packages/tenancy/organization-governance
+      '@omne-harness-lite/session-tenancy-table':
+        specifier: workspace:*
+        version: link:../../packages/session/session-tenancy-table
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../packages/core/storage

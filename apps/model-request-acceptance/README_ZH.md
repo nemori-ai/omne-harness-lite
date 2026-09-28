@@ -1,14 +1,18 @@
 # 模型请求验收应用
 
-`@omne-harness-lite/model-request-acceptance` 提供模型请求验收中的本机真实认证与模型凭据阶段。它通过各包公开 API 组合账号注册、密码校验、登录、组织成员关系、模型目录和模型副本能力，使用一个 SQLite 存储所有者和 Cordis Context。
+`@omne-harness-lite/model-request-acceptance` 提供模型请求验收中的本机真实认证、模型凭据与显式请求准备阶段。它通过各包公开 API 组合账号注册、密码校验、登录、组织成员关系、模型目录和模型副本能力，使用一个 SQLite 存储所有者和 Cordis Context。
 
-公共根入口导出 `createAcceptanceApplication`、配置与结果类型、固定基础与完整阶段 fiber 名称。应用句柄提供 `ready`、`register`、`authenticate`、`publishCredential`、`verifyCredential`、`status` 和 `close`；存储、凭据 reader、副本所有者和服务 Context 由应用内部持有。`AcceptanceHooks` 是可信故障测试端口，不得交给租户输入控制。
+公共根入口导出 `createAcceptanceApplication`、配置与结果类型、固定基础与完整阶段 fiber 名称。应用句柄提供 `ready`、`register`、`authenticate`、`publishCredential`、`verifyCredential`、`readOfficialProfiles`、`prepareSession`、`status` 和 `close`；存储、凭据 reader、副本所有者和服务 Context 由应用内部持有。`AcceptanceHooks` 是可信故障测试端口，不得交给租户输入控制。
 
-启动先完成本阶段全部迁移，等待固定六个基础 fiber 和真实 clock 就绪，再确认同一存储升级 guard。确认成功后才加载目录管理和唯一模型副本所有者。固定八个 fiber 全部 ACTIVE 后开放准入。启动失败通过 `AcceptanceStartupFailure` 拒绝 `ready`，其中 `cleanup` 保留未完成清理项和剩余升级 marker。确认后的启动失败保留已提交的迁移与清单事实。
+启动先完成本阶段全部迁移，等待固定六个基础 fiber 和真实 clock 就绪，再确认同一存储升级 guard。确认成功后才加载目录管理和唯一模型副本所有者。默认 `authentication` 阶段在固定八个 `STAGE_FIBERS` 全部 ACTIVE 后开放准入。第二个参数显式传 `{ stage: 'requestPreparation' }` 时使用固定九个 `REQUEST_PREPARATION_FIBERS`；会话归属迁移在确认前追加，真实 `sessionTenancy` 插件在目录及 lookup 就绪后加载。每次操作重新核对所选完整集合和关闭门。启动失败通过 `AcceptanceStartupFailure` 拒绝 `ready`，其中 `cleanup` 保留未完成清理项和剩余升级 marker。确认后的启动失败保留已提交的迁移与清单事实。
 
-认证返回真实账号、登录态和当前租户；每次凭据操作重新核对该登录态和有效成员关系。可信来源回调同时提供账号、租户、reference 和 body，作用域不符时拒绝。提供者的失败值和 `stored: false` 原样可见。`close()` 停止新准入、等待在途操作、先撤除 lookup 再关闭其借用的副本，最后关闭实际存储；重复调用共享同一个关闭 Promise。
+认证返回真实账号、登录态和当前租户；每次凭据或准备操作重新核对该登录态和有效成员关系。可信来源回调同时提供账号、租户、reference 和 body，作用域不符时拒绝。提供者的失败值和 `stored: false` 原样可见。`close()` 停止新准入、等待在途操作、先撤除 lookup 再关闭其借用的副本，最后关闭实际存储；重复调用共享同一个关闭 Promise。
 
-此阶段不发送模型 HTTP 请求，也不提供模型 runtime、session、Agent Loop、OAuth、资产注册表或完整 credential custodian。示例的空清单是明确的验收输入，不代表已经提供模型目录。诊断事件携带操作分类和关联，不包含密码、密钥材料、凭据 reference 或 body；同步诊断回调不承担耐久审计存储。
+此阶段不发送模型 HTTP 请求，也不提供完整 Session/Inbound 产品、模型 runtime 十三操作 API、Agent Loop、OAuth、资产注册表或完整 credential custodian。示例的空清单是明确的验收输入，不代表已经提供模型目录。诊断事件携带操作分类和关联，不包含密码、密钥材料、凭据 reference 或 body；同步诊断回调不承担耐久审计存储。
+
+`readOfficialProfiles(actor)` 用现核租户调用真实目录，只返回 official 行，完整保留 `profile`、`updatedAt` 与 `adaptation`；确定空清单与具名提供者失败分开。`prepareSession(actor, session)` 校验共享 SessionRef 表示、先读持久归属，仅在无记录时由受限 bootstrap 入口在同一实际 storage atomic 中 seed，然后真实读回核租户，返回 `{ session, tenant }`。同租户重复保持原映射，异租户收到裁剪后的 `UniqueViolation`；归属不可读不授权 seed。默认认证阶段不准入这两个操作。seed 成功后的读若失败，已提交映射仍保留；身份现核与 seed 是分别提交。
+
+`close()` 等待已准入的目录读、归属读与 seed 实际结束，再撤除会话 reader 和既有提供者，最后关闭存储。同一部署重开时须保持阶段与迁移前缀一致。
 
 ## 从公共 API 运行
 
@@ -55,6 +59,7 @@ const app = createAcceptanceApplication(
     wait: { clockTimeoutMs: 15_000, pollMs: 10, monotonicNow: () => performance.now(), sleep },
   },
   {
+    stage: 'requestPreparation',
     diagnostics: { record: event => events.push(`${event.event}:${event.phase}:${event.outcome}`) },
   },
 )
@@ -65,6 +70,10 @@ try {
   assert.equal(await app.register('readme-account', password), 'registered')
   const actor = await app.authenticate('readme-account', password)
   if (!('account' in actor)) throw new Error('actual authentication rejected')
+  assert.deepEqual(await app.readOfficialProfiles(actor), [])
+  assert.deepEqual(await app.prepareSession(actor, 'readme-session'), {
+    session: 'readme-session', tenant: actor.tenant,
+  })
   body = await readFile(join(directory, 'model-credential'))
   const pair = { account: actor.account, tenant: actor.tenant, sourceRef: sourceRef.ok, body }
   assert.deepEqual(await app.publishCredential(actor, async () => pair), { stored: true })
@@ -93,6 +102,6 @@ pnpm --filter @omne-harness-lite/model-request-acceptance typecheck
 pnpm --filter @omne-harness-lite/model-request-acceptance test
 ```
 
-测试使用真实 SQLite、Cordis fiber、scrypt、签名密钥和部署密钥文件，覆盖启动次序、受控旧次序负例、真实确认删除/fsync 故障、身份与来源拒绝、迟到写入、关闭交错、进程崩溃重开与 clock 截止失败。作者证据不等于独立验收，也不关闭单独的符号权限门或整条模型请求 runtime 的交付。
+测试使用真实 SQLite、Cordis fiber、scrypt、签名密钥和部署密钥文件，覆盖启动次序、受控旧次序负例、真实确认删除/fsync 故障、身份与来源拒绝、迟到写入、关闭交错、进程崩溃重开与 clock 截止失败。准备阶段还覆盖真实完整 official 行、持久租户归属、身份拒绝、提供者不可用、九 fiber 失败与关闭交错。作者证据不等于独立验收，也不关闭单独的符号权限门或整条模型请求 runtime 的交付。
 
-采用范围为 D075/D076 及 D092 精确采用的 app auth-bootstrap revision。维护者可导航到权威的[应用 realization](../../.meta_harness/design/realization/apps/model-request-acceptance/README.md)及其 verification 义务；本 README 说明如何消费实现，语义由已接受的设计输入维护。
+采用范围为 D074/D075/D076 及 D092 精确采用的 app auth-bootstrap revision。维护者可导航到权威的[应用 realization](../../.meta_harness/design/realization/apps/model-request-acceptance/README.md)及其 verification 义务；本 README 说明如何消费实现，语义由已接受的设计输入维护。

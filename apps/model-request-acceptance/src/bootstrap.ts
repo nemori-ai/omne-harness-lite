@@ -19,10 +19,18 @@ import {
   type ModelReplicaCustodian,
 } from '@omne-harness-lite/credential-custodian-local/model-replica'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
-import { isOk, parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import sessionSchema from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
+import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
+import {
+  isOk,
+  parseOpaqueIdentifier,
+  parseTenantId,
+  tenantIdEquals,
+} from '@omne-harness-lite/identity-values'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
 import {
   type ModelCatalog,
+  type ProfileRow,
   type CredentialLookup,
 } from '@omne-harness-lite/model-profile-directory'
 import {
@@ -32,6 +40,12 @@ import {
   CREDENTIAL_LOOKUP_SERVICE,
 } from '@omne-harness-lite/model-profile-directory/plugin'
 import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads'
+import {
+  sessionTenancyTablePlugin,
+  SESSION_TENANCY_SERVICE,
+  type SessionTenancyService,
+} from '@omne-harness-lite/session-tenancy-table'
+import { seedHoldingTenant } from '@omne-harness-lite/session-tenancy-table/seed'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import {
   organizationGovernancePlugin,
@@ -52,11 +66,18 @@ import {
   type SqlStorage,
   type UpgradeConfirmation,
 } from '@omne-harness-lite/storage-sql'
-import { acceptanceMigrations, migrationPrefixCheck } from './migrations.ts'
+import {
+  acceptanceMigrations,
+  requestPreparationMigrations,
+  migrationPrefixCheck,
+} from './migrations.ts'
 import { prepare } from './prepare.ts'
 import {
   BASE_FIBERS,
   STAGE_FIBERS,
+  REQUEST_PREPARATION_FIBERS,
+  type AcceptanceStage,
+  type PreparedSession,
   type AcceptanceConfig,
   type AcceptanceDiagnostics,
   type AcceptanceEvent,
@@ -68,6 +89,10 @@ import {
   type StageFiber,
   type StartupPhase,
 } from './types.ts'
+
+const sessionValidator = createSchemaRuntime([sessionSchema]).compile({
+  $ref: `${sessionSchema.$id}#/$defs/SessionRef`,
+})
 
 type LoginFace = Pick<LoginsService, 'issue' | 'exchange' | 'verify'>
 type MembershipFace = Pick<MembershipsService, 'currentTenant' | 'standing'>
@@ -103,6 +128,9 @@ function registrationFace(value: unknown): value is Pick<RegistrationService, 'r
 }
 function lookupFace(value: unknown): value is CredentialLookup {
   return object(value) && typeof value.value === 'function'
+}
+function sessionTenancyFace(value: unknown): value is SessionTenancyService {
+  return object(value) && typeof value.holdingTenant === 'function'
 }
 function clockFace(value: unknown): value is Clock {
   return object(value) && typeof value.now === 'function'
@@ -155,6 +183,11 @@ export interface AcceptanceApplication {
     actor: AuthenticatedActor,
     expectedBody: Uint8Array,
   ): Promise<ScenarioResult<{ readonly matches: boolean }>>
+  readOfficialProfiles(actor: AuthenticatedActor): Promise<ScenarioResult<readonly ProfileRow[]>>
+  prepareSession(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<PreparedSession>>
   close(): Promise<CloseResult>
   status(): {
     readonly serving: boolean
@@ -165,11 +198,17 @@ export interface AcceptanceApplication {
   }
 }
 
-/** D092: only the real-authentication / directory / model replica stage is assembled. */
+/** D092 auth bootstrap, optionally followed by the restricted session preparation stage. */
 export function createAcceptanceApplication(
   config: AcceptanceConfig,
-  options: { readonly diagnostics: AcceptanceDiagnostics; readonly hooks?: AcceptanceHooks },
+  options: {
+    readonly diagnostics: AcceptanceDiagnostics
+    readonly hooks?: AcceptanceHooks
+    readonly stage?: AcceptanceStage
+  },
 ): AcceptanceApplication {
+  const stage = options.stage ?? 'authentication'
+  const requiredFibers = stage === 'requestPreparation' ? REQUEST_PREPARATION_FIBERS : STAGE_FIBERS
   const context = new Context()
   const guard = createUpgradeGuard()
   const fibers = new Map<StageFiber, Fiber>()
@@ -181,7 +220,8 @@ export function createAcceptanceApplication(
     memberships: MembershipFace | undefined,
     catalog: CatalogFace | undefined,
     lookup: CredentialLookup | undefined,
-    registration: Pick<RegistrationService, 'register'> | undefined
+    registration: Pick<RegistrationService, 'register'> | undefined,
+    sessionTenancy: SessionTenancyService | undefined
   let gateOpen = false,
     closing = false,
     diagnosticFailures = 0
@@ -222,7 +262,7 @@ export function createAcceptanceApplication(
     return names.every(name => fibers.get(name)?.state === FIBER_STATE.ACTIVE)
   }
   function admit(): boolean {
-    return gateOpen && !closing && allActive(STAGE_FIBERS) && replica !== undefined
+    return gateOpen && !closing && allActive(requiredFibers) && replica !== undefined
   }
   function track<T>(work: () => Promise<T>): Promise<T> {
     const job = Promise.resolve().then(work)
@@ -266,6 +306,7 @@ export function createAcceptanceApplication(
       await Promise.allSettled([...admitted])
       const unfinished: string[] = []
       const order: readonly (StageFiber | 'replica')[] = [
+        ...(stage === 'requestPreparation' ? (['sessionTenancy'] as const) : []),
         'lookup',
         'directory',
         'replica',
@@ -320,12 +361,17 @@ export function createAcceptanceApplication(
   }
   async function start(): Promise<{ readonly confirmation: UpgradeConfirmation }> {
     try {
+      if (stage !== 'authentication' && stage !== 'requestPreparation')
+        throw new Error('acceptance stage invalid')
       const prepared = await prepare(config)
       assertNotClosing()
       record({ event: 'stage', phase: 'prepare', outcome: 'ready' })
       phase = 'storage'
       category = 'storage'
-      const fragments = [...acceptanceMigrations, ...(hooks?.extraMigrations ?? [])]
+      const fragments = [
+        ...(stage === 'requestPreparation' ? requestPreparationMigrations : acceptanceMigrations),
+        ...(hooks?.extraMigrations ?? []),
+      ]
       storage = await openStorage(
         {
           dialect: 'sqlite',
@@ -479,6 +525,12 @@ export function createAcceptanceApplication(
           },
         },
       })
+      if (stage === 'requestPreparation') {
+        await load('sessionTenancy', sessionTenancyTablePlugin, {})
+        const value: unknown = context.get(SESSION_TENANCY_SERVICE)
+        if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
+        sessionTenancy = value
+      }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
         membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
         catalogValue: unknown = context.get(MODEL_CATALOG_SERVICE),
@@ -499,7 +551,7 @@ export function createAcceptanceApplication(
       registration = registrationValue
       phase = 'admission'
       assertNotClosing()
-      if (!allActive(STAGE_FIBERS)) throw new Error('acceptance required stage changed')
+      if (!allActive(requiredFibers)) throw new Error('acceptance required stage changed')
       gateOpen = true
       record({ event: 'gate', phase: 'scenario', outcome: 'open' })
       return { confirmation }
@@ -661,6 +713,65 @@ export function createAcceptanceApplication(
       }
     })
   }
+  function readOfficialProfiles(
+    actor: AuthenticatedActor,
+  ): Promise<ScenarioResult<readonly ProfileRow[]>> {
+    if (stage !== 'requestPreparation' || !admit())
+      return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      try {
+        const checked = await checkActor(actor)
+        if (!('account' in checked)) return checked
+        if (catalog === undefined) throw new AcceptanceOperationDefect('listProfiles')
+        const rows = await catalog.listProfiles(checked.tenant)
+        if ('failure' in rows) return { step: 'listProfiles', result: rows }
+        record({ event: 'operation', phase: 'readOfficialProfiles', outcome: 'read' })
+        return rows.filter(row => row.ref.origin === 'official')
+      } catch (error) {
+        throw operationError(error, 'listProfiles')
+      }
+    })
+  }
+  function prepareSession(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<PreparedSession>> {
+    if (stage !== 'requestPreparation' || !admit())
+      return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      try {
+        const checked = await checkActor(actor)
+        if (!('account' in checked)) return checked
+        if (storage === undefined || sessionTenancy === undefined)
+          throw new AcceptanceOperationDefect('prepareSession')
+        const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+        if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+          return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
+        let held = await sessionTenancy.holdingTenant(parsed.ok)
+        if ('failure' in held) {
+          if (held.failure !== 'sessionNotFound') return { step: 'holdingTenant', result: held }
+          await storage.atomic(unit =>
+            unit.mutate(tx => seedHoldingTenant(tx, parsed.ok, checked.tenant)),
+          )
+          held = await sessionTenancy.holdingTenant(parsed.ok)
+        } else if (!tenantIdEquals(held.tenant, checked.tenant)) {
+          throw new UniqueViolation('session_tenancy_pkey')
+        }
+        if ('failure' in held) return { step: 'holdingTenant', result: held }
+        if (!tenantIdEquals(held.tenant, checked.tenant))
+          throw new AcceptanceOperationDefect('prepareSession')
+        record({
+          event: 'operation',
+          phase: 'prepareSession',
+          outcome: 'prepared',
+          tenant: held.tenant,
+        })
+        return { session: parsed.ok, tenant: held.tenant }
+      } catch (error) {
+        throw operationError(error, 'prepareSession')
+      }
+    })
+  }
   return {
     ready,
     register(identifier, password) {
@@ -679,6 +790,8 @@ export function createAcceptanceApplication(
     authenticate,
     publishCredential,
     verifyCredential,
+    readOfficialProfiles,
+    prepareSession,
     close() {
       if (closingPromise !== undefined) return closingPromise
       closing = true

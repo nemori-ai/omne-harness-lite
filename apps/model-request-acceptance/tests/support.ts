@@ -43,7 +43,7 @@ export function latch() {
 export async function deployment(label: string): Promise<AcceptanceConfig> {
   const root = resolve(
     dirname(fileURLToPath(import.meta.url)),
-    '../../../tmp/model-request-runtime/p3-auth-assembly/test-runs',
+    '../../../tmp/model-request-runtime/m1-session-preparation/test-runs',
   )
   await mkdir(root, { recursive: true, mode: 0o700 })
   const path = await mkdtemp(join(root, `${label}-`))
@@ -116,7 +116,7 @@ export function noBusinessBeforeConfirmation(state: ReturnType<typeof persisted>
 export async function evidence(label: string, value: unknown): Promise<void> {
   const root = resolve(
     dirname(fileURLToPath(import.meta.url)),
-    '../../../tmp/model-request-runtime/p3-auth-assembly/scenarios',
+    '../../../tmp/model-request-runtime/m1-session-preparation/scenarios',
   )
   await mkdir(root, { recursive: true, mode: 0o700 })
   await writeFile(

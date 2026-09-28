@@ -3,8 +3,10 @@ import type { AccountId, LoginStateId, TenantId } from '@omne-harness-lite/ident
 import type { AccountIdentityConfig } from '@omne-harness-lite/account-identity'
 import type { CredentialRef } from '@omne-harness-lite/asset-model'
 import type { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification'
-import type { OfficialManifest } from '@omne-harness-lite/model-profile-directory'
+import type { SessionRef } from '@omne-harness-lite/messages/v3'
+import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organization-governance'
+import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
 import type {
   UpgradeConfirmation,
@@ -12,16 +14,25 @@ import type {
   UpgradePending,
 } from '@omne-harness-lite/storage-sql'
 
-export const BASE_FIBERS = [
+export const BASE_FIBERS = Object.freeze([
   'storage',
   'clock',
   'credentials',
   'accountIdentity',
   'governance',
   'registration',
-] as const
-export const STAGE_FIBERS = [...BASE_FIBERS, 'directory', 'lookup'] as const
-export type StageFiber = (typeof STAGE_FIBERS)[number]
+] as const)
+export const STAGE_FIBERS = Object.freeze([...BASE_FIBERS, 'directory', 'lookup'] as const)
+export const REQUEST_PREPARATION_FIBERS = Object.freeze([
+  ...STAGE_FIBERS,
+  'sessionTenancy',
+] as const)
+export type AcceptanceStage = 'authentication' | 'requestPreparation'
+export type StageFiber = (typeof REQUEST_PREPARATION_FIBERS)[number]
+export interface PreparedSession {
+  readonly session: SessionRef
+  readonly tenant: TenantId
+}
 export type StartupPhase =
   'prepare' | 'storage' | StageFiber | 'clockReady' | 'confirm' | 'replica' | 'admission'
 
@@ -99,11 +110,24 @@ export interface StageRejection {
   readonly failure:
     'stageClosed' | 'identityMismatch' | 'sourceScopeMismatch' | 'membershipNotEffective'
 }
-export interface ProviderRejection {
+interface AuthenticationProviderRejection {
   readonly step:
     'issue' | 'exchange' | 'verify' | 'currentTenant' | 'standing' | 'bind' | 'store' | 'lookup'
   readonly result: { readonly failure: string }
 }
+export type ProviderRejection =
+  | AuthenticationProviderRejection
+  | {
+      readonly step: 'listProfiles'
+      readonly result: Extract<
+        Awaited<ReturnType<ModelCatalog['listProfiles']>>,
+        { readonly failure: string }
+      >
+    }
+  | {
+      readonly step: 'holdingTenant'
+      readonly result: Extract<HoldingTenantResult, { readonly failure: string }>
+    }
 export type ScenarioResult<T> = T | StageRejection | ProviderRejection
 export interface CloseResult {
   readonly complete: boolean
