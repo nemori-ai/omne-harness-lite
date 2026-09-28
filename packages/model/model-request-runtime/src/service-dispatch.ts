@@ -478,6 +478,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         }
         if (outcome.rejected === 'modality_not_carried') {
           if (dispatchNumber > 1) return { invalidInput: { reason: 'modality_mismatch' } }
+          if (closing) return { runtimeStopped: true }
           const appended = await appendControlRecord({
             trackTask: task => appends.track(task),
             binding: session.log,
