@@ -31,12 +31,34 @@ const sources = {
 type PublicQwenModelId = keyof typeof sources
 const hostedMaxModelId = 'qwen/qwen3.8-max-0902'
 const hostedFlashModelId = 'qwen/qwen3.8-flash'
+const hosted37FlashModelId = 'qwen/qwen3.7-flash'
 const visualModelId = 'qwen/qwen3.8-27b'
 // Fixed-route observations: three text calibrations plus an untouched fourth
 // holdout had the same difference from the published ChatML/tokenizer proxy.
 const hostedMaxRouteOffset = 51
-const hostedFlashRouteOffset = 51
+const hostedFinalTextRoutes = {
+  [hostedFlashModelId]: {
+    implementationRevision: 'mp4-4',
+    algorithmRevision: 'qwen-38-hosted-flash-chatml-offset-1',
+    offset: 51,
+    evidence:
+      'Qwen/Qwen3.8-2.4T-A95B public tokenizer and hosted-Max published ChatML wrapper are only a proxy; exact OpenRouter qwen/qwen3.8-flash Alibaba final text-array wire three calibrations +51 and untouched holdout +51, result sha256:32a526bb147b4fffd26de4e669d6132592190ce1100d88c6fc81b74fed8d6c11, independent generation verification sha256:bbc15cae1443828472b6d026ae2894c01bc144413da00c1ded306be103952c03; single-user text-part estimate only',
+  },
+  [hosted37FlashModelId]: {
+    implementationRevision: 'mp4-5',
+    algorithmRevision: 'qwen-37-hosted-flash-chatml-offset-1',
+    offset: 0,
+    evidence:
+      'Qwen/Qwen3.8-2.4T-A95B public tokenizer and hosted-Max published ChatML wrapper are only a proxy; exact OpenRouter qwen/qwen3.7-flash Alibaba final text-array wire three calibrations +0 and untouched holdout +0, four original observation sha256:c59e5998555714ad12125bf4e0a6106ffc19b4056e86ab83ff63160d64a086e6/8ed2d813c4dc6516a47e76357820b636384ac8edeec552b55de32187e29351a6/91728d0980386b9b6d16d327ff1a27c9d244a695e92b43b5d82f562847427d62/6aae593a5739617af9957e1d94452ed92e6e8dd176fd2e2db10cd4bfa4095466, generation verification sha256:953e8aaa5f0bfc70a1110faa74364a3c279e4467d33686789ff8ecfd8c5000fc; single-user text-part estimate only',
+  },
+} as const
 const tokenizerSha256 = '0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3'
+
+function hostedFinalTextRoute(modelId: string) {
+  if (modelId === hostedFlashModelId || modelId === hosted37FlashModelId)
+    return hostedFinalTextRoutes[modelId]
+  return undefined
+}
 
 function sourceFor(modelId: string): (typeof sources)[PublicQwenModelId] | undefined {
   if (modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b')
@@ -299,10 +321,10 @@ export function renderQwenHostedMaxPrompt(body: JsonObject): string | undefined 
   return `<|im_start|>user\n${sequence[0].content}<|im_end|>\n<|im_start|>assistant\n<think>\n`
 }
 
-/** Final planner's single text-part user shape, calibrated on the fixed Flash/Alibaba route. */
-export function renderQwenHostedFlashPrompt(body: JsonObject): string | undefined {
+/** Final planner's single text-part user shape for a calibrated hosted route. */
+function renderHostedFinalTextPrompt(body: JsonObject, modelId: string): string | undefined {
   if (
-    body.model !== hostedFlashModelId ||
+    body.model !== modelId ||
     body.stream !== true ||
     body.store !== false ||
     !object(body.provider) ||
@@ -345,6 +367,10 @@ export function renderQwenHostedFlashPrompt(body: JsonObject): string | undefine
   )
     return undefined
   return `<|im_start|>user\n${part.text}<|im_end|>\n<|im_start|>assistant\n<think>\n`
+}
+
+export function renderQwenHostedFlashPrompt(body: JsonObject): string | undefined {
+  return renderHostedFinalTextPrompt(body, hostedFlashModelId)
 }
 
 /** Alibaba's image formula for source dimensions requiring no resize. */
@@ -403,14 +429,14 @@ function inlineImageTokens(body: JsonObject): number | undefined {
 export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
   const source = sourceFor(definition.modelId)
   const hostedMax = definition.modelId === hostedMaxModelId
-  const hostedFlash = definition.modelId === hostedFlashModelId
+  const hostedFinalText = hostedFinalTextRoute(definition.modelId)
   if (
-    (!source && !hostedMax && !hostedFlash) ||
+    (!source && !hostedMax && !hostedFinalText) ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:qwen' ||
     definition.implementation.revision !==
-      (hostedFlash
-        ? 'mp4-4'
+      (hostedFinalText
+        ? hostedFinalText.implementationRevision
         : hostedMax || definition.modelId === visualModelId
           ? 'mp4-3'
           : 'mp4-2') ||
@@ -423,15 +449,15 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'alibaba',
-    algorithmRevision: hostedFlash
-      ? 'qwen-38-hosted-flash-chatml-offset-1'
+    algorithmRevision: hostedFinalText
+      ? hostedFinalText.algorithmRevision
       : hostedMax
         ? 'qwen-38-hosted-max-chatml-offset-2'
         : definition.modelId === visualModelId
           ? 'qwen-38-public-template-image-3'
           : 'qwen-38-public-template-2',
-    evidence: hostedFlash
-      ? `Qwen/Qwen3.8-2.4T-A95B tokenizer.json sha256:${tokenizerSha256} and hosted-Max published ChatML wrapper are only a proxy; exact OpenRouter qwen/qwen3.8-flash Alibaba final text-array wire three calibrations +51 and untouched holdout +51, result sha256:32a526bb147b4fffd26de4e669d6132592190ce1100d88c6fc81b74fed8d6c11, independent generation verification sha256:bbc15cae1443828472b6d026ae2894c01bc144413da00c1ded306be103952c03; single-user text-part estimate only`
+    evidence: hostedFinalText
+      ? `${hostedFinalText.evidence}; tokenizer.json sha256:${tokenizerSha256}`
       : hostedMax
         ? `https://help.aliyun.com/en/model-studio/text-generation Qwen3.8-Max Hi/11-token ChatML example; Qwen/Qwen3.8-2.4T-A95B tokenizer.json sha256:${tokenizerSha256}; OpenRouter Alibaba fixed-route three text calibrations +51 and untouched holdout +51, observations sha256:464c029984e310a928b3ae74a152e2d15726d6d456dfb154aca8d593d25822e, provider verification sha256:1bb421e92fc128045d1dfdb24907aba73e7c5ba9bafc1af2b79eb6b6ad880836; single-user text estimate only`
         : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated`,
@@ -446,8 +472,8 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
         writeJsonLossless(body) !== serialized
       )
         return { kind: 'unavailable' }
-      const prompt = hostedFlash
-        ? renderQwenHostedFlashPrompt(body)
+      const prompt = hostedFinalText
+        ? renderHostedFinalTextPrompt(body, definition.modelId)
         : hostedMax
           ? renderQwenHostedMaxPrompt(body)
           : renderQwenPrompt(body)
@@ -460,7 +486,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
           tokens:
             encoder.encode(prompt, { add_special_tokens: false }).ids.length +
             imageTokens +
-            (hostedFlash ? hostedFlashRouteOffset : hostedMax ? hostedMaxRouteOffset : 0),
+            (hostedFinalText ? hostedFinalText.offset : hostedMax ? hostedMaxRouteOffset : 0),
         }
       } catch {
         return { kind: 'unavailable' }

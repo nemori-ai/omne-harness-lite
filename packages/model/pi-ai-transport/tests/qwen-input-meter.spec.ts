@@ -35,7 +35,10 @@ import {
 const ids = ['qwen/qwen3.8-2.4t-a95b', 'qwen/qwen3.8-27b'] as const
 const commercial = qwenAlibabaModelIds.filter(modelId => !ids.some(id => id === modelId))
 const unboundCommercial = commercial.filter(
-  modelId => modelId !== 'qwen/qwen3.8-max-0902' && modelId !== 'qwen/qwen3.8-flash',
+  modelId =>
+    modelId !== 'qwen/qwen3.8-max-0902' &&
+    modelId !== 'qwen/qwen3.8-flash' &&
+    modelId !== 'qwen/qwen3.7-flash',
 )
 const localResponse =
   content('done') +
@@ -312,6 +315,150 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
         kind: 'estimated',
         tokens: 68,
+      })
+      const sent = await transport.send(
+        planned.planned,
+        'qwen-local-only-credential',
+        new AbortController().signal,
+      )
+      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
+      for await (const _event of transport.read(
+        sent.response,
+        planned.planned,
+        new AbortController().signal,
+      )) {
+        // Consume the local fixture and release its network resource.
+      }
+      expect(host.requests).toHaveLength(1)
+      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+    } finally {
+      await transport.close()
+      await host.close()
+    }
+  })
+
+  it('fits Qwen3.7 Flash independently and matches its untouched final-wire holdout', () => {
+    const selected = definition('qwen/qwen3.7-flash')
+    const meter = createQwenInputMeter(selected)
+    expect(selected.implementation.revision).toBe('mp4-5')
+    expect(meter.algorithmRevision).toBe('qwen-37-hosted-flash-chatml-offset-1')
+    const golden: unknown = JSON.parse(
+      readFileSync(new URL('./fixtures/qwen/flash37-route-golden.json', import.meta.url), 'utf8'),
+    )
+    if (!object(golden) || !Array.isArray(golden.rows)) throw new Error('invalid 3.7 Flash golden')
+    expect(golden.sourceGenerationVerificationSha256).toBe(
+      '953e8aaa5f0bfc70a1110faa74364a3c279e4467d33686789ff8ecfd8c5000fc',
+    )
+    expect(golden.upstreamModel).toBe('qwen/qwen3.7-flash-20260727')
+    const fit: number[] = []
+    let holdout: number | undefined
+    for (const row of golden.rows) {
+      if (
+        !object(row) ||
+        typeof row.file !== 'string' ||
+        typeof row.fileSha256 !== 'string' ||
+        typeof row.sentSha256 !== 'string' ||
+        typeof row.sourceObservationSha256 !== 'string' ||
+        typeof row.proxyTokens !== 'number' ||
+        typeof row.observedInputTokens !== 'number'
+      )
+        throw new Error('invalid 3.7 Flash golden row')
+      const file = readFileSync(
+        new URL(`./fixtures/qwen/flash37-route/${row.file}`, import.meta.url),
+      )
+      expect(createHash('sha256').update(file).digest('hex')).toBe(row.fileSha256)
+      const serialized = file.toString('utf8').trimEnd()
+      expect(createHash('sha256').update(serialized).digest('hex')).toBe(row.sentSha256)
+      const body: unknown = JSON.parse(serialized)
+      if (!object(body)) throw new Error('invalid 3.7 Flash wire')
+      expect(meter.measure({ body, serialized })).toEqual({
+        kind: 'estimated',
+        tokens: row.observedInputTokens,
+      })
+      const residual = row.observedInputTokens - row.proxyTokens
+      if (row.phase === 'fit') fit.push(residual)
+      else if (row.phase === 'untouched-holdout') holdout = residual
+      else throw new Error('invalid 3.7 Flash phase')
+    }
+    expect(fit).toEqual([0, 0, 0])
+    expect(holdout).toBe(fit[0])
+  })
+
+  it('keeps Qwen3.7 Flash unavailable outside the calibrated final text-part shape', () => {
+    const selected = definition('qwen/qwen3.7-flash')
+    const meter = createQwenInputMeter(selected)
+    const base = JSON.parse(
+      readFileSync(
+        new URL(
+          './fixtures/qwen/flash37-route/formal-33-qwen3.7-flash-english.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    )
+    for (const changed of [
+      { ...base, stream: false },
+      { ...base, store: null },
+      { ...base, messages: [{ role: 'user', content: 'Reply with the single word OK.' }] },
+      { ...base, messages: [{ role: 'user', content: null }] },
+      { ...base, messages: [{ role: 'user', content: [{ type: 'text', text: '' }] }] },
+      { ...base, messages: [{ role: 'system', content: 'Be brief.' }, ...base.messages] },
+      { ...base, messages: [...base.messages, ...base.messages] },
+      {
+        ...base,
+        messages: [
+          {
+            role: 'user',
+            content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
+          },
+        ],
+      },
+      { ...base, tools: [{ type: 'function', function: { name: 'lookup', parameters: {} } }] },
+      { ...base, reasoning: { effort: 'high' } },
+      { ...base, model: 'qwen/qwen3.8-flash' },
+      { ...base, provider: { order: ['other'], allow_fallbacks: false, require_parameters: true } },
+    ])
+      expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+        kind: 'unavailable',
+      })
+    expect(() =>
+      createQwenInputMeter({
+        ...selected,
+        implementation: { name: 'pi-ai:qwen', revision: 'mp4-1' },
+      }),
+    ).toThrow('unsupported Qwen definition')
+  })
+
+  it('plans and sends Qwen3.7 Flash through the real meter and local TLS final wire', async () => {
+    const modelId = 'qwen/qwen3.7-flash'
+    const selected = definition(modelId)
+    const meter = createQwenInputMeter(selected)
+    const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [selected],
+      inputMeters: [meter],
+    })
+    try {
+      const input = {
+        ...request(modelId),
+        messages: [message('user', 'Reply with the single word OK.', 'flash37-english')],
+        tools: [],
+        parameters: { maxOutputTokens: 16 },
+      }
+      const planned = transport.plan(input)
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      const frozen = readFileSync(
+        new URL(
+          './fixtures/qwen/flash37-route/formal-33-qwen3.7-flash-english.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ).trimEnd()
+      expect(planned.planned.serialized).toBe(frozen)
+      expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
+        kind: 'estimated',
+        tokens: 17,
       })
       const sent = await transport.send(
         planned.planned,
