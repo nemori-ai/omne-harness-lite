@@ -450,3 +450,19 @@ Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配
 `src/input-meters/openai.ts` 中尚未绑定的 Sol/Luna 可见多轮候选以 o200k 对完整 low-effort 文本与工具历史的无损 JSON 估算；密文推理和媒体仍拒绝。它不是官方模型绑定，也不从包根导出。运行 `pnpm exec vitest run tests/openai-visible-history-candidate.spec.ts` 可验证六个冻结的规划／TLS 场景；正式采用仍需真实路由验证。
 
 Moonshot 图片探针分别验证 PNG 完整性与生产输入限额：`node --test tests/fixtures/moonshot/repair-image.test.mjs` 和 `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`。这些本机检查不证明上游接受或缓存命中。
+
+### ZAI 历史候选验证
+
+`src/input-meters/zai-candidate.ts` 中的 ZAI 历史思考候选复用固定 GLM
+tokenizer 和模板，保留完整的助手纯文本历史。它未从包入口导出，也未绑定到
+官方模型。Prime/FlashX 托管路由的历史计量、混合 opaque/plain 历史仍待验证。
+五份已保存的完整 SSE 经本地 TLS 检查生产流装配，独立 Jinja 黄金输出只验证
+公开模板的投影。混合历史用例保留一个具名预期失败，不能算验收通过。
+
+构建后可执行上述命令，用显式输出上限冻结十五条尚未发送的 control/plain/details
+请求；命令不访问网络、凭据或付费账本。512 是这次探针的调用者参数，不是模型上限。
+
+```sh
+node packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-probes.mjs --max-output-tokens 512 > tmp/zai-history-probes.json
+node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-probes.check.mjs
+```

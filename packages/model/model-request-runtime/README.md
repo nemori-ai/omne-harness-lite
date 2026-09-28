@@ -790,3 +790,30 @@ export function invokeWithTools<P extends PlannedSemantics, R>(
 The runtime sends definitions and assembles streamed tool calls; the caller supplies each corresponding tool result in subsequent history. No tool is executed or automatically fed back by this function. Invalid definitions, duplicate names and orphan calls are rejected before a new dispatched anchor or HTTP request. The internal service composition helper now resolves names through the captured session or Run report scope; it is not a public tool execution API. The interactive demo still supplies an empty tool list.
 
 `RuntimeConstruction.transport.acquire(binding, routeName)` preserves three results: an exact lease, `{unavailable:true}` for an unavailable implementation, or `{invalidInput:{reason:"malformed"}}` for invalid binding/configuration. Both new calls and acquisition from an existing anchor retain the refusal before planning or sending; the enclosing operation still owns its normal cleanup.
+
+### Bounded engineering diagnostics
+
+`createDiagnosticCollector(config)` accepts typed observations into a bounded queue and keeps per-call association in an explicit emitter. Supply the complete `DiagnosticCollectorConfig`, including a `DiagnosticJournalStore`, one local or tenant scope, clocks, scheduler and every capacity/timeout. The collector does not supply file storage. `recorded` means accepted in memory; inspect health for written/flushed watermarks and incomplete close. Query/export require the same scope and explicit page bounds. Exact numeric facts retain their JSON number representation.
+
+These are engineering records, separate from the session log and recovery authority. The example below takes the real host configuration and observed HTTP status. Give each invocation its own emitter; retain the collector if close reports incomplete. The example JSONL provider and complete runtime/transport wiring remain in progress.
+
+```ts
+import {
+  createDiagnosticCollector,
+  type DiagnosticCollectorConfig,
+} from '@omne-harness-lite/model-request-runtime'
+
+export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: number) {
+  const collector = createDiagnosticCollector(config)
+  const emitter = collector.emitter(config.scope, { executionId: 'invocation-1' })
+  const accepted = emitter.record({
+    source: 'transport',
+    stage: 'send',
+    outcome: 'completed',
+    facts: { kind: 'transport', httpStatus },
+  })
+  emitter.close()
+  const closed = await collector.close()
+  return { accepted, closed, health: collector.health(), metrics: collector.metrics(config.scope) }
+}
+```

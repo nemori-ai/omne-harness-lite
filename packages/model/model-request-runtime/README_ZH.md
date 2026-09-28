@@ -777,3 +777,30 @@ export function invokeWithTools<P extends PlannedSemantics, R>(
 runtime 负责发送定义并装配流式工具调用；调用者负责在后续历史中提供各调用对应的工具结果。该函数不执行工具，也不自动回填结果。非法定义、重名或孤儿调用在新的 dispatched 锚点和 HTTP 请求之前拒绝。内部服务组合构件已能按捕获的会话或 Run 报告范围解析名字；这不是公开的工具执行 API。交互 demo 仍传空工具列表。
 
 `RuntimeConstruction.transport.acquire(binding, routeName)` 保留三种结果：精确 lease、实现不可取得的 `{unavailable:true}`、绑定或配置非法的 `{invalidInput:{reason:"malformed"}}`。新调用与原锚点重新取得都在 plan/send 前保留拒绝类别；外层操作仍负责既有收口。
+
+### 有界工程诊断
+
+`createDiagnosticCollector(config)` 将类型化观测接入有界队列，用独立 emitter 保留每次调用的关联。调用者须完整提供 `DiagnosticCollectorConfig`，包括 `DiagnosticJournalStore`、单个 local 或 tenant scope、时钟、调度器及全部容量和超时。collector 本身不提供文件存储。`recorded` 只表示内存接纳；written/flushed 水位及未完成关闭从 health 读取。query/export 要求相同 scope 和显式分页界限，精确数值保留 JSON number 表示。
+
+这些是工程诊断记录，与会话日志和恢复权威分开。下例接收真实宿主配置及观测到的 HTTP 状态，每次调用使用独立 emitter；close 返回 incomplete 时继续持有 collector。示例 JSONL 提供者和完整 runtime/transport 接线仍在推进。
+
+```ts
+import {
+  createDiagnosticCollector,
+  type DiagnosticCollectorConfig,
+} from '@omne-harness-lite/model-request-runtime'
+
+export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: number) {
+  const collector = createDiagnosticCollector(config)
+  const emitter = collector.emitter(config.scope, { executionId: 'invocation-1' })
+  const accepted = emitter.record({
+    source: 'transport',
+    stage: 'send',
+    outcome: 'completed',
+    facts: { kind: 'transport', httpStatus },
+  })
+  emitter.close()
+  const closed = await collector.close()
+  return { accepted, closed, health: collector.health(), metrics: collector.metrics(config.scope) }
+}
+```

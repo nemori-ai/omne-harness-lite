@@ -450,3 +450,23 @@ The Anthropic cache probe (`tests/fixtures/anthropic/cache-public.mjs`) uses exp
 The unbound Sol/Luna visible-history candidate in `src/input-meters/openai.ts` estimates complete low-effort text and tool history from its lossless JSON using o200k. It rejects opaque reasoning and media and is not an official model binding or package-root export. Run `pnpm exec vitest run tests/openai-visible-history-candidate.spec.ts` for the six frozen planner/TLS cases; live route validation is still required before promotion.
 
 Moonshot image probe fixtures have separate PNG integrity and production input-limit checks: `node --test tests/fixtures/moonshot/repair-image.test.mjs` and `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`. These local checks do not establish provider acceptance or cache behavior.
+
+### ZAI history candidate checks
+
+ZAI's unbound historical-thinking candidate in `src/input-meters/zai-candidate.ts`
+reuses the pinned GLM tokenizer and template for complete plaintext assistant
+history. It is not exported by the package entry point or registered by official
+models. Hosted Prime/FlashX history accounting and mixed opaque/plain history
+remain unverified. The five recorded complete SSE responses exercise production
+stream assembly over local TLS; their independent Jinja prompt goldens cover
+only the public-template projection. The mixed-history test has one named
+expected failure and must not be counted as an acceptance pass.
+
+After building, prepare the fifteen unsent control/plain/details probes with an
+explicit output limit (this command has no network or credential access):
+
+```sh
+node packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-probes.mjs \
+  --max-output-tokens 512 > tmp/zai-history-probes.json
+node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-probes.check.mjs
+```

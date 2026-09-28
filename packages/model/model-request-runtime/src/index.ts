@@ -54,3 +54,6 @@ export { createServiceControl } from './service-control.ts'
 export { createRuntimeSettleReply, createRuntimeReconcile } from './service-reconcile.ts'
 export { createServiceDispatch } from './service-dispatch.ts'
 export { createModelRuntime } from './service-runtime.ts'
+
+export type * from './diagnostics-types.ts'
+export { createDiagnosticCollector } from './diagnostics.ts'
