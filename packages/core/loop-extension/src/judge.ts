@@ -4,12 +4,14 @@ import { judgeModelInvocationRecord } from '@omne-harness-lite/messages'
 import type {
   Conclusion,
   ConclusionInputs,
+  ConclusionSubjectInputs,
   ExtensionInput,
   ExtensionOutput,
   Judgment,
   LoopExtensionDefinition,
   OutputKind,
   Position,
+  PositionedSubject,
   Rejection,
 } from './types.ts'
 import { equal, object, snapshot } from './json.ts'
@@ -19,6 +21,7 @@ import { isPosition, isPower, POSITION_CONCLUSIONS, POWER_CONCLUSIONS } from './
 import {
   conclusionFromRepresentation,
   inputFromRepresentation,
+  positionedFromRepresentation,
   outputFromRepresentation,
 } from './values.ts'
 
@@ -263,6 +266,25 @@ export function judgeInput(value: unknown): Judgment<ExtensionInput> {
   if ('rejected' in result) return result
   return Object.freeze({ ok: inputFromRepresentation(result.ok) })
 }
+/** Check only the position, dimension, and corresponding subject value. */
+export function judgePositionedSubject(value: unknown): Judgment<PositionedSubject> {
+  const record = snapshot(value)
+  if (
+    !object(record) ||
+    !Object.hasOwn(record, 'position') ||
+    !Object.hasOwn(record, 'subject') ||
+    Object.keys(record).some(key => !['position', 'dimension', 'subject'].includes(key)) ||
+    !object(record.subject) ||
+    !ordinaryShape('Subject', record.subject)
+  )
+    return rejected('malformed')
+  if (!isPosition(record.position)) return rejected('position_unknown')
+  const dimension = dimensionRejection(record)
+  if (dimension !== undefined) return rejected(dimension)
+  const judged = judgeValue(subjectDefinition(record.position, record.dimension), record.subject)
+  if ('rejected' in judged) return judged
+  return Object.freeze({ ok: positionedFromRepresentation(record) })
+}
 export function judgeOutput(value: unknown): Judgment<ExtensionOutput> {
   const result = judgeValue('ExtensionOutput', value)
   if ('rejected' in result) return result
@@ -274,14 +296,13 @@ export function judgeOutput(value: unknown): Judgment<ExtensionOutput> {
  * caller-admitted inputs/pairing are missing or invalid, never an eleventh refusal.
  * The caller owns actual invocation provenance beyond these observable values.
  */
-export function judgeConclusion(value: unknown, inputs: ConclusionInputs): Judgment<Conclusion> {
+function conclusionRecord(value: unknown, inputs: unknown): Judgment<JsonObject> {
   const record = snapshot(value)
   if (record === undefined || !ordinaryShape('Conclusion', record) || !object(record))
     return rejected('malformed')
   const about = aboutOf(record)
   if (about !== undefined && (about.position !== record.position || about.callId !== record.callId))
     return rejected('malformed')
-  const supplied = snapshot(inputs)
   const nameDescriptor = object(inputs)
     ? Object.getOwnPropertyDescriptor(inputs, 'extensionName')
     : undefined
@@ -290,17 +311,11 @@ export function judgeConclusion(value: unknown, inputs: ConclusionInputs): Judgm
   if (isCapabilityName(actualName) && record.extension !== actualName) return rejected('malformed')
   const representation = judgeValue('Conclusion', record)
   if ('rejected' in representation) return representation
-  if (
-    !object(supplied) ||
-    Object.keys(supplied).length !== 2 ||
-    !Object.hasOwn(supplied, 'input') ||
-    !isCapabilityName(supplied.extensionName)
-  )
-    throw new TypeError('admitted ConclusionInputs required')
-  const admitted = judgeInput(supplied.input)
-  if ('rejected' in admitted) throw new TypeError('ConclusionInputs.input is not admitted')
-  const input = snapshot(admitted.ok)
-  if (!object(input) || !object(input.subject)) throw new Error('admitted input has no subject')
+  return Object.freeze({ ok: record })
+}
+function pairConclusion(record: JsonObject, subject: PositionedSubject): Judgment<Conclusion> {
+  const input = snapshot(subject)
+  if (!object(input) || !object(input.subject)) throw new Error('admitted subject has no value')
   if (
     input.position === 'after_model_call' &&
     object(input.dimension) &&
@@ -336,4 +351,40 @@ export function judgeConclusion(value: unknown, inputs: ConclusionInputs): Judgm
   )
     return rejected('rewrite_touches_immutable')
   return Object.freeze({ ok: conclusionFromRepresentation(record) })
+}
+
+export function judgeConclusion(value: unknown, inputs: ConclusionInputs): Judgment<Conclusion> {
+  const candidate = conclusionRecord(value, inputs)
+  if ('rejected' in candidate) return candidate
+  const supplied = snapshot(inputs)
+  if (
+    !object(supplied) ||
+    Object.keys(supplied).length !== 2 ||
+    !Object.hasOwn(supplied, 'input') ||
+    !isCapabilityName(supplied.extensionName)
+  )
+    throw new TypeError('admitted ConclusionInputs required')
+  const admitted = judgeInput(supplied.input)
+  if ('rejected' in admitted) throw new TypeError('ConclusionInputs.input is not admitted')
+  return pairConclusion(candidate.ok, admitted.ok)
+}
+
+export function judgeConclusionForSubject(
+  value: unknown,
+  inputs: ConclusionSubjectInputs,
+): Judgment<Conclusion> {
+  const candidate = conclusionRecord(value, inputs)
+  if ('rejected' in candidate) return candidate
+  const supplied = snapshot(inputs)
+  if (
+    !object(supplied) ||
+    Object.keys(supplied).length !== 2 ||
+    !Object.hasOwn(supplied, 'positionedSubject') ||
+    !isCapabilityName(supplied.extensionName)
+  )
+    throw new TypeError('admitted ConclusionSubjectInputs required')
+  const admitted = judgePositionedSubject(supplied.positionedSubject)
+  if ('rejected' in admitted)
+    throw new TypeError('ConclusionSubjectInputs.positionedSubject is not admitted')
+  return pairConclusion(candidate.ok, admitted.ok)
 }

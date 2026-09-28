@@ -7,6 +7,8 @@ export {
   judgeInput,
   judgeOutput,
   judgeConclusion,
+  judgePositionedSubject,
+  judgeConclusionForSubject,
   isLoopExtensionDefinition,
   isExtensionInput,
   isExtensionOutput,

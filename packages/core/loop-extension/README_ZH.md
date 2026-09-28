@@ -10,6 +10,7 @@
 | ------------------------------------------------------------------ | ---------------------------------- |
 | `judgeDefinition`、`judgeInput`、`judgeOutput`                     | 接收协议值并取得带类型的副本       |
 | `judgeConclusion(value, inputs)`                                   | 检查结论形状、合法组合与不可改字段 |
+| `judgePositionedSubject`、`judgeConclusionForSubject`              | 无执行句柄地判定纯主体和结论       |
 | `POSITIONS`、`POWERS`、`POWER_CONCLUSIONS`、`POSITION_CONCLUSIONS` | 查看位置与结论的合法组合           |
 | `loopExtensionBodyContract`                                        | 为资产模型提供拓展件定义规则       |
 | `validate`、`judgeValue`                                           | 使用 Schema 与通用判定面           |
@@ -107,6 +108,29 @@ console.log(
 ```
 
 ## 失败与边界
+
+纯组合可以在不声称 Run 或日志存在的情况下检查主体和结论：
+
+```ts
+import { judgePositionedSubject, judgeConclusionForSubject } from '@omne-harness-lite/loop-extension'
+
+const subject = judgePositionedSubject({ position: 'attempt_started', subject: { attempt: 1 } })
+if ('rejected' in subject) throw new Error(subject.rejected)
+const conclusion = judgeConclusionForSubject(
+  {
+    extension: 'audit',
+    position: 'attempt_started',
+    power: 'observe',
+    output: { kind: 'observed' },
+    at: '2026-09-28T10:00:00Z',
+  },
+  { positionedSubject: subject.ok, extensionName: 'audit' },
+)
+if ('rejected' in conclusion) throw new Error(conclusion.rejected)
+console.log(conclusion.ok.output) // { kind: 'observed' }
+```
+
+纯主体只接收 `position`、该位置需要的 `dimension` 和 `subject`。判定成功只证明表示及配对关系，不证明实际调用、派发或历史完整。真正执行的消费者仍须以真实句柄与 Run 事实调用 `judgeInput` 和 `judgeConclusion`。
 
 判定返回带类型的 `{ ok }` 副本或 `{ rejected }`。`judgeConclusion` 需要已经接收的 `ExtensionInput` 与真实拓展件名，并与该次位置、维度及动作身份配对。辅助配置缺失或不合法会抛出 `TypeError`；协议拒绝仍是独立结果。只检查 Schema 的类型守卫与 `validate` 无法对照实际调用检查改写。
 

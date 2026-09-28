@@ -12,11 +12,15 @@ import type {
   FailureCause,
   LogHandle,
   DecisionCardDraft,
+  ConclusionSubjectInputs,
+  PositionedSubject,
 } from '../src/index.ts'
 import {
   loopExtensionBodyContract,
   judgeDefinition,
   judgeInput,
+  judgePositionedSubject,
+  judgeConclusionForSubject,
   judgeOutput,
   judgeValue,
   validate,
@@ -114,6 +118,11 @@ it('LE-TYPE-API: emitted exports and real category literal', () => {
   void invalidCard
   expectTypeOf(judgeDefinition).parameter(0).toBeUnknown()
   expectTypeOf(judgeInput).parameter(0).toBeUnknown()
+  expectTypeOf(judgePositionedSubject).parameter(0).toBeUnknown()
+  expectTypeOf(judgePositionedSubject).returns.toEqualTypeOf<
+    import('../src/index.ts').Judgment<PositionedSubject>
+  >()
+  expectTypeOf(judgeConclusionForSubject).parameter(1).toEqualTypeOf<ConclusionSubjectInputs>()
   expectTypeOf(judgeOutput).parameter(0).toBeUnknown()
   expectTypeOf(judgeValue).parameter(1).toBeUnknown()
   // @ts-expect-error definition registry is closed

@@ -15,6 +15,7 @@ import type {
   Subject,
 } from './types.ts'
 import { validate } from './schema.ts'
+import { object } from './json.ts'
 
 function identifier<B extends string>(value: string, brand: B): OpaqueIdentifier<B> {
   const parsed = parseOpaqueIdentifier(value, brand)
@@ -158,6 +159,42 @@ function positioned(value: Wire<PositionedSubject>): PositionedSubject {
       break
   }
   throw new Error('admitted loop subject does not match its position')
+}
+/** This conversion follows judgment of the position, dimension, and selected subject. */
+export function positionedFromRepresentation(value: JsonValue): PositionedSubject {
+  if (!object(value) || !object(value.subject) || !validate('Subject', value.subject).valid)
+    throw new Error('admitted positioned subject failed Schema narrowing')
+  if (!isWirePositioned(value))
+    throw new Error('admitted positioned subject failed position narrowing')
+  return positioned(value)
+}
+function isWirePositioned(value: JsonValue): value is JsonValue & Wire<PositionedSubject> {
+  if (!object(value) || !object(value.subject) || !validate('Subject', value.subject).valid)
+    return false
+  switch (value.position) {
+    case 'after_model_call':
+      return (
+        object(value.dimension) &&
+        (value.dimension.ending === 'failure' || value.dimension.ending === 'complete_reply')
+      )
+    case 'after_action':
+      return (
+        object(value.dimension) &&
+        (value.dimension.scope === 'each' || value.dimension.scope === 'batch')
+      )
+    case 'attempt_started':
+    case 'before_persist_message':
+    case 'after_persist_message':
+    case 'before_compaction':
+    case 'after_compaction':
+    case 'before_model_call':
+    case 'before_action':
+    case 'before_terminal':
+    case 'after_terminal':
+      return !Object.hasOwn(value, 'dimension')
+    default:
+      return false
+  }
 }
 function output(value: Wire<ExtensionOutput>): ExtensionOutput {
   switch (value.kind) {

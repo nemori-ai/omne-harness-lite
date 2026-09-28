@@ -415,3 +415,8 @@ export interface ConclusionInputs {
   readonly input: ExtensionInput
   readonly extensionName: CapabilityName
 }
+/** Caller-supplied subject for pure judgment; no execution handles are inferred. */
+export interface ConclusionSubjectInputs {
+  readonly positionedSubject: PositionedSubject
+  readonly extensionName: CapabilityName
+}

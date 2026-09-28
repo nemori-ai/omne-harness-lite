@@ -10,6 +10,7 @@ This package is an unpublished, private ESM workspace member. Use it from this r
 | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | `judgeDefinition`, `judgeInput`, `judgeOutput`                     | Admit protocol values and obtain typed copies                     |
 | `judgeConclusion(value, inputs)`                                   | Check conclusion shape, allowed combinations and immutable fields |
+| `judgePositionedSubject`, `judgeConclusionForSubject`              | Check a pure subject and conclusion without execution handles     |
 | `POSITIONS`, `POWERS`, `POWER_CONCLUSIONS`, `POSITION_CONCLUSIONS` | Inspect legal positions and output combinations                   |
 | `loopExtensionBodyContract`                                        | Supply definition rules to the asset model                        |
 | `validate`, `judgeValue`                                           | Use the schema and generic judgment surfaces                      |
@@ -107,6 +108,29 @@ console.log(
 ```
 
 ## Failures and boundaries
+
+A pure composition can check a subject and a conclusion without claiming a Run or log exists:
+
+```ts
+import { judgePositionedSubject, judgeConclusionForSubject } from '@omne-harness-lite/loop-extension'
+
+const subject = judgePositionedSubject({ position: 'attempt_started', subject: { attempt: 1 } })
+if ('rejected' in subject) throw new Error(subject.rejected)
+const conclusion = judgeConclusionForSubject(
+  {
+    extension: 'audit',
+    position: 'attempt_started',
+    power: 'observe',
+    output: { kind: 'observed' },
+    at: '2026-09-28T10:00:00Z',
+  },
+  { positionedSubject: subject.ok, extensionName: 'audit' },
+)
+if ('rejected' in conclusion) throw new Error(conclusion.rejected)
+console.log(conclusion.ok.output) // { kind: 'observed' }
+```
+
+The pure subject accepts only `position`, its required `dimension`, and `subject`. A valid pure result checks representation and pairing; it does not prove an actual invocation, dispatch, or complete history. Consumers performing real execution still use `judgeInput` and `judgeConclusion` with actual handles and Run facts.
 
 Judgments return a typed `{ ok }` copy or `{ rejected }`. `judgeConclusion` needs an admitted `ExtensionInput` and the actual extension name, paired to the same position, dimension and action identity. Missing or invalid auxiliary configuration throws `TypeError`; protocol rejection remains a separate result. Schema-only guards and `validate` cannot compare a rewrite against the actual invocation.
 
