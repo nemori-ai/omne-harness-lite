@@ -17,6 +17,7 @@ import type {
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
+import type { DiagnosticFact, DiagnosticOutcome } from './diagnostics-types.ts'
 
 /** Explicit per-plan estimate policy; never used as upstream usage. */
 export interface TokenMargin {
@@ -109,13 +110,28 @@ export type SendResult<R> =
   | { readonly failed: TransportFailure; readonly rawHeaders?: RawHeaders }
   | { readonly aborted: true; readonly queued?: true; readonly rawHeaders?: RawHeaders }
   | { readonly rejected: 'invalidInput' | 'unavailable' }
+/** Request-local transport facts; the caller-owned closure supplies source and association. */
+export interface TransportDiagnosticFact {
+  readonly stage: 'queue' | 'send' | 'stream_end'
+  readonly outcome: DiagnosticOutcome
+  readonly facts: Extract<DiagnosticFact, { readonly kind: 'transport' }>
+}
+export interface TransportExecutionDiagnostics {
+  readonly record: (fact: TransportDiagnosticFact) => void
+}
 export interface TransportAdapter<P extends PlannedSemantics, R> {
   readonly plan: (input: PlanInput) => PlanResult<P>
-  readonly send: (planned: P, credential: string, signal: AbortSignal) => Promise<SendResult<R>>
+  readonly send: (
+    planned: P,
+    credential: string,
+    signal: AbortSignal,
+    diagnostics?: TransportExecutionDiagnostics,
+  ) => Promise<SendResult<R>>
   readonly read: (
     response: R,
     planned: P,
     signal: AbortSignal,
+    diagnostics?: TransportExecutionDiagnostics,
   ) => AsyncGenerator<ArrivalEvent, StreamEnd>
 }
 export interface InvocationPolicy {

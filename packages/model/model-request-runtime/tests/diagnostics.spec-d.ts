@@ -8,6 +8,7 @@ import type {
   DiagnosticRecord,
 } from '../src/diagnostics-types.ts'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
+import type { TransportDiagnosticFact, TransportExecutionDiagnostics } from '../src/types.ts'
 
 expectTypeOf(createDiagnosticCollector).toBeFunction()
 expectTypeOf<DiagnosticRecord['format']>().toEqualTypeOf<'model-diagnostics/1'>()
@@ -19,6 +20,20 @@ expectTypeOf<DiagnosticAssociation['causedBy']>().toEqualTypeOf<
 >()
 expectTypeOf<DiagnosticAssociation['dispatch']>().toEqualTypeOf<JsonNumber | undefined>()
 expectTypeOf<DiagnosticAssociation['attempt']>().toEqualTypeOf<JsonNumber | undefined>()
+expectTypeOf<TransportExecutionDiagnostics['record']>().toBeFunction()
+const transportFact: TransportDiagnosticFact = {
+  stage: 'send',
+  outcome: 'accepted',
+  facts: { kind: 'transport', httpStatus: 503 },
+}
+const rawTransportFact: TransportDiagnosticFact = {
+  stage: 'send',
+  outcome: 'failed',
+  // @ts-expect-error Request-local transport facts never carry credential or raw error text.
+  facts: { kind: 'transport', raw: 'private echo' },
+}
+void transportFact
+void rawTransportFact
 expectTypeOf<DiagnosticQueryResult>().toMatchTypeOf<
   { readonly page: unknown } | { readonly rejected: string }
 >()
