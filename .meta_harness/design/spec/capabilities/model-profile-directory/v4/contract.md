@@ -6,7 +6,7 @@
   `family = capabilities`、`topic = model-profile-directory`、规范路径 `spec/capabilities/model-profile-directory/v4/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：candidate，继承已接受 v3 的既有承诺并增加输入供给上限与上游事实的完整读写；未经本版独立评审或接受。精确登记与采用状态由版本外入口及 registry 维护。
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 14** 为准，另引 **PF-001 rev 19**、**PF-002 rev 20**、**PF-016 rev 8**；每次改 rev 之前逐版读 changelog 核过受影响的条款，结论记在[验证入口「变化的影响」](../verification.md#变化的影响)
+- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-013 rev 14** 为准，另引 **PF-001 rev 23**、**PF-002 rev 26**、**PF-016 rev 10**；每次改 rev 之前逐版读 changelog 核过受影响的条款，结论记在[验证入口「v4 变化的影响」](../verification.md#v4-变化的影响)
 - **本轮施工依据**：[D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md) 接受的输入上限政策与已接受 v3 目录承诺；新增内容见 S-36～S-38。共享数据 v4 是本批定型候选，未被本能力接受或发布。
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记）：
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v4`（candidate）
