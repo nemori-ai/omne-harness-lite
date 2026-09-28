@@ -252,10 +252,19 @@ function exactNonnegativeInteger(value: unknown): value is JsonNumber {
     : isNonNegativeJsonInteger(value)
 }
 
-function validReference(value: unknown, maxBytes: number): DiagnosticReference | null {
+function validReference(
+  value: unknown,
+  maxBytes: number,
+  emptyThrough = false,
+): DiagnosticReference | null {
   const record = ownData(value, referenceKeys)
   if (!record || !boundedString(record.collectorId, maxBytes)) return null
-  if (typeof record.sequence !== 'string' || !/^[1-9][0-9]*$/.test(record.sequence)) return null
+  // Sequence zero is only the fixed through watermark of an empty journal.
+  if (
+    typeof record.sequence !== 'string' ||
+    (!(emptyThrough && record.sequence === '0') && !/^[1-9][0-9]*$/.test(record.sequence))
+  )
+    return null
   if (Buffer.byteLength(record.sequence) > maxBytes) return null
   return Object.freeze({ collectorId: record.collectorId, sequence: record.sequence })
 }
@@ -1022,7 +1031,9 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     const after =
       query.after === undefined ? undefined : validReference(query.after, config.maxFieldBytes)
     const through =
-      query.through === undefined ? undefined : validReference(query.through, config.maxFieldBytes)
+      query.through === undefined
+        ? undefined
+        : validReference(query.through, config.maxFieldBytes, true)
     if (
       (query.after !== undefined && !after) ||
       (query.through !== undefined && !through) ||

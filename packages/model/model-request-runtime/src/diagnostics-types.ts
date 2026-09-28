@@ -40,6 +40,7 @@ export type DiagnosticScope =
 
 export interface DiagnosticReference {
   readonly collectorId: string
+  /** '0' is reserved for an empty query through watermark, never a record identity. */
   readonly sequence: string
 }
 

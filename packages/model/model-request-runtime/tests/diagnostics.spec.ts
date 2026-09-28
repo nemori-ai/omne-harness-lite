@@ -38,6 +38,7 @@ function fixture(
     schedule?: DiagnosticCollectorConfig['schedule']
     sink?: DiagnosticOutputSink
     stderr?: DiagnosticCollectorConfig['stderr']
+    query?: DiagnosticJournalStore['query']
   } = {},
 ) {
   const records: DiagnosticRecord[] = []
@@ -50,9 +51,9 @@ function fixture(
       return result
     },
     async flush() {},
-    async query() {
+    async query(query) {
       queryCalls++
-      return { rejected: 'unavailable' }
+      return options.query ? options.query(query) : { rejected: 'unavailable' }
     },
     async exportPage() {
       exportCalls++
@@ -241,6 +242,35 @@ describe('diagnostic collector', () => {
     expect(fixtureValue.queryCalls).toBe(0)
     expect(fixtureValue.exportCalls).toBe(0)
     expect(collector.metrics(local)).toEqual({ rejected: 'forbidden' })
+    await collector.close()
+  })
+
+  it('allows zero only as the fixed through watermark of an empty journal', async () => {
+    const empty = { collectorId: 'collector-1', sequence: '0' }
+    const { collector, config } = fixture({
+      query: async query => ({
+        page: { records: [], through: query.through ?? empty, coverage: 'complete' },
+      }),
+    })
+    expect(
+      await collector.query({ scope: local, limit: 1, maxBytes: 4096, through: empty }),
+    ).toEqual({ page: { records: [], through: empty, coverage: 'complete' } })
+    expect(await collector.query({ scope: local, limit: 1, maxBytes: 4096, after: empty })).toEqual(
+      { rejected: 'invalidInput' },
+    )
+    expect(
+      await collector.query({
+        scope: local,
+        limit: 1,
+        maxBytes: 4096,
+        through: { collectorId: 'other', sequence: '0' },
+      }),
+    ).toEqual({ rejected: 'invalidInput' })
+    expect(
+      await collector.query({ scope: tenant, limit: 1, maxBytes: 4096, through: empty }),
+    ).toEqual({ rejected: 'forbidden' })
+    expect(() => collector.emitter(local, { executionId: 'x', causedBy: empty })).toThrow()
+    expect(config.store).toBeDefined()
     await collector.close()
   })
 
