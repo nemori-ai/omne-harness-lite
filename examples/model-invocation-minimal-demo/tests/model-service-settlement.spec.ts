@@ -13,14 +13,14 @@ import { actor, ref } from './support.ts'
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 const SESSION = 'settlement-vetoed-session'
 
-function user(): UserMessage {
+function user(id = 'settlement-vetoed'): UserMessage {
   const judged = judgeMessage({
     type: 'user',
-    id: 'settlement-vetoed-user',
+    id: `${id}-user`,
     createdAt: '2026-09-28T00:00:00Z',
     blocks: [
       {
-        id: 'settlement-vetoed-text',
+        id: `${id}-text`,
         kind: 'text',
         text: 'Reply in one sentence.',
         visibility: { toHuman: true, toModel: true },
@@ -31,15 +31,31 @@ function user(): UserMessage {
   return judged.ok
 }
 
-async function scenario(label: string) {
-  const config = await callDeployment(label)
+async function scenario(
+  label: string,
+  concurrent = 1,
+  host: ReturnType<typeof createDemoCallHost> = createDemoCallHost(),
+) {
+  const base = await callDeployment(label)
+  const config = {
+    ...base,
+    modelRequest: {
+      ...base.modelRequest,
+      settlement: {
+        ...base.modelRequest.settlement,
+        contention: {
+          ...base.modelRequest.settlement.contention,
+          limits: { ...base.modelRequest.settlement.contention.limits, concurrent },
+        },
+      },
+    },
+  }
   const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
   const app = createAcceptanceApplication(config, {
     stage: 'modelRequest',
     developmentTransport: tls.developmentTransport,
     diagnostics: { record() {} },
   })
-  const host = createDemoCallHost()
   try {
     await app.ready
     const who = await actor(app)
@@ -332,6 +348,175 @@ describe('S-49 settlement through the actual demo model service', () => {
       expect(await s.app.readSessionLog(s.who, s.session)).toEqual(read)
       expect(s.tls.requests).toHaveLength(1)
     } finally {
+      await s.close()
+    }
+  })
+
+  it('recognizes A twice while call B remains in flight without touching B or appending again for A', async () => {
+    const s = await scenario('service-settlement-other-call-live', 2)
+    try {
+      const first = await s.app.startServiceCall(s.who, s.session, {
+        user: user(),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: s.host.host,
+      })
+      if (!('result' in first) || !('callId' in first) || !('replyPending' in first.result))
+        throw new Error('first real request did not hand off a reply')
+      const vetoed = {
+        session: s.session,
+        callId: first.callId,
+        disposition: { vetoed: { by: 'input-gate' } },
+      }
+      expect(await s.service.settleReply(vetoed)).toEqual({
+        callId: first.callId,
+        state: 'complete',
+      })
+
+      const effective = await s.service.effectiveModel({ session: s.session })
+      if (!('effectiveModel' in effective)) throw new Error('effective model unavailable')
+      const openedSecond = await s.service.openCall({
+        session: s.session,
+        target: effective.effectiveModel.routeName,
+        basis: effective.effectiveModel,
+        messages: [user('settlement-inflight')],
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        tools: [],
+        host: s.host.host,
+      })
+      if (!('callId' in openedSecond) || openedSecond.state !== 'open')
+        throw new Error(`second call could not open: ${JSON.stringify(openedSecond)}`)
+      const secondCallId = openedSecond.callId
+      s.tls.setMode('hold')
+      const second = s.service.dispatch({ session: s.session, callId: secondCallId })
+      let secondSettled = false
+      const observedSecond = second.finally(() => {
+        secondSettled = true
+      })
+      await expect
+        .poll(
+          async () => {
+            const read = await s.app.readSessionLog(s.who, s.session)
+            return (
+              'entries' in read &&
+              read.entries.some(entry =>
+                entry.readKeys.some(rawKey => {
+                  const decoded = decodeModelLogKey(rawKey)
+                  return (
+                    'ok' in decoded &&
+                    decoded.ok.kind === 'opened' &&
+                    decoded.ok.call === secondCallId
+                  )
+                }),
+              )
+            )
+          },
+          { timeout: 5000 },
+        )
+        .toBe(true)
+      expect(s.tls.requests).toHaveLength(2)
+      const before = await s.app.readSessionLog(s.who, s.session)
+      expect(await s.service.settleReply(vetoed)).toEqual({
+        callId: first.callId,
+        state: 'complete',
+      })
+      expect(
+        await s.service.settleReply({
+          session: s.session,
+          callId: first.callId,
+          disposition: { consumed: { by: 'side_query' } },
+        }),
+      ).toEqual({ alreadyEnded: true })
+      expect(await s.app.readSessionLog(s.who, s.session)).toEqual(before)
+      expect(secondSettled).toBe(false)
+      expect(s.tls.requests).toHaveLength(2)
+      s.tls.finishHeld()
+      const completedSecond = await observedSecond
+      // The controlled hold releases only [DONE], deliberately omitting terminal usage/final
+      // facts. B must still survive A's recognition until that explicit fixture release.
+      expect(completedSecond).toMatchObject({
+        settled: {
+          call: { callId: secondCallId },
+          failure: {
+            cause: 'interrupted_mid_reply',
+            localError: 'stream ended before terminal facts',
+          },
+          delivered: [{ text: 'first ' }],
+        },
+      })
+      expect(s.tls.requests).toHaveLength(2)
+    } finally {
+      s.tls.finishHeld()
+      await s.close()
+    }
+  })
+
+  it('keeps the actual host registration until an abnormal close can really release it', async () => {
+    const originalHost = createDemoCallHost()
+    let refuseUnregister = true,
+      activeRegistrations = 0,
+      failedUnregisters = 0
+    const host: ReturnType<typeof createDemoCallHost> = {
+      host: {
+        ...originalHost.host,
+        register(close) {
+          const result = originalHost.host.register(close)
+          if (!('registration' in result)) return result
+          activeRegistrations++
+          return {
+            registration: {
+              unregister() {
+                if (refuseUnregister) {
+                  failedUnregisters++
+                  throw new Error('controlled host unregister failure')
+                }
+                activeRegistrations--
+                result.registration.unregister()
+              },
+            },
+          }
+        },
+      },
+      stop: originalHost.stop,
+    }
+    const s = await scenario('service-settlement-close-fault', 1, host)
+    try {
+      const sent = await s.app.startServiceCall(s.who, s.session, {
+        user: user(),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: s.host.host,
+      })
+      if (!('result' in sent) || !('callId' in sent) || !('replyPending' in sent.result))
+        throw new Error('real request did not hand off a reply')
+      const key = { session: s.session, callId: sent.callId }
+      const vetoed = { ...key, disposition: { vetoed: { by: 'input-gate' } } }
+      expect(await s.service.settleReply(vetoed)).toEqual({
+        callId: sent.callId,
+        state: 'complete',
+      })
+      expect(failedUnregisters).toBeGreaterThan(0)
+      expect(activeRegistrations).toBe(1)
+      const first = await s.app.readSessionLog(s.who, s.session)
+      if (!('entries' in first)) throw new Error('durable session read unavailable')
+      expect(responseEntries(first.entries)).toHaveLength(1)
+      expect(await s.service.settleReply(vetoed)).toEqual({
+        callId: sent.callId,
+        state: 'complete',
+      })
+      expect(
+        await s.service.settleReply({
+          ...key,
+          disposition: { consumed: { by: 'side_query' } },
+        }),
+      ).toEqual({ alreadyEnded: true })
+      expect(await s.app.readSessionLog(s.who, s.session)).toEqual(first)
+      expect(await host.stop()).toEqual({ unavailable: true })
+      expect(activeRegistrations).toBe(1)
+      refuseUnregister = false
+      expect(await host.stop()).toEqual({ released: true })
+      expect(activeRegistrations).toBe(0)
+      expect(s.tls.requests).toHaveLength(1)
+    } finally {
+      refuseUnregister = false
       await s.close()
     }
   })
