@@ -191,7 +191,12 @@ export async function openDemo(
   credential?: Uint8Array,
   testOptions?: Partial<Parameters<typeof createAcceptanceApplication>[1]>,
   observerBounds: DemoObserverBounds = defaultObserverBounds,
-  host?: { readonly processOwnership: ProcessOwnership; readonly covered: boolean },
+  host?: {
+    readonly processOwnership: ProcessOwnership
+    readonly covered: boolean
+    /** A worker-local provider read only after old durable work is reconciled. */
+    readonly readCredential?: () => Promise<Uint8Array | undefined>
+  },
 ): Promise<DemoConversation> {
   if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens <= 0)
     throw new Error('max output tokens must be a positive safe integer')
@@ -209,6 +214,8 @@ export async function openDemo(
       !credential.some(byte => byte !== 0x20))
   )
     throw new Error('credential must be nonblank printable ASCII bytes')
+  if (credential !== undefined && host?.readCredential !== undefined)
+    throw new Error('choose one credential source')
   const directory = resolve(dataDirectory),
     initialized = await initialize(directory)
   let app: AcceptanceApplication | undefined
@@ -262,17 +269,30 @@ export async function openDemo(
     const effective = await app.effectiveModel(actor, session)
     if (!('effectiveModel' in effective))
       throw new Error('demo selected model or current source is unavailable')
-    if (credential !== undefined) {
-      const ref = parseOpaqueIdentifier(`demo-credential-${randomUUID()}`, 'CredentialRef')
-      if (!isOk(ref)) throw new Error('credential reference invalid')
-      const published = await app.publishCredential(actor, async checked => ({
-        account: checked.account,
-        tenant: checked.tenant,
-        sourceRef: ref.ok,
-        body: credential,
-      }))
-      if (!('stored' in published) || !published.stored)
-        throw new Error('credential publication rejected')
+    const loadedCredential = await host?.readCredential?.()
+    try {
+      const suppliedCredential = loadedCredential ?? credential
+      if (
+        suppliedCredential !== undefined &&
+        (!suppliedCredential.length ||
+          [...suppliedCredential].some(byte => byte < 0x20 || byte > 0x7e) ||
+          !suppliedCredential.some(byte => byte !== 0x20))
+      )
+        throw new Error('credential must be nonblank printable ASCII bytes')
+      if (suppliedCredential !== undefined) {
+        const ref = parseOpaqueIdentifier(`demo-credential-${randomUUID()}`, 'CredentialRef')
+        if (!isOk(ref)) throw new Error('credential reference invalid')
+        const published = await app.publishCredential(actor, async checked => ({
+          account: checked.account,
+          tenant: checked.tenant,
+          sourceRef: ref.ok,
+          body: suppliedCredential,
+        }))
+        if (!('stored' in published) || !published.stored)
+          throw new Error('credential publication rejected')
+      }
+    } finally {
+      loadedCredential?.fill(0)
     }
     if (initialized.fresh) {
       const temporary = join(directory, `demo-state-${randomUUID()}.json`)

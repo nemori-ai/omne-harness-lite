@@ -23,6 +23,7 @@ export async function createLocalTls(
   onReceive: () => Promise<void> = async () => {},
   cacheWrite: number | undefined = 0,
   model: string | ((body: unknown) => string) = MODEL,
+  finalUsageJson?: string,
 ) {
   await mkdir(directory, { mode: 0o700 })
   const key = join(directory, 'local-key.pem'),
@@ -55,7 +56,7 @@ export async function createLocalTls(
     socketClosed = deferred()
   const pending = new Set<Promise<void>>()
   const failures: unknown[] = []
-  let mode: 'complete' | 'reasoning' | 'hold' | 'http503' | 'tool' = 'complete',
+  let mode: 'complete' | 'reasoning' | 'hold' | 'http503' | 'http503empty' | 'tool' = 'complete',
     closedSockets = 0,
     held: ServerResponse | undefined
   const server = createServer({ key: await readFile(key), cert: certBytes }, (req, res) => {
@@ -73,6 +74,11 @@ export async function createLocalTls(
       if (mode === 'http503') {
         res.writeHead(503, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ error: { message: 'controlled failure', code: 503 } }))
+        return
+      }
+      if (mode === 'http503empty') {
+        res.writeHead(503, { 'content-type': 'application/json' })
+        res.end()
         return
       }
       res.writeHead(200, {
@@ -103,8 +109,20 @@ export async function createLocalTls(
       res.write(
         `data: ${JSON.stringify({ choices: [{ delta: { content: 'second' }, finish_reason: null }] })}\n\n`,
       )
+      const usage =
+        finalUsageJson ??
+        JSON.stringify({
+          prompt_tokens: 9,
+          completion_tokens: 3,
+          total_tokens: 12,
+          prompt_tokens_details: {
+            cached_tokens: 4,
+            ...(cacheWrite === undefined ? {} : { cache_write_tokens: cacheWrite }),
+          },
+          cost: 0.0000117,
+        })
       res.end(
-        `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 9, completion_tokens: 3, total_tokens: 12, prompt_tokens_details: { cached_tokens: 4, ...(cacheWrite === undefined ? {} : { cache_write_tokens: cacheWrite }) }, cost: 0.0000117 } })}\n\ndata: [DONE]\n\n`,
+        `data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":${usage}}\n\ndata: [DONE]\n\n`,
       )
     })()
     pending.add(work)

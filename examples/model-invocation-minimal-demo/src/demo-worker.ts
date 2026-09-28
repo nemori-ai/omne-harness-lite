@@ -3,7 +3,15 @@ import { DemoStartupFailure, readPrivateFile, openDemo, type DemoConversation } 
 import { decodeBody, encodeBody, packet, record, type DemoPacket } from './demo-ipc.ts'
 import { readTokenMargin } from './token-margin.ts'
 
-const maximumPacketBytes = 1_048_576
+function positiveBound(value: string | undefined): number {
+  if (value === undefined || !/^[1-9][0-9]*$/u.test(value)) throw new Error('invalid IPC bound')
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed)) throw new Error('invalid IPC bound')
+  return parsed
+}
+
+const maximumPacketBytes = positiveBound(process.env.OMNE_DEMO_IPC_MAX_PACKET_BYTES)
+const maximumPendingRequests = positiveBound(process.env.OMNE_DEMO_IPC_MAX_PENDING_REQUESTS)
 type Pending = { readonly resolve: (value: unknown) => void }
 const pending = new Map<string, Pending>()
 let generation: string | undefined
@@ -19,8 +27,9 @@ function send(kind: DemoPacket['kind'], id: string, body: unknown): boolean {
   } catch {
     return false
   }
-  if (Buffer.byteLength(encoded, 'utf8') > maximumPacketBytes) return false
-  process.send({ generation, id, kind, body: encoded })
+  const outgoing = { generation, id, kind, body: encoded }
+  if (Buffer.byteLength(JSON.stringify(outgoing), 'utf8') > maximumPacketBytes) return false
+  process.send(outgoing)
   return true
 }
 
@@ -32,7 +41,7 @@ function finishPending(id: string, value: unknown): void {
 }
 
 async function request(kind: DemoPacket['kind'], body: unknown): Promise<unknown> {
-  if (pending.size >= 2) return undefined
+  if (pending.size >= maximumPendingRequests) return undefined
   const id = randomUUID()
   const result = new Promise<unknown>(resolve => pending.set(id, { resolve }))
   if (!send(kind, id, body)) finishPending(id, undefined)
@@ -72,21 +81,9 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
     return
   }
   generation = message.generation
-  let credential: Buffer | undefined
   try {
     if (body.keyFile !== undefined && process.env.OPENROUTER_API_KEY)
       throw new Error('two credential sources')
-    if (typeof body.keyFile === 'string') {
-      credential = await readPrivateFile(body.keyFile)
-      if (credential.at(-1) === 10) {
-        const original = credential
-        credential = Buffer.from(
-          original.subarray(0, original.length - (original.at(-2) === 13 ? 2 : 1)),
-        )
-        original.fill(0)
-      }
-    } else if (process.env.OPENROUTER_API_KEY)
-      credential = Buffer.from(process.env.OPENROUTER_API_KEY)
     const identity = body.identity
     const retirementWaitMilliseconds = body.retirementWaitMilliseconds
     const controlled = body.developmentTransport
@@ -102,7 +99,7 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
         },
       },
       body.maxOutputTokens,
-      credential,
+      undefined,
       record(controlled) &&
         typeof controlled.baseUrl === 'string' &&
         typeof controlled.ca === 'string'
@@ -116,6 +113,22 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
       undefined,
       {
         covered: body.covered,
+        async readCredential() {
+          if (typeof body.keyFile === 'string') {
+            let loaded = await readPrivateFile(body.keyFile)
+            if (loaded.at(-1) === 10) {
+              const original = loaded
+              loaded = Buffer.from(
+                original.subarray(0, original.length - (original.at(-2) === 13 ? 2 : 1)),
+              )
+              original.fill(0)
+            }
+            return loaded
+          }
+          return process.env.OPENROUTER_API_KEY
+            ? Buffer.from(process.env.OPENROUTER_API_KEY)
+            : undefined
+        },
         processOwnership: {
           current: identity,
           async observeExit(owner) {
@@ -126,15 +139,25 @@ async function start(message: DemoPacket, body: Readonly<Record<string, unknown>
         },
       },
     )
-    send('started', message.id, {
+    const started = send('started', message.id, {
       session: conversation.session,
       identity: conversation.identity,
     })
+    if (!started) {
+      send('failure', message.id, { reason: 'packetLimit' })
+      try {
+        const stopped = await conversation.close()
+        if (stopped.complete) {
+          conversation = undefined
+          process.disconnect?.()
+        }
+      } catch {
+        // Keep the live worker and its resource ownership until an explicit operator action.
+      }
+    }
   } catch (error) {
     send('failure', message.id, { reason: 'unavailable' })
     if (!(error instanceof DemoStartupFailure && !error.cleanupComplete)) process.disconnect?.()
-  } finally {
-    credential?.fill(0)
   }
 }
 

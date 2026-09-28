@@ -16,7 +16,7 @@
 
 观察队列默认有明确的 256 事件与 262,144 字节上限，程序调用可分别调整这两个正整数。投递诊断及背压不能代替持久历史或结算。
 
-CLI 为数据根持有一个跨多轮复用的长期 worker 进程。worker 拥有 Cordis、存储、会话日志、凭据、模型调用和收口路径；CLI 主管拥有真实 child 实例及 IPC。只有亲眼观察旧 child 的进程 `exit` 及流 `close` 后才启动后继。IPC 断线或发出 kill 请求不算退出证据。`--ipc-max-message-bytes`、`--ipc-max-commands` 明确设置有限 IPC 边界。密钥文件由 worker 自己读取，IPC 只传路径，不传密钥值。部署须把该数据目录专供此主管的 worker 链。
+CLI 为数据根持有一个跨多轮复用的长期 worker 进程。worker 拥有 Cordis、存储、会话日志、凭据、模型调用和收口路径；CLI 主管拥有真实 child 实例及 IPC。只有亲眼观察旧 child 的进程 `exit` 及流 `close` 后才启动后继。IPC 断线或发出 kill 请求不算退出证据。`--ipc-max-message-bytes`、`--ipc-max-commands` 明确设置有限 IPC 边界；字节上限在父子两端均作用于每条完整 IPC 消息。密钥文件由 worker 在旧耐久调用对账后才读取，IPC 只传路径，不传密钥值；指定的密钥缺失时，旧调用可已完成对账，但本次启动仍会失败。部署须把该数据目录专供此主管的 worker 链。
 
 同一个主管仍存活时，旧 worker 在耐久 dispatch 后被杀，后继可在零新增模型 HTTP 请求下对账原日志。新启动的 CLI 无法继承另一主管的退出见证；若旧 owner 的未完调用来源未知，打开会在新请求前拒绝。日志的 clean marker 或可取得文件锁都不证明旧模型效应已停止。全部已收场历史可由新 CLI 正常重开。本机 HTTPS 测试覆盖真实派发、SIGKILL、child 退出、同主管恢复及新主管拒绝；其他冷恢复和故障义务仍按 runtime realization 跟踪。
 

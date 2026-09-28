@@ -65,7 +65,7 @@ export function packet(value: unknown, maxBytes: number): DemoPacket | undefined
     typeof value.body !== 'string'
   )
     return undefined
-  if (Buffer.byteLength(value.body, 'utf8') > maxBytes) return undefined
+  if (Buffer.byteLength(JSON.stringify(value), 'utf8') > maxBytes) return undefined
   const kind = parseKind(value.kind)
   if (kind === undefined) return undefined
   return { generation: value.generation, id: value.id, kind, body: value.body }

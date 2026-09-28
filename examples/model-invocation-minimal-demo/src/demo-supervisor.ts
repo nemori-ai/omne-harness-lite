@@ -45,6 +45,16 @@ function positive(value: number): boolean {
   return Number.isSafeInteger(value) && value > 0
 }
 
+const minimumFailurePacketBytes = Buffer.byteLength(
+  JSON.stringify({
+    generation: '00000000-0000-0000-0000-000000000000',
+    id: '00000000-0000-0000-0000-000000000000',
+    kind: 'failure',
+    body: encodeBody({ reason: 'unavailable' }),
+  }),
+  'utf8',
+)
+
 function summary(value: unknown): {
   readonly knownSum: ExactDecimal
   readonly unknownCount: number
@@ -125,6 +135,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     !positive(options.maxOutputTokens) ||
     !positive(options.retirementWaitMilliseconds) ||
     !positive(options.maxPacketBytes) ||
+    options.maxPacketBytes < minimumFailurePacketBytes ||
     !positive(options.maxCommands) ||
     !options.multiplier ||
     !options.reserveTokens
@@ -173,8 +184,9 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     } catch {
       return false
     }
-    if (Buffer.byteLength(encoded, 'utf8') > options.maxPacketBytes) return false
-    managed.child.send({ generation: managed.generation, id, kind, body: encoded }, error => {
+    const outgoing = { generation: managed.generation, id, kind, body: encoded }
+    if (Buffer.byteLength(JSON.stringify(outgoing), 'utf8') > options.maxPacketBytes) return false
+    managed.child.send(outgoing, error => {
       if (error !== null) {
         const pending = managed.pending.get(id)
         if (pending !== undefined) {
@@ -204,6 +216,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     )
     if (!send(managed, kind, id, body)) {
       managed.pending.delete(id)
+      if (kind === 'start' && managed.child.connected) managed.child.disconnect()
       return Promise.resolve(undefined)
     }
     return answer
@@ -273,6 +286,36 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     await checkRoot()
     const identity = randomUUID()
     const generation = randomUUID()
+    const startupBody = {
+      dataDirectory: directory,
+      identity,
+      multiplier: options.multiplier,
+      reserveTokens: options.reserveTokens,
+      maxOutputTokens: options.maxOutputTokens,
+      retirementWaitMilliseconds: options.retirementWaitMilliseconds,
+      covered: covered === true,
+      ...(options.keyFile === undefined ? {} : { keyFile: options.keyFile }),
+      ...(options.developmentTransport === undefined
+        ? {}
+        : {
+            developmentTransport: {
+              baseUrl: options.developmentTransport.baseUrl,
+              ca: Buffer.from(options.developmentTransport.ca).toString('base64'),
+            },
+          }),
+    }
+    if (
+      Buffer.byteLength(
+        JSON.stringify({
+          generation,
+          id: '00000000-0000-0000-0000-000000000000',
+          kind: 'start',
+          body: encodeBody(startupBody),
+        }),
+        'utf8',
+      ) > options.maxPacketBytes
+    )
+      throw new Error('demo worker start packet exceeds configured IPC bound')
     const workerModule = new URL(
       import.meta.url.endsWith('.ts') ? '../dist/demo-worker.js' : './demo-worker.js',
       import.meta.url,
@@ -280,6 +323,11 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     const child = fork(workerModule, [], {
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
       execArgv: [],
+      env: {
+        ...process.env,
+        OMNE_DEMO_IPC_MAX_PACKET_BYTES: String(options.maxPacketBytes),
+        OMNE_DEMO_IPC_MAX_PENDING_REQUESTS: String(options.maxCommands),
+      },
     })
     let exitDone: () => void = () => undefined
     let closeDone: () => void = () => undefined
@@ -320,24 +368,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     })
     const startup = await new Promise<unknown>(resolve => {
       child.once('spawn', () => {
-        void request(managed, 'start', {
-          dataDirectory: directory,
-          identity,
-          multiplier: options.multiplier,
-          reserveTokens: options.reserveTokens,
-          maxOutputTokens: options.maxOutputTokens,
-          retirementWaitMilliseconds: options.retirementWaitMilliseconds,
-          covered: covered === true,
-          ...(options.keyFile === undefined ? {} : { keyFile: options.keyFile }),
-          ...(options.developmentTransport === undefined
-            ? {}
-            : {
-                developmentTransport: {
-                  baseUrl: options.developmentTransport.baseUrl,
-                  ca: Buffer.from(options.developmentTransport.ca).toString('base64'),
-                },
-              }),
-        }).then(resolve)
+        void request(managed, 'start', startupBody).then(resolve)
       })
       child.once('error', () => resolve(undefined))
     })
