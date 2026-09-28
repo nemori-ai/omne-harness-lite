@@ -6,7 +6,7 @@ import { createSettlementCodec } from './log-codec-settlement.ts'
 export const modelLogFormat = 'mrr/2'
 export const { captureModelLogValue, recognizeMessageValue } = createValueCodec(currentCodecDomain)
 export const { prepareModelLogEntry, inspectModelLogEntry } = createEntryCodec(currentCodecDomain)
-export const inspectSettlementMembers = createSettlementCodec(currentCodecDomain)
+export const { inspectSettlementMembers } = createSettlementCodec(currentCodecDomain)
 export { encodeModelLogKey, decodeModelLogKey, modelLogJsonEqual } from './log-codec-key.ts'
 export type { ModelLogKey, ModelLogInvalidValue } from './log-codec-key.ts'
 export type {

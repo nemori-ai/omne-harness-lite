@@ -42,7 +42,7 @@ export function projectCallState(input: {
       ? { phase: 'open', source: 'local_responsibility' }
       : { callNotFound: true }
   if (history.known.session !== session || history.known.callId !== callId)
-    return { callNotFound: true }
+    return { unavailable: true }
   if (
     history.known.phase === null ||
     (history.known.intent !== null &&

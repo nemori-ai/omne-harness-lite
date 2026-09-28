@@ -45,6 +45,10 @@ class OwnedPrefix {
   }
 }
 export type SettlementPrefix = OwnedPrefix
+/** Internal ownership test shared with call history; never a substitute for generation validity. */
+export function isOwnedSettlementPrefix(value: unknown): value is SettlementPrefix {
+  return OwnedPrefix.owns(value)
+}
 export type SettlementPrefixResult =
   | { readonly prefix: SettlementPrefix }
   | { readonly unavailable: true; readonly reason: SettlementUnavailableReason }
@@ -123,7 +127,7 @@ export function interpretSettlementPrefix(input: {
   readonly target: ModelLogSettlementTarget
   readonly current: ModelLogSettlementCurrent | null
 }): SettlementInterpretation {
-  if (!OwnedPrefix.owns(input.prefix)) return { unavailable: true, reason: 'prefix' }
+  if (!isOwnedSettlementPrefix(input.prefix)) return { unavailable: true, reason: 'prefix' }
   const { prefix, target, current } = input
   function record(key: Parameters<typeof encodeModelLogKey>[0]): LogEntry | null {
     const encoded = encodeModelLogKey(key)

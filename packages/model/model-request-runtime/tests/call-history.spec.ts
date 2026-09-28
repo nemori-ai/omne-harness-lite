@@ -14,7 +14,7 @@ import {
   type SettlementPrefixResult,
   type SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
-import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
+import { dispatched, opened, prepare, reply, session, tenant } from './log-codec-fixture.ts'
 import { batchV2, prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 
@@ -26,6 +26,7 @@ async function withLog(
     readonly read: () => Promise<SettlementPrefix>
     readonly readResult: (source?: SessionLog) => Promise<SettlementPrefixResult>
     readonly log: SessionLog
+    readonly invalidate: () => void
   }) => Promise<void>,
 ) {
   const root = fileURLToPath(
@@ -43,12 +44,13 @@ async function withLog(
     },
   })
   const generation = Object.freeze({})
+  let currentGeneration: object | null = generation
   const binding = {
     session,
     tenant,
     log,
     generation,
-    currentGeneration: () => generation,
+    currentGeneration: () => currentGeneration,
   }
   const owner = new ControlledSettlementOwner()
   try {
@@ -94,6 +96,9 @@ async function withLog(
       },
       readResult,
       log,
+      invalidate() {
+        currentGeneration = null
+      },
     })
   } finally {
     await log.close()
@@ -151,6 +156,9 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
           local: { session, callId: 'call', phase: 'reply_pending', responseId: 'response' },
         }),
       ).toEqual({ phase: 'complete', source: 'durable' })
+      expect(projectCallState({ session, callId: 'different-call', history: complete })).toEqual({
+        unavailable: true,
+      })
       const duplicate = await submit(...committed)
       expect(duplicate).toMatchObject({ failure: 'alreadyRecorded' })
       expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toMatchObject({
@@ -158,6 +166,21 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
           phase: 'complete',
           dispatches: [{ response: { projection: { id: 'response' } } }],
         },
+      })
+    })
+  })
+
+  it('rejects a fabricated empty prefix and a prefix from a revoked provider generation', async () => {
+    await withLog('prefix-ownership', async ({ read, invalidate }) => {
+      const real = await read()
+      const fabricated = { binding: real.binding, entries: [], tail: 0 }
+      expect(
+        Reflect.apply(interpretCallHistory, undefined, [{ prefix: fabricated, callId: 'call' }]),
+      ).toEqual({ unavailable: true, reason: 'prefix' })
+      invalidate()
+      expect(interpretCallHistory({ prefix: real, callId: 'call' })).toEqual({
+        unavailable: true,
+        reason: 'prefix',
       })
     })
   })
@@ -200,6 +223,34 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
       expect(interpretCallHistory({ prefix: result.prefix, callId: 'call' })).toMatchObject({
         known: { phase: 'complete' },
       })
+    })
+  })
+
+  it('isolates a later call from an earlier complete reply in the same session', async () => {
+    await withLog('two-calls', async ({ append, read }) => {
+      await append(prepare('record', dispatched, { kind: 'record' }))
+      await append(prepare('record', opened, { kind: 'record' }))
+      await append(...batchV2())
+      const secondDispatch = { ...dispatched, call: 'call-b', response: 'response-b' }
+      const secondOpened = { ...opened, call: 'call-b' }
+      const secondReply = { ...reply, id: 'message-b', response: 'response-b' }
+      const secondResponse = {
+        ...responseV5,
+        id: 'response-b',
+        call: { callId: 'call-b' },
+        reply: secondReply,
+      }
+      await append(prepare('record', secondDispatch, { kind: 'record' }))
+      await append(prepare('record', secondOpened, { kind: 'record' }))
+      await append(...batchV2(secondResponse))
+      const prefix = await read()
+      expect(interpretCallHistory({ prefix, callId: 'call-b' })).toMatchObject({
+        known: {
+          phase: 'complete',
+          dispatches: [{ response: { projection: { id: 'response-b' } } }],
+        },
+      })
+      expect(interpretCallHistory({ prefix, callId: 'never-opened' })).toEqual({ absent: true })
     })
   })
 
@@ -320,6 +371,29 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
       expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
         unavailable: true,
         reason: 'unknown_format',
+      })
+    })
+  })
+
+  it('does not treat an unknown mrr/2 category without a call key as absent', async () => {
+    await withLog('unknown-category', async ({ append, read }) => {
+      const known = prepare('record', dispatched, { kind: 'record' })
+      if (
+        known.payload === null ||
+        typeof known.payload !== 'object' ||
+        Array.isArray(known.payload)
+      )
+        throw new Error('fixture wrapper')
+      const allKey = encodeModelLogKey({ kind: 'all' })
+      if (!('ok' in allKey)) throw new Error('fixture all key')
+      const { dedupeKey: _dedupe, ...withoutDedupe } = known
+      await append({
+        ...withoutDedupe,
+        readKeys: [allKey.ok],
+        payload: { ...known.payload, format: 'mrr/2', category: 'future' },
+      })
+      expect(interpretCallHistory({ prefix: await read(), callId: 'never-opened' })).toMatchObject({
+        unavailable: true,
       })
     })
   })

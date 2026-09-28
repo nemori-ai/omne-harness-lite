@@ -8,15 +8,15 @@ import type {
   SessionRef,
 } from '@omne-harness-lite/messages'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { ModelLogResponseProjection } from './log-codec-v2.ts'
 import {
-  captureModelLogValue,
-  encodeModelLogKey,
-  inspectModelLogEntry,
-  type ModelLogResponseProjection,
-} from './log-codec-v2.ts'
-import { interpretSettlementPrefix, type SettlementPrefix } from './settlement-prefix.ts'
+  interpretSettlementPrefix,
+  isOwnedSettlementPrefix,
+  settlementGenerationCurrent,
+  type SettlementPrefix,
+} from './settlement-prefix.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import { foreignReserved } from './log-codec-settlement.ts'
+import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
 
 export interface CallHistoryDispatch {
   readonly ordinal: JsonNumber
@@ -59,17 +59,6 @@ type RecordEntry = {
     | ModelCallEndedRecord
 }
 
-function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-function relevantModelPayload(entry: LogEntry): boolean {
-  return (
-    isObject(entry.payload) &&
-    (entry.payload.format === 'mrr/1' || entry.payload.format === 'mrr/2')
-  )
-}
-
 const unavailable = (reason: 'prefix' | 'history' | 'unknown_format' | 'run_history_unavailable') =>
   ({ unavailable: true, reason }) as const
 
@@ -83,69 +72,30 @@ export function interpretCallHistory(input: {
   readonly callId: ModelCallId
 }): CallHistoryResult {
   const { prefix, callId } = input
-  if (!isObject(prefix) || !Array.isArray(prefix.entries) || !isObject(prefix.binding))
+  if (!isOwnedSettlementPrefix(prefix) || !settlementGenerationCurrent(prefix.binding))
     return unavailable('prefix')
-  const callKey = encodeModelLogKey({ kind: 'call', call: callId })
-  if (!('ok' in callKey)) return unavailable('prefix')
+  const inspectedPrefix = inspectCurrentModelLogPrefix({
+    session: prefix.binding.session,
+    tenant: prefix.binding.tenant,
+    prefix,
+  })
+  if (!('ok' in inspectedPrefix))
+    return unavailable(
+      'reason' in inspectedPrefix && inspectedPrefix.reason === 'unknown_format'
+        ? 'unknown_format'
+        : 'history',
+    )
   const records: RecordEntry[] = []
   const responses: { readonly entry: LogEntry; readonly response: ModelLogResponseProjection }[] =
     []
-  const affiliatedMessages: LogEntry[] = []
-  const recognizedMessagePositions: JsonNumber[] = []
-  for (const entry of prefix.entries) {
-    const identified = entry.readKeys.includes(callKey.ok) || entry.dedupeKey === callKey.ok
-    if (!isObject(entry.payload)) {
-      if (foreignReserved(entry)) return unavailable('unknown_format')
-      continue
-    }
-    if (
-      typeof entry.payload.format === 'string' &&
-      entry.payload.format.startsWith('mrr/') &&
-      entry.payload.format !== 'mrr/1' &&
-      entry.payload.format !== 'mrr/2'
-    )
-      return unavailable('unknown_format')
-    if (!relevantModelPayload(entry)) {
-      if (
-        foreignReserved(entry) ||
-        entry.payload.type !== undefined ||
-        (typeof entry.payload.kind === 'string' && entry.payload.kind.startsWith('model_'))
-      )
-        return unavailable('unknown_format')
-      continue
-    }
-    const payload = entry.payload
-    if (payload.category === 'message') {
-      const captured = captureModelLogValue({
-        category: 'message',
-        input: { kind: 'value', value: payload.value },
-      })
-      if (!('ok' in captured)) return unavailable('history')
-      if (captured.ok.message?.type === 'assistant') affiliatedMessages.push(entry)
-      else if (identified) return unavailable('history')
-      continue
-    }
-    if (payload.category !== 'record' && payload.category !== 'response') {
-      if (identified) return unavailable('history')
-      continue
-    }
-    const inspected = inspectModelLogEntry({
-      session: prefix.binding.session,
-      tenant: prefix.binding.tenant,
-      entry,
-      purpose: { kind: payload.category },
-      messagePrefix: null,
-    })
-    if (!('ok' in inspected)) return unavailable('history')
-    const captured = inspected.ok.captured
+  for (const { entry, captured } of inspectedPrefix.ok) {
     if (captured.record !== null && 'call' in captured.record && captured.record.call === callId) {
       records.push({ entry, record: captured.record })
     }
     if (captured.response !== null && captured.response.call.callId === callId)
       responses.push({ entry, response: captured.response })
   }
-  if (records.length === 0 && responses.length === 0)
-    return affiliatedMessages.length === 0 ? { absent: true } : unavailable('history')
+  if (records.length === 0 && responses.length === 0) return { absent: true }
   if (
     records.some(item => item.entry.run !== undefined || item.entry.attempt !== undefined) ||
     responses.some(item => item.entry.run !== undefined || item.entry.attempt !== undefined)
@@ -208,10 +158,6 @@ export function interpretCallHistory(input: {
     const responseEntry = body[0]?.entry ?? null
     if (complete !== null && (responseCapture?.response === null || responseEntry === null))
       return unavailable('history')
-    for (const member of complete?.entries ?? []) {
-      if ('position' in member && typeof member.position !== 'undefined')
-        recognizedMessagePositions.push(member.position)
-    }
     dispatches.push({
       ordinal: item.record.dispatch,
       dispatched: item.entry,
@@ -228,12 +174,6 @@ export function interpretCallHistory(input: {
     })
   }
   if (
-    affiliatedMessages.some(
-      item =>
-        !recognizedMessagePositions.some(
-          position => ExactDecimal.from(position).compare(ExactDecimal.from(item.position)) === 0,
-        ),
-    ) ||
     opened.some(
       item =>
         !dispatched.some(
@@ -273,7 +213,6 @@ export function interpretCallHistory(input: {
         : response.outcome === 'failed'
           ? 'awaiting_decision'
           : response.outcome === 'interrupted' &&
-              isObject(response) &&
               response.initiator === 'runtime_lost' &&
               last.opened === null
             ? 'resumable'
