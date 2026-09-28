@@ -12367,4 +12367,17 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 
 ### MR6-facts · 投影不减记事实
 
-从 E-1 只去处置和晚到得到 pending；回收时除合法处置、提交时晚到及消费方契约明确许可的消息处理以外，id、call、dispatch、attemptId、路由/绑定、用量费用、结束/首 token、raw 引用与各有序头值必须保留。`reply.response != id`、适配绑定不等、cap 超已知有限上游事实即使单独 Schema 通过仍非法；按 S-14/S-36/S-40 继续纯校验。真实事实与脱敏义务沿 S-21，不以 pending 作为漏带已知事实的理由。
+从 E-1 只去处置和晚到得到 pending；回收时除合法处置、提交时晚到及消费方契约明确许可的消息处理以外，id、call、dispatch、attemptId、路由/绑定、用量费用、结束/首 token、raw 引用与各有序头值必须保留。`reply.response != id`、适配绑定不等即使单独 Schema 通过仍非法，按 S-14/S-36 继续纯校验。快照内 cap 超已知有限上游事实属于 MP4 S-27/S-33 的写入者违约，响应体接收方不据此返回 `malformed`（S-40）。真实事实与脱敏义务沿 S-21，不以 pending 作为漏带已知事实的理由。
+
+### MR6-snapshot-boundary · 接收形状与写入者关系的反向边界
+
+以 E-1 为完整根实例，仅替换以下两处，其余成员保持原值；也对 MR6-complete 的待提交实例作相同替换：
+
+| JSON 路径 | 替换值 |
+|---|---|
+| `route.profileSnapshot.maxInputTokens` | `2` |
+| `route.profileSnapshot.upstreamInputLimits.maxInputTokens` | `{ "status": "limited", "value": 1 }` |
+
+**预期**：两个实例均通过各自 Schema；响应体接收方不因 `2 > 1` 增加表示层拒绝。该快照违反 MP4 S-33，表明写快照一方违反 MP4 S-27 的原样复制义务，须在该写入责任的证据中暴露；Schema 通过不表示写入者合规，也不授予新发送许可。反例是接收方额外复判 S-33 并返回 `malformed`。
+
+再分别从上述两值删除 `route.profileSnapshot.upstreamInputLimits`：**预期均拒绝 `malformed`**，因为缺必填成员属于快照形状错误。不得据“不重判写入者关系”接受缺字段的快照。

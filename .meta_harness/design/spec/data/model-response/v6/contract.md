@@ -742,7 +742,7 @@ G-8 的「没有成员可记」由本条关闭；上游是否如实报告、指�
 
 ### S-40 输入限制快照与历史版本边界
 
-`route.profileSnapshot` 精确消费 [`data.model-profile/v4#S-27`](../../model-profile/v4/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本)。完整保留当时项目供给 cap、`inputConstraints`、匹配的 `upstreamInputLimits` 与 `updatedAt`，不改模态、不从当前目录补旧快照、不把缺字段解释为 unknown/unbounded。快照的合法性与关系沿 MP4 S-27 引用的规则；S-27 表示层校验包含快照跨字段条件，不只运行 Schema，违反且无本契约具名拒绝时为 `malformed`。实际输入计量证据、最终发送计划及发送许可归消费快照的能力。
+`route.profileSnapshot` 精确消费 [`data.model-profile/v4#S-27`](../../model-profile/v4/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本)。完整保留当时项目供给 cap、`inputConstraints`、匹配的 `upstreamInputLimits` 与 `updatedAt`，不改模态、不从当前目录补旧快照、不把缺字段解释为 unknown/unbounded。快照的 S-18/S-33 跨字段关系由写快照一方按 MP4 S-27 的完整原样复制义务保证；响应体接收方只校验快照形状，不重做这些关系的表示层判定，不把写入者违约映射为本契约 `malformed`。缺必填成员、类型或条件适用域不合等形状错误仍按本契约 S-27 拒绝；本契约 S-36 的绑定相等判定不受此边界影响。实际输入计量证据、最终发送计划及发送许可归消费快照的能力。
 
 `reply` 精确消费 `data.messages/v5` 的 `AssistantMessage`。历史 v5 及更早响应继续由各自精确版本解释和结算；v6 不是旧响应的补字段迁移器。新调用/新发送方显式采用新完整快照；旧值读取、对账与续接发送的许可是不同动作，不因历史可读而允许以缺少新限制的快照新发。版本选择由承载方精确契约坐标提供，本值不新增版本判别成员。
 
