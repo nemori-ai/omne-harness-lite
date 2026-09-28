@@ -19,6 +19,9 @@ import type {
   ReservationWaitPolicy,
 } from './service-types.ts'
 import type { SettlementScheduler } from './settlement-types.ts'
+import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
+
+const invocationSlots = new WeakMap<object, (handle: AnchoredInvocationHandle) => void>()
 
 function sameKey(left: CallKey, right: CallKey): boolean {
   return left.session === right.session && left.callId === right.callId
@@ -61,6 +64,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   let released = false
   let releaseAttempted = false
   let stopFailed = false
+  let invocation: AnchoredInvocationHandle | undefined
   let nextTask = 0
   const stopped = new Map<number, Promise<void>>()
 
@@ -90,6 +94,8 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       }
     }
     try {
+      if (invocation !== undefined && 'unavailable' in (await invocation.close()))
+        return { unavailable: true }
       await coordinator.close()
       while (stopped.size > 0) await Promise.all([...stopped.values()])
       if (
@@ -121,6 +127,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         request,
         owner,
         coordinator,
+        ...(invocation === undefined ? {} : { invocation }),
         operation,
       })
     },
@@ -141,6 +148,13 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     },
     canRemove: () => released,
   }
+  invocationSlots.set(container, handle => {
+    if (released || releaseAttempted || admissionClosed)
+      throw new TypeError('call container admission closed')
+    if (invocation !== undefined && invocation !== handle)
+      throw new TypeError('original invocation already attached')
+    invocation = handle
+  })
   return Object.freeze(container)
 }
 
@@ -226,6 +240,14 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         const container = current(ownedKey)
         if (container === undefined) throw new TypeError('call container absent')
         container.publish(next)
+      },
+      attachInvocation(handle: AnchoredInvocationHandle): void {
+        if (owns(reservation) === undefined) throw new TypeError('reservation released')
+        const container = current(ownedKey)
+        if (container === undefined) throw new TypeError('call container absent')
+        const attach = invocationSlots.get(container)
+        if (attach === undefined) throw new TypeError('call container ownership absent')
+        attach(handle)
       },
       release(): void {
         const state = reservations.get(reservation)

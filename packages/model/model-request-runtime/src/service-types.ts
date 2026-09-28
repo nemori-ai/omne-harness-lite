@@ -36,11 +36,13 @@ import type { SettlementPrefix } from './settlement-prefix.ts'
 import type {
   SettlementContention,
   SettlementCoordinator,
+  SettlementDiagnostic,
   SettlementLogBinding,
   SettlementOwner,
   SettlementScheduler,
 } from './settlement-types.ts'
 import type { InvocationPolicy, PlannedSemantics, TransportAdapter } from './types.ts'
+import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 
 /** The pair is always the identity; a callId alone is not an access key. */
 export interface CallKey {
@@ -326,6 +328,20 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly identities: ModelIdentitySource
   readonly history: CurrentHistoryReaders
   readonly reservationWaitPolicy: ReservationWaitPolicy
+  readonly recovery: RuntimeRecoveryAccess
+  readonly diagnostic: (event: SettlementDiagnostic) => void
+}
+/** The host actually stops old effect-capable writers before returning a scope. */
+export interface RuntimeRecoveryScope {
+  readonly binding: SessionRuntimeBinding
+  readonly owner: SettlementOwner
+  /** Leaves the new host's recovery admission after its own work actually stops. */
+  readonly close: () => Promise<void>
+}
+export interface RuntimeRecoveryAccess {
+  readonly enter: (
+    input: ReconcileInput,
+  ) => Promise<{ readonly scope: RuntimeRecoveryScope } | { readonly unavailable: true }>
 }
 export type RuntimeCloseResult = { readonly released: true } | { readonly unavailable: true }
 
@@ -364,6 +380,8 @@ export interface CallContainerView<P extends PlannedSemantics, R> {
   readonly request: OpenCallInput
   readonly owner: SettlementOwner
   readonly coordinator: SettlementCoordinator
+  /** The original dispatch handle owns the opened writer and reply settlement. */
+  readonly invocation?: AnchoredInvocationHandle
   readonly operation: CallOperationState
 }
 export interface CallContainer<P extends PlannedSemantics, R> {
@@ -382,6 +400,8 @@ export interface CallReservation<P extends PlannedSemantics, R> {
   readonly key: CallKey
   readonly view: () => CallContainerView<P, R> | undefined
   readonly publish: (next: CallOperationState) => void
+  /** Bind only the original invocation under this short admission. */
+  readonly attachInvocation: (handle: AnchoredInvocationHandle) => void
   readonly release: () => void
 }
 

@@ -5,6 +5,7 @@ import type { SettlementTask } from '../src/settlement-types.ts'
 import type { CreateCallContainerInput, SessionRuntimeBinding } from '../src/service-types.ts'
 import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
 import type { PlannedSemantics } from '../src/types.ts'
+import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 
 function deferred() {
   let resolve: (() => void) | undefined
@@ -84,6 +85,38 @@ function fixture(sessionId: string, callId: string) {
 }
 
 describe('call container admission and retention', () => {
+  it('binds only the original invocation under a reservation and keeps it through close', async () => {
+    const store = createCallContainerStore<PlannedSemantics, never>()
+    const f = fixture('session', 'call')
+    const reservation = store.reserve(f.container.key)
+    if (!('reservation' in reservation)) throw new Error('reservation absent')
+    expect(store.insert(reservation.reservation, f.container)).toBe(true)
+    let closes = 0
+    let canStop = false
+    const original = {
+      close: async () => {
+        closes++
+        return canStop ? { released: true } : { unavailable: true }
+      },
+    } as AnchoredInvocationHandle
+    reservation.reservation.attachInvocation(original)
+    reservation.reservation.attachInvocation(original)
+    expect(reservation.reservation.view()?.invocation).toBe(original)
+    expect(() =>
+      reservation.reservation.attachInvocation({
+        close: async () => ({ released: true }),
+      } as AnchoredInvocationHandle),
+    ).toThrow('original invocation already attached')
+    reservation.reservation.release()
+    expect(() => reservation.reservation.attachInvocation(original)).toThrow('reservation released')
+    expect(await f.container.close()).toEqual({ unavailable: true })
+    expect(f.leaseReleases).toBe(0)
+    expect(store.find(f.container.key)?.view().invocation).toBe(original)
+    canStop = true
+    expect(await f.container.close()).toEqual({ released: true })
+    expect(closes).toBe(2)
+    expect(f.leaseReleases).toBe(1)
+  })
   it('serializes one session/call key without blocking another session', () => {
     const store = createCallContainerStore<PlannedSemantics, never>()
     const first = store.reserve({ session: sessionRef('session-a'), callId: 'same-call' })

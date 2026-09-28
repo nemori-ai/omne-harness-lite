@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
+import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createCallContainerStore } from '../src/service-container.ts'
 import type { ReservationWaitPolicy } from '../src/service-types.ts'
 import type { SettlementScheduler } from '../src/settlement-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 
-const key = { session: 'session-a', callId: 'call-a' }
+function sessionRef(value: string) {
+  const parsed = parseOpaqueIdentifier(value, 'SessionRef')
+  if ('invalidInput' in parsed) throw new Error('invalid test session')
+  return parsed.ok
+}
+
+const key = { session: sessionRef('session-a'), callId: 'call-a' }
 const policy: ReservationWaitPolicy = { maxWaitersPerCall: 1, timeoutMs: 500 }
 
 function controlledScheduler() {
@@ -53,7 +60,7 @@ describe('bounded call reservation waiting', () => {
       signal: new AbortController().signal,
     })
     expect(timers).toHaveLength(1)
-    const other = store.reserve({ session: 'session-b', callId: key.callId })
+    const other = store.reserve({ session: sessionRef('session-b'), callId: key.callId })
     expect(other).toHaveProperty('reservation')
     first.reservation.release()
     const next = await waiting
