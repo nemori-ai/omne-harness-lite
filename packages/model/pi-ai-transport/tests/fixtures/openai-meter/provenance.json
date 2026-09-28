@@ -1,6 +1,6 @@
 {
   "kind": "generated-test-images",
-  "generator": "Python 3 standard-library struct, zlib and binascii.crc32; grayscale PNG with one solid-black scanline repeated to stated square dimensions",
+  "generator": "Python 3 standard-library struct, zlib and CRC32; the original 1x1 and 1024x1024 are grayscale, while 2048x2048 is opaque RGBA; each uses one solid scanline repeated to the stated dimensions",
   "images": {
     "1x1.png": {
       "width": 1,
@@ -11,6 +11,11 @@
       "width": 1024,
       "height": 1024,
       "sha256": "1eb50a3ee3fcac0adc60c0e90baa6d051c642f3a930330ac9aec9dd92996f3f7"
+    },
+    "2048x2048.png": {
+      "width": 2048,
+      "height": 2048,
+      "sha256": "31359dc45f42d7ad90a219880a91bce1f214ee508bb43be44e615a210cd33a52"
     }
   },
   "oracle": "https://developers.openai.com/api/docs/guides/images-vision gives 1,229 tokens for a 1024x1024 GPT-6 Astra high image. The same 32-pixel patch and 1.2 multiplier explicitly applies to named GPT-5.6 base models with omitted/auto original detail at this size."

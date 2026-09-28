@@ -32,7 +32,7 @@ function expectedImageType(mime: string): string | undefined {
 }
 
 /** Named GPT-5.6 base image rules; private route conversion still makes the total estimated. */
-export function openAiBaseImageTokens(
+function openAiBaseImageTokens(
   width: number,
   height: number,
   detail: ImageDetail,

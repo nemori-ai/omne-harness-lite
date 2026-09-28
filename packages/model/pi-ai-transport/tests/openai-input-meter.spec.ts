@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import { createOpenAiInputMeter, openAiBaseImageTokens } from '../src/input-meters/openai.ts'
+import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { createPiAiTransport } from '../src/transport.ts'
 import { planRequest } from '../src/plan.ts'
@@ -198,13 +198,9 @@ describe('OpenAI model-specific input estimator', () => {
   })
 
   it('uses independent OpenAI patch examples and low/high sizing limits', () => {
-    expect(openAiBaseImageTokens(1024, 1024, 'original')).toBe(1229)
-    expect(openAiBaseImageTokens(1024, 1024, 'high')).toBe(1229)
-    expect(openAiBaseImageTokens(2048, 2048, 'high')).toBe(3000)
-    expect(openAiBaseImageTokens(1024, 1024, 'low')).toBe(308)
-    expect(openAiBaseImageTokens(1, 1, 'low')).toBe(2)
     for (const modelId of baseModels) {
       const high = measuredTokens(modelId, imageBody(modelId, url('1024x1024.png'), 'high'))
+      const highBudget = measuredTokens(modelId, imageBody(modelId, url('2048x2048.png'), 'high'))
       const low = measuredTokens(modelId, imageBody(modelId, url('1024x1024.png'), 'low'))
       const smallHigh = measuredTokens(modelId, imageBody(modelId, url('1x1.png'), 'high'))
       const smallLow = measuredTokens(modelId, imageBody(modelId, url('1x1.png'), 'low'))
@@ -213,6 +209,7 @@ describe('OpenAI model-specific input estimator', () => {
         messages: [{ role: 'user', content: [{ type: 'text', text: 'Describe this image.' }] }],
       })
       expect(high - smallHigh).toBe(1227)
+      expect(highBudget - smallHigh).toBe(2998)
       expect(low - smallLow).toBe(306)
       expect(low).toBeGreaterThan(noImage)
       const unsupported = imageBody(modelId, url('1x1.png'), 'ultra')
