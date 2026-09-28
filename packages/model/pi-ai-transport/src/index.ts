@@ -43,3 +43,8 @@ export {
   type RetirementPolicy,
   type RetirementResult,
 } from './registry.ts'
+
+export {
+  deepseekV4Pro0813Definition,
+  deepseekV4Pro0813Configuration,
+} from './official-models/deepseek.ts'

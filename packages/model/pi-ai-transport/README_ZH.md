@@ -291,3 +291,35 @@ pnpm --filter @omne-harness-lite/pi-ai-transport run test
 ```
 
 测试使用完整非官方 fixture、真实临时 HTTPS、公开 core 判定/装配器、独立 Schema validator 和真实 Cordis 生命周期。它们不认证 37 个真实模型、工具/replay/模态、TTL 到期、耐久恢复或完整观测链。fork 来源：[UPSTREAM.md](UPSTREAM.md)、[provenance.json](provenance.json)、[LICENSE.pi](LICENSE.pi)。
+
+### 显式的 DeepSeek Pro 定义
+
+`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / d095-1`，定义修订为 `1`。导入不会注册模型、分配连接池或发送请求。
+
+模型记载的能力是文本输入、文本输出。所选路由提供 1,048,576 token 共享窗口和 16,384 token 输出容量；1,032,192 token 输入预算预留了完整输出容量。这是换算的只计输入预算，不是路由 `max_prompt_tokens` 的原值，也不是极值请求实测。空输入限制对象只表示该纯文本声明没有活动的图片限制，不代表无限大小的图片输入。
+
+系统提醒映射为带标识的 `user` 消息。自动前缀缓存采用下面的显式配置，不配置 TTL 或断点。该路由的历史请求曾在没有手工缓存控制时报告缓存读取 token；这不保证下一次命中，也不认证生产 runtime。
+
+首修订主动只提供 `reasoningEffort: 'low'`、`seed: 0` 和 `stopSequences: ['END']`，其它值丢弃并记录项名。temperature、top-p 和两种 penalty 主动不提供，丢弃均留痕；不会把路由所报支持或原生条件行为改说成“不支持”。`maxOutputTokens` 通过档案通常的输出上限核对后原样发送，不根据动态元数据夹取。私有 `extra` 项的提供集合为空。
+
+```ts
+import {
+  deepseekV4Pro0813Definition,
+  deepseekV4Pro0813Configuration,
+  createOfficialProfileContent,
+  configurationSchema,
+} from '@omne-harness-lite/pi-ai-transport'
+
+const content = createOfficialProfileContent(deepseekV4Pro0813Definition, {
+  providers: ['deepinfra/fp8'],
+  allowFallback: false,
+  configuration: deepseekV4Pro0813Configuration,
+})
+if ('rejected' in content) throw new Error(content.rejected)
+const schema = configurationSchema(deepseekV4Pro0813Definition, 'deepinfra/fp8')
+if ('rejected' in schema) throw new Error(schema.rejected)
+```
+
+配置是明确选用的来源值（`revision: '1'`、`values: { cache: { mode: 'automatic' } }`），不会作为隐藏的传输默认值。静态传输需显式传入定义，动态使用经既有模型贡献插件登记；目录发布和租户准入分别归已有 owner。
+
+本次只验证本地构造和纯规划。seed／stop 真正生效、完整参数调优与生产 public／service 认证仍待完成。首次端到端调用只使用已有观察的 `low` 与 `1024`。另一个固定 DeepSeek 模型需另行补齐事实与窄定义，不会自动发现或纳入模型。

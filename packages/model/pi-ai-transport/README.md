@@ -291,3 +291,35 @@ pnpm --filter @omne-harness-lite/pi-ai-transport run test
 ```
 
 Tests use complete nonofficial fixtures, actual temporary HTTPS, public core judges/assembler, independent Schema validation and real Cordis lifecycle transitions. They do not certify 37 live models, tools/replay/modalities, TTL expiry, durable recovery or the complete observability chain. Fork provenance: [UPSTREAM.md](UPSTREAM.md), [provenance.json](provenance.json), [LICENSE.pi](LICENSE.pi).
+
+### Explicit DeepSeek Pro definition
+
+`deepseekV4Pro0813Definition` provides one fixed leaf for `deepseek/deepseek-v4-pro-0813` through `deepinfra/fp8`. It shares the OpenRouter planner and DeepSeek family rules under `pi-ai:deepseek / d095-1`; its definition revision is `1`. Importing it does not register a model, allocate a connection pool or send a request.
+
+The model's recorded capability is text input and text output. Its route reports a 1,048,576-token shared window and 16,384-token output capacity. The 1,032,192-token input budget reserves that complete output capacity; it is a derived input-only budget, not the route's `max_prompt_tokens` field or an extreme-size request test. The empty input-constraint object has no active image constraint in this text-only declaration; it does not assert unlimited image input.
+
+System reminders become marked `user` messages. Automatic prefix caching uses the explicit configuration below, with no TTL or breakpoints. Historical requests on this route reported cache-read tokens without manual cache controls. That observation does not guarantee a future hit or certify the production runtime.
+
+This first revision deliberately provides `reasoningEffort: 'low'`, `seed: 0`, and `stopSequences: ['END']`. Other values are dropped with their names recorded. Temperature, top-p and both penalties are deliberately not provided and are traced when dropped. Their route-advertised support and native conditional behavior are not reclassified as unsupported. `maxOutputTokens` passes unchanged after the profile's ordinary output-bound check; no dynamic metadata clamping occurs. No private `extra` keys are provided.
+
+```ts
+import {
+  deepseekV4Pro0813Definition,
+  deepseekV4Pro0813Configuration,
+  createOfficialProfileContent,
+  configurationSchema,
+} from '@omne-harness-lite/pi-ai-transport'
+
+const content = createOfficialProfileContent(deepseekV4Pro0813Definition, {
+  providers: ['deepinfra/fp8'],
+  allowFallback: false,
+  configuration: deepseekV4Pro0813Configuration,
+})
+if ('rejected' in content) throw new Error(content.rejected)
+const schema = configurationSchema(deepseekV4Pro0813Definition, 'deepinfra/fp8')
+if ('rejected' in schema) throw new Error(schema.rejected)
+```
+
+The configuration is an explicitly selected source value (`revision: '1'`, `values: { cache: { mode: 'automatic' } }`), never a hidden transport default. Pass the definition explicitly to a static transport, or register it through the existing model contribution plugin. Catalog publication and tenant authorization remain with their respective owners.
+
+Pure construction and planning are verified locally. Seed/stop effectiveness, full parameter tuning and production public/service certification remain pending. The first end-to-end call uses only the previously observed `low` and `1024` parameters. Adding the other fixed DeepSeek model requires its own complete facts and leaf, without automatic model discovery.
