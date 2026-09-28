@@ -21,3 +21,12 @@ export {
 export type * from './credential-redaction-types.ts'
 export { legalTargets, displayList, effectiveModel } from './selection.ts'
 export type * from './selection-types.ts'
+
+export type * from './settlement-types.ts'
+export { readSettlementPrefix, interpretSettlementPrefix } from './settlement-prefix.ts'
+export type {
+  SettlementPrefix,
+  SettlementPrefixResult,
+  SettlementInterpretation,
+} from './settlement-prefix.ts'
+export { createSettlementCoordinator } from './settlement-coordinator.ts'
