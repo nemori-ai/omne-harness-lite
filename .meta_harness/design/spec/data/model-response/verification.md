@@ -421,3 +421,44 @@ catalog 当前五条指向 MR 的消费边为 RT2/3/4、runner2/3；现有其他
 - **历史依据差异**：MR4 抬头的 PF-004/PF-001“当前一致”不再成立，已按本轮主线裁定限定为继承旧采用范围；全量新版产品重核由相应产品 owner＋主线承接。本轮没有发现须改 headers 裁定的产品反例。
 - **未闭门**：本候选只解决合法表示，MR5-H4/H5 未开始；RT4 G-31、G-6 不能在后续采用时被 Schema 通过记录替代。独立语义／表达评审和正式接受由主线安排。
 - **术语与冲突**：沿既有模型响应体及其上游原始响应留存属性，不新增词条、ID 族或服务；`RawHeaders` 是简报允许的 Schema 内部表示名。本轮未改变其他契约或已有采用关系。
+
+
+## 2026-09-28 v6 候选验证
+
+**状态**：candidate，未接受、未冻结。规范目录 [v6](v6/contract.md)，S-1～S-40；规范资源为 contract.md、model-response.schema.json、examples.md。运行结果仅保存在本版本外入口。基线分支 `panqiwei/model-request-runtime-response6-spec`，HEAD `fd4c87f2bc2809843ecec7937834a235906b2163`。
+
+### 变化的影响
+
+- 按 PF-013 rev 14 / D-096，消费 `data.model-profile/v4` 完整限制快照及 `data.messages/v5`；其余五个数据依赖坐标保持。历史 v5 及更早的读取/结算保持各自 codec，不从现行目录补 cap。消费者须显式采用 v6。
+- S-39 唯一拥有 `PendingModelResponse`；回复必填、只允许非故障有回复收场，禁止处置/晚到。持久根仍要求 reply 对应处置。Schema 共用条件提取不改变原约束；S-39 完整事实、相等关系、脱敏、提交时晚到和实际持久性不能靠 Schema 宣称完成。
+- 全部 v5 规范 JSON 块在新例中仅增设显式的虚构项目 cap/上游事实以满足新版快照；这些不是默认值或历史迁移值。新增 12 个 pending 正反实例及提交场景。
+- 本批 registry 由主线唯一集成；起草者已提供 catalog/covers/id-namespaces/formal-tasks 四份可集成片段。S-/G- 复用现有局部编号空间，无新全局前缀；不登记空形式任务。中央清单及冻结文件未改。
+
+### 本次证据与范围
+
+本工作树 `.venv/bin/python`，`jsonschema` Draft202012Validator + `referencing.Registry`。Schema registry 使用本工作树既有文件及 sibling 的 MP4/MS5 精确候选，未安装依赖。MP4 最终 Schema SHA-256 `cfdb0878cab32f961cfd8e1471e714c0abf2f8ca6d360e4326f7e0e076c72278`；MS5 `80c829391ef4f5e736c36a93e6e103467f2890125375ae09ff16f64b11d2485e`。
+
+实际检查输出：
+
+```text
+v5→v6 fixture regression: 78 JSON blocks, mismatches=0
+pending fixtures: 12, positive=4, negative=8
+schema preservation: exact structural equality after reversing refs/extraction; persisted root disposition/late checks: PASS
+PASS
+```
+
+其中 78 块是旧新表示接收结果逐块比较，含说明用途的 JSON，不声称都是合法响应。还检查 4 个合法 pending 全被持久根拒绝，添加处置后可保存、有 Run 的 late 可接受而无 Run 的 late 被拒绝。结构比较反向恢复 MP3/MS4 refs 及共用条件后与 MR5 Schema 精确相等，保护所有既有成员约束。拒绝名由正文定义，本次工具只核通过/拒绝，未运行独立拒绝值分类实现。
+
+| 义务 | 条款 | 状态 |
+|---|---|---|
+| 根/待提交正反实例与旧 Schema 约束保全 | S-13、S-20、S-26～S-28、S-39 | 上述有限检查已运行 |
+| 待提交完整事实不裁剪、reply.response/id 相等、绑定与上游 cap 关系 | S-14、S-36、S-39～S-40 | **未开始**：提供者纯判定及交接场景 |
+| 消息提交前尝试失效时只在提交点判 late；处置与消息一致 | S-14、S-35、S-39 | **未开始**：运行时与调用方提供者；不以缺 late 表示不晚 |
+| 真实头值采集、脱敏、附件留存及用量/费用来源 | S-19～S-21、S-37～S-39 | **未开始**：继承 v5 取证义务 |
+| 历史精确读取/结算与新版发送边界 | S-40 | **未开始**：运行时及调用方提供者 |
+
+**形式触发判断**：不新增运行操作、共享代数或并发协议。单文档投影由 Schema 与实例表达；跨对象相等关系和事实来源由纯判定/场景表达。S-23/S-35/S-39 的行为义务归运行时，不复制状态机；TLA+、Alloy **未运行**，未登记新增 formal task，也不声称模型覆盖。
+
+**继承缺口**：G-3（loop 主线，租户条目壳）、G-4（PF-002 产品/主线，原始留存保留期）、G-5（运行时，脱敏规则）、G-8（运行时/提供者，执行方事实）、G-9（PF-010/运行时，请求组成追溯）、G-10（提供者，费用来源取证）。本次未替这些 owner 宣称闭合。`PendingModelResponse` 无独立词条，仅为主线确认的共享表示名，报主线保留。
+
+**设计检查器实际结果**：以 `--formal skip` 运行。本 spoke 尚未合入 MP4/MS5，初跑 22 项链接/锚点错误（21 项是尚未合入的依赖路径，1 项是当时尚未追加的本节锚点，现已追加）。另在任务临时副本叠加当时 MP4/MS5 文件运行，结果 `FAIL: design validation found 2 error(s).`，两项均为 MS5 的 `../verification.md#v5-完整输入限制快照` 锚点尚未在当时读取的 sibling 验证入口出现；无本包错误。该副本保留原中央 registry，不能替代整批登记验证。主线完成七包与登记集成后统一运行检查器；本包不声称整批通过。`git diff --check` 本次无输出、退出 0。TLA+/Alloy 均未运行。
