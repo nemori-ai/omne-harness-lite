@@ -1,4 +1,5 @@
-import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
+import { randomUUID } from 'node:crypto'
+import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import { isJsonNumber } from '@omne-harness-lite/content-blocks'
@@ -7,6 +8,7 @@ import { validate as loopShape, type RetryPlan } from '@omne-harness-lite/loop-e
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { createAnchoredModelInvocation } from './anchored-invocation.ts'
+import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
 import { resolveCallTools } from './call-tools.ts'
 import { dispatchGuard, type DispatchGuardPhase } from './dispatch-guard.ts'
@@ -36,6 +38,140 @@ import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
 import type { PlanInput, InvocationPolicy } from './types.ts'
 import type { PlannedSemantics } from './types.ts'
+import type { SettlementDiagnostic } from './settlement-types.ts'
+import type {
+  DiagnosticAssociation,
+  DiagnosticCollector,
+  DiagnosticEmitter,
+  DiagnosticEvent,
+  DiagnosticReference,
+} from './diagnostics-types.ts'
+
+function operationDiagnostics(
+  collector: DiagnosticCollector | undefined,
+  tenant: SessionRuntimeBinding['log']['tenant'],
+  association: DiagnosticAssociation,
+  report: () => void,
+  onRecorded?: (reference: DiagnosticReference) => void,
+): {
+  readonly record: (event: DiagnosticEvent) => DiagnosticReference | undefined
+  readonly close: () => void
+} {
+  let emitter: DiagnosticEmitter | undefined
+  let recordEnabled = true
+  let closeAttempted = false
+  try {
+    const produced: unknown = collector?.emitter({ kind: 'tenant', tenant }, association)
+    if (drainDiagnosticThenable(produced)) report()
+    else if (
+      produced !== undefined &&
+      produced !== null &&
+      typeof produced === 'object' &&
+      'record' in produced &&
+      'close' in produced &&
+      typeof produced.record === 'function' &&
+      typeof produced.close === 'function'
+    )
+      emitter = produced as DiagnosticEmitter
+    else if (collector !== undefined) report()
+  } catch {
+    report()
+  }
+  return {
+    record(event) {
+      if (!emitter || !recordEnabled) return undefined
+      try {
+        const result: unknown = emitter.record(event)
+        if (result !== null && typeof result === 'object' && 'recorded' in result) {
+          const recorded = result.recorded
+          if (
+            recorded !== null &&
+            typeof recorded === 'object' &&
+            'collectorId' in recorded &&
+            'sequence' in recorded &&
+            typeof recorded.collectorId === 'string' &&
+            typeof recorded.sequence === 'string'
+          ) {
+            const reference = { collectorId: recorded.collectorId, sequence: recorded.sequence }
+            onRecorded?.(reference)
+            return reference
+          }
+        }
+        if (drainDiagnosticThenable(result)) {
+          recordEnabled = false
+          report()
+        }
+      } catch {
+        recordEnabled = false
+        report()
+      }
+      return undefined
+    },
+    close() {
+      if (!emitter || closeAttempted) return
+      closeAttempted = true
+      try {
+        const result: unknown = emitter.close()
+        if (drainDiagnosticThenable(result)) report()
+      } catch {
+        report()
+      }
+    },
+  }
+}
+
+function settlementEvent(event: SettlementDiagnostic): DiagnosticEvent | undefined {
+  let outcome: DiagnosticEvent['outcome']
+  let settlement: 'unsettled' | 'submitted' | 'committed' | 'unknown'
+  switch (event.kind) {
+    case 'settlement.enter':
+      outcome = 'started'
+      settlement = 'unsettled'
+      break
+    case 'settlement.wait':
+    case 'settlement.tail_changed_this':
+    case 'settlement.collision':
+      outcome = 'waiting'
+      settlement = 'unsettled'
+      break
+    case 'settlement.append':
+      outcome = 'accepted'
+      settlement = 'submitted'
+      break
+    case 'settlement.recognized':
+    case 'settlement.committed':
+      outcome = 'completed'
+      settlement = 'committed'
+      break
+    case 'settlement.receipt_unconfirmed':
+    case 'settlement.unknown_retained':
+    case 'settlement.stop_unconfirmed':
+      outcome = 'unknown'
+      settlement = 'unknown'
+      break
+    case 'settlement.stop_request_failed':
+      outcome = 'failed'
+      settlement = 'unknown'
+      break
+    default:
+      if (!event.kind.startsWith('settlement.unavailable.')) return undefined
+      outcome = 'unavailable'
+      settlement = 'unknown'
+  }
+  return {
+    source: 'runtime',
+    stage: 'settlement',
+    outcome,
+    facts: {
+      kind: 'progress',
+      settlement,
+      owner: event.owner,
+      policy: event.policy,
+      submissions: event.submissions,
+      tailConflicts: event.tailConflicts,
+    },
+  }
+}
 
 function object(value: unknown): value is Readonly<Record<string, unknown>> {
   return (
@@ -235,7 +371,19 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
   const retainedReads = new OwnedReadTracker()
   const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
+  const lastDiagnosticByCall = new WeakMap<object, DiagnosticReference>()
   let closing = false
+
+  let diagnosticFailureReportEnabled = true
+  function reportDiagnosticFailure(kind = 'model_runtime.diagnostic_sink_failed'): void {
+    if (!diagnosticFailureReportEnabled) return
+    try {
+      const returned: unknown = runtime.policy.diagnostic({ kind })
+      if (drainDiagnosticThenable(returned)) diagnosticFailureReportEnabled = false
+    } catch {
+      diagnosticFailureReportEnabled = false
+    }
+  }
 
   function observerDiagnostic(event: ObserverDiagnostic): void {
     try {
@@ -304,6 +452,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     let handle: ReturnType<typeof createAnchoredModelInvocation<P, R>> | undefined
     let observerQueue: ModelObserverQueue | undefined
     let dispatchNumber = 0
+    let earlyDiagnostics: ReturnType<typeof operationDiagnostics> | undefined
     try {
       if (closing) return { runtimeStopped: true }
       const local = reservation.view()
@@ -337,7 +486,56 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         again && 'plan' in input && retrySnapshot !== undefined
           ? dispatchAgainAdmission(key, history, local?.operation, retrySnapshot, input.plan)
           : dispatchAdmission(history, local?.operation, local?.binding.snapshot.providers[0] ?? '')
-      if (!('allowed' in admission)) return admission
+      if (!('allowed' in admission)) {
+        if (again && 'retryRefused' in admission) {
+          const refusal = operationDiagnostics(
+            runtime.diagnosticCollector,
+            session.log.tenant,
+            { executionId: randomUUID(), session: key.session, call: key.callId },
+            reportDiagnosticFailure,
+          )
+          refusal.record({
+            source: 'runtime',
+            stage: 'retry',
+            outcome: 'rejected',
+            facts: { kind: 'progress', retry: 'refused' },
+          })
+          refusal.close()
+        }
+        return admission
+      }
+      const diagnosticOwner = runtime.calls.find(key)
+      const priorDiagnostic =
+        diagnosticOwner === undefined ? undefined : lastDiagnosticByCall.get(diagnosticOwner)
+      const rememberDiagnostic = (reference: DiagnosticReference): void => {
+        if (diagnosticOwner !== undefined) lastDiagnosticByCall.set(diagnosticOwner, reference)
+      }
+      const executionId = randomUUID()
+      earlyDiagnostics = operationDiagnostics(
+        runtime.diagnosticCollector,
+        session.log.tenant,
+        {
+          executionId,
+          ...(again && priorDiagnostic ? { causedBy: priorDiagnostic } : {}),
+          session: key.session,
+          call: key.callId,
+          dispatch: admission.dispatch,
+        },
+        reportDiagnosticFailure,
+        rememberDiagnostic,
+      )
+      earlyDiagnostics.record({
+        source: 'runtime',
+        stage: 'admission',
+        outcome: 'accepted',
+        facts: { kind: 'decision' },
+      })
+      earlyDiagnostics.record({
+        source: 'runtime',
+        stage: 'credential',
+        outcome: 'started',
+        facts: { kind: 'decision' },
+      })
       if (local === undefined) return { unavailable: true }
       if (local.operation.phase !== 'ready') return { unavailable: true }
       if (local.request.host.signal.aborted || local.request.host.stopping())
@@ -352,10 +550,32 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         admission.provider,
         retainedReads,
       )
-      if ('unavailable' in prepared) return prepared
-      if ('invalidInput' in prepared) return prepared
+      if ('unavailable' in prepared) {
+        earlyDiagnostics.record({
+          source: 'runtime',
+          stage: 'credential',
+          outcome: 'unavailable',
+          facts: { kind: 'decision' },
+        })
+        return prepared
+      }
+      if ('invalidInput' in prepared) {
+        earlyDiagnostics.record({
+          source: 'runtime',
+          stage: 'credential',
+          outcome: 'rejected',
+          facts: { kind: 'decision' },
+        })
+        return prepared
+      }
       if (closing) return { runtimeStopped: true }
       if ('credentialUnavailable' in prepared) {
+        earlyDiagnostics.record({
+          source: 'runtime',
+          stage: 'credential',
+          outcome: 'unavailable',
+          facts: { kind: 'decision', cause: 'credential_unavailable', credentialPresent: false },
+        })
         const first = 'absent' in history || history.known.dispatches.length === 0
         const ending = first ? 'undispatched' : 'released'
         const appended = await appendControlRecord({
@@ -384,6 +604,16 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             }
       }
       const { planInput, credential, credentialScope, policy } = prepared.prepared
+      const parentDiagnostic = earlyDiagnostics.record({
+        source: 'runtime',
+        stage: 'credential',
+        outcome: 'accepted',
+        facts: {
+          kind: 'decision',
+          credentialPresent: true,
+          credentialScope: credentialScope.layer,
+        },
+      })
       if (local.observer !== undefined) {
         const observer = local.observer
         const target = planInput.target
@@ -456,15 +686,72 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       if (owner.admission() !== 'open') return { runtimeStopped: true }
       if (reservation.view()?.operation.phase !== 'ready') return { unavailable: true }
       const deliveryQueue = observerQueue
-      const create = () =>
-        createAnchoredModelInvocation({
+      const create = () => {
+        const responseId = runtime.identities.response()
+        const collector = runtime.diagnosticCollector
+        let legacySettlementEnabled = true
+        const settlementDiagnostic = (event: SettlementDiagnostic): void => {
+          if (legacySettlementEnabled) {
+            try {
+              const returned: unknown = runtime.diagnostic(event)
+              if (drainDiagnosticThenable(returned)) {
+                legacySettlementEnabled = false
+                reportDiagnosticFailure()
+              }
+            } catch {
+              legacySettlementEnabled = false
+              reportDiagnosticFailure()
+            }
+          }
+          if (collector === undefined) return
+          try {
+            if (
+              !tenantIdEquals(event.tenant, session.log.tenant) ||
+              event.session !== key.session ||
+              event.call !== key.callId ||
+              !isJsonNumber(event.dispatch) ||
+              ExactDecimal.from(event.dispatch).compare(ExactDecimal.from(admission.dispatch)) !==
+                0 ||
+              event.response !== responseId
+            ) {
+              reportDiagnosticFailure('model_runtime.diagnostic_scope_mismatch')
+              return
+            }
+            const projected = settlementEvent(event)
+            if (projected === undefined) {
+              reportDiagnosticFailure('model_runtime.diagnostic_unsupported')
+              return
+            }
+            const prior =
+              diagnosticOwner === undefined ? undefined : lastDiagnosticByCall.get(diagnosticOwner)
+            const observer = operationDiagnostics(
+              collector,
+              session.log.tenant,
+              {
+                executionId,
+                ...(prior === undefined ? {} : { causedBy: prior }),
+                session: key.session,
+                call: key.callId,
+                dispatch: admission.dispatch,
+                response: responseId,
+              },
+              reportDiagnosticFailure,
+              rememberDiagnostic,
+            )
+            observer.record(projected)
+            observer.close()
+          } catch {
+            reportDiagnosticFailure()
+          }
+        }
+        return createAnchoredModelInvocation({
           planInput,
           transport: local.binding.lease.transport,
           credential,
           credentialScope,
           policy,
           signal: AbortSignal.any([local.binding.lease.signal, local.request.host.signal]),
-          responseId: runtime.identities.response(),
+          responseId,
           messageId: runtime.identities.message(),
           profile: local.binding.profile,
           selectedBy: local.binding.selectedBy,
@@ -473,12 +760,38 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             owner,
             settlementContention: runtime.settlementContention,
             settlementScheduler: runtime.settlementScheduler,
-            diagnostic: runtime.diagnostic,
+            diagnostic: settlementDiagnostic,
           },
+          ...(collector === undefined
+            ? {}
+            : {
+                diagnosticEmitterFactory: () => {
+                  const emitter = collector.emitter(
+                    { kind: 'tenant', tenant: session.log.tenant },
+                    {
+                      executionId,
+                      ...(parentDiagnostic === undefined ? {} : { causedBy: parentDiagnostic }),
+                      session: key.session,
+                      call: key.callId,
+                      dispatch: admission.dispatch,
+                      response: responseId,
+                    },
+                  )
+                  return Object.freeze({
+                    record(event: DiagnosticEvent) {
+                      const result = emitter.record(event)
+                      if ('recorded' in result) rememberDiagnostic(result.recorded)
+                      return result
+                    },
+                    close: () => emitter.close(),
+                  })
+                },
+              }),
           ...(deliveryQueue === undefined
             ? {}
             : { onAccepted: (event, snapshot) => void deliveryQueue.offer(event, snapshot) }),
         })
+      }
       if (local.invocation === undefined) {
         handle = create()
         reservation.attachInvocation(handle)
@@ -498,6 +811,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     } catch {
       return { unavailable: true }
     } finally {
+      earlyDiagnostics?.close()
       reservation.release()
     }
     if (handle === undefined) return { unavailable: true }

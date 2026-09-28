@@ -53,6 +53,7 @@ import type {
   TransportAdapter,
 } from './types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
+import type { DiagnosticCollector } from './diagnostics-types.ts'
 
 /** The pair is always the identity; a callId alone is not an access key. */
 export interface CallKey {
@@ -463,6 +464,8 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly reservationWaitPolicy: ReservationWaitPolicy
   readonly recovery: RuntimeRecoveryAccess
   readonly diagnostic: (event: SettlementDiagnostic) => void
+  /** Engineering diagnostics are bound per operation after verified session ownership. */
+  readonly diagnosticCollector?: DiagnosticCollector
 }
 /** The host actually stops old effect-capable writers before returning a scope. */
 export interface RuntimeRecoveryScope {

@@ -515,6 +515,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
             signal: controller.signal,
             beforeSend: usable,
             ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
+            ...(input.diagnosticEmitterFactory === undefined
+              ? {}
+              : { diagnosticEmitterFactory: input.diagnosticEmitterFactory }),
             beforeFirstContent: () =>
               start('wait', async () => {
                 if (!usable()) throw new Error('model_anchor.stopped')

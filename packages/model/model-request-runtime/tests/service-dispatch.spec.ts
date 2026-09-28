@@ -18,6 +18,12 @@ import type { CallHistoryResult } from '../src/call-history.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { RuntimeConstruction, SessionRuntimeBinding } from '../src/service-types.ts'
 import type { PlanFailure } from '../src/types.ts'
+import type {
+  DiagnosticAssociation,
+  DiagnosticCollector,
+  DiagnosticEvent,
+  DiagnosticScope,
+} from '../src/diagnostics-types.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_dispatch', 'SessionRef'))
 const key = { session, callId: 'call_dispatch' }
@@ -138,6 +144,27 @@ test('service dispatch writes both anchors before handing out a complete pending
     let evaluationReads = 0
     let credentialAvailable = true
     const observed: unknown[] = []
+    const diagnosticFaults: string[] = []
+    let diagnosticFail = false
+    const engineering: {
+      scope: DiagnosticScope
+      association: DiagnosticAssociation | undefined
+      event: DiagnosticEvent
+    }[] = []
+    const diagnosticCollector = {
+      emitter(scope: DiagnosticScope, association?: DiagnosticAssociation) {
+        return {
+          record(event: DiagnosticEvent) {
+            if (diagnosticFail) throw new Error('diagnostic sink failed')
+            engineering.push({ scope, association, event })
+            return {
+              recorded: { collectorId: 'service-test', sequence: String(engineering.length) },
+            }
+          },
+          close() {},
+        }
+      },
+    } as DiagnosticCollector
     let observerTargetAllowed = false
     let observerOpenCount = 0
     const calls = createCallContainerStore<TestPlan, object>()
@@ -234,7 +261,11 @@ test('service dispatch writes both anchors before handing out a complete pending
       settlementScheduler: noWaitScheduler,
       reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
       tokenMargin: { multiplier: 1, reserveTokens: 0 },
-      policy: { ...invocationPolicy(), schedule: () => () => {} },
+      policy: {
+        ...invocationPolicy(),
+        schedule: () => () => {},
+        diagnostic: event => diagnosticFaults.push(event.kind),
+      },
       identities: {
         call: () => `actual-call-${++nextCall}`,
         response: () => `actual-response-${++nextResponse}`,
@@ -261,6 +292,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       },
       recovery: { enter: async () => ({ unavailable: true }) },
       diagnostic() {},
+      diagnosticCollector,
     }
     const opening = createServiceCalls(runtime)
     const opened = await opening.openCall({
@@ -283,9 +315,12 @@ test('service dispatch writes both anchors before handing out a complete pending
     })
     expect(opened).toEqual({ callId: 'actual-call-1', state: 'open' })
     const dispatch = createServiceDispatch(runtime)
+    diagnosticFail = true
     expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })).toEqual({
       invalidInput: { reason: 'observer_scope_mismatch' },
     })
+    expect(diagnosticFaults).toContain('model_runtime.diagnostic_sink_failed')
+    diagnosticFail = false
     expect(sendCount).toBe(0)
     expect(observerOpenCount).toBe(0)
     observerTargetAllowed = true
@@ -299,6 +334,37 @@ test('service dispatch writes both anchors before handing out a complete pending
       'model_call_opened',
     ])
     expect(result).toHaveProperty('replyPending')
+    const acceptedCredentialIndex = engineering.findLastIndex(
+      item =>
+        item.association?.call === 'actual-call-1' &&
+        item.event.source === 'runtime' &&
+        item.event.stage === 'credential' &&
+        item.event.outcome === 'accepted',
+    )
+    expect(acceptedCredentialIndex).toBeGreaterThanOrEqual(0)
+    expect(
+      engineering.find(
+        item => item.association?.call === 'actual-call-1' && item.event.stage === 'first_content',
+      )?.association,
+    ).toMatchObject({
+      response: 'actual-response-1',
+      causedBy: { collectorId: 'service-test', sequence: String(acceptedCredentialIndex + 1) },
+    })
+    expect(engineering).toContainEqual({
+      scope: { kind: 'tenant', tenant: binding.log.tenant },
+      association: expect.objectContaining({
+        session: host.session,
+        call: 'actual-call-1',
+        dispatch: 1,
+      }),
+      event: {
+        source: 'runtime',
+        stage: 'credential',
+        outcome: 'accepted',
+        facts: { kind: 'decision', credentialPresent: true, credentialScope: 'factory' },
+      },
+    })
+    expect(JSON.stringify(engineering)).not.toContain('test-secret')
     expect(wire.sends()).toBe(1)
     expect(evaluationReads).toBe(2)
     expect(sendCount).toBe(1)
@@ -374,14 +440,42 @@ test('service dispatch writes both anchors before handing out a complete pending
       settled: { outcome: 'failed', failure: { cause: 'upstream_unavailable' } },
       failureSubject: { failure: 'upstream_unavailable', retryConclusions: [] },
     })
+    expect(
+      engineering.some(
+        item =>
+          item.association?.call === 'actual-call-3' &&
+          item.event.stage === 'settlement' &&
+          item.event.outcome === 'completed' &&
+          item.event.facts.kind === 'progress' &&
+          item.event.facts.settlement === 'committed',
+      ),
+    ).toBe(true)
     expect(sendCount).toBe(2)
     failSend = false
+    const previousCall3 = engineering
+      .map((item, index) => ({ item, sequence: String(index + 1) }))
+      .filter(({ item }) => item.association?.call === 'actual-call-3')
+      .at(-1)
+    expect(previousCall3).toBeDefined()
     const retry = await dispatch.dispatchAgain({
       session: host.session,
       callId: 'actual-call-3',
       plan: { provider: 'test' },
     })
     expect(retry).toHaveProperty('replyPending')
+    const retryAdmission = engineering.find(
+      item =>
+        item.association?.call === 'actual-call-3' &&
+        item.association.dispatch === 2 &&
+        item.event.stage === 'admission',
+    )
+    expect(retryAdmission?.association?.causedBy).toEqual({
+      collectorId: 'service-test',
+      sequence: previousCall3?.sequence,
+    })
+    expect(retryAdmission?.association?.executionId).not.toBe(
+      previousCall3?.item.association?.executionId,
+    )
     expect(sendCount).toBe(3)
     expect(evaluationReads).toBe(6)
     const afterRetry = await host.log.readSince(host.session, 0)
@@ -440,6 +534,25 @@ test('service dispatch writes both anchors before handing out a complete pending
       state: 'handed_up',
       undispatched: 'credential_unavailable',
     })
+    expect(engineering).toContainEqual({
+      scope: { kind: 'tenant', tenant: binding.log.tenant },
+      association: expect.objectContaining({
+        session: host.session,
+        call: 'actual-call-5',
+        dispatch: 1,
+      }),
+      event: {
+        source: 'runtime',
+        stage: 'credential',
+        outcome: 'unavailable',
+        facts: { kind: 'decision', cause: 'credential_unavailable', credentialPresent: false },
+      },
+    })
+    expect(
+      engineering
+        .filter(item => item.association?.call === 'actual-call-5')
+        .every(item => item.association?.response === undefined),
+    ).toBe(true)
     expect(sendCount).toBe(3)
     expect(released).toBe(1)
     expect(calls.find({ session: host.session, callId: 'actual-call-5' })).toBeUndefined()

@@ -38,6 +38,7 @@ export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
   /** The host establishes actual authorization, log ownership and generation. */
   readonly settlement: SettlementCoordinatorInput
   readonly onAccepted?: InvocationInput<P, R>['onAccepted']
+  readonly diagnosticEmitterFactory?: InvocationInput<P, R>['diagnosticEmitterFactory']
   /** Return the actual borrowed transport/credential references, only after stopped and settled. */
   readonly releaseBorrowed?: () => Promise<void>
 }
