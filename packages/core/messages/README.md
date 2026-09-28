@@ -17,7 +17,8 @@ This is an experimental, private workspace package, currently not published on n
 | `isReadable`, `judgePairing`, `judgeCompactionList`                       | Prefix-dependent checks with explicit external inputs                        |
 | `brandMessage`, `brandRecord`, `isWireMessage`, `isWireRecord`, `Wire<T>` | Shape-only transport restoration and wire typing                             |
 | Message/record types, `LogPrefixView`                                     | Seven message types and caller-owned ordered prefixes                        |
-| `validate`, `schemaId`; `./schema`, `./schema/v2`                         | Shape validation; current v4 with retained v3/v2 resources                   |
+| `validate`, `schemaId`; `./schema`                                        | Current MS6 shape validation                                                 |
+| `./schema/v2`, `./schema/v3`                                              | Exact resources for current transitive specification references              |
 
 ## Examples
 
@@ -118,13 +119,54 @@ if ('rejected' in opened) throw new Error(opened.rejected)
 console.log(opened.ok.kind) // model_call_opened
 ```
 
+A dispatched record carries the complete profile snapshot. The record receiver checks its shape and binding; the profile writer must judge the source profile before copying it.
+
+```ts
+import { judgeModelInvocationRecord } from '@omne-harness-lite/messages'
+
+const adaptation = {
+  implementation: { name: 'example-family', revision: '1' },
+  definition: { modelId: 'vendor/chat', revision: '1' },
+  configuration: { revision: '1', values: {} },
+}
+const dispatched = judgeModelInvocationRecord({
+  kind: 'model_call_dispatched',
+  call: 'model_call_1',
+  dispatch: 1,
+  provider: 'provider-a',
+  response: 'response_1',
+  profile: { origin: 'official', routeName: 'vendor/chat' },
+  profileSnapshot: {
+    providers: ['provider-a'],
+    allowFallback: false,
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 4096,
+    maxOutputTokens: 1024,
+    inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
+    adaptation,
+    updatedAt: '2026-09-28T00:00:00Z',
+  },
+  adaptation,
+  parameters: {},
+  selectedBy: 'session',
+  credentialScope: { layer: 'factory' },
+})
+if ('rejected' in dispatched) throw new Error(dispatched.rejected)
+console.log(dispatched.ok.kind) // model_call_dispatched
+```
+
 ## Boundaries and failures
 
 Successful judges return owned frozen values; rejections do not repair input. Text judges use lossless JSON reception and map syntax or duplicate-member failures to `malformed`. Named message/block predicates run before the remaining shape check. `brandMessage`/`brandRecord` restore brands after complete Schema validation but omit additional single-value and log rules; invalid representation preconditions throw `TypeError`.
 
 `LogPrefixView` must be complete, ordered, validated and consistent. `createdAt` is not the ordering key. `judgeMessageInLog` checks representation and forward references; it does not append or establish pairing. `judgePairing` checks uniqueness and call/result relationships but a nonempty compaction list needs `judgeCompactionList` as well. Call the latter only after message/forward-reference admission. Missing pending-card or last-request inputs can produce `undetermined`; this is not permission to append.
 
-Messages themselves do not carry tenant ownership. Session routing, authorization, atomic append, persistence, record-sequence consistency and conversion into model-provider requests belong to consumers. `tool_internal` content must remain invisible to the model and is excluded from outbound requests. `./schema/v2` is a retained resource, not v2 behavior compatibility. Node `>=24.18.0 <25` is required.
+Messages themselves do not carry tenant ownership. Session routing, authorization, atomic append, persistence, record-sequence consistency and conversion into model-provider requests belong to consumers. `tool_internal` content must remain invisible to the model and is excluded from outbound requests. Node `>=24.18.0 <25` is required.
 
 ## Development
 
@@ -136,4 +178,4 @@ pnpm --filter @omne-harness-lite/messages run test
 
 Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
 
-The default entry and Schema use version4; `./v3` and `./schema/v3` retain version3 values and its exact resource. `./schema/v2` remains a Schema resource only. Choose the consumer version explicitly when restoring invocation records/responses.
+The default entry and Schema use `data.messages/v6`. A dispatched record must carry the complete `profileSnapshot.inputConstraints` and `profileSnapshot.upstreamInputLimits` objects. `brandRecord` and `validate` check shape only; `judgeModelInvocationRecord` additionally checks the complete binding and actual parameter disposition. The snapshot receiver does not rerun the profile writer's cross-field cap comparison. Old record shapes fail at the current entry, without data rewriting. `./schema/v2` and `./schema/v3` remain exact Schema resources for current transitive specification references, without executable old codecs.

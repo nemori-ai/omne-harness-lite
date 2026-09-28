@@ -15,10 +15,7 @@ import {
   type ModelProfileContent,
   type ModelProfileSnapshot,
 } from '@omne-harness-lite/model-profile'
-import {
-  judgeModelProfileDocument as judgeV2,
-  schemaId as schemaV2,
-} from '@omne-harness-lite/model-profile/v2'
+import retainedSchema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
 
 const adaptation: ModelAdaptationBinding = {
   implementation: { name: 'openrouter-openai', revision: 'r1' },
@@ -50,24 +47,22 @@ function json(text: string): JsonValue {
   return result.ok
 }
 
-describe('accepted profile4 value and explicit profile2 consumer', () => {
+describe('current profile5 value and retained profile2 schema', () => {
   it('ships the exact frozen Schema, with different explicit version coordinates', () => {
     expect(readFileSync(new URL('../schema/model-profile.schema.json', import.meta.url))).toEqual(
       readFileSync(
         new URL(
-          '../../../../.meta_harness/design/spec/data/model-profile/v4/model-profile.schema.json',
+          '../../../../.meta_harness/design/spec/data/model-profile/v5/model-profile.schema.json',
           import.meta.url,
         ),
       ),
     )
-    expect(schemaId).not.toBe(schemaV2)
+    expect(schemaId).not.toBe(retainedSchema.$id)
     expect(validate('ModelProfile', profile).valid).toBe(true)
     expect(judgeModelProfileDocument('ModelProfile', profile)).toEqual({ ok: true })
     expect(judgeModelProfileDocument('ModelProfileContent', content)).toEqual({ ok: true })
     const { adaptation: _binding, upstreamInputLimits: _limits, ...old } = profile
-    expect(judgeV2('ModelProfile', old)).toEqual({ ok: true })
     expect(judgeModelProfileDocument('ModelProfile', old)).toEqual({ rejected: 'malformed' })
-    expect(judgeV2('ModelProfile', profile)).toEqual({ rejected: 'malformed' })
   })
 
   it.each(['ModelProfile', 'ModelProfileContent'] as const)(

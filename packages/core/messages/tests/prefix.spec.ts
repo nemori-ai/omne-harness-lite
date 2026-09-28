@@ -6,7 +6,7 @@ import {
   judgePairing,
   judgeCompactionList,
   isReadable,
-} from '@omne-harness-lite/messages/v3'
+} from '@omne-harness-lite/messages'
 import { accepted, logged, compact, ref, text, at, assistant, tool, finished } from './helpers.ts'
 
 describe('V4 pairing S32 ①–⑦', () => {

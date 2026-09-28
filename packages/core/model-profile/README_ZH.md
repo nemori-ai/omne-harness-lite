@@ -14,7 +14,7 @@
 | `ModelProfileSnapshot`      | 描述请求写入方捕获的档案事实       |
 | `InputLimitFact`            | 区分未知、无限与有限的上游限制事实 |
 | `UpstreamInputLimits`       | 记录所有适用指标的上游事实         |
-| `InputConstraints`         | 声明本档案的项目有限输入上限       |
+| `InputConstraints`          | 声明本档案的项目有限输入上限       |
 | `validate`                  | 校验公开 Schema 定义项             |
 
 ## 判定档案及其输出上限
@@ -122,7 +122,7 @@ console.log(refMatches(ref, profile, bob)) // false
 
 JSON Schema 通过 `@omne-harness-lite/model-profile/schema` 公开。参见[源码导出](src/index.ts)、[测试](tests/)与[模型响应](../model-response/README_ZH.md)。
 
-默认入口与 Schema 采用 `data.model-profile/v4`；现有 `./v2` 与 `./schema/v2` 入口继续服务当前消费者；v4 输入必须提供全部必填事实。v4 必须明确填写上游输入 token 与完整请求体字节的事实；支持图片的档案即使本次只发文本，也必须提供项目 `maxImageBytes` 有限上限以及上游 `maxImageBytes`、`maxImages` 事实。上游为 `unknown` 或 `unbounded` 时，项目上限仍须有限。
+默认入口与 Schema 采用 `data.model-profile/v5`；当前档案必须提供全部必填事实。`./schema/v2` 资源仅供当前规范的精确依赖引用，不提供 `./v2` 可执行入口。支持图片的档案即使本次只发文本，也必须提供项目 `maxImageBytes` 有限上限以及上游 `maxImageBytes`、`maxImages` 事实。上游为 `unknown` 或 `unbounded` 时，项目上限仍须有限。
 
 ```ts
 const imageProfile: ModelProfile = {

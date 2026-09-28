@@ -4,7 +4,7 @@ import {
   type LoggedMessage,
   type CompactionMessage,
   type SilencedBlockRef,
-} from '@omne-harness-lite/messages/v3'
+} from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 export const at = '2026-09-23T08:00:00Z'
 export function text(id: string, toModel = true) {

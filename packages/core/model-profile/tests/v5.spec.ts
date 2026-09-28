@@ -9,12 +9,12 @@ import {
   type ModelProfile,
   type ModelProfileSnapshot,
 } from '@omne-harness-lite/model-profile'
-import { schemaId as schemaV2 } from '@omne-harness-lite/model-profile/v2'
+import retainedSchema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
 
 const examples = JSON.parse(
   readFileSync(
     new URL(
-      '../../../../.meta_harness/design/spec/data/model-profile/v4/examples.json',
+      '../../../../.meta_harness/design/spec/data/model-profile/v5/examples.json',
       import.meta.url,
     ),
     'utf8',
@@ -39,11 +39,11 @@ function strict(source: string): unknown {
 const base = examples.cases.find(test => test.id === 'P-image-unknown')?.value as ModelProfile
 if (base === undefined) throw new Error('missing normative profile fixture')
 
-describe('data.model-profile/v4 public artifact', () => {
-  it('publishes the exact v4 Schema and keeps both older resources distinct', () => {
-    for (const version of ['v4', 'v2'] as const) {
+describe('data.model-profile/v5 public artifact', () => {
+  it('publishes the exact v5 Schema and keeps both older resources distinct', () => {
+    for (const version of ['v5', 'v2'] as const) {
       const publicPath =
-        version === 'v4'
+        version === 'v5'
           ? '../schema/model-profile.schema.json'
           : `../schema/${version}/model-profile.schema.json`
       const normativePath = `../../../../.meta_harness/design/spec/data/model-profile/${version}/model-profile.schema.json`
@@ -51,7 +51,7 @@ describe('data.model-profile/v4 public artifact', () => {
         readFileSync(new URL(normativePath, import.meta.url)),
       )
     }
-    expect(new Set([schemaId, schemaV2]).size).toBe(2)
+    expect(new Set([schemaId, retainedSchema.$id]).size).toBe(2)
     expect(SCHEMA_DEF_NAMES).toHaveLength(14)
     expect(SCHEMA_DEF_NAMES).toContain('InputLimitFact')
     expect(SCHEMA_DEF_NAMES).toContain('UpstreamInputLimits')

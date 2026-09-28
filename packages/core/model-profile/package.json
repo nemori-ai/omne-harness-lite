@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-profile v4 的纯值判定及显式 v2 采用面",
+  "description": "data.model-profile v5 的当前纯值判定与精确依赖 Schema",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -13,10 +13,6 @@
       "import": "./dist/index.js"
     },
     "./schema": "./schema/model-profile.schema.json",
-    "./v2": {
-      "types": "./dist/v2/index.d.ts",
-      "import": "./dist/v2/index.js"
-    },
     "./schema/v2": "./schema/v2/model-profile.schema.json"
   },
   "files": [

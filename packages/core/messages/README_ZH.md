@@ -17,7 +17,8 @@
 | `isReadable`、`judgePairing`、`judgeCompactionList`                       | 依赖前缀的判定，外部输入显式传入         |
 | `brandMessage`、`brandRecord`、`isWireMessage`、`isWireRecord`、`Wire<T>` | 只检查形状的传输恢复与交换类型           |
 | 消息／记录类型、`LogPrefixView`                                           | 七类消息与调用方拥有的有序前缀           |
-| `validate`、`schemaId`；`./schema`、`./schema/v2`                         | 形状校验；当前 v4 与保留的 v2 资源       |
+| `validate`、`schemaId`；`./schema`                                        | 当前 MS6 的形状校验                      |
+| `./schema/v2`、`./schema/v3`                                              | 当前规范传递引用所需的精确资源           |
 
 ## 使用示例
 
@@ -118,6 +119,47 @@ if ('rejected' in opened) throw new Error(opened.rejected)
 console.log(opened.ok.kind) // model_call_opened
 ```
 
+「已出门」记录携带完整档案快照。记录接收者检查形状和绑定；档案写入方必须先完整判定来源档案，再复制快照。
+
+```ts
+import { judgeModelInvocationRecord } from '@omne-harness-lite/messages'
+
+const adaptation = {
+  implementation: { name: 'example-family', revision: '1' },
+  definition: { modelId: 'vendor/chat', revision: '1' },
+  configuration: { revision: '1', values: {} },
+}
+const dispatched = judgeModelInvocationRecord({
+  kind: 'model_call_dispatched',
+  call: 'model_call_1',
+  dispatch: 1,
+  provider: 'provider-a',
+  response: 'response_1',
+  profile: { origin: 'official', routeName: 'vendor/chat' },
+  profileSnapshot: {
+    providers: ['provider-a'],
+    allowFallback: false,
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 4096,
+    maxOutputTokens: 1024,
+    inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
+    adaptation,
+    updatedAt: '2026-09-28T00:00:00Z',
+  },
+  adaptation,
+  parameters: {},
+  selectedBy: 'session',
+  credentialScope: { layer: 'factory' },
+})
+if ('rejected' in dispatched) throw new Error(dispatched.rejected)
+console.log(dispatched.ok.kind) // model_call_dispatched
+```
+
 ## 边界与失败处理
 
 判定成功返回自己拥有的冻结值；拒绝不修补输入。文本判定使用无损 JSON 接收，把语法或重复成员失败映射为 `malformed`。具名消息／块谓词先于其余形状校验。`brandMessage`／`brandRecord` 在完整 Schema 校验后恢复品牌，但不执行额外单值与日志规则；非法表示前提抛 `TypeError`。
@@ -136,4 +178,4 @@ pnpm --filter @omne-harness-lite/messages run test
 
 先构建 workspace 依赖。这些检查覆盖本包；组合行为需针对实际消费者与提供者验证。
 
-默认入口与 Schema 采用 version4；`./v3` 和 `./schema/v3` 保留 version3 纯值入口及精确资源。`./schema/v2` 仍仅为 Schema 资源。恢复请求记录或响应时请显式选择消费版本。
+默认入口与 Schema 采用 `data.messages/v6`。「已出门」记录须带完整的 `profileSnapshot.inputConstraints` 和 `profileSnapshot.upstreamInputLimits`。`brandRecord` 与 `validate` 只检查形状；`judgeModelInvocationRecord` 还检查完整绑定与实际参数处置。快照接收者不重新运行档案写入方的跨字段上限比较。旧形状在当前入口明确拒绝，不改写数据。`./schema/v2` 和 `./schema/v3` 仅供当前规范传递依赖引用，不提供旧执行 codec。

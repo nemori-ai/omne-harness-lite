@@ -5,9 +5,9 @@ import current from '@omne-harness-lite/messages/schema' with { type: 'json' }
 import previous from '@omne-harness-lite/messages/schema/v3' with { type: 'json' }
 import retained from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
 
-it('D070 public default4 and retained3/2 are complete exact frozen resources', () => {
+it('D070 public default6 and retained3/2 are complete exact frozen resources', () => {
   for (const [version, resource, path] of [
-    [4, current, '../schema/messages.schema.json'],
+    [6, current, '../schema/messages.schema.json'],
     [3, previous, '../schema/v3/messages.schema.json'],
     [2, retained, '../schema/messages.v2.schema.json'],
   ] as const) {

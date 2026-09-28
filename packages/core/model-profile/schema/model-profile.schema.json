@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v4/model-profile.schema.json",
-  "title": "data.model-profile v4",
-  "description": "模型档案、指向它的引用、统一请求参数词表与模型适配绑定的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v4 内有效。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v5/model-profile.schema.json",
+  "title": "data.model-profile v5",
+  "description": "模型档案、指向它的引用、统一请求参数词表与模型适配绑定的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v5 内有效。",
   "$comment": "接受、采用与冻结状态在版本外入口与 registry。模态取 data.content-blocks/v2 的 Modality（该契约 S-6），本文件不另列。Schema 只管形状：route_name_taken（撞名判定，S-3）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24；对 ModelProfile 与 ModelProfileContent 两种）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。S-31 的 definition.modelId 与 routeName 相等同样由表示层跨字段检查；S-30 的配置秘密禁入与修订不改义是写入者义务，Schema 不声明验证它们。正反实例在同目录 examples.md。",
   "$defs": {
     "ModelProfile": {

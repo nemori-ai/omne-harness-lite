@@ -13,7 +13,7 @@ import {
   judgeModelInvocationRecordText,
   validate,
   isReadable,
-} from '@omne-harness-lite/messages/v3'
+} from '@omne-harness-lite/messages'
 import { at, text, logged, ref } from './helpers.ts'
 
 function data(source: string) {
@@ -21,7 +21,13 @@ function data(source: string) {
   if ('failed' in r) throw new Error('bad test JSON')
   return r.ok
 }
+const adaptation = {
+  implementation: { name: 'test', revision: '1' },
+  definition: { modelId: 'vendor/chat', revision: '1' },
+  configuration: { revision: '1', values: {} },
+}
 const record = {
+  adaptation,
   kind: 'model_call_dispatched',
   call: 'mc',
   dispatch: 1,
@@ -35,6 +41,12 @@ const record = {
     outputModalities: ['text'],
     maxInputTokens: 100,
     maxOutputTokens: 50,
+    inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
+    adaptation,
     updatedAt: at,
   },
   parameters: { reasoningEffort: 'max', maxOutputTokens: 50, extra: { top_k: 40 } },

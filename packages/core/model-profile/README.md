@@ -14,7 +14,7 @@ This package is an unpublished, private ESM workspace member. Use it from this r
 | `ModelProfileSnapshot`      | Type the profile facts captured by a request writer         |
 | `InputLimitFact`            | Distinguish unknown, unbounded and finite upstream limits   |
 | `UpstreamInputLimits`       | Carry the upstream facts for every applicable metric        |
-| `InputConstraints`         | State this profile's finite project input caps              |
+| `InputConstraints`          | State this profile's finite project input caps              |
 | `validate`                  | Validate any exported schema definition                     |
 
 ## Judge a profile and its output limit
@@ -122,7 +122,7 @@ Numeric fields accept `JsonNumber`, including `LosslessNumber`; judgments compar
 
 The JSON Schema is available through `@omne-harness-lite/model-profile/schema`. See [source exports](src/index.ts), [tests](tests/) and [model response](../model-response/README.md).
 
-The default entry and Schema use `data.model-profile/v4`. The existing `./v2` and `./schema/v2` entries remain available for their current consumers; v4 inputs must supply all required facts. v4 requires an explicit upstream fact for input tokens and complete request bytes. An image-capable profile additionally requires an explicit project `maxImageBytes` cap plus upstream `maxImageBytes` and `maxImages` facts, even for text-only calls. Project caps remain finite when an upstream fact is `unknown` or `unbounded`.
+The default entry and Schema use `data.model-profile/v5`. Current profiles must supply all required facts. The `./schema/v2` resource remains available solely for exact references in current specification dependencies; there is no `./v2` executable entry. An image-capable profile requires an explicit project `maxImageBytes` cap plus upstream `maxImageBytes` and `maxImages` facts, even for text-only calls. Project caps remain finite when an upstream fact is `unknown` or `unbounded`.
 
 ```ts
 const imageProfile: ModelProfile = {

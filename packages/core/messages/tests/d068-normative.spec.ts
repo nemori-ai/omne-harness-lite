@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { SCHEMA_DEF_NAMES, validate, judgeMessage } from '@omne-harness-lite/messages/v3'
+import { SCHEMA_DEF_NAMES, validate, judgeMessage } from '@omne-harness-lite/messages'
 
 const examples = readFileSync(
   new URL('../../../../.meta_harness/design/spec/data/messages/v3/examples.md', import.meta.url),

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.messages v4 完整判断与显式 v3 纯值采用面",
+  "description": "data.messages v6 的当前消息与模型记录纯值判定",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -14,10 +14,6 @@
     },
     "./schema": "./schema/messages.schema.json",
     "./schema/v2": "./schema/messages.v2.schema.json",
-    "./v3": {
-      "types": "./dist/v3/index.d.ts",
-      "import": "./dist/v3/index.js"
-    },
     "./schema/v3": "./schema/v3/messages.schema.json"
   },
   "files": [
