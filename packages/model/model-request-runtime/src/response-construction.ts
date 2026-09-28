@@ -12,8 +12,9 @@ import {
   type ReplyDisposition,
 } from '@omne-harness-lite/model-response'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
-import { captureModelLogValue } from './log-codec.ts'
-import type { ModelInvocationResult } from './types.ts'
+import { captureModelLogValue, modelLogJsonEqual } from './log-codec.ts'
+import { reconstructAdaptedParameters } from './log-codec-settlement.ts'
+import type { InvocationObservedFacts, ModelInvocationResult } from './types.ts'
 import type { ResponseConstructionResult } from './anchored-invocation-types.ts'
 
 export interface ResponseConstructionInput {
@@ -22,6 +23,21 @@ export interface ResponseConstructionInput {
   readonly messageId: MessageId
   /** Actual confirmed original opened timestamp; null means definitively unopened. */
   readonly firstTokenAt: string | null
+}
+/** Only an owner that confirmed a durable dispatched anchor may call this path. */
+export interface AnchoredInterruptionInput {
+  readonly dispatched: ModelCallDispatchedRecord
+  /** When the original process still has the fixed plan, verify it against the anchor. */
+  readonly planned?: {
+    readonly parameters: ModelInvocationResult['parameters']
+    readonly parameterAdjustments?: ModelInvocationResult['parameterAdjustments']
+    readonly droppedParameters?: ModelInvocationResult['droppedParameters']
+  }
+  /** Null means the owner confirmed no original invocation, never an unavailable read. */
+  readonly observed: InvocationObservedFacts | null
+  readonly firstTokenAt: string | null
+  readonly endedAt: string
+  readonly initiator: 'user' | 'run_cancelled' | 'runtime_lost'
 }
 function response(value: unknown): value is ModelResponse {
   return 'ok' in judgeModelResponse(value)
@@ -136,4 +152,73 @@ export function constructModelResponse(
   if ('invalidValue' in captured || !response(captured.ok.value))
     return { rejected: 'invalidInput' }
   return { response: captured.ok.value, captured: captured.ok }
+}
+
+/** MR8/RT9: settle an anchored interruption without fabricating a normal invocation result. */
+export function constructAnchoredInterruption(
+  input: AnchoredInterruptionInput,
+): ResponseConstructionResult {
+  const { dispatched: d, planned, observed, firstTokenAt, endedAt } = input
+  const parameters = reconstructAdaptedParameters(d)
+  if (
+    parameters === undefined ||
+    (planned !== undefined &&
+      (!modelLogJsonEqual(parameters, planned.parameters) ||
+        !modelLogJsonEqual(d.parameterAdjustments, planned.parameterAdjustments) ||
+        !modelLogJsonEqual(d.droppedParameters, planned.droppedParameters)))
+  )
+    return { rejected: 'invalidInput' }
+  const sentAt = observed?.sentAt ?? null
+  if (
+    (sentAt !== null && !ordered(sentAt, firstTokenAt ?? endedAt)) ||
+    (firstTokenAt !== null && !ordered(firstTokenAt, endedAt))
+  )
+    return { rejected: 'invalidInput' }
+  const candidate = {
+    id: d.response,
+    dispatch: d.dispatch,
+    call: { callId: d.call },
+    route: {
+      adaptation: d.adaptation,
+      profile: d.profile,
+      profileSnapshot: d.profileSnapshot,
+      selectedBy: d.selectedBy,
+      provider: d.provider,
+      credentialScope: d.credentialScope,
+      parameters,
+      ...(d.parameterAdjustments === undefined
+        ? {}
+        : { parameterAdjustments: d.parameterAdjustments }),
+      ...(d.droppedParameters === undefined ? {} : { droppedParameters: d.droppedParameters }),
+      ...(observed?.upstreamModel === undefined ? {} : { upstreamModel: observed.upstreamModel }),
+      ...(observed?.servingProvider === undefined
+        ? {}
+        : { servingProvider: observed.servingProvider }),
+      ...(observed?.upstreamRequestId === undefined
+        ? {}
+        : { upstreamRequestId: observed.upstreamRequestId }),
+    },
+    outcome: 'interrupted',
+    initiator: input.initiator,
+    timing: { sentAt, ...(firstTokenAt === null ? {} : { firstTokenAt }), endedAt },
+    usage: observed?.usage ?? {
+      input_tokens: 'unknown',
+      output_tokens: 'unknown',
+      cache_read_tokens: 'unknown',
+      cache_write_tokens: 'unknown',
+      source: 'none',
+    },
+    cost: observed?.cost ?? { cost_usd: 'unknown', source: 'none' },
+    ...(observed?.trims === undefined ? {} : { trims: observed.trims }),
+    ...(observed?.stopReason === undefined ? {} : { stopReason: observed.stopReason }),
+    ...(observed?.rawHeaders === undefined ? {} : { raw: { headers: observed.rawHeaders } }),
+  }
+  if (!response(candidate)) return { rejected: 'invalidInput' }
+  const captured = captureModelLogValue({
+    category: 'response',
+    input: { kind: 'value', value: candidate },
+  })
+  return 'ok' in captured && response(captured.ok.value)
+    ? { response: captured.ok.value, captured: captured.ok }
+    : { rejected: 'invalidInput' }
 }

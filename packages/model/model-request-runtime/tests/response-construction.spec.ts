@@ -2,9 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import { invokeModel } from '../src/invoke.ts'
-import { constructAssistantReply, constructModelResponse } from '../src/response-construction.ts'
+import {
+  constructAnchoredInterruption,
+  constructAssistantReply,
+  constructModelResponse,
+} from '../src/response-construction.ts'
 import { request, policy, adapter } from './invoke-policy-fixture.ts'
 import type { ModelInvocationResult } from '../src/types.ts'
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import {
+  capture,
+  dispatched as dispatchedFixture,
+  jsonObject,
+  response as responseFixture,
+} from './log-codec-fixture.ts'
 
 async function inputs() {
   const plan = request()
@@ -73,5 +84,88 @@ describe('MR5 pure complete construction (actual provenance belongs to caller)',
       expect(constructModelResponse({ ...input, firstTokenAt }, 'persisted')).toEqual({
         rejected: 'invalidInput',
       })
+  })
+})
+
+describe('MR8 anchored interruption construction', () => {
+  const original = capture('record', dispatchedFixture).record
+  if (original?.kind !== 'model_call_dispatched') throw new Error('durable dispatched fixture')
+  const planned = {
+    parameters: {
+      temperature: new LosslessNumber('0.50'),
+      extra: { retained: { k: new LosslessNumber('9007199254740993') } },
+    },
+    parameterAdjustments: original.parameterAdjustments,
+    droppedParameters: original.droppedParameters,
+  }
+  it('keeps adapted fixed parameters for zero-send and never fabricates usage or sentAt', () => {
+    const made = constructAnchoredInterruption({
+      dispatched: original,
+      planned,
+      observed: null,
+      firstTokenAt: null,
+      endedAt: '2026-09-27T00:00:02Z',
+      initiator: 'run_cancelled',
+    })
+    if (!('response' in made)) throw new Error('expected anchored interruption')
+    expect(made.response.timing.sentAt).toBeNull()
+    expect(made.response.usage.input_tokens).toBe('unknown')
+    expect(made.response.cost.cost_usd).toBe('unknown')
+    expect(writeJsonLossless(made.response.route.parameters)).toBe(
+      writeJsonLossless(jsonObject(responseFixture.route).parameters),
+    )
+    expect(made.response.route.parameterAdjustments).toEqual(original.parameterAdjustments)
+    expect(made.response.route.droppedParameters).toEqual(original.droppedParameters)
+    expect(
+      constructAnchoredInterruption({
+        dispatched: original,
+        planned: { ...planned, parameters: original.parameters },
+        observed: null,
+        firstTokenAt: null,
+        endedAt: '2026-09-27T00:00:02Z',
+        initiator: 'run_cancelled',
+      }),
+    ).toEqual({ rejected: 'invalidInput' })
+  })
+  it('preserves actual source facts and rejects reversed known timing', () => {
+    const observed = {
+      sentAt: '2026-09-27T00:00:00Z',
+      usage: {
+        input_tokens: 0,
+        output_tokens: 1,
+        cache_read_tokens: 'unknown' as const,
+        cache_write_tokens: 0,
+        source: 'upstream' as const,
+      },
+      cost: {
+        cost_usd: new LosslessNumber('0.0000000000000000000000000310'),
+        source: 'upstream_usage' as const,
+      },
+      rawHeaders: { 'x-test': ['one', 'two'] },
+      upstreamRequestId: 'upstream-request',
+    }
+    const made = constructAnchoredInterruption({
+      dispatched: original,
+      observed,
+      firstTokenAt: '2026-09-27T00:00:01Z',
+      endedAt: '2026-09-27T00:00:02Z',
+      initiator: 'runtime_lost',
+    })
+    if (!('response' in made)) throw new Error('expected known original facts')
+    expect(made.response.timing.sentAt).toBe(observed.sentAt)
+    expect(made.response.usage.input_tokens).toBe(0)
+    expect(writeJsonLossless(made.response.cost.cost_usd)).toBe(
+      writeJsonLossless(observed.cost.cost_usd),
+    )
+    expect(made.response.raw?.headers).toEqual(observed.rawHeaders)
+    expect(
+      constructAnchoredInterruption({
+        dispatched: original,
+        observed,
+        firstTokenAt: '2026-09-27T00:00:03Z',
+        endedAt: '2026-09-27T00:00:02Z',
+        initiator: 'runtime_lost',
+      }),
+    ).toEqual({ rejected: 'invalidInput' })
   })
 })
