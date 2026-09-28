@@ -151,6 +151,16 @@ describe('real model service retry and control', () => {
       expect(await logKeys(app, who, session)).toEqual(beforeRead)
       expect(tls.requests).toHaveLength(1)
 
+      const malformed = { provider: PROVIDER, target: MODEL }
+      expect(await service.canDispatchAgain({ session, callId, plan: malformed })).toEqual({
+        invalidInput: { reason: 'malformed' },
+      })
+      expect(await service.dispatchAgain({ session, callId, plan: malformed })).toEqual({
+        invalidInput: { reason: 'malformed' },
+      })
+      expect(await logKeys(app, who, session)).toEqual(beforeRead)
+      expect(tls.requests).toHaveLength(1)
+
       const forbidden = { provider: 'unauthorized/provider' }
       expect(await service.canDispatchAgain({ session, callId, plan: forbidden })).toEqual({
         refused: { why: 'provider_not_allowed' },
