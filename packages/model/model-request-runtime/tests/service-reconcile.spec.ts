@@ -22,6 +22,7 @@ import type {
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { dispatched as dispatchedFixture, prepare, session } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
@@ -305,15 +306,29 @@ describe('S-33 retained recovery ownership', () => {
   it('retains the original scope while a read task has not actually stopped', async () => {
     await controlled('service-reconcile-held-read', async ({ binding, owner }) => {
       const barrier = deferred<void>()
-      owner.stopBarrier = barrier.promise
       let scopeCloses = 0
+      let otherCloses = 0
+      let otherCloseAvailable = false
+      const otherSession = unwrap(parseOpaqueIdentifier('other-held-read-session', 'SessionRef'))
       const component = createRuntimeReconcile({
         contention: policy(),
         scheduler: noWaitScheduler,
         now: () => '2026-09-27T00:00:03Z',
         diagnostic() {},
         recovery: {
-          async enter() {
+          async enter(asked) {
+            if (asked.session === otherSession)
+              return {
+                scope: {
+                  binding: { log: { ...binding, session: otherSession } } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {
+                    otherCloses++
+                    if (!otherCloseAvailable) throw new Error('other exit unavailable')
+                  },
+                },
+              }
             return {
               scope: {
                 binding: { log: binding } as SessionRuntimeBinding,
@@ -327,13 +342,21 @@ describe('S-33 retained recovery ownership', () => {
           },
         },
       })
+      expect(await component.reconcile({ session: otherSession })).toEqual({ unavailable: true })
+      expect(otherCloses).toBe(1)
+      otherCloseAvailable = true
+      const readsBefore = owner.starts.filter(kind => kind === 'read').length
+      owner.stopBarrier = barrier.promise
       const pending = component.reconcile({ session })
-      await vi.waitFor(() => expect(owner.starts).toContain('read'))
+      await vi.waitFor(() =>
+        expect(owner.starts.filter(kind => kind === 'read').length).toBeGreaterThan(readsBefore),
+      )
       const firstClose = component.close()
       const concurrentClose = component.close()
       expect(concurrentClose).toBe(firstClose)
       expect(await firstClose).toEqual({ unavailable: true })
       expect(scopeCloses).toBe(0)
+      expect(otherCloses).toBe(2)
       expect(owner.active).toBe(1)
       barrier.resolve()
       expect(await pending).toEqual({ unavailable: true })
@@ -437,15 +460,32 @@ describe('S-33 retained recovery ownership', () => {
           },
         }
         let scopeCloses = 0
+        let otherCloses = 0
+        let otherCloseAvailable = false
         let enters = 0
+        const otherSession = unwrap(parseOpaqueIdentifier('other-recovery-session', 'SessionRef'))
         const component = createRuntimeReconcile({
           contention: policy(),
           scheduler: noWaitScheduler,
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
           recovery: {
-            async enter() {
+            async enter(asked) {
               enters++
+              if (asked.session === otherSession)
+                return {
+                  scope: {
+                    binding: {
+                      log: { ...binding, session: otherSession },
+                    } as SessionRuntimeBinding,
+                    owner,
+                    originalInvocation: () => ({ absent: true }) as const,
+                    async close() {
+                      otherCloses++
+                      if (!otherCloseAvailable) throw new Error('other scope exit unavailable')
+                    },
+                  },
+                }
               return {
                 scope: {
                   binding: { log: wrap(unknownResponse) } as SessionRuntimeBinding,
@@ -464,12 +504,17 @@ describe('S-33 retained recovery ownership', () => {
         expect(scopeCloses).toBe(0)
         expect(await component.reconcile({ session })).toEqual({ unavailable: true })
         expect(enters).toBe(1)
+        expect(await component.reconcile({ session: otherSession })).toEqual({ unavailable: true })
+        expect(otherCloses).toBe(1)
+        expect(scopeCloses).toBe(0)
+        otherCloseAvailable = true
         expect(await component.close()).toEqual({ unavailable: true })
         expect(scopeCloses).toBe(0)
+        expect(otherCloses).toBe(2)
         readable = true
         expect(await component.close()).toEqual({ released: true })
         expect(scopeCloses).toBe(1)
-        expect(enters).toBe(1)
+        expect(enters).toBe(2)
         const raw = await binding.log.readSince(session, 0)
         if ('failure' in raw) throw new Error('actual response readback')
         const checked = inspectCurrentModelLogPrefix({

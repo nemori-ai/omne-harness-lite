@@ -450,14 +450,15 @@ export function createRuntimeReconcile(input: {
           }
         }
       }
-      // A held provider stopped promise is not a completed close. Keep the scope
-      // registered and make this attempt retryable instead of waiting forever.
-      if ([...entries.values()].some(entry => entry.active !== undefined))
-        return { unavailable: true } as const
+      // A held task keeps its own scope, but does not prevent an independent
+      // session's stopped scope from leaving recovery admission.
+      const active = [...entries.values()].some(entry => entry.active !== undefined)
       const outcomes = await Promise.allSettled(
-        [...entries.values()].map(entry => releaseEntry(entry, true)),
+        [...entries.values()]
+          .filter(entry => entry.active === undefined)
+          .map(entry => releaseEntry(entry, true)),
       )
-      return outcomes.every(outcome => outcome.status === 'fulfilled' && outcome.value)
+      return !active && outcomes.every(outcome => outcome.status === 'fulfilled' && outcome.value)
         ? ({ released: true } as const)
         : ({ unavailable: true } as const)
     })()
