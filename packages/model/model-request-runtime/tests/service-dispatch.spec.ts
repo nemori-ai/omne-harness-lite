@@ -130,13 +130,23 @@ test('service dispatch writes both anchors before handing out a complete pending
     const wire = transport()
     let finalPlanFailure: PlanFailure | undefined
     let nextCall = 0
+    let nextResponse = 0
+    let nextMessage = 0
+    let sendCount = 0
+    let failSend = false
+    let evaluationReads = 0
     const calls = createCallContainerStore<TestPlan, object>()
     let released = 0
     const binding: SessionRuntimeBinding = {
       log: selected.input.binding,
       selection: { ...selected.input, projection: async () => ({ known: [] }) },
       catalog: host.catalog,
-      currentEvaluationInputs: host.reader,
+      currentEvaluationInputs: {
+        async read(session, tenant) {
+          evaluationReads++
+          return await host.reader.read(session, tenant)
+        },
+      },
       credentials: {
         async value() {
           return { scope: { layer: 'factory' }, value: new TextEncoder().encode('test-secret') }
@@ -164,6 +174,12 @@ test('service dispatch writes both anchors before handing out a complete pending
               plan(input) {
                 return finalPlanFailure ?? wire.adapter.plan(input)
               },
+              async send(planned, credential, signal) {
+                sendCount++
+                return failSend
+                  ? { failed: { source: 'http_status', statusCode: 503 } }
+                  : await wire.adapter.send(planned, credential, signal)
+              },
             },
             signal: new AbortController().signal,
             async track<T>(completion: Promise<T>) {
@@ -182,12 +198,26 @@ test('service dispatch writes both anchors before handing out a complete pending
       policy: { ...invocationPolicy(), schedule: () => () => {} },
       identities: {
         call: () => `actual-call-${++nextCall}`,
-        response: () => 'actual-response',
-        message: () => unwrap(parseOpaqueIdentifier('actual-message', 'MessageId')),
+        response: () => `actual-response-${++nextResponse}`,
+        message: () =>
+          unwrap(parseOpaqueIdentifier(`actual-message-${++nextMessage}`, 'MessageId')),
       },
       history: {
         call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-        failure: () => ({ unavailable: true }),
+        failure: (prefix, callId) => {
+          const found = interpretCallHistory({ prefix, callId })
+          const last = 'known' in found ? found.known.dispatches.at(-1) : undefined
+          return last?.response?.projection.outcome === 'failed'
+            ? {
+                subject: {
+                  failure: 'upstream_unavailable',
+                  profile: last.record.profileSnapshot,
+                  dispatches: [last.record],
+                  retryConclusions: [],
+                },
+              }
+            : { unavailable: true }
+        },
         run: () => ({ unavailable: true }),
       },
       recovery: { enter: async () => ({ unavailable: true }) },
@@ -215,6 +245,8 @@ test('service dispatch writes both anchors before handing out a complete pending
     ])
     expect(result).toHaveProperty('replyPending')
     expect(wire.sends()).toBe(1)
+    expect(evaluationReads).toBe(1)
+    expect(sendCount).toBe(1)
     expect(
       calls.find({ session: host.session, callId: 'actual-call-1' })?.view().operation.phase,
     ).toBe('reply_pending')
@@ -252,10 +284,82 @@ test('service dispatch writes both anchors before handing out a complete pending
         limit: 100,
       },
     })
+    finalPlanFailure = { rejected: 'orphan_tool_call' }
+    expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-2' })).toEqual({
+      invalidInput: { reason: 'malformed' },
+    })
     expect(wire.sends()).toBe(1)
+    expect(sendCount).toBe(1)
     const finalLog = await host.log.readSince(host.session, 0)
     if (!('entries' in finalLog)) throw new Error('log read')
     expect(finalLog.entries).toHaveLength(3)
+    finalPlanFailure = undefined
+    failSend = true
+    expect(
+      await opening.openCall({
+        session: host.session,
+        target: effective.ok.routeName,
+        basis: effective.ok,
+        messages: [],
+        tools: [],
+        host: binding,
+      }),
+    ).toEqual({ callId: 'actual-call-3', state: 'open' })
+    const failed = await dispatch.dispatch({ session: host.session, callId: 'actual-call-3' })
+    expect(failed).toMatchObject({
+      settled: { outcome: 'failed', failure: { cause: 'upstream_unavailable' } },
+      failureSubject: { failure: 'upstream_unavailable', retryConclusions: [] },
+    })
+    expect(sendCount).toBe(2)
+    failSend = false
+    const retry = await dispatch.dispatchAgain({
+      session: host.session,
+      callId: 'actual-call-3',
+      plan: { provider: 'test' },
+    })
+    expect(retry).toHaveProperty('replyPending')
+    expect(sendCount).toBe(3)
+    expect(evaluationReads).toBe(5)
+    const afterRetry = await host.log.readSince(host.session, 0)
+    if (!('entries' in afterRetry)) throw new Error('log read')
+    expect(afterRetry.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
+      'model_selection_changed',
+      'model_call_dispatched',
+      'model_call_opened',
+      'model_call_dispatched',
+      'model_call_dispatched',
+      'model_call_opened',
+    ])
+    const durableDispatches = afterRetry.entries
+      .map(payload)
+      .filter(value => value.kind === 'model_call_dispatched')
+    expect(durableDispatches).toHaveLength(3)
+    expect(durableDispatches[1]?.profileSnapshot).toEqual(durableDispatches[2]?.profileSnapshot)
+    expect(durableDispatches[1]?.adaptation).toEqual(durableDispatches[2]?.adaptation)
+    expect(durableDispatches[1]?.response).not.toBe(durableDispatches[2]?.response)
+    expect(
+      await opening.openCall({
+        session: host.session,
+        target: effective.ok.routeName,
+        basis: effective.ok,
+        messages: [],
+        tools: [],
+        host: binding,
+      }),
+    ).toEqual({ callId: 'actual-call-4', state: 'open' })
+    selected.owner.openedState = {
+      unknown: {
+        completion: Promise.resolve(null),
+        stopped: Promise.resolve(),
+        requestStop() {},
+      },
+    }
+    expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-4' })).toEqual({
+      unavailable: true,
+    })
+    expect(sendCount).toBe(3)
+    expect(evaluationReads).toBe(5)
+    selected.owner.openedState = { confirmed: true }
   } finally {
     await host.close()
   }

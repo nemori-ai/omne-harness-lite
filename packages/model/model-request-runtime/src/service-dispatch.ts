@@ -475,6 +475,11 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             ? { callId: key.callId, state: 'handed_up', undispatched: 'modality_mismatch' }
             : { unavailable: true }
         }
+        if (
+          outcome.rejected === 'orphan_tool_call' ||
+          outcome.rejected === 'tool_internal_in_request'
+        )
+          return { invalidInput: { reason: 'malformed' } }
         return { unavailable: true }
       }
       return { unavailable: true }
