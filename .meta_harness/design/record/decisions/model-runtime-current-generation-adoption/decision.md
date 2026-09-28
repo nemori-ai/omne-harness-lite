@@ -23,3 +23,7 @@ HUB 中央候选登记与 internal/formal=registered 检查通过；实现验证
 本记录采用runtime当前共享面，允许先做当前纯数据及消费者迁移、公共接口与noRun施工。生产Run事实G28只挡依赖它的withRun分支；runner真实结论来源挡失败主体和默认重试闭环；S74计量依据挡实际发送，不挡独立状态/耐久构件实施。成功门不能由固定unavailable、布尔Run替身或旧demo旁路代替。
 
 旧数据无法消费不等于其中事实已完成；不改写它。当前代际已受理的unknown提交、原批认回、停止、恢复与结算责任完整保留，不因换ID或重构而丢弃。十三操作与37双路径认证、包双语文档和真实组合验收仍按原计划逐项交付。
+
+## 当前 codec 承载字节的实施接续
+
+根调度选择并技术采用 [mrr/3 精确增补](../../../realization/packages/model/model-request-runtime/v8-current-codec-design.md)：payload.format 与本域键前缀统一 mrr/3，业务身份与结算义务不变。旧实现原为 mrr/1 键＋mrr/1 或 mrr/2 载荷的双轨；本次删除其执行面，仅在本域接收边界识别unsupported并拒绝，不转换旧数据、不把它当absent。该选择在用户允许实现技术选项的范围内明确既定直接替换方案，不另立产品政策或新增操作。实际代码和负控仍待实施。

@@ -220,8 +220,16 @@
       "design_path": "realization/packages/model/model-request-runtime/v7-current-design.md",
       "sha256": "283558cbfba060f45b443c5eb71e4e748ae64d442c3e9d5be8f40e5d2d07000f",
       "scope": "shared explicit service types, single call owner and current codec; existing thirteen-operation behavior inherited; source-specific implementation gates remain",
-      "implementation": "requires implementation and per-operation verification"
+      "implementation": "requires implementation and per-operation verification",
+      "supplements": [
+        {
+          "design_path": "realization/packages/model/model-request-runtime/v8-current-codec-design.md",
+          "sha256": "d88db93579a53adbc1558afcf875224ea8c1cdf4d504ffd869af40f64c2c9e6d",
+          "scope": "current mrr/3 payload and key literals, explicit unsupported-domain rejection; no legacy executable codec"
+        }
+      ]
     }
   ],
-  "human_overall_acceptance": false
+  "human_overall_acceptance": false,
+  "updated_at_utc": "2026-09-28T11:04:46.190042+00:00"
 }

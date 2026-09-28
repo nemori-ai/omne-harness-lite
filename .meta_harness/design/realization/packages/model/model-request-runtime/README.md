@@ -95,3 +95,5 @@
 ## RT5来源政策与头交接采用（2026-09-28）
 
 [D-095](../../../../record/decisions/model-credential-path-adoption/decision.md)精确采用[v6-credential-path-design rev3](v6-credential-path-design.md)，消费已接受RT5/MR5并复用D093完整纯政策。文件v6不是RT6采用；实际实现/CP-V及PH-V/TLS收口尚待，新增bindings0。
+
+D-100 实施接续另采用 [mrr/3 当前承载字节](v8-current-codec-design.md)；它不表示codec迁移或旧数据拒绝测试已完成。
