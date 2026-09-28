@@ -79,6 +79,7 @@ export {
 
 export { createOpenAiInputMeter } from './input-meters/openai.ts'
 export { createAnthropicInputMeter } from './input-meters/anthropic.ts'
+export { createGoogleInputMeter } from './input-meters/google.ts'
 
 export { createQwenInputMeter } from './input-meters/qwen.ts'
 

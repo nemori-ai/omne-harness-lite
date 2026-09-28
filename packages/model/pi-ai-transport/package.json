@@ -22,6 +22,7 @@
     "tokenizers/deepseek-v4",
     "tokenizers/deepseek-v41-flash",
     "tokenizers/anthropic-legacy",
+    "tokenizers/google-gemma4",
     "tokenizers/qwen-38-24t",
     "tokenizers/qwen-38-27b",
     "tokenizers/zai-glm5",
