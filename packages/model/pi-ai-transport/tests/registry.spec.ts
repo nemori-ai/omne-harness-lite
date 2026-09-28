@@ -56,6 +56,33 @@ function acquire(service: ModelTransportService, request = input()): AdaptationL
   return result.lease
 }
 describe('production adaptation ownership', () => {
+  it('isolates malformed diagnostic thenables without retaining phantom pending work', async () => {
+    const host = await fixture(cert.tls, res => res.end(content('ok') + finish()))
+    const service = createModelTransportService({
+      ...host.options,
+      onDiagnostic: () => ({ then: 1 }) as never,
+    })
+    register(service)
+    const lease = acquire(service)
+    const handle = invokeModel({
+      ...input(),
+      transport: lease.transport,
+      credential: 'test-secret',
+      signal: new AbortController().signal,
+      policy: policy(),
+    })
+    try {
+      expect(invocation(await handle.outcome).outcome).toBe('complete')
+      expect(host.requests).toHaveLength(1)
+      expect(service.diagnostics()).toEqual({ failed: 1, pending: 0, dropped: 0 })
+    } finally {
+      handle.abort()
+      lease.release()
+      await service.close({ ...wait, force: true })
+      await host.close()
+    }
+  })
+
   it('reads the same network diagnostic health through retirement and close without a lease', async () => {
     const host = await fixture(cert.tls, res => res.end(content('ok') + finish()))
     let rejectDelivery: (reason?: unknown) => void = () => {}

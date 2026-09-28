@@ -119,9 +119,13 @@ export function createOwnedTransport(options: TransportOptions): {
     }
     try {
       const result = options.onDiagnostic(Object.freeze(event))
-      if (result) {
+      if (result !== undefined) {
+        if (result === null || typeof result.then !== 'function') {
+          failed++
+          return
+        }
         pending++
-        void result.then(
+        void Promise.resolve(result).then(
           () => {
             pending--
           },
