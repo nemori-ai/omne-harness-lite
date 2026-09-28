@@ -1,3 +1,21 @@
+## v4 候选的证据义务
+
+来源为 [v4 契约](../../../../spec/data/model-profile/v4/contract.md)及 [MP4-1～MP4-5](v4-design.md#契约责任到实现的投影)。下表全部为**未执行的产品验收义务**；不借用旧绑定或候选 Schema 自检宣称实现通过。
+
+| 编号与条款 | 必须能失败的检查 | owner 与交付证据 |
+| --- | --- | --- |
+| V4-1：S-8/S-9/S-32，MP4-1 | v4 规范正反例经公开 Schema 与 judge；image 缺项目逐图 cap、缺任一上游 image 事实拒绝，非 image 带 image 指标拒绝；unknown/unbounded/limited 分支混值拒绝；合法 unknown + 明确有限 cap 通过，缺 cap 不补 | 本包实施者：真实公开入口测试及输入；`InputConstraints`、`UpstreamInputLimits` 独立定义与宿主条件分开验证，保持全部 14 defs |
+| V4-2：S-24～S-26/S-33，MP4-2 | 四项 cap 分别小于/等于/大于有限事实；Schema 放行而完整 judge 拒绝的 S-33 反例；M15/M16 与参数越界/输出超限/未知 constraint 同时出现，先 malformed；只有未知 constraint 保持 constraint_unknown；四文档/十拒绝值及旧 M14 次序回归 | 本包实施者：移除 M16 或移至参数判定之后应使测试失败；文本档案可选 cap 缺席但上游 limited 仍为合法值，不伪造项目 cap |
+| V4-3：S-27/S-30，MP4-3 | 新 snapshot 两对象完整且 image 条件生效；巨大相邻整数 cap/fact 比较、小数/零/负数拒绝、指数记数按原值判定；配置内部同名 `value`、maxImages 等任意 JSON 数不被误判；重复键在真实严格文本入口拒绝 | 本包负责类型、Schema、原数及不改输入；runtime 另在真实调用冻结后修改输入深层对象与目录，证明旧 snapshot 原样不变。普通浅拷贝或 readonly 不算这项行为证据 |
+| V4-4：S-11/S-12/S-28，MP4-4 | 六项逐一改变推动目录 updatedAt；对象换序、模态换序及 1/1.0 保持时间；仅 adaptation/providers/parameters/registration 改变不推动；项目 cap 与上游 fact 各自改变都计入 | 目录实施者承担真实提交与可比时间检查；本包只验证新增成员在公开值中可无损消费，禁止将此项记为纯包已兑现 |
+| V4-5：版本采用与全部精确依赖，MP4-5 | root/schema 为 v4 原件；v3/v2 入口的旧原件逐字节不变、各 `$id` 可共存解析；无 v4 事实的旧记录仅旧 codec 可读，新路径拒绝；独立打包消费者 strict/skipLibCheck=false，公开类型/函数/JSON 入口可导入，私有路径不可导入 | 本包及各数据/runtime/transport 消费者共同集成；保留历史 v5 response 等实现须固定 profile v3 导入，不能跟 root 自动升级。README/README_ZH 同步给出合法三态+显式项目 cap、完整 judge 与 Schema 的区别、精确旧版读取边界的可运行示例 |
+
+### v4 覆盖缺口
+
+- MP4-G1：主线负责精确契约及节点采用；本稿和上述候选接口未经本稿自我接受。
+- MP4-G2：V4-1～V4-3、V4-5 尚缺本版源码与真实制品运行，阻断后继值包/目录/transport 对 v4 的正式使用。新增绑定 0 条，旧 1 条绑定不变。
+- MP4-G3：V4-4 与 V4-3 的真实 snapshot、S-8/S-9/S-33 实际请求计量、事实来源、官方 cap 声明归外部 owner；本包不生成默认 cap，不用一次 HTTP 成功证明上游 unbounded，也不读取附件。归装配新增事项 0 项，既有目录/runtime/transport 分工保持。
+
 ## v3 候选的证据义务
 
 本节只对应 [`data.model-profile/v3`](../../../../spec/data/model-profile/v3/contract.md) 与 [v3 候选投影](v3-design.md)。尚无本版产品实现和接受；下面计划中的测试名称只作义务编号，不登记为已存在的 `test:` 绑定。所有原 v2 结果保持原范围。
