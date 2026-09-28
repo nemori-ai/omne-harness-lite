@@ -71,6 +71,7 @@ function terminalHandle(value: AnchoredInvocationOutcome): AnchoredInvocationHan
 export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   input: AnchoredInvocationInput<P, R>,
 ): AnchoredInvocationHandle {
+  input = Object.freeze({ ...input })
   const requested = ownPlanInput(input.planInput)
   if (
     !requested ||
@@ -90,6 +91,53 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       input.credential,
     )
     if ('rejected' in bound) return terminalHandle({ rejected: 'invalidInput' })
+    const config = input.policy.credentialRedaction
+    const sourceOwner = input.settlement.owner
+    const sourceLog = input.settlement.binding.log
+    const contention = input.settlement.settlementContention
+    input = Object.freeze({
+      ...input,
+      policy: Object.freeze({
+        ...input.policy,
+        statusCauseTable: Object.freeze({ ...input.policy.statusCauseTable }),
+        credentialRedaction: Object.freeze({
+          credential_fragment_min_length: config.credential_fragment_min_length,
+          credential_header_names: Object.freeze([...config.credential_header_names]),
+          credential_patterns: Object.freeze(
+            config.credential_patterns.map(pattern => Object.freeze({ ...pattern })),
+          ),
+        }),
+      }),
+      settlement: Object.freeze({
+        ...input.settlement,
+        ...(contention === undefined
+          ? {}
+          : {
+              settlementContention: Object.freeze({
+                ...contention,
+                limits: Object.freeze({ ...contention.limits }),
+              }),
+            }),
+        ...(input.settlement.settlementScheduler === undefined
+          ? {}
+          : { settlementScheduler: Object.freeze({ ...input.settlement.settlementScheduler }) }),
+        binding: Object.freeze({
+          ...input.settlement.binding,
+          log: Object.freeze({
+            append: sourceLog.append.bind(sourceLog),
+            readSince: sourceLog.readSince.bind(sourceLog),
+            readByKey: sourceLog.readByKey.bind(sourceLog),
+          }),
+        }),
+        owner: Object.freeze({
+          name: sourceOwner.name,
+          admission: sourceOwner.admission.bind(sourceOwner),
+          acquire: sourceOwner.acquire.bind(sourceOwner),
+          opened: sourceOwner.opened.bind(sourceOwner),
+          unresolvedWrites: sourceOwner.unresolvedWrites.bind(sourceOwner),
+        }),
+      }),
+    })
   } catch (error) {
     if (error instanceof CredentialRedactionConfigurationError)
       return terminalHandle({ rejected: 'invalidInput' })
@@ -170,6 +218,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   let invocation: ModelInvocationHandle | undefined
   let construction: ResponseConstructionInput | undefined
   let settled = false
+  let dispatchConfirmed = false
   let closePromise: ReturnType<AnchoredInvocationHandle['close']> | undefined
   const owner: SettlementOwner = {
     name: originalOwner.name,
@@ -292,6 +341,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       if (!usable()) return { cancelledBeforeDispatch: true }
       const dispatchTask = append(prepared.ok)
       if (!(await receipt(dispatchTask))) return unavailable
+      dispatchConfirmed = true
       if (!usable()) {
         const at = policy.now()
         construction = {
@@ -391,7 +441,41 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         diagnose('model_anchor.quarantined')
         return unavailable
       }
-      if (!('outcome' in result)) return unavailable
+      if (!('outcome' in result)) {
+        if (!('cancelledBeforeSend' in result)) return unavailable
+        const at = policy.now()
+        const stoppedResult: ModelInvocationResult = {
+          outcome: 'interrupted',
+          blocks: [],
+          timing: { sentAt: at, endedAt: at },
+          usage: {
+            input_tokens: 'unknown',
+            output_tokens: 'unknown',
+            cache_read_tokens: 'unknown',
+            cache_write_tokens: 'unknown',
+            source: 'none',
+          },
+          cost: { cost_usd: 'unknown', source: 'none' },
+          routeName: requested.routeName,
+          provider: requested.provider,
+          adaptation: requested.snapshot.adaptation,
+          parameters: planned.parameters,
+          ...(planned.parameterAdjustments === undefined
+            ? {}
+            : { parameterAdjustments: planned.parameterAdjustments }),
+          ...(planned.droppedParameters === undefined
+            ? {}
+            : { droppedParameters: planned.droppedParameters }),
+        }
+        construction = {
+          dispatched,
+          result: stoppedResult,
+          messageId: input.messageId,
+          firstTokenAt: null,
+        }
+        const stoppedSettlement = await settleCandidate(null)
+        return 'settled' in stoppedSettlement ? { settled: stoppedSettlement } : unavailable
+      }
       if (!settlementGenerationCurrent(binding)) return unavailable
       construction = Object.freeze({ dispatched, result, messageId: input.messageId, firstTokenAt })
       await drain()
@@ -436,7 +520,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         if (!settled && construction && !quarantined) await settleCandidate(null, true)
         await coordinator.close()
         input.signal.removeEventListener('abort', stop)
-        if (quarantined || unresolved.size > 0 || (construction !== undefined && !settled))
+        if (quarantined || unresolved.size > 0 || (dispatchConfirmed && !settled))
           return unavailable
         if (!borrowedReleased) {
           await input.releaseBorrowed?.()
