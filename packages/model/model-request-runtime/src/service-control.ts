@@ -29,6 +29,104 @@ import type {
   SettlementTask,
 } from './settlement-types.ts'
 
+interface ReadScope {
+  readonly registration: SettlementRegistration
+  readonly tasks: SettlementTask<unknown>[]
+  stopRequested: boolean
+  finish?: Promise<void>
+}
+
+/** Own every admitted read from registration through actual stop, including rejected completions. */
+export class OwnedReadTracker {
+  readonly #scopes = new Set<ReadScope>()
+  #closed = false
+
+  get closed(): boolean {
+    return this.#closed
+  }
+
+  add(registration: SettlementRegistration): ReadScope | undefined {
+    if (this.#closed) return undefined
+    const scope: ReadScope = { registration, tasks: [], stopRequested: false }
+    this.#scopes.add(scope)
+    return scope
+  }
+
+  stop(scope: ReadScope): void {
+    scope.stopRequested = true
+    for (const task of scope.tasks) {
+      try {
+        task.requestStop()
+      } catch {
+        // A failed stop request cannot certify the actual stopped promise.
+      }
+    }
+  }
+
+  finish(scope: ReadScope): Promise<void> {
+    scope.finish ??= (async () => {
+      await Promise.all(scope.tasks.map(task => task.stopped))
+      scope.registration.release()
+      this.#scopes.delete(scope)
+    })()
+    return scope.finish
+  }
+
+  async drain(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+    const scopes = [...this.#scopes]
+    for (const scope of scopes) this.stop(scope)
+    await Promise.allSettled(scopes.map(scope => this.finish(scope)))
+    return this.#scopes.size === 0 ? { released: true } : { unavailable: true }
+  }
+
+  async close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+    this.#closed = true
+    return await this.drain()
+  }
+}
+
+/** A read-only operation's backend tasks remain owned until actual stop. */
+export async function withOwnedReads<T>(
+  owner: SettlementOwner,
+  concurrent: import('@omne-harness-lite/content-blocks').JsonNumber,
+  tracker: OwnedReadTracker,
+  work: (registration: SettlementRegistration) => Promise<T>,
+): Promise<{ readonly ok: T } | { readonly unavailable: true }> {
+  if (tracker.closed || owner.admission() !== 'open') return { unavailable: true }
+  const grant = owner.acquire(concurrent)
+  if ('unavailable' in grant) return { unavailable: true }
+  const scope = tracker.add(grant.registration)
+  if (scope === undefined) {
+    grant.registration.release()
+    return { unavailable: true }
+  }
+  const registration: SettlementRegistration = {
+    start(kind, operation) {
+      if (scope.stopRequested) throw new Error('read scope closing')
+      const task = grant.registration.start(kind, operation)
+      scope.tasks.push(task)
+      return task
+    },
+    release: grant.registration.release,
+  }
+  let result: T
+  try {
+    result = await work(registration)
+  } catch {
+    tracker.stop(scope)
+    tracker.finish(scope).catch(() => {
+      // The scope remains owned if actual stop or release failed.
+    })
+    return { unavailable: true }
+  }
+  try {
+    await tracker.finish(scope)
+    return { ok: result }
+  } catch {
+    return { unavailable: true }
+  }
+}
+
 /** A complete owned prefix is authoritative; local state only supplies a never-dispatched call
  * and the in-process unpersisted reply which the log cannot yet describe. */
 export interface ControlFacts {
@@ -228,16 +326,15 @@ export async function appendControlRecord(
 }
 
 interface UnknownControlWrite {
+  readonly key: CallKey
+  readonly binding: SettlementLogBinding
+  readonly owner: SettlementOwner
   readonly registration: SettlementRegistration
   readonly task: SettlementTask<AppendResult>
   stopped: boolean
   stopFailed: boolean
+  released: boolean
 }
-interface UnstoppedRead {
-  readonly registration: SettlementRegistration
-  readonly tasks: readonly SettlementTask<unknown>[]
-}
-
 export interface ServiceControl {
   readonly releaseCall: (key: CallKey) => Promise<ReleaseCallResult>
   readonly interrupt: (input: InterruptInput) => Promise<InterruptResult>
@@ -250,12 +347,31 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
 ): ServiceControl {
   const unknown = new Map<string, UnknownControlWrite[]>()
-  const unstoppedReads = new Set<UnstoppedRead>()
+  const reads = new OwnedReadTracker()
+  const reconcileReads = new OwnedReadTracker()
   const backgroundEnds = new Map<string, Promise<void>>()
+  const backgroundFailed = new Map<
+    string,
+    {
+      readonly key: CallKey
+      readonly binding: SettlementLogBinding
+      readonly owner: SettlementOwner
+    }
+  >()
+  let closing = false
   const keyOf = (key: CallKey) => JSON.stringify([key.session, key.callId])
+  const markEndUnavailable = (
+    key: CallKey,
+    binding: SettlementLogBinding,
+    owner: SettlementOwner,
+  ) => {
+    backgroundFailed.set(keyOf(key), { key, binding, owner })
+  }
 
   function retain(
     key: CallKey,
+    binding: SettlementLogBinding,
+    owner: SettlementOwner,
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
   ): void {
@@ -265,7 +381,16 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       writes = []
       unknown.set(token, writes)
     }
-    const write: UnknownControlWrite = { registration, task, stopped: false, stopFailed: false }
+    const write: UnknownControlWrite = {
+      key,
+      binding,
+      owner,
+      registration,
+      task,
+      stopped: false,
+      stopFailed: false,
+      released: false,
+    }
     writes.push(write)
     task.stopped.then(
       () => {
@@ -285,46 +410,22 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     const waiting = unknown.get(keyOf(key))
     if (waiting?.some(write => !write.stopped || write.stopFailed))
       return { unavailable: true, reason: 'history' }
-    const grant = owner.acquire(runtime.settlementContention.limits.concurrent)
-    if ('unavailable' in grant) return { unavailable: true, reason: 'history' }
-    const tasks: SettlementTask<unknown>[] = []
-    const registration: SettlementRegistration = {
-      start(kind, work) {
-        const task = grant.registration.start(kind, work)
-        tasks.push(task)
-        return task
-      },
-      release: grant.registration.release,
-    }
-    let result: Awaited<ReturnType<typeof readSettlementPrefix>>
-    try {
-      result = await readSettlementPrefix({ binding: session.log, registration })
-      await Promise.all(tasks.map(task => task.stopped))
-      grant.registration.release()
-    } catch {
-      // A read can still own real backend work after its completion rejects. Retain the
-      // registration until every task actually stops; a failed stop remains owned.
-      const retained: UnstoppedRead = { registration: grant.registration, tasks }
-      unstoppedReads.add(retained)
-      const stopped = Promise.all(tasks.map(task => task.stopped))
-      stopped
-        .then(() => {
-          try {
-            grant.registration.release()
-            unstoppedReads.delete(retained)
-          } catch {
-            // Keep the owner if release itself is uncertain.
-          }
-        })
-        .catch(() => {
-          // Keep the owner when actual stop cannot be established.
-        })
-      return { unavailable: true, reason: 'prefix' }
-    }
+    const received = await withOwnedReads(
+      owner,
+      runtime.settlementContention.limits.concurrent,
+      reads,
+      async registration => await readSettlementPrefix({ binding: session.log, registration }),
+    )
+    if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
+    const result = received.ok
     if ('unavailable' in result) return { unavailable: true, reason: 'prefix' }
     if (waiting !== undefined) {
       try {
-        for (const write of waiting) write.registration.release()
+        for (const write of waiting) {
+          if (write.released) continue
+          write.registration.release()
+          write.released = true
+        }
       } catch {
         return { unavailable: true, reason: 'history' }
       }
@@ -338,6 +439,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
   }
 
   const releaseCall = async (key: CallKey): Promise<ReleaseCallResult> => {
+    if (closing) return { unavailable: true }
     if (
       key === null ||
       typeof key !== 'object' ||
@@ -384,6 +486,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         return { unavailable: true }
       }
       if ('wrongPhase' in admission) return { wrongPhase: { phase: admission.wrongPhase } }
+      if (closing) return { unavailable: true }
       if ('unknown' in owner.opened() || owner.unresolvedWrites().length !== 0)
         return { unavailable: true }
       const appended = await appendControlRecord({
@@ -391,7 +494,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         owner,
         concurrent: runtime.settlementContention.limits.concurrent,
         record: { kind: 'model_call_ended', call: key.callId, ending: 'released' },
-        retainUnknown: (registration, task) => retain(key, registration, task),
+        retainUnknown: (registration, task) => retain(key, session.log, owner, registration, task),
       })
       if ('appended' in appended && local !== undefined) {
         const container = runtime.calls.find(key)
@@ -408,6 +511,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     }
   }
   const interrupt = async (input: InterruptInput): Promise<InterruptResult> => {
+    if (closing) return { unavailable: true }
     if (
       input === null ||
       typeof input !== 'object' ||
@@ -442,6 +546,10 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     })
     if ('unavailable' in gate) return { unavailable: true }
     const reservation = gate.reservation
+    let releaseReservation: (() => void) | undefined
+    const reservationReleased = new Promise<void>(resolve => {
+      releaseReservation = resolve
+    })
     try {
       const local = reservation.view()
       const owner = local?.owner ?? session.selection.owner
@@ -460,6 +568,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       // belongs to reconcile; merely writing an intent here would falsely promise a signal.
       const abort = local?.operation.phase === 'dispatching' ? local.operation.abort : undefined
       if (admission.stage !== 'before_dispatch' && abort === undefined) return { unavailable: true }
+      if (closing) return { unavailable: true }
       if (!admission.intentExists) {
         const appended = await appendControlRecord({
           binding: session.log,
@@ -470,12 +579,14 @@ export function createServiceControl<P extends PlannedSemantics, R>(
             call: key.callId,
             initiator: input.initiator,
           },
-          retainUnknown: (registration, task) => retain(key, registration, task),
+          retainUnknown: (registration, task) =>
+            retain(key, session.log, owner, registration, task),
         })
         if ('unavailable' in appended) return { unavailable: true }
       }
       if (admission.stage === 'before_dispatch') {
         if (!backgroundEnds.has(keyOf(key))) {
+          let committed = false
           const ending = appendControlRecord({
             binding: session.log,
             owner,
@@ -489,23 +600,54 @@ export function createServiceControl<P extends PlannedSemantics, R>(
                   ? history.known.intent.initiator
                   : input.initiator,
             },
-            retainUnknown: (registration, task) => retain(key, registration, task),
+            retainUnknown: (registration, task) =>
+              retain(key, session.log, owner, registration, task),
           })
             .then(result => {
-              if ('unavailable' in result)
+              if ('appended' in result) committed = true
+              else {
+                markEndUnavailable(key, session.log, owner)
                 runtime.policy.diagnostic({ kind: 'model_control.end_unavailable' })
+              }
             })
             .catch(() => {
+              markEndUnavailable(key, session.log, owner)
               try {
                 runtime.policy.diagnostic({ kind: 'model_control.end_unavailable' })
               } catch {
                 // Diagnostics cannot settle or release the original effect.
               }
             })
+          const cleanup = ending
+            .then(async () => {
+              await reservationReleased
+              if (!committed || local === undefined) return
+              const next = await runtime.calls.waitReserve(key, {
+                policy: runtime.reservationWaitPolicy,
+                scheduler: runtime.settlementScheduler,
+                signal: new AbortController().signal,
+              })
+              if ('unavailable' in next) {
+                markEndUnavailable(key, session.log, owner)
+                return
+              }
+              try {
+                const container = runtime.calls.find(key)
+                if (container === undefined) return
+                const closed = await container.close()
+                if ('released' in closed) runtime.calls.remove(next.reservation)
+                else markEndUnavailable(key, session.log, owner)
+              } finally {
+                next.reservation.release()
+              }
+            })
+            .catch(() => {
+              markEndUnavailable(key, session.log, owner)
+            })
             .finally(() => {
               backgroundEnds.delete(keyOf(key))
             })
-          backgroundEnds.set(keyOf(key), ending)
+          backgroundEnds.set(keyOf(key), cleanup)
           if (local !== undefined) runtime.calls.find(key)?.retainStopped(ending)
         }
       } else {
@@ -518,15 +660,87 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       return { stage: admission.stage }
     } finally {
       reservation.release()
+      releaseReservation?.()
     }
   }
   const close = async (): Promise<{ readonly released: true } | { readonly unavailable: true }> => {
+    closing = true
+    const readResult = await reads.close()
     try {
       await Promise.all(backgroundEnds.values())
     } catch {
       return { unavailable: true }
     }
-    if (unknown.size !== 0 || unstoppedReads.size !== 0) return { unavailable: true }
+    const writes = [...unknown.values()].flat()
+    for (const write of writes) {
+      try {
+        write.task.requestStop()
+      } catch {
+        // The stopped promise, not a requested cancellation, is authoritative.
+      }
+    }
+    await Promise.allSettled(writes.map(write => write.task.stopped))
+    for (const [token, group] of unknown) {
+      if (group.some(write => !write.stopped || write.stopFailed)) continue
+      const first = group[0]
+      if (first === undefined) continue
+      const received = await withOwnedReads(
+        first.owner,
+        runtime.settlementContention.limits.concurrent,
+        reconcileReads,
+        async registration => {
+          const result = await readSettlementPrefix({ binding: first.binding, registration })
+          return 'unavailable' in result
+            ? ({ unavailable: true } as const)
+            : runtime.history.call(result.prefix, first.key.callId)
+        },
+      )
+      if ('unavailable' in received || 'unavailable' in received.ok) continue
+      try {
+        for (const write of group) {
+          if (write.released) continue
+          write.registration.release()
+          write.released = true
+        }
+        unknown.delete(token)
+      } catch {
+        // A failed release keeps the original owner reachable for another close attempt.
+      }
+    }
+    const recoveryReads = await reconcileReads.drain()
+    for (const [token, failed] of backgroundFailed) {
+      if (unknown.has(token)) continue
+      const received = await withOwnedReads(
+        failed.owner,
+        runtime.settlementContention.limits.concurrent,
+        reconcileReads,
+        async registration => {
+          const result = await readSettlementPrefix({ binding: failed.binding, registration })
+          return 'unavailable' in result
+            ? ({ unavailable: true } as const)
+            : runtime.history.call(result.prefix, failed.key.callId)
+        },
+      )
+      if (
+        'unavailable' in received ||
+        'unavailable' in received.ok ||
+        !('known' in received.ok) ||
+        received.ok.known.phase !== 'interrupted'
+      )
+        continue
+      const container = runtime.calls.find(failed.key)
+      if (container !== undefined && 'unavailable' in (await container.close())) continue
+      backgroundFailed.delete(token)
+    }
+    const finalRecoveryReads = await reconcileReads.drain()
+    if (
+      unknown.size !== 0 ||
+      'unavailable' in readResult ||
+      'unavailable' in recoveryReads ||
+      'unavailable' in finalRecoveryReads ||
+      backgroundFailed.size !== 0
+    )
+      return { unavailable: true }
     return { released: true }
   }
   return Object.freeze({ releaseCall, interrupt, close })

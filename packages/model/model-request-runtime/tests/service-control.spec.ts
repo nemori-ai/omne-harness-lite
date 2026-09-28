@@ -8,14 +8,19 @@ import {
   appendControlRecord,
   classifyInterrupt,
   classifyRelease,
+  OwnedReadTracker,
+  withOwnedReads,
   type ControlFacts,
 } from '../src/service-control.ts'
+import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
 import type {
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
 } from '../src/settlement-types.ts'
 import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import { UnknownAppendTracker } from '../src/service-calls.ts'
+import { interpretCallHistory } from '../src/call-history.ts'
 
 const absent: ControlFacts = { durable: { absent: true }, localCall: false }
 const unavailable: ControlFacts = { durable: { unavailable: true }, localCall: true }
@@ -23,6 +28,42 @@ const known = (
   phase: Extract<ControlFacts['durable'], { phase: unknown }>['phase'],
   intentExists = false,
 ): ControlFacts => ({ durable: { phase, intentExists }, localCall: true })
+
+it('close requests read stop and waits for actual stopped before releasing its owner', async () => {
+  const owner = new ControlledSettlementOwner()
+  const barrier = deferred<void>()
+  const started = deferred<void>()
+  owner.stopBarrier = barrier.promise
+  const tracker = new OwnedReadTracker()
+  const pending = withOwnedReads(
+    owner,
+    1,
+    tracker,
+    async registration =>
+      await registration.start('read', async signal => {
+        started.resolve(undefined)
+        await new Promise<void>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('stopped')), { once: true })
+        })
+        return true
+      }).completion,
+  )
+  await started.promise
+  expect(owner.active).toBe(1)
+  let closeFinished = false
+  const closing = tracker.close().then(result => {
+    closeFinished = true
+    return result
+  })
+  await Promise.resolve()
+  expect(closeFinished).toBe(false)
+  expect(owner.active).toBe(1)
+  barrier.resolve(undefined)
+  expect(await closing).toEqual({ released: true })
+  expect(await pending).toEqual({ unavailable: true })
+  expect(owner.active).toBe(0)
+  expect(await withOwnedReads(owner, 1, tracker, async () => true)).toEqual({ unavailable: true })
+})
 
 describe('RT7 S-31/S-32 control admission from owned facts', () => {
   it('distinguishes absent, unknown, and an unrecorded open call', () => {
@@ -206,28 +247,38 @@ describe('RT7 S-31/S-68 actual control append', () => {
     }
     const session = unwrap(parseOpaqueIdentifier('control-session', 'SessionRef'))
     const generation = Object.freeze({})
+    const tracker = new UnknownAppendTracker()
+    let readAvailable = false
+    let completeReads = 0
+    const binding = {
+      session,
+      tenant: parsedTenant.ok,
+      log: {
+        async readSince(...args: Parameters<typeof log.readSince>) {
+          if (!readAvailable) return { failure: 'unavailable' as const }
+          const result = await log.readSince(...args)
+          if (!('failure' in result)) completeReads++
+          return result
+        },
+        readByKey: log.readByKey.bind(log),
+        async append(...args: Parameters<typeof log.append>) {
+          const actual = await log.append(...args)
+          if ('failure' in actual) return actual
+          return { failure: 'unavailable' as const }
+        },
+      },
+      generation,
+      currentGeneration: () => generation,
+    }
     try {
       const result = await appendControlRecord({
-        binding: {
-          session,
-          tenant: parsedTenant.ok,
-          log: {
-            readSince: log.readSince.bind(log),
-            readByKey: log.readByKey.bind(log),
-            async append(...args) {
-              const actual = await log.append(...args)
-              if ('failure' in actual) return actual
-              return { failure: 'unavailable' }
-            },
-          },
-          generation,
-          currentGeneration: () => generation,
-        },
+        binding,
         owner,
         concurrent: 1,
         record: { kind: 'model_call_interrupt_intent', call: 'control-call', initiator: 'user' },
         retainUnknown(registration, task) {
           retained = { registration, task }
+          tracker.keep({ session, callId: 'control-call' }, binding, owner, registration, task)
         },
       })
       expect(result).toEqual({ unavailable: true })
@@ -241,8 +292,22 @@ describe('RT7 S-31/S-68 actual control append', () => {
         value: { kind: 'model_call_interrupt_intent', call: 'control-call' },
       })
       await retained?.task.stopped
-      retained?.registration.release()
+      expect(
+        await tracker.close({
+          concurrent: 1,
+          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+        }),
+      ).toEqual({ unavailable: true })
       expect(releases).toBe(1)
+      readAvailable = true
+      expect(
+        await tracker.close({
+          concurrent: 1,
+          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+        }),
+      ).toEqual({ released: true })
+      expect(completeReads).toBe(1)
+      expect(releases).toBe(3)
     } finally {
       await log.close()
       await rm(dir, { recursive: true, force: true })

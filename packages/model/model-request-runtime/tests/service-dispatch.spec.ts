@@ -2,6 +2,7 @@ import { expect, test } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createServiceCalls } from '../src/service-calls.ts'
+import { createServiceControl } from '../src/service-control.ts'
 import { createServiceDispatch } from '../src/service-dispatch.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -385,6 +386,28 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(sendCount).toBe(3)
     expect(released).toBe(1)
     expect(calls.find({ session: host.session, callId: 'actual-call-5' })).toBeUndefined()
+    credentialAvailable = true
+    expect(
+      await opening.openCall({
+        session: host.session,
+        target: effective.ok.routeName,
+        basis: effective.ok,
+        messages: [],
+        tools: [],
+        host: binding,
+      }),
+    ).toEqual({ callId: 'actual-call-6', state: 'open' })
+    const control = createServiceControl(runtime)
+    expect(
+      await control.interrupt({
+        session: host.session,
+        callId: 'actual-call-6',
+        initiator: 'user',
+      }),
+    ).toEqual({ stage: 'before_dispatch' })
+    expect(await control.close()).toEqual({ released: true })
+    expect(released).toBe(2)
+    expect(calls.find({ session: host.session, callId: 'actual-call-6' })).toBeUndefined()
   } finally {
     await host.close()
   }

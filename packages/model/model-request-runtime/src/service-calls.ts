@@ -18,7 +18,7 @@ import { winningRow, type ProfileRow } from '@omne-harness-lite/model-profile-di
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { resolveCallTools } from './call-tools.ts'
 import { createCallContainer } from './service-container.ts'
-import { appendControlRecord } from './service-control.ts'
+import { appendControlRecord, OwnedReadTracker, withOwnedReads } from './service-control.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { CallHistoryResult } from './call-history.ts'
@@ -31,6 +31,10 @@ import type {
 } from './service-types.ts'
 import type { EffectiveModel } from './selection-types.ts'
 import type { SettlementOwner, SettlementRegistration, SettlementTask } from './settlement-types.ts'
+import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { CallKey } from './service-types.ts'
+import type { CurrentHistoryReaders } from './service-types.ts'
+import type { SettlementLogBinding } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
 
 function object(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -234,53 +238,70 @@ function readRows(value: unknown): readonly ProfileRow[] | undefined {
     : undefined
 }
 
-/** A read-only operation's backend tasks remain owned until actual stop, even after a
- * completion rejection. The caller retains unsuccessful cleanup for lifecycle close. */
-export async function withOwnedReads<T>(
-  owner: SettlementOwner,
-  concurrent: import('@omne-harness-lite/content-blocks').JsonNumber,
-  retained: Set<SettlementRegistration>,
-  work: (registration: SettlementRegistration) => Promise<T>,
-): Promise<{ readonly ok: T } | { readonly unavailable: true }> {
-  if (owner.admission() !== 'open') return { unavailable: true }
-  const grant = owner.acquire(concurrent)
-  if ('unavailable' in grant) return { unavailable: true }
-  const tasks: SettlementTask<unknown>[] = []
-  const registration: SettlementRegistration = {
-    start(kind, operation) {
-      const task = grant.registration.start(kind, operation)
-      tasks.push(task)
-      return task
-    },
-    release: grant.registration.release,
+interface UnknownAppend {
+  readonly key: CallKey
+  readonly binding: SettlementLogBinding
+  readonly owner: SettlementOwner
+  readonly registration: SettlementRegistration
+  readonly task: SettlementTask<AppendResult>
+}
+
+/** Unknown append receipts retain their original writer until it stops and a full prefix is read. */
+export class UnknownAppendTracker {
+  readonly #writes = new Set<UnknownAppend>()
+  readonly #reads = new OwnedReadTracker()
+
+  keep(
+    key: CallKey,
+    binding: SettlementLogBinding,
+    owner: SettlementOwner,
+    registration: SettlementRegistration,
+    task: SettlementTask<AppendResult>,
+  ): void {
+    this.#writes.add({ key, binding, owner, registration, task })
   }
-  let result: T
-  try {
-    result = await work(registration)
-  } catch {
-    retained.add(grant.registration)
-    Promise.all(tasks.map(task => task.stopped)).then(
-      () => {
-        try {
-          grant.registration.release()
-          retained.delete(grant.registration)
-        } catch {
-          // Failed release keeps the actual owner reachable.
-        }
-      },
-      () => {
-        // Stop failure is not completion and cannot release the registration.
-      },
-    )
-    return { unavailable: true }
-  }
-  try {
-    await Promise.all(tasks.map(task => task.stopped))
-    grant.registration.release()
-    return { ok: result }
-  } catch {
-    retained.add(grant.registration)
-    return { unavailable: true }
+
+  async close(input: {
+    readonly concurrent: import('@omne-harness-lite/content-blocks').JsonNumber
+    readonly call: CurrentHistoryReaders['call']
+  }): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+    const writes = [...this.#writes]
+    for (const write of writes) {
+      try {
+        write.task.requestStop()
+      } catch {
+        // The actual stopped promise remains authoritative.
+      }
+    }
+    for (const write of writes) {
+      try {
+        await write.task.stopped
+      } catch {
+        continue
+      }
+      const read = await withOwnedReads(
+        write.owner,
+        input.concurrent,
+        this.#reads,
+        async registration => {
+          const result = await readSettlementPrefix({ binding: write.binding, registration })
+          return 'unavailable' in result
+            ? ({ unavailable: true } as const)
+            : input.call(result.prefix, write.key.callId)
+        },
+      )
+      if ('unavailable' in read || 'unavailable' in read.ok) continue
+      try {
+        write.registration.release()
+        this.#writes.delete(write)
+      } catch {
+        // A failed writer release remains owned for a later close attempt.
+      }
+    }
+    const reads = await this.#reads.drain()
+    return this.#writes.size === 0 && 'released' in reads
+      ? { released: true }
+      : { unavailable: true }
   }
 }
 
@@ -305,8 +326,9 @@ export interface ServiceCalls {
 export function createServiceCalls<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
 ): ServiceCalls {
-  const retainedReads = new Set<SettlementRegistration>()
-  const unknownWrites = new Set<SettlementRegistration>()
+  const retainedReads = new OwnedReadTracker()
+  const unknownWrites = new UnknownAppendTracker()
+  let closing = false
   async function historyFor(
     session: SessionRuntimeBinding,
     callId: NonNullable<OpenCallInput['callId']>,
@@ -325,6 +347,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     return 'unavailable' in read ? { unavailable: true, reason: 'prefix' } : read.ok
   }
   const openCall = async (input: OpenCallInput): Promise<OpenCallResult> => {
+    if (closing) return { runtimeStopped: true }
     const owned = ownOpenCallInput(input)
     if ('invalidInput' in owned) return owned
     const request = owned.request
@@ -360,6 +383,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     if ('unavailable' in gate) return { unavailable: true }
     const reservation = gate.reservation
     try {
+      if (closing) return { runtimeStopped: true }
       const local = reservation.view()
       if (request.callId !== undefined && local !== undefined) {
         if (local.session !== session || local.request.session !== request.session)
@@ -375,6 +399,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           return resolved.failure === 'unavailable'
             ? { unavailable: true }
             : { invalidInput: { reason: resolved.reason ?? 'malformed' } }
+        if (closing) return { runtimeStopped: true }
         reservation.updateRequest(request)
         return { callId, state: 'resumable' }
       }
@@ -424,6 +449,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             owner: session.selection.owner,
             coordinator,
           })
+          if (closing) return { runtimeStopped: true }
           if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
           transferred = true
           return { callId, state: 'resumable' }
@@ -483,6 +509,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       const checked = facts.ok
       if ('profileNotFound' in checked) return { profileNotFound: true }
       if ('undispatched' in checked) {
+        if (closing) return { runtimeStopped: true }
         const written = await appendControlRecord({
           binding: session.log,
           owner,
@@ -493,8 +520,8 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             ending: 'undispatched',
             cause: checked.undispatched,
           },
-          retainUnknown(registration) {
-            unknownWrites.add(registration)
+          retainUnknown(registration, task) {
+            unknownWrites.keep(key, session.log, owner, registration, task)
           },
         })
         return 'appended' in written
@@ -526,6 +553,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         if ('rejected' in planned) {
           if (planned.rejected === 'unavailable') return { unavailable: true }
           if (planned.rejected === 'modality_not_carried') {
+            if (closing) return { runtimeStopped: true }
             const written = await appendControlRecord({
               binding: session.log,
               owner,
@@ -536,8 +564,8 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
                 ending: 'undispatched',
                 cause: 'modality_mismatch',
               },
-              retainUnknown(registration) {
-                unknownWrites.add(registration)
+              retainUnknown(registration, task) {
+                unknownWrites.keep(key, session.log, owner, registration, task)
               },
             })
             return 'appended' in written
@@ -602,6 +630,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           owner,
           coordinator,
         })
+        if (closing) return { runtimeStopped: true }
         if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
         transferred = true
         return { callId, state: 'open' }
@@ -614,9 +643,16 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       reservation.release()
     }
   }
-  const close = async () =>
-    retainedReads.size === 0 && unknownWrites.size === 0
+  const close = async () => {
+    closing = true
+    const reads = await retainedReads.close()
+    const writes = await unknownWrites.close({
+      concurrent: runtime.settlementContention.limits.concurrent,
+      call: runtime.history.call,
+    })
+    return 'released' in reads && 'released' in writes
       ? ({ released: true } as const)
       : ({ unavailable: true } as const)
+  }
   return Object.freeze({ openCall, close })
 }

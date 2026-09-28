@@ -9,8 +9,8 @@ import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { createAnchoredModelInvocation } from './anchored-invocation.ts'
 import { resolveCallTools } from './call-tools.ts'
 import { dispatchGuard, type DispatchGuardPhase } from './dispatch-guard.ts'
-import { withOwnedReads } from './service-calls.ts'
-import { appendControlRecord } from './service-control.ts'
+import { UnknownAppendTracker } from './service-calls.ts'
+import { appendControlRecord, OwnedReadTracker, withOwnedReads } from './service-control.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
@@ -27,7 +27,6 @@ import type {
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
 import type { PlanInput, InvocationPolicy } from './types.ts'
-import type { SettlementRegistration } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
 
 function object(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -52,7 +51,7 @@ export function positiveDurationMs(value: unknown): number | undefined {
 export async function currentDispatchTiming<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   session: SessionRuntimeBinding,
-  retained: Set<SettlementRegistration>,
+  retained: OwnedReadTracker,
 ): Promise<
   | { readonly firstContentTimeoutMs: number; readonly idleContentTimeoutMs: number }
   | { readonly unavailable: true }
@@ -225,8 +224,9 @@ export interface ServiceDispatch {
 export function createServiceDispatch<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
 ): ServiceDispatch {
-  const retainedReads = new Set<SettlementRegistration>()
-  const unknownWrites = new Set<SettlementRegistration>()
+  const retainedReads = new OwnedReadTracker()
+  const unknownWrites = new UnknownAppendTracker()
+  let closing = false
 
   async function retire(reservation: CallReservation<P, R>): Promise<void> {
     const container = runtime.calls.find(reservation.key)
@@ -241,6 +241,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     input: DispatchInput | DispatchAgainInput,
     again: boolean,
   ): Promise<DispatchResult | DispatchAgainResult> {
+    if (closing) return { runtimeStopped: true }
     if (!validDispatchInput(input)) return { invalidInput: { reason: 'malformed' } }
     if (again && !('plan' in input)) return { invalidInput: { reason: 'malformed' } }
     const key: CallKey = { session: input.session, callId: input.callId }
@@ -273,6 +274,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     let handle: ReturnType<typeof createAnchoredModelInvocation<P, R>> | undefined
     let dispatchNumber = 0
     try {
+      if (closing) return { runtimeStopped: true }
       const local = reservation.view()
       if (local !== undefined && (local.session !== session || local.request.run !== undefined))
         return { unavailable: true }
@@ -319,6 +321,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       )
       if ('unavailable' in prepared) return prepared
       if ('invalidInput' in prepared) return prepared
+      if (closing) return { runtimeStopped: true }
       if ('credentialUnavailable' in prepared) {
         const first = 'absent' in history || history.known.dispatches.length === 0
         const ending = first ? 'undispatched' : 'released'
@@ -332,8 +335,8 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             ending,
             cause: 'credential_unavailable',
           },
-          retainUnknown(registration) {
-            unknownWrites.add(registration)
+          retainUnknown(registration, task) {
+            unknownWrites.keep(key, session.log, owner, registration, task)
           },
         })
         if ('unavailable' in appended) return { unavailable: true }
@@ -478,8 +481,8 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
               ending: 'undispatched',
               cause: 'modality_mismatch',
             },
-            retainUnknown(registration) {
-              unknownWrites.add(registration)
+            retainUnknown(registration, task) {
+              unknownWrites.keep(key, session.log, view.owner, registration, task)
             },
           })
           if ('appended' in appended) await retire(finish.reservation)
@@ -502,10 +505,17 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
   return Object.freeze({
     dispatch: (input: DispatchInput) => run(input, false),
     dispatchAgain: (input: DispatchAgainInput) => run(input, true),
-    close: async () =>
-      retainedReads.size === 0 && unknownWrites.size === 0
+    close: async () => {
+      closing = true
+      const reads = await retainedReads.close()
+      const writes = await unknownWrites.close({
+        concurrent: runtime.settlementContention.limits.concurrent,
+        call: runtime.history.call,
+      })
+      return 'released' in reads && 'released' in writes
         ? ({ released: true } as const)
-        : ({ unavailable: true } as const),
+        : ({ unavailable: true } as const)
+    },
   })
 }
 type PreparationResult =
@@ -521,7 +531,7 @@ async function prepareSend<P extends PlannedSemantics, R>(
   key: CallKey,
   dispatch: number,
   provider: string,
-  retained: Set<SettlementRegistration>,
+  retained: OwnedReadTracker,
 ): Promise<PreparationResult> {
   const container = runtime.calls.find(key)
   if (container === undefined) return { unavailable: true }
