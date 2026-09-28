@@ -8,7 +8,7 @@ import {
 import type { ArrivalEvent, ArrivalError } from '@omne-harness-lite/arrival-events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { Failure } from '@omne-harness-lite/model-response'
+import type { Failure, RawHeaders } from '@omne-harness-lite/model-response/v5'
 import type {
   InvocationInput,
   ModelInvocationHandle,
@@ -20,6 +20,12 @@ import type {
   InvocationPolicy,
 } from './types.ts'
 import { ownPlanInput } from './input.ts'
+import {
+  createCredentialRedactionPolicy,
+  CredentialRedactionConfigurationError,
+} from './credential-redaction.ts'
+import { ownedHeaders, processFailure } from './invoke-policy.ts'
+import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
 
 export function classifyCause(
   fact: TransportFailure,
@@ -43,7 +49,6 @@ function policyValid(policy: InvocationPolicy): boolean {
     typeof policy === 'object' &&
     typeof policy.now === 'function' &&
     typeof policy.schedule === 'function' &&
-    typeof policy.redact === 'function' &&
     typeof policy.diagnostic === 'function' &&
     policy.statusCauseTable !== undefined &&
     policy.statusCauseTable !== null &&
@@ -82,6 +87,26 @@ export function invokeModel<P extends PlannedSemantics, R>(
     (input.onAccepted !== undefined && typeof input.onAccepted !== 'function')
   )
     return rejectionHandle('invalidInput')
+  let bound: BoundCredentialRedaction
+  try {
+    const policy = createCredentialRedactionPolicy(input.policy.credentialRedaction)
+    const binding = policy.bind(input.credential)
+    if ('rejected' in binding) return rejectionHandle('invalidInput')
+    bound = binding.ok
+  } catch (error) {
+    if (error instanceof CredentialRedactionConfigurationError)
+      return rejectionHandle('invalidInput')
+    try {
+      input.policy.diagnostic({ kind: 'model_invocation.policy_bind_defect' })
+    } catch {
+      /* isolated diagnostic sink */
+    }
+    return Object.freeze({
+      outcome: Promise.reject(new Error('model_invocation.policy_bind_defect')),
+      snapshot: () => ({ blocks: [], position: 0 }),
+      abort: () => {},
+    })
+  }
   if (
     !input.transport ||
     typeof input.transport.plan !== 'function' ||
@@ -186,7 +211,9 @@ export function invokeModel<P extends PlannedSemantics, R>(
   const run = async (): Promise<InvocationOutcome> => {
     let planned: P | undefined,
       end: StreamEnd | undefined,
-      gateFailed = false
+      gateFailed = false,
+      rawHeaders: RawHeaders | undefined,
+      headerFailure: TransportFailure | undefined
     try {
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
       const plan = input.transport.plan(input)
@@ -196,7 +223,18 @@ export function invokeModel<P extends PlannedSemantics, R>(
       sentAt = input.policy.now()
       deadline(input.policy.firstContentTimeoutMs)
       const sent = await input.transport.send(planned, input.credential, controller.signal)
-      if ('rejected' in sent) return sent
+      if ('rejected' in sent) return { rejected: sent.rejected }
+      if (sent.rawHeaders !== undefined) {
+        if (ownedHeaders(sent.rawHeaders)) rawHeaders = sent.rawHeaders
+        else {
+          diagnose('model_invocation.response_headers_port_violation')
+          headerFailure =
+            'failed' in sent
+              ? { ...sent.failed, localError: 'response_headers_port' }
+              : { source: 'local', localError: 'response_headers_port' }
+          controller.abort()
+        }
+      }
       if ('response' in sent) {
         const reader = input.transport.read(sent.response, planned, controller.signal)
         try {
@@ -233,6 +271,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
         }
       } else end = sent
       if (end === undefined) throw new Error('transport omitted terminal facts')
+      if (headerFailure !== undefined) end = { failed: headerFailure }
       const visible = snapshot(state).firstContentAt !== undefined
       let failure: Failure | undefined, reason: 'end' | 'max_tokens' | 'interrupted' | 'lost'
       if (gateFailed) {
@@ -264,11 +303,22 @@ export function invokeModel<P extends PlannedSemantics, R>(
         failure = { cause: 'unrecognized', localError: `transport_read_${end.rejected}` }
         reason = 'lost'
       } else if ('failed' in end) {
-        const fact = end.failed
+        const { localError: _generatedStage, ...headerFact } = end.failed
+        const processed = processFailure(
+          headerFailure === undefined ? end.failed : headerFact,
+          bound,
+          diagnose,
+        )
+        if (processed.processingFailed) controller.abort()
+        const fact = processed.fact
         const base = {
           cause: classifyCause(fact, visible, input.policy.statusCauseTable),
           ...(fact.upstreamError ? { upstreamError: fact.upstreamError } : {}),
-          ...(fact.localError ? { localError: input.policy.redact(fact.localError) } : {}),
+          ...(headerFailure !== undefined
+            ? { localError: 'response_headers_port' }
+            : fact.localError
+              ? { localError: fact.localError }
+              : {}),
         }
         failure = fact.inBand
           ? { ...base, inBand: true, statusCode: fact.statusCode }
@@ -309,6 +359,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
               : 'failed'
       const value: ModelInvocationResult = {
         outcome,
+        ...(rawHeaders === undefined ? {} : { rawHeaders }),
         blocks: settled.ok.blocks,
         ...(outcome === 'complete'
           ? { ending: 'complete' }

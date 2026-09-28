@@ -24,45 +24,37 @@ The current implementation contains standalone invocation and pure policy functi
 
 ## Call an explicitly supplied request
 
-Declare both packages as direct workspace dependencies. Build a `PlanInput` through the [transport example](../pi-ai-transport/README.md#plan-a-reminder-without-sending), then call this helper with an explicitly owned credential and abort signal. The helper only sends when invoked; it reads no environment credential.
+Supply a complete `PlanInput`, an explicitly owned typed adapter, credential and abort signal. This example uses only the runtime public package and real stream assembler; declare it as a direct dependency. Configure the adapter with the same complete credential policy. The caller owns its resources and releases them after the outcome and any separate gate work have actually stopped. No environment credential is read.
 
 ```ts
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
-import { createPiAiTransport, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import {
+  invokeModel, openRouterCredentialRedactionConfig,
+  type PlanInput, type PlannedSemantics, type TransportAdapter, type InvocationPolicy,
+} from '@omne-harness-lite/model-request-runtime'
 
-export async function invokeOnce(
-  request: PlanInput, transportOptions: TransportOptions, credential: string, signal: AbortSignal,
+export const callerPolicy: InvocationPolicy = {
+  now: () => new Date().toISOString(),
+  schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
+  firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
+  statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
+  credentialRedaction: openRouterCredentialRedactionConfig,
+  diagnostic: event => { console.log(event.kind) },
+}
+
+export async function invokeOnce<P extends PlannedSemantics, R>(
+  request: PlanInput, transport: TransportAdapter<P, R>, credential: string, signal: AbortSignal,
   beforeFirstContent?: () => Promise<void>,
 ) {
-  const transport = createPiAiTransport(transportOptions)
-  const fragmentLength = transportOptions.policy.credentialFragmentMinLength
-  try {
-    const handle = invokeModel({
-      ...request, transport, credential, signal,
-      ...(beforeFirstContent ? { beforeFirstContent } : {}),
-      policy: {
-        now: () => new Date().toISOString(),
-        schedule: (ms, callback) => { const timer = setTimeout(callback, ms); return () => clearTimeout(timer) },
-        firstContentTimeoutMs: 60000, idleContentTimeoutMs: 60000,
-        statusCauseTable: { '401': 'credential_unavailable', '429': 'upstream_unavailable', '503': 'upstream_unavailable' },
-        redact: text => {
-          let value = text.split(credential).join('█')
-          for (let offset = 0; offset <= credential.length - fragmentLength; offset++)
-            value = value.split(credential.slice(offset, offset + fragmentLength)).join('█')
-          return value
-        },
-        diagnostic: event => { console.log(event.kind) },
-      },
-    })
-    console.log(handle.snapshot().position)
-    return await handle.outcome
-  } finally { await transport.close() }
+  const handle = invokeModel({ ...request, transport, credential, signal, policy: callerPolicy,
+    ...(beforeFirstContent ? { beforeFirstContent } : {}),
+  })
+  return await handle.outcome
 }
 ```
 
-Supply transportOptions.definitions explicitly with verified complete definitions and an owned network policy. There are no default pilot models; officialModelIds lists targets only. Missing/incomplete definitions fail before resources are created. The transport README uses synthetic teaching data; never use it with live credentials.
+For the actual OpenRouter adapter, supply verified complete definitions and an owned network policy through the [transport package](../pi-ai-transport/README.md). There are no default pilot models; officialModelIds lists targets only. Synthetic teaching data must never be used with live credentials.
 
-The status table and redactor are examples of caller policy, not mandatory global defaults. A production caller supplies its complete approved policy. `maxOutputTokens`, provider, snapshot, binding and messages come from the request; the function does not look them up.
+The timeouts and status table above are example caller choices. `credentialRedaction` is a required complete explicit configuration, validated and bound before planning or sending; missing/invalid configuration returns `invalidInput` without sending. The old arbitrary `redact` callback is removed without fallback. `maxOutputTokens`, provider, snapshot, binding and messages come from the supplied request.
 
 The invocation captures owned request values and policy members before asynchronous work. The caller still owns borrowed functions and resources. When using an acquired dynamic adaptation, pass `lease.transport`, track the outcome and any separate asynchronous gate/settlement with `lease.track(...)`, then release after they have actually stopped.
 
@@ -370,3 +362,11 @@ export function inspectReplyBatchV2(input: InspectSettlementMembersInput) {
 Append the **entire returned array once** through the actual SL3 provider. V2 inspection reads `mrr/1` with MR4 and `mrr/2` with MR5, retains original payload format/value/position, and rejects unknown formats or arrays falsely tagged `mrr/1`. It preserves ordered duplicates, exact numbers, and absent versus empty headers. Neither inspection nor adjacency certifies a physical batch; G29-P/H, lawful reads, old-writer stop and the full runtime remain the host's responsibility.
 
 Captures belong to their originating codec domain. Root and v2 captures cannot be interchanged. V2 history captures cannot be prepared for writing: explicitly call v2 `captureModelLogValue` on the original value and pass complete reception again. Existing root capture/prepare behavior remains unchanged. No automatic history rewrite or consumer upgrade occurs. Adoption is fixed by [D094](../../../.meta_harness/design/record/decisions/model-log-codec-v2-adoption/decision.md).
+
+## RT5 single response-header handoff
+
+`SendResult` may carry `rawHeaders` on its response, failed or aborted branch, and never on rejected. `TransportFailure.headers` and a second header field on `StreamEnd` are absent. The sender must already process and own an immutable MR5 header map under the same explicit policy. Invoke immediately retains that exact value, including ordered array duplicates, empty values, absent versus empty map, across all four outcomes and content-gate cancellation; it does not re-run header redaction. Invalid or mutable header representation fails the entire port and requests actual reader stop; independently known HTTP failure facts survive.
+
+Upstream error/local text pass through the bound shared JSON/text policy. Raw/error keys and all scalar tokens are processed, while independent protocol status and actual usage/cost remain intact even if their literal value equals the credential. Processing rejection/defect omits unsafe payload and emits fixed stage diagnostics; an already retained H survives. A pre-send bind defect rejects the outcome with a controlled stage error and no fabricated sent result. Diagnostic-sink failure does not alter business behavior.
+
+Business reply/tool fragments retain their original assembler semantics. This implementation does not close the outstanding content-echo policy, raw-body attachments, full S20, production TLS composition or durable service. Exact scope is adopted by [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md).
