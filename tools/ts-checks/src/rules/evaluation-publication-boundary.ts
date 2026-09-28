@@ -11,6 +11,7 @@ function allowed(path: string): boolean {
   return (
     owner(path) ||
     /^packages\/assets\/evaluation-input-store\/tests\/.+\.(?:ts|mjs)$/u.test(path) ||
+    path === 'packages/model/model-request-runtime/tests/session-selection-fixture.ts' ||
     path === 'apps/model-request-acceptance/src/bootstrap.ts' ||
     /^apps\/model-request-acceptance\/tests\/.+\.ts$/u.test(path)
   )
@@ -33,7 +34,7 @@ export const evaluationPublicationBoundary: Rule = {
   id: 'evaluation-publication-boundary',
   source: 'EIS design public publication responsibility / verification static boundary',
   description:
-    'source publication and recipe capture are held by their owner and trusted acceptance bootstrap',
+    'source publication and recipe capture are held by their owner, trusted acceptance bootstrap and named real-source test fixture',
   check(files) {
     const violations: Violation[] = []
     const report = (file: SourceFile, index: number, message: string) => {
@@ -54,7 +55,7 @@ export const evaluationPublicationBoundary: Rule = {
           report(
             file,
             ref.index,
-            'publication is limited to its component owner and trusted acceptance bootstrap/tests through the public entry',
+            'publication is limited to its component owner, trusted acceptance bootstrap/tests and named real-source fixture through the public entry',
           )
       if (refs.length === 0) continue
       visitSyntax(syntax, node => {

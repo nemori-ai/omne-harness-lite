@@ -295,7 +295,12 @@ export function createSessionModelSelection(
       })
     },
     async selectModel(value: unknown): Promise<SessionSelectModelResult> {
-      if (!route(value)) return { invalidInput: { reason: 'malformed' } }
+      if (typeof value !== 'string') return { invalidInput: { reason: 'malformed' } }
+      const judged = judgeModelProfileDocument('ModelProfileRef', {
+        origin: 'official',
+        routeName: value,
+      })
+      if ('rejected' in judged) return { invalidInput: { reason: judged.rejected } }
       const name = value
       return await run('selectModel', async operation => {
         if (unknown.size !== 0) return unavailable()

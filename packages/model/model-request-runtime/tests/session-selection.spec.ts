@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { selectionHost, AT, ROOT, profile } from './session-selection-fixture.ts'
-import { inspectModelLogEntry } from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import {
+  captureModelLogValue,
+  prepareModelLogEntry,
+  inspectModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
 import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
+import {
+  captureModelLogValue as captureLegacy,
+  prepareModelLogEntry as prepareLegacy,
+} from '@omne-harness-lite/model-request-runtime'
+import { narrow } from '@omne-harness-lite/storage'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type {
@@ -99,6 +108,10 @@ describe('RT5 real session model selection and current evaluation', () => {
       const component = host.create().component
       expect(await component.selectModel('never-in-directory')).toEqual({ profileNotFound: true })
       expect(await component.selectModel(' ')).toEqual({ invalidInput: { reason: 'malformed' } })
+      expect(await component.selectModel('')).toEqual({
+        invalidInput: { reason: 'route_name_empty' },
+      })
+      expect(await component.selectModel(null)).toEqual({ invalidInput: { reason: 'malformed' } })
       const unknown = host.create({
         async projection() {
           return { unknown: true }
@@ -474,6 +487,206 @@ describe('RT5 real session model selection and current evaluation', () => {
       expect(await component.close()).toEqual({ unavailable: true })
       expect(owner.active).toBe(1)
       expect(owner.releases).toBe(0)
+    } finally {
+      await host.close()
+    }
+  })
+  it('current catalog landing uses the most specific actual row despite missing credentials and falls back only after withdrawal', async () => {
+    const host = await selectionHost()
+    try {
+      const { registration: _registration, updatedAt: _updatedAt, ...content } = profile()
+      const registered = await host.catalog.registerProfile(
+        host.tenant,
+        { layer: 'tenant', tenant: host.tenant },
+        { ...content, origin: 'custom' },
+      )
+      if ('failure' in registered) throw new Error('Real more-specific profile registration failed')
+      expect(await host.catalog.credentialPresent(host.tenant, 'custom')).toEqual({
+        present: false,
+      })
+      const component = host.create().component
+      expect(await component.selectModel('example/model-a')).toEqual({
+        selected: 'example/model-a',
+      })
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { profile: registered.ref, selectedBy: 'session' },
+      })
+      await host.catalog.withdrawProfile(host.tenant, registered.ref)
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: {
+          selected: 'example/model-a',
+          profile: { origin: 'official', routeName: 'example/model-a' },
+          selectedBy: 'session',
+        },
+      })
+      expect(await host.log.readSince(host.session, 0)).toMatchObject({
+        entries: [expect.anything()],
+      })
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('a genuinely logged image in the supplied complete-prefix projection rejects a text-only target without writing selection', async () => {
+    const host = await selectionHost()
+    try {
+      const captured = captureModelLogValue({
+        category: 'message',
+        input: {
+          kind: 'value',
+          value: {
+            id: 'image-input',
+            type: 'user',
+            createdAt: AT,
+            blocks: [
+              {
+                id: 'image-block',
+                kind: 'image',
+                visibility: { toHuman: true, toModel: true },
+                mediaType: 'image/png',
+                data: { inline: 'iVBORw0KGgo=' },
+              },
+            ],
+          },
+        },
+      })
+      if ('invalidValue' in captured) throw new Error('Actual user image failed message admission')
+      const prepared = prepareModelLogEntry({
+        session: host.session,
+        shell: { tenant: host.tenant },
+        captured: captured.ok,
+        purpose: { kind: 'message' },
+        messagePrefix: [],
+      })
+      if ('invalidValue' in prepared) throw new Error('Actual user image failed log codec')
+      const appended = await host.log.append(
+        host.session,
+        [prepared.ok],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in appended) throw new Error('Actual image append failed')
+      const component = host.create({
+        async projection(prefix) {
+          const entry = prefix.entries[0]
+          const recognized = inspectModelLogEntry({
+            session: host.session,
+            tenant: host.tenant,
+            entry,
+            purpose: { kind: 'message' },
+            messagePrefix: [],
+          })
+          if (
+            'invalidValue' in recognized ||
+            recognized.ok.captured.message?.type !== 'user' ||
+            !recognized.ok.captured.message.blocks.some(
+              block => block.kind === 'image' && block.visibility.toModel,
+            )
+          )
+            return { unknown: true }
+          return { known: ['image'] }
+        },
+      }).component
+      expect(await component.selectModel('example/model-a')).toEqual({
+        notLegalTarget: { because: ['modality_mismatch'] },
+      })
+      expect(await host.log.readSince(host.session, 0)).toMatchObject({
+        entries: [expect.anything()],
+      })
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('actual missing recipe and controlled membership-state loss are unavailable; neither creates a fake no-lock basis', async () => {
+    const host = await selectionHost()
+    try {
+      const component = host.create().component
+      await component.selectModel('example/model-a')
+      await host.storage.write(
+        async tx =>
+          await narrow<{ evaluation_input_recipe: { store_key: string; session: string } }>(tx)
+            .deleteFrom('evaluation_input_recipe')
+            .where('session', '=', host.session)
+            .execute(),
+      )
+      expect(await component.effectiveModel()).toEqual({ unavailable: true })
+      expect(await host.log.readSince(host.session, 0)).toMatchObject({
+        entries: [expect.anything()],
+      })
+    } finally {
+      await host.close()
+    }
+    const other = await selectionHost()
+    try {
+      const component = other.create().component
+      await component.selectModel('example/model-a')
+      // Controlled persistent source corruption only; this does not certify the governance removal operation.
+      await other.storage.write(
+        async tx =>
+          await narrow<{
+            membership: { organization_id: string; account_id: string; effective: number }
+          }>(tx)
+            .updateTable('membership')
+            .set({ effective: 0 })
+            .where('organization_id', '=', other.tenant.organization)
+            .where('account_id', '=', other.tenant.account)
+            .execute(),
+      )
+      expect(await component.effectiveModel()).toEqual({ unavailable: true })
+      expect(await other.log.readSince(other.session, 0)).toMatchObject({
+        entries: [expect.anything()],
+      })
+    } finally {
+      await other.close()
+    }
+  })
+  it('mixed mrr/1 and mrr/2 selection follows durable position rather than timestamps', async () => {
+    const host = await selectionHost()
+    try {
+      const legacy = captureLegacy({
+        category: 'record',
+        input: {
+          kind: 'value',
+          value: {
+            kind: 'model_selection_changed',
+            routeName: 'example/model-b',
+            at: '2100-01-01T00:00:00Z',
+          },
+        },
+      })
+      if ('invalidValue' in legacy) throw new Error('Legacy selection admission')
+      const entry = prepareLegacy({
+        session: host.session,
+        shell: { tenant: host.tenant },
+        captured: legacy.ok,
+        purpose: { kind: 'record' },
+        messagePrefix: null,
+      })
+      if ('invalidValue' in entry) throw new Error('Legacy selection encoding')
+      const appended = await host.log.append(
+        host.session,
+        [entry.ok],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in appended) throw new Error('Legacy actual append')
+      const component = host.create().component
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { selected: 'example/model-b' },
+      })
+      expect(await component.selectModel('example/model-a')).toEqual({
+        selected: 'example/model-a',
+      })
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { selected: 'example/model-a' },
+      })
+      const prefix = await host.log.readSince(host.session, 0)
+      if ('failure' in prefix) throw new Error('Mixed actual read')
+      expect(prefix.entries.map(value => value.payload)).toMatchObject([
+        { format: 'mrr/1' },
+        { format: 'mrr/2' },
+      ])
     } finally {
       await host.close()
     }

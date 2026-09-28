@@ -72,6 +72,10 @@ const violations = runRules([{
 assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ```
 
+## Evaluation publication boundary
+
+`evaluation-publication-boundary` permits static imports of the public EIS publication entry in its component owner, the trusted acceptance bootstrap/tests, and the exact `packages/model/model-request-runtime/tests/session-selection-fixture.ts` fixture. That fixture constructs real SQL/governance/EIS sources for selection tests. The permission does not extend to runtime product sources or adjacent test files; re-exports, dynamic forwarding and private publication imports remain rejected. Run its focused positive and negative checks with `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`.
+
 ## Model credential boundary
 
 `model-credential-boundary` implements the static portion of [D-075](../../.meta_harness/design/record/decisions/model-credential-source-projection/decision.md), directory v3 V3-10 and CCL revision 2 MCR-V7, with [D-092](../../.meta_harness/design/record/decisions/model-auth-bootstrap-adoption/decision.md)'s app ownership. It is in `REPOSITORY_RULES`, not a package-wide permission list.
