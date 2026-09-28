@@ -4,6 +4,23 @@
 
 # pi-ai-transport 验证与证据
 
+## v7 完整输入限制候选验证
+
+[v7 候选投影](v7-input-limits-design.md)消费 MP4/RT6 candidate，以下是待执行 oracle，**不是运行结果**；新增 bindings 0。既有四件套及有限传输证据不证明本增量，正式采用由主线另行完成。
+
+| ID / 条款 | 验收 oracle 与必须失败的负控 |
+| --- | --- |
+| IL-V1 / MP4 S-8/S-9/S-32/S-33 | 六项能力在 read/own/build/register 各面都保真；unknown 配有限 cap 合法，缺事实、缺必需 cap、limited 比项目 cap 小、非 image 带图片限制及非法三态均拒。图片档案只发文字也不能绕过缺单图 cap；恢复旧五项 validator 或 unknown→unbounded 默认必须失败 |
+| IL-V2 / MP4 S-27/S-28/S-29 | 公开读取和建档六项逐值相等；跨字段由 core 唯一判定。registry 同坐标改 cap 或 upstream 状态拒，JSON 对象键顺序与数值拼写不产生假差异；定义原对象/读回对象变化不改 lease。配置 Schema/解释器双向一致，caps 不混入配置。负控删比较字段、补默认或以 latest 覆盖 snapshot 必须失败 |
+| IL-V3 / MP4 S-28；RT6 S-53 | 八家相同定义组织和公共消费路径；最终完整定义精确 ID 集与承诺供给集核对，逐项来源及项目 cap 可解释。import 不联网/建 Agent/注册，具名定义可单独读取和配置解释；无事实的 fixture 不算 official。旧形状不给自动补值，README/README_ZH 实例经独立公开制品消费 |
+| IL-V4 / RT6 S-74 | 按规定次序覆盖三种既有拒绝、缺项、malformed、准确超限、不可计量及合法输入。已有调用被拒保持阶段与锚点数；token 不可判但请求字节准确超限仍报 exceeded。超 cap 的保守界不能报实际超限，unknown 上游不等同不可计量；删除任何一个差别必须失败 |
+| IL-V5 / RT6 S-74 | 实际本机 HTTPS 抓线 bytes 与已检查 serialized 的 UTF-8 bytes 相等；工具 Schema、developer reminder 标记、协议包装、cache_control、多字节字符、内联图共同入数。逐图严格 base64 拒绝非法表示；重复图计两项，工具结果图计入，cap−1/cap/cap+1 全边界；伪造 AttachmentRef.bytes 不能放行，send 重序列化/加项负控必须失败 |
+| IL-V6 / RT6 S-74/G-33 | 对每个采用的 meter 保存模型/provider/算法版本/适用域与准确性或上界论证，独立核对全部输入贡献。词表正确但漏消息/工具包装、漏特殊 token/模态、用样本最大系数冒充全域上界、仅凭 callback 标签通过均作为拒收反例。token 证据未知时 size_unavailable、缺构件时 unavailable；尚无合格算法不可声称通过本项 |
+| IL-V7 / RT6 S-53/S-58/S-64/S-74 | 真实两代 lease 交错：旧引用固定 A cap/算法，B 发布只影响新取得；规划后输入改动及 A 退役不改变抓线，旧清理不删 B；伪造/复制/跨宿主 plan 不能 send。取消/停止时所有实际 reader/socket/callback 沿既有 owner 排空，不能只断言 disposer 已调用 |
+| IL-V8 / RT6 S-20/S-54/S-63/S-74 | 独立公开 invoke 与真实 Cordis/runtime 路径分别验零新增锚点/HTTP/响应/终结；合法固定输入仍能通过，不能用全拒绝替代 gate。诊断只含允许指标、数字与绑定，敏感 sentinel 不出现，既有取消、H、故障归属不回归；runtime/日志组装未建成时保留对应覆盖缺口 |
+
+覆盖缺口：**IL-G1**（MP4/RT6 采用与 core 实现，阻塞正式源码升级）、**IL-G2**（逐模型可靠 token 依据，阻塞相应新版成功发送）、**IL-G3**（runtime 拒绝/锚点/历史分发及产品装配，阻塞纵线验收）、**IL-G4**（既有缓存与实际多模态认证，阻塞对应提供范围）。owner、精确边界与闭合条件归[候选稿缺口表](v7-input-limits-design.md#实施清单与缺口)。声明的未知上游数值不是全批声明阻断；file 元数据不是新增 PDF 平台义务。没有已运行且在删掉上述语义时失败的证据，不把 IL-V 填入 bindings。
+
 ## v5 响应头证据义务
 
 2026-09-27：[v5-headers-design rev2](v5-headers-design.md) 是 D-090 后的本节点候选投影，**未采用、未实现、未取得产品运行证据，新增绑定 0 条**。rev1 独立架构评审的唯一阻断 PH-AR1 是公开 `RawResponse.stream.headers` 仍可泄密；本次补句柄封装和 PH-V9，尚未独立复评，不以文档修改关闭实际漏洞。下表均为待执行义务，不是测试 ID。既有 `bindings.yaml` 的旧版运行范围保持；RT5 六份形式任务不承载新增头性质，本页也不以形式登记代证真实采集。规范 oracle 来自 [RT5-H1～H6](../../../../spec/capabilities/model-request-runtime/v5/examples.md#v5-增量同次响应头的交接与留存) 和 [MR5 完整实例](../../../../spec/data/model-response/v5/examples.md)。
