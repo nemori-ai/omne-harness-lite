@@ -13,7 +13,7 @@
   | `omne-harness-lite-design-2026-09-15 · data.content-blocks · v3` | `$defs/ContentBlock`（[S-14](#s-14-回复与已交付部分) 的 `delivered`）、`$defs/AttachmentRef`（[S-20](#s-20-上游原始响应留存) 的 `raw.body`）；没长完的工具调用两位皆假（[S-13](../../content-blocks/v3/contract.md#s-13-半截的工具调用)，本契约 [S-14](#s-14-回复与已交付部分)） | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · data.messages · v5` | `$defs/AssistantMessage` 及其 `response`、`ending` 两个成员（[S-9](../../messages/v5/contract.md#s-9-assistantmessage一次回复只有一份)、[S-10](../../messages/v5/contract.md#s-10-assistantmessage-怎么收的尾)；本契约 [S-14](#s-14-回复与已交付部分)、[S-13](#s-13-收场与其余成员的条件关系)）；中断提醒补在哪几种收场之后、`hadContent` 说什么（[S-10](../../messages/v5/contract.md#s-10-assistantmessage-怎么收的尾)、[S-21](../../messages/v5/contract.md#s-21-中断之后必补一条)，本契约 [S-5](#s-5-与别的形状的关系)）；「已出门」「已开口」两种记录（[S-49](../../messages/v5/contract.md#s-49-模型请求运行时写的五种记录不是消息)：`ResponseId` 在「已出门」上定下、首 token 时刻在「已开口」上，「已出门」还带着要求的那一组参数与传输适配定下的两份处置清单，本契约 [S-6](#s-6-responseid)、[S-17](#s-17-首-token-与时序)、[S-11](#s-11-实际发出的参数改过的值与没发出去的项) 第 4、6 条）；系统发起的运行取消不交出回复（S-10 的回复流对应，本契约 [S-12](#s-12-收场)、[S-13](#s-13-收场与其余成员的条件关系)） | 本批 candidate；精确采用 v5 |
   | `omne-harness-lite-design-2026-09-15 · data.model-profile · v4` | `$defs/ModelProfileRef`、`$defs/ProviderName`、`$defs/ModelRequestParameters`、`$defs/ModelProfileSnapshot`、`$defs/ModelAdaptationBinding`（S-29～S-31；本契约 S-36）（[S-9](#s-9-路由留痕)、[S-11](#s-11-实际发出的参数改过的值与没发出去的项)）；每一次发出只走允许的供应商里的一家、第一次走第一家、不许回退时只走第一家（[S-5](../../model-profile/v4/contract.md#s-5-providername-与允许的供应商)、S-6，本契约 [S-9](#s-9-路由留痕) 的 `provider`）；`extra` 出现时至少一项（[S-19](../../model-profile/v4/contract.md#s-19-extra)，本契约 S-11 的 `parameters` 里 `extra` 的键全没发出时整个缺席）、项与项名（S-20）、adapter 的三种处置与各自的留痕义务（S-21）——留痕的形状落在本契约 [S-11](#s-11-实际发出的参数改过的值与没发出去的项) | 本批 candidate；精确采用 v4 |
-  | `omne-harness-lite-design-2026-09-15 · data.loop-extension · v3` | `$defs/FailureCause` 的八个取值（S-17，[S-15](#s-15-故障的成因与原样状态码)）——**名字由它定，本契约 `$ref`**；「调模型之后」哪几种收场触发、按什么维度（S-2，本契约 [S-5](#s-5-与别的形状的关系)）；重试挂件的失败主体（S-14，本契约 [S-3](#s-3-消费者)、[S-5](#s-5-与别的形状的关系)、[S-23](#s-23-同一次调用的响应体序列)）；模型回复在落盘之前被否决之后走哪一路（S-25，本契约 [S-14](#s-14-回复与已交付部分)） | 已接受、已冻结 |
+  | `omne-harness-lite-design-2026-09-15 · data.loop-extension · v5` | `$defs/FailureCause` 的八个取值（S-17，[S-15](#s-15-故障的成因与原样状态码)）——**名字由它定，本契约 `$ref`**；「调模型之后」哪几种收场触发、按什么维度（S-2，本契约 [S-5](#s-5-与别的形状的关系)）；重试挂件的完整失败主体与已生效重试结论（S-14、S-43，本契约 [S-3](#s-3-消费者)、[S-5](#s-5-与别的形状的关系)、[S-23](#s-23-同一次调用的响应体序列)）；模型回复在落盘之前被否决之后走哪一路（S-25，本契约 [S-14](#s-14-回复与已交付部分)） | 本批 candidate；精确采用 v5 |
   | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1` | 时间点表示 `$defs/Instant`（[S-17](#s-17-首-token-与时序)）。**依据是 [S-22](../../offer-expiry/v1/contract.md#s-22-schema-的范围) 末句（时间点的规范形式）加上它的 Schema `$defs`**——S-22 那张「可复用形状」表只列了三样，`Instant` 不在表里；那份契约已冻结，本契约不据此另立一份 | 已接受、已冻结 |
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [S-31](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) 不透明标识的交换表示——**按它的散文自定义** [S-6](#s-6-responseid) 的 `ResponseId`，不 `$ref` 那里的 `OpaqueIdentifier`；[S-16](../../identity-values/v1/contract.md#s-16-按归属层显式携带身份值) 按归属层显式携带身份值，据以写出 [S-7](#s-7-所属的那次调用) 的租户归属一段；[S-11](../../identity-values/v1/contract.md#s-11-scopelayeridentity) 的 `ScopeLayerIdentity`（[S-9](#s-9-路由留痕) 的 `credentialScope`） | 已接受、已冻结 |
 
@@ -85,10 +85,10 @@
 
 - **请求怎么发、三类事实怎么判、要不要重试、什么时候算试尽**——归 `capability.model-request-runtime`。
   本契约只记下判的结果（[S-12](#s-12-收场)、[S-15](#s-15-故障的成因与原样状态码)），不定判法。
-- **成因的定义**——`FailureCause` 八个取值的名字与含义由 `data.loop-extension` v3 定，本契约 `$ref` 引用。
+- **成因的定义**——`FailureCause` 八个取值的名字与含义由 `data.loop-extension` v5 定，本契约 `$ref` 引用。
 - **账的形状**——`Usage`、`Cost`、`CostCorrection` 与汇总规则归 `data.call-accounts` v2。
-- **消息与块的形状**——`AssistantMessage` 归 `data.messages` v3，`ContentBlock`、`AttachmentRef` 归 `data.content-blocks` v3。
-- **档案与参数词表**——`ModelProfileRef`、`ProviderName`、`ModelRequestParameters` 归 `data.model-profile` v2。
+- **消息与块的形状**——`AssistantMessage` 归 `data.messages` v5，`ContentBlock`、`AttachmentRef` 归 `data.content-blocks` v3。
+- **档案与参数词表**——`ModelProfileRef`、`ProviderName`、`ModelRequestParameters` 归 `data.model-profile` v4。
 - **到达语法**——一条回复怎样一段段到达、怎样拼成块，归 `data.arrival-events` 与 `capability.stream-assembly`；本契约只收拼好之后的结果。
 - **上交条目**——一次调用了结不了时交出去的那条，形状归 [PF-011 §5.8](../../../../product/PF-011-off-nominal-handling/design.md#58-上交交的是什么)（PF-011 rev 4）；
   本契约的响应体不是上交条目，也不代替它。
@@ -102,7 +102,7 @@
 |---|---|
 | **模型请求运行时**（[UL-model-call](../../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) 注意②，能力契约 `capability.model-request-runtime`） | **写**：每一次发出结束时恰一条（[S-4](#s-4-一次调用一次发出一条响应体)、[S-22](#s-22-写下即不变)）。**`replyDisposition = persisted` 的那一条由调用方与回复消息同一提交写下**；`vetoed`、`consumed` 的那一条（带着回复、却没有回复消息可与之同提交）与其余各条由运行时写，各在哪个提交里写归那份能力契约 |
 | `data.messages` 的 `AssistantMessage` | 它的 `response` 成员**指回**产出它的那条响应体的 `id`（[S-14](#s-14-回复与已交付部分)） |
-| **重试挂件**（挂在「调模型之后」、收场维度＝失败的[拓展件](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)，[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#它看得到什么)） | **它不读响应体**：它只凭 `data.loop-extension/v3#S-14` 的失败主体下结论（档案快照、这次调用已有的「已出门」记录、成因、状态码）。同一次调用的响应体序列（[S-23](#s-23-同一次调用的响应体序列)）是**那份主体背后的事实**：走过哪几家、各自的收场、开没开口，两处说的是同一批事实 |
+| **重试挂件**（挂在「调模型之后」、收场维度＝失败的[拓展件](../../../../ubiquitous_language/terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)，[PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#它看得到什么)） | **它不读响应体**：它只凭 `data.loop-extension/v5#S-14` 的失败主体下结论（完整档案快照、这次调用已有的「已出门」记录、成因、状态码，以及 `data.loop-extension/v5#S-43` 的完整已生效重试结论）。同一次调用的响应体序列（[S-23](#s-23-同一次调用的响应体序列)）是**那份主体背后的事实**：走过哪几家、各自的收场、开没开口，两处说的是同一批事实 |
 | 拓展件在「调模型之后」拿到的输入（`data.loop-extension` 的 subject） | 完整回复那一维取 `reply`、`usage`、`cost`，**只对落盘成了消息的那份回复**；失败那一维取 `failure.cause`、`failure.statusCode`，档案快照与 `route.profileSnapshot` 是同一份（[S-5](#s-5-与别的形状的关系)） |
 | **拓展件执行器**（`capability.loop-extension-runner`） | `select_model` 与「消息落盘之前」否决模型回复这两种结论在响应体上的落点：`route.selectedBy` 的 `extension`（[S-10](#s-10-有效模型怎么来的)）、`replyDisposition` 的 `vetoed`（[S-14](#s-14-回复与已交付部分)） |
 | **可追溯组成**（[PF-004 §6.6](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)、[I-5](../../../../product/PF-004-agent-definition-and-assembly/design.md#61-不变式)） | 「这一次实际用了哪条档案、怎么来的、实际发出了哪些参数、哪些改了值、哪些没发出去」——`route` 整体（[S-9](#s-9-路由留痕)～[S-11](#s-11-实际发出的参数改过的值与没发出去的项)）；其余组成不在这里（[G-9](#七已知缺口)） |
@@ -144,8 +144,8 @@
 | **到达事件流**（`data.arrival-events`） | 一次发出的那条流收尾时：`account` 事件带的就是本条的 `{ usage, cost }`；`finish` 的 reason 落成本条的 `outcome`——`end` → `complete`、`max_tokens` → `truncated`、`interrupted` → `interrupted`、`lost` → `failed`；装配器交出的消息成为 `reply`，交出的已交付块成为 `delivered`。**两处例外不由这张映射决定**：流在第一个事件之前就失败（连不上、上游直接回错误状态）没有 `finish`，由模型请求运行时判为 `failed`；上游正常收尾却一样内容都没有（[§5.4 判据例一](../../../../product/PF-013-model-profiles-and-invocation/design.md#判据怎么用三个例子)：回复是空的），归不归故障由能力判定，本契约只要求判成故障时按 `failed` 写。**第三处例外**：宿主放弃在途的流——系统发起的运行取消（会话归档、宿主停止）与宿主被撤下（有序撤除、替换）——流的 `finish` 是放弃补上的 `lost`，这一次发出的收场却是 `interrupted`、`initiator = run_cancelled`，**不是故障、不带 `failure`**，也没有 `reply`（主线裁定，见 [D-060 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)；回复流那一侧见 `data.messages/v5#S-10`）（**未曾交给任何观察者的块不算已交付**：`capability.model-request-runtime/v2#S-51` 第 7 条「已开口写不进」那一支 `closeOut` 交出的块不进 `delivered`，D-060 §七 M15）|
 | **`AssistantMessage`**（`data.messages`） | `reply` 就是它；`reply.response` 等于本条 `id`；`reply.ending` 与 `outcome` 一一对应（[S-13](#s-13-收场与其余成员的条件关系)）。**只有 `replyDisposition = persisted` 的那份 `reply` 是会话日志里的一条消息**；被否决的、被系统拿去用的那份从未成为消息，它带着的 `MessageId` 在日志里找不到对应的消息 |
 | **Loop 在「消息落盘之前」的否决**（`data.loop-extension`） | 否决落在一份 `complete`／`truncated` 的回复上时，本条记 `replyDisposition = { vetoed: { by, reason? } }`，**这次调用照样结束**；要再试，是 loop 在下一次迭代另起的一次**新的模型调用**（新的 `callId`），不是本次调用的下一次发出（[S-23](#s-23-同一次调用的响应体序列)） |
-| **重试挂件** | **只凭 `data.loop-extension/v3#S-14` 的失败主体下结论，不现读响应体**；同一次调用的 `ModelResponse` 序列（每次发出一条，按 `dispatch`，[S-23](#s-23-同一次调用的响应体序列)）是那份主体背后的事实。三类事实它推翻不了 |
-| **「调模型之后」的 subject**（`data.loop-extension`） | **按 `outcome` 与 `replyDisposition` 判，不只看 `outcome`**：<br>• `complete`／`truncated` 且 `replyDisposition = persisted` ⇒ 完整回复那一维（`reply`、`usage`、`cost`）；<br>• `complete`／`truncated` 且 `vetoed` ⇒ **不触发这个位置**：回复没进日志，那次调用照常结束（`data.loop-extension/v3#S-2`、`#S-25`）；<br>• `consumed` ⇒ **不触发这个位置**：`data.loop-extension/v3#S-2` 写明被系统拿去用的那一次不触发「调模型之后」（主线裁定，见 [D-060 §六 N-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-14 闭合）；<br>• `failed` ⇒ 失败那一维（`failure.cause`、`failure.statusCode`、档案快照）；<br>• `interrupted` ⇒ **两维都不对应**：被中断的调用不触发这个位置（`data.loop-extension/v3#S-2`） |
+| **重试挂件** | **只凭 `data.loop-extension/v5#S-14` 的失败主体下结论，不现读响应体**；同一次调用的 `ModelResponse` 序列（每次发出一条，按 `dispatch`，[S-23](#s-23-同一次调用的响应体序列)）是那份主体背后的事实。三类事实它推翻不了 |
+| **「调模型之后」的 subject**（`data.loop-extension`） | **按 `outcome` 与 `replyDisposition` 判，不只看 `outcome`**：<br>• `complete`／`truncated` 且 `replyDisposition = persisted` ⇒ 完整回复那一维（`reply`、`usage`、`cost`）；<br>• `complete`／`truncated` 且 `vetoed` ⇒ **不触发这个位置**：回复没进日志，那次调用照常结束（`data.loop-extension/v5#S-2`、`#S-25`）；<br>• `consumed` ⇒ **不触发这个位置**：`data.loop-extension/v5#S-2` 写明被系统拿去用的那一次不触发「调模型之后」（主线裁定，见 [D-060 §六 N-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-14 闭合）；<br>• `failed` ⇒ 失败那一维（`failure.cause`、`failure.statusCode`、档案快照）；<br>• `interrupted` ⇒ **两维都不对应**：被中断的调用不触发这个位置（`data.loop-extension/v5#S-2`） |
 | **[中断提醒](../../../../ubiquitous_language/terms/record-and-context.md#ul-interruption-reminder--中断提醒--interruption-reminder)**（`data.messages` 的 `interrupted` 来源） | 一次调用以 `interrupted`、`failed` 或 `truncated` 收尾时 loop 追加的那条提醒（`data.messages/v5#S-10`：写到上限截断的那一行同样补；`#S-21`：`by` 为 `system` 覆盖出错断、写到上限、系统侧停止——含会话归档、宿主停止或被撤下；用户取消运行时 `by` 为 `user`），它说的「有没有内容」必须与**最后那条**响应体的 `timing.firstTokenAt` 有无一致。**试过又失败、随后又发了一次的那几条不对应任何提醒** |
 | **成本两层** | 按尝试记明细 = 这里每一条的 `usage`、`cost`；**按 Run 汇总是派生**：把归到同一 Run 的全部响应体（**归到哪里由承载它的条目给**，`data.call-accounts/v2#S-25`）的费用连同指向它们的 `CostCorrection` 按 `data.call-accounts` 的规则加起来，`unknown` 单独计数、不当零加。**汇总值不存进任何一条响应体** |
 | **停机恢复** | 判能不能重发**读「已开口」记录，不读响应体**（`capability.model-request-runtime` 的对账）：没有「已开口」→ 这一次没开口，[新的一次尝试照常再发](../../../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)，补写的那一条是 `interrupted`、`initiator = runtime_lost`、没有 `firstTokenAt`；有 → [这次调用就此收场，原因是运行时失联](../../../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)，补写的那一条是 `interrupted`、`initiator = runtime_lost`、带 `firstTokenAt`，**不重发**（[S-12](#s-12-收场)、[S-13](#s-13-收场与其余成员的条件关系)）。两次发出两条响应体、两笔钱都照实记（[S-19](#s-19-用量与费用)） |
@@ -533,7 +533,7 @@ G-8 的「没有成员可记」由本条关闭；上游是否如实报告、指�
    （[S-13](#s-13-收场与其余成员的条件关系) 的引注、[`examples.md` E-8](examples.md#e-8-同一个-run-里前后两次调用前一次的回复被否决)）。
 
 **这条序列性质的保护者是写响应体的那一方**（`capability.model-request-runtime`）：它只在策略那一类之后、或没开口就失去连续性之后才发起下一次。
-**重试挂件不读这条序列**：它只凭 `data.loop-extension/v3#S-14` 的失败主体下结论（档案快照、这次调用已有的「已出门」记录、成因、状态码）；**这条序列是那份主体背后的事实**——同一次调用走过哪几家、各自怎么收场、开没开口，两处说的是同一批事实。它也不写这条序列。
+**重试挂件不读这条序列**：它只凭 `data.loop-extension/v5#S-14` 的失败主体下结论（完整档案快照、这次调用已有的「已出门」记录、成因、状态码，以及 `data.loop-extension/v5#S-43` 的完整已生效重试结论）；**这条序列是那份主体背后的事实**——同一次调用走过哪几家、各自怎么收场、开没开口，两处说的是同一批事实。它也不写这条序列。
 
 ### S-24 一条响应体对应上游的一次请求
 
@@ -726,7 +726,7 @@ G-8 的「没有成员可记」由本条关闭；上游是否如实报告、指�
 | G-11 | **已闭合（2026-09-23）**：两条裁决已落为 [D-058](../../../../record/decisions/message-and-shape-rulings/decision.md)（8b ／ Q14）；设计依据已改成链接 | — | — |
 | G-12 | **已闭合（2026-09-24 整批对齐）**：`replyDisposition` 凡 `reply` 存在即必带（主线裁定，见 [D-060 §S8 S8-e](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s8model-response报回的)）；被中断的那份回复被否决之后不成为消息，这次调用仍以被中断结束（[S-14](#s-14-回复与已交付部分)） | — | — |
 | G-13 | **已闭合（修复波 2）**：运行被取消按谁发起的分两路（主线裁定，见 [D-060 §七 M12](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#七s25-第二轮独立复评之后的主线裁定m1m292026-09-25-追加)，`data.messages/v5#S-10`）——用户发起的，已交付的那一份成为回复、`ending = interrupted_by_user` 说的正是那位用户；系统发起的（会话归档、宿主停止或被撤下）在途的流被放弃，**没有回复、带 `delivered`**（[S-13](#s-13-收场与其余成员的条件关系)「开了口、没有回复」那一行）。`ending` 不新增取值，本契约的表示不变 | — | — |
-| G-14 | **已闭合（修复波 2）**：`consumed` 的那一次**不触发**「调模型之后」——`data.loop-extension/v3#S-2` 已写明（主线裁定，见 [D-060 §六 N-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）；[S-5](#s-5-与别的形状的关系) 那一行改为引用它 | — | — |
+| G-14 | **已闭合（修复波 2）**：`consumed` 的那一次**不触发**「调模型之后」——`data.loop-extension/v5#S-2` 已写明（主线裁定，见 [D-060 §六 N-2](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)）；[S-5](#s-5-与别的形状的关系) 那一行改为引用它 | — | — |
 
 ## 八、待提交交接与版本边界
 
@@ -748,7 +748,7 @@ G-8 的「没有成员可记」由本条关闭；上游是否如实报告、指�
 
 ## 九、版本差异与规范工件
 
-本版从已接受 v5 演进，保留 S-1～S-38 的原承诺及所有数字、脱敏、原样多值头、收场和一致性约束；新增 S-39～S-40。七项数据依赖中仅 model-profile 升 v4、messages 升 v5；其余精确版本不变。新增待提交投影不扩大持久根合法域。旧快照缺少新版必填限制时不是合法 v6 值，但仍可按历史版本读取，不能回填目录当前值。
+本版从已接受 v5 演进，保留 S-1～S-38 的原承诺及所有数字、脱敏、原样多值头、收场和一致性约束；新增 S-39～S-40。七项数据依赖中 model-profile 升 v4、messages 升 v5、loop-extension 升 v5（含完整失败主体与同义 FailureCause）；其余精确版本不变。新增待提交投影不扩大持久根合法域。旧快照缺少新版必填限制时不是合法 v6 值，但仍可按历史版本读取，不能回填目录当前值。
 
 规范工件为本文件、[`model-response.schema.json`](model-response.schema.json)、[`examples.md`](examples.md)。本契约只有数据形状与纯校验，无新运行操作；操作九项中的状态、提交、授权及副作用均不适用，交接操作由能力拥有。**不建空 TLA+ 或 Alloy**：S-39 的有限组合约束由 Schema 与正反实例表达，事实完整性、跨字段相等由纯校验和写入者场景取证；S-23 序列及 S-35 提交时晚到判定是运行时行为，形式义务归其 owner。本契约不把未建模语义登记成已覆盖。
 
