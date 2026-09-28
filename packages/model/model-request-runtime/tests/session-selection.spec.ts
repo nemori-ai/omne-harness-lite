@@ -19,6 +19,102 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 
 describe('RT5 real session model selection and current evaluation', () => {
+  it('each legality and repeat command reads current inputs; new model locks never filter the S11 set', async () => {
+    const host = await selectionHost()
+    try {
+      let reads = 0
+      const component = host.create({
+        currentEvaluationInputs: {
+          async read(...args) {
+            reads++
+            return await host.reader.read(...args)
+          },
+        },
+      }).component
+      expect(await component.legalTargets()).toEqual({
+        ok: ['example/model-a', 'example/model-b'],
+      })
+      expect(reads).toBe(1)
+      await component.selectModel('example/model-a')
+      expect(reads).toBe(2)
+      await host.publish([{ item: 'model', value: 'example/model-b', immutable: true, since: AT }])
+      expect(await component.legalTargets()).toEqual({
+        ok: ['example/model-a', 'example/model-b'],
+      })
+      expect(reads).toBe(3)
+      expect(await component.selectModel('example/model-a')).toEqual({
+        selected: 'example/model-a',
+      })
+      expect(reads).toBe(4)
+      expect(await component.effectiveModel()).toMatchObject({
+        ok: { selected: 'example/model-a', routeName: 'example/model-b', selectedBy: 'layer_lock' },
+      })
+      await host.reader.close()
+      expect(await component.legalTargets()).toEqual({ unavailable: true })
+      expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
+      expect(reads).toBe(7)
+      expect(await host.log.readSince(host.session, 0)).toMatchObject({
+        entries: [expect.anything()],
+      })
+    } finally {
+      await host.close()
+    }
+    const absent = await selectionHost(false)
+    try {
+      const component = absent.create().component
+      expect(await component.legalTargets()).toEqual({ ok: ['example/model-a', 'example/model-b'] })
+      expect(await component.selectModel('example/model-b')).toEqual({
+        selected: 'example/model-b',
+      })
+    } finally {
+      await absent.close()
+    }
+  })
+  it('controlled foreign, ineffective, inconsistent and unreadable current results never become empty legality or a duplicate success', async () => {
+    const host = await selectionHost()
+    try {
+      await host.create().component.selectModel('example/model-a')
+      const foreign = parseTenantId({ ...host.tenant, account: 'other-account' })
+      if (!('ok' in foreign)) throw new Error('Foreign tenant syntax')
+      for (const fault of ['foreign', 'ineffective', 'inconsistent', 'unreadable'] as const) {
+        // Controlled result substitution after a genuine persistent read; not provider proof.
+        const component = host.create({
+          currentEvaluationInputs: {
+            async read(...args) {
+              const result = await host.reader.read(...args)
+              if (!('input' in result)) throw new Error('Genuine current read failed')
+              switch (fault) {
+                case 'foreign':
+                  return { input: { ...result.input, tenant: foreign.ok } }
+                case 'ineffective':
+                  return { input: { ...result.input, standing: { standing: 'ineffective' } } }
+                case 'inconsistent':
+                  return {
+                    input: {
+                      ...result.input,
+                      root: {
+                        ...result.input.root,
+                        source: { asset: 'nonexistent-root-asset', version: 1 },
+                      },
+                    },
+                  }
+                case 'unreadable':
+                  return { failure: 'unavailable' }
+              }
+            },
+          },
+        }).component
+        expect(await component.legalTargets()).toEqual({ unavailable: true })
+        expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
+        expect(await component.displayList()).toEqual({ unavailable: true })
+      }
+      expect(await host.log.readSince(host.session, 0)).toMatchObject({
+        entries: [expect.anything()],
+      })
+    } finally {
+      await host.close()
+    }
+  })
   it('requires explicit selection, commits one codec record, repeats without writing and recognizes reopen', async () => {
     const host = await selectionHost()
     try {
@@ -322,17 +418,21 @@ describe('RT5 real session model selection and current evaluation', () => {
       const entered = deferred<void>(),
         release = deferred<void>()
       const reader = host.reader
+      let blocking = false
       const { component, owner } = host.create({
         concurrent: 1,
         currentEvaluationInputs: {
           async read(...args) {
-            entered.resolve()
-            await release.promise
+            if (blocking) {
+              entered.resolve()
+              await release.promise
+            }
             return await reader.read(...args)
           },
         },
       })
       await component.selectModel('example/model-a')
+      blocking = true
       const reading = component.effectiveModel()
       await entered.promise
       expect(owner.active).toBe(1)
@@ -354,6 +454,7 @@ describe('RT5 real session model selection and current evaluation', () => {
       const acquire = owner.acquire
       let stopCalls = 0,
         failedDiagnostics = 0
+      let readingCurrent = false
       Reflect.set(owner, 'acquire', (limit: JsonNumber) => {
         const acquired = acquire(limit)
         if ('unavailable' in acquired) return acquired
@@ -379,7 +480,7 @@ describe('RT5 real session model selection and current evaluation', () => {
         currentEvaluationInputs: {
           async read(...args) {
             const result = await host.reader.read(...args)
-            readEntered.resolve()
+            if (readingCurrent) readEntered.resolve()
             return result
           },
         },
@@ -388,6 +489,7 @@ describe('RT5 real session model selection and current evaluation', () => {
         },
       })
       await component.selectModel('example/model-a')
+      readingCurrent = true
       const initialStarts = owner.starts.length
       owner.stopBarrier = barrier.promise
       const reading = component.effectiveModel()
@@ -611,6 +713,8 @@ describe('RT5 real session model selection and current evaluation', () => {
             .execute(),
       )
       expect(await component.effectiveModel()).toEqual({ unavailable: true })
+      expect(await component.legalTargets()).toEqual({ unavailable: true })
+      expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
       expect(await host.log.readSince(host.session, 0)).toMatchObject({
         entries: [expect.anything()],
       })
@@ -634,6 +738,8 @@ describe('RT5 real session model selection and current evaluation', () => {
             .execute(),
       )
       expect(await component.effectiveModel()).toEqual({ unavailable: true })
+      expect(await component.legalTargets()).toEqual({ unavailable: true })
+      expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
       expect(await other.log.readSince(other.session, 0)).toMatchObject({
         entries: [expect.anything()],
       })

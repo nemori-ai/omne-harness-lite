@@ -122,7 +122,7 @@ export function profile(name = 'example/model-a'): ProfileRow['profile'] {
     updatedAt: AT,
   }
 }
-export async function selectionHost(model = true) {
+export async function selectionHost(model = true, factoryCredential = false) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-session-selection-'))
   const keys = { activation: generateHandoffKeyPair(), purge: generateHandoffKeyPair() }
   const storage = await openStorage({
@@ -180,7 +180,11 @@ export async function selectionHost(model = true) {
       },
       {
         plugin: modelProfileDirectoryPlugin,
-        config: { faceMode: 'singleProcessCatalog', officialManifest: manifest },
+        config: {
+          faceMode: 'singleProcessCatalog',
+          officialManifest: manifest,
+          ...(factoryCredential ? { factoryCredentialRef: 'test-only-factory-ref' } : {}),
+        },
       },
     ],
   })

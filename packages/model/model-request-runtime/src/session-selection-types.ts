@@ -8,6 +8,7 @@ import type { SettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementLogBinding, SettlementOwner } from './settlement-types.ts'
 import type {
   EffectiveModel,
+  DisplayListResult,
   LegalTargetsResult,
   SelectionCompatibility,
   SelectionFailure,
@@ -20,7 +21,7 @@ export interface SessionModelSelectionInput {
   readonly owner: SettlementOwner
   readonly concurrent: JsonNumber
   readonly sessionTenancy: SessionTenancyService
-  readonly catalog: Pick<ModelCatalogRead, 'listProfiles'>
+  readonly catalog: Pick<ModelCatalogRead, 'listProfiles' | 'credentialPresent'>
   readonly currentEvaluationInputs: CurrentEvaluationInputs
   /** Interpret the actual complete prefix using the adopted projection implementation. */
   readonly projection: (prefix: SettlementPrefix) => Promise<SelectionProjection>
@@ -33,7 +34,7 @@ export interface SessionSelectionDiagnostic {
   readonly kind: 'session_model_selection'
   readonly session: SettlementLogBinding['session']
   readonly tenant: SettlementLogBinding['tenant']
-  readonly stage: 'legalTargets' | 'selectModel' | 'effectiveModel' | 'close'
+  readonly stage: 'legalTargets' | 'selectModel' | 'displayList' | 'effectiveModel' | 'close'
   readonly outcome: 'success' | 'unavailable' | 'rejected'
 }
 export type SessionSelectModelResult =
@@ -53,6 +54,7 @@ export type SessionEffectiveModelResult =
 export interface SessionModelSelection {
   readonly legalTargets: () => Promise<LegalTargetsResult>
   readonly selectModel: (routeName: unknown) => Promise<SessionSelectModelResult>
+  readonly displayList: () => Promise<DisplayListResult>
   readonly effectiveModel: () => Promise<SessionEffectiveModelResult>
   /** Unconfirmed original writes retain their registrations and borrowed dependencies. */
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>

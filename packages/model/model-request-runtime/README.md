@@ -4,7 +4,7 @@
 
 Invoke one explicit model transport and assemble its stream into a final result, with cancellation, content deadlines and an asynchronous first-content gate. This experimental ESM workspace package is not published on npm.
 
-The current implementation contains standalone invocation and pure policy functions. The durable thirteen-operation service, Cordis plugin, tenant admission, recovery, retry orchestration and reply settlement are pending. See the [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md) for exact adoption and coverage.
+The current implementation contains standalone invocation, pure policy functions and bounded durable consumers, including four session selection/query operations. The complete thirteen-operation service and its Cordis plugin remain pending. See the [realization status](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md) for exact adoption and coverage.
 
 ## Public API
 
@@ -21,6 +21,7 @@ The current implementation contains standalone invocation and pure policy functi
 | `captureModelLogValue`, `prepareModelLogEntry`, `inspectModelLogEntry` | Strict owned values, position-free candidates and reverse validation of actual log entries |
 | `inspectSettlementMembers` | Check complete response/message members and original associations from one complete prefix |
 | `modelLogJsonEqual`, `recognizeMessageValue` | Exact full JSON equality and recognition retaining the original captured message |
+| `createSessionModelSelection(input)` | Borrowed-provider consumer with `legalTargets`, `selectModel`, `displayList`, `effectiveModel` and owned operation cleanup |
 
 ## Call an explicitly supplied request
 
@@ -465,6 +466,8 @@ export async function runPreparedInvocation<P extends PlannedSemantics, R>(
 
 `effectiveModel` returns the existing selection basis together with the actual current `EffectiveAssembly`, including its root settings. Above-session model locks produce `layer_lock`, even when the locked name matches the session selection. A failed current read cannot become a known absence of a lock.
 
+Every `legalTargets` and `selectModel` operation independently reads current EvaluationInput and calls the adopted AE4 evaluator before computing legality. Missing optional root `model` is valid; model locks never filter the legal target set. `displayList()` reads that current legality and the authoritative last selection, then calls the directory's `credentialPresent(tenant, origin)` for each displayed winning row. It returns one entry per route with current source, covered rows, annotations and a selected flag. A selected withdrawn route remains visible; a selected name with no directory row returns `profileNotFound`. Unreadable inputs return `unavailable`. Presence reads expose no credential body or reference and do not certify that a later value lookup will succeed. These operations implement [RT5 S9–S14/S24–S27/S66](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-24-legaltargets) through the adopted [R3-P2 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md#契约到-cordis-的投影).
+
 ```ts
 import {
   createSessionModelSelection,
@@ -477,10 +480,13 @@ export async function initializeExplicitSelection(
   requestedRoute: string,
 ) {
   const selection = createSessionModelSelection(ports)
+  const legal = await selection.legalTargets()
+  if (!('ok' in legal)) return { selection, legal }
   const selected = await selection.selectModel(requestedRoute)
   if (!('selected' in selected)) return { selection, selected }
+  const display = await selection.displayList()
   const basis = await selection.effectiveModel()
-  return { selection, selected, basis }
+  return { selection, selected, display, basis }
 }
 ```
 
