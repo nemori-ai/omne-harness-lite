@@ -1,6 +1,6 @@
 # 模型请求验收应用
 
-`@omne-harness-lite/model-request-acceptance` 提供模型请求验收中的本机真实认证、模型凭据与显式请求准备阶段。它通过各包公开 API 组合账号注册、密码校验、登录、组织成员关系、模型目录和模型副本能力，使用一个 SQLite 存储所有者和 Cordis Context。
+`@omne-harness-lite/model-request-acceptance` 提供模型请求验收中的本机真实认证、模型凭据、显式请求准备与会话日志阶段。它通过各包公开 API 组合账号注册、密码校验、登录、组织成员关系、模型目录和模型副本能力，使用一个 SQLite 存储所有者和 Cordis Context。
 
 公共根入口导出 `createAcceptanceApplication`、配置与结果类型、固定基础与完整阶段 fiber 名称。应用句柄提供 `ready`、`register`、`authenticate`、`publishCredential`、`verifyCredential`、`readOfficialProfiles`、`prepareSession`、`status` 和 `close`；存储、凭据 reader、副本所有者和服务 Context 由应用内部持有。`AcceptanceHooks` 是可信故障测试端口，不得交给租户输入控制。
 
@@ -14,11 +14,19 @@
 
 `close()` 等待已准入的目录读、归属读与 seed 实际结束，再撤除会话 reader 和既有提供者，最后关闭存储。同一部署重开时须保持阶段与迁移前缀一致。
 
+显式 `sessionLog` 阶段使用固定十个 `SESSION_LOG_FIBERS`，即准备阶段加真实日志贡献。配置明确给出已存在且归当前用户、模式为 `0700` 的 `sessionLog.dir`、可信 `processOwnership` 及两个正整数策略上界。应用打开一个实际 JSONL owner，Cordis 贡献仅借用其三个操作；应用句柄不导出该服务或任意追加权。
+
+`readSessionLog(actor, session)` 每次重新核验真实登录态、当前租户、有效成员关系及持久 `holdingTenant`，再返回实际 `readSince(session, 0)` 完整结果。无归属返回原失败，不 seed；日志不可读返回 `unavailable`，与确定空日志分开。准备结果不授予持续读权。前两个阶段或关闭后读取返回 `stageClosed`。
+
+关闭先排空已准入操作，再实际 await JSONL owner 关闭，成功后才撤日志贡献和其余提供者。物理清理失败时 `complete` 为 false，`unfinished` 保留 owner、贡献与依赖，不继续撤除；文件、历史和未释放锁责任仍保留。同库同日志目录重开经真实属主与恢复核验读回提交值。诊断 sink 故障独立计数，不替换读取或关闭结果。
+
 ## 从公共 API 运行
 
 使用 Node 24 系列的 24.18 或更新版本。传入已经存在的绝对部署目录，目录须属于当前 OS 用户且权限为 `0700`。预置匹配的 Ed25519 PKCS8/SPKI 密钥对 `activation-private.pem`/`activation-public.pem` 和 `purge-private.pem`/`purge-public.pem`，以及恰好 32 字节的 `model-key`。这五个文件须为当前用户的普通文件，权限为 `0600`。应用校验输入，不生成或替换密钥。已存在的 `db.sqlite` 同样须为当前用户的 `0600` 普通文件。
 
 为本机示例在目录中预置仅所有者可读写的 `password` 和 `model-credential` 文件。将部署目录作为第一个参数运行以下代码一次。重复注册由提供者返回结果；另一个场景请显式选用另一个 identifier。以下 scrypt 成本、保留期、治理时长和 clock 等待策略都是可调整的明确示例配置。
+
+另在部署目录下创建模式为 `0700` 的 `session-logs`。示例显式属主标记对所有旧 owner 保守返回 `unknown`；非正常退出后，须由可信实际生命周期观察者提供退出证据才能恢复。标记字符串或 PID 本身不证明退出。
 
 ```ts
 import assert from 'node:assert/strict'
@@ -39,6 +47,11 @@ if (!isOk(ttl) || !isOk(sourceRef)) throw new Error('example configuration inval
 const events: string[] = []
 const app = createAcceptanceApplication(
   {
+    sessionLog: {
+      dir: join(directory, 'session-logs'),
+      processOwnership: { current: 'readme-owner', async observeExit() { return 'unknown' } },
+      policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
+    },
     runId: 'readme-local',
     databaseFile: join(directory, 'db.sqlite'),
     keys: {
@@ -59,7 +72,7 @@ const app = createAcceptanceApplication(
     wait: { clockTimeoutMs: 15_000, pollMs: 10, monotonicNow: () => performance.now(), sleep },
   },
   {
-    stage: 'requestPreparation',
+    stage: 'sessionLog',
     diagnostics: { record: event => events.push(`${event.event}:${event.phase}:${event.outcome}`) },
   },
 )
@@ -74,6 +87,7 @@ try {
   assert.deepEqual(await app.prepareSession(actor, 'readme-session'), {
     session: 'readme-session', tenant: actor.tenant,
   })
+  assert.deepEqual(await app.readSessionLog(actor, 'readme-session'), { entries: [], tail: 0 })
   body = await readFile(join(directory, 'model-credential'))
   const pair = { account: actor.account, tenant: actor.tenant, sourceRef: sourceRef.ok, body }
   assert.deepEqual(await app.publishCredential(actor, async () => pair), { stored: true })
