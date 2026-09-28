@@ -170,3 +170,9 @@ session-log-jsonl 的 [v2-design 候选](../../../realization/packages/session/s
 两轴 A/A 的 architecture-reviewer、完整 MR5/RT5 的 spec-reviewer、core v5 rev1 的两角色独立只读评审均无本次范围内阻断。受审 MR5 c4cba40c…／RT5 21c3ef25…，core `5c2e633b771e5d262d4d5240310f7d8bf9cd735a36259d4a6e70b749bf41eb94`；详细责任与未覆盖为 [root 据实际角色消息保存的归因摘要](reviews/model-headers-v5-2026-09-27.json)及其完整归档，不能当逐字 reviewer 原件或产品执行。规范整批的 runtime D087 导航滞后与 core 旧候选导航由本次当前段落修正；旧记录不覆盖。无新增产品政策，codec mrr/1／新格式仍归共同 owner。
 
 主线 [D-090](../../decisions/model-headers-v5-adoption/decision.md)只精确接受完整规范与 core 投影。PV1～9、RT5-H1～6、真实 TLS／秘密／停止／append-reopen、全部写方及十三操作和37认证均待；新增 bindings0。评审归档全部212成员原字节读回，SHA256 `53a1c0fc4076998cf4db91c8edf9bb0dbc317fa42fb3be7cc9c3d0b8bcc89777`。
+
+## 2026-09-28 十三操作统一组合收口的窄复评
+
+主线据独立 architecture-reviewer 消息保存的归因摘要（非逐字原件）：受审 runtime v10 SHA256 `9237c1744b3c3bec233274f50ad1ae0a7c039ca842880e30c765f57f95637be7`，新增“统一组合的全部调用收口”段无新阻断；唯一store owner、同步关准入、全部容器停止、迟到资源回收和全部实际释放后成功均有具体承载。原B1跨L1/L2未知调用责任交接仍阻断该分支，不扩大到healthy noRun。
+
+独立评审认可 root 对 selection 的条款解释：RT8 S27⑧保持原命令结果未知，SL3 S22/S35没有给无键命令恰一次认回保证；原追加和回调均实际停止后，可释放该命令物理registration，不追认成功或自动重放，不移除日志提供者自己的IO责任。已知反方“迟到旧selection覆盖新选择”要求留住仍活跃writer，不支持已停止后永久持有。最小验证必须区分ack未知且writer活跃/已停，零重放且原返回均不升级成功。未执行测试或接受；主线范围采用另见[D-102](../../decisions/model-runtime-owner-close-adoption/decision.md)。

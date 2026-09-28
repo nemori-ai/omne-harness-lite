@@ -1,5 +1,7 @@
 # model-request-runtime
 
+2026-09-28：[D-102](../../../../record/decisions/model-runtime-owner-close-adoption/decision.md) 独立采用 [v10](v10-owner-assembly-design.md) 的统一 store／组合 close 实施面。原文候选标记保留其受审字节；L1/L2 交接未采用，实际统一服务与收口验收尚未完成。
+
 当前计量映射：[v9-token-estimate-design.md](v9-token-estimate-design.md)，MP6/RT8计量政策；已由[D-101](../../../../record/decisions/model-token-estimate-adoption/decision.md)技术采用；新增绑定0，真实发送尚未验收。下列接受/候选段分别按所述版本读取。
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [当前共享接口及迁移](v7-current-design.md)，释放公共接口/调用容器与noRun施工；十三操作实际验收仍未完成，来源与计量门按分支保留。
