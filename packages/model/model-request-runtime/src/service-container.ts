@@ -173,7 +173,12 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       (authorization === undefined ? 0 : 1)
     orphaned.forEach((item, index) => {
       const result = results[orphanOffset + index]
-      if (result?.status === 'fulfilled' && 'released' in result.value)
+      if (
+        result?.status === 'fulfilled' &&
+        typeof result.value === 'object' &&
+        result.value !== null &&
+        'released' in result.value
+      )
         pendingObserverCleanup.delete(item)
     })
     let outstanding: boolean
