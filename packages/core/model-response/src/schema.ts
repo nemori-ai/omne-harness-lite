@@ -67,8 +67,8 @@ const memberSchema = {
     Failure: failureMembers,
   },
 }
-// The complete fixed transitive normative resource graph is compiled once.
-const runtime = createSchemaRuntime([
+// The fixed normative graph is separate from the private members-stage view.
+export const normativeSchemaResources = Object.freeze([
   identitySchema,
   expirySchema,
   contentSchema,
@@ -91,8 +91,8 @@ const runtime = createSchemaRuntime([
   mcpSchema,
   slashSchema,
   schema,
-  memberSchema,
 ])
+const runtime = createSchemaRuntime([...normativeSchemaResources, memberSchema])
 const validators = SCHEMA_DEF_NAMES.map(name =>
   Object.freeze({ name, validator: runtime.compile({ $ref: `${schemaId}#/$defs/${name}` }) }),
 )

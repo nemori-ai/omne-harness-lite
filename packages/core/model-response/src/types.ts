@@ -76,7 +76,7 @@ export type Failure = {
 )
 /** RFC 3339 exchange strings, preserved without reading a clock or comparing instants. */
 export interface Timing {
-  readonly sentAt: string
+  readonly sentAt: string | null
   readonly firstTokenAt?: string
   readonly endedAt: string
 }
@@ -108,6 +108,8 @@ type RunContext =
     }
 type OpenedTiming = Timing & { readonly firstTokenAt: string }
 type UnopenedTiming = Timing & { readonly firstTokenAt?: never }
+type SentOpenedTiming = OpenedTiming & { readonly sentAt: string }
+type SentUnopenedTiming = UnopenedTiming & { readonly sentAt: string }
 type Delivered = readonly [ContentBlock, ...ContentBlock[]]
 type NoReply = { readonly reply?: never; readonly replyDisposition?: never }
 type NoFailure = { readonly failure?: never }
@@ -115,7 +117,7 @@ type SuccessfulResponse = NoFailure & {
   readonly initiator?: never
   readonly delivered?: never
   readonly replyDisposition: ReplyDisposition
-  readonly timing: OpenedTiming
+  readonly timing: SentOpenedTiming
 } & (
     | {
         readonly outcome: 'complete'
@@ -149,12 +151,12 @@ type FailedResponse = NoReply & {
         readonly failure: Failure & {
           readonly cause: Exclude<FailureCause, 'interrupted_mid_reply'>
         }
-        readonly timing: UnopenedTiming
+        readonly timing: SentUnopenedTiming
         readonly delivered?: never
       }
     | {
         readonly failure: Failure & { readonly cause: 'interrupted_mid_reply' }
-        readonly timing: OpenedTiming
+        readonly timing: SentOpenedTiming
         readonly delivered: Delivered
       }
   )
@@ -178,7 +180,7 @@ export type PendingModelResponse = ResponseBase &
     readonly late?: never
     readonly replyDisposition?: never
     readonly delivered?: never
-    readonly timing: OpenedTiming
+    readonly timing: SentOpenedTiming
   } & (
     | {
         readonly outcome: 'complete'

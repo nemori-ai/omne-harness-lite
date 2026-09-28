@@ -61,7 +61,7 @@ function assertionProjection(value: JsonValue): JsonValue {
   return Object.fromEntries(entries)
 }
 
-describe('MR7 MR-1 assertion copies without reverse package dependencies', () => {
+describe('MR8 MR-1 assertion copies without reverse package dependencies', () => {
   for (const name of [
     'ResponseId',
     'SelectedBy',

@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-本包实现 MR7 的纯响应体表示与有序判定。一条 `ModelResponse` 记录一次实际发出的路由和档案快照、收场、时序、回复或已交付的部分、实际用量与费用，以及可选的原始响应引用。`PendingModelResponse` 是交给消息写入者的完整待提交回复事实；写入者完成自己的提交决定后，才给持久响应填 `replyDisposition`，并在适用时判断 `late`。本包不发起模型请求，也不持久化记录。
+本包实现 MR8 的纯响应体表示与有序判定。一条 `ModelResponse` 记录一次已确认耐久「已出门」责任的路由和档案快照、收场、时序、回复或已交付的部分、实际用量与费用，以及可选的原始响应引用。持久 `interrupted` 响应在无法取得实际发送时刻时可以明确记录 `timing.sentAt: null`；这不表示确知没有发送。`PendingModelResponse` 是交给消息写入者的完整待提交回复事实，始终要求实际发送时刻；写入者完成自己的提交决定后，才给持久响应填 `replyDisposition`，并在适用时判断 `late`。本包不发起模型请求，也不持久化记录。
 
 本包是工作区内的私有 ESM 包。当前公开入口只有包根和 `./schema`。旧响应版本没有可执行子入口。不兼容的历史值会明确拒绝，不会从当前模型目录补齐缺失字段。
 
@@ -89,8 +89,32 @@ assert.equal(validate('ModelResponse', pending).valid, false)
 const persisted = { ...pending, replyDisposition: 'persisted' }
 assert.deepEqual(judgeModelResponse(persisted), { ok: true })
 assert.deepEqual(persisted.raw.headers['x-example'], ['first', 'first', ''])
+
+// 独立的恢复形状只示范表示；写入者持久化前必须核实耐久锚点、实际停止与时序来源。
+const recovered = {
+  id: 'resp_recovery_1',
+  call: { callId: 'recovery_call_1' },
+  dispatch: 1,
+  route: pending.route,
+  outcome: 'interrupted',
+  initiator: 'runtime_lost',
+  timing: { sentAt: null, endedAt: '2026-09-28T10:01:00Z' },
+  usage: {
+    input_tokens: 'unknown',
+    output_tokens: 'unknown',
+    cache_read_tokens: 'unknown',
+    cache_write_tokens: 'unknown',
+    source: 'none',
+  },
+  cost: { cost_usd: 'unknown', source: 'none' },
+}
+assert.deepEqual(judgeModelResponse(recovered), { ok: true })
+assert.deepEqual(
+  judgePendingModelResponse({ ...pending, timing: { ...pending.timing, sentAt: null } }),
+  { rejected: 'malformed' },
+)
 ```
 
-`validate(defName, value)` 校验 MR7 的 19 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR7 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明上游确实返回这些事实，也不证明回复已提交或响应体已耐久；这些保证由运行时和写入者承担。
+`validate(defName, value)` 校验 MR8 的 19 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR8 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明耐久锚点、时刻来源、实际用量、回复提交或响应体耐久；这些保证由运行时和写入者承担。
 
-MR7 Schema 通过各 owner 的公开 Schema 入口装配固定的 22 份规范资源；资源缺失或错版会明确导致初始化失败。接受的[MR7 契约](../../../.meta_harness/design/spec/data/model-response/v7/contract.md)和[本包 v7 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v7-design.md)是语义依据。
+MR8 Schema 通过各 owner 的公开 Schema 入口装配固定的 22 份规范资源，包括精确的 model-profile v5 依赖；资源缺失或错版会明确导致初始化失败。接受的[MR8 契约](../../../.meta_harness/design/spec/data/model-response/v8/contract.md)和[本包 v8 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v8-design.md)是语义依据。

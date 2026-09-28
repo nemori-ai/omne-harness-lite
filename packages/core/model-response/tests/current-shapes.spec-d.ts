@@ -165,6 +165,12 @@ it('TYPE-S13: seven conditions and seven forbidden combinations', () => {
     initiator: 'run_cancelled',
     timing: unopened,
   }
+  const recoveredInterrupted: ModelResponse = {
+    ...base,
+    outcome: 'interrupted',
+    initiator: 'runtime_lost',
+    timing: { sentAt: null, endedAt: '2026-09-26T00:00:02Z' },
+  }
   const failedBefore: ModelResponse = {
     ...base,
     outcome: 'failed',
@@ -184,12 +190,17 @@ it('TYPE-S13: seven conditions and seven forbidden combinations', () => {
     interruptedReply,
     interruptedOpened,
     interruptedUnopened,
+    recoveredInterrupted,
     failedBefore,
     failedAfter,
   ])
     expectTypeOf(value).toExtend<ModelResponse>()
   // @ts-expect-error success must own a reply
   const noReply: ModelResponse = { ...base, outcome: 'complete', timing: opened }
+  // @ts-expect-error a complete reply cannot have unknown actual send time
+  const completeNull: ModelResponse = { ...complete, timing: { ...opened, sentAt: null } }
+  // @ts-expect-error a failed response cannot have unknown actual send time
+  const failedNull: ModelResponse = { ...failedBefore, timing: { ...unopened, sentAt: null } }
   // @ts-expect-error runtime_lost cannot hold a reply
   const lostReply: ModelResponse = { ...interruptedReply, initiator: 'runtime_lost' }
   // @ts-expect-error failed-opened must own nonempty delivered
@@ -219,6 +230,8 @@ it('TYPE-S13: seven conditions and seven forbidden combinations', () => {
   const emptyDrops: Route = { ...route, droppedParameters: [] }
   for (const value of [
     noReply,
+    completeNull,
+    failedNull,
     lostReply,
     noDelivered,
     wrongCause,
@@ -231,7 +244,7 @@ it('TYPE-S13: seven conditions and seven forbidden combinations', () => {
   expectTypeOf(emptyDrops).toEqualTypeOf<Route>()
 })
 
-it('MR7 types preserve ordered mixed headers', () => {
+it('MR8 types preserve ordered mixed headers', () => {
   const headers: RawHeaders = { one: 'a,b', many: ['second', 'first', 'first', ''], empty: [] }
   const raw: RawResponse = { headers }
   expectTypeOf(raw).toExtend<RawResponse>()

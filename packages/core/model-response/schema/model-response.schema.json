@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v7/model-response.schema.json",
-  "title": "data.model-response v7",
-  "description": "一次发出的完整响应体：回复（若有）、出错断时已交付而不成消息的部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序、上游原始响应的引用。一次模型调用每发出一次留一条。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v7 内有效。",
-  "$comment": "v6 candidate。持久 ModelResponse 保留 v5 全部约束；PendingModelResponse 仅供 S-39 的待提交交接，禁止 replyDisposition/late。S-40 消费完整 MP5 快照与 MS6 回复。Schema 外相等关系、真实事实及提交时 late 判定仍由写入者校验。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v8/model-response.schema.json",
+  "title": "data.model-response v8",
+  "description": "已确认请求责任的完整响应记录：回复（若有）、已交付部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序及上游原始响应的引用。每份已确认责任恰好留一条，含锚点后发送前取消；记录存在不证明实际发送。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v8 内有效。",
+  "$comment": "MR8 candidate：interrupted 持久响应可显式 sentAt:null；真实锚点与事实来源由写入者证明。PendingModelResponse 必须实际 sentAt。其余约束与精确依赖沿 MR7。",
   "$ref": "#/$defs/ModelResponse",
   "$defs": {
     "ResponseId": {
@@ -389,7 +389,7 @@
     },
     "Timing": {
       "title": "时序（contract.md S-17）",
-      "description": "sentAt 这一次发出离开本层；firstTokenAt 本层观察到首 token（这次回复交出的第一样内容，不论模态）——缺席是断言「没有开口」，不是「不知道」（S-18）；endedAt 本层确认这一次发出已经结束。先后 sentAt ≤ firstTokenAt ≤ endedAt 是跨字段约束，Schema 不管。",
+      "description": "sentAt 必有，实际交给传输的时刻或 null（实际时刻不可用，不断言未发出）；首 token 缺席仍须确知，所有实际时刻须满足 S-17 顺序。Schema 不证明锚点/来源/时序比较。",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -398,7 +398,14 @@
       ],
       "properties": {
         "sentAt": {
-          "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+          "oneOf": [
+            {
+              "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "firstTokenAt": {
           "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
@@ -1103,6 +1110,34 @@
               }
             ]
           }
+        },
+        {
+          "$comment": "S-17：只有 interrupted 持久分支允许 null；无专名跨成员拒绝 malformed，顺序沿 S-27。",
+          "if": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "complete",
+                  "truncated",
+                  "failed"
+                ]
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "properties": {
+              "timing": {
+                "properties": {
+                  "sentAt": {
+                    "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -1173,7 +1208,18 @@
           "$ref": "#/$defs/Failure"
         },
         "timing": {
-          "$ref": "#/$defs/Timing"
+          "allOf": [
+            {
+              "$ref": "#/$defs/Timing"
+            },
+            {
+              "properties": {
+                "sentAt": {
+                  "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+                }
+              }
+            }
+          ]
         },
         "usage": {
           "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Usage"

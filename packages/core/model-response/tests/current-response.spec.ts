@@ -7,7 +7,11 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
+import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
+import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
+import retainedProfileSchema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
 import { isObject } from '../src/json.ts'
+import { normativeSchemaResources } from '../src/schema.ts'
 import {
   judgeModelResponse,
   judgePendingModelResponse,
@@ -19,7 +23,7 @@ import schema from '@omne-harness-lite/model-response/schema' with { type: 'json
 
 const source = readFileSync(
   new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v7/examples.md',
+    '../../../../.meta_harness/design/spec/data/model-response/v8/examples.md',
     import.meta.url,
   ),
   'utf8',
@@ -62,36 +66,50 @@ function object(value: JsonValue): JsonObject {
   return value
 }
 
-describe('MR7 exact public resource', () => {
+describe('MR8 exact public resource', () => {
   it('matches the accepted Schema bytes and compiles all definitions in its fixed closure', () => {
     const actual = readFileSync(new URL('../schema/model-response.schema.json', import.meta.url))
     const accepted = readFileSync(
       new URL(
-        '../../../../.meta_harness/design/spec/data/model-response/v7/model-response.schema.json',
+        '../../../../.meta_harness/design/spec/data/model-response/v8/model-response.schema.json',
         import.meta.url,
       ),
     )
     expect(actual.equals(accepted)).toBe(true)
     expect(createHash('sha256').update(actual).digest('hex')).toBe(
-      '69ebf2ea1ac34f7400aabb40d1e128740023ad6ead85ecaf6928340e254bb1f2',
+      '4378aa6a11ec5775565a90cf6269eeff76ebe76356110ef301f0bfc04fda1da3',
     )
     expect(schemaId).toBe(schema.$id)
     expect(SCHEMA_DEF_NAMES).toEqual(Object.keys(schema.$defs))
     expect(SCHEMA_DEF_NAMES).toHaveLength(19)
     for (const name of SCHEMA_DEF_NAMES) expect(() => validate(name, null)).not.toThrow()
+    const ids = normativeSchemaResources.map(resource => resource.$id)
+    expect(ids).toHaveLength(22)
+    expect(new Set(ids).size).toBe(22)
+    expect(ids).toContain(profileSchema.$id)
+    expect(profileSchema.$id).toContain('/model-profile/v5/')
+    expect(ids).toContain(retainedProfileSchema.$id)
+    expect(() => {
+      const withoutMp5 = normativeSchemaResources.filter(
+        resource => resource.$id !== profileSchema.$id,
+      )
+      createSchemaRuntime(withoutMp5).compile({ $ref: `${schemaId}#/$defs/ModelResponse` })
+    }).toThrow()
   })
 
   it('has no executable previous response subpath', () => {
     expect(() => import.meta.resolve('@omne-harness-lite/model-response/v3')).toThrow()
     expect(() => import.meta.resolve('@omne-harness-lite/model-response/v5')).toThrow()
     expect(() => import.meta.resolve('@omne-harness-lite/model-response/schema/v5')).toThrow()
+    expect(() => import.meta.resolve('@omne-harness-lite/model-response/v7')).toThrow()
+    expect(() => import.meta.resolve('@omne-harness-lite/model-response/schema/v7')).toThrow()
   })
 })
 
 const accepted = normativeSection('## 一、合法实例', '## 二、非法实例')
 const rejected = normativeSection('## 二、非法实例', '## 三、Schema 挡不住')
 
-describe('MR7 persisted examples and ordered rejection', () => {
+describe('MR8 persisted examples and ordered rejection', () => {
   const positives = accepted.flatMap(row => row.values.filter(value => 'id' in object(value)))
   it('covers complete, truncated, interrupted, failure, and repeated dispatch examples', () => {
     expect(positives.length).toBeGreaterThanOrEqual(12)
@@ -147,7 +165,7 @@ const pendingCases: Readonly<Record<string, 'ok' | string>> = {
   'MR7-runtime_lost_reply': 'malformed',
 }
 
-describe('MR7 retained current facts and multi-value headers', () => {
+describe('MR8 retained current facts and multi-value headers', () => {
   const v3Rows = normativeSection('## v3 窄修订的规范对照', '## 六、v4 适配绑定')
   const v4Rows = normativeSection('## 六、v4 适配绑定', '## 七、v5 多值响应头')
   const headerRows = normativeSection('## 七、v5 多值响应头', '## 六、v6 待提交投影')
@@ -190,7 +208,7 @@ describe('MR7 retained current facts and multi-value headers', () => {
   })
 })
 
-describe('MR7 S-39 pending reply', () => {
+describe('MR8 S-39 pending reply', () => {
   const rows = normativeSection('## 六、v6 待提交投影与新版本边界', '## 七、MR7 与 LC6')
   const complete = rows.find(row => row.name === 'MR7-complete')?.values[0]
 
