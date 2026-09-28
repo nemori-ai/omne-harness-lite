@@ -1,5 +1,5 @@
 import type { ArrivalEvent, ArrivalTarget } from '@omne-harness-lite/arrival-events'
-import type { ContentBlock, JsonValue } from '@omne-harness-lite/content-blocks'
+import type { ContentBlock, JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { Cost, Usage, TrimSummary } from '@omne-harness-lite/call-accounts'
 import type {
   ModelProfileSnapshot,
@@ -39,8 +39,31 @@ export type PlanRejection =
   | 'modality_not_carried'
   | 'orphan_tool_call'
   | 'tool_internal_in_request'
+export type InputLimitMetric =
+  | 'maxInputTokens'
+  | 'maxRequestBytes'
+  | 'maxImageBytes'
+  | 'maxImages'
+/** Non-content facts from the same fixed plan; an upper bound is not an actual excess. */
+export type InputLimitRejection =
+  | {
+      readonly rejected: 'invalidInput'
+      readonly reason: 'input_limit_missing' | 'input_size_unavailable'
+      readonly metrics: readonly [InputLimitMetric, ...InputLimitMetric[]]
+    }
+  | {
+      readonly rejected: 'invalidInput'
+      readonly reason: 'input_limit_exceeded'
+      readonly metric: InputLimitMetric
+      readonly actual: JsonNumber
+      readonly limit: JsonNumber
+    }
+export type PlanFailure =
+  | InputLimitRejection
+  | { readonly rejected: 'invalidInput'; readonly reason: 'malformed' }
+  | { readonly rejected: Exclude<PlanRejection, 'invalidInput'> }
 export type PlanResult<P extends PlannedSemantics> =
-  { readonly planned: P } | { readonly rejected: PlanRejection }
+  { readonly planned: P } | PlanFailure
 export interface ServingFacts {
   readonly upstreamModel?: string
   readonly servingProvider?: string
@@ -125,7 +148,7 @@ export interface ModelInvocationResult extends ServingFacts {
 export type InvocationOutcome =
   | ModelInvocationResult
   | { readonly cancelledBeforeSend: true }
-  | { readonly rejected: PlanRejection }
+  | PlanFailure
 export interface ModelInvocationHandle {
   readonly outcome: Promise<InvocationOutcome>
   readonly snapshot: () => AssemblySnapshot
