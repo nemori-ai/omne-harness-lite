@@ -80,6 +80,7 @@ const replaceKeys = [
   'maxInputTokens',
   'maxOutputTokens',
   'inputConstraints',
+  'upstreamInputLimits',
 ]
 function isPatch(input: unknown): input is ProfilePatch {
   if (!object(input) || Object.keys(input).some(k => k !== 'replace' && k !== 'remove'))

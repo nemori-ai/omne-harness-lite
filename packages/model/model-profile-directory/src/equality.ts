@@ -41,7 +41,8 @@ export function upstreamEqual(a: ModelProfileContent, b: ModelProfileContent): b
     setEqual(a.outputModalities, b.outputModalities) &&
     jsonEqual(a.maxInputTokens, b.maxInputTokens) &&
     jsonEqual(a.maxOutputTokens, b.maxOutputTokens) &&
-    jsonEqual(a.inputConstraints, b.inputConstraints)
+    jsonEqual(a.inputConstraints, b.inputConstraints) &&
+    jsonEqual(a.upstreamInputLimits, b.upstreamInputLimits)
   )
 }
 export function contentEqual(a: ModelProfileContent, b: ModelProfileContent): boolean {

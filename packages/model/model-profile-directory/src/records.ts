@@ -12,7 +12,7 @@ import {
   type ModelProfileRef,
 } from '@omne-harness-lite/model-profile'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
-import { narrow, StorageDefect, type ReadTx } from '@omne-harness-lite/storage'
+import { narrow, StorageDefect, StorageUnavailable, type ReadTx } from '@omne-harness-lite/storage'
 import type { CatalogScope, CredentialBinding, ProfileRow } from './types.ts'
 
 export interface ScopeKey {
@@ -64,11 +64,11 @@ export function isProfile(value: unknown): value is ModelProfile {
 export function decodeProfile(row: ProfileRecord): ProfileRow {
   const parsed = readJsonStrict(row.profile_json)
   if ('failed' in parsed || !isProfile(parsed.ok) || parsed.ok.routeName !== row.route_name)
-    throw new StorageDefect('stored model profile is malformed')
+    throw new StorageUnavailable('stored model profile cannot be read as current format')
   const profile = parsed.ok
   if (row.scope_layer === 'factory') {
     if (profile.origin !== 'official' || row.organization_id !== '' || row.account_id !== '')
-      throw new StorageDefect('stored profile scope is malformed')
+      throw new StorageUnavailable('stored profile scope cannot be read as current format')
     return { ref: { origin: 'official', routeName: row.route_name }, profile }
   }
   const scope = parseScopeLayerIdentity(
@@ -84,7 +84,7 @@ export function decodeProfile(row: ProfileRecord): ProfileRow {
     profile.origin !== 'custom' ||
     (scope.ok.layer === 'organization' && row.account_id !== '')
   )
-    throw new StorageDefect('stored profile scope is malformed')
+    throw new StorageUnavailable('stored profile scope cannot be read as current format')
   return { ref: { origin: 'custom', scope: scope.ok, routeName: row.route_name }, profile }
 }
 export function rowKey(ref: ModelProfileRef): ScopeKey & { route_name: string } {

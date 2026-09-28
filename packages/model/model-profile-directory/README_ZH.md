@@ -1,6 +1,6 @@
 # 模型档案目录
 
-沿已采用 `capability.model-profile-directory/v3`、`data.model-profile/v3` 与 [D075 提供者投影](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v3-design.md)实现。包拥有耐久目录、只追加的配置修订事实、官方清单状态和租户凭据绑定。
+当前目录按 [D100](../../../.meta_harness/design/record/decisions/model-runtime-current-generation-adoption/decision.md) 消费已采用的 `capability.model-profile-directory/v5`、`data.model-profile/v5`，沿[当前提供者投影](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md)实施。包拥有耐久目录、只追加的配置修订事实、官方清单状态和租户凭据绑定。
 
 根入口导出五个纯判断和服务/配置类型；`./plugin` 导出两个 Cordis 插件及配置 Schema；`./migrations` 导出 `modelProfileDirectoryMigrations`；受限 `./tx-reads` 导出 `createCredentialBindingReader`。权威目录以服务面存在。
 
@@ -50,6 +50,9 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
     routeName: 'demo/model', origin: 'custom', providers: ['provider-a'], allowFallback: false,
     inputModalities: ['text'], outputModalities: ['text'],
     maxInputTokens: 8192, maxOutputTokens: 2048, inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' }, maxRequestBytes: { status: 'unknown' },
+    },
     adaptation: {
       implementation: { name: 'publisher-implementation', revision: 'impl-1' },
       definition: { modelId: 'demo/model', revision: 'definition-1' },
@@ -60,7 +63,17 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
   const revised = await catalog.updateProfile(tenant, created.ref, { replace: { allowFallback: true } })
   assert.ok('profile' in revised)
   assert.equal(revised.profile.updatedAt, created.profile.updatedAt)
-  assert.deepEqual(await catalog.readProfile(tenant, created.ref), revised)
+  const changed = await catalog.updateProfile(tenant, created.ref, { replace: {
+    maxInputTokens: 4096,
+    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 4096 }, maxRequestBytes: { status: 'unknown' } },
+  } })
+  assert.ok('profile' in changed)
+  assert.equal(changed.profile.maxInputTokens, 4096)
+  assert.deepEqual(changed.profile.upstreamInputLimits.maxInputTokens, { status: 'limited', value: 4096 })
+  assert.deepEqual(await catalog.updateProfile(tenant, created.ref, { replace: {
+    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 3000 } },
+  } }), { failure: 'invalidInput', reason: 'malformed' })
+  assert.deepEqual(await catalog.readProfile(tenant, created.ref), changed)
   const rows = await catalog.listProfiles(tenant)
   assert.ok(Array.isArray(rows))
   await catalog.withdrawProfile(tenant, created.ref)
@@ -75,7 +88,9 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
 }
 ```
 
-可信装配在提供服务前合成迁移，插件不私建表。缺 adaptation 的 v2 档案必须有授权的 v3 迁移裁定，本包不猜绑定。reader 闭包在有效单元里锁实际租户绑定，仅由 CCL 或 P-1r 执行。
+旧行缺少必需的上游事实时，当前格式的 `readProfile` 返回 `unavailable`；可见的旧行使整次 `listProfiles` 返回 `unavailable`，原字节及配置历史不变。上游事实、cap 或模态变化按完整行写入；时钟早于原 `updatedAt` 时返回 `unavailable`，档案及清单状态不推进。本目录不推断缺失事实，也不自动升级旧数据。
+
+可信装配在提供服务前合成存储迁移，插件不私建表，目录也不执行旧档案转换。reader 闭包在有效单元里锁实际租户绑定，仅由 CCL 或 P-1r 执行。
 
 ```typescript
 import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads'

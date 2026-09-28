@@ -47,6 +47,10 @@ export function content(
     maxInputTokens: 1024,
     maxOutputTokens: 512,
     inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
     adaptation: {
       implementation: { name: 'unregistered', revision: 'i1' },
       definition: { modelId: routeName, revision: 'd1' },

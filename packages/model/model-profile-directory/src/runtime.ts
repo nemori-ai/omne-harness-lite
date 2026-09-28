@@ -9,9 +9,14 @@ import {
 import {
   judgeModelProfileDocument,
   type ModelProfile,
+  type ModelProfileContent,
   type ModelProfileRef,
 } from '@omne-harness-lite/model-profile'
-import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
+import {
+  compareRfc3339Instants,
+  instantToRfc3339,
+  type Clock,
+} from '@omne-harness-lite/offer-expiry'
 import {
   ReferenceViolation,
   StorageDefect,
@@ -218,6 +223,14 @@ export class CatalogImplementation {
     if (time === 'unavailable') throw new StorageUnavailable('clock unavailable')
     return instantToRfc3339(time)
   }
+  updatedAt(old: ModelProfile, content: ModelProfileContent): string {
+    if (upstreamEqual(old, content)) return old.updatedAt
+    const now = this.now()
+    const order = compareRfc3339Instants(now, old.updatedAt)
+    if (!('ok' in order) || order.ok < 0)
+      throw new StorageUnavailable('directory clock cannot advance model profile time')
+    return now
+  }
   async history(tx: WriteTx, row: ProfileRow, write: boolean): Promise<void> {
     const k = rowKey(row.ref),
       configuration = row.profile.adaptation.configuration
@@ -369,9 +382,7 @@ export class CatalogImplementation {
       const judgment = judgeModelProfileDocument('ModelProfile', changed)
       if ('rejected' in judgment) return invalid(judgment.rejected)
       if (!isProfile(changed)) throw new StorageDefect('updated profile validator disagrees')
-      const profile: ModelProfile = upstreamEqual(old.profile, changed)
-        ? changed
-        : { ...changed, updatedAt: this.now() }
+      const profile: ModelProfile = { ...changed, updatedAt: this.updatedAt(old.profile, changed) }
       const row = { ref, profile }
       await this.history(tx, row, false)
       if (contentEqual(old.profile, profile)) return old
@@ -542,10 +553,7 @@ export class CatalogImplementation {
           profile: {
             ...content,
             registration: 'listed',
-            updatedAt:
-              old !== undefined && upstreamEqual(old.profile, content)
-                ? old.profile.updatedAt
-                : this.now(),
+            updatedAt: old === undefined ? this.now() : this.updatedAt(old.profile, content),
           },
         }
         await this.history(tx, row, false)

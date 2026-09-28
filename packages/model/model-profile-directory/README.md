@@ -1,6 +1,6 @@
 # Model profile directory
 
-Adopted `capability.model-profile-directory/v3` and `data.model-profile/v3`, implemented through the [D075 provider projection](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v3-design.md). This package owns the durable catalog, append-only configuration revision facts, official manifest state and tenant credential bindings.
+The current directory consumes adopted `capability.model-profile-directory/v5` and `data.model-profile/v5` under [D100](../../../.meta_harness/design/record/decisions/model-runtime-current-generation-adoption/decision.md), through the [current provider projection](../../../.meta_harness/design/realization/packages/model/model-profile-directory/v5-current-design.md). It owns the durable catalog, append-only configuration revision facts, official manifest state and tenant credential bindings.
 
 The root export contains five pure judgments and service/configuration types. `./plugin` contains the two Cordis plugins and schemas; `./migrations` contains `modelProfileDirectoryMigrations`; restricted `./tx-reads` contains `createCredentialBindingReader`. The authoritative directory exists as a service.
 
@@ -50,6 +50,9 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
     routeName: 'demo/model', origin: 'custom', providers: ['provider-a'], allowFallback: false,
     inputModalities: ['text'], outputModalities: ['text'],
     maxInputTokens: 8192, maxOutputTokens: 2048, inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' }, maxRequestBytes: { status: 'unknown' },
+    },
     adaptation: {
       implementation: { name: 'publisher-implementation', revision: 'impl-1' },
       definition: { modelId: 'demo/model', revision: 'definition-1' },
@@ -60,7 +63,17 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
   const revised = await catalog.updateProfile(tenant, created.ref, { replace: { allowFallback: true } })
   assert.ok('profile' in revised)
   assert.equal(revised.profile.updatedAt, created.profile.updatedAt)
-  assert.deepEqual(await catalog.readProfile(tenant, created.ref), revised)
+  const changed = await catalog.updateProfile(tenant, created.ref, { replace: {
+    maxInputTokens: 4096,
+    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 4096 }, maxRequestBytes: { status: 'unknown' } },
+  } })
+  assert.ok('profile' in changed)
+  assert.equal(changed.profile.maxInputTokens, 4096)
+  assert.deepEqual(changed.profile.upstreamInputLimits.maxInputTokens, { status: 'limited', value: 4096 })
+  assert.deepEqual(await catalog.updateProfile(tenant, created.ref, { replace: {
+    upstreamInputLimits: { maxInputTokens: { status: 'limited', value: 3000 } },
+  } }), { failure: 'invalidInput', reason: 'malformed' })
+  assert.deepEqual(await catalog.readProfile(tenant, created.ref), changed)
   const rows = await catalog.listProfiles(tenant)
   assert.ok(Array.isArray(rows))
   await catalog.withdrawProfile(tenant, created.ref)
@@ -75,7 +88,9 @@ export async function manageModels(catalog: ModelCatalog, tenant: TenantId) {
 }
 ```
 
-Trusted assembly composes migrations before service activation. No table is created by the plugins. A v2 profile lacking adaptation must receive an authorized v3 migration decision; this package does not invent a binding. The reader closure locks the actual tenant binding in a live unit and is executed only by CCL or P-1r.
+An old stored row missing either required upstream fact is unreadable as the current format: `readProfile` returns `unavailable`, and a visible old row makes the entire `listProfiles` call unavailable. The directory leaves those bytes and configuration history unchanged. Changed upstream facts, caps or modalities use one complete row write; a clock reading earlier than the old `updatedAt` returns `unavailable` without writing or advancing manifest state. The directory does not upgrade or infer missing facts.
+
+Trusted assembly composes storage migrations before service activation. No table is created by the plugins, and the directory performs no legacy profile conversion. The reader closure locks the actual tenant binding in a live unit and is executed only by CCL or P-1r.
 
 ```typescript
 import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads'
