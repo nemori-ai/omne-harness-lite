@@ -7,8 +7,23 @@ import {
 import {
   createSessionModelSelection,
   createAnchoredModelInvocation,
+  createCallContainerStore,
+  createModelRuntime,
+  interpretCallHistory,
   readSettlementPrefix,
+  type ModelRuntimeService,
+  type ModelCallHost,
+  type ModelObserverRequest,
+  type DispatchResult,
+  type OpenCallResult,
+  type RuntimeConstruction,
+  type SessionRuntimeBinding,
+  type ModelObserverEndpoint,
+  type RuntimeCloseResult,
+  type SessionObserverAccess,
+  type SettlementResult,
   type SessionModelSelection,
+  type SessionModelSelectionInput,
   type SettlementLogBinding,
   type SessionSelectModelResult,
   type LegalTargetsResult,
@@ -21,9 +36,13 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { judgeMessage, type SessionRef } from '@omne-harness-lite/messages'
+import { judgeMessage, type SessionRef, type UserMessage } from '@omne-harness-lite/messages'
+import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { winningRow } from '@omne-harness-lite/model-profile-directory'
 import { createRequestOwner } from './model-request-owner.ts'
+import { createDemoObserverAccess, createDemoObserverEndpoint } from './model-observer-endpoint.ts'
+import { persistDemoModelReply } from './persist-model-reply.ts'
+import { readDemoNoRunFailure } from './no-run-failure-history.ts'
 import {
   messagePrefix,
   historyProjection,
@@ -48,10 +67,12 @@ import {
   createPiAiTransport,
   OPENROUTER_BASE_URL,
   type PiAiTransport,
+  type PlannedRequest,
+  type RawResponse,
   type TransportOptions,
 } from '@omne-harness-lite/pi-ai-transport'
 import { prepareModelRequestDeployment } from './model-request-deployment.ts'
-import { timingSafeEqual } from 'node:crypto'
+import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
@@ -158,7 +179,10 @@ const sessionValidator = createSchemaRuntime([sessionSchema]).compile({
 
 type LoginFace = Pick<LoginsService, 'issue' | 'exchange' | 'verify'>
 type MembershipFace = Pick<MembershipsService, 'currentTenant' | 'standing'>
-type CatalogFace = Pick<ModelCatalog, 'bindCredential' | 'credentialPresent' | 'listProfiles'>
+type CatalogFace = Pick<
+  ModelCatalog,
+  'bindCredential' | 'credentialPresent' | 'listProfiles' | 'readProfile'
+>
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -182,7 +206,8 @@ function catalogFace(value: unknown): value is CatalogFace {
     object(value) &&
     typeof value.bindCredential === 'function' &&
     typeof value.credentialPresent === 'function' &&
-    typeof value.listProfiles === 'function'
+    typeof value.listProfiles === 'function' &&
+    typeof value.readProfile === 'function'
   )
 }
 function registrationFace(value: unknown): value is Pick<RegistrationService, 'register'> {
@@ -276,6 +301,43 @@ export interface AcceptanceApplication {
     actor: AuthenticatedActor,
     session: unknown,
   ): Promise<ScenarioResult<SessionEffectiveModelResult>>
+  openModelObserver(
+    actor: AuthenticatedActor,
+    session: unknown,
+    callId: unknown | undefined,
+    consume: (serialized: string, signal: AbortSignal) => Promise<void>,
+  ): Promise<
+    ScenarioResult<
+      | {
+          readonly endpoint: ModelObserverEndpoint
+          readonly access: SessionObserverAccess
+          readonly revoke: () => Promise<RuntimeCloseResult>
+        }
+      | { readonly rejected: 'invalidInput' }
+    >
+  >
+  persistModelReply(
+    actor: AuthenticatedActor,
+    session: unknown,
+    pending: PendingModelResponse,
+  ): Promise<ScenarioResult<SettlementResult>>
+  bindModelRuntime(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>>
+  startServiceTextCall(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: {
+      readonly callId?: unknown
+      readonly user: UserMessage
+      readonly parameters: ModelRequestParameters
+      readonly host: ModelCallHost
+      readonly observer?: ModelObserverRequest
+    },
+  ): Promise<
+    ScenarioResult<{ readonly callId: string; readonly result: DispatchResult } | OpenCallResult>
+  >
   startTextCall(
     actor: AuthenticatedActor,
     session: unknown,
@@ -328,6 +390,9 @@ export function createAcceptanceApplication(
   let replica: ModelReplicaCustodian | undefined
   let sessionLogOwner: JsonlSessionLog | undefined
   let transportOwner: PiAiTransport | undefined
+  let modelRuntime:
+    | { readonly service: ModelRuntimeService; readonly close: () => Promise<RuntimeCloseResult> }
+    | undefined
   let currentInputs: CurrentEvaluationInputs | undefined
   let inputSource: InputSourceDependencies | undefined
   let requestDeployment: ModelRequestDeployment | undefined
@@ -343,8 +408,14 @@ export function createAcceptanceApplication(
       binding: SettlementLogBinding
       owner: ReturnType<typeof createRequestOwner>
       selector: SessionModelSelection
+      selectionInput: SessionModelSelectionInput
     }
   >()
+  const runtimeActors = new Map<SessionRef, AuthenticatedActor>()
+  const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
+  const transportLeases = new Set<object>()
+  const observerAccess = createDemoObserverAccess()
+  const observerGrants = new Set<{ readonly revoke: () => Promise<RuntimeCloseResult> }>()
   const calls = new Set<AnchoredInvocationHandle>()
   const borrowedCredentials = new Set<Uint8Array>()
   let gateOpen = false,
@@ -437,18 +508,28 @@ export function createAcceptanceApplication(
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     cleanupPromise = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
+      await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
+      const stoppedRuntime = await modelRuntime?.close()
       const stoppedCalls = await Promise.allSettled([...calls].map(call => call.close()))
       const stoppedSelections = await Promise.allSettled(
         [...sessionBorrows.values()].map(borrow => borrow.selector.close()),
       )
       await Promise.allSettled([...admitted])
+      const lateObservers = await Promise.allSettled(
+        [...observerGrants].map(grant => grant.revoke()),
+      )
       // An admitted setup may have installed a handle while close was awaiting a provider read.
       const lateCalls = await Promise.allSettled([...calls].map(call => call.close()))
-      const consumerUnavailable = [...stoppedCalls, ...stoppedSelections, ...lateCalls].some(
-        result => result.status === 'rejected' || 'unavailable' in result.value,
-      )
+      const consumerUnavailable = [
+        ...stoppedCalls,
+        ...stoppedSelections,
+        ...lateObservers,
+        ...lateCalls,
+      ].some(result => result.status === 'rejected' || 'unavailable' in result.value)
       if (
         consumerUnavailable ||
+        (stoppedRuntime !== undefined && 'unavailable' in stoppedRuntime) ||
+        transportLeases.size !== 0 ||
         borrowedCredentials.size !== 0 ||
         [...sessionBorrows.values()].some(borrow => borrow.owner.retained())
       ) {
@@ -465,6 +546,7 @@ export function createAcceptanceApplication(
         }
       }
       for (const borrow of sessionBorrows.values()) borrow.owner.release()
+      runtimeActors.clear()
       const unfinished: string[] = []
       const order: readonly (StageFiber | 'replica' | 'sessionLogOwner' | 'transportOwner')[] = [
         ...(stage === 'modelRequest' ? (['transportOwner', 'evaluationInputs'] as const) : []),
@@ -789,6 +871,116 @@ export function createAcceptanceApplication(
       catalog = catalogValue
       lookup = lookupValue
       registration = registrationValue
+      if (stage === 'modelRequest') {
+        if (requestDeployment === undefined || transportOwner === undefined)
+          throw new Error('model runtime construction prerequisites absent')
+        const deployment = requestDeployment
+        const transport = transportOwner
+        const exactDefinitions = deployment.transport.definitions
+        function newId<B extends string>(label: string, brand: B) {
+          const parsed = parseOpaqueIdentifier(`${label}-${randomUUID()}`, brand)
+          if (!isOk(parsed)) throw new Error('model identity source invalid')
+          return parsed.ok
+        }
+        const construction: RuntimeConstruction<PlannedRequest, RawResponse> = {
+          sessions: {
+            async bind(session) {
+              const originalActor = runtimeActors.get(session)
+              if (originalActor === undefined) return { failure: 'unavailable' }
+              const access = await sessionAccess(originalActor, session)
+              if (!('borrow' in access)) return { failure: 'unavailable' }
+              if (catalog === undefined || lookup === undefined || currentInputs === undefined)
+                return { failure: 'unavailable' }
+              const existing = runtimeBindings.get(session)
+              if (existing !== undefined) {
+                if (
+                  existing.log !== access.borrow.binding ||
+                  existing.selection !== access.borrow.selectionInput
+                )
+                  return { failure: 'unavailable' }
+                return { binding: existing }
+              }
+              const binding: SessionRuntimeBinding = {
+                log: access.borrow.binding,
+                selection: access.borrow.selectionInput,
+                catalog,
+                credentials: lookup,
+                currentEvaluationInputs: currentInputs,
+                observers: observerAccess.access,
+                tools: {
+                  async lookup() {
+                    return { none: true }
+                  },
+                },
+              }
+              runtimeBindings.set(session, binding)
+              return { binding }
+            },
+          },
+          calls: createCallContainerStore<PlannedRequest, RawResponse>(),
+          transport: {
+            acquire(binding, routeName) {
+              const exact = exactDefinitions.find(
+                definition =>
+                  definition.modelId === routeName &&
+                  definition.modelId === binding.definition.modelId &&
+                  definition.revision === binding.definition.revision &&
+                  definition.implementation.name === binding.implementation.name &&
+                  definition.implementation.revision === binding.implementation.revision,
+              )
+              if (exact === undefined || closing) return { unavailable: true }
+              const owned = { active: 0, releaseRequested: false }
+              transportLeases.add(owned)
+              const retire = () => {
+                if (owned.releaseRequested && owned.active === 0) transportLeases.delete(owned)
+              }
+              return {
+                lease: {
+                  binding,
+                  transport,
+                  signal: new AbortController().signal,
+                  async track<T>(completion: Promise<T>): Promise<T> {
+                    owned.active++
+                    try {
+                      return await completion
+                    } finally {
+                      owned.active--
+                      retire()
+                    }
+                  },
+                  release() {
+                    owned.releaseRequested = true
+                    retire()
+                  },
+                },
+              }
+            },
+          },
+          settlementContention: deployment.settlement.contention,
+          settlementScheduler: deployment.settlement.scheduler,
+          policy: {
+            ...deployment.invocation,
+            diagnostic: event =>
+              record({ event: 'operation', phase: 'invocation', outcome: event.kind }),
+          },
+          tokenMargin: deployment.tokenMargin,
+          identities: {
+            call: () => newId('call', 'ModelCallId'),
+            response: () => newId('response', 'ResponseId'),
+            message: () => newId('reply', 'MessageId'),
+          },
+          history: {
+            call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+            failure: readDemoNoRunFailure,
+            run: () => ({ unavailable: true }),
+          },
+          reservationWaitPolicy: deployment.reservationWaitPolicy,
+          recovery: { enter: async () => ({ unavailable: true }) },
+          diagnostic: event =>
+            record({ event: 'operation', phase: 'settlement', outcome: event.kind }),
+        }
+        modelRuntime = createModelRuntime(construction)
+      }
       phase = 'admission'
       assertNotClosing()
       if (!allActive(requiredFibers)) throw new Error('acceptance required stage changed')
@@ -1110,7 +1302,7 @@ export function createAcceptanceApplication(
           sessionLogOwner === log && allActive(requiredFibers) ? generation : null,
       }
       const owner = createRequestOwner(`app:${config.runId}:${parsed.ok}`)
-      const selector = createSessionModelSelection({
+      const selectionInput: SessionModelSelectionInput = {
         binding,
         owner: owner.owner,
         concurrent: requestDeployment.settlement.contention.limits.concurrent,
@@ -1125,11 +1317,90 @@ export function createAcceptanceApplication(
         onDiagnosticFailure: () => {
           diagnosticFailures++
         },
-      })
-      borrow = { binding, owner, selector }
+      }
+      const selector = createSessionModelSelection(selectionInput)
+      borrow = { binding, owner, selector, selectionInput }
       sessionBorrows.set(parsed.ok, borrow)
     }
     return { borrow, checked }
+  }
+  function bindModelRuntime(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ScenarioResult<{ readonly service: ModelRuntimeService }>> {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      const access = await sessionAccess(actor, session)
+      if (!('borrow' in access)) return access
+      if (modelRuntime === undefined) return { failure: 'stageClosed' }
+      runtimeActors.set(access.borrow.binding.session, access.checked)
+      return { service: modelRuntime.service }
+    })
+  }
+  function openModelObserver(
+    actor: AuthenticatedActor,
+    session: unknown,
+    callId: unknown | undefined,
+    consume: (serialized: string, signal: AbortSignal) => Promise<void>,
+  ): Promise<
+    ScenarioResult<
+      | {
+          readonly endpoint: ModelObserverEndpoint
+          readonly access: SessionObserverAccess
+          readonly revoke: () => Promise<RuntimeCloseResult>
+        }
+      | { readonly rejected: 'invalidInput' }
+    >
+  > {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    const parsedCall =
+      callId === undefined ? undefined : parseOpaqueIdentifier(callId, 'ModelCallId')
+    if ((parsedCall !== undefined && !isOk(parsedCall)) || typeof consume !== 'function')
+      return Promise.resolve({ rejected: 'invalidInput' })
+    return track(async () => {
+      const access = await sessionAccess(actor, session)
+      if (!('borrow' in access)) return access
+      if (closing) return { failure: 'stageClosed' }
+      const { borrow, checked } = access
+      const endpoint = createDemoObserverEndpoint(consume)
+      const original = observerAccess.grant({
+        endpoint,
+        session: borrow.binding.session,
+        tenant: checked.tenant,
+        ...(parsedCall === undefined ? {} : { callId: parsedCall.ok }),
+        current: () => !closing && borrow.binding.currentGeneration() === borrow.binding.generation,
+      })
+      const grant = {
+        async revoke(): Promise<RuntimeCloseResult> {
+          const result = await original.revoke()
+          if ('released' in result) observerGrants.delete(grant)
+          return result
+        },
+      }
+      observerGrants.add(grant)
+      return { endpoint, access: observerAccess.access, revoke: grant.revoke }
+    })
+  }
+  function persistModelReply(
+    actor: AuthenticatedActor,
+    session: unknown,
+    pending: PendingModelResponse,
+  ): Promise<ScenarioResult<SettlementResult>> {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    return track(async () => {
+      const access = await sessionAccess(actor, session)
+      if (!('borrow' in access)) return access
+      if (requestDeployment === undefined) return { unavailable: true, reason: 'dependency' }
+      return await persistDemoModelReply({
+        pending,
+        binding: access.borrow.binding,
+        owner: access.borrow.owner.owner,
+        contention: requestDeployment.settlement.contention,
+        scheduler: requestDeployment.settlement.scheduler,
+        diagnostic: event =>
+          record({ event: 'operation', phase: 'settlement', outcome: event.kind }),
+      })
+    })
   }
   function selectionOperation<T>(
     actor: AuthenticatedActor,
@@ -1144,6 +1415,123 @@ export function createAcceptanceApplication(
       } catch (error) {
         throw operationError(error, 'modelSelection')
       }
+    })
+  }
+  function startServiceTextCall(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: {
+      readonly callId?: unknown
+      readonly user: UserMessage
+      readonly parameters: ModelRequestParameters
+      readonly host: ModelCallHost
+      readonly observer?: ModelObserverRequest
+    },
+  ): Promise<
+    ScenarioResult<{ readonly callId: string; readonly result: DispatchResult } | OpenCallResult>
+  > {
+    if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+    const callId =
+      request?.callId === undefined
+        ? undefined
+        : parseOpaqueIdentifier(request.callId, 'ModelCallId')
+    const message = judgeMessage(request?.user)
+    const copiedParameters = copyJsonValue(request?.parameters)
+    if (
+      (callId !== undefined && !isOk(callId)) ||
+      !('ok' in message) ||
+      message.ok.type !== 'user' ||
+      message.ok.blocks.some(block => block.kind !== 'text') ||
+      !('ok' in copiedParameters)
+    )
+      return Promise.resolve({ invalidInput: { reason: 'malformed' } })
+    const copiedUser = message.ok
+    const parameters = copiedParameters.ok
+    if (!parametersFace(parameters))
+      return Promise.resolve({ invalidInput: { reason: 'malformed' } })
+    return track(async () => {
+      const access = await sessionAccess(actor, session)
+      if (!('borrow' in access)) return access
+      const { borrow, checked } = access
+      if (modelRuntime === undefined) return { unavailable: true }
+      runtimeActors.set(borrow.binding.session, checked)
+      const effective = await modelRuntime.service.effectiveModel({
+        session: borrow.binding.session,
+      })
+      if (!('effectiveModel' in effective)) return effective
+      if (requestDeployment === undefined) return { unavailable: true }
+      const acquired = borrow.owner.owner.acquire(
+        requestDeployment.settlement.contention.limits.concurrent,
+      )
+      if ('unavailable' in acquired) return { unavailable: true }
+      let messages: readonly import('@omne-harness-lite/messages').LoggedMessage[]
+      let unknownWrite = false
+      try {
+        const prefix = await readSettlementPrefix({
+          binding: borrow.binding,
+          registration: acquired.registration,
+        })
+        if ('unavailable' in prefix) return { unavailable: true }
+        const projected = messagePrefix(prefix.prefix)
+        if ('unavailable' in projected) return { unavailable: true }
+        const captured = captureModelLogValue({
+          category: 'message',
+          input: { kind: 'value', value: copiedUser },
+        })
+        if ('invalidValue' in captured) return { invalidInput: { reason: 'malformed' } }
+        const entry = prepareModelLogEntry({
+          session: borrow.binding.session,
+          shell: { tenant: checked.tenant },
+          captured: captured.ok,
+          purpose: { kind: 'message' },
+          messagePrefix: projected.messages,
+        })
+        if ('invalidValue' in entry) return { invalidInput: { reason: 'malformed' } }
+        const append = acquired.registration.start(
+          'append',
+          async () =>
+            await borrow.binding.log.append(
+              borrow.binding.session,
+              [entry.ok],
+              { kind: 'unfenced' },
+              { kind: 'tailEquals', tail: prefix.prefix.tail },
+            ),
+        )
+        let receipt: Awaited<typeof append.completion>
+        try {
+          receipt = await append.completion
+        } catch {
+          unknownWrite = true
+          return { unavailable: true }
+        } finally {
+          await append.stopped
+        }
+        if ('failure' in receipt) {
+          if (receipt.failure === 'unavailable') unknownWrite = true
+          return { unavailable: true }
+        }
+        messages = [...projected.messages, copiedUser]
+      } finally {
+        if (!unknownWrite) acquired.registration.release()
+      }
+      const opened = await modelRuntime.service.openCall({
+        session: borrow.binding.session,
+        ...(callId === undefined ? {} : { callId: callId.ok }),
+        target: effective.effectiveModel.routeName,
+        basis: effective.effectiveModel,
+        messages,
+        parameters,
+        tools: [],
+        host: request.host,
+        ...(request.observer === undefined ? {} : { observer: request.observer }),
+      })
+      if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
+        return opened
+      const result = await modelRuntime.service.dispatch({
+        session: borrow.binding.session,
+        callId: opened.callId,
+      })
+      return { callId: opened.callId, result }
     })
   }
   function startTextCall(
@@ -1424,6 +1812,10 @@ export function createAcceptanceApplication(
       selectionOperation(actor, session, selection => selection.selectModel(routeName)),
     effectiveModel: (actor, session) =>
       selectionOperation(actor, session, selection => selection.effectiveModel()),
+    openModelObserver,
+    persistModelReply,
+    bindModelRuntime,
+    startServiceTextCall,
     startTextCall,
     close() {
       if (closingPromise !== undefined) return closingPromise

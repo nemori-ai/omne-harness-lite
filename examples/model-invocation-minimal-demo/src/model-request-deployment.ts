@@ -22,6 +22,13 @@ export function prepareModelRequestDeployment(
     typeof input.invocation.now !== 'function' ||
     typeof input.invocation.schedule !== 'function' ||
     input.invocation.statusCauseTable === undefined ||
+    typeof input.invocation.firstContentTimeoutMs !== 'number' ||
+    typeof input.invocation.idleContentTimeoutMs !== 'number' ||
+    !Number.isFinite(input.invocation.firstContentTimeoutMs) ||
+    !Number.isFinite(input.invocation.idleContentTimeoutMs) ||
+    input.invocation.firstContentTimeoutMs <= 0 ||
+    input.invocation.idleContentTimeoutMs <= 0 ||
+    input.reservationWaitPolicy === undefined ||
     input.settlement === undefined ||
     input.settlement.contention === undefined ||
     input.settlement.scheduler === undefined

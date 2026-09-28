@@ -172,6 +172,8 @@ export function createDemoConfig(
       },
       invocation: {
         now,
+        firstContentTimeoutMs: 15000,
+        idleContentTimeoutMs: 120000,
         schedule(ms, callback) {
           const timer = setTimeout(callback, ms)
           return () => clearTimeout(timer)
@@ -179,6 +181,7 @@ export function createDemoConfig(
         statusCauseTable: { '503': 'upstream_unavailable', '401': 'credential_unavailable' },
         credentialRedaction: openRouterCredentialRedactionConfig,
       },
+      reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 5000 },
       settlement: {
         contention: {
           name: 'demo-finite-contention',

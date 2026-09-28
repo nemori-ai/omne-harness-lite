@@ -141,6 +141,8 @@ export async function callDeployment(
       },
       invocation: {
         now: () => AT,
+        firstContentTimeoutMs: 15000,
+        idleContentTimeoutMs: 120000,
         schedule(ms, callback) {
           const timer = setTimeout(callback, ms)
           return () => clearTimeout(timer)
@@ -148,6 +150,7 @@ export async function callDeployment(
         statusCauseTable: { '503': 'upstream_unavailable' },
         credentialRedaction,
       },
+      reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 5000 },
       settlement: {
         contention: {
           name: 'explicit-acceptance-contention',

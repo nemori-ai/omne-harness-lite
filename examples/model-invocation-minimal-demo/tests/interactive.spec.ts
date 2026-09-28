@@ -194,6 +194,7 @@ describe('real interactive durable conversation', () => {
       const run = runInteractive(demo, input, out.stream, false)
       input.write('hold this request\n')
       await tls.contentSent.promise
+      await expect.poll(() => out.text(), { timeout: 1000 }).toContain('Assistant> first ')
       process.emit('SIGINT')
       expect(await run).toEqual({ complete: true, interrupted: true })
       await tls.socketClosed.promise

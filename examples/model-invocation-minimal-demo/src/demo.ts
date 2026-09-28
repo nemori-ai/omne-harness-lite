@@ -16,11 +16,8 @@ import {
 } from '@omne-harness-lite/call-accounts'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { decodeModelLogKey, type TokenMargin } from '@omne-harness-lite/model-request-runtime'
-import {
-  createAcceptanceApplication,
-  type AcceptanceApplication,
-  type TextCallRequest,
-} from './bootstrap.ts'
+import { createAcceptanceApplication, type AcceptanceApplication } from './bootstrap.ts'
+import { createDemoCallHost } from './model-call-host.ts'
 import type { AuthenticatedActor } from './types.ts'
 import { createDemoConfig, MODEL } from './deployment.ts'
 
@@ -125,18 +122,33 @@ export interface DemoConversation {
   readonly actor: AuthenticatedActor
   readonly send: (
     text: string,
-    onAccepted: TextCallRequest['onAccepted'],
-  ) => ReturnType<AcceptanceApplication['startTextCall']>
+    onDelivery: (serialized: string, signal: AbortSignal) => Promise<void>,
+  ) => Promise<DemoSendResult>
+  readonly stopActive: () => void
   readonly history: () => Promise<readonly { role: string; text: string }[]>
   readonly totals: () => Promise<DemoTotals>
   readonly close: AcceptanceApplication['close']
 }
+
+export type DemoSendResult =
+  | { readonly kind: 'saved'; readonly response: ModelResponse; readonly released: boolean }
+  | { readonly kind: 'failed'; readonly response: ModelResponse; readonly released: boolean }
+  | { readonly kind: 'refused' | 'unconfirmed'; readonly released: boolean }
+type DemoSendOutcome =
+  | { readonly kind: 'saved' | 'failed'; readonly response: ModelResponse }
+  | { readonly kind: 'refused' | 'unconfirmed' }
 
 export interface DemoTotals {
   readonly responses: number
   readonly usage: UsageSummary
   readonly cost: Summary
 }
+export interface DemoObserverBounds {
+  readonly events: number
+  readonly bytes: number
+}
+
+const defaultObserverBounds: DemoObserverBounds = Object.freeze({ events: 256, bytes: 262_144 })
 
 /** Production is the default; controlled TLS is available only through the existing trusted test hook. */
 export async function openDemo(
@@ -144,7 +156,15 @@ export async function openDemo(
   tokenMargin: TokenMargin,
   credential?: Uint8Array,
   testOptions?: Partial<Parameters<typeof createAcceptanceApplication>[1]>,
+  observerBounds: DemoObserverBounds = defaultObserverBounds,
 ): Promise<DemoConversation> {
+  if (
+    !Number.isSafeInteger(observerBounds.events) ||
+    observerBounds.events <= 0 ||
+    !Number.isSafeInteger(observerBounds.bytes) ||
+    observerBounds.bytes <= 0
+  )
+    throw new Error('observer buffer bounds must be explicit positive safe integers')
   if (
     credential !== undefined &&
     (!credential.length ||
@@ -179,14 +199,20 @@ export async function openDemo(
     const session = initialized.state.session
     const prepared = await app.prepareSession(actor, session)
     if (!('session' in prepared)) throw new Error('demo session preparation rejected')
+    const bound = await app.bindModelRuntime(actor, session)
+    if (!('service' in bound)) throw new Error('demo model runtime unavailable')
+    const modelRuntime = bound.service
     if (initialized.fresh) {
       if (!('prepared' in (await app.prepareModelInputs(actor, session))))
         throw new Error('demo input preparation rejected')
-      const selected = await app.selectModel(actor, session, MODEL)
+      const selected = await modelRuntime.selectModel({
+        session: prepared.session,
+        routeName: MODEL,
+      })
       if (!('selected' in selected)) throw new Error('explicit demo model selection rejected')
     }
-    const effective = await app.effectiveModel(actor, session)
-    if (!('ok' in effective) || effective.ok.profile.routeName !== MODEL)
+    const effective = await modelRuntime.effectiveModel({ session: prepared.session })
+    if (!('effectiveModel' in effective) || effective.effectiveModel.profile.routeName !== MODEL)
       throw new Error('fixed demo model or current source is unavailable')
     if (credential !== undefined) {
       const ref = parseOpaqueIdentifier(`demo-credential-${randomUUID()}`, 'CredentialRef')
@@ -208,21 +234,29 @@ export async function openDemo(
       })
       await rename(temporary, join(directory, 'demo-state.json'))
     }
+    let activeHost: ReturnType<typeof createDemoCallHost> | undefined
+    let stopped = false
     return {
       model: MODEL,
       session,
       application: app,
       actor,
-      send(text, onAccepted) {
+      async send(text, onDelivery) {
+        if (stopped) return { kind: 'refused', released: true }
         const id = randomUUID()
-        return app.startTextCall(actor, session, {
-          parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
-          noRun: true,
-          tools: [],
-          callId: `call-${id}`,
-          responseId: `response-${id}`,
-          replyId: `reply-${id}`,
-          user: {
+        const host = createDemoCallHost()
+        activeHost = host
+        let grant:
+          | Extract<
+              Awaited<ReturnType<typeof app.openModelObserver>>,
+              { readonly endpoint: object }
+            >
+          | undefined
+        let result: DemoSendOutcome = { kind: 'refused' }
+        try {
+          const opened = await app.openModelObserver(actor, session, undefined, onDelivery)
+          const parsedSession = parseOpaqueIdentifier(session, 'SessionRef')
+          const user = judgeMessage({
             type: 'user',
             id: `user-${id}`,
             createdAt: now(),
@@ -234,9 +268,51 @@ export async function openDemo(
                 visibility: { toHuman: true, toModel: true },
               },
             ],
-          },
-          ...(onAccepted === undefined ? {} : { onAccepted }),
-        })
+          })
+          if (
+            'endpoint' in opened &&
+            isOk(parsedSession) &&
+            'ok' in user &&
+            user.ok.type === 'user'
+          ) {
+            grant = opened
+            const sent = await app.startServiceTextCall(actor, session, {
+              parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+              host: host.host,
+              observer: {
+                session: parsedSession.ok,
+                endpoint: grant.endpoint,
+                observer_max_buffered_events: observerBounds.events,
+                observer_max_buffered_bytes: observerBounds.bytes,
+              },
+              user: user.ok,
+            })
+            if ('result' in sent && 'replyPending' in sent.result) {
+              const settled = await app.persistModelReply(actor, session, sent.result.replyPending)
+              const response = 'settled' in settled ? settled.settled.response.response : null
+              if (response === null || !('ok' in judgeModelResponse(response)))
+                result = { kind: 'unconfirmed' }
+              else result = { kind: 'saved', response: response as unknown as ModelResponse }
+            } else if ('result' in sent && 'settled' in sent.result) {
+              result = { kind: 'failed', response: sent.result.settled }
+            }
+          }
+        } catch {
+          result = { kind: 'unconfirmed' }
+        }
+        const stopResult = await host.stop()
+        const revoked = await grant?.revoke()
+        if (activeHost === host) activeHost = undefined
+        const released =
+          'released' in stopResult && (revoked === undefined || 'released' in revoked)
+        return 'response' in result
+          ? { kind: result.kind, response: result.response, released }
+          : { kind: result.kind, released }
+      },
+      stopActive() {
+        stopped = true
+        const host = activeHost
+        if (host !== undefined) void host.stop().catch(() => undefined)
       },
       async history() {
         const read = await app.readSessionLog(actor, session)

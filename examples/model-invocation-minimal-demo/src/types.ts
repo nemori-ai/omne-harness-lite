@@ -15,6 +15,7 @@ import type {
   TokenMargin,
   SettlementContention,
   SettlementScheduler,
+  ReservationWaitPolicy,
 } from '@omne-harness-lite/model-request-runtime'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
@@ -80,8 +81,14 @@ export interface ModelRequestDeployment {
   readonly transport: Pick<TransportOptions, 'definitions' | 'inputMeters' | 'policy'>
   readonly invocation: Pick<
     InvocationPolicy,
-    'now' | 'schedule' | 'statusCauseTable' | 'credentialRedaction'
+    | 'now'
+    | 'schedule'
+    | 'statusCauseTable'
+    | 'credentialRedaction'
+    | 'firstContentTimeoutMs'
+    | 'idleContentTimeoutMs'
   >
+  readonly reservationWaitPolicy: ReservationWaitPolicy
   readonly settlement: {
     readonly contention: SettlementContention
     readonly scheduler: SettlementScheduler
