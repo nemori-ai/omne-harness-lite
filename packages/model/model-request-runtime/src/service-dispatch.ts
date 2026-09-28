@@ -451,6 +451,10 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             bufferedBytes: 0,
           })
       }
+      if (closing || local.request.host.signal.aborted || local.request.host.stopping())
+        return { runtimeStopped: true }
+      if (owner.admission() !== 'open') return { runtimeStopped: true }
+      if (reservation.view()?.operation.phase !== 'ready') return { unavailable: true }
       const deliveryQueue = observerQueue
       const create = () =>
         createAnchoredModelInvocation({
