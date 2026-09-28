@@ -93,6 +93,22 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
       metrics: ['maxInputTokens'],
     })
     expect(port.sends()).toBe(0)
+    const missingWithInvalidMargin = Reflect.apply(invokeModel, undefined, [
+      {
+        ...raw,
+        tokenMargin: undefined,
+        transport: port.transport,
+        credential: '503',
+        signal: new AbortController().signal,
+        policy: policy(),
+      },
+    ])
+    expect(await missingWithInvalidMargin.outcome).toEqual({
+      rejected: 'invalidInput',
+      reason: 'input_limit_missing',
+      metrics: ['maxInputTokens'],
+    })
+    expect(port.sends()).toBe(0)
     const sawOriginalCap: boolean[] = []
     const prior = Reflect.apply(invokeModel, undefined, [
       {
