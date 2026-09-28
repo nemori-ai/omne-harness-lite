@@ -118,7 +118,33 @@ k27_prompt = k27_template.render(
 k27_ids = encoder("k27").encode(
     k27_prompt, allowed_special="all", disallowed_special=()
 )
-actual = {"k3": result(k3_ids), "k27": result(k27_ids), "k3Split": result(k3_split_ids)}
+parallel = json.loads((HERE / "parallel-results.json").read_text())
+parallel_k3_segments = module.build_chat_segments(
+    parallel["messages"], parallel["tools"], thinking_effort="high"
+)
+parallel_k3_ids = []
+for segment in parallel_k3_segments:
+    parallel_k3_ids += k3.encode(
+        segment.text,
+        allowed_special={segment.text} if segment.allow_special else set(),
+        disallowed_special=(),
+    )
+parallel_k27_prompt = k27_template.render(
+    messages=parallel["messages"],
+    tools=parallel["tools"],
+    tools_ts_str=None,
+    add_generation_prompt=True,
+)
+parallel_k27_ids = encoder("k27").encode(
+    parallel_k27_prompt, allowed_special="all", disallowed_special=()
+)
+actual = {
+    "k3": result(k3_ids),
+    "k27": result(k27_ids),
+    "k3Split": result(k3_split_ids),
+    "parallelK3": result(parallel_k3_ids),
+    "parallelK27": result(parallel_k27_ids),
+}
 expected = json.loads((HERE / "reference-goldens.json").read_text())
-assert actual == expected, (actual, expected)
 print(json.dumps(actual, indent=2))
+assert actual == expected, (actual, expected)

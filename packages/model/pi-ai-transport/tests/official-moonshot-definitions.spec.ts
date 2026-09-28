@@ -48,7 +48,10 @@ describe('official Moonshot MP4 definitions', () => {
       if (!definition) throw new Error(`missing ${row.id}`)
       const expectedRoute = moonshotModelRoutes[row.id]
       expect(definition.revision).toBe('1')
-      expect(definition.implementation).toEqual({ name: 'pi-ai:moonshot', revision: 'mp4-1' })
+      expect(definition.implementation).toEqual({
+        name: 'pi-ai:moonshot',
+        revision: definition.modelId === 'moonshotai/kimi-k3' ? 'mp4-2' : 'mp4-1',
+      })
       expect(definition.routes).toEqual(expectedRoute)
       expect(Object.keys(definition.routes)).toEqual([row.provider])
       expect(definition.capabilities).toEqual({

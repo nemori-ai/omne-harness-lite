@@ -67,9 +67,9 @@ function request(index: 0 | 1): PlanInput {
   }
 }
 
-function multiTurnFixture() {
+function moonshotFixture(name: 'multi-turn' | 'parallel-results') {
   const parsed = readJsonStrict(
-    readFileSync(new URL('./fixtures/moonshot/multi-turn.json', import.meta.url), 'utf8'),
+    readFileSync(new URL(`./fixtures/moonshot/${name}.json`, import.meta.url), 'utf8'),
   )
   if (!('ok' in parsed) || !object(parsed.ok)) throw new Error('invalid pinned Moonshot fixture')
   return parsed.ok
@@ -117,7 +117,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       if (!definition) throw new Error('missing Moonshot definition')
       const body = {
         model: definition.modelId,
-        ...multiTurnFixture(),
+        ...moonshotFixture('multi-turn'),
         ...(index === 0 ? { reasoning: { effort: 'high' } } : {}),
       }
       const measurement = createMoonshotInputMeter(definition).measure({
@@ -125,6 +125,37 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         serialized: writeJsonLossless(body),
       })
       expect(measurement).toEqual({ kind: 'estimated', tokens: expected })
+      const segments = renderMoonshotPromptSegments(route, body)
+      if (!segments) throw new Error('missing Moonshot prompt projection')
+      const tokenizer = moonshotTokenizer(route)
+      const ids = segments.flatMap(segment =>
+        tokenizer.encode(segment.text, segment.control ? [segment.text] : [], []),
+      )
+      expect(createHash('sha256').update(JSON.stringify(ids)).digest('hex')).toBe(idsHash)
+    },
+  )
+
+  it.each([
+    [0, 'k3', 381, '3185c8fc964f3b6caa331b622e63b4450f510883fe0de9175e38f7444f47f038'],
+    [1, 'k27', 169, 'e63b8bc6a00c373ef6707e34a56238cf26c363ca547052a7c47fb6948fb4f4dc'],
+  ] as const)(
+    'matches model %i public template for reversed parallel tool results and later plain reasoning',
+    (index, route, tokens, idsHash) => {
+      const definition = moonshotDefinitions[index]
+      if (!definition) throw new Error('missing Moonshot definition')
+      const body = {
+        model: definition.modelId,
+        ...moonshotFixture('parallel-results'),
+        ...(index === 0 ? { reasoning: { effort: 'high' } } : {}),
+      }
+      const meter = createMoonshotInputMeter(definition)
+      expect(meter.algorithmRevision).toBe(
+        index === 0 ? 'moonshot-k3-xtml-3' : 'moonshot-k27-jinja-2',
+      )
+      expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+        kind: 'estimated',
+        tokens,
+      })
       const segments = renderMoonshotPromptSegments(route, body)
       if (!segments) throw new Error('missing Moonshot prompt projection')
       const tokenizer = moonshotTokenizer(route)

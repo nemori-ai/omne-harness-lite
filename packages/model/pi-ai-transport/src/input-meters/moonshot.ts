@@ -204,6 +204,48 @@ function toolCallK3(call: JsonObject, index: number): Segment[] | undefined {
   result.push(...close('call'))
   return result
 }
+function orderedK3History(history: readonly JsonObject[]): readonly JsonObject[] {
+  // encoding_k3.py sorts each consecutive result run by the preceding
+  // assistant's call IDs. An unresolved run retains its original order.
+  const ordered: JsonObject[] = []
+  let callPositions = new Map<string, number>()
+  for (let index = 0; index < history.length;) {
+    const message = history[index]
+    if (!message) break
+    if (message.role === 'assistant') {
+      callPositions = new Map()
+      if (Array.isArray(message.tool_calls)) {
+        for (const [position, call] of message.tool_calls.entries()) {
+          if (object(call) && typeof call.id === 'string' && !callPositions.has(call.id))
+            callPositions.set(call.id, position)
+        }
+      }
+    }
+    if (message.role !== 'tool') {
+      ordered.push(message)
+      index++
+      continue
+    }
+    const run: JsonObject[] = []
+    while (history[index]?.role === 'tool') {
+      const item = history[index]
+      if (item) run.push(item)
+      index++
+    }
+    if (
+      run.every(
+        item => typeof item.tool_call_id === 'string' && callPositions.has(item.tool_call_id),
+      )
+    )
+      run.sort(
+        (left, right) =>
+          (callPositions.get(String(left.tool_call_id)) ?? 0) -
+          (callPositions.get(String(right.tool_call_id)) ?? 0),
+      )
+    ordered.push(...run)
+  }
+  return ordered
+}
 function renderK3(
   body: JsonObject,
   history: readonly JsonObject[],
@@ -230,7 +272,7 @@ function renderK3(
   }
   let priorCalls: readonly JsonObject[] = []
   let resultIndex = 0
-  for (const message of history) {
+  for (const message of orderedK3History(history)) {
     const role = message.role
     const content = contents(message.content)
     const contentSegments = k3ContentSegments(message.content)
@@ -373,7 +415,7 @@ function meter(
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider,
-    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-2' : 'moonshot-k27-jinja-2',
+    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-3' : 'moonshot-k27-jinja-2',
     evidence: `moonshotai/${source}; tiktoken.model sha256:b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103`,
     measure({
       body,
@@ -395,7 +437,8 @@ export function createMoonshotInputMeter(definition: ModelDefinition): InputMete
   if (
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:moonshot' ||
-    definition.implementation.revision !== 'mp4-1'
+    definition.implementation.revision !==
+      (definition.modelId === 'moonshotai/kimi-k3' ? 'mp4-2' : 'mp4-1')
   )
     throw new TypeError('unsupported Moonshot input-meter binding')
   if (
