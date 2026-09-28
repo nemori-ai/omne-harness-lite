@@ -108,6 +108,26 @@ describe('per-dispatch observer queue', () => {
     expect(await queue.close()).toEqual({ released: true })
   })
 
+  it('measures non-ASCII event envelopes by UTF-8 bytes, not string length', async () => {
+    const unicodeEvent = { t: 'fill', index: 0, payload: '你好' } as const
+    const visible = { ...snapshot, position: 1 }
+    const serialized = writeJsonLossless({
+      scope,
+      kind: 'event',
+      position: 1,
+      event: unicodeEvent,
+    })
+    const bytes = new TextEncoder().encode(serialized).byteLength
+    expect(bytes).toBeGreaterThan(serialized.length)
+    const receive = () => ({ completion: Promise.resolve(), stopped: Promise.resolve() })
+    const small = fixture(receive, { maxBufferedBytes: serialized.length })
+    expect(small.queue.offer(unicodeEvent, visible)).toEqual({
+      rejected: { reason: 'buffer_full' },
+    })
+    const exact = fixture(receive, { maxBufferedBytes: bytes })
+    expect(exact.queue.offer(unicodeEvent, visible)).toEqual({ accepted: true })
+  })
+
   it('isolates a throwing diagnostic and records one asynchronous consumer failure', async () => {
     const fail = deferred()
     const actualStop = deferred()
@@ -159,5 +179,41 @@ describe('per-dispatch observer queue', () => {
     })
     expect(receives).toBe(1)
     expect(diagnostics.at(-1)?.reason).toBe('observer_scope_mismatch')
+  })
+
+  it('drops previously accepted waiting text when scope is revoked', async () => {
+    let valid = true
+    const active = deferred()
+    const stopped = deferred()
+    const delivered: string[] = []
+    const fixtureResult = fixture(
+      text => {
+        delivered.push(text)
+        return { completion: active.promise, stopped: stopped.promise }
+      },
+      {
+        authorization: {
+          check: () =>
+            valid ? { valid: true } : { invalidInput: { reason: 'observer_scope_mismatch' } },
+          open: () => ({ unavailable: true }),
+          close: async () => ({ released: true }),
+        },
+      },
+    )
+    expect(fixtureResult.queue.start(snapshot)).toEqual({ accepted: true })
+    expect(fixtureResult.queue.offer(event, { ...snapshot, position: 1 })).toEqual({
+      accepted: true,
+    })
+    valid = false
+    expect(fixtureResult.queue.offer(event, { ...snapshot, position: 2 })).toEqual({
+      invalidInput: { reason: 'observer_scope_mismatch' },
+    })
+    active.finish()
+    stopped.finish()
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(delivered).toHaveLength(1)
+    expect(
+      fixtureResult.diagnostics.filter(item => item.reason === 'observer_scope_mismatch'),
+    ).toHaveLength(2)
   })
 })

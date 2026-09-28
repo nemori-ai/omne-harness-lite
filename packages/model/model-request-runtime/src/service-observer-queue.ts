@@ -61,6 +61,7 @@ export function createModelObserverQueue(input: ModelObserverQueueInput): ModelO
     scope.target.kind !== 'model_call' ||
     typeof receiver.receive !== 'function' ||
     typeof receiver.stop !== 'function' ||
+    !(receiver.stopped instanceof Promise) ||
     typeof authorization.check !== 'function' ||
     typeof diagnostic !== 'function'
   )
@@ -75,7 +76,9 @@ export function createModelObserverQueue(input: ModelObserverQueueInput): ModelO
   let closed = false
   let failed = false
   let receiverStopped = false
+  let stopRequested = false
   let receiverStopFailed = false
+  let released = false
   let closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
 
   function report(
@@ -112,9 +115,11 @@ export function createModelObserverQueue(input: ModelObserverQueueInput): ModelO
     }
   }
   function stopReceiver(): void {
-    if (receiverStopFailed) return
+    if (stopRequested || receiverStopped) return
     try {
       receiver.stop()
+      stopRequested = true
+      receiverStopFailed = false
     } catch {
       receiverStopFailed = true
     }
@@ -154,11 +159,12 @@ export function createModelObserverQueue(input: ModelObserverQueueInput): ModelO
     }
     const scopeResult = check()
     if (scopeResult !== undefined) {
-      report(
-        'offer',
-        'invalidInput' in scopeResult ? 'observer_scope_mismatch' : 'unavailable',
-        position,
-      )
+      const reason = 'invalidInput' in scopeResult ? 'observer_scope_mismatch' : 'unavailable'
+      report('offer', reason, position)
+      closed = true
+      dropWaiting('delivery', reason)
+      current?.abort.abort()
+      stopReceiver()
       return scopeResult
     }
     let serialized: string
@@ -298,17 +304,20 @@ export function createModelObserverQueue(input: ModelObserverQueueInput): ModelO
       return result
     },
     close() {
+      if (released) return Promise.resolve({ released: true } as const)
       if (closing !== undefined) return closing
       closed = true
       dropWaiting('close', 'consumer_failed')
       current?.abort.abort()
       stopReceiver()
       closing = Promise.resolve()
-        .then(() =>
-          !receiverStopFailed && receiverStopped && current === undefined
-            ? ({ released: true } as const)
-            : ({ unavailable: true } as const),
-        )
+        .then(() => {
+          if (!receiverStopFailed && receiverStopped && current === undefined) {
+            released = true
+            return { released: true } as const
+          }
+          return { unavailable: true } as const
+        })
         .finally(() => {
           closing = undefined
         })
