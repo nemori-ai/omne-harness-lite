@@ -1,0 +1,39 @@
+{
+  "sourceHead": "3f63bdf66ffdde9e4d3cbdcebe13f476de48ce0e",
+  "checkedDate": "2026-09-28",
+  "docIndependentTimestampAvailable": false,
+  "archive": "primary-facts-2026-09-28.tar.gz",
+  "archiveBytes": 41149,
+  "archiveSha256": "4b9e56146655f1ccf0dde571b35b12c49e8e88b9877c9889a7ac403b7c6b3d9a",
+  "manifestSha256": "9027097881c0dabeafa0cc496bfd40e83032361932d6ae9047e1e6397b4969a0",
+  "memberCount": 15,
+  "originalEndpointBytesPreserved": true,
+  "originalMcpJsonToolResultsPreserved": true,
+  "derivedMarkdownNotRawHttp": true,
+  "sources": [
+    {
+      "file": "sol-endpoints.body",
+      "url": "https://openrouter.ai/api/v1/models/openai/gpt-6-sol/endpoints",
+      "method": "single credential-free GET"
+    },
+    {
+      "file": "model-doc.json",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-sol",
+      "method": "OpenAI documentation MCP fetch"
+    },
+    {
+      "file": "gpt6-guide-doc.json",
+      "url": "https://developers.openai.com/api/docs/guides/latest-model",
+      "method": "OpenAI documentation MCP fetch"
+    },
+    {
+      "file": "image-doc.json",
+      "url": "https://developers.openai.com/api/docs/guides/images-vision",
+      "method": "OpenAI documentation MCP fetch"
+    }
+  ],
+  "formalDefinitionFrozen": false,
+  "officialOfferPolicySelected": false,
+  "paidSends": 0,
+  "credentialsRead": false
+}
