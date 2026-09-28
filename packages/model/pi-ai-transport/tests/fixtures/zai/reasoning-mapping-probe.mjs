@@ -69,6 +69,44 @@ const previewHistory = {
   details: [{ type: 'reasoning.text', text: historyText, index: 0 }],
 }
 
+/** Expand a JSON cost lexeme for the existing ledger's unsigned decimal grammar. */
+export function plainUsd(source) {
+  if (typeof source !== 'string') return undefined
+  const match = /^(-?)(0|[1-9]\d*)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(source)
+  if (!match) return undefined
+  const fraction = match[3] ?? ''
+  const digits = (match[2] + fraction).replace(/^0+/, '') || '0'
+  if (digits === '0') return '0'
+  if (match[1] === '-') return undefined
+  const point = BigInt(digits.length) + BigInt(match[4] ?? '0') - BigInt(fraction.length)
+  // This bounds diagnostic evidence size; it never rounds a reported cost.
+  if (point < -4096n || point > 4096n) return undefined
+  if (point <= 0n) return `0.${'0'.repeat(Number(-point))}${digits}`
+  if (point >= BigInt(digits.length)) return digits + '0'.repeat(Number(point) - digits.length)
+  return `${digits.slice(0, Number(point))}.${digits.slice(Number(point))}`
+}
+
+/** Read the selected endpoint's integer context from the original public response. */
+export function exactContextTokens(snapshot, model, endpoint) {
+  const source = snapshot.endpointSources?.[model]?.raw
+  if (typeof source !== 'string') throw new Error(`Original endpoint source missing: ${model}`)
+  const document = JSON.parse(source, (key, value, context) =>
+    key === 'context_length' && typeof value === 'number' ? context.source : value,
+  )
+  const entries = document?.data?.endpoints
+  if (!Array.isArray(entries)) throw new Error(`Original endpoint list missing: ${model}`)
+  const selected = entries.filter(item => item?.tag === endpoint.tag)
+  if (selected.length !== 1 || selected[0].provider_name !== endpoint.provider)
+    throw new Error(`Exact endpoint identity unavailable: ${model}/${endpoint.tag}`)
+  const sourceValue = selected[0].context_length
+  if (typeof sourceValue !== 'string' || !/^[1-9]\d*$/.test(sourceValue))
+    throw new Error(`Exact endpoint context unavailable: ${model}/${endpoint.tag}`)
+  const count = BigInt(sourceValue)
+  if (count > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error(`Endpoint context cannot be reserved safely: ${model}/${endpoint.tag}`)
+  return Number(count)
+}
+
 export function seedHistory(facts) {
   let content = ''
   let reasoning = ''
@@ -240,7 +278,11 @@ async function execute(values) {
     const endpoint = card?.endpoints?.find(item => item.tag === testCase.provider)
     if (!endpoint?.pricing || !endpoint.provider)
       throw new Error(`Exact endpoint/pricing missing: ${testCase.id}`)
-    return { testCase, endpoint }
+    const contextTokens = exactContextTokens(snapshot, testCase.model, endpoint)
+    // The route context is a conservative input-token ceiling for budgeting;
+    // request JSON bytes are not a token bound for server-side prompt framing.
+    const reservationUsd = estimateReservation(endpoint.pricing, contextTokens, 64)
+    return { testCase, endpoint, contextTokens, reservationUsd }
   })
   if (values.dryRun) {
     for (const item of selected)
@@ -265,7 +307,7 @@ async function execute(values) {
     const records = []
     const skipped = []
     let history
-    for (const { testCase, endpoint } of selected) {
+    for (const { testCase, endpoint, contextTokens, reservationUsd } of selected) {
       if (testCase.id === 'glm53-control' && !history) {
         skipped.push({ id: testCase.id, reason: 'seed_returned_no_reasoning' })
         continue
@@ -280,12 +322,11 @@ async function execute(values) {
       }
       const body = makeBody(testCase, history)
       const serialized = JSON.stringify(body)
-      const estimateUsd = estimateReservation(endpoint.pricing, Buffer.byteLength(serialized), 64)
       const reservation = await ledger.reserve({
         model: testCase.model,
         provider: testCase.provider,
         stage: 'research',
-        estimateUsd,
+        estimateUsd: reservationUsd,
       })
       let response
       try {
@@ -316,7 +357,10 @@ async function execute(values) {
         reportedProvider: facts?.provider ?? null,
         promptTokens: facts?.usage?.prompt_tokens ?? null,
         cachedTokens: facts?.cachedTokens ?? null,
-        actualUsd: facts?.usage?.cost ?? null,
+        rawCost: facts?.usage?.cost ?? null,
+        actualUsd: plainUsd(facts?.usage?.cost) ?? null,
+        reservationContextTokens: contextTokens,
+        reservedUsd: reservationUsd,
         snapshotSha256,
         requestSha256: createHash('sha256').update(serialized).digest('hex'),
         reservation,
@@ -325,7 +369,7 @@ async function execute(values) {
         join(directory, `${testCase.id}.json`),
         JSON.stringify({ record, request: body, response, facts }, null, 2),
       )
-      await ledger.settle(reservation, facts?.usage?.cost)
+      await ledger.settle(reservation, record.actualUsd ?? undefined)
       if (
         response.status !== 200 ||
         !facts?.done ||

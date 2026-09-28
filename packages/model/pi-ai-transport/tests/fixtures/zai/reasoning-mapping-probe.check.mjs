@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { cases, makeBody, seedHistory, summarize } from './reasoning-mapping-probe.mjs'
+import {
+  cases,
+  exactContextTokens,
+  makeBody,
+  plainUsd,
+  seedHistory,
+  summarize,
+} from './reasoning-mapping-probe.mjs'
 
 const actualHistory = {
   content: 'The result is 323.',
@@ -113,4 +120,37 @@ test('analysis reports observed differences and missing usage without certifying
   assert.equal(analysis.prime.longMinusControl, 131)
   assert.equal(analysis.flashx.longMinusControl, null)
   assert.equal(analysis.status, 'diagnostic_only_no_meter_binding')
+})
+
+test('cost lexemes expand without floating-point rounding or a fake zero', () => {
+  assert.equal(plainUsd('1.234e-7'), '0.0000001234')
+  assert.equal(plainUsd('1.2300E+2'), '123.00')
+  assert.equal(plainUsd('0.000000000000000123456789'), '0.000000000000000123456789')
+  assert.equal(plainUsd('0e-20'), '0')
+  for (const invalid of [-1, null, '-1e-7', 'NaN', '1e100000', '1.2.3'])
+    assert.equal(plainUsd(invalid), undefined)
+})
+
+test('reservation context comes from the selected raw endpoint, never a card summary', () => {
+  const endpoint = { tag: 'z-ai/fp8', provider: 'Z.AI' }
+  const source = context_length => ({
+    cards: [{ id: 'z-ai/glm-5.3', endpoints: [{ ...endpoint, contextLength: 7 }] }],
+    endpointSources: {
+      'z-ai/glm-5.3': {
+        raw: `{"data":{"endpoints":[{"tag":"z-ai/fp8","provider_name":"Z.AI","context_length":${context_length}}]}}`,
+      },
+    },
+  })
+  assert.equal(exactContextTokens(source('1048576'), 'z-ai/glm-5.3', endpoint), 1048576)
+  assert.throws(() => exactContextTokens(source('null'), 'z-ai/glm-5.3', endpoint))
+  assert.throws(() => exactContextTokens(source('9007199254740993'), 'z-ai/glm-5.3', endpoint))
+  assert.throws(() =>
+    exactContextTokens({ cards: source('1048576').cards }, 'z-ai/glm-5.3', endpoint),
+  )
+  assert.throws(() =>
+    exactContextTokens(source('1048576'), 'z-ai/glm-5.3', {
+      tag: 'z-ai/fp8',
+      provider: 'Another provider',
+    }),
+  )
 })
