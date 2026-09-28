@@ -81,7 +81,7 @@ function request(modelId: string, set = 'fit'): PlanInput {
   }
 }
 
-describe('GPT-6 Sol/Luna limited three-message text estimator', () => {
+describe('GPT-6 Sol text and Luna visible-history estimators', () => {
   let cert: ReturnType<typeof certificate>
   beforeAll(() => {
     cert = certificate()
@@ -90,10 +90,11 @@ describe('GPT-6 Sol/Luna limited three-message text estimator', () => {
 
   it.each(models)('%s binds only the current exact revision', modelId => {
     const selected = definition(modelId)
-    expect(createOpenAiInputMeter(selected)).toMatchObject({
-      definitionRevision: '2',
-      implementation: { revision: 'mp4-2' },
-    })
+    expect(createOpenAiInputMeter(selected)).toMatchObject(
+      modelId === 'openai/gpt-6-sol'
+        ? { definitionRevision: '2', implementation: { revision: 'mp4-2' } }
+        : { definitionRevision: '3', implementation: { revision: 'mp4-4' } },
+    )
     expect(() => createOpenAiInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
     expect(() =>
       createOpenAiInputMeter({
@@ -106,12 +107,10 @@ describe('GPT-6 Sol/Luna limited three-message text estimator', () => {
   it.each(cases)('reproduces independently observed $id without changing the wire', c => {
     const body = bodyFor(c.modelId, c.set)
     const meter = createOpenAiInputMeter(definition(c.modelId))
-    const expected =
-      c.modelId === 'openai/gpt-6-sol' ? (c.set === 'fit' ? 435 : 239) : c.set === 'fit' ? 438 : 242
-    expect(meter.measure({ body, serialized: c.wire })).toEqual({
-      kind: 'estimated',
-      tokens: expected,
-    })
+    const measurement = meter.measure({ body, serialized: c.wire })
+    expect(measurement.kind).toBe('estimated')
+    if (c.modelId === 'openai/gpt-6-sol')
+      expect(measurement).toEqual({ kind: 'estimated', tokens: c.set === 'fit' ? 435 : 239 })
     const planned = planRequest(request(c.modelId, c.set), [definition(c.modelId)], meter)
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.serialized).toBe(c.wire)
@@ -153,48 +152,57 @@ describe('GPT-6 Sol/Luna limited three-message text estimator', () => {
     },
   )
 
-  it.each(models)('%s refuses unsupported final fields, effort and message shapes', modelId => {
-    const meter = createOpenAiInputMeter(definition(modelId))
-    const body = bodyFor(modelId)
-    for (const changed of [
-      { ...body, model: 'openai/gpt-6-astra' },
-      { ...body, tools: [] },
-      { ...body, reasoning: { effort: 'high' } },
-      { ...body, reasoning: { effort: 'low', mode: 'pro' } },
-      { ...body, prompt_cache_options: { ttl: '1h' } },
-      { ...body, messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] },
-      {
+  it.each(models)(
+    '%s refuses unsupported final fields, effort and opaque/media shapes',
+    modelId => {
+      const meter = createOpenAiInputMeter(definition(modelId))
+      const body = bodyFor(modelId)
+      for (const changed of [
+        { ...body, model: 'openai/gpt-6-astra' },
+        { ...body, tools: [] },
+        { ...body, reasoning: { effort: 'high' } },
+        { ...body, reasoning: { effort: 'low', mode: 'pro' } },
+        { ...body, prompt_cache_options: { ttl: '1h' } },
+        {
+          ...body,
+          messages: [
+            { role: 'system', content: [{ type: 'text', text: 'system' }] },
+            {
+              role: 'developer',
+              content: [
+                { type: 'text', text: 'reminder' },
+                { type: 'text', text: 'policy' },
+              ],
+            },
+            {
+              role: 'user',
+              content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
+            },
+          ],
+        },
+        {
+          ...body,
+          messages: [
+            {
+              role: 'assistant',
+              content: '',
+              reasoning_details: [{ type: 'reasoning.encrypted', data: 'opaque' }],
+            },
+          ],
+        },
+      ])
+        expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+          kind: 'unavailable',
+        })
+      const oneVisibleUser = {
         ...body,
-        messages: [
-          { role: 'system', content: [{ type: 'text', text: 'system' }] },
-          {
-            role: 'developer',
-            content: [
-              { type: 'text', text: 'reminder' },
-              { type: 'text', text: 'policy' },
-            ],
-          },
-          {
-            role: 'user',
-            content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
-          },
-        ],
-      },
-      {
-        ...body,
-        messages: [
-          {
-            role: 'assistant',
-            content: '',
-            reasoning_details: [{ type: 'reasoning.encrypted', data: 'opaque' }],
-          },
-        ],
-      },
-    ])
-      expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
-        kind: 'unavailable',
-      })
-  })
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
+      }
+      expect(
+        meter.measure({ body: oneVisibleUser, serialized: writeJsonLossless(oneVisibleUser) }).kind,
+      ).toBe(modelId === 'openai/gpt-6-sol' ? 'unavailable' : 'estimated')
+    },
+  )
 
   it.each(models)(
     '%s sends the exact plan via a service lease and preserves unsupported history',
@@ -233,7 +241,12 @@ describe('GPT-6 Sol/Luna limited three-message text estimator', () => {
           ...input.messages,
           message('user', 'Keep this complete history.', 'followup'),
         ]
-        expect(transport.plan({ ...input, messages: history })).toMatchObject(unavailable)
+        const historyPlan = transport.plan({ ...input, messages: history })
+        if (modelId === 'openai/gpt-6-sol') expect(historyPlan).toMatchObject(unavailable)
+        else {
+          if ('rejected' in historyPlan) throw new Error(JSON.stringify(historyPlan))
+          expect(historyPlan.planned.serialized).toContain('Keep this complete history.')
+        }
         expect(history).toHaveLength(4)
         expect(
           transport.plan({
@@ -241,18 +254,18 @@ describe('GPT-6 Sol/Luna limited three-message text estimator', () => {
             parameters: { reasoningEffort: 'high', maxOutputTokens: 16 },
           }),
         ).toMatchObject(unavailable)
-        expect(
-          transport.plan({
-            ...input,
-            tools: [
-              {
-                name: 'lookup',
-                description: 'Lookup a fact',
-                parameters: { type: 'object', properties: {} },
-              },
-            ],
-          }),
-        ).toMatchObject(unavailable)
+        const withTools = transport.plan({
+          ...input,
+          tools: [
+            {
+              name: 'lookup',
+              description: 'Lookup a fact',
+              parameters: { type: 'object', properties: {} },
+            },
+          ],
+        })
+        if (modelId === 'openai/gpt-6-sol') expect(withTools).toMatchObject(unavailable)
+        else expect(withTools).toHaveProperty('planned')
         expect(host.requests).toHaveLength(0)
         const planned = transport.plan(input)
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))

@@ -22,12 +22,8 @@ import {
   sse,
 } from './support.ts'
 import packet from './fixtures/openai/visible-history-candidate-cases.json' with { type: 'json' }
+import observations from './fixtures/openai/luna-visible-history-observations.json' with { type: 'json' }
 
-const unavailable = {
-  rejected: 'invalidInput',
-  reason: 'input_size_unavailable',
-  metrics: ['maxInputTokens'],
-}
 const visibility = { toHuman: true, toModel: true }
 const at = '2026-09-28T00:00:00Z'
 
@@ -35,6 +31,13 @@ function definition(modelId: string) {
   const selected = openaiDefinitions.find(d => d.modelId === modelId)
   if (!selected) throw new Error(`missing ${modelId}`)
   return selected
+}
+
+function historyMeter(modelId: string) {
+  const selected = definition(modelId)
+  return modelId === 'openai/gpt-6-luna'
+    ? createOpenAiInputMeter(selected)
+    : createOpenAiVisibleHistoryCandidateMeter(selected)
 }
 
 function finalBody(c: (typeof packet.cases)[number]): JsonObject {
@@ -180,18 +183,38 @@ function request(c: (typeof packet.cases)[number]): PlanInput {
   }
 }
 
-describe('unbound OpenAI visible-history candidate', () => {
+describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
   let cert: ReturnType<typeof certificate>
   beforeAll(() => {
     cert = certificate()
   })
   afterAll(() => cert.dispose())
 
+  it.each(observations.cases)(
+    '$id keeps the live Luna observation attached to its frozen request',
+    observed => {
+      const frozen = packet.cases.find(value => value.id === observed.id)
+      if (!frozen) throw new Error(`missing frozen request: ${observed.id}`)
+      expect(frozen.modelId).toBe('openai/gpt-6-luna')
+      expect(frozen.requestSha256).toBe(observed.requestSha256)
+      expect(observed.estimatedInputTokens).toBe(frozen.expectedTokens)
+      expect(observed.estimatedInputTokens - observed.upstreamInputTokens).toBe(
+        observed.overestimateTokens,
+      )
+      expect(observations.route).toBe('openai')
+      expect(observations.datedModel).toBe('openai/gpt-6-luna-20260922')
+      expect(observed.generationId).toMatch(/^gen-/u)
+      expect(
+        historyMeter(frozen.modelId).measure({ body: finalBody(frozen), serialized: frozen.wire }),
+      ).toEqual({ kind: 'estimated', tokens: observed.estimatedInputTokens })
+    },
+  )
+
   it.each(packet.cases)(
     '$id preserves the final planner body and counts every visible field',
     c => {
       const selected = definition(c.modelId)
-      const meter = createOpenAiVisibleHistoryCandidateMeter(selected)
+      const meter = historyMeter(c.modelId)
       const body = finalBody(c)
       expect(meter.measure({ body, serialized: c.wire })).toEqual({
         kind: 'estimated',
@@ -241,7 +264,7 @@ describe('unbound OpenAI visible-history candidate', () => {
     const transport = createPiAiTransport({
       ...host.options,
       definitions: selected,
-      inputMeters: selected.map(createOpenAiVisibleHistoryCandidateMeter),
+      inputMeters: selected.map(value => historyMeter(value.modelId)),
     })
     try {
       for (const c of packet.cases) {
@@ -268,7 +291,7 @@ describe('unbound OpenAI visible-history candidate', () => {
     const c = packet.cases.find(value => value.id === 'luna-paired-tool-history')
     if (!c) throw new Error('missing tool case')
     const body = finalBody(c)
-    const meter = createOpenAiVisibleHistoryCandidateMeter(definition(c.modelId))
+    const meter = historyMeter(c.modelId)
     const changed = (value: JsonObject) =>
       meter.measure({ body: value, serialized: writeJsonLossless(value) })
     expect(meter.measure({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
@@ -362,12 +385,7 @@ describe('unbound OpenAI visible-history candidate', () => {
       ],
     }
     expect(changed(alteredTools)).not.toEqual(changed(body))
-    expect(
-      planRequest(
-        request(c),
-        [definition(c.modelId)],
-        createOpenAiInputMeter(definition(c.modelId)),
-      ),
-    ).toMatchObject(unavailable)
+    expect(planRequest(request(c), [definition(c.modelId)], meter)).toHaveProperty('planned')
+    expect(() => createOpenAiVisibleHistoryCandidateMeter(definition(c.modelId))).toThrow(TypeError)
   })
 })

@@ -279,7 +279,7 @@ function visibleTextParts(value: unknown): boolean {
   )
 }
 
-/** Research candidate for fully visible GPT-6 Sol/Luna history, not an official binding. */
+/** Shared visible-history estimator; adoption remains scoped to each model binding. */
 function visibleHistoryTokens(
   body: JsonObject,
   modelId: string,
@@ -382,10 +382,10 @@ function visibleHistoryTokens(
   return tokenizer.encode(writeJsonLossless(visible)).length
 }
 
-/** Unbound candidate. A later, independently verified definition revision must adopt it. */
+/** Unbound Sol candidate. Luna has its own verified official binding. */
 export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefinition): InputMeter {
   if (
-    (definition.modelId !== 'openai/gpt-6-sol' && definition.modelId !== 'openai/gpt-6-luna') ||
+    definition.modelId !== 'openai/gpt-6-sol' ||
     definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:openai' ||
     definition.implementation.revision !== 'mp4-2' ||
@@ -400,7 +400,7 @@ export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefini
     provider: 'openai',
     algorithmRevision: 'openai-gpt-6-visible-history-json-o200k-candidate-1',
     evidence:
-      'Unbound research candidate: o200k_base lossless JSON of complete visible messages and tools; OpenRouter OpenAI Sol/Luna low effort prior tool receipts and six frozen request probes; no framing bound or live history certification',
+      'Unbound Sol research candidate: o200k_base lossless JSON of complete visible messages and tools; frozen request probes only; no live Sol history certification or framing bound',
     measure({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
       try {
@@ -416,14 +416,16 @@ export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefini
 
 /** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
-  const gpt6Text =
-    definition.modelId === 'openai/gpt-6-sol' || definition.modelId === 'openai/gpt-6-luna'
+  const gpt6SolText = definition.modelId === 'openai/gpt-6-sol'
+  const gpt6LunaVisibleHistory = definition.modelId === 'openai/gpt-6-luna'
   const imageRule = imageRuleFor(definition.modelId)
+  const revision = gpt6SolText ? '2' : '3'
+  const implementationRevision = gpt6SolText ? 'mp4-2' : gpt6LunaVisibleHistory ? 'mp4-4' : 'mp4-3'
   if (
-    (!gpt6Text && !imageRule) ||
-    definition.revision !== (gpt6Text ? '2' : '3') ||
+    (!gpt6SolText && !gpt6LunaVisibleHistory && !imageRule) ||
+    definition.revision !== revision ||
     definition.implementation.name !== 'pi-ai:openai' ||
-    definition.implementation.revision !== (gpt6Text ? 'mp4-2' : 'mp4-3') ||
+    definition.implementation.revision !== implementationRevision ||
     !Object.hasOwn(definition.routes, 'openai')
   )
     throw new TypeError('unsupported OpenAI input-meter binding')
@@ -433,17 +435,23 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'openai',
-    algorithmRevision: gpt6Text
+    algorithmRevision: gpt6SolText
       ? 'openai-gpt-6-text-three-message-o200k-surrogate-1'
-      : 'openai-gpt-5.6-o200k-base-3',
-    evidence: gpt6Text
-      ? 'OpenRouter OpenAI GPT-6 Sol/Luna separate low-effort three-message baseline/fit/holdout, frozen o200k text surrogate +14; openai-v2-sol-luna-80fe189b-8a59-4d1b-89da-02cd553c97e8 (2026-09-28); exact tokenizer and whole-domain error unknown'
-      : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated',
+      : gpt6LunaVisibleHistory
+        ? 'openai-gpt-6-luna-visible-history-json-o200k-1'
+        : 'openai-gpt-5.6-o200k-base-3',
+    evidence: gpt6SolText
+      ? 'OpenRouter OpenAI GPT-6 Sol low-effort three-message baseline/fit/holdout, frozen o200k text surrogate +14; openai-v2-sol-luna-80fe189b-8a59-4d1b-89da-02cd553c97e8 (2026-09-28); exact tokenizer and whole-domain error unknown'
+      : gpt6LunaVisibleHistory
+        ? 'OpenRouter OpenAI GPT-6 Luna low-effort visible text/tool/reminder history: three frozen full-wire live requests and independent generation GET (2026-09-28), estimated 126/302/410 versus actual input 70/178/236; error outside these samples and private framing unknown'
+        : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated',
     measure({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-      if (gpt6Text) {
+      if (gpt6SolText || gpt6LunaVisibleHistory) {
         try {
-          const tokens = threeMessageTextTokens(body, definition.modelId, tokenizer)
+          const tokens = gpt6SolText
+            ? threeMessageTextTokens(body, definition.modelId, tokenizer)
+            : visibleHistoryTokens(body, definition.modelId, tokenizer)
           return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
         } catch {
           return { kind: 'unavailable' }
