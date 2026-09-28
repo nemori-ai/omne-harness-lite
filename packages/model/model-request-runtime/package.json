@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Standalone model invocation, dispatch guard, exact retry delay and pure log codec; durable service is pending",
+  "description": "Standalone model invocation, pure selection, dispatch guard, exact retry delay and log codec; durable service is pending",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -30,6 +30,7 @@
     "@omne-harness-lite/arrival-events": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
+    "@omne-harness-lite/model-profile-directory": "workspace:*",
     "@omne-harness-lite/model-response": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",

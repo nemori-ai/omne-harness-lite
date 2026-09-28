@@ -1060,6 +1060,9 @@ importers:
       '@omne-harness-lite/model-profile':
         specifier: workspace:*
         version: link:../../core/model-profile
+      '@omne-harness-lite/model-profile-directory':
+        specifier: workspace:*
+        version: link:../model-profile-directory
       '@omne-harness-lite/model-response':
         specifier: workspace:*
         version: link:../../core/model-response

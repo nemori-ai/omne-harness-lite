@@ -174,6 +174,59 @@ if (!('ok' in rawError) || writeJsonLossless(rawError.ok) !== '["█",null,90071
 
 设凭据长 k、输入长 n、最小片段 m、描述数 d；内核建立最多 k 个固定宽窗口及四个线性终点数组，每个位置最多比较 d 个长度不超过 64 的 literal。工作界为 O(km + n(m + 64d) + output)，以 Set 的精确字符串相等为判据，不以 hash 相同代相等；终点工作内存 O(n)，另有窗口／配置和输出数据。JSON 准入与投影使用迭代遍历，键碰撞后缀的工作包含所需输出键的大小。有限极端输入量测不证明无限输入或同进程沙箱，闭包也不承诺物理内存擦除。
 
+## 从显式目录事实计算模型选择
+
+`legalTargets(rows, allowed, projection, compatible)`、`displayList(rows, allowed, projection, compatible, selected, credentials)` 与 `effectiveModel(selected, lock, rows, allowed)` 是同步纯函数，落实 [RT5 S-10～S-12/S-60](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-60-纯判定与可单取用构件)，复用目录公开的胜出规则。它们没有会话、授权、存储、Cordis 或 IO 端口。事实的当前性、完整性、合法取得及已经求得的会话之上层锁归调用方负责，函数不证明这些前提。
+
+集合输入用无重复的只读数组表达，事实显式为 `{ known: value }` 或 `{ unknown: true }`。已知空投影合法；选中模型已知为 `null` 表示没有耐久初始选择，返回 `unavailable`。锁已知为 `null` 表示当前求值确认没有会话之上的锁，包括可选 model 项缺席；未知锁不能当作无锁。每行须为保留完整 adaptation 的 profile3，与 ref 匹配、同一格不重名，所有路由名共同属于同一组织／租户链。`compatible` 必须纯粹实现“投影 ⊆ 完整档案输入模态”，返回的 `ok` 或非空 `blocked` 集合会按该关系复核。这一显式调用方依赖不意味着已经实现或接入模态投影提供者。
+
+下列教学数据无需凭据或服务即可验证三个操作。公开 import 所用的 runtime 与 model-profile-directory 须声明为直接依赖；它不是可发送的官方模型定义。
+
+```ts
+import {
+  legalTargets, displayList, effectiveModel, type SelectionCompatibility,
+} from '@omne-harness-lite/model-request-runtime'
+import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
+
+const rows: readonly ProfileRow[] = [{
+  ref: { origin: 'official', routeName: 'teaching/model' },
+  profile: {
+    routeName: 'teaching/model', origin: 'official', registration: 'listed',
+    adaptation: {
+      implementation: { name: 'teaching', revision: 'one' },
+      definition: { modelId: 'teaching/model', revision: 'one' },
+      configuration: { revision: 'one', values: {} },
+    },
+    providers: ['teaching-provider'], allowFallback: false,
+    inputModalities: ['text'], outputModalities: ['text'],
+    maxInputTokens: 100, maxOutputTokens: 10, inputConstraints: {},
+    updatedAt: '2026-09-27T00:00:00Z',
+  },
+}]
+const compatible: SelectionCompatibility = (profile, projection) => {
+  const blocked = projection.filter(modality => !profile.inputModalities.includes(modality))
+  return blocked.length === 0 ? { ok: true } : { blocked }
+}
+const allowed = { known: ['teaching/model'] }
+const projection = { known: [] }
+const selected = { known: 'teaching/model' }
+const legal = legalTargets({ known: rows }, allowed, projection, compatible)
+if (!('ok' in legal) || legal.ok[0] !== 'teaching/model') throw new Error('Expected a legal target')
+const list = displayList({ known: rows }, allowed, projection, compatible, selected, {
+  known: [{ ref: { origin: 'official', routeName: 'teaching/model' }, present: { known: false } }],
+})
+if (!('ok' in list) || !list.ok[0]?.selected ||
+  !list.ok[0].annotations.includes('credential_missing')) throw new Error('Expected missing-credential annotation')
+const effective = effectiveModel(selected, { known: 'teaching/model' }, { known: rows }, allowed)
+if (!('ok' in effective) || effective.ok.selectedBy !== 'layer_lock')
+  throw new Error('An equal-name lock keeps its source')
+console.log(legal.ok[0], list.ok[0].annotations, effective.ok.selectedBy)
+```
+
+合法目标不因凭据缺失或据点传输能力而过滤。租户行撤回后在册的更一般行可以胜出；胜出行缺凭据或模态不符时不回退。没有胜出行时，落点先取最具体在册行，再取已撤回行。展示列表为合法名字加选中名字，每条附自有不可变 ref 与注记；被覆盖行只作注记，不能另选。没有胜出行只标恰一个 `withdrawn` 或 `scope_disallowed`，不问该行的凭据或模态。
+
+成功为 `{ ok: value }`；非法或缺必需数据返回 `{ invalidInput: { reason } }`，必需事实明确未知或兼容回调意外抛错返回 `{ unavailable: true }`，不交出原异常或部分集合。选中／有效名字在链上查无行时返回 `{ profileNotFound: true }`。凭据有无按完整胜出 ref 与来源匹配：缺必需事实是 malformed，显式未知有无是 unavailable。结果自持且深度不可变；借用回调寿命仍归调用者。十三操作耐久服务、实际当前求值读取及持久投影缓存尚待交付。
+
 ## 开发与验证
 
 ```sh

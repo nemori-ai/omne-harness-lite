@@ -264,6 +264,59 @@ This surface processes raw/error JSON. Required business status, identity and co
 
 For credential length k, input length n, minimum m and descriptor count d, the kernel builds at most k fixed-width windows and four linear endpoint arrays, then compares at most d literals of length at most 64 per position. Work is bounded by O(km + n(m + 64d) + output), with exact Set string equality rather than hash equality as authority; endpoint working memory is O(n), plus window/configuration and output data. JSON admission and projection use iterative traversal. Key-collision suffix work includes the size of the required output names. Finite adversarial measurements do not prove unlimited input or same-process sandboxing, and closures do not promise physical memory erasure.
 
+## Choose from explicit directory facts
+
+`legalTargets(rows, allowed, projection, compatible)`, `displayList(rows, allowed, projection, compatible, selected, credentials)` and `effectiveModel(selected, lock, rows, allowed)` are synchronous pure functions. They implement [RT5 S-10–S-12/S-60](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v5/contract.md#s-60-纯判定与可单取用构件), reusing the directory's public winner rule. They have no session, authority, storage, Cordis or IO port. Currentness, completeness, lawful acquisition and the evaluated above-session lock are the caller's responsibility; these functions do not establish those facts.
+
+Set inputs use readonly arrays with no duplicates. Each input is explicitly `{ known: value }` or `{ unknown: true }`; known empty projection is valid. A known `null` selection means there is no durable initial selection and returns `unavailable`. A known `null` lock means evaluation confirmed no above-session lock, including a missing optional model setting. Unknown lock never means no lock. Rows must be complete profile3 values with matching refs, no duplicate scope/name and one organization/tenant chain across all route names. `compatible` must be pure and implement projection ⊆ full-profile input modalities; the returned `ok` or nonempty `blocked` set is checked against that relation. This caller dependency does not claim to implement or connect the modality-projection provider.
+
+The following teaching data exercises all three functions without a credential or service. Declare the runtime and model-profile-directory packages as direct dependencies for these public imports. The example is not a live official model definition.
+
+```ts
+import {
+  legalTargets, displayList, effectiveModel, type SelectionCompatibility,
+} from '@omne-harness-lite/model-request-runtime'
+import type { ProfileRow } from '@omne-harness-lite/model-profile-directory'
+
+const rows: readonly ProfileRow[] = [{
+  ref: { origin: 'official', routeName: 'teaching/model' },
+  profile: {
+    routeName: 'teaching/model', origin: 'official', registration: 'listed',
+    adaptation: {
+      implementation: { name: 'teaching', revision: 'one' },
+      definition: { modelId: 'teaching/model', revision: 'one' },
+      configuration: { revision: 'one', values: {} },
+    },
+    providers: ['teaching-provider'], allowFallback: false,
+    inputModalities: ['text'], outputModalities: ['text'],
+    maxInputTokens: 100, maxOutputTokens: 10, inputConstraints: {},
+    updatedAt: '2026-09-27T00:00:00Z',
+  },
+}]
+const compatible: SelectionCompatibility = (profile, projection) => {
+  const blocked = projection.filter(modality => !profile.inputModalities.includes(modality))
+  return blocked.length === 0 ? { ok: true } : { blocked }
+}
+const allowed = { known: ['teaching/model'] }
+const projection = { known: [] }
+const selected = { known: 'teaching/model' }
+const legal = legalTargets({ known: rows }, allowed, projection, compatible)
+if (!('ok' in legal) || legal.ok[0] !== 'teaching/model') throw new Error('Expected a legal target')
+const list = displayList({ known: rows }, allowed, projection, compatible, selected, {
+  known: [{ ref: { origin: 'official', routeName: 'teaching/model' }, present: { known: false } }],
+})
+if (!('ok' in list) || !list.ok[0]?.selected ||
+  !list.ok[0].annotations.includes('credential_missing')) throw new Error('Expected missing-credential annotation')
+const effective = effectiveModel(selected, { known: 'teaching/model' }, { known: rows }, allowed)
+if (!('ok' in effective) || effective.ok.selectedBy !== 'layer_lock')
+  throw new Error('An equal-name lock keeps its source')
+console.log(legal.ok[0], list.ok[0].annotations, effective.ok.selectedBy)
+```
+
+Legal targets do not filter credentials or deployment transport capabilities. A withdrawn tenant row lets a listed general row win; missing credentials or incompatible modalities do not cause fallback from the winner. Without a winner, landing prefers the most-specific listed row before any withdrawn row. Display includes legal names plus the selected name, with immutable refs and annotations; covered rows are annotations, not choices. No winner means exactly `withdrawn` or `scope_disallowed`, without evaluating its credentials or compatibility.
+
+Success is `{ ok: value }`. Malformed or missing required data returns `{ invalidInput: { reason } }`; explicit unknown required facts and an unexpectedly throwing compatibility callback return `{ unavailable: true }` without its original error. No partial result is returned. A selected/effective name with no row returns `{ profileNotFound: true }`. Credential facts are keyed by full winning ref and origin: absent required fact is malformed, explicitly unknown presence is unavailable. Outputs are owned and deeply immutable; borrowed callbacks remain caller-owned. The durable thirteen-operation service, actual current-evaluation reader and persistent projection cache remain pending.
+
 ## Development
 
 ```sh

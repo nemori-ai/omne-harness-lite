@@ -19,3 +19,5 @@ export {
   redact,
 } from './credential-redaction.ts'
 export type * from './credential-redaction-types.ts'
+export { legalTargets, displayList, effectiveModel } from './selection.ts'
+export type * from './selection-types.ts'
