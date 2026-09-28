@@ -112,6 +112,30 @@ describe('D088 K1 fixed tuples and exact values', () => {
   })
 })
 describe('D088 P1 ownership and D/R reconstruction', () => {
+  it('preserves the MR8 interrupted null sentAt in current mrr/3 value capture', () => {
+    const { reply: _reply, replyDisposition: _disposition, ...withoutReply } = response
+    const interrupted = {
+      ...withoutReply,
+      outcome: 'interrupted',
+      initiator: 'runtime_lost',
+      timing: { ...jsonObject(response.timing), sentAt: null },
+    }
+    const captured = captureModelLogValue({
+      category: 'response',
+      input: { kind: 'text', text: writeJsonLossless(interrupted) },
+    })
+    if (!('ok' in captured)) throw new Error('expected current interrupted value')
+    expect(captured.ok.response?.timing.sentAt).toBeNull()
+    expect(writeJsonLossless(captured.ok.value)).toBe(writeJsonLossless(interrupted))
+    for (const outcome of ['complete', 'truncated', 'failed']) {
+      expect(
+        captureModelLogValue({
+          category: 'response',
+          input: { kind: 'value', value: { ...interrupted, outcome } },
+        }),
+      ).toHaveProperty('invalidValue')
+    }
+  })
   it('captures strict text/value once, refusing duplicate members and object execution', () => {
     const text = writeJsonLossless(response)
     expect(

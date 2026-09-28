@@ -134,17 +134,57 @@ function before(a: LogEntry, b: LogEntry): boolean {
   return ExactDecimal.from(a.position).compare(ExactDecimal.from(b.position)) < 0
 }
 function timingOrdered(
-  timing: { readonly sentAt: string; readonly endedAt: string } & JsonObject,
+  timing: { readonly sentAt: string | null; readonly endedAt: string } & JsonObject,
 ): boolean {
   const first = timing.firstTokenAt
-  const initial = compareRfc3339Instants(
-    timing.sentAt,
-    first === undefined ? timing.endedAt : first,
-  )
-  if (!('ok' in initial) || initial.ok > 0) return false
+  if (timing.sentAt !== null) {
+    const initial = compareRfc3339Instants(
+      timing.sentAt,
+      first === undefined ? timing.endedAt : first,
+    )
+    if (!('ok' in initial) || initial.ok > 0) return false
+  }
   if (first === undefined) return true
   const final = compareRfc3339Instants(first, timing.endedAt)
   return 'ok' in final && final.ok <= 0
+}
+
+/** Rebuild the fixed adapted plan from the durable dispatched record. */
+export function reconstructAdaptedParameters(record: unknown): JsonValue | undefined {
+  const copied = copyJsonValue(record)
+  if ('failed' in copied || !object(copied.ok)) return undefined
+  const owned = copied.ok
+  const parameters = owned.parameters
+  if (!object(parameters)) return undefined
+  const sent: Record<string, JsonValue> = { ...parameters }
+  const extra = object(parameters.extra) ? { ...parameters.extra } : null
+  const adjustments = owned.parameterAdjustments
+  if (Array.isArray(adjustments))
+    for (const adjustment of adjustments) {
+      if (
+        !object(adjustment) ||
+        typeof adjustment.name !== 'string' ||
+        adjustment.sent === undefined
+      )
+        return undefined
+      if (Object.hasOwn(sent, adjustment.name) && adjustment.name !== 'extra')
+        sent[adjustment.name] = adjustment.sent
+      else if (extra !== null && Object.hasOwn(extra, adjustment.name))
+        extra[adjustment.name] = adjustment.sent
+      else return undefined
+    }
+  if (Array.isArray(owned.droppedParameters))
+    for (const name of owned.droppedParameters) {
+      if (typeof name !== 'string') return undefined
+      if (Object.hasOwn(sent, name) && name !== 'extra') delete sent[name]
+      else if (extra !== null && Object.hasOwn(extra, name)) delete extra[name]
+      else return undefined
+    }
+  if (extra !== null) {
+    if (Object.keys(extra).length === 0) delete sent.extra
+    else sent.extra = extra
+  }
+  return sent
 }
 
 function purpose(
@@ -278,42 +318,6 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
       ) ?? null
     )
   }
-  function appliedParameters(record: JsonObject): JsonValue | undefined {
-    if (!object(record.parameters)) return undefined
-    const sent: Record<string, JsonValue> = { ...record.parameters }
-    const extra = object(record.parameters.extra) ? { ...record.parameters.extra } : null
-    const adjustments = record.parameterAdjustments
-    if (Array.isArray(adjustments))
-      for (const adjustment of adjustments) {
-        if (
-          !object(adjustment) ||
-          typeof adjustment.name !== 'string' ||
-          adjustment.sent === undefined
-        )
-          return undefined
-        if (Object.hasOwn(sent, adjustment.name) && adjustment.name !== 'extra')
-          sent[adjustment.name] = adjustment.sent
-        else if (extra !== null && Object.hasOwn(extra, adjustment.name))
-          Object.defineProperty(extra, adjustment.name, {
-            value: adjustment.sent,
-            enumerable: true,
-            configurable: true,
-          })
-        else return undefined
-      }
-    if (Array.isArray(record.droppedParameters))
-      for (const name of record.droppedParameters) {
-        if (typeof name !== 'string') return undefined
-        if (Object.hasOwn(sent, name) && name !== 'extra') delete sent[name]
-        else if (extra !== null && Object.hasOwn(extra, name)) delete extra[name]
-        else return undefined
-      }
-    if (extra !== null) {
-      if (Object.keys(extra).length === 0) delete sent.extra
-      else sent.extra = extra
-    }
-    return sent
-  }
   function association(
     input: InspectSettlementMembersInput,
     members: readonly Member[],
@@ -373,7 +377,7 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     if (
       !modelLogJsonEqual(response.route.parameterAdjustments, record.parameterAdjustments) ||
       !modelLogJsonEqual(response.route.droppedParameters, record.droppedParameters) ||
-      !modelLogJsonEqual(response.route.parameters, appliedParameters(record))
+      !modelLogJsonEqual(response.route.parameters, reconstructAdaptedParameters(record))
     )
       return inconsistent('parameters')
     const firstToken = response.timing.firstTokenAt

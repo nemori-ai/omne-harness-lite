@@ -726,4 +726,25 @@ describe('D088 complete association prior to production gates', () => {
     )
     expect(inspectSettlementMembers(alias)).toEqual({ inconsistent: true, reason: 'opened' })
   })
+  it('skips only the absent actual sentAt comparison for MR8 interrupted recovery', () => {
+    const { reply: _reply, replyDisposition: _disposition, ...withoutReply } = response
+    const base = {
+      ...withoutReply,
+      outcome: 'interrupted',
+      initiator: 'runtime_lost',
+      timing: {
+        sentAt: null,
+        firstTokenAt: '2026-09-27T00:00:01Z',
+        endedAt: '2026-09-27T00:00:02Z',
+      },
+    }
+    const lawful = inspectSettlementMembers(inputWithAnchors(base, base.timing.firstTokenAt))
+    if (!('completeMembers' in lawful)) throw new Error('expected nullable interrupted batch')
+    expect(lawful.completeMembers.response.response?.timing.sentAt).toBeNull()
+    const reversed = { ...base, timing: { ...base.timing, endedAt: '2026-09-27T00:00:00Z' } }
+    expect(inspectSettlementMembers(inputWithAnchors(reversed, base.timing.firstTokenAt))).toEqual({
+      inconsistent: true,
+      reason: 'timing',
+    })
+  })
 })

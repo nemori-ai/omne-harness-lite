@@ -32,7 +32,7 @@ export interface ModelLogResponseProjection extends JsonObject {
   readonly dispatch: JsonNumber
   readonly call: JsonObject & { readonly callId: string }
   readonly route: JsonObject
-  readonly timing: JsonObject & { readonly sentAt: string; readonly endedAt: string }
+  readonly timing: JsonObject & { readonly sentAt: string | null; readonly endedAt: string }
   readonly usage: JsonObject
   readonly cost: JsonObject
   readonly outcome: string
@@ -46,7 +46,7 @@ function responseProjection(value: JsonValue): value is ModelLogResponseProjecti
     typeof value.call.callId === 'string' &&
     object(value.route) &&
     object(value.timing) &&
-    typeof value.timing.sentAt === 'string' &&
+    (typeof value.timing.sentAt === 'string' || value.timing.sentAt === null) &&
     typeof value.timing.endedAt === 'string' &&
     object(value.usage) &&
     object(value.cost) &&
