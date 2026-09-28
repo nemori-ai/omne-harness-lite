@@ -24,7 +24,7 @@ import {
 } from './log-codec-key.ts'
 import { capturedFormat, createValueCodec, type CapturedModelLogValue } from './log-codec-value.ts'
 
-import { legacyCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
+import { currentCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
 
 export interface ModelLogShell {
   readonly tenant: TenantId
@@ -224,7 +224,7 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
         input: { kind: 'value', value: value.value },
       },
       value.format,
-      writable || domain === legacyCodecDomain,
+      true,
     )
   }
   function inspectModelLogEntry(
@@ -301,4 +301,4 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
   return Object.freeze({ prepareModelLogEntry, inspectModelLogEntry, captureWrapper })
 }
 export const { prepareModelLogEntry, inspectModelLogEntry, captureWrapper } =
-  createEntryCodec(legacyCodecDomain)
+  createEntryCodec(currentCodecDomain)

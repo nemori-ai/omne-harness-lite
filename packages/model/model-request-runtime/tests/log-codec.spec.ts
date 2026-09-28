@@ -38,14 +38,15 @@ function key(input: ModelLogKey): string {
 }
 describe('D088 K1 fixed tuples and exact values', () => {
   it('matches a literal all-code-unit encoding and rejects alternative JSON spellings', () => {
-    expect(modelLogFormat).toBe('mrr/1')
-    expect(key({ kind: 'all' })).toBe('mrr/1/["\\u0061\\u006c\\u006c"]')
+    expect(modelLogFormat).toBe('mrr/3')
+    expect(key({ kind: 'all' })).toBe('mrr/3/["\\u0061\\u006c\\u006c"]')
     for (const input of [
-      'mrr/1/["all"]',
-      'mrr/1/["\\u0061\\u006C\\u006c"]',
-      'mrr/1/[ "\\u0061\\u006c\\u006c"]',
+      'mrr/3/["all"]',
+      'mrr/3/["\\u0061\\u006C\\u006c"]',
+      'mrr/3/[ "\\u0061\\u006c\\u006c"]',
       key({ kind: 'all' }) + ' ',
-      key({ kind: 'all' }).replace('mrr/1', 'mrr/2'),
+      key({ kind: 'all' }).replace('mrr/3', 'mrr/1'),
+      key({ kind: 'all' }).replace('mrr/3', 'mrr/2'),
     ])
       expect(decodeModelLogKey(input)).toEqual({ invalidKey: true })
   })

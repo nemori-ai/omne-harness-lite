@@ -10,7 +10,7 @@ import {
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 
-export const modelLogFormat = 'mrr/1'
+export const modelLogFormat = 'mrr/3'
 
 export type ModelLogKey =
   | { readonly kind: 'all' | 'messages' | 'selection' }

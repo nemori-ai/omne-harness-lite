@@ -1,12 +1,13 @@
-import type { AssistantMessage, MessageId } from '@omne-harness-lite/messages'
+import type { MessageId } from '@omne-harness-lite/messages'
 import type { ModelProfileRef } from '@omne-harness-lite/model-profile'
 import type {
   CredentialScope,
   SelectedBy,
   ReplyDisposition,
   ModelResponse,
-} from '@omne-harness-lite/model-response/v5'
-import type { CapturedModelLogValue } from './log-codec-v2.ts'
+  PendingModelResponse,
+} from '@omne-harness-lite/model-response'
+import type { CapturedModelLogValue } from './log-codec.ts'
 import type {
   InvocationInput,
   PlanInput,
@@ -38,13 +39,8 @@ export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
 export type ResponseConstructionResult =
   | { readonly response: ModelResponse; readonly captured: CapturedModelLogValue }
   | { readonly rejected: 'invalidInput' }
-export interface AnchoredReplyPending {
-  readonly reply: AssistantMessage
-  /** A declared candidate only. This does not certify that a persisted disposition committed. */
-  readonly responseFor: (disposition: ReplyDisposition) => ResponseConstructionResult
-}
 export type AnchoredInvocationOutcome =
-  | { readonly replyPending: AnchoredReplyPending }
+  | { readonly replyPending: PendingModelResponse }
   | { readonly settled: Extract<SettlementResult, { readonly settled: unknown }> }
   | { readonly rejected: PlanRejection }
   | { readonly cancelledBeforeDispatch: true }

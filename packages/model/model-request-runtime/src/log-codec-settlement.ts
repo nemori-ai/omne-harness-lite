@@ -26,11 +26,7 @@ import {
 } from './log-codec-key.ts'
 import type { CapturedModelLogValue } from './log-codec-value.ts'
 
-import {
-  currentCodecDomain,
-  legacyCodecDomain,
-  type ModelLogCodecDomain,
-} from './log-codec-domain.ts'
+import { currentCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
 
 export interface ModelLogSettlementTarget {
   readonly call: string
@@ -166,7 +162,7 @@ function purpose(
     ? { kind: 'persistedMessage', response }
     : null
 }
-/** Shared internal recognition: any legacy model key reserves this entry for the model codec. */
+/** Any model-domain key, including an unsupported generation, reserves this entry. */
 export function foreignReserved(value: {
   readonly dedupeKey?: unknown
   readonly readKeys?: unknown
@@ -625,7 +621,5 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
 
   return { inspectSettlementMembers, inspectCompletePrefix: fullPrefix }
 }
-export const { inspectSettlementMembers } = createSettlementCodec(legacyCodecDomain)
-/** Same complete-prefix recognition used by v2 settlement, kept internal to this package. */
-export const { inspectCompletePrefix: inspectCurrentModelLogPrefix } =
+export const { inspectSettlementMembers, inspectCompletePrefix: inspectCurrentModelLogPrefix } =
   createSettlementCodec(currentCodecDomain)

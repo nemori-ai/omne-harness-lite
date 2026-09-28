@@ -1,5 +1,5 @@
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
-import * as codec from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import * as codec from '@omne-harness-lite/model-request-runtime'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 import { response, session, tenant } from './log-codec-fixture.ts'
 

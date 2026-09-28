@@ -34,6 +34,11 @@ export function request(): PlanInput {
       outputModalities: ['text'],
       maxInputTokens: 100,
       maxOutputTokens: 10,
+      inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
       updatedAt: '2026-09-28T00:00:00Z',
     },
   }

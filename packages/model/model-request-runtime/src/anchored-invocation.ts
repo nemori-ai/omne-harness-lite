@@ -2,19 +2,19 @@ import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identi
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
-import type { ReplyDisposition } from '@omne-harness-lite/model-response/v5'
+import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 import { ownPlanInput } from './input.ts'
 import { invokeModel } from './invoke.ts'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,
 } from './credential-redaction.ts'
-import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from './log-codec-v2.ts'
+import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from './log-codec.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import {
-  constructAssistantReply,
+  constructPendingModelResponse,
   constructModelResponse,
   type ResponseConstructionInput,
 } from './response-construction.ts'
@@ -34,7 +34,6 @@ import type {
   AnchoredInvocationHandle,
   AnchoredInvocationInput,
   AnchoredInvocationOutcome,
-  ResponseConstructionResult,
 } from './anchored-invocation-types.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
@@ -504,19 +503,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       if (!settlementGenerationCurrent(binding)) return unavailable
       construction = Object.freeze({ dispatched, result, messageId: input.messageId, firstTokenAt })
       await drain()
-      const reply = constructAssistantReply(construction)
-      if (reply !== null) {
-        const current = construction
-        return {
-          replyPending: Object.freeze({
-            reply,
-            responseFor: (disposition: ReplyDisposition): ResponseConstructionResult =>
-              quarantined
-                ? { rejected: 'invalidInput' }
-                : constructModelResponse(current, disposition),
-          }),
-        }
-      }
+      const reply = constructPendingModelResponse(construction)
+      if ('pending' in reply) return { replyPending: reply.pending }
+      if (result.ending !== undefined && result.outcome !== 'interrupted') return unavailable
       const resultSettlement = await settleCandidate(null)
       return 'settled' in resultSettlement ? { settled: resultSettlement } : unavailable
     } finally {

@@ -12,11 +12,8 @@ import {
   type Message,
   type ModelInvocationRecord,
 } from '@omne-harness-lite/messages'
-import {
-  legacyCodecDomain,
-  responseJudgeForFormat,
-  type ModelLogCodecDomain,
-} from './log-codec-domain.ts'
+import { judgeModelResponse } from '@omne-harness-lite/model-response'
+import { currentCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
 import {
   invalidValue,
   modelLogJsonEqual,
@@ -164,7 +161,7 @@ export function createValueCodec(domain: ModelLogCodecDomain) {
           })
     }
     if (input.category !== 'response') return invalidValue('category')
-    const judged = responseJudgeForFormat(format)(value)
+    const judged = judgeModelResponse(value)
     if ('rejected' in judged || !responseProjection(value)) return invalidValue('value')
     if (value.reply !== undefined) {
       const reply = judgeMessage(value.reply)
@@ -210,4 +207,4 @@ export type MessageValueRecognition =
   | { readonly different: true }
   | { readonly undetermined: true; readonly reason: 'message_value' }
 
-export const { captureModelLogValue, recognizeMessageValue } = createValueCodec(legacyCodecDomain)
+export const { captureModelLogValue, recognizeMessageValue } = createValueCodec(currentCodecDomain)

@@ -3,7 +3,7 @@ import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { join } from 'node:path'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
-import { judgeModelResponse } from '@omne-harness-lite/model-response/v5'
+import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
@@ -142,13 +142,12 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       })
       const outcome = await handle.outcome
       if (!('replyPending' in outcome)) throw new Error('reply')
-      const declared = outcome.replyPending.responseFor('persisted')
-      if (!('response' in declared)) throw new Error('response')
-      expect(declared.response.route.parameters).toEqual({ temperature: 0.5 })
-      expect(declared.response.route.parameterAdjustments).toEqual([
+      const declared = outcome.replyPending
+      expect(declared.route.parameters).toEqual({ temperature: 0.5 })
+      expect(declared.route.parameterAdjustments).toEqual([
         { name: 'temperature', requested: 1, sent: 0.5 },
       ])
-      expect(declared.response.route.droppedParameters).toEqual(['topP'])
+      expect(declared.route.droppedParameters).toEqual(['topP'])
       expect(await handle.settleReply('persisted')).toHaveProperty('settled')
       const read = await h.log.readSince(h.input.settlement.binding.session, 0)
       if (!('entries' in read) || !read.entries[0]) throw new Error('dispatched')
@@ -386,13 +385,14 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       expect(visible).toBeGreaterThan(0)
       if (!('replyPending' in outcome)) throw new Error('reply pending')
       expect(h.writes.map(x => x.count)).toEqual([1, 1])
-      const candidate = outcome.replyPending.responseFor('persisted')
-      if (!('response' in candidate)) throw new Error('MR5 candidate')
-      expect(judgeModelResponse(candidate.response)).toEqual({ ok: true })
-      expect(candidate.response.timing.firstTokenAt).toBe('2026-09-28T00:00:01Z')
-      expect(candidate.response.route.servingProvider).toBe('actual-provider')
-      expect(candidate.response.usage.input_tokens).toBe(503)
-      expect(candidate.response.cost.cost_usd).toMatchObject({ source: '503.00' })
+      const candidate = outcome.replyPending
+      expect(judgePendingModelResponse(candidate)).toEqual({ ok: true })
+      expect(candidate).not.toHaveProperty('replyDisposition')
+      expect(candidate).not.toHaveProperty('late')
+      expect(candidate.timing.firstTokenAt).toBe('2026-09-28T00:00:01Z')
+      expect(candidate.route.servingProvider).toBe('actual-provider')
+      expect(candidate.usage.input_tokens).toBe(503)
+      expect(candidate.cost.cost_usd).toMatchObject({ source: '503.00' })
       expect(await handle.settleReply('persisted')).toHaveProperty('settled')
       expect(h.writes.map(x => x.count)).toEqual([1, 1, 2])
       expect(
@@ -425,7 +425,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
                 throw new Error('opened')
               })(),
           ).firstTokenAt,
-        ).toBe(candidate.response.timing.firstTokenAt)
+        ).toBe(candidate.timing.firstTokenAt)
         const response = payload(
           read.entries[3] ??
             (() => {

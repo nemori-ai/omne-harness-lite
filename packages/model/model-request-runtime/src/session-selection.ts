@@ -10,7 +10,7 @@ import {
   decodeModelLogKey,
   inspectModelLogEntry,
   prepareModelLogEntry,
-} from './log-codec-v2.ts'
+} from './log-codec.ts'
 import { displayList, effectiveModel, legalTargets } from './selection.ts'
 import { captureSelectionJson } from './selection-capture.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
@@ -208,11 +208,16 @@ export function createSessionModelSelection(
     if ('unavailable' in received || !current(operation)) return unavailable()
     let selected: RouteName | null = null
     for (const entry of received.prefix.entries) {
-      const declared = entry.readKeys.some(key => 'ok' in decodeModelLogKey(key))
+      const declared =
+        entry.readKeys.some(key => 'ok' in decodeModelLogKey(key) || key.startsWith('mrr/')) ||
+        entry.dedupeKey?.startsWith('mrr/') === true ||
+        (object(entry.payload) &&
+          typeof entry.payload.format === 'string' &&
+          entry.payload.format.startsWith('mrr/'))
       if (!declared) continue
       if (
         !object(entry.payload) ||
-        (entry.payload.format !== 'mrr/1' && entry.payload.format !== 'mrr/2') ||
+        entry.payload.format !== 'mrr/3' ||
         !['record', 'message', 'response'].includes(String(entry.payload.category))
       )
         return unavailable()

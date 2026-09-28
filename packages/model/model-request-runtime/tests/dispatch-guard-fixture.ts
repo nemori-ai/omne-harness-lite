@@ -14,6 +14,11 @@ export const profile: ModelProfileSnapshot = {
   outputModalities: ['text'],
   maxInputTokens: new LosslessNumber('9007199254740993'),
   maxOutputTokens: 10,
+  inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   updatedAt: '2026-09-27T00:00:00Z',
 }
 

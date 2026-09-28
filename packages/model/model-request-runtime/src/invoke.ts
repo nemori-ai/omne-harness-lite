@@ -8,7 +8,7 @@ import {
 import type { ArrivalEvent, ArrivalError } from '@omne-harness-lite/arrival-events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { Failure, RawHeaders } from '@omne-harness-lite/model-response/v5'
+import type { Failure, RawHeaders } from '@omne-harness-lite/model-response'
 import type {
   InvocationInput,
   ModelInvocationHandle,

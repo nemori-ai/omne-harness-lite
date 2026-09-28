@@ -11,7 +11,7 @@ import {
   modelLogJsonEqual,
   captureModelLogValue,
   prepareModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+} from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog, AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import { anchors, reply, session, jsonObject } from './log-codec-fixture.ts'
 import { batchV2, responseV5 } from './log-codec-v2-fixture.ts'

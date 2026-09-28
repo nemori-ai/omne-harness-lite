@@ -16,7 +16,7 @@ import {
   type ModelLogSettlementCurrent,
   type ModelLogSettlementAnchors,
   type SettlementMembersResult,
-} from './log-codec-v2.ts'
+} from './log-codec.ts'
 import type {
   SettlementLogBinding,
   SettlementRegistration,

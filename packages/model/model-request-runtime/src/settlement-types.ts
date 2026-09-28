@@ -6,7 +6,7 @@ import type {
   ModelLogSettlementTarget,
   ModelLogSettlementCurrent,
   SettlementMembersResult,
-} from './log-codec-v2.ts'
+} from './log-codec.ts'
 
 /** Actual access and lifetime are established by the host, not certified by this shape. */
 export interface SettlementLogBinding {

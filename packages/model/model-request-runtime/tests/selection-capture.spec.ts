@@ -39,6 +39,10 @@ function profile(): ModelProfile {
     maxInputTokens: 100,
     maxOutputTokens: 10,
     inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
     updatedAt: '2026-09-27T00:00:00Z',
   }
 }
@@ -181,7 +185,14 @@ describe('selection: owned exact numeric capture before business decisions', () 
         ...profile(),
         maxInputTokens: new RegularNumber('1e4000'),
         maxOutputTokens: new LosslessNumber('9007199254740993123'),
+        inputModalities: ['text', 'image'],
         inputConstraints: { maxImageBytes: new LosslessNumber('9007199254740993.00') },
+        upstreamInputLimits: {
+          maxInputTokens: { status: 'unknown' },
+          maxRequestBytes: { status: 'unknown' },
+          maxImageBytes: { status: 'unknown' },
+          maxImages: { status: 'unknown' },
+        },
         parameters: {
           temperature: new LosslessNumber('1.0000'),
           topP: new LosslessNumber('1e-1'),

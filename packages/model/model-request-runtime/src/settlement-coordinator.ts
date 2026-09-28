@@ -12,7 +12,7 @@ import {
   captureModelLogValue,
   inspectSettlementMembers,
   prepareModelLogEntry,
-} from './log-codec-v2.ts'
+} from './log-codec.ts'
 import type { OwnedLogEntry, AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import {
   readSettlementPrefix,

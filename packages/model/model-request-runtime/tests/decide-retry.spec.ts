@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { AfterModelCallFailureSubject } from '@omne-harness-lite/loop-extension'
+import type {
+  AfterModelCallFailureSubject,
+  ModelRetryConclusion,
+} from '@omne-harness-lite/loop-extension'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import { decideRetry } from '../src/decide-retry.ts'
@@ -21,6 +24,11 @@ function profile(providers: string[], allowFallback = true): ModelProfileSnapsho
     outputModalities: ['text'],
     maxInputTokens: 100,
     maxOutputTokens: 20,
+    inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
     updatedAt: '2026-09-28T00:00:00Z',
   }
 }
@@ -48,7 +56,11 @@ function dispatch(
 function input(
   providers: string[],
   sent: string[],
-  options: { allowFallback?: boolean; failure?: AfterModelCallFailureSubject['failure'] } = {},
+  options: {
+    allowFallback?: boolean
+    failure?: AfterModelCallFailureSubject['failure']
+    retryConclusions?: readonly ModelRetryConclusion[]
+  } = {},
 ): DecideRetryInput {
   const snapshot = profile(providers, options.allowFallback ?? true)
   const dispatches = sent.map((provider, index) => dispatch(snapshot, provider, index + 1))
@@ -58,11 +70,27 @@ function input(
     failure: options.failure ?? 'upstream_unavailable',
     profile: snapshot,
     dispatches: [first, ...dispatches.slice(1)],
+    retryConclusions: options.retryConclusions ?? [],
   }
   return {
     subject: { known: subject },
     policy: { kind: 'linear', base: 'PT1S', factor: 2, max: 'PT10S', jitter: 'none' },
     uniformSample: 0.25,
+  }
+}
+
+function retryConclusion(
+  extension = 'omne-official:default-retry',
+  provider = 'A',
+): ModelRetryConclusion {
+  return {
+    extension,
+    position: 'after_model_call',
+    dimension: { ending: 'failure' },
+    power: 'rewrite',
+    modelCallId: 'call',
+    output: { kind: 'retry', plan: { provider } },
+    at: '2026-09-28T00:00:00Z',
   }
 }
 
@@ -80,7 +108,13 @@ describe('RT5 S-35/S-60 finite default retry decision', () => {
       kind: 'retry',
       plan: { provider: 'B', after: 'PT1S' },
     })
-    expect(decideRetry(input(['A', 'B', 'C'], ['A', 'B']))).toEqual({
+    expect(
+      decideRetry(
+        input(['A', 'B', 'C'], ['A', 'B'], {
+          retryConclusions: [retryConclusion()],
+        }),
+      ),
+    ).toEqual({
       kind: 'retry',
       plan: { provider: 'C', after: 'PT2S' },
     })
@@ -103,16 +137,35 @@ describe('RT5 S-35/S-60 finite default retry decision', () => {
     })
   })
 
-  it('cannot distinguish a resumed dispatch from an already consumed same-provider retry', () => {
-    // Legal history 1: A was interrupted before first content, S-33 reconciled,
-    // then dispatch continued to A and failed. The default piece has not retried.
+  it('distinguishes a resumed dispatch from a consumed same-provider retry', () => {
     const resumedThenFailed = input(['A'], ['A', 'A'], { allowFallback: false })
-    // Legal history 2: A failed, the default piece retried A, then A failed.
-    // The default piece has already used its single retry.
-    const retriedThenFailed = input(['A'], ['A', 'A'], { allowFallback: false })
-    expect(writeJsonLossless(resumedThenFailed)).toBe(writeJsonLossless(retriedThenFailed))
-    expect(decideRetry(resumedThenFailed)).toEqual({ rejected: 'unavailable' })
-    expect(decideRetry(retriedThenFailed)).toEqual({ rejected: 'unavailable' })
+    const retriedThenFailed = input(['A'], ['A', 'A'], {
+      allowFallback: false,
+      retryConclusions: [retryConclusion()],
+    })
+    expect(writeJsonLossless(resumedThenFailed)).not.toBe(writeJsonLossless(retriedThenFailed))
+    expect(decideRetry(resumedThenFailed)).toEqual({
+      kind: 'retry',
+      plan: { provider: 'A', after: 'PT1S' },
+    })
+    expect(decideRetry(retriedThenFailed)).toEqual({ kind: 'observed' })
+  })
+
+  it('counts only this default extension, preserving custom conclusions', () => {
+    const withCustom = input(['A', 'B', 'C'], ['A', 'B'], {
+      retryConclusions: [retryConclusion('tenant:custom', 'B')],
+    })
+    expect(decideRetry(withCustom)).toEqual({
+      kind: 'retry',
+      plan: { provider: 'C', after: 'PT1S' },
+    })
+    const withDefault = input(['A', 'B', 'C'], ['A', 'B'], {
+      retryConclusions: [retryConclusion('tenant:custom', 'B'), retryConclusion()],
+    })
+    expect(decideRetry(withDefault)).toEqual({
+      kind: 'retry',
+      plan: { provider: 'C', after: 'PT2S' },
+    })
   })
 
   it.each([
@@ -149,6 +202,23 @@ describe('RT5 S-35/S-60 finite default retry decision', () => {
     expect(raw({ ...input(['A'], ['A']), uniformSample: 1 })).toEqual({
       rejected: 'invalidInput',
     })
+    const ordinary = input(['A'], ['A'])
+    if (!('known' in ordinary.subject)) throw new Error('known subject')
+    const { retryConclusions: _history, ...withoutHistory } = ordinary.subject.known
+    expect(raw({ ...ordinary, subject: { known: withoutHistory } })).toEqual({
+      rejected: 'invalidInput',
+    })
+    expect(
+      raw({
+        ...ordinary,
+        subject: {
+          known: {
+            ...ordinary.subject.known,
+            retryConclusions: [{ ...retryConclusion(), modelCallId: 'another-call' }],
+          },
+        },
+      }),
+    ).toEqual({ rejected: 'invalidInput' })
     expect(
       raw({
         ...input(['A'], ['A']),

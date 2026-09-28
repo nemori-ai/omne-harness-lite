@@ -32,6 +32,11 @@ export const snapshot: JsonObject = {
   outputModalities: ['text'],
   maxInputTokens: 100,
   maxOutputTokens: 20,
+  inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   updatedAt: '2026-09-27T00:00:00Z',
 }
 export const dispatched: JsonObject = {

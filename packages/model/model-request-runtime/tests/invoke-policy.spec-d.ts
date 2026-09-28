@@ -1,5 +1,5 @@
 import { expectTypeOf, test } from 'vitest'
-import type { RawHeaders, Failure } from '@omne-harness-lite/model-response/v5'
+import type { RawHeaders, Failure } from '@omne-harness-lite/model-response'
 import type {
   CredentialRedactionConfig,
   InvocationPolicy,

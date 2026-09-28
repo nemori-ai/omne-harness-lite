@@ -1,4 +1,4 @@
-import { validate, type RawHeaders, type UpstreamError } from '@omne-harness-lite/model-response/v5'
+import { validate, type RawHeaders, type UpstreamError } from '@omne-harness-lite/model-response'
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
 import type { TransportFailure } from './types.ts'

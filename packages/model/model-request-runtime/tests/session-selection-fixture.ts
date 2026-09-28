@@ -114,6 +114,10 @@ export function profile(name = 'example/model-a'): ProfileRow['profile'] {
     maxInputTokens: 1024,
     maxOutputTokens: 512,
     inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
     adaptation: {
       implementation: { name: 'test', revision: '1' },
       definition: { modelId: name, revision: '1' },

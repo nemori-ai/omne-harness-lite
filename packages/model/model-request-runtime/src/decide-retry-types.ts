@@ -7,7 +7,7 @@ import type {
 import type { Duration } from '@omne-harness-lite/tool-definition'
 import type { RetryBackoffPolicy } from './retry-delay-types.ts'
 
-/** S-60: the caller supplies the complete LC4 failure subject or explicit unavailability. */
+/** S-60/S-76: the caller supplies the complete LC6 failure subject or explicit unavailability. */
 export type RetryFailureFact =
   { readonly known: AfterModelCallFailureSubject } | { readonly unknown: true }
 

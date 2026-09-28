@@ -6,11 +6,13 @@ import {
 } from '@omne-harness-lite/messages'
 import {
   judgeModelResponse,
+  judgePendingModelResponse,
   type ModelResponse,
+  type PendingModelResponse,
   type ReplyDisposition,
-} from '@omne-harness-lite/model-response/v5'
+} from '@omne-harness-lite/model-response'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
-import { captureModelLogValue } from './log-codec-v2.ts'
+import { captureModelLogValue } from './log-codec.ts'
 import type { ModelInvocationResult } from './types.ts'
 import type { ResponseConstructionResult } from './anchored-invocation-types.ts'
 
@@ -23,6 +25,9 @@ export interface ResponseConstructionInput {
 }
 function response(value: unknown): value is ModelResponse {
   return 'ok' in judgeModelResponse(value)
+}
+function pendingResponse(value: unknown): value is PendingModelResponse {
+  return 'ok' in judgePendingModelResponse(value)
 }
 function ordered(a: string, b: string): boolean {
   const order = compareRfc3339Instants(a, b)
@@ -46,12 +51,12 @@ export function constructAssistantReply(input: ResponseConstructionInput): Assis
   })
   return 'ok' in judged && judged.ok.type === 'assistant' ? judged.ok : null
 }
-/** MR5 S-9/11/13/17/19/20: preserve actual transport facts and the durable opened time. */
-export function constructModelResponse(
+/** Preserve every transport fact before the reply writer selects a disposition. */
+function responseFacts(
   input: ResponseConstructionInput,
-  disposition: ReplyDisposition | null,
+  disposition?: ReplyDisposition | null,
   systemStopWithoutReply = false,
-): ResponseConstructionResult {
+): Record<string, unknown> | null {
   const { dispatched: d, result: r, firstTokenAt } = input
   if (
     (firstTokenAt === null && r.timing.firstTokenAt !== undefined) ||
@@ -59,10 +64,10 @@ export function constructModelResponse(
     (firstTokenAt !== null &&
       (!ordered(r.timing.sentAt, firstTokenAt) || !ordered(firstTokenAt, r.timing.endedAt)))
   )
-    return { rejected: 'invalidInput' }
+    return null
   const reply = systemStopWithoutReply ? null : constructAssistantReply(input)
   const outcome = systemStopWithoutReply ? 'interrupted' : r.outcome
-  const candidate: unknown = {
+  const candidate: Record<string, unknown> = {
     id: d.response,
     dispatch: d.dispatch,
     call: { callId: d.call },
@@ -84,7 +89,11 @@ export function constructModelResponse(
     },
     outcome,
     ...(outcome === 'interrupted' ? { initiator: 'run_cancelled' } : {}),
-    ...(reply === null ? {} : { reply, replyDisposition: disposition }),
+    ...(reply === null
+      ? {}
+      : disposition === undefined
+        ? { reply }
+        : { reply, replyDisposition: disposition }),
     ...(outcome === 'failed' ? { failure: r.failure } : {}),
     ...(reply === null && firstTokenAt !== null && r.blocks.length > 0
       ? { delivered: r.blocks }
@@ -100,7 +109,26 @@ export function constructModelResponse(
     ...(r.stopReason === undefined ? {} : { stopReason: r.stopReason }),
     ...(r.rawHeaders === undefined ? {} : { raw: { headers: r.rawHeaders } }),
   }
-  if (!response(candidate)) return { rejected: 'invalidInput' }
+  return candidate
+}
+
+/** MR7 S-39/S-75: complete reply facts, without disposition or premature late. */
+export function constructPendingModelResponse(
+  input: ResponseConstructionInput,
+): { readonly pending: PendingModelResponse } | { readonly rejected: 'invalidInput' } {
+  const candidate = responseFacts(input)
+  if (candidate === null) return { rejected: 'invalidInput' }
+  return pendingResponse(candidate) ? { pending: candidate } : { rejected: 'invalidInput' }
+}
+
+/** MR7 S-9/11/13/17/19/20: preserve actual facts in the persisted response. */
+export function constructModelResponse(
+  input: ResponseConstructionInput,
+  disposition: ReplyDisposition | null,
+  systemStopWithoutReply = false,
+): ResponseConstructionResult {
+  const candidate = responseFacts(input, disposition, systemStopWithoutReply)
+  if (candidate === null || !response(candidate)) return { rejected: 'invalidInput' }
   const captured = captureModelLogValue({
     category: 'response',
     input: { kind: 'value', value: candidate },

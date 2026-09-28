@@ -343,7 +343,7 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
         Array.isArray(known.payload)
       )
         throw new Error('fixture wrapper')
-      await append({ ...known, payload: { ...known.payload, format: 'mrr/3' } })
+      await append({ ...known, payload: { ...known.payload, format: 'mrr/4' } })
       expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
         unavailable: true,
         reason: 'unknown_format',

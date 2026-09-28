@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { selectionHost, AT, ROOT, profile } from './session-selection-fixture.ts'
+import { jsonObject } from './log-codec-fixture.ts'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
   inspectModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime/log-codec/v2'
-import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
-import {
-  captureModelLogValue as captureLegacy,
-  prepareModelLogEntry as prepareLegacy,
 } from '@omne-harness-lite/model-request-runtime'
+import { deferred, ControlledSettlementOwner } from './settlement-fixture.ts'
 import { narrow } from '@omne-harness-lite/storage'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -747,10 +744,10 @@ describe('RT5 real session model selection and current evaluation', () => {
       await other.close()
     }
   })
-  it('mixed mrr/1 and mrr/2 selection follows durable position rather than timestamps', async () => {
+  it('rejects old model selection without mutating its durable bytes', async () => {
     const host = await selectionHost()
     try {
-      const legacy = captureLegacy({
+      const captured = captureModelLogValue({
         category: 'record',
         input: {
           kind: 'value',
@@ -761,38 +758,37 @@ describe('RT5 real session model selection and current evaluation', () => {
           },
         },
       })
-      if ('invalidValue' in legacy) throw new Error('Legacy selection admission')
-      const entry = prepareLegacy({
+      if ('invalidValue' in captured) throw new Error('Selection admission')
+      const entry = prepareModelLogEntry({
         session: host.session,
         shell: { tenant: host.tenant },
-        captured: legacy.ok,
+        captured: captured.ok,
         purpose: { kind: 'record' },
         messagePrefix: null,
       })
-      if ('invalidValue' in entry) throw new Error('Legacy selection encoding')
+      if ('invalidValue' in entry) throw new Error('Selection encoding')
+      const old = (key: string) => key.replace(/^mrr\/3\//u, 'mrr/1/')
+      const oldEntry = {
+        ...entry.ok,
+        readKeys: entry.ok.readKeys.map(old),
+        payload: { ...jsonObject(entry.ok.payload), format: 'mrr/1' },
+      }
       const appended = await host.log.append(
         host.session,
-        [entry.ok],
+        [oldEntry],
         { kind: 'unfenced' },
         { kind: 'unconditional' },
       )
-      if ('failure' in appended) throw new Error('Legacy actual append')
+      if ('failure' in appended) throw new Error('Old actual append')
       const component = host.create().component
-      expect(await component.effectiveModel()).toMatchObject({
-        ok: { selected: 'example/model-b' },
-      })
-      expect(await component.selectModel('example/model-a')).toEqual({
-        selected: 'example/model-a',
-      })
-      expect(await component.effectiveModel()).toMatchObject({
-        ok: { selected: 'example/model-a' },
-      })
+      expect(await component.effectiveModel()).toEqual({ unavailable: true })
+      expect(await component.selectModel('example/model-a')).toEqual({ unavailable: true })
+      expect(await component.legalTargets()).toEqual({ unavailable: true })
       const prefix = await host.log.readSince(host.session, 0)
-      if ('failure' in prefix) throw new Error('Mixed actual read')
-      expect(prefix.entries.map(value => value.payload)).toMatchObject([
-        { format: 'mrr/1' },
-        { format: 'mrr/2' },
-      ])
+      if ('failure' in prefix) throw new Error('Old actual read')
+      expect(prefix.entries).toHaveLength(1)
+      expect(prefix.entries[0]?.readKeys).toEqual(oldEntry.readKeys)
+      expect(prefix.entries[0]?.payload).toEqual(oldEntry.payload)
     } finally {
       await host.close()
     }

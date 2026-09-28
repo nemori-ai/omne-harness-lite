@@ -47,7 +47,14 @@ function profile(
     outputModalities: ['text'],
     maxInputTokens: new LosslessNumber('9007199254740993'),
     maxOutputTokens: 100,
-    inputConstraints: {},
+    inputConstraints: input.includes('image') ? { maxImageBytes: 1024 } : {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+      ...(input.includes('image')
+        ? { maxImageBytes: { status: 'unknown' }, maxImages: { status: 'unknown' } }
+        : {}),
+    },
     updatedAt: '2026-09-27T00:00:00Z',
   }
 }

@@ -59,7 +59,7 @@ const unavailable: DecideRetryResult = Object.freeze({ rejected: 'unavailable' }
 const observed: DecideRetryResult = Object.freeze({ kind: 'observed' })
 
 /**
- * S-35/S-60 finite pure decision. It does not read the current profile, schedule,
+ * S-35/S-60/S-76 finite pure decision. It does not read the current profile, schedule,
  * send, or authorize dispatchAgain. The caller still applies the S-30 guard.
  */
 export function decideRetry(value: DecideRetryInput): DecideRetryResult {
@@ -92,7 +92,12 @@ export function decideRetry(value: DecideRetryInput): DecideRetryResult {
   const judged = judgeValue('AfterModelCallFailureSubject', subjectFact.known)
   if ('rejected' in judged || !object(judged.ok)) return invalid
   const subject = judged.ok
-  if (!object(subject.profile) || !Array.isArray(subject.dispatches)) return invalid
+  if (
+    !object(subject.profile) ||
+    !Array.isArray(subject.dispatches) ||
+    !Array.isArray(subject.retryConclusions)
+  )
+    return invalid
   const profile = subject.profile
   const providers = profile.providers
   const dispatches = subject.dispatches
@@ -124,6 +129,16 @@ export function decideRetry(value: DecideRetryInput): DecideRetryResult {
     call = dispatch.call
     used.add(dispatch.provider)
   }
+  if (
+    call === undefined ||
+    subject.retryConclusions.some(
+      conclusion => !object(conclusion) || conclusion.modelCallId !== call,
+    )
+  )
+    return invalid
+  const defaultRetryCount = subject.retryConclusions.filter(
+    conclusion => conclusion.extension === 'omne-official:default-retry',
+  ).length
   if (subject.failure !== 'upstream_unavailable' && subject.failure !== 'unrecognized')
     return observed
   const latest = dispatches.at(-1)
@@ -135,16 +150,14 @@ export function decideRetry(value: DecideRetryInput): DecideRetryResult {
     const immediate = providers[latestIndex + 1]
     if (typeof immediate !== 'string' || used.has(immediate)) return observed
     next = immediate
-    n = used.size
+    n = defaultRetryCount + 1
   } else {
     const first = providers[0]
     if (typeof first !== 'string' || latest.provider !== first || used.size !== 1) return invalid
-    // [A,A] may be a default retry or an S-33 runtime_lost continuation.
-    // LC4's failure subject omits that distinction, so neither a second
-    // retry nor exhaustion can be asserted from these facts alone.
-    if (dispatches.length > 1) return unavailable
+    // A same-provider continuation does not spend the default extension's retry.
+    if (defaultRetryCount >= 1) return observed
     next = first
-    n = 1
+    n = defaultRetryCount + 1
   }
   if (next === undefined) return invalid
   const after = delay(policy, n, sample, previousDelay, hasPreviousDelay)

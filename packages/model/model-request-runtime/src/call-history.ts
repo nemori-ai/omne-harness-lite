@@ -8,7 +8,7 @@ import type {
   SessionRef,
 } from '@omne-harness-lite/messages'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
-import type { ModelLogResponseProjection } from './log-codec-v2.ts'
+import type { ModelLogResponseProjection } from './log-codec.ts'
 import {
   interpretSettlementPrefix,
   isOwnedSettlementPrefix,

@@ -1,9 +1,9 @@
 import { expectTypeOf, test } from 'vitest'
-import * as codec from '@omne-harness-lite/model-request-runtime/log-codec/v2'
+import * as codec from '@omne-harness-lite/model-request-runtime'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 
 test('D094 v2 exposes fixed pure functions with exact public input and result types', () => {
-  expectTypeOf<typeof codec.modelLogFormat>().toEqualTypeOf<'mrr/2'>()
+  expectTypeOf<typeof codec.modelLogFormat>().toEqualTypeOf<'mrr/3'>()
   expectTypeOf(codec.prepareModelLogEntry)
     .parameter(0)
     .toEqualTypeOf<codec.PrepareModelLogEntryInput>()
