@@ -7,6 +7,133 @@ import { judgeModelResponse } from '@omne-harness-lite/model-response/v5'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+  it('original owner unresolved opened blocks a new dispatch even after that IO actually stopped', async () => {
+    await harness(async h => {
+      h.owner.openedState = {
+        unknown: {
+          completion: Promise.resolve(null),
+          stopped: Promise.resolve(),
+          requestStop() {},
+        },
+      }
+      const t = transport()
+      const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+      expect(await handle.outcome).toEqual({ unavailable: true })
+      expect(t.sends()).toBe(0)
+      expect(h.writes).toHaveLength(0)
+      expect(await handle.close()).toEqual({ unavailable: true })
+      expect(h.released()).toBe(0)
+    })
+  })
+  it('requested parameters and same-plan sent adjustments remain distinct in actual anchors/MR5', async () => {
+    await harness(async h => {
+      const t = transport()
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        planInput: { ...h.input.planInput, parameters: { temperature: 1, topP: 1 } },
+        transport: {
+          ...t.adapter,
+          plan(input) {
+            const base = t.adapter.plan(input)
+            if ('rejected' in base) return base
+            return {
+              planned: {
+                ...base.planned,
+                parameters: { temperature: 0.5 },
+                parameterAdjustments: [{ name: 'temperature', requested: 1, sent: 0.5 }],
+                droppedParameters: ['topP'],
+              },
+            }
+          },
+          async send() {
+            return { response: {} }
+          },
+        },
+      })
+      const outcome = await handle.outcome
+      if (!('replyPending' in outcome)) throw new Error('reply')
+      const declared = outcome.replyPending.responseFor('persisted')
+      if (!('response' in declared)) throw new Error('response')
+      expect(declared.response.route.parameters).toEqual({ temperature: 0.5 })
+      expect(declared.response.route.parameterAdjustments).toEqual([
+        { name: 'temperature', requested: 1, sent: 0.5 },
+      ])
+      expect(declared.response.route.droppedParameters).toEqual(['topP'])
+      expect(await handle.settleReply('persisted')).toHaveProperty('settled')
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read) || !read.entries[0]) throw new Error('dispatched')
+      expect(payload(read.entries[0]).parameters).toEqual({ temperature: 1, topP: 1 })
+      expect(await handle.close()).toEqual({ released: true })
+    })
+  })
+  it('real duplicate dispatched dedupe permits exactly one HTTP handoff across two local handles', async () => {
+    await harness(async h => {
+      const t = transport(),
+        other = transport()
+      const first = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+      const second = createAnchoredModelInvocation({ ...h.input, transport: other.adapter })
+      const results = await Promise.all([first.outcome, second.outcome])
+      expect(t.sends() + other.sends()).toBe(1)
+      expect(results.filter(value => 'replyPending' in value)).toHaveLength(1)
+      expect(results.filter(value => 'unavailable' in value)).toHaveLength(1)
+      for (const handle of [first, second]) {
+        const result = await handle.outcome
+        if ('replyPending' in result)
+          expect(await handle.settleReply('persisted')).toHaveProperty('settled')
+        await handle.close()
+      }
+    })
+  })
+  it('unknown settlement retains original pending candidate and prevents release/reappend', async () => {
+    await harness(async h => {
+      let number = 0
+      h.wrap({
+        ...h.log,
+        async append(...args) {
+          if (++number === 3) return { failure: 'unavailable' }
+          return h.log.append(...args)
+        },
+      })
+      const handle = createAnchoredModelInvocation(h.input)
+      const outcome = await handle.outcome
+      if (!('replyPending' in outcome)) throw new Error('reply')
+      expect(await handle.settleReply('persisted')).toHaveProperty('unavailable')
+      expect(await handle.close()).toEqual({ unavailable: true })
+      expect(h.writes.map(w => w.count)).toEqual([1, 1, 2])
+      expect(h.released()).toBe(0)
+      expect(outcome.replyPending.reply.id).toBe('anchored-message')
+    })
+  })
+  it('system close of unhandled reply settles no-reply interrupted delivered facts through A1a [R]', async () => {
+    await harness(async h => {
+      const handle = createAnchoredModelInvocation(h.input)
+      expect(await handle.outcome).toHaveProperty('replyPending')
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.writes.map(w => w.count)).toEqual([1, 1, 1])
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read) || !read.entries[2]) throw new Error('response')
+      const response = payload(read.entries[2])
+      expect(response).toMatchObject({ outcome: 'interrupted', initiator: 'run_cancelled' })
+      expect(response).toHaveProperty('delivered')
+      expect(response).not.toHaveProperty('reply')
+    })
+  })
+  it('malformed successful anchor receipt is unknown and never authorizes HTTP/release', async () => {
+    await harness(async h => {
+      const t = transport()
+      h.wrap({
+        ...h.log,
+        async append() {
+          return { positions: [], tail: 0 }
+        },
+      })
+      const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+      expect(await handle.outcome).toEqual({ unavailable: true })
+      expect(t.sends()).toBe(0)
+      expect(await handle.close()).toEqual({ unavailable: true })
+      expect(h.released()).toBe(0)
+    })
+  })
   it('owns credential/config/IDs/callbacks before a delayed dispatched append', async () => {
     await harness(async h => {
       const entered = deferred<void>(),
@@ -369,19 +496,21 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         })
         const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
         const result = await handle.outcome
-        if (kind === 'midReplyFailure' || kind === 'stopBeforeContent') {
+        if (
+          kind === 'midReplyFailure' ||
+          kind === 'stopBeforeContent' ||
+          kind === 'stopAfterContent'
+        ) {
           if (!('settled' in result)) throw new Error('settled')
           expect(result.settled.settled.response.value).toMatchObject({
             outcome: kind === 'midReplyFailure' ? 'failed' : 'interrupted',
           })
           expect(result.settled.settled.response.value).not.toHaveProperty('reply')
-          if (kind === 'midReplyFailure')
+          if (kind === 'midReplyFailure' || kind === 'stopAfterContent')
             expect(result.settled.settled.response.value).toHaveProperty('delivered')
         } else {
           if (!('replyPending' in result)) throw new Error('reply')
-          expect(result.replyPending.reply.ending).toBe(
-            kind === 'truncated' ? 'truncated_at_limit' : 'interrupted_by_user',
-          )
+          expect(result.replyPending.reply.ending).toBe('truncated_at_limit')
           expect(await handle.settleReply({ consumed: { by: 'side_query' } })).toHaveProperty(
             'settled',
           )

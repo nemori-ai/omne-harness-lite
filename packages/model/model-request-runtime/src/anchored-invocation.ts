@@ -1,5 +1,7 @@
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
+import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
 import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response/v5'
@@ -54,7 +56,12 @@ function validPolicy(policy: InvocationPolicy): boolean {
     )
   )
 }
-function terminalHandle(value: AnchoredInvocationOutcome): AnchoredInvocationHandle {
+function terminalHandle(
+  value: AnchoredInvocationOutcome,
+  releaseBorrowed?: () => Promise<void>,
+  keepReferences = false,
+): AnchoredInvocationHandle {
+  let closing: ReturnType<AnchoredInvocationHandle['close']> | undefined
   return {
     outcome: Promise.resolve(value),
     snapshot: () => ({ blocks: [], position: 0 }),
@@ -62,8 +69,13 @@ function terminalHandle(value: AnchoredInvocationOutcome): AnchoredInvocationHan
     async settleReply() {
       return { unavailable: true, reason: 'closed' }
     },
-    async close() {
-      return { released: true }
+    close() {
+      if (keepReferences) return Promise.resolve(unavailable)
+      closing ??= (async () => {
+        await releaseBorrowed?.()
+        return { released: true } as const
+      })()
+      return closing
     },
   }
 }
@@ -72,6 +84,8 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   input: AnchoredInvocationInput<P, R>,
 ): AnchoredInvocationHandle {
   input = Object.freeze({ ...input })
+  const terminal = (value: AnchoredInvocationOutcome) =>
+    terminalHandle(value, input.releaseBorrowed)
   const requested = ownPlanInput(input.planInput)
   if (
     !requested ||
@@ -82,15 +96,19 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     !('ok' in parseOpaqueIdentifier(input.messageId, 'MessageId')) ||
     !('ok' in parseOpaqueIdentifier(input.responseId, 'ResponseId')) ||
     input.profile.routeName !== requested.routeName ||
+    !requested.snapshot.providers.includes(requested.provider) ||
+    ((!requested.snapshot.allowFallback || modelLogJsonEqual(requested.target.dispatch, 1)) &&
+      requested.provider !== requested.snapshot.providers[0]) ||
+    (input.profile.origin === 'custom' && input.credentialScope.layer === 'factory') ||
     (input.credentialScope.layer === 'tenant' &&
       !tenantIdEquals(input.credentialScope.tenant, input.settlement.binding.tenant))
   )
-    return terminalHandle({ rejected: 'invalidInput' })
+    return terminal({ rejected: 'invalidInput' })
   try {
     const bound = createCredentialRedactionPolicy(input.policy.credentialRedaction).bind(
       input.credential,
     )
-    if ('rejected' in bound) return terminalHandle({ rejected: 'invalidInput' })
+    if ('rejected' in bound) return terminal({ rejected: 'invalidInput' })
     const config = input.policy.credentialRedaction
     const sourceOwner = input.settlement.owner
     const sourceLog = input.settlement.binding.log
@@ -140,16 +158,18 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     })
   } catch (error) {
     if (error instanceof CredentialRedactionConfigurationError)
-      return terminalHandle({ rejected: 'invalidInput' })
+      return terminal({ rejected: 'invalidInput' })
     throw error
   }
   const binding = Object.freeze({ ...input.settlement.binding })
   const originalOwner = input.settlement.owner
+  if ('unknown' in originalOwner.opened() || originalOwner.unresolvedWrites().length > 0)
+    return terminalHandle(unavailable, undefined, true)
   const contention = input.settlement.settlementContention
   if (contention === undefined || input.settlement.settlementScheduler === undefined)
-    return terminalHandle(unavailable)
+    return terminal(unavailable)
   if (!settlementGenerationCurrent(binding) || originalOwner.admission() !== 'open')
-    return terminalHandle(unavailable)
+    return terminal(unavailable)
   const transport = Object.freeze({
     plan: input.transport.plan.bind(input.transport),
     send: input.transport.send.bind(input.transport),
@@ -159,12 +179,11 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     ...input.policy,
     statusCauseTable: Object.freeze({ ...input.policy.statusCauseTable }),
   })
-  if (input.signal.aborted) return terminalHandle({ cancelledBeforeDispatch: true })
+  if (input.signal.aborted) return terminal({ cancelledBeforeDispatch: true })
   const plan = transport.plan(requested)
-  if ('rejected' in plan) return terminalHandle(plan)
+  if ('rejected' in plan) return terminal(plan)
   const planned = plan.planned
-  if (!modelLogJsonEqual(planned.input, requested))
-    return terminalHandle({ rejected: 'invalidInput' })
+  if (!modelLogJsonEqual(planned.input, requested)) return terminal({ rejected: 'invalidInput' })
   const captured = captureModelLogValue({
     category: 'record',
     input: {
@@ -191,7 +210,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     },
   })
   if ('invalidValue' in captured || captured.ok.record?.kind !== 'model_call_dispatched')
-    return terminalHandle({ rejected: 'invalidInput' })
+    return terminal({ rejected: 'invalidInput' })
   const dispatched: ModelCallDispatchedRecord = captured.ok.record
   const prepared = prepareModelLogEntry({
     session: binding.session,
@@ -200,9 +219,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     purpose: { kind: 'record' },
     messagePrefix: null,
   })
-  if ('invalidValue' in prepared) return terminalHandle({ rejected: 'invalidInput' })
+  if ('invalidValue' in prepared) return terminal({ rejected: 'invalidInput' })
   const acquired = originalOwner.acquire(contention.limits.concurrent)
-  if ('unavailable' in acquired) return terminalHandle(unavailable)
+  if ('unavailable' in acquired) return terminal(unavailable)
   const registration: SettlementRegistration = acquired.registration
   const controller = new AbortController()
   const tasks: SettlementTask<unknown>[] = []
@@ -248,7 +267,13 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   const stop = () => {
     controller.abort()
     invocation?.abort()
-    for (const task of tasks) task.requestStop()
+    for (const task of tasks) {
+      try {
+        task.requestStop()
+      } catch {
+        diagnose('model_anchor.stop_port_failed')
+      }
+    }
   }
   input.signal.addEventListener('abort', stop, { once: true })
   if (input.signal.aborted) stop()
@@ -303,7 +328,15 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       }
       return false
     }
-    if (result.positions.length !== 1) {
+    const position = Array.isArray(result.positions) ? result.positions[0] : undefined
+    if (
+      !Array.isArray(result.positions) ||
+      result.positions.length !== 1 ||
+      !isNonNegativeJsonInteger(position) ||
+      ExactDecimal.from(position).compare(ExactDecimal.from(0)) <= 0 ||
+      !isNonNegativeJsonInteger(result.tail) ||
+      !modelLogJsonEqual(position, result.tail)
+    ) {
       quarantined = true
       return false
     }
@@ -395,40 +428,41 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
             policy,
             signal: controller.signal,
             ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
-            beforeFirstContent: async () => {
-              if (!usable()) throw new Error('model_anchor.stopped')
-              const at = policy.now()
-              if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
-              const value = captureModelLogValue({
-                category: 'record',
-                input: {
-                  kind: 'value',
-                  value: {
-                    kind: 'model_call_opened',
-                    call: dispatched.call,
-                    dispatch: dispatched.dispatch,
-                    firstTokenAt: at,
+            beforeFirstContent: () =>
+              start('wait', async () => {
+                if (!usable()) throw new Error('model_anchor.stopped')
+                const at = policy.now()
+                if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
+                const value = captureModelLogValue({
+                  category: 'record',
+                  input: {
+                    kind: 'value',
+                    value: {
+                      kind: 'model_call_opened',
+                      call: dispatched.call,
+                      dispatch: dispatched.dispatch,
+                      firstTokenAt: at,
+                    },
                   },
-                },
-              })
-              if ('invalidValue' in value) throw new Error('model_anchor.opened')
-              const entry = prepareModelLogEntry({
-                session: binding.session,
-                shell: { tenant: binding.tenant },
-                captured: value.ok,
-                purpose: { kind: 'record' },
-                messagePrefix: null,
-              })
-              if ('invalidValue' in entry) throw new Error('model_anchor.opened')
-              openedTask = append(entry.ok)
-              if (!(await receipt(openedTask))) throw new Error('model_anchor.unconfirmed')
-              openedConfirmed = true
-              firstTokenAt = at
-              if (!usable()) {
-                quarantined = true
-                throw new Error('model_anchor.stopped')
-              }
-            },
+                })
+                if ('invalidValue' in value) throw new Error('model_anchor.opened')
+                const entry = prepareModelLogEntry({
+                  session: binding.session,
+                  shell: { tenant: binding.tenant },
+                  captured: value.ok,
+                  purpose: { kind: 'record' },
+                  messagePrefix: null,
+                })
+                if ('invalidValue' in entry) throw new Error('model_anchor.opened')
+                openedTask = append(entry.ok)
+                if (!(await receipt(openedTask))) throw new Error('model_anchor.unconfirmed')
+                openedConfirmed = true
+                firstTokenAt = at
+                if (!usable()) {
+                  quarantined = true
+                  throw new Error('model_anchor.stopped')
+                }
+              }).completion,
           })
           return await invocation.outcome
         } finally {

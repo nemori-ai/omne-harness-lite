@@ -29,7 +29,12 @@ function ordered(a: string, b: string): boolean {
   return 'ok' in order && order.ok <= 0
 }
 export function constructAssistantReply(input: ResponseConstructionInput): AssistantMessage | null {
-  if (input.result.ending === undefined || input.firstTokenAt === null) return null
+  if (
+    input.result.ending === undefined ||
+    input.firstTokenAt === null ||
+    input.result.outcome === 'interrupted'
+  )
+    return null
   const judged = judgeMessage({
     id: input.messageId,
     type: 'assistant',
@@ -48,6 +53,7 @@ export function constructModelResponse(
 ): ResponseConstructionResult {
   const { dispatched: d, result: r, firstTokenAt } = input
   if (
+    (firstTokenAt === null && r.timing.firstTokenAt !== undefined) ||
     !ordered(r.timing.sentAt, r.timing.endedAt) ||
     (firstTokenAt !== null &&
       (!ordered(r.timing.sentAt, firstTokenAt) || !ordered(firstTokenAt, r.timing.endedAt)))
