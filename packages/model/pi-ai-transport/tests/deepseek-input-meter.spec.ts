@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { Tokenizer } from '@huggingface/tokenizers'
 import { copyJsonValue, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import { planRequest } from '../src/plan.ts'
-import { input as testInput } from './support.ts'
+import { createPiAiTransport } from '../src/transport.ts'
+import { input as testInput, networkPolicy } from './support.ts'
 import {
   createDeepSeekV4ProInputMeter,
   renderDeepSeekV4Prompt,
@@ -83,7 +83,7 @@ describe('DeepSeek V4 public encoder projection', () => {
     ).toThrow(TypeError)
   })
 
-  it('admits a complete fixed DeepSeek request with explicit estimated-token evidence', () => {
+  it('admits a complete fixed DeepSeek request through the bound transport factory', async () => {
     const definition = deepseekV4Pro0813Definition
     const profile = createOfficialProfileContent(definition, {
       providers: ['deepinfra/fp8'],
@@ -92,28 +92,32 @@ describe('DeepSeek V4 public encoder projection', () => {
     })
     if ('rejected' in profile) throw new Error(profile.rejected)
     const request = testInput()
-    const result = planRequest(
-      {
-        ...request,
-        routeName: definition.modelId,
-        provider: 'deepinfra/fp8',
-        tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
-        snapshot: {
-          ...request.snapshot,
-          adaptation: profile.ok.adaptation,
-          providers: profile.ok.providers,
-          allowFallback: profile.ok.allowFallback,
-          inputModalities: profile.ok.inputModalities,
-          outputModalities: profile.ok.outputModalities,
-          maxInputTokens: profile.ok.maxInputTokens,
-          maxOutputTokens: profile.ok.maxOutputTokens,
-          inputConstraints: profile.ok.inputConstraints,
-          upstreamInputLimits: profile.ok.upstreamInputLimits,
-        },
+    const plannedInput = {
+      ...request,
+      routeName: definition.modelId,
+      provider: 'deepinfra/fp8',
+      tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
+      snapshot: {
+        ...request.snapshot,
+        adaptation: profile.ok.adaptation,
+        providers: profile.ok.providers,
+        allowFallback: profile.ok.allowFallback,
+        inputModalities: profile.ok.inputModalities,
+        outputModalities: profile.ok.outputModalities,
+        maxInputTokens: profile.ok.maxInputTokens,
+        maxOutputTokens: profile.ok.maxOutputTokens,
+        inputConstraints: profile.ok.inputConstraints,
+        upstreamInputLimits: profile.ok.upstreamInputLimits,
       },
-      [definition],
-      createDeepSeekV4ProInputMeter(definition),
-    )
+    }
+    const meter = createDeepSeekV4ProInputMeter(definition)
+    const transport = createPiAiTransport({
+      policy: networkPolicy,
+      definitions: [definition],
+      inputMeters: [meter],
+    })
+    const result = transport.plan(plannedInput)
+    await transport.close()
     if ('rejected' in result) throw new Error(JSON.stringify(result))
     expect(result.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
     expect(result.planned.inputLimitEvidence.tokenMargin).toEqual({

@@ -17,12 +17,15 @@ describe('two complete DeepSeek MP4 declarations', () => {
   it('publishes exact identities, selected route and full-output-reserving project limits', () => {
     expect(deepseekDefinitions).toHaveLength(2)
     expect(deepseekDefinitions).toEqual([deepseekV41FlashDefinition, deepseekV4Pro0813Definition])
-    for (const [definition, revision, maxInputTokens, maxOutputTokens] of [
-      [deepseekV41FlashDefinition, '1', 917504, 131072],
-      [deepseekV4Pro0813Definition, '2', 1032192, 16384],
+    for (const [definition, revision, implementationRevision, maxInputTokens, maxOutputTokens] of [
+      [deepseekV41FlashDefinition, '1', 'mp4-2', 917504, 131072],
+      [deepseekV4Pro0813Definition, '2', 'mp4-1', 1032192, 16384],
     ] as const) {
       expect(definition.revision).toBe(revision)
-      expect(definition.implementation).toEqual({ name: 'pi-ai:deepseek', revision: 'mp4-1' })
+      expect(definition.implementation).toEqual({
+        name: 'pi-ai:deepseek',
+        revision: implementationRevision,
+      })
       expect(definition.capabilities.maxInputTokens).toBe(maxInputTokens)
       expect(definition.capabilities.maxOutputTokens).toBe(maxOutputTokens)
       expect(maxInputTokens + maxOutputTokens).toBe(1048576)

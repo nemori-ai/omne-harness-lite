@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
+import { imageSize } from 'image-size'
 import {
   isJsonNumber,
   jsonNumberSource,
@@ -25,7 +26,10 @@ const IMAGE = '<｜deepseek_image｜>'
 const THINK = '<think>'
 const END_THINK = '</think>'
 const DSML = '｜DSML｜'
-const MAX_REFERENCE_IMAGE_TOKENS = 1024
+const VISION_PATCH_SIZE = 14
+const VISION_DOWNSAMPLE_RATIO = 3
+const VISION_MIN_PIXELS = 295936
+const VISION_MAX_TOKENS = 1024
 
 type TextBlock = { readonly type: 'text'; readonly text: string }
 type ToolResultBlock = {
@@ -356,11 +360,63 @@ function omittedContent(value: JsonValue | undefined): JsonValue | undefined {
 }
 
 const inlineImage =
-  /^data:[^;,]+;base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/u
+  /^data:(image\/(?:png|jpeg|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
 
-function inlineImageCount(body: JsonObject): number | undefined {
+function imageType(mime: string): string | undefined {
+  if (mime === 'image/jpeg') return 'jpg'
+  return mime.startsWith('image/') ? mime.slice(6) : undefined
+}
+
+/** Pinned Flash image_processor.py grid projection, before private route transformations. */
+export function referenceImageTokens(width: number, height: number): number | undefined {
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width <= 0 ||
+    height <= 0 ||
+    width > 65535 ||
+    height > 65535
+  )
+    return undefined
+  if (width * height < VISION_MIN_PIXELS) {
+    const ratio = Math.sqrt(VISION_MIN_PIXELS / (width * height))
+    width = Math.trunc(width * ratio)
+    height = Math.trunc(height * ratio)
+  }
+  let bestWidth = Math.ceil(width / VISION_PATCH_SIZE) * VISION_PATCH_SIZE
+  let bestHeight = Math.ceil(height / VISION_PATCH_SIZE) * VISION_PATCH_SIZE
+  const grid = () => {
+    const rows = Math.ceil(bestHeight / VISION_PATCH_SIZE / VISION_DOWNSAMPLE_RATIO)
+    const columns = Math.ceil(bestWidth / VISION_PATCH_SIZE / VISION_DOWNSAMPLE_RATIO)
+    return rows * (columns + 1) + 2
+  }
+  if (grid() > VISION_MAX_TOKENS) {
+    const aspect = height / width
+    const maxWidth = Math.sqrt((VISION_MAX_TOKENS - 2) / aspect + 0.25) - 0.5
+    const maxHeight = maxWidth * aspect
+    const cell = VISION_PATCH_SIZE * VISION_DOWNSAMPLE_RATIO
+    if (maxWidth < 1) {
+      bestHeight = Math.floor((VISION_MAX_TOKENS - 2) / 2) * cell
+      bestWidth = cell
+    } else if (maxHeight < 1) {
+      bestHeight = cell
+      bestWidth = (VISION_MAX_TOKENS - 3) * cell
+    } else {
+      const ratio = Math.min(
+        (Math.floor(maxWidth) * cell) / width,
+        (Math.floor(maxHeight) * cell) / height,
+      )
+      bestHeight = Math.floor((height * ratio) / VISION_PATCH_SIZE) * VISION_PATCH_SIZE
+      bestWidth = Math.floor((width * ratio) / VISION_PATCH_SIZE) * VISION_PATCH_SIZE
+    }
+  }
+  const tokens = grid()
+  return tokens <= VISION_MAX_TOKENS && tokens >= 4 ? tokens : undefined
+}
+
+function inlineImageTokens(body: JsonObject): number | undefined {
   if (!Array.isArray(body.messages)) return undefined
-  let count = 0
+  let tokens = 0
   for (const message of body.messages) {
     if (!object(message) || !Array.isArray(message.content)) continue
     for (const part of message.content) {
@@ -370,14 +426,26 @@ function inlineImageCount(body: JsonObject): number | undefined {
         Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
         !object(image) ||
         Object.keys(image).some(key => key !== 'url') ||
-        typeof image.url !== 'string' ||
-        !inlineImage.test(image.url)
+        typeof image.url !== 'string'
       )
         return undefined
-      count++
+      const match = inlineImage.exec(image.url)
+      if (!match?.[1] || !match[2]) return undefined
+      const decoded = Buffer.from(match[2], 'base64')
+      if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
+      try {
+        const dimensions = imageSize(decoded)
+        if (dimensions.type !== imageType(match[1])) return undefined
+        const span = referenceImageTokens(dimensions.width, dimensions.height)
+        if (span === undefined) return undefined
+        // The encoded prompt already contains one placeholder token per image.
+        tokens += span - 1
+      } catch {
+        return undefined
+      }
     }
   }
-  return count
+  return tokens
 }
 
 /** Wire fields not rendered by the public prompt reference still enter the estimate. */
@@ -444,7 +512,7 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
     definition.modelId !== 'deepseek/deepseek-v4.1-flash' ||
     definition.revision !== '1' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== 'mp4-2' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4.1 Flash definition')
@@ -454,13 +522,13 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v41-flash-reference-1',
+    algorithmRevision: 'deepseek-v41-flash-reference-2',
     evidence:
-      'DeepSeek-V4.1-Flash dba1be0a40aa45a94ad051997016db3960a90277 encoding/encoding.py + tokenizer.json c90dfa01 + inference image processor/config vision_max_n_token=1024; OpenRouter/DeepInfra private projection remains estimated',
+      'DeepSeek-V4.1-Flash dba1be0a40aa45a94ad051997016db3960a90277 encoding/encoding.py + tokenizer.json c90dfa01 + inference/image_processor.py SHA256 482759e3bcc4e9bb5ee582b244cc563f5d0e163d8b48dda91ebb7106e62f9272 + inference/config.json SHA256 2e84f45cf1dac8c7fcbb200e96667d4b913275690668ed496f24c7747207a809 (patch=14, downsample=3, min_pixels=295936, max_tokens=1024), MIT; OpenRouter/DeepInfra private projection remains estimated',
     measure({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-      const images = inlineImageCount(body)
-      if (images === undefined) return { kind: 'unavailable' }
+      const imageTokens = inlineImageTokens(body)
+      if (imageTokens === undefined) return { kind: 'unavailable' }
       if (
         body.reasoning !== undefined &&
         (!object(body.reasoning) || body.reasoning.effort !== 'low')
@@ -477,7 +545,7 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
         }).ids.length
         return {
           kind: 'estimated',
-          tokens: mainTokens + extraTokens + images * MAX_REFERENCE_IMAGE_TOKENS,
+          tokens: mainTokens + extraTokens + imageTokens,
         }
       } catch {
         return { kind: 'unavailable' }

@@ -51,7 +51,7 @@ export const deepseekDefinitions = ownDefinitions([
   {
     modelId: 'deepseek/deepseek-v4.1-flash',
     revision: '1',
-    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-1' },
+    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-2' },
     capabilities: {
       inputModalities: ['image', 'text'],
       outputModalities: ['text'],

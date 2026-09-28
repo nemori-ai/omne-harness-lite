@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { Tokenizer } from '@huggingface/tokenizers'
 import { copyJsonValue, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import { planRequest } from '../src/plan.ts'
-import { at, judgedMessage, input as testInput } from './support.ts'
+import { createPiAiTransport } from '../src/transport.ts'
+import { at, judgedMessage, input as testInput, networkPolicy } from './support.ts'
 import {
   createDeepSeekV41FlashInputMeter,
+  referenceImageTokens,
   renderDeepSeekV41Prompt,
 } from '../src/input-meters/deepseek-v41-flash.ts'
 import {
@@ -18,6 +19,8 @@ import { object } from '../src/json.ts'
 
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/deepseek-v41-flash/${name}`, import.meta.url), 'utf8')
+const tinyPng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=='
 
 function source(name: string) {
   const copied = copyJsonValue(JSON.parse(fixture(name)))
@@ -93,7 +96,22 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
     ).toThrow(TypeError)
   })
 
-  it('uses documented vision token estimate for inline images and refuses unknown URLs', () => {
+  it('matches official image processor grid vectors before private route transforms', () => {
+    for (const [width, height, tokens] of [
+      [1, 1, 184],
+      [42, 42, 184],
+      [600, 800, 322],
+      [1024, 1024, 652],
+      [4000, 6000, 990],
+      [65535, 1, 1024],
+      [1, 65535, 1024],
+    ] as const)
+      expect(referenceImageTokens(width, height)).toBe(tokens)
+    expect(referenceImageTokens(0, 10)).toBeUndefined()
+    expect(referenceImageTokens(65536, 1)).toBeUndefined()
+  })
+
+  it('uses documented dimension-based inline image projection and refuses unknown material', () => {
     const meter = createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)
     const makeBody = (url: string) => ({
       model: deepseekV41FlashDefinition.modelId,
@@ -107,7 +125,7 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
         },
       ],
     })
-    const inline = makeBody('data:image/png;base64,aGVsbG8=')
+    const inline = makeBody(`data:image/png;base64,${tinyPng}`)
     const measured = meter.measure({ body: inline, serialized: writeJsonLossless(inline) })
     expect(measured.kind).toBe('estimated')
     const textOnly = {
@@ -117,14 +135,19 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
     const baseline = meter.measure({ body: textOnly, serialized: writeJsonLossless(textOnly) })
     if (measured.kind === 'unavailable' || baseline.kind === 'unavailable')
       throw new Error('estimate unavailable')
-    expect(Number(measured.tokens) - Number(baseline.tokens)).toBeGreaterThanOrEqual(1024)
+    expect(Number(measured.tokens) - Number(baseline.tokens)).toBeGreaterThanOrEqual(183)
+    expect(Number(measured.tokens) - Number(baseline.tokens)).toBeLessThan(1024)
+    const invalid = makeBody('data:image/png;base64,aGVsbG8=')
+    expect(meter.measure({ body: invalid, serialized: writeJsonLossless(invalid) })).toEqual({
+      kind: 'unavailable',
+    })
     const remote = makeBody('https://example.invalid/a.png')
     expect(meter.measure({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
       kind: 'unavailable',
     })
   })
 
-  it('admits complete fixed Flash plan with estimated margin', () => {
+  it('admits complete fixed Flash plan through bound transport factory', async () => {
     const definition = deepseekV41FlashDefinition
     const profile = createOfficialProfileContent(definition, {
       providers: ['deepinfra/fp8'],
@@ -148,34 +171,47 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
           id: 'vision-image',
           kind: 'image',
           mediaType: 'image/png',
-          data: { inline: 'eA==' },
+          data: { inline: tinyPng },
           visibility: { toHuman: true, toModel: true },
         },
       ],
     })
-    const result = planRequest(
-      {
-        ...request,
-        messages: [...request.messages, imageMessage],
-        routeName: definition.modelId,
-        provider: 'deepinfra/fp8',
-        tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
-        snapshot: {
-          ...request.snapshot,
-          adaptation: profile.ok.adaptation,
-          providers: profile.ok.providers,
-          allowFallback: profile.ok.allowFallback,
-          inputModalities: profile.ok.inputModalities,
-          outputModalities: profile.ok.outputModalities,
-          maxInputTokens: profile.ok.maxInputTokens,
-          maxOutputTokens: profile.ok.maxOutputTokens,
-          inputConstraints: profile.ok.inputConstraints,
-          upstreamInputLimits: profile.ok.upstreamInputLimits,
-        },
+    const plannedInput = {
+      ...request,
+      messages: [...request.messages, imageMessage],
+      routeName: definition.modelId,
+      provider: 'deepinfra/fp8',
+      tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
+      snapshot: {
+        ...request.snapshot,
+        adaptation: profile.ok.adaptation,
+        providers: profile.ok.providers,
+        allowFallback: profile.ok.allowFallback,
+        inputModalities: profile.ok.inputModalities,
+        outputModalities: profile.ok.outputModalities,
+        maxInputTokens: profile.ok.maxInputTokens,
+        maxOutputTokens: profile.ok.maxOutputTokens,
+        inputConstraints: profile.ok.inputConstraints,
+        upstreamInputLimits: profile.ok.upstreamInputLimits,
       },
-      [definition],
-      createDeepSeekV41FlashInputMeter(definition),
-    )
+    }
+    const meter = createDeepSeekV41FlashInputMeter(definition)
+    expect(() =>
+      createPiAiTransport({
+        policy: networkPolicy,
+        definitions: [
+          { ...definition, implementation: { ...definition.implementation, revision: 'mp4-1' } },
+        ],
+        inputMeters: [meter],
+      }),
+    ).toThrow(TypeError)
+    const transport = createPiAiTransport({
+      policy: networkPolicy,
+      definitions: [definition],
+      inputMeters: [meter],
+    })
+    const result = transport.plan(plannedInput)
+    await transport.close()
     if ('rejected' in result) throw new Error(JSON.stringify(result))
     expect(result.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
     expect(result.planned.inputLimitEvidence.tokenMargin).toEqual({
@@ -186,6 +222,6 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
       Buffer.byteLength(result.planned.serialized),
     )
     expect(result.planned.inputLimitEvidence.images).toBe(1)
-    expect(result.planned.inputLimitEvidence.imageBytes).toEqual([1])
+    expect(result.planned.inputLimitEvidence.imageBytes).toEqual([70])
   })
 })
