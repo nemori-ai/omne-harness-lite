@@ -452,7 +452,7 @@ PASS
 | 义务 | 条款 | 状态 |
 |---|---|---|
 | 根/待提交正反实例与旧 Schema 约束保全 | S-13、S-20、S-26～S-28、S-39 | 上述有限检查已运行 |
-| 待提交完整事实不裁剪、reply.response/id 相等、绑定与上游 cap 关系 | S-14、S-36、S-39～S-40 | **未开始**：提供者纯判定及交接场景 |
+| 待提交完整事实不裁剪、reply.response/id 相等、绑定相等；快照内上游 cap 关系由写方保证 | S-14、S-36、S-39～S-40 | **未开始**：提供者纯判定及交接场景；MP4 S-27/S-33 写方义务，不在响应体接收方重判快照关系 |
 | 消息提交前尝试失效时只在提交点判 late；处置与消息一致 | S-14、S-35、S-39 | **未开始**：运行时与调用方提供者；不以缺 late 表示不晚 |
 | 真实头值采集、脱敏、附件留存及用量/费用来源 | S-19～S-21、S-37～S-39 | **未开始**：继承 v5 取证义务 |
 | 历史精确读取/结算与新版发送边界 | S-40 | **未开始**：运行时及调用方提供者 |
@@ -462,3 +462,16 @@ PASS
 **继承缺口**：G-3（loop 主线，租户条目壳）、G-4（PF-002 产品/主线，原始留存保留期）、G-5（运行时，脱敏规则）、G-8（运行时/提供者，执行方事实）、G-9（PF-010/运行时，请求组成追溯）、G-10（提供者，费用来源取证）。本次未替这些 owner 宣称闭合。`PendingModelResponse` 无独立词条，仅为主线确认的共享表示名，报主线保留。
 
 **设计检查器实际结果**：以 `--formal skip` 运行。本 spoke 尚未合入 MP4/MS5，初跑 22 项链接/锚点错误（21 项是尚未合入的依赖路径，1 项是当时尚未追加的本节锚点，现已追加）。另在任务临时副本叠加当时 MP4/MS5 文件运行，结果 `FAIL: design validation found 2 error(s).`，两项均为 MS5 的 `../verification.md#v5-完整输入限制快照` 锚点尚未在当时读取的 sibling 验证入口出现；无本包错误。该副本保留原中央 registry，不能替代整批登记验证。主线完成七包与登记集成后统一运行检查器；本包不声称整批通过。`git diff --check` 本次无输出、退出 0。TLA+/Alloy 均未运行。
+
+### 2026-09-28 独立整批评审修订：快照接收边界
+
+按主线转交的独立评审发现，修正 S-40 与 MR6-facts：原稿错误地要求响应体接收方重判快照跨字段关系并返回 `malformed`，与 MP4 S-27 及 MS5 S-49 的写方责任冲突。现明确 MP4 S-18/S-33 关系由写快照方保证，接收方只校验快照形状；MR6 自有 S-14/S-36 判定不变。新增 [MR6-snapshot-boundary](v6/examples.md#mr6-snapshot-boundary--接收形状与写入者关系的反向边界) 的最小两字段变异：cap 为 2、上游 limited 为 1，结构仍合法；删除必填上游事实则结构非法。
+
+本轮仅修正文、示例和验证说明，Schema 原本只引用快照形状，无须改动；SHA-256 仍为 `2ed9619d220faa90ba8c00b7219181239a6119bf06f08aabac3f7528213d197e`。本地同一工具再次运行，既有 78 块回归、12 个 pending 及结构等价检查仍通过；新增 4 次边界断言的实际输出：
+
+```text
+ModelResponse: cross-field writer violation accepted by shape; missing limits rejected: PASS
+PendingModelResponse: cross-field writer violation accepted by shape; missing limits rejected: PASS
+```
+
+这些断言只核形状边界；写入者关系违约的报告与真实交接证据仍未开始。检查器由主线整批集成运行，本轮未重跑；TLA+/Alloy 未运行。旧冻结版本与 registry 未改。
