@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；完整恢复与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。恢复目前只认回已结算调用，缺响应的追补因原发出时刻没有耐久来源而保持不可用。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D102 owner 收口映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v10-owner-assembly-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；完整恢复与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。恢复目前只认回已结算调用，缺响应的追补因原发出时刻没有耐久来源而保持不可用。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D102 owner 收口映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v10-owner-assembly-design.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
 
 ## 公开接口
 
@@ -22,6 +22,9 @@
 | `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                    |
 | `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型              | 十三操作的显式服务契约与必需宿主端口；类型契约本身不安装可运行服务                                   |
 | `createCallContainerStore()`                                                     | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                           |
+| `ModelCallHost`、`ModelObserverRequest`、`SessionObserverAccess`                | 原调用的显式生命周期，以及按 dispatch 授权的观察端口                                                |
+| `createCallPreparationOwner(host)`                                              | 异步准备前同步登记原调用；迟到资源直到实际收口仍有 owner                                             |
+| `createModelObserverQueue(input)`                                               | 每次 dispatch 快照优先的观察队列；按真实 UTF-8 字节和事件数双限，接纳不等于接收者完成               |
 | `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                           |
 | `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                      |
 | `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain   |
@@ -63,7 +66,21 @@ export async function installRuntime(
 }
 ```
 
-内部 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、未知写者或精确传输租约。`container.close()` 只有在原句柄报告实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。锚定调用的 `close()` 返回 `unavailable` 时仍保留原协调器与借用引用；原工作实际停止且结算事实可读取后，可再次调用 `close()`。并发关闭共用同一次尝试，已释放后的关闭幂等。
+内部 `createCallContainerStore().waitReserve(...)` 要求显式的正数等待者上限和超时，以及有归属的调度器与取消信号。显式 `OpenCallInput.host` 是生命周期 owner，不是会话身份；会话、租户与日志代际仍来自已授权会话绑定。它的 `register(close)` 必须在停止后同步拒绝登记；准备 owner 在任何异步准备前登记，调用发布后仍保留同一关闭责任，实际释放后才 unregister。调用容器插入后，活跃 reservation 绑定原锚定调用句柄；释放短 reservation 不丢该句柄、待处分回复、观察绑定、未知写者或精确传输租约。系统停止先请求同一原调用的耐久 S-36 收口；`container.close()` 只有在该结果、原句柄、观察任务均实际释放且其余 owner 核查通过后才释放租约。reservation 本身不产生耐久授权。锚定调用的 `close()` 返回 `unavailable` 时仍保留原协调器与借用引用；原工作实际停止且结算事实可读取后，可再次调用 `close()`。并发关闭共用同一次尝试，已释放后的关闭幂等。
+
+可选的 `OpenCallInput.observer` 交入真实 endpoint 和显式正数事件／字节上限。已授权的会话绑定必须为该 endpoint 与 call 提供 `observers.authorize`；每次 dispatch 在建立接收者及交付文本前重新核对具体目标。独立可用的队列接收原始 `ArrivalEvent` 和原装配快照。`start(snapshot)` 先交付该可见快照，丢掉位置不晚于它的发前暂存增量，然后按序交付更新增量。两个上限均包含在途接收任务，直到它的 `stopped` promise 完成。慢速或失败的观察者不改变模型响应，也不引起重新发出；实际停止未知时 `close()` 保留接收端 owner。宿主须保留不可用的 owner，在真实停止后重试。见 [D103 的归属与接收映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v11-host-observer-design.md)。
+
+```ts
+import { createModelObserverQueue, type ModelObserverQueueInput } from '@omne-harness-lite/model-request-runtime'
+import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
+
+export async function beginObservedDispatch(input: ModelObserverQueueInput, visible: AssemblySnapshot) {
+  const queue = createModelObserverQueue(input)
+  const first = queue.start(visible)
+  // 即使快照被拒收，也要留住队列：实际停止前 close 可能返回 unavailable。
+  return { first, queue }
+}
+```
 
 直接使用时，宿主给出完整绑定的 `RuntimeConstruction`，一份 call store 只交给一个 runtime，并在仍持有提供者资源时留住返回的 owner。`close()` 同步关闭新服务准入，请求全部调用和组件停止，等待已登记操作；仅在它们实际收口后返回 `released`。返回 `unavailable` 时继续持有同一个 owner，阻断事实消除后重试。call store 不清除耐久历史。
 
