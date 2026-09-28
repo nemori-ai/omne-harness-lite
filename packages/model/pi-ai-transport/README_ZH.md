@@ -15,8 +15,8 @@
 | `configurationSchema(definition, provider)`                             | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值            |
 | `interpretConfiguration(definition, values, provider)`                  | 从同一路由声明严格、无损解释配置                               |
 | `createOfficialProfileContent(definition, options)`                     | 构造并判定 core 内容，不写目录、不登记、不生成时间             |
-| `planRequest(input, definitions, meter)`                                       | 固定字节规划与可信逐路由计量器的最终输入准入                       |
-| `createPiAiTransport(options)`                                          | 显式定义、绑定计量器与自持连接池的 plan/send/read/close          |
+| `planRequest(input, definitions, meter)`                                | 固定字节规划与可信逐路由计量器的最终输入准入                   |
+| `createPiAiTransport(options)`                                          | 显式定义、绑定计量器与自持连接池的 plan/send/read/close        |
 | `sendRequest`、`readStream`                                             | 借用明确网络资源的独立函数                                     |
 | `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`    | 进程内精确登记、固定引用和显式排空                             |
 | `parseSSE`、`canonicalInteger`、`generatedCallId`                       | 分帧与精确确定性标识辅助                                       |
@@ -192,7 +192,6 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 自动缓存配置恰为 `{ cache: { mode: 'automatic' } }`，不发送手工控制。显式路由声明 ttlValues 与完整 breakpointLayouts；配置必须给 mode、TTL 和一个已列完整布局。共享代码不写死 TTL、默认值或布局组合。Schema 和解释器同源；规划控制不代表上游采纳、命中或到期行为。
 
-
 ## 最终输入准入
 
 每次规划都必须显式提供 `PlanInput.tokenMargin`：`{ multiplier, reserveTokens }`，其中乘数是至少 1 的有限十进制数，预留量是非负整数。签发 `planned` 前检查最终序列化请求。请求 UTF-8 字节数、内联图片解码字节数和图片数量均精确计算；重复图片及工具结果中的图片逐次计入。缺上限返回 `input_limit_missing`；精确超限返回带 `basis: 'exact'` 的 `input_limit_exceeded`；估算 token 经余量计算后超限返回 `basis: 'estimated'`，同时给出原估值和准入值；无法可靠计量返回 `input_size_unavailable`。上界超过上限属于无法判断，不冒充实际超限。发前拒绝不会发 HTTP 请求。
@@ -201,17 +200,17 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-2` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
-`createOpenAiInputMeter(definition)` 绑定 `openai` 供应商下修订 2（`pi-ai:openai` `mp4-2`）的六个 GPT-5.6 Sol／Terra／Luna 基础版与 Pro 定义。它按[固定 GPT-5 前缀映射](https://github.com/openai/tiktoken/blob/4e71bbe0c078468e00fefbf94b39849389f346e5/tiktoken/model.py)使用固定版本 `js-tiktoken` 的 `o200k_base`，不认证 GPT-5.6 精确型号词表。估算覆盖最终序列化的多轮消息、`developer` 提醒、工具定义与结果、推理及协议字段；内联图片的 base64 在文本分词前替换为标记。三个基础版按[OpenAI 图像指南](https://developers.openai.com/api/docs/guides/images-vision)计 low（512 像素）、high（2048 像素且最多 2500 patches）、original／auto（最多 30000 patches），使用 32 像素 patch 和 1.2 倍系数。首次像素尺寸缩放向下取整是本地估算约定，指南未指定该步的取整方向；之后的 patch 预算缩放遵循已给公式。OpenRouter／OpenAI 的私有 chat 格式仍使整请求结果只能标为 `estimated`。Pro 图片、远程／非法／尺寸未知图片以及超出本 meter 支持尺寸的图片均在发送前判不可用。GPT-6 无具名词表绑定依据。调用方逐次显式给出 `tokenMargin`；实际 usage 与费用只取上游。
+`createOpenAiInputMeter(definition)` 绑定 `openai` 供应商下修订 3（`pi-ai:openai` `mp4-3`）的六个 GPT-5.6 Sol／Terra／Luna 基础版与 Pro 定义。它按[固定 GPT-5 前缀映射](https://github.com/openai/tiktoken/blob/4e71bbe0c078468e00fefbf94b39849389f346e5/tiktoken/model.py)使用固定版本 `js-tiktoken` 的 `o200k_base`，不认证 GPT-5.6 精确型号词表。估算覆盖最终序列化的多轮消息、`developer` 提醒、工具定义与结果、推理及协议字段；内联图片的 base64 在文本分词前替换为标记。三个基础版按[OpenAI 图像指南](https://developers.openai.com/api/docs/guides/images-vision)计 low（512 像素）、high（2048 像素且最多 2500 patches）、original／auto（最多 30000 patches），使用 32 像素 patch 和 1.2 倍系数。首次像素尺寸缩放向下取整是本地估算约定，指南未指定该步的取整方向；之后的 patch 预算缩放遵循已给公式。OpenRouter／OpenAI 的私有 chat 格式仍使整请求结果只能标为 `estimated`。GIF 必须具有一个完整帧；动画或截断 GIF 不可计量。Pro 图片、远程／非法／尺寸未知图片以及超出本 meter 支持尺寸的图片均在发送前判不可用。GPT-6 无具名词表绑定依据。调用方逐次显式给出 `tokenMargin`；实际 usage 与费用只取上游。
 
-`createAnthropicInputMeter(definition)` 仅绑定 `anthropic` 供应商下修订 1 的四个指定 Claude 5.x 定义。它使用固定的 [Anthropic 旧版 Claude BPE](https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b)；Anthropic 将其称为自 Claude 3 起的**非常粗略估算**。[Claude 4.7 及后续型号使用新 tokenizer](https://platform.claude.com/docs/en/build-with-claude/token-counting)，本构件不是那个 tokenizer，也没有统一误差上界。它把 OpenRouter Chat 最终完整 JSON 的多轮文字、user 提醒、工具定义与结果、明文推理、缓存标记及供应商字段一并编码为固定路由估算；OpenRouter 的私有转换仍未知。加密或未知推理回放以及图片在发送前返回不可计量；密文字节长度不是保留推理 token 数的依据。四份定义绑定 `pi-ai:anthropic/mp4-2`。每次请求必须显式配置余量，逐型号真实认证还须对照上游 usage 与本粗估误差；估算及余量不替代实际上游 usage 或费用。Google 3.7／3.8 Flash 目前缺少有依据的本地 tokenizer 绑定，本包尚无这两项官方计量构件。
+`createAnthropicInputMeter(definition)` 仅绑定 `anthropic` 供应商下修订 1 的四个指定 Claude 5.x 定义。它使用固定的 [Anthropic 旧版 Claude BPE](https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b)；Anthropic 将其称为自 Claude 3 起的**非常粗略估算**。[Claude 4.7 及后续型号使用新 tokenizer](https://platform.claude.com/docs/en/build-with-claude/token-counting)，本构件不是那个 tokenizer，也没有统一误差上界。它先核完整最终 wire 值的一致性，再对承载输入的消息和工具投影估算，保留多轮文字、user 提醒、工具结果与明文推理。生成、路由和缓存控制值不增加提示词 token；合法 TTL 取自绑定路由声明。该 JSON 输入投影仍是对私有转换的粗略近似。加密或未知推理回放以及图片在发送前返回不可计量；密文字节长度不是保留推理 token 数的依据。四份定义绑定 `pi-ai:anthropic/mp4-3`。每次请求必须显式配置余量，逐型号真实认证还须对照上游 usage 与本粗估误差；估算及余量不替代实际上游 usage 或费用。Google 3.7／3.8 Flash 目前缺少有依据的本地 tokenizer 绑定，本包尚无这两项官方计量构件。
 
-`createQwenInputMeter(definition)` 使用固定公开词表与 Jinja 提示词模板，支持 Qwen3.8 2.4T-A95B 和 27B 两个公开叶子的文本、提醒、工具与多轮历史估算。请求须省略 reasoning effort，其路由参数到模板的映射尚未确认；图片、不透明推理和六个商业 Qwen 别名仍不可计量。调用方显式配置 token 余量。
+`createQwenInputMeter(definition)` 使用固定公开词表与 Jinja 提示词模板，支持 Qwen3.8 2.4T-A95B 和 27B 两个公开叶子的文本、提醒、工具与多轮历史估算。请求须省略 reasoning effort，其路由参数到模板的映射尚未确认；图片、不透明推理和六个商业 Qwen 别名仍不可计量。两个公开绑定的 `mp4-2` 使用 Jinja 一致的 Unicode 转义和键序，已有独立多工具 fixture 验证；需要未核实 Python JSON 浮点渲染的数值返回不可计量。调用方显式配置 token 余量。
 
 `createGlm52InputMeter(definition)` 与 `createGlm53InputMeter(definition)` 使用固定公开模板和词表，覆盖 GLM-5.2、GLM-5.3、GLM-5.3-Flash 的文本与工具请求。结果是固定 OpenRouter 路由的估算，调用方显式提供余量。历史推理、不支持的媒体及未证的 effort 映射返回不可用；Prime、FlashX 尚无有据词表绑定。各自上游许可随 tokenizer 原件打包，其中 GLM-5.3 使用独立许可。
 
 Google Gemini 3.7／3.8 Flash 与 xAI Grok 4.6／4.7 已有固定定义及工具、推理、图片、usage 的本地 HTTPS 投影测试。这些测试使用合成计量器，四个型号尚未提供生产计量器；Google 原始音频／视频同样在发送前拒绝。目前这些定义仍不能产生可发送的生产计划。
 
-`createMoonshotInputMeter(definition)` 将 Kimi K3 与 K2.7 Code 绑定到固定词表及各自 XTML／Jinja 提示词模板。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。图片、视频、加密／未知推理及未识别模型输入字段返回不可用；余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
+`createMoonshotInputMeter(definition)` 将 Kimi K3 与 K2.7 Code 绑定到固定词表及各自 XTML／Jinja 提示词模板。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 的 `mp4-2` 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序，K2.7 保持 `mp4-1`。图片、视频、加密／未知推理及未识别模型输入字段返回不可用；余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
 
 ## 持有传输资源
 
@@ -219,7 +218,11 @@ Google Gemini 3.7／3.8 Flash 与 xAI Grok 4.6／4.7 已有固定定义及工具
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
 import { definitions, request, networkPolicy, controlledMeter } from './example-definition.js'
 
-const transport = createPiAiTransport({ definitions, inputMeters: [controlledMeter], policy: networkPolicy })
+const transport = createPiAiTransport({
+  definitions,
+  inputMeters: [controlledMeter],
+  policy: networkPolicy,
+})
 try {
   const result = transport.plan(request)
   if ('rejected' in result) throw new Error(result.rejected)
@@ -286,7 +289,13 @@ export async function executeOnce(
 
 ```ts
 import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
-import { definition, request, networkPolicy, retirement, controlledMeter } from './example-definition.js'
+import {
+  definition,
+  request,
+  networkPolicy,
+  retirement,
+  controlledMeter,
+} from './example-definition.js'
 
 const service = createModelTransportService({ policy: networkPolicy })
 const registered = service.registerAdaptation(definition, controlledMeter, {}, () => {})
