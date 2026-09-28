@@ -36,6 +36,10 @@ const profile: ModelProfile = {
   maxInputTokens: 128000,
   maxOutputTokens: 4096,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   registration: 'listed',
   updatedAt: '2026-09-27T01:00:00Z',
 }
@@ -46,12 +50,12 @@ function json(text: string): JsonValue {
   return result.ok
 }
 
-describe('accepted profile3 adaptation and explicit profile2 consumer', () => {
+describe('accepted profile4 value and explicit profile2 consumer', () => {
   it('ships the exact frozen Schema, with different explicit version coordinates', () => {
     expect(readFileSync(new URL('../schema/model-profile.schema.json', import.meta.url))).toEqual(
       readFileSync(
         new URL(
-          '../../../../.meta_harness/design/spec/data/model-profile/v3/model-profile.schema.json',
+          '../../../../.meta_harness/design/spec/data/model-profile/v4/model-profile.schema.json',
           import.meta.url,
         ),
       ),
@@ -60,7 +64,7 @@ describe('accepted profile3 adaptation and explicit profile2 consumer', () => {
     expect(validate('ModelProfile', profile).valid).toBe(true)
     expect(judgeModelProfileDocument('ModelProfile', profile)).toEqual({ ok: true })
     expect(judgeModelProfileDocument('ModelProfileContent', content)).toEqual({ ok: true })
-    const { adaptation: _binding, ...old } = profile
+    const { adaptation: _binding, upstreamInputLimits: _limits, ...old } = profile
     expect(judgeV2('ModelProfile', old)).toEqual({ ok: true })
     expect(judgeModelProfileDocument('ModelProfile', old)).toEqual({ rejected: 'malformed' })
     expect(judgeV2('ModelProfile', profile)).toEqual({ rejected: 'malformed' })
@@ -158,6 +162,8 @@ describe('accepted profile3 adaptation and explicit profile2 consumer', () => {
       outputModalities: ['text'],
       maxInputTokens: new LosslessNumber('128000'),
       maxOutputTokens: 4096,
+      inputConstraints: {},
+      upstreamInputLimits: profile.upstreamInputLimits,
       updatedAt: profile.updatedAt,
     }
     expect(validate('ModelProfileSnapshot', snapshot).valid).toBe(true)

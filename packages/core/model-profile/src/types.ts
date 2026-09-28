@@ -10,6 +10,20 @@ export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'max'
 /** Counts have no safe-integer ceiling in v1. Validation checks their exact value. */
 export interface InputConstraints {
   readonly maxImageBytes?: JsonNumber
+  readonly maxImages?: JsonNumber
+  readonly maxRequestBytes?: JsonNumber
+}
+
+export type InputLimitFact =
+  | { readonly status: 'unknown' }
+  | { readonly status: 'unbounded' }
+  | { readonly status: 'limited'; readonly value: JsonNumber }
+
+export interface UpstreamInputLimits {
+  readonly maxInputTokens: InputLimitFact
+  readonly maxRequestBytes: InputLimitFact
+  readonly maxImageBytes?: InputLimitFact
+  readonly maxImages?: InputLimitFact
 }
 
 export interface ModelRequestParameters {
@@ -42,6 +56,7 @@ export interface ModelProfileContent {
   readonly maxInputTokens: JsonNumber
   readonly maxOutputTokens: JsonNumber
   readonly inputConstraints: InputConstraints
+  readonly upstreamInputLimits: UpstreamInputLimits
   readonly parameters?: ModelRequestParameters
 }
 
@@ -69,6 +84,8 @@ export type ModelProfileSnapshot = Pick<
   | 'outputModalities'
   | 'maxInputTokens'
   | 'maxOutputTokens'
+  | 'inputConstraints'
+  | 'upstreamInputLimits'
   | 'parameters'
   | 'updatedAt'
 >

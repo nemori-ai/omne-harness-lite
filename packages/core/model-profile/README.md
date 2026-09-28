@@ -12,6 +12,9 @@ This package is an unpublished, private ESM workspace member. Use it from this r
 | `refMatches`                | Compare a reference to one supplied row and scope           |
 | `parameterNames`            | List unified parameter names and keys in `extra`            |
 | `ModelProfileSnapshot`      | Type the profile facts captured by a request writer         |
+| `InputLimitFact`            | Distinguish unknown, unbounded and finite upstream limits   |
+| `UpstreamInputLimits`       | Carry the upstream facts for every applicable metric        |
+| `InputConstraints`         | State this profile's finite project input caps              |
 | `validate`                  | Validate any exported schema definition                     |
 
 ## Judge a profile and its output limit
@@ -41,6 +44,10 @@ const profile: ModelProfile = {
   maxInputTokens: 32000,
   maxOutputTokens: 8192,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   parameters: { maxOutputTokens: 4096, extra: { top_k: 40 } },
   registration: 'listed',
   updatedAt: '2026-09-26T10:00:00Z',
@@ -93,6 +100,10 @@ const profile: ModelProfile = {
   maxInputTokens: 32000,
   maxOutputTokens: 8192,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   registration: 'withdrawn',
   updatedAt: '2026-09-26T10:00:00Z',
 }
@@ -111,4 +122,21 @@ Numeric fields accept `JsonNumber`, including `LosslessNumber`; judgments compar
 
 The JSON Schema is available through `@omne-harness-lite/model-profile/schema`. See [source exports](src/index.ts), [tests](tests/) and [model response](../model-response/README.md).
 
-The default entry and Schema use profile3; `./v2` and `./schema/v2` retain the previous exact consumer version. The current content/snapshot includes a complete model adaptation binding. See the accepted design for its definition.
+The default entry and Schema use `data.model-profile/v4`. The existing `./v2` and `./schema/v2` entries remain available for their current consumers; v4 inputs must supply all required facts. v4 requires an explicit upstream fact for input tokens and complete request bytes. An image-capable profile additionally requires an explicit project `maxImageBytes` cap plus upstream `maxImageBytes` and `maxImages` facts, even for text-only calls. Project caps remain finite when an upstream fact is `unknown` or `unbounded`.
+
+```ts
+const imageProfile: ModelProfile = {
+  ...profile,
+  inputModalities: ['text', 'image'],
+  inputConstraints: { maxImageBytes: 4_000_000, maxImages: 4 },
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+    maxImageBytes: { status: 'limited', value: 8_000_000 },
+    maxImages: { status: 'unknown' },
+  },
+}
+console.log(judgeModelProfileDocument('ModelProfile', imageProfile)) // { ok: true }
+```
+
+`validate` checks Schema shape. The full judge also compares each supplied project cap with any known finite upstream value, without rounding. The `ModelProfileSnapshot` type and Schema retain both input-limit objects; the request writer owns the actual copy and history. See the accepted design for the precise boundary.

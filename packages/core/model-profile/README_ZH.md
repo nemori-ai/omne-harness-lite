@@ -12,6 +12,9 @@
 | `refMatches`                | 将引用与显式传入的一行及其范围比较 |
 | `parameterNames`            | 列出统一参数名与 `extra` 中的键    |
 | `ModelProfileSnapshot`      | 描述请求写入方捕获的档案事实       |
+| `InputLimitFact`            | 区分未知、无限与有限的上游限制事实 |
+| `UpstreamInputLimits`       | 记录所有适用指标的上游事实         |
+| `InputConstraints`         | 声明本档案的项目有限输入上限       |
 | `validate`                  | 校验公开 Schema 定义项             |
 
 ## 判定档案及其输出上限
@@ -41,6 +44,10 @@ const profile: ModelProfile = {
   maxInputTokens: 32000,
   maxOutputTokens: 8192,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   parameters: { maxOutputTokens: 4096, extra: { top_k: 40 } },
   registration: 'listed',
   updatedAt: '2026-09-26T10:00:00Z',
@@ -93,6 +100,10 @@ const profile: ModelProfile = {
   maxInputTokens: 32000,
   maxOutputTokens: 8192,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   registration: 'withdrawn',
   updatedAt: '2026-09-26T10:00:00Z',
 }
@@ -111,4 +122,21 @@ console.log(refMatches(ref, profile, bob)) // false
 
 JSON Schema 通过 `@omne-harness-lite/model-profile/schema` 公开。参见[源码导出](src/index.ts)、[测试](tests/)与[模型响应](../model-response/README_ZH.md)。
 
-默认入口与 Schema 采用 profile3；`./v2` 与 `./schema/v2` 保留原精确消费版本。当前内容及快照携带完整模型适配绑定，定义归已接受设计。
+默认入口与 Schema 采用 `data.model-profile/v4`；现有 `./v2` 与 `./schema/v2` 入口继续服务当前消费者；v4 输入必须提供全部必填事实。v4 必须明确填写上游输入 token 与完整请求体字节的事实；支持图片的档案即使本次只发文本，也必须提供项目 `maxImageBytes` 有限上限以及上游 `maxImageBytes`、`maxImages` 事实。上游为 `unknown` 或 `unbounded` 时，项目上限仍须有限。
+
+```ts
+const imageProfile: ModelProfile = {
+  ...profile,
+  inputModalities: ['text', 'image'],
+  inputConstraints: { maxImageBytes: 4_000_000, maxImages: 4 },
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+    maxImageBytes: { status: 'limited', value: 8_000_000 },
+    maxImages: { status: 'unknown' },
+  },
+}
+console.log(judgeModelProfileDocument('ModelProfile', imageProfile)) // { ok: true }
+```
+
+`validate` 只检查 Schema 形状；完整判定还会对项目上限与已知有限上游事实逐项做精确比较。`ModelProfileSnapshot` 的类型与 Schema 保留两个输入限制对象，实际复制和历史保存由请求写入方负责。具体边界以已接受设计为准。
