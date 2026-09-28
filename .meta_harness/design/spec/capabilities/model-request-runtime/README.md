@@ -1,8 +1,8 @@
-**v6 candidate（2026-09-28，未接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-候选变化与证据)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。
+**v6 起草时摘要（历史；后由 D-099 接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-候选变化与证据)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。
 
 2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v7 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
 
-**当前候选 `capability.model-request-runtime/v7`**：[契约](v7/contract.md)与[变化及证据](verification.md#v7-发布前破坏性演进)。由已接受 v6 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+**当前候选 `capability.model-request-runtime/v8`**：[契约](v8/contract.md)与[变化及证据](verification.md#v8-估算计量保证)。依据 PF-013 rev15，仅调整 token 估算与显式余量保证；尚未技术接受。已接受基线 v7 的采用依据是上方 D-100；以下各旧版本段落按当时事件读取，不能覆盖当前接受状态。
 
 
 **2026-09-27 当前规范接受（D-090）**：v5 全73条／27资源已接受并冻结；只将规范 MR4→MR5 并明确同次头事实交接。[决定](../../../record/decisions/model-headers-v5-adoption/decision.md)。D-087 已技术采用 v4-design rev2；v5 runtime/transport/codec 提供者尚待精确投影与采用，当前源码不自动升级，十三操作与真实链未完成。下方早期状态按原事件读取。
@@ -65,10 +65,14 @@
 
 [契约](v4/contract.md)从 D-076 已接受 v3 演进，保留十三操作和独立 invokeModel，消费 D-083 已接受 session-log v3；S-68～S-73 补显式 condition、实际提交点 late、完整批认回、未知结果与争用耗尽责任。[实例](v4/examples.md#v4-增量结算竞争与恢复)、[形式义务](v4/formal/README.md#结算组合模型)、[消费者传播](v4/consumer-impact.md)与[证据状态](verification.md#v4-候选变化与证据)分别可查。v4 已由D086接受27资源，旧 v3仍沿registry冻结，新版不自动升级任何消费者；本轮不改变既有模型/参数/缓存或其他十六项精确依赖，不为生产 Run 认法、共同 codec、多值头或真实组合补默认。
 
-## v5 候选：多值响应头事实交接
+## v5 起草时摘要（历史）：多值响应头事实交接
 
 [完整契约](v5/contract.md)继承 D-086 已接受 v4 的 73 条、十三服务操作及九项和 SL3 结算/恢复，仅将 MR4 精确依赖换为 [MR5 candidate](../../data/model-response/v5/contract.md)。同次 send 的公共可选 rawHeaders 经 invoke 未结算结果交到完整响应，保留已取得且留存的 string／有序 string[] 原值；取消和读体失败不擦掉事实，头不进入内容门、观察者或诊断。[规范实例](v5/examples.md#v5-增量同次响应头的交接与留存)、[消费者传播](v5/consumer-impact.md)、[形式继承边界](v5/formal/README.md)与[证据义务](verification.md#v5-候选变化与证据)分别维护。
 
-MR5/RT5 尚未接受；旧提供者与任何消费者均不自动升级。G-31 仅有候选表示/交接，core 公开接收、transport/runtime/codec 投影、全部真实写方和 TLS→invoke→append/reopen 仍待。四 TLA、十九配置逐字继承，六任务仅登记未运行，不能证明头事实留存或实际停止；其余原缺口保持。
+起草当时 MR5/RT5 尚未接受（后来由 D-090 接受）；旧提供者与任何消费者均不自动升级。G-31 仅有候选表示/交接，core 公开接收、transport/runtime/codec 投影、全部真实写方和 TLS→invoke→append/reopen 仍待。四 TLA、十九配置逐字继承，六任务仅登记未运行，不能证明头事实留存或实际停止；其余原缺口保持。
 
 2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v6；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
+
+## v8 token 估算候选
+
+[v8 契约](v8/contract.md)仅调整 PF-013 rev15 已由用户确认的 tokenizer 估算与可配置余量保证；尚未技术接受。字段与纯判定、十三操作及其他精确消费者范围保持。[验证与变化](verification.md#v8-估算计量保证)记录实际证据与限制。

@@ -43782,6 +43782,1362 @@
       },
       "reviewed": false,
       "note": "发布前破坏性演进候选：继承源版未变要求覆盖；只改变运行格式边界与精确消费坐标，未独立复核。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-6",
+          "S-8",
+          "S-9",
+          "S-12",
+          "S-15",
+          "S-21"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模态"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-2",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#在册--已撤回"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-10"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#官方档案--自建档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-3",
+          "S-4"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#56-凭据挂在范围上不挂在档案上"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#非目标"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#什么时候算试尽"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-5",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#系统自带一件默认的所以开箱就有重试"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-5"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#61-档案是一个对象那项设置的取值是对它的引用"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-2",
+          "S-12",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#62-凭据挂在范围上档案自己不存"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#63-官方与自建在同一份列表里"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-4",
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#511-有-transcript-的块不再把任何模型挡在外面"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#64-撤回不删行会话指向被撤回的档案时说已下架"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-3",
+          "S-10",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#617-本-topic-不出现任何时限数值"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-16",
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#七取舍"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-22"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#31-一条模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-3",
+          "S-10",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-1",
+          "S-2",
+          "S-3",
+          "S-13",
+          "S-14"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#61-层次"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-1"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-010-context-management-and-assembly",
+        "clause": "design.md#要求五组装的输入里必须有当下生效的那份模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-9"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#模型档案"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-8",
+          "S-9",
+          "S-11",
+          "S-12",
+          "S-27",
+          "S-28",
+          "S-32",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "data.model-profile",
+        "version": 6,
+        "clauses": [
+          "S-8",
+          "S-9",
+          "S-27",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-001-identity-scope-and-agent-constraints",
+        "clause": "design.md#64-隔离"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-7",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-004-agent-definition-and-assembly",
+        "clause": "design.md#66-模型在每次请求时确定"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#56-流断在半路"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-15",
+          "S-29"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-009-context-message-types",
+        "clause": "design.md#69-用户看见了的会话日志里必须有"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-15",
+          "S-29",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#613-取消跟着宿主走"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-31",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#615-取消先落日志再发信号"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-31",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#先对账再进方程"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-15",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#成本两层缺哪一层都会算错"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-5",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#挂件自己花的钱算它插手的那个-run"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-5",
+          "S-17"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#等人是-loop-的原语"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-15",
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#510-合法目标集合与展示列表是两件事"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#511-有-transcript-的块不再把任何模型挡在外面"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#513-模型请求的运行时可以被单独控制而它停了看首-token"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-15",
+          "S-31",
+          "S-33",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#54-三类事实归本层定死其余照状态码"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-16",
+          "S-18",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#55-上交交给谁看模型说没说出话"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-22",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#56-凭据挂在范围上不挂在档案上"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#62-凭据挂在范围上档案自己不存"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-12",
+          "S-19",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#63-官方与自建在同一份列表里"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-12",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#档案的身份所在范围加路由名"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25",
+          "S-26",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#64-撤回不删行会话指向被撤回的档案时说已下架"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#14-走一遍选中的模型被下架了"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-12"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#57-上交带什么原样带着状态码不翻译它"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#59-换模型一条事实一个生效点零个新分支"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#610-模态兼容挡在算合法目标那一刻不挡在出门那一刻"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#611-成因在这个边界上分类不丢进外层按异常形态分"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#612-事实判断归本-topic策略归拓展件"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#613-试尽由拓展件判定档案的两项声明是它的输入"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#616-错误信息外泄之前要脱敏"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-20"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#617-本-topic-不出现任何时限数值"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-21",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#618-模态投影要答得快而且是增量维护出来的"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#65-切换是用户的直接命令合法目标不得拒绝"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-11",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#67-生效点收到那条事实之后下一次模型请求之前"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-7"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#68-不为切换新增分支"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#69-合法目标算不出来时不替用户改选"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-11",
+          "S-12",
+          "S-24",
+          "S-25",
+          "S-27",
+          "S-28"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#什么时候算试尽"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-30",
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#停机之后能不能重来只看首-token"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-15",
+          "S-31",
+          "S-33",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#判据怎么用三个例子"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-18"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#单独控制中断这一次调用不动别的"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#它只有一个宿主所以只有一种结局"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-5",
+          "S-15",
+          "S-31",
+          "S-33",
+          "S-36"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#已经开口说话了优先于其余各类"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-16",
+          "S-18",
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#有三件事它改不动"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-30"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#系统自带一件默认的所以开箱就有重试"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#617-run-这一层的七条不变式"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-17",
+          "S-68",
+          "S-69",
+          "S-70",
+          "S-71",
+          "S-72",
+          "S-73"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#消息落盘之前的否决按消息是谁产生的分三路"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-17",
+          "S-29",
+          "S-49",
+          "S-75"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-012-agent-loop-and-run",
+        "clause": "design.md#系统自带的几件不可用时各有定法"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-35"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#第一件会话睡一觉醒来还得是原来那个"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-33"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#试过又失败的那几次留痕不进方程"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-22",
+          "S-38"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#还有一种没走完它不在这张表里"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-31"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#选中模型-与-有效模型"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-10",
+          "S-26"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#32-一次模型调用"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-5",
+          "S-6"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#33-一个会话的选中模型"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-9",
+          "S-27"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "flows.md#34-一个会话的模态投影"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-13"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-015-session-lifecycle-and-ownership",
+        "clause": "design.md#612-会话持有创建那一刻的租户身份"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-7",
+          "S-19"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#上游限制与档案提供的上限"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-7",
+          "S-28",
+          "S-29",
+          "S-30",
+          "S-53",
+          "S-54",
+          "S-57",
+          "S-58",
+          "S-74"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#八边界与依赖"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-74"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
+    },
+    {
+      "requirement": {
+        "topic": "PF-013-model-profiles-and-invocation",
+        "clause": "design.md#512-重试站在一个已经存在的位置上"
+      },
+      "target": {
+        "contract_id": "capability.model-request-runtime",
+        "version": 8,
+        "clauses": [
+          "S-35",
+          "S-60",
+          "S-76"
+        ]
+      },
+      "reviewed": false,
+      "note": "2026-09-28 PF-013 rev15 用户允许估算与显式余量；继承未变化条款，技术候选未独立审定。"
     }
   ],
   "note": "2026-09-22 首次登记，覆盖租户相关领域五份 candidate 契约。每条的 clauses 由两处合并得出：契约正文里带小节链接的条款段落，以及各契约「性质」表的「来源」列。全部 reviewed=false——这是「声称覆盖但尚未逐条复核」的诚实初值，不是复核通过。三处已知不完整，登记时一并记明，不靠留白掩盖：（1）PF-007 也被 data.identity-values 与 capability.organization-governance 的正文引为来源（§4 一笔授权表达有三个维度），本次登记范围只含 PF-001/002/003/015，因此 PF-007 一条未登；（2）foundation 的 SYS-TENANT / SYS-DEPLOY 是全局约束不是产品条款，本清单只登记 PF- 侧，那一侧的覆盖没有家；（3）契约正文里以散文方式引用产品要求、没有给出小节链接的地方，本次登记抓不到。 2026-09-22 评审轮一修订后补登 18 处（见各行 note）。data.identity-values/v1#S-35「交接凭证」没有产品出处（规格层构造），有意不登记 cover。 2026-09-23 补登 composition.governance-center-entry v1（candidate）40 条：PF-017（rev 1，仍是 draft（PF-017 rev 1 已于 2026-09-23 同日接受，各条 note 已改））30 条、PF-016 5 条、PF-001 5 条，全部 reviewed=false；来源是该契约正文里带小节链接的条款段落。该契约的形式工件与规范场景条款（S-37～S-46）只在对到验收判据时登记。 2026-09-23 该契约评审第一轮修订：首登时有若干条的 clauses 在正文对应条款里并没有小节链接，已在正文逐条补齐；逐条核过之后，每条 covers 的产品小节都在所列的每个条款里有链接，唯一例外是 acceptance §二那一条（见其 note）；该条 clauses 补登 S-31。 2026-09-23 补登 composition.governance-center-entry-https-json v1（candidate，传输绑定）11 条：PF-017 rev 2 共 10 条、PF-016 rev 4 共 1 条，全部 reviewed=false；来源同一口径——该契约正文里带小节链接的条款段落，每条所列条款都链接了那个小节。 2026-09-23 该传输绑定评审第一轮修订：补登 1 条（PF-017 acceptance §二「冒牌货」一行 → S-30），§8 那一条补 S-30；该契约现 12 条。\nPR #9 的 covers 随规格坐标迁移追加；reviewed 标记保持原值。"

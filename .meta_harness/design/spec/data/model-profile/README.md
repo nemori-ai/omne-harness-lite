@@ -2,10 +2,10 @@
 
 2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v5 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
 
-**当前候选 `data.model-profile/v5`**：[契约](v5/contract.md)与[变化及证据](verification.md#v5-发布前破坏性演进)。由已接受 v4 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+**当前候选 `data.model-profile/v6`**：[契约](v6/contract.md)与[变化及证据](verification.md#v6-估算计量保证)。依据 PF-013 rev15，仅调整 token 估算与显式余量保证；尚未技术接受。已接受基线 v5 的采用依据是上方 D-100；以下各旧版本段落按当时事件读取，不能覆盖当前接受状态。
 
 
-**当前候选 v4**：区分有限供给上限与上游三态事实，完整快照保留两者；[契约](v4/contract.md)、[Schema](v4/model-profile.schema.json)、[规范实例](v4/examples.md)、[机读实例](v4/examples.json)、[验证与影响](verification.md#v4-变化的影响)。v4 未接受、未冻结；候选登记片段交唯一 registry owner 集成，本入口不声称中央登记已完成。
+**v4 起草时摘要（历史）**：区分有限供给上限与上游三态事实，完整快照保留两者；[契约](v4/contract.md)、[Schema](v4/model-profile.schema.json)、[规范实例](v4/examples.md)、[机读实例](v4/examples.json)、[验证与影响](verification.md#v4-变化的影响)。v4 未接受、未冻结；候选登记片段交唯一 registry owner 集成，本入口不声称中央登记已完成。
 
 **v3 已接受并冻结**，精确采用依据见 [D-078 接受记录](../../../record/decisions/model-main-integration-coordination/acceptance.json)与 catalog；v2 同样保留历史采用。下面早期 v2/v3 记录按当时语境读取，不改变 registry 的现行状态。
 
@@ -68,3 +68,7 @@
 本次接受 `data.model-profile` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
 
 2026-09-28：[D-097](../../../record/decisions/model-profile-v4-limit-contract-adoption/decision.md)独立技术接受 v4 输入限制契约；四资源冻结。core 提供者、新调用消费者与 37 模型供给仍分别采用和验证，候选原文保留起草状态。
+
+## v6 token 估算候选
+
+[v6 契约](v6/contract.md)仅调整 PF-013 rev15 已由用户确认的 tokenizer 估算与可配置余量保证；尚未技术接受。字段与纯判定、十三操作及其他精确消费者范围保持。[验证与变化](verification.md#v6-估算计量保证)记录实际证据与限制。

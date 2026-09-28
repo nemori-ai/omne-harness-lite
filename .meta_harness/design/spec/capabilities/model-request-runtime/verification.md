@@ -511,3 +511,25 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 2026-09-28 整批表达检查发现：S29 已提交失败响应但 history 暂不可用后，原只读面未返回完整失败主体。主线裁定在现有 S34 readAttempts 的④⑤⑦⑧补 failureSubject 分支，S76.2/.5明确引用：awaiting_decision且最近实际响应failed时，同一合法完整前缀决定状态、响应、dispatches及完整retryConclusions；必要源不可判整体unavailable，恢复后重复读取可重取。其他状态不附主体，读取没有写入/发送/凭据/计次副作用，后续dispatchAgain仍核当时状态/守卫/fence。十三操作数目不变，旧冻结版未改。
 
 新增 RT6-R5～R8 覆盖源恢复、缺历史整体失败、并发前缀一致和S33后重取，真实消费者场景**未开始**。此变更只补现有读取的结果关系，不新增耐久状态或写入交错；不扩张现有 RetryHistory 模型覆盖。上述独立四正六负仅验证原已建模范围，不声称已验证这一重取路径。consumer-impact同步；本轮不改registry或接受记录。
+
+## v8 估算计量保证
+
+### 变化的影响
+
+PF-013 rev15 产品语义由用户明确确认，正文来源 a61cc601 与 §8 对齐修订 578e39f2（本 spoke 输入提交 7ee05060）；表达复核与技术接受归主线，candidate 不声明已接受。仅 MP6 与 RT8 后继；MP6 S-8/S-33 改准入计量保证但字段、Schema断言和纯判定不变。RT8 S-74 允许适用 tokenizer 估算加显式 tokenMargin，basis=estimated 拒绝不冒充 exact；bytes/图数保持精确，actual usage仍来自上游。Directory5/MS6/MR7/LC6继续精确消费原表示，理由见候选的消费者影响段。
+
+简报裁定：multiplier≥1有限十进制、reserveTokens≥0整数，两项显式；admissionTokens=ceil(estimatedTokens×multiplier)+reserveTokens；原三拒绝reason不变。推导细化：政策非法沿既有malformed、在cap/事实missing检查后验证；准确超限与估算拒绝并存时优先报告准确事实，理由是保持原准确超限优先且不混淆来源。没有新增领域对象、服务操作或实际usage字段。
+
+### 证据义务与缺口
+
+真实tokenizer适用依据、完整输入覆盖、任意有限十进制实现、固定最终请求、37模型生产认证与真实IO：**未开始**。MP6不增加状态机/Alloy；RT8仅改FinalPlan，其他模型仍按前驱的明确输入范围解释，不把旧结果改称本次通过。
+
+既有缺口owner保持，MP G-15与RT G-33仍要求逐模型/供应商/版本的计量及材料证据；RT G-28生产Run终结认法不因本轮关闭。无新术语定义；tokenMargin及metadata为既有计量概念的技术参数（无独立词条）。中央registry未修改，候选登记片段在任务区fragments，主线负责合入与接受。
+
+### 本次实际检查（2026-09-28）
+
+候选静态检查 240 项全部通过：MP5/MP6 Schema 断言逐项相同、同一组实例在两版结果相同、纯判定不变；RT8 保留 76 条与十三操作各九项及原失败集合、其他六个 TLA 模型及其配置逐字继承，五组精确十进制公式向量通过。`check_design.py --root .meta_harness/design --formal registered` 实际退出 0；它检查中央已有登记，不代替候选片段集成。片段资源路径、消费条款与覆盖条款另经上述静态检查。
+
+FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态；公开无日志：8545）；九份负配置均退出 12，分别命中 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、EstimateCanProceed、MarginApplied、EstimateNotActual、MissingPriority、BytesExact、UsageFromUpstream。模型允许 estimated≤cap 而实际上游 token>cap 的发送；这不是本契约承诺排除的状态。首次运行使用异类型集合导致 TLC 指纹错误退出 75，原日志保留；改成带标签记录后另存最终输入重跑。未重跑其他继承模型，未运行 Alloy 或真实 IO。
+
+本次本地证据位于 spoke 的 `tmp/model-request-runtime/token-estimate/`：`checks/checks.json`、`checks/check-design-run.json` 及原始输出；`formal-run-1/` 保留首次工具失败，`formal-run-2/runs.json`、`formal-run-2/sha256.json` 与各配置原始输出保存最终形式输入和结果；`fragments/` 保存八份待集成登记片段，`CHANGE-AUDIT.md` 记录最小变动与推导项。主线需归档这些临时证据；它们不是已经归入 record 的接受材料。
