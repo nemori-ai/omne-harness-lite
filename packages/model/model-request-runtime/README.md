@@ -817,3 +817,5 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
   return { accepted, closed, health: collector.health(), metrics: collector.metrics(config.scope) }
 }
 ```
+
+For an empty journal, `through.sequence` is `"0"`, the empty written watermark. It is never a record identity, `after` cursor or `causedBy` reference; those begin at one. Reusing this watermark after a new append still returns the empty prefix.

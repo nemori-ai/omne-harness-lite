@@ -804,3 +804,5 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
   return { accepted, closed, health: collector.health(), metrics: collector.metrics(config.scope) }
 }
 ```
+
+空 journal 的 `through.sequence` 为 `"0"`，只表示尚未写入的水位；它不是记录身份，也不能用作 `after` 或 `causedBy`，这些序列从一开始。新增记录后沿用原零水位，仍只查询空前缀。
