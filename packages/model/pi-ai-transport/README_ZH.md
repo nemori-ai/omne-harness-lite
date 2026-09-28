@@ -15,8 +15,8 @@
 | `configurationSchema(definition, provider)`                             | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值            |
 | `interpretConfiguration(definition, values, provider)`                  | 从同一路由声明严格、无损解释配置                               |
 | `createOfficialProfileContent(definition, options)`                     | 构造并判定 core 内容，不写目录、不登记、不生成时间             |
-| `planRequest(input, definitions)`                                       | 纯不可变规划，含实际参数、调整和丢项原键                       |
-| `createPiAiTransport(options)`                                          | 显式定义与自持连接池的 plan/send/read/close、诊断计数          |
+| `planRequest(input, definitions, meter)`                                       | 固定字节规划与可信逐路由计量器的最终输入准入                       |
+| `createPiAiTransport(options)`                                          | 显式定义、绑定计量器与自持连接池的 plan/send/read/close          |
 | `sendRequest`、`readStream`                                             | 借用明确网络资源的独立函数                                     |
 | `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`    | 进程内精确登记、固定引用和显式排空                             |
 | `parseSSE`、`canonicalInteger`、`generatedCallId`                       | 分帧与精确确定性标识辅助                                       |
@@ -32,6 +32,7 @@
 ```ts
 import type {
   ModelDefinition,
+  InputMeter,
   RetirementPolicy,
   TransportPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
@@ -77,6 +78,16 @@ export const definition: ModelDefinition = {
   },
 }
 export const definitions: readonly ModelDefinition[] = [definition]
+export const controlledMeter: InputMeter = {
+  modelId: definition.modelId,
+  definitionRevision: definition.revision,
+  implementation: definition.implementation,
+  provider: 'example-provider',
+  algorithmRevision: 'local-controlled-example-1',
+  evidence: 'synthetic local fixture; never use for real model admission',
+  measure: () => ({ kind: 'exact', tokens: 1 }),
+}
+
 const reminder = judgeMessage({
   id: 'reminder-example',
   type: 'system_reminder',
@@ -94,6 +105,7 @@ const reminder = judgeMessage({
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
+  tokenMargin: { multiplier: 1, reserveTokens: 0 },
   target: {
     kind: 'model_call',
     callId: unwrap(parseOpaqueIdentifier('call-example', 'ModelCallId')),
@@ -151,7 +163,7 @@ import {
   createOfficialProfileContent,
   planRequest,
 } from '@omne-harness-lite/pi-ai-transport'
-import { definition, definitions, request } from './example-definition.js'
+import { definition, definitions, request, controlledMeter } from './example-definition.js'
 
 const binding = request.snapshot.adaptation
 console.log(
@@ -169,7 +181,7 @@ const content = createOfficialProfileContent(definition, {
 })
 if ('rejected' in content) throw new Error(content.rejected)
 // This is a construction example only; it does not publish the synthetic content.
-const result = planRequest(request, definitions)
+const result = planRequest(request, definitions, controlledMeter)
 if ('rejected' in result) throw new Error(result.rejected)
 console.log(result.planned.body.messages) // developer; no HTTP request
 ```
@@ -180,13 +192,20 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 自动缓存配置恰为 `{ cache: { mode: 'automatic' } }`，不发送手工控制。显式路由声明 ttlValues 与完整 breakpointLayouts；配置必须给 mode、TTL 和一个已列完整布局。共享代码不写死 TTL、默认值或布局组合。Schema 和解释器同源；规划控制不代表上游采纳、命中或到期行为。
 
+
+## 最终输入准入
+
+每次规划都必须显式提供 `PlanInput.tokenMargin`：`{ multiplier, reserveTokens }`，其中乘数是至少 1 的有限十进制数，预留量是非负整数。签发 `planned` 前检查最终序列化请求。请求 UTF-8 字节数、内联图片解码字节数和图片数量均精确计算；重复图片及工具结果中的图片逐次计入。缺上限返回 `input_limit_missing`；精确超限返回带 `basis: 'exact'` 的 `input_limit_exceeded`；估算 token 经余量计算后超限返回 `basis: 'estimated'`，同时给出原估值和准入值；无法可靠计量返回 `input_size_unavailable`。上界超过上限属于无法判断，不冒充实际超限。发前拒绝不会发 HTTP 请求。
+
+`InputMeter` 是提供给函数或 transport factory 的可信可执行构件，不进 model profile JSON，也不是调用者传入的准入布尔值。定义、供应商、算法版本及证据绑定到贡献；另一计量来源签发的计划不能经本宿主发送。`createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` 针对精确的 `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` 路由，固定 DeepSeek V4 Pro 公开提示词编码器与 tokenizer。由于已查来源未公开 OpenRouter／DeepInfra 的字节完全一致的私有提示词装配，它返回的是**估算**。打包 tokenizer/config 的哈希及官方文本、推理、工具 golden 离线验证。余量由调用者显式选择；估算不替代上游 usage 和费用。其他官方定义须各自具备计量证据，才能成功规划。上面的合成 `controlledMeter` 只演示本地协议，绝不可用于真实供应商。
+
 ## 持有传输资源
 
 ```ts
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
-import { definitions, request, networkPolicy } from './example-definition.js'
+import { definitions, request, networkPolicy, controlledMeter } from './example-definition.js'
 
-const transport = createPiAiTransport({ definitions, policy: networkPolicy })
+const transport = createPiAiTransport({ definitions, inputMeters: [controlledMeter], policy: networkPolicy })
 try {
   const result = transport.plan(request)
   if ('rejected' in result) throw new Error(result.rejected)
@@ -253,10 +272,10 @@ export async function executeOnce(
 
 ```ts
 import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
-import { definition, request, networkPolicy, retirement } from './example-definition.js'
+import { definition, request, networkPolicy, retirement, controlledMeter } from './example-definition.js'
 
 const service = createModelTransportService({ policy: networkPolicy })
-const registered = service.registerAdaptation(definition, {}, () => {})
+const registered = service.registerAdaptation(definition, controlledMeter, {}, () => {})
 if ('rejected' in registered) throw new Error(registered.rejected)
 const acquired = service.acquire(request.snapshot.adaptation, request.routeName)
 if ('rejected' in acquired) throw new Error(acquired.rejected)
@@ -281,12 +300,12 @@ console.log(await service.close(retirement)) // no HTTP request
 ```ts
 import { Context } from '@deepseek-ai/cordis'
 import { piAiTransportPlugin, createModelPlugin } from '@omne-harness-lite/pi-ai-transport/plugin'
-import { definition, networkPolicy, retirement } from './example-definition.js'
+import { definition, networkPolicy, retirement, controlledMeter } from './example-definition.js'
 
 const ctx = new Context()
 const stable = ctx.plugin(piAiTransportPlugin, { retirement, policy: networkPolicy })
 await stable
-const contribution = ctx.plugin(createModelPlugin(definition, retirement), {})
+const contribution = ctx.plugin(createModelPlugin(definition, controlledMeter, retirement), {})
 await contribution
 await contribution.dispose()
 await stable.dispose() // no acquired lease and no HTTP request

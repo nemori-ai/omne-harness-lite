@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
@@ -7,7 +8,6 @@ import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
@@ -53,6 +53,7 @@ function input(messages: Message[], parameters: ModelRequestParameters = {}): Pl
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   return {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',
       callId: unwrap(parseOpaqueIdentifier('test-call', 'ModelCallId')),
@@ -238,6 +239,7 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
     })
     expect(planRequest({ ...request, parameters: { maxOutputTokens: 129 } }, [fixture])).toEqual({
       rejected: 'invalidInput',
+      reason: 'malformed',
     })
   })
 })

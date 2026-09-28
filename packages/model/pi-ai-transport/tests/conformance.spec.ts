@@ -1,4 +1,5 @@
 import { testDefinitions } from './definitions.ts'
+import { planRequest } from './synthetic-input-meter.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   LosslessNumber,
@@ -22,7 +23,6 @@ import {
   type StreamEnd,
 } from '@omne-harness-lite/model-request-runtime'
 import {
-  planRequest,
   type RawResponse,
   type PlannedRequest,
   type Diagnostic,

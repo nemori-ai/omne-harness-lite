@@ -15,8 +15,8 @@ Every caller supplies complete model definitions explicitly. There are no defaul
 | `configurationSchema(definition, provider)`                               | Closed Draft 2020-12 Schema, generated from route data without defaults                                                |
 | `interpretConfiguration(definition, values, provider)`                    | The same route's strict, lossless configuration interpretation                                                         |
 | `createOfficialProfileContent(definition, options)`                       | Construct and judge core content; no directory write, registration or timestamp                                        |
-| `planRequest(input, definitions)`                                         | Pure immutable wire plan, actual parameters, adjustments and dropped original keys                                     |
-| `createPiAiTransport(options)`                                            | Explicit definitions and owned pool with plan/send/read/close and diagnostic counters                                  |
+| `planRequest(input, definitions, meter)`                                         | Pure fixed-byte plan and final input admission with a trusted, versioned model/provider meter                                     |
+| `createPiAiTransport(options)`                                            | Explicit definitions, bound input meters and owned pool with plan/send/read/close                                  |
 | `sendRequest`, `readStream`                                               | Independent functions borrowing explicit network resources                                                             |
 | `createModelTransportService`, `AdaptationLease`, `RetirementPolicy`      | Process-local precise registration, fixed leases and explicit draining                                                 |
 | `parseSSE`, `canonicalInteger`, `generatedCallId`                         | Framing and exact deterministic identity helpers                                                                       |
@@ -32,6 +32,7 @@ Save this as `example-definition.ts`; the following examples import its values. 
 ```ts
 import type {
   ModelDefinition,
+  InputMeter,
   RetirementPolicy,
   TransportPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
@@ -77,6 +78,16 @@ export const definition: ModelDefinition = {
   },
 }
 export const definitions: readonly ModelDefinition[] = [definition]
+export const controlledMeter: InputMeter = {
+  modelId: definition.modelId,
+  definitionRevision: definition.revision,
+  implementation: definition.implementation,
+  provider: 'example-provider',
+  algorithmRevision: 'local-controlled-example-1',
+  evidence: 'synthetic local fixture; never use for real model admission',
+  measure: () => ({ kind: 'exact', tokens: 1 }),
+}
+
 const reminder = judgeMessage({
   id: 'reminder-example',
   type: 'system_reminder',
@@ -94,6 +105,7 @@ const reminder = judgeMessage({
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
+  tokenMargin: { multiplier: 1, reserveTokens: 0 },
   target: {
     kind: 'model_call',
     callId: unwrap(parseOpaqueIdentifier('call-example', 'ModelCallId')),
@@ -151,7 +163,7 @@ import {
   createOfficialProfileContent,
   planRequest,
 } from '@omne-harness-lite/pi-ai-transport'
-import { definition, definitions, request } from './example-definition.js'
+import { definition, definitions, request, controlledMeter } from './example-definition.js'
 
 const binding = request.snapshot.adaptation
 console.log(
@@ -169,7 +181,7 @@ const content = createOfficialProfileContent(definition, {
 })
 if ('rejected' in content) throw new Error(content.rejected)
 // This is a construction example only; it does not publish the synthetic content.
-const result = planRequest(request, definitions)
+const result = planRequest(request, definitions, controlledMeter)
 if ('rejected' in result) throw new Error(result.rejected)
 console.log(result.planned.body.messages) // developer; no HTTP request
 ```
@@ -180,13 +192,20 @@ Each route declares its reminder role; the model name selects no policy. OpenAI 
 
 Automatic cache configuration is exactly `{ cache: { mode: 'automatic' } }` and emits no manual controls. Explicit route declarations contain `ttlValues` and complete `breakpointLayouts`; configuration must supply mode, TTL and one declared layout. No TTL/default/layout combinations are hardcoded in shared code. Schema and interpreter read the same declaration. Planning a control does not establish upstream adoption, a cache hit or expiry behavior.
 
+
+## Final input admission
+
+`PlanInput.tokenMargin` is required for every plan: `{ multiplier, reserveTokens }`, with a finite decimal multiplier at least 1 and a nonnegative integer reserve. The final serialized request is measured before a `planned` result can be signed. Request UTF-8 bytes, decoded inline image bytes and image count are exact; image duplicates and tool-result images count each time. Missing caps yield `input_limit_missing`. A known exact excess yields `input_limit_exceeded` with `basis: 'exact'`; an estimated token admission excess has `basis: 'estimated'`, both the raw estimate and the margin-adjusted admission. Unmeasurable inputs yield `input_size_unavailable`. Upper-bound excess is unmeasurable, not an actual excess. No pre-send rejection performs an HTTP request.
+
+`InputMeter` is trusted executable code supplied to the function or transport factory, not model-profile JSON or a caller-provided permission flag. Its exact definition, provider, algorithm revision and evidence are bound to the contribution; a plan from another meter source cannot be sent through this host. `createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` uses a pinned DeepSeek V4 Pro public prompt encoder and tokenizer for the exact `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` route. It returns an **estimate** because OpenRouter/DeepInfra do not publish a byte-identical private prompt projection in the inspected sources. Its packaged tokenizer/config hashes and official text, reasoning and tool golden vectors are checked offline. The caller chooses the explicit margin; this estimate never replaces upstream usage or cost. Other official definitions require a separately evidenced meter before a successful plan. The synthetic `controlledMeter` above proves only the local protocol example and must never be sent to a real provider.
+
 ## Own the transport
 
 ```ts
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
-import { definitions, request, networkPolicy } from './example-definition.js'
+import { definitions, request, networkPolicy, controlledMeter } from './example-definition.js'
 
-const transport = createPiAiTransport({ definitions, policy: networkPolicy })
+const transport = createPiAiTransport({ definitions, inputMeters: [controlledMeter], policy: networkPolicy })
 try {
   const result = transport.plan(request)
   if ('rejected' in result) throw new Error(result.rejected)
@@ -253,10 +272,10 @@ export async function executeOnce(
 
 ```ts
 import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
-import { definition, request, networkPolicy, retirement } from './example-definition.js'
+import { definition, request, networkPolicy, retirement, controlledMeter } from './example-definition.js'
 
 const service = createModelTransportService({ policy: networkPolicy })
-const registered = service.registerAdaptation(definition, {}, () => {})
+const registered = service.registerAdaptation(definition, controlledMeter, {}, () => {})
 if ('rejected' in registered) throw new Error(registered.rejected)
 const acquired = service.acquire(request.snapshot.adaptation, request.routeName)
 if ('rejected' in acquired) throw new Error(acquired.rejected)
@@ -281,12 +300,12 @@ Use lease.transport for invocation and lease.track(handle.outcome) for execution
 ```ts
 import { Context } from '@deepseek-ai/cordis'
 import { piAiTransportPlugin, createModelPlugin } from '@omne-harness-lite/pi-ai-transport/plugin'
-import { definition, networkPolicy, retirement } from './example-definition.js'
+import { definition, networkPolicy, retirement, controlledMeter } from './example-definition.js'
 
 const ctx = new Context()
 const stable = ctx.plugin(piAiTransportPlugin, { retirement, policy: networkPolicy })
 await stable
-const contribution = ctx.plugin(createModelPlugin(definition, retirement), {})
+const contribution = ctx.plugin(createModelPlugin(definition, controlledMeter, retirement), {})
 await contribution
 await contribution.dispose()
 await stable.dispose() // no acquired lease and no HTTP request

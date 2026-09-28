@@ -31,14 +31,18 @@ import {
 } from './definitions.ts'
 import { interpretConfiguration } from './configuration.ts'
 import { object, ownedObject } from './json.ts'
-import { ownPlanInput } from './input.ts'
+import { ownPlanInput, preflightInputWithMissingLimits } from './input.ts'
+import { measureFinalInput, missingInputLimits, type FinalInputEvidence } from './input-limits.ts'
+import { meterSource, type InputMeter } from './input-meter.ts'
 
 export interface PlannedRequest extends PlannedSemantics {
   readonly body: JsonObject
   readonly serialized: string
+  readonly inputLimitEvidence: FinalInputEvidence
 }
 const plans = new WeakSet<PlannedRequest>()
 const planDefinitions = new WeakMap<PlannedRequest, ModelDefinition>()
+const planMeters = new WeakMap<PlannedRequest, object>()
 const planOwners = new WeakMap<PlannedRequest, object>()
 /** Internal signing boundary; host identity is never part of the durable binding. */
 export function claimPlan(planned: PlannedRequest, owner: object): void {
@@ -50,11 +54,14 @@ export function planAvailable(
   planned: PlannedRequest,
   owner: object,
   definitions: readonly ModelDefinition[],
+  meters: readonly InputMeter[],
 ): boolean {
   const prior = planOwners.get(planned)
   if (prior) return prior === owner
   const declaration = planDefinitions.get(planned)
   if (!declaration) return false
+  const source = planMeters.get(planned)
+  if (!source || !meters.some(meter => meterSource(meter) === source)) return false
   const copied = copyJsonValue(declaration)
   return (
     'ok' in copied &&
@@ -119,16 +126,48 @@ function addBreakpoint(message: MutableObject, control: JsonObject): void {
 export function planRequest(
   raw: PlanInput,
   definitions: readonly ModelDefinition[],
+  meter?: InputMeter,
 ): PlanResult<PlannedRequest> {
   let ownedDefinitions: readonly ModelDefinition[]
   try {
     ownedDefinitions = ownDefinitions(definitions)
   } catch (error) {
-    if (error instanceof TypeError) return { rejected: 'invalidInput' }
+    if (error instanceof TypeError) return { rejected: 'invalidInput', reason: 'malformed' }
     throw error
   }
   const input = ownPlanInput(raw)
-  if (!input) return { rejected: 'invalidInput' }
+  if (!input) {
+    const snapshot = copyJsonValue(raw?.snapshot)
+    if ('ok' in snapshot) {
+      const missing = missingInputLimits(snapshot.ok)
+      if (missing) {
+        const prepared = preflightInputWithMissingLimits(raw)
+        if (!prepared) return { rejected: 'invalidInput', reason: 'malformed' }
+        const binding = prepared.snapshot.adaptation
+        const definition = ownedDefinitions.find(
+          d =>
+            d.modelId === prepared.routeName &&
+            d.revision === binding.definition.revision &&
+            d.implementation.name === binding.implementation.name &&
+            d.implementation.revision === binding.implementation.revision,
+        )
+        if (!definition || !Object.hasOwn(definition.routes, prepared.provider))
+          return { rejected: 'unavailable' }
+        const prior = planRequest(prepared, ownedDefinitions)
+        if ('rejected' in prior) {
+          if (
+            prior.rejected === 'tool_internal_in_request' ||
+            prior.rejected === 'modality_not_carried' ||
+            prior.rejected === 'orphan_tool_call' ||
+            (prior.rejected === 'invalidInput' && prior.reason === 'malformed')
+          )
+            return prior
+        }
+        return missing
+      }
+    }
+    return { rejected: 'invalidInput', reason: 'malformed' }
+  }
   const binding = input.snapshot.adaptation
   const definition = ownedDefinitions.find(
     d =>
@@ -147,7 +186,10 @@ export function planRequest(
     binding.configuration.values,
     input.provider,
   )
-  if ('rejected' in interpreted) return interpreted
+  if ('rejected' in interpreted)
+    return interpreted.rejected === 'unavailable'
+      ? { rejected: 'unavailable' }
+      : { rejected: 'invalidInput', reason: 'malformed' }
   const cache = interpreted.ok
   const images = input.snapshot.inputModalities.includes('image')
   const messages: MutableObject[] = []
@@ -331,11 +373,23 @@ export function planRequest(
   }
   const owned = ownedObject(body)
   if (!owned) throw new Error('planned wire body is not JSON')
+  const serialized = writeJsonLossless(owned)
+  const checked = measureFinalInput({
+    definition,
+    provider: input.provider,
+    snapshot: input.snapshot,
+    body: owned,
+    serialized,
+    meter,
+    tokenMargin: input.tokenMargin,
+  })
+  if ('rejected' in checked) return checked
   const planned = Object.freeze({
     input,
     parameters,
     body: owned,
-    serialized: writeJsonLossless(owned),
+    serialized,
+    inputLimitEvidence: checked.ok,
     ...(adjustments.length
       ? { parameterAdjustments: Object.freeze(adjustments.map(value => Object.freeze(value))) }
       : {}),
@@ -343,6 +397,7 @@ export function planRequest(
   })
   plans.add(planned)
   planDefinitions.set(planned, definition)
+  if (meter) planMeters.set(planned, meterSource(meter))
   return { planned }
 }
 

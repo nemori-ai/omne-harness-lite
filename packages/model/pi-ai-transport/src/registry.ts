@@ -7,6 +7,7 @@ import { ownedObject } from './json.ts'
 import { planRequest, type PlannedRequest } from './plan.ts'
 import { createOwnedTransport, type TransportOptions } from './transport.ts'
 import type { RawResponse } from './http.ts'
+import { meterMatches, ownInputMeter, type InputMeter } from './input-meter.ts'
 
 export interface RetirementPolicy {
   readonly waitMilliseconds: number
@@ -33,6 +34,7 @@ export interface AdaptationLease {
 export interface ModelTransportService {
   readonly registerAdaptation: (
     definition: ModelDefinition,
+    meter: InputMeter,
     owner: object,
     cleanup: () => void | Promise<void>,
   ) => { readonly registered: AdaptationRegistration } | { readonly rejected: 'invalidInput' }
@@ -67,6 +69,8 @@ interface Entry {
   readonly owner: object
   readonly cleanup: () => void | Promise<void>
   readonly content: ModelDefinition
+  readonly meter: InputMeter
+  readonly meterSource: InputMeter
   readonly key: string
   readonly users: Set<User>
   readonly completed: Promise<RetirementResult>
@@ -109,7 +113,7 @@ function ownBinding(binding: ModelAdaptationBinding): ModelAdaptationBinding | u
 }
 /** Process-local adaptation ownership. There is no directory, authorization or durable state. */
 export function createModelTransportService(
-  options: Omit<TransportOptions, 'definitions'>,
+  options: Omit<TransportOptions, 'definitions' | 'inputMeters'>,
 ): ModelTransportService {
   const {
     transport: network,
@@ -118,10 +122,11 @@ export function createModelTransportService(
   } = createOwnedTransport({
     ...options,
     definitions: [],
+    inputMeters: [],
   })
   const entries = new Map<string, Entry>()
   // Retiring does not authorize reusing a revision for different immutable content.
-  const declarations = new Map<string, ModelDefinition>()
+  const declarations = new Map<string, { definition: ModelDefinition; meter: InputMeter }>()
   const registrations = new WeakMap<AdaptationRegistration, Entry>()
   let accepting = true,
     networkClosing = false
@@ -212,7 +217,7 @@ export function createModelTransportService(
     closed,
     inspect: status,
     retire,
-    registerAdaptation(definition, owner, cleanup) {
+    registerAdaptation(definition, meterSource, owner, cleanup) {
       if (!accepting || !owner || typeof owner !== 'object' || typeof cleanup !== 'function')
         return { rejected: 'invalidInput' }
       let owned: ModelDefinition | undefined
@@ -223,6 +228,13 @@ export function createModelTransportService(
         throw error
       }
       if (!owned) return { rejected: 'invalidInput' }
+      const meter = ownInputMeter(meterSource)
+      if (
+        !meter ||
+        !Object.hasOwn(owned.routes, meter.provider) ||
+        !meterMatches(meter, owned, meter.provider)
+      )
+        return { rejected: 'invalidInput' }
       const exact = key({
         implementation: owned.implementation,
         definition: { modelId: owned.modelId, revision: owned.revision },
@@ -234,12 +246,14 @@ export function createModelTransportService(
         return 'ok' in left && 'ok' in right && jsonEqual(left.ok, right.ok)
       }
       const declaration = declarations.get(exact)
-      if (declaration && !equivalent(declaration)) return { rejected: 'invalidInput' }
+      if (declaration && (!equivalent(declaration.definition) || declaration.meter !== meterSource))
+        return { rejected: 'invalidInput' }
       const prior = entries.get(exact)
       if (prior)
         return !prior.retiring &&
           prior.owner === owner &&
           prior.cleanup === cleanup &&
+          prior.meterSource === meterSource &&
           equivalent(prior.content)
           ? { registered: prior.registration }
           : { rejected: 'invalidInput' }
@@ -254,6 +268,8 @@ export function createModelTransportService(
         cleanup,
         key: exact,
         content,
+        meter,
+        meterSource,
         users: new Set(),
         completed,
         complete,
@@ -263,7 +279,7 @@ export function createModelTransportService(
       }
       entries.set(exact, entry)
       registrations.set(registration, entry)
-      declarations.set(exact, content)
+      declarations.set(exact, { definition: content, meter: meterSource })
       return { registered: registration }
     },
     acquire(binding, routeName) {
@@ -299,8 +315,9 @@ export function createModelTransportService(
       }
       const transport = Object.freeze<AdaptationLease['transport']>({
         plan: (input: PlanInput) => {
-          if (user.released || !sameBinding(input)) return { rejected: 'invalidInput' }
-          const result = planRequest(input, [definition])
+          if (user.released || !sameBinding(input))
+            return { rejected: 'invalidInput', reason: 'malformed' }
+          const result = planRequest(input, [definition], entry.meter)
           if ('planned' in result) {
             claim(result.planned)
             issuedPlans.add(result.planned)

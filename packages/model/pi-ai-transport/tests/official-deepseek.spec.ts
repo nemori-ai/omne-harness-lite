@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import { createRequire } from 'node:module'
 import {
   LosslessNumber,
@@ -16,7 +17,6 @@ import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type PlannedRequest,
 } from '@omne-harness-lite/pi-ai-transport'
@@ -58,6 +58,7 @@ function message(type: 'system' | 'system_reminder' | 'user', text: string): Mes
 function input(parameters: ModelRequestParameters = {}): PlanInput {
   const content = profile()
   return {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',
       callId: unwrap(parseOpaqueIdentifier('leaf-call', 'ModelCallId')),
@@ -302,6 +303,7 @@ describe('official DeepSeek Pro leaf: public pure boundaries, no HTTP', () => {
   it('refuses out-of-profile output and unknown route before any sending path', () => {
     expect(planRequest(input({ maxOutputTokens: 16385 }), [definition])).toEqual({
       rejected: 'invalidInput',
+      reason: 'malformed',
     })
     expect(planRequest({ ...input(), provider: 'deepseek' }, [definition])).toEqual({
       rejected: 'unavailable',

@@ -1,0 +1,23 @@
+{
+  "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro",
+  "sourceRevision": "b5968e9190ef611bbf34a7229255be88a0e937c1",
+  "license": "MIT",
+  "files": {
+    "tokenizer.json": {
+      "sourcePath": "tokenizer.json",
+      "sha256": "8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf"
+    },
+    "tokenizer_config.json": {
+      "sourcePath": "tokenizer_config.json",
+      "sha256": "6ac8c8dc065ed118161d02dd532749ae3f52c243deac27872134fae2f50d8547"
+    },
+    "LICENSE": {
+      "sourcePath": "LICENSE",
+      "sha256": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040"
+    }
+  },
+  "referenceEncoder": {
+    "sourcePath": "encoding/encoding_dsv4.py",
+    "sha256": "bdbd57c132a1b3725042323d02b98b9d1df28e5f388f134399555d041f5055e0"
+  }
+}

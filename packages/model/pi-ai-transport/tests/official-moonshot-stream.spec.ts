@@ -44,6 +44,7 @@ function syntheticInput(provider: string, route: ModelDefinition['routes'][strin
     routes: { [provider]: route },
   }
   const input: PlanInput = {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',
       callId: unwrap(parseOpaqueIdentifier('moonshot-first-call', 'ModelCallId')),

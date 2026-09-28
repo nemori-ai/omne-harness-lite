@@ -16,7 +16,7 @@ import {
   type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
-  createModelPlugin,
+  createModelPlugin as createModelPluginWithMeter,
   MODEL_TRANSPORT_SERVICE,
   piAiTransportPlugin,
 } from '@omne-harness-lite/pi-ai-transport/plugin'
@@ -29,6 +29,11 @@ import {
   networkPolicy,
   policy,
 } from './support.ts'
+import { syntheticInputMeter } from './synthetic-input-meter.ts'
+
+function createModelPlugin(definition: ModelDefinition, policy: RetirementPolicy) {
+  return createModelPluginWithMeter(definition, syntheticInputMeter(definition, 'openai'), policy)
+}
 
 // Cordis 4.0.4 publishes these numeric FiberState values in its public declaration.
 // The const enum has no JavaScript export for Vitest's isolated transpilation.
@@ -121,7 +126,12 @@ function register(
   owner: object,
   cleanup: () => void | Promise<void>,
 ): AdaptationRegistration {
-  const result = service.registerAdaptation(definition, owner, cleanup)
+  const result = service.registerAdaptation(
+    definition,
+    syntheticInputMeter(definition, 'openai'),
+    owner,
+    cleanup,
+  )
   if ('rejected' in result) throw new Error(`registration rejected: ${result.rejected}`)
   return result.registered
 }
@@ -227,7 +237,10 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       expect(stable.inspect().registrations).toBe(2)
       expect(oldLease.binding).toEqual(oldRequest.snapshot.adaptation)
       expect(newLease.binding).toEqual(newRequest.snapshot.adaptation)
-      expect(oldLease.transport.plan(newRequest)).toEqual({ rejected: 'invalidInput' })
+      expect(oldLease.transport.plan(newRequest)).toEqual({
+        rejected: 'invalidInput',
+        reason: 'malformed',
+      })
       expect(oldLease.transport.plan(oldRequest)).toHaveProperty('planned')
     } finally {
       for (const lease of leases) lease.release()

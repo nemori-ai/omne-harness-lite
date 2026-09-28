@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
@@ -7,7 +8,6 @@ import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type ModelDefinition,
   type ModelRoute,
@@ -91,6 +91,7 @@ function request(
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   const input: PlanInput = {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',
       callId: unwrap(parseOpaqueIdentifier('google-test-call', 'ModelCallId')),
@@ -296,6 +297,7 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
     })
     expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual({
       rejected: 'invalidInput',
+      reason: 'malformed',
     })
   })
 

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import { readOpaqueJson, toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
@@ -6,7 +7,6 @@ import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type ModelDefinition,
   type ModelRoute,
@@ -74,6 +74,7 @@ function request(
   return {
     definition,
     input: {
+      tokenMargin: { multiplier: 1, reserveTokens: 0 },
       target: { kind: 'model_call', callId: 'test-xai-call', dispatch: 1 },
       routeName: modelId,
       provider,
@@ -338,13 +339,14 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
           },
           [definition],
         ),
-      ).toEqual({ rejected: 'invalidInput' })
+      ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     }
     expect(planRequest({ ...input, provider: 'amazon-bedrock/us-west-2' }, [definition])).toEqual({
       rejected: 'unavailable',
     })
     expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual({
       rejected: 'invalidInput',
+      reason: 'malformed',
     })
   })
 })

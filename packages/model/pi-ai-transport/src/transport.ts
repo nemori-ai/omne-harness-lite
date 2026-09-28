@@ -12,6 +12,7 @@ import { readStream } from './stream.ts'
 import { ownDefinitions, type ModelDefinition } from './definitions.ts'
 import { ownCredentialConfiguration } from './credential-policy.ts'
 import { connectionAdmission } from './connections.ts'
+import { meterMatches, ownInputMeter, type InputMeter } from './input-meter.ts'
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/'
 export interface TransportOptions {
@@ -20,6 +21,7 @@ export interface TransportOptions {
   readonly baseUrl?: string
   readonly tls?: Pick<RequestOptions, 'ca'>
   readonly definitions: readonly ModelDefinition[]
+  readonly inputMeters: readonly InputMeter[]
   readonly onDiagnostic?: (event: Diagnostic) => void | Promise<void>
 }
 export interface PiAiTransport extends TransportAdapter<PlannedRequest, RawResponse> {
@@ -67,6 +69,36 @@ export function createOwnedTransport(options: TransportOptions): {
   )
     throw new TypeError('explicit HTTPS base URL required')
   const definitions = ownDefinitions(options.definitions)
+  const inputMeters = options.inputMeters.map(value => {
+    const meter = ownInputMeter(value)
+    if (!meter) throw new TypeError('invalid input meter')
+    if (
+      !definitions.some(
+        definition =>
+          Object.hasOwn(definition.routes, meter.provider) &&
+          meterMatches(meter, definition, meter.provider),
+      )
+    )
+      throw new TypeError('input meter does not match a supplied definition')
+    return meter
+  })
+  for (let index = 0; index < inputMeters.length; index++) {
+    const meter = inputMeters[index]
+    if (!meter) throw new Error('meter index invariant')
+    if (
+      inputMeters
+        .slice(0, index)
+        .some(
+          other =>
+            other.modelId === meter.modelId &&
+            other.definitionRevision === meter.definitionRevision &&
+            other.provider === meter.provider &&
+            other.implementation.name === meter.implementation.name &&
+            other.implementation.revision === meter.implementation.revision,
+        )
+    )
+      throw new TypeError('duplicate exact input meter')
+  }
   const owner = Object.freeze({})
   const claim = (planned: PlannedRequest) => claimPlan(planned, owner)
   const agent = new Agent({
@@ -122,16 +154,27 @@ export function createOwnedTransport(options: TransportOptions): {
   const transport: PiAiTransport = {
     plan: input => {
       if (closed) return { rejected: 'unavailable' }
-      const result = planRequest(input, definitions)
+      const definition = definitions.find(
+        d =>
+          d.modelId === input.routeName &&
+          d.revision === input.snapshot?.adaptation?.definition?.revision &&
+          d.implementation.name === input.snapshot?.adaptation?.implementation?.name &&
+          d.implementation.revision === input.snapshot?.adaptation?.implementation?.revision,
+      )
+      const meter =
+        definition &&
+        inputMeters.find(candidate => meterMatches(candidate, definition, input.provider))
+      const result = planRequest(input, definitions, meter)
       if ('planned' in result) claim(result.planned)
       return result
     },
     send: (planned, credential, signal) =>
-      planAvailable(planned, owner, definitions)
+      planAvailable(planned, owner, definitions, inputMeters)
         ? sendRequest(planned, credential, signal, resources)
         : Promise.resolve({ rejected: 'invalidInput' }),
     read: async function* (response, planned, signal) {
-      if (!planAvailable(planned, owner, definitions)) return { rejected: 'invalidInput' }
+      if (!planAvailable(planned, owner, definitions, inputMeters))
+        return { rejected: 'invalidInput' }
       return yield* readStream(response, planned, signal, {
         maxSseEventBytes: policy.maxSseEventBytes,
         diagnostic,

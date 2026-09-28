@@ -115,7 +115,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
     ).toEqual({ rejected: 'invalidInput' })
   })
 
-  it('returns owned copies so a caller cannot alter another read', () => {
+  it('returns immutable copies so a caller cannot alter another read', () => {
     const definition = openaiDefinitions[0]
     if (!definition) throw new Error('missing selected OpenAI definition')
     const coordinates = {
@@ -124,7 +124,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
     }
     const first = readModelDefinition(openaiDefinitions, coordinates)
     if ('rejected' in first) throw new Error(first.rejected)
-    expect(Reflect.set(first.ok.capabilities.inputConstraints, 'maxImageBytes', 1)).toBe(true)
+    expect(Reflect.set(first.ok.capabilities.inputConstraints, 'maxImageBytes', 1)).toBe(false)
     const second = readModelDefinition(openaiDefinitions, coordinates)
     if ('rejected' in second) throw new Error(second.rejected)
     expect(second.ok.capabilities.inputConstraints.maxImageBytes).toBe(4194304)

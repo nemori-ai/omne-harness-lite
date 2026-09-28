@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
@@ -8,7 +9,6 @@ import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type ModelDefinition,
   type ModelRoute,
@@ -91,6 +91,7 @@ function prepared(
     configuration,
   })
   const input: PlanInput = {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',
       callId: unwrap(parseOpaqueIdentifier('anthropic-fixture-call', 'ModelCallId')),
@@ -198,7 +199,10 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
       expect(interpretConfiguration(definition, { cache }, provider)).toEqual({
         rejected: 'invalidInput',
       })
-      expect(prepared(id, route, {}, cache).result).toEqual({ rejected: 'invalidInput' })
+      expect(prepared(id, route, {}, cache).result).toEqual({
+        rejected: 'invalidInput',
+        reason: 'malformed',
+      })
     }
   })
 
@@ -231,7 +235,7 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
         rejected: 'unavailable',
       })
       expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual(
-        { rejected: 'invalidInput' },
+        { rejected: 'invalidInput', reason: 'malformed' },
       )
     },
   )

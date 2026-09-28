@@ -16,7 +16,8 @@ import {
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
-import { planRequest, type PlannedRequest } from '@omne-harness-lite/pi-ai-transport'
+import type { PlannedRequest } from '@omne-harness-lite/pi-ai-transport'
+import { planRequest } from './synthetic-input-meter.ts'
 import { certificate, finish, fixture, input, type CapturedRequest } from './support.ts'
 
 // T-10a/b: accepted transport parameter table, runtime/3 S-54/57/58,
@@ -160,7 +161,7 @@ async function rejectedBeforeSend(request: PlanInput) {
       result,
       requests: host.requests.length,
     })
-    expect(result).toEqual({ rejected: 'invalidInput' })
+    expect(result).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     expect(host.requests).toHaveLength(0)
   } finally {
     await host.close()

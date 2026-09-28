@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type ModelDefinition,
   type ModelRoute,
@@ -270,6 +270,7 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
     expect(planRequest({ ...request, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual(
       {
         rejected: 'invalidInput',
+        reason: 'malformed',
       },
     )
   })

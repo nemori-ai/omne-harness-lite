@@ -1,4 +1,5 @@
 import { testDefinitions } from './definitions.ts'
+import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { createServer, type Server, type ServerOptions } from 'node:https'
 import type { ServerResponse, IncomingHttpHeaders } from 'node:http'
 import { execFileSync } from 'node:child_process'
@@ -48,6 +49,7 @@ export function input(anthropic = false): PlanInput {
   const definition = testDefinitions[anthropic ? 1 : 0]
   if (!definition) throw new Error('missing pilot definition')
   return {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',
       callId: unwrap(parseOpaqueIdentifier('model-call-1', 'ModelCallId')),
@@ -206,8 +208,12 @@ export async function fixture(
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('missing HTTPS address')
+  const inputMeters = definitions.flatMap(definition =>
+    Object.keys(definition.routes).map(provider => syntheticInputMeter(definition, provider)),
+  )
   const transport = createPiAiTransport({
     definitions,
+    inputMeters,
     baseUrl: `https://127.0.0.1:${address.port}/api/v1/`,
     tls: { ca: cert.cert },
     policy: { ...networkPolicy, ...overrides },
@@ -217,6 +223,7 @@ export async function fixture(
     requests,
     transport,
     options: {
+      inputMeters,
       baseUrl: `https://127.0.0.1:${address.port}/api/v1/`,
       tls: { ca: cert.cert },
       policy: { ...networkPolicy, ...overrides },

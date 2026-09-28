@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
@@ -8,7 +9,6 @@ import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type ModelDefinition,
   type ModelRoute,
@@ -103,6 +103,7 @@ function request(
   return {
     definition: selected,
     input: {
+      tokenMargin: { multiplier: 1, reserveTokens: 0 },
       target: {
         kind: 'model_call',
         callId: unwrap(parseOpaqueIdentifier('zai-route-fixture', 'ModelCallId')),
@@ -172,6 +173,7 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
     })
     expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [selected])).toEqual({
       rejected: 'invalidInput',
+      reason: 'malformed',
     })
     expect(planRequest(input, [])).toEqual({ rejected: 'unavailable' })
   })

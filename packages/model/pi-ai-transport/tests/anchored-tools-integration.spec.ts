@@ -213,7 +213,11 @@ describe('noRun anchored invocation through actual TLS and OpenRouter wire proto
             policy: policy(),
             transport: host.transport,
           })
-          expect(await handle.outcome).toEqual({ rejected: reason })
+          expect(await handle.outcome).toEqual(
+            reason === 'invalidInput'
+              ? { rejected: 'invalidInput', reason: 'malformed' }
+              : { rejected: reason },
+          )
           expect(await handle.close()).toEqual({ released: true })
         }
         expect(host.requests).toHaveLength(0)

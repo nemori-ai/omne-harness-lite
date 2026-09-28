@@ -1,4 +1,5 @@
 import { testDefinitions } from './definitions.ts'
+import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -38,7 +39,14 @@ function definition(anthropic = false): ModelDefinition {
   return found
 }
 function register(service: ModelTransportService, value = definition(), cleanup = () => {}) {
-  const result = service.registerAdaptation(value, {}, cleanup)
+  const provider = Object.keys(value.routes)[0]
+  if (!provider) throw new Error('fixture route missing')
+  const result = service.registerAdaptation(
+    value,
+    syntheticInputMeter(value, provider),
+    {},
+    cleanup,
+  )
   if ('rejected' in result) throw new Error('valid contribution rejected')
   return result.registered
 }
@@ -116,7 +124,10 @@ describe('production adaptation ownership', () => {
     try {
       expect(oldLease.binding.definition.revision).toBe('fixture-1')
       expect(newLease.binding.definition.revision).toBe('2')
-      expect(oldLease.transport.plan(newInput)).toEqual({ rejected: 'invalidInput' })
+      expect(oldLease.transport.plan(newInput)).toEqual({
+        rejected: 'invalidInput',
+        reason: 'malformed',
+      })
       const retiring = service.retire(old, wait)
       expect(service.acquire(requested.snapshot.adaptation, requested.routeName)).toEqual({
         rejected: 'unavailable',
@@ -138,15 +149,17 @@ describe('production adaptation ownership', () => {
     const service = createModelTransportService({ policy: networkPolicy })
     const owner = {},
       cleanup = () => {}
-    const original = service.registerAdaptation(definition(), owner, cleanup)
+    const meter = syntheticInputMeter(definition(), 'openai')
+    const original = service.registerAdaptation(definition(), meter, owner, cleanup)
     if ('rejected' in original) throw new Error('valid registration rejected')
-    expect(service.registerAdaptation(definition(), owner, cleanup)).toEqual(original)
-    expect(service.registerAdaptation(definition(), {}, cleanup)).toEqual({
+    expect(service.registerAdaptation(definition(), meter, owner, cleanup)).toEqual(original)
+    expect(service.registerAdaptation(definition(), meter, {}, cleanup)).toEqual({
       rejected: 'invalidInput',
     })
     expect(
       service.registerAdaptation(
         { ...definition(), capabilities: { ...definition().capabilities, maxInputTokens: 1 } },
+        meter,
         owner,
         cleanup,
       ),
@@ -155,6 +168,7 @@ describe('production adaptation ownership', () => {
     expect(
       service.registerAdaptation(
         { ...definition(), capabilities: { ...definition().capabilities, maxInputTokens: 1 } },
+        meter,
         {},
         cleanup,
       ),
@@ -191,8 +205,8 @@ describe('production adaptation ownership', () => {
     try {
       expect('planned' in a.transport.plan(first)).toBe(true)
       expect('planned' in b.transport.plan(altered)).toBe(true)
-      expect(a.transport.plan(altered)).toEqual({ rejected: 'invalidInput' })
-      expect(b.transport.plan(first)).toEqual({ rejected: 'invalidInput' })
+      expect(a.transport.plan(altered)).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
+      expect(b.transport.plan(first)).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
       expect(Object.isFrozen(a.binding.configuration.values)).toBe(true)
     } finally {
       a.release()

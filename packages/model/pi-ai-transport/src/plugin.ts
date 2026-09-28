@@ -10,6 +10,7 @@ import {
 } from './registry.ts'
 import { ownCredentialConfiguration } from './credential-policy.ts'
 import type { Diagnostic } from './http.ts'
+import { inputMeterValid, type InputMeter } from './input-meter.ts'
 
 export const MODEL_TRANSPORT_SERVICE = 'modelTransport'
 function isService(value: unknown): value is ModelTransportService {
@@ -108,11 +109,12 @@ export const piAiTransportPlugin = definePlugin({
 /** Trusted assembly contribution: one definition, no pool and no tenant code evaluation. */
 export function createModelPlugin(
   definition: ModelDefinition,
+  meter: InputMeter,
   policy: RetirementPolicy,
 ): Plugin.Object<Record<string, never>> {
   const owned = ownDefinitions([definition])[0]
-  if (!owned || !retirementPolicyValid(policy))
-    throw new TypeError('definition and explicit retirement policy required')
+  if (!owned || !inputMeterValid(meter) || !retirementPolicyValid(policy))
+    throw new TypeError('definition, meter and explicit retirement policy required')
   const retirePolicy = Object.freeze({ ...policy })
   return definePlugin({
     name: `model-adaptation:${owned.modelId}:${owned.implementation.revision}:${owned.revision}`,
@@ -122,7 +124,7 @@ export function createModelPlugin(
       const service: unknown = ctx.get(MODEL_TRANSPORT_SERVICE)
       if (!isService(service)) throw new Error('model transport registry unavailable')
       const owner = Object.freeze({})
-      const result = service.registerAdaptation(owned, owner, () => {})
+      const result = service.registerAdaptation(owned, meter, owner, () => {})
       if ('rejected' in result) throw new Error('model contribution rejected')
       const registration = result.registered
       ctx.effect(() => async () => {

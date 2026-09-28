@@ -1,4 +1,6 @@
 import { testDefinitions } from './definitions.ts'
+import { planRequest } from './synthetic-input-meter.ts'
+import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { Agent } from 'node:https'
 import type { ServerResponse } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -15,7 +17,6 @@ import {
   createModelTransportService,
   readStream,
   sendRequest,
-  planRequest,
   type Diagnostic,
   type NetworkResources,
   type PlannedRequest,
@@ -133,7 +134,10 @@ describe('host admission closes before references drain, with actual HTTPS', () 
           }
           const fiber = ctx.plugin(provider)
           await fiber
-          await ctx.plugin(createModelPlugin(definition, retirement()), {})
+          await ctx.plugin(
+            createModelPlugin(definition, syntheticInputMeter(definition, 'openai'), retirement()),
+            {},
+          )
           closure = undefined
           const replacement: Plugin.Object = {
             name: 'boundary-replacement-provider',
@@ -153,7 +157,12 @@ describe('host admission closes before references drain, with actual HTTPS', () 
               await ctx.plugin(replacement)
             })
         } else {
-          const registered = service.registerAdaptation(definition, {}, () => {})
+          const registered = service.registerAdaptation(
+            definition,
+            syntheticInputMeter(definition, 'openai'),
+            {},
+            () => {},
+          )
           if ('rejected' in registered) throw new Error('registration rejected')
           beginClosure = () => service.close(retirement())
         }

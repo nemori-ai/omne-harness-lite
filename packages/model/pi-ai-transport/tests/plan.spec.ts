@@ -5,7 +5,8 @@ import {
   readJsonStrict,
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
-import { planRequest, canonicalInteger, generatedCallId } from '@omne-harness-lite/pi-ai-transport'
+import { canonicalInteger, generatedCallId } from '@omne-harness-lite/pi-ai-transport'
+import { planRequest } from './synthetic-input-meter.ts'
 import { input, message, judgedMessage } from './support.ts'
 
 function plan(request = input()) {
@@ -73,7 +74,7 @@ describe('S57 exact pilot binding and wire projection', () => {
         },
         testDefinitions,
       ),
-    ).toEqual({ rejected: 'invalidInput' })
+    ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
   })
   it('never guesses a definition from a model prefix or substitutes another revision', () => {
     const request = input()

@@ -96,9 +96,7 @@ describe('ZAI complete official declarations (MP4)', () => {
     expect(content.ok.routeName).toBe(expected.id)
     expect(content.ok.providers).toEqual([expected.provider])
     expect(content.ok.upstreamInputLimits).toEqual(definition.capabilities.upstreamInputLimits)
-    expect(judgeModelProfileDocument('ModelProfileContent', content.ok)).toEqual({
-      ok: content.ok,
-    })
+    expect(judgeModelProfileDocument('ModelProfileContent', content.ok)).toEqual({ ok: true })
   })
 
   it('keeps Prime cache TTL caller-selected and does not install a schema default', () => {

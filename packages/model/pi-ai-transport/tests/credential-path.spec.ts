@@ -388,7 +388,7 @@ describe('D095 actual credential path and single H', () => {
     const incomplete = { ...networkPolicy }
     Object.defineProperty(incomplete, 'credentialRedaction', { value: undefined })
     expect(() =>
-      createPiAiTransport({ policy: incomplete, definitions: testDefinitions }),
+      createPiAiTransport({ policy: incomplete, definitions: testDefinitions, inputMeters: [] }),
     ).toThrow()
     expect(() =>
       createPiAiTransport({
@@ -400,6 +400,7 @@ describe('D095 actual credential path and single H', () => {
           },
         },
         definitions: testDefinitions,
+        inputMeters: [],
       }),
     ).toThrow()
     const retirement = { waitMilliseconds: 1, force: false, schedule: () => () => {} }

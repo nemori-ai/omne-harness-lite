@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { planRequest } from './synthetic-input-meter.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
@@ -7,7 +8,6 @@ import {
   configurationSchema,
   createOfficialProfileContent,
   interpretConfiguration,
-  planRequest,
   readModelDefinition,
   type ModelDefinition,
   type ModelRoute,
@@ -66,6 +66,7 @@ function plan(route: ModelRoute, parameters: ModelRequestParameters = {}) {
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   const input: PlanInput = {
+    tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',
       callId: unwrap(parseOpaqueIdentifier('test-call', 'ModelCallId')),
@@ -181,6 +182,7 @@ describe('Moonshot route rules (synthetic offline fixture, not an official profi
     })
     expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual({
       rejected: 'invalidInput',
+      reason: 'malformed',
     })
   })
 })
