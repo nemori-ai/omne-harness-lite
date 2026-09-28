@@ -37,6 +37,10 @@ function fixture(route: ModelRoute): ModelDefinition {
       maxInputTokens: 1024,
       maxOutputTokens: 128,
       inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
     },
     routes: { [provider]: route },
   }
@@ -92,6 +96,8 @@ function request(route: ModelRoute, parameters: ModelRequestParameters = {}) {
       outputModalities: profile.ok.outputModalities,
       maxInputTokens: profile.ok.maxInputTokens,
       maxOutputTokens: profile.ok.maxOutputTokens,
+      inputConstraints: profile.ok.inputConstraints,
+      upstreamInputLimits: profile.ok.upstreamInputLimits,
       updatedAt: at,
     },
     parameters,

@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { readModelDefinition, type ModelDefinition, type ModelRoute } from '../src/definitions.ts'
 import { officialModelIds } from '../src/official.ts'
-import { anthropicModelRoutes } from '../src/official-models/anthropic.ts'
+import { anthropicDefinitions, anthropicModelRoutes } from '../src/official-models/anthropic.ts'
 import {
+  deepseekDefinitions,
   deepseekModelRoutes,
   deepseekV4Pro0813Definition,
 } from '../src/official-models/deepseek.ts'
-import { googleModelRoutes } from '../src/official-models/google.ts'
-import { moonshotModelRoutes } from '../src/official-models/moonshot.ts'
-import { openaiModelRoutes } from '../src/official-models/openai.ts'
-import { qwenModelRoutes } from '../src/official-models/qwen.ts'
-import { xaiModelRoutes } from '../src/official-models/xai.ts'
-import { zaiModelRoutes } from '../src/official-models/zai.ts'
+import { googleDefinitions, googleModelRoutes } from '../src/official-models/google.ts'
+import { moonshotDefinitions, moonshotModelRoutes } from '../src/official-models/moonshot.ts'
+import { openaiDefinitions, openaiModelRoutes } from '../src/official-models/openai.ts'
+import { qwenDefinitions, qwenModelRoutes } from '../src/official-models/qwen.ts'
+import { xaiDefinitions, xaiModelRoutes } from '../src/official-models/xai.ts'
+import { zaiDefinitions, zaiModelRoutes } from '../src/official-models/zai.ts'
 
 const families: Readonly<Record<string, Readonly<Record<string, ModelDefinition['routes']>>>> = {
   anthropic: anthropicModelRoutes,
@@ -23,6 +24,16 @@ const families: Readonly<Record<string, Readonly<Record<string, ModelDefinition[
   xai: xaiModelRoutes,
   zai: zaiModelRoutes,
 }
+const completeFamilies = [
+  anthropicDefinitions,
+  deepseekDefinitions,
+  googleDefinitions,
+  moonshotDefinitions,
+  openaiDefinitions,
+  qwenDefinitions,
+  xaiDefinitions,
+  zaiDefinitions,
+]
 
 // Exact binding inventory independently of family policy composition. These
 // fixed providers must not turn into model-prefix inference or route fallback.
@@ -58,6 +69,10 @@ function fixture(modelId: string, routes: Readonly<Record<string, ModelRoute>>):
       maxInputTokens: 1024,
       maxOutputTokens: 128,
       inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
     },
     routes,
   }
@@ -101,5 +116,30 @@ describe('uniform family model/provider route maps', () => {
     expect(deepseekV4Pro0813Definition.routes).toEqual(
       deepseekModelRoutes['deepseek/deepseek-v4-pro-0813'],
     )
+  })
+
+  it('publishes precisely the 37 complete six-field definitions through the same reader', () => {
+    const definitions = completeFamilies.flat()
+    expect(definitions).toHaveLength(37)
+    expect(new Set(definitions.map(value => value.modelId)).size).toBe(37)
+    expect(definitions.map(value => value.modelId).toSorted()).toEqual([...officialModelIds].sort())
+    for (const definition of definitions) {
+      expect(Object.keys(definition.capabilities).sort()).toEqual(
+        [
+          'inputModalities',
+          'outputModalities',
+          'maxInputTokens',
+          'maxOutputTokens',
+          'inputConstraints',
+          'upstreamInputLimits',
+        ].sort(),
+      )
+      expect(
+        readModelDefinition(definitions, {
+          implementation: definition.implementation,
+          definition: { modelId: definition.modelId, revision: definition.revision },
+        }),
+      ).toEqual({ ok: definition })
+    }
   })
 })

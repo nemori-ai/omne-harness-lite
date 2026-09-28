@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { officialModelIds } from '@omne-harness-lite/pi-ai-transport'
+import {
+  officialModelIds,
+  openaiDefinitions,
+  anthropicDefinitions,
+  deepseekDefinitions,
+  googleDefinitions,
+  xaiDefinitions,
+  qwenDefinitions,
+  moonshotDefinitions,
+  zaiDefinitions,
+} from '@omne-harness-lite/pi-ai-transport'
 
 // Independent identity-only expectations from D076's confirmed model table.
 const expected = {
@@ -35,7 +45,7 @@ const expected = {
   'z-ai': ['glm-5.3', 'glm-5.3-prime', 'glm-5.3-flash', 'glm-5.3-flashx', 'glm-5.2'],
 }
 
-describe('confirmed model target identities, not capability offers', () => {
+describe('complete official declaration identity inventory', () => {
   it('retains precisely the 37 user-confirmed identities and family counts', () => {
     expect(officialModelIds).toHaveLength(37)
     expect(new Set(officialModelIds).size).toBe(37)
@@ -62,5 +72,25 @@ describe('confirmed model target identities, not capability offers', () => {
     })
     expect(Object.isFrozen(officialModelIds)).toBe(true)
     expect(Reflect.set(officialModelIds, '0', 'invented/model')).toBe(false)
+  })
+
+  it('derives every target identity from a complete public family list', () => {
+    const definitions = [
+      openaiDefinitions,
+      anthropicDefinitions,
+      deepseekDefinitions,
+      googleDefinitions,
+      xaiDefinitions,
+      qwenDefinitions,
+      moonshotDefinitions,
+      zaiDefinitions,
+    ].flat()
+    expect(definitions).toHaveLength(37)
+    expect(definitions.map(definition => definition.modelId)).toEqual(officialModelIds)
+    expect(
+      definitions.every(definition =>
+        Object.hasOwn(definition.capabilities, 'upstreamInputLimits'),
+      ),
+    ).toBe(true)
   })
 })

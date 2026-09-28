@@ -38,7 +38,13 @@ export const testDefinitions: readonly ModelDefinition[] = [
       outputModalities: ['text'],
       maxInputTokens: 128000,
       maxOutputTokens: 4096,
-      inputConstraints: {},
+      inputConstraints: { maxImageBytes: 4194304 },
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+        maxImageBytes: { status: 'unknown' },
+        maxImages: { status: 'unknown' },
+      },
     },
     routes: {
       openai: {
@@ -58,7 +64,13 @@ export const testDefinitions: readonly ModelDefinition[] = [
       outputModalities: ['text'],
       maxInputTokens: 128000,
       maxOutputTokens: 4096,
-      inputConstraints: {},
+      inputConstraints: { maxImageBytes: 4194304 },
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+        maxImageBytes: { status: 'unknown' },
+        maxImages: { status: 'unknown' },
+      },
     },
     routes: {
       anthropic: {

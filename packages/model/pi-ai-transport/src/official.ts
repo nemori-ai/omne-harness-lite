@@ -1,40 +1,22 @@
-/** User-confirmed target identities only; these are not registrable definitions or certified offers. */
-export const officialModelIds: readonly string[] = Object.freeze([
-  'openai/gpt-6-astra',
-  'openai/gpt-6-astra-pro',
-  'openai/gpt-6-sol',
-  'openai/gpt-6-sol-pro',
-  'openai/gpt-6-luna',
-  'openai/gpt-6-luna-pro',
-  'openai/gpt-5.6-sol',
-  'openai/gpt-5.6-sol-pro',
-  'openai/gpt-5.6-terra',
-  'openai/gpt-5.6-terra-pro',
-  'openai/gpt-5.6-luna',
-  'openai/gpt-5.6-luna-pro',
-  'anthropic/claude-opus-5.5',
-  'anthropic/claude-opus-5',
-  'anthropic/claude-sonnet-5',
-  'anthropic/claude-fable-5.1',
-  'deepseek/deepseek-v4.1-flash',
-  'deepseek/deepseek-v4-pro-0813',
-  'google/gemini-3.8-flash',
-  'google/gemini-3.7-flash',
-  'x-ai/grok-4.7',
-  'x-ai/grok-4.6',
-  'qwen/qwen3.8-max-0902',
-  'qwen/qwen3.8-max-prime',
-  'qwen/qwen3.8-2.4t-a95b',
-  'qwen/qwen3.8-27b',
-  'qwen/qwen3.7-max',
-  'qwen/qwen3.7-plus',
-  'qwen/qwen3.8-flash',
-  'qwen/qwen3.7-flash',
-  'moonshotai/kimi-k3',
-  'moonshotai/kimi-k2.7-code',
-  'z-ai/glm-5.3',
-  'z-ai/glm-5.3-flash',
-  'z-ai/glm-5.3-flashx',
-  'z-ai/glm-5.2',
-  'z-ai/glm-5.3-prime',
-])
+import { anthropicDefinitions } from './official-models/anthropic.ts'
+import { deepseekDefinitions } from './official-models/deepseek.ts'
+import { googleDefinitions } from './official-models/google.ts'
+import { moonshotDefinitions } from './official-models/moonshot.ts'
+import { openaiDefinitions } from './official-models/openai.ts'
+import { qwenDefinitions } from './official-models/qwen.ts'
+import { xaiDefinitions } from './official-models/xai.ts'
+import { zaiDefinitions } from './official-models/zai.ts'
+
+/** Identities come from the same complete, validated declarations exposed publicly. */
+export const officialModelIds: readonly string[] = Object.freeze(
+  [
+    openaiDefinitions,
+    anthropicDefinitions,
+    deepseekDefinitions,
+    googleDefinitions,
+    xaiDefinitions,
+    qwenDefinitions,
+    moonshotDefinitions,
+    zaiDefinitions,
+  ].flatMap(definitions => definitions.map(definition => definition.modelId)),
+)

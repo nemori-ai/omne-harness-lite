@@ -28,6 +28,12 @@ const fixture: ModelDefinition = {
     maxInputTokens: 1024,
     maxOutputTokens: 128,
     inputConstraints: { maxImageBytes: 1 },
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+      maxImageBytes: { status: 'unknown' },
+      maxImages: { status: 'unknown' },
+    },
   },
   routes: { [provider]: deepseekV41FlashDeepInfraRoute },
 }
@@ -62,6 +68,8 @@ function input(messages: Message[], parameters: ModelRequestParameters = {}): Pl
       outputModalities: profile.ok.outputModalities,
       maxInputTokens: profile.ok.maxInputTokens,
       maxOutputTokens: profile.ok.maxOutputTokens,
+      inputConstraints: profile.ok.inputConstraints,
+      upstreamInputLimits: profile.ok.upstreamInputLimits,
       updatedAt: at,
     },
     parameters,

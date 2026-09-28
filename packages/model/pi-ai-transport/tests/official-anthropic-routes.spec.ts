@@ -65,6 +65,10 @@ function fixture(modelId: string, route: ModelRoute): ModelDefinition {
       maxInputTokens: 1024,
       maxOutputTokens: 128,
       inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
     },
     routes: { [provider]: route },
   }
@@ -106,6 +110,8 @@ function prepared(
       outputModalities: ['text'],
       maxInputTokens: 1024,
       maxOutputTokens: 128,
+      inputConstraints: definition.capabilities.inputConstraints,
+      upstreamInputLimits: definition.capabilities.upstreamInputLimits,
       updatedAt: at,
     },
     parameters,

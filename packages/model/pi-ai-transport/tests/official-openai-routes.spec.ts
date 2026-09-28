@@ -40,6 +40,10 @@ function fixture(modelId: string, route: ModelRoute): ModelDefinition {
       maxInputTokens: 1024,
       maxOutputTokens: 128,
       inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
     },
     routes: { openai: route },
   }
@@ -70,6 +74,8 @@ function setup(modelId: (typeof ids)[number], parameters: ModelRequestParameters
       outputModalities: profile.ok.outputModalities,
       maxInputTokens: profile.ok.maxInputTokens,
       maxOutputTokens: profile.ok.maxOutputTokens,
+      inputConstraints: profile.ok.inputConstraints,
+      upstreamInputLimits: profile.ok.upstreamInputLimits,
     },
   }
   return { definition, request, result: planRequest(request, [definition]) }

@@ -36,6 +36,10 @@ function syntheticInput(provider: string, route: ModelDefinition['routes'][strin
       maxInputTokens: 1024,
       maxOutputTokens: 128,
       inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
     },
     routes: { [provider]: route },
   }
@@ -59,6 +63,8 @@ function syntheticInput(provider: string, route: ModelDefinition['routes'][strin
       outputModalities: ['text'],
       maxInputTokens: 1024,
       maxOutputTokens: 128,
+      inputConstraints: definition.capabilities.inputConstraints,
+      upstreamInputLimits: definition.capabilities.upstreamInputLimits,
       updatedAt: at,
     },
     parameters: { maxOutputTokens: 64 },
