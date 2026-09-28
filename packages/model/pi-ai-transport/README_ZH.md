@@ -211,6 +211,8 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 Google Gemini 3.7／3.8 Flash 与 xAI Grok 4.6／4.7 已有固定定义及工具、推理、图片、usage 的本地 HTTPS 投影测试。这些测试使用合成计量器，四个型号尚未提供生产计量器；Google 原始音频／视频同样在发送前拒绝。目前这些定义仍不能产生可发送的生产计划。
 
+`createMoonshotInputMeter(definition)` 将 Kimi K3 与 K2.7 Code 绑定到固定词表及各自 XTML／Jinja 提示词模板。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。图片、视频、加密／未知推理及未识别模型输入字段返回不可用；余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
+
 ## 持有传输资源
 
 ```ts

@@ -211,6 +211,8 @@ Automatic cache configuration is exactly `{ cache: { mode: 'automatic' } }` and 
 
 Google Gemini 3.7/3.8 Flash and xAI Grok 4.6/4.7 have fixed definitions and local HTTPS projection tests for tools, reasoning, images and usage. These tests use synthetic meters; no production meter is supplied for these four models. Google raw audio/video is also rejected before send. These definitions cannot currently produce a sendable production plan.
 
+`createMoonshotInputMeter(definition)` binds Kimi K3 and K2.7 Code to their pinned vocabulary and distinct XTML/Jinja prompt templates. Text, plain reasoning and paired tool history are estimated; the complete JSON envelope is not counted again. Images, video, encrypted/unknown reasoning and unrecognized model-input fields return unavailable. The caller supplies the token margin. Bundled `LICENSE.K3` and `LICENSE.K27` retain the respective upstream licensing and attribution conditions.
+
 ## Own the transport
 
 ```ts

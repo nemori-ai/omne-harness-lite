@@ -25,6 +25,7 @@
     "tokenizers/qwen-38-24t",
     "tokenizers/qwen-38-27b",
     "tokenizers/zai-glm5",
+    "tokenizers/moonshot",
     "LICENSE.pi",
     "UPSTREAM.md",
     "provenance.json",

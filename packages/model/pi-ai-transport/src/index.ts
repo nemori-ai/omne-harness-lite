@@ -85,3 +85,5 @@ export { createQwenInputMeter } from './input-meters/qwen.ts'
 export { createGlm52InputMeter } from './input-meters/zai-glm52.ts'
 
 export { createGlm53InputMeter } from './input-meters/zai-glm53.ts'
+
+export { createMoonshotInputMeter } from './input-meters/moonshot.ts'
