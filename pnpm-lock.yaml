@@ -116,6 +116,9 @@ importers:
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../../packages/core/asset-model
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../../packages/core/call-accounts
       '@omne-harness-lite/clock':
         specifier: workspace:*
         version: link:../../packages/infra/clock
