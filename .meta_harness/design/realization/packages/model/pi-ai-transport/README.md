@@ -142,3 +142,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 ## 2026-09-29 注册表诊断增补
 
 [D076增补](../../../../record/decisions/model-runtime-delivery-adoption/decision.md#2026-09-29-注册表诊断源计数增补)技术采用 [v11 revision2](v11-registry-diagnostics-design.md)。语义沿RT9，公开record借用和实例inspect源计数已明确可施工；新增bindings0，实际实现/运行验收待完成。候选正文保留受审字节，接受范围以决定为准。
+
+## 2026-09-29 refusal 文字映射候选
+
+[v14 revision 2](v14-refusal-design.md) 只扩展合法 OpenRouter refusal 字串的文本交付，严格值型、首内容、正常尾帧用量及异常停止沿现有责任。语义未采用、尚不可据此实施；新增 bindings 0、实际验证未执行。不新增 CB/MR 字段或服务操作，独立架构评审支持 A 的边界，两处表达修正已落入 revision 2；精确技术采用仍待。
