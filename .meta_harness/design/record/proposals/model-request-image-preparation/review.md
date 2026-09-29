@@ -36,3 +36,16 @@ reviewer只读查看实际sharp r2 probe result SHA`82e46124eedb0c67e4429f05c24d
 非阻断：旧prepare注释/编码次数残留、prefix_changed优先于basis_changed、primary坐标链接。未发现确定需新MR/RT语义版本的冲突；不表示接受。
 
 r3候选已写精确失败表、显式null、无排队准入、owned预算与native临时内存的区别、借用codec和close/clearScope，以及显式本地preset。已派同reviewer定向复审、architecture-reviewer增审资源细目；当前尚无r3评审结论。codec/有限搜索probe只是有限观察，完整IP-V1～10及实际产品实现仍待。
+
+## 2026-09-29 r3/r4 收束记录
+
+r3原稿保存在commit `ad99ae1594cca91b59484c748e9c41df3cd0c485`。architecture-reviewer对v15 SHA`a4b35f9a03faadff484fb8c6a5369dfdb3a760338ac6ae45a05a711e17de4e92`／v21 SHA`767a636ff35833b28c5ecb159c477b4a76ca1515f4646566f7f05c47ba0e82bf`增审无新阻断；spec-reviewer关闭原B1/B3，保留B2的codec descriptor未定义。作者以r4补LoadedImageCodec/DecodedImage独立技术接口、inspect/reserve/decode/encode/close配对，不新增领域能力。
+
+初版r4 SHA`49e963f7cac2b6bff9308a32e5b33e93a37d671da9c373b51232bcc94ac40670`在新增exact拒绝分支上有反例：有图的nonImageWireBytes只是下界，不能填完整actual。两位独立reviewer均指出此项；作者仅修末段，空images才exact，有图已知非图下界超cap则no_candidate(request_total)→原input_size_unavailable，保留实际量未知。
+
+**最终受审坐标**：transport v15 revision4 SHA`3cf764f6218c2286a93381a5969368085efdd4e9992014ec6c7edd3f8518e26a`；runtime v21 revision3 SHA`767a636ff35833b28c5ecb159c477b4a76ca1515f4646566f7f05c47ba0e82bf`。
+
+- architecture-reviewer增审：本范围无阻断/无新增非阻断/无新增政策事项。codec显式加载、原像素单次decode、真正drain和借用所有权、下界不冒exact均成立于设计；未运行adapter/资源/HTTP验收。
+- spec-reviewer追加定点复评：结合前几次定向审查，本次表达与规范范围无阻断、无新增非阻断、无新增政策问题；没有必须升级MR9/RT10的原因，可交主线作采用判断；未跑实现/probe/HTTP/资源峰值，不产生接受。
+
+推荐A和本地preset仍是候选；实际主线采用、代码实现、IP-V1～10、最大资源/真实取消/制品/HTTP各有独立门。本包没有注册新绑定、没有修改已接受契约或冻结提供者正文。

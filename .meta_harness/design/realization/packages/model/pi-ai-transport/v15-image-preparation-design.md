@@ -1,12 +1,12 @@
 # v15 请求图片准备（候选）
 
-2026-09-29 revision 3。语义依据为已接受 [RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S57/S74/S77～83、[MR9](../../../../spec/data/model-response/v9/contract.md) S41～45；本提供者映射尚未采用、未实施，新增bindings 0，验收尚待。接续v13，和并行v14 refusal无语义替代关系。只交付已选图片同模态发送前处理，不实现完整上下文组装或跨模态renderings。
+2026-09-29 revision 4。语义依据为已接受 [RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S57/S74/S77～83、[MR9](../../../../spec/data/model-response/v9/contract.md) S41～45；本提供者映射尚未采用、未实施，新增bindings 0，验收尚待。接续v13，和并行v14 refusal无语义替代关系。只交付已选图片同模态发送前处理，不实现完整上下文组装或跨模态renderings。
 
 架构选择见[提案](../../../../record/proposals/model-request-image-preparation/README.md)。独立领域读数/三候选与四表在该包；pi/DSH/Sharp主源事实归 research/typescript-image-input-handling（HUB e9a5d13e + 26ddf358），本页不复制研究。
 
 ## 唯一公开接口归属与异步接缝
 
-runtime `types.ts`仍拥有TransportAdapter/PlanInput/PlannedSemantics，v21定公共plan上下文。transport导出 `createImagePreparer` 与其技术policy/result类型，不新增Cordis服务键。公开无资源`planRequest`改为async并显式消费预先取得的prepare实例/上下文，不在调用时import native模块、读磁盘或联网；factory先加载codec且可判不可用。所有规划消费者一并破坏性升级，无同步兼容重载。
+runtime `types.ts`仍拥有TransportAdapter/PlanInput/PlannedSemantics，v21定公共plan上下文。transport导出 `createImagePreparer` 与其技术policy/result类型，不新增Cordis服务键。公开无资源`planRequest`改为async并显式消费预先取得的prepare实例/上下文，不在调用时import native模块、读磁盘或联网；装配先加载codec，factory显式接收已加载codec且可判不可用。所有规划消费者一并破坏性升级，无同步兼容重载。
 
 候选技术形状（接口名是技术属性，不是新领域词条）：
 
@@ -153,3 +153,58 @@ batch输入精确值域：images为有限数组（允许空数组）；每项`po
 明确算法输入尺寸：先按min(1,maxWidth/orientedWidth,maxHeight/orientedHeight)取得inside基准，再乘scale；目标宽高各向下取整，最小1；低于policy minWidth/minHeight候选标不可用且仍占ordinal。保持长宽比的库inside resize负责像素，rounding后的实际尺寸重新核；永不上采样。PNG encoder固定compressionLevel=9；JPEG/WebP用所列quality，WebP effort固定4；这些与codec版本均入policy摘要，后续改值改revision。
 
 已做codec参数样本观察：sharp0.35.3/libvips8.18.3、Node24.18 linuxx64，synthetic 1400² PNG 5,890,980B在max2048不放大、JPEG q85后1,400,709B。r2 codec probe另8/8覆盖alpha/EXIF/两帧/像素limit/截断/确定性/native真排空；有限搜索oracle4场景+4096组合过。它们**没有**证明完整preset、最大资源边界、native峰值、产品HTTP或全部IP-V1～10；这些是实施后验收义务，不能用这份数值表假关闭。candidateMaxBytes是明确保留政策，无须伪造某编码器普适最大输出公式。
+
+
+## revision 4：已加载codec唯一接口与无图边界
+
+r3原稿保存在commit ad99ae15。以下是transport包公开技术协议，不是新Cordis服务或领域能力。`explicitlyLoadedCodec`必须符合`LoadedImageCodec`，不能直接传Sharp构造函数；提供者导出`createSharpImageCodec(loadedSharp)`薄适配工厂，loadedSharp是调用方显式已import的sharp0.35.3默认导出，工厂读取其versions给精确revision，不内部加载。借用与可替换适配器按同一协议核，可信实现不得原地改变revision对应行为。
+
+```ts
+type CodecFailure = { failure: 'bad_input' | 'unsupported' | 'unavailable' | 'internal' }
+type CodecResult<T> = { ok: T } | CodecFailure
+interface ImageMetadata {
+  mediaType: string
+  width: number
+  height: number
+  pages: number
+  orientation: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+  hasAlpha: boolean
+}
+interface DecodeLimits { maxPixels: number; maxDimension: number }
+interface ImageEncodeSpec {
+  format: 'png' | 'jpeg' | 'webp'
+  width: number
+  height: number
+  quality: number | null // PNG null，JPEG/WebP 1..100
+  pngCompressionLevel: number // 0..9
+  webpEffort: number // 0..6
+  alphaBackground: null | { r: number; g: number; b: number }
+}
+interface EncodedImage { bytes: Uint8Array; mediaType: string; width: number; height: number }
+interface DecodedImage {
+  readonly width: number // 实际应用EXIF后的尺寸
+  readonly height: number
+  readonly hasAlpha: boolean
+  encode(spec: ImageEncodeSpec): Promise<CodecResult<EncodedImage>>
+  close(): Promise<void>
+}
+interface LoadedImageCodec {
+  readonly name: string
+  readonly revision: string
+  readonly inputMediaTypes: readonly string[]
+  readonly outputFormats: readonly ('png' | 'jpeg' | 'webp')[]
+  readonly available: () => boolean
+  inspect(bytes: Uint8Array, limits: DecodeLimits): Promise<CodecResult<ImageMetadata>>
+  decode(bytes: Uint8Array, metadata: ImageMetadata, limits: DecodeLimits): Promise<CodecResult<DecodedImage>>
+}
+```
+
+字段必需、无多余数据成员；name/revision及格式集合非空、集合去重，尺寸/pages/limit正有限安全整数；r/g/b为0..255整数。工厂检查descriptor结构和方法存在并固定metadata副本，不靠`available=true`证明codec行为；可信adapter行为仍由符合性测试承担。available只读实例是否尚可消费，不隐式网络/加载；false使准备provider_unavailable。inspect不宣称像素已解码，必须返回实际格式/帧数；若不能确定页数或格式，unsupported，不默认单帧。元数据无EXIF方向表示orientation=1（无方向变换），不是未知填值。
+
+inspect→检查实际MIME/动画/资源→保留RGBA8预算→decode。decode必须对同一owned源字节做真实全单帧像素解码、校验metadata对应、应用EXIF方向、采用明确sRGB/RGBA8工作语义；结果尺寸/alpha交回后再次核对。这个内部工作表示不会修改原bytes；可透传原图时解码后仍发送原bytes。encode从同一decoded原像素出发、不级联有损产物，inside保持比例、withoutEnlargement、按spec透明政策编码；实际输出类型与尺寸必须核验。库真实不支持格式为unsupported、明确坏输入为bad_input、关闭为unavailable、其他库故障为internal；不得把native异常全归bad_input。方法Promise只有该方法实际native任务终结后才完成，拒绝和异常亦必须先收束其任务；preparer收到未知异常按internal收口并诊断。
+
+DecodedImage是本batch独占、不可序列化的短时资源句柄，既不是模型runtime句柄也不是新持久对象。它close同步关encode准入，await已有encode实际完成后释放栅格引用；重复/并发close复用同一Promise。preparer在每图处理结束/任意失败finally等待close，再放对应保留预算；不能只等顶层helper结果而遗弃decoded资源。借用LoadedImageCodec本身不被preparer销毁；codec owner先等待全部preparer.close再按具体提供者销毁自己的外部资源，协议不猜所有codec都有全局dispose函数。
+
+sourceMaxBytes/decodedMaxPixels限制、policy与codec metadata/encode所有值必须由公开helper验证，独立调用接口不能依赖planner已经验过。sharp版本、libvips完整versions、平台/架构、适配器RGBA8/EXIF/sRGB行为revision进入codec revision；像素语义或encoder行为改变必须新revision，不能静默热改同一实现。文件IO、URL、凭据与持久写仍禁止；source code加载在装配阶段已完成。
+
+**无图exact边界**：仅images=[]时nonImageWireBytes等于完整实际请求字节；planner确知其超适用maxRequestBytes，直接按原RT10 `input_limit_exceeded{basis:exact,metric:maxRequestBytes,actual,limit}`拒绝。helper独立调用空images时也返回专门 `{rejected:{reason:'exact_request_limit_exceeded',actualBytes,limitBytes}}`，映射相同，不能映成size_unavailable。有图时nonImageWireBytes只是完整量的下界，哪怕已超cap也不得把它写成exact actual；可无需搜索直接返回 `no_candidate{stage:request_total}`，plan映射原input_size_unavailable(maxRequestBytes)，诊断说明是非图片部分已使搜索无可行结果，不伪造完整actual。其余无合规图片候选仍按per_image/request_total的no_candidate。该exact值仅为技术helper结果，未新增RT业务枚举。
