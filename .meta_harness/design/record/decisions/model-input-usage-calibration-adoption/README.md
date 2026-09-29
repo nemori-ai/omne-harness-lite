@@ -9,3 +9,5 @@
 ## 2026-09-29 两家公共贡献后继
 
 [后继决定](priority-family-decision.md)及[精确摘要](priority-family-acceptance.json)采用共享完整输出贡献与严格纯图缓存提供者 revision 5；未新增公开契约，PF1–PF8 及 PF-N1 实施/真实验收仍待。
+
+[PF-N1 层次澄清采用](priority-family-failure-layer-decision.md)明确贡献 unavailable 与规划 input_size_unavailable 的既有映射；未增加契约或模型分支，分层验收仍须实际执行。
