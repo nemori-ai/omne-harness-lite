@@ -18,3 +18,28 @@ export {
   type ReadRunnerRetryConclusionsInput,
 } from './retry-history.ts'
 export { composeEffect, type RunnerEffect } from './effect.ts'
+export {
+  runPass,
+  type RunnerPass,
+  type RunnerPiece,
+  type RunnerPassResult,
+  type RunnerFailure,
+  type RunnerAskAssociation,
+  type RunnerReplayBinding,
+  type RunnerAskState,
+  type RunnerInvocationMode,
+  type RunnerInvocationResult,
+  type RunnerCapabilityResult,
+  type RunnerRecordResult,
+  type RunnerPorts,
+} from './run-pass.ts'
+export {
+  createRunnerTaskOwner,
+  type RunnerLogBinding,
+  type RunnerAppendCandidate,
+  type RunnerRecoveryResult,
+  type RunnerRecoveredLog,
+  type RunnerTaskOwner,
+} from './task-owner.ts'
+export { createRunnerLogAdapter, type RunnerLogAdapter } from './run-log.ts'
+export { createRunnerReminderLogAdapter, type RunnerReminderLogAdapter } from './reminder-log.ts'
