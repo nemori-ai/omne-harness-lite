@@ -252,7 +252,8 @@ describe('formal runner and P5 demo assembly', () => {
       const result = await app.dispatchRunner(who, session, request, new AbortController().signal)
       if (!('conclusions' in result))
         throw Error(`runner dispatch unavailable: ${JSON.stringify(result)}`)
-      expect(result.conclusions.some(item => item.output?.kind === 'retry')).toBe(true)
+      const retry = result.conclusions.find(item => item.output?.kind === 'retry')?.output
+      if (retry?.kind !== 'retry') throw Error('P5 did not produce a durable retry plan')
       expect(handleOpens).toBeGreaterThan(0)
       expect(handleReleases).toBe(handleOpens)
       expect(tls.requests).toHaveLength(1)
@@ -294,6 +295,27 @@ describe('formal runner and P5 demo assembly', () => {
       expect(source.verify(source.subject, { run: 'controlled-run-1', attempt: 1 })).toEqual({
         unavailable: true,
       })
+      expect(
+        await bound.service.canDispatchAgain({ session, callId: sent.callId, plan: retry.plan }),
+      ).toEqual({ allowed: true })
+      expect(await bound.service.releaseCall({ session, callId: sent.callId })).toEqual({
+        callId: sent.callId,
+        state: 'handed_up',
+      })
+      const afterStop = await app.readSessionLog(who, session)
+      expect(
+        await bound.service.canDispatchAgain({ session, callId: sent.callId, plan: retry.plan }),
+      ).toEqual({ alreadyEnded: true })
+      expect(
+        await bound.service.dispatchAgain({
+          session,
+          callId: sent.callId,
+          plan: retry.plan,
+          attempt: 1,
+        }),
+      ).toEqual({ alreadyEnded: true })
+      expect(await app.readSessionLog(who, session)).toEqual(afterStop)
+      expect(tls.requests).toHaveLength(1)
       expect(await host.stop()).toEqual({ released: true })
       const stoppedSource = await bound.service.readAttempts(
         { session, callId: sent.callId },
@@ -316,6 +338,83 @@ describe('formal runner and P5 demo assembly', () => {
       expect(tls.requests).toHaveLength(1)
     } finally {
       releaseRun?.()
+      await host.stop()
+      if (diagnostics) {
+        const closed = await diagnostics.closeAfterBusiness(() => app.close())
+        expect(closed.complete).toBe(true)
+      } else expect((await app.close()).complete).toBe(true)
+      await tls.close()
+    }
+  })
+
+  it('rejects laundering an actual noRun failure into a controlled Run before external acquisition', async () => {
+    const config = await callDeployment('runner-service-no-run-source')
+    const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
+    let externalAcquires = 0
+    const app = createAcceptanceApplication(config, {
+      stage: 'modelRequest',
+      developmentTransport: tls.developmentTransport,
+      diagnostics: { record() {} },
+      async runnerExternal() {
+        externalAcquires++
+        return { unavailable: true }
+      },
+    })
+    const host = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
+    try {
+      await app.ready
+      const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
+      const prepared = await app.prepareSession(who, 'runner-no-run-source-session')
+      if (!('session' in prepared)) throw Error('noRun session unavailable')
+      const session = prepared.session
+      expect(await app.prepareModelInputs(who, session)).toEqual({ prepared: true })
+      expect(await app.selectModel(who, session, MODEL)).toEqual({ selected: MODEL })
+      expect(await app.attachModelCallHost(who, session, host)).toEqual({ attached: true })
+      const bound = await app.bindModelRuntime(who, session)
+      if (!('service' in bound)) throw Error('noRun runtime unavailable')
+      expect(
+        await app.publishCredential(who, async checked => ({
+          account: checked.account,
+          tenant: checked.tenant,
+          sourceRef: ref('runner-no-run-source-credential'),
+          body: Buffer.from('controlled-runner-key'),
+        })),
+      ).toEqual({ stored: true })
+      tls.setMode('http503')
+      const sent = await app.startServiceCall(who, session, {
+        user: user(),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: host.host,
+      })
+      if (!('callId' in sent) || !('result' in sent) || !('settled' in sent.result))
+        throw Error(`actual noRun failure unavailable: ${JSON.stringify(sent)}`)
+      expect(sent.result.settled.outcome).toBe('failed')
+      const attempts = await bound.service.readAttempts({ session, callId: sent.callId })
+      if (!('state' in attempts) || attempts.state !== 'awaiting_decision')
+        throw Error('actual noRun failure history unavailable')
+      const before = await app.readSessionLog(who, session)
+      expect(
+        await app.dispatchRunner(
+          who,
+          session,
+          {
+            position: 'after_model_call',
+            dimension: { ending: 'failure' },
+            subject: attempts.failureSubject,
+            manifest: session,
+            anchor: sent.callId,
+            run: 'controlled-run-1',
+            attempt: 1,
+          },
+          new AbortController().signal,
+        ),
+      ).toEqual({ failure: 'invalidInput' })
+      expect(externalAcquires).toBe(0)
+      expect(await app.readSessionLog(who, session)).toEqual(before)
+      expect(tls.requests).toHaveLength(1)
+    } finally {
       await host.stop()
       if (diagnostics) {
         const closed = await diagnostics.closeAfterBusiness(() => app.close())
