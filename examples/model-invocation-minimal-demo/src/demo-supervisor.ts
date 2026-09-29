@@ -37,6 +37,7 @@ type Managed = {
   state: 'starting' | 'alive' | 'exited'
   exitObserved: boolean
   closeObserved: boolean
+  nativeIpcBackpressureObserved: boolean
   readonly pending: Map<string, Request>
   readonly exit: Promise<void>
   readonly closed: Promise<void>
@@ -123,9 +124,12 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
   readonly disconnectWorkerIpc: () => boolean
   /** Controlled fault injection: lose one send receipt after the worker's durable work. */
   readonly dropNextSendResult: () => Promise<boolean> | undefined
+  /** Controlled ID-collision fault: old worker payload and generation against a new pending send. */
+  readonly replayDroppedSendResultAgainstCurrentWorker: () => boolean
   readonly inspect: () => {
     readonly state: 'none' | 'starting' | 'alive' | 'exited'
     readonly pid?: number
+    readonly nativeIpcBackpressureObserved: boolean
   }
   readonly waitWorkerExit: (
     waitForClose?: boolean,
@@ -152,6 +156,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
   let shuttingDown = false
   let opening = false
   let dropNextSendResult: ((dropped: boolean) => void) | undefined
+  let droppedSendResult: DemoPacket | undefined
 
   async function checkRoot(): Promise<void> {
     try {
@@ -190,7 +195,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     }
     const outgoing = { generation: managed.generation, id, kind, body: encoded }
     if (Buffer.byteLength(JSON.stringify(outgoing), 'utf8') > options.maxPacketBytes) return false
-    managed.child.send(outgoing, error => {
+    const writable = managed.child.send(outgoing, error => {
       if (error !== null) {
         const pending = managed.pending.get(id)
         if (pending !== undefined) {
@@ -199,6 +204,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
         }
       }
     })
+    if (!writable) managed.nativeIpcBackpressureObserved = true
     return true
   }
 
@@ -279,6 +285,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     if (message.kind === 'result' && waiting.commandName === 'send' && dropNextSendResult) {
       const notify = dropNextSendResult
       dropNextSendResult = undefined
+      droppedSendResult = message
       notify(true)
       return
     }
@@ -361,6 +368,7 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
       state: 'starting',
       exitObserved: false,
       closeObserved: false,
+      nativeIpcBackpressureObserved: false,
       pending: new Map(),
       exit,
       closed,
@@ -480,15 +488,28 @@ export function createDemoSupervisor(options: DemoSupervisorOptions): {
     },
     dropNextSendResult() {
       if (active?.state !== 'alive' || dropNextSendResult !== undefined) return undefined
+      droppedSendResult = undefined
       return new Promise<boolean>(resolve => {
         dropNextSendResult = resolve
       })
     },
+    replayDroppedSendResultAgainstCurrentWorker() {
+      if (active?.state !== 'alive' || droppedSendResult === undefined) return false
+      const current = [...active.pending.entries()].find(
+        ([, request]) => request.kind === 'command' && request.commandName === 'send',
+      )
+      if (current === undefined) return false
+      const held = droppedSendResult
+      droppedSendResult = undefined
+      onMessage(active, { ...held, id: current[0] })
+      return true
+    },
     inspect() {
       return active === undefined
-        ? { state: 'none' as const }
+        ? { state: 'none' as const, nativeIpcBackpressureObserved: false }
         : {
             state: active.state,
+            nativeIpcBackpressureObserved: active.nativeIpcBackpressureObserved,
             ...(active.child.pid === undefined ? {} : { pid: active.child.pid }),
           }
     },

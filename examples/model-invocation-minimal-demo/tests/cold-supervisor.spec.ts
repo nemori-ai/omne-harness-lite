@@ -225,6 +225,68 @@ describe('C14 actual supervised worker', () => {
     }
   }, 45_000)
 
+  it('ignores an actual old-worker result delivered after a successor has an in-flight call', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-late-result-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    const keyFile = join(root, 'key')
+    await writeFile(keyFile, 'controlled-key', { mode: 0o600 })
+    const supervisor = createDemoSupervisor({
+      dataDirectory: join(root, 'data'),
+      keyFile,
+      multiplier: '1.1',
+      reserveTokens: '256',
+      maxOutputTokens: 128,
+      retirementWaitMilliseconds: 2000,
+      maxPacketBytes: 1_048_576,
+      maxCommands: 1,
+      dedicatedRoot: true,
+      developmentTransport: {
+        baseUrl: server.developmentTransport.baseUrl,
+        ca: server.developmentTransport.tls.ca,
+      },
+    })
+    let heldFinished = false
+    try {
+      const first = await supervisor.open()
+      const dropped = supervisor.dropNextSendResult()
+      if (dropped === undefined) throw new Error('old-result retention was not armed')
+      const oldSend = first.send('old complete', async () => undefined)
+      expect(await dropped).toBe(true)
+      expect(supervisor.signalWorker('SIGKILL')).toBe(true)
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      expect((await oldSend).kind).toBe('unconfirmed')
+      server.setMode('hold')
+      const successor = await supervisor.open()
+      expect(successor.workerIdentity).not.toBe(first.workerIdentity)
+      let successorSettled = false
+      const nextSend = successor
+        .send('new held request', async () => undefined)
+        .then(result => {
+          successorSettled = true
+          return result
+        })
+      await vi.waitFor(() => expect(server.requests).toHaveLength(2), { timeout: 10_000 })
+      expect(supervisor.replayDroppedSendResultAgainstCurrentWorker()).toBe(true)
+      await Promise.resolve()
+      expect(successorSettled).toBe(false)
+      successor.stopActive()
+      server.finishHeld()
+      heldFinished = true
+      expect((await nextSend).kind).not.toBe('saved')
+      await vi.waitFor(() => expect(server.closedSockets()).toBeGreaterThanOrEqual(2), {
+        timeout: 10_000,
+      })
+      await vi.waitFor(async () => expect((await successor.close()).complete).toBe(true), {
+        timeout: 10_000,
+      })
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      expect(server.requests).toHaveLength(2)
+    } finally {
+      if (!heldFinished) server.finishHeld()
+      await server.close()
+    }
+  }, 50_000)
+
   it('preserves exact upstream usage and cost and an empty HTTP failure through real IPC', async () => {
     const root = await mkdtemp(join(tmpdir(), 'cold-demo-exact-ipc-'))
     const server = await createLocalTls(
@@ -371,6 +433,38 @@ describe('C14 actual supervised worker', () => {
       expect(server.requests).toHaveLength(1)
     } finally {
       server.finishHeld()
+      await server.close()
+    }
+  }, 45_000)
+
+  it('retains a bounded command when native child IPC reports write backpressure and still closes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-ipc-backpressure-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    const supervisor = createDemoSupervisor({
+      dataDirectory: join(root, 'data'),
+      multiplier: '1.1',
+      reserveTokens: '256',
+      maxOutputTokens: 128,
+      retirementWaitMilliseconds: 2000,
+      maxPacketBytes: 8 * 1024 * 1024,
+      maxCommands: 1,
+      dedicatedRoot: true,
+      developmentTransport: {
+        baseUrl: server.developmentTransport.baseUrl,
+        ca: server.developmentTransport.tls.ca,
+      },
+    })
+    try {
+      const conversation = await supervisor.open()
+      const sending = conversation.send('x'.repeat(4 * 1024 * 1024), async () => undefined)
+      expect(supervisor.inspect().nativeIpcBackpressureObserved).toBe(true)
+      await expect(conversation.history()).rejects.toThrow('remote history unavailable')
+      conversation.stopActive()
+      expect((await conversation.close()).complete).toBe(true)
+      expect((await sending).kind).not.toBe('saved')
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      expect(server.failures).toEqual([])
+    } finally {
       await server.close()
     }
   }, 45_000)
