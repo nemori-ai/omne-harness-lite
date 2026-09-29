@@ -2,10 +2,28 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import { createAnchoredModelInvocation } from '@omne-harness-lite/model-request-runtime'
+import {
+  createAnchoredModelInvocation,
+  type SettlementCoordinatorInput,
+} from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { harness, payload } from '../../model-request-runtime/tests/anchored-invocation-fixture.ts'
 import { certificate, content, finish, fixture, input, policy, sse } from './support.ts'
+
+// This fixture deliberately exercises noRun through the public runtime instance.
+// Do not transport the source harness's absent, nominally typed run reader.
+function noRunSettlement(
+  source: Parameters<Parameters<typeof harness>[0]>[0]['input']['settlement'],
+): SettlementCoordinatorInput {
+  expect(source.run).toBeUndefined()
+  return {
+    binding: source.binding,
+    owner: source.owner,
+    ...(source.settlementContention ? { settlementContention: source.settlementContention } : {}),
+    ...(source.settlementScheduler ? { settlementScheduler: source.settlementScheduler } : {}),
+    diagnostic: source.diagnostic,
+  }
+}
 
 const tool: ModelToolEntry = {
   name: 'lookup__exact',
@@ -57,6 +75,7 @@ describe('noRun anchored invocation through actual TLS and OpenRouter wire proto
         const base = input()
         const first = createAnchoredModelInvocation({
           ...h.input,
+          settlement: noRunSettlement(h.input.settlement),
           planInput: { ...base, tools: [tool] },
           profile: { origin: 'official', routeName: base.routeName },
           credential: 'test-secret',
@@ -136,6 +155,7 @@ describe('noRun anchored invocation through actual TLS and OpenRouter wire proto
         if (!('ok' in call) || !('ok' in message)) throw new Error('second identity')
         const second = createAnchoredModelInvocation({
           ...h.input,
+          settlement: noRunSettlement(h.input.settlement),
           responseId: 'actual-second-tool-response',
           messageId: message.ok,
           planInput: {
@@ -207,6 +227,7 @@ describe('noRun anchored invocation through actual TLS and OpenRouter wire proto
         ] as const) {
           const handle = createAnchoredModelInvocation({
             ...h.input,
+            settlement: noRunSettlement(h.input.settlement),
             planInput: { ...base, tools, messages },
             profile: { origin: 'official', routeName: base.routeName },
             credential: 'test-secret',
