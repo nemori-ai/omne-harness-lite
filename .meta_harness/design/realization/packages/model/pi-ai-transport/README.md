@@ -168,3 +168,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 ## 两家优先增量技术采用（2026-09-29）
 
 [D107 后继决定](../../../../record/decisions/model-input-usage-calibration-adoption/priority-family-decision.md)接受[提供者 revision 5](priority-family-output-cache-candidate.md)的精确受审字节。此前候选标签保留快照；当前可实施，新增 bindings 0，工程与实际模型验收未完成。
+
+## xAI 两叶完整输出贡献候选
+
+[xAI有限适用页](xai-complete-output-applicability-candidate.md)复用已采用共享输出组机制，拟两叶definition5/pi-ai:xai mp4-19，完整组O为estimated代理；[选择来源](../../../../record/proposals/model-input-usage-calibration/xai-applicability-choice.md)。当前未采用/未实施/未认证，新增bindings0；图片公式与真实差分仍独立缺口，不假称765覆盖全域。
