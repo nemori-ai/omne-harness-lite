@@ -164,3 +164,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 ## 两家优先模型窄增量候选（2026-09-29）
 
 [完整输出贡献与纯图缓存](priority-family-output-cache-candidate.md)接续已接受 v13/v15 及 C relation；新增有限 O 贡献域与严格 last_message 纯图映射。未接受、未实施，新增 bindings 0；精确采用与 PF1–PF8 验收仍待。
+
+## 两家优先增量技术采用（2026-09-29）
+
+[D107 后继决定](../../../../record/decisions/model-input-usage-calibration-adoption/priority-family-decision.md)接受[提供者 revision 5](priority-family-output-cache-candidate.md)的精确受审字节。此前候选标签保留快照；当前可实施，新增 bindings 0，工程与实际模型验收未完成。
