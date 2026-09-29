@@ -137,6 +137,46 @@ function fakeTransport(initialPending = 0): {
 }
 
 describe('demo diagnostic assembly', () => {
+  it('uses the retained reader clock for logical TTL after business and writers close', async () => {
+    let now = Date.parse('2026-09-28T20:30:00.000Z')
+    const baseline = config()
+    const assembly = await openDemoDiagnosticAssembly({
+      ...baseline,
+      collector: {
+        ...baseline.collector,
+        retentionMs: 1_000,
+        wallClock: () => new Date(now),
+      },
+    })
+    const accepted = assembly.tenant.collector.record(
+      {
+        source: 'assembly',
+        stage: 'assembly',
+        outcome: 'completed',
+        facts: { kind: 'diagnostics', reason: 'close_incomplete' },
+      },
+      tenant,
+    )
+    expect('recorded' in accepted).toBe(true)
+    expect((await assembly.closeAfterBusiness(async () => ({ complete: true }))).complete).toBe(
+      true,
+    )
+    const before = await assembly.tenant.query({ scope: tenant, limit: 4, maxBytes: 2048 })
+    expect('page' in before && before.page.records).toHaveLength(1)
+    now -= 1
+    expect(await assembly.tenant.query({ scope: tenant, limit: 4, maxBytes: 2048 })).toEqual({
+      rejected: 'unavailable',
+    })
+    now += 1_002
+    const expired = await assembly.tenant.query({ scope: tenant, limit: 4, maxBytes: 2048 })
+    expect('page' in expired && expired.page.records).toHaveLength(0)
+    expect('page' in expired && expired.page.coverage).toBe('degraded')
+    now = Number.NaN
+    expect(await assembly.tenant.query({ scope: tenant, limit: 4, maxBytes: 2048 })).toEqual({
+      rejected: 'unavailable',
+    })
+  })
+
   it('keeps real local and tenant journal rows apart, including export after the writer closes', async () => {
     const assembly = await openDemoDiagnosticAssembly(config())
     const localResult = assembly.local.collector.record(

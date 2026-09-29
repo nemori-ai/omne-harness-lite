@@ -29,6 +29,7 @@ import { createDemoConfig, MODEL } from './deployment.ts'
 import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import type { TenantId } from '@omne-harness-lite/identity-values'
+import { systemTimeSources } from '@omne-harness-lite/clock'
 
 interface LocalState {
   readonly version: 1
@@ -224,7 +225,8 @@ export function createDemoDiagnosticConfig(
       exportMaxBytes: 1_048_576,
       closeWaitMs: 5_000,
       stderrMaxReports: 2,
-      wallClock: () => new Date(),
+      // Engineering readers outlive the application's leased business Clock.
+      wallClock: () => new Date(systemTimeSources.wall()),
       monotonicClock: () => Number(process.hrtime.bigint() / 1_000_000n),
       schedule(milliseconds, callback) {
         const timer = setTimeout(callback, milliseconds)
