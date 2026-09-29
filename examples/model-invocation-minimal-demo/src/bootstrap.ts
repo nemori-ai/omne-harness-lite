@@ -2523,6 +2523,7 @@ export function createAcceptanceApplication(
         owner: access.borrow.owner.owner,
         contention: requestDeployment.settlement.contention,
         scheduler: requestDeployment.settlement.scheduler,
+        ...(options.runHistory === undefined ? {} : { run: options.runHistory }),
         diagnostic: recordSettlement,
       })
     }

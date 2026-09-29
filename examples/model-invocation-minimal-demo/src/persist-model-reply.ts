@@ -8,24 +8,23 @@ import {
   type SettlementOwner,
   type SettlementResult,
   type SettlementScheduler,
+  type RunHistoryReader,
 } from '@omne-harness-lite/model-request-runtime'
 
-/** The noRun CLI is the actual message writer for a handed-off reply (RT8 S-17/S-49). */
+/** The demo is the actual message writer for a handed-off reply (RT8 S-17/S-49). */
 export async function persistDemoModelReply(input: {
   readonly pending: PendingModelResponse
   readonly binding: SettlementLogBinding
   readonly owner: SettlementOwner
   readonly contention: SettlementContention
   readonly scheduler: SettlementScheduler
+  readonly run?: RunHistoryReader
   readonly diagnostic: (event: SettlementDiagnostic) => void
 }): Promise<SettlementResult> {
-  if (
-    'rejected' in judgePendingModelResponse(input.pending) ||
-    input.pending.call.runId !== undefined ||
-    input.pending.attemptId !== undefined
-  )
+  if ('rejected' in judgePendingModelResponse(input.pending))
     return { unavailable: true, reason: 'candidate' }
-  // A noRun response has no attempt fence to become late. Preserve all other upstream facts.
+  // The coordinator reads the original owned prefix and interprets the Run
+  // before deciding the response's late fact and the complete M/R batch.
   const response = { ...input.pending, replyDisposition: 'persisted' as const }
   const judged = judgeModelResponse(response)
   if (!('ok' in judged)) return { unavailable: true, reason: 'candidate' }
@@ -34,6 +33,7 @@ export async function persistDemoModelReply(input: {
     owner: input.owner,
     settlementContention: input.contention,
     settlementScheduler: input.scheduler,
+    ...(input.run === undefined ? {} : { run: input.run }),
     diagnostic: input.diagnostic,
   })
   try {

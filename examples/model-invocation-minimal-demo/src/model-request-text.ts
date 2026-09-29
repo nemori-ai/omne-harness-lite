@@ -178,14 +178,24 @@ export function readDemoCalibrationHistory(
   prefix: SettlementPrefix,
   selectedMessages: readonly Message[],
   target: Parameters<CurrentHistoryReaders['calibration']>[2],
+  selectedRun?: ControlledSingleRunSelection,
 ): CalibrationHistoryResult {
-  // The linear demo reader cannot prove a Run's selected-message ancestry. A
-  // trusted Run owner must provide the callback for that branch.
-  if (Object.hasOwn(target, 'run') || Object.hasOwn(target, 'attempt'))
+  // The default noRun reader never infers a Run's selected branch. Only a
+  // construction-time owner can pass its actual single-Run selection here.
+  if (selectedRun === undefined) {
+    if (
+      Object.hasOwn(target, 'run') ||
+      Object.hasOwn(target, 'attempt') ||
+      prefix.entries.some(entry => entry.run !== undefined || entry.attempt !== undefined)
+    )
+      return { sourceUnavailable: true }
+  } else if (
+    target.run !== selectedRun.run ||
+    target.attempt === undefined ||
+    ExactDecimal.from(target.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !== 0
+  )
     return { sourceUnavailable: true }
-  if (prefix.entries.some(entry => entry.run !== undefined || entry.attempt !== undefined))
-    return { sourceUnavailable: true }
-  const decoded = messagePrefixWithSources(prefix)
+  const decoded = messagePrefixWithSources(prefix, selectedRun)
   if ('unavailable' in decoded) return { sourceUnavailable: true }
   const selectedSources: {
     readonly messageIndex: number
@@ -248,6 +258,15 @@ export function readDemoCalibrationHistory(
         modelLogJsonEqual(item.response.value, rawResponse),
     )
     if (dispatch === undefined) return { sourceUnavailable: true }
+    if (
+      selectedRun !== undefined &&
+      (dispatch.dispatched.run !== selectedRun.run ||
+        dispatch.dispatched.attempt === undefined ||
+        ExactDecimal.from(dispatch.dispatched.attempt).compare(
+          ExactDecimal.from(selectedRun.attempt),
+        ) !== 0)
+    )
+      return { sourceUnavailable: true }
     selectedCandidates.push({
       origin: 'selected_reply',
       dispatchedEntry: dispatch.dispatched,
@@ -279,6 +298,15 @@ export function readDemoCalibrationHistory(
     )
       return { sourceUnavailable: true }
     for (const dispatch of currentCall.known.dispatches) {
+      if (
+        selectedRun !== undefined &&
+        (dispatch.dispatched.run !== selectedRun.run ||
+          dispatch.dispatched.attempt === undefined ||
+          ExactDecimal.from(dispatch.dispatched.attempt).compare(
+            ExactDecimal.from(selectedRun.attempt),
+          ) !== 0)
+      )
+        return { sourceUnavailable: true }
       if (ExactDecimal.from(dispatch.ordinal).compare(ExactDecimal.from(target.dispatch)) >= 0)
         return { sourceUnavailable: true }
       if (dispatch.response === null) return { sourceUnavailable: true }
