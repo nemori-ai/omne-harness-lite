@@ -1,3 +1,8 @@
+import {
+  estimateOpenAi56Replay,
+  openAi56ReplayModels,
+  OPENAI_56_REPLAY_REVISION,
+} from './openai-replay.ts'
 import { openaiFinalVisibleBindings } from '../official-models/openai.ts'
 import {
   openAiProBindings,
@@ -253,6 +258,7 @@ function visibleHistoryTokens(
 
 /** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
+  const encryptedReplay = openAi56ReplayModels.has(definition.modelId)
   const gpt6SolVisibleHistory = definition.modelId === 'openai/gpt-6-sol'
   const finalBinding = Object.hasOwn(openaiFinalVisibleBindings, definition.modelId)
     ? openaiFinalVisibleBindings[definition.modelId]
@@ -262,10 +268,19 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const pro = Object.hasOwn(openAiProBindings, definition.modelId)
     ? openAiProBindings[definition.modelId]
     : undefined
-  const revision = finalBinding?.revision ?? pro?.revision ?? (gpt6SolVisibleHistory ? '3' : '4')
+  const revision =
+    finalBinding?.revision ??
+    pro?.revision ??
+    (gpt6SolVisibleHistory ? '3' : encryptedReplay ? '5' : '4')
   const implementationRevision =
     finalBinding?.implementationRevision ??
-    (pro ? PRO_IMPLEMENTATION_REVISION : gpt6SolVisibleHistory ? 'mp4-6' : 'mp4-5')
+    (pro
+      ? PRO_IMPLEMENTATION_REVISION
+      : gpt6SolVisibleHistory
+        ? 'mp4-6'
+        : encryptedReplay
+          ? 'mp4-11'
+          : 'mp4-5')
   if (
     (!gpt6VisibleHistory && !imageRule) ||
     definition.revision !== revision ||
@@ -285,7 +300,9 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       finalBinding?.algorithmRevision ??
       (gpt6SolVisibleHistory
         ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
-        : 'openai-gpt-5.6-o200k-base-4'),
+        : encryptedReplay
+          ? 'openai-gpt-5.6-o200k-base-complete-output-5'
+          : 'openai-gpt-5.6-o200k-base-4'),
     evidence:
       finalBinding?.evidence ??
       (gpt6SolVisibleHistory
@@ -334,6 +351,18 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
             tokens - tokenizer.encode(writeJsonLossless({ ...envelope, messages: [] })).length,
         }
   })
+  if (encryptedReplay) {
+    const replayMeter: InputMeter = defineInputMeter({
+      ...marginal,
+      replayRevision: OPENAI_56_REPLAY_REVISION,
+      evidence: `Full/new basis: ${marginal.evidence}. Replay successor: OpenAI reasoning guide GPT-5.6 default all_turns and OpenRouter omitted context uses model default (2026-09-29): complete same-source encrypted output group in one unchanged assistant message maps O + zero experimental framing correction, estimated only; no live effective-mode or framing equality certification; full/new opaque remain unavailable`,
+      measureReplay(input) {
+        const visible = marginal.measureReplay(input)
+        return visible.kind === 'unavailable' ? estimateOpenAi56Replay(input, replayMeter) : visible
+      },
+    })
+    return replayMeter
+  }
   return definition.modelId === 'openai/gpt-6-astra'
     ? defineInputMeter({
         ...marginal,
