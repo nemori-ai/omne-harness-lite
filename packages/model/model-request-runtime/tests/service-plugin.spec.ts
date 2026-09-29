@@ -14,7 +14,9 @@ import type {
 } from '../src/service-types.ts'
 
 const unavailable = async () => ({ unavailable: true }) as const
-function failureUnavailable<I>(): FailureConsumableOperation<I, { readonly unavailable: true }> {
+function failureUnavailable<I>(
+  observe?: (options: { readonly consumeFailure: true } | undefined) => void,
+): FailureConsumableOperation<I, { readonly unavailable: true }> {
   function invoke(input: I): Promise<{ readonly unavailable: true }>
   function invoke(
     input: I,
@@ -24,6 +26,7 @@ function failureUnavailable<I>(): FailureConsumableOperation<I, { readonly unava
     _input: I,
     options?: { readonly consumeFailure: true },
   ): Promise<{ readonly unavailable: true } | FailureConsumption<{ readonly unavailable: true }>> {
+    observe?.(options)
     return options === undefined
       ? { unavailable: true }
       : { result: { unavailable: true }, consumption: { kind: 'notApplicable' } }
@@ -67,6 +70,66 @@ async function dependencies(ctx: Context) {
 }
 
 describe('Cordis P-2 runtime assembly', () => {
+  it('forwards explicit failure consumption through the real Cordis service for all three methods', async () => {
+    const ctx = new Context()
+    const seen: string[] = []
+    const original = service()
+    const consumer = await ctx.plugin(
+      createModelRuntimePlugin({
+        async construct() {
+          return {
+            service: {
+              ...original,
+              dispatch: failureUnavailable(options =>
+                seen.push(`dispatch:${options?.consumeFailure}`),
+              ),
+              dispatchAgain: failureUnavailable(options =>
+                seen.push(`dispatchAgain:${options?.consumeFailure}`),
+              ),
+              readAttempts: failureUnavailable(options =>
+                seen.push(`readAttempts:${options?.consumeFailure}`),
+              ),
+            },
+            owner: { close: async () => ({ released: true as const }), release() {} },
+          }
+        },
+      }),
+      {},
+    )
+    const provider = await dependencies(ctx)
+    try {
+      await consumer.await()
+      const actual = ctx.get(MODEL_RUNTIME_SERVICE)
+      if (actual === undefined || typeof actual !== 'object' || !('dispatch' in actual))
+        throw new Error('Cordis runtime service missing')
+      const methods = actual as ModelRuntimeService
+      expect(
+        await methods.dispatch({} as Parameters<ModelRuntimeService['dispatch']>[0], {
+          consumeFailure: true,
+        }),
+      ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
+      expect(
+        await methods.dispatchAgain({} as Parameters<ModelRuntimeService['dispatchAgain']>[0], {
+          consumeFailure: true,
+        }),
+      ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
+      expect(
+        await methods.readAttempts({} as Parameters<ModelRuntimeService['readAttempts']>[0], {
+          consumeFailure: true,
+        }),
+      ).toEqual({ result: { unavailable: true }, consumption: { kind: 'notApplicable' } })
+      expect(seen).toEqual(['dispatch:true', 'dispatchAgain:true', 'readAttempts:true'])
+      expect(
+        await methods.readAttempts({} as Parameters<ModelRuntimeService['readAttempts']>[0]),
+      ).toEqual({
+        unavailable: true,
+      })
+      expect(seen.at(-1)).toBe('readAttempts:undefined')
+    } finally {
+      await provider.dispose()
+      await consumer.dispose()
+    }
+  })
   it('waits for required providers and closes admission before actual assembly close completes', async () => {
     const ctx = new Context()
     let constructed = 0
