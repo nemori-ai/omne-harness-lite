@@ -1,0 +1,30 @@
+{
+  ".meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md": {
+    "sha256": "49034467f3113a945da7168748f5812b1c09d264afb62e1b0652b3e19f7252da",
+    "copy": "tmp/ack-spec-draft/interface-snapshot-02/capabilities/model-request-runtime/v12/contract.md"
+  },
+  ".meta_harness/design/spec/data/messages/v8/contract.md": {
+    "sha256": "a419ec3adc3577b78801aceaf277547d3fe9d585aaf14915da3514051915b17b",
+    "copy": "tmp/ack-spec-draft/interface-snapshot-02/data/messages/v8/contract.md"
+  },
+  ".meta_harness/design/spec/data/messages/v8/messages.schema.json": {
+    "sha256": "029be66cccc02103fbe2da6241a366b112a235e9f7f7e89462a843e602c39126",
+    "copy": "tmp/ack-spec-draft/interface-snapshot-02/data/messages/v8/messages.schema.json"
+  },
+  ".meta_harness/design/spec/data/model-response/v11/contract.md": {
+    "sha256": "f87a6bb9623041b1bd57a88ff14d0a9ebd57aaaa3d64d7e19ed618c2fa799c4d",
+    "copy": "tmp/ack-spec-draft/interface-snapshot-02/data/model-response/v11/contract.md"
+  },
+  ".meta_harness/design/spec/data/model-response/v11/model-response.schema.json": {
+    "sha256": "9e58f395b07169a7fe6a2095b59cf60c1fbeb040fe18bc8e847e44bf2c154b2b",
+    "copy": "tmp/ack-spec-draft/interface-snapshot-02/data/model-response/v11/model-response.schema.json"
+  },
+  ".meta_harness/design/spec/data/call-accounts/v4/contract.md": {
+    "sha256": "cf008304b0ff38a5f8ebca5cc6e967dfd14150dac4950b6b6449b9bd3e9b6b98",
+    "copy": "tmp/ack-spec-draft/interface-snapshot-02/data/call-accounts/v4/contract.md"
+  },
+  ".meta_harness/design/spec/data/call-accounts/v4/call-accounts.schema.json": {
+    "sha256": "710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368",
+    "copy": "tmp/ack-spec-draft/interface-snapshot-02/data/call-accounts/v4/call-accounts.schema.json"
+  }
+}
