@@ -1,5 +1,6 @@
 import {
   isJsonNumber,
+  isNonNegativeJsonInteger,
   writeJsonLossless,
   type JsonObject,
   type JsonValue,
@@ -158,6 +159,31 @@ function sanitizedBody(
   const messages: JsonValue[] = []
   for (const message of body.messages) {
     if (!object(message)) return undefined
+    // The tokenizer basis covers visible reasoning text/summary and their
+    // protocol metadata, not the context represented by encrypted payloads.
+    // Keep the final wire intact: an unsupported detail makes the whole input
+    // unavailable rather than dropping it or counting its ciphertext bytes.
+    if (Object.hasOwn(message, 'reasoning_details')) {
+      if (!Array.isArray(message.reasoning_details)) return undefined
+      for (const detail of message.reasoning_details) {
+        if (!object(detail)) return undefined
+        const textKey =
+          detail.type === 'reasoning.text'
+            ? 'text'
+            : detail.type === 'reasoning.summary'
+              ? 'summary'
+              : undefined
+        if (
+          textKey === undefined ||
+          typeof detail[textKey] !== 'string' ||
+          (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
+          (detail.format !== undefined && typeof detail.format !== 'string') ||
+          (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index)) ||
+          Object.keys(detail).some(key => !['type', textKey, 'id', 'index', 'format'].includes(key))
+        )
+          return undefined
+      }
+    }
     if (!Array.isArray(message.content)) {
       messages.push(message)
       continue
@@ -419,8 +445,8 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const gpt6SolText = definition.modelId === 'openai/gpt-6-sol'
   const gpt6LunaVisibleHistory = definition.modelId === 'openai/gpt-6-luna'
   const imageRule = imageRuleFor(definition.modelId)
-  const revision = gpt6SolText ? '2' : '3'
-  const implementationRevision = gpt6SolText ? 'mp4-2' : gpt6LunaVisibleHistory ? 'mp4-4' : 'mp4-3'
+  const revision = gpt6SolText ? '2' : gpt6LunaVisibleHistory ? '3' : '4'
+  const implementationRevision = gpt6SolText ? 'mp4-2' : gpt6LunaVisibleHistory ? 'mp4-4' : 'mp4-5'
   if (
     (!gpt6SolText && !gpt6LunaVisibleHistory && !imageRule) ||
     definition.revision !== revision ||
@@ -439,12 +465,12 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       ? 'openai-gpt-6-text-three-message-o200k-surrogate-1'
       : gpt6LunaVisibleHistory
         ? 'openai-gpt-6-luna-visible-history-json-o200k-1'
-        : 'openai-gpt-5.6-o200k-base-3',
+        : 'openai-gpt-5.6-o200k-base-4',
     evidence: gpt6SolText
       ? 'OpenRouter OpenAI GPT-6 Sol low-effort three-message baseline/fit/holdout, frozen o200k text surrogate +14; openai-v2-sol-luna-80fe189b-8a59-4d1b-89da-02cd553c97e8 (2026-09-28); exact tokenizer and whole-domain error unknown'
       : gpt6LunaVisibleHistory
         ? 'OpenRouter OpenAI GPT-6 Luna low-effort visible text/tool/reminder history: three frozen full-wire live requests and independent generation GET (2026-09-28), estimated 126/302/410 versus actual input 70/178/236; error outside these samples and private framing unknown'
-        : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated',
+        : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis',
     measure({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
       if (gpt6SolText || gpt6LunaVisibleHistory) {

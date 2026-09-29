@@ -90,8 +90,8 @@ describe('OpenAI model-specific input estimator', () => {
   it('binds only six exact GPT-5.6 leaves and the fixed OpenAI provider', () => {
     for (const modelId of [...baseModels, ...proModels]) {
       const meter = createOpenAiInputMeter(definition(modelId))
-      expect(meter).toMatchObject({ modelId, provider: 'openai', definitionRevision: '3' })
-      expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-3')
+      expect(meter).toMatchObject({ modelId, provider: 'openai', definitionRevision: '4' })
+      expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-4')
       expect(meter.algorithmRevision).toContain('gpt-5.6')
     }
     for (const modelId of gpt6Models.filter(
@@ -332,7 +332,7 @@ describe('OpenAI model-specific input estimator', () => {
   })
 
   it.each([...baseModels, ...proModels])(
-    '%s sends full reasoning and tool history with the real meter through the public factory',
+    '%s sends visible reasoning and tool history with the real meter through the public factory',
     async modelId => {
       const selected = definition(modelId)
       const meter = createOpenAiInputMeter(selected)
@@ -382,7 +382,8 @@ describe('OpenAI model-specific input estimator', () => {
               opaque: {
                 routeName: selected.modelId,
                 reasoning_details: [
-                  { type: 'reasoning.encrypted', data: 'fixture-only', index: 0 },
+                  { type: 'reasoning.text', text: 'Need the forecast.', index: 0 },
+                  { type: 'reasoning.summary', summary: 'Use the weather tool.', index: 1 },
                 ],
               },
               visibility: { toHuman: false, toModel: true },
@@ -478,7 +479,8 @@ describe('OpenAI model-specific input estimator', () => {
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
         expect(planned.planned.serialized).toContain('"reasoning_details"')
-        expect(planned.planned.serialized).toContain('fixture-only')
+        expect(planned.planned.serialized).toContain('Need the forecast.')
+        expect(planned.planned.serialized).toContain('Use the weather tool.')
         expect(planned.planned.serialized).toContain('"tool_calls"')
         expect(planned.planned.serialized).toContain('"tool_call_id"')
         expect(planned.planned.serialized).toContain('"tools"')

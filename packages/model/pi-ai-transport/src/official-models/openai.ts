@@ -118,8 +118,9 @@ export const openaiDefinitions = ownDefinitions(
     ([modelId, routes]) =>
       ({
         modelId,
-        revision:
-          gpt56MeteredIds.has(modelId) || modelId === gpt6LunaVisibleHistoryMeteredId
+        revision: gpt56MeteredIds.has(modelId)
+          ? '4'
+          : modelId === gpt6LunaVisibleHistoryMeteredId
             ? '3'
             : modelId === gpt6SolTextMeteredId
               ? '2'
@@ -127,7 +128,7 @@ export const openaiDefinitions = ownDefinitions(
         implementation: {
           name: 'pi-ai:openai',
           revision: gpt56MeteredIds.has(modelId)
-            ? 'mp4-3'
+            ? 'mp4-5'
             : modelId === gpt6LunaVisibleHistoryMeteredId
               ? 'mp4-4'
               : modelId === gpt6SolTextMeteredId

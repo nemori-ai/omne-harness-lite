@@ -191,6 +191,7 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         MODEL,
         undefined,
         'OpenAI',
+        [{ type: 'reasoning.encrypted', data: 'fixture-only-ciphertext', index: 0 }],
       )
       tls.setMode('tool')
       const app = createAcceptanceApplication(config, {
@@ -413,6 +414,7 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         })
         if (!('callId' in opened) || !('state' in opened) || opened.state !== 'open')
           throw new Error(`reminder open failed: ${JSON.stringify(opened)}`)
+        if (MODEL !== 'openai/gpt-6-luna') tls.setMode('reasoning')
         const third = await bound.service.dispatch({
           session: prepared.session,
           callId: opened.callId,
@@ -449,6 +451,52 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
             },
           ],
         })
+        if (MODEL !== 'openai/gpt-6-luna') {
+          // A received encrypted reply remains durable and replayable as data.
+          // Its ciphertext is not evidence for the next request's input count.
+          const reply = third.replyPending.reply
+          expect(reply.blocks).toContainEqual(
+            expect.objectContaining({
+              kind: 'thinking',
+              opaque: toOpaqueJson({
+                routeName: MODEL,
+                reasoning_details: [
+                  { type: 'reasoning.encrypted', data: 'fixture-only-ciphertext', index: 0 },
+                ],
+              }),
+            }),
+          )
+          const beforeEncrypted = await app.readSessionLog(who, prepared.session)
+          expect(JSON.stringify(beforeEncrypted)).toContain('fixture-only-ciphertext')
+          for (const mixed of [false, true]) {
+            const history = judgeMessage({
+              ...reply,
+              blocks: mixed
+                ? reply.blocks
+                : reply.blocks.filter(block => block.kind === 'thinking'),
+            })
+            if (!('ok' in history)) throw new Error('encrypted history invalid')
+            const messages = [user('encrypted-replay-user'), history.ok]
+            const originalMessages = JSON.stringify(messages)
+            expect(
+              await bound.service.openCall({
+                session: prepared.session,
+                target: MODEL,
+                basis: effective.effectiveModel,
+                messages,
+                parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+                tools: [],
+                host: host.host,
+              }),
+            ).toEqual({
+              invalidInput: { reason: 'input_size_unavailable', metrics: ['maxInputTokens'] },
+            })
+            expect(JSON.stringify(messages)).toBe(originalMessages)
+            expect(tls.requests).toHaveLength(3)
+            // No dispatched/opened/response/termination record for either refusal.
+            expect(await app.readSessionLog(who, prepared.session)).toEqual(beforeEncrypted)
+          }
+        }
         const beforeUnknown = await app.readSessionLog(who, prepared.session)
         if (!('entries' in beforeUnknown)) throw new Error('durable prefix missing')
         expect(

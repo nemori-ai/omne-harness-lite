@@ -57,7 +57,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       expect(definition.implementation).toEqual({
         name: 'pi-ai:openai',
         revision: metered
-          ? 'mp4-3'
+          ? 'mp4-5'
           : lunaHistoryMetered
             ? 'mp4-4'
             : solTextMetered
@@ -65,7 +65,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
               : 'mp4-1',
       })
       expect(definition.revision).toBe(
-        metered || lunaHistoryMetered ? '3' : solTextMetered ? '2' : '1',
+        metered ? '4' : lunaHistoryMetered ? '3' : solTextMetered ? '2' : '1',
       )
       expect(definition.capabilities).toEqual({
         inputModalities: ['image', 'text'],
