@@ -217,6 +217,144 @@ test('real P5 contribution fiber registers with runner; duplicate fails without 
   }
 })
 
+test('R8 service owns execution before host await; caller and host cannot replace input or fence', async () => {
+  const h = await serviceHost(),
+    entered = latch(),
+    resume = latch()
+  const supplied = { ...request, run: 'original-run', attempt: 2 }
+  const originalAcquire = vi.mocked(h.host.acquireDispatch).getMockImplementation()
+  if (originalAcquire === undefined) throw new Error('host fixture missing')
+  const inputs: unknown[] = []
+  try {
+    vi.mocked(h.host.acquireDispatch).mockImplementation(async (requested, signal) => {
+      expect(Object.isFrozen(requested)).toBe(true)
+      expect(Reflect.set(requested, 'run', 'host-forged-run')).toBe(false)
+      entered.resolve()
+      await resume.promise
+      expect(requested).toMatchObject({ run: 'original-run', attempt: 2 })
+      return originalAcquire(requested, signal)
+    })
+    h.implementations.registerBuiltin('example:a', async input => {
+      inputs.push(input)
+      return { kind: 'output', value: { kind: 'observed' } }
+    })
+    h.implementations.registerBuiltin('example:b', async input => {
+      inputs.push(input)
+      return { kind: 'output', value: { kind: 'observed' } }
+    })
+    const work = h.runner.dispatch(supplied, new AbortController().signal)
+    await entered.promise
+    supplied.run = 'caller-forged-run'
+    supplied.attempt = 7
+    resume.resolve()
+    expect(await work).toMatchObject({ effect: { kind: 'proceed' } })
+    expect(inputs).toHaveLength(2)
+    for (const input of inputs) expect(input).toMatchObject({ run: 'original-run', attempt: 2 })
+    const read = await h.log.readSince(unwrap(parseOpaqueIdentifier(session, 'SessionRef')), 0)
+    expect(
+      'entries' in read && read.entries.map(entry => ({ run: entry.run, attempt: entry.attempt })),
+    ).toEqual([
+      { run: 'original-run', attempt: 2 },
+      { run: 'original-run', attempt: 2 },
+    ])
+    expect(h.scopes()).toBe(0)
+  } finally {
+    resume.resolve()
+    await h.close()
+  }
+})
+
+test('R8 service passes the owned actual execution to failure verification after host acquisition', async () => {
+  const entered = latch(),
+    resume = latch()
+  const adaptation = {
+    implementation: { name: 'example.family', revision: '1' },
+    definition: { modelId: 'example/model', revision: '1' },
+    configuration: { revision: '1', values: {} },
+  }
+  const profile = {
+    providers: ['provider-a'],
+    allowFallback: true,
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    maxInputTokens: 1000,
+    maxOutputTokens: 100,
+    inputConstraints: {},
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
+    adaptation,
+    updatedAt: '2026-09-29T00:00:00Z',
+  }
+  const failed = judgePositionedSubject({
+    position: 'after_model_call',
+    dimension: { ending: 'failure' },
+    subject: {
+      failure: 'upstream_unavailable',
+      profile,
+      dispatches: [
+        {
+          adaptation,
+          kind: 'model_call_dispatched',
+          call: 'failed-call',
+          dispatch: 1,
+          parameters: {},
+          provider: 'provider-a',
+          response: 'response',
+          profile: { origin: 'official', routeName: 'example/model' },
+          profileSnapshot: profile,
+          selectedBy: 'session',
+          credentialScope: { layer: 'factory' },
+        },
+      ],
+      retryConclusions: [],
+    },
+  })
+  if ('rejected' in failed) throw new Error(`failure fixture: ${failed.rejected}`)
+  const h = await serviceHost()
+  const supplied = {
+    ...failed.ok,
+    manifest: session,
+    anchor: 'failed-call',
+    run: 'same-run',
+    attempt: 2,
+  }
+  let released = 0
+  try {
+    vi.mocked(h.execution.verifyFailure).mockImplementation(
+      async (subject, actualBinding, execution) => {
+        expect(actualBinding).toEqual(h.facts.binding)
+        expect(execution).toEqual({ kind: 'withRun', run: 'same-run', attempt: 2 })
+        expect(Object.isFrozen(execution)).toBe(true)
+        entered.resolve()
+        await resume.promise
+        expect(execution).toEqual({ kind: 'withRun', run: 'same-run', attempt: 2 })
+        return {
+          kind: 'verified',
+          subject,
+          release() {
+            released++
+          },
+        }
+      },
+    )
+    const work = h.runner.dispatch(supplied, new AbortController().signal)
+    await entered.promise
+    supplied.run = 'other-run'
+    supplied.attempt = 9
+    resume.resolve()
+    expect(await work).toMatchObject({ effect: { kind: 'proceed' }, conclusions: [] })
+    expect(released).toBe(1)
+    expect(h.operations.append).not.toHaveBeenCalled()
+    expect(h.execution.openHandles).not.toHaveBeenCalled()
+    expect(h.scopes()).toBe(0)
+  } finally {
+    resume.resolve()
+    await h.close()
+  }
+})
+
 test('withdrawing the actual runner retains in-flight execution until real stop and never closes its borrowed log', async () => {
   const h = await serviceHost(),
     started = latch(),

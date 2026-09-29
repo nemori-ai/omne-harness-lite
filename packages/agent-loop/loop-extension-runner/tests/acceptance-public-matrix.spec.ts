@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { Context } from '@deepseek-ai/cordis'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import {
   judgeDefinition,
@@ -11,18 +12,21 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime/default-retry-plugin'
 import { openJsonlSessionLog, type SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import {
   runPass,
   createRunnerLogAdapter,
   createRunnerReminderLogAdapter,
   createRunnerTaskOwner,
+  createRunnerImplementationRegistry,
   passKeys,
   type RunnerPorts,
   type RunnerPiece,
   type RunnerPass,
   type RunnerAskAssociation,
   type RunnerInvocationResult,
+  type RunnerBuiltinImplementation,
 } from '@omne-harness-lite/loop-extension-runner'
 
 // Controlled public-function scope. These are NOT production Run or waiting-owner facts.
@@ -1103,6 +1107,160 @@ describe('independent ownership and physical recovery', () => {
       expect(releases).toBe(1)
     } finally {
       resume.resolve()
+      await f.close()
+    }
+  })
+  it('R8 same-Run later attempt replays its original conclusion without another invocation or write', async () => {
+    const v = variants[7]!,
+      f = await fixture(v)
+    const executions: unknown[] = []
+    const actual = {
+      ...f.ports,
+      // Controlled same-Run source only: runtime's real source is covered by assembly tests.
+      verifyFailure: async (
+        subject: PositionedSubject,
+        actualBinding: RunnerPorts['binding'],
+        execution: RunnerPass['execution'],
+      ) => {
+        expect(actualBinding).toEqual(binding)
+        executions.push(execution)
+        return execution.kind === 'withRun' && execution.run === 'controlled-run'
+          ? { kind: 'verified' as const, subject, release() {} }
+          : { kind: 'invalidInput' as const }
+      },
+    }
+    try {
+      const first = await runPass(f.pass, [makePiece(v)], actual, signal())
+      expect(first).toMatchObject({ effect: { kind: 'proceed' } })
+      const later = await runPass(
+        { ...f.pass, execution: { kind: 'withRun', run: 'controlled-run', attempt: 2 } },
+        [makePiece(v)],
+        actual,
+        signal(),
+      )
+      expect(later).toEqual(first)
+      expect(f.counts.invoke).toBe(1)
+      expect(executions).toEqual([
+        { kind: 'withRun', run: 'controlled-run', attempt: 1 },
+        { kind: 'withRun', run: 'controlled-run', attempt: 2 },
+      ])
+      const read = await f.log.readSince(session, 0)
+      expect(read).toHaveProperty('tail', 1)
+      expect('entries' in read && read.entries[0]).toMatchObject({
+        run: 'controlled-run',
+        attempt: 1,
+      })
+    } finally {
+      await f.close()
+    }
+  })
+  it('B2 actual Cordis P5 policy and sample changes only affect the next generation; late old retry cannot commit', async () => {
+    const retryProfile = { ...profile, providers: ['provider-a', 'provider-b'] }
+    const v: Variant = {
+      ...variants[7]!,
+      subject: {
+        failure: 'upstream_unavailable',
+        profile: retryProfile,
+        dispatches: [{ ...dispatch, profileSnapshot: retryProfile }],
+        retryConclusions: [],
+      },
+    }
+    const f = await fixture(v),
+      registry = createRunnerImplementationRegistry(),
+      ctx = new Context()
+    const started = Promise.withResolvers<void>(),
+      finish = Promise.withResolvers<void>()
+    let generation = 0,
+      hold = false
+    const provider = await ctx.plugin({
+      name: 'actual-p5-registry',
+      apply(inner) {
+        inner.provide('loopExtensionImplementations', {
+          registerBuiltin(name: string, implementation: RunnerBuiltinImplementation) {
+            const current = ++generation
+            // Only delay result delivery; the actual P5 plugin performs all policy calculations.
+            return registry.registerBuiltin(name, async (input, signal, mode) => {
+              const result = await implementation(input, signal, mode)
+              if (current === 1 && hold) {
+                started.resolve()
+                await finish.promise
+              }
+              return result
+            })
+          },
+        })
+      },
+    })
+    const config = {
+      policy: {
+        kind: 'constant' as const,
+        base: 'PT2S',
+        factor: 1,
+        max: 'PT10S',
+        jitter: 'full' as const,
+      },
+      sample: () => 0.25,
+    }
+    const old = await ctx.plugin(createModelDefaultRetryPlugin(config), {})
+    const piece = {
+      ...makePiece(v, 'omne-official:default-retry', 'rewrite'),
+      onError: 'ignore' as const,
+    }
+    const ports: RunnerPorts = {
+      ...f.ports,
+      invoke: async (_piece, input, signal, mode) => {
+        const lease = registry.capture('omne-official:default-retry')
+        return 'absent' in lease
+          ? { kind: 'notStartedUnavailable' }
+          : lease.invoke(input, signal, mode)
+      },
+    }
+    let next: Awaited<ReturnType<typeof ctx.plugin>> | undefined
+    try {
+      config.policy.base = 'PT8S'
+      config.sample = () => 0.75
+      const before = await runPass(
+        { ...f.pass, anchor: 'before-replacement' },
+        [piece],
+        ports,
+        signal(),
+      )
+      expect(before).toMatchObject({
+        effect: { kind: 'retry', plan: { provider: 'provider-b', after: 'PT0.5S' } },
+      })
+      hold = true
+      const late = runPass({ ...f.pass, anchor: 'late-old' }, [piece], ports, signal())
+      await started.promise
+      await old.dispose()
+      next = await ctx.plugin(createModelDefaultRetryPlugin(config), {})
+      await old.dispose()
+      finish.resolve()
+      const oldResult = await late
+      expect(oldResult).toMatchObject({
+        conclusions: [{ skipped: 'errored', output: { kind: 'observed' } }],
+      })
+      const after = await runPass({ ...f.pass, anchor: 'new-generation' }, [piece], ports, signal())
+      expect(after).toMatchObject({
+        effect: { kind: 'retry', plan: { provider: 'provider-b', after: 'PT6S' } },
+      })
+      const keys = passKeys({
+        position: 'after_model_call',
+        dimension: { ending: 'failure' },
+        anchor: 'late-old',
+      })
+      if ('invalidInput' in keys) throw new Error('invalid fixture pass key')
+      const read = await f.log.readByKey(session, keys.pass)
+      expect('entries' in read && read.entries).toHaveLength(1)
+      expect('entries' in read && read.entries[0]?.payload).toMatchObject({
+        value: { skipped: 'errored', output: { kind: 'observed' } },
+      })
+    } finally {
+      finish.resolve()
+      await old.dispose()
+      await next?.dispose()
+      await provider.dispose()
+      registry.closeAdmission()
+      await registry.drain()
       await f.close()
     }
   })
