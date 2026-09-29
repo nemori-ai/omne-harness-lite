@@ -201,7 +201,7 @@ export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHisto
 }
 ```
 
-独立调用者如果持有经过授权的原响应，以及下一次请求实际选入的原输出块，可显式提供观察。适配器仍会核对当前投影与计数依据；传入观察不强制进入增量模式。使用下列类型时，请将 `model-response` 和 `content-blocks` 声明为直接依赖：
+独立调用者如果持有经过授权的原响应，并知道下一次请求实际选入哪些块，可显式提供观察。`outputBlocks` 必须保留完整原输出组，实际选入的块由 `replaySelection` 指明，不能据此裁短原组。适配器仍会核对当前投影与计数依据；传入观察不强制进入增量模式。使用下列类型时，请将 `model-response` 和 `content-blocks` 声明为直接依赖：
 
 ```ts
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'

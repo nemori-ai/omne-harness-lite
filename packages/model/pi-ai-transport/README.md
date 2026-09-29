@@ -111,6 +111,7 @@ const reminder = judgeMessage({
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
   calibration: { kind: 'none', reason: 'no_observation' },
+  outputHistory: [],
   tokenMargin: { multiplier: 1, reserveTokens: 0 },
   target: {
     kind: 'model_call',

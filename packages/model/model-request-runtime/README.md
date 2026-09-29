@@ -203,7 +203,7 @@ export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHisto
 }
 ```
 
-An independent caller that owns an authorized original response and the exact blocks selected for the next request can supply that observation explicitly. The adapter decides whether the current projection and counting basis permit a marginal measurement; passing an observation does not force marginal mode. Declare `model-response` and `content-blocks` as direct dependencies when using their types:
+An independent caller that owns an authorized original response and knows which blocks are selected for the next request can supply that observation explicitly. Preserve the complete original output group in `outputBlocks`; use `replaySelection` to identify the selected blocks without trimming the original group. The adapter decides whether the current projection and counting basis permit a marginal measurement; passing an observation does not force marginal mode. Declare `model-response` and `content-blocks` as direct dependencies when using their types:
 
 ```ts
 import type { ContentBlock } from '@omne-harness-lite/content-blocks'
