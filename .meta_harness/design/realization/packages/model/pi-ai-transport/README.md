@@ -148,3 +148,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 ## 2026-09-29 refusal 文字映射候选
 
 [v14 revision 2](v14-refusal-design.md) 只扩展合法 OpenRouter refusal 字串的文本交付，严格值型、首内容、正常尾帧用量及异常停止沿现有责任。语义未采用、尚不可据此实施；新增 bindings 0、实际验证未执行。不新增 CB/MR 字段或服务操作，独立架构评审支持 A 的边界，两处表达修正已落入 revision 2；精确技术采用仍待。
+
+## v15 请求图片准备候选（2026-09-29）
+
+[v15-image-preparation-design.md](v15-image-preparation-design.md) 保留原消息，在最终计量前准备同模态图片。语义沿RT10/MR9，新增提供者方案尚未采用；新增binding 0，实际实现与组合验收未执行，不扩完整上下文组装/Session/Run。

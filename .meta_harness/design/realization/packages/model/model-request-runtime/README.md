@@ -156,3 +156,8 @@ D-100 实施接续另采用 [mrr/3 当前承载字节](v8-current-codec-design.m
 ## 2026-09-28 精确传输取得结果补正
 
 [D-100追加](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md)技术采用[v13 acquire结果补正](v13-acquire-result-design.md)的三分结果，纠正v7遗漏RT9 S-53.1非法配置拒绝的投影。仅允许现有端口与消费者保真迁移，不改变冻结规范、lease责任或操作数量。新增绑定0；实现和真实组合验证仍按实际证据记录，未接受完整D4。
+
+
+## v21 图片准备接入候选（2026-09-29）
+
+[v21-image-preparation-design.md](v21-image-preparation-design.md) 保留原消息，在最终计量前准备同模态图片。语义沿RT10/MR9，新增提供者方案尚未采用；新增binding 0，实际实现与组合验收未执行，不扩完整上下文组装/Session/Run。
