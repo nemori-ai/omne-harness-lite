@@ -1,0 +1,36 @@
+{
+  "sourceObservationsSha256": "464c029984e310a928b3ae74a152e2d15726d6d456dfb154aca8d593d25822e",
+  "sourceProviderVerificationSha256": "1bb421e92fc128045d1dfdb24907aba73e7c5ba9bafc1af2b79eb6b6ad880836",
+  "requestedModel": "qwen/qwen3.8-max-0902",
+  "actualProvider": "Alibaba",
+  "rows": [
+    {
+      "file": "08-qwen3.8-max-0902-english.json",
+      "phase": "calibration",
+      "sha256": "8cac47a03e0bded81dd33f5ffdb1f83f58154374e7c7df59e526b6fb4b5def0a",
+      "publicTemplateTokens": 17,
+      "observedPromptTokens": 68
+    },
+    {
+      "file": "09-qwen3.8-max-0902-chinese.json",
+      "phase": "calibration",
+      "sha256": "ff5adf010714b6a2318b6d33057347008e03619b37698d9e76710bf5a793e489",
+      "publicTemplateTokens": 17,
+      "observedPromptTokens": 68
+    },
+    {
+      "file": "10-qwen3.8-max-0902-code.json",
+      "phase": "calibration",
+      "sha256": "9aff87e7388744484f550db167a40418fb285d809f6154efbcc4c1b79f9bf501",
+      "publicTemplateTokens": 26,
+      "observedPromptTokens": 77
+    },
+    {
+      "file": "11-qwen3.8-max-0902-mixed-text.json",
+      "phase": "heldout",
+      "sha256": "24fc70351d18f7b415c3a792bb0f0d37b4bbd25351cdbeae2dc2c672c2bee6fc",
+      "publicTemplateTokens": 32,
+      "observedPromptTokens": 83
+    }
+  ]
+}
