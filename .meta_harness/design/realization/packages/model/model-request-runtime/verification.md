@@ -296,3 +296,8 @@ U16-V6/V7须分别覆盖原selected reply与同call较早dispatch的无reply响�
 | M17-V12：全部生命周期/公开消费 | 当前13方法业务返回回归；scope overload中英literal在两实际制品编译/执行，normal result无资源类型；P5贡献结构直接传runner真实registerBuiltin。共享宿主关所有准入→物理log停/可信退出→reconcileStoppedLog→drain，故障/unknown留存有原始证据；工程trace关联有据且不泄完整主体 | 各包/示例/主线；文档示例不制造产品Run终结记录，不新增acceptance app，既有U3/37模型证据不借此升级 |
 
 **覆盖缺口**：M17-G1 技术采用归主线；M17-G2 正式 Run 终结认法/写方是边界外前提，缺席行为与模型条件消费仍须实际验；M17-G3 同 prefix 服务消费和可信日志代际配对归 runtime/runner 组合；M17-G4 P-5登记/共享宿主归对应owner，真实卡片等待外置；M17-G5 当前withRun成组实现、错误顺序及十三方法正反/unknown义务属本轮，不能用外域未交作恒unavailable的免责。设计检查不证明运行，真实失败证据产生后才可另登记绑定。
+
+
+## 2026-09-29 D6工程可观测性限定验收
+
+[实际D6-V1～V11逐项接受](../../../../record/evidence/2026-09-29-tests-model-engineering-diagnostics/README.md)：真实Cordis/SQLite/JSONL/TLS与具名受控失败输入，包含多代诊断pending和实际资源关闭。主线复验后的有限技术接受，不关闭十三操作、37模型或完整纵线；foreign UID证据受实际宿主前提约束，后继改动复验受影响义务。
