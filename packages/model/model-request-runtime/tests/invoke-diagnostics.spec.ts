@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { invokeModel } from '../src/invoke.ts'
 import type { DiagnosticEvent } from '../src/diagnostics-types.ts'
 import type { PublicDiagnosticAssociation, TransportExecutionDiagnostics } from '../src/types.ts'
-import { adapter, policy, request } from './invoke-policy-fixture.ts'
+import { adapter, content, policy, request } from './invoke-policy-fixture.ts'
 
 describe('per-invocation engineering diagnostics', () => {
   it('passes one call-local emitter to send and read without mixing interleaved calls', async () => {
@@ -37,7 +37,7 @@ describe('per-invocation engineering diagnostics', () => {
             return base.transport.read(response, planned, signal)
           },
         },
-        credential: 'key-not-503',
+        credential: '503',
         signal: new AbortController().signal,
         policy: policy(),
         diagnosticAssociation: { executionId: call },
@@ -201,6 +201,47 @@ describe('per-invocation engineering diagnostics', () => {
       stage: 'reply_handoff',
       outcome: 'completed',
       facts: expect.objectContaining({ kind: 'progress', responseOutcome: 'truncated' }),
+    })
+  })
+
+  it('leaves unknown usage and cost absent instead of turning them into zero', async () => {
+    const seen: DiagnosticEvent[] = []
+    const events = content().map(event =>
+      event.t === 'account'
+        ? {
+            ...event,
+            usage: {
+              input_tokens: 'unknown' as const,
+              output_tokens: 1,
+              cache_read_tokens: 'unknown' as const,
+              cache_write_tokens: 'unknown' as const,
+              source: 'upstream' as const,
+            },
+            cost: { cost_usd: 'unknown' as const, source: 'none' as const },
+          }
+        : event,
+    )
+    const handle = invokeModel({
+      ...request(),
+      transport: adapter({ events }).transport,
+      credential: 'secret-value',
+      signal: new AbortController().signal,
+      policy: policy(),
+      diagnosticEmitterFactory() {
+        return {
+          record(event) {
+            seen.push(event)
+            return { dropped: 'closed' }
+          },
+          close() {},
+        }
+      },
+    })
+    expect(await handle.outcome).toHaveProperty('outcome', 'complete')
+    expect(seen.find(event => event.stage === 'reply_handoff')?.facts).toEqual({
+      kind: 'progress',
+      responseOutcome: 'complete',
+      outputTokens: 1,
     })
   })
 })
