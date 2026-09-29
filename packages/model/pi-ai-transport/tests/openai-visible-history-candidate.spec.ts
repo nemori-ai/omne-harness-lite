@@ -39,9 +39,7 @@ function historyMeter(modelId: string) {
 }
 
 function expectedTokens(c: (typeof packet.cases)[number]): number {
-  return c.modelId === 'openai/gpt-6-sol'
-    ? getEncoding('o200k_base').encode(c.wire).length
-    : c.expectedTokens
+  return getEncoding('o200k_base').encode(c.wire).length
 }
 
 function finalBody(c: (typeof packet.cases)[number]): JsonObject {
@@ -209,12 +207,23 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
       expect(observations.route).toBe('openai')
       expect(observations.datedModel).toBe('openai/gpt-6-luna-20260922')
       expect(observed.generationId).toMatch(/^gen-/u)
+      // Preserve the historical algorithm's measurement independently; new
+      // final-JSON predictions are not retroactive upstream observations.
+      const body = finalBody(frozen)
+      expect(
+        getEncoding('o200k_base').encode(
+          writeJsonLossless({
+            messages: body.messages!,
+            ...(body.tools === undefined ? {} : { tools: body.tools }),
+          }),
+        ).length,
+      ).toBe(observed.estimatedInputTokens)
       expect(
         historyMeter(frozen.modelId).measureFull({
           body: finalBody(frozen),
           serialized: frozen.wire,
         }),
-      ).toEqual({ kind: 'estimated', tokens: observed.estimatedInputTokens })
+      ).toEqual({ kind: 'estimated', tokens: expectedTokens(frozen) })
     },
   )
 
@@ -377,7 +386,9 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
       meter.measureFull({ body: value, serialized: writeJsonLossless(value) })
     expect(meter.measureFull({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
     expect(changed({ ...body, opaqueControl: true })).toEqual({ kind: 'unavailable' })
-    expect(changed({ ...body, reasoning: { effort: 'high' } })).toEqual({ kind: 'unavailable' })
+    expect(changed({ ...body, reasoning: { effort: 'unsupported-effort' } })).toEqual({
+      kind: 'unavailable',
+    })
     expect(
       changed({
         ...body,

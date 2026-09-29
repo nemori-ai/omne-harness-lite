@@ -111,10 +111,9 @@ const gpt56MeteredIds = new Set([
   'openai/gpt-5.6-luna-pro',
 ])
 const gpt6SolVisibleHistoryMeteredId = 'openai/gpt-6-sol'
-const gpt6LunaVisibleHistoryMeteredId = 'openai/gpt-6-luna'
 
 /** Narrow successors adopting the common final-visible-JSON surrogate.
- * This table supersedes the earlier unmetered declaration; no old binding alias.
+ * These successors replace earlier unmetered or narrower metered declarations; no old binding alias.
  * Applicability inputs (2026-09-29): vendor-continuation/openai/{research.md,
  * initial-observations.json}; https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/gpt-6
  * and https://developers.openai.com/api/docs/guides/reasoning . Native OpenAI
@@ -133,6 +132,14 @@ export const openaiFinalVisibleBindings: Readonly<
     }
   >
 > = Object.freeze({
+  'openai/gpt-6-luna': Object.freeze({
+    revision: '4',
+    implementationRevision: 'mp4-9',
+    efforts: other.parameters.reasoningEffort.accepted.values,
+    algorithmRevision: 'openai-gpt-6-luna-final-visible-json-o200k-1',
+    evidence:
+      'OpenRouter OpenAI GPT-6 Luna own low-effort visible text/tool/reminder observations (2026-09-28): old messages/tools proxy 126/302/410 versus actual input 70/178/236; those observations remain attached to the prior algorithm. OpenAI reasoning guide and OpenRouter GPT-6 migration guide (2026-09-29) separate effort from mode; complete final visible JSON with declared Luna efforts or omitted effort is an estimated protocol applicability inference, not GPT-6 tokenizer identity, private framing proof, error bound or live per-effort certification',
+  }),
   'openai/gpt-6-astra': Object.freeze({
     revision: '2',
     implementationRevision: 'mp4-8',
@@ -178,11 +185,9 @@ export const openaiDefinitions = ownDefinitions(
           openAiProBindings[modelId]?.revision ??
           (gpt56MeteredIds.has(modelId)
             ? '4'
-            : modelId === gpt6LunaVisibleHistoryMeteredId
+            : modelId === gpt6SolVisibleHistoryMeteredId
               ? '3'
-              : modelId === gpt6SolVisibleHistoryMeteredId
-                ? '3'
-                : '1'),
+              : '1'),
         implementation: {
           name: 'pi-ai:openai',
           revision:
@@ -191,11 +196,9 @@ export const openaiDefinitions = ownDefinitions(
               ? PRO_IMPLEMENTATION_REVISION
               : gpt56MeteredIds.has(modelId)
                 ? 'mp4-5'
-                : modelId === gpt6LunaVisibleHistoryMeteredId
-                  ? 'mp4-4'
-                  : modelId === gpt6SolVisibleHistoryMeteredId
-                    ? 'mp4-6'
-                    : 'mp4-1'),
+                : modelId === gpt6SolVisibleHistoryMeteredId
+                  ? 'mp4-6'
+                  : 'mp4-1'),
         },
         capabilities,
         routes,

@@ -22,11 +22,6 @@ import {
 import cases from './fixtures/openai/sol-luna-text-cases.json' with { type: 'json' }
 
 const models = ['openai/gpt-6-sol', 'openai/gpt-6-luna']
-const unavailable = {
-  rejected: 'invalidInput',
-  reason: 'input_size_unavailable',
-  metrics: ['maxInputTokens'],
-}
 function definition(modelId: string) {
   const selected = openaiDefinitions.find(d => d.modelId === modelId)
   if (!selected) throw new Error('missing exact definition')
@@ -95,7 +90,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
     expect(createOpenAiInputMeter(selected)).toMatchObject(
       modelId === 'openai/gpt-6-sol'
         ? { definitionRevision: '3', implementation: { revision: 'mp4-6' } }
-        : { definitionRevision: '3', implementation: { revision: 'mp4-4' } },
+        : { definitionRevision: '4', implementation: { revision: 'mp4-9' } },
     )
     expect(() => createOpenAiInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
     expect(() =>
@@ -131,9 +126,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
     )
     expect(measurement).toEqual({
       kind: 'estimated',
-      tokens: tokenizer.encode(
-        writeJsonLossless(c.modelId === 'openai/gpt-6-sol' ? body : { messages: body.messages! }),
-      ).length,
+      tokens: tokenizer.encode(writeJsonLossless(body)).length,
     })
     const planned = planRequest(request(c.modelId, c.set), [definition(c.modelId)], meter)
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
@@ -184,7 +177,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
       for (const changed of [
         { ...body, model: 'openai/gpt-6-astra' },
         { ...body, tools: [] },
-        ...(modelId === 'openai/gpt-6-luna' ? [{ ...body, reasoning: { effort: 'high' } }] : []),
+        { ...body, reasoning: { effort: 'unsupported-effort' } },
         { ...body, reasoning: { effort: 'low', mode: 'pro' } },
         { ...body, prompt_cache_options: { ttl: '1h' } },
         {
@@ -276,8 +269,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
           ...input,
           parameters: { reasoningEffort: 'high', maxOutputTokens: 16 },
         })
-        if (modelId === 'openai/gpt-6-sol') expect(high).toHaveProperty('planned')
-        else expect(high).toMatchObject(unavailable)
+        expect(high).toHaveProperty('planned')
         const withTools = transport.plan({
           ...input,
           tools: [
