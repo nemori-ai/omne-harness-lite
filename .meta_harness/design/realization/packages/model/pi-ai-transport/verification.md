@@ -246,11 +246,11 @@ implementation6／definition1；当前旧窄定义/两个pilot尚待D082迁移�
 
 ## v12 响应校准增量
 
-对象为 [v12 candidate](v12-usage-calibration-design.md)，MR9/RT10 candidate；新增绑定 0，以下均为待执行义务，尚无本增量实现运行或模型认证。既有形式任务与源码测试不改版本标签。
+对象为 [v12 revision 2 candidate](v12-usage-calibration-design.md)，MR9/RT10 candidate；新增绑定 0，以下均为待执行义务，尚无本增量实现运行或模型认证。revision 2 明确 B1 相关缓存元数据边界与 UCT-V12 性能行为门，尚待独立复评。既有形式任务与源码测试不改版本标签。
 
 | 编号／条款 | 必须会失败的场景与负控 | owner／消费者 |
 |---|---|---|
-| UCT-V1 MR9 S-41/S-43，RT10 S-77 | canonical golden：非 ASCII/转义、无损整数及等值异词法、key 次序、重复/空消息、opaque、tools/schema、system、缓存标记；改任一实际贡献必须改变相应预像或明确版本。input/output 域、空序列与拼接无混淆；输出 request unavailable 仍能 known | transport；core/invoke |
+| UCT-V1 MR9 S-41/S-43，RT10 S-77 | canonical golden：非 ASCII/转义、无损整数及等值异词法、key 次序、重复/空消息、opaque、tools/schema、system；改变任何实际 input-bearing 贡献必须改变预像或明确版本。缓存控制只按 v12 窄规则剔除，其余字段保留；input/output 域、空序列与拼接无混淆；输出 request unavailable 仍能 known | transport；core/invoke |
 | UCT-V2 RT10 S-77/S-79 | 稳定 prefix 增量；编辑/重排/删块、tools/system、媒体表示、compaction 派生不可见（含无 compaction 标记）均 prefix_changed；换模型/provider/tokenizer/meter/replay/transform、未证兼容均 basis_changed。假 trusted 布尔、同 hash 异版本、只同 seq/modelId 不能放行 | transport planner；runtime 来源交接 |
 | UCT-V3 MR9 S-42，RT10 S-59 | 三互斥项求和；prompt total 已知缓存细目 unknown；缓存读/写不双加；conflict/负值/缺项/重复 cumulative/response-cache 零；独立已知真实 0 合法。故意将 cached/unknown 置 0 必须失败 | reader/account；invoke |
 | UCT-V4 RT10 S-54/S-59，MR9 S-42 | 真本机 TLS/SSE 在 usage 前后分别取消、断流、非法后续帧、带内错误、assembly 拒收；终止 readFacts 保留已提取 I/usage，invoke 无 raw 私读，不提前 generator.return；构件 throw 不冒充上游 missing。provenance 与 route 原事实对应，密钥字符串出现在 id/model/provider 时按来源脱敏且不泄漏 | transport+runtime 联测 |
@@ -261,8 +261,11 @@ implementation6／definition1；当前旧窄定义/两个pilot尚待D082迁移�
 | UCT-V9 MR9 S-45，RT10 S-80/S-81 | 实际 invoke→runtime→SL3：换代不重解旧响应；response/reply 原批回执 unknown 不提前发布锚；恢复仅原完整值；晚到别分支/别日志同 seq 不选作来源。撤掉相应 gate 的负控失败 | runtime 主责，transport/core 配合；生产装配 |
 | UCT-V10 RT10 S-79/S-82 | 同一百万 token 级材料比较 full 与 marginal：报告消息/字节/token 数、版本、CPU/墙钟/峰值内存、warm/cold 和重复分布，拆 projection/序列化/hash、tokenizer、全量图片检查、组合准入；稳定前缀改变和新增规模分别实验 | verification owner；主线性能验收 |
 | UCT-V11 MR9 S-42/S-43，RT10 S-78/S-82 | 37 个型号逐项记录 model/provider/精确绑定、full/φ/δ 覆盖与精度、原统计口径/retention、版本化事实、边界与留出反例、public/service 两面；本机符合性和真实上游证据分开，不以家族一例覆盖全部 | 各厂商 owner；official 供给验收 |
+| UCT-V12 MR9 S-41，RT10 S-77～S-79 | 四个 Anthropic 精确 official definition/provider/1h/last_message 配置，实际 planner/reader/meter 经 public 与 service 各跑三轮普通 append；脚本上游提供同次完整 I，另按 V11核真实口径。必须 full→marginal→marginal，断点真实移位、wire 保留控制且完整 bytes/images 门照常。覆盖 user、assistant/tool 首次及成为历史后的稳定包装、图文最后 text 位置；百万级稳定历史后两轮 tokenizer 调用零，新增量独立计数。负控：恢复旧 wire 摘要导致每轮 full、删真实内容/role/tools/reasoning、忽略未知cache成员、string/array比较时伪归一、错误版本继续命中、历史偷偷全量tokenize，每项均须触发失败 | transport+runtime；verification owner；只阻相关 Anthropic 稳定增量采用 |
 
 UCT-V10 的比较必须使用同一实际最终输入与生效配置：扫描/序列化 O(bytes) 仍存在，不能将 tokenizer 节省表述为端到端同比提速；不声称恒定时间或已经测得新路径性能。实现前既有全量瓶颈只说明优化动机，不能替代本增量测量。
+
+UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配置；fixture 提供的是上游响应事实，不替换本产品 planner 或 meter。缓存排除需要 v12 中的精确来源与范围；缓存命中、客户端类型允许或有限 token 同值都不独自证明普遍语义等价。稳定包装直接由新 revision 从首次生成，避免承担 string/array 等价证明；旧 revision 新 basis 首次 full，不添加兼容承诺。允许 φ/δ estimated+配置余量，但必须覆盖全部新增，不将可能改变整段旧 P 的未知转换藏进估算。性能报告分别列序列化、投影/hash、完整图片检查、tokenizer 和合成成本；零历史 tokenizer 与端到端耗时分别断言。
 
 ### UCT 覆盖缺口
 
@@ -273,6 +276,7 @@ UCT-V10 的比较必须使用同一实际最终输入与生效配置：扫描/�
 | UCT-G3 真实异常/热换/日志组合未验 | RT10 S-53/S-59/S-81；真实 service 与装配 | 实施与 verification owner 完成 UCT-V4/V8/V9，形式模型不替代实际资源停止 |
 | UCT-G4 新路径百万 token 成本未知 | RT10 S-79；性能交付声明 | verification owner 执行 UCT-V10 和 tokenizer 调用计数负控；不引入额外持久索引补故事 |
 | UCT-G5 estimated 不能给 compaction 硬 fit 保证 | MR9 G-17、RT10 G-36；未来压缩硬保证消费者 | 归相关产品/规格 owner 处理；本节点如实保留估算语义，不实现压缩、不把该缺口扩成当前全量交付前提 |
+| UCT-G6 Anthropic 稳定增量尚待复评/实施/验证 | MR9 S-41，RT10 S-77～79；四型号常规 append 的增量供给 | 采用 revision 2 精确窄投影、发布新适配修订并通过 UCT-V12；owner 为 transport 与逐模型验收。此门不阻 MR9/RT10 规范本身或纯 core 实现，不能用每轮 full 假称闭合 |
 
 ## 注册表诊断源读面增量
 

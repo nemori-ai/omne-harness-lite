@@ -1,6 +1,6 @@
 # 响应校准与增量输入计量的传输投影
 
-2026-09-29，revision 1，candidate；未接受、未实施。本页只追加本节点映射，不修改 v9/v10/v11 的采用范围。
+2026-09-29，revision 2，candidate；未接受、未实施。本页只追加本节点映射，不修改 v9/v10/v11 的采用范围。revision 2 修订 Anthropic 缓存断点的 input-bearing 投影及稳定 wire 表示；revision 1 的完整 wire 摘要会使正常 append 每轮 full，不作为本修订的性能实现路径。
 
 ## 输入与责任边界
 
@@ -25,13 +25,13 @@
 
 跨节点候选 ledger：`PlanInput.calibration` 显式取 none 或 observation；后者携 `inputCalibration`、原 `usage`、原实际保留 `outputBlocks`、`replaySelection`。selection 每项是 `{sourceBlockIndex,messageIndex,blockIndex}`，分别指原输出块和当前 PlanInput 原消息块；planner 先核原组摘要，再映射到最终投影 span，索引本身不证明内容同一。目标块不能重复归属 G/N，协议合并/拆分后必须能解释实际覆盖，否则 φ 不可判并回退 full。所有未被 I/G 覆盖的实际新增均归 N，不能因 selection 缺失而漏计。
 
-`PlannedSemantics.requestInput` 与 `measurement`、`StreamEnd.readFacts={usage,cost,observedInput}`、`TransportAdapter.projectOutput(planned,{blocks,source,completeness})` 的唯一类型定义归 runtime；本节点实现它们。`projectOutput` 返回 core `OutputGroupEvidence`。候选 `InputMeasurement` 由 runtime 拥有，包含 full/marginal、回退原因、basis、精度、predictedInput、admissionTokens，以及 marginal 的 replayContribution/newContribution；本节点的候选 `MeterContribution` 才表达子计算的 signed JsonNumber/精度及 unavailable/invalidInput。这里不另造同义接口；最终字段以 runtime 同批候选签名为唯一来源。`ModelInvocationResult`/`InvocationObservedFacts` 交出的必填 `InputCalibration` 由 core 复制校验，完整响应关系仍经 MR9 judge，不以片段校验替代。
+`PlannedSemantics.requestInput` 与 `measurement`、`StreamEnd.readFacts={usage,cost,observedInput}`、`TransportAdapter.projectOutput(planned,{blocks,source,completeness})` 的唯一类型定义归 runtime；本节点实现它们。`projectOutput` 的**成功载荷**为 core `OutputGroupEvidence`，完整操作结果沿 runtime v16 的 `{projected:OutputGroupEvidence}|{invalidInput:{reason:'malformed'}}|{unavailable:true}`；构件失败不能伪造成 durable unavailable 的任意 reason。候选 `InputMeasurement` 由 runtime 拥有，包含 full/marginal、回退原因、basis、精度、predictedInput、admissionTokens，full 的 fullContribution 或 marginal 的 replayContribution/newContribution；本节点的候选 `MeterContribution` 才表达子计算的 signed JsonNumber/精度及 unavailable/invalidInput。这里不另造同义接口；最终字段以 runtime 同批候选签名为唯一来源。`ModelInvocationResult`/`InvocationObservedFacts` 交出的必填 `InputCalibration` 由 core 复制校验，完整响应关系仍经 MR9 judge，不以片段校验替代。
 
 ### 输入、输出与摘要预像
 
-候选编码修订 `openrouter-input-projection/1` 由本节点唯一实现，并随 binding 固定。它在 reminder 映射、tools、媒体转换、reasoning 保留、参数调整和缓存标记**全部完成后**消费实际 `body`；`serialized` 仍是 HTTP 唯一发送字节串，不另外重建发送体。
+候选编码修订 `openrouter-input-projection/2` 由本节点唯一实现，并随 binding 固定。它在 reminder 映射、tools、媒体转换、reasoning 保留、参数调整和缓存标记**全部完成后**消费实际 `body`，再按下节精确路由规则取得 input-bearing 投影；`serialized` 仍是 HTTP 唯一发送字节串，不从计量投影重建发送体。wire 缓存控制照常保留，字节/图片限制仍读完整实际请求。
 
-1. 有序输入单元是最终 `body.messages` 的每一个完整线上消息对象，含 role、content、工具调用/结果、reasoning/opaque、缓存标记；顺序、重复、空内容均保留。一个消息内全部内容块属于该单元，不用日志 seq 作 boundary。system/developer 若在 messages 中，只在这里计入。
+1. 有序输入单元与最终 `body.messages` 逐消息对应，含 role、content、工具调用/结果、reasoning/opaque；顺序、重复、空内容均保留。仅下节有来源且适用的 cache_control 元数据被排除，其他字段不变。一个消息内全部内容块属于该单元，不用日志 seq 作 boundary。system/developer 若在 messages 中，只在这里计入。
 2. envelope 是最终 body 除 `messages` 以外的全部成员，加固定投影解释版本。包括 tools/schema、model/provider 选择、模板解释和实际参数；保守包含非输入参数可导致额外全量回退，但不能把不存在的参数算成实际输入 token。计量算法明确其中哪些承载输入、哪些只是限制复用的解释条件；不能删掉未知字段以制造命中。凭据、请求关联 id、超时在 body 之外，绝不放进摘要预像。
 3. 编码函数 C（候选）递归保留数组顺序，对对象 key 按 Unicode 码点排序，再由既有无损 JSON writer 输出紧凑 JSON；字符串采用该 writer 的确定性转义，不做 Unicode normalization，数字保留无损数值的词法表示。词法不同但数值相等允许保守失效。writer 的确切行为和 golden 与 projectionRevision 一起冻结；更换输出规则必须改修订。输入是经过校验的 JSON 值，不允许 getter、undefined 或非 JSON 值参与编码。
 4. 对 n 个单元，`prefixDigest = SHA256(UTF8(C([revision,"input-prefix",units[0:n]])))`；`prefixBoundary=n`。`inputEnvelopeDigest = SHA256(UTF8(C([revision,"input-envelope",envelope])))`。数组封装与域字符串使空序列、拼接边界和 input/output 域不可混淆；SHA256 输出小写 hex。版本与 envelope 不因截取 n 而丢失。
@@ -39,7 +39,27 @@
 
 服务与直接函数必须调用这**同一固定编码实现**；core 只检查类型与可判关系，不再实现一份编码。不同投影修订先判 basis/投影兼容，不能直接比较碰巧相同的 hash。复用还需来源祖先、原 response/reply 对应、实际选入组及 provider 适用条件，摘要不是授权或无碰撞证明。密码学抗碰撞作为实现假设记录，安全边界不靠 hash 独立承担。
 
-计划只持有本次 owned body/serialized、投影、measurement 和可解释出处；durable payload 只加 MR9 规定事实，不另存整份历史输入。核对前缀允许 C/hash 线性扫描稳定字节，禁止把这些稳定单元送入 tokenizer。缓存 checkpoint 若移动而改变旧 message 的实际表示，按 prefix_changed 全量；未经证据不得忽略该改变。
+计划只持有本次 owned body/serialized、投影、measurement 和可解释出处；durable payload 只加 MR9 规定事实，不另存整份历史输入。核对前缀允许 C/hash 线性扫描稳定字节，禁止把这些稳定单元送入 tokenizer。下节范围内 checkpoint 移位不改变 input-bearing 单元，不触发 full；范围外不得默认 token-neutral。所有真实 input-bearing 内容、结构或 envelope 变化仍按 prefix_changed/依据变化回退。
+
+### Anthropic 缓存元数据与稳定消息表示
+
+本规则限定现行四个精确型号 `anthropic/claude-opus-5.5`、`anthropic/claude-opus-5`、`anthropic/claude-sonnet-5`、`anthropic/claude-fable-5.1`，provider 均为 `anthropic`，显式 layout 仍只有 `['last_message']`、TTL 仍由配置给 `1h`。不通过厂商前缀匹配推广到其他 endpoint、自动缓存模式或未来型号。
+
+**来源与推论的界线**（2026-09-29 核对）：[Anthropic prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) 的 “How automatic prefix checking works” 明确断点从第 10 移到第 15 个块时仍回查旧第 10 块的同一前缀；“Mixing different TTLs” 按同一 prompt token 位置 A/B/C 分缓存读取、1h/5m 写入。“Cache storage and sharing” 说明缓存不影响输出生成。[OpenRouter prompt caching](https://openrouter.ai/docs/guides/best-practices/prompt-caching) 的 Anthropic 段定义逐块 cache_control 与 1h 取值。这里据此把**本 planner 生成的该控制对象**解释为存储边界/计费元数据，而非输入文本；这是限定于上述路由和映射的提供者推论，不是任意 OpenRouter 私有变换保持窗口 token 恒等的证明。后者不明时仍不能复用。
+
+稳定包装的合法形状依据是 [OpenRouter OpenAPI](https://openrouter.ai/openapi.json) 的 `components.schemas.ChatAssistantMessage.properties.content`（string、ChatContentItems 数组或 null）与 `ChatToolMessage.properties.content`（string 或 ChatContentItems 数组），以及 ChatContentText 的 cache_control 成员；固定采用制品摘要须随适配 provenance 保存。该依据只支持从首轮起选择合法数组形状，不证明 string/array 的计数等价。现行实现原本仅在加断点时转换包装，这个位置依赖的转换必须删除。
+
+| 投影规则（候选） | 精确范围与保留项 | 不适用时 |
+|---|---|---|
+| 缓存元数据不进入 input-bearing 摘要 | 只排除本固定 planner 实际生成的 `messages[i].content[j].cache_control`，目标是 user/assistant/tool 的 text block，值恰为 `{type:'ephemeral',ttl:'1h'}`。文本、block 类型、角色、顺序及其余字段完整保留；位置可随 last_message 移动 | 非上述对象、未知控制成员/TTL/目标，不能静默剔除：原输入合法性失败照原错误；其他合法扩展保留于投影且不得复用本窄依据 |
+| 从首轮固定合法 wire 包装 | 本 route 的非空 assistant/tool 纯文本从**首次出现**起就发送单个 text-block 数组，不由是否命中 last_message 决定；user 本来就是内容块数组，保持原顺序/分块。assistant 的空内容保留原合法空表示，不制造空 text block；tool 原占位文本沿既有规则 | 不证明 string 与 array 的 tokenizer 等价，不在比较时把两者相互归一化；外部/旧投影有不同包装即真实投影变化/full |
+| 其余模型和字段维持原比较 | system/developer、tools/schema、tool_call_id/arguments、reasoning/opaque、媒体及其他实际参数均按其完整值进入 units/envelope。普通字符串中的 cache_control 字样不是可删除元数据 | 真实内容/role/tools/reasoning/保留语义变化失效，未知上游变换不能藏进仅新增估计 |
+
+稳定 wire 是规划阶段的显式新适配实现规则，不是在 hash 时假装包装相同。其公开参数、模态、cap、缓存 layout/TTL 不增删，因此不要求更改 MP6 的字段或产品政策；但 definition 的精确 implementation binding、meterRevision、transformRevision 及 projectionRevision 必须换新修订。请求字节数可能因固定包装增加，完整实际字节限制仍会相应拒绝。不得覆盖原修订函数、凭新规则重写旧 response，或为旧 shape 增加兼容入口；首次新代际按 full 建新锚即可。
+
+φ/δ 可在新稳定表示上按具体模型已有文本/工具依据提供 estimated，并应用配置余量；不要求拿到不存在的精确 tokenizer。此许可只涉及**锚外净贡献**的不确定性，不授权把可能重新解释整段旧 P 的未知网关转换当作新增误差。缓存排除所依赖的输入口径/固定路由条件不成立时不能用 margin 买通 prefix 守卫。
+
+本修订的最低行为门是四型号各自使用实际官方配置和真实公共提供者，经 public 与 service 两面连续三轮普通 append：首轮 full，收到可靠同次观察后第二/三轮 marginal；每次断点随末尾移动，旧输入计量投影仍相同。还必须覆盖以 assistant/tool 为尾消息后继续追加及 user 图文的不同位置；未支持的模态/opaque 仍诚实拒绝。百万级稳定历史在后两轮 tokenizer 调用计数为零，新增 G/N 单独计数；不能用“安全地一直 full”满足此门。真实上游口径/模态认证另按 UCT-V11，缓存命中或几次总量相同不能单独替代该依据与边界测试。
 
 ### meter 的三个子计算
 
@@ -96,6 +116,7 @@ Cordis 采用 [D-025 的 4.0.4](../../../../record/decisions/cordis-adoption-ver
 |---|---|---|
 | 固定贡献内 full/φ/δ，沿原注册与 lease | 独立 meter 服务便于跨进程共享 tokenizer | 当前无独立状态责任，服务增加身份/换代交接；本方案仍需逐模型证据。高 |
 | 一份 canonical 投影与版本化摘要 | caller 自行编码容易独立接入 | 本方案使外部适配器必须提供明确编码；避免多个摘要算法分叉。高 |
+| Anthropic 精确缓存元数据排除，非空 assistant/tool 从首次固定数组 | 全 wire 摘要最保守，或比较时将 string/array 视作等价可少改 planner | 全 wire 在正常 append 必定反复 full；比较时归一化缺等价依据。本方案需新适配修订、合法 shape 与逐路由上下文事实，字节成本可能增加；缓存排除依据限本文范围。中，待独立复评及 UCT-V12 |
 | reader 同次终止交接并保留异常前事实 | invoke 读 raw 可少改 reader | 需迁移全部终止分支；否则总量被旧 usage 结构吞掉且来源解释重复。高 |
 | 稳定 prefix 只扫描字节，边界有限重分词需依据 | 全量每次重算容易验证与维护 | 增量适配的证明与测试成本更高，复杂模型可能回退 full。高；性能改善幅度待测 |
 | 显式模型依据的估算，不默认 I+O | aggregate O 已有且便宜 | φ 对 opaque/隐藏保留语义可能仍不可得；37 个型号不能由统一公式认证。高 |
