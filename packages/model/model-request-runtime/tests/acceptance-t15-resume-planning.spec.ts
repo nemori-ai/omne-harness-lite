@@ -200,13 +200,13 @@ async function ready() {
           binding: original.adaptation,
           transport: {
             ...wire.adapter,
-            plan(input) {
+            async plan(input, execution) {
               plans++
               plannedMessages.push(input.messages)
               if (refusal !== undefined) {
                 return { rejected: refusal }
               }
-              return wire.adapter.plan(input)
+              return wire.adapter.plan(input, execution)
             },
             async send(planned, credential, signal, diagnostics) {
               sends++

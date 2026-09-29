@@ -535,6 +535,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
   const preparations = new Set<CallPreparationOwner<P, R>>()
+  const planningTasks = new Set<Promise<void>>()
   let closing = false
   async function historyFor(
     session: SessionRuntimeBinding,
@@ -868,18 +869,34 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         const lease = observeLease(runtime, session, callId, winner.ref, acquired.lease)
         let transferred = false
         try {
-          const planned = lease.transport.plan({
-            calibration: checked.calibration,
-            outputHistory: checked.outputHistory,
-            tokenMargin: runtime.tokenMargin,
-            target: { kind: 'model_call', callId, dispatch: 1 },
-            routeName: request.target,
-            provider: snapshot.providers[0] ?? '',
-            snapshot,
-            parameters: merged.parameters,
-            messages: request.messages,
-            tools: resolved.tools,
-          })
+          const planning = lease.track(
+            lease.transport.plan(
+              {
+                calibration: checked.calibration,
+                outputHistory: checked.outputHistory,
+                tokenMargin: runtime.tokenMargin,
+                target: { kind: 'model_call', callId, dispatch: 1 },
+                routeName: request.target,
+                provider: snapshot.providers[0] ?? '',
+                snapshot,
+                parameters: merged.parameters,
+                messages: request.messages,
+                tools: resolved.tools,
+              },
+              {
+                signal: AbortSignal.any([lease.signal, preparation?.signal ?? request.host.signal]),
+              },
+            ),
+          )
+          const stopped = planning.then(
+            () => undefined,
+            () => undefined,
+          )
+          planningTasks.add(stopped)
+          preparation?.retainStopped(stopped)
+          const planned = await planning.finally(() => planningTasks.delete(stopped))
+          if (closing || preparation?.stopping() || request.host.signal.aborted)
+            return { runtimeStopped: true }
           if ('rejected' in planned) {
             if (planned.rejected === 'unavailable') return { unavailable: true }
             if (planned.rejected === 'modality_not_carried') {
@@ -1019,6 +1036,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         }),
       ),
     ])
+    await Promise.all([...planningTasks])
     const writes = await unknownWrites.close({
       concurrent: runtime.settlementContention.limits.concurrent,
       call: runtime.history.call,

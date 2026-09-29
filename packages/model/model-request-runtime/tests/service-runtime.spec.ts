@@ -308,3 +308,132 @@ describe('D102 unified model runtime owner', () => {
     expect(await runtime.close()).toEqual({ released: true })
   })
 })
+
+it.each(['open', 'dispatch'] as const)(
+  'D109 %s preparation keeps its exact lease until close drains the actual task',
+  async phase => {
+    const host = await selectionHost(true, true)
+    const started = deferred<void>()
+    const native = deferred<void>()
+    let closing: Promise<unknown> | undefined
+    try {
+      const selected = host.create()
+      const wire = transport()
+      let block = phase === 'open'
+      let planSignal: AbortSignal | undefined
+      let tracked = 0
+      let released = 0
+      const active = new Set<Promise<unknown>>()
+      const binding: SessionRuntimeBinding = {
+        log: selected.input.binding,
+        selection: { ...selected.input, projection: async () => ({ known: [] }) },
+        catalog: host.catalog,
+        currentEvaluationInputs: host.reader,
+        credentials: {
+          value: async () => ({
+            scope: { layer: 'factory' },
+            value: new TextEncoder().encode('test-secret'),
+          }),
+        },
+        tools: {
+          lookup: async () => {
+            throw new Error('no tools requested')
+          },
+        },
+      }
+      const base = construction()
+      const runtime = createModelRuntime<TestPlan, object>({
+        ...base,
+        sessions: { bind: async () => ({ binding }) },
+        calls: createCallContainerStore(),
+        settlementContention: settlementPolicy(),
+        settlementScheduler: noWaitScheduler,
+        policy: { ...invocationPolicy(), schedule: () => () => {} },
+        reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+        history: {
+          ...base.history,
+          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+        },
+        transport: {
+          acquire: binding => ({
+            lease: {
+              binding,
+              signal: new AbortController().signal,
+              transport: {
+                ...wire.adapter,
+                async plan(input, execution) {
+                  if (block) {
+                    planSignal = execution.signal
+                    started.finish()
+                    await native.promise
+                  }
+                  return wire.adapter.plan(input, execution)
+                },
+              },
+              async track<T>(completion: Promise<T>) {
+                tracked++
+                active.add(completion)
+                try {
+                  return await completion
+                } finally {
+                  active.delete(completion)
+                }
+              },
+              release() {
+                expect(active.size).toBe(0)
+                released++
+              },
+            },
+          }),
+        },
+      })
+      const callHost: ModelCallHost = {
+        signal: new AbortController().signal,
+        stopping: () => false,
+        register: () => ({ registration: { unregister() {} } }),
+      }
+      await runtime.service.selectModel({ session: host.session, routeName: 'example/model-a' })
+      const effective = await runtime.service.effectiveModel({ session: host.session })
+      if (!('effectiveModel' in effective)) throw new Error('effective model absent')
+      const opening = runtime.service.openCall({
+        session: host.session,
+        target: effective.effectiveModel.routeName,
+        basis: effective.effectiveModel,
+        messages: [],
+        tools: [],
+        host: callHost,
+      })
+      const operation =
+        phase === 'open'
+          ? opening
+          : opening.then(async opened => {
+              if (!('callId' in opened)) throw new Error('call not opened')
+              block = true
+              return runtime.service.dispatch({ session: host.session, callId: opened.callId })
+            })
+      await started.promise
+      expect(tracked).toBeGreaterThan(0)
+      let closed = false
+      closing = runtime.close().then(result => {
+        closed = true
+        return result
+      })
+      await Promise.resolve()
+      expect(planSignal?.aborted).toBe(true)
+      expect(closed).toBe(false)
+      expect(released).toBe(0)
+      expect(wire.sends()).toBe(0)
+      native.finish()
+      await operation
+      expect(await closing).toEqual({ released: true })
+      expect(released).toBe(1)
+      expect(wire.sends()).toBe(0)
+      expect(await runtime.close()).toEqual({ released: true })
+      expect(released).toBe(1)
+    } finally {
+      native.finish()
+      await closing
+      await host.close()
+    }
+  },
+)

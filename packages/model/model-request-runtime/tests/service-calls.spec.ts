@@ -432,7 +432,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       },
     } as unknown as SessionRuntimeBinding
     const calls = createCallContainerStore<PlannedSemantics, never>()
-    const planned = vi.fn(input => ({ planned: { input, parameters: input.parameters } }))
+    const planned = vi.fn(async input => ({ planned: { input, parameters: input.parameters } }))
     const engineering: {
       scope: DiagnosticScope
       association?: DiagnosticAssociation

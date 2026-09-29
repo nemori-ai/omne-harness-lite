@@ -198,9 +198,9 @@ function terminalHandle(
   }
 }
 /** R3-P3/P4/P5, RT5 S-15/17: one noRun dispatch with the original invokeModel and shared settlement. */
-export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
+async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   input: AnchoredInvocationInput<P, R>,
-): AnchoredInvocationHandle {
+): Promise<AnchoredInvocationHandle> {
   input = Object.freeze({ ...input })
   const terminal = (value: AnchoredInvocationOutcome) =>
     terminalHandle(value, input.releaseBorrowed)
@@ -303,23 +303,42 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     statusCauseTable: Object.freeze({ ...input.policy.statusCauseTable }),
   })
   if (input.signal.aborted) return terminal({ cancelledBeforeDispatch: true })
+  const acquiredPlanning = originalOwner.acquire(contention.limits.concurrent)
+  if ('unavailable' in acquiredPlanning) return terminal(unavailable)
+  const planningRegistration = acquiredPlanning.registration
+  let plan
+  try {
+    const task = planningRegistration.start('wait', async signal => {
+      const completion = transport.plan(missing ? input.planInput : requested, {
+        signal: AbortSignal.any([signal, input.signal]),
+        ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
+      })
+      return input.trackPlan === undefined ? await completion : await input.trackPlan(completion)
+    })
+    try {
+      plan = await task.completion
+    } finally {
+      await task.stopped
+    }
+  } finally {
+    planningRegistration.release()
+  }
+  if (input.signal.aborted) return terminal({ cancelledBeforeDispatch: true })
   if (missing) {
-    const preflight = transport.plan(input.planInput)
     if (
-      'rejected' in preflight &&
-      ((preflight.rejected === 'invalidInput' && preflight.reason === 'malformed') ||
-        preflight.rejected === 'modality_not_carried' ||
-        preflight.rejected === 'orphan_tool_call' ||
-        preflight.rejected === 'tool_internal_in_request')
+      'rejected' in plan &&
+      ((plan.rejected === 'invalidInput' && plan.reason === 'malformed') ||
+        plan.rejected === 'modality_not_carried' ||
+        plan.rejected === 'orphan_tool_call' ||
+        plan.rejected === 'tool_internal_in_request')
     )
-      return terminal(preflight)
+      return terminal(plan)
     return terminal({
       rejected: 'invalidInput',
       reason: 'input_limit_missing',
       metrics: missing.metrics,
     })
   }
-  const plan = transport.plan(requested)
   if ('rejected' in plan) return terminal(plan)
   const planned = plan.planned
   if (!modelLogJsonEqual(planned.input, requested))
@@ -655,7 +674,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
           invocation = invokeModel({
             ...requested,
             transport: {
-              plan: () => ({ planned }),
+              plan: async () => ({ planned }),
               projectOutput: transport.projectOutput,
               send: (...args) => transport.send(...args),
               read: transport.read,
@@ -852,6 +871,64 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         },
       )
       return attempt
+    },
+  })
+}
+
+/** Own asynchronous planning before a durable dispatch exists; never release before its drain. */
+export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+): AnchoredInvocationHandle {
+  if (!(input.signal instanceof AbortSignal))
+    return terminalHandle({ rejected: 'invalidInput', reason: 'malformed' }, input.releaseBorrowed)
+  const controller = new AbortController()
+  const stop = () => controller.abort()
+  input.signal.addEventListener('abort', stop, { once: true })
+  if (input.signal.aborted) stop()
+  const owned = ownPlanInput(input.planInput)
+  const captured = Object.freeze({
+    ...input,
+    planInput: owned ?? input.planInput,
+    signal: controller.signal,
+  })
+  let attached: AnchoredInvocationHandle | undefined
+  let initiator: 'user' | 'run_cancelled' | undefined
+  const ready = prepareAnchoredInvocation(captured).then(handle => {
+    attached = handle
+    if (initiator !== undefined) handle.interrupt(initiator)
+    if (controller.signal.aborted) handle.abort()
+    return handle
+  })
+  const outcome = ready.then(handle => handle.outcome)
+  let closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
+  return Object.freeze<AnchoredInvocationHandle>({
+    outcome,
+    snapshot: () => attached?.snapshot() ?? { blocks: [], position: 0 },
+    observedFacts: target => attached?.observedFacts(target) ?? { unavailable: true },
+    abort() {
+      stop()
+      attached?.abort()
+    },
+    interrupt(value) {
+      initiator ??= value
+      stop()
+      attached?.interrupt(value)
+    },
+    borrowControl: () => attached?.borrowControl() ?? unavailable,
+    async settleReply(disposition) {
+      return (await ready).settleReply(disposition)
+    },
+    close() {
+      stop()
+      attached?.abort()
+      closing ??= ready
+        .then(handle => handle.close())
+        .then(result => {
+          if ('unavailable' in result) closing = undefined
+          else input.signal.removeEventListener('abort', stop)
+          return result
+        })
+      return closing
     },
   })
 }

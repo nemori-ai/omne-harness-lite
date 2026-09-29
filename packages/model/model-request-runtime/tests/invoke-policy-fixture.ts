@@ -151,7 +151,7 @@ export function adapter(
     stopped = 0
   let lastSignal: AbortSignal | undefined
   const transport: TransportAdapter<PlannedSemantics, object> = {
-    plan: input => ({ planned: fixturePlan(input) }),
+    plan: async input => ({ planned: fixturePlan(input) }),
     projectOutput: fixtureProjection,
     async send(_planned, _credential, signal) {
       sends++

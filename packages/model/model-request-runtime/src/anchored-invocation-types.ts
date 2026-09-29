@@ -31,6 +31,9 @@ export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
   readonly attempt?: AttemptId
   readonly planInput: PlanInput
   readonly transport: TransportAdapter<P, R>
+  readonly reuseScope?: object
+  /** Dynamic consumers retain their exact lease for the entire planning task. */
+  readonly trackPlan?: <T>(task: Promise<T>) => Promise<T>
   readonly credential: string
   readonly policy: InvocationPolicy
   readonly signal: AbortSignal

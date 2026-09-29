@@ -45,7 +45,7 @@ describe('anchored noRun tool definitions and history', () => {
       const accepted: { readonly kind: string; readonly writes: number }[] = []
       let sends = 0
       const adapter: TransportAdapter<PlannedSemantics, object> = {
-        plan(input) {
+        async plan(input, execution) {
           observed.push('plan')
           expect(input.tools).toEqual([tool])
           return { planned: fixturePlan(input) }
@@ -134,10 +134,10 @@ describe('anchored noRun tool definitions and history', () => {
         },
         transport: {
           ...secondTransport.adapter,
-          plan(input) {
+          async plan(input, execution) {
             expect(input.tools).toEqual([tool])
             expect(input.messages).toEqual([assistant.ok, result.ok])
-            return secondTransport.adapter.plan(input)
+            return secondTransport.adapter.plan(input, execution)
           },
           projectOutput: fixtureProjection,
         },
@@ -195,7 +195,7 @@ describe('anchored noRun tool definitions and history', () => {
         ...h.input,
         planInput: { ...h.input.planInput, tools: [tool], messages: [assistant.ok] },
         transport: {
-          plan(input) {
+          async plan(input, execution) {
             expect(input.messages).toEqual([assistant.ok])
             return { rejected: 'orphan_tool_call' }
           },

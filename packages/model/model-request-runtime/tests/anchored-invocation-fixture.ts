@@ -49,7 +49,7 @@ export function transport(
     stopped = 0
   let plan: TestPlan | undefined
   const adapter: TransportAdapter<TestPlan, object> = {
-    plan(input) {
+    async plan(input, execution) {
       plans++
       plan = Object.freeze({
         ...fixturePlan(input),

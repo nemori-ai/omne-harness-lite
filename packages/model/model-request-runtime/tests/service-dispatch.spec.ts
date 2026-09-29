@@ -265,8 +265,8 @@ test('service dispatch writes both anchors before handing out a complete pending
             },
             transport: {
               ...wire.adapter,
-              plan(input) {
-                return finalPlanFailure ?? wire.adapter.plan(input)
+              async plan(input, execution) {
+                return finalPlanFailure ?? wire.adapter.plan(input, execution)
               },
               async send(planned, credential, signal) {
                 sendCount++

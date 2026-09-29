@@ -786,6 +786,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             : { run: local.request.run, attempt: input.attempt }),
           planInput,
           transport: local.binding.lease.transport,
+          trackPlan: completion => local.binding.lease.track(completion),
           credential,
           credentialScope,
           policy,

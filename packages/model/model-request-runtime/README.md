@@ -987,3 +987,24 @@ export function registerDefaultRetry(registry: RunnerImplementations) {
 ```
 
 Call the returned disposer when this registration generation ends. The corresponding Cordis fiber is exported from `@omne-harness-lite/model-request-runtime/default-retry-plugin` as `createModelDefaultRetryPlugin({policy,sample})`. It requires `loopExtensionImplementations` and registers only `omne-official:default-retry` within its effect. The host must still provide a declaration with that exact builtin name, `after_model_call`, and `{ending:'failure'}`; the plugin does not create a declaration or give itself rewrite power. An official Run failure path also needs the host's authorized Run history and failure source; a no-Run call cannot enter the runner's `after_model_call` position.
+
+
+Planning now consumes the asynchronous [D109 runtime mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v21-image-preparation-design.md). Every adapter implements `plan(input, execution): Promise<PlanResult<P>>`; it must finish its owned native work before resolving, including cancellation. `invokeModel` passes its actual owner signal and an optional caller-owned opaque `reuseScope`. The scope grants no authorization and is never persisted. A fixed anchored plan is reused by the inner invocation without preparing images again. The service tracks preparation with its exact transport lease; cancellation and close wait for actual completion before releasing references. This runtime does not load a codec or supply image-policy defaults; those are explicit transport factory inputs.
+
+```ts
+import type {
+  PlanInput, PlannedSemantics, TransportAdapter,
+} from '@omne-harness-lite/model-request-runtime'
+
+export async function prepare<P extends PlannedSemantics, R>(
+  transport: TransportAdapter<P, R>,
+  input: PlanInput,
+  signal: AbortSignal,
+  reuseScope?: object,
+) {
+  return await transport.plan(input, {
+    signal,
+    ...(reuseScope === undefined ? {} : { reuseScope }),
+  })
+}
+```

@@ -976,3 +976,24 @@ export function registerDefaultRetry(registry: RunnerImplementations) {
 ```
 
 本代登记结束时调用返回的 disposer。Cordis fiber 从 `@omne-harness-lite/model-request-runtime/default-retry-plugin` 导出 `createModelDefaultRetryPlugin({policy,sample})`；它必需注入 `loopExtensionImplementations`，只在自身 effect 中登记 `omne-official:default-retry`。宿主仍须提供 builtinName 完全相同、位置为 `after_model_call`、维度为 `{ending:'failure'}` 的声明；插件不会自建声明或授予 rewrite 权力。正式 Run 失败路径还依赖宿主的合法 Run 历史和失败来源；不属于 Run 的调用不能进入 runner 的 `after_model_call` 位置。
+
+
+规划消费异步的 [D109 runtime 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v21-image-preparation-design.md)。所有适配器实现 `plan(input, execution): Promise<PlanResult<P>>`；包括取消在内，Promise 只能在自身原生任务实际终结后完成。`invokeModel` 传入真实 owner 信号和可选的 caller 自有 opaque `reuseScope`，scope 不赋权、不持久化。锚定计划交给内层 invoke 时只返回原计划，不再次准备图片。服务以原精确 transport lease 跟踪准备任务，取消和 close 等实际完成才释放引用。runtime 不加载 codec 或补图片政策默认值；这些由 transport factory 显式接收。
+
+```ts
+import type {
+  PlanInput, PlannedSemantics, TransportAdapter,
+} from '@omne-harness-lite/model-request-runtime'
+
+export async function prepare<P extends PlannedSemantics, R>(
+  transport: TransportAdapter<P, R>,
+  input: PlanInput,
+  signal: AbortSignal,
+  reuseScope?: object,
+) {
+  return await transport.plan(input, {
+    signal,
+    ...(reuseScope === undefined ? {} : { reuseScope }),
+  })
+}
+```

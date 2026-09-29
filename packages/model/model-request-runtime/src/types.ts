@@ -234,6 +234,7 @@ export interface InvocationPolicy {
 }
 export interface InvocationInput<P extends PlannedSemantics, R> extends PlanInput {
   readonly transport: TransportAdapter<P, R>
+  readonly reuseScope?: object
   readonly credential: string
   readonly signal: AbortSignal
   readonly policy: InvocationPolicy

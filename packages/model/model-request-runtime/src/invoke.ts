@@ -109,8 +109,10 @@ function rejectionHandle(failure: PlanFailure): ModelInvocationHandle {
 export function invokeModel<P extends PlannedSemantics, R>(
   input: InvocationInput<P, R>,
 ): ModelInvocationHandle {
-  const requested = input && ownPlanInput(input)
-  const missing = input && !requested ? preflightMissingInputLimits(input) : null
+  const owned = input && ownPlanInput(input)
+  const missing = input && !owned ? preflightMissingInputLimits(input) : null
+  const requested = owned ?? missing?.input
+  const preflightInput = input
   if (
     !input ||
     (!requested && !missing) ||
@@ -187,41 +189,6 @@ export function invokeModel<P extends PlannedSemantics, R>(
     })
     diagnostics.close()
     return rejectionHandle({ rejected: 'unavailable' })
-  }
-  if (missing) {
-    const preflight = input.transport.plan(input)
-    if (
-      'rejected' in preflight &&
-      ((preflight.rejected === 'invalidInput' && preflight.reason === 'malformed') ||
-        preflight.rejected === 'modality_not_carried' ||
-        preflight.rejected === 'orphan_tool_call' ||
-        preflight.rejected === 'tool_internal_in_request')
-    ) {
-      diagnostics.record({
-        source: 'invocation',
-        stage: 'planning',
-        outcome: 'rejected',
-        facts: { kind: 'decision' },
-      })
-      diagnostics.close()
-      return rejectionHandle(preflight)
-    }
-    diagnostics.record({
-      source: 'invocation',
-      stage: 'planning',
-      outcome: 'rejected',
-      facts: { kind: 'decision' },
-    })
-    diagnostics.close()
-    return rejectionHandle({
-      rejected: 'invalidInput',
-      reason: 'input_limit_missing',
-      metrics: missing.metrics,
-    })
-  }
-  if (!requested) {
-    diagnostics.close()
-    return rejectionHandle({ rejected: 'invalidInput', reason: 'malformed' })
   }
   // Capture this invocation's values and borrowed ports before any asynchronous work.
   // The caller still owns the lifetime of each function/resource it supplied.
@@ -375,7 +342,22 @@ export function invokeModel<P extends PlannedSemantics, R>(
         outcome: 'started',
         facts: { kind: 'decision' },
       })
-      const plan = input.transport.plan(input)
+      const plan = await input.transport.plan(missing ? preflightInput : input, {
+        signal: controller.signal,
+        ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
+      })
+      if (controller.signal.aborted) return { cancelledBeforeSend: true }
+      if (missing) {
+        if (
+          'rejected' in plan &&
+          ((plan.rejected === 'invalidInput' && plan.reason === 'malformed') ||
+            plan.rejected === 'modality_not_carried' ||
+            plan.rejected === 'orphan_tool_call' ||
+            plan.rejected === 'tool_internal_in_request')
+        )
+          return plan
+        return { rejected: 'invalidInput', reason: 'input_limit_missing', metrics: missing.metrics }
+      }
       if ('rejected' in plan) {
         diagnostics.record({
           source: 'invocation',

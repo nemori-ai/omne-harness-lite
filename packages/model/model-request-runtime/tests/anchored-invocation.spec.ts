@@ -347,7 +347,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         const t = transport()
         const handle = createAnchoredModelInvocation({
           ...h.input,
-          transport: { ...t.adapter, plan: () => failure },
+          transport: { ...t.adapter, plan: async () => failure },
         })
         expect(await handle.outcome).toEqual(failure)
         expect(t.sends()).toBe(0)
@@ -489,8 +489,8 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
         planInput: { ...h.input.planInput, parameters: { temperature: 1, topP: 1 } },
         transport: {
           ...t.adapter,
-          plan(input) {
-            const base = t.adapter.plan(input)
+          async plan(input, execution) {
+            const base = await t.adapter.plan(input, execution)
             if ('rejected' in base) return base
             return {
               planned: {
@@ -734,7 +734,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
                 operation: (signal: AbortSignal) => Promise<T>,
               ) =>
                 registration.start(kind, async signal => {
-                  if (kind === 'wait') {
+                  if (kind === 'wait' && h.writes.length > 0) {
                     entered.resolve()
                     await continuation.promise
                   }
@@ -942,7 +942,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
           ...h.input,
           transport:
             result === 'reject'
-              ? { ...t.adapter, plan: () => ({ rejected: 'modality_not_carried' }) }
+              ? { ...t.adapter, plan: async () => ({ rejected: 'modality_not_carried' }) }
               : t.adapter,
         })
         expect(await handle.outcome).toEqual(

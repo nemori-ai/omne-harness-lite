@@ -99,7 +99,7 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
     async failure => {
       const port = adapter()
       const handle = invoke(port, '503', {
-        transport: { ...port.transport, plan: () => failure },
+        transport: { ...port.transport, plan: async () => failure },
       })
       expect(await handle.outcome).toEqual(failure)
       expect(port.sends()).toBe(0)
@@ -147,7 +147,7 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
         ...raw,
         transport: {
           ...port.transport,
-          plan(value: typeof raw) {
+          async plan(value: typeof raw) {
             sawOriginalCap.push(Object.hasOwn(value.snapshot, 'maxInputTokens'))
             return { rejected: 'modality_not_carried' }
           },
@@ -171,9 +171,9 @@ describe('D095 runtime CP policy wiring with actual public stream-assembly', () 
       tokenMargin: margin,
       transport: {
         ...port.transport,
-        plan(value) {
+        async plan(value, execution) {
           seen.push(value.tokenMargin)
-          return port.transport.plan(value)
+          return port.transport.plan(value, execution)
         },
       },
       credential: '503',
