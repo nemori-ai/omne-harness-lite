@@ -367,6 +367,46 @@ describe('D109 finite search, cache and resource ownership', () => {
     expect(calls).toBe(2)
     await preparer.close()
   })
+  it('clearScope during native ownership cannot republish stale tables or evict the new table', async () => {
+    let encodes = 0
+    const entered = Promise.withResolvers<void>(),
+      gate = Promise.withResolvers<void>(),
+      codec = oracle([100])
+    const instrumented: LoadedImageCodec = {
+      ...codec,
+      async decode(...args) {
+        const result = await codec.decode(...args)
+        if ('failure' in result) return result
+        const decoded = result.ok
+        return {
+          ok: {
+            ...decoded,
+            async encode(spec) {
+              const first = ++encodes === 1
+              const result = await decoded.encode(spec)
+              if (first) {
+                entered.resolve()
+                await gate.promise
+              }
+              return result
+            },
+          },
+        }
+      },
+    }
+    const preparer = ready({ ...finite, maxCacheEntries: 1 }, instrumented),
+      scope = {},
+      input = batch(new Uint8Array(300), 'image/png', 120)
+    const old = preparer.prepareRequestImages(input, scope)
+    await entered.promise
+    preparer.clearScope(scope)
+    const current = await preparer.prepareRequestImages(input, scope)
+    gate.resolve()
+    expect(await old).toEqual(current)
+    expect(await preparer.prepareRequestImages(input, scope)).toEqual(current)
+    expect(encodes).toBe(2)
+    await preparer.close()
+  })
   it('rejects oversized native candidates without caching, and isolates scopes and target caps', async () => {
     let calls = 0
     const codec = oracle([100], () => calls++)
