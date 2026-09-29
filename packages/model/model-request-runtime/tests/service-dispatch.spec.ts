@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
+import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createServiceCalls } from '../src/service-calls.ts'
@@ -7,6 +8,7 @@ import { createServiceControl } from '../src/service-control.ts'
 import { createServiceDispatch, settlementEvent } from '../src/service-dispatch.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
+import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
@@ -146,6 +148,8 @@ test('service dispatch writes both anchors before handing out a complete pending
     let evaluationReads = 0
     let credentialAvailable = true
     let wrongCredentialScope = false
+    const calibrationTargets: unknown[] = []
+    let latestRunAttempt = 1
     const observed: unknown[] = []
     const diagnosticFaults: string[] = []
     let diagnosticFail = false
@@ -298,7 +302,10 @@ test('service dispatch writes both anchors before handing out a complete pending
       },
       history: {
         call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-        calibration: () => ({ sourceUnavailable: true }),
+        calibration: (_prefix, _messages, target) => {
+          calibrationTargets.push(target)
+          return { sourceUnavailable: true }
+        },
         failure: (prefix, callId) => {
           const found = interpretCallHistory({ prefix, callId })
           const last = 'known' in found ? found.known.dispatches.at(-1) : undefined
@@ -314,7 +321,10 @@ test('service dispatch writes both anchors before handing out a complete pending
               }
             : { unavailable: true }
         },
-        run: () => ({ unavailable: true }),
+        // This test injects a conditional G28 reading; the actual Run owner is external.
+        run: (_prefix, run, originalAttempt) => ({
+          known: { run, originalAttempt, latestAttempt: latestRunAttempt, terminal: 'open' },
+        }),
       },
       recovery: { enter: async () => ({ unavailable: true }) },
       diagnostic() {},
@@ -701,6 +711,93 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(await control.close()).toEqual({ released: true })
     expect(released).toBe(2)
     expect(calls.find({ session: host.session, callId: 'actual-call-6' })).toBeUndefined()
+    const run = 'calibration-dispatch-run'
+    const appendAttempt = async (attempt: number) => {
+      const captured = captureModelLogValue({
+        category: 'message',
+        input: {
+          kind: 'value',
+          value: {
+            id: `calibration-dispatch-attempt-${attempt}`,
+            type: 'system_reminder',
+            nature: 'event',
+            source: {
+              kind: 'attempt_started',
+              attempt,
+              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+              at: '2026-09-29T00:00:00Z',
+            },
+            blocks: [],
+            createdAt: '2026-09-29T00:00:00Z',
+          },
+        },
+      })
+      if (!('ok' in captured)) throw new Error(`Run attempt capture: ${JSON.stringify(captured)}`)
+      const entry = prepareModelLogEntry({
+        session: host.session,
+        shell: { tenant: binding.log.tenant, run, attempt },
+        captured: captured.ok,
+        purpose: { kind: 'message' },
+        messagePrefix: [],
+      })
+      if (!('ok' in entry)) throw new Error('Run attempt entry')
+      const appended = await binding.log.log.append(
+        host.session,
+        [entry.ok],
+        { kind: 'fenced', run, attempt },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in appended) throw new Error('Run attempt append')
+    }
+    await appendAttempt(1)
+    const report = {
+      session: host.session,
+      runId: run,
+      attempt: 1,
+    } as unknown as AvailabilityReport
+    const runRequest = {
+      session: host.session,
+      target: effective.ok.routeName,
+      basis: effective.ok,
+      messages: [],
+      tools: [],
+      host: lifecycleHost,
+      run,
+      attempt: 1,
+      report,
+    }
+    expect(await opening.openCall(runRequest)).toEqual({ callId: 'actual-call-7', state: 'open' })
+    expect(
+      await dispatch.dispatch({ session: host.session, callId: 'actual-call-7', attempt: 1 }),
+    ).toHaveProperty('replyPending')
+    expect(calibrationTargets.at(-1)).toEqual({
+      callId: 'actual-call-7',
+      dispatch: 1,
+      run,
+      attempt: 1,
+    })
+    failSend = true
+    expect(await opening.openCall(runRequest)).toEqual({ callId: 'actual-call-8', state: 'open' })
+    expect(
+      await dispatch.dispatch({ session: host.session, callId: 'actual-call-8', attempt: 1 }),
+    ).toHaveProperty('settled')
+    await appendAttempt(2)
+    latestRunAttempt = 2
+    failSend = false
+    expect(
+      await dispatch.dispatchAgain({
+        session: host.session,
+        callId: 'actual-call-8',
+        attempt: 2,
+        plan: { provider: 'test' },
+      }),
+    ).toHaveProperty('replyPending')
+    expect(calibrationTargets.at(-1)).toEqual({
+      callId: 'actual-call-8',
+      dispatch: 2,
+      run,
+      attempt: 2,
+    })
   } finally {
     await host.close()
   }
