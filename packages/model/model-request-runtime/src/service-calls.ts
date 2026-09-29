@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import {
@@ -12,12 +13,15 @@ import {
   judgeModelProfileDocument,
   validate as profileShape,
   type ModelProfile,
+  type ModelProfileRef,
   type ModelProfileSnapshot,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
 import { winningRow, type ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { resolveCallTools } from './call-tools.ts'
+import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { operationDiagnostics } from './service-diagnostics.ts'
 import { createCallContainer, createCallPreparationOwner } from './service-container.ts'
 import {
   appendControlRecord,
@@ -36,6 +40,7 @@ import type {
   OpenCallInput,
   OpenCallResult,
   RuntimeConstruction,
+  ExactTransportLease,
   ServiceInvalidInput,
   SessionRuntimeBinding,
 } from './service-types.ts'
@@ -46,6 +51,119 @@ import type { CallKey } from './service-types.ts'
 import type { CurrentHistoryReaders } from './service-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
+
+function observeAcquireRefusal<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  session: SessionRuntimeBinding,
+  callId: CallKey['callId'],
+  outcome: 'rejected' | 'unavailable',
+): void {
+  try {
+    const diagnostics = operationDiagnostics(
+      runtime.diagnosticCollector,
+      session.log.tenant,
+      { executionId: randomUUID(), session: session.log.session, call: callId },
+      () => runtime.policy.diagnostic({ kind: 'model_runtime.diagnostic_sink_failed' }),
+    )
+    diagnostics.record({
+      source: 'runtime',
+      stage: 'binding',
+      outcome,
+      facts: { kind: 'decision', cause: outcome === 'rejected' ? 'malformed' : 'dependency' },
+    })
+    diagnostics.close()
+  } catch {
+    // A failed observation never changes the provider's actual refusal.
+  }
+}
+
+/** The verified openCall owner reports the actual exact lease, including its eventual release. */
+function observeLease<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  session: SessionRuntimeBinding,
+  callId: CallKey['callId'],
+  profile: ModelProfileRef,
+  lease: ExactTransportLease<P, R>,
+): ExactTransportLease<P, R> {
+  let reportEnabled = true
+  const report = (): void => {
+    if (!reportEnabled) return
+    try {
+      const result: unknown = runtime.policy.diagnostic({
+        kind: 'model_runtime.diagnostic_sink_failed',
+      })
+      if (drainDiagnosticThenable(result)) reportEnabled = false
+    } catch {
+      reportEnabled = false
+    }
+  }
+  let diagnostics: ReturnType<typeof operationDiagnostics> | undefined
+  try {
+    diagnostics = operationDiagnostics(
+      runtime.diagnosticCollector,
+      session.log.tenant,
+      { executionId: randomUUID(), session: session.log.session, call: callId },
+      report,
+    )
+    const binding = {
+      profile: profile.routeName,
+      implementation: lease.binding.implementation.name,
+      implementationRevision: lease.binding.implementation.revision,
+      modelId: lease.binding.definition.modelId,
+      definitionRevision: lease.binding.definition.revision,
+      configurationRevision: lease.binding.configuration.revision,
+    }
+    const owner = diagnostics
+    const emit = (outcome: 'accepted' | 'completed' | 'failed'): void => {
+      try {
+        owner.record({
+          source: 'runtime',
+          stage: 'binding',
+          outcome,
+          facts: { kind: 'decision' },
+          binding,
+        })
+      } catch {
+        report()
+      }
+    }
+    const close = (): void => {
+      try {
+        owner.close()
+      } catch {
+        report()
+      }
+    }
+    emit('accepted')
+    return {
+      binding: lease.binding,
+      transport: lease.transport,
+      signal: lease.signal,
+      track<T>(completion: Promise<T>): Promise<T> {
+        return lease.track(completion)
+      },
+      release(): void {
+        try {
+          lease.release()
+        } catch (error) {
+          emit('failed')
+          close()
+          throw error
+        }
+        emit('completed')
+        close()
+      },
+    }
+  } catch {
+    try {
+      diagnostics?.close()
+    } catch {
+      report()
+    }
+    report()
+    return lease
+  }
+}
 
 function object(value: unknown): value is Readonly<Record<string, unknown>> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -589,9 +707,15 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           )
             return { unavailable: true }
           const acquired = runtime.transport.acquire(anchor.adaptation, anchor.profile.routeName)
-          if ('invalidInput' in acquired) return acquired
-          if ('unavailable' in acquired) return { unavailable: true }
-          const lease = acquired.lease
+          if ('invalidInput' in acquired) {
+            observeAcquireRefusal(runtime, session, callId, 'rejected')
+            return acquired
+          }
+          if ('unavailable' in acquired) {
+            observeAcquireRefusal(runtime, session, callId, 'unavailable')
+            return { unavailable: true }
+          }
+          const lease = observeLease(runtime, session, callId, anchor.profile, acquired.lease)
           let transferred = false
           try {
             const coordinator = createSettlementCoordinator({
@@ -713,9 +837,15 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         if (snapshot.adaptation.definition.modelId !== request.target)
           return { invalidInput: { reason: 'malformed' } }
         const acquired = runtime.transport.acquire(snapshot.adaptation, request.target)
-        if ('invalidInput' in acquired) return acquired
-        if ('unavailable' in acquired) return { unavailable: true }
-        const lease = acquired.lease
+        if ('invalidInput' in acquired) {
+          observeAcquireRefusal(runtime, session, callId, 'rejected')
+          return acquired
+        }
+        if ('unavailable' in acquired) {
+          observeAcquireRefusal(runtime, session, callId, 'unavailable')
+          return { unavailable: true }
+        }
+        const lease = observeLease(runtime, session, callId, winner.ref, acquired.lease)
         let transferred = false
         try {
           const planned = lease.transport.plan({

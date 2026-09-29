@@ -15,6 +15,11 @@ import type {
 } from '../src/service-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import type {
+  DiagnosticAssociation,
+  DiagnosticEvent,
+  DiagnosticScope,
+} from '../src/diagnostics-types.ts'
+import type {
   SettlementLogBinding,
   SettlementOwner,
   SettlementRegistration,
@@ -425,6 +430,11 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
     } as unknown as SessionRuntimeBinding
     const calls = createCallContainerStore<PlannedSemantics, never>()
     const planned = vi.fn(input => ({ planned: { input, parameters: input.parameters } }))
+    const engineering: {
+      scope: DiagnosticScope
+      association?: DiagnosticAssociation
+      event: DiagnosticEvent
+    }[] = []
     let next = 0
     const runtime = {
       sessions: { bind: async () => ({ binding }) },
@@ -437,6 +447,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
               ? { unavailable: true }
               : {
                   lease: {
+                    binding: profile.adaptation,
                     transport: { plan: planned },
                     release() {},
                     signal: new AbortController().signal,
@@ -458,6 +469,23 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
       tokenMargin: { multiplier: 1.25, reserveTokens: 8 },
       policy: { diagnostic() {} },
+      diagnosticCollector: {
+        emitter(scope: DiagnosticScope, association?: DiagnosticAssociation) {
+          return {
+            record(event: DiagnosticEvent) {
+              engineering.push({
+                scope,
+                ...(association === undefined ? {} : { association }),
+                event,
+              })
+              return {
+                recorded: { collectorId: 'open-test', sequence: String(engineering.length) },
+              }
+            },
+            close() {},
+          }
+        },
+      },
       identities: { call: () => `call_${++next}` },
       history: {
         call: (prefix: Parameters<typeof interpretCallHistory>[0]['prefix'], callId: string) =>
@@ -485,6 +513,19 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
             : { unavailable: true },
         )
         expect(planned).not.toHaveBeenCalled()
+        expect(engineering).toContainEqual({
+          scope: { kind: 'tenant', tenant },
+          association: expect.objectContaining({ session, call: 'call_1' }),
+          event: {
+            source: 'runtime',
+            stage: 'binding',
+            outcome: acquisition === 'invalidInput' ? 'rejected' : 'unavailable',
+            facts: {
+              kind: 'decision',
+              cause: acquisition === 'invalidInput' ? 'malformed' : 'dependency',
+            },
+          },
+        })
         expect(calls.find({ session, callId: 'call_1' })).toBeUndefined()
         expect(await service.close()).toEqual({ released: true })
         expect(await calls.close()).toEqual({ released: true })
@@ -512,10 +553,38 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       expect(planned.mock.calls[0]?.[0].tokenMargin).toEqual({ multiplier: 1.25, reserveTokens: 8 })
       expect(calls.find({ session, callId: 'call_1' })).toBeDefined()
       expect(calls.find({ session, callId: 'call_2' })).toBeDefined()
+      expect(
+        engineering.filter(
+          item => item.event.stage === 'binding' && item.event.outcome === 'accepted',
+        ),
+      ).toHaveLength(2)
+      expect(engineering).toContainEqual({
+        scope: { kind: 'tenant', tenant },
+        association: expect.objectContaining({ session, call: 'call_1' }),
+        event: {
+          source: 'runtime',
+          stage: 'binding',
+          outcome: 'accepted',
+          facts: { kind: 'decision' },
+          binding: {
+            profile: 'model_a',
+            implementation: 'adapter',
+            implementationRevision: '1',
+            modelId: 'model_a',
+            definitionRevision: '1',
+            configurationRevision: '1',
+          },
+        },
+      })
       const read = await log.readSince(session, 0)
       if ('failure' in read) throw new Error(read.failure)
       expect(read.entries).toHaveLength(0)
       expect(await calls.close()).toEqual({ released: true })
+      expect(
+        engineering.filter(
+          item => item.event.stage === 'binding' && item.event.outcome === 'completed',
+        ),
+      ).toHaveLength(2)
       expect(observerClosed).toBe(2)
       const stoppedRead = await log.readSince(session, 0)
       if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
