@@ -4,6 +4,7 @@ export {
   AcceptanceOperationDefect,
   type AcceptanceApplication,
 } from './bootstrap.ts'
+export type { DemoRunnerRequest } from './runner-host.ts'
 export {
   BASE_FIBERS,
   STAGE_FIBERS,

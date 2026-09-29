@@ -57,6 +57,8 @@ import {
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { createRequestOwner } from './model-request-owner.ts'
+import { createDemoRunnerHost, type DemoRunnerRequest } from './runner-host.ts'
+import type { RunnerPassResult } from '@omne-harness-lite/loop-extension-runner'
 import { createDemoObserverAccess, createDemoObserverEndpoint } from './model-observer-endpoint.ts'
 import { persistDemoModelReply } from './persist-model-reply.ts'
 import { readDemoNoRunFailure } from './no-run-failure-history.ts'
@@ -301,6 +303,12 @@ function operationError(error: unknown, step: string): Error {
 }
 
 export interface AcceptanceApplication {
+  /** Explicit development host entry; storage and tenant scope remain application-owned. */
+  runExtensionPass(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: DemoRunnerRequest,
+  ): Promise<ScenarioResult<RunnerPassResult>>
   readonly ready: Promise<{ readonly confirmation: UpgradeConfirmation }>
   /** The verified tenant and local diagnostic owners must already be open before P-2 starts. */
   activateModelRequest(
@@ -450,6 +458,7 @@ export function createAcceptanceApplication(
   let storage: SqlStorage | undefined
   let replica: ModelReplicaCustodian | undefined
   let sessionLogOwner: JsonlSessionLog | undefined
+  let runnerHost: ReturnType<typeof createDemoRunnerHost> | undefined
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
   let modelRuntime:
@@ -704,6 +713,7 @@ export function createAcceptanceApplication(
     if (cleanupPromise !== undefined) return cleanupPromise
     closing = true
     gateOpen = false
+    runnerHost?.closeAdmission()
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     const attempt = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
@@ -772,8 +782,14 @@ export function createAcceptanceApplication(
             )
             if (retired.some(result => result.status === 'rejected'))
               throw new Error('model contribution cleanup failed')
-          } else if (name === 'sessionLogOwner') await sessionLogOwner?.close()
-          else if (name === 'replica') await replica?.close()
+          } else if (name === 'sessionLogOwner') {
+            if (runnerHost !== undefined) {
+              const result = await runnerHost.close()
+              if (!result.complete) throw new Error('runner task recovery unfinished')
+              for (const item of result.recovered)
+                record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
+            } else await sessionLogOwner?.close()
+          } else if (name === 'replica') await replica?.close()
           else await fibers.get(name)?.dispose()
           record({ event: 'close', phase: name, outcome: 'closed' })
         } catch {
@@ -1011,7 +1027,7 @@ export function createAcceptanceApplication(
         category = 'failed'
         assertNotClosing()
         if (logDeployment === undefined) throw new Error('acceptance log deployment absent')
-        sessionLogOwner = await openJsonlSessionLog({
+        const ownedLogOptions: Parameters<typeof openJsonlSessionLog>[0] = {
           ...logDeployment,
           diagnostic: event =>
             record({
@@ -1019,7 +1035,9 @@ export function createAcceptanceApplication(
               phase: event.stage,
               outcome: event.outcome ?? event.level,
             }),
-        })
+        }
+        sessionLogOwner = await openJsonlSessionLog(ownedLogOptions)
+        runnerHost = createDemoRunnerHost(sessionLogOwner, ownedLogOptions)
         await load('sessionLog', sessionLogContribution(sessionLogOwner), {})
       }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
@@ -2266,6 +2284,17 @@ export function createAcceptanceApplication(
   }
   return {
     ready,
+    runExtensionPass(actor, session, request) {
+      if (!logStage || !admit() || runnerHost === undefined)
+        return Promise.resolve({ failure: 'stageClosed' })
+      return trackSessionInput(session, async () => {
+        const access = await sessionAccess(actor, session)
+        if (!('borrow' in access)) return access
+        if (recoveryAdmission.has(access.borrow.binding.session) || runnerHost === undefined)
+          return { failure: 'stageClosed' }
+        return runnerHost.run(access.borrow.binding, request)
+      })
+    },
     activateModelRequest,
     currentTime() {
       // Admitted model work may still need its terminal timestamp after the
@@ -2323,6 +2352,7 @@ export function createAcceptanceApplication(
       if (closingPromise !== undefined) return closingPromise
       closing = true
       gateOpen = false
+      runnerHost?.closeAdmission()
       const attempt = (async () => {
         await ready.then(
           () => undefined,

@@ -18,6 +18,7 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
 
 /** Keep the original entry for each selected message; a response id alone is not a source proof. */
 export function messagePrefixWithSources(prefix: SettlementPrefix):
@@ -32,6 +33,13 @@ export function messagePrefixWithSources(prefix: SettlementPrefix):
   const messages: LoggedMessage[] = []
   const selectedMessageSources: { readonly messageIndex: number; readonly entry: LogEntry }[] = []
   for (const entry of prefix.entries) {
+    const runner = inspectRunnerConclusion({
+      session: prefix.binding.session,
+      tenant: prefix.binding.tenant,
+      entry,
+    })
+    if ('invalid' in runner) return { unavailable: true }
+    if ('conclusion' in runner) continue
     if (entry.run !== undefined || entry.attempt !== undefined) return { unavailable: true }
     const keys = entry.readKeys.map(decodeModelLogKey)
     const message = keys.some(key => 'ok' in key && key.ok.kind === 'messages')
