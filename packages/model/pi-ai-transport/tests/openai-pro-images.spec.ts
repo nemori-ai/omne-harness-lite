@@ -59,14 +59,10 @@ describe.each(models)('%s base-image estimated proxy', modelId => {
   }
   it('requires the new binding and records the inference as estimated', () => {
     expect(definition).toMatchObject({
-      revision: astra ? '5' : '7',
-      implementation: { revision: 'mp4-17' },
+      revision: astra ? '6' : '8',
+      implementation: { revision: 'mp4-18' },
     })
-    expect(meter.algorithmRevision).toBe(
-      astra
-        ? 'openai-gpt-6-astra-pro-final-visible-json-o200k-image-proxy-1/response-calibration-1'
-        : 'openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1',
-    )
+    expect(meter.algorithmRevision).toBe('openai-visible-json-complete-output-group-estimated/1')
     expect(meter.evidence).toContain('not verified Pro preprocessing')
     expect(() =>
       createOpenAiInputMeter({

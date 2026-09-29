@@ -238,14 +238,10 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
         'openai/gpt-5.6-luna-pro',
       ].includes(modelId)
       expect(selected).toMatchObject({
-        revision: pro ? '7' : '8',
-        implementation: { name: 'pi-ai:openai', revision: 'mp4-17' },
+        revision: pro ? '8' : '9',
+        implementation: { name: 'pi-ai:openai', revision: 'mp4-18' },
       })
-      expect(meter.algorithmRevision).toBe(
-        pro
-          ? 'openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1'
-          : 'openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1',
-      )
+      expect(meter.algorithmRevision).toBe('openai-visible-json-complete-output-group-estimated/1')
       for (const old of [
         { ...selected, revision: '3' },
         { ...selected, implementation: { ...selected.implementation, revision: 'mp4-3' } },

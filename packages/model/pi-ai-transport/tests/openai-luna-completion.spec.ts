@@ -142,11 +142,10 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
   afterAll(() => cert.dispose())
 
   it('binds the final-visible successor without an old revision alias', () => {
-    expect(definition.revision).toBe('6')
+    expect(definition.revision).toBe('7')
     expect(createOpenAiInputMeter(definition)).toMatchObject({
-      implementation: { revision: 'mp4-17' },
-      algorithmRevision:
-        'openai-gpt-6-luna-final-visible-json-image-proxy-2/response-calibration-1',
+      implementation: { revision: 'mp4-18' },
+      algorithmRevision: 'openai-visible-json-complete-output-group-estimated/1',
       tokenizerRevision: 'js-tiktoken-1.0.21/o200k-base-gpt-6-luna-surrogate/1',
     })
   })

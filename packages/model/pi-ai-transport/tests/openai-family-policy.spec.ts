@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs'
+import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
+import { defineInputMeter } from '../src/input-meter.ts'
+import type { OutputGroupSource } from '../src/input-meters/output-history.ts'
 import { describe, expect, it } from 'vitest'
 import {
   classifyOpenAiDetail,
+  openAiOutputHistoryPolicy,
+  openAiOriginalBasisApplies,
   openAiBasisRecord,
   OPENAI_FAMILY_ALGORITHM,
   OPENAI_FAMILY_REPLAY,
@@ -117,5 +122,107 @@ describe('OpenAI reasoning classification', () => {
     expect(
       classifyOpenAiDetail({ type: 'reasoning.text', text: '', signature: 'not-openai' }),
     ).toBe('uninterpretable')
+  })
+})
+
+describe('OpenAI family source records', () => {
+  it.each(rows)('$modelId accepts finite original O records and rejects unlisted sources', row => {
+    const meter = defineInputMeter({
+      modelId: row.modelId,
+      provider: 'openai',
+      definitionRevision: row.definitionRevision,
+      implementation: { name: 'pi-ai:openai', revision: 'mp4-18' },
+      algorithmRevision: OPENAI_FAMILY_ALGORITHM,
+      replayRevision: OPENAI_FAMILY_REPLAY,
+      tokenizerRevision: row.tokenizerRevision,
+      transformRevision: row.transformRevision,
+      evidence: 'offline guard fixture',
+      measureFull: () => ({ kind: 'unavailable' }),
+    })
+    const envelope = { model: row.modelId, provider: route, reasoning: { effort: 'low' } }
+    for (const original of row.original) {
+      const binding = {
+        definition: { modelId: row.modelId, revision: original.definitionRevision },
+        implementation: { name: 'pi-ai:openai', revision: original.implementationRevision },
+        configuration: { values: { cache: { mode: 'automatic' } } },
+      }
+      // These fixtures exercise the family predicate after shared schema ownership.
+      // Generic completeness/account/selection guards are exercised at the full interfaces.
+      const source = {
+        origin: {
+          adaptation: binding,
+          provider: 'openai',
+          parameters: { reasoningEffort: 'low' },
+          servingProvider: 'OpenAI',
+          upstreamModel: row.modelId,
+        },
+        observation: {
+          kind: 'observation',
+          inputCalibration: {
+            requestInput: { kind: 'unavailable', reason: 'not_retained' },
+            observedInput: {
+              kind: 'unavailable',
+              reason: row.inputScope === 'scope_unknown' ? 'scope_unknown' : 'missing_usage',
+            },
+          },
+          outputBlocks: [
+            {
+              kind: 'thinking',
+              text: '',
+              opaque: toOpaqueJson({
+                routeName: row.modelId,
+                reasoning_details: [
+                  { type: 'reasoning.encrypted', data: 'opaque', format: 'openai-responses-v1' },
+                ],
+              }),
+            },
+          ],
+        },
+      } as unknown as OutputGroupSource
+      expect(openAiOutputHistoryPolicy.sourceApplies(source, meter, envelope)).toBe(true)
+      expect(
+        openAiOutputHistoryPolicy.sourceApplies(
+          { ...source, origin: { ...source.origin!, provider: 'other' } },
+          meter,
+          envelope,
+        ),
+      ).toBe(false)
+      expect(
+        openAiOutputHistoryPolicy.sourceApplies(
+          {
+            ...source,
+            origin: {
+              ...source.origin!,
+              adaptation: {
+                ...source.origin!.adaptation,
+                definition: { modelId: row.modelId, revision: 'unlisted' },
+              },
+            },
+          },
+          meter,
+          envelope,
+        ),
+      ).toBe(false)
+      expect(
+        openAiOutputHistoryPolicy.sourceApplies(
+          source,
+          { ...meter, algorithmRevision: 'invented' },
+          envelope,
+        ),
+      ).toBe(false)
+      const basis = {
+        ...original,
+        binding,
+        model: row.modelId,
+        provider: 'openai',
+        meterRevision: original.algorithmRevision,
+      }
+      const applies = openAiOriginalBasisApplies(row) as (basis: unknown, base: unknown) => boolean
+      const base = { kind: 'known', base: original.transformRevision, preparation: null }
+      expect(applies(basis, base)).toBe(true)
+      expect(applies({ ...basis, meterRevision: 'invented' }, base)).toBe(false)
+      expect(applies({ ...basis, projectionRevision: 'unlisted' }, base)).toBe(false)
+      expect(applies({ ...basis, provider: 'other' }, base)).toBe(false)
+    }
   })
 })

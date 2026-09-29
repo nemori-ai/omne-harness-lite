@@ -16,7 +16,7 @@ export const OPENAI_FAMILY_IMPLEMENTATION = 'mp4-18'
 export const OPENAI_FAMILY_ALGORITHM = 'openai-visible-json-complete-output-group-estimated/1'
 export const OPENAI_FAMILY_REPLAY = 'openai-complete-output-group-workload-estimated/1'
 export const OPENAI_FAMILY_EVIDENCE =
-  'D107 priority-family provider revision 5 (2026-09-29): complete unchanged same-model OpenRouter/OpenAI output groups use upstream O once as a workload-related estimated proxy with zero experimental net framing correction; not exact input occupancy or an upper bound, no GPT6 all_turns claim. Pro input usage scope stays unknown. Visible o200k/image rules retain their declared surrogate limits.'
+  'D107 priority-family provider revision 5 (2026-09-29): complete unchanged same-model OpenRouter/OpenAI output groups use upstream O once as a workload-related estimated proxy with zero experimental net framing correction; not exact input occupancy or an upper bound, no GPT6 all_turns claim. Pro input usage scope stays unknown. Visible o200k/image rules retain their declared surrogate limits; same-base image reuse is not verified Pro preprocessing and GPT6 o200k is not a tokenizer identity.'
 const standardEfforts = Object.freeze(['none', 'low', 'medium', 'high', 'max'])
 const astraEfforts = Object.freeze(['low', 'medium', 'high', 'max'])
 export interface OpenAiOriginalRecord {

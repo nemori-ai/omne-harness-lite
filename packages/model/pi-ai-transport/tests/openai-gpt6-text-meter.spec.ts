@@ -91,8 +91,8 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
     const selected = definition(modelId)
     expect(createOpenAiInputMeter(selected)).toMatchObject(
       modelId === 'openai/gpt-6-sol'
-        ? { definitionRevision: '5', implementation: { revision: 'mp4-17' } }
-        : { definitionRevision: '6', implementation: { revision: 'mp4-17' } },
+        ? { definitionRevision: '6', implementation: { revision: 'mp4-18' } }
+        : { definitionRevision: '7', implementation: { revision: 'mp4-18' } },
     )
     expect(() => createOpenAiInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
     expect(() =>

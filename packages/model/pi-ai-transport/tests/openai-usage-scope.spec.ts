@@ -11,7 +11,6 @@ import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createPiAiTransport } from '../src/transport.ts'
 import { createModelTransportService, type RetirementPolicy } from '../src/registry.ts'
 import type { ModelDefinition } from '../src/definitions.ts'
-import type { InputMeter } from '../src/input-meter.ts'
 import { certificate, fixture, input, message, policy, sse, finish } from './support.ts'
 
 function request(definition: ModelDefinition): PlanInput {
@@ -52,22 +51,6 @@ const raw = {
   cost: new LosslessNumber('0.000000000000000123'),
 }
 const current = openaiDefinitions.find(d => d.modelId === 'openai/gpt-5.6-sol-pro')!
-const before: ModelDefinition = {
-  ...current,
-  revision: '4',
-  implementation: { name: 'pi-ai:openai', revision: 'mp4-5' },
-}
-function legacyMeter(): InputMeter {
-  // Explicit trusted prior contribution fixture, not a default official factory option.
-  const currentMeter = createOpenAiInputMeter(current)
-  return {
-    ...currentMeter,
-    definitionRevision: before.revision,
-    implementation: before.implementation,
-    transformRevision: 'openrouter-wire/2',
-  }
-}
-
 describe('exact OpenAI Pro usage scope', () => {
   it.each(
     Object.values(openAiFamilyRecords)
@@ -136,7 +119,7 @@ describe('exact OpenAI Pro usage scope', () => {
     expect(zero.read().observedInput).toEqual({ kind: 'unavailable', reason: 'scope_unknown' })
   })
   it('uses only the finite model scope and offers no prior binding scope promotion', () => {
-    expect(usageScope(before.modelId)).toBe('scope_unknown')
+    expect(usageScope(current.modelId)).toBe('scope_unknown')
     expect(usageScope('custom/not-an-openai-pro')).toBe('inherited_context_total')
   })
 })
@@ -147,7 +130,7 @@ describe('real TLS Pro reader and fixed registry groups', () => {
     cert = certificate()
   })
   afterAll(() => cert.dispose())
-  it('keeps Pro scope unknown on registered retired and current bindings', async () => {
+  it('keeps Pro scope unknown on direct calls and retiring current registry leases', async () => {
     const host = await fixture(
       cert.tls,
       res =>
@@ -170,11 +153,16 @@ describe('real TLS Pro reader and fixed registry groups', () => {
         ),
       {},
       undefined,
-      [before, current],
+      [current],
     )
     const service = createModelTransportService(host.options)
-    const registeredOld = service.registerAdaptation(before, legacyMeter(), {}, () => {})
-    const original = await request(before)
+    const registeredOld = service.registerAdaptation(
+      current,
+      createOpenAiInputMeter(current),
+      {},
+      () => {},
+    )
+    const original = await request(current)
     const acquiredOld = service.acquire(original.snapshot.adaptation, original.routeName)
     if ('rejected' in acquiredOld) throw Error('old acquisition failed')
     const old = acquiredOld.lease
@@ -195,14 +183,7 @@ describe('real TLS Pro reader and fixed registry groups', () => {
         kind: 'unavailable',
         reason: 'scope_unknown',
       })
-      const registeredNew = service.registerAdaptation(
-        current,
-        createOpenAiInputMeter(current),
-        {},
-        () => {},
-      )
-      if ('rejected' in registeredOld || 'rejected' in registeredNew)
-        throw Error('registration failed')
+      if ('rejected' in registeredOld) throw Error('registration failed')
       const retiring = service.retire(registeredOld.registered, {
         waitMilliseconds: 1,
         force: false,

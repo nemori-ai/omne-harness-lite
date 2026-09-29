@@ -7,16 +7,49 @@ import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-bloc
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import type { Message } from '@omne-harness-lite/messages'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
-import type { ReplayMeterInput } from '../src/input-meter.ts'
+import type { ReplayMeterInput, InputMeter } from '../src/input-meter.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { planRequest, type PlannedRequest } from '../src/plan.ts'
-import { projectInput, projectOutput } from '../src/projection.ts'
+import {
+  projectInput,
+  projectOutput,
+  projectionDigest,
+  outputBlockDigest,
+} from '../src/projection.ts'
 import { at, input, judgedMessage, message } from './support.ts'
 
 // Runtime negative controls deliberately cross the typed standalone boundary.
 function callReplay(input: unknown, meter: InputMeter): unknown {
   return (meter.measureReplay as (input: unknown) => unknown)(input)
+}
+function historicalProjection(
+  group: PlanOutputHistoryGroup,
+  originalPlan: PlannedRequest,
+): PlanOutputHistoryGroup {
+  const revision = 'openrouter-input-projection/2'
+  const request = group.inputCalibration.requestInput
+  const output = group.inputCalibration.outputGroup
+  if (request.kind !== 'known' || output.kind !== 'known') throw Error('known fixture required')
+  const { messages, ...envelope } = originalPlan.body
+  return {
+    ...group,
+    inputCalibration: {
+      ...group.inputCalibration,
+      requestInput: {
+        ...request,
+        projectionRevision: revision,
+        prefixDigest: projectionDigest('input-prefix', messages, revision),
+        inputEnvelopeDigest: projectionDigest('input-envelope', envelope, revision),
+        countingBasis: { ...request.countingBasis, projectionRevision: revision },
+      },
+      outputGroup: {
+        ...output,
+        projectionRevision: revision,
+        blockDigests: group.outputBlocks.map(block => outputBlockDigest(block, revision)),
+      },
+    },
+  }
 }
 const ids = ['openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
 const encoder = getEncoding('o200k_base')
@@ -176,7 +209,7 @@ describe.each(ids)('%s explicit complete output history', model => {
       ],
       outputHistory: [ga, gb],
     }
-    return { value, ga, gb }
+    return { value, ga, gb, first }
   }
   it('owns replay input before inspecting fields and rejects multiple or inconsistent original groups', async () => {
     let getterReads = 0
@@ -188,8 +221,8 @@ describe.each(ids)('%s explicit complete output history', model => {
       },
     })
     for (const bad of [null, {}, { units: [] }, accessor]) {
-      expect(callReplay(bad, meter)).toEqual({ kind: 'unavailable' })
-      expect(Reflect.apply(meter.measureReplay, undefined, [bad])).toEqual({ kind: 'unavailable' })
+      expect(callReplay(bad, meter)).toEqual({ kind: 'invalidInput' })
+      expect(Reflect.apply(meter.measureReplay, undefined, [bad])).toEqual({ kind: 'invalidInput' })
     }
     expect(getterReads).toBe(0)
     const { value, ga } = await history()
@@ -219,8 +252,8 @@ describe.each(ids)('%s explicit complete output history', model => {
         outputHistory: [{ ...original, usage: { ...original.usage, output_tokens: 999 } }],
       },
     ]) {
-      expect(callReplay(bad, meter)).toEqual({ kind: 'unavailable' })
-      expect(meter.measureReplay(bad)).toEqual({ kind: 'unavailable' })
+      expect(callReplay(bad, meter)).toEqual({ kind: 'invalidInput' })
+      expect(meter.measureReplay(bad)).toEqual({ kind: 'invalidInput' })
     }
   })
   it('covers two O groups in full and only N O in marginal with independent numeric oracles', async () => {
@@ -275,7 +308,7 @@ describe.each(ids)('%s explicit complete output history', model => {
       replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2',
     },
   ])('BR finite original $definition retains O under current preparation semantics', async row => {
-    const { value, ga, gb } = await history()
+    const { value, ga, gb, first } = await history()
     const source = ga.inputCalibration.requestInput
     if (source.kind !== 'known') throw Error('known source required')
     const binding = {
@@ -283,22 +316,25 @@ describe.each(ids)('%s explicit complete output history', model => {
       definition: { modelId: model, revision: row.definition },
       implementation: { name: 'pi-ai:openai', revision: row.implementation },
     }
-    const old: PlanOutputHistoryGroup = {
-      ...ga,
-      origin: { ...ga.origin, adaptation: binding },
-      inputCalibration: {
-        ...ga.inputCalibration,
-        requestInput: {
-          ...source,
-          countingBasis: {
-            ...source.countingBasis,
-            binding,
-            meterRevision: row.algorithm,
-            replayRevision: row.replay,
+    const old: PlanOutputHistoryGroup = historicalProjection(
+      {
+        ...ga,
+        origin: { ...ga.origin, adaptation: binding },
+        inputCalibration: {
+          ...ga.inputCalibration,
+          requestInput: {
+            ...source,
+            countingBasis: {
+              ...source.countingBasis,
+              binding,
+              meterRevision: row.algorithm,
+              replayRevision: row.replay,
+            },
           },
         },
       },
-    }
+      first,
+    )
     const current = await planned({ ...value, outputHistory: [old, gb] })
     const preparer = testImagePreparerFor(planRequest)
     const descriptor = {
@@ -356,9 +392,9 @@ describe.each(ids)('%s explicit complete output history', model => {
     expect(callReplay(replay, meter)).toEqual({ kind: 'unavailable' })
     if (row.definition === '8') {
       const same: PlanOutputHistoryGroup = {
-        ...old,
+        ...ga,
         inputCalibration: {
-          ...old.inputCalibration,
+          ...ga.inputCalibration,
           requestInput: { ...source, countingBasis: projection.requestInput.countingBasis },
         },
       }
@@ -435,7 +471,7 @@ describe.each(ids)('%s explicit complete output history', model => {
   ])(
     'maps finite original definition $definition without making its factory callable',
     async source => {
-      const { value, ga } = await history()
+      const { value, ga, first } = await history()
       const original = ga.inputCalibration.requestInput
       if (original.kind !== 'known') throw Error('fixture source')
       const binding = {
@@ -443,22 +479,25 @@ describe.each(ids)('%s explicit complete output history', model => {
         definition: { modelId: model, revision: source.definition },
         implementation: { name: 'pi-ai:openai', revision: source.implementation },
       }
-      const old: PlanOutputHistoryGroup = {
-        ...ga,
-        origin: { ...ga.origin, adaptation: binding },
-        inputCalibration: {
-          ...ga.inputCalibration,
-          requestInput: {
-            ...original,
-            countingBasis: {
-              ...original.countingBasis,
-              binding,
-              meterRevision: source.algorithm,
-              replayRevision: source.replay,
+      const old: PlanOutputHistoryGroup = historicalProjection(
+        {
+          ...ga,
+          origin: { ...ga.origin, adaptation: binding },
+          inputCalibration: {
+            ...ga.inputCalibration,
+            requestInput: {
+              ...original,
+              countingBasis: {
+                ...original.countingBasis,
+                binding,
+                meterRevision: source.algorithm,
+                replayRevision: source.replay,
+              },
             },
           },
         },
-      }
+        first,
+      )
       expect(
         (await planned({ ...value, outputHistory: [old, value.outputHistory[1]!] })).measurement
           .mode,
