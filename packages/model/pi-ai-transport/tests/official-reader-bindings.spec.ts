@@ -138,7 +138,7 @@ describe('D108 shared reader contribution release', () => {
       })
       expect(result.planned.measurement.mode).toBe('full')
       if (row.family === 'openai' && row.modelId.endsWith('-pro'))
-        expect(usageScope(row.modelId, meter.provider, profile.ok.adaptation)).toBe('scope_unknown')
+        expect(usageScope(row.modelId)).toBe('scope_unknown')
       let old: InputMeter | undefined
       try {
         old = factory({

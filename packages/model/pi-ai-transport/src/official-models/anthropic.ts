@@ -22,8 +22,9 @@ const common = {
   extra: {},
   // OpenRouter documents 1h as a literal TTL on per-block cache_control.
   // Its 5m form omits ttl, which needs a separate shared wire mapping.
-  // The only declared breakpoint is the trailing message text block, which
-  // has a direct Chat Completions example and no optional attachment target.
+  // last_message selects a nonempty terminal text block, or maps a strictly
+  // terminal pure-image user message to request-level automatic cache_control.
+  // Both paths preserve the explicitly configured TTL.
   cache: {
     mode: 'explicit',
     ttlValues: ['1h'],
@@ -68,29 +69,29 @@ const capabilities = {
 export const anthropicDefinitions = ownDefinitions([
   {
     modelId: 'anthropic/claude-opus-5.5',
-    revision: '3',
-    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-17' },
+    revision: '4',
+    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-18' },
     capabilities,
     routes: anthropicModelRoutes['anthropic/claude-opus-5.5'],
   },
   {
     modelId: 'anthropic/claude-opus-5',
-    revision: '3',
-    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-17' },
+    revision: '4',
+    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-18' },
     capabilities,
     routes: anthropicModelRoutes['anthropic/claude-opus-5'],
   },
   {
     modelId: 'anthropic/claude-sonnet-5',
-    revision: '3',
-    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-17' },
+    revision: '4',
+    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-18' },
     capabilities,
     routes: anthropicModelRoutes['anthropic/claude-sonnet-5'],
   },
   {
     modelId: 'anthropic/claude-fable-5.1',
-    revision: '3',
-    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-17' },
+    revision: '4',
+    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-18' },
     capabilities,
     routes: anthropicModelRoutes['anthropic/claude-fable-5.1'],
   },
