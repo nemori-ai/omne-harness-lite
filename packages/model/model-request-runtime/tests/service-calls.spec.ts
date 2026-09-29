@@ -194,7 +194,9 @@ test('a stopped host rejects registration before any asynchronous session prepar
   const register = vi.fn(() => ({ runtimeStopped: true as const }))
   const runtime = {
     identities: { call: () => 'stopped-call' },
+    maxScopes: 4,
     sessions: { bind },
+    transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     calls: createCallContainerStore<PlannedSemantics, never>(),
   } as unknown as RuntimeConstruction<PlannedSemantics, never>
   const service = createServiceCalls(runtime)
@@ -227,7 +229,9 @@ test('host stop during session binding prevents a late call publication and unre
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
     identities: { call: () => 'late-call' },
+    maxScopes: 4,
     sessions: { bind },
+    transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     calls,
   } as unknown as RuntimeConstruction<PlannedSemantics, never>
   const pending = createServiceCalls(runtime).openCall(
@@ -257,7 +261,9 @@ test('service close stops and retains a registered preparation until binding act
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
     identities: { call: () => 'closing-preparation-call' },
+    maxScopes: 4,
     sessions: { bind },
+    transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     calls,
     settlementContention: { limits: { concurrent: 1 } },
     history: { call: vi.fn() },
@@ -292,9 +298,10 @@ test('observer association rejects a wrong call before catalog reads or transpor
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
     identities: { call: () => 'observer-call' },
+    maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
     calls,
-    transport: { acquire },
+    transport: { clearReuseScope() {}, acquire },
   } as unknown as RuntimeConstruction<PlannedSemantics, never>
   const observer = {
     session,
@@ -445,9 +452,11 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       return { noObservation: true }
     }
     const runtime = {
+      maxScopes: 4,
       sessions: { bind: async () => ({ binding }) },
       calls,
       transport: {
+        clearReuseScope() {},
         acquire: () =>
           acquisition === 'invalidInput'
             ? { invalidInput: { reason: 'malformed' } }

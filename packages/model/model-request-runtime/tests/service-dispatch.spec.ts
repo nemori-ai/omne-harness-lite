@@ -253,9 +253,11 @@ test('service dispatch writes both anchors before handing out a complete pending
       }),
     ).toBeUndefined()
     const runtime: RuntimeConstruction<TestPlan, object> = {
+      maxScopes: 4,
       sessions: { bind: async () => ({ binding }) },
       calls,
       transport: {
+        clearReuseScope() {},
         acquire: () => ({
           lease: {
             binding: {

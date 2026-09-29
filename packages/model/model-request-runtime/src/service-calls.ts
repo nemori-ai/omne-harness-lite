@@ -1,3 +1,4 @@
+import { createPlanReuseScopes, type PlanReuseScopes } from './plan-reuse-scopes.ts'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
@@ -530,7 +531,9 @@ export interface ServiceCalls {
  * call's resume binding must come from its original MS6 record, never the latest catalog. */
 export function createServiceCalls<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
+  borrowedScopes?: PlanReuseScopes,
 ): ServiceCalls {
+  const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
   const retainedReads = new OwnedReadTracker()
   const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
@@ -869,8 +872,12 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         const lease = observeLease(runtime, session, callId, winner.ref, acquired.lease)
         let transferred = false
         try {
-          const planning = lease.track(
-            lease.transport.plan(
+          const scoped = scopes.acquire(session.log)
+          if ('unavailable' in scoped) return { unavailable: true }
+          const scopeLease = scoped.lease
+          let planning
+          try {
+            const completion = lease.transport.plan(
               {
                 calibration: checked.calibration,
                 outputHistory: checked.outputHistory,
@@ -885,16 +892,38 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               },
               {
                 signal: AbortSignal.any([lease.signal, preparation?.signal ?? request.host.signal]),
+                ...(scopeLease.reuseScope === undefined
+                  ? {}
+                  : { reuseScope: scopeLease.reuseScope }),
               },
-            ),
-          )
+            )
+            try {
+              planning = lease.track(completion)
+            } catch (error) {
+              // A broken tracker cannot shorten the actual provider task.
+              planning = completion.then(
+                () => {
+                  throw error
+                },
+                () => {
+                  throw error
+                },
+              )
+            }
+          } catch (error) {
+            scopeLease.release()
+            throw error
+          }
           const stopped = planning.then(
             () => undefined,
             () => undefined,
           )
           planningTasks.add(stopped)
           preparation?.retainStopped(stopped)
-          const planned = await planning.finally(() => planningTasks.delete(stopped))
+          const planned = await planning.finally(() => {
+            planningTasks.delete(stopped)
+            scopeLease.release()
+          })
           if (closing || preparation?.stopping() || request.host.signal.aborted)
             return { runtimeStopped: true }
           if ('rejected' in planned) {
@@ -1045,7 +1074,8 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       'released' in appendResult &&
       'released' in writes &&
       prepared.every(result => 'released' in result) &&
-      preparations.size === 0
+      preparations.size === 0 &&
+      (borrowedScopes !== undefined || 'released' in scopes.close())
       ? ({ released: true } as const)
       : ({ unavailable: true } as const)
   }

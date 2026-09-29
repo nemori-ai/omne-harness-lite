@@ -309,7 +309,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   let plan
   try {
     const task = planningRegistration.start('wait', async signal => {
-      const completion = transport.plan(missing ? input.planInput : requested, {
+      const completion = transport.plan(missing ? missing.original : requested, {
         signal: AbortSignal.any([signal, input.signal]),
         ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
       })
@@ -885,12 +885,8 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   const stop = () => controller.abort()
   input.signal.addEventListener('abort', stop, { once: true })
   if (input.signal.aborted) stop()
-  const owned = ownPlanInput(input.planInput)
-  const captured = Object.freeze({
-    ...input,
-    planInput: owned ?? input.planInput,
-    signal: controller.signal,
-  })
+  // The async preparer captures and validates input synchronously before its first await.
+  const captured = Object.freeze({ ...input, signal: controller.signal })
   let attached: AnchoredInvocationHandle | undefined
   let initiator: 'user' | 'run_cancelled' | undefined
   const ready = prepareAnchoredInvocation(captured).then(handle => {

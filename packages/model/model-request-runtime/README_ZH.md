@@ -997,3 +997,21 @@ export async function prepare<P extends PlannedSemantics, R>(
   })
 }
 ```
+
+
+服务构造必须显式提供正安全整数 `maxScopes`，以及同步的 `ExactTransportAcquirer.clearReuseScope(scope)`。固定 transport 实例的装配须保留其清理闭包，直到 runtime close 成功：
+
+```ts
+import type { ExactTransportAcquirer, PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+
+export function fixedAcquirer<P extends PlannedSemantics, R>(
+  acquire: ExactTransportAcquirer<P, R>['acquire'],
+  clearReuseScope: ExactTransportAcquirer<P, R>['clearReuseScope'],
+): ExactTransportAcquirer<P, R> {
+  return { acquire, clearReuseScope }
+}
+// createModelRuntime 显式接收 { maxScopes: 64, transport: fixedAcquirer(acquire, clear), ... }。
+// 无缓存提供者也实际实现 clearReuseScope: () => {}。
+```
+
+runtime 在受信 session bind 后，以 tenant/session/log generation 分隔 opaque scope；有限槽位只淘汰 idle 项，全部占用时可沿普通准备资源限制使用无复用路径。关闭先停准入、取消并等待真实准备和网络任务，再逐项清 scope。清理实际返回值必须是 `undefined`；抛错、其他返回值或 thenable 都保留责任并返回 `unavailable`，pending 尝试被观察且终结前不重试。后续 `runtime.close()` 可以重试失败清理。采用依据见[清理附页](../../../.meta_harness/design/realization/packages/model/model-request-runtime/image-preparation-scope-cleanup-candidate.md)。本包 owner 测试不证明真实原生图片 codec 已验收。

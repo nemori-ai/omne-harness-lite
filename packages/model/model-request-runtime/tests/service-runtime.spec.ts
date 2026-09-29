@@ -1,9 +1,17 @@
+import { Context } from '@deepseek-ai/cordis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { z } from 'zod'
+import { createModelRuntimePlugin, MODEL_RUNTIME_SERVICE } from '../src/service-plugin.ts'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { ModelCallHost, SessionRuntimeBinding } from '../src/service-types.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
+import type {
+  CallContainerStore,
+  RuntimeConstruction,
+  ModelRuntimeService,
+} from '../src/service-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -42,9 +50,10 @@ function construction(
   } = {},
 ): RuntimeConstruction<PlannedSemantics, never> {
   return {
+    maxScopes: 4,
     sessions: { bind: input.bind ?? (async () => ({ failure: 'unavailable' })) },
     calls: input.store ?? createCallContainerStore(),
-    transport: { acquire: () => ({ unavailable: true }) },
+    transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     settlementContention: {
       name: 'runtime-close-test',
       limits: { submissions: 1, elapsedMs: 1, retainedBytes: 1, concurrent: 1 },
@@ -137,9 +146,11 @@ describe('D102 unified model runtime owner', () => {
         },
       }
       const construction: RuntimeConstruction<TestPlan, object> = {
+        maxScopes: 4,
         sessions: { bind: async () => (holdBind ? await bound.promise : { binding }) },
         calls,
         transport: {
+          clearReuseScope() {},
           acquire: () => ({
             lease: {
               binding: {
@@ -316,6 +327,10 @@ it.each(['open', 'dispatch'] as const)(
     const started = deferred<void>()
     const native = deferred<void>()
     let closing: Promise<unknown> | undefined
+    const ctx = new Context()
+    const closeStarted = deferred<void>()
+    let ownerReleased = 0
+    let cleanup: (() => Promise<void>) | undefined
     try {
       const selected = host.create()
       const wire = transport()
@@ -323,6 +338,8 @@ it.each(['open', 'dispatch'] as const)(
       let planSignal: AbortSignal | undefined
       let tracked = 0
       let released = 0
+      const seenScopes: object[] = []
+      const clearedScopes: object[] = []
       const active = new Set<Promise<unknown>>()
       const binding: SessionRuntimeBinding = {
         log: selected.input.binding,
@@ -344,6 +361,7 @@ it.each(['open', 'dispatch'] as const)(
       const base = construction()
       const runtime = createModelRuntime<TestPlan, object>({
         ...base,
+        maxScopes: 4,
         sessions: { bind: async () => ({ binding }) },
         calls: createCallContainerStore(),
         settlementContention: settlementPolicy(),
@@ -355,6 +373,11 @@ it.each(['open', 'dispatch'] as const)(
           call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
         },
         transport: {
+          clearReuseScope(scope) {
+            expect(active.size).toBe(0)
+            expect(released).toBe(1)
+            clearedScopes.push(scope)
+          },
           acquire: binding => ({
             lease: {
               binding,
@@ -362,6 +385,8 @@ it.each(['open', 'dispatch'] as const)(
               transport: {
                 ...wire.adapter,
                 async plan(input, execution) {
+                  if (execution.reuseScope === undefined) throw new Error('scope absent')
+                  seenScopes.push(execution.reuseScope)
                   if (block) {
                     planSignal = execution.signal
                     started.finish()
@@ -387,15 +412,58 @@ it.each(['open', 'dispatch'] as const)(
           }),
         },
       })
+      const dependencies = await ctx.plugin(
+        definePlugin({
+          name: 'planning-owner-dependencies',
+          Config: z.object({}).strict(),
+          apply(inner) {
+            for (const name of [
+              'sessionLog',
+              'modelCatalogRead',
+              'credentialLookup',
+              'modelTransport',
+              'storage',
+              'clock',
+            ])
+              inner.provide(name, {})
+          },
+        }),
+        {},
+      )
+      const consumer = await ctx.plugin(
+        createModelRuntimePlugin({
+          construct: async () => ({
+            service: runtime.service,
+            owner: {
+              close: () => {
+                closeStarted.finish()
+                return runtime.close()
+              },
+              release: () => {
+                ownerReleased++
+              },
+            },
+          }),
+        }),
+        {},
+      )
+      await consumer.await()
+      cleanup = async () => {
+        await consumer.dispose()
+        await dependencies.dispose()
+      }
+      const offered: unknown = ctx.get(MODEL_RUNTIME_SERVICE)
+      if (!isRuntimeService(offered)) throw new Error('real Cordis service absent')
+      const service = offered
       const callHost: ModelCallHost = {
         signal: new AbortController().signal,
         stopping: () => false,
         register: () => ({ registration: { unregister() {} } }),
       }
-      await runtime.service.selectModel({ session: host.session, routeName: 'example/model-a' })
-      const effective = await runtime.service.effectiveModel({ session: host.session })
+      await service.selectModel({ session: host.session, routeName: 'example/model-a' })
+      const effective = await service.effectiveModel({ session: host.session })
       if (!('effectiveModel' in effective)) throw new Error('effective model absent')
-      const opening = runtime.service.openCall({
+      const opening = service.openCall({
         session: host.session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,
@@ -409,31 +477,56 @@ it.each(['open', 'dispatch'] as const)(
           : opening.then(async opened => {
               if (!('callId' in opened)) throw new Error('call not opened')
               block = true
-              return runtime.service.dispatch({ session: host.session, callId: opened.callId })
+              return service.dispatch({ session: host.session, callId: opened.callId })
             })
       await started.promise
       expect(tracked).toBeGreaterThan(0)
       let closed = false
-      closing = runtime.close().then(result => {
+      closing = consumer.dispose().then(async () => {
+        const result = await runtime.close()
         closed = true
         return result
       })
-      await Promise.resolve()
+      await closeStarted.promise
       expect(planSignal?.aborted).toBe(true)
       expect(closed).toBe(false)
       expect(released).toBe(0)
+      expect(clearedScopes).toEqual([])
+      expect(new Set(seenScopes).size).toBe(1)
       expect(wire.sends()).toBe(0)
       native.finish()
       await operation
       expect(await closing).toEqual({ released: true })
       expect(released).toBe(1)
+      expect(ownerReleased).toBe(1)
+      expect(clearedScopes).toEqual([seenScopes[0]])
       expect(wire.sends()).toBe(0)
       expect(await runtime.close()).toEqual({ released: true })
       expect(released).toBe(1)
     } finally {
       native.finish()
       await closing
+      await cleanup?.()
       await host.close()
     }
   },
 )
+
+function isRuntimeService(value: unknown): value is ModelRuntimeService {
+  if (value === null || typeof value !== 'object') return false
+  return [
+    'legalTargets',
+    'displayList',
+    'effectiveModel',
+    'selectModel',
+    'openCall',
+    'dispatch',
+    'dispatchAgain',
+    'interrupt',
+    'releaseCall',
+    'reconcile',
+    'readAttempts',
+    'settleReply',
+    'canDispatchAgain',
+  ].every(name => name in value && typeof Reflect.get(value, name) === 'function')
+}

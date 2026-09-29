@@ -447,6 +447,8 @@ export interface ExactTransportLease<P extends PlannedSemantics, R> {
   readonly release: () => void
 }
 export interface ExactTransportAcquirer<P extends PlannedSemantics, R> {
+  /** Synchronously clear caches through every still-owned provider; only undefined is success. */
+  readonly clearReuseScope: (scope: object) => void
   readonly acquire: (
     binding: ModelAdaptationBinding,
     routeName: RouteName,
@@ -519,6 +521,8 @@ export type CalibrationHistoryResult =
   | { readonly noObservation: true }
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
+  /** Explicit bounded process-local preparation reuse; no default scope budget. */
+  readonly maxScopes: number
   readonly sessions: RuntimeSessionAccess
   readonly calls: CallContainerStore<P, R>
   readonly transport: ExactTransportAcquirer<P, R>

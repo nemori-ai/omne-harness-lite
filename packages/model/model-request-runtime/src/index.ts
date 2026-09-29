@@ -60,3 +60,6 @@ export { createModelRuntime } from './service-runtime.ts'
 
 export type * from './diagnostics-types.ts'
 export { createDiagnosticCollector } from './diagnostics.ts'
+
+export { createPlanReuseScopes } from './plan-reuse-scopes.ts'
+export type { PlanReuseScopes, PlanReuseScopeLease, PlanScopeBinding } from './plan-reuse-scopes.ts'

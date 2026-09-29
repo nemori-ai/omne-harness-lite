@@ -104,6 +104,7 @@ function object(value: unknown): value is Record<string, unknown> {
 /** Bounded validation-only copy for the three planning refusals that precede missing limits. */
 export function preflightMissingInputLimits(input: PlanInput): {
   readonly input: PlanInput
+  readonly original: PlanInput
   readonly metrics: readonly [InputLimitMetric, ...InputLimitMetric[]]
 } | null {
   if (!input || typeof input !== 'object') return null
@@ -160,7 +161,27 @@ export function preflightMissingInputLimits(input: PlanInput): {
         ? suppliedMargin.ok
         : { multiplier: 1, reserveTokens: 0 },
   })
-  return preflight === undefined ? null : { input: preflight, metrics: [first, ...rest] }
+  if (preflight === undefined) return null
+  // Preserve missing limits for adapter preflight without retaining caller-owned objects.
+  const originalSnapshot = {
+    ...preflight.snapshot,
+    inputConstraints: { ...preflight.snapshot.inputConstraints },
+    upstreamInputLimits: { ...preflight.snapshot.upstreamInputLimits },
+  }
+  for (const key of ['maxInputTokens', 'inputConstraints', 'upstreamInputLimits'])
+    if (!Object.hasOwn(profile, key)) Reflect.deleteProperty(originalSnapshot, key)
+  if (object(constraints))
+    for (const key of Object.keys(originalSnapshot.inputConstraints))
+      if (!Object.hasOwn(constraints, key))
+        Reflect.deleteProperty(originalSnapshot.inputConstraints, key)
+  if (object(upstream))
+    for (const key of Object.keys(originalSnapshot.upstreamInputLimits))
+      if (!Object.hasOwn(upstream, key))
+        Reflect.deleteProperty(originalSnapshot.upstreamInputLimits, key)
+  const original = { ...preflight, snapshot: Object.freeze(originalSnapshot) }
+  // Invalid margins remain invalid in adapter preflight; no fabricated admission is performed.
+  Reflect.set(original, 'tokenMargin', 'ok' in suppliedMargin ? suppliedMargin.ok : undefined)
+  return { input: preflight, original: Object.freeze(original), metrics: [first, ...rest] }
 }
 /** Standalone invocation boundary, before planning and pre-send cancellation. */
 export function ownPlanInput(input: PlanInput): PlanInput | undefined {

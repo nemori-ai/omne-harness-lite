@@ -95,9 +95,11 @@ async function ready() {
     },
   }
   const config: RuntimeConstruction<TestPlan, object> = {
+    maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
     calls: createCallContainerStore(),
     transport: {
+      clearReuseScope() {},
       acquire: () => ({
         lease: {
           binding: {

@@ -1,3 +1,4 @@
+import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 import { createRuntimeReads } from './service-reads.ts'
 import { createServiceCalls } from './service-calls.ts'
 import { createServiceDispatch } from './service-dispatch.ts'
@@ -26,9 +27,10 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
 } {
   if (ownedStores.has(construction.calls)) throw new TypeError('call store already owned')
   // These constructors only create local closures; host resource acquisition precedes this factory.
+  const scopes = createPlanReuseScopes(construction)
   const reads = createRuntimeReads(construction)
-  const calls = createServiceCalls(construction)
-  const dispatch = createServiceDispatch(construction)
+  const calls = createServiceCalls(construction, scopes)
+  const dispatch = createServiceDispatch(construction, scopes)
   const control = createServiceControl(construction)
   const settleReply = createRuntimeSettleReply({
     calls: construction.calls,
@@ -173,7 +175,12 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     const first = await closeOwners()
     await Promise.allSettled([...inFlight])
     const second = await closeOwners()
-    return !first.threw && !second.threw && second.released && inFlight.size === 0
+    const scopeResult = inFlight.size === 0 ? scopes.close() : unavailable
+    return !first.threw &&
+      !second.threw &&
+      second.released &&
+      inFlight.size === 0 &&
+      'released' in scopeResult
       ? { released: true }
       : unavailable
   }

@@ -96,3 +96,67 @@ describe('D109 asynchronous planning ownership', () => {
     })
   })
 })
+
+it('anchored invocation captures valid input before the first planning await', async () => {
+  await harness(async h => {
+    const pending = deferred()
+    const started = deferred()
+    const parameters = { temperature: 0.5 }
+    const t = transport()
+    const handle = createAnchoredModelInvocation({
+      ...h.input,
+      planInput: { ...h.input.planInput, parameters },
+      transport: {
+        ...t.adapter,
+        async plan(input, execution) {
+          started.resolve()
+          await pending.promise
+          expect(input.parameters).toEqual({ temperature: 0.5 })
+          return t.adapter.plan(input, execution)
+        },
+      },
+    })
+    parameters.temperature = 0.9
+    await started.promise
+    pending.resolve()
+    expect(await handle.outcome).toHaveProperty('replyPending')
+    expect(await handle.settleReply('persisted')).toHaveProperty('settled')
+    expect(await handle.close()).toEqual({ released: true })
+    expect(t.sends()).toBe(1)
+  })
+})
+
+it('owns a missing-cap preflight snapshot across the asynchronous adapter boundary', async () => {
+  const original = request()
+  const snapshot = { ...original.snapshot }
+  Reflect.deleteProperty(snapshot, 'maxInputTokens')
+  const parameters = { temperature: 0.5 }
+  const native = deferred()
+  const port = adapter()
+  const handle = invokeModel({
+    ...original,
+    snapshot,
+    parameters,
+    credential: 'test-secret',
+    signal: new AbortController().signal,
+    policy: policy(),
+    transport: {
+      ...port.transport,
+      async plan(input) {
+        await native.promise
+        expect(Object.hasOwn(input.snapshot, 'maxInputTokens')).toBe(false)
+        expect(input.parameters).toEqual({ temperature: 0.5 })
+        return { planned: fixturePlan(input) }
+      },
+    },
+  })
+  snapshot.maxInputTokens = original.snapshot.maxInputTokens
+  parameters.temperature = 0.9
+  native.resolve()
+  expect(await handle.outcome).toEqual({
+    rejected: 'invalidInput',
+    reason: 'input_limit_missing',
+    metrics: ['maxInputTokens'],
+  })
+  expect(port.sends()).toBe(0)
+})

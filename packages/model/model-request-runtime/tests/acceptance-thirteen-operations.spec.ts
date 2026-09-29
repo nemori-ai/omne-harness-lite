@@ -83,9 +83,11 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       const parsedMessage = parseOpaqueIdentifier('thirteen-message', 'MessageId')
       if (!('ok' in parsedMessage)) throw new Error('message id')
       const config: RuntimeConstruction<TestPlan, object> = {
+        maxScopes: 4,
         sessions: { bind: async () => ({ binding }) },
         calls: createCallContainerStore(),
         transport: {
+          clearReuseScope() {},
           acquire: () => ({
             lease: {
               binding: {

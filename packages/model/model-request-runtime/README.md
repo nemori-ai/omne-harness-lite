@@ -1008,3 +1008,21 @@ export async function prepare<P extends PlannedSemantics, R>(
   })
 }
 ```
+
+
+The service constructor requires an explicit positive safe integer `maxScopes` and a synchronous `ExactTransportAcquirer.clearReuseScope(scope)` capability. For a fixed transport instance, retain its cleanup closure until runtime close succeeds:
+
+```ts
+import type { ExactTransportAcquirer, PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+
+export function fixedAcquirer<P extends PlannedSemantics, R>(
+  acquire: ExactTransportAcquirer<P, R>['acquire'],
+  clearReuseScope: ExactTransportAcquirer<P, R>['clearReuseScope'],
+): ExactTransportAcquirer<P, R> {
+  return { acquire, clearReuseScope }
+}
+// Pass { maxScopes: 64, transport: fixedAcquirer(acquire, clear), ... } to createModelRuntime.
+// Providers without a cache still implement clearReuseScope: () => {}.
+```
+
+After trusted session binding, the runtime separates tenant/session/log generations into opaque scopes. It evicts only idle scopes within the configured limit; all occupied slots may use the ordinary preparation path without reuse. Shutdown closes admission, cancels and awaits actual preparation/network work, then clears each scope. Cleanup must actually return `undefined`: a throw, non-undefined return or thenable retains responsibility and yields `unavailable`; pending attempts are observed and not retried until terminal. A later `runtime.close()` can retry failed cleanup. See the [adopted cleanup supplement](../../../.meta_harness/design/realization/packages/model/model-request-runtime/image-preparation-scope-cleanup-candidate.md). These local owner tests do not certify native image codec behavior.

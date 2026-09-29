@@ -112,7 +112,6 @@ export function invokeModel<P extends PlannedSemantics, R>(
   const owned = input && ownPlanInput(input)
   const missing = input && !owned ? preflightMissingInputLimits(input) : null
   const requested = owned ?? missing?.input
-  const preflightInput = input
   if (
     !input ||
     (!requested && !missing) ||
@@ -342,7 +341,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
         outcome: 'started',
         facts: { kind: 'decision' },
       })
-      const plan = await input.transport.plan(missing ? preflightInput : input, {
+      const plan = await input.transport.plan(missing ? missing.original : input, {
         signal: controller.signal,
         ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
       })

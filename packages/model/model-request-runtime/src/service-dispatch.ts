@@ -1,3 +1,8 @@
+import {
+  createPlanReuseScopes,
+  type PlanReuseScopes,
+  type PlanReuseScopeLease,
+} from './plan-reuse-scopes.ts'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
@@ -318,7 +323,10 @@ export interface ServiceDispatch {
 /** One provider attempt owns its original anchored writer after the short admission is released. */
 export function createServiceDispatch<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
+  borrowedScopes?: PlanReuseScopes,
 ): ServiceDispatch {
+  const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
+  const invocations = new Set<ReturnType<typeof createAnchoredModelInvocation<P, R>>>()
   const retainedReads = new OwnedReadTracker()
   const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
@@ -392,6 +400,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     let handle: ReturnType<typeof createAnchoredModelInvocation<P, R>> | undefined
     let observerQueue: ModelObserverQueue | undefined
     let dispatchNumber = 0
+    let untransferredScope: PlanReuseScopeLease | undefined
     let earlyDiagnostics: ReturnType<typeof operationDiagnostics> | undefined
     try {
       if (closing) return { runtimeStopped: true }
@@ -722,6 +731,10 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       if (owner.admission() !== 'open') return { runtimeStopped: true }
       if (reservation.view()?.operation.phase !== 'ready') return { unavailable: true }
       const deliveryQueue = observerQueue
+      const scoped = scopes.acquire(session.log)
+      if ('unavailable' in scoped) return { unavailable: true }
+      const scopeLease = scoped.lease
+      untransferredScope = scopeLease
       const create = () => {
         const responseId = runtime.identities.response()
         const collector = runtime.diagnosticCollector
@@ -780,13 +793,27 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             reportDiagnosticFailure()
           }
         }
-        return createAnchoredModelInvocation({
+        const created = createAnchoredModelInvocation({
           ...(local.request.run === undefined
             ? {}
             : { run: local.request.run, attempt: input.attempt }),
           planInput,
           transport: local.binding.lease.transport,
-          trackPlan: completion => local.binding.lease.track(completion),
+          ...(scopeLease.reuseScope === undefined ? {} : { reuseScope: scopeLease.reuseScope }),
+          trackPlan: completion => {
+            try {
+              return local.binding.lease.track(completion)
+            } catch (error) {
+              return completion.then(
+                () => {
+                  throw error
+                },
+                () => {
+                  throw error
+                },
+              )
+            }
+          },
           credential,
           credentialScope,
           policy,
@@ -832,6 +859,14 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             ? {}
             : { onAccepted: (event, snapshot) => void deliveryQueue.offer(event, snapshot) }),
         })
+        untransferredScope = undefined
+        invocations.add(created)
+        const drained = () => {
+          scopeLease.release()
+          invocations.delete(created)
+        }
+        created.outcome.then(drained, drained)
+        return created
       }
       if (local.invocation === undefined) {
         handle = create()
@@ -853,6 +888,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     } catch {
       return { unavailable: true }
     } finally {
+      untransferredScope?.release()
       earlyDiagnostics?.close()
       reservation.release()
     }
@@ -883,6 +919,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         // The shared MR7 judge validated the captured JSON value at this boundary.
         const response = outcome.settled.settled.response.value as unknown as ModelResponse
         const closed = await handle.close()
+        if ('released' in closed) invocations.delete(handle)
         if ('unavailable' in closed) return { unavailable: true }
         finish.reservation.publish({ phase: 'ready' })
         if (response.outcome === 'failed') {
@@ -946,6 +983,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       }
       if ('rejected' in outcome) {
         const closed = await handle.close()
+        if ('released' in closed) invocations.delete(handle)
         if ('unavailable' in closed) return { unavailable: true }
         finish.reservation.publish({ phase: 'ready' })
         if (outcome.rejected === 'invalidInput') {
@@ -1085,12 +1123,24 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     close: async () => {
       closing = true
       for (const source of sources) source.release()
+      for (const invocation of invocations) invocation.abort()
+      const drained = await Promise.allSettled(
+        [...invocations].map(async invocation => {
+          const result = await invocation.close()
+          if ('released' in result) invocations.delete(invocation)
+          return result
+        }),
+      )
       const [reads, appendResult] = await Promise.all([retainedReads.close(), appends.close()])
       const writes = await unknownWrites.close({
         concurrent: runtime.settlementContention.limits.concurrent,
         call: runtime.history.call,
       })
-      return 'released' in reads && 'released' in appendResult && 'released' in writes
+      return drained.every(result => result.status === 'fulfilled' && 'released' in result.value) &&
+        'released' in reads &&
+        'released' in appendResult &&
+        'released' in writes &&
+        (borrowedScopes !== undefined || 'released' in scopes.close())
         ? ({ released: true } as const)
         : ({ unavailable: true } as const)
     },

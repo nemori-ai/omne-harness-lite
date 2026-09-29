@@ -22,6 +22,7 @@ function construction(
   const message = parseOpaqueIdentifier('unused-reply-message', 'MessageId')
   if (!('ok' in message)) throw new Error('reply message identity')
   return {
+    maxScopes: 4,
     sessions: {
       async bind(session) {
         return session === binding.log.session ? { binding } : { failure: 'invalidInput' }
@@ -30,6 +31,7 @@ function construction(
     calls: createCallContainerStore(),
     tokenMargin: { multiplier: 1, reserveTokens: 0 },
     transport: {
+      clearReuseScope() {},
       acquire() {
         reads.transport++
         return { unavailable: true }
@@ -410,6 +412,7 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
     const runtime = createRuntimeReads({
       ...base,
       transport: {
+        clearReuseScope() {},
         acquire() {
           transports++
           return { unavailable: true }
