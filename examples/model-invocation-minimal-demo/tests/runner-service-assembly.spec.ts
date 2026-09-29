@@ -175,15 +175,38 @@ describe('formal runner and P5 demo assembly', () => {
       if (!('state' in observed) || observed.state !== 'awaiting_decision')
         throw Error('retry history was not recognized')
       expect(observed.failureSubject.retryConclusions).toHaveLength(1)
+      const liveSource = await bound.service.readAttempts(
+        { session, callId: sent.callId },
+        { consumeFailure: true },
+      )
+      if (liveSource.consumption.kind !== 'failure') throw Error('live failure source absent')
+      const source = liveSource.consumption.source
+      expect(source.verify(source.subject)).toEqual({ authoritativeSubject: source.subject })
+      source.release()
+      expect(source.verify(source.subject)).toEqual({ unavailable: true })
       expect(await host.stop()).toEqual({ released: true })
+      const stoppedSource = await bound.service.readAttempts(
+        { session, callId: sent.callId },
+        { consumeFailure: true },
+      )
+      if (stoppedSource.consumption.kind === 'failure') {
+        expect(
+          stoppedSource.consumption.source.verify(stoppedSource.consumption.source.subject),
+        ).toEqual({
+          unavailable: true,
+        })
+        stoppedSource.consumption.source.release()
+      } else expect(stoppedSource.consumption).toEqual({ kind: 'notApplicable' })
       expect(await app.dispatchRunner(who, session, request, new AbortController().signal)).toEqual(
         { failure: 'unavailable' },
       )
       expect(tls.requests).toHaveLength(1)
     } finally {
       await host.stop()
-      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
-      else await app.close()
+      if (diagnostics) {
+        const closed = await diagnostics.closeAfterBusiness(() => app.close())
+        expect(closed.complete).toBe(true)
+      } else expect((await app.close()).complete).toBe(true)
       await tls.close()
     }
   })
