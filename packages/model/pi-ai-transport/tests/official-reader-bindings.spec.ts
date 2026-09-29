@@ -1,6 +1,7 @@
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import before from './fixtures/shared-reader/before-mp4-17.json' with { type: 'json' }
+import priorityRelease from './fixtures/shared-reader/priority-family-mp4-18.json' with { type: 'json' }
 import {
   openaiDefinitions,
   anthropicDefinitions,
@@ -57,19 +58,23 @@ const factories: Readonly<Record<string, (d: ModelDefinition) => InputMeter | un
         ? createGlm53InputMeter(d)
         : createZaiCommercialInputMeter(d),
 }
-describe('D108 shared reader contribution release', () => {
+const successors: Readonly<Record<string, (typeof priorityRelease)[keyof typeof priorityRelease]>> =
+  priorityRelease
+
+describe('Current official reader and priority-family releases', () => {
   it('enumerates exactly the frozen 37 supplied leaves', () => {
     expect(definitions.map(d => d.modelId).sort()).toEqual(before.map(d => d.modelId).sort())
     expect(new Set(definitions.map(d => d.modelId)).size).toBe(37)
   })
   it.each(before)(
-    '$modelId factory/profile/plan preserve the meter algorithm and input scope',
+    '$modelId factory/profile/plan use the current release and preserve unchanged facts',
     async row => {
       const definition = definitions.find(d => d.modelId === row.modelId)
       const factory = factories[row.family]
       if (!definition || !factory) throw Error('missing release leaf')
-      expect(definition.revision).toBe(row.expected.definition)
-      expect(definition.implementation).toEqual(row.expected.implementation)
+      const expected = successors[row.modelId] ?? { ...row, ...row.expected }
+      expect(definition.revision).toBe(expected.definition)
+      expect(definition.implementation).toEqual(expected.implementation)
       expect(definition.capabilities).toEqual(row.capabilities)
       const meter = factory(definition)
       if (!meter) throw Error('missing current meter')
@@ -79,10 +84,10 @@ describe('D108 shared reader contribution release', () => {
         replay: meter.replayRevision,
         transform: meter.transformRevision,
       }).toEqual({
-        algorithm: row.algorithm,
-        tokenizer: row.tokenizer,
-        replay: row.replay,
-        transform: row.transform,
+        algorithm: expected.algorithm,
+        tokenizer: expected.tokenizer,
+        replay: expected.replay,
+        transform: expected.transform,
       })
       expect(meter.definitionRevision).toBe(definition.revision)
       expect(meter.implementation).toEqual(definition.implementation)
