@@ -1,4 +1,5 @@
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { PositionedSubject } from '@omne-harness-lite/loop-extension'
@@ -240,7 +241,9 @@ export function createDemoRunnerServiceHost(
             if (
               execution.kind !== 'withRun' ||
               execution.run !== preparedExecution.run ||
-              execution.attempt !== preparedExecution.attempt
+              ExactDecimal.from(execution.attempt).compare(
+                ExactDecimal.from(preparedExecution.attempt),
+              ) !== 0
             )
               return { kind: 'invalidInput' }
             const verified = source.verify(subject.subject, {

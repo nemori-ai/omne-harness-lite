@@ -2599,7 +2599,10 @@ export function createAcceptanceApplication(
       const controlledRun = controlledRuns.get(borrow.binding.session)
       if (
         controlledRun !== undefined &&
-        (request.run !== controlledRun.run || request.attempt !== controlledRun.attempt)
+        (request.run !== controlledRun.run ||
+          request.attempt === undefined ||
+          ExactDecimal.from(request.attempt).compare(ExactDecimal.from(controlledRun.attempt)) !==
+            0)
       )
         return { invalidInput: { reason: 'malformed' } }
       if (
