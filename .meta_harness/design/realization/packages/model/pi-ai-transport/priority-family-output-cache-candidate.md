@@ -1,6 +1,6 @@
 # 优先两家完整输出贡献与纯图缓存增量
 
-2026-09-29，revision 2，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
+2026-09-29，revision 3，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
 
 依据为 [OpenAI 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-openai-closeout.md)、[Anthropic 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-anthropic-closeout.md)，选择依据见[提案附页](../../../../record/proposals/model-input-usage-calibration/priority-family-choice.md)。原产品允许有依据的估算及可配置余量；以下均不是精确计数或可证明上界。
 
@@ -51,11 +51,11 @@
 
 ## 原 signed prefix 的包内承接
 
-当前 new 输入只有 N，φ 只有目标组，不能从它们重建 P。planner 在来源校验通过、最终 projection 固定后，为需要强前缀的原组计算当前同 boundary 的 prefixDigest、inputEnvelopeDigest、projectionRevision 和所选组绝对位置；必须核 boundary 非负安全整数、不超当前长度且不越过该组起点。现有 inputEnvelopeDigest 还含 generation/routing；本次将宽 envelope 与 prefix 完全相等作为足够条件，不冒称其就是原生签名语义摘要。effort/max_tokens 等合法变参会使宽摘要变化，但原 MR9 未保存可拆分的窄摘要，因此此时必要贡献 unavailable，而不是 invalidInput 或“签名非法”；不能去掉当前字段再与旧宽摘要比较。扩大到这些变参后的旧签名计量需要另立有依据的持久事实增量，本页不宣称已支持。对原已知 requestInput 比较这些事实，不使用 caller 的“已验证”布尔，不把 basis relation 当作 prefix relation。
+当前 new 输入只有 N，φ 只有目标组，不能从它们重建 P。planner 在来源校验通过、最终 projection 固定后，为需要强前缀的原组计算当前同 boundary 的 prefixDigest、inputEnvelopeDigest、projectionRevision 和所选组绝对位置；必须核 boundary 非负安全整数、不超当前长度且必须等于该完整组在当前投影中的起点；只要求小于等于会漏过在原 P 与 signed G 之间插入新消息的反例。现有 inputEnvelopeDigest 还含 generation/routing；本次将宽 envelope 与 prefix 完全相等作为足够条件，不冒称其就是原生签名语义摘要。effort/max_tokens 等合法变参会使宽摘要变化，但原 MR9 未保存可拆分的窄摘要，因此此时必要贡献 unavailable，而不是 invalidInput 或“签名非法”；不能去掉当前字段再与旧宽摘要比较。扩大到这些变参后的旧签名计量需要另立有依据的持久事实增量，本页不宣称已支持。对原已知 requestInput 比较这些事实，不使用 caller 的“已验证”布尔，不把 basis relation 当作 prefix relation。
 
 本候选采用请求局部包内能力：共享 helper 由实际完整 projection 建立只读事实，使用 private WeakMap 以**本次最终冻结的 meter input 对象身份**关联；在同步 measure 调用前安装，finally 删除，不导出 package 公共入口，不存在跨请求全局 current slot。full 可直接从自有完整 projection 核验；new/φ 由上述同一事实计算函数承接，重入/并行的输入互不替代。事实仅含派生摘要与索引，不把 P 内容交给增量 tokenizer。planner 不能以传入摘要直接填表，原事实始终来自当前实际 projection。若实现 wrapper 复制 input，必须在最终传入对象处关联，不能失配后退化为信任。
 
-独立调用 InputMeter 的 new/φ 没有该局部能力时，对需要 signed prefix 的组返回 unavailable；公开 invoke 与 Cordis service 都由 planner 建立它，因此能力相同。该局部能力只证明当前投影上下文，仍须原 source/摘要/完整组检查；无原 requestInput 仍 unavailable。无公开 DTO、持久字段或新服务。实施验收加入：伪造同形 input、跨请求复用、throw 后清理、同步重入、不同 prefix 同 N、边界越过组、原事实缺席全部不能取得错误 prefix 通过。
+独立调用 InputMeter 的 new/φ 没有该局部能力时，对需要 signed prefix 的组返回 unavailable；公开 invoke 与 Cordis service 都由 planner 建立它，因此能力相同。该局部能力只证明当前投影上下文，仍须原 source/摘要/完整组检查；无原 requestInput 仍 unavailable。无公开 DTO、持久字段或新服务。实施验收加入：伪造同形 input、跨请求复用、throw 后清理、同步重入、不同 prefix 同 N、边界与组起点不等（包括 P 与 G 间插入消息）、原事实缺席全部不能取得错误 prefix 通过。
 
 ## ND-G2：last_message 纯图末端
 
