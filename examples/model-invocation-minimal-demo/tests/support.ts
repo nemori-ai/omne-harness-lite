@@ -170,7 +170,7 @@ export async function activateModelFixture(
   )
   const activated = await app.activateModelRequest(
     authenticated,
-    diagnostics.tenant,
+    diagnostics,
     diagnostics.transports,
   )
   if (!('activated' in activated)) {

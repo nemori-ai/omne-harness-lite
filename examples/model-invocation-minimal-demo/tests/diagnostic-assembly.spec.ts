@@ -265,6 +265,34 @@ describe('demo diagnostic assembly', () => {
     expect(transport.health().transportTerminalSnapshots).toBe(1)
   })
 
+  it('fixes unique generations at reservation even when commits arrive out of order or construction aborts', () => {
+    const transport = createDemoTransportRetention(4, () => new Date('2026-09-28T20:30:00Z'))
+    const first = transport.reserveReplacement()
+    const second = transport.reserveReplacement()
+    if (!('reservation' in first) || !('reservation' in second))
+      throw new Error('two reservations required')
+    expect(first.reservation.generation).toBe(1)
+    expect(second.reservation.generation).toBe(2)
+    expect(second.reservation.commit(fakeTransport().service)).toBe(2)
+    expect(first.reservation.commit(fakeTransport().service)).toBe(1)
+
+    const aborted = transport.reserveReplacement()
+    if (!('reservation' in aborted)) throw new Error('abort reservation required')
+    expect(aborted.reservation.generation).toBe(3)
+    aborted.reservation.abortNoResources()
+    const failed = transport.reserveReplacement()
+    if (!('reservation' in failed)) throw new Error('failed-construction reservation required')
+    expect(failed.reservation.generation).toBe(4)
+    expect(failed.reservation.adoptFailedConstruction(fakeTransport().service)).toBe(4)
+    expect(
+      transport
+        .health()
+        .live.map(entry => entry.generation)
+        .sort(),
+    ).toEqual([1, 2, 4])
+    expect(transport.health().unknownReservations).toBe(0)
+  })
+
   it('converts a real registry service only after its own close confirms resource release', async () => {
     const tracker = createDemoTransportRetention(1, () => new Date('2026-09-28T20:30:00Z'))
     const service = createModelTransportService({

@@ -80,7 +80,9 @@ Trusted deployments may supply `modelRequest.assetRegistry` as a borrowed `Asset
 
 ### Local engineering journal
 
-The demo authenticates first, opens separate owner-only local and verified-tenant JSONL collectors, then activates its model-request fibers in the same Cordis context. For programmatic assembly, `createAcceptanceApplication(...).ready` prepares identity and session-log access; call `activateModelRequest(actor, diagnostics.tenant, diagnostics.transports)` only after authenticating and opening the diagnostic assembly. A failed activation does not open model admission.
+The demo authenticates first, opens separate owner-only local and verified-tenant JSONL collectors, then activates its model-request fibers in the same Cordis context. For programmatic assembly, `createAcceptanceApplication(...).ready` prepares identity and session-log access; call `activateModelRequest(actor, diagnostics, diagnostics.transports)` only after authenticating and opening both diagnostic owners. The argument supplies the `local` and `tenant` handles. A failed activation does not open model admission.
+
+Each transport construction reserves a generation before creating the service. Its registry borrows a record-only port bound to the local collector and the fixed `transport:<generation>` execution ID; registration and retirement events come from the actual registry. A confirmed resource-free abort leaves a generation gap; an unknown construction retains its reservation. These events do not enter the tenant journal. The service's `inspect()` reports registry delivery failures and drops separately from network diagnostics and collector health, including on retained terminal snapshots.
 
 The diagnostic wall clock reads the host source exported by `@omne-harness-lite/clock` and remains available to retained readers after the application's leased business Clock closes. Unreadable or backward time makes retention queries unavailable.
 

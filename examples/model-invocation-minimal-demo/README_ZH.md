@@ -80,7 +80,9 @@ Closed. Start again with the same --data path to resume.
 
 ### 本机工程日志
 
-示例先完成真实认证，分别打开仅属主可访问的本机与已核租户 JSONL collector，再在同一 Cordis Context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 只准备身份与会话日志访问；认证并打开诊断装配后，才调用 `activateModelRequest(actor, diagnostics.tenant, diagnostics.transports)`。激活失败不会开放模型准入。
+示例先完成真实认证，分别打开仅属主可访问的本机与已核租户 JSONL collector，再在同一 Cordis Context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 只准备身份与会话日志访问；认证并打开两个诊断 owner 后，才调用 `activateModelRequest(actor, diagnostics, diagnostics.transports)`。该参数提供 `local` 与 `tenant` 句柄。激活失败不会开放模型准入。
+
+每次构造 transport 前先预留代际。注册表只借用绑定本机 collector 和固定 `transport:<generation>` 执行标识的 record 端口；注册与退役事件由真实注册表产生。确认未取得资源的构造中止会留下代际编号缺口；资源状态未知时保留预留名额。这些事件不进入租户日志。service 的 `inspect()` 分别报告注册表投递失败与拒收，不与网络诊断或 collector health 相加；保留的终态快照也保留这两项原值。
 
 诊断墙钟读取 `@omne-harness-lite/clock` 导出的宿主时间源，在应用租约业务 Clock 关闭后仍供保留读句柄使用；时钟不可读或倒退时，保留期查询返回不可用。
 

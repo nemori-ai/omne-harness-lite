@@ -326,7 +326,7 @@ export async function openDemo(
     )
     const activated = await app.activateModelRequest(
       actor,
-      diagnosticAssembly.tenant,
+      diagnosticAssembly,
       diagnosticAssembly.transports,
     )
     if (!('activated' in activated)) throw new Error('demo model stage unavailable')

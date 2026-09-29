@@ -38,6 +38,7 @@ import {
   type ModelLogSettlementTarget,
   type ObserverDiagnostic,
   type SettlementDiagnostic,
+  type DiagnosticEvent,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
@@ -89,7 +90,7 @@ import {
 } from '@omne-harness-lite/pi-ai-transport/plugin'
 import { prepareModelRequestDeployment } from './model-request-deployment.ts'
 import type {
-  DemoDiagnosticScope,
+  DemoDiagnosticAssembly,
   DemoTransportRetention,
   TransportReservation,
 } from './diagnostic-assembly.ts'
@@ -296,10 +297,10 @@ function operationError(error: unknown, step: string): Error {
 
 export interface AcceptanceApplication {
   readonly ready: Promise<{ readonly confirmation: UpgradeConfirmation }>
-  /** The verified tenant's diagnostic owner must already be open before P-2 starts. */
+  /** The verified tenant and local diagnostic owners must already be open before P-2 starts. */
   activateModelRequest(
     actor: AuthenticatedActor,
-    diagnostics: DemoDiagnosticScope,
+    diagnostics: Pick<DemoDiagnosticAssembly, 'local' | 'tenant'>,
     transportRetention: DemoTransportRetention,
   ): Promise<ScenarioResult<{ readonly activated: true }>>
   /** Read the already-owned lease Clock; no second wall-clock authority. */
@@ -506,7 +507,8 @@ export function createAcceptanceApplication(
   let activationInputs:
     | {
         readonly actor: AuthenticatedActor
-        readonly diagnostics: DemoDiagnosticScope
+        readonly local: DemoDiagnosticAssembly['local']
+        readonly tenant: DemoDiagnosticAssembly['tenant']
         readonly transportRetention: DemoTransportRetention
       }
     | undefined
@@ -1088,13 +1090,14 @@ export function createAcceptanceApplication(
   }
   function activateModelRequest(
     actor: AuthenticatedActor,
-    diagnostics: DemoDiagnosticScope,
+    diagnostics: Pick<DemoDiagnosticAssembly, 'local' | 'tenant'>,
     transportRetention: DemoTransportRetention,
   ): Promise<ScenarioResult<{ readonly activated: true }>> {
     if (stage !== 'modelRequest' || closing) return Promise.resolve({ failure: 'stageClosed' })
     if (activationTask !== undefined) {
       return activationInputs?.actor === actor &&
-        activationInputs.diagnostics === diagnostics &&
+        activationInputs.local === diagnostics.local &&
+        activationInputs.tenant === diagnostics.tenant &&
         activationInputs.transportRetention === transportRetention
         ? activationTask
         : Promise.resolve({ failure: 'identityMismatch' })
@@ -1104,26 +1107,34 @@ export function createAcceptanceApplication(
       if (!admitIdentity()) return { failure: 'stageClosed' }
       const checked = await checkActor(actor)
       if (!('account' in checked)) return checked
+      const local = diagnostics?.local
+      const tenant = diagnostics?.tenant
       const diagnosticTenant =
-        diagnostics?.scope?.kind === 'tenant' ? parseTenantId(diagnostics.scope.tenant) : undefined
+        tenant?.scope?.kind === 'tenant' ? parseTenantId(tenant.scope.tenant) : undefined
       if (
+        local?.scope?.kind !== 'local' ||
         diagnosticTenant === undefined ||
         !isOk(diagnosticTenant) ||
         !tenantIdEquals(diagnosticTenant.ok, checked.tenant)
       )
         return { failure: 'identityMismatch' }
       if (
-        typeof diagnostics.collector?.emitter !== 'function' ||
+        typeof local.collector?.record !== 'function' ||
+        typeof tenant.collector?.emitter !== 'function' ||
         typeof transportRetention?.reserveReplacement !== 'function'
       )
         return { failure: 'stageClosed' }
       try {
-        if (diagnostics.health().writeState !== 'open' || !transportRetention.health().accepting)
+        if (
+          local.health().writeState !== 'open' ||
+          tenant.health().writeState !== 'open' ||
+          !transportRetention.health().accepting
+        )
           return { failure: 'stageClosed' }
       } catch {
         return { failure: 'stageClosed' }
       }
-      activationInputs = { actor, diagnostics, transportRetention }
+      activationInputs = { actor, local, tenant, transportRetention }
       try {
         if (stage === 'modelRequest') {
           if (
@@ -1171,6 +1182,12 @@ export function createAcceptanceApplication(
           const reserved = transportRetention.reserveReplacement()
           if ('unavailable' in reserved) throw new Error('transport_retention_full')
           const reservation: TransportReservation = reserved.reservation
+          const association = Object.freeze({ executionId: `transport:${reservation.generation}` })
+          const registryDiagnostics = Object.freeze({
+            record(event: DiagnosticEvent) {
+              return local.collector.record(event, local.scope, association)
+            },
+          })
           let committed = false
           try {
             if (options.developmentTransport === undefined) {
@@ -1178,6 +1195,7 @@ export function createAcceptanceApplication(
                 policy: transportConfiguration.policy,
                 retirement: transportConfiguration.retirement,
                 onDiagnostic,
+                registryDiagnostics,
               })
             } else {
               const developmentTransport = options.developmentTransport
@@ -1190,6 +1208,7 @@ export function createAcceptanceApplication(
                       ...developmentTransport,
                       policy: transportConfiguration.policy,
                       onDiagnostic,
+                      registryDiagnostics,
                     })
                     ctx.effect(() => async () => {
                       const result = await service.close(transportConfiguration.retirement)
@@ -1381,7 +1400,7 @@ export function createAcceptanceApplication(
                 }
               },
             },
-            diagnosticCollector: diagnostics.collector,
+            diagnosticCollector: tenant.collector,
             diagnostic: recordSettlement,
           }
           modelRuntime = createModelRuntime(construction)

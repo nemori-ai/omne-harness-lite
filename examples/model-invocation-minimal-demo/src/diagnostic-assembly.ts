@@ -94,10 +94,13 @@ interface Instance {
 }
 
 interface Reservation {
+  readonly generation: number
   state: 'reserved' | 'unknown' | 'settled'
 }
 
 export interface TransportReservation {
+  /** Fixed before service construction; failed reservations do not reuse this number. */
+  readonly generation: number
   /** Called only after construction returned the actual service. */
   readonly commit: (service: ModelTransportService) => number
   /** A trusted construction path confirmed that no service or other resource exists. */
@@ -234,10 +237,12 @@ export function createDemoTransportRetention(
       transportReplacementRefusals = bump(transportReplacementRefusals)
       return { unavailable: 'transport_retention_full' }
     }
-    const item: Reservation = { state: 'reserved' }
+    generation++
+    const item: Reservation = { generation, state: 'reserved' }
     reservations.add(item)
     return {
       reservation: Object.freeze({
+        generation: item.generation,
         commit(service: ModelTransportService): number {
           return attach(item, service, 'current')
         },
@@ -278,16 +283,15 @@ export function createDemoTransportRetention(
       const prior = live.get(current)
       if (prior) prior.role = 'retired'
     }
-    generation++
     const entry: Instance = {
-      generation,
+      generation: item.generation,
       service,
       role,
       retirement: 'not_started',
       closed: 'pending',
     }
-    if (role === 'current') current = generation
-    live.set(generation, entry)
+    if (role === 'current') current = item.generation
+    live.set(item.generation, entry)
     void service.closed.then(
       () => {
         entry.closed = 'confirmed'
@@ -296,7 +300,7 @@ export function createDemoTransportRetention(
         entry.closed = 'failed'
       },
     )
-    return generation
+    return item.generation
   }
 
   function markRetired(id: number): void {
