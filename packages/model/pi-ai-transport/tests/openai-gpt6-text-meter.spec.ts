@@ -1,3 +1,4 @@
+import { getEncoding } from 'js-tiktoken'
 import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
@@ -82,7 +83,7 @@ function request(modelId: string, set = 'fit'): PlanInput {
   }
 }
 
-describe('GPT-6 Sol text and Luna visible-history estimators', () => {
+describe('GPT-6 Sol and Luna visible-history estimators', () => {
   let cert: ReturnType<typeof certificate>
   beforeAll(() => {
     cert = certificate()
@@ -93,7 +94,7 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
     const selected = definition(modelId)
     expect(createOpenAiInputMeter(selected)).toMatchObject(
       modelId === 'openai/gpt-6-sol'
-        ? { definitionRevision: '2', implementation: { revision: 'mp4-2' } }
+        ? { definitionRevision: '3', implementation: { revision: 'mp4-6' } }
         : { definitionRevision: '3', implementation: { revision: 'mp4-4' } },
     )
     expect(() => createOpenAiInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
@@ -110,8 +111,30 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
     const meter = createOpenAiInputMeter(definition(c.modelId))
     const measurement = meter.measureFull({ body, serialized: c.wire })
     expect(measurement.kind).toBe('estimated')
-    if (c.modelId === 'openai/gpt-6-sol')
-      expect(measurement).toEqual({ kind: 'estimated', tokens: c.set === 'fit' ? 435 : 239 })
+    // Keep the original independent text-proxy observations distinct from
+    // the new complete-history JSON estimate; no claim of unchanged counts.
+    const tokenizer = getEncoding('o200k_base')
+    const originalProxy = [
+      textAt(body, 0, 0),
+      textAt(body, 1, 0),
+      textAt(body, 1, 1),
+      textAt(body, 2, 0),
+    ].reduce((sum, text) => sum + tokenizer.encode(text).length, 14)
+    expect(originalProxy).toBe(
+      c.modelId === 'openai/gpt-6-sol'
+        ? c.set === 'fit'
+          ? 435
+          : 239
+        : c.set === 'fit'
+          ? 438
+          : 242,
+    )
+    expect(measurement).toEqual({
+      kind: 'estimated',
+      tokens: tokenizer.encode(
+        writeJsonLossless(c.modelId === 'openai/gpt-6-sol' ? body : { messages: body.messages! }),
+      ).length,
+    })
     const planned = planRequest(request(c.modelId, c.set), [definition(c.modelId)], meter)
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.serialized).toBe(c.wire)
@@ -161,7 +184,7 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
       for (const changed of [
         { ...body, model: 'openai/gpt-6-astra' },
         { ...body, tools: [] },
-        { ...body, reasoning: { effort: 'high' } },
+        ...(modelId === 'openai/gpt-6-luna' ? [{ ...body, reasoning: { effort: 'high' } }] : []),
         { ...body, reasoning: { effort: 'low', mode: 'pro' } },
         { ...body, prompt_cache_options: { ttl: '1h' } },
         {
@@ -204,7 +227,7 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
       expect(
         meter.measureFull({ body: oneVisibleUser, serialized: writeJsonLossless(oneVisibleUser) })
           .kind,
-      ).toBe(modelId === 'openai/gpt-6-sol' ? 'unavailable' : 'estimated')
+      ).toBe('estimated')
     },
   )
 
@@ -246,18 +269,15 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
           message('user', 'Keep this complete history.', 'followup'),
         ]
         const historyPlan = transport.plan({ ...input, messages: history })
-        if (modelId === 'openai/gpt-6-sol') expect(historyPlan).toMatchObject(unavailable)
-        else {
-          if ('rejected' in historyPlan) throw new Error(JSON.stringify(historyPlan))
-          expect(historyPlan.planned.serialized).toContain('Keep this complete history.')
-        }
+        if ('rejected' in historyPlan) throw new Error(JSON.stringify(historyPlan))
+        expect(historyPlan.planned.serialized).toContain('Keep this complete history.')
         expect(history).toHaveLength(4)
-        expect(
-          transport.plan({
-            ...input,
-            parameters: { reasoningEffort: 'high', maxOutputTokens: 16 },
-          }),
-        ).toMatchObject(unavailable)
+        const high = transport.plan({
+          ...input,
+          parameters: { reasoningEffort: 'high', maxOutputTokens: 16 },
+        })
+        if (modelId === 'openai/gpt-6-sol') expect(high).toHaveProperty('planned')
+        else expect(high).toMatchObject(unavailable)
         const withTools = transport.plan({
           ...input,
           tools: [
@@ -268,8 +288,7 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
             },
           ],
         })
-        if (modelId === 'openai/gpt-6-sol') expect(withTools).toMatchObject(unavailable)
-        else expect(withTools).toHaveProperty('planned')
+        expect(withTools).toHaveProperty('planned')
         expect(host.requests).toHaveLength(0)
         const planned = transport.plan(input)
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))

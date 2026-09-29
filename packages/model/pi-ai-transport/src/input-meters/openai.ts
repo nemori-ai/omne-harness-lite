@@ -231,65 +231,6 @@ function imageRuleFor(modelId: string): ImageRule | undefined {
   }
 }
 
-// Calibrated independently for GPT-6 Sol and Luna on the fixed OpenAI route:
-// baseline, length perturbation and untouched CJK/code holdout. The fixed +14
-// matched those observations, not a proof of exact framing or an error bound.
-function threeMessageTextTokens(
-  body: JsonObject,
-  modelId: string,
-  tokenizer: ReturnType<typeof encoder>,
-): number | undefined {
-  if (
-    body.model !== modelId ||
-    Object.keys(body).some(
-      key =>
-        !['model', 'provider', 'stream', 'store', 'messages', 'reasoning', 'max_tokens'].includes(
-          key,
-        ),
-    ) ||
-    !object(body.provider) ||
-    Object.keys(body.provider).some(
-      key => !['order', 'allow_fallbacks', 'require_parameters'].includes(key),
-    ) ||
-    !Array.isArray(body.provider.order) ||
-    body.provider.order.length !== 1 ||
-    body.provider.order[0] !== 'openai' ||
-    body.provider.allow_fallbacks !== false ||
-    body.provider.require_parameters !== true ||
-    body.stream !== true ||
-    body.store !== false ||
-    !object(body.reasoning) ||
-    Object.keys(body.reasoning).length !== 1 ||
-    body.reasoning.effort !== 'low' ||
-    (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
-    !Array.isArray(body.messages) ||
-    body.messages.length !== 3
-  )
-    return undefined
-  let tokens = 14
-  for (const [index, message] of body.messages.entries()) {
-    if (
-      !object(message) ||
-      Object.keys(message).some(key => key !== 'role' && key !== 'content') ||
-      message.role !== ['system', 'developer', 'user'][index] ||
-      !Array.isArray(message.content) ||
-      message.content.length !== [1, 2, 1][index]
-    )
-      return undefined
-    for (const part of message.content) {
-      if (
-        !object(part) ||
-        Object.keys(part).some(key => key !== 'type' && key !== 'text') ||
-        part.type !== 'text' ||
-        typeof part.text !== 'string'
-      )
-        return undefined
-      tokens += tokenizer.encode(part.text).length
-    }
-  }
-  return tokens
-}
-
 function onlyKeys(value: JsonObject, allowed: readonly string[]): boolean {
   return Object.keys(value).every(key => allowed.includes(key))
 }
@@ -313,6 +254,18 @@ function visibleHistoryTokens(
   modelId: string,
   tokenizer: ReturnType<typeof encoder>,
 ): number | undefined {
+  // Only Sol's new exact binding adopts all of its declared effort values.
+  // Include the final controls in its surrogate, without inventing defaults.
+  // Luna retains its published low-effort/messages+tools algorithm unchanged.
+  const solFinal = modelId === 'openai/gpt-6-sol'
+  const reasoningValid = solFinal
+    ? body.reasoning === undefined ||
+      (object(body.reasoning) &&
+        onlyKeys(body.reasoning, ['effort']) &&
+        ['none', 'low', 'medium', 'high', 'max'].includes(String(body.reasoning.effort)))
+    : object(body.reasoning) &&
+      onlyKeys(body.reasoning, ['effort']) &&
+      body.reasoning.effort === 'low'
   if (
     body.model !== modelId ||
     !onlyKeys(body, [
@@ -334,9 +287,7 @@ function visibleHistoryTokens(
     body.provider.require_parameters !== true ||
     body.stream !== true ||
     body.store !== false ||
-    !object(body.reasoning) ||
-    !onlyKeys(body.reasoning, ['effort']) ||
-    body.reasoning.effort !== 'low' ||
+    !reasoningValid ||
     (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
     !Array.isArray(body.messages) ||
     !body.messages.length ||
@@ -407,50 +358,22 @@ function visibleHistoryTokens(
     messages: body.messages,
     ...(body.tools === undefined ? {} : { tools: body.tools }),
   }
-  return tokenizer.encode(writeJsonLossless(visible)).length
-}
-
-/** Unbound Sol candidate. Luna has its own verified official binding. */
-export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefinition): InputMeter {
-  if (
-    definition.modelId !== 'openai/gpt-6-sol' ||
-    definition.revision !== '2' ||
-    definition.implementation.name !== 'pi-ai:openai' ||
-    definition.implementation.revision !== 'mp4-2' ||
-    !Object.hasOwn(definition.routes, 'openai')
-  )
-    throw new TypeError('unsupported OpenAI visible-history candidate binding')
-  const tokenizer = encoder()
-  const meter = defineInputMeter({
-    modelId: definition.modelId,
-    definitionRevision: definition.revision,
-    implementation: definition.implementation,
-    provider: 'openai',
-    algorithmRevision: 'openai-gpt-6-visible-history-json-o200k-candidate-1',
-    evidence:
-      'Unbound Sol research candidate: o200k_base lossless JSON of complete visible messages and tools; frozen request probes only; no live Sol history certification or framing bound',
-    measureFull({ body, serialized }): TokenMeasurement {
-      if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-      try {
-        const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
-        return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
-      } catch {
-        return { kind: 'unavailable' }
-      }
-    },
-  })
-  return Object.freeze(meter)
+  return tokenizer.encode(writeJsonLossless(solFinal ? body : visible)).length
 }
 
 /** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
-  const gpt6SolText = definition.modelId === 'openai/gpt-6-sol'
+  const gpt6SolVisibleHistory = definition.modelId === 'openai/gpt-6-sol'
   const gpt6LunaVisibleHistory = definition.modelId === 'openai/gpt-6-luna'
   const imageRule = imageRuleFor(definition.modelId)
-  const revision = gpt6SolText ? '2' : gpt6LunaVisibleHistory ? '3' : '4'
-  const implementationRevision = gpt6SolText ? 'mp4-2' : gpt6LunaVisibleHistory ? 'mp4-4' : 'mp4-5'
+  const revision = gpt6SolVisibleHistory || gpt6LunaVisibleHistory ? '3' : '4'
+  const implementationRevision = gpt6SolVisibleHistory
+    ? 'mp4-6'
+    : gpt6LunaVisibleHistory
+      ? 'mp4-4'
+      : 'mp4-5'
   if (
-    (!gpt6SolText && !gpt6LunaVisibleHistory && !imageRule) ||
+    (!gpt6SolVisibleHistory && !gpt6LunaVisibleHistory && !imageRule) ||
     definition.revision !== revision ||
     definition.implementation.name !== 'pi-ai:openai' ||
     definition.implementation.revision !== implementationRevision ||
@@ -463,23 +386,24 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'openai',
-    algorithmRevision: gpt6SolText
-      ? 'openai-gpt-6-text-three-message-o200k-surrogate-1'
+    algorithmRevision: gpt6SolVisibleHistory
+      ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
       : gpt6LunaVisibleHistory
         ? 'openai-gpt-6-luna-visible-history-json-o200k-1'
         : 'openai-gpt-5.6-o200k-base-4',
-    evidence: gpt6SolText
-      ? 'OpenRouter OpenAI GPT-6 Sol low-effort three-message baseline/fit/holdout, frozen o200k text surrogate +14; openai-v2-sol-luna-80fe189b-8a59-4d1b-89da-02cd553c97e8 (2026-09-28); exact tokenizer and whole-domain error unknown'
+    evidence: gpt6SolVisibleHistory
+      ? 'OpenRouter OpenAI GPT-6 Sol low-effort o200k text surrogate baseline/length/CJK-code holdout (2026-09-28); complete visible final-request JSON includes controls and extends the surrogate to protocol framing as an estimate; OpenAI reasoning guide separates mode/effort (2026-09-29), declared Sol efforts and absent effort counted as sent; live multi-turn/effort errors and private framing remain unverified'
       : gpt6LunaVisibleHistory
         ? 'OpenRouter OpenAI GPT-6 Luna low-effort visible text/tool/reminder history: three frozen full-wire live requests and independent generation GET (2026-09-28), estimated 126/302/410 versus actual input 70/178/236; error outside these samples and private framing unknown'
         : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis',
+    ...(gpt6SolVisibleHistory
+      ? { tokenizerRevision: 'js-tiktoken-1.0.21/o200k-base-gpt6-sol-surrogate/1' }
+      : {}),
     measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-      if (gpt6SolText || gpt6LunaVisibleHistory) {
+      if (gpt6SolVisibleHistory || gpt6LunaVisibleHistory) {
         try {
-          const tokens = gpt6SolText
-            ? threeMessageTextTokens(body, definition.modelId, tokenizer)
-            : visibleHistoryTokens(body, definition.modelId, tokenizer)
+          const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
           return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
         } catch {
           return { kind: 'unavailable' }
@@ -496,9 +420,8 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       }
     },
   })
-  if (gpt6SolText) return meter
   return withEstimatedJsonMarginals(meter, input => {
-    if (!gpt6LunaVisibleHistory) return fullJsonMarginal(meter, input)
+    if (!gpt6SolVisibleHistory && !gpt6LunaVisibleHistory) return fullJsonMarginal(meter, input)
     if (!input.units.length) return { kind: 'exact', tokens: 0 }
     const { tools: _tools, ...envelope } = input.envelope
     const tokens = visibleHistoryTokens(
@@ -510,7 +433,13 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       ? { kind: 'unavailable' }
       : {
           kind: 'estimated',
-          tokens: tokens - tokenizer.encode(writeJsonLossless({ messages: [] })).length,
+          tokens:
+            tokens -
+            tokenizer.encode(
+              writeJsonLossless(
+                gpt6SolVisibleHistory ? { ...envelope, messages: [] } : { messages: [] },
+              ),
+            ).length,
         }
   })
 }

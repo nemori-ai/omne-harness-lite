@@ -173,7 +173,8 @@ export function measureCalibrated(
         observed.provenance.upstreamModel !== basis.model) ||
       (observed.provenance.servingProvider !== undefined &&
         observed.provenance.servingProvider !== basis.provider &&
-        !(basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic'))
+        !(basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic') &&
+        !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI'))
     )
       fallback = 'basis_changed'
     else {

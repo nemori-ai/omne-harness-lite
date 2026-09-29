@@ -1,13 +1,11 @@
+import { getEncoding } from 'js-tiktoken'
 import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import {
-  createOpenAiInputMeter,
-  createOpenAiVisibleHistoryCandidateMeter,
-} from '../src/input-meters/openai.ts'
+import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { object, strictObject } from '../src/json.ts'
 import { planRequest } from '../src/plan.ts'
@@ -37,9 +35,13 @@ function definition(modelId: string) {
 
 function historyMeter(modelId: string) {
   const selected = definition(modelId)
-  return modelId === 'openai/gpt-6-luna'
-    ? createOpenAiInputMeter(selected)
-    : createOpenAiVisibleHistoryCandidateMeter(selected)
+  return createOpenAiInputMeter(selected)
+}
+
+function expectedTokens(c: (typeof packet.cases)[number]): number {
+  return c.modelId === 'openai/gpt-6-sol'
+    ? getEncoding('o200k_base').encode(c.wire).length
+    : c.expectedTokens
 }
 
 function finalBody(c: (typeof packet.cases)[number]): JsonObject {
@@ -186,7 +188,7 @@ function request(c: (typeof packet.cases)[number]): PlanInput {
   }
 }
 
-describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
+describe('OpenAI official Sol and Luna visible-history meters', () => {
   let cert: ReturnType<typeof certificate>
   beforeAll(() => {
     cert = certificate()
@@ -224,21 +226,21 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
       const body = finalBody(c)
       expect(meter.measureFull({ body, serialized: c.wire })).toEqual({
         kind: 'estimated',
-        tokens: c.expectedTokens,
+        tokens: expectedTokens(c),
       })
       const result = planRequest(request(c), [selected], meter)
       if ('rejected' in result) throw new Error(JSON.stringify(result))
       expect(result.planned.serialized).toBe(c.wire)
       expect(result.planned.inputLimitEvidence).toMatchObject({
-        inputTokens: { kind: 'estimated', tokens: c.expectedTokens },
+        inputTokens: { kind: 'estimated', tokens: expectedTokens(c) },
         tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
-        admissionTokens: Math.ceil((c.expectedTokens * 11) / 10) + 64,
+        admissionTokens: Math.ceil((expectedTokens(c) * 11) / 10) + 64,
       })
       expect(
         planRequest(
           {
             ...request(c),
-            snapshot: { ...request(c).snapshot, maxInputTokens: c.expectedTokens },
+            snapshot: { ...request(c).snapshot, maxInputTokens: expectedTokens(c) },
           },
           [selected],
           meter,
@@ -247,8 +249,8 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
         rejected: 'invalidInput',
         reason: 'input_limit_exceeded',
         basis: 'estimated',
-        estimatedTokens: c.expectedTokens,
-        admissionTokens: Math.ceil((c.expectedTokens * 11) / 10) + 64,
+        estimatedTokens: expectedTokens(c),
+        admissionTokens: Math.ceil((expectedTokens(c) * 11) / 10) + 64,
       })
     },
   )
@@ -322,7 +324,7 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
     const transport = createPiAiTransport({
       ...host.options,
       definitions: [selected],
-      // Sol remains an unbound research candidate; this does not alter its official meter.
+      // Both models use their current exact official meter binding.
       inputMeters: [historyMeter(c.modelId)],
     })
     try {
@@ -333,7 +335,7 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
       expect(planned.planned.serialized).toContain('"max_tokens":64')
       expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
         kind: 'estimated',
-        tokens: c.expectedTokens,
+        tokens: expectedTokens(c),
       })
       let contentGates = 0
       const accepted: string[] = []
@@ -465,6 +467,12 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
     }
     expect(changed(alteredTools)).not.toEqual(changed(body))
     expect(planRequest(request(c), [definition(c.modelId)], meter)).toHaveProperty('planned')
-    expect(() => createOpenAiVisibleHistoryCandidateMeter(definition(c.modelId))).toThrow(TypeError)
+    expect(() =>
+      createOpenAiInputMeter({
+        ...definition('openai/gpt-6-sol'),
+        revision: '2',
+        implementation: { name: 'pi-ai:openai', revision: 'mp4-2' },
+      }),
+    ).toThrow(TypeError)
   })
 })
