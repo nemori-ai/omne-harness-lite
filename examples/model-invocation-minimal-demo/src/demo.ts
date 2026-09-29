@@ -18,6 +18,7 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import { decodeModelLogKey, type TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication, type AcceptanceApplication } from './bootstrap.ts'
 import {
+  DemoDiagnosticStartupFailure,
   openDemoDiagnosticAssembly,
   type DemoDiagnosticAssembly,
   type DemoDiagnosticConfig,
@@ -154,7 +155,10 @@ type DemoSendOutcome =
   | { readonly kind: 'unconfirmed' }
 
 export class DemoStartupFailure extends Error {
-  constructor(readonly cleanupComplete: boolean) {
+  constructor(
+    readonly cleanupComplete: boolean,
+    readonly retryCleanup?: () => Promise<{ readonly complete: boolean }>,
+  ) {
     super('demo startup unavailable')
   }
 }
@@ -527,7 +531,17 @@ export async function openDemo(
     const closed = diagnosticAssembly
       ? await diagnosticAssembly.closeAfterBusiness(() => app.close())
       : await app.close()
-    if (!closed.complete) throw new DemoStartupFailure(false)
+    if (!closed.complete)
+      throw new DemoStartupFailure(false, async () => {
+        const business = diagnosticAssembly
+          ? await diagnosticAssembly.closeAfterBusiness(() => app.close())
+          : await app.close()
+        const partial =
+          error instanceof DemoDiagnosticStartupFailure
+            ? await error.retryCleanup()
+            : { complete: true }
+        return { complete: business.complete && partial.complete }
+      })
     throw error
   }
 }
