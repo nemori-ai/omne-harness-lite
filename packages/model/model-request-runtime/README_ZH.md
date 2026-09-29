@@ -35,7 +35,7 @@
 
 独立调用的可选 `beforeSend` 是一次传输发送前的同步最终准入。只有字面值 `true` 继续；`false` 在发送前取消，抛错或非法返回保持不可用。锚定服务在这里提供当前停止／代际检查。`observedFacts()` 只在原执行的 reader 和门任务实际停止后读取；不可用不能改判为缺席。它保留的真实发送时刻、部分账和响应头可供恢复使用，而耐久的「已出门」「已开口」记录仍是结算权威。
 
-服务通过 `RuntimeConstruction.policy.diagnostic` 完整转交既有 `SettlementDiagnostic` 的租户、会话、调用、dispatch、响应、owner、policy 及争用计数；观察投递诊断仍在 `detail` 中携带类型化作用域、位置和缓冲计数。诊断回调只作尽力投递，其失败不改变结算或观察投递的业务结果；应用应独立保留输出失败状态。这些端口不提供耐久追踪库或查询 API。工程关联与内容边界见 RT9 S-63。
+服务通过 `RuntimeConstruction.diagnostic` 完整转交既有 `SettlementDiagnostic` 的租户、会话、调用、dispatch、响应、owner、policy 及争用计数；观察投递诊断仍在 `detail` 中携带类型化作用域、位置和缓冲计数。诊断回调只作尽力投递，其失败不改变结算或观察投递的业务结果；应用应独立保留输出失败状态。这些端口不提供耐久追踪库或查询 API。工程关联与内容边界见 RT9 S-63。
 
 ## 仍在集成的 Cordis 服务装配
 
@@ -782,7 +782,7 @@ runtime 负责发送定义并装配流式工具调用；调用者负责在后续
 
 `createDiagnosticCollector(config)` 将类型化观测接入有界队列，用独立 emitter 保留每次调用的关联。调用者须完整提供 `DiagnosticCollectorConfig`，包括 `DiagnosticJournalStore`、单个 local 或 tenant scope、时钟、调度器及全部容量和超时。collector 本身不提供文件存储。`recorded` 只表示内存接纳；written/flushed 水位及未完成关闭从 health 读取。query/export 要求相同 scope 和显式分页界限，精确数值保留 JSON number 表示。
 
-这些是工程诊断记录，与会话日志和恢复权威分开。下例接收真实宿主配置及观测到的 HTTP 状态，每次调用使用独立 emitter；close 返回 incomplete 时继续持有 collector。示例已提供独立 JSONL 实现；完整 runtime/transport 接线仍在推进。健康面同时报告保留、过期和淘汰的条数与字节；无法取得的存储计数保持 unknown。
+这些是工程诊断记录，与会话日志和恢复权威分开。下例接收真实宿主配置及观测到的 HTTP 状态，每次调用使用独立 emitter；close 返回 incomplete 时继续持有 collector。示例已提供独立 JSONL 实现；完整 demo 组合及其余诊断阶段仍在推进。健康面同时报告保留、过期和淘汰的条数与字节；无法取得的存储计数保持 unknown。
 
 ```ts
 import {
@@ -806,3 +806,28 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
 ```
 
 空 journal 的 `through.sequence` 为 `"0"`，只表示尚未写入的水位；它不是记录身份，也不能用作 `after` 或 `causedBy`，这些序列从一开始。新增记录后沿用原零水位，仍只查询空前缀。
+
+`invokeModel` 可接收 `diagnosticAssociation` 与 `diagnosticEmitterFactory`。工厂为本次调用取得一个 emitter，transport 的 send/read 沿用同一关联。自由关联字符串在持有凭据的执行边界处理；独立调用不需要租户或会话。collector 由宿主持有，业务真正停止后再关闭；每次调用只关闭自己的 emitter。诊断回调失败不改变响应或计量事实。
+
+```ts
+import {
+  invokeModel,
+  type DiagnosticCollector,
+  type InvocationInput,
+  type PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
+
+export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
+  input: InvocationInput<P, R>,
+  collector: DiagnosticCollector,
+  executionId: string,
+) {
+  return invokeModel({
+    ...input,
+    diagnosticAssociation: { executionId },
+    diagnosticEmitterFactory: association => collector.emitter({ kind: 'local' }, association),
+  })
+}
+```
+
+服务路径通过 `RuntimeConstruction.diagnosticCollector` 接入。dispatch 从已核实的会话绑定取得 tenant scope，只记录已经存在的身份，重试因果只指向实际 recorded 的引用。结算按固定事实白名单投影；恢复只有在完整结果成立且 scope 真正关闭后才记录 `without_resend`。工程记录不成为恢复权威。完整 demo 接线及其余观察阶段仍在集成中。

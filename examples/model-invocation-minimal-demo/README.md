@@ -101,3 +101,5 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 ```
 
 Queries and `exportPage(query, { maxRecords, maxBytes })` require the exact bound scope. Empty `through.sequence='0'` fixes an empty snapshot, not a record identity. Expired cursors, corruption, timeout and capacity exhaustion have explicit results. TTL cleanup runs while an owner is active; it does not continue after process exit. Retention health reports records and bytes, and failed deletion or unfinished I/O never counts as freed space. These engineering records are separate from session history.
+
+A send result's `released` describes that stop attempt. If a terminal callback is still running it remains false; after the callback actually stops, an explicit `close()` retry can complete, and the supervisor waits for the worker's real exit. `currentTime()` remains readable for admitted work during close while the Clock is alive; it becomes unavailable after its fiber is disposed.

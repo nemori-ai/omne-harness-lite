@@ -101,3 +101,5 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 ```
 
 查询和 `exportPage(query, { maxRecords, maxBytes })` 必须传完全相同的 scope。空日志的 `through.sequence='0'` 固定空快照，不是记录身份。游标过期、损坏、超时与并发满有明确结果。TTL 清理只在所有者活跃时运行，进程退出后不会继续。保留健康面同时报告条数和字节，删除失败或 I/O 尚未结束不算空间释放。这是工程日志，与会话历史分开。
+
+发送结果中的 `released` 只描述当次停止尝试。终端回调仍在运行时它为 false；回调实际停止后，显式重试 `close()` 才可能完成，主管还会等待 worker 真正退出。关闭准入后，已承认工作仍可在 Clock 存活期间通过 `currentTime()` 读取时间；fiber 实际卸载后返回 unavailable。

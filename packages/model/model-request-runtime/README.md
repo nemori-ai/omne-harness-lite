@@ -39,7 +39,7 @@ The current implementation contains standalone invocation, pure policy functions
 
 The optional `beforeSend` on a standalone invocation is the synchronous final admission before its one transport send. Only literal `true` proceeds; `false` cancels before send, and a thrown or malformed answer remains unavailable. The anchored service supplies its current stop/generation check there. `observedFacts()` reads the original invocation only after its reader and gates have actually stopped; an unavailable read must not be recast as absence. Its actual send time, partial account facts and headers are recovery sources, while durable dispatched/opened records remain the settlement authority.
 
-The service forwards the existing `SettlementDiagnostic` through `RuntimeConstruction.policy.diagnostic` with its tenant, session, call, dispatch, response, owner, policy and contention counters intact. The observer delivery diagnostic still carries its typed scope, position and buffer counts in `detail`. Diagnostic callbacks are best-effort and cannot change settlement or observer delivery results; applications must keep sink failure state independently of business history. These ports do not provide durable trace storage or a query API. See RT9 S-63 for the engineering correlation and content boundary.
+The service forwards the existing `SettlementDiagnostic` through `RuntimeConstruction.diagnostic` with its tenant, session, call, dispatch, response, owner, policy and contention counters intact. The observer delivery diagnostic still carries its typed scope, position and buffer counts in `detail`. Diagnostic callbacks are best-effort and cannot change settlement or observer delivery results; applications must keep sink failure state independently of business history. These ports do not provide durable trace storage or a query API. See RT9 S-63 for the engineering correlation and content boundary.
 
 ## Cordis service assembly under development
 
@@ -795,7 +795,7 @@ The runtime sends definitions and assembles streamed tool calls; the caller supp
 
 `createDiagnosticCollector(config)` accepts typed observations into a bounded queue and keeps per-call association in an explicit emitter. Supply the complete `DiagnosticCollectorConfig`, including a `DiagnosticJournalStore`, one local or tenant scope, clocks, scheduler and every capacity/timeout. The collector does not supply file storage. `recorded` means accepted in memory; inspect health for written/flushed watermarks and incomplete close. Query/export require the same scope and explicit page bounds. Exact numeric facts retain their JSON number representation.
 
-These are engineering records, separate from the session log and recovery authority. The example below takes the real host configuration and observed HTTP status. Give each invocation its own emitter; retain the collector if close reports incomplete. The example supplies a separate JSONL provider; complete runtime/transport wiring remains in progress. Health reports retained records/bytes and expired/evicted records/bytes; unavailable storage counts stay unknown.
+These are engineering records, separate from the session log and recovery authority. The example below takes the real host configuration and observed HTTP status. Give each invocation its own emitter; retain the collector if close reports incomplete. The example supplies a separate JSONL provider; complete demo composition and the remaining diagnostic stages are in progress. Health reports retained records/bytes and expired/evicted records/bytes; unavailable storage counts stay unknown.
 
 ```ts
 import {
@@ -819,3 +819,28 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
 ```
 
 For an empty journal, `through.sequence` is `"0"`, the empty written watermark. It is never a record identity, `after` cursor or `causedBy` reference; those begin at one. Reusing this watermark after a new append still returns the empty prefix.
+
+`invokeModel` accepts an optional `diagnosticAssociation` and `diagnosticEmitterFactory`. The factory acquires one emitter for that invocation; its transport send/read share the same association. Free association strings are processed at the credential-owning boundary. Independent calls need no tenant or session. The host owns the collector and closes it after business work has actually stopped; an invocation closes only its emitter. Diagnostic callback failures do not change the response or its accounting.
+
+```ts
+import {
+  invokeModel,
+  type DiagnosticCollector,
+  type InvocationInput,
+  type PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
+
+export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
+  input: InvocationInput<P, R>,
+  collector: DiagnosticCollector,
+  executionId: string,
+) {
+  return invokeModel({
+    ...input,
+    diagnosticAssociation: { executionId },
+    diagnosticEmitterFactory: association => collector.emitter({ kind: 'local' }, association),
+  })
+}
+```
+
+For the service path, supply `RuntimeConstruction.diagnosticCollector`. Dispatch derives the tenant scope from the verified session binding, includes only identities that already exist, and links a retry only to an actually recorded reference. Settlement uses a fixed fact whitelist. Recovery records `without_resend` only after the recovered result is complete and its scope has actually closed. These paths do not use engineering records as recovery authority. Complete demo wiring and the remaining observation stages are still being integrated.

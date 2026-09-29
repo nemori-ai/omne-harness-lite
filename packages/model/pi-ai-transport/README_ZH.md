@@ -470,3 +470,5 @@ node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-
 `src/input-meters/xai-candidate.ts` 中未绑定的 `createXaiHistoryCandidateInputMeter` 保持原 opaque 历史不变，按固定上游一方启发式估算已知 `xai-responses-v1` encrypted 项及可选的相邻 summary。四份冻结请求已做 planner 到本地 TLS 验证；未知 wrapper 或多 encrypted 项返回不可计量。真实回放和官方绑定仍待完成；此结果是需要调用者显式余量的估算，不是误差上界。
 
 `ModelTransportService.diagnostics()` 无需取得 lease 即可读取底层实例的诊断投递 `failed`、`pending`、`dropped` 计数，关闭后仍可读取。`send` 与 `read` 可在末参接收本次请求专用 emitter，两个阶段由同一 emitter 持有；类型化事实不包含消息正文或凭据，工程身份不进入 HTTP。不同 emitter 的重绑定被拒绝。完整 runtime 调用接线与多会话验收仍须单独完成。
+
+同一助手消息含同路由 opaque 推理块及额外独立的纯文本思考块时，当前规划返回 unavailable、零 HTTP，原历史不删不改。单块 opaque 与纯文本历史沿原路径及计量门处理。选定路由如何共同消费两种表示仍待核实；明确拒绝不代表已支持混合历史发送。
