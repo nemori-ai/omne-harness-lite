@@ -782,9 +782,6 @@ importers:
 
   packages/core/messages:
     dependencies:
-      '@omne-harness-lite/asset-model':
-        specifier: workspace:*
-        version: link:../asset-model
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../call-accounts
@@ -794,24 +791,12 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../identity-values
-      '@omne-harness-lite/loop-extension':
-        specifier: workspace:*
-        version: link:../loop-extension
-      '@omne-harness-lite/mcp-endpoint':
-        specifier: workspace:*
-        version: link:../mcp-endpoint
       '@omne-harness-lite/model-profile':
         specifier: workspace:*
         version: link:../model-profile
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../offer-expiry
-      '@omne-harness-lite/skill-package':
-        specifier: workspace:*
-        version: link:../skill-package
-      '@omne-harness-lite/slash-command':
-        specifier: workspace:*
-        version: link:../slash-command
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../tool-definition
@@ -853,9 +838,6 @@ importers:
 
   packages/core/model-response:
     dependencies:
-      '@omne-harness-lite/asset-model':
-        specifier: workspace:*
-        version: link:../asset-model
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../call-accounts
@@ -868,9 +850,6 @@ importers:
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../loop-extension
-      '@omne-harness-lite/mcp-endpoint':
-        specifier: workspace:*
-        version: link:../mcp-endpoint
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../messages
@@ -880,15 +859,6 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../offer-expiry
-      '@omne-harness-lite/skill-package':
-        specifier: workspace:*
-        version: link:../skill-package
-      '@omne-harness-lite/slash-command':
-        specifier: workspace:*
-        version: link:../slash-command
-      '@omne-harness-lite/tool-definition':
-        specifier: workspace:*
-        version: link:../tool-definition
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1341,6 +1311,9 @@ importers:
       '@omne-harness-lite/session-tenancy-table':
         specifier: workspace:*
         version: link:../../session/session-tenancy-table
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
       '@omne-harness-lite/stream-assembly':
         specifier: workspace:*
         version: link:../../core/stream-assembly
@@ -1366,9 +1339,6 @@ importers:
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../tenancy/organization-governance
-      '@omne-harness-lite/storage':
-        specifier: workspace:*
-        version: link:../../core/storage
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
