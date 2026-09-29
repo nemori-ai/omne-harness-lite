@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createOfficialProfileContent, interpretConfiguration } from '../src/configuration.ts'
 import { createPiAiTransport } from '../src/transport.ts'
@@ -11,8 +11,6 @@ import { object } from '../src/json.ts'
 import {
   createQwenInputMeter,
   qwenUnscaledImageTokens,
-  renderQwenHostedFlashPrompt,
-  renderQwenHostedMaxPrompt,
   renderQwenPrompt,
 } from '../src/input-meters/qwen.ts'
 import {
@@ -30,47 +28,11 @@ import {
   judgedMessage,
   message,
   sse,
+  policy,
 } from './support.ts'
 
 const ids = ['qwen/qwen3.8-2.4t-a95b', 'qwen/qwen3.8-27b'] as const
 const commercial = qwenAlibabaModelIds.filter(modelId => !ids.some(id => id === modelId))
-const unboundCommercial = commercial.filter(
-  modelId =>
-    modelId !== 'qwen/qwen3.8-max-0902' &&
-    modelId !== 'qwen/qwen3.8-flash' &&
-    modelId !== 'qwen/qwen3.7-flash' &&
-    modelId !== 'qwen/qwen3.7-plus' &&
-    modelId !== 'qwen/qwen3.7-max',
-)
-const hosted37Cases = [
-  {
-    modelId: 'qwen/qwen3.7-flash',
-    goldenFile: 'flash37-route-golden.json',
-    fixtureDirectory: 'flash37-route',
-    englishFile: 'formal-33-qwen3.7-flash-english.json',
-    algorithmRevision: 'qwen-37-hosted-flash-chatml-offset-1',
-    generationSha256: '953e8aaa5f0bfc70a1110faa74364a3c279e4467d33686789ff8ecfd8c5000fc',
-    upstreamModel: 'qwen/qwen3.7-flash-20260727',
-  },
-  {
-    modelId: 'qwen/qwen3.7-plus',
-    goldenFile: 'plus37-route-golden.json',
-    fixtureDirectory: 'plus37-route',
-    englishFile: 'formal-28-qwen3.7-plus-english.json',
-    algorithmRevision: 'qwen-37-hosted-plus-chatml-offset-1',
-    generationSha256: '747bc040657396a640fa1e4c0e0fb1f8b403b78cc9e6d50002eab128f40b6056',
-    upstreamModel: 'qwen/qwen3.7-plus-20260602',
-  },
-  {
-    modelId: 'qwen/qwen3.7-max',
-    goldenFile: 'max37-route-golden.json',
-    fixtureDirectory: 'max37-route',
-    englishFile: 'formal-23-qwen3.7-max-english.json',
-    algorithmRevision: 'qwen-37-hosted-max-chatml-offset-1',
-    generationSha256: '05a86372c5c7c60591ae47292240d22fea371c475bf7334d8a1dae5ce3fa70fe',
-    upstreamModel: 'qwen/qwen3.7-max-20260520',
-  },
-] as const
 const localResponse =
   content('done') +
   sse({
@@ -207,528 +169,167 @@ beforeAll(() => {
 afterAll(() => cert.dispose())
 
 describe('Qwen3.8 public tokenizer input meters', () => {
-  it('fits the independent Flash offset and matches its untouched final-wire holdout', () => {
-    const selected = definition('qwen/qwen3.8-flash')
-    const meter = createQwenInputMeter(selected)
-    expect(selected.implementation.revision).toBe('mp4-4')
-    expect(meter.algorithmRevision).toBe('qwen-38-hosted-flash-chatml-offset-1')
-    const golden: unknown = JSON.parse(
-      readFileSync(new URL('./fixtures/qwen/flash-route-golden.json', import.meta.url), 'utf8'),
-    )
-    if (!object(golden) || !Array.isArray(golden.rows)) throw new Error('invalid Flash golden')
-    expect(golden.sourceResultSha256).toBe(
-      '32a526bb147b4fffd26de4e669d6132592190ce1100d88c6fc81b74fed8d6c11',
-    )
-    expect(golden.sourceGenerationVerificationSha256).toBe(
-      'bbc15cae1443828472b6d026ae2894c01bc144413da00c1ded306be103952c03',
-    )
-    const fitted: number[] = []
-    let heldout: number | undefined
-    for (const row of golden.rows) {
-      if (
-        !object(row) ||
-        typeof row.file !== 'string' ||
-        typeof row.fileSha256 !== 'string' ||
-        typeof row.sentSha256 !== 'string' ||
-        typeof row.proxyTokens !== 'number' ||
-        typeof row.observedInputTokens !== 'number'
+  it.each(commercial)(
+    '%s counts the complete visible history with a new exact binding',
+    modelId => {
+      const selected = definition(modelId),
+        meter = createQwenInputMeter(selected)
+      expect(selected.revision).toBe('2')
+      expect(selected.implementation.revision).toBe('mp4-6')
+      expect(meter.algorithmRevision).toBe(
+        `${modelId.slice('qwen/'.length)}-final-visible-json-proxy-1`,
       )
-        throw new Error('invalid Flash golden row')
-      const file = readFileSync(new URL(`./fixtures/qwen/flash-route/${row.file}`, import.meta.url))
-      expect(createHash('sha256').update(file).digest('hex')).toBe(row.fileSha256)
-      const serialized = file.toString('utf8').trimEnd()
-      expect(createHash('sha256').update(serialized).digest('hex')).toBe(row.sentSha256)
-      const body: unknown = JSON.parse(serialized)
-      if (!object(body)) throw new Error('invalid Flash body')
-      const prompt = renderQwenHostedFlashPrompt(body)
-      expect(prompt).toContain('<|im_start|>assistant\n<think>\n')
-      expect(meter.measureFull({ body, serialized })).toEqual({
-        kind: 'estimated',
-        tokens: row.observedInputTokens,
-      })
-      const residual = row.observedInputTokens - row.proxyTokens
-      if (row.phase === 'fit') fitted.push(residual)
-      else if (row.phase === 'untouched-holdout') heldout = residual
-      else throw new Error('invalid Flash golden phase')
-    }
-    expect(fitted).toEqual([51, 51, 51])
-    expect(heldout).toBe(fitted[0])
-  })
-
-  it('rejects Flash shapes outside the observed single text-part final wire', () => {
-    const selected = definition('qwen/qwen3.8-flash')
-    const meter = createQwenInputMeter(selected)
-    const base = JSON.parse(
-      readFileSync(
-        new URL(
-          './fixtures/qwen/flash-route/formal-18-qwen3.8-flash-english.json',
-          import.meta.url,
-        ),
-        'utf8',
-      ),
-    )
-    for (const changed of [
-      { ...base, stream: false },
-      { ...base, store: null },
-      { ...base, messages: [{ role: 'user', content: 'Reply with the single word OK.' }] },
-      { ...base, messages: [{ role: 'user', content: null }] },
-      { ...base, messages: [{ role: 'user', content: [{ type: 'text', text: '' }] }] },
-      { ...base, messages: [{ role: 'system', content: 'Be brief.' }, ...base.messages] },
-      { ...base, messages: [...base.messages, ...base.messages] },
-      {
-        ...base,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'a' },
-              { type: 'text', text: 'b' },
-            ],
-          },
-        ],
-      },
-      {
-        ...base,
-        messages: [
-          {
-            role: 'user',
-            content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
-          },
-        ],
-      },
-      { ...base, tools: [{ type: 'function', function: { name: 'lookup', parameters: {} } }] },
-      { ...base, reasoning: { effort: 'high' } },
-      { ...base, model: 'qwen/qwen3.8-max-0902' },
-      { ...base, provider: { order: ['other'], allow_fallbacks: false, require_parameters: true } },
-      {
-        ...base,
-        provider: { order: ['alibaba'], allow_fallbacks: false, require_parameters: false },
-      },
-    ])
-      expect(meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
-        kind: 'unavailable',
-      })
-    const long = {
-      ...base,
-      messages: [{ role: 'user', content: [{ type: 'text', text: 'x'.repeat(16_384) }] }],
-    }
-    expect(meter.measureFull({ body: long, serialized: writeJsonLossless(long) })).toMatchObject({
-      kind: 'estimated',
-    })
-  })
-
-  it('plans and sends Flash through the real meter and local TLS final-wire path', async () => {
-    const modelId = 'qwen/qwen3.8-flash'
-    const selected = definition(modelId)
-    const meter = createQwenInputMeter(selected)
-    const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
-    const transport = createPiAiTransport({
-      ...host.options,
-      definitions: [selected],
-      inputMeters: [meter],
-    })
-    try {
-      const input = {
-        ...request(modelId),
-        messages: [message('user', 'Reply with the single word OK.', 'flash-english')],
-        tools: [],
-        parameters: { maxOutputTokens: 16 },
-      }
-      const planned = transport.plan(input)
+      expect(() => createQwenInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
+      const planned = planRequest(request(modelId), [selected], meter)
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-      const frozen = readFileSync(
-        new URL(
-          './fixtures/qwen/flash-route/formal-18-qwen3.8-flash-english.json',
-          import.meta.url,
-        ),
-        'utf8',
-      ).trimEnd()
-      expect(planned.planned.serialized).toBe(frozen)
-      expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
-        kind: 'estimated',
-        tokens: 68,
-      })
-      const sent = await transport.send(
-        planned.planned,
-        'qwen-local-only-credential',
-        new AbortController().signal,
-      )
-      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
-      for await (const _event of transport.read(
-        sent.response,
-        planned.planned,
-        new AbortController().signal,
-      )) {
-        // Consume the local fixture and release its network resource.
-      }
-      expect(host.requests).toHaveLength(1)
-      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
-    } finally {
-      await transport.close()
-      await host.close()
-    }
-  })
-
-  it.each(hosted37Cases)(
-    '$modelId independently fits three wires and matches untouched holdout',
-    selectedRow => {
-      const selected = definition(selectedRow.modelId)
-      const meter = createQwenInputMeter(selected)
-      expect(selected.implementation.revision).toBe('mp4-5')
-      expect(meter.algorithmRevision).toBe(selectedRow.algorithmRevision)
-      const golden: unknown = JSON.parse(
-        readFileSync(new URL(`./fixtures/qwen/${selectedRow.goldenFile}`, import.meta.url), 'utf8'),
-      )
-      if (!object(golden) || !Array.isArray(golden.rows)) throw new Error('invalid 3.7 Qwen golden')
-      expect(golden.modelId).toBe(selectedRow.modelId)
-      expect(golden.sourceGenerationVerificationSha256).toBe(selectedRow.generationSha256)
-      expect(golden.upstreamModel).toBe(selectedRow.upstreamModel)
-      const fit: number[] = []
-      let holdout: number | undefined
-      for (const row of golden.rows) {
-        if (
-          !object(row) ||
-          typeof row.file !== 'string' ||
-          typeof row.fileSha256 !== 'string' ||
-          typeof row.sentSha256 !== 'string' ||
-          typeof row.sourceObservationSha256 !== 'string' ||
-          typeof row.proxyTokens !== 'number' ||
-          typeof row.observedInputTokens !== 'number'
+      expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+      const body = planned.planned.body,
+        serialized = planned.planned.serialized
+      const baseline = meter.measureFull({ body, serialized })
+      expect(baseline.kind).toBe('estimated')
+      for (const original of [
+        'lookup__exact',
+        'value=42',
+        'system_reminder',
+        'Need an exact lookup.',
+      ]) {
+        expect(serialized).toContain(original)
+        const changed = JSON.parse(
+          serialized.replace(original, 'INDEPENDENT_LONG_VALUE_'.repeat(20)),
         )
-          throw new Error('invalid 3.7 Qwen golden row')
-        const file = readFileSync(
-          new URL(`./fixtures/qwen/${selectedRow.fixtureDirectory}/${row.file}`, import.meta.url),
-        )
-        expect(createHash('sha256').update(file).digest('hex')).toBe(row.fileSha256)
-        const serialized = file.toString('utf8').trimEnd()
-        expect(createHash('sha256').update(serialized).digest('hex')).toBe(row.sentSha256)
-        const body: unknown = JSON.parse(serialized)
-        if (!object(body)) throw new Error('invalid 3.7 Qwen wire')
-        expect(meter.measureFull({ body, serialized })).toEqual({
-          kind: 'estimated',
-          tokens: row.observedInputTokens,
+        const measured = meter.measureFull({
+          body: changed,
+          serialized: writeJsonLossless(changed),
         })
-        const residual = row.observedInputTokens - row.proxyTokens
-        if (row.phase === 'fit') fit.push(residual)
-        else if (row.phase === 'untouched-holdout') holdout = residual
-        else throw new Error('invalid 3.7 Qwen phase')
+        expect(measured.kind).toBe('estimated')
+        expect(measured).not.toEqual(baseline)
       }
-      expect(fit).toEqual([0, 0, 0])
-      expect(holdout).toBe(fit[0])
-    },
-  )
-
-  it.each(hosted37Cases)(
-    '$modelId rejects inputs outside the calibrated final text-part shape',
-    selectedRow => {
-      const selected = definition(selectedRow.modelId)
-      const meter = createQwenInputMeter(selected)
-      const base = JSON.parse(
-        readFileSync(
-          new URL(
-            `./fixtures/qwen/${selectedRow.fixtureDirectory}/${selectedRow.englishFile}`,
-            import.meta.url,
-          ),
-          'utf8',
-        ),
-      )
-      for (const changed of [
-        { ...base, stream: false },
-        { ...base, store: null },
-        { ...base, messages: [{ role: 'user', content: 'Reply with the single word OK.' }] },
-        { ...base, messages: [{ role: 'user', content: null }] },
-        { ...base, messages: [{ role: 'user', content: [{ type: 'text', text: '' }] }] },
-        { ...base, messages: [{ role: 'system', content: 'Be brief.' }, ...base.messages] },
-        { ...base, messages: [...base.messages, ...base.messages] },
-        {
-          ...base,
-          messages: [
-            {
-              role: 'user',
-              content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
-            },
-          ],
-        },
-        { ...base, tools: [{ type: 'function', function: { name: 'lookup', parameters: {} } }] },
-        { ...base, reasoning: { effort: 'high' } },
-        { ...base, model: 'qwen/qwen3.8-flash' },
-        {
-          ...base,
-          provider: { order: ['other'], allow_fallbacks: false, require_parameters: true },
-        },
-      ])
-        expect(
-          meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) }),
-        ).toEqual({
-          kind: 'unavailable',
-        })
-      expect(() =>
-        createQwenInputMeter({
-          ...selected,
-          implementation: { name: 'pi-ai:qwen', revision: 'mp4-1' },
+      expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+      expect(
+        meter.measureNew({
+          units: body.messages instanceof Array ? body.messages : [],
+          envelope: { model: modelId },
+          precedingUnitCount: 0,
         }),
-      ).toThrow('unsupported Qwen definition')
+      ).toEqual({ kind: 'unavailable' })
     },
   )
 
-  it.each(hosted37Cases)(
-    '$modelId plans and sends real-meter final wire through local TLS',
-    async selectedRow => {
-      const modelId = selectedRow.modelId
-      const selected = definition(modelId)
-      const meter = createQwenInputMeter(selected)
+  it.each(commercial)(
+    '%s rejects unaccounted media/opaque/fields without deleting history',
+    modelId => {
+      const selected = definition(modelId),
+        meter = createQwenInputMeter(selected)
+      const planned = planRequest(request(modelId), [selected], meter)
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      const body = planned.planned.body
+      for (const extra of [
+        {
+          role: 'user',
+          content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
+        },
+        {
+          role: 'assistant',
+          content: '',
+          reasoning_details: [{ type: 'reasoning.encrypted', data: 'ciphertext' }],
+        },
+        {
+          role: 'assistant',
+          content: '',
+          reasoning_details: [{ type: 'reasoning.text', text: 'known', unknown: true }],
+        },
+        { role: 'user', content: 'unknown member', hidden_context: 'unaccounted' },
+      ]) {
+        const changed = {
+          ...body,
+          messages: [...(Array.isArray(body.messages) ? body.messages : []), extra],
+        }
+        const serialized = writeJsonLossless(changed)
+        expect(meter.measureFull({ body: changed, serialized })).toEqual({ kind: 'unavailable' })
+        expect(writeJsonLossless(changed)).toBe(serialized)
+      }
+      const wrongProvider = {
+        ...body,
+        provider: { order: ['elsewhere'], allow_fallbacks: false, require_parameters: true },
+      }
+      expect(
+        meter.measureFull({ body: wrongProvider, serialized: writeJsonLossless(wrongProvider) }),
+      ).toEqual({ kind: 'unavailable' })
+      const fallback = {
+        ...body,
+        provider: { order: ['alibaba'], allow_fallbacks: true, require_parameters: true },
+      }
+      expect(
+        meter.measureFull({ body: fallback, serialized: writeJsonLossless(fallback) }),
+      ).toEqual({ kind: 'unavailable' })
+    },
+  )
+
+  it.each(commercial)(
+    '%s invokes three visible rounds with real meter and complete prior tool history',
+    async modelId => {
+      const selected = definition(modelId),
+        meter = createQwenInputMeter(selected)
       const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
       const transport = createPiAiTransport({
         ...host.options,
         definitions: [selected],
         inputMeters: [meter],
       })
+      let input = request(modelId)
       try {
-        const input = {
-          ...request(modelId),
-          messages: [message('user', 'Reply with the single word OK.', 'hosted37-english')],
-          tools: [],
-          parameters: { maxOutputTokens: 16 },
+        for (let round = 0; round < 3; round++) {
+          const planned = transport.plan(input)
+          if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+          expect(planned.planned.measurement.mode).toBe('full')
+          const result = await invokeModel({
+            ...input,
+            transport,
+            credential: 'local-qwen-visible-only',
+            signal: new AbortController().signal,
+            policy: policy(),
+            onAccepted: () => {},
+          }).outcome
+          if (!('outcome' in result) || result.outcome !== 'complete')
+            throw new Error(JSON.stringify(result))
+          expect(writeJsonLossless(result.usage)).toContain('"input_tokens":76')
+          expect(host.requests[round]?.body).toBe(planned.planned.serialized)
+          expect(host.requests[round]?.body).toContain('Need an exact lookup.')
+          expect(host.requests[round]?.body).toContain('value=42')
+          expect(planned.planned.serialized.includes('cache_control')).toBe(
+            selected.routes.alibaba?.cache.mode === 'explicit',
+          )
+          const reply = judgedMessage({
+            type: 'assistant',
+            id: `visible-answer-${round}`,
+            response: `visible-response-${round}`,
+            ending: 'complete',
+            createdAt: at,
+            blocks: result.blocks,
+          })
+          input = {
+            ...input,
+            calibration: {
+              kind: 'observation',
+              inputCalibration: result.inputCalibration,
+              usage: result.usage,
+              outputBlocks: result.blocks,
+              replaySelection: result.blocks.map((_block, sourceBlockIndex) => ({
+                sourceBlockIndex,
+                messageIndex: input.messages.length,
+                blockIndex: sourceBlockIndex,
+              })),
+            },
+            messages: [...input.messages, reply, message('user', `Next ${round}`, `next-${round}`)],
+          }
         }
-        const planned = transport.plan(input)
-        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-        const frozen = readFileSync(
-          new URL(
-            `./fixtures/qwen/${selectedRow.fixtureDirectory}/${selectedRow.englishFile}`,
-            import.meta.url,
-          ),
-          'utf8',
-        ).trimEnd()
-        expect(planned.planned.serialized).toBe(frozen)
-        expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
-          kind: 'estimated',
-          tokens: 17,
-        })
-        const sent = await transport.send(
-          planned.planned,
-          'qwen-local-only-credential',
-          new AbortController().signal,
-        )
-        if (!('response' in sent)) throw new Error(JSON.stringify(sent))
-        for await (const _event of transport.read(
-          sent.response,
-          planned.planned,
-          new AbortController().signal,
-        )) {
-          // Consume the local fixture and release its network resource.
-        }
-        expect(host.requests).toHaveLength(1)
-        expect(host.requests[0]?.body).toBe(planned.planned.serialized)
+        expect(host.requests).toHaveLength(3)
       } finally {
         await transport.close()
         await host.close()
       }
     },
   )
-
-  it("renders Alibaba's hosted Max Hi/11-token template and applies the route estimate", () => {
-    const modelId = 'qwen/qwen3.8-max-0902'
-    const meter = createQwenInputMeter(definition(modelId))
-    const body = {
-      model: modelId,
-      provider: { order: ['alibaba'], allow_fallbacks: false, require_parameters: true },
-      stream: true,
-      messages: [{ role: 'user', content: 'Hi' }],
-      max_tokens: 16,
-    }
-    const prompt = renderQwenHostedMaxPrompt(body)
-    expect(prompt).toBe(
-      readFileSync(new URL('./fixtures/qwen/hosted-max-hi.txt', import.meta.url), 'utf8'),
-    )
-    expect(meter.algorithmRevision).toBe('qwen-38-hosted-max-chatml-offset-2')
-    expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
-      kind: 'estimated',
-      tokens: 62,
-    })
-    const chineseBody = {
-      ...body,
-      messages: [{ role: 'user', content: '你好' }],
-    }
-    expect(renderQwenHostedMaxPrompt(chineseBody)).toBe(
-      readFileSync(new URL('./fixtures/qwen/hosted-max-nihao.txt', import.meta.url), 'utf8'),
-    )
-    expect(
-      meter.measureFull({ body: chineseBody, serialized: writeJsonLossless(chineseBody) }),
-    ).toEqual({ kind: 'estimated', tokens: 62 })
-    for (const changed of [
-      { ...body, messages: [{ role: 'system', content: 'Be brief' }, ...body.messages] },
-      { ...body, tools: [{ type: 'function', function: { name: 'lookup', parameters: {} } }] },
-      { ...body, reasoning: { effort: 'high' } },
-      {
-        ...body,
-        messages: [
-          {
-            role: 'user',
-            content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }],
-          },
-        ],
-      },
-    ]) {
-      expect(meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
-        kind: 'unavailable',
-      })
-    }
-  })
-
-  it('matches three fixed-route Max calibrations and the untouched text holdout', () => {
-    const raw: unknown = JSON.parse(
-      readFileSync(new URL('./fixtures/qwen/max0902-route-golden.json', import.meta.url), 'utf8'),
-    )
-    if (!object(raw) || !Array.isArray(raw.rows)) throw new Error('invalid Max route golden')
-    expect(raw.sourceObservationsSha256).toBe(
-      '464c029984e310a928b3ae74a152e2d15726d6d456dfb154aca8d593d25822e',
-    )
-    expect(raw.sourceProviderVerificationSha256).toBe(
-      '1bb421e92fc128045d1dfdb24907aba73e7c5ba9bafc1af2b79eb6b6ad880836',
-    )
-    const meter = createQwenInputMeter(definition('qwen/qwen3.8-max-0902'))
-    const fit: number[] = []
-    let heldout: number | undefined
-    for (const row of raw.rows) {
-      if (
-        !object(row) ||
-        typeof row.file !== 'string' ||
-        typeof row.sha256 !== 'string' ||
-        typeof row.publicTemplateTokens !== 'number' ||
-        typeof row.observedPromptTokens !== 'number'
-      )
-        throw new Error('invalid Max route golden row')
-      const bytes = readFileSync(new URL(`./fixtures/qwen/probe-six/${row.file}`, import.meta.url))
-      expect(createHash('sha256').update(bytes).digest('hex')).toBe(row.sha256)
-      const body: unknown = JSON.parse(bytes.toString('utf8'))
-      if (!object(body)) throw new Error('invalid frozen Max request')
-      const result = meter.measureFull({ body, serialized: writeJsonLossless(body) })
-      expect(result).toEqual({ kind: 'estimated', tokens: row.observedPromptTokens })
-      const offset = row.observedPromptTokens - row.publicTemplateTokens
-      if (row.phase === 'calibration') fit.push(offset)
-      else if (row.phase === 'heldout') heldout = offset
-      else throw new Error('invalid Max route golden phase')
-    }
-    expect(fit).toEqual([51, 51, 51])
-    expect(heldout).toBe(fit[0])
-  })
-
-  it('plans and sends the hosted Max narrow text estimate through the real factory', async () => {
-    const modelId = 'qwen/qwen3.8-max-0902'
-    const selected = definition(modelId)
-    const meter = createQwenInputMeter(selected)
-    const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
-    const transport = createPiAiTransport({
-      ...host.options,
-      definitions: [selected],
-      inputMeters: [meter],
-    })
-    try {
-      const input = {
-        ...request(modelId),
-        messages: [message('user', 'Hi', 'hosted-max-hi')],
-        tools: [],
-        parameters: { maxOutputTokens: 16 },
-      }
-      const planned = transport.plan(input)
-      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-      expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
-        kind: 'estimated',
-        tokens: 62,
-      })
-      const sent = await transport.send(
-        planned.planned,
-        'qwen-local-only-credential',
-        new AbortController().signal,
-      )
-      if (!('response' in sent)) throw new Error(JSON.stringify(sent))
-      for await (const _event of transport.read(
-        sent.response,
-        planned.planned,
-        new AbortController().signal,
-      )) {
-        // Consume the bounded local fixture to release its response resource.
-      }
-      expect(host.requests).toHaveLength(1)
-      expect(host.requests[0]?.body).toBe(planned.planned.serialized)
-    } finally {
-      await transport.close()
-      await host.close()
-    }
-  })
-
-  it('freezes the actual Max planner projection for the original 08 English prompt', () => {
-    const modelId = 'qwen/qwen3.8-max-0902'
-    const selected = definition(modelId)
-    const input = {
-      ...request(modelId),
-      messages: [message('user', 'Reply with the single word OK.', 'hosted-max-english')],
-      tools: [],
-      parameters: { maxOutputTokens: 16 },
-    }
-    const planned = planRequest(input, [selected], createQwenInputMeter(selected))
-    if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-    const frozen = readFileSync(
-      new URL(
-        './fixtures/qwen/probe-six/08-qwen3.8-max-0902-english-formal-plan.json',
-        import.meta.url,
-      ),
-      'utf8',
-    )
-    expect(planned.planned.serialized).toBe(frozen.trimEnd())
-  })
-
-  it('uses the independently observed Max text-array and formal input counts only for metering', () => {
-    const golden: unknown = JSON.parse(
-      readFileSync(
-        new URL('./fixtures/qwen/max0902-formal-conversion-golden.json', import.meta.url),
-        'utf8',
-      ),
-    )
-    if (!object(golden) || !object(golden.textArrayBridge) || !object(golden.formalInvocation))
-      throw new Error('invalid Max conversion golden')
-    const bridge = readFileSync(
-      new URL(
-        './fixtures/qwen/probe-six/08-qwen3.8-max-0902-english-text-array.json',
-        import.meta.url,
-      ),
-    )
-    const formal = readFileSync(
-      new URL(
-        './fixtures/qwen/probe-six/08-qwen3.8-max-0902-english-formal-plan.json',
-        import.meta.url,
-      ),
-    )
-    expect(createHash('sha256').update(bridge).digest('hex')).toBe(
-      golden.textArrayBridge.wireSha256,
-    )
-    expect(createHash('sha256').update(formal).digest('hex')).toBe(
-      golden.formalInvocation.wireSha256,
-    )
-    expect(golden.textArrayBridge.promptTokens).toBe(68)
-    expect(golden.formalInvocation.promptTokens).toBe(68)
-    expect(golden.formalInvocation).toMatchObject({
-      usageSource: 'upstream',
-      providerEcho: 'Alibaba',
-      sendAttempts: 1,
-      outcome: 'truncated',
-      ending: 'truncated_at_limit',
-      outputTokens: 16,
-      reasoningTokens: 16,
-      rawSseCaptured: false,
-    })
-    const selected = definition('qwen/qwen3.8-max-0902')
-    const body = JSON.parse(formal.toString('utf8'))
-    expect(
-      createQwenInputMeter(selected).measureFull({
-        body,
-        serialized: formal.toString('utf8').trimEnd(),
-      }),
-    ).toEqual({
-      kind: 'estimated',
-      tokens: golden.formalInvocation.promptTokens,
-    })
-  })
 
   it('pins the eight credentialed certification case identities and accepted cache configurations', () => {
     const raw: unknown = JSON.parse(
@@ -1142,42 +743,6 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         expect(planRequest(request(modelId), [selected], meter)).toHaveProperty('planned')
       } finally {
         await transport.close()
-        await host.close()
-      }
-    },
-  )
-
-  it.each(unboundCommercial)(
-    '%s projects its actual definition to local HTTPS wire with a synthetic meter only',
-    async modelId => {
-      const selected = definition(modelId)
-      const host = await fixture(cert.tls, res => res.end(localResponse), {}, undefined, [selected])
-      try {
-        const planned = host.transport.plan(request(modelId))
-        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-        const signal = new AbortController().signal
-        const sent = await host.transport.send(
-          planned.planned,
-          'qwen-local-only-credential',
-          signal,
-        )
-        if (!('response' in sent)) throw new Error(JSON.stringify(sent))
-        const events = []
-        for await (const event of host.transport.read(sent.response, planned.planned, signal))
-          events.push(event)
-        expect(host.requests).toHaveLength(1)
-        expect(host.requests[0]?.path).toBe('/api/v1/chat/completions')
-        expect(host.requests[0]?.body).toBe(planned.planned.serialized)
-        expect(host.requests[0]?.body).toContain(modelId)
-        expect(host.requests[0]?.body).toContain('lookup__exact')
-        expect(host.requests[0]?.body).toContain('value=42')
-        expect(host.requests[0]?.body).not.toContain('qwen-local-only-credential')
-        expect(planned.planned.serialized.includes('cache_control')).toBe(
-          selected.routes.alibaba?.cache.mode === 'explicit',
-        )
-        const account = events.find(event => event.t === 'account')
-        expect(writeJsonLossless(account ?? null)).toContain('"input_tokens":76')
-      } finally {
         await host.close()
       }
     },

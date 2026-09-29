@@ -211,3 +211,5 @@ evidence/
 [2026-09-29 Sonnet 工具与图片真实调用](2026-09-29-tests-sonnet-tool-image/README.md)：两个固定路由 public 场景通过，真实 usage 与费用结算齐；保留归档判据失败，不代替 service 或整个型号认证。
 
 [2026-09-29 Luna 加密历史真实 service 三轮](2026-09-29-tests-luna-encrypted-service/README.md)：三轮 complete/耐久/结算，full→marginal→marginal；保留估算误差与精确旧绑定范围，不替代全型号认证。
+
+[2026-09-29 优先两家认证工具交付](2026-09-29-tests-priority-model-gate-tools/README.md)：HUB 44 public、16型号各3轮真实本机service及六类服务/入口负控通过；关闭工具交付，不替代逐模型线上认证。

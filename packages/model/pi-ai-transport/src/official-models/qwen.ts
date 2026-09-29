@@ -209,27 +209,53 @@ const offer = {
   },
 } as const
 
+/** Exact commercial leaves sharing the final visible JSON proxy, never an ID-prefix match. */
+export const qwenVisibleBindings: Readonly<
+  Record<
+    string,
+    {
+      readonly revision: string
+      readonly implementationRevision: string
+      readonly algorithmRevision: string
+      readonly evidence: string
+    }
+  >
+> = Object.freeze(
+  Object.fromEntries(
+    [
+      'qwen/qwen3.8-max-0902',
+      'qwen/qwen3.8-max-prime',
+      'qwen/qwen3.8-flash',
+      'qwen/qwen3.7-max',
+      'qwen/qwen3.7-plus',
+      'qwen/qwen3.7-flash',
+    ].map(modelId => [
+      modelId,
+      Object.freeze({
+        revision: '2',
+        implementationRevision: 'mp4-6',
+        algorithmRevision: `${modelId.slice('qwen/'.length)}-final-visible-json-proxy-1`,
+        evidence:
+          modelId === 'qwen/qwen3.8-max-prime'
+            ? 'OpenRouter exact Max Prime page (2026-09-29): higher-throughput Max variant with matching text/tool capabilities; lineage supports a Qwen public-tokenizer proxy, not tokenizer identity or measured error'
+            : 'Fixed Alibaba route prior single-user text observations support Qwen public-tokenizer proxy applicability only; extending to the complete documented Chat JSON is an uncalibrated framing estimate, not transfer of historical per-request offsets',
+      }),
+    ]),
+  ),
+)
+
 /** Complete MP4 declarations. Reading and registration use the common validator. */
 export const qwenDefinitions = ownDefinitions(
   qwenAlibabaModelIds.map(
     modelId =>
       ({
         modelId,
-        revision: '1',
+        revision: qwenVisibleBindings[modelId]?.revision ?? '1',
         implementation: {
           name: 'pi-ai:qwen',
           revision:
-            modelId === 'qwen/qwen3.7-flash' ||
-            modelId === 'qwen/qwen3.7-plus' ||
-            modelId === 'qwen/qwen3.7-max'
-              ? 'mp4-5'
-              : modelId === 'qwen/qwen3.8-flash'
-                ? 'mp4-4'
-                : modelId === 'qwen/qwen3.8-max-0902' || modelId === 'qwen/qwen3.8-27b'
-                  ? 'mp4-3'
-                  : modelId === 'qwen/qwen3.8-2.4t-a95b'
-                    ? 'mp4-2'
-                    : 'mp4-1',
+            qwenVisibleBindings[modelId]?.implementationRevision ??
+            (modelId === 'qwen/qwen3.8-27b' ? 'mp4-3' : 'mp4-2'),
         },
         capabilities: { ...offer[modelId], outputModalities: ['text'] },
         routes: qwenModelRoutes[modelId],
