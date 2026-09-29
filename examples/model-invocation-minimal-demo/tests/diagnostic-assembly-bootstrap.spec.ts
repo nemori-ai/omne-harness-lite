@@ -8,6 +8,46 @@ import { callDeployment, demoRetirement } from './model-request-support.ts'
 import { activateModelFixture, actor } from './support.ts'
 
 describe('demo transport diagnostic retention at the real bootstrap', () => {
+  it('keeps P-2 closed until a verified actor presents its matching tenant owner', async () => {
+    const config = await callDeployment('diagnostic-tenant-gate')
+    let createdTransportFibers = 0
+    const app = createAcceptanceApplication(config, {
+      stage: 'modelRequest',
+      diagnostics: { record() {} },
+      hooks: {
+        fiberCreated(name) {
+          if (name === 'modelTransport') createdTransportFibers++
+        },
+      },
+    })
+    await app.ready
+    expect(app.status().serving).toBe(false)
+    const authenticated = await actor(app)
+    const directory = dirname(config.databaseFile)
+    await mkdir(join(directory, 'diagnostics'), { mode: 0o700 })
+    const diagnostics = await openDemoDiagnosticAssembly(
+      createDemoDiagnosticConfig(directory, authenticated.tenant, demoRetirement()),
+    )
+    try {
+      expect(
+        await app.activateModelRequest(authenticated, diagnostics.local, diagnostics.transports),
+      ).toEqual({ failure: 'identityMismatch' })
+      expect(createdTransportFibers).toBe(0)
+      expect(app.status().serving).toBe(false)
+      expect(
+        await app.activateModelRequest(authenticated, diagnostics.tenant, diagnostics.transports),
+      ).toEqual({ activated: true })
+      expect(createdTransportFibers).toBe(1)
+      expect(app.status().serving).toBe(true)
+      const forgedActor = { ...authenticated }
+      expect(
+        await app.activateModelRequest(forgedActor, diagnostics.tenant, diagnostics.transports),
+      ).toEqual({ failure: 'identityMismatch' })
+    } finally {
+      await diagnostics.closeAfterBusiness(() => app.close())
+    }
+  })
+
   it('tracks the actual Cordis transport service through application close', async () => {
     const config = await callDeployment('diagnostic-transport-owner')
     const app = createAcceptanceApplication(config, {

@@ -503,7 +503,13 @@ export function createAcceptanceApplication(
     closing = false,
     diagnosticFailures = 0
   let activationTask: Promise<ScenarioResult<{ readonly activated: true }>> | undefined
-  let activationTenant: TenantId | undefined
+  let activationInputs:
+    | {
+        readonly actor: AuthenticatedActor
+        readonly diagnostics: DemoDiagnosticScope
+        readonly transportRetention: DemoTransportRetention
+      }
+    | undefined
   let activeClock: Clock | undefined
   let cleanupPromise: Promise<CloseResult> | undefined,
     closingPromise: Promise<CloseResult> | undefined
@@ -1087,10 +1093,9 @@ export function createAcceptanceApplication(
   ): Promise<ScenarioResult<{ readonly activated: true }>> {
     if (stage !== 'modelRequest' || closing) return Promise.resolve({ failure: 'stageClosed' })
     if (activationTask !== undefined) {
-      const claimed = parseTenantId(actor?.tenant)
-      return isOk(claimed) &&
-        activationTenant !== undefined &&
-        tenantIdEquals(claimed.ok, activationTenant)
+      return activationInputs?.actor === actor &&
+        activationInputs.diagnostics === diagnostics &&
+        activationInputs.transportRetention === transportRetention
         ? activationTask
         : Promise.resolve({ failure: 'identityMismatch' })
     }
@@ -1099,9 +1104,12 @@ export function createAcceptanceApplication(
       if (!admitIdentity()) return { failure: 'stageClosed' }
       const checked = await checkActor(actor)
       if (!('account' in checked)) return checked
+      const diagnosticTenant =
+        diagnostics?.scope?.kind === 'tenant' ? parseTenantId(diagnostics.scope.tenant) : undefined
       if (
-        diagnostics?.scope.kind !== 'tenant' ||
-        !tenantIdEquals(diagnostics.scope.tenant, checked.tenant)
+        diagnosticTenant === undefined ||
+        !isOk(diagnosticTenant) ||
+        !tenantIdEquals(diagnosticTenant.ok, checked.tenant)
       )
         return { failure: 'identityMismatch' }
       if (
@@ -1109,7 +1117,7 @@ export function createAcceptanceApplication(
         typeof transportRetention?.reserveReplacement !== 'function'
       )
         return { failure: 'stageClosed' }
-      activationTenant = checked.tenant
+      activationInputs = { actor, diagnostics, transportRetention }
       try {
         if (stage === 'modelRequest') {
           if (
@@ -1386,7 +1394,12 @@ export function createAcceptanceApplication(
     })()
     activationTask = task
     task.then(
-      () => undefined,
+      result => {
+        if (!('activated' in result) && activationTask === task) {
+          activationTask = undefined
+          activationInputs = undefined
+        }
+      },
       () => undefined,
     )
     return task
