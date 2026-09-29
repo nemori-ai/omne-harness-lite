@@ -6,7 +6,7 @@
   `family = data`、`topic = call-accounts`、规范路径 `spec/data/call-accounts/v4/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：candidate，未接受、未冻结；以前驱 data.call-accounts/v3 的已接受范围为输入，状态以 registry 为准。
-- **当前设计依据与需求 rev**：PF-000 rev 1、PF-001 rev 25、PF-002 rev 32、PF-006 rev 23、PF-009 rev 9、PF-012 rev 21、PF-013 rev 16、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
+- **当前设计依据与需求 rev**：PF-000 rev 1、PF-001 rev 25、PF-002 rev 32、PF-006 rev 23、PF-009 rev 9、PF-012 rev 21、PF-013 rev 17、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
   **前驱历史复核**：另取 **PF-000 rev 1** 的一节（记录条目上挂什么）。2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-012 rev 11 把 I-11 收窄进了产品正文（[S-39](#s-39-晚到的账) 改引它）、PF-009 rev 8 把「已开口」记进那次调用的账（[第二节](#一份账挂在哪)写明它不在本契约的值里），其余不改本契约条款；逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
 - **所引的产品版本**：PF-013 rev 10 起凭据只在租户层与出厂格、PF-002 rev 18 起组织那一层不持有 MCP 凭据——两条到当前 rev 仍成立（[S-38](#s-38-两种归属用量归凭据那一格成本归发起者)）
 - **精确语义依赖**：

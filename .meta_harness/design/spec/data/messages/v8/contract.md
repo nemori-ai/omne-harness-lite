@@ -8,7 +8,7 @@
   `family = data`、`topic = messages`、规范路径 `spec/data/messages/v8/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **前驱版本的需求复核记录（历史）**：本轮 PF-013 rev 13 → rev 14 的输入上限增量落在 S-49。另按各 topic changelog 核对 PF-004 12 → 13、PF-006 19 → 20、PF-014 7 → 8、PF-015 11 → 13：增量是工作区来源、显式 reload、会话工作区引用与感知责任；本契约未定义工作区引用的内部结构（S-17/S-25 的值保持不透明，G-6 不闭合），也不拥有装载或受理操作，故不改变消息值规则。PF-012 仍为 rev 15，其栅栏与迟到账责任归运行时。源2历史复核文字保留原 rev；本轮变化见[验证入口](../verification.md#v6-变化的影响)。
-- **当前设计依据与需求 rev**：PF-004 rev 20、PF-006 rev 23、PF-008 rev 7、PF-009 rev 9、PF-010 rev 7、PF-012 rev 21、PF-013 rev 16、PF-014 rev 11、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
+- **当前设计依据与需求 rev**：PF-004 rev 20、PF-006 rev 23、PF-008 rev 7、PF-009 rev 9、PF-010 rev 7、PF-012 rev 21、PF-013 rev 17、PF-014 rev 11、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
   **前驱历史复核**：2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
 - **精确语义依赖**：
 
@@ -1220,7 +1220,7 @@ PF-014 的受理在**自己派出去的子 agent 回来报告**时，依赖 [S-1
 
 ### S-51 CallKey 与 CreationKey
 
-本版candidate依据PF-013 rev17、PF-012 rev21、PF-015 rev20。CallKey（无独立词条）是既有一次模型调用身份的值投影：session取S-24 SessionRef、callId取CA3 S-37 ModelCallId，二者必填、成员闭合，不含权限/进程地址/方法。CreationKey（无独立词条）是不透明显式操作关联，形状沿IV1 S-31，作用域为创建tenant+Session；同键认回原CallKey，业务是否相等和冲突由调用能力裁决。不能用CreationKey替代读取键，不能用CallKey替代创建请求判重。
+本版candidate依据PF-013 rev17、PF-012 rev21、PF-015 rev20。CallKey（无独立词条）是既有一次模型调用身份的值投影：session取S-24 SessionRef、callId取CA4 S-37 ModelCallId，二者必填、成员闭合，不含权限/进程地址/方法。CreationKey（无独立词条）是不透明显式操作关联，形状沿IV1 S-31，作用域为创建tenant+Session；同键认回原CallKey，业务是否相等和冲突由调用能力裁决。不能用CreationKey替代读取键，不能用CallKey替代创建请求判重。
 
 ### S-52 ModelCallPayloadRef
 
@@ -1228,7 +1228,7 @@ PF-014 的受理在**自己派出去的子 agent 回来报告**时，依赖 [S-1
 
 本owner唯一拥有的技术表示（无独立词条），必含kind、locator、version、digest；kind闭合为created或reply_ready。locator/version是不透明值，digest是小写64位十六进制SHA-256，覆盖实际存储的**原不可变UTF-8 JSON字节**，不对重新编码/数值舍入后的文本计算；没有额外canonicalization默认规则。locator+version一经发布不得重新绑定内容，digest同时核字节；换locator/version不构成修改原事实的许可。
 
-它不是普通AttachmentRef，不从普通附件存在推出不可变/可取得/存续保证。解析遵守S-37严格JSON、重复键拒绝、十进制数字无损。kind=created取本版S-53；kind=reply_ready取MR10 S-39/S-46 PendingModelResponse（唯一owner，不在本Schema复制或反向$ref，以免MR→MS已引用AssistantMessage的环）。该引用不能存进Message/AssistantMessage当内容。
+它不是普通AttachmentRef，不从普通附件存在推出不可变/可取得/存续保证。解析遵守S-37严格JSON、重复键拒绝、十进制数字无损。kind=created取本版S-53；kind=reply_ready取MR11 S-39/S-46 PendingModelResponse（唯一owner，不在本Schema复制或反向$ref，以免MR→MS已引用AssistantMessage的环）。该引用不能存进Message/AssistantMessage当内容。
 
 形状合法不证明摘要、版本、权限、内容存在或保留期。发布/读取边界核原字节摘要、kind、payload形状、CallKey及原壳归属相等；坏表示/错摘要/错关联按malformed，实际来源不可读取由能力unavailable，不补空内容。内容存续覆盖所有有效marker及其引用内容，发布与回收的责任归写方，不以本数据Schema假定跨store事务。
 
@@ -1255,7 +1255,7 @@ ModelInvocationRecord在原五种上增加两种，仍不属于七种Message，�
 
 ModelCallEndedRecord 的 undispatched 保持零发送本义，分两种互斥来源：初次 openCall 检查即拒绝时，creationKey 与 payload 必须成对存在，payload.kind=created 且取回 status=rejected，cause 与 payload.cause 相等；同一原批建立 creationKey→CallKey 与 handed_up，不得另有 accepted created。已经发布 accepted created、首次 dispatch 因当前凭据/规划门拒绝时，两个成员均缺席，沿原 callId 终结，保留原 accepted 创建身份与采用事实，不新造 rejected 输入。Schema 强制两成员同在同缺，是否属于对应来源、先前 accepted created 及零已出门由跨记录校验强制。released/interrupted 禁止两成员。两个新marker和拒绝创建都先确认引用内容可取得再提交；记录时刻是各自事实的时刻，不借它冒充网络sentAt。
 
-原Session/tenant/run/attempt由壳保留，不能换为查询者位置。来源、保留责任、原批与回执未知由RT11承担；MS不引入新的操作/权限。纯值校验输入显式定义，成功合法、失败沿S-39原十四值/既有优先级：新kind未知为malformed、缺字段/错payload kind为malformed；不新增模型调用成因。校验无副作用，缺身份拒绝、不读环境补齐。
+原Session/tenant/run/attempt由壳保留，不能换为查询者位置。来源、保留责任、原批与回执未知由RT12承担；MS不引入新的操作/权限。纯值校验输入显式定义，成功合法、失败沿S-39原十四值/既有优先级：新kind未知为malformed、缺字段/错payload kind为malformed；不新增模型调用成因。校验无副作用，缺身份拒绝、不读环境补齐。
 
 ### S-55 保证、对齐与缺口
 
@@ -1267,7 +1267,7 @@ ModelCallEndedRecord 的 undispatched 保持零发送本义，分两种互斥来
 | marker与原payload/归属一致 | 日志写方与接收方 | 绑定原壳和kind，逐边重验 | malformed，不发布或消费 |
 | 引用存续与回收互斥 | 无独立回收的同存续耐久容器；有独立回收时同内容保留记录的发布/回收方 | 持续可核保留；独立回收时另有发布关闭证明 | 保留未明责任，不先删后修 |
 
-原dispatched的MP5快照形状不变，新created采用当前RT的MP6；两者结构相同但保留各自精确语义来源，不暗改旧发出记录。MR10继续唯一拥有Pending、ResponseId、SelectedBy/CredentialScope/ParameterAdjustment；本Schema原防循环逐字形状保持，对齐义务在verification。CA3只升级费用选择语义，标识形状不变。
+原dispatched的MP5快照形状不变，新created采用当前RT的MP6；两者结构相同但保留各自精确语义来源，不暗改旧发出记录。MR11继续唯一拥有Pending、ResponseId、SelectedBy/CredentialScope/ParameterAdjustment；本Schema原防循环逐字形状保持，对齐义务在verification。CA4的ACK增量只升级费用选择语义，标识形状不变。
 
 G-14（模型内容存储/日志/运行时owner）：真实内容保留/取回、marker原批判重、拒绝创建同键认回与跨记录校验未开始；Schema通过不关闭它。报给主线：技术表示无独立词条，accepted/rejected及creationConflict由主线技术裁定，未选择新产品政策；本版未接受。
 

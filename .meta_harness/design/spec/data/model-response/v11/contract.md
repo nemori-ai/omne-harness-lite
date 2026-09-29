@@ -3,7 +3,7 @@
 - **状态**：candidate，未接受、未冻结；以前驱 data.model-response/v10 的已接受范围为输入，状态以 registry 为准。
 
 - **契约坐标**：`(omne-harness-lite-design-2026-09-15, data.model-response, 11)`；`family=data`、`topic=model-response`。
-- **当前设计依据与需求 rev**：PF-001 rev 25、PF-004 rev 20、PF-009 rev 9、PF-010 rev 7、PF-011 rev 5、PF-012 rev 21、PF-013 rev 16、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
+- **当前设计依据与需求 rev**：PF-001 rev 25、PF-004 rev 20、PF-009 rev 9、PF-010 rev 7、PF-011 rev 5、PF-012 rev 21、PF-013 rev 17、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
 - **精确语义依赖**（引用名字，不复制定义）：
 
   | 坐标 | 取它的什么 | 状态 |
@@ -848,11 +848,11 @@ G-17：PF-010 压缩硬 fit 与估算门的整体保证——owner 为产品/上
 
 合法ACK之后按本版S-49释放模型保管副本；此前本条原值/保留义务不变。
 
-本版是已接受MR10的后继candidate；原MR10的ready保存增量在ACK前保持，依据PF-013 rev17、PF-012 rev21、PF-015 rev20。S-39形状原样保留：仅complete/truncated/有回复interrupted，完整事实不含replyDisposition/late；本版改变允许保存的位置，未把它改成final。模型能力可以把该值作为不可变UTF-8 JSON内容保留，再由MS7 S-54 model_call_reply_ready发布引用；不是把该值送入根ModelResponse或作为AssistantMessage追加。
+本版是已接受MR10的后继candidate；原MR10的ready保存增量在ACK前保持，依据PF-013 rev17、PF-012 rev21、PF-015 rev20。S-39形状原样保留：仅complete/truncated/有回复interrupted，完整事实不含replyDisposition/late；本版改变允许保存的位置，未把它改成final。模型能力可以把该值作为不可变UTF-8 JSON内容保留，再由MS8 S-54 model_call_reply_ready发布引用；不是把该值送入根ModelResponse或作为AssistantMessage追加。
 
-取得指定kind=reply_ready的MS7 S-52引用后，须核存储原字节SHA-256、不可变版本、无损解析、S-39全部形状/关系以及payload.id/call/dispatch与marker/条目壳的原来源相等。任何来源缺席/不可取得/不能判真由能力返回unavailable；摘要错、错误kind或不合法值由数据接收边界malformed拒绝。不以null、空对象、当前目录或新计量器补原值。
+取得指定kind=reply_ready的MS8 S-52引用后，须核存储原字节SHA-256、不可变版本、无损解析、S-39全部形状/关系以及payload.id/call/dispatch与marker/条目壳的原来源相等。任何来源缺席/不可取得/不能判真由能力返回unavailable；摘要错、错误kind或不合法值由数据接收边界malformed拒绝。不以null、空对象、当前目录或新计量器补原值。
 
-Pending中raw/body及输入/输出事实所引用的内容适用相同保留期限与脱敏边界；不能只保留外层JSON而允许其已知内容失效。MS7只拥有引用与来源，不复制Pending形状。MR不反向依赖RT操作；实际发布、权限、unknown写者和回收责任由模型能力兑现。
+Pending中raw/body及输入/输出事实所引用的内容适用相同保留期限与脱敏边界；不能只保留外层JSON而允许其已知内容失效。MS8只拥有引用与来源，不复制Pending形状。MR不反向依赖RT操作；实际发布、权限、unknown写者和回收责任由模型能力兑现。
 
 ### S-47 同一响应事实与唯一最终处分
 
@@ -866,7 +866,7 @@ S-14 persisted仍需该唯一合法派生扩展后的消息与保留原 reply �
 
 ### S-48 表示校验、性质与缺口
 
-纯值校验沿S-27/S-28，输入是显式选择的Pending或final定义，成功为合法，失败是原闭合表示拒绝值，不授权、不写日志、无默认身份。Pending作为不可变内容读取仍用同一个$defs/PendingModelResponse，根ModelResponse缺disposition继续拒绝；不另起PersistentPending同义定义。跨记录断言见RT11的publication与final模型，Schema正反例在ready-examples.json，实际运行只在verification报告。
+纯值校验沿S-27/S-28，输入是显式选择的Pending或final定义，成功为合法，失败是原闭合表示拒绝值，不授权、不写日志、无默认身份。Pending作为不可变内容读取仍用同一个$defs/PendingModelResponse，根ModelResponse缺disposition继续拒绝；不另起PersistentPending同义定义。跨记录断言见RT12的publication与final模型，Schema正反例在ready-examples.json，实际运行只在verification报告。
 
 | 缺口 | owner | 影响 |
 |---|---|---|

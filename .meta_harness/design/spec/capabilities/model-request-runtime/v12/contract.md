@@ -8,7 +8,7 @@
   `family = capabilities`、`topic = model-request-runtime`、规范路径 `spec/capabilities/model-request-runtime/v12/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **设计依据**：RT5 的未变化承诺沿 D-090；输入限制增量依据 PF-013 rev16 用户裁定；原输入 cap 来源沿 [D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)。继承 S-74 最终固定计划门、S-75 未处分响应交接及 S-76 重试历史；本候选继承 S-74 的 token 计量保证，以 S-77～S-83 新增响应校准；原 SL3 结算、头事实、凭据、取消与精确适配保证完整保留。
-- **当前设计依据与需求 rev**：PF-001 rev 25、PF-004 rev 20、PF-009 rev 9、PF-012 rev 21、PF-013 rev 16、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
+- **当前设计依据与需求 rev**：PF-001 rev 25、PF-004 rev 20、PF-009 rev 9、PF-012 rev 21、PF-013 rev 17、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记；接受状态以 [registry](../../../../registry/README.md) 为准）：
   - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v5`（accepted，D-100）
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v6`（accepted，D-101）
@@ -2108,14 +2108,14 @@ settleReply S-49九项的后继增量：
 | ① | 原session/callId/disposition及可选 `retainedResult:MR11 PendingModelResponse`；persisted仍不在disposition输入域 |
 | ② | 先当前action=settle资格及原用途/承接关联，再核来源/阶段；ACK不授处分，read/ack不授消息写权 |
 | ③ | 无final且已ACK时retainedResult必需；ACK前给值只能与runtime原权威值相等，禁止覆盖；禁止从摘要恢复正文/重发/改写原inputCalibration |
-| ④ | 有final先按原同/异处分规则；否则核回送完整表示、原CallKey/ResponseId/dispatch/origin与MS8结果角色摘要及小账见证后，按S-69/S-70原完整批形成真实vetoed/consumed及实际提交点late；不读已删创建输入、不重取旧provider |
+| ④ | 有final先按原同/异处分规则；否则未ACK时取runtime权威原值（给retainedResult时先核相等），已ACK时核回送完整表示、原CallKey/ResponseId/dispatch/origin与MS8结果角色摘要及小账见证；通过后均按S-69/S-70原完整批形成真实vetoed/consumed及实际提交点late；不读已删创建输入、不重取旧provider |
 | ⑤ | 原结算成功与真实终态，ACK及原清理状态保持；新final读面优先，不把ACK记录的旧pending观察当永久状态 |
-| ⑥ | 缺retainedResult且无final为wrongPhase；已给值坏形状/身份/摘要矛盾invalidInput{malformed}；当前资格/来源不可核unavailable；已有不同处分alreadyEnded；其他沿原失败集合 |
+| ⑥ | 已ACK且无final且缺retainedResult为wrongPhase；已给值坏形状/身份/摘要矛盾invalidInput{malformed}；当前资格/来源不可核unavailable；已有不同处分alreadyEnded；其他沿原失败集合 |
 | ⑦ | 相同已提交处分认回原final，无需再次交全文；不同处分不覆盖；unknown必须保持原完整批和真实writer，不重跑转换或消费，不重新组批 |
 | ⑧ | 自持值丢失不恢复模型全文保管；ACK后本次新final写入责任与此前已释放副本不同，原批unknown必须有可恢复owner。首次可能追加前必须耐久保有跨崩溃认回此次完整原批、键及来源所需的数据；unknown及实际writer未收束期间保留。已确认合法final且所有可能writer收束后自动清除本次临时原批；或实际全部写者停止、权威完整前缀确证原批未提交且原显式政策结束本次写责任时，清除并明确unavailable。政策决定继续则仍守S-70/S-71同原批/合法late重构；缺暂存/日志不是无批证明。无需第二ACK，不复活原ready，不用原已删locator/version重建内容身份 |
 | ⑨ | 原结算诊断，无新业务事件，无第二份模型结果 |
 
-授权persisted消息写方亦须自持完整原Pending、当前消息写入/处分权及同摘要/来源校验；取得原窄协调器资格后仍把唯一合法派生消息与原final同批提交。ACK/ref/读权不提供anchored控制，ordinary settleReply不新增persisted分支。ACK后新final写任务亦受本条⑧临时恢复责任约束；该任务不得成为结果重新领取或长期缓存来源。原cleanup=released保持，新在途责任另明确可见。依据[ACK后新处分写入候选裁定](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)，不改S-70/S-71原恢复语义。
+ACK后授权persisted消息写方亦须自持完整原Pending、当前消息写入/处分权及同摘要/来源校验；取得原窄协调器资格后仍把唯一合法派生消息与原final同批提交。ACK/ref/读权不提供anchored控制，ordinary settleReply不新增persisted分支。ACK后新final写任务亦受本条⑧临时恢复责任约束；该任务不得成为结果重新领取或长期缓存来源。原cleanup=released保持，新在途责任另明确可见。依据[ACK后新处分写入候选裁定](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)，不改S-70/S-71原恢复语义。
 
 ### S-100 全部现有入口的九项传播
 
