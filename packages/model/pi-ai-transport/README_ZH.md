@@ -512,6 +512,10 @@ node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-
 
 `InputMeter` 破坏性改为 `measureFull`、`measureReplay`（φ）、`measureNew`（δ），并固定 tokenizer/replay/transform 修订；根入口可独立导入三操作以及 `projectInput`、`projectOutput`、`canonicalProjection`。有符号贡献按 I+φ+δ 合成，estimated 最终总量只应用一次 `tokenMargin`。`planned.measurement` 显式给 full/marginal、精度、贡献及来源/前缀/依据回退原因；实际 usage/cost 不混入预测。
 
+`measureReplay` 必须接收专用 `ReplayMeterInput`，`measureNew` 继续接收 `MarginalMeterInput`。Replay 的 `observation` 复用同次已拥有的 `PlanCalibration` 观察，包含原 MR9 request／observed／output-group 证据、原 usage（含 output 和 reasoning 计数）、保留的输出块及选入关系。`unitIndices[i]` 给出 `units[i]` 在最终输入投影中的位置；`selectionSpans` 每项把 `observation.replaySelection[selectionIndex]` 关联到目标消息的半开 `[start,end)` 投影范围，多个块可以共享一个范围。planner 先复制、验证并深冻结这些值；两个增量输入都不含稳定前缀正文。
+
+Replay 实现可结合原组与实际选入关系读取 `input.observation.usage.output_tokens`，这不等于获准把该总量加到输入 tokens。整组判断必须核覆盖、源身份、目标实际顺序以及仅选入一次，不能依赖 selection 数组顺序。一个源块映射多个目标仍可合法存在，事实明确交出，不全局禁止；部分、重复、改序的组不能静默套整组公式。独立调用公开 `measureReplay(meter, input)` 时，调用者仍须提供合法来源与投影关系，TypeScript `readonly` 不认证来源。型号不能解释的关系保留 `invalidInput`／`unavailable` 及 planner 原有 full 回退路径。本接口没有新增任何型号的 I+O 规则。
+
 四个 Anthropic 定义现为 revision 2 / `pi-ai:anthropic` `mp4-5`：非空 assistant/tool 文本从首轮起固定单 text 数组，仅精确支持的1h缓存控制从输入内容投影排除。发送体缓存标记、完整bytes/images检查仍保留，布局仍为last_message，未增加omne-next多断点。新修订首次full；稳定前缀以后只扫描/哈希，不重新分词。
 
 Anthropic及适用OpenAI可见历史路径给新增回放/追加单元的JSON净贡献估算，减去估算表示中的空封装。它不是私有模板/BPE边界恒等证明，不从总output或ciphertext长度推算隐藏thinking。其余既有full meter保留原适用域；尚无依据的增量明确unavailable，未供给型号不补造。增量不可判回退full，full仍不可判则零HTTP拒绝，保留全部历史。
