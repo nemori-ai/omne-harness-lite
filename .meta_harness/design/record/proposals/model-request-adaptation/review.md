@@ -231,3 +231,9 @@ G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5�
 独立 architecture-reviewer 审阅 transport v11-registry-diagnostics-design revision1，SHA `1c646bff766872cf75595e0402d07ec156b96f2803f9177b573c98666f101f60`：本范围无阻断、无新增政策待裁；一个非阻断要求防止非法回调反复返回同一pending Promise后累积reaction。revision2 SHA `e3f89afa2826a52a8f5800c67a1c7bb0e755df8f22e05f0aa7b635becdbc7ac6` 明确首次thenable后固定端口永久停投、仅观察一只原生Promise拒绝、后续不伪造dropped且不更换旧实例端口。同一reviewer窄核该精确字节，唯一意见闭合、未见新增问题。
 
 已核：record-only借用、缺席不伪失败、合法拒收与非法返回分计、collector只亲见事实、源/network/collector不相加、新旧实例独立、溢出unknown、真实停止前保留旧读面。未运行代码、故障或生命周期测试，不证明完整D6；补验pending/rejected Promise、溢出及关闭后读面。技术采用见D076追加。
+
+## 2026-09-29 公共 runPass 执行面独立窄复核
+
+独立 architecture-reviewer 核对提交 `7eebe44bfc3196e050746a3c1ce452be43d5ac8a`（HUB `f7db3298`），[v6-run-pass-design.md](../../../realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md) SHA256 `0ca2f23a21242d7d118ed978df27d86d11726b5fcd11377b5fb8fa8adf06240a`；v5 revision3 字节未变。原 B1（ask 就绪与重演偏离缺可区分端口）闭合：readAskState 区分 pending/ready/关联不一致/不可读，原轮次/卡片/批次/答复有来源校验；重演原 subject/earlier、新句柄，偏离由控制 owner 锁存，贡献者 catch 后正常返回也不能掩盖。
+
+四组结果：本范围无剩余阻断；无新增非阻断；生产等待、Run、G3/G5 及服务装配仍是范围外真实 owner 依赖，不阻具备明确前提的公共执行函数；未运行实现、TLA 或生命周期探针，V6-1～9 仍待执行。完整历史与有效结论分开投影，unknown owner、合法竞争胜者、共享提醒键与同 prefix 验证保留。反方的少端口/把所有偏离当普通错误虽较短，但不能区分四种等待事实，已由 v6 关键选择表承担其取舍。此审查不代替技术采用或生产签收。

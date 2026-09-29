@@ -1,3 +1,7 @@
+## 2026-09-29 公共执行面采用增量
+
+[D106 追加](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md) 已技术采用 v6 revision1 及继承的公共 runPass／日志适配／任务 owner 范围；独立窄复核原 B1 闭合。可实施完整条件函数，尚未实施或验证。生产等待、Run、G3/G5、P-5 及 Cordis 服务装配未因采用关闭。下方候选状态是起草时事实，当前采用范围以该决定为准；V6-1～9 仍待执行。
+
 ## 公共 runPass 执行面候选（2026-09-29）
 
 - 新入口：[v6-run-pass-design.md](v6-run-pass-design.md)，文档 revision1；契约仍为已接受 Runner5/LC6，不是 Runner6。

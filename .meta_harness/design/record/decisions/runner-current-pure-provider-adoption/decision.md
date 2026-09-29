@@ -25,3 +25,13 @@
 释放 `judgePositionedSubject`、`judgeConclusionForSubject` 与 `ConclusionSubjectInputs` 公共纯面，以及 runner 删除固定Run/log/environment/attempt并直接消费它们。仅抽取现有core检查；不迁移LC6 S-14生产者/runner batch/result来源关联责任，不修改LC6规范/Schema，原完整judgeInput/judgeConclusion仍保留真实完整输入前提及既有错误顺序。新增绑定0，不新增Cordis服务、运行身份或存储。精确旧规范依赖不自动升级，故本次无registry契约冻结变化。
 
 独立architecture-reviewer完成原稿及最终窄复核，无该范围剩余阻断；主线核对最终SHA、公共签名和责任范围后接受施工，候选正文的原“未采用”保留为起草时事实，以此追加限定当前采用。两入口及runner消费者必须完成SV-1～6、既有回归、严格类型、真实制品和双语示例，才能分别记实现与验证完成。完整runner、Run来源及G28等此前保留项仍未关闭。
+
+## 2026-09-29 追加：完整公共 runPass 执行面技术采用
+
+主线依同一用户持续实施、调度与技术验收委托，技术采用 [v6 公共 runPass 增补](../../../realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md)，SHA256 `0ca2f23a21242d7d118ed978df27d86d11726b5fcd11377b5fb8fa8adf06240a`，及其明确继承的 v5 revision3 公共执行、日志适配与长期任务 owner 责任（原 SHA 不变）。依据为原模型适配提案、已接受 Runner5/LC6 和[本次独立窄复核](../../proposals/model-request-adaptation/review.md)。原 B1 已闭合，无该范围剩余阻断。
+
+本次扩大先前五纯构件采用，释放完整 `runPass` 及其公共类型、受控执行/等待/日志端口、必要独立任务 owner 与真实 SL3 组合实现；包括 ask/replay、普通错误与控制偏离区分、竞争胜者、unknown 留存、取消/句柄失效、嵌套提醒和同 prefix 来源校验，不能只交一个正常 noRun 分支。实现复用既有 core 判定、五纯构件与 runtime 消息键/codec；缺实际来源具名失败，不以布尔通行证或隐藏全局服务替代端口。
+
+不采用为已完成：Cordis dispatch/replay 服务装配、P-5 真实贡献登记、G3 runtime 同 prefix 接线、G5 生产日志宿主可信停止/恢复、G28 生产 Run 终结来源和卡片等待 owner。公共函数可在明确受控前提下验证有 Run 的分支，但 noRun after_model_call 及 producer=model/tool 的 before_persist_message 仍 invalidInput；不能据函数测试签收真实治理 Run。MR9/RT10 usage 候选不是此增量的依赖，不预先消费。
+
+施工与技术签收按 V6-1～9 及仍适用 V5 义务：顺序确认、ask 四世界、多轮重演/偏离锁存、真实 JSONL 同键竞争/重开认回、未知保留与可信停止前不重求、共享提醒冲突、实际取消及迟到结果归属、严格公共类型、制品消费者和双语 README。生产接线与条件函数证据分别报告。新增绑定 0；此采用不是实现或完整 model runtime 纵线交付声明。
