@@ -1,0 +1,48 @@
+{
+  "modelId": "openai/gpt-6-sol",
+  "caseKind": "cache_cold_warm",
+  "definitionRevision": "3",
+  "implementation": {
+    "name": "pi-ai:openai",
+    "revision": "mp4-6"
+  },
+  "scenarioSha256": "ec8fd97751b8ecb3b04a591d29acd2fe2b776ea7d9ea07b45bb1b0f4d355fadc",
+  "catalogSha256": "99cf5c7d15fbfa0ca73fa5020a18f3100b6ac3516afc3f9d076581ae469e006c",
+  "catalogObservedAt": "2026-09-29T07:41:08.260Z",
+  "expectedEndpointTag": "openai",
+  "profileSha256": "6f3ee34dfa9e2cef5e6f57ccc232b3cb4777727d516304b26351b605217314a0",
+  "publicWireSha256": "5fbfa03cdd078662b1c6bb0939f055cd4cbf1a01a20f8e24769be6014c1bcc7e",
+  "approvedLocalServiceWireSha256": [
+    "7f18192b5072ae4897cb2498089d3007908e0ac6a1056515fdf485d7b79791ea",
+    "fe9dbb11c67cd88809a9e300896971c12f6a6dc5510ce97593830e56c9d4d019",
+    "e40a3ce224b9b473361c3f9231d88cca8bf5b41b3788d6e1ea585387d2850b02"
+  ],
+  "sourceSha256": {
+    "packages/model/pi-ai-transport/src/official-models/openai.ts": "51dd6efa119901a2f926adc96d7ea1d9253c8700c36e941b2d74e2c564925a1b",
+    "packages/model/pi-ai-transport/src/input-meters/openai.ts": "44b83d8136367102efdc10a57ef05998ebc82fbf70d490d84cbbbda58778746c",
+    "packages/model/pi-ai-transport/src/calibration.ts": "9aecd0fa9fbf8a58346e5af3f90a6521d987e362c16b19c7829799fd106fe5b6",
+    "packages/model/pi-ai-transport/src/transport.ts": "cf5592af3b53ae9a165a7c5d1482672450b69294e48e46d3fe2964f8df2ee361",
+    "packages/model/model-request-runtime/src/invoke.ts": "f76674dc9abf0cd21d3428e66ce1db737a352269f9710c7e3a6e86c671c608d8",
+    "packages/model/model-request-runtime/src/service-calibration.ts": "0e58b2b0f59fd0126ab34bf0a92f9b640d2184c3328de3bce88c26bfdbc3c7ae",
+    "packages/model/model-request-runtime/src/service-calls.ts": "be74da5e7e18e450bccb1194b22d8739db468259e7aabf2f7e24a9736f6d04ca",
+    "examples/model-invocation-minimal-demo/src/bootstrap.ts": "f2f15b9e93fe50979f190fa92849798497892acaf58d2c34bc7e4919e47ecb1c",
+    "examples/model-invocation-minimal-demo/src/deployment.ts": "0a9d666e71e3593ee091e6d56da648fae20a501e2ff64cf838a1c913e9d29b21",
+    "examples/model-invocation-minimal-demo/src/model-call-host.ts": "d174efc1dd53d650e38fec5b2c741ca2d4645aee8c2916eddf55fdf6317acf82",
+    "examples/model-invocation-minimal-demo/src/model-request-text.ts": "da38b5809cb3d3251f191404c55d28598a09dfa0d41f13be7ed1dfdee19fc3a1",
+    "tools/model-probe/src/budget.mjs": "1809725dc563731f294c3aa49b14fce8f10ac73352693e24b9a1c73281ac0a21",
+    "tools/model-probe/src/production-gate.mjs": "2425845028314c196b506fff886e3a7c6a099dd48590cf289ec582eaf32f9c89",
+    "tmp/priority-certification/runner-v2/evidence.mjs": "9ac24677e41100299a338dfc47d2bad338c2bc7a1932ef70fb775642568f86ae",
+    "tmp/priority-certification/runner-v2/paid-core.mjs": "8a809ba06b35f72cf265dfa5faac4bebf4699334c99dc00ddc2e022597905cc6",
+    "tmp/priority-certification/runner-v2/service-core.mjs": "a51ca87dee8bf6fa584700f48c3ba3f728cd2e18d70387595b9490fc7ed9927e",
+    "tmp/priority-certification/runner-v2/paid.mjs": "9f998d39952d28f85dc9d152ffb52faad86b3934f33af7b133e4e6f1914a9211",
+    "tmp/priority-certification/runner-v2/review.mjs": "e175fd7a66e9cd5e3ac1107f14560be55134d2c01d62f6bc0a5e5f6b61bec341",
+    "tmp/priority-certification/runner-v2/catalog.mjs": "6929f62a970ed22eb6e652e26383786079f3f0be210de7e74561751015b8937f",
+    "tmp/priority-certification/runner-v2/dry-run.mjs": "d3cbdb27409846d9738e916c22cf51167c0d016c43fee9f8ded01775a689c42b"
+  },
+  "estimateUsdPerRequest": "4.613840000000000000",
+  "maximumPlannedRequests": 5,
+  "budget": {
+    "limitUsd": "100",
+    "researchLimitUsd": "50"
+  }
+}

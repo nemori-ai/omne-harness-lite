@@ -1,0 +1,11 @@
+[
+  {
+    "id": "cf0b66cc-b169-4452-91ec-d46aec535ab1",
+    "model": "anthropic/claude-opus-5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "8.726400000000000000",
+    "state": "settled",
+    "actualUsd": "0.00409"
+  }
+]
