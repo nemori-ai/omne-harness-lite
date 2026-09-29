@@ -225,23 +225,25 @@ export function nextRequest(
     },
     outputHistory:
       original.inputCalibration.outputGroup.kind === 'known' && replaySelection.length > 0
-        ? [{
-            inputCalibration: original.inputCalibration,
-            usage: original.usage,
-            outputBlocks,
-            replaySelection,
-            origin: {
-              adaptation: original.route.adaptation,
-              provider: original.route.provider,
-              parameters: original.route.parameters,
-              ...(original.route.servingProvider === undefined
-                ? {}
-                : { servingProvider: original.route.servingProvider }),
-              ...(original.route.upstreamModel === undefined
-                ? {}
-                : { upstreamModel: original.route.upstreamModel }),
+        ? [
+            {
+              inputCalibration: original.inputCalibration,
+              usage: original.usage,
+              outputBlocks,
+              replaySelection,
+              origin: {
+                adaptation: original.route.adaptation,
+                provider: original.route.provider,
+                parameters: original.route.parameters,
+                ...(original.route.servingProvider === undefined
+                  ? {}
+                  : { servingProvider: original.route.servingProvider }),
+                ...(original.route.upstreamModel === undefined
+                  ? {}
+                  : { upstreamModel: original.route.upstreamModel }),
+              },
             },
-          }]
+          ]
         : [],
   }
 }
@@ -977,12 +979,13 @@ export function registerDefaultRetry(registry: RunnerImplementations) {
 
 本代登记结束时调用返回的 disposer。Cordis fiber 从 `@omne-harness-lite/model-request-runtime/default-retry-plugin` 导出 `createModelDefaultRetryPlugin({policy,sample})`；它必需注入 `loopExtensionImplementations`，只在自身 effect 中登记 `omne-official:default-retry`。宿主仍须提供 builtinName 完全相同、位置为 `after_model_call`、维度为 `{ending:'failure'}` 的声明；插件不会自建声明或授予 rewrite 权力。正式 Run 失败路径还依赖宿主的合法 Run 历史和失败来源；不属于 Run 的调用不能进入 runner 的 `after_model_call` 位置。
 
-
 规划消费异步的 [D109 runtime 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v21-image-preparation-design.md)。所有适配器实现 `plan(input, execution): Promise<PlanResult<P>>`；包括取消在内，Promise 只能在自身原生任务实际终结后完成。`invokeModel` 传入真实 owner 信号和可选的 caller 自有 opaque `reuseScope`，scope 不赋权、不持久化。锚定计划交给内层 invoke 时只返回原计划，不再次准备图片。服务以原精确 transport lease 跟踪准备任务，取消和 close 等实际完成才释放引用。runtime 不加载 codec 或补图片政策默认值；这些由 transport factory 显式接收。
 
 ```ts
 import type {
-  PlanInput, PlannedSemantics, TransportAdapter,
+  PlanInput,
+  PlannedSemantics,
+  TransportAdapter,
 } from '@omne-harness-lite/model-request-runtime'
 
 export async function prepare<P extends PlannedSemantics, R>(
@@ -998,11 +1001,13 @@ export async function prepare<P extends PlannedSemantics, R>(
 }
 ```
 
-
 服务构造必须显式提供正安全整数 `maxScopes`，以及同步的 `ExactTransportAcquirer.clearReuseScope(scope)`。固定 transport 实例的装配须保留其清理闭包，直到 runtime close 成功：
 
 ```ts
-import type { ExactTransportAcquirer, PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import type {
+  ExactTransportAcquirer,
+  PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
 
 export function fixedAcquirer<P extends PlannedSemantics, R>(
   acquire: ExactTransportAcquirer<P, R>['acquire'],
@@ -1016,7 +1021,35 @@ export function fixedAcquirer<P extends PlannedSemantics, R>(
 
 runtime 在受信 session bind 后，以 tenant/session/log generation 分隔 opaque scope；有限槽位只淘汰 idle 项，全部占用时可沿普通准备资源限制使用无复用路径。关闭先停准入、取消并等待真实准备和网络任务，再逐项清 scope。清理实际返回值必须是 `undefined`；抛错、其他返回值或 thenable 都保留责任并返回 `unavailable`，pending 尝试被观察且终结前不重试。后续 `runtime.close()` 可以重试失败清理。采用依据见[清理附页](../../../.meta_harness/design/realization/packages/model/model-request-runtime/image-preparation-scope-cleanup-candidate.md)。本包 owner 测试不证明真实原生图片 codec 已验收。
 
-
 D110 已采用 [RT11 引用生命周期映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v20-reference-lifecycle-design.md)。runtime 公开引用面直接使用 MS7 唯一的 `CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreatedPayload`；未处分与最终结果仍为 MR10 原值。`openCall` 必填显式 creation key。新增 `CallConsumer` 只等待并释放自己的接收资源，不带执行取消或 persisted 消息控制。`CallAccess.check` 在受信提供者的撤权次序中运行准入 callback；`CallPresence.read` 在原 host 精确代际临界段核 live 附着，不接收 caller 自报授权布尔。
 
-本首个源码增量落实采用的接口与共同 marker codec；耐久发布、取得消费及十四转发面正在迁移。它不表示生命周期已可执行验收，也不替代 R20-V1～23 的实际证据。
+私有内容工厂现在先通过既有 Storage 确认不可变 UTF-8 字节，再返回 payload 引用。读取先核 SHA-256，再严格无损解析；同键不同字节拒绝覆盖，提交回执丢失后认回原行，close 等真实写任务停止。外部 attachment/raw-body 引用缺可信保留提供者时返回 `unavailable`。定向测试使用真实 SQLite 和 SessionLog；尚不证明服务创建、acquire、marker 发布或恢复已完成。用户新增 ACK/回收的后继规格等待采用，本增量不交付永久保留保证或删除接口。
+
+```ts
+import {
+  createModelCallContentStore,
+  type ModelCallContentValue,
+  type SettlementLogBinding,
+} from '@omne-harness-lite/model-request-runtime'
+import type { Storage } from '@omne-harness-lite/storage'
+
+export async function confirmContent(
+  storage: Storage,
+  binding: SettlementLogBinding,
+  content: ModelCallContentValue,
+  locator: string,
+  version: string,
+) {
+  const owner = createModelCallContentStore({
+    storage,
+    policy: { maxConcurrentWrites: 2, maxContentBytes: 1_000_000 },
+  })
+  try {
+    return await owner.put({ binding, content, locator, version })
+  } finally {
+    await owner.close()
+  }
+}
+// host 在打开 Storage 前合成 modelCallContentMigrations('sqlite')。
+// 已确认行只是内容；采用的 SessionLog marker 需单独发布。
+```

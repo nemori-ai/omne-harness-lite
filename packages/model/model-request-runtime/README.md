@@ -227,23 +227,25 @@ export function nextRequest(
     },
     outputHistory:
       original.inputCalibration.outputGroup.kind === 'known' && replaySelection.length > 0
-        ? [{
-            inputCalibration: original.inputCalibration,
-            usage: original.usage,
-            outputBlocks,
-            replaySelection,
-            origin: {
-              adaptation: original.route.adaptation,
-              provider: original.route.provider,
-              parameters: original.route.parameters,
-              ...(original.route.servingProvider === undefined
-                ? {}
-                : { servingProvider: original.route.servingProvider }),
-              ...(original.route.upstreamModel === undefined
-                ? {}
-                : { upstreamModel: original.route.upstreamModel }),
+        ? [
+            {
+              inputCalibration: original.inputCalibration,
+              usage: original.usage,
+              outputBlocks,
+              replaySelection,
+              origin: {
+                adaptation: original.route.adaptation,
+                provider: original.route.provider,
+                parameters: original.route.parameters,
+                ...(original.route.servingProvider === undefined
+                  ? {}
+                  : { servingProvider: original.route.servingProvider }),
+                ...(original.route.upstreamModel === undefined
+                  ? {}
+                  : { upstreamModel: original.route.upstreamModel }),
+              },
             },
-          }]
+          ]
         : [],
   }
 }
@@ -988,12 +990,13 @@ export function registerDefaultRetry(registry: RunnerImplementations) {
 
 Call the returned disposer when this registration generation ends. The corresponding Cordis fiber is exported from `@omne-harness-lite/model-request-runtime/default-retry-plugin` as `createModelDefaultRetryPlugin({policy,sample})`. It requires `loopExtensionImplementations` and registers only `omne-official:default-retry` within its effect. The host must still provide a declaration with that exact builtin name, `after_model_call`, and `{ending:'failure'}`; the plugin does not create a declaration or give itself rewrite power. An official Run failure path also needs the host's authorized Run history and failure source; a no-Run call cannot enter the runner's `after_model_call` position.
 
-
 Planning now consumes the asynchronous [D109 runtime mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v21-image-preparation-design.md). Every adapter implements `plan(input, execution): Promise<PlanResult<P>>`; it must finish its owned native work before resolving, including cancellation. `invokeModel` passes its actual owner signal and an optional caller-owned opaque `reuseScope`. The scope grants no authorization and is never persisted. A fixed anchored plan is reused by the inner invocation without preparing images again. The service tracks preparation with its exact transport lease; cancellation and close wait for actual completion before releasing references. This runtime does not load a codec or supply image-policy defaults; those are explicit transport factory inputs.
 
 ```ts
 import type {
-  PlanInput, PlannedSemantics, TransportAdapter,
+  PlanInput,
+  PlannedSemantics,
+  TransportAdapter,
 } from '@omne-harness-lite/model-request-runtime'
 
 export async function prepare<P extends PlannedSemantics, R>(
@@ -1009,11 +1012,13 @@ export async function prepare<P extends PlannedSemantics, R>(
 }
 ```
 
-
 The service constructor requires an explicit positive safe integer `maxScopes` and a synchronous `ExactTransportAcquirer.clearReuseScope(scope)` capability. For a fixed transport instance, retain its cleanup closure until runtime close succeeds:
 
 ```ts
-import type { ExactTransportAcquirer, PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+import type {
+  ExactTransportAcquirer,
+  PlannedSemantics,
+} from '@omne-harness-lite/model-request-runtime'
 
 export function fixedAcquirer<P extends PlannedSemantics, R>(
   acquire: ExactTransportAcquirer<P, R>['acquire'],
@@ -1027,7 +1032,35 @@ export function fixedAcquirer<P extends PlannedSemantics, R>(
 
 After trusted session binding, the runtime separates tenant/session/log generations into opaque scopes. It evicts only idle scopes within the configured limit; all occupied slots may use the ordinary preparation path without reuse. Shutdown closes admission, cancels and awaits actual preparation/network work, then clears each scope. Cleanup must actually return `undefined`: a throw, non-undefined return or thenable retains responsibility and yields `unavailable`; pending attempts are observed and not retried until terminal. A later `runtime.close()` can retry failed cleanup. See the [adopted cleanup supplement](../../../.meta_harness/design/realization/packages/model/model-request-runtime/image-preparation-scope-cleanup-candidate.md). These local owner tests do not certify native image codec behavior.
 
-
 D110 adopts the [RT11 reference lifecycle mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v20-reference-lifecycle-design.md). Runtime public reference types import MS7's unique `CallKey`, `CreationKey`, `ModelCallPayloadRef` and `ModelCallCreatedPayload`; `PendingModelResponse` and final response facts remain MR10 values. `openCall` requires an explicit creation key. The new `CallConsumer` only waits and releases its own receiving resources; it has no execution cancellation or persisted-message controls. `CallAccess.check` runs an admitted callback in the trusted provider's revocation order, and `CallPresence.read` keeps live attachment in the original host's exact-generation critical section. They never accept a caller authorization boolean.
 
-This first source increment defines the adopted interfaces and shared marker codec; durable publication, acquisition and the fourteen forwarding methods are being migrated. It does not certify executable lifecycle behavior or replace the required R20-V1–23 evidence.
+The private content factory now confirms immutable UTF-8 bytes in the existing Storage provider before returning a payload reference. It verifies SHA-256 before strict lossless parsing, rejects same-key different-byte writes, recognizes a committed row after a lost receipt, and drains actual writes on close. External attachment/raw-body references return `unavailable` until a trusted retention provider is supplied. Its directed test uses real SQLite and SessionLog; it does not yet certify service creation, acquisition, marker publication or recovery. The newly requested ACK/reclamation successor is pending adoption; no permanent-retention guarantee or deletion API is delivered here.
+
+```ts
+import {
+  createModelCallContentStore,
+  type ModelCallContentValue,
+  type SettlementLogBinding,
+} from '@omne-harness-lite/model-request-runtime'
+import type { Storage } from '@omne-harness-lite/storage'
+
+export async function confirmContent(
+  storage: Storage,
+  binding: SettlementLogBinding,
+  content: ModelCallContentValue,
+  locator: string,
+  version: string,
+) {
+  const owner = createModelCallContentStore({
+    storage,
+    policy: { maxConcurrentWrites: 2, maxContentBytes: 1_000_000 },
+  })
+  try {
+    return await owner.put({ binding, content, locator, version })
+  } finally {
+    await owner.close()
+  }
+}
+// The host composes modelCallContentMigrations('sqlite') before opening Storage.
+// A confirmed row is content only; publish the adopted SessionLog marker separately.
+```

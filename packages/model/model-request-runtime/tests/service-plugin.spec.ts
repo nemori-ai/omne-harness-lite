@@ -1,6 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis'
 import { z } from 'zod'
+import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { describe, expect, it } from 'vitest'
 import {
   createModelRuntimePlugin,
@@ -35,6 +36,7 @@ function failureUnavailable<I>(
 }
 function service(): ModelRuntimeService {
   return {
+    acquireCall: unavailable,
     legalTargets: unavailable,
     displayList: unavailable,
     effectiveModel: unavailable,
@@ -69,7 +71,67 @@ async function dependencies(ctx: Context) {
   )
 }
 
+function isRuntimeService(value: unknown): value is ModelRuntimeService {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    [
+      'acquireCall',
+      'legalTargets',
+      'displayList',
+      'effectiveModel',
+      'selectModel',
+      'openCall',
+      'dispatch',
+      'dispatchAgain',
+      'interrupt',
+      'releaseCall',
+      'reconcile',
+      'readAttempts',
+      'settleReply',
+      'canDispatchAgain',
+    ].every(key => typeof Reflect.get(value, key) === 'function')
+  )
+}
+
 describe('Cordis P-2 runtime assembly', () => {
+  it('forwards the fourteenth acquireCall operation through actual Cordis', async () => {
+    const ctx = new Context()
+    const parsedSession = parseOpaqueIdentifier('ref-session', 'SessionRef')
+    const parsedCall = parseOpaqueIdentifier('ref-call', 'ModelCallId')
+    if (!('ok' in parsedSession) || !('ok' in parsedCall)) throw new Error('fixture identifiers')
+    const input = {
+      ref: { session: parsedSession.ok, callId: parsedCall.ok },
+      mode: 'read' as const,
+    }
+    const received: unknown[] = []
+    const consumer = await ctx.plugin(
+      createModelRuntimePlugin({
+        construct: async () => ({
+          service: {
+            ...service(),
+            acquireCall: async request => {
+              received.push(request)
+              return { callNotFound: true }
+            },
+          },
+          owner: { close: async () => ({ released: true as const }), release() {} },
+        }),
+      }),
+      {},
+    )
+    const provider = await dependencies(ctx)
+    try {
+      await consumer.await()
+      const actual = ctx.get(MODEL_RUNTIME_SERVICE)
+      if (!isRuntimeService(actual)) throw new Error('complete service required')
+      expect(await actual.acquireCall(input)).toEqual({ callNotFound: true })
+      expect(received).toEqual([input])
+    } finally {
+      await provider.dispose()
+      await consumer.dispose()
+    }
+  })
   it('forwards explicit failure consumption through the real Cordis service for all three methods', async () => {
     const ctx = new Context()
     const seen: string[] = []

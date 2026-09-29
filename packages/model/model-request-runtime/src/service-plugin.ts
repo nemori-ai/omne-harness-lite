@@ -19,6 +19,7 @@ export interface ModelRuntimeAssembly {
   readonly owner: ModelRuntimeAssemblyOwner
 }
 const methodNames = [
+  'acquireCall',
   'legalTargets',
   'displayList',
   'effectiveModel',
@@ -110,6 +111,7 @@ export function createModelRuntimePlugin(input: {
         return invoke
       }
       const service: ModelRuntimeService = {
+        acquireCall: input => original.acquireCall(input),
         legalTargets: input => original.legalTargets(input),
         displayList: input => original.displayList(input),
         effectiveModel: input => original.effectiveModel(input),

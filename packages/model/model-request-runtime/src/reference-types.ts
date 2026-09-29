@@ -97,10 +97,13 @@ export interface CallAccessEvidence {
   readonly ref: CallKey
   readonly source: CallSource
   readonly sourceVersion: string
+  /** Immediate resource invalidation only; never a cached authorization grant. */
+  readonly revoked: AbortSignal
 }
 export type CallAccessResult<T> =
   | { readonly allowed: T; readonly evidence: CallAccessEvidence }
   | { readonly denied: true; readonly evidence: CallAccessEvidence }
+  | ServiceInvalidInput
   | ServiceUnavailable
 /** S-87/S-93: each callback is an admission point, held against revocation until actual drain. */
 export interface CallAccess {
@@ -126,7 +129,7 @@ export type ModelCallContentValue =
   | { readonly kind: 'created'; readonly value: ModelCallCreatedPayload }
   | { readonly kind: 'reply_ready'; readonly value: PendingModelResponse }
 export interface ModelCallContentStore {
-  /** Confirm immutable original bytes before issuing the reference; no delete/GC operation. */
+  /** Confirm immutable original bytes before issuing the reference. ACK successor pending. */
   readonly put: (input: {
     readonly binding: SettlementLogBinding
     readonly locator: string
