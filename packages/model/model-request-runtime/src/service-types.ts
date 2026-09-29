@@ -10,7 +10,7 @@ import type {
   ModelRequest,
   RetryPlan,
 } from '@omne-harness-lite/loop-extension'
-import type { MessageId, SessionRef } from '@omne-harness-lite/messages'
+import type { Message, MessageId, SessionRef } from '@omne-harness-lite/messages'
 import type {
   ModelAdaptationBinding,
   ModelProfileRef,
@@ -28,6 +28,7 @@ import type {
   SelectedBy,
 } from '@omne-harness-lite/model-response'
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
+import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import type { CallHistoryDispatch, CallHistoryResult } from './call-history.ts'
 import type { ModelLogSettlementTarget } from './log-codec.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
@@ -49,6 +50,7 @@ import type {
   InputLimitRejection,
   InvocationPolicy,
   PlannedSemantics,
+  ReplaySelection,
   TokenMargin,
   TransportAdapter,
 } from './types.ts'
@@ -437,6 +439,11 @@ export interface CurrentHistoryReaders {
     prefix: SettlementPrefix,
     callId: ModelCallId,
   ) => { readonly subject: AfterModelCallFailureSubject } | { readonly unavailable: true }
+  /** The host interprets actual selected sources; the runtime rechecks every locator in prefix. */
+  readonly calibration: (
+    prefix: SettlementPrefix,
+    messages: readonly Message[],
+  ) => CalibrationHistoryResult
   /** G-4: the real Run interpreter has no adopted implementation; withRun remains unavailable. */
   readonly run: (
     prefix: SettlementPrefix,
@@ -444,6 +451,28 @@ export interface CurrentHistoryReaders {
     originalAttempt: AttemptId,
   ) => { readonly unavailable: true }
 }
+
+export interface CalibrationSelectedSource {
+  readonly messageIndex: number
+  /** Null is legal only for a message with no durable source, never for an assistant ancestor. */
+  readonly entry: LogEntry | null
+}
+export interface CalibrationHistoryCandidate {
+  readonly dispatchedEntry: LogEntry
+  readonly responseEntry: LogEntry
+  readonly messageEntry: LogEntry
+  readonly messageIndex: number
+  readonly response: ModelResponse
+  readonly replaySelection: readonly ReplaySelection[]
+}
+export type CalibrationHistoryResult =
+  | {
+      readonly selectedSources: readonly CalibrationSelectedSource[]
+      /** Actual selected causal ancestors, newest first; not physical-response ordering. */
+      readonly candidates: readonly CalibrationHistoryCandidate[]
+    }
+  | { readonly sourceUnavailable: true }
+  | { readonly noObservation: true }
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly sessions: RuntimeSessionAccess
