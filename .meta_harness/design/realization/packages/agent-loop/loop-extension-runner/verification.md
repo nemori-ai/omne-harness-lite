@@ -169,3 +169,27 @@ G3-0 的 runner3/runtime3 candidate 登记已完成，LC4/MS4/MR4/AE4/AR3/MF3 �
 | 执行环境引用先经 `sessionTenancy` | N-37 ⑩；`capability.execution-environments` v2 S-11；`capability.session-tenancy` v2 S-8 | `resolveExecutionEnvironment` 先 `holdingTenant` 再 `resolveSessionEnvironment(tenant, session)`；两样分开解析的取舍表改写；G-20 改「真承接者未到、接口已定」 | design.md 执行环境句柄一节、S-50 行、inject 边表、依赖表；本页 S-52 行 |
 | 最小提供者节点互指（主线 2026-09-25） | `session-log-jsonl`、`session-tenancy-table`、`assembly-manifest-store`、`execution-environments-host` 四个 candidate 节点 | RL-1～RL-6 引导段、RUN-N1、RUN-N2、RUN-N5、S-50 行、只 inject 日志一条、承接 S-32 的装配段改为「真承接者未到，最小提供者节点 X 已立（candidate）」；在场事实经 `presenceSource`、会话持有租户经 `./seed` | design.md 各处；README；本页覆盖缺口 |
 | 第四轮：`openCall` 带同一份报告（契约 `capability.model-request-runtime/v2` 28a97642） | MRR S-28 ①③；[D-060 §八 N-43](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加) | S-21 行写明 `admission.report` 与 agent loop 交给 P-2 `openCall` 的 `report` 是同一份、P-2 核同样的三者；本节点问的两道判定（`legalTargets`、`canDispatchAgain`）输入里没有报告（MRR S-24 ①、S-50 ①），写明不带 | design.md S-21 行 |
+
+
+## v6 公共 runPass 执行面
+
+对象：[v6-run-pass-design.md](v6-run-pass-design.md)，Runner5/LC6 语义；D106 已采用纯构件不扩成执行面采用。新增 binding 0，尚无 runPass 产品测试。下列均要求通过真实公开函数和显式受控端口观察结果；有条件函数试验不冒充生产等待/卡片或 Run 来源。
+
+| ID／投影 | 必须能失败的验收／反例 | owner／状态 |
+|---|---|---|
+| V6-1／P1 | 11位置合法输入与非法维度；noRun failure 零invoke/零条目；before_persist不泄露run/attempt；每件完整Input、前件确认后才下一件；空链/observed原主体、rewrite/select_model累计、fallback/普通错误/兼容非阻断/判定unavailable/invalidInput全分支 | runner；待实施 |
+| V6-2／P2 | 同一末尾ask，分别供pending/整批ready/control不可读/确知关联错四世界：pending零invoke返回原asked；ready只重求该件；不可读unavailable；错关联replayInconsistent。单卡已答而整批未答仍pending；卡尚未落但可信缺席仍原asked，零新ID/结论；缺source不得默认ready | runner＋受控等待owner；待验 |
+| V6-3／P2/P4 | 错tenant/session/pass/件/ordinal/card/batch及别件同名option均不能消费；原subject/earlier逐值同一、新log/environment可见自己的ask/卡/答复；旧句柄失效。原final零invoke，多轮ask→final不被旧ask卡住；再次ask新ordinal/新卡关联，已答旧卡不重出，历史返回不裁剪 | runner、等待/句柄owner；待验 |
+| V6-4／P3 | 等待步数/位置/参数/原结果对应偏离，甚至作者catch后返正常output或普通error，仍replayInconsistent，零本件新Conclusion/提醒/卡片，先前条目不变；控制来源失效unavailable；普通开始后错误仍走策略。重复重演模型等待必须零新模型调用 | runner＋执行/等待owner；待验；生产零收费另需实际组合 |
+| V6-5／P5 | ready绑定建立后取消、实例撤除、owner换代；无下一件，句柄finally失效；迟到resolve/reject有消费、无新记录；已进入append的晚到完成归task owner，unknown不消失；read/append在启动前登记 | runner与实际宿主；待验 |
+| V6-6／P1/P4 | 所有output及策略闭合；final/ask确认后才effects；alreadyRecorded读回合法异值胜者采用其完整卡稿/at/提醒，不混本地候选；坏壳/错锚/错call不一致；MessageId同值认回、异值replayInconsistent；补提醒一层且veto不改外效果；只读replay无等待查询或写入 | runner＋SL3真实组合；待验 |
+| V6-7／P5 | unknown后空读不得重invoke/新ask；旧写者可信停止恢复后同值认回/合法竞争胜者/确无记录分支；不能以timeout、fence拒绝或新SessionLog假证旧任务停止。共享日志先close后reconcile再drain，无循环等待；X5-1/2真实交错继续 | runner/日志宿主；受控与生产分别验，G5保持 |
+| V6-8／P6 | 同prefix subject混另一尾、另tenant/call、漏重复retry、失效绑定拒绝；正常新增日志不破坏原输入验证；retry真实allowed/refused/alreadyEnded/callNotFound/wrongPhase/unavailable/invalidInput分别映射，无布尔stub；已落retry不当再次发送许可 | runner＋runtime source；G3/Run仍待真实组合 |
+| V6-9／公共面 | 包公开函数build/typecheck、真实制品消费者、README/README_ZH完整fresh/asked/replay/unavailable示例；删除隐藏状态/旧格式分流。行为负控分别移除readiness查询、将偏离当errored、pending仍invoke、unknown空读重求、使用别件卡答复，必须各命中语义断言而非仅编译失败 | 独立验证者；待验 |
+
+### v6 缺口与边界
+
+- **RP6-G1（S-27/S-28/S-9、LC6 S-35）**：受控readAskState/invoke协议为本次候选，需技术采用与实现；真实等待/卡片owner必须提供原ask→卡片→批次完成→原答复的权威来源。没有来源生产接续unavailable；不新建卡片契约、不把消息提醒当答复权威，S-29(8)/MS6 G-5 未定表示保持。
+- **RP6-G2（S-33/S-34、SL3 S-22/S-23）**：v5 RUN5-G5 实际宿主、可信停止/恢复与未知任务留存仍未验；本次补owner端口覆盖不关闭它。等待/执行资源同样需真实停止责任，不把abort当物理完成。
+- **RP6-G3（S-26/S-53/S-54）**：v5 RUN5-G3同prefix source、P-5实际贡献与生产Run来源/终结认法保持。函数需要真实合法Input，不能用假的Run解锁noRun demo，条件fixture不提升服务完成度。
+- **RP6-G4（S-21/S-29/S-32）**：完整Cordis服务、before_action整批协调、入口身份核实、时钟/发号/执行环境等宿主由原owner承担；本候选只释放完整函数施工条件，不把外部义务删去或暗放进胶水。原来源未裁项不重开不关闭。

@@ -1,3 +1,11 @@
+## 公共 runPass 执行面候选（2026-09-29）
+
+- 新入口：[v6-run-pass-design.md](v6-run-pass-design.md)，文档 revision1；契约仍为已接受 Runner5/LC6，不是 Runner6。
+- **语义接受**：沿 D100/D104 的精确输入；**可实施**：本增量尚未技术采用，补全 readAskState 与受控 replay 调用、四种可区分等待世界、unknown owner 与完整分支，未实施 runPass。
+- D106 五纯构件采用范围保持，v5 revision3 字节不改。源码已存在的纯构件不代表 runPass/服务已完成。
+- **绑定证据**：新增0、总数0。**实际验证**：本次只有设计检查，无产品执行。生产卡片/等待、Run、G3/G5 仍由实际 owner 接线验证；有条件函数组合和生产服务分别报告。
+- 验收与缺口：[V6 公共执行义务](verification.md#v6-公共-runpass-执行面)。
+
 # loop-extension-runner
 
 ## v5 当前提供者增补（2026-09-28）
