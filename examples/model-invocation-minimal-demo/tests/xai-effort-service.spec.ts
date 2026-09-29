@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { jsonNumberSource, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
   xaiDefinitions,
   createXaiInputMeter,
@@ -55,16 +55,46 @@ describe.each(cases)(
       const original = createXaiInputMeter(definition)
       if (!original) throw Error('xAI meter unavailable')
       let full = 0,
-        delta = 0
+        delta = 0,
+        replay = 0
+      const marginals: { kind: 'new' | 'replay'; tokens: string; preceding: number }[] = []
+      const checkMarginal = (
+        kind: 'new' | 'replay',
+        value: Parameters<InputMeter['measureNew']>[0] | Parameters<InputMeter['measureReplay']>[0],
+        result: ReturnType<InputMeter['measureNew']>,
+      ) => {
+        expect(result.kind).toBe('estimated')
+        if (result.kind !== 'estimated') throw Error('visible marginal unavailable')
+        const envelope = Object.fromEntries(
+          Object.entries(value.envelope).filter(([key]) => key !== 'tools'),
+        )
+        const byteCount = (messages: typeof value.units) =>
+          new TextEncoder().encode(JSON.stringify({ ...envelope, messages })).length
+        const expected = Math.floor(byteCount(value.units) / 4) - Math.floor(byteCount([]) / 4)
+        expect(jsonNumberSource(result.tokens)).toBe(String(expected))
+        marginals.push({ kind, tokens: String(expected), preceding: value.precedingUnitCount })
+      }
       const meter: InputMeter = {
         ...original,
         measureFull(value) {
           full++
           return original.measureFull(value)
         },
+        measureReplay(value) {
+          replay++
+          expect(value.observation.inputCalibration.observedInput).toMatchObject({
+            kind: 'from_usage',
+          })
+          expect(writeJsonLossless(value.observation.usage.input_tokens)).toBe('10000')
+          const result = original.measureReplay(value)
+          checkMarginal('replay', value, result)
+          return result
+        },
         measureNew(value) {
           delta++
-          return original.measureNew(value)
+          const result = original.measureNew(value)
+          checkMarginal('new', value, result)
+          return result
         },
       }
       const config = {
@@ -120,7 +150,7 @@ describe.each(cases)(
         ).toEqual({ stored: true })
         expect(await app.selectModel(who, session, model)).toEqual({ selected: model })
         for (let index = 1; index <= (overLimit ? 1 : 3); index++) {
-          const prior = { full, delta }
+          const prior = { full, delta, replay }
           const sent = await app.startServiceCall(who, session, {
             user: user(index),
             parameters: { reasoningEffort: effort, maxOutputTokens: 1024 },
@@ -138,9 +168,13 @@ describe.each(cases)(
           expect(writeJsonLossless(response.usage.input_tokens)).toBe('10000')
           expect(writeJsonLossless(response.cost.cost_usd)).toBe('0.0000117')
           expect(await app.persistModelReply(who, session, response)).toHaveProperty('settled')
-          expect(full - prior.full).toBe(2)
-          // Full-only: an unavailable delta never claims calibrated reuse.
-          expect(delta - prior.delta).toBeLessThanOrEqual(2)
+          expect(full - prior.full).toBe(index === 1 ? 2 : 0)
+          expect(delta - prior.delta).toBe(index === 1 ? 0 : 2)
+          expect(replay - prior.replay).toBe(index === 1 ? 0 : 2)
+          expect(response.inputCalibration.requestInput).toMatchObject({
+            kind: 'known',
+            countingBasis: { replayRevision: 'visible-final-units-json-net-estimated/1' },
+          })
         }
         expect(tls.requests).toHaveLength(overLimit ? 0 : 3)
         if (!overLimit) {
@@ -154,6 +188,26 @@ describe.each(cases)(
               { role: 'user', content: [{ type: 'text', text: 'Visible turn 2' }] },
             ],
           })
+        }
+        if (!overLimit) {
+          expect(marginals.map(value => value.preceding)).toEqual([1, 1, 1, 1, 3, 3, 3, 3])
+          // Changed envelope invalidates the response anchor; visible history must be fully recounted.
+          const prior = { full, delta, replay }
+          const changed = await app.startServiceCall(who, session, {
+            user: user(4),
+            parameters: { reasoningEffort: effort, maxOutputTokens: 513 },
+            host: host.host,
+          })
+          if (!('result' in changed) || !('replyPending' in changed.result))
+            throw Error(JSON.stringify(changed))
+          expect(full - prior.full).toBe(2)
+          expect(delta - prior.delta).toBe(0)
+          expect(replay - prior.replay).toBe(0)
+          expect(tls.requests).toHaveLength(4)
+          expect(tls.requests[3]?.body).toMatchObject({ max_tokens: 513 })
+          expect(
+            await app.persistModelReply(who, session, changed.result.replyPending),
+          ).toHaveProperty('settled')
         }
         expect(tls.failures).toEqual([])
       } finally {

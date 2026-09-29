@@ -254,8 +254,8 @@ describe('Grok limited visible text/tool estimates', () => {
           inputTokens: { kind: 'estimated' },
           meterRevision:
             definition.modelId === 'x-ai/grok-4.6'
-              ? 'grok-build-visible-text-tools-effort-offset141-2'
-              : 'grok-build-visible-text-tools-effort-offset1181-2',
+              ? 'grok-build-visible-text-tools-effort-offset141-2/response-calibration-1'
+              : 'grok-build-visible-text-tools-effort-offset1181-2/response-calibration-1',
         })
         expect(planned.planned.body.reasoning).toEqual({ effort })
         const evidence = planned.planned.inputLimitEvidence

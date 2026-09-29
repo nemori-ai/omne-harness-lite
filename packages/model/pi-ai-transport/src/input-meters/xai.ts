@@ -1,4 +1,5 @@
 import { defineInputMeter } from '../input-meter.ts'
+import { fullJsonMarginal, withEstimatedJsonMarginals } from './marginal.ts'
 import {
   copyJsonValue,
   isNonNegativeJsonInteger,
@@ -65,7 +66,6 @@ function supported(body: JsonObject, definition: ModelDefinition): boolean {
     body.provider.allow_fallbacks !== false ||
     body.provider.require_parameters !== true ||
     !Array.isArray(body.messages) ||
-    body.messages.length === 0 ||
     (body.max_tokens !== undefined && !isNonNegativeJsonInteger(body.max_tokens)) ||
     (body.reasoning !== undefined &&
       (!object(body.reasoning) ||
@@ -135,34 +135,42 @@ function fixedCalibration(definition: ModelDefinition) {
   return calibration
 }
 
-/** Package-local visible-body counter; internal stripped bodies are not public full inputs. */
+/** One field guard and byte estimator for full bodies and private marginal framing. */
+function visibleBodyCounter(definition: ModelDefinition, offset: number) {
+  return ({ body, serialized }: Pick<FullMeterInput, 'body' | 'serialized'>): TokenMeasurement => {
+    if (writeJsonLossless(body) !== serialized || !supported(body, definition))
+      return { kind: 'unavailable' }
+    const tokens = Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + offset
+    return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
+  }
+}
+
+/** Package-local counter: empty messages are private framing, never a public full request. */
 export function createXaiVisibleBodyCounter(
   definition: ModelDefinition,
 ): ((input: Pick<FullMeterInput, 'body' | 'serialized'>) => TokenMeasurement) | undefined {
   const calibration = fixedCalibration(definition)
-  if (!calibration) return undefined
-  return ({ body, serialized }) => {
-    if (writeJsonLossless(body) !== serialized || !supported(body, definition))
-      return { kind: 'unavailable' }
-    const tokens = Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + calibration.offset
-    return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
-  }
+  return calibration ? visibleBodyCounter(definition, calibration.offset) : undefined
 }
 
 /** Limited rough estimator: visible text/tools, no opaque or media history. */
 export function createXaiInputMeter(definition: ModelDefinition): InputMeter | undefined {
   const calibration = fixedCalibration(definition)
-  const countBody = createXaiVisibleBodyCounter(definition)
-  if (!calibration || !countBody) return undefined
-  return defineInputMeter({
+  if (!calibration) return undefined
+  const countBody = visibleBodyCounter(definition, calibration.offset)
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'xai',
     algorithmRevision: `grok-build-visible-text-tools-effort-offset${calibration.offset}-2`,
-    evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; complete wire surrogate includes declared low/medium/high request effort; frozen offsets are not effort-specific fits and expanded effort scope has no actual holdout; rough estimate, no error bound`,
+    evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; complete wire surrogate includes declared low/medium/high request effort; frozen offsets are not effort-specific fits and expanded effort scope has no actual holdout; rough estimate, no error bound; visible replay/new units use shared JSON net framing, not upstream output-token equivalence`,
     // First-party byte estimate projected onto final wire; fixed offset derived
     // only from two fit cases per model. No cross-model or holdout fitting.
-    measureFull: countBody,
+    measureFull: input =>
+      Array.isArray(input.body.messages) && input.body.messages.length > 0
+        ? countBody(input)
+        : { kind: 'unavailable' },
   })
+  return withEstimatedJsonMarginals(meter, input => fullJsonMarginal(countBody, input))
 }

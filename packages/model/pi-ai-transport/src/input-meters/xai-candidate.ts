@@ -151,7 +151,11 @@ export function createXaiHistoryCandidateInputMeter(
     evidence:
       'xai-org/grok-build f0e3be1100ef5252488e3be8bb0e91cf68d8c305 state.rs:87-92; OpenRouter xai-responses-v1 summary/encrypted replay; final-wire envelope plus existing visible calibration, estimated only',
     measureFull({ body, serialized }): TokenMeasurement {
-      if (writeJsonLossless(body) !== serialized || !Array.isArray(body.messages))
+      if (
+        writeJsonLossless(body) !== serialized ||
+        !Array.isArray(body.messages) ||
+        body.messages.length === 0
+      )
         return { kind: 'unavailable' }
       const messages: JsonValue[] = []
       let encodedPayloadBytes = 0
