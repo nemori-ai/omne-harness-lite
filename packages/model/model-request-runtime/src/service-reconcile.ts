@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import {
   judgePendingModelResponse,
   validate as validateModelResponse,
@@ -30,6 +31,8 @@ import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { constructAnchoredInterruption } from './response-construction.ts'
 import { appendControlRecord } from './service-control.ts'
 import { UnknownAppendTracker } from './service-calls.ts'
+import { operationDiagnostics } from './service-diagnostics.ts'
+import type { DiagnosticCollector } from './diagnostics-types.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type { PlannedSemantics } from './types.ts'
 import type {
@@ -257,6 +260,8 @@ export function createRuntimeReconcile(input: {
   readonly scheduler: SettlementScheduler
   readonly now: () => string
   readonly diagnostic: (event: SettlementDiagnostic) => void
+  readonly diagnosticCollector?: DiagnosticCollector
+  readonly onDiagnosticFailure?: () => void
 }): {
   readonly reconcile: (request: ReconcileInput) => Promise<ReconcileResult>
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
@@ -415,17 +420,66 @@ export function createRuntimeReconcile(input: {
     const entering = entry.entered ?? Promise.resolve().then(() => input.recovery.enter(request))
     entry.entered = entering
     const active = (async (): Promise<ReconcileResult> => {
+      let observer: ReturnType<typeof operationDiagnostics> | undefined
+      let terminalRecorded = false
       try {
         const entered = await entering
         if ('unavailable' in entered) return { unavailable: true }
         entry.scope = entered.scope
+        if (entered.scope.binding.log.session === request.session) {
+          observer = operationDiagnostics(
+            input.diagnosticCollector,
+            entered.scope.binding.log.tenant,
+            { executionId: randomUUID(), session: request.session },
+            () => input.onDiagnosticFailure?.(),
+          )
+          observer.record({
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: 'started',
+            facts: { kind: 'progress' },
+          })
+        }
         if (closed) return { unavailable: true }
         const result = await readRecoveredCalls(request, entry, input, () => closed)
         if (closed) return { unavailable: true }
-        if ('unavailable' in result) return result
-        return (await releaseEntry(entry, true)) ? result : { unavailable: true }
+        if ('unavailable' in result) {
+          observer?.record({
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: 'unavailable',
+            facts: { kind: 'progress' },
+          })
+          terminalRecorded = true
+          return result
+        }
+        const released = await releaseEntry(entry, true)
+        observer?.record({
+          source: 'runtime',
+          stage: 'recovery',
+          outcome: released ? 'completed' : 'unavailable',
+          facts: { kind: 'progress', ...(released ? { retry: 'without_resend' } : {}) },
+        })
+        terminalRecorded = true
+        return released ? result : { unavailable: true }
       } catch {
+        observer?.record({
+          source: 'runtime',
+          stage: 'recovery',
+          outcome: 'unavailable',
+          facts: { kind: 'progress' },
+        })
+        terminalRecorded = true
         return { unavailable: true }
+      } finally {
+        if (observer && !terminalRecorded)
+          observer.record({
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: 'unavailable',
+            facts: { kind: 'progress' },
+          })
+        observer?.close()
       }
     })()
     entry.active = active

@@ -3,6 +3,7 @@ import { createServiceCalls } from './service-calls.ts'
 import { createServiceDispatch } from './service-dispatch.ts'
 import { createServiceControl } from './service-control.ts'
 import { createRuntimeReconcile, createRuntimeSettleReply } from './service-reconcile.ts'
+import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type {
   ModelRuntimeService,
   RuntimeCloseResult,
@@ -34,12 +35,28 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     scheduler: construction.settlementScheduler,
     reservationWaitPolicy: construction.reservationWaitPolicy,
   })
+  let recoveryDiagnosticReportEnabled = true
+  const reportRecoveryDiagnosticFailure = (): void => {
+    if (!recoveryDiagnosticReportEnabled) return
+    try {
+      const returned: unknown = construction.policy.diagnostic({
+        kind: 'model_runtime.recovery_diagnostic_failed',
+      })
+      if (drainDiagnosticThenable(returned)) recoveryDiagnosticReportEnabled = false
+    } catch {
+      recoveryDiagnosticReportEnabled = false
+    }
+  }
   const reconcile = createRuntimeReconcile({
     recovery: construction.recovery,
     contention: construction.settlementContention,
     scheduler: construction.settlementScheduler,
     now: construction.policy.now,
     diagnostic: construction.diagnostic,
+    ...(construction.diagnosticCollector === undefined
+      ? {}
+      : { diagnosticCollector: construction.diagnosticCollector }),
+    onDiagnosticFailure: reportRecoveryDiagnosticFailure,
   })
   ownedStores.add(construction.calls)
 

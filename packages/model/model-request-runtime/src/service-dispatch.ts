@@ -9,6 +9,7 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { createAnchoredModelInvocation } from './anchored-invocation.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { operationDiagnostics } from './service-diagnostics.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
 import { resolveCallTools } from './call-tools.ts'
 import { dispatchGuard, type DispatchGuardPhase } from './dispatch-guard.ts'
@@ -42,83 +43,9 @@ import type { SettlementDiagnostic } from './settlement-types.ts'
 import type {
   DiagnosticAssociation,
   DiagnosticCollector,
-  DiagnosticEmitter,
   DiagnosticEvent,
   DiagnosticReference,
 } from './diagnostics-types.ts'
-
-function operationDiagnostics(
-  collector: DiagnosticCollector | undefined,
-  tenant: SessionRuntimeBinding['log']['tenant'],
-  association: DiagnosticAssociation,
-  report: () => void,
-  onRecorded?: (reference: DiagnosticReference) => void,
-): {
-  readonly record: (event: DiagnosticEvent) => DiagnosticReference | undefined
-  readonly close: () => void
-} {
-  let emitter: DiagnosticEmitter | undefined
-  let recordEnabled = true
-  let closeAttempted = false
-  try {
-    const produced: unknown = collector?.emitter({ kind: 'tenant', tenant }, association)
-    if (drainDiagnosticThenable(produced)) report()
-    else if (
-      produced !== undefined &&
-      produced !== null &&
-      typeof produced === 'object' &&
-      'record' in produced &&
-      'close' in produced &&
-      typeof produced.record === 'function' &&
-      typeof produced.close === 'function'
-    )
-      emitter = produced as DiagnosticEmitter
-    else if (collector !== undefined) report()
-  } catch {
-    report()
-  }
-  return {
-    record(event) {
-      if (!emitter || !recordEnabled) return undefined
-      try {
-        const result: unknown = emitter.record(event)
-        if (result !== null && typeof result === 'object' && 'recorded' in result) {
-          const recorded = result.recorded
-          if (
-            recorded !== null &&
-            typeof recorded === 'object' &&
-            'collectorId' in recorded &&
-            'sequence' in recorded &&
-            typeof recorded.collectorId === 'string' &&
-            typeof recorded.sequence === 'string'
-          ) {
-            const reference = { collectorId: recorded.collectorId, sequence: recorded.sequence }
-            onRecorded?.(reference)
-            return reference
-          }
-        }
-        if (drainDiagnosticThenable(result)) {
-          recordEnabled = false
-          report()
-        }
-      } catch {
-        recordEnabled = false
-        report()
-      }
-      return undefined
-    },
-    close() {
-      if (!emitter || closeAttempted) return
-      closeAttempted = true
-      try {
-        const result: unknown = emitter.close()
-        if (drainDiagnosticThenable(result)) report()
-      } catch {
-        report()
-      }
-    },
-  }
-}
 
 function settlementEvent(event: SettlementDiagnostic): DiagnosticEvent | undefined {
   let outcome: DiagnosticEvent['outcome']

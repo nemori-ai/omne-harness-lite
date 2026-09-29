@@ -21,6 +21,12 @@ import type {
 } from '../src/service-types.ts'
 import type { AnchoredInvocationHandle } from '../src/anchored-invocation-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
+import type {
+  DiagnosticAssociation,
+  DiagnosticCollector,
+  DiagnosticEvent,
+  DiagnosticScope,
+} from '../src/diagnostics-types.ts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
@@ -680,11 +686,30 @@ describe('S-33 noRun recovered full-prefix read', () => {
       async ({ binding, owner, coordinator, submissions }) => {
         let entered = 0
         let closed = 0
+        const engineering: {
+          scope: DiagnosticScope
+          association: DiagnosticAssociation | undefined
+          event: DiagnosticEvent
+        }[] = []
+        const diagnosticCollector = {
+          emitter(scope: DiagnosticScope, association?: DiagnosticAssociation) {
+            return {
+              record(event: DiagnosticEvent) {
+                engineering.push({ scope, association, event })
+                return {
+                  recorded: { collectorId: 'recovery-test', sequence: String(engineering.length) },
+                }
+              },
+              close() {},
+            }
+          },
+        } as DiagnosticCollector
         const reconcile = createRuntimeReconcile({
           contention: policy(),
           scheduler: noWaitScheduler,
           now: () => '2026-09-27T00:00:03Z',
           diagnostic() {},
+          diagnosticCollector,
           recovery: {
             async enter() {
               entered++
@@ -704,6 +729,17 @@ describe('S-33 noRun recovered full-prefix read', () => {
         expect(await reconcile.reconcile({ session })).toEqual({
           calls: [{ callId: 'call', state: 'interrupted' }],
         })
+        expect(engineering).toContainEqual({
+          scope: { kind: 'tenant', tenant: binding.tenant },
+          association: expect.objectContaining({ session }),
+          event: {
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: 'completed',
+            facts: { kind: 'progress', retry: 'without_resend' },
+          },
+        })
+        expect(engineering.every(item => item.association?.call === undefined)).toBe(true)
         const raw = await binding.log.readSince(session, 0)
         if ('failure' in raw) throw new Error('recovered prefix')
         const inspected = inspectCurrentModelLogPrefix({
