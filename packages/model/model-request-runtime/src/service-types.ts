@@ -443,6 +443,7 @@ export interface CurrentHistoryReaders {
   readonly calibration: (
     prefix: SettlementPrefix,
     messages: readonly Message[],
+    target: { readonly callId: ModelCallId; readonly dispatch: JsonNumber },
   ) => CalibrationHistoryResult
   /** G-4: the real Run interpreter has no adopted implementation; withRun remains unavailable. */
   readonly run: (
@@ -460,16 +461,27 @@ export interface CalibrationSelectedSource {
 export interface CalibrationHistoryCandidate {
   readonly dispatchedEntry: LogEntry
   readonly responseEntry: LogEntry
-  readonly messageEntry: LogEntry
-  readonly messageIndex: number
   readonly response: ModelResponse
   readonly replaySelection: readonly ReplaySelection[]
 }
+export type LocatedCalibrationCandidate = CalibrationHistoryCandidate &
+  (
+    | {
+        readonly origin: 'selected_reply'
+        readonly messageEntry: LogEntry
+        readonly messageIndex: number
+      }
+    | {
+        readonly origin: 'same_call_retry'
+        readonly messageEntry?: never
+        readonly messageIndex?: never
+      }
+  )
 export type CalibrationHistoryResult =
   | {
       readonly selectedSources: readonly CalibrationSelectedSource[]
       /** Actual selected causal ancestors, newest first; not physical-response ordering. */
-      readonly candidates: readonly CalibrationHistoryCandidate[]
+      readonly candidates: readonly LocatedCalibrationCandidate[]
     }
   | { readonly sourceUnavailable: true }
   | { readonly noObservation: true }
