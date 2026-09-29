@@ -231,6 +231,27 @@ G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和�
 
 [D093实施事件](../../../../record/decisions/model-credential-policy-adoption/decision.md#2026-09-28-纯构件有限实施签收)及[完整实际原档](../../../../record/evidence/2026-09-28-tests-model-credential-redaction-pure/README.md)记录源码f6a5d1f2／HUB7f580351、独立GI1–7有限Pass及当前HUB4a268c91专用字节与组合回归。限定签收显式配置／纯text/header/raw-error JSON政策构件；新增规范绑定0，不签收raw.body／附件、生产H和完整S20、G4必需事实、十三操作或37模型认证。历史“源码尚待”属于2026-09-27的状态。
 
+## U16 输入观察校准实施候选
+
+对应 [v16 revision 1](v16-usage-calibration-design.md)，MR9／RT10 与本映射均 candidate；**新增 bindings 0，以下全部待执行**。本节不修改旧证据的版本与前提，有限 Schema/TLC 只按原记录范围读取。
+
+| ID／责任 | 必须实际运行的正向与反向 oracle | owner／证据边界 |
+|---|---|---|
+| U16-V1：MR9 S-41～S-45；RT10 S-79 | 当前根声明与完整 Schema 闭包编译；六共享值没有同义定义；PlanInput／StreamEnd／结果缺新字段编译失败；core 自有拷贝后修改外部深层值不能改结果。current codec 拒绝缺校准旧 shape，旧目录字节不变，无旧 reader/兼容重载；精确大整数及多值头原形回归 | core＋runtime；独立包制品与实际 codec，不以类型断言代运行边界 |
+| U16-V2：S-54/S-59；MR9 S-42 | 受控真实 TLS 分别返回完整互斥分项、仅准确总 prompt、缓存细项未知、分项大于 total、response-cache 零、真实完整零、仅账单 total；独立比较 reader final→invoke→Pending→日志原值。带缓存的 total 不再加缓存；原 usage 冲突值不擦掉；无实际 model/provider 不从请求填值 | transport 解析＋runtime 交接；断掉 observedInput final、私读 R、把 total 丢掉的编译负控必须失败 |
+| U16-V3：S-74/S-77～S-79 | 显式独立函数 full 首次与合法准确观察后 marginal；非加性边界、负修正、零/大整数、exact/upperBound/estimated 精度格与 margin 恰一次；φ 或 δ 不可判全量，full 不可判 input_size_unavailable；超限零新锚/HTTP/响应/终结 | transport＋runtime；O/reasoning 双加、按块分摊 O、累计上一轮预测误差的负控失败；不是所有模型的准确性证据 |
+| U16-V4：S-57/S-58/S-80 | 规划与 TLS 收到 body 逐字对应；前缀文本、system、tools、模态、角色、顺序、模板／缓存标记变化检测；inputEnvelope 全覆盖。变 binding、tokenizer、meter、projection、replay、transform 或 margin 后重 plan；固定 lease 的旧调用不换组件；错误兼容布尔/伪 planned 不放行 | runtime＋transport；非输入差异也按提供者真实投影核，不自行假设全部参数 token-neutral |
+| U16-V5：S-54/S-59/S-36 | 先读到合法观察，再分别解析错、带内错、装配拒绝、abort、断流；已知事实保留且 G partial/不可判独立，未知不补零。上游统计未来永不返回时取消仍沿原政策停止；已停止读取/连接/监听再释放，延迟 stopped 时 owner 留存。非合作 reader 直接 throw 具名本地违例，不谎称 missing_usage | transport reader＋runtime owner；generator.return 跳过 final、for-await 忽略终态、等待自然 EOF、提前 release 各负控失败 |
+| U16-V6：S-77/S-80/S-82 | 同租户/会话真实选入祖先、相同 seq 不同日志、跨 session、不同分支、乱序到达、更新但非祖先、缺 usage 中间多轮、失败/中断准确 I。选最新合法准确观察，缺 usage 不推进，所有未覆盖回合仍计入；无来源 full，必要原调用事实不可读 unavailable，未授权沿原失败不降级 full | runtime 历史解释＋真实宿主；不能只喂 trusted bool fixture。noRun 真 JSONL 线性链与独立受控分支组合分开记覆盖，后者不证明真实 Run |
+| U16-V7：MR9 S-43；S-77/S-79 | 原组所有块逐项 digest，重复保持；replaySelection 删选/重排/重复目标/错误索引/改 visibility/opaque/工具块均核实际最终 span；未映射实际新增不能漏计。requestInput unavailable 但 outputGroup known 仍可保留；G partial 不抹已知 I；结果剪裁后只能对真正保留块形成原批 | transport projectOutput＋runtime；仅摘要数组长度检查、盲信 caller indices、HTTP 成功冒充 complete 各负控失败 |
+| U16-V8：MR9 S-45；S-17/S-49/S-81 | 实际 JSONL 原 `[M,R]` 和无 reply 的 R 完整保存 InputCalibration；读回/外部 settleReply/readAttempts 同值；append 已写回执丢失、未知读旧尾、同批认回、异值稳定键竞争、原写者仍运行。unknown 不成为后继来源，owner/lease 不释放，零第二次计量写入 | runtime＋JSONL owner；持久条目/尾/keys/fence 和真实 task 状态必须有证据，不只 mock receipt |
+| U16-V9：S-33/S-36/S-81 | 真子进程退出后重开：新 meter 故意不可用/版本不同、无凭据/无模型贡献，仍认回或重送原完整批；HTTP/meter/projectOutput 调用数零，历史字节保持。旧写者未真实停时仍 unavailable/unknown，后次 THIS 零写不能擦旧 unknown。MR8 interrupted sentAt:null 不推断零费用/可重试 | 冷宿主＋runtime＋JSONL；沿 v14 原权限/nonce/物理停止验收，新增字段不能迫使恢复先准备模型 |
+| U16-V10：S-79/S-82/S-83 | 对约百万实际 tokenizer tokens 的固定合成上下文，记录 tokenizer 输入范围/调用数、序列化/摘要/φ/δ/总 wall/CPU/峰值内存、冷/暖原始样本与环境，前后同输入和同 margin 对照。稳定 P、有效 I/θ/φ/δ 的 marginal：P tokenize 次数严格 0，G/N 计量覆盖完整；不能永远 full 假过。明确每模型/缓存政策的失败与 fallback 比例，不将字节数冒充 token 数 | runtime＋transport 性能 owner；参考 U0 基准方法但重跑实际实现，无任意速度阈值或全模型达成声明。四条 Anthropic last_message 缓存搬移必须单列是否每轮 full；未闭仍为性能交付缺口 |
+| U16-V11：S-63/S-79 | 同一次请求在 public measurement、工程 log/trace、查询/export 中 mode/原因/basis/precision/贡献一致；真实 usage/cost 与预测值分栏且账单仅用实际来源；diagnostic sink throw/reject/pending 不改变业务。凭据/原文/opaque 哨兵不出诊断，原脱敏与头保真回归 | runtime collector＋example；工程日志不是会话日志，无业务记录被写回，真实安全文件/关闭边界沿 v15 |
+| U16-V12：公开消费与最小 demo | 两个仓库外实际制品上逐字编译执行 runtime EN/ZH README 的 none/full 与显式观察例；公开纯调用无 session/log/Cordis 和隐藏 IO。demo 命令行多轮流式、同会话模型切换完整历史含图片/工具块、重启后原日志读取、未知账单与累计统计、观测查询/export；读不到校准不可静默重置数据目录 | 包 owner＋example owner；受控 TLS 与实际模型付费证据分别报告，真实 G37 认证不由 fixture 替代，不复建 acceptance app |
+
+**缺口与归属**：U16-G1 接受/采用归主线；G2 reader 与三包同步交接归各实现 owner；G3 真实来源与分支解释归原历史/宿主，不建立新上下文真值服务；G4 同批与冷恢复归 runtime/JSONL/宿主；G5 各模型计量证据与百万性能归 transport/runtime，G-36 硬 fit 仍由原产品/上下文 owner 处理。设计链接/格式检查不关闭这些缺口；只有真实运行且能被行为负控击穿的证据才可另行登记 binding。
+
 ## R7 当前格式与服务施工义务
 
 2026-09-28：[v7-current-design rev1](v7-current-design.md) 为候选增量，未接受，新增 bindings 0。本节全部为**待执行**；现有纯函数、RT6 有限模型和旧 paid demo 不证明当前十三操作通过。

@@ -1,3 +1,10 @@
+## 2026-09-29 输入观察校准候选
+
+- **语义接受**：MR9／RT10 在 catalog 均为 candidate、未接受；本次 [v16 实施映射](v16-usage-calibration-design.md) 亦未技术采用。此前接受范围保持。
+- **可实施**：候选给出公开 adapter／PlanInput／invoke 的唯一交接、已授权祖先选择、原批 codec 与冷恢复及 example 消费路径；core 共享值、transport 投影／计量实际解析分工明确。U16-G1～G5 的接受、接线、真实来源、恢复和模型计量证据须分别闭合；不扩十三操作或新增服务。
+- **绑定证据**：新增 0；[U16-V1～V12](verification.md#u16-输入观察校准实施候选) 均是待执行义务，既有模型检查不替代真实 reader／JSONL／性能验收。
+- **实际验证**：本增量没有实现或运行验收；原 demo 可运行及原组件证据不证明输入校准已接通。四条 Anthropic 末尾缓存标记可能触发每轮全量的已知反例单独保留，不把全部模型的性能目标写成已达成。
+
 2026-09-28：主线技术采用 [v14 冷宿主](v14-cold-demo-host-design.md)与 [v15 工程观测](v15-diagnostics-demo-design.md)，精确采用分别见 [D105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md#2026-09-28-norun-示例冷宿主实施采用)与 [D076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md#2026-09-28-工程观测示例实施采用)。可实施范围及前提沿原页，新增bindings0，实际多进程/JSONL/query/export验收尚待，不提升完整交付状态。
 
 2026-09-28：[D105 留存增补采用](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md#2026-09-28-恢复作用域留存的窄实施采用) 精确采用 [恢复任务与 scope 留存](v12-recovery-owner-supplement.md) revision 1；可实施，六项运行义务待验，新增绑定0。
