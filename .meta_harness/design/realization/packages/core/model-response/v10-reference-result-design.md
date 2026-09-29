@@ -24,7 +24,7 @@ export function judgeResponseFinalization(
 ): ModelResponseJudgment
 ```
 
-返回沿现有 `{ ok: true } | { rejected: ModelResponseRejection }`。先以共享严格无损 JSON 边界取得两个不变副本；pending 按 `judgePendingModelResponse` 完整顺序先判，再判 final 的 `judgeModelResponse`；任一拒绝原样返回。二者合法后只从 final 比较视图移除顶层 `replyDisposition` 与 `late`，与 pending 做全部成员的精确 JSON 值相等；不按字段白名单复制，不删除内层同名字段。对象键顺序不影响相等，数组顺序/重复和成员缺席有意义，数字按 CA3 ExactDecimal 精确值比较。任何其余差异返回既有 malformed，包括原 ResponseId、route、raw 引用、headers 值顺序、reply 的派生字段、usage/cost 或计量证据变化。
+返回沿现有 `{ ok: true } | { rejected: ModelResponseRejection }`。先以共享严格无损JSON边界取得pending副本并按 `judgePendingModelResponse` 完整顺序先判；成功后才取得final的严格无损副本并判 `judgeModelResponse`；任一拒绝原样返回。二者合法后只从 final 比较视图移除顶层 `replyDisposition` 与 `late`，与 pending 做全部成员的精确 JSON 值相等；不按字段白名单复制，不删除内层同名字段。对象键顺序不影响相等，数组顺序/重复和成员缺席有意义，数字按 CA3 ExactDecimal 精确值比较。任何其余差异返回既有 malformed，包括原 ResponseId、route、raw 引用、headers 值顺序、reply 的派生字段、usage/cost 或计量证据变化。
 
 它不读取 MS7 marker、不认证摘要、不查询转换件、不推导 late，也不把 final.reply 的派生扩展视为合法。合法扩展发生在最终 AssistantMessage 与原回复之间，归 MS7 唯一 helper；final.reply 仍与 pending.reply 相同。本函数无存储、提交、事件、时钟或缺失默认，重复同输入同结果，不修改输入，不产生新回应或处分；依赖/Schema 初始化错误暴露为初始化失败，不能吞成业务 malformed。
 
@@ -40,7 +40,7 @@ MR10 替代 MR9 根资源，直接采用 MS7/CA3，仍采用 MP5 响应快照。
 
 本节点存储要求 **0**、插件服务 **0**、装载贡献 **0**、撤除任务 **0**。同步处理显式值，输出判定或原 copy 的分离无损值；不存在消费者离开便能取消的模型请求。跨进程只需忠实传递规定值，进程内对象引用不成为持久身份。
 
-MR10 S46/S47 的不可变字节、引用存续与来源核查由 model runtime/内容存储承担。ready marker、final 与首次持久消息涉及的同提交对象是**同一本 Session 日志的整批追加**；内容保留/发布/回收的共同记录按 RT11 S85 由 runtime 投影。本包不执行“读一个 store 再写另一个”而宣称原子性。
+MR10 S46/S47 的不可变字节、引用存续与来源核查由 model runtime/内容存储承担。ready marker、final 与首次持久消息涉及的同提交对象是**同一本 Session 日志的整批追加**；本轮内容保留由runtime私有无GC耐久容器兑现；独立回收路径才按RT11 S85要求共同保留记录。本包不执行“读一个 store 再写另一个”而宣称原子性。
 
 装配提供当前授权、真实转换来源、原始字节及完全来源前缀，最终写方先组合两个纯关系判断和真实来源检查，再提交原消息/final 批。unknown 重送原批不重跑转换；这些不是 core helper 的执行副作用。生产 Session/Run 与转换提供者未实现时保留对应缺口，不在本包造 caller=true/trusted 默认。
 

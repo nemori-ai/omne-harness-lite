@@ -1255,7 +1255,7 @@ ModelCallEndedRecord 的 undispatched 保持零发送本义，分两种互斥来
 |---|---|---|---|
 | 原字节/不可变版本/摘要与数无损 | 模型内容存储及读写边界 | 同字节域、严格JSON、版本保留协议 | 拒绝坏内容或unavailable，不能静默补值 |
 | marker与原payload/归属一致 | 日志写方与接收方 | 绑定原壳和kind，逐边重验 | malformed，不发布或消费 |
-| 引用存续与回收互斥 | 同内容保留记录的发布/回收方 | 可核保留责任与发布关闭证明 | 保留未明责任，不先删后修 |
+| 引用存续与回收互斥 | 无独立回收的同存续耐久容器；有独立回收时同内容保留记录的发布/回收方 | 持续可核保留；独立回收时另有发布关闭证明 | 保留未明责任，不先删后修 |
 
 原dispatched的MP5快照形状不变，新created采用当前RT的MP6；两者结构相同但保留各自精确语义来源，不暗改旧发出记录。MR10继续唯一拥有Pending、ResponseId、SelectedBy/CredentialScope/ParameterAdjustment；本Schema原防循环逐字形状保持，对齐义务在verification。CA3只升级费用选择语义，标识形状不变。
 

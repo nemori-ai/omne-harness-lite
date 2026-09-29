@@ -59,3 +59,7 @@ S-5/S-33/S-68/S-72/S-75/S-77/S-79/S-81/S-85/S-86/S-92：一份响应事实两阶
 2026-09-29，本轮Schema检查70/70（包括Markdown中的model_call_ended实例），exit 0。OpenedOrder正配置exit 0，255 generated / 166 distinct；4负控exit 12，分别命中OldAttemptMayOpen、CancelCannotPrecedeOpened（两配置）、NoSendAfterOpenedLoss。每次run前已保存输入SHA、Java版本/JAR SHA、命令、退出码及独立原日志；临时证据在 `tmp/model-registry-design/spec-draft-r2/`，由主线提升正式evidence。无失败日志覆盖。Schema只是形状，不能证明跨记录关系、真实来源、写权或实际汇总。
 
 ReferenceLifecycle/Publication共10个模型/配置输入与首轮交付SHA相同，保留原有限结果，本轮未重跑；逐项差异见该证据目录的prior-model-applicability.json。原OpenedOrder旧run不冒称适用于新字节。其他继承模型均未运行。852冻结资源校验无差异，首轮evidence归档hash无差异；这不是接受或生产验收。
+
+## 无独立回收路径的条件化修订
+
+2026-09-29，联合节点评审指出原“同内容保留记录”把有独立回收竞争的机制写成普遍前提。本候选明确无独立删除/GC且与全部有效引用、尚可能发布writer同存续的耐久容器亦可兑现；不减内容确认先于marker、原字节/版本/unknown与外部引用保留保证。Schema/实例/形式模型字节未变，Publication仍只覆盖其显式保留/回收抽象；不借旧TLC声称SQL+JSONL或无GC物理实现已验。所选真实映射与负控见runtime v20 R20-V6。

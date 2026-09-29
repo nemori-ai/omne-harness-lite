@@ -40,3 +40,7 @@ S-9/S-50/S-54：response.reply是原模型证据，persisted唯一消息首次�
 [examples](examples.md) 新增的跨记录场景是组合验收义务，未执行，不由Schema或旧TLA代证。必须保留原已有派生、防伪造system来源、覆盖原消息全成员与嵌套派生id/可见性、unknown认回原批；原摘要/来源矛盾必须拒绝，不能full兜底。真实写权/转换来源/组装选择证明归各消费者；未知明确unavailable。当前来源范围见 [source-alignment](source-alignment.md)。本轮实际检查仅报告新证据，前轮日志不可覆盖。
 
 R2实际形状检查：四包共享验证入口共70/70、exit0（含MS7 Markdown终结记录）；3个Schema check_schema成功。只验证形状，跨记录派生/原摘要真实性/权限等上述组合义务仍未开始。原始日志与运行前输入SHA由主线接收 `tmp/model-registry-design/spec-draft-r2/schema-01.*`，本包不冒称生产通过。
+
+## 无独立回收路径的条件化修订
+
+2026-09-29，联合节点评审指出原“同内容保留记录”把有独立回收竞争的机制写成普遍前提。本候选明确无独立删除/GC且与全部有效引用、尚可能发布writer同存续的耐久容器亦可兑现；不减内容确认先于marker、原字节/版本/unknown与外部引用保留保证。Schema/实例/形式模型字节未变，Publication仍只覆盖其显式保留/回收抽象；不借旧TLC声称SQL+JSONL或无GC物理实现已验。所选真实映射与负控见runtime v20 R20-V6。

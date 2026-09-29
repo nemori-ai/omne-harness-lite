@@ -92,7 +92,7 @@ judgeModelCallCreatedPayloadText(
 
 共同配置政策：静态错误在初始化失败；显式调用值错误沿本包闭合拒绝集合，能力入口再按自身契约映射 `invalidInput`；可信来源实际不可取由 runtime 的 `unavailable` 表达，本包不伪造该来源或新增能力错误。无自定重试、容量或超时默认值。纯函数不产生持久日志或后台 telemetry；实际读写/权限/失败 trace 归 runtime 的边界，沿 [全局观测要求](../../../../foundation/observability-and-logging/requirements.md)，不得把正文、secret 或完整 payload 复制进观测流。
 
-S-52～S-55 的引用内容保留、marker 发布与回收互斥由 [runtime 节点](../../model/model-request-runtime/README.md) 承接；S-9 的消息与 final 原批归它与既有授权日志写方。共同存储对象应在其节点写成同内容保留记录，以及同一 Session 日志批的权威对象；本纯值节点既不是写入者，也不能用本地锁替其兑现。两条必须由外部真实组合证据检查的交错为：发布者读“内容存在”后回收者先删内容再发布 marker；旧写方持保留责任未结束时新实例只看空 Map 回收，而旧写方随后发布。单条 Schema/judge 均挡不住这两种反例，M7-V7/M7-G3 不据此关闭。
+S-52～S-55 的引用内容保留、marker 发布与回收互斥由 [runtime 节点](../../model/model-request-runtime/README.md) 承接；S-9 的消息与 final 原批归它与既有授权日志写方。本轮无独立回收路径使用runtime私有同存续内容行；只有独立回收路径才要求同内容保留记录；消息/final仍用同一Session日志批的权威对象；本纯值节点既不是写入者，也不能用本地锁替其兑现。以下交错只在未来启用独立回收时必须由外部真实组合证据检查；当前无GC另验内容同存续及关闭不删除：发布者读“内容存在”后回收者先删内容再发布 marker；旧写方持保留责任未结束时新实例只看空 Map 回收，而旧写方随后发布。单条 Schema/judge 均挡不住这两种反例，M7-V7/M7-G3 不据此关闭。
 
 ## 关键选择与弱点
 
