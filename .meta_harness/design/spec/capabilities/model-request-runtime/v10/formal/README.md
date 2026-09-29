@@ -17,7 +17,7 @@
 
 LateResponse 的额外 id=MaxCalls+1 是被抽象掉执行过程的并发 request，仍有真实原输入/输出/receipt；不与主序列 call/dispatch 身份混同。NextAttempt 对当前链追加实际输出、取得前一已提交祖先，再开新的 dispatch；RetryAsNewAttempt 是缺 usage 分支的具名子关系，Next 中的 NextAttempt 已含该关系。它不放宽 RT9 首 token/自动重试政策，只表达调用方合法发起后续请求。
 
-ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表示 compaction/可读性变化及工具/system 变化，不实现选择压缩哪些消息。单轮只允许一次变更与一次新增，单个模型状态没有无限碎片增长。
+ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表示 compaction/可读性变化及工具/system 变化，不实现选择压缩哪些消息。单轮只允许一次变更与一次新增，单个模型状态没有无限碎片增长。StableSuccessor=TRUE 的专用重锚配置禁止非新增前缀/basis 变化，以表达 S-82 的稳定前提；新增输入、分支产生、其他分支晚到与回执丢失仍可交错。该常量不约束 planner 选择，故永远全量或总选最旧锚仍能形成反例。
 
 ## 条款与可失败断言
 
@@ -31,6 +31,7 @@ ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表�
 | S-79/S-80 | PlanSendSame | StalePlan |
 | S-77/S-82 | LeaseHeld | ReleaseLease |
 | S-74/S-78 | WindowSafe（条件保证） | EstimatedWindow 说明不对 estimated 成立 |
+| S-77/S-79/S-82 | ReanchorProgress / EventuallyReanchored | NeverUseAnchor / KeepOldAnchor；终止仍不能替代新锚实际使用 |
 
 所有负控只改一处守卫或传播，检查其具名 invariant；在 validity-check，不登记 formal task。观察 missing/cache 在模型中 input=0 是存储占位，kind 必须参与判定；这个 0 永远不是 known observation。负控去掉 kind 守卫确实能错误复用。
 
@@ -41,10 +42,13 @@ ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表�
 - UsageCalibration_Estimated：同域，每个被计量贡献比真实值少 1，显式 Margin=0；检查精度诚实、准入关系与 ErrorReset，不检查 WindowSafe。
 - UsageCalibration_ThreeCalls：3 次主序列 dispatch、accurate/missing，覆盖连续缺 usage 后仍回到更早祖先及再校准；其余域同准确配置。
 - UsageCalibration_Progress：2 次主序列 dispatch，仅 accurate；使用 ProgressSpec 的显式弱公平性，检查 EventuallyDone。它只保证有限检查里的规划/拒绝/结算终止，不证明真实外部请求必停。
+- UsageCalibration_ReanchorProgress：3 次主序列 dispatch、仅 accurate，StableSuccessor=TRUE，Window=100、Reserved=2、Margin=0。检查 `AccurateCommitted(i) ~> UsesAnchor(i)`（每个有后继的 i）及 `EventuallyReanchored`：后继 planned 必须实际引用刚确定的最新可用祖先 i，不能只终止。后者确保至少第一条重锚路径实际发生，不能由提前拒绝让前件永不成立。Window=100 只确保此有限域内请求可发，从而暴露进展义务，不参与 EstimatedWindow 的边界配置。
 
-Window=12、Reserved=2、Margin=0 是有限探针的显式常量，不是产品配置初值。UpperBound 的净贡献都可带边界修正；最终总量检查非负。没有对称化或隐藏状态截断；每轮新增/变更次数与 MaxCalls 明确限定状态域。协议允许合法拒绝，因此进展终态可为拒绝或最后提交，不声称每个请求都被发送。
+NeverUseAnchor 仅允许 PlanFull、禁用 PlanMarginal；KeepOldAnchor 仍增量但总选因果最早合法祖先。两者都不破坏原公平执行或终止，重锚配置下仅检查 ReanchorProgress，预期 temporal-property 反例。它们不关闭 accurate 观察或提交，也不靠改状态域绕过目标性质。模型的整数 id 是有限因果 dispatch 次序，不把这种排序投影成真实不透明标识排序。
 
-工具命令使用 registry/formal-tasks.json 中可注入 JAVA_BIN/TLA2TOOLS_JAR 的 argv。负控以同 argv 替换 -config 为 validity-check 下对应文件。结果应为该 invariant 被违反，普通 parser 错误、超时或任意非零退出都不算负控成功。
+除上述重锚配置外，Window=12、Reserved=2、Margin=0 是有限探针的显式常量，不是产品配置初值。UpperBound 的净贡献都可带边界修正；最终总量检查非负。没有对称化或隐藏状态截断；每轮新增/变更次数与 MaxCalls 明确限定状态域。协议允许合法拒绝，因此进展终态可为拒绝或最后提交，不声称每个请求都被发送。
+
+工具命令使用 registry/formal-tasks.json 中可注入 JAVA_BIN/TLA2TOOLS_JAR 的 argv。负控以同 argv 替换 -config 为 validity-check 下对应文件。结果应为该 invariant 或唯一配置的 temporal property 被违反，普通 parser 错误、超时或任意非零退出都不算负控成功。
 
 ## 递推的条件归纳（非机器证明）
 

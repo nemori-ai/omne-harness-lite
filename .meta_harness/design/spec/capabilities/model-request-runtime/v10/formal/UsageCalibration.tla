@@ -1,6 +1,6 @@
 -------------------------- MODULE UsageCalibration --------------------------
 EXTENDS Integers, Sequences, FiniteSets, TLC
-CONSTANTS MaxCalls, Mode, Bug, ObservationKinds, Window, Reserved, Margin
+CONSTANTS MaxCalls, Mode, Bug, ObservationKinds, Window, Reserved, Margin, StableSuccessor
 VARIABLE s
 vars == <<s>>
 RECURSIVE Sum(_)
@@ -22,7 +22,8 @@ SelectOK(r) == Receipt(r)
   /\ (r.basis=s.basis \/ Bug="IgnoreBasis")
 Candidates == {s.log[i]: i \in {j \in 1..Len(s.log): SelectOK(s.log[j])}}
 Anchor == IF Candidates={} THEN Empty ELSE
-  CHOOSE r \in Candidates: \A q \in Candidates: r.id>=q.id
+  CHOOSE r \in Candidates: \A q \in Candidates:
+    IF Bug="KeepOldAnchor" THEN r.id<=q.id ELSE r.id>=q.id
 CorrectCandidates == {s.log[i]: i \in {j \in 1..Len(s.log): Eligible(s.log[j])}}
 ExactReplay(r) == Count(r.body\o r.output,r.env,r.basis)-r.input
 ExactNew(r) == Count(s.body,s.env,s.basis)-Count(r.body\o r.output,r.env,r.basis)
@@ -52,10 +53,10 @@ Init == s=[phase |-> "edit", call |-> 1, body |-> <<1>>, env |-> 3, basis |-> 1,
  installed |-> 1, leased |-> TRUE, released |-> FALSE, lost |-> FALSE]
 AppendNewInput == /\ s.phase="edit" /\ ~s.appended
  /\ \E n \in {1,2}: s'=[s EXCEPT !.body=Append(@,n),!.appended=TRUE]
-ChangeOldPrefix == /\ s.phase="edit" /\ ~s.changed /\ s.call>1
+ChangeOldPrefix == /\ ~StableSuccessor /\ s.phase="edit" /\ ~s.changed /\ s.call>1
  /\ (s'=[s EXCEPT !.env=4,!.changed=TRUE]
       \/ s'=[s EXCEPT !.body=IF Len(@)>0 THEN Tail(@) ELSE @,!.changed=TRUE])
-ChangeBasis == /\ s.phase="edit" /\ ~s.changed /\ s.call>1
+ChangeBasis == /\ ~StableSuccessor /\ s.phase="edit" /\ ~s.changed /\ s.call>1
  /\ s'=[s EXCEPT !.basis=2,!.installed=2,!.changed=TRUE]
 ForkBranch == /\ s.phase="edit" /\ s.call>1 /\ ~s.forked
  /\ s'=[s EXCEPT !.branch=2,!.forked=TRUE]
@@ -68,9 +69,9 @@ LateResponse == /\ s.phase="edit" /\ s.call>1 /\ ~s.late
     IN s'=[s EXCEPT !.beforeLog=s.log,!.log=Append(@,r),
           !.beforeReplyLog=s.replyLog,!.replyLog=Append(@,[id |-> r.id,output |-> r.output]),
           !.receipts=@\cup{r.id},!.late=TRUE]
-PlanFull == /\ s.phase="edit" /\ Candidates={}
+PlanFull == /\ s.phase="edit" /\ (Candidates={} \/ Bug="NeverUseAnchor")
  /\ s'=[s EXCEPT !.plan=MakePlan(Empty),!.phase="planned"]
-PlanMarginal == /\ s.phase="edit" /\ Candidates#{}
+PlanMarginal == /\ s.phase="edit" /\ Candidates#{} /\ Bug#"NeverUseAnchor"
  /\ s'=[s EXCEPT !.plan=MakePlan(Anchor),!.phase="planned"]
 UnloadOrReplaceBinding == /\ s.phase="planned" /\ s.installed=s.plan.installed
  /\ s'=[s EXCEPT !.installed=3,!.released=IF Bug="ReleaseLease" THEN TRUE ELSE @]
@@ -164,4 +165,12 @@ ProgressSpec == Spec /\ WF_vars(PlanFull \/ PlanMarginal)
  /\ WF_vars(StageOriginalBatch) /\ WF_vars(CommitOriginalBatch \/ LoseReceipt)
  /\ WF_vars(RecoverSameBatch) /\ WF_vars(NextAttempt \/ Finish)
 EventuallyDone == <>(s.phase="done")
+\* Scope: stable-prefix/basis configuration, accurate observations, finite next calls.
+\* The id here is the finite causal dispatch index, not a lexicographic real-world id.
+UsesAnchor(i) == s.call=i+1 /\ PlanActive /\ s.plan.marginal /\ s.plan.anchor.id=i
+AccurateCommitted(i) == s.call=i /\ s.phase="committed"
+ /\ s.received.kind="accurate" /\ i \in s.receipts
+ReanchorProgress == \A i \in 1..(MaxCalls-1): AccurateCommitted(i) ~> UsesAnchor(i)
+\* Ensures the first reanchor path actually occurs; rejection cannot satisfy it.
+EventuallyReanchored == <>UsesAnchor(1)
 =============================================================================

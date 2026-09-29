@@ -1597,6 +1597,7 @@
           "additionalProperties": false,
           "required": [
             "kind",
+            "projectionRevision",
             "source",
             "blockDigests",
             "completeness",
@@ -1628,6 +1629,11 @@
             },
             "usageRef": {
               "const": "usage"
+            },
+            "projectionRevision": {
+              "type": "string",
+              "minLength": 1,
+              "description": "S-43：本输出组摘要的独立耐久编码版本；requestInput known 时与其 projectionRevision 相等。"
             }
           }
         },

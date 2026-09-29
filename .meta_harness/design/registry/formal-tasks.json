@@ -2785,6 +2785,31 @@
         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
       ],
       "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-reanchorprogress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-reanchorprogress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
     }
   ]
 }

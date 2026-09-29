@@ -412,3 +412,12 @@ H1/H2 是相同耐久前缀而实际发送不同的真实故障注入义务，�
 | 估算越窗 | estimated=10、余量 multiplier=1/reserve=0、window=12、输出预留2 准入，actual=11 时实际13超过窗口；这是明确风险而非模型矛盾 | S-74/S-78 |
 | 纯公共调用 | 显式 plan/φ/δ/observation，不提供 tenant/log，函数不得因此读取全局日志或伪造这些身份 | S-79 |
 | 旧格式拒绝 | 显式 MR 缺 inputCalibration 为 malformed；必要耐久值不能可靠解释为 unavailable，原未知责任不消失 | S-74/MR9 S-44 |
+
+
+### read → invoke 的输入观察交接
+
+固定 reader 取得同次 `prompt_tokens=30`，但 cache_write 未报告，既有 CA2 用量仍保留该项 unknown。reader 在显式最终事实结果交 `observedInput={kind:upstream_total,tokens:30,provenance:…}`；invoke 原样传该已归一化观察至 inputCalibration，不通过 raw/opaque/日志另取数。随后输出解析失败仍保留已取得观察，并如实描述 partial 输出；不能因没有正常 final chunk 就把 I 丢掉。若三项输入后来都已知且和为 30，reader 唯一归一化成 from_usage；若和冲突则 unavailable/inconsistent_usage，不交第二权威。对应 S-59⑤ 与 S-54 字段账本、MR9 S-42。
+
+### 必须换到最新可用锚
+
+三次稳定请求：第一响应 I₁ 已确认，第二计划使用它；第二响应 I₂ 已确认且对应新的完整输入，第三计划必须使用 I₂。永远全量虽能完成请求，或者始终使用仍然合法的 I₁ 虽可算对，都不满足稳定前缀只计新增及响应重锚进展。最新按实际可用祖先关系判，不按其他分支最后到达排序。对应 S-77/S-82，负控 NeverUseAnchor 与 KeepOldAnchor。

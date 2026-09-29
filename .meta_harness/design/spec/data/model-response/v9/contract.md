@@ -806,7 +806,7 @@ known 两支均带 `provenance`：adapterRevision 与 fieldPaths 必填，记录
 
 ### S-43 outputGroup 与回放
 
-known 输出组恰含 source、blockDigests、completeness、usageRef。source=reply 时 digest 序列逐项对应原 `reply` 的实际内容块；source=delivered 时对应已交付内容；source=none 时两者均不存在且 blockDigests 为空。序列数量与原块数组相等，沿原规则允许空的 complete reply；delivered 沿原规则非空。序列顺序及重复均保留；block 摘要采用 S-41 projectionRevision 规定的确定性内容编码。原 reply 与本响应 id 的对应仍沿 S-14/S-39。`usageRef` 固定指本 response 的 usage，不复制 output/reasoning 总量。
+known 输出组恰含 projectionRevision、source、blockDigests、completeness、usageRef。projectionRevision 必填，独立指认本输出组摘要的确定性内容编码版本，由当次固定适配提供者拥有并随本值耐久；它不依赖 requestInput 必须为 known。requestInput unavailable 与 outputGroup known 合法，仍须保留这份可解释的部分输出事实。requestInput 也为 known 时，两者 projectionRevision 必须精确相等，不允许混用两种编码版本。source=reply 时 digest 序列逐项对应原 `reply` 的实际内容块；source=delivered 时对应已交付内容；source=none 时两者均不存在且 blockDigests 为空。序列数量与原块数组相等，沿原规则允许空的 complete reply；delivered 沿原规则非空。序列顺序及重复均保留；block 摘要采用本 outputGroup.projectionRevision 规定的确定性内容编码（版本规则沿 S-41）。原 reply 与本响应 id 的对应仍沿 S-14/S-39。`usageRef` 固定指本 response 的 usage，不复制 output/reasoning 总量。
 
 completeness=complete 表示实际收到且保留的输出组完整，partial 表示只保留部分；不因 HTTP 成功、outcome complete 或 output_tokens 存在就推断完整。未知不能冒填 complete，无法描述组时用 unavailable（not_retained/not_sent/send_unknown）。输出组证据可为 partial，同时输入 I 仍已知；是否可用取决于下一次实际选入的组及版本化 φ 能否解释。
 
@@ -814,7 +814,7 @@ completeness=complete 表示实际收到且保留的输出组完整，partial �
 
 ### S-44 纯表示校验及事实判定
 
-纯校验沿 S-27 的闭合拒绝集合与优先级。inputCalibration 内的缺项、类型、未知判别值先是成员层 malformed；已有具名跨成员拒绝先于本条。随后：S-41 的两处相等、S-42 观察分支与 usage 的交叉条件、known total 小于已知分项和、provenance 已给同名事实不等、S-43 source 与内容存在性／数量不等，均为跨成员 malformed，不新增失败值。Schema 只实现能表达的条件，数值和、相等与摘要逐项对应另作纯关系校验；Schema 通过不等于事实判定通过。
+纯校验沿 S-27 的闭合拒绝集合与优先级。inputCalibration 内的缺项、类型、未知判别值先是成员层 malformed；已有具名跨成员拒绝先于本条。随后：S-41 的两处相等、S-42 观察分支与 usage 的交叉条件、known total 小于已知分项和、provenance 已给同名事实不等、S-43 两个 known 表示的 projectionRevision 不等、source 与内容存在性／数量不等，均为跨成员 malformed，不新增失败值。Schema 只实现能表达的条件，数值和、相等与摘要逐项对应另作纯关系校验；Schema 通过不等于事实判定通过。
 
 输入为显式值，输出合法或上述唯一拒绝；不读日志、不授权、无状态或提交、副作用为零、重复结果一致、缺失无默认，不发事件。实际摘要字节对应、上游来源真实性、跨日志/分支 ancestry、同批耐久与固定计划由能力/提供者兑现；不能将这些未知错写为表示层已证有效。
 
