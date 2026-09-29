@@ -905,3 +905,25 @@ export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
 服务路径通过 `RuntimeConstruction.diagnosticCollector` 接入，只消费 collector 的 `emitter` 能力；health、query、export 和 close 仍由装配持有。dispatch 从已核实的会话绑定取得 tenant scope，只记录已经存在的身份，重试因果只指向实际 recorded 的引用。`dispatchAgain` 接受后记录重试开始，真正发出仍由 transport 观测。
 
 `openCall` 记录精确 transport lease 的实际取得或拒绝，在 lease 自己的 `release()` 返回后才记录释放；成功绑定携带实际 profile、implementation、definition 和 configuration 版本。观察投递保留原始 offer/delivery/close 阶段和类型化拒绝原因。已确认的 dispatched/opened 日志位置在回复交接或结算时投影，未知回执不捏造位置。冷恢复从同一已验证权威前缀读取位置，只有完整结果成立且 scope 真正关闭后才记录 `without_resend`。结算按固定事实白名单投影。工程记录不成为恢复权威；完整 demo 组合另行执行集成验收。
+
+### 默认重试贡献
+
+`createDefaultRetryImplementation` 是独立的 LC6 贡献函数。调用方显式提供完整退避政策和采样来源。它只读取本次失败主体，包括有序保留的全部重试结论；它不等待、不发送请求，也不写结论。决策开始前取不到采样返回 `notStartedUnavailable`；被调用后的非法输入返回 `errored`。runner 仍须核验定位主体并调用 `canDispatchAgain`，获准后才接受 retry。
+
+```ts
+import {
+  createDefaultRetryImplementation,
+  DEFAULT_RETRY_BUILTIN,
+} from '@omne-harness-lite/model-request-runtime'
+import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
+
+export function registerDefaultRetry(registry: RunnerImplementations) {
+  const implementation = createDefaultRetryImplementation({
+    policy: { kind: 'exponential', base: 'PT1S', factor: 2, max: 'PT30S', jitter: 'full' },
+    sample: () => 0.25,
+  })
+  return registry.registerBuiltin(DEFAULT_RETRY_BUILTIN, implementation)
+}
+```
+
+本代登记结束时调用返回的 disposer。Cordis fiber 从 `@omne-harness-lite/model-request-runtime/default-retry-plugin` 导出 `createModelDefaultRetryPlugin({policy,sample})`；它必需注入 `loopExtensionImplementations`，只在自身 effect 中登记 `omne-official:default-retry`。宿主仍须提供 builtinName 完全相同、位置为 `after_model_call`、维度为 `{ending:'failure'}` 的声明；插件不会自建声明或授予 rewrite 权力。正式 Run 失败路径还依赖宿主的合法 Run 历史和失败来源；不属于 Run 的调用不能进入 runner 的 `after_model_call` 位置。

@@ -916,3 +916,25 @@ export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
 For the service path, supply `RuntimeConstruction.diagnosticCollector`, which consumes only the collector's `emitter` capability. The assembly retains health, query, export and close ownership. Dispatch derives the tenant scope from the verified session binding, includes only identities that already exist, and links a retry only to an actually recorded reference. An accepted `dispatchAgain` records retry start; an actual send remains a transport observation.
 
 `openCall` records exact transport lease acquisition or refusal and reports release after the lease's own `release()` returns. Accepted binding facts carry the actual profile, implementation, definition and configuration revisions. Observer observations retain the original offer/delivery/close stage and typed refusal reason. Confirmed dispatched/opened log positions are projected at reply handoff or settlement; unknown receipts do not invent positions. Cold recovery reads positions from the same validated authoritative prefix and records `without_resend` only after the recovered result is complete and its scope has actually closed. Settlement uses a fixed fact whitelist. These paths do not use engineering records as recovery authority. Complete demo composition remains subject to its separate integration checks.
+
+### Default retry contribution
+
+`createDefaultRetryImplementation` is a standalone LC6 contribution. The caller supplies a complete backoff policy and an explicit sample source. It reads only the current failure subject, including every ordered retry conclusion; it never schedules a wait, sends a request or writes a conclusion. A missing sample before decision yields `notStartedUnavailable`; invalid input after invocation yields `errored`. The runner still verifies the positioned subject and calls `canDispatchAgain` before accepting a retry.
+
+```ts
+import {
+  createDefaultRetryImplementation,
+  DEFAULT_RETRY_BUILTIN,
+} from '@omne-harness-lite/model-request-runtime'
+import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
+
+export function registerDefaultRetry(registry: RunnerImplementations) {
+  const implementation = createDefaultRetryImplementation({
+    policy: { kind: 'exponential', base: 'PT1S', factor: 2, max: 'PT30S', jitter: 'full' },
+    sample: () => 0.25,
+  })
+  return registry.registerBuiltin(DEFAULT_RETRY_BUILTIN, implementation)
+}
+```
+
+Call the returned disposer when this registration generation ends. The corresponding Cordis fiber is exported from `@omne-harness-lite/model-request-runtime/default-retry-plugin` as `createModelDefaultRetryPlugin({policy,sample})`. It requires `loopExtensionImplementations` and registers only `omne-official:default-retry` within its effect. The host must still provide a declaration with that exact builtin name, `after_model_call`, and `{ending:'failure'}`; the plugin does not create a declaration or give itself rewrite power. An official Run failure path also needs the host's authorized Run history and failure source; a no-Run call cannot enter the runner's `after_model_call` position.
