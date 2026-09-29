@@ -8,3 +8,6 @@
 | [原 v1](https://github.com/nemori-ai/omne-harness-lite/blob/bb3d8bc449563be4b58e9bcde1619c01c8ff5e58/.meta_harness/design/product/PF-013-model-profiles-and-invocation/projection/v3/projection.md) | 原 pre-review 快照；不作为当前消费者坐标 |
 
 投影不是产品正文或契约的第二份权威；采用、实现与验证分别看唯一登记及节点状态。
+# 2026-09-29 技术采用补记
+
+[D-108](../../../record/decisions/openrouter-refusal-mapping-adoption/decision.md) 已接受 [v4](v4/projection.md) 对应的精确 refusal 提供者映射；v4 原状态标签保留快照时刻，不表示其后未被采用。实际实现和 RF-V1–V9 尚待。

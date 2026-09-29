@@ -1,5 +1,7 @@
 # 决定
 
+[D-108：OpenRouter refusal 文本映射](openrouter-refusal-mapping-adoption/README.md)：采用 transport v14 revision 2 及局部投影；共享规格不升版，RF-V1–V9 和实际交付待验。
+
 [D-101：有依据的token估算准入](model-token-estimate-adoption/README.md)：MP6/RT8及两份计量映射技术采用，真实实现与整体交付另验。
 
 [D-100：模型纵线当前代际直接替换](model-runtime-current-generation-adoption/README.md)：接受七后继与当前迁移映射，撤销旧实现兼容过渡；实现验收分别推进。

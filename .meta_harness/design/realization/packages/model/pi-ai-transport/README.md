@@ -1,3 +1,5 @@
+2026-09-29：[D108 refusal 映射](../../../../record/decisions/openrouter-refusal-mapping-adoption/decision.md)技术采用 v14 revision 2 精确字节，释放共享 reader 与 RF-V1–V9 实施；未表示代码、绑定发布或逐型号验证完成。原候选标签保留起草时状态。
+
 2026-09-29：[D107 多输出组交接后继](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-runtime-v19-与-transport-v13-多输出组交接)已技术采用本节点精确受审增量；可按唯一接口账本实施，新增绑定0，H19/H13实际实现与验证仍待。以下候选标签保留起草时状态，不代表当前采用门。
 
 2026-09-29：[D-107 后继采用](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-transport-v12-revision-2-与-runtime-v16) 已技术采用本节点输入校准映射；原 Anthropic B1 在设计层闭合，实际组合/上游/性能验收仍待。新增绑定0，以下候选标记按起草日期读取。
