@@ -90,7 +90,7 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
       ['asset-model', 'asset-model.v2.schema.json', 2],
       ['tool-definition', 'tool-definition.v2.schema.json', 2],
       ['messages', 'messages.v2.schema.json', 2],
-      ['model-profile', 'model-profile.schema.json', 2],
+      ['model-profile', 'v2/model-profile.schema.json', 2],
       ['skill-package', 'skill-package.v2.schema.json', 2],
       ['mcp-endpoint', 'mcp-endpoint.schema.json', 2],
       ['slash-command', 'slash-command.schema.json', 2],
