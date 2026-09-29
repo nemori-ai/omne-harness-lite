@@ -285,6 +285,45 @@ describe('formal runner and P5 demo assembly', () => {
       expect(source.verify(source.subject, { run: 'controlled-run-1', attempt: 1 })).toEqual({
         authoritativeSubject: source.subject,
       })
+      const originalRetry = source.subject.retryConclusions[0]
+      const originalDispatch = source.subject.dispatches[0]
+      if (originalRetry === undefined || originalDispatch === undefined)
+        throw Error('durable retry and dispatch facts absent')
+      async function rejectChangedSubject(changedSubject: typeof source.subject) {
+        expect(source.verify(changedSubject, { run: 'controlled-run-1', attempt: 1 })).toEqual({
+          invalidInput: true,
+        })
+        expect(
+          await app.dispatchRunner(
+            who,
+            session,
+            {
+              position: 'after_model_call',
+              dimension: { ending: 'failure' },
+              subject: changedSubject,
+              manifest: session,
+              anchor: request.anchor,
+              run: 'controlled-run-1',
+              attempt: 1,
+            },
+            new AbortController().signal,
+          ),
+        ).toEqual({ failure: 'invalidInput' })
+        expect(externalAcquires).toBe(beforeReplayExternal)
+        expect(tls.requests).toHaveLength(1)
+      }
+      await rejectChangedSubject({
+        ...source.subject,
+        retryConclusions: [originalRetry, originalRetry],
+      })
+      await rejectChangedSubject({
+        ...source.subject,
+        retryConclusions: [{ ...originalRetry, extension: 'tenant:custom' }],
+      })
+      await rejectChangedSubject({
+        ...source.subject,
+        dispatches: [{ ...originalDispatch, call: 'another-call' }],
+      })
       expect(source.verify(source.subject, { run: 'controlled-run-2', attempt: 1 })).toEqual({
         invalidInput: true,
       })
