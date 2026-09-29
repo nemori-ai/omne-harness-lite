@@ -15,16 +15,20 @@ const models = [
 ]
 const encoder = getEncoding('o200k_base')
 
-describe('four unbound OpenAI routes: independent raw calibration inputs', () => {
+describe('four original research routes: independent frozen calibration inputs', () => {
   it.each(models)('%s owns two fits and an untouched tool/reminder holdout', model => {
     const cases = packet.cases.filter(value => value.modelId === model)
     expect(cases.map(value => value.set)).toEqual(['fit', 'fit', 'holdout'])
     expect(cases.map(value => value.requestSha256)).toHaveLength(3)
     const definition = openaiDefinitions.find(value => value.modelId === model)
     if (definition === undefined) throw new Error('missing exact definition')
-    expect(definition.revision).toBe(model === 'openai/gpt-6-astra' ? '1' : '2')
-    // Research fixtures never register a meter or inherit another model's observations.
-    expect(() => createOpenAiInputMeter(definition)).toThrow('unsupported OpenAI')
+    expect(definition.revision).toBe('2')
+    // Frozen research inputs do not become measured observations when a meter is supplied.
+    if (model === 'openai/gpt-6-astra')
+      expect(createOpenAiInputMeter(definition).algorithmRevision).toContain(
+        'astra-final-visible-json',
+      )
+    else expect(() => createOpenAiInputMeter(definition)).toThrow('unsupported OpenAI')
   })
 
   it.each(packet.cases)(

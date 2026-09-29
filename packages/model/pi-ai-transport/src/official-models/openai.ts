@@ -113,6 +113,36 @@ const gpt56MeteredIds = new Set([
 const gpt6SolVisibleHistoryMeteredId = 'openai/gpt-6-sol'
 const gpt6LunaVisibleHistoryMeteredId = 'openai/gpt-6-luna'
 
+/** Narrow successors adopting the common final-visible-JSON surrogate.
+ * This table supersedes the earlier unmetered declaration; no old binding alias.
+ * Applicability inputs (2026-09-29): vendor-continuation/openai/{research.md,
+ * initial-observations.json}; https://openrouter.ai/docs/cookbook/evaluate-and-optimize/model-migrations/gpt-6
+ * and https://developers.openai.com/api/docs/guides/reasoning . Native OpenAI
+ * Astra Chat function calling is unavailable; OpenRouter translation/tool support
+ * still needs route certification. Counting visible tools is not that certification.
+ */
+export const openaiFinalVisibleBindings: Readonly<
+  Record<
+    string,
+    {
+      readonly revision: string
+      readonly implementationRevision: string
+      readonly efforts: readonly string[]
+      readonly algorithmRevision: string
+      readonly evidence: string
+    }
+  >
+> = Object.freeze({
+  'openai/gpt-6-astra': Object.freeze({
+    revision: '2',
+    implementationRevision: 'mp4-8',
+    efforts: astra.parameters.reasoningEffort.accepted.values,
+    algorithmRevision: 'openai-gpt-6-astra-final-visible-json-o200k-1',
+    evidence:
+      'OpenRouter OpenAI GPT-6 Astra own low-effort baseline (2026-09-28): text o200k surrogate 25, actual prompt_tokens 39; OpenRouter GPT-6 migration guide (2026-09-29) establishes shared Chat API and Astra effort domain; full final visible JSON framing/tools/controls is an estimated applicability inference, not model tokenizer identity, fitted +14 overhead, error bound, or completed multi-turn/effort certification',
+  }),
+})
+
 /** Complete MP4 declarations for the exact 12 selected OpenAI routes. */
 export const openaiDefinitions = ownDefinitions(
   Object.entries(openaiModelRoutes).map(
@@ -120,6 +150,7 @@ export const openaiDefinitions = ownDefinitions(
       ({
         modelId,
         revision:
+          openaiFinalVisibleBindings[modelId]?.revision ??
           openAiProBindings[modelId]?.revision ??
           (gpt56MeteredIds.has(modelId)
             ? '4'
@@ -130,15 +161,17 @@ export const openaiDefinitions = ownDefinitions(
                 : '1'),
         implementation: {
           name: 'pi-ai:openai',
-          revision: openAiProBindings[modelId]
-            ? PRO_IMPLEMENTATION_REVISION
-            : gpt56MeteredIds.has(modelId)
-              ? 'mp4-5'
-              : modelId === gpt6LunaVisibleHistoryMeteredId
-                ? 'mp4-4'
-                : modelId === gpt6SolVisibleHistoryMeteredId
-                  ? 'mp4-6'
-                  : 'mp4-1',
+          revision:
+            openaiFinalVisibleBindings[modelId]?.implementationRevision ??
+            (openAiProBindings[modelId]
+              ? PRO_IMPLEMENTATION_REVISION
+              : gpt56MeteredIds.has(modelId)
+                ? 'mp4-5'
+                : modelId === gpt6LunaVisibleHistoryMeteredId
+                  ? 'mp4-4'
+                  : modelId === gpt6SolVisibleHistoryMeteredId
+                    ? 'mp4-6'
+                    : 'mp4-1'),
         },
         capabilities,
         routes,

@@ -1,3 +1,4 @@
+import { openaiFinalVisibleBindings } from '../official-models/openai.ts'
 import {
   openAiProBindings,
   PRO_IMPLEMENTATION_REVISION,
@@ -259,15 +260,18 @@ function visibleHistoryTokens(
   modelId: string,
   tokenizer: ReturnType<typeof encoder>,
 ): number | undefined {
-  // Only Sol's new exact binding adopts all of its declared effort values.
-  // Include the final controls in its surrogate, without inventing defaults.
-  // Luna retains its published low-effort/messages+tools algorithm unchanged.
-  const solFinal = modelId === 'openai/gpt-6-sol'
-  const reasoningValid = solFinal
+  // Final-JSON adoption is explicit per binding. Luna's published low-effort
+  // messages/tools-only algorithm remains unchanged. No upstream effort default.
+  const finalEfforts =
+    modelId === 'openai/gpt-6-sol'
+      ? ['none', 'low', 'medium', 'high', 'max']
+      : openaiFinalVisibleBindings[modelId]?.efforts
+  const countFinal = finalEfforts !== undefined
+  const reasoningValid = countFinal
     ? body.reasoning === undefined ||
       (object(body.reasoning) &&
         onlyKeys(body.reasoning, ['effort']) &&
-        ['none', 'low', 'medium', 'high', 'max'].includes(String(body.reasoning.effort)))
+        finalEfforts.includes(String(body.reasoning.effort)))
     : object(body.reasoning) &&
       onlyKeys(body.reasoning, ['effort']) &&
       body.reasoning.effort === 'low'
@@ -363,25 +367,33 @@ function visibleHistoryTokens(
     messages: body.messages,
     ...(body.tools === undefined ? {} : { tools: body.tools }),
   }
-  return tokenizer.encode(writeJsonLossless(solFinal ? body : visible)).length
+  return tokenizer.encode(writeJsonLossless(countFinal ? body : visible)).length
 }
 
 /** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
   const gpt6SolVisibleHistory = definition.modelId === 'openai/gpt-6-sol'
   const gpt6LunaVisibleHistory = definition.modelId === 'openai/gpt-6-luna'
+  const finalBinding = openaiFinalVisibleBindings[definition.modelId]
+  const gpt6VisibleHistory =
+    gpt6SolVisibleHistory || gpt6LunaVisibleHistory || finalBinding !== undefined
   const imageRule = imageRuleFor(definition.modelId)
   const pro = openAiProBindings[definition.modelId]
-  const revision = pro?.revision ?? (gpt6SolVisibleHistory || gpt6LunaVisibleHistory ? '3' : '4')
-  const implementationRevision = pro
-    ? PRO_IMPLEMENTATION_REVISION
-    : gpt6SolVisibleHistory
-      ? 'mp4-6'
-      : gpt6LunaVisibleHistory
-        ? 'mp4-4'
-        : 'mp4-5'
+  const revision =
+    finalBinding?.revision ??
+    pro?.revision ??
+    (gpt6SolVisibleHistory || gpt6LunaVisibleHistory ? '3' : '4')
+  const implementationRevision =
+    finalBinding?.implementationRevision ??
+    (pro
+      ? PRO_IMPLEMENTATION_REVISION
+      : gpt6SolVisibleHistory
+        ? 'mp4-6'
+        : gpt6LunaVisibleHistory
+          ? 'mp4-4'
+          : 'mp4-5')
   if (
-    (!gpt6SolVisibleHistory && !gpt6LunaVisibleHistory && !imageRule) ||
+    (!gpt6VisibleHistory && !imageRule) ||
     definition.revision !== revision ||
     definition.implementation.name !== 'pi-ai:openai' ||
     definition.implementation.revision !== implementationRevision ||
@@ -395,22 +407,28 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     implementation: definition.implementation,
     provider: 'openai',
     ...(pro ? { transformRevision: PRO_TRANSFORM_REVISION } : {}),
-    algorithmRevision: gpt6SolVisibleHistory
-      ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
-      : gpt6LunaVisibleHistory
-        ? 'openai-gpt-6-luna-visible-history-json-o200k-1'
-        : 'openai-gpt-5.6-o200k-base-4',
-    evidence: gpt6SolVisibleHistory
-      ? 'OpenRouter OpenAI GPT-6 Sol low-effort o200k text surrogate baseline/length/CJK-code holdout (2026-09-28); complete visible final-request JSON includes controls and extends the surrogate to protocol framing as an estimate; OpenAI reasoning guide separates mode/effort (2026-09-29), declared Sol efforts and absent effort counted as sent; live multi-turn/effort errors and private framing remain unverified'
-      : gpt6LunaVisibleHistory
-        ? 'OpenRouter OpenAI GPT-6 Luna low-effort visible text/tool/reminder history: three frozen full-wire live requests and independent generation GET (2026-09-28), estimated 126/302/410 versus actual input 70/178/236; error outside these samples and private framing unknown'
-        : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis',
-    ...(gpt6SolVisibleHistory
-      ? { tokenizerRevision: 'js-tiktoken-1.0.21/o200k-base-gpt6-sol-surrogate/1' }
+    algorithmRevision:
+      finalBinding?.algorithmRevision ??
+      (gpt6SolVisibleHistory
+        ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
+        : gpt6LunaVisibleHistory
+          ? 'openai-gpt-6-luna-visible-history-json-o200k-1'
+          : 'openai-gpt-5.6-o200k-base-4'),
+    evidence:
+      finalBinding?.evidence ??
+      (gpt6SolVisibleHistory
+        ? 'OpenRouter OpenAI GPT-6 Sol low-effort o200k text surrogate baseline/length/CJK-code holdout (2026-09-28); complete visible final-request JSON includes controls and extends the surrogate to protocol framing as an estimate; OpenAI reasoning guide separates mode/effort (2026-09-29), declared Sol efforts and absent effort counted as sent; live multi-turn/effort errors and private framing remain unverified'
+        : gpt6LunaVisibleHistory
+          ? 'OpenRouter OpenAI GPT-6 Luna low-effort visible text/tool/reminder history: three frozen full-wire live requests and independent generation GET (2026-09-28), estimated 126/302/410 versus actual input 70/178/236; error outside these samples and private framing unknown'
+          : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis'),
+    ...(gpt6SolVisibleHistory || finalBinding
+      ? {
+          tokenizerRevision: `js-tiktoken-1.0.21/o200k-base-${definition.modelId.slice('openai/'.length)}-surrogate/1`,
+        }
       : {}),
     measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-      if (gpt6SolVisibleHistory || gpt6LunaVisibleHistory) {
+      if (gpt6VisibleHistory) {
         try {
           const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
           return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
@@ -430,7 +448,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     },
   })
   return withEstimatedJsonMarginals(meter, input => {
-    if (!gpt6SolVisibleHistory && !gpt6LunaVisibleHistory) return fullJsonMarginal(meter, input)
+    if (!gpt6VisibleHistory) return fullJsonMarginal(meter, input)
     if (!input.units.length) return { kind: 'exact', tokens: 0 }
     const { tools: _tools, ...envelope } = input.envelope
     const tokens = visibleHistoryTokens(
@@ -446,7 +464,9 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
             tokens -
             tokenizer.encode(
               writeJsonLossless(
-                gpt6SolVisibleHistory ? { ...envelope, messages: [] } : { messages: [] },
+                gpt6SolVisibleHistory || finalBinding
+                  ? { ...envelope, messages: [] }
+                  : { messages: [] },
               ),
             ).length,
         }
