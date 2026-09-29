@@ -60,3 +60,13 @@ Reviewer支持C：保留输入实测原精度，并让知道实际回放形状�
 规格评审 N1：新旧 G-35 重号；新增适配证据 gap 改用未占编号并同步引用。N2：规范 verification 中含可变验证状态和运行经过；保留规范义务，结果移版本外/evidence。架构审查未发现第四项语义缺口，继续支持 U0 C 的既有边界；非加性贡献、两类失效、分支来源、原批/lease和未知不作零已有保护点，前提和有限域不能删除。
 
 主线认可这一轮的五项处置范围，已交原 spec-drafter 集中修订，新运行另目录保存。**U1 本轮未通过采用门；U3 不放行。**压缩硬窗口政策与各 provider 的实际 φ/δ/兼容依据仍是原 owner 的明确缺口，本轮没有新增产品裁决。性能改善、实际 tokenizer/网络/存储/租户、完整旧模型复验均未覆盖。
+
+## 2026-09-29 U1 修订二独立复评
+
+冻结提交 `62ab2001f095566dcb6b5cfeaaf7c1c3c1ff755d`（HUB `1fef9c90`）；UsageCalibration 模型 SHA256 `18d9acad96865e38ea7a847bec3ebec78f937ae059bf511ff52aff3e951c9684`。同两位独立 reviewer 分别完成表达复评与性质承载窄复核，**原 B1～B3/N1～N2 全部闭合，本次范围无阻断或新增非阻断发现**。
+
+B1：S-59固定reader解释并经同一终止事实交出 observedInput/provenance，S-54承接，错误/取消不抹掉已知事实；禁止不透明/诊断旁路。B2：输出组自有必填projectionRevision，请求未知仍可解释输出，双方known须相等。B3：S-77/S-82与新增重锚性质选择最新可用因果祖先；StableSuccessor只限制环境，不强制planner执行待证明选择。NeverUseAnchor和KeepOldAnchor分别表达两种违例，EventuallyReanchored排除提前拒绝导致的空泛通过。N1新增gap G-37与原LC6 G-35分开；N2规范verification保留义务，可变结果移版本外。
+
+两位均只读，查看20个Schema实例及新增形式日志，未独立重跑或复审未变旧模型；主线逐项核验的86份输入快照、22份配置/原始日志和实际6正16负结果见[第二轮证据](../../evidence/2026-09-29-formal-model-input-usage-calibration-2/README.md)。初始结果判读字符串修正没有改写原始日志或冒充产品修复。
+
+主线据此释放三个既有节点的 realization 候选起草（core/model-response、model/pi-ai-transport、model/model-request-runtime）；契约仍 candidate，**尚未采用、尚未放行 U3 实现**。实际模型 φ/δ/兼容证据、压缩硬fit政策、真实授权/存储/网络、性能改善与端到端交付仍按各自边界验证，复评通过不代替这些结果。
