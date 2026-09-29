@@ -1,5 +1,6 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { randomInt } from 'node:crypto'
+import sharp from 'sharp'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { isOk } from '@omne-harness-lite/identity-values'
@@ -11,6 +12,8 @@ import {
   createOfficialProfileContent,
   createDeepSeekV4ProInputMeter,
   createDeepSeekV41FlashInputMeter,
+  createSharpImageCodec,
+  modelImageBalancedV1,
   deepseekV4Pro0813Configuration,
   deepseekV4Pro0813Definition,
   deepseekV41FlashConfiguration,
@@ -213,6 +216,7 @@ export function createDemoConfig(
       policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
     },
     modelRequest: {
+      maxScopes: 64,
       tokenMargin,
       defaultRetry: createDemoDefaultRetryConfiguration(),
       registryPolicy: { maxRetries: 2, maxInFlight: 8 },
@@ -231,6 +235,10 @@ export function createDemoConfig(
         },
       },
       transport: {
+        imagePreparation: {
+          policy: modelImageBalancedV1,
+          codec: createSharpImageCodec(sharp),
+        },
         definitions: [deepseekV4Pro0813Definition, deepseekV41FlashDefinition],
         inputMeters: [
           createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition),

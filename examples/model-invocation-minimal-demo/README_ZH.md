@@ -1,5 +1,7 @@
 # 模型调用最小示例
 
+`createDemoConfig()` 显式加载已安装的 sharp codec，采用可替换的 `modelImageBalancedV1` 图片准备政策，并将 `modelRequest.maxScopes` 设为 64。程序调用方可在打开应用前替换 `modelRequest.transport.imagePreparation` 和 `maxScopes`；它们是本地资源与质量配置，不是上游模型限制。正式与受控 HTTPS 传输使用同一准备配置；runtime 通过捕获的原 transport owner 清理 scope，关闭时也保持该归属。原消息不变，计量与发送共用准备后的图片字节。本次不增加 CLI 图片附件语法。
+
 这是一个可在终端交互、真实流式输出且持久化的多轮模型对话示例。它使用真实本地账号、组织资格、会话归属、当前求值输入、官方模型档案、加密凭据副本、OpenRouter 传输和 JSONL 会话日志。原 `model-request-acceptance` 装配迁入此示例；可复用能力仍在 `packages/`。
 
 示例装入 **`deepseek/deepseek-v4-pro-0813`** 与 **`deepseek/deepseek-v4.1-flash`** 两条官方档案，均固定供应商路由 **`deepinfra/fp8`** 并禁止回退。Pro 只是首次会话的显式初选。`/models` 读取当前目录展示列表，`/model` 显示选中和有效路由，`/model <标识>` 耐久切换后续请求的选中路由；不会重建会话或清空历史。上层锁可能让有效路由不同于选中路由，重启后仍读原耐久选择。其他已发布模型定义未随之自动具备可用的档案、适配与输入计量。

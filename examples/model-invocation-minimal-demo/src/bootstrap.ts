@@ -302,6 +302,7 @@ function modelTransportFace(value: unknown): value is ModelTransportService {
     object(value) &&
     typeof value.registerAdaptation === 'function' &&
     typeof value.acquire === 'function' &&
+    typeof value.clearReuseScope === 'function' &&
     typeof value.retire === 'function' &&
     typeof value.close === 'function' &&
     typeof value.inspect === 'function' &&
@@ -1389,6 +1390,7 @@ export function createAcceptanceApplication(
             if (options.developmentTransport === undefined) {
               await load('modelTransport', piAiTransportPlugin, {
                 policy: transportConfiguration.policy,
+                imagePreparation: transportConfiguration.imagePreparation,
                 retirement: transportConfiguration.retirement,
                 onDiagnostic,
                 registryDiagnostics,
@@ -1403,6 +1405,7 @@ export function createAcceptanceApplication(
                     const service = createModelTransportService({
                       ...developmentTransport,
                       policy: transportConfiguration.policy,
+                      imagePreparation: transportConfiguration.imagePreparation,
                       onDiagnostic,
                       registryDiagnostics,
                     })
@@ -1469,6 +1472,7 @@ export function createAcceptanceApplication(
             return parsed.ok
           }
           const construction: RuntimeConstruction<PlannedRequest, RawResponse> = {
+            maxScopes: deployment.maxScopes,
             sessions: {
               async bind(session) {
                 const originalActor = runtimeActors.get(session)
@@ -1508,6 +1512,9 @@ export function createAcceptanceApplication(
             },
             calls,
             transport: {
+              clearReuseScope(scope) {
+                return transport.clearReuseScope(scope)
+              },
               acquire(binding, routeName) {
                 if (closing) return { unavailable: true }
                 const acquired = transport.acquire(binding, routeName)

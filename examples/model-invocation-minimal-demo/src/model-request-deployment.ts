@@ -22,6 +22,8 @@ export function prepareModelRequestDeployment(
   if (
     input === undefined ||
     input === null ||
+    !Number.isSafeInteger(input.maxScopes) ||
+    input.maxScopes < 1 ||
     input.evaluationInputs === undefined ||
     typeof input.evaluationInputs.storeKey !== 'string' ||
     !input.evaluationInputs.storeKey ||
@@ -37,6 +39,8 @@ export function prepareModelRequestDeployment(
     !Array.isArray(input.transport.definitions) ||
     !Array.isArray(input.transport.inputMeters) ||
     input.transport.policy === undefined ||
+    input.transport.imagePreparation === undefined ||
+    input.transport.imagePreparation === null ||
     !validRetirement(input.transport.retirement) ||
     input.invocation === undefined ||
     typeof input.invocation.now !== 'function' ||
@@ -77,6 +81,7 @@ export function prepareModelRequestDeployment(
       definitions: input.transport.definitions,
       inputMeters: input.transport.inputMeters,
       policy: input.transport.policy,
+      imagePreparation: Object.freeze({ ...input.transport.imagePreparation }),
       retirement: Object.freeze({ ...input.transport.retirement }),
     }),
     invocation: Object.freeze({ ...input.invocation }),

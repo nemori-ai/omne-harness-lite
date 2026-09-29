@@ -79,6 +79,8 @@ export interface SessionLogDeployment {
 }
 export type { ModelInputSource } from './bootstrap.ts'
 export interface ModelRequestDeployment {
+  /** Finite runtime-owned image preparation scopes; not an upstream model limit. */
+  readonly maxScopes: number
   /** Borrowed trusted provider; its owner keeps it alive through application close. */
   readonly assetRegistry?: Pick<AssetRegistryService, 'lookup'>
   readonly tokenMargin: TokenMargin
@@ -94,6 +96,7 @@ export interface ModelRequestDeployment {
     readonly prepare: (actor: AuthenticatedActor, session: SessionRef) => Promise<ModelInputSource>
   }
   readonly transport: Pick<TransportOptions, 'definitions' | 'inputMeters' | 'policy'> & {
+    readonly imagePreparation: NonNullable<TransportOptions['imagePreparation']>
     readonly retirement: RetirementPolicy
   }
   readonly invocation: Pick<
