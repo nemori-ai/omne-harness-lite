@@ -88,6 +88,7 @@ import {
   piAiTransportPlugin,
 } from '@omne-harness-lite/pi-ai-transport/plugin'
 import { prepareModelRequestDeployment } from './model-request-deployment.ts'
+import type { DemoTransportRetention, TransportReservation } from './diagnostic-assembly.ts'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
@@ -412,6 +413,8 @@ export function createAcceptanceApplication(
     readonly developmentTransport?: Pick<TransportOptions, 'baseUrl' | 'tls'>
     /** Trusted host evidence. Only a supervisor that saw the old worker exit may set covered. */
     readonly coldRecovery?: { readonly covered: boolean }
+    /** Demo-owned limit across current, constructing, old live and terminal transport generations. */
+    readonly transportRetention?: DemoTransportRetention
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
@@ -1030,39 +1033,59 @@ export function createAcceptanceApplication(
           throw new Error('one exact input meter per model contribution required')
         const onDiagnostic = (event: { readonly level: string }) =>
           record({ event: 'transport', phase: 'provider', outcome: event.level })
-        if (options.developmentTransport === undefined) {
-          await load('modelTransport', piAiTransportPlugin, {
-            policy: transportConfiguration.policy,
-            retirement: transportConfiguration.retirement,
-            onDiagnostic,
-          })
-        } else {
-          const developmentTransport = options.developmentTransport
-          await load(
-            'modelTransport',
-            {
-              name: 'acceptance-controlled-model-transport',
-              apply(ctx: Context) {
-                const service = createModelTransportService({
-                  ...developmentTransport,
-                  policy: transportConfiguration.policy,
-                  onDiagnostic,
-                })
-                ctx.effect(() => async () => {
-                  const result = await service.close(transportConfiguration.retirement)
-                  if ('cleanup_failed' in result || 'rejected' in result)
-                    throw new Error('model transport cleanup failed')
-                  await service.closed
-                })
-                ctx.provide(MODEL_TRANSPORT_SERVICE, service)
+        const reserved = options.transportRetention?.reserveReplacement()
+        if (reserved && 'unavailable' in reserved) throw new Error('transport_retention_full')
+        const reservation: TransportReservation | undefined = reserved?.reservation
+        let committed = false
+        try {
+          if (options.developmentTransport === undefined) {
+            await load('modelTransport', piAiTransportPlugin, {
+              policy: transportConfiguration.policy,
+              retirement: transportConfiguration.retirement,
+              onDiagnostic,
+            })
+          } else {
+            const developmentTransport = options.developmentTransport
+            await load(
+              'modelTransport',
+              {
+                name: 'acceptance-controlled-model-transport',
+                apply(ctx: Context) {
+                  const service = createModelTransportService({
+                    ...developmentTransport,
+                    policy: transportConfiguration.policy,
+                    onDiagnostic,
+                  })
+                  ctx.effect(() => async () => {
+                    const result = await service.close(transportConfiguration.retirement)
+                    if ('cleanup_failed' in result || 'rejected' in result)
+                      throw new Error('model transport cleanup failed')
+                    await service.closed
+                  })
+                  ctx.provide(MODEL_TRANSPORT_SERVICE, service)
+                },
               },
-            },
-            undefined,
-          )
+              undefined,
+            )
+          }
+          const provided: unknown = context.get(MODEL_TRANSPORT_SERVICE)
+          if (!modelTransportFace(provided)) throw new Error('model transport service absent')
+          transportService = provided
+          reservation?.commit(provided)
+          committed = true
+        } catch (error) {
+          if (reservation && !committed) {
+            let partial: unknown
+            try {
+              partial = context.get(MODEL_TRANSPORT_SERVICE)
+            } catch {
+              // A fiber may still own a failed construction even if no service can be read.
+            }
+            if (modelTransportFace(partial)) reservation.adoptFailedConstruction(partial)
+            else reservation.abortUnknown()
+          }
+          throw error
         }
-        const provided: unknown = context.get(MODEL_TRANSPORT_SERVICE)
-        if (!modelTransportFace(provided)) throw new Error('model transport service absent')
-        transportService = provided
         for (const definition of transportConfiguration.definitions) {
           const meters = transportConfiguration.inputMeters.filter(
             meter =>
