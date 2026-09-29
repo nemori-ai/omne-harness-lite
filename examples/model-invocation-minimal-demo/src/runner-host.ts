@@ -75,17 +75,14 @@ export function createDemoRunnerHost(log: JsonlSessionLog, deployment: SessionLo
     for (const { owner } of sessions.values()) owner.closeAdmission()
   }
 
-  function run(
-    binding: SettlementLogBinding,
-    request: DemoRunnerRequest,
-  ): Promise<RunnerPassResult> {
+  function borrow(binding: SettlementLogBinding) {
     if (!admitting || binding.log !== log || binding.currentGeneration() !== binding.generation)
-      return Promise.resolve({ failure: 'unavailable' })
+      return { unavailable: true } as const
     let session = sessions.get(binding.session)
     if (session !== undefined && !tenantIdEquals(session.binding.tenant, binding.tenant))
-      return Promise.resolve({ failure: 'invalidInput' })
+      return { unavailable: true } as const
     if (session === undefined) {
-      const ownedBinding = Object.freeze({
+      const ownedBinding: RunnerLogBinding = Object.freeze({
         session: binding.session,
         tenant: binding.tenant,
         logGeneration: generation,
@@ -93,7 +90,27 @@ export function createDemoRunnerHost(log: JsonlSessionLog, deployment: SessionLo
       session = { binding: ownedBinding, owner: createRunnerTaskOwner(ownedBinding) }
       sessions.set(binding.session, session)
     }
-    const { owner, binding: runnerBinding } = session
+    return Object.freeze({
+      binding: session.binding,
+      owner: session.owner,
+      isActive: () =>
+        admitting &&
+        binding.log === log &&
+        binding.currentGeneration() === binding.generation &&
+        sessions.get(binding.session) === session,
+    })
+  }
+
+  function run(
+    binding: SettlementLogBinding,
+    request: DemoRunnerRequest,
+  ): Promise<RunnerPassResult> {
+    const existing = sessions.get(binding.session)
+    if (existing !== undefined && !tenantIdEquals(existing.binding.tenant, binding.tenant))
+      return Promise.resolve({ failure: 'invalidInput' })
+    const borrowed = borrow(binding)
+    if ('unavailable' in borrowed) return Promise.resolve({ failure: 'unavailable' })
+    const { owner, binding: runnerBinding } = borrowed
     const signal =
       request.signal === undefined
         ? controller.signal
@@ -239,5 +256,5 @@ export function createDemoRunnerHost(log: JsonlSessionLog, deployment: SessionLo
     )
     return task
   }
-  return Object.freeze({ run, closeAdmission, close })
+  return Object.freeze({ run, borrow, closeAdmission, close })
 }

@@ -8,6 +8,8 @@
 
 程序调用的 `ModelRequestDeployment` 必填 `defaultRetry` 和 `registryPolicy`。`defaultRetry` 提供可替换的重试退避政策与随机采样来源；`createDemoDefaultRetryConfiguration()` 给出本示例的初值。`registryPolicy` 配置当前评估填充的重试次数及并发上限，`createDemoConfig()` 的初值为 `{ maxRetries: 2, maxInFlight: 8 }`。根发布声明官方 `omne-official:default-retry` 贡献，但耐久记录重试结论不会自行再次请求模型。调用者可在打开应用前替换这些显式部署值。
 
+应用从当前评估输入填充真实 SQLite 装配清单，向同一 Cordis runner 服务借出受限的 EIS 历史 reader；独立的 P5 fiber 向该服务登记默认重试实现。`dispatchRunner(actor, session, request, signal)` 重新核验身份和会话，再经 runtime 同前缀 `readAttempts(..., { consumeFailure: true })` 获取失败来源；`replayRunner(actor, session, request)` 只读耐久结论，不取得该来源也不写入。执行 `after_model_call` 时，可信的构造期 `runnerExternal` 提供者必须核验并借出真实 Run、日志及环境句柄；缺少该 owner，本示例返回 `unavailable`。普通无 Run 的 CLI 对话不会伪造 Run 或自动调用 P5。受控本机 TLS 测试注入有作用域的外部 owner，验证有前提的 service 正向路径和零自动重发。
+
 每轮接收文本输入、无工具、无 Run，参数为 `reasoningEffort: low` 和 `maxOutputTokens: 16384`。已认证会话绑定统一的 `createModelRuntime` 服务；服务打开并派发调用，由绑定会话授权且有双重缓冲上限的观察端把流送到终端。每次发送前先登记实际调用宿主，并在物理停止前保留其所有权。打开既有对话时先认证、核实会话归属、对账耐久模型日志，然后才开放新调用；不会自动重发。完整回复与模型响应由示例在同一耐久批次结算后才进入下一轮。每次请求把校验后的完整消息历史（包括先前的推理和媒体块）交给调用层，不加纯文本白名单。可见性和模型兼容遵循公共契约；命令行目前仅提供文本输入。`/history` 读真实会话日志。使用相同数据路径重启会重新认证并恢复原会话，不重放注册或来源发布。
 
 用 `--max-output-tokens <正整数>` 配置每次响应的输出上限，默认 16,384。所选模型的档案仍校验其上限，demo 不会静默截小过大的配置。此额度包含上游计入输出的推理 tokens。使用相同 `--data` 和新上限重启，保留原会话历史。

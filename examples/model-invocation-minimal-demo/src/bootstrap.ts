@@ -60,10 +60,23 @@ import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { createRequestOwner } from './model-request-owner.ts'
 import { createDemoRunnerHost, type DemoRunnerRequest } from './runner-host.ts'
-import type { RunnerPassResult } from '@omne-harness-lite/loop-extension-runner'
+import {
+  LOOP_EXTENSION_RUNNER_SERVICE,
+  loopExtensionRunnerPlugin,
+  type LoopExtensionRunnerService,
+  type RunnerDispatchRequest,
+  type RunnerPassResult,
+  type RunnerReplayFailure,
+  type RunnerReplayRequest,
+} from '@omne-harness-lite/loop-extension-runner'
+import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime/default-retry-plugin'
+import {
+  createDemoRunnerServiceHost,
+  readDemoRunnerFailure,
+  type DemoRunnerServiceHostDependencies,
+} from './runner-service-host.ts'
 import { createDemoObserverAccess, createDemoObserverEndpoint } from './model-observer-endpoint.ts'
 import { persistDemoModelReply } from './persist-model-reply.ts'
-import { readDemoNoRunFailure } from './no-run-failure-history.ts'
 import type { DemoCallHost } from './model-call-host.ts'
 import {
   messagePrefix,
@@ -114,6 +127,7 @@ import type {
   TransportReservation,
 } from './diagnostic-assembly.ts'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
@@ -275,6 +289,9 @@ function modelTransportFace(value: unknown): value is ModelTransportService {
     value.closed instanceof Promise
   )
 }
+function runnerServiceFace(value: unknown): value is LoopExtensionRunnerService {
+  return object(value) && typeof value.dispatch === 'function' && typeof value.replay === 'function'
+}
 function sourceMembershipFace(value: unknown): value is InputSourceDependencies['memberships'] {
   return object(value) && typeof value.participate === 'function'
 }
@@ -321,6 +338,21 @@ export interface AcceptanceApplication {
     session: unknown,
     request: DemoRunnerRequest,
   ): Promise<ScenarioResult<RunnerPassResult>>
+  dispatchRunner(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: RunnerDispatchRequest,
+    signal: AbortSignal,
+  ): Promise<ScenarioResult<RunnerPassResult>>
+  replayRunner(
+    actor: AuthenticatedActor,
+    session: unknown,
+    request: RunnerReplayRequest,
+  ): Promise<
+    ScenarioResult<
+      readonly import('@omne-harness-lite/loop-extension').Conclusion[] | RunnerReplayFailure
+    >
+  >
   readonly ready: Promise<{ readonly confirmation: UpgradeConfirmation }>
   /** The verified tenant and local diagnostic owners must already be open before P-2 starts. */
   activateModelRequest(
@@ -449,6 +481,8 @@ export function createAcceptanceApplication(
     readonly developmentTransport?: Pick<TransportOptions, 'baseUrl' | 'tls'>
     /** Trusted host evidence. Only a supervisor that saw the old worker exit may set covered. */
     readonly coldRecovery?: { readonly covered: boolean }
+    /** Only a trusted external execution owner may lend Run, log and environment facts. */
+    readonly runnerExternal?: DemoRunnerServiceHostDependencies['external']
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
@@ -471,6 +505,10 @@ export function createAcceptanceApplication(
   let replica: ModelReplicaCustodian | undefined
   let sessionLogOwner: JsonlSessionLog | undefined
   let runnerHost: ReturnType<typeof createDemoRunnerHost> | undefined
+  let runnerService: LoopExtensionRunnerService | undefined
+  let runnerServiceFiber: Fiber | undefined
+  let defaultRetryFiber: Fiber | undefined
+  const runnerActors = new AsyncLocalStorage<AuthenticatedActor>()
   let manifest: AssemblyManifestStore | undefined
   let registryHistory: RegistryHistoryReader | undefined
   let assetRegistry: AssetRegistry | undefined
@@ -652,7 +690,9 @@ export function createAcceptanceApplication(
       (stage !== 'modelRequest' ||
         (transportService !== undefined &&
           currentInputs !== undefined &&
-          inputSource !== undefined))
+          inputSource !== undefined &&
+          runnerServiceFiber?.state === FIBER_STATE.ACTIVE &&
+          defaultRetryFiber?.state === FIBER_STATE.ACTIVE))
     )
   }
   function admitIdentity(): boolean {
@@ -733,6 +773,16 @@ export function createAcceptanceApplication(
     const attempt = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
       await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
+      try {
+        await runnerServiceFiber?.dispose()
+        await defaultRetryFiber?.dispose()
+      } catch {
+        return {
+          complete: false,
+          unfinished: ['runnerService', 'defaultRetry', 'modelRequestConsumers', 'sessionLogOwner'],
+          pending: await guard.pending(),
+        }
+      }
       // Recovery may still need this runtime's service, binding and JSONL owner.
       await Promise.allSettled([...recoveryTasks])
       const stoppedRuntime = await modelRuntime?.close()
@@ -1433,7 +1483,7 @@ export function createAcceptanceApplication(
             },
             history: {
               call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-              failure: readDemoNoRunFailure,
+              failure: readDemoRunnerFailure,
               calibration: readDemoCalibrationHistory,
               run: () => ({ unavailable: true }),
             },
@@ -1503,6 +1553,50 @@ export function createAcceptanceApplication(
             diagnostic: recordSettlement,
           }
           modelRuntime = createModelRuntime(construction)
+          if (
+            runnerHost === undefined ||
+            manifest === undefined ||
+            registryHistory === undefined ||
+            sessionTenancy === undefined ||
+            modelRuntime === undefined
+          )
+            throw new Error('runner service assembly prerequisites absent')
+          const host = createDemoRunnerServiceHost({
+            runnerHost,
+            model: modelRuntime.service,
+            manifest,
+            history: registryHistory,
+            sessionTenancy,
+            authorize: async session => {
+              const actor = runnerActors.getStore()
+              if (actor === undefined) return { unavailable: true }
+              const access = await sessionAccess(actor, session)
+              if (!('borrow' in access) || recoveryAdmission.has(access.borrow.binding.session))
+                return { unavailable: true }
+              runtimeActors.set(access.borrow.binding.session, access.checked)
+              return { actor: access.checked, binding: access.borrow.binding }
+            },
+            ...(options.runnerExternal === undefined ? {} : { external: options.runnerExternal }),
+            now: () => {
+              if (activeClock === undefined) return { unavailable: true }
+              const now = activeClock.now()
+              return now === 'unavailable' ? { unavailable: true } : new Date(now).toISOString()
+            },
+          })
+          runnerServiceFiber = context.plugin(loopExtensionRunnerPlugin, { host: () => host })
+          await runnerServiceFiber
+          if (runnerServiceFiber.state !== FIBER_STATE.ACTIVE)
+            throw new Error('runner service not active')
+          const runnerValue: unknown = context.get(LOOP_EXTENSION_RUNNER_SERVICE)
+          if (!runnerServiceFace(runnerValue)) throw new Error('runner service face absent')
+          runnerService = runnerValue
+          defaultRetryFiber = context.plugin(
+            createModelDefaultRetryPlugin(deployment.defaultRetry),
+            {},
+          )
+          await defaultRetryFiber
+          if (defaultRetryFiber.state !== FIBER_STATE.ACTIVE)
+            throw new Error('default retry contribution not active')
         }
         phase = 'admission'
         assertNotClosing()
@@ -2389,6 +2483,24 @@ export function createAcceptanceApplication(
   }
   return {
     ready,
+    dispatchRunner(actor, session, request, signal) {
+      const service = runnerService
+      if (stage !== 'modelRequest' || !admit() || service === undefined)
+        return Promise.resolve({ failure: 'stageClosed' })
+      if (request.manifest !== session) return Promise.resolve({ failure: 'identityMismatch' })
+      return runnerActors.run(actor, () =>
+        trackSessionInput(session, () => service.dispatch(request, signal)),
+      )
+    },
+    replayRunner(actor, session, request) {
+      const service = runnerService
+      if (stage !== 'modelRequest' || !admit() || service === undefined)
+        return Promise.resolve({ failure: 'stageClosed' })
+      if (request.manifest !== session) return Promise.resolve({ failure: 'identityMismatch' })
+      return runnerActors.run(actor, () =>
+        trackSessionInput(session, () => service.replay(request)),
+      )
+    },
     runExtensionPass(actor, session, request) {
       if (!logStage || !admit() || runnerHost === undefined)
         return Promise.resolve({ failure: 'stageClosed' })
