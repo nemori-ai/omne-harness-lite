@@ -1,6 +1,5 @@
 import { ownFullOutputInput, ownNewOutputInput, ownReplayOutputInput } from './output-input.ts'
 import { cacheNeutralBody } from '../anthropic-cache.ts'
-import { ownedObject } from '../json.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
   writeJsonLossless,
@@ -225,9 +224,10 @@ export function fullOutputHistory(
   if (!owned) return { kind: 'unavailable' }
   input = owned
   try {
+    const neutralBody = cacheNeutralBody(input.body, input.projection.requestInput.countingBasis)
     if (
       writeJsonLossless(input.body) !== input.serialized ||
-      !fullProjectionValid(input) ||
+      !fullProjectionValid(input, neutralBody) ||
       relateMeterBases(input.projection.requestInput.countingBasis, undefined, meter).kind !==
         'currentOnly' ||
       !meterHistoryValid(input.outputHistory, input.historySpans, input.projection.units.length)
@@ -250,14 +250,8 @@ export function fullOutputHistory(
     )
     if (!selected) return { kind: 'unavailable' }
     if (selected.units.length === input.projection.units.length)
-      return countBody({
-        body: { ...input.projection.envelope, messages: input.projection.units },
-        serialized: writeJsonLossless({
-          ...input.projection.envelope,
-          messages: input.projection.units,
-        }),
-      })
-    const body: JsonObject = { ...input.projection.envelope, messages: selected.units }
+      return countBody({ body: neutralBody, serialized: writeJsonLossless(neutralBody) })
+    const body: JsonObject = { ...neutralBody, messages: selected.units }
     const result = addOutput(
       countBody({ body, serialized: writeJsonLossless(body) }),
       selected.output,
@@ -372,7 +366,7 @@ function marginalValid(input: NewMeterInput): boolean {
   return meterHistoryValid(input.outputHistory, input.historySpans, upper, indices)
 }
 /** Verify the same configured normalization, not raw body/units equality. */
-function fullProjectionValid(input: FullMeterInput): boolean {
+function fullProjectionValid(input: FullMeterInput, neutral: JsonObject): boolean {
   const request = input.projection.requestInput
   if (
     request.projectionRevision !== INPUT_PROJECTION_REVISION ||
@@ -383,9 +377,6 @@ function fullProjectionValid(input: FullMeterInput): boolean {
     request.inputEnvelopeDigest !== projectionDigest('input-envelope', input.projection.envelope)
   )
     return false
-  const body = ownedObject(input.body)
-  if (!body) return false
-  const neutral = cacheNeutralBody(body, input.projection.requestInput.countingBasis)
   const { messages, ...envelope } = neutral
   return (
     canonicalProjection(messages) === canonicalProjection(input.projection.units) &&

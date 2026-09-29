@@ -171,6 +171,35 @@ describe('shared complete output group composition', () => {
     for (const [arg] of f.counter.mock.calls)
       expect(writeJsonLossless(arg.body)).not.toContain('never-tokenize-opaque')
   })
+  it('preserves actual JSON member order while removing only validated cache metadata', () => {
+    const f = fixture()
+    const body: JsonObject = {
+      model: f.request.routeName,
+      messages: [{ role: 'user', content: 'plain' }],
+      provider: { order: [f.request.provider], allow_fallbacks: false, require_parameters: true },
+      max_tokens: 128,
+    }
+    const projection = projectInput(body, f.request, f.meter)
+    const counter = vi.fn(({ serialized }: { body: JsonObject; serialized: string }) => {
+      expect(serialized).toBe(writeJsonLossless(body))
+      return { kind: 'estimated' as const, tokens: 12 }
+    })
+    expect(
+      fullOutputHistory(
+        {
+          body,
+          serialized: writeJsonLossless(body),
+          projection,
+          outputHistory: [],
+          historySpans: [],
+        },
+        f.meter,
+        counter,
+        f.policy,
+      ),
+    ).toEqual({ kind: 'estimated', tokens: 12 })
+    expect(counter).toHaveBeenCalledOnce()
+  })
   it('multiple complete groups use exact decimal addition without binary rounding or extra reasoning', () => {
     const f = fixture()
     const blocks = f.group.outputBlocks.map(block => {
