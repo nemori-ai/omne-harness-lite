@@ -13,7 +13,7 @@ import {
   withOwnedReads,
   type ControlFacts,
 } from '../src/service-control.ts'
-import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
+import { ControlledSettlementOwner, controlled, deferred } from './settlement-fixture.ts'
 import type {
   SettlementOwner,
   SettlementRegistration,
@@ -29,6 +29,33 @@ const known = (
   phase: Extract<ControlFacts['durable'], { phase: unknown }>['phase'],
   intentExists = false,
 ): ControlFacts => ({ durable: { phase, intentExists }, localCall: true })
+
+it('commits a Run control record with its actual attempt fence and unconditional condition', async () => {
+  await controlled('run-control-fence', async ({ binding, owner, submissions }) => {
+    const result = await appendControlRecord({
+      binding,
+      owner,
+      concurrent: 2,
+      run: 'controlled-run',
+      attempt: 2,
+      record: { kind: 'model_call_interrupt_intent', call: 'run-call', initiator: 'user' },
+      retainUnknown() {
+        throw new Error('known control receipt unexpectedly quarantined')
+      },
+    })
+    expect(result).toEqual({ appended: true })
+    expect(submissions.at(-1)).toMatchObject({
+      fence: { kind: 'fenced', run: 'controlled-run', attempt: 2 },
+      condition: { kind: 'unconditional' },
+      count: 1,
+    })
+    const read = await binding.log.readSince(binding.session, 0)
+    if ('failure' in read) throw new Error('Run control log read')
+    const entry = read.entries.at(-1)
+    expect(entry?.run).toBe('controlled-run')
+    expect(entry?.attempt).toBe(2)
+  })
+})
 
 it('close requests read stop and waits for actual stopped before releasing its owner', async () => {
   const owner = new ControlledSettlementOwner()

@@ -44,7 +44,21 @@ describe('v17 failure source lifetime', () => {
         retryConclusions: [] as const,
       }
       const retained = new Set<ModelFailureSource>()
+      let hostUsable = true
       const source = createModelFailureSource({
+        prefix: read.prefix,
+        owner,
+        subject,
+        usable: () => hostUsable,
+        retain: value => {
+          retained.add(value)
+        },
+        forget: value => {
+          retained.delete(value)
+        },
+      })
+      if (source === null) throw new Error('valid source unavailable')
+      const generationSource = createModelFailureSource({
         prefix: read.prefix,
         owner,
         subject,
@@ -56,7 +70,7 @@ describe('v17 failure source lifetime', () => {
           retained.delete(value)
         },
       })
-      if (source === null) throw new Error('valid source unavailable')
+      if (generationSource === null) throw new Error('generation source unavailable')
       expect(Object.isFrozen(source.subject)).toBe(true)
       expect(Object.isFrozen(source.subject.dispatches[0])).toBe(true)
       const beforeVerify = reads
@@ -82,10 +96,16 @@ describe('v17 failure source lifetime', () => {
       ).toHaveProperty('positions')
       expect(source.verify(source.subject)).toHaveProperty('authoritativeSubject')
       expect(reads).toBe(beforeVerify)
-      generation = Object.freeze({})
+      hostUsable = false
       expect(source.verify(source.subject)).toEqual({ unavailable: true })
+      expect(generationSource.verify(generationSource.subject)).toHaveProperty(
+        'authoritativeSubject',
+      )
+      generation = Object.freeze({})
+      expect(generationSource.verify(generationSource.subject)).toEqual({ unavailable: true })
       source.release()
       source.release()
+      generationSource.release()
       expect(retained.size).toBe(0)
       expect(source.verify(source.subject)).toEqual({ unavailable: true })
     })

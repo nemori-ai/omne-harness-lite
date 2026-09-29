@@ -5,7 +5,7 @@ import {
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
 import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
-import { modelLogJsonEqual } from '../src/log-codec.ts'
+import { captureModelLogValue, modelLogJsonEqual, prepareModelLogEntry } from '../src/log-codec.ts'
 import { inspectCurrentModelLogPrefix } from '../src/log-codec-settlement.ts'
 import {
   createRuntimeReconcile,
@@ -31,7 +31,12 @@ import type {
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
-import { dispatched as dispatchedFixture, prepare, session } from './log-codec-fixture.ts'
+import {
+  dispatched as dispatchedFixture,
+  opened as openedFixture,
+  prepare,
+  session,
+} from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
 import { selectionHost } from './session-selection-fixture.ts'
@@ -288,6 +293,122 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
       } finally {
         await coordinator.close()
       }
+    })
+  })
+})
+
+describe('v17 conditional Run cold recovery', () => {
+  it('keeps original response attempt while accounting an interruption in the current attempt', async () => {
+    await controlled('service-reconcile-with-run', async ({ binding, owner, submissions }) => {
+      const parsed = parseOpaqueIdentifier('reconcile-run-session', 'SessionRef')
+      if (!('ok' in parsed)) throw new Error('Run session')
+      const runSession = parsed.ok
+      const shell = (attempt: number) => ({ tenant: binding.tenant, run: 'reconcile-run', attempt })
+      const entry = (category: 'record' | 'message', value: unknown, attempt: number) => {
+        const captured = captureModelLogValue({ category, input: { kind: 'value', value } })
+        if (!('ok' in captured)) throw new Error('Run capture')
+        const prepared = prepareModelLogEntry({
+          session: runSession,
+          shell: shell(attempt),
+          captured: captured.ok,
+          purpose: { kind: category },
+          messagePrefix: [],
+        })
+        if (!('ok' in prepared)) throw new Error('Run prepare')
+        return prepared.ok
+      }
+      const start = (attempt: number) =>
+        entry(
+          'message',
+          {
+            id: `reconcile-attempt-${attempt}`,
+            type: 'system_reminder',
+            nature: 'event',
+            source: {
+              kind: 'attempt_started',
+              attempt,
+              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+              at: '2026-09-29T00:00:00Z',
+            },
+            blocks: [],
+            createdAt: '2026-09-29T00:00:00Z',
+          },
+          attempt,
+        )
+      const first = await binding.log.append(
+        runSession,
+        [start(1), entry('record', dispatchedFixture, 1), entry('record', openedFixture, 1)],
+        { kind: 'fenced', run: 'reconcile-run', attempt: 1 },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in first) throw new Error('Run anchors')
+      const later = await binding.log.append(
+        runSession,
+        [start(2)],
+        { kind: 'fenced', run: 'reconcile-run', attempt: 2 },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in later) throw new Error('new Run attempt')
+      let observed = 0
+      const reconcile = createRuntimeReconcile({
+        contention: policy(),
+        scheduler: noWaitScheduler,
+        now: () => '2026-09-29T00:00:03Z',
+        run(prefix, run, originalAttempt) {
+          expect(prefix.binding.session).toBe(runSession)
+          expect(run).toBe('reconcile-run')
+          expect(originalAttempt).toBe(1)
+          return { known: { run, originalAttempt, latestAttempt: 2, terminal: 'open' } }
+        },
+        diagnostic() {},
+        recovery: {
+          async enter() {
+            return {
+              scope: {
+                binding: { log: { ...binding, session: runSession } } as SessionRuntimeBinding,
+                owner,
+                originalInvocation: () => {
+                  observed++
+                  return { absent: true }
+                },
+                async close() {},
+              },
+            }
+          },
+        },
+      })
+      expect(await reconcile.reconcile({ session: runSession, attempt: 2 })).toEqual({
+        calls: [{ callId: 'call', state: 'interrupted' }],
+      })
+      expect(observed).toBe(1)
+      const raw = await binding.log.readSince(runSession, 0)
+      if ('failure' in raw) throw new Error('Run recovery read')
+      const inspected = inspectCurrentModelLogPrefix({
+        session: runSession,
+        tenant: binding.tenant,
+        prefix: raw,
+      })
+      if (!('ok' in inspected)) throw new Error('Run recovery prefix')
+      const response = inspected.ok.find(item => item.captured.response !== null)
+      expect(response?.entry.run).toBe('reconcile-run')
+      expect(response?.entry.attempt).toBe(2)
+      expect(response?.captured.response?.attemptId).toBe(1)
+      expect(response?.captured.response?.late).toBe(true)
+      expect(inspected.ok.filter(item => item.captured.response !== null)).toHaveLength(1)
+      expect(
+        submissions.filter(
+          item =>
+            typeof item.condition === 'object' &&
+            item.condition !== null &&
+            'kind' in item.condition &&
+            item.condition.kind === 'tailEquals',
+        ),
+      ).toHaveLength(1)
+      expect(await reconcile.reconcile({ session: runSession, attempt: 2 })).toEqual({
+        calls: [{ callId: 'call', state: 'interrupted' }],
+      })
+      expect(observed).toBe(1)
+      expect(await reconcile.close()).toEqual({ released: true })
     })
   })
 })

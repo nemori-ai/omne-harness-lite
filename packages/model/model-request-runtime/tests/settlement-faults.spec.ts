@@ -662,6 +662,8 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
         expect(result).toHaveProperty('origin', 'appended')
         if (!('settled' in result)) throw new Error('not settled')
         expect(result.settled.response.response?.late).toBe(true)
+        expect(result.settled.response.response?.attemptId).toBe(1)
+        expect(result.settled.response.response?.call.runId).toBe('controlled-run')
         const responseEntry = result.settled.entries.at(-1)
         expect(responseEntry?.run).toBe('controlled-run')
         expect(responseEntry?.attempt).toBe(2)
@@ -680,6 +682,14 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
               ]
             : [{ kind: 'tailEquals', tail: 4 }],
         )
+        const durable = await binding.log.readSince(runSession, 0)
+        if ('failure' in durable) throw new Error('durable Run batch unavailable')
+        expect(
+          durable.entries.filter(entry => jsonObject(entry.payload).category === 'response'),
+        ).toHaveLength(1)
+        expect(
+          durable.entries.filter(entry => jsonObject(entry.payload).category === 'message'),
+        ).toHaveLength(3)
         await coordinator.close()
         const originalFirst = createSettlementCoordinator({
           binding: { ...binding, session: runSession },

@@ -6,6 +6,7 @@ import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { DiagnosticEvent } from '../src/diagnostics-types.ts'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { appendControlRecord } from '../src/service-control.ts'
 import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
@@ -1168,6 +1169,87 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       expect(await revoked.outcome).toEqual({ unavailable: true })
       expect(t.sends()).toBe(0)
       expect(h.writes).toHaveLength(0)
+    })
+  })
+})
+
+describe('v17 conditional Run anchored invocation', () => {
+  it('uses the original attempt fence for both anchors and tailEquals for the complete response', async () => {
+    await harness(async h => {
+      const binding = h.input.settlement.binding
+      const run = 'anchored-run'
+      const attempt = 1
+      const event = captureModelLogValue({
+        category: 'message',
+        input: {
+          kind: 'value',
+          value: {
+            id: 'anchored-attempt-start',
+            type: 'system_reminder',
+            nature: 'event',
+            source: {
+              kind: 'attempt_started',
+              attempt,
+              reason: 'first',
+              at: '2026-09-29T00:00:00Z',
+            },
+            blocks: [],
+            createdAt: '2026-09-29T00:00:00Z',
+          },
+        },
+      })
+      if (!('ok' in event)) throw new Error('Run attempt message')
+      const started = prepareModelLogEntry({
+        session: binding.session,
+        shell: { tenant: binding.tenant, run, attempt },
+        captured: event.ok,
+        purpose: { kind: 'message' },
+        messagePrefix: [],
+      })
+      if (!('ok' in started)) throw new Error('Run attempt entry')
+      const initial = await h.log.append(
+        binding.session,
+        [started.ok],
+        { kind: 'fenced', run, attempt },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in initial) throw new Error('Run attempt append')
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        run,
+        attempt,
+        settlement: {
+          ...h.input.settlement,
+          run(prefix, originalRun, originalAttempt) {
+            expect(prefix.binding.session).toBe(binding.session)
+            return {
+              known: {
+                run: originalRun,
+                originalAttempt,
+                latestAttempt: attempt,
+                terminal: 'open',
+              },
+            }
+          },
+        },
+      })
+      const result = await handle.outcome
+      if (!('replyPending' in result)) throw new Error('Run reply not handed off')
+      expect(result.replyPending.call.runId).toBe(run)
+      expect(result.replyPending.attemptId).toBe(attempt)
+      const settled = await handle.settleReply({ consumed: { by: 'compaction' } })
+      expect(settled).toHaveProperty('settled')
+      expect(h.writes.map(item => [item.fence, item.condition])).toEqual([
+        [{ kind: 'fenced', run, attempt }, { kind: 'unconditional' }],
+        [{ kind: 'fenced', run, attempt }, { kind: 'unconditional' }],
+        [{ kind: 'unfenced' }, { kind: 'tailEquals', tail: 3 }],
+      ])
+      const raw = await h.log.readSince(binding.session, 0)
+      if ('failure' in raw) throw new Error('Run invocation log')
+      expect(raw.entries).toHaveLength(4)
+      expect(raw.entries.at(-1)?.run).toBe(run)
+      expect(raw.entries.at(-1)?.attempt).toBe(attempt)
+      expect(await handle.close()).toEqual({ released: true })
     })
   })
 })
