@@ -53,8 +53,10 @@ export function readFailureSubject(input: {
   try {
     const result = source(prefix, callId)
     if ('unavailable' in result) return result
-    const subject = result.subject
-    if (!validateLoop('AfterModelCallFailureSubject', subject).valid) return { unavailable: true }
+    const copied = copyJsonValue(result.subject)
+    if ('failed' in copied || !validateLoop('AfterModelCallFailureSubject', copied.ok).valid)
+      return { unavailable: true }
+    const subject = copied.ok as unknown as AfterModelCallFailureSubject
     const failed = object(latest.response.value) ? latest.response.value.failure : undefined
     if (!object(failed) || subject.failure !== failed.cause) return { unavailable: true }
     if (
@@ -74,7 +76,7 @@ export function readFailureSubject(input: {
       return { unavailable: true }
     // The provider owns ordered runner conclusions from this prefix. The runtime
     // cannot infer an empty history from an unreadable runner source.
-    return result
+    return { subject }
   } catch {
     return { unavailable: true }
   }

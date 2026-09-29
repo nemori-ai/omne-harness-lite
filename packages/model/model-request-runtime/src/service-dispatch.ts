@@ -933,7 +933,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             return { unavailable: true }
           }
           if (createdSource !== undefined) onFailure?.(createdSource)
-          return { settled: response, failureSubject: got.ok.subject }
+          return { settled: response, failureSubject: createdSource?.subject ?? got.ok.subject }
         }
         if (response.outcome === 'interrupted' && !('reply' in response)) {
           await retire(finish.reservation)

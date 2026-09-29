@@ -292,7 +292,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
         })
         if (source === null) return { result: unavailable() }
         createdSource = source
-        return { result, source }
+        return { result: { ...result, failureSubject: source.subject }, source }
       }
       return { result: { state: state.phase, dispatches } }
     })

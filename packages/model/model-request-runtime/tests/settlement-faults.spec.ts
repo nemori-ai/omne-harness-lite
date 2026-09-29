@@ -727,6 +727,141 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
       expect(submissions).toHaveLength(2)
     })
   })
+  for (const persistedFirst of [true, false])
+    it(`lets one complete withRun batch win a real JSONL race, persistedFirst=${persistedFirst}`, async () => {
+      await controlled(
+        `with-run-disposition-race-${persistedFirst}`,
+        async ({ binding, owner, submissions }) => {
+          const parsed = parseOpaqueIdentifier('run-disposition-race', 'SessionRef')
+          if (!('ok' in parsed)) throw new Error('Run session')
+          const runSession = parsed.ok
+          const run = 'disposition-run'
+          const attempt = 1
+          const startValue = captureModelLogValue({
+            category: 'message',
+            input: {
+              kind: 'value',
+              value: {
+                id: 'race-attempt-start',
+                type: 'system_reminder',
+                nature: 'event',
+                source: {
+                  kind: 'attempt_started',
+                  attempt,
+                  reason: 'first',
+                  at: '2026-09-29T00:00:00Z',
+                },
+                blocks: [],
+                createdAt: '2026-09-29T00:00:00Z',
+              },
+            },
+          })
+          if (!('ok' in startValue)) throw new Error('start value')
+          const started = prepareModelLogEntry({
+            session: runSession,
+            shell: { tenant: binding.tenant, run, attempt },
+            captured: startValue.ok,
+            purpose: { kind: 'message' },
+            messagePrefix: [],
+          })
+          if (!('ok' in started)) throw new Error('start entry')
+          const anchorsWithRun = anchors().entries.map(entry => {
+            const captured = captureModelLogValue({
+              category: 'record',
+              input: { kind: 'value', value: jsonObject(entry.payload).value },
+            })
+            if (!('ok' in captured)) throw new Error('anchor value')
+            const prepared = prepareModelLogEntry({
+              session: runSession,
+              shell: { tenant: binding.tenant, run, attempt },
+              captured: captured.ok,
+              purpose: { kind: 'record' },
+              messagePrefix: [],
+            })
+            if (!('ok' in prepared)) throw new Error('anchor entry')
+            return prepared.ok
+          })
+          const opened = await binding.log.append(
+            runSession,
+            [started.ok, ...anchorsWithRun],
+            { kind: 'fenced', run, attempt },
+            { kind: 'unconditional' },
+          )
+          if ('failure' in opened) throw new Error('Run anchors')
+          const coordinator = () =>
+            createSettlementCoordinator({
+              binding: { ...binding, session: runSession },
+              owner,
+              run(_prefix, originalRun, originalAttempt) {
+                return {
+                  known: { run: originalRun, originalAttempt, latestAttempt: 1, terminal: 'open' },
+                }
+              },
+              settlementContention: policy(2),
+              settlementScheduler: noWaitScheduler,
+              diagnostic() {},
+            })
+          const persisted = coordinator()
+          const consumed = coordinator()
+          const base = {
+            ...responseV5,
+            call: { callId: 'call', runId: run },
+            attemptId: attempt,
+          }
+          const persistedRequest = { ...request, response: base }
+          const consumedRequest = {
+            ...request,
+            current: {
+              messageId: 'winner-message',
+              disposition: { consumed: { by: 'compaction' as const } },
+            },
+            response: { ...base, replyDisposition: { consumed: { by: 'compaction' } } },
+          }
+          const first = persistedFirst
+            ? persisted.settle(persistedRequest)
+            : consumed.settle(consumedRequest)
+          const second = persistedFirst
+            ? consumed.settle(consumedRequest)
+            : persisted.settle(persistedRequest)
+          const results = await Promise.all([first.completion, second.completion])
+          await Promise.all([first.stopped, second.stopped])
+          expect(
+            results.filter(result => 'origin' in result && result.origin === 'appended'),
+          ).toHaveLength(1)
+          expect(
+            results.filter(result => 'origin' in result && result.origin === 'recognized'),
+          ).toHaveLength(1)
+          const raw = await binding.log.readSince(runSession, 0)
+          if ('failure' in raw) throw new Error('winning Run batch')
+          const responses = raw.entries.filter(
+            entry => jsonObject(entry.payload).category === 'response',
+          )
+          const assistantMessages = raw.entries.filter(entry => {
+            const payload = jsonObject(entry.payload)
+            return payload.category === 'message' && jsonObject(payload.value).type === 'assistant'
+          })
+          expect(responses).toHaveLength(1)
+          const result = responses[0]
+          if (result === undefined) throw new Error('response winner')
+          const value = jsonObject(jsonObject(result.payload).value)
+          expect(value.replyDisposition).toEqual(
+            persistedFirst ? 'persisted' : { consumed: { by: 'compaction' } },
+          )
+          expect(assistantMessages).toHaveLength(value.replyDisposition === 'persisted' ? 1 : 0)
+          expect(
+            submissions.filter(
+              item =>
+                typeof item.condition === 'object' &&
+                item.condition !== null &&
+                'kind' in item.condition &&
+                item.condition.kind === 'tailEquals',
+            ).length,
+          ).toBeGreaterThanOrEqual(1)
+          await persisted.close()
+          await consumed.close()
+        },
+      )
+    })
   for (const problem of ['illegalDecision', 'backwardsClock'])
     it(`${problem} stops without model failure or new append`, async () => {
       await controlled(`bad-${problem}`, async ({ binding, owner, submissions }) => {

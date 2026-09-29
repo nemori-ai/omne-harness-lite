@@ -523,6 +523,8 @@ test('service dispatch writes both anchors before handing out a complete pending
     })
     if (consumedFailure.consumption.kind !== 'failure') throw new Error('failure source absent')
     const failureSource = consumedFailure.consumption.source
+    if (!('failureSubject' in failed)) throw new Error('failed result missing subject')
+    expect(failed.failureSubject).toBe(failureSource.subject)
     expect(failureSource.verify(failureSource.subject)).toHaveProperty('authoritativeSubject')
     expect(failureSource.verify({ ...failureSource.subject, failure: 'request_rejected' })).toEqual(
       { invalidInput: true },
@@ -537,6 +539,8 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(fromRead.result).toMatchObject({ state: 'awaiting_decision' })
     if (fromRead.consumption.kind !== 'failure') throw new Error('read source absent')
     const readSource = fromRead.consumption.source
+    if (!('failureSubject' in fromRead.result)) throw new Error('read result missing subject')
+    expect(fromRead.result.failureSubject).toBe(readSource.subject)
     expect(readSource.verify(readSource.subject)).toHaveProperty('authoritativeSubject')
     expect(await reads.close()).toEqual({ released: true })
     expect(readSource.verify(readSource.subject)).toEqual({ unavailable: true })
