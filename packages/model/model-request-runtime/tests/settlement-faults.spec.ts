@@ -13,7 +13,13 @@ import {
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog, AppendResult } from '@omne-harness-lite/session-log-jsonl'
-import { anchors, reply, session, jsonObject } from './log-codec-fixture.ts'
+import {
+  anchors,
+  binding as fixtureBinding,
+  reply,
+  session,
+  jsonObject,
+} from './log-codec-fixture.ts'
 import { batchV2, responseV5 } from './log-codec-v2-fixture.ts'
 import {
   controlled,
@@ -803,10 +809,43 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
             })
           const persisted = coordinator()
           const consumed = coordinator()
+          const calibration = {
+            requestInput: {
+              kind: 'known',
+              projectionRevision: 'fixture-v1',
+              prefixBoundary: 1,
+              prefixDigest: 'a'.repeat(64),
+              inputEnvelopeDigest: 'b'.repeat(64),
+              countingBasis: {
+                binding: fixtureBinding,
+                model: 'teaching/model',
+                provider: 'first',
+                tokenizerRevision: 'fixture-v1',
+                meterRevision: 'fixture-v1',
+                projectionRevision: 'fixture-v1',
+                replayRevision: 'fixture-v1',
+                transformRevision: 'fixture-v1',
+              },
+            },
+            observedInput: {
+              kind: 'upstream_total',
+              tokens: 11,
+              provenance: { adapterRevision: 'fixture-v1', fieldPaths: ['usage.prompt_tokens'] },
+            },
+            outputGroup: {
+              kind: 'known',
+              projectionRevision: 'fixture-v1',
+              source: 'reply',
+              blockDigests: ['c'.repeat(64)],
+              completeness: 'complete',
+              usageRef: 'usage',
+            },
+          }
           const base = {
             ...responseV5,
             call: { callId: 'call', runId: run },
             attemptId: attempt,
+            inputCalibration: calibration,
           }
           const persistedRequest = { ...request, response: base }
           const consumedRequest = {
@@ -847,6 +886,10 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
           expect(value.replyDisposition).toEqual(
             persistedFirst ? 'persisted' : { consumed: { by: 'compaction' } },
           )
+          expect(value.attemptId).toBe(attempt)
+          expect(value.inputCalibration).toEqual(calibration)
+          expect(value.usage).toEqual(responseV5.usage)
+          expect(value.cost).toEqual(responseV5.cost)
           expect(assistantMessages).toHaveLength(value.replyDisposition === 'persisted' ? 1 : 0)
           expect(
             submissions.filter(
