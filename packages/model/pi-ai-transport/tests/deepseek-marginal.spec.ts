@@ -405,11 +405,65 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       body: finalBody,
       serialized: writeJsonLossless(finalBody),
     })
+    const outputBlocks = judgedMessage({
+      type: 'assistant',
+      id: 'finite-output',
+      response: 'finite-response',
+      ending: 'complete',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'r',
+          kind: 'thinking' as const,
+          text: 'reasoning',
+          visibility: { toModel: true, toHuman: true },
+        },
+        {
+          id: 'a',
+          kind: 'text' as const,
+          text: 'answer',
+          visibility: { toModel: true, toHuman: true },
+        },
+      ],
+    }).blocks
+    const outputGroup = projectOutput({
+      blocks: outputBlocks,
+      source: 'reply',
+      completeness: 'complete',
+    })
+    if (!('projected' in outputGroup)) throw Error('output group unavailable')
     const phi = meter.measureReplay({
       units: [a],
       envelope: {},
       precedingUnitCount: 1,
       boundary: b.replay,
+      observation: {
+        kind: 'observation',
+        inputCalibration: {
+          requestInput: { kind: 'unavailable', reason: 'not_retained' },
+          observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+          outputGroup: outputGroup.projected,
+        },
+        usage: {
+          input_tokens: 'unknown',
+          output_tokens: 'unknown',
+          cache_read_tokens: 'unknown',
+          cache_write_tokens: 'unknown',
+          source: 'none',
+        },
+        outputBlocks,
+        replaySelection: outputBlocks.map((_block, index) => ({
+          sourceBlockIndex: index,
+          messageIndex: 1,
+          blockIndex: index,
+        })),
+      },
+      unitIndices: [1],
+      selectionSpans: outputBlocks.map((_block, index) => ({
+        selectionIndex: index,
+        start: 1,
+        end: 2,
+      })),
     })
     const delta = meter.measureNew({
       units: [n],

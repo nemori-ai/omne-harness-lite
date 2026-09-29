@@ -15,6 +15,7 @@ export {
   type MeterContribution,
   type FullMeterInput,
   type MarginalMeterInput,
+  type ReplayMeterInput,
 } from './input-meter.ts'
 export {
   projectInput,

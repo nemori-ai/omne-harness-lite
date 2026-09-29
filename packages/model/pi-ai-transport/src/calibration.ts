@@ -32,6 +32,7 @@ import {
   type InputMeter,
   type TokenMeasurement,
   type MarginalMeterInput,
+  type ReplayMeterInput,
 } from './input-meter.ts'
 import { object } from './json.ts'
 
@@ -195,9 +196,10 @@ export function measureCalibrated(
         fallback = 'prefix_changed'
       else {
         const g = new Set<number>()
+        const selectionSpans: ReplayMeterInput['selectionSpans'][number][] = []
         let mapped = true
         const targets = new Map<number, Set<number>>()
-        for (const selected of calibration.replaySelection) {
+        for (const [selectionIndex, selected] of calibration.replaySelection.entries()) {
           const message = input.messages[selected.messageIndex]
           const target = message?.blocks[selected.blockIndex]
           const sourceBlock = calibration.outputBlocks[selected.sourceBlockIndex]
@@ -216,6 +218,7 @@ export function measureCalibrated(
           const indices = targets.get(selected.messageIndex) ?? new Set<number>()
           indices.add(selected.blockIndex)
           targets.set(selected.messageIndex, indices)
+          selectionSpans.push(Object.freeze({ selectionIndex, start: span.start, end: span.end }))
         }
         for (const [index, selected] of targets) {
           const message = input.messages[index]!
@@ -231,9 +234,14 @@ export function measureCalibrated(
           mapped = false
         if (mapped) {
           const replay: JsonValue[] = [],
-            fresh: JsonValue[] = []
-          for (let i = n; i < projection.units.length; i++)
-            (g.has(i) ? replay : fresh).push(projection.units[i]!)
+            fresh: JsonValue[] = [],
+            unitIndices: number[] = []
+          for (let i = n; i < projection.units.length; i++) {
+            if (g.has(i)) {
+              replay.push(projection.units[i]!)
+              unitIndices.push(i)
+            } else fresh.push(projection.units[i]!)
+          }
           const deepSeek = deepSeekBoundaryRoute(input)
           const prepared = deepSeek ? prepareDeepSeekBoundaries(projection, n, g) : undefined
           const boundary = prepared && !('changed' in prepared) ? prepared : undefined
@@ -251,7 +259,14 @@ export function measureCalibrated(
             }
             const phi =
               replay.length || boundary?.replay.added !== boundary?.replay.removed
-                ? meter.measureReplay(arg(replay, boundary?.replay))
+                ? meter.measureReplay(
+                    Object.freeze({
+                      ...arg(replay, boundary?.replay),
+                      observation: calibration,
+                      unitIndices: Object.freeze(unitIndices),
+                      selectionSpans: Object.freeze(selectionSpans),
+                    }),
+                  )
                 : { kind: 'exact' as const, tokens: 0 }
             const delta =
               fresh.length || boundary?.fresh.added !== boundary?.fresh.removed

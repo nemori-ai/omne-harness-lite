@@ -7,7 +7,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
+import type { PlanCalibration, TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { ModelDefinition } from './definitions.ts'
 
 export interface FullMeterInput {
@@ -21,6 +21,26 @@ export interface MarginalMeterInput {
   readonly precedingUnitCount: number
   /** Fixed provider projection: anchor-external fragments and finite terminal framing only. */
   readonly boundary?: JsonObject
+}
+/**
+ * Replay alone receives the original response observation and its current selection.
+ * planRequest supplies owned, validated, deeply frozen values. Standalone callers
+ * must supply the same relationships; readonly types do not authenticate a source.
+ */
+export interface ReplayMeterInput extends MarginalMeterInput {
+  readonly observation: Extract<PlanCalibration, { kind: 'observation' }>
+  /** Absolute final-projection indices, in the same order as units; never includes P. */
+  readonly unitIndices: readonly number[]
+  /**
+   * Half-open final-projection span of each selected target's message. Several
+   * blocks may share one span. Follow actual target order, not selection order,
+   * when deciding whether the original output group is selected once in full.
+   */
+  readonly selectionSpans: readonly {
+    readonly selectionIndex: number
+    readonly start: number
+    readonly end: number
+  }[]
 }
 export type MeterContribution = TokenMeasurement | { readonly kind: 'invalidInput' }
 
@@ -38,7 +58,7 @@ export interface InputMeter {
   readonly replayRevision: string
   readonly transformRevision: string
   readonly measureFull: (input: FullMeterInput) => TokenMeasurement
-  readonly measureReplay: (input: MarginalMeterInput) => MeterContribution
+  readonly measureReplay: (input: ReplayMeterInput) => MeterContribution
   readonly measureNew: (input: MarginalMeterInput) => MeterContribution
 }
 
@@ -236,7 +256,7 @@ export function meterContributionValid(value: unknown): value is MeterContributi
 }
 export const measureFull = (meter: InputMeter, input: FullMeterInput): TokenMeasurement =>
   meter.measureFull(input)
-export const measureReplay = (meter: InputMeter, input: MarginalMeterInput): MeterContribution =>
+export const measureReplay = (meter: InputMeter, input: ReplayMeterInput): MeterContribution =>
   meter.measureReplay(input)
 export const measureNew = (meter: InputMeter, input: MarginalMeterInput): MeterContribution =>
   meter.measureNew(input)
