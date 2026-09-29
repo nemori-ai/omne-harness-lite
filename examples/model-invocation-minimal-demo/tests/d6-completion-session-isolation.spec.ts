@@ -7,7 +7,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment, publication, ROOT } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { activateModelFixture, actor, ref } from './support.ts'
+import { activateModelFixture, actor, latch, ref } from './support.ts'
 
 function user(label: string) {
   const result = judgeMessage({
@@ -64,7 +64,16 @@ async function records(
 describe('D6 application diagnostic closure', () => {
   it('preserves two concurrent service calls in one tenant journal without crossing session or local scopes', async () => {
     const config = await callDeployment('d6-completion-two-sessions')
-    const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
+    const firstEntered = latch()
+    const releaseFirst = latch()
+    let received = 0
+    const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'), async () => {
+      received++
+      if (received === 1) {
+        firstEntered.resolve()
+        await releaseFirst.promise
+      }
+    })
     let revision = 0
     let disposeContribution: (() => Promise<void>) | undefined
     const app = createAcceptanceApplication(
@@ -72,6 +81,10 @@ describe('D6 application diagnostic closure', () => {
         ...config,
         modelRequest: {
           ...config.modelRequest,
+          transport: {
+            ...config.modelRequest.transport,
+            policy: { ...config.modelRequest.transport.policy, maxConnections: 2 },
+          },
           evaluationInputs: {
             ...config.modelRequest.evaluationInputs,
             async prepare(who) {
@@ -97,6 +110,7 @@ describe('D6 application diagnostic closure', () => {
       },
     )
     const hosts = [createDemoCallHost(), createDemoCallHost()] as const
+    let firstTask: ReturnType<typeof app.startServiceCall> | undefined
     let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
@@ -129,21 +143,35 @@ describe('D6 application diagnostic closure', () => {
           body: Buffer.from('d6-private-credential'),
         })),
       ).toEqual({ stored: true })
-      const sent = await Promise.all(
-        sessions.map((session, index) =>
-          app.startServiceCall(who, session, {
-            user: user(String(index)),
-            parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
-            host: hosts[index]!.host,
-          }),
-        ),
-      )
+      firstTask = app.startServiceCall(who, sessions[0]!, {
+        user: user('0'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: hosts[0].host,
+      })
+      await firstEntered.promise
+      expect(tls.requests).toHaveLength(1)
+      const secondTask = app.startServiceCall(who, sessions[1]!, {
+        user: user('1'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: hosts[1].host,
+      })
+      await tls.contentSent.promise
+      const second = await secondTask
+      if (!('callId' in second) || !('result' in second) || !('replyPending' in second.result))
+        throw new Error('second service call did not reach reply handoff')
+      expect(
+        await app.persistModelReply(who, sessions[1]!, second.result.replyPending),
+      ).toHaveProperty('settled')
+      releaseFirst.resolve()
+      const first = await firstTask
+      const sent = [first, second] as const
       for (const [index, result] of sent.entries()) {
         if (!('callId' in result) || !('result' in result) || !('replyPending' in result.result))
           throw new Error('service call did not reach reply handoff')
-        expect(
-          await app.persistModelReply(who, sessions[index]!, result.result.replyPending),
-        ).toHaveProperty('settled')
+        if (index === 0)
+          expect(
+            await app.persistModelReply(who, sessions[index]!, result.result.replyPending),
+          ).toHaveProperty('settled')
       }
       const contribution = disposeContribution
       if (!contribution) throw new Error('real Cordis model contribution absent')
@@ -231,6 +259,8 @@ describe('D6 application diagnostic closure', () => {
       expect(serialized).not.toContain('d6 private prompt')
       expect(tls.requests).toHaveLength(2)
     } finally {
+      releaseFirst.resolve()
+      if (firstTask) await Promise.allSettled([firstTask])
       for (const host of hosts) await host.stop()
       if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
       else await app.close()
