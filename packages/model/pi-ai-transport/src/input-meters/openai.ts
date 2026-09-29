@@ -1,3 +1,8 @@
+import {
+  openAiProBindings,
+  PRO_IMPLEMENTATION_REVISION,
+  PRO_TRANSFORM_REVISION,
+} from '../usage-scope.ts'
 import { withEstimatedJsonMarginals, fullJsonMarginal } from './marginal.ts'
 import { defineInputMeter } from '../input-meter.ts'
 import {
@@ -366,12 +371,15 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const gpt6SolVisibleHistory = definition.modelId === 'openai/gpt-6-sol'
   const gpt6LunaVisibleHistory = definition.modelId === 'openai/gpt-6-luna'
   const imageRule = imageRuleFor(definition.modelId)
-  const revision = gpt6SolVisibleHistory || gpt6LunaVisibleHistory ? '3' : '4'
-  const implementationRevision = gpt6SolVisibleHistory
-    ? 'mp4-6'
-    : gpt6LunaVisibleHistory
-      ? 'mp4-4'
-      : 'mp4-5'
+  const pro = openAiProBindings[definition.modelId]
+  const revision = pro?.revision ?? (gpt6SolVisibleHistory || gpt6LunaVisibleHistory ? '3' : '4')
+  const implementationRevision = pro
+    ? PRO_IMPLEMENTATION_REVISION
+    : gpt6SolVisibleHistory
+      ? 'mp4-6'
+      : gpt6LunaVisibleHistory
+        ? 'mp4-4'
+        : 'mp4-5'
   if (
     (!gpt6SolVisibleHistory && !gpt6LunaVisibleHistory && !imageRule) ||
     definition.revision !== revision ||
@@ -386,6 +394,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'openai',
+    ...(pro ? { transformRevision: PRO_TRANSFORM_REVISION } : {}),
     algorithmRevision: gpt6SolVisibleHistory
       ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
       : gpt6LunaVisibleHistory

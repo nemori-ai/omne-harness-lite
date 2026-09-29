@@ -1,4 +1,4 @@
-import { READER_REVISION } from './read-facts.ts'
+import { readerRevision, usageScope } from './usage-scope.ts'
 import { ExactDecimal, judgeAccountValue, type Usage } from '@omne-harness-lite/call-accounts'
 import {
   copyJsonValue,
@@ -133,6 +133,7 @@ export function measureCalibrated(
     }
   | undefined {
   const basis = projection.requestInput.countingBasis
+  const scope = usageScope(basis.model, basis.provider, basis.binding)
   let fallback: Fallback
   const calibration = input.calibration
   const finish = (
@@ -168,7 +169,7 @@ export function measureCalibrated(
     else if (
       canonicalProjection(original.countingBasis) !== canonicalProjection(basis) ||
       original.projectionRevision !== projection.requestInput.projectionRevision ||
-      observed.provenance.adapterRevision !== READER_REVISION ||
+      observed.provenance.adapterRevision !== readerRevision(scope) ||
       (observed.provenance.upstreamModel !== undefined &&
         observed.provenance.upstreamModel !== basis.model) ||
       (observed.provenance.servingProvider !== undefined &&
@@ -177,6 +178,7 @@ export function measureCalibrated(
         !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI'))
     )
       fallback = 'basis_changed'
+    else if (scope === 'scope_unknown') fallback = 'source_unavailable'
     else {
       const count = ExactDecimal.from(original.prefixBoundary)
       const n = Number(count.toString())

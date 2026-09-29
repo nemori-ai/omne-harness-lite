@@ -22,6 +22,7 @@ import { parseSSE, SseProtocolError } from './sse.ts'
 import { strictObject, object } from './json.ts'
 import { processedText, processedObject, CredentialProcessingFailure } from './credential-policy.ts'
 import { reportDiagnostic, reportExecutionDiagnostic } from './diagnostics.ts'
+import { usageScope } from './usage-scope.ts'
 import { createReadFactsAccumulator, emptyReadFacts } from './read-facts.ts'
 import { claimResponse, type RawResponse, type Diagnostic } from './http.ts'
 import type { PlannedRequest } from './plan.ts'
@@ -94,6 +95,7 @@ export async function* readStream(
   const accumulator = createReadFactsAccumulator(
     event => diagnostic(event),
     state.stream.headers['x-openrouter-cache-status'] === 'HIT',
+    usageScope(planned.input.routeName, planned.input.provider, planned.input.snapshot.adaptation),
   )
   let usageReceived = false
   let finish: string | undefined,

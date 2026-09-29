@@ -51,21 +51,41 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       const read = readModelDefinition(openaiDefinitions, coordinates)
       if ('rejected' in read) throw new Error(read.rejected)
       expect(read.ok).toEqual(definition)
+      const pro = [
+        'openai/gpt-6-astra-pro',
+        'openai/gpt-6-sol-pro',
+        'openai/gpt-6-luna-pro',
+        'openai/gpt-5.6-sol-pro',
+        'openai/gpt-5.6-terra-pro',
+        'openai/gpt-5.6-luna-pro',
+      ].includes(modelId)
       const metered = modelId.startsWith('openai/gpt-5.6-')
       const solTextMetered = modelId === 'openai/gpt-6-sol'
       const lunaHistoryMetered = modelId === 'openai/gpt-6-luna'
       expect(definition.implementation).toEqual({
         name: 'pi-ai:openai',
-        revision: metered
-          ? 'mp4-5'
-          : lunaHistoryMetered
-            ? 'mp4-4'
-            : solTextMetered
-              ? 'mp4-6'
-              : 'mp4-1',
+        revision: pro
+          ? 'mp4-7'
+          : metered
+            ? 'mp4-5'
+            : lunaHistoryMetered
+              ? 'mp4-4'
+              : solTextMetered
+                ? 'mp4-6'
+                : 'mp4-1',
       })
       expect(definition.revision).toBe(
-        metered ? '4' : lunaHistoryMetered ? '3' : solTextMetered ? '3' : '1',
+        pro
+          ? metered
+            ? '5'
+            : '2'
+          : metered
+            ? '4'
+            : lunaHistoryMetered
+              ? '3'
+              : solTextMetered
+                ? '3'
+                : '1',
       )
       expect(definition.capabilities).toEqual({
         inputModalities: ['image', 'text'],

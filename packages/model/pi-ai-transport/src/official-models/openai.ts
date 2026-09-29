@@ -1,3 +1,4 @@
+import { openAiProBindings, PRO_IMPLEMENTATION_REVISION } from '../usage-scope.ts'
 import type { ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
 import { ownDefinitions, type ModelDefinition, type ModelRoute } from '../definitions.ts'
 
@@ -118,22 +119,26 @@ export const openaiDefinitions = ownDefinitions(
     ([modelId, routes]) =>
       ({
         modelId,
-        revision: gpt56MeteredIds.has(modelId)
-          ? '4'
-          : modelId === gpt6LunaVisibleHistoryMeteredId
-            ? '3'
-            : modelId === gpt6SolVisibleHistoryMeteredId
+        revision:
+          openAiProBindings[modelId]?.revision ??
+          (gpt56MeteredIds.has(modelId)
+            ? '4'
+            : modelId === gpt6LunaVisibleHistoryMeteredId
               ? '3'
-              : '1',
+              : modelId === gpt6SolVisibleHistoryMeteredId
+                ? '3'
+                : '1'),
         implementation: {
           name: 'pi-ai:openai',
-          revision: gpt56MeteredIds.has(modelId)
-            ? 'mp4-5'
-            : modelId === gpt6LunaVisibleHistoryMeteredId
-              ? 'mp4-4'
-              : modelId === gpt6SolVisibleHistoryMeteredId
-                ? 'mp4-6'
-                : 'mp4-1',
+          revision: openAiProBindings[modelId]
+            ? PRO_IMPLEMENTATION_REVISION
+            : gpt56MeteredIds.has(modelId)
+              ? 'mp4-5'
+              : modelId === gpt6LunaVisibleHistoryMeteredId
+                ? 'mp4-4'
+                : modelId === gpt6SolVisibleHistoryMeteredId
+                  ? 'mp4-6'
+                  : 'mp4-1',
         },
         capabilities,
         routes,

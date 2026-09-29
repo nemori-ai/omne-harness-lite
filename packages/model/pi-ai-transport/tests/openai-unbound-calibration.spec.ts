@@ -22,7 +22,7 @@ describe('four unbound OpenAI routes: independent raw calibration inputs', () =>
     expect(cases.map(value => value.requestSha256)).toHaveLength(3)
     const definition = openaiDefinitions.find(value => value.modelId === model)
     if (definition === undefined) throw new Error('missing exact definition')
-    expect(definition.revision).toBe('1')
+    expect(definition.revision).toBe(model === 'openai/gpt-6-astra' ? '1' : '2')
     // Research fixtures never register a meter or inherit another model's observations.
     expect(() => createOpenAiInputMeter(definition)).toThrow('unsupported OpenAI')
   })

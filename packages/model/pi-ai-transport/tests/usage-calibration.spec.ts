@@ -352,7 +352,7 @@ describe('response calibration actual planner', () => {
 })
 describe('one reader facts accumulator', () => {
   it('keeps partial cache counters unknown and complete prompt total exact', () => {
-    const state = createReadFactsAccumulator(() => {}, false)
+    const state = createReadFactsAccumulator(() => {}, false, 'inherited_context_total')
     state.observe({
       prompt_tokens: 100,
       completion_tokens: 4,
@@ -375,7 +375,7 @@ describe('one reader facts accumulator', () => {
     ).toBe(0)
   })
   it('repeated cumulative not added; conflicting input preserves prior facts but invalidates observation', () => {
-    const state = createReadFactsAccumulator(() => {}, false)
+    const state = createReadFactsAccumulator(() => {}, false, 'inherited_context_total')
     state.observe({ prompt_tokens: 10, completion_tokens: 3 })
     state.observe({ prompt_tokens: 10, completion_tokens: 3 })
     expect(state.read().observedInput).toMatchObject({ kind: 'upstream_total', tokens: 10 })
@@ -387,13 +387,15 @@ describe('one reader facts accumulator', () => {
     expect(state.read().usage.output_tokens).toBe(3)
   })
   it('response-cache zero differs from an independently known actual input zero', () => {
-    const hit = createReadFactsAccumulator(() => {}, true),
-      fresh = createReadFactsAccumulator(() => {}, false)
+    const hit = createReadFactsAccumulator(() => {}, true, 'inherited_context_total'),
+      fresh = createReadFactsAccumulator(() => {}, false, 'inherited_context_total')
     hit.observe({ prompt_tokens: 0 })
     fresh.observe({ prompt_tokens: 0 })
     expect(hit.read().observedInput).toEqual({ kind: 'unavailable', reason: 'response_cache' })
     expect(fresh.read().observedInput).toMatchObject({ kind: 'upstream_total', tokens: 0 })
-    expect(createReadFactsAccumulator(() => {}, false).read().observedInput).toEqual({
+    expect(
+      createReadFactsAccumulator(() => {}, false, 'inherited_context_total').read().observedInput,
+    ).toEqual({
       kind: 'unavailable',
       reason: 'missing_usage',
     })

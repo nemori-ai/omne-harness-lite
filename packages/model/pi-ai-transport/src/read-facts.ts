@@ -11,7 +11,8 @@ import { accountFromUsage } from './accounts.ts'
 import { object, member } from './json.ts'
 import type { Diagnostic } from './http.ts'
 
-export const READER_REVISION = 'openrouter-usage-reader/2'
+import { readerRevision, type UsageScope } from './usage-scope.ts'
+export { READER_REVISION } from './usage-scope.ts'
 export function emptyReadFacts(): ReadFacts {
   return Object.freeze({
     usage: Object.freeze({
@@ -29,6 +30,7 @@ export function emptyReadFacts(): ReadFacts {
 export function createReadFactsAccumulator(
   diagnostic: (event: Diagnostic) => void,
   responseCacheHit: boolean,
+  scope: UsageScope,
 ) {
   let raw: JsonObject | undefined
   let facts = emptyReadFacts()
@@ -71,7 +73,7 @@ export function createReadFactsAccumulator(
         : []),
     ]
     const provenance: ObservationProvenance = Object.freeze({
-      adapterRevision: READER_REVISION,
+      adapterRevision: readerRevision(scope),
       fieldPaths: Object.freeze(paths),
       ...provenanceFacts,
     })
@@ -79,7 +81,7 @@ export function createReadFactsAccumulator(
     if (responseCacheHit) observedInput = { kind: 'unavailable', reason: 'response_cache' }
     else if (inconsistent || malformed || excessive)
       observedInput = { kind: 'unavailable', reason: 'inconsistent_usage' }
-    else if (!isNonNegativeJsonInteger(total))
+    else if (scope === 'scope_unknown' || !isNonNegativeJsonInteger(total))
       observedInput = { kind: 'unavailable', reason: 'scope_unknown' }
     else if (parts.every(p => p !== 'unknown')) observedInput = { kind: 'from_usage', provenance }
     else observedInput = { kind: 'upstream_total', tokens: total, provenance }
