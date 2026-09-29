@@ -12,12 +12,20 @@ import {
   createOfficialProfileContent,
   deepseekV4Pro0813Definition,
   deepseekV4Pro0813Configuration,
+  defineInputMeter,
   planRequest,
   type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
-import { historyProjection, messagePrefix, nativeCompatibility } from '../src/model-request-text.ts'
+import {
+  historyProjection,
+  messagePrefix,
+  messagePrefixWithSources,
+  nativeCompatibility,
+  readDemoCalibrationHistory,
+} from '../src/model-request-text.ts'
 
 const session = unwrap(parseOpaqueIdentifier('history-session', 'SessionRef'))
+const callId = unwrap(parseOpaqueIdentifier('history-call', 'ModelCallId'))
 const tenant = unwrap(parseTenantId({ organization: 'history-org', account: 'history-account' }))
 const at = '2026-09-28T00:00:00Z'
 const visibility = { toHuman: true, toModel: true }
@@ -106,6 +114,23 @@ describe('complete demo history without a text-only whitelist', () => {
     const history = messagePrefix(log)
     expect(history).toEqual({ messages: originals })
     if ('unavailable' in history) throw new Error('history rejected')
+    const sourced = messagePrefixWithSources(log)
+    if ('unavailable' in sourced) throw new Error('history sources rejected')
+    expect(sourced.messages).toEqual(originals)
+    expect(sourced.selectedMessageSources).toEqual(
+      log.entries.map((entry, messageIndex) => ({ messageIndex, entry })),
+    )
+    expect(readDemoCalibrationHistory(log, history.messages, { callId, dispatch: 1 })).toEqual({
+      noObservation: true,
+    })
+    expect(readDemoCalibrationHistory(log, history.messages, { callId, dispatch: 2 })).toEqual({
+      sourceUnavailable: true,
+    })
+    expect(
+      readDemoCalibrationHistory(log, [...history.messages].reverse(), { callId, dispatch: 1 }),
+    ).toEqual({
+      sourceUnavailable: true,
+    })
     expect(await historyProjection(log)).toEqual({ known: ['image', 'text'] })
     // Explicit synthetic image-capable model; never publish or send it upstream.
     const definition: ModelDefinition = {
@@ -129,6 +154,7 @@ describe('complete demo history without a text-only whitelist', () => {
     })
     const planned = planRequest(
       {
+        calibration: { kind: 'none', reason: 'no_observation' },
         tokenMargin: { multiplier: 1, reserveTokens: 0 },
         target: {
           kind: 'model_call',
@@ -154,15 +180,15 @@ describe('complete demo history without a text-only whitelist', () => {
         messages: history.messages,
       },
       [definition],
-      {
+      defineInputMeter({
         modelId: definition.modelId,
         definitionRevision: definition.revision,
         implementation: definition.implementation,
         provider: 'deepinfra/fp8',
         algorithmRevision: 'synthetic-history-1',
         evidence: 'Controlled projection only; no upstream measurement claim',
-        measure: () => ({ kind: 'exact', tokens: 1 }),
-      },
+        measureFull: () => ({ kind: 'exact', tokens: 1 }),
+      }),
     )
     if ('rejected' in planned) throw new Error(planned.rejected)
     expect(planned.planned.body.messages).toMatchObject([

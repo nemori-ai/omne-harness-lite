@@ -61,7 +61,12 @@ import { createDemoObserverAccess, createDemoObserverEndpoint } from './model-ob
 import { persistDemoModelReply } from './persist-model-reply.ts'
 import { readDemoNoRunFailure } from './no-run-failure-history.ts'
 import type { DemoCallHost } from './model-call-host.ts'
-import { messagePrefix, historyProjection, nativeCompatibility } from './model-request-text.ts'
+import {
+  messagePrefix,
+  readDemoCalibrationHistory,
+  historyProjection,
+  nativeCompatibility,
+} from './model-request-text.ts'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import {
   createEvaluationInputStorePlugin,
@@ -1336,6 +1341,7 @@ export function createAcceptanceApplication(
             history: {
               call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
               failure: readDemoNoRunFailure,
+              calibration: readDemoCalibrationHistory,
               run: () => ({ unavailable: true }),
             },
             reservationWaitPolicy: deployment.reservationWaitPolicy,

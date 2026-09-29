@@ -149,7 +149,19 @@ describe('real interactive durable conversation', () => {
         expect(batch).toMatchObject({
           entries: [
             { payload: { value: { type: 'assistant' } } },
-            { payload: { value: { outcome: 'complete', replyDisposition: 'persisted' } } },
+            {
+              payload: {
+                value: {
+                  outcome: 'complete',
+                  replyDisposition: 'persisted',
+                  inputCalibration: {
+                    requestInput: { kind: 'known' },
+                    observedInput: { kind: 'from_usage' },
+                    outputGroup: { kind: 'known', source: 'reply', completeness: 'complete' },
+                  },
+                },
+              },
+            },
           ],
         })
       const key = await readFile(join(data, 'model-key'))
@@ -165,6 +177,7 @@ describe('real interactive durable conversation', () => {
       )
       expect(resumed.session).toBe(session)
       expect(await resumed.history()).toHaveLength(4)
+      expect(await batches(join(data, 'session-logs'))).toEqual(before)
       expect(await readFile(join(data, 'model-key'))).toEqual(key)
       const resumedOutput = output()
       expect(
@@ -179,6 +192,7 @@ describe('real interactive durable conversation', () => {
         'Cumulative: input 15, output 9, cache read 12, cache write 0 tokens; actual USD 351e-7',
       )
       expect(resumedOutput.text().match(/Cumulative:/gu)).toHaveLength(1)
+      expect((await batches(join(data, 'session-logs'))).slice(0, before.length)).toEqual(before)
       expect(tls.requests[2]?.body).toMatchObject({
         messages: [
           { role: 'user', content: [{ type: 'text', text: 'first prompt' }] },
