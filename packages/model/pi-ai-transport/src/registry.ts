@@ -1,3 +1,4 @@
+import { emptyReadFacts } from './read-facts.ts'
 import { validate, type ModelAdaptationBinding } from '@omne-harness-lite/model-profile'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -484,6 +485,10 @@ export function createModelTransportService(
           }
           return result
         },
+        projectOutput: (planned, input) =>
+          !user.released && issuedPlans.has(planned) && sameBinding(planned.input)
+            ? network.projectOutput(planned, input)
+            : { invalidInput: { reason: 'malformed' } },
         send: (planned, credential, cancellation, diagnostics?: TransportExecutionDiagnostics) => {
           if (
             user.released ||
@@ -512,7 +517,7 @@ export function createModelTransportService(
             !sameBinding(planned.input) ||
             !(cancellation instanceof AbortSignal)
           )
-            return { rejected: 'invalidInput' }
+            return { rejected: 'invalidInput', readFacts: emptyReadFacts() }
           let done = () => {}
           retain(
             entry,

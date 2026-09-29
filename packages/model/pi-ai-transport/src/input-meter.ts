@@ -4,10 +4,23 @@ import {
   LosslessNumber,
   type JsonNumber,
   type JsonObject,
+  type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { ModelDefinition } from './definitions.ts'
+
+export interface FullMeterInput {
+  readonly body: JsonObject
+  readonly serialized: string
+}
+/** Only anchor-external final units are exposed to a marginal tokenizer. */
+export interface MarginalMeterInput {
+  readonly units: readonly JsonValue[]
+  readonly envelope: JsonObject
+  readonly precedingUnitCount: number
+}
+export type MeterContribution = TokenMeasurement | { readonly kind: 'invalidInput' }
 
 /** A trusted, versioned implementation for one exact model/provider route. */
 export interface InputMeter {
@@ -19,7 +32,12 @@ export interface InputMeter {
   /** Stable source identifier for the route-specific accuracy or upper-bound argument. */
   readonly evidence: string
   /** Includes every input contribution after this provider's final request projection. */
-  readonly measure: (input: Readonly<{ body: JsonObject; serialized: string }>) => TokenMeasurement
+  readonly tokenizerRevision: string
+  readonly replayRevision: string
+  readonly transformRevision: string
+  readonly measureFull: (input: FullMeterInput) => TokenMeasurement
+  readonly measureReplay: (input: MarginalMeterInput) => MeterContribution
+  readonly measureNew: (input: MarginalMeterInput) => MeterContribution
 }
 
 export type TokenMeasurement =
@@ -124,8 +142,18 @@ export function inputMeterValid(value: unknown): value is InputMeter {
     'evidence' in value &&
     typeof value.evidence === 'string' &&
     value.evidence.length > 0 &&
-    'measure' in value &&
-    typeof value.measure === 'function'
+    ['tokenizerRevision', 'replayRevision', 'transformRevision'].every(
+      key =>
+        key in value &&
+        typeof (value as Record<string, unknown>)[key] === 'string' &&
+        ((value as Record<string, unknown>)[key] as string).length > 0,
+    ) &&
+    'measureFull' in value &&
+    typeof value.measureFull === 'function' &&
+    'measureReplay' in value &&
+    typeof value.measureReplay === 'function' &&
+    'measureNew' in value &&
+    typeof value.measureNew === 'function'
   )
 }
 
@@ -138,7 +166,12 @@ export function ownInputMeter(value: unknown): InputMeter | undefined {
     provider: value.provider,
     algorithmRevision: value.algorithmRevision,
     evidence: value.evidence,
-    measure: value.measure,
+    tokenizerRevision: value.tokenizerRevision,
+    replayRevision: value.replayRevision,
+    transformRevision: value.transformRevision,
+    measureFull: value.measureFull,
+    measureReplay: value.measureReplay,
+    measureNew: value.measureNew,
   })
   meterSources.set(owned, meterSource(value))
   return owned
@@ -158,3 +191,50 @@ export function tokenMeasurementValid(value: unknown): value is TokenMeasurement
   const amount = ExactDecimal.from(value.tokens)
   return amount.isInteger && amount.compare(ExactDecimal.from(0)) >= 0
 }
+
+/** Family factories explicitly publish unsupported marginal operations until supplied. */
+export function defineInputMeter(
+  value: Omit<
+    InputMeter,
+    'tokenizerRevision' | 'replayRevision' | 'transformRevision' | 'measureReplay' | 'measureNew'
+  > &
+    Partial<
+      Pick<
+        InputMeter,
+        | 'tokenizerRevision'
+        | 'replayRevision'
+        | 'transformRevision'
+        | 'measureReplay'
+        | 'measureNew'
+      >
+    >,
+): InputMeter {
+  const unavailable = (): MeterContribution => ({ kind: 'unavailable' })
+  return Object.freeze({
+    ...value,
+    tokenizerRevision: value.tokenizerRevision ?? `tokenizer-basis/${value.algorithmRevision}`,
+    replayRevision: value.replayRevision ?? 'unsupported-marginal/1',
+    transformRevision: value.transformRevision ?? 'openrouter-wire/2',
+    measureReplay: value.measureReplay ?? unavailable,
+    measureNew: value.measureNew ?? unavailable,
+  })
+}
+export function meterContributionValid(value: unknown): value is MeterContribution {
+  if (!value || typeof value !== 'object' || !('kind' in value)) return false
+  if (value.kind === 'unavailable' || value.kind === 'invalidInput')
+    return Object.keys(value).length === 1
+  if (
+    !['exact', 'upperBound', 'estimated'].includes(String(value.kind)) ||
+    !('tokens' in value) ||
+    !isJsonNumber(value.tokens) ||
+    Object.keys(value).length !== 2
+  )
+    return false
+  return ExactDecimal.from(value.tokens).isInteger
+}
+export const measureFull = (meter: InputMeter, input: FullMeterInput): TokenMeasurement =>
+  meter.measureFull(input)
+export const measureReplay = (meter: InputMeter, input: MarginalMeterInput): MeterContribution =>
+  meter.measureReplay(input)
+export const measureNew = (meter: InputMeter, input: MarginalMeterInput): MeterContribution =>
+  meter.measureNew(input)

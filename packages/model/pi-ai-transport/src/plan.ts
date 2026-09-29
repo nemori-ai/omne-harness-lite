@@ -1,3 +1,5 @@
+import { projectInput, stableAnthropicRoute } from './projection.ts'
+import { measureCalibrated, type MessageSpan } from './calibration.ts'
 // Derived from pi 0.86.1 openai-completions.ts, commit 3390bd93630965a12a0a1a5c36ce890ec22f7e1d.
 // Copyright (c) 2025 Mario Zechner. MIT: ../LICENSE.pi. See provenance.json for changes.
 import { createHash } from 'node:crypto'
@@ -32,8 +34,8 @@ import {
 import { interpretConfiguration } from './configuration.ts'
 import { object, ownedObject } from './json.ts'
 import { ownPlanInput, preflightInputWithMissingLimits } from './input.ts'
-import { measureFinalInput, missingInputLimits, type FinalInputEvidence } from './input-limits.ts'
-import { meterSource, type InputMeter } from './input-meter.ts'
+import { checkFinalInput, missingInputLimits, type FinalInputEvidence } from './input-limits.ts'
+import { ownInputMeter, meterSource, type InputMeter } from './input-meter.ts'
 
 export interface PlannedRequest extends PlannedSemantics {
   readonly body: JsonObject
@@ -135,6 +137,11 @@ export function planRequest(
     if (error instanceof TypeError) return { rejected: 'invalidInput', reason: 'malformed' }
     throw error
   }
+  if (meter !== undefined) {
+    const ownedMeter = ownInputMeter(meter)
+    if (!ownedMeter) return { rejected: 'invalidInput', reason: 'malformed' }
+    meter = ownedMeter
+  }
   const input = ownPlanInput(raw)
   if (!input) {
     const snapshot = copyJsonValue(raw?.snapshot)
@@ -193,9 +200,13 @@ export function planRequest(
   const cache = interpreted.ok
   const images = input.snapshot.inputModalities.includes('image')
   const messages: MutableObject[] = []
+  const spans: MessageSpan[] = []
+  const stableArrays = stableAnthropicRoute(input)
   const calls = new Set<string>(),
     results = new Set<string>()
   for (const message of input.messages) {
+    const span = { start: messages.length, end: messages.length + 1 }
+    spans.push(span)
     if (message.type === 'tool_internal') return { rejected: 'tool_internal_in_request' }
     if (message.type === 'assistant') {
       const content: string[] = [],
@@ -240,7 +251,10 @@ export function planRequest(
       if (details.length && independentPlainThinking) return { rejected: 'unavailable' }
       messages.push({
         role: 'assistant',
-        content: content.join(''),
+        content:
+          stableArrays && content.join('').length
+            ? [{ type: 'text', text: content.join('') }]
+            : content.join(''),
         ...(tools.length ? { tool_calls: tools } : {}),
         ...(details.length
           ? { reasoning_details: details }
@@ -261,10 +275,15 @@ export function planRequest(
       messages.push({
         role: 'tool',
         tool_call_id: normalizeToolCallId(message.callId),
-        content: text || '(no tool output)',
+        content: stableArrays
+          ? [{ type: 'text', text: text || '(no tool output)' }]
+          : text || '(no tool output)',
       })
       const imageParts = converted.filter(p => p.type === 'image_url')
-      if (imageParts.length) messages.push({ role: 'user', content: imageParts })
+      if (imageParts.length) {
+        messages.push({ role: 'user', content: imageParts })
+        span.end++
+      }
     } else {
       const role =
         message.type === 'system_reminder'
@@ -382,7 +401,23 @@ export function planRequest(
   const owned = ownedObject(body)
   if (!owned) throw new Error('planned wire body is not JSON')
   const serialized = writeJsonLossless(owned)
-  const checked = measureFinalInput({
+  if (!meter) return { rejected: 'unavailable' }
+  const projection = projectInput(owned, input, meter)
+  let calibrated: ReturnType<typeof measureCalibrated>
+  try {
+    calibrated = measureCalibrated(input, projection, spans, meter, () =>
+      meter.measureFull({ body: owned, serialized }),
+    )
+  } catch {
+    calibrated = undefined
+  }
+  if (!calibrated)
+    return {
+      rejected: 'invalidInput',
+      reason: 'input_size_unavailable',
+      metrics: ['maxInputTokens'],
+    }
+  const checked = checkFinalInput({
     definition,
     provider: input.provider,
     snapshot: input.snapshot,
@@ -390,6 +425,7 @@ export function planRequest(
     serialized,
     meter,
     tokenMargin: input.tokenMargin,
+    tokenMeasurement: calibrated.token,
   })
   if ('rejected' in checked) return checked
   const planned = Object.freeze({
@@ -398,6 +434,8 @@ export function planRequest(
     body: owned,
     serialized,
     inputLimitEvidence: checked.ok,
+    requestInput: projection.requestInput,
+    measurement: calibrated.measurement,
     ...(adjustments.length
       ? { parameterAdjustments: Object.freeze(adjustments.map(value => Object.freeze(value))) }
       : {}),

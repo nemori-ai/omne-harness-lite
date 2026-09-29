@@ -103,6 +103,7 @@ function request(
   return {
     definition: selected,
     input: {
+      calibration: { kind: 'none' as const, reason: 'no_observation' as const },
       tokenMargin: { multiplier: 1, reserveTokens: 0 },
       target: {
         kind: 'model_call',

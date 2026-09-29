@@ -85,7 +85,12 @@ export const controlledMeter: InputMeter = {
   provider: 'example-provider',
   algorithmRevision: 'local-controlled-example-1',
   evidence: 'synthetic local fixture; never use for real model admission',
-  measure: () => ({ kind: 'exact', tokens: 1 }),
+  tokenizerRevision: 'synthetic/1',
+  replayRevision: 'unsupported/1',
+  transformRevision: 'openrouter-wire/2',
+  measureReplay: () => ({kind: 'unavailable'}),
+  measureNew: () => ({kind: 'unavailable'}),
+  measureFull: () => ({ kind: 'exact', tokens: 1 }),
 }
 
 const reminder = judgeMessage({
@@ -105,6 +110,7 @@ const reminder = judgeMessage({
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
+  calibration: {kind: 'none', reason: 'no_observation'},
   tokenMargin: { multiplier: 1, reserveTokens: 0 },
   target: {
     kind: 'model_call',
@@ -206,7 +212,7 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createOpenAiInputMeter(definition)` 保留 GPT-6 Sol 的 definition revision 2／`mp4-2`：仅在固定 OpenAI 路由和 `low` effort 下，对 system/developer/user 三消息文本形状用 `o200k_base` 文本 token 加观测得到的 14-token 包装代理估算。只有 GPT-6 Luna 升为 definition revision 3／`mp4-4`：共用可见历史函数计入最终完整消息与工具定义的无损 JSON，包含 developer 提醒、assistant 可见文本与明文推理、配对工具调用及结果和后续轮次。三次冻结完整 wire 的 OpenRouter/OpenAI Luna 请求，上游实际输入为 70／178／236 token，对应既定估算 126／302／410；样本不证明精确或误差上界。调用方逐次提供 token 余量。不透明推理、媒体、未覆盖的 effort／路由和未知字段在 HTTP 前判不可计量，不删历史。Sol 可见历史仍是未绑定研究候选，Luna 的实机结果不能替 Sol 认证。实际 usage 与费用只取上游；公开调用的认证仍须单独完成。
 
-`createAnthropicInputMeter(definition)` 仅绑定 `anthropic` 供应商下修订 1 的四个指定 Claude 5.x 定义。它使用固定的 [Anthropic 旧版 Claude BPE](https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b)；Anthropic 将其称为自 Claude 3 起的**非常粗略估算**。[Claude 4.7 及后续型号使用新 tokenizer](https://platform.claude.com/docs/en/build-with-claude/token-counting)，本构件不是那个 tokenizer，也没有统一误差上界。它先核完整最终 wire 值的一致性，再对承载输入的消息和工具投影估算，保留多轮文字、user 提醒、工具结果与明文推理。生成、路由和缓存控制值不增加提示词 token；合法 TTL 取自绑定路由声明。该 JSON 输入投影仍是对私有转换的粗略近似。用户及工具结果历史中的内联 PNG/JPEG/WebP/GIF 图片沿 Claude 4.7+ 文档的 28 像素视觉图块估算（2576 像素边长、4784 图块限制），请求中保留原始图片。加密或未知推理回放仍在发送前返回不可计量；密文字节长度不是保留推理 token 数的依据。四份定义绑定 `pi-ai:anthropic/mp4-4`。每次请求必须显式配置余量，逐型号真实认证还须对照上游 usage 与本粗估误差；估算及余量不替代实际上游 usage 或费用。
+`createAnthropicInputMeter(definition)` 仅绑定 `anthropic` 供应商下修订 2 的四个指定 Claude 5.x 定义。它使用固定的 [Anthropic 旧版 Claude BPE](https://github.com/anthropics/anthropic-tokenizer-typescript/tree/4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b)；Anthropic 将其称为自 Claude 3 起的**非常粗略估算**。[Claude 4.7 及后续型号使用新 tokenizer](https://platform.claude.com/docs/en/build-with-claude/token-counting)，本构件不是那个 tokenizer，也没有统一误差上界。它先核完整最终 wire 值的一致性，再对承载输入的消息和工具投影估算，保留多轮文字、user 提醒、工具结果与明文推理。生成、路由和缓存控制值不增加提示词 token；合法 TTL 取自绑定路由声明。该 JSON 输入投影仍是对私有转换的粗略近似。用户及工具结果历史中的内联 PNG/JPEG/WebP/GIF 图片沿 Claude 4.7+ 文档的 28 像素视觉图块估算（2576 像素边长、4784 图块限制），请求中保留原始图片。加密或未知推理回放仍在发送前返回不可计量；密文字节长度不是保留推理 token 数的依据。四份定义绑定 `pi-ai:anthropic/mp4-5`。每次请求必须显式配置余量，逐型号真实认证还须对照上游 usage 与本粗估误差；估算及余量不替代实际上游 usage 或费用。
 
 `createQwenInputMeter(definition)` 使用固定公开词表和 Jinja 模板，计量 Qwen3.8 2.4T-A95B（`mp4-2`）与 27B（`mp4-3`）的文本、提醒、工具和多轮历史。27B 另支持已在阿里云文档无缩放尺寸区间内、且按 32 像素对齐的内联 PNG 粗估；需要缩放、远程图片及其他视觉形态仍不可计量。Max 0902（`mp4-3`）依据阿里云公开 ChatML 示例提供单条用户文本估算，加上三个固定路由拟合样本得到、并由独立留出验证的 51-token 偏移，不声称托管模型采用公开词表；受控字符串／文本数组／正式 wire 三种请求均观测到 68 个输入 token，支持此单条用户消息的正式 planner 形状。正式调用在推理中耗尽 16-token 输出上限而截断；这是输入计量证据，不是完整回复或 service 认证。Flash（`mp4-4`）使用单独拟合的 51-token 偏移，估算正式 planner 在 Alibaba 路由的单条 user 文本数组请求，已有三例拟合和一例独立留出验证。这些观测只验证输入转换；完整回复及 service 认证仍待完成。3.7 Flash、Plus、Max（`mp4-5`）共用最终文本数组 renderer，各自的零偏移分别经三例拟合、一例独立留出以及实际供应商和费用查询核对。三者各一次真实公共调用均完整结束并返回最终答案 `OK`，独立 generation 查询确认了精确 Alibaba 型号与实际费用。这些单条用户文本验收不替代 service 交付或其他输入形态的认证。MaxPrime 仍不可计量。显式 reasoning effort 和 opaque 回放尚未计量。公开模板遵循 Jinja 的 Unicode 转义和键序，未核实的 Python JSON 浮点渲染返回不可用。调用方显式配置 token 余量。
 
@@ -491,3 +497,18 @@ node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-
 `ModelTransportService.diagnostics()` 无需取得 lease 即可读取底层实例的诊断投递 `failed`、`pending`、`dropped` 计数，关闭后仍可读取。`send` 与 `read` 可在末参接收本次请求专用 emitter，两个阶段由同一 emitter 持有；类型化事实不包含消息正文或凭据，工程身份不进入 HTTP。不同 emitter 的重绑定被拒绝。完整 runtime 调用接线与多会话验收仍须单独完成。
 
 同一助手消息含同路由 opaque 推理块及额外独立的纯文本思考块时，当前规划返回 unavailable、零 HTTP，原历史不删不改。单块 opaque 与纯文本历史沿原路径及计量门处理。选定路由如何共同消费两种表示仍待核实；明确拒绝不代表已支持混合历史发送。
+
+
+## 响应校准输入规划
+
+`PlanInput.calibration` 必填。首次用 `{kind:'none',reason:'no_observation'}`；后继显式传合法取得的原 `inputCalibration`、`usage`、全部实际保留 `outputBlocks` 和 `replaySelection`。selection 定位源块及当前消息/块，planner 核实际内容和最终投影覆盖，不接受 caller trust 开关。
+
+`InputMeter` 破坏性改为 `measureFull`、`measureReplay`（φ）、`measureNew`（δ），并固定 tokenizer/replay/transform 修订；根入口可独立导入三操作以及 `projectInput`、`projectOutput`、`canonicalProjection`。有符号贡献按 I+φ+δ 合成，estimated 最终总量只应用一次 `tokenMargin`。`planned.measurement` 显式给 full/marginal、精度、贡献及来源/前缀/依据回退原因；实际 usage/cost 不混入预测。
+
+四个 Anthropic 定义现为 revision 2 / `pi-ai:anthropic` `mp4-5`：非空 assistant/tool 文本从首轮起固定单 text 数组，仅精确支持的1h缓存控制从输入内容投影排除。发送体缓存标记、完整bytes/images检查仍保留，布局仍为last_message，未增加omne-next多断点。新修订首次full；稳定前缀以后只扫描/哈希，不重新分词。
+
+Anthropic及适用OpenAI可见历史路径给新增回放/追加单元的JSON净贡献估算，减去估算表示中的空封装。它不是私有模板/BPE边界恒等证明，不从总output或ciphertext长度推算隐藏thinking。其余既有full meter保留原适用域；尚无依据的增量明确unavailable，未供给型号不补造。增量不可判回退full，full仍不可判则零HTTP拒绝，保留全部历史。
+
+reader每个终态都交同一个累积器的 `readFacts`；解析即保存usage，后续坏帧或取消不抹掉已知I。完整prompt total不依赖伪造缓存零项；实际响应头 `X-OpenRouter-Cache-Status: HIT` 为response-cache不可用，不是输入零锚。重复累计事实不相加。取消停止并等待真实资源，只交已有事实，不等未来usage。
+
+本地回归包括纯planner和实际TLS reader；37模型线上认证与完整runtime/service组合另验，本地通过不冒称上游路由认证。

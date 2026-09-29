@@ -44,9 +44,9 @@ function definition(modelId: string) {
 
 function measuredTokens(
   modelId: string,
-  body: Parameters<ReturnType<typeof createOpenAiInputMeter>['measure']>[0]['body'],
+  body: Parameters<ReturnType<typeof createOpenAiInputMeter>['measureFull']>[0]['body'],
 ) {
-  const result = createOpenAiInputMeter(definition(modelId)).measure({
+  const result = createOpenAiInputMeter(definition(modelId)).measureFull({
     body,
     serialized: writeJsonLossless(body),
   })
@@ -91,7 +91,7 @@ describe('OpenAI model-specific input estimator', () => {
     for (const modelId of [...baseModels, ...proModels]) {
       const meter = createOpenAiInputMeter(definition(modelId))
       expect(meter).toMatchObject({ modelId, provider: 'openai', definitionRevision: '4' })
-      expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-4')
+      expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-4/response-calibration-1')
       expect(meter.algorithmRevision).toContain('gpt-5.6')
     }
     for (const modelId of gpt6Models.filter(
@@ -169,7 +169,7 @@ describe('OpenAI model-specific input estimator', () => {
     const { reasoning: _reasoning, ...withoutReasoning } = body
     expect(measuredTokens(modelId, withoutReasoning)).not.toBe(complete)
     const meter = createOpenAiInputMeter(definition(modelId))
-    expect(meter.measure({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
   })
 
   it('applies official named-model image patch calculation; variants without a rule refuse images', () => {
@@ -182,7 +182,7 @@ describe('OpenAI model-specific input estimator', () => {
     for (const modelId of proModels) {
       const body = imageBody(modelId, url('1x1.png'))
       expect(
-        createOpenAiInputMeter(definition(modelId)).measure({
+        createOpenAiInputMeter(definition(modelId)).measureFull({
           body,
           serialized: writeJsonLossless(body),
         }),
@@ -195,10 +195,10 @@ describe('OpenAI model-specific input estimator', () => {
     const remote = imageBody(modelId, 'https://example.invalid/a.png')
     const invalid = imageBody(modelId, 'data:image/png;base64,eA==')
     const meter = createOpenAiInputMeter(definition(modelId))
-    expect(meter.measure({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
+    expect(meter.measureFull({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
       kind: 'unavailable',
     })
-    expect(meter.measure({ body: invalid, serialized: writeJsonLossless(invalid) })).toEqual({
+    expect(meter.measureFull({ body: invalid, serialized: writeJsonLossless(invalid) })).toEqual({
       kind: 'unavailable',
     })
   })
@@ -224,7 +224,7 @@ describe('OpenAI model-specific input estimator', () => {
       expect(low).toBeGreaterThan(noImage)
       const unsupported = imageBody(modelId, url('1x1.png'), 'ultra')
       expect(
-        createOpenAiInputMeter(definition(modelId)).measure({
+        createOpenAiInputMeter(definition(modelId)).measureFull({
           body: unsupported,
           serialized: writeJsonLossless(unsupported),
         }),
@@ -247,7 +247,7 @@ describe('OpenAI model-specific input estimator', () => {
     const meter = createOpenAiInputMeter(definition(modelId))
     for (const name of ['two-frame.gif', 'truncated.gif']) {
       const body = imageBody(modelId, url(name), 'low')
-      expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+      expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'unavailable',
       })
     }
@@ -287,6 +287,7 @@ describe('OpenAI model-specific input estimator', () => {
       ...request,
       routeName: selected.modelId,
       provider: 'openai',
+      calibration: { kind: 'none' as const, reason: 'no_observation' as const },
       tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
       messages: [...request.messages, visual],
       snapshot: {
@@ -441,6 +442,7 @@ describe('OpenAI model-specific input estimator', () => {
           ...original,
           routeName: selected.modelId,
           provider: 'openai',
+          calibration: { kind: 'none' as const, reason: 'no_observation' as const },
           tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
           parameters: { reasoningEffort: 'medium' as const, maxOutputTokens: 64 },
           tools: [
@@ -590,6 +592,7 @@ describe('OpenAI model-specific input estimator', () => {
           ...request,
           routeName: modelId,
           provider: 'openai',
+          calibration: { kind: 'none' as const, reason: 'no_observation' as const },
           tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
           snapshot: {
             ...request.snapshot,

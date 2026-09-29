@@ -1,3 +1,5 @@
+import { withEstimatedJsonMarginals, fullJsonMarginal } from './marginal.ts'
+import { defineInputMeter } from '../input-meter.ts'
 import {
   isJsonNumber,
   isNonNegativeJsonInteger,
@@ -419,7 +421,7 @@ export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefini
   )
     throw new TypeError('unsupported OpenAI visible-history candidate binding')
   const tokenizer = encoder()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -427,7 +429,7 @@ export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefini
     algorithmRevision: 'openai-gpt-6-visible-history-json-o200k-candidate-1',
     evidence:
       'Unbound Sol research candidate: o200k_base lossless JSON of complete visible messages and tools; frozen request probes only; no live Sol history certification or framing bound',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
       try {
         const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
@@ -436,7 +438,7 @@ export function createOpenAiVisibleHistoryCandidateMeter(definition: ModelDefini
         return { kind: 'unavailable' }
       }
     },
-  }
+  })
   return Object.freeze(meter)
 }
 
@@ -456,7 +458,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   )
     throw new TypeError('unsupported OpenAI input-meter binding')
   const tokenizer = encoder()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -471,7 +473,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       : gpt6LunaVisibleHistory
         ? 'OpenRouter OpenAI GPT-6 Luna low-effort visible text/tool/reminder history: three frozen full-wire live requests and independent generation GET (2026-09-28), estimated 126/302/410 versus actual input 70/178/236; error outside these samples and private framing unknown'
         : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
       if (gpt6SolText || gpt6LunaVisibleHistory) {
         try {
@@ -493,6 +495,22 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
         return { kind: 'unavailable' }
       }
     },
-  }
-  return Object.freeze(meter)
+  })
+  if (gpt6SolText) return meter
+  return withEstimatedJsonMarginals(meter, input => {
+    if (!gpt6LunaVisibleHistory) return fullJsonMarginal(meter, input)
+    if (!input.units.length) return { kind: 'exact', tokens: 0 }
+    const { tools: _tools, ...envelope } = input.envelope
+    const tokens = visibleHistoryTokens(
+      { ...envelope, messages: input.units },
+      definition.modelId,
+      tokenizer,
+    )
+    return tokens === undefined
+      ? { kind: 'unavailable' }
+      : {
+          kind: 'estimated',
+          tokens: tokens - tokenizer.encode(writeJsonLossless({ messages: [] })).length,
+        }
+  })
 }

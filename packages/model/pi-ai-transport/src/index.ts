@@ -5,7 +5,23 @@ export {
   type PiAiTransport,
 } from './transport.ts'
 export { planRequest, PI_AI_CARRIABLE_MODALITIES, type PlannedRequest } from './plan.ts'
-export { type InputMeter, type TokenMeasurement } from './input-meter.ts'
+export {
+  defineInputMeter,
+  measureFull,
+  measureReplay,
+  measureNew,
+  type InputMeter,
+  type TokenMeasurement,
+  type MeterContribution,
+  type FullMeterInput,
+  type MarginalMeterInput,
+} from './input-meter.ts'
+export {
+  projectInput,
+  projectOutput,
+  canonicalProjection,
+  type InputProjection,
+} from './projection.ts'
 export {
   createDeepSeekV4ProInputMeter,
   renderDeepSeekV4Prompt,

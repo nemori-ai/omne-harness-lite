@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Projection adapted from DeepSeek-V4-Pro encoding/encoding_dsv4.py at
 // b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; tokenizers/deepseek-v4/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -349,7 +350,7 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
   )
     throw new TypeError('unsupported DeepSeek V4 Pro definition')
   const encoder = tokenizer()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -357,7 +358,7 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
     algorithmRevision: 'deepseek-v4-pro-reference-1',
     evidence:
       'DeepSeek-V4-Pro b5968e9190ef611bbf34a7229255be88a0e937c1 encoding_dsv4.py + tokenizer.json 8f9f37ca; OpenRouter/DeepInfra private projection remains estimated',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
       const mode = object(body.reasoning) && body.reasoning.effort === 'low' ? 'thinking' : 'chat'
       const prompt = renderDeepSeekV4Prompt(body, mode)
@@ -373,6 +374,6 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
         return { kind: 'unavailable' }
       }
     },
-  }
+  })
   return Object.freeze(meter)
 }

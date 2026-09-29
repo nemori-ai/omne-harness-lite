@@ -94,6 +94,7 @@ function request(
     ...base,
     routeName: definition.modelId,
     provider,
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
     parameters: { reasoningEffort: 'low' as const, maxOutputTokens: 64 },
     messages: [...base.messages, assistant, result],

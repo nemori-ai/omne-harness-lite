@@ -137,7 +137,7 @@ export interface FinalInputEvidence {
 }
 
 /** Final bytes and media are measured from precisely the body sent by http.ts. */
-export function measureFinalInput(input: {
+export function checkFinalInput(input: {
   readonly definition: ModelDefinition
   readonly provider: string
   readonly snapshot: ModelProfileSnapshot
@@ -145,6 +145,7 @@ export function measureFinalInput(input: {
   readonly serialized: string
   readonly meter: InputMeter | undefined
   readonly tokenMargin: TokenMargin
+  readonly tokenMeasurement: TokenMeasurement
 }):
   { readonly ok: FinalInputEvidence } | InputLimitRejection | { readonly rejected: 'unavailable' } {
   const { definition, provider, snapshot, body, serialized, meter, tokenMargin } = input
@@ -154,7 +155,7 @@ export function measureFinalInput(input: {
   const requestBytes = Buffer.byteLength(serialized, 'utf8')
   let token: TokenMeasurement
   try {
-    token = meter.measure(Object.freeze({ body, serialized }))
+    token = input.tokenMeasurement
     if (!tokenMeasurementValid(token))
       return {
         rejected: 'invalidInput',
@@ -244,4 +245,19 @@ export function measureFinalInput(input: {
       images: image.count,
     }),
   }
+}
+
+/** Public full measurement always calls the supplied fixed meter; no caller passed flag. */
+export function measureFinalInput(
+  input: Omit<Parameters<typeof checkFinalInput>[0], 'tokenMeasurement'>,
+): ReturnType<typeof checkFinalInput> {
+  if (!input.meter || !meterMatches(input.meter, input.definition, input.provider))
+    return { rejected: 'unavailable' }
+  let token: TokenMeasurement
+  try {
+    token = input.meter.measureFull({ body: input.body, serialized: input.serialized })
+  } catch {
+    token = { kind: 'unavailable' }
+  }
+  return checkFinalInput({ ...input, tokenMeasurement: token })
 }

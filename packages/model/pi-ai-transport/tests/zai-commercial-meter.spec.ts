@@ -42,7 +42,7 @@ function definition(modelId: string) {
 }
 
 function measured(body: JsonObject) {
-  return createZaiCommercialInputMeter(definition(String(body.model))).measure({
+  return createZaiCommercialInputMeter(definition(String(body.model))).measureFull({
     body,
     serialized: writeJsonLossless(body),
   })
@@ -141,6 +141,7 @@ function publicInput(
     }),
   ]
   return {
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: margin,
     target: {
       kind: 'model_call',
@@ -278,9 +279,9 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
       let finalBody: JsonObject | undefined
       const observing: InputMeter = {
         ...original,
-        measure(request) {
+        measureFull(request) {
           finalBody = request.body
-          return original.measure(request)
+          return original.measureFull(request)
         },
       }
       const result = planRequest(
@@ -430,11 +431,11 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
         }),
       ).toEqual({ kind: 'unavailable' })
       expect(
-        createZaiCommercialInputMeter(definition(modelId)).measure({ body, serialized: '{}' }),
+        createZaiCommercialInputMeter(definition(modelId)).measureFull({ body, serialized: '{}' }),
       ).toEqual({ kind: 'unavailable' })
       const otherId = modelId === ids[0] ? ids[1] : ids[0]
       expect(
-        createZaiCommercialInputMeter(definition(otherId)).measure({
+        createZaiCommercialInputMeter(definition(otherId)).measureFull({
           body,
           serialized: writeJsonLossless(body),
         }),

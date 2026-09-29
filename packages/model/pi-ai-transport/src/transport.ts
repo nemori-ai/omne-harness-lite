@@ -1,3 +1,5 @@
+import { projectOutput } from './projection.ts'
+import { emptyReadFacts } from './read-facts.ts'
 import { Agent, type RequestOptions } from 'node:https'
 import type {
   TransportAdapter,
@@ -175,13 +177,17 @@ export function createOwnedTransport(options: TransportOptions): {
       if ('planned' in result) claim(result.planned)
       return result
     },
+    projectOutput: (planned, input) =>
+      planAvailable(planned, owner, definitions, inputMeters)
+        ? projectOutput(input)
+        : { invalidInput: { reason: 'malformed' } },
     send: (planned, credential, signal, diagnostics) =>
       planAvailable(planned, owner, definitions, inputMeters)
         ? sendRequest(planned, credential, signal, resources, diagnostics)
         : Promise.resolve({ rejected: 'invalidInput' }),
     read: async function* (response, planned, signal, diagnostics?: TransportExecutionDiagnostics) {
       if (!planAvailable(planned, owner, definitions, inputMeters))
-        return { rejected: 'invalidInput' }
+        return { rejected: 'invalidInput', readFacts: emptyReadFacts() }
       return yield* readStream(response, planned, signal, {
         maxSseEventBytes: policy.maxSseEventBytes,
         diagnostic,

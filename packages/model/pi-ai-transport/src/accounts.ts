@@ -32,8 +32,6 @@ export function accountFromUsage(
     if (remainder.compare(ExactDecimal.from(0)) >= 0) input = remainder.toJsonNumber()
     else {
       input = 'unknown'
-      cacheRead = 'unknown'
-      cacheWrite = 'unknown'
       diagnostic({ kind: 'model_transport.usage_inconsistent', level: 'error' })
     }
   }

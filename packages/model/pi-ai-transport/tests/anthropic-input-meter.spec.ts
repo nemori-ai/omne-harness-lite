@@ -42,7 +42,7 @@ function definition(modelId: string) {
 }
 
 function measuredTokens(modelId: string, body: JsonObject) {
-  const result = createAnthropicInputMeter(definition(modelId)).measure({
+  const result = createAnthropicInputMeter(definition(modelId)).measureFull({
     body,
     serialized: writeJsonLossless(body),
   })
@@ -59,7 +59,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       throw new Error('invalid Anthropic reference fixture')
     const { body, referenceTokens } = parsed.ok
     if (!isJsonNumber(referenceTokens)) throw new Error('missing reference token count')
-    const result = createAnthropicInputMeter(definition('anthropic/claude-opus-5.5')).measure({
+    const result = createAnthropicInputMeter(definition('anthropic/claude-opus-5.5')).measureFull({
       body,
       serialized: writeJsonLossless(body),
     })
@@ -90,12 +90,14 @@ describe('four exact Anthropic projected-input rough estimates', () => {
   it('binds only the four explicit definitions and selected Anthropic provider', () => {
     for (const modelId of modelIds) {
       const meter = createAnthropicInputMeter(definition(modelId))
-      expect(meter).toMatchObject({ modelId, definitionRevision: '1', provider: 'anthropic' })
-      expect(meter.algorithmRevision).toBe('anthropic-legacy-bpe-plus-vision-patches-4')
+      expect(meter).toMatchObject({ modelId, definitionRevision: '2', provider: 'anthropic' })
+      expect(meter.algorithmRevision).toBe(
+        'anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1',
+      )
       expect(meter.evidence).toContain('very rough approximation')
     }
     expect(() =>
-      createAnthropicInputMeter({ ...definition(modelIds[0] ?? ''), revision: '2' }),
+      createAnthropicInputMeter({ ...definition(modelIds[0] ?? ''), revision: '3' }),
     ).toThrow(TypeError)
     expect(() =>
       createAnthropicInputMeter({
@@ -164,7 +166,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       ],
     }
     expect(
-      createAnthropicInputMeter(selected).measure({
+      createAnthropicInputMeter(selected).measureFull({
         body: unsupported,
         serialized: writeJsonLossless(unsupported),
       }),
@@ -266,9 +268,9 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       }),
     ).toBe(complete)
     const meter = createAnthropicInputMeter(definition(model))
-    expect(meter.measure({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     expect(
-      meter.measure({
+      meter.measureFull({
         body: { ...body, model: 'anthropic/other' },
         serialized: writeJsonLossless({ ...body, model: 'anthropic/other' }),
       }),
@@ -283,7 +285,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       { ...body, tools: [{ type: 'function', function: { name: 'weather', prompt: 'hidden' } }] },
     ]) {
       expect(
-        meter.measure({ body: unknownInput, serialized: writeJsonLossless(unknownInput) }),
+        meter.measureFull({ body: unknownInput, serialized: writeJsonLossless(unknownInput) }),
       ).toEqual({ kind: 'unavailable' })
     }
   })
@@ -316,7 +318,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         ],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measure({
+        createAnthropicInputMeter(definition(model)).measureFull({
           body,
           serialized: writeJsonLossless(body),
         }),
@@ -374,7 +376,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         ],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measure({
+        createAnthropicInputMeter(definition(model)).measureFull({
           body: wrongMime,
           serialized: writeJsonLossless(wrongMime),
         }),
@@ -395,7 +397,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         ],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measure({
+        createAnthropicInputMeter(definition(model)).measureFull({
           body,
           serialized: writeJsonLossless(body),
         }),
@@ -405,7 +407,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         messages: [{ role: 'user', content: [{ type: 'audio_url', audio_url: { url: 'x' } }] }],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measure({
+        createAnthropicInputMeter(definition(model)).measureFull({
           body: unknown,
           serialized: writeJsonLossless(unknown),
         }),
@@ -430,6 +432,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       ...request,
       routeName: selected.modelId,
       provider: 'anthropic',
+      calibration: { kind: 'none' as const, reason: 'no_observation' as const },
       tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
       snapshot: {
         ...request.snapshot,
@@ -647,6 +650,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         routeName: modelId,
         provider: 'anthropic',
         parameters: { reasoningEffort: 'high', maxOutputTokens: 64 },
+        calibration: { kind: 'none' as const, reason: 'no_observation' as const },
         tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
         tools: [tool],
         messages: [
@@ -741,7 +745,11 @@ describe('four exact Anthropic projected-input rough estimates', () => {
               ],
             },
             { role: 'assistant', tool_calls: [{ id: 'call_1' }] },
-            { role: 'tool', tool_call_id: 'call_1', content: 'Sunny in Paris' },
+            {
+              role: 'tool',
+              tool_call_id: 'call_1',
+              content: [{ type: 'text', text: 'Sunny in Paris' }],
+            },
             {
               role: 'user',
               content: [

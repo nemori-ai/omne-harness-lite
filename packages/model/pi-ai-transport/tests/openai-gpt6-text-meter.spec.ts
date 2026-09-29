@@ -59,6 +59,7 @@ function request(modelId: string, set = 'fit'): PlanInput {
     ...input,
     routeName: modelId,
     provider: 'openai',
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
     parameters: { reasoningEffort: 'low', maxOutputTokens: 16 },
     messages: [
@@ -107,7 +108,7 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
   it.each(cases)('reproduces independently observed $id without changing the wire', c => {
     const body = bodyFor(c.modelId, c.set)
     const meter = createOpenAiInputMeter(definition(c.modelId))
-    const measurement = meter.measure({ body, serialized: c.wire })
+    const measurement = meter.measureFull({ body, serialized: c.wire })
     expect(measurement.kind).toBe('estimated')
     if (c.modelId === 'openai/gpt-6-sol')
       expect(measurement).toEqual({ kind: 'estimated', tokens: c.set === 'fit' ? 435 : 239 })
@@ -115,7 +116,7 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.serialized).toBe(c.wire)
     expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
-    expect(meter.measure({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
+    expect(meter.measureFull({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
   })
 
   it.each(models)(
@@ -191,7 +192,9 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
           ],
         },
       ])
-        expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+        expect(
+          meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) }),
+        ).toEqual({
           kind: 'unavailable',
         })
       const oneVisibleUser = {
@@ -199,7 +202,8 @@ describe('GPT-6 Sol text and Luna visible-history estimators', () => {
         messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
       }
       expect(
-        meter.measure({ body: oneVisibleUser, serialized: writeJsonLossless(oneVisibleUser) }).kind,
+        meter.measureFull({ body: oneVisibleUser, serialized: writeJsonLossless(oneVisibleUser) })
+          .kind,
       ).toBe(modelId === 'openai/gpt-6-sol' ? 'unavailable' : 'estimated')
     },
   )

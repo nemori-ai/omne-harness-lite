@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Prompt projections adapted from Moonshot K3 encoding_k3.py at f831ab6 and
 // K2.7 Code chat_template.jinja at 74797c9; see tokenizers/moonshot/provenance.json.
 // OpenRouter may transform the prompt, so both results are estimates.
@@ -529,14 +530,14 @@ function meter(
   source: string,
 ): InputMeter {
   const tokenizer = moonshotTokenizer(route)
-  return Object.freeze({
+  return defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider,
     algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-image-4' : 'moonshot-k27-jinja-image-3',
     evidence: `moonshotai/${source}; tiktoken.model sha256:b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103; image processor/config ${route === 'k3' ? 'd122b30b/4be33360' : '498e2075/bd9a1f5d'}`,
-    measure({
+    measureFull({
       body,
       serialized,
     }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {

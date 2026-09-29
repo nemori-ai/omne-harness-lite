@@ -93,7 +93,7 @@ describe('Google candidate calibration boundary', () => {
     if (!definition) throw new Error('Google definition missing')
     const meter = createGoogleCalibrationMeter(definition, fit, countCharacters)
     expect(
-      meter.measure({
+      meter.measureFull({
         body: {
           model: definition.modelId,
           messages: [

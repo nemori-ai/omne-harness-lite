@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Selected OpenRouter route estimates. The public GLM-5.3 template is a
 // diagnostic projection, not proof of either hosted model's tokenizer.
 import {
@@ -127,7 +128,7 @@ export function createZaiCommercialInputMeter(definition: ModelDefinition): Inpu
   const modelId = definition.modelId
   const provider = commercialRoutes[modelId]
   const encoder = glm5Tokenizer()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -140,7 +141,7 @@ export function createZaiCommercialInputMeter(definition: ModelDefinition): Inpu
       'zai-org/GLM-5.3 aca966e4 template + pinned GLM-5 tokenizer 19e77364; ' +
       'selected OpenRouter route fit/independent holdout 2026-09-28 (each observed=public-1); ' +
       'text/tools only, hosted tokenizer and private transform unknown',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
       const prompt = renderZaiCommercialPrompt(body)
@@ -154,6 +155,6 @@ export function createZaiCommercialInputMeter(definition: ModelDefinition): Inpu
         return { kind: 'unavailable' }
       }
     },
-  }
+  })
   return Object.freeze(meter)
 }

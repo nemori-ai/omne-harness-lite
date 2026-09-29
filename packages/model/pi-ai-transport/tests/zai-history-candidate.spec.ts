@@ -31,7 +31,7 @@ const goldens = z
   )
 
 function measure(body: JsonObject) {
-  return createZaiHistoryCandidateMeter(definition(String(body.model))).measure({
+  return createZaiHistoryCandidateMeter(definition(String(body.model))).measureFull({
     body,
     serialized: writeJsonLossless(body),
   })
@@ -55,7 +55,7 @@ describe('unbound ZAI historical thinking candidate', () => {
     })
     // No production promotion or inherited text-only -1 calibration.
     expect(
-      createZaiCommercialInputMeter(definition(row.model)).measure({
+      createZaiCommercialInputMeter(definition(row.model)).measureFull({
         body,
         serialized: writeJsonLossless(body),
       }),
@@ -125,7 +125,7 @@ describe('unbound ZAI historical thinking candidate', () => {
     for (const candidate of unknownBodies)
       expect(measure(jsonBody(candidate))).toEqual({ kind: 'unavailable' })
     const meter = createZaiHistoryCandidateMeter(definition(row.model))
-    expect(meter.measure({ body, serialized: writeJsonLossless(body) + '\n' })).toEqual({
+    expect(meter.measureFull({ body, serialized: writeJsonLossless(body) + '\n' })).toEqual({
       kind: 'unavailable',
     })
     expect(() => createZaiHistoryCandidateMeter(definition('z-ai/glm-5.3'))).toThrow('unsupported')

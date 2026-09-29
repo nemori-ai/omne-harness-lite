@@ -68,6 +68,7 @@ function request(modelId: string, details: JsonValue[], mixed: boolean): PlanInp
     ...original,
     routeName: modelId,
     provider: 'openai',
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
     messages: [
       ...original.messages,
@@ -139,11 +140,11 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
         inputMeters: [
           {
             ...meter,
-            measure(value) {
+            measureFull(value) {
               // Observe the real serializer while retaining the real meter's rejection.
               // This wrapper never supplies synthetic successful measurement evidence.
               measured.push({ body: value.body, serialized: value.serialized })
-              return meter.measure(value)
+              return meter.measureFull(value)
             },
           },
         ],
@@ -200,7 +201,7 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
           messages: [{ role: 'assistant', content: '', reasoning_details: details }],
         }
         const serialized = writeJsonLossless(body)
-        const result = meter.measure({ body, serialized })
+        const result = meter.measureFull({ body, serialized })
         expect(writeJsonLossless(body)).toBe(serialized)
         return result
       }
@@ -231,7 +232,7 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
         revision: '4',
         implementation: { name: 'pi-ai:openai', revision: 'mp4-5' },
       })
-      expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-4')
+      expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-4/response-calibration-1')
       for (const old of [
         { ...selected, revision: '3' },
         { ...selected, implementation: { ...selected.implementation, revision: 'mp4-3' } },

@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 import {
   isJsonNumber,
   jsonNumberSource,
@@ -114,14 +115,14 @@ export function createGoogleCalibrationMeter(
 ): InputMeter {
   if (definition.modelId !== fit.modelId || !definition.modelId.startsWith('google/gemini-3.'))
     throw new TypeError('fit and exact Google definition differ')
-  return Object.freeze({
+  return defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'google-ai-studio',
     algorithmRevision: fit.revision,
     evidence: 'Experimental Gemma 4 comparator; not calibrated or accepted for production.',
-    measure({ body }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {
+    measureFull({ body }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {
       if (body.model !== definition.modelId) return { kind: 'unavailable' }
       const features = googleCandidateFeatures(body, countText)
       return features

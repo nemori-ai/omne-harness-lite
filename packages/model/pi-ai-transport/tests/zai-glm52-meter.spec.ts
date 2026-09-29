@@ -47,6 +47,7 @@ function planInput(messages: readonly Message[], tools: PlanInput['tools'] = [])
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   return {
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     target: {
       kind: 'model_call',
@@ -78,7 +79,7 @@ function digest(value: string): string {
 }
 
 function measured(body: JsonObject) {
-  return createGlm52InputMeter(model).measure({ body, serialized: writeJsonLossless(body) })
+  return createGlm52InputMeter(model).measureFull({ body, serialized: writeJsonLossless(body) })
 }
 
 describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
@@ -263,7 +264,7 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
       }),
     ).toEqual({ kind: 'unavailable' })
     expect(measured({ ...body, unrecognized_input: 'hello' })).toEqual({ kind: 'unavailable' })
-    expect(createGlm52InputMeter(model).measure({ body, serialized: '{}' })).toEqual({
+    expect(createGlm52InputMeter(model).measureFull({ body, serialized: '{}' })).toEqual({
       kind: 'unavailable',
     })
     expect(() => createGlm52InputMeter({ ...model, revision: '2' })).toThrow(TypeError)

@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 import {
   writeJsonLossless,
   type JsonObject,
@@ -88,7 +89,7 @@ export function createXaiCandidateInputMeter(definition: ModelDefinition): Input
     !Object.hasOwn(definition.routes, 'xai')
   )
     throw new TypeError('unsupported xAI candidate binding')
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -96,7 +97,7 @@ export function createXaiCandidateInputMeter(definition: ModelDefinition): Input
     algorithmRevision: 'grok-build-wire-projection-candidate-1',
     evidence:
       'xai-org/grok-build f0e3be1100ef5252488e3be8bb0e91cf68d8c305 xai-token-estimation/src/lib.rs and xai-chat-state/src/actor/state.rs; OpenRouter wire projection and image constant require per-route calibration',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (
         body.model !== definition.modelId ||
         writeJsonLossless(body) !== serialized ||
@@ -125,7 +126,7 @@ export function createXaiCandidateInputMeter(definition: ModelDefinition): Input
         images * imageTokens
       return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
     },
-  }
+  })
   return Object.freeze(meter)
 }
 
@@ -140,7 +141,7 @@ export function createXaiHistoryCandidateInputMeter(
 ): InputMeter | undefined {
   const visible = createXaiInputMeter(definition)
   if (!visible) return undefined
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: visible.modelId,
     definitionRevision: visible.definitionRevision,
     implementation: visible.implementation,
@@ -148,7 +149,7 @@ export function createXaiHistoryCandidateInputMeter(
     algorithmRevision: `${visible.algorithmRevision}-xai-responses-v1-history-candidate-1`,
     evidence:
       'xai-org/grok-build f0e3be1100ef5252488e3be8bb0e91cf68d8c305 state.rs:87-92; OpenRouter xai-responses-v1 summary/encrypted replay; final-wire envelope plus existing visible calibration, estimated only',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized || !Array.isArray(body.messages))
         return { kind: 'unavailable' }
       const messages: JsonValue[] = []
@@ -206,10 +207,10 @@ export function createXaiHistoryCandidateInputMeter(
         messages.push(rest)
         sawHistory = true
       }
-      if (!sawHistory) return visible.measure({ body, serialized })
+      if (!sawHistory) return visible.measureFull({ body, serialized })
       const visibleBody = { ...body, messages }
       const visibleSerialized = writeJsonLossless(visibleBody)
-      const base = visible.measure({ body: visibleBody, serialized: visibleSerialized })
+      const base = visible.measureFull({ body: visibleBody, serialized: visibleSerialized })
       if (base.kind !== 'estimated' || typeof base.tokens !== 'number')
         return { kind: 'unavailable' }
       const visibleBytes = Buffer.byteLength(visibleSerialized, 'utf8')
@@ -223,6 +224,6 @@ export function createXaiHistoryCandidateInputMeter(
         ? { kind: 'estimated', tokens }
         : { kind: 'unavailable' }
     },
-  }
+  })
   return Object.freeze(meter)
 }

@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Narrow projections from pinned Qwen3.8 public templates and Alibaba's
 // published hosted-Max example. OpenRouter conversion remains estimated.
 import { createHash } from 'node:crypto'
@@ -465,7 +466,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
   )
     throw new TypeError('unsupported Qwen definition')
   const encoder = tokenizer(source?.directory ?? 'qwen-38-24t')
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -482,7 +483,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
       : hostedMax
         ? `https://help.aliyun.com/en/model-studio/text-generation Qwen3.8-Max Hi/11-token ChatML example; Qwen/Qwen3.8-2.4T-A95B tokenizer.json sha256:${tokenizerSha256}; OpenRouter Alibaba fixed-route three text calibrations +51 and untouched holdout +51, observations sha256:464c029984e310a928b3ae74a152e2d15726d6d456dfb154aca8d593d25822e, provider verification sha256:1bb421e92fc128045d1dfdb24907aba73e7c5ba9bafc1af2b79eb6b6ad880836; single-user text estimate only`
         : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated`,
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (
         body.model !== definition.modelId ||
         !object(body.provider) ||
@@ -513,6 +514,6 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
         return { kind: 'unavailable' }
       }
     },
-  }
+  })
   return Object.freeze(meter)
 }

@@ -1,3 +1,5 @@
+import { withEstimatedJsonMarginals, fullJsonMarginal } from './marginal.ts'
+import { defineInputMeter } from '../input-meter.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { isJsonNumber, writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
@@ -262,9 +264,9 @@ function supportedModel(modelId: string): boolean {
 export function createAnthropicInputMeter(definition: ModelDefinition): InputMeter {
   if (
     !supportedModel(definition.modelId) ||
-    definition.revision !== '1' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:anthropic' ||
-    definition.implementation.revision !== 'mp4-4' ||
+    definition.implementation.revision !== 'mp4-5' ||
     !Object.hasOwn(definition.routes, 'anthropic')
   )
     throw new TypeError('unsupported Anthropic input-meter binding')
@@ -272,7 +274,7 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
   if (cache?.mode !== 'explicit') throw new TypeError('unsupported Anthropic cache declaration')
   const ttlValues = new Set(cache.ttlValues)
   const tokenizer = encoder()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -280,7 +282,7 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     algorithmRevision: 'anthropic-legacy-bpe-plus-vision-patches-4',
     evidence:
       'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation for text; Anthropic Vision https://platform.claude.com/docs/en/build-with-claude/vision high-resolution 28px patches / 2576px edge / 4784 visual-token ceiling for Claude 4.7+; final OpenRouter messages/tools/images projected without routing/generation/cache controls; private conversion and Claude 5 text framing uncertain; encrypted reasoning replay unavailable',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
       const images = new Map<JsonObject, number>()
@@ -323,6 +325,6 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
         return { kind: 'unavailable' }
       }
     },
-  }
-  return Object.freeze(meter)
+  })
+  return withEstimatedJsonMarginals(meter, input => fullJsonMarginal(meter, input))
 }

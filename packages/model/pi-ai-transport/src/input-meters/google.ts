@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
@@ -147,14 +148,14 @@ export function createGoogleInputMeter(definition: ModelDefinition): InputMeter 
   )
     return undefined
   const tokenizer = encoder()
-  return Object.freeze({
+  return defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'google-ai-studio',
     algorithmRevision,
     evidence: 'google-gemma4-pilot-2026-09-28:fit-F1-F2/holdout-H1-H2;rough-estimated',
-    measure({
+    measureFull({
       body,
       serialized,
     }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {

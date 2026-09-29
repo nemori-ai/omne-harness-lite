@@ -74,6 +74,7 @@ function request(
   return {
     definition,
     input: {
+      calibration: { kind: 'none' as const, reason: 'no_observation' as const },
       tokenMargin: { multiplier: 1, reserveTokens: 0 },
       target: { kind: 'model_call', callId: 'test-xai-call', dispatch: 1 },
       routeName: modelId,

@@ -76,9 +76,9 @@ describe('authentic complete ZAI reasoning through production stream and assembl
           [model],
           {
             ...productionMeter,
-            measure(value) {
+            measureFull(value) {
               captured = value.body
-              return productionMeter.measure(value)
+              return productionMeter.measureFull(value)
             },
           },
         )
@@ -212,9 +212,9 @@ describe('authentic complete ZAI reasoning through production stream and assembl
         [model],
         {
           ...meter,
-          measure(value) {
+          measureFull(value) {
             captured = value.body
-            return meter.measure(value)
+            return meter.measureFull(value)
           },
         },
       )

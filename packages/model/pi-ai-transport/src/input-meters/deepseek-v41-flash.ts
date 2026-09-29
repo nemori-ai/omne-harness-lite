@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Projection adapted from DeepSeek-V4.1-Flash encoding/encoding.py at
 // dba1be0a40aa45a94ad051997016db3960a90277 (MIT; tokenizers/deepseek-v41-flash/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -517,7 +518,7 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
   )
     throw new TypeError('unsupported DeepSeek V4.1 Flash definition')
   const encoder = tokenizer()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -525,7 +526,7 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
     algorithmRevision: 'deepseek-v41-flash-reference-2',
     evidence:
       'DeepSeek-V4.1-Flash dba1be0a40aa45a94ad051997016db3960a90277 encoding/encoding.py + tokenizer.json c90dfa01 + inference/image_processor.py SHA256 482759e3bcc4e9bb5ee582b244cc563f5d0e163d8b48dda91ebb7106e62f9272 + inference/config.json SHA256 2e84f45cf1dac8c7fcbb200e96667d4b913275690668ed496f24c7747207a809 (patch=14, downsample=3, min_pixels=295936, max_tokens=1024), MIT; OpenRouter/DeepInfra private projection remains estimated',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
       const imageTokens = inlineImageTokens(body)
       if (imageTokens === undefined) return { kind: 'unavailable' }
@@ -551,6 +552,6 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
         return { kind: 'unavailable' }
       }
     },
-  }
+  })
   return Object.freeze(meter)
 }

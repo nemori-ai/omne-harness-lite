@@ -36,6 +36,7 @@ export function googleCertificationRequest(modelId: string): PlanInput {
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   return {
+    calibration: { kind: 'none', reason: 'no_observation' },
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     target: {
       kind: 'model_call',

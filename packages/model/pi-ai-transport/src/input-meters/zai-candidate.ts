@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Unbound diagnostic candidate; no route calibration or production certification.
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { ModelDefinition } from '../definitions.ts'
@@ -29,7 +30,7 @@ export function createZaiHistoryCandidateMeter(definition: ModelDefinition): Inp
   )
     throw new TypeError('unsupported ZAI history candidate binding')
   const encoder = glm5Tokenizer()
-  return Object.freeze({
+  return defineInputMeter({
     modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -38,7 +39,7 @@ export function createZaiHistoryCandidateMeter(definition: ModelDefinition): Inp
     evidence:
       'zai-org/GLM-5.3 aca966e4 template clear_thinking=false + pinned tokenizer 19e77364; ' +
       'plaintext reasoning_content projection candidate; hosted mapping unknown, no route offset',
-    measure({
+    measureFull({
       body,
       serialized,
     }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {

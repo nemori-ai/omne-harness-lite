@@ -26,7 +26,7 @@ describe('unbound Grok Build candidate', () => {
     if (!definition) throw new Error('missing xAI definition')
     const meter = createXaiCandidateInputMeter(definition)
     expect(meter.algorithmRevision).toBe('grok-build-wire-projection-candidate-1')
-    expect(meter.measure({ body: row.body, serialized: writeJsonLossless(row.body) })).toEqual({
+    expect(meter.measureFull({ body: row.body, serialized: writeJsonLossless(row.body) })).toEqual({
       kind: 'estimated',
       tokens: row.scenario === 'image' ? 836 : 175,
     })
@@ -39,7 +39,10 @@ describe('unbound Grok Build candidate', () => {
     )
     if (!definition || !source) throw new Error('missing fixture')
     const meter = createXaiCandidateInputMeter(definition)
-    const base = meter.measure({ body: source.body, serialized: writeJsonLossless(source.body) })
+    const base = meter.measureFull({
+      body: source.body,
+      serialized: writeJsonLossless(source.body),
+    })
     const history = {
       ...source.body,
       messages: [
@@ -59,14 +62,14 @@ describe('unbound Grok Build candidate', () => {
         { role: 'tool', tool_call_id: 'call_1', content: 'alpha=42' },
       ],
     }
-    const later = meter.measure({ body: history, serialized: writeJsonLossless(history) })
+    const later = meter.measureFull({ body: history, serialized: writeJsonLossless(history) })
     expect(base.kind).toBe('estimated')
     expect(later.kind).toBe('estimated')
     if (base.kind !== 'estimated' || later.kind !== 'estimated')
       throw new Error('candidate unavailable')
     expect(Number(later.tokens)).toBeGreaterThan(Number(base.tokens))
     expect(
-      meter.measure({
+      meter.measureFull({
         body: {
           ...history,
           messages: [
@@ -91,7 +94,9 @@ describe('unbound Grok Build candidate', () => {
         }),
       }),
     ).toEqual({ kind: 'unavailable' })
-    expect(meter.measure({ body: source.body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(meter.measureFull({ body: source.body, serialized: '{}' })).toEqual({
+      kind: 'unavailable',
+    })
   })
 
   it.each(xaiDefinitions)(
@@ -104,6 +109,7 @@ describe('unbound Grok Build candidate', () => {
       })
       if ('rejected' in profile) throw new Error(profile.rejected)
       const input: PlanInput = {
+        calibration: { kind: 'none' as const, reason: 'no_observation' as const },
         tokenMargin: { multiplier: 1, reserveTokens: 0 },
         target: {
           kind: 'model_call',

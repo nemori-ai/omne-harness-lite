@@ -93,6 +93,7 @@ function input(model: ModelDefinition, opaque: boolean): PlanInput {
     ],
   })
   return {
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     target: {
       kind: 'model_call',
@@ -139,10 +140,10 @@ describe('Z.AI complete historical reasoning at the public planning boundary', (
       let finalBody: JsonObject | undefined
       const observing: InputMeter = {
         ...actual,
-        measure(request) {
+        measureFull(request) {
           finalBody = request.body
           expect(request.serialized).toBe(writeJsonLossless(request.body))
-          return actual.measure(request)
+          return actual.measureFull(request)
         },
       }
       const result = planRequest(input(model, opaque), [model], observing)

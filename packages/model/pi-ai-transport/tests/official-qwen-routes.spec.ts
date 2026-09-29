@@ -81,6 +81,7 @@ function request(route: ModelRoute, parameters: ModelRequestParameters = {}) {
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   const input: PlanInput = {
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',

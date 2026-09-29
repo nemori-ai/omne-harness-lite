@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Projection of zai-org/GLM-5.2 chat_template.jinja at
 // cf457fa734ab149ffef225f80893eb38c6ff5cdc (MIT). This is an estimate
 // for OpenRouter's Z.AI fp8 route, whose private prompt transformation is unknown.
@@ -193,7 +194,7 @@ export function createGlm52InputMeter(definition: ModelDefinition): InputMeter {
   )
     throw new TypeError('unsupported GLM-5.2 input-meter binding')
   const encoder = glm5Tokenizer()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -201,7 +202,7 @@ export function createGlm52InputMeter(definition: ModelDefinition): InputMeter {
     algorithmRevision: 'glm-5.2-public-template-1',
     evidence:
       'zai-org/GLM-5.2 cf457fa734ab149ffef225f80893eb38c6ff5cdc chat_template.jinja + tokenizer.json 19e77364 (MIT); OpenRouter/Z.AI fp8 private conversion is estimated',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
       const prompt = renderGlm52Prompt(body)
@@ -215,6 +216,6 @@ export function createGlm52InputMeter(definition: ModelDefinition): InputMeter {
         return { kind: 'unavailable' }
       }
     },
-  }
+  })
   return Object.freeze(meter)
 }

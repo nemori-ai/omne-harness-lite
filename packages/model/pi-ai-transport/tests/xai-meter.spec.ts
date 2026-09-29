@@ -63,7 +63,7 @@ describe('Grok limited visible text/tool estimates', () => {
             : row.scenario === 'fit-multilingual'
               ? 1298
               : 1426
-      expect(meter.measure({ body: row.body, serialized })).toEqual({
+      expect(meter.measureFull({ body: row.body, serialized })).toEqual({
         kind: 'estimated',
         tokens: expected,
       })
@@ -94,11 +94,11 @@ describe('Grok limited visible text/tool estimates', () => {
   })
   it('handles actual JsonNumber bytes and refuses mismatched serialization', () => {
     const body = { ...rows[0]!.body, max_tokens: new LosslessNumber('128') }
-    expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+    expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
       kind: 'estimated',
       tokens: 219,
     })
-    expect(meter.measure({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
   })
   it.each(xaiDefinitions)(
     '$modelId refuses opaque/media/unknown controls without removing historical input',
@@ -145,7 +145,7 @@ describe('Grok limited visible text/tool estimates', () => {
         { ...body, tools: [{ type: 'web_search' }] },
       ]
       for (const input of unsupported)
-        expect(meter.measure({ body: input, serialized: writeJsonLossless(input) })).toEqual({
+        expect(meter.measureFull({ body: input, serialized: writeJsonLossless(input) })).toEqual({
           kind: 'unavailable',
         })
       expect(writeJsonLossless(body)).toBe(original)
@@ -161,6 +161,7 @@ describe('Grok limited visible text/tool estimates', () => {
       })
       if ('rejected' in profile) throw new Error(profile.rejected)
       const input: PlanInput = {
+        calibration: { kind: 'none' as const, reason: 'no_observation' as const },
         tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
         target: {
           kind: 'model_call',
@@ -373,6 +374,7 @@ function historyInput(body: JsonObject, definition: ModelDefinition): PlanInput 
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   return {
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     target: {
       kind: 'model_call',
@@ -452,7 +454,7 @@ describe('unbound xAI encrypted history estimate', () => {
           ) / 4,
         ),
       ).toBe(row.nativeReasoningTokens)
-      expect(candidate.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+      expect(candidate.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'estimated',
         tokens: row.candidateEstimateTokens,
       })
@@ -487,11 +489,13 @@ describe('unbound xAI encrypted history estimate', () => {
           message === last ? { ...last, reasoning_details: details } : message,
         ),
       }
-      expect(candidate.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+      expect(
+        candidate.measureFull({ body: changed, serialized: writeJsonLossless(changed) }),
+      ).toEqual({
         kind: 'unavailable',
       })
     }
-    expect(candidate.measure({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(candidate.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     const changed = {
       ...body,
       messages: body.messages.map(message =>

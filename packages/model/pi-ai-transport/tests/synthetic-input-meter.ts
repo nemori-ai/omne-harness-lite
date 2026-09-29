@@ -1,5 +1,6 @@
 import type { PlanInput, PlanResult } from '@omne-harness-lite/model-request-runtime'
 import {
+  defineInputMeter,
   planRequest as planRequestWithMeter,
   type InputMeter,
   type ModelDefinition,
@@ -17,14 +18,14 @@ export function syntheticInputMeter(definition: ModelDefinition, provider: strin
   }
   const prior = routes.get(provider)
   if (prior) return prior
-  const meter: InputMeter = Object.freeze({
+  const meter: InputMeter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider,
     algorithmRevision: 'synthetic-route-tests-1',
     evidence: 'offline fixture only; no official route-counting claim',
-    measure: () => ({ kind: 'exact' as const, tokens: 1 }),
+    measureFull: () => ({ kind: 'exact' as const, tokens: 1 }),
   })
   routes.set(provider, meter)
   return meter

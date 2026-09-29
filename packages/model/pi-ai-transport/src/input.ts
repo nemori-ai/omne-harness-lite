@@ -1,3 +1,4 @@
+import { ownCalibration } from './calibration.ts'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import {
   validate as profileShape,
@@ -63,12 +64,21 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     ) > 0
   )
     return undefined
-  const messages = []
+  const calibration = ownCalibration(input.calibration)
+  if (!calibration) return undefined
+  const messages: Array<PlanInput['messages'][number]> = []
   for (const raw of input.messages) {
     const judged = judgeMessage(raw)
     if ('rejected' in judged) return undefined
     messages.push(judged.ok)
   }
+  if (
+    calibration.kind === 'observation' &&
+    calibration.replaySelection.some(
+      selected => !messages[selected.messageIndex]?.blocks[selected.blockIndex],
+    )
+  )
+    return undefined
   const tools = []
   const names = new Set<string>()
   for (const raw of input.tools) {
@@ -78,6 +88,7 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     tools.push(copied.ok)
   }
   return Object.freeze({
+    calibration,
     tokenMargin: Object.freeze(tokenMargin.ok),
     target: Object.freeze({
       kind: 'model_call',

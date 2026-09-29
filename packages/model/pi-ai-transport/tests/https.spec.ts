@@ -842,8 +842,8 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
       expect(result.outcome).toBe('complete')
       expect(result.usage).toMatchObject({
         input_tokens: 'unknown',
-        cache_read_tokens: 'unknown',
-        cache_write_tokens: 'unknown',
+        cache_read_tokens: new LosslessNumber('9007199254740994'),
+        cache_write_tokens: 0,
         output_tokens: 1,
       })
       expect(

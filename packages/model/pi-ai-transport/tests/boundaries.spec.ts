@@ -499,6 +499,7 @@ describe('direct public send/read diagnostics do not control business', () => {
       }
       const adapter: TransportAdapter<PlannedRequest, RawResponse> = {
         plan: host.transport.plan,
+        projectOutput: host.transport.projectOutput,
         send: (plan, credential, signal) => sendRequest(plan, credential, signal, resources),
         read: (response, plan, signal) =>
           readStream(response, plan, signal, {

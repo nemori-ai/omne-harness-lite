@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 // Text/tool projection from zai-org/GLM-5.3 aca966e4 and GLM-5.3-Flash
 // eb9eb208 pinned chat_template.jinja. OpenRouter private conversion is unknown.
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
@@ -162,7 +163,7 @@ export function createGlm53InputMeter(definition: ModelDefinition): InputMeter {
   )
     throw new TypeError('unsupported GLM-5.3 input-meter binding')
   const encoder = glm5Tokenizer()
-  const meter: InputMeter = {
+  const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -171,7 +172,7 @@ export function createGlm53InputMeter(definition: ModelDefinition): InputMeter {
     evidence: flash
       ? 'zai-org/GLM-5.3-Flash eb9eb208eb0d988989d07a6a12d0fdeb5f52574a template (MIT) + tokenizer.json 19e77364; text/tools only, OpenRouter private projection estimated'
       : 'zai-org/GLM-5.3 aca966e4e02791568aa6a4ced368624b3d897f42 template (GLM-5.3 License) + tokenizer.json 19e77364; OpenRouter private projection estimated',
-    measure({ body, serialized }): TokenMeasurement {
+    measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
       const prompt = renderGlm53Prompt(body, flash)
@@ -185,6 +186,6 @@ export function createGlm53InputMeter(definition: ModelDefinition): InputMeter {
         return { kind: 'unavailable' }
       }
     },
-  }
+  })
   return Object.freeze(meter)
 }

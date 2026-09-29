@@ -125,7 +125,7 @@ describe('S-74 final serialized admission', () => {
   })
 
   it('uses explicit margin for an estimate and gives exact excess precedence', () => {
-    const estimate = { ...meter, measure: () => ({ kind: 'estimated' as const, tokens: 100 }) }
+    const estimate = { ...meter, measureFull: () => ({ kind: 'estimated' as const, tokens: 100 }) }
     const snapshot = { ...base.snapshot, maxInputTokens: 109 }
     const args = {
       definition,
@@ -167,7 +167,7 @@ describe('S-74 final serialized admission', () => {
   })
 
   it('does not call an upper bound excess an actual excess', () => {
-    const upper = { ...meter, measure: () => ({ kind: 'upperBound' as const, tokens: 200 }) }
+    const upper = { ...meter, measureFull: () => ({ kind: 'upperBound' as const, tokens: 200 }) }
     expect(
       measureFinalInput({
         definition,
@@ -189,11 +189,11 @@ describe('S-74 final serialized admission', () => {
     const cases = [
       {
         ...meter,
-        measure: () => {
+        measureFull: () => {
           throw new Error('meter failure')
         },
       },
-      { ...meter, measure: () => ({ kind: 'estimated' as const, tokens: -1 }) },
+      { ...meter, measureFull: () => ({ kind: 'estimated' as const, tokens: -1 }) },
     ]
     for (const failed of cases)
       expect(

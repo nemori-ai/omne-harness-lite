@@ -100,6 +100,7 @@ export async function prepare(prior) {
       })
       const id = `gpt6-v2-${base.modelId.split('/')[1]}-${set}`
       const input = {
+        calibration: { kind: 'none', reason: 'no_observation' },
         tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
         target: {
           kind: 'model_call',
@@ -130,8 +131,13 @@ export async function prepare(prior) {
         implementation: definition.implementation,
         provider: 'openai',
         algorithmRevision: 'offline-projection-only',
+        tokenizerRevision: 'offline-projection-only',
+        replayRevision: 'unavailable',
+        transformRevision: 'fixture',
+        measureReplay: () => ({ kind: 'unavailable' }),
+        measureNew: () => ({ kind: 'unavailable' }),
         evidence: 'No sending authorization or usable admission count',
-        measure: () => ({ kind: 'estimated', tokens: 1 }),
+        measureFull: () => ({ kind: 'estimated', tokens: 1 }),
       }
       const result = planRequest(input, [definition], researchMeter)
       if ('rejected' in result) throw new Error(`plan rejected: ${JSON.stringify(result)}`)

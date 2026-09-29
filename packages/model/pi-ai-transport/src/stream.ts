@@ -22,7 +22,7 @@ import { parseSSE, SseProtocolError } from './sse.ts'
 import { strictObject, object } from './json.ts'
 import { processedText, processedObject, CredentialProcessingFailure } from './credential-policy.ts'
 import { reportDiagnostic, reportExecutionDiagnostic } from './diagnostics.ts'
-import { accountFromUsage } from './accounts.ts'
+import { createReadFactsAccumulator, emptyReadFacts } from './read-facts.ts'
 import { claimResponse, type RawResponse, type Diagnostic } from './http.ts'
 import type { PlannedRequest } from './plan.ts'
 
@@ -86,13 +86,16 @@ export async function* readStream(
     signal instanceof AbortSignal
       ? claimResponse(response, planned, deps.executionDiagnostics)
       : undefined
-  if (!claimed) return { rejected: 'invalidInput' }
+  if (!claimed) return { rejected: 'invalidInput', readFacts: emptyReadFacts() }
   const state = claimed
   const blocks: Block[] = []
   const tools = new Map<string, ToolParts>()
   let textBlock: Block | undefined, thinkingBlock: Block | undefined
-  let usage: JsonObject | undefined,
-    finish: string | undefined,
+  const accumulator = createReadFactsAccumulator(
+    event => diagnostic(event),
+    state.stream.headers['x-openrouter-cache-status'] === 'HIT',
+  )
+  let finish: string | undefined,
     done = false,
     failed: TransportFailure | undefined
   const serving: {
@@ -141,11 +144,13 @@ export async function* readStream(
     key: 'upstreamModel' | 'servingProvider' | 'upstreamRequestId',
     value: JsonValue | undefined,
   ) {
-    if (typeof value !== 'string') return
+    if (typeof value !== 'string' || value.length === 0) return
     if (originalServing[key] === undefined) {
       originalServing[key] = value
       serving[key] = processedText(state.credentialPolicy, value, 'serving_text_policy')
-    } else if (originalServing[key] !== value)
+      accumulator.remember({ [key]: serving[key] })
+    } else if (originalServing[key] !== value) {
+      accumulator.inconsistent()
       diagnostic({
         kind:
           key === 'servingProvider'
@@ -153,6 +158,7 @@ export async function* readStream(
             : `model_transport.${key}_changed`,
         level: 'error',
       })
+    }
   }
   const abort = () => response.stop()
   signal.addEventListener('abort', abort, { once: true })
@@ -167,6 +173,8 @@ export async function* readStream(
       if (done) throw new SseProtocolError('event after DONE')
       const frame = strictObject(data)
       if (!frame) throw new SseProtocolError('invalid SSE JSON')
+      // Freeze usage before any subsequent frame member or policy processing can fail.
+      if (object(frame.usage)) accumulator.observe(frame.usage)
       if (object(frame.error)) {
         // Independent protocol status is obtained before processing its untrusted JSON copy.
         const code = frame.error.code
@@ -195,10 +203,6 @@ export async function* readStream(
       remember('upstreamRequestId', frame.id)
       remember('upstreamModel', frame.model)
       remember('servingProvider', frame.provider)
-      if (object(frame.usage)) {
-        if (usage) diagnostic({ kind: 'model_transport.usage_repeated', level: 'info' })
-        usage = frame.usage
-      }
       if (!Array.isArray(frame.choices) || frame.choices.length === 0) continue
       if (frame.choices.length !== 1) throw new SseProtocolError('multiple choices')
       const choice = frame.choices[0]
@@ -360,7 +364,7 @@ export async function* readStream(
           outcome: 'failed',
           facts: { kind: 'transport', stream: 'lost' },
         })
-        throw error
+        failed = { source: 'local', localError: 'reader_failure' }
       }
     }
   } finally {
@@ -374,7 +378,7 @@ export async function* readStream(
       outcome: 'stopped',
       facts: { kind: 'transport', stream: 'lost' },
     })
-    return { aborted: true, ...serving }
+    return { aborted: true, ...serving, readFacts: accumulator.read() }
   }
   if (!failed && finish !== 'length') {
     for (const b of blocks) {
@@ -400,13 +404,15 @@ export async function* readStream(
         }
     }
   }
-  if (usage) yield { t: 'account', ...accountFromUsage(usage, diagnostic) }
+  const readFacts = accumulator.read()
+  if (readFacts.usage.source !== 'none' || readFacts.cost.source !== 'none')
+    yield { t: 'account', usage: readFacts.usage, cost: readFacts.cost }
   reportExecutionDiagnostic(deps.executionDiagnostics, {
     stage: 'stream_end',
     outcome: failed ? 'failed' : 'completed',
     facts: { kind: 'transport', stream: failed ? 'lost' : 'ended' },
   })
   return failed
-    ? { failed, ...serving }
-    : { ended: finish === 'length' ? 'max_tokens' : 'end', ...serving }
+    ? { failed, ...serving, readFacts }
+    : { ended: finish === 'length' ? 'max_tokens' : 'end', ...serving, readFacts }
 }

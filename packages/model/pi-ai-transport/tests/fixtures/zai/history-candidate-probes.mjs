@@ -69,7 +69,7 @@ export function freezeHistoryCandidateProbes(maxOutputTokens) {
         sseSha256: row.sseSha256,
         requestSha256: sha(serialized),
         body,
-        candidate: meter.measure({ body, serialized }),
+        candidate: meter.measureFull({ body, serialized }),
       })
     }
   }

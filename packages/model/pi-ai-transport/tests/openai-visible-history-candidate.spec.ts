@@ -166,6 +166,7 @@ function request(c: (typeof packet.cases)[number]): PlanInput {
     ...input(),
     routeName: c.modelId,
     provider: 'openai',
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
     parameters: { reasoningEffort: 'low', maxOutputTokens: body.max_tokens },
     messages: sourceMessages(body),
@@ -207,7 +208,10 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
       expect(observations.datedModel).toBe('openai/gpt-6-luna-20260922')
       expect(observed.generationId).toMatch(/^gen-/u)
       expect(
-        historyMeter(frozen.modelId).measure({ body: finalBody(frozen), serialized: frozen.wire }),
+        historyMeter(frozen.modelId).measureFull({
+          body: finalBody(frozen),
+          serialized: frozen.wire,
+        }),
       ).toEqual({ kind: 'estimated', tokens: observed.estimatedInputTokens })
     },
   )
@@ -218,7 +222,7 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
       const selected = definition(c.modelId)
       const meter = historyMeter(c.modelId)
       const body = finalBody(c)
-      expect(meter.measure({ body, serialized: c.wire })).toEqual({
+      expect(meter.measureFull({ body, serialized: c.wire })).toEqual({
         kind: 'estimated',
         tokens: c.expectedTokens,
       })
@@ -368,8 +372,8 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
     const body = finalBody(c)
     const meter = historyMeter(c.modelId)
     const changed = (value: JsonObject) =>
-      meter.measure({ body: value, serialized: writeJsonLossless(value) })
-    expect(meter.measure({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
+      meter.measureFull({ body: value, serialized: writeJsonLossless(value) })
+    expect(meter.measureFull({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
     expect(changed({ ...body, opaqueControl: true })).toEqual({ kind: 'unavailable' })
     expect(changed({ ...body, reasoning: { effort: 'high' } })).toEqual({ kind: 'unavailable' })
     expect(

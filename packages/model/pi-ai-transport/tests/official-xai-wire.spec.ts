@@ -45,6 +45,7 @@ function request(
   })
   if ('rejected' in profile) throw new Error(profile.rejected)
   return {
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.2, reserveTokens: 8 },
     target: { kind: 'model_call', callId: 'xai-wire-call', dispatch: 1 },
     routeName: definition.modelId,

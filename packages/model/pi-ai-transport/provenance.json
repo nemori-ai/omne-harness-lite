@@ -29,6 +29,17 @@
       "file": "src/sse.ts",
       "source": "packages/ai/src/api/openai-codex-responses.ts",
       "changes": "Node IncomingMessage, strict lossless JSON, bounded UTF-8 framing, all SSE newline forms and explicit DONE."
+    },
+    {
+      "file": "src/projection.ts",
+      "source": "project-owned MR9/RT10 mapping",
+      "changes": "Version openrouter-input-projection/2: one lossless code-point-sorted canonical encoding, scoped Anthropic generated 1h cache metadata exclusion, stable nonempty assistant/tool arrays from first request; no cross-shape token equivalence claim."
+    },
+    {
+      "file": "src/read-facts.ts",
+      "source": "https://openrouter.ai/docs/guides/features/response-caching",
+      "observed_date": "2026-09-29",
+      "changes": "First-parsed usage/cost/input facts share one accumulator; X-OpenRouter-Cache-Status HIT never supplies an input-zero anchor. Rolling first-party docs; no model probe."
     }
   ]
 }

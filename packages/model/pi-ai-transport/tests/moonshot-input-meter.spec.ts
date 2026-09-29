@@ -55,6 +55,7 @@ function request(index: 0 | 1): PlanInput {
     ...base,
     routeName: definition.modelId,
     provider,
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     parameters: { maxOutputTokens: 128, ...(index === 0 ? { reasoningEffort: 'high' } : {}) },
     snapshot: {
@@ -119,7 +120,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
     if (!definition) throw new Error('missing Moonshot definition')
     const body = { model: definition.modelId, messages: [{ role: 'user', content: 'Hello world' }] }
     const serialized = writeJsonLossless(body)
-    const measurement = createMoonshotInputMeter(definition).measure({ body, serialized })
+    const measurement = createMoonshotInputMeter(definition).measureFull({ body, serialized })
     if (measurement.kind === 'unavailable') throw new Error('meter unavailable')
     expect(Number(measurement.tokens)).toBe(expected)
   })
@@ -137,7 +138,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         ...moonshotFixture('multi-turn'),
         ...(index === 0 ? { reasoning: { effort: 'high' } } : {}),
       }
-      const measurement = createMoonshotInputMeter(definition).measure({
+      const measurement = createMoonshotInputMeter(definition).measureFull({
         body,
         serialized: writeJsonLossless(body),
       })
@@ -169,7 +170,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       expect(meter.algorithmRevision).toBe(
         index === 0 ? 'moonshot-k3-xtml-image-4' : 'moonshot-k27-jinja-image-3',
       )
-      expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+      expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'estimated',
         tokens,
       })
@@ -199,7 +200,10 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       ],
     }
     expect(
-      createMoonshotInputMeter(definition).measure({ body, serialized: writeJsonLossless(body) }),
+      createMoonshotInputMeter(definition).measureFull({
+        body,
+        serialized: writeJsonLossless(body),
+      }),
     ).toEqual({ kind: 'estimated', tokens: 24 })
     const segments = renderMoonshotPromptSegments('k3', body)
     if (!segments) throw new Error('missing split-text projection')
@@ -230,11 +234,11 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         stream: false,
         store: true,
       }
-      expect(meter.measure({ body: altered, serialized: writeJsonLossless(altered) })).toEqual(
-        meter.measure({ body: base, serialized: writeJsonLossless(base) }),
+      expect(meter.measureFull({ body: altered, serialized: writeJsonLossless(altered) })).toEqual(
+        meter.measureFull({ body: base, serialized: writeJsonLossless(base) }),
       )
       const unknown = { ...base, prompt_hint: 'unmapped model input' }
-      expect(meter.measure({ body: unknown, serialized: writeJsonLossless(unknown) })).toEqual({
+      expect(meter.measureFull({ body: unknown, serialized: writeJsonLossless(unknown) })).toEqual({
         kind: 'unavailable',
       })
       const opaque = {
@@ -247,7 +251,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           },
         ],
       }
-      expect(meter.measure({ body: opaque, serialized: writeJsonLossless(opaque) })).toEqual({
+      expect(meter.measureFull({ body: opaque, serialized: writeJsonLossless(opaque) })).toEqual({
         kind: 'unavailable',
       })
     },
@@ -322,8 +326,8 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           { role: 'user', content: 'Summarize it' },
         ],
       }
-      const simple = meter.measure({ body: base, serialized: writeJsonLossless(base) })
-      const detailed = meter.measure({
+      const simple = meter.measureFull({ body: base, serialized: writeJsonLossless(base) })
+      const detailed = meter.measureFull({
         body: toolHistory,
         serialized: writeJsonLossless(toolHistory),
       })
@@ -341,10 +345,10 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           },
         ],
       }
-      expect(meter.measure({ body: image, serialized: writeJsonLossless(image) })).toEqual({
+      expect(meter.measureFull({ body: image, serialized: writeJsonLossless(image) })).toEqual({
         kind: 'unavailable',
       })
-      expect(meter.measure({ body: base, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+      expect(meter.measureFull({ body: base, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     },
   )
 
@@ -378,7 +382,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
     }
     const first = { ...base, messages: base.messages.slice(0, 1) }
     const measure = (body: typeof base | typeof first) =>
-      meter.measure({ body, serialized: writeJsonLossless(body) })
+      meter.measureFull({ body, serialized: writeJsonLossless(body) })
     const firstCount = measure(first)
     const allCount = measure(base)
     expect(firstCount.kind).toBe('estimated')
@@ -395,7 +399,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         },
       ],
     }
-    expect(meter.measure({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
+    expect(meter.measureFull({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
       kind: 'unavailable',
     })
   })

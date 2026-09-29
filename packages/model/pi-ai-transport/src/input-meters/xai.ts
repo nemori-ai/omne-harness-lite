@@ -1,3 +1,4 @@
+import { defineInputMeter } from '../input-meter.ts'
 import {
   copyJsonValue,
   isNonNegativeJsonInteger,
@@ -129,14 +130,14 @@ export function createXaiInputMeter(definition: ModelDefinition): InputMeter | u
     definition.implementation.revision !== 'mp4-2'
   )
     return undefined
-  return Object.freeze({
+  return defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'xai',
     algorithmRevision: `grok-build-visible-text-tools-offset${calibration.offset}-1`,
     evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; rough estimate, no error bound`,
-    measure({
+    measureFull({
       body,
       serialized,
     }: {

@@ -174,6 +174,7 @@ function request(modelId: QwenAlibabaModelId): PlanInput {
       message('user', 'A second question', 'second'),
     ],
     tools: [tool],
+    calibration: { kind: 'none' as const, reason: 'no_observation' as const },
     tokenMargin: { multiplier: 1.1, reserveTokens: 64 },
     snapshot: {
       ...baseline.snapshot,
@@ -241,7 +242,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       if (!object(body)) throw new Error('invalid Flash body')
       const prompt = renderQwenHostedFlashPrompt(body)
       expect(prompt).toContain('<|im_start|>assistant\n<think>\n')
-      expect(meter.measure({ body, serialized })).toEqual({
+      expect(meter.measureFull({ body, serialized })).toEqual({
         kind: 'estimated',
         tokens: row.observedInputTokens,
       })
@@ -304,14 +305,14 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         provider: { order: ['alibaba'], allow_fallbacks: false, require_parameters: false },
       },
     ])
-      expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+      expect(meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
         kind: 'unavailable',
       })
     const long = {
       ...base,
       messages: [{ role: 'user', content: [{ type: 'text', text: 'x'.repeat(16_384) }] }],
     }
-    expect(meter.measure({ body: long, serialized: writeJsonLossless(long) })).toMatchObject({
+    expect(meter.measureFull({ body: long, serialized: writeJsonLossless(long) })).toMatchObject({
       kind: 'estimated',
     })
   })
@@ -403,7 +404,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         expect(createHash('sha256').update(serialized).digest('hex')).toBe(row.sentSha256)
         const body: unknown = JSON.parse(serialized)
         if (!object(body)) throw new Error('invalid 3.7 Qwen wire')
-        expect(meter.measure({ body, serialized })).toEqual({
+        expect(meter.measureFull({ body, serialized })).toEqual({
           kind: 'estimated',
           tokens: row.observedInputTokens,
         })
@@ -456,7 +457,9 @@ describe('Qwen3.8 public tokenizer input meters', () => {
           provider: { order: ['other'], allow_fallbacks: false, require_parameters: true },
         },
       ])
-        expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+        expect(
+          meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) }),
+        ).toEqual({
           kind: 'unavailable',
         })
       expect(() =>
@@ -538,7 +541,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       readFileSync(new URL('./fixtures/qwen/hosted-max-hi.txt', import.meta.url), 'utf8'),
     )
     expect(meter.algorithmRevision).toBe('qwen-38-hosted-max-chatml-offset-2')
-    expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+    expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
       kind: 'estimated',
       tokens: 62,
     })
@@ -550,7 +553,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       readFileSync(new URL('./fixtures/qwen/hosted-max-nihao.txt', import.meta.url), 'utf8'),
     )
     expect(
-      meter.measure({ body: chineseBody, serialized: writeJsonLossless(chineseBody) }),
+      meter.measureFull({ body: chineseBody, serialized: writeJsonLossless(chineseBody) }),
     ).toEqual({ kind: 'estimated', tokens: 62 })
     for (const changed of [
       { ...body, messages: [{ role: 'system', content: 'Be brief' }, ...body.messages] },
@@ -566,7 +569,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         ],
       },
     ]) {
-      expect(meter.measure({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
+      expect(meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) })).toEqual({
         kind: 'unavailable',
       })
     }
@@ -599,7 +602,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(row.sha256)
       const body: unknown = JSON.parse(bytes.toString('utf8'))
       if (!object(body)) throw new Error('invalid frozen Max request')
-      const result = meter.measure({ body, serialized: writeJsonLossless(body) })
+      const result = meter.measureFull({ body, serialized: writeJsonLossless(body) })
       expect(result).toEqual({ kind: 'estimated', tokens: row.observedPromptTokens })
       const offset = row.observedPromptTokens - row.publicTemplateTokens
       if (row.phase === 'calibration') fit.push(offset)
@@ -717,7 +720,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     const selected = definition('qwen/qwen3.8-max-0902')
     const body = JSON.parse(formal.toString('utf8'))
     expect(
-      createQwenInputMeter(selected).measure({
+      createQwenInputMeter(selected).measureFull({
         body,
         serialized: formal.toString('utf8').trimEnd(),
       }),
@@ -753,7 +756,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       const meter = createQwenInputMeter(selected)
       const body = { ...fixtureBody, model: modelId }
       const serialized = writeJsonLossless(body)
-      const result = meter.measure({ body, serialized })
+      const result = meter.measureFull({ body, serialized })
       expect(meter).toMatchObject({
         modelId,
         definitionRevision: selected.revision,
@@ -781,10 +784,10 @@ describe('Qwen3.8 public tokenizer input meters', () => {
           .update(rendered ?? '')
           .digest('hex'),
       ).toBe('f11af7837f56be5147adb5f45191287dde95c28790eba9fb0e16a771c50c548a')
-      expect(meter.measure({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+      expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
       const differentOutputCap = { ...body, max_tokens: 128 }
       expect(
-        meter.measure({
+        meter.measureFull({
           body: differentOutputCap,
           serialized: writeJsonLossless(differentOutputCap),
         }),
@@ -796,13 +799,13 @@ describe('Qwen3.8 public tokenizer input meters', () => {
   it('changes the estimate when tool schema, tool result, reminder, or prior reasoning changes', () => {
     const meter = createQwenInputMeter(definition(ids[0]))
     const original = writeJsonLossless(fixtureBody)
-    const originalResult = meter.measure({ body: fixtureBody, serialized: original })
+    const originalResult = meter.measureFull({ body: fixtureBody, serialized: original })
     if (originalResult.kind === 'unavailable') throw new Error('golden unavailable')
     for (const text of ['lookup__exact', 'value=42', 'Review the exact value.', 'Need a lookup.']) {
       const changed = original.replace(text, '')
       const body = JSON.parse(changed)
       if (!object(body)) throw new Error('invalid altered fixture')
-      const result = meter.measure({ body, serialized: changed })
+      const result = meter.measureFull({ body, serialized: changed })
       expect(result).toMatchObject({ kind: 'estimated' })
       if (result.kind === 'unavailable') throw new Error('altered fixture unavailable')
       expect(result.tokens).not.toBe(originalResult.tokens)
@@ -822,7 +825,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       ),
     )
     expect(
-      createQwenInputMeter(definition(modelId)).measure({
+      createQwenInputMeter(definition(modelId)).measureFull({
         body,
         serialized: writeJsonLossless(body),
       }),
@@ -848,7 +851,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       '\\u67e5\\u8be2 \\u003c\\u5730\\u70b9\\u003e \\ud83d\\ude42',
     )
     expect(
-      meter.measure({
+      meter.measureFull({
         body: planned.planned.body,
         serialized: planned.planned.serialized,
       }),
@@ -865,7 +868,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     }
     expect(renderQwenPrompt(body)).toBeUndefined()
     expect(
-      createQwenInputMeter(definition(ids[0])).measure({
+      createQwenInputMeter(definition(ids[0])).measureFull({
         body,
         serialized: writeJsonLossless(body),
       }),
@@ -887,7 +890,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     }
     expect(renderQwenPrompt(body)).toBeUndefined()
     expect(
-      createQwenInputMeter(definition(ids[0])).measure({
+      createQwenInputMeter(definition(ids[0])).measureFull({
         body,
         serialized: writeJsonLossless(body),
       }),
@@ -931,7 +934,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     })
     const body = makeBody(red, blue)
     const measure = (input: Parameters<typeof renderQwenPrompt>[0]) =>
-      meter.measure({ body: input, serialized: writeJsonLossless(input) })
+      meter.measureFull({ body: input, serialized: writeJsonLossless(input) })
     const both = measure(body)
     const bothRed = measure(makeBody(red, red))
     const earlierBlue = measure(makeBody(blue, red))
@@ -958,7 +961,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     const meter = createQwenInputMeter(definition(modelId))
     for (const effort of ['high', 'max'] as const) {
       const body = { ...fixtureBody, model: modelId, reasoning: { effort } }
-      expect(meter.measure({ body, serialized: writeJsonLossless(body) })).toEqual({
+      expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'unavailable',
       })
       expect(

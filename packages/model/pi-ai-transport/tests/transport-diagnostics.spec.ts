@@ -78,7 +78,10 @@ describe('request-local transport diagnostics', () => {
             second.sink,
           ),
         ),
-      ).toEqual({ rejected: 'invalidInput' })
+      ).toMatchObject({
+        rejected: 'invalidInput',
+        readFacts: { observedInput: { kind: 'unavailable' } },
+      })
       const [aEnd, bEnd] = await Promise.all([
         drain(
           host.transport.read(
