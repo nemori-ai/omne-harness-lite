@@ -5,11 +5,18 @@ import { join } from 'node:path'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { DiagnosticEvent } from '../src/diagnostics-types.ts'
+import type { AnchoredInvocationInput } from '../src/anchored-invocation-types.ts'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { appendControlRecord } from '../src/service-control.ts'
 import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
-import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
+import {
+  harness,
+  transport,
+  payload,
+  deferred,
+  type TestPlan,
+} from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
   it('projects only confirmed exact durable positions when reply handoff is reached', async () => {
@@ -1174,64 +1181,73 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
 })
 
 describe('v17 conditional Run anchored invocation', () => {
+  const run = 'anchored-run'
+  const attempt = 1
+  async function appendStarted(h: Parameters<Parameters<typeof harness>[0]>[0]) {
+    const binding = h.input.settlement.binding
+    const event = captureModelLogValue({
+      category: 'message',
+      input: {
+        kind: 'value',
+        value: {
+          id: 'anchored-attempt-start',
+          type: 'system_reminder',
+          nature: 'event',
+          source: {
+            kind: 'attempt_started',
+            attempt,
+            reason: 'first',
+            at: '2026-09-29T00:00:00Z',
+          },
+          blocks: [],
+          createdAt: '2026-09-29T00:00:00Z',
+        },
+      },
+    })
+    if (!('ok' in event)) throw new Error('Run attempt message')
+    const started = prepareModelLogEntry({
+      session: binding.session,
+      shell: { tenant: binding.tenant, run, attempt },
+      captured: event.ok,
+      purpose: { kind: 'message' },
+      messagePrefix: [],
+    })
+    if (!('ok' in started)) throw new Error('Run attempt entry')
+    const initial = await h.log.append(
+      binding.session,
+      [started.ok],
+      { kind: 'fenced', run, attempt },
+      { kind: 'unconditional' },
+    )
+    if ('failure' in initial) throw new Error('Run attempt append')
+  }
+  function runReader(
+    h: Parameters<Parameters<typeof harness>[0]>[0],
+  ): AnchoredInvocationInput<TestPlan, object>['settlement'] {
+    return {
+      ...h.input.settlement,
+      run(prefix, originalRun, originalAttempt) {
+        expect(prefix.binding.session).toBe(h.input.settlement.binding.session)
+        return {
+          known: {
+            run: originalRun,
+            originalAttempt,
+            latestAttempt: attempt,
+            terminal: 'open' as const,
+          },
+        }
+      },
+    }
+  }
   it('uses the original attempt fence for both anchors and tailEquals for the complete response', async () => {
     await harness(async h => {
       const binding = h.input.settlement.binding
-      const run = 'anchored-run'
-      const attempt = 1
-      const event = captureModelLogValue({
-        category: 'message',
-        input: {
-          kind: 'value',
-          value: {
-            id: 'anchored-attempt-start',
-            type: 'system_reminder',
-            nature: 'event',
-            source: {
-              kind: 'attempt_started',
-              attempt,
-              reason: 'first',
-              at: '2026-09-29T00:00:00Z',
-            },
-            blocks: [],
-            createdAt: '2026-09-29T00:00:00Z',
-          },
-        },
-      })
-      if (!('ok' in event)) throw new Error('Run attempt message')
-      const started = prepareModelLogEntry({
-        session: binding.session,
-        shell: { tenant: binding.tenant, run, attempt },
-        captured: event.ok,
-        purpose: { kind: 'message' },
-        messagePrefix: [],
-      })
-      if (!('ok' in started)) throw new Error('Run attempt entry')
-      const initial = await h.log.append(
-        binding.session,
-        [started.ok],
-        { kind: 'fenced', run, attempt },
-        { kind: 'unconditional' },
-      )
-      if ('failure' in initial) throw new Error('Run attempt append')
+      await appendStarted(h)
       const handle = createAnchoredModelInvocation({
         ...h.input,
         run,
         attempt,
-        settlement: {
-          ...h.input.settlement,
-          run(prefix, originalRun, originalAttempt) {
-            expect(prefix.binding.session).toBe(binding.session)
-            return {
-              known: {
-                run: originalRun,
-                originalAttempt,
-                latestAttempt: attempt,
-                terminal: 'open',
-              },
-            }
-          },
-        },
+        settlement: runReader(h),
       })
       const result = await handle.outcome
       if (!('replyPending' in result)) throw new Error('Run reply not handed off')
@@ -1250,6 +1266,87 @@ describe('v17 conditional Run anchored invocation', () => {
       expect(raw.entries.at(-1)?.run).toBe(run)
       expect(raw.entries.at(-1)?.attempt).toBe(attempt)
       expect(await handle.close()).toEqual({ released: true })
+    })
+  })
+  it('retains a lost opened acknowledgement and never emits a response or opens a second request', async () => {
+    await harness(async h => {
+      await appendStarted(h)
+      let appendCount = 0
+      h.wrap({
+        ...h.log,
+        async append(...args) {
+          const receipt = await h.log.append(...args)
+          return ++appendCount === 2 ? { failure: 'unavailable' } : receipt
+        },
+      })
+      const wire = transport()
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        run,
+        attempt,
+        transport: wire.adapter,
+        settlement: runReader(h),
+      })
+      expect(await handle.outcome).toEqual({ unavailable: true })
+      expect(wire.sends()).toBe(1)
+      expect(await handle.settleReply('persisted')).toMatchObject({ unavailable: true })
+      expect(await handle.close()).toEqual({ unavailable: true })
+      expect(h.owner.active).toBe(0)
+      expect(h.released()).toBe(0)
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read)) throw new Error('Run prefix unreadable')
+      expect(read.entries.map(payload).map(value => value.kind)).toEqual([
+        undefined,
+        'model_call_dispatched',
+        'model_call_opened',
+      ])
+      expect(h.writes).toHaveLength(2)
+    })
+  })
+  it('waits for a delayed opened append to stop before a cancelled Run owner can close', async () => {
+    await harness(async h => {
+      await appendStarted(h)
+      const entered = deferred<void>()
+      const finish = deferred<void>()
+      let appendCount = 0
+      h.wrap({
+        ...h.log,
+        async append(...args) {
+          if (++appendCount === 2) {
+            entered.resolve()
+            await finish.promise
+          }
+          return h.log.append(...args)
+        },
+      })
+      const wire = transport()
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        run,
+        attempt,
+        transport: wire.adapter,
+        settlement: runReader(h),
+      })
+      await entered.promise
+      handle.abort()
+      expect(await handle.outcome).toEqual({ unavailable: true })
+      let closed = false
+      const closing = handle.close().then(result => {
+        closed = true
+        return result
+      })
+      await Promise.resolve()
+      expect(closed).toBe(false)
+      expect(h.owner.active).toBe(1)
+      expect(h.released()).toBe(0)
+      finish.resolve()
+      expect(await closing).toEqual({ unavailable: true })
+      expect(wire.sends()).toBe(1)
+      expect(h.writes).toHaveLength(2)
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read)) throw new Error('Run prefix unreadable')
+      expect(read.entries).toHaveLength(3)
+      expect(read.entries.at(-1)).toMatchObject({ run, attempt })
     })
   })
 })
