@@ -1,0 +1,41 @@
+[
+  {
+    "lane": "A1",
+    "originalAuthorFinal": "c37bf099",
+    "integratedCommits": [
+      "d5e0768e",
+      "4aa95625"
+    ],
+    "scope": [
+      "packages/core/call-accounts",
+      "packages/core/model-profile"
+    ],
+    "authorFinalTo19aChanged": [],
+    "sourceSame": true
+  },
+  {
+    "lane": "A2",
+    "originalAuthorFinal": "9e8521b2",
+    "integratedCommits": [
+      "bfc0ab6f",
+      "ac1771f2"
+    ],
+    "scope": [
+      "packages/core/messages"
+    ],
+    "authorFinalTo19aChanged": [],
+    "sourceSame": true
+  },
+  {
+    "lane": "A3",
+    "originalAuthorFinal": "70bcb7a1",
+    "integratedCommits": [
+      "ca36a3d3"
+    ],
+    "scope": [
+      "packages/core/model-response"
+    ],
+    "authorFinalTo19aChanged": [],
+    "sourceSame": true
+  }
+]

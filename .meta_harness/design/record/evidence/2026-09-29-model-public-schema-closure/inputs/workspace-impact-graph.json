@@ -1,0 +1,430 @@
+{
+  "sourceCommit": "19a3b968fa5effed845341612959621eaa8c4d1d",
+  "roots": [
+    "@omne-harness-lite/model-request-runtime",
+    "@omne-harness-lite/pi-ai-transport"
+  ],
+  "directChangedMembers": [
+    "@omne-harness-lite/call-accounts",
+    "@omne-harness-lite/messages",
+    "@omne-harness-lite/model-profile",
+    "@omne-harness-lite/model-request-runtime",
+    "@omne-harness-lite/model-response",
+    "@omne-harness-lite/pi-ai-transport"
+  ],
+  "transitiveManifestConsumers": [
+    "@omne-harness-lite/agent-definition",
+    "@omne-harness-lite/arrival-events",
+    "@omne-harness-lite/assembly-manifest-store",
+    "@omne-harness-lite/asset-evaluation",
+    "@omne-harness-lite/asset-registry",
+    "@omne-harness-lite/call-accounts",
+    "@omne-harness-lite/evaluation-input-store",
+    "@omne-harness-lite/loop-extension",
+    "@omne-harness-lite/loop-extension-runner",
+    "@omne-harness-lite/messages",
+    "@omne-harness-lite/model-profile",
+    "@omne-harness-lite/model-profile-directory",
+    "@omne-harness-lite/model-request-runtime",
+    "@omne-harness-lite/model-response",
+    "@omne-harness-lite/pi-ai-transport",
+    "@omne-harness-lite/session-log-jsonl",
+    "@omne-harness-lite/session-tenancy-table",
+    "@omne-harness-lite/stream-assembly"
+  ],
+  "workspaceClosure": [
+    "@omne-harness-lite/account-identity",
+    "@omne-harness-lite/agent-definition",
+    "@omne-harness-lite/arrival-events",
+    "@omne-harness-lite/assembly-manifest-store",
+    "@omne-harness-lite/asset-evaluation",
+    "@omne-harness-lite/asset-model",
+    "@omne-harness-lite/asset-registry",
+    "@omne-harness-lite/call-accounts",
+    "@omne-harness-lite/content-blocks",
+    "@omne-harness-lite/credential-verification",
+    "@omne-harness-lite/evaluation-input-store",
+    "@omne-harness-lite/identity-values",
+    "@omne-harness-lite/kernel-basis",
+    "@omne-harness-lite/loop-extension",
+    "@omne-harness-lite/mcp-endpoint",
+    "@omne-harness-lite/messages",
+    "@omne-harness-lite/model-profile",
+    "@omne-harness-lite/model-profile-directory",
+    "@omne-harness-lite/model-request-runtime",
+    "@omne-harness-lite/model-response",
+    "@omne-harness-lite/offer-expiry",
+    "@omne-harness-lite/organization-governance",
+    "@omne-harness-lite/pi-ai-transport",
+    "@omne-harness-lite/session-log-jsonl",
+    "@omne-harness-lite/session-tenancy-table",
+    "@omne-harness-lite/skill-package",
+    "@omne-harness-lite/slash-command",
+    "@omne-harness-lite/storage",
+    "@omne-harness-lite/stream-assembly",
+    "@omne-harness-lite/tool-definition"
+  ],
+  "addedVersusE66": [],
+  "removedVersusE66": [],
+  "dependencies": {
+    "@omne-harness-lite/account-identity": [
+      "@omne-harness-lite/credential-verification",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/storage"
+    ],
+    "@omne-harness-lite/agent-definition": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/arrival-events": [
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/loop-extension"
+    ],
+    "@omne-harness-lite/assembly-manifest-store": [
+      "@omne-harness-lite/asset-evaluation",
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/storage",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/asset-evaluation": [
+      "@omne-harness-lite/agent-definition",
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/loop-extension",
+      "@omne-harness-lite/mcp-endpoint",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/skill-package",
+      "@omne-harness-lite/slash-command",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/asset-model": [
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/offer-expiry"
+    ],
+    "@omne-harness-lite/asset-registry": [
+      "@omne-harness-lite/assembly-manifest-store",
+      "@omne-harness-lite/asset-evaluation",
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/evaluation-input-store",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/loop-extension",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/session-tenancy-table",
+      "@omne-harness-lite/skill-package",
+      "@omne-harness-lite/slash-command",
+      "@omne-harness-lite/storage",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/call-accounts": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/offer-expiry"
+    ],
+    "@omne-harness-lite/content-blocks": [
+      "@omne-harness-lite/identity-values"
+    ],
+    "@omne-harness-lite/credential-verification": [
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/storage"
+    ],
+    "@omne-harness-lite/evaluation-input-store": [
+      "@omne-harness-lite/agent-definition",
+      "@omne-harness-lite/assembly-manifest-store",
+      "@omne-harness-lite/asset-evaluation",
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/messages",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/organization-governance",
+      "@omne-harness-lite/session-tenancy-table",
+      "@omne-harness-lite/storage"
+    ],
+    "@omne-harness-lite/identity-values": [],
+    "@omne-harness-lite/kernel-basis": [],
+    "@omne-harness-lite/loop-extension": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/mcp-endpoint",
+      "@omne-harness-lite/messages",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/skill-package",
+      "@omne-harness-lite/slash-command",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/mcp-endpoint": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/messages": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/loop-extension",
+      "@omne-harness-lite/mcp-endpoint",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/skill-package",
+      "@omne-harness-lite/slash-command",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/model-profile": [
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/offer-expiry"
+    ],
+    "@omne-harness-lite/model-profile-directory": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/storage"
+    ],
+    "@omne-harness-lite/model-request-runtime": [
+      "@omne-harness-lite/arrival-events",
+      "@omne-harness-lite/asset-evaluation",
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/asset-registry",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/evaluation-input-store",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/loop-extension",
+      "@omne-harness-lite/messages",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/model-profile-directory",
+      "@omne-harness-lite/model-response",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/session-log-jsonl",
+      "@omne-harness-lite/session-tenancy-table",
+      "@omne-harness-lite/stream-assembly",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/model-response": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/loop-extension",
+      "@omne-harness-lite/mcp-endpoint",
+      "@omne-harness-lite/messages",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/skill-package",
+      "@omne-harness-lite/slash-command",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/offer-expiry": [
+      "@omne-harness-lite/identity-values"
+    ],
+    "@omne-harness-lite/organization-governance": [
+      "@omne-harness-lite/account-identity",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/offer-expiry",
+      "@omne-harness-lite/storage"
+    ],
+    "@omne-harness-lite/pi-ai-transport": [
+      "@omne-harness-lite/arrival-events",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/messages",
+      "@omne-harness-lite/model-profile",
+      "@omne-harness-lite/model-request-runtime",
+      "@omne-harness-lite/model-response",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/session-log-jsonl": [
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/messages"
+    ],
+    "@omne-harness-lite/session-tenancy-table": [
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/kernel-basis",
+      "@omne-harness-lite/messages",
+      "@omne-harness-lite/storage"
+    ],
+    "@omne-harness-lite/skill-package": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/tool-definition"
+    ],
+    "@omne-harness-lite/slash-command": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/content-blocks",
+      "@omne-harness-lite/identity-values",
+      "@omne-harness-lite/skill-package"
+    ],
+    "@omne-harness-lite/storage": [],
+    "@omne-harness-lite/stream-assembly": [
+      "@omne-harness-lite/arrival-events",
+      "@omne-harness-lite/call-accounts",
+      "@omne-harness-lite/content-blocks"
+    ],
+    "@omne-harness-lite/tool-definition": [
+      "@omne-harness-lite/asset-model",
+      "@omne-harness-lite/content-blocks"
+    ]
+  },
+  "manifests": {
+    "@omne-harness-lite/account-identity": {
+      "path": "packages/tenancy/account-identity/package.json",
+      "sha256": "7e4796b599b7d8ca6a3ac356d4a22e619555414d321b847dcb777cd9c3cd71fd"
+    },
+    "@omne-harness-lite/agent-definition": {
+      "path": "packages/core/agent-definition/package.json",
+      "sha256": "c7db50e183fbb2788dfd2db49091fe0d58d8814355ec79718bef684a22de68a5"
+    },
+    "@omne-harness-lite/arrival-events": {
+      "path": "packages/core/arrival-events/package.json",
+      "sha256": "5f7ce56deb9aa27f7b69310d23e7d638341cb62967a08dbcea2b93062915820a"
+    },
+    "@omne-harness-lite/assembly-manifest-store": {
+      "path": "packages/assets/assembly-manifest-store/package.json",
+      "sha256": "970fe5675cd4bf42afe103cc7c57f67c5c1b983061bff09ea6213e7b929143b1"
+    },
+    "@omne-harness-lite/asset-evaluation": {
+      "path": "packages/core/asset-evaluation/package.json",
+      "sha256": "fce89a119a36cf59ea150b71077f6f62fb5ad0de797223eaf9338cbf65e007c9"
+    },
+    "@omne-harness-lite/asset-model": {
+      "path": "packages/core/asset-model/package.json",
+      "sha256": "5ed6d38b626454e05f819e37e1e0ec3314461fda6e666f84389aefda1676b872"
+    },
+    "@omne-harness-lite/asset-registry": {
+      "path": "packages/tools/asset-registry/package.json",
+      "sha256": "d72d62ee7e1eed5b19b92d5e8771c01e83668e10e5ae4fcb7bf423fa6fdd15dc"
+    },
+    "@omne-harness-lite/call-accounts": {
+      "path": "packages/core/call-accounts/package.json",
+      "sha256": "53748cbf66b2d403156a2b0f9030baff9afa71b65d566685f5e8656401991f3b"
+    },
+    "@omne-harness-lite/content-blocks": {
+      "path": "packages/core/content-blocks/package.json",
+      "sha256": "4869f583d83d64abe1da3f225b3e1edd4f4ac01fca946e3fd3d88ad66009d797"
+    },
+    "@omne-harness-lite/credential-verification": {
+      "path": "packages/tenancy/credential-verification/package.json",
+      "sha256": "800e49e228c13c02dc05eb726c851cce1ab9bb0a73e7cc0c7c181d16b2bb5c35"
+    },
+    "@omne-harness-lite/evaluation-input-store": {
+      "path": "packages/assets/evaluation-input-store/package.json",
+      "sha256": "6d836e52c32091ed00695415348f412c407733b5410c2527893b1599e90924c3"
+    },
+    "@omne-harness-lite/identity-values": {
+      "path": "packages/core/identity-values/package.json",
+      "sha256": "4f03db21988dc976e3e7bc1990bd731a2885c427b7b499017394cae298d1af0b"
+    },
+    "@omne-harness-lite/kernel-basis": {
+      "path": "packages/core/kernel-basis/package.json",
+      "sha256": "c0cff30a982fef29b7827770eb6f96b704b5ae61006b550ae776b15d2eee839b"
+    },
+    "@omne-harness-lite/loop-extension": {
+      "path": "packages/core/loop-extension/package.json",
+      "sha256": "f6fb7b4cfa2ad67746caf22b5c0fd5015174978b2b83891434853d6561943650"
+    },
+    "@omne-harness-lite/mcp-endpoint": {
+      "path": "packages/core/mcp-endpoint/package.json",
+      "sha256": "51e0dbea209904c88edf4abfeeeb78fccf6487ba7bd5c6cc5fdb473fd2ae15ef"
+    },
+    "@omne-harness-lite/messages": {
+      "path": "packages/core/messages/package.json",
+      "sha256": "7451a1ffaa9efd9b777faf68dd3c2af3a4ed7907f2669a7da446a6644d05a395"
+    },
+    "@omne-harness-lite/model-profile": {
+      "path": "packages/core/model-profile/package.json",
+      "sha256": "2c7bfb5f29ca887f04700d075c8e1484abf3aaac2dc6de734d107b6f014f9a2f"
+    },
+    "@omne-harness-lite/model-profile-directory": {
+      "path": "packages/model/model-profile-directory/package.json",
+      "sha256": "2b49bb5b76f70075d04fc3af02676d99a72a45f8738d632c6eb4f84a7f6ecaca"
+    },
+    "@omne-harness-lite/model-request-runtime": {
+      "path": "packages/model/model-request-runtime/package.json",
+      "sha256": "993f745e8e66e7a66bd7f17f9818765f6bc311aa17dc6c90b554767d94c8e740"
+    },
+    "@omne-harness-lite/model-response": {
+      "path": "packages/core/model-response/package.json",
+      "sha256": "79a7b7581c1b59ac04a86ed6620573a7b66e00a200e3a7b90b471750c63d899e"
+    },
+    "@omne-harness-lite/offer-expiry": {
+      "path": "packages/core/offer-expiry/package.json",
+      "sha256": "76c133a18a17ef4d3bb4870cd53115a64d2d67c2effd34bc5413a928a06cc9c3"
+    },
+    "@omne-harness-lite/organization-governance": {
+      "path": "packages/tenancy/organization-governance/package.json",
+      "sha256": "68a378dd0c74304e8c47f40c7becc34e57e61352db88c6c3a513a33dfb729815"
+    },
+    "@omne-harness-lite/pi-ai-transport": {
+      "path": "packages/model/pi-ai-transport/package.json",
+      "sha256": "8270019508a3dee2b1cadbd2e6c7f17031f4b9ec35844dbce56c7bcffd0d7914"
+    },
+    "@omne-harness-lite/session-log-jsonl": {
+      "path": "packages/session/session-log-jsonl/package.json",
+      "sha256": "d5a4f87cfbadd04948ea95653267f22ed208bbf42882cd642ea03a18e9b0a5bf"
+    },
+    "@omne-harness-lite/session-tenancy-table": {
+      "path": "packages/session/session-tenancy-table/package.json",
+      "sha256": "0d239c2141a71e1a8f4deb9480f25513c055d80a9b08a233ce181bf44b890d21"
+    },
+    "@omne-harness-lite/skill-package": {
+      "path": "packages/core/skill-package/package.json",
+      "sha256": "9e055b4378132af615921e5e8bedc77b866fd72d67fdb892174277b091291b4d"
+    },
+    "@omne-harness-lite/slash-command": {
+      "path": "packages/core/slash-command/package.json",
+      "sha256": "33f29c9763c92167fd4ce1f7edf1004a51a61b508b671c35823a89547dd67a32"
+    },
+    "@omne-harness-lite/storage": {
+      "path": "packages/core/storage/package.json",
+      "sha256": "a6908aa97e5c828a637a68fc434f29cb6d91979f40387093d7002c2d7caa21a3"
+    },
+    "@omne-harness-lite/stream-assembly": {
+      "path": "packages/core/stream-assembly/package.json",
+      "sha256": "f0b241867d41da068ee6b09ee54197fee8ab48c7686a5c2d3eb39b6e791d10a2"
+    },
+    "@omne-harness-lite/tool-definition": {
+      "path": "packages/core/tool-definition/package.json",
+      "sha256": "ab938a495cfc266da2e4708e7f2ce9126bc9c739a04c07bc9fa16ef502c750f1"
+    }
+  }
+}
