@@ -14,7 +14,12 @@ import { createLocalTls } from './local-tls.ts'
 import { callDeployment } from './model-request-support.ts'
 import { activateModelFixture, actor, ref } from './support.ts'
 
-const models = ['openai/gpt-6-astra']
+const models = [
+  'openai/gpt-6-astra',
+  'openai/gpt-6-astra-pro',
+  'openai/gpt-6-sol-pro',
+  'openai/gpt-6-luna-pro',
+]
 function user(index: number) {
   const judged = judgeMessage({
     type: 'user',
@@ -122,12 +127,16 @@ describe.each(models)('remaining official meter through authorized service: %s',
         if (!('result' in sent) || !('replyPending' in sent.result))
           throw Error(JSON.stringify(sent))
         const response = sent.result.replyPending
-        expect(response.inputCalibration.observedInput).toMatchObject({ kind: 'from_usage' })
+        expect(response.inputCalibration.observedInput).toMatchObject(
+          model === 'openai/gpt-6-astra'
+            ? { kind: 'from_usage' }
+            : { kind: 'unavailable', reason: 'scope_unknown' },
+        )
         expect(writeJsonLossless(response.usage.input_tokens)).toBe('10000')
         expect(writeJsonLossless(response.cost.cost_usd)).toBe('0.0000117')
         expect(await app.persistModelReply(who, session, response)).toHaveProperty('settled')
-        expect(full - prior.full).toBe(index === 1 ? 2 : 0)
-        expect(delta - prior.delta).toBe(index === 1 ? 0 : 2)
+        expect(full - prior.full).toBe(index === 1 || model !== 'openai/gpt-6-astra' ? 2 : 0)
+        expect(delta - prior.delta).toBe(index === 1 || model !== 'openai/gpt-6-astra' ? 0 : 2)
       }
       expect(tls.requests).toHaveLength(overLimit ? 0 : 2)
       if (!overLimit)

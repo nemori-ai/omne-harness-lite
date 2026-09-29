@@ -141,6 +141,30 @@ export const openaiFinalVisibleBindings: Readonly<
     evidence:
       'OpenRouter OpenAI GPT-6 Astra own low-effort baseline (2026-09-28): text o200k surrogate 25, actual prompt_tokens 39; OpenRouter GPT-6 migration guide (2026-09-29) establishes shared Chat API and Astra effort domain; full final visible JSON framing/tools/controls is an estimated applicability inference, not model tokenizer identity, fitted +14 overhead, error bound, or completed multi-turn/effort certification',
   }),
+  'openai/gpt-6-astra-pro': Object.freeze({
+    revision: '3',
+    implementationRevision: 'mp4-8',
+    efforts: astra.parameters.reasoningEffort.accepted.values,
+    algorithmRevision: 'openai-gpt-6-astra-pro-final-visible-json-o200k-1',
+    evidence:
+      'OpenRouter GPT-6 migration guide and OpenAI reasoning guide (2026-09-29): astra Pro is the corresponding base model in pro mode, mode and effort independent; same visible Chat protocol supports o200k final-JSON applicability inference only. Own low-effort baseline: text proxy 27, billed prompt_tokens 1561; billed scope unconfirmed, never used as context calibration or fitted overhead. Real context error, private framing and full route/tool/effort certification remain unknown',
+  }),
+  'openai/gpt-6-sol-pro': Object.freeze({
+    revision: '3',
+    implementationRevision: 'mp4-8',
+    efforts: other.parameters.reasoningEffort.accepted.values,
+    algorithmRevision: 'openai-gpt-6-sol-pro-final-visible-json-o200k-1',
+    evidence:
+      'OpenRouter GPT-6 migration guide and OpenAI reasoning guide (2026-09-29): sol Pro is the corresponding base model in pro mode, mode and effort independent; same visible Chat protocol supports o200k final-JSON applicability inference only. Own low-effort baseline: text proxy 29, billed prompt_tokens 1514; billed scope unconfirmed, never used as context calibration or fitted overhead. Real context error, private framing and full route/tool/effort certification remain unknown',
+  }),
+  'openai/gpt-6-luna-pro': Object.freeze({
+    revision: '3',
+    implementationRevision: 'mp4-8',
+    efforts: other.parameters.reasoningEffort.accepted.values,
+    algorithmRevision: 'openai-gpt-6-luna-pro-final-visible-json-o200k-1',
+    evidence:
+      'OpenRouter GPT-6 migration guide and OpenAI reasoning guide (2026-09-29): luna Pro is the corresponding base model in pro mode, mode and effort independent; same visible Chat protocol supports o200k final-JSON applicability inference only. Own low-effort baseline: text proxy 31, billed prompt_tokens 1524; billed scope unconfirmed, never used as context calibration or fitted overhead. Real context error, private framing and full route/tool/effort certification remain unknown',
+  }),
 })
 
 /** Complete MP4 declarations for the exact 12 selected OpenAI routes. */

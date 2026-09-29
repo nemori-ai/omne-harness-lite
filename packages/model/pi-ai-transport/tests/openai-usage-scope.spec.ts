@@ -84,9 +84,13 @@ describe('exact OpenAI Pro usage scope', () => {
       expect(writeJsonLossless(unknown.read().cost)).toBe(writeJsonLossless(inherited.read().cost))
       expect(unknown.read().observedInput).toEqual({ kind: 'unavailable', reason: 'scope_unknown' })
       expect(inherited.read().observedInput.kind).toBe('from_usage')
-      expect(definition.implementation.revision).toBe('mp4-7')
-      if (model.startsWith('openai/gpt-6-'))
-        expect(() => createOpenAiInputMeter(definition)).toThrow('unsupported OpenAI')
+      const currentGpt6Pro = [
+        'openai/gpt-6-astra-pro',
+        'openai/gpt-6-sol-pro',
+        'openai/gpt-6-luna-pro',
+      ].includes(model)
+      expect(definition.implementation.revision).toBe(currentGpt6Pro ? 'mp4-8' : 'mp4-7')
+      if (currentGpt6Pro) expect(createOpenAiInputMeter(definition).definitionRevision).toBe('3')
       else {
         expect(createOpenAiInputMeter(definition).transformRevision).toBe(
           'openrouter-input-transform/pro-scope-1',

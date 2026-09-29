@@ -265,7 +265,9 @@ function visibleHistoryTokens(
   const finalEfforts =
     modelId === 'openai/gpt-6-sol'
       ? ['none', 'low', 'medium', 'high', 'max']
-      : openaiFinalVisibleBindings[modelId]?.efforts
+      : Object.hasOwn(openaiFinalVisibleBindings, modelId)
+        ? openaiFinalVisibleBindings[modelId]?.efforts
+        : undefined
   const countFinal = finalEfforts !== undefined
   const reasoningValid = countFinal
     ? body.reasoning === undefined ||
@@ -374,11 +376,15 @@ function visibleHistoryTokens(
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
   const gpt6SolVisibleHistory = definition.modelId === 'openai/gpt-6-sol'
   const gpt6LunaVisibleHistory = definition.modelId === 'openai/gpt-6-luna'
-  const finalBinding = openaiFinalVisibleBindings[definition.modelId]
+  const finalBinding = Object.hasOwn(openaiFinalVisibleBindings, definition.modelId)
+    ? openaiFinalVisibleBindings[definition.modelId]
+    : undefined
   const gpt6VisibleHistory =
     gpt6SolVisibleHistory || gpt6LunaVisibleHistory || finalBinding !== undefined
   const imageRule = imageRuleFor(definition.modelId)
-  const pro = openAiProBindings[definition.modelId]
+  const pro = Object.hasOwn(openAiProBindings, definition.modelId)
+    ? openAiProBindings[definition.modelId]
+    : undefined
   const revision =
     finalBinding?.revision ??
     pro?.revision ??

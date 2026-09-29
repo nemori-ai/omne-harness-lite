@@ -60,37 +60,45 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
         'openai/gpt-5.6-luna-pro',
       ].includes(modelId)
       const astraTextMetered = modelId === 'openai/gpt-6-astra'
+      const gpt6ProMetered = [
+        'openai/gpt-6-astra-pro',
+        'openai/gpt-6-sol-pro',
+        'openai/gpt-6-luna-pro',
+      ].includes(modelId)
       const metered = modelId.startsWith('openai/gpt-5.6-')
       const solTextMetered = modelId === 'openai/gpt-6-sol'
       const lunaHistoryMetered = modelId === 'openai/gpt-6-luna'
       expect(definition.implementation).toEqual({
         name: 'pi-ai:openai',
-        revision: astraTextMetered
-          ? 'mp4-8'
-          : pro
-            ? 'mp4-7'
-            : metered
-              ? 'mp4-5'
-              : lunaHistoryMetered
-                ? 'mp4-4'
-                : solTextMetered
-                  ? 'mp4-6'
-                  : 'mp4-1',
+        revision:
+          astraTextMetered || gpt6ProMetered
+            ? 'mp4-8'
+            : pro
+              ? 'mp4-7'
+              : metered
+                ? 'mp4-5'
+                : lunaHistoryMetered
+                  ? 'mp4-4'
+                  : solTextMetered
+                    ? 'mp4-6'
+                    : 'mp4-1',
       })
       expect(definition.revision).toBe(
-        astraTextMetered
-          ? '2'
-          : pro
-            ? metered
-              ? '5'
-              : '2'
-            : metered
-              ? '4'
-              : lunaHistoryMetered
-                ? '3'
-                : solTextMetered
+        gpt6ProMetered
+          ? '3'
+          : astraTextMetered
+            ? '2'
+            : pro
+              ? metered
+                ? '5'
+                : '2'
+              : metered
+                ? '4'
+                : lunaHistoryMetered
                   ? '3'
-                  : '1',
+                  : solTextMetered
+                    ? '3'
+                    : '1',
       )
       expect(definition.capabilities).toEqual({
         inputModalities: ['image', 'text'],
