@@ -44,7 +44,7 @@ import { createAcceptanceApplication } from '../src/index.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment, publication, rootBody, ROOT } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const AT = '2026-09-28T00:00:00Z'
 const VISIBLE = { toHuman: true, toModel: true }
@@ -243,10 +243,13 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         },
       })
       const host = createDemoCallHost()
+      let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
       let manifest: ReturnType<typeof createAssemblyManifestStore> | undefined
       let history: RegistryHistoryReader | undefined
       try {
         await app.ready
+        const who = await actor(app)
+        diagnostics = await activateModelFixture(app, who, config)
         if (storage === undefined || context === undefined)
           throw new Error('provider capture missing')
         const currentInputs: CurrentEvaluationInputs = context.get(
@@ -286,7 +289,6 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
           conflictPolicy: { maxRetries: 0 },
           maxInFlight: 2,
         })
-        const who = await actor(app)
         const prepared = await app.prepareSession(who, 'service-real-tools-session')
         if (!('session' in prepared)) throw new Error('session preparation failed')
         expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -562,11 +564,17 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
             host: host.host,
           }),
         ).toEqual({ failure: 'stageClosed' })
-        expect((await app.close()).complete).toBe(true)
+        const closed = await diagnostics.closeAfterBusiness(async () => {
+          const business = await app.close()
+          expect(business.complete).toBe(true)
+          return business
+        })
+        expect(closed.complete).toBe(true)
         expect(await host.stop()).toEqual({ released: true })
       } finally {
         await host.stop()
-        await app.close()
+        if (diagnostics === undefined) await app.close()
+        else await diagnostics.closeAfterBusiness(() => app.close())
         await registry?.close()
         await history?.close()
         await manifest?.close()
