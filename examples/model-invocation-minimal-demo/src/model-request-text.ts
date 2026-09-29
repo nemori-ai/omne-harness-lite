@@ -20,8 +20,17 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
 
+/** This deliberately limited local fixture selects one actual fenced Run/attempt. */
+export interface ControlledSingleRunSelection {
+  readonly run: string
+  readonly attempt: number
+}
+
 /** Keep the original entry for each selected message; a response id alone is not a source proof. */
-export function messagePrefixWithSources(prefix: SettlementPrefix):
+export function messagePrefixWithSources(
+  prefix: SettlementPrefix,
+  selectedRun?: ControlledSingleRunSelection,
+):
   | {
       readonly messages: readonly LoggedMessage[]
       readonly selectedMessageSources: readonly {
@@ -32,6 +41,7 @@ export function messagePrefixWithSources(prefix: SettlementPrefix):
   | { readonly unavailable: true } {
   const messages: LoggedMessage[] = []
   const selectedMessageSources: { readonly messageIndex: number; readonly entry: LogEntry }[] = []
+  let started = false
   for (const entry of prefix.entries) {
     const runner = inspectRunnerConclusion({
       session: prefix.binding.session,
@@ -39,8 +49,28 @@ export function messagePrefixWithSources(prefix: SettlementPrefix):
       entry,
     })
     if ('invalid' in runner) return { unavailable: true }
-    if ('conclusion' in runner) continue
-    if ((entry.run === undefined) !== (entry.attempt === undefined)) return { unavailable: true }
+    if ('conclusion' in runner) {
+      if (
+        (selectedRun === undefined && (entry.run !== undefined || entry.attempt !== undefined)) ||
+        (selectedRun !== undefined &&
+          (entry.run !== selectedRun.run ||
+            entry.attempt === undefined ||
+            ExactDecimal.from(entry.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !==
+              0 ||
+            !started))
+      )
+        return { unavailable: true }
+      continue
+    }
+    if (
+      (entry.run === undefined) !== (entry.attempt === undefined) ||
+      (entry.run !== undefined &&
+        (selectedRun === undefined ||
+          entry.attempt === undefined ||
+          entry.run !== selectedRun.run ||
+          ExactDecimal.from(entry.attempt).compare(ExactDecimal.from(selectedRun.attempt)) !== 0))
+    )
+      return { unavailable: true }
     const keys = entry.readKeys.map(decodeModelLogKey)
     const message = keys.some(key => 'ok' in key && key.ok.kind === 'messages')
     const response = keys.some(key => 'ok' in key && key.ok.kind === 'response')
@@ -102,34 +132,44 @@ export function messagePrefixWithSources(prefix: SettlementPrefix):
         paired.ok.captured.message.type === 'system'
       )
         return { unavailable: true }
+      if (entry.run !== undefined && !started) return { unavailable: true }
       selectedMessageSources.push({ messageIndex: messages.length, entry })
       messages.push(paired.ok.captured.message)
     } else {
       if ('invalidValue' in checked) return { unavailable: true }
       const value = checked.ok.captured.message
+      if (value === null && entry.run !== undefined && !started) return { unavailable: true }
+      if (value === null && entry.run === undefined && started) return { unavailable: true }
       if (value !== null) {
         if (value.type === 'system' || !('ok' in judgeMessage(value))) return { unavailable: true }
-        if (
-          value.type === 'system_reminder' &&
-          value.source.kind === 'attempt_started' &&
-          (entry.run === undefined ||
+        if (value.type === 'system_reminder' && value.source.kind === 'attempt_started') {
+          if (
+            selectedRun === undefined ||
+            started ||
+            entry.run !== selectedRun.run ||
             entry.attempt === undefined ||
-            ExactDecimal.from(value.source.attempt).compare(ExactDecimal.from(entry.attempt)) !== 0)
-        )
-          return { unavailable: true }
+            ExactDecimal.from(value.source.attempt).compare(ExactDecimal.from(entry.attempt)) !==
+              0 ||
+            value.source.reason !== 'first'
+          )
+            return { unavailable: true }
+          started = true
+        } else if (entry.run !== undefined && !started) return { unavailable: true }
         selectedMessageSources.push({ messageIndex: messages.length, entry })
         messages.push(value)
       }
     }
   }
+  if (selectedRun !== undefined && !started) return { unavailable: true }
   return { messages, selectedMessageSources }
 }
 
 /** Decode the complete log prefix without imposing a demo-specific message/block whitelist. */
 export function messagePrefix(
   prefix: SettlementPrefix,
+  selectedRun?: ControlledSingleRunSelection,
 ): { readonly messages: readonly LoggedMessage[] } | { readonly unavailable: true } {
-  const history = messagePrefixWithSources(prefix)
+  const history = messagePrefixWithSources(prefix, selectedRun)
   return 'unavailable' in history ? history : { messages: history.messages }
 }
 
@@ -261,8 +301,11 @@ export function readDemoCalibrationHistory(
   return { selectedSources, candidates }
 }
 /** MP2 S-5 / CB3 S-6: project original model-visible blocks, without changing the messages. */
-export async function historyProjection(prefix: SettlementPrefix): Promise<SelectionProjection> {
-  const history = messagePrefix(prefix)
+export async function historyProjection(
+  prefix: SettlementPrefix,
+  selectedRun?: ControlledSingleRunSelection,
+): Promise<SelectionProjection> {
+  const history = messagePrefix(prefix, selectedRun)
   if ('unavailable' in history) return { unknown: true }
   const modalities = new Set<Modality>()
   function visit(blocks: readonly ContentBlock[]): void {

@@ -60,7 +60,12 @@ import {
   type LoggedMessage,
   type SystemReminderMessage,
 } from '@omne-harness-lite/messages'
-import { judgeAccountValue, type RunId, type AttemptId } from '@omne-harness-lite/call-accounts'
+import {
+  ExactDecimal,
+  judgeAccountValue,
+  type RunId,
+  type AttemptId,
+} from '@omne-harness-lite/call-accounts'
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { createRequestOwner } from './model-request-owner.ts'
@@ -88,6 +93,7 @@ import {
   readDemoCalibrationHistory,
   historyProjection,
   nativeCompatibility,
+  type ControlledSingleRunSelection,
 } from './model-request-text.ts'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import {
@@ -573,6 +579,7 @@ export function createAcceptanceApplication(
   >()
   const runtimeActors = new Map<SessionRef, AuthenticatedActor>()
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
+  const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
   const calls = createCallContainerStore<PlannedRequest, RawResponse>()
   const trackedCalls = new Map<
     SessionRef,
@@ -857,6 +864,7 @@ export function createAcceptanceApplication(
       for (const borrow of sessionBorrows.values()) borrow.owner.release()
       runtimeActors.clear()
       runtimeBindings.clear()
+      controlledRuns.clear()
       const unfinished: string[] = []
       const order: readonly (
         | StageFiber
@@ -1618,6 +1626,15 @@ export function createAcceptanceApplication(
               return { actor: access.checked, binding: access.borrow.binding }
             },
             ...(options.runnerExternal === undefined ? {} : { external: options.runnerExternal }),
+            selectedRun: (session, run, attempt) => {
+              const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+              if (!isOk(parsed)) return undefined
+              const selected = controlledRuns.get(parsed.ok)
+              return selected?.run === run &&
+                ExactDecimal.from(selected.attempt).compare(ExactDecimal.from(attempt)) === 0
+                ? selected
+                : undefined
+            },
             now: () => {
               if (activeClock === undefined) return { unavailable: true }
               const now = activeClock.now()
@@ -1960,6 +1977,7 @@ export function createAcceptanceApplication(
           recoveryAdmission.has(access.borrow.binding.session) ||
           requestDeployment === undefined ||
           assetRegistry === undefined ||
+          controlledRuns.has(access.borrow.binding.session) ||
           attempt !== 1 ||
           !('ok' in judgeAccountValue('RunId', run)) ||
           !('ok' in judgeAccountValue('AttemptId', attempt))
@@ -2030,6 +2048,8 @@ export function createAcceptanceApplication(
             if (receipt.failure === 'unavailable') retained = true
             return { unavailable: true } as const
           }
+          const selection = Object.freeze({ run, attempt })
+          controlledRuns.set(binding.session, selection)
           retained = true
           let released = false
           return {
@@ -2068,7 +2088,7 @@ export function createAcceptanceApplication(
       sessionTenancy,
       catalog,
       currentEvaluationInputs: currentInputs,
-      projection: historyProjection,
+      projection: prefix => historyProjection(prefix, controlledRuns.get(prefix.binding.session)),
       compatible: nativeCompatibility,
       now: requestDeployment.invocation.now,
       diagnostic: event =>
@@ -2098,7 +2118,7 @@ export function createAcceptanceApplication(
     try {
       const prefix = await readSettlementPrefix({ binding, registration: acquired.registration })
       if ('unavailable' in prefix) return { unavailable: true }
-      const projected = messagePrefix(prefix.prefix)
+      const projected = messagePrefix(prefix.prefix, controlledRuns.get(binding.session))
       if ('unavailable' in projected) return { unavailable: true }
       if (message.type === 'tool') {
         const pairing = judgePairing(message, projected.messages)
@@ -2576,6 +2596,12 @@ export function createAcceptanceApplication(
       if (!('borrow' in access)) return access
       const { borrow, checked } = access
       if (recoveryAdmission.has(borrow.binding.session)) return { failure: 'stageClosed' }
+      const controlledRun = controlledRuns.get(borrow.binding.session)
+      if (
+        controlledRun !== undefined &&
+        (request.run !== controlledRun.run || request.attempt !== controlledRun.attempt)
+      )
+        return { invalidInput: { reason: 'malformed' } }
       if (
         ![...(callHosts.get(borrow.binding.session) ?? [])].some(
           owner => owner.host === request.host,
@@ -2618,6 +2644,7 @@ export function createAcceptanceApplication(
       const result = await modelRuntime.service.dispatch({
         session: borrow.binding.session,
         callId: opened.callId,
+        ...(request.run === undefined ? {} : { attempt: request.attempt }),
       })
       return { callId: opened.callId, result }
     })

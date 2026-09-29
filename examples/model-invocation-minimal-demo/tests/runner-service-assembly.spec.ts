@@ -2,9 +2,11 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
+import { interpretCallHistory, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { RunnerDispatchRequest } from '@omne-harness-lite/loop-extension-runner'
-import { createAcceptanceApplication } from '../src/bootstrap.ts'
+import { createAcceptanceApplication, type ControlledRunFixturePort } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
+import { messagePrefixWithSources } from '../src/model-request-text.ts'
 import { DEMO_DEFAULT_RETRY, DEMO_ROOT, demoPublication } from '../src/deployment.ts'
 import { callDeployment } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
@@ -62,10 +64,45 @@ describe('formal runner and P5 demo assembly', () => {
       handleReleases = 0,
       handleOpens = 0,
       externalAcquires = 0
+    let controlledRun: ControlledRunFixturePort | undefined
     const app = createAcceptanceApplication(config, {
       stage: 'modelRequest',
       developmentTransport: tls.developmentTransport,
       diagnostics: { record() {} },
+      controlledRunFixture(port) {
+        controlledRun = port
+      },
+      runHistory(prefix, run, attempt) {
+        if (run !== 'controlled-run-1' || attempt !== 1) return { unavailable: true }
+        const selected = messagePrefixWithSources(prefix, { run, attempt })
+        if ('unavailable' in selected) return { unavailable: true }
+        const starts = selected.messages.filter(
+          message =>
+            message.type === 'system_reminder' && message.source.kind === 'attempt_started',
+        )
+        if (starts.length !== 1) return { unavailable: true }
+        // This finite controlled owner never writes a Run end fact; it cannot certify a general G28 owner.
+        return {
+          known: { run, originalAttempt: attempt, latestAttempt: attempt, terminal: 'open' },
+        }
+      },
+      calibrationHistory(prefix, messages, target) {
+        if (target.run !== 'controlled-run-1' || target.attempt !== 1 || target.dispatch !== 1)
+          return { sourceUnavailable: true }
+        const selected = messagePrefixWithSources(prefix, {
+          run: target.run,
+          attempt: target.attempt,
+        })
+        if (
+          'unavailable' in selected ||
+          selected.messages.length !== messages.length ||
+          selected.selectedMessageSources.length !== messages.length ||
+          !messages.every((message, index) => modelLogJsonEqual(message, selected.messages[index]))
+        )
+          return { sourceUnavailable: true }
+        const current = interpretCallHistory({ prefix, callId: target.callId })
+        return 'absent' in current ? { noObservation: true } : { sourceUnavailable: true }
+      },
       async runnerExternal(_who, request) {
         externalAcquires++
         if (!validOwner || request.run !== 'controlled-run-1') return { unavailable: true }
@@ -90,6 +127,7 @@ describe('formal runner and P5 demo assembly', () => {
     })
     const host = createDemoCallHost()
     let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
+    let releaseRun: (() => void) | undefined
     try {
       await app.ready
       const who = await actor(app)
@@ -113,14 +151,37 @@ describe('formal runner and P5 demo assembly', () => {
           body: Buffer.from('controlled-runner-key'),
         })),
       ).toEqual({ stored: true })
+      if (controlledRun === undefined) throw Error('controlled Run port absent')
+      const started = await controlledRun.startAttempt(who, session, 'controlled-run-1', 1)
+      if (!('report' in started))
+        throw Error(`controlled Run unavailable: ${JSON.stringify(started)}`)
+      releaseRun = started.release
+      releaseRun()
+      const effectiveAfterStart = await bound.service.effectiveModel({ session })
+      expect(effectiveAfterStart).toHaveProperty('effectiveModel.routeName', MODEL)
+      const beforeWrongRun = await app.readSessionLog(who, session)
+      expect(
+        await app.startServiceCall(who, session, {
+          user: user(),
+          parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+          host: host.host,
+        }),
+      ).toEqual({ invalidInput: { reason: 'malformed' } })
+      expect(await app.readSessionLog(who, session)).toEqual(beforeWrongRun)
+      expect(tls.requests).toHaveLength(0)
       tls.setMode('http503')
       const sent = await app.startServiceCall(who, session, {
         user: user(),
         parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
         host: host.host,
+        run: 'controlled-run-1',
+        attempt: 1,
+        report: started.report,
       })
       if (!('callId' in sent) || !('result' in sent) || !('settled' in sent.result))
-        throw Error(`controlled failure not settled: ${JSON.stringify(sent)}`)
+        throw Error(
+          `controlled failure not settled: ${JSON.stringify({ sent, requests: tls.requests.length })}`,
+        )
       expect(sent.result.settled.outcome).toBe('failed')
       expect(tls.requests).toHaveLength(1)
       const attempts = await bound.service.readAttempts({ session, callId: sent.callId })
@@ -146,6 +207,15 @@ describe('formal runner and P5 demo assembly', () => {
             manifest: session,
             anchor: request.anchor,
           },
+          new AbortController().signal,
+        ),
+      ).toEqual({ failure: 'invalidInput' })
+      expect(externalAcquires).toBe(0)
+      expect(
+        await app.dispatchRunner(
+          who,
+          session,
+          { ...request, run: 'controlled-run-2' },
           new AbortController().signal,
         ),
       ).toEqual({ failure: 'invalidInput' })
@@ -210,9 +280,19 @@ describe('formal runner and P5 demo assembly', () => {
       )
       if (liveSource.consumption.kind !== 'failure') throw Error('live failure source absent')
       const source = liveSource.consumption.source
-      expect(source.verify(source.subject)).toEqual({ authoritativeSubject: source.subject })
+      expect(source.verify(source.subject, { run: 'controlled-run-1', attempt: 1 })).toEqual({
+        authoritativeSubject: source.subject,
+      })
+      expect(source.verify(source.subject, { run: 'controlled-run-2', attempt: 1 })).toEqual({
+        invalidInput: true,
+      })
+      expect(source.verify(source.subject, { run: 'controlled-run-1', attempt: 2 })).toEqual({
+        authoritativeSubject: source.subject,
+      })
       source.release()
-      expect(source.verify(source.subject)).toEqual({ unavailable: true })
+      expect(source.verify(source.subject, { run: 'controlled-run-1', attempt: 1 })).toEqual({
+        unavailable: true,
+      })
       expect(await host.stop()).toEqual({ released: true })
       const stoppedSource = await bound.service.readAttempts(
         { session, callId: sent.callId },
@@ -220,7 +300,10 @@ describe('formal runner and P5 demo assembly', () => {
       )
       if (stoppedSource.consumption.kind === 'failure') {
         expect(
-          stoppedSource.consumption.source.verify(stoppedSource.consumption.source.subject),
+          stoppedSource.consumption.source.verify(stoppedSource.consumption.source.subject, {
+            run: 'controlled-run-1',
+            attempt: 1,
+          }),
         ).toEqual({
           unavailable: true,
         })
@@ -231,6 +314,7 @@ describe('formal runner and P5 demo assembly', () => {
       )
       expect(tls.requests).toHaveLength(1)
     } finally {
+      releaseRun?.()
       await host.stop()
       if (diagnostics) {
         const closed = await diagnostics.closeAfterBusiness(() => app.close())

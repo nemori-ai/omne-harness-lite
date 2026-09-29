@@ -1,4 +1,5 @@
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { PositionedSubject } from '@omne-harness-lite/loop-extension'
 import {
@@ -23,7 +24,7 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import type { RegistryHistoryReader } from '@omne-harness-lite/evaluation-input-store/registry-history'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
-import { messagePrefix } from './model-request-text.ts'
+import { messagePrefix, type ControlledSingleRunSelection } from './model-request-text.ts'
 import type { AuthenticatedActor } from './types.ts'
 import type { createDemoRunnerHost } from './runner-host.ts'
 
@@ -58,6 +59,12 @@ export interface DemoRunnerServiceHostDependencies {
     signal: AbortSignal,
   ) => Promise<DemoRunnerExternalExecution | { readonly unavailable: true }>
   readonly now: () => string | { readonly unavailable: true }
+  /** The application-selected local Run chain; request values alone are not a source. */
+  readonly selectedRun: (
+    session: string,
+    run: string,
+    attempt: JsonNumber,
+  ) => ControlledSingleRunSelection | undefined
 }
 
 function failureCall(request: RunnerDispatchRequest): string | undefined {
@@ -128,12 +135,16 @@ export function createDemoRunnerServiceHost(
       const acquired = await acquire(request)
       if ('failure' in acquired) return acquired
       const { scope, actor, settlement } = acquired
+      if (!failurePosition(request)) {
+        scope.release()
+        return { failure: 'unavailable' }
+      }
+      if (request.run === undefined || request.attempt === undefined) {
+        scope.release()
+        return { failure: 'invalidInput' }
+      }
       const callId = failureCall(request)
-      if (
-        callId === undefined ||
-        dependencies.external === undefined ||
-        !failurePosition(request)
-      ) {
+      if (callId === undefined || dependencies.external === undefined) {
         scope.release()
         return { failure: 'unavailable' }
       }
@@ -158,7 +169,8 @@ export function createDemoRunnerServiceHost(
         scope.release()
         return { failure: 'unavailable' }
       }
-      const verifiedRequest = source.verify(request.subject)
+      const preparedExecution = { run: request.run, attempt: request.attempt }
+      const verifiedRequest = source.verify(request.subject, preparedExecution)
       if ('invalidInput' in verifiedRequest || 'unavailable' in verifiedRequest) {
         source.release()
         scope.release()
@@ -210,16 +222,31 @@ export function createDemoRunnerServiceHost(
           if (!scope.isActive()) return { unavailable: true }
           const prefix = await readSettlementPrefix({ binding: settlement, registration })
           if ('unavailable' in prefix) return { unavailable: true }
-          const decoded = messagePrefix(prefix.prefix)
+          const selected = dependencies.selectedRun(
+            settlement.session,
+            preparedExecution.run,
+            preparedExecution.attempt,
+          )
+          if (selected === undefined) return { unavailable: true }
+          const decoded = messagePrefix(prefix.prefix, selected)
           return 'unavailable' in decoded ? decoded : decoded.messages
         },
         ports: {
           ...external,
           now: dependencies.now,
-          async verifyFailure(subject, binding) {
+          async verifyFailure(subject, binding, execution) {
             if (!scope.isActive() || binding !== scope.binding || !failurePosition(subject))
               return { kind: 'unavailable' }
-            const verified = source.verify(subject.subject)
+            if (
+              execution.kind !== 'withRun' ||
+              execution.run !== preparedExecution.run ||
+              execution.attempt !== preparedExecution.attempt
+            )
+              return { kind: 'invalidInput' }
+            const verified = source.verify(subject.subject, {
+              run: execution.run,
+              attempt: execution.attempt,
+            })
             if ('unavailable' in verified) return { kind: 'unavailable' }
             if ('invalidInput' in verified) return { kind: 'invalidInput' }
             return {
