@@ -15,7 +15,12 @@ import { createLocalTls } from './local-tls.ts'
 import { callDeployment } from './model-request-support.ts'
 import { activateModelFixture, actor, ref } from './support.ts'
 
-const models = ['openai/gpt-5.6-sol-pro', 'openai/gpt-5.6-terra-pro', 'openai/gpt-5.6-luna-pro']
+const models = [
+  'openai/gpt-6-astra-pro',
+  'openai/gpt-5.6-sol-pro',
+  'openai/gpt-5.6-terra-pro',
+  'openai/gpt-5.6-luna-pro',
+]
 const image = readFileSync(
   new URL(
     '../../../packages/model/pi-ai-transport/tests/fixtures/openai-meter/1024x1024.png',

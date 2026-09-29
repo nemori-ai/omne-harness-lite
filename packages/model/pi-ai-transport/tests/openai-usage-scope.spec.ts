@@ -89,8 +89,13 @@ describe('exact OpenAI Pro usage scope', () => {
         'openai/gpt-6-sol-pro',
         'openai/gpt-6-luna-pro',
       ].includes(model)
-      expect(definition.implementation.revision).toBe(currentGpt6Pro ? 'mp4-8' : 'mp4-13')
-      if (currentGpt6Pro) expect(createOpenAiInputMeter(definition).definitionRevision).toBe('3')
+      expect(definition.implementation.revision).toBe(
+        currentGpt6Pro ? (model === 'openai/gpt-6-astra-pro' ? 'mp4-14' : 'mp4-8') : 'mp4-13',
+      )
+      if (currentGpt6Pro)
+        expect(createOpenAiInputMeter(definition).definitionRevision).toBe(
+          model === 'openai/gpt-6-astra-pro' ? '4' : '3',
+        )
       else {
         expect(createOpenAiInputMeter(definition).transformRevision).toBe(
           'openrouter-input-transform/pro-scope-1',

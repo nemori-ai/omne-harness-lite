@@ -22,12 +22,14 @@ describe('four original research routes: independent frozen calibration inputs',
     expect(cases.map(value => value.requestSha256)).toHaveLength(3)
     const definition = openaiDefinitions.find(value => value.modelId === model)
     if (definition === undefined) throw new Error('missing exact definition')
-    expect(definition.revision).toBe('3')
+    expect(definition.revision).toBe(model === 'openai/gpt-6-astra-pro' ? '4' : '3')
     // Frozen research inputs do not become measured observations when a meter is supplied.
     expect(createOpenAiInputMeter(definition).algorithmRevision).toContain(
       model === 'openai/gpt-6-astra'
         ? 'final-visible-json-o200k-patches-1'
-        : 'final-visible-json-o200k-1',
+        : model === 'openai/gpt-6-astra-pro'
+          ? 'final-visible-json-o200k-image-proxy-1'
+          : 'final-visible-json-o200k-1',
     )
   })
 

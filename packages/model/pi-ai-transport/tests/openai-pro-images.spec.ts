@@ -20,7 +20,12 @@ import {
   sse,
 } from './support.ts'
 
-const models = ['openai/gpt-5.6-sol-pro', 'openai/gpt-5.6-terra-pro', 'openai/gpt-5.6-luna-pro']
+const models = [
+  'openai/gpt-6-astra-pro',
+  'openai/gpt-5.6-sol-pro',
+  'openai/gpt-5.6-terra-pro',
+  'openai/gpt-5.6-luna-pro',
+]
 const bytes = (name: string) =>
   readFileSync(new URL(`./fixtures/openai-meter/${name}`, import.meta.url))
 const imageUrl = (name: string) =>
@@ -28,11 +33,15 @@ const imageUrl = (name: string) =>
 
 // These assert the frozen surrogate, not the private Pro preprocessor's accuracy.
 describe.each(models)('%s base-image estimated proxy', modelId => {
+  const astra = modelId === 'openai/gpt-6-astra-pro'
   const definition = openaiDefinitions.find(item => item.modelId === modelId)!
   const meter = createOpenAiInputMeter(definition)
   function measured(name: string, detail: string | undefined = undefined) {
     const body = {
       model: modelId,
+      provider: { order: ['openai'], allow_fallbacks: false, require_parameters: true },
+      stream: true,
+      store: false,
       messages: [
         {
           role: 'user',
@@ -48,16 +57,21 @@ describe.each(models)('%s base-image estimated proxy', modelId => {
     return directFull(meter, { body, serialized: writeJsonLossless(body) })
   }
   it('requires the new binding and records the inference as estimated', () => {
-    expect(definition).toMatchObject({ revision: '6', implementation: { revision: 'mp4-13' } })
+    expect(definition).toMatchObject({
+      revision: astra ? '4' : '6',
+      implementation: { revision: astra ? 'mp4-14' : 'mp4-13' },
+    })
     expect(meter.algorithmRevision).toBe(
-      'openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1',
+      astra
+        ? 'openai-gpt-6-astra-pro-final-visible-json-o200k-image-proxy-1/response-calibration-1'
+        : 'openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1',
     )
     expect(meter.evidence).toContain('not verified Pro preprocessing')
     expect(() =>
       createOpenAiInputMeter({
         ...definition,
-        revision: '5',
-        implementation: { name: 'pi-ai:openai', revision: 'mp4-7' },
+        revision: astra ? '3' : '5',
+        implementation: { name: 'pi-ai:openai', revision: astra ? 'mp4-8' : 'mp4-7' },
       }),
     ).toThrow('unsupported OpenAI')
   })
@@ -74,6 +88,13 @@ describe.each(models)('%s base-image estimated proxy', modelId => {
     expect(small.kind).toBe('estimated')
     if (large.kind !== 'estimated' || small.kind !== 'estimated') throw Error('missing estimate')
     expect(Number(large.tokens) - Number(small.tokens)).toBe(expected)
+  })
+  it('keeps Astra and GPT-5.6 high-detail fit limits separate', () => {
+    const wide = measured('65536x32.png', 'high')
+    const small = measured('1x1.png', 'high')
+    if (wide.kind !== 'estimated' || small.kind !== 'estimated') throw Error('missing estimate')
+    // Astra fits to 65535 x 31 (2048 patches); GPT-5.6 to 2048 x 1 (64 patches).
+    expect(Number(wide.tokens) - Number(small.tokens)).toBe(astra ? 2456 : 75)
   })
   it('accepts a complete single-frame GIF and refuses animated, truncated and unknown detail input', () => {
     expect(measured('single-frame.gif', 'low')).toEqual(measured('1x1.png', 'low'))

@@ -73,7 +73,9 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
         revision: astraTextMetered
           ? 'mp4-10'
           : gpt6ProMetered
-            ? 'mp4-8'
+            ? modelId === 'openai/gpt-6-astra-pro'
+              ? 'mp4-14'
+              : 'mp4-8'
             : pro
               ? 'mp4-13'
               : metered
@@ -86,7 +88,9 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       })
       expect(definition.revision).toBe(
         gpt6ProMetered
-          ? '3'
+          ? modelId === 'openai/gpt-6-astra-pro'
+            ? '4'
+            : '3'
           : astraTextMetered
             ? '3'
             : pro

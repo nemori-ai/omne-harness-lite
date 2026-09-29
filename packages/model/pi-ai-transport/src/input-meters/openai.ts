@@ -100,6 +100,7 @@ function encoder(): ReturnType<typeof getEncoding> {
 function imageRuleFor(modelId: string): ImageRule | undefined {
   switch (modelId) {
     case 'openai/gpt-6-astra':
+    case 'openai/gpt-6-astra-pro':
       return 'astra-patch'
     case 'openai/gpt-5.6-sol':
     case 'openai/gpt-5.6-terra':
