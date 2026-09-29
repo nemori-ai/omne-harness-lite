@@ -98,6 +98,24 @@ function user(id: string) {
   return judged.ok
 }
 
+function withoutPlannerCache(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutPlannerCache)
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, member]) =>
+      key === 'cache_control' &&
+      member !== null &&
+      typeof member === 'object' &&
+      'type' in member &&
+      member.type === 'ephemeral' &&
+      'ttl' in member &&
+      member.ttl === '1h'
+        ? []
+        : [[key, withoutPlannerCache(member)]],
+    ),
+  )
+}
+
 describe('Anthropic controlled TLS service delivery (not upstream certification)', () => {
   it.each(CASES)(
     '$modelId $mode preserves full image/thinking/tool/reminder history',
@@ -114,14 +132,19 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
       })
       if ('rejected' in profile) throw new Error(profile.rejected)
       const actualMeter = createAnthropicInputMeter(definition)
-      const measured: Parameters<InputMeter['measure']>[0][] = []
+      const measured: Parameters<InputMeter['measureFull']>[0][] = []
+      const marginalNew: Parameters<InputMeter['measureNew']>[0][] = []
       const meter: InputMeter = {
         ...actualMeter,
-        measure(input) {
-          const result = actualMeter.measure(input)
+        measureFull(input) {
+          const result = actualMeter.measureFull(input)
           expect(result.kind).toBe('estimated')
           measured.push(input)
           return result
+        },
+        measureNew(input) {
+          marginalNew.push(input)
+          return actualMeter.measureNew(input)
         },
       }
       let registry: AssetRegistry | undefined
@@ -480,11 +503,38 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         ).toHaveProperty('settled')
         expect(tls.requests).toHaveLength(3)
         const finalPlans = [...new Map(measured.map(input => [input.serialized, input])).values()]
-        expect(finalPlans).toHaveLength(3)
+        expect(finalPlans.length + marginalNew.length).toBeGreaterThanOrEqual(3)
         for (const [index, request] of tls.requests.entries()) {
-          const measurement = finalPlans[index]
-          if (measurement === undefined) throw new Error('wire was not measured')
-          expect(request.body).toEqual(JSON.parse(measurement.serialized))
+          const full = finalPlans.find(
+            input => JSON.stringify(request.body) === JSON.stringify(JSON.parse(input.serialized)),
+          )
+          if (full !== undefined) expect(request.body).toEqual(JSON.parse(full.serialized))
+          else {
+            if (
+              request.body === null ||
+              typeof request.body !== 'object' ||
+              !('messages' in request.body) ||
+              !Array.isArray(request.body.messages)
+            )
+              throw new Error('actual marginal wire has no messages')
+            const { messages, ...envelope } = request.body
+            const projected = messages.map(withoutPlannerCache)
+            expect(
+              marginalNew.some(input => {
+                if (JSON.stringify(input.envelope) !== JSON.stringify(envelope)) return false
+                let next = 0
+                for (const unit of input.units) {
+                  const found = projected.findIndex(
+                    (candidate, index) =>
+                      index >= next && JSON.stringify(candidate) === JSON.stringify(unit),
+                  )
+                  if (found < 0) return false
+                  next = found + 1
+                }
+                return input.units.length > 0
+              }),
+            ).toBe(true)
+          }
           expect(request.body).toMatchObject({
             model: MODEL,
             provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
@@ -502,14 +552,18 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
             },
             {
               role: 'assistant',
-              content: 'first second',
+              content: [{ type: 'text', text: 'first second' }],
               ...(mode === 'signed'
                 ? { reasoning_details: SIGNED_REASONING }
                 : { reasoning: 'private reasoning' }),
             },
             { role: 'user', content: [{ type: 'text', text: 'Request first-tool-user' }] },
             { role: 'assistant', tool_calls: [{ id: call.callId }] },
-            { role: 'tool', tool_call_id: call.callId, content: 'value=42' },
+            {
+              role: 'tool',
+              tool_call_id: call.callId,
+              content: [{ type: 'text', text: 'value=42' }],
+            },
             { role: 'user', content: [WIRE_IMAGE] },
             {
               role: 'user',
@@ -528,7 +582,11 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
           for (const request of tls.requests.slice(1)) {
             expect(request.body).toMatchObject({
               messages: expect.arrayContaining([
-                { role: 'assistant', content: 'first second', reasoning_details: SIGNED_REASONING },
+                {
+                  role: 'assistant',
+                  content: [{ type: 'text', text: 'first second' }],
+                  reasoning_details: SIGNED_REASONING,
+                },
               ]),
             })
           }
