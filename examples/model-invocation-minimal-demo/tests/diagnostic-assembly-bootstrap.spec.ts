@@ -1,13 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { mkdir } from 'node:fs/promises'
+import { chmod, mkdir, symlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { openDemoDiagnosticAssembly } from '../src/diagnostic-assembly.ts'
-import { createDemoDiagnosticConfig } from '../src/demo.ts'
+import { createDemoDiagnosticConfig, ensureDemoDiagnosticParent } from '../src/demo.ts'
 import { callDeployment, demoRetirement } from './model-request-support.ts'
 import { activateModelFixture, actor } from './support.ts'
 
 describe('demo transport diagnostic retention at the real bootstrap', () => {
+  it('rejects a wide or linked diagnostic parent before opening writers', async () => {
+    const wide = await callDeployment('diagnostic-wide-parent')
+    const wideParent = join(dirname(wide.databaseFile), 'diagnostics')
+    await mkdir(wideParent, { mode: 0o700 })
+    await chmod(wideParent, 0o755)
+    await expect(ensureDemoDiagnosticParent(dirname(wide.databaseFile))).rejects.toThrow(
+      'diagnostic parent must be an owned private directory',
+    )
+    const linked = await callDeployment('diagnostic-linked-parent')
+    const linkedRoot = dirname(linked.databaseFile)
+    await mkdir(join(linkedRoot, 'owned-target'), { mode: 0o700 })
+    await symlink(join(linkedRoot, 'owned-target'), join(linkedRoot, 'diagnostics'))
+    await expect(ensureDemoDiagnosticParent(linkedRoot)).rejects.toThrow(
+      'diagnostic parent must be an owned private directory',
+    )
+  })
+
   it('keeps P-2 closed until a verified actor presents its matching tenant owner', async () => {
     const config = await callDeployment('diagnostic-tenant-gate')
     let createdTransportFibers = 0

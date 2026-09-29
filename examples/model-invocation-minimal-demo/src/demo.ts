@@ -236,6 +236,19 @@ export function createDemoDiagnosticConfig(
   }
 }
 
+/** Verify the parent shared by the two journal roots before either writer starts. */
+export async function ensureDemoDiagnosticParent(directory: string): Promise<void> {
+  const parent = join(directory, 'diagnostics')
+  try {
+    await mkdir(parent, { mode: 0o700 })
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
+  }
+  const stat = await lstat(parent)
+  if (!stat.isDirectory() || (stat.mode & 0o777) !== 0o700 || stat.uid !== process.getuid?.())
+    throw new Error('diagnostic parent must be an owned private directory (0700)')
+}
+
 const defaultObserverBounds: DemoObserverBounds = Object.freeze({ events: 256, bytes: 262_144 })
 
 /** Production is the default; controlled TLS is available only through the existing trusted test hook. */
@@ -305,7 +318,7 @@ export async function openDemo(
       throw new Error('local demo account registration rejected; setup remains incomplete')
     const actor = await app.authenticate(initialized.state.identifier, initialized.state.password)
     if (!('account' in actor)) throw new Error('demo authentication rejected')
-    await mkdir(join(directory, 'diagnostics'), { mode: 0o700, recursive: true })
+    await ensureDemoDiagnosticParent(directory)
     diagnosticAssembly = await openDemoDiagnosticAssembly(
       createDemoDiagnosticConfig(directory, actor.tenant, retirement),
     )
