@@ -1,13 +1,77 @@
-import { constants } from 'node:fs'
+import { constants, lstatSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createDemoDiagnosticConfig } from '../src/demo.ts'
-import { createDiagnosticJournal } from '../src/diagnostic-journal.ts'
+import { createDiagnosticJournal, openDiagnosticJournalReader } from '../src/diagnostic-journal.ts'
 import { demoRetirement } from './model-request-support.ts'
 
 describe('D6 diagnostic scope and IO disclosure', () => {
+  const foreignRoot = '/root'
+  const foreignRootMatches = (() => {
+    try {
+      const stat = lstatSync(foreignRoot)
+      return stat.isDirectory() && stat.uid !== process.getuid?.() && (stat.mode & 0o777) === 0o700
+    } catch {
+      return false
+    }
+  })()
+
+  it.skipIf(!foreignRootMatches)(
+    'rejects a real foreign-UID private directory before reading its contents',
+    async () => {
+      const tenant = unwrap(parseTenantId({ organization: 'd6-org', account: 'd6-owner' }))
+      const base = createDemoDiagnosticConfig(
+        resolve('tmp/d6-completion'),
+        tenant,
+        demoRetirement(),
+      )
+      let lstatCalls = 0
+      let openCalls = 0
+      let readdirCalls = 0
+      let mkdirCalls = 0
+      const observedFs = new Proxy(fs, {
+        get(target, key, receiver) {
+          if (key === 'lstat')
+            return (...args: unknown[]) => {
+              lstatCalls++
+              return Reflect.apply(target.lstat, target, args)
+            }
+          if (key === 'open')
+            return (...args: unknown[]) => {
+              openCalls++
+              return Reflect.apply(target.open, target, args)
+            }
+          if (key === 'readdir')
+            return (...args: unknown[]) => {
+              readdirCalls++
+              return Reflect.apply(target.readdir, target, args)
+            }
+          if (key === 'mkdir')
+            return (...args: unknown[]) => {
+              mkdirCalls++
+              return Reflect.apply(target.mkdir, target, args)
+            }
+          return Reflect.get(target, key, receiver)
+        },
+      })
+      await expect(
+        openDiagnosticJournalReader({
+          ...base.collector,
+          rootDir: foreignRoot,
+          collectorId: 'd6-foreign-owner-negative',
+          scope: { kind: 'local' },
+          fs: observedFs,
+        }),
+      ).rejects.toThrow('diagnostic directory permissions invalid')
+      expect(lstatCalls).toBe(1)
+      expect(openCalls).toBe(0)
+      expect(readdirCalls).toBe(0)
+      expect(mkdirCalls).toBe(0)
+    },
+  )
+
   it('rejects missing or wrong scope before opening a read handle and hides an actual read fault', async () => {
     const parent = resolve('tmp/d6-completion')
     await fs.mkdir(parent, { recursive: true, mode: 0o700 })
