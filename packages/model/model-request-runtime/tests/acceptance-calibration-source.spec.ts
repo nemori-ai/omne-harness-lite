@@ -1,3 +1,5 @@
+import { createSettlementCoordinator } from '@omne-harness-lite/model-request-runtime'
+import { ControlledSettlementOwner, policy, noWaitScheduler } from './settlement-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { mkdir, mkdtemp } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
@@ -83,7 +85,9 @@ function knownResponse(source: 'reply' | 'delivered'): ModelResponse {
   return value
 }
 
-async function realPrefix(work: (prefix: SettlementPrefix, invalidate: () => void) => void) {
+async function realPrefix(
+  work: (prefix: SettlementPrefix, invalidate: () => void) => void | Promise<void>,
+) {
   const root = resolve(import.meta.dirname, '../../../../tmp/calibration-acceptance')
   await mkdir(root, { recursive: true, mode: 0o700 })
   const dir = await mkdtemp(join(root, 'source-guards-'))
@@ -138,7 +142,7 @@ async function realPrefix(work: (prefix: SettlementPrefix, invalidate: () => voi
     })
     await Promise.all(stopped)
     if (!('prefix' in read)) throw Error(read.reason)
-    work(read.prefix, () => {
+    await work(read.prefix, () => {
       generation = {}
     })
   } finally {
@@ -260,6 +264,51 @@ describe('independent source guards against actual owned SQL/SL3 prefix', () => 
       expect(authorizedCalibration(prefix, messages, target, () => read)).toEqual({
         unavailable: true,
       })
+    })
+  })
+  it('same stable key with a different legal calibration value recognizes the original whole batch without rewriting it', async () => {
+    await realPrefix(async prefix => {
+      const original = knownResponse('reply')
+      const alternate = {
+        ...original,
+        inputCalibration: {
+          ...original.inputCalibration,
+          observedInput: {
+            kind: 'upstream_total' as const,
+            tokens: 12,
+            provenance: {
+              adapterRevision: 'fixture-v1',
+              fieldPaths: ['usage.prompt_tokens'] as const,
+            },
+          },
+        },
+      }
+      expect(judgeModelResponse(alternate)).toHaveProperty('ok')
+      const owner = new ControlledSettlementOwner()
+      const coordinator = createSettlementCoordinator({
+        binding: prefix.binding,
+        owner,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      try {
+        const before = await prefix.binding.log.readSince(session, 0)
+        const receipt = coordinator.settle({
+          target: { call: 'call', dispatch: 1, response: 'response' },
+          current: { messageId: 'winner-message', disposition: 'persisted' },
+          response: bodyValue(alternate),
+        })
+        const result = await receipt.completion
+        await receipt.stopped
+        expect(result).toMatchObject({ origin: 'recognized' })
+        if (!('settled' in result)) throw Error('original batch not recognized')
+        expect(result.settled.response.value).toEqual(bodyValue(original))
+        expect(await prefix.binding.log.readSince(session, 0)).toEqual(before)
+        expect(owner.active).toBe(0)
+      } finally {
+        await coordinator.close()
+      }
     })
   })
 })

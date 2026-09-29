@@ -1,3 +1,4 @@
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Tiktoken } from 'js-tiktoken/lite'
@@ -447,4 +448,81 @@ describe('independent final projection invalidation from a real TLS observation'
       spy.mockRestore()
     }
   })
+  for (const row of [
+    {
+      name: 'exact',
+      phi: 'exact',
+      delta: 'exact',
+      predicted: 4001,
+      admitted: 4001,
+      precision: 'exact',
+    },
+    {
+      name: 'bounded',
+      phi: 'upperBound',
+      delta: 'exact',
+      predicted: 4001,
+      admitted: 4001,
+      precision: 'upperBound',
+    },
+    {
+      name: 'estimated',
+      phi: 'estimated',
+      delta: 'exact',
+      predicted: 4001,
+      admitted: 4409,
+      precision: 'estimated',
+    },
+  ] as const)
+    it(`controlled contribution arithmetic ${row.name}: signed sum and precision/margin compose once`, () => {
+      // Fault/return-value control at the meter port tests the composition algebra only;
+      // it does not certify exact or upper-bound counting by the official Anthropic meter.
+      const controlled = {
+        ...meter,
+        measureReplay: () => ({ kind: row.phi, tokens: 3 }),
+        measureNew: () => ({ kind: row.delta, tokens: -2 }),
+      }
+      const result = planned(
+        { ...replayed, tokenMargin: { multiplier: 1.1, reserveTokens: 7 } },
+        controlled,
+      )
+      expect(result.measurement).toMatchObject({ mode: 'marginal', precision: row.precision })
+      expect(
+        ExactDecimal.from(result.measurement.predictedInput).compare(
+          ExactDecimal.from(row.predicted),
+        ),
+      ).toBe(0)
+      expect(
+        ExactDecimal.from(result.measurement.admissionTokens).compare(
+          ExactDecimal.from(row.admitted),
+        ),
+      ).toBe(0)
+    })
+  for (const defect of ['unavailable', 'negative-total', 'fractional'] as const)
+    it(`controlled contribution ${defect} goes through full measurement and never substitutes zero`, () => {
+      const full = vi.fn(meter.measureFull)
+      const controlled = {
+        ...meter,
+        measureFull: full,
+        measureReplay: () => ({ kind: 'exact' as const, tokens: 0 }),
+        measureNew: () =>
+          defect === 'unavailable'
+            ? { kind: 'unavailable' as const }
+            : { kind: 'estimated' as const, tokens: defect === 'negative-total' ? -4001 : 0.5 },
+      }
+      const result = planned(replayed, controlled)
+      expect(result.measurement.mode).toBe('full')
+      expect(full).toHaveBeenCalledTimes(1)
+      expect(result.measurement.fallbackReason).toBeUndefined()
+      expect(
+        ExactDecimal.from(result.measurement.predictedInput).compare(ExactDecimal.from(0)),
+      ).toBeGreaterThan(0)
+      expect(
+        planRequest(replayed, [definition], {
+          ...controlled,
+          measureFull: () => ({ kind: 'unavailable' }),
+        }),
+      ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+      expect(host.requests).toHaveLength(1)
+    })
 })

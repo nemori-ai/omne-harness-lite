@@ -1,3 +1,4 @@
+import { createServer } from 'node:https'
 import { MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/pi-ai-transport/plugin'
 import type { ModelTransportService } from '@omne-harness-lite/pi-ai-transport'
 import {
@@ -202,7 +203,85 @@ function user(label: string) {
 }
 
 type Measure = { full: string[]; replay: string[]; fresh: string[] }
-async function ready(label: string, definition = anthropicDefinitions[0]!) {
+async function beforeContentTls(directory: string, model: string) {
+  const seed = await createLocalTls(directory)
+  await seed.close()
+  const key = await readFile(join(directory, 'local-key.pem')),
+    cert = await readFile(join(directory, 'local-cert.pem'))
+  const requests: { body: unknown; authorization: string | undefined }[] = []
+  let mode = 'error'
+  const server = createServer({ key, cert }, (req, res) => {
+    void (async () => {
+      const chunks: Buffer[] = []
+      for await (const chunk of req) {
+        if (!Buffer.isBuffer(chunk)) throw Error('body chunk')
+        chunks.push(chunk)
+      }
+      requests.push({
+        body: JSON.parse(Buffer.concat(chunks).toString()),
+        authorization: req.headers.authorization,
+      })
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      const usage = {
+        prompt_tokens: 123,
+        completion_tokens: 0,
+        prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+      }
+      if (mode === 'error')
+        res.end(
+          'data: ' +
+            JSON.stringify({
+              choices: [],
+              model,
+              provider: 'Anthropic',
+              usage,
+              error: {
+                code: 503,
+                message: 'controlled failure with input observation before any content',
+              },
+            }) +
+            '\n\n',
+        )
+      else
+        res.end(
+          'data: ' +
+            JSON.stringify({
+              model,
+              provider: 'Anthropic',
+              choices: [
+                { delta: { role: 'assistant', content: 'successful retry' }, finish_reason: null },
+              ],
+            }) +
+            '\n\ndata: ' +
+            JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage }) +
+            '\n\ndata: [DONE]\n\n',
+        )
+    })().catch(() => res.destroy())
+  })
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw Error('TLS address')
+  return {
+    requests,
+    developmentTransport: {
+      baseUrl: `https://127.0.0.1:${address.port}/api/v1/`,
+      tls: { ca: cert },
+    },
+    setMode(next: string) {
+      mode = next
+    },
+    setUsageJson(_value: string | null | undefined) {},
+    async close() {
+      server.closeAllConnections()
+      await new Promise<void>((r, reject) => server.close(e => (e ? reject(e) : r())))
+    },
+  }
+}
+async function ready(
+  label: string,
+  definition = anthropicDefinitions[0]!,
+  failBeforeContent = false,
+) {
   const base = await callConfig(label)
   const profile = createOfficialProfileContent(definition, {
     providers: ['anthropic'],
@@ -242,19 +321,21 @@ async function ready(label: string, definition = anthropicDefinitions[0]!) {
       },
     },
   }
-  const tls = await createLocalTls(
-    resolve(config.databaseFile, '../tls'),
-    async () => {},
-    0,
-    definition.modelId,
-    JSON.stringify({
-      prompt_tokens: 10000,
-      completion_tokens: 3,
-      prompt_tokens_details: { cached_tokens: 2000, cache_write_tokens: 1000 },
-      cost: 0.00001,
-    }),
-    'Anthropic',
-  )
+  const tls = failBeforeContent
+    ? await beforeContentTls(resolve(config.databaseFile, '../tls'), definition.modelId)
+    : await createLocalTls(
+        resolve(config.databaseFile, '../tls'),
+        async () => {},
+        0,
+        definition.modelId,
+        JSON.stringify({
+          prompt_tokens: 10000,
+          completion_tokens: 3,
+          prompt_tokens_details: { cached_tokens: 2000, cache_write_tokens: 1000 },
+          cost: 0.00001,
+        }),
+        'Anthropic',
+      )
   let registry: ModelTransportService | undefined
   const app = createAcceptanceApplication(config, {
     stage: 'modelRequest',
@@ -596,6 +677,56 @@ describe('independent U4 actual service and physical SL3 batches', () => {
       write.mockRestore()
       sync.mockRestore()
       truncate.mockRestore()
+      await f.close()
+    }
+  })
+  it('same-call retry uses a genuinely parsed accurate observation from an in-band failed response without replaying unselected output', async () => {
+    const f = await ready('accurate-failed-retry', anthropicDefinitions[0]!, true)
+    try {
+      const target = await f.session('accurate-failed-retry-session')
+      const sent = await f.app.startServiceCall(f.who, target.session, {
+        user: user('failed-but-accurate'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: target.host.host,
+      })
+      if (!('callId' in sent) || !('result' in sent) || !('settled' in sent.result))
+        throw Error(JSON.stringify(sent))
+      expect(sent.result.settled).toMatchObject({
+        outcome: 'failed',
+        inputCalibration: {
+          observedInput: { kind: 'from_usage' },
+          outputGroup: { kind: 'known', source: 'none' },
+        },
+      })
+      const full = f.calls.full.length,
+        replay = f.calls.replay.length
+      expect(full).toBe(2)
+      f.tls.setMode('complete')
+      const bound = await f.app.bindModelRuntime(f.who, target.session)
+      if (!('service' in bound)) throw Error('runtime absent')
+      const retry = await bound.service.dispatchAgain({
+        session: target.session,
+        callId: sent.callId,
+        plan: { provider: 'anthropic' },
+      })
+      if (!('replyPending' in retry)) throw Error(JSON.stringify(retry))
+      expect(f.calls.full).toHaveLength(full)
+      expect(f.calls.replay).toHaveLength(replay)
+      expect(f.tls.requests).toHaveLength(2)
+      expect(f.tls.requests[0]!.body).toEqual(f.tls.requests[1]!.body)
+      expect(
+        await f.app.persistModelReply(f.who, target.session, retry.replyPending),
+      ).toHaveProperty('settled')
+      const attempts = await bound.service.readAttempts({
+        session: target.session,
+        callId: sent.callId,
+      })
+      if (!('dispatches' in attempts)) throw Error('attempts unavailable')
+      expect(attempts.dispatches).toHaveLength(2)
+      expect(attempts.dispatches[0]!.response!.value).toMatchObject({
+        inputCalibration: sent.result.settled.inputCalibration,
+      })
+    } finally {
       await f.close()
     }
   })
