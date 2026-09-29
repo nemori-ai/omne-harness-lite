@@ -1,4 +1,6 @@
 import {
+  isJsonNumber,
+  jsonNumberSource,
   writeJsonLossless,
   type JsonObject,
   type JsonValue,
@@ -78,5 +80,90 @@ export function measureDeepSeekBoundary(
     }
   } catch {
     return { kind: 'unavailable' }
+  }
+}
+
+export function deepSeekPythonJson(value: JsonValue): string {
+  if (isJsonNumber(value)) return jsonNumberSource(value)
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(deepSeekPythonJson).join(', ')}]`
+  return `{${Object.entries(value)
+    .map(([name, item]) => `${JSON.stringify(name)}: ${deepSeekPythonJson(item)}`)
+    .join(', ')}}`
+}
+
+/** Family wire metadata accounting shared by full and signed marginal counts. */
+export function createDeepSeekSupplemental(renderedContentFields: readonly string[]) {
+  function omittedContent(value: JsonValue | undefined): JsonValue | undefined {
+    if (!Array.isArray(value)) return undefined
+    const omitted: JsonValue[] = []
+    for (const part of value) {
+      if (!object(part)) return undefined
+      const extra = Object.fromEntries(
+        Object.entries(part).filter(([name]) => !renderedContentFields.includes(name)),
+      )
+      if (Object.keys(extra).length) omitted.push(extra)
+    }
+    return omitted.length ? omitted : undefined
+  }
+  return function supplemental(body: JsonObject): JsonObject | undefined {
+    if (!Array.isArray(body.messages)) return undefined
+    const request = Object.fromEntries(
+      Object.entries(body).filter(([name]) => name !== 'messages' && name !== 'tools'),
+    )
+    const messages: JsonValue[] = []
+    for (const message of body.messages) {
+      // The pinned reference does not explain private reasoning details. Counting
+      // their serialized bytes cannot account for the hidden prompt contribution.
+      if (!object(message) || message.reasoning_details !== undefined) return undefined
+      const extra = Object.fromEntries(
+        Object.entries(message).filter(
+          ([name]) =>
+            name !== 'role' &&
+            name !== 'content' &&
+            name !== 'reasoning' &&
+            name !== 'reasoning_content' &&
+            name !== 'tool_calls',
+        ),
+      )
+      const contentExtra = omittedContent(message.content)
+      if (contentExtra) extra.contentParts = contentExtra
+      if (Array.isArray(message.tool_calls)) {
+        const calls: JsonValue[] = []
+        for (const call of message.tool_calls) {
+          if (!object(call)) return undefined
+          const extras = Object.fromEntries(
+            Object.entries(call).filter(([name]) => name !== 'function'),
+          )
+          if (object(call.function)) {
+            const functionExtra = Object.fromEntries(
+              Object.entries(call.function).filter(
+                ([name]) => name !== 'name' && name !== 'arguments',
+              ),
+            )
+            if (Object.keys(functionExtra).length) extras.function = functionExtra
+          }
+          if (Object.keys(extras).length) calls.push(extras)
+        }
+        if (calls.length) extra.toolCallMetadata = calls
+      }
+      if (Object.keys(extra).length) messages.push(extra)
+    }
+    const tools: JsonValue[] = []
+    if (body.tools !== undefined) {
+      if (!Array.isArray(body.tools)) return undefined
+      for (const tool of body.tools) {
+        if (!object(tool)) return undefined
+        const extra = Object.fromEntries(
+          Object.entries(tool).filter(([name]) => name !== 'function'),
+        )
+        if (Object.keys(extra).length) tools.push(extra)
+      }
+    }
+    return {
+      request,
+      ...(messages.length ? { messages } : {}),
+      ...(tools.length ? { tools } : {}),
+    }
   }
 }

@@ -1,5 +1,9 @@
 import { defineInputMeter } from '../input-meter.ts'
-import { measureDeepSeekBoundary } from './deepseek-boundary.ts'
+import {
+  measureDeepSeekBoundary,
+  createDeepSeekSupplemental,
+  deepSeekPythonJson,
+} from './deepseek-boundary.ts'
 // Projection adapted from DeepSeek-V4-Pro encoding/encoding_dsv4.py at
 // b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; tokenizers/deepseek-v4/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -8,14 +12,12 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
 import {
-  isJsonNumber,
-  jsonNumberSource,
   writeJsonLossless,
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { InputMeter, MarginalMeterInput, TokenMeasurement } from '../input-meter.ts'
 import type { ModelDefinition } from '../definitions.ts'
 
 const BOS = '<｜begin▁of▁sentence｜>'
@@ -41,15 +43,6 @@ type PromptMessage = {
   readonly blocks: readonly MergedBlock[]
 }
 
-function pythonJson(value: JsonValue): string {
-  if (isJsonNumber(value)) return jsonNumberSource(value)
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(pythonJson).join(', ')}]`
-  return `{${Object.entries(value)
-    .map(([name, item]) => `${JSON.stringify(name)}: ${pythonJson(item)}`)
-    .join(', ')}}`
-}
-
 function contentText(value: JsonValue | undefined): string | undefined {
   if (typeof value === 'string') return value
   if (!Array.isArray(value)) return undefined
@@ -72,7 +65,7 @@ function toolArguments(value: string): string | undefined {
   const parameters: string[] = []
   for (const [name, item] of Object.entries(parsed)) {
     const isString = typeof item === 'string'
-    const rendered = isString ? item : pythonJson(item)
+    const rendered = isString ? item : deepSeekPythonJson(item)
     parameters.push(
       `<${DSML}parameter name="${name}" string="${isString}">${rendered}</${DSML}parameter>`,
     )
@@ -84,7 +77,7 @@ function renderTools(tools: readonly JsonObject[]): string {
   const schemas = tools
     .map(tool => {
       const fn = tool.function
-      return object(fn) ? pythonJson(fn) : ''
+      return object(fn) ? deepSeekPythonJson(fn) : ''
     })
     .join('\n')
   return `## Tools
@@ -277,70 +270,7 @@ function tokenizer(): Tokenizer {
   return instance
 }
 
-function omittedContent(value: JsonValue | undefined): JsonValue | undefined {
-  if (!Array.isArray(value)) return undefined
-  const omitted: JsonValue[] = []
-  for (const part of value) {
-    if (!object(part)) return undefined
-    const extra = Object.fromEntries(
-      Object.entries(part).filter(([name]) => name !== 'type' && name !== 'text'),
-    )
-    if (Object.keys(extra).length) omitted.push(extra)
-  }
-  return omitted.length ? omitted : undefined
-}
-
-/** Wire fields not rendered by the public prompt reference still enter the estimate. */
-function supplemental(body: JsonObject): JsonObject | undefined {
-  if (!Array.isArray(body.messages)) return undefined
-  const request = Object.fromEntries(
-    Object.entries(body).filter(([name]) => name !== 'messages' && name !== 'tools'),
-  )
-  const messages: JsonValue[] = []
-  for (const message of body.messages) {
-    // The pinned reference does not explain private reasoning details. Counting
-    // their serialized bytes cannot account for the hidden prompt contribution.
-    if (!object(message) || message.reasoning_details !== undefined) return undefined
-    const extra = Object.fromEntries(
-      Object.entries(message).filter(
-        ([name]) =>
-          name !== 'role' &&
-          name !== 'content' &&
-          name !== 'reasoning' &&
-          name !== 'reasoning_content' &&
-          name !== 'tool_calls',
-      ),
-    )
-    const contentExtra = omittedContent(message.content)
-    if (contentExtra) extra.contentParts = contentExtra
-    if (Array.isArray(message.tool_calls)) {
-      const calls: JsonValue[] = []
-      for (const call of message.tool_calls) {
-        if (!object(call)) return undefined
-        const extras = Object.fromEntries(
-          Object.entries(call).filter(([name]) => name !== 'function'),
-        )
-        if (Object.keys(extras).length) calls.push(extras)
-      }
-      if (calls.length) extra.toolCallMetadata = calls
-    }
-    if (Object.keys(extra).length) messages.push(extra)
-  }
-  const tools: JsonValue[] = []
-  if (body.tools !== undefined) {
-    if (!Array.isArray(body.tools)) return undefined
-    for (const tool of body.tools) {
-      if (!object(tool)) return undefined
-      const extra = Object.fromEntries(Object.entries(tool).filter(([name]) => name !== 'function'))
-      if (Object.keys(extra).length) tools.push(extra)
-    }
-  }
-  return {
-    request,
-    ...(messages.length ? { messages } : {}),
-    ...(tools.length ? { tools } : {}),
-  }
-}
+const supplemental = createDeepSeekSupplemental(['type', 'text'])
 
 /** One pinned model/provider route; other V4 variants require their own tokenizer evidence. */
 export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): InputMeter {
@@ -353,6 +283,12 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
   )
     throw new TypeError('unsupported DeepSeek V4 Pro definition')
   const encoder = tokenizer()
+  const measureBoundary = (input: MarginalMeterInput) =>
+    measureDeepSeekBoundary(
+      input,
+      text => encoder.encode(text, { add_special_tokens: false }).ids.length,
+      supplemental,
+    )
   const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
@@ -362,18 +298,8 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
     tokenizerRevision: 'deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1',
     replayRevision: 'deepseek-reference-boundary/1',
     transformRevision: 'deepseek-pro-reference-projection/1',
-    measureReplay: input =>
-      measureDeepSeekBoundary(
-        input,
-        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
-        supplemental,
-      ),
-    measureNew: input =>
-      measureDeepSeekBoundary(
-        input,
-        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
-        supplemental,
-      ),
+    measureReplay: measureBoundary,
+    measureNew: measureBoundary,
     evidence:
       'DeepSeek-V4-Pro b5968e9190ef611bbf34a7229255be88a0e937c1 encoding_dsv4.py + tokenizer.json 8f9f37ca; OpenRouter/DeepInfra private projection remains estimated',
     measureFull({ body, serialized }): TokenMeasurement {

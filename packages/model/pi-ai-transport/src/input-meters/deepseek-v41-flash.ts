@@ -1,5 +1,9 @@
 import { defineInputMeter } from '../input-meter.ts'
-import { measureDeepSeekBoundary } from './deepseek-boundary.ts'
+import {
+  measureDeepSeekBoundary,
+  createDeepSeekSupplemental,
+  deepSeekPythonJson,
+} from './deepseek-boundary.ts'
 // Projection adapted from DeepSeek-V4.1-Flash encoding/encoding.py at
 // dba1be0a40aa45a94ad051997016db3960a90277 (MIT; tokenizers/deepseek-v41-flash/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -9,14 +13,12 @@ import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
 import { imageSize } from 'image-size'
 import {
-  isJsonNumber,
-  jsonNumberSource,
   writeJsonLossless,
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { InputMeter, MarginalMeterInput, TokenMeasurement } from '../input-meter.ts'
 import type { ModelDefinition } from '../definitions.ts'
 
 const BOS = '<｜begin▁of▁sentence｜>'
@@ -47,15 +49,6 @@ type PromptMessage = {
   readonly reasoning: string
   readonly toolCalls: readonly JsonObject[]
   readonly blocks: readonly MergedBlock[]
-}
-
-function pythonJson(value: JsonValue): string {
-  if (isJsonNumber(value)) return jsonNumberSource(value)
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(pythonJson).join(', ')}]`
-  return `{${Object.entries(value)
-    .map(([name, item]) => `${JSON.stringify(name)}: ${pythonJson(item)}`)
-    .join(', ')}}`
 }
 
 function contentText(value: JsonValue | undefined): string | undefined {
@@ -107,7 +100,7 @@ function toolArguments(value: string): string | undefined {
   const parameters: string[] = []
   for (const [name, item] of Object.entries(parsed)) {
     const isString = typeof item === 'string'
-    const rendered = isString ? item : pythonJson(item)
+    const rendered = isString ? item : deepSeekPythonJson(item)
     parameters.push(
       `<${DSML} parameter name="${name}" string="${isString}">${rendered}</${DSML} parameter>`,
     )
@@ -119,7 +112,7 @@ function renderTools(tools: readonly JsonObject[]): string {
   const schemas = tools
     .map(tool => {
       const fn = tool.function
-      return object(fn) ? pythonJson(fn) : ''
+      return object(fn) ? deepSeekPythonJson(fn) : ''
     })
     .join('\n')
   return `## Tools
@@ -346,21 +339,6 @@ function tokenizer(): Tokenizer {
   return instance
 }
 
-function omittedContent(value: JsonValue | undefined): JsonValue | undefined {
-  if (!Array.isArray(value)) return undefined
-  const omitted: JsonValue[] = []
-  for (const part of value) {
-    if (!object(part)) return undefined
-    const extra = Object.fromEntries(
-      Object.entries(part).filter(
-        ([name]) => name !== 'type' && name !== 'text' && name !== 'image_url',
-      ),
-    )
-    if (Object.keys(extra).length) omitted.push(extra)
-  }
-  return omitted.length ? omitted : undefined
-}
-
 const inlineImage =
   /^data:(image\/(?:png|jpeg|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
 
@@ -450,65 +428,7 @@ function inlineImageTokens(body: JsonObject): number | undefined {
   return tokens
 }
 
-/** Wire fields not rendered by the public prompt reference still enter the estimate. */
-function supplemental(body: JsonObject): JsonObject | undefined {
-  if (!Array.isArray(body.messages)) return undefined
-  const request = Object.fromEntries(
-    Object.entries(body).filter(([name]) => name !== 'messages' && name !== 'tools'),
-  )
-  const messages: JsonValue[] = []
-  for (const message of body.messages) {
-    // The pinned reference does not explain private reasoning details. Counting
-    // their serialized bytes cannot account for the hidden prompt contribution.
-    if (!object(message) || message.reasoning_details !== undefined) return undefined
-    const extra = Object.fromEntries(
-      Object.entries(message).filter(
-        ([name]) =>
-          name !== 'role' &&
-          name !== 'content' &&
-          name !== 'reasoning' &&
-          name !== 'reasoning_content' &&
-          name !== 'tool_calls',
-      ),
-    )
-    const contentExtra = omittedContent(message.content)
-    if (contentExtra) extra.contentParts = contentExtra
-    if (Array.isArray(message.tool_calls)) {
-      const calls: JsonValue[] = []
-      for (const call of message.tool_calls) {
-        if (!object(call)) return undefined
-        const extras = Object.fromEntries(
-          Object.entries(call).filter(([name]) => name !== 'function'),
-        )
-        if (object(call.function)) {
-          const functionExtra = Object.fromEntries(
-            Object.entries(call.function).filter(
-              ([name]) => name !== 'name' && name !== 'arguments',
-            ),
-          )
-          if (Object.keys(functionExtra).length) extras.function = functionExtra
-        }
-        if (Object.keys(extras).length) calls.push(extras)
-      }
-      if (calls.length) extra.toolCallMetadata = calls
-    }
-    if (Object.keys(extra).length) messages.push(extra)
-  }
-  const tools: JsonValue[] = []
-  if (body.tools !== undefined) {
-    if (!Array.isArray(body.tools)) return undefined
-    for (const tool of body.tools) {
-      if (!object(tool)) return undefined
-      const extra = Object.fromEntries(Object.entries(tool).filter(([name]) => name !== 'function'))
-      if (Object.keys(extra).length) tools.push(extra)
-    }
-  }
-  return {
-    request,
-    ...(messages.length ? { messages } : {}),
-    ...(tools.length ? { tools } : {}),
-  }
-}
+const supplemental = createDeepSeekSupplemental(['type', 'text', 'image_url'])
 
 /** One pinned Flash model/provider route; Pro has a distinct encoder and binding. */
 export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): InputMeter {
@@ -521,6 +441,13 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
   )
     throw new TypeError('unsupported DeepSeek V4.1 Flash definition')
   const encoder = tokenizer()
+  const measureBoundary = (input: MarginalMeterInput) =>
+    measureDeepSeekBoundary(
+      input,
+      text => encoder.encode(text, { add_special_tokens: false }).ids.length,
+      supplemental,
+      inlineImageTokens,
+    )
   const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
@@ -530,20 +457,8 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
     tokenizerRevision: 'deepseek-v41-flash-dba1be0a40aa45a94ad051997016db3960a90277',
     replayRevision: 'deepseek-reference-boundary/1',
     transformRevision: 'deepseek-flash-reference-projection/1',
-    measureReplay: input =>
-      measureDeepSeekBoundary(
-        input,
-        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
-        supplemental,
-        inlineImageTokens,
-      ),
-    measureNew: input =>
-      measureDeepSeekBoundary(
-        input,
-        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
-        supplemental,
-        inlineImageTokens,
-      ),
+    measureReplay: measureBoundary,
+    measureNew: measureBoundary,
     evidence:
       'DeepSeek-V4.1-Flash dba1be0a40aa45a94ad051997016db3960a90277 encoding/encoding.py + tokenizer.json c90dfa01 + inference/image_processor.py SHA256 482759e3bcc4e9bb5ee582b244cc563f5d0e163d8b48dda91ebb7106e62f9272 + inference/config.json SHA256 2e84f45cf1dac8c7fcbb200e96667d4b913275690668ed496f24c7747207a809 (patch=14, downsample=3, min_pixels=295936, max_tokens=1024), MIT; OpenRouter/DeepInfra private projection remains estimated',
     measureFull({ body, serialized }): TokenMeasurement {
