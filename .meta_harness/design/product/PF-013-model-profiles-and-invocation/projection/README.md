@@ -24,3 +24,5 @@
 [D-110](../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用 v5 的四契约及五节点精确映射；原候选标签保留快照时事实，实现与验收另核。
 
 - [v8](v8/projection.md) · [来源](v8/provenance.json)：两家优先模型完整输出贡献与 Anthropic 纯图缓存局部候选；未接受、未实施，不覆盖 v5–v7 或其余六家。
+
+- [v9](v9/projection.md) · [来源](v9/provenance.json)：PF013rev17 ACK与模型副本释放的post-review候选；产品/方向已采用，四契约/四节点仍待主线采用及实现。
