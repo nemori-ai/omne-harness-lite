@@ -14,13 +14,14 @@ export const modelLogFormat = 'mrr/3'
 
 export type ModelLogKey =
   | { readonly kind: 'all' | 'messages' | 'selection' }
-  | { readonly kind: 'call' | 'intent' | 'ended'; readonly call: string }
+  | { readonly kind: 'call' | 'created' | 'intent' | 'ended'; readonly call: string }
+  | { readonly kind: 'creation'; readonly creationKey: string }
   | {
       readonly kind: 'dispatch' | 'dispatched' | 'opened'
       readonly call: string
       readonly dispatch: JsonNumber
     }
-  | { readonly kind: 'response' | 'settlement'; readonly response: string }
+  | { readonly kind: 'response' | 'ready' | 'settlement'; readonly response: string }
   | { readonly kind: 'message'; readonly message: string }
   | { readonly kind: 'run'; readonly run: string }
 
@@ -82,7 +83,7 @@ function parts(key: JsonObject): readonly string[] | ModelLogInvalidValue {
   if (kind === 'all' || kind === 'messages' || kind === 'selection') {
     return Object.keys(key).length === 1 ? [kind] : invalidValue('identity')
   }
-  if (kind === 'call' || kind === 'intent' || kind === 'ended') {
+  if (kind === 'call' || kind === 'created' || kind === 'intent' || kind === 'ended') {
     return Object.keys(key).length === 2 && identity(key.call)
       ? [kind, key.call]
       : invalidValue('identity')
@@ -93,13 +94,17 @@ function parts(key: JsonObject): readonly string[] | ModelLogInvalidValue {
       ? [kind, key.call, integerSource(key.dispatch)]
       : invalidValue('dispatch')
   }
-  if (kind === 'response' || kind === 'settlement')
+  if (kind === 'response' || kind === 'ready' || kind === 'settlement')
     return Object.keys(key).length === 2 && identity(key.response)
       ? [kind, key.response]
       : invalidValue('identity')
   if (kind === 'message')
     return Object.keys(key).length === 2 && identity(key.message)
       ? [kind, key.message]
+      : invalidValue('identity')
+  if (kind === 'creation')
+    return Object.keys(key).length === 2 && identity(key.creationKey)
+      ? [kind, key.creationKey]
       : invalidValue('identity')
   if (kind === 'run')
     return Object.keys(key).length === 2 && identity(key.run)
@@ -136,7 +141,7 @@ export function decodeModelLogKey(
   if ((kind === 'all' || kind === 'messages' || kind === 'selection') && decoded.length === 1)
     key = { kind }
   else if (
-    (kind === 'call' || kind === 'intent' || kind === 'ended') &&
+    (kind === 'call' || kind === 'created' || kind === 'intent' || kind === 'ended') &&
     typeof id === 'string' &&
     decoded.length === 2
   )
@@ -150,13 +155,15 @@ export function decodeModelLogKey(
     if (!/^[1-9][0-9]*e(?:0|[1-9][0-9]*)$/u.test(numeric)) return fail
     key = { kind, call: id, dispatch: new LosslessNumber(numeric) }
   } else if (
-    (kind === 'response' || kind === 'settlement') &&
+    (kind === 'response' || kind === 'ready' || kind === 'settlement') &&
     typeof id === 'string' &&
     decoded.length === 2
   )
     key = { kind, response: id }
   else if (kind === 'message' && typeof id === 'string' && decoded.length === 2)
     key = { kind, message: id }
+  else if (kind === 'creation' && typeof id === 'string' && decoded.length === 2)
+    key = { kind, creationKey: id }
   else if (kind === 'run' && typeof id === 'string' && decoded.length === 2) key = { kind, run: id }
   else return fail
   const encoded = encodeModelLogKey(key)

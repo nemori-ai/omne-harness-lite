@@ -63,3 +63,5 @@ export { createDiagnosticCollector } from './diagnostics.ts'
 
 export { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 export type { PlanReuseScopes, PlanReuseScopeLease, PlanScopeBinding } from './plan-reuse-scopes.ts'
+
+export type * from './reference-types.ts'

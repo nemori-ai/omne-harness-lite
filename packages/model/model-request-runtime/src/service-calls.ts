@@ -200,6 +200,7 @@ export function ownOpenCallInput(
     input === null ||
     typeof input !== 'object' ||
     !('ok' in parseOpaqueIdentifier(input.session, 'SessionRef')) ||
+    !('ok' in parseOpaqueIdentifier(input.creationKey, 'CreationKey')) ||
     (input.callId !== undefined && !('ok' in judgeAccountValue('ModelCallId', input.callId))) ||
     !(
       'ok' in
@@ -303,6 +304,7 @@ export function ownOpenCallInput(
     tools.push(item)
   }
   const common = {
+    creationKey: input.creationKey,
     session: input.session,
     ...(input.callId === undefined ? {} : { callId: input.callId }),
     target: input.target,

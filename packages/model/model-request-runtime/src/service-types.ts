@@ -10,7 +10,22 @@ import type {
   ModelRequest,
   RetryPlan,
 } from '@omne-harness-lite/loop-extension'
-import type { Message, MessageId, SessionRef } from '@omne-harness-lite/messages'
+import type {
+  CallKey,
+  CreationKey,
+  Message,
+  MessageId,
+  SessionRef,
+} from '@omne-harness-lite/messages'
+import type {
+  AcquireCallInput,
+  AcquireCallResult,
+  CallAccess,
+  CallFacts,
+  CallPresence,
+  CallLifecycleState,
+} from './reference-types.ts'
+export type { CallKey } from '@omne-harness-lite/messages'
 import type {
   ModelAdaptationBinding,
   ModelProfileRef,
@@ -57,12 +72,6 @@ import type {
 } from './types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
-
-/** The pair is always the identity; a callId alone is not an access key. */
-export interface CallKey {
-  readonly session: SessionRef
-  readonly callId: ModelCallId
-}
 
 export type ServiceInvalidReason =
   | ModelProfileRejection
@@ -229,6 +238,7 @@ export interface ModelObserverQueueInput {
 }
 
 export type OpenCallInput = OpenCallRun & {
+  readonly creationKey: CreationKey
   readonly session: SessionRef
   readonly callId?: ModelCallId
   readonly messages: ModelRequest['messages']
@@ -241,7 +251,8 @@ export type OpenCallInput = OpenCallRun & {
   readonly observer?: ModelObserverRequest
 }
 export type OpenCallResult =
-  | { readonly callId: ModelCallId; readonly state: 'open' | 'resumable' }
+  | { readonly ref: CallKey; readonly callId: ModelCallId; readonly state: CallLifecycleState }
+  | { readonly creationConflict: true }
   | {
       readonly callId: ModelCallId
       readonly state: 'handed_up'
@@ -256,7 +267,11 @@ export type OpenCallResult =
   | ServiceProfileNotFound
 
 export type DispatchSuccess =
-  | { readonly replyPending: PendingModelResponse }
+  | {
+      readonly replyPending: PendingModelResponse
+      readonly state: 'complete' | 'interrupted'
+      readonly disposition: 'disposition_pending'
+    }
   | {
       readonly settled: ModelResponse & { readonly outcome: 'failed' }
       readonly failureSubject: AfterModelCallFailureSubject
@@ -314,7 +329,7 @@ export type ReconcileResult =
   | {
       readonly calls: readonly {
         readonly callId: ModelCallId
-        readonly state: 'resumable' | 'awaiting_decision' | 'interrupted' | 'complete' | 'handed_up'
+        readonly state: CallLifecycleState
       }[]
     }
   | ServiceInvalidInput
@@ -389,6 +404,7 @@ export type CanDispatchAgainResult =
 
 /** One service, with each operation's own closed result rather than a catch-all failure. */
 export interface ModelRuntimeService {
+  readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
   readonly legalTargets: (input: {
     readonly session: SessionRef
   }) => Promise<ServiceLegalTargetsResult>
@@ -419,6 +435,8 @@ export interface SessionRuntimeBinding {
   readonly tools: Pick<AssetRegistryService, 'lookup'>
   readonly catalog: ModelCatalogRead
   readonly credentials: CredentialLookup
+  /** Immutable version identifiers for non-value report/context/assembly inputs. */
+  readonly sourceVersions: Readonly<Record<string, string>>
   readonly currentEvaluationInputs: CurrentEvaluationInputs
   readonly observers?: SessionObserverAccess
 }
@@ -521,6 +539,9 @@ export type CalibrationHistoryResult =
   | { readonly noObservation: true }
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
+  readonly callAccess: CallAccess
+  readonly callPresence: CallPresence
+  readonly callFacts: CallFacts
   /** Explicit bounded process-local preparation reuse; no default scope budget. */
   readonly maxScopes: number
   readonly sessions: RuntimeSessionAccess

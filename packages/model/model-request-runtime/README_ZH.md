@@ -1015,3 +1015,8 @@ export function fixedAcquirer<P extends PlannedSemantics, R>(
 ```
 
 runtime 在受信 session bind 后，以 tenant/session/log generation 分隔 opaque scope；有限槽位只淘汰 idle 项，全部占用时可沿普通准备资源限制使用无复用路径。关闭先停准入、取消并等待真实准备和网络任务，再逐项清 scope。清理实际返回值必须是 `undefined`；抛错、其他返回值或 thenable 都保留责任并返回 `unavailable`，pending 尝试被观察且终结前不重试。后续 `runtime.close()` 可以重试失败清理。采用依据见[清理附页](../../../.meta_harness/design/realization/packages/model/model-request-runtime/image-preparation-scope-cleanup-candidate.md)。本包 owner 测试不证明真实原生图片 codec 已验收。
+
+
+D110 已采用 [RT11 引用生命周期映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v20-reference-lifecycle-design.md)。runtime 公开引用面直接使用 MS7 唯一的 `CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreatedPayload`；未处分与最终结果仍为 MR10 原值。`openCall` 必填显式 creation key。新增 `CallConsumer` 只等待并释放自己的接收资源，不带执行取消或 persisted 消息控制。`CallAccess.check` 在受信提供者的撤权次序中运行准入 callback；`CallPresence.read` 在原 host 精确代际临界段核 live 附着，不接收 caller 自报授权布尔。
+
+本首个源码增量落实采用的接口与共同 marker codec；耐久发布、取得消费及十四转发面正在迁移。它不表示生命周期已可执行验收，也不替代 R20-V1～23 的实际证据。

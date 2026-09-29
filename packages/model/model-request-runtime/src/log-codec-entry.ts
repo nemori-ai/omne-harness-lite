@@ -77,6 +77,38 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
     if (purpose.kind === 'record' && record !== null) {
       if (record.kind === 'model_selection_changed') return { read: [all, { kind: 'selection' }] }
       const call: ModelLogKey = { kind: 'call', call: record.call }
+      if (
+        record.kind === 'model_call_created' ||
+        (record.kind === 'model_call_ended' && record.creationKey !== undefined)
+      ) {
+        const creationKey = record.creationKey
+        if (creationKey === undefined) return invalidValue('value')
+        const dedupe: ModelLogKey = { kind: 'creation', creationKey }
+        return {
+          dedupe,
+          read: [
+            dedupe,
+            all,
+            call,
+            { kind: 'created', call: record.call },
+            ...(record.kind === 'model_call_ended'
+              ? [{ kind: 'ended' as const, call: record.call }]
+              : []),
+          ],
+        }
+      }
+      if (record.kind === 'model_call_reply_ready') {
+        const dedupe: ModelLogKey = { kind: 'ready', response: record.response }
+        return {
+          dedupe,
+          read: [
+            dedupe,
+            all,
+            call,
+            { kind: 'dispatch', call: record.call, dispatch: record.dispatch },
+          ],
+        }
+      }
       if (record.kind === 'model_call_dispatched' || record.kind === 'model_call_opened') {
         const dedupe: ModelLogKey = {
           kind: record.kind === 'model_call_dispatched' ? 'dispatched' : 'opened',
