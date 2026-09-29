@@ -81,6 +81,9 @@ export function projectInput(
   input: PlanInput,
   meter: InputMeter,
 ): InputProjection {
+  const owned = ownedObject(body)
+  if (!owned || !Array.isArray(owned.messages)) throw new TypeError('messages required')
+  body = owned
   if (!Array.isArray(body.messages)) throw new TypeError('messages required')
   const units = body.messages.map(message => {
     if (

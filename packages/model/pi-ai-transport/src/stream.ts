@@ -95,6 +95,7 @@ export async function* readStream(
     event => diagnostic(event),
     state.stream.headers['x-openrouter-cache-status'] === 'HIT',
   )
+  let usageReceived = false
   let finish: string | undefined,
     done = false,
     failed: TransportFailure | undefined
@@ -174,7 +175,10 @@ export async function* readStream(
       const frame = strictObject(data)
       if (!frame) throw new SseProtocolError('invalid SSE JSON')
       // Freeze usage before any subsequent frame member or policy processing can fail.
-      if (object(frame.usage)) accumulator.observe(frame.usage)
+      if (object(frame.usage)) {
+        usageReceived = true
+        accumulator.observe(frame.usage)
+      }
       if (object(frame.error)) {
         // Independent protocol status is obtained before processing its untrusted JSON copy.
         const code = frame.error.code
@@ -405,8 +409,7 @@ export async function* readStream(
     }
   }
   const readFacts = accumulator.read()
-  if (readFacts.usage.source !== 'none' || readFacts.cost.source !== 'none')
-    yield { t: 'account', usage: readFacts.usage, cost: readFacts.cost }
+  if (usageReceived) yield { t: 'account', usage: readFacts.usage, cost: readFacts.cost }
   reportExecutionDiagnostic(deps.executionDiagnostics, {
     stage: 'stream_end',
     outcome: failed ? 'failed' : 'completed',

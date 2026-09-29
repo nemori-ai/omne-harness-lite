@@ -651,7 +651,7 @@ describe('account source reflects actual known base token facts', () => {
     {
       name: 'inconsistent subtraction',
       raw: { prompt_tokens: 1, prompt_tokens_details: { cached_tokens: 2, cache_write_tokens: 0 } },
-      source: 'none',
+      source: 'upstream',
     },
     { name: 'reported output zero', raw: { completion_tokens: 0 }, source: 'upstream' },
     {

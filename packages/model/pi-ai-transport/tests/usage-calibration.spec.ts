@@ -161,6 +161,105 @@ describe('response calibration actual planner', () => {
         ])
         previous = next
       }
+      // A nonempty assistant is an array from its first send; moving the
+      // breakpoint away must not change the historical representation.
+      const assistant = judgedMessage({
+        type: 'assistant',
+        id: 'assistant-tail',
+        response: 'response-tail',
+        ending: 'complete',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'answer',
+            kind: 'text',
+            text: 'answer',
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+      })
+      request = {
+        ...request,
+        calibration: anchor(previous, 400),
+        messages: [...request.messages, assistant],
+      }
+      previous = plan(request, [definition], bound)
+      expect(previous.measurement.mode).toBe('marginal')
+      expect((previous.body.messages as readonly JsonObject[]).at(-1)?.content).toEqual([
+        { type: 'text', text: 'answer', cache_control: { type: 'ephemeral', ttl: '1h' } },
+      ])
+      request = {
+        ...request,
+        calibration: anchor(previous, 420),
+        messages: [...request.messages, message('user', 'after assistant', 'after-assistant')],
+      }
+      previous = plan(request, [definition], bound)
+      expect(previous.measurement.mode).toBe('marginal')
+      expect((previous.body.messages as readonly JsonObject[]).at(-2)?.content).toEqual([
+        { type: 'text', text: 'answer' },
+      ])
+      const call = judgedMessage({
+        type: 'assistant',
+        id: 'call-message',
+        response: 'call-response',
+        ending: 'complete',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'call',
+            kind: 'tool_call',
+            callId: 'c1',
+            tool: 'lookup',
+            complete: true,
+            unparseable: true,
+            rawArguments: '{}',
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+      })
+      const result = judgedMessage({
+        type: 'tool',
+        id: 'result',
+        callId: 'c1',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'result-block',
+            kind: 'tool_result',
+            callId: 'c1',
+            outcome: 'completed',
+            visibility: { toHuman: true, toModel: true },
+            blocks: [
+              {
+                id: 'result-text',
+                kind: 'text',
+                text: 'tool answer',
+                visibility: { toHuman: true, toModel: true },
+              },
+            ],
+          },
+        ],
+      })
+      request = {
+        ...request,
+        calibration: anchor(previous, 440),
+        messages: [...request.messages, call, result],
+      }
+      previous = plan(request, [definition], bound)
+      expect(previous.measurement.mode).toBe('marginal')
+      expect((previous.body.messages as readonly JsonObject[]).at(-1)?.content).toEqual([
+        { type: 'text', text: 'tool answer', cache_control: { type: 'ephemeral', ttl: '1h' } },
+      ])
+      request = {
+        ...request,
+        calibration: anchor(previous, 460),
+        messages: [...request.messages, message('user', 'after tool', 'after-tool')],
+      }
+      previous = plan(request, [definition], bound)
+      expect(previous.measurement.mode).toBe('marginal')
+      expect((previous.body.messages as readonly JsonObject[]).at(-2)?.content).toEqual([
+        { type: 'text', text: 'tool answer' },
+      ])
       expect(measured).toHaveBeenCalledTimes(1)
     })
   it('binds a replay group to actual selected complete message units and does not add aggregate O', () => {
