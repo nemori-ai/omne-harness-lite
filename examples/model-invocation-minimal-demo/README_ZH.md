@@ -19,7 +19,7 @@ CLI 为数据根持有一个跨多轮复用的长期 worker 进程。worker 拥�
 
 同一个主管仍存活时，旧 worker 在耐久 dispatch 后被杀，后继可在零新增模型 HTTP 请求下对账原日志。新启动的 CLI 无法继承另一主管的退出见证；若旧 owner 的未完调用来源未知，打开会在新请求前拒绝。日志的 clean marker 或可取得文件锁都不证明旧模型效应已停止。全部已收场历史可由新 CLI 正常重开。本机 HTTPS 测试覆盖真实派发、SIGKILL、child 退出、同主管恢复及新主管拒绝；其他冷恢复和故障义务仍按 runtime realization 跟踪。
 
-程序调用的 `AcceptanceDiagnostics.record` 在适用的操作事件上接收类型化 `settlement` 与 `observer` 关联。结算事件保留租户、会话、调用、dispatch、响应、owner、policy 与争用计数；观察拒收保留租户、会话、调用、dispatch、位置及缓冲计数。装配只投影这些既有字段，请求正文、凭据值、工具数据及配置正文不进入此诊断端口。抛错或异步 sink 会独立增加 `status().diagnosticFailures`，`close()` 后仍可读取计数。该端口为同步尽力投递，不提供耐久诊断库、查询或覆盖完整性保证。
+程序调用的 `AcceptanceDiagnostics.record` 在适用的操作事件上接收类型化 `settlement` 与 `observer` 关联。结算事件保留租户、会话、调用、dispatch、响应、owner、policy 与争用计数；观察拒收保留租户、会话、调用、dispatch、位置及缓冲计数。装配只投影这些既有字段，请求正文、凭据值、工具数据及配置正文不进入此诊断端口。抛错或异步 sink 会独立增加 `status().diagnosticFailures`，`close()` 后仍可读取计数。该回调为同步尽力投递。下述独立类型化 collector 提供有界 JSONL 存储与查询；两个接口都不承诺诊断无损投递。
 
 ## 运行
 
@@ -80,7 +80,24 @@ Closed. Start again with the same --data path to resume.
 
 ### 本机工程日志
 
-`createDiagnosticJournal(config)` 在私有根下独占创建新的 collector 目录；`openDiagnosticJournalReader(config)` 在关闭或重启后只读重开。显式提供完整 `DiagnosticJournalConfig`，包括 scope、时钟、调度、保留策略和查询／导出界限。此提供者可独立使用；默认 CLI 接线仍在推进。
+示例先完成真实认证，分别打开仅属主可访问的本机与已核租户 JSONL collector，再在同一 Cordis Context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 只准备身份与会话日志访问；认证并打开诊断装配后，才调用 `activateModelRequest(actor, diagnostics.tenant, diagnostics.transports)`。激活失败不会开放模型准入。
+
+`openDemo(...).diagnostics.tenant` 与 `.local` 向受信本机宿主提供有界 `query`、`exportPage` 和 `health`。`close()` 先停止业务，再关闭诊断写端，返回 `complete`、`businessComplete`、诊断关闭结果和 transport 健康状态；未完成时保留同一 owner 并重试。关闭后只读句柄仍可用。这些工程记录与会话历史分离。
+
+`createDemoDiagnosticConfig` 明确示例的限额；独立装配调用者可提供自己的完整 `DemoDiagnosticConfig`。当前、构造中、仍存活的旧代际与终态 transport 快照共用一个保留上限（示例配置为四）。新构造先预留容量，必要时淘汰终态快照；若上限被活跃 owner 占满则拒绝新构造。TTL 物理删除仅在 owner 活跃或再次打开维护时执行，不承诺进程缺席期间定时清理。
+
+```ts
+import type { DemoConversation } from '@omne-harness-lite/model-invocation-minimal-demo'
+
+export async function closeAndReadDiagnostics(demo: DemoConversation) {
+  const closed = await demo.close()
+  const tenant = demo.diagnostics.tenant
+  const page = await tenant.query({ scope: tenant.scope, limit: 32, maxBytes: 65_536 })
+  return { closed, page, health: tenant.health() }
+}
+```
+
+`createDiagnosticJournal(config)` 在私有根下独占创建新的 collector 目录；`openDiagnosticJournalReader(config)` 在关闭或重启后只读重开。显式提供完整 `DiagnosticJournalConfig`，包括 scope、时钟、调度、保留策略和查询／导出界限。此提供者可独立使用，也已通过诊断装配接入默认 CLI。
 
 ```ts
 import {
@@ -103,3 +120,5 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 查询和 `exportPage(query, { maxRecords, maxBytes })` 必须传完全相同的 scope。空日志的 `through.sequence='0'` 固定空快照，不是记录身份。游标过期、损坏、超时与并发满有明确结果。TTL 清理只在所有者活跃时运行，进程退出后不会继续。保留健康面同时报告条数和字节，删除失败或 I/O 尚未结束不算空间释放。这是工程日志，与会话历史分开。
 
 发送结果中的 `released` 只描述当次停止尝试。终端回调仍在运行时它为 false；回调实际停止后，显式重试 `close()` 才可能完成，主管还会等待 worker 真正退出。关闭准入后，已承认工作仍可在 Clock 存活期间通过 `currentTime()` 读取时间；fiber 实际卸载后返回 unavailable。
+
+主管的受信故障控制可保留已完成的旧 worker 回复，再向后继请求重放发生 ID 冲突的包；原代际检查仍会阻止错误交付。`inspect().nativeIpcBackpressureObserved` 反映 Node 实际 IPC send 缓冲是否施加过背压。这些控制用于本地恢复测试，不是租户操作。

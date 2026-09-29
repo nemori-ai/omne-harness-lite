@@ -19,7 +19,7 @@ The CLI owns one long-lived worker process for the data root across turns. That 
 
 Within one surviving supervisor, a worker killed after a durable dispatch can be replaced; the successor reconciles the original session log with zero new model HTTP requests. A newly started CLI cannot inherit another supervisor's exit evidence. If the old owner of an unfinished call is unknown, opening refuses before a new request. A clean log marker or an obtainable file lock does not prove that an old model effect stopped. Fully settled history can be reopened by a new CLI. The local HTTPS test covers an actual dispatch, SIGKILL, child exit, same-supervisor recovery, and refusal under a new supervisor; the remaining cold recovery and fault cases are tracked in the runtime realization.
 
-The programmatic `AcceptanceDiagnostics.record` port now receives typed `settlement` and `observer` correlation on the applicable operation events. Settlement events retain tenant, session, call, dispatch, response, owner, policy and contention counts. Observer rejection events retain tenant, session, call, dispatch, position and buffer counts. The assembly projects only these existing fields; request text, credential values, tool data and configuration bodies stay out of this diagnostic port. A throwing or asynchronous sink increments `status().diagnosticFailures` independently of the model result; the counter remains readable after `close()`. The port is synchronous and best-effort, with no durable diagnostic store, query or completeness guarantee.
+The programmatic `AcceptanceDiagnostics.record` port now receives typed `settlement` and `observer` correlation on the applicable operation events. Settlement events retain tenant, session, call, dispatch, response, owner, policy and contention counts. Observer rejection events retain tenant, session, call, dispatch, position and buffer counts. The assembly projects only these existing fields; request text, credential values, tool data and configuration bodies stay out of this diagnostic port. A throwing or asynchronous sink increments `status().diagnosticFailures` independently of the model result; the counter remains readable after `close()`. This callback is synchronous and best-effort. The separate typed collectors described below provide bounded JSONL storage and query; neither interface guarantees lossless diagnostic delivery.
 
 ## Run
 
@@ -80,7 +80,24 @@ Trusted deployments may supply `modelRequest.assetRegistry` as a borrowed `Asset
 
 ### Local engineering journal
 
-`createDiagnosticJournal(config)` creates and exclusively owns a new collector directory under a private root; `openDiagnosticJournalReader(config)` reopens it read-only after close or restart. Supply `DiagnosticJournalConfig` explicitly, including scope, clocks, scheduler, retention and query/export limits. This provider is available independently; default CLI wiring is still in progress.
+The demo authenticates first, opens separate owner-only local and verified-tenant JSONL collectors, then activates its model-request fibers in the same Cordis context. For programmatic assembly, `createAcceptanceApplication(...).ready` prepares identity and session-log access; call `activateModelRequest(actor, diagnostics.tenant, diagnostics.transports)` only after authenticating and opening the diagnostic assembly. A failed activation does not open model admission.
+
+`openDemo(...).diagnostics.tenant` and `.local` expose bounded `query`, `exportPage`, and `health` to the trusted local host. `close()` stops business work before diagnostic writers and returns `complete`, `businessComplete`, diagnostic close results and transport health. Retain the same owner and retry when incomplete. Read handles remain usable after close. These engineering records are separate from session history.
+
+`createDemoDiagnosticConfig` declares the example's limits; independent assembly callers can supply their own complete `DemoDiagnosticConfig`. Current, constructing, old live and terminal transport generations share one retention bound (four in the example configuration). A new construction first reserves capacity, evicting terminal snapshots when needed; if live owners occupy the bound, construction is refused. Physical TTL deletion runs only while an owner is active or maintenance is reopened, not while the process is absent.
+
+```ts
+import type { DemoConversation } from '@omne-harness-lite/model-invocation-minimal-demo'
+
+export async function closeAndReadDiagnostics(demo: DemoConversation) {
+  const closed = await demo.close()
+  const tenant = demo.diagnostics.tenant
+  const page = await tenant.query({ scope: tenant.scope, limit: 32, maxBytes: 65_536 })
+  return { closed, page, health: tenant.health() }
+}
+```
+
+`createDiagnosticJournal(config)` creates and exclusively owns a new collector directory under a private root; `openDiagnosticJournalReader(config)` reopens it read-only after close or restart. Supply `DiagnosticJournalConfig` explicitly, including scope, clocks, scheduler, retention and query/export limits. This provider is available independently and is wired into the CLI through the diagnostic assembly.
 
 ```ts
 import {
@@ -103,3 +120,5 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 Queries and `exportPage(query, { maxRecords, maxBytes })` require the exact bound scope. Empty `through.sequence='0'` fixes an empty snapshot, not a record identity. Expired cursors, corruption, timeout and capacity exhaustion have explicit results. TTL cleanup runs while an owner is active; it does not continue after process exit. Retention health reports records and bytes, and failed deletion or unfinished I/O never counts as freed space. These engineering records are separate from session history.
 
 A send result's `released` describes that stop attempt. If a terminal callback is still running it remains false; after the callback actually stops, an explicit `close()` retry can complete, and the supervisor waits for the worker's real exit. `currentTime()` remains readable for admitted work during close while the Clock is alive; it becomes unavailable after its fiber is disposed.
+
+The supervisor's trusted fault controls can retain a completed worker reply and replay it with a colliding request ID against the successor; the original generation still prevents delivery. `inspect().nativeIpcBackpressureObserved` reports whether Node's actual IPC send buffer applied backpressure. These controls support local recovery tests and are not tenant operations.

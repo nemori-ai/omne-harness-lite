@@ -27,7 +27,13 @@ export {
   type ScenarioResult,
 } from './types.ts'
 
-export { openDemo, readPrivateFile, type DemoConversation, type DemoTotals } from './demo.ts'
+export {
+  openDemo,
+  readPrivateFile,
+  createDemoDiagnosticConfig,
+  type DemoConversation,
+  type DemoTotals,
+} from './demo.ts'
 export {
   createDemoSupervisor,
   type DemoSupervisorOptions,
@@ -41,3 +47,14 @@ export {
   openDiagnosticJournalReader,
   type DiagnosticJournalConfig,
 } from './diagnostic-journal.ts'
+
+export {
+  openDemoDiagnosticAssembly,
+  createDemoTransportRetention,
+  DemoDiagnosticStartupFailure,
+  type DemoDiagnosticAssembly,
+  type DemoDiagnosticScope,
+  type DemoDiagnosticConfig,
+  type DemoTransportRetention,
+  type DemoTransportHealth,
+} from './diagnostic-assembly.ts'
