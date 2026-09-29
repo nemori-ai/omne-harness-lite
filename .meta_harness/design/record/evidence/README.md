@@ -213,3 +213,5 @@ evidence/
 [2026-09-29 Luna 加密历史真实 service 三轮](2026-09-29-tests-luna-encrypted-service/README.md)：三轮 complete/耐久/结算，full→marginal→marginal；保留估算误差与精确旧绑定范围，不替代全型号认证。
 
 [2026-09-29 优先两家认证工具交付](2026-09-29-tests-priority-model-gate-tools/README.md)：HUB 44 public、16型号各3轮真实本机service及六类服务/入口负控通过；关闭工具交付，不替代逐模型线上认证。
+
+[2026-09-29 模型双语文档与独立检查](2026-09-29-tests-model-readme-independent-gates/README.md)：19包及demo双语文档收齐、关键实际示例与本机回归通过；八类独立检查通过，不代替后继公共接口迁移、最终产品与37型号线上认证。
