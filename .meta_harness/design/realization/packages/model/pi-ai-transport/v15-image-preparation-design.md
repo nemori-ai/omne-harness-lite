@@ -1,6 +1,6 @@
 # v15 请求图片准备（候选）
 
-2026-09-29 revision 2。语义依据为已接受 RT10 S57/S74/S77～83、MR9 S41～45；本提供者映射尚未采用、未实施，新增bindings 0，验收尚待。接续v13，和并行v14 refusal无语义替代关系。只交付已选图片同模态发送前处理，不实现完整上下文组装或跨模态renderings。
+2026-09-29 revision 3。语义依据为已接受 [RT10](../../../../spec/capabilities/model-request-runtime/v10/contract.md) S57/S74/S77～83、[MR9](../../../../spec/data/model-response/v9/contract.md) S41～45；本提供者映射尚未采用、未实施，新增bindings 0，验收尚待。接续v13，和并行v14 refusal无语义替代关系。只交付已选图片同模态发送前处理，不实现完整上下文组装或跨模态renderings。
 
 架构选择见[提案](../../../../record/proposals/model-request-image-preparation/README.md)。独立领域读数/三候选与四表在该包；pi/DSH/Sharp主源事实归 research/typescript-image-input-handling（HUB e9a5d13e + 26ddf358），本页不复制研究。
 
@@ -17,6 +17,7 @@ interface ImagePreparePolicy {
   decodedMaxDimension: number
   maxConcurrent: number
   maxInFlightBytes: number
+  candidateMaxBytes: number
   maxAttemptsPerImage: number
   maxCacheBytes: number
   maxCacheEntries: number
@@ -36,7 +37,8 @@ interface ImagePrepareInput {
   signal: AbortSignal
 }
 // createImagePreparer(policy, explicitlyLoadedCodec) ->
-// { prepare(input, reuseScope?): Promise<ImagePrepareResult>, close(): Promise<void> }
+// { ready: { prepareRequestImages(input, reuseScope?): Promise<ImagePrepareResult>, clearScope(scope: object): void, close(): Promise<void> } }
+// or { unavailable: true }; invalid policy/codec descriptor throws TypeError before resource acquisition
 ```
 
 所有正值有限安全整数，qualitySteps有限非空、严格下降且每项1..100；sizeScaleSteps有限非空且在(0,1]内严格下降；min<=max；maxAttempts限定固定候选列表可访问的逻辑序号前缀，和实际codec调用次数、cache冷热无关。数据在factory/调用边界owned copy，policy在实例寿命内固定。格式实际能力由codec明示，不能宣称未加载格式可用。无默认2000px/4.5MiB/质量档：提供者导出经离线fixture验证的具名preset作为显式装配输入，preset的实际数字/验证证据是实现放行缺口，不把调用方猜值称完成。
@@ -51,7 +53,7 @@ interface ImagePrepareInput {
 
 若输入满足所有目标/资源约束、无必须旋转或格式改变，保持原字节。否则每个sizeScale按原始朝向修正后尺寸计算inside目标，不上采样；在该尺寸内依outputFormats顺序、qualitySteps顺序尝试（PNG无quality则只一次）。遇首个符合actualBytes<=targetMaxBytes、尺寸界限、alpha政策的候选即成功；固定候选列表前缀耗尽或缩至下限仍不符则no_candidate。每次从同一原解码像素生成，禁止累计对上次有损结果重编码。结果是这份有限政策的首个合规结果，不保证最佳画质或理论最小字节。
 
-maxRequestBytes有限时不均分图片预算。先按单图cap选各图首个合规表示，再完整序列化；若超总量，按各图当前data URL的实际JSON字节贡献降序（相等按原位置）遍历可继续搜索的图片。每张继续枚举上述有限候选，只保留使该图完整wire贡献严格下降的候选；每次替换重新算整个serialized bytes，达到总量即停止。某图候选耗尽再处理下一图；所有图耗尽仍超限则no_candidate。maxAttemptsPerImage覆盖两段共同全部编码尝试，不重新计数或无限循环。MIME前缀、base64膨胀、JSON字符串实际值均参与，不能用raw总bytes替代。因为每图枚举的是固定有限集合、保持其最小已见wire贡献，枚举完后在该集合内不能靠另一种预算分配得到更小总量；不宣称覆盖集合外任意编码。需要不均匀两图案例（大图需要更多bytes，小图可明显缩小）证明不因固定均分误拒。此算法可在需要缩减总量时改变先前历史图片，因此真实prefix变化须触发full，不能为缓存稳定而忽略总量。
+maxRequestBytes有限时不均分图片预算。先按单图cap选各图首个合规表示，再完整序列化；若超总量，按各图当前data URL的实际JSON字节贡献降序（相等按原位置）遍历可继续搜索的图片。每张继续枚举上述有限候选，只保留使该图完整wire贡献严格下降的候选；每次替换重新算整个serialized bytes，达到总量即停止。某图候选耗尽再处理下一图；所有图耗尽仍超限则no_candidate。maxAttemptsPerImage覆盖两段共同候选逻辑序号前缀，不重新计数或无限循环。MIME前缀、base64膨胀、JSON字符串实际值均参与，不能用raw总bytes替代。因为每图枚举的是固定有限集合、保持其最小已见wire贡献，枚举完后在该集合内不能靠另一种预算分配得到更小总量；不宣称覆盖集合外任意编码。需要不均匀两图案例（大图需要更多bytes，小图可明显缩小）证明不因固定均分误拒。此算法可在需要缩减总量时改变先前历史图片，因此真实prefix变化须触发full，不能为缓存稳定而忽略总量。
 
 ## 原事实与实际投影
 
@@ -67,7 +69,7 @@ maxRequestBytes有限时不均分图片预算。先按单图cap选各图首个�
 - `inspectTransformRevision(revision, expectedBase)`：返回 `known{base,preparation}`、`unknown`、`invalid`。本版前缀但结构/规范编码非法为invalid；其他未知版本为unknown；plain revision仅在与明确expectedBase逐字一致时known。known compound内base与expectedBase不等不是兼容，返回unknown；不strip未知prefix冒充plain。
 - `relateMeterBases(current, original, meter)`：先按现有exact binding/model/provider/tokenizer/meter/replay/projection语义核current是否由固定meter解释，再由共享inspect核当前base。original先保留来源/摘要/usage原规则；其每个原basis字段按原窄映射的已版本化适用关系核对，不能只看base。返回 `sameEffective`（完整current/original θ相同）、`changedEffective`（两者均可解释但θ不同）、`unavailable`或`invalidInput`。返回另带只读派生base视图用于既有模型公式，不改原事实。版本化兼容声明仍须RT10 S77规定的依据；本增量不声明不同compound自动兼容。
 
-planner full/φ/δ共用current basis。φ必须`sameEffective`再消费I+φ；changedEffective立即走basis_changed/full，原来源矛盾先invalidInput而不是走本函数。full/δ可按已经核实的原base、完整原O及实际选择使用其原映射；图片准备确实改变所回放原图时，原O映射不能解释便对该实际内容full计量或unavailable，不能仅因base相等消费整组O。full不借changedEffective删掉仍真实的原O/opaque证据。
+planner full/φ/δ共用current basis。φ必须`sameEffective`再消费I+φ；changedEffective走full并保留RT10 S77首原因顺序：source_unavailable、no_observation、prefix_changed、basis_changed，prefix和θ同变不能覆盖prefix_changed，原来源矛盾先invalidInput而不是走本函数。full/δ可按已经核实的原base、完整原O及实际选择使用其原映射；图片准备确实改变所回放原图时，原O映射不能解释便对该实际内容full计量或unavailable，不能仅因base相等消费整组O。full不借changedEffective删掉仍真实的原O/opaque证据。
 
 公开独立full取projection currentθ，独立δ/φ取显式currentθ；每个口先调用同一relate/inspect验证，known malformed compound为invalidInput（full依现类型为unavailable），未知语义为unavailable。调用者不能在φ只交原θ而让当前θ缺省等于它。planner在调用meter前核currentθ等于由本次固定meter+真实准备descriptor合成的值，actual projection与prepared bytes来自同一owned plan，传伪descriptor/伪planned不成立。独立meter仍按既有显式输入/适用依据边界；不得从原projection摘要相同推断来源授权。
 
@@ -91,7 +93,7 @@ reuseScope为runtime v21提供的进程内opaque值，不是权限凭据。每sc
 
 无新持久存储，原会话日志不写；临时数据仅内存且随计划/任务/缓存owner释放，跨owner同一提交要求0。独立与Cordis服务共用本函数。binding新增0，不把proposal场景当已跑测试。
 
-验收完整沿提案IP-V1～10，另要求基于已安装exact codec的版本/平台记录、动画及恶图decode、EXIF/alpha、4MiB前后实际HTTPS、native取消drain、三轮cache编码计数、meter/wire哈希对应、原source篡改负控和库缺席零HTTP。actual库probe及显式preset、basis共享consumer迁移、runtimev21精确接口、独立节点评审均未闭合，不能从本文件存在推出可实施。
+验收完整沿提案IP-V1～10，另要求基于已安装exact codec的版本/平台记录、动画及恶图decode、EXIF/alpha、4MiB前后实际HTTPS、native取消drain、三轮cache编码计数、meter/wire哈希对应、原source篡改负控和库缺席零HTTP。actual库probe及显式preset候选见下（尚未主线采用），basis共享consumer迁移、runtimev21精确接口与工程符合性尚待；独立节点评审实际状态见提案review，不能从本文件存在推出可实施。
 
 
 ## revision 2：搜索序号与cache同一成功集合
@@ -115,3 +117,39 @@ cache存的是每个逻辑candidateOrdinal的已验证结果或确定不可用�
 | `estimateOpenAi56Replay` φ wrapper | 传当前countingBasis；消费I时先由共享relation确定完整effectiveθ相同，否则回full；group历史O映射不能被错误当作不同θ前缀I兼容声明 |
 
 现有group helper本质上同时供full/new和φ使用，所以不能把“θ变化禁止复用I”错施为“所有旧O都不可用”。公共桥接分开current可解释性、原来源窄表适用性、前缀I相容性三个判定；full/new只需前两者及其实际selection适用依据，φ叠加第三者。该拆分不修改MR9原事实或来源授权，也不是每型号新条件分支。新增consumer测试包括旧已接受sourceBindings各行在current带准备compound时full/new可用、φ按θ失效回full；伪造sourceBinding或坏原摘要仍拒。
+
+
+## revision 3：失败、资源与显式配置闭合
+
+r2保存在commit 7d1ab3aa，r3处置表达审查三项阻断。以下精确结果替代前文reason-only草图；没有新增RT业务枚举。
+
+`createImagePreparer(policy, explicitlyLoadedCodec)`是同步构造：缺项/未知字段/非法值/不符合接口的codec descriptor抛TypeError，发生在取得任务/cache资源之前；descriptor合法但codec当前不可用返回`{unavailable:true}`；成功`{ready:preparer}`。codec句柄**借用**，必须在整个preparer寿命内有效，preparer.close不会销毁共享codec；codec owner须在所有借用preparer.close完成后销毁。独立caller同时是owner时先close preparer后dispose codec。构造不做import、文件IO或联网；异步显式加载codec由装配先完成并把异常映射为依赖不可用。
+
+batch输入精确值域：images为有限数组（允许空数组）；每项`position`非空字符串且batch内唯一，`bytes`为非共享ArrayBuffer承载的Uint8Array（Buffer可），`mediaType`非空且须与实际格式一致，`targetMaxBytes`正安全整数；不接受SharedArrayBuffer、访问器对象或任意隐式coercion。`maxRequestBytes`为正安全整数或显式null（仅无适用有限总量cap，未知上游事实不能被改成unbounded）；缺席非法。`nonImageWireBytes`非负安全整数；signal必需AbortSignal；scope可省略，无scope即不跨调用缓存。空数组也按nonImageWireBytes与总量cap检查，无图不需decode。已知所有适用有限上限取较小者，上游unknown仍保持事实unknown。
+
+公开调用返回封闭分类：
+
+| rejected.reason | 必需附加字段 | plan映射 |
+|---|---|---|
+| malformed_input | 无内容的field技术定位（不带值） | invalidInput malformed |
+| malformed_image / decode_failed | imageIndex | invalidInput malformed |
+| unsupported_encoding / animated_input / source_resource_limit | imageIndex | input_size_unavailable metrics=[maxImageBytes]，诊断明确非模态不支持/非实际目标超限 |
+| no_candidate | stage=per_image时imageIndex必需；stage=request_total时不带imageIndex | 分别input_size_unavailable metrics=[maxImageBytes]或[maxRequestBytes] |
+| aborted | 无 | direct plan unavailable；invoke/service依先成立取消终局 |
+| provider_unavailable | cause=closed/codec_unavailable/busy/codec_failure | unavailable；不伪造上游故障或0费用 |
+
+上述是技术helper值域，范围外异常不能静默当成功：未知native异常收束owned任务后provider_unavailable codec_failure，脱敏诊断保留实际阶段。已被库明确判坏输入的decode错误才是decode_failed。失败阶段由batch内部实际发生点记录，不通过第二次搜索猜metric。policy构造失败在服务装配暴露；不能建一个静默放行实例。合法factory但计划配置不足仍按RT10现有配置拒绝。
+
+资源准入**不排队、不自动重试**。batch开始时检查closed/已取消及可判输入长度；原子保留一个batch并发槽与全部将拥有的源字节预算，然后才owned copy，不在满额时先copy。任何预算或maxConcurrent满额立即provider_unavailable busy。metadata后在栅格解码前额外保留width×height×4的RGBA8工作预算和配置允许的输出工作预算；不足则释放本batch全部保留并返回busy，零HTTP。每次编码前按显式candidateMaxBytes保留可接纳输出额度；native返回的结果只有actualBytes<=candidateMaxBytes才转入可保留候选，超过则此ordinal不可用、立即丢弃引用而不加入cache或计划。这个额度不声称限制native内部或返回瞬间的临时分配。批内图片顺序处理，候选结果不用则及时释放，最终输出转交计划owner时计账责任随buffer转移，不能还占cache预算却假释放总持有量。cache预算与在途预算分开统计，缓存引用同buffer不重复计物理拥有；对外返回owned copy须先有对应预算。
+
+`maxInFlightBytes`只约束本构件显式保留/拥有的源、RGBA8工作和输出buffer预算；不是native RSS或全进程峰值保证。编码器内部临时分配由其明确像素/边长界限约束，实际内存峰值须另测。未知native分配不冒精确字节。输出工作额度为配置candidateMaxBytes；它约束本构件会保留的编码结果，不是encoder最大可能输出的事实或native RSS硬上限。大于此额度的候选即使小于某个超大profile cap也属本提供者搜索范围外，不能误报上游限制。必须以oversized-candidate负控验证不进入cache/plan及任务真正终结后释放；native内存峰值单独测量。
+
+重复/并发close共享同一终结Promise；第一次同步关闭准入，随后取消并await全部真实任务、清缓存。成功后重复close仍完成；没有新的任务或codec销毁。任何未终结native任务使该Promise仍未完成，不假成功。公开`clearScope(scope)`同步删除该scope当前缓存表；之后新请求可建新表，旧在途任务保留自有结果但完成时若原表已不再当前则不得重新发布进新表。它不取消任务、不释放仍由任务持有的buffer，反复调用无副作用。scope退出/淘汰由runtime调用此口删除对应缓存引用；in-flight计划已有owned输出不受影响，codec owner关系不变。runtime scope表只淘汰无在途引用者，transport总cache限额仍独立生效。
+
+### model-image-balanced-v1 本地preset候选
+
+数值是可替换技术配置，需主线技术采用，不是上游限制或无条件支持所有输入。sourceMaxBytes=16MiB，decodedMaxPixels=16,000,000，decodedMaxDimension=8192；maxConcurrent=2，maxInFlightBytes=256MiB，candidateMaxBytes=16MiB；maxCacheBytes=64MiB，maxCacheEntries=128，runtime maxScopes=64；maxWidth/maxHeight=2048，minWidth/minHeight=32；qualitySteps=[85,70,55]；sizeScaleSteps=[1,.75,.5,.25,.125]；outputFormats=[png,jpeg,webp]；alphaBackground=null；maxAttemptsPerImage=35（每尺寸PNG1+JPEG3+WebP3，5档）。不需处理的小图仍原样透传，不因preset min尺寸放大或重编码。资源/质量配置必须随包公开，租户可信装配可更改但不得扩大profile与已知上游cap。
+
+明确算法输入尺寸：先按min(1,maxWidth/orientedWidth,maxHeight/orientedHeight)取得inside基准，再乘scale；目标宽高各向下取整，最小1；低于policy minWidth/minHeight候选标不可用且仍占ordinal。保持长宽比的库inside resize负责像素，rounding后的实际尺寸重新核；永不上采样。PNG encoder固定compressionLevel=9；JPEG/WebP用所列quality，WebP effort固定4；这些与codec版本均入policy摘要，后续改值改revision。
+
+已做codec参数样本观察：sharp0.35.3/libvips8.18.3、Node24.18 linuxx64，synthetic 1400² PNG 5,890,980B在max2048不放大、JPEG q85后1,400,709B。r2 codec probe另8/8覆盖alpha/EXIF/两帧/像素limit/截断/确定性/native真排空；有限搜索oracle4场景+4096组合过。它们**没有**证明完整preset、最大资源边界、native峰值、产品HTTP或全部IP-V1～10；这些是实施后验收义务，不能用这份数值表假关闭。candidateMaxBytes是明确保留政策，无须伪造某编码器普适最大输出公式。
