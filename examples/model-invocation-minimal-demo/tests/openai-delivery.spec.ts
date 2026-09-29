@@ -43,7 +43,7 @@ import {
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment, publication, rootBody, ROOT } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, PASSWORD, ref } from './support.ts'
 
 const MODELS = [
   'openai/gpt-6-luna',
@@ -208,10 +208,13 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         },
       })
       const host = createDemoCallHost()
+      let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
       let manifest: ReturnType<typeof createAssemblyManifestStore> | undefined
       let history: RegistryHistoryReader | undefined
       try {
         await app.ready
+        const who = await actor(app)
+        diagnostics = await activateModelFixture(app, who, config)
         if (storage === undefined || context === undefined)
           throw new Error('provider capture missing')
         const currentInputs: CurrentEvaluationInputs = context.get(
@@ -251,7 +254,6 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
           conflictPolicy: { maxRetries: 0 },
           maxInFlight: 2,
         })
-        const who = await actor(app)
         const prepared = await app.prepareSession(who, 'service-real-tools-session')
         if (!('session' in prepared)) throw new Error('session preparation failed')
         expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -520,7 +522,7 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
             ],
           })
         }
-        expect((await app.close()).complete).toBe(true)
+        expect((await diagnostics.closeAfterBusiness(() => app.close())).complete).toBe(true)
         await registry.close()
         await history.close()
         await manifest.close()
@@ -530,18 +532,26 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
           developmentTransport: tls.developmentTransport,
           diagnostics: { record() {} },
         })
+        let reopenedDiagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
         try {
           await reopened.ready
-          expect(await reopened.readSessionLog(who, prepared.session)).toEqual(durable)
+          const authenticated = await reopened.authenticate('alice', PASSWORD)
+          if (!('account' in authenticated)) throw new Error('reopen authentication failed')
+          reopenedDiagnostics = await activateModelFixture(reopened, authenticated, config)
+          expect(await reopened.readSessionLog(authenticated, prepared.session)).toEqual(durable)
           expect(tls.requests).toHaveLength(3)
         } finally {
-          expect((await reopened.close()).complete).toBe(true)
+          const closed = reopenedDiagnostics
+            ? await reopenedDiagnostics.closeAfterBusiness(() => reopened.close())
+            : await reopened.close()
+          expect(closed.complete).toBe(true)
         }
         expect(tls.failures).toEqual([])
         expect(await host.stop()).toEqual({ released: true })
       } finally {
         await host.stop()
-        await app.close()
+        if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+        else await app.close()
         await registry?.close()
         await history?.close()
         await manifest?.close()
