@@ -1,3 +1,5 @@
+import { MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/pi-ai-transport/plugin'
+import type { ModelTransportService } from '@omne-harness-lite/pi-ai-transport'
 import {
   anthropicDefinitions,
   createAnthropicInputMeter,
@@ -6,9 +8,17 @@ import {
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
 import { randomBytes } from 'node:crypto'
-import { mkdir, mkdtemp, writeFile, readFile, readdir } from 'node:fs/promises'
+import {
+  mkdir,
+  mkdtemp,
+  writeFile,
+  readFile,
+  readdir,
+  open,
+  type FileHandle,
+} from 'node:fs/promises'
 import { resolve, join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import {
   createAcceptanceApplication,
@@ -245,10 +255,18 @@ async function ready(label: string, definition = anthropicDefinitions[0]!) {
     }),
     'Anthropic',
   )
+  let registry: ModelTransportService | undefined
   const app = createAcceptanceApplication(config, {
     stage: 'modelRequest',
     developmentTransport: tls.developmentTransport,
     diagnostics: { record() {} },
+    hooks: {
+      async fiberCreated(name, fiber) {
+        if (name !== 'modelTransport') return
+        await fiber
+        registry = realService(fiber.ctx.get(MODEL_TRANSPORT_SERVICE), ['inspect', 'acquire'])
+      },
+    },
   })
   await app.ready
   const who = await actor(app)
@@ -288,6 +306,10 @@ async function ready(label: string, definition = anthropicDefinitions[0]!) {
   }
   return {
     app,
+    registry: () => {
+      if (!registry) throw Error('actual transport registry absent')
+      return registry
+    },
     config,
     who,
     calls,
@@ -427,6 +449,153 @@ describe('independent U4 actual service and physical SL3 batches', () => {
         expect(wire).not.toContain('A-source-unique')
       expect(f.tls.requests).toHaveLength(7)
     } finally {
+      await f.close()
+    }
+  })
+  it('a real failed R batch does not advance observation and dispatchAgain retains the earlier legal M/R source', async () => {
+    const f = await ready('retry-calibration')
+    try {
+      const target = await f.session('retry-calibration-session')
+      await f.turn(target, 'prior-observation')
+      const full = f.calls.full.length
+      f.tls.setMode('http503')
+      const sent = await f.app.startServiceCall(f.who, target.session, {
+        user: user('failed-user'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: target.host.host,
+      })
+      if (!('callId' in sent) || !('result' in sent) || !('settled' in sent.result))
+        throw Error(JSON.stringify(sent))
+      expect(sent.result.settled.outcome).toBe('failed')
+      expect(sent.result.settled.inputCalibration.observedInput.kind).toBe('unavailable')
+      const bound = await f.app.bindModelRuntime(f.who, target.session)
+      if (!('service' in bound)) throw Error('runtime absent')
+      expect(
+        await bound.service.readAttempts({ session: target.session, callId: sent.callId }),
+      ).toMatchObject({ state: 'awaiting_decision' })
+      f.tls.setMode('complete')
+      const retried = await bound.service.dispatchAgain({
+        session: target.session,
+        callId: sent.callId,
+        plan: { provider: 'anthropic' },
+      })
+      if (!('replyPending' in retried)) throw Error(JSON.stringify(retried))
+      expect(
+        await f.app.persistModelReply(f.who, target.session, retried.replyPending),
+      ).toHaveProperty('settled')
+      expect(f.calls.full).toHaveLength(full)
+      expect(f.tls.requests).toHaveLength(3)
+      expect(f.tls.requests[1]!.body).toEqual(f.tls.requests[2]!.body)
+      const batches = await physicalBatches(f.config.sessionLog!.dir)
+      const failureBatch = batches.find(batch =>
+        batch.entries.some(
+          entry =>
+            entry.payload.category === 'response' &&
+            'outcome' in entry.payload.value &&
+            entry.payload.value.outcome === 'failed',
+        ),
+      )!
+      expect(failureBatch.entries.map(entry => entry.payload.category)).toEqual(['response'])
+      expect(failureBatch.entries[0]!.payload.value).toMatchObject({
+        inputCalibration: sent.result.settled.inputCalibration,
+      })
+    } finally {
+      await f.close()
+    }
+  })
+
+  it('unknown physical response commit cannot become a new source or release the live call lease', async () => {
+    const f = await ready('unknown-calibration')
+    const probe = await open(resolve(f.config.databaseFile, '../probe'), 'w')
+    const methods = Object.getPrototypeOf(probe) as Pick<
+      FileHandle,
+      'write' | 'datasync' | 'truncate'
+    >
+    await probe.close()
+    const originalWrite = methods.write,
+      originalSync = methods.datasync,
+      originalTruncate = methods.truncate
+    const affected = new WeakSet<object>()
+    const write = vi.spyOn(methods, 'write').mockImplementation(async function (
+      this: FileHandle,
+      ...args: Parameters<FileHandle['write']>
+    ) {
+      const value: unknown = args[0]
+      if (
+        ArrayBuffer.isView(value) &&
+        Buffer.from(value.buffer, value.byteOffset, value.byteLength).includes(
+          Buffer.from('"category":"response"'),
+        )
+      )
+        affected.add(this)
+      return await Reflect.apply(originalWrite, this, args)
+    })
+    const sync = vi.spyOn(methods, 'datasync').mockImplementation(async function (
+      this: FileHandle,
+    ) {
+      if (affected.has(this))
+        throw Object.assign(Error('independent response datasync EIO'), { code: 'EIO' })
+      return await originalSync.call(this)
+    })
+    const truncate = vi.spyOn(methods, 'truncate').mockImplementation(async function (
+      this: FileHandle,
+      ...args: Parameters<FileHandle['truncate']>
+    ) {
+      if (affected.has(this))
+        throw Object.assign(Error('independent response repair EIO'), { code: 'EIO' })
+      return await originalTruncate.apply(this, args)
+    })
+    try {
+      const target = await f.session('unknown-calibration-session')
+      const sent = await f.app.startServiceCall(f.who, target.session, {
+        user: user('unknown-source'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: target.host.host,
+      })
+      if (!('result' in sent) || !('replyPending' in sent.result)) throw Error(JSON.stringify(sent))
+      const pending = sent.result.replyPending
+      const committed = await f.app.persistModelReply(f.who, target.session, pending)
+      expect(committed).not.toHaveProperty('settled')
+      expect(f.registry().inspect()).toMatchObject({ references: 1, executions: 0 })
+      const counts = {
+        full: f.calls.full.length,
+        replay: f.calls.replay.length,
+        fresh: f.calls.fresh.length,
+      }
+      const attempted = await f.app.startServiceCall(f.who, target.session, {
+        user: user('must-not-use-unknown'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: target.host.host,
+      })
+      expect(attempted).not.toHaveProperty('result.replyPending')
+      expect(f.tls.requests).toHaveLength(1)
+      expect({
+        full: f.calls.full.length,
+        replay: f.calls.replay.length,
+        fresh: f.calls.fresh.length,
+      }).toEqual(counts)
+      expect(f.registry().inspect()).toMatchObject({ references: 1 })
+      write.mockRestore()
+      sync.mockRestore()
+      truncate.mockRestore()
+      // SLJ-9: failed truncation leaves this resident write-untrusted until restart.
+      expect(await f.app.reconcileModelRuntime(f.who, target.session)).toEqual({
+        unavailable: true,
+      })
+      const batches = await physicalBatches(f.config.sessionLog!.dir)
+      const responses = batches.flatMap(batch =>
+        batch.entries.filter(entry => entry.payload.category === 'response'),
+      )
+      expect(responses).toHaveLength(1)
+      expect(responses[0]!.payload.value).toMatchObject({
+        inputCalibration: pending.inputCalibration,
+      })
+      expect(f.registry().inspect()).toMatchObject({ references: 1, executions: 0 })
+      expect(f.tls.requests).toHaveLength(1)
+    } finally {
+      write.mockRestore()
+      sync.mockRestore()
+      truncate.mockRestore()
       await f.close()
     }
   })

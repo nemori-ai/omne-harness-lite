@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Tiktoken } from 'js-tiktoken/lite'
 import {
@@ -289,5 +290,161 @@ describe('independent final projection invalidation from a real TLS observation'
     ).toMatchObject({ mode: 'full', fallbackReason: 'source_unavailable' })
     expect(original.measurement).toMatchObject({ mode: 'full', fallbackReason: 'no_observation' })
     expect(host.requests).toHaveLength(1)
+  })
+  it('marginal image contribution still enforces actual decoded bytes and cannot silently omit media', () => {
+    const bytes = readFileSync(new URL('./fixtures/anthropic/reference-1x1.png', import.meta.url))
+    const visual = judgedMessage({
+      type: 'user',
+      id: 'visual-new',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'visual',
+          kind: 'image',
+          mediaType: 'image/png',
+          data: { inline: bytes.toString('base64') },
+          visibility: { toHuman: true, toModel: true },
+        },
+        {
+          id: 'visual-text',
+          kind: 'text',
+          text: 'what is visible',
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    const imageRequest = { ...replayed, messages: [...replayed.messages, visual] }
+    const measured = planned(imageRequest)
+    expect(measured.measurement.mode).toBe('marginal')
+    expect(measured.inputLimitEvidence.images).toBe(1)
+    expect(measured.inputLimitEvidence.imageBytes).toEqual([bytes.length])
+    expect(
+      planRequest(
+        {
+          ...imageRequest,
+          snapshot: {
+            ...imageRequest.snapshot,
+            inputConstraints: {
+              ...imageRequest.snapshot.inputConstraints,
+              maxImageBytes: bytes.length - 1,
+            },
+          },
+        },
+        [definition],
+        meter,
+      ),
+    ).toMatchObject({
+      rejected: 'invalidInput',
+      reason: 'input_limit_exceeded',
+      metric: 'maxImageBytes',
+    })
+    expect(host.requests).toHaveLength(1)
+  })
+  it('opaque retained reasoning outside this official meter domain refuses instead of tokenizing ciphertext', () => {
+    const opaque = judgedMessage({
+      type: 'assistant',
+      id: 'opaque-response',
+      response: 'opaque-original',
+      ending: 'complete',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'opaque',
+          kind: 'thinking',
+          text: '',
+          opaque: {
+            routeName: definition.modelId,
+            reasoning_details: [
+              { type: 'reasoning.encrypted', data: 'opaque-ciphertext-sentinel' },
+            ],
+          },
+          visibility: { toHuman: false, toModel: true },
+        },
+        {
+          id: 'visible-answer',
+          kind: 'text',
+          text: 'answer retained',
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    const spy = vi.spyOn(Tiktoken.prototype, 'encode')
+    try {
+      expect(
+        planRequest(
+          {
+            ...replayed,
+            messages: [
+              ...replayed.messages,
+              opaque,
+              message('user', 'after opaque', 'opaque-user'),
+            ],
+          },
+          [definition],
+          meter,
+        ),
+      ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+      expect(spy.mock.calls.some(call => call[0].includes('opaque-ciphertext-sentinel'))).toBe(
+        false,
+      )
+      expect(host.requests).toHaveLength(1)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+  it('new tool call and result units remain in delta and retain their actual wire identities', () => {
+    const call = judgedMessage({
+      type: 'assistant',
+      id: 'tool-calling',
+      response: 'tool-original',
+      ending: 'complete',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'tool-call',
+          kind: 'tool_call',
+          callId: 'lookup-1',
+          tool: 'lookup',
+          complete: true,
+          unparseable: true,
+          rawArguments: '{"key":"sentinel"}',
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    const result = judgedMessage({
+      type: 'tool',
+      id: 'tool-result',
+      callId: 'lookup-1',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'result-wrapper',
+          kind: 'tool_result',
+          callId: 'lookup-1',
+          outcome: 'completed',
+          visibility: { toHuman: true, toModel: true },
+          blocks: [
+            {
+              id: 'result-text',
+              kind: 'text',
+              text: 'tool-result-sentinel',
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        },
+      ],
+    })
+    const spy = vi.spyOn(Tiktoken.prototype, 'encode')
+    try {
+      const measured = planned({ ...replayed, messages: [...replayed.messages, call, result] })
+      expect(measured.measurement.mode).toBe('marginal')
+      expect(spy.mock.calls.some(item => item[0].includes('tool-result-sentinel'))).toBe(true)
+      expect(spy.mock.calls.some(item => item[0].includes('lookup-1'))).toBe(true)
+      expect(spy.mock.calls.some(item => item[0].includes('stable-prefix-sentinel'))).toBe(false)
+      expect(JSON.stringify(measured.body)).toContain('"tool_call_id":"lookup-1"')
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
