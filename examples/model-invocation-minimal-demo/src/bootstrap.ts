@@ -58,7 +58,9 @@ import {
   type UserMessage,
   type ToolMessage,
   type LoggedMessage,
+  type SystemReminderMessage,
 } from '@omne-harness-lite/messages'
+import { judgeAccountValue, type RunId, type AttemptId } from '@omne-harness-lite/call-accounts'
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { createRequestOwner } from './model-request-owner.ts'
@@ -93,11 +95,19 @@ import {
   createAssemblyManifestStore,
   type AssemblyManifestStore,
 } from '@omne-harness-lite/assembly-manifest-store'
-import { createAssetRegistry, type AssetRegistry } from '@omne-harness-lite/asset-registry'
+import {
+  createAssetRegistry,
+  type AssetRegistry,
+  type AvailabilityReport,
+} from '@omne-harness-lite/asset-registry'
 import {
   createRegistryHistoryReader,
   type RegistryHistoryReader,
 } from '@omne-harness-lite/evaluation-input-store/registry-history'
+import {
+  createRegistryInputReader,
+  type RegistryInputReader,
+} from '@omne-harness-lite/evaluation-input-store/registry-inputs'
 import {
   createEvaluationInputStorePlugin,
   evaluationInputMigrations,
@@ -473,6 +483,22 @@ export interface AcceptanceApplication {
   }
 }
 
+/** Construction-only fixture: it borrows this application's real auth, registry and SL3 owner. */
+export interface ControlledRunFixturePort {
+  startAttempt(
+    actor: AuthenticatedActor,
+    session: unknown,
+    run: RunId,
+    attempt: AttemptId,
+  ): Promise<
+    ScenarioResult<
+      | { readonly report: AvailabilityReport; readonly release: () => void }
+      | { readonly invalidInput: { readonly reason: 'malformed' } }
+      | { readonly unavailable: true }
+    >
+  >
+}
+
 /** D092 auth bootstrap, optionally followed by the restricted session preparation stage. */
 export function createAcceptanceApplication(
   config: AcceptanceConfig,
@@ -490,6 +516,8 @@ export function createAcceptanceApplication(
     readonly runHistory?: RunHistoryReader
     /** Trusted source owner proves selected-message ancestry from this owned prefix. */
     readonly calibrationHistory?: CurrentHistoryReaders['calibration']
+    /** Trusted local acceptance fixture only; not a demo application or CLI operation. */
+    readonly controlledRunFixture?: (port: ControlledRunFixturePort) => void
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
@@ -518,6 +546,7 @@ export function createAcceptanceApplication(
   const runnerActors = new AsyncLocalStorage<AuthenticatedActor>()
   let manifest: AssemblyManifestStore | undefined
   let registryHistory: RegistryHistoryReader | undefined
+  let fixedRootInput: RegistryInputReader | undefined
   let assetRegistry: AssetRegistry | undefined
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
@@ -836,6 +865,7 @@ export function createAcceptanceApplication(
         | 'modelContributions'
         | 'assetRegistry'
         | 'registryHistory'
+        | 'fixedRootInput'
         | 'assemblyManifest'
       )[] = [
         ...(stage === 'modelRequest'
@@ -843,6 +873,7 @@ export function createAcceptanceApplication(
               'modelContributions',
               'modelTransport',
               'assetRegistry',
+              'fixedRootInput',
               'registryHistory',
               'assemblyManifest',
               'evaluationInputs',
@@ -876,6 +907,7 @@ export function createAcceptanceApplication(
                 record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
             } else await sessionLogOwner?.close()
           } else if (name === 'assetRegistry') await assetRegistry?.close()
+          else if (name === 'fixedRootInput') await fixedRootInput?.close()
           else if (name === 'registryHistory') await registryHistory?.close()
           else if (name === 'assemblyManifest') await manifest?.close()
           else if (name === 'replica') await replica?.close()
@@ -1305,12 +1337,14 @@ export function createAcceptanceApplication(
             },
             monotonicNow: inputSource.monotonicNow,
           })
+          fixedRootInput = createRegistryInputReader(inputSource)
           assetRegistry = createAssetRegistry({
             manifest,
             clock: activeClock,
             sessionTenancy,
             currentInputs,
             historicalBody: registryHistory,
+            fixedRootInput,
             deployedMeta: inputSource.deployedOfficial
               .filter(entry => entry.meta)
               .map(entry => entry.capability),
@@ -1916,6 +1950,103 @@ export function createAcceptanceApplication(
     }
     return { borrow, checked }
   }
+  const controlledRunFixture: ControlledRunFixturePort = {
+    startAttempt(actor, session, run, attempt) {
+      if (stage !== 'modelRequest' || !admit()) return Promise.resolve({ failure: 'stageClosed' })
+      return trackSessionInput(session, async () => {
+        const access = await sessionAccess(actor, session)
+        if (!('borrow' in access)) return access
+        if (
+          recoveryAdmission.has(access.borrow.binding.session) ||
+          requestDeployment === undefined ||
+          assetRegistry === undefined ||
+          attempt !== 1 ||
+          !('ok' in judgeAccountValue('RunId', run)) ||
+          !('ok' in judgeAccountValue('AttemptId', attempt))
+        )
+          return { invalidInput: { reason: 'malformed' } } as const
+        const { binding, owner } = access.borrow
+        const acquired = owner.owner.acquire(
+          requestDeployment.settlement.contention.limits.concurrent,
+        )
+        if ('unavailable' in acquired) return { unavailable: true } as const
+        let retained = false
+        try {
+          const prefix = await readSettlementPrefix({
+            binding,
+            registration: acquired.registration,
+          })
+          if ('unavailable' in prefix) return { unavailable: true } as const
+          const decoded = messagePrefix(prefix.prefix)
+          if ('unavailable' in decoded) return { unavailable: true } as const
+          const available = await assetRegistry.refreshAvailability(
+            binding.session,
+            { kind: 'start', runId: run },
+            attempt,
+          )
+          if (!('report' in available)) return { unavailable: true } as const
+          const now = activeClock?.now()
+          if (now === undefined || now === 'unavailable') return { unavailable: true } as const
+          const messageId = parseOpaqueIdentifier(`attempt-${randomUUID()}`, 'MessageId')
+          if (!isOk(messageId)) return { unavailable: true } as const
+          const value: SystemReminderMessage = {
+            id: messageId.ok,
+            type: 'system_reminder',
+            nature: 'event',
+            source: {
+              kind: 'attempt_started',
+              attempt,
+              reason: 'first',
+              at: new Date(now).toISOString(),
+            },
+            blocks: [],
+            createdAt: new Date(now).toISOString(),
+          }
+          if (!('ok' in judgeMessage(value))) return { unavailable: true } as const
+          const captured = captureModelLogValue({
+            category: 'message',
+            input: { kind: 'value', value },
+          })
+          if ('invalidValue' in captured) return { unavailable: true } as const
+          const entry = prepareModelLogEntry({
+            session: binding.session,
+            shell: { tenant: access.checked.tenant, run, attempt },
+            captured: captured.ok,
+            purpose: { kind: 'message' },
+            messagePrefix: decoded.messages,
+          })
+          if ('invalidValue' in entry) return { unavailable: true } as const
+          const task = acquired.registration.start('append', async () =>
+            binding.log.append(
+              binding.session,
+              [entry.ok],
+              { kind: 'fenced', run, attempt },
+              { kind: 'tailEquals', tail: prefix.prefix.tail },
+            ),
+          )
+          const receipt = await task.completion.catch(() => ({ failure: 'unavailable' as const }))
+          await task.stopped
+          if ('failure' in receipt) {
+            if (receipt.failure === 'unavailable') retained = true
+            return { unavailable: true } as const
+          }
+          retained = true
+          let released = false
+          return {
+            report: available.report,
+            release() {
+              if (released) return
+              released = true
+              acquired.registration.release()
+            },
+          }
+        } finally {
+          if (!retained) acquired.registration.release()
+        }
+      })
+    },
+  }
+  options.controlledRunFixture?.(controlledRunFixture)
   function ensureSelection(borrow: {
     binding: SettlementLogBinding
     owner: ReturnType<typeof createRequestOwner>

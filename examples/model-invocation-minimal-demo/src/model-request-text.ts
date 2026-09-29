@@ -40,7 +40,7 @@ export function messagePrefixWithSources(prefix: SettlementPrefix):
     })
     if ('invalid' in runner) return { unavailable: true }
     if ('conclusion' in runner) continue
-    if (entry.run !== undefined || entry.attempt !== undefined) return { unavailable: true }
+    if ((entry.run === undefined) !== (entry.attempt === undefined)) return { unavailable: true }
     const keys = entry.readKeys.map(decodeModelLogKey)
     const message = keys.some(key => 'ok' in key && key.ok.kind === 'messages')
     const response = keys.some(key => 'ok' in key && key.ok.kind === 'response')
@@ -109,6 +109,14 @@ export function messagePrefixWithSources(prefix: SettlementPrefix):
       const value = checked.ok.captured.message
       if (value !== null) {
         if (value.type === 'system' || !('ok' in judgeMessage(value))) return { unavailable: true }
+        if (
+          value.type === 'system_reminder' &&
+          value.source.kind === 'attempt_started' &&
+          (entry.run === undefined ||
+            entry.attempt === undefined ||
+            ExactDecimal.from(value.source.attempt).compare(ExactDecimal.from(entry.attempt)) !== 0)
+        )
+          return { unavailable: true }
         selectedMessageSources.push({ messageIndex: messages.length, entry })
         messages.push(value)
       }
@@ -134,6 +142,8 @@ export function readDemoCalibrationHistory(
   // The linear demo reader cannot prove a Run's selected-message ancestry. A
   // trusted Run owner must provide the callback for that branch.
   if (Object.hasOwn(target, 'run') || Object.hasOwn(target, 'attempt'))
+    return { sourceUnavailable: true }
+  if (prefix.entries.some(entry => entry.run !== undefined || entry.attempt !== undefined))
     return { sourceUnavailable: true }
   const decoded = messagePrefixWithSources(prefix)
   if ('unavailable' in decoded) return { sourceUnavailable: true }
