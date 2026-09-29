@@ -3,7 +3,7 @@ import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-value
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createServiceCalls } from '../src/service-calls.ts'
 import { createServiceControl } from '../src/service-control.ts'
-import { createServiceDispatch } from '../src/service-dispatch.ts'
+import { createServiceDispatch, settlementEvent } from '../src/service-dispatch.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
@@ -224,6 +224,20 @@ test('service dispatch writes both anchors before handing out a complete pending
         }),
       },
     }
+    expect(
+      settlementEvent({
+        kind: 'settlement.unavailable.unlisted',
+        tenant: binding.log.tenant,
+        session: binding.log.session,
+        call: key.callId,
+        dispatch: 1,
+        response: 'response-test',
+        owner: 'owner-test',
+        policy: 'policy-test',
+        submissions: 1,
+        tailConflicts: 0,
+      }),
+    ).toBeUndefined()
     const runtime: RuntimeConstruction<TestPlan, object> = {
       sessions: { bind: async () => ({ binding }) },
       calls,

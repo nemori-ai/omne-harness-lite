@@ -47,7 +47,26 @@ import type {
   DiagnosticReference,
 } from './diagnostics-types.ts'
 
-function settlementEvent(event: SettlementDiagnostic): DiagnosticEvent | undefined {
+const settlementUnavailableKinds = new Set<string>([
+  'settlement.unavailable.dependency',
+  'settlement.unavailable.policy',
+  'settlement.unavailable.closed',
+  'settlement.unavailable.concurrent',
+  'settlement.unavailable.budget',
+  'settlement.unavailable.cancelled',
+  'settlement.unavailable.generation',
+  'settlement.unavailable.log',
+  'settlement.unavailable.prefix',
+  'settlement.unavailable.anchor',
+  'settlement.unavailable.members',
+  'settlement.unavailable.run_history_unavailable',
+  'settlement.unavailable.opened_unknown',
+  'settlement.unavailable.write_unknown',
+  'settlement.unavailable.task',
+  'settlement.unavailable.candidate',
+])
+
+export function settlementEvent(event: SettlementDiagnostic): DiagnosticEvent | undefined {
   let outcome: DiagnosticEvent['outcome']
   let settlement: 'unsettled' | 'submitted' | 'committed' | 'unknown'
   switch (event.kind) {
@@ -81,7 +100,7 @@ function settlementEvent(event: SettlementDiagnostic): DiagnosticEvent | undefin
       settlement = 'unknown'
       break
     default:
-      if (!event.kind.startsWith('settlement.unavailable.')) return undefined
+      if (!settlementUnavailableKinds.has(event.kind)) return undefined
       outcome = 'unavailable'
       settlement = 'unknown'
   }
