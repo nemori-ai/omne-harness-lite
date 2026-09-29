@@ -136,3 +136,30 @@ N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块�
 - **G8-1（MR8 S-16/S-17/S-24；RT9 S-33/S-36）**：真实 durable dispatched、已知实际时刻保留、未知不代填、锚点后零 send 和失联恢复的正确分支归 runtime/transport/日志 owner；纯 core 不能证明。完整批认回、竞争提交、实际停止与 zero-HTTP 恢复须另验，不把 null 当授权。
 - **G8-2（MR8 S-9/S-11/S-19/S-21）**：可信同次事实与原固定计划、已知账/头/身份保留由写方验证，未知费用不被 null 覆盖为零或已知；本包无 IO、配置及日志后端。来源政策未裁项继续原状态，不因本映射打开或关闭。
 - **G8-3（MR8 S-26/S-27/S-39/S-40）**：本映射待采用、实现与验收；根 Schema 精确依赖仍含 MP5 而非随最新根自动升级。直接消费者须完成类型/资源闭包迁移，不能靠旧格式执行或类型断言消除差异。归本包与各当前消费者 owner。
+## MR9 输入校准值映射候选
+
+2026-09-29，对象为 [v9 映射 revision 1](v9-usage-calibration-design.md) R9-P1～P5；MR9/RT10 均未接受。本增量绑定 0，产品运行 0；下列均为待执行义务。旧版本运行和规格模型结果不换成本包 MR9 验收标签。
+
+| ID／条款与投影 | 必须能失败的验收 | owner／状态 |
+|---|---|---|
+| V9-1／S-26/S-41/S-45，P1/P5 | MR9 规范 Schema 原字节/$id、25 defs 精确集合、既有22资源和私有成员资源用实际编译器全部编译；故意缺 MP5/错绑 MP6/漏一个新 def 要失败。实际 pack 仅当前根/schema，旧运行子面导入失败；依赖原精确 Schema 闭包仍可解析 | 本包/集成，待验 |
+| V9-2／S-39/S-41/S-43，P1 | 持久/Pending 均缺 inputCalibration 或任一子项拒绝；三类观察/全部 unavailable reason；input unavailable + output known 必填自有 projectionRevision 为正例，漏/空版本为反例；类型编译不能用 optional 或任意 string reason 放过错误，Pending sentAt:null 仍拒绝 | 本包，待验 |
+| V9-3／S-27/S-44，P2 | 多错误顺序：unknown outcome/dispatch_zero/cause_unknown 先于新增成员错；新增成员错先于 ending 错配；成员合法但新关系错时 reply_missing、reply_ending_mismatch、first_token_inconsistent 等原具名拒绝优先。注入把关系提前/全部用 Schema bool 取代 judge 的变异须红 | 本包独立验证，待验 |
+| V9-4／S-41～S-44，P2 | 从完整有效值分别改变 binding 嵌套任一修订/值、两个 projection 相等关系、provenance 同名事实、output source/数量；精确已知分项和大于 total、三项齐却选 upstream_total、source 非 upstream 却选 from_usage 必须拒绝。unknown 不补零；合法 unavailable/inconsistent_usage 保留原用量，input unavailable/output known 通过。超 2^53 邻值、对象键换序、数组顺序/重复分别给正反例 | 本包，待验；不声称检测真实摘要与原字节错配 |
+| V9-5／S-41/S-43/S-44，P3 | copy 对合法片段返回无损自有深快照；修改来值嵌套配置/fieldPaths/blockDigests 后结果不变；结果及全部嵌套容器被冻结，数值精确。getter/cycle/undefined/非法类型不运行 getter、不丢字段。片段局部版本不等拒绝；片段 copy 成功但完整 route/usage 不合的响应仍被 judge 拒绝 | 本包及真实 runtime 消费，待验；边界为值所有权，不是来源认证 |
+| V9-6／S-45/S-19，P4 | 同一完整 MR9/Pending 经 runtime 生产 codec capture/encode/decode 后所有新增字段、原精确 usage/cost 和 unavailable reason 保持值相等；未知提交恢复使用原完整批，替换当前 adapter 后不得重算旧字段；缺字段旧日志不回填、不改写，按当前能力语义不可用 | core 负责纯值部分；runtime/SL3 负责原批、IO/恢复、原字节保真，分别验收；待验 |
+| V9-7／SYS-OPEN、S-26/S-44/S-45，P3/P5 | 独立制品实际导入六类型/copy/validate/两 judge；README/README_ZH 原文完整示例严格编译执行；transport/runtime/demo/日志/core-verification 当前消费者同批编译。静态/实际消费者检查无 Cordis、网络、存储、tokenizer、当前租户读取；Schema 编译故障不伪装 malformed | 本包与集成，待验 |
+
+新增测试名未落地，故不登记 `test:` 绑定。Schema-only 样本需与完整 judge 分别记录 oracle；不能仅比较同一对象引用或把模型假设当成运行事实。
+
+### MR9 覆盖缺口与受阻消费者
+
+- **G9-1（S-41～S-45）**：契约及本映射未接受、无本版产品实施；阻断正式 MR9 消费和交付声明。owner 为主线接受、本包实施及独立验证；采用精确快照后执行 V9-1～V9-7，旧证据不自动覆盖。
+- **G9-2（S-45、RT10 S-80～S-83）**：共同存储对象仍是 SL3 原 session-log batch 内的 response（包含 inputCalibration）及应提交 reply。core 无第二写方或独立存储要求；runtime/日志 owner 必须验证两种交错：提交前另一读者不得取得耐久锚；原批已落但丢回执且 provider 换代，恢复认回/重送原批，不重造计量。部分 response/reply 提交、重写历史、unknown 提前发布的反例须失败。阻断完整 runtime/日志验收，不把纯函数通过当原子性证据。
+- **G9-3（S-41～S-44／规范 G-16）**：真实 projectionRevision 编码、摘要/输出块逐项对应、上游输入统计范围、model/provider 映射、来源脱敏及 φ/δ 精度均归固定适配/计量提供者；core 不读取真实来源、不授权、不运行 tokenizer，不证明 hash 无碰撞。阻断相应模型的真实校准复用认证，不阻断共享表示实施。
+- **G9-4（规范 G-17）**：PF-010 compaction 硬 fit 与估算门的整体保证归产品/上下文主线；本包无压缩实现、逐消息 token 拆账或硬窗口证明。受阻的是该整体保证声明。
+- **归装配**：runtime/宿主 owner 提供授权身份、时钟、凭据、真实停止和耐久日志；本批未建立新的正式应用装配。完整生产消费者与跨进程验证仍须由主线落实，开发 demo 不能自动替代。
+
+### MR9 本次检查范围
+
+本次只检查三个指定设计文件的新增链接、目录范围与差异格式；全树规范 gate 交主线在完整设计树执行。稀疏检出中未物化的历史 evidence 不判为规范缺失。本页没有新增产品运行或 TLC 执行声明。

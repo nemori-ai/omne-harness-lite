@@ -1,3 +1,10 @@
+## MR9 输入校准值映射候选（2026-09-29）
+
+- 入口：[v9-usage-calibration-design.md](v9-usage-calibration-design.md)，revision 1；节点及源码路径仍为 `packages/core/model-response`，纯共享值包，无 plugin/fiber/service。
+- **语义接受：无。**catalog 中 MR9/RT10 均 candidate。**可实施：候选 R9-P1～P5** 明确六个共享 readonly 类型、required inputCalibration、局部自有快照、完整 judge 关系与当前格式直接迁移；须经接受后实施。
+- **绑定证据：新增 0 条。**既有 bindings 不改；规格有限结果不冒充生产来源证明。**实际验证：本增量尚无产品执行。**[V9 验收与缺口](verification.md#mr9-输入校准值映射候选)明确正反例、公开制品和双语 README 义务。
+- MR9 S-45 原批/授权/恢复由 runtime 和日志写方兑现；S-41～S-44 真实投影、观察与 φ 依据归适配提供者，G-16/G-17 保留。当前 Schema/完整关系通过均不能证明这些外部事实。以下历史状态只在其原日期、版本及采用范围内读取。
+
 2026-09-28：[D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) 技术采用 [v8 实施映射](v8-design.md)。精确受审正文保留候选标记，以采用记录判当前状态；新增绑定0，V8实际实现验证待完成。
 
 ## MR8 恢复时序实施候选（2026-09-28）
