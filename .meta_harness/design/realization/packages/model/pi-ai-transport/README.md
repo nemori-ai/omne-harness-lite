@@ -1,5 +1,11 @@
 # pi-ai-transport
 
+## v12 响应校准增量候选（2026-09-29）
+
+[v12-usage-calibration-design.md](v12-usage-calibration-design.md) 映射 MR9/RT10 的 reader 同次观察交接、固定投影与 basis、公开 full/φ/δ 组合及原 lease；没有新服务或存储。**语义接受：无**（两份契约 candidate）；**可实施：候选实现路径已起草，待独立评审、采用与接口整批迁移**；**新增绑定：0**（既有 bindings 不改标签）；**实际验证：本增量尚无**。现有全量 InputMeter/reader 不能算已兑现此增量。
+
+逐模型 φ/δ 的精度与上游口径、两类失效、流式异常保全及百万 token 成本分解见 [UCT 验证与缺口](verification.md#v12-响应校准增量)。37 份声明和有限 TLA 不代替 37 模型认证。本文后续历史章节分别按其精确采用范围读取。
+
 当前计量映射：[v10-token-estimate-design.md](v10-token-estimate-design.md)，MP6/RT8计量政策；已由[D-101](../../../../record/decisions/model-token-estimate-adoption/decision.md)技术采用；新增绑定0，真实发送尚未验收。下列接受/候选段分别按所述版本读取。
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v9-current-design.md](v9-current-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
