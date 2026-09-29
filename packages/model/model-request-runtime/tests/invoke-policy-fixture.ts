@@ -140,6 +140,7 @@ export function adapter(
     sent?: SendResult<object>
     events?: readonly ArrivalEvent[]
     end?: FixtureEnd
+    readFacts?: ReadFacts
     pause?: () => Promise<void>
     stopped?: () => Promise<void>
   } = {},
@@ -160,7 +161,7 @@ export function adapter(
     async *read(_response, _planned, signal) {
       reads++
       const events = options.events ?? content()
-      const readFacts = fixtureReadFacts(events)
+      const readFacts = options.readFacts ?? fixtureReadFacts(events)
       try {
         for (const event of events) {
           if (signal.aborted) return { aborted: true, readFacts }

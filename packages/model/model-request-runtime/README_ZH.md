@@ -158,9 +158,25 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 
 返回的 `CallHistoryDispatch` 保留原「已出门」条目、「已开口」锚点、经验证的完整原响应值及其投影。`in_flight`、`speaking` 只描述耐久事实前沿，不证明旧网络请求或写者已实际停止。只有中断意图、没有发出记录时，历史保留 `phase: null` 供对账，状态投影在收场未明前返回 `unavailable`。未知模型日志格式也返回 `unavailable`，不冒充缺席。属于 Run 的历史在原 Run/attempt 认法被正式采用前返回 `run_history_unavailable`。
 
+响应 usage 校准遵循 [D107 采用决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md)及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
+
 ## 调用显式传入的请求
 
-传入完整 `PlanInput`、明确持有的类型化适配器、凭据与取消信号。本例只导入 runtime 公开包并使用实际流装配器，将它声明为直接依赖；适配器须配置相同的完整凭据政策。资源由调用者持有，在 outcome 与独立门任务实际停止后释放。不读环境凭据。
+传入完整 `PlanInput`（包含显式校准来源）、明确持有的类型化适配器、凭据与取消信号。本例只导入 runtime 公开包并使用实际流装配器，将它声明为直接依赖；适配器须配置相同的完整凭据政策。资源由调用者持有，在 outcome 与独立门任务实际停止后释放。不读环境凭据。
+
+第一次请求没有前序观察时，明确声明这一事实，不编造历史 usage：
+
+```ts
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+
+export function firstRequest(input: Omit<PlanInput, 'calibration'>): PlanInput {
+  return { ...input, calibration: { kind: 'none', reason: 'no_observation' } }
+}
+```
+
+后续请求由同会话授权历史读者提供 `calibration`。runtime 核对选入消息来自同一份完整 SL3 前缀、原 dispatch 和完整响应的稳定身份与完整值，以及 assistant 回复确实进入本次模型输入。同一调用重试时，连续的前序 dispatch 即使没有回复，也可以提供准确的输入观察。planner 再核本次前缀摘要、计数依据、重放输出组及实际新增输入；匹配才使用增量计量，否则全量计量。较新的响应缺失可用输入 usage 时，可选择更早的合法祖先。读端检查原始值及相邻关系；物理同批保证归原结算 append 与 SL3。`source_unavailable` 与已证明的 `no_observation` 不同。
+
+`TransportAdapter.read` 的每种终态，包括取消与失败，均须返回 `readFacts`。`invokeModel` 在实际停止后保留最终读取事实，不用输入估算覆盖真实 usage 或费用。固定的 `projectOutput` 适配器把实际保留的回复或已交付块映成输出组。相同的 `inputCalibration` 贯穿 Pending、原耐久响应与认回；冷恢复读取原事实，不再请求模型或重新分词。目前 runtime 可核验选入的 no-Run 回复与同一调用的前序 dispatch。跨调用且无关联选入消息的响应，以及缺少授权 Run owner 的 Run 历史，保持来源不可用，不从日志物理位置猜测。
 
 ```ts
 import {

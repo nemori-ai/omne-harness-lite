@@ -5,6 +5,7 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
 import { authorizedCalibration } from '../src/service-calibration.ts'
 import type { CurrentHistoryReaders } from '../src/service-types.ts'
+import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import { batch, binding, jsonObject, reply, response, session } from './log-codec-fixture.ts'
 import { controlled, type ControlledSettlementOwner } from './settlement-fixture.ts'
 import type { SettlementLogBinding } from '../src/settlement-types.ts'
@@ -14,6 +15,14 @@ function bodyValue(value: ModelResponse): JsonObject {
   const copied = copyJsonValue(value)
   if (!('ok' in copied)) throw new Error('JSON response fixture')
   return jsonObject(copied.ok)
+}
+function entryAt(prefix: SettlementPrefix, index: number): LogEntry {
+  const entry = prefix.entries[index]
+  if (entry === undefined) throw new Error(`missing entry ${index}`)
+  return entry
+}
+function isModelResponse(value: unknown): value is ModelResponse {
+  return 'ok' in judgeModelResponse(value)
 }
 function knownResponse(source: 'reply' | 'delivered'): ModelResponse {
   const { reply: originalReply, replyDisposition: disposition, ...base } = response
@@ -59,9 +68,9 @@ function knownResponse(source: 'reply' | 'delivered'): ModelResponse {
       },
     },
   }
-  const judged = judgeModelResponse(candidate)
-  if (!('ok' in judged)) throw new Error(`known MR9 fixture: ${JSON.stringify(judged)}`)
-  return candidate as unknown as ModelResponse
+  const value: unknown = candidate
+  if (!isModelResponse(value)) throw new Error('known MR9 fixture rejected')
+  return value
 }
 
 async function prefixOf(
@@ -106,15 +115,15 @@ describe('U16 authorized noRun calibration over real SL3', () => {
       const selected = [originalMessage.ok]
       const original = {
         origin: 'selected_reply' as const,
-        dispatchedEntry: prefix.entries[0]!,
-        messageEntry: prefix.entries[2]!,
-        responseEntry: prefix.entries[3]!,
+        dispatchedEntry: entryAt(prefix, 0),
+        messageEntry: entryAt(prefix, 2),
+        responseEntry: entryAt(prefix, 3),
         messageIndex: 0,
         response: body,
         replaySelection: [{ sourceBlockIndex: 0, messageIndex: 0, blockIndex: 0 }],
       }
       const read: CurrentHistoryReaders['calibration'] = () => ({
-        selectedSources: [{ messageIndex: 0, entry: prefix.entries[2]! }],
+        selectedSources: [{ messageIndex: 0, entry: entryAt(prefix, 2) }],
         candidates: [original],
       })
       const target = { callId: 'next-call', dispatch: 1 }
@@ -123,13 +132,13 @@ describe('U16 authorized noRun calibration over real SL3', () => {
       })
       expect(
         authorizedCalibration(prefix, selected, target, () => ({
-          selectedSources: [{ messageIndex: 0, entry: prefix.entries[2]! }],
-          candidates: [{ ...original, responseEntry: prefix.entries[0]! }],
+          selectedSources: [{ messageIndex: 0, entry: entryAt(prefix, 2) }],
+          candidates: [{ ...original, responseEntry: entryAt(prefix, 0) }],
         })),
       ).toEqual({ unavailable: true })
       expect(
         authorizedCalibration(prefix, selected, target, () => ({
-          selectedSources: [{ messageIndex: 0, entry: prefix.entries[2]! }],
+          selectedSources: [{ messageIndex: 0, entry: entryAt(prefix, 2) }],
           candidates: [
             {
               ...original,
@@ -154,8 +163,8 @@ describe('U16 authorized noRun calibration over real SL3', () => {
       const prefix = await prefixOf(log, owner)
       const original = {
         origin: 'same_call_retry' as const,
-        dispatchedEntry: prefix.entries[0]!,
-        responseEntry: prefix.entries[2]!,
+        dispatchedEntry: entryAt(prefix, 0),
+        responseEntry: entryAt(prefix, 2),
         response: body,
         replaySelection: [],
       }

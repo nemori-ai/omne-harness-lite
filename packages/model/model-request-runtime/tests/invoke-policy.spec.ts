@@ -26,6 +26,36 @@ function invoke(
   })
 }
 describe('D095 runtime CP policy wiring with actual public stream-assembly', () => {
+  it('uses the stopped reader facts for usage and input observation, not an earlier account frame', async () => {
+    const port = adapter({
+      readFacts: {
+        usage: {
+          input_tokens: 37,
+          output_tokens: 3,
+          cache_read_tokens: 0,
+          cache_write_tokens: 0,
+          source: 'upstream',
+        },
+        cost: { cost_usd: 0.2, source: 'upstream_usage' },
+        observedInput: {
+          kind: 'from_usage',
+          provenance: { adapterRevision: 'fixture', fieldPaths: ['usage.prompt_tokens'] },
+        },
+      },
+    })
+    const handle = invoke(port)
+    const value = result(await handle.outcome)
+    expect(value.usage.input_tokens).toBe(37)
+    expect(value.cost.cost_usd).toBe(0.2)
+    expect(value.inputCalibration.observedInput).toMatchObject({
+      kind: 'from_usage',
+      provenance: { adapterRevision: 'fixture' },
+    })
+    expect(handle.observedFacts()).toMatchObject({
+      facts: { usage: { input_tokens: 37 }, cost: { cost_usd: 0.2 } },
+    })
+  })
+
   it('passes positive fractional Duration values to the supplied scheduler unchanged', async () => {
     const scheduled: number[] = []
     const port = adapter()
