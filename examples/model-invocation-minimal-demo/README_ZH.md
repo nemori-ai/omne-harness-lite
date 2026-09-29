@@ -82,6 +82,8 @@ Closed. Start again with the same --data path to resume.
 
 示例先完成真实认证，分别打开仅属主可访问的本机与已核租户 JSONL collector，再在同一 Cordis Context 中激活模型请求 fibers。程序装配时，`createAcceptanceApplication(...).ready` 只准备身份与会话日志访问；认证并打开诊断装配后，才调用 `activateModelRequest(actor, diagnostics.tenant, diagnostics.transports)`。激活失败不会开放模型准入。
 
+诊断墙钟读取 `@omne-harness-lite/clock` 导出的宿主时间源，在应用租约业务 Clock 关闭后仍供保留读句柄使用；时钟不可读或倒退时，保留期查询返回不可用。
+
 `openDemo(...).diagnostics.tenant` 与 `.local` 向受信本机宿主提供有界 `query`、`exportPage` 和 `health`。`close()` 先停止业务，再关闭诊断写端，返回 `complete`、`businessComplete`、诊断关闭结果和 transport 健康状态；未完成时保留同一 owner 并重试。关闭后只读句柄仍可用。这些工程记录与会话历史分离。
 
 `createDemoDiagnosticConfig` 明确示例的限额；独立装配调用者可提供自己的完整 `DemoDiagnosticConfig`。当前、构造中、仍存活的旧代际与终态 transport 快照共用一个保留上限（示例配置为四）。新构造先预留容量，必要时淘汰终态快照；若上限被活跃 owner 占满则拒绝新构造。TTL 物理删除仅在 owner 活跃或再次打开维护时执行，不承诺进程缺席期间定时清理。

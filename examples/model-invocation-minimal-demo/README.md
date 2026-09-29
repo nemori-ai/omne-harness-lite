@@ -82,6 +82,8 @@ Trusted deployments may supply `modelRequest.assetRegistry` as a borrowed `Asset
 
 The demo authenticates first, opens separate owner-only local and verified-tenant JSONL collectors, then activates its model-request fibers in the same Cordis context. For programmatic assembly, `createAcceptanceApplication(...).ready` prepares identity and session-log access; call `activateModelRequest(actor, diagnostics.tenant, diagnostics.transports)` only after authenticating and opening the diagnostic assembly. A failed activation does not open model admission.
 
+The diagnostic wall clock reads the host source exported by `@omne-harness-lite/clock` and remains available to retained readers after the application's leased business Clock closes. Unreadable or backward time makes retention queries unavailable.
+
 `openDemo(...).diagnostics.tenant` and `.local` expose bounded `query`, `exportPage`, and `health` to the trusted local host. `close()` stops business work before diagnostic writers and returns `complete`, `businessComplete`, diagnostic close results and transport health. Retain the same owner and retry when incomplete. Read handles remain usable after close. These engineering records are separate from session history.
 
 `createDemoDiagnosticConfig` declares the example's limits; independent assembly callers can supply their own complete `DemoDiagnosticConfig`. Current, constructing, old live and terminal transport generations share one retention bound (four in the example configuration). A new construction first reserves capacity, evicting terminal snapshots when needed; if live owners occupy the bound, construction is refused. Physical TTL deletion runs only while an owner is active or maintenance is reopened, not while the process is absent.
