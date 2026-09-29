@@ -860,6 +860,36 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
 
 For an empty journal, `through.sequence` is `"0"`, the empty written watermark. It is never a record identity, `after` cursor or `causedBy` reference; those begin at one. Reusing this watermark after a new append still returns the empty prefix.
 
+Successful `invokeModel` planning emits a typed `measurement` fact with full/marginal mode, the available fallback reason, precision, predicted/admission tokens and the applicable signed contributions. These predictions never become actual usage or cost. The basis projection contains model/provider and tokenizer, meter, replay, transform and projection revisions; the event's existing `binding` contains only the actual plan's identity/revisions. Configuration values, prompts, output content, signatures and raw response bodies are excluded. Data descriptors are checked before access, and collector/journal boundaries retain immutable owned copies; unknown fields and accessors are rejected. Credential-tainted identity text or a failed projection is omitted without changing the request outcome.
+
+`calibrationSource` describes the actual fixed plan's none reason or observation kind and, when retained, its source prefix boundary and digests. It does not invent a ModelResponse identity or authenticate caller-supplied ancestry. Authorized service association remains attached by the existing emitter; standalone calls retain only their supplied association.
+
+The existing `metrics().stageDurations` planning entry uses the collector's explicit monotonic clock across planning started/accepted (or rejected). It measures the whole planning boundary, including projection, validation, serialization, metering and diagnostic projection; it is not a tokenizer-only duration. Records' `elapsedMs` are positions on the collector clock, not individual meter durations. No timer is added to the pure planner. A missing/dropped start or failed clock does not become a fabricated zero measurement.
+
+The following public query reads already-written records; the host retains the collector and its journal lifecycle. Query bounds and incomplete coverage remain explicit.
+
+```ts
+// calibration-diagnostics-query
+import type { DiagnosticCollector, DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+
+export async function readPlanningDiagnostics(
+  collector: DiagnosticCollector,
+  scope: DiagnosticScope,
+) {
+  const result = await collector.query({ scope, limit: 100, maxBytes: 1048576 })
+  if ('rejected' in result) return result
+  const metrics = collector.metrics(scope)
+  if ('rejected' in metrics) return metrics
+  return {
+    measurements: result.page.records.filter(
+      record => record.stage === 'planning' && record.facts.kind === 'measurement',
+    ),
+    planningDurations: metrics.stageDurations.filter(value => value.stage === 'planning'),
+    coverage: result.page.coverage,
+  }
+}
+```
+
 `invokeModel` accepts an optional `diagnosticAssociation` and `diagnosticEmitterFactory`. The factory acquires one emitter for that invocation; its transport send/read share the same association. Free association strings are processed at the credential-owning boundary. Independent calls need no tenant or session. The host owns the collector and closes it after business work has actually stopped; an invocation closes only its emitter. Diagnostic callback failures do not change the response or its accounting.
 
 ```ts

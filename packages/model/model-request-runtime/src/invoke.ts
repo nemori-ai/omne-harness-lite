@@ -37,6 +37,7 @@ import {
 import { ownedHeaders, processFailure } from './invoke-policy.ts'
 import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
 import { createInvocationDiagnostics, drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { projectCalibrationDiagnostic } from './calibration-diagnostic.ts'
 
 const noReadFacts = Object.freeze({
   usage: Object.freeze({
@@ -385,25 +386,22 @@ export function invokeModel<P extends PlannedSemantics, R>(
         return plan
       }
       planned = plan.planned
-      const adaptation = input.snapshot.adaptation
-      diagnostics.record({
-        source: 'invocation',
-        stage: 'binding',
-        outcome: 'accepted',
-        binding: {
-          implementation: adaptation.implementation.name,
-          implementationRevision: adaptation.implementation.revision,
-          modelId: adaptation.definition.modelId,
-          definitionRevision: adaptation.definition.revision,
-          configurationRevision: adaptation.configuration.revision,
-        },
-        facts: { kind: 'decision' },
-      })
+      const measurementDiagnostic = projectCalibrationDiagnostic(planned, bound)
+      if (measurementDiagnostic) {
+        diagnostics.record({
+          source: 'invocation',
+          stage: 'binding',
+          outcome: 'accepted',
+          binding: measurementDiagnostic.binding,
+          facts: { kind: 'decision' },
+        })
+      } else diagnose('model_invocation.diagnostic_projection_failed')
       diagnostics.record({
         source: 'invocation',
         stage: 'planning',
         outcome: 'accepted',
-        facts: { kind: 'decision' },
+        ...(measurementDiagnostic ? { binding: measurementDiagnostic.binding } : {}),
+        facts: measurementDiagnostic?.facts ?? { kind: 'decision' },
       })
       try {
         for (const parameter of planned.droppedParameters ?? []) {

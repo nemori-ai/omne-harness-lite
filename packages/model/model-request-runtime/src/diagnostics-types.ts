@@ -1,6 +1,7 @@
 /** Engineering observations are neither session-log records nor recovery evidence. */
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { TenantId } from '@omne-harness-lite/identity-values'
+import type { InputMeasurement } from './types.ts'
 export type DiagnosticSource = 'runtime' | 'invocation' | 'transport' | 'observer' | 'assembly'
 
 export type DiagnosticStage =
@@ -80,7 +81,31 @@ export type DiagnosticCause =
   | 'closed'
   | 'concurrent'
 
+/** Safe planning projection: the binding's configuration values are never diagnostic data. */
+export type DiagnosticMeasurementBasis = Omit<InputMeasurement['basis'], 'binding'>
+export type DiagnosticCalibrationSource =
+  | { readonly kind: 'none'; readonly reason: 'no_observation' | 'source_unavailable' }
+  | {
+      readonly kind: 'observation'
+      readonly observedInputKind: 'from_usage' | 'upstream_total' | 'unavailable'
+      readonly requestInput?: {
+        readonly projectionRevision: string
+        readonly prefixBoundary: JsonNumber
+        readonly prefixDigest: string
+        readonly inputEnvelopeDigest: string
+      }
+    }
+export type DiagnosticMeasurementFact = {
+  readonly kind: 'measurement'
+  readonly basis: DiagnosticMeasurementBasis
+  readonly calibrationSource: DiagnosticCalibrationSource
+} & (
+  | Omit<Extract<InputMeasurement, { mode: 'full' }>, 'basis'>
+  | Omit<Extract<InputMeasurement, { mode: 'marginal' }>, 'basis'>
+)
+
 export type DiagnosticFact =
+  | DiagnosticMeasurementFact
   | {
       readonly kind: 'decision'
       readonly cause?: DiagnosticCause
@@ -155,8 +180,12 @@ type DiagnosticEventBase = {
 export type DiagnosticEvent = DiagnosticEventBase &
   (
     | {
-        readonly stage: 'admission' | 'binding' | 'planning' | 'credential'
+        readonly stage: 'admission' | 'binding' | 'credential'
         readonly facts: Extract<DiagnosticFact, { kind: 'decision' }>
+      }
+    | {
+        readonly stage: 'planning'
+        readonly facts: Extract<DiagnosticFact, { kind: 'decision' | 'measurement' }>
       }
     | {
         readonly stage: 'queue' | 'send' | 'content_gate' | 'first_content' | 'stream_end'

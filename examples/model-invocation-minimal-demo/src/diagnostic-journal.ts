@@ -1,7 +1,9 @@
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { constants } from 'node:fs'
 import * as nodeFs from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import {
+  copyJsonValue,
   isJsonNumber,
   isNonNegativeJsonInteger,
   jsonNumberSource,
@@ -492,11 +494,14 @@ async function openJournal(
   }
 
   function append(record: DiagnosticRecord): Promise<'written' | 'retention_full'> {
-    const candidate = object(record)
+    // Own data before validation or the asynchronous append boundary. Accessors
+    // cannot execute, and later caller mutation cannot change a queued record.
+    const copied = copyJsonValue(record)
+    const candidate = 'ok' in copied ? object(copied.ok) : null
     if (!candidate || !validStoredRecord(candidate, config.collectorId, config.scope))
       return Promise.reject(new Error('diagnostic record invalid'))
     pendingWrites++
-    const task = appendTail.then(() => appendOne(record))
+    const task = appendTail.then(() => appendOne(candidate as unknown as DiagnosticRecord))
     appendTail = task.then(
       () => undefined,
       () => {
@@ -933,6 +938,108 @@ function optionalEnum(
   return value[key] === undefined || choices.includes(String(value[key]))
 }
 
+/** Same closed planning projection as the collector; no raw measurement/configuration values. */
+function validMeasurementFacts(value: Record<string, unknown>): boolean {
+  const basis = object(value.basis),
+    source = object(value.calibrationSource)
+  const basisKeys = [
+    'model',
+    'provider',
+    'tokenizerRevision',
+    'meterRevision',
+    'replayRevision',
+    'transformRevision',
+    'projectionRevision',
+  ]
+  const precision = (v: unknown) => ['exact', 'upperBound', 'estimated'].some(p => p === v)
+  const nonempty = (v: unknown) => typeof v === 'string' && v.length > 0
+  const integer = (v: unknown, signed = false) =>
+    isJsonNumber(v) &&
+    (typeof v !== 'number' || Number.isSafeInteger(v)) &&
+    ExactDecimal.from(v).isInteger &&
+    (signed || ExactDecimal.from(v).compare(ExactDecimal.from(0)) >= 0)
+  const contribution = (v: unknown, signed: boolean) => {
+    const item = object(v)
+    return (
+      !!item &&
+      only(item, ['tokens', 'precision']) &&
+      precision(item.precision) &&
+      integer(item.tokens, signed)
+    )
+  }
+  if (
+    !only(value, [
+      'kind',
+      'mode',
+      'fallbackReason',
+      'basis',
+      'precision',
+      'predictedInput',
+      'admissionTokens',
+      'fullContribution',
+      'replayContribution',
+      'newContribution',
+      'calibrationSource',
+    ]) ||
+    !basis ||
+    !only(basis, basisKeys) ||
+    !basisKeys.every(key => nonempty(basis[key])) ||
+    !precision(value.precision) ||
+    !integer(value.predictedInput) ||
+    !integer(value.admissionTokens) ||
+    !source
+  )
+    return false
+  if (source.kind === 'none') {
+    if (
+      !only(source, ['kind', 'reason']) ||
+      !['no_observation', 'source_unavailable'].some(v => v === source.reason)
+    )
+      return false
+  } else if (source.kind === 'observation') {
+    if (
+      !only(source, ['kind', 'observedInputKind', 'requestInput']) ||
+      !['from_usage', 'upstream_total', 'unavailable'].some(v => v === source.observedInputKind)
+    )
+      return false
+    if (source.requestInput !== undefined) {
+      const prior = object(source.requestInput)
+      if (
+        !prior ||
+        !only(prior, [
+          'projectionRevision',
+          'prefixBoundary',
+          'prefixDigest',
+          'inputEnvelopeDigest',
+        ]) ||
+        !nonempty(prior.projectionRevision) ||
+        !integer(prior.prefixBoundary) ||
+        ![prior.prefixDigest, prior.inputEnvelopeDigest].every(
+          v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v),
+        )
+      )
+        return false
+    }
+  } else return false
+  if (value.mode === 'full')
+    return (
+      value.replayContribution === undefined &&
+      value.newContribution === undefined &&
+      (value.fallbackReason === undefined ||
+        ['no_observation', 'source_unavailable', 'prefix_changed', 'basis_changed'].some(
+          v => v === value.fallbackReason,
+        )) &&
+      contribution(value.fullContribution, false)
+    )
+  return (
+    value.mode === 'marginal' &&
+    value.fallbackReason === undefined &&
+    value.fullContribution === undefined &&
+    contribution(value.replayContribution, true) &&
+    contribution(value.newContribution, true)
+  )
+}
+
 function validStoredRecord(
   value: Record<string, unknown>,
   collectorId: string,
@@ -1031,7 +1138,9 @@ function validStoredRecord(
   const registration = ['registration', 'retirement'].includes(String(value.stage))
   const observer = value.stage === 'observer'
   const diagnostics = ['diagnostics', 'assembly'].includes(String(value.stage))
-  if (decision && facts.kind === 'decision') {
+  if (value.stage === 'planning' && facts.kind === 'measurement') {
+    if (!validMeasurementFacts(facts)) return false
+  } else if (decision && facts.kind === 'decision') {
     if (
       !only(facts, [
         'kind',

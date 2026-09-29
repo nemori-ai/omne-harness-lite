@@ -849,6 +849,36 @@ export async function recordSend(config: DiagnosticCollectorConfig, httpStatus: 
 
 空 journal 的 `through.sequence` 为 `"0"`，只表示尚未写入的水位；它不是记录身份，也不能用作 `after` 或 `causedBy`，这些序列从一开始。新增记录后沿用原零水位，仍只查询空前缀。
 
+`invokeModel` 规划成功时发出 typed `measurement` 事实，包含 full/marginal 模式、适用的回退原因、精度、预测／准入 tokens 和对应的有符号贡献。预测值不成为实际 usage 或费用。basis 仅保留 model/provider 及 tokenizer、meter、replay、transform、projection 修订；事件沿用的 `binding` 只保留实际计划的身份／修订。配置值、提示词、输出内容、签名及原响应体均不进入诊断。访问前检查自有数据属性，collector/journal 保存深复制后的冻结值；未知字段和访问器被拒绝。身份文本若含本次凭据，或诊断投影失败，则省略该投影，不改变请求结果。
+
+`calibrationSource` 描述实际固定计划的 none 原因或 observation 口径；保留了来源前缀证据时附边界和摘要。它不编造 ModelResponse 身份，也不认证调用者声明的祖先关系。服务的已授权关联仍由既有 emitter 附带；独立调用只保留显式交入的关联。
+
+既有 `metrics().stageDurations` 的 planning 项使用 collector 显式单调时钟，覆盖 planning started 至 accepted（或 rejected）。它包含完整规划边界内的投影、校验、序列化、计量和诊断投影，不是 tokenizer 独占耗时。记录的 `elapsedMs` 是 collector 时钟上的位置，不是单次 meter 耗时。纯 planner 不新增计时器。起点缺失／被丢弃或时钟失败时，不编造零耗时。
+
+以下公开查询读取已经写入的记录；宿主继续拥有 collector 和 journal 的生命周期，查询界限和覆盖退化保持显式。
+
+```ts
+// calibration-diagnostics-query
+import type { DiagnosticCollector, DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+
+export async function readPlanningDiagnostics(
+  collector: DiagnosticCollector,
+  scope: DiagnosticScope,
+) {
+  const result = await collector.query({ scope, limit: 100, maxBytes: 1048576 })
+  if ('rejected' in result) return result
+  const metrics = collector.metrics(scope)
+  if ('rejected' in metrics) return metrics
+  return {
+    measurements: result.page.records.filter(
+      record => record.stage === 'planning' && record.facts.kind === 'measurement',
+    ),
+    planningDurations: metrics.stageDurations.filter(value => value.stage === 'planning'),
+    coverage: result.page.coverage,
+  }
+}
+```
+
 `invokeModel` 可接收 `diagnosticAssociation` 与 `diagnosticEmitterFactory`。工厂为本次调用取得一个 emitter，transport 的 send/read 沿用同一关联。自由关联字符串在持有凭据的执行边界处理；独立调用不需要租户或会话。collector 由宿主持有，业务真正停止后再关闭；每次调用只关闭自己的 emitter。诊断回调失败不改变响应或计量事实。
 
 ```ts

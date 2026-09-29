@@ -1,3 +1,4 @@
+import { copyMeasurementDiagnostic, measurementDiagnosticKeys } from './calibration-diagnostic.ts'
 import {
   isNonNegativeJsonInteger,
   isJsonNumber,
@@ -67,6 +68,7 @@ const outcomes = [
   'dropped',
 ] as const
 const factKinds = [
+  'measurement',
   'decision',
   'transport',
   'progress',
@@ -339,8 +341,16 @@ function validFacts(
     ...registrationKeys,
     ...observerKeys,
     ...diagnosticsKeys,
+    ...measurementDiagnosticKeys,
   ])
-  if (!header || !oneOf(header.kind, factKinds) || header.kind !== stageFactKind[stage]) return null
+  if (
+    !header ||
+    !oneOf(header.kind, factKinds) ||
+    (header.kind !== stageFactKind[stage] &&
+      !(stage === 'planning' && header.kind === 'measurement'))
+  )
+    return null
+  if (header.kind === 'measurement') return copyMeasurementDiagnostic(value, maxBytes)
   const keys =
     header.kind === 'decision'
       ? decisionKeys
@@ -489,6 +499,7 @@ function validEvent(value: unknown, maxBytes: number): DiagnosticEvent | 'unsupp
     ...registrationKeys,
     ...observerKeys,
     ...diagnosticsKeys,
+    ...measurementDiagnosticKeys,
   ])
   if (factHeader && typeof factHeader.kind === 'string' && !oneOf(factHeader.kind, factKinds))
     return 'unsupported'
