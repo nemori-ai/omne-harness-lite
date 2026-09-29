@@ -44,6 +44,7 @@
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*",
     "@omne-harness-lite/clock": "workspace:*",
     "@omne-harness-lite/credential-verification": "workspace:*",
     "@omne-harness-lite/organization-governance": "workspace:*",
