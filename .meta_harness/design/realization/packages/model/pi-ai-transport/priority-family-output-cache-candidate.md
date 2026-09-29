@@ -1,12 +1,12 @@
 # 优先两家完整输出贡献与纯图缓存增量
 
-2026-09-29，revision 1，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
+2026-09-29，revision 2，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
 
 依据为 [OpenAI 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-openai-closeout.md)、[Anthropic 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-anthropic-closeout.md)，选择依据见[提案附页](../../../../record/proposals/model-input-usage-calibration/priority-family-choice.md)。原产品允许有依据的估算及可配置余量；以下均不是精确计数或可证明上界。
 
 ## 责任与共享算法
 
-仍由公开独立 transport 函数及其既有 Cordis service 消费同一纯计量实现；没有新 plugin、fiber、registry、存储、后台任务或 Session/Run 行为。family 模块提供有限来源记录与必要的贡献前提，共享构件拥有来源校验、完整组覆盖、去重、精确数加总及 full/new/φ 组合。模型叶仅选择记录，不复制控制流程。
+仍由公开独立 transport 函数及其既有 Cordis service 消费同一纯计量实现；没有新 plugin、fiber、registry、存储、后台任务或 Session/Run 行为。family 模块提供有限来源记录与必要的贡献前提，共享构件拥有来源校验、完整组覆盖、去重、精确数加总及 full/new/φ 组合。模型叶仅选择记录，不复制控制流程。共享分类必须区分普通可见、需完整组、不可解释三态；未知或 unsigned reasoning 不能以 false 落回 JSON 分词。实际 body 到输入投影由唯一已接受投影函数核验，不能把 body.messages 与 projection.units 直接字节相等当通用条件（Anthropic 合法缓存元数据已被排除）。
 
 对完整历史输出组 g，令 O(g) 为原上游响应的已知 output_tokens，C(g) 为下一次输入贡献。本候选统一使用 **C(g)=O(g)+0（estimated）**。0 是净 framing 修正的明确估计假设，不表示隐藏推理为零；O 已含 reasoning，不再加 reasoning_tokens。无可信误差上界、置信区间或正负误差保证。OpenAI Pro 的 O 是 workload-related 代理，可能含多遍工作，不能声称等于一个上下文中的 token。
 
@@ -51,7 +51,7 @@
 
 ## 原 signed prefix 的包内承接
 
-当前 new 输入只有 N，φ 只有目标组，不能从它们重建 P。planner 在来源校验通过、最终 projection 固定后，为需要强前缀的原组计算当前同 boundary 的 prefixDigest、inputEnvelopeDigest、projectionRevision 和所选组绝对位置；必须核 boundary 非负安全整数、不超当前长度且不越过该组起点。对原已知 requestInput 比较这些事实，不使用 caller 的“已验证”布尔，不把 basis relation 当作 prefix relation。
+当前 new 输入只有 N，φ 只有目标组，不能从它们重建 P。planner 在来源校验通过、最终 projection 固定后，为需要强前缀的原组计算当前同 boundary 的 prefixDigest、inputEnvelopeDigest、projectionRevision 和所选组绝对位置；必须核 boundary 非负安全整数、不超当前长度且不越过该组起点。现有 inputEnvelopeDigest 还含 generation/routing；本次将宽 envelope 与 prefix 完全相等作为足够条件，不冒称其就是原生签名语义摘要。effort/max_tokens 等合法变参会使宽摘要变化，但原 MR9 未保存可拆分的窄摘要，因此此时必要贡献 unavailable，而不是 invalidInput 或“签名非法”；不能去掉当前字段再与旧宽摘要比较。扩大到这些变参后的旧签名计量需要另立有依据的持久事实增量，本页不宣称已支持。对原已知 requestInput 比较这些事实，不使用 caller 的“已验证”布尔，不把 basis relation 当作 prefix relation。
 
 本候选采用请求局部包内能力：共享 helper 由实际完整 projection 建立只读事实，使用 private WeakMap 以**本次最终冻结的 meter input 对象身份**关联；在同步 measure 调用前安装，finally 删除，不导出 package 公共入口，不存在跨请求全局 current slot。full 可直接从自有完整 projection 核验；new/φ 由上述同一事实计算函数承接，重入/并行的输入互不替代。事实仅含派生摘要与索引，不把 P 内容交给增量 tokenizer。planner 不能以传入摘要直接填表，原事实始终来自当前实际 projection。若实现 wrapper 复制 input，必须在最终传入对象处关联，不能失配后退化为信任。
 

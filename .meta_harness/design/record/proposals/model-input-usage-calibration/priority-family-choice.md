@@ -1,6 +1,6 @@
 # 两家优先模型：有限贡献及纯图缓存选择
 
-2026-09-29，revision 1，candidate，未采用。接续本包 C 与 D107/D109 已接受承接，不另起能力/topic。本次只补原 O 对当前输入的有限家族解释及 Anthropic last_message 纯图落点；唯一提供者正文见[候选](../../../../realization/packages/model/pi-ai-transport/priority-family-output-cache-candidate.md)。研究只为事实依据，临时施工 brief 不作为权威。
+2026-09-29，revision 1，candidate，未采用。接续本包 C 与 D107/D109 已接受承接，不另起能力/topic。本次只补原 O 对当前输入的有限家族解释及 Anthropic last_message 纯图落点；唯一提供者正文见[候选](../../../realization/packages/model/pi-ai-transport/priority-family-output-cache-candidate.md)。研究只为事实依据，临时施工 brief 不作为权威。
 
 有意义的选择是：在用户已允许 estimated 的范围内，以完整原 O 作为工作量相关代理并明确净修正 0 假设，或者对不透明历史持续 unavailable，等待官方精确输入计算。推荐前者：可保留真实全部历史，沿现有来源/完整覆盖/有限来源关系，不虚构精确度；后者仍是信息不足、未知格式或 signed-prefix 缺席时的必要失败。ciphertext/signature 分词、丢弃 reasoning、原 I 未知填零不是可选方案。没有新公共责任，因此不为形式上的三候选另建 topic。
 
