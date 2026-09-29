@@ -28,8 +28,9 @@ type Estimated = Readonly<{
   admissionTokens: JsonNumber
   limit: JsonNumber
 }>
-const encodedImage =
-  /^data:[^;,]+;base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
+// Canonical decoding below checks length and padding without a repeated-group
+// RegExp stack proportional to the size of a valid inline image.
+const encodedImage = /^data:[^;,]+;base64,([A-Za-z0-9+/]*={0,2})$/u
 
 function present(value: JsonValue | undefined, key: string): boolean {
   return object(value) && Object.hasOwn(value, key)
