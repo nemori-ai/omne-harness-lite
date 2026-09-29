@@ -165,6 +165,14 @@ describe('D6 application diagnostic closure', () => {
       releaseFirst.resolve()
       const first = await firstTask
       const sent = [first, second] as const
+      const wireBodies = JSON.stringify(tls.requests.map(request => request.body))
+      for (const session of sessions) expect(wireBodies).not.toContain(session)
+      for (const result of sent) {
+        if (!('callId' in result)) throw new Error('service call identity absent')
+        expect(wireBodies).not.toContain(result.callId)
+      }
+      expect(wireBodies).not.toContain('executionId')
+      expect(wireBodies).not.toContain('prompt_cache_key')
       for (const [index, result] of sent.entries()) {
         if (!('callId' in result) || !('result' in result) || !('replyPending' in result.result))
           throw new Error('service call did not reach reply handoff')
