@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-Pure MR8 response representation and ordered judgments. A `ModelResponse` records one confirmed durable dispatch responsibility, including its immutable route and profile snapshot, outcome, timing, reply or delivered partial content, actual usage, cost, and optional raw response reference. A persisted `interrupted` response can explicitly carry `timing.sentAt: null` when the actual send time is unavailable; this does not assert that no request was sent. `PendingModelResponse` is the complete reply fact passed to a message writer before that writer decides whether the reply became a message and whether the record is late. Every pending reply requires an actual send time. Neither judgment sends a request or persists a record.
+Pure MR9 response representation and ordered judgments. A `ModelResponse` records one confirmed durable dispatch responsibility, including its immutable route and profile snapshot, outcome, timing, reply or delivered partial content, actual usage, cost, and optional raw response reference. A persisted `interrupted` response can explicitly carry `timing.sentAt: null` when the actual send time is unavailable; this does not assert that no request was sent. `PendingModelResponse` is the complete reply fact passed to a message writer before that writer decides whether the reply became a message and whether the record is late. Every pending reply requires an actual send time. Neither judgment sends a request or persists a record.
 
 This is a private ESM workspace package. Its current public entries are the package root and `./schema`. Historical response versions have no executable package entry. Incompatible stored values fail admission; the package never fills their missing fields from a current model directory.
 
@@ -13,6 +13,7 @@ The example is runnable as an ESM file after building the workspace package. It 
 ```js
 import assert from 'node:assert/strict'
 import {
+  copyInputCalibration,
   judgeModelResponse,
   judgePendingModelResponse,
   validate,
@@ -79,6 +80,37 @@ const pending = {
     source: 'upstream',
   },
   cost: { cost_usd: 0.0001, source: 'upstream_usage' },
+  inputCalibration: {
+    requestInput: {
+      kind: 'known',
+      projectionRevision: 'example-projection-1',
+      prefixBoundary: 1,
+      prefixDigest: '1'.repeat(64),
+      inputEnvelopeDigest: '2'.repeat(64),
+      countingBasis: {
+        binding: adaptation,
+        model: 'example/chat',
+        provider: 'example',
+        tokenizerRevision: 'example-tokenizer-1',
+        meterRevision: 'example-meter-1',
+        projectionRevision: 'example-projection-1',
+        replayRevision: 'example-replay-1',
+        transformRevision: 'example-transform-1',
+      },
+    },
+    observedInput: {
+      kind: 'from_usage',
+      provenance: { adapterRevision: 'example-adapter-1', fieldPaths: ['usage.prompt_tokens'] },
+    },
+    outputGroup: {
+      kind: 'known',
+      projectionRevision: 'example-projection-1',
+      source: 'reply',
+      blockDigests: ['3'.repeat(64)],
+      completeness: 'complete',
+      usageRef: 'usage',
+    },
+  },
   raw: { headers: { 'x-example': ['first', 'first', ''] } },
 }
 
@@ -108,14 +140,43 @@ const recovered = {
     source: 'none',
   },
   cost: { cost_usd: 'unknown', source: 'none' },
+  inputCalibration: {
+    requestInput: { kind: 'unavailable', reason: 'send_unknown' },
+    observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+    outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+  },
 }
 assert.deepEqual(judgeModelResponse(recovered), { ok: true })
+
+const independentOutput = {
+  ...pending,
+  inputCalibration: {
+    ...pending.inputCalibration,
+    requestInput: { kind: 'unavailable', reason: 'not_retained' },
+  },
+}
+assert.deepEqual(judgePendingModelResponse(independentOutput), { ok: true })
+const copied = copyInputCalibration(independentOutput.inputCalibration)
+if (!('ok' in copied)) throw new Error('invalid calibration')
+assert.equal(Object.isFrozen(copied.ok.outputGroup), true)
+assert.notEqual(copied.ok.outputGroup, independentOutput.inputCalibration.outputGroup)
+
 assert.deepEqual(
   judgePendingModelResponse({ ...pending, timing: { ...pending.timing, sentAt: null } }),
   { rejected: 'malformed' },
 )
 ```
 
-`validate(defName, value)` checks one of the 19 MR8 JSON Schema definitions and returns `{ valid: boolean }`. `judgeModelResponse(value)` and `judgePendingModelResponse(value)` return `{ ok: true }` or `{ rejected: reason }` with the MR8 S-27 rejection order. They preserve exact JSON numbers and never mutate input. A valid representation does not prove the dispatch, time provenance, actual usage, reply commit, or durability; those guarantees belong to the runtime and writer.
+`validate(defName, value)` checks one of the 25 MR9 JSON Schema definitions and returns `{ valid: boolean }`. `judgeModelResponse(value)` and `judgePendingModelResponse(value)` return `{ ok: true }` or `{ rejected: reason }` with the MR9 S-27 rejection order. They preserve exact JSON numbers and never mutate input. A valid representation does not prove the dispatch, time provenance, actual usage, reply commit, or durability; those guarantees belong to the runtime and writer.
 
-MR8's schema compiles against a fixed transitive set of 22 normative resources supplied through the owning packages' public schema entries, including the exact model-profile v5 dependency. Missing or incorrect resources make package initialization fail clearly. The accepted contract is [MR8](../../../.meta_harness/design/spec/data/model-response/v8/contract.md); the adopted provider mapping is [model-response v8](../../../.meta_harness/design/realization/packages/core/model-response/v8-design.md).
+MR9's schema compiles against a fixed transitive set of 22 normative resources supplied through the owning packages' public schema entries, including the exact model-profile v5 dependency. Missing or incorrect resources make package initialization fail clearly. The accepted contract is [MR9](../../../.meta_harness/design/spec/data/model-response/v9/contract.md); the adopted provider mapping is [model-response v9](../../../.meta_harness/design/realization/packages/core/model-response/v9-usage-calibration-design.md).
+
+## Input calibration values
+
+Both response forms require `inputCalibration`. The public readonly types are `CountingBasis`, `RequestInputEvidence`, `ObservationProvenance`, `ObservedInput`, `OutputGroupEvidence`, and `InputCalibration`. Request evidence records the original projection and counting basis; observed input records upstream facts; output evidence describes the retained group. `from_usage` refers to the three mutually exclusive input usage components; it never copies or adds another total. Missing components remain `unknown`.
+
+The example's repeated-digit digests and revision labels are illustrative values, not authenticated hashes of its content. Production adapters must supply the actual fixed projection, source facts, and content digests. Request evidence may be unavailable while output evidence remains known with its own projection revision, as the example shows.
+
+`copyInputCalibration(value)` returns `{ ok: InputCalibration }` or `{ rejected: 'malformed' }`. It rejects getters without running them, cycles, non-JSON members, invalid shapes, and conflicting local projection revisions. Success returns an independent, deeply frozen, lossless snapshot; it does not certify route/usage relations, digest contents, or upstream provenance.
+
+`validate` remains Schema-only. The two judges additionally compare the complete adaptation binding, projection revisions, observed route facts, exact input-component sums, and output source/block count, after the existing named rejection checks. A fragment can pass `copyInputCalibration` while its enclosing response fails judgment. Neither operation reads historical logs, calls a tokenizer, or persists calibration. The runtime owns authorization and atomic response/reply persistence; older values missing this field are rejected without backfill.

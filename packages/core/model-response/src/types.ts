@@ -92,6 +92,7 @@ interface ResponseBase {
   readonly stopReason?: string
   readonly usage: Usage
   readonly cost: Cost
+  readonly inputCalibration: InputCalibration
   readonly trims?: TrimSummary
   readonly raw?: RawResponse
 }
@@ -213,3 +214,64 @@ export type ModelResponseRejection =
   | 'malformed'
 export type ModelResponseJudgment =
   { readonly ok: true } | { readonly rejected: ModelResponseRejection }
+
+/** MR9 S-41: versioned counting identity; the adapter owns actual compatibility. */
+export interface CountingBasis {
+  readonly binding: ModelAdaptationBinding
+  readonly model: string
+  readonly provider: string
+  readonly tokenizerRevision: string
+  readonly meterRevision: string
+  readonly projectionRevision: string
+  readonly replayRevision: string
+  readonly transformRevision: string
+}
+export type RequestInputEvidence =
+  | {
+      readonly kind: 'known'
+      readonly projectionRevision: string
+      readonly prefixBoundary: JsonNumber
+      readonly prefixDigest: string
+      readonly inputEnvelopeDigest: string
+      readonly countingBasis: CountingBasis
+    }
+  | { readonly kind: 'unavailable'; readonly reason: 'not_retained' | 'not_sent' | 'send_unknown' }
+export interface ObservationProvenance {
+  readonly adapterRevision: string
+  readonly fieldPaths: readonly [string, ...string[]]
+  readonly upstreamRequestId?: string
+  readonly upstreamModel?: string
+  readonly servingProvider?: string
+}
+export type ObservedInput =
+  | { readonly kind: 'from_usage'; readonly provenance: ObservationProvenance }
+  | {
+      readonly kind: 'upstream_total'
+      readonly tokens: JsonNumber
+      readonly provenance: ObservationProvenance
+    }
+  | {
+      readonly kind: 'unavailable'
+      readonly reason:
+        | 'missing_usage'
+        | 'response_cache'
+        | 'inconsistent_usage'
+        | 'scope_unknown'
+        | 'not_sent'
+        | 'send_unknown'
+    }
+export type OutputGroupEvidence =
+  | {
+      readonly kind: 'known'
+      readonly projectionRevision: string
+      readonly source: 'reply' | 'delivered' | 'none'
+      readonly blockDigests: readonly string[]
+      readonly completeness: 'complete' | 'partial'
+      readonly usageRef: 'usage'
+    }
+  | { readonly kind: 'unavailable'; readonly reason: 'not_retained' | 'not_sent' | 'send_unknown' }
+export interface InputCalibration {
+  readonly requestInput: RequestInputEvidence
+  readonly observedInput: ObservedInput
+  readonly outputGroup: OutputGroupEvidence
+}

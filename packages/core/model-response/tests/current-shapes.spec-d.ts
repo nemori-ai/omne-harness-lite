@@ -58,7 +58,7 @@ it('TYPE-HOMES: imported types and the six copy paths remain compatible', () => 
   expectTypeOf<Failure['cause']>().toEqualTypeOf<FailureCause>()
   expectTypeOf<ParameterAdjustment['sent']>().toEqualTypeOf<JsonValue>()
   expectTypeOf(judgeModelResponse(null)).toEqualTypeOf<ModelResponseJudgment>()
-  // @ts-expect-error fixed nineteen-definition entry, not an arbitrary caller schema
+  // @ts-expect-error fixed twenty-five-definition entry, not an arbitrary caller schema
   const invented: SchemaDefName = 'NewDefinition'
   // @ts-expect-error shape validator requires a definition name and an explicit value
   validate('Failure')
@@ -106,7 +106,7 @@ it('TYPE-DEFS: conditional objects, nonempty collections and null distinctions',
   const noRequested: ParameterAdjustment = { name: 'x', sent: null }
   // @ts-expect-error scope has no organization-only credential branch
   const organizationScope: CredentialScope = { layer: 'organization', organization: 'org_a' }
-  // @ts-expect-error all nineteen defs use JSON number representation, not bigint
+  // @ts-expect-error all twenty-five defs use JSON number representation, not bigint
   const invalidAmount: Failure = { cause: 'request_rejected', statusCode: 1n }
   expectTypeOf(noStatus).toExtend<Failure>()
   expectTypeOf(undefinedInBand).toExtend<Failure>()
@@ -117,6 +117,7 @@ it('TYPE-DEFS: conditional objects, nonempty collections and null distinctions',
   expectTypeOf(invalidAmount).toExtend<Failure>()
 })
 
+declare const inputCalibration: ModelResponse['inputCalibration']
 declare const route: Route
 declare const usage: Usage
 declare const cost: Cost
@@ -129,7 +130,7 @@ const opened = {
 }
 const unopened = { sentAt: '2026-09-26T00:00:00Z', endedAt: '2026-09-26T00:00:02Z' }
 it('TYPE-S13: seven conditions and seven forbidden combinations', () => {
-  const base = { id: 'r', call: { callId: 'c' }, dispatch: 1, route, usage, cost }
+  const base = { id: 'r', call: { callId: 'c' }, dispatch: 1, route, usage, cost, inputCalibration }
   const complete: ModelResponse = {
     ...base,
     outcome: 'complete',
@@ -244,7 +245,7 @@ it('TYPE-S13: seven conditions and seven forbidden combinations', () => {
   expectTypeOf(emptyDrops).toEqualTypeOf<Route>()
 })
 
-it('MR8 types preserve ordered mixed headers', () => {
+it('MR9 types preserve ordered mixed headers', () => {
   const headers: RawHeaders = { one: 'a,b', many: ['second', 'first', 'first', ''], empty: [] }
   const raw: RawResponse = { headers }
   expectTypeOf(raw).toExtend<RawResponse>()

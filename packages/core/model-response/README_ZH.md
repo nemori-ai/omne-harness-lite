@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-本包实现 MR8 的纯响应体表示与有序判定。一条 `ModelResponse` 记录一次已确认耐久「已出门」责任的路由和档案快照、收场、时序、回复或已交付的部分、实际用量与费用，以及可选的原始响应引用。持久 `interrupted` 响应在无法取得实际发送时刻时可以明确记录 `timing.sentAt: null`；这不表示确知没有发送。`PendingModelResponse` 是交给消息写入者的完整待提交回复事实，始终要求实际发送时刻；写入者完成自己的提交决定后，才给持久响应填 `replyDisposition`，并在适用时判断 `late`。本包不发起模型请求，也不持久化记录。
+本包实现 MR9 的纯响应体表示与有序判定。一条 `ModelResponse` 记录一次已确认耐久「已出门」责任的路由和档案快照、收场、时序、回复或已交付的部分、实际用量与费用，以及可选的原始响应引用。持久 `interrupted` 响应在无法取得实际发送时刻时可以明确记录 `timing.sentAt: null`；这不表示确知没有发送。`PendingModelResponse` 是交给消息写入者的完整待提交回复事实，始终要求实际发送时刻；写入者完成自己的提交决定后，才给持久响应填 `replyDisposition`，并在适用时判断 `late`。本包不发起模型请求，也不持久化记录。
 
 本包是工作区内的私有 ESM 包。当前公开入口只有包根和 `./schema`。旧响应版本没有可执行子入口。不兼容的历史值会明确拒绝，不会从当前模型目录补齐缺失字段。
 
@@ -13,6 +13,7 @@
 ```js
 import assert from 'node:assert/strict'
 import {
+  copyInputCalibration,
   judgeModelResponse,
   judgePendingModelResponse,
   validate,
@@ -79,6 +80,37 @@ const pending = {
     source: 'upstream',
   },
   cost: { cost_usd: 0.0001, source: 'upstream_usage' },
+  inputCalibration: {
+    requestInput: {
+      kind: 'known',
+      projectionRevision: 'example-projection-1',
+      prefixBoundary: 1,
+      prefixDigest: '1'.repeat(64),
+      inputEnvelopeDigest: '2'.repeat(64),
+      countingBasis: {
+        binding: adaptation,
+        model: 'example/chat',
+        provider: 'example',
+        tokenizerRevision: 'example-tokenizer-1',
+        meterRevision: 'example-meter-1',
+        projectionRevision: 'example-projection-1',
+        replayRevision: 'example-replay-1',
+        transformRevision: 'example-transform-1',
+      },
+    },
+    observedInput: {
+      kind: 'from_usage',
+      provenance: { adapterRevision: 'example-adapter-1', fieldPaths: ['usage.prompt_tokens'] },
+    },
+    outputGroup: {
+      kind: 'known',
+      projectionRevision: 'example-projection-1',
+      source: 'reply',
+      blockDigests: ['3'.repeat(64)],
+      completeness: 'complete',
+      usageRef: 'usage',
+    },
+  },
   raw: { headers: { 'x-example': ['first', 'first', ''] } },
 }
 
@@ -107,14 +139,43 @@ const recovered = {
     source: 'none',
   },
   cost: { cost_usd: 'unknown', source: 'none' },
+  inputCalibration: {
+    requestInput: { kind: 'unavailable', reason: 'send_unknown' },
+    observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+    outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+  },
 }
 assert.deepEqual(judgeModelResponse(recovered), { ok: true })
+
+const independentOutput = {
+  ...pending,
+  inputCalibration: {
+    ...pending.inputCalibration,
+    requestInput: { kind: 'unavailable', reason: 'not_retained' },
+  },
+}
+assert.deepEqual(judgePendingModelResponse(independentOutput), { ok: true })
+const copied = copyInputCalibration(independentOutput.inputCalibration)
+if (!('ok' in copied)) throw new Error('invalid calibration')
+assert.equal(Object.isFrozen(copied.ok.outputGroup), true)
+assert.notEqual(copied.ok.outputGroup, independentOutput.inputCalibration.outputGroup)
+
 assert.deepEqual(
   judgePendingModelResponse({ ...pending, timing: { ...pending.timing, sentAt: null } }),
   { rejected: 'malformed' },
 )
 ```
 
-`validate(defName, value)` 校验 MR8 的 19 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR8 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明耐久锚点、时刻来源、实际用量、回复提交或响应体耐久；这些保证由运行时和写入者承担。
+`validate(defName, value)` 校验 MR9 的 25 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR9 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明耐久锚点、时刻来源、实际用量、回复提交或响应体耐久；这些保证由运行时和写入者承担。
 
-MR8 Schema 通过各 owner 的公开 Schema 入口装配固定的 22 份规范资源，包括精确的 model-profile v5 依赖；资源缺失或错版会明确导致初始化失败。接受的[MR8 契约](../../../.meta_harness/design/spec/data/model-response/v8/contract.md)和[本包 v8 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v8-design.md)是语义依据。
+MR9 Schema 通过各 owner 的公开 Schema 入口装配固定的 22 份规范资源，包括精确的 model-profile v5 依赖；资源缺失或错版会明确导致初始化失败。接受的[MR9 契约](../../../.meta_harness/design/spec/data/model-response/v9/contract.md)和[本包 v9 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v9-usage-calibration-design.md)是语义依据。
+
+## 输入校准值
+
+持久响应与 Pending 都必填 `inputCalibration`。根入口公开六个 readonly 类型：`CountingBasis`、`RequestInputEvidence`、`ObservationProvenance`、`ObservedInput`、`OutputGroupEvidence`、`InputCalibration`。请求证据保存原投影及计量依据，输入观察保存上游事实，输出证据描述实际保留的组。`from_usage` 引用三个互斥输入分项，不另复制总量；缺失分项保持 `unknown`，不补零。
+
+示例的重复数字摘要及版本标签仅演示表示，不能当作内容的真实摘要。生产适配器须提供固定投影、真实来源和实际内容摘要。请求证据不可用时，输出仍可 known，并保留自己的 projectionRevision；示例同时演示这种组合和 missing_usage。
+
+`copyInputCalibration(value)` 返回 `{ ok: InputCalibration }` 或 `{ rejected: 'malformed' }`。它不执行 getter，拒绝循环、非 JSON 值、非法成员及片段内部的投影版本冲突。成功值是无损、自有且深冻结的快照；不认证 route/usage 关系、摘要对应或上游来源。
+
+`validate` 仅判 Schema。两个 judge 在既有具名拒绝之后进一步判完整绑定、版本、同名来源事实、精确分项和、输出来源及块数。片段 copy 成功不表示整个响应合法。本包不读历史日志、不调用 tokenizer、不写校准记录；授权与响应／回复原批持久由 runtime 负责。缺字段旧值直接拒绝，不补全或回填。

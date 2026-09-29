@@ -1,6 +1,7 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
-import { isObject, snapshot } from './json.ts'
+import { isObject, snapshot, equal } from './json.ts'
+import { calibrationRelationsValid } from './input-calibration.ts'
 import type { ModelResponseJudgment, ModelResponseRejection } from './types.ts'
 
 export interface JudgmentSchema {
@@ -87,6 +88,7 @@ export function judgeModelResponseWithSchema(
   )
     return rejected('first_token_inconsistent')
   if (!bindingValid(copied)) return rejected('malformed')
+  if (!calibrationRelationsValid(copied)) return rejected('malformed')
   if (!schema.responseValid(copied)) return rejected('malformed')
   return Object.freeze({ ok: true })
 }
@@ -107,28 +109,4 @@ function bindingValid(value: JsonObject): boolean {
     equal(route.adaptation, captured) &&
     route.adaptation.definition.modelId === route.profile.routeName
   )
-}
-function equal(a: JsonValue, b: JsonValue): boolean {
-  if (isJsonNumber(a) && isJsonNumber(b))
-    return ExactDecimal.from(a).compare(ExactDecimal.from(b)) === 0
-  if (Array.isArray(a) && Array.isArray(b))
-    return (
-      a.length === b.length &&
-      a.every((item, i) => {
-        const other = b[i]
-        return other !== undefined && equal(item, other)
-      })
-    )
-  if (isObject(a) && isObject(b)) {
-    const keys = Object.keys(a)
-    return (
-      keys.length === Object.keys(b).length &&
-      keys.every(key => {
-        const one = a[key],
-          two = b[key]
-        return one !== undefined && two !== undefined && Object.hasOwn(b, key) && equal(one, two)
-      })
-    )
-  }
-  return a === b
 }

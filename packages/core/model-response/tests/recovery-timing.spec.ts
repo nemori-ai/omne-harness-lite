@@ -14,23 +14,23 @@ import { isObject } from '../src/json.ts'
 
 const examples = readFileSync(
   new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v8/examples.md',
+    '../../../../.meta_harness/design/spec/data/model-response/v9/examples.md',
     import.meta.url,
   ),
   'utf8',
 )
 function example(heading: string): JsonObject {
   const start = examples.indexOf(`### ${heading}\n`)
-  if (start < 0) throw new Error(`missing MR8 example: ${heading}`)
+  if (start < 0) throw new Error(`missing MR9 example: ${heading}`)
   const block = examples.slice(start).match(/```json\n(\{[\s\S]*?\})\n```/u)?.[1]
-  if (block === undefined) throw new Error(`missing MR8 JSON: ${heading}`)
+  if (block === undefined) throw new Error(`missing MR9 JSON: ${heading}`)
   const parsed = readJsonStrict(block)
-  if ('failed' in parsed || !isObject(parsed.ok)) throw new Error(`invalid MR8 JSON: ${heading}`)
+  if ('failed' in parsed || !isObject(parsed.ok)) throw new Error(`invalid MR9 JSON: ${heading}`)
   return parsed.ok
 }
 function withSentAt(value: JsonObject, sentAt: string | number | null): JsonObject {
   const timing = value.timing
-  if (!isObject(timing)) throw new Error('MR8 example lacks timing')
+  if (!isObject(timing)) throw new Error('MR9 example lacks timing')
   return { ...value, timing: { ...timing, sentAt } }
 }
 function without(value: JsonObject, ...names: string[]): JsonObject {
@@ -47,7 +47,7 @@ const interruptedReply = example('E-3 用户中断，已有内容')
 const interruptedUnopened = example('E-4 用户中断，还没有内容——费用未知')
 const failed = example('E-6 与 E-7 一次调用的两次发出')
 
-describe('MR8 recovery timing representation', () => {
+describe('MR9 recovery timing representation', () => {
   it('accepts the three normative interrupted null examples without changing their facts', () => {
     for (const value of [recovered, openedRecovered, preSendCancelled]) {
       const before = writeJsonLossless(value)

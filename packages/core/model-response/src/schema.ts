@@ -45,6 +45,12 @@ export const SCHEMA_DEF_NAMES = Object.freeze([
   'ModelResponse',
   'ResponseFactsConstraints',
   'PendingModelResponse',
+  'CountingBasis',
+  'RequestInputEvidence',
+  'ObservationProvenance',
+  'ObservedInput',
+  'OutputGroupEvidence',
+  'InputCalibration',
 ] as const)
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 export interface SchemaValidation {

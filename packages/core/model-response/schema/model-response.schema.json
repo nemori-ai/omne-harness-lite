@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v8/model-response.schema.json",
-  "title": "data.model-response v8",
-  "description": "已确认请求责任的完整响应记录：回复（若有）、已交付部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序及上游原始响应的引用。每份已确认责任恰好留一条，含锚点后发送前取消；记录存在不证明实际发送。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v8 内有效。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v9/model-response.schema.json",
+  "title": "data.model-response v9",
+  "description": "已确认请求责任的完整响应记录：回复（若有）、已交付部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序及上游原始响应的引用。每份已确认责任恰好留一条，含锚点后发送前取消；记录存在不证明实际发送。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v9 内有效。",
   "$comment": "MR8 candidate：interrupted 持久响应可显式 sentAt:null；真实锚点与事实来源由写入者证明。PendingModelResponse 必须实际 sentAt。其余约束与精确依赖沿 MR7。",
   "$ref": "#/$defs/ModelResponse",
   "$defs": {
@@ -460,7 +460,8 @@
         "outcome",
         "timing",
         "usage",
-        "cost"
+        "cost",
+        "inputCalibration"
       ],
       "properties": {
         "id": {
@@ -571,6 +572,9 @@
         },
         "raw": {
           "$ref": "#/$defs/RawResponse"
+        },
+        "inputCalibration": {
+          "$ref": "#/$defs/InputCalibration"
         }
       },
       "allOf": [
@@ -1138,6 +1142,94 @@
               }
             }
           }
+        },
+        {
+          "$comment": "S-42 from_usage requires three known disjoint input components, from upstream.",
+          "if": {
+            "properties": {
+              "inputCalibration": {
+                "properties": {
+                  "observedInput": {
+                    "properties": {
+                      "kind": {
+                        "const": "from_usage"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "usage": {
+                "properties": {
+                  "source": {
+                    "const": "upstream"
+                  },
+                  "input_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cache_read_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cache_write_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "$comment": "S-42 upstream_total is the sole input authority only when at least one CA2 input component is unknown.",
+          "if": {
+            "properties": {
+              "inputCalibration": {
+                "properties": {
+                  "observedInput": {
+                    "properties": {
+                      "kind": {
+                        "const": "upstream_total"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "usage": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "input_tokens": {
+                        "const": "unknown"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "cache_read_tokens": {
+                        "const": "unknown"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "cache_write_tokens": {
+                        "const": "unknown"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
         }
       ]
     },
@@ -1154,7 +1246,8 @@
         "timing",
         "usage",
         "cost",
-        "reply"
+        "reply",
+        "inputCalibration"
       ],
       "properties": {
         "id": {
@@ -1268,6 +1361,9 @@
         },
         "raw": {
           "$ref": "#/$defs/RawResponse"
+        },
+        "inputCalibration": {
+          "$ref": "#/$defs/InputCalibration"
         }
       },
       "allOf": [
@@ -1287,6 +1383,301 @@
         }
       ],
       "description": "完整待提交回复事实，唯一不含 replyDisposition 和 late；不是可保存的 ModelResponse。"
+    },
+    "CountingBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "model",
+        "provider",
+        "tokenizerRevision",
+        "meterRevision",
+        "projectionRevision",
+        "replayRevision",
+        "transformRevision"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "../../model-profile/v5/model-profile.schema.json#/$defs/ModelAdaptationBinding"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tokenizerRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "meterRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projectionRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replayRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transformRevision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "RequestInputEvidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "projectionRevision",
+            "prefixBoundary",
+            "prefixDigest",
+            "inputEnvelopeDigest",
+            "countingBasis"
+          ],
+          "properties": {
+            "kind": {
+              "const": "known"
+            },
+            "projectionRevision": {
+              "type": "string",
+              "minLength": 1
+            },
+            "prefixBoundary": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "prefixDigest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "inputEnvelopeDigest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "countingBasis": {
+              "$ref": "#/$defs/CountingBasis"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unavailable"
+            },
+            "reason": {
+              "enum": [
+                "not_retained",
+                "not_sent",
+                "send_unknown"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "ObservationProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapterRevision",
+        "fieldPaths"
+      ],
+      "properties": {
+        "adapterRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fieldPaths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "upstreamRequestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "upstreamModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "servingProvider": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ObservedInput": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "provenance"
+          ],
+          "properties": {
+            "kind": {
+              "const": "from_usage"
+            },
+            "provenance": {
+              "$ref": "#/$defs/ObservationProvenance"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "tokens",
+            "provenance"
+          ],
+          "properties": {
+            "kind": {
+              "const": "upstream_total"
+            },
+            "tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "provenance": {
+              "$ref": "#/$defs/ObservationProvenance"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unavailable"
+            },
+            "reason": {
+              "enum": [
+                "missing_usage",
+                "response_cache",
+                "inconsistent_usage",
+                "scope_unknown",
+                "not_sent",
+                "send_unknown"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "OutputGroupEvidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "projectionRevision",
+            "source",
+            "blockDigests",
+            "completeness",
+            "usageRef"
+          ],
+          "properties": {
+            "kind": {
+              "const": "known"
+            },
+            "source": {
+              "enum": [
+                "reply",
+                "delivered",
+                "none"
+              ]
+            },
+            "blockDigests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "completeness": {
+              "enum": [
+                "complete",
+                "partial"
+              ]
+            },
+            "usageRef": {
+              "const": "usage"
+            },
+            "projectionRevision": {
+              "type": "string",
+              "minLength": 1,
+              "description": "S-43：本输出组摘要的独立耐久编码版本；requestInput known 时与其 projectionRevision 相等。"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unavailable"
+            },
+            "reason": {
+              "enum": [
+                "not_retained",
+                "not_sent",
+                "send_unknown"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "InputCalibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestInput",
+        "observedInput",
+        "outputGroup"
+      ],
+      "properties": {
+        "requestInput": {
+          "$ref": "#/$defs/RequestInputEvidence"
+        },
+        "observedInput": {
+          "$ref": "#/$defs/ObservedInput"
+        },
+        "outputGroup": {
+          "$ref": "#/$defs/OutputGroupEvidence"
+        }
+      }
     }
   }
 }
