@@ -16,7 +16,7 @@ import type {
 import type { CountingBasis } from '@omne-harness-lite/model-response'
 import type { ModelDefinition } from './definitions.ts'
 import type { InputProjection } from './projection.ts'
-import { meterHistoryValid } from './history-projection.ts'
+import { meterHistoryValid, meterReplayValid } from './history-projection.ts'
 
 export interface HistorySelectionSpan {
   readonly groupIndex: number
@@ -290,10 +290,13 @@ export function measureFull(meter: InputMeter, input: FullMeterInput): TokenMeas
     return { kind: 'unavailable' }
   }
 }
-export const measureReplay = (meter: InputMeter, input: ReplayMeterInput): MeterContribution =>
-  Array.isArray(input.outputHistory) && input.outputHistory.length <= 1
-    ? meter.measureReplay(input)
-    : { kind: 'invalidInput' }
+export function measureReplay(meter: InputMeter, input: ReplayMeterInput): MeterContribution {
+  try {
+    return meterReplayValid(input) ? meter.measureReplay(input) : { kind: 'invalidInput' }
+  } catch {
+    return { kind: 'invalidInput' }
+  }
+}
 export function measureNew(meter: InputMeter, input: NewMeterInput): MeterContribution {
   if (
     !Array.isArray(input.unitIndices) ||

@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -74,15 +75,15 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
       tools: official.tools,
       stream: true,
     }
-    const first = meter.measureFull({ body, serialized: writeJsonLossless(body) })
+    const first = directFull(meter, { body, serialized: writeJsonLossless(body) })
     expect(first.kind).toBe('estimated')
     if (first.kind === 'unavailable') throw new Error('estimator unavailable')
     const changed = { ...body, provider: { ...body.provider, require_parameters: true } }
-    const second = meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) })
+    const second = directFull(meter, { body: changed, serialized: writeJsonLossless(changed) })
     expect(second.kind).toBe('estimated')
     if (second.kind === 'unavailable') throw new Error('estimator unavailable')
     expect(Number(second.tokens)).toBeGreaterThan(Number(first.tokens))
-    expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(directFull(meter, { body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     expect(() =>
       createDeepSeekV41FlashInputMeter({ ...deepseekV41FlashDefinition, revision: '1' }),
     ).toThrow(TypeError)
@@ -155,7 +156,7 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
           { role: 'user', content: [{ type: 'text', text: 'Second image.' }, image(current)] },
         ],
       }
-      return meter.measureFull({ body, serialized: writeJsonLossless(body) })
+      return directFull(meter, { body, serialized: writeJsonLossless(body) })
     }
     const [smallImage, mediumImage, largeImage] = dataUrls
     if (!smallImage || !mediumImage || !largeImage) throw new Error('missing PNG fixture')
@@ -195,23 +196,23 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
       ],
     })
     const inline = makeBody(`data:image/png;base64,${tinyPng}`)
-    const measured = meter.measureFull({ body: inline, serialized: writeJsonLossless(inline) })
+    const measured = directFull(meter, { body: inline, serialized: writeJsonLossless(inline) })
     expect(measured.kind).toBe('estimated')
     const textOnly = {
       model: deepseekV41FlashDefinition.modelId,
       messages: [{ role: 'user', content: 'describe' }],
     }
-    const baseline = meter.measureFull({ body: textOnly, serialized: writeJsonLossless(textOnly) })
+    const baseline = directFull(meter, { body: textOnly, serialized: writeJsonLossless(textOnly) })
     if (measured.kind === 'unavailable' || baseline.kind === 'unavailable')
       throw new Error('estimate unavailable')
     expect(Number(measured.tokens) - Number(baseline.tokens)).toBeGreaterThanOrEqual(183)
     expect(Number(measured.tokens) - Number(baseline.tokens)).toBeLessThan(1024)
     const invalid = makeBody('data:image/png;base64,aGVsbG8=')
-    expect(meter.measureFull({ body: invalid, serialized: writeJsonLossless(invalid) })).toEqual({
+    expect(directFull(meter, { body: invalid, serialized: writeJsonLossless(invalid) })).toEqual({
       kind: 'unavailable',
     })
     const remote = makeBody('https://example.invalid/a.png')
-    expect(meter.measureFull({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
+    expect(directFull(meter, { body: remote, serialized: writeJsonLossless(remote) })).toEqual({
       kind: 'unavailable',
     })
   })

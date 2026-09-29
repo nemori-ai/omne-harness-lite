@@ -1,13 +1,21 @@
 import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
-import { INPUT_PROJECTION_REVISION, outputBlockDigest, type InputProjection } from './projection.ts'
+import {
+  canonicalProjection,
+  INPUT_PROJECTION_REVISION,
+  outputBlockDigest,
+  type InputProjection,
+} from './projection.ts'
 import type { HistorySelectionSpan } from './input-meter.ts'
+import type { ReplayMeterInput } from './input-meter.ts'
 
 export interface MessageSpan {
   readonly start: number
   readonly end: number
 }
 
-function knownDigestsMatch(group: PlanOutputHistoryGroup): boolean {
+function knownDigestsMatch(
+  group: Pick<PlanOutputHistoryGroup, 'inputCalibration' | 'outputBlocks'>,
+): boolean {
   const output = group.inputCalibration.outputGroup
   if (output.kind !== 'known') return false
   if (output.projectionRevision !== INPUT_PROJECTION_REVISION) return true
@@ -127,4 +135,97 @@ export function meterHistoryValid(
     }
   }
   return true
+}
+
+/** Public replay calls do not inherit the planner's owned-source checks. */
+export function meterReplayValid(input: ReplayMeterInput): boolean {
+  try {
+    if (
+      !Array.isArray(input.outputHistory) ||
+      input.outputHistory.length > 1 ||
+      !Array.isArray(input.units) ||
+      !Array.isArray(input.unitIndices) ||
+      input.units.length !== input.unitIndices.length ||
+      !Array.isArray(input.selectionSpans) ||
+      !Number.isSafeInteger(input.precedingUnitCount) ||
+      input.precedingUnitCount < 0
+    )
+      return false
+    const observed = input.observation
+    const group = observed?.inputCalibration?.outputGroup
+    if (
+      observed?.kind !== 'observation' ||
+      (group?.kind !== 'known' && group?.kind !== 'unavailable') ||
+      !Array.isArray(observed.outputBlocks) ||
+      !Array.isArray(observed.replaySelection) ||
+      input.selectionSpans.length !== observed.replaySelection.length ||
+      (group.kind === 'known' &&
+        (group.blockDigests.length !== observed.outputBlocks.length ||
+          !knownDigestsMatch({
+            inputCalibration: observed.inputCalibration,
+            outputBlocks: observed.outputBlocks,
+          }))) ||
+      (group.kind === 'unavailable' && input.outputHistory.length !== 0)
+    )
+      return false
+    const targets = new Set<string>()
+    for (const selection of observed.replaySelection) {
+      if (
+        !Number.isSafeInteger(selection.sourceBlockIndex) ||
+        selection.sourceBlockIndex < 0 ||
+        selection.sourceBlockIndex >= observed.outputBlocks.length ||
+        !Number.isSafeInteger(selection.messageIndex) ||
+        selection.messageIndex < 0 ||
+        !Number.isSafeInteger(selection.blockIndex) ||
+        selection.blockIndex < 0
+      )
+        return false
+      const key = `${selection.messageIndex}:${selection.blockIndex}`
+      if (targets.has(key)) return false
+      targets.add(key)
+    }
+    let upper = input.precedingUnitCount
+    const indices = new Set<number>()
+    for (const index of input.unitIndices) {
+      if (!Number.isSafeInteger(index) || index < input.precedingUnitCount || indices.has(index))
+        return false
+      indices.add(index)
+      upper = Math.max(upper, index + 1)
+    }
+    const original = input.outputHistory[0]
+    if (
+      original !== undefined &&
+      (canonicalProjection({
+        kind: 'observation',
+        inputCalibration: original.inputCalibration,
+        usage: original.usage,
+        outputBlocks: original.outputBlocks,
+        replaySelection: original.replaySelection,
+      }) !== canonicalProjection(observed) ||
+        !meterHistoryValid(
+          [original],
+          input.selectionSpans.map(span => ({ groupIndex: 0, ...span })),
+          upper,
+          indices,
+        ))
+    )
+      return false
+    for (const [position, span] of input.selectionSpans.entries()) {
+      if (
+        span.selectionIndex !== position ||
+        span.selectionIndex >= observed.replaySelection.length ||
+        !Number.isSafeInteger(span.start) ||
+        !Number.isSafeInteger(span.end) ||
+        span.start < input.precedingUnitCount ||
+        span.start >= span.end
+      )
+        return false
+      for (let index = span.start; index < span.end; index++) {
+        if (!indices.has(index)) return false
+      }
+    }
+    return true
+  } catch {
+    return false
+  }
 }

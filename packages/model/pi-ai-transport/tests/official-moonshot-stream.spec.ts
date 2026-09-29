@@ -45,6 +45,7 @@ function syntheticInput(provider: string, route: ModelDefinition['routes'][strin
   }
   const input: PlanInput = {
     calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+    outputHistory: [],
     tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',

@@ -54,6 +54,38 @@ export function authorizedCalibration(
       'unavailable' in interpretCallHistory({ prefix, callId: target.callId })
     )
       return { unavailable: true }
+    // A reader failure cannot demote a selected reply with a broken original
+    // D/M/R batch into a source-less full count. Check those durable members
+    // from the same authorized prefix before returning the explicit empty set.
+    for (const message of messages) {
+      if (message.type !== 'assistant') continue
+      const attached = inspected.ok.filter(
+        item => item.captured.message !== null && sameEntry(item.captured.message, message),
+      )
+      const responses = inspected.ok.filter(item => item.captured.response?.id === message.response)
+      if (attached.length !== 1 || responses.length !== 1) return { unavailable: true }
+      const original = responses[0]!.captured.response!
+      const batch = interpretSettlementPrefix({
+        prefix,
+        target: {
+          call: original.call.callId,
+          dispatch: original.dispatch,
+          response: original.id,
+        },
+        current: null,
+      })
+      if (
+        !('facts' in batch) ||
+        !('completeMembers' in batch.facts.members) ||
+        !batch.facts.members.completeMembers.entries.some(entry =>
+          sameEntry(entry, attached[0]!.entry),
+        ) ||
+        !batch.facts.members.completeMembers.entries.some(entry =>
+          sameEntry(entry, responses[0]!.entry),
+        )
+      )
+        return { unavailable: true }
+    }
     return { calibration: { kind: 'none', reason: 'source_unavailable' }, outputHistory: [] }
   }
   if ('noObservation' in interpreted)

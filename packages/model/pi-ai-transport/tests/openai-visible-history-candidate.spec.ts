@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { getEncoding } from 'js-tiktoken'
 import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -219,7 +220,7 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
         ).length,
       ).toBe(observed.estimatedInputTokens)
       expect(
-        historyMeter(frozen.modelId).measureFull({
+        directFull(historyMeter(frozen.modelId), {
           body: finalBody(frozen),
           serialized: frozen.wire,
         }),
@@ -233,7 +234,7 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
       const selected = definition(c.modelId)
       const meter = historyMeter(c.modelId)
       const body = finalBody(c)
-      expect(meter.measureFull({ body, serialized: c.wire })).toEqual({
+      expect(directFull(meter, { body, serialized: c.wire })).toEqual({
         kind: 'estimated',
         tokens: expectedTokens(c),
       })
@@ -383,8 +384,8 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
     const body = finalBody(c)
     const meter = historyMeter(c.modelId)
     const changed = (value: JsonObject) =>
-      meter.measureFull({ body: value, serialized: writeJsonLossless(value) })
-    expect(meter.measureFull({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
+      directFull(meter, { body: value, serialized: writeJsonLossless(value) })
+    expect(directFull(meter, { body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
     expect(changed({ ...body, opaqueControl: true })).toEqual({ kind: 'unavailable' })
     expect(changed({ ...body, reasoning: { effort: 'unsupported-effort' } })).toEqual({
       kind: 'unavailable',

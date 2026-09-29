@@ -1,3 +1,4 @@
+import { directFull, directNew } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { deepSeekBoundaries } from '../src/input-meters/deepseek-boundary.ts'
@@ -397,11 +398,11 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
     const meter = createMeter(definition)
     const previousBody = { messages: [u], reasoning: { effort: 'low' } }
     const finalBody = { messages: [u, a, n], reasoning: { effort: 'low' } }
-    const previousFull = meter.measureFull({
+    const previousFull = directFull(meter, {
       body: previousBody,
       serialized: writeJsonLossless(previousBody),
     })
-    const finalFull = meter.measureFull({
+    const finalFull = directFull(meter, {
       body: finalBody,
       serialized: writeJsonLossless(finalBody),
     })
@@ -437,6 +438,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       envelope: {},
       precedingUnitCount: 1,
       boundary: b.replay,
+      outputHistory: [],
       observation: {
         kind: 'observation',
         inputCalibration: {
@@ -465,7 +467,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
         end: 2,
       })),
     })
-    const delta = meter.measureNew({
+    const delta = directNew(meter, {
       units: [n],
       envelope: {},
       precedingUnitCount: 1,
@@ -488,7 +490,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
     ).toBe(ExactDecimal.from(finalFull.tokens).toString())
     const zero = { units: [], envelope: {}, precedingUnitCount: 1 }
     expect(
-      meter.measureNew({
+      directNew(meter, {
         ...zero,
         boundary: {
           revision: 'deepseek-reference-boundary/1',
@@ -497,7 +499,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
         },
       }),
     ).toMatchObject({ kind: 'estimated' })
-    const negative = meter.measureNew({
+    const negative = directNew(meter, {
       ...zero,
       boundary: {
         revision: 'deepseek-reference-boundary/1',
@@ -507,7 +509,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
     })
     if (!('tokens' in negative)) throw Error('contribution unavailable')
     expect(ExactDecimal.from(negative.tokens).compare(ExactDecimal.from(0))).toBe(-1)
-    expect(meter.measureNew(zero)).toEqual({ kind: 'unavailable' })
+    expect(directNew(meter, zero)).toEqual({ kind: 'unavailable' })
   })
 
   it('planner falls back for a substantive old reasoning rewrite and retains all messages', () => {

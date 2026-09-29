@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -120,7 +121,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
     if (!definition) throw new Error('missing Moonshot definition')
     const body = { model: definition.modelId, messages: [{ role: 'user', content: 'Hello world' }] }
     const serialized = writeJsonLossless(body)
-    const measurement = createMoonshotInputMeter(definition).measureFull({ body, serialized })
+    const measurement = directFull(createMoonshotInputMeter(definition), { body, serialized })
     if (measurement.kind === 'unavailable') throw new Error('meter unavailable')
     expect(Number(measurement.tokens)).toBe(expected)
   })
@@ -138,7 +139,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         ...moonshotFixture('multi-turn'),
         ...(index === 0 ? { reasoning: { effort: 'high' } } : {}),
       }
-      const measurement = createMoonshotInputMeter(definition).measureFull({
+      const measurement = directFull(createMoonshotInputMeter(definition), {
         body,
         serialized: writeJsonLossless(body),
       })
@@ -170,7 +171,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       expect(meter.algorithmRevision).toBe(
         index === 0 ? 'moonshot-k3-xtml-image-4' : 'moonshot-k27-jinja-image-3',
       )
-      expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
+      expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'estimated',
         tokens,
       })
@@ -200,7 +201,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       ],
     }
     expect(
-      createMoonshotInputMeter(definition).measureFull({
+      directFull(createMoonshotInputMeter(definition), {
         body,
         serialized: writeJsonLossless(body),
       }),
@@ -234,11 +235,11 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         stream: false,
         store: true,
       }
-      expect(meter.measureFull({ body: altered, serialized: writeJsonLossless(altered) })).toEqual(
-        meter.measureFull({ body: base, serialized: writeJsonLossless(base) }),
+      expect(directFull(meter, { body: altered, serialized: writeJsonLossless(altered) })).toEqual(
+        directFull(meter, { body: base, serialized: writeJsonLossless(base) }),
       )
       const unknown = { ...base, prompt_hint: 'unmapped model input' }
-      expect(meter.measureFull({ body: unknown, serialized: writeJsonLossless(unknown) })).toEqual({
+      expect(directFull(meter, { body: unknown, serialized: writeJsonLossless(unknown) })).toEqual({
         kind: 'unavailable',
       })
       const opaque = {
@@ -251,7 +252,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           },
         ],
       }
-      expect(meter.measureFull({ body: opaque, serialized: writeJsonLossless(opaque) })).toEqual({
+      expect(directFull(meter, { body: opaque, serialized: writeJsonLossless(opaque) })).toEqual({
         kind: 'unavailable',
       })
     },
@@ -326,8 +327,8 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           { role: 'user', content: 'Summarize it' },
         ],
       }
-      const simple = meter.measureFull({ body: base, serialized: writeJsonLossless(base) })
-      const detailed = meter.measureFull({
+      const simple = directFull(meter, { body: base, serialized: writeJsonLossless(base) })
+      const detailed = directFull(meter, {
         body: toolHistory,
         serialized: writeJsonLossless(toolHistory),
       })
@@ -345,10 +346,10 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           },
         ],
       }
-      expect(meter.measureFull({ body: image, serialized: writeJsonLossless(image) })).toEqual({
+      expect(directFull(meter, { body: image, serialized: writeJsonLossless(image) })).toEqual({
         kind: 'unavailable',
       })
-      expect(meter.measureFull({ body: base, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+      expect(directFull(meter, { body: base, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     },
   )
 
@@ -382,7 +383,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
     }
     const first = { ...base, messages: base.messages.slice(0, 1) }
     const measure = (body: typeof base | typeof first) =>
-      meter.measureFull({ body, serialized: writeJsonLossless(body) })
+      directFull(meter, { body, serialized: writeJsonLossless(body) })
     const firstCount = measure(first)
     const allCount = measure(base)
     expect(firstCount.kind).toBe('estimated')
@@ -399,7 +400,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         },
       ],
     }
-    expect(meter.measureFull({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
+    expect(directFull(meter, { body: remote, serialized: writeJsonLossless(remote) })).toEqual({
       kind: 'unavailable',
     })
   })

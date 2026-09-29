@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { getEncoding } from 'js-tiktoken'
 import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -104,7 +105,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
   it.each(cases)('reproduces independently observed $id without changing the wire', c => {
     const body = bodyFor(c.modelId, c.set)
     const meter = createOpenAiInputMeter(definition(c.modelId))
-    const measurement = meter.measureFull({ body, serialized: c.wire })
+    const measurement = directFull(meter, { body, serialized: c.wire })
     expect(measurement.kind).toBe('estimated')
     // Keep the original independent text-proxy observations distinct from
     // the new complete-history JSON estimate; no claim of unchanged counts.
@@ -132,7 +133,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.serialized).toBe(c.wire)
     expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
-    expect(meter.measureFull({ body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
+    expect(directFull(meter, { body, serialized: `${c.wire} ` })).toEqual({ kind: 'unavailable' })
   })
 
   it.each(models)(
@@ -209,7 +210,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
         },
       ])
         expect(
-          meter.measureFull({ body: changed, serialized: writeJsonLossless(changed) }),
+          directFull(meter, { body: changed, serialized: writeJsonLossless(changed) }),
         ).toEqual({
           kind: 'unavailable',
         })
@@ -218,7 +219,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
         messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
       }
       expect(
-        meter.measureFull({ body: oneVisibleUser, serialized: writeJsonLossless(oneVisibleUser) })
+        directFull(meter, { body: oneVisibleUser, serialized: writeJsonLossless(oneVisibleUser) })
           .kind,
       ).toBe('estimated')
     },
