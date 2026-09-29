@@ -120,13 +120,7 @@ const observation = (g: PlanOutputHistoryGroup) => ({
 describe.each(anthropicReplayModels)('$modelId complete output contribution', row => {
   const published = anthropicDefinitions.find(d => d.modelId === row.modelId)
   if (!published) throw Error('missing Anthropic source definition')
-  // Root owns the official publication. These are its allocated exact target
-  // coordinates, exercising the real factory before the joint publication.
-  const definition = {
-    ...published,
-    revision: '4',
-    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-18' },
-  }
+  const definition = published
   const meter = createAnthropicInputMeter(definition)
   const configured = createOfficialProfileContent(definition, {
     providers: ['anthropic'],
@@ -419,7 +413,7 @@ describe.each(anthropicReplayModels)('$modelId complete output contribution', ro
 
   if (row.requiresSignedPrefix) {
     it.each(['reasoningEffort', 'maxOutputTokens'])(
-      'PF-N1 legal %s change lacks prefix evidence, not invalidInput',
+      'PF-N1 legal %s change leaves the contribution unavailable and fails only the input-size gate',
       async field => {
         const first = await planned(request()),
           a = response(row.modelId, 'prefix', 'signed'),
@@ -432,8 +426,25 @@ describe.each(anthropicReplayModels)('$modelId complete output contribution', ro
           },
           messages: [...request().messages, a, message('user', 'next', 'u2')],
           outputHistory: [ga],
+          calibration: observation(ga),
         }
-        expect(await plan(changed)).toEqual({ rejected: 'unavailable' })
+        // Adopted failure-layer clarification 17a71317: missing contribution
+        // falls back to full; the existing size gate owns the public rejection.
+        const fullContributions: unknown[] = []
+        const result = await plan(changed, {
+          ...meter,
+          measureFull: input => {
+            const contribution = meter.measureFull(input)
+            fullContributions.push(contribution)
+            return contribution
+          },
+        })
+        expect(fullContributions).toEqual([{ kind: 'unavailable' }])
+        expect(result).toEqual({
+          rejected: 'invalidInput',
+          reason: 'input_size_unavailable',
+          metrics: ['maxInputTokens'],
+        })
       },
     )
     it('keeps a new message between original prefix and signed group unmeasurable', async () => {

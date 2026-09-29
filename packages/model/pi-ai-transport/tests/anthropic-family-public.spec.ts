@@ -7,6 +7,7 @@ import {
   type PlanOutputHistoryGroup,
 } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
+import { anthropicReplayModels } from '../src/input-meters/anthropic-replay.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
 import { createPiAiTransport } from '../src/transport.ts'
@@ -52,11 +53,7 @@ describe.each(['public', 'service'] as const)(
   entry => {
     for (const original of anthropicDefinitions)
       it(original.modelId, async () => {
-        const definition = {
-          ...original,
-          revision: '4',
-          implementation: { name: 'pi-ai:anthropic', revision: 'mp4-18' },
-        }
+        const definition = original
         const meter = createAnthropicInputMeter(definition)
         const profile = createOfficialProfileContent(definition, {
           providers: ['anthropic'],
@@ -220,6 +217,42 @@ describe.each(['public', 'service'] as const)(
                 replaySelection: selection,
               },
               messages: [...request.messages, reply, message('user', `next ${round}`, `u${round}`)],
+            }
+            if (round === 0) {
+              const invoke = (candidate: PlanInput) =>
+                invokeModel({
+                  ...candidate,
+                  transport,
+                  credential: 'synthetic-local-only',
+                  signal: new AbortController().signal,
+                  policy: policy(),
+                  onAccepted() {},
+                }).outcome
+              if (
+                anthropicReplayModels.find(row => row.modelId === definition.modelId)
+                  ?.requiresSignedPrefix
+              ) {
+                for (const parameters of [
+                  { ...request.parameters, reasoningEffort: 'low' as const },
+                  { ...request.parameters, maxOutputTokens: 256 },
+                ]) {
+                  const failed = await invoke({ ...request, parameters })
+                  expect(failed).toEqual({
+                    rejected: 'invalidInput',
+                    reason: 'input_size_unavailable',
+                    metrics: ['maxInputTokens'],
+                  })
+                  expect(host.requests).toHaveLength(1)
+                }
+              }
+              // A contradictory retained origin is truly malformed, unlike a
+              // valid change whose required contribution cannot be measured.
+              const bad = { ...history, origin: { ...history.origin!, provider: 'unrelated' } }
+              expect(await invoke({ ...request, outputHistory: [bad] })).toEqual({
+                rejected: 'invalidInput',
+                reason: 'malformed',
+              })
+              expect(host.requests).toHaveLength(1)
             }
           }
           expect(host.requests).toHaveLength(3)

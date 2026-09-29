@@ -27,11 +27,7 @@ const text = (value: string) => ({
 })
 
 describe.each(anthropicDefinitions)('$modelId strict last_message cache target', original => {
-  const definition = {
-    ...original,
-    revision: '4',
-    implementation: { name: 'pi-ai:anthropic', revision: 'mp4-18' },
-  }
+  const definition = original
   const meter = createAnthropicInputMeter(definition)
   const profile = createOfficialProfileContent(definition, {
     providers: ['anthropic'],
