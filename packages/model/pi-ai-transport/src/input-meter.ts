@@ -19,6 +19,8 @@ export interface MarginalMeterInput {
   readonly units: readonly JsonValue[]
   readonly envelope: JsonObject
   readonly precedingUnitCount: number
+  /** Fixed provider projection: anchor-external fragments and finite terminal framing only. */
+  readonly boundary?: JsonObject
 }
 export type MeterContribution = TokenMeasurement | { readonly kind: 'invalidInput' }
 

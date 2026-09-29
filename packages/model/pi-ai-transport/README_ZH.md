@@ -88,8 +88,8 @@ export const controlledMeter: InputMeter = {
   tokenizerRevision: 'synthetic/1',
   replayRevision: 'unsupported/1',
   transformRevision: 'openrouter-wire/2',
-  measureReplay: () => ({kind: 'unavailable'}),
-  measureNew: () => ({kind: 'unavailable'}),
+  measureReplay: () => ({ kind: 'unavailable' }),
+  measureNew: () => ({ kind: 'unavailable' }),
   measureFull: () => ({ kind: 'exact', tokens: 1 }),
 }
 
@@ -110,7 +110,7 @@ const reminder = judgeMessage({
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
-  calibration: {kind: 'none', reason: 'no_observation'},
+  calibration: { kind: 'none', reason: 'no_observation' },
   tokenMargin: { multiplier: 1, reserveTokens: 0 },
   target: {
     kind: 'model_call',
@@ -391,7 +391,7 @@ pnpm --filter @omne-harness-lite/pi-ai-transport run test
 
 ### 显式的 DeepSeek Pro 定义
 
-`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / mp4-1`，定义修订为 `2`。导入不会注册模型、分配连接池或发送请求。
+`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / mp4-3`，定义修订为 `3`。导入不会注册模型、分配连接池或发送请求。
 
 模型记载的能力是文本输入、文本输出。所选路由提供 1,048,576 token 共享窗口和 16,384 token 输出容量；1,032,192 token 输入预算预留了完整输出容量。这是换算的只计输入预算，不是路由 `max_prompt_tokens` 的原值，也不是极值请求实测。空输入限制对象表示该纯文本声明没有活动的图片限制；两个适用的上游事实明确为 `unknown`，不表示无限。
 
@@ -502,7 +502,6 @@ node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-
 
 同一助手消息含同路由 opaque 推理块及额外独立的纯文本思考块时，当前规划返回 unavailable、零 HTTP，原历史不删不改。单块 opaque 与纯文本历史沿原路径及计量门处理。选定路由如何共同消费两种表示仍待核实；明确拒绝不代表已支持混合历史发送。
 
-
 ## 响应校准输入规划
 
 `PlanInput.calibration` 必填。首次用 `{kind:'none',reason:'no_observation'}`；后继显式传合法取得的原 `inputCalibration`、`usage`、全部实际保留 `outputBlocks` 和 `replaySelection`。selection 定位源块及当前消息/块，planner 核实际内容和最终投影覆盖，不接受 caller trust 开关。
@@ -517,9 +516,14 @@ reader每个终态都交同一个累积器的 `readFacts`；解析即保存usage
 
 本地回归包括纯planner和实际TLS reader；37模型线上认证与完整runtime/service组合另验，本地通过不冒称上游路由认证。
 
-
 ### OpenAI Pro 输入观察范围
 
 GPT-5.6 Sol/Terra/Luna Pro 使用定义 revision 5／`pi-ai:openai/mp4-7`；GPT-6 Astra/Sol/Luna Pro 使用定义 revision 3／`mp4-8`。由于上游输入统计范围尚未确认，真实 usage/cost（包括部分未知项）原样保留，`observedInput` 为 `unavailable/scope_unknown`。缺失 usage、响应缓存命中和统计冲突继续优先沿原有具体分支处理；真实零值也不证明统计范围。规划阶段同时拒绝这些新贡献的历史锚及伪造的当前同形 known 锚。GPT-5.6 Pro 使用全量估算和配置余量准入；GPT-6 Pro 现通过官方工厂提供可见输入全量估算，每次施加显式余量；输入观察范围未知期间继续全量计量。
 
 规划与 reader 共用私有固定规则，由实际已拥有的请求绑定选择；不新增公开信任开关或额外 I/O。新 Pro transform revision 为 `openrouter-input-transform/pro-scope-1`，该统计范围边界与所供估算算法修订分别约束。精确旧贡献身份仅在已有 lease 随 registry 退役协议排空时保留原捕获 reader 语义；默认官方表和工厂只供新身份。这不构成历史兼容入口，也不新增针对可信自定义完整代码贡献的全局禁入机制；其它可信贡献继承原 reader 前提，不因此取得新的上游统计范围认证。
+
+### DeepSeek 有符号增量参考计量
+
+Pro0813 修订 3 / `mp4-3` 在固定 `deepinfra/fp8` 上用已钉 public reference renderer 提供 full 与有符号 replay/new 估算。固定绑定识别 OpenRouter 的 `DeepInfra` 显示名；其他 provider/model 身份仍使锚失效。纯投影比较旧/新参考 prompt，不分词稳定历史；只有锚外片段和有限末端 assistant framing 进入增量 tokenizer。有 N 时由 δ 承担最终 framing 变化，否则由 φ 承担。锚内正文或 substantive reasoning 重写回退 full；密文长度不会使未知 opaque reasoning 获得增量支持。
+
+`MarginalMeterInput.boundary` 是可选的 provider-owned 边界描述，在来源、前缀和 basis 校验后产生，不是调用者 trust 标志。DeepSeek 在拆分 G/N 之前保留实际顺序，计算有符号后缀差分，覆盖缺 usage 的多轮、user/tool 合并及空分支。独立后缀分词与 OpenRouter/DeepInfra 私有模板均仍为 **estimated**，不是精确值或上界；合成后只应用一次配置余量。本次不新增付费 serving 认证或缓存命中保证。完整请求 bytes/图片限制继续检查；完整线性序列化、参考渲染和 hash 仍然存在，稳定 P 不进入增量 tokenizer。

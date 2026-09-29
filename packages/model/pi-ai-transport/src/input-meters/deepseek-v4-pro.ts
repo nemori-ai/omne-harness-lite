@@ -1,4 +1,5 @@
 import { defineInputMeter } from '../input-meter.ts'
+import { measureDeepSeekBoundary } from './deepseek-boundary.ts'
 // Projection adapted from DeepSeek-V4-Pro encoding/encoding_dsv4.py at
 // b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; tokenizers/deepseek-v4/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -343,9 +344,9 @@ function supplemental(body: JsonObject): JsonObject | undefined {
 export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4-pro-0813' ||
-    definition.revision !== '2' ||
+    definition.revision !== '3' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== 'mp4-3' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4 Pro definition')
@@ -355,7 +356,22 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v4-pro-reference-1',
+    algorithmRevision: 'deepseek-v4-pro-reference-2',
+    tokenizerRevision: 'deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1',
+    replayRevision: 'deepseek-reference-boundary/1',
+    transformRevision: 'deepseek-pro-reference-projection/1',
+    measureReplay: input =>
+      measureDeepSeekBoundary(
+        input,
+        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
+        supplemental,
+      ),
+    measureNew: input =>
+      measureDeepSeekBoundary(
+        input,
+        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
+        supplemental,
+      ),
     evidence:
       'DeepSeek-V4-Pro b5968e9190ef611bbf34a7229255be88a0e937c1 encoding_dsv4.py + tokenizer.json 8f9f37ca; OpenRouter/DeepInfra private projection remains estimated',
     measureFull({ body, serialized }): TokenMeasurement {

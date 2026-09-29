@@ -69,8 +69,8 @@ export const deepseekDefinitions = ownDefinitions([
   },
   {
     modelId: 'deepseek/deepseek-v4-pro-0813',
-    revision: '2',
-    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-1' },
+    revision: '3',
+    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-3' },
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],
@@ -92,7 +92,7 @@ if (!flashDefinition || !proDefinition) throw new TypeError('missing official De
 
 /** Complete Flash leaf; actual model/provider send certification is separate. */
 export const deepseekV41FlashDefinition = flashDefinition
-/** Complete Pro leaf; this is the revision-2 entry in the owned family list. */
+/** Complete Pro leaf; this is the revision-3 entry in the owned family list. */
 export const deepseekV4Pro0813Definition = proDefinition
 
 /** Explicit source configuration; no factory installs it as a hidden default. */

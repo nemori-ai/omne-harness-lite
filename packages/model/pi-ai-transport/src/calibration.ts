@@ -5,6 +5,7 @@ import {
   judgeContentBlock,
   isNonNegativeJsonInteger,
   type JsonNumber,
+  type JsonObject,
   type JsonValue,
   type ContentBlock,
 } from '@omne-harness-lite/content-blocks'
@@ -16,6 +17,8 @@ import type {
   MeasurementPrecision,
 } from '@omne-harness-lite/model-request-runtime'
 import {
+  deepSeekBoundaryRoute,
+  prepareDeepSeekBoundaries,
   INPUT_PROJECTION_REVISION,
   canonicalProjection,
   prefixDigest,
@@ -175,7 +178,8 @@ export function measureCalibrated(
       (observed.provenance.servingProvider !== undefined &&
         observed.provenance.servingProvider !== basis.provider &&
         !(basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic') &&
-        !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI'))
+        !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI') &&
+        !(deepSeekBoundaryRoute(input) && observed.provenance.servingProvider === 'DeepInfra'))
     )
       fallback = 'basis_changed'
     else if (scope === 'scope_unknown') fallback = 'source_unavailable'
@@ -230,19 +234,29 @@ export function measureCalibrated(
             fresh: JsonValue[] = []
           for (let i = n; i < projection.units.length; i++)
             (g.has(i) ? replay : fresh).push(projection.units[i]!)
-          const arg = (units: readonly JsonValue[]): MarginalMeterInput =>
+          const deepSeek = deepSeekBoundaryRoute(input)
+          const prepared = deepSeek ? prepareDeepSeekBoundaries(projection, n, g) : undefined
+          const boundary = prepared && !('changed' in prepared) ? prepared : undefined
+          const arg = (units: readonly JsonValue[], edge?: JsonObject): MarginalMeterInput =>
             Object.freeze({
               units: Object.freeze(units),
               envelope: projection.envelope,
               precedingUnitCount: n,
+              ...(edge ? { boundary: edge } : {}),
             })
           try {
-            const phi = replay.length
-              ? meter.measureReplay(arg(replay))
-              : { kind: 'exact' as const, tokens: 0 }
-            const delta = fresh.length
-              ? meter.measureNew(arg(fresh))
-              : { kind: 'exact' as const, tokens: 0 }
+            if (deepSeek && !boundary) {
+              if (prepared && 'changed' in prepared) fallback = 'prefix_changed'
+              throw new TypeError('DeepSeek substantive prefix changed or boundary unavailable')
+            }
+            const phi =
+              replay.length || boundary?.replay.added !== boundary?.replay.removed
+                ? meter.measureReplay(arg(replay, boundary?.replay))
+                : { kind: 'exact' as const, tokens: 0 }
+            const delta =
+              fresh.length || boundary?.fresh.added !== boundary?.fresh.removed
+                ? meter.measureNew(arg(fresh, boundary?.fresh))
+                : { kind: 'exact' as const, tokens: 0 }
             if (
               meterContributionValid(phi) &&
               meterContributionValid(delta) &&

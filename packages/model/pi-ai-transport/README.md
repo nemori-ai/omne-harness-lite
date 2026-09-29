@@ -88,8 +88,8 @@ export const controlledMeter: InputMeter = {
   tokenizerRevision: 'synthetic/1',
   replayRevision: 'unsupported/1',
   transformRevision: 'openrouter-wire/2',
-  measureReplay: () => ({kind: 'unavailable'}),
-  measureNew: () => ({kind: 'unavailable'}),
+  measureReplay: () => ({ kind: 'unavailable' }),
+  measureNew: () => ({ kind: 'unavailable' }),
   measureFull: () => ({ kind: 'exact', tokens: 1 }),
 }
 
@@ -110,7 +110,7 @@ const reminder = judgeMessage({
 })
 if ('rejected' in reminder) throw new Error(reminder.rejected)
 export const request: PlanInput = {
-  calibration: {kind: 'none', reason: 'no_observation'},
+  calibration: { kind: 'none', reason: 'no_observation' },
   tokenMargin: { multiplier: 1, reserveTokens: 0 },
   target: {
     kind: 'model_call',
@@ -391,7 +391,7 @@ Tests use complete nonofficial fixtures, actual temporary HTTPS, public core jud
 
 ### Explicit DeepSeek Pro definition
 
-`deepseekV4Pro0813Definition` provides one fixed leaf for `deepseek/deepseek-v4-pro-0813` through `deepinfra/fp8`. It shares the OpenRouter planner and DeepSeek family rules under `pi-ai:deepseek / mp4-1`; its definition revision is `2`. Importing it does not register a model, allocate a connection pool or send a request.
+`deepseekV4Pro0813Definition` provides one fixed leaf for `deepseek/deepseek-v4-pro-0813` through `deepinfra/fp8`. It shares the OpenRouter planner and DeepSeek family rules under `pi-ai:deepseek / mp4-3`; its definition revision is `3`. Importing it does not register a model, allocate a connection pool or send a request.
 
 The model's recorded capability is text input and text output. Its route reports a 1,048,576-token shared window and 16,384-token output capacity. The 1,032,192-token input budget reserves that complete output capacity; it is a derived input-only budget, not the route's `max_prompt_tokens` field or an extreme-size request test. The empty input-constraint object has no active image constraint in this text-only declaration. Its two applicable upstream facts are explicitly `unknown`, not unlimited.
 
@@ -506,7 +506,6 @@ The unbound `createXaiHistoryCandidateInputMeter` in `src/input-meters/xai-candi
 
 An assistant message combining same-route opaque reasoning with an additional independent plaintext thinking block is currently unavailable at planning, before any HTTP send. The original history is not changed or silently dropped. Single-block opaque replay and plaintext-only history keep their existing paths and metering gates. How the selected route consumes both representations together remains unverified; this refusal is not successful mixed-history support.
 
-
 ## Response-calibrated input planning
 
 `PlanInput.calibration` is required: use `{kind:'none',reason:'no_observation'}` for the first request, or pass a legitimately obtained observation with the original `inputCalibration`, `usage`, complete retained `outputBlocks`, and explicit `replaySelection`. Selection indexes identify source blocks and current message/block positions; the planner verifies actual values and final projection coverage. A caller cannot bypass this with a trust flag.
@@ -521,9 +520,14 @@ Every reader terminal result has `readFacts` from the same accumulator as accoun
 
 The current local regression suite includes pure planner and actual TLS reader cases. Live 37-model certification and full runtime/service integration are separate acceptance work; a local passing test does not certify an upstream route.
 
-
 ### OpenAI Pro input observation scope
 
 The three GPT-5.6 Sol/Terra/Luna Pro definitions use revision 5 / `pi-ai:openai/mp4-7`; GPT-6 Astra/Sol/Luna Pro use revision 3 / `mp4-8`. Their upstream input accounting scope is unconfirmed. Complete or partial actual usage/cost remains unchanged, while `observedInput` is `unavailable/scope_unknown`. Missing usage, response-cache hits, and inconsistent usage keep their existing more specific handling. Valid zero does not establish scope. The planner also rejects historical or forged current-shaped known anchors for these contributions; GPT-5.6 Pro continues full estimated admission with the configured margin. GPT-6 Pro now supplies full visible-input estimates through the official factory, with explicit margin on every request; it remains in full mode while input observation scope is unknown.
 
 The private fixed reader rule is shared with planning, selected from the owned request binding, with no public trust flag or extra I/O. The current Pro transform revision is `openrouter-input-transform/pro-scope-1`; this scope boundary remains independent of the supplied estimator revision. Exact previous contribution identities retain their captured reader semantics while an existing lease drains under the registry retirement protocol. The default official table/factory offers only the new identities. This is neither a historical compatibility entry nor a new global ban on explicitly trusted custom code contributions; other trusted contributions retain their prior reader assumptions, without claiming fresh certification of their upstream token scope.
+
+### DeepSeek signed marginal reference counting
+
+Pro0813 revision 3 / `mp4-3` uses its pinned public reference renderer for full and signed replay/new estimates on `deepinfra/fp8`. The fixed binding recognizes the OpenRouter serving display name `DeepInfra`; other provider/model identities still invalidate calibration. A pure provider projection compares the old and current reference prompt without tokenizing stable history. Only anchor-external fragments and the finite terminal assistant framing reach the marginal tokenizer. With a new input, δ owns the final framing change; otherwise φ does. The boundary check rejects substantive old reasoning/content rewrites and falls back to full. Unknown opaque reasoning never gains marginal support from ciphertext length.
+
+`MarginalMeterInput.boundary` is an optional provider-owned description, produced after source, prefix, and basis validation. It is not a caller trust flag. DeepSeek keeps G/N in their real order before deriving signed suffix differences, including missing-usage turns, merged user/tool messages and empty-side cases. Independent suffix tokenization and the OpenRouter/DeepInfra private template remain **estimated**, not exact or an upper bound. Apply the configured margin once to the combined input. This work adds no paid serving certification or cache-hit guarantee. Full request bytes and image limits are still checked; full linear serialization/rendering/hashing remain necessary, while stable P never enters the marginal tokenizer.

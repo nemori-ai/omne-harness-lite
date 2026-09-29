@@ -16,6 +16,8 @@ import type {
 import { codePointOrder } from './definitions.ts'
 import { object, ownedObject } from './json.ts'
 import type { InputMeter } from './input-meter.ts'
+import { deepSeekBoundaries } from './input-meters/deepseek-boundary.ts'
+import { renderDeepSeekV4Prompt } from './input-meters/deepseek-v4-pro.ts'
 
 export const INPUT_PROJECTION_REVISION = 'openrouter-input-projection/2'
 const anthropicModels = new Set([
@@ -155,4 +157,27 @@ export function projectOutput(input: OutputProjectionInput): OutputProjectionRes
       blockDigests: Object.freeze(blockDigests),
     }),
   }
+}
+
+/** Narrow binding owns both the provider alias and the semantic boundary check. */
+export function deepSeekBoundaryRoute(input: PlanInput): boolean {
+  return (
+    input.routeName === 'deepseek/deepseek-v4-pro-0813' &&
+    input.provider === 'deepinfra/fp8' &&
+    input.snapshot.adaptation.definition.revision === '3' &&
+    input.snapshot.adaptation.implementation.name === 'pi-ai:deepseek' &&
+    input.snapshot.adaptation.implementation.revision === 'mp4-3'
+  )
+}
+export function prepareDeepSeekBoundaries(
+  projection: InputProjection,
+  n: number,
+  replay: ReadonlySet<number>,
+) {
+  return deepSeekBoundaries(projection.units, projection.envelope, n, replay, body =>
+    renderDeepSeekV4Prompt(
+      body,
+      object(body.reasoning) && body.reasoning.effort === 'low' ? 'thinking' : 'chat',
+    ),
+  )
 }

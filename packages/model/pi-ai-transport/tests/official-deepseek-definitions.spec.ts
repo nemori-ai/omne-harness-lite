@@ -19,7 +19,7 @@ describe('two complete DeepSeek MP4 declarations', () => {
     expect(deepseekDefinitions).toEqual([deepseekV41FlashDefinition, deepseekV4Pro0813Definition])
     for (const [definition, revision, implementationRevision, maxInputTokens, maxOutputTokens] of [
       [deepseekV41FlashDefinition, '1', 'mp4-2', 917504, 131072],
-      [deepseekV4Pro0813Definition, '2', 'mp4-1', 1032192, 16384],
+      [deepseekV4Pro0813Definition, '3', 'mp4-3', 1032192, 16384],
     ] as const) {
       expect(definition.revision).toBe(revision)
       expect(definition.implementation).toEqual({
