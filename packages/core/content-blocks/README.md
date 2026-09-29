@@ -87,6 +87,8 @@ console.log(validator.validate(new LosslessNumber('1.00000000000000000001'))) //
 
 The bundled `validate` is shape-only and has a numeric projection specific to this fixed Schema; do not reuse that projection for arbitrary numeric constraints or pass wrappers directly to ordinary Ajv. `createSchemaRuntime` is caller-owned, resolves only supplied fixed resources, and performs no remote loading or async validation. This package does not parse `rawArguments`, execute tools, retrieve attachments, persist blocks, establish block-ID uniqueness across messages, or authorize visibility. `./schema/v2` retains the old resource without v2 behavior compatibility. Node `>=24.18.0 <25` is required for the actual JSON source/raw-number APIs.
 
+Inline base64 validation supports large media values, including 4 MiB and larger decoded payloads, without an input-sized regular-expression stack. The fixed validator and the default `createSchemaRuntime` compiler preserve the published Schema language (including padding and strict end-of-string checks); they do not decode images, impose a model byte limit, or add a configuration option. Consumers still enforce their own declared input limits. An explicit `patternFactory` retains its native-RegExp behavior and remains responsible for executing its patterns.
+
 ## Development
 
 ```sh

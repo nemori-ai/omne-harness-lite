@@ -87,6 +87,8 @@ console.log(validator.validate(new LosslessNumber('1.00000000000000000001'))) //
 
 内置 `validate` 只检查形状，数字投影仅适用于这份固定 Schema；不能把投影用于任意数值约束，也不能把包装器直接交给普通 Ajv。`createSchemaRuntime` 由调用方持有，只解析显式提供的固定资源，不远程加载或异步校验。本包不解析 `rawArguments`、执行工具、取附件、持久化块、建立跨消息块标识唯一性或授权可见性。`./schema/v2` 只保留旧资源，不提供 v2 行为兼容。实际 JSON source／raw-number API 要求 Node `>=24.18.0 <25`。
 
+内联 base64 校验支持解码后 4 MiB 及更大的媒体值，不依赖随输入增长的正则回溯栈。固定校验器和默认 `createSchemaRuntime` 编译器保持公开 Schema 的语言不变（含 padding 与严格串尾检查）；不解码图片、不引入模型字节上限，也没有新增用户配置。消费者仍负责各自声明的输入限制。显式传入的 `patternFactory` 保留 native RegExp 行为，其模式执行仍由调用方负责。
+
 ## 开发
 
 ```sh
