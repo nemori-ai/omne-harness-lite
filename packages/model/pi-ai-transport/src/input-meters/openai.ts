@@ -1,23 +1,18 @@
+import { fullOutputHistory, newOutputHistory, replayOutputHistory } from './output-history.ts'
 import {
-  estimateOpenAi56Replay,
-  openAi56ReplayModels,
-  OPENAI_56_REPLAY_REVISION,
-  OPENAI_56_TOKENIZER_REVISION,
-  OPENAI_56_HISTORY_ALGORITHM,
-} from './openai-replay.ts'
-import { fullOpenAi56History, newOpenAi56History } from './openai-output-history.ts'
-import { openaiFinalVisibleBindings } from '../official-models/openai.ts'
-import {
-  openAiProBindings,
-  PRO_IMPLEMENTATION_REVISION,
-  PRO_TRANSFORM_REVISION,
-} from '../usage-scope.ts'
-import { withEstimatedJsonMarginals, fullJsonMarginal } from './marginal.ts'
+  classifyOpenAiDetail,
+  openAiEnvelopeApplies,
+  openAiFamilyRecord,
+  openAiOutputHistoryPolicy,
+  OPENAI_FAMILY_ALGORITHM,
+  OPENAI_FAMILY_EVIDENCE,
+  OPENAI_FAMILY_IMPLEMENTATION,
+  OPENAI_FAMILY_REPLAY,
+  type OpenAiFamilyRecord,
+} from './openai-family-policy.ts'
 import { defineInputMeter } from '../input-meter.ts'
 import {
-  copyJsonValue,
   isJsonNumber,
-  isNonNegativeJsonInteger,
   writeJsonLossless,
   type JsonObject,
   type JsonValue,
@@ -52,24 +47,8 @@ function sanitizedBody(
     // unavailable rather than dropping it or counting its ciphertext bytes.
     if (Object.hasOwn(message, 'reasoning_details')) {
       if (!Array.isArray(message.reasoning_details)) return undefined
-      for (const detail of message.reasoning_details) {
-        if (!object(detail)) return undefined
-        const textKey =
-          detail.type === 'reasoning.text'
-            ? 'text'
-            : detail.type === 'reasoning.summary'
-              ? 'summary'
-              : undefined
-        if (
-          textKey === undefined ||
-          typeof detail[textKey] !== 'string' ||
-          (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
-          (detail.format !== undefined && typeof detail.format !== 'string') ||
-          (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index)) ||
-          Object.keys(detail).some(key => !['type', textKey, 'id', 'index', 'format'].includes(key))
-        )
-          return undefined
-      }
+      for (const detail of message.reasoning_details)
+        if (classifyOpenAiDetail(detail) !== 'visible') return undefined
     }
     if (!Array.isArray(message.content)) {
       messages.push(message)
@@ -101,32 +80,6 @@ function encoder(): ReturnType<typeof getEncoding> {
   return sharedEncoder
 }
 
-function imageRuleFor(modelId: string): ImageRule | undefined {
-  switch (modelId) {
-    case 'openai/gpt-6-sol':
-    case 'openai/gpt-6-luna':
-    case 'openai/gpt-6-sol-pro':
-    case 'openai/gpt-6-luna-pro':
-      return 'sol-luna-auto-proxy'
-    case 'openai/gpt-6-astra':
-    case 'openai/gpt-6-astra-pro':
-      return 'astra-patch'
-    case 'openai/gpt-5.6-sol':
-    case 'openai/gpt-5.6-terra':
-    case 'openai/gpt-5.6-luna':
-      return 'gpt56-patch'
-    case 'openai/gpt-5.6-sol-pro':
-    case 'openai/gpt-5.6-terra-pro':
-    case 'openai/gpt-5.6-luna-pro':
-      // OpenRouter identifies these exact Pro leaves as the same base model
-      // in pro reasoning mode. Reuse the published base image rule only as an
-      // estimated proxy; actual Pro preprocessing and input scope are unverified.
-      return 'gpt56-patch'
-    default:
-      return undefined
-  }
-}
-
 function onlyKeys(value: JsonObject, allowed: readonly string[]): boolean {
   return Object.keys(value).every(key => allowed.includes(key))
 }
@@ -145,24 +98,9 @@ function visibleTextParts(value: unknown): boolean {
 }
 
 /** Shared visible-history estimator; adoption remains scoped to each model binding. */
-function visibleHistoryTokens(
-  body: JsonObject,
-  modelId: string,
-  tokenizer: ReturnType<typeof encoder>,
-): number | undefined {
-  // Final-JSON adoption is explicit per binding. Count actual controls without
-  // inferring an upstream effort default or a GPT-6 tokenizer identity.
-  const finalEfforts = Object.hasOwn(openaiFinalVisibleBindings, modelId)
-    ? openaiFinalVisibleBindings[modelId]?.efforts
-    : undefined
-  if (!finalEfforts) return undefined
-  const reasoningValid =
-    body.reasoning === undefined ||
-    (object(body.reasoning) &&
-      onlyKeys(body.reasoning, ['effort']) &&
-      finalEfforts.includes(String(body.reasoning.effort)))
+function finalVisibleBodyValid(body: JsonObject, row: OpenAiFamilyRecord): boolean {
   if (
-    body.model !== modelId ||
+    !openAiEnvelopeApplies(body, row) ||
     !onlyKeys(body, [
       'model',
       'provider',
@@ -173,51 +111,35 @@ function visibleHistoryTokens(
       'reasoning',
       'max_tokens',
     ]) ||
-    !object(body.provider) ||
-    !onlyKeys(body.provider, ['order', 'allow_fallbacks', 'require_parameters']) ||
-    !Array.isArray(body.provider.order) ||
-    body.provider.order.length !== 1 ||
-    body.provider.order[0] !== 'openai' ||
-    body.provider.allow_fallbacks !== false ||
-    body.provider.require_parameters !== true ||
     body.stream !== true ||
     body.store !== false ||
-    !reasoningValid ||
     (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
     !Array.isArray(body.messages) ||
-    !body.messages.length ||
     (body.tools !== undefined && (!Array.isArray(body.tools) || !body.tools.length))
   )
-    return undefined
+    return false
 
-  const rule = imageRuleFor(modelId) ?? 'unknown'
-  const projected = sanitizedBody(body, rule)
-  if (!projected || !Array.isArray(projected.body.messages)) return undefined
-  for (const message of projected.body.messages) {
-    if (!object(message) || typeof message.role !== 'string') return undefined
+  for (const message of body.messages as JsonValue[]) {
+    if (!object(message) || typeof message.role !== 'string') return false
     switch (message.role) {
       case 'system':
       case 'developer':
         if (!onlyKeys(message, ['role', 'content']) || !visibleTextParts(message.content))
-          return undefined
+          return false
         break
       case 'user':
         if (
           !onlyKeys(message, ['role', 'content']) ||
           !Array.isArray(message.content) ||
           !message.content.every(
-            part =>
-              visibleTextParts([part]) ||
-              ((rule === 'astra-patch' || rule === 'sol-luna-auto-proxy') &&
-                object(part) &&
-                part.type === 'image_url'),
+            part => visibleTextParts([part]) || (object(part) && part.type === 'image_url'),
           )
         )
-          return undefined
+          return false
         break
       case 'assistant':
         if (
-          !onlyKeys(message, ['role', 'content', 'tool_calls', 'reasoning']) ||
+          !onlyKeys(message, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']) ||
           typeof message.content !== 'string' ||
           (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
           (message.tool_calls !== undefined &&
@@ -235,7 +157,7 @@ function visibleHistoryTokens(
                   typeof call.function.arguments === 'string',
               )))
         )
-          return undefined
+          return false
         break
       case 'tool':
         if (
@@ -243,10 +165,10 @@ function visibleHistoryTokens(
           typeof message.tool_call_id !== 'string' ||
           typeof message.content !== 'string'
         )
-          return undefined
+          return false
         break
       default:
-        return undefined
+        return false
     }
   }
 
@@ -262,32 +184,20 @@ function visibleHistoryTokens(
         typeof tool.function.description !== 'string' ||
         !object(tool.function.parameters)
       )
-        return undefined
+        return false
     }
 
-  return tokenizer.encode(writeJsonLossless(projected.body)).length + projected.imageTokens
+  return true
 }
 
-/** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
+/** One family counter and one complete-output contribution path for all twelve leaves. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
-  const encryptedReplay = openAi56ReplayModels.has(definition.modelId)
-  const finalBinding = Object.hasOwn(openaiFinalVisibleBindings, definition.modelId)
-    ? openaiFinalVisibleBindings[definition.modelId]
-    : undefined
-  const gpt6VisibleHistory = finalBinding !== undefined
-  const imageRule = imageRuleFor(definition.modelId)
-  const pro = Object.hasOwn(openAiProBindings, definition.modelId)
-    ? openAiProBindings[definition.modelId]
-    : undefined
-  const revision = finalBinding?.revision ?? pro?.revision ?? (encryptedReplay ? '8' : '4')
-  const implementationRevision =
-    finalBinding?.implementationRevision ??
-    (pro ? PRO_IMPLEMENTATION_REVISION : encryptedReplay ? 'mp4-17' : 'mp4-5')
+  const row = openAiFamilyRecord(definition.modelId)
   if (
-    (!gpt6VisibleHistory && !imageRule) ||
-    definition.revision !== revision ||
+    !row ||
+    definition.revision !== row.definitionRevision ||
     definition.implementation.name !== 'pi-ai:openai' ||
-    definition.implementation.revision !== implementationRevision ||
+    definition.implementation.revision !== OPENAI_FAMILY_IMPLEMENTATION ||
     !Object.hasOwn(definition.routes, 'openai')
   )
     throw new TypeError('unsupported OpenAI input-meter binding')
@@ -296,101 +206,37 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     body,
     serialized,
   }: Pick<FullMeterInput, 'body' | 'serialized'>): TokenMeasurement => {
-    if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-    if (gpt6VisibleHistory) {
-      try {
-        const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
-        return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
-      } catch {
-        return { kind: 'unavailable' }
-      }
-    }
-    if (!imageRule) return { kind: 'unavailable' }
-    const projected = sanitizedBody(body, imageRule)
-    if (!projected) return { kind: 'unavailable' }
     try {
-      const textTokens = tokenizer.encode(writeJsonLossless(projected.body)).length
-      return { kind: 'estimated', tokens: textTokens + projected.imageTokens }
+      if (
+        writeJsonLossless(body) !== serialized ||
+        (row.visibleDomain === 'finalRequest' && !finalVisibleBodyValid(body, row))
+      )
+        return { kind: 'unavailable' }
+      const projected = sanitizedBody(body, row.imageRule)
+      return projected
+        ? {
+            kind: 'estimated',
+            tokens:
+              tokenizer.encode(writeJsonLossless(projected.body)).length + projected.imageTokens,
+          }
+        : { kind: 'unavailable' }
     } catch {
       return { kind: 'unavailable' }
     }
   }
-  const meter = defineInputMeter({
-    modelId: definition.modelId,
-    definitionRevision: definition.revision,
+  const meter: InputMeter = defineInputMeter({
+    modelId: row.modelId,
+    definitionRevision: row.definitionRevision,
     implementation: definition.implementation,
     provider: 'openai',
-    ...(pro ? { transformRevision: PRO_TRANSFORM_REVISION } : {}),
-    algorithmRevision:
-      finalBinding?.algorithmRevision ??
-      (encryptedReplay ? OPENAI_56_HISTORY_ALGORITHM : 'openai-gpt-5.6-pro-base-image-proxy-1'),
-    evidence:
-      finalBinding?.evidence ??
-      (pro
-        ? 'OpenAI reasoning guide mode and OpenRouter exact GPT-5.6 Sol/Terra/Luna Pro model pages identify Pro as the same base model in pro mode (2026-09-29); published GPT-5.6 base vision patches reused as an estimated proxy, not verified Pro preprocessing; o200k_base surrogate and private framing remain estimated, input usage scope remains unknown, opaque reasoning unavailable'
-        : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis'),
-    ...(encryptedReplay ? { tokenizerRevision: OPENAI_56_TOKENIZER_REVISION } : {}),
-    ...(finalBinding
-      ? {
-          tokenizerRevision: `js-tiktoken-1.0.21/o200k-base-${definition.modelId.slice('openai/'.length)}-surrogate/1`,
-        }
-      : {}),
-    measureFull: countBody,
+    transformRevision: row.transformRevision,
+    algorithmRevision: OPENAI_FAMILY_ALGORITHM,
+    tokenizerRevision: row.tokenizerRevision,
+    replayRevision: OPENAI_FAMILY_REPLAY,
+    evidence: OPENAI_FAMILY_EVIDENCE,
+    measureFull: input => fullOutputHistory(input, meter, countBody, openAiOutputHistoryPolicy),
+    measureNew: input => newOutputHistory(input, meter, countBody, openAiOutputHistoryPolicy),
+    measureReplay: input => replayOutputHistory(input, meter, countBody, openAiOutputHistoryPolicy),
   })
-  const marginal = withEstimatedJsonMarginals(meter, input => {
-    if (!gpt6VisibleHistory) return fullJsonMarginal(countBody, input)
-    if (!input.units.length) return { kind: 'exact', tokens: 0 }
-    const { tools: _tools, ...envelope } = input.envelope
-    const tokens = visibleHistoryTokens(
-      { ...envelope, messages: input.units },
-      definition.modelId,
-      tokenizer,
-    )
-    return tokens === undefined
-      ? { kind: 'unavailable' }
-      : {
-          kind: 'estimated',
-          tokens:
-            tokens - tokenizer.encode(writeJsonLossless({ ...envelope, messages: [] })).length,
-        }
-  })
-  if (encryptedReplay) {
-    const replayMeter: InputMeter = defineInputMeter({
-      ...marginal,
-      replayRevision: OPENAI_56_REPLAY_REVISION,
-      evidence: `Full/new basis: ${marginal.evidence}. Replay successor: OpenAI reasoning guide GPT-5.6 default all_turns and OpenRouter omitted context uses model default (2026-09-29): complete same-source encrypted output group in one unchanged assistant message maps O + zero experimental framing correction, estimated only; no live effective-mode or framing equality certification; full/new reuse only the explicit finite old-to-current complete-group mapping, never tokenize ciphertext`,
-      measureFull(input) {
-        return fullOpenAi56History(input, replayMeter, countBody)
-      },
-      measureNew(input) {
-        return newOpenAi56History(input, replayMeter, countBody)
-      },
-      measureReplay(input) {
-        const copied = copyJsonValue(input)
-        if (
-          'failed' in copied ||
-          !object(copied.ok) ||
-          !Array.isArray(copied.ok.units) ||
-          !Array.isArray(copied.ok.outputHistory) ||
-          copied.ok.outputHistory.length > 1
-        )
-          return { kind: 'unavailable' }
-        try {
-          const visible = marginal.measureReplay(input)
-          return visible.kind === 'unavailable'
-            ? estimateOpenAi56Replay(input, replayMeter)
-            : visible
-        } catch {
-          return { kind: 'unavailable' }
-        }
-      },
-    })
-    return replayMeter
-  }
-  return definition.modelId === 'openai/gpt-6-astra'
-    ? defineInputMeter({
-        ...marginal,
-        replayRevision: 'openai-gpt-6-astra-visible-image-units-json-net-estimated/1',
-      })
-    : marginal
+  return meter
 }

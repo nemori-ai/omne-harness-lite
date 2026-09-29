@@ -1,5 +1,12 @@
-import { isNonNegativeJsonInteger, type JsonObject } from '@omne-harness-lite/content-blocks'
+import {
+  isNonNegativeJsonInteger,
+  readOpaqueJson,
+  type JsonObject,
+  type JsonValue,
+} from '@omne-harness-lite/content-blocks'
 import type { CountingBasis } from '@omne-harness-lite/model-response'
+import type { InputMeter } from '../input-meter.ts'
+import type { OutputGroupSource, OutputHistoryPolicy } from './output-history.ts'
 import type { OriginalBasisApplies } from '../meter-transform.ts'
 import type { ImageRule } from './openai-images.ts'
 import { object } from '../json.ts'
@@ -27,6 +34,7 @@ export interface OpenAiFamilyRecord {
   readonly imageRule: ImageRule
   readonly efforts: readonly string[]
   readonly inputScope: 'inherited_context_total' | 'scope_unknown'
+  readonly visibleDomain: 'finalRequest' | 'visibleJson'
   readonly tokenizerRevision: string
   readonly transformRevision: string
   readonly original: readonly OpenAiOriginalRecord[]
@@ -168,6 +176,7 @@ function record(
   imageRule: ImageRule,
   efforts: readonly string[],
   inputScope: OpenAiFamilyRecord['inputScope'],
+  visibleDomain: OpenAiFamilyRecord['visibleDomain'] = 'finalRequest',
   previous: boolean = false,
 ): OpenAiFamilyRecord {
   const original = observedOriginals[modelId]
@@ -177,6 +186,7 @@ function record(
     imageRule,
     efforts,
     inputScope,
+    visibleDomain,
     tokenizerRevision: original.tokenizerRevision,
     transformRevision: original.transformRevision,
     original: Object.freeze([
@@ -234,6 +244,7 @@ export const openAiFamilyRecords: Readonly<Record<string, OpenAiFamilyRecord>> =
     'gpt56-patch',
     standardEfforts,
     'inherited_context_total',
+    'visibleJson',
     true,
   ),
   'openai/gpt-5.6-sol-pro': record(
@@ -242,6 +253,7 @@ export const openAiFamilyRecords: Readonly<Record<string, OpenAiFamilyRecord>> =
     'gpt56-patch',
     standardEfforts,
     'scope_unknown',
+    'visibleJson',
   ),
   'openai/gpt-5.6-terra': record(
     'openai/gpt-5.6-terra',
@@ -249,6 +261,7 @@ export const openAiFamilyRecords: Readonly<Record<string, OpenAiFamilyRecord>> =
     'gpt56-patch',
     standardEfforts,
     'inherited_context_total',
+    'visibleJson',
     true,
   ),
   'openai/gpt-5.6-terra-pro': record(
@@ -257,6 +270,7 @@ export const openAiFamilyRecords: Readonly<Record<string, OpenAiFamilyRecord>> =
     'gpt56-patch',
     standardEfforts,
     'scope_unknown',
+    'visibleJson',
   ),
   'openai/gpt-5.6-luna': record(
     'openai/gpt-5.6-luna',
@@ -264,6 +278,7 @@ export const openAiFamilyRecords: Readonly<Record<string, OpenAiFamilyRecord>> =
     'gpt56-patch',
     standardEfforts,
     'inherited_context_total',
+    'visibleJson',
     true,
   ),
   'openai/gpt-5.6-luna-pro': record(
@@ -272,6 +287,7 @@ export const openAiFamilyRecords: Readonly<Record<string, OpenAiFamilyRecord>> =
     'gpt56-patch',
     standardEfforts,
     'scope_unknown',
+    'visibleJson',
   ),
 })
 export function openAiFamilyRecord(modelId: string): OpenAiFamilyRecord | undefined {
@@ -377,3 +393,101 @@ export function openAiOriginalBasisApplies(row: OpenAiFamilyRecord): OriginalBas
     )
   }
 }
+
+export function classifyOpenAiUnit(unit: JsonValue): OpenAiDetailClass {
+  if (!object(unit)) return 'uninterpretable'
+  if (unit.reasoning_details === undefined) return 'visible'
+  if (unit.role !== 'assistant' || !Array.isArray(unit.reasoning_details)) return 'uninterpretable'
+  let result: OpenAiDetailClass = 'visible'
+  for (const detail of unit.reasoning_details) {
+    const classification = classifyOpenAiDetail(detail)
+    if (classification === 'uninterpretable') return classification
+    if (classification === 'wholeGroup') result = classification
+  }
+  return result
+}
+function currentMeterApplies(meter: InputMeter, row: OpenAiFamilyRecord): boolean {
+  return (
+    meter.modelId === row.modelId &&
+    meter.provider === 'openai' &&
+    meter.definitionRevision === row.definitionRevision &&
+    meter.implementation.name === 'pi-ai:openai' &&
+    meter.implementation.revision === OPENAI_FAMILY_IMPLEMENTATION &&
+    meter.algorithmRevision === OPENAI_FAMILY_ALGORITHM &&
+    meter.replayRevision === OPENAI_FAMILY_REPLAY &&
+    meter.tokenizerRevision === row.tokenizerRevision &&
+    meter.transformRevision === row.transformRevision
+  )
+}
+function sourceApplies(
+  source: OutputGroupSource,
+  meter: InputMeter,
+  envelope: JsonObject,
+): boolean {
+  const row = openAiFamilyRecord(meter.modelId)
+  if (!row || !currentMeterApplies(meter, row) || !openAiEnvelopeApplies(envelope, row))
+    return false
+  const { observation, origin } = source
+  const request = observation.inputCalibration.requestInput
+  const basis = request.kind === 'known' ? request.countingBasis : undefined
+  const binding = origin?.adaptation ?? basis?.binding
+  if (
+    !binding ||
+    binding.definition.modelId !== row.modelId ||
+    binding.implementation.name !== 'pi-ai:openai' ||
+    !openAiBasisRecord(row, binding.definition.revision, binding.implementation.revision)
+  )
+    return false
+  if (
+    origin &&
+    (origin.provider !== 'openai' ||
+      (origin.parameters.reasoningEffort !== undefined &&
+        !row.efforts.includes(origin.parameters.reasoningEffort)) ||
+      (origin.upstreamModel !== undefined && origin.upstreamModel !== row.modelId) ||
+      (origin.servingProvider !== undefined &&
+        !['openai', 'OpenAI'].includes(origin.servingProvider)))
+  )
+    return false
+  const observed = observation.inputCalibration.observedInput
+  if (
+    observed.kind !== 'unavailable' &&
+    (row.inputScope === 'scope_unknown' ||
+      observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
+      (observed.provenance.upstreamModel !== undefined &&
+        observed.provenance.upstreamModel !== row.modelId) ||
+      (observed.provenance.servingProvider !== undefined &&
+        !['openai', 'OpenAI'].includes(observed.provenance.servingProvider)))
+  )
+    return false
+  let encrypted = false
+  for (const block of observation.outputBlocks) {
+    if (block.kind !== 'thinking') continue
+    const opaque = block.opaque === undefined ? undefined : readOpaqueJson(block.opaque)
+    if (
+      !object(opaque) ||
+      opaque.routeName !== row.modelId ||
+      Object.keys(opaque).some(key => !['routeName', 'reasoning_details'].includes(key)) ||
+      !Array.isArray(opaque.reasoning_details) ||
+      !opaque.reasoning_details.length
+    )
+      return false
+    for (const detail of opaque.reasoning_details) {
+      if (!object(detail) || detail.format !== 'openai-responses-v1') return false
+      const classification = classifyOpenAiDetail(detail)
+      if (classification === 'uninterpretable') return false
+      encrypted ||= classification === 'wholeGroup'
+    }
+  }
+  return encrypted
+}
+export const openAiOutputHistoryPolicy: OutputHistoryPolicy = Object.freeze({
+  classifyUnit: classifyOpenAiUnit,
+  sourceApplies,
+  originalBasisApplies(meter: InputMeter) {
+    const row = openAiFamilyRecord(meter.modelId)
+    return row && currentMeterApplies(meter, row) ? openAiOriginalBasisApplies(row) : () => false
+  },
+  requiresSignedPrefix: () => false,
+  projectionRevisionApplies: (revision: string) =>
+    revision === 'openrouter-input-projection/2' || revision === INPUT_PROJECTION_REVISION,
+})

@@ -95,7 +95,7 @@ export async function* readStream(
   const accumulator = createReadFactsAccumulator(
     event => diagnostic(event),
     state.stream.headers['x-openrouter-cache-status'] === 'HIT',
-    usageScope(planned.input.routeName, planned.input.provider, planned.input.snapshot.adaptation),
+    usageScope(planned.input.routeName),
   )
   let usageReceived = false
   let finish: string | undefined,

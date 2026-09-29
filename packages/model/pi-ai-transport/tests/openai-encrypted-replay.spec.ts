@@ -330,7 +330,10 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
           outputBlocks: alteredBlocks,
           inputCalibration: {
             ...actual.observation.inputCalibration,
-            outputGroup: { ...group, blockDigests: alteredBlocks.map(outputBlockDigest) },
+            outputGroup: {
+              ...group,
+              blockDigests: alteredBlocks.map(block => outputBlockDigest(block)),
+            },
           },
         },
       })

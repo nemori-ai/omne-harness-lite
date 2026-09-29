@@ -3,8 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { createReadFactsAccumulator } from '../src/read-facts.ts'
-import { openAiProBindings, usageScope, PRO_READER_REVISION } from '../src/usage-scope.ts'
+import { usageScope, PRO_READER_REVISION } from '../src/usage-scope.ts'
 import { openaiDefinitions, openaiConfiguration } from '../src/official-models/openai.ts'
+import { openAiFamilyRecords } from '../src/input-meters/openai-family-policy.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createPiAiTransport } from '../src/transport.ts'
@@ -68,44 +69,43 @@ function legacyMeter(): InputMeter {
 }
 
 describe('exact OpenAI Pro usage scope', () => {
-  it.each(Object.keys(openAiProBindings))(
-    '%s preserves accounts but cannot form an input anchor',
-    async model => {
-      const definition = openaiDefinitions.find(d => d.modelId === model)!
-      const value = await request(definition)
-      const scope = usageScope(model, 'openai', value.snapshot.adaptation)
-      expect(scope).toBe('scope_unknown')
-      const unknown = createReadFactsAccumulator(() => {}, false, scope)
-      const inherited = createReadFactsAccumulator(() => {}, false, 'inherited_context_total')
-      unknown.observe(raw)
-      inherited.observe(raw)
-      expect(writeJsonLossless(unknown.read().usage)).toBe(
-        writeJsonLossless(inherited.read().usage),
+  it.each(
+    Object.values(openAiFamilyRecords)
+      .filter(row => row.inputScope === 'scope_unknown')
+      .map(row => row.modelId),
+  )('%s preserves accounts but cannot form an input anchor', async model => {
+    const definition = openaiDefinitions.find(d => d.modelId === model)!
+    const value = await request(definition)
+    const scope = usageScope(model)
+    expect(scope).toBe('scope_unknown')
+    const unknown = createReadFactsAccumulator(() => {}, false, scope)
+    const inherited = createReadFactsAccumulator(() => {}, false, 'inherited_context_total')
+    unknown.observe(raw)
+    inherited.observe(raw)
+    expect(writeJsonLossless(unknown.read().usage)).toBe(writeJsonLossless(inherited.read().usage))
+    expect(writeJsonLossless(unknown.read().cost)).toBe(writeJsonLossless(inherited.read().cost))
+    expect(unknown.read().observedInput).toEqual({ kind: 'unavailable', reason: 'scope_unknown' })
+    expect(inherited.read().observedInput.kind).toBe('from_usage')
+    const currentGpt6Pro = [
+      'openai/gpt-6-astra-pro',
+      'openai/gpt-6-sol-pro',
+      'openai/gpt-6-luna-pro',
+    ].includes(model)
+    expect(definition.implementation.revision).toBe('mp4-18')
+    if (currentGpt6Pro) expect(createOpenAiInputMeter(definition).definitionRevision).toBe('6')
+    else {
+      expect(createOpenAiInputMeter(definition).transformRevision).toBe(
+        'openrouter-input-transform/pro-scope-1',
       )
-      expect(writeJsonLossless(unknown.read().cost)).toBe(writeJsonLossless(inherited.read().cost))
-      expect(unknown.read().observedInput).toEqual({ kind: 'unavailable', reason: 'scope_unknown' })
-      expect(inherited.read().observedInput.kind).toBe('from_usage')
-      const currentGpt6Pro = [
-        'openai/gpt-6-astra-pro',
-        'openai/gpt-6-sol-pro',
-        'openai/gpt-6-luna-pro',
-      ].includes(model)
-      expect(definition.implementation.revision).toBe('mp4-17')
-      if (currentGpt6Pro) expect(createOpenAiInputMeter(definition).definitionRevision).toBe('5')
-      else {
-        expect(createOpenAiInputMeter(definition).transformRevision).toBe(
-          'openrouter-input-transform/pro-scope-1',
-        )
-        expect(() =>
-          createOpenAiInputMeter({
-            ...definition,
-            revision: '4',
-            implementation: { name: 'pi-ai:openai', revision: 'mp4-5' },
-          }),
-        ).toThrow('unsupported OpenAI')
-      }
-    },
-  )
+      expect(() =>
+        createOpenAiInputMeter({
+          ...definition,
+          revision: '4',
+          implementation: { name: 'pi-ai:openai', revision: 'mp4-5' },
+        }),
+      ).toThrow('unsupported OpenAI')
+    }
+  })
   it('preserves missing/cache/conflict priority, partial counters and repeated cumulative facts', () => {
     const state = createReadFactsAccumulator(() => {}, false, 'scope_unknown')
     expect(state.read().observedInput).toEqual({ kind: 'unavailable', reason: 'missing_usage' })
@@ -135,21 +135,9 @@ describe('exact OpenAI Pro usage scope', () => {
     zero.observe({ prompt_tokens: 0 })
     expect(zero.read().observedInput).toEqual({ kind: 'unavailable', reason: 'scope_unknown' })
   })
-  it('does not infer scope from pro suffix and only keeps the exact captured previous binding', async () => {
-    const old = await request(before)
-    expect(usageScope(before.modelId, 'openai', old.snapshot.adaptation)).toBe(
-      'inherited_context_total',
-    )
-    expect(usageScope('custom/not-an-openai-pro', 'custom', old.snapshot.adaptation)).toBe(
-      'inherited_context_total',
-    )
-    expect(usageScope(before.modelId, 'other', old.snapshot.adaptation)).toBe('scope_unknown')
-    expect(
-      usageScope(before.modelId, 'openai', {
-        ...old.snapshot.adaptation,
-        implementation: { name: 'other', revision: 'mp4-5' },
-      }),
-    ).toBe('scope_unknown')
+  it('uses only the finite model scope and offers no prior binding scope promotion', () => {
+    expect(usageScope(before.modelId)).toBe('scope_unknown')
+    expect(usageScope('custom/not-an-openai-pro')).toBe('inherited_context_total')
   })
 })
 
@@ -159,7 +147,7 @@ describe('real TLS Pro reader and fixed registry groups', () => {
     cert = certificate()
   })
   afterAll(() => cert.dispose())
-  it('retains captured old reader, rejects old and current-shaped known anchors on new binding', async () => {
+  it('keeps Pro scope unknown on registered retired and current bindings', async () => {
     const host = await fixture(
       cert.tls,
       res =>
@@ -203,9 +191,9 @@ describe('real TLS Pro reader and fixed registry groups', () => {
     }
     try {
       const first = await run(old.transport, original)
-      expect(first.inputCalibration.observedInput).toMatchObject({
-        kind: 'from_usage',
-        provenance: { adapterRevision: 'openrouter-usage-reader/2' },
+      expect(first.inputCalibration.observedInput).toEqual({
+        kind: 'unavailable',
+        reason: 'scope_unknown',
       })
       const registeredNew = service.registerAdaptation(
         current,

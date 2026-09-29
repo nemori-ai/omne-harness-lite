@@ -7,7 +7,6 @@ import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-bloc
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import type { Message } from '@omne-harness-lite/messages'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
-import { estimateOpenAi56Replay } from '../src/input-meters/openai-replay.ts'
 import type { ReplayMeterInput } from '../src/input-meter.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
@@ -15,6 +14,10 @@ import { planRequest, type PlannedRequest } from '../src/plan.ts'
 import { projectInput, projectOutput } from '../src/projection.ts'
 import { at, input, judgedMessage, message } from './support.ts'
 
+// Runtime negative controls deliberately cross the typed standalone boundary.
+function callReplay(input: unknown, meter: InputMeter): unknown {
+  return (meter.measureReplay as (input: unknown) => unknown)(input)
+}
 const ids = ['openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
 const encoder = getEncoding('o200k_base')
 function reply(model: string, id: string): Message {
@@ -185,7 +188,7 @@ describe.each(ids)('%s explicit complete output history', model => {
       },
     })
     for (const bad of [null, {}, { units: [] }, accessor]) {
-      expect(estimateOpenAi56Replay(bad, meter)).toEqual({ kind: 'unavailable' })
+      expect(callReplay(bad, meter)).toEqual({ kind: 'unavailable' })
       expect(Reflect.apply(meter.measureReplay, undefined, [bad])).toEqual({ kind: 'unavailable' })
     }
     expect(getterReads).toBe(0)
@@ -206,7 +209,7 @@ describe.each(ids)('%s explicit complete output history', model => {
     )
     expect(result).toHaveProperty('planned')
     if (!actual) throw Error('missing actual replay')
-    expect(estimateOpenAi56Replay(actual, meter)).toEqual({ kind: 'estimated', tokens: 18 })
+    expect(callReplay(actual, meter)).toEqual({ kind: 'estimated', tokens: 18 })
     const original = actual.outputHistory[0]
     if (!original) throw Error('missing original group')
     for (const bad of [
@@ -216,7 +219,7 @@ describe.each(ids)('%s explicit complete output history', model => {
         outputHistory: [{ ...original, usage: { ...original.usage, output_tokens: 999 } }],
       },
     ]) {
-      expect(estimateOpenAi56Replay(bad, meter)).toEqual({ kind: 'unavailable' })
+      expect(callReplay(bad, meter)).toEqual({ kind: 'unavailable' })
       expect(meter.measureReplay(bad)).toEqual({ kind: 'unavailable' })
     }
   })
@@ -350,7 +353,7 @@ describe.each(ids)('%s explicit complete output history', model => {
         end: 2,
       })),
     }
-    expect(estimateOpenAi56Replay(replay, meter)).toEqual({ kind: 'unavailable' })
+    expect(callReplay(replay, meter)).toEqual({ kind: 'unavailable' })
     if (row.definition === '8') {
       const same: PlanOutputHistoryGroup = {
         ...old,
@@ -360,10 +363,7 @@ describe.each(ids)('%s explicit complete output history', model => {
         },
       }
       expect(
-        estimateOpenAi56Replay(
-          { ...replay, observation: observation(same), outputHistory: [same] },
-          meter,
-        ),
+        callReplay({ ...replay, observation: observation(same), outputHistory: [same] }, meter),
       ).toEqual({ kind: 'estimated', tokens: 18 })
     }
     const unknown: PlanOutputHistoryGroup = {
