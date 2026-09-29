@@ -6,6 +6,7 @@ import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-i
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import {
   createAcceptanceApplication,
+  createDemoDefaultRetryConfiguration,
   type AcceptanceConfig,
   type ModelRequestDeployment,
 } from '../src/index.ts'
@@ -130,6 +131,7 @@ async function callConfig(
     },
     modelRequest: {
       tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
+      defaultRetry: createDemoDefaultRetryConfiguration(),
       evaluationInputs: {
         storeKey: label,
         deployedOfficial: [{ capability: ROOT, meta: false }],

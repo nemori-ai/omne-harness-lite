@@ -41,7 +41,7 @@ export {
   type SupervisedDemoConversation,
 } from './demo-supervisor.ts'
 export { runInteractive, type InteractiveConversation } from './interactive.ts'
-export { createDemoConfig, MODEL } from './deployment.ts'
+export { createDemoConfig, createDemoDefaultRetryConfiguration, MODEL } from './deployment.ts'
 
 export {
   createDiagnosticJournal,

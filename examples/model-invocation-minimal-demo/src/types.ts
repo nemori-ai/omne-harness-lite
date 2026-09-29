@@ -23,6 +23,7 @@ import type {
   ReservationWaitPolicy,
   ObserverDiagnostic,
   SettlementDiagnostic,
+  DefaultRetryConfiguration,
 } from '@omne-harness-lite/model-request-runtime'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
@@ -81,6 +82,8 @@ export interface ModelRequestDeployment {
   /** Borrowed trusted provider; its owner keeps it alive through application close. */
   readonly assetRegistry?: Pick<AssetRegistryService, 'lookup'>
   readonly tokenMargin: TokenMargin
+  /** Explicit P-5 policy and replaceable sample source for this demonstration. */
+  readonly defaultRetry: DefaultRetryConfiguration
   readonly evaluationInputs: {
     readonly storeKey: string
     readonly deployedOfficial: readonly DeployedOfficialEntry[]

@@ -1,10 +1,12 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import { randomInt } from 'node:crypto'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { isOk } from '@omne-harness-lite/identity-values'
 import { parseOfferTtl } from '@omne-harness-lite/offer-expiry'
 import { toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { CapabilityId, AssetDefinition, AssetHolding } from '@omne-harness-lite/asset-model'
+import { judgeDefinition } from '@omne-harness-lite/loop-extension'
 import {
   createOfficialProfileContent,
   createDeepSeekV4ProInputMeter,
@@ -18,6 +20,7 @@ import {
 import {
   openRouterCredentialRedactionConfig,
   type TokenMargin,
+  type DefaultRetryConfiguration,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
@@ -27,7 +30,23 @@ export const DEMO_ROOT: CapabilityId = {
   category: 'agent_definition',
   name: 'demo:model-invocation-root',
 }
+export const DEMO_DEFAULT_RETRY: CapabilityId = {
+  category: 'loop_extension',
+  name: 'omne-official:default-retry',
+}
 export const PUBLICATION_TIME = '2026-09-28T00:00:00Z'
+export function createDemoDefaultRetryConfiguration(): DefaultRetryConfiguration {
+  return {
+    policy: {
+      kind: 'exponential',
+      base: 'PT1S',
+      factor: 2,
+      max: 'PT30S',
+      jitter: 'full',
+    },
+    sample: () => randomInt(1_000_000) / 1_000_000,
+  }
+}
 const URI =
   'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/'
 export function demoPublication(
@@ -35,7 +54,14 @@ export function demoPublication(
   expectedRevision: string | null = null,
 ): ModelInputSource['publication'] {
   const body: JsonObject = {
-    references: [],
+    references: [
+      {
+        capability: {
+          category: DEMO_DEFAULT_RETRY.category,
+          name: DEMO_DEFAULT_RETRY.name,
+        },
+      },
+    ],
     attributes: [
       ...[
         { item: 'first_token_wait_limit', value: 'PT15S' },
@@ -89,11 +115,41 @@ export function demoPublication(
     versionSelection: { kind: 'current' },
     since: PUBLICATION_TIME,
   }
+  const retry = judgeDefinition({
+    name: DEMO_DEFAULT_RETRY.name,
+    position: 'after_model_call',
+    dimension: { ending: 'failure' },
+    power: 'rewrite',
+    implementation: { kind: 'builtin', builtinName: DEMO_DEFAULT_RETRY.name },
+  })
+  if ('rejected' in retry) throw new Error('default retry declaration rejected')
+  const retryAsset: AssetDefinition = {
+    id: 'demo-default-retry-asset',
+    capability: DEMO_DEFAULT_RETRY,
+    origin: 'official',
+    versions: [
+      {
+        number: 1,
+        publishedAt: PUBLICATION_TIME,
+        content: { category: 'loop_extension', extension: retry.ok },
+      },
+    ],
+  }
+  const retryHolding: AssetHolding = {
+    holder: { layer: 'factory' },
+    capability: DEMO_DEFAULT_RETRY,
+    asset: retryAsset.id,
+    basis: { kind: 'official' },
+    immutable: false,
+    assignments: [],
+    versionSelection: { kind: 'current' },
+    since: PUBLICATION_TIME,
+  }
   return {
     expectedRevision,
-    definitions: [asset],
+    definitions: [asset, retryAsset],
     scopes: [
-      { holder: { layer: 'factory' }, holdings: [holding] },
+      { holder: { layer: 'factory' }, holdings: [holding, retryHolding] },
       { holder: { layer: 'organization', organization: actor.tenant.organization }, holdings: [] },
       { holder: { layer: 'tenant', tenant: actor.tenant }, holdings: [] },
     ],
@@ -158,9 +214,13 @@ export function createDemoConfig(
     },
     modelRequest: {
       tokenMargin,
+      defaultRetry: createDemoDefaultRetryConfiguration(),
       evaluationInputs: {
         storeKey: 'model-invocation-minimal-demo',
-        deployedOfficial: [{ capability: DEMO_ROOT, meta: false }],
+        deployedOfficial: [
+          { capability: DEMO_ROOT, meta: false },
+          { capability: DEMO_DEFAULT_RETRY, meta: false },
+        ],
         monotonicNow: () => process.hrtime.bigint(),
         async prepare(actor) {
           return {

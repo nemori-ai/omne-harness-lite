@@ -11,6 +11,7 @@ import {
 import {
   createDemoSupervisor,
   createDemoConfig,
+  createDemoDefaultRetryConfiguration,
   openDemoDiagnosticAssembly,
   createDemoDiagnosticConfig,
   readPrivateFile,
@@ -123,6 +124,7 @@ async function callConfig(
     },
     modelRequest: {
       tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
+      defaultRetry: createDemoDefaultRetryConfiguration(),
       evaluationInputs: {
         storeKey: label,
         deployedOfficial: [{ capability: ROOT, meta: false }],

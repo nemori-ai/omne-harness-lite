@@ -14,6 +14,7 @@ import {
   type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import { createDemoDefaultRetryConfiguration } from '../src/index.ts'
 import type { AcceptanceConfig, AuthenticatedActor, ModelRequestDeployment } from '../src/index.ts'
 import { deployment } from './support.ts'
 
@@ -140,6 +141,7 @@ export async function callDeployment(
     },
     modelRequest: {
       tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
+      defaultRetry: createDemoDefaultRetryConfiguration(),
       evaluationInputs: {
         storeKey: label,
         deployedOfficial: [{ capability: ROOT, meta: false }],
