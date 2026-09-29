@@ -98,3 +98,17 @@ Reviewer `/root/usage_projection_review` 核对 `e93e69bf` 上三文件修订（
 只排除四型号/固定provider配置下planner生成的精确缓存控制对象；非空assistant/tool从首轮固定合法数组，不推定string/array计量等价。新basis首次full，未知字段和真实内容仍比较，实际wire/完整字节/图片门保留。UCT-V12四型号public/service三轮full→marginal→marginal、历史tokenizer零调用、恢复旧摘要/假归一/遗漏真实贡献负控可以击穿原问题。projectOutput三分支/fullContribution与runtime v16账本一致，不改授权来源、reader、lease或原批责任。
 
 未实施或执行测试/模型/性能；UCT-V10～12、上游口径/φ/δ及固定OpenAPI制品provenance仍待真实验收。omne-next其他算法/stride不属于本修订前提，若另采用需明确范围。反方全wire更保守却不能完成正常增量；比较时归一化缺等价依据；固定旧断点会改变当前配置。采用仍归主线。
+
+
+## 同日多历史输出组提供者增量联合评审
+
+2026-09-29。主线保存 `/root/output_history_arch_review` 与 `/root/output_history_spec_review` 的独立只读评审及定点复评；reviewer 未运行模型、测试或写文件。
+
+受审 runtime v19 revision 1 正文 SHA `348d951ffe855645075911858e963627b60210976da46cd2505a65c3b3423a92`；transport v13 初稿 SHA `7612c053c7a4ca24d025ac45edeac0d901d01b7e527c803988f915cb2ba5ed01`。依据 MR9 S-41～45、RT10 S-77～83 与已采用 runtime v16/v18、transport v12。
+
+- 架构审查：有限范围 Pass，阻断/新增非阻断/产品待裁均无。来源鉴权仍在 runtime，同次授权前缀核全部候选；独立 public 只消费显式事实；缺 I 不抹 G/O。P 不重加 O、锚 G 只归 φ、其他新增归 δ，跨区转 full，不创建第二真值、store 或完整 Run/Session。深复制与序列化仍有线性成本，不宣称全流程常数复杂度。
+- 规格表达初审 B1：独立 full 返回 TokenMeasurement，但坏显式历史组的返回映射未明。φ/δ 有 invalidInput，不可让开发者自行扩 full 联合或抛错。
+- 作者处置：明确 planner 先核来源，坏证据 malformed 且不得借 full 绕过；独立 full 对本口可判坏输入 unavailable，不成功计量；独立 φ/δ invalidInput。未知旧投影版本为依据不足，不冒判摘要错误。H13-V1 补对应断言。
+- 定点复评：transport 正文 SHA `793c346fe97b4f31d970b42f2ce25df2afb168f3327f627d25270127a56a295f`，verification SHA `1f5bbdde5bb9e6f2b7b7e4bd9ee9cbdb3319cffda83b7b8834cdada5f8af18a7`。B1 闭合，无新增阻断或非阻断；保持返回联合，不需 MR9/RT10 升版。runtime 原受审字节不变。
+
+未覆盖：H19-V1～V10/H13-V1～V9 的实现/真实组合/性能/制品、各模型 O 到当前输入的依据和认证。旧 UsageCalibration.tla 的 NoDoubleOutput 仅证明抽象公式，不证明多组 selection/span 覆盖。组级互斥须有独立针对性验证，不冒绑旧形式任务。评审不等于技术采用或最终交付。

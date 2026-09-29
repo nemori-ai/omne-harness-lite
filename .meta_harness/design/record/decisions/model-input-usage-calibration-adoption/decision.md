@@ -32,3 +32,19 @@ MR9/RT10 修订二的独立 spec-review 与 architecture-review 已关闭原 B1�
 此后继仅取代本决定先前“transport/runtime尚未采用”的当前实施门，不改其历史事实，不改规范资源/接受清单。三个包可按同一接口账本并行实现；产品公共类型及全部消费者在HUB成组迁移，无旧格式兼容。原B1风险现转为明确待执行的UCT-V12/U16-V10验收义务，不表示性能或四型号认证已经通过。
 
 参考omne-next缓存middleware是已派研究输入；滚动多断点/stride或TTL/布局政策未由此自动采用，不偷偷改变现有last_message语义。完整37模型、十三操作、withRun、D4/D6仍按原交付范围验收。新绑定0，本次采用没有新增实现执行证据。
+
+
+## 同日后继：采用 runtime v19 与 transport v13 多输出组交接
+
+2026-09-29，主线依据用户持续实施、调度及技术验收授权，在[联合评审及 B1 定点复评](../../proposals/model-input-usage-calibration/review.md#同日多历史输出组提供者增量联合评审)后技术采用以下精确提供者增量：
+
+- [runtime v19 revision 1](../../../realization/packages/model/model-request-runtime/v19-output-history-design.md)，SHA256 `348d951ffe855645075911858e963627b60210976da46cd2505a65c3b3423a92`；H19 公共接口、owned 来源交接及 H19-V1～V10。
+- [transport v13 revision 1](../../../realization/packages/model/pi-ai-transport/v13-output-history-design.md)，SHA256 `793c346fe97b4f31d970b42f2ce25df2afb168f3327f627d25270127a56a295f`；H13 同一投影覆盖、full/φ/δ 显式事实与 H13-V1～V9，包括已闭合的独立 full/planner 失败映射。
+
+本次取代两节点对该增量“尚未技术采用”的实施门；候选原字节保留。MR9/RT10 原接受清单、冻结资源及 registry 状态不变；没有新增语言无关政策、数据对象、服务、持久格式或第十四操作。允许按唯一接口账本破坏性迁移全部消费者，不提供缺必填成员时默认空数组的兼容通道。
+
+实施先固定公共类型和纯校验，再并行 runtime 来源消费与 transport 覆盖/meter 接线；HUB 须按同一接口成组整合。模型映射依据仍归各家窄贡献，不能把 I+O 作为无条件通式。共享声明不允许删历史 wire、密文 tokenize 或 reasoning 重复相加。
+
+H13-G4 的本轮处理：要求对组目标唯一性、P/G/N 归属和无依据转换执行有界枚举及故障变异验证，至少覆盖同组双加、跨区 aggregate 和无依据转换三类反例；这属于已接受性质的实现符合性验证，不扩张旧 TLA 的证明范围，也不修改冻结形式资源。若以后新增规范语义或提出组级形式证明声明，须由 spec owner 发布对应正式后继；本次不声称已完成该证明。
+
+新增 bindings 0；本次采用尚未运行新的实现验收或形式模型。H19/H13、逐型号映射、真实 OR 与 README 双语仍是交付门；既有五项主线验收只复验受影响范围，不由本决定自动撤销或扩大。

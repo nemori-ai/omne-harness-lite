@@ -1,3 +1,5 @@
+2026-09-29：[D107 多输出组交接后继](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-runtime-v19-与-transport-v13-多输出组交接)已技术采用本节点精确受审增量；可按唯一接口账本实施，新增绑定0，H19/H13实际实现与验证仍待。以下候选标签保留起草时状态，不代表当前采用门。
+
 ## 2026-09-29 多响应输出事实交接候选
 
 - **语义接受**：D107 已接受 MR9／RT10；[v19 输出历史接口](v19-output-history-design.md) 是未技术采用的候选后继，不修改已采用 v16/v18。
