@@ -15,3 +15,5 @@
 - [v6](v6/projection.md) · [来源](v6/provenance.json)：**post-review candidate**，请求图片准备，仅指向transport v15r4/runtime v21r3；D-109仅预留，未采用、未实施；不包含并行T29。
 
 [D-109](../../../record/decisions/model-request-image-preparation-adoption/decision.md) 已采用 v6 对应两节点精确修订；v6 候选标签保留快照时状态，实现与验收仍待。
+
+- [v7](v7/projection.md) · [来源](v7/provenance.json)：**post-review candidate**，D109之后仅补scope清理与原basis适用表的技术接缝；不覆盖v6，主线后继采用和实现验证待完成。
