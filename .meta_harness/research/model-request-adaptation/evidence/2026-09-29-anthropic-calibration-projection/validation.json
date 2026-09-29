@@ -1,0 +1,36 @@
+{
+  "observedDate": "2026-09-29",
+  "nodeVersion": "v24.18.0",
+  "syntaxCheck": "pass",
+  "offlineDemoReproduction": "JSON structurally identical to stored result",
+  "sourceHashesVerified": [
+    "packages/model/pi-ai-transport/src/plan.ts",
+    "packages/model/pi-ai-transport/src/official-models/anthropic.ts",
+    "packages/model/pi-ai-transport/src/input-meters/anthropic.ts",
+    "packages/model/pi-ai-transport/src/input-meter.ts",
+    "packages/model/pi-ai-transport/provenance.json",
+    "packages/model/pi-ai-transport/UPSTREAM.md",
+    ".meta_harness/design/realization/packages/model/pi-ai-transport/v12-usage-calibration-design.md",
+    ".meta_harness/design/spec/data/model-response/v9/contract.md",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v10/contract.md",
+    "omne-next:omne_harness/libs/omne_harness_agentic/omne_harness_agentic/middlewares/prompt_caching.py",
+    "omne-next:omne_harness/libs/omne_harness_agentic/tests/unit/middlewares/test_prompt_caching.py",
+    "omne-next:omne_harness/libs/omne_harness_agentic/tests/unit/middlewares/test_broadcast_injection_prompt_cache_order.py",
+    "omne-next:omne_harness/libs/omne_harness_runtime_plane/omne_harness_runtime_plane/bootstrap/minimal_llm_agent_run_runner_assembly.py",
+    "omne-next:omne_harness/libs/omne_harness_runtime_plane/tests/integration/bootstrap/test_official_middleware_prompt_caching_smoke.py",
+    "omne-next:omne_harness/design_docs/cross-cutting/agentic-package-design.md"
+  ],
+  "localLinksVerified": [
+    "../evidence/2026-09-29-anthropic-calibration-projection/README.md",
+    "../evidence/2026-09-29-anthropic-calibration-projection/sources.json",
+    "../../../design/realization/packages/model/pi-ai-transport/v12-usage-calibration-design.md",
+    "../../reports/2026-09-29-anthropic-calibration-projection.md"
+  ],
+  "gitDiffCheck": "pass (tracked diff; new file content separately read)",
+  "limits": [
+    "No model/paid/count request",
+    "No end-to-end planner or upstream conversion execution",
+    "omne-next tests read only, not run",
+    "No token/latency measurement in this narrow evidence"
+  ]
+}
