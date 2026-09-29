@@ -229,7 +229,7 @@ GPT-6 Astra Pro、Sol Pro、Luna Pro 共用最终可见 JSON／o200k 代理，�
 
 `createGlm52InputMeter(definition)` 与 `createGlm53InputMeter(definition)` 使用固定公开模板和词表，覆盖 GLM-5.2、GLM-5.3、GLM-5.3-Flash 的文本与工具请求。结果是固定 OpenRouter 路由的估算，调用方显式提供余量。历史推理、不支持的媒体及未证的 effort 映射返回不可用；`createZaiCommercialInputMeter(definition)` 分别将 Prime 的 `alibaba` 与 FlashX 的 `z-ai/fp8` 路由绑定到限定文本／工具粗估：固定公开 GLM-5.3 模板与词表投影减去一个 token，依据八次固定路由的拟合及独立留出观测。这不证明托管模型的词表身份、精确计费或误差上界。调用方显式给余量；历史推理、媒体、未验 effort 与不支持的缓存布局仍不可计量。各自上游许可随 tokenizer 原件打包，其中 GLM-5.3 使用独立许可。
 
-`createGoogleInputMeter(definition)` 绑定两个 Gemini 3.7／3.8 Flash AI Studio 定义的 `mp4-2`。它以固定 Gemma4 对照词表和冻结的逐型号偏置计入可见文本及工具，结果明确为粗略 `estimated`，调用方必须显式给余量。八次固定路由观测区分拟合与留出输入：样本中最多少估 10 token，最大绝对误差 60；这两个数都不是误差上界，也不是 Gemini 自身 tokenizer。媒体、不透明推理回放、请求级 reasoning effort 及未知控制字段仍不可计量。词表和许可随包提供给独立制品消费者。
+`createGoogleInputMeter(definition)` 绑定两个 Gemini 3.7／3.8 Flash AI Studio 定义 revision 2／`mp4-3`。它以固定 Gemma4 对照词表和冻结的逐型号偏置计入可见文本及工具，结果明确为粗略 `estimated`，调用方必须显式给余量。八次固定路由观测区分拟合与留出输入：样本中最多少估 10 token，最大绝对误差 60；这两个数都不是误差上界，也不是 Gemini 自身 tokenizer。已声明的请求 effort `low`／`medium`／`high` 作为生成控制被识别，不进入 messages/tools 代理计数；这是既有代理的输入域扩展，没有重拟合偏置，也不声称 effort 专属上游准确性。缺席仍不发送；其他值继续按定义原有规则丢弃。直接提交不支持的 effort 结构、媒体、不透明推理回放及未知控制字段仍不可计量，实际 effort 留出验证仍待完成。词表和许可随包提供给独立制品消费者。
 
 `createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7（`mp4-2`）提供可见文本／工具粗估：将第一方 Grok Build 的 UTF-8 字节算法投影到最终 wire，加上各型号仅用两个 fit 样本得出的偏移（4.6 为 141、4.7 为 1181 token）；独立工具历史 holdout 分别对完整输入高估 35、34 token。它不是精确 tokenizer 或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。opaque reasoning、媒体和未覆盖 effort 保持不可计量，不删除历史；完整模型认证仍未完成。
 

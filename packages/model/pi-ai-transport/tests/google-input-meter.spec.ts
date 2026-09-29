@@ -25,6 +25,51 @@ const retirement = {
 }
 
 describe('Google AI Studio rough text/tool input meter', () => {
+  it.each(googleDefinitions)('$modelId limits effort to its declared structure', definition => {
+    const meter = createGoogleInputMeter(definition)
+    if (!meter) throw new Error('Google meter unavailable')
+    const input = googleCalibrationRequest(definition.modelId, 'H2')
+    const base = planRequest(input, [definition], meter)
+    if ('rejected' in base) throw new Error(JSON.stringify(base))
+    for (const effort of ['low', 'medium', 'high'] as const) {
+      const result = planRequest(
+        { ...input, parameters: { ...input.parameters, reasoningEffort: effort } },
+        [definition],
+        meter,
+      )
+      if ('rejected' in result) throw new Error(JSON.stringify(result))
+      expect(result.planned.body.reasoning).toEqual({ effort })
+      expect(result.planned.inputLimitEvidence.inputTokens).toEqual(
+        base.planned.inputLimitEvidence.inputTokens,
+      )
+      expect(result.planned.inputLimitEvidence.admissionTokens).toBe(
+        base.planned.inputLimitEvidence.admissionTokens,
+      )
+      expect(result.planned.body.messages).toEqual(base.planned.body.messages)
+      expect(result.planned.body.tools).toEqual(base.planned.body.tools)
+    }
+    for (const reasoning of [
+      {},
+      { effort: 'none' },
+      { effort: 'max' },
+      { effort: 3 },
+      { effort: 'low', unknown: true },
+    ]) {
+      const body = { ...base.planned.body, reasoning }
+      expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
+        kind: 'unavailable',
+      })
+    }
+    const dropped = planRequest(
+      { ...input, parameters: { ...input.parameters, reasoningEffort: 'none' } },
+      [definition],
+      meter,
+    )
+    if ('rejected' in dropped) throw new Error(JSON.stringify(dropped))
+    expect(dropped.planned.body.reasoning).toBeUndefined()
+    expect(dropped.planned.droppedParameters).toContain('reasoningEffort')
+  })
+
   it.each(googleDefinitions)('$modelId reproduces frozen fit and holdout features', definition => {
     const meter = createGoogleInputMeter(definition)
     if (!meter) throw new Error('Google meter unavailable')
@@ -33,8 +78,15 @@ describe('Google AI Studio rough text/tool input meter', () => {
       definitionRevision: definition.revision,
       implementation: definition.implementation,
       provider: 'google-ai-studio',
-      algorithmRevision: 'gemma4-visible-text-tools-offset6-1',
+      algorithmRevision: 'gemma4-visible-text-tools-effort-offset6-2',
     })
+    expect(
+      createGoogleInputMeter({
+        ...definition,
+        revision: '1',
+        implementation: { name: 'pi-ai:google', revision: 'mp4-2' },
+      }),
+    ).toBeUndefined()
     expect(
       createGoogleInputMeter({
         ...definition,
@@ -60,18 +112,6 @@ describe('Google AI Studio rough text/tool input meter', () => {
       if (!meter) throw new Error('Google meter unavailable')
       expect(
         planRequest(googleCertificationRequest(definition.modelId), [definition], meter),
-      ).toEqual({
-        rejected: 'invalidInput',
-        reason: 'input_size_unavailable',
-        metrics: ['maxInputTokens'],
-      })
-      const effort = googleCalibrationRequest(definition.modelId, 'F1')
-      expect(
-        planRequest(
-          { ...effort, parameters: { ...effort.parameters, reasoningEffort: 'medium' } },
-          [definition],
-          meter,
-        ),
       ).toEqual({
         rejected: 'invalidInput',
         reason: 'input_size_unavailable',
@@ -209,9 +249,17 @@ describe('Google AI Studio rough text/tool input meter', () => {
     },
   )
 
-  it.each(googleDefinitions)(
-    '$modelId completes public and leased invokeModel text/tool roundtrips with the actual meter',
-    async definition => {
+  it.each(
+    googleDefinitions.flatMap(definition =>
+      (['low', 'medium', 'high'] as const).map(effort => ({
+        definition,
+        effort,
+        modelId: definition.modelId,
+      })),
+    ),
+  )(
+    '$modelId $effort completes public and leased invokeModel text/tool roundtrips with the actual meter',
+    async ({ definition, effort }) => {
       const cert = certificate()
       let responses = 0
       const host = await fixture(
@@ -269,13 +317,15 @@ describe('Google AI Studio rough text/tool input meter', () => {
       const registered = service.registerAdaptation(definition, meter, {}, () => {})
       if ('rejected' in registered) throw new Error('Google service registration failed')
       try {
-        const input = googleCalibrationRequest(definition.modelId, 'H2')
+        const base = googleCalibrationRequest(definition.modelId, 'H2')
+        const input = { ...base, parameters: { ...base.parameters, reasoningEffort: effort } }
         const planned = direct.plan(input)
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
           kind: 'estimated',
           tokens: 154,
         })
+        expect(planned.planned.body.reasoning).toEqual({ effort })
         const publicResult = await invokeModel({
           ...input,
           transport: direct,
