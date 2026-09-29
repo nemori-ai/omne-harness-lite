@@ -463,7 +463,7 @@ describe('independent final projection invalidation from a real TLS observation'
         ...replayed,
         messages: [...replayed.messages, call, result],
       })
-      expect(measured.measurement).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
+      expect(measured.measurement.mode).toBe('marginal')
       expect(spy.mock.calls.some(item => item[0].includes('tool-result-sentinel'))).toBe(true)
       expect(spy.mock.calls.some(item => item[0].includes('lookup-1'))).toBe(true)
       expect(spy.mock.calls.some(item => item[0].includes('stable-prefix-sentinel'))).toBe(false)

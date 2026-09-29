@@ -439,7 +439,7 @@ describe('Astra current official full/replay/new surrogate', () => {
         }).outcome
         expect(result).toMatchObject({
           rejected: 'invalidInput',
-          reason: added === opaque ? 'input_size_unavailable' : 'malformed',
+          reason: 'input_size_unavailable',
         })
         expect(writeJsonLossless(value)).toBe(before)
         if (added === opaque) expect(seen.at(-1)).toContain('retained-opaque')

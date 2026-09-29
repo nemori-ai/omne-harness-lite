@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 // Root-owned paid calibration harness. Dry-run makes no network request.
 // Usage: node packages/model/pi-ai-transport/tests/fixtures/xai/calibrate.mjs --dry-run
 // Execute requires explicit root-owned credential/ledger/snapshot paths; never auto-retries.
@@ -25,6 +26,8 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import {
   createPiAiTransport,
+  createSharpImageCodec,
+  modelImageBalancedV1,
   createOfficialProfileContent,
 } from '@omne-harness-lite/pi-ai-transport'
 import { xaiDefinitions } from '../../../src/official-models/xai.ts'
@@ -304,6 +307,7 @@ try {
   for (const definition of selectedDefinitions) {
     const meter = createXaiCandidateInputMeter(definition)
     const transport = createPiAiTransport({
+      imagePreparation: { policy: modelImageBalancedV1, codec: createSharpImageCodec(sharp) },
       definitions: [definition],
       inputMeters: [meter],
       policy: networkPolicy,

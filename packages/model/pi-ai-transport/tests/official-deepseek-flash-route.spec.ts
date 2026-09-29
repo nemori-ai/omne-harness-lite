@@ -16,7 +16,7 @@ import { deepseekV41FlashDeepInfraRoute } from '../src/official-models/deepseek.
 const provider = 'deepinfra/fp8'
 const at = '2026-09-28T00:00:00Z'
 
-// Offline projection fixture only. Its invented capacities and one-byte image
+// Offline projection fixture only. Its invented capacities and finite image
 // limit are never an official Flash profile or a claim about DeepInfra.
 const fixture: ModelDefinition = {
   modelId: 'test/deepseek-flash-route',
@@ -27,7 +27,7 @@ const fixture: ModelDefinition = {
     outputModalities: ['text'],
     maxInputTokens: 1024,
     maxOutputTokens: 128,
-    inputConstraints: { maxImageBytes: 1 },
+    inputConstraints: { maxImageBytes: 1024 },
     upstreamInputLimits: {
       maxInputTokens: { status: 'unknown' },
       maxRequestBytes: { status: 'unknown' },

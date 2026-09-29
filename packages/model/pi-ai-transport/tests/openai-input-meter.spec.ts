@@ -570,7 +570,7 @@ describe('OpenAI model-specific input estimator', () => {
           ).toMatchObject({
             rejected: 'invalidInput',
             reason: 'input_size_unavailable',
-            metrics: ['maxInputTokens'],
+            metrics: ['maxImageBytes'],
           })
         }
         const foreignThinking = judgedMessage({

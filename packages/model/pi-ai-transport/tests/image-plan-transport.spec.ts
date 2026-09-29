@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
+import { Context, type Plugin } from '@deepseek-ai/cordis'
+import {
+  createModelPlugin,
+  MODEL_TRANSPORT_SERVICE,
+} from '@omne-harness-lite/pi-ai-transport/plugin'
 import { createHash } from 'node:crypto'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
@@ -388,7 +393,7 @@ describe('real sharp prepared request transport', () => {
     const scope = {},
       signal = new AbortController().signal
     try {
-      planned(
+      const initial = planned(
         await acquired.lease.transport.plan(imageRequest(medium, 'image/png', 30000), {
           signal,
           reuseScope: scope,
@@ -402,7 +407,15 @@ describe('real sharp prepared request transport', () => {
         }),
       )
       expect(wrapped.counts.encode).toBe(first)
-      planned(
+      const third = planned(
+        await acquired.lease.transport.plan(imageRequest(medium, 'image/png', 30000), {
+          signal,
+          reuseScope: scope,
+        }),
+      )
+      expect(third.serialized).toBe(initial.serialized)
+      expect(wrapped.counts.encode).toBe(first)
+      const isolated = planned(
         await acquired.lease.transport.plan(imageRequest(medium, 'image/png', 30000), {
           signal,
           reuseScope: {},
@@ -411,13 +424,15 @@ describe('real sharp prepared request transport', () => {
       expect(wrapped.counts.encode).toBeGreaterThan(first)
       service.clearReuseScope(scope)
       const before = wrapped.counts.encode
-      planned(
+      const recomputed = planned(
         await acquired.lease.transport.plan(imageRequest(medium, 'image/png', 30000), {
           signal,
           reuseScope: scope,
         }),
       )
       expect(wrapped.counts.encode).toBeGreaterThan(before)
+      expect(isolated.serialized).toBe(initial.serialized)
+      expect(recomputed.serialized).toBe(initial.serialized)
       acquired.lease.release()
       service.clearReuseScope(scope)
       expect(await service.retire(registered.registered, retirement)).toEqual({ retired: true })
@@ -428,6 +443,113 @@ describe('real sharp prepared request transport', () => {
     } finally {
       acquired.lease.release()
       await service.close(retirement)
+      await host.close()
+    }
+  }, 30000)
+  it('consumes the production registry through real Cordis with the same native bytes as the public factory', async () => {
+    const host = await fixture(cert.tls, res => res.end(content('ok') + finish()))
+    const wrapped = countingCodec(),
+      ctx = new Context()
+    const options = {
+      ...host.options,
+      imagePreparation: { policy: modelImageBalancedV1, codec: wrapped.codec },
+    }
+    const service = createModelTransportService(options)
+    const transport = createPiAiTransport({
+      ...options,
+      definitions: [definition],
+      inputMeters: [meter()],
+    })
+    const localProvider: Plugin.Object = {
+      name: 'image-local-https-assembly',
+      apply(context) {
+        context.provide(MODEL_TRANSPORT_SERVICE, service)
+        context.effect(() => async () => {
+          await service.close(retirement)
+          await service.closed
+        })
+      },
+    }
+    let release = () => {}
+    try {
+      await ctx.plugin(localProvider)
+      await ctx.plugin(createModelPlugin(definition, meter(), retirement), {})
+      expect(ctx.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
+      expect(service.inspect().registrations).toBe(1)
+      const request = imageRequest(medium, 'image/png', 30000),
+        signal = new AbortController().signal
+      const acquired = service.acquire(request.snapshot.adaptation, request.routeName)
+      if (!('lease' in acquired)) throw Error('real service acquisition failed')
+      release = acquired.lease.release
+      const direct = planned(await transport.plan(request, { signal }))
+      const leased = planned(
+        await acquired.lease.transport.plan(request, { signal, reuseScope: {} }),
+      )
+      expect(leased.serialized).toBe(direct.serialized)
+      expect(leased.requestInput).toEqual(direct.requestInput)
+      const sent = await acquired.lease.transport.send(leased, 'local-fixture-key', signal)
+      if (!('response' in sent)) throw Error('local send failed')
+      for await (const _ of acquired.lease.transport.read(sent.response, leased, signal)) {
+        /* actual stream */
+      }
+      expect(host.requests).toHaveLength(1)
+      expect(host.requests[0]?.body).toBe(direct.serialized)
+    } finally {
+      release()
+      await ctx.fiber.dispose()
+      await transport.close()
+      await host.close()
+    }
+  }, 30000)
+  it('fails busy before HTTP and observes aborted native completion before returning the resource', async () => {
+    const host = await fixture(cert.tls, res => res.end(finish()))
+    const entered = deferred(),
+      release = deferred(),
+      controller = new AbortController()
+    const wrapped = countingCodec(async () => {
+      entered.resolve()
+      await release.promise
+    })
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [definition],
+      inputMeters: [meter()],
+      imagePreparation: {
+        policy: { ...modelImageBalancedV1, maxConcurrent: 1 },
+        codec: wrapped.codec,
+      },
+    })
+    try {
+      const pending = transport.plan(imageRequest(medium, 'image/png', 30000), {
+        signal: controller.signal,
+      })
+      await entered.promise
+      expect(
+        await transport.plan(imageRequest(medium, 'image/png', 30000), {
+          signal: new AbortController().signal,
+        }),
+      ).toEqual({ rejected: 'unavailable' })
+      controller.abort()
+      let returned = false
+      const observed = pending.then(result => {
+        returned = true
+        return result
+      })
+      await Promise.resolve()
+      expect(returned).toBe(false)
+      release.resolve()
+      expect(await observed).toEqual({ rejected: 'unavailable' })
+      expect(wrapped.counts.close).toBe(wrapped.counts.decode)
+      const before = wrapped.counts.decode
+      expect(await transport.plan(imageRequest(small), { signal: AbortSignal.abort() })).toEqual({
+        rejected: 'unavailable',
+      })
+      expect(wrapped.counts.decode).toBe(before)
+      planned(await transport.plan(imageRequest(small), { signal: new AbortController().signal }))
+      expect(host.requests).toHaveLength(0)
+    } finally {
+      release.resolve()
+      await transport.close()
       await host.close()
     }
   }, 30000)

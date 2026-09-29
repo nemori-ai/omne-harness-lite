@@ -257,7 +257,13 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
       )
       if (!selected || typeof selected !== 'object' || !('body' in selected))
         throw new Error(`missing xAI authentication case: ${definition.modelId}/${scenario}`)
-      expect(selected.body).toEqual(body)
+      // The archived authentication vector used a PNG with invalid native data.
+      // D109 uses a real decoded 1x1 PNG here; all other archived fields remain exact.
+      const expected = writeJsonLossless(selected.body).replace(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/yWQAAAAASUVORK5CYII=',
+        pixel,
+      )
+      expect(JSON.parse(expected)).toEqual(body)
     }
   })
 
