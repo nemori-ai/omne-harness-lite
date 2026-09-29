@@ -6,6 +6,7 @@ import { getEncoding } from 'js-tiktoken'
 import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import type { Message } from '@omne-harness-lite/messages'
+import { projectAssistant } from '../src/assistant-projection.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import type { ReplayMeterInput, InputMeter } from '../src/input-meter.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
@@ -623,6 +624,10 @@ describe.each(ids)('%s explicit complete output history', model => {
         routeName: target,
         snapshot: { ...value.snapshot, adaptation: supplied.ok.adaptation },
       }
+      const beforeProjection = writeJsonLossless(changed.messages)
+      expect(projectAssistant(changed.messages[1]!.blocks, target, false)).toEqual({
+        rejected: 'unavailable',
+      })
       const result = await planRequest(
         changed,
         [selected],
@@ -632,28 +637,10 @@ describe.each(ids)('%s explicit complete output history', model => {
         },
         testImagePreparerFor(planRequest),
       )
-      if ('planned' in result) {
-        // Existing cross-model adaptation can omit inapplicable opaque details.
-        // Such a visible target must recount, never inherit the source model's O.
-        expect(result.planned.measurement.mode).toBe('full')
-        expect(result.planned.measurement).not.toHaveProperty('replayContribution')
-        expect(result.planned.measurement).not.toHaveProperty('newContribution')
-        expect(result.planned.serialized).not.toContain('CIPHER_')
-        const noGroups = await planRequest(
-          { ...changed, outputHistory: [] },
-          [selected],
-          createOpenAiInputMeter(selected),
-          { signal: new AbortController().signal },
-          testImagePreparerFor(planRequest),
-        )
-        if (!('planned' in noGroups)) throw Error(JSON.stringify(noGroups))
-        expect(result.planned.measurement.predictedInput).toEqual(
-          noGroups.planned.measurement.predictedInput,
-        )
-      } else {
-        expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
-      }
-      expect(writeJsonLossless(changed.messages)).toContain('CIPHER_a')
+      // Opaque source route mismatch is rejected by the shared assistant projector.
+      expect(result).toEqual({ rejected: 'unavailable' })
+      expect(writeJsonLossless(changed.messages)).toBe(beforeProjection)
+      expect(beforeProjection).toContain('CIPHER_a')
     }
   })
   it('covers text, reasoning and tool calls by O once while counting the paired result normally', async () => {

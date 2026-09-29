@@ -272,6 +272,46 @@ describe.each(['public', 'cordis'] as const)('%s actual OpenAI family transport'
           }
         }
         expect(host.requests).toHaveLength(3)
+        // S-57: no applicable cross-model opaque projector, before metering or send.
+        const target = openaiDefinitions.find(item => item.modelId !== row.modelId)!
+        const targetProfile = createOfficialProfileContent(target, {
+          providers: ['openai'],
+          allowFallback: false,
+          configuration: openaiConfiguration,
+        })
+        if ('rejected' in targetProfile) throw Error(targetProfile.rejected)
+        const targetMeter = createOpenAiInputMeter(target)
+        const attemptedMeter = vi.fn(targetMeter.measureFull)
+        const switched = createPiAiTransport({
+          ...host.options,
+          definitions: [target],
+          inputMeters: [{ ...targetMeter, measureFull: attemptedMeter }],
+        })
+        const switchedInput = {
+          ...next,
+          routeName: target.modelId,
+          snapshot: { ...next.snapshot, adaptation: targetProfile.ok.adaptation },
+        }
+        const retained = writeJsonLossless(switchedInput.messages)
+        try {
+          expect(
+            await switched.plan(switchedInput, { signal: new AbortController().signal }),
+          ).toEqual({ rejected: 'unavailable' })
+          expect(
+            await invokeModel({
+              ...switchedInput,
+              transport: switched,
+              credential: 'local-fixture',
+              signal: new AbortController().signal,
+              policy: policy(),
+            }).outcome,
+          ).toEqual({ rejected: 'unavailable' })
+          expect(attemptedMeter).not.toHaveBeenCalled()
+          expect(host.requests).toHaveLength(3)
+          expect(writeJsonLossless(switchedInput.messages)).toBe(retained)
+        } finally {
+          await switched.close()
+        }
       } finally {
         release()
         await context.fiber.dispose()

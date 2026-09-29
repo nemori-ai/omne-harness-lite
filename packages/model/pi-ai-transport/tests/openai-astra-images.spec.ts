@@ -207,7 +207,7 @@ describe('Astra named patch rule, shared calculations and final visible projecti
           selectionSpans: [],
         }),
       ).toEqual({ kind: 'unavailable' }) // No original I exists for φ.
-      expect(directNew(meter, marginal)).toEqual(contribution)
+      expect(writeJsonLossless(directNew(meter, marginal))).toBe(writeJsonLossless(contribution))
       expect(directNew(meter, { ...marginal, units: [] })).toEqual({ kind: 'exact', tokens: 0 })
     },
   )

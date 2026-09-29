@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
+import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { openAiFamilyRecords } from '../src/input-meters/openai-family-policy.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
@@ -169,6 +169,39 @@ describe.each(Object.values(openAiFamilyRecords))(
             .toString(),
         )
         expect(result.planned.serialized).toContain('ORIGINAL_OPAQUE')
+        const { messages: finalUnits, ...finalEnvelope } = result.planned.body
+        if (!Array.isArray(finalUnits) || result.planned.requestInput.kind !== 'known')
+          throw Error('current projection required')
+        const selectedUnit = finalUnits[1]
+        if (selectedUnit === undefined) throw Error('selected unit required')
+        const deltaInput = {
+          units: [selectedUnit],
+          envelope: finalEnvelope,
+          precedingUnitCount: 1,
+          unitIndices: [1],
+          countingBasis: result.planned.requestInput.countingBasis,
+          outputHistory: [history],
+          historySpans: reply.blocks.map((_, selectionIndex) => ({
+            groupIndex: 0,
+            selectionIndex,
+            start: 1,
+            end: 2,
+          })),
+        }
+        expect(writeJsonLossless(meter.measureNew(deltaInput))).toBe(
+          '{"kind":"estimated","tokens":18}',
+        )
+        expect(
+          writeJsonLossless(
+            meter.measureNew({
+              ...deltaInput,
+              outputHistory: [
+                { ...history, usage: { ...history.usage, output_tokens: 0, reasoning_tokens: 0 } },
+              ],
+            }),
+          ),
+        ).toBe('{"kind":"estimated","tokens":0}')
+
         expect(() =>
           createOpenAiInputMeter({
             ...definition,
