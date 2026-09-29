@@ -44,3 +44,19 @@ Reviewer支持C：保留输入实测原精度，并让知道实际回放形状�
 ## Revision 3 独立窄复核
 
 2026-09-29，原独立 architecture-reviewer 核对 `69b27bff67b166b9d219c1ad2084189a6e8b18d9`：两项非阻断在设计输入层闭合，未引入新架构阻断；评审登记没有把施工方向提升为规格接受。新增校准性质与既有 RT/SL 保证组合的形式化范围合理。负控必须实际破坏新增校验或事实传播并击中断言，不能被环境假设吸收。G1/G2及尚未运行新TLA、尚未审查新规格/realization的范围限制保留。该复核只判断修订的责任边界；后继候选规格仍须独立审阅。
+
+## 2026-09-29 U1 第一轮独立规格及架构审查
+
+冻结受审提交 `f5891f5afebfe468b08cdb67fcaa6c0e2ca9e25c`（HUB 等价 `c0415666`），MR9/RT10、Schema、89 条候选 covers 及新增形式任务。spec-reviewer 完成十三操作/公开函数消费链、表达、登记与形式对应；architecture-reviewer 独立核性质承载和投影。二者只读，没有重跑 TLC 或实现测试，均不构成接受。主线核对作者 83 文件摘要、19 配置/原始日志；[原始证据](../../evidence/2026-09-29-formal-model-input-usage-calibration/README.md)保留 17 Schema 例、5 正向配置和 14 指定负控，以及失败和修正经过。
+
+### 阻断与处置
+
+- **B1：read→invoke 观察事实交接缺责任。**RT10 S-59⑤仍只承诺原 CA2 usage/cost；上游 total 已知但缓存分项未知时，reader 可合法丢掉唯一准确输入总量/出处，S-79无法履行独立函数返回观察的要求。两评审同意固定适配 reader 必须保留并交出同次 observation/provenance，invoke 明确传递，不私读不透明响应或加隐藏旁路。由规格作者补 S-54/S-59/S-79 同一链，不新增操作或服务。
+- **B2：known outputGroup 缺可解释的版本。**MR9 S-43引用 requestInput 的 projectionRevision，而 Schema 允许 requestInput unavailable 与 known outputGroup 并存。由规格作者补输出摘要自身耐久版本及跨值关系/正反例，保留合法部分事实；不让消费者猜当前版本。
+- **B3：没有能检出“不用新锚”的形式性质。**RT10 S-79/S-82承诺稳定条件下重锚；EventuallyDone 允许总选 full/拒绝。架构评审另指出始终选最早合法祖先也可满足既有守卫和 ErrorReset。由作者加入准确观察确认后在稳定后继规划中实际采用新锚的条件性质、正向配置及 NeverUseAnchor/KeepOldAnchor 最小负控；保留原有限终止性质，不扩十三操作状态机。上述反例是静态构造，不能写成已执行负控。
+
+### 非阻断与未覆盖
+
+规格评审 N1：新旧 G-35 重号；新增适配证据 gap 改用未占编号并同步引用。N2：规范 verification 中含可变验证状态和运行经过；保留规范义务，结果移版本外/evidence。架构审查未发现第四项语义缺口，继续支持 U0 C 的既有边界；非加性贡献、两类失效、分支来源、原批/lease和未知不作零已有保护点，前提和有限域不能删除。
+
+主线认可这一轮的五项处置范围，已交原 spec-drafter 集中修订，新运行另目录保存。**U1 本轮未通过采用门；U3 不放行。**压缩硬窗口政策与各 provider 的实际 φ/δ/兼容依据仍是原 owner 的明确缺口，本轮没有新增产品裁决。性能改善、实际 tokenizer/网络/存储/租户、完整旧模型复验均未覆盖。
