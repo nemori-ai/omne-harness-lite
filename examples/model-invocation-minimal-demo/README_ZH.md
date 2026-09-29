@@ -176,3 +176,5 @@ pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run t
 `tests/xai-effort-service.spec.ts` 覆盖两个 Grok 定义的 low／medium／high effort，分别验证三轮持久本机 TLS 及超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/xai-effort-service.spec.ts --maxWorkers=1`。这验证当前服务组合与上游原计量保留；合成响应不认证实际 effort 精度、图片支持或不透明回放。
 
 `tests/zai-prime-effort-service.spec.ts` 在已声明的 5m／last_message 缓存配置下，验证 Prime low／high／max 的三轮持久本机 TLS 文本交互与超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/zai-prime-effort-service.spec.ts --maxWorkers=1`。这不认证真实 effort 精度或缓存保留；历史思考仍在当前官方计量器支持域之外。
+
+`tests/openai-sol-luna-images-service.spec.ts` 覆盖 `mp4-15` 的 Sol/Luna 及对应 Pro：三轮持久调用保留旧图片，基础型号复用合法响应校准，Pro 保持 `scope_unknown` 下全量计量。逐图 4 MiB 和配置 token 余量的超限均零 HTTP。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-sol-luna-images-service.spec.ts --maxWorkers=1`。图片沿现有编程接口的用户消息进入，不增加 CLI 附件语法；合成响应仅验证组合，不认证私有预处理或实机型号完整交付。

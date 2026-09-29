@@ -110,7 +110,6 @@ const gpt56MeteredIds = new Set([
   'openai/gpt-5.6-luna',
   'openai/gpt-5.6-luna-pro',
 ])
-const gpt6SolVisibleHistoryMeteredId = 'openai/gpt-6-sol'
 
 /** Narrow successors adopting the common final-visible-JSON surrogate.
  * These successors replace earlier unmetered or narrower metered declarations; no old binding alias.
@@ -132,13 +131,21 @@ export const openaiFinalVisibleBindings: Readonly<
     }
   >
 > = Object.freeze({
-  'openai/gpt-6-luna': Object.freeze({
+  'openai/gpt-6-sol': Object.freeze({
     revision: '4',
-    implementationRevision: 'mp4-9',
+    implementationRevision: 'mp4-15',
     efforts: other.parameters.reasoningEffort.accepted.values,
-    algorithmRevision: 'openai-gpt-6-luna-final-visible-json-o200k-1',
+    algorithmRevision: 'openai-gpt-6-sol-final-visible-json-image-proxy-2',
     evidence:
-      'OpenRouter OpenAI GPT-6 Luna own low-effort visible text/tool/reminder observations (2026-09-28): old messages/tools proxy 126/302/410 versus actual input 70/178/236; those observations remain attached to the prior algorithm. OpenAI reasoning guide and OpenRouter GPT-6 migration guide (2026-09-29) separate effort from mode; complete final visible JSON with declared Luna efforts or omitted effort is an estimated protocol applicability inference, not GPT-6 tokenizer identity, private framing proof, error bound or live per-effort certification',
+      'OpenRouter/OpenAI Sol low-effort finite image holdout 2026-09-29: 65x65/1024x1024/2049x2903 observed complete input 21/1239/7109; native 32px patches times 1.2 plus final visible o200k JSON remains an estimated proxy, not a private tokenizer/preprocessing fact or error bound. Omitted/auto detail only; no fitted residual or imported resize/patch cap. See research/openai-sol-luna-image-estimation.',
+  }),
+  'openai/gpt-6-luna': Object.freeze({
+    revision: '5',
+    implementationRevision: 'mp4-15',
+    efforts: other.parameters.reasoningEffort.accepted.values,
+    algorithmRevision: 'openai-gpt-6-luna-final-visible-json-image-proxy-2',
+    evidence:
+      'OpenRouter/OpenAI Sol/Luna finite image study 2026-09-29 supports an estimated native 32px/1.2 visual proxy with final visible o200k JSON; omitted/auto detail only, no fitted residual or imported resize/patch cap. Both base routes observed complete input 21/1239/7109 on 65x65/1024x1024/2049x2903; Pro pair requests completed but billing input 1431 has unknown context scope, so it is not an accuracy observation. Exact same-base Pro mode is an applicability inference, not a private preprocessing guarantee. See research/openai-sol-luna-image-estimation.',
   }),
   'openai/gpt-6-astra': Object.freeze({
     revision: '3',
@@ -157,20 +164,20 @@ export const openaiFinalVisibleBindings: Readonly<
       'OpenRouter GPT-6 migration guide and OpenAI reasoning guide (2026-09-29): astra Pro is the corresponding base model in pro mode, mode and effort independent; same visible Chat protocol supports o200k final-JSON applicability inference only. Own low-effort baseline: text proxy 27, billed prompt_tokens 1561; billed scope unconfirmed, never used as context calibration or fitted overhead. Real context error, private framing and full route/tool/effort certification remain unknown; published Astra base vision patch rules reused as an estimated image proxy from the exact same-base Pro mode relationship, not verified Pro preprocessing; input usage scope stays unknown',
   }),
   'openai/gpt-6-sol-pro': Object.freeze({
-    revision: '3',
-    implementationRevision: 'mp4-8',
+    revision: '4',
+    implementationRevision: 'mp4-15',
     efforts: other.parameters.reasoningEffort.accepted.values,
-    algorithmRevision: 'openai-gpt-6-sol-pro-final-visible-json-o200k-1',
+    algorithmRevision: 'openai-gpt-6-sol-pro-final-visible-json-image-proxy-2',
     evidence:
-      'OpenRouter GPT-6 migration guide and OpenAI reasoning guide (2026-09-29): sol Pro is the corresponding base model in pro mode, mode and effort independent; same visible Chat protocol supports o200k final-JSON applicability inference only. Own low-effort baseline: text proxy 29, billed prompt_tokens 1514; billed scope unconfirmed, never used as context calibration or fitted overhead. Real context error, private framing and full route/tool/effort certification remain unknown',
+      'OpenRouter/OpenAI Sol/Luna finite image study 2026-09-29 supports an estimated native 32px/1.2 visual proxy with final visible o200k JSON; omitted/auto detail only, no fitted residual or imported resize/patch cap. Both base routes observed complete input 21/1239/7109 on 65x65/1024x1024/2049x2903; Pro pair requests completed but billing input 1431 has unknown context scope, so it is not an accuracy observation. Exact same-base Pro mode is an applicability inference, not a private preprocessing guarantee. See research/openai-sol-luna-image-estimation.',
   }),
   'openai/gpt-6-luna-pro': Object.freeze({
-    revision: '3',
-    implementationRevision: 'mp4-8',
+    revision: '4',
+    implementationRevision: 'mp4-15',
     efforts: other.parameters.reasoningEffort.accepted.values,
-    algorithmRevision: 'openai-gpt-6-luna-pro-final-visible-json-o200k-1',
+    algorithmRevision: 'openai-gpt-6-luna-pro-final-visible-json-image-proxy-2',
     evidence:
-      'OpenRouter GPT-6 migration guide and OpenAI reasoning guide (2026-09-29): luna Pro is the corresponding base model in pro mode, mode and effort independent; same visible Chat protocol supports o200k final-JSON applicability inference only. Own low-effort baseline: text proxy 31, billed prompt_tokens 1524; billed scope unconfirmed, never used as context calibration or fitted overhead. Real context error, private framing and full route/tool/effort certification remain unknown',
+      'OpenRouter/OpenAI Sol/Luna finite image study 2026-09-29 supports an estimated native 32px/1.2 visual proxy with final visible o200k JSON; omitted/auto detail only, no fitted residual or imported resize/patch cap. Both base routes observed complete input 21/1239/7109 on 65x65/1024x1024/2049x2903; Pro pair requests completed but billing input 1431 has unknown context scope, so it is not an accuracy observation. Exact same-base Pro mode is an applicability inference, not a private preprocessing guarantee. See research/openai-sol-luna-image-estimation.',
   }),
 })
 
@@ -183,11 +190,7 @@ export const openaiDefinitions = ownDefinitions(
         revision:
           openaiFinalVisibleBindings[modelId]?.revision ??
           openAiProBindings[modelId]?.revision ??
-          (gpt56MeteredIds.has(modelId)
-            ? '6'
-            : modelId === gpt6SolVisibleHistoryMeteredId
-              ? '3'
-              : '1'),
+          (gpt56MeteredIds.has(modelId) ? '6' : '1'),
         implementation: {
           name: 'pi-ai:openai',
           revision:
@@ -196,9 +199,7 @@ export const openaiDefinitions = ownDefinitions(
               ? PRO_IMPLEMENTATION_REVISION
               : gpt56MeteredIds.has(modelId)
                 ? 'mp4-12'
-                : modelId === gpt6SolVisibleHistoryMeteredId
-                  ? 'mp4-6'
-                  : 'mp4-1'),
+                : 'mp4-1'),
         },
         capabilities,
         routes,

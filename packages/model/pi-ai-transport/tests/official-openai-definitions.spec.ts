@@ -75,22 +75,20 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
           : gpt6ProMetered
             ? modelId === 'openai/gpt-6-astra-pro'
               ? 'mp4-14'
-              : 'mp4-8'
+              : 'mp4-15'
             : pro
               ? 'mp4-13'
               : metered
                 ? 'mp4-12'
                 : lunaHistoryMetered
-                  ? 'mp4-9'
+                  ? 'mp4-15'
                   : solTextMetered
-                    ? 'mp4-6'
+                    ? 'mp4-15'
                     : 'mp4-1',
       })
       expect(definition.revision).toBe(
         gpt6ProMetered
-          ? modelId === 'openai/gpt-6-astra-pro'
-            ? '4'
-            : '3'
+          ? '4'
           : astraTextMetered
             ? '3'
             : pro
@@ -100,9 +98,9 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
               : metered
                 ? '6'
                 : lunaHistoryMetered
-                  ? '4'
+                  ? '5'
                   : solTextMetered
-                    ? '3'
+                    ? '4'
                     : '1',
       )
       expect(definition.capabilities).toEqual({

@@ -133,10 +133,11 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
   afterAll(() => cert.dispose())
 
   it('binds the final-visible successor without an old revision alias', () => {
-    expect(definition.revision).toBe('4')
+    expect(definition.revision).toBe('5')
     expect(createOpenAiInputMeter(definition)).toMatchObject({
-      implementation: { revision: 'mp4-9' },
-      algorithmRevision: 'openai-gpt-6-luna-final-visible-json-o200k-1/response-calibration-1',
+      implementation: { revision: 'mp4-15' },
+      algorithmRevision:
+        'openai-gpt-6-luna-final-visible-json-image-proxy-2/response-calibration-1',
       tokenizerRevision: 'js-tiktoken-1.0.21/o200k-base-gpt-6-luna-surrogate/1',
     })
   })
@@ -437,10 +438,10 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
           {
             id: 'image',
             kind: 'image',
-            mediaType: 'image/png',
+            mediaType: 'image/gif',
             data: {
               inline: readFileSync(
-                new URL('./fixtures/openai-meter/1x1.png', import.meta.url),
+                new URL('./fixtures/openai-meter/two-frame.gif', import.meta.url),
               ).toString('base64'),
             },
             visibility: { toHuman: true, toModel: true },
@@ -460,7 +461,7 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
         expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
         expect(writeJsonLossless(value)).toBe(before)
         expect(seen.at(-1)).toContain(
-          added === opaque ? 'retained-opaque' : 'data:image/png;base64,',
+          added === opaque ? 'retained-opaque' : 'data:image/gif;base64,',
         )
       }
       const rejected = await invokeModel({

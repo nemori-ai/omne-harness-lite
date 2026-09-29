@@ -2,10 +2,9 @@ import { imageSize } from 'image-size'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
 
-export type ImageRule = 'gpt56-patch' | 'astra-patch' | 'unknown'
+export type ImageRule = 'gpt56-patch' | 'astra-patch' | 'sol-luna-auto-proxy' | 'unknown'
 type ImageDetail = 'low' | 'high' | 'original' | 'auto'
-const dataUrl =
-  /^data:(image\/(?:png|jpeg|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
+const dataUrl = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]*={0,2})$/u
 function expectedImageType(mime: string): string | undefined {
   switch (mime) {
     case 'image/png':
@@ -82,6 +81,17 @@ export function patchImageTokens(
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0)
     return undefined
 
+  // Sol/Luna's public wire omits detail. This empirical family proxy counts
+  // native dimensions; it does not borrow Astra's resize or patch caps as
+  // upstream facts. Other detail modes have no applicability evidence here.
+  if (rule === 'sol-luna-auto-proxy') {
+    if (detail !== 'auto') return undefined
+    const scaledPatches = Math.ceil(width / 32) * Math.ceil(height / 32) * 6
+    // Preserve arithmetic integrity rather than rounding an unsafe integer.
+    if (!Number.isSafeInteger(scaledPatches)) return undefined
+    return Math.ceil(scaledPatches / 5)
+  }
+
   const maxDimension =
     detail === 'low' ? 512 : detail === 'high' ? patchRules[rule].highMaxDimension : 65535
   const pixelScale = Math.min(1, maxDimension / Math.max(width, height))
@@ -125,6 +135,8 @@ export function imageTokens(part: JsonObject, rule: ImageRule): number | undefin
     return undefined
   const match = typeof image.url === 'string' ? dataUrl.exec(image.url) : null
   if (!match?.[1] || !match[2]) return undefined
+  // The single-level character class avoids regex stack growth on large images;
+  // the canonical round trip also enforces length, padding and unused bits.
   const decoded = Buffer.from(match[2], 'base64')
   if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
   if (match[1] === 'image/gif' && !singleFrameGif(decoded)) return undefined

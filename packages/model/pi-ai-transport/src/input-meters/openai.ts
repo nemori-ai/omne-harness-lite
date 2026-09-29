@@ -99,6 +99,11 @@ function encoder(): ReturnType<typeof getEncoding> {
 
 function imageRuleFor(modelId: string): ImageRule | undefined {
   switch (modelId) {
+    case 'openai/gpt-6-sol':
+    case 'openai/gpt-6-luna':
+    case 'openai/gpt-6-sol-pro':
+    case 'openai/gpt-6-luna-pro':
+      return 'sol-luna-auto-proxy'
     case 'openai/gpt-6-astra':
     case 'openai/gpt-6-astra-pro':
       return 'astra-patch'
@@ -143,12 +148,9 @@ function visibleHistoryTokens(
 ): number | undefined {
   // Final-JSON adoption is explicit per binding. Count actual controls without
   // inferring an upstream effort default or a GPT-6 tokenizer identity.
-  const finalEfforts =
-    modelId === 'openai/gpt-6-sol'
-      ? ['none', 'low', 'medium', 'high', 'max']
-      : Object.hasOwn(openaiFinalVisibleBindings, modelId)
-        ? openaiFinalVisibleBindings[modelId]?.efforts
-        : undefined
+  const finalEfforts = Object.hasOwn(openaiFinalVisibleBindings, modelId)
+    ? openaiFinalVisibleBindings[modelId]?.efforts
+    : undefined
   if (!finalEfforts) return undefined
   const reasoningValid =
     body.reasoning === undefined ||
@@ -202,7 +204,9 @@ function visibleHistoryTokens(
           !message.content.every(
             part =>
               visibleTextParts([part]) ||
-              (rule === 'astra-patch' && object(part) && part.type === 'image_url'),
+              ((rule === 'astra-patch' || rule === 'sol-luna-auto-proxy') &&
+                object(part) &&
+                part.type === 'image_url'),
           )
         )
           return undefined
@@ -263,28 +267,18 @@ function visibleHistoryTokens(
 /** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
 export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter {
   const encryptedReplay = openAi56ReplayModels.has(definition.modelId)
-  const gpt6SolVisibleHistory = definition.modelId === 'openai/gpt-6-sol'
   const finalBinding = Object.hasOwn(openaiFinalVisibleBindings, definition.modelId)
     ? openaiFinalVisibleBindings[definition.modelId]
     : undefined
-  const gpt6VisibleHistory = gpt6SolVisibleHistory || finalBinding !== undefined
+  const gpt6VisibleHistory = finalBinding !== undefined
   const imageRule = imageRuleFor(definition.modelId)
   const pro = Object.hasOwn(openAiProBindings, definition.modelId)
     ? openAiProBindings[definition.modelId]
     : undefined
-  const revision =
-    finalBinding?.revision ??
-    pro?.revision ??
-    (gpt6SolVisibleHistory ? '3' : encryptedReplay ? '6' : '4')
+  const revision = finalBinding?.revision ?? pro?.revision ?? (encryptedReplay ? '6' : '4')
   const implementationRevision =
     finalBinding?.implementationRevision ??
-    (pro
-      ? PRO_IMPLEMENTATION_REVISION
-      : gpt6SolVisibleHistory
-        ? 'mp4-6'
-        : encryptedReplay
-          ? 'mp4-12'
-          : 'mp4-5')
+    (pro ? PRO_IMPLEMENTATION_REVISION : encryptedReplay ? 'mp4-12' : 'mp4-5')
   if (
     (!gpt6VisibleHistory && !imageRule) ||
     definition.revision !== revision ||
@@ -325,19 +319,15 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     ...(pro ? { transformRevision: PRO_TRANSFORM_REVISION } : {}),
     algorithmRevision:
       finalBinding?.algorithmRevision ??
-      (gpt6SolVisibleHistory
-        ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
-        : encryptedReplay
-          ? 'openai-gpt-5.6-o200k-base-complete-output-6'
-          : 'openai-gpt-5.6-pro-base-image-proxy-1'),
+      (encryptedReplay
+        ? 'openai-gpt-5.6-o200k-base-complete-output-6'
+        : 'openai-gpt-5.6-pro-base-image-proxy-1'),
     evidence:
       finalBinding?.evidence ??
-      (gpt6SolVisibleHistory
-        ? 'OpenRouter OpenAI GPT-6 Sol low-effort o200k text surrogate baseline/length/CJK-code holdout (2026-09-28); complete visible final-request JSON includes controls and extends the surrogate to protocol framing as an estimate; OpenAI reasoning guide separates mode/effort (2026-09-29), declared Sol efforts and absent effort counted as sent; live multi-turn/effort errors and private framing remain unverified'
-        : pro
-          ? 'OpenAI reasoning guide mode and OpenRouter exact GPT-5.6 Sol/Terra/Luna Pro model pages identify Pro as the same base model in pro mode (2026-09-29); published GPT-5.6 base vision patches reused as an estimated proxy, not verified Pro preprocessing; o200k_base surrogate and private framing remain estimated, input usage scope remains unknown, opaque reasoning unavailable'
-          : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis'),
-    ...(gpt6SolVisibleHistory || finalBinding
+      (pro
+        ? 'OpenAI reasoning guide mode and OpenRouter exact GPT-5.6 Sol/Terra/Luna Pro model pages identify Pro as the same base model in pro mode (2026-09-29); published GPT-5.6 base vision patches reused as an estimated proxy, not verified Pro preprocessing; o200k_base surrogate and private framing remain estimated, input usage scope remains unknown, opaque reasoning unavailable'
+        : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis'),
+    ...(finalBinding
       ? {
           tokenizerRevision: `js-tiktoken-1.0.21/o200k-base-${definition.modelId.slice('openai/'.length)}-surrogate/1`,
         }

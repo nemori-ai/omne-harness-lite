@@ -221,7 +221,7 @@ describe('Astra named patch rule, shared calculations and final visible projecti
     ).toEqual({ kind: 'unavailable' })
     for (const model of ['openai/gpt-6-sol', 'openai/gpt-6-luna']) {
       const d = openaiDefinitions.find(d => d.modelId === model)!
-      const other = { ...value, model }
+      const other = { ...body(imageUrl('1x1.png'), 'high'), model }
       expect(
         directFull(createOpenAiInputMeter(d), {
           body: other,

@@ -168,10 +168,10 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
     const meter = createOpenAiInputMeter(definition)
     expect(meter).toMatchObject({
       modelId: model,
-      definitionRevision: model === 'openai/gpt-6-astra-pro' ? '4' : '3',
+      definitionRevision: '4',
       implementation: {
         name: 'pi-ai:openai',
-        revision: model === 'openai/gpt-6-astra-pro' ? 'mp4-14' : 'mp4-8',
+        revision: model === 'openai/gpt-6-astra-pro' ? 'mp4-14' : 'mp4-15',
       },
       transformRevision: 'openrouter-input-transform/pro-scope-1',
     })
@@ -414,15 +414,10 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
           {
             id: 'image',
             kind: 'image',
-            mediaType: model === 'openai/gpt-6-astra-pro' ? 'image/gif' : 'image/png',
+            mediaType: 'image/gif',
             data: {
               inline: readFileSync(
-                new URL(
-                  model === 'openai/gpt-6-astra-pro'
-                    ? './fixtures/openai-meter/two-frame.gif'
-                    : './fixtures/openai-meter/1x1.png',
-                  import.meta.url,
-                ),
+                new URL('./fixtures/openai-meter/two-frame.gif', import.meta.url),
               ).toString('base64'),
             },
             visibility,
@@ -442,11 +437,7 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
         expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
         expect(writeJsonLossless(value)).toBe(before)
         expect(seen.at(-1)).toContain(
-          added === opaque
-            ? 'retained-opaque'
-            : model === 'openai/gpt-6-astra-pro'
-              ? 'data:image/gif;base64,'
-              : 'data:image/png;base64,',
+          added === opaque ? 'retained-opaque' : 'data:image/gif;base64,',
         )
       }
       const result = await invokeModel({

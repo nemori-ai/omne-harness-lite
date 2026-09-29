@@ -16,9 +16,9 @@ export const openAiProBindings: Readonly<
     previousRevision: '1',
     previousImplementation: 'mp4-1',
   },
-  'openai/gpt-6-sol-pro': { revision: '2', previousRevision: '1', previousImplementation: 'mp4-1' },
+  'openai/gpt-6-sol-pro': { revision: '4', previousRevision: '1', previousImplementation: 'mp4-1' },
   'openai/gpt-6-luna-pro': {
-    revision: '2',
+    revision: '4',
     previousRevision: '1',
     previousImplementation: 'mp4-1',
   },
