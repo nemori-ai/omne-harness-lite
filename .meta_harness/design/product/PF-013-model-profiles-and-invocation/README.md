@@ -63,7 +63,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 17**，调用结果确认与副本清理增量待独立评审，尚未接受；输入范围的正式接受沿 [D-096](../../record/decisions/model-profile-input-limits-product-adoption/decision.md)，其余范围及逐次状态见 [decisions](decisions.md)。技术规格、提供者映射或实现接受不随本稿升级。
+- 产品设计：**rev 17**，调用结果确认与副本清理增量经独立评审并按 [D-110 后继](../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-product-and-direction-decision.md)接受；输入范围的正式接受沿 [D-096](../../record/decisions/model-profile-input-limits-product-adoption/decision.md)，其余范围及逐次状态见 [decisions](decisions.md)。技术规格、提供者映射或实现接受不随本稿升级。
 - 待裁决：**0**
 - **[消费方确认结果后清理模型侧副本](design.md#619-消费方确认结果后清理模型侧不再需要的副本)**：消费方已自行处理或保管即可确认，不依赖正式 Session 完整实现。确认、清理完成与调用收场分别可见；释放句柄不自动确认，确认不取消执行、不改结果事实、不抹账，也不等待所有历史消费者。
 - **[上游限制与档案提供的上限分别可读](design.md#上游限制与档案提供的上限)**：上游限制可以明确未知；官方与自建档案实际提供的输入范围必须有明确、有限的上限。提供图片输入就必须给出单图字节上限，缺失或超过相应限额检查都不能先发请求；token 允许有依据估算和明确余量，字节与图片数量精确检查。
