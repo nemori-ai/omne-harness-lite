@@ -10,6 +10,7 @@ const models = new Set([
 export function makeManifest(model, ttl = '1h') {
   const path = 'public'
   if (!models.has(model)) throw new Error('unsupported model')
+  if (ttl !== '1h') throw new Error('unsupported Anthropic cache TTL')
   const nonce = `anthropic-${path}-${model.replaceAll('/', '-')}-${randomUUID()}`
   // Distinct numbered entries avoid relying on a repeated-string token count.
   // The first actual write usage, not this text length, is the cacheability oracle.
@@ -22,7 +23,7 @@ export function makeManifest(model, ttl = '1h') {
     model,
     path,
     nonce,
-    implementationRevision: 'mp4-4',
+    implementationRevision: 'mp4-5',
     algorithmRevision: 'anthropic-legacy-bpe-plus-vision-patches-4',
     provider: 'anthropic',
     allowFallback: false,
@@ -57,7 +58,7 @@ export function makeManifest(model, ttl = '1h') {
       {
         name: 'expiry',
         run: 'once',
-        earliestAfterPreviousCompletionSeconds: { '1h': 3900, '5m': 600 }[ttl],
+        earliestAfterPreviousCompletionSeconds: 3900,
       },
     ],
   }

@@ -29,7 +29,7 @@ const load = async path => {
 const frame = data => `data: ${writeJsonLossless(data)}\n\n`
 const credential = 'synthetic-cache-secret-ABC123456789'
 
-test('four real mp4-4 dry plans and exact reservation/cost conversion', async () => {
+test('four current mp4-5 dry plans reject stale binding and preserve exact costs', async () => {
   assert.match(await sourceFingerprint(), /^[a-f0-9]{64}$/)
   for (const model of [
     'anthropic/claude-opus-5.5',
@@ -37,10 +37,21 @@ test('four real mp4-4 dry plans and exact reservation/cost conversion', async ()
     'anthropic/claude-sonnet-5',
     'anthropic/claude-fable-5.1',
   ]) {
-    const { planned } = dryPlan(makeManifest(model))
+    const manifest = makeManifest(model)
+    assert.equal(manifest.implementationRevision, 'mp4-5')
+    const { planned } = dryPlan(manifest)
     assert(planned.serialized.includes('"ttl":"1h"'))
     assert.equal(planned.inputLimitEvidence.inputTokens.kind, 'estimated')
+    assert.throws(() => dryPlan({ ...manifest, implementationRevision: 'mp4-4' }), {
+      name: 'AssertionError',
+      actual: 'mp4-4',
+      expected: 'mp4-5',
+    })
   }
+  assert.throws(
+    () => makeManifest('anthropic/claude-sonnet-5', '5m'),
+    /unsupported Anthropic cache TTL/,
+  )
   assert.equal(
     decimalUsd(new LosslessNumber('1.234567890123456789e-7')),
     '0.0000001234567890123456789',
@@ -121,40 +132,42 @@ for (const mode of ['complete', 'failed-known', 'unknown', 'protocol'])
           res.end(frame({ choices: [{ delta: {}, finish_reason: 'stop' }] }) + 'data: [DONE]\n\n')
       },
     )
-    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
-    const ledger = await openLedger(join(directory, 'ledger.json'), {
-      limitUsd: '100',
-      researchLimitUsd: '50',
-    })
-    const manifest = makeManifest('anthropic/claude-sonnet-5')
-    const identity = {
-      manifestSha256: 'test',
-      snapshotSha256: 'snapshot',
-      plannedSerialized: dryPlan(manifest).planned.serialized,
-    }
-    const options = {
-      manifest,
-      phase: 'write',
-      output,
-      endpoint,
-      identity,
-      credential,
-      transportOptions: {
-        baseUrl: `https://127.0.0.1:${server.address().port}/api/v1/`,
-        tls: { ca: await readFile(join(directory, 'cert.pem')) },
-      },
-      ledger: {
-        reserve: value => ledger.reserve(value),
-        settle: async (id, usd) => {
-          const observed = await load(join(output, 'write-observed.json'))
-          assert.equal(observed.reservation, id)
-          assert.equal((await stat(join(output, 'write-observed.json'))).mode & 0o777, 0o600)
-          assert(observed.result)
-          await ledger.settle(id, usd)
-        },
-      },
-    }
+    let ledger
     try {
+      await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+      ledger = await openLedger(join(directory, 'ledger.json'), {
+        limitUsd: '100',
+        researchLimitUsd: '50',
+      })
+      const manifest = makeManifest('anthropic/claude-sonnet-5')
+      const identity = {
+        manifestSha256: 'test',
+        snapshotSha256: 'snapshot',
+        plannedSerialized: dryPlan(manifest).planned.serialized,
+      }
+      const options = {
+        manifest,
+        phase: 'write',
+        output,
+        endpoint,
+        identity,
+        credential,
+        transportOptions: {
+          baseUrl: `https://127.0.0.1:${server.address().port}/api/v1/`,
+          tls: { ca: await readFile(join(directory, 'cert.pem')) },
+        },
+        ledger: {
+          reserve: value => ledger.reserve(value),
+          settle: async (id, usd) => {
+            const observed = await load(join(output, 'write-observed.json'))
+            assert.equal(observed.reservation, id)
+            assert.equal((await stat(join(output, 'write-observed.json'))).mode & 0o777, 0o600)
+            assert(observed.result)
+            assert.equal(observed.attempts, 1, writeJsonLossless(observed.result))
+            await ledger.settle(id, usd)
+          },
+        },
+      }
       if (mode === 'complete') assert.equal((await invokePhase(options)).result, 'pass')
       else
         await assert.rejects(
@@ -226,9 +239,14 @@ for (const mode of ['complete', 'failed-known', 'unknown', 'protocol'])
         validatePrevious({ ...expiry, now: Date.parse(observed.endedAt) + 3900000 })
       }
     } finally {
-      await ledger.close()
-      server.closeAllConnections()
-      await new Promise(resolve => server.close(resolve))
-      await rm(directory, { recursive: true, force: true })
+      try {
+        await ledger?.close()
+      } finally {
+        if (server.listening) {
+          server.closeAllConnections()
+          await new Promise(resolve => server.close(resolve))
+        }
+        await rm(directory, { recursive: true, force: true })
+      }
     }
   })

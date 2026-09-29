@@ -85,6 +85,7 @@ export function cacheInput(manifest) {
     provider: manifest.provider,
     parameters: manifest.parameters,
     tokenMargin: manifest.tokenMargin,
+    calibration: { kind: 'none', reason: 'no_observation' },
     tools: manifest.tools,
     messages: manifest.messages.map(mapMessage),
     snapshot: {

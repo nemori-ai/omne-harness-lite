@@ -45,7 +45,7 @@ export function dryPlan(manifest) {
   assert.equal(manifest.algorithmRevision, 'anthropic-legacy-bpe-plus-vision-patches-4')
   assert.equal(manifest.provider, 'anthropic')
   assert.equal(manifest.allowFallback, false)
-  assert(['1h', '5m'].includes(manifest.configuration.cache.ttl))
+  assert.equal(manifest.configuration.cache.ttl, '1h')
   const result = planRequest(input, [definition], createAnthropicInputMeter(definition))
   assert('planned' in result, writeJsonLossless(result))
   return { input, definition, planned: result.planned }
@@ -95,7 +95,7 @@ export function validatePrevious({
   assert(Number.isFinite(elapsed) && elapsed >= 0)
   if (phase === 'read') assert(elapsed <= 300000, 'Read window exceeded; do not repeat write')
   else {
-    const wait = { '1h': 3900000, '5m': 600000 }[manifest.configuration.cache.ttl]
+    const wait = 3900000
     assert(
       elapsed >= wait,
       `Expiry not due until ${new Date(Date.parse(observed.endedAt) + wait).toISOString()}`,
@@ -182,6 +182,7 @@ export async function invokePhase({
     try {
       const audited = {
         plan: transport.plan,
+        projectOutput: transport.projectOutput,
         read: transport.read,
         send: (plan, key, signal) => {
           assert.equal(plan.serialized, planned.serialized)
@@ -227,7 +228,7 @@ export async function invokePhase({
     assert.equal(attempts, 1)
     assert.equal(sentSerialized, planned.serialized)
     cachePass(phase, result, endpoint.provider_name)
-    const expiryWait = { '1h': 3900000, '5m': 600000 }[manifest.configuration.cache.ttl]
+    const expiryWait = 3900000
     const summary = {
       phase,
       result: 'pass',
