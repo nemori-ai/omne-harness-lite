@@ -66,7 +66,7 @@ describe('independent six fixed Pro usage-scope bindings', () => {
       it(`${model} preserves actual accounts and withholds anchors after ${cancelled ? 'cancel' : 'complete'}`, async () => {
         const definition = openaiDefinitions.find(d => d.modelId === model)!
         const is56 = model.startsWith('openai/gpt-5.6-')
-        expect(definition.revision).toBe(is56 ? '7' : '5')
+        expect(definition.revision).toBe(is56 ? '8' : '6')
         expect(definition.implementation.revision).toBe('mp4-18')
         // Current official visible-input estimates are supplied for all six.
         // These controlled reader observations do not certify upstream token scope.
@@ -156,8 +156,8 @@ describe('independent six fixed Pro usage-scope bindings', () => {
             })
           }
           if (!cancelled) {
-            // Exact historical coordinates with a controlled meter reproduce an old
-            // reader observation; current factory does not publish this old binding.
+            // Deliberately stale coordinates are a negative fixture, not an old
+            // reader implementation. They cannot promote ambiguous Pro usage.
             const old: ModelDefinition = {
               ...definition,
               revision: is56 ? '4' : '1',
@@ -183,7 +183,10 @@ describe('independent six fixed Pro usage-scope bindings', () => {
               let oldNext = await oldReader.next()
               while (!oldNext.done) oldNext = await oldReader.next()
               await oldSent.response.stopped
-              expect(oldNext.value.readFacts.observedInput.kind).toBe('from_usage')
+              expect(oldNext.value.readFacts.observedInput).toEqual({
+                kind: 'unavailable',
+                reason: 'scope_unknown',
+              })
               accounts(oldNext.value.readFacts)
               const rejectedOld = await transport.plan(
                 {
