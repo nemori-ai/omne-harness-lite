@@ -271,7 +271,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const revision =
     finalBinding?.revision ??
     pro?.revision ??
-    (gpt6SolVisibleHistory ? '3' : encryptedReplay ? '5' : '4')
+    (gpt6SolVisibleHistory ? '3' : encryptedReplay ? '6' : '4')
   const implementationRevision =
     finalBinding?.implementationRevision ??
     (pro
@@ -279,7 +279,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       : gpt6SolVisibleHistory
         ? 'mp4-6'
         : encryptedReplay
-          ? 'mp4-11'
+          ? 'mp4-12'
           : 'mp4-5')
   if (
     (!gpt6VisibleHistory && !imageRule) ||
@@ -301,7 +301,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       (gpt6SolVisibleHistory
         ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
         : encryptedReplay
-          ? 'openai-gpt-5.6-o200k-base-complete-output-5'
+          ? 'openai-gpt-5.6-o200k-base-complete-output-6'
           : 'openai-gpt-5.6-o200k-base-4'),
     evidence:
       finalBinding?.evidence ??

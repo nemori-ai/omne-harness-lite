@@ -148,8 +148,8 @@ describe('Astra named patch rule, shared calculations and final visible projecti
     ])
       expect(patchImageTokens(w!, h!, 'high', 'astra-patch')).toBeUndefined()
     expect(patchImageTokens(9601, 3200, 'high', 'astra-patch')).toBeLessThanOrEqual(3000)
-    // The prior GPT-5.6 binding retains its declared unsupported source-dimension edge.
-    expect(patchImageTokens(65536, 32, 'original', 'gpt56-patch')).toBeUndefined()
+    // GPT-5.6 also fits oversized sources before checking processed patches.
+    expect(patchImageTokens(65536, 32, 'original', 'gpt56-patch')).toBe(2458)
   })
   it.each(['low', 'high', 'original', 'auto', undefined] as const)(
     'adds visual contribution once, omits base64 only in the meter copy: %s',
