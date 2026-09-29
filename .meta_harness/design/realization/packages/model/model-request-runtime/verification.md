@@ -318,3 +318,25 @@ U16-V6/V7须分别覆盖原selected reply与同call较早dispatch的无reply响�
 | F18-V7：公开文档及完整组合 | runtime/runner/示例README与README_ZH的来源消费literal真实编译执行；noRun demo明确不能假Run启动failure经过；真实受控withRun完整P5路径与原13方法/noRun/U3回归分项报。source业务结果与技术资源不串进持久Schema，记录无新校准/关联sidecar | 各实现owner；本次设计检查不能替代这些运行，也不声称生产G28关闭 |
 
 覆盖缺口：F18-G1主线采用；F18-G2实际execution/binding/fence接线与原source原壳核对；F18-G3外置生产终结/等待源。仅模型侧边界属于本补充，未知责任、原批保存、同Run跨尝试经过与既有错误优先级都不得因修复而弱化。
+
+## H19 多响应输出事实交接候选
+
+对应 [v19 revision 1](v19-output-history-design.md)，**candidate，未技术采用，新增 bindings 0**。
+以下全为待执行义务；现有单锚／单 φ、形式模型与源码存在不证明这些场景通过。
+
+| ID／条款 | 必须实际运行的正向及反例 | owner／证据边界 |
+|---|---|---|
+| H19-V1：MR9 S-43；RT10 S-78/S-79 | 真实多旧响应组因 prefix_changed 或 basis_changed 进入 full，各组及非组实际块完整且只覆盖一次；收到新准确 I 后下轮 marginal，旧组留在来源中但 O 不重复加入。把 P 内 history 全加 O、把 history 丢空、按组再数可见文本的负控须失败 | runtime＋transport；真最终 wire、贡献、实际 observation 对照，受控 usage 不冒上游精度认证 |
+| H19-V2：MR9 S-43/S-44；RT10 S-79 | requestInput unavailable/observedInput unavailable/outputGroup known/已知 O 仍保留原全部组与 origin；缺必填序列、缺原 binding、非法索引/未知字段、来源与 known basis 冲突拒 malformed。外部 mutation 不改变 owned plan；可选 actual model/provider 缺席不补当前值 | 公共 copy 两端；原精确数、全部块、顺序和缺席逐值比对 |
+| H19-V3：RT10 S-77/S-78/S-80 | 较早合法 I＋中间 input usage 缺失但 Oknown 的响应＋新增用户输入；前者仍作锚，中间组真实交 δ。连续两轮缺 I 也不漏组，较新准确 I 替换后旧 O 不再加。same-call retry 没有选入输出时空 mapping 不凭 O 添内容 | runtime reader＋transport；必须穿真实 source reader 和服务 plan，不能只调用 meter fixture |
+| H19-V4：RT10 S-77/S-80；MR9 S-45 | 同一 owned prefix 的原 D/M/R 与实际 message.response；两合法不同候选按所选因果链而非物理 arrival 选源。跨 tenant/session/log/Run/分支、错 locator、错原 attempt/response、unknown batch、已停 generation，均不得发布半份 history 或发请求 | runtime＋原宿主/SL3；真实来源与受控合法 Run 前提分开，不声称完整生产 Run 已交付 |
+| H19-V5：MR9 S-43；RT10 S-79 | history 内同组重复、跨组同目标、锚/history 同目标异 usage/块/映射拒绝；不同原组相同文本或 digest 不去重；partial、合法删选/重排/重复源块不冒完整 O。窄映射无依据须不可判，完整输入不能被过滤 | runtime/transport；来源是否合法与计量是否适用分别断言，共享 wire unit 不粗暴按 message 拒绝 |
+| H19-V6：RT10 S-54/S-57/S-79 | 不提供 tenant/session/Run/ResponseId 的独立 public 计划与 invoke，显式合法原结果事实可运行；全部 PlanInput 工厂/wrapper/预检迁移，缺字段不可调用/运行拒绝，真实续轮不得机械补 []；旧无参重载不保留 | runtime/所有消费者；严格声明、仓库外制品及中英 literal 实际编译执行 |
+| H19-V7：RT10 S-74/S-77/S-78 | 当前 meter 不认识原 output projectionRevision、同模型不同 basis、缺实际 provider/mode 时不冒兼容；full/φ/δ 覆盖互斥，共享 unit 或跨 P/G/N 组不能整 O 拆份。reasoning 不再加，余量只一次；完整 bytes/图片/tools 仍检查；稳定 P tokenizer 调用为 0 | transport；模型窄依据独立验证，不能从有 profile 名推出成立 |
+| H19-V8：RT10 S-28～S-30/S-80 | openCall 后有新合法来源或实际 attempt/输入变化，dispatch/dispatchAgain 用各自同次 prefix/target 重 plan；来源快照形成后更晚分支追加、贡献热换不得混入旧计划；sourceUnavailable 保留原因，必要事实不可解释仍 unavailable | runtime＋host＋固定 lease；观测实际 HTTP/原 D、reader 输入和拒绝后的零新锚，校准不触发自动重试 |
+| H19-V9：MR9 S-45；RT10 S-81 | 真 `[M,R]` append 回执丢失，旧 prefix 不发布未知组；认回原批后重读导出。关闭/冷恢复后得到同原 facts，日志字节与 payload 不写回，无新 sidecar/表；新 meter 不重算原 I/G，未知在途 owner 仍留存 | runtime/SL3/恢复宿主；两条交错实际运行，邻接 M/R fixture 或内存锁不证明物理同批 |
+| H19-V10：RT10 S-79/S-80/S-83 | 诊断可说明锚有无、组数量、mode/回退/依据/计量不可判，但不暴露旧块/密文/原参数秘密；公开 README/README_ZH 说明首次 []、续轮来源、缺 I 保 G、full 后重新校准及拒绝范围 | 各包/示例；检查器仅证结构，不替 runtime 或模型认证 |
+
+覆盖缺口：H19-G1 主线联合审查和采用；H19-G2 runtime/transport/所有消费者的实现及本表证据；
+H19-G3 宿主提供真实授权选择关系（完整 compaction/Run 仍外置）；H19-G4 固定模型提供者对原组的映射依据。
+四者不相互冒充。只补当前 provider 交接，不建正式 acceptance app，不改变原 batch、十三操作或原失败优先级。
