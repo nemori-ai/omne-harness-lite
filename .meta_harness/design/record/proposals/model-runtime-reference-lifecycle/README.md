@@ -2,7 +2,7 @@
 
 本包比较怎样在 **model runtime 纵线内**兑现持久调用引用、在途重新等待、完成结果重取和消费者释放不取消执行。作者推荐候选 A：扩展现有模型服务，复用执行 owner、调用容器和原日志；这只是待主线裁定的推荐。
 
-- 当前状态：候选初稿，未评审、未接受；不是实现依据，也没有新契约发布。
+- 当前状态：A 方向已独立评审；首份 RT11/MR10/MS7/CA3 成组候选已评出需修项，正按 [revision 4](technical-choices-r4.md) 修订。全部未接受，不是实现依据。下文初稿过程段按当时状态读取。
 - 选择对象：调用定位与消费资源的责任放在哪里，怎样接续既有执行与耐久事实。
 - 范围：模型能力自身和必要的身份、归属、授权端口；**不交付完整 Session、Run、Agent Runtime，也不创建三领域通用 registry 平台**。
 - 基线：Git `ce5f2c6b0f0f381b7a0cc1a0256a836b7aa59996`；PF-013 rev16、PF-012 rev21、PF-015 rev20；RT10／MR9，runtime realization v19、runner v8。产品新要求不自动接受后继技术设计。
@@ -43,3 +43,7 @@
 ### 当前交接点：三轮独立架构审查后
 
 当前作者推荐是 [revision 3](technical-choices-r3.md)，受审增量及范围见 [review.md](review.md)：A 边界无阻断，B1 日志权威已关闭；N1 成本、N2 状态分离方向明确，精确规格及 N3 跨提交协议/验证仍未完成。r1/r2 保留为已发生的候选与修订来源，不是当前推荐。尚无接受决定，不供实现；主线可据完整材料判断是否释放精确 spec 起草。
+
+### 当前交接点：首份契约批次之后
+
+RT11/MR10/MS7/CA3 candidate 提交 `3f597c18` 已成稿，SL3 保持。两位独立 reviewer 对精确字节发现批内交界问题，见 [首轮成组评审](contract-review-r1.md)；[有限运行证据](../../evidence/2026-09-29-formal-model-reference-candidate/README.md) 不代替语义闭合。当前修订方向为 [revision 4](technical-choices-r4.md)，定点修正原回复与消息派生、live 复接、创建后零发送终结及其表达。r3 未变部分继续作为候选依据，修订仍待新契约快照复评；没有任何实现放行。
