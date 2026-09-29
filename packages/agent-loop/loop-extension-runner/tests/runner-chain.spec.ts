@@ -181,3 +181,28 @@ test.each([
     ).toEqual({ failure: 'unavailable' })
   }),
 )
+
+test('newly published current bodies do not replace the immutable version selected by the actual manifest', async () =>
+  withHost(async host => {
+    expect(
+      await host.registry.fill(session, host.evaluation, 'evaluation_one', host.order),
+    ).toHaveProperty('snapshots')
+    expect(await host.publishNewerBodies()).toHaveProperty('revision', '2')
+    const chain = await readRunnerChain({ session, binding: host.binding, sources: host.sources })
+    expect(chain).toMatchObject([
+      {
+        definition: {
+          name: 'example:b',
+          position: 'before_model_call',
+          implementation: { builtinName: 'example:b' },
+        },
+      },
+      {
+        definition: {
+          name: 'example:a',
+          position: 'before_model_call',
+          implementation: { builtinName: 'example:a' },
+        },
+      },
+    ])
+  }))

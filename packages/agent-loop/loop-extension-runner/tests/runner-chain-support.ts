@@ -242,6 +242,36 @@ export async function chainHost() {
   })
   return {
     registry,
+    async publishNewerBodies() {
+      return publishLocalInputs(deps, {
+        expectedRevision: publication.revision,
+        definitions: extensions.map(asset => ({
+          ...asset,
+          versions: [
+            ...asset.versions,
+            {
+              number: 2,
+              content: {
+                category: 'loop_extension',
+                extension: {
+                  name: asset.capability.name,
+                  position: 'after_persist_message',
+                  power: 'observe',
+                  implementation: { kind: 'builtin', builtinName: 'example:new-generation' },
+                },
+              },
+              publishedAt: '2026-09-29T01:00:00Z',
+            },
+          ],
+        })),
+        scopes: [
+          {
+            holder: { layer: 'factory' },
+            holdings: input.holdings.filter(item => item.capability.category === 'loop_extension'),
+          },
+        ],
+      })
+    },
     setInput(value: NonConnectorEvaluationInput) {
       currentInput = value
     },
