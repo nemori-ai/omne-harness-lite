@@ -29,9 +29,9 @@ const image = readFileSync(
   ),
 ).toString('base64')
 
-function oversizedImage() {
+function paddedImage(bytes: number) {
   const original = Buffer.from(image, 'base64')
-  const data = Buffer.alloc(4194305 - original.length - 12, 65)
+  const data = Buffer.alloc(bytes - original.length - 12, 65)
   data.set(Buffer.from('Comment\0'))
   const header = Buffer.alloc(8)
   header.writeUInt32BE(data.length)
@@ -46,7 +46,7 @@ function oversizedImage() {
     original.subarray(-12),
   ]).toString('base64')
 }
-function user(index: number, oversized = false) {
+function user(index: number, bytes?: number) {
   const judged = judgeMessage({
     type: 'user',
     id: `sol-luna-images-user-${index}`,
@@ -62,7 +62,7 @@ function user(index: number, oversized = false) {
         id: `image-${index}`,
         kind: 'image',
         mediaType: 'image/png',
-        data: { inline: oversized ? oversizedImage() : image },
+        data: { inline: bytes === undefined ? image : paddedImage(bytes) },
         visibility: { toHuman: true, toModel: true },
       },
     ],
@@ -71,8 +71,13 @@ function user(index: number, oversized = false) {
   return judged.ok
 }
 describe.each(models)('%s images through authorized service', model => {
-  it.each(['positive', 'tokens', 'bytes'] as const)('actual service %s', async mode => {
-    const overLimit = mode !== 'positive'
+  const modes =
+    model === 'openai/gpt-6-sol'
+      ? (['positive', 'tokens', 'bytes', 'boundary'] as const)
+      : (['positive', 'tokens', 'bytes'] as const)
+  it.each(modes)('actual service %s', async mode => {
+    const overLimit = mode === 'tokens' || mode === 'bytes'
+    const rounds = overLimit || mode === 'boundary' ? 1 : 3
     const pro = model.endsWith('-pro')
     const definition = openaiDefinitions.find(value => value.modelId === model)!
     const base = await callDeployment('openai-sol-luna-images-completion-service')
@@ -106,6 +111,25 @@ describe.each(models)('%s images through authorized service', model => {
       officialManifest: { ordinal: 1, entries: [profile.ok] },
       modelRequest: {
         ...base.modelRequest,
+        // This byte-boundary scenario exercises a large durable history. Keep a
+        // bounded operational settlement window independent of the 4 MiB gate.
+        settlement: {
+          ...base.modelRequest.settlement,
+          contention: {
+            ...base.modelRequest.settlement.contention,
+            limits: {
+              ...base.modelRequest.settlement.contention.limits,
+              retainedBytes:
+                mode === 'boundary'
+                  ? 16 * 1024 * 1024
+                  : base.modelRequest.settlement.contention.limits.retainedBytes,
+              elapsedMs:
+                mode === 'boundary'
+                  ? 60000
+                  : base.modelRequest.settlement.contention.limits.elapsedMs,
+            },
+          },
+        },
         tokenMargin: { multiplier: 1.1, reserveTokens: mode === 'tokens' ? 1000000 : 256 },
         transport: {
           ...base.modelRequest.transport,
@@ -128,10 +152,15 @@ describe.each(models)('%s images through authorized service', model => {
       'OpenAI',
     )
     tls.setMode('reasoning')
+    const events: unknown[] = []
     const app = createAcceptanceApplication(config, {
       stage: 'modelRequest',
       developmentTransport: tls.developmentTransport,
-      diagnostics: { record() {} },
+      diagnostics: {
+        record(event) {
+          events.push(event)
+        },
+      },
     })
     const host = createDemoCallHost()
     let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
@@ -153,10 +182,10 @@ describe.each(models)('%s images through authorized service', model => {
         })),
       ).toEqual({ stored: true })
       expect(await app.selectModel(who, session, model)).toEqual({ selected: model })
-      for (let index = 1; index <= (overLimit ? 1 : 3); index++) {
+      for (let index = 1; index <= rounds; index++) {
         const prior = { full, delta }
         const sent = await app.startServiceCall(who, session, {
-          user: user(index, mode === 'bytes'),
+          user: user(index, mode === 'bytes' ? 4194305 : mode === 'boundary' ? 4194304 : undefined),
           parameters: {
             reasoningEffort: 'low',
             maxOutputTokens: 1024,
@@ -172,7 +201,16 @@ describe.each(models)('%s images through authorized service', model => {
           continue
         }
         if (!('result' in sent) || !('replyPending' in sent.result))
-          throw Error(JSON.stringify(sent))
+          throw Error(
+            JSON.stringify({
+              sent,
+              httpRequests: tls.requests.length,
+              tlsFailures: tls.failures,
+              full,
+              delta,
+              events,
+            }),
+          )
         const response = sent.result.replyPending
         expect(response.inputCalibration.observedInput).toMatchObject(
           pro ? { kind: 'unavailable', reason: 'scope_unknown' } : { kind: 'from_usage' },
@@ -188,8 +226,8 @@ describe.each(models)('%s images through authorized service', model => {
           expect(delta - prior.delta).toBeGreaterThan(0)
         }
       }
-      expect(tls.requests).toHaveLength(overLimit ? 0 : 3)
-      if (!overLimit)
+      expect(tls.requests).toHaveLength(overLimit ? 0 : rounds)
+      if (mode === 'positive')
         expect(tls.requests[1]?.body).toMatchObject({
           model,
           messages: [
@@ -210,6 +248,21 @@ describe.each(models)('%s images through authorized service', model => {
             },
           ],
         })
+      if (mode === 'boundary') {
+        const expectedImage = paddedImage(4194304)
+        expect(Buffer.from(expectedImage, 'base64')).toHaveLength(4194304)
+        expect(tls.requests[0]?.body).toMatchObject({
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Visible turn 1' },
+                { type: 'image_url', image_url: { url: `data:image/png;base64,${expectedImage}` } },
+              ],
+            },
+          ],
+        })
+      }
       for (const sent of tls.requests) expect(sent.body).toMatchObject({ model })
       for (const sent of tls.requests) {
         expect(sent.body).toMatchObject({ reasoning: { effort: 'low' } })

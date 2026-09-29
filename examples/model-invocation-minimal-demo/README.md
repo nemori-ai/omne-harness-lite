@@ -183,6 +183,32 @@ The dedicated `tests/openai-pro-images-service.spec.ts` check exercises the thre
 
 `tests/zai-prime-effort-service.spec.ts` checks Prime low/high/max through three persisted local TLS text turns with the declared 5m/last_message cache configuration, plus zero-HTTP excess-margin refusal. Run `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/zai-prime-effort-service.spec.ts --maxWorkers=1`. This does not certify real effort accuracy or cache retention; historical thinking remains outside this official meter’s current domain.
 
-`tests/openai-sol-luna-images-service.spec.ts` covers Sol/Luna and their Pro variants at `mp4-15`: three durable turns preserve prior images, while base models use valid response calibration and Pro remains full with `scope_unknown`. Exact 4 MiB and configured token-margin failures send zero HTTP requests. Run `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-sol-luna-images-service.spec.ts --maxWorkers=1`. Images enter through the existing programmatic user-message API; this adds no CLI attachment syntax. These controlled responses verify composition, not private preprocessing or live model certification.
+`tests/openai-sol-luna-images-service.spec.ts` covers Sol/Luna and their Pro variants at `mp4-15`: three durable turns preserve prior images, while base models use valid response calibration and Pro remains full with `scope_unknown`. The exact 4 MiB PNG scenario requires unchanged bytes through the service transport; 4 MiB + 1 byte and configured token-margin excesses require zero HTTP requests. This large-history test explicitly allows 16 MiB of retained settlement data and a 60 s settlement window. The demo deployment still defaults to 1 MiB / 5 s: programmatic image consumers must configure `modelRequest.settlement.contention.limits` for their retained session prefix. Model image limits do not override that independent operational budget. Run `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-sol-luna-images-service.spec.ts --maxWorkers=1`. Images enter through the existing programmatic user-message API; this adds no CLI attachment syntax. These controlled responses verify composition, not private preprocessing or live model certification.
+
+Programmatic deployment override using the existing configuration API (choose finite budgets for your own workload):
+
+```ts
+// config is the result of createDemoConfig(...).
+if (!config.modelRequest) throw new Error('model request deployment required')
+const modelRequest = config.modelRequest
+const imageConfig = {
+  ...config,
+  modelRequest: {
+    ...modelRequest,
+    settlement: {
+      ...modelRequest.settlement,
+      contention: {
+        ...modelRequest.settlement.contention,
+        limits: {
+          ...modelRequest.settlement.contention.limits,
+          retainedBytes: 16 * 1024 * 1024,
+          elapsedMs: 60_000,
+        },
+      },
+    },
+  },
+}
+const app = createAcceptanceApplication(imageConfig, { stage: 'modelRequest' })
+```
 
 `tests/openai-output-history-service.spec.ts` checks three GPT-5.6 non-Pro models through three durable local TLS turns: a middle reply has known O and unknown input usage; the next turn either reuses an older input anchor or changes its envelope and fully measures both retained groups. Run `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-output-history-service.spec.ts --maxWorkers=1`. Actual usage/cost and ciphertext stay unchanged; O+0 is an estimate, not an upstream accounting identity.
