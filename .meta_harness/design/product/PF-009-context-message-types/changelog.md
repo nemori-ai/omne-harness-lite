@@ -1,3 +1,7 @@
+## rev 9 — 2026-09-29 — 系统设定与逐请求输入
+
+与 PF-004 / PF-010 的能力数据动态采用对齐：SystemMessage 不再描述为 Agent runtime 实例期恒定；它表达本次请求的当前设定，与偶发提醒继续分开。消息类别、日志收录与压缩边界不变。依据 [装配交流 INT-007](../PF-004-agent-definition-and-assembly/interviews/2026-09-29-agent-runtime-assembly.md#int-007数据实现与服务解耦)，未扩张既有接受或实现状态。
+
 # PF-009 变更历史
 
 记录**产品设计本身**的演进：哪一版改了什么含义、为什么改、下游要复核什么。

@@ -1,6 +1,6 @@
 # PF-010：上下文管理与组装
 
-- 修订：rev 6，2026-09-23 · [变更历史](changelog.md)
+- 修订：rev 7，2026-09-29 · [变更历史](changelog.md)
 - 状态：rev 5 已接受为正式版本；**rev 6 待产品负责人确认**。无未决项。
 
 ## 一、背景与问题
@@ -51,7 +51,7 @@
 | **怎么通信**（拉取与推送各用什么协议） | **技术选型。**产品只定「有两个不同的动作」，怎么实现归技术设计 |
 | 一共有哪几种消息、块上那两个标注 | 归 [PF-009](../PF-009-context-message-types/README.md)。本 topic **用**它们，不重定 |
 | 组装站在方程的哪一步、它改不改日志 | 归 [PF-012](../PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)。本 topic 不重定 |
-| 系统提示词的**成分**与它在哪一刻定死 | 归 [PF-004](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)。本 topic 只说**它是单独一块** |
+| 系统提示词的组合规则与逐请求数据 | 归 [PF-004](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)。本 topic 只说**它是单独一块** |
 | **给语音层的那一份组装** | **本版不做。**产品负责人已明确：语音层现在不做设计。[它将来会存在](../PF-009-context-message-types/interviews/2026-09-18-openai-gpt-live.md)，但不在这一版 |
 
 ## 三、用户与场景
@@ -109,7 +109,7 @@
 
 | 块 | 它是什么 | 什么时候变 |
 |---|---|---|
-| **系统提示词** | 你是谁、你有什么能用 | **[成分在装配那一刻就定死了](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)**——[装配清单](../PF-004-agent-definition-and-assembly/design.md#装配清单)不变，它就不变 |
+| **系统提示词** | 你是谁、你有什么能用 | [组合规则与逐请求数据分开](../PF-004-agent-definition-and-assembly/design.md#54-为什么系统提示词必须落在第三列)：每次请求使用当前合法能力描述与 schema；能力数据更新不因此重建 Agent runtime，压缩不改写这一块 |
 | **会话上下文** | 这场对话到目前为止 | **每一轮都在长** |
 
 **系统提示词本版只含文本。**它[不落会话日志](../PF-009-context-message-types/design.md#消息)、每次组装时现算，

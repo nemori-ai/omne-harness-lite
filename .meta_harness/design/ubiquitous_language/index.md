@@ -73,6 +73,8 @@
 | [UL-legal-target-set](terms/scope-and-resolution.md#ul-legal-target-set--合法目标集合--legal-target-set) | 合法目标集合 | Legal Target Set | 能切到的路由名：每个名字取范围链上胜出的那一条，胜出行在册 ∩ 范围允许 ∩ 兼容模态投影，**每次现算、只收不放**；切到它里面的不得拒绝 |
 | [UL-model-display-list](terms/scope-and-resolution.md#ul-model-display-list--模型展示列表--model-display-list) | 模型展示列表 | Model Display List | **合法目标 ∪ 当前选中**，外加被盖住的同名条目（只作标注、选不了）；一个路由名能选的只有胜出的那一行；选中那条用不上也留着并标明原因 |
 | [UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) | 运行时 context | Runtime Context | **一块块就地更新的数据**，在 agent loop 内被**模型/工具/拓展点**消费；旧说法 ~~会话上下文感知域~~ |
+| [UL-runtime-context-registration](terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration) | 运行时 context 注册 | Runtime Context Registration | 会话纳入一块 context 的来源、配置与消费者声明 |
+| [UL-session-settings](terms/scope-and-resolution.md#ul-session-settings--会话级设置--session-settings) | 会话级设置 | Session Settings | 会话自有取值与继承声明，持久化不扩大作用域 |
 | [UL-meta-runtime-context](terms/scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context) | 元 runtime context | Meta Runtime Context | **每个会话必需携带并持续更新的那些**，当前**十四项**；与 meta 能力同构 |
 | [UL-collaboration-scope-context](terms/scope-and-resolution.md#ul-collaboration-scope-context--协作范围-context--collaboration-scope-context) | 协作范围 context | Collaboration-Scope Context | 我在哪个组织、什么租户身份、什么角色 |
 | [UL-personal-context](terms/scope-and-resolution.md#ul-personal-context--个人-context--personal-context) | 个人 context | Personal Context | 跟着人走的偏好，不参与任何层的合成 |
@@ -100,12 +102,13 @@
 | [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 斜杠命令可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 打包分发若干资产的单元，**不是 Cordis plugin** |
 | [UL-agent-definition](terms/capabilities-and-composition.md#ul-agent-definition--agent-定义--agent-definition) | Agent 定义 | Agent Definition | 一个 agent 的静态定义，不是会话也不是实例 |
+| [UL-capability-auto-inheritance](terms/capabilities-and-composition.md#ul-capability-auto-inheritance--能力自动继承--capability-auto-inheritance) | 能力自动继承 | Capability Auto-Inheritance | Agent Definition 声明是否继承额外 Skill、Tool、MCP，来源范围与排除项 |
 | [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
 | [UL-master-category](terms/capabilities-and-composition.md#ul-master-category--master-类目--master-category) | master 类目 | Master Category | master 主要干什么的，五类；**只出厂加**，**不是会话类型** |
 | [UL-asset-version](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | 资产版本 | Asset Version | 一个资产某一次发布定下的那份内容，已发布即不可变 |
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
-| [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 能发起哪些动作，**只由构成决定**；构成变小时下一次运行起重新装配 |
+| [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
 | [UL-session-slash-command-set](terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) | 会话斜杠命令集 | Session Slash-Command Set | 一个会话此刻认得的斜杠命令：装配时取此人有权用的，**不在里面的就是不存在**；资产增删禁用不让它自己变，**人发对应的 reload 才重填那一张注册表**，权限收回即时去掉 |
 | [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口，**必定常驻、不可禁用** |
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
@@ -149,7 +152,7 @@
 | [UL-sharing-invitation](terms/circulation-and-entitlement.md#ul-sharing-invitation--分享邀请--sharing-invitation) | 分享邀请 | Sharing Invitation | 分享发起后、接收方确认前悬着的那一份邀约；**不是加入组织的邀请** |
 | [UL-sharing-relationship](terms/circulation-and-entitlement.md#ul-sharing-relationship--分享关系--sharing-relationship) | 分享关系 | Sharing Relationship | 一次分享立起来的那一段：待确认 → 分享中 → 结束，**结束不复活**，再分享是新的一段 |
 | [UL-asset-removal](terms/circulation-and-entitlement.md#ul-asset-removal--资产移除--asset-removal) | 资产移除 | Asset Removal | 不再持有，配的值随之消失；**agent 不知道有这回事** |
-| [UL-asset-disable](terms/circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable) | 资产禁用 | Asset Disable | 每份持有资产上的一项布尔设置：为真则**装配时不可见**、配置原样保留；**任一层为真即为真** |
+| [UL-asset-disable](terms/circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable) | 资产禁用 | Asset Disable | 每份持有资产上的一项布尔设置：为真则过滤当前候选；已知能力保留不可用身份，配置原样保留；**任一层为真即为真** |
 
 ## [Agent 运行时闭环](terms/agent-runtime-loop.md)
 
@@ -163,7 +166,9 @@
 | [UL-child-session](terms/agent-runtime-loop.md#ul-child-session--子会话--child-session) | 子会话 | Child Session | `delegate`/`spawn` 出的子 agent 所在的会话；**不继承历史，spawn 不是 fork** |
 | [UL-session-archival](terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) | 会话归档 | Session Archival | **唯一那个「协作到此为止」的锚点**；**租户手动或到期自动**；**本身可撤销，连带的三件事不可逆** |
 | [UL-session-type](terms/agent-runtime-loop.md#ul-session-type--会话类型--session-type) | 会话类型 | Session Type | 这个会话主要干什么的，**由 AgentDefinition 算出来**；**不是闸门** |
+| [UL-session-execution-type](terms/agent-runtime-loop.md#ul-session-execution-type--会话执行类型--session-execution-type) | 会话执行类型 | Session Execution Type | 决定会话必需能力与 loop extensions 的执行职责分类 |
 | [UL-session-run-mode](terms/agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) | 会话运行模式 | Session Run Mode | 「本该问人」那一刻怎么办：`never` / `auto_permission` / `bypass-permissions`；**别与执行环境那维的 `auto_place` 混** |
+| [UL-session-collaboration-mode](terms/agent-runtime-loop.md#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode) | 会话协作模式 | Session Collaboration Mode | co-work 协作共创／auto-drive 目标导向自驱；运行期可切换，与权限及执行环境正交 |
 | [UL-run](terms/agent-runtime-loop.md#ul-run--运行--run) | 运行 | Run | 一次逻辑执行请求及其结果；**有没人承接的输入且无未终结运行就开始，落终态才结束**；成本与失败的归属单位。**未终结不等于有协程活着** |
 | [UL-trigger](terms/agent-runtime-loop.md#ul-trigger--触发--trigger) | 触发 | Trigger | **让待处理消息队列从空变非空的那件事**，不必是人说了一句话 |
 | [UL-pending-message-queue](terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue) | 待处理消息队列 | Pending Message Queue | 日志里还没被 loop 取走的那些消息，**是投影不是另一份存储** |
@@ -173,6 +178,7 @@
 | [UL-run-terminal-state](terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state) | 运行终态 | Run Terminal State | **恰有三种**，只从一个出口落账；**等人不是终态** |
 | [UL-agent-loop](terms/agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) | Agent Loop | Agent Loop | 推进一次运行的那个**纯函数**；**被求值的那个，不是求值它的那个** |
 | [UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | agent runtime | Agent Runtime | **求值 loop 的那个协程**；全系统**唯一的 event loop**，不持有状态 |
+| [UL-runtime-handle](terms/agent-runtime-loop.md#ul-runtime-handle--运行时句柄--runtime-handle) | 运行时句柄 | Runtime Handle | 访问、等待或控制执行的引用，释放不取消执行 |
 | [UL-agent-step](terms/agent-runtime-loop.md#ul-agent-step--agent-的一步--agent-step) | agent 的一步 | Agent Step | loop 转一圈；**一步之内至多一次模型调用** |
 | [UL-side-question](terms/agent-runtime-loop.md#ul-side-question--旁路提问--side-question) | 旁路提问 | Side Question | 趁 agent 干活顺口问的一句，**不属于任何 Run**、问答不进日志，钱归会话 |
 | [UL-current-conditions](terms/agent-runtime-loop.md#ul-current-conditions--当下条件--current-conditions) | 当下条件 | Current Conditions | 日志之外、此刻才成立的那些，**不落日志** |
@@ -182,11 +188,11 @@
 | [UL-extension-point-pass](terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass) | 一次经过 | Extension-Point Pass | loop 走到一个拓展点的一次；**同一位置同一次经过只跑一轮** |
 | [UL-wait-primitive](terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) | 等待原语 | Wait Primitive | 协程「停下来等外面应答」的那一种办法，主流程与拓展件共用；协程没了靠卡片与答复活着 |
 | [UL-replay](terms/agent-runtime-loop.md#ul-replay--回放--replay) | 回放 | Replay | 新尝试把挂起中的拓展件按日志重跑到挂起点；不花第二遍钱、不出第二张卡 |
-| [UL-agent-assembly](terms/agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly) | Agent 装配 | Agent Assembly | 把定义在某作用域下**求值成一份清单**的那个动作 |
+| [UL-agent-assembly](terms/agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly) | Agent 装配 | Agent Assembly | 按会话类型要求、定义与作用域输入**求值成一份清单**的动作 |
 | [UL-assembly-manifest](terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | 装配清单 | Assembly Manifest | 「当时那个 agent 是什么样」的唯一答案；**是数据，可跨尝试复用** |
 | [UL-runtime-injection](terms/agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection) | 运行时注入 | Runtime Injection | 外面给的，换了不用重建，**不是 DI** |
 | [UL-incremental-loading](terms/agent-runtime-loop.md#ul-incremental-loading--增量装载--incremental-loading) | 增量装载 | Incremental Loading | 运行中加一个可选能力，清单上追加一条 |
-| [UL-cancellation-follows-host](terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) | 取消跟着宿主走 | Cancellation Follows Host | **宿主没了它就没了**；工具执行前后台都挂在会话上，**转后台不换宿主**；回收 agent runtime 不是取消 |
+| [UL-cancellation-follows-host](terms/agent-runtime-loop.md#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host) | 取消跟着宿主走 | Cancellation Follows Host | 三类 runtime 归会话；按 Session／Run／调用目标取消，释放 Agent runtime 句柄不取消执行 |
 | [UL-graceful-cancellation](terms/agent-runtime-loop.md#ul-graceful-cancellation--优雅取消--graceful-cancellation) | 优雅取消 | Graceful Cancellation | 显式动作：先不接新活，等停当，再释放（旧名**实例退役**） |
 | [UL-forced-stop](terms/agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop) | 强制停止 | Forced Stop | 立刻撤销执行资格，**外部效果收不回来** |
 | [UL-job-session](terms/agent-runtime-loop.md#ul-job-session--作业会话--job-session) | 作业会话 | Job Session | 为一个需要 agent 执行的定时作业新建并专属承接其执行部分的会话子类型；沿用会话身份与生命周期，强制附加面向该作业的成果提交或上报工具，以及检查其目标完成情况的 Loop 拓展。 |
@@ -336,7 +342,7 @@
 | [UL-context-assembly](terms/record-and-context.md#ul-context-assembly--上下文组装--context-assembly) | 上下文组装 | Context Assembly | 从日志拼出给某一方看的那份，**只读不写** |
 | [UL-user-facing-context](terms/record-and-context.md#ul-user-facing-context--给用户看的上下文--user-facing-context) | 给用户看的上下文 | User-Facing Context | 两个动作，**方向相反、锚点不同** |
 | [UL-model-facing-context](terms/record-and-context.md#ul-model-facing-context--给模型看的上下文--model-facing-context) | 给模型看的上下文 | Model-Facing Context | 两块分别组装，**只有第二块压得动** |
-| [UL-system-prompt](terms/record-and-context.md#ul-system-prompt--系统提示词--system-prompt) | 系统提示词 | System Prompt | 实例存续期内恒定，**压缩碰不到它**；不落日志，本版只含文本 |
+| [UL-system-prompt](terms/record-and-context.md#ul-system-prompt--系统提示词--system-prompt) | 系统提示词 | System Prompt | 按当前合法输入逐请求生成，**压缩碰不到它**；不落日志，本版只含文本 |
 | [UL-prefix-consistency](terms/record-and-context.md#ul-prefix-consistency--前缀一致--prefix-consistency) | 前缀一致 | Prefix Consistency | 开头那段与上一次逐字相同，**尽可能最大化** |
 | [UL-context-compaction](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction) | 上下文压缩 | Context Compaction | **三个目标两两相冲**；能做两件、不能做两件 |
 | [UL-compaction-record](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record) | 压缩记录 | Compaction Record | `CompactionMessage`；**边界不是一条截断线** |

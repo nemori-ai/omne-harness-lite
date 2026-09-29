@@ -16,47 +16,47 @@
 - **宿主**：—
 - **身份**：登录标识，整个部署内唯一，注册时确定
 - **生灭**：（不存在）→ 未激活（标识已占用）→ 已激活（前置：个人组织已存在；不可逆）。未激活那一条**有留存期限**（按部署配置）：期限内同标识同凭据重来认回的是它，**到期记录清除、登录标识释放，连同为它建的[个人组织](#ul-organization--组织)与[第一个租户](#ul-tenant--租户)一起消失**，回到（不存在）。**已激活之后本版无注销、终止、恢复**
-- **依据**：[PF-001 §4 账号](../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)（rev 22）；[PF-001 §4 未激活的账号记录不会永久占着那个名字](../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)（rev 22）；[PF-001 flows §3.1](../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号)（rev 22）
+- **依据**：[PF-001 §4 账号](../product/PF-001-identity-scope-and-agent-constraints/design.md#账号)（rev 24）；[PF-001 §4 未激活的账号记录不会永久占着那个名字](../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)（rev 24）；[PF-001 flows §3.1](../product/PF-001-identity-scope-and-agent-constraints/flows.md#31-账号)（rev 24）
 
 ### UL-login-state · 登录状态
 
 - **宿主**：[账号](#ul-account--账号)——它是以这个账号的身份通过鉴权的一次登录。账号本版无注销，「账号没了它怎么办」正文无从谈起
 - **身份**：正文未述靠什么标识；只写明彼此分得出——重新登录是新的一个，多处登录各是一个，退出只失效被退出的那一个。**属于签发它的那个[治理中心](#ul-governance-center--治理中心)**，那是它身份的一部分（[PF-016 §4 治理中心](../product/PF-016-cli-tui-delivery-surface/design.md#治理中心)，rev 10）。**同账号的有效登录状态能被逐个列出（每一个带签发时间）并逐个指定撤销**，可分辨到这个程度
 - **生灭**：（无）→ 有效（登录；前置：账号已激活、凭据正确）→ 已失效（退出、被撤销、达到最长或空闲时限，或本账号主动更换凭据成功；不可逆，重启不重算期限，恢复不能使其重新可用）。独立撤销动作仍逐个
-- **依据**：[PF-001 §4 登录状态](../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)（rev 22）；[PF-001 flows §3.2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态)（rev 22）；[PF-001 flows §1.2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#12-登录)（rev 22）
+- **依据**：[PF-001 §4 登录状态](../product/PF-001-identity-scope-and-agent-constraints/design.md#登录状态)（rev 24）；[PF-001 flows §3.2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#32-登录状态)（rev 24）；[PF-001 flows §1.2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#12-登录)（rev 24）
 
 ### UL-organization · 组织
 
 - **宿主**：—
 - **身份**：正文未述
 - **生灭**：由已激活账号创建，创建者同时成为超管、其租户同时产生，一次提交，不存在无管理员的中间态 → 存续；**团队组织本版无终结路径**（不要求解散）；**个人组织唯一的消失路径是随未激活[账号](#ul-account--账号)到期清除**——它在注册第 2 步随账号记录一并建起，账号记录到期被清时随之消失
-- **依据**：[PF-001 §4 组织](../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 22）；[PF-001 §4 个人组织](../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织)（rev 22）；[PF-001 §4 未激活的账号记录不会永久占着那个名字](../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)（rev 22）；[PF-001 flows §1.4](../product/PF-001-identity-scope-and-agent-constraints/flows.md#14-创建组织)（rev 22）
+- **依据**：[PF-001 §4 组织](../product/PF-001-identity-scope-and-agent-constraints/design.md#组织)（rev 24）；[PF-001 §4 个人组织](../product/PF-001-identity-scope-and-agent-constraints/design.md#个人组织)（rev 24）；[PF-001 §4 未激活的账号记录不会永久占着那个名字](../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)（rev 24）；[PF-001 flows §1.4](../product/PF-001-identity-scope-and-agent-constraints/flows.md#14-创建组织)（rev 24）
 
 ### UL-invitation · 邀请
 
 - **宿主**：[组织](#ul-organization--组织)——**发出它的那个组织**：它不存在了，这份邀请随即自动过期。它指向一个账号，但那个账号在接受之前对它没有任何持有；个人组织发不出邀请
 - **身份**：正文未述
 - **生灭**：发出，**带一个到期时刻** → 被接受（成员关系建立，[租户](#ul-tenant--租户)随之产生）；接受之前可以被撤回，也会过期——邀请这一类有默认时长、发出时发起者可指定这一份的，发出它的组织不存在了则自动过期（**这一分支本版无触发源**：[没有任何邀请指向个人组织——个人组织发不出邀请，而团队组织无终结路径](#ul-organization--组织)）；撤回、过期或接收账号拒绝都不产生成员关系；若再合作须另发一份
-- **依据**：[PF-001 flows §1.5](../product/PF-001-identity-scope-and-agent-constraints/flows.md#15-邀请与加入)（rev 22）；[PF-001 flows §2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)（rev 22）；[PF-001 §4 两种邀约都会过期](../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 22）
+- **依据**：[PF-001 flows §1.5](../product/PF-001-identity-scope-and-agent-constraints/flows.md#15-邀请与加入)（rev 24）；[PF-001 flows §2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)（rev 24）；[PF-001 §4 两种邀约都会过期](../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 24）
 
-- **本轮依据复核**：[PF-001 接收方拒绝](../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 22）增加终结分支；宿主、身份与接受结果不变，不新增对象。
+- **本轮依据复核**：[PF-001 接收方拒绝](../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 24）增加终结分支；宿主、身份与接受结果不变，不新增对象。
 
 ### UL-affiliation-request · 隶属请求
 
 - **宿主**：正文未述。由一个[组织](#ul-organization--组织)的超级管理员发出、指向另一个组织；个人组织不参与隶属关系，既发不出也收不到
 - **身份**：正文未述
 - **生灭**：发起，**带一个到期时刻** → 被接受（下级组织的「上级组织」属性有了值，**不产生租户**）；接受之前可以被撤回，也会过期——隶属请求这一类有默认时长、发出时发起者可指定这一份的，它指向的组织不存在了则自动过期（**这一分支本版无触发源**：[没有任何隶属请求指向个人组织——个人组织不参与隶属关系，而团队组织无终结路径](#ul-organization--组织)）；撤回、过期或接收组织超管拒绝都不建立隶属；若再合作须另发一份
-- **依据**：[PF-001 §4 隶属关系怎么建立与解除](../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)（rev 22）；[PF-001 §4 两种邀约都会过期](../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 22）；[PF-001 flows §1.7](../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)（rev 22）；[PF-001 flows §2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)（rev 22）
+- **依据**：[PF-001 §4 隶属关系怎么建立与解除](../product/PF-001-identity-scope-and-agent-constraints/design.md#隶属关系怎么建立与解除)（rev 24）；[PF-001 §4 两种邀约都会过期](../product/PF-001-identity-scope-and-agent-constraints/design.md#两种邀约都会过期)（rev 24）；[PF-001 flows §1.7](../product/PF-001-identity-scope-and-agent-constraints/flows.md#17-建立与解除组织隶属)（rev 24）；[PF-001 flows §2](../product/PF-001-identity-scope-and-agent-constraints/flows.md#二分支与异常)（rev 24）
 - **未裁**：**宿主是发起方组织还是接收方组织**。两端都是组织，而正文只写了「它**指向的**那个组织不存在了则自动过期」——发起方组织没了它怎么样，正文没说。归 PF-001 的 owner，[已记入该 topic 的「已知的来源问题」](../product/PF-001-identity-scope-and-agent-constraints/decisions.md#四已知的来源问题)
 
-- **本轮依据复核**：[PF-001 接收方拒绝](../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 22）增加终结分支；宿主、身份与接受结果不变，不新增对象。
+- **本轮依据复核**：[PF-001 接收方拒绝](../product/PF-001-identity-scope-and-agent-constraints/design.md#接收方可以明确拒绝待处理邀约)（rev 24）增加终结分支；宿主、身份与接受结果不变，不新增对象。
 
 ### UL-tenant · 租户
 
 - **宿主**：—（身份由[组织](#ul-organization--组织)与[账号](#ul-account--账号)共同确定）
 - **身份**：（组织, 账号）二元组；不含角色。同一账号在两个组织里是两个租户
 - **生灭**：账号加入组织即产生（注册时随个人组织产生第一个；创建组织时创建者的随之产生；接受邀请时产生）→ 加入到退出之间有效，角色可调 → 解除后不再有效，其租户级私有部分不可达但不销毁，历史记录照旧引用它 → 再次被邀请加入同一组织即重新有效，**回来的是同一个租户**，私有部分原样可用。身份由（组织, 账号）确定，不因断续而变；**已激活账号的租户本版无销毁路径**；**从未激活的账号到期清除时，随账号一起产生的第一个租户随之消失**
-- **依据**：[PF-001 §4 租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 22）；[PF-001 §4 退出之后再加入，回来的是同一个租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)（rev 22）；[PF-001 §4 未激活的账号记录不会永久占着那个名字](../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)（rev 22）；[PF-001 flows §3.3](../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（rev 22）
+- **依据**：[PF-001 §4 租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 24）；[PF-001 §4 退出之后再加入，回来的是同一个租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#退出之后再加入回来的是同一个租户)（rev 24）；[PF-001 §4 未激活的账号记录不会永久占着那个名字](../product/PF-001-identity-scope-and-agent-constraints/design.md#未激活的账号记录不会永久占着那个名字)（rev 24）；[PF-001 flows §3.3](../product/PF-001-identity-scope-and-agent-constraints/flows.md#33-成员关系)（rev 24）
 - **并入**：「成员关系」——design 只定义租户，flows 却把「无 → 成员 → 无」的状态机挂在成员关系名下；二者同一身份，成员关系是租户「此刻有没有效」那一面。**分界：身份是值，有效性是记录**——(组织, 账号) 这一组合不生不灭、被显式携带；「此刻有没有效」才有状态、有写路径、有并发约束。**这不改变它是一个对象**，只是提醒不要把整体当成有状态的东西
 
 ### UL-tenant-workspace-relation · 租户—工作区关系
@@ -73,7 +73,7 @@
 - **宿主**：[租户](#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与
 - **身份**：工作区自身的持久逻辑身份；具体格式和命名尚未由正文确定。工作区地址不是身份，工作区实例是它在部署节点上的装载对象
 - **生灭**：跨会话和实例持续存在；中心托管工作区仅可由创建者或其明确授予工作区超管权限的租户销毁；确认销毁后全部租户关系删除，本地实例内容保留。一次实例卸载或地址不可达不等于工作区消失
-- **依据**：[PF-020 工作区](../product/PF-020-workspace/design.md)（rev 21）；[PF-020 工作区实例](../product/PF-020-workspace/design.md)（rev 21）；[PF-020 工作区地址](../product/PF-020-workspace/design.md)（rev 21）；[PF-002 工作区资产层](../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 24）
+- **依据**：[PF-020 工作区](../product/PF-020-workspace/design.md)（rev 21）；[PF-020 工作区实例](../product/PF-020-workspace/design.md)（rev 21）；[PF-020 工作区地址](../product/PF-020-workspace/design.md)（rev 21）；[PF-002 工作区资产层](../product/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 31）
 
 ### UL-workspace-instance · 工作区实例
 
@@ -89,28 +89,28 @@
 - **宿主**：—
 - **身份**：两级——上层是[能力标识，即「类别 ＋ name」](../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)，求值的产出是「每个能力标识一个生效资产」；下层是具体资产，同一标识下可并存 official、组织自定义、租户自定义、复制进来的多份。具体资产自身靠什么标识，正文未述
 - **生灭**：创作出草稿 → 修订 → 发布（该版本自此不可变）→ 再改成新版本；从租户范围提升到组织范围不可逆，**只换所有者、不动任何一份持有**；删除被分享出去的须先告知受影响方，不默认级联。删除之后如何，正文未述
-- **依据**：[PF-002 §4 八类资产](../product/PF-002-assets-settings-and-permissions/design.md#八类资产)（rev 24）；[PF-002 §4 身份是「类别 ＋ name」](../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 24）；[PF-001 §4 资产的种类](../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 22）；[PF-001 §6.7](../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)（rev 22）；[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 24）
+- **依据**：[PF-002 §4 八类资产](../product/PF-002-assets-settings-and-permissions/design.md#八类资产)（rev 31）；[PF-002 §4 身份是「类别 ＋ name」](../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 31）；[PF-001 §4 资产的种类](../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 24）；[PF-001 §6.7](../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)（rev 24）；[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 31）
 
 ### UL-asset-version · 资产版本
 
 - **宿主**：[资产](#ul-asset--资产)——每一份资产有自己独立的一条版本线
 - **身份**：所属的那份资产 ＋ 它在那条版本线上的序号。版本线从 v1 起各数各的：复制过去的资产落在目标侧自己的线上，源侧的 v7 在那边可能是 v2
 - **生灭**：草稿（反复修订，还不是版本）→ 发布 → 已发布，自此不可变；再改只能在它之上发新版本。复制与分享只认已发布的。版本有没有终结，正文未述
-- **依据**：[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 24）；[PF-003 §6.4](../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 6）
+- **依据**：[PF-002 flows §3.3](../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 31）；[PF-003 §6.4](../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 6）
 
 ### UL-model-profile · 模型档案
 
 - **宿主**：—。建在出厂默认、组织或租户自己那一层；它不是资产，「用哪个模型」那项设置记的是路由名，同名的几条在范围链上按层取最具体一格的那一条（租户 > 组织 > 官方）
 - **身份**：**（所在范围, 路由名）**——同一个范围里一个路由名只对应一条（在册的、已撤回的都算），不同范围里可以各有一条同名的；路由名一旦定下不可改，改了就是另一条档案
 - **生灭**：建档（建档者持有该范围的配置资格，且这个范围里还没有同路由名的）→ 在册 ⇄ 已撤回（**没有终态**：撤回不删行，那一行永远保留；恢复在册的还是原来那一条，谁撤得了谁恢复得了）。在册期间自建档案可以修订，**路由名与来源除外**——换路由名就是另建一条、撤回旧的。「这个范围不再允许它」不是它的状态转移，是作用域求值的结果变了
-- **依据**：[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 13）；[PF-013 §4 档案的身份](../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 13）；[PF-013 flows §3.1](../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 13）；[PF-013 flows §四](../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 13）；[PF-013 §6.4](../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 13）
+- **依据**：[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 14）；[PF-013 §4 档案的身份](../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 14）；[PF-013 flows §3.1](../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 14）；[PF-013 flows §四](../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 14）；[PF-013 §6.4](../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 14）
 
 ### UL-meta-capability · meta 能力
 
 - **宿主**：正文未述。只说每个 agent 装配起来之后，十三个各恒定占一个常驻槽位
 - **身份**：按名字，全系统固定十三个；有哪十三个由产品决定，装配方不能增删
 - **生灭**：装配 → 在位，没有别的状态；不可禁用、不可替换、不可移除。门自身无状态，「门后的东西有状态」
-- **依据**：[PF-007 §4 meta](../product/PF-007-meta-capabilities/design.md#meta)（rev 19）；[PF-007 flows §3.1](../product/PF-007-meta-capabilities/flows.md#31-十三扇门本身)（rev 19）
+- **依据**：[PF-007 §4 meta](../product/PF-007-meta-capabilities/design.md#meta)（rev 23）；[PF-007 flows §3.1](../product/PF-007-meta-capabilities/flows.md#31-十三扇门本身)（rev 23）
 - **未裁**：它与「工具」是什么关系——用的是多命令范式、别处直接叫它 meta tool，却不满足资产的判据、不是工具的变体。归 PF-007 与 PF-006
 
 ## 流转与授权
@@ -145,31 +145,32 @@
 ### UL-session · 会话
 
 - **宿主**：—（归属于[租户](#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变）
-- **身份**：会话的身份标识。**agent 的身份标识恒等于它**，换 agent runtime 也不变，agent 之间互相寻址靠它
+- **身份**：会话的身份标识。**agent 的身份标识恒等于它**，换 agent runtime 也不变，agent 之间互相寻址靠它。所选 AgentDefinition 身份固定、同身份内容按运行装配边界热重载；会话设置、context 注册与已知能力记录为其属性；能力身份合法纳入后保留，当前数据、实现与可用性分别求值，不新增独立对象
 - **生灭**：创建/初始化 → 运行/活跃 ⇄ 休眠（往返无上限）→ 归档（租户手动，或按出厂时限自动）→ 撤销归档回休眠。**无删除、无过期、无回收**；「运行/活跃」只看日志上最新那次运行完结没有
-- **依据**：[PF-015 §4 会话的生命周期](../product/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)（rev 13）；[PF-015 §5.1](../product/PF-015-session-lifecycle-and-ownership/design.md#51-四个状态怎么走)（rev 13）；[PF-015 §6.1](../product/PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)（rev 13）；[PF-015 §6.12](../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 13）
+- **依据**：[PF-015 §4 会话的生命周期](../product/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)（rev 20）；[PF-015 §5.1](../product/PF-015-session-lifecycle-and-ownership/design.md#51-四个状态怎么走)（rev 20）；[PF-015 §6.1](../product/PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)（rev 20）；[PF-015 §6.12](../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 20）；[PF-015 §6.16–6.19](../product/PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)（rev 20）
+- **补充依据**：[PF-015 §6.22](../product/PF-015-session-lifecycle-and-ownership/design.md#622-会话作用域的输入与供给)（rev 20）
 - **并入**：「会话内的那个 agent」——身份恒等、一对一，没有独立于会话的身份机制，是会话的一个面
 
 ### UL-run · 运行
 
 - **宿主**：[会话](#ul-session--会话)（附着在恰好一个会话上）
 - **身份**：有身份，且「身份在数据里，不在进程里」；铸新身份是「新一次运行」的专属权利。标识形式正文未述。开始条目可带一个「延续自哪次运行」的链接
-- **生灭**：有还没被承接的输入、且没有未终结的运行 → 落一条开始条目（写明承接了哪些）→ 在跑 ⇄ 停着等（卡片未答完 / 动作结果没齐；此时可以一副协程都没有）→ 落终态：完成 · 失败 · 被取消。终态是吸收态，之后再回来的东西开下一次运行；不存在「先排着」。**系统为已发生的中断追补的提醒不算一条触发，不开新运行**。终结之后不再为它发起新动作，**尝试被取代或运行终结前已发起的那些，响应体与账迟到了照样落、归这个运行、标明迟到**。同一会话任一时刻至多一个未终结的运行
-- **依据**：[PF-012 §4 Run](../product/PF-012-agent-loop-and-run/design.md#run)（rev 15）；[PF-012 §4 边界](../product/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束)（rev 15）；[PF-012 §4 Run 是三样东西的归属单位](../product/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 15）；[PF-012 §5.13](../product/PF-012-agent-loop-and-run/design.md#513-run-拥有什么归属的判据)（rev 15）；[PF-012 §5.1](../product/PF-012-agent-loop-and-run/design.md#51-run-与-agent-loop-是一体两面)（rev 15）；[PF-012 §6.17 I-11](../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 15）
+- **生灭**：有仍具待处理资格的未承接输入、且没有未终结的运行 → 落一条开始条目（写明承接了哪些）→ 在跑 ⇄ 停着等（模型调用在途 / 卡片未答完 / 动作结果没齐；此时可以一副协程都没有）→ 落终态：完成 · 失败 · 被取消。终态是吸收态；会话未归档时，之后回来的有效待处理输入可开下一次运行，归档期间迟到事实仅留痕不入队；不存在「先排着」。**系统为已发生的中断追补的提醒不算一条触发，不开新运行**。终结之后不再为它发起新动作，**尝试被取代或运行终结前已发起的那些，响应体与账迟到了照样落、归这个运行、标明迟到**。同一会话任一时刻至多一个未终结的运行
+- **依据**：[PF-012 §4 Run](../product/PF-012-agent-loop-and-run/design.md#run)（rev 21）；[PF-012 §4 边界](../product/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束)（rev 21）；[PF-012 §4 Run 是三样东西的归属单位](../product/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 21）；[PF-012 §5.13](../product/PF-012-agent-loop-and-run/design.md#513-run-拥有什么归属的判据)（rev 21）；[PF-012 §5.1](../product/PF-012-agent-loop-and-run/design.md#51-run-与-agent-loop-是一体两面)（rev 21）；[PF-012 §6.17 I-11](../product/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 21）
 
 ### UL-agent-runtime · agent runtime
 
-- **宿主**：正文未指定；由「一个会话任一时刻至多一个活跃的 agent runtime」推断为[会话](#ul-session--会话)
+- **宿主**：[会话](#ul-session--会话)；所推进的工作归 Run／尝试，Model／Tool runtime 不寄宿于它
 - **身份**：正文未述它自己的标识方式；每次尝试重新起一个，是「新的一个」。**从运行那一侧指得到它**——(哪次运行, 第几次) 从日志里那条尝试开始记录派生，那是[执行尝试](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)（视图，不另立对象）
-- **生灭**：照一份装配清单起 → 反复求值、在 await 点挂起与恢复 → 灭（系统崩了 / 停住等时被回收 / 构成变了被优雅取消后照新清单另起）。停止分两级：优雅取消、强制停止；强制停止之后由会话这一侧替那次运行写终结条目
-- **依据**：[PF-012 §4 agent runtime](../product/PF-012-agent-loop-and-run/design.md#agent-runtime)（rev 15）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 15）；[PF-012 §6.14](../product/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 15）
+- **生灭**：照一份装配清单起 → 反复求值、在 await 点挂起与恢复 → 灭（系统崩了 / 停住等时被回收 / 自身捕获组成变了交接后照新清单另起）。停止分两级：优雅取消、强制停止；仅结束实例不终结 Run，业务取消时由会话侧确保运行终结；持有句柄随实例释放，不结束所引用执行 显式 reload 可在同一 Run 安全交接并开启新尝试；独立 Model／Tool runtime 不随其退役终止。
+- **依据**：[PF-012 §4 agent runtime](../product/PF-012-agent-loop-and-run/design.md#agent-runtime)（rev 21）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 21）；[PF-012 §6.14](../product/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 21）；[PF-012 装配与交接](../product/PF-012-agent-loop-and-run/design.md#618-agent-runtime-的装配与重装配交接)（rev 21）
 
 ### UL-assembly-manifest · 装配清单
 
 - **宿主**：—（为恰好一个[会话](#ul-session--会话)求值）
 - **身份**：正文未述标识方式；定位属性是「为哪个会话求的」与「依据的定义版本」，装配时确定、此后不变。同一会话先后可有多份
-- **生灭**：（没有）→ 求值中 → 有效（可复用；增量装载时追加一条，仍有效）→ 失效，下次需要时重新求值出新的一份。缺必需的东西则明确失败，不产生半份。只可追加、不可改写
-- **依据**：[PF-004 §4 装配清单](../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 13）；[PF-004 §6.7](../product/PF-004-agent-definition-and-assembly/design.md#67-装配清单的生与失效)（rev 13）；[PF-004 flows §3.1](../product/PF-004-agent-definition-and-assembly/flows.md#31-一份装配清单)（rev 13）
+- **生灭**：（没有）→ 求值中 → 有效（可复用；增量装载时追加一条，仍有效）→ 失效，下次需要时重新求值出新的一份。缺必需的东西则明确失败，不产生半份。只可追加、不可改写 同一 Run 可经显式 reload 安全交接先后采用不同清单；旧清单不改写。
+- **依据**：[PF-004 §4 装配清单](../product/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 20）；[PF-004 §6.7](../product/PF-004-agent-definition-and-assembly/design.md#67-装配清单的生与失效)（rev 20）；[PF-004 flows §3.1](../product/PF-004-agent-definition-and-assembly/flows.md#31-一份装配清单)（rev 20）；[PF-004 装配与交接](../product/PF-004-agent-definition-and-assembly/design.md#610-重装配触发与生效矩阵)（rev 20）
 
 ## 落地与隔离
 
@@ -178,28 +179,28 @@
 - **宿主**：—
 - **身份**：正文未述；每个具体的执行环境要声明自己提供哪几种设施
 - **生灭**：总体正文未述，按各种分别规定。「执行环境永远存在」说的是**每次执行都算得出一个落点或明确被拒**，不是某个实例永生
-- **依据**：[PF-005 §4 执行环境](../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 7）；[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 7）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 7）；[PF-004 §4 执行环境](../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 13）
+- **依据**：[PF-005 §4 执行环境](../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 8）；[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 8）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 8）；[PF-004 §4 执行环境](../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 20）
 
 ### UL-sandbox-implementation · 沙箱实现
 
 - **宿主**：正文未述——正文只说它是**装配时可选装配**的，没说装配之后它的寿命跟着谁
 - **身份**：正文未述；只要求它**自报提供哪几种设施、可绑定哪几个层级**，运行时据此匹配
 - **生灭**：装配时装进来（可选，可以一个都不装）→ 在场，按声明被匹配到就起出一个沙箱。撤下与替换正文未述
-- **依据**：[PF-005 §4 沙箱实现](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 7）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 7）
+- **依据**：[PF-005 §4 沙箱实现](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 8）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 8）
 
 ### UL-stateless-sandbox · 无状态沙箱
 
 - **宿主**：一次[工具执行](#ul-tool-execution--工具执行)
 - **身份**：正文未述
 - **生灭**：一次调用开始 → 存在 → 调用结束即无；没有闲置态，没有回收问题
-- **依据**：[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 7）；[PF-005 flows §3.1](../product/PF-005-execution-environments-and-sandboxes/flows.md#31-无状态沙箱)（rev 7）
+- **依据**：[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 8）；[PF-005 flows §3.1](../product/PF-005-execution-environments-and-sandboxes/flows.md#31-无状态沙箱)（rev 8）
 
 ### UL-session-sandbox · 会话级沙箱
 
 - **宿主**：[会话](#ul-session--会话)
 - **身份**：正文未述；同一会话先后、同时都可有多个，同时并存的理由是设施不同
 - **生灭**：会话首次需要时创建、开始计时 → 存在 → 到最大连续存活时间直接销毁，数据不留存；仍有动作在跑则按退役方式收口 → 下次要用重建一个空的、重新计时，并以一条提醒告知 agent
-- **依据**：[PF-005 §6.3](../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 7）；[PF-005 flows §3.2](../product/PF-005-execution-environments-and-sandboxes/flows.md#32-会话级沙箱)（rev 7）
+- **依据**：[PF-005 §6.3](../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 8）；[PF-005 flows §3.2](../product/PF-005-execution-environments-and-sandboxes/flows.md#32-会话级沙箱)（rev 8）
 - **未裁**：会话归档时连不连带处置它，正文未述。归 PF-005 与 PF-015
 
 ### UL-tenant-sandbox · 租户级沙箱
@@ -207,21 +208,21 @@
 - **宿主**：[租户](#ul-tenant--租户)
 - **身份**：正文未述；一个租户可否有多个未明说
 - **生灭**：首次需要 → 运行中 ⇄ 停机 / 换节点 → 在别处重新起来。数据迁移失败不算迁移完成，不以空数据冒充成功。终结正文未述
-- **依据**：[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 7）；[PF-005 §6.4](../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 7）
+- **依据**：[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 8）；[PF-005 §6.4](../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 8）
 
 ### UL-sandbox-data · 沙箱数据
 
 - **宿主**：[租户](#ul-tenant--租户)（寿命上）；[租户级沙箱](#ul-tenant-sandbox--租户级沙箱)（归属上）
 - **身份**：正文未述；是整体一份还是可细分寻址，未述
 - **生灭**：随使用积累；沙箱本体停机或迁移期间必须仍可取回，之后接回；须可备份、可迁移。终结正文未述
-- **依据**：[PF-005 §4 沙箱内的数据](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 7）；[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 7）
+- **依据**：[PF-005 §4 沙箱内的数据](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 8）；[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 8）
 
 ### UL-terminal-session · 终端会话
 
 - **宿主**：[执行环境](#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没）
 - **身份**：各自有标识，`create_session` 时返回；给一个不存在的标识必须明确失败
 - **生灭**：`create_session` → 开着 → 关闭（agent `close_session`）· 随环境消失（agent 必须被告知）
-- **依据**：[PF-007 §6.4](../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 19）；[PF-007 flows §3.2](../product/PF-007-meta-capabilities/flows.md#32-终端会话可以有多个各自独立)（rev 19）
+- **依据**：[PF-007 §6.4](../product/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 23）；[PF-007 flows §3.2](../product/PF-007-meta-capabilities/flows.md#32-终端会话可以有多个各自独立)（rev 23）
 
 ### UL-session-base · 会话据点
 
@@ -243,18 +244,18 @@
 
 ### UL-tool-execution · 工具执行
 
-- **宿主**：[会话](#ul-session--会话)（前后台都是；它有自己独立的 runtime）——前台只说明 [agent runtime](#ul-agent-runtime--agent-runtime) 正阻塞着等它，那一笔记在 Run 里
-- **身份**：正文未给标识；只要求记得下「哪一次运行、哪个 agent runtime 发起、属于哪个会话」
-- **生灭**：发起（同一会话里同一工具同时在执行的超过并发上限时，超出的先排队、按发起先后轮到）→ 前台/后台 × 执行中/等待（本版要等应答的只在前台等）→ 完成 · 失败 · 被中断 · 等不到应答。前台到后台单向，「转后台」是前台那次调用的收场，后台那段另有收场；发起时就在后台的，前台那次调用当场以转后台收场。agent runtime 被回收不影响它；工具自己的 runtime 失去连续性即停机、不重来、算失败，不设例外。被中断的来处：用户叫停（含插队）、这次运行被取消时它还在前台、agent 掐掉自己发起的后台执行、不许后台的跑到前台上限、会话被归档（不论前后台，不可逆）。参数说完了却解析不了的调用**不起执行**，那一次调用直接以失败回给 agent
-- **依据**：[PF-006 §4 Tool Execution](../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 20）；[PF-006 §5.5](../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 20）；[PF-006 §6.5](../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 20）；[PF-006 §6.6](../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 20）；[PF-006 §6.12](../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)（rev 20）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 15）
+- **宿主**：[会话](#ul-session--会话)（前后台都是；它有自己独立的 runtime）——前台只说明当前步骤仍须等它的结果，[agent runtime](#ul-agent-runtime--agent-runtime) 在场时通过句柄等待，那一笔记在 Run 里
+- **身份**：可持久恢复的执行身份，关联会话、原发起 Run／尝试及实际输入依据；具体标识格式未述
+- **生灭**：发起（同一会话里同一工具同时在执行的超过并发上限时，超出的先排队、按发起先后轮到）→ 前台/后台 × 执行中/等待（本版要等应答的只在前台等）→ 完成 · 失败 · 被中断 · 等不到应答。前台到后台单向，「转后台」是前台那次调用的收场，后台那段另有收场；发起时就在后台的，前台那次调用当场以转后台收场。agent runtime 被回收、销毁或替换及句柄释放不影响它；工具自己的 runtime 失去连续性即停机、不重来、算失败，不设例外。被中断的来处：用户叫停（含插队）、这次运行被取消时它还在前台、agent 掐掉自己发起的后台执行、不许后台的跑到前台上限、会话被归档（不论前后台，不可逆）。参数说完了却解析不了的调用**不起执行**，那一次调用直接以失败回给 agent
+- **依据**：[PF-006 §4 Tool Execution](../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 23）；[PF-006 §5.5](../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 23）；[PF-006 §6.5](../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 23）；[PF-006 §6.6](../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 23）；[PF-006 §6.12](../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)（rev 23）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 21）
 - **并入**：「工具执行运行时」「一次工具调用」——正文当同一物用
 
 ### UL-model-call · 一次模型调用
 
-- **宿主**：[agent runtime](#ul-agent-runtime--agent-runtime)（永远；转不了后台）——主流程那一次、拓展件为运行发起的、压缩时生成摘要的、**不属于任何运行的[旁路提问](../ubiquitous_language/terms/agent-runtime-loop.md#ul-side-question--旁路提问--side-question)**都一样；不属于任何运行的那几次，花的钱归会话那一级。**转换件本版不发起模型调用**
-- **身份**：正文未述；每次调用要留下「实际用了哪条档案」的留痕
-- **生灭**：待发出 → 在途（可在本层换一家或退避）→ 说话中（首 token 到，不可逆）→ 完整一份。三个终态：完整一份 · 上交 · 被中断。完整一份在落盘前被否决，**这次调用仍停在「完整一份」**，记下被谁否决，loop 另起新调用。停机恢复看首 token：之前可重发，之后一律不重发、收场原因记为运行时失联
-- **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 13）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 13）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 13）
+- **宿主**：[会话](#ul-session--会话)；主流程、拓展件与压缩调用归所属 Run，旁路提问等 Run 外调用直接归会话。Agent runtime 只持有句柄，销毁不取消执行。**转换件本版不发起模型调用**
+- **身份**：可持久恢复的调用身份，关联会话、所属 Run（若有）、原发起尝试及实际输入依据；具体标识格式未述
+- **生灭**：待发出 → 在途（可在本层换一家或退避）→ 说话中（首 token 到，不可逆）→ 完整一份。三个终态：完整一份 · 上交 · 被中断。完整一份在落盘前被否决，**这次调用仍停在「完整一份」**，记下被谁否决，loop 另起新调用。恢复先查询原执行：存活则重取句柄，完成则读结果；确认模型执行自身失联才看首 token，之前可重发，之后一律不重发、收场原因记为运行时失联
+- **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 14）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 14）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 14）
 - **并入**：「模型请求的运行时」（PF-013 §5.13 的叫法，指执行这一次调用的那个协程——**不是规格里以「模型请求运行时」为名的那项能力**，见 [C-31](../ubiquitous_language/conflicts.md#现有冲突)）「模型请求」「进行中的模型响应」——正文没给它们各自的身份，是这一个对象的运行时面。**一次调用里的每一次[发出](../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)不另立对象**：它是过程，留下的是[模型响应体](#ul-model-response--模型响应体)
 
 ### UL-model-response · 模型响应体
@@ -262,26 +263,26 @@
 - **宿主**：[会话日志](#ul-session-log--会话日志)——它是一条效力为留痕的[记录条目](#ul-record-entry--记录条目)的载荷，随日志留着；试过又失败的那几条不进方程、不进模型的上下文
 - **身份**：正文未述；只要求分得出是哪次[模型调用](#ul-model-call--一次模型调用)的哪一次发出——哪一家、什么时候、上游回了什么状态码
 - **生灭**：一次发出结束（成了 · 断了 · 被中断）时写下 → 写下后不改，要补靠追加（费用晚到的补一条）→ 随会话日志留着；一次都没发出的调用没有它；首 token 之后这次调用不再有下一条
-- **依据**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)（rev 13）；[PF-013 §5.13 停机之后](../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 13）；[PF-000 §4 条目效力](../product/PF-000-occurrences-and-record-entries/design.md#条目效力--entry-standing)（rev 1）
+- **依据**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)（rev 14）；[PF-013 §5.13 停机之后](../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 14）；[PF-000 §4 条目效力](../product/PF-000-occurrences-and-record-entries/design.md#条目效力--entry-standing)（rev 1）
 - **并入**：「留痕」（PF-013 §5.5 对试过又失败的那几次的叫法）——正文当同一物用：每一家一条、哪一家、什么时候、状态码
-- **未裁**：正文只对失败的那几次说「每一家一条留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)，rev 13；[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)，rev 12）——两者是不是同一条记录，正文未述；规格 `data.model-response` 按「每一次发出恰一条」把两样合在一条上。归 PF-013 的 owner；本轮未记入其 decisions
+- **未裁**：正文只对失败的那几次说「每一家一条留痕」；成功那一次「实际用了哪条档案、带了什么参数」的留痕，正文放在「那次请求的可追溯组成」里（[PF-004 §6.6](../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定)，rev 15；[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)，rev 12）——两者是不是同一条记录，正文未述；规格 `data.model-response` 按「每一次发出恰一条」把两样合在一条上。归 PF-013 的 owner；本轮未记入其 decisions
 
 ### UL-attachment · 附件
 
 - **宿主**：产出它的那次[工具执行](#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里
 - **身份**：靠地址——消息里告诉 agent 地址，由它自己去取；地址形态与唯一范围正文未述
 - **生灭**：工具执行跑完时产出并存进存储；留存与清理正文未述
-- **依据**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 20）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 20）
+- **依据**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 23）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 23）
 - **未裁**：它存进的那个[存储](pending.md#存储)全系统没有定义；宿主因此也只是推断
 
 ### UL-offloaded-result · 被卸载的原始结果
 
-- **宿主**：正文未述。它由一次[工具执行](#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](#ul-session-log--会话日志)——日志里只有那条占位；它自己「存起来」在哪、寿命跟着谁，没有说
+- **宿主**：正文未述。它由一次[工具执行](#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](#ul-session-log--会话日志)——日志里只有那条占位；物理存放归属未述；原始全文持续可回取，不因卸载、压缩、Run 结束或会话归档过期
 - **身份**：正文未述。只要求占位里写得出「有多大、怎么取全文」，agent 据此分页取回
-- **生灭**：工具结果落成消息之前判定太大 → 原始结果存起来，消息里换成带摘要的占位；之后可被分页取回，取回是往后追加两条新消息，不把占位换回去。留多久、何时清理，正文未述
-- **依据**：[PF-006 §4 卸载](../product/PF-006-tools-and-skills/design.md#卸载)（rev 20）；[PF-006 §6.10](../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 20）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 15）
+- **生灭**：工具结果落成消息之前判定太大 → 原始结果存起来，消息里换成带摘要的占位；之后可被分页取回，取回是往后追加两条新消息，不把占位换回去。当前没有删除或到期回收规则，不能自行缩短全文可回取承诺
+- **依据**：[PF-006 §4 卸载](../product/PF-006-tools-and-skills/design.md#卸载)（rev 23）；[PF-006 §6.10](../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 23）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 21）
 - **并入**：「原始结果」「全文」——正文当同一物用。「工具原件」只在 PF-015 出现一次，且「原件」在 PF-013 另有所指，词条已列为弃用
-- **未裁**：保留多久没有答案——[PF-015 §9](../product/PF-015-session-lifecycle-and-ownership/design.md#九未决项) 列为未决；它存进的[存储](pending.md#存储)同样没有定义
+- **未裁**：它存进的[存储](pending.md#存储)同样没有定义
 
 ### UL-schedule · 日程
 
@@ -307,7 +308,7 @@
 - **宿主**：它所属的那次派发
 - **身份**：每次派发至多一份
 - **生灭**：子干完时交出 → 派发者的等待结束，这次派发随之终结。此后留存多久正文未述
-- **依据**：[PF-007 §6.8 报告与消息是两样东西](../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 19）；[PF-007 §6.8 报告终结的是这次派发，不是那个会话](../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 19）
+- **依据**：[PF-007 §6.8 报告与消息是两样东西](../product/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 23）；[PF-007 §6.8 报告终结的是这次派发，不是那个会话](../product/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 23）
 - **未裁**：`handoff` 有没有报告，正文未述。归 PF-007
 
 ### UL-decision-card · 决策卡片
@@ -322,14 +323,14 @@
 - **宿主**：[会话](#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在）
 - **身份**：每个会话一份
 - **生灭**：空 → 攒着几笔 → 里面有撤回；只追加，不回头改，不归零
-- **依据**：[PF-007 §4 会话授权上下文](../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 19）；[PF-007 flows §3.5](../product/PF-007-meta-capabilities/flows.md#35-会话授权上下文)（rev 19）；[PF-015 §5.7](../product/PF-015-session-lifecycle-and-ownership/design.md#57-三个作用域在同一份数据里)（rev 13）
+- **依据**：[PF-007 §4 会话授权上下文](../product/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 23）；[PF-007 flows §3.5](../product/PF-007-meta-capabilities/flows.md#35-会话授权上下文)（rev 23）；[PF-015 §5.7](../product/PF-015-session-lifecycle-and-ownership/design.md#57-三个作用域在同一份数据里)（rev 20）
 
 ### UL-authorization-expression · 授权表达
 
 - **宿主**：[会话授权上下文](#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，它[落成租户层的权限设置值](../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)
 - **身份**：正文未述；只要求**有先后**、**分得出是哪一笔**
 - **生灭**：用户表达出来即追加一笔 → 此后不改、不删；**撤回是往后再追加一笔**，不是擦掉先前那笔
-- **依据**：[PF-007 §4 一笔授权表达有三个维度](../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 19）；[PF-007 §5.6](../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 19）
+- **依据**：[PF-007 §4 一笔授权表达有三个维度](../product/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 23）；[PF-007 §5.6](../product/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 23）
 - **并入**：「决策记录」——[产品负责人 2026-09-22 裁为一物两名](../ubiquitous_language/conflicts.md)，正文当同一物用
 
 ### UL-inbound-arrival · 入站到达
@@ -337,7 +338,7 @@
 - **宿主**：[会话](#ul-session--会话)（恰好一个；没有「飘着的到达」）
 - **身份**：受理的那一刻成为一条可以被指着说「就是它」的事实；去重时返回已受理的那一条。具体标识正文未述
 - **生灭**：送到 → 资格与目标会话检查 → 去重 →「消息落盘之前」拓展点 → 受理并落盘，一步，不可逆 → 按去处三分：进队列 · 落到卡片上 · 就地生效。拓展点否决（含模态转换件转不成）的，**不受理、不落盘**，发的人被告知；**落盘之前停机的，由系统重走受理**，不靠发的人重发
-- **依据**：[PF-014 §4 入站到达](../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 8）；[PF-014 §4 三个去处](../product/PF-014-inbound-intake-and-queueing/design.md#三个去处)（rev 8）；[PF-014 §6.1](../product/PF-014-inbound-intake-and-queueing/design.md#61-先落账再谈别的)（rev 8）；[PF-014 §6.8](../product/PF-014-inbound-intake-and-queueing/design.md#68-停机不会让一条入站到达永远悬着)（rev 8）
+- **依据**：[PF-014 §4 入站到达](../product/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 11）；[PF-014 §4 三个去处](../product/PF-014-inbound-intake-and-queueing/design.md#三个去处)（rev 11）；[PF-014 §6.1](../product/PF-014-inbound-intake-and-queueing/design.md#61-先落账再谈别的)（rev 11）；[PF-014 §6.8](../product/PF-014-inbound-intake-and-queueing/design.md#68-停机不会让一条入站到达永远悬着)（rev 11）
 - **未裁**：它与[消息](#ul-message--消息)、[记录条目](#ul-record-entry--记录条目)是不是同一条日志记录的几种读法——「大多数入站到达会成为一条消息，但不是全部」，正文没有说透。归 PF-014 与 PF-009
 
 ## 记录与上下文
@@ -354,14 +355,14 @@
 - **宿主**：[会话](#ul-session--会话)（归会话，不归运行）
 - **身份**：一个会话一份
 - **生灭**：随会话存在；只往后加，不回头改，不删；运行结束了它还在；归档、撤销归档、重新加载后一条不少
-- **依据**：[PF-012 §4 会话日志](../product/PF-012-agent-loop-and-run/design.md#会话日志)（rev 15）；[PF-012 §5.2](../product/PF-012-agent-loop-and-run/design.md#52-会话日志是唯一的真相来源)（rev 15）
+- **依据**：[PF-012 §4 会话日志](../product/PF-012-agent-loop-and-run/design.md#会话日志)（rev 21）；[PF-012 §5.2](../product/PF-012-agent-loop-and-run/design.md#52-会话日志是唯一的真相来源)（rev 21）
 
 ### UL-message · 消息
 
 - **宿主**：[会话日志](#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭
 - **身份**：「一条消息有稳定的身份」，且不能从会变的文本或时间戳算出来；具体方式正文未述。类型是确定的，不靠解析内容
 - **生灭**：流式到达期间只是「正在长的块」→ 长成一条完整消息落盘，或按「流断在半路」收场 → 落盘后不改不删；**消息之间没有取代**，状态类提醒也一律追加。它对模型可不可读，可被后来的压缩摘要点名而改变，但那是算出来的，消息本身一字不动。一次工具执行的那条 `ToolInternalMessage` 不论执行怎么收场都照常收尾，一块都没交付过的就没有这条
-- **依据**：[PF-009 §4 消息](../product/PF-009-context-message-types/design.md#消息)（rev 8）；[PF-009 §4 半条消息不是消息](../product/PF-009-context-message-types/design.md#半条消息不是消息)（rev 8）；[PF-009 §5.4](../product/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 8）；[PF-009 §5.6](../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 8）；[PF-009 §5.8 执行帧就是这条消息的到达增量](../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 8）；[PF-009 §6.4](../product/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 8）
+- **依据**：[PF-009 §4 消息](../product/PF-009-context-message-types/design.md#消息)（rev 9）；[PF-009 §4 半条消息不是消息](../product/PF-009-context-message-types/design.md#半条消息不是消息)（rev 9）；[PF-009 §5.4](../product/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 9）；[PF-009 §5.6](../product/PF-009-context-message-types/design.md#56-流断在半路)（rev 9）；[PF-009 §5.8 执行帧就是这条消息的到达增量](../product/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）；[PF-009 §6.4](../product/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 9）
 - **并入**：「排队的消息」——待处理与已消费是从日志派生的读法，不另存
 
 ### UL-content-block · 内容块
@@ -369,14 +370,14 @@
 - **宿主**：[消息](#ul-message--消息)
 - **身份**：正文未述；但压缩摘要的点名名单以块为单位，即块在消息内可被单独指到
 - **生灭**：开一个块（说明这块怎么填：追加片段 / 整体替换）→ 往里填 → 封口交出完整一块 → 落盘后块与它的两个标注都不再变；之后可被点名而不再对模型可读，那是算出来的，不回写
-- **依据**：[PF-009 §4 消息的内容是一串块](../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 8）；[PF-009 §4 每个块带两个标注](../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 8）；[PF-009 §5.5](../product/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 8）
+- **依据**：[PF-009 §4 消息的内容是一串块](../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9）；[PF-009 §4 每个块带两个标注](../product/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 9）；[PF-009 §5.5](../product/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 9）
 
 ### UL-todo-item · 待办条目
 
 - **宿主**：[会话](#ul-session--会话)——它活在一次会话里，不跨会话继承
 - **身份**：正文只要求「每条待办有自己的身份」，在一次会话内分得出这一条与那一条，否则去掉与标成做完都指不准；靠什么标识，正文未述
 - **生灭**：加一条 → 未完成 → 标成做完（做完了还留着）；或被去掉（不做了才去掉）。两者必须分得出。加一条不会让系统去做它。会话被归档时它怎么办，正文未述
-- **依据**：[PF-007 §6.9](../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 19）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 13）
+- **依据**：[PF-007 §6.9](../product/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 23）；[PF-015 §5.6](../product/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 20）
 
 ### UL-business-calendar · 业务日历
 

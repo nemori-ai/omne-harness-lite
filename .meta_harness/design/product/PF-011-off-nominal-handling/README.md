@@ -2,7 +2,7 @@
 id: PF-011
 title: 非常态的分层处置
 status: active
-revision: 4
+revision: 5
 relations:
   supersedes: []
   depends-on:
@@ -95,7 +95,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 4**（rev 2 加了租户、模型调用、工具执行三层；rev 3 记交割与两笔账的了结；**rev 4 把模型调用那一格交给 PF-013**，模型仍然一个字没改）
+- 产品设计：**rev 5**，本轮区分工作归因与生命周期（rev 2 加了租户、模型调用、工具执行三层；rev 3 记交割与两笔账的了结；**rev 4 把模型调用那一格交给 PF-013**，模型仍然一个字没改）
 - **没有待裁决项**。rev 2 定稿后的通读改正了[收编表的一格归类](decisions.md#通读时改正的一处归类不可用不是上交)，
   并把[七条未决项筛成两条](design.md#九未决项)
 - **[与 PF-012 的地盘交割已完成](changelog.md#rev-3--2026-09-19--交割完成两笔账清掉)**（2026-09-19，同时看两边）：
@@ -125,3 +125,6 @@ PF-011-off-nominal-handling/
 ```
 
 返回[产品设计入口](../README.md)。
+
+
+本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。
