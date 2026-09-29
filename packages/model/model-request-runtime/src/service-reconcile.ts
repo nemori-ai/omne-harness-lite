@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   judgePendingModelResponse,
   validate as validateModelResponse,
@@ -32,6 +34,7 @@ import { constructAnchoredInterruption } from './response-construction.ts'
 import { appendControlRecord } from './service-control.ts'
 import { UnknownAppendTracker } from './service-calls.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
+import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type { DiagnosticCollector } from './diagnostics-types.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
 import type { PlannedSemantics } from './types.ts'
@@ -422,26 +425,86 @@ export function createRuntimeReconcile(input: {
     const active = (async (): Promise<ReconcileResult> => {
       let observer: ReturnType<typeof operationDiagnostics> | undefined
       let terminalRecorded = false
+      let diagnosticReportEnabled = true
+      const reportDiagnosticFailure = (): void => {
+        if (!diagnosticReportEnabled) return
+        try {
+          const result: unknown = input.onDiagnosticFailure?.()
+          if (drainDiagnosticThenable(result)) diagnosticReportEnabled = false
+        } catch {
+          diagnosticReportEnabled = false
+        }
+      }
       try {
         const entered = await entering
         if ('unavailable' in entered) return { unavailable: true }
         entry.scope = entered.scope
         if (entered.scope.binding.log.session === request.session) {
-          observer = operationDiagnostics(
-            input.diagnosticCollector,
-            entered.scope.binding.log.tenant,
-            { executionId: randomUUID(), session: request.session },
-            () => input.onDiagnosticFailure?.(),
-          )
-          observer.record({
-            source: 'runtime',
-            stage: 'recovery',
-            outcome: 'started',
-            facts: { kind: 'progress' },
-          })
+          try {
+            observer = operationDiagnostics(
+              input.diagnosticCollector,
+              entered.scope.binding.log.tenant,
+              { executionId: randomUUID(), session: request.session },
+              reportDiagnosticFailure,
+            )
+            observer.record({
+              source: 'runtime',
+              stage: 'recovery',
+              outcome: 'started',
+              facts: { kind: 'progress' },
+            })
+          } catch {
+            reportDiagnosticFailure()
+          }
         }
         if (closed) return { unavailable: true }
-        const result = await readRecoveredCalls(request, entry, input, () => closed)
+        const result = await readRecoveredCalls(
+          request,
+          entry,
+          input,
+          () => closed,
+          anchor => {
+            let recovered: ReturnType<typeof operationDiagnostics> | undefined
+            try {
+              recovered = operationDiagnostics(
+                input.diagnosticCollector,
+                entered.scope.binding.log.tenant,
+                {
+                  executionId: randomUUID(),
+                  session: request.session,
+                  call: anchor.call,
+                  dispatch: anchor.dispatch,
+                  response: anchor.response,
+                },
+                reportDiagnosticFailure,
+              )
+              for (const [kind, position] of [
+                ['dispatched', anchor.dispatchedPosition],
+                ['opened', anchor.openedPosition],
+              ] as const) {
+                if (position === undefined) continue
+                recovered.record({
+                  source: 'runtime',
+                  stage: 'recovery',
+                  outcome: 'started',
+                  facts: {
+                    kind: 'progress',
+                    anchor: kind,
+                    anchorId: ExactDecimal.from(position).toString(),
+                  },
+                })
+              }
+            } catch {
+              reportDiagnosticFailure()
+            } finally {
+              try {
+                recovered?.close()
+              } catch {
+                reportDiagnosticFailure()
+              }
+            }
+          },
+        )
         if (closed) return { unavailable: true }
         if ('unavailable' in result) {
           observer?.record({
@@ -479,7 +542,11 @@ export function createRuntimeReconcile(input: {
             outcome: 'unavailable',
             facts: { kind: 'progress' },
           })
-        observer?.close()
+        try {
+          observer?.close()
+        } catch {
+          reportDiagnosticFailure()
+        }
       }
     })()
     entry.active = active
@@ -549,6 +616,13 @@ async function readRecoveredCalls(
     readonly diagnostic: (event: SettlementDiagnostic) => void
   },
   closed: () => boolean,
+  onAnchor: (anchor: {
+    readonly call: CallKey['callId']
+    readonly dispatch: ModelLogSettlementTarget['dispatch']
+    readonly response: ModelLogSettlementTarget['response']
+    readonly dispatchedPosition?: JsonNumber
+    readonly openedPosition?: JsonNumber
+  }) => void,
 ): Promise<ReconcileResult> {
   const scope = entry.scope
   if (scope === undefined || closed()) return { unavailable: true }
@@ -649,6 +723,20 @@ async function readRecoveredCalls(
               .record
       if (firstTokenAt !== null && firstTokenAt?.kind !== 'model_call_opened')
         return { unavailable: true }
+      const dispatchedPosition = rowInspected.ok.find(item =>
+        modelLogJsonEqual(item.captured.record, last.record),
+      )?.entry.position
+      const openedPosition =
+        last.opened === null
+          ? undefined
+          : rowInspected.ok.find(item => modelLogJsonEqual(item.entry, last.opened))?.entry.position
+      onAnchor({
+        call: callId,
+        dispatch: last.record.dispatch,
+        response: last.record.response,
+        ...(dispatchedPosition === undefined ? {} : { dispatchedPosition }),
+        ...(openedPosition === undefined ? {} : { openedPosition }),
+      })
       const candidate = constructAnchoredInterruption({
         dispatched: last.record,
         observed: observed === null ? null : observed.facts,

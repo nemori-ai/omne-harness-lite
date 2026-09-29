@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
   judgePendingModelResponse,
   type PendingModelResponse,
@@ -739,7 +740,13 @@ describe('S-33 noRun recovered full-prefix read', () => {
             facts: { kind: 'progress', retry: 'without_resend' },
           },
         })
-        expect(engineering.every(item => item.association?.call === undefined)).toBe(true)
+        expect(
+          engineering.every(item =>
+            item.event.facts.kind === 'progress' && item.event.facts.anchor !== undefined
+              ? item.association?.call === 'call'
+              : item.association?.call === undefined,
+          ),
+        ).toBe(true)
         const raw = await binding.log.readSince(session, 0)
         if ('failure' in raw) throw new Error('recovered prefix')
         const inspected = inspectCurrentModelLogPrefix({
@@ -748,6 +755,40 @@ describe('S-33 noRun recovered full-prefix read', () => {
           prefix: raw,
         })
         if (!('ok' in inspected)) throw new Error('recovered model prefix')
+        const dispatchedEntry = inspected.ok.find(
+          item => item.captured.record?.kind === 'model_call_dispatched',
+        )
+        const openedEntry = inspected.ok.find(
+          item => item.captured.record?.kind === 'model_call_opened',
+        )
+        if (dispatchedEntry === undefined || openedEntry === undefined)
+          throw new Error('recovery anchors absent')
+        expect(
+          engineering
+            .filter(item => item.event.facts.kind === 'progress' && item.event.facts.anchor)
+            .map(item => item.event),
+        ).toEqual([
+          {
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: 'started',
+            facts: {
+              kind: 'progress',
+              anchor: 'dispatched',
+              anchorId: ExactDecimal.from(dispatchedEntry.entry.position).toString(),
+            },
+          },
+          {
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: 'started',
+            facts: {
+              kind: 'progress',
+              anchor: 'opened',
+              anchorId: ExactDecimal.from(openedEntry.entry.position).toString(),
+            },
+          },
+        ])
         const restored = inspected.ok.find(item => item.captured.response !== null)?.captured
           .response
         expect(restored?.timing.sentAt).toBeNull()
