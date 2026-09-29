@@ -96,3 +96,7 @@ v5 仅将 `raw.headers` 的值扩展为字符串或有序字符串数组，保�
 ## v10 candidate（本批）
 
 [v10完整规范](v10/contract.md)、[消费者影响](v10/consumer-impact.md)、[验证义务](v10/verification.md)。未接受、未冻结，不自动升级现有消费者。
+
+## v11 ACK后继候选
+
+[v11 contract](v11/contract.md) · [消费者影响](v11/consumer-impact.md) · [验证义务](v11/verification.md)。candidate，未接受；前驱v10接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。

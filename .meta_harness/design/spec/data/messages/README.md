@@ -75,3 +75,7 @@
 ## v7 candidate（本批）
 
 [v7完整规范](v7/contract.md)、[消费者影响](v7/consumer-impact.md)、[验证义务](v7/verification.md)。未接受、未冻结，不自动升级现有消费者。
+
+## v8 ACK后继候选
+
+[v8 contract](v8/contract.md) · [消费者影响](v8/consumer-impact.md) · [验证义务](v8/verification.md)。candidate，未接受；前驱v7接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。

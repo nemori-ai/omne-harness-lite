@@ -58,3 +58,7 @@
 ## v3 candidate（本批）
 
 [v3完整规范](v3/contract.md)、[消费者影响](v3/consumer-impact.md)、[验证义务](v3/verification.md)。未接受、未冻结，不自动升级现有消费者。
+
+## v4 ACK后继候选
+
+[v4 contract](v4/contract.md) · [消费者影响](v4/consumer-impact.md) · [验证义务](v4/verification.md)。candidate，未接受；前驱v3接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。

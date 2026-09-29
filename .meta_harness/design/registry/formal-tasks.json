@@ -2882,6 +2882,54 @@
         "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v12-ack-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v12-ack-lifecycle",
+        "-config",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.cfg",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v12-ack-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla",
+        "spec/capabilities/model-request-runtime/v12/formal/AckProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v12-ack-progress",
+        "-config",
+        "spec/capabilities/model-request-runtime/v12/formal/AckProgress.cfg",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }

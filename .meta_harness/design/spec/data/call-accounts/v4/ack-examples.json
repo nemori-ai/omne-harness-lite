@@ -1,0 +1,21 @@
+[
+  {
+    "name": "witness-unknown-is-original-cost",
+    "definition": "Cost",
+    "value": {
+      "cost_usd": "unknown",
+      "source": "none"
+    },
+    "schemaValid": true
+  },
+  {
+    "name": "witness-origin-does-not-enter-cost",
+    "definition": "Cost",
+    "value": {
+      "cost_usd": 0,
+      "source": "none",
+      "acknowledged": true
+    },
+    "schemaValid": false
+  }
+]

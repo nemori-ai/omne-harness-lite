@@ -564,3 +564,15 @@ FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态�
 变化和未开始的真实义务见[v11/verification](v11/verification.md)。实际工具运行：Schema检查57/57形状实例；RT11三个新增TLC正配置均exit0（ReferenceLifecycle:2206 generated/621 distinct；Publication:147/60；OpenedOrder:254/166），九个负控均exit12且命中目标不变量。未重跑继承形式工件，不将其旧结果算成本批覆盖。原始日志位于任务worktree的`tmp/model-registry-design/spec-draft/`（schema-check.log及tlc/）；提供者/装配/真实网络/权限/存储故障与性能测量均未开始。设计检查最终结果由本批交接记录，不预写通过。
 
 本批最终登记/文档检查：`check_design.py --root .meta_harness/design --formal registered` 实际exit0，输出 `PASS: design tree ... passed gate=internal; formal=registered.`（design-check-locked.log）。本树`.venv/bin/omne-docs-check`实际exit0，`PASS: 1836 Markdown files; local links and skill mirrors.`（docs-check.log）。852份原frozen资源逐项SHA匹配，frozen.json与4edf6cdc原字节相同。未运行release gate，不声称接受。
+
+## v12 ACK后继候选
+
+[v12 contract](v12/contract.md) · [消费者影响](v12/consumer-impact.md) · [验证义务](v12/verification.md)。candidate，未接受；前驱v11接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。
+
+### 本批已执行检查（2026-09-29）
+
+三个新Schema的80个显式root/defs正反实例全部符合预期；MS8的20个固定语义编码/摘要向量及4组相等、6组不等关系通过独立逐例编码核对。RT12 AckLifecycle与AckProgress各生成6688/2124状态，exit0；8个单变异负控各exit12并报告对应不变量反例。初次形式运行解析失败、第二次admission负控赋值错误及Schema检查器一处选错Pending入口，均另保留输入hash与原日志，修正后另目录运行，不声称一次通过。
+
+形式工具为TLC2 2026.09.12.025210（867aefb）、Temurin 21.0.12.1；2calls/2consumers、单Focus、一次可选crash、显式公平性范围见新版本formal/ACK-README。90份继承形式工件逐字相同，本批未重跑；不把它们算为ACK新证据。design检查internal/formal=registered已通过，该模式只核登记不执行模型。实际脚本、commands、输入SHA与日志由主线提升正式evidence；真实提供者/授权/存储/内存清理/未知写入组合验收仍未开始。
+
+本批文档检查亦实际通过：1948份Markdown；冻结清单970文件SHA均保持。文档检查不代表语义接受。
