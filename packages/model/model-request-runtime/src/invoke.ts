@@ -11,7 +11,12 @@ import type { ArrivalEvent, ArrivalError } from '@omne-harness-lite/arrival-even
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { TrimSummary } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { Failure, RawHeaders } from '@omne-harness-lite/model-response'
+import type {
+  Failure,
+  RawHeaders,
+  InputCalibration,
+  OutputGroupEvidence,
+} from '@omne-harness-lite/model-response'
 import type {
   InvocationInput,
   ModelInvocationHandle,
@@ -32,6 +37,18 @@ import {
 import { ownedHeaders, processFailure } from './invoke-policy.ts'
 import type { BoundCredentialRedaction } from './credential-redaction-types.ts'
 import { createInvocationDiagnostics, drainDiagnosticThenable } from './invocation-diagnostics.ts'
+
+const noReadFacts = Object.freeze({
+  usage: Object.freeze({
+    input_tokens: 'unknown',
+    output_tokens: 'unknown',
+    cache_read_tokens: 'unknown',
+    cache_write_tokens: 'unknown',
+    source: 'none',
+  }),
+  cost: Object.freeze({ cost_usd: 'unknown', source: 'none' }),
+  observedInput: Object.freeze({ kind: 'unavailable', reason: 'send_unknown' }),
+} as const)
 
 export function classifyCause(
   fact: TransportFailure,
@@ -157,6 +174,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
   if (
     !input.transport ||
     typeof input.transport.plan !== 'function' ||
+    typeof input.transport.projectOutput !== 'function' ||
     typeof input.transport.send !== 'function' ||
     typeof input.transport.read !== 'function'
   ) {
@@ -215,6 +233,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
     }),
     transport: Object.freeze({
       plan: input.transport.plan.bind(input.transport),
+      projectOutput: input.transport.projectOutput.bind(input.transport),
       send: input.transport.send.bind(input.transport),
       read: input.transport.read.bind(input.transport),
     }),
@@ -242,6 +261,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
   let retainedAccount: ModelAssemblyAccount | undefined
   let retainedHeaders: RawHeaders | undefined
   let retainedServing: StreamEnd | undefined
+  let retainedCalibration: InputCalibration | undefined
   let completed: ModelInvocationResult | undefined
   const gates = new Set<Promise<'accepted' | 'failed'>>()
   let disposeTimer: () => void = () => {}
@@ -345,6 +365,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
       gateFailed = false,
       rawHeaders: RawHeaders | undefined,
       headerFailure: TransportFailure | undefined
+    let arrivalFailure = false
     try {
       if (controller.signal.aborted) return { cancelledBeforeSend: true }
       diagnostics.record({
@@ -462,11 +483,15 @@ export function invokeModel<P extends PlannedSemantics, R>(
               break
             }
             const event = next.value
-            if (controller.signal.aborted) continue
+            if (controller.signal.aborted || arrivalFailure) continue
             // Use the real assembler to determine whether the candidate first event has content.
             const candidate = accept(state, event)
-            if ('rejected' in candidate)
-              throw new Error(`transport arrival rejected: ${candidate.rejected}`)
+            if ('rejected' in candidate) {
+              arrivalFailure = true
+              controller.abort()
+              diagnose('model_invocation.arrival_rejected')
+              continue
+            }
             const becameContent =
               snapshot(state).firstContentAt === undefined &&
               snapshot(candidate.ok).firstContentAt !== undefined
@@ -481,7 +506,14 @@ export function invokeModel<P extends PlannedSemantics, R>(
             } else if (firstTokenAt !== undefined && event.t === 'fill')
               deadline(input.policy.idleContentTimeoutMs)
             if (controller.signal.aborted) continue
-            consume(event)
+            try {
+              consume(event)
+            } catch {
+              arrivalFailure = true
+              controller.abort()
+              diagnose('model_invocation.arrival_rejected')
+              continue
+            }
             if (becameContent && snapshot(state).firstContentAt !== undefined)
               diagnostics.record({
                 source: 'invocation',
@@ -491,10 +523,17 @@ export function invokeModel<P extends PlannedSemantics, R>(
               })
           }
         } finally {
-          await reader.return({ aborted: true })
+          // Ordinary abort and rejection drive next() to the reader's owned final facts.
+          // This closes only a provider that threw instead of handing those facts over.
+          if (!readerStopped) {
+            controller.abort()
+            await reader.return({ aborted: true, readFacts: noReadFacts })
+          }
           readerStopped = true
         }
-      } else end = sent
+      } else if ('failed' in sent) end = { failed: sent.failed, readFacts: noReadFacts }
+      else if ('aborted' in sent)
+        end = { aborted: true, ...(sent.queued ? { queued: true } : {}), readFacts: noReadFacts }
       if (end === undefined) throw new Error('transport omitted terminal facts')
       retainedServing = end
       diagnostics.record({
@@ -509,7 +548,21 @@ export function invokeModel<P extends PlannedSemantics, R>(
             : {}),
         },
       })
-      if (headerFailure !== undefined) end = { failed: headerFailure }
+      if (headerFailure !== undefined || arrivalFailure) {
+        const stopped = end
+        end = {
+          readFacts: stopped.readFacts,
+          ...(stopped.upstreamModel === undefined ? {} : { upstreamModel: stopped.upstreamModel }),
+          ...(stopped.servingProvider === undefined
+            ? {}
+            : { servingProvider: stopped.servingProvider }),
+          ...(stopped.upstreamRequestId === undefined
+            ? {}
+            : { upstreamRequestId: stopped.upstreamRequestId }),
+          ...(stopped.stopReason === undefined ? {} : { stopReason: stopped.stopReason }),
+          failed: headerFailure ?? { source: 'local', localError: 'arrival_rejected' },
+        }
+      }
       const visible = snapshot(state).firstContentAt !== undefined
       let failure: Failure | undefined, reason: 'end' | 'max_tokens' | 'interrupted' | 'lost'
       if (gateFailed) {
@@ -596,7 +649,34 @@ export function invokeModel<P extends PlannedSemantics, R>(
             : reason === 'interrupted'
               ? 'interrupted'
               : 'failed'
+      const outputSource =
+        settled.ok.blocks.length === 0
+          ? 'none'
+          : outcome === 'complete' ||
+              outcome === 'truncated' ||
+              (outcome === 'interrupted' && visible)
+            ? 'reply'
+            : 'delivered'
+      let outputGroup: OutputGroupEvidence = { kind: 'unavailable', reason: 'not_retained' }
+      try {
+        const projected = input.transport.projectOutput(planned, {
+          blocks: settled.ok.blocks,
+          source: outputSource,
+          completeness: 'ended' in end ? 'complete' : 'partial',
+        })
+        if ('projected' in projected) outputGroup = projected.projected
+        else diagnose('model_invocation.output_projection_unavailable')
+      } catch {
+        diagnose('model_invocation.output_projection_failed')
+      }
+      const inputCalibration: InputCalibration = Object.freeze({
+        requestInput: planned.requestInput,
+        observedInput: end.readFacts.observedInput,
+        outputGroup,
+      })
+      retainedCalibration = inputCalibration
       const value: ModelInvocationResult = {
+        inputCalibration,
         outcome,
         ...(rawHeaders === undefined ? {} : { rawHeaders }),
         blocks: settled.ok.blocks,
@@ -613,8 +693,8 @@ export function invokeModel<P extends PlannedSemantics, R>(
           ...(firstTokenAt === undefined ? {} : { firstTokenAt }),
           endedAt: input.policy.now(),
         },
-        usage: account.usage,
-        cost: account.cost,
+        usage: end.readFacts.usage,
+        cost: end.readFacts.cost,
         routeName: planned.input.routeName,
         provider: planned.input.provider,
         adaptation: planned.input.snapshot.adaptation,
@@ -637,19 +717,21 @@ export function invokeModel<P extends PlannedSemantics, R>(
         facts: {
           kind: 'progress',
           responseOutcome: outcome,
-          ...(account.usage.input_tokens === 'unknown'
+          ...(end.readFacts.usage.input_tokens === 'unknown'
             ? {}
-            : { inputTokens: account.usage.input_tokens }),
-          ...(account.usage.output_tokens === 'unknown'
+            : { inputTokens: end.readFacts.usage.input_tokens }),
+          ...(end.readFacts.usage.output_tokens === 'unknown'
             ? {}
-            : { outputTokens: account.usage.output_tokens }),
-          ...(account.usage.cache_read_tokens === 'unknown'
+            : { outputTokens: end.readFacts.usage.output_tokens }),
+          ...(end.readFacts.usage.cache_read_tokens === 'unknown'
             ? {}
-            : { cacheReadTokens: account.usage.cache_read_tokens }),
-          ...(account.usage.cache_write_tokens === 'unknown'
+            : { cacheReadTokens: end.readFacts.usage.cache_read_tokens }),
+          ...(end.readFacts.usage.cache_write_tokens === 'unknown'
             ? {}
-            : { cacheWriteTokens: account.usage.cache_write_tokens }),
-          ...(account.cost.cost_usd === 'unknown' ? {} : { costUsd: account.cost.cost_usd }),
+            : { cacheWriteTokens: end.readFacts.usage.cache_write_tokens }),
+          ...(end.readFacts.cost.cost_usd === 'unknown'
+            ? {}
+            : { costUsd: end.readFacts.cost.cost_usd }),
         },
       })
       return completed
@@ -664,6 +746,23 @@ export function invokeModel<P extends PlannedSemantics, R>(
         } catch {
           // Without an actual assembler settlement, facts remain unavailable.
         }
+      }
+      if (retainedCalibration === undefined) {
+        retainedCalibration =
+          sentAt === undefined
+            ? {
+                requestInput: { kind: 'unavailable', reason: 'not_sent' },
+                observedInput: { kind: 'unavailable', reason: 'not_sent' },
+                outputGroup: { kind: 'unavailable', reason: 'not_sent' },
+              }
+            : {
+                requestInput: planned?.requestInput ?? {
+                  kind: 'unavailable',
+                  reason: 'send_unknown',
+                },
+                observedInput: { kind: 'unavailable', reason: 'send_unknown' },
+                outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+              }
       }
       terminal = true
       disposeTimer()
@@ -683,14 +782,20 @@ export function invokeModel<P extends PlannedSemantics, R>(
   const outcome = run()
   function observedFacts():
     { readonly facts: InvocationObservedFacts } | { readonly unavailable: true } {
-    if (!runStopped || gates.size !== 0 || retainedAccount === undefined)
+    if (
+      !runStopped ||
+      gates.size !== 0 ||
+      retainedAccount === undefined ||
+      retainedCalibration === undefined
+    )
       return { unavailable: true }
-    const account = completed ?? retainedAccount
+    const account = completed ?? retainedServing?.readFacts ?? retainedAccount
     const end = completed ?? retainedServing
     const trims = completed?.trims ?? retainedAccount.trims
     const facts: InvocationObservedFacts = Object.freeze({
       ...(sentAt === undefined ? {} : { sentAt }),
       ...(retainedHeaders === undefined ? {} : { rawHeaders: retainedHeaders }),
+      inputCalibration: retainedCalibration,
       usage: account.usage,
       cost: account.cost,
       ...(hasTrims(trims) ? { trims } : {}),

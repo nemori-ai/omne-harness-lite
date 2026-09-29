@@ -1,4 +1,4 @@
-import { copyJsonValue, isJsonNumber } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, isJsonNumber, judgeContentBlock } from '@omne-harness-lite/content-blocks'
 import {
   validate as profileShape,
   judgeModelProfileDocument,
@@ -8,8 +8,67 @@ import {
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { validate as toolShape, type ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { start } from '@omne-harness-lite/stream-assembly'
-import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { InputLimitMetric, PlanInput, TokenMargin } from './types.ts'
+import { ExactDecimal, judgeAccountValue, type Usage } from '@omne-harness-lite/call-accounts'
+import { copyInputCalibration } from '@omne-harness-lite/model-response'
+import type { InputLimitMetric, PlanCalibration, PlanInput, TokenMargin } from './types.ts'
+
+function index(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+function calibration(value: unknown): PlanCalibration | undefined {
+  const copied = copyJsonValue(value)
+  if (!('ok' in copied) || !object(copied.ok)) return undefined
+  const source = copied.ok
+  if (source.kind === 'none') {
+    return Object.keys(source).length === 2 &&
+      (source.reason === 'no_observation' || source.reason === 'source_unavailable')
+      ? { kind: 'none', reason: source.reason }
+      : undefined
+  }
+  if (
+    source.kind !== 'observation' ||
+    Object.keys(source).length !== 5 ||
+    !Array.isArray(source.outputBlocks) ||
+    !Array.isArray(source.replaySelection)
+  )
+    return undefined
+  const owned = copyInputCalibration(source.inputCalibration)
+  if (!('ok' in owned) || !('ok' in judgeAccountValue('Usage', source.usage))) return undefined
+  const blocks = []
+  for (const item of source.outputBlocks) {
+    const judged = judgeContentBlock(item)
+    if (!('ok' in judged)) return undefined
+    blocks.push(judged.ok)
+  }
+  const selection = []
+  const targets = new Set<string>()
+  for (const item of source.replaySelection) {
+    if (
+      !object(item) ||
+      Object.keys(item).length !== 3 ||
+      !index(item.sourceBlockIndex) ||
+      item.sourceBlockIndex >= blocks.length ||
+      !index(item.messageIndex) ||
+      !index(item.blockIndex)
+    )
+      return undefined
+    const key = `${item.messageIndex}:${item.blockIndex}`
+    if (targets.has(key)) return undefined
+    targets.add(key)
+    selection.push({
+      sourceBlockIndex: item.sourceBlockIndex,
+      messageIndex: item.messageIndex,
+      blockIndex: item.blockIndex,
+    })
+  }
+  return Object.freeze({
+    kind: 'observation',
+    inputCalibration: owned.ok,
+    usage: source.usage as unknown as Usage,
+    outputBlocks: Object.freeze(blocks),
+    replaySelection: Object.freeze(selection),
+  })
+}
 
 function snapshot(value: unknown): value is ModelProfileSnapshot {
   return profileShape('ModelProfileSnapshot', value).valid
@@ -137,6 +196,8 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     return undefined
   const tokenMargin = copyJsonValue(input.tokenMargin)
   if (!('ok' in tokenMargin) || !margin(tokenMargin.ok)) return undefined
+  const ownedCalibration = calibration(input.calibration)
+  if (ownedCalibration === undefined) return undefined
   const messages = []
   for (const raw of input.messages) {
     const judged = judgeMessage(raw)
@@ -152,6 +213,7 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     tools.push(copied.ok)
   }
   return Object.freeze({
+    calibration: ownedCalibration,
     tokenMargin: Object.freeze(tokenMargin.ok),
     target: Object.freeze({
       kind: 'model_call',

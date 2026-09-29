@@ -35,6 +35,7 @@ export interface ModelLogResponseProjection extends JsonObject {
   readonly timing: JsonObject & { readonly sentAt: string | null; readonly endedAt: string }
   readonly usage: JsonObject
   readonly cost: JsonObject
+  readonly inputCalibration: JsonObject
   readonly outcome: string
 }
 function responseProjection(value: JsonValue): value is ModelLogResponseProjection {
@@ -50,6 +51,7 @@ function responseProjection(value: JsonValue): value is ModelLogResponseProjecti
     typeof value.timing.endedAt === 'string' &&
     object(value.usage) &&
     object(value.cost) &&
+    object(value.inputCalibration) &&
     typeof value.outcome === 'string'
   )
 }

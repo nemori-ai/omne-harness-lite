@@ -31,6 +31,7 @@ import type {
   ModelInvocationHandle,
   ModelInvocationResult,
   InvocationPolicy,
+  OutputProjectionInput,
 } from './types.ts'
 import type {
   SettlementTask,
@@ -290,6 +291,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     return terminal(unavailable)
   const transport = Object.freeze({
     plan: input.transport.plan.bind(input.transport),
+    projectOutput: input.transport.projectOutput.bind(input.transport),
     send: input.transport.send.bind(input.transport),
     read: input.transport.read.bind(input.transport),
   })
@@ -624,6 +626,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
           dispatched,
           planned,
           observed: null,
+          sendState: 'not_sent',
           firstTokenAt: null,
           endedAt: policy.now(),
           initiator: interruptInitiator ?? 'run_cancelled',
@@ -644,6 +647,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
             ...requested,
             transport: {
               plan: () => ({ planned }),
+              projectOutput: transport.projectOutput,
               send: (...args) => transport.send(...args),
               read: transport.read,
             },
@@ -710,10 +714,14 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         const original = invocation?.observedFacts()
         if (original !== undefined && !('facts' in original)) return unavailable
         if (original !== undefined && original.facts.sentAt !== undefined) return unavailable
+        const originalFacts =
+          original === undefined
+            ? ({ observed: null, sendState: 'not_sent' } as const)
+            : ({ observed: original.facts } as const)
         const candidate = constructAnchoredInterruption({
           dispatched,
           planned,
-          observed: original?.facts ?? null,
+          ...originalFacts,
           firstTokenAt: null,
           endedAt: policy.now(),
           initiator: interruptInitiator ?? 'run_cancelled',
@@ -730,6 +738,8 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         result,
         messageId: input.messageId,
         firstTokenAt,
+        projectOutput: (projection: OutputProjectionInput) =>
+          transport.projectOutput(planned, projection),
         ...(interruptInitiator === undefined ? {} : { interruptInitiator }),
       })
       await drain()
@@ -777,6 +787,11 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
             source: 'none',
           }),
           cost: Object.freeze({ cost_usd: 'unknown', source: 'none' }),
+          inputCalibration: Object.freeze({
+            requestInput: { kind: 'unavailable', reason: 'send_unknown' },
+            observedInput: { kind: 'unavailable', reason: 'send_unknown' },
+            outputGroup: { kind: 'unavailable', reason: 'send_unknown' },
+          } as const),
         }),
       }
     },

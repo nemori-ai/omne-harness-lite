@@ -737,9 +737,13 @@ async function readRecoveredCalls(
         ...(dispatchedPosition === undefined ? {} : { dispatchedPosition }),
         ...(openedPosition === undefined ? {} : { openedPosition }),
       })
+      const originalFacts =
+        observed === null
+          ? ({ observed: null, sendState: 'send_unknown' } as const)
+          : ({ observed: observed.facts } as const)
       const candidate = constructAnchoredInterruption({
         dispatched: last.record,
-        observed: observed === null ? null : observed.facts,
+        ...originalFacts,
         firstTokenAt: firstTokenAt === null ? null : firstTokenAt.firstTokenAt,
         endedAt: input.now(),
         initiator: history.known.intent?.initiator ?? 'runtime_lost',

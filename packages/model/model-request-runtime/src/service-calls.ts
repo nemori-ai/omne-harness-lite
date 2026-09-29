@@ -32,6 +32,7 @@ import {
 } from './service-control.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
+import { authorizedCalibration } from './service-calibration.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
   CallPreparationOwner,
@@ -802,7 +803,15 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             ).completion
             if ('failure' in present) return { unavailable: true } as const
             if (!present.present) return { undispatched: 'credential_unavailable' } as const
-            return { winner } as const
+            const calibrated = authorizedCalibration(
+              prefix.prefix,
+              request.messages,
+              { callId, dispatch: 1 },
+              runtime.history.calibration,
+            )
+            return 'unavailable' in calibrated
+              ? ({ unavailable: true } as const)
+              : ({ winner, calibration: calibrated.calibration } as const)
           },
         )
         if ('unavailable' in facts || 'unavailable' in facts.ok) return { unavailable: true }
@@ -849,6 +858,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         let transferred = false
         try {
           const planned = lease.transport.plan({
+            calibration: checked.calibration,
             tokenMargin: runtime.tokenMargin,
             target: { kind: 'model_call', callId, dispatch: 1 },
             routeName: request.target,

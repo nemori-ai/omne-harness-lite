@@ -10,11 +10,17 @@ import {
   type ModelResponse,
   type PendingModelResponse,
   type ReplyDisposition,
+  type InputCalibration,
 } from '@omne-harness-lite/model-response'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import { captureModelLogValue, modelLogJsonEqual } from './log-codec.ts'
 import { reconstructAdaptedParameters } from './log-codec-settlement.ts'
-import type { InvocationObservedFacts, ModelInvocationResult } from './types.ts'
+import type {
+  InvocationObservedFacts,
+  ModelInvocationResult,
+  OutputProjectionInput,
+  OutputProjectionResult,
+} from './types.ts'
 import type { ResponseConstructionResult } from './anchored-invocation-types.ts'
 
 export interface ResponseConstructionInput {
@@ -25,9 +31,11 @@ export interface ResponseConstructionInput {
   readonly firstTokenAt: string | null
   /** Present only after the original S-31 intent append was confirmed. */
   readonly interruptInitiator?: 'user' | 'run_cancelled'
+  /** Original fixed transport projection, borrowed only before the durable batch is formed. */
+  readonly projectOutput?: (input: OutputProjectionInput) => OutputProjectionResult
 }
 /** Only an owner that confirmed a durable dispatched anchor may call this path. */
-export interface AnchoredInterruptionInput {
+interface AnchoredInterruptionBase {
   readonly dispatched: ModelCallDispatchedRecord
   /** When the original process still has the fixed plan, verify it against the anchor. */
   readonly planned?: {
@@ -35,12 +43,15 @@ export interface AnchoredInterruptionInput {
     readonly parameterAdjustments?: ModelInvocationResult['parameterAdjustments']
     readonly droppedParameters?: ModelInvocationResult['droppedParameters']
   }
-  /** Null means the owner confirmed no original invocation, never an unavailable read. */
-  readonly observed: InvocationObservedFacts | null
   readonly firstTokenAt: string | null
   readonly endedAt: string
   readonly initiator: 'user' | 'run_cancelled' | 'runtime_lost'
 }
+export type AnchoredInterruptionInput = AnchoredInterruptionBase &
+  (
+    | { readonly observed: InvocationObservedFacts; readonly sendState?: never }
+    | { readonly observed: null; readonly sendState: 'not_sent' | 'send_unknown' }
+  )
 function response(value: unknown): value is ModelResponse {
   return 'ok' in judgeModelResponse(value)
 }
@@ -86,6 +97,26 @@ function responseFacts(
     return null
   const reply = systemStopWithoutReply ? null : constructAssistantReply(input)
   const outcome = systemStopWithoutReply ? 'interrupted' : r.outcome
+  const outputSource =
+    reply !== null ? 'reply' : firstTokenAt !== null && r.blocks.length > 0 ? 'delivered' : 'none'
+  let inputCalibration: InputCalibration = r.inputCalibration
+  const priorGroup = inputCalibration.outputGroup
+  if (priorGroup.kind === 'known' && priorGroup.source !== outputSource) {
+    if (input.projectOutput === undefined) return null
+    const projected = input.projectOutput({
+      blocks: outputSource === 'none' ? [] : r.blocks,
+      source: outputSource,
+      completeness: priorGroup.completeness,
+    })
+    if ('invalidInput' in projected) return null
+    inputCalibration = {
+      ...inputCalibration,
+      outputGroup:
+        'projected' in projected
+          ? projected.projected
+          : { kind: 'unavailable', reason: 'not_retained' },
+    }
+  }
   const candidate: Record<string, unknown> = {
     id: d.response,
     dispatch: d.dispatch,
@@ -130,6 +161,7 @@ function responseFacts(
     },
     usage: r.usage,
     cost: r.cost,
+    inputCalibration,
     ...(r.trims === undefined ? {} : { trims: r.trims }),
     ...(r.stopReason === undefined ? {} : { stopReason: r.stopReason }),
     ...(r.rawHeaders === undefined ? {} : { raw: { headers: r.rawHeaders } }),
@@ -178,6 +210,22 @@ export function constructAnchoredInterruption(
   )
     return { rejected: 'invalidInput' }
   const sentAt = observed?.sentAt ?? null
+  const inputCalibration: InputCalibration = observed
+    ? {
+        requestInput: observed.inputCalibration.requestInput,
+        observedInput: observed.inputCalibration.observedInput,
+        outputGroup:
+          observed.inputCalibration.outputGroup.kind === 'known' &&
+          observed.inputCalibration.outputGroup.source === 'none'
+            ? observed.inputCalibration.outputGroup
+            : { kind: 'unavailable', reason: 'not_retained' },
+      }
+    : {
+        // Only the original owner may establish not_sent; a cold absent owner is unknown.
+        requestInput: { kind: 'unavailable', reason: input.sendState },
+        observedInput: { kind: 'unavailable', reason: input.sendState },
+        outputGroup: { kind: 'unavailable', reason: input.sendState },
+      }
   if (
     (sentAt !== null && !ordered(sentAt, firstTokenAt ?? endedAt)) ||
     (firstTokenAt !== null && !ordered(firstTokenAt, endedAt))
@@ -218,6 +266,7 @@ export function constructAnchoredInterruption(
       source: 'none',
     },
     cost: observed?.cost ?? { cost_usd: 'unknown', source: 'none' },
+    inputCalibration,
     ...(observed?.trims === undefined ? {} : { trims: observed.trims }),
     ...(observed?.stopReason === undefined ? {} : { stopReason: observed.stopReason }),
     ...(observed?.rawHeaders === undefined ? {} : { raw: { headers: observed.rawHeaders } }),

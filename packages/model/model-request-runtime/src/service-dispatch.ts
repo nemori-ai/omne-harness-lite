@@ -21,6 +21,7 @@ import {
   withOwnedReads,
 } from './service-control.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
+import { authorizedCalibration } from './service-calibration.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
   CallOperationState,
@@ -1031,7 +1032,25 @@ async function prepareSend<P extends PlannedSemantics, R>(
     return tools.failure === 'unavailable'
       ? { unavailable: true }
       : { invalidInput: { reason: tools.reason ?? 'malformed' } }
+  const calibration = await withOwnedReads(
+    view.owner,
+    runtime.settlementContention.limits.concurrent,
+    retained,
+    async registration => {
+      const prefix = await readSettlementPrefix({ binding: session.log, registration })
+      return 'unavailable' in prefix
+        ? ({ unavailable: true } as const)
+        : authorizedCalibration(
+            prefix.prefix,
+            view.request.messages,
+            { callId: key.callId, dispatch },
+            runtime.history.calibration,
+          )
+    },
+  )
+  if ('unavailable' in calibration || 'unavailable' in calibration.ok) return { unavailable: true }
   const planInput: PlanInput = Object.freeze({
+    calibration: calibration.ok.calibration,
     tokenMargin: runtime.tokenMargin,
     target: { kind: 'model_call' as const, callId: key.callId, dispatch },
     routeName: view.binding.profile.routeName,
