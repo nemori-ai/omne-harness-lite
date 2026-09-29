@@ -98,6 +98,7 @@ Tiktoken.prototype.encode = function (text, ...args) {
   else newTokenizerCalls++
   return originalEncode.call(this, text, ...args)
 }
+const matchedRequests = []
 try {
   let nextRequest = request
   for (let i = 1; i <= 3; i++) {
@@ -138,12 +139,21 @@ try {
     }
     previous = measure(`marginal-plan-${i}`, () => plan(nextRequest))
     if (previous.measurement.mode !== 'marginal') throw Error('incremental plan fell back')
+    matchedRequests.push({ input: nextRequest, wire: previous.serialized })
   }
 } finally {
   Tiktoken.prototype.encode = originalEncode
 }
 if (historyTokenizerCalls !== 0 || newTokenizerCalls === 0)
   throw Error('stable history was retokenized or new content not counted')
+// Compare full and marginal on byte-identical final requests, outside the spy
+// interval, so the positive full controls cannot hide a marginal history call.
+for (const [index, matched] of matchedRequests.entries()) {
+  const full = measure(`matched-full-plan-${index + 1}`, () =>
+    plan({ ...matched.input, calibration: { kind: 'none', reason: 'no_observation' } }),
+  )
+  if (full.serialized !== matched.wire) throw Error('comparison did not use identical final input')
+}
 const report = {
   node: process.version,
   model: definition.modelId,
@@ -158,6 +168,8 @@ const report = {
   measurements,
   limits: [
     'Synthetic observations, no upstream request',
+    'Shared host; no exclusive CPU isolation; wall/CPU/memory observations are workload samples',
+    'matched-full-plan-N uses byte-identical final wire and configuration to marginal-plan-N',
     'Offline raised admission budget; not route 1M-input support',
     'Full-plan times include final construction, ownership, serialization, projection/hash, meter and byte/image checks',
     'Serialization/projection/full-meter phases measured separately on retained identical final body, not additive profiler spans',
