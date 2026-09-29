@@ -4,6 +4,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
+import type { ReasoningEffort } from '@omne-harness-lite/model-profile'
 import type { CountingBasis } from '@omne-harness-lite/model-response'
 import type { InputMeter } from '../input-meter.ts'
 import type { OutputGroupSource, OutputHistoryPolicy } from './output-history.ts'
@@ -17,8 +18,8 @@ export const OPENAI_FAMILY_ALGORITHM = 'openai-visible-json-complete-output-grou
 export const OPENAI_FAMILY_REPLAY = 'openai-complete-output-group-workload-estimated/1'
 export const OPENAI_FAMILY_EVIDENCE =
   'D107 priority-family provider revision 5 (2026-09-29): complete unchanged same-model OpenRouter/OpenAI output groups use upstream O once as a workload-related estimated proxy with zero experimental net framing correction; not exact input occupancy or an upper bound, no GPT6 all_turns claim. Pro input usage scope stays unknown. Visible o200k/image rules retain their declared surrogate limits; same-base image reuse is not verified Pro preprocessing and GPT6 o200k is not a tokenizer identity.'
-const standardEfforts = Object.freeze(['none', 'low', 'medium', 'high', 'max'])
-const astraEfforts = Object.freeze(['low', 'medium', 'high', 'max'])
+const standardEfforts = Object.freeze(['none', 'low', 'medium', 'high', 'max'] as const)
+const astraEfforts = Object.freeze(['low', 'medium', 'high', 'max'] as const)
 export interface OpenAiOriginalRecord {
   readonly definitionRevision: string
   readonly implementationRevision: string
@@ -32,7 +33,7 @@ export interface OpenAiFamilyRecord {
   readonly modelId: string
   readonly definitionRevision: string
   readonly imageRule: ImageRule
-  readonly efforts: readonly string[]
+  readonly efforts: readonly ReasoningEffort[]
   readonly inputScope: 'inherited_context_total' | 'scope_unknown'
   readonly visibleDomain: 'finalRequest' | 'visibleJson'
   readonly tokenizerRevision: string
@@ -174,7 +175,7 @@ function record(
   modelId: keyof typeof observedOriginals,
   definitionRevision: string,
   imageRule: ImageRule,
-  efforts: readonly string[],
+  efforts: readonly ReasoningEffort[],
   inputScope: OpenAiFamilyRecord['inputScope'],
   visibleDomain: OpenAiFamilyRecord['visibleDomain'] = 'finalRequest',
   previous: boolean = false,
@@ -339,7 +340,7 @@ export function openAiEnvelopeApplies(envelope: JsonObject, row: OpenAiFamilyRec
       (object(reasoning) &&
         Object.keys(reasoning).length === 1 &&
         typeof reasoning.effort === 'string' &&
-        row.efforts.includes(reasoning.effort)))
+        row.efforts.some(effort => effort === reasoning.effort)))
   )
 }
 export function originalOpenAiRecord(
