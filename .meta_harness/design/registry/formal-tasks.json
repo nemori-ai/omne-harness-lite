@@ -2810,6 +2810,78 @@
         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
       ],
       "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v11-referencelifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.tla",
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v11-referencelifecycle",
+        "-config",
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.cfg",
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v11-publication",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.tla",
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v11-publication",
+        "-config",
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.cfg",
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v11-openedorder",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla",
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v11-openedorder",
+        "-config",
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.cfg",
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }

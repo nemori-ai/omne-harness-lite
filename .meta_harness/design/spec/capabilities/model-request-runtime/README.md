@@ -92,3 +92,8 @@
 ## 2026-09-29 响应校准候选 v10
 
 [v10 contract](v10/contract.md) · [验证义务](v10/verification.md)。新增增量输入计量事实及其消费；candidate，未接受、未冻结，不自动升级现有消费者。
+
+
+## v11 candidate（本批）
+
+[v11完整规范](v11/contract.md)、[消费者影响](v11/consumer-impact.md)、[验证义务](v11/verification.md)。未接受、未冻结，不自动升级现有消费者。

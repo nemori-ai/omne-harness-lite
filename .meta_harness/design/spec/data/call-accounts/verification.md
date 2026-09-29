@@ -168,3 +168,10 @@ reviewer：spec-reviewer，S25 第二轮批 R1（另含批 R2b 转来的一条�
 - **定义性引用与落点的复核**（本契约引用、不登 catalog 依赖的三处）：`data.arrival-events/v2#S-23` 第 1 条改了「一帧」的单位，本契约 [S-11](v2/contract.md#s-11-toolcallaccount一次工具执行的账)、[S-15](v2/contract.md#s-15-trimreason-与-trimsummary砍了要说) 同轮复核；`capability.tool-execution-runtime/v2#S-14` 改了外部效果确定性的三值或投影，本契约 S-11 的两值含义同轮复核；`capability.stream-assembly/v2#S-14` 不再兑现「每帧至多计一次」，S-15 的不等式失去前提。
 - **`ModelResponse.late`**：`data.model-response` 的 `late` 须与 [S-39](v2/contract.md#s-39-晚到的账) 同一含义、同一写法（可选、只取 `true`、缺席 = 不晚），**锚是发出所在的尝试**（`attemptId`，M25）；那份契约改写法或改锚时本条同轮复核。
 - **接入点规范串的分隔符**：本契约与实例按 `data.asset-model/v2#S-3` 写 `<category>/<name>`；[D-060 §一 S2-e](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的) 原文的 `"<category>:<name>"` 已由 [D-060 §四](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「S2-e」那一行登记为被 asset-model S-3 取代（早期笔误）。
+
+
+## CA3 本批候选验证（2026-09-29）
+
+变化和未开始的真实义务见[v3/verification](v3/verification.md)。实际工具运行：Schema检查57/57形状实例；RT11三个新增TLC正配置均exit0（ReferenceLifecycle:2206 generated/621 distinct；Publication:147/60；OpenedOrder:254/166），九个负控均exit12且命中目标不变量。未重跑继承形式工件，不将其旧结果算成本批覆盖。原始日志位于任务worktree的`tmp/model-registry-design/spec-draft/`（schema-check.log及tlc/）；提供者/装配/真实网络/权限/存储故障与性能测量均未开始。设计检查最终结果由本批交接记录，不预写通过。
+
+本批最终登记/文档检查：`check_design.py --root .meta_harness/design --formal registered` 实际exit0，输出 `PASS: design tree ... passed gate=internal; formal=registered.`（design-check-locked.log）。本树`.venv/bin/omne-docs-check`实际exit0，`PASS: 1836 Markdown files; local links and skill mirrors.`（docs-check.log）。852份原frozen资源逐项SHA匹配，frozen.json与4edf6cdc原字节相同。未运行release gate，不声称接受。

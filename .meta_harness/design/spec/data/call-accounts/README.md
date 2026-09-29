@@ -53,3 +53,8 @@
 ## 2026-09-26 版本接受
 
 本次接受 `data.call-accounts` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+
+
+## v3 candidate（本批）
+
+[v3完整规范](v3/contract.md)、[消费者影响](v3/consumer-impact.md)、[验证义务](v3/verification.md)。未接受、未冻结，不自动升级现有消费者。

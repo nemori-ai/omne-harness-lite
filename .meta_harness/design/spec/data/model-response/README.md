@@ -91,3 +91,8 @@ v5 仅将 `raw.headers` 的值扩展为字符串或有序字符串数组，保�
 ## 2026-09-29 响应校准候选 v9
 
 [v9 contract](v9/contract.md) · [验证义务](v9/verification.md)。新增增量输入计量事实及其消费；candidate，未接受、未冻结，不自动升级现有消费者。
+
+
+## v10 candidate（本批）
+
+[v10完整规范](v10/contract.md)、[消费者影响](v10/consumer-impact.md)、[验证义务](v10/verification.md)。未接受、未冻结，不自动升级现有消费者。
