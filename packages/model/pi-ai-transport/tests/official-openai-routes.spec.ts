@@ -50,7 +50,9 @@ function fixture(modelId: string, route: ModelRoute): ModelDefinition {
 }
 
 async function setup(modelId: (typeof ids)[number], parameters: ModelRequestParameters = {}) {
-  const definition = fixture(modelId, openaiRoutes[modelId])
+  const route = openaiRoutes[modelId]
+  if (!route) throw new Error(`Missing official route for ${modelId}`)
+  const definition = fixture(modelId, route)
   const configuration = { revision: 'fixture', values: { cache: { mode: 'automatic' } } }
   const profile = createOfficialProfileContent(definition, {
     providers: ['openai'],
