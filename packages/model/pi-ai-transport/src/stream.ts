@@ -220,7 +220,7 @@ export async function* readStream(
         const nonempty = (v: JsonValue | undefined) =>
           v !== undefined && v !== null && v !== '' && (!Array.isArray(v) || v.length > 0)
         for (const key of ['images', 'audio', 'refusal'])
-          if (nonempty(delta[key])) throw new SseProtocolError('unsupported content member')
+          if (nonempty(delta[key])) throw new SseProtocolError(`unsupported content member: ${key}`)
         const content = delta.content
         for (const key of ['reasoning', 'reasoning_content', 'reasoning_text'])
           if (nonempty(delta[key]) && typeof delta[key] !== 'string')

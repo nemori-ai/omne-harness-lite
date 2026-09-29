@@ -476,7 +476,7 @@ pnpm exec vitest run tests/official-*.spec.ts
 
 具体估算实现集中在 [`src/input-meters/`](src/input-meters/)：[`deepseek-v4-pro.ts`](src/input-meters/deepseek-v4-pro.ts)、[`deepseek-v41-flash.ts`](src/input-meters/deepseek-v41-flash.ts) 和 [`openai.ts`](src/input-meters/openai.ts)。同一家族在事实依据允许时共用算法，每个供给模型及供应商路由明确绑定；消息编码或 tokenizer 确有差异时可拆独立模块。公共接口、余量及绑定校验保留在 [`input-meter.ts`](src/input-meter.ts)，最终输入限额检查在 [`input-limits.ts`](src/input-limits.ts)。消费者从包根导入工厂。
 
-Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配置 TTL，分写入／读取／过期三个命令执行。它记录公开调用结果、已接收的到达事件和响应头；`capture.rawSseBody: false`、`capture.protocolFailureFrame: false` 表示没有捕获原始 SSE 正文及被拒绝帧。不能仅凭协议失败确定触发字段或重建缺失字节。非空且不受支持的 `images`、`audio` 和 `refusal` 内容仍按协议失败处理。
+Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配置 TTL，分写入／读取／过期三个命令执行。它记录公开调用结果、已接收的到达事件和响应头；`capture.rawSseBody: false`、`capture.protocolFailureFrame: false` 表示没有捕获原始 SSE 正文及被拒绝帧。非空且不受支持的 `images`、`audio` 和 `refusal` 内容仍按协议失败处理。reader 现在通过既有 `localError` 分别报告 `unsupported content member: images`、`unsupported content member: audio` 或 `unsupported content member: refusal`，只包含固定字段名，不加入字段值；公开调用仍应用原有凭据脱敏。空串、空数组和 null 继续忽略。同帧已解析的 usage／cost 在失败后保留，尚未读取的后续 usage 不会被伪造。这些诊断不能还原旧拒绝帧，也不能从历史通用错误或其哈希反推触发字段。
 
 `tests/openai-sol-calibration.spec.ts` 覆盖 Sol 全部已声明 effort 与缺省、精确十进制余量边界、本机 TLS 的真实公开 invoke、full→marginal→marginal、确认稳定前缀不进入 tokenizer 的 spy，以及前缀／依据／来源负控。`tests/openai-visible-history-candidate.spec.ts` 以保留的冻结历史输入验证正式 Sol/Luna 工厂。原 Sol 文字代理观察与新最终 JSON 估值分别保留。本机符合性不冒称新的 OpenRouter 认证。
 

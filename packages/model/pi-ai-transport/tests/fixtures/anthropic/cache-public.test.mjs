@@ -176,7 +176,7 @@ for (const mode of ['complete', 'failed-known', 'unknown', 'protocol'])
         protocolFailureFrame: false,
       })
       if (mode === 'protocol') {
-        assert.equal(observed.result.failure.localError, 'unsupported content member')
+        assert.equal(observed.result.failure.localError, 'unsupported content member: refusal')
         assert.equal(observed.result.failure.upstreamError, undefined)
         assert(!observedSource.includes('Synthetic refused content'))
       }
