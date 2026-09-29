@@ -16,7 +16,7 @@ ACK后完整结果不再由model service重新交付。CallReadView增加明确a
 
 ## 唯一新日志事实与规范边界
 
-MS后继新增 `model_call_acknowledged` 技术记录（不是Message/OutboundMessage）：call、creationKey、原显式输入等价摘要、target、原terminalState、acknowledgedAt、未final结果的最小原账见证和语义摘要，以及允许释放的精确ModelCallPayloadRef清单。租户/session/run/attempt仍在原条目壳核对。该记录按CallKey使用稳定ACK判重键和读键；ACK使用独立稳定键，不与尚未确定的处分拼成一批。它证明消费方已确认，不单凭记录存在宣称物理删除完毕。
+MS后继新增 `model_call_acknowledged` 技术记录（不是Message/OutboundMessage）：call、creationKey、原显式输入等价摘要、target、原terminalState、acknowledgedAt、未final结果的最小原账见证和语义摘要，以及允许释放的精确ModelCallPayloadRef清单。ACK条目壳保留created原tenant/session/run/attempt，账见证保留终结ready的原账壳；二者attempt可以因合法续接不同，分别核对原来源，共同tenant/session/run与CallKey一致。该记录按CallKey使用稳定ACK判重键和读键；ACK使用独立稳定键，不与尚未确定的处分拼成一批。它证明消费方已确认，不单凭记录存在宣称物理删除完毕。
 
 清理进度由同存储保留控制行及实际删除结果提供，不另立第二个模型执行事实源。原created/ready marker在ACK前要求payload持续可读；合法ACK之后可以明确指向“模型侧已释放”的历史payload，不作corruption/notFound。final ModelResponse/原AssistantMessage及费用补记保持原日志字节，不删除或替换。CA后继按原ResponseId从final、合法ACK中的原账见证、ready选择恰一份（按此顺序），ACK见证逐值保持原usage/cost及原归属，不增加费用、不把unknown补零。只有ready载荷确已验证且见证与其原值一致才能发布ACK；来源矛盾是损坏，不能借优先级掩盖。
 
