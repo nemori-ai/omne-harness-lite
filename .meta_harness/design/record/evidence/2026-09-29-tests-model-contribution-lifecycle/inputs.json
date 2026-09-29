@@ -1,0 +1,37 @@
+{
+  "scope": "D4 model contribution lifecycle only",
+  "sourceRevisions": {
+    "independentInitial": "d2cf6bcbfacb793c51e6fd7cd45f271cd5bd0843",
+    "independentFollowup": "6abdc7087aa6b0b9dfda40d6a128445ddbe52975",
+    "hubInitialTests": "78ffcbeb",
+    "hubFollowupTests": "13212b2f"
+  },
+  "runtime": "Node24.18.0/pnpm10.28.1; actual Cordis4.0.4,SQLite,JSONL,loopbackHTTPS,childSIGKILL",
+  "paidCalls": 0,
+  "commands": [
+    "pnpm --filter @omne-harness-lite/pi-ai-transport exec vitest run tests/acceptance-d4-contributions.spec.ts --maxWorkers=1",
+    "pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/acceptance-d4-scopes.spec.ts --maxWorkers=1",
+    "pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/acceptance-d4-lifecycle.spec.ts --maxWorkers=1"
+  ],
+  "files": {
+    "inputs/acceptance-d4-lifecycle.spec.ts": "ee45398ca8f7a54ebdb1f8bc3f8f8c4e27cdcfc93baf2293ab3461ede6136bf7",
+    "inputs/acceptance-d4-contributions.spec.ts": "e8b11d8d9ae98832ebfad43ba21e22223e0df03d498ed5ff2791362c3fbb5d72",
+    "inputs/independent-followup.md": "9f0dcf871b5952971ee92bf39ff0b9267e47818f2c186023dc7e8cdf4a7e34b8",
+    "inputs/independent-adopted-inputs.json": "4a3403bcd07e068c630a25f33e778b8c1c428ab5bf4cf4fa7048e8099d3a8941",
+    "inputs/independent-README.md": "017d96e35b8d3bf941abd537303d16867bdc557e2cb9ece625825f16a988b455",
+    "inputs/acceptance-d4-scopes.spec.ts": "8d051b7580a9152c44b1e5ec2fa8a094994356000fc85a6adfc4db79e7c35e4e",
+    "outputs/independent-demo-final.log": "4015915e458d770a08e8f8689fd2c11f82c341258aa51fb0abac367baed2faa8",
+    "outputs/independent-lifecycle-format-check.log": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20",
+    "outputs/independent-lifecycle-final.log": "6cb9f0bb5ebc49935253267269556e01299fe68ea7dd7e0a262f5807deedb950",
+    "outputs/d4-lifecycle-integrated.log": "658c0b9b9516958f494ee33475b0099ac79f26d57e343af7f426a6f6bed1602d",
+    "outputs/d4-scopes-integrated.log": "52dfc36f14a9960bb64a291288828b84c11a987094f05f4d7584eab90c73d628",
+    "outputs/independent-format-check.log": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20",
+    "outputs/independent-transport-types-final.log": "d68cd3e12e195207ee05be763f105c335ce4b261cdbd1d1bda3c6e59d5d34da4",
+    "outputs/independent-demo-types-final.log": "da9d0911e756a77fb37b633b3ae6c9646798e7c189ecaaf78a17893151fe0fc4",
+    "outputs/independent-transport-final.log": "720886b385fd50d442cb4d474a9b7bf8cfe6db0d9ef68f573c3e16b563c68507",
+    "outputs/independent-lifecycle-types-final.log": "da9d0911e756a77fb37b633b3ae6c9646798e7c189ecaaf78a17893151fe0fc4",
+    "outputs/independent-mutant-results-final.json": "bb6a413b7689dc1b77a876ed020c499a37a6e29fa8bdf48161d4d9058c51d12a",
+    "outputs/d4-contributions-integrated.log": "5fcad630d038977b9f2e8cad89b144c54ea16153b3ae886550cc3a57c99c8844",
+    "outputs/independent-mutants-final.log": "e3ad929188e8c86b4483558aa854afcab5ee91ad00d17ae6024e992af369a4ca"
+  }
+}

@@ -281,3 +281,8 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 ## 注册表诊断源读面增量
 
 采用范围见 [v11](v11-registry-diagnostics-design.md)与节点README；运行证据尚无。必需场景为实际registry+collector/Cordis贡献生命周期、未停旧lease、force请求与真实停止区分、cleanup失败、无端口/合法拒收/throw/非法值、重复pending Promise停投及拒绝吸收、溢出unknown和最终inspect快照；源/network/collector同值不能相加当多个失败。不以这些场景替代完整D6或逐模型认证。
+
+
+## 2026-09-29 D4 模型贡献范围实际接受
+
+[独立及HUB真实验收](../../../../record/evidence/2026-09-29-tests-model-contribution-lifecycle/README.md)覆盖可信贡献/声明式custom、同一旧lease及phi、真实排空/失败隔离、组织租户/配置/凭据与撤销准入、历史锚旧绑定和三等待状态。HUB7＋2＋2场景通过，root逐门核对后接受该D4范围；新增绑定0，不提升37模型D7、D6、完整十三操作或任意JS reader在线补丁的声明。精确输入/原始输出与有限前提沿run读取。
