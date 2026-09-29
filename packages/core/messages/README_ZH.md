@@ -184,7 +184,7 @@ pnpm --filter @omne-harness-lite/messages run test
 
 ## MS7 创建内容与回复关系
 
-当前根入口基于22份精确Schema资源编译50个定义。创建值（`CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreationInput`、`ModelCallCreatedPayload`）由本包唯一拥有。`model_call_created` 与 `model_call_reply_ready` 是技术记录，不属于 Message 或 OutboundMessage。`./schema/v6` 保留精确消费者所需的原 MS6 资源，不提供旧执行入口。采用映射与验证义务见 [v7映射](../../../.meta_harness/design/realization/packages/core/messages/v7-design.md)、[M7-V1–V8](../../../.meta_harness/design/realization/packages/core/messages/verification.md#v7-创建记录与回复关系候选义务)，接受依据为 [D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)。
+当前根入口用九份精确资源编译全部50个公开定义：MS7、CB3、CB2、OE1、CA3、IV1、MP5、MP6、TD3。图沿实际引用的定义递归；依赖文件里未触达的定义不会扩大本包图。创建值（`CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreationInput`、`ModelCallCreatedPayload`）由本包唯一拥有。`model_call_created` 与 `model_call_reply_ready` 是技术记录，不属于 Message 或 OutboundMessage。`./schema/v6` 保留精确消费者所需的原 MS6 资源，不提供旧执行入口。采用映射与验证义务见 [v7映射](../../../.meta_harness/design/realization/packages/core/messages/v7-design.md)、[M7-V1–V8](../../../.meta_harness/design/realization/packages/core/messages/verification.md#v7-创建记录与回复关系候选义务)，接受依据为 [D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)。
 
 ### 接收被拒绝创建的原输入
 
@@ -240,3 +240,5 @@ console.log(judgeModelReplyMessage(original, { ...persisted, response: 'other' }
 ```
 
 `judgeModelReplyMessage` 先判原回复，再判持久消息，最后判两值关系。成功返回拥有自己的持久消息副本。每个原成员与原块位置都须保持相等，包括已有派生及 opaque。只有原本同时缺少两个派生成员的合格媒体块可新增合法 renderings/transcript 对。本函数不执行转换，也不授予写权：最终写方仍须核真实可信转换来源、当前资格和消息/final原子原批。自报 `producedBy: 'system'` 只证明表示。
+
+当前资源注册与验证根按已接受的[公开定义闭包revision 2](../../../.meta_harness/design/realization/packages/core/messages/public-definition-resource-closure-followup.md)和[D110闭包决定](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/public-schema-closure-decision.md)执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。

@@ -183,7 +183,7 @@ assert.deepEqual(
 
 `validate(defName, value)` 校验 MR10 的 25 个 JSON Schema 定义之一，返回 `{ valid: boolean }`。`judgeModelResponse(value)` 与 `judgePendingModelResponse(value)` 按 MR10 S-27 的顺序返回 `{ ok: true }` 或 `{ rejected: reason }`。它们保留精确 JSON 数值，不修改输入。表示合法不证明耐久锚点、时刻来源、实际用量、回复提交或响应体耐久；这些保证由运行时和写入者承担。
 
-MR10 Schema 通过各 owner 的公开 Schema 入口装配完整固定依赖图；CA2/CA3、MS2/MS3/MS6/MS7、MP2/MP5/MP6 及其余可达依赖各保留原 `$id`，不做 URI 重定向；资源缺失或错版会明确导致初始化失败。接受的[MR10 契约](../../../.meta_harness/design/spec/data/model-response/v10/contract.md)和[本包 v10 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v10-reference-result-design.md)是语义依据。
+MR10 的全部25个公开定义与既有两个私有成员校验入口，经各 owner 的公开 Schema 入口使用九份规范资源：MR10、CA3、IV1、MP5、CB2、OE1、LC6、CB3、MS7。私有成员视图单独生成，不算第十份规范资源。LC6只提供被引用的FailureCause定义；本包图不注册MS6、CA2、MP6、TD3或旧资产链。每份必要资源保留原字节与 `$id`，不做 URI 重定向；资源缺失或错版会明确导致初始化失败。接受的[MR10 契约](../../../.meta_harness/design/spec/data/model-response/v10/contract.md)和[本包 v10 实现映射](../../../.meta_harness/design/realization/packages/core/model-response/v10-reference-result-design.md)是语义依据。
 
 ## 输入校准值
 
@@ -200,3 +200,5 @@ MR10 Schema 通过各 owner 的公开 Schema 入口装配完整固定依赖图�
 `judgeResponseFinalization(pending, final)` 先取得完整 Pending 的自有无损值并按原顺序完整判定，通过后才取得并判定 final。比较只移除 final 顶层的 `replyDisposition` 和 `late`；原回复和已有派生、usage/cost、raw 引用、头值顺序与 inputCalibration 等其余全部 JSON 值必须精确相等。对象键顺序和数字同值异拼写不影响相等；数组顺序、重复、缺席和精确小数差异有意义。结果沿既有冻结判定，不改输入。
 
 S-46 允许 Pending 作为不可变内容保留，但它仍不是 final。本函数不证明原字节、来源、授权、耐久发布或费用选择，不查询当前 provider/meter、不重算原摘要、不把 unknown 补零。首次持久消息允许的成对 renderings/transcript 新增由 messages 的唯一 `judgeModelReplyMessage` 判断；final.reply 自身仍保留原值。runtime/写方组合两个值判定与真实来源、当前写权检查，再提交原批。[D-110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md) 采用本版，真实 runtime/存储组合仍需另行验证。
+
+当前资源注册与验证根按已接受的[公开定义闭包revision 2](../../../.meta_harness/design/realization/packages/core/messages/public-definition-resource-closure-followup.md)和[D110闭包决定](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/public-schema-closure-decision.md)执行。MS2/MS3/MS6资源继续供真正的外部消费者使用，不提供旧执行codec；LC/AE后继迁移与runtime耐久行为由各自owner承担。

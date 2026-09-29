@@ -9,7 +9,6 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
-import retainedProfileSchema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
 import { isObject } from '../src/json.ts'
 import { normativeSchemaResources } from '../src/schema.ts'
 import {
@@ -67,47 +66,7 @@ function object(value: JsonValue): JsonObject {
 }
 
 describe('MR10 exact public resource', () => {
-  for (const [specifier, coordinate] of [
-    ['@omne-harness-lite/call-accounts/schema', 'call-accounts/v3/call-accounts.schema.json'],
-    ['@omne-harness-lite/call-accounts/schema/v2', 'call-accounts/v2/call-accounts.schema.json'],
-    ['@omne-harness-lite/messages/schema', 'messages/v7/messages.schema.json'],
-    ['@omne-harness-lite/messages/schema/v6', 'messages/v6/messages.schema.json'],
-    ['@omne-harness-lite/model-profile/schema', 'model-profile/v5/model-profile.schema.json'],
-    ['@omne-harness-lite/model-profile/schema/v6', 'model-profile/v6/model-profile.schema.json'],
-  ] as const)
-    it(`consumes exact public resource ${coordinate}`, () => {
-      const actual = readFileSync(new URL(import.meta.resolve(specifier)))
-      const accepted = readFileSync(
-        new URL(`../../../../.meta_harness/design/spec/data/${coordinate}`, import.meta.url),
-      )
-      expect(actual.equals(accepted)).toBe(true)
-      const parsed = object(parseJson(actual.toString('utf8')))
-      expect(normativeSchemaResources.some(resource => resource.$id === parsed.$id)).toBe(true)
-    })
-
-  for (const [path, definition] of [
-    [
-      '/call-accounts/v2/',
-      'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v6/loop-extension.schema.json#/$defs/AttemptStartedSubject',
-    ],
-    ['/call-accounts/v3/', `${schema.$id}#/$defs/ModelResponse`],
-    [
-      '/messages/v6/',
-      'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v6/loop-extension.schema.json#/$defs/BeforePersistMessageSubject',
-    ],
-    ['/messages/v7/', `${schema.$id}#/$defs/ModelResponse`],
-    ['/model-profile/v5/', `${schema.$id}#/$defs/ModelResponse`],
-    [
-      '/model-profile/v6/',
-      'https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v7/messages.schema.json#/$defs/ModelCallCreatedPayload',
-    ],
-  ] as const)
-    it(`fails graph initialization without exact ${path} resource`, () => {
-      const without = normativeSchemaResources.filter(resource => !resource.$id.includes(path))
-      expect(() => createSchemaRuntime(without).compile({ $ref: definition })).toThrow()
-    })
-
-  it('matches the accepted Schema bytes and compiles all definitions in its fixed closure', () => {
+  it('matches the accepted Schema bytes and compiles all 25 public definitions', () => {
     const actual = readFileSync(new URL('../schema/model-response.schema.json', import.meta.url))
     const accepted = readFileSync(
       new URL(
@@ -126,18 +85,11 @@ describe('MR10 exact public resource', () => {
     const ids = normativeSchemaResources.map(resource => resource.$id)
     expect(new Set(ids).size).toBe(ids.length)
     const graph = createSchemaRuntime(normativeSchemaResources)
-    for (const resource of normativeSchemaResources) {
-      const defs = '$defs' in resource ? Object.keys(resource.$defs) : []
-      for (const name of defs)
-        expect(() =>
-          graph.compile({
-            $ref: `${resource.$id}#/$defs/${name}`,
-          }),
-        ).not.toThrow()
-    }
+    expect(normativeSchemaResources).toHaveLength(9)
+    for (const name of SCHEMA_DEF_NAMES)
+      expect(() => graph.compile({ $ref: `${schemaId}#/$defs/${name}` })).not.toThrow()
     expect(ids).toContain(profileSchema.$id)
     expect(profileSchema.$id).toContain('/model-profile/v5/')
-    expect(ids).toContain(retainedProfileSchema.$id)
     expect(() => {
       const withoutMp5 = normativeSchemaResources.filter(
         resource => resource.$id !== profileSchema.$id,

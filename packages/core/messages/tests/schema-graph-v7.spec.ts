@@ -9,21 +9,8 @@ import identitySchema from '@omne-harness-lite/identity-values/schema' with { ty
 import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import accountsSchema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
 import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
-import accountsV2Schema from '@omne-harness-lite/call-accounts/schema/v2' with { type: 'json' }
 import profileV6Schema from '@omne-harness-lite/model-profile/schema/v6' with { type: 'json' }
-import profileV2Schema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
 import toolsSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
-import toolsV2Schema from '@omne-harness-lite/tool-definition/schema/v2' with { type: 'json' }
-import assetsSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
-import assetsV2Schema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
-import loopV3Schema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
-import loopV2Schema from '@omne-harness-lite/loop-extension/schema/v2' with { type: 'json' }
-import messagesV3Schema from '@omne-harness-lite/messages/schema/v3' with { type: 'json' }
-import messagesV2Schema from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
-import skillsV2Schema from '@omne-harness-lite/skill-package/schema/v2' with { type: 'json' }
-import mcpSchema from '@omne-harness-lite/mcp-endpoint/schema' with { type: 'json' }
-import slashSchema from '@omne-harness-lite/slash-command/schema' with { type: 'json' }
-import connectorV2Schema from '@omne-harness-lite/asset-model/schema/connector/v2' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 
 const resources = [
@@ -33,21 +20,8 @@ const resources = [
   retainedContentSchema,
   accountsSchema,
   profileSchema,
-  accountsV2Schema,
   profileV6Schema,
-  profileV2Schema,
   toolsSchema,
-  toolsV2Schema,
-  assetsSchema,
-  assetsV2Schema,
-  loopV3Schema,
-  loopV2Schema,
-  messagesV3Schema,
-  messagesV2Schema,
-  skillsV2Schema,
-  mcpSchema,
-  slashSchema,
-  connectorV2Schema,
   schema,
 ]
 const publicPaths = [
@@ -57,28 +31,15 @@ const publicPaths = [
   'content-blocks/schema/v2',
   'call-accounts/schema',
   'model-profile/schema',
-  'call-accounts/schema/v2',
   'model-profile/schema/v6',
-  'model-profile/schema/v2',
   'tool-definition/schema',
-  'tool-definition/schema/v2',
-  'asset-model/schema',
-  'asset-model/schema/v2',
-  'loop-extension/schema/v3',
-  'loop-extension/schema/v2',
-  'messages/schema/v3',
-  'messages/schema/v2',
-  'skill-package/schema/v2',
-  'mcp-endpoint/schema',
-  'slash-command/schema',
-  'asset-model/schema/connector/v2',
   'messages/schema',
 ]
 const completeRuntime = createSchemaRuntime(resources)
-describe('M7-V1 complete exact fixed 22-resource graph', () => {
+describe('RC1 / M7-V1 exact public-definition resource closure', () => {
   it('compiles all 50 definitions with MP5 and MP6 both present', () => {
-    expect(resources).toHaveLength(22)
-    expect(new Set(resources.map(resource => resource.$id)).size).toBe(22)
+    expect(resources).toHaveLength(9)
+    expect(new Set(resources.map(resource => resource.$id)).size).toBe(9)
     expect(SCHEMA_DEF_NAMES).toHaveLength(50)
     expect(new Set(SCHEMA_DEF_NAMES)).toEqual(new Set(Object.keys(schema.$defs)))
     const runtime = completeRuntime
@@ -90,12 +51,6 @@ describe('M7-V1 complete exact fixed 22-resource graph', () => {
     expect(profileV6Schema.$id).toContain('/v6/')
   })
   for (const [index, resource] of resources.entries()) {
-    it(`compiles every definition of ${resource.$id}`, () => {
-      for (const name of Object.keys(resource.$defs))
-        expect(() =>
-          completeRuntime.compile({ $ref: `${resource.$id}#/$defs/${name}` }),
-        ).not.toThrow()
-    })
     it(`exact public resource ${resource.$id}`, () => {
       const publicPath = publicPaths[index]
       if (publicPath === undefined) throw new Error('public resource path required')
@@ -110,15 +65,16 @@ describe('M7-V1 complete exact fixed 22-resource graph', () => {
         createHash('sha256').update(canonical).digest('hex'),
       )
     })
-    it(`removing ${resource.$id} prevents full initialization`, () => {
-      expect(() => {
+    it(`removing ${resource.$id} fails with that exact missing URI`, () => {
+      let failure: unknown
+      try {
         const runtime = createSchemaRuntime(resources.filter((_, selected) => selected !== index))
-        for (const source of resources.filter((_, selected) => selected !== index))
-          for (const name of Object.keys(source.$defs))
-            runtime.compile({ $ref: `${source.$id}#/$defs/${name}` })
         for (const name of SCHEMA_DEF_NAMES)
           runtime.compile({ $ref: `${schema.$id}#/$defs/${name}` })
-      }).toThrow()
+      } catch (error) {
+        failure = error
+      }
+      expect(failure).toMatchObject({ missingSchema: resource.$id })
     })
   }
 })
