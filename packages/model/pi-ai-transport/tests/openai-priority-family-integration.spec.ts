@@ -14,7 +14,7 @@ import {
   createModelTransportService,
   openaiDefinitions,
   openaiConfiguration,
-  type PiAiTransport,
+  type AdaptationLease,
   type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
@@ -115,7 +115,7 @@ describe.each(['public', 'cordis'] as const)('%s actual OpenAI family transport'
         [definition],
       )
       const context = new Context()
-      let transport: PiAiTransport
+      let transport: AdaptationLease['transport']
       let release = () => {}
       let close = async () => {}
       let next: PlanInput = {
@@ -153,12 +153,13 @@ describe.each(['public', 'cordis'] as const)('%s actual OpenAI family transport'
       }
       try {
         if (entry === 'public') {
-          transport = createPiAiTransport({
+          const direct = createPiAiTransport({
             ...host.options,
             definitions: [definition],
             inputMeters: [meter],
           })
-          close = () => transport.close()
+          transport = direct
+          close = () => direct.close()
         } else {
           const service = createModelTransportService(host.options)
           const provider: Plugin.Object = {

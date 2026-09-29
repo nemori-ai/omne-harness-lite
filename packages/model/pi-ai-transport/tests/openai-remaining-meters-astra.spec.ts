@@ -304,8 +304,14 @@ describe('Astra current official full/replay/new surrogate', () => {
         ).measurement,
       ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
       expect(
-        (await planned(next, { ...bound, replayRevision: 'new-test-replay' })).measurement,
-      ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
+        await planRequest(
+          next,
+          [definition],
+          { ...bound, replayRevision: 'new-test-replay' },
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        ),
+      ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
       expect(
         (
           await planned(
@@ -326,6 +332,31 @@ describe('Astra current official full/replay/new surrogate', () => {
         rejected: 'unavailable',
       })
       if (next.calibration.kind !== 'observation') throw Error('missing source')
+      const sourceInputForReplay = next.calibration.inputCalibration.requestInput
+      if (sourceInputForReplay.kind !== 'known') throw Error('known source input required')
+      expect(
+        (
+          await planned(
+            {
+              ...next,
+              calibration: {
+                ...next.calibration,
+                inputCalibration: {
+                  ...next.calibration.inputCalibration,
+                  requestInput: {
+                    ...sourceInputForReplay,
+                    countingBasis: {
+                      ...sourceInputForReplay.countingBasis,
+                      replayRevision: 'unlisted-original-replay',
+                    },
+                  },
+                },
+              },
+            },
+            bound,
+          )
+        ).measurement,
+      ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
       const observation = next.calibration.inputCalibration.observedInput
       if (observation.kind === 'unavailable') throw Error('known source required')
       for (const changed of [

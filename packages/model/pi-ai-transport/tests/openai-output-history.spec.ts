@@ -15,7 +15,7 @@ import {
   projectInput,
   projectOutput,
   projectionDigest,
-  outputBlockDigest,
+  outputBlockDigestAtRevision,
 } from '../src/projection.ts'
 import { at, input, judgedMessage, message } from './support.ts'
 
@@ -46,7 +46,7 @@ function historicalProjection(
       outputGroup: {
         ...output,
         projectionRevision: revision,
-        blockDigests: group.outputBlocks.map(block => outputBlockDigest(block, revision)),
+        blockDigests: group.outputBlocks.map(block => outputBlockDigestAtRevision(block, revision)),
       },
     },
   }
@@ -509,14 +509,16 @@ describe.each(ids)('%s explicit complete output history', model => {
           implementation: binding.implementation,
         }),
       ).toThrow()
+      const oldRequest = old.inputCalibration.requestInput
+      if (oldRequest.kind !== 'known') throw Error('known historical request')
       const bad = {
         ...old,
         inputCalibration: {
           ...old.inputCalibration,
           requestInput: {
-            ...original,
+            ...oldRequest,
             countingBasis: {
-              ...original.countingBasis,
+              ...oldRequest.countingBasis,
               binding,
               meterRevision: 'invented',
               replayRevision: source.replay,

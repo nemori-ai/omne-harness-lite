@@ -197,8 +197,10 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
       expect(meter.measureReplay(actual)).toEqual({ kind: 'estimated', tokens: 18 })
       const group = actual.observation.inputCalibration.outputGroup
       if (group.kind !== 'known') throw Error('known group required')
-      const reject = (value: ReplayMeterInput) =>
-        expect(meter.measureReplay(value)).toEqual({ kind: 'unavailable' })
+      const reject = (
+        value: ReplayMeterInput,
+        kind: 'unavailable' | 'invalidInput' = 'unavailable',
+      ) => expect(meter.measureReplay(value)).toEqual({ kind })
       const selection = actual.observation.replaySelection
       // Selection metadata order is irrelevant; the actual target order is authoritative.
       expect(
@@ -230,6 +232,7 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
       reject({
         ...actual,
         observation: { ...actual.observation, replaySelection: selection.slice(0, 1) },
+        selectionSpans: actual.selectionSpans.slice(0, 1),
       })
       reject({
         ...actual,
@@ -241,16 +244,19 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
           })),
         },
       })
-      reject({
-        ...actual,
-        observation: {
-          ...actual.observation,
-          replaySelection: selection.map(item => ({
-            ...item,
-            blockIndex: selection[0]!.blockIndex,
-          })),
+      reject(
+        {
+          ...actual,
+          observation: {
+            ...actual.observation,
+            replaySelection: selection.map(item => ({
+              ...item,
+              blockIndex: selection[0]!.blockIndex,
+            })),
+          },
         },
-      })
+        'invalidInput',
+      )
       reject({
         ...actual,
         observation: {
@@ -261,13 +267,16 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
           })),
         },
       })
-      reject({
-        ...actual,
-        observation: {
-          ...actual.observation,
-          replaySelection: [...selection, { ...selection[0]!, messageIndex: 999 }],
+      reject(
+        {
+          ...actual,
+          observation: {
+            ...actual.observation,
+            replaySelection: [...selection, { ...selection[0]!, messageIndex: 999 }],
+          },
         },
-      })
+        'invalidInput',
+      )
       reject({
         ...actual,
         observation: {
@@ -294,12 +303,18 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
         ...actual,
         units: [{ role: 'assistant', content: 'mutated', reasoning_details: [detail] }],
       })
-      reject({ ...actual, unitIndices: [0] })
-      reject({
-        ...actual,
-        selectionSpans: actual.selectionSpans.map(s => ({ ...s, end: s.end + 1 })),
-      })
-      reject({ ...actual, units: [...actual.units, ...actual.units], unitIndices: [100, 101] })
+      reject({ ...actual, unitIndices: [0] }, 'invalidInput')
+      reject(
+        {
+          ...actual,
+          selectionSpans: actual.selectionSpans.map(s => ({ ...s, end: s.end + 1 })),
+        },
+        'invalidInput',
+      )
+      reject(
+        { ...actual, units: [...actual.units, ...actual.units], unitIndices: [100, 101] },
+        'invalidInput',
+      )
       const many = new LosslessNumber('9007199254740993')
       expect(
         writeJsonLossless(

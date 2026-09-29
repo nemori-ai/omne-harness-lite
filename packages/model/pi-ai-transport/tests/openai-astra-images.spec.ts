@@ -206,7 +206,7 @@ describe('Astra named patch rule, shared calculations and final visible projecti
           unitIndices: messages.map((_, index) => index + 7),
           selectionSpans: [],
         }),
-      ).toEqual(contribution)
+      ).toEqual({ kind: 'unavailable' }) // No original I exists for φ.
       expect(directNew(meter, marginal)).toEqual(contribution)
       expect(directNew(meter, { ...marginal, units: [] })).toEqual({ kind: 'exact', tokens: 0 })
     },
@@ -256,7 +256,7 @@ describe('Astra named patch rule, shared calculations and final visible projecti
       }),
     ).toThrow('unsupported OpenAI')
     expect(createOpenAiInputMeter(definition).replayRevision).toBe(
-      'openai-gpt-6-astra-visible-image-units-json-net-estimated/1',
+      'openai-complete-output-group-workload-estimated/1',
     )
   })
 })
