@@ -5,6 +5,8 @@ import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-bloc
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import type { Message } from '@omne-harness-lite/messages'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
+import { estimateOpenAi56Replay } from '../src/input-meters/openai-replay.ts'
+import type { ReplayMeterInput } from '../src/input-meter.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { planRequest, type PlannedRequest } from '../src/plan.ts'
@@ -163,6 +165,45 @@ describe.each(ids)('%s explicit complete output history', model => {
     }
     return { value, ga, gb }
   }
+  it('owns replay input before inspecting fields and rejects multiple or inconsistent original groups', () => {
+    let getterReads = 0
+    const accessor = Object.defineProperty({}, 'outputHistory', {
+      enumerable: true,
+      get() {
+        getterReads++
+        return []
+      },
+    })
+    for (const bad of [null, {}, { units: [] }, accessor]) {
+      expect(estimateOpenAi56Replay(bad, meter)).toEqual({ kind: 'unavailable' })
+      expect(Reflect.apply(meter.measureReplay, undefined, [bad])).toEqual({ kind: 'unavailable' })
+    }
+    expect(getterReads).toBe(0)
+    const { value, ga } = history()
+    let actual: ReplayMeterInput | undefined
+    const result = planRequest({ ...value, calibration: observation(ga) }, [definition], {
+      ...meter,
+      measureReplay(input) {
+        actual = input
+        return meter.measureReplay(input)
+      },
+    })
+    expect(result).toHaveProperty('planned')
+    if (!actual) throw Error('missing actual replay')
+    expect(estimateOpenAi56Replay(actual, meter)).toEqual({ kind: 'estimated', tokens: 18 })
+    const original = actual.outputHistory[0]
+    if (!original) throw Error('missing original group')
+    for (const bad of [
+      { ...actual, outputHistory: [original, original] },
+      {
+        ...actual,
+        outputHistory: [{ ...original, usage: { ...original.usage, output_tokens: 999 } }],
+      },
+    ]) {
+      expect(estimateOpenAi56Replay(bad, meter)).toEqual({ kind: 'unavailable' })
+      expect(meter.measureReplay(bad)).toEqual({ kind: 'unavailable' })
+    }
+  })
   it('covers two O groups in full and only N O in marginal with independent numeric oracles', () => {
     const { value, ga } = history()
     const full = planned(value)

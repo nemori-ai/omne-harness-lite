@@ -15,6 +15,7 @@ import {
 import { withEstimatedJsonMarginals, fullJsonMarginal } from './marginal.ts'
 import { defineInputMeter } from '../input-meter.ts'
 import {
+  copyJsonValue,
   isJsonNumber,
   isNonNegativeJsonInteger,
   writeJsonLossless,
@@ -365,8 +366,23 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
         return newOpenAi56History(input, replayMeter, countBody)
       },
       measureReplay(input) {
-        const visible = marginal.measureReplay(input)
-        return visible.kind === 'unavailable' ? estimateOpenAi56Replay(input, replayMeter) : visible
+        const copied = copyJsonValue(input)
+        if (
+          'failed' in copied ||
+          !object(copied.ok) ||
+          !Array.isArray(copied.ok.units) ||
+          !Array.isArray(copied.ok.outputHistory) ||
+          copied.ok.outputHistory.length > 1
+        )
+          return { kind: 'unavailable' }
+        try {
+          const visible = marginal.measureReplay(input)
+          return visible.kind === 'unavailable'
+            ? estimateOpenAi56Replay(input, replayMeter)
+            : visible
+        } catch {
+          return { kind: 'unavailable' }
+        }
       },
     })
     return replayMeter

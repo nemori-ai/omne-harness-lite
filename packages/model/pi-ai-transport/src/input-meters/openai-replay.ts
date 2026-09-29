@@ -8,11 +8,10 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { ownCalibration } from '../calibration.ts'
 import { object } from '../json.ts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from '../projection.ts'
-import type { InputMeter, ReplayMeterInput, MeterContribution } from '../input-meter.ts'
+import type { InputMeter, MeterContribution } from '../input-meter.ts'
 
 export const openAi56ReplayModels: ReadonlySet<string> = new Set([
   'openai/gpt-5.6-sol',
@@ -43,21 +42,8 @@ const sourceBindings = [
 ] as const
 const efforts = ['none', 'low', 'medium', 'high', 'max']
 
-interface CompleteGroupInput {
-  readonly observation: ReplayMeterInput['observation']
-  readonly envelope: ReplayMeterInput['envelope']
-  readonly units: ReplayMeterInput['units']
-  readonly unitIndices: ReplayMeterInput['unitIndices']
-  readonly selectionSpans: ReplayMeterInput['selectionSpans']
-  readonly precedingUnitCount?: number
-  readonly history?: PlanOutputHistoryGroup
-}
-
 /** Shared O+0 estimate; this makes no exact output/input-token equality claim. */
-export function estimateOpenAi56Group(
-  input: CompleteGroupInput,
-  meter: InputMeter,
-): MeterContribution {
+export function estimateOpenAi56Group(input: unknown, meter: InputMeter): MeterContribution {
   const unavailable = { kind: 'unavailable' } as const
   try {
     // The independent function accepts data, not caller trust. Reject accessors
@@ -294,19 +280,21 @@ export function estimateOpenAi56Group(
 }
 
 /** Latest-response replay consumes the same complete-group mapping as full/new. */
-export function estimateOpenAi56Replay(
-  input: ReplayMeterInput,
-  meter: InputMeter,
-): MeterContribution {
-  const history = input.outputHistory[0]
+export function estimateOpenAi56Replay(input: unknown, meter: InputMeter): MeterContribution {
+  const copied = copyJsonValue(input)
+  if ('failed' in copied || !object(copied.ok)) return { kind: 'unavailable' }
+  const value = copied.ok
+  if (!Array.isArray(value.outputHistory) || value.outputHistory.length > 1)
+    return { kind: 'unavailable' }
+  const history = value.outputHistory[0]
   return estimateOpenAi56Group(
     {
-      observation: input.observation,
-      envelope: input.envelope,
-      units: input.units,
-      unitIndices: input.unitIndices,
-      selectionSpans: input.selectionSpans,
-      precedingUnitCount: input.precedingUnitCount,
+      observation: value.observation,
+      envelope: value.envelope,
+      units: value.units,
+      unitIndices: value.unitIndices,
+      selectionSpans: value.selectionSpans,
+      precedingUnitCount: value.precedingUnitCount,
       ...(history === undefined ? {} : { history }),
     },
     meter,
