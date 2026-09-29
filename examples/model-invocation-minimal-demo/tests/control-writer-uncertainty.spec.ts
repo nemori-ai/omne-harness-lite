@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
-import { open, readFile, readdir, type FileHandle } from 'node:fs/promises'
+import { fork, type ChildProcess } from 'node:child_process'
+import { mkdir, mkdtemp, open, readFile, readdir, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
@@ -96,6 +98,15 @@ async function logBytes(root: string): Promise<string> {
   return (await Promise.all(files.map(path => readFile(join(root, path), 'utf8')))).join('')
 }
 
+async function recoveryMarker(root: string): Promise<unknown> {
+  const files = (await readdir(root, { recursive: true })).filter(path =>
+    path.endsWith('recovery.json'),
+  )
+  if (files.length !== 1 || files[0] === undefined)
+    throw new Error('expected one actual session recovery marker')
+  return JSON.parse(await readFile(join(root, files[0]), 'utf8')) as unknown
+}
+
 function controlRows(serialized: string, callId: string, kind: string): readonly unknown[] {
   const rows: unknown[] = []
   for (const line of serialized.split('\n').filter(Boolean)) {
@@ -132,6 +143,42 @@ function fileMethods(value: unknown): value is Pick<FileHandle, 'datasync' | 'tr
   )
 }
 
+function childFixture(input: Record<string, unknown>): {
+  readonly child: ChildProcess
+  readonly messages: unknown[]
+  readonly exited: Promise<{ readonly code: number | null; readonly signal: NodeJS.Signals | null }>
+  readonly closed: Promise<void>
+} {
+  const child = fork(new URL('./control-writer-uncertainty-fixture.mjs', import.meta.url), [], {
+    stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+    execArgv: [],
+    env: { ...process.env, NODE_OPTIONS: '' },
+  })
+  const messages: unknown[] = []
+  child.on('message', message => messages.push(message))
+  const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolve => {
+    child.once('exit', (code, signal) => resolve({ code, signal }))
+  })
+  const closed = new Promise<void>(resolve => {
+    child.once('close', () => resolve())
+  })
+  child.send(input)
+  return { child, messages, exited, closed }
+}
+
+function childMessage(
+  messages: readonly unknown[],
+  kind: string,
+): Record<string, unknown> | undefined {
+  for (const message of messages) {
+    if (typeof message !== 'object' || message === null || !('kind' in message)) continue
+    if (message.kind === 'failure')
+      throw new Error(`fixture failed: ${String('message' in message ? message.message : '')}`)
+    if (message.kind === kind) return message
+  }
+  return undefined
+}
+
 /** Real JSONL write succeeds; the commit receipt and repair are controlled independently. */
 async function controlSyncFault(probePath: string, repairFails: boolean) {
   const probe = await open(probePath, 'w')
@@ -142,16 +189,19 @@ async function controlSyncFault(probePath: string, repairFails: boolean) {
   let armed = false
   let syncFailures = 0
   let repairFailures = 0
+  let repairSyncs = 0
+  let successfulTruncates = 0
   const fault = () =>
     Object.assign(new Error('controlled control append I/O fault'), { code: 'EIO' })
   const syncSpy = vi.spyOn(prototype, 'datasync').mockImplementation(async function (
     this: FileHandle,
   ) {
-    if (armed) {
+    if (armed && (repairFails || syncFailures === 0)) {
       syncFailures++
       throw fault()
     }
     await datasync.call(this)
+    if (armed && !repairFails && syncFailures > 0) repairSyncs++
   })
   const truncateSpy = vi.spyOn(prototype, 'truncate').mockImplementation(async function (
     this: FileHandle,
@@ -162,6 +212,7 @@ async function controlSyncFault(probePath: string, repairFails: boolean) {
       throw fault()
     }
     await truncate.call(this, size)
+    if (armed) successfulTruncates++
   })
   return {
     arm() {
@@ -171,7 +222,7 @@ async function controlSyncFault(probePath: string, repairFails: boolean) {
       armed = false
     },
     counts() {
-      return { syncFailures, repairFailures }
+      return { syncFailures, repairFailures, repairSyncs, successfulTruncates }
     },
     async close() {
       armed = false
@@ -213,7 +264,8 @@ describe('unknown control writer on actual demo JSONL', () => {
 
       fault.clear()
       const recovered = await diagnostics.closeAfterBusiness(() => app.close())
-      expect(recovered.complete).toBe(true)
+      // D085: clearing EIO does not restore a resident whose repair failed.
+      expect(recovered.complete).toBe(false)
       expect(
         createHash('sha256')
           .update(await logBytes(logRoot))
@@ -223,6 +275,90 @@ describe('unknown control writer on actual demo JSONL', () => {
     } finally {
       await fault.close()
       await diagnostics.closeAfterBusiness(() => app.close())
+      await tls.close()
+    }
+  }, 45_000)
+
+  it('recognizes the exact release record only after actual old-process exit and successor full scan', async () => {
+    const base = fileURLToPath(
+      new URL('../../../tmp/model-request-runtime/control-writer-cold/', import.meta.url),
+    )
+    await mkdir(base, { recursive: true, mode: 0o700 })
+    const root = await mkdtemp(join(base, 'release-'))
+    const dataDirectory = join(root, 'data')
+    const tls = await createLocalTls(join(root, 'tls'))
+    tls.setMode('http503')
+    const shared = {
+      dataDirectory,
+      baseUrl: tls.developmentTransport.baseUrl,
+      ca: Buffer.from(tls.developmentTransport.tls.ca).toString('base64'),
+    }
+    const originalIdentity = 'control-release-original'
+    const original = childFixture({ phase: 'original', identity: originalIdentity, ...shared })
+    let successor: ReturnType<typeof childFixture> | undefined
+    try {
+      await vi.waitFor(() => expect(childMessage(original.messages, 'unknown')).toBeDefined(), {
+        timeout: 15_000,
+      })
+      const unknown = childMessage(original.messages, 'unknown')
+      if (typeof unknown?.callId !== 'string') throw new Error('original call identity absent')
+      expect(unknown).toMatchObject({ writes: 1, syncFailures: 1, truncateFailures: 1 })
+      expect(tls.requests).toHaveLength(1)
+      const before = await logBytes(join(dataDirectory, 'session-logs'))
+      expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
+        v: 1,
+        state: 'active',
+        owner: originalIdentity,
+      })
+      expect(controlRows(before, unknown.callId, 'model_call_ended')).toEqual([
+        { kind: 'model_call_ended', call: unknown.callId, ending: 'released' },
+      ])
+      expect(original.child.kill('SIGKILL')).toBe(true)
+      expect(await original.exited).toEqual({ code: null, signal: 'SIGKILL' })
+      await original.closed
+
+      // Only the observed exit/close fact authorizes this test host's successor observer.
+      successor = childFixture({
+        phase: 'successor',
+        identity: 'control-release-successor',
+        previousOwner: originalIdentity,
+        previousExitObserved: true,
+        callId: unknown.callId,
+        ...shared,
+      })
+      await vi.waitFor(
+        () => expect(childMessage(successor?.messages ?? [], 'recovered')).toBeDefined(),
+        {
+          timeout: 15_000,
+        },
+      )
+      expect(childMessage(successor.messages, 'recovered')).toMatchObject({
+        endedCount: 1,
+        ending: 'released',
+        historyState: 'handed_up',
+        closeComplete: true,
+      })
+      expect((await successor.exited).code).toBe(0)
+      await successor.closed
+      expect(await logBytes(join(dataDirectory, 'session-logs'))).toBe(before)
+      expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
+        v: 1,
+        state: 'clean',
+      })
+      expect(tls.requests).toHaveLength(1)
+    } finally {
+      if (original.child.exitCode === null && original.child.signalCode === null) {
+        original.child.kill('SIGKILL')
+        await original.closed
+      }
+      if (
+        successor !== undefined &&
+        successor.child.exitCode === null &&
+        successor.child.signalCode === null
+      ) {
+        successor.child.kill('SIGKILL')
+        await successor.closed
+      }
       await tls.close()
     }
   }, 45_000)
@@ -256,6 +392,8 @@ describe('unknown control writer on actual demo JSONL', () => {
       })
       expect(fault.counts().syncFailures).toBeGreaterThan(0)
       expect(fault.counts().repairFailures).toBe(0)
+      expect(fault.counts().successfulTruncates).toBe(1)
+      expect(fault.counts().repairSyncs).toBeGreaterThan(0)
       expect(
         controlRows(await logBytes(logRoot), callId, 'model_call_interrupt_intent'),
       ).toHaveLength(0)
