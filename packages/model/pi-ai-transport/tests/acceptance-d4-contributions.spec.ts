@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
@@ -220,8 +221,8 @@ function nextRequest(value: PlanInput, result: Awaited<ReturnType<typeof invoke>
     messages: [...value.messages, reply.ok, message('user', 'a distinct next question', 'd4-next')],
   }
 }
-function plan(lease: AdaptationLease, value: PlanInput) {
-  const result = lease.transport.plan(value)
+async function plan(lease: AdaptationLease, value: PlanInput) {
+  const result = await lease.transport.plan(value, { signal: new AbortController().signal })
   if ('rejected' in result) throw Error(JSON.stringify(result))
   return result.planned
 }
@@ -268,7 +269,7 @@ describe('D4 independent production contributions', () => {
       await ctx.plugin(provider(service))
       const contributionA = ctx.plugin(createModelPlugin(a, meterA.meter, waiting), {})
       await contributionA
-      const original = request(a),
+      const original = await request(a),
         leaseA = acquire(service, original)
       leases.push(leaseA)
       const first = await invoke(leaseA, original)
@@ -288,9 +289,9 @@ describe('D4 independent production contributions', () => {
         rejected: 'unavailable',
       })
       const continuation = nextRequest(original, first),
-        leaseB = acquire(service, request(b))
+        leaseB = acquire(service, await request(b))
       leases.push(leaseB)
-      const oldPlan = plan(leaseA, continuation)
+      const oldPlan = await plan(leaseA, continuation)
       expect(oldPlan.measurement.mode).toBe('marginal')
       expect(meterA.phi).toHaveBeenCalledTimes(1)
       expect(meterA.delta).toHaveBeenCalledTimes(1)
@@ -298,12 +299,14 @@ describe('D4 independent production contributions', () => {
       expect(meterB.delta).not.toHaveBeenCalled()
       expect(JSON.stringify(meterA.phi.mock.calls[0])).toContain('retained answer')
       expect(JSON.stringify(meterA.phi.mock.calls[0])).not.toContain('a retained prefix')
-      const bRequest = { ...continuation, snapshot: request(b).snapshot }
-      const newPlan = plan(leaseB, bRequest)
+      const bRequest = { ...continuation, snapshot: (await request(b)).snapshot }
+      const newPlan = await plan(leaseB, bRequest)
       expect(newPlan.measurement).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
       expect(meterB.full).toHaveBeenCalledTimes(1)
       expect(meterB.phi).not.toHaveBeenCalled()
-      expect(leaseA.transport.plan(bRequest)).toEqual({
+      expect(
+        await leaseA.transport.plan(bRequest, { signal: new AbortController().signal }),
+      ).toEqual({
         rejected: 'invalidInput',
         reason: 'malformed',
       })
@@ -331,7 +334,7 @@ describe('D4 independent production contributions', () => {
         inputMeters: [meterA.meter],
       })
       try {
-        const planned = direct.plan(continuation)
+        const planned = await direct.plan(continuation, { signal: new AbortController().signal })
         if ('rejected' in planned) throw Error(JSON.stringify(planned))
         expect(planned.planned.serialized).toBe(oldPlan.serialized)
         expect(planned.planned.measurement).toEqual(oldPlan.measurement)
@@ -363,7 +366,7 @@ describe('D4 independent production contributions', () => {
   })
 
   it('D4-D same binding with different phi is rejected even after retirement', async () => {
-    const service = createModelTransportService({ policy: networkPolicy }),
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy }),
       def = definition(),
       meter = observedMeter(def)
     const owner = {},
@@ -389,7 +392,7 @@ describe('D4 independent production contributions', () => {
   })
 
   it('D4-E same configuration label never permits different values on an existing lease', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const originalDefinition = nextDefinition(),
       route = originalDefinition.routes.anthropic!
     const def: ModelDefinition = {
@@ -407,7 +410,7 @@ describe('D4 independent production contributions', () => {
     }
     const registered = service.registerAdaptation(def, observedMeter(def).meter, {}, () => {})
     if ('rejected' in registered) throw Error('registration failed')
-    const original = request(def),
+    const original = await request(def),
       lease = acquire(service, original)
     try {
       // This custom declaration approves two layouts. No upstream capability claim is made.
@@ -432,11 +435,13 @@ describe('D4 independent production contributions', () => {
         )
         other.lease.release()
       }
-      expect(lease.transport.plan(changed)).toEqual({
-        rejected: 'invalidInput',
-        reason: 'malformed',
-      })
-      expect(plan(lease, original).requestInput).toMatchObject({
+      expect(await lease.transport.plan(changed, { signal: new AbortController().signal })).toEqual(
+        {
+          rejected: 'invalidInput',
+          reason: 'malformed',
+        },
+      )
+      expect((await plan(lease, original)).requestInput).toMatchObject({
         kind: 'known',
         countingBasis: { binding: original.snapshot.adaptation },
       })
@@ -482,10 +487,10 @@ describe('D4 independent production contributions', () => {
       cleanup,
     )
     if ('rejected' in registered) throw Error('old registration failed')
-    const old = acquire(oldService, request(def))
+    const old = acquire(oldService, await request(def))
     let outcome: ReturnType<typeof invoke> | undefined
     try {
-      outcome = invoke(old, request(def))
+      outcome = invoke(old, await request(def))
       void outcome.catch(() => {})
       await entered.promise
       await ctx.plugin(provider(newService))
@@ -503,7 +508,7 @@ describe('D4 independent production contributions', () => {
       expect(alsoFailed).toEqual({ rejected: 'invalidInput' })
       const waitResult = await oldService.retire(registered.registered, waiting)
       expect(waitResult).toMatchObject({ remaining_active: true, references: 1 })
-      expect(oldService.acquire(request(def).snapshot.adaptation, def.modelId)).toEqual({
+      expect(oldService.acquire((await request(def)).snapshot.adaptation, def.modelId)).toEqual({
         rejected: 'unavailable',
       })
       expect(cleanup).not.toHaveBeenCalled()
@@ -538,9 +543,9 @@ describe('D4 independent production contributions', () => {
       cleanup = vi.fn()
     const registered = service.registerAdaptation(def, createAnthropicInputMeter(def), {}, cleanup)
     if ('rejected' in registered) throw Error('registration failed')
-    const lease = acquire(service, request(def))
+    const lease = acquire(service, await request(def))
     const handle = invokeModel({
-      ...request(def),
+      ...(await request(def)),
       transport: lease.transport,
       credential: 'd4-local-only',
       signal: new AbortController().signal,
@@ -571,13 +576,13 @@ describe('D4 independent production contributions', () => {
   })
 
   it('D4-F force is not a completion acknowledgement for retained callback work', async () => {
-    const service = createModelTransportService({ policy: networkPolicy }),
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy }),
       def = definition(),
       cleanup = vi.fn(),
       callback = latch()
     const registered = service.registerAdaptation(def, createAnthropicInputMeter(def), {}, cleanup)
     if ('rejected' in registered) throw Error('registration failed')
-    const lease = acquire(service, request(def))
+    const lease = acquire(service, await request(def))
     lease.track(callback.promise)
     lease.release()
     try {

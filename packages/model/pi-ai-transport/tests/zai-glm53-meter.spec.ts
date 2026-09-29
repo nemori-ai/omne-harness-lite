@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -21,7 +22,7 @@ function definition(modelId: string) {
   return found
 }
 
-function actualPlan(modelId: string, effort?: 'low' | 'high' | 'max') {
+async function actualPlan(modelId: string, effort?: 'low' | 'high' | 'max') {
   const selected = definition(modelId)
   const configuration = { revision: '1', values: { cache: { mode: 'automatic' } } }
   const profile = createOfficialProfileContent(selected, {
@@ -88,7 +89,15 @@ function actualPlan(modelId: string, effort?: 'low' | 'high' | 'max') {
     messages: [reminder.ok, user.ok],
     tools: [],
   }
-  return planRequest(input, [selected], createGlm53InputMeter(selected))
+  return await planRequest(
+    input,
+    [selected],
+    createGlm53InputMeter(selected),
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
 }
 
 function measured(modelId: string, body: JsonObject) {
@@ -152,8 +161,8 @@ describe('Z.AI GLM-5.3 and Flash pinned public-template estimates', () => {
 
   it.each(['z-ai/glm-5.3', 'z-ai/glm-5.3-flash'])(
     '%s plans final text/reminder wire with real meter',
-    modelId => {
-      const plan = actualPlan(modelId, modelId.endsWith('flash') ? undefined : 'high')
+    async modelId => {
+      const plan = await actualPlan(modelId, modelId.endsWith('flash') ? undefined : 'high')
       if ('rejected' in plan) throw new Error(JSON.stringify(plan))
       expect(plan.planned.body.messages).toMatchObject([
         { role: 'user', content: [{ text: '[system_reminder "reminder"]' }, { text: 'Continue' }] },

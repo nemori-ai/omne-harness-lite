@@ -9,8 +9,8 @@ import { canonicalInteger, generatedCallId } from '@omne-harness-lite/pi-ai-tran
 import { planRequest } from './synthetic-input-meter.ts'
 import { input, message, judgedMessage } from './support.ts'
 
-function plan(request = input()) {
-  const result = planRequest(request, testDefinitions)
+async function plan(request = input()) {
+  const result = await planRequest(request, testDefinitions)
   if ('rejected' in result) throw new Error(result.rejected)
   return result.planned
 }
@@ -20,9 +20,9 @@ function parsed(text: string) {
   return value.ok
 }
 describe('S57 exact pilot binding and wire projection', () => {
-  it('maps OpenAI reminders to developer and compaction independently to user', () => {
+  it('maps OpenAI reminders to developer and compaction independently to user', async () => {
     const request = input()
-    const result = plan({
+    const result = await plan({
       ...request,
       messages: [...request.messages, message('compaction', 'summary')],
     })
@@ -43,8 +43,8 @@ describe('S57 exact pilot binding and wire projection', () => {
     for (const key of ['user', 'session_id', 'prompt_cache_key', 'models', 'route'])
       expect(result.body).not.toHaveProperty(key)
   })
-  it('maps Anthropic reminders to user and uses the explicit supplied TTL', () => {
-    const result = plan(input(true))
+  it('maps Anthropic reminders to user and uses the explicit supplied TTL', async () => {
+    const result = await plan(input(true))
     expect(result.body.messages).toMatchObject([
       { role: 'system', content: [{ cache_control: { type: 'ephemeral', ttl: '1h' } }] },
       { role: 'user' },
@@ -58,10 +58,10 @@ describe('S57 exact pilot binding and wire projection', () => {
     { cache: { mode: 'explicit', ttl: 'short', breakpoints: ['system'] } },
     { cache: { mode: 'explicit', ttl: '5m', breakpoints: ['system', 'system'] } },
     { cache: { mode: 'automatic' } },
-  ])('rejects uninterpretable explicit cache config without defaulting', values => {
+  ])('rejects uninterpretable explicit cache config without defaulting', async values => {
     const request = input(true)
     expect(
-      planRequest(
+      await planRequest(
         {
           ...request,
           snapshot: {
@@ -76,11 +76,11 @@ describe('S57 exact pilot binding and wire projection', () => {
       ),
     ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
   })
-  it('never guesses a definition from a model prefix or substitutes another revision', () => {
+  it('never guesses a definition from a model prefix or substitutes another revision', async () => {
     const request = input()
     const adaptation = request.snapshot.adaptation
     expect(
-      planRequest(
+      await planRequest(
         {
           ...request,
           snapshot: {
@@ -95,7 +95,7 @@ describe('S57 exact pilot binding and wire projection', () => {
       ),
     ).toEqual({ rejected: 'unavailable' })
     expect(
-      planRequest(
+      await planRequest(
         {
           ...request,
           routeName: 'openai/not-listed',
@@ -111,9 +111,9 @@ describe('S57 exact pilot binding and wire projection', () => {
       ),
     ).toEqual({ rejected: 'unavailable' })
   })
-  it('preserves decimal spellings and drops protected overrides before send', () => {
+  it('preserves decimal spellings and drops protected overrides before send', async () => {
     const request = input()
-    const result = plan({
+    const result = await plan({
       ...request,
       parameters: {
         temperature: new LosslessNumber('0.123456789012345678901'),
@@ -134,17 +134,17 @@ describe('S57 exact pilot binding and wire projection', () => {
     expect(result.serialized).not.toContain('session-secret')
     expect(Object.isFrozen(result.parameters.extra)).toBe(true)
   })
-  it('copies nested input and freezes the wire body before the caller can change it', () => {
+  it('copies nested input and freezes the wire body before the caller can change it', async () => {
     const request = input()
     const extra = { nested: { value: 'original' } }
-    const result = plan({ ...request, parameters: { extra } })
+    const result = await plan({ ...request, parameters: { extra } })
     const before = result.serialized
     extra.nested.value = 'changed'
     expect(writeJsonLossless(result.body)).toBe(before)
     expect(result.parameters.extra).toEqual({ nested: { value: 'original' } })
     expect(Object.isFrozen(result.body)).toBe(true)
   })
-  it('sends raw malformed completed tool arguments and normalizes paired ids consistently', () => {
+  it('sends raw malformed completed tool arguments and normalizes paired ids consistently', async () => {
     const blocks = [
       {
         id: 'callblock',
@@ -188,12 +188,12 @@ describe('S57 exact pilot binding and wire projection', () => {
         },
       ],
     })
-    const result = plan({ ...input(), messages: [assistant, tool] })
+    const result = await plan({ ...input(), messages: [assistant, tool] })
     expect(result.body.messages).toMatchObject([
       { tool_calls: [{ id: expect.stringMatching(/^call_/), function: { arguments: '{"x":' } }] },
       { role: 'tool', tool_call_id: expect.stringMatching(/^call_/), content: 'ok' },
     ])
-    expect(planRequest({ ...input(), messages: [assistant] }, testDefinitions)).toEqual({
+    expect(await planRequest({ ...input(), messages: [assistant] }, testDefinitions)).toEqual({
       rejected: 'orphan_tool_call',
     })
   })

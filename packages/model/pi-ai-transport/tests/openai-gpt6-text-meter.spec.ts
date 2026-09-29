@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { getEncoding } from 'js-tiktoken'
 import { createHash } from 'node:crypto'
@@ -102,7 +103,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
     ).toThrow(TypeError)
   })
 
-  it.each(cases)('reproduces independently observed $id without changing the wire', c => {
+  it.each(cases)('reproduces independently observed $id without changing the wire', async c => {
     const body = bodyFor(c.modelId, c.set)
     const meter = createOpenAiInputMeter(definition(c.modelId))
     const measurement = directFull(meter, { body, serialized: c.wire })
@@ -129,7 +130,13 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
       kind: 'estimated',
       tokens: tokenizer.encode(writeJsonLossless(body)).length,
     })
-    const planned = planRequest(request(c.modelId, c.set), [definition(c.modelId)], meter)
+    const planned = await planRequest(
+      await request(c.modelId, c.set),
+      [definition(c.modelId)],
+      meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
+    )
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.serialized).toBe(c.wire)
     expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
@@ -138,8 +145,8 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
 
   it.each(models)(
     '%s keeps longer text and independent output controls available as estimates',
-    modelId => {
-      const input = request(modelId)
+    async modelId => {
+      const input = await request(modelId)
       const long: PlanInput = {
         ...input,
         parameters: { reasoningEffort: 'low', maxOutputTokens: 2048 },
@@ -148,19 +155,23 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
           message('user', '更长的文本 and code const n = 17; '.repeat(400), 'question'),
         ],
       }
-      const planned = planRequest(
+      const planned = await planRequest(
         long,
         [definition(modelId)],
         createOpenAiInputMeter(definition(modelId)),
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
       expect(planned.planned.serialized).toContain('"max_tokens":2048')
       expect(planned.planned.serialized).toContain('更长的文本')
-      const limited = planRequest(
+      const limited = await planRequest(
         { ...long, snapshot: { ...input.snapshot, maxInputTokens: 100 } },
         [definition(modelId)],
         createOpenAiInputMeter(definition(modelId)),
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       expect(limited).toMatchObject({
         rejected: 'invalidInput',
@@ -254,7 +265,7 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
       try {
         const registered = service.registerAdaptation(selected, meter, {}, () => {})
         if ('rejected' in registered) throw new Error(registered.rejected)
-        const input = request(modelId)
+        const input = await request(modelId)
         lease = service.acquire(input.snapshot.adaptation, modelId)
         if ('rejected' in lease) throw new Error(lease.rejected)
         const transport = lease.lease.transport
@@ -262,28 +273,37 @@ describe('GPT-6 Sol and Luna visible-history estimators', () => {
           ...input.messages,
           message('user', 'Keep this complete history.', 'followup'),
         ]
-        const historyPlan = transport.plan({ ...input, messages: history })
+        const historyPlan = await transport.plan(
+          { ...input, messages: history },
+          { signal: new AbortController().signal },
+        )
         if ('rejected' in historyPlan) throw new Error(JSON.stringify(historyPlan))
         expect(historyPlan.planned.serialized).toContain('Keep this complete history.')
         expect(history).toHaveLength(4)
-        const high = transport.plan({
-          ...input,
-          parameters: { reasoningEffort: 'high', maxOutputTokens: 16 },
-        })
+        const high = await transport.plan(
+          {
+            ...input,
+            parameters: { reasoningEffort: 'high', maxOutputTokens: 16 },
+          },
+          { signal: new AbortController().signal },
+        )
         expect(high).toHaveProperty('planned')
-        const withTools = transport.plan({
-          ...input,
-          tools: [
-            {
-              name: 'lookup',
-              description: 'Lookup a fact',
-              parameters: { type: 'object', properties: {} },
-            },
-          ],
-        })
+        const withTools = await transport.plan(
+          {
+            ...input,
+            tools: [
+              {
+                name: 'lookup',
+                description: 'Lookup a fact',
+                parameters: { type: 'object', properties: {} },
+              },
+            ],
+          },
+          { signal: new AbortController().signal },
+        )
         expect(withTools).toHaveProperty('planned')
         expect(host.requests).toHaveLength(0)
-        const planned = transport.plan(input)
+        const planned = await transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         const signal = new AbortController().signal
         const sent = await transport.send(planned.planned, 'controlled-service-credential', signal)

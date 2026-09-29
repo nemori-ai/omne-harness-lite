@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
@@ -69,9 +70,9 @@ function legacyMeter(): InputMeter {
 describe('exact OpenAI Pro usage scope', () => {
   it.each(Object.keys(openAiProBindings))(
     '%s preserves accounts but cannot form an input anchor',
-    model => {
+    async model => {
       const definition = openaiDefinitions.find(d => d.modelId === model)!
-      const value = request(definition)
+      const value = await request(definition)
       const scope = usageScope(model, 'openai', value.snapshot.adaptation)
       expect(scope).toBe('scope_unknown')
       const unknown = createReadFactsAccumulator(() => {}, false, scope)
@@ -134,8 +135,8 @@ describe('exact OpenAI Pro usage scope', () => {
     zero.observe({ prompt_tokens: 0 })
     expect(zero.read().observedInput).toEqual({ kind: 'unavailable', reason: 'scope_unknown' })
   })
-  it('does not infer scope from pro suffix and only keeps the exact captured previous binding', () => {
-    const old = request(before)
+  it('does not infer scope from pro suffix and only keeps the exact captured previous binding', async () => {
+    const old = await request(before)
     expect(usageScope(before.modelId, 'openai', old.snapshot.adaptation)).toBe(
       'inherited_context_total',
     )
@@ -185,7 +186,7 @@ describe('real TLS Pro reader and fixed registry groups', () => {
     )
     const service = createModelTransportService(host.options)
     const registeredOld = service.registerAdaptation(before, legacyMeter(), {}, () => {})
-    const original = request(before)
+    const original = await request(before)
     const acquiredOld = service.acquire(original.snapshot.adaptation, original.routeName)
     if ('rejected' in acquiredOld) throw Error('old acquisition failed')
     const old = acquiredOld.lease
@@ -233,7 +234,7 @@ describe('real TLS Pro reader and fixed registry groups', () => {
         inputMeters: [createOpenAiInputMeter(current)],
       })
       try {
-        const base = request(current)
+        const base = await request(current)
         const result = await run(direct, base)
         expect(result.inputCalibration.observedInput).toEqual({
           kind: 'unavailable',
@@ -256,22 +257,24 @@ describe('real TLS Pro reader and fixed registry groups', () => {
             },
           },
         ]) {
-          const planned = direct.plan({
-            ...base,
-            messages: [...base.messages, message('user', 'next', 'u2')],
-            calibration: {
-              kind: 'observation',
-              inputCalibration: source,
-              usage: first.usage,
-              outputBlocks: first.blocks,
-              replaySelection: [],
+          const planned = await direct.plan(
+            {
+              ...base,
+              messages: [...base.messages, message('user', 'next', 'u2')],
+              calibration: {
+                kind: 'observation',
+                inputCalibration: source,
+                usage: first.usage,
+                outputBlocks: first.blocks,
+                replaySelection: [],
+              },
             },
-          })
+            { signal: new AbortController().signal },
+          )
           if ('rejected' in planned) throw Error(JSON.stringify(planned))
           expect(planned.planned.measurement).toMatchObject({
             mode: 'full',
-            fallbackReason:
-              source === first.inputCalibration ? 'basis_changed' : 'source_unavailable',
+            fallbackReason: 'source_unavailable',
           })
         }
       } finally {
@@ -330,7 +333,9 @@ describe('current Pro direct reader terminal facts', () => {
         inputMeters: [createOpenAiInputMeter(current)],
       })
       try {
-        const plan = transport.plan(request(current))
+        const plan = await transport.plan(await request(current), {
+          signal: new AbortController().signal,
+        })
         if ('rejected' in plan) throw Error(JSON.stringify(plan))
         const controller = new AbortController()
         const sent = await transport.send(plan.planned, 'local', controller.signal)

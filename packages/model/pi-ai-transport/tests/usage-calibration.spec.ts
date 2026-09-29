@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, it, expect, vi } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
@@ -45,12 +46,20 @@ function anchor(planned: PlannedRequest, tokens: number) {
     replaySelection: [],
   }
 }
-function plan(
+async function plan(
   request: PlanInput,
   definitions = testDefinitions,
   meter = syntheticInputMeter(definitions[0]!, request.provider),
 ) {
-  const result = planRequest(request, definitions, meter)
+  const result = await planRequest(
+    request,
+    definitions,
+    meter,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
   if (!('planned' in result)) throw new Error(JSON.stringify(result))
   return result.planned
 }
@@ -69,7 +78,7 @@ describe('response calibration actual planner', () => {
     }
     expect(() => canonicalProjection(getter)).toThrow('non-JSON')
   })
-  it('signed contributions and one margin; never tokenizes anchor; content/basis changes full', () => {
+  it('signed contributions and one margin; never tokenizes anchor; content/basis changes full', async () => {
     const base = syntheticInputMeter(testDefinitions[0]!, 'openai')
     const full = vi.fn(base.measureFull)
     const delta = vi.fn((_input: import('../src/input-meter.ts').MarginalMeterInput) => ({
@@ -77,14 +86,14 @@ describe('response calibration actual planner', () => {
       tokens: -3,
     }))
     const meter = { ...base, measureFull: full, measureNew: delta }
-    const first = plan(input(), testDefinitions, meter)
+    const first = await plan(input(), testDefinitions, meter)
     const request = {
       ...input(),
       calibration: anchor(first, 100),
       messages: [...input().messages, message('user', 'next', 'next')],
       tokenMargin: { multiplier: 1.1, reserveTokens: 7 },
     }
-    const next = plan(request, testDefinitions, meter)
+    const next = await plan(request, testDefinitions, meter)
     expect(next.measurement.mode).toBe('marginal')
     expect(ExactDecimal.from(next.measurement.predictedInput).compare(ExactDecimal.from(97))).toBe(
       0,
@@ -94,19 +103,19 @@ describe('response calibration actual planner', () => {
     ).toBe(0)
     expect(full).toHaveBeenCalledTimes(1)
     expect(delta.mock.calls[0]?.[0].units).toHaveLength(1)
-    const edited = plan(
+    const edited = await plan(
       { ...request, messages: [message('user', 'edited'), ...request.messages.slice(1)] },
       testDefinitions,
       meter,
     )
     expect(edited.measurement).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
-    const revised = plan(request, testDefinitions, { ...meter, replayRevision: 'different' })
+    const revised = await plan(request, testDefinitions, { ...meter, replayRevision: 'different' })
     expect(revised.measurement).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
   })
-  it('a failed marginal component returns full without inventing a prefix change', () => {
+  it('a failed marginal component returns full without inventing a prefix change', async () => {
     const base = syntheticInputMeter(testDefinitions[0]!, 'openai')
-    const first = plan(input(), testDefinitions, base)
-    const next = plan(
+    const first = await plan(input(), testDefinitions, base)
+    const next = await plan(
       {
         ...input(),
         calibration: anchor(first, 100),
@@ -119,7 +128,7 @@ describe('response calibration actual planner', () => {
     expect(next.measurement.fallbackReason).toBeUndefined()
   })
   for (const definition of anthropicDefinitions)
-    it(`${definition.modelId}: real official full→marginal→marginal with rolling cache`, () => {
+    it(`${definition.modelId}: real official full→marginal→marginal with rolling cache`, async () => {
       const meter = createAnthropicInputMeter(definition)
       const original = input()
       let request: PlanInput = {
@@ -145,7 +154,7 @@ describe('response calibration actual planner', () => {
       }
       const measured = vi.fn(meter.measureFull)
       const bound = { ...meter, measureFull: measured }
-      let previous = plan(request, [definition], bound)
+      let previous = await plan(request, [definition], bound)
       expect(previous.measurement.mode).toBe('full')
       for (let i = 2; i <= 3; i++) {
         request = {
@@ -153,7 +162,7 @@ describe('response calibration actual planner', () => {
           calibration: anchor(previous, 100 * i),
           messages: [...request.messages, message('user', `next ${i}`, `u${i}`)],
         }
-        const next = plan(request, [definition], bound)
+        const next = await plan(request, [definition], bound)
         expect(next.measurement.mode).toBe('marginal')
         const last = (next.body.messages as readonly JsonObject[]).at(-1)!
         expect(last.content).toEqual([
@@ -183,7 +192,7 @@ describe('response calibration actual planner', () => {
         calibration: anchor(previous, 400),
         messages: [...request.messages, assistant],
       }
-      previous = plan(request, [definition], bound)
+      previous = await plan(request, [definition], bound)
       expect(previous.measurement.mode).toBe('marginal')
       expect((previous.body.messages as readonly JsonObject[]).at(-1)?.content).toEqual([
         { type: 'text', text: 'answer', cache_control: { type: 'ephemeral', ttl: '1h' } },
@@ -193,7 +202,7 @@ describe('response calibration actual planner', () => {
         calibration: anchor(previous, 420),
         messages: [...request.messages, message('user', 'after assistant', 'after-assistant')],
       }
-      previous = plan(request, [definition], bound)
+      previous = await plan(request, [definition], bound)
       expect(previous.measurement.mode).toBe('marginal')
       expect((previous.body.messages as readonly JsonObject[]).at(-2)?.content).toEqual([
         { type: 'text', text: 'answer' },
@@ -245,7 +254,7 @@ describe('response calibration actual planner', () => {
         calibration: anchor(previous, 440),
         messages: [...request.messages, call, result],
       }
-      previous = plan(request, [definition], bound)
+      previous = await plan(request, [definition], bound)
       expect(previous.measurement.mode).toBe('marginal')
       expect((previous.body.messages as readonly JsonObject[]).at(-1)?.content).toEqual([
         { type: 'text', text: 'tool answer', cache_control: { type: 'ephemeral', ttl: '1h' } },
@@ -255,19 +264,19 @@ describe('response calibration actual planner', () => {
         calibration: anchor(previous, 460),
         messages: [...request.messages, message('user', 'after tool', 'after-tool')],
       }
-      previous = plan(request, [definition], bound)
+      previous = await plan(request, [definition], bound)
       expect(previous.measurement.mode).toBe('marginal')
       expect((previous.body.messages as readonly JsonObject[]).at(-2)?.content).toEqual([
         { type: 'text', text: 'tool answer' },
       ])
       expect(measured).toHaveBeenCalledTimes(1)
     })
-  it('binds a replay group to actual selected complete message units and does not add aggregate O', () => {
+  it('binds a replay group to actual selected complete message units and does not add aggregate O', async () => {
     const base = syntheticInputMeter(testDefinitions[0]!, 'openai')
     const phi = vi.fn(() => ({ kind: 'estimated' as const, tokens: 7 })),
       delta = vi.fn(() => ({ kind: 'estimated' as const, tokens: 11 }))
     const meter = { ...base, measureReplay: phi, measureNew: delta }
-    const first = plan(input(), testDefinitions, meter)
+    const first = await plan(input(), testDefinitions, meter)
     const reply = judgedMessage({
       type: 'assistant',
       id: 'reply',
@@ -298,7 +307,7 @@ describe('response calibration actual planner', () => {
         { sourceBlockIndex: 0, messageIndex: input().messages.length, blockIndex: 0 },
       ],
     }
-    const next = plan(
+    const next = await plan(
       {
         ...input(),
         calibration,
@@ -314,15 +323,25 @@ describe('response calibration actual planner', () => {
     expect(phi).toHaveBeenCalledTimes(1)
     expect(delta).toHaveBeenCalledTimes(1)
     const forged = { ...calibration, outputBlocks: [{ ...reply.blocks[0]!, text: 'forged' }] }
-    expect(planRequest({ ...input(), calibration: forged }, testDefinitions, meter)).toEqual({
+    expect(
+      await planRequest(
+        { ...input(), calibration: forged },
+        testDefinitions,
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
   })
-  it('marginal mode still checks full actual request bytes', () => {
+  it('marginal mode still checks full actual request bytes', async () => {
     const base = syntheticInputMeter(testDefinitions[0]!, 'openai'),
       meter = { ...base, measureNew: () => ({ kind: 'exact' as const, tokens: 1 }) }
-    const first = plan(input(), testDefinitions, meter)
+    const first = await plan(input(), testDefinitions, meter)
     const request = {
       ...input(),
       calibration: anchor(first, 100),
@@ -332,7 +351,15 @@ describe('response calibration actual planner', () => {
         inputConstraints: { ...input().snapshot.inputConstraints, maxRequestBytes: 10 },
       },
     }
-    expect(planRequest(request, testDefinitions, meter)).toMatchObject({
+    expect(
+      await planRequest(
+        request,
+        testDefinitions,
+        meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toMatchObject({
       rejected: 'invalidInput',
       reason: 'input_limit_exceeded',
       metric: 'maxRequestBytes',
@@ -434,7 +461,7 @@ describe('real selected Anthropic tokenizer work', () => {
           },
         },
       }
-      let previous = plan(request, [definition], meter)
+      let previous = await plan(request, [definition], meter)
       const count = Number(previous.measurement.predictedInput)
       expect(count).toBeGreaterThanOrEqual(1_000_000)
       expect(count).toBeLessThan(1_010_000)
@@ -446,7 +473,7 @@ describe('real selected Anthropic tokenizer work', () => {
           calibration: anchor(previous, count + i * 20),
           messages: [...request.messages, message('user', `new ${i}`, `tiny-${i}`)],
         }
-        previous = plan(request, [definition], meter)
+        previous = await plan(request, [definition], meter)
         expect(previous.measurement.mode).toBe('marginal')
       }
       expect(spy.mock.calls.length).toBeGreaterThan(0)

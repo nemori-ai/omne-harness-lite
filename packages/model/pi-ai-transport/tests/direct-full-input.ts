@@ -38,7 +38,7 @@ export function fullInputWithoutSource(
   }
 }
 
-function basisFor(meter: InputMeter) {
+export function basisFor(meter: InputMeter) {
   const base = input()
   return countingBasis(
     {

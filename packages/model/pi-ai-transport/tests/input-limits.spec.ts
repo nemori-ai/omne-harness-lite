@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import { LosslessNumber, jsonNumberSource } from '@omne-harness-lite/content-blocks'
 import { admissionTokens, tokenMarginValid } from '../src/input-meter.ts'
@@ -46,7 +47,7 @@ describe('explicit token estimate margin', () => {
 })
 
 describe('S-74 missing-cap precedence', () => {
-  it('reports an earlier orphan tool-call refusal before a missing cap', () => {
+  it('reports an earlier orphan tool-call refusal before a missing cap', async () => {
     const request = input()
     const snapshot = { ...request.snapshot }
     Reflect.deleteProperty(snapshot, 'maxInputTokens')
@@ -69,18 +70,39 @@ describe('S-74 missing-cap precedence', () => {
         },
       ],
     })
-    expect(planRequest({ ...request, snapshot, messages: [assistant] }, testDefinitions)).toEqual({
+    expect(
+      await planRequest(
+        { ...request, snapshot, messages: [assistant] },
+        testDefinitions,
+        undefined,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toEqual({
       rejected: 'orphan_tool_call',
     })
-    expect(planRequest({ ...request, snapshot }, testDefinitions)).toEqual({
+    expect(
+      await planRequest(
+        { ...request, snapshot },
+        testDefinitions,
+        undefined,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'input_limit_missing',
       metrics: ['maxInputTokens'],
     })
     expect(
-      planRequest(
+      await planRequest(
         { ...request, tokenMargin: { multiplier: 0, reserveTokens: -1 }, snapshot },
         testDefinitions,
+        undefined,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toEqual({
       rejected: 'invalidInput',

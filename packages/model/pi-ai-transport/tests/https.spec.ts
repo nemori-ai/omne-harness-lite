@@ -455,7 +455,7 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
   it('never opens two competing readers for the same live response', async () => {
     const host = await fixture(cert.tls, res => res.end(content('text') + finish()))
     try {
-      const plan = planned(host.transport)
+      const plan = await planned(host.transport)
       const signal = new AbortController().signal
       const sent = await host.transport.send(plan, 'test-secret', signal)
       if (!('response' in sent)) throw new Error('send failed')
@@ -625,13 +625,25 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
     })
     try {
       await expect.poll(() => host.requests.length).toBe(1)
+      let entered = () => {}
+      const queued = new Promise<void>(resolve => {
+        entered = resolve
+      })
       const second = invokeModel({
         ...input(),
-        transport: host.transport,
+        transport: {
+          ...host.transport,
+          send(...args) {
+            entered()
+            return host.transport.send(...args)
+          },
+        },
         credential: 'test-secret',
         signal: new AbortController().signal,
         policy: policy(),
       })
+      // Wait for asynchronous planning to finish and the real connection queue to admit this owner.
+      await queued
       second.abort()
       const result = await Promise.race([
         second.outcome,
@@ -685,7 +697,7 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
   it('invalid credentials and a closed provider return explicit rejection before networking', async () => {
     const host = await fixture(cert.tls, res => res.end(content('unused') + finish()))
     try {
-      const plan = planned(host.transport),
+      const plan = await planned(host.transport),
         signal = new AbortController().signal
       expect(await host.transport.send(plan, '', signal)).toEqual({ rejected: 'invalidInput' })
       expect(await host.transport.send(plan, 'invalid\nheader', signal)).toEqual({
@@ -716,7 +728,7 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
       })
       try {
         const result = await host.transport.send(
-          planned(host.transport),
+          await planned(host.transport),
           credential,
           new AbortController().signal,
         )
@@ -755,7 +767,7 @@ describe('actual HTTPS public invokeModel + transport + core assembler', () => {
     )
     try {
       const result = await host.transport.send(
-        planned(host.transport),
+        await planned(host.transport),
         'test-secret',
         new AbortController().signal,
       )

@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -134,14 +135,22 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
     ).not.toEqual(measured(body))
   })
 
-  it('plans the actual official route with a marked reminder and measured final body', () => {
+  it('plans the actual official route with a marked reminder and measured final body', async () => {
     const meter = createGlm52InputMeter(model)
     const input = planInput([
       text('system', 's', 'Be concise'),
       text('system_reminder', 'r', 'Continue the current task'),
       text('user', 'u', 'Hello 世界'),
     ])
-    const result = planRequest(input, [model], meter)
+    const result = await planRequest(
+      input,
+      [model],
+      meter,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if ('rejected' in result) throw new Error(JSON.stringify(result))
     expect(result.planned.body.messages).toMatchObject([
       { role: 'system' },
@@ -157,7 +166,7 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
     expect(result.planned.serialized).toBe(writeJsonLossless(result.planned.body))
   })
 
-  it('meters an actual planned tool call, result, schema and following user turn', () => {
+  it('meters an actual planned tool call, result, schema and following user turn', async () => {
     const tool: ModelToolEntry = {
       name: 'lookup',
       description: 'Find an exact value',
@@ -213,7 +222,15 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
       [text('user', 'u1', 'Look up value'), assistant, resultMessage, text('user', 'u2', 'Done?')],
       [tool],
     )
-    const planned = planRequest(request, [model], createGlm52InputMeter(model))
+    const planned = await planRequest(
+      request,
+      [model],
+      createGlm52InputMeter(model),
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     const prompt = renderGlm52Prompt(planned.planned.body)
     expect(prompt).toContain(
@@ -269,7 +286,9 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
     expect(directFull(createGlm52InputMeter(model), { body, serialized: '{}' })).toEqual({
       kind: 'unavailable',
     })
-    expect(() => createGlm52InputMeter({ ...model, revision: '2' })).toThrow(TypeError)
+    expect(() => createGlm52InputMeter({ ...model, revision: 'unlisted-test-revision' })).toThrow(
+      TypeError,
+    )
     expect(() => createGlm52InputMeter({ ...model, routes: {} })).toThrow(TypeError)
   })
 })

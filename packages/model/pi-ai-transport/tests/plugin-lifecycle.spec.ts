@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { testDefinitions } from './definitions.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
@@ -158,6 +159,7 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       expect(contribution.state).toBe(fiberState.pending)
       expect(ctx.get(MODEL_TRANSPORT_SERVICE)).toBeUndefined()
       const provider = ctx.plugin(piAiTransportPlugin, {
+        imagePreparation,
         policy: networkPolicy,
         retirement: retirement(),
       })
@@ -212,6 +214,7 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
     }
     try {
       const provider = ctx.plugin(piAiTransportPlugin, {
+        imagePreparation,
         policy: networkPolicy,
         retirement: retirement(),
       })
@@ -237,11 +240,15 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       expect(stable.inspect().registrations).toBe(2)
       expect(oldLease.binding).toEqual(oldRequest.snapshot.adaptation)
       expect(newLease.binding).toEqual(newRequest.snapshot.adaptation)
-      expect(oldLease.transport.plan(newRequest)).toEqual({
+      expect(
+        await oldLease.transport.plan(newRequest, { signal: new AbortController().signal }),
+      ).toEqual({
         rejected: 'invalidInput',
         reason: 'malformed',
       })
-      expect(oldLease.transport.plan(oldRequest)).toHaveProperty('planned')
+      expect(
+        await oldLease.transport.plan(oldRequest, { signal: new AbortController().signal }),
+      ).toHaveProperty('planned')
     } finally {
       for (const lease of leases) lease.release()
       await ctx.fiber.dispose()
@@ -256,7 +263,11 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       disposed = false
     let disposal: Promise<void> | undefined
     try {
-      await ctx.plugin(piAiTransportPlugin, { policy: networkPolicy, retirement: retirement() })
+      await ctx.plugin(piAiTransportPlugin, {
+        imagePreparation,
+        policy: networkPolicy,
+        retirement: retirement(),
+      })
       const service = serviceOf(ctx)
       const v1 = ctx.plugin(
         createModelPlugin(
@@ -286,7 +297,9 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       expect(service.acquire(oldRequest.snapshot.adaptation, oldRequest.routeName)).toEqual({
         rejected: 'unavailable',
       })
-      expect(b.transport.plan(oldRequest)).toHaveProperty('planned')
+      expect(
+        await b.transport.plan(oldRequest, { signal: new AbortController().signal }),
+      ).toHaveProperty('planned')
       await expect.poll(() => deadlines).toBeGreaterThan(0)
       expect(disposed).toBe(false)
       expect(v1.state).toBe(fiberState.unloading)
@@ -298,7 +311,11 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
       await disposal
       expect(v1.state).toBe(fiberState.disposed)
       expect(service.inspect()).toMatchObject({ registrations: 1, references: 1 })
-      expect(current.transport.plan(requestFor(nextDefinition()))).toHaveProperty('planned')
+      expect(
+        await current.transport.plan(requestFor(nextDefinition()), {
+          signal: new AbortController().signal,
+        }),
+      ).toHaveProperty('planned')
     } finally {
       for (const lease of leases) lease.release()
       if (disposal) await disposal
@@ -309,7 +326,7 @@ describe('actual Cordis 4.0.4 model contribution lifecycle', () => {
 
 describe('public registry actual HTTPS execution ownership', () => {
   it('retirement timeout reports remaining work; completed historical retirement cannot remove a replacement contribution', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const cleanup = deferred()
     const leases: AdaptationLease[] = []
     let cleanups = 0
@@ -326,7 +343,11 @@ describe('public registry actual HTTPS execution ownership', () => {
         executions: 0,
       })
       expect(cleanups).toBe(0)
-      expect(lease.transport.plan(requestFor(firstDefinition()))).toHaveProperty('planned')
+      expect(
+        await lease.transport.plan(requestFor(firstDefinition()), {
+          signal: new AbortController().signal,
+        }),
+      ).toHaveProperty('planned')
       lease.release()
       await expect.poll(() => cleanups).toBe(1)
       expect(service.inspect().registrations).toBe(1)
@@ -339,9 +360,11 @@ describe('public registry actual HTTPS execution ownership', () => {
       leases.push(replacementLease)
       expect(await service.retire(old, retirement())).toEqual({ retired: true })
       expect(service.inspect()).toMatchObject({ registrations: 1, retiring: 0, references: 1 })
-      expect(replacementLease.transport.plan(requestFor(firstDefinition()))).toHaveProperty(
-        'planned',
-      )
+      expect(
+        await replacementLease.transport.plan(requestFor(firstDefinition()), {
+          signal: new AbortController().signal,
+        }),
+      ).toHaveProperty('planned')
       replacementLease.release()
       expect(await service.retire(replacement, retirement())).toEqual({ retired: true })
       expect(cleanups).toBe(2)
@@ -399,7 +422,9 @@ describe('public registry actual HTTPS execution ownership', () => {
       const directLease = acquire(service, request)
       leases.push(directLease)
       directLease.track(direct.promise)
-      const planned = directLease.transport.plan(request)
+      const planned = await directLease.transport.plan(request, {
+        signal: new AbortController().signal,
+      })
       if ('rejected' in planned) throw new Error('direct plan rejected')
       const cancellation = new AbortController()
       const sent = await directLease.transport.send(

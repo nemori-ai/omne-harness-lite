@@ -93,7 +93,9 @@ function inputAndDefinition() {
 export async function buildFormal() {
   const { input, definition } = inputAndDefinition()
   const meter = createQwenInputMeter(definition)
-  const plan = planRequest(input, [definition], meter)
+  const plan = await planRequest(input, [definition], meter, {
+    signal: new AbortController().signal,
+  })
   assert('planned' in plan, 'Qwen formal planner rejected input')
   const frozen = await readFile(formalWire)
   assert.equal(sha256(frozen), formalSha256)

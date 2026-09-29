@@ -56,7 +56,7 @@ function message(type: 'system' | 'system_reminder' | 'user'): Message {
   if ('rejected' in value) throw new Error(value.rejected)
   return value.ok
 }
-function plan(route: ModelRoute, parameters: ModelRequestParameters = {}) {
+async function plan(route: ModelRoute, parameters: ModelRequestParameters = {}) {
   const definition = fixture(route)
   const configuration = { revision: 'fixture-1', values: { cache: { mode: 'automatic' } } }
   const profile = createOfficialProfileContent(definition, {
@@ -92,14 +92,14 @@ function plan(route: ModelRoute, parameters: ModelRequestParameters = {}) {
     messages: [message('system'), message('system_reminder'), message('user')],
     tools: [],
   }
-  return { definition, input, result: planRequest(input, [definition]) }
+  return { definition, input, result: await planRequest(input, [definition]) }
 }
 
 describe('Moonshot route rules (synthetic offline fixture, not an official profile)', () => {
   it.each([kimiK3MoonshotRoute, kimiK27CodeMoonshotRoute])(
     'uses a marked user reminder and automatic cache without manual TTL or breakpoints',
-    route => {
-      const { definition, result } = plan(route)
+    async route => {
+      const { definition, result } = await plan(route)
       expect(
         readModelDefinition([definition], {
           implementation: definition.implementation,
@@ -140,19 +140,22 @@ describe('Moonshot route rules (synthetic offline fixture, not an official profi
       expect(result.planned.serialized).not.toContain('ttl')
     },
   )
-  it('passes only the evidenced K3 effort values through the unified wire', () => {
-    const { result } = plan(kimiK3MoonshotRoute, { reasoningEffort: 'high', maxOutputTokens: 64 })
+  it('passes only the evidenced K3 effort values through the unified wire', async () => {
+    const { result } = await plan(kimiK3MoonshotRoute, {
+      reasoningEffort: 'high',
+      maxOutputTokens: 64,
+    })
     if ('rejected' in result) throw new Error(result.rejected)
     expect(result.planned.parameters).toEqual({ reasoningEffort: 'high', maxOutputTokens: 64 })
     expect(result.planned.body.reasoning).toEqual({ effort: 'high' })
     expect(result.planned.body.max_tokens).toBe(64)
-    const unsupported = plan(kimiK3MoonshotRoute, { reasoningEffort: 'medium' }).result
+    const unsupported = (await plan(kimiK3MoonshotRoute, { reasoningEffort: 'medium' })).result
     if ('rejected' in unsupported) throw new Error(unsupported.rejected)
     expect(unsupported.planned.droppedParameters).toEqual(['reasoningEffort'])
     expect(unsupported.planned.body).not.toHaveProperty('reasoning')
   })
-  it('does not imply K2.7 has an effort switch or a mutable sampling temperature', () => {
-    const { result } = plan(kimiK27CodeMoonshotRoute, {
+  it('does not imply K2.7 has an effort switch or a mutable sampling temperature', async () => {
+    const { result } = await plan(kimiK27CodeMoonshotRoute, {
       reasoningEffort: 'none',
       temperature: 0.5,
       topP: 0.5,
@@ -177,12 +180,14 @@ describe('Moonshot route rules (synthetic offline fixture, not an official profi
     ])
       expect(result.planned.body).not.toHaveProperty(key)
   })
-  it('refuses a wrong route or out-of-profile output before network execution', () => {
-    const { definition, input } = plan(kimiK3MoonshotRoute)
-    expect(planRequest({ ...input, provider: 'moonshotai/other' }, [definition])).toEqual({
+  it('refuses a wrong route or out-of-profile output before network execution', async () => {
+    const { definition, input } = await plan(kimiK3MoonshotRoute)
+    expect(await planRequest({ ...input, provider: 'moonshotai/other' }, [definition])).toEqual({
       rejected: 'unavailable',
     })
-    expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual({
+    expect(
+      await planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition]),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })

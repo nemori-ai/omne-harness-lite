@@ -1,3 +1,4 @@
+import { imagePreparation, testImagePreparerFor } from './image-transport-support.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -173,14 +174,24 @@ describe.each(models)('%s base-image estimated proxy', modelId => {
       inputMeters: [meter],
     })
     try {
-      const rejected = planRequest(
+      const rejected = await planRequest(
         { ...request, tokenMargin: { multiplier: 1, reserveTokens: 10000000 } },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       expect(rejected).toMatchObject({ rejected: 'invalidInput', reason: 'input_limit_exceeded' })
       expect(host.requests).toHaveLength(0)
-      const planned = planRequest(request, [definition], meter)
+      const planned = await planRequest(
+        request,
+        [definition],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       if ('rejected' in planned) throw Error(JSON.stringify(planned))
       expect(planned.planned.measurement.mode).toBe('full')
       expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')

@@ -326,7 +326,7 @@ describe('D108 refusal mapping through shared production reader over TLS', () =>
   it('RF-V9 exported readStream path yields the same refusal text and settles stopped', async () => {
     const host = await fixture(cert.tls, res => res.end(refusal('public reader') + finish()))
     try {
-      const request = planned(host.transport)
+      const request = await planned(host.transport)
       const sent = await host.transport.send(
         request,
         'synthetic-credential',
@@ -362,7 +362,7 @@ describe('D108 refusal mapping through shared production reader over TLS', () =>
       res.write(refusal('read before abort'))
     })
     try {
-      const request = planned(host.transport)
+      const request = await planned(host.transport)
       const controller = new AbortController()
       const initialListeners = getEventListeners(controller.signal, 'abort').length
       const sent = await host.transport.send(request, 'synthetic-credential', controller.signal)

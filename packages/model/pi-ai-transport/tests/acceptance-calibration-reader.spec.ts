@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -127,7 +128,7 @@ describe('independent real TLS reader-to-public-invoke calibration', () => {
       })
       try {
         const handle = invokeModel({
-          ...request(),
+          ...(await request()),
           transport,
           credential: 'controlled-reader-key',
           signal: new AbortController().signal,
@@ -222,7 +223,7 @@ describe('independent real TLS reader-to-public-invoke calibration', () => {
       }
       try {
         const outcome = await invokeModel({
-          ...request(),
+          ...(await request()),
           transport: wrapped,
           credential: 'controlled-stop-key',
           signal: controller.signal,
@@ -301,7 +302,7 @@ describe('independent real TLS reader-to-public-invoke calibration', () => {
     }
     try {
       const result = await invokeModel({
-        ...request(),
+        ...(await request()),
         transport: wrapped,
         credential: 'controlled-assembly-key',
         signal: new AbortController().signal,

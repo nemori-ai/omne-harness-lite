@@ -68,7 +68,7 @@ function textMessage(type: 'system' | 'system_reminder' | 'user'): Message {
       : {}),
   })
 }
-function request(route: ModelRoute, parameters: ModelRequestParameters = {}) {
+async function request(route: ModelRoute, parameters: ModelRequestParameters = {}) {
   const definition = fixture(route)
   const cache =
     route.cache.mode === 'automatic'
@@ -107,14 +107,14 @@ function request(route: ModelRoute, parameters: ModelRequestParameters = {}) {
     messages: [textMessage('system'), textMessage('system_reminder'), textMessage('user')],
     tools: [],
   }
-  return { definition, input, result: planRequest(input, [definition]) }
+  return { definition, input, result: await planRequest(input, [definition]) }
 }
 function routeForParameters(modelId: QwenAlibabaModelId): ModelRoute {
   return qwenAlibabaRoutes[modelId]
 }
 
 describe('Qwen Alibaba supplied route rules (offline, not complete official definitions)', () => {
-  it('covers the exact eight target IDs and preserves the two evidenced automatic Flash routes', () => {
+  it('covers the exact eight target IDs and preserves the two evidenced automatic Flash routes', async () => {
     expect(qwenAlibabaModelIds).toEqual([
       'qwen/qwen3.8-max-0902',
       'qwen/qwen3.8-max-prime',
@@ -128,7 +128,7 @@ describe('Qwen Alibaba supplied route rules (offline, not complete official defi
     expect(Object.keys(qwenAlibabaParameters)).toEqual(qwenAlibabaModelIds)
     expect(Object.keys(qwenAlibabaRoutes)).toEqual(qwenAlibabaModelIds)
     for (const route of [qwen38FlashAlibabaRoute, qwen37FlashAlibabaRoute]) {
-      const { definition, result } = request(route)
+      const { definition, result } = await request(route)
       expect(
         readModelDefinition([definition], {
           implementation: definition.implementation,
@@ -173,9 +173,9 @@ describe('Qwen Alibaba supplied route rules (offline, not complete official defi
 
   it.each(
     qwenAlibabaModelIds.filter(modelId => qwenAlibabaRoutes[modelId].cache.mode === 'explicit'),
-  )('%s requires a supplied 5m system breakpoint and places it on the wire', modelId => {
+  )('%s requires a supplied 5m system breakpoint and places it on the wire', async modelId => {
     const route = qwenAlibabaRoutes[modelId]
-    const { definition, result } = request(route)
+    const { definition, result } = await request(route)
     expect(
       interpretConfiguration(
         definition,
@@ -213,8 +213,8 @@ describe('Qwen Alibaba supplied route rules (offline, not complete official defi
 
   it.each(qwenAlibabaModelIds)(
     '%s passes the output cap unchanged and traces the supplied subset',
-    modelId => {
-      const { result } = request(routeForParameters(modelId), {
+    async modelId => {
+      const { result } = await request(routeForParameters(modelId), {
         maxOutputTokens: 64,
         temperature: 0.5,
         topP: 0.8,
@@ -241,33 +241,33 @@ describe('Qwen Alibaba supplied route rules (offline, not complete official defi
 
   it.each(['qwen/qwen3.8-max-0902', 'qwen/qwen3.8-2.4t-a95b'] as const)(
     '%s excludes mandatory-reasoning none but passes the evidenced high and max values',
-    modelId => {
+    async modelId => {
       const route = routeForParameters(modelId)
       for (const effort of ['high', 'max'] as const) {
-        const { result } = request(route, { reasoningEffort: effort })
+        const { result } = await request(route, { reasoningEffort: effort })
         if ('rejected' in result) throw new Error(result.rejected)
         expect(result.planned.body.reasoning).toEqual({ effort })
       }
-      const { result } = request(route, { reasoningEffort: 'none' })
+      const { result } = await request(route, { reasoningEffort: 'none' })
       if ('rejected' in result) throw new Error(result.rejected)
       expect(result.planned.droppedParameters).toEqual(['reasoningEffort'])
       expect(result.planned.body).not.toHaveProperty('reasoning')
     },
   )
 
-  it('passes the narrow Alibaba 27B none value and rejects an unevidenced effort', () => {
+  it('passes the narrow Alibaba 27B none value and rejects an unevidenced effort', async () => {
     const route = routeForParameters('qwen/qwen3.8-27b')
-    const disabled = request(route, { reasoningEffort: 'none' }).result
+    const disabled = (await request(route, { reasoningEffort: 'none' })).result
     if ('rejected' in disabled) throw new Error(disabled.rejected)
     expect(disabled.planned.body.reasoning).toEqual({ effort: 'none' })
-    const unknown = request(route, { reasoningEffort: 'medium' }).result
+    const unknown = (await request(route, { reasoningEffort: 'medium' })).result
     if ('rejected' in unknown) throw new Error(unknown.rejected)
     expect(unknown.planned.droppedParameters).toEqual(['reasoningEffort'])
   })
 
-  it('preserves reasoning and paired tool history, and rejects orphan calls before network send', () => {
+  it('preserves reasoning and paired tool history, and rejects orphan calls before network send', async () => {
     const route = qwen38FlashAlibabaRoute
-    const { definition, input } = request(route)
+    const { definition, input } = await request(route)
     const assistant = message({
       id: 'assistant',
       type: 'assistant',
@@ -315,7 +315,7 @@ describe('Qwen Alibaba supplied route rules (offline, not complete official defi
         },
       ],
     })
-    const result = planRequest({ ...input, messages: [...input.messages, assistant, tool] }, [
+    const result = await planRequest({ ...input, messages: [...input.messages, assistant, tool] }, [
       definition,
     ])
     if ('rejected' in result) throw new Error(result.rejected)
@@ -331,14 +331,16 @@ describe('Qwen Alibaba supplied route rules (offline, not complete official defi
       { role: 'tool', content: 'ok' },
     ])
     expect(
-      planRequest({ ...input, messages: [...input.messages, assistant] }, [definition]),
+      await planRequest({ ...input, messages: [...input.messages, assistant] }, [definition]),
     ).toEqual({
       rejected: 'orphan_tool_call',
     })
-    expect(planRequest({ ...input, provider: 'unselected' }, [definition])).toEqual({
+    expect(await planRequest({ ...input, provider: 'unselected' }, [definition])).toEqual({
       rejected: 'unavailable',
     })
-    expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual({
+    expect(
+      await planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition]),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })

@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -138,7 +139,7 @@ describe('production adaptation ownership', () => {
   })
 
   it('retirement after an earlier idle interval still waits for the current lease', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     let disposed = 0
     const registration = register(service, definition(), () => {
       disposed++
@@ -165,7 +166,7 @@ describe('production adaptation ownership', () => {
   })
 
   it('release does not free callback work and forced cancellation does not acknowledge its completion', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const registration = register(service)
     const lease = acquire(service)
     let finishCallback = () => {}
@@ -185,7 +186,7 @@ describe('production adaptation ownership', () => {
   })
 
   it('registering a new definition never substitutes it for the old precise binding', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const old = register(service)
     const oldLease = acquire(service)
     const newer = { ...definition(), revision: '2' }
@@ -205,7 +206,9 @@ describe('production adaptation ownership', () => {
     try {
       expect(oldLease.binding.definition.revision).toBe('fixture-1')
       expect(newLease.binding.definition.revision).toBe('2')
-      expect(oldLease.transport.plan(newInput)).toEqual({
+      expect(
+        await oldLease.transport.plan(newInput, { signal: new AbortController().signal }),
+      ).toEqual({
         rejected: 'invalidInput',
         reason: 'malformed',
       })
@@ -213,10 +216,16 @@ describe('production adaptation ownership', () => {
       expect(service.acquire(requested.snapshot.adaptation, requested.routeName)).toEqual({
         rejected: 'unavailable',
       })
-      expect('planned' in oldLease.transport.plan(requested)).toBe(true)
+      expect(
+        'planned' in
+          (await oldLease.transport.plan(requested, { signal: new AbortController().signal })),
+      ).toBe(true)
       oldLease.release()
       expect(await retiring).toEqual({ retired: true })
-      expect('planned' in newLease.transport.plan(newInput)).toBe(true)
+      expect(
+        'planned' in
+          (await newLease.transport.plan(newInput, { signal: new AbortController().signal })),
+      ).toBe(true)
       expect(await service.retire(old, wait)).toEqual({ retired: true })
       expect(service.inspect().registrations).toBe(1)
     } finally {
@@ -227,7 +236,7 @@ describe('production adaptation ownership', () => {
   })
 
   it('rejects conflicts and preserves declaration content after its owner retires', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const owner = {},
       cleanup = () => {}
     const meter = syntheticInputMeter(definition(), 'openai')
@@ -262,7 +271,7 @@ describe('production adaptation ownership', () => {
   })
 
   it('captures independent configuration values with the same revision spelling', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     register(service, definition(true))
     const first = input(true),
       second = input(true)
@@ -284,10 +293,20 @@ describe('production adaptation ownership', () => {
     const a = acquire(service, first),
       b = acquire(service, altered)
     try {
-      expect('planned' in a.transport.plan(first)).toBe(true)
-      expect('planned' in b.transport.plan(altered)).toBe(true)
-      expect(a.transport.plan(altered)).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
-      expect(b.transport.plan(first)).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
+      expect(
+        'planned' in (await a.transport.plan(first, { signal: new AbortController().signal })),
+      ).toBe(true)
+      expect(
+        'planned' in (await b.transport.plan(altered, { signal: new AbortController().signal })),
+      ).toBe(true)
+      expect(await a.transport.plan(altered, { signal: new AbortController().signal })).toEqual({
+        rejected: 'invalidInput',
+        reason: 'malformed',
+      })
+      expect(await b.transport.plan(first, { signal: new AbortController().signal })).toEqual({
+        rejected: 'invalidInput',
+        reason: 'malformed',
+      })
       expect(Object.isFrozen(a.binding.configuration.values)).toBe(true)
     } finally {
       a.release()
@@ -297,7 +316,7 @@ describe('production adaptation ownership', () => {
   })
 
   it('retains visible ownership when contribution cleanup fails', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const registration = register(service, definition(), () => {
       throw new Error('controlled cleanup failure')
     })

@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { Agent } from 'node:https'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
@@ -131,7 +132,7 @@ describe('D095 actual credential path and single H', () => {
     faults.rejected = rejected
     try {
       const sent = await sendRequest(
-        planned(host.transport),
+        await planned(host.transport),
         'test-secret',
         new AbortController().signal,
         resources,
@@ -171,7 +172,7 @@ describe('D095 actual credential path and single H', () => {
       },
     )
     try {
-      const plan = planned(host.transport),
+      const plan = await planned(host.transport),
         sent = await host.transport.send(plan, 'test-secret', new AbortController().signal)
       if (!('response' in sent)) throw new Error('missing response')
       expect(sent).toHaveProperty('rawHeaders')
@@ -193,7 +194,7 @@ describe('D095 actual credential path and single H', () => {
     faults.onProcess = () => controller.abort()
     try {
       const sent = await host.transport.send(
-        planned(host.transport),
+        await planned(host.transport),
         'test-secret',
         controller.signal,
       )
@@ -219,7 +220,7 @@ describe('D095 actual credential path and single H', () => {
       })
       try {
         const sent = await host.transport.send(
-          planned(host.transport),
+          await planned(host.transport),
           credential,
           new AbortController().signal,
         )
@@ -369,7 +370,7 @@ describe('D095 actual credential path and single H', () => {
       },
     )
     try {
-      const plan = planned(host.transport)
+      const plan = await planned(host.transport)
       const sent = await host.transport.send(plan, 'test-secret', new AbortController().signal)
       if (!('response' in sent)) throw new Error('missing response')
       // Node trims outer header whitespace; this oracle compares its actual map, not raw line order.
@@ -388,10 +389,16 @@ describe('D095 actual credential path and single H', () => {
     const incomplete = { ...networkPolicy }
     Object.defineProperty(incomplete, 'credentialRedaction', { value: undefined })
     expect(() =>
-      createPiAiTransport({ policy: incomplete, definitions: testDefinitions, inputMeters: [] }),
+      createPiAiTransport({
+        imagePreparation,
+        policy: incomplete,
+        definitions: testDefinitions,
+        inputMeters: [],
+      }),
     ).toThrow()
     expect(() =>
       createPiAiTransport({
+        imagePreparation,
         policy: {
           ...networkPolicy,
           credentialRedaction: {
@@ -433,7 +440,7 @@ describe('D095 actual credential path and single H', () => {
       patterns.length = 0
       config.credential_fragment_min_length = 99
       const sent = await host.transport.send(
-        planned(host.transport),
+        await planned(host.transport),
         'test-secret',
         new AbortController().signal,
       )
@@ -480,7 +487,7 @@ describe('D095 actual credential path and single H', () => {
       Object.defineProperty(invalid.policy, 'credentialRedaction', { value: undefined })
       expect(
         await sendRequest(
-          planned(host.transport),
+          await planned(host.transport),
           'abcdefghZZ',
           new AbortController().signal,
           invalid,
@@ -488,7 +495,7 @@ describe('D095 actual credential path and single H', () => {
       ).toEqual({ rejected: 'invalidInput' })
       expect(acquired).toBe(0)
       const sending = sendRequest(
-        planned(host.transport),
+        await planned(host.transport),
         'abcdefghZZ',
         new AbortController().signal,
         resources,
@@ -525,7 +532,7 @@ describe('D095 actual credential path and single H', () => {
       faults.rejected = rejected
       try {
         const sent = await host.transport.send(
-          planned(host.transport),
+          await planned(host.transport),
           'test-secret',
           new AbortController().signal,
         )
@@ -554,7 +561,7 @@ describe('D095 actual credential path and single H', () => {
         res.end(sse({ error: { code: 503, unsafe: 'payload' } }))
       })
       try {
-        const plan = planned(host.transport)
+        const plan = await planned(host.transport)
         const sent = await host.transport.send(plan, 'test-secret', new AbortController().signal)
         if (!('response' in sent)) throw new Error('missing response')
         faults.stage = 'json'
@@ -588,7 +595,7 @@ describe('D095 actual credential path and single H', () => {
         res.end(content('business-secret') + sse({ model: 'untrusted-secret' }) + finish())
       })
       try {
-        const plan = planned(host.transport),
+        const plan = await planned(host.transport),
           sent = await host.transport.send(plan, 'test-secret', new AbortController().signal)
         if (!('response' in sent)) throw new Error('missing response')
         faults.stage = 'text'
@@ -621,7 +628,7 @@ describe('D095 actual credential path and single H', () => {
       faults.invalidHeaders = true
       try {
         const sent = await host.transport.send(
-          planned(host.transport),
+          await planned(host.transport),
           'test-secret',
           new AbortController().signal,
         )
@@ -651,7 +658,7 @@ describe('D095 actual credential path and single H', () => {
     )
     faults.stage = 'headers'
     try {
-      const plan = planned(host.transport),
+      const plan = await planned(host.transport),
         sent = await host.transport.send(plan, 'test-secret', new AbortController().signal)
       expect(sent).not.toHaveProperty('rawHeaders')
       expect(sent).toHaveProperty('response')
@@ -676,7 +683,7 @@ describe('D095 actual credential path and single H', () => {
       })
       try {
         const sending = host.transport.send(
-          planned(host.transport),
+          await planned(host.transport),
           'test-secret',
           controller.signal,
         )

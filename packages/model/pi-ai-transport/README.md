@@ -15,7 +15,7 @@ Every caller supplies complete model definitions explicitly. There are no defaul
 | `configurationSchema(definition, provider)`                               | Closed Draft 2020-12 Schema, generated from route data without defaults                                                |
 | `interpretConfiguration(definition, values, provider)`                    | The same route's strict, lossless configuration interpretation                                                         |
 | `createOfficialProfileContent(definition, options)`                       | Construct and judge core content; no directory write, registration or timestamp                                        |
-| `planRequest(input, definitions, meter)`                                  | Pure fixed-byte plan and final input admission with a trusted, versioned model/provider meter                          |
+| `planRequest(input, definitions, meter, execution, preparer?)`                                  | Asynchronous fixed-byte plan and final input admission with a trusted, versioned model/provider meter                          |
 | `createPiAiTransport(options)`                                            | Explicit definitions, bound input meters and owned pool with plan/send/read/close                                      |
 | `sendRequest`, `readStream`                                               | Independent functions borrowing explicit network resources                                                             |
 | `createModelTransportService`, `AdaptationLease`, `RetirementPolicy`      | Process-local precise registration, fixed leases and explicit draining                                                 |
@@ -188,7 +188,9 @@ const content = createOfficialProfileContent(definition, {
 })
 if ('rejected' in content) throw new Error(content.rejected)
 // This is a construction example only; it does not publish the synthetic content.
-const result = planRequest(request, definitions, controlledMeter)
+const result = await planRequest(request, definitions, controlledMeter, {
+  signal: new AbortController().signal,
+})
 if ('rejected' in result) throw new Error(result.rejected)
 console.log(result.planned.body.messages) // developer; no HTTP request
 ```
@@ -263,7 +265,7 @@ const transport = createPiAiTransport({
   policy: networkPolicy,
 })
 try {
-  const result = transport.plan(request)
+  const result = await transport.plan(request, { signal: new AbortController().signal })
   if ('rejected' in result) throw new Error(result.rejected)
   console.log(result.planned.parameters)
   // To send: supply a real complete definition, owned credential and AbortSignal,
@@ -296,7 +298,7 @@ export async function executeOnce(
   credential: string,
   signal: AbortSignal,
 ) {
-  const plan = transport.plan(request)
+  const plan = await transport.plan(request, { signal: new AbortController().signal })
   if ('rejected' in plan) return plan
   const sent = await transport.send(plan.planned, credential, signal)
   if (!('response' in sent)) return sent
@@ -343,7 +345,7 @@ const acquired = service.acquire(request.snapshot.adaptation, request.routeName)
 if ('rejected' in acquired) throw new Error(acquired.rejected)
 const lease = acquired.lease
 try {
-  const result = lease.transport.plan(request)
+  const result = await lease.transport.plan(request, { signal: new AbortController().signal })
   if ('rejected' in result) throw new Error(result.rejected)
   console.log(result.planned.parameters)
 } finally {
@@ -556,3 +558,50 @@ Pro0813 revision 4 / `mp4-17` and Flash revision 3 / `mp4-17` use its pinned pub
 Flash uses its own pinned renderer, tool-result ordering, tokenizer and image-span formula. Marginal counting adds only new image spans; the placeholder already in the prompt is subtracted once. Appending a tool result that reorders substantive old projected content falls back to full.
 
 GPT-6 Astra Pro definition revision `5` / `pi-ai:openai/mp4-17` reuses the named Astra image rule as an **estimated proxy**, based on its [exact same-base Pro-mode identity](https://openrouter.ai/openai/gpt-6-astra-pro). Algorithm `openai-gpt-6-astra-pro-final-visible-json-o200k-image-proxy-1/response-calibration-1` replaces the old text-only basis. It shares the existing counter, keeps image bytes in every actual request, and still uses full admission with explicit margin because upstream input scope remains `scope_unknown`. This is not measured Pro preprocessing. Sol/Luna use their separately versioned empirical proxy described above. `tests/openai-pro-images.spec.ts` checks the four supported Pro image bindings, model-specific high-detail limits, original wire/accounts and unsupported input; the demo service test exercises durable three-turn history.
+
+### Explicit image preparation
+
+The transport exports `createImagePreparer`, `createSharpImageCodec`, and the explicitly selected `modelImageBalancedV1` policy. Assembly imports the installed sharp 0.35.3 first; creating or importing a preparer does not load a native codec, read files, or access the network.
+
+```ts
+import sharp from 'sharp'
+import {
+  createImagePreparer,
+  createSharpImageCodec,
+  modelImageBalancedV1,
+} from '@omne-harness-lite/pi-ai-transport'
+
+const codec = createSharpImageCodec(sharp)
+const instance = createImagePreparer(modelImageBalancedV1, codec)
+if ('unavailable' in instance) throw new Error('Image codec unavailable')
+const scope = {}
+try {
+  const bytes = await sharp({
+    create: { width: 64, height: 64, channels: 3, background: 'blue' },
+  }).png().toBuffer()
+  const result = await instance.ready.prepareRequestImages({
+    images: [{ position: 'user/0/image/0', bytes, mediaType: 'image/png', targetMaxBytes: 1_000_000 }],
+    maxRequestBytes: null,
+    nonImageWireBytes: 0,
+    signal: new AbortController().signal,
+  }, scope)
+  // Handle the closed prepared/rejected result before using its owned bytes.
+  if ('rejected' in result) throw new Error(result.rejected.reason)
+  console.log(result.prepared.images.map(({ width, height, changed }) => ({ width, height, changed })))
+} finally {
+  instance.ready.clearScope(scope)
+  await instance.ready.close()
+}
+```
+
+For a complete JSON request, `nonImageWireBytes` must be the UTF-8 length of its final serialization with each selected image's data URL string value replaced by the empty string. The helper adds each actual JSON data URL contribution, including MIME and base64 expansion. Transport planning still independently serializes and checks the final body before publishing a plan.
+
+The finite search follows fixed candidate ordinals; cache hits never extend the search limit. The source bytes remain unchanged. Cache tables belong to caller-provided opaque scopes, with global byte/entry limits and LRU eviction; scopes confer no authorization. Omit a scope to disable reuse across calls. Cancelling preparation or calling `close()` waits for actual native completion and decoded-handle release. The preparer borrows the codec and does not destroy it. The configured in-flight buffer budget is separate from native RSS and does not impose a process memory limit.
+
+### Assemble images and asynchronous planning
+
+Always await `planRequest` and supply `{ signal, reuseScope? }`. Image requests additionally require the actual ready instance returned by `createImagePreparer`. Text-only requests keep the base transform revision. Planning validates structure, modalities, tool pairs and required limits before preparing actual bytes; serialization, projection and measurement consume the same fixed body. Original input/history remains unchanged. `ReplayMeterInput.countingBasis` explicitly describes the current request; it is never copied from the original observation. Full/new measurement can retain old original O only under the finite source rules; a changed representation or effective basis cannot reuse original prefix I.
+
+Factory and Cordis plugin configuration accepts explicit `imagePreparation: { policy: modelImageBalancedV1, codec: createSharpImageCodec(sharp) }`. The factory owns the preparer. `close()` stops admission, aborts planning and drains actual native work and connections; it does not destroy the borrowed codec. Explicit `codec: null` leaves the codec absent while still strictly validating policy at initialization. Image requests then return unavailable; text follows its existing path. Codec, policy and caps have no implicit fallback.
+
+`ModelTransportService.clearReuseScope(scope)` synchronously clears the service's fixed owned preparer set. It remains callable after lease release, contribution retirement and stopped admission. A scope is an opaque process-local object, outside durable bindings and logs; it grants no tenant authority. Standalone callers own their scopes, and omitting one disables reuse across requests.

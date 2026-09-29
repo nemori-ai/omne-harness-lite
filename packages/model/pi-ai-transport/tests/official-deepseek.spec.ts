@@ -89,8 +89,8 @@ function input(parameters: ModelRequestParameters = {}): PlanInput {
     tools: [],
   }
 }
-function plan(parameters: ModelRequestParameters = {}): PlannedRequest {
-  const result = planRequest(input(parameters), [definition])
+async function plan(parameters: ModelRequestParameters = {}): Promise<PlannedRequest> {
+  const result = await planRequest(input(parameters), [definition])
   if ('rejected' in result) throw new Error(result.rejected)
   return result.planned
 }
@@ -186,7 +186,7 @@ describe('official DeepSeek Pro leaf: public pure boundaries, no HTTP', () => {
       }),
     ).toEqual({ rejected: 'max_output_exceeds_profile' })
   })
-  it('independently validates the exact automatic configuration and refuses legacy TTL/layouts', () => {
+  it('independently validates the exact automatic configuration and refuses legacy TTL/layouts', async () => {
     const schema = configurationSchema(definition, provider)
     if ('rejected' in schema) throw new Error(schema.rejected)
     const validate = validator().compile(JSON.parse(writeJsonLossless(schema.ok)))
@@ -202,7 +202,7 @@ describe('official DeepSeek Pro leaf: public pure boundaries, no HTTP', () => {
     for (const values of cases) {
       expect('ok' in interpretConfiguration(definition, values, provider)).toBe(validate(values))
       const request = input()
-      const result = planRequest(
+      const result = await planRequest(
         {
           ...request,
           snapshot: {
@@ -219,8 +219,8 @@ describe('official DeepSeek Pro leaf: public pure boundaries, no HTTP', () => {
     }
     expect(writeJsonLossless(schema.ok)).not.toContain('default')
   })
-  it('maps reminders to marked user messages, keeps ordinary system/user and uses one fixed provider', () => {
-    const actual = plan({ reasoningEffort: 'low', maxOutputTokens: 1024 })
+  it('maps reminders to marked user messages, keeps ordinary system/user and uses one fixed provider', async () => {
+    const actual = await plan({ reasoningEffort: 'low', maxOutputTokens: 1024 })
     expect(actual.body.messages).toEqual([
       { role: 'system', content: [{ type: 'text', text: 'instruction' }] },
       {
@@ -247,10 +247,10 @@ describe('official DeepSeek Pro leaf: public pure boundaries, no HTTP', () => {
     expect(actual.body).not.toHaveProperty('tools')
     expect(actual.body).not.toHaveProperty('models')
   })
-  it('keeps absent parameters absent and accepts only the deliberately supplied seed/stop subsets', () => {
-    expect(plan().parameters).toEqual({})
-    expect(plan().body).not.toHaveProperty('reasoning')
-    const actual = plan({ seed: 0, stopSequences: ['END'], maxOutputTokens: 16384 })
+  it('keeps absent parameters absent and accepts only the deliberately supplied seed/stop subsets', async () => {
+    expect((await plan()).parameters).toEqual({})
+    expect((await plan()).body).not.toHaveProperty('reasoning')
+    const actual = await plan({ seed: 0, stopSequences: ['END'], maxOutputTokens: 16384 })
     expect(actual.parameters).toEqual({ seed: 0, stopSequences: ['END'], maxOutputTokens: 16384 })
     expect(actual.body.seed).toBe(0)
     expect(actual.body.stop).toEqual(['END'])
@@ -260,15 +260,15 @@ describe('official DeepSeek Pro leaf: public pure boundaries, no HTTP', () => {
   })
   it.each(['none', 'medium', 'high', 'max'] as const)(
     'records %s as deliberately outside the supplied effort subset',
-    reasoningEffort => {
-      const actual = plan({ reasoningEffort })
+    async reasoningEffort => {
+      const actual = await plan({ reasoningEffort })
       expect(actual.parameters).toEqual({})
       expect(actual.droppedParameters).toEqual(['reasoningEffort'])
       expect(actual.body).not.toHaveProperty('reasoning')
     },
   )
-  it('traces all unprovided unified/private values without overriding protected request fields', () => {
-    const actual = plan({
+  it('traces all unprovided unified/private values without overriding protected request fields', async () => {
+    const actual = await plan({
       temperature: 1,
       topP: 0.99,
       seed: new LosslessNumber('9007199254740993'),
@@ -302,14 +302,14 @@ describe('official DeepSeek Pro leaf: public pure boundaries, no HTTP', () => {
     expect(actual.body).not.toHaveProperty('extra')
     expect(actual.body).not.toHaveProperty('reasoning')
   })
-  it('refuses out-of-profile output and unknown route before any sending path', () => {
-    expect(planRequest(input({ maxOutputTokens: 16385 }), [definition])).toEqual({
+  it('refuses out-of-profile output and unknown route before any sending path', async () => {
+    expect(await planRequest(input({ maxOutputTokens: 16385 }), [definition])).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
-    expect(planRequest({ ...input(), provider: 'deepseek' }, [definition])).toEqual({
+    expect(await planRequest({ ...input(), provider: 'deepseek' }, [definition])).toEqual({
       rejected: 'unavailable',
     })
-    expect(planRequest(input(), [])).toEqual({ rejected: 'unavailable' })
+    expect(await planRequest(input(), [])).toEqual({ rejected: 'unavailable' })
   })
 })

@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -21,9 +22,15 @@ afterAll(() => cert.dispose())
 describe('Google official routes: controlled wire projection only', () => {
   it.each(googleDefinitions)(
     '$modelId cannot plan without a model-applicable meter',
-    definition => {
+    async definition => {
       expect(
-        planRequest(googleCertificationRequest(definition.modelId), googleDefinitions),
+        await planRequest(
+          googleCertificationRequest(definition.modelId),
+          googleDefinitions,
+          undefined,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        ),
       ).toEqual({
         rejected: 'unavailable',
       })
@@ -55,7 +62,9 @@ describe('Google official routes: controlled wire projection only', () => {
         [definition],
       )
       try {
-        const planned = host.transport.plan(googleCertificationRequest(definition.modelId))
+        const planned = await host.transport.plan(googleCertificationRequest(definition.modelId), {
+          signal: new AbortController().signal,
+        })
         if ('rejected' in planned) throw new Error(planned.rejected)
         const { body, serialized, inputLimitEvidence } = planned.planned
         expect(body.model).toBe(definition.modelId)
@@ -123,49 +132,71 @@ describe('Google official routes: controlled wire projection only', () => {
     },
   )
 
-  it.each(googleDefinitions)('$modelId rejects raw audio before any plan is signed', definition => {
-    const input = googleCertificationRequest(definition.modelId)
-    const audio = judgedMessage({
-      id: 'google-audio',
-      type: 'user',
-      createdAt: at,
-      blocks: [
-        {
-          id: 'google-voice',
-          kind: 'voice',
-          mediaType: 'audio/pcm',
-          data: { inline: 'eA==' },
-          visibility: visible,
-        },
-      ],
-    })
-    expect(planRequest({ ...input, messages: [...input.messages, audio] }, [definition])).toEqual({
-      rejected: 'modality_not_carried',
-    })
-  })
-
-  it.each(googleDefinitions)('$modelId rejects video without a wire projection', definition => {
-    const input = googleCertificationRequest(definition.modelId)
-    const video = judgedMessage({
-      id: 'google-video',
-      type: 'user',
-      createdAt: at,
-      blocks: [
-        {
-          id: 'google-video-file',
-          kind: 'file',
-          attachment: {
-            storage: 'attachments',
-            key: 'obj_google_video',
-            mediaType: 'video/mp4',
-            name: 'clip.mp4',
+  it.each(googleDefinitions)(
+    '$modelId rejects raw audio before any plan is signed',
+    async definition => {
+      const input = googleCertificationRequest(definition.modelId)
+      const audio = judgedMessage({
+        id: 'google-audio',
+        type: 'user',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'google-voice',
+            kind: 'voice',
+            mediaType: 'audio/pcm',
+            data: { inline: 'eA==' },
+            visibility: visible,
           },
-          visibility: visible,
-        },
-      ],
-    })
-    expect(planRequest({ ...input, messages: [...input.messages, video] }, [definition])).toEqual({
-      rejected: 'modality_not_carried',
-    })
-  })
+        ],
+      })
+      expect(
+        await planRequest(
+          { ...input, messages: [...input.messages, audio] },
+          [definition],
+          undefined,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        ),
+      ).toEqual({
+        rejected: 'modality_not_carried',
+      })
+    },
+  )
+
+  it.each(googleDefinitions)(
+    '$modelId rejects video without a wire projection',
+    async definition => {
+      const input = googleCertificationRequest(definition.modelId)
+      const video = judgedMessage({
+        id: 'google-video',
+        type: 'user',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'google-video-file',
+            kind: 'file',
+            attachment: {
+              storage: 'attachments',
+              key: 'obj_google_video',
+              mediaType: 'video/mp4',
+              name: 'clip.mp4',
+            },
+            visibility: visible,
+          },
+        ],
+      })
+      expect(
+        await planRequest(
+          { ...input, messages: [...input.messages, video] },
+          [definition],
+          undefined,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        ),
+      ).toEqual({
+        rejected: 'modality_not_carried',
+      })
+    },
+  )
 })

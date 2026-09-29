@@ -14,7 +14,7 @@ import type {
 import { ownDefinitions, jsonEqual, type ModelDefinition } from './definitions.ts'
 import { interpretConfiguration } from './configuration.ts'
 import { ownedObject } from './json.ts'
-import { planRequest, type PlannedRequest } from './plan.ts'
+import { type PlannedRequest } from './plan.ts'
 import { createOwnedTransport, type TransportOptions } from './transport.ts'
 import type { RawResponse } from './http.ts'
 import { meterMatches, ownInputMeter, type InputMeter } from './input-meter.ts'
@@ -43,6 +43,8 @@ export interface AdaptationLease {
   readonly release: () => void
 }
 export interface ModelTransportService {
+  /** Cache cleanup remains callable after admission closes or a lease is released. */
+  readonly clearReuseScope: (scope: object) => void
   /** Instance-local network diagnostic delivery health, including after close. */
   readonly diagnostics: () => Readonly<{ failed: number; pending: number; dropped: number }>
   readonly registerAdaptation: (
@@ -140,6 +142,7 @@ export function createModelTransportService(
     transport: network,
     stopAdmission,
     claim,
+    plan,
   } = createOwnedTransport({
     ...transportOptions,
     definitions: [],
@@ -335,6 +338,7 @@ export function createModelTransportService(
     }
   }
   const service: ModelTransportService = {
+    clearReuseScope: network.clearReuseScope,
     closed,
     inspect: status,
     diagnostics: network.diagnostics,
@@ -475,10 +479,21 @@ export function createModelTransportService(
         )
       }
       const transport = Object.freeze<AdaptationLease['transport']>({
-        plan: (input: PlanInput) => {
+        plan: async (input: PlanInput, execution) => {
           if (user.released || !sameBinding(input))
             return { rejected: 'invalidInput', reason: 'malformed' }
-          const result = planRequest(input, [definition], entry.meter)
+          if (!execution || !(execution.signal instanceof AbortSignal))
+            return { rejected: 'invalidInput', reason: 'malformed' }
+          const result = await retain(
+            entry,
+            user,
+            plan(
+              input,
+              { ...execution, signal: AbortSignal.any([signal, execution.signal]) },
+              [definition],
+              entry.meter,
+            ),
+          )
           if ('planned' in result) {
             claim(result.planned)
             issuedPlans.add(result.planned)

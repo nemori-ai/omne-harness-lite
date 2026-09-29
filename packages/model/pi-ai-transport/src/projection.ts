@@ -19,6 +19,7 @@ import type { InputMeter } from './input-meter.ts'
 import { deepSeekBoundaries } from './input-meters/deepseek-boundary.ts'
 import { renderDeepSeekV4Prompt } from './input-meters/deepseek-v4-pro.ts'
 import { renderDeepSeekV41Prompt } from './input-meters/deepseek-v41-flash.ts'
+import { composeTransformRevision, type ImagePreparationRevision } from './meter-transform.ts'
 
 export const INPUT_PROJECTION_REVISION = 'openrouter-input-projection/2'
 const anthropicModels = new Set([
@@ -66,7 +67,11 @@ export interface InputProjection {
   readonly envelope: JsonObject
   readonly requestInput: Extract<RequestInputEvidence, { kind: 'known' }>
 }
-export function countingBasis(input: PlanInput, meter: InputMeter): CountingBasis {
+export function countingBasis(
+  input: PlanInput,
+  meter: InputMeter,
+  preparation?: ImagePreparationRevision,
+): CountingBasis {
   return Object.freeze({
     binding: input.snapshot.adaptation,
     model: input.routeName,
@@ -74,7 +79,7 @@ export function countingBasis(input: PlanInput, meter: InputMeter): CountingBasi
     tokenizerRevision: meter.tokenizerRevision,
     meterRevision: meter.algorithmRevision,
     replayRevision: meter.replayRevision,
-    transformRevision: meter.transformRevision,
+    transformRevision: composeTransformRevision(meter.transformRevision, preparation),
     projectionRevision: INPUT_PROJECTION_REVISION,
   })
 }
@@ -83,6 +88,7 @@ export function projectInput(
   body: JsonObject,
   input: PlanInput,
   meter: InputMeter,
+  preparation?: ImagePreparationRevision,
 ): InputProjection {
   const owned = ownedObject(body)
   if (!owned || !Array.isArray(owned.messages)) throw new TypeError('messages required')
@@ -117,7 +123,7 @@ export function projectInput(
   const ownedUnits = copyJsonValue(units)
   if (!envelope || 'failed' in ownedUnits || !Array.isArray(ownedUnits.ok))
     throw new TypeError('invalid projection')
-  const basis = countingBasis(input, meter)
+  const basis = countingBasis(input, meter, preparation)
   return Object.freeze({
     units: ownedUnits.ok,
     envelope,

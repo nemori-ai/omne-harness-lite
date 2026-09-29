@@ -21,11 +21,11 @@ import {
 import { object } from '../json.ts'
 import { fullJsonMarginal } from './marginal.ts'
 import { estimateOpenAi56Group } from './openai-replay.ts'
-import { inspectCurrentMeterBasis } from '../meter-transform.ts'
+import { relateMeterBases } from '../meter-transform.ts'
 
 type BodyCounter = (input: Pick<FullMeterInput, 'body' | 'serialized'>) => TokenMeasurement
 function basisMatches(basis: CountingBasis, meter: InputMeter): boolean {
-  return inspectCurrentMeterBasis(basis, meter).kind === 'known'
+  return relateMeterBases(basis, undefined, meter).kind === 'currentOnly'
 }
 function encrypted(group: PlanOutputHistoryGroup): boolean {
   return group.outputBlocks.some(block => {
@@ -45,7 +45,7 @@ function encrypted(group: PlanOutputHistoryGroup): boolean {
 function coveredUnits(
   input: Pick<
     NewMeterInput,
-    'units' | 'unitIndices' | 'envelope' | 'outputHistory' | 'historySpans'
+    'units' | 'unitIndices' | 'envelope' | 'outputHistory' | 'historySpans' | 'countingBasis'
   >,
   meter: InputMeter,
 ): { units: readonly JsonValue[]; tokens: ExactDecimal } | undefined {
@@ -78,6 +78,7 @@ function coveredUnits(
           end,
         })),
         history: group,
+        countingBasis: input.countingBasis,
       },
       meter,
     )
@@ -123,7 +124,13 @@ export function fullOpenAi56History(
     )
       return { kind: 'unavailable' }
     const covered = coveredUnits(
-      { ...input, units, unitIndices: units.map((_, i) => i), envelope },
+      {
+        ...input,
+        units,
+        unitIndices: units.map((_, i) => i),
+        envelope,
+        countingBasis: input.projection.requestInput.countingBasis,
+      },
       meter,
     )
     if (!covered) return { kind: 'unavailable' }

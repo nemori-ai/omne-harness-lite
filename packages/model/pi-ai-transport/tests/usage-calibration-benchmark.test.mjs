@@ -13,11 +13,11 @@ import {
 } from '@omne-harness-lite/pi-ai-transport'
 
 const measurements = []
-function measure(name, operation) {
+async function measure(name, operation) {
   const start = performance.now(),
     cpu = process.cpuUsage(),
     memory = process.memoryUsage()
-  const result = operation()
+  const result = await operation()
   const elapsed = performance.now() - start,
     used = process.cpuUsage(cpu),
     after = process.memoryUsage()
@@ -34,7 +34,9 @@ function measure(name, operation) {
   return result
 }
 const definition = anthropicDefinitions[0]
-const meter = measure('cold-tokenizer-initialization', () => createAnthropicInputMeter(definition))
+const meter = await measure('cold-tokenizer-initialization', () =>
+  createAnthropicInputMeter(definition),
+)
 const at = '2026-09-29T00:00:00Z'
 function message(id, text) {
   const result = judgeMessage({
@@ -75,19 +77,21 @@ const request = {
     },
   },
 }
-function plan(input) {
-  const result = planRequest(input, [definition], meter)
+async function plan(input) {
+  const result = await planRequest(input, [definition], meter, {
+    signal: new AbortController().signal,
+  })
   if (!('planned' in result)) throw Error(JSON.stringify(result))
   return result.planned
 }
 let previous
 for (let i = 0; i < 3; i++)
-  previous = measure(i === 0 ? 'cold-full-plan' : `warm-full-plan-${i}`, () => plan(request))
+  previous = await measure(i === 0 ? 'cold-full-plan' : `warm-full-plan-${i}`, () => plan(request))
 const tokens = Number(ExactDecimal.from(previous.measurement.predictedInput).toString())
 if (tokens < 1_000_000 || tokens > 1_010_000) throw Error(`unexpected actual token count ${tokens}`)
-measure('final-body-serialization-only', () => writeJsonLossless(previous.body))
-measure('final-body-projection-hash-only', () => projectInput(previous.body, request, meter))
-measure('full-meter-only', () =>
+await measure('final-body-serialization-only', () => writeJsonLossless(previous.body))
+await measure('final-body-projection-hash-only', () => projectInput(previous.body, request, meter))
+await measure('full-meter-only', () =>
   meter.measureFull({ body: previous.body, serialized: previous.serialized }),
 )
 const originalEncode = Tiktoken.prototype.encode
@@ -137,7 +141,7 @@ try {
         replaySelection: [],
       },
     }
-    previous = measure(`marginal-plan-${i}`, () => plan(nextRequest))
+    previous = await measure(`marginal-plan-${i}`, () => plan(nextRequest))
     if (previous.measurement.mode !== 'marginal') throw Error('incremental plan fell back')
     matchedRequests.push({ input: nextRequest, wire: previous.serialized })
   }
@@ -149,7 +153,7 @@ if (historyTokenizerCalls !== 0 || newTokenizerCalls === 0)
 // Compare full and marginal on byte-identical final requests, outside the spy
 // interval, so the positive full controls cannot hide a marginal history call.
 for (const [index, matched] of matchedRequests.entries()) {
-  const full = measure(`matched-full-plan-${index + 1}`, () =>
+  const full = await measure(`matched-full-plan-${index + 1}`, () =>
     plan({ ...matched.input, calibration: { kind: 'none', reason: 'no_observation' } }),
   )
   if (full.serialized !== matched.wire) throw Error('comparison did not use identical final input')

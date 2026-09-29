@@ -139,7 +139,9 @@ export async function prepare(prior) {
         evidence: 'No sending authorization or usable admission count',
         measureFull: () => ({ kind: 'estimated', tokens: 1 }),
       }
-      const result = planRequest(input, [definition], researchMeter)
+      const result = await planRequest(input, [definition], researchMeter, {
+        signal: new AbortController().signal,
+      })
       if ('rejected' in result) throw new Error(`plan rejected: ${JSON.stringify(result)}`)
       const wire = result.planned.serialized
       const body = JSON.parse(wire)

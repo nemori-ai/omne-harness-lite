@@ -40,7 +40,7 @@ function assertVoidStop(response: RawResponse): void {
   expect(response.stop()).toBeUndefined()
 }
 
-function reader(response: RawResponse, plan: ReturnType<typeof planned>) {
+function reader(response: RawResponse, plan: Awaited<ReturnType<typeof planned>>) {
   return readStream(response, plan, new AbortController().signal, {
     maxSseEventBytes: 16384,
     diagnostic: () => {},
@@ -55,7 +55,7 @@ describe('public successful response is an opaque, single-reader resource', () =
       res.flushHeaders() // Leave the body open so a reader has not hidden the resource.
     })
     try {
-      const plan = planned(host.transport)
+      const plan = await planned(host.transport)
       const sent = await host.transport.send(plan, secret, new AbortController().signal)
       if (!('response' in sent)) throw new Error('controlled HTTPS response unavailable')
       const response = sent.response
@@ -75,7 +75,7 @@ describe('public successful response is an opaque, single-reader resource', () =
     const host = await fixture(cert.tls, res => res.end(content('once') + finish()))
     const otherHost = await fixture(cert.tls, res => res.end(content('wrong host') + finish()))
     try {
-      const plan = planned(host.transport)
+      const plan = await planned(host.transport)
       const sent = await host.transport.send(
         plan,
         'opaque-reader-secret-123456',
@@ -85,8 +85,8 @@ describe('public successful response is an opaque, single-reader resource', () =
       const response = sent.response
       const clone: RawResponse = Object.assign(Object.create(null), response)
       const forged: RawResponse = { stop: () => {}, stopped: Promise.resolve() }
-      const wrongPlan = planned(host.transport)
-      const otherHostPlan = planned(otherHost.transport)
+      const wrongPlan = await planned(host.transport)
+      const otherHostPlan = await planned(otherHost.transport)
       for (const [handle, target] of [
         [clone, plan],
         [forged, plan],

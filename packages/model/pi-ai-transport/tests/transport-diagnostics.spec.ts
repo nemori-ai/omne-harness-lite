@@ -49,8 +49,8 @@ describe('request-local transport diagnostics', () => {
     )
     const first = collector()
     const second = collector()
-    const firstPlan = host.transport.plan(input())
-    const secondPlan = host.transport.plan(input())
+    const firstPlan = await host.transport.plan(input(), { signal: new AbortController().signal })
+    const secondPlan = await host.transport.plan(input(), { signal: new AbortController().signal })
     if (!('planned' in firstPlan) || !('planned' in secondPlan))
       throw new Error('fixture plan rejected')
     try {
@@ -148,7 +148,7 @@ describe('request-local transport diagnostics', () => {
       res.end(JSON.stringify({ error: { message: '503' } }))
     })
     const tracked = collector()
-    const plan = host.transport.plan(input())
+    const plan = await host.transport.plan(input(), { signal: new AbortController().signal })
     if (!('planned' in plan)) throw new Error('fixture plan rejected')
     try {
       const result = await host.transport.send(
@@ -184,7 +184,7 @@ describe('request-local transport diagnostics', () => {
           throw new Error('diagnostic sink failure')
       },
     }
-    const plan = host.transport.plan(input())
+    const plan = await host.transport.plan(input(), { signal: new AbortController().signal })
     if (!('planned' in plan)) throw new Error('fixture plan rejected')
     const cancellation = new AbortController()
     try {

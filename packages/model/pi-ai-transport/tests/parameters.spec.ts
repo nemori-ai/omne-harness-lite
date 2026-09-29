@@ -100,7 +100,7 @@ async function sentParameters(parameters: ModelRequestParameters, afterPlan?: ()
   })
   try {
     const requested = parseObject(writeJsonLossless(parameters))
-    const result = planRequest({ ...input(), parameters }, testDefinitions)
+    const result = await planRequest({ ...input(), parameters }, testDefinitions)
     if ('rejected' in result) throw new Error(`unexpected plan rejection: ${result.rejected}`)
     // Planning must not be an alternate send path.
     expect(host.requests).toHaveLength(0)
@@ -142,7 +142,7 @@ async function sentParameters(parameters: ModelRequestParameters, afterPlan?: ()
 async function rejectedBeforeSend(request: PlanInput) {
   const host = await fixture(cert.tls, res => res.end(finish()))
   try {
-    const result = planRequest(request, testDefinitions)
+    const result = await planRequest(request, testDefinitions)
     // Exercise the normal plan-then-send branch so an accidental acceptance
     // produces an observable network request as well as a failed assertion.
     if ('planned' in result) {
@@ -169,8 +169,8 @@ async function rejectedBeforeSend(request: PlanInput) {
 }
 
 describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
-  it('the wire oracle detects coordinated missing, lossy and overwritten transcripts', () => {
-    const result = planRequest(
+  it('the wire oracle detects coordinated missing, lossy and overwritten transcripts', async () => {
+    const result = await planRequest(
       {
         ...input(),
         parameters: {
@@ -335,7 +335,7 @@ describe('T-10 public plan parameters agree with actual HTTPS bytes', () => {
         .filter(key => key !== 'private_flag')
         .sort(),
     )
-    const baseline = planRequest({ ...input(), parameters: {} }, testDefinitions)
+    const baseline = await planRequest({ ...input(), parameters: {} }, testDefinitions)
     if ('rejected' in baseline) throw new Error('baseline rejected')
     expect(writeJsonLossless(wire.messages)).toBe(writeJsonLossless(baseline.planned.body.messages))
     for (const key of Object.keys(extra)) {

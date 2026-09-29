@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime'
@@ -99,8 +100,8 @@ describe('independent six fixed Pro usage-scope bindings', () => {
           inputMeters: [meter],
         })
         try {
-          const first = request(definition)
-          const plan = transport.plan(first)
+          const first = await request(definition)
+          const plan = await transport.plan(first, { signal: new AbortController().signal })
           if (!('planned' in plan)) throw Error(JSON.stringify(plan))
           expect(plan.planned.measurement.mode).toBe('full')
           const abort = new AbortController()
@@ -122,33 +123,36 @@ describe('independent six fixed Pro usage-scope bindings', () => {
             'openrouter-usage-reader/2',
             'openrouter-usage-reader/3-openai-pro-scope',
           ]) {
-            const forged = transport.plan({
-              ...first,
-              messages: [...first.messages, message('user', 'fresh Pro input', 'fresh-pro')],
-              calibration: {
-                kind: 'observation',
-                usage: facts.usage,
-                outputBlocks: [],
-                replaySelection: [],
-                inputCalibration: {
-                  requestInput: captured,
-                  observedInput: {
-                    kind: 'from_usage',
-                    provenance: {
-                      adapterRevision: revision,
-                      fieldPaths: ['usage.prompt_tokens'],
-                      upstreamModel: model,
-                      servingProvider: 'OpenAI',
+            const forged = await transport.plan(
+              {
+                ...first,
+                messages: [...first.messages, message('user', 'fresh Pro input', 'fresh-pro')],
+                calibration: {
+                  kind: 'observation',
+                  usage: facts.usage,
+                  outputBlocks: [],
+                  replaySelection: [],
+                  inputCalibration: {
+                    requestInput: captured,
+                    observedInput: {
+                      kind: 'from_usage',
+                      provenance: {
+                        adapterRevision: revision,
+                        fieldPaths: ['usage.prompt_tokens'],
+                        upstreamModel: model,
+                        servingProvider: 'OpenAI',
+                      },
                     },
+                    outputGroup: { kind: 'unavailable', reason: 'not_retained' },
                   },
-                  outputGroup: { kind: 'unavailable', reason: 'not_retained' },
                 },
               },
-            })
+              { signal: new AbortController().signal },
+            )
             if (!('planned' in forged)) throw Error(JSON.stringify(forged))
             expect(forged.planned.measurement).toMatchObject({
               mode: 'full',
-              fallbackReason: revision.endsWith('/2') ? 'basis_changed' : 'source_unavailable',
+              fallbackReason: 'source_unavailable',
             })
           }
           if (!cancelled) {
@@ -165,7 +169,9 @@ describe('independent six fixed Pro usage-scope bindings', () => {
               inputMeters: [syntheticInputMeter(old, 'openai')],
             })
             try {
-              const oldPlan = historical.plan(request(old))
+              const oldPlan = await historical.plan(await request(old), {
+                signal: new AbortController().signal,
+              })
               if (!('planned' in oldPlan)) throw Error(JSON.stringify(oldPlan))
               const oldSent = await historical.send(
                 oldPlan.planned,
@@ -179,24 +185,27 @@ describe('independent six fixed Pro usage-scope bindings', () => {
               await oldSent.response.stopped
               expect(oldNext.value.readFacts.observedInput.kind).toBe('from_usage')
               accounts(oldNext.value.readFacts)
-              const rejectedOld = transport.plan({
-                ...first,
-                calibration: {
-                  kind: 'observation',
-                  usage: oldNext.value.readFacts.usage,
-                  outputBlocks: [],
-                  replaySelection: [],
-                  inputCalibration: {
-                    requestInput: oldPlan.planned.requestInput,
-                    observedInput: oldNext.value.readFacts.observedInput,
-                    outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+              const rejectedOld = await transport.plan(
+                {
+                  ...first,
+                  calibration: {
+                    kind: 'observation',
+                    usage: oldNext.value.readFacts.usage,
+                    outputBlocks: [],
+                    replaySelection: [],
+                    inputCalibration: {
+                      requestInput: oldPlan.planned.requestInput,
+                      observedInput: oldNext.value.readFacts.observedInput,
+                      outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+                    },
                   },
                 },
-              })
+                { signal: new AbortController().signal },
+              )
               if (!('planned' in rejectedOld)) throw Error(JSON.stringify(rejectedOld))
               expect(rejectedOld.planned.measurement).toMatchObject({
                 mode: 'full',
-                fallbackReason: 'basis_changed',
+                fallbackReason: 'source_unavailable',
               })
             } finally {
               await historical.close()

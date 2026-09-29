@@ -53,7 +53,7 @@ interface Reading {
   readonly end: StreamEnd
 }
 async function openResponse(host: Host, request = input()) {
-  const plan = planned(host.transport, request)
+  const plan = await planned(host.transport, request)
   const signal = new AbortController().signal
   const sent = await host.transport.send(plan, 'synthetic-conformance-credential', signal)
   if (!('response' in sent)) throw new Error('controlled HTTPS response unavailable')
@@ -132,8 +132,11 @@ function assistantWith(blocks: AssemblySettlement['blocks']) {
     blocks,
   })
 }
-function replayBody(request: PlanInput, blocks: AssemblySettlement['blocks']) {
-  const result = planRequest({ ...request, messages: [assistantWith(blocks)] }, testDefinitions)
+async function replayBody(request: PlanInput, blocks: AssemblySettlement['blocks']) {
+  const result = await planRequest(
+    { ...request, messages: [assistantWith(blocks)] },
+    testDefinitions,
+  )
   if ('rejected' in result) throw new Error(`replay planning rejected: ${result.rejected}`)
   const messages = result.planned.body.messages
   if (!Array.isArray(messages)) throw new Error('planned messages missing')
@@ -489,8 +492,8 @@ describe('public transport conformance increments against actual HTTPS and strea
       const reading = await read(host)
       expect(reading.end).toMatchObject({ ended: 'end' })
       const settled = assemble(reading)
-      const same = replayBody(input(), settled.blocks)
-      const changed = replayBody(input(true), settled.blocks)
+      const same = await replayBody(input(), settled.blocks)
+      const changed = await replayBody(input(true), settled.blocks)
       expect(changed).not.toHaveProperty('reasoning_details')
       await assertStoppedOnce(host)
       if (same.reasoning_details === undefined) throw new Error('same-route replay omitted details')
@@ -528,7 +531,7 @@ describe('public transport conformance increments against actual HTTPS and strea
       const reading = await read(host)
       expect(reading.end).toMatchObject({ ended: 'end' })
       const settled = assemble(reading)
-      const replay = replayBody(input(), settled.blocks)
+      const replay = await replayBody(input(), settled.blocks)
       if (replay.reasoning_details === undefined) throw new Error('replay omitted details')
       expect(comparableJson(replay.reasoning_details)).toEqual(
         comparableJson([{ ...metadata, text: '你🙂' }]),

@@ -1,3 +1,5 @@
+import { measureFull, measureNew } from '../src/input-meter.ts'
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { describe, expect, it } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
@@ -10,7 +12,7 @@ import type { ReplayMeterInput } from '../src/input-meter.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { planRequest, type PlannedRequest } from '../src/plan.ts'
-import { projectOutput } from '../src/projection.ts'
+import { projectInput, projectOutput } from '../src/projection.ts'
 import { at, input, judgedMessage, message } from './support.ts'
 
 const ids = ['openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
@@ -136,26 +138,34 @@ describe.each(ids)('%s explicit complete output history', model => {
       tokenMargin: { multiplier: 1.1, reserveTokens: 7 },
     }
   }
-  function planned(value: PlanInput): PlannedRequest {
-    const result = planRequest(value, [definition], meter)
+  async function planned(value: PlanInput): Promise<PlannedRequest> {
+    const result = await planRequest(
+      value,
+      [definition],
+      meter,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if (!('planned' in result)) throw Error(JSON.stringify(result))
     return result.planned
   }
-  function history() {
-    const first = planned(request()),
+  async function history() {
+    const first = await planned(await request()),
       a = reply(model, 'a'),
       ga = group(first, a, 1, 18, 100)
-    const second = planned({
-      ...request(),
-      messages: [...request().messages, a, message('user', 'next', 'u2')],
+    const second = await planned({
+      ...(await request()),
+      messages: [...(await request()).messages, a, message('user', 'next', 'u2')],
       outputHistory: [ga],
     })
     const b = reply(model, 'b'),
       gb = group(second, b, 3, 23)
     const value = {
-      ...request(),
+      ...(await request()),
       messages: [
-        ...request().messages,
+        ...(await request()).messages,
         a,
         message('user', 'next', 'u2'),
         b,
@@ -165,7 +175,7 @@ describe.each(ids)('%s explicit complete output history', model => {
     }
     return { value, ga, gb }
   }
-  it('owns replay input before inspecting fields and rejects multiple or inconsistent original groups', () => {
+  it('owns replay input before inspecting fields and rejects multiple or inconsistent original groups', async () => {
     let getterReads = 0
     const accessor = Object.defineProperty({}, 'outputHistory', {
       enumerable: true,
@@ -179,15 +189,21 @@ describe.each(ids)('%s explicit complete output history', model => {
       expect(Reflect.apply(meter.measureReplay, undefined, [bad])).toEqual({ kind: 'unavailable' })
     }
     expect(getterReads).toBe(0)
-    const { value, ga } = history()
+    const { value, ga } = await history()
     let actual: ReplayMeterInput | undefined
-    const result = planRequest({ ...value, calibration: observation(ga) }, [definition], {
-      ...meter,
-      measureReplay(input) {
-        actual = input
-        return meter.measureReplay(input)
+    const result = await planRequest(
+      { ...value, calibration: observation(ga) },
+      [definition],
+      {
+        ...meter,
+        measureReplay(input) {
+          actual = input
+          return meter.measureReplay(input)
+        },
       },
-    })
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
+    )
     expect(result).toHaveProperty('planned')
     if (!actual) throw Error('missing actual replay')
     expect(estimateOpenAi56Replay(actual, meter)).toEqual({ kind: 'estimated', tokens: 18 })
@@ -204,9 +220,9 @@ describe.each(ids)('%s explicit complete output history', model => {
       expect(meter.measureReplay(bad)).toEqual({ kind: 'unavailable' })
     }
   })
-  it('covers two O groups in full and only N O in marginal with independent numeric oracles', () => {
-    const { value, ga } = history()
-    const full = planned(value)
+  it('covers two O groups in full and only N O in marginal with independent numeric oracles', async () => {
+    const { value, ga } = await history()
+    const full = await planned(value)
     const body = {
       ...full.body,
       messages: (full.body.messages as unknown[]).filter((_, i) => i !== 1 && i !== 3),
@@ -219,7 +235,7 @@ describe.each(ids)('%s explicit complete output history', model => {
     expect(ExactDecimal.from(full.measurement.predictedInput).toString()).toBe(String(expected))
     expect(writeJsonLossless(full.body)).toContain('CIPHER_a')
     expect(writeJsonLossless(full.body)).toContain('CIPHER_b')
-    const marginal = planned({ ...value, calibration: observation(ga) })
+    const marginal = await planned({ ...value, calibration: observation(ga) })
     const { messages: _, tools: __, ...envelope } = marginal.body
     const remaining = (marginal.body.messages as unknown[]).filter((_, i) => i === 2 || i === 4)
     const net =
@@ -236,8 +252,152 @@ describe.each(ids)('%s explicit complete output history', model => {
       String(100 + 18 + net),
     )
   })
-  it('uses original origin with unavailable requestInput but never invents missing origin', () => {
-    const { value, gb } = history()
+  it.each([
+    {
+      definition: '6',
+      implementation: 'mp4-12',
+      algorithm: 'openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1',
+      replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1',
+    },
+    {
+      definition: '7',
+      implementation: 'mp4-16',
+      algorithm: 'openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1',
+      replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2',
+    },
+    {
+      definition: '8',
+      implementation: 'mp4-17',
+      algorithm: 'openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1',
+      replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2',
+    },
+  ])('BR finite original $definition retains O under current preparation semantics', async row => {
+    const { value, ga, gb } = await history()
+    const source = ga.inputCalibration.requestInput
+    if (source.kind !== 'known') throw Error('known source required')
+    const binding = {
+      ...ga.origin.adaptation,
+      definition: { modelId: model, revision: row.definition },
+      implementation: { name: 'pi-ai:openai', revision: row.implementation },
+    }
+    const old: PlanOutputHistoryGroup = {
+      ...ga,
+      origin: { ...ga.origin, adaptation: binding },
+      inputCalibration: {
+        ...ga.inputCalibration,
+        requestInput: {
+          ...source,
+          countingBasis: {
+            ...source.countingBasis,
+            binding,
+            meterRevision: row.algorithm,
+            replayRevision: row.replay,
+          },
+        },
+      },
+    }
+    const current = await planned({ ...value, outputHistory: [old, gb] })
+    const preparer = testImagePreparerFor(planRequest)
+    const descriptor = {
+      algorithmRevision: preparer.algorithmRevision,
+      codecRevision: preparer.codecRevision,
+      policyDigest: preparer.policyDigest,
+    }
+    const projection = projectInput(current.body, current.input, meter, descriptor)
+    const historySpans = [old, gb].flatMap((group, groupIndex) =>
+      group.replaySelection.map((item, selectionIndex) => ({
+        groupIndex,
+        selectionIndex,
+        start: item.messageIndex,
+        end: item.messageIndex + 1,
+      })),
+    )
+    const full = {
+      body: current.body,
+      serialized: current.serialized,
+      projection,
+      outputHistory: [old, gb],
+      historySpans,
+    }
+    expect(measureFull(meter, full)).toEqual({
+      kind: current.measurement.precision,
+      tokens: current.measurement.predictedInput,
+    })
+    expect(
+      measureNew(meter, {
+        units: projection.units,
+        envelope: projection.envelope,
+        precedingUnitCount: 0,
+        unitIndices: projection.units.map((_, i) => i),
+        countingBasis: projection.requestInput.countingBasis,
+        outputHistory: [old, gb],
+        historySpans,
+      }).kind,
+    ).toBe('estimated')
+    const selected = projection.units[1]
+    if (selected === undefined) throw Error('selected unit required')
+    const replay: ReplayMeterInput = {
+      units: [selected],
+      envelope: projection.envelope,
+      precedingUnitCount: 1,
+      unitIndices: [1],
+      countingBasis: projection.requestInput.countingBasis,
+      observation: observation(old),
+      outputHistory: [old],
+      selectionSpans: old.replaySelection.map((_, selectionIndex) => ({
+        selectionIndex,
+        start: 1,
+        end: 2,
+      })),
+    }
+    expect(estimateOpenAi56Replay(replay, meter)).toEqual({ kind: 'unavailable' })
+    if (row.definition === '8') {
+      const same: PlanOutputHistoryGroup = {
+        ...old,
+        inputCalibration: {
+          ...old.inputCalibration,
+          requestInput: { ...source, countingBasis: projection.requestInput.countingBasis },
+        },
+      }
+      expect(
+        estimateOpenAi56Replay(
+          { ...replay, observation: observation(same), outputHistory: [same] },
+          meter,
+        ),
+      ).toEqual({ kind: 'estimated', tokens: 18 })
+    }
+    const unknown: PlanOutputHistoryGroup = {
+      ...old,
+      origin: {
+        ...old.origin,
+        adaptation: { ...binding, definition: { ...binding.definition, revision: 'unlisted' } },
+      },
+      inputCalibration: {
+        ...old.inputCalibration,
+        requestInput: {
+          ...source,
+          countingBasis: {
+            ...source.countingBasis,
+            binding: { ...binding, definition: { ...binding.definition, revision: 'unlisted' } },
+          },
+        },
+      },
+    }
+    expect(measureFull(meter, { ...full, outputHistory: [unknown, gb] })).toEqual({
+      kind: 'unavailable',
+    })
+    const originOnly: PlanOutputHistoryGroup = {
+      ...old,
+      inputCalibration: {
+        ...old.inputCalibration,
+        requestInput: { kind: 'unavailable', reason: 'not_retained' },
+      },
+    }
+    expect(measureFull(meter, { ...full, outputHistory: [originOnly, gb] }).kind).toBe('estimated')
+    expect(writeJsonLossless(full.body)).toContain('CIPHER_a')
+  })
+  it('uses original origin with unavailable requestInput but never invents missing origin', async () => {
+    const { value, gb } = await history()
     const noI: PlanOutputHistoryGroup = {
       ...gb,
       inputCalibration: {
@@ -246,14 +406,16 @@ describe.each(ids)('%s explicit complete output history', model => {
       },
     }
     expect(
-      planned({ ...value, outputHistory: [value.outputHistory[0]!, noI] }).measurement.mode,
+      (await planned({ ...value, outputHistory: [value.outputHistory[0]!, noI] })).measurement.mode,
     ).toBe('full')
     const { origin: _, ...missing } = noI
     expect(
-      planRequest(
+      await planRequest(
         { ...value, outputHistory: [value.outputHistory[0]!, missing as PlanOutputHistoryGroup] },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({ rejected: 'invalidInput', reason: 'malformed' })
   })
@@ -270,76 +432,98 @@ describe.each(ids)('%s explicit complete output history', model => {
       algorithm: 'openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1',
       replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2',
     },
-  ])('maps finite original definition $definition without making its factory callable', source => {
-    const { value, ga } = history()
-    const original = ga.inputCalibration.requestInput
-    if (original.kind !== 'known') throw Error('fixture source')
-    const binding = {
-      ...ga.origin.adaptation,
-      definition: { modelId: model, revision: source.definition },
-      implementation: { name: 'pi-ai:openai', revision: source.implementation },
-    }
-    const old: PlanOutputHistoryGroup = {
-      ...ga,
-      origin: { ...ga.origin, adaptation: binding },
-      inputCalibration: {
-        ...ga.inputCalibration,
-        requestInput: {
-          ...original,
-          countingBasis: {
-            ...original.countingBasis,
-            binding,
-            meterRevision: source.algorithm,
-            replayRevision: source.replay,
+  ])(
+    'maps finite original definition $definition without making its factory callable',
+    async source => {
+      const { value, ga } = await history()
+      const original = ga.inputCalibration.requestInput
+      if (original.kind !== 'known') throw Error('fixture source')
+      const binding = {
+        ...ga.origin.adaptation,
+        definition: { modelId: model, revision: source.definition },
+        implementation: { name: 'pi-ai:openai', revision: source.implementation },
+      }
+      const old: PlanOutputHistoryGroup = {
+        ...ga,
+        origin: { ...ga.origin, adaptation: binding },
+        inputCalibration: {
+          ...ga.inputCalibration,
+          requestInput: {
+            ...original,
+            countingBasis: {
+              ...original.countingBasis,
+              binding,
+              meterRevision: source.algorithm,
+              replayRevision: source.replay,
+            },
           },
         },
-      },
-    }
-    expect(
-      planned({ ...value, outputHistory: [old, value.outputHistory[1]!] }).measurement.mode,
-    ).toBe('full')
-    expect(() =>
-      createOpenAiInputMeter({
-        ...definition,
-        revision: source.definition,
-        implementation: binding.implementation,
-      }),
-    ).toThrow()
-    const bad = {
-      ...old,
-      inputCalibration: {
-        ...old.inputCalibration,
-        requestInput: {
-          ...original,
-          countingBasis: {
-            ...original.countingBasis,
-            binding,
-            meterRevision: 'invented',
-            replayRevision: source.replay,
+      }
+      expect(
+        (await planned({ ...value, outputHistory: [old, value.outputHistory[1]!] })).measurement
+          .mode,
+      ).toBe('full')
+      expect(() =>
+        createOpenAiInputMeter({
+          ...definition,
+          revision: source.definition,
+          implementation: binding.implementation,
+        }),
+      ).toThrow()
+      const bad = {
+        ...old,
+        inputCalibration: {
+          ...old.inputCalibration,
+          requestInput: {
+            ...original,
+            countingBasis: {
+              ...original.countingBasis,
+              binding,
+              meterRevision: 'invented',
+              replayRevision: source.replay,
+            },
           },
         },
-      },
-    }
-    expect(
-      planRequest({ ...value, outputHistory: [bad, value.outputHistory[1]!] }, [definition], meter),
-    ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
-  })
-  it('does not turn partial selections, missing O or absent facts into ciphertext estimates', () => {
-    const { value, ga } = history()
+      }
+      expect(
+        await planRequest(
+          { ...value, outputHistory: [bad, value.outputHistory[1]!] },
+          [definition],
+          meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        ),
+      ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+    },
+  )
+  it('does not turn partial selections, missing O or absent facts into ciphertext estimates', async () => {
+    const { value, ga } = await history()
     const partial = { ...ga, replaySelection: ga.replaySelection.slice(0, 1) }
     expect(
-      planRequest(
+      await planRequest(
         { ...value, outputHistory: [partial, value.outputHistory[1]!] },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({ rejected: 'invalidInput' })
-    expect(planRequest({ ...value, outputHistory: [] }, [definition], meter)).toMatchObject({
+    expect(
+      await planRequest(
+        { ...value, outputHistory: [] },
+        [definition],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toMatchObject({
       rejected: 'invalidInput',
       reason: 'input_size_unavailable',
     })
     expect(
-      planRequest(
+      await planRequest(
         {
           ...value,
           outputHistory: [
@@ -349,14 +533,26 @@ describe.each(ids)('%s explicit complete output history', model => {
         },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
-    expect(planRequest({ ...value, outputHistory: [ga, ga] }, [definition], meter)).toMatchObject({
+    expect(
+      await planRequest(
+        { ...value, outputHistory: [ga, ga] },
+        [definition],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toMatchObject({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
     expect(
-      planRequest(
+      await planRequest(
         {
           ...value,
           outputHistory: [
@@ -366,11 +562,13 @@ describe.each(ids)('%s explicit complete output history', model => {
         },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
   })
-  it('never borrows O after a model switch, including Pro and GPT-6 targets', () => {
-    const { value } = history()
+  it('never borrows O after a model switch, including Pro and GPT-6 targets', async () => {
+    const { value } = await history()
     for (const target of [ids.find(id => id !== model)!, `${model}-pro`, 'openai/gpt-6-sol']) {
       const selected = openaiDefinitions.find(d => d.modelId === target)!
       const supplied = createOfficialProfileContent(selected, {
@@ -384,7 +582,15 @@ describe.each(ids)('%s explicit complete output history', model => {
         routeName: target,
         snapshot: { ...value.snapshot, adaptation: supplied.ok.adaptation },
       }
-      const result = planRequest(changed, [selected], createOpenAiInputMeter(selected))
+      const result = await planRequest(
+        changed,
+        [selected],
+        createOpenAiInputMeter(selected),
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       if ('planned' in result) {
         // Existing cross-model adaptation can omit inapplicable opaque details.
         // Such a visible target must recount, never inherit the source model's O.
@@ -392,10 +598,12 @@ describe.each(ids)('%s explicit complete output history', model => {
         expect(result.planned.measurement).not.toHaveProperty('replayContribution')
         expect(result.planned.measurement).not.toHaveProperty('newContribution')
         expect(result.planned.serialized).not.toContain('CIPHER_')
-        const noGroups = planRequest(
+        const noGroups = await planRequest(
           { ...changed, outputHistory: [] },
           [selected],
           createOpenAiInputMeter(selected),
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         )
         if (!('planned' in noGroups)) throw Error(JSON.stringify(noGroups))
         expect(result.planned.measurement.predictedInput).toEqual(
@@ -407,9 +615,9 @@ describe.each(ids)('%s explicit complete output history', model => {
       expect(writeJsonLossless(changed.messages)).toContain('CIPHER_a')
     }
   })
-  it('covers text, reasoning and tool calls by O once while counting the paired result normally', () => {
+  it('covers text, reasoning and tool calls by O once while counting the paired result normally', async () => {
     const firstInput = {
-      ...request(),
+      ...(await request()),
       tools: [
         {
           name: 'lookup',
@@ -418,7 +626,7 @@ describe.each(ids)('%s explicit complete output history', model => {
         },
       ],
     }
-    const first = planned(firstInput)
+    const first = await planned(firstInput)
     const output = judgedMessage({
       ...reply(model, 'with-tool'),
       blocks: [
@@ -457,7 +665,7 @@ describe.each(ids)('%s explicit complete output history', model => {
         },
       ],
     })
-    const current = planned({
+    const current = await planned({
       ...firstInput,
       messages: [...firstInput.messages, output, result],
       outputHistory: [group(first, output, 1, 40)],

@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -107,23 +108,26 @@ describe('independent known OpenAI display name calibration boundary', () => {
             })),
           },
         }
-        const planned = transport.plan(next)
+        const planned = await transport.plan(next, { signal: new AbortController().signal })
         if (!('planned' in planned)) throw Error(JSON.stringify(planned))
         expect(planned.planned.measurement.mode).toBe('marginal')
         if (next.calibration.kind !== 'observation') throw Error('observation missing')
-        const wrong = transport.plan({
-          ...next,
-          calibration: {
-            ...next.calibration,
-            inputCalibration: {
-              ...outcome.inputCalibration,
-              observedInput: {
-                ...observed,
-                provenance: { ...observed.provenance, servingProvider: 'OtherVendor' },
+        const wrong = await transport.plan(
+          {
+            ...next,
+            calibration: {
+              ...next.calibration,
+              inputCalibration: {
+                ...outcome.inputCalibration,
+                observedInput: {
+                  ...observed,
+                  provenance: { ...observed.provenance, servingProvider: 'OtherVendor' },
+                },
               },
             },
           },
-        })
+          { signal: new AbortController().signal },
+        )
         if (!('planned' in wrong)) throw Error(JSON.stringify(wrong))
         expect(wrong.planned.measurement).toMatchObject({
           mode: 'full',

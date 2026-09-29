@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { getEncoding } from 'js-tiktoken'
@@ -164,7 +165,7 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
     cert = certificate()
   })
   afterAll(() => cert.dispose())
-  it('supplies exact current binding and measures every declared effort/absence with one precise margin', () => {
+  it('supplies exact current binding and measures every declared effort/absence with one precise margin', async () => {
     const meter = createOpenAiInputMeter(definition)
     expect(meter).toMatchObject({
       modelId: model,
@@ -190,13 +191,21 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
         : (['none', 'low', 'medium', 'high', 'max'] as const)
     for (const effort of [undefined, ...efforts]) {
       const value = {
-        ...request(model),
+        ...(await request(model)),
         parameters: {
           maxOutputTokens: 1024,
           ...(effort === undefined ? {} : { reasoningEffort: effort }),
         },
       }
-      const planned = planRequest(value, [definition], meter)
+      const planned = await planRequest(
+        value,
+        [definition],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       if ('rejected' in planned) throw Error(JSON.stringify(planned))
       const p = planned.planned
       expect(p.body.reasoning).toEqual(effort === undefined ? undefined : { effort })
@@ -209,17 +218,19 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
         ExactDecimal.from(p.measurement.predictedInput).add(ExactDecimal.from(8)).toString(),
       )
       expect(
-        planRequest(
+        await planRequest(
           {
             ...value,
             snapshot: { ...value.snapshot, maxInputTokens: p.measurement.admissionTokens },
           },
           [definition],
           meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         ),
       ).toHaveProperty('planned')
       expect(
-        planRequest(
+        await planRequest(
           {
             ...value,
             snapshot: {
@@ -231,6 +242,8 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
           },
           [definition],
           meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         ),
       ).toMatchObject({
         rejected: 'invalidInput',
@@ -238,10 +251,12 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
         basis: 'estimated',
       })
     }
-    const simple = planRequest(
-      { ...request(model), messages: [message('user', 'single user')], tools: [] },
+    const simple = await planRequest(
+      { ...(await request(model)), messages: [message('user', 'single user')], tools: [] },
       [definition],
       meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     expect(simple).toHaveProperty('planned')
     for (const frozen of packet.cases.filter(c => c.modelId === model)) {
@@ -283,7 +298,7 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
       inputMeters: [{ ...meter, measureFull: full, measureNew: delta }],
     })
     try {
-      let next = request(model)
+      let next = await request(model)
       for (let turn = 0; turn < 3; turn++) {
         const count = full.mock.calls.length
         const result = await invokeModel({
@@ -350,7 +365,7 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
             },
           },
         }
-        const planned = transport.plan(forged)
+        const planned = await transport.plan(forged, { signal: new AbortController().signal })
         if ('rejected' in planned) throw Error(JSON.stringify(planned))
         expect(planned.planned.measurement).toMatchObject({
           mode: 'full',
@@ -384,7 +399,7 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
       ],
     })
     try {
-      const original = request(model)
+      const original = await request(model)
       const opaque = judgedMessage({
         type: 'assistant',
         id: 'opaque-a',
@@ -427,6 +442,7 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
       for (const added of [opaque, image]) {
         const value = { ...original, messages: [...original.messages, added] },
           before = writeJsonLossless(value)
+        const meterCalls = seen.length
         const result = await invokeModel({
           ...value,
           transport,
@@ -434,11 +450,13 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
           signal: new AbortController().signal,
           policy: policy(),
         }).outcome
-        expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+        expect(result).toMatchObject({
+          rejected: 'invalidInput',
+          reason: added === opaque ? 'input_size_unavailable' : 'input_size_unavailable',
+        })
         expect(writeJsonLossless(value)).toBe(before)
-        expect(seen.at(-1)).toContain(
-          added === opaque ? 'retained-opaque' : 'data:image/gif;base64,',
-        )
+        if (added === opaque) expect(seen.at(-1)).toContain('retained-opaque')
+        else expect(seen).toHaveLength(meterCalls)
       }
       const result = await invokeModel({
         ...original,

@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -16,7 +17,7 @@ import { certificate, content, finish, fixture, judgedMessage, policy, sse } fro
 const at = '2026-09-28T00:00:00Z'
 const visible = { toHuman: true, toModel: true }
 const pixel =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/yWQAAAAASUVORK5CYII='
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
 const tool: ModelToolEntry = {
   name: 'lookup__xai',
   description: 'Look up a value by key',
@@ -69,8 +70,8 @@ function request(
   }
 }
 
-function multiRoundInput(definition: (typeof definitions)[number]): PlanInput {
-  const base = request(definition, { reasoningEffort: 'high', maxOutputTokens: 256 })
+async function multiRoundInput(definition: (typeof definitions)[number]): Promise<PlanInput> {
+  const base = await request(definition, { reasoningEffort: 'high', maxOutputTokens: 256 })
   const messages = [
     judgedMessage({
       id: 'xai-system',
@@ -149,8 +150,8 @@ function multiRoundInput(definition: (typeof definitions)[number]): PlanInput {
   return { ...base, messages, tools: [tool] }
 }
 
-function authenticationInput(definition: (typeof definitions)[number]): PlanInput {
-  const base = request(definition, { reasoningEffort: 'high', maxOutputTokens: 128 })
+async function authenticationInput(definition: (typeof definitions)[number]): Promise<PlanInput> {
+  const base = await request(definition, { reasoningEffort: 'high', maxOutputTokens: 128 })
   return {
     ...base,
     messages: [
@@ -195,9 +196,11 @@ function authenticationInput(definition: (typeof definitions)[number]): PlanInpu
   }
 }
 
-function imageAuthenticationInput(definition: (typeof definitions)[number]): PlanInput {
+async function imageAuthenticationInput(
+  definition: (typeof definitions)[number],
+): Promise<PlanInput> {
   return {
-    ...request(definition, { maxOutputTokens: 128 }),
+    ...(await request(definition, { maxOutputTokens: 128 })),
     messages: [
       judgedMessage({
         id: 'xai-image-user',
@@ -224,17 +227,23 @@ function imageAuthenticationInput(definition: (typeof definitions)[number]): Pla
 }
 
 describe.each(definitions)('$modelId fixed xai request', definition => {
-  it('keeps credential-free authentication cases aligned with the public planner', () => {
+  it('keeps credential-free authentication cases aligned with the public planner', async () => {
     const cases: unknown = JSON.parse(
       readFileSync(new URL('./fixtures/xai/authentication-cases.json', import.meta.url), 'utf8'),
     )
     if (!Array.isArray(cases)) throw new Error('invalid xAI authentication cases')
     const rows: readonly unknown[] = cases
     for (const [scenario, input] of [
-      ['tool_text', authenticationInput(definition)],
-      ['image', imageAuthenticationInput(definition)],
+      ['tool_text', await authenticationInput(definition)],
+      ['image', await imageAuthenticationInput(definition)],
     ] as const) {
-      const planned = planRequest(input, [definition], syntheticInputMeter(definition, 'xai'))
+      const planned = await planRequest(
+        input,
+        [definition],
+        syntheticInputMeter(definition, 'xai'),
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
+      )
       if ('rejected' in planned) throw new Error(planned.rejected)
       const body: unknown = JSON.parse(planned.planned.serialized)
       const selected = rows.find(
@@ -253,8 +262,16 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
   })
 
   it('keeps the exact contribution unavailable without an applicable model meter and sends no HTTP', async () => {
-    const input = multiRoundInput(definition)
-    expect(planRequest(input, [definition])).toEqual({ rejected: 'unavailable' })
+    const input = await multiRoundInput(definition)
+    expect(
+      await planRequest(
+        input,
+        [definition],
+        undefined,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toEqual({ rejected: 'unavailable' })
     const host = await fixture(
       cert.tls,
       res => res.end(content('unexpected') + finish()),
@@ -268,7 +285,9 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
       inputMeters: [],
     })
     try {
-      expect(noMeter.plan(input)).toEqual({ rejected: 'unavailable' })
+      expect(await noMeter.plan(input, { signal: new AbortController().signal })).toEqual({
+        rejected: 'unavailable',
+      })
       expect(
         await invokeModel({
           ...input,
@@ -286,14 +305,22 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
   })
 
   it('sends the planned final body over local TLS, keeping history, tool schema, image, cache and upstream usage distinct', async () => {
-    const input = multiRoundInput(definition)
+    const input = await multiRoundInput(definition)
     const meter = syntheticInputMeter(definition, 'xai')
-    const planned = planRequest(input, [definition], meter)
+    const planned = await planRequest(
+      input,
+      [definition],
+      meter,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if ('rejected' in planned) throw new Error(planned.rejected)
     expect(planned.planned.inputLimitEvidence).toMatchObject({
       meterRevision: 'synthetic-route-tests-1',
       requestBytes: Buffer.byteLength(planned.planned.serialized),
-      imageBytes: [68],
+      imageBytes: [Buffer.from(pixel, 'base64').length],
       images: 1,
     })
     const parsed = readJsonStrict(planned.planned.serialized)
@@ -373,7 +400,7 @@ describe.each(definitions)('$modelId fixed xai request', definition => {
   })
 
   it('replays streamed reasoning and a completed tool call on the same exact route', async () => {
-    const input = authenticationInput(definition)
+    const input = await authenticationInput(definition)
     const host = await fixture(
       cert.tls,
       res => {

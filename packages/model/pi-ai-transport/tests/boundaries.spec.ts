@@ -172,7 +172,7 @@ describe('host admission closes before references drain, with actual HTTPS', () 
         const lease = acquired.lease
         held = lease
         lease.track(callback.promise)
-        const plan = lease.transport.plan(request)
+        const plan = await lease.transport.plan(request, { signal: new AbortController().signal })
         if ('rejected' in plan) throw new Error('plan rejected')
         const sent = await lease.transport.send(plan.planned, 'boundary-credential', cancel.signal)
         if (!('response' in sent)) throw new Error('response missing')
@@ -216,7 +216,9 @@ describe('host admission closes before references drain, with actual HTTPS', () 
           if ('rejected' in acquired) throw new Error('replacement acquisition rejected')
           const replacementLease = acquired.lease
           try {
-            const plan = replacementLease.transport.plan(request)
+            const plan = await replacementLease.transport.plan(request, {
+              signal: new AbortController().signal,
+            })
             if ('rejected' in plan) throw new Error('replacement plan rejected')
             const sent = await replacementLease.transport.send(
               plan.planned,
@@ -286,7 +288,7 @@ describe('credentials cannot return through upstream non-content facts', () => {
         res.end(sse({ error }))
       })
       try {
-        const plan = planned(host.transport)
+        const plan = await planned(host.transport)
         const sent = await host.transport.send(plan, sentinel, new AbortController().signal)
         if (!('response' in sent)) throw new Error('response missing')
         const result = await drain(
@@ -319,7 +321,7 @@ describe('credentials cannot return through upstream non-content facts', () => {
         )
       })
       try {
-        const plan = planned(host.transport)
+        const plan = await planned(host.transport)
         const sent = await host.transport.send(plan, credential, new AbortController().signal)
         if (!('response' in sent)) throw new Error('response missing')
         const result = await drain(
@@ -396,7 +398,7 @@ describe('credentials cannot return through upstream non-content facts', () => {
         event => diagnostics.push(event),
       )
       try {
-        const request = planned(host.transport)
+        const request = await planned(host.transport)
         const sent = await host.transport.send(request, sentinel, new AbortController().signal)
         if ('response' in sent) {
           // H is separate from the opaque body handle and already processed.
@@ -508,7 +510,7 @@ describe('direct public send/read diagnostics do not control business', () => {
           }),
       }
       try {
-        const plan = planned(host.transport)
+        const plan = await planned(host.transport)
         const sent = await sendRequest(
           plan,
           'direct-secret',
@@ -613,8 +615,8 @@ describe('factory diagnostic counters retain their declared meaning', () => {
   )
 })
 
-it('records dropped extra parameter names exactly as profile v3 S-20 requires', () => {
-  const result = planRequest(
+it('records dropped extra parameter names exactly as profile v3 S-20 requires', async () => {
+  const result = await planRequest(
     {
       ...input(),
       parameters: { reasoningEffort: 'max', extra: { model: 'override', max_tokens: 2 } },
@@ -695,7 +697,7 @@ describe('account source reflects actual known base token facts', () => {
         }
       }
       try {
-        const plan = planned(host.transport)
+        const plan = await planned(host.transport)
         const sent = await host.transport.send(
           plan,
           'account-source-secret',

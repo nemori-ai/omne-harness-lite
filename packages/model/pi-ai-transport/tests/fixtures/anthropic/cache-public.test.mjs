@@ -39,10 +39,10 @@ test('four current mp4-17 dry plans reject stale binding and preserve exact cost
   ]) {
     const manifest = makeManifest(model)
     assert.equal(manifest.implementationRevision, 'mp4-17')
-    const { planned } = dryPlan(manifest)
+    const { planned } = await dryPlan(manifest)
     assert(planned.serialized.includes('"ttl":"1h"'))
     assert.equal(planned.inputLimitEvidence.inputTokens.kind, 'estimated')
-    assert.throws(() => dryPlan({ ...manifest, implementationRevision: 'mp4-4' }), {
+    await assert.rejects(() => dryPlan({ ...manifest, implementationRevision: 'mp4-4' }), {
       name: 'AssertionError',
       actual: 'mp4-4',
       expected: 'mp4-17',
@@ -143,7 +143,7 @@ for (const mode of ['complete', 'failed-known', 'unknown', 'protocol'])
       const identity = {
         manifestSha256: 'test',
         snapshotSha256: 'snapshot',
-        plannedSerialized: dryPlan(manifest).planned.serialized,
+        plannedSerialized: (await dryPlan(manifest)).planned.serialized,
       }
       const options = {
         manifest,

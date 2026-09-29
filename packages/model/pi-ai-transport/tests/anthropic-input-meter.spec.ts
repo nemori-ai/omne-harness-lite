@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -416,7 +417,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
     }
   })
 
-  it('admits a real final plan with explicit caller margin and cache marker', () => {
+  it('admits a real final plan with explicit caller margin and cache marker', async () => {
     const selected = definition(modelIds[0] ?? '')
     const configuration = {
       revision: '1',
@@ -449,7 +450,15 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       },
     }
     const meter = createAnthropicInputMeter(selected)
-    const planned = planRequest(input, [selected], meter)
+    const planned = await planRequest(
+      input,
+      [selected],
+      meter,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.body.messages).toContainEqual({
       role: 'user',
@@ -467,15 +476,19 @@ describe('four exact Anthropic projected-input rough estimates', () => {
     expect(planned.planned.inputLimitEvidence.requestBytes).toBe(
       Buffer.byteLength(planned.planned.serialized),
     )
-    const controlled = planRequest(
+    const controlled = await planRequest(
       { ...input, parameters: { reasoningEffort: 'low', maxOutputTokens: 10 } },
       [selected],
       meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
-    const controlledAgain = planRequest(
+    const controlledAgain = await planRequest(
       { ...input, parameters: { reasoningEffort: 'max', maxOutputTokens: 100 } },
       [selected],
       meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     if ('rejected' in controlled || 'rejected' in controlledAgain)
       throw new Error('valid Anthropic generation controls rejected')
@@ -483,10 +496,12 @@ describe('four exact Anthropic projected-input rough estimates', () => {
     expect(measuredTokens(selected.modelId, controlled.planned.body)).toBe(
       measuredTokens(selected.modelId, controlledAgain.planned.body),
     )
-    const exceeded = planRequest(
+    const exceeded = await planRequest(
       { ...input, tokenMargin: { multiplier: 1, reserveTokens: 872000 } },
       [selected],
       meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     expect(exceeded).toMatchObject({
       rejected: 'invalidInput',
@@ -509,10 +524,12 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         },
       ],
     })
-    const imagePlan = planRequest(
+    const imagePlan = await planRequest(
       { ...input, messages: [...input.messages, visual] },
       [selected],
       meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     if ('rejected' in imagePlan) throw new Error(JSON.stringify(imagePlan))
     expect(imagePlan.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
@@ -544,10 +561,12 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       ],
     })
     expect(
-      planRequest(
+      await planRequest(
         { ...input, messages: [...input.messages, encryptedReplay, message('user', 'Continue?')] },
         [selected],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({
       rejected: 'invalidInput',
@@ -700,7 +719,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         inputMeters: [meter],
       })
       try {
-        const planned = transport.plan(input)
+        const planned = await transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
         expect(planned.planned.inputLimitEvidence.images).toBe(2)

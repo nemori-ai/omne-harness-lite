@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -22,7 +23,7 @@ import { object } from '../src/json.ts'
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/deepseek-v41-flash/${name}`, import.meta.url), 'utf8')
 const tinyPng =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=='
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
 
 function source(name: string) {
   const copied = copyJsonValue(JSON.parse(fixture(name)))
@@ -269,6 +270,7 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
     const meter = createDeepSeekV41FlashInputMeter(definition)
     expect(() =>
       createPiAiTransport({
+        imagePreparation,
         policy: networkPolicy,
         definitions: [
           { ...definition, implementation: { ...definition.implementation, revision: 'mp4-1' } },
@@ -277,11 +279,12 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
       }),
     ).toThrow(TypeError)
     const transport = createPiAiTransport({
+      imagePreparation,
       policy: networkPolicy,
       definitions: [definition],
       inputMeters: [meter],
     })
-    const result = transport.plan(plannedInput)
+    const result = await transport.plan(plannedInput, { signal: new AbortController().signal })
     await transport.close()
     if ('rejected' in result) throw new Error(JSON.stringify(result))
     expect(result.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
@@ -293,6 +296,8 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
       Buffer.byteLength(result.planned.serialized),
     )
     expect(result.planned.inputLimitEvidence.images).toBe(1)
-    expect(result.planned.inputLimitEvidence.imageBytes).toEqual([70])
+    expect(result.planned.inputLimitEvidence.imageBytes).toEqual([
+      Buffer.from(tinyPng, 'base64').length,
+    ])
   })
 })

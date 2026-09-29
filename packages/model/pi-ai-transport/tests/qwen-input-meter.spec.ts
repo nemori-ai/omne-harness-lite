@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull, directNew } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -172,7 +173,7 @@ afterAll(() => cert.dispose())
 describe('Qwen3.8 public tokenizer input meters', () => {
   it.each(commercial)(
     '%s counts the complete visible history with a new exact binding',
-    modelId => {
+    async modelId => {
       const selected = definition(modelId),
         meter = createQwenInputMeter(selected)
       expect(selected.revision).toBe('3')
@@ -181,7 +182,15 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         `${modelId.slice('qwen/'.length)}-final-visible-json-proxy-1`,
       )
       expect(() => createQwenInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
-      const planned = planRequest(request(modelId), [selected], meter)
+      const planned = await planRequest(
+        await request(modelId),
+        [selected],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
       const body = planned.planned.body,
@@ -218,10 +227,18 @@ describe('Qwen3.8 public tokenizer input meters', () => {
 
   it.each(commercial)(
     '%s rejects unaccounted media/opaque/fields without deleting history',
-    modelId => {
+    async modelId => {
       const selected = definition(modelId),
         meter = createQwenInputMeter(selected)
-      const planned = planRequest(request(modelId), [selected], meter)
+      const planned = await planRequest(
+        await request(modelId),
+        [selected],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       const body = planned.planned.body
       for (const extra of [
@@ -277,10 +294,10 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         definitions: [selected],
         inputMeters: [meter],
       })
-      let input = request(modelId)
+      let input = await request(modelId)
       try {
         for (let round = 0; round < 3; round++) {
-          const planned = transport.plan(input)
+          const planned = await transport.plan(input, { signal: new AbortController().signal })
           if ('rejected' in planned) throw new Error(JSON.stringify(planned))
           expect(planned.planned.measurement.mode).toBe('full')
           const result = await invokeModel({
@@ -434,17 +451,19 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     ).toEqual({ kind: 'estimated', tokens: 552 })
   })
 
-  it.each(ids)('%s meters a real final plan with Unicode tool schema', modelId => {
+  it.each(ids)('%s meters a real final plan with Unicode tool schema', async modelId => {
     const selected = definition(modelId)
     const meter = createQwenInputMeter(selected)
-    const input = request(modelId)
-    const planned = planRequest(
+    const input = await request(modelId)
+    const planned = await planRequest(
       {
         ...input,
         tools: [{ ...tool, description: '查询 <地点> 🙂' }],
       },
       [selected],
       meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
@@ -559,7 +578,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     expect(qwenUnscaledImageTokens(4000, 4000)).toBeUndefined()
   })
 
-  it.each(ids)('%s refuses unmapped OpenRouter high/max reasoning effort', modelId => {
+  it.each(ids)('%s refuses unmapped OpenRouter high/max reasoning effort', async modelId => {
     const meter = createQwenInputMeter(definition(modelId))
     for (const effort of ['high', 'max'] as const) {
       const body = { ...fixtureBody, model: modelId, reasoning: { effort } }
@@ -567,10 +586,15 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         kind: 'unavailable',
       })
       expect(
-        planRequest(
-          { ...request(modelId), parameters: { maxOutputTokens: 64, reasoningEffort: effort } },
+        await planRequest(
+          {
+            ...(await request(modelId)),
+            parameters: { maxOutputTokens: 64, reasoningEffort: effort },
+          },
           [definition(modelId)],
           meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         ),
       ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
     }
@@ -608,9 +632,9 @@ describe('Qwen3.8 public tokenizer input meters', () => {
       inputMeters: [meter],
     })
     try {
-      const baseline = request(modelId)
+      const baseline = await request(modelId)
       const input = { ...baseline, messages: [...baseline.messages, visualTurn] }
-      const planned = transport.plan(input)
+      const planned = await transport.plan(input, { signal: new AbortController().signal })
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
       expect(planned.planned.inputLimitEvidence.images).toBe(1)
@@ -637,7 +661,7 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     }
   })
 
-  it('rejects an image needing undocumented resize at the final 27B plan gate', () => {
+  it('rejects an image needing undocumented resize at the final 27B plan gate', async () => {
     const modelId = ids[1]
     const selected = definition(modelId)
     const small = judgedMessage({
@@ -651,49 +675,64 @@ describe('Qwen3.8 public tokenizer input meters', () => {
           mediaType: 'image/png',
           data: {
             inline:
-              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
           },
           visibility: { toHuman: true, toModel: true },
         },
       ],
     })
-    const baseline = request(modelId)
+    const baseline = await request(modelId)
     expect(
-      planRequest(
+      await planRequest(
         { ...baseline, messages: [...baseline.messages, small] },
         [selected],
         createQwenInputMeter(selected),
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
   })
 
-  it.each(ids)('%s drops unverified sampling controls before final template metering', modelId => {
-    const selected = definition(modelId)
-    const meter = createQwenInputMeter(selected)
-    const baseline = planRequest(request(modelId), [selected], meter)
-    const withSampling = planRequest(
-      {
-        ...request(modelId),
-        parameters: {
-          maxOutputTokens: 64,
-          temperature: 0.5,
-          topP: 0.8,
-          seed: 7,
+  it.each(ids)(
+    '%s drops unverified sampling controls before final template metering',
+    async modelId => {
+      const selected = definition(modelId)
+      const meter = createQwenInputMeter(selected)
+      const baseline = await planRequest(
+        await request(modelId),
+        [selected],
+        meter,
+        {
+          signal: new AbortController().signal,
         },
-      },
-      [selected],
-      meter,
-    )
-    if ('rejected' in baseline || 'rejected' in withSampling)
-      throw new Error('official Qwen final plan unavailable')
-    expect(withSampling.planned.body).toEqual(baseline.planned.body)
-    expect(withSampling.planned.inputLimitEvidence.inputTokens).toEqual(
-      baseline.planned.inputLimitEvidence.inputTokens,
-    )
-    expect(withSampling.planned.droppedParameters).toEqual(
-      expect.arrayContaining(['temperature', 'topP', 'seed']),
-    )
-  })
+        testImagePreparerFor(planRequest),
+      )
+      const withSampling = await planRequest(
+        {
+          ...(await request(modelId)),
+          parameters: {
+            maxOutputTokens: 64,
+            temperature: 0.5,
+            topP: 0.8,
+            seed: 7,
+          },
+        },
+        [selected],
+        meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
+      )
+      if ('rejected' in baseline || 'rejected' in withSampling)
+        throw new Error('official Qwen final plan unavailable')
+      expect(withSampling.planned.body).toEqual(baseline.planned.body)
+      expect(withSampling.planned.inputLimitEvidence.inputTokens).toEqual(
+        baseline.planned.inputLimitEvidence.inputTokens,
+      )
+      expect(withSampling.planned.droppedParameters).toEqual(
+        expect.arrayContaining(['temperature', 'topP', 'seed']),
+      )
+    },
+  )
 
   it.each(ids)(
     '%s plans and sends the identical counted wire body through the real factory',
@@ -707,7 +746,9 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         inputMeters: [meter],
       })
       try {
-        const planned = transport.plan(request(modelId))
+        const planned = await transport.plan(await request(modelId), {
+          signal: new AbortController().signal,
+        })
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
         expect(planned.planned.inputLimitEvidence.tokenMargin).toEqual({
@@ -741,7 +782,17 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         const account = events.find(event => event.t === 'account')
         expect(writeJsonLossless(account ?? null)).toContain('"cache_write_tokens":4')
         expect(writeJsonLossless(account ?? null)).toContain('"input_tokens":76')
-        expect(planRequest(request(modelId), [selected], meter)).toHaveProperty('planned')
+        expect(
+          await planRequest(
+            await request(modelId),
+            [selected],
+            meter,
+            {
+              signal: new AbortController().signal,
+            },
+            testImagePreparerFor(planRequest),
+          ),
+        ).toHaveProperty('planned')
       } finally {
         await transport.close()
         await host.close()

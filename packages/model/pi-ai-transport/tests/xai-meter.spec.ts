@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -247,7 +248,7 @@ describe('Grok limited visible text/tool estimates', () => {
         inputMeters: [requiredMeter(definition)],
       })
       try {
-        const planned = transport.plan(input)
+        const planned = await transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(planned.rejected)
         expect(planned.planned.inputLimitEvidence).toMatchObject({
           inputTokens: { kind: 'estimated' },
@@ -577,7 +578,7 @@ describe('unbound xAI encrypted history estimate', () => {
         inputMeters: [candidate],
       })
       try {
-        const plan = transport.plan(input)
+        const plan = await transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in plan) throw new Error(JSON.stringify(plan))
         expect(createHash('sha256').update(plan.planned.serialized).digest('hex')).toBe(
           row.finalWireSha256,

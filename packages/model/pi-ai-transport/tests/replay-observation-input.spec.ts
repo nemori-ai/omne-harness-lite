@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -33,8 +34,16 @@ const usage = {
   reasoning_tokens: 8,
   source: 'upstream' as const,
 }
-function mustPlan(request: PlanInput, meter: InputMeter): PlannedRequest {
-  const result = planRequest(request, testDefinitions, meter)
+async function mustPlan(request: PlanInput, meter: InputMeter): Promise<PlannedRequest> {
+  const result = await planRequest(
+    request,
+    testDefinitions,
+    meter,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
   if (!('planned' in result)) throw Error(writeJsonLossless(result))
   return result.planned
 }
@@ -48,7 +57,7 @@ function assistant(selected: readonly number[], id = 'answer') {
     blocks: selected.map(index => blocks[index]),
   })
 }
-function setup() {
+async function setup() {
   const base = syntheticInputMeter(testDefinitions[0]!, 'openai')
   const full = vi.fn(base.measureFull)
   const replay = vi.fn((_arg: ReplayMeterInput) => ({ kind: 'estimated' as const, tokens: 7 }))
@@ -58,7 +67,7 @@ function setup() {
   }))
   const meter: InputMeter = { ...base, measureFull: full, measureReplay: replay, measureNew: fresh }
   const original = { ...input(), messages: [message('user', stable)] }
-  const first = mustPlan(original, meter)
+  const first = await mustPlan(original, meter)
   const output = projectOutput({ blocks, source: 'reply', completeness: 'complete' })
   if (!('projected' in output)) throw Error('output projection required')
   const observation: Extract<PlanCalibration, { kind: 'observation' }> = {
@@ -109,8 +118,8 @@ function sourceOrder(arg: ReplayMeterInput): number[] {
 }
 
 describe('explicit original observation in the replay meter input', () => {
-  it('actual planner owns/deep-freezes same-response facts, G and mapping; I + phi + delta applies margin once', () => {
-    const f = setup()
+  it('actual planner owns/deep-freezes same-response facts, G and mapping; I + phi + delta applies margin once', async () => {
+    const f = await setup()
     const caller = JSON.parse(writeJsonLossless(f.request)) as PlanInput
     if (caller.calibration.kind !== 'observation') throw Error('source required')
     const raw = caller.calibration
@@ -135,7 +144,7 @@ describe('explicit original observation in the replay meter input', () => {
       expect(Reflect.set(caller.messages[1]!.blocks[0]!, 'text', 'target mutation')).toBe(true)
       return { kind: 'estimated', tokens: 7 }
     })
-    const next = mustPlan(caller, f.meter)
+    const next = await mustPlan(caller, f.meter)
     expect(next.measurement).toMatchObject({ mode: 'marginal' })
     expect(ExactDecimal.from(next.measurement.predictedInput).compare(ExactDecimal.from(110))).toBe(
       0,
@@ -160,9 +169,9 @@ describe('explicit original observation in the replay meter input', () => {
     expect('selectionSpans' in fresh).toBe(false)
   })
 
-  it('selection-array order does not claim actual output order', () => {
-    const f = setup()
-    const next = mustPlan(
+  it('selection-array order does not claim actual output order', async () => {
+    const f = await setup()
+    const next = await mustPlan(
       {
         ...f.request,
         calibration: {
@@ -179,8 +188,8 @@ describe('explicit original observation in the replay meter input', () => {
     expect(arg.selectionSpans.map(s => s.selectionIndex)).toEqual([0, 1])
   })
 
-  it('preserves delivered/partial group and unknown original output usage without filling facts', () => {
-    const f = setup()
+  it('preserves delivered/partial group and unknown original output usage without filling facts', async () => {
+    const f = await setup()
     const originalGroup = f.observation.inputCalibration.outputGroup
     if (originalGroup.kind !== 'known') throw Error('group required')
     const { reasoning_tokens: _reasoning, ...withoutReasoning } = usage
@@ -203,15 +212,15 @@ describe('explicit original observation in the replay meter input', () => {
       return { kind: 'unavailable' as const }
     })
     expect(
-      mustPlan({ ...f.request, calibration }, { ...f.meter, measureReplay: replay }).measurement
-        .mode,
+      (await mustPlan({ ...f.request, calibration }, { ...f.meter, measureReplay: replay }))
+        .measurement.mode,
     ).toBe('full')
     expect(replay).toHaveBeenCalledTimes(1)
   })
 
   for (const kind of ['partial', 'duplicate', 'reordered'] as const) {
-    it(`${kind} G stays distinguishable; a consumer without that mapping falls back instead of applying aggregate O`, () => {
-      const f = setup()
+    it(`${kind} G stays distinguishable; a consumer without that mapping falls back instead of applying aggregate O`, async () => {
+      const f = await setup()
       const selected = kind === 'partial' ? [1] : kind === 'reordered' ? [1, 0] : [0, 1, 0]
       const replayMessages = selected.map((source, index) => assistant([source], `target-${index}`))
       const request = {
@@ -235,19 +244,29 @@ describe('explicit original observation in the replay meter input', () => {
         )
         return { kind: 'unavailable' as const }
       })
-      const next = mustPlan(request, { ...f.meter, measureReplay: spy })
+      const next = await mustPlan(request, { ...f.meter, measureReplay: spy })
       expect(spy).toHaveBeenCalledTimes(1)
       expect(next.measurement.mode).toBe('full')
     })
   }
 
-  it('a changed original output block is rejected before any meter receives source facts', () => {
-    const f = setup()
+  it('a changed original output block is rejected before any meter receives source facts', async () => {
+    const f = await setup()
     const altered = {
       ...f.observation,
       outputBlocks: [{ ...blocks[0]!, text: 'forged original' }, blocks[1]!],
     }
-    expect(planRequest({ ...f.request, calibration: altered }, testDefinitions, f.meter)).toEqual({
+    expect(
+      await planRequest(
+        { ...f.request, calibration: altered },
+        testDefinitions,
+        f.meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
@@ -255,10 +274,10 @@ describe('explicit original observation in the replay meter input', () => {
     expect(f.full).toHaveBeenCalledTimes(1)
   })
 
-  it('duplicate target ownership is invalid input; target mutation or uncovered merged units never reach phi', () => {
-    const f = setup()
+  it('duplicate target ownership is invalid input; target mutation or uncovered merged units never reach phi', async () => {
+    const f = await setup()
     expect(
-      planRequest(
+      await planRequest(
         {
           ...f.request,
           calibration: {
@@ -268,6 +287,8 @@ describe('explicit original observation in the replay meter input', () => {
         },
         testDefinitions,
         f.meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     const changed = judgedMessage({
@@ -275,31 +296,43 @@ describe('explicit original observation in the replay meter input', () => {
       blocks: [{ ...blocks[0], text: 'changed target' }, blocks[1]],
     })
     expect(
-      mustPlan(
-        { ...f.request, messages: [f.request.messages[0]!, changed, f.request.messages[2]!] },
-        f.meter,
+      (
+        await mustPlan(
+          { ...f.request, messages: [f.request.messages[0]!, changed, f.request.messages[2]!] },
+          f.meter,
+        )
       ).measurement.mode,
     ).toBe('full')
     expect(
-      mustPlan(
-        {
-          ...f.request,
-          calibration: {
-            ...f.observation,
-            replaySelection: [f.observation.replaySelection[0]!],
+      (
+        await mustPlan(
+          {
+            ...f.request,
+            calibration: {
+              ...f.observation,
+              replaySelection: [f.observation.replaySelection[0]!],
+            },
           },
-        },
-        f.meter,
+          f.meter,
+        )
       ).measurement.mode,
     ).toBe('full')
     expect(f.replay).not.toHaveBeenCalled()
   })
 
-  it('inconsistent original input usage and output provenance cannot reach phi', () => {
-    const f = setup()
+  it('inconsistent original input usage and output provenance cannot reach phi', async () => {
+    const f = await setup()
     const inconsistent = { ...f.observation, usage: { ...usage, input_tokens: 'unknown' as const } }
     expect(
-      planRequest({ ...f.request, calibration: inconsistent }, testDefinitions, f.meter),
+      await planRequest(
+        { ...f.request, calibration: inconsistent },
+        testDefinitions,
+        f.meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
     ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     const original = f.observation.inputCalibration.observedInput
     if (original.kind === 'unavailable') throw Error('known source required')
@@ -314,7 +347,7 @@ describe('explicit original observation in the replay meter input', () => {
       },
     }
     expect(
-      mustPlan({ ...f.request, calibration: wrongProvider }, f.meter).measurement,
+      (await mustPlan({ ...f.request, calibration: wrongProvider }, f.meter)).measurement,
     ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
     expect(f.replay).not.toHaveBeenCalled()
   })

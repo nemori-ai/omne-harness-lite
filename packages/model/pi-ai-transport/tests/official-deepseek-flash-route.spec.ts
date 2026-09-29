@@ -82,7 +82,7 @@ function input(messages: Message[], parameters: ModelRequestParameters = {}): Pl
 }
 
 describe('DeepSeek V4.1 Flash route policy through public planner (synthetic profile)', () => {
-  it('keeps image history and assistant reasoning while mapping reminders to user', () => {
+  it('keeps image history and assistant reasoning while mapping reminders to user', async () => {
     const system = message({
       type: 'system',
       id: 'system',
@@ -118,7 +118,10 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
           id: 'image',
           kind: 'image',
           mediaType: 'image/png',
-          data: { inline: 'eA==' },
+          data: {
+            inline:
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+          },
           visibility: visible,
         },
       ],
@@ -128,7 +131,7 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
       temperature: 0.5,
       maxOutputTokens: 64,
     })
-    const result = planRequest(request, [fixture])
+    const result = await planRequest(request, [fixture])
     if ('rejected' in result) throw new Error(result.rejected)
     expect(result.planned.body.model).toBe('test/deepseek-flash-route')
     expect(result.planned.body.provider).toEqual({
@@ -150,7 +153,12 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
         role: 'user',
         content: [
           { type: 'text', text: 'describe' },
-          { type: 'image_url', image_url: { url: 'data:image/png;base64,eA==' } },
+          {
+            type: 'image_url',
+            image_url: {
+              url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+            },
+          },
         ],
       },
     ])
@@ -163,7 +171,7 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
     expect(result.planned.serialized).not.toContain('ttl')
   })
 
-  it('preserves a completed tool call and its paired result in the request history', () => {
+  it('preserves a completed tool call and its paired result in the request history', async () => {
     const assistant = message({
       type: 'assistant',
       id: 'assistant-tool',
@@ -199,7 +207,7 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
         },
       ],
     })
-    const result = planRequest(input([assistant, tool]), [fixture])
+    const result = await planRequest(input([assistant, tool]), [fixture])
     if ('rejected' in result) throw new Error(result.rejected)
     expect(result.planned.body.messages).toEqual([
       {
@@ -218,7 +226,7 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
     ])
   })
 
-  it('requires exact automatic configuration and refuses wrong route or output budget', () => {
+  it('requires exact automatic configuration and refuses wrong route or output budget', async () => {
     expect(
       readModelDefinition([fixture], {
         implementation: fixture.implementation,
@@ -236,10 +244,12 @@ describe('DeepSeek V4.1 Flash route policy through public planner (synthetic pro
         rejected: 'invalidInput',
       })
     const request = input([])
-    expect(planRequest({ ...request, provider: 'deepseek' }, [fixture])).toEqual({
+    expect(await planRequest({ ...request, provider: 'deepseek' }, [fixture])).toEqual({
       rejected: 'unavailable',
     })
-    expect(planRequest({ ...request, parameters: { maxOutputTokens: 129 } }, [fixture])).toEqual({
+    expect(
+      await planRequest({ ...request, parameters: { maxOutputTokens: 129 } }, [fixture]),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })

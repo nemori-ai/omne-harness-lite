@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import type { PlanInput, PlanResult } from '@omne-harness-lite/model-request-runtime'
 import {
   defineInputMeter,
@@ -32,10 +33,10 @@ export function syntheticInputMeter(definition: ModelDefinition, provider: strin
 }
 
 /** Existing projection assertions use an explicit controlled meter. */
-export function planRequest(
+export async function planRequest(
   input: PlanInput,
   definitions: readonly ModelDefinition[],
-): PlanResult<PlannedRequest> {
+): Promise<PlanResult<PlannedRequest>> {
   const definition = definitions.find(
     candidate =>
       candidate.modelId === input.routeName &&
@@ -44,5 +45,13 @@ export function planRequest(
       candidate.implementation.revision === input.snapshot?.adaptation?.implementation?.revision,
   )
   const meter = definition && syntheticInputMeter(definition, input.provider)
-  return planRequestWithMeter(input, definitions, meter)
+  return await planRequestWithMeter(
+    input,
+    definitions,
+    meter,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequestWithMeter),
+  )
 }

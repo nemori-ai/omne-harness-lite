@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -83,7 +84,7 @@ function moonshotFixture(name: 'multi-turn' | 'parallel-results') {
 }
 
 const tinyPng =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
 const inlinePng = `data:image/png;base64,${tinyPng}`
 const retirement: RetirementPolicy = {
   waitMilliseconds: 20,
@@ -258,31 +259,42 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
     },
   )
 
-  it.each([0, 1] as const)('admits model %i with actual final body and caller margin', index => {
-    const definition = moonshotDefinitions[index]
-    if (!definition) throw new Error('missing Moonshot definition')
-    const meter = createMoonshotInputMeter(definition)
-    const planned = planRequest(request(index), moonshotDefinitions, meter)
-    if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-    expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
-    expect(planned.planned.inputLimitEvidence.tokenMargin).toEqual({
-      multiplier: 1.2,
-      reserveTokens: 32,
-    })
-    expect(planned.planned.inputLimitEvidence.requestBytes).toBe(
-      Buffer.byteLength(planned.planned.serialized),
-    )
-    expect(planned.planned.body.provider).toEqual({
-      order: [meter.provider],
-      allow_fallbacks: false,
-      require_parameters: true,
-    })
-    expect(planned.planned.serialized).toContain('[system_reminder')
-    expect(planned.planned.serialized).not.toContain('cache_control')
-    expect(planned.planned.body).not.toHaveProperty('temperature')
-    expect(planned.planned.body).not.toHaveProperty('top_p')
-    expect(planned.planned.body.reasoning).toEqual(index === 0 ? { effort: 'high' } : undefined)
-  })
+  it.each([0, 1] as const)(
+    'admits model %i with actual final body and caller margin',
+    async index => {
+      const definition = moonshotDefinitions[index]
+      if (!definition) throw new Error('missing Moonshot definition')
+      const meter = createMoonshotInputMeter(definition)
+      const planned = await planRequest(
+        await request(index),
+        moonshotDefinitions,
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
+      expect(planned.planned.inputLimitEvidence.tokenMargin).toEqual({
+        multiplier: 1.2,
+        reserveTokens: 32,
+      })
+      expect(planned.planned.inputLimitEvidence.requestBytes).toBe(
+        Buffer.byteLength(planned.planned.serialized),
+      )
+      expect(planned.planned.body.provider).toEqual({
+        order: [meter.provider],
+        allow_fallbacks: false,
+        require_parameters: true,
+      })
+      expect(planned.planned.serialized).toContain('[system_reminder')
+      expect(planned.planned.serialized).not.toContain('cache_control')
+      expect(planned.planned.body).not.toHaveProperty('temperature')
+      expect(planned.planned.body).not.toHaveProperty('top_p')
+      expect(planned.planned.body.reasoning).toEqual(index === 0 ? { effort: 'high' } : undefined)
+    },
+  )
 
   it.each([0, 1] as const)(
     'accounts for tools, results, history and rejects malformed image on model %i',
@@ -407,7 +419,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
 
   it.each([0, 1] as const)(
     'admits model %i replayed plain reasoning and paired tool result',
-    index => {
+    async index => {
       const definition = moonshotDefinitions[index]
       if (!definition) throw new Error('missing Moonshot definition')
       const assistant = judgedMessage({
@@ -457,8 +469,8 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           },
         ],
       })
-      const base = request(index)
-      const plan = planRequest(
+      const base = await request(index)
+      const plan = await planRequest(
         {
           ...base,
           messages: [
@@ -481,6 +493,8 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         },
         moonshotDefinitions,
         createMoonshotInputMeter(definition),
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       if ('rejected' in plan) throw new Error(JSON.stringify(plan))
       expect(plan.planned.body.messages).toMatchObject([
@@ -518,15 +532,26 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       }),
     ).toThrow(TypeError)
     expect(() => createMoonshotInputMeter({ ...selected, routes: {} })).toThrow(TypeError)
-    const absent = planRequest(request(0), moonshotDefinitions)
+    const absent = await planRequest(
+      await request(0),
+      moonshotDefinitions,
+      undefined,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     expect(absent).toEqual({ rejected: 'unavailable' })
     const transport = createPiAiTransport({
+      imagePreparation,
       definitions: moonshotDefinitions,
       inputMeters: moonshotDefinitions.map(createMoonshotInputMeter),
       policy: networkPolicy,
     })
     try {
-      const planned = transport.plan(request(0))
+      const planned = await transport.plan(await request(0), {
+        signal: new AbortController().signal,
+      })
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
     } finally {
@@ -565,7 +590,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       })
       try {
         const result = await invokeModel({
-          ...request(index),
+          ...(await request(index)),
           transport,
           credential: 'controlled-test-only',
           signal: new AbortController().signal,
@@ -651,7 +676,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
           ],
         })
       const plannedInput = {
-        ...request(index),
+        ...(await request(index)),
         messages: [
           message('system', 'Compare the colors.'),
           imageTurn('moonshot-red', red, 'Remember the first image.'),
@@ -674,7 +699,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         ],
       }
       try {
-        const plan = transport.plan(plannedInput)
+        const plan = await transport.plan(plannedInput, { signal: new AbortController().signal })
         if ('rejected' in plan) throw new Error(JSON.stringify(plan))
         expect(plan.planned.inputLimitEvidence.images).toBe(2)
         expect(plan.planned.inputLimitEvidence.imageBytes).toEqual([red.length, blue.length])
@@ -757,7 +782,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
         () => {},
       )
       if ('rejected' in registered) throw new Error(registered.rejected)
-      const base = request(index)
+      const base = await request(index)
       const plannedInput = {
         ...base,
         messages: [
@@ -788,7 +813,9 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       if ('rejected' in acquired) throw new Error(acquired.rejected)
       const lease = acquired.lease
       try {
-        const plan = lease.transport.plan(plannedInput)
+        const plan = await lease.transport.plan(plannedInput, {
+          signal: new AbortController().signal,
+        })
         if ('rejected' in plan) throw new Error(JSON.stringify(plan))
         expect(plan.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
         const result = await lease.track(

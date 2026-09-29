@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { Context } from '@deepseek-ai/cordis'
 import {
   createDiagnosticCollector,
@@ -134,6 +135,7 @@ describe('actual registry engineering diagnostics', () => {
   it('reports only real publication, acquisition and final retirement, preserving exact owned revisions', async () => {
     const events: DiagnosticEvent[] = []
     const service = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         record(event) {
@@ -192,6 +194,7 @@ describe('actual registry engineering diagnostics', () => {
   it('keeps forced cancellation, remaining active, late stop and cleanup failure separate', async () => {
     const events: DiagnosticEvent[] = []
     const service = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         record(event) {
@@ -242,6 +245,7 @@ describe('actual registry engineering diagnostics', () => {
     await service.close(policy())
 
     const failed = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         record(event) {
@@ -267,6 +271,7 @@ describe('actual registry engineering diagnostics', () => {
   it('reports the actual timeout result counts even when a reference drains before the caller resumes', async () => {
     const events: DiagnosticEvent[] = []
     const service = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         record(event) {
@@ -305,10 +310,12 @@ describe('actual registry engineering diagnostics', () => {
     const first = collectorFixture('registry-generation-a')
     const second = collectorFixture('registry-generation-b')
     const one = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: first.collector.emitter({ kind: 'local' }, { executionId: 'service-a' }),
     })
     const two = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: second.collector.emitter(
         { kind: 'local' },
@@ -352,7 +359,7 @@ describe('actual registry engineering diagnostics', () => {
   })
 
   it('keeps absent, throwing, rejected and malformed borrowed record results separate from network health', async () => {
-    const absent = createModelTransportService({ policy: networkPolicy })
+    const absent = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const noDiagnostic = register(absent)
     expect(await absent.retire(noDiagnostic, policy())).toEqual({ retired: true })
     expect(await absent.close(policy())).toEqual({ retired: true })
@@ -362,6 +369,7 @@ describe('actual registry engineering diagnostics', () => {
     })
 
     const throws = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         record() {
@@ -377,6 +385,7 @@ describe('actual registry engineering diagnostics', () => {
     expect(throws.diagnostics()).toEqual({ failed: 0, pending: 0, dropped: 0 })
 
     const dropped = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: { record: () => ({ dropped: 'queue_full' }) },
     })
@@ -388,6 +397,7 @@ describe('actual registry engineering diagnostics', () => {
     expect(dropped.diagnostics()).toEqual({ failed: 0, pending: 0, dropped: 0 })
 
     const malformed = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         // @ts-expect-error exercise a runtime callback violating its declared result
@@ -404,6 +414,7 @@ describe('actual registry engineering diagnostics', () => {
   it('stops a thenable-violating emitter after one call without awaiting its rejection or holding a lease', async () => {
     let calls = 0
     const service = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         // @ts-expect-error exercise a runtime callback returning a Promise from a synchronous port
@@ -433,6 +444,7 @@ describe('actual registry engineering diagnostics', () => {
     const never = new Promise<void>(() => {})
     let calls = 0
     const service = createModelTransportService({
+      imagePreparation,
       policy: networkPolicy,
       registryDiagnostics: {
         // @ts-expect-error deliberately return a never-settling Promise from a sync port
@@ -459,6 +471,7 @@ describe('actual registry engineering diagnostics', () => {
     const next = { ...definition, revision: `${definition.revision}-next` }
     try {
       await ctx.plugin(piAiTransportPlugin, {
+        imagePreparation,
         policy: networkPolicy,
         retirement: policy(),
         registryDiagnostics: fixture.collector.emitter(

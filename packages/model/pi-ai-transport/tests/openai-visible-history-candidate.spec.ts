@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { getEncoding } from 'js-tiktoken'
 import { createHash } from 'node:crypto'
@@ -230,7 +231,7 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
 
   it.each(packet.cases)(
     '$id preserves the final planner body and counts every visible field',
-    c => {
+    async c => {
       const selected = definition(c.modelId)
       const meter = historyMeter(c.modelId)
       const body = finalBody(c)
@@ -238,7 +239,15 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
         kind: 'estimated',
         tokens: expectedTokens(c),
       })
-      const result = planRequest(request(c), [selected], meter)
+      const result = await planRequest(
+        await request(c),
+        [selected],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       if ('rejected' in result) throw new Error(JSON.stringify(result))
       expect(result.planned.serialized).toBe(c.wire)
       expect(result.planned.inputLimitEvidence).toMatchObject({
@@ -247,13 +256,15 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
         admissionTokens: Math.ceil((expectedTokens(c) * 11) / 10) + 64,
       })
       expect(
-        planRequest(
+        await planRequest(
           {
-            ...request(c),
-            snapshot: { ...request(c).snapshot, maxInputTokens: expectedTokens(c) },
+            ...(await request(c)),
+            snapshot: { ...(await request(c)).snapshot, maxInputTokens: expectedTokens(c) },
           },
           [selected],
           meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         ),
       ).toMatchObject({
         rejected: 'invalidInput',
@@ -286,7 +297,9 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
     })
     try {
       for (const c of packet.cases) {
-        const planned = transport.plan(request(c))
+        const planned = await transport.plan(await request(c), {
+          signal: new AbortController().signal,
+        })
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.serialized).toBe(c.wire)
         const signal = new AbortController().signal
@@ -338,8 +351,8 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
       inputMeters: [historyMeter(c.modelId)],
     })
     try {
-      const requested = request(c)
-      const planned = transport.plan(requested)
+      const requested = await request(c)
+      const planned = await transport.plan(requested, { signal: new AbortController().signal })
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       expect(planned.planned.serialized).toBe(c.wire)
       expect(planned.planned.serialized).toContain('"max_tokens":64')
@@ -378,7 +391,7 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
     }
   })
 
-  it('rejects opaque, media, unknown fields and inconsistent wire without trimming history', () => {
+  it('rejects opaque, media, unknown fields and inconsistent wire without trimming history', async () => {
     const c = packet.cases.find(value => value.id === 'luna-paired-tool-history')
     if (!c) throw new Error('missing tool case')
     const body = finalBody(c)
@@ -478,7 +491,17 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
       ],
     }
     expect(changed(alteredTools)).not.toEqual(changed(body))
-    expect(planRequest(request(c), [definition(c.modelId)], meter)).toHaveProperty('planned')
+    expect(
+      await planRequest(
+        await request(c),
+        [definition(c.modelId)],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toHaveProperty('planned')
     expect(() =>
       createOpenAiInputMeter({
         ...definition('openai/gpt-6-sol'),

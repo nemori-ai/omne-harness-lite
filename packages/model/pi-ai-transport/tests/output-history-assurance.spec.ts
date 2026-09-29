@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it, vi } from 'vitest'
 import type { Message } from '@omne-harness-lite/messages'
 import type {
@@ -53,8 +54,16 @@ function assistant(id: string, text = id): Message {
   })
 }
 
-function planned(request: PlanInput): PlannedRequest {
-  const result = planRequest(request, testDefinitions, base)
+async function planned(request: PlanInput): Promise<PlannedRequest> {
+  const result = await planRequest(
+    request,
+    testDefinitions,
+    base,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
   if (!('planned' in result)) throw new Error(JSON.stringify(result))
   return result.planned
 }
@@ -108,13 +117,14 @@ function observation(source: PlanOutputHistoryGroup): PlanCalibration {
   }
 }
 
-function historyFixture() {
-  const first = planned(input())
+async function historyFixture() {
+  const first = await planned(input())
   const groups: PlanOutputHistoryGroup[] = []
   const messages: Message[] = [...input().messages]
   const boundaries: number[] = []
   for (let index = 0; index < 3; index++) {
-    const source = index === 0 ? first : planned({ ...input(), messages, outputHistory: groups })
+    const source =
+      index === 0 ? first : await planned({ ...input(), messages, outputHistory: groups })
     boundaries.push(messages.length)
     const reply = assistant(`history-${index}`)
     const position = messages.length
@@ -138,8 +148,8 @@ function groupName(value: PlanOutputHistoryGroup): string {
 }
 
 describe('independent output-history coverage oracle', () => {
-  it('enumerates three anchor positions and assigns each selected group to P, G or N once', () => {
-    const { groups, messages, boundaries } = historyFixture()
+  it('enumerates three anchor positions and assigns each selected group to P, G or N once', async () => {
+    const { groups, messages, boundaries } = await historyFixture()
     for (let groupCount = 1; groupCount <= groups.length; groupCount++) {
       const selectedGroups = groups.slice(0, groupCount)
       const selectedMessages = messages.slice(0, groupCount * 2 + 3)
@@ -160,7 +170,15 @@ describe('independent output-history coverage oracle', () => {
           outputHistory: selectedGroups,
           calibration: observation(selectedGroups[anchor]!),
         }
-        const result = planRequest(request, testDefinitions, meter)
+        const result = await planRequest(
+          request,
+          testDefinitions,
+          meter,
+          {
+            signal: new AbortController().signal,
+          },
+          testImagePreparerFor(planRequest),
+        )
         expect('planned' in result, JSON.stringify(result)).toBe(true)
         if (!('planned' in result)) continue
         expect(result.planned.measurement.mode).toBe('marginal')
@@ -209,8 +227,8 @@ describe('independent output-history coverage oracle', () => {
     }
   })
 
-  it('rejects every duplicate source target across one or two groups before any meter call', () => {
-    const { groups, messages } = historyFixture()
+  it('rejects every duplicate source target across one or two groups before any meter call', async () => {
+    const { groups, messages } = await historyFixture()
     const full = vi.fn(base.measureFull)
     const meter = { ...base, measureFull: full }
     for (let groupCount = 1; groupCount <= 3; groupCount++) {
@@ -224,10 +242,12 @@ describe('independent output-history coverage oracle', () => {
             : item,
         )
         expect(
-          planRequest(
+          await planRequest(
             { ...input(), messages: selectedMessages, outputHistory: sameGroup },
             testDefinitions,
             meter,
+            { signal: new AbortController().signal },
+            testImagePreparerFor(planRequest),
           ),
         ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
         if (groupCount > 1) {
@@ -236,10 +256,12 @@ describe('independent output-history coverage oracle', () => {
             index === other ? { ...item, replaySelection: current.replaySelection } : item,
           )
           expect(
-            planRequest(
+            await planRequest(
               { ...input(), messages: selectedMessages, outputHistory: crossGroup },
               testDefinitions,
               meter,
+              { signal: new AbortController().signal },
+              testImagePreparerFor(planRequest),
             ),
           ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
         }
@@ -248,8 +270,8 @@ describe('independent output-history coverage oracle', () => {
     expect(full).not.toHaveBeenCalled()
   })
 
-  it('delivers every legal O group to full when there is no accurate I', () => {
-    const { groups, messages } = historyFixture()
+  it('delivers every legal O group to full when there is no accurate I', async () => {
+    const { groups, messages } = await historyFixture()
     const history = groups.map((value, index) =>
       index === 1
         ? {
@@ -265,10 +287,16 @@ describe('independent output-history coverage oracle', () => {
       kind: 'estimated' as const,
       tokens: value.projection.units.length + 17 * value.outputHistory.length,
     }))
-    const result = planRequest({ ...input(), messages, outputHistory: history }, testDefinitions, {
-      ...base,
-      measureFull: full,
-    })
+    const result = await planRequest(
+      { ...input(), messages, outputHistory: history },
+      testDefinitions,
+      {
+        ...base,
+        measureFull: full,
+      },
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
+    )
     expect('planned' in result, JSON.stringify(result)).toBe(true)
     if (!('planned' in result)) return
     expect(result.planned.measurement.mode).toBe('full')
@@ -280,12 +308,12 @@ describe('independent output-history coverage oracle', () => {
     expect(result.planned.measurement.predictedInput).toBe(messages.length + 17 * groups.length)
   })
 
-  it('does not allocate one aggregate across P and N after a legal partial selection', () => {
-    const source = planned(input())
+  it('does not allocate one aggregate across P and N after a legal partial selection', async () => {
+    const source = await planned(input())
     const first = assistant('split-1')
     const second = assistant('split-2')
     const before = [...input().messages, first, message('user', 'between', 'between')]
-    const anchorSource = planned({ ...input(), messages: before })
+    const anchorSource = await planned({ ...input(), messages: before })
     const anchorReply = assistant('anchor')
     const selected = [...before, second, anchorReply, message('user', 'last', 'last')]
     const split = group(
@@ -306,7 +334,7 @@ describe('independent output-history coverage oracle', () => {
     const full = vi.fn(base.measureFull)
     const replay = vi.fn(() => ({ kind: 'exact' as const, tokens: 7 }))
     const fresh = vi.fn(() => ({ kind: 'exact' as const, tokens: 9 }))
-    const result = planRequest(
+    const result = await planRequest(
       {
         ...input(),
         messages: selected,
@@ -315,6 +343,8 @@ describe('independent output-history coverage oracle', () => {
       },
       testDefinitions,
       { ...base, measureFull: full, measureReplay: replay, measureNew: fresh },
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     expect('planned' in result, JSON.stringify(result)).toBe(true)
     if (!('planned' in result)) return
@@ -328,8 +358,8 @@ describe('independent output-history coverage oracle', () => {
     expect(fresh).not.toHaveBeenCalled()
   })
 
-  it('independent replay rejects an original route that contradicts the observed request', () => {
-    const source = planned(input())
+  it('independent replay rejects an original route that contradicts the observed request', async () => {
+    const source = await planned(input())
     const reply = assistant('route-guard')
     const original = group(
       source,
@@ -338,7 +368,7 @@ describe('independent output-history coverage oracle', () => {
       100,
     )
     const current: PlanInput = { ...input(), messages: [...input().messages, reply] }
-    const projected = planned(current)
+    const projected = await planned(current)
     const projection = projectInput(projected.body, current, base)
     const meter = {
       ...base,
@@ -347,6 +377,7 @@ describe('independent output-history coverage oracle', () => {
       measureNew: vi.fn(() => ({ kind: 'estimated' as const, tokens: 19 })),
     }
     const replay: ReplayMeterInput = {
+      countingBasis: projection.requestInput.countingBasis,
       units: [projection.units[3]!],
       envelope: projection.envelope,
       precedingUnitCount: 3,
@@ -395,7 +426,7 @@ describe('independent output-history coverage oracle', () => {
     expect(meter.measureNew).not.toHaveBeenCalled()
   })
 
-  it('an encrypted output aggregate cannot cross an unsupported tokenizer basis', () => {
+  it('an encrypted output aggregate cannot cross an unsupported tokenizer basis', async () => {
     const selected = openaiDefinitions.find(value => value.modelId === 'openai/gpt-5.6-sol')
     if (!selected) throw new Error('missing frozen GPT-5.6 Sol definition')
     const profile = createOfficialProfileContent(selected, {
@@ -422,7 +453,15 @@ describe('independent output-history coverage oracle', () => {
         upstreamInputLimits: profile.ok.upstreamInputLimits,
       },
     }
-    const sourceResult = planRequest(sourceInput, [selected], meter)
+    const sourceResult = await planRequest(
+      sourceInput,
+      [selected],
+      meter,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if (!('planned' in sourceResult)) throw new Error(JSON.stringify(sourceResult))
     const source = sourceResult.planned
     const details = [
@@ -456,6 +495,7 @@ describe('independent output-history coverage oracle', () => {
     )
     const projection = projectInput(source.body, sourceInput, meter)
     const replay: ReplayMeterInput = {
+      countingBasis: projection.requestInput.countingBasis,
       units: [{ role: 'assistant', content: '', reasoning_details: details }],
       envelope: projection.envelope,
       precedingUnitCount: 3,

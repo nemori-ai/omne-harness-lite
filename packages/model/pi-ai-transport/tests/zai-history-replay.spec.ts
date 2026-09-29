@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readOpaqueJson, toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks'
@@ -27,7 +28,7 @@ describe('authentic complete ZAI reasoning through production stream and assembl
       ])
       try {
         const request = historyInput(row.model)
-        const planned = host.transport.plan(request)
+        const planned = await host.transport.plan(request, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(planned.rejected)
         const signal = new AbortController().signal
         const sent = await host.transport.send(planned.planned, 'local-zai-replay-secret', signal)
@@ -68,7 +69,7 @@ describe('authentic complete ZAI reasoning through production stream and assembl
         })
         let captured: JsonObject | undefined
         const productionMeter = createZaiCommercialInputMeter(model)
-        const replay = planRequest(
+        const replay = await planRequest(
           {
             ...request,
             messages: [...request.messages, assistant, message('user', 'Continue.', 'followup')],
@@ -81,6 +82,8 @@ describe('authentic complete ZAI reasoning through production stream and assembl
               return productionMeter.measureFull(value)
             },
           },
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         )
         expect(replay).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
         expect(captured?.messages).toMatchObject([
@@ -93,13 +96,15 @@ describe('authentic complete ZAI reasoning through production stream and assembl
         const otherId =
           row.model === 'z-ai/glm-5.3-prime' ? 'z-ai/glm-5.3-flashx' : 'z-ai/glm-5.3-prime'
         const other = definition(otherId)
-        const changed = planRequest(
+        const changed = await planRequest(
           {
             ...historyInput(otherId),
             messages: [...request.messages, assistant, message('user', 'Continue.', 'followup')],
           },
           [other],
           createZaiHistoryCandidateMeter(other),
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         )
         if ('rejected' in changed) throw new Error(JSON.stringify(changed))
         const messages = changed.planned.body.messages
@@ -153,10 +158,22 @@ describe('authentic complete ZAI reasoning through production stream and assembl
       [model],
     )
     try {
-      expect(planRequest(complete, [model], createZaiCommercialInputMeter(model))).toEqual({
+      expect(
+        await planRequest(
+          complete,
+          [model],
+          createZaiCommercialInputMeter(model),
+          {
+            signal: new AbortController().signal,
+          },
+          testImagePreparerFor(planRequest),
+        ),
+      ).toEqual({
         rejected: 'unavailable',
       })
-      expect(host.transport.plan(complete)).toEqual({ rejected: 'unavailable' })
+      expect(await host.transport.plan(complete, { signal: new AbortController().signal })).toEqual(
+        { rejected: 'unavailable' },
+      )
       const invocation = invokeModel({
         ...complete,
         transport: host.transport,
@@ -174,7 +191,7 @@ describe('authentic complete ZAI reasoning through production stream and assembl
     }
   })
 
-  it('retains the supported plain-only path and does not mistake one opaque block for two', () => {
+  it('retains the supported plain-only path and does not mistake one opaque block for two', async () => {
     const modelId = 'z-ai/glm-5.3-flashx'
     const model = definition(modelId)
     const request = historyInput(modelId)
@@ -207,7 +224,7 @@ describe('authentic complete ZAI reasoning through production stream and assembl
       const meter = opaque
         ? createZaiCommercialInputMeter(model)
         : createZaiHistoryCandidateMeter(model)
-      const result = planRequest(
+      const result = await planRequest(
         { ...request, messages: [...request.messages, makeAssistant(opaque)] },
         [model],
         {
@@ -217,6 +234,8 @@ describe('authentic complete ZAI reasoning through production stream and assembl
             return meter.measureFull(value)
           },
         },
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       expect(captured).toBeDefined()
       const messages = captured?.messages

@@ -1,4 +1,5 @@
-import { directFull, directNew } from './direct-full-input.ts'
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
+import { basisFor, directFull, directNew } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { deepSeekBoundaries } from '../src/input-meters/deepseek-boundary.ts'
@@ -151,8 +152,16 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       tokenMargin: { multiplier: new LosslessNumber('1.0000000000000000001'), reserveTokens: 7 },
     }
   }
-  function planned(value: PlanInput, meter = createMeter(definition)) {
-    const result = planRequest(value, [definition], meter)
+  async function planned(value: PlanInput, meter = createMeter(definition)) {
+    const result = await planRequest(
+      value,
+      [definition],
+      meter,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if ('rejected' in result) throw Error(JSON.stringify(result))
     return result.planned
   }
@@ -197,13 +206,13 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
         definitions: [definition],
         inputMeters: [bound],
       })
-      let next = request()
+      let next = await request()
       if (!tools) next = { ...next, tools: [], messages: next.messages.slice(0, 3) }
       try {
         for (let round = 1; round <= 3; round++) {
           tokenized.length = 0
           const count = full.mock.calls.length
-          const p = transport.plan(next)
+          const p = await transport.plan(next, { signal: new AbortController().signal })
           if ('rejected' in p) throw Error(JSON.stringify(p))
           expect(p.planned.measurement.mode).toBe(round === 1 ? 'full' : 'marginal')
           const response = await invokeModel({
@@ -253,36 +262,50 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
         }
         expect(host.requests).toHaveLength(3)
         expect(
-          planned(
-            { ...next, messages: [message('user', 'changed', 'u1'), ...next.messages.slice(1)] },
-            bound,
+          (
+            await planned(
+              { ...next, messages: [message('user', 'changed', 'u1'), ...next.messages.slice(1)] },
+              bound,
+            )
           ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
         expect(
-          planned(
-            {
-              ...next,
-              tools: [
-                {
-                  name: 'lookup',
-                  description: 'new definition',
-                  parameters: { type: 'object', properties: {} },
-                },
-              ],
-            },
-            bound,
+          (
+            await planned(
+              {
+                ...next,
+                tools: [
+                  {
+                    name: 'lookup',
+                    description: 'new definition',
+                    parameters: { type: 'object', properties: {} },
+                  },
+                ],
+              },
+              bound,
+            )
           ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
         expect(
-          planned(next, { ...bound, replayRevision: 'new-test-replay' }).measurement,
+          (await planned(next, { ...bound, replayRevision: 'new-test-replay' })).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
         expect(
-          planned(
-            { ...next, parameters: { reasoningEffort: 'high', maxOutputTokens: 1024 } },
-            bound,
+          (
+            await planned(
+              { ...next, parameters: { reasoningEffort: 'high', maxOutputTokens: 1024 } },
+              bound,
+            )
           ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
-        expect(planRequest(next, [definition], { ...bound, definitionRevision: '1' })).toEqual({
+        expect(
+          await planRequest(
+            next,
+            [definition],
+            { ...bound, definitionRevision: '1' },
+            { signal: new AbortController().signal },
+            testImagePreparerFor(planRequest),
+          ),
+        ).toEqual({
           rejected: 'unavailable',
         })
         if (next.calibration.kind !== 'observation') throw Error('missing source')
@@ -306,13 +329,21 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
               },
             },
           }
-          expect(planned(wrongSource, bound).measurement).toMatchObject({
+          expect((await planned(wrongSource, bound)).measurement).toMatchObject({
             mode: 'full',
             fallbackReason: 'basis_changed',
           })
         }
         const forged = { ...next, calibration: { ...next.calibration, outputBlocks: [] } }
-        expect(planRequest(forged, [definition], bound)).toMatchObject({
+        expect(
+          await planRequest(
+            forged,
+            [definition],
+            bound,
+            { signal: new AbortController().signal },
+            testImagePreparerFor(planRequest),
+          ),
+        ).toMatchObject({
           rejected: 'invalidInput',
           reason: 'malformed',
         })
@@ -434,6 +465,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
     })
     if (!('projected' in outputGroup)) throw Error('output group unavailable')
     const phi = meter.measureReplay({
+      countingBasis: basisFor(meter),
       units: [a],
       envelope: {},
       precedingUnitCount: 1,
@@ -512,9 +544,9 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
     expect(directNew(meter, zero)).toEqual({ kind: 'unavailable' })
   })
 
-  it('planner falls back for a substantive old reasoning rewrite and retains all messages', () => {
+  it('planner falls back for a substantive old reasoning rewrite and retains all messages', async () => {
     const first = {
-      ...request(),
+      ...(await request()),
       tools: [],
       messages: [
         message('user', 'old question', 'old-q'),
@@ -541,10 +573,10 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
         }),
       ],
     }
-    const p = planned(first)
+    const p = await planned(first)
     const group = projectOutput({ blocks: [], source: 'none', completeness: 'complete' })
     if (!('projected' in group)) throw Error('projection')
-    const result = planned({
+    const result = await planned({
       ...first,
       messages: [...first.messages, message('user', 'next question', 'next-q')],
       calibration: {
@@ -578,7 +610,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
 
   it.runIf(definition.modelId === 'deepseek/deepseek-v4.1-flash')(
     'meters only the new image span while checking every image byte',
-    () => {
+    async () => {
       const red = readFileSync(
         new URL('./fixtures/deepseek-v41-flash/public-red-544.png', import.meta.url),
       )
@@ -609,8 +641,8 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       const meter = createMeter(definition)
       const full = vi.fn(meter.measureFull)
       const bound = { ...meter, measureFull: full }
-      const first = { ...request(), tools: [], messages: [imageMessage(red, 'old-image')] }
-      const p = planned(first, bound)
+      const first = { ...(await request()), tools: [], messages: [imageMessage(red, 'old-image')] }
+      const p = await planned(first, bound)
       const group = projectOutput({ blocks: [], source: 'none', completeness: 'complete' })
       if (!('projected' in group)) throw Error('projection')
       const next = (bytes: Buffer): PlanInput => ({
@@ -645,8 +677,8 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       })
       tokenized.length = 0
       full.mockClear()
-      const small = planned(next(red), bound),
-        large = planned(next(blue), bound)
+      const small = await planned(next(red), bound),
+        large = await planned(next(blue), bound)
       expect(small.measurement.mode).toBe('marginal')
       expect(large.measurement.mode).toBe('marginal')
       expect(full).not.toHaveBeenCalled()
@@ -663,30 +695,36 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
         ),
       ).toBe(false)
       expect(
-        planRequest(
+        await planRequest(
           {
             ...next(blue),
             snapshot: { ...first.snapshot, inputConstraints: { maxImageBytes: 1 } },
           },
           [definition],
           bound,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         ),
-      ).toMatchObject({ rejected: 'invalidInput', reason: 'input_limit_exceeded' })
+      ).toMatchObject({
+        rejected: 'invalidInput',
+        reason: 'input_size_unavailable',
+        metrics: ['maxImageBytes'],
+      })
     },
   )
 
-  it('large actual reference token prefix never reaches the incremental tokenizer', () => {
+  it('large actual reference token prefix never reaches the incremental tokenizer', async () => {
     const meter = createMeter(definition)
     const full = vi.fn(meter.measureFull)
     const bound = { ...meter, measureFull: full }
     const first: PlanInput = {
-      ...request(),
+      ...(await request()),
       tools: [],
       messages: [message('user', 'STABLE_MILLION ' + 'x '.repeat(scale), 'million')],
     }
     tokenized.length = 0
     counts.length = 0
-    const p = planned(first, bound)
+    const p = await planned(first, bound)
     expect(counts.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(scale)
     const actualReferenceTokens = counts.reduce((a, b) => a + b, 0)
     expect(p.measurement.predictedInput).toBeLessThan(
@@ -745,7 +783,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
     tokenized.length = 0
     counts.length = 0
     full.mockClear()
-    expect(planned(next, bound).measurement.mode).toBe('marginal')
+    expect((await planned(next, bound)).measurement.mode).toBe('marginal')
     expect(full).not.toHaveBeenCalled()
     expect(tokenized.some(value => value.includes('STABLE_MILLION'))).toBe(false)
     expect(Math.max(...tokenized.map(value => value.length))).toBeLessThan(1000)

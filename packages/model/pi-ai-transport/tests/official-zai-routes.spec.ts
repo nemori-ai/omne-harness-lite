@@ -131,23 +131,23 @@ function request(
     },
   }
 }
-function planned(testCase: Case, parameters: ModelRequestParameters = {}) {
-  const { definition: selected, input } = request(testCase, parameters)
-  const result = planRequest(input, [selected])
+async function planned(testCase: Case, parameters: ModelRequestParameters = {}) {
+  const { definition: selected, input } = await request(testCase, parameters)
+  const result = await planRequest(input, [selected])
   if ('rejected' in result) throw new Error(result.rejected)
   return result.planned
 }
 
 describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
-  it.each(cases)('$id selects its exact route and keeps a marked user reminder', testCase => {
-    const { definition: selected } = request(testCase)
+  it.each(cases)('$id selects its exact route and keeps a marked user reminder', async testCase => {
+    const { definition: selected } = await request(testCase)
     expect(
       readModelDefinition([selected], {
         implementation: selected.implementation,
         definition: { modelId: selected.modelId, revision: selected.revision },
       }),
     ).toEqual({ ok: selected })
-    const plan = planned(testCase, { maxOutputTokens: 128 })
+    const plan = await planned(testCase, { maxOutputTokens: 128 })
     expect(plan.body.model).toBe(testCase.id)
     expect(plan.body.provider).toEqual({
       order: [testCase.provider],
@@ -168,19 +168,24 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
     expect(plan.body).not.toHaveProperty('reasoning')
   })
 
-  it.each(cases)('$id rejects the wrong provider and output beyond its fixture cap', testCase => {
-    const { definition: selected, input } = request(testCase)
-    expect(planRequest({ ...input, provider: 'other/route' }, [selected])).toEqual({
-      rejected: 'unavailable',
-    })
-    expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [selected])).toEqual({
-      rejected: 'invalidInput',
-      reason: 'malformed',
-    })
-    expect(planRequest(input, [])).toEqual({ rejected: 'unavailable' })
-  })
+  it.each(cases)(
+    '$id rejects the wrong provider and output beyond its fixture cap',
+    async testCase => {
+      const { definition: selected, input } = await request(testCase)
+      expect(await planRequest({ ...input, provider: 'other/route' }, [selected])).toEqual({
+        rejected: 'unavailable',
+      })
+      expect(
+        await planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [selected]),
+      ).toEqual({
+        rejected: 'invalidInput',
+        reason: 'malformed',
+      })
+      expect(await planRequest(input, [])).toEqual({ rejected: 'unavailable' })
+    },
+  )
 
-  it('leaves native fp8 caching automatic and forbids manual TTL controls', () => {
+  it('leaves native fp8 caching automatic and forbids manual TTL controls', async () => {
     for (const testCase of cases.filter(item => item.provider === 'z-ai/fp8')) {
       const selected = definition(testCase)
       expect(
@@ -193,14 +198,14 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
           testCase.provider,
         ),
       ).toEqual({ rejected: 'invalidInput' })
-      expect(planned(testCase).serialized).not.toContain('cache_control')
+      expect((await planned(testCase)).serialized).not.toContain('cache_control')
       const schema = configurationSchema(selected, testCase.provider)
       if ('rejected' in schema) throw new Error(schema.rejected)
       expect(JSON.stringify(schema.ok)).not.toContain('default')
     }
   })
 
-  it('keeps the observed Alibaba explicit shape caller-selected and rejects other TTLs/layouts', () => {
+  it('keeps the observed Alibaba explicit shape caller-selected and rejects other TTLs/layouts', async () => {
     const prime = cases[1]
     const selected = definition(prime)
     expect(interpretConfiguration(selected, values(prime), prime.provider)).toEqual({
@@ -215,7 +220,7 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
       expect(interpretConfiguration(selected, invalid, prime.provider)).toEqual({
         rejected: 'invalidInput',
       })
-    const plan = planned(prime)
+    const plan = await planned(prime)
     expect(plan.body.messages).toMatchObject([
       { role: 'system' },
       { role: 'user' },
@@ -227,21 +232,21 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
     expect(JSON.stringify(schema.ok)).not.toContain('default')
   })
 
-  it('passes only explicit, evidenced unified efforts and reports every dropped request', () => {
+  it('passes only explicit, evidenced unified efforts and reports every dropped request', async () => {
     for (const testCase of [cases[0], cases[1]]) {
       for (const effort of ['low', 'high', 'max'] as const)
-        expect(planned(testCase, { reasoningEffort: effort }).body.reasoning).toEqual({
+        expect((await planned(testCase, { reasoningEffort: effort })).body.reasoning).toEqual({
           effort,
         })
-      expect(planned(testCase, { reasoningEffort: 'medium' }).droppedParameters).toEqual([
+      expect((await planned(testCase, { reasoningEffort: 'medium' })).droppedParameters).toEqual([
         'reasoningEffort',
       ])
     }
-    expect(planned(cases[4], { reasoningEffort: 'high' }).body.reasoning).toEqual({
+    expect((await planned(cases[4], { reasoningEffort: 'high' })).body.reasoning).toEqual({
       effort: 'high',
     })
     for (const testCase of [cases[2], cases[3], cases[4]]) {
-      const result = planned(testCase, {
+      const result = await planned(testCase, {
         reasoningEffort: 'max',
         temperature: 0.5,
         topP: 0.9,
@@ -268,9 +273,9 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
     }
   })
 
-  it('replays paired tool results and opaque reasoning through the shared planner on every route', () => {
+  it('replays paired tool results and opaque reasoning through the shared planner on every route', async () => {
     for (const testCase of cases) {
-      const { definition: selected, input } = request(testCase)
+      const { definition: selected, input } = await request(testCase)
       const assistant = judged({
         type: 'assistant',
         id: 'assistant',
@@ -322,9 +327,10 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
           },
         ],
       })
-      const result = planRequest({ ...input, messages: [...input.messages, assistant, tool] }, [
-        selected,
-      ])
+      const result = await planRequest(
+        { ...input, messages: [...input.messages, assistant, tool] },
+        [selected],
+      )
       if ('rejected' in result) throw new Error(result.rejected)
       expect(result.planned.body.messages).toMatchObject([
         {},
@@ -352,7 +358,7 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
           { content: [{ text: 'ok', cache_control: { type: 'ephemeral', ttl: '5m' } }] },
         ])
       expect(
-        planRequest({ ...input, messages: [...input.messages, assistant] }, [selected]),
+        await planRequest({ ...input, messages: [...input.messages, assistant] }, [selected]),
       ).toEqual({
         rejected: 'orphan_tool_call',
       })
@@ -362,7 +368,7 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
   it.each(cases)(
     '$id sends the planned wire once and reads a local HTTPS stream',
     async testCase => {
-      const { definition: selected, input } = request(testCase, {
+      const { definition: selected, input } = await request(testCase, {
         maxOutputTokens: 64,
         ...(testCase.id === 'z-ai/glm-5.2' ? { reasoningEffort: 'high' } : {}),
       })
@@ -374,7 +380,7 @@ describe('Z.ai family routes: synthetic profiles and local HTTPS only', () => {
         [selected],
       )
       try {
-        const plan = host.transport.plan(input)
+        const plan = await host.transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in plan) throw new Error(plan.rejected)
         const signal = new AbortController().signal
         const sent = await host.transport.send(plan.planned, 'synthetic-zai-credential', signal)

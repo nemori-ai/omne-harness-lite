@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -153,9 +154,11 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
       try {
         for (const mixed of [false, true]) {
           const details = mixed ? [...visibleDetails, encrypted] : [encrypted]
-          const input = request(modelId, details, mixed)
+          const input = await request(modelId, details, mixed)
           const before = writeJsonLossless(input)
-          expect(transport.plan(input)).toEqual(unavailable)
+          expect(await transport.plan(input, { signal: new AbortController().signal })).toEqual(
+            unavailable,
+          )
           const projected = measured.at(-1)
           expect(projected?.body.messages).toContainEqual({
             role: 'assistant',
@@ -267,7 +270,7 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
         expect(service.registerAdaptation(selected, meter, {}, () => {})).toHaveProperty(
           'registered',
         )
-        const current = request(modelId, visibleDetails, true)
+        const current = await request(modelId, visibleDetails, true)
         expect(
           service.acquire(
             {

@@ -1,4 +1,5 @@
-import { directFull, directNew } from './direct-full-input.ts'
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
+import { basisFor, directFull, directNew } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
@@ -114,8 +115,16 @@ const full = (value: JsonObject) =>
     body: value,
     serialized: writeJsonLossless(value),
   })
-const plan = (value: PlanInput, meter = createOpenAiInputMeter(definition)) => {
-  const result = planRequest(value, [definition], meter)
+const plan = async (value: PlanInput, meter = createOpenAiInputMeter(definition)) => {
+  const result = await planRequest(
+    value,
+    [definition],
+    meter,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
   if ('rejected' in result) throw Error(JSON.stringify(result))
   return result.planned
 }
@@ -174,6 +183,7 @@ describe('Astra named patch rule, shared calculations and final visible projecti
       }
       expect(
         meter.measureReplay({
+          countingBasis: basisFor(meter),
           ...marginal,
           outputHistory: [],
           observation: {
@@ -290,12 +300,12 @@ describe('Astra actual image planner and public local TLS', () => {
       definitions: [definition],
       inputMeters: [bound],
     })
-    let next = request()
+    let next = await request()
     try {
       for (let round = 1; round <= 3; round++) {
         tokenized.length = 0
         const calls = measure.mock.calls.length
-        const p = plan(next, bound)
+        const p = await plan(next, bound)
         expect(p.measurement.mode).toBe(round === 1 ? 'full' : 'marginal')
         expect(p.inputLimitEvidence.images).toBe(round)
         expect(p.serialized).toContain(imageUrl('1024x1024.png'))
@@ -346,16 +356,18 @@ describe('Astra actual image planner and public local TLS', () => {
         }
       }
       expect(
-        plan(
-          {
-            ...next,
-            messages: [
-              ...next.messages.slice(0, 2),
-              visual('1x1.png', 'first'),
-              ...next.messages.slice(3),
-            ],
-          },
-          bound,
+        (
+          await plan(
+            {
+              ...next,
+              messages: [
+                ...next.messages.slice(0, 2),
+                visual('1x1.png', 'first'),
+                ...next.messages.slice(3),
+              ],
+            },
+            bound,
+          )
         ).measurement,
       ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
       if (
@@ -375,18 +387,20 @@ describe('Astra actual image planner and public local TLS', () => {
         replayRevision: 'visible-final-units-json-net-estimated/1',
       }
       expect(
-        plan(
-          {
-            ...next,
-            calibration: {
-              ...next.calibration,
-              inputCalibration: {
-                ...next.calibration.inputCalibration,
-                requestInput: { ...prior, countingBasis: old },
+        (
+          await plan(
+            {
+              ...next,
+              calibration: {
+                ...next.calibration,
+                inputCalibration: {
+                  ...next.calibration.inputCalibration,
+                  requestInput: { ...prior, countingBasis: old },
+                },
               },
             },
-          },
-          bound,
+            bound,
+          )
         ).measurement,
       ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
       expect(host.requests).toHaveLength(3)
@@ -395,15 +409,15 @@ describe('Astra actual image planner and public local TLS', () => {
       await host.close()
     }
   })
-  it('uses original bytes/images for exact cap checks and rejects bad images and opaque before HTTP', async () => {
+  it('checks fixed native bytes and rejects unreachable caps, bad images and opaque before HTTP', async () => {
     const host = await fixture(cert.tls, res => res.end(finish()), {}, undefined, [definition])
     const transport = createPiAiTransport({
       ...host.options,
       definitions: [definition],
       inputMeters: [createOpenAiInputMeter(definition)],
     })
-    const original = request()
-    const p = plan(original)
+    const original = await request()
+    const p = await plan(original)
     const length = bytes('1024x1024.png').length
     expect(p.inputLimitEvidence.imageBytes).toEqual([length])
     expect(p.inputLimitEvidence.requestBytes).toBe(Buffer.byteLength(p.serialized))
@@ -416,16 +430,18 @@ describe('Astra actual image planner and public local TLS', () => {
       },
     }
     expect(
-      planRequest(
+      await planRequest(
         { ...original, snapshot: limits },
         [definition],
         createOpenAiInputMeter(definition),
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toHaveProperty('planned')
     try {
       for (const inputConstraints of [
-        { ...limits.inputConstraints, maxImageBytes: length - 1 },
-        { ...limits.inputConstraints, maxRequestBytes: Buffer.byteLength(p.serialized) - 1 },
+        { ...limits.inputConstraints, maxImageBytes: 1 },
+        { ...limits.inputConstraints, maxRequestBytes: 1 },
       ]) {
         const result = await invokeModel({
           ...original,
@@ -435,7 +451,7 @@ describe('Astra actual image planner and public local TLS', () => {
           signal: new AbortController().signal,
           policy: policy(),
         }).outcome
-        expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_limit_exceeded' })
+        expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
       }
       expect(
         await invokeModel({

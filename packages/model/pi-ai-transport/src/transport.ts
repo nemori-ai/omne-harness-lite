@@ -4,6 +4,9 @@ import { Agent, type RequestOptions } from 'node:https'
 import type {
   TransportAdapter,
   TransportExecutionDiagnostics,
+  PlanExecutionContext,
+  PlanInput,
+  PlanResult,
 } from '@omne-harness-lite/model-request-runtime'
 import { planRequest, claimPlan, planAvailable, type PlannedRequest } from './plan.ts'
 import {
@@ -18,6 +21,10 @@ import { ownDefinitions, type ModelDefinition } from './definitions.ts'
 import { ownCredentialConfiguration } from './credential-policy.ts'
 import { connectionAdmission } from './connections.ts'
 import { meterMatches, ownInputMeter, type InputMeter } from './input-meter.ts'
+import { createImagePreparer } from './image-preparation/index.ts'
+import type { ImagePreparePolicy, LoadedImageCodec } from './image-preparation/types.ts'
+import { ownPolicy } from './image-preparation/validation.ts'
+import { createScopeCleaner } from './scope-cleanup.ts'
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/'
 export interface TransportOptions {
@@ -27,9 +34,15 @@ export interface TransportOptions {
   readonly tls?: Pick<RequestOptions, 'ca'>
   readonly definitions: readonly ModelDefinition[]
   readonly inputMeters: readonly InputMeter[]
+  /** Codec loading belongs to the assembly; null explicitly means unavailable. */
+  readonly imagePreparation?: {
+    readonly policy: ImagePreparePolicy
+    readonly codec: LoadedImageCodec | null
+  }
   readonly onDiagnostic?: (event: Diagnostic) => void | Promise<void>
 }
 export interface PiAiTransport extends TransportAdapter<PlannedRequest, RawResponse> {
+  readonly clearReuseScope: (scope: object) => void
   readonly close: () => Promise<void>
   readonly diagnostics: () => {
     readonly failed: number
@@ -46,6 +59,12 @@ export function createOwnedTransport(options: TransportOptions): {
   readonly transport: PiAiTransport
   readonly stopAdmission: () => void
   readonly claim: (planned: PlannedRequest) => void
+  readonly plan: (
+    input: PlanInput,
+    execution: PlanExecutionContext,
+    definitions: readonly ModelDefinition[],
+    meter: InputMeter | undefined,
+  ) => Promise<PlanResult<PlannedRequest>>
 } {
   const policy = Object.freeze({
     ...options.policy,
@@ -106,6 +125,24 @@ export function createOwnedTransport(options: TransportOptions): {
   }
   const owner = Object.freeze({})
   const claim = (planned: PlannedRequest) => claimPlan(planned, owner)
+  if (
+    options.imagePreparation !== undefined &&
+    (!options.imagePreparation ||
+      typeof options.imagePreparation !== 'object' ||
+      Object.keys(options.imagePreparation).length !== 2 ||
+      !Object.hasOwn(options.imagePreparation, 'policy') ||
+      !Object.hasOwn(options.imagePreparation, 'codec'))
+  )
+    throw new TypeError('explicit image policy and codec required')
+  const preparation =
+    options.imagePreparation === undefined || options.imagePreparation.codec === null
+      ? undefined
+      : createImagePreparer(options.imagePreparation.policy, options.imagePreparation.codec)
+  if (options.imagePreparation?.codec === null) ownPolicy(options.imagePreparation.policy)
+  const preparer = preparation && 'ready' in preparation ? preparation.ready : undefined
+  const scopeCleaner = createScopeCleaner(preparer ? [preparer] : [])
+  const planningController = new AbortController()
+  const planning = new Set<Promise<PlanResult<PlannedRequest>>>()
   const agent = new Agent({
     keepAlive: true,
     maxSockets: policy.maxConnections,
@@ -149,6 +186,7 @@ export function createOwnedTransport(options: TransportOptions): {
   const stopAdmission = () => {
     closed = true
     admission.close()
+    planningController.abort()
   }
   const resources: NetworkResources = {
     agent,
@@ -161,7 +199,8 @@ export function createOwnedTransport(options: TransportOptions): {
     diagnostic,
   }
   const transport: PiAiTransport = {
-    plan: input => {
+    clearReuseScope: scopeCleaner.clear,
+    plan: async (input, execution) => {
       if (closed) return { rejected: 'unavailable' }
       const definition = definitions.find(
         d =>
@@ -173,9 +212,7 @@ export function createOwnedTransport(options: TransportOptions): {
       const meter =
         definition &&
         inputMeters.find(candidate => meterMatches(candidate, definition, input.provider))
-      const result = planRequest(input, definitions, meter)
-      if ('planned' in result) claim(result.planned)
-      return result
+      return plan(input, execution, definitions, meter)
     },
     projectOutput: (planned, input) =>
       planAvailable(planned, owner, definitions, inputMeters)
@@ -195,11 +232,44 @@ export function createOwnedTransport(options: TransportOptions): {
       })
     },
     diagnostics: () => Object.freeze({ failed, pending, dropped }),
-    close: async () => {
-      stopAdmission()
-      agent.destroy()
-      await Promise.all([...active])
-    },
+    close: () => (closePromise ??= drain()),
   }
-  return { transport: Object.freeze(transport), stopAdmission, claim }
+  let closePromise: Promise<void> | undefined
+  async function drain(): Promise<void> {
+    stopAdmission()
+    agent.destroy()
+    await Promise.all([
+      ...(preparer ? [preparer.close()] : []),
+      scopeCleaner.drain(),
+      ...planning,
+      ...active,
+    ])
+  }
+  function plan(
+    input: PlanInput,
+    execution: PlanExecutionContext,
+    declarations: readonly ModelDefinition[],
+    meter: InputMeter | undefined,
+  ): Promise<PlanResult<PlannedRequest>> {
+    if (closed) return Promise.resolve({ rejected: 'unavailable' })
+    if (!execution || !(execution.signal instanceof AbortSignal))
+      return Promise.resolve({ rejected: 'invalidInput', reason: 'malformed' })
+    const completion = planRequest(
+      input,
+      declarations,
+      meter,
+      { ...execution, signal: AbortSignal.any([execution.signal, planningController.signal]) },
+      preparer,
+    ).then(result => {
+      if ('planned' in result) claim(result.planned)
+      return result
+    })
+    planning.add(completion)
+    const finished = () => {
+      planning.delete(completion)
+    }
+    void completion.then(finished, finished)
+    return completion
+  }
+  return { transport: Object.freeze(transport), stopAdmission, claim, plan }
 }

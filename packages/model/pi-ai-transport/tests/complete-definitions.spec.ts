@@ -1,3 +1,4 @@
+import { imagePreparation, testImagePreparerFor } from './image-transport-support.ts'
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { createRequire } from 'node:module'
 import {
@@ -62,7 +63,7 @@ async function onWire(value: ModelDefinition, parameters: ModelRequestParameters
   const host = await fixture(cert.tls, res => res.end(finish()), {}, undefined, [value])
   try {
     const request = { ...input(), parameters }
-    const result = host.transport.plan(request)
+    const result = await host.transport.plan(request, { signal: new AbortController().signal })
     if ('rejected' in result) throw new Error(result.rejected)
     const signal = new AbortController().signal
     const sent = await host.transport.send(
@@ -99,7 +100,7 @@ describe('D082 complete declarations and migration gates', () => {
     expect(() =>
       Reflect.apply(createPiAiTransport, undefined, [{ policy: networkPolicy }]),
     ).toThrow(TypeError)
-    expect(Reflect.apply(planRequest, undefined, [input()])).toEqual({
+    expect(await Reflect.apply(planRequest, undefined, [input()])).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
@@ -116,20 +117,27 @@ describe('D082 complete declarations and migration gates', () => {
       ]),
     ).toThrow(TypeError)
     expect(() => Reflect.apply(createModelPlugin, undefined, [old, retirement])).toThrow(TypeError)
-    expect(Reflect.apply(planRequest, undefined, [input(), officialModelIds])).toEqual({
+    expect(await Reflect.apply(planRequest, undefined, [input(), officialModelIds])).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     expect(Reflect.apply(service.registerAdaptation, undefined, [old, {}, () => {}])).toEqual({
       rejected: 'invalidInput',
     })
     await service.close(retirement)
-    const empty = createPiAiTransport({ policy: networkPolicy, definitions: [], inputMeters: [] })
-    expect(empty.plan(input())).toEqual({ rejected: 'unavailable' })
+    const empty = createPiAiTransport({
+      imagePreparation,
+      policy: networkPolicy,
+      definitions: [],
+      inputMeters: [],
+    })
+    expect(await empty.plan(input(), { signal: new AbortController().signal })).toEqual({
+      rejected: 'unavailable',
+    })
     await empty.close()
   })
-  it('rejects non-JSON definition collections without invoking accessors', () => {
+  it('rejects non-JSON definition collections without invoking accessors', async () => {
     let accessorReads = 0
     const accessor = [definition()]
     Object.defineProperty(accessor, '0', {
@@ -149,7 +157,7 @@ describe('D082 complete declarations and migration gates', () => {
           { policy: networkPolicy, definitions: values },
         ]),
       ).toThrow(TypeError)
-      expect(Reflect.apply(planRequest, undefined, [input(), values])).toEqual({
+      expect(await Reflect.apply(planRequest, undefined, [input(), values])).toEqual({
         rejected: 'invalidInput',
         reason: 'malformed',
       })
@@ -224,8 +232,8 @@ describe('D082 complete declarations and migration gates', () => {
         },
       }),
     },
-  ])('rejects $label without filling facts', ({ value }) => {
-    expect(Reflect.apply(planRequest, undefined, [input(), [value]])).toEqual({
+  ])('rejects $label without filling facts', async ({ value }) => {
+    expect(await Reflect.apply(planRequest, undefined, [input(), [value]])).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
@@ -299,7 +307,7 @@ describe('D082 complete declarations and migration gates', () => {
     const route = result.ok.routes.openai
     if (!route) throw new Error('missing observed route')
     expect(Reflect.set(route.parameters, 'temperature', { kind: 'drop' })).toBe(false)
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     expect(service.acquire(binding, definition().modelId)).toEqual({ rejected: 'unavailable' })
     expect(
       readModelDefinition(testDefinitions, {
@@ -327,7 +335,7 @@ describe('D082 complete declarations and migration gates', () => {
     expect(result.ok.modelId).toBe(definition().modelId)
   })
   it('does not let an earlier readable declaration acquire after retirement closes admission', async () => {
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const value = definition(),
       binding = input().snapshot.adaptation
     let cleaned = 0
@@ -572,16 +580,19 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
         const actual = 'ok' in interpretConfiguration(value, config, 'anthropic')
         expect(actual).toBe(validate(JSON.parse(writeJsonLossless(config))))
         const request = input(true)
-        const planned = host.transport.plan({
-          ...request,
-          snapshot: {
-            ...request.snapshot,
-            adaptation: {
-              ...request.snapshot.adaptation,
-              configuration: { revision: 'configuration-fixture', values: config },
+        const planned = await host.transport.plan(
+          {
+            ...request,
+            snapshot: {
+              ...request.snapshot,
+              adaptation: {
+                ...request.snapshot.adaptation,
+                configuration: { revision: 'configuration-fixture', values: config },
+              },
             },
           },
-        })
+          { signal: new AbortController().signal },
+        )
         expect('planned' in planned).toBe(actual)
         expect(host.requests).toHaveLength(0)
       }
@@ -589,16 +600,19 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
         cache: { mode: 'explicit', ttl: 'fixture-ttl-A', breakpoints: ['last_message'] },
       }
       const request = input(true)
-      const plan = host.transport.plan({
-        ...request,
-        snapshot: {
-          ...request.snapshot,
-          adaptation: {
-            ...request.snapshot.adaptation,
-            configuration: { revision: 'configuration-fixture', values: chosen },
+      const plan = await host.transport.plan(
+        {
+          ...request,
+          snapshot: {
+            ...request.snapshot,
+            adaptation: {
+              ...request.snapshot.adaptation,
+              configuration: { revision: 'configuration-fixture', values: chosen },
+            },
           },
         },
-      })
+        { signal: new AbortController().signal },
+      )
       if ('rejected' in plan) throw new Error(plan.rejected)
       const signal = new AbortController().signal
       const sent = await host.transport.send(plan.planned, 'synthetic-config-credential', signal)
@@ -624,7 +638,7 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
       b = definition(true).routes.anthropic
     if (!a || !b) throw new Error('missing routes')
     const value = { ...definition(), routes: { openai: a, anthropic: b } }
-    const service = createModelTransportService({ policy: networkPolicy })
+    const service = createModelTransportService({ imagePreparation, policy: networkPolicy })
     const registered = service.registerAdaptation(
       value,
       syntheticInputMeter(value, 'openai'),
@@ -636,11 +650,18 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
       acquired = service.acquire(request.snapshot.adaptation, request.routeName)
     if ('rejected' in acquired) throw new Error(acquired.rejected)
     expect(
-      acquired.lease.transport.plan({
-        ...request,
-        provider: 'anthropic',
-        snapshot: { ...request.snapshot, providers: ['openai', 'anthropic'], allowFallback: true },
-      }),
+      await acquired.lease.transport.plan(
+        {
+          ...request,
+          provider: 'anthropic',
+          snapshot: {
+            ...request.snapshot,
+            providers: ['openai', 'anthropic'],
+            allowFallback: true,
+          },
+        },
+        { signal: new AbortController().signal },
+      ),
     ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     expect(configurationSchema(value, 'missing')).toEqual({ rejected: 'unavailable' })
     expect(
@@ -655,9 +676,12 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
   })
   it('rejects plans signed by another static host and another dynamic lease', async () => {
     const host = await fixture(cert.tls, res => res.end(finish()))
-    const other = createPiAiTransport({ ...host.options, definitions: testDefinitions })
+    const other = createPiAiTransport({
+      ...host.options,
+      definitions: testDefinitions,
+    })
     try {
-      const original = host.transport.plan(input())
+      const original = await host.transport.plan(input(), { signal: new AbortController().signal })
       if ('rejected' in original) throw new Error(original.rejected)
       expect(
         await other.send(
@@ -682,21 +706,29 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
       definitions: [changed],
       inputMeters: [syntheticInputMeter(changed, 'openai')],
     })
-    const empty = createPiAiTransport({ ...host.options, definitions: [], inputMeters: [] })
+    const empty = createPiAiTransport({
+      ...host.options,
+      definitions: [],
+      inputMeters: [],
+    })
     try {
       const first = definition()
-      const pure = planRequest(
+      const pure = await planRequest(
         { ...input(), parameters: { temperature: 1 } },
         testDefinitions,
         syntheticInputMeter(first, 'openai'),
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       if ('rejected' in pure) throw new Error(pure.rejected)
       const signal = new AbortController().signal
       const foreignMeter = { ...syntheticInputMeter(first, 'openai') }
-      const foreign = planRequest(
+      const foreign = await planRequest(
         { ...input(), parameters: { temperature: 1 } },
         testDefinitions,
         foreignMeter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       if ('rejected' in foreign) throw new Error(foreign.rejected)
       expect(
@@ -724,7 +756,7 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
       await host.close()
     }
   })
-  it('keeps invalid configuration failures finite and free from original strings', () => {
+  it('keeps invalid configuration failures finite and free from original strings', async () => {
     const sentinel = 'configuration-secret-sentinel'
     const values = {
       cache: { mode: 'automatic', unknown: sentinel },
@@ -734,7 +766,7 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
     expect(result).toEqual({ rejected: 'invalidInput' })
     expect(writeJsonLossless(result)).not.toContain(sentinel)
     const request = input()
-    const plan = planRequest(
+    const plan = await planRequest(
       {
         ...request,
         snapshot: {
@@ -746,6 +778,9 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
         },
       },
       testDefinitions,
+      undefined,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     expect(plan).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     expect(writeJsonLossless(plan)).not.toContain(sentinel)
@@ -795,7 +830,10 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
         expect(service.registerAdaptation(changed, meter, owner, cleanup)).toEqual({
           rejected: 'invalidInput',
         })
-      const result = lease.transport.plan({ ...request, parameters: { temperature: 1 } })
+      const result = await lease.transport.plan(
+        { ...request, parameters: { temperature: 1 } },
+        { signal: new AbortController().signal },
+      )
       if ('rejected' in result) throw new Error(result.rejected)
       const before = result.planned.serialized
       expect(Reflect.set(source.capabilities, 'maxInputTokens', 4)).toBe(true)
@@ -806,10 +844,12 @@ describe('D082 route Schema, interpreter and admission have the same domain', ()
         }),
       ).toBe(true)
       expect(writeJsonLossless(result.planned.body)).toBe(before)
-      expect(lease.transport.plan(request)).toEqual({
-        rejected: 'invalidInput',
-        reason: 'malformed',
-      })
+      expect(await lease.transport.plan(request, { signal: new AbortController().signal })).toEqual(
+        {
+          rejected: 'invalidInput',
+          reason: 'malformed',
+        },
+      )
       const signal = new AbortController().signal
       const sent = await lease.transport.send(result.planned, 'synthetic-owned-credential', signal)
       if (!('response' in sent)) throw new Error('send failed')

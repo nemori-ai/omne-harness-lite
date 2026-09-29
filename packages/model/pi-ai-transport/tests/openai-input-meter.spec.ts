@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull, directNew } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -301,7 +302,7 @@ describe('OpenAI model-specific input estimator', () => {
     }
   })
 
-  it('admits a real projected developer reminder and image, with external margin and exact bytes', () => {
+  it('admits a real projected developer reminder and image, with external margin and exact bytes', async () => {
     const selected = definition(baseModel)
     const profile = createOfficialProfileContent(selected, {
       providers: ['openai'],
@@ -352,7 +353,15 @@ describe('OpenAI model-specific input estimator', () => {
       },
     }
     const meter = createOpenAiInputMeter(selected)
-    const planned = planRequest(input, [selected], meter)
+    const planned = await planRequest(
+      input,
+      [selected],
+      meter,
+      {
+        signal: new AbortController().signal,
+      },
+      testImagePreparerFor(planRequest),
+    )
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     expect(planned.planned.body.messages).toContainEqual({
       role: 'developer',
@@ -367,10 +376,12 @@ describe('OpenAI model-specific input estimator', () => {
     expect(planned.planned.inputLimitEvidence.requestBytes).toBe(
       Buffer.byteLength(planned.planned.serialized),
     )
-    const refused = planRequest(
+    const refused = await planRequest(
       { ...input, tokenMargin: { multiplier: 1, reserveTokens: 922000 } },
       [selected],
       meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     expect(refused).toMatchObject({
       rejected: 'invalidInput',
@@ -525,7 +536,7 @@ describe('OpenAI model-specific input estimator', () => {
             upstreamInputLimits: profile.ok.upstreamInputLimits,
           },
         }
-        const planned = transport.plan(input)
+        const planned = await transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
         expect(planned.planned.serialized).toContain('"reasoning_details"')
@@ -552,7 +563,10 @@ describe('OpenAI model-specific input estimator', () => {
             ],
           })
           expect(
-            transport.plan({ ...input, messages: [...original.messages, animated] }),
+            await transport.plan(
+              { ...input, messages: [...original.messages, animated] },
+              { signal: new AbortController().signal },
+            ),
           ).toMatchObject({
             rejected: 'invalidInput',
             reason: 'input_size_unavailable',
@@ -578,10 +592,13 @@ describe('OpenAI model-specific input estimator', () => {
             },
           ],
         })
-        const foreign = transport.plan({
-          ...input,
-          messages: [...original.messages, foreignThinking],
-        })
+        const foreign = await transport.plan(
+          {
+            ...input,
+            messages: [...original.messages, foreignThinking],
+          },
+          { signal: new AbortController().signal },
+        )
         if ('rejected' in foreign) throw new Error(JSON.stringify(foreign))
         expect(foreign.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
         expect(foreign.planned.serialized).not.toContain('reasoning_details')
@@ -673,14 +690,19 @@ describe('OpenAI model-specific input estimator', () => {
           ],
         })
         expect(
-          lease.lease.transport.plan({ ...input, messages: [...input.messages, visual] }),
+          await lease.lease.transport.plan(
+            { ...input, messages: [...input.messages, visual] },
+            { signal: new AbortController().signal },
+          ),
         ).toMatchObject({
           rejected: 'invalidInput',
           reason: 'input_size_unavailable',
-          metrics: ['maxInputTokens'],
+          metrics: ['maxImageBytes'],
         })
         expect(host.requests).toHaveLength(0)
-        const planned = lease.lease.transport.plan(input)
+        const planned = await lease.lease.transport.plan(input, {
+          signal: new AbortController().signal,
+        })
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
         const signal = new AbortController().signal

@@ -5,6 +5,7 @@ export {
   type PiAiTransport,
 } from './transport.ts'
 export { planRequest, PI_AI_CARRIABLE_MODALITIES, type PlannedRequest } from './plan.ts'
+export * from './image-preparation/index.ts'
 export {
   composeTransformRevision,
   inspectTransformRevision,

@@ -12,7 +12,7 @@ import { ownCalibration } from '../calibration.ts'
 import { object } from '../json.ts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from '../projection.ts'
 import type { InputMeter, MeterContribution } from '../input-meter.ts'
-import { inspectTransformRevision } from '../meter-transform.ts'
+import { ownBasis, relateMeterBases, type OriginalBasisApplies } from '../meter-transform.ts'
 
 export const openAi56ReplayModels: ReadonlySet<string> = new Set([
   'openai/gpt-5.6-sol',
@@ -48,6 +48,27 @@ const sourceBindings = [
   },
 ] as const
 const efforts = ['none', 'low', 'medium', 'high', 'max']
+function originalBasisApplies(meter: InputMeter): OriginalBasisApplies {
+  return (basis, base) => {
+    const row = sourceBindings.find(
+      item =>
+        item.definition === basis.binding.definition.revision &&
+        item.implementation === basis.binding.implementation.revision,
+    )
+    return (
+      !!row &&
+      base.base === 'openrouter-wire/2' &&
+      basis.model === meter.modelId &&
+      basis.provider === 'openai' &&
+      basis.binding.definition.modelId === meter.modelId &&
+      basis.binding.implementation.name === meter.implementation.name &&
+      basis.tokenizerRevision === OPENAI_56_TOKENIZER_REVISION &&
+      basis.meterRevision === row.algorithm &&
+      basis.replayRevision === row.replay &&
+      basis.projectionRevision === INPUT_PROJECTION_REVISION
+    )
+  }
+}
 
 /** Shared O+0 estimate; this makes no exact output/input-token equality claim. */
 export function estimateOpenAi56Group(input: unknown, meter: InputMeter): MeterContribution {
@@ -60,6 +81,9 @@ export function estimateOpenAi56Group(input: unknown, meter: InputMeter): MeterC
     const value = copied.ok
     const source = ownCalibration(value.observation)
     if (!source || source.kind !== 'observation') return unavailable
+    const current = ownBasis(value.countingBasis)
+    if (!current || relateMeterBases(current, undefined, meter).kind !== 'currentOnly')
+      return unavailable
     const {
       requestInput: request,
       observedInput: observed,
@@ -125,6 +149,12 @@ export function estimateOpenAi56Group(input: unknown, meter: InputMeter): MeterC
     )
       return unavailable
     const basis = request.kind === 'known' ? request.countingBasis : undefined
+    const relation =
+      basis === undefined
+        ? undefined
+        : relateMeterBases(current, basis, meter, originalBasisApplies(meter))
+    if (relation && relation.kind !== 'sameEffective' && relation.kind !== 'changedEffective')
+      return unavailable
     const binding = origin?.adaptation ?? basis?.binding
     if (!object(binding) || !object(binding.definition) || !object(binding.implementation))
       return unavailable
@@ -143,10 +173,6 @@ export function estimateOpenAi56Group(input: unknown, meter: InputMeter): MeterC
         (basis.model !== meter.modelId ||
           basis.provider !== 'openai' ||
           canonicalProjection(basis.binding) !== canonicalProjection(binding) ||
-          basis.tokenizerRevision !== OPENAI_56_TOKENIZER_REVISION ||
-          basis.meterRevision !== original.algorithm ||
-          basis.replayRevision !== original.replay ||
-          inspectTransformRevision(basis.transformRevision, 'openrouter-wire/2').kind !== 'known' ||
           basis.projectionRevision !== INPUT_PROJECTION_REVISION)) ||
       (origin &&
         (origin.provider !== 'openai' ||
@@ -291,6 +317,23 @@ export function estimateOpenAi56Replay(input: unknown, meter: InputMeter): Meter
   const copied = copyJsonValue(input)
   if ('failed' in copied || !object(copied.ok)) return { kind: 'unavailable' }
   const value = copied.ok
+  const source = ownCalibration(value.observation)
+  const current = ownBasis(value.countingBasis)
+  if (
+    !source ||
+    source.kind !== 'observation' ||
+    !current ||
+    source.inputCalibration.requestInput.kind !== 'known'
+  )
+    return { kind: 'unavailable' }
+  const relation = relateMeterBases(
+    current,
+    source.inputCalibration.requestInput.countingBasis,
+    meter,
+    originalBasisApplies(meter),
+  )
+  if (relation.kind !== 'sameEffective')
+    return { kind: relation.kind === 'invalidInput' ? 'invalidInput' : 'unavailable' }
   if (!Array.isArray(value.outputHistory) || value.outputHistory.length > 1)
     return { kind: 'unavailable' }
   const history = value.outputHistory[0]
@@ -302,6 +345,7 @@ export function estimateOpenAi56Replay(input: unknown, meter: InputMeter): Meter
       unitIndices: value.unitIndices,
       selectionSpans: value.selectionSpans,
       precedingUnitCount: value.precedingUnitCount,
+      countingBasis: value.countingBasis,
       ...(history === undefined ? {} : { history }),
     },
     meter,

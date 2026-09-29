@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -114,11 +115,12 @@ describe('DeepSeek V4 public encoder projection', () => {
     }
     const meter = createDeepSeekV4ProInputMeter(definition)
     const transport = createPiAiTransport({
+      imagePreparation,
       policy: networkPolicy,
       definitions: [definition],
       inputMeters: [meter],
     })
-    const result = transport.plan(plannedInput)
+    const result = await transport.plan(plannedInput, { signal: new AbortController().signal })
     await transport.close()
     if ('rejected' in result) throw new Error(JSON.stringify(result))
     expect(result.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')

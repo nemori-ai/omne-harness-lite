@@ -73,7 +73,7 @@ function fixture(modelId: string, route: ModelRoute): ModelDefinition {
     routes: { [provider]: route },
   }
 }
-function prepared(
+async function prepared(
   modelId: string,
   route: ModelRoute,
   parameters: ModelRequestParameters = {},
@@ -121,14 +121,14 @@ function prepared(
     messages: [message('system'), message('system_reminder'), message('user')],
     tools: [],
   }
-  return { definition, profile, input, result: planRequest(input, [definition]) }
+  return { definition, profile, input, result: await planRequest(input, [definition]) }
 }
 
 describe('four Anthropic routes in offline synthetic profiles', () => {
   it.each(routes)(
     '%s keeps its exact route, user reminder and explicit 1h cache on the wire',
-    (id, route) => {
-      const { definition, profile, result } = prepared(id, route, {
+    async (id, route) => {
+      const { definition, profile, result } = await prepared(id, route, {
         reasoningEffort: 'high',
         maxOutputTokens: 64,
         stopSequences: ['STOP'],
@@ -177,41 +177,44 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
     },
   )
 
-  it.each(routes)('%s requires caller TTL/layout and refuses unrepresented 5m', (id, route) => {
-    const { definition } = prepared(id, route)
-    const schema = configurationSchema(definition, provider)
-    if ('rejected' in schema) throw new Error(schema.rejected)
-    expect(JSON.stringify(schema.ok)).not.toContain('default')
-    expect(
-      interpretConfiguration(
-        definition,
-        { cache: { mode: 'explicit', ttl: '1h', breakpoints: ['last_message'] } },
-        provider,
-      ),
-    ).toEqual({
-      ok: { mode: 'explicit', ttl: '1h', breakpoints: ['last_message'] },
-    })
-    for (const cache of [
-      { mode: 'explicit', breakpoints: ['last_message'] },
-      { mode: 'explicit', ttl: '5m', breakpoints: ['last_message'] },
-      { mode: 'explicit', ttl: '1h', breakpoints: ['system'] },
-      { mode: 'explicit', ttl: '1h', breakpoints: ['last_message', 'system'] },
-      { mode: 'automatic' },
-    ]) {
-      expect(interpretConfiguration(definition, { cache }, provider)).toEqual({
-        rejected: 'invalidInput',
+  it.each(routes)(
+    '%s requires caller TTL/layout and refuses unrepresented 5m',
+    async (id, route) => {
+      const { definition } = await prepared(id, route)
+      const schema = configurationSchema(definition, provider)
+      if ('rejected' in schema) throw new Error(schema.rejected)
+      expect(JSON.stringify(schema.ok)).not.toContain('default')
+      expect(
+        interpretConfiguration(
+          definition,
+          { cache: { mode: 'explicit', ttl: '1h', breakpoints: ['last_message'] } },
+          provider,
+        ),
+      ).toEqual({
+        ok: { mode: 'explicit', ttl: '1h', breakpoints: ['last_message'] },
       })
-      expect(prepared(id, route, {}, cache).result).toEqual({
-        rejected: 'invalidInput',
-        reason: 'malformed',
-      })
-    }
-  })
+      for (const cache of [
+        { mode: 'explicit', breakpoints: ['last_message'] },
+        { mode: 'explicit', ttl: '5m', breakpoints: ['last_message'] },
+        { mode: 'explicit', ttl: '1h', breakpoints: ['system'] },
+        { mode: 'explicit', ttl: '1h', breakpoints: ['last_message', 'system'] },
+        { mode: 'automatic' },
+      ]) {
+        expect(interpretConfiguration(definition, { cache }, provider)).toEqual({
+          rejected: 'invalidInput',
+        })
+        expect((await prepared(id, route, {}, cache)).result).toEqual({
+          rejected: 'invalidInput',
+          reason: 'malformed',
+        })
+      }
+    },
+  )
 
   it.each(routes)(
     '%s exposes a bounded parameter subset and rejects a wrong route',
-    (id, route) => {
-      const { definition, input, result } = prepared(id, route, {
+    async (id, route) => {
+      const { definition, input, result } = await prepared(id, route, {
         reasoningEffort: 'none',
         temperature: 0.5,
         topP: 0.5,
@@ -233,18 +236,18 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
       ])
       expect(result.planned.serialized).not.toContain('private-user-value')
       expect(result.planned.body).not.toHaveProperty('reasoning')
-      expect(planRequest({ ...input, provider: 'anthropic/other' }, [definition])).toEqual({
+      expect(await planRequest({ ...input, provider: 'anthropic/other' }, [definition])).toEqual({
         rejected: 'unavailable',
       })
-      expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual(
-        { rejected: 'invalidInput', reason: 'malformed' },
-      )
+      expect(
+        await planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition]),
+      ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     },
   )
 
   it.each([routes[0], routes[3]])(
     '%s replays same-route signed thinking and paired tools without rewriting them',
-    (id, route) => {
+    async (id, route) => {
       const details = [
         {
           type: 'reasoning.encrypted',
@@ -301,8 +304,8 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
           },
         ],
       })
-      const { definition, input } = prepared(id, route)
-      const result = planRequest({ ...input, messages: [assistant, tool, message('user')] }, [
+      const { definition, input } = await prepared(id, route)
+      const result = await planRequest({ ...input, messages: [assistant, tool, message('user')] }, [
         definition,
       ])
       if ('rejected' in result) throw new Error(result.rejected)
@@ -316,11 +319,11 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
       ])
       expect(writeJsonLossless(result.planned.body.messages)).toContain('9007199254740993')
       expect(writeJsonLossless(result.planned.body.messages)).toContain('synthetic-signature')
-      expect(planRequest({ ...input, messages: [assistant] }, [definition])).toEqual({
+      expect(await planRequest({ ...input, messages: [assistant] }, [definition])).toEqual({
         rejected: 'orphan_tool_call',
       })
-      const changed = prepared('anthropic/other-claimed-route', route)
-      const different = planRequest({ ...changed.input, messages: [assistant, tool] }, [
+      const changed = await prepared('anthropic/other-claimed-route', route)
+      const different = await planRequest({ ...changed.input, messages: [assistant, tool] }, [
         changed.definition,
       ])
       if ('rejected' in different) throw new Error(different.rejected)
@@ -331,7 +334,10 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
 
 describe('Anthropic route through the public invocation and controlled HTTPS transport', () => {
   it('sends the pinned provider, reminder and configured breakpoint once, then consumes the stream', async () => {
-    const { definition, input } = prepared('anthropic/claude-opus-5.5', claudeOpus55AnthropicRoute)
+    const { definition, input } = await prepared(
+      'anthropic/claude-opus-5.5',
+      claudeOpus55AnthropicRoute,
+    )
     const cert = certificate()
     const host = await httpsFixture(
       cert.tls,

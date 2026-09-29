@@ -12,6 +12,7 @@ import { ownCredentialConfiguration } from './credential-policy.ts'
 import type { Diagnostic } from './http.ts'
 import type { DiagnosticEmitter } from '@omne-harness-lite/model-request-runtime'
 import { inputMeterValid, type InputMeter } from './input-meter.ts'
+import type { ImagePreparePolicy, LoadedImageCodec } from './image-preparation/types.ts'
 
 export const MODEL_TRANSPORT_SERVICE = 'modelTransport'
 function isService(value: unknown): value is ModelTransportService {
@@ -22,6 +23,8 @@ function isService(value: unknown): value is ModelTransportService {
     typeof value === 'object' &&
     'registerAdaptation' in value &&
     typeof value.registerAdaptation === 'function' &&
+    'clearReuseScope' in value &&
+    typeof value.clearReuseScope === 'function' &&
     'acquire' in value &&
     typeof value.acquire === 'function' &&
     'retire' in value &&
@@ -82,6 +85,13 @@ const configuration = z
       })
       .strict(),
     retirement,
+    imagePreparation: z
+      .object({
+        policy: z.custom<ImagePreparePolicy>(value => !!value && typeof value === 'object'),
+        codec: z.custom<LoadedImageCodec>(value => !!value && typeof value === 'object').nullable(),
+      })
+      .strict()
+      .optional(),
     onDiagnostic: z
       .custom<(event: Diagnostic) => void | Promise<void>>(value => typeof value === 'function')
       .optional(),
@@ -102,6 +112,7 @@ export const piAiTransportPlugin = definePlugin({
   apply(ctx, config) {
     const service = createModelTransportService({
       policy: config.policy,
+      ...(config.imagePreparation ? { imagePreparation: config.imagePreparation } : {}),
       ...(config.onDiagnostic ? { onDiagnostic: config.onDiagnostic } : {}),
       ...(config.registryDiagnostics ? { registryDiagnostics: config.registryDiagnostics } : {}),
     })

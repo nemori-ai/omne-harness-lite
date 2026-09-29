@@ -29,6 +29,8 @@ import {
   meterContributionValid,
   tokenMeasurementValid,
   admissionTokens,
+  measureReplay,
+  measureNew,
   type InputMeter,
   type TokenMeasurement,
   type MarginalMeterInput,
@@ -38,6 +40,7 @@ import {
 import { object } from './json.ts'
 import type { HistorySelectionSpan } from './input-meter.ts'
 import type { MessageSpan } from './history-projection.ts'
+import { relateMeterBases } from './meter-transform.ts'
 
 export function ownCalibration(raw: unknown): PlanCalibration | undefined {
   const c = copyJsonValue(raw)
@@ -169,21 +172,9 @@ export function measureCalibrated(
     const source = calibration.inputCalibration
     const original = source.requestInput
     const observed = source.observedInput
-    if (original.kind !== 'known' || observed.kind === 'unavailable') fallback = 'no_observation'
-    else if (
-      canonicalProjection(original.countingBasis) !== canonicalProjection(basis) ||
-      original.projectionRevision !== projection.requestInput.projectionRevision ||
-      observed.provenance.adapterRevision !== readerRevision(scope) ||
-      (observed.provenance.upstreamModel !== undefined &&
-        observed.provenance.upstreamModel !== basis.model) ||
-      (observed.provenance.servingProvider !== undefined &&
-        observed.provenance.servingProvider !== basis.provider &&
-        !(basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic') &&
-        !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI') &&
-        !(deepSeekBoundaryRoute(input) && observed.provenance.servingProvider === 'DeepInfra'))
-    )
-      fallback = 'basis_changed'
-    else if (scope === 'scope_unknown') fallback = 'source_unavailable'
+    if (scope === 'scope_unknown') fallback = 'source_unavailable'
+    else if (original.kind !== 'known' || observed.kind === 'unavailable')
+      fallback = 'no_observation'
     else {
       const count = ExactDecimal.from(original.prefixBoundary)
       const n = Number(count.toString())
@@ -194,6 +185,21 @@ export function measureCalibrated(
         original.prefixDigest !== prefixDigest(projection.units.slice(0, n))
       )
         fallback = 'prefix_changed'
+      else if (
+        relateMeterBases(basis, original.countingBasis, meter).kind !== 'sameEffective' ||
+        original.projectionRevision !== projection.requestInput.projectionRevision ||
+        observed.provenance.adapterRevision !== readerRevision(scope) ||
+        (observed.provenance.upstreamModel !== undefined &&
+          observed.provenance.upstreamModel !== basis.model) ||
+        (observed.provenance.servingProvider !== undefined &&
+          observed.provenance.servingProvider !== basis.provider &&
+          !(
+            basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic'
+          ) &&
+          !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI') &&
+          !(deepSeekBoundaryRoute(input) && observed.provenance.servingProvider === 'DeepInfra'))
+      )
+        fallback = 'basis_changed'
       else {
         const g = new Set<number>()
         const selectionSpans: ReplayMeterInput['selectionSpans'][number][] = []
@@ -305,7 +311,8 @@ export function measureCalibrated(
             }
             const phi =
               replay.length || boundary?.replay.added !== boundary?.replay.removed
-                ? meter.measureReplay(
+                ? measureReplay(
+                    meter,
                     Object.freeze({
                       ...arg(replay, boundary?.replay),
                       countingBasis: basis,
@@ -327,7 +334,7 @@ export function measureCalibrated(
             })
             const delta =
               fresh.length || boundary?.fresh.added !== boundary?.fresh.removed
-                ? meter.measureNew(newInput)
+                ? measureNew(meter, newInput)
                 : { kind: 'exact' as const, tokens: 0 }
             if (
               meterContributionValid(phi) &&

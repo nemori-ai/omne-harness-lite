@@ -104,8 +104,8 @@ function request(
 }
 
 describe.each(routes)('%s xai route (synthetic offline capability fixture)', (modelId, route) => {
-  it('uses an exact xai binding, marked user reminder, and automatic cache without manual controls', () => {
-    const { definition, input } = request(modelId, route)
+  it('uses an exact xai binding, marked user reminder, and automatic cache without manual controls', async () => {
+    const { definition, input } = await request(modelId, route)
     expect(
       readModelDefinition([definition], {
         implementation: definition.implementation,
@@ -118,7 +118,7 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
     const schema = configurationSchema(definition, provider)
     if ('rejected' in schema) throw new Error(schema.rejected)
     expect(JSON.stringify(schema.ok)).not.toContain('default')
-    const result = planRequest(input, [definition])
+    const result = await planRequest(input, [definition])
     if ('rejected' in result) throw new Error(result.rejected)
     expect(result.planned.body.model).toBe(modelId)
     expect(result.planned.body.provider).toEqual({
@@ -142,20 +142,20 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
     expect(result.planned.body).not.toHaveProperty('reasoning')
   })
 
-  it('passes only representable xAI efforts and original output count; traces supplied drops', () => {
+  it('passes only representable xAI efforts and original output count; traces supplied drops', async () => {
     for (const effort of ['low', 'medium', 'high'] as const) {
-      const { definition, input } = request(modelId, route, {
+      const { definition, input } = await request(modelId, route, {
         reasoningEffort: effort,
         maxOutputTokens: 64,
       })
-      const result = planRequest(input, [definition])
+      const result = await planRequest(input, [definition])
       if ('rejected' in result) throw new Error(result.rejected)
       expect(result.planned.parameters).toEqual({ reasoningEffort: effort, maxOutputTokens: 64 })
       expect(result.planned.body.reasoning).toEqual({ effort })
       expect(result.planned.body.max_tokens).toBe(64)
       expect(result.planned.droppedParameters).toBeUndefined()
     }
-    const { definition, input } = request(modelId, route, {
+    const { definition, input } = await request(modelId, route, {
       reasoningEffort: 'max',
       temperature: 0.5,
       topP: 0.5,
@@ -166,7 +166,7 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
       presencePenalty: 1,
       extra: { unknown_xai_key: true },
     })
-    const result = planRequest(input, [definition])
+    const result = await planRequest(input, [definition])
     if ('rejected' in result) throw new Error(result.rejected)
     expect(result.planned.parameters).toEqual({ maxOutputTokens: 64 })
     expect(result.planned.droppedParameters).toEqual([
@@ -184,8 +184,8 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
     expect(result.planned.serialized).not.toContain('unknown_xai_key')
   })
 
-  it('replays same-route reasoning details and completed tool history without rewriting arguments', () => {
-    const { definition, input } = request(modelId, route, { reasoningEffort: 'high' })
+  it('replays same-route reasoning details and completed tool history without rewriting arguments', async () => {
+    const { definition, input } = await request(modelId, route, { reasoningEffort: 'high' })
     const opaque = toOpaqueJson({
       routeName: modelId,
       reasoning_details: [{ type: 'reasoning.text', text: 'prior thought', signature: 'opaque' }],
@@ -239,7 +239,7 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
         },
       ],
     })
-    const result = planRequest({ ...input, messages: [assistant, tool] }, [definition])
+    const result = await planRequest({ ...input, messages: [assistant, tool] }, [definition])
     if ('rejected' in result) throw new Error(result.rejected)
     expect(result.planned.body.messages).toMatchObject([
       {
@@ -254,13 +254,13 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
       },
       { role: 'tool', tool_call_id: expect.stringMatching(/^call_/), content: 'found' },
     ])
-    expect(planRequest({ ...input, messages: [assistant] }, [definition])).toEqual({
+    expect(await planRequest({ ...input, messages: [assistant] }, [definition])).toEqual({
       rejected: 'orphan_tool_call',
     })
   })
 
   it('sends one controlled HTTPS request and preserves streamed reasoning for later replay', async () => {
-    const { definition, input } = request(modelId, route, { reasoningEffort: 'medium' })
+    const { definition, input } = await request(modelId, route, { reasoningEffort: 'medium' })
     const host = await fixture(
       cert.tls,
       res =>
@@ -317,8 +317,8 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
     }
   })
 
-  it('rejects explicit cache controls, another provider and output beyond the fixture profile', () => {
-    const { definition, input } = request(modelId, route)
+  it('rejects explicit cache controls, another provider and output beyond the fixture profile', async () => {
+    const { definition, input } = await request(modelId, route)
     for (const values of [
       {},
       { cache: { mode: 'explicit', ttl: '5m', breakpoints: ['system'] } },
@@ -328,7 +328,7 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
         rejected: 'invalidInput',
       })
       expect(
-        planRequest(
+        await planRequest(
           {
             ...input,
             snapshot: {
@@ -343,10 +343,14 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
         ),
       ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     }
-    expect(planRequest({ ...input, provider: 'amazon-bedrock/us-west-2' }, [definition])).toEqual({
+    expect(
+      await planRequest({ ...input, provider: 'amazon-bedrock/us-west-2' }, [definition]),
+    ).toEqual({
       rejected: 'unavailable',
     })
-    expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual({
+    expect(
+      await planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition]),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })

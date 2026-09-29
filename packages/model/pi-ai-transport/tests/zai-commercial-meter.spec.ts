@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -201,12 +202,14 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
     }
   })
 
-  it.each(ids)('%s plans complete text/tool history with caller margin', modelId => {
+  it.each(ids)('%s plans complete text/tool history with caller margin', async modelId => {
     const input = publicInput(modelId)
-    const planned = planRequest(
+    const planned = await planRequest(
       input,
       [definition(modelId)],
       createZaiCommercialInputMeter(definition(modelId)),
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
     const { body, serialized, inputLimitEvidence } = planned.planned
@@ -232,12 +235,14 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
     expect(serialized.includes('cache_control')).toBe(modelId === 'z-ai/glm-5.3-prime')
   })
 
-  it.each(ids)('%s refuses an estimated cap breach with estimated metadata', modelId => {
+  it.each(ids)('%s refuses an estimated cap breach with estimated metadata', async modelId => {
     const input = publicInput(modelId, { multiplier: 10000, reserveTokens: 0 })
-    const result = planRequest(
+    const result = await planRequest(
       input,
       [definition(modelId)],
       createZaiCommercialInputMeter(definition(modelId)),
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
     )
     expect(result).toMatchObject({
       rejected: 'invalidInput',
@@ -247,7 +252,7 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
     })
   })
 
-  it.each(ids)('%s retains plain and opaque reasoning history on rejection', modelId => {
+  it.each(ids)('%s retains plain and opaque reasoning history on rejection', async modelId => {
     const selected = definition(modelId)
     const original = createZaiCommercialInputMeter(selected)
     for (const opaque of [false, true]) {
@@ -299,13 +304,15 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
           return original.measureFull(request)
         },
       }
-      const result = planRequest(
+      const result = await planRequest(
         {
           ...input,
           messages: input.messages.map((item, index) => (index === 2 ? assistant : item)),
         },
         [selected],
         observing,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       expect(result).toEqual({
         rejected: 'invalidInput',
@@ -344,7 +351,15 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
         ...base,
         parameters: { ...base.parameters, ...(effort ? { reasoningEffort: effort } : {}) },
       }
-      const planned = planRequest(input, [selected], meter)
+      const planned = await planRequest(
+        input,
+        [selected],
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       if (effort) {
         expect(planned.planned.body.reasoning).toEqual({ effort })

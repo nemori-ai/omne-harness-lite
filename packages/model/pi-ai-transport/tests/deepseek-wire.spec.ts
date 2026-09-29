@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -153,7 +154,7 @@ describe('DeepSeek official meters through public HTTPS transport', () => {
       })
       try {
         const result = await invokeModel({
-          ...request(route.definition, route.configuration),
+          ...(await request(route.definition, route.configuration)),
           transport,
           credential: 'offline-test-credential',
           signal: new AbortController().signal,
@@ -257,13 +258,13 @@ describe('DeepSeek official meters through public HTTPS transport', () => {
       blocks: [{ id: 'answer', kind: 'text', text: 'I saw red.', visibility: visible }],
     })
     const current = imageTurn('current-blue', blue, 'Compare this second image with the first.')
-    const base = request(definition, deepseekV41FlashConfiguration)
+    const base = await request(definition, deepseekV41FlashConfiguration)
     const plannedInput = {
       ...base,
       messages: [...base.messages, earlier, intervening, current],
     }
     try {
-      const planned = transport.plan(plannedInput)
+      const planned = await transport.plan(plannedInput, { signal: new AbortController().signal })
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       expect(planned.planned.inputLimitEvidence.images).toBe(2)
       expect(planned.planned.inputLimitEvidence.imageBytes).toEqual([red.length, blue.length])

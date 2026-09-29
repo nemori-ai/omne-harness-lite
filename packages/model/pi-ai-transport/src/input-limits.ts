@@ -64,7 +64,10 @@ export function missingInputLimits(
   }
 }
 
-function finiteLimits(snapshot: ModelProfileSnapshot, metric: Metric): readonly JsonNumber[] {
+export function finiteLimits(
+  snapshot: ModelProfileSnapshot,
+  metric: Metric,
+): readonly JsonNumber[] {
   const supply =
     metric === 'maxInputTokens'
       ? snapshot.maxInputTokens

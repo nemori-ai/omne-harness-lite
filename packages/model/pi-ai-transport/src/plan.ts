@@ -17,6 +17,8 @@ import type {
   PlanInput,
   PlanResult,
   PlannedSemantics,
+  PlanExecutionContext,
+  PlanFailure,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   judgeModelProfileDocument,
@@ -36,7 +38,17 @@ import { interpretConfiguration } from './configuration.ts'
 import { object, ownedObject } from './json.ts'
 import { ownPlanInput, preflightInputWithMissingLimits } from './input.ts'
 import { checkFinalInput, missingInputLimits, type FinalInputEvidence } from './input-limits.ts'
-import { ownInputMeter, meterSource, type InputMeter } from './input-meter.ts'
+import {
+  ownInputMeter,
+  meterSource,
+  meterMatches,
+  measureFull,
+  type InputMeter,
+} from './input-meter.ts'
+import { preparePlanImages } from './prepare-plan.ts'
+import type { ImagePreparer } from './image-preparation/types.ts'
+import { isImagePreparer } from './image-preparation/preparer.ts'
+import { inspectTransformRevision } from './meter-transform.ts'
 
 export interface PlannedRequest extends PlannedSemantics {
   readonly body: JsonObject
@@ -126,11 +138,23 @@ function addBreakpoint(message: MutableObject, control: JsonObject): void {
     }
   }
 }
-export function planRequest(
+export async function planRequest(
   raw: PlanInput,
   definitions: readonly ModelDefinition[],
-  meter?: InputMeter,
-): PlanResult<PlannedRequest> {
+  meter: InputMeter | undefined,
+  execution: PlanExecutionContext,
+  preparer?: ImagePreparer,
+): Promise<PlanResult<PlannedRequest>> {
+  if (preparer !== undefined && !isImagePreparer(preparer))
+    return { rejected: 'invalidInput', reason: 'malformed' }
+  if (
+    !execution ||
+    !(execution.signal instanceof AbortSignal) ||
+    (execution.reuseScope !== undefined &&
+      (!execution.reuseScope || typeof execution.reuseScope !== 'object'))
+  )
+    return { rejected: 'invalidInput', reason: 'malformed' }
+  if (execution.signal.aborted) return { rejected: 'unavailable' }
   let ownedDefinitions: readonly ModelDefinition[]
   try {
     ownedDefinitions = ownDefinitions(definitions)
@@ -143,38 +167,15 @@ export function planRequest(
     if (!ownedMeter) return { rejected: 'invalidInput', reason: 'malformed' }
     meter = ownedMeter
   }
-  const input = ownPlanInput(raw)
+  let input = ownPlanInput(raw)
+  let missing: PlanFailure | undefined
   if (!input) {
     const snapshot = copyJsonValue(raw?.snapshot)
     if ('ok' in snapshot) {
-      const missing = missingInputLimits(snapshot.ok)
-      if (missing) {
-        const prepared = preflightInputWithMissingLimits(raw)
-        if (!prepared) return { rejected: 'invalidInput', reason: 'malformed' }
-        const binding = prepared.snapshot.adaptation
-        const definition = ownedDefinitions.find(
-          d =>
-            d.modelId === prepared.routeName &&
-            d.revision === binding.definition.revision &&
-            d.implementation.name === binding.implementation.name &&
-            d.implementation.revision === binding.implementation.revision,
-        )
-        if (!definition || !Object.hasOwn(definition.routes, prepared.provider))
-          return { rejected: 'unavailable' }
-        const prior = planRequest(prepared, ownedDefinitions)
-        if ('rejected' in prior) {
-          if (
-            prior.rejected === 'tool_internal_in_request' ||
-            prior.rejected === 'modality_not_carried' ||
-            prior.rejected === 'orphan_tool_call' ||
-            (prior.rejected === 'invalidInput' && prior.reason === 'malformed')
-          )
-            return prior
-        }
-        return missing
-      }
+      missing = missingInputLimits(snapshot.ok)
+      if (missing) input = preflightInputWithMissingLimits(raw)
     }
-    return { rejected: 'invalidInput', reason: 'malformed' }
+    if (!input) return { rejected: 'invalidInput', reason: 'malformed' }
   }
   const binding = input.snapshot.adaptation
   const definition = ownedDefinitions.find(
@@ -303,6 +304,7 @@ export function planRequest(
     }
   }
   if ([...calls].some(id => !results.has(id))) return { rejected: 'orphan_tool_call' }
+  if (missing) return missing
   const tools = input.tools.map(t => ({
     type: 'function',
     function: { name: t.name, description: t.description, parameters: t.parameters },
@@ -399,17 +401,33 @@ export function planRequest(
       }
     }
   }
-  const owned = ownedObject(body)
+  if (!meter || !meterMatches(meter, definition, input.provider)) return { rejected: 'unavailable' }
+  for (const source of [
+    input.calibration.kind === 'observation'
+      ? input.calibration.inputCalibration.requestInput
+      : undefined,
+    ...input.outputHistory.map(group => group.inputCalibration.requestInput),
+  ])
+    if (
+      source?.kind === 'known' &&
+      inspectTransformRevision(source.countingBasis.transformRevision, meter.transformRevision)
+        .kind === 'invalid'
+    )
+      return { rejected: 'invalidInput', reason: 'malformed' }
+  const preparedWire = await preparePlanImages(body, input, execution, preparer)
+  if ('rejected' in preparedWire) return preparedWire
+  if (execution.signal.aborted) return { rejected: 'unavailable' }
+  const owned = ownedObject(preparedWire.ok.body)
   if (!owned) throw new Error('planned wire body is not JSON')
   const serialized = writeJsonLossless(owned)
   if (!meter) return { rejected: 'unavailable' }
-  const projection = projectInput(owned, input, meter)
+  const projection = projectInput(owned, input, meter, preparedWire.ok.preparation)
   const historySpans = projectHistorySpans(input.outputHistory, projection, spans)
   if (historySpans === undefined) return { rejected: 'invalidInput', reason: 'malformed' }
   let calibrated: ReturnType<typeof measureCalibrated>
   try {
     calibrated = measureCalibrated(input, projection, spans, historySpans, meter, () =>
-      meter.measureFull({
+      measureFull(meter, {
         body: owned,
         serialized,
         projection,

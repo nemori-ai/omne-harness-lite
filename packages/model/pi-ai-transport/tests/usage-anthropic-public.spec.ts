@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -82,7 +83,7 @@ describe('official Anthropic public invocation response re-anchoring over actual
       }
       try {
         for (let round = 0; round < 3; round++) {
-          const planned = transport.plan(request)
+          const planned = await transport.plan(request, { signal: new AbortController().signal })
           if ('rejected' in planned) throw Error(JSON.stringify(planned))
           expect(planned.planned.measurement.mode).toBe(round === 0 ? 'full' : 'marginal')
           const result = await invokeModel({

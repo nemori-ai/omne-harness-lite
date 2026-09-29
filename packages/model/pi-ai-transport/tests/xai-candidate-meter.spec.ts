@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -164,7 +165,7 @@ describe('unbound Grok Build candidate', () => {
         inputMeters: [createXaiCandidateInputMeter(definition)],
       })
       try {
-        const planned = transport.plan(input)
+        const planned = await transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(planned.rejected)
         expect(planned.planned.inputLimitEvidence).toMatchObject({
           inputTokens: { kind: 'estimated' },

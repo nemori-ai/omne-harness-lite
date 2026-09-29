@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -118,7 +119,7 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
       for (let round = 1; round <= 3; round++) {
         tokenized.length = 0
         const beforeFull = full.mock.calls.length
-        const plan = transport.plan(next)
+        const plan = await transport.plan(next, { signal: new AbortController().signal })
         if ('rejected' in plan) throw Error(JSON.stringify(plan))
         const m = plan.planned.measurement
         expect(m.mode).toBe(round === 1 ? 'full' : 'marginal')
@@ -181,7 +182,10 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
         }
       }
       expect(host.requests).toHaveLength(3)
-      const noNew = transport.plan({ ...next, messages: next.messages.slice(0, -1) })
+      const noNew = await transport.plan(
+        { ...next, messages: next.messages.slice(0, -1) },
+        { signal: new AbortController().signal },
+      )
       if ('rejected' in noNew) throw Error(JSON.stringify(noNew))
       expect(noNew.planned.measurement).toMatchObject({
         mode: 'marginal',
@@ -335,7 +339,9 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
         { ...next, messages: [message('user', 'changed P', 'u1'), ...next.messages.slice(1)] },
         { ...next, parameters: { ...next.parameters, reasoningEffort: 'high' as const } },
       ])
-        expect(transport.plan(candidate)).toMatchObject({
+        expect(
+          await transport.plan(candidate, { signal: new AbortController().signal }),
+        ).toMatchObject({
           rejected: 'invalidInput',
           reason: 'input_size_unavailable',
         })
@@ -346,7 +352,7 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
         inputMeters: [old],
       })
       try {
-        expect(switched.plan(next)).toMatchObject({
+        expect(await switched.plan(next, { signal: new AbortController().signal })).toMatchObject({
           rejected: 'invalidInput',
           reason: 'input_size_unavailable',
         })
@@ -401,7 +407,12 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
         createdAt: at,
         blocks: actual.observation.outputBlocks,
       })
-      expect(transport.plan({ ...next, messages: [...next.messages, extraOpaque] })).toMatchObject({
+      expect(
+        await transport.plan(
+          { ...next, messages: [...next.messages, extraOpaque] },
+          { signal: new AbortController().signal },
+        ),
+      ).toMatchObject({
         rejected: 'invalidInput',
         reason: 'input_size_unavailable',
       })
@@ -428,7 +439,10 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
       expect(denied).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
       const before = canonicalProjection(next)
       expect(
-        transport.plan({ ...next, tokenMargin: { multiplier: 1, reserveTokens: 1000000 } }),
+        await transport.plan(
+          { ...next, tokenMargin: { multiplier: 1, reserveTokens: 1000000 } },
+          { signal: new AbortController().signal },
+        ),
       ).toMatchObject({ rejected: 'invalidInput', reason: 'input_limit_exceeded' })
       expect(canonicalProjection(next)).toBe(before)
       expect(host.requests).toHaveLength(3)

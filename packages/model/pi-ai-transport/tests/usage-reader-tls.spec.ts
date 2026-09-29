@@ -28,7 +28,7 @@ describe('real TLS reader terminal handoff', () => {
         ) /* deliberately never end */
       })
       try {
-        const request = planned(host.transport),
+        const request = await planned(host.transport),
           controller = new AbortController()
         const sent = await host.transport.send(request, 'test-only-credential', controller.signal)
         if (!('response' in sent)) throw Error('not sent')
@@ -64,7 +64,7 @@ describe('real TLS reader terminal handoff', () => {
           )
       })
       try {
-        const request = planned(host.transport),
+        const request = await planned(host.transport),
           signal = new AbortController().signal
         const sent = await host.transport.send(request, 'test-only-credential', signal)
         if (!('response' in sent)) throw Error('not sent')

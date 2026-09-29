@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import { toOpaqueJson, writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
@@ -135,7 +136,7 @@ describe('Z.AI complete historical reasoning at the public planning boundary', (
     ]),
   )(
     '$modelId opaque=$opaque retains history and refuses an unproven token estimate',
-    ({ modelId, opaque }) => {
+    async ({ modelId, opaque }) => {
       const model = definition(modelId)
       const actual = meter(model)
       let finalBody: JsonObject | undefined
@@ -147,7 +148,15 @@ describe('Z.AI complete historical reasoning at the public planning boundary', (
           return actual.measureFull(request)
         },
       }
-      const result = planRequest(input(model, opaque), [model], observing)
+      const result = await planRequest(
+        input(model, opaque),
+        [model],
+        observing,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      )
       expect(result).toEqual({
         rejected: 'invalidInput',
         reason: 'input_size_unavailable',

@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { describe, expect, it } from 'vitest'
 import { createPiAiTransport, planRequest } from '@omne-harness-lite/pi-ai-transport'
@@ -35,14 +36,16 @@ describe('Google candidate calibration boundary', () => {
     expect(result).toEqual({ textTokens: 74, messages: 1, tools: 1, objects: 4, arrays: 2 })
   })
 
-  it('counts reasoning, tool arguments, results and prior turns from final projected bodies', () => {
+  it('counts reasoning, tool arguments, results and prior turns from final projected bodies', async () => {
     for (const definition of googleDefinitions) {
       const features = new Map()
       for (const id of googleCalibrationCaseIds) {
-        const planned = planRequest(
+        const planned = await planRequest(
           googleCalibrationRequest(definition.modelId, id),
           [definition],
           syntheticInputMeter(definition, 'google-ai-studio'),
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         )
         if ('rejected' in planned) throw new Error(`${id}: ${planned.rejected}`)
         const body = planned.planned.body
@@ -142,7 +145,9 @@ describe('Google candidate calibration boundary', () => {
         ],
       })
       try {
-        const result = candidate.plan(googleCalibrationRequest(definition.modelId, 'H2'))
+        const result = await candidate.plan(googleCalibrationRequest(definition.modelId, 'H2'), {
+          signal: new AbortController().signal,
+        })
         if ('rejected' in result) throw new Error(result.rejected)
         const sent = await candidate.send(
           result.planned,
@@ -161,7 +166,9 @@ describe('Google candidate calibration boundary', () => {
         expect(host.requests[0]?.body).toBe(result.planned.serialized)
         expect(host.requests[0]?.body).toContain('consider lookup')
         expect(host.requests[0]?.body).toContain('lookup__google')
-        const media = candidate.plan(googleCertificationRequest(definition.modelId))
+        const media = await candidate.plan(googleCertificationRequest(definition.modelId), {
+          signal: new AbortController().signal,
+        })
         expect(media).toEqual({
           rejected: 'invalidInput',
           reason: 'input_size_unavailable',

@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from '../../image-transport-support.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { createGoogleInputMeter } from '../../../src/input-meters/google.ts'
@@ -10,7 +11,7 @@ const png = readFileSync(new URL('../moonshot/valid-red-1x1.png', import.meta.ur
 describe('Google certification image test material', () => {
   it.each(googleDefinitions)(
     '$modelId carries the verified PNG and keeps its full history',
-    definition => {
+    async definition => {
       const request = googleCertificationRequest(definition.modelId)
       expect(request.messages).toHaveLength(5)
       expect(request.messages.some(message => message.type === 'assistant')).toBe(true)
@@ -25,10 +26,12 @@ describe('Google certification image test material', () => {
 
       const meter = createGoogleInputMeter(definition)
       if (!meter) throw new Error('missing selected Google meter')
-      const result = planRequest(
+      const result = await planRequest(
         { ...request, parameters: { maxOutputTokens: 64 } },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       expect(result).toEqual({
         rejected: 'invalidInput',

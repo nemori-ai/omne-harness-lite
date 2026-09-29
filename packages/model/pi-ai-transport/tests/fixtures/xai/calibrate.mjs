@@ -311,7 +311,7 @@ try {
     try {
       for (const name of selectedNames) {
         const request = input(definition, name)
-        const planned = transport.plan(request)
+        const planned = await transport.plan(request, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error('Fixed calibration plan refused')
         assertCalibrationWire(planned.planned.body)
         const identity = {

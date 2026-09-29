@@ -49,7 +49,7 @@ function fixture(modelId: string, route: ModelRoute): ModelDefinition {
   }
 }
 
-function setup(modelId: (typeof ids)[number], parameters: ModelRequestParameters = {}) {
+async function setup(modelId: (typeof ids)[number], parameters: ModelRequestParameters = {}) {
   const definition = fixture(modelId, openaiRoutes[modelId])
   const configuration = { revision: 'fixture', values: { cache: { mode: 'automatic' } } }
   const profile = createOfficialProfileContent(definition, {
@@ -78,7 +78,7 @@ function setup(modelId: (typeof ids)[number], parameters: ModelRequestParameters
       upstreamInputLimits: profile.ok.upstreamInputLimits,
     },
   }
-  return { definition, request, result: planRequest(request, [definition]) }
+  return { definition, request, result: await planRequest(request, [definition]) }
 }
 
 describe('OpenAI selected route rules (offline fixtures, not official profiles)', () => {
@@ -89,8 +89,8 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
     )
   })
 
-  it.each(ids)('%s retains marked developer reminder and automatic cache', modelId => {
-    const { definition, result } = setup(modelId)
+  it.each(ids)('%s retains marked developer reminder and automatic cache', async modelId => {
+    const { definition, result } = await setup(modelId)
     expect(
       readModelDefinition([definition], {
         implementation: definition.implementation,
@@ -129,13 +129,13 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
     expect(result.planned.serialized).not.toContain('ttl')
   })
 
-  it.each(ids)('%s passes only supplied effort values, and max output unchanged', modelId => {
+  it.each(ids)('%s passes only supplied effort values, and max output unchanged', async modelId => {
     const accepted: readonly NonNullable<ModelRequestParameters['reasoningEffort']>[] =
       modelId.startsWith('openai/gpt-6-astra')
         ? ['low', 'medium', 'high', 'max']
         : ['none', 'low', 'medium', 'high', 'max']
     for (const effort of accepted) {
-      const { result } = setup(modelId, {
+      const { result } = await setup(modelId, {
         reasoningEffort: effort,
         maxOutputTokens: 64,
       })
@@ -145,15 +145,15 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
       expect(result.planned.parameters.maxOutputTokens).toBe(64)
     }
     if (modelId.includes('astra')) {
-      const { result } = setup(modelId, { reasoningEffort: 'none' })
+      const { result } = await setup(modelId, { reasoningEffort: 'none' })
       if ('rejected' in result) throw new Error(result.rejected)
       expect(result.planned.droppedParameters).toEqual(['reasoningEffort'])
       expect(result.planned.body).not.toHaveProperty('reasoning')
     }
   })
 
-  it('traces unprovided sampling and private values instead of silently passing them', () => {
-    const { result } = setup(ids[0], {
+  it('traces unprovided sampling and private values instead of silently passing them', async () => {
+    const { result } = await setup(ids[0], {
       temperature: 0.5,
       topP: 0.5,
       seed: 123,
@@ -177,7 +177,7 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
     expect(result.planned.body).not.toHaveProperty('prompt_cache_options')
   })
 
-  it('preserves paired tool replay and rejects orphaned tool calls', () => {
+  it('preserves paired tool replay and rejects orphaned tool calls', async () => {
     const assistant = judgedMessage({
       id: 'assistant1',
       type: 'assistant',
@@ -220,19 +220,19 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
         },
       ],
     })
-    const { definition, request } = setup(ids[2])
-    const planned = planRequest({ ...request, messages: [assistant, tool] }, [definition])
+    const { definition, request } = await setup(ids[2])
+    const planned = await planRequest({ ...request, messages: [assistant, tool] }, [definition])
     if ('rejected' in planned) throw new Error(planned.rejected)
     expect(planned.planned.body.messages).toMatchObject([
       { tool_calls: [{ id: expect.stringMatching(/^call_/), function: { arguments: '{"x":' } }] },
       { role: 'tool', tool_call_id: expect.stringMatching(/^call_/), content: 'ok' },
     ])
-    expect(planRequest({ ...request, messages: [assistant] }, [definition])).toEqual({
+    expect(await planRequest({ ...request, messages: [assistant] }, [definition])).toEqual({
       rejected: 'orphan_tool_call',
     })
   })
 
-  it('replays same-route opaque reasoning and leaves another route without those details', () => {
+  it('replays same-route opaque reasoning and leaves another route without those details', async () => {
     const details = [{ type: 'reasoning.encrypted', data: 'fixture-only', index: 0 }]
     const assistant = judgedMessage({
       id: 'assistant-reasoning',
@@ -250,28 +250,32 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
         },
       ],
     })
-    const same = setup(ids[2])
-    const samePlan = planRequest({ ...same.request, messages: [assistant] }, [same.definition])
+    const same = await setup(ids[2])
+    const samePlan = await planRequest({ ...same.request, messages: [assistant] }, [
+      same.definition,
+    ])
     if ('rejected' in samePlan) throw new Error(samePlan.rejected)
     expect(samePlan.planned.body.messages).toMatchObject([
       { role: 'assistant', reasoning_details: details },
     ])
-    const other = setup(ids[4])
-    const otherPlan = planRequest({ ...other.request, messages: [assistant] }, [other.definition])
+    const other = await setup(ids[4])
+    const otherPlan = await planRequest({ ...other.request, messages: [assistant] }, [
+      other.definition,
+    ])
     if ('rejected' in otherPlan) throw new Error(otherPlan.rejected)
     expect(JSON.stringify(otherPlan.planned.body.messages)).not.toContain('reasoning_details')
   })
 
-  it('rejects a wrong provider and output above the fixture profile', () => {
-    const { definition, request } = setup(ids[2])
-    expect(planRequest({ ...request, provider: 'other-provider' }, [definition])).toEqual({
+  it('rejects a wrong provider and output above the fixture profile', async () => {
+    const { definition, request } = await setup(ids[2])
+    expect(await planRequest({ ...request, provider: 'other-provider' }, [definition])).toEqual({
       rejected: 'unavailable',
     })
-    expect(planRequest({ ...request, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual(
-      {
-        rejected: 'invalidInput',
-        reason: 'malformed',
-      },
-    )
+    expect(
+      await planRequest({ ...request, parameters: { maxOutputTokens: 129 } }, [definition]),
+    ).toEqual({
+      rejected: 'invalidInput',
+      reason: 'malformed',
+    })
   })
 })

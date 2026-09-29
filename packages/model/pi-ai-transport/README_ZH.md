@@ -15,7 +15,7 @@
 | `configurationSchema(definition, provider)`                             | 路由数据生成的闭合 Draft 2020-12 Schema，没有默认值            |
 | `interpretConfiguration(definition, values, provider)`                  | 从同一路由声明严格、无损解释配置                               |
 | `createOfficialProfileContent(definition, options)`                     | 构造并判定 core 内容，不写目录、不登记、不生成时间             |
-| `planRequest(input, definitions, meter)`                                | 固定字节规划与可信逐路由计量器的最终输入准入                   |
+| `planRequest(input, definitions, meter, execution, preparer?)`                                | 固定字节规划与可信逐路由计量器的最终输入准入                   |
 | `createPiAiTransport(options)`                                          | 显式定义、绑定计量器与自持连接池的 plan/send/read/close        |
 | `sendRequest`、`readStream`                                             | 借用明确网络资源的独立函数                                     |
 | `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`    | 进程内精确登记、固定引用和显式排空                             |
@@ -188,7 +188,9 @@ const content = createOfficialProfileContent(definition, {
 })
 if ('rejected' in content) throw new Error(content.rejected)
 // This is a construction example only; it does not publish the synthetic content.
-const result = planRequest(request, definitions, controlledMeter)
+const result = await planRequest(request, definitions, controlledMeter, {
+  signal: new AbortController().signal,
+})
 if ('rejected' in result) throw new Error(result.rejected)
 console.log(result.planned.body.messages) // developer; no HTTP request
 ```
@@ -263,7 +265,7 @@ const transport = createPiAiTransport({
   policy: networkPolicy,
 })
 try {
-  const result = transport.plan(request)
+  const result = await transport.plan(request, { signal: new AbortController().signal })
   if ('rejected' in result) throw new Error(result.rejected)
   console.log(result.planned.parameters)
   // To send: supply a real complete definition, owned credential and AbortSignal,
@@ -296,7 +298,7 @@ export async function executeOnce(
   credential: string,
   signal: AbortSignal,
 ) {
-  const plan = transport.plan(request)
+  const plan = await transport.plan(request, { signal: new AbortController().signal })
   if ('rejected' in plan) return plan
   const sent = await transport.send(plan.planned, credential, signal)
   if (!('response' in sent)) return sent
@@ -343,7 +345,7 @@ const acquired = service.acquire(request.snapshot.adaptation, request.routeName)
 if ('rejected' in acquired) throw new Error(acquired.rejected)
 const lease = acquired.lease
 try {
-  const result = lease.transport.plan(request)
+  const result = await lease.transport.plan(request, { signal: new AbortController().signal })
   if ('rejected' in result) throw new Error(result.rejected)
   console.log(result.planned.parameters)
 } finally {
@@ -552,3 +554,50 @@ Pro0813 修订 4 / `mp4-17` 与 Flash 修订 3 / `mp4-17` 在固定 `deepinfra/f
 Flash 保留自身钉住的 renderer、tool result 排序、tokenizer 与 image span 公式；增量只加新图片 span，已在 prompt 中的占位 token 只扣一次。追加工具结果若重排了锚内实质内容，则回退 full。
 
 GPT-6 Astra Pro 定义 revision `5`／`pi-ai:openai/mp4-17` 根据[精确同基础模型 Pro 模式身份](https://openrouter.ai/openai/gpt-6-astra-pro)，把命名 Astra 图像规则作为**估算代理**复用。算法 `openai-gpt-6-astra-pro-final-visible-json-o200k-image-proxy-1/response-calibration-1` 替换旧纯文本计量基准。它共享既有计数器，图片字节逐轮保留在真实请求中；由于上游输入范围仍为 `scope_unknown`，每次完整估算并应用显式余量。这不是真实 Pro 预处理实测。Sol/Luna 使用上文单独修订的经验估算代理。`tests/openai-pro-images.spec.ts` 覆盖这四个已提供图估算的 Pro 绑定、分型号 high 尺寸限制、原始 wire/accounts 与不支持输入；demo 服务测试验证三轮持久图像历史。
+
+### 显式图片准备
+
+transport 导出 `createImagePreparer`、`createSharpImageCodec` 和显式选择的 `modelImageBalancedV1` 政策。装配先 import 已安装的 sharp 0.35.3；导入或构造 preparer 不隐式加载 native codec、读文件或联网。英文片段中的示例可直接用于本节，两种语言共用同一公开调用。
+
+完整 JSON 请求的 `nonImageWireBytes` 必须是最终序列化中各选入图片的 data URL 字符串值替换为空串后的 UTF-8 长度。helper 加上实际 JSON data URL 内容贡献，包含 MIME 和 base64 膨胀；transport 规划仍独立序列化并验收最终 body，才发布计划。
+
+有限搜索按固定候选序号推进，cache 命中不会扩大搜索额度，原 bytes 保持不变。缓存表归调用方给的进程内 opaque scope，所有表共同遵循 bytes/entry 限额与 LRU 淘汰；scope 不赋予授权。省略 scope 即不跨调用复用。取消准备或调用 `close()` 都等待实际 native 工作终结及 decoded 句柄释放；preparer 借用 codec，不销毁共享 codec。显式在途 buffer 预算与 native RSS 分开，不是进程内存限额。
+
+```ts
+import sharp from 'sharp'
+import {
+  createImagePreparer,
+  createSharpImageCodec,
+  modelImageBalancedV1,
+} from '@omne-harness-lite/pi-ai-transport'
+
+const codec = createSharpImageCodec(sharp)
+const instance = createImagePreparer(modelImageBalancedV1, codec)
+if ('unavailable' in instance) throw new Error('Image codec unavailable')
+const scope = {}
+try {
+  const bytes = await sharp({
+    create: { width: 64, height: 64, channels: 3, background: 'blue' },
+  }).png().toBuffer()
+  const result = await instance.ready.prepareRequestImages({
+    images: [{ position: 'user/0/image/0', bytes, mediaType: 'image/png', targetMaxBytes: 1_000_000 }],
+    maxRequestBytes: null,
+    nonImageWireBytes: 0,
+    signal: new AbortController().signal,
+  }, scope)
+  // 先判 prepared/rejected，再消费自有 bytes。
+  if ('rejected' in result) throw new Error(result.rejected.reason)
+  console.log(result.prepared.images.map(({ width, height, changed }) => ({ width, height, changed })))
+} finally {
+  instance.ready.clearScope(scope)
+  await instance.ready.close()
+}
+```
+
+### 图片与异步规划装配
+
+`planRequest` 必须 await，显式接收 `{ signal, reuseScope? }`；有图时还需传入 `createImagePreparer` 返回的实际 ready 实例。无图不增加图片复合 revision。有图时，规划先校验结构、模态、工具配对和必要限额，再准备实际 bytes，用同一固定 body 序列化、投影和计量；原输入与历史不被改写。`ReplayMeterInput.countingBasis` 必须是当前请求 basis，不能借原观测补值。完整/新部分计量可在有限来源规则成立时复用旧原 O；表示或有效 basis 改变时不复用原前缀 I。
+
+工厂和 Cordis 插件配置显式接收 `imagePreparation: { policy: modelImageBalancedV1, codec: createSharpImageCodec(sharp) }`。工厂拥有 preparer，并在 `close()` 中停止接纳、取消规划并等待真实原生任务和连接排空；借用的 codec 不被销毁。显式 `codec: null` 保持 codec 缺席，policy 仍在初始化时严格校验；有图请求返回 unavailable，纯文本保持原路径。没有隐式 codec、policy 或限额回填。
+
+`ModelTransportService.clearReuseScope(scope)` 对服务拥有的固定 preparer 集合同步清理；租约释放、贡献退役和服务停止接纳后仍可调用。scope 是进程内不透明对象，不进入 durable binding 或日志，也不授予租户权限。独立函数调用者管理自己的 scope；省略它即不跨请求复用。

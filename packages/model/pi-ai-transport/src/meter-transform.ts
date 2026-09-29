@@ -2,6 +2,7 @@ import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { validate, type CountingBasis } from '@omne-harness-lite/model-response'
 import type { InputMeter } from './input-meter.ts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from './projection.ts'
+import { object } from './json.ts'
 
 export interface ImagePreparationRevision {
   readonly algorithmRevision: string
@@ -15,6 +16,19 @@ export type TransformInspection =
       readonly preparation: Readonly<ImagePreparationRevision> | null
     }
   | { readonly kind: 'unknown' | 'invalid' }
+export type KnownTransformRevision = Extract<TransformInspection, { kind: 'known' }>
+export type OriginalBasisApplies = (
+  original: CountingBasis,
+  originalBase: KnownTransformRevision,
+) => boolean
+export type MeterBasisRelation =
+  | { readonly kind: 'currentOnly'; readonly current: KnownTransformRevision }
+  | {
+      readonly kind: 'sameEffective' | 'changedEffective'
+      readonly current: KnownTransformRevision
+      readonly original: KnownTransformRevision
+    }
+  | { readonly kind: 'unavailable' | 'invalidInput' }
 const prefix = 'image-input/1:'
 const nonempty = (value: unknown): value is string => typeof value === 'string' && value.length > 0
 const hash = (value: unknown): value is string =>
@@ -28,7 +42,7 @@ export function composeTransformRevision(
   if (!nonempty(base)) throw new TypeError('base transform revision required')
   if (preparation === undefined) return base
   const copy = copyJsonValue(preparation)
-  if ('failed' in copy || copy.ok === null || Array.isArray(copy.ok) || typeof copy.ok !== 'object')
+  if ('failed' in copy || !object(copy.ok))
     throw new TypeError('image preparation revision required')
   const value = copy.ok
   if (
@@ -86,7 +100,9 @@ export function inspectCurrentMeterBasis(
   basis: CountingBasis,
   meter: InputMeter,
 ): TransformInspection {
-  if (!validate('CountingBasis', basis).valid) return { kind: 'invalid' }
+  const owned = ownBasis(basis)
+  if (!owned) return { kind: 'invalid' }
+  basis = owned
   const transform = inspectTransformRevision(basis.transformRevision, meter.transformRevision)
   if (transform.kind !== 'known') return transform
   return basis.model === meter.modelId &&
@@ -101,4 +117,64 @@ export function inspectCurrentMeterBasis(
     basis.projectionRevision === INPUT_PROJECTION_REVISION
     ? transform
     : { kind: 'unknown' }
+}
+
+function isBasis(value: unknown): value is CountingBasis {
+  return validate('CountingBasis', value).valid
+}
+export function ownBasis(value: unknown): CountingBasis | undefined {
+  const copy = copyJsonValue(value)
+  return 'ok' in copy && isBasis(copy.ok) ? copy.ok : undefined
+}
+
+/** D109 basis applicability r3: applicability never implies prefix-I compatibility. */
+export function relateMeterBases(
+  current: CountingBasis,
+  original: CountingBasis | undefined,
+  meter: InputMeter,
+  originalApplies?: OriginalBasisApplies,
+): MeterBasisRelation {
+  const ownedCurrent = ownBasis(current)
+  if (!ownedCurrent) return { kind: 'invalidInput' }
+  const currentBase = inspectCurrentMeterBasis(ownedCurrent, meter)
+  if (currentBase.kind !== 'known')
+    return { kind: currentBase.kind === 'invalid' ? 'invalidInput' : 'unavailable' }
+  if (original === undefined) return Object.freeze({ kind: 'currentOnly', current: currentBase })
+  const ownedOriginal = ownBasis(original)
+  if (!ownedOriginal) return { kind: 'invalidInput' }
+  const originalBase = inspectTransformRevision(
+    ownedOriginal.transformRevision,
+    meter.transformRevision,
+  )
+  if (originalBase.kind !== 'known')
+    return { kind: originalBase.kind === 'invalid' ? 'invalidInput' : 'unavailable' }
+  try {
+    const applicable: unknown =
+      originalApplies === undefined
+        ? inspectCurrentMeterBasis(ownedOriginal, meter).kind === 'known'
+        : originalApplies(ownedOriginal, originalBase)
+    if (applicable !== true) {
+      if (
+        applicable &&
+        (typeof applicable === 'object' || typeof applicable === 'function') &&
+        'then' in applicable &&
+        typeof applicable.then === 'function'
+      )
+        void Promise.resolve(applicable).then(
+          () => {},
+          () => {},
+        )
+      return { kind: 'unavailable' }
+    }
+  } catch {
+    return { kind: 'unavailable' }
+  }
+  return Object.freeze({
+    kind:
+      canonicalProjection(ownedCurrent) === canonicalProjection(ownedOriginal)
+        ? 'sameEffective'
+        : 'changedEffective',
+    current: currentBase,
+    original: originalBase,
+  })
 }

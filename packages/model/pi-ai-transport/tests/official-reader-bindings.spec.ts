@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import before from './fixtures/shared-reader/before-mp4-17.json' with { type: 'json' }
 import {
@@ -63,7 +64,7 @@ describe('D108 shared reader contribution release', () => {
   })
   it.each(before)(
     '$modelId factory/profile/plan preserve the meter algorithm and input scope',
-    row => {
+    async row => {
       const definition = definitions.find(d => d.modelId === row.modelId)
       const factory = factories[row.family]
       if (!definition || !factory) throw Error('missing release leaf')
@@ -105,7 +106,7 @@ describe('D108 shared reader contribution release', () => {
       })
       if ('rejected' in profile) throw Error(JSON.stringify(profile))
       const base = input()
-      const result = planRequest(
+      const result = await planRequest(
         {
           ...base,
           routeName: definition.modelId,
@@ -125,6 +126,8 @@ describe('D108 shared reader contribution release', () => {
         },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       expect(result).toHaveProperty('planned')
       if (!('planned' in result)) throw Error(JSON.stringify(result))

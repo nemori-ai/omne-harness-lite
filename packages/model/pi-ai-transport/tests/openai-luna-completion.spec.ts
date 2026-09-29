@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -119,8 +120,16 @@ function request(): PlanInput {
     tokenMargin: { multiplier: new LosslessNumber('1.0000000000000000001'), reserveTokens: 7 },
   }
 }
-function planned(value: PlanInput, meter = createOpenAiInputMeter(definition)) {
-  const result = planRequest(value, [definition], meter)
+async function planned(value: PlanInput, meter = createOpenAiInputMeter(definition)) {
+  const result = await planRequest(
+    value,
+    [definition],
+    meter,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
   if ('rejected' in result) throw Error(JSON.stringify(result))
   return result.planned
 }
@@ -144,13 +153,13 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
 
   it.each([undefined, 'none', 'low', 'medium', 'high', 'max'] as const)(
     'estimates actual final controls for effort %s, without defaults',
-    effort => {
-      const value = request()
+    async effort => {
+      const value = await request()
       const parameters = {
         ...(effort === undefined ? {} : { reasoningEffort: effort }),
         maxOutputTokens: 1024,
       }
-      const p = planned({ ...value, parameters })
+      const p = await planned({ ...value, parameters })
       expect(p.measurement).toMatchObject({ mode: 'full', precision: 'estimated' })
       expect(p.body.reasoning).toEqual(effort === undefined ? undefined : { effort })
       expect(tokenized).toContain(p.serialized)
@@ -164,17 +173,27 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
         parameters,
         snapshot: { ...value.snapshot, maxInputTokens: p.measurement.admissionTokens },
       }
-      expect(planRequest(atLimit, [definition], createOpenAiInputMeter(definition))).toHaveProperty(
-        'planned',
-      )
+      expect(
+        await planRequest(
+          atLimit,
+          [definition],
+          createOpenAiInputMeter(definition),
+          {
+            signal: new AbortController().signal,
+          },
+          testImagePreparerFor(planRequest),
+        ),
+      ).toHaveProperty('planned')
       const below = ExactDecimal.from(p.measurement.admissionTokens)
         .add(ExactDecimal.from(-1))
         .toJsonNumber()
       expect(
-        planRequest(
+        await planRequest(
           { ...atLimit, snapshot: { ...atLimit.snapshot, maxInputTokens: below } },
           [definition],
           createOpenAiInputMeter(definition),
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         ),
       ).toMatchObject({
         rejected: 'invalidInput',
@@ -220,7 +239,7 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
         inputMeters: [bound],
       })
       let next: PlanInput = {
-        ...request(),
+        ...(await request()),
         parameters: {
           ...(effort === undefined ? {} : { reasoningEffort: effort }),
           maxOutputTokens: 1024,
@@ -230,7 +249,7 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
         for (let round = 1; round <= 3; round++) {
           tokenized.length = 0
           const count = full.mock.calls.length
-          const p = transport.plan(next)
+          const p = await transport.plan(next, { signal: new AbortController().signal })
           if ('rejected' in p) throw Error(JSON.stringify(p))
           expect(p.planned.measurement.mode).toBe(round === 1 ? 'full' : 'marginal')
           const response = await invokeModel({
@@ -283,42 +302,56 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
         }
         expect(host.requests).toHaveLength(3)
         expect(
-          planned(
-            { ...next, messages: [message('user', 'changed', 'u1'), ...next.messages.slice(1)] },
-            bound,
+          (
+            await planned(
+              { ...next, messages: [message('user', 'changed', 'u1'), ...next.messages.slice(1)] },
+              bound,
+            )
           ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
         expect(
-          planned(
-            {
-              ...next,
-              tools: [
-                {
-                  name: 'lookup',
-                  description: 'new definition',
-                  parameters: { type: 'object', properties: {} },
-                },
-              ],
-            },
-            bound,
+          (
+            await planned(
+              {
+                ...next,
+                tools: [
+                  {
+                    name: 'lookup',
+                    description: 'new definition',
+                    parameters: { type: 'object', properties: {} },
+                  },
+                ],
+              },
+              bound,
+            )
           ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
         expect(
-          planned(next, { ...bound, replayRevision: 'new-test-replay' }).measurement,
+          (await planned(next, { ...bound, replayRevision: 'new-test-replay' })).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
         expect(
-          planned(
-            {
-              ...next,
-              parameters: {
-                reasoningEffort: effort === 'high' ? 'low' : 'high',
-                maxOutputTokens: 1024,
+          (
+            await planned(
+              {
+                ...next,
+                parameters: {
+                  reasoningEffort: effort === 'high' ? 'low' : 'high',
+                  maxOutputTokens: 1024,
+                },
               },
-            },
-            bound,
+              bound,
+            )
           ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
-        expect(planRequest(next, [definition], { ...bound, definitionRevision: '1' })).toEqual({
+        expect(
+          await planRequest(
+            next,
+            [definition],
+            { ...bound, definitionRevision: '1' },
+            { signal: new AbortController().signal },
+            testImagePreparerFor(planRequest),
+          ),
+        ).toEqual({
           rejected: 'unavailable',
         })
         if (next.calibration.kind !== 'observation') throw Error('missing source')
@@ -349,7 +382,7 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
             },
           },
         }
-        expect(planned(oldCalibration, bound).measurement).toMatchObject({
+        expect((await planned(oldCalibration, bound)).measurement).toMatchObject({
           mode: 'full',
           fallbackReason: 'basis_changed',
         })
@@ -373,13 +406,21 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
               },
             },
           }
-          expect(planned(wrongSource, bound).measurement).toMatchObject({
+          expect((await planned(wrongSource, bound)).measurement).toMatchObject({
             mode: 'full',
             fallbackReason: 'basis_changed',
           })
         }
         const forged = { ...next, calibration: { ...next.calibration, outputBlocks: [] } }
-        expect(planRequest(forged, [definition], bound)).toMatchObject({
+        expect(
+          await planRequest(
+            forged,
+            [definition],
+            bound,
+            { signal: new AbortController().signal },
+            testImagePreparerFor(planRequest),
+          ),
+        ).toMatchObject({
           rejected: 'invalidInput',
           reason: 'malformed',
         })
@@ -408,7 +449,7 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
       ],
     })
     try {
-      const original = request()
+      const original = await request()
       const opaque = judgedMessage({
         type: 'assistant',
         id: 'opaque-a',
@@ -451,6 +492,7 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
       for (const added of [opaque, visual]) {
         const value = { ...original, messages: [...original.messages, added] }
         const before = writeJsonLossless(value)
+        const meterCalls = seen.length
         const result = await invokeModel({
           ...value,
           transport,
@@ -458,11 +500,13 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
           signal: new AbortController().signal,
           policy: policy(),
         }).outcome
-        expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+        expect(result).toMatchObject({
+          rejected: 'invalidInput',
+          reason: added === opaque ? 'input_size_unavailable' : 'input_size_unavailable',
+        })
         expect(writeJsonLossless(value)).toBe(before)
-        expect(seen.at(-1)).toContain(
-          added === opaque ? 'retained-opaque' : 'data:image/gif;base64,',
-        )
+        if (added === opaque) expect(seen.at(-1)).toContain('retained-opaque')
+        else expect(seen).toHaveLength(meterCalls)
       }
       const rejected = await invokeModel({
         ...original,
@@ -477,7 +521,7 @@ describe('Luna declared-effort official full/replay/new surrogate', () => {
         reason: 'input_limit_exceeded',
         basis: 'estimated',
       })
-      const single = planned({
+      const single = await planned({
         ...original,
         messages: [message('user', 'single user', 'single')],
         tools: [],

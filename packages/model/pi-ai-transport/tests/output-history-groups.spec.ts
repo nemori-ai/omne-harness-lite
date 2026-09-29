@@ -1,3 +1,4 @@
+import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it, vi } from 'vitest'
 import type { Message } from '@omne-harness-lite/messages'
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
@@ -79,8 +80,16 @@ function group(
   }
 }
 
-function planned(request: PlanInput, meter = base): PlannedRequest {
-  const result = planRequest(request, testDefinitions, meter)
+async function planned(request: PlanInput, meter = base): Promise<PlannedRequest> {
+  const result = await planRequest(
+    request,
+    testDefinitions,
+    meter,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
   if (!('planned' in result)) throw new Error(JSON.stringify(result))
   return result.planned
 }
@@ -96,12 +105,12 @@ function observation(source: PlanOutputHistoryGroup) {
 }
 
 describe('shared output-history coverage', () => {
-  it('keeps a no-I group and all older O in full input without changing the wire', () => {
-    const first = planned(input())
+  it('keeps a no-I group and all older O in full input without changing the wire', async () => {
+    const first = await planned(input())
     const a = reply('a')
     const user2 = message('user', 'second', 'u2')
     const aGroup = group(first, a, 3, 100)
-    const second = planned({
+    const second = await planned({
       ...input(),
       messages: [...input().messages, a, user2],
       outputHistory: [aGroup],
@@ -115,7 +124,7 @@ describe('shared output-history coverage', () => {
       messages: [...input().messages, a, user2, b, message('user', 'third', 'u3')],
       outputHistory: [aGroup, bGroup],
     }
-    const result = planned(request, meter)
+    const result = await planned(request, meter)
     expect(result.measurement.mode).toBe('full')
     expect(full).toHaveBeenCalledOnce()
     expect(full.mock.calls[0]?.[0].outputHistory).toHaveLength(2)
@@ -126,12 +135,12 @@ describe('shared output-history coverage', () => {
     expect(request.outputHistory[1]?.origin.provider).toBe('openai')
   })
 
-  it('assigns P to I, the anchor group to replay, and later O to new only once', () => {
-    const first = planned(input())
+  it('assigns P to I, the anchor group to replay, and later O to new only once', async () => {
+    const first = await planned(input())
     const a = reply('a')
     const user2 = message('user', 'second', 'u2')
     const aGroup = group(first, a, 3, 100)
-    const second = planned({
+    const second = await planned({
       ...input(),
       messages: [...input().messages, a, user2],
       outputHistory: [aGroup],
@@ -149,7 +158,7 @@ describe('shared output-history coverage', () => {
       outputHistory: [aGroup, bGroup],
       tokenMargin: { multiplier: 1.1, reserveTokens: 3 },
     }
-    const result = planned(request, meter)
+    const result = await planned(request, meter)
     expect(result.measurement).toMatchObject({
       mode: 'marginal',
       replayContribution: { tokens: 7 },
@@ -168,7 +177,7 @@ describe('shared output-history coverage', () => {
     expect(fresh.mock.calls[0]?.[0].outputHistory).toEqual([bGroup])
     expect(fresh.mock.calls[0]?.[0].historySpans).toHaveLength(1)
     const bAnchored = group(second, b, 5, 200)
-    const reanchored = planned(
+    const reanchored = await planned(
       {
         ...request,
         calibration: observation(bAnchored),
@@ -181,8 +190,8 @@ describe('shared output-history coverage', () => {
     expect(fresh.mock.calls[1]?.[0].outputHistory).toEqual([])
   })
 
-  it('rejects duplicate targets and known digest errors before any meter runs', () => {
-    const first = planned(input())
+  it('rejects duplicate targets and known digest errors before any meter runs', async () => {
+    const first = await planned(input())
     const a = reply('a')
     const source = group(first, a, 3, 100)
     const full = vi.fn(base.measureFull)
@@ -206,18 +215,32 @@ describe('shared output-history coverage', () => {
       },
     }
     expect(
-      planRequest({ ...request, outputHistory: [source, duplicate] }, testDefinitions, meter),
+      await planRequest(
+        { ...request, outputHistory: [source, duplicate] },
+        testDefinitions,
+        meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
+      ),
     ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
-    expect(planRequest({ ...request, outputHistory: [badDigest] }, testDefinitions, meter)).toEqual(
-      { rejected: 'invalidInput', reason: 'malformed' },
-    )
+    expect(
+      await planRequest(
+        { ...request, outputHistory: [badDigest] },
+        testDefinitions,
+        meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
+      ),
+    ).toEqual({ rejected: 'invalidInput', reason: 'malformed' })
     expect(full).not.toHaveBeenCalled()
     expect(replay).not.toHaveBeenCalled()
     expect(fresh).not.toHaveBeenCalled()
   })
 
-  it('classifies malformed standalone full and marginal facts before the model closure', () => {
-    const first = planned(input())
+  it('classifies malformed standalone full and marginal facts before the model closure', async () => {
+    const first = await planned(input())
     const a = reply('a')
     const source = group(first, a, 3, 100)
     const full = vi.fn(base.measureFull)
@@ -252,6 +275,7 @@ describe('shared output-history coverage', () => {
     ).toEqual({ kind: 'unavailable' })
     expect(
       measureReplay(meter, {
+        countingBasis: projection.requestInput.countingBasis,
         units: projection.units,
         envelope: projection.envelope,
         precedingUnitCount: 0,

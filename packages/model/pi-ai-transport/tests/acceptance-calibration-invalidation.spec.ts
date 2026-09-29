@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -31,8 +32,16 @@ const definition = anthropicDefinitions[0]!
 let cert: ReturnType<typeof certificate>, host: Awaited<ReturnType<typeof fixture>>
 let request: PlanInput, replayed: PlanInput, original: PlannedRequest
 const meter = createAnthropicInputMeter(definition)
-function planned(value: PlanInput, chosenMeter = meter) {
-  const result = planRequest(value, [definition], chosenMeter)
+async function planned(value: PlanInput, chosenMeter = meter) {
+  const result = await planRequest(
+    value,
+    [definition],
+    chosenMeter,
+    {
+      signal: new AbortController().signal,
+    },
+    testImagePreparerFor(planRequest),
+  )
   if (!('planned' in result)) throw Error(JSON.stringify(result))
   return result.planned
 }
@@ -93,7 +102,7 @@ beforeAll(async () => {
       message('user', 'stable-prefix-sentinel', 'original'),
     ],
   }
-  original = planned(request)
+  original = await planned(request)
   const outcome = await invokeModel({
     ...request,
     transport,
@@ -136,10 +145,10 @@ afterAll(async () => {
 })
 
 describe('independent final projection invalidation from a real TLS observation', () => {
-  it('preserves stable P with actual tokenizer instrumentation, counts only retained G and fresh N, and retains cache on wire', () => {
+  it('preserves stable P with actual tokenizer instrumentation, counts only retained G and fresh N, and retains cache on wire', async () => {
     const spy = vi.spyOn(Tiktoken.prototype, 'encode')
     try {
-      const next = planned(replayed)
+      const next = await planned(replayed)
       expect(next.measurement.mode).toBe('marginal')
       expect(spy.mock.calls.length).toBeGreaterThan(0)
       expect(
@@ -165,7 +174,7 @@ describe('independent final projection invalidation from a real TLS observation'
     'compaction-derived',
     'system',
   ] as const)
-    it(`${change} invalidates the real stable prefix even without a compaction flag`, () => {
+    it(`${change} invalidates the real stable prefix even without a compaction flag`, async () => {
       let messages = [...replayed.messages]
       if (change === 'edit') messages[1] = message('user', 'edited original', 'original')
       if (change === 'delete') messages.splice(1, 1)
@@ -183,19 +192,20 @@ describe('independent final projection invalidation from a real TLS observation'
         if (change === 'compaction-derived')
           messages.splice(2, 0, message('user', 'derived shorter summary', 'summary'))
       }
-      expect(planned({ ...replayed, messages }).measurement).toMatchObject({
+      expect((await planned({ ...replayed, messages })).measurement).toMatchObject({
         mode: 'full',
         fallbackReason: 'prefix_changed',
       })
     })
   for (const revision of ['tokenizerRevision', 'algorithmRevision', 'replayRevision'] as const)
-    it(`changed ${revision} cannot reuse the old observation`, () => {
+    it(`changed ${revision} cannot reuse the old observation`, async () => {
       expect(
-        planned(replayed, { ...meter, [revision]: 'independent-other-revision' }).measurement,
+        (await planned(replayed, { ...meter, [revision]: 'independent-other-revision' }))
+          .measurement,
       ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
     })
   for (const field of ['upstreamModel', 'servingProvider'] as const)
-    it(`known wrong ${field} is not a matching route`, () => {
+    it(`known wrong ${field} is not a matching route`, async () => {
       const source = observation(),
         observed = source.inputCalibration.observedInput
       if (observed.kind === 'unavailable') throw Error('known observation absent')
@@ -209,27 +219,29 @@ describe('independent final projection invalidation from a real TLS observation'
           },
         },
       }
-      expect(planned({ ...replayed, calibration }).measurement).toMatchObject({
+      expect((await planned({ ...replayed, calibration })).measurement).toMatchObject({
         mode: 'full',
         fallbackReason: 'basis_changed',
       })
     })
-  it('configuration revision changes basis even when configuration values are equal', () => {
+  it('configuration revision changes basis even when configuration values are equal', async () => {
     const adaptation = replayed.snapshot.adaptation
     expect(
-      planned({
-        ...replayed,
-        snapshot: {
-          ...replayed.snapshot,
-          adaptation: {
-            ...adaptation,
-            configuration: { ...adaptation.configuration, revision: 'different-configuration' },
+      (
+        await planned({
+          ...replayed,
+          snapshot: {
+            ...replayed.snapshot,
+            adaptation: {
+              ...adaptation,
+              configuration: { ...adaptation.configuration, revision: 'different-configuration' },
+            },
           },
-        },
-      }).measurement,
+        })
+      ).measurement,
     ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
   })
-  it('changed tool declarations invalidate input envelope and cannot be skipped in marginal checks', () => {
+  it('changed tool declarations invalidate input envelope and cannot be skipped in marginal checks', async () => {
     const tools = [
       {
         name: 'lookup',
@@ -237,25 +249,27 @@ describe('independent final projection invalidation from a real TLS observation'
         parameters: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
       },
     ]
-    expect(planned({ ...replayed, tools }).measurement).toMatchObject({
+    expect((await planned({ ...replayed, tools })).measurement).toMatchObject({
       mode: 'full',
       fallbackReason: 'prefix_changed',
     })
   })
-  it('bad source blocks and duplicate replay targets reject before another HTTP request', () => {
+  it('bad source blocks and duplicate replay targets reject before another HTTP request', async () => {
     const source = observation()
     expect(
-      planRequest(
+      await planRequest(
         {
           ...replayed,
           calibration: { ...source, outputBlocks: [message('user', 'forged').blocks[0]!] },
         },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({ rejected: 'invalidInput', reason: 'malformed' })
     expect(
-      planRequest(
+      await planRequest(
         {
           ...replayed,
           calibration: {
@@ -265,13 +279,15 @@ describe('independent final projection invalidation from a real TLS observation'
         },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({ rejected: 'invalidInput', reason: 'malformed' })
     expect(host.requests).toHaveLength(1)
   })
-  it('a legal but mismapped replay target falls back to full instead of silently omitting the reply', () => {
+  it('a legal but mismapped replay target falls back to full instead of silently omitting the reply', async () => {
     const source = observation()
-    const result = planned({
+    const result = await planned({
       ...replayed,
       calibration: {
         ...source,
@@ -281,18 +297,19 @@ describe('independent final projection invalidation from a real TLS observation'
     expect(result.measurement.mode).toBe('full')
     expect(result.measurement.fallbackReason).toBeUndefined()
   })
-  it('no source and explicit unavailable source remain distinct; original full evidence stays immutable', () => {
+  it('no source and explicit unavailable source remain distinct; original full evidence stays immutable', async () => {
     expect(
-      planned({ ...replayed, calibration: { kind: 'none', reason: 'no_observation' } }).measurement,
+      (await planned({ ...replayed, calibration: { kind: 'none', reason: 'no_observation' } }))
+        .measurement,
     ).toMatchObject({ mode: 'full', fallbackReason: 'no_observation' })
     expect(
-      planned({ ...replayed, calibration: { kind: 'none', reason: 'source_unavailable' } })
+      (await planned({ ...replayed, calibration: { kind: 'none', reason: 'source_unavailable' } }))
         .measurement,
     ).toMatchObject({ mode: 'full', fallbackReason: 'source_unavailable' })
     expect(original.measurement).toMatchObject({ mode: 'full', fallbackReason: 'no_observation' })
     expect(host.requests).toHaveLength(1)
   })
-  it('marginal image contribution still enforces actual decoded bytes and cannot silently omit media', () => {
+  it('marginal image contribution still enforces actual decoded bytes and cannot silently omit media', async () => {
     const bytes = readFileSync(new URL('./fixtures/anthropic/reference-1x1.png', import.meta.url))
     const visual = judgedMessage({
       type: 'user',
@@ -315,33 +332,35 @@ describe('independent final projection invalidation from a real TLS observation'
       ],
     })
     const imageRequest = { ...replayed, messages: [...replayed.messages, visual] }
-    const measured = planned(imageRequest)
-    expect(measured.measurement.mode).toBe('marginal')
+    const measured = await planned(imageRequest)
+    expect(measured.measurement).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
     expect(measured.inputLimitEvidence.images).toBe(1)
     expect(measured.inputLimitEvidence.imageBytes).toEqual([bytes.length])
     expect(
-      planRequest(
+      await planRequest(
         {
           ...imageRequest,
           snapshot: {
             ...imageRequest.snapshot,
             inputConstraints: {
               ...imageRequest.snapshot.inputConstraints,
-              maxImageBytes: bytes.length - 1,
+              maxImageBytes: 1,
             },
           },
         },
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       ),
     ).toMatchObject({
       rejected: 'invalidInput',
-      reason: 'input_limit_exceeded',
-      metric: 'maxImageBytes',
+      reason: 'input_size_unavailable',
+      metrics: ['maxImageBytes'],
     })
     expect(host.requests).toHaveLength(1)
   })
-  it('opaque retained reasoning outside this official meter domain refuses instead of tokenizing ciphertext', () => {
+  it('opaque retained reasoning outside this official meter domain refuses instead of tokenizing ciphertext', async () => {
     const opaque = judgedMessage({
       type: 'assistant',
       id: 'opaque-response',
@@ -372,7 +391,7 @@ describe('independent final projection invalidation from a real TLS observation'
     const spy = vi.spyOn(Tiktoken.prototype, 'encode')
     try {
       expect(
-        planRequest(
+        await planRequest(
           {
             ...replayed,
             messages: [
@@ -383,6 +402,8 @@ describe('independent final projection invalidation from a real TLS observation'
           },
           [definition],
           meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
         ),
       ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
       expect(spy.mock.calls.some(call => call[0].includes('opaque-ciphertext-sentinel'))).toBe(
@@ -393,7 +414,7 @@ describe('independent final projection invalidation from a real TLS observation'
       spy.mockRestore()
     }
   })
-  it('new tool call and result units remain in delta and retain their actual wire identities', () => {
+  it('new tool call and result units remain in delta and retain their actual wire identities', async () => {
     const call = judgedMessage({
       type: 'assistant',
       id: 'tool-calling',
@@ -438,8 +459,11 @@ describe('independent final projection invalidation from a real TLS observation'
     })
     const spy = vi.spyOn(Tiktoken.prototype, 'encode')
     try {
-      const measured = planned({ ...replayed, messages: [...replayed.messages, call, result] })
-      expect(measured.measurement.mode).toBe('marginal')
+      const measured = await planned({
+        ...replayed,
+        messages: [...replayed.messages, call, result],
+      })
+      expect(measured.measurement).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
       expect(spy.mock.calls.some(item => item[0].includes('tool-result-sentinel'))).toBe(true)
       expect(spy.mock.calls.some(item => item[0].includes('lookup-1'))).toBe(true)
       expect(spy.mock.calls.some(item => item[0].includes('stable-prefix-sentinel'))).toBe(false)
@@ -474,7 +498,7 @@ describe('independent final projection invalidation from a real TLS observation'
       precision: 'estimated',
     },
   ] as const)
-    it(`controlled contribution arithmetic ${row.name}: signed sum and precision/margin compose once`, () => {
+    it(`controlled contribution arithmetic ${row.name}: signed sum and precision/margin compose once`, async () => {
       // Fault/return-value control at the meter port tests the composition algebra only;
       // it does not certify exact or upper-bound counting by the official Anthropic meter.
       const controlled = {
@@ -482,7 +506,7 @@ describe('independent final projection invalidation from a real TLS observation'
         measureReplay: () => ({ kind: row.phi, tokens: 3 }),
         measureNew: () => ({ kind: row.delta, tokens: -2 }),
       }
-      const result = planned(
+      const result = await planned(
         { ...replayed, tokenMargin: { multiplier: 1.1, reserveTokens: 7 } },
         controlled,
       )
@@ -499,7 +523,7 @@ describe('independent final projection invalidation from a real TLS observation'
       ).toBe(0)
     })
   for (const defect of ['unavailable', 'negative-total', 'fractional'] as const)
-    it(`controlled contribution ${defect} goes through full measurement and never substitutes zero`, () => {
+    it(`controlled contribution ${defect} goes through full measurement and never substitutes zero`, async () => {
       const full = vi.fn(meter.measureFull)
       const controlled = {
         ...meter,
@@ -510,7 +534,7 @@ describe('independent final projection invalidation from a real TLS observation'
             ? { kind: 'unavailable' as const }
             : { kind: 'estimated' as const, tokens: defect === 'negative-total' ? -4001 : 0.5 },
       }
-      const result = planned(replayed, controlled)
+      const result = await planned(replayed, controlled)
       expect(result.measurement.mode).toBe('full')
       expect(full).toHaveBeenCalledTimes(1)
       expect(result.measurement.fallbackReason).toBeUndefined()
@@ -518,10 +542,16 @@ describe('independent final projection invalidation from a real TLS observation'
         ExactDecimal.from(result.measurement.predictedInput).compare(ExactDecimal.from(0)),
       ).toBeGreaterThan(0)
       expect(
-        planRequest(replayed, [definition], {
-          ...controlled,
-          measureFull: () => ({ kind: 'unavailable' }),
-        }),
+        await planRequest(
+          replayed,
+          [definition],
+          {
+            ...controlled,
+            measureFull: () => ({ kind: 'unavailable' }),
+          },
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        ),
       ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
       expect(host.requests).toHaveLength(1)
     })

@@ -40,8 +40,8 @@ describe('D6 actual HTTPS connection queue stages', () => {
     const secondFacts: TransportDiagnosticFact[] = []
     const firstSink: TransportExecutionDiagnostics = { record: fact => firstFacts.push(fact) }
     const secondSink: TransportExecutionDiagnostics = { record: fact => secondFacts.push(fact) }
-    const firstPlan = host.transport.plan(input())
-    const secondPlan = host.transport.plan(input())
+    const firstPlan = await host.transport.plan(input(), { signal: new AbortController().signal })
+    const secondPlan = await host.transport.plan(input(), { signal: new AbortController().signal })
     if (!('planned' in firstPlan) || !('planned' in secondPlan))
       throw new Error('real transport plan unavailable')
     const firstAbort = new AbortController()

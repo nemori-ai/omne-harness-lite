@@ -1,3 +1,4 @@
+import { imagePreparation } from './image-transport-support.ts'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 import { createServer, type Server, type ServerOptions } from 'node:https'
@@ -122,8 +123,11 @@ export function policy(): InvocationPolicy {
     diagnostic: () => {},
   }
 }
-export function planned(transport: PiAiTransport, request = input()): PlannedRequest {
-  const result = transport.plan(request)
+export async function planned(
+  transport: PiAiTransport,
+  request = input(),
+): Promise<PlannedRequest> {
+  const result = await transport.plan(request, { signal: new AbortController().signal })
   if ('rejected' in result) throw new Error(`plan: ${result.rejected}`)
   return result.planned
 }
@@ -214,6 +218,7 @@ export async function fixture(
     Object.keys(definition.routes).map(provider => syntheticInputMeter(definition, provider)),
   )
   const transport = createPiAiTransport({
+    imagePreparation,
     definitions,
     inputMeters,
     baseUrl: `https://127.0.0.1:${address.port}/api/v1/`,
@@ -225,6 +230,7 @@ export async function fixture(
     requests,
     transport,
     options: {
+      imagePreparation,
       inputMeters,
       baseUrl: `https://127.0.0.1:${address.port}/api/v1/`,
       tls: { ca: cert.cert },

@@ -75,7 +75,7 @@ function message(type: 'system' | 'system_reminder' | 'user'): Message {
   return judged.ok
 }
 
-function request(
+async function request(
   version: string,
   routes: Readonly<Record<string, ModelRoute>>,
   provider: string,
@@ -117,7 +117,7 @@ function request(
     messages,
     tools: [],
   }
-  return { definition, input, result: planRequest(input, [definition]) }
+  return { definition, input, result: await planRequest(input, [definition]) }
 }
 
 describe('Google Flash routes (synthetic offline fixture, no official profile)', () => {
@@ -136,8 +136,8 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
 
   for (const [version, routes] of variants) {
     for (const provider of ['google-ai-studio', 'google-vertex']) {
-      it(`${version} on ${provider} sends user reminder, exact provider and automatic cache`, () => {
-        const { definition, result } = request(version, routes, provider)
+      it(`${version} on ${provider} sends user reminder, exact provider and automatic cache`, async () => {
+        const { definition, result } = await request(version, routes, provider)
         expect(
           interpretConfiguration(definition, { cache: { mode: 'automatic' } }, provider),
         ).toEqual({
@@ -175,9 +175,9 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
         expect(result.planned.serialized).not.toContain('ttl')
       })
 
-      it(`${version} on ${provider} passes only declared efforts and unchanged output count`, () => {
+      it(`${version} on ${provider} passes only declared efforts and unchanged output count`, async () => {
         for (const effort of ['low', 'medium', 'high'] as const) {
-          const { result } = request(version, routes, provider, {
+          const { result } = await request(version, routes, provider, {
             reasoningEffort: effort,
             maxOutputTokens: 64,
           })
@@ -189,7 +189,7 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
           expect(result.planned.body.reasoning).toEqual({ effort })
           expect(result.planned.body.max_tokens).toBe(64)
         }
-        const { result } = request(version, routes, provider, {
+        const { result } = await request(version, routes, provider, {
           reasoningEffort: 'none',
           temperature: 0.5,
           topP: 0.5,
@@ -218,7 +218,7 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
     }
   }
 
-  it('keeps assistant tool calls and reasoning paired for replay on either Flash model', () => {
+  it('keeps assistant tool calls and reasoning paired for replay on either Flash model', async () => {
     const assistant = judgeMessage({
       id: 'assistant-1',
       type: 'assistant',
@@ -268,7 +268,7 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
     })
     if ('rejected' in assistant || 'rejected' in tool) throw new Error('invalid replay fixture')
     for (const [version, routes] of variants) {
-      const { definition, input, result } = request(version, routes, 'google-ai-studio', {}, [
+      const { definition, input, result } = await request(version, routes, 'google-ai-studio', {}, [
         assistant.ok,
         tool.ok,
       ])
@@ -286,18 +286,20 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
       const wireCalls = member(wireMessages[0], 'tool_calls')
       if (!Array.isArray(wireCalls)) throw new Error('planned tool calls missing')
       expect(member(wireCalls[0], 'id')).toBe(member(wireMessages[1], 'tool_call_id'))
-      expect(planRequest({ ...input, messages: [assistant.ok] }, [definition])).toEqual({
+      expect(await planRequest({ ...input, messages: [assistant.ok] }, [definition])).toEqual({
         rejected: 'orphan_tool_call',
       })
     }
   })
 
-  it('rejects an unlisted provider and a request above the fixture profile limit', () => {
-    const { definition, input } = request('3.8', gemini38FlashRoutes, 'google-ai-studio')
-    expect(planRequest({ ...input, provider: 'google-vertex/flex' }, [definition])).toEqual({
+  it('rejects an unlisted provider and a request above the fixture profile limit', async () => {
+    const { definition, input } = await request('3.8', gemini38FlashRoutes, 'google-ai-studio')
+    expect(await planRequest({ ...input, provider: 'google-vertex/flex' }, [definition])).toEqual({
       rejected: 'unavailable',
     })
-    expect(planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition])).toEqual({
+    expect(
+      await planRequest({ ...input, parameters: { maxOutputTokens: 129 } }, [definition]),
+    ).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',
     })
@@ -309,7 +311,7 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
   ] as const)(
     '%s sends the planned bytes over controlled HTTPS',
     async (version, routes, provider) => {
-      const { definition, input } = request(version, routes, provider, {
+      const { definition, input } = await request(version, routes, provider, {
         reasoningEffort: 'medium',
         maxOutputTokens: 64,
       })
@@ -321,7 +323,7 @@ describe('Google Flash routes (synthetic offline fixture, no official profile)',
         [definition],
       )
       try {
-        const planned = host.transport.plan(input)
+        const planned = await host.transport.plan(input, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(planned.rejected)
         const sent = await host.transport.send(
           planned.planned,

@@ -38,7 +38,7 @@ const count = value => {
   return n
 }
 const save = (path, value) => writePrivateEvidence(path, writeJsonLossless(value) + '\n')
-export function dryPlan(manifest) {
+export async function dryPlan(manifest) {
   const { input, definition } = cacheInput(manifest)
   assert.equal(manifest.path, 'public')
   assert.equal(manifest.implementationRevision, definition.implementation.revision)
@@ -47,7 +47,9 @@ export function dryPlan(manifest) {
   assert.equal(manifest.provider, 'anthropic')
   assert.equal(manifest.allowFallback, false)
   assert.equal(manifest.configuration.cache.ttl, '1h')
-  const result = planRequest(input, [definition], meter)
+  const result = await planRequest(input, [definition], meter, {
+    signal: new AbortController().signal,
+  })
   assert('planned' in result, writeJsonLossless(result))
   return { input, definition, planned: result.planned }
 }
@@ -118,7 +120,7 @@ export async function invokePhase({
   now = () => new Date().toISOString(),
 }) {
   assert(['write', 'read', 'expiry'].includes(phase))
-  const { input, definition, planned } = dryPlan(manifest)
+  const { input, definition, planned } = await dryPlan(manifest)
   const estimateUsd = wholeContextReservation(endpoint, manifest.parameters.maxOutputTokens)
   const bound = createCredentialRedactionPolicy(openRouterCredentialRedactionConfig).bind(
     credential,
@@ -279,7 +281,7 @@ async function main() {
     const [model, ttl, output] = args
     assert.equal(args.length, 3)
     const manifest = makeManifest(model, ttl)
-    const { planned } = dryPlan(manifest)
+    const { planned } = await dryPlan(manifest)
     const directory = await privateOutputDirectory(output)
     await save(join(directory, 'manifest.json'), manifest)
     await save(join(directory, 'plan.json'), {
@@ -318,7 +320,7 @@ async function main() {
   const snapshotSource = await readFile(flags['--snapshot'], 'utf8')
   const snapshot = JSON.parse(snapshotSource)
   const endpoint = exactEndpoint(snapshot, manifest.model, 86400000)
-  const { planned } = dryPlan(manifest)
+  const { planned } = await dryPlan(manifest)
   const frozen = parse(await readFile(join(output, 'plan.json'), 'utf8'))
   assert.equal(frozen.plannedSerialized, planned.serialized)
   const credential = await readCredential(flags['--credential-file'])

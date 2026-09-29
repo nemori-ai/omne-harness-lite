@@ -1,3 +1,4 @@
+import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { directFull } from './direct-full-input.ts'
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -25,93 +26,126 @@ const retirement = {
 }
 
 describe('Google AI Studio rough text/tool input meter', () => {
-  it.each(googleDefinitions)('$modelId limits effort to its declared structure', definition => {
-    const meter = createGoogleInputMeter(definition)
-    if (!meter) throw new Error('Google meter unavailable')
-    const input = googleCalibrationRequest(definition.modelId, 'H2')
-    const base = planRequest(input, [definition], meter)
-    if ('rejected' in base) throw new Error(JSON.stringify(base))
-    for (const effort of ['low', 'medium', 'high'] as const) {
-      const result = planRequest(
-        { ...input, parameters: { ...input.parameters, reasoningEffort: effort } },
+  it.each(googleDefinitions)(
+    '$modelId limits effort to its declared structure',
+    async definition => {
+      const meter = createGoogleInputMeter(definition)
+      if (!meter) throw new Error('Google meter unavailable')
+      const input = googleCalibrationRequest(definition.modelId, 'H2')
+      const base = await planRequest(
+        input,
         [definition],
         meter,
+        {
+          signal: new AbortController().signal,
+        },
+        testImagePreparerFor(planRequest),
       )
-      if ('rejected' in result) throw new Error(JSON.stringify(result))
-      expect(result.planned.body.reasoning).toEqual({ effort })
-      expect(result.planned.inputLimitEvidence.inputTokens).toEqual(
-        base.planned.inputLimitEvidence.inputTokens,
+      if ('rejected' in base) throw new Error(JSON.stringify(base))
+      for (const effort of ['low', 'medium', 'high'] as const) {
+        const result = await planRequest(
+          { ...input, parameters: { ...input.parameters, reasoningEffort: effort } },
+          [definition],
+          meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        )
+        if ('rejected' in result) throw new Error(JSON.stringify(result))
+        expect(result.planned.body.reasoning).toEqual({ effort })
+        expect(result.planned.inputLimitEvidence.inputTokens).toEqual(
+          base.planned.inputLimitEvidence.inputTokens,
+        )
+        expect(result.planned.inputLimitEvidence.admissionTokens).toBe(
+          base.planned.inputLimitEvidence.admissionTokens,
+        )
+        expect(result.planned.body.messages).toEqual(base.planned.body.messages)
+        expect(result.planned.body.tools).toEqual(base.planned.body.tools)
+      }
+      for (const reasoning of [
+        {},
+        { effort: 'none' },
+        { effort: 'max' },
+        { effort: 3 },
+        { effort: 'low', unknown: true },
+      ]) {
+        const body = { ...base.planned.body, reasoning }
+        expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
+          kind: 'unavailable',
+        })
+      }
+      const dropped = await planRequest(
+        { ...input, parameters: { ...input.parameters, reasoningEffort: 'none' } },
+        [definition],
+        meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
-      expect(result.planned.inputLimitEvidence.admissionTokens).toBe(
-        base.planned.inputLimitEvidence.admissionTokens,
-      )
-      expect(result.planned.body.messages).toEqual(base.planned.body.messages)
-      expect(result.planned.body.tools).toEqual(base.planned.body.tools)
-    }
-    for (const reasoning of [
-      {},
-      { effort: 'none' },
-      { effort: 'max' },
-      { effort: 3 },
-      { effort: 'low', unknown: true },
-    ]) {
-      const body = { ...base.planned.body, reasoning }
-      expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
-        kind: 'unavailable',
-      })
-    }
-    const dropped = planRequest(
-      { ...input, parameters: { ...input.parameters, reasoningEffort: 'none' } },
-      [definition],
-      meter,
-    )
-    if ('rejected' in dropped) throw new Error(JSON.stringify(dropped))
-    expect(dropped.planned.body.reasoning).toBeUndefined()
-    expect(dropped.planned.droppedParameters).toContain('reasoningEffort')
-  })
+      if ('rejected' in dropped) throw new Error(JSON.stringify(dropped))
+      expect(dropped.planned.body.reasoning).toBeUndefined()
+      expect(dropped.planned.droppedParameters).toContain('reasoningEffort')
+    },
+  )
 
-  it.each(googleDefinitions)('$modelId reproduces frozen fit and holdout features', definition => {
-    const meter = createGoogleInputMeter(definition)
-    if (!meter) throw new Error('Google meter unavailable')
-    expect(meter).toMatchObject({
-      modelId: definition.modelId,
-      definitionRevision: definition.revision,
-      implementation: definition.implementation,
-      provider: 'google-ai-studio',
-      algorithmRevision: 'gemma4-visible-text-tools-effort-offset6-2',
-    })
-    expect(
-      createGoogleInputMeter({
-        ...definition,
-        revision: '1',
-        implementation: { name: 'pi-ai:google', revision: 'mp4-2' },
-      }),
-    ).toBeUndefined()
-    expect(
-      createGoogleInputMeter({
-        ...definition,
-        capabilities: { ...definition.capabilities, maxInputTokens: 983039 },
-      }),
-    ).toBeUndefined()
-    for (const [id, tokens] of Object.entries(expected) as [keyof typeof expected, number][]) {
-      const planned = planRequest(
-        googleCalibrationRequest(definition.modelId, id),
-        [definition],
-        meter,
-      )
-      if ('rejected' in planned) throw new Error(`${id}: ${JSON.stringify(planned)}`)
-      expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({ kind: 'estimated', tokens })
-      expect(planned.planned.inputLimitEvidence.admissionTokens).toBe(Math.ceil(tokens * 1.2) + 32)
-    }
-  })
+  it.each(googleDefinitions)(
+    '$modelId reproduces frozen fit and holdout features',
+    async definition => {
+      const meter = createGoogleInputMeter(definition)
+      if (!meter) throw new Error('Google meter unavailable')
+      expect(meter).toMatchObject({
+        modelId: definition.modelId,
+        definitionRevision: definition.revision,
+        implementation: definition.implementation,
+        provider: 'google-ai-studio',
+        algorithmRevision: 'gemma4-visible-text-tools-effort-offset6-2',
+      })
+      expect(
+        createGoogleInputMeter({
+          ...definition,
+          revision: '1',
+          implementation: { name: 'pi-ai:google', revision: 'mp4-2' },
+        }),
+      ).toBeUndefined()
+      expect(
+        createGoogleInputMeter({
+          ...definition,
+          capabilities: { ...definition.capabilities, maxInputTokens: 983039 },
+        }),
+      ).toBeUndefined()
+      for (const [id, tokens] of Object.entries(expected) as [keyof typeof expected, number][]) {
+        const planned = await planRequest(
+          googleCalibrationRequest(definition.modelId, id),
+          [definition],
+          meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        )
+        if ('rejected' in planned) throw new Error(`${id}: ${JSON.stringify(planned)}`)
+        expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
+          kind: 'estimated',
+          tokens,
+        })
+        expect(planned.planned.inputLimitEvidence.admissionTokens).toBe(
+          Math.ceil(tokens * 1.2) + 32,
+        )
+      }
+    },
+  )
 
   it.each(googleDefinitions)(
     '$modelId refuses uncovered media and protocol controls',
-    definition => {
+    async definition => {
       const meter = createGoogleInputMeter(definition)
       if (!meter) throw new Error('Google meter unavailable')
       expect(
-        planRequest(googleCertificationRequest(definition.modelId), [definition], meter),
+        await planRequest(
+          googleCertificationRequest(definition.modelId),
+          [definition],
+          meter,
+          {
+            signal: new AbortController().signal,
+          },
+          testImagePreparerFor(planRequest),
+        ),
       ).toEqual({
         rejected: 'invalidInput',
         reason: 'input_size_unavailable',
@@ -144,13 +178,15 @@ describe('Google AI Studio rough text/tool input meter', () => {
 
   it.each(googleDefinitions)(
     '$modelId rejects body/serialized drift before counting',
-    definition => {
+    async definition => {
       const meter = createGoogleInputMeter(definition)
       if (!meter) throw new Error('Google meter unavailable')
-      const planned = planRequest(
+      const planned = await planRequest(
         googleCalibrationRequest(definition.modelId, 'F2'),
         [definition],
         meter,
+        { signal: new AbortController().signal },
+        testImagePreparerFor(planRequest),
       )
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       const { body, serialized } = planned.planned
@@ -192,7 +228,7 @@ describe('Google AI Studio rough text/tool input meter', () => {
       if ('rejected' in registered) throw new Error('Google service registration failed')
       try {
         const input = googleCalibrationRequest(definition.modelId, 'H2')
-        const publicPlan = direct.plan(input)
+        const publicPlan = await direct.plan(input, { signal: new AbortController().signal })
         if ('rejected' in publicPlan) throw new Error(JSON.stringify(publicPlan))
         const publicSent = await direct.send(
           publicPlan.planned,
@@ -211,7 +247,9 @@ describe('Google AI Studio rough text/tool input meter', () => {
         if ('rejected' in acquired) throw new Error('Google lease unavailable')
         const lease = acquired.lease
         try {
-          const servicePlan = lease.transport.plan(input)
+          const servicePlan = await lease.transport.plan(input, {
+            signal: new AbortController().signal,
+          })
           if ('rejected' in servicePlan) throw new Error(JSON.stringify(servicePlan))
           expect(servicePlan.planned.inputLimitEvidence.inputTokens).toEqual({
             kind: 'estimated',
@@ -237,7 +275,9 @@ describe('Google AI Studio rough text/tool input meter', () => {
         } finally {
           lease.release()
         }
-        const media = direct.plan(googleCertificationRequest(definition.modelId))
+        const media = await direct.plan(googleCertificationRequest(definition.modelId), {
+          signal: new AbortController().signal,
+        })
         expect(media).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
         expect(host.requests).toHaveLength(2)
       } finally {
@@ -319,7 +359,7 @@ describe('Google AI Studio rough text/tool input meter', () => {
       try {
         const base = googleCalibrationRequest(definition.modelId, 'H2')
         const input = { ...base, parameters: { ...base.parameters, reasoningEffort: effort } }
-        const planned = direct.plan(input)
+        const planned = await direct.plan(input, { signal: new AbortController().signal })
         if ('rejected' in planned) throw new Error(JSON.stringify(planned))
         expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
           kind: 'estimated',
