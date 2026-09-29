@@ -25,10 +25,16 @@ function knownDigestsMatch(
 ): boolean {
   const output = group.inputCalibration.outputGroup
   if (output.kind !== 'known') return false
-  if (output.projectionRevision !== INPUT_PROJECTION_REVISION) return true
+  if (
+    ![INPUT_PROJECTION_REVISION, 'openrouter-input-projection/2'].includes(
+      output.projectionRevision,
+    )
+  )
+    return true
   try {
     return output.blockDigests.every(
-      (digest, index) => digest === outputBlockDigest(group.outputBlocks[index]),
+      (digest, index) =>
+        digest === outputBlockDigest(group.outputBlocks[index], output.projectionRevision),
     )
   } catch {
     return false

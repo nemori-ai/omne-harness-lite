@@ -1,3 +1,5 @@
+import { attachAnthropicCache } from './anthropic-cache.ts'
+import { normalizeToolCallId, projectAssistant } from './assistant-projection.ts'
 import { projectInput, stableAnthropicRoute } from './projection.ts'
 import { measureCalibrated } from './calibration.ts'
 import { projectHistorySpans, type MessageSpan } from './history-projection.ts'
@@ -6,7 +8,6 @@ import { projectHistorySpans, type MessageSpan } from './history-projection.ts'
 import { createHash } from 'node:crypto'
 import {
   writeJsonLossless,
-  readOpaqueJson,
   copyJsonValue,
   isJsonNumber,
   type JsonObject,
@@ -91,12 +92,6 @@ export function isPlannedRequest(value: PlannedRequest): boolean {
   return plans.has(value)
 }
 export const PI_AI_CARRIABLE_MODALITIES = Object.freeze(['text', 'image'] as const)
-function normalizeToolCallId(id: string): string {
-  // Deterministic request-local rewrite; invocation and result share the same transform.
-  return /^[A-Za-z0-9_-]{1,64}$/.test(id)
-    ? id
-    : `call_${createHash('sha256').update(id).digest('base64url').slice(0, 32)}`
-}
 function parts(blocks: readonly ContentBlock[], images: boolean): JsonObject[] | undefined {
   const result: JsonObject[] = []
   for (const block of blocks) {
@@ -211,59 +206,10 @@ export async function planRequest(
     spans.push(span)
     if (message.type === 'tool_internal') return { rejected: 'tool_internal_in_request' }
     if (message.type === 'assistant') {
-      const content: string[] = [],
-        thinking: string[] = [],
-        tools: JsonObject[] = [],
-        details: JsonValue[] = []
-      let independentPlainThinking = false
-      for (const block of message.blocks) {
-        if (!block.visibility.toModel) continue
-        if (block.kind === 'text') content.push(block.text)
-        else if (block.kind === 'thinking') {
-          thinking.push(block.text)
-          let replayedOpaque = false
-          if (block.opaque) {
-            const opaque = readOpaqueJson(block.opaque)
-            if (
-              object(opaque) &&
-              opaque.routeName === input.routeName &&
-              Array.isArray(opaque.reasoning_details)
-            ) {
-              details.push(...opaque.reasoning_details)
-              replayedOpaque = opaque.reasoning_details.length > 0
-            }
-          }
-          if (!replayedOpaque && block.text.length > 0) independentPlainThinking = true
-        } else if (block.kind === 'tool_call' && block.complete) {
-          calls.add(block.callId)
-          tools.push({
-            id: normalizeToolCallId(block.callId),
-            type: 'function',
-            function: {
-              name: block.tool,
-              arguments: block.unparseable
-                ? block.rawArguments
-                : writeJsonLossless(block.arguments),
-            },
-          })
-        } else return { rejected: 'modality_not_carried' }
-      }
-      // The selected route has no verified lossless mapping for an additional
-      // independent plaintext thinking block beside replayable opaque details.
-      if (details.length && independentPlainThinking) return { rejected: 'unavailable' }
-      messages.push({
-        role: 'assistant',
-        content:
-          stableArrays && content.join('').length
-            ? [{ type: 'text', text: content.join('') }]
-            : content.join(''),
-        ...(tools.length ? { tool_calls: tools } : {}),
-        ...(details.length
-          ? { reasoning_details: details }
-          : thinking.some(Boolean)
-            ? { reasoning: thinking.join('') }
-            : {}),
-      })
+      const assistant = projectAssistant(message.blocks, input.routeName, stableArrays)
+      if ('rejected' in assistant) return assistant
+      for (const callId of assistant.callIds) calls.add(callId)
+      messages.push(assistant.message)
       continue
     }
     const converted = parts(message.blocks, images)
@@ -394,10 +340,16 @@ export async function planRequest(
         if (last) Object.assign(last, { cache_control: control })
       }
       if (breakpoint === 'last_message') {
-        const last = messages.findLast(
-          m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool',
-        )
-        if (last) addBreakpoint(last, control)
+        if (stableArrays) {
+          const cached = attachAnthropicCache(body, cache.ttl)
+          if (!cached) return { rejected: 'unavailable' }
+          Object.assign(body, cached)
+        } else {
+          const last = messages.findLast(
+            m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool',
+          )
+          if (last) addBreakpoint(last, control)
+        }
       }
     }
   }

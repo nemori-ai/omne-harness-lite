@@ -601,3 +601,9 @@ try {
 工厂和 Cordis 插件配置显式接收 `imagePreparation: { policy: modelImageBalancedV1, codec: createSharpImageCodec(sharp) }`。工厂拥有 preparer，并在 `close()` 中停止接纳、取消规划并等待真实原生任务和连接排空；借用的 codec 不被销毁。显式 `codec: null` 保持 codec 缺席，policy 仍在初始化时严格校验；有图请求返回 unavailable，纯文本保持原路径。没有隐式 codec、policy 或限额回填。
 
 `ModelTransportService.clearReuseScope(scope)` 对服务拥有的固定 preparer 集合同步清理；租约释放、贡献退役和服务停止接纳后仍可调用。scope 是进程内不透明对象，不进入 durable binding 或日志，也不授予租户权限。独立函数调用者管理自己的 scope；省略它即不跨请求复用。
+
+### 组合完整历史输出
+
+`fullOutputHistory`、`newOutputHistory` 和 `replayOutputHistory` 使用同一完整输出组遍历算法。调用者提供包含有限厂商来源与 basis 规则的 `OutputHistoryPolicy`，以及纯可见 body 计数函数。单元分类分为可见、需要完整输出组、无法解释三态。公共实现只将完整且唯一选中的 assistant 单元替换为原上游 output 计数一次；其中已经包含推理 tokens。这是估算贡献，不承诺输入与输出 token 精确相等。未知映射返回 unavailable，不对 opaque 字节做 tokenizer 回退。
+
+全量计量核对真实 body 与缓存中性投影。投影版本 `openrouter-input-projection/3` 只移除经验证且来自配置的 Anthropic 缓存控制，提交的 wire 不变。历史 `/2` 摘要按原版本核验，不因此复用旧输入锚点。签名前缀规则通过最终 marginal 输入对象上的私有同步 planner 能力消费；独立 marginal 调用缺少该能力时返回 unavailable。

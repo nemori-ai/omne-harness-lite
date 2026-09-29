@@ -1,3 +1,4 @@
+import { withOutputPrefix } from './input-meters/output-prefix.ts'
 import { readerRevision, usageScope } from './usage-scope.ts'
 import { ExactDecimal, judgeAccountValue, type Usage } from '@omne-harness-lite/call-accounts'
 import {
@@ -309,21 +310,17 @@ export function measureCalibrated(
               if (prepared && 'changed' in prepared) fallback = 'prefix_changed'
               throw new TypeError('DeepSeek substantive prefix changed or boundary unavailable')
             }
+            const replayInput: ReplayMeterInput = Object.freeze({
+              ...arg(replay, boundary?.replay),
+              countingBasis: basis,
+              observation: calibration,
+              outputHistory: Object.freeze(replayHistory === undefined ? [] : [replayHistory]),
+              unitIndices: Object.freeze(unitIndices),
+              selectionSpans: Object.freeze(selectionSpans),
+            })
             const phi =
               replay.length || boundary?.replay.added !== boundary?.replay.removed
-                ? measureReplay(
-                    meter,
-                    Object.freeze({
-                      ...arg(replay, boundary?.replay),
-                      countingBasis: basis,
-                      observation: calibration,
-                      outputHistory: Object.freeze(
-                        replayHistory === undefined ? [] : [replayHistory],
-                      ),
-                      unitIndices: Object.freeze(unitIndices),
-                      selectionSpans: Object.freeze(selectionSpans),
-                    }),
-                  )
+                ? withOutputPrefix(replayInput, projection, () => measureReplay(meter, replayInput))
                 : { kind: 'exact' as const, tokens: 0 }
             const newInput: NewMeterInput = Object.freeze({
               ...arg(fresh, boundary?.fresh),
@@ -334,7 +331,7 @@ export function measureCalibrated(
             })
             const delta =
               fresh.length || boundary?.fresh.added !== boundary?.fresh.removed
-                ? measureNew(meter, newInput)
+                ? withOutputPrefix(newInput, projection, () => measureNew(meter, newInput))
                 : { kind: 'exact' as const, tokens: 0 }
             if (
               meterContributionValid(phi) &&

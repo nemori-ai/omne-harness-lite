@@ -1,3 +1,4 @@
+import { cacheNeutralBody } from './anthropic-cache.ts'
 import { createHash } from 'node:crypto'
 import {
   copyJsonValue,
@@ -21,7 +22,7 @@ import { renderDeepSeekV4Prompt } from './input-meters/deepseek-v4-pro.ts'
 import { renderDeepSeekV41Prompt } from './input-meters/deepseek-v41-flash.ts'
 import { composeTransformRevision, type ImagePreparationRevision } from './meter-transform.ts'
 
-export const INPUT_PROJECTION_REVISION = 'openrouter-input-projection/2'
+export const INPUT_PROJECTION_REVISION = 'openrouter-input-projection/3'
 const anthropicModels = new Set([
   'anthropic/claude-opus-5.5',
   'anthropic/claude-opus-5',
@@ -33,7 +34,7 @@ export function stableAnthropicRoute(input: PlanInput): boolean {
     anthropicModels.has(input.routeName) &&
     input.provider === 'anthropic' &&
     input.snapshot.adaptation.implementation.name === 'pi-ai:anthropic' &&
-    input.snapshot.adaptation.implementation.revision === 'mp4-17'
+    input.snapshot.adaptation.implementation.revision === 'mp4-18'
   )
 }
 function encodeSorted(value: JsonValue): string {
@@ -51,16 +52,20 @@ export function canonicalProjection(value: unknown): string {
   if ('failed' in owned) throw new TypeError('non-JSON projection')
   return encodeSorted(owned.ok)
 }
-function digest(domain: string, value: unknown): string {
+export function projectionDigest(
+  domain: string,
+  value: unknown,
+  revision = INPUT_PROJECTION_REVISION,
+): string {
   return createHash('sha256')
-    .update(canonicalProjection([INPUT_PROJECTION_REVISION, domain, value]), 'utf8')
+    .update(canonicalProjection([revision, domain, value]), 'utf8')
     .digest('hex')
 }
-export function outputBlockDigest(block: unknown): string {
-  return digest('output-block', block)
+export function outputBlockDigest(block: unknown, revision = INPUT_PROJECTION_REVISION): string {
+  return projectionDigest('output-block', block, revision)
 }
 export function prefixDigest(units: readonly JsonValue[]): string {
-  return digest('input-prefix', units)
+  return projectionDigest('input-prefix', units)
 }
 export interface InputProjection {
   readonly units: readonly JsonValue[]
@@ -94,36 +99,15 @@ export function projectInput(
   if (!owned || !Array.isArray(owned.messages)) throw new TypeError('messages required')
   body = owned
   if (!Array.isArray(body.messages)) throw new TypeError('messages required')
-  const units = body.messages.map(message => {
-    if (
-      !stableAnthropicRoute(input) ||
-      !object(message) ||
-      !['user', 'assistant', 'tool'].includes(String(message.role)) ||
-      !Array.isArray(message.content)
-    )
-      return message
-    return {
-      ...message,
-      content: message.content.map(part => {
-        if (!object(part) || part.type !== 'text' || !object(part.cache_control)) return part
-        const control = part.cache_control
-        if (
-          Object.keys(control).length !== 2 ||
-          control.type !== 'ephemeral' ||
-          control.ttl !== '1h'
-        )
-          return part
-        const { cache_control: _control, ...content } = part
-        return content
-      }),
-    }
-  })
-  const { messages: _messages, ...rest } = body
+  const basis = countingBasis(input, meter, preparation)
+  const neutral = cacheNeutralBody(body, basis)
+  const units = neutral.messages
+  if (!Array.isArray(units)) throw new TypeError('messages required')
+  const { messages: _messages, ...rest } = neutral
   const envelope = ownedObject(rest)
   const ownedUnits = copyJsonValue(units)
   if (!envelope || 'failed' in ownedUnits || !Array.isArray(ownedUnits.ok))
     throw new TypeError('invalid projection')
-  const basis = countingBasis(input, meter, preparation)
   return Object.freeze({
     units: ownedUnits.ok,
     envelope,
@@ -132,7 +116,7 @@ export function projectInput(
       projectionRevision: INPUT_PROJECTION_REVISION,
       prefixBoundary: units.length,
       prefixDigest: prefixDigest(ownedUnits.ok),
-      inputEnvelopeDigest: digest('input-envelope', envelope),
+      inputEnvelopeDigest: projectionDigest('input-envelope', envelope),
       countingBasis: basis,
     }),
   })
