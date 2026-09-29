@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import type { RunHistoryReader } from './settlement-types.ts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   judgePendingModelResponse,
@@ -97,8 +98,6 @@ export async function settlePendingReply(input: {
   )
     return { invalidInput: { reason: 'malformed' } }
   if (pending.call.callId !== request.callId) return { callNotFound: true }
-  // G-28: a Run's late predicate still requires its real owner and one full prefix.
-  if (pending.call.runId !== undefined) return { unavailable: true }
   try {
     const result = await invocation.settleReply(request.disposition)
     if ('unavailable' in result) return { unavailable: true }
@@ -259,6 +258,7 @@ async function readSettledReply(
 /** S-33 recovery owns every entered scope until its original work and full-prefix read are settled. */
 export function createRuntimeReconcile(input: {
   readonly recovery: RuntimeRecoveryAccess
+  readonly run?: RunHistoryReader
   readonly contention: SettlementContention
   readonly scheduler: SettlementScheduler
   readonly now: () => string
@@ -614,6 +614,7 @@ async function readRecoveredCalls(
     readonly scheduler: SettlementScheduler
     readonly now: () => string
     readonly diagnostic: (event: SettlementDiagnostic) => void
+    readonly run?: RunHistoryReader
   },
   closed: () => boolean,
   onAnchor: (anchor: {
@@ -665,11 +666,24 @@ async function readRecoveredCalls(
     if (previous.some(item => item.response === null)) return { unavailable: true }
     const last = history.known.dispatches.at(-1)
     if (last === undefined && history.known.intent !== null && history.known.ending === null) {
+      const intentEntry = rowInspected.ok.find(
+        item =>
+          item.captured.record?.kind === 'model_call_interrupt_intent' &&
+          item.captured.record.call === callId,
+      )?.entry
+      if (
+        intentEntry === undefined ||
+        (intentEntry.run === undefined) !== (request.attempt === undefined)
+      )
+        return { unavailable: true }
       if (closed()) return { unavailable: true }
       const appended = await appendControlRecord({
         binding,
         owner: scope.owner,
         concurrent: input.contention.limits.concurrent,
+        ...(intentEntry.run === undefined
+          ? {}
+          : { run: intentEntry.run, attempt: request.attempt }),
         record: {
           kind: 'model_call_ended',
           call: callId,
@@ -743,6 +757,9 @@ async function readRecoveredCalls(
           : ({ observed: observed.facts } as const)
       const candidate = constructAnchoredInterruption({
         dispatched: last.record,
+        ...(last.dispatched.run === undefined
+          ? {}
+          : { run: last.dispatched.run, attempt: last.dispatched.attempt }),
         ...originalFacts,
         firstTokenAt: firstTokenAt === null ? null : firstTokenAt.firstTokenAt,
         endedAt: input.now(),
@@ -752,6 +769,7 @@ async function readRecoveredCalls(
       const coordinator = createSettlementCoordinator({
         binding,
         owner: scope.owner,
+        ...(input.run === undefined ? {} : { run: input.run }),
         settlementContention: input.contention,
         settlementScheduler: input.scheduler,
         diagnostic: input.diagnostic,

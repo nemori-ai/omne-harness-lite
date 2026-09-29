@@ -22,6 +22,8 @@ import {
 } from './service-control.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import { authorizedCalibration } from './service-calibration.ts'
+import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
+import { modelLogJsonEqual } from './log-codec.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
   CallOperationState,
@@ -35,6 +37,9 @@ import type {
   SessionRuntimeBinding,
   ModelObserverQueue,
   ObserverDiagnostic,
+  FailureConsumableOperation,
+  FailureConsumption,
+  ModelFailureSource,
 } from './service-types.ts'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { CredentialScope } from '@omne-harness-lite/model-response'
@@ -305,8 +310,8 @@ interface PreparedSend {
 }
 
 export interface ServiceDispatch {
-  readonly dispatch: (input: DispatchInput) => Promise<DispatchResult>
-  readonly dispatchAgain: (input: DispatchAgainInput) => Promise<DispatchAgainResult>
+  readonly dispatch: FailureConsumableOperation<DispatchInput, DispatchResult>
+  readonly dispatchAgain: FailureConsumableOperation<DispatchAgainInput, DispatchAgainResult>
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
 }
 
@@ -318,6 +323,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
   const appends = new OwnedAppendTracker()
   const unknownWrites = new UnknownAppendTracker()
   const lastDiagnosticByCall = new WeakMap<object, DiagnosticReference>()
+  const sources = new Set<ModelFailureSource>()
   let closing = false
 
   let diagnosticFailureReportEnabled = true
@@ -338,11 +344,20 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     if ('released' in closed) runtime.calls.remove(reservation)
   }
 
-  function run(input: DispatchInput, again: false): Promise<DispatchResult>
-  function run(input: DispatchAgainInput, again: true): Promise<DispatchAgainResult>
+  function run(
+    input: DispatchInput,
+    again: false,
+    onFailure?: (source: ModelFailureSource) => void,
+  ): Promise<DispatchResult>
+  function run(
+    input: DispatchAgainInput,
+    again: true,
+    onFailure?: (source: ModelFailureSource) => void,
+  ): Promise<DispatchAgainResult>
   async function run(
     input: DispatchInput | DispatchAgainInput,
     again: boolean,
+    onFailure?: (source: ModelFailureSource) => void,
   ): Promise<DispatchResult | DispatchAgainResult> {
     if (closing) return { runtimeStopped: true }
     if (!validDispatchInput(input)) return { invalidInput: { reason: 'malformed' } }
@@ -381,8 +396,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     try {
       if (closing) return { runtimeStopped: true }
       const local = reservation.view()
-      if (local !== undefined && (local.session !== session || local.request.run !== undefined))
-        return { unavailable: true }
+      if (local !== undefined && local.session !== session) return { unavailable: true }
       const owner = local?.owner ?? session.selection.owner
       if (owner.admission() !== 'open' || !settlementGenerationCurrent(session.log))
         return { runtimeStopped: true }
@@ -480,8 +494,11 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       if (local.operation.phase !== 'ready') return { unavailable: true }
       if (local.request.host.signal.aborted || local.request.host.stopping())
         return { runtimeStopped: true }
-      // A Run call cannot be inferred from a missing attempt, or vice versa.
-      if (input.attempt !== undefined) return { invalidInput: { reason: 'malformed' } }
+      if (
+        (local.request.run === undefined) !== (input.attempt === undefined) ||
+        (input.attempt !== undefined && !('ok' in judgeAccountValue('AttemptId', input.attempt)))
+      )
+        return { invalidInput: { reason: 'malformed' } }
       const prepared = await prepareSend(
         runtime,
         session,
@@ -528,6 +545,9 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           binding: session.log,
           owner,
           concurrent: runtime.settlementContention.limits.concurrent,
+          ...(local.request.run === undefined
+            ? {}
+            : { run: local.request.run, attempt: input.attempt }),
           record: {
             kind: 'model_call_ended',
             call: key.callId,
@@ -760,6 +780,9 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           }
         }
         return createAnchoredModelInvocation({
+          ...(local.request.run === undefined
+            ? {}
+            : { run: local.request.run, attempt: input.attempt }),
           planInput,
           transport: local.binding.lease.transport,
           credential,
@@ -773,6 +796,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           settlement: {
             binding: session.log,
             owner,
+            run: runtime.history.run,
             settlementContention: runtime.settlementContention,
             settlementScheduler: runtime.settlementScheduler,
             diagnostic: settlementDiagnostic,
@@ -818,6 +842,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       const attached = handle
       reservation.publish({
         phase: 'dispatching',
+        ...(input.attempt === undefined ? {} : { attempt: input.attempt }),
         abort: attached.abort,
         interrupt: attached.interrupt,
       })
@@ -859,18 +884,55 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         if ('unavailable' in closed) return { unavailable: true }
         finish.reservation.publish({ phase: 'ready' })
         if (response.outcome === 'failed') {
+          let createdSource: ModelFailureSource | undefined
           const got = await withOwnedReads(
             view.owner,
             runtime.settlementContention.limits.concurrent,
             retainedReads,
             async registration => {
               const prefix = await readSettlementPrefix({ binding: session.log, registration })
-              return 'unavailable' in prefix
-                ? ({ unavailable: true } as const)
-                : runtime.history.failure(prefix.prefix, key.callId)
+              if ('unavailable' in prefix) return { unavailable: true } as const
+              const history = runtime.history.call(prefix.prefix, key.callId)
+              if (!('known' in history)) return { unavailable: true } as const
+              const latest = history.known.dispatches.at(-1)
+              if (
+                latest?.response === null ||
+                latest?.response === undefined ||
+                !modelLogJsonEqual(latest.response.value, response)
+              )
+                return { unavailable: true } as const
+              const subject = readFailureSubject({
+                prefix: prefix.prefix,
+                callId: key.callId,
+                dispatches: history.known.dispatches,
+                source: runtime.history.failure,
+              })
+              if (!('subject' in subject)) return { unavailable: true } as const
+              if (onFailure !== undefined) {
+                const source = createModelFailureSource({
+                  prefix: prefix.prefix,
+                  owner: view.owner,
+                  subject: subject.subject,
+                  usable: () =>
+                    !closing && !view.request.host.stopping() && !view.request.host.signal.aborted,
+                  retain: value => {
+                    sources.add(value)
+                  },
+                  forget: value => {
+                    sources.delete(value)
+                  },
+                })
+                if (source === null) return { unavailable: true } as const
+                createdSource = source
+              }
+              return { subject: subject.subject }
             },
           )
-          if ('unavailable' in got || 'unavailable' in got.ok) return { unavailable: true }
+          if ('unavailable' in got || 'unavailable' in got.ok) {
+            createdSource?.release()
+            return { unavailable: true }
+          }
+          if (createdSource !== undefined) onFailure?.(createdSource)
           return { settled: response, failureSubject: got.ok.subject }
         }
         if (response.outcome === 'interrupted' && !('reply' in response)) {
@@ -920,6 +982,9 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             binding: session.log,
             owner: view.owner,
             concurrent: runtime.settlementContention.limits.concurrent,
+            ...(view.request.run === undefined
+              ? {}
+              : { run: view.request.run, attempt: input.attempt }),
             record: {
               kind: 'model_call_ended',
               call: key.callId,
@@ -947,11 +1012,76 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       finish.reservation.release()
     }
   }
+  function dispatch(input: DispatchInput): Promise<DispatchResult>
+  function dispatch(
+    input: DispatchInput,
+    options: { readonly consumeFailure: true },
+  ): Promise<FailureConsumption<DispatchResult>>
+  async function dispatch(
+    input: DispatchInput,
+    options?: { readonly consumeFailure: true },
+  ): Promise<DispatchResult | FailureConsumption<DispatchResult>> {
+    if (
+      options !== undefined &&
+      (options?.consumeFailure !== true || Object.keys(options).length !== 1)
+    )
+      return { invalidInput: { reason: 'malformed' } }
+    let source: ModelFailureSource | undefined
+    const result = await run(
+      input,
+      false,
+      options?.consumeFailure === true
+        ? value => {
+            source = value
+          }
+        : undefined,
+    )
+    return options === undefined
+      ? result
+      : {
+          result,
+          consumption:
+            source === undefined ? { kind: 'notApplicable' } : { kind: 'failure', source },
+        }
+  }
+  function dispatchAgain(input: DispatchAgainInput): Promise<DispatchAgainResult>
+  function dispatchAgain(
+    input: DispatchAgainInput,
+    options: { readonly consumeFailure: true },
+  ): Promise<FailureConsumption<DispatchAgainResult>>
+  async function dispatchAgain(
+    input: DispatchAgainInput,
+    options?: { readonly consumeFailure: true },
+  ): Promise<DispatchAgainResult | FailureConsumption<DispatchAgainResult>> {
+    if (
+      options !== undefined &&
+      (options?.consumeFailure !== true || Object.keys(options).length !== 1)
+    )
+      return { invalidInput: { reason: 'malformed' } }
+    let source: ModelFailureSource | undefined
+    const result = await run(
+      input,
+      true,
+      options?.consumeFailure === true
+        ? value => {
+            source = value
+          }
+        : undefined,
+    )
+    return options === undefined
+      ? result
+      : {
+          result,
+          consumption:
+            source === undefined ? { kind: 'notApplicable' } : { kind: 'failure', source },
+        }
+  }
   return Object.freeze({
-    dispatch: (input: DispatchInput) => run(input, false),
-    dispatchAgain: (input: DispatchAgainInput) => run(input, true),
+    dispatch,
+    dispatchAgain,
     close: async () => {
       closing = true
+      for (const source of sources) source.release()
       const [reads, appendResult] = await Promise.all([retainedReads.close(), appends.close()])
       const writes = await unknownWrites.close({
         concurrent: runtime.settlementContention.limits.concurrent,
@@ -983,7 +1113,6 @@ async function prepareSend<P extends PlannedSemantics, R>(
   const view = container.view()
   if (
     view.session !== session ||
-    view.request.run !== undefined ||
     view.owner.admission() !== 'open' ||
     !settlementGenerationCurrent(session.log) ||
     'unknown' in view.owner.opened() ||

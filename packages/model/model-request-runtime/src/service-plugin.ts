@@ -1,6 +1,11 @@
 import { definePlugin } from '@omne-harness-lite/kernel-basis'
 import { z } from 'zod'
-import type { ModelRuntimeService, RuntimeCloseResult } from './service-types.ts'
+import type {
+  ModelRuntimeService,
+  RuntimeCloseResult,
+  FailureConsumableOperation,
+  FailureConsumption,
+} from './service-types.ts'
 
 export const MODEL_RUNTIME_SERVICE = 'modelRuntime'
 
@@ -83,6 +88,27 @@ export function createModelRuntimePlugin(input: {
         return closing
       }
       const original = assembled.service
+      function forwardFailure<I, R>(
+        operation: FailureConsumableOperation<I, R>,
+        stopped?: R,
+      ): FailureConsumableOperation<I, R> {
+        function invoke(input: I): Promise<R>
+        function invoke(
+          input: I,
+          options: { readonly consumeFailure: true },
+        ): Promise<FailureConsumption<R>>
+        async function invoke(
+          input: I,
+          options?: { readonly consumeFailure: true },
+        ): Promise<R | FailureConsumption<R>> {
+          if (admissionClosed && stopped !== undefined)
+            return options === undefined
+              ? stopped
+              : { result: stopped, consumption: { kind: 'notApplicable' } }
+          return options === undefined ? await operation(input) : await operation(input, options)
+        }
+        return invoke
+      }
       const service: ModelRuntimeService = {
         legalTargets: input => original.legalTargets(input),
         displayList: input => original.displayList(input),
@@ -90,16 +116,12 @@ export function createModelRuntimePlugin(input: {
         selectModel: input => original.selectModel(input),
         openCall: input =>
           admissionClosed ? Promise.resolve({ runtimeStopped: true }) : original.openCall(input),
-        dispatch: input =>
-          admissionClosed ? Promise.resolve({ runtimeStopped: true }) : original.dispatch(input),
-        dispatchAgain: input =>
-          admissionClosed
-            ? Promise.resolve({ runtimeStopped: true })
-            : original.dispatchAgain(input),
+        dispatch: forwardFailure(original.dispatch, { runtimeStopped: true }),
+        dispatchAgain: forwardFailure(original.dispatchAgain, { runtimeStopped: true }),
         interrupt: input => original.interrupt(input),
         releaseCall: input => original.releaseCall(input),
         reconcile: input => original.reconcile(input),
-        readAttempts: input => original.readAttempts(input),
+        readAttempts: forwardFailure(original.readAttempts),
         settleReply: input => original.settleReply(input),
         canDispatchAgain: input => original.canDispatchAgain(input),
       }

@@ -305,6 +305,7 @@ test('service dispatch writes both anchors before handing out a complete pending
             ? {
                 subject: {
                   failure: 'upstream_unavailable',
+                  statusCode: 503,
                   profile: last.record.profileSnapshot,
                   dispatches: [last.record],
                   retryConclusions: [],
@@ -510,11 +511,21 @@ test('service dispatch writes both anchors before handing out a complete pending
         host: lifecycleHost,
       }),
     ).toEqual({ callId: 'actual-call-3', state: 'open' })
-    const failed = await dispatch.dispatch({ session: host.session, callId: 'actual-call-3' })
+    const consumedFailure = await dispatch.dispatch(
+      { session: host.session, callId: 'actual-call-3' },
+      { consumeFailure: true },
+    )
+    const failed = consumedFailure.result
     expect(failed).toMatchObject({
       settled: { outcome: 'failed', failure: { cause: 'upstream_unavailable' } },
       failureSubject: { failure: 'upstream_unavailable', retryConclusions: [] },
     })
+    if (consumedFailure.consumption.kind !== 'failure') throw new Error('failure source absent')
+    const failureSource = consumedFailure.consumption.source
+    expect(failureSource.verify(failureSource.subject)).toHaveProperty('authoritativeSubject')
+    expect(failureSource.verify({ ...failureSource.subject, failure: 'request_rejected' })).toEqual(
+      { invalidInput: true },
+    )
     expect(
       engineering.some(
         item =>
@@ -566,6 +577,11 @@ test('service dispatch writes both anchors before handing out a complete pending
       },
     })
     expect(sendCount).toBe(3)
+    // A later legitimate append does not invalidate the captured prefix.
+    expect(failureSource.verify(failureSource.subject)).toHaveProperty('authoritativeSubject')
+    failureSource.release()
+    failureSource.release()
+    expect(failureSource.verify(failureSource.subject)).toEqual({ unavailable: true })
     expect(evaluationReads).toBe(7)
     const afterRetry = await host.log.readSince(host.session, 0)
     if (!('entries' in afterRetry)) throw new Error('log read')

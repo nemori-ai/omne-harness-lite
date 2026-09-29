@@ -415,14 +415,13 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
     })
   })
 
-  it('keeps a Run-owned dispatch explicitly unknown pending the adopted Run recognizer', async () => {
+  it('keeps a Run-owned dispatched anchor as original history without guessing terminal facts', async () => {
     await withLog('run-unknown', async ({ append, read }) => {
       await append(
         prepare('record', dispatched, { kind: 'record' }, { tenant, run: 'run', attempt: 1 }),
       )
-      expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
-        unavailable: true,
-        reason: 'run_history_unavailable',
+      expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toMatchObject({
+        known: { callId: 'call', dispatches: [{ opened: null }] },
       })
     })
   })

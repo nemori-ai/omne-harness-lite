@@ -1,4 +1,5 @@
 import type { MessageId } from '@omne-harness-lite/messages'
+import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { ModelProfileRef } from '@omne-harness-lite/model-profile'
 import type {
   CredentialScope,
@@ -25,6 +26,9 @@ import type {
 import type { ModelLogSettlementTarget } from './log-codec-settlement.ts'
 
 export interface AnchoredInvocationInput<P extends PlannedSemantics, R> {
+  /** Actual operation fence; this original dispatch identity is never inferred from recovery. */
+  readonly run?: RunId
+  readonly attempt?: AttemptId
   readonly planInput: PlanInput
   readonly transport: TransportAdapter<P, R>
   readonly credential: string

@@ -45,6 +45,7 @@ import type {
   SettlementLogBinding,
   SettlementOwner,
   SettlementScheduler,
+  RunHistoryReader,
 } from './settlement-types.ts'
 import type {
   InputLimitRejection,
@@ -337,6 +338,28 @@ export type ReadAttemptsResult =
   | ServiceInvalidInput
   | ServiceCallNotFound
   | ServiceUnavailable
+
+/** Transient, non-serializable proof from the same authorized failure read. */
+export interface ModelFailureSource {
+  readonly subject: AfterModelCallFailureSubject
+  readonly verify: (
+    subject: AfterModelCallFailureSubject,
+  ) =>
+    | { readonly authoritativeSubject: AfterModelCallFailureSubject }
+    | { readonly invalidInput: true }
+    | { readonly unavailable: true }
+  readonly release: () => void
+}
+export type FailureConsumption<R> = {
+  readonly result: R
+  readonly consumption:
+    | { readonly kind: 'failure'; readonly source: ModelFailureSource }
+    | { readonly kind: 'notApplicable' }
+}
+export interface FailureConsumableOperation<I, R> {
+  (input: I): Promise<R>
+  (input: I, options: { readonly consumeFailure: true }): Promise<FailureConsumption<R>>
+}
 export type SettleReplyInput = CallKey & {
   readonly disposition: Exclude<ReplyDisposition, 'persisted'>
 }
@@ -373,12 +396,12 @@ export interface ModelRuntimeService {
     readonly routeName: RouteName
   }) => Promise<ServiceSelectModelResult>
   readonly openCall: (input: OpenCallInput) => Promise<OpenCallResult>
-  readonly dispatch: (input: DispatchInput) => Promise<DispatchResult>
-  readonly dispatchAgain: (input: DispatchAgainInput) => Promise<DispatchAgainResult>
+  readonly dispatch: FailureConsumableOperation<DispatchInput, DispatchResult>
+  readonly dispatchAgain: FailureConsumableOperation<DispatchAgainInput, DispatchAgainResult>
   readonly interrupt: (input: InterruptInput) => Promise<InterruptResult>
   readonly releaseCall: (input: CallKey) => Promise<ReleaseCallResult>
   readonly reconcile: (input: ReconcileInput) => Promise<ReconcileResult>
-  readonly readAttempts: (input: CallKey) => Promise<ReadAttemptsResult>
+  readonly readAttempts: FailureConsumableOperation<CallKey, ReadAttemptsResult>
   readonly settleReply: (input: SettleReplyInput) => Promise<SettleReplyResult>
   readonly canDispatchAgain: (input: CanDispatchAgainInput) => Promise<CanDispatchAgainResult>
 }
@@ -445,12 +468,8 @@ export interface CurrentHistoryReaders {
     messages: readonly Message[],
     target: { readonly callId: ModelCallId; readonly dispatch: JsonNumber },
   ) => CalibrationHistoryResult
-  /** G-4: the real Run interpreter has no adopted implementation; withRun remains unavailable. */
-  readonly run: (
-    prefix: SettlementPrefix,
-    originalRun: RunId,
-    originalAttempt: AttemptId,
-  ) => { readonly unavailable: true }
+  /** Actual G28 terminal recognition remains a host-supplied source. */
+  readonly run: RunHistoryReader
 }
 
 export interface CalibrationSelectedSource {
@@ -562,6 +581,7 @@ export type CallOperationState =
   | { readonly phase: 'ready' }
   | {
       readonly phase: 'dispatching'
+      readonly attempt?: AttemptId
       readonly abort: () => void
       readonly interrupt: (initiator: 'user' | 'run_cancelled') => void
     }

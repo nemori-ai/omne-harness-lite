@@ -13,6 +13,7 @@ import {
   type InputCalibration,
 } from '@omne-harness-lite/model-response'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
+import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import { captureModelLogValue, modelLogJsonEqual } from './log-codec.ts'
 import { reconstructAdaptedParameters } from './log-codec-settlement.ts'
 import type {
@@ -25,6 +26,8 @@ import type { ResponseConstructionResult } from './anchored-invocation-types.ts'
 
 export interface ResponseConstructionInput {
   readonly dispatched: ModelCallDispatchedRecord
+  readonly run?: RunId
+  readonly attempt?: AttemptId
   readonly result: ModelInvocationResult
   readonly messageId: MessageId
   /** Actual confirmed original opened timestamp; null means definitively unopened. */
@@ -37,6 +40,8 @@ export interface ResponseConstructionInput {
 /** Only an owner that confirmed a durable dispatched anchor may call this path. */
 interface AnchoredInterruptionBase {
   readonly dispatched: ModelCallDispatchedRecord
+  readonly run?: RunId
+  readonly attempt?: AttemptId
   /** When the original process still has the fixed plan, verify it against the anchor. */
   readonly planned?: {
     readonly parameters: ModelInvocationResult['parameters']
@@ -120,7 +125,8 @@ function responseFacts(
   const candidate: Record<string, unknown> = {
     id: d.response,
     dispatch: d.dispatch,
-    call: { callId: d.call },
+    call: { callId: d.call, ...(input.run === undefined ? {} : { runId: input.run }) },
+    ...(input.attempt === undefined ? {} : { attemptId: input.attempt }),
     route: {
       adaptation: d.adaptation,
       profile: d.profile,
@@ -234,7 +240,8 @@ export function constructAnchoredInterruption(
   const candidate = {
     id: d.response,
     dispatch: d.dispatch,
-    call: { callId: d.call },
+    call: { callId: d.call, ...(input.run === undefined ? {} : { runId: input.run }) },
+    ...(input.attempt === undefined ? {} : { attemptId: input.attempt }),
     route: {
       adaptation: d.adaptation,
       profile: d.profile,

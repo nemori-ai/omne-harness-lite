@@ -1,5 +1,5 @@
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
@@ -209,6 +209,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   const requested = owned ?? missing?.input
   if (
     !requested ||
+    (input.run === undefined) !== (input.attempt === undefined) ||
+    (input.run !== undefined && !('ok' in judgeAccountValue('RunId', input.run))) ||
+    (input.attempt !== undefined && !('ok' in judgeAccountValue('AttemptId', input.attempt))) ||
     !(input.signal instanceof AbortSignal) ||
     !input.policy ||
     !validPolicy(input.policy) ||
@@ -351,7 +354,10 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   const dispatched: ModelCallDispatchedRecord = captured.ok.record
   const prepared = prepareModelLogEntry({
     session: binding.session,
-    shell: { tenant: binding.tenant },
+    shell: {
+      tenant: binding.tenant,
+      ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
+    },
     captured: captured.ok,
     purpose: { kind: 'record' },
     messagePrefix: null,
@@ -533,7 +539,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       return binding.log.append(
         binding.session,
         [entry],
-        { kind: 'unfenced' },
+        input.run === undefined || input.attempt === undefined
+          ? { kind: 'unfenced' }
+          : { kind: 'fenced', run: input.run, attempt: input.attempt },
         { kind: 'unconditional' },
       )
     })
@@ -624,6 +632,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       if (!usable()) {
         const candidate = constructAnchoredInterruption({
           dispatched,
+          ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
           planned,
           observed: null,
           sendState: 'not_sent',
@@ -679,7 +688,10 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
                 if ('invalidValue' in value) throw new Error('model_anchor.opened')
                 const entry = prepareModelLogEntry({
                   session: binding.session,
-                  shell: { tenant: binding.tenant },
+                  shell: {
+                    tenant: binding.tenant,
+                    ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
+                  },
                   captured: value.ok,
                   purpose: { kind: 'record' },
                   messagePrefix: null,
@@ -720,6 +732,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
             : ({ observed: original.facts } as const)
         const candidate = constructAnchoredInterruption({
           dispatched,
+          ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
           planned,
           ...originalFacts,
           firstTokenAt: null,
@@ -735,6 +748,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       if (!settlementGenerationCurrent(binding)) return unavailable
       construction = Object.freeze({
         dispatched,
+        ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
         result,
         messageId: input.messageId,
         firstTokenAt,

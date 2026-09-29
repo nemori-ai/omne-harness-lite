@@ -17,6 +17,7 @@ import type { OwnedLogEntry, AppendResult } from '@omne-harness-lite/session-log
 import {
   readSettlementPrefix,
   interpretSettlementPrefix,
+  interpretRunAtPrefix,
   settlementGenerationCurrent,
 } from './settlement-prefix.ts'
 import type {
@@ -334,11 +335,50 @@ export function createSettlementCoordinator(
         if (facts.ended !== null) return unavailable('anchor')
         const beforePrepare = guard(true)
         if (beforePrepare !== null) return unavailable(beforePrepare)
-        const shell = { tenant: binding.tenant }
+        let settlementCandidate = candidate
+        let shell: {
+          readonly tenant: typeof binding.tenant
+          readonly run?: string
+          readonly attempt?: JsonNumber
+        } = { tenant: binding.tenant }
+        if (facts.anchors.dispatched.run !== undefined) {
+          const originalAttempt = facts.anchors.dispatched.attempt
+          if (
+            originalAttempt === undefined ||
+            projection.call.runId !== facts.anchors.dispatched.run ||
+            !isJsonNumber(projection.attemptId) ||
+            ExactDecimal.from(projection.attemptId).compare(ExactDecimal.from(originalAttempt)) !==
+              0
+          )
+            return unavailable('candidate')
+          const run = interpretRunAtPrefix({
+            prefix: read.prefix,
+            run: facts.anchors.dispatched.run,
+            attempt: originalAttempt,
+            source: input.run,
+          })
+          if ('unavailable' in run) return unavailable('run_history_unavailable')
+          const { late: _originalLate, ...original } = projection
+          const revised = captureModelLogValue({
+            category: 'response',
+            input: {
+              kind: 'value',
+              value: { ...original, ...(run.known.late ? { late: true } : {}) },
+            },
+          })
+          if (!('ok' in revised)) return unavailable('candidate')
+          settlementCandidate = revised.ok
+          shell = { tenant: binding.tenant, run: run.known.run, attempt: run.known.latestAttempt }
+        } else if (
+          projection.call.runId !== undefined ||
+          projection.attemptId !== undefined ||
+          projection.late !== undefined
+        )
+          return unavailable('candidate')
         const prepared = prepareModelLogEntry({
           session: binding.session,
           shell,
-          captured: candidate,
+          captured: settlementCandidate,
           purpose: { kind: 'response' },
           messagePrefix: facts.messagePrefix,
         })
@@ -354,7 +394,7 @@ export function createSettlementCoordinator(
             session: binding.session,
             shell,
             captured: reply.ok,
-            purpose: { kind: 'persistedMessage', response: candidate },
+            purpose: { kind: 'persistedMessage', response: settlementCandidate },
             messagePrefix: facts.messagePrefix,
           })
           if (!('ok' in message)) return unavailable('candidate')
@@ -390,7 +430,9 @@ export function createSettlementCoordinator(
             binding.session,
             Object.freeze(batch),
             { kind: 'unfenced' },
-            { kind: 'unconditional' },
+            facts.anchors.dispatched.run === undefined
+              ? { kind: 'unconditional' }
+              : { kind: 'tailEquals', tail: read.prefix.tail },
           )
         })
         try {

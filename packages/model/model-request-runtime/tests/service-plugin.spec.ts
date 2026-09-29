@@ -7,9 +7,29 @@ import {
   MODEL_RUNTIME_SERVICE,
   type ModelRuntimeAssemblyOwner,
 } from '../src/service-plugin.ts'
-import type { ModelRuntimeService } from '../src/service-types.ts'
+import type {
+  FailureConsumableOperation,
+  FailureConsumption,
+  ModelRuntimeService,
+} from '../src/service-types.ts'
 
 const unavailable = async () => ({ unavailable: true }) as const
+function failureUnavailable<I>(): FailureConsumableOperation<I, { readonly unavailable: true }> {
+  function invoke(input: I): Promise<{ readonly unavailable: true }>
+  function invoke(
+    input: I,
+    options: { readonly consumeFailure: true },
+  ): Promise<FailureConsumption<{ readonly unavailable: true }>>
+  async function invoke(
+    _input: I,
+    options?: { readonly consumeFailure: true },
+  ): Promise<{ readonly unavailable: true } | FailureConsumption<{ readonly unavailable: true }>> {
+    return options === undefined
+      ? { unavailable: true }
+      : { result: { unavailable: true }, consumption: { kind: 'notApplicable' } }
+  }
+  return invoke
+}
 function service(): ModelRuntimeService {
   return {
     legalTargets: unavailable,
@@ -17,12 +37,12 @@ function service(): ModelRuntimeService {
     effectiveModel: unavailable,
     selectModel: unavailable,
     openCall: unavailable,
-    dispatch: unavailable,
-    dispatchAgain: unavailable,
+    dispatch: failureUnavailable(),
+    dispatchAgain: failureUnavailable(),
     interrupt: unavailable,
     releaseCall: unavailable,
     reconcile: unavailable,
-    readAttempts: unavailable,
+    readAttempts: failureUnavailable(),
     settleReply: unavailable,
     canDispatchAgain: unavailable,
   }

@@ -468,11 +468,134 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
         settlementScheduler: noWaitScheduler,
         diagnostic() {},
       })
-      const h = coordinator.settle(request)
+      const h = coordinator.settle({
+        ...request,
+        response: {
+          ...responseV5,
+          call: { callId: 'call', runId: 'controlled-run' },
+          attemptId: 1,
+        },
+      })
       expect(await h.completion).toMatchObject({ reason: 'run_history_unavailable' })
       await h.stopped
       await coordinator.close()
       expect(submissions).toHaveLength(2)
+    })
+  })
+  it('uses one real JSONL prefix for a superseded Run response and its tail condition', async () => {
+    await controlled('with-run-tail', async ({ binding, owner, submissions }) => {
+      const parsed = parseOpaqueIdentifier('controlled-run-tail', 'SessionRef')
+      if (!('ok' in parsed)) throw new Error('session')
+      const runSession = parsed.ok
+      async function appendStart(attempt: number) {
+        const message = captureModelLogValue({
+          category: 'message',
+          input: {
+            kind: 'value',
+            value: {
+              id: `attempt-${attempt}`,
+              type: 'system_reminder',
+              nature: 'event',
+              source: {
+                kind: 'attempt_started',
+                attempt,
+                reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+                at: '2026-09-29T00:00:00Z',
+              },
+              blocks: [],
+              createdAt: '2026-09-29T00:00:00Z',
+            },
+          },
+        })
+        if (!('ok' in message)) throw new Error('attempt message capture')
+        const entry = prepareModelLogEntry({
+          session: runSession,
+          shell: { tenant: binding.tenant, run: 'controlled-run', attempt },
+          captured: message.ok,
+          purpose: { kind: 'message' },
+          messagePrefix: [],
+        })
+        if (!('ok' in entry)) throw new Error('attempt message prepare')
+        const appended = await binding.log.append(
+          runSession,
+          [entry.ok],
+          { kind: 'fenced', run: 'controlled-run', attempt },
+          { kind: 'unconditional' },
+        )
+        if ('failure' in appended) throw new Error('attempt message append')
+      }
+      await appendStart(1)
+      const original = anchors().entries.map(entry => {
+        const captured = captureModelLogValue({
+          category: 'record',
+          input: { kind: 'value', value: jsonObject(entry.payload).value },
+        })
+        if (!('ok' in captured)) throw new Error('anchor capture')
+        const prepared = prepareModelLogEntry({
+          session: runSession,
+          shell: { tenant: binding.tenant, run: 'controlled-run', attempt: 1 },
+          captured: captured.ok,
+          purpose: { kind: 'record' },
+          messagePrefix: [],
+        })
+        if (!('ok' in prepared)) throw new Error('anchor prepare')
+        return prepared.ok
+      })
+      expect(
+        await binding.log.append(
+          runSession,
+          original,
+          { kind: 'fenced', run: 'controlled-run', attempt: 1 },
+          { kind: 'unconditional' },
+        ),
+      ).toHaveProperty('positions')
+      await appendStart(2)
+      const coordinator = createSettlementCoordinator({
+        binding: { ...binding, session: runSession },
+        owner,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        run(prefix, originalRun, originalAttempt) {
+          expect(prefix.binding.session).toBe(runSession)
+          expect(originalRun).toBe('controlled-run')
+          expect(originalAttempt).toBe(1)
+          return {
+            known: { run: originalRun, originalAttempt, latestAttempt: 2, terminal: 'open' },
+          }
+        },
+        diagnostic() {},
+      })
+      const response = {
+        ...responseV5,
+        call: { callId: 'call', runId: 'controlled-run' },
+        attemptId: 1,
+      }
+      const handle = coordinator.settle({ ...request, response })
+      const result = await handle.completion
+      await handle.stopped
+      expect(result).toHaveProperty('origin', 'appended')
+      if (!('settled' in result)) throw new Error('not settled')
+      expect(result.settled.response.response?.late).toBe(true)
+      const responseEntry = result.settled.entries.at(-1)
+      expect(responseEntry?.run).toBe('controlled-run')
+      expect(responseEntry?.attempt).toBe(2)
+      expect(submissions.at(-1)?.condition).toEqual({ kind: 'tailEquals', tail: 4 })
+      await coordinator.close()
+      const originalFirst = createSettlementCoordinator({
+        binding: { ...binding, session: runSession },
+        owner,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      const reread = originalFirst.settle({ ...request, response })
+      const recognized = await reread.completion
+      await reread.stopped
+      expect(recognized).toHaveProperty('origin', 'recognized')
+      if (!('settled' in recognized)) throw new Error('original batch unavailable')
+      expect(recognized.settled.response.response?.late).toBe(true)
+      expect(submissions.at(-1)?.condition).toEqual({ kind: 'tailEquals', tail: 4 })
+      await originalFirst.close()
     })
   })
   it('post-send current binding/accounting never overwrite a lawful first batch', async () => {

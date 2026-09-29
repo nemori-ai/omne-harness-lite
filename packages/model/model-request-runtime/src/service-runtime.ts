@@ -8,6 +8,8 @@ import type {
   ModelRuntimeService,
   RuntimeCloseResult,
   RuntimeConstruction,
+  FailureConsumableOperation,
+  FailureConsumption,
 } from './service-types.ts'
 import type { PlannedSemantics } from './types.ts'
 
@@ -49,6 +51,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   }
   const reconcile = createRuntimeReconcile({
     recovery: construction.recovery,
+    run: construction.history.run,
     contention: construction.settlementContention,
     scheduler: construction.settlementScheduler,
     now: construction.policy.now,
@@ -82,18 +85,50 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     }
   }
 
+  function guardedFailure<I, O>(
+    operation: FailureConsumableOperation<I, O>,
+    halted: O,
+  ): FailureConsumableOperation<I, O> {
+    function invoke(input: I): Promise<O>
+    function invoke(
+      input: I,
+      options: { readonly consumeFailure: true },
+    ): Promise<FailureConsumption<O>>
+    async function invoke(
+      input: I,
+      options?: { readonly consumeFailure: true },
+    ): Promise<O | FailureConsumption<O>> {
+      if (admissionClosed)
+        return options === undefined
+          ? halted
+          : { result: halted, consumption: { kind: 'notApplicable' } }
+      let complete = () => {}
+      const done = new Promise<void>(resolve => {
+        complete = resolve
+      })
+      inFlight.add(done)
+      try {
+        return options === undefined ? await operation(input) : await operation(input, options)
+      } finally {
+        inFlight.delete(done)
+        complete()
+      }
+    }
+    return invoke
+  }
+
   const service: ModelRuntimeService = Object.freeze({
     legalTargets: guarded(reads.methods.legalTargets, unavailable),
     displayList: guarded(reads.methods.displayList, unavailable),
     effectiveModel: guarded(reads.methods.effectiveModel, unavailable),
     selectModel: guarded(reads.methods.selectModel, unavailable),
     openCall: guarded(calls.openCall, runtimeStopped),
-    dispatch: guarded(dispatch.dispatch, runtimeStopped),
-    dispatchAgain: guarded(dispatch.dispatchAgain, runtimeStopped),
+    dispatch: guardedFailure(dispatch.dispatch, runtimeStopped),
+    dispatchAgain: guardedFailure(dispatch.dispatchAgain, runtimeStopped),
     interrupt: guarded(control.interrupt, unavailable),
     releaseCall: guarded(control.releaseCall, unavailable),
     reconcile: guarded(reconcile.reconcile, unavailable),
-    readAttempts: guarded(reads.methods.readAttempts, unavailable),
+    readAttempts: guardedFailure(reads.methods.readAttempts, unavailable),
     settleReply: guarded(settleReply, unavailable),
     canDispatchAgain: guarded(reads.methods.canDispatchAgain, unavailable),
   })

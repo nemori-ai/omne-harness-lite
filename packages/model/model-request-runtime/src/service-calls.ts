@@ -589,7 +589,6 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     const owned = ownOpenCallInput(input)
     if ('invalidInput' in owned) return owned
     const request = owned.request
-    if (request.run !== undefined) return { unavailable: true } // G-4: no real Run interpreter.
     let callId = request.callId
     if (callId === undefined) {
       try {
@@ -722,6 +721,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             const coordinator = createSettlementCoordinator({
               binding: session.log,
               owner: session.selection.owner,
+              run: runtime.history.run,
               settlementContention: runtime.settlementContention,
               settlementScheduler: runtime.settlementScheduler,
               diagnostic: event => runtime.policy.diagnostic(event),
@@ -824,6 +824,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             binding: session.log,
             owner,
             concurrent: runtime.settlementContention.limits.concurrent,
+            ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
             record: {
               kind: 'model_call_ended',
               call: callId,
@@ -877,6 +878,9 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
                 binding: session.log,
                 owner,
                 concurrent: runtime.settlementContention.limits.concurrent,
+                ...(request.run === undefined
+                  ? {}
+                  : { run: request.run, attempt: request.attempt }),
                 record: {
                   kind: 'model_call_ended',
                   call: callId,
@@ -928,6 +932,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           const coordinator = createSettlementCoordinator({
             binding: session.log,
             owner,
+            run: runtime.history.run,
             settlementContention: runtime.settlementContention,
             settlementScheduler: runtime.settlementScheduler,
             diagnostic: event => runtime.policy.diagnostic(event),

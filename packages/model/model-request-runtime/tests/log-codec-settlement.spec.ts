@@ -450,10 +450,9 @@ describe('D088 complete association prior to production gates', () => {
       target: { call: 'call', dispatch: 1, response: 'response' },
       current: null,
     }
-    expect(inspectSettlementMembers(input)).toEqual({
-      undetermined: true,
-      reason: 'run_history_unavailable',
-    })
+    // The original complete batch is recognized from its durable values; a new
+    // candidate consults the current Run source in the settlement coordinator.
+    expect(inspectSettlementMembers(input)).toHaveProperty('completeMembers')
     expect(
       inspectSettlementMembers(
         changeResponse(input, value => ({

@@ -1,4 +1,5 @@
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log-jsonl'
@@ -7,6 +8,23 @@ import type {
   ModelLogSettlementCurrent,
   SettlementMembersResult,
 } from './log-codec.ts'
+import type { SettlementPrefix } from './settlement-prefix.ts'
+
+/** G28's owner interprets both axes from the exact owned prefix supplied by this coordinator. */
+export type RunHistoryReader = (
+  prefix: SettlementPrefix,
+  originalRun: RunId,
+  originalAttempt: AttemptId,
+) =>
+  | {
+      readonly known: {
+        readonly run: RunId
+        readonly originalAttempt: AttemptId
+        readonly latestAttempt: AttemptId
+        readonly terminal: 'open' | 'ended'
+      }
+    }
+  | { readonly unavailable: true }
 
 /** Actual access and lifetime are established by the host, not certified by this shape. */
 export interface SettlementLogBinding {
@@ -86,6 +104,8 @@ export interface SettlementDiagnostic {
 export interface SettlementCoordinatorInput {
   readonly binding: SettlementLogBinding
   readonly owner: SettlementOwner
+  /** Absent G28 source prevents only a new withRun settlement, never original-batch recognition. */
+  readonly run?: RunHistoryReader
   /** Entire missing policy/scheduler port makes this progression unavailable. No fallback. */
   readonly settlementContention?: SettlementContention
   readonly settlementScheduler?: SettlementScheduler

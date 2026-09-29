@@ -4,7 +4,12 @@ import {
   isNonNegativeJsonInteger,
   type JsonNumber,
 } from '@omne-harness-lite/content-blocks'
-import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import {
+  ExactDecimal,
+  judgeAccountValue,
+  type AttemptId,
+  type RunId,
+} from '@omne-harness-lite/call-accounts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import { checkAppendInput, type LogEntry } from '@omne-harness-lite/session-log-jsonl'
@@ -21,6 +26,7 @@ import type {
   SettlementLogBinding,
   SettlementRegistration,
   SettlementUnavailableReason,
+  RunHistoryReader,
 } from './settlement-types.ts'
 
 function object(value: unknown): value is { readonly [key: string]: unknown } {
@@ -121,6 +127,101 @@ export type SettlementInterpretation =
       }
     }
   | { readonly unavailable: true; readonly reason: SettlementUnavailableReason }
+
+/** Bind both G28 axes to the same owned prefix and independently check the MS6 attempt facts. */
+export function interpretRunAtPrefix(input: {
+  readonly prefix: SettlementPrefix
+  readonly run: RunId
+  readonly attempt: AttemptId
+  readonly source: RunHistoryReader | undefined
+}):
+  | {
+      readonly known: {
+        readonly prefix: SettlementPrefix
+        readonly run: RunId
+        readonly originalAttempt: AttemptId
+        readonly latestAttempt: AttemptId
+        readonly late: boolean
+      }
+    }
+  | { readonly unavailable: true } {
+  const { prefix, run, attempt, source } = input
+  if (
+    !isOwnedSettlementPrefix(prefix) ||
+    !settlementGenerationCurrent(prefix.binding) ||
+    source === undefined ||
+    !('ok' in judgeAccountValue('RunId', run)) ||
+    !('ok' in judgeAccountValue('AttemptId', attempt))
+  )
+    return { unavailable: true }
+  const starts: AttemptId[] = []
+  for (const entry of prefix.entries) {
+    if (entry.run !== run || entry.attempt === undefined) continue
+    const payload = entry.payload
+    if (!object(payload) || payload.category !== 'message') continue
+    const judged = judgeMessage(payload.value)
+    if (
+      'rejected' in judged ||
+      judged.ok.type !== 'system_reminder' ||
+      judged.ok.nature !== 'event' ||
+      judged.ok.source.kind !== 'attempt_started'
+    )
+      continue
+    if (ExactDecimal.from(judged.ok.source.attempt).compare(ExactDecimal.from(entry.attempt)) !== 0)
+      return { unavailable: true }
+    starts.push(judged.ok.source.attempt)
+  }
+  if (
+    starts.length === 0 ||
+    starts.some(
+      (value, index) =>
+        starts.findIndex(
+          other => ExactDecimal.from(other).compare(ExactDecimal.from(value)) === 0,
+        ) !== index,
+    )
+  )
+    return { unavailable: true }
+  const original = starts.some(
+    value => ExactDecimal.from(value).compare(ExactDecimal.from(attempt)) === 0,
+  )
+  if (!original) return { unavailable: true }
+  const latest = starts.reduce((highest, current) =>
+    ExactDecimal.from(current).compare(ExactDecimal.from(highest)) > 0 ? current : highest,
+  )
+  let late: boolean
+  try {
+    const result = source(prefix, run, attempt)
+    if (
+      result === null ||
+      typeof result !== 'object' ||
+      'unavailable' in result ||
+      !('known' in result) ||
+      result.known.run !== run ||
+      !('ok' in judgeAccountValue('AttemptId', result.known.originalAttempt)) ||
+      !('ok' in judgeAccountValue('AttemptId', result.known.latestAttempt)) ||
+      ExactDecimal.from(result.known.originalAttempt).compare(ExactDecimal.from(attempt)) !== 0 ||
+      ExactDecimal.from(result.known.latestAttempt).compare(ExactDecimal.from(latest)) !== 0 ||
+      ExactDecimal.from(latest).compare(ExactDecimal.from(attempt)) < 0 ||
+      (result.known.terminal !== 'open' && result.known.terminal !== 'ended') ||
+      !settlementGenerationCurrent(prefix.binding)
+    )
+      return { unavailable: true }
+    late =
+      ExactDecimal.from(latest).compare(ExactDecimal.from(attempt)) > 0 ||
+      result.known.terminal === 'ended'
+  } catch {
+    return { unavailable: true }
+  }
+  return {
+    known: Object.freeze({
+      prefix,
+      run,
+      originalAttempt: attempt,
+      latestAttempt: latest,
+      late,
+    }),
+  }
+}
 /** Pure interpretation. It does not certify source/permission or invent a Run owner. */
 export function interpretSettlementPrefix(input: {
   readonly prefix: SettlementPrefix
@@ -145,8 +246,8 @@ export function interpretSettlementPrefix(input: {
   }
   const dispatched = record({ kind: 'dispatched', call: target.call, dispatch: target.dispatch })
   if (dispatched === null) return { unavailable: true, reason: 'anchor' }
-  if (dispatched.run !== undefined || dispatched.attempt !== undefined)
-    return { unavailable: true, reason: 'run_history_unavailable' }
+  if ((dispatched.run === undefined) !== (dispatched.attempt === undefined))
+    return { unavailable: true, reason: 'anchor' }
   const anchors = {
     dispatched,
     opened: record({ kind: 'opened', call: target.call, dispatch: target.dispatch }),

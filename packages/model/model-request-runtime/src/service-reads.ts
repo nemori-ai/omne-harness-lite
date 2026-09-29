@@ -3,7 +3,7 @@ import { validate as validateLoop } from '@omne-harness-lite/loop-extension'
 import { createSessionModelSelection } from './session-selection.ts'
 import { projectCallState, type LocalCallResponsibility } from './call-state.ts'
 import { dispatchGuard, type DispatchGuardFact } from './dispatch-guard.ts'
-import { readFailureSubject } from './failure-subject.ts'
+import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
 import { readSettlementPrefix, type SettlementPrefix } from './settlement-prefix.ts'
 import type {
   SessionModelSelection,
@@ -15,6 +15,9 @@ import type {
   RuntimeCloseResult,
   RuntimeConstruction,
   SessionRuntimeBinding,
+  ReadAttemptsResult,
+  FailureConsumption,
+  ModelFailureSource,
 } from './service-types.ts'
 import type { SettlementRegistration, SettlementTask } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
@@ -69,6 +72,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     readonly done: Promise<void>
     readonly stop: () => void
   }>()
+  const sources = new Set<ModelFailureSource>()
   let closed = false
   let readCleanupFailed = false
   let closing: Promise<RuntimeCloseResult> | undefined
@@ -219,6 +223,90 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     return result
   }
 
+  function readAttempts(input: CallKey): Promise<ReadAttemptsResult>
+  function readAttempts(
+    input: CallKey,
+    options: { readonly consumeFailure: true },
+  ): Promise<FailureConsumption<ReadAttemptsResult>>
+  async function readAttempts(
+    input: CallKey,
+    options?: { readonly consumeFailure: true },
+  ): Promise<ReadAttemptsResult | FailureConsumption<ReadAttemptsResult>> {
+    const requested = options?.consumeFailure === true
+    if (options !== undefined && (!requested || Object.keys(options).length !== 1))
+      return malformed()
+    let createdSource: ModelFailureSource | undefined
+    const read = await withPrefix(input, (prefix, binding) => {
+      const history = construction.history.call(prefix, input.callId)
+      const localView = construction.calls.find(input)?.view()
+      const local: LocalCallResponsibility | undefined =
+        localView?.operation.phase === 'ready'
+          ? { session: input.session, callId: input.callId, phase: 'open' }
+          : localView?.operation.phase === 'reply_pending'
+            ? {
+                session: input.session,
+                callId: input.callId,
+                phase: 'reply_pending',
+                responseId: localView.operation.pending.id,
+              }
+            : undefined
+      const state = projectCallState({
+        session: input.session,
+        callId: input.callId,
+        history,
+        ...(local === undefined ? {} : { local }),
+      })
+      if (!('phase' in state)) return { result: state }
+      if (state.phase === 'open')
+        return { result: { state: 'open' as const, dispatches: [] as const } }
+      if (!('known' in history)) return { result: unavailable() }
+      const dispatches = history.known.dispatches
+      if (state.phase === 'awaiting_decision') {
+        const subject = readFailureSubject({
+          prefix,
+          callId: input.callId,
+          dispatches,
+          source: construction.history.failure,
+        })
+        if (!('subject' in subject)) return { result: unavailable() }
+        const result = {
+          state: 'awaiting_decision' as const,
+          dispatches,
+          failureSubject: subject.subject,
+        }
+        if (!requested) return { result }
+        const source = createModelFailureSource({
+          prefix,
+          owner: binding.selection.owner,
+          subject: subject.subject,
+          usable: () =>
+            !closed &&
+            !localView?.request.host.stopping() &&
+            !localView?.request.host.signal.aborted,
+          retain: value => {
+            sources.add(value)
+          },
+          forget: value => {
+            sources.delete(value)
+          },
+        })
+        if (source === null) return { result: unavailable() }
+        createdSource = source
+        return { result, source }
+      }
+      return { result: { state: state.phase, dispatches } }
+    })
+    if (!('result' in read)) {
+      createdSource?.release()
+      return requested ? { result: read, consumption: { kind: 'notApplicable' } } : read
+    }
+    const result: ReadAttemptsResult = read.result
+    if (!requested) return result
+    return 'source' in read
+      ? { result, consumption: { kind: 'failure', source: read.source } }
+      : { result, consumption: { kind: 'notApplicable' } }
+  }
+
   const methods: ReadMethods = {
     async legalTargets(input) {
       const selected = await selection(input.session)
@@ -243,45 +331,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       if (!('selection' in selected)) return selected
       return await selected.selection.selectModel(input.routeName)
     },
-    async readAttempts(input) {
-      return await withPrefix(input, (prefix, _binding) => {
-        const history = construction.history.call(prefix, input.callId)
-        const localView = construction.calls.find(input)?.view()
-        const local: LocalCallResponsibility | undefined =
-          localView?.operation.phase === 'ready'
-            ? { session: input.session, callId: input.callId, phase: 'open' }
-            : localView?.operation.phase === 'reply_pending'
-              ? {
-                  session: input.session,
-                  callId: input.callId,
-                  phase: 'reply_pending',
-                  responseId: localView.operation.pending.id,
-                }
-              : undefined
-        const state = projectCallState({
-          session: input.session,
-          callId: input.callId,
-          history,
-          ...(local === undefined ? {} : { local }),
-        })
-        if (!('phase' in state)) return state
-        if (state.phase === 'open') return { state: 'open' as const, dispatches: [] as const }
-        if (!('known' in history)) return unavailable()
-        const dispatches = history.known.dispatches
-        if (state.phase === 'awaiting_decision') {
-          const subject = readFailureSubject({
-            prefix,
-            callId: input.callId,
-            dispatches,
-            source: construction.history.failure,
-          })
-          return 'subject' in subject
-            ? { state: 'awaiting_decision' as const, dispatches, failureSubject: subject.subject }
-            : unavailable()
-        }
-        return { state: state.phase, dispatches }
-      })
-    },
+    readAttempts,
     async canDispatchAgain(input) {
       if (!validateLoop('RetryPlan', input.plan).valid) return malformed()
       return await withPrefix(input, (prefix, _binding) => {
@@ -361,6 +411,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     close() {
       if (closing !== undefined) return closing
       closed = true
+      for (const source of sources) source.release()
       for (const operation of active) operation.stop()
       closing = (async () => {
         try {

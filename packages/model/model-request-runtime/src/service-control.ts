@@ -388,6 +388,23 @@ export interface ServiceControl {
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
 }
 
+function controlAccount(
+  history: CallHistoryResult,
+  run: RunId | undefined,
+  requestAttempt: AttemptId | undefined,
+  operation: CallOperationState | undefined,
+): { readonly run?: RunId; readonly attempt?: AttemptId } | { readonly unavailable: true } {
+  const latest = 'known' in history ? history.known.dispatches.at(-1)?.dispatched : undefined
+  if (latest !== undefined && run !== undefined && latest.run !== run) return { unavailable: true }
+  const actualRun = run ?? latest?.run
+  const actualAttempt =
+    operation?.phase === 'dispatching' ? operation.attempt : (latest?.attempt ?? requestAttempt)
+  if ((actualRun === undefined) !== (actualAttempt === undefined)) return { unavailable: true }
+  if (actualRun === undefined) return {}
+  if (actualAttempt === undefined) return { unavailable: true }
+  return { run: actualRun, attempt: actualAttempt }
+}
+
 /** The original call's S-36 system stop. It never manufactures a user interrupt intent. */
 export function createOriginalSystemStop<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -442,10 +459,18 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
           return { unavailable: true }
         if ('unknown' in view.owner.opened() || view.owner.unresolvedWrites().length !== 0)
           return { unavailable: true }
+        const account = controlAccount(
+          history,
+          view.request.run,
+          view.request.attempt,
+          view.operation,
+        )
+        if ('unavailable' in account) return account
         const appended = await appendControlRecord({
           binding: view.session.log,
           owner: view.owner,
           concurrent: runtime.settlementContention.limits.concurrent,
+          ...account,
           record: {
             kind: 'model_call_ended',
             call: key.callId,
@@ -675,11 +700,19 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       if (closing) return { unavailable: true }
       if ('unknown' in owner.opened() || owner.unresolvedWrites().length !== 0)
         return { unavailable: true }
+      const account = controlAccount(
+        history,
+        local?.request.run,
+        local?.request.attempt,
+        local?.operation,
+      )
+      if ('unavailable' in account) return account
       const appended = await appendControlRecord({
         trackTask: task => appends.track(task),
         binding: session.log,
         owner,
         concurrent: runtime.settlementContention.limits.concurrent,
+        ...account,
         record: { kind: 'model_call_ended', call: key.callId, ending: 'released' },
         retainUnknown: (registration, task) => retain(key, session.log, registration, task),
       })
@@ -766,12 +799,20 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       if (admission.stage !== 'before_dispatch' && signalInterrupt === undefined)
         return { unavailable: true }
       if (closing) return { unavailable: true }
+      const account = controlAccount(
+        history,
+        local?.request.run,
+        local?.request.attempt,
+        local?.operation,
+      )
+      if ('unavailable' in account) return account
       if (!admission.intentExists) {
         const appended = await appendControlRecord({
           trackTask: task => appends.track(task),
           binding: session.log,
           owner: controlOwner,
           concurrent: runtime.settlementContention.limits.concurrent,
+          ...account,
           record: {
             kind: 'model_call_interrupt_intent',
             call: key.callId,
@@ -832,6 +873,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
             binding: session.log,
             owner: controlOwner,
             concurrent: runtime.settlementContention.limits.concurrent,
+            ...account,
             record: {
               kind: 'model_call_ended',
               call: key.callId,

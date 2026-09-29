@@ -465,8 +465,8 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     )
       return inconsistent('candidate_identity')
     if (!timingOrdered(response.timing)) return inconsistent('timing')
-    // The original G28 Run interpretation is intentionally not replaced by a boolean.
-    if (response.call.runId !== undefined) return undetermined('run_history_unavailable')
+    // A durable original batch is recognized from its original values. G28 is needed
+    // only when a new batch is constructed, not to recompute an already committed late fact.
     // This conclusion is conditional on the declared legal input domain, never a
     // physical batch, lawful-source, permission or leap-announcement certificate.
     return Object.freeze({

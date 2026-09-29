@@ -96,11 +96,14 @@ export function interpretCallHistory(input: {
       responses.push({ entry, response: captured.response })
   }
   if (records.length === 0 && responses.length === 0) return { absent: true }
+  const originalRun =
+    records.find(item => item.record.kind === 'model_call_dispatched')?.entry.run ??
+    records[0]?.entry.run
   if (
-    records.some(item => item.entry.run !== undefined || item.entry.attempt !== undefined) ||
-    responses.some(item => item.entry.run !== undefined || item.entry.attempt !== undefined)
+    records.some(item => item.entry.run !== originalRun) ||
+    responses.some(item => item.entry.run !== originalRun)
   )
-    return unavailable('run_history_unavailable')
+    return unavailable('history')
 
   const dispatched = records.filter(
     (item): item is RecordEntry & { readonly record: ModelCallDispatchedRecord } =>
@@ -134,6 +137,11 @@ export function interpretCallHistory(input: {
     if (
       anchor.length > 1 ||
       body.length > 1 ||
+      (anchor[0] !== undefined &&
+        (anchor[0].entry.run !== item.entry.run ||
+          ExactDecimal.from(anchor[0].entry.attempt ?? 0).compare(
+            ExactDecimal.from(item.entry.attempt ?? 0),
+          ) !== 0)) ||
       (anchor[0] !== undefined &&
         ExactDecimal.from(anchor[0].entry.position).compare(
           ExactDecimal.from(item.entry.position),
