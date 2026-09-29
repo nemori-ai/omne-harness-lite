@@ -1,0 +1,11 @@
+{
+  "network": false,
+  "credentials": false,
+  "checks": [
+    "unindexed encrypted objects preserve order/data",
+    "rs_ IDs stripped (not verbatim complete replay)",
+    "same-index encrypted objects merge last-data-wins (synthetic counterexample)"
+  ],
+  "passed": 3,
+  "scope": "pure functions only; no claim that upstream emits synthetic duplicate-index pair"
+}
