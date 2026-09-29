@@ -1,3 +1,4 @@
+import { directFull, directNew } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
@@ -109,7 +110,7 @@ function body(url: string, detail?: string): JsonObject {
   }
 }
 const full = (value: JsonObject) =>
-  createOpenAiInputMeter(definition).measureFull({
+  directFull(createOpenAiInputMeter(definition), {
     body: value,
     serialized: writeJsonLossless(value),
   })
@@ -174,6 +175,7 @@ describe('Astra named patch rule, shared calculations and final visible projecti
       expect(
         meter.measureReplay({
           ...marginal,
+          outputHistory: [],
           observation: {
             kind: 'observation',
             inputCalibration: {
@@ -195,8 +197,8 @@ describe('Astra named patch rule, shared calculations and final visible projecti
           selectionSpans: [],
         }),
       ).toEqual(contribution)
-      expect(meter.measureNew(marginal)).toEqual(contribution)
-      expect(meter.measureNew({ ...marginal, units: [] })).toEqual({ kind: 'exact', tokens: 0 })
+      expect(directNew(meter, marginal)).toEqual(contribution)
+      expect(directNew(meter, { ...marginal, units: [] })).toEqual({ kind: 'exact', tokens: 0 })
     },
   )
   it('validates MIME, base64, image fields, GIF completeness and unsupported model scope', () => {
@@ -215,13 +217,13 @@ describe('Astra named patch rule, shared calculations and final visible projecti
     expect(full(body(imageUrl('1x1.png'), 'ultra'))).toEqual({ kind: 'unavailable' })
     const value = body(imageUrl('1x1.png'))
     expect(
-      createOpenAiInputMeter(definition).measureFull({ body: value, serialized: '{}' }),
+      directFull(createOpenAiInputMeter(definition), { body: value, serialized: '{}' }),
     ).toEqual({ kind: 'unavailable' })
     for (const model of ['openai/gpt-6-astra-pro', 'openai/gpt-6-sol', 'openai/gpt-6-luna']) {
       const d = openaiDefinitions.find(d => d.modelId === model)!
       const other = { ...value, model }
       expect(
-        createOpenAiInputMeter(d).measureFull({
+        directFull(createOpenAiInputMeter(d), {
           body: other,
           serialized: writeJsonLossless(other),
         }),

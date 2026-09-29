@@ -256,10 +256,10 @@ describe('independent source guards against actual owned SQL/SL3 prefix', () => 
       ).toEqual({ unavailable: true })
       expect(
         authorizedCalibration(prefix, messages, target, () => ({ sourceUnavailable: true })),
-      ).toEqual({ calibration: { kind: 'none', reason: 'source_unavailable' } })
+      ).toEqual({ calibration: { kind: 'none', reason: 'source_unavailable' }, outputHistory: [] })
       expect(
         authorizedCalibration(prefix, messages, target, () => ({ noObservation: true })),
-      ).toEqual({ calibration: { kind: 'none', reason: 'no_observation' } })
+      ).toEqual({ unavailable: true })
       invalidate()
       expect(authorizedCalibration(prefix, messages, target, () => read)).toEqual({
         unavailable: true,

@@ -8,8 +8,10 @@ import {
   defineInputMeter,
   tokenMeasurementValid,
   type InputMeter,
+  type FullMeterInput,
   type MarginalMeterInput,
   type MeterContribution,
+  type TokenMeasurement,
 } from '../input-meter.ts'
 
 /** A route-specific JSON surrogate: estimate only new units and their framing.
@@ -28,13 +30,16 @@ export function withEstimatedJsonMarginals(
     measureNew: measureUnits,
   })
 }
-export function fullJsonMarginal(meter: InputMeter, input: MarginalMeterInput): MeterContribution {
+export function fullJsonMarginal(
+  countBody: (input: Pick<FullMeterInput, 'body' | 'serialized'>) => TokenMeasurement,
+  input: MarginalMeterInput,
+): MeterContribution {
   if (!input.units.length) return { kind: 'exact', tokens: 0 }
   const { tools: _tools, ...envelope } = input.envelope
   const body: JsonObject = { ...envelope, messages: input.units }
   const empty: JsonObject = { ...envelope, messages: [] }
-  const contribution = meter.measureFull({ body, serialized: writeJsonLossless(body) })
-  const framing = meter.measureFull({ body: empty, serialized: writeJsonLossless(empty) })
+  const contribution = countBody({ body, serialized: writeJsonLossless(body) })
+  const framing = countBody({ body: empty, serialized: writeJsonLossless(empty) })
   if (
     !tokenMeasurementValid(contribution) ||
     !tokenMeasurementValid(framing) ||

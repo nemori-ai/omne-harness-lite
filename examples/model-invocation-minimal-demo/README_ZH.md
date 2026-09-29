@@ -16,6 +16,8 @@
 用 `--max-output-tokens <正整数>` 配置每次响应的输出上限，默认 16,384。所选模型的档案仍校验其上限，demo 不会静默截小过大的配置。此额度包含上游计入输出的推理 tokens。使用相同 `--data` 和新上限重启，保留原会话历史。
 当前开发格式在每次调用快照中完整携带项目输入上限及上游限制事实，每条响应也必填 MR9 输入校准事实。旧开发版本产生的不兼容数据不会被猜测、改写或自动转换；验证当前版本请显式使用新的 `--data` 目录，原目录保持不动。
 
+后续每轮，demo reader 从同一已认证日志前缀交出所有实际选入的旧 assistant 响应。runtime 用其中一个可用输入观察作为锚，并单独交出全部已知的选入输出组，包括输入计数不可用的响应。planner 保留完整消息 wire，把各组归到稳定前缀、锚回放或新增输入。demo reader 覆盖线性无 Run 会话和显式受控的单 Run fixture，不据此声称任意分支或压缩来源已可证明。
+
 两个 token 余量选项均须显式配置。示例用 `ceil(estimatedTokens * 1.1) + 256` 与项目输入上限比较。两个固定版本的 DeepSeek 计量构件均在受支持的参考渲染域内提供有符号的回放／新增估算。来源、计量依据、投影和参考边界校验通过后，规划器复用上游输入观察，只计量回放输出和新增输入，稳定前缀不会再次进入边际 tokenizer。不适用时回退全量计量；全量仍不可用则在发送前拒绝。[本地 DeepSeek 服务回归](tests/deepseek-marginal-service.spec.ts) 通过已认证服务调用和受控 TLS 覆盖两个路由，不代表真实上游精度认证。后续运行时沿已认证、实际选入的 no-Run JSONL 消息链核原响应、dispatch 与回复关系，把最新可用的准确上游输入观察交给同一传输规划器。只有计量依据和投影仍适用时，规划器才可只计量实际回放输出与新增输入；本地受控 Anthropic 服务测试对无 Run 和可信单 Run 选入链均覆盖此路径。切换模型或改变输入前缀会回退全量，某轮缺可用 usage 时仍可检查更早的合法观察。旧响应不因此改写，估算也不进入实际用量或费用。余量可调整，不保证与上游计数相等。本地程序调用使用 `openDemo(dataDirectory, tokenMargin, retirement, maxOutputTokens, credential?, testOptions?, observerBounds?, host?)`，取得真实 application 与已认证 actor。CLI 使用 `createDemoSupervisor(...).open()` 的独立远程 facade，只传可序列化命令与展示身份；worker 内仍调用同一个 `openDemo`，每次操作都重新核实身份。部署的 `modelRequest.transport.retirement` 必须提供正整数 `waitMilliseconds`、`force` 与可替换的 `schedule`；等待超时仍保留资源所有权，不冒称清理完毕。CLI 明确设 `force=false`，撤除等待默认为 10,000 毫秒，可用 `--transport-retirement-wait-ms <正整数>` 调整。
 
 观察队列默认有明确的 256 事件与 262,144 字节上限，程序调用可分别调整这两个正整数。投递诊断及背压不能代替持久历史或结算。

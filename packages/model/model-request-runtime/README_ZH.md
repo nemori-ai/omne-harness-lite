@@ -196,8 +196,8 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 ```ts
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
-export function firstRequest(input: Omit<PlanInput, 'calibration'>): PlanInput {
-  return { ...input, calibration: { kind: 'none', reason: 'no_observation' } }
+export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHistory'>): PlanInput {
+  return { ...input, calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] }
 }
 ```
 
@@ -209,7 +209,7 @@ import type { ModelResponse } from '@omne-harness-lite/model-response'
 import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
 
 export function nextRequest(
-  input: Omit<PlanInput, 'calibration'>,
+  input: Omit<PlanInput, 'calibration' | 'outputHistory'>,
   original: ModelResponse,
   outputBlocks: readonly ContentBlock[],
   replaySelection: readonly ReplaySelection[],
@@ -223,9 +223,31 @@ export function nextRequest(
       outputBlocks,
       replaySelection,
     },
+    outputHistory:
+      original.inputCalibration.outputGroup.kind === 'known' && replaySelection.length > 0
+        ? [{
+            inputCalibration: original.inputCalibration,
+            usage: original.usage,
+            outputBlocks,
+            replaySelection,
+            origin: {
+              adaptation: original.route.adaptation,
+              provider: original.route.provider,
+              parameters: original.route.parameters,
+              ...(original.route.servingProvider === undefined
+                ? {}
+                : { servingProvider: original.route.servingProvider }),
+              ...(original.route.upstreamModel === undefined
+                ? {}
+                : { upstreamModel: original.route.upstreamModel }),
+            },
+          }]
+        : [],
   }
 }
 ```
+
+`outputHistory` 始终显式提供，且与唯一输入锚独立。实际选入多个旧响应时，每份响应一组，按其首个目标块位置排序；每组保留原完整块、原 route/parameters 和选入目标映射。输入计数缺失或不可用，不会抹去已知输出组。没有原组事实的独立调用者保留实际消息并显式给 `[]`，全量计量仍须覆盖其 wire 内容。服务只从同一授权前缀和原完整响应批派生各组。详见 [runtime v19 交接](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v19-output-history-design.md) 与 [transport v13 投影](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v13-output-history-design.md)。
 
 后续请求由同会话授权历史读者提供 `calibration`。来源目标包含本次调用和 dispatch；有 Run 时也带本次 Run 与 attempt，来源 owner 必须证明实际选入的分支和候选先后。runtime 核对选入消息来自同一份完整 SL3 前缀、原 dispatch 和完整响应的稳定身份与完整值，以及 assistant 回复确实进入本次模型输入。原调用属于 Run 时，响应顶层 attempt 仍是发出时的原 attempt，即使完整 M/R 批在较新的 attempt 中归账；历史 Run 与当前 Run 不同也可能是合法选入，但仅同名绝不能证明祖先关系。同一调用重试时，连续的前序 dispatch 即使没有回复，也可以提供准确的输入观察，并须保持原调用 Run 一致。planner 再核本次前缀摘要、计数依据、重放输出组及实际新增输入；匹配才使用增量计量，否则全量计量。较新的响应缺失可用输入 usage 时，可选择更早的合法祖先。已提交的原完整批按原值读取，不因当前 Run 终结状态重新判废。读端检查原始值及相邻关系；物理同批保证归原结算 append 与 SL3。`source_unavailable` 与已证明的 `no_observation` 不同。
 

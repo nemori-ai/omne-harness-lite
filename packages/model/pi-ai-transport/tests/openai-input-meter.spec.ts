@@ -1,3 +1,4 @@
+import { directFull, directNew } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
@@ -47,7 +48,7 @@ function measuredTokens(
   modelId: string,
   body: Parameters<ReturnType<typeof createOpenAiInputMeter>['measureFull']>[0]['body'],
 ) {
-  const result = createOpenAiInputMeter(definition(modelId)).measureFull({
+  const result = directFull(createOpenAiInputMeter(definition(modelId)), {
     body,
     serialized: writeJsonLossless(body),
   })
@@ -127,7 +128,7 @@ describe('OpenAI model-specific input estimator', () => {
       const textTokens = getEncoding('o200k_base').encode(
         writeJsonLossless(imageBody(modelId, '[image]')),
       ).length
-      expect(meter.measureFull({ body, serialized })).toEqual({
+      expect(directFull(meter, { body, serialized })).toEqual({
         kind: 'estimated',
         tokens: textTokens + 2458,
       })
@@ -135,7 +136,7 @@ describe('OpenAI model-specific input estimator', () => {
       const emptyTokens = getEncoding('o200k_base').encode(
         writeJsonLossless({ ...envelope, messages: [] }),
       ).length
-      const contribution = meter.measureNew({ units: messages, envelope, precedingUnitCount: 2 })
+      const contribution = directNew(meter, { units: messages, envelope, precedingUnitCount: 2 })
       if (!('tokens' in contribution)) throw new Error('expected available delta')
       expect(ExactDecimal.from(contribution.tokens).toString()).toBe(
         String(textTokens + 2458 - emptyTokens),
@@ -214,7 +215,7 @@ describe('OpenAI model-specific input estimator', () => {
     const { reasoning: _reasoning, ...withoutReasoning } = body
     expect(measuredTokens(modelId, withoutReasoning)).not.toBe(complete)
     const meter = createOpenAiInputMeter(definition(modelId))
-    expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(directFull(meter, { body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
   })
 
   it('applies official named-model image patch calculation; variants without a rule refuse images', () => {
@@ -227,7 +228,7 @@ describe('OpenAI model-specific input estimator', () => {
     for (const modelId of proModels) {
       const body = imageBody(modelId, url('1x1.png'))
       expect(
-        createOpenAiInputMeter(definition(modelId)).measureFull({
+        directFull(createOpenAiInputMeter(definition(modelId)), {
           body,
           serialized: writeJsonLossless(body),
         }),
@@ -240,10 +241,10 @@ describe('OpenAI model-specific input estimator', () => {
     const remote = imageBody(modelId, 'https://example.invalid/a.png')
     const invalid = imageBody(modelId, 'data:image/png;base64,eA==')
     const meter = createOpenAiInputMeter(definition(modelId))
-    expect(meter.measureFull({ body: remote, serialized: writeJsonLossless(remote) })).toEqual({
+    expect(directFull(meter, { body: remote, serialized: writeJsonLossless(remote) })).toEqual({
       kind: 'unavailable',
     })
-    expect(meter.measureFull({ body: invalid, serialized: writeJsonLossless(invalid) })).toEqual({
+    expect(directFull(meter, { body: invalid, serialized: writeJsonLossless(invalid) })).toEqual({
       kind: 'unavailable',
     })
   })
@@ -269,7 +270,7 @@ describe('OpenAI model-specific input estimator', () => {
       expect(low).toBeGreaterThan(noImage)
       const unsupported = imageBody(modelId, url('1x1.png'), 'ultra')
       expect(
-        createOpenAiInputMeter(definition(modelId)).measureFull({
+        directFull(createOpenAiInputMeter(definition(modelId)), {
           body: unsupported,
           serialized: writeJsonLossless(unsupported),
         }),
@@ -292,7 +293,7 @@ describe('OpenAI model-specific input estimator', () => {
     const meter = createOpenAiInputMeter(definition(modelId))
     for (const name of ['two-frame.gif', 'truncated.gif']) {
       const body = imageBody(modelId, url(name), 'low')
-      expect(meter.measureFull({ body, serialized: writeJsonLossless(body) })).toEqual({
+      expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'unavailable',
       })
     }

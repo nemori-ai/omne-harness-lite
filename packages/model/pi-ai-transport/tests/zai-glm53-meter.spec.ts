@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
@@ -62,6 +63,7 @@ function actualPlan(modelId: string, effort?: 'low' | 'high' | 'max') {
   if ('rejected' in user) throw new Error(user.rejected)
   const input: PlanInput = {
     calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+    outputHistory: [],
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     target: {
       kind: 'model_call',
@@ -90,7 +92,7 @@ function actualPlan(modelId: string, effort?: 'low' | 'high' | 'max') {
 }
 
 function measured(modelId: string, body: JsonObject) {
-  return createGlm53InputMeter(definition(modelId)).measureFull({
+  return directFull(createGlm53InputMeter(definition(modelId)), {
     body,
     serialized: writeJsonLossless(body),
   })

@@ -113,6 +113,7 @@ describe('D6 real transport diagnostic pending across service generations', () =
       try {
         const handle = invokeModel({
           calibration: { kind: 'none', reason: 'no_observation' },
+          outputHistory: [],
           tokenMargin: { multiplier: 1, reserveTokens: 0 },
           target: {
             kind: 'model_call',

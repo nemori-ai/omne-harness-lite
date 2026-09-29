@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -94,7 +95,7 @@ describe('Google AI Studio rough text/tool input meter', () => {
         ],
       }
       expect(
-        meter.measureFull({ body: opaqueBody, serialized: writeJsonLossless(opaqueBody) }),
+        directFull(meter, { body: opaqueBody, serialized: writeJsonLossless(opaqueBody) }),
       ).toEqual({
         kind: 'unavailable',
       })
@@ -113,11 +114,11 @@ describe('Google AI Studio rough text/tool input meter', () => {
       )
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       const { body, serialized } = planned.planned
-      expect(meter.measureFull({ body, serialized })).toEqual({ kind: 'estimated', tokens: 90 })
-      expect(meter.measureFull({ body, serialized: `${serialized} ` })).toEqual({
+      expect(directFull(meter, { body, serialized })).toEqual({ kind: 'estimated', tokens: 90 })
+      expect(directFull(meter, { body, serialized: `${serialized} ` })).toEqual({
         kind: 'unavailable',
       })
-      expect(meter.measureFull({ body: { ...body, max_tokens: 64 }, serialized })).toEqual({
+      expect(directFull(meter, { body: { ...body, max_tokens: 64 }, serialized })).toEqual({
         kind: 'unavailable',
       })
     },

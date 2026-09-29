@@ -94,6 +94,7 @@ function input(model: ModelDefinition, opaque: boolean): PlanInput {
   })
   return {
     calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+    outputHistory: [],
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     target: {
       kind: 'model_call',

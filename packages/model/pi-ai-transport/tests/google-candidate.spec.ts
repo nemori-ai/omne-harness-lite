@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { describe, expect, it } from 'vitest'
 import { createPiAiTransport, planRequest } from '@omne-harness-lite/pi-ai-transport'
 import {
@@ -93,7 +94,7 @@ describe('Google candidate calibration boundary', () => {
     if (!definition) throw new Error('Google definition missing')
     const meter = createGoogleCalibrationMeter(definition, fit, countCharacters)
     expect(
-      meter.measureFull({
+      directFull(meter, {
         body: {
           model: definition.modelId,
           messages: [

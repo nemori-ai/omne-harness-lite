@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -42,7 +43,7 @@ function definition(modelId: string) {
 }
 
 function measured(body: JsonObject) {
-  return createZaiCommercialInputMeter(definition(String(body.model))).measureFull({
+  return directFull(createZaiCommercialInputMeter(definition(String(body.model))), {
     body,
     serialized: writeJsonLossless(body),
   })
@@ -142,6 +143,7 @@ function publicInput(
   ]
   return {
     calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+    outputHistory: [],
     tokenMargin: margin,
     target: {
       kind: 'model_call',
@@ -431,11 +433,11 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
         }),
       ).toEqual({ kind: 'unavailable' })
       expect(
-        createZaiCommercialInputMeter(definition(modelId)).measureFull({ body, serialized: '{}' }),
+        directFull(createZaiCommercialInputMeter(definition(modelId)), { body, serialized: '{}' }),
       ).toEqual({ kind: 'unavailable' })
       const otherId = modelId === ids[0] ? ids[1] : ids[0]
       expect(
-        createZaiCommercialInputMeter(definition(otherId)).measureFull({
+        directFull(createZaiCommercialInputMeter(definition(otherId)), {
           body,
           serialized: writeJsonLossless(body),
         }),

@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -42,7 +43,7 @@ function definition(modelId: string) {
 }
 
 function measuredTokens(modelId: string, body: JsonObject) {
-  const result = createAnthropicInputMeter(definition(modelId)).measureFull({
+  const result = directFull(createAnthropicInputMeter(definition(modelId)), {
     body,
     serialized: writeJsonLossless(body),
   })
@@ -59,7 +60,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       throw new Error('invalid Anthropic reference fixture')
     const { body, referenceTokens } = parsed.ok
     if (!isJsonNumber(referenceTokens)) throw new Error('missing reference token count')
-    const result = createAnthropicInputMeter(definition('anthropic/claude-opus-5.5')).measureFull({
+    const result = directFull(createAnthropicInputMeter(definition('anthropic/claude-opus-5.5')), {
       body,
       serialized: writeJsonLossless(body),
     })
@@ -166,7 +167,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       ],
     }
     expect(
-      createAnthropicInputMeter(selected).measureFull({
+      directFull(createAnthropicInputMeter(selected), {
         body: unsupported,
         serialized: writeJsonLossless(unsupported),
       }),
@@ -268,9 +269,9 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       }),
     ).toBe(complete)
     const meter = createAnthropicInputMeter(definition(model))
-    expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(directFull(meter, { body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     expect(
-      meter.measureFull({
+      directFull(meter, {
         body: { ...body, model: 'anthropic/other' },
         serialized: writeJsonLossless({ ...body, model: 'anthropic/other' }),
       }),
@@ -285,7 +286,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
       { ...body, tools: [{ type: 'function', function: { name: 'weather', prompt: 'hidden' } }] },
     ]) {
       expect(
-        meter.measureFull({ body: unknownInput, serialized: writeJsonLossless(unknownInput) }),
+        directFull(meter, { body: unknownInput, serialized: writeJsonLossless(unknownInput) }),
       ).toEqual({ kind: 'unavailable' })
     }
   })
@@ -318,7 +319,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         ],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measureFull({
+        directFull(createAnthropicInputMeter(definition(model)), {
           body,
           serialized: writeJsonLossless(body),
         }),
@@ -376,7 +377,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         ],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measureFull({
+        directFull(createAnthropicInputMeter(definition(model)), {
           body: wrongMime,
           serialized: writeJsonLossless(wrongMime),
         }),
@@ -397,7 +398,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         ],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measureFull({
+        directFull(createAnthropicInputMeter(definition(model)), {
           body,
           serialized: writeJsonLossless(body),
         }),
@@ -407,7 +408,7 @@ describe('four exact Anthropic projected-input rough estimates', () => {
         messages: [{ role: 'user', content: [{ type: 'audio_url', audio_url: { url: 'x' } }] }],
       }
       expect(
-        createAnthropicInputMeter(definition(model)).measureFull({
+        directFull(createAnthropicInputMeter(definition(model)), {
           body: unknown,
           serialized: writeJsonLossless(unknown),
         }),

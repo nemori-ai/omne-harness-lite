@@ -8,7 +8,7 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { jsonEqual, type ModelDefinition } from '../definitions.ts'
 import { object } from '../json.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { xaiDefinitions } from '../official-models/xai.ts'
 
 // Per-model fit-only offsets; shared wire algorithm and scope below.
@@ -116,8 +116,7 @@ function supported(body: JsonObject, modelId: string): boolean {
   return true
 }
 
-/** Limited rough estimator: visible text/tools, no opaque or media history. */
-export function createXaiInputMeter(definition: ModelDefinition): InputMeter | undefined {
+function fixedCalibration(definition: ModelDefinition) {
   const calibration = calibrations[definition.modelId]
   const canonical = xaiDefinitions.find(item => item.modelId === definition.modelId)
   const candidate = copyJsonValue(definition)
@@ -130,6 +129,28 @@ export function createXaiInputMeter(definition: ModelDefinition): InputMeter | u
     definition.implementation.revision !== 'mp4-2'
   )
     return undefined
+  return calibration
+}
+
+/** Package-local visible-body counter; internal stripped bodies are not public full inputs. */
+export function createXaiVisibleBodyCounter(
+  definition: ModelDefinition,
+): ((input: Pick<FullMeterInput, 'body' | 'serialized'>) => TokenMeasurement) | undefined {
+  const calibration = fixedCalibration(definition)
+  if (!calibration) return undefined
+  return ({ body, serialized }) => {
+    if (writeJsonLossless(body) !== serialized || !supported(body, definition.modelId))
+      return { kind: 'unavailable' }
+    const tokens = Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + calibration.offset
+    return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
+  }
+}
+
+/** Limited rough estimator: visible text/tools, no opaque or media history. */
+export function createXaiInputMeter(definition: ModelDefinition): InputMeter | undefined {
+  const calibration = fixedCalibration(definition)
+  const countBody = createXaiVisibleBodyCounter(definition)
+  if (!calibration || !countBody) return undefined
   return defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
@@ -137,19 +158,8 @@ export function createXaiInputMeter(definition: ModelDefinition): InputMeter | u
     provider: 'xai',
     algorithmRevision: `grok-build-visible-text-tools-offset${calibration.offset}-1`,
     evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; rough estimate, no error bound`,
-    measureFull({
-      body,
-      serialized,
-    }: {
-      readonly body: JsonObject
-      readonly serialized: string
-    }): TokenMeasurement {
-      if (writeJsonLossless(body) !== serialized || !supported(body, definition.modelId))
-        return { kind: 'unavailable' }
-      // First-party byte estimate projected onto final wire; fixed offset derived
-      // only from two fit cases per model. No cross-model or holdout fitting.
-      const tokens = Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + calibration.offset
-      return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
-    },
+    // First-party byte estimate projected onto final wire; fixed offset derived
+    // only from two fit cases per model. No cross-model or holdout fitting.
+    measureFull: countBody,
   })
 }

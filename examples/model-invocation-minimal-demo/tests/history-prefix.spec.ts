@@ -155,6 +155,7 @@ describe('complete demo history without a text-only whitelist', () => {
     const planned = planRequest(
       {
         calibration: { kind: 'none', reason: 'no_observation' },
+        outputHistory: [],
         tokenMargin: { multiplier: 1, reserveTokens: 0 },
         target: {
           kind: 'model_call',

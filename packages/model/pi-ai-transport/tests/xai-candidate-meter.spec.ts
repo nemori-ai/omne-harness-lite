@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
@@ -26,7 +27,7 @@ describe('unbound Grok Build candidate', () => {
     if (!definition) throw new Error('missing xAI definition')
     const meter = createXaiCandidateInputMeter(definition)
     expect(meter.algorithmRevision).toBe('grok-build-wire-projection-candidate-1')
-    expect(meter.measureFull({ body: row.body, serialized: writeJsonLossless(row.body) })).toEqual({
+    expect(directFull(meter, { body: row.body, serialized: writeJsonLossless(row.body) })).toEqual({
       kind: 'estimated',
       tokens: row.scenario === 'image' ? 836 : 175,
     })
@@ -39,7 +40,7 @@ describe('unbound Grok Build candidate', () => {
     )
     if (!definition || !source) throw new Error('missing fixture')
     const meter = createXaiCandidateInputMeter(definition)
-    const base = meter.measureFull({
+    const base = directFull(meter, {
       body: source.body,
       serialized: writeJsonLossless(source.body),
     })
@@ -62,14 +63,14 @@ describe('unbound Grok Build candidate', () => {
         { role: 'tool', tool_call_id: 'call_1', content: 'alpha=42' },
       ],
     }
-    const later = meter.measureFull({ body: history, serialized: writeJsonLossless(history) })
+    const later = directFull(meter, { body: history, serialized: writeJsonLossless(history) })
     expect(base.kind).toBe('estimated')
     expect(later.kind).toBe('estimated')
     if (base.kind !== 'estimated' || later.kind !== 'estimated')
       throw new Error('candidate unavailable')
     expect(Number(later.tokens)).toBeGreaterThan(Number(base.tokens))
     expect(
-      meter.measureFull({
+      directFull(meter, {
         body: {
           ...history,
           messages: [
@@ -94,7 +95,7 @@ describe('unbound Grok Build candidate', () => {
         }),
       }),
     ).toEqual({ kind: 'unavailable' })
-    expect(meter.measureFull({ body: source.body, serialized: '{}' })).toEqual({
+    expect(directFull(meter, { body: source.body, serialized: '{}' })).toEqual({
       kind: 'unavailable',
     })
   })
@@ -110,6 +111,7 @@ describe('unbound Grok Build candidate', () => {
       if ('rejected' in profile) throw new Error(profile.rejected)
       const input: PlanInput = {
         calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+        outputHistory: [],
         tokenMargin: { multiplier: 1, reserveTokens: 0 },
         target: {
           kind: 'model_call',

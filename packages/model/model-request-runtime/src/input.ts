@@ -11,6 +11,7 @@ import { start } from '@omne-harness-lite/stream-assembly'
 import { ExactDecimal, judgeAccountValue, type Usage } from '@omne-harness-lite/call-accounts'
 import { copyInputCalibration } from '@omne-harness-lite/model-response'
 import type { InputLimitMetric, PlanCalibration, PlanInput, TokenMargin } from './types.ts'
+import { copyPlanOutputHistory } from './output-history.ts'
 
 function index(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
@@ -204,6 +205,8 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     if ('rejected' in judged) return undefined
     messages.push(judged.ok)
   }
+  const outputHistory = copyPlanOutputHistory(input.outputHistory, messages, ownedCalibration)
+  if (outputHistory === undefined) return undefined
   const tools = []
   const names = new Set<string>()
   for (const raw of input.tools) {
@@ -214,6 +217,7 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
   }
   return Object.freeze({
     calibration: ownedCalibration,
+    outputHistory,
     tokenMargin: Object.freeze(tokenMargin.ok),
     target: Object.freeze({
       kind: 'model_call',

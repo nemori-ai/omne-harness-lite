@@ -139,6 +139,7 @@ function request(current: ProfileRow, suffix: string): PlanInput {
     throw new Error('invalid request fixture')
   return {
     calibration: { kind: 'none', reason: 'no_observation' },
+    outputHistory: [],
     tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
     target: { kind: 'model_call', callId: callId.ok, dispatch: 1 },
     routeName: current.profile.routeName,

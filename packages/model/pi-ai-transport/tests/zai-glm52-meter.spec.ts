@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
@@ -48,6 +49,7 @@ function planInput(messages: readonly Message[], tools: PlanInput['tools'] = [])
   if ('rejected' in profile) throw new Error(profile.rejected)
   return {
     calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+    outputHistory: [],
     tokenMargin: { multiplier: 1.2, reserveTokens: 32 },
     target: {
       kind: 'model_call',
@@ -79,7 +81,7 @@ function digest(value: string): string {
 }
 
 function measured(body: JsonObject) {
-  return createGlm52InputMeter(model).measureFull({ body, serialized: writeJsonLossless(body) })
+  return directFull(createGlm52InputMeter(model), { body, serialized: writeJsonLossless(body) })
 }
 
 describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
@@ -264,7 +266,7 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
       }),
     ).toEqual({ kind: 'unavailable' })
     expect(measured({ ...body, unrecognized_input: 'hello' })).toEqual({ kind: 'unavailable' })
-    expect(createGlm52InputMeter(model).measureFull({ body, serialized: '{}' })).toEqual({
+    expect(directFull(createGlm52InputMeter(model), { body, serialized: '{}' })).toEqual({
       kind: 'unavailable',
     })
     expect(() => createGlm52InputMeter({ ...model, revision: '2' })).toThrow(TypeError)

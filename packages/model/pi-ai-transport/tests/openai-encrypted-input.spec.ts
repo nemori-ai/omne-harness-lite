@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   writeJsonLossless,
@@ -201,7 +202,7 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
           messages: [{ role: 'assistant', content: '', reasoning_details: details }],
         }
         const serialized = writeJsonLossless(body)
-        const result = meter.measureFull({ body, serialized })
+        const result = directFull(meter, { body, serialized })
         expect(writeJsonLossless(body)).toBe(serialized)
         return result
       }

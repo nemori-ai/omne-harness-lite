@@ -54,6 +54,7 @@ function input(messages: Message[], parameters: ModelRequestParameters = {}): Pl
   if ('rejected' in profile) throw new Error(profile.rejected)
   return {
     calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+    outputHistory: [],
     tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',

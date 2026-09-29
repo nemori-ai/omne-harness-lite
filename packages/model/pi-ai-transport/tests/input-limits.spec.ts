@@ -4,7 +4,7 @@ import { admissionTokens, tokenMarginValid } from '../src/input-meter.ts'
 import { planRequest } from '../src/plan.ts'
 import { input, judgedMessage } from './support.ts'
 import { testDefinitions } from './definitions.ts'
-import { measureFinalInput } from '../src/input-limits.ts'
+import { finalInputWithoutSource } from './direct-full-input.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
 
 describe('explicit token estimate margin', () => {
@@ -105,7 +105,7 @@ describe('S-74 final serialized admission', () => {
       inputConstraints: { ...base.snapshot.inputConstraints, maxRequestBytes: length - 1 },
     }
     expect(
-      measureFinalInput({
+      finalInputWithoutSource({
         definition,
         provider: 'openai',
         snapshot,
@@ -136,7 +136,7 @@ describe('S-74 final serialized admission', () => {
       meter: estimate,
       tokenMargin: { multiplier: 1.1, reserveTokens: 0 },
     }
-    expect(measureFinalInput(args)).toEqual({
+    expect(finalInputWithoutSource(args)).toEqual({
       rejected: 'invalidInput',
       reason: 'input_limit_exceeded',
       basis: 'estimated',
@@ -146,7 +146,7 @@ describe('S-74 final serialized admission', () => {
       limit: 109,
     })
     expect(
-      measureFinalInput({
+      finalInputWithoutSource({
         ...args,
         snapshot: {
           ...snapshot,
@@ -169,7 +169,7 @@ describe('S-74 final serialized admission', () => {
   it('does not call an upper bound excess an actual excess', () => {
     const upper = { ...meter, measureFull: () => ({ kind: 'upperBound' as const, tokens: 200 }) }
     expect(
-      measureFinalInput({
+      finalInputWithoutSource({
         definition,
         provider: 'openai',
         snapshot: { ...base.snapshot, maxInputTokens: 100 },
@@ -197,7 +197,7 @@ describe('S-74 final serialized admission', () => {
     ]
     for (const failed of cases)
       expect(
-        measureFinalInput({
+        finalInputWithoutSource({
           definition,
           provider: 'openai',
           snapshot: base.snapshot,
@@ -222,7 +222,7 @@ describe('S-74 final serialized admission', () => {
       inputConstraints: { ...base.snapshot.inputConstraints, maxImageBytes: 3 },
     }
     expect(
-      measureFinalInput({
+      finalInputWithoutSource({
         definition,
         provider: 'openai',
         snapshot,
@@ -240,7 +240,7 @@ describe('S-74 final serialized admission', () => {
       limit: 3,
     })
     expect(
-      measureFinalInput({
+      finalInputWithoutSource({
         definition,
         provider: 'openai',
         snapshot: {

@@ -1,4 +1,5 @@
 export type * from './types.ts'
+export { copyPlanOutputHistory } from './output-history.ts'
 export { invokeModel, classifyCause } from './invoke.ts'
 export { dispatchGuard } from './dispatch-guard.ts'
 export type {

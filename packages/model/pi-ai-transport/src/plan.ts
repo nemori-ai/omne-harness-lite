@@ -1,5 +1,6 @@
 import { projectInput, stableAnthropicRoute } from './projection.ts'
-import { measureCalibrated, type MessageSpan } from './calibration.ts'
+import { measureCalibrated } from './calibration.ts'
+import { projectHistorySpans, type MessageSpan } from './history-projection.ts'
 // Derived from pi 0.86.1 openai-completions.ts, commit 3390bd93630965a12a0a1a5c36ce890ec22f7e1d.
 // Copyright (c) 2025 Mario Zechner. MIT: ../LICENSE.pi. See provenance.json for changes.
 import { createHash } from 'node:crypto'
@@ -403,10 +404,18 @@ export function planRequest(
   const serialized = writeJsonLossless(owned)
   if (!meter) return { rejected: 'unavailable' }
   const projection = projectInput(owned, input, meter)
+  const historySpans = projectHistorySpans(input.outputHistory, projection, spans)
+  if (historySpans === undefined) return { rejected: 'invalidInput', reason: 'malformed' }
   let calibrated: ReturnType<typeof measureCalibrated>
   try {
-    calibrated = measureCalibrated(input, projection, spans, meter, () =>
-      meter.measureFull({ body: owned, serialized }),
+    calibrated = measureCalibrated(input, projection, spans, historySpans, meter, () =>
+      meter.measureFull({
+        body: owned,
+        serialized,
+        projection,
+        outputHistory: input.outputHistory,
+        historySpans,
+      }),
     )
   } catch {
     calibrated = undefined

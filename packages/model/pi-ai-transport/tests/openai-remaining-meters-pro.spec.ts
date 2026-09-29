@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { getEncoding } from 'js-tiktoken'
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
@@ -243,7 +244,7 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
     for (const frozen of packet.cases.filter(c => c.modelId === model)) {
       expect(frozen).not.toHaveProperty('actualTokens')
       const body = strictObject(frozen.wire)!
-      expect(meter.measureFull({ body, serialized: frozen.wire })).toEqual({
+      expect(directFull(meter, { body, serialized: frozen.wire })).toEqual({
         kind: 'estimated',
         tokens: encoder.encode(frozen.wire).length,
       })

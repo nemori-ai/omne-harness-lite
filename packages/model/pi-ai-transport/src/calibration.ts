@@ -32,9 +32,12 @@ import {
   type InputMeter,
   type TokenMeasurement,
   type MarginalMeterInput,
+  type NewMeterInput,
   type ReplayMeterInput,
 } from './input-meter.ts'
 import { object } from './json.ts'
+import type { HistorySelectionSpan } from './input-meter.ts'
+import type { MessageSpan } from './history-projection.ts'
 
 export function ownCalibration(raw: unknown): PlanCalibration | undefined {
   const c = copyJsonValue(raw)
@@ -119,15 +122,12 @@ export function ownCalibration(raw: unknown): PlanCalibration | undefined {
     replaySelection: Object.freeze(replaySelection),
   })
 }
-export interface MessageSpan {
-  readonly start: number
-  readonly end: number
-}
 type Fallback = Extract<InputMeasurement, { mode: 'full' }>['fallbackReason']
 export function measureCalibrated(
   input: PlanInput,
   projection: InputProjection,
   spans: readonly MessageSpan[],
+  historySpans: readonly HistorySelectionSpan[],
   meter: InputMeter,
   full: () => TokenMeasurement,
 ):
@@ -232,15 +232,61 @@ export function measureCalibrated(
         }
         if (calibration.replaySelection.length && source.outputGroup.kind !== 'known')
           mapped = false
+        const newHistory: PlanInput['outputHistory'][number][] = []
+        const newHistorySpans: HistorySelectionSpan[] = []
+        let replayHistory: PlanInput['outputHistory'][number] | undefined
+        for (const [groupIndex, group] of input.outputHistory.entries()) {
+          const groupSpans = historySpans.filter(item => item.groupIndex === groupIndex)
+          const regions = new Set<'prefix' | 'replay' | 'new'>()
+          for (const span of groupSpans) {
+            for (let i = span.start; i < span.end; i++) {
+              regions.add(i < n ? 'prefix' : g.has(i) ? 'replay' : 'new')
+            }
+          }
+          if (regions.size !== 1) {
+            mapped = false
+            break
+          }
+          if (regions.has('replay')) {
+            if (replayHistory !== undefined) {
+              mapped = false
+              break
+            }
+            replayHistory = group
+          } else if (regions.has('new')) {
+            const nextIndex = newHistory.length
+            newHistory.push(group)
+            newHistorySpans.push(
+              ...groupSpans.map(({ selectionIndex, start, end }) =>
+                Object.freeze({ groupIndex: nextIndex, selectionIndex, start, end }),
+              ),
+            )
+          }
+        }
+        if (
+          replayHistory !== undefined &&
+          canonicalProjection({
+            kind: 'observation',
+            inputCalibration: replayHistory.inputCalibration,
+            usage: replayHistory.usage,
+            outputBlocks: replayHistory.outputBlocks,
+            replaySelection: replayHistory.replaySelection,
+          }) !== canonicalProjection(calibration)
+        )
+          mapped = false
         if (mapped) {
           const replay: JsonValue[] = [],
             fresh: JsonValue[] = [],
-            unitIndices: number[] = []
+            unitIndices: number[] = [],
+            freshIndices: number[] = []
           for (let i = n; i < projection.units.length; i++) {
             if (g.has(i)) {
               replay.push(projection.units[i]!)
               unitIndices.push(i)
-            } else fresh.push(projection.units[i]!)
+            } else {
+              fresh.push(projection.units[i]!)
+              freshIndices.push(i)
+            }
           }
           const deepSeek = deepSeekBoundaryRoute(input)
           const prepared = deepSeek ? prepareDeepSeekBoundaries(projection, n, g) : undefined
@@ -263,14 +309,24 @@ export function measureCalibrated(
                     Object.freeze({
                       ...arg(replay, boundary?.replay),
                       observation: calibration,
+                      outputHistory: Object.freeze(
+                        replayHistory === undefined ? [] : [replayHistory],
+                      ),
                       unitIndices: Object.freeze(unitIndices),
                       selectionSpans: Object.freeze(selectionSpans),
                     }),
                   )
                 : { kind: 'exact' as const, tokens: 0 }
+            const newInput: NewMeterInput = Object.freeze({
+              ...arg(fresh, boundary?.fresh),
+              unitIndices: Object.freeze(freshIndices),
+              countingBasis: basis,
+              outputHistory: Object.freeze(newHistory),
+              historySpans: Object.freeze(newHistorySpans),
+            })
             const delta =
               fresh.length || boundary?.fresh.added !== boundary?.fresh.removed
-                ? meter.measureNew(arg(fresh, boundary?.fresh))
+                ? meter.measureNew(newInput)
                 : { kind: 'exact' as const, tokens: 0 }
             if (
               meterContributionValid(phi) &&

@@ -1,3 +1,4 @@
+import { directFull } from './direct-full-input.ts'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
@@ -73,11 +74,11 @@ describe('DeepSeek V4 public encoder projection', () => {
       tools: source.tools,
       stream: true,
     }
-    const measurement = meter.measureFull({ body, serialized: writeJsonLossless(body) })
+    const measurement = directFull(meter, { body, serialized: writeJsonLossless(body) })
     expect(measurement).toMatchObject({ kind: 'estimated' })
     if (measurement.kind === 'unavailable') throw new Error('pinned estimator unavailable')
     expect(Number(measurement.tokens)).toBeGreaterThan(541)
-    expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
+    expect(directFull(meter, { body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     expect(() =>
       createDeepSeekV4ProInputMeter({ ...deepseekV4Pro0813Definition, revision: 'wrong' }),
     ).toThrow(TypeError)
