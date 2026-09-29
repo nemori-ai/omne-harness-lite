@@ -198,8 +198,8 @@ For a first request with no predecessor, construct the input without inventing a
 ```ts
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 
-export function firstRequest(input: Omit<PlanInput, 'calibration'>): PlanInput {
-  return { ...input, calibration: { kind: 'none', reason: 'no_observation' } }
+export function firstRequest(input: Omit<PlanInput, 'calibration' | 'outputHistory'>): PlanInput {
+  return { ...input, calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] }
 }
 ```
 
@@ -211,7 +211,7 @@ import type { ModelResponse } from '@omne-harness-lite/model-response'
 import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
 
 export function nextRequest(
-  input: Omit<PlanInput, 'calibration'>,
+  input: Omit<PlanInput, 'calibration' | 'outputHistory'>,
   original: ModelResponse,
   outputBlocks: readonly ContentBlock[],
   replaySelection: readonly ReplaySelection[],
@@ -225,9 +225,31 @@ export function nextRequest(
       outputBlocks,
       replaySelection,
     },
+    outputHistory:
+      original.inputCalibration.outputGroup.kind === 'known' && replaySelection.length > 0
+        ? [{
+            inputCalibration: original.inputCalibration,
+            usage: original.usage,
+            outputBlocks,
+            replaySelection,
+            origin: {
+              adaptation: original.route.adaptation,
+              provider: original.route.provider,
+              parameters: original.route.parameters,
+              ...(original.route.servingProvider === undefined
+                ? {}
+                : { servingProvider: original.route.servingProvider }),
+              ...(original.route.upstreamModel === undefined
+                ? {}
+                : { upstreamModel: original.route.upstreamModel }),
+            },
+          }]
+        : [],
   }
 }
 ```
+
+`outputHistory` is always explicit and independent of the one input anchor. For several selected older responses, provide one group per response in order of its first target block; each group retains its complete original blocks, original route/parameters and the selected target mapping. A missing or unusable input count does not remove a known output group. A caller without the original group facts keeps the actual messages and supplies `[]`; full input measurement must still cover their wire content. The service derives groups only from the same authorized prefix and original complete response batches. See the [runtime v19 handoff](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v19-output-history-design.md) and [transport v13 projection](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v13-output-history-design.md).
 
 On a later request, the authorized same-session history reader supplies `calibration`. Its target contains this request's call and dispatch plus its Run and attempt when present; the source owner must establish the actual selected branch and candidate order. The runtime checks that each selected message comes from the same complete SL3 prefix, that an original dispatch and complete response have the same stable identity and value, and that an assistant reply actually appears in the selected model input. A prior Run response keeps its original response attempt even when its complete M/R batch was accounted in a later attempt. An older Run may be selected by a later request when the source proves that ancestry; matching Run names alone never proves selection. For a retry of the same call, a prior continuous dispatch with no reply can also supply an accurate input observation, subject to the same original Run. The planner then checks the current prefix digest, counting basis, replayed output group, and actual newly serialized input before using a marginal measurement; a mismatch falls back to a full measurement. A prior response with missing or unusable input usage is skipped in favor of an earlier valid ancestor. Already committed batches are read from their original complete values without rejudging the current Run terminal state. The reader checks original values and adjacency; original settlement append and SL3 own the physical atomic-batch guarantee. `source_unavailable` is different from a proved `no_observation`.
 

@@ -3,6 +3,8 @@ import type { Message } from '@omne-harness-lite/messages'
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { NewMeterInput, ReplayMeterInput } from '../src/input-meter.ts'
+import { measureFull, measureNew, measureReplay } from '../src/input-meter.ts'
+import { projectInput } from '../src/projection.ts'
 import { projectOutput } from '../src/projection.ts'
 import { planRequest, type PlannedRequest } from '../src/plan.ts'
 import { input, judgedMessage, message, at } from './support.ts'
@@ -209,6 +211,67 @@ describe('shared output-history coverage', () => {
     expect(planRequest({ ...request, outputHistory: [badDigest] }, testDefinitions, meter)).toEqual(
       { rejected: 'invalidInput', reason: 'malformed' },
     )
+    expect(full).not.toHaveBeenCalled()
+    expect(replay).not.toHaveBeenCalled()
+    expect(fresh).not.toHaveBeenCalled()
+  })
+
+  it('classifies malformed standalone full and marginal facts before the model closure', () => {
+    const first = planned(input())
+    const a = reply('a')
+    const source = group(first, a, 3, 100)
+    const full = vi.fn(base.measureFull)
+    const replay = vi.fn((_value: ReplayMeterInput) => ({ kind: 'exact' as const, tokens: 1 }))
+    const fresh = vi.fn((_value: NewMeterInput) => ({ kind: 'exact' as const, tokens: 1 }))
+    const meter = { ...base, measureFull: full, measureReplay: replay, measureNew: fresh }
+    const request: PlanInput = {
+      ...input(),
+      messages: [...input().messages, a],
+      outputHistory: [source],
+    }
+    const projection = projectInput(
+      { messages: [{ role: 'assistant', content: 'answer a' }] },
+      request,
+      meter,
+    )
+    const bad = {
+      ...source,
+      inputCalibration: {
+        ...source.inputCalibration,
+        outputGroup: {
+          ...source.inputCalibration.outputGroup,
+          blockDigests: ['corrupt'],
+        },
+      },
+    }
+    const historySpans = [{ groupIndex: 0, selectionIndex: 0, start: 0, end: 1 }]
+    const body = { messages: [{ role: 'assistant', content: 'answer a' }] }
+    const serialized = JSON.stringify(body)
+    expect(
+      measureFull(meter, { body, serialized, projection, outputHistory: [bad], historySpans }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
+      measureReplay(meter, {
+        units: projection.units,
+        envelope: projection.envelope,
+        precedingUnitCount: 0,
+        observation: observation(bad),
+        outputHistory: [bad],
+        unitIndices: [0],
+        selectionSpans: [{ selectionIndex: 0, start: 0, end: 1 }],
+      }),
+    ).toEqual({ kind: 'invalidInput' })
+    expect(
+      measureNew(meter, {
+        units: projection.units,
+        envelope: projection.envelope,
+        precedingUnitCount: 0,
+        unitIndices: [0],
+        countingBasis: projection.requestInput.countingBasis,
+        outputHistory: [bad],
+        historySpans,
+      }),
+    ).toEqual({ kind: 'invalidInput' })
     expect(full).not.toHaveBeenCalled()
     expect(replay).not.toHaveBeenCalled()
     expect(fresh).not.toHaveBeenCalled()

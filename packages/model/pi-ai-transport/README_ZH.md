@@ -510,11 +510,13 @@ node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-
 
 ## 响应校准输入规划
 
-`PlanInput.calibration` 必填。首次用 `{kind:'none',reason:'no_observation'}`；后继显式传合法取得的原 `inputCalibration`、`usage`、全部实际保留 `outputBlocks` 和 `replaySelection`。selection 定位源块及当前消息/块，planner 核实际内容和最终投影覆盖，不接受 caller trust 开关。
+`PlanInput.calibration` 和 `PlanInput.outputHistory` 均必填。没有前序响应的首次请求显式给 `{kind:'none',reason:'no_observation'}` 和 `[]`。后续输入锚传合法取得的原 `inputCalibration`、`usage`、完整保留的 `outputBlocks` 与 `replaySelection`。独立的 `outputHistory` 交出所有实际选入且输出组已知的较早响应，包括输入计数不可用的响应。每组保留原 route binding、provider、parameters 及实际存在的 serving provider／upstream model；按首个选入目标排序。缺失 `outputHistory` 是 malformed，planner 不默补 `[]`。selection 定位源块及当前消息/块，planner 核实际内容和最终投影覆盖，不接受 caller trust 开关。
 
 `InputMeter` 破坏性改为 `measureFull`、`measureReplay`（φ）、`measureNew`（δ），并固定 tokenizer/replay/transform 修订；根入口可独立导入三操作以及 `projectInput`、`projectOutput`、`canonicalProjection`。有符号贡献按 I+φ+δ 合成，estimated 最终总量只应用一次 `tokenMargin`。`planned.measurement` 显式给 full/marginal、精度、贡献及来源/前缀/依据回退原因；实际 usage/cost 不混入预测。
 
-`measureReplay` 必须接收专用 `ReplayMeterInput`，`measureNew` 继续接收 `MarginalMeterInput`。Replay 的 `observation` 复用同次已拥有的 `PlanCalibration` 观察，包含原 MR9 request／observed／output-group 证据、原 usage（含 output 和 reasoning 计数）、保留的输出块及选入关系。`unitIndices[i]` 给出 `units[i]` 在最终输入投影中的位置；`selectionSpans` 每项把 `observation.replaySelection[selectionIndex]` 关联到目标消息的半开 `[start,end)` 投影范围，多个块可以共享一个范围。planner 先复制、验证并深冻结这些值；两个增量输入都不含稳定前缀正文。
+`measureFull` 接收 `FullMeterInput`：实际最终 body／serialized、唯一最终 `InputProjection`、全部选入输出组及 `historySpans`。`measureReplay` 接收 `ReplayMeterInput`，包含原锚 `observation`、存在时与锚一致的历史组、绝对 `unitIndices` 与 `selectionSpans`。`measureNew` 接收 `NewMeterInput`，包含仅归 N 的绝对 `unitIndices`、当前 `countingBasis`、仅归 N 的完整组及其位置。history span 以组和 selection 索引标识来源，并给最终 unit 半开范围；多个块可以共享范围，但一个共享 unit 不能双计。planner 先复制、验证并深冻结各值；两个增量 unit 数组都不含稳定 P 正文。
+
+公共 planner 在调用任何 meter 前核完全部组，沿同一个最终投影把每组归到稳定 P、锚回放 G 或新增 N。P 已由准确输入观察覆盖，不额外加 O；G 经 φ 只算一次；N 交 δ。组跨区域则转 full。没有可用输入观察时，full 仍收到所有合法组。部分、重复或改序选择必须有型号映射依据或全量计量，不能把 aggregate O 按块均分。独立 `measureFull(meter,input)` 对已知事实非法返回 `unavailable`；独立 `measureReplay`／`measureNew` 返回 `invalidInput`。无法识别的旧投影版本属于依据缺口，不冒判摘要错误。实际内容完整保留在发出 wire 中，最终 estimated 总量只应用一次配置余量。采用交接见 [runtime v19](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v19-output-history-design.md) 与 [transport v13](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v13-output-history-design.md)。
 
 Replay 实现可结合原组与实际选入关系读取 `input.observation.usage.output_tokens`，这不等于获准把该总量加到输入 tokens。整组判断必须核覆盖、源身份、目标实际顺序以及仅选入一次，不能依赖 selection 数组顺序。一个源块映射多个目标仍可合法存在，事实明确交出，不全局禁止；部分、重复、改序的组不能静默套整组公式。独立调用公开 `measureReplay(meter, input)` 时，调用者仍须提供合法来源与投影关系，TypeScript `readonly` 不认证来源。型号不能解释的关系保留 `invalidInput`／`unavailable` 及 planner 原有 full 回退路径。本接口没有新增任何型号的 I+O 规则。
 

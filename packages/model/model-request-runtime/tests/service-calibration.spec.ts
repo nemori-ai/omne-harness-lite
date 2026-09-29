@@ -361,7 +361,8 @@ describe('U16/V17 conditional withRun calibration over real SL3', () => {
       if ('failure' in settled) throw new Error('Run MR9 batch')
       const prefix = await prefixOf({ ...original, session: runSession }, owner)
       const selectedMessage = judgeMessage(reply)
-      if (!('ok' in selectedMessage)) throw new Error('selected reply')
+      if (!('ok' in selectedMessage) || selectedMessage.ok.type !== 'assistant')
+        throw new Error('selected reply')
       const selected = [selectedMessage.ok]
       const ancestor = {
         origin: 'selected_reply' as const,

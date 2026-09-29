@@ -1,4 +1,11 @@
 import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
+import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
+import { copyInputCalibration } from '@omne-harness-lite/model-response'
+import {
+  judgeModelProfileDocument,
+  validate as validateProfile,
+} from '@omne-harness-lite/model-profile'
 import {
   canonicalProjection,
   INPUT_PROJECTION_REVISION,
@@ -23,6 +30,82 @@ function knownDigestsMatch(
     return output.blockDigests.every(
       (digest, index) => digest === outputBlockDigest(group.outputBlocks[index]),
     )
+  } catch {
+    return false
+  }
+}
+
+/** Relations independently checkable from an original group, without a service prefix. */
+function groupFactsValid(group: PlanOutputHistoryGroup): boolean {
+  try {
+    const calibration = copyInputCalibration(group.inputCalibration)
+    if (!('ok' in calibration) || !('ok' in judgeAccountValue('Usage', group.usage))) return false
+    if (group.outputBlocks.some(block => !('ok' in judgeContentBlock(block)))) return false
+    const origin = group.origin
+    if (
+      !origin ||
+      typeof origin !== 'object' ||
+      Object.keys(origin).some(
+        key =>
+          !['adaptation', 'provider', 'parameters', 'servingProvider', 'upstreamModel'].includes(
+            key,
+          ),
+      ) ||
+      !validateProfile('ModelAdaptationBinding', origin.adaptation).valid ||
+      !validateProfile('ProviderName', origin.provider).valid ||
+      !('ok' in judgeModelProfileDocument('ModelRequestParameters', origin.parameters)) ||
+      (origin.servingProvider !== undefined &&
+        (typeof origin.servingProvider !== 'string' || !origin.servingProvider)) ||
+      (origin.upstreamModel !== undefined &&
+        (typeof origin.upstreamModel !== 'string' || !origin.upstreamModel))
+    )
+      return false
+    const original = calibration.ok.requestInput
+    const output = calibration.ok.outputGroup
+    if (output.kind !== 'known' || (output.source === 'none' && group.replaySelection.length))
+      return false
+    if (
+      original.kind === 'known' &&
+      (original.countingBasis.model !== origin.adaptation.definition.modelId ||
+        original.countingBasis.provider !== origin.provider ||
+        canonicalProjection(original.countingBasis.binding) !==
+          canonicalProjection(origin.adaptation) ||
+        original.projectionRevision !== output.projectionRevision)
+    )
+      return false
+    const observed = calibration.ok.observedInput
+    if (
+      observed.kind !== 'unavailable' &&
+      ((origin.upstreamModel !== undefined &&
+        observed.provenance.upstreamModel !== undefined &&
+        origin.upstreamModel !== observed.provenance.upstreamModel) ||
+        (origin.servingProvider !== undefined &&
+          observed.provenance.servingProvider !== undefined &&
+          origin.servingProvider !== observed.provenance.servingProvider))
+    )
+      return false
+    const parts = [
+      group.usage.input_tokens,
+      group.usage.cache_read_tokens,
+      group.usage.cache_write_tokens,
+    ]
+    if (
+      observed.kind === 'from_usage' &&
+      (group.usage.source !== 'upstream' || parts.some(part => part === 'unknown'))
+    )
+      return false
+    if (
+      observed.kind === 'upstream_total' &&
+      (parts.every(part => part !== 'unknown') ||
+        parts
+          .reduce(
+            (sum, part) => (part === 'unknown' ? sum : sum.add(ExactDecimal.from(part))),
+            ExactDecimal.from(0),
+          )
+          .compare(ExactDecimal.from(observed.tokens)) > 0)
+    )
+      return false
+    return true
   } catch {
     return false
   }
@@ -89,7 +172,7 @@ export function meterHistoryValid(
       output.blockDigests.length !== group.outputBlocks.length
     )
       return false
-    if (!knownDigestsMatch(group)) return false
+    if (!groupFactsValid(group) || !knownDigestsMatch(group)) return false
     for (const [selectionIndex, selected] of group.replaySelection.entries()) {
       if (
         !Number.isSafeInteger(selected.sourceBlockIndex) ||

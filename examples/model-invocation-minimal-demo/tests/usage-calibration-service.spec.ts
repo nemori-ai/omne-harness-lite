@@ -50,16 +50,20 @@ describe('actual service response calibration', () => {
       if ('rejected' in profile) throw new Error(profile.rejected)
       return profile.ok
     })
-    const measures = new Map<string, { full: number; replay: number; fresh: number }>()
+    const measures = new Map<
+      string,
+      { full: number; replay: number; fresh: number; fullGroups: number; freshGroups: number }
+    >()
     const meters: InputMeter[] = models.map(definition => {
       if (definition === undefined) throw new Error('official meter model missing')
       const original = createAnthropicInputMeter(definition)
-      const count = { full: 0, replay: 0, fresh: 0 }
+      const count = { full: 0, replay: 0, fresh: 0, fullGroups: 0, freshGroups: 0 }
       measures.set(definition.modelId, count)
       return {
         ...original,
         measureFull(input) {
           count.full++
+          count.fullGroups = input.outputHistory.length
           return original.measureFull(input)
         },
         measureReplay(input) {
@@ -68,6 +72,7 @@ describe('actual service response calibration', () => {
         },
         measureNew(input) {
           count.fresh++
+          count.freshGroups = input.outputHistory.length
           return original.measureNew(input)
         },
       }
@@ -162,6 +167,8 @@ describe('actual service response calibration', () => {
           full: after.full - before.full,
           replay: after.replay - before.replay,
           fresh: after.fresh - before.fresh,
+          fullGroups: after.fullGroups,
+          freshGroups: after.freshGroups,
         }
       }
       const first = await turn(1, firstModel)
@@ -178,10 +185,12 @@ describe('actual service response calibration', () => {
       expect(third.fresh).toBeGreaterThan(0)
       expect(anchoredEarlier.full).toBe(0)
       expect(anchoredEarlier.fresh).toBeGreaterThan(0)
+      expect(anchoredEarlier.freshGroups).toBe(1)
       expect(await app.selectModel(who, session, nextModel)).toEqual({ selected: nextModel })
       const switched = await turn(5, nextModel)
       expect(switched.full).toBeGreaterThan(0)
       expect(switched.fresh).toBe(0)
+      expect(switched.fullGroups).toBe(4)
       expect(tls.requests).toHaveLength(5)
       expect(tls.requests.map(request => (request.body as { model: string }).model)).toEqual([
         firstModel,
