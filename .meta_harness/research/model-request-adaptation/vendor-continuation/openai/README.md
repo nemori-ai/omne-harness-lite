@@ -9,3 +9,5 @@
 - [研究演进](changelog.md)：新增观察及适用范围。
 
 这是研究证据，不是 tokenizer 身份确认、生产 meter 采用或模型完整认证。下一轮离线实验工具位于 `packages/model/pi-ai-transport/tests/fixtures/openai/calibration.mjs`，只生成请求与分析数字，不发送请求。
+
+- [2026-09-29 完整输出组估算的适用依据](2026-09-29-complete-output-group-estimate.md)：GPT-5.6 三个非 Pro 的有限原／目标基准、O+0 假设和反例义务；未执行的多组实验不写成认证。
