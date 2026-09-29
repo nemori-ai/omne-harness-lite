@@ -51,58 +51,17 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       const read = readModelDefinition(openaiDefinitions, coordinates)
       if ('rejected' in read) throw new Error(read.rejected)
       expect(read.ok).toEqual(definition)
-      const pro = [
-        'openai/gpt-6-astra-pro',
-        'openai/gpt-6-sol-pro',
-        'openai/gpt-6-luna-pro',
-        'openai/gpt-5.6-sol-pro',
-        'openai/gpt-5.6-terra-pro',
-        'openai/gpt-5.6-luna-pro',
-      ].includes(modelId)
-      const astraTextMetered = modelId === 'openai/gpt-6-astra'
-      const gpt6ProMetered = [
-        'openai/gpt-6-astra-pro',
-        'openai/gpt-6-sol-pro',
-        'openai/gpt-6-luna-pro',
-      ].includes(modelId)
-      const metered = modelId.startsWith('openai/gpt-5.6-')
-      const solTextMetered = modelId === 'openai/gpt-6-sol'
-      const lunaHistoryMetered = modelId === 'openai/gpt-6-luna'
-      expect(definition.implementation).toEqual({
-        name: 'pi-ai:openai',
-        revision: astraTextMetered
-          ? 'mp4-10'
-          : gpt6ProMetered
-            ? modelId === 'openai/gpt-6-astra-pro'
-              ? 'mp4-14'
-              : 'mp4-15'
-            : pro
-              ? 'mp4-13'
-              : metered
-                ? 'mp4-16'
-                : lunaHistoryMetered
-                  ? 'mp4-15'
-                  : solTextMetered
-                    ? 'mp4-15'
-                    : 'mp4-1',
-      })
-      expect(definition.revision).toBe(
-        gpt6ProMetered
+      expect(definition.implementation).toEqual({ name: 'pi-ai:openai', revision: 'mp4-17' })
+      const expectedRevision = modelId.startsWith('openai/gpt-5.6-')
+        ? modelId.endsWith('-pro')
+          ? '7'
+          : '8'
+        : modelId === 'openai/gpt-6-astra'
           ? '4'
-          : astraTextMetered
-            ? '3'
-            : pro
-              ? metered
-                ? '6'
-                : '2'
-              : metered
-                ? '7'
-                : lunaHistoryMetered
-                  ? '5'
-                  : solTextMetered
-                    ? '4'
-                    : '1',
-      )
+          : modelId === 'openai/gpt-6-luna'
+            ? '6'
+            : '5'
+      expect(definition.revision).toBe(expectedRevision)
       expect(definition.capabilities).toEqual({
         inputModalities: ['image', 'text'],
         outputModalities: ['text'],

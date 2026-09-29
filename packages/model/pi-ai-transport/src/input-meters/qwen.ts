@@ -332,11 +332,9 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     : undefined
   if (
     (!source && !visible) ||
-    definition.revision !== (visible?.revision ?? '1') ||
+    definition.revision !== (visible?.revision ?? '2') ||
     definition.implementation.name !== 'pi-ai:qwen' ||
-    definition.implementation.revision !==
-      (visible?.implementationRevision ??
-        (definition.modelId === visualModelId ? 'mp4-3' : 'mp4-2')) ||
+    definition.implementation.revision !== (visible?.implementationRevision ?? 'mp4-17') ||
     !Object.hasOwn(definition.routes, 'alibaba')
   )
     throw new TypeError('unsupported Qwen definition')

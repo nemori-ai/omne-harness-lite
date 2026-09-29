@@ -502,7 +502,7 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
   it('rejects mismatched definition and prevents unmeasured model dispatch', async () => {
     const selected = moonshotDefinitions[0]
     if (!selected) throw new Error('missing Moonshot definition')
-    expect(() => createMoonshotInputMeter({ ...selected, revision: '2' })).toThrow(TypeError)
+    expect(() => createMoonshotInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
     expect(() =>
       createMoonshotInputMeter({
         ...selected,

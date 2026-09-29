@@ -14,10 +14,10 @@
 
 以下表格标识本次实验的有限源／目标坐标，便于复跑与定位结果，**不是模型发布注册表或旧工厂接受规则**。实验逐一考察上述三个精确 modelId，未把跨型号组纳入正向假设：
 
-| 原贡献 | 目标贡献 | 说明 |
-| --- | --- | --- |
+| 原贡献                                 | 目标贡献                               | 说明                                                                                    |
+| -------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
 | definition `6` / `pi-ai:openai/mp4-12` | definition `7` / `pi-ai:openai/mp4-16` | 解释已保存的完整输出事实；原 image/full JSON 与 output O 的来源不因后继组合实现而被改写 |
-| definition `7` / `pi-ai:openai/mp4-16` | 同一精确当前贡献 | 后继请求继续消费同规则输出事实 |
+| definition `7` / `pi-ai:openai/mp4-16` | 同一精确当前贡献                       | 后继请求继续消费同规则输出事实                                                          |
 
 原 revision 6 的完整计量基准是 `openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1`、tokenizer `tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6`、replay `openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1`。目标 revision 7 的完整算法为 `openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1`，tokenizer 仍明确沿原 o200k basis，replay 为 `openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2`。两者投影为 `openrouter-input-projection/2`、transform 为 `openrouter-wire/2`。未知算法、变更 transform、其他 projection 和其他 binding 不在此账本内。
 
@@ -33,3 +33,7 @@
 - 独立数值 oracle 检验 full = 剩余可见 full + ΣO、δ = 剩余可见净新增 + ΣO、φ = O；margin 最终只施一次。三轮本机 TLS 验证组来源及持久历史；这不证明真实上游零封装修正。
 
 采用边界由已接受 D-101、D-107 及 transport v13 所有；本文不另立决定。没有实际 full/δ 多组 holdout 因本文而成为已执行。上游默认 context、模型身份、原输出计费口径或 transform 变化时，上述相关性和账本都需要复核。
+
+## D-108 读取器后继的实验坐标
+
+采用 [D-108](../../../../design/record/decisions/openrouter-refusal-mapping-adoption/decision.md) 的共享拒答文本读取器后，三个非 Pro 叶的后继实验目标为 definition `8`／`mp4-17`。它保留上述 revision 7 的完整 algorithm、tokenizer、replay、transform 和 projection 值；解析器变化没有被写成新的数值计量算法。后继实验把原 `6`／`mp4-12`、原 `7`／`mp4-16` 和当前 `8`／`mp4-17` 分列为同型号的来源坐标，不增加跨型号、Pro 或部分组假设。它观察的是同一个完整组代理对已保存原事实的解释；工厂是否接受当前定义由产品实现及已采用映射所有，研究表格不提供旧工厂别名或接受决定。

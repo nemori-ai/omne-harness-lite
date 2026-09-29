@@ -150,9 +150,9 @@ export function createGoogleInputMeter(definition: ModelDefinition): InputMeter 
     !('ok' in left) ||
     !('ok' in right) ||
     !jsonEqual(left.ok, right.ok) ||
-    definition.revision !== '2' ||
+    definition.revision !== '3' ||
     definition.implementation.name !== 'pi-ai:google' ||
-    definition.implementation.revision !== 'mp4-3' ||
+    definition.implementation.revision !== 'mp4-17' ||
     !Object.hasOwn(definition.routes, 'google-ai-studio')
   )
     return undefined

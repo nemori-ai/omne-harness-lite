@@ -32,7 +32,7 @@ export function stableAnthropicRoute(input: PlanInput): boolean {
     anthropicModels.has(input.routeName) &&
     input.provider === 'anthropic' &&
     input.snapshot.adaptation.implementation.name === 'pi-ai:anthropic' &&
-    input.snapshot.adaptation.implementation.revision === 'mp4-5'
+    input.snapshot.adaptation.implementation.revision === 'mp4-17'
   )
 }
 function encodeSorted(value: JsonValue): string {
@@ -167,11 +167,11 @@ export function deepSeekBoundaryRoute(input: PlanInput): boolean {
     return false
   return (
     (input.routeName === 'deepseek/deepseek-v4-pro-0813' &&
-      binding.definition.revision === '3' &&
-      binding.implementation.revision === 'mp4-3') ||
+      binding.definition.revision === '4' &&
+      binding.implementation.revision === 'mp4-17') ||
     (input.routeName === 'deepseek/deepseek-v4.1-flash' &&
-      binding.definition.revision === '2' &&
-      binding.implementation.revision === 'mp4-4')
+      binding.definition.revision === '3' &&
+      binding.implementation.revision === 'mp4-17')
   )
 }
 export function prepareDeepSeekBoundaries(

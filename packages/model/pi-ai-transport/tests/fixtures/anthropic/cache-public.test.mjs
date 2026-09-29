@@ -29,7 +29,7 @@ const load = async path => {
 const frame = data => `data: ${writeJsonLossless(data)}\n\n`
 const credential = 'synthetic-cache-secret-ABC123456789'
 
-test('four current mp4-5 dry plans reject stale binding and preserve exact costs', async () => {
+test('four current mp4-17 dry plans reject stale binding and preserve exact costs', async () => {
   assert.match(await sourceFingerprint(), /^[a-f0-9]{64}$/)
   for (const model of [
     'anthropic/claude-opus-5.5',
@@ -38,14 +38,14 @@ test('four current mp4-5 dry plans reject stale binding and preserve exact costs
     'anthropic/claude-fable-5.1',
   ]) {
     const manifest = makeManifest(model)
-    assert.equal(manifest.implementationRevision, 'mp4-5')
+    assert.equal(manifest.implementationRevision, 'mp4-17')
     const { planned } = dryPlan(manifest)
     assert(planned.serialized.includes('"ttl":"1h"'))
     assert.equal(planned.inputLimitEvidence.inputTokens.kind, 'estimated')
     assert.throws(() => dryPlan({ ...manifest, implementationRevision: 'mp4-4' }), {
       name: 'AssertionError',
       actual: 'mp4-4',
-      expected: 'mp4-5',
+      expected: 'mp4-17',
     })
   }
   assert.throws(
@@ -99,12 +99,12 @@ for (const mode of ['complete', 'failed-known', 'unknown', 'protocol'])
         captured = Buffer.concat(chunks).toString('utf8')
         res.setHeader('Content-Type', 'text/event-stream')
         if (mode === 'protocol') {
-          // Controlled refusal counterexample, not a reconstruction of the unknown
-          // field that caused the live Opus 5 failure.
+          // Controlled invalid refusal value under D108, not a reconstruction
+          // of the original live Opus 5 response.
           res.end(
             frame({
               provider: 'Anthropic',
-              choices: [{ delta: { refusal: 'Synthetic refused content' } }],
+              choices: [{ delta: { refusal: ['Synthetic refused content'] } }],
             }),
           )
           return
@@ -189,7 +189,7 @@ for (const mode of ['complete', 'failed-known', 'unknown', 'protocol'])
         protocolFailureFrame: false,
       })
       if (mode === 'protocol') {
-        assert.equal(observed.result.failure.localError, 'unsupported content member: refusal')
+        assert.equal(observed.result.failure.localError, 'invalid refusal')
         assert.equal(observed.result.failure.upstreamError, undefined)
         assert(!observedSource.includes('Synthetic refused content'))
       }

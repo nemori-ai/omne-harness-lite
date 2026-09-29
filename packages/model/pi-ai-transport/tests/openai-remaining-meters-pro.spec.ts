@@ -168,10 +168,10 @@ describe.each(models)('remaining Pro final-visible meter: %s', model => {
     const meter = createOpenAiInputMeter(definition)
     expect(meter).toMatchObject({
       modelId: model,
-      definitionRevision: '4',
+      definitionRevision: '5',
       implementation: {
         name: 'pi-ai:openai',
-        revision: model === 'openai/gpt-6-astra-pro' ? 'mp4-14' : 'mp4-15',
+        revision: 'mp4-17',
       },
       transformRevision: 'openrouter-input-transform/pro-scope-1',
     })

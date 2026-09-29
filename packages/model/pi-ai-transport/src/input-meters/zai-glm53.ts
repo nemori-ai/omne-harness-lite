@@ -156,9 +156,9 @@ export function createGlm53InputMeter(definition: ModelDefinition): InputMeter {
   const flash = definition.modelId === 'z-ai/glm-5.3-flash'
   if (
     (definition.modelId !== 'z-ai/glm-5.3' && !flash) ||
-    definition.revision !== '1' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:zai' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== 'mp4-17' ||
     !Object.hasOwn(definition.routes, 'z-ai/fp8')
   )
     throw new TypeError('unsupported GLM-5.3 input-meter binding')

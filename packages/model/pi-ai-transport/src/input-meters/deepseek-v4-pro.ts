@@ -344,9 +344,9 @@ function supplemental(body: JsonObject): JsonObject | undefined {
 export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4-pro-0813' ||
-    definition.revision !== '3' ||
+    definition.revision !== '4' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-3' ||
+    definition.implementation.revision !== 'mp4-17' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4 Pro definition')

@@ -81,8 +81,8 @@ const unknown = { status: 'unknown' } as const
 export const zaiDefinitions = ownDefinitions([
   {
     modelId: 'z-ai/glm-5.3',
-    revision: '1',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    revision: '2',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],
@@ -95,8 +95,8 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.3-prime',
-    revision: '2',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-2' },
+    revision: '3',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],
@@ -109,8 +109,8 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.3-flash',
-    revision: '1',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    revision: '2',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
     capabilities: {
       inputModalities: ['image', 'text', 'video'],
       outputModalities: ['text'],
@@ -128,8 +128,8 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.3-flashx',
-    revision: '1',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    revision: '2',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
     capabilities: {
       inputModalities: ['image', 'text', 'video'],
       outputModalities: ['text'],
@@ -147,8 +147,8 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.2',
-    revision: '1',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    revision: '2',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],

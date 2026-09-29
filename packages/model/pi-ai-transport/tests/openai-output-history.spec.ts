@@ -257,14 +257,27 @@ describe.each(ids)('%s explicit complete output history', model => {
       ),
     ).toMatchObject({ rejected: 'invalidInput', reason: 'malformed' })
   })
-  it('maps only the finite prior binding and basis, without making the old factory callable', () => {
+  it.each([
+    {
+      definition: '6',
+      implementation: 'mp4-12',
+      algorithm: 'openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1',
+      replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1',
+    },
+    {
+      definition: '7',
+      implementation: 'mp4-16',
+      algorithm: 'openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1',
+      replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2',
+    },
+  ])('maps finite original definition $definition without making its factory callable', source => {
     const { value, ga } = history()
     const original = ga.inputCalibration.requestInput
     if (original.kind !== 'known') throw Error('fixture source')
     const binding = {
       ...ga.origin.adaptation,
-      definition: { modelId: model, revision: '6' },
-      implementation: { name: 'pi-ai:openai', revision: 'mp4-12' },
+      definition: { modelId: model, revision: source.definition },
+      implementation: { name: 'pi-ai:openai', revision: source.implementation },
     }
     const old: PlanOutputHistoryGroup = {
       ...ga,
@@ -276,9 +289,8 @@ describe.each(ids)('%s explicit complete output history', model => {
           countingBasis: {
             ...original.countingBasis,
             binding,
-            meterRevision: 'openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1',
-            replayRevision:
-              'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1',
+            meterRevision: source.algorithm,
+            replayRevision: source.replay,
           },
         },
       },
@@ -289,7 +301,7 @@ describe.each(ids)('%s explicit complete output history', model => {
     expect(() =>
       createOpenAiInputMeter({
         ...definition,
-        revision: '6',
+        revision: source.definition,
         implementation: binding.implementation,
       }),
     ).toThrow()
@@ -303,8 +315,7 @@ describe.each(ids)('%s explicit complete output history', model => {
             ...original.countingBasis,
             binding,
             meterRevision: 'invented',
-            replayRevision:
-              'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1',
+            replayRevision: source.replay,
           },
         },
       },

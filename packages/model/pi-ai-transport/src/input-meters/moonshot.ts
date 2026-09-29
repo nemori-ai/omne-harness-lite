@@ -559,10 +559,9 @@ function meter(
 /** The two pinned routes deliberately share a vocabulary, not a prompt template. */
 export function createMoonshotInputMeter(definition: ModelDefinition): InputMeter {
   if (
-    definition.revision !== '1' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:moonshot' ||
-    definition.implementation.revision !==
-      (definition.modelId === 'moonshotai/kimi-k3' ? 'mp4-3' : 'mp4-2')
+    definition.implementation.revision !== 'mp4-17'
   )
     throw new TypeError('unsupported Moonshot input-meter binding')
   if (

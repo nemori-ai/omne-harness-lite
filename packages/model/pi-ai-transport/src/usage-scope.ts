@@ -12,33 +12,33 @@ export const openAiProBindings: Readonly<
   >
 > = Object.freeze({
   'openai/gpt-6-astra-pro': {
-    revision: '2',
+    revision: '5',
     previousRevision: '1',
     previousImplementation: 'mp4-1',
   },
-  'openai/gpt-6-sol-pro': { revision: '4', previousRevision: '1', previousImplementation: 'mp4-1' },
+  'openai/gpt-6-sol-pro': { revision: '5', previousRevision: '1', previousImplementation: 'mp4-1' },
   'openai/gpt-6-luna-pro': {
-    revision: '4',
+    revision: '5',
     previousRevision: '1',
     previousImplementation: 'mp4-1',
   },
   'openai/gpt-5.6-sol-pro': {
-    revision: '6',
+    revision: '7',
     previousRevision: '4',
     previousImplementation: 'mp4-5',
   },
   'openai/gpt-5.6-terra-pro': {
-    revision: '6',
+    revision: '7',
     previousRevision: '4',
     previousImplementation: 'mp4-5',
   },
   'openai/gpt-5.6-luna-pro': {
-    revision: '6',
+    revision: '7',
     previousRevision: '4',
     previousImplementation: 'mp4-5',
   },
 })
-export const PRO_IMPLEMENTATION_REVISION = 'mp4-13'
+export const PRO_IMPLEMENTATION_REVISION = 'mp4-17'
 export const PRO_TRANSFORM_REVISION = 'openrouter-input-transform/pro-scope-1'
 export const READER_REVISION = 'openrouter-usage-reader/2'
 export const PRO_READER_REVISION = 'openrouter-usage-reader/3-openai-pro-scope'

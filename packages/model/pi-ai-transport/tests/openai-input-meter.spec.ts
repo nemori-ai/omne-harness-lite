@@ -97,7 +97,7 @@ describe('OpenAI model-specific input estimator', () => {
       expect(meter).toMatchObject({
         modelId,
         provider: 'openai',
-        definitionRevision: proModels.includes(modelId) ? '6' : '7',
+        definitionRevision: proModels.includes(modelId) ? '7' : '8',
       })
       expect(meter.algorithmRevision).toBe(
         proModels.includes(modelId)

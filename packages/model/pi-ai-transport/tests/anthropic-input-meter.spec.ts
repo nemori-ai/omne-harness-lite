@@ -91,14 +91,14 @@ describe('four exact Anthropic projected-input rough estimates', () => {
   it('binds only the four explicit definitions and selected Anthropic provider', () => {
     for (const modelId of modelIds) {
       const meter = createAnthropicInputMeter(definition(modelId))
-      expect(meter).toMatchObject({ modelId, definitionRevision: '2', provider: 'anthropic' })
+      expect(meter).toMatchObject({ modelId, definitionRevision: '3', provider: 'anthropic' })
       expect(meter.algorithmRevision).toBe(
         'anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1',
       )
       expect(meter.evidence).toContain('very rough approximation')
     }
     expect(() =>
-      createAnthropicInputMeter({ ...definition(modelIds[0] ?? ''), revision: '3' }),
+      createAnthropicInputMeter({ ...definition(modelIds[0] ?? ''), revision: '2' }),
     ).toThrow(TypeError)
     expect(() =>
       createAnthropicInputMeter({

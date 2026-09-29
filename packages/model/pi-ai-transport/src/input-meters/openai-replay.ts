@@ -39,6 +39,12 @@ const sourceBindings = [
     algorithm: `${OPENAI_56_HISTORY_ALGORITHM}/response-calibration-1`,
     replay: OPENAI_56_REPLAY_REVISION,
   },
+  {
+    definition: '8',
+    implementation: 'mp4-17',
+    algorithm: `${OPENAI_56_HISTORY_ALGORITHM}/response-calibration-1`,
+    replay: OPENAI_56_REPLAY_REVISION,
+  },
 ] as const
 const efforts = ['none', 'low', 'medium', 'high', 'max']
 
@@ -61,9 +67,9 @@ export function estimateOpenAi56Group(input: unknown, meter: InputMeter): MeterC
     const envelope = value.envelope
     if (
       !openAi56ReplayModels.has(meter.modelId) ||
-      meter.definitionRevision !== '7' ||
+      meter.definitionRevision !== '8' ||
       meter.implementation.name !== 'pi-ai:openai' ||
-      meter.implementation.revision !== 'mp4-16' ||
+      meter.implementation.revision !== 'mp4-17' ||
       meter.provider !== 'openai' ||
       meter.replayRevision !== OPENAI_56_REPLAY_REVISION ||
       meter.algorithmRevision !== `${OPENAI_56_HISTORY_ALGORITHM}/response-calibration-1` ||

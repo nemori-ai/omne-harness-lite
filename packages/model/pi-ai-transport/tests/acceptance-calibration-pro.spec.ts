@@ -65,12 +65,8 @@ describe('independent six fixed Pro usage-scope bindings', () => {
       it(`${model} preserves actual accounts and withholds anchors after ${cancelled ? 'cancel' : 'complete'}`, async () => {
         const definition = openaiDefinitions.find(d => d.modelId === model)!
         const is56 = model.startsWith('openai/gpt-5.6-')
-        expect(definition.revision).toBe(
-          is56 ? '6' : model === 'openai/gpt-6-astra-pro' ? '4' : '3',
-        )
-        expect(definition.implementation.revision).toBe(
-          is56 ? 'mp4-13' : model === 'openai/gpt-6-astra-pro' ? 'mp4-14' : 'mp4-8',
-        )
+        expect(definition.revision).toBe(is56 ? '7' : '5')
+        expect(definition.implementation.revision).toBe('mp4-17')
         // Current official visible-input estimates are supplied for all six.
         // These controlled reader observations do not certify upstream token scope.
         const meter = createOpenAiInputMeter(definition)

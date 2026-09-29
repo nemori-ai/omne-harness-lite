@@ -264,9 +264,9 @@ function supportedModel(modelId: string): boolean {
 export function createAnthropicInputMeter(definition: ModelDefinition): InputMeter {
   if (
     !supportedModel(definition.modelId) ||
-    definition.revision !== '2' ||
+    definition.revision !== '3' ||
     definition.implementation.name !== 'pi-ai:anthropic' ||
-    definition.implementation.revision !== 'mp4-5' ||
+    definition.implementation.revision !== 'mp4-17' ||
     !Object.hasOwn(definition.routes, 'anthropic')
   )
     throw new TypeError('unsupported Anthropic input-meter binding')

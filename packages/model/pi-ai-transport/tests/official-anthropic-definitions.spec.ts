@@ -25,8 +25,8 @@ describe('four complete Anthropic official definitions', () => {
     for (const definition of anthropicDefinitions) {
       expect(
         readModelDefinition(anthropicDefinitions, {
-          implementation: { name: 'pi-ai:anthropic', revision: 'mp4-5' },
-          definition: { modelId: definition.modelId, revision: '2' },
+          implementation: { name: 'pi-ai:anthropic', revision: 'mp4-17' },
+          definition: { modelId: definition.modelId, revision: '3' },
         }),
       ).toEqual({ ok: definition })
       expect(definition.capabilities).toEqual({
@@ -51,8 +51,8 @@ describe('four complete Anthropic official definitions', () => {
     }
     expect(
       readModelDefinition(anthropicDefinitions, {
-        implementation: { name: 'pi-ai:anthropic', revision: 'mp4-5' },
-        definition: { modelId: 'anthropic/claude-unlisted', revision: '2' },
+        implementation: { name: 'pi-ai:anthropic', revision: 'mp4-17' },
+        definition: { modelId: 'anthropic/claude-unlisted', revision: '3' },
       }),
     ).toEqual({ rejected: 'unavailable' })
   })

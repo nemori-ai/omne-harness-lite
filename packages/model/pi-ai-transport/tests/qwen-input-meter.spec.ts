@@ -175,8 +175,8 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     modelId => {
       const selected = definition(modelId),
         meter = createQwenInputMeter(selected)
-      expect(selected.revision).toBe('2')
-      expect(selected.implementation.revision).toBe('mp4-6')
+      expect(selected.revision).toBe('3')
+      expect(selected.implementation.revision).toBe('mp4-17')
       expect(meter.algorithmRevision).toBe(
         `${modelId.slice('qwen/'.length)}-final-visible-json-proxy-1`,
       )

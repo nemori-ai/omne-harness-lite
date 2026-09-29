@@ -58,8 +58,8 @@ describe.each(models)('%s base-image estimated proxy', modelId => {
   }
   it('requires the new binding and records the inference as estimated', () => {
     expect(definition).toMatchObject({
-      revision: astra ? '4' : '6',
-      implementation: { revision: astra ? 'mp4-14' : 'mp4-13' },
+      revision: astra ? '5' : '7',
+      implementation: { revision: 'mp4-17' },
     })
     expect(meter.algorithmRevision).toBe(
       astra

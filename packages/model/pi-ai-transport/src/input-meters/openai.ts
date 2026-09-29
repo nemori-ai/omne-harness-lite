@@ -279,10 +279,10 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const pro = Object.hasOwn(openAiProBindings, definition.modelId)
     ? openAiProBindings[definition.modelId]
     : undefined
-  const revision = finalBinding?.revision ?? pro?.revision ?? (encryptedReplay ? '7' : '4')
+  const revision = finalBinding?.revision ?? pro?.revision ?? (encryptedReplay ? '8' : '4')
   const implementationRevision =
     finalBinding?.implementationRevision ??
-    (pro ? PRO_IMPLEMENTATION_REVISION : encryptedReplay ? 'mp4-16' : 'mp4-5')
+    (pro ? PRO_IMPLEMENTATION_REVISION : encryptedReplay ? 'mp4-17' : 'mp4-5')
   if (
     (!gpt6VisibleHistory && !imageRule) ||
     definition.revision !== revision ||

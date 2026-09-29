@@ -42,11 +42,12 @@ export function dryPlan(manifest) {
   const { input, definition } = cacheInput(manifest)
   assert.equal(manifest.path, 'public')
   assert.equal(manifest.implementationRevision, definition.implementation.revision)
-  assert.equal(manifest.algorithmRevision, 'anthropic-legacy-bpe-plus-vision-patches-4')
+  const meter = createAnthropicInputMeter(definition)
+  assert.equal(manifest.algorithmRevision, meter.algorithmRevision)
   assert.equal(manifest.provider, 'anthropic')
   assert.equal(manifest.allowFallback, false)
   assert.equal(manifest.configuration.cache.ttl, '1h')
-  const result = planRequest(input, [definition], createAnthropicInputMeter(definition))
+  const result = planRequest(input, [definition], meter)
   assert('planned' in result, writeJsonLossless(result))
   return { input, definition, planned: result.planned }
 }

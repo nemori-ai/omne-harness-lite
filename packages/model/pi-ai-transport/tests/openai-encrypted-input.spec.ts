@@ -235,8 +235,8 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
         'openai/gpt-5.6-luna-pro',
       ].includes(modelId)
       expect(selected).toMatchObject({
-        revision: pro ? '6' : '7',
-        implementation: { name: 'pi-ai:openai', revision: pro ? 'mp4-13' : 'mp4-16' },
+        revision: pro ? '7' : '8',
+        implementation: { name: 'pi-ai:openai', revision: 'mp4-17' },
       })
       expect(meter.algorithmRevision).toBe(
         pro

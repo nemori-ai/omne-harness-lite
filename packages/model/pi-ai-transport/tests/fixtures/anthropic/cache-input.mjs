@@ -86,6 +86,8 @@ export function cacheInput(manifest) {
     parameters: manifest.parameters,
     tokenMargin: manifest.tokenMargin,
     calibration: { kind: 'none', reason: 'no_observation' },
+    // Synthetic public history has no retained original response-group authority.
+    outputHistory: [],
     tools: manifest.tools,
     messages: manifest.messages.map(mapMessage),
     snapshot: {

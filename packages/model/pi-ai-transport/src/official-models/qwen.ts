@@ -232,8 +232,8 @@ export const qwenVisibleBindings: Readonly<
     ].map(modelId => [
       modelId,
       Object.freeze({
-        revision: '2',
-        implementationRevision: 'mp4-6',
+        revision: '3',
+        implementationRevision: 'mp4-17',
         algorithmRevision: `${modelId.slice('qwen/'.length)}-final-visible-json-proxy-1`,
         evidence:
           modelId === 'qwen/qwen3.8-max-prime'
@@ -250,12 +250,10 @@ export const qwenDefinitions = ownDefinitions(
     modelId =>
       ({
         modelId,
-        revision: qwenVisibleBindings[modelId]?.revision ?? '1',
+        revision: qwenVisibleBindings[modelId]?.revision ?? '2',
         implementation: {
           name: 'pi-ai:qwen',
-          revision:
-            qwenVisibleBindings[modelId]?.implementationRevision ??
-            (modelId === 'qwen/qwen3.8-27b' ? 'mp4-3' : 'mp4-2'),
+          revision: qwenVisibleBindings[modelId]?.implementationRevision ?? 'mp4-17',
         },
         capabilities: { ...offer[modelId], outputModalities: ['text'] },
         routes: qwenModelRoutes[modelId],

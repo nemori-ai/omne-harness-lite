@@ -18,8 +18,8 @@ describe('complete Google Flash declarations', () => {
     for (const id of ids) {
       const definition = googleDefinitions.find(item => item.modelId === id)
       if (!definition) throw new Error(`Google definition missing: ${id}`)
-      expect(definition.implementation).toEqual({ name: 'pi-ai:google', revision: 'mp4-3' })
-      expect(definition.revision).toBe('2')
+      expect(definition.implementation).toEqual({ name: 'pi-ai:google', revision: 'mp4-17' })
+      expect(definition.revision).toBe('3')
       expect(Object.keys(definition.routes)).toEqual(['google-ai-studio'])
       expect(definition.routes['google-ai-studio']).toEqual(
         googleModelRoutes[id]['google-ai-studio'],
@@ -48,8 +48,8 @@ describe('complete Google Flash declarations', () => {
     '%s reads by full identity and constructs the same complete official content',
     id => {
       const found = readModelDefinition(googleDefinitions, {
-        implementation: { name: 'pi-ai:google', revision: 'mp4-3' },
-        definition: { modelId: id, revision: '2' },
+        implementation: { name: 'pi-ai:google', revision: 'mp4-17' },
+        definition: { modelId: id, revision: '3' },
       })
       if ('rejected' in found) throw new Error(found.rejected)
       const profile = createOfficialProfileContent(found.ok, {
@@ -64,7 +64,7 @@ describe('complete Google Flash declarations', () => {
       expect(profile.ok.allowFallback).toBe(false)
       expect(profile.ok.adaptation).toEqual({
         implementation: found.ok.implementation,
-        definition: { modelId: id, revision: '2' },
+        definition: { modelId: id, revision: '3' },
         configuration,
       })
       for (const key of [

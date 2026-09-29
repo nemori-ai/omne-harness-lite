@@ -187,9 +187,9 @@ export function glm5Tokenizer(): Tokenizer {
 export function createGlm52InputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'z-ai/glm-5.2' ||
-    definition.revision !== '1' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:zai' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== 'mp4-17' ||
     !Object.hasOwn(definition.routes, 'z-ai/fp8')
   )
     throw new TypeError('unsupported GLM-5.2 input-meter binding')

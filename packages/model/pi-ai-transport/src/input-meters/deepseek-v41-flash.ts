@@ -512,9 +512,9 @@ function supplemental(body: JsonObject): JsonObject | undefined {
 export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4.1-flash' ||
-    definition.revision !== '2' ||
+    definition.revision !== '3' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-4' ||
+    definition.implementation.revision !== 'mp4-17' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4.1 Flash definition')

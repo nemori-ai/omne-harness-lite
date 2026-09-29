@@ -101,8 +101,8 @@ describe.each(models)('%s complete visible image input', modelId => {
     return directFull(meter, { body, serialized: writeJsonLossless(body) })
   }
   it('requires the new exact coordinates and retains estimated evidence', () => {
-    expect(definition.revision).toBe(modelId === 'openai/gpt-6-luna' ? '5' : '4')
-    expect(definition.implementation.revision).toBe('mp4-15')
+    expect(definition.revision).toBe(modelId === 'openai/gpt-6-luna' ? '6' : '5')
+    expect(definition.implementation.revision).toBe('mp4-17')
     expect(meter.evidence).toContain('estimated')
     expect(() => createOpenAiInputMeter({ ...definition, revision: 'stale' })).toThrow(
       'unsupported OpenAI',

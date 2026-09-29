@@ -82,15 +82,10 @@ describe('official Qwen complete declarations (offline)', () => {
       expect(definition).toMatchObject({
         modelId,
         revision:
-          modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b' ? '1' : '2',
+          modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b' ? '2' : '3',
         implementation: {
           name: 'pi-ai:qwen',
-          revision:
-            modelId === 'qwen/qwen3.8-2.4t-a95b'
-              ? 'mp4-2'
-              : modelId === 'qwen/qwen3.8-27b'
-                ? 'mp4-3'
-                : 'mp4-6',
+          revision: 'mp4-17',
         },
         capabilities: {
           inputModalities: [...row.input],
