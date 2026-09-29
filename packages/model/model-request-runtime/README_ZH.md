@@ -35,7 +35,7 @@
 
 独立调用的可选 `beforeSend` 是一次传输发送前的同步最终准入。只有字面值 `true` 继续；`false` 在发送前取消，抛错或非法返回保持不可用。锚定服务在这里提供当前停止／代际检查。`observedFacts()` 只在原执行的 reader 和门任务实际停止后读取；不可用不能改判为缺席。它保留的真实发送时刻、部分账和响应头可供恢复使用，而耐久的「已出门」「已开口」记录仍是结算权威。
 
-服务通过 `RuntimeConstruction.diagnostic` 完整转交既有 `SettlementDiagnostic` 的租户、会话、调用、dispatch、响应、owner、policy 及争用计数；观察投递诊断仍在 `detail` 中携带类型化作用域、位置和缓冲计数。诊断回调只作尽力投递，其失败不改变结算或观察投递的业务结果；应用应独立保留输出失败状态。这些端口不提供耐久追踪库或查询 API。工程关联与内容边界见 RT9 S-63。
+服务通过 `RuntimeConstruction.diagnostic` 完整转交既有 `SettlementDiagnostic` 的租户、会话、调用、dispatch、响应、owner、policy 及争用计数；观察投递诊断在 `detail` 中保留类型化作用域、位置和缓冲计数，同时向类型化 collector 投影实际 offer/delivery/close 事实。诊断回调只作尽力投递，其失败不改变结算或观察投递的业务结果；应用应独立保留输出失败状态。collector 的存储及查询接口见下文；工程关联与内容边界见 RT9 S-63。
 
 ## 仍在集成的 Cordis 服务装配
 
@@ -830,4 +830,6 @@ export function invokeWithLocalDiagnostics<P extends PlannedSemantics, R>(
 }
 ```
 
-服务路径通过 `RuntimeConstruction.diagnosticCollector` 接入。dispatch 从已核实的会话绑定取得 tenant scope，只记录已经存在的身份，重试因果只指向实际 recorded 的引用。结算按固定事实白名单投影；恢复只有在完整结果成立且 scope 真正关闭后才记录 `without_resend`。工程记录不成为恢复权威。完整 demo 接线及其余观察阶段仍在集成中。
+服务路径通过 `RuntimeConstruction.diagnosticCollector` 接入，只消费 collector 的 `emitter` 能力；health、query、export 和 close 仍由装配持有。dispatch 从已核实的会话绑定取得 tenant scope，只记录已经存在的身份，重试因果只指向实际 recorded 的引用。`dispatchAgain` 接受后记录重试开始，真正发出仍由 transport 观测。
+
+`openCall` 记录精确 transport lease 的实际取得或拒绝，在 lease 自己的 `release()` 返回后才记录释放；成功绑定携带实际 profile、implementation、definition 和 configuration 版本。观察投递保留原始 offer/delivery/close 阶段和类型化拒绝原因。已确认的 dispatched/opened 日志位置在回复交接或结算时投影，未知回执不捏造位置。冷恢复从同一已验证权威前缀读取位置，只有完整结果成立且 scope 真正关闭后才记录 `without_resend`。结算按固定事实白名单投影。工程记录不成为恢复权威；完整 demo 组合另行执行集成验收。
