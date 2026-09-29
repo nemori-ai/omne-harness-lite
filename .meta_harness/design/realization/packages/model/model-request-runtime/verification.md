@@ -268,3 +268,9 @@ G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和�
 | R7-V8 | 十三方法精确失败次序/非法跨 session/服务重载关闭/缺依赖；root exports、独立包使用、EN/ZH 示例；各组共享一个容器、codec 与结算实现 | root 集成；R7-G5。逐操作实际结果才增加完成计数 |
 
 覆盖缺口：R7-G1～G5 逐条沿 design；未建立新的正式产品装配节点。examples 的开发宿主可提供本次真实验证环境，但只有它实际承接的入口身份、时钟、全读权限、恢复开闸和停止责任可以计入证据。`bindings.yaml` 不增加待执行场景；仍只绑定已经存在且会失败的原有证据。
+
+## U16 实施端口核对（2026-09-29）
+
+U16-V6/V7须分别覆盖原selected reply与同call较早dispatch的无reply响应：按同授权前缀核原D/R、稳定键、完整值、连续dispatch及调用身份/binding，固定planner再核P/θ/G；target call/dispatch来自当前服务调用，不能由外部trusted布尔替代。原G可来自reply、delivered或none；Input未知不推进锚。不同call无M且没有显式可判因果边时保持sourceUnavailable/更早合法观察，不能把物理日志先后当祖先证明或声称已完整支持该范围。
+
+物理M/R同批由原结算append协议和SL3保证，须在U16-V8/V9实际I/O中验证；只读的条目邻接和值关系不是物理batch certificate。本增量不新增存储证书。这是已采用v16的责任边界核对及待执行义务，不是新增实现通过结果。
