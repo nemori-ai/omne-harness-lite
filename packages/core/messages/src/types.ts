@@ -1,3 +1,4 @@
+import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type {
   BlockId,
   CallId,
@@ -16,8 +17,12 @@ import type {
   ToolResultReason,
   VoiceBlock,
 } from '@omne-harness-lite/content-blocks'
-import type { AttemptId, ModelCallId } from '@omne-harness-lite/call-accounts'
-import type { OpaqueIdentifier, ScopeLayerIdentity } from '@omne-harness-lite/identity-values'
+import type { AttemptId, ModelCallId, RunId } from '@omne-harness-lite/call-accounts'
+import type {
+  OpaqueIdentifier,
+  ScopeLayerIdentity,
+  TenantId,
+} from '@omne-harness-lite/identity-values'
 import type {
   ModelAdaptationBinding,
   ModelProfileRef,
@@ -214,6 +219,78 @@ export type Message =
   | CompactionMessage
 export type OutboundMessage = Exclude<Message, ToolInternalMessage>
 export type LoggedMessage = Exclude<Message, SystemMessage>
+/** MS7 S-51: identity value only; it grants no access. */
+export interface CallKey {
+  readonly session: SessionRef
+  readonly callId: ModelCallId
+}
+export type CreationKey = OpaqueIdentifier<'CreationKey'>
+export interface ModelCallPayloadRef {
+  readonly kind: 'created' | 'reply_ready'
+  readonly locator: string
+  readonly version: string
+  /** SHA-256 of original immutable UTF-8 JSON bytes, checked by the reader. */
+  readonly digest: string
+}
+export interface ModelCallCreationInput {
+  readonly target: RouteName
+  readonly parameters?: ModelRequestParameters
+  readonly messages: readonly Message[]
+  readonly tools: readonly string[]
+  readonly basis: {
+    readonly routeName: RouteName
+    readonly profile: ModelProfileRef
+    readonly selectedBy: 'session' | 'layer_lock'
+    readonly selected: RouteName
+  }
+  readonly sourceVersions: Readonly<Record<string, string>>
+  readonly targetChangedBy?: string
+}
+export type ModelCallCreatedPayload = {
+  readonly kind: 'created'
+  readonly ref: CallKey
+  readonly creationKey: CreationKey
+  readonly origin: { readonly tenant: TenantId; readonly session: SessionRef } & (
+    | { readonly run: RunId; readonly attempt: AttemptId }
+    | { readonly run?: never; readonly attempt?: never }
+  )
+  readonly input: ModelCallCreationInput
+} & (
+  | {
+      readonly status: 'accepted'
+      readonly adopted: {
+        readonly profile: ModelProfileRef
+        readonly profileSnapshot: ModelProfileSnapshot
+        readonly adaptation: ModelAdaptationBinding
+        readonly parameters: ModelRequestParameters
+        readonly selectedBy: SelectedBy
+        readonly messages: readonly Message[]
+        readonly tools: readonly ModelToolEntry[]
+        readonly contextSources: Readonly<Record<string, string>>
+      }
+      readonly cause?: never
+    }
+  | { readonly status: 'rejected'; readonly cause: UndispatchedCause; readonly adopted?: never }
+)
+export interface ModelCallCreatedRecord {
+  readonly kind: 'model_call_created'
+  readonly call: ModelCallId
+  readonly creationKey: CreationKey
+  readonly payload: ModelCallPayloadRef & { readonly kind: 'created' }
+  readonly createdAt: string
+}
+export interface ModelCallReplyReadyRecord {
+  readonly kind: 'model_call_reply_ready'
+  readonly call: ModelCallId
+  readonly dispatch: JsonNumber
+  readonly response: ResponseId
+  readonly payload: ModelCallPayloadRef & { readonly kind: 'reply_ready' }
+  readonly readyAt: string
+}
+export type ModelCallCreatedPayloadJudgment =
+  { readonly ok: ModelCallCreatedPayload } | { readonly rejected: 'malformed' }
+export type ModelReplyMessageJudgment =
+  { readonly ok: AssistantMessage } | { readonly rejected: MessageRejection }
 export interface ModelCallDispatchedRecord {
   readonly adaptation: ModelAdaptationBinding
   readonly kind: 'model_call_dispatched'
@@ -246,17 +323,27 @@ export type ModelCallEndedRecord = {
   readonly kind: 'model_call_ended'
   readonly call: ModelCallId
 } & (
-  | {
+  | ({
       readonly ending: 'undispatched'
       readonly cause: UndispatchedCause
       readonly initiator?: never
-    }
+    } & (
+      | {
+          readonly creationKey: CreationKey
+          readonly payload: ModelCallPayloadRef & { readonly kind: 'created' }
+        }
+      | { readonly creationKey?: never; readonly payload?: never }
+    ))
   | {
+      readonly creationKey?: never
+      readonly payload?: never
       readonly ending: 'released'
       readonly cause?: 'credential_unavailable'
       readonly initiator?: never
     }
   | {
+      readonly creationKey?: never
+      readonly payload?: never
       readonly ending: 'interrupted'
       readonly initiator: 'user' | 'run_cancelled'
       readonly cause?: never
@@ -268,6 +355,8 @@ export interface ModelSelectionChangedRecord {
   readonly at: string
 }
 export type ModelInvocationRecord =
+  | ModelCallCreatedRecord
+  | ModelCallReplyReadyRecord
   | ModelCallDispatchedRecord
   | ModelCallOpenedRecord
   | ModelCallInterruptIntentRecord

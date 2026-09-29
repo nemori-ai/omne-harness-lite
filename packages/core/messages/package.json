@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.messages v6 的当前消息与模型记录纯值判定",
+  "description": "data.messages v7 的当前消息、创建内容与模型记录纯值判定",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -14,7 +14,8 @@
     },
     "./schema": "./schema/messages.schema.json",
     "./schema/v2": "./schema/messages.v2.schema.json",
-    "./schema/v3": "./schema/v3/messages.schema.json"
+    "./schema/v3": "./schema/v3/messages.schema.json",
+    "./schema/v6": "./schema/v6/messages.schema.json"
   },
   "files": [
     "dist",
@@ -32,7 +33,13 @@
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*"
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/loop-extension": "workspace:*",
+    "@omne-harness-lite/skill-package": "workspace:*",
+    "@omne-harness-lite/mcp-endpoint": "workspace:*",
+    "@omne-harness-lite/slash-command": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

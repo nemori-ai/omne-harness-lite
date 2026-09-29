@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v6/messages.schema.json",
-  "title": "data.messages v6",
-  "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v6 内有效。",
-  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v3；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v2 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot、ModelAdaptationBinding 取自 data.model-profile v5（S-2、S-5、S-13、S-15、S-27、S-29）；S-49 的两处绑定相等与模型 ID 对齐由接收边界纯校验，失败 malformed；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v4 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope、ParameterAdjustment 与「已出门」上 droppedParameters 的就地形状同一理由按那份契约的 S-10、S-9、S-11 逐字自定义（互引成环的登记口径：D-060 §七 M2，写在 registry README；对齐义务在 verification）。正反实例在同目录 examples.md。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v7/messages.schema.json",
+  "title": "data.messages v7",
+  "description": "消息的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.messages/v7 内有效。",
+  "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-39）的具名与优先级、工具消息与后台收场提醒里 callId／outcome 的相等、压缩名单不点自己、消息内块标识唯一，以及全部会话日志层的判定（S-29、S-32）由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。外部引用：ContentBlock、ToolResultBlock、BlockId、CallId、ExecutionOutcome、CapabilityId 取自 data.content-blocks v3；Instant 取自 data.offer-expiry v1 S-22；ModelCallId、AttemptId 取自 data.call-accounts v2 S-37；RouteName、ProviderName、ModelProfileRef、ModelRequestParameters、ModelProfileSnapshot、ModelAdaptationBinding 取自 data.model-profile v5（S-2、S-5、S-13、S-15、S-27、S-29）；S-49 的两处绑定相等与模型 ID 对齐由接收边界纯校验，失败 malformed；ScopeLayerIdentity 取自 data.identity-values v1 S-11。不透明标识按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 它的 OpaqueIdentifier。ResponseId 的家在 data.model-response v4 S-6，本契约按同一散文自定义、不 $ref——那份契约 $ref 本契约的 AssistantMessage，反向 $ref 会让两份契约互为依赖（S-37）；SelectedBy、CredentialScope、ParameterAdjustment 与「已出门」上 droppedParameters 的就地形状同一理由按那份契约的 S-10、S-9、S-11 逐字自定义（互引成环的登记口径：D-060 §七 M2，写在 registry README；对齐义务在 verification）。正反实例在同目录 examples.md。 v7 candidate：新增S-51～S-54，created采用MP6，原dispatched精确MP5未改变；共同数字无损与字段相等由纯校验/来源证据承担。",
   "$defs": {
     "MessageId": {
       "title": "MessageId（contract.md S-3）",
@@ -813,7 +813,7 @@
           "const": "attempt_started"
         },
         "attempt": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/AttemptId"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/AttemptId"
         },
         "reason": {
           "type": "string",
@@ -868,7 +868,7 @@
               "const": "model"
             },
             "call": {
-              "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/ModelCallId"
+              "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
             },
             "dispatch": {
               "type": "integer",
@@ -1221,7 +1221,7 @@
           "const": "model_call_dispatched"
         },
         "call": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/ModelCallId"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
         },
         "dispatch": {
           "type": "integer",
@@ -1378,7 +1378,7 @@
           "const": "model_call_opened"
         },
         "call": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/ModelCallId"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
         },
         "dispatch": {
           "type": "integer",
@@ -1405,7 +1405,7 @@
           "const": "model_call_interrupt_intent"
         },
         "call": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/ModelCallId"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
         },
         "initiator": {
           "type": "string",
@@ -1424,7 +1424,7 @@
     },
     "ModelCallEndedRecord": {
       "title": "调用终结（contract.md S-50）",
-      "description": "一次模型调用不经响应体进入终态时写下（无词条），按 ending 判别恰三支：undispatched——出门前检查不过、一次也没发出，终态上交，cause 必带、是四个出门前成因之一；released——此前至少发出过一次、这次调用不再发出，终态上交：cause 缺席是最近一次发出以故障收场后 loop 放手（成因在那份响应体上），cause 为 credential_unavailable 是续接或再发之前凭据取不到；interrupted——在两次发出之间被中断，终态被中断，initiator 同中断意图。经响应体进入终态的调用没有这条记录。不是消息。cause 里的 modality_mismatch 与表示层拒绝值 modality_mismatch 是两个互不相干的值域（S-50）。",
+      "description": "一次模型调用不经响应体进入终态时写下（无词条），按 ending 判别恰三支：undispatched——出门前检查不过、一次也没发出，终态上交，cause 必带、是四个出门前成因之一；released——此前至少发出过一次、这次调用不再发出，终态上交：cause 缺席是最近一次发出以故障收场后 loop 放手（成因在那份响应体上），cause 为 credential_unavailable 是续接或再发之前凭据取不到；interrupted——在两次发出之间被中断，终态被中断，initiator 同中断意图。经响应体进入终态的调用没有这条记录。不是消息。cause 里的 modality_mismatch 与表示层拒绝值 modality_mismatch 是两个互不相干的值域（S-50）。 S-54：undispatched初次创建拒绝必须成对带creationKey/rejected payload；已accepted created后首次dispatch拒绝必须两者均缺席。Schema只判成对，具体来源关系由跨记录校验；其余ending禁止这两成员。",
       "$comment": "cause 的四个取值与 data.loop-extension v3 FailureCause 里出门前的那四个逐字相同；本定义不 $ref 它——那份契约以 $ref 取本契约的消息，反向引用会让两份契约互为依赖（S-50）。released 只收 credential_unavailable：档案快照与有效模型在打开调用时绑定、续接与再发不重核，只有每次现取的凭据会在发出过之后才取不到。",
       "type": "object",
       "properties": {
@@ -1432,7 +1432,7 @@
           "const": "model_call_ended"
         },
         "call": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/ModelCallId"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
         },
         "ending": {
           "type": "string",
@@ -1456,6 +1456,23 @@
           "enum": [
             "user",
             "run_cancelled"
+          ]
+        },
+        "creationKey": {
+          "$ref": "#/$defs/CreationKey"
+        },
+        "payload": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ModelCallPayloadRef"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "created"
+                }
+              }
+            }
           ]
         }
       },
@@ -1514,7 +1531,44 @@
           }
         }
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ending": {
+                "const": "undispatched"
+              }
+            }
+          },
+          "then": {
+            "dependentRequired": {
+              "creationKey": [
+                "payload"
+              ],
+              "payload": [
+                "creationKey"
+              ]
+            }
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "creationKey"
+                  ]
+                },
+                {
+                  "required": [
+                    "payload"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
     },
     "ModelSelectionChangedRecord": {
       "title": "模型切换落下的那条记录（contract.md S-49）",
@@ -1539,8 +1593,8 @@
       "additionalProperties": false
     },
     "ModelInvocationRecord": {
-      "title": "模型请求运行时写进会话日志的五种记录（contract.md S-49）",
-      "description": "会话日志里不是消息的五种记录，按 kind 判别，闭合：model_call_dispatched 已出门、model_call_opened 已开口、model_call_interrupt_intent 中断意图、model_call_ended 调用终结、model_selection_changed 模型切换落下的那条记录。它们是记录条目的载荷，与消息同处一份日志、同样只增不改；不进组装、不供任何视图呈现，只供对账读。前四种是规格层名字，不是统一语言词条；第五种所记的动作是词条 UL-model-switch，记录本身不另立概念名。",
+      "title": "S-49/S-54 七种技术记录",
+      "description": "原五种加model_call_created/model_call_reply_ready。均不是消息，根Message不接受；ready完整payload归MR10，禁止复制其形状。",
       "oneOf": [
         {
           "$ref": "#/$defs/ModelCallDispatchedRecord"
@@ -1556,6 +1610,12 @@
         },
         {
           "$ref": "#/$defs/ModelSelectionChangedRecord"
+        },
+        {
+          "$ref": "#/$defs/ModelCallCreatedRecord"
+        },
+        {
+          "$ref": "#/$defs/ModelCallReplyReadyRecord"
         }
       ]
     },
@@ -1585,6 +1645,400 @@
           "$ref": "#/$defs/CompactionMessage"
         }
       ]
+    },
+    "CreationKey": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "description": "S-51 技术幂等关联，创建租户+Session内唯一；不是权限。"
+    },
+    "CallKey": {
+      "type": "object",
+      "properties": {
+        "session": {
+          "$ref": "#/$defs/SessionRef"
+        },
+        "callId": {
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
+        }
+      },
+      "required": [
+        "session",
+        "callId"
+      ],
+      "additionalProperties": false
+    },
+    "ModelCallPayloadRef": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "created",
+            "reply_ready"
+          ]
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "kind",
+        "locator",
+        "version",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "description": "S-52，SHA-256覆盖存储的原不可变UTF-8 JSON字节；不是普通AttachmentRef。kind约束取回内容owner；Schema不证明内容存在、摘要或存续。"
+    },
+    "ModelCallCreationInput": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/RouteName"
+        },
+        "parameters": {
+          "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/ModelRequestParameters"
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Message"
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/ModelToolName"
+          },
+          "uniqueItems": true
+        },
+        "basis": {
+          "type": "object",
+          "properties": {
+            "routeName": {
+              "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/RouteName"
+            },
+            "profile": {
+              "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/ModelProfileRef"
+            },
+            "selectedBy": {
+              "enum": [
+                "session",
+                "layer_lock"
+              ]
+            },
+            "selected": {
+              "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/RouteName"
+            }
+          },
+          "required": [
+            "routeName",
+            "profile",
+            "selectedBy",
+            "selected"
+          ],
+          "additionalProperties": false
+        },
+        "sourceVersions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+          }
+        },
+        "targetChangedBy": {
+          "$ref": "../../content-blocks/v3/content-blocks.schema.json#/$defs/CapabilityId"
+        }
+      },
+      "required": [
+        "target",
+        "messages",
+        "tools",
+        "basis",
+        "sourceVersions"
+      ],
+      "additionalProperties": false,
+      "description": "S-53 原显式输入。basis是S-26原求值返回的无损JSON投影，sourceVersions指向原report/context/装配输入的不可变版本依据；具体跨成员对应由接收方核实，不接受仅可变名字。"
+    },
+    "ModelCallCreatedPayload": {
+      "description": "S-53，kind=created表示创建输入角色；status区分accepted/rejected，rejected禁止adopted，不假造采用绑定。",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "created"
+            },
+            "ref": {
+              "$ref": "#/$defs/CallKey"
+            },
+            "creationKey": {
+              "$ref": "#/$defs/CreationKey"
+            },
+            "origin": {
+              "type": "object",
+              "properties": {
+                "tenant": {
+                  "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                },
+                "session": {
+                  "$ref": "#/$defs/SessionRef"
+                },
+                "run": {
+                  "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/RunId"
+                },
+                "attempt": {
+                  "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/AttemptId"
+                }
+              },
+              "required": [
+                "tenant",
+                "session"
+              ],
+              "additionalProperties": false,
+              "dependentRequired": {
+                "run": [
+                  "attempt"
+                ],
+                "attempt": [
+                  "run"
+                ]
+              }
+            },
+            "input": {
+              "$ref": "#/$defs/ModelCallCreationInput"
+            },
+            "status": {
+              "const": "accepted"
+            },
+            "adopted": {
+              "type": "object",
+              "properties": {
+                "profile": {
+                  "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/ModelProfileRef"
+                },
+                "profileSnapshot": {
+                  "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/ModelProfileSnapshot"
+                },
+                "adaptation": {
+                  "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/ModelAdaptationBinding"
+                },
+                "parameters": {
+                  "$ref": "../../model-profile/v6/model-profile.schema.json#/$defs/ModelRequestParameters"
+                },
+                "selectedBy": {
+                  "$ref": "#/$defs/SelectedBy"
+                },
+                "messages": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Message"
+                  }
+                },
+                "tools": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/ModelToolEntry"
+                  }
+                },
+                "contextSources": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+                  }
+                }
+              },
+              "required": [
+                "profile",
+                "profileSnapshot",
+                "adaptation",
+                "parameters",
+                "selectedBy",
+                "messages",
+                "tools",
+                "contextSources"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "ref",
+            "creationKey",
+            "origin",
+            "input",
+            "status",
+            "adopted"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "created"
+            },
+            "ref": {
+              "$ref": "#/$defs/CallKey"
+            },
+            "creationKey": {
+              "$ref": "#/$defs/CreationKey"
+            },
+            "origin": {
+              "type": "object",
+              "properties": {
+                "tenant": {
+                  "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                },
+                "session": {
+                  "$ref": "#/$defs/SessionRef"
+                },
+                "run": {
+                  "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/RunId"
+                },
+                "attempt": {
+                  "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/AttemptId"
+                }
+              },
+              "required": [
+                "tenant",
+                "session"
+              ],
+              "additionalProperties": false,
+              "dependentRequired": {
+                "run": [
+                  "attempt"
+                ],
+                "attempt": [
+                  "run"
+                ]
+              }
+            },
+            "input": {
+              "$ref": "#/$defs/ModelCallCreationInput"
+            },
+            "status": {
+              "const": "rejected"
+            },
+            "cause": {
+              "enum": [
+                "withdrawn",
+                "scope_disallowed",
+                "modality_mismatch",
+                "credential_unavailable"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "ref",
+            "creationKey",
+            "origin",
+            "input",
+            "status",
+            "cause"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ModelCallCreatedRecord": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "model_call_created"
+        },
+        "call": {
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
+        },
+        "creationKey": {
+          "$ref": "#/$defs/CreationKey"
+        },
+        "payload": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ModelCallPayloadRef"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "created"
+                }
+              }
+            }
+          ]
+        },
+        "createdAt": {
+          "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+        }
+      },
+      "required": [
+        "kind",
+        "call",
+        "creationKey",
+        "payload",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "ModelCallReplyReadyRecord": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "model_call_reply_ready"
+        },
+        "call": {
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId"
+        },
+        "dispatch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "response": {
+          "$ref": "#/$defs/ResponseId"
+        },
+        "payload": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ModelCallPayloadRef"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "reply_ready"
+                }
+              }
+            }
+          ]
+        },
+        "readyAt": {
+          "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+        }
+      },
+      "required": [
+        "kind",
+        "call",
+        "dispatch",
+        "response",
+        "payload",
+        "readyAt"
+      ],
+      "additionalProperties": false
     }
   }
 }
