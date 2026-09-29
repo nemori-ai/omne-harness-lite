@@ -126,3 +126,30 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 发送结果中的 `released` 只描述当次停止尝试。终端回调仍在运行时它为 false；回调实际停止后，显式重试 `close()` 才可能完成，主管还会等待 worker 真正退出。关闭准入后，已承认工作仍可在 Clock 存活期间通过 `currentTime()` 读取时间；fiber 实际卸载后返回 unavailable。
 
 主管的受信故障控制可保留已完成的旧 worker 回复，再向后继请求重放发生 ID 冲突的包；原代际检查仍会阻止错误交付。`inspect().nativeIpcBackpressureObserved` 反映 Node 实际 IPC send 缓冲是否施加过背压。这些控制用于本地恢复测试，不是租户操作。
+
+## 开发用 runner 宿主
+
+`createAcceptanceApplication()` 返回的本地应用另提供
+`runExtensionPass(actor, session, request)`，用于显式给入的开发扩展。
+`DemoRunnerRequest` 复用 runner 包已有的 pass、chain 和非存储端口。
+使用哪些端口，就需要给入对应的真实执行或等待来源；`isActive()` 的结果
+不证明 Run 或等待卡片事实。该入口不会注册产品链，也不会增加模型命令。
+
+应用负责验证参与者与会话，并提供共享 JSONL 的绑定、结论写入、提醒读取和
+写入，以及物理任务所有者。调用者不能替换这些存储端口，也不能自行宣称
+原写入者已停止。`subjectForCandidate` 为每条结论提供原始的定位 subject，
+包含嵌套 pass；runner adapter 会验证二者的关系。
+
+始终等待 `app.close()`。它先关闭 runner 准入并取消 pass，保留仍在执行的
+贡献代码，停止其他共享日志消费者，再关闭真实日志。未知写入只能在对同一
+日志完成 SL3 恢复准入、读取原键后解决。旧写入者退出情况仍未知时，关闭仍
+未完成；仅清除 I/O 故障不意味着原写入者可以安全复用。不要把
+`complete: false` 报成正常关闭。
+
+可执行示例覆盖真实认证调用、提醒持久化、重放与关闭后重开，以及本地文件
+系统故障注入：
+
+```sh
+# 在仓库根目录执行；不需要模型凭据，不产生付费请求。
+pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/runner-host.spec.ts --maxWorkers=1
+```

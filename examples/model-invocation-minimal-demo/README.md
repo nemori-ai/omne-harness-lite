@@ -126,3 +126,34 @@ Queries and `exportPage(query, { maxRecords, maxBytes })` require the exact boun
 A send result's `released` describes that stop attempt. If a terminal callback is still running it remains false; after the callback actually stops, an explicit `close()` retry can complete, and the supervisor waits for the worker's real exit. `currentTime()` remains readable for admitted work during close while the Clock is alive; it becomes unavailable after its fiber is disposed.
 
 The supervisor's trusted fault controls can retain a completed worker reply and replay it with a colliding request ID against the successor; the original generation still prevents delivery. `inspect().nativeIpcBackpressureObserved` reports whether Node's actual IPC send buffer applied backpressure. These controls support local recovery tests and are not tenant operations.
+
+## Development runner host
+
+The local application returned by `createAcceptanceApplication()` also offers
+`runExtensionPass(actor, session, request)` for explicitly supplied development
+extensions. `DemoRunnerRequest` uses the runner package's existing pass, chain,
+and non-storage ports. Supply real execution and waiting sources for the ports
+you use; an `isActive()` result does not prove a Run or a waiting-card fact.
+This entry does not register a production chain or add a model command.
+
+The application authorizes the actor and session, and supplies the shared JSONL
+binding, conclusion writes, reminder reads/writes, and physical task owner.
+Callers cannot replace these storage ports or claim that the writer has stopped.
+`subjectForCandidate` identifies the original positioned subject for each
+conclusion, including nested passes; the runner adapter checks their relation.
+
+Always await `app.close()`. It closes runner admission and cancels passes,
+retains still-running contributions, stops other shared-log consumers, and then
+closes the actual log. An uncertain append is resolved only by reopening the
+same log through SL3 recovery admission and reading its original key. A writer
+whose exit is still unknown remains unfinished; clearing an I/O fault alone does
+not make that writer safe to reuse. Do not report `complete: false` as a clean
+shutdown.
+
+The executable example covers authenticated calls, reminder persistence,
+replay, and close/reopen, together with local filesystem failure injection:
+
+```sh
+# From the repository root; no model credentials or paid requests are used.
+pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/runner-host.spec.ts --maxWorkers=1
+```
