@@ -132,3 +132,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 ## 当前公开定义资源闭包后继候选（2026-09-29）
 
 [共同后继](../messages/public-definition-resource-closure-followup.md)以 MS7 50/MR10 25 公开定义及真实私有入口为编译根，各9份规范资源；RC1–RC5替代原全依赖文件defs扩张要求的范围尚待主线采用。T26固定输入的75公开编译/18因果删除反控已有，生产注册迁移、实际制品与冷构建仍待；原冻结设计/证据保持各自范围。
+
+## MR11 ACK 保留边界候选
+
+[v11 ACK 实现映射](v11-acknowledgement-design.md)保持完整Pending/final值形状，承接合法ACK的副本释放及后继真实处分原值验证。语义接受未采用；可实施待成组评审/采用；新增bindings0；实际验证未执行。纯包不新增Storage/权限/删除行为。

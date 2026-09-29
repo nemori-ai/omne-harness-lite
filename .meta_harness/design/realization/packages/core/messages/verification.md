@@ -147,3 +147,16 @@ N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块�
 ## 当前公开定义资源闭包后继候选（2026-09-29）
 
 [共同后继](public-definition-resource-closure-followup.md)以 MS7 50/MR10 25 公开定义及真实私有入口为编译根，各9份规范资源；RC1–RC5替代原全依赖文件defs扩张要求的范围尚待主线采用。T26固定输入的75公开编译/18因果删除反控已有，生产注册迁移、实际制品与冷构建仍待；原冻结设计/证据保持各自范围。
+
+## MS8 ACK 候选义务
+
+对应[v8](v8-acknowledgement-design.md)，下列全部待执行，bindings新增0。
+
+| 编号 | 会失败的验证 | 边界 |
+| --- | --- | --- |
+| M8-V1 | 54个公开defs及实际可达资源冷编译；逐必要URI删除失败；pack后跨包与声明检查 | 不编译每个依赖所有defs，不裁Schema、不映射旧$id |
+| M8-V2 | ACK/witness/target/role正反、成对字段、exact ref重复、错误kind/结束状态、额外字段 | 单值形状成功不证明来源/权限 |
+| M8-V3 | MS8所有语义摘要向量及独立oracle：精确巨大数/指数、±0、对象序、数组序/重复、缺席/null、Unicode与转义、角色分离、超2^53邻值 | 原UTF8字节hash不能替代值摘要；getter/非JSON拒绝、不改原输入 |
+| M8-V4 | ACK不进入Message/OutboundMessage/上下文；现回复派生与其他7技术记录回归 | 不因ACK放宽原消息/块关系 |
+| M8-V5 | witness原数字/optional/unknown无损往返；MS既有CredentialScope等同形定义与MR11当前定义对齐 | 不以普通JSON.parse提前损失精确数 |
+| M8-V6 | runtime真实组合：创建原值摘要、ACK原来源、consumer自持值篡改、当前权限与后继合法final | 本包纯测试不能独立证明SQL删除/JSONL耐久或授权 |

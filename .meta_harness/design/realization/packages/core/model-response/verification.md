@@ -183,3 +183,14 @@ R10-G1 采用门、R10-G2 新实现/纯值证据、R10-G3 外部真实内容/权
 ## 当前公开定义资源闭包后继候选（2026-09-29）
 
 [共同后继](../messages/public-definition-resource-closure-followup.md)以 MS7 50/MR10 25 公开定义及真实私有入口为编译根，各9份规范资源；RC1–RC5替代原全依赖文件defs扩张要求的范围尚待主线采用。T26固定输入的75公开编译/18因果删除反控已有，生产注册迁移、实际制品与冷构建仍待；原冻结设计/证据保持各自范围。
+
+## MR11 ACK 候选义务
+
+对应[v11](v11-acknowledgement-design.md)，全部待执行，bindings新增0。
+
+| 编号 | 验证 | 边界 |
+| --- | --- | --- |
+| R11-V1 | 25公开defs与既有两个private入口、最终必要资源冷编译/缺URI负控、packed跨包与严格声明 | 不编译依赖无关defs，不引回全图循环 |
+| R11-V2 | MR11原Pending/final正反、精确数及原合法消息派生关系回归；ACK不是第四处分 | 形状未变的旧证据限定精确diff复用 |
+| R11-V3 | 保存原Pending→ACK→模型副本删除→consumer自持完整原值→摘要核→真实veto/consumed或独立persisted | 只给reply不能合成完整final，缺/篡改route/raw/calibration拒绝；原O/I不重算 |
+| R11-V4 | 原final/ACK并发、当前撤权、原批unknown与新结算暂存恢复、原值不变且late真实 | 纯包不能冒称日志/Storage/权限已测；由runtime组合兑现 |

@@ -53,3 +53,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
 
 2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
+
+## CA4 ACK 原账来源候选
+
+[v4 ACK 实现映射](v4-acknowledgement-design.md)保持纯值/精确计算，只由runtime组合读面增加ACK原账见证来源。语义接受未采用；可实施待评审/采用；新增bindings0；实际验证未执行。不是新增账务service或日志/权限实现。

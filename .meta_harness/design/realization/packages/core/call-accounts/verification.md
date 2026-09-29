@@ -86,3 +86,14 @@ V3-6 的两条交错是 [并发章节](v3-design.md#状态并发与失败) 的�
 | G3-4 | S-5/S-22～S-24/S-27～S-29：CA3 Schema、消费图、类型与双语示例未迁移/复验 | 本包及各消费者实施者完成 V3-1～V3-5/V3-9，登记真实制品与运行证据后才考虑新绑定 |
 
 新增上游待核对主张为 0；本包无 Cordis 依赖。节点未自评审、未接受，独立 architecture-reviewer 与后续技术接受由主线安排。
+
+## CA4 ACK 来源候选义务
+
+对应[v4](v4-acknowledgement-design.md)，全部待执行，新增bindings0。
+
+| 编号 | 验证 | 范围 |
+| --- | --- | --- |
+| A4-V1 | CA4 13公开defs/四实际资源冷编译、逐资源缺失负控、packed声明及跨包消费 | 不新增MR/MS反向依赖 |
+| A4-V2 | 原Usage/Cost/Correction精确数与unknown、reasoning/upstream_inference optional往返、原纯有效费用/汇总回归 | 原算法未变的证据按精确diff复用，不冒新来源组合 |
+| A4-V3 | runtime同源final→ACK witness→ready切换恰一次；同时来源矛盾明确拒绝；多个dispatch分别计；没有合法ACK的缺payload不可成功总账 | 真日志/来源属于runtime组合验收 |
+| A4-V4 | unknown在ACK/删除后保持未知笔数；迟到补账仍原ResponseId/租户/Run/credentialScope；重ACK不加镜像/费用 | 不从当前请求者迁账，不用hash或当前价格补数 |
