@@ -1192,6 +1192,7 @@ async function prepareSend<P extends PlannedSemantics, R>(
   if ('unavailable' in calibration || 'unavailable' in calibration.ok) return { unavailable: true }
   const planInput: PlanInput = Object.freeze({
     calibration: calibration.ok.calibration,
+    outputHistory: calibration.ok.outputHistory,
     tokenMargin: runtime.tokenMargin,
     target: { kind: 'model_call' as const, callId: key.callId, dispatch },
     routeName: view.binding.profile.routeName,

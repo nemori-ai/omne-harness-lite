@@ -18,6 +18,7 @@ import type {
   ObservedInput,
   OutputGroupEvidence,
   InputCalibration,
+  Route,
 } from '@omne-harness-lite/model-response'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
@@ -44,6 +45,16 @@ export type PlanCalibration =
       readonly outputBlocks: readonly ContentBlock[]
       readonly replaySelection: readonly ReplaySelection[]
     }
+/** Original response facts for each output group actually selected into this input. */
+export type PlanOutputHistoryGroup = Pick<
+  Extract<PlanCalibration, { kind: 'observation' }>,
+  'inputCalibration' | 'usage' | 'outputBlocks' | 'replaySelection'
+> & {
+  readonly origin: Pick<
+    Route,
+    'adaptation' | 'provider' | 'servingProvider' | 'upstreamModel' | 'parameters'
+  >
+}
 export type MeasurementPrecision = 'exact' | 'upperBound' | 'estimated'
 export interface MeasurementContribution {
   readonly tokens: JsonNumber
@@ -87,6 +98,7 @@ export type OutputProjectionResult =
   | { readonly unavailable: true }
 export interface PlanInput {
   readonly calibration: PlanCalibration
+  readonly outputHistory: readonly PlanOutputHistoryGroup[]
   readonly tokenMargin: TokenMargin
   readonly target: Extract<ArrivalTarget, { kind: 'model_call' }>
   readonly routeName: string

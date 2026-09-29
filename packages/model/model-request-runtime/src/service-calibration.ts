@@ -8,10 +8,15 @@ import { modelLogJsonEqual } from './log-codec.ts'
 import { interpretSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import type { CurrentHistoryReaders } from './service-types.ts'
-import type { PlanCalibration } from './types.ts'
+import { copyPlanOutputHistory } from './output-history.ts'
+import type { PlanCalibration, PlanOutputHistoryGroup } from './types.ts'
 
 export type AuthorizedCalibrationResult =
-  { readonly calibration: PlanCalibration } | { readonly unavailable: true }
+  | {
+      readonly calibration: PlanCalibration
+      readonly outputHistory: readonly PlanOutputHistoryGroup[]
+    }
+  | { readonly unavailable: true }
 
 function sameEntry(left: unknown, right: unknown): boolean {
   return modelLogJsonEqual(left, right)
@@ -38,10 +43,23 @@ export function authorizedCalibration(
   } catch {
     return { unavailable: true }
   }
-  if ('sourceUnavailable' in interpreted)
-    return { calibration: { kind: 'none', reason: 'source_unavailable' } }
+  if ('sourceUnavailable' in interpreted) {
+    const inspected = inspectCurrentModelLogPrefix({
+      session: prefix.binding.session,
+      tenant: prefix.binding.tenant,
+      prefix,
+    })
+    if (
+      !('ok' in inspected) ||
+      'unavailable' in interpretCallHistory({ prefix, callId: target.callId })
+    )
+      return { unavailable: true }
+    return { calibration: { kind: 'none', reason: 'source_unavailable' }, outputHistory: [] }
+  }
   if ('noObservation' in interpreted)
-    return { calibration: { kind: 'none', reason: 'no_observation' } }
+    return messages.some(message => message.type === 'assistant')
+      ? { unavailable: true }
+      : { calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] }
   if (!Array.isArray(interpreted.candidates) || !Array.isArray(interpreted.selectedSources))
     return { unavailable: true }
   const inspected = inspectCurrentModelLogPrefix({
@@ -81,6 +99,8 @@ export function authorizedCalibration(
   let priorDispatch = ExactDecimal.from(target.dispatch)
   let selectedSeen = false
   let selectedObservation: PlanCalibration | undefined
+  const history: PlanOutputHistoryGroup[] = []
+  const originalResponses = new Set<string>()
   for (const candidate of interpreted.candidates) {
     if (!('ok' in judgeModelResponse(candidate.response))) return { unavailable: true }
     const response = located(candidate.responseEntry)
@@ -97,6 +117,8 @@ export function authorizedCalibration(
       ) !== 0
     )
       return { unavailable: true }
+    if (originalResponses.has(candidate.response.id)) return { unavailable: true }
+    originalResponses.add(candidate.response.id)
     const originalRun = dispatched.entry.run
     const originalAttempt = dispatched.entry.attempt
     if (
@@ -189,16 +211,10 @@ export function authorizedCalibration(
     const observation = candidate.response.inputCalibration.observedInput
     const request = candidate.response.inputCalibration.requestInput
     const group = candidate.response.inputCalibration.outputGroup
-    if (
-      request.kind !== 'known' ||
-      (observation.kind !== 'from_usage' && observation.kind !== 'upstream_total') ||
-      group.kind !== 'known'
-    )
-      continue
     const outputBlocks =
-      group.source === 'reply'
+      group.kind === 'known' && group.source === 'reply'
         ? candidate.response.reply?.blocks
-        : group.source === 'delivered'
+        : group.kind === 'known' && group.source === 'delivered'
           ? candidate.response.delivered
           : []
     if (outputBlocks === undefined) return { unavailable: true }
@@ -220,13 +236,41 @@ export function authorizedCalibration(
         return { unavailable: true }
       mapped.add(key)
     }
-    selectedObservation ??= {
-      kind: 'observation',
-      inputCalibration: candidate.response.inputCalibration,
-      usage: candidate.response.usage,
-      outputBlocks,
-      replaySelection: candidate.replaySelection,
+    if (candidate.replaySelection.length && group.kind === 'known') {
+      const route = candidate.response.route
+      history.push({
+        inputCalibration: candidate.response.inputCalibration,
+        usage: candidate.response.usage,
+        outputBlocks,
+        replaySelection: candidate.replaySelection,
+        origin: {
+          adaptation: route.adaptation,
+          provider: route.provider,
+          ...(route.servingProvider === undefined
+            ? {}
+            : { servingProvider: route.servingProvider }),
+          ...(route.upstreamModel === undefined ? {} : { upstreamModel: route.upstreamModel }),
+          parameters: route.parameters,
+        },
+      })
     }
+    if (
+      request.kind === 'known' &&
+      (observation.kind === 'from_usage' || observation.kind === 'upstream_total')
+    )
+      selectedObservation ??= {
+        kind: 'observation',
+        inputCalibration: candidate.response.inputCalibration,
+        usage: candidate.response.usage,
+        outputBlocks,
+        replaySelection: candidate.replaySelection,
+      }
   }
-  return { calibration: selectedObservation ?? { kind: 'none', reason: 'no_observation' } }
+  const ownedCalibration = selectedObservation ?? {
+    kind: 'none' as const,
+    reason: 'no_observation' as const,
+  }
+  const ownedHistory = copyPlanOutputHistory(history.reverse(), messages, ownedCalibration)
+  if (ownedHistory === undefined) return { unavailable: true }
+  return { calibration: ownedCalibration, outputHistory: ownedHistory }
 }

@@ -50,6 +50,7 @@ export function input(anthropic = false): PlanInput {
   if (!definition) throw new Error('missing pilot definition')
   return {
     calibration: { kind: 'none' as const, reason: 'no_observation' as const },
+    outputHistory: [],
     tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: {
       kind: 'model_call',

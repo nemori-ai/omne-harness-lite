@@ -325,7 +325,7 @@ describe('U16/V17 conditional withRun calibration over real SL3', () => {
       })
       expect(
         authorizedCalibration(prefix, selected, target, () => ({ sourceUnavailable: true })),
-      ).toEqual({ calibration: { kind: 'none', reason: 'source_unavailable' } })
+      ).toEqual({ calibration: { kind: 'none', reason: 'source_unavailable' }, outputHistory: [] })
       for (const changed of [
         { ...ancestor, response: { ...candidate, call: { callId: 'call', runId: 'wrong-run' } } },
         { ...ancestor, response: { ...candidate, attemptId: 2 } },

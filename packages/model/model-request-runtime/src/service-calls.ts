@@ -817,7 +817,11 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             )
             return 'unavailable' in calibrated
               ? ({ unavailable: true } as const)
-              : ({ winner, calibration: calibrated.calibration } as const)
+              : ({
+                  winner,
+                  calibration: calibrated.calibration,
+                  outputHistory: calibrated.outputHistory,
+                } as const)
           },
         )
         if ('unavailable' in facts || 'unavailable' in facts.ok) return { unavailable: true }
@@ -866,6 +870,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         try {
           const planned = lease.transport.plan({
             calibration: checked.calibration,
+            outputHistory: checked.outputHistory,
             tokenMargin: runtime.tokenMargin,
             target: { kind: 'model_call', callId, dispatch: 1 },
             routeName: request.target,

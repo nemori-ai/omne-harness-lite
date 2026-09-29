@@ -10,7 +10,7 @@ import { judgeMessage } from '@omne-harness-lite/messages'
 import { validate as toolShape, type ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { judgeArrivalEnvelope } from '@omne-harness-lite/arrival-events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { copyPlanOutputHistory, type PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { object } from './json.ts'
 import { tokenMarginValid } from './input-meter.ts'
 
@@ -72,6 +72,8 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
     if ('rejected' in judged) return undefined
     messages.push(judged.ok)
   }
+  const outputHistory = copyPlanOutputHistory(input.outputHistory, messages, calibration)
+  if (outputHistory === undefined) return undefined
   if (
     calibration.kind === 'observation' &&
     calibration.replaySelection.some(
@@ -89,6 +91,7 @@ export function ownPlanInput(input: PlanInput): PlanInput | undefined {
   }
   return Object.freeze({
     calibration,
+    outputHistory,
     tokenMargin: Object.freeze(tokenMargin.ok),
     target: Object.freeze({
       kind: 'model_call',

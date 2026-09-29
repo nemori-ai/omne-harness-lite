@@ -18,6 +18,7 @@ export function request(): PlanInput {
   if (!('ok' in call)) throw new Error('call')
   return {
     calibration: { kind: 'none', reason: 'no_observation' },
+    outputHistory: [],
     tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: { kind: 'model_call', callId: call.ok, dispatch: 1 },
     routeName: 'teaching/model',
