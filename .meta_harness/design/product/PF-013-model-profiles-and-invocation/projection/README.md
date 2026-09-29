@@ -11,3 +11,5 @@
 # 2026-09-29 技术采用补记
 
 [D-108](../../../record/decisions/openrouter-refusal-mapping-adoption/decision.md) 已接受 [v4](v4/projection.md) 对应的精确 refusal 提供者映射；v4 原状态标签保留快照时刻，不表示其后未被采用。实际实现和 RF-V1–V9 尚待。
+
+- [v6](v6/projection.md) · [来源](v6/provenance.json)：**post-review candidate**，请求图片准备，仅指向transport v15r4/runtime v21r3；D-109仅预留，未采用、未实施；不包含并行T29。
