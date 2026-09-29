@@ -6,3 +6,5 @@
 - [接受摘要](acceptance.json)：两节点和投影的精确 SHA。
 - [来源提案](../../proposals/model-request-image-preparation/README.md)：三候选、性质和独立评审。
 - [实际库研究](../../../../research/typescript-image-input-handling/README.md)：pi、DSH、LangChain 与有界 native 探针。
+
+2026-09-29：[后继清理与计量接缝接受](scope-and-basis-decision.md)采用三精确附页及 projection/v7；[接受摘要](scope-and-basis-acceptance.json)固定资源，SC/BR 工程验收尚待。
