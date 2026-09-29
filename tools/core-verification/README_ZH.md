@@ -186,6 +186,14 @@ overrides 同时把传递的 `0.0.0` 依赖钉回这批 tarballs，避免从 reg
 在该消费者的 node_modules 下，并运行上述固定16个资产子场景；这次运行的输入、stdout
 与构建产物 hash 单独保存，不把 workspace 运行改标成打包证据。
 
+当前流消费者使用 Messages v6 与 ModelResponse v9 的公开根。受控模型路由明确给出适配绑定和完整的纯文本档案约束。这些仅组合流装配的夹具没有适配器请求投影、输出摘要证据或上游用量，因此 MR9 校准明确记录 `not_retained`／`missing_usage`，不虚构观察。报告的 `specEpoch: 3` 及下表历史契约坐标标识原 W6 验证时期，不表示当前包根仍提供旧版，也不把历史制品重新签收。
+
+只运行这条流组合和帧数负控：
+
+```sh
+pnpm --filter @omne-harness-lite/core-verification exec vitest run tests/w6-stream-consumer.spec.ts --maxWorkers=1
+```
+
 `w6-stream-consumer` 通过 CB／CA → AR → SA → Messages／MR 的六个实际公开根入口运行13个固定场景，
 相同构建 JS 也在独立 tarball 消费者再次运行。判据从冻结契约和手算值取得，覆盖：
 

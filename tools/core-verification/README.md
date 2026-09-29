@@ -43,6 +43,16 @@ The asset fixture supplies all four members of the accepted AE4 `CompositionRoot
 
 The asset suite checks sixteen named scenarios and a negative control that changes only the expected workspace permission. The expected assertion must fail while the other scenarios pass; an arbitrary nonzero process exit, timeout, startup failure or skipped test does not satisfy the control. Other suites apply the same distinction between detected defects and failed test infrastructure.
 
+The stream consumer has thirteen fixed scenarios and uses the current Messages v6 and ModelResponse v9 public roots. Its controlled model route includes the adaptation binding and complete text-only profile constraints. These stream-only fixtures have no adapter input projection, output-digest evidence or upstream usage: their MR9 calibration explicitly records `not_retained` / `missing_usage`, without inventing observations. The report's `specEpoch: 3` and historical coverage citations identify the original W6 verification epoch, not the versions supplied by current package roots or renewed acceptance of historical artifacts.
+
+Run this composition and its frame-count negative control with:
+
+```sh
+pnpm --filter @omne-harness-lite/core-verification exec vitest run tests/w6-stream-consumer.spec.ts --maxWorkers=1
+```
+
+The normal run must pass all thirteen scenarios. The negative control must fail only `w6.stream.tool-frame-replace-and-account`, with the other twelve passing; unrelated malformed responses or arbitrary nonzero exits do not satisfy it.
+
 The [detailed coverage map](w6-coverage.json) and [Chinese reference](README_ZH.md) retain scenario identifiers, historical verification epochs and packed-consumer details. Accepted versions and implementation obligations remain in the [design registry](../../.meta_harness/design/registry/README.md) and the corresponding realization nodes; this tool does not define product policy.
 
 ## Evidence and limits

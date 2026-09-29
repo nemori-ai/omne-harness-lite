@@ -132,15 +132,29 @@ function assistant(blocks: readonly ContentBlock[], ending = 'complete') {
 function text(id: string, value: string, visibility = visible) {
   return { id, kind: 'text', visibility, text: value }
 }
+// Controlled W6 binding, not a claim about a deployed official model implementation.
+const adaptation = {
+  implementation: { name: 'w6-stream-consumer', revision: 'fixture-1' },
+  definition: { modelId: 'openai/test', revision: 'fixture-1' },
+  configuration: { revision: 'fixture-1', values: {} },
+}
 const route = {
+  adaptation,
   profile: { origin: 'official', routeName: 'openai/test' },
   profileSnapshot: {
+    adaptation,
     providers: ['openai'],
     allowFallback: false,
     inputModalities: ['text'],
     outputModalities: ['text'],
     maxInputTokens: 200000,
     maxOutputTokens: 64000,
+    // This text-only fixture states no real upstream limits or extra project byte cap.
+    upstreamInputLimits: {
+      maxInputTokens: { status: 'unknown' },
+      maxRequestBytes: { status: 'unknown' },
+    },
+    inputConstraints: {},
     updatedAt: at,
   },
   selectedBy: 'session',
@@ -167,6 +181,12 @@ function responseBase(settlement: AssemblySettlement) {
     route,
     usage: account.usage,
     cost: account.cost,
+    // These SA-only cases retain neither adapter projection/digest evidence nor upstream usage.
+    inputCalibration: {
+      requestInput: { kind: 'unavailable', reason: 'not_retained' },
+      observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+      outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+    },
   }
 }
 function contentState() {
