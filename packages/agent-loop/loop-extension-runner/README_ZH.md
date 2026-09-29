@@ -1,5 +1,7 @@
 # `@omne-harness-lite/loop-extension-runner`
 
+失败来源端口为 `verifyFailure(subject, binding, execution)`。`runPass` 在首个异步边界前自有捕获并冻结经过，来源核验、扩展输入与日志栅栏使用同一个 execution；服务在向宿主取得 scope 前固定该值。宿主仍须核对失败所属原 Run、会话和实际日志代际。同一 Run 中，原 attempt 1 的失败可由合法 attempt 2 接续消费，当前尝试仍受实际日志栅栏约束。第三参必填，不保留旧二参验证模式。
+
 本包公开一个不依赖宿主的拓展件经过执行函数，以及 `runner/5` 结论纯构件。`runPass` 顺序执行拓展件链，每件结论确认写入后才推进；它通过受控等待来源接续耐久 ask，并返回完整结论历史与生效结果。纯构件仍负责结论编解码、经过键、重试结论和效果合成。
 
 本包同时公开独立函数与 Cordis 服务插件。宿主通过类型化端口提供已授权作用域、必要时的真实 Run、完整日志前缀、有序定义、拓展件执行、等待与卡片事实，以及能力判定。`runPass` 不创建 Run，也不决定模型能否重试发送。`readRunnerRetryConclusions` 检查条目和稠密位置，但单凭数组不能证明读取权限。

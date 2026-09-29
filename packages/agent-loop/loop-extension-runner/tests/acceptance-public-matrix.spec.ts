@@ -314,8 +314,10 @@ async function fixture(v: Variant) {
       return { kind: 'output', value: { kind: 'observed' } }
     },
     // Controlled equality binding ONLY: real runtime same-prefix verification is out of scope.
-    verifyFailure: async subject => {
+    verifyFailure: async (subject, actualBinding, execution) => {
       counts.verified++
+      expect(actualBinding).toEqual(binding)
+      expect(execution.kind).toBe('withRun')
       return { kind: 'verified', subject, release() {} }
     },
     judgeCapabilities: async () => {
@@ -1000,7 +1002,7 @@ describe('independent ownership and physical recovery', () => {
                 reads++
                 return f.ports.readConclusions(pass)
               },
-              verifyFailure: async () => ({ kind: failure }),
+              verifyFailure: async (_subject, _binding, _execution) => ({ kind: failure }),
             },
             signal(),
           ),
@@ -1022,7 +1024,7 @@ describe('independent ownership and physical recovery', () => {
           [makePiece(v)],
           {
             ...f.ports,
-            verifyFailure: async subject => ({
+            verifyFailure: async (subject, _binding, _execution) => ({
               kind: 'verified',
               subject: {
                 ...subject,
@@ -1039,6 +1041,68 @@ describe('independent ownership and physical recovery', () => {
       expect(released).toBe(1)
       expect(f.counts.invoke).toBe(0)
     } finally {
+      await f.close()
+    }
+  })
+  it('R8 captures execution before the verifier yields and uses it for input and actual JSONL fence', async () => {
+    const v = variants[7]!,
+      f = await fixture(v)
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const original = { kind: 'withRun' as const, run: 'controlled-run', attempt: 2 }
+    const supplied = { ...f.pass, execution: original }
+    let verifiedExecution: unknown
+    let recordedExecution: unknown
+    let releases = 0
+    try {
+      const work = runPass(
+        supplied,
+        [makePiece(v)],
+        {
+          ...f.ports,
+          verifyFailure: async (subject, actualBinding, execution) => {
+            expect(actualBinding).toEqual(binding)
+            verifiedExecution = execution
+            expect(execution).not.toBe(original)
+            expect(Object.isFrozen(execution)).toBe(true)
+            entered.resolve()
+            await resume.promise
+            return {
+              kind: 'verified',
+              subject,
+              release() {
+                releases++
+              },
+            }
+          },
+          invoke: async (_piece, input) => {
+            expect(input).toMatchObject({ run: 'controlled-run', attempt: 2 })
+            return { kind: 'output', value: { kind: 'observed' } }
+          },
+          record: async (entry, execution) => {
+            recordedExecution = execution
+            return f.ports.record(entry, execution)
+          },
+        },
+        signal(),
+      )
+      await entered.promise
+      original.run = 'changed-run'
+      original.attempt = 3
+      supplied.execution = { kind: 'withRun', run: 'replaced-run', attempt: 4 }
+      resume.resolve()
+      expect(await work).toMatchObject({ effect: { kind: 'proceed' } })
+      expect(verifiedExecution).toEqual({ kind: 'withRun', run: 'controlled-run', attempt: 2 })
+      expect(recordedExecution).toBe(verifiedExecution)
+      const read = await f.log.readSince(session, 0)
+      expect(read).toHaveProperty('tail', 1)
+      expect('entries' in read && read.entries[0]).toMatchObject({
+        run: 'controlled-run',
+        attempt: 2,
+      })
+      expect(releases).toBe(1)
+    } finally {
+      resume.resolve()
       await f.close()
     }
   })

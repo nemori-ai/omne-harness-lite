@@ -75,7 +75,9 @@ async function serviceHost() {
   const execution: RunnerExecutionPorts = {
     readAskState: vi.fn(async () => ({ kind: 'unavailable' as const })),
     openHandles,
-    verifyFailure: vi.fn(async () => ({ kind: 'unavailable' as const })),
+    verifyFailure: vi.fn(async (_subject, _binding, _execution) => ({
+      kind: 'unavailable' as const,
+    })),
     judgeCapabilities: vi.fn(async (_input, output) =>
       output.kind === 'observed' ? { kind: 'accepted' as const } : { kind: 'unavailable' as const },
     ),

@@ -1,5 +1,5 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import {
   judgeConclusion,
@@ -161,6 +161,7 @@ export interface RunnerPorts {
   readonly verifyFailure: (
     subject: PositionedSubject,
     binding: RunnerLogBinding,
+    execution: RunnerExecution,
   ) => Promise<
     | {
         readonly kind: 'verified'
@@ -548,6 +549,11 @@ async function runPassInternal(
   nested: boolean,
 ): Promise<RunnerPassResult> {
   if (!validPorts(ports) || !(signal instanceof AbortSignal)) return invalidInput
+  const owned = copyJsonValue(pass)
+  if ('failed' in owned) return invalidInput
+  // Validate this owned value before use; caller mutation cannot change the pass
+  // after a verifier, history reader, or contributor yields.
+  pass = owned.ok as unknown as RunnerPass
   const passFailure = validatePass(pass, chain, nested)
   if (passFailure !== undefined) return passFailure
   const initialJudged = judgePositionedSubject(pass.initial)
@@ -558,7 +564,7 @@ async function runPassInternal(
   let releaseFailure: (() => void) | undefined
   try {
     if (initial.position === 'after_model_call' && initial.dimension.ending === 'failure') {
-      const verified = await ports.verifyFailure(initial, ports.binding)
+      const verified = await ports.verifyFailure(initial, ports.binding, pass.execution)
       if (verified.kind !== 'verified')
         return verified.kind === 'invalidInput' ? invalidInput : unavailable
       const judged = judgePositionedSubject(verified.subject)

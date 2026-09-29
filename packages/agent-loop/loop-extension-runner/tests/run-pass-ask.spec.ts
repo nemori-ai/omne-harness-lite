@@ -97,7 +97,7 @@ function controlled() {
       expect(current.log).toBe(acceptedNextLogHandle)
       return { kind: 'output', value: { kind: 'observed' } }
     },
-    verifyFailure: async () => ({ kind: 'unavailable' }),
+    verifyFailure: async (_subject, _binding, _execution) => ({ kind: 'unavailable' }),
     judgeCapabilities: async () => ({ kind: 'accepted' }),
     record: async entry => {
       const checked = checkAppendInput(

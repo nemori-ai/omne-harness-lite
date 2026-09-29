@@ -79,6 +79,15 @@ For every position other than `before_persist_message`, the caller must provide 
 
 The pure functions are synchronous and use no network, clock, random source, or hidden storage. `runPass` is asynchronous and uses only its explicit ports. A successful function result does not certify that the host implemented authentic waiting/card ownership, same-prefix failure verification, physical writer-stop recovery, or actual Run provenance; those remain host integration obligations.
 
+Failure verification receives `verifyFailure(subject, binding, execution)`. `runPass`
+captures and freezes its own pass before the first asynchronous boundary; verification,
+extension input, and log fences use that same execution value. The service fixes it
+before asking the host for a scope. The host must verify the failure's original Run
+against this actual execution, as well as its session and physical log generation.
+An original failure from attempt 1 can still be consumed by a legal continuation in
+attempt 2 of the same Run; the current attempt remains subject to the real log fence.
+The third argument is required; there is no legacy two-argument verification mode.
+
 `readRunnerChain({session, binding, sources})` reads one current loop-extension
 manifest record and the exact immutable version of every selected asset. Borrow
 `sessionTenancy`, `manifest`, and the restricted history reader's `read` method

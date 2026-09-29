@@ -156,6 +156,15 @@ export function createLoopExtensionRunner(input: {
           if (!active()) return unavailable
           if (callerSignal.aborted) return { failure: 'cancelled' as const }
           if (!modelPosition(parsed.initial)) return unavailable
+          const pass: RunnerPass = Object.freeze({
+            initial: parsed.initial,
+            anchor: requested.anchor,
+            execution: Object.freeze(
+              requested.run === undefined
+                ? { kind: 'noRun' as const }
+                : { kind: 'withRun' as const, run: requested.run, attempt: attempt! },
+            ),
+          })
           const signal = AbortSignal.any([callerSignal, stop.signal])
           const scope = await host.acquireDispatch(requested, signal)
           if ('failure' in scope) return scope
@@ -165,14 +174,6 @@ export function createLoopExtensionRunner(input: {
             const all = await chain(scope, requested)
             if ('failure' in all) return all
             if (!scopeActive(scope)) return unavailable
-            const pass: RunnerPass = {
-              initial: parsed.initial,
-              anchor: requested.anchor,
-              execution:
-                requested.run === undefined
-                  ? { kind: 'noRun' }
-                  : { kind: 'withRun', run: requested.run, attempt: attempt! },
-            }
             const leases = new Map<RunnerPiece, RunnerImplementationLease>()
             const dependencyPresence = scope.sources.manifest.dependencyPresence.bind(
               scope.sources.manifest,

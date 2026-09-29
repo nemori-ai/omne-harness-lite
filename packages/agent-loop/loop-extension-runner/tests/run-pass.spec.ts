@@ -86,7 +86,7 @@ function ports(
       release: () => {},
     }),
     invoke: async () => ({ kind: 'output', value: { kind: 'observed' } }),
-    verifyFailure: async () => ({ kind: 'unavailable' }),
+    verifyFailure: async (_subject, _binding, _execution) => ({ kind: 'unavailable' }),
     judgeCapabilities: async () => ({ kind: 'accepted' }),
     now: () => at,
     mintReminder: () => 'reminder-id',
