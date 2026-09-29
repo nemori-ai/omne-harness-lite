@@ -12,6 +12,10 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
+import {
+  interpretRunAtPrefix,
+  readSettlementPrefix as readRunPrefix,
+} from '../src/settlement-prefix.ts'
 import type { SessionLog, AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import {
   anchors,
@@ -581,6 +585,68 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
           ),
         ).toHaveProperty('positions')
         await appendStart(2)
+        if (!race) {
+          const acquired = owner.acquire(2)
+          if (!('registration' in acquired)) throw new Error('Run prefix owner')
+          const read = await readRunPrefix({
+            binding: { ...binding, session: runSession },
+            registration: acquired.registration,
+          })
+          acquired.registration.release()
+          if (!('prefix' in read)) throw new Error('Run full prefix unavailable')
+          const source: NonNullable<Parameters<typeof interpretRunAtPrefix>[0]['source']> = (
+            prefix,
+            run,
+            originalAttempt,
+          ) => {
+            expect(prefix).toBe(read.prefix)
+            return {
+              known: { run, originalAttempt, latestAttempt: 2, terminal: 'open' as const },
+            }
+          }
+          expect(
+            interpretRunAtPrefix({
+              prefix: read.prefix,
+              run: 'controlled-run',
+              attempt: 1,
+              source,
+            }),
+          ).toMatchObject({ known: { originalAttempt: 1, latestAttempt: 2, late: true } })
+          for (const wrong of [
+            { run: 'another-run', originalAttempt: 1, latestAttempt: 2 },
+            { run: 'controlled-run', originalAttempt: 2, latestAttempt: 2 },
+            { run: 'controlled-run', originalAttempt: 1, latestAttempt: 1 },
+          ])
+            expect(
+              interpretRunAtPrefix({
+                prefix: read.prefix,
+                run: 'controlled-run',
+                attempt: 1,
+                source: () => ({ known: { ...wrong, terminal: 'open' } }),
+              }),
+            ).toEqual({ unavailable: true })
+          let called = false
+          expect(
+            interpretRunAtPrefix({
+              prefix: read.prefix,
+              run: 'controlled-run',
+              attempt: 3,
+              source: () => {
+                called = true
+                return source(read.prefix, 'controlled-run', 3)
+              },
+            }),
+          ).toEqual({ unavailable: true })
+          expect(called).toBe(false)
+          expect(
+            interpretRunAtPrefix({
+              prefix: read.prefix,
+              run: 'controlled-run',
+              attempt: 1,
+              source: () => ({ unavailable: true }),
+            }),
+          ).toEqual({ unavailable: true })
+        }
         const wrongLatest = createSettlementCoordinator({
           binding: { ...binding, session: runSession },
           owner,
