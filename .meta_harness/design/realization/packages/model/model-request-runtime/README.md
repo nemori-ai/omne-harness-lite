@@ -1,3 +1,5 @@
+2026-09-29：[D109](../../../../record/decisions/model-request-image-preparation-adoption/decision.md) 技术采用 v21 r3 异步图片规划与资源归属，精确正文不变；新增 binding 0，实际生命周期与组合验收待实施。
+
 2026-09-29：[D107 多输出组交接后继](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-runtime-v19-与-transport-v13-多输出组交接)已技术采用本节点精确受审增量；可按唯一接口账本实施，新增绑定0，H19/H13实际实现与验证仍待。以下候选标签保留起草时状态，不代表当前采用门。
 
 ## 2026-09-29 多响应输出事实交接候选

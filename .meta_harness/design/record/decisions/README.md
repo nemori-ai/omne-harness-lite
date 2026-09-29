@@ -1,3 +1,5 @@
+[D-109：请求期图片准备](model-request-image-preparation-adoption/README.md)：采用 transport v15 r4/runtime v21 r3、显式 codec 与本地可配置 preset，释放实施；IP-V1～10 与模型供给尚待验。
+
 # 决定
 
 [D-108：OpenRouter refusal 文本映射](openrouter-refusal-mapping-adoption/README.md)：采用 transport v14 revision 2 及局部投影；共享规格不升版，RF-V1–V9 和实际交付待验。
