@@ -49,9 +49,9 @@ export function estimateOpenAi56Replay(
     const envelope = value.envelope
     if (
       !openAi56ReplayModels.has(meter.modelId) ||
-      meter.definitionRevision !== '5' ||
+      meter.definitionRevision !== '6' ||
       meter.implementation.name !== 'pi-ai:openai' ||
-      meter.implementation.revision !== 'mp4-11' ||
+      meter.implementation.revision !== 'mp4-12' ||
       meter.provider !== 'openai' ||
       meter.replayRevision !== OPENAI_56_REPLAY_REVISION ||
       request.kind !== 'known' ||

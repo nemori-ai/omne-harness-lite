@@ -184,7 +184,7 @@ export const openaiDefinitions = ownDefinitions(
           openaiFinalVisibleBindings[modelId]?.revision ??
           openAiProBindings[modelId]?.revision ??
           (gpt56MeteredIds.has(modelId)
-            ? '5'
+            ? '6'
             : modelId === gpt6SolVisibleHistoryMeteredId
               ? '3'
               : '1'),
@@ -195,7 +195,7 @@ export const openaiDefinitions = ownDefinitions(
             (openAiProBindings[modelId]
               ? PRO_IMPLEMENTATION_REVISION
               : gpt56MeteredIds.has(modelId)
-                ? 'mp4-11'
+                ? 'mp4-12'
                 : modelId === gpt6SolVisibleHistoryMeteredId
                   ? 'mp4-6'
                   : 'mp4-1'),

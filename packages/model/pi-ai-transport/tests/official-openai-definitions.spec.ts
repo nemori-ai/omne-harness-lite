@@ -77,7 +77,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
             : pro
               ? 'mp4-7'
               : metered
-                ? 'mp4-11'
+                ? 'mp4-12'
                 : lunaHistoryMetered
                   ? 'mp4-9'
                   : solTextMetered
@@ -94,7 +94,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
                 ? '5'
                 : '2'
               : metered
-                ? '5'
+                ? '6'
                 : lunaHistoryMetered
                   ? '4'
                   : solTextMetered

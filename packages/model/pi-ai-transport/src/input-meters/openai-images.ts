@@ -64,11 +64,12 @@ function singleFrameGif(bytes: Buffer): boolean {
 
 // Archived images-vision guide (2026-09-28), image-doc.md SHA256
 // 4936284cccfc38f22281d6a698b6f190ccc857849ea8dc533ed68617984b608d.
-// Preserve the existing GPT-5.6 source-dimension support boundary; Astra's
-// new binding also applies the documented fit for larger source dimensions.
+// Each named family first fits larger source dimensions to its selected detail
+// limit. The 65,535px original/auto bound applies after resizing, not to source
+// dimensions (same guide checked 2026-09-29).
 const patchRules = {
-  'gpt56-patch': { highMaxDimension: 2048, maxSourceDimension: 65535 },
-  'astra-patch': { highMaxDimension: 65535, maxSourceDimension: Number.MAX_SAFE_INTEGER },
+  'gpt56-patch': { highMaxDimension: 2048 },
+  'astra-patch': { highMaxDimension: 65535 },
 } as const
 
 /** Named patch sizing is still an estimate of the OpenRouter-hosted input. */
@@ -78,14 +79,7 @@ export function patchImageTokens(
   detail: ImageDetail,
   rule: Exclude<ImageRule, 'unknown'>,
 ): number | undefined {
-  if (
-    !Number.isSafeInteger(width) ||
-    !Number.isSafeInteger(height) ||
-    width <= 0 ||
-    height <= 0 ||
-    width > patchRules[rule].maxSourceDimension ||
-    height > patchRules[rule].maxSourceDimension
-  )
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0)
     return undefined
 
   const maxDimension =

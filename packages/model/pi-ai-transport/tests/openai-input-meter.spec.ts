@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
@@ -93,12 +94,12 @@ describe('OpenAI model-specific input estimator', () => {
       expect(meter).toMatchObject({
         modelId,
         provider: 'openai',
-        definitionRevision: '5',
+        definitionRevision: proModels.includes(modelId) ? '5' : '6',
       })
       expect(meter.algorithmRevision).toBe(
         proModels.includes(modelId)
           ? 'openai-gpt-5.6-o200k-base-4/response-calibration-1'
-          : 'openai-gpt-5.6-o200k-base-complete-output-5/response-calibration-1',
+          : 'openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1',
       )
       expect(meter.algorithmRevision).toContain('gpt-5.6')
     }
@@ -114,6 +115,41 @@ describe('OpenAI model-specific input estimator', () => {
       TypeError,
     )
   })
+
+  it.each(baseModels)(
+    '%s resizes oversized source images before full and delta measurement',
+    modelId => {
+      const meter = createOpenAiInputMeter(definition(modelId))
+      const body = imageBody(modelId, url('65536x32.png'))
+      const serialized = writeJsonLossless(body)
+      // 65,536 × 32 fits to 65,535 × 31 (documented fit; local floor convention).
+      // ceil(65,535 / 32) × ceil(31 / 32) × 1.2 rounds up to 2,458 tokens.
+      const textTokens = getEncoding('o200k_base').encode(
+        writeJsonLossless(imageBody(modelId, '[image]')),
+      ).length
+      expect(meter.measureFull({ body, serialized })).toEqual({
+        kind: 'estimated',
+        tokens: textTokens + 2458,
+      })
+      const { messages, ...envelope } = body
+      const emptyTokens = getEncoding('o200k_base').encode(
+        writeJsonLossless({ ...envelope, messages: [] }),
+      ).length
+      const contribution = meter.measureNew({ units: messages, envelope, precedingUnitCount: 2 })
+      if (!('tokens' in contribution)) throw new Error('expected available delta')
+      expect(ExactDecimal.from(contribution.tokens).toString()).toBe(
+        String(textTokens + 2458 - emptyTokens),
+      )
+      expect(writeJsonLossless(body)).toBe(serialized)
+      expect(() =>
+        createOpenAiInputMeter({
+          ...definition(modelId),
+          revision: '5',
+          implementation: { name: 'pi-ai:openai', revision: 'mp4-11' },
+        }),
+      ).toThrow(TypeError)
+    },
+  )
 
   it('estimates full multi-turn, developer, tools, results and reasoning contribution', () => {
     const modelId = baseModel
