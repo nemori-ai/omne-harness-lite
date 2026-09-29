@@ -403,3 +403,5 @@ G3 修订：本轮选定runtime私有无GC耐久内容行，引用与尚可能�
 覆盖缺口：A22-G1为本批语义/技术接受，owner主线；A22-G2为S-99⑧/G-42新处分暂存接缝独立复评与真实恢复，owner结算写方/Storage及主线；A22-G3为S-95/S-98/S-102真实ack资格、停止/唯一恢复与实际启用外部配对保留，owner访问/宿主/外引用提供者；A22-G4为本表实际实现/验收，owner runtime/Storage/消息写方及独立验收。缺外域来源只阻依赖路径，inline/noRun不因未来平台阻塞。没有本批正式Session/Run assembly，示例仅承担其真实本地绑定。
 
 实际执行：2026-09-29，以本工作树 `.venv/bin/python` 运行 `check_design.py --root .meta_harness/design --formal registered`，exit 0，实际输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/.meta_harness/design passed gate=internal; formal=registered.`；`git diff --check` exit 0。七份最终接口输入均与固定摘要一致。本轮未执行上述行为测试或模型，formal=registered 仅核登记。原 bindings 保持原范围，不登记计划证据或空占位。
+
+A22补充反控：删除已释放Content后再分配，仍不得复用相同CallKey+分配序号/locator/version（不能只依已删行的唯一索引）；丢弃永久小分配依据的实现必须失败。合法tailChanged后重构late，在新append可能产生效果之前，原临时工作存储须先耐久替换为实际将追加的完整批；以旧暂存批恢复新已发批的实现必须失败。

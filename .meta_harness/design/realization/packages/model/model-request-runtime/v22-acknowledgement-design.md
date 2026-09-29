@@ -1,6 +1,6 @@
 # ACK 与模型副本的确认释放
 
-2026-09-29，revision 1，**candidate，未接受、未技术采用、未实现验收**。节点及已有源码仍是 `packages/model/model-request-runtime`。本页扩展现 P-2 `modelRuntime`、ModelCallHost、调用容器、共同 codec 和结算协调器，不建立新 provider、通用内容/GC 平台或正式 Session/Run。
+2026-09-29，revision 2，**candidate，未接受、未技术采用、未实现验收**。节点及已有源码仍是 `packages/model/model-request-runtime`。本页扩展现 P-2 `modelRuntime`、ModelCallHost、调用容器、共同 codec 和结算协调器，不建立新 provider、通用内容/GC 平台或正式 Session/Run。
 
 ## 输入、状态与实现路径
 
@@ -79,7 +79,7 @@ pendingReasons 在运行时强制非空、去重且只来自当前真实阻碍�
 
 候选 `ModelCallRetention(tenant,session,callId)` 是**所有模型副本读取、旧发布者、确认准备与删除共同触碰的存储对象**；包括 generation、保管 phase（retained/retiring/acknowledged/released）、ACK task/batch 定位、精确 releasablePayloads、创建语义摘要/最小 origin/target、实际许可集合和清理进度。它不另定义执行终态或 ACK 事实；ACK 权威仍是原 Session 日志。
 
-候选 `ModelCallContent` 在 v20 私有行上增加明确 call ownership，保持 locator/version/kind/digest/原 bytes 不可变。复合唯一约束阻止已用版本再分配；每条内容和许可引用同一 retention 主键，删除语句限定完整 tenant/session/callId/locator/version/digest，不按 Session 前缀扫删。需要拆许可行时，候选 `ModelCallRetentionUse` 只存 useId、ownerGeneration、kind=read/publish、真实任务关联与状态；其外键/事务域归同包同 Storage。不是依靠进程 Map 计数的另一套锁。
+候选 `ModelCallContent` 在 v20 私有行上增加明确 call ownership，保持 locator/version/kind/digest/原 bytes 不可变。现存Content复合唯一约束只防同时冲突，不承担删除后的历史不复用。分配身份必须含不可复用CallKey及该retention行中只增不减的分配序号；分配计数的推进与新Content创建在同一Storage事务，ACK清理不删除该小计数/原精确清单，不回退或重绑旧序号。locator/version是该身份的稳定投影，历史身份即使payload删除也不可再次分配；每条内容和许可引用同一 retention 主键，删除语句限定完整 tenant/session/callId/locator/version/digest，不按 Session 前缀扫删。需要拆许可行时，候选 `ModelCallRetentionUse` 只存 useId、ownerGeneration、kind=read/publish、真实任务关联与状态；其外键/事务域归同包同 Storage。不是依靠进程 Map 计数的另一套锁。
 
 每个准入操作在 Storage.write 内先锁已有 retention 行；首次建立用显式 sentinel 或唯一插入冲突认回，不能对不存在的行调用 lockRow 后假称已锁。phase 与 generation 核准后才登记精确许可；清理也在相同行锁下判准入与许可。SQL 事务不跨网络、JSONL append 或 consumer 业务处理长持；外部在途期间由**已提交的许可记录**阻止删除。
 
