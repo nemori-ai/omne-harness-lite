@@ -215,7 +215,7 @@ export type ModelResponseRejection =
 export type ModelResponseJudgment =
   { readonly ok: true } | { readonly rejected: ModelResponseRejection }
 
-/** MR9 S-41: versioned counting identity; the adapter owns actual compatibility. */
+/** MR10 S-41: versioned counting identity; the adapter owns actual compatibility. */
 export interface CountingBasis {
   readonly binding: ModelAdaptationBinding
   readonly model: string

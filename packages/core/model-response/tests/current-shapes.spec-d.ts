@@ -245,7 +245,7 @@ it('TYPE-S13: seven conditions and seven forbidden combinations', () => {
   expectTypeOf(emptyDrops).toEqualTypeOf<Route>()
 })
 
-it('MR9 types preserve ordered mixed headers', () => {
+it('MR10 types preserve ordered mixed headers', () => {
   const headers: RawHeaders = { one: 'a,b', many: ['second', 'first', 'first', ''], empty: [] }
   const raw: RawResponse = { headers }
   expectTypeOf(raw).toExtend<RawResponse>()

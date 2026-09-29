@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-Pure MR9 response representation and ordered judgments. A `ModelResponse` records one confirmed durable dispatch responsibility, including its immutable route and profile snapshot, outcome, timing, reply or delivered partial content, actual usage, cost, and optional raw response reference. A persisted `interrupted` response can explicitly carry `timing.sentAt: null` when the actual send time is unavailable; this does not assert that no request was sent. `PendingModelResponse` is the complete reply fact passed to a message writer before that writer decides whether the reply became a message and whether the record is late. Every pending reply requires an actual send time. Neither judgment sends a request or persists a record.
+Pure MR10 response representation and ordered judgments. A `ModelResponse` records one confirmed durable dispatch responsibility, including its immutable route and profile snapshot, outcome, timing, reply or delivered partial content, actual usage, cost, and optional raw response reference. A persisted `interrupted` response can explicitly carry `timing.sentAt: null` when the actual send time is unavailable; this does not assert that no request was sent. `PendingModelResponse` is the complete reply fact passed to a message writer before that writer decides whether the reply became a message and whether the record is late. Every pending reply requires an actual send time. Neither judgment sends a request or persists a record.
 
 This is a private ESM workspace package. Its current public entries are the package root and `./schema`. Historical response versions have no executable package entry. Incompatible stored values fail admission; the package never fills their missing fields from a current model directory.
 
@@ -16,6 +16,7 @@ import {
   copyInputCalibration,
   judgeModelResponse,
   judgePendingModelResponse,
+  judgeResponseFinalization,
   validate,
 } from '@omne-harness-lite/model-response'
 
@@ -120,6 +121,15 @@ assert.equal(validate('ModelResponse', pending).valid, false)
 // The message writer supplies this fact only after its own commit decision.
 const persisted = { ...pending, replyDisposition: 'persisted' }
 assert.deepEqual(judgeModelResponse(persisted), { ok: true })
+assert.deepEqual(judgeResponseFinalization(pending, persisted), { ok: true })
+assert.deepEqual(
+  judgeResponseFinalization(pending, { ...persisted, cost: { cost_usd: 0, source: 'upstream_usage' } }),
+  { rejected: 'malformed' },
+)
+assert.deepEqual(
+  judgeResponseFinalization(pending, { ...persisted, reply: { ...pending.reply, createdAt: '2026-09-28T10:00:03Z' } }),
+  { rejected: 'malformed' },
+)
 assert.deepEqual(persisted.raw.headers['x-example'], ['first', 'first', ''])
 
 // A separate recovery-shaped value illustrates the representation only. The writer must
@@ -147,6 +157,11 @@ const recovered = {
   },
 }
 assert.deepEqual(judgeModelResponse(recovered), { ok: true })
+assert.equal(recovered.cost.cost_usd, 'unknown')
+assert.deepEqual(
+  judgeModelResponse({ ...recovered, cost: { cost_usd: 0, source: 'none' } }),
+  { rejected: 'malformed' },
+)
 
 const independentOutput = {
   ...pending,
@@ -167,9 +182,9 @@ assert.deepEqual(
 )
 ```
 
-`validate(defName, value)` checks one of the 25 MR9 JSON Schema definitions and returns `{ valid: boolean }`. `judgeModelResponse(value)` and `judgePendingModelResponse(value)` return `{ ok: true }` or `{ rejected: reason }` with the MR9 S-27 rejection order. They preserve exact JSON numbers and never mutate input. A valid representation does not prove the dispatch, time provenance, actual usage, reply commit, or durability; those guarantees belong to the runtime and writer.
+`validate(defName, value)` checks one of the 25 MR10 JSON Schema definitions and returns `{ valid: boolean }`. `judgeModelResponse(value)` and `judgePendingModelResponse(value)` return `{ ok: true }` or `{ rejected: reason }` with the MR10 S-27 rejection order. They preserve exact JSON numbers and never mutate input. A valid representation does not prove the dispatch, time provenance, actual usage, reply commit, or durability; those guarantees belong to the runtime and writer.
 
-MR9's schema compiles against a fixed transitive set of 22 normative resources supplied through the owning packages' public schema entries, including the exact model-profile v5 dependency. Missing or incorrect resources make package initialization fail clearly. The accepted contract is [MR9](../../../.meta_harness/design/spec/data/model-response/v9/contract.md); the adopted provider mapping is [model-response v9](../../../.meta_harness/design/realization/packages/core/model-response/v9-usage-calibration-design.md).
+MR10's schema compiles against its fixed transitive normative resource graph through public schema entries: CA2/CA3, MS2/MS3/MS6/MS7, MP2/MP5/MP6, and the other exact reachable dependencies each retain their own original `$id`. Missing or incorrect resources make package initialization fail clearly. The accepted contract is [MR10](../../../.meta_harness/design/spec/data/model-response/v10/contract.md); the adopted provider mapping is [model-response v10](../../../.meta_harness/design/realization/packages/core/model-response/v10-reference-result-design.md).
 
 ## Input calibration values
 
@@ -180,3 +195,9 @@ The example's repeated-digit digests and revision labels are illustrative values
 `copyInputCalibration(value)` returns `{ ok: InputCalibration }` or `{ rejected: 'malformed' }`. It rejects getters without running them, cycles, non-JSON members, invalid shapes, and conflicting local projection revisions. Success returns an independent, deeply frozen, lossless snapshot; it does not certify route/usage relations, digest contents, or upstream provenance.
 
 `validate` remains Schema-only. The two judges additionally compare the complete adaptation binding, projection revisions, observed route facts, exact input-component sums, and output source/block count, after the existing named rejection checks. A fragment can pass `copyInputCalibration` while its enclosing response fails judgment. Neither operation reads historical logs, calls a tokenizer, or persists calibration. The runtime owns authorization and atomic response/reply persistence; older values missing this field are rejected without backfill.
+
+## Preserve the original response through finalization
+
+`judgeResponseFinalization(pending, final)` first owns and fully judges the complete Pending, then owns and judges final, preserving each S-27 rejection order. Only final's top-level `replyDisposition` and `late` are removed for comparison. Every other JSON value must be exactly equal, including original reply derivations, usage/cost, raw references, header order and input calibration. Object key order and equal numeric spellings do not matter; array order, duplicates, absence and exact decimal differences do. The result is the existing frozen judgment, and input is unchanged.
+
+Pending can be retained as immutable content under S-46; it is still not a final response. This helper certifies neither bytes, source, authorization, durable publication nor cost selection. It never queries a provider or meter, recomputes original digests, or fills unknown amounts. A first persisted message's permitted rendering/transcript additions belong to the unique `judgeModelReplyMessage` in messages; final.reply itself remains original. The runtime/writer composes both judgments with actual source and permission checks and commits the original batch. [D-110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md) adopts this version; actual runtime/storage combination remains a separate verification obligation.

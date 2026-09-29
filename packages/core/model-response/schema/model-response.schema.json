@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v9/model-response.schema.json",
-  "title": "data.model-response v9",
-  "description": "已确认请求责任的完整响应记录：回复（若有）、已交付部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序及上游原始响应的引用。每份已确认责任恰好留一条，含锚点后发送前取消；记录存在不证明实际发送。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v9 内有效。",
-  "$comment": "MR8 candidate：interrupted 持久响应可显式 sentAt:null；真实锚点与事实来源由写入者证明。PendingModelResponse 必须实际 sentAt。其余约束与精确依赖沿 MR7。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v10/model-response.schema.json",
+  "title": "data.model-response v10",
+  "description": "已确认请求责任的完整响应记录：回复（若有）、已交付部分、用量与费用、路由留痕、收场、故障成因与原样状态码、时序及上游原始响应的引用。每份已确认责任恰好留一条，含锚点后发送前取消；记录存在不证明实际发送。根模式约束一条 ModelResponse。条款编号 S-n 指同目录的 contract.md，仅在 data.model-response/v10 内有效。",
+  "$comment": "MR10 candidate：根为最终ModelResponse；PendingModelResponse仅可在指定ready不可变内容角色保存，禁止disposition/late。形状保留MR9；来源、真实字节和发布责任由写方验证。",
   "$ref": "#/$defs/ModelResponse",
   "$defs": {
     "ResponseId": {
@@ -18,17 +18,17 @@
       ]
     },
     "RunId": {
-      "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/RunId",
+      "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/RunId",
       "title": "运行标识（contract.md S-7）",
       "description": "这次调用所属的那次运行（UL-run）。定义的家在 data.call-accounts/v2（它按尝试记明细、按 Run 汇总本就需要）；本契约只引用。"
     },
     "AttemptId": {
-      "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/AttemptId",
+      "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/AttemptId",
       "title": "执行尝试序号（contract.md S-7）",
-      "description": "这一次发出在它那次运行的第几次执行尝试里出门，整数、从 1 起；与 call.runId 合起来才是一次尝试的身份（UL-run-attempt：身份是 (哪次运行, 第几次)，不另存一份）。它属于每一次发出，不属于调用——一次调用可以跨尝试（S-8）。它是出门所在尝试的事实，不是这笔账的归属：归属的权威是承载本条的记录条目（data.call-accounts/v2#S-25）。定义的家在 data.call-accounts/v2；本契约只引用。"
+      "description": "这一次发出在它那次运行的第几次执行尝试里出门，整数、从 1 起；与 call.runId 合起来才是一次尝试的身份（UL-run-attempt：身份是 (哪次运行, 第几次)，不另存一份）。它属于每一次发出，不属于调用——一次调用可以跨尝试（S-8）。它是出门所在尝试的事实，不是这笔账的归属：归属的权威是承载本条的记录条目（data.call-accounts/v3#S-25）。定义的家在 data.call-accounts/v2；本契约只引用。"
     },
     "ModelCallId": {
-      "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/ModelCallId",
+      "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/ModelCallId",
       "title": "模型调用标识（contract.md S-7）",
       "description": "这条响应体属于哪一次模型调用（UL-model-call）。定义的家在 data.call-accounts/v2；本契约只引用。它不是工具调用的 CallId。"
     },
@@ -171,7 +171,7 @@
     },
     "CredentialScope": {
       "title": "这一次发出用的凭据在哪一格（contract.md S-9）",
-      "description": "factory：出厂格那一把，由部署装配配置，只供官方档案（S-9）；否则是租户格，取 data.identity-values 的 ScopeLayerIdentity 的租户那一支。模型凭据只在租户层与出厂格（PF-013 rev 10 裁决 33），没有组织那一支。用量记在这一格头上（data.call-accounts/v2#S-38）。它不是凭据本身，也不是凭据的引用。",
+      "description": "factory：出厂格那一把，由部署装配配置，只供官方档案（S-9）；否则是租户格，取 data.identity-values 的 ScopeLayerIdentity 的租户那一支。模型凭据只在租户层与出厂格（PF-013 rev 10 裁决 33），没有组织那一支。用量记在这一格头上（data.call-accounts/v3#S-38）。它不是凭据本身，也不是凭据的引用。",
       "$comment": "ScopeLayerIdentity 刻意不含出厂那一格（identity-values S-11），所以本契约在它之外加一支 {layer: factory}，不带身份值；token factory 与 data.asset-model HoldingScope.layer 同词。租户那一支 $ref ScopeLayerIdentity 再把 layer 限为 tenant，形状仍归 identity-values，不另写一份。",
       "oneOf": [
         {
@@ -482,7 +482,7 @@
         },
         "late": {
           "const": true,
-          "description": "这一条写下时，这一次发出所在的那次尝试已被栅栏关掉——被新的一次尝试取代，或它所在的运行已经终结（S-35，data.call-accounts/v2#S-39）。只取 true；缺席即不晚。只在带 call.runId 的那一条上出现。",
+          "description": "这一条写下时，这一次发出所在的那次尝试已被栅栏关掉——被新的一次尝试取代，或它所在的运行已经终结（S-35，data.call-accounts/v3#S-39）。只取 true；缺席即不晚。只在带 call.runId 的那一条上出现。",
           "$comment": "不是 true（含 false）：malformed。出现在不带 call.runId 的那一条上：malformed（allOf 里标 malformed 的一支）。"
         },
         "route": {
@@ -505,7 +505,7 @@
           "description": "上游原样的 finish / stop reason，不翻译；上游没给时缺席。消费者不得据它推断收场，收场只看 outcome（S-12）。"
         },
         "reply": {
-          "$ref": "../../messages/v6/messages.schema.json#/$defs/AssistantMessage",
+          "$ref": "../../messages/v7/messages.schema.json#/$defs/AssistantMessage",
           "description": "这一次拿回来的那份回复（S-14）。它成没成为消息看 replyDisposition。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
         },
         "replyDisposition": {
@@ -526,13 +526,13 @@
           "$ref": "#/$defs/Timing"
         },
         "usage": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Usage"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/Usage"
         },
         "cost": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Cost"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/Cost"
         },
         "trims": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/TrimSummary",
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/TrimSummary",
           "description": "这一次发出的流上合并与截掉的汇总（S-19）。缺席即一次也没砍；全零的汇总不是合法写法。",
           "$comment": "全零即没砍，只有缺席这一种写法：四个计数里至少一个大于零（截短单个增量只计在 byReason.frame_too_long 与 omittedBytes 里，不计 merged、cut）。",
           "anyOf": [
@@ -1286,7 +1286,7 @@
           "description": "上游原样的 finish / stop reason，不翻译；上游没给时缺席。消费者不得据它推断收场，收场只看 outcome（S-12）。"
         },
         "reply": {
-          "$ref": "../../messages/v6/messages.schema.json#/$defs/AssistantMessage",
+          "$ref": "../../messages/v7/messages.schema.json#/$defs/AssistantMessage",
           "description": "这一次拿回来的那份回复（S-14）。它成没成为消息看 replyDisposition。它的 response 成员必须等于本响应体的 id（跨字段，Schema 不管）。"
         },
         "delivered": {
@@ -1315,13 +1315,13 @@
           ]
         },
         "usage": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Usage"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/Usage"
         },
         "cost": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/Cost"
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/Cost"
         },
         "trims": {
-          "$ref": "../../call-accounts/v2/call-accounts.schema.json#/$defs/TrimSummary",
+          "$ref": "../../call-accounts/v3/call-accounts.schema.json#/$defs/TrimSummary",
           "description": "这一次发出的流上合并与截掉的汇总（S-19）。缺席即一次也没砍；全零的汇总不是合法写法。",
           "$comment": "全零即没砍，只有缺席这一种写法：四个计数里至少一个大于零（截短单个增量只计在 byReason.frame_too_long 与 omittedBytes 里，不计 merged、cut）。",
           "anyOf": [

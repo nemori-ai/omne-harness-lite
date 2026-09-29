@@ -22,7 +22,7 @@ function object(value: unknown): JsonObject {
 const decoded = readJsonStrict(
   readFileSync(
     new URL(
-      '../../../../.meta_harness/design/spec/data/model-response/v9/examples.json',
+      '../../../../.meta_harness/design/spec/data/model-response/v10/examples.json',
       import.meta.url,
     ),
     'utf8',
@@ -50,7 +50,7 @@ function without(value: JsonObject, name: string): JsonObject {
   return Object.fromEntries(Object.entries(value).filter(([key]) => key !== name))
 }
 
-describe('MR9 calibration representation and relations', () => {
+describe('MR10 calibration representation and relations', () => {
   it('accepts exactly the unavailable vocabularies without defaulting missing reasons', () => {
     const value = sample()
     for (const [member, reasons] of [

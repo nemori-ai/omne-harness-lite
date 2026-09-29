@@ -35,7 +35,7 @@ export function copyInputCalibration(
   return Object.freeze({ ok: copied as unknown as InputCalibration })
 }
 
-/** MR9 S-44: called only after member shape and the existing named rejection checks. */
+/** MR10 S-44: called only after member shape and the existing named rejection checks. */
 export function calibrationRelationsValid(value: JsonObject): boolean {
   const calibration = value.inputCalibration
   const route = value.route

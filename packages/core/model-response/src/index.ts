@@ -6,6 +6,10 @@ export {
   type SchemaValidation,
   validate,
 } from './schema.ts'
-export { judgeModelResponse, judgePendingModelResponse } from './judge.ts'
+export {
+  judgeModelResponse,
+  judgePendingModelResponse,
+  judgeResponseFinalization,
+} from './judge.ts'
 
 export { copyInputCalibration } from './input-calibration.ts'
