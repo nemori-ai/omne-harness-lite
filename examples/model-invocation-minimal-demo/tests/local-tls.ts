@@ -25,6 +25,7 @@ export async function createLocalTls(
   model: string | ((body: unknown) => string) = MODEL,
   finalUsageJson?: string,
   provider: string = 'DeepInfra',
+  reasoningDetails?: readonly unknown[],
 ) {
   await mkdir(directory, { mode: 0o700 })
   const key = join(directory, 'local-key.pem'),
@@ -96,7 +97,7 @@ export async function createLocalTls(
       }
       if (mode === 'reasoning')
         res.write(
-          `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: 'private reasoning' }, finish_reason: null }] })}\n\n`,
+          `data: ${JSON.stringify({ choices: [{ delta: reasoningDetails === undefined ? { reasoning_content: 'private reasoning' } : { reasoning_details: reasoningDetails }, finish_reason: null }] })}\n\n`,
         )
       res.write(
         `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider, choices: [{ delta: { role: 'assistant', content: 'first ' }, finish_reason: null }] })}\n\n`,
