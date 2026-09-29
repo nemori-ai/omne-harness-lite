@@ -14,6 +14,7 @@ import {
   type ModelObserverRequest,
   type DispatchResult,
   type OpenCallResult,
+  type OpenCallRun,
   type RuntimeConstruction,
   type SessionRuntimeBinding,
   type ModelObserverEndpoint,
@@ -24,6 +25,7 @@ import {
   type SessionModelSelection,
   type SessionModelSelectionInput,
   type SettlementLogBinding,
+  type RunHistoryReader,
   type SessionSelectModelResult,
   type LegalTargetsResult,
   type SessionEffectiveModelResult,
@@ -438,7 +440,7 @@ export interface AcceptanceApplication {
   startServiceCall(
     actor: AuthenticatedActor,
     session: unknown,
-    request: {
+    request: OpenCallRun & {
       readonly callId?: unknown
       readonly user: UserMessage
       readonly tools?: readonly ModelToolName[]
@@ -483,6 +485,8 @@ export function createAcceptanceApplication(
     readonly coldRecovery?: { readonly covered: boolean }
     /** Only a trusted external execution owner may lend Run, log and environment facts. */
     readonly runnerExternal?: DemoRunnerServiceHostDependencies['external']
+    /** Trusted Run owner interprets both terminal axes from the supplied owned prefix. */
+    readonly runHistory?: RunHistoryReader
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
@@ -1485,7 +1489,7 @@ export function createAcceptanceApplication(
               call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
               failure: readDemoRunnerFailure,
               calibration: readDemoCalibrationHistory,
-              run: () => ({ unavailable: true }),
+              run: options.runHistory ?? (() => ({ unavailable: true })),
             },
             reservationWaitPolicy: deployment.reservationWaitPolicy,
             recovery: {
@@ -2384,7 +2388,7 @@ export function createAcceptanceApplication(
   function startServiceCall(
     actor: AuthenticatedActor,
     session: unknown,
-    request: {
+    request: OpenCallRun & {
       readonly callId?: unknown
       readonly user: UserMessage
       readonly tools?: readonly ModelToolName[]
@@ -2470,6 +2474,9 @@ export function createAcceptanceApplication(
         tools,
         host: request.host,
         ...(request.observer === undefined ? {} : { observer: request.observer }),
+        ...(request.run === undefined
+          ? {}
+          : { run: request.run, attempt: request.attempt, report: request.report }),
       })
       if ('callId' in opened) retainCall(borrow.binding.session, opened.callId)
       if (!('state' in opened) || (opened.state !== 'open' && opened.state !== 'resumable'))
