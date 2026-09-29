@@ -49,6 +49,14 @@
 
 **Anthropic 域**：provider 精确 anthropic、同一模型、完整 `anthropic-claude-v1` 序列；signed reasoning.text 含非空 signature，encrypted 含非空 data。已支持的合法未知成员仍原样保留，未知 format 不进入估算域。四叶使用相同组算法；原生 keep-all 仅支持相关性，不证明 OR 净修正为零。Opus5.5/Fable5.1 必须能用原 requestInput 的已知源与前缀边界/摘要、当前实际投影，确认该组之前 system/tools/messages 的签名前缀未改变；只比较最新 user 或 model ID 不够。缺原 requestInput/source/prefix 明确 unavailable，不合成。其它两叶仍要求原完整组、同模型及当前组合满足现有追加/重算规则，不建立跨模型或修改签名回放的许可。
 
+## 原 signed prefix 的包内承接
+
+当前 new 输入只有 N，φ 只有目标组，不能从它们重建 P。planner 在来源校验通过、最终 projection 固定后，为需要强前缀的原组计算当前同 boundary 的 prefixDigest、inputEnvelopeDigest、projectionRevision 和所选组绝对位置；必须核 boundary 非负安全整数、不超当前长度且不越过该组起点。对原已知 requestInput 比较这些事实，不使用 caller 的“已验证”布尔，不把 basis relation 当作 prefix relation。
+
+本候选采用请求局部包内能力：共享 helper 由实际完整 projection 建立只读事实，使用 private WeakMap 以**本次最终冻结的 meter input 对象身份**关联；在同步 measure 调用前安装，finally 删除，不导出 package 公共入口，不存在跨请求全局 current slot。full 可直接从自有完整 projection 核验；new/φ 由上述同一事实计算函数承接，重入/并行的输入互不替代。事实仅含派生摘要与索引，不把 P 内容交给增量 tokenizer。planner 不能以传入摘要直接填表，原事实始终来自当前实际 projection。若实现 wrapper 复制 input，必须在最终传入对象处关联，不能失配后退化为信任。
+
+独立调用 InputMeter 的 new/φ 没有该局部能力时，对需要 signed prefix 的组返回 unavailable；公开 invoke 与 Cordis service 都由 planner 建立它，因此能力相同。该局部能力只证明当前投影上下文，仍须原 source/摘要/完整组检查；无原 requestInput 仍 unavailable。无公开 DTO、持久字段或新服务。实施验收加入：伪造同形 input、跨请求复用、throw 后清理、同步重入、不同 prefix 同 N、边界越过组、原事实缺席全部不能取得错误 prefix 通过。
+
 ## ND-G2：last_message 纯图末端
 
 官方四叶现有配置只声明 `ttlValues:['1h']`、`breakpointLayouts:[['last_message']]`，本候选不扩大 TTL 或 layout 供给。TTL 必须从通过该 binding 校验的配置读取；wire 不填默认值、不依环境变量或写死 1h。普通有效 text、图文、tool-text 路径仍使用现有块标记。
@@ -65,7 +73,7 @@ refusal 历史按现有 D108 文本映射；refusal 不创造缓存目标或 sig
 
 ## 施工与接受义务
 
-独立层次：共享输出组构件先固定内部接口；OpenAI/Anthropic 各自填有限记录与参数；cache planner/projection 同一 owner 修改；公开 invoke 与 service 复用它们。不得各家复制 whole-group helper。各实现提交列出实际改动 source hash、目标 definition/implementation/meter/projection revision；不留旧版执行兼容桥。包 README/README_ZH 同步解释 estimated、不可用范围、显式配置和直接函数用法。
+独立层次：共享输出组构件先固定内部接口；OpenAI/Anthropic 各自填有限记录与参数；cache planner/projection 同一 owner 修改；公开 invoke 与 service 复用它们。不得各家复制 whole-group helper。本次必须提交可删除/合并函数清单和实际删除 diff：将 openai-output-history.ts 的 coveredUnits/fullOpenAi56History/newOpenAi56History 中通用遍历、覆盖和计量组合移到唯一共享实现；openai-replay.ts 的完整 selection/source/O/实际单元校验抽为同一核，家族仅保留 format/provider/mode/prefix/有限记录；家族原有局部 basis 比较删除并调用 C relation。usage-scope.ts 的旧执行配置提升 current Pro 为 inherited_context_total 的过渡分支删除，当前六 Pro 坚持 unknown；合法已保存的原 O 解释表保留，不误删为兼容层。必须移除被替代旧函数及死入口，不能只叠加新 helper。参数化正反测试覆盖全部 16 叶（含三旧 GPT56 非 Pro），并证明 full/φ/δ 只调用一个贡献源。各实现提交列出实际改动 source hash、目标 definition/implementation/meter/projection revision；不留旧版执行兼容桥。包 README/README_ZH 同步解释 estimated、不可用范围、显式配置和直接函数用法。
 
 | 编号 | 必须新增的可失败验收 | 通过条件 / 不能冒用 |
 | --- | --- | --- |
@@ -79,3 +87,5 @@ refusal 历史按现有 D108 文本映射；refusal 不创造缓存目标或 sig
 | PF8 | 不变行为的证据复用清单 | 精确旧源码/绑定/请求证据及无影响分析可复用；新 meter/wire 行为必须新验，旧收据不能改标签；GPT56 非 Pro 与 refusal/提醒回归按实际变更范围 |
 
 PF6/PF7 的 paid 许可和真实费用仍由主线既有政策管理；它们阻止相关正式认证，不能阻止无凭据实现/工程验证。没有新有限状态机、跨 owner 同 commit 或持久关系，故不新增 TLA/Alloy 模型；原 RT10 的失效与来源不变量照旧，新增有限适用关系、互斥覆盖、去重和加总用参数化正反测试验证。该理由不声称现有 TLA 证明了估计误差、OR 转换或签名算法。
+
+其余六厂商可复用研究→能力/证据矩阵→共享机制/厂商策略/型号窄记录→真实契约差异采用→离线及真实 public/service 差分验证的流程。不可直接推广本候选尚待实测的 O 代理、缓存映射、tokenizer 或签名前提；本次不扩其余六家施工范围。
