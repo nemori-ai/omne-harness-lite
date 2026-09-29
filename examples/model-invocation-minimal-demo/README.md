@@ -188,7 +188,7 @@ The dedicated `tests/openai-pro-images-service.spec.ts` check exercises the thre
 Programmatic deployment override using the existing configuration API (choose finite budgets for your own workload):
 
 ```ts
-// config is the result of createDemoConfig(...).
+// config is the result of createDemoConfig(...); diagnostics is your existing sink.
 if (!config.modelRequest) throw new Error('model request deployment required')
 const modelRequest = config.modelRequest
 const imageConfig = {
@@ -208,7 +208,10 @@ const imageConfig = {
     },
   },
 }
-const app = createAcceptanceApplication(imageConfig, { stage: 'modelRequest' })
+const app = createAcceptanceApplication(imageConfig, {
+  stage: 'modelRequest',
+  diagnostics,
+})
 ```
 
 `tests/openai-output-history-service.spec.ts` checks three GPT-5.6 non-Pro models through three durable local TLS turns: a middle reply has known O and unknown input usage; the next turn either reuses an older input anchor or changes its envelope and fully measures both retained groups. Run `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-output-history-service.spec.ts --maxWorkers=1`. Actual usage/cost and ciphertext stay unchanged; O+0 is an estimate, not an upstream accounting identity.

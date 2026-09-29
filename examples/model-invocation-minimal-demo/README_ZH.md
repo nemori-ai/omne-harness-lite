@@ -184,7 +184,7 @@ pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run t
 沿现有配置接口覆盖程序化部署预算（按自己的负载选择有限值）：
 
 ```ts
-// config is the result of createDemoConfig(...).
+// config 来自 createDemoConfig(...)；diagnostics 是已有的诊断记录器。
 if (!config.modelRequest) throw new Error('model request deployment required')
 const modelRequest = config.modelRequest
 const imageConfig = {
@@ -204,7 +204,10 @@ const imageConfig = {
     },
   },
 }
-const app = createAcceptanceApplication(imageConfig, { stage: 'modelRequest' })
+const app = createAcceptanceApplication(imageConfig, {
+  stage: 'modelRequest',
+  diagnostics,
+})
 ```
 
 `tests/openai-output-history-service.spec.ts` 对三个 GPT-5.6 非 Pro 型号做三轮持久本机 TLS：中间回复保留已知 O、输入用量未知，下一轮分别复用更早输入锚或改变 envelope 后全量覆盖两个历史组。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-output-history-service.spec.ts --maxWorkers=1`。上游原 usage/cost 与密文不改；O+0 是估算，不是上游计量等式。
