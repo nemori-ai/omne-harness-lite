@@ -2,6 +2,12 @@
 
 # pi-ai-transport
 
+## v13 多个历史输出组候选（2026-09-29）
+
+[v13-output-history-design.md revision 1](v13-output-history-design.md) 补 full/δ 的显式历史输出事实与同一投影上的覆盖分配，复用 runtime 唯一组类型和既有 full/φ/δ。**语义接受**：MR9/RT10 沿 D-107 已接受；**可实施**：本新增绑定方案尚待联合审查及主线采用，不放行迁移；**绑定证据**：新增 0，既有 bindings 不重标；**实际验证**：本增量尚无实现验收。原 I 不可用不抹原 O；原输出到当前输入的适用依据仍须由固定模型贡献说明。[H13 验证与缺口](verification.md#h13-多个历史输出组候选) 区分来源/覆盖测试、逐模型事实和有限 TLA 未覆盖的组映射，不把接口齐备当模型完成。
+
+本候选只阻本次多组交接迁移，已采用的普通单 φ 路径继续按 D-107 实施；当前没有需 MR9/RT10 升版的语义冲突。历史 v12 起草状态不代表其现行采用状态，精确采用范围以 D-107 为准。
+
 ## v12 响应校准增量候选（2026-09-29）
 
 [v12-usage-calibration-design.md revision 2](v12-usage-calibration-design.md) 映射 MR9/RT10 的 reader 同次观察交接、固定投影与 basis、公开 full/φ/δ 组合及原 lease；没有新服务或存储。revision 2 针对独立评审 B1，将 Anthropic 精确缓存元数据从 input-bearing 投影排除、非空 assistant/tool 文本从首轮使用稳定合法 wire 数组；完整发送字节/图片门不变，未知字段与真实内容变化不豁免。**语义接受：无**（两份契约 candidate）；**可实施：修订候选待独立复评、采用与接口整批迁移**；**新增绑定：0**（既有 bindings 不改标签）；**实际验证：本增量尚无**。现有全量 InputMeter/reader 不能算已兑现此增量。

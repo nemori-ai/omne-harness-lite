@@ -291,3 +291,30 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 ## 2026-09-29 Fable 5.1 生产路径有限验证
 
 [实际生产公开调用／三轮service／响应校准](../../../../record/evidence/2026-09-29-tests-fable-production-invocation/README.md)：固定Anthropic路由，full→marginal→marginal、物理[M,R]同批和真实关闭；7笔全部结清，含两次截断原结果。只验证本次文本/low场景，cache命中、TTL及全部模态/模型认证未由此关闭。
+
+## H13 多个历史输出组候选
+
+对象为 [v13 revision 1](v13-output-history-design.md)，精确消费 D-107 已接受 MR9/RT10 与 runtime v19 候选唯一账本。**本节均为待执行义务，新增绑定 0**；本次文档检查不证明源码、模型或上游已兑现。
+
+| 编号／条款 | 正向、反例与必须失败的负控 | owner／受阻消费者 |
+|---|---|---|
+| H13-V1：MR9 S-43/S-44；RT10 S-79 | 独立 public 的多组原 blocks/usage/origin 显式输入；requestInput unavailable/outputGroup known 保留 O；缺 outputHistory/坏形状/未知成员、错摘要、越界或原事实矛盾拒绝。runtime/transport ownPlanInput 与缺限额前检均显式 copy；修改 caller 嵌套原对象不改变已拥有快照，大整数及缺席不丢失。独立 full/φ/δ 入口也核本口可判关系，不能只验 planner；同一可判坏组经 planner 返回 malformed，经独立 full 返回 unavailable，经独立 φ/δ 返回 invalidInput，三者均不得成功计量。未知旧投影版本只判依据不足，不冒判摘要错误 | runtime copy＋transport projection；public/full/δ |
+| H13-V2：MR9 S-43；RT10 S-78 | 重复 target、跨组目标重叠、锚/history 同目标异源明确拒绝；同内容不同原块、不同块共享合法 message span 不误拒。重复 source、partial、删选或重排不能自动消费一次完整 aggregate；未知旧编码不凭相同 hash 通过 | transport；覆盖分配与各 meter |
+| H13-V3：RT10 S-77/S-78 | 两个以上旧 opaque 组在 full 用有据映射覆盖；收到实际完整 I 后下一轮 marginal，旧组全部落 P 且原 O 不再次加入。移除排除逻辑导致数值多加的负控必须失败 | transport/家族 owner；全量重锚与增量 |
+| H13-V4：RT10 S-78/S-80 | 较早准确 I 锚＋中间 I unavailable/O known＋新 user：中间组交 δ，全新增覆盖；稳定 P tokenizer 访问零。跨 P/G/N 不得拆 aggregate；共享 framing 只计一次。删掉中间组计数、把锚组同时交 φ/δ 的负控必须失败 | transport＋runtime；普通多轮/缺统计后续 |
+| H13-V5：RT10 S-77/S-79；MR9 S-43 | full/φ/δ 独立导入不建 Context、不读日志/环境/网络；已知旧 binding/mode 到当前依据映射可用；换模型/tokenizer/mode 后无证明不能用原 O；requestInput unavailable 不以当前 route 补原 origin | 逐家族 meter owner；public 和 service |
+| H13-V6：MR9 S-43；RT10 S-78 | 固定组 O 含 reasoning，O+reasoning、密文字节 tokenize、O 与整组可见块二次相加、按块均分 O 均须击中反例。partial/重复/缺 origin 下无映射时 unavailable；有据 estimated 不提升 exact/upperBound | 模型 owner；每个获供型号，不能由家族一个成功认证全部 |
+| H13-V7：RT10 S-74/S-78 | full 与 marginal 的 signed 修正/总量非负、precision 合成、一次 margin、输出预留；完整 UTF-8 bytes/逐图解码/图片数照验。固定 wire 前后相同；估算不覆盖 actual usage/cost，拒绝零 HTTP/新增锚/响应 | transport gate；所有消费者 |
+| H13-V8：MR9 S-45；RT10 S-80/S-81 | 真 service 原同批 `[M,R]` 的冷恢复构造同组，与同事实 public 计量一致；原批回执 unknown 时不得从内存提前发布组。错租户/日志/generation/因果源由 runtime 门拒；恢复读回保持原 O/partial/route，禁止重算历史事实。遍历全部来源，不因已有锚跳过后续坏 D/M/R；sourceUnavailable 可 full 与必要事实 unavailable 必拒分开，noObservation 不能吞已选 known G | runtime 主责、transport 配合；耐久服务 |
+| H13-V9：RT10 S-79/S-82 | 真贡献换代保持旧 lease 的原 meter/projection，新增接口整批迁移无旧重载；public/invoke/plan、openCall/dispatch/dispatchAgain 与现 demo reader 均覆盖。百万级多旧组分别量测 copy、序列化、projection/hash、全图门、tokenizer、合成及峰值内存，报告字节/组/selection 数并比较固定新增、递增历史。稳定 P tokenizer 零与端到端性能分别报告，不声称扫描为常数 | verification/贡献 owner；性能与包交付 |
+
+### H13 覆盖缺口
+
+| 缺口 | 精确限制与消费者 | 关闭责任 |
+|---|---|---|
+| H13-G1 | RT10 S-79：本节点与 runtime v19 均候选；公共迁移尚不得据此实施 | 主线联合 architecture/spec 表达复核和精确采用；起草者不接受 |
+| H13-G2 | MR9 S-43、RT10 S-78～S-82：H13-V1～V9 未运行，不能以旧单 observation 的通过结果代证多组 full/δ | runtime/transport/verification 完成实际正反例、独立制品及双语 README |
+| H13-G3 | MR9 S-43、RT10 S-78：O 到当前输入没有无条件恒等；仍缺依据的每个模型不能借接口齐全称完成 | 模型 owner 明确固定 route/binding/mode、转换/边界、精度及真实留出；没有依据保留 unavailable |
+| H13-G4 | RT10 S-77/S-78/S-81：现 UsageCalibration.tla 有锚/失效/原批性质，但未表达多组 target 分配及 aggregate 转换守卫；NoDoubleOutput 不证明实际覆盖互斥 | 主线明确新组级形式证明范围；若要求此保证，spec owner 发布后继形式工件与负控，不改冻结版本。H13-V2/V3/V4 是必要实现证据，不能冒称已有 TLA 已证 |
+
+H13-G4 不改变 MR9/RT10 的原接受状态，不将旧形式任务重绑给未建模性质；组级来源映射以本节真实反例和后继正式证据分别兑现。新增 store/持久事务/服务均为零，仍须验证原 batch 发布与旧 lease 交错，不靠进程锁或时间谓词补来源门。
