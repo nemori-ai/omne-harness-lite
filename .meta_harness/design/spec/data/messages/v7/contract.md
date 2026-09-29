@@ -907,7 +907,7 @@ readable(b, L)      ≝ b 所在的消息在日志前缀 L 里
 - **读写消息（与运行时记录）的 JSON 文本，口径同 [`data.content-blocks/v3#S-24`](../../content-blocks/v3/contract.md#s-24-规范表示)**（主线裁定，见 [D-060 §八 M36](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）：按 **RFC 8259 严格**读；**任何一层对象里有重复的成员名即 `malformed`**（[S-39](#s-39-表示层拒绝值)），不在 Schema 求值之前挑一个——一条消息的 `type` 或 `visibility` 被读成两种，就是两份不同的日志；
   **数无损**：消息与记录里的任何一个 JSON 数读进来、存下（会话日志）、再读出来是同一个十进制数，超出 ±2^53 的整数与金额保留原文、不折成二进制浮点，落盘与回读都走无损读写。**只说一次**：块内的那一半就是 `data.content-blocks` S-24 那一条，这里把同一口径扩到块外的成员与整条消息的文本，不另起一套。
 - 块、块标识、调用标识、执行收场、能力标识的 `name` 经 `$ref` 取 `data.content-blocks/v3`；时刻经 `$ref` 取 `data.offer-expiry/v1` 的 `Instant`；
-  `ModelCallId`、`AttemptId` 经 `$ref` 取 `data.call-accounts/v2`；`RouteName`、`ProviderName`、`ModelProfileRef`、`ModelRequestParameters`、`ModelProfileSnapshot`、`ModelAdaptationBinding` 经 `$ref` 取 `data.model-profile/v5`（S-2、S-5、S-13、S-15、S-27、S-29）；
+  `ModelCallId`、`AttemptId` 经 `$ref` 取 `data.call-accounts/v3`；`RouteName`、`ProviderName`、`ModelProfileRef`、`ModelRequestParameters`、`ModelProfileSnapshot`、`ModelAdaptationBinding` 经 `$ref` 取 `data.model-profile/v5`（S-2、S-5、S-13、S-15、S-27、S-29）；
   `CredentialScope` 的租户那一支经 `$ref` 取 `data.identity-values/v1` 的 `ScopeLayerIdentity`（S-11）。
   不透明标识按 `data.identity-values/v1#S-31` 的散文各自写出 pattern，**不跨契约 `$ref` 它的 `OpaqueIdentifier`**。
   **`ResponseId` 的家是 `data.model-response/v4#S-6`，本契约按同一散文自定义、不 `$ref`**：那份契约以 `$ref` 取本契约的 `AssistantMessage` 作回复，

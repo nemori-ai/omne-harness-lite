@@ -13,7 +13,7 @@
 | 新值必填、封闭分支、pending/final禁误用、精确跨Schema refs | 本批data的reference-examples/ready-examples及原实例 | 实际结果见版本外verification；形状不证明来源/权限/摘要 |
 | 消费N→0不取消、ready终态与处分分离、成本不双加、旧投影不重开 | RT11 ReferenceLifecycle正配置及3负控 | 实际结果见版本外verification；不证明真实HTTP/取消/内存释放 |
 | 内容先于marker、未知writer保留、引用回收保护、final原批唯一 | RT11 Publication正配置及3负控 | 实际结果见版本外verification；不证明物理存储/字节相等 |
-| opened旧attempt仍可记录、取消同日志顺序、tail竞争、首内容后lost不重发 | RT11 OpenedOrder正配置及3负控 | 实际结果见版本外verification；真实准入/停止端口未开始 |
+| opened旧attempt仍可记录、取消同日志顺序、tail竞争、首内容后lost不重发 | RT11 OpenedOrder正配置及4负控 | 实际结果见版本外verification；真实准入/停止端口未开始 |
 | 当前读/等待/处分/取消及资源内撤权 | 跨租户、撤权、同ref多消费者真实边界场景 | 未开始，caller布尔不能关闭 |
 | 用户中断/网络/协议/超时/owner卸载，consumer先消失和新Run取回 | runtime持久原reply或fault delivered、已知账/未知及acquire原值对照 | 未开始；interrupt不返回第二结果；硬kill未持久增量不假承诺 |
 | 不可变JSON原字节/完整数字/重复键拒绝、摘要、下层引用存续 | 内容存储真实写入→reopen→字节对照，损坏/删除/并发回收注入 | 未开始；Schema只表达数，不保证解析器无损 |

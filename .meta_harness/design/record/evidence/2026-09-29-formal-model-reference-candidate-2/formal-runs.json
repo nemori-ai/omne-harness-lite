@@ -1,0 +1,175 @@
+[
+  {
+    "command": [
+      "/usr/local/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder-old-attempt-blocked-states",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder-old-attempt-blocked.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design",
+    "started": "2026-09-29T12:48:07.481036+00:00",
+    "inputs_before": {
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla": "b470583313f8e2b4b88b22a07eb6e856f5a9bd65187a348650e4bd9738363d2c",
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder-old-attempt-blocked.cfg": "cdfdb9160fabf6bf8e88deca41a512e6780a94afa3f9b95bf888cf05e0d4eb31"
+    },
+    "java_version_at_run": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+    "jar_sha256_at_run": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "exit_code": 12,
+    "log": "tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder-old-attempt-blocked.log",
+    "log_sha256": "e621ef833a2fd59b1a2e326efdde52f8751e0c1551356552b2902f56e253c1bb",
+    "ended": "2026-09-29T12:48:10.271867+00:00",
+    "states": [
+      "7 states generated, 7 distinct states found"
+    ],
+    "violated": [
+      "OldAttemptMayOpen"
+    ]
+  },
+  {
+    "command": [
+      "/usr/local/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder-states",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design",
+    "started": "2026-09-29T12:48:04.340795+00:00",
+    "inputs_before": {
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.cfg": "d2ed7caa97b155078d1edcb7eee09f580101e81f55518b99b38126eb3a7671df",
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla": "b470583313f8e2b4b88b22a07eb6e856f5a9bd65187a348650e4bd9738363d2c"
+    },
+    "java_version_at_run": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+    "jar_sha256_at_run": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "exit_code": 0,
+    "log": "tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder.log",
+    "log_sha256": "3f9c512bf0e21dc9025dca7b4c6b925c6e5a771dda68c200a32e88143578b3bc",
+    "ended": "2026-09-29T12:48:07.480452+00:00",
+    "states": [
+      "255 states generated, 166 distinct states found"
+    ],
+    "violated": []
+  },
+  {
+    "command": [
+      "/usr/local/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_CheckCancel-states",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_CheckCancel.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design",
+    "started": "2026-09-29T12:48:10.272482+00:00",
+    "inputs_before": {
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla": "b470583313f8e2b4b88b22a07eb6e856f5a9bd65187a348650e4bd9738363d2c",
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_CheckCancel.cfg": "7176e601f4307a8fdb58bdccb2435877d1f90500f581eb9217260984233a89e8"
+    },
+    "java_version_at_run": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+    "jar_sha256_at_run": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "exit_code": 12,
+    "log": "tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_CheckCancel.log",
+    "log_sha256": "2e218f89b21821a534872cc909c448707765b8bdcea97605978bee541b322dec",
+    "ended": "2026-09-29T12:48:13.052363+00:00",
+    "states": [
+      "37 states generated, 26 distinct states found"
+    ],
+    "violated": [
+      "CancelCannotPrecedeOpened"
+    ]
+  },
+  {
+    "command": [
+      "/usr/local/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_CheckTail-states",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_CheckTail.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design",
+    "started": "2026-09-29T12:48:13.053385+00:00",
+    "inputs_before": {
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla": "b470583313f8e2b4b88b22a07eb6e856f5a9bd65187a348650e4bd9738363d2c",
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_CheckTail.cfg": "f38cb312c92929ae1a75f50505b80686e7a9a0abfd899a5760f7c09b3776cdbc"
+    },
+    "java_version_at_run": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+    "jar_sha256_at_run": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "exit_code": 12,
+    "log": "tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_CheckTail.log",
+    "log_sha256": "0f22aac4fd451364e826b8f63364c264f271673b3bc88a1ee1180bfe350ac209",
+    "ended": "2026-09-29T12:48:15.780126+00:00",
+    "states": [
+      "38 states generated, 27 distinct states found"
+    ],
+    "violated": [
+      "CancelCannotPrecedeOpened"
+    ]
+  },
+  {
+    "command": [
+      "/usr/local/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_RetryAfterContent-states",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_RetryAfterContent.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design",
+    "started": "2026-09-29T12:48:15.780797+00:00",
+    "inputs_before": {
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla": "b470583313f8e2b4b88b22a07eb6e856f5a9bd65187a348650e4bd9738363d2c",
+      ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_RetryAfterContent.cfg": "8c89558ff34cbaa6519e15031187194e7f748ff5df696cf3de059900c56ff83d"
+    },
+    "java_version_at_run": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+    "jar_sha256_at_run": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "exit_code": 12,
+    "log": "tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_RetryAfterContent.log",
+    "log_sha256": "935b813e32b490e5bc5423cbf713e5869d9d20a55779c31dabb9d9b51cf761ce",
+    "ended": "2026-09-29T12:48:18.541097+00:00",
+    "states": [
+      "128 states generated, 85 distinct states found"
+    ],
+    "violated": [
+      "NoSendAfterOpenedLoss"
+    ]
+  }
+]

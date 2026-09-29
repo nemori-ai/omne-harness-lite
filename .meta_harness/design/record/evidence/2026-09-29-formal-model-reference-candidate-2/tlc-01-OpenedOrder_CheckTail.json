@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/usr/local/bin/java",
+    "-cp",
+    "/opt/tlaplus/tla2tools.jar",
+    "tlc2.TLC",
+    "-workers",
+    "1",
+    "-cleanup",
+    "-noGenerateSpecTE",
+    "-metadir",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_CheckTail-states",
+    "-config",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_CheckTail.cfg",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design",
+  "started": "2026-09-29T12:48:13.053385+00:00",
+  "inputs_before": {
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla": "b470583313f8e2b4b88b22a07eb6e856f5a9bd65187a348650e4bd9738363d2c",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder_CheckTail.cfg": "f38cb312c92929ae1a75f50505b80686e7a9a0abfd899a5760f7c09b3776cdbc"
+  },
+  "java_version_at_run": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)\n",
+  "jar_sha256_at_run": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+  "exit_code": 12,
+  "log": "tmp/model-registry-design/spec-draft-r2/tlc-01-OpenedOrder_CheckTail.log",
+  "log_sha256": "0f22aac4fd451364e826b8f63364c264f271673b3bc88a1ee1180bfe350ac209",
+  "ended": "2026-09-29T12:48:15.780126+00:00"
+}
