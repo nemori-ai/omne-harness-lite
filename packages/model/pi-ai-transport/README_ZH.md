@@ -330,6 +330,23 @@ console.log(await service.close(retirement)) // no HTTP request
 
 调用用 lease.transport，执行用 lease.track(handle.outcome)。独立内容门、回调、结算和交接先登记再释放。release 幂等，停本持有者新工作，已登记工作继续持有资源。撤单项贡献停新 acquire，旧引用仍可使用；关整个服务立即停旧 lease 新发送及排队准入。force false 时已发送工作可自然结束；强制取消本身不是释放证明。remaining_active 保留可见所有权，service.closed 在实际流/回调排空及池关闭后才完成。注册不持久化、不发布目录档案、不授权租户。
 
+### 观察注册与退役
+
+装配可把已绑定作用域的只写 emitter 借给一个 transport 服务。构造服务前应绑定 **local** 诊断作用域和独立的服务代际关联：
+
+```ts
+const emitter = collector.emitter({ kind: 'local' }, { executionId: 'transport-generation-a' })
+const service = createModelTransportService({
+  policy: networkPolicy,
+  registryDiagnostics: emitter,
+})
+// piAiTransportPlugin 的配置也接受同一个可选项。
+```
+
+`registration` 与 `retirement` 记录实际发布、取得、引用与执行数量、退役等待、强制取消请求、清理失败，以及贡献或整个服务真正停止。同一 owner 重复登记不产生第二条发布记录；请求 force 不表示工作已经停止。binding 仅含已拥有的实现、模型、定义和已取得时的配置修订，不含配值、凭据与原始错误。服务只借用 `record`，emitter 与 collector 的关闭责任仍由装配持有，直到服务实际停止。
+
+`service.inspect()` 分别给出本实例累计的 `registryDiagnosticFailures` 和 `registryDiagnosticDropped` 精确计数，溢出为 `unknown`。回调抛错或同步结果无效计失败；仅合法的 `{ dropped }` 计拒收。没有 emitter 时两项从零起。同步端口违规返回 Promise 时只计一次失败，随后停止向该实例继续投递；其拒绝会被观察，但不会等待它。源计数与 collector 健康是两个视角，不能相加成两次故障。`service.diagnostics()` 仍只表示底层网络诊断的投递状态，关闭后也可读。
+
 ## 使用可信 Cordis 贡献
 
 ```ts

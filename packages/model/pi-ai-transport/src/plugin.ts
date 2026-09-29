@@ -10,6 +10,7 @@ import {
 } from './registry.ts'
 import { ownCredentialConfiguration } from './credential-policy.ts'
 import type { Diagnostic } from './http.ts'
+import type { DiagnosticEmitter } from '@omne-harness-lite/model-request-runtime'
 import { inputMeterValid, type InputMeter } from './input-meter.ts'
 
 export const MODEL_TRANSPORT_SERVICE = 'modelTransport'
@@ -84,6 +85,15 @@ const configuration = z
     onDiagnostic: z
       .custom<(event: Diagnostic) => void | Promise<void>>(value => typeof value === 'function')
       .optional(),
+    registryDiagnostics: z
+      .custom<Pick<DiagnosticEmitter, 'record'>>(
+        value =>
+          !!value &&
+          typeof value === 'object' &&
+          'record' in value &&
+          typeof value.record === 'function',
+      )
+      .optional(),
   })
   .strict()
 export const piAiTransportPlugin = definePlugin({
@@ -93,6 +103,7 @@ export const piAiTransportPlugin = definePlugin({
     const service = createModelTransportService({
       policy: config.policy,
       ...(config.onDiagnostic ? { onDiagnostic: config.onDiagnostic } : {}),
+      ...(config.registryDiagnostics ? { registryDiagnostics: config.registryDiagnostics } : {}),
     })
     const policy = Object.freeze({ ...config.retirement })
     ctx.effect(() => async () => {

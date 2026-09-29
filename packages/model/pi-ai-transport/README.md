@@ -330,6 +330,23 @@ Registration owns and validates the whole declaration recursively. Reusing an ex
 
 Use lease.transport for invocation and lease.track(handle.outcome) for execution. Track separate gates, callbacks, settlement and handoff before release. Release is idempotent and closes that holder's admission while tracked work remains owned. Retiring one contribution stops new acquire and preserves existing holders; closing the whole service immediately stops old-lease sends and queued admission. Sent work may naturally finish with force false. Forced cancellation alone does not prove resource release. remaining_active retains visible ownership; service.closed resolves only after actual execution/callback draining and pool shutdown. Registration does not persist, publish a directory profile or authorize a tenant.
 
+### Observe registration and retirement
+
+The assembly may lend one already-scoped, write-only emitter to a transport service. Bind it to a **local** diagnostic scope and a distinct service-generation association before creating the service:
+
+```ts
+const emitter = collector.emitter({ kind: 'local' }, { executionId: 'transport-generation-a' })
+const service = createModelTransportService({
+  policy: networkPolicy,
+  registryDiagnostics: emitter,
+})
+// The same option is accepted by piAiTransportPlugin's configuration.
+```
+
+`registration` and `retirement` records report actual publication, acquisition, reference/execution counts, retirement waiting, forced cancellation requests, cleanup failure, and actual contribution or whole-service stop. A repeated same-owner registration does not create a second publication record. A force request does not mean work has stopped. Binding fields contain owned implementation, model, definition and, when acquired, configuration revisions; values, credentials, and original errors are excluded. The service borrows only `record`; the assembly retains emitter and collector closing responsibility until the service has actually stopped.
+
+`service.inspect()` exposes instance-local `registryDiagnosticFailures` and `registryDiagnosticDropped` as separate exact counts or `unknown` on overflow. Failures cover a throwing or invalid synchronous record result; dropped counts only a valid `{ dropped }` result. An absent emitter starts both at zero. A Promise returned from the synchronous port counts one failure and disables further delivery to that instance; its rejection is observed without awaiting it. These source counts must not be added to collector health as though they were different incidents. `service.diagnostics()` continues to report only the underlying network diagnostic delivery state, including after close.
+
 ## Use trusted Cordis contributions
 
 ```ts
