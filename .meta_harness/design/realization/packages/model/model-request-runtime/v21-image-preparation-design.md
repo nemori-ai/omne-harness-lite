@@ -1,6 +1,6 @@
 # v21 请求图片准备的 runtime 接入（候选）
 
-2026-09-29 revision 1，candidate。已接受语义仍RT10/MR9/MS6/CA2，未接受T29后继不作为本页前置；与v20 registry/ref并行组合。可实施未批准，新增bindings 0，实际验证未执行。无新Session/Run实现、业务操作、持久消息或注册表。
+2026-09-29 revision 2，candidate。已接受语义仍RT10/MR9/MS6/CA2，未接受T29后继不作为本页前置；与v20 registry/ref并行组合。可实施未批准，新增bindings 0，实际验证未执行。无新Session/Run实现、业务操作、持久消息或注册表。
 
 依据[提案](../../../../record/proposals/model-request-image-preparation/README.md)及[transport v15](../pi-ai-transport/v15-image-preparation-design.md)。本页拥有通用runtime公开类型接缝；图片policy/结果账本唯一在transport v15，不重复定义。
 
@@ -40,7 +40,7 @@ transport只看到opaque scope，不查询Session日志、tenant注册或环境�
 
 保留原PlanInput/持久消息、原outputHistory真实输出块与inputCalibration，不为准备构造假的原回复或改摘要。runtime已有受信来源核验和transport纯来源核验均不降级。之后独立的request-local mapping只影响实际body；合法转换使原O口径不适用可full，原来源矛盾仍invalidInput，不可判仍unavailable。
 
-MR9已有transformRevision用于共享basis合成；本页不新增字段/新真值。响应记录的是此次实际表示的前缀证据；下一轮相同实际图与同算法可复用，模型、prefix实质内容或计量/处理依据变化回full。后继Session/Run消费者无须自己重编码/累积图片表示，仍只消费runtime结果。
+MR9已有transformRevision用于共享basis合成；本页不新增字段/新真值。共享规则以transportv15 revision2为唯一账本，只扩ReplayMeterInput当前countingBasis；full/δ复用原字段。无不同compound的自动兼容声明，不改写原observation迎合consumer。响应记录的是此次实际表示的前缀证据；下一轮相同实际图与同算法可复用，模型、prefix实质内容或计量/处理依据变化回full。后继Session/Run消费者无须自己重编码/累积图片表示，仍只消费runtime结果。
 
 持久写对象新增0，跨owner同一提交新增0。图片准备不会改原model_call_dispatched/响应批的原子性，不能把缓存插入当作新的耐久完成点。零HTTP负控允许既有前置读取，但不能产生新的发出锚点或响应。
 
