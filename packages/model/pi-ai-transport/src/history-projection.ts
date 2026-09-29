@@ -9,7 +9,7 @@ import {
 import {
   canonicalProjection,
   INPUT_PROJECTION_REVISION,
-  outputBlockDigest,
+  outputBlockDigestAtRevision,
   type InputProjection,
 } from './projection.ts'
 import type { HistorySelectionSpan } from './input-meter.ts'
@@ -34,7 +34,8 @@ function knownDigestsMatch(
   try {
     return output.blockDigests.every(
       (digest, index) =>
-        digest === outputBlockDigest(group.outputBlocks[index], output.projectionRevision),
+        digest ===
+        outputBlockDigestAtRevision(group.outputBlocks[index], output.projectionRevision),
     )
   } catch {
     return false

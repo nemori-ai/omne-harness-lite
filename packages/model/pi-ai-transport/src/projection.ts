@@ -61,7 +61,10 @@ export function projectionDigest(
     .update(canonicalProjection([revision, domain, value]), 'utf8')
     .digest('hex')
 }
-export function outputBlockDigest(block: unknown, revision = INPUT_PROJECTION_REVISION): string {
+export function outputBlockDigest(block: unknown): string {
+  return projectionDigest('output-block', block)
+}
+export function outputBlockDigestAtRevision(block: unknown, revision: string): string {
   return projectionDigest('output-block', block, revision)
 }
 export function prefixDigest(units: readonly JsonValue[]): string {

@@ -1,8 +1,8 @@
+import { ownFullOutputInput, ownNewOutputInput, ownReplayOutputInput } from './output-input.ts'
 import { cacheNeutralBody } from '../anthropic-cache.ts'
 import { ownedObject } from '../json.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
-  copyJsonValue,
   writeJsonLossless,
   type JsonNumber,
   type JsonObject,
@@ -13,7 +13,12 @@ import type {
   PlanOutputHistoryGroup,
 } from '@omne-harness-lite/model-request-runtime'
 import { projectAssistant } from '../assistant-projection.ts'
-import { canonicalProjection, type InputProjection } from '../projection.ts'
+import {
+  canonicalProjection,
+  projectionDigest,
+  INPUT_PROJECTION_REVISION,
+  type InputProjection,
+} from '../projection.ts'
 import { meterHistoryValid, meterReplayValid } from '../history-projection.ts'
 import { ownBasis, relateMeterBases, type OriginalBasisApplies } from '../meter-transform.ts'
 import {
@@ -81,7 +86,7 @@ function completeGroup(
     output.kind !== 'known' ||
     output.source !== 'reply' ||
     output.completeness !== 'complete' ||
-    !policy.projectionRevisionApplies(output.projectionRevision) ||
+    policy.projectionRevisionApplies(output.projectionRevision) !== true ||
     original.usage.source !== 'upstream' ||
     original.usage.output_tokens === 'unknown'
   )
@@ -96,7 +101,16 @@ function completeGroup(
     )
     if (relation.kind !== 'sameEffective' && relation.kind !== 'changedEffective') return undefined
   }
-  if (!policy.sourceApplies(source, meter, envelope)) return undefined
+  if (
+    !source.origin &&
+    (request.kind !== 'known' ||
+      ExactDecimal.from(request.prefixBoundary).compare(ExactDecimal.from(indices[0] ?? -1)) !==
+        0 ||
+      request.inputEnvelopeDigest !==
+        projectionDigest('input-envelope', envelope, request.projectionRevision))
+  )
+    return undefined
+  if (policy.sourceApplies(source, meter, envelope) !== true) return undefined
   if (
     original.usage.reasoning_tokens !== undefined &&
     ExactDecimal.from(original.usage.reasoning_tokens).compare(
@@ -151,7 +165,7 @@ function contributions(
   projection?: InputProjection,
 ): { readonly units: readonly JsonValue[]; readonly output: ExactDecimal } | undefined {
   const classifications = input.units.map(unit => policy.classifyUnit(unit))
-  if (classifications.includes('uninterpretable')) return undefined
+  if (classifications.some(kind => !['visible', 'wholeGroup'].includes(kind))) return undefined
   const replaced = new Set<number>()
   let output = ExactDecimal.from(0)
   for (const [groupIndex, group] of input.outputHistory.entries()) {
@@ -197,9 +211,12 @@ export function fullOutputHistory(
   countBody: OutputBodyCounter,
   policy: OutputHistoryPolicy,
 ): TokenMeasurement {
+  const identity = input
+  const owned = ownFullOutputInput(input)
+  if (!owned) return { kind: 'unavailable' }
+  input = owned
   try {
     if (
-      'failed' in copyJsonValue(input) ||
       writeJsonLossless(input.body) !== input.serialized ||
       !fullProjectionValid(input) ||
       relateMeterBases(input.projection.requestInput.countingBasis, undefined, meter).kind !==
@@ -219,7 +236,7 @@ export function fullOutputHistory(
       },
       meter,
       policy,
-      input,
+      identity,
       input.projection,
     )
     if (!selected) return { kind: 'unavailable' }
@@ -248,17 +265,21 @@ export function newOutputHistory(
   countBody: OutputBodyCounter,
   policy: OutputHistoryPolicy,
 ): MeterContribution {
+  const identity = input
+  const owned = ownNewOutputInput(input)
+  if (!owned) return { kind: 'invalidInput' }
+  input = owned
   try {
-    if ('failed' in copyJsonValue(input) || !marginalValid(input)) return { kind: 'invalidInput' }
+    if (!marginalValid(input)) return { kind: 'invalidInput' }
     const relation = relateMeterBases(input.countingBasis, undefined, meter)
     if (relation.kind !== 'currentOnly')
       return { kind: relation.kind === 'invalidInput' ? 'invalidInput' : 'unavailable' }
-    const selected = contributions(input, meter, policy, input)
+    const selected = contributions(input, meter, policy, identity)
     return selected
       ? addOutput(fullJsonMarginal(countBody, { ...input, units: selected.units }), selected.output)
       : { kind: 'unavailable' }
   } catch {
-    return { kind: 'invalidInput' }
+    return { kind: 'unavailable' }
   }
 }
 export function replayOutputHistory(
@@ -267,11 +288,18 @@ export function replayOutputHistory(
   countBody: OutputBodyCounter,
   policy: OutputHistoryPolicy,
 ): MeterContribution {
+  const identity = input
+  const owned = ownReplayOutputInput(input)
+  if (!owned) return { kind: 'invalidInput' }
+  input = owned
   try {
-    if ('failed' in copyJsonValue(input) || !meterReplayValid(input))
-      return { kind: 'invalidInput' }
+    if (!meterReplayValid(input)) return { kind: 'invalidInput' }
     const original = input.observation.inputCalibration.requestInput
-    if (original.kind !== 'known') return { kind: 'unavailable' }
+    if (
+      original.kind !== 'known' ||
+      input.observation.inputCalibration.observedInput.kind === 'unavailable'
+    )
+      return { kind: 'unavailable' }
     const relation = relateMeterBases(
       input.countingBasis,
       original.countingBasis,
@@ -281,7 +309,8 @@ export function replayOutputHistory(
     if (relation.kind !== 'sameEffective')
       return { kind: relation.kind === 'invalidInput' ? 'invalidInput' : 'unavailable' }
     const classifications = input.units.map(unit => policy.classifyUnit(unit))
-    if (classifications.includes('uninterpretable')) return { kind: 'unavailable' }
+    if (classifications.some(kind => !['visible', 'wholeGroup'].includes(kind)))
+      return { kind: 'unavailable' }
     if (!classifications.includes('wholeGroup')) return fullJsonMarginal(countBody, input)
     const source =
       input.outputHistory[0] === undefined
@@ -296,12 +325,12 @@ export function replayOutputHistory(
       input.countingBasis,
       meter,
       policy,
-      input,
+      identity,
     )
     if (!complete || input.units.length !== 1) return { kind: 'unavailable' }
     return { kind: 'estimated', tokens: complete.tokens }
   } catch {
-    return { kind: 'invalidInput' }
+    return { kind: 'unavailable' }
   }
 }
 function marginalValid(input: NewMeterInput): boolean {
@@ -324,8 +353,18 @@ function marginalValid(input: NewMeterInput): boolean {
   }
   return meterHistoryValid(input.outputHistory, input.historySpans, upper, indices)
 }
-// Replaced below by the shared cache-neutral projection validator.
+/** Verify the same configured normalization, not raw body/units equality. */
 function fullProjectionValid(input: FullMeterInput): boolean {
+  const request = input.projection.requestInput
+  if (
+    request.projectionRevision !== INPUT_PROJECTION_REVISION ||
+    ExactDecimal.from(request.prefixBoundary).compare(
+      ExactDecimal.from(input.projection.units.length),
+    ) !== 0 ||
+    request.prefixDigest !== projectionDigest('input-prefix', input.projection.units) ||
+    request.inputEnvelopeDigest !== projectionDigest('input-envelope', input.projection.envelope)
+  )
+    return false
   const body = ownedObject(input.body)
   if (!body) return false
   const neutral = cacheNeutralBody(body, input.projection.requestInput.countingBasis)
