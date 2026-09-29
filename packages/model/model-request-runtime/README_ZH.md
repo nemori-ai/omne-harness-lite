@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
 
 ## 公开接口
 
@@ -219,7 +219,7 @@ export function nextRequest(
 }
 ```
 
-后续请求由同会话授权历史读者提供 `calibration`。runtime 核对选入消息来自同一份完整 SL3 前缀、原 dispatch 和完整响应的稳定身份与完整值，以及 assistant 回复确实进入本次模型输入。同一调用重试时，连续的前序 dispatch 即使没有回复，也可以提供准确的输入观察。planner 再核本次前缀摘要、计数依据、重放输出组及实际新增输入；匹配才使用增量计量，否则全量计量。较新的响应缺失可用输入 usage 时，可选择更早的合法祖先。读端检查原始值及相邻关系；物理同批保证归原结算 append 与 SL3。`source_unavailable` 与已证明的 `no_observation` 不同。
+后续请求由同会话授权历史读者提供 `calibration`。来源目标包含本次调用和 dispatch；有 Run 时也带本次 Run 与 attempt，来源 owner 必须证明实际选入的分支和候选先后。runtime 核对选入消息来自同一份完整 SL3 前缀、原 dispatch 和完整响应的稳定身份与完整值，以及 assistant 回复确实进入本次模型输入。原调用属于 Run 时，响应顶层 attempt 仍是发出时的原 attempt，即使完整 M/R 批在较新的 attempt 中归账；历史 Run 与当前 Run 不同也可能是合法选入，但仅同名绝不能证明祖先关系。同一调用重试时，连续的前序 dispatch 即使没有回复，也可以提供准确的输入观察，并须保持原调用 Run 一致。planner 再核本次前缀摘要、计数依据、重放输出组及实际新增输入；匹配才使用增量计量，否则全量计量。较新的响应缺失可用输入 usage 时，可选择更早的合法祖先。已提交的原完整批按原值读取，不因当前 Run 终结状态重新判废。读端检查原始值及相邻关系；物理同批保证归原结算 append 与 SL3。`source_unavailable` 与已证明的 `no_observation` 不同。
 
 `TransportAdapter.read` 的每种终态，包括取消与失败，均须返回 `readFacts`。`invokeModel` 在实际停止后保留最终读取事实，不用输入估算覆盖真实 usage 或费用。固定的 `projectOutput` 适配器把实际保留的回复或已交付块映成输出组。相同的 `inputCalibration` 贯穿 Pending、原耐久响应与认回；冷恢复读取原事实，不再请求模型或重新分词。目前 runtime 可核验选入的 no-Run 回复与同一调用的前序 dispatch。跨调用且无关联选入消息的响应，以及缺少授权 Run owner 的 Run 历史，保持来源不可用，不从日志物理位置猜测。
 

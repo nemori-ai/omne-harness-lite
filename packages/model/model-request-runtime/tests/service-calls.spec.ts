@@ -4,10 +4,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import { createServiceCalls, ownOpenCallInput, UnknownAppendTracker } from '../src/service-calls.ts'
+import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import type {
+  CurrentHistoryReaders,
   OpenCallInput,
   ModelCallHost,
   RuntimeConstruction,
@@ -436,6 +439,11 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       event: DiagnosticEvent
     }[] = []
     let next = 0
+    const calibrationTargets: unknown[] = []
+    const calibration: CurrentHistoryReaders['calibration'] = (_prefix, _messages, target) => {
+      calibrationTargets.push(target)
+      return { noObservation: true }
+    }
     const runtime = {
       sessions: { bind: async () => ({ binding }) },
       calls,
@@ -488,7 +496,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       },
       identities: { call: () => `call_${++next}` },
       history: {
-        calibration: () => ({ noObservation: true }),
+        calibration,
         call: (prefix: Parameters<typeof interpretCallHistory>[0]['prefix'], callId: string) =>
           forceResumable && callId === 'call_1'
             ? {
@@ -580,17 +588,64 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       const read = await log.readSince(session, 0)
       if ('failure' in read) throw new Error(read.failure)
       expect(read.entries).toHaveLength(0)
+      const run = 'open-calibration-run'
+      const started = captureModelLogValue({
+        category: 'message',
+        input: {
+          kind: 'value',
+          value: {
+            id: 'open-calibration-attempt-start',
+            type: 'system_reminder',
+            nature: 'event',
+            source: {
+              kind: 'attempt_started',
+              attempt: 1,
+              reason: 'first',
+              at: '2026-09-29T00:00:00Z',
+            },
+            blocks: [],
+            createdAt: '2026-09-29T00:00:00Z',
+          },
+        },
+      })
+      if (!('ok' in started)) throw new Error('Run attempt value')
+      const startEntry = prepareModelLogEntry({
+        session,
+        shell: { tenant, run, attempt: 1 },
+        captured: started.ok,
+        purpose: { kind: 'message' },
+        messagePrefix: [],
+      })
+      if (!('ok' in startEntry)) throw new Error('Run attempt entry')
+      const appended = await log.append(
+        session,
+        [startEntry.ok],
+        { kind: 'fenced', run, attempt: 1 },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in appended) throw new Error('Run attempt append')
+      const report = { session, runId: run, attempt: 1 } as unknown as AvailabilityReport
+      expect(await service.openCall({ ...request({ run, attempt: 1, report }), host })).toEqual({
+        callId: 'call_3',
+        state: 'open',
+      })
+      expect(calibrationTargets.at(-1)).toEqual({
+        callId: 'call_3',
+        dispatch: 1,
+        run,
+        attempt: 1,
+      })
       expect(await calls.close()).toEqual({ released: true })
       expect(
         engineering.filter(
           item => item.event.stage === 'binding' && item.event.outcome === 'completed',
         ),
-      ).toHaveLength(2)
+      ).toHaveLength(3)
       expect(observerClosed).toBe(2)
       const stoppedRead = await log.readSince(session, 0)
       if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
-      expect(stoppedRead.entries).toHaveLength(2)
-      for (const callId of ['call_1', 'call_2']) {
+      expect(stoppedRead.entries).toHaveLength(4)
+      for (const callId of ['call_1', 'call_2', 'call_3']) {
         const entry = stoppedRead.entries.find(item =>
           JSON.stringify(item.payload).includes(`\"call\":\"${callId}\"`),
         )

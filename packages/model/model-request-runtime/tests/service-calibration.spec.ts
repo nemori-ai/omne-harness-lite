@@ -346,4 +346,97 @@ describe('U16/V17 conditional withRun calibration over real SL3', () => {
       ).toEqual({ unavailable: true })
     })
   })
+  it('uses a same-call no-reply Run observation only for its actual next dispatch', async () => {
+    await controlled('calibration-with-run-retry', async ({ binding: original, owner }) => {
+      const parsed = parseOpaqueIdentifier('calibration-run-retry-session', 'SessionRef')
+      if (!('ok' in parsed)) throw new Error('Run retry session')
+      const runSession = parsed.ok
+      const run = 'calibration-retry-run'
+      const make = (
+        category: 'message' | 'record' | 'response',
+        value: unknown,
+        attempt: number,
+      ) => {
+        const captured = captureModelLogValue({ category, input: { kind: 'value', value } })
+        if (!('ok' in captured)) throw new Error(`Run retry capture: ${captured.reason}`)
+        const entry = prepareModelLogEntry({
+          session: runSession,
+          shell: { tenant: original.tenant, run, attempt },
+          captured: captured.ok,
+          purpose: { kind: category },
+          messagePrefix: [],
+        })
+        if (!('ok' in entry)) throw new Error(`Run retry entry: ${entry.reason}`)
+        return entry.ok
+      }
+      const start = (attempt: number) =>
+        make(
+          'message',
+          {
+            id: `retry-attempt-${attempt}`,
+            type: 'system_reminder',
+            nature: 'event',
+            source: {
+              kind: 'attempt_started',
+              attempt,
+              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+              at: '2026-09-29T00:00:00Z',
+            },
+            blocks: [],
+            createdAt: '2026-09-29T00:00:00Z',
+          },
+          attempt,
+        )
+      const initial = await original.log.append(
+        runSession,
+        [start(1), make('record', dispatched, 1), make('record', opened, 1)],
+        { kind: 'fenced', run, attempt: 1 },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in initial) throw new Error('Run retry anchors')
+      const candidate = {
+        ...knownResponse('delivered'),
+        call: { callId: 'call', runId: run },
+        attemptId: 1,
+      }
+      if (!isModelResponse(candidate)) throw new Error('Run retry MR9 response')
+      const settled = await original.log.append(
+        runSession,
+        [make('response', candidate, 1)],
+        { kind: 'unfenced' },
+        { kind: 'tailEquals', tail: 3 },
+      )
+      if ('failure' in settled) throw new Error('Run retry original response')
+      const next = await original.log.append(
+        runSession,
+        [start(2)],
+        { kind: 'fenced', run, attempt: 2 },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in next) throw new Error('Run retry new attempt')
+      const prefix = await prefixOf({ ...original, session: runSession }, owner)
+      const ancestor = {
+        origin: 'same_call_retry' as const,
+        dispatchedEntry: entryAt(prefix, 1),
+        responseEntry: entryAt(prefix, 3),
+        response: candidate,
+        replaySelection: [],
+      }
+      const source: CurrentHistoryReaders['calibration'] = () => ({
+        selectedSources: [],
+        candidates: [ancestor],
+      })
+      const target = { callId: 'call', dispatch: 2, run, attempt: 2 }
+      expect(authorizedCalibration(prefix, [], target, source)).toMatchObject({
+        calibration: { kind: 'observation', usage: { input_tokens: 11 } },
+      })
+      for (const invalid of [
+        { callId: 'call', dispatch: 2, run: 'another-run', attempt: 2 },
+        { callId: 'call', dispatch: 3, run, attempt: 2 },
+        { callId: 'other-call', dispatch: 2, run, attempt: 2 },
+        { callId: 'call', dispatch: 2 },
+      ])
+        expect(authorizedCalibration(prefix, [], invalid, source)).toEqual({ unavailable: true })
+    })
+  })
 })
