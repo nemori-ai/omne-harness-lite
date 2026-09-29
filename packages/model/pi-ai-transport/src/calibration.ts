@@ -141,7 +141,7 @@ export function measureCalibrated(
     }
   | undefined {
   const basis = projection.requestInput.countingBasis
-  const scope = usageScope(basis.model, basis.provider, basis.binding)
+  const scope = usageScope(basis.model)
   let fallback: Fallback
   const calibration = input.calibration
   const finish = (
