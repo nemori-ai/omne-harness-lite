@@ -136,6 +136,21 @@ describe('formal runner and P5 demo assembly', () => {
         attempt: 1,
       }
       expect(
+        await app.dispatchRunner(
+          who,
+          session,
+          {
+            position: request.position,
+            dimension: request.dimension,
+            subject: request.subject,
+            manifest: session,
+            anchor: request.anchor,
+          },
+          new AbortController().signal,
+        ),
+      ).toEqual({ failure: 'invalidInput' })
+      expect(externalAcquires).toBe(0)
+      expect(
         await app.dispatchRunner(outsider, session, request, new AbortController().signal),
       ).toEqual({ failure: 'unavailable' })
       expect(externalAcquires).toBe(0)
