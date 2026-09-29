@@ -1,5 +1,8 @@
 # PF-007 流程与状态
 
+本页经 Ask() 发起人交互的旅程，以[协作模式](../PF-015-session-lifecycle-and-ownership/design.md#会话协作模式)开启该能力为前提；auto-drive 关闭 Ask() 不替人给授权，切换的在途衔接归技术设计。
+
+
 `design.md` 说十三扇门**各是什么**，这里说 agent **怎么走它们**。
 
 ## 一、主要旅程

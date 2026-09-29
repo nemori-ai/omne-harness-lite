@@ -11,12 +11,12 @@
 ````markdown
 ### UL-tool-execution · 工具执行
 
-- **宿主**：前台时是 [agent runtime](objects.md#ul-agent-runtime--agent-runtime)；转后台即换成[会话](objects.md#ul-session--会话)
+- **宿主**：[会话](objects.md#ul-session--会话)；前台后台不改变生命周期归属，agent runtime 只持有执行句柄
 - **身份**：正文未给标识；只要求记得下「哪一次运行、哪个 agent runtime 发起、属于哪个会话」
 - **生灭**：发起 → 前台/后台 × 执行中/等待 → 完成 · 失败 · 被中断 · 等不到；停机后不重来，算失败；会话被归档时随之收场
-- **依据**：[PF-006 §6.5](../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 12）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 5）
+- **依据**：[PF-006 §6.5](../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 21）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 17）
 - **并入**：「工具执行运行时」「一次工具调用」——正文当同一物用
-- **未裁**：PF-011 的归因树把它挂在 agent 的一步之下，与上面的宿主说法不是一种关系还是相互冲突
+- **未裁**：具体执行标识格式正文未述；PF-011 的归因树与生命周期归属是不同关系，不据此改宿主
 ````
 
 **标题**：词条 ID · 中文名，**与[统一语言](../ubiquitous_language/index.md)里那一条逐字一致**。英文名不重复写，从词条取。

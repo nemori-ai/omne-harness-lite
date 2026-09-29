@@ -15,16 +15,17 @@
 > **中**：**约束 agent 由什么组装而成、从哪里被触达、以及推进时在哪些位置插手**的那一类对象。
 > 它是三样东西里**唯一独立存在的对象**；
 > [设置](#ul-setting--设置--setting)与[权限](#ul-permission--权限--permission)是它的**两种属性**。
-> **恰有[八类](#八类资产)，这八类是穷尽的。**
+> **目录保留[八个列项](#八类资产)，Connector 的资产存在性搁置，其余七类继续成立。**
 >
 > **EN**: The class of objects that **constrains what an agent is assembled from**,
 > **through which channels it can be reached**, and **where things may be inserted as
 > its loop advances**. It is the only one of the three that exists as an object in
 > its own right; settings and permissions are two kinds of **attribute on** it.
-> **There are exactly eight kinds, and the list is exhaustive.**
+> **The catalog retains eight entries; Connector is on hold pending a decision on whether it remains an asset, while the other seven remain in scope.**
 
+- **目录状态**：Connector 的资产存在性及相关设计搁置，其余七类继续成立；保留的 Connector 列项不是当前交付承诺。
 - **形态**：对象
-- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 22） · [资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 22）
+- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 24） · [资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 24）
 - **别混**：知识、经验、报告、附件与文件**都不是资产**——它们是 agent **读写的对象**，**不参与组装**
 - **注意 ①**：判据是**它在 agent definition 里被声明、被持有、被授权、按层级求值**——**这四件事**，不是「它提供动作」
 - **注意 ②**：**规格里的「资产记录」指的是同一个[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)下的一份具体资产**——所有者、来源、草稿与版本线都挂在它身上；它是本条身份的下层（[对象条目](../../domain_objects/objects.md#ul-asset--资产)），**不另立词条**。**草稿是它身上还没发布的那份内容**，[不是版本](#ul-asset-version--资产版本--asset-version)，也不另立
@@ -41,7 +42,7 @@
 > and at run time they resolve by **override**.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 22） · [PF-002 §5.2](../../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)（rev 24）
+- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 24） · [PF-002 §5.2](../../product/PF-002-assets-settings-and-permissions/design.md#52-设置与权限是资产的两种属性)（rev 31）
 - **注意 ①**：配值的资格来自**持有**——**没有这个工具，就配不了它的执行权限**。
   配下的那一格叫[属性配值](scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment)，
   **挂在那份持有上**
@@ -78,7 +79,7 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 24）
+- **出处**：[PF-002 §5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 31）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的八类之一，这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类设置随资产一起来——这条限定挡的是**改别人资产的落点**
@@ -100,9 +101,9 @@
 > is a bound whether locked or not.**
 
 - **形态**：属性
-- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 22） · [§6.2](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 22） · [PF-002 §5.3](../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)（rev 24）
+- **出处**：[PF-001 §4 设置、权限、资产](../../product/PF-001-identity-scope-and-agent-constraints/design.md#设置权限资产)（rev 24） · [§6.2](../../product/PF-001-identity-scope-and-agent-constraints/design.md#62-三种合成语义)（rev 24） · [PF-002 §5.3](../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)（rev 31）
 - **别混**：**不是[租户角色](subjects-and-ownership.md#ul-tenant-role--租户角色--tenant-role)**——角色是**身份**的属性，权限是**资产**的属性
-- **注意 ①**：**一次运行之内，权限变了，[动作空间](#ul-action-space--动作空间--action-space)不变**；运行之间也只有[「谁可以使用它」](circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by)会让下一次运行的构成变小——它改的是装不装进来
+- **注意 ①**：**执行权限取值变化本身不改变[动作空间](#ul-action-space--动作空间--action-space)**；已知能力失去使用资格时保留不可用条目，未曾纳入的能力继续按资格筛选
 - **注意 ②**：**不锁的配值不是界**——组织配「问一下」而不锁，成员挑「自动」就生效；组织要守的边界必须锁（「禁止」除外）
 - **注意 ③**：**同标识替换之后，外层为这个身份锁下的界照样管着替换它的那一份**；那一份少声明了锁住的某一项，那一项按最严算（[PF-002 §5.5](../../product/PF-002-assets-settings-and-permissions/design.md#替换是一条路径不是一扇后门)）
 - **注意 ④**：**权限项有哪几项由资产的类别定，作者不能自加**；[「谁可以使用它」](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)是各类共用的一项
@@ -121,29 +122,27 @@
 > it automatically load all of its attachments.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Skill](../../product/PF-002-assets-settings-and-permissions/design.md#skill)（rev 24） · [PF-006 §4 技能的说明](../../product/PF-006-tools-and-skills/design.md#技能的说明)（rev 20）
+- **出处**：[PF-002 §4 Skill](../../product/PF-002-assets-settings-and-permissions/design.md#skill)（rev 31） · [PF-006 §4 技能的说明](../../product/PF-006-tools-and-skills/design.md#技能的说明)（rev 23）
 - **别混**：Skill 说**怎么做**，[Tool](#ul-tool--工具--tool) 是**做的那个动作**。「代码审查该看哪些地方」是 skill，「读文件」是 tool
 - **注意**：它的**说明**是触发与路由的依据——[常驻](reach-and-availability.md#ul-residency--常驻--residency)时进系统提示词的是 name 与说明，`Skills().search` 按它找，替换件换掉的也是它；正文与资源按需取
 - **能组合**：Tool
 
 ### UL-tool · 工具 · Tool
 
-> **中**：**一个可被调用的动作。**它的身份是**这一类里的那个 name**；参数形状、说明、返回形状
-> 与实现都跟着实现走，**所以同一个 name 下可以有平台、组织、租户各自的一份，彼此替代**。
+> **中**：**一个可被调用的动作。**它的身份是**这一类里的那个 name**；参数形状、说明、返回形状属于定义数据，与执行实现分别演化，**所以同一个 name 下可以有平台、组织、租户各自的一份，彼此替代**。
 > 一个 tool 可以是**多命令**的，而**整套命令在组装时只占一个[槽位](#ul-prompt-slot--提示词槽位--prompt-slot)**。
 >
-> **EN**: **One invocable action.** Its identity is **its name within this kind**; the argument
-> shape, description, result shape and implementation all travel with the implementation, so
+> **EN**: **One invocable action.** Its identity is **its name within this kind**; the argument shape, description and result shape are definition data that can evolve separately from execution implementation, so
 > **one name may have a platform, an organization and a tenant version, each standing in for
 > the others**. A tool may be **multi-command**, and **the whole command set occupies a single
 > slot** at assembly time.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 24）
+- **出处**：[PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 31）
 - **别混**：**子命令是 tool 的内部结构，不是独立资产**——随这个 tool 一起被持有、配置与授权
 - **⚠️ 别混**：**「工具」这个词指三样东西，寿命各不相同**——
   [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（数据，长期）、
-  动作空间里的那个条目（构成，绑 agent runtime）、
+  动作空间里的那个条目（会话已知能力，供各次 agent runtime 使用）、
   [工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)（计算资源，**绑会话**）。
   **本条说的是它作为一类资产**
 - **注意**：本系统把 Tool 定为**顶层资产**，与前身 `omne-next` 把它归为「组件」**有意相反**
@@ -155,7 +154,7 @@
 > **接入点本身是资产，它带来的那些动作不单独成为资产**——随它一起被持有、授权与治理。
 > **对端的可用性与版本不由本系统掌握**：它提供的动作可能今天有明天没有，**而这不是故障**。
 > **对端的每一个动作在动作空间里是一个工具条目**——不常驻、经取用入口发现；
-> 动作集**每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前与可用性一起重算，一次尝试之内不变**。
+> 动作集**每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前与可用性一起重算；合法显式刷新可更新后续采用值，已知身份保留、单次调用输入固定**。
 >
 > **EN**: **An access point to an external source of tools.** Once connected, the
 > actions it offers become usable by the agent. **The access point is the asset; the
@@ -164,10 +163,10 @@
 > this system's control**, so an action present today may be gone tomorrow — **and
 > that is not a fault**. **Each action on the far side is one tool entry in the action
 > space** — not resident, found through the discovery entry; the action set is
-> **recomputed before each run attempt together with availability and does not change within an attempt**.
+> **recomputed before each run attempt together with availability; lawful explicit refresh may update later uses while known identities remain and each started call keeps its inputs**.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 22） · [PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 24） · [PF-006 §6.13](../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 20）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 24） · [PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 31） · [PF-006 §6.13](../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 23）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
 - **能组合**：**不组合任何资产**
@@ -185,9 +184,9 @@
 
 - **形态**：属性
 - **出处**：[PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp) ·
-  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 24）
+  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 31）
 - **别混**：**不是[投递目标](interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target)**——那是连接件把外面的消息送进哪个会话，方向相反
-- **注意**：连不上（含凭据还没取或已失效），这个接入点带来的动作[一律不可用](../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)（PF-006 rev 20）
+- **注意**：连不上（含凭据还没取或已失效），这个接入点带来的动作[一律不可用](../../product/PF-006-tools-and-skills/design.md#接入点连不上它的动作就是不可用)（PF-006 rev 23）
 
 ### UL-connector · 连接件 · Connector
 
@@ -222,14 +221,15 @@
 > the message as its source only; both modes follow it. **External content can only say which catalog
 > type it is** — never which session, whether to open one, under whose identity or in which run mode.
 
+- **产品状态**：搁置。是否继续作为资产存在尚未定论；本条及关联的事件目录、订阅、投递与创建入口仅保留条件性定义，不构成当前交付承诺。
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 22） · [PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) · [触发会话的默认运行模式](../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式)（rev 24）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 24） · [PF-002 §4 Connector](../../product/PF-002-assets-settings-and-permissions/design.md#connector) · [两种投递方式](../../product/PF-002-assets-settings-and-permissions/design.md#两种投递方式动作主体不同) · [触发会话的默认运行模式](../../product/PF-002-assets-settings-and-permissions/design.md#触发会话的默认运行模式)（rev 31）
 - **注意 ①**：**一人多账户不立新对象**——同一租户身份要接同一服务的两个账号，就是两份 name 不同的连接件
 - **注意 ②**：「能不能安装」的取值与其余「谁可以……」[同一种](circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by)：一组租户角色，外加一个「自己」
 - **别混**：MCP 是**我出去调它**，Connector 是**它进来找我**
 - **能组合**：**不组合任何资产**
 - **注意 ③**：**事件目录不是它的身份**——身份仍是 name，换一份实现目录可以不同；消息包整份随信封进来（厚信封），只送一个标识回头去拉本版不支持
-- **注意 ④**：**② 那一路本 topic 只定它存在与它这一侧的配置**——受理怎么开新会话、同一件事来两次怎么办归 [PF-014](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 8）；新会话以哪个 agent definition、哪个租户身份建归 PF-015；同一份连接件的一条事件走哪一路由什么决定，PF-002 记为待裁（D-6）
+- **注意 ④**：**② 那一路本 topic 只定它存在与它这一侧的配置**——受理怎么开新会话、同一件事来两次怎么办归 [PF-014](../../product/PF-014-inbound-intake-and-queueing/design.md#57-穷举一什么会让队列从空变成非空)（rev 11）；新会话以哪个 agent definition、哪个租户身份建归 PF-015；同一份连接件的一条事件走哪一路由什么决定，PF-002 记为待裁（D-6）
 - **注意 ⑤**：触发会话的默认运行模式**只管此后开出来的新会话**，与 ① 那一路无关；租户可调，组织的值与锁照默认与强制那一套管着；工作区配不了
 
 ### UL-connector-event-type · 连接件事件类型 · Connector Event Type
@@ -245,7 +245,7 @@
 > composes this connector.
 
 - **形态**：属性（连接件正文的一项声明；与工具定义里的命令表同一种东西）
-- **出处**：[PF-002 §4 事件目录与事件订阅](../../product/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅)（rev 24）
+- **出处**：[PF-002 §4 事件目录与事件订阅](../../product/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅)（rev 31）
 - **别混**：不是[入站到达](interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)——到达是一次事实，类型是它属于哪一类
 - **注意 ①**：消息包**整份随信封进来**（厚信封）；连接件没有读取面，接收方无处回拉
 - **注意 ②**：**目录不是连接件的身份**——换一份实现，目录可以不同；目录是结构化的，说明给模型读、形状给受理对
@@ -263,7 +263,7 @@
 > by the layers holding the connector, not an agent action. Its category is **preference**.
 
 - **形态**：属性（一项[设置](#ul-setting--设置--setting)）
-- **出处**：[PF-002 §4 事件目录与事件订阅](../../product/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅) · [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 24）
+- **出处**：[PF-002 §4 事件目录与事件订阅](../../product/PF-002-assets-settings-and-permissions/design.md#事件目录与事件订阅) · [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 31）
 - **注意 ①**：未订阅的类型送来，受理拒绝，不是静默丢弃
 - **注意 ②**：组合了这份连接件的 agent，上下文里**只带被订阅的那几种**的说明——怎么带归 PF-010
 
@@ -293,8 +293,8 @@
 > its own thing; their order is their order in the assembly manifest.**
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension) · [不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 24） ·
-  [PF-012 §4 拓展件](../../product/PF-012-agent-loop-and-run/design.md#拓展件) · [§5.8](../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 15）
+- **出处**：[PF-002 §4 Loop Extension](../../product/PF-002-assets-settings-and-permissions/design.md#loop-extension) · [不可用处置是这一件自己的声明](../../product/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 31） ·
+  [PF-012 §4 拓展件](../../product/PF-012-agent-loop-and-run/design.md#拓展件) · [§5.8](../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 21）
 - **注意 ④**：**不可用处置是这一件自己的一项声明，不是设置，也不是权限**——持有它的各层不给它配值、也收窄不了它；取值与谁能用哪一种归 PF-012。声明了否决，也要干预力求出来是可否决才算数
 - **注意 ③**：**外来 hook**（Claude Code / Codex 格式）导入为拓展件时按其声明的输出能力定档；**工作区带来的一律只观察**
 - **⚠️ 别混**：**它不是[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)**——
@@ -337,8 +337,8 @@
 > running text: *converter*.
 
 - **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 13） ·
-  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 15）
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 14） ·
+  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 21）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
 - **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它走拓展件的位置与干预力，
@@ -364,7 +364,7 @@
 > shell commands.**
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 24）
+- **出处**：[PF-002 §4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 31）
 - **别混**：Skill 是方法本身，Slash Command 是**发起它的入口**。绑定是**多对多**——一个 skill 可以有多个入口，也可以完全没有
 - **注意 ①**：**名字**——交付面自己的动作名与系统业务流程型命令名是**系统保留名**，**一律在 `omne-official` 前缀下**；前两种绑定的命令**不得使用这个前缀**；同能力标识按资产替换规则
 - **注意 ②**：**为什么单独是一类资产**：为将来的可编程性留口子——出处同上
@@ -385,7 +385,7 @@
 > one free-form argument**. The same rule holds for all three binding targets.
 
 - **形态**：属性
-- **出处**：[PF-002 §4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 24） ·
+- **出处**：[PF-002 §4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 31） ·
   [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 10）
 - **别混**：**不是工具调用的参数**——那是模型给出、按工具定义收齐之后才解析的；这里解析的是人敲进交付面的那一行
 - **注意**：② 型命令里，人附带的参数**另成一个内容块**，不拼进 skill 的正文
@@ -402,28 +402,34 @@
 > single skill out of a plugin.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 22） · [PF-002 §4 Plugin](../../product/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 24）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 24） · [PF-002 §4 Plugin](../../product/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 31）
 - **别混 ①**：**不是 Cordis plugin**——那是运行时的代码装载单元，属技术设计。指它时**必须写全 `Cordis plugin`**
 - **别混 ②**：Plugin 组合出来的**还是资产**，可以继续被组合；[Agent Definition](#ul-agent-definition--agent-定义--agent-definition) 组合出来的是**一个能跑的 agent**
 - **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员
 
 ### UL-agent-definition · Agent 定义 · Agent Definition
 
-> **中**：**一个 agent 的静态定义**——它由什么组装而成、以什么面貌工作。
-> **它不是会话，也不是[agent runtime](agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime)**：
-> 改定义**不会**改变已经在跑的那个 agent，一个定义可以同时有很多个 agent runtime，
-> **定义与实例分别演进**。sub-agent 的定义**也属于这一类**。
+> **中**：一个 agent 的数据定义，描述它由什么装配而成、以什么面貌工作。会话固定所选定义的身份；同身份内容可以发布新有效版本，并在运行装配边界热重载。定义不是会话或运行中的协程，已发生执行的采用版本不随定义更新改写。
 >
-> **EN**: **The static definition of an agent** — what it is assembled from and how it
-> presents itself at work. **It is neither a session nor an agent runtime**:
-> editing a definition **does not** change an agent already running, one definition
-> may have many agent runtimes going at once, and **the definition and the running
-> thing evolve separately**. A sub-agent's definition **is one of these too**.
+> **EN**: An agent's data definition, describing its composition and working behavior. A session fixes the definition identity while newer valid content of that identity may be adopted at run assembly boundaries. The definition is neither a session nor a live coroutine; updates do not rewrite the versions used by past executions.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 22） · [PF-002 §4 Agent Definition](../../product/PF-002-assets-settings-and-permissions/design.md#agent-definition)（rev 24）
-- **注意**：混为一谈会出现「**我改了配置，正在跑的任务突然换了行为**」这种事故
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 24） · [PF-002 §4 Agent Definition](../../product/PF-002-assets-settings-and-permissions/design.md#agent-definition)（rev 31）
+- **注意**：身份固定不等于内容永远固定；普通恢复保留当前已采用版本；新 Run 或同一 Run 内显式 reload 的安全交接可以采用同身份新版，具体边界由 [PF-004 §6.2](../../product/PF-004-agent-definition-and-assembly/design.md#62-装配)（rev 20）明确。
 - **能组合**：**全部八类**（含其他 Agent Definition 作为 sub-agent）——**它是唯一能组合全部八类的**
+- **注意 ②**：定义的显式能力要求与[能力自动继承](#ul-capability-auto-inheritance--能力自动继承--capability-auto-inheritance)声明参与装配；定义不是完整装配结果，会话类型的必须依赖仍独立成立。
+- **注意 ③**：official Agent Definition 不可被组织、租户、工作区替换；三层自定义只允许 non-master，见 [PF-004 §6.8](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 20）。
+
+### UL-capability-auto-inheritance · 能力自动继承 · Capability Auto-Inheritance
+
+> **中**：Agent Definition 对装配时选入额外 Skill、Tool、MCP 能力标识的声明：是否自动继承、开放到哪个来源层，以及排除哪些继承项。范围为组织、租户含组织、工作区含租户及组织；排除项不作用于会话类型要求或定义显式声明的必需能力。范围限制能力名单，不限制所选能力的具体实现来源。开关缺省为 false；声明随生效的 Agent Definition，不作为各层独立配值的设置合并。
+>
+> **EN**: An Agent Definition's declaration of whether assembly selects additional Skill, Tool, and MCP capability identifiers, which source layers contribute identifiers, and which inherited capabilities it excludes. The scope is organization, tenant including organization, or workspace including tenant and organization. Exclusions do not remove capabilities required by the session type or explicitly required by the definition. This scope limits capability selection, not the source of implementations bound to the selected capabilities. The switch defaults to false. The declaration belongs to the effective Agent Definition, rather than being merged from independent per-layer settings.
+
+- **形态**：属性
+- **出处**：[PF-004 §4 能力自动继承](../../product/PF-004-agent-definition-and-assembly/design.md#能力自动继承)（rev 20）
+- **别混**：不是执行权限，也不是父子会话间的历史继承；声明没有独立身份。
+- **注意**：同名不同类别仍是不同能力；MCP 按接入点资产选择，其动作不因此成为独立资产。
 
 ### UL-agent-type · agent 类型 · Agent Type
 
@@ -443,19 +449,17 @@
 > itself**, independent of what any one assembly of it produces.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 agent 类型](../../product/PF-004-agent-definition-and-assembly/design.md#agent-类型)（rev 13） · [§6.8](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 13）
+- **出处**：[PF-004 §4 agent 类型](../../product/PF-004-agent-definition-and-assembly/design.md#agent-类型)（rev 20） · [§6.8](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)（rev 20）
 - **⚠️ 别混**：**`non-master` 不是[子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)。**
   后者说的是**它在派发关系里的角色**（被 `spawn`/`delegate` 派出去的那个）。
   **一个是这份定义带着哪套机制，一个是此刻在扮演什么。**
   **取这个名正是为了让两者不撞**（[C-14](../conflicts.md)）
 - **注意 ①**：**[master 必定是 official](../../product/PF-004-agent-definition-and-assembly/design.md#68-两类-agent谁能被谁自定义)**；
-  **租户能自定义的只有 `non-master`**
+  **组织、租户、工作区能自定义的只有 `non-master`；official Agent Definition 不可被这些层替换**
+- **派发准入**：spawn／delegate 可选 master 或 non-master，仍产生子会话；handoff 选 master 并产生独立主会话。
 - **注意 ②**：**它不决定这个 agent 能做什么**——[动作空间只由构成决定](#ul-action-space--动作空间--action-space)。
   **一个 `non-master` 照样可以装得很强**
-- **⚠️ 注意 ③**：**「master 的那一整套机制」包含哪些，尚未定全**——
-  目前只列得出开会话、带类目、只能官方提供三条
-  （[PF-004 D-1](../../product/PF-004-agent-definition-and-assembly/decisions.md#三待裁决)）。
-  **不要按「凡是 master 有的 `non-master` 都没有」去实现**
+- **注意 ③**：类型差异只取 [PF-004 明确条款](../../product/PF-004-agent-definition-and-assembly/design.md#agent-类型)：用户以 master 开主会话、master 带类目、master 只能官方提供；不把未来完整机制清单作为前置条件，也不推断 master 的任意能力都不属于 non-master。
 
 ### UL-master-category · master 类目 · Master Category
 
@@ -468,7 +472,7 @@
 > only** — a non-master opens no collaboration, so the property means nothing for it.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 master 类目](../../product/PF-004-agent-definition-and-assembly/design.md#master-类目)（rev 13）
+- **出处**：[PF-004 §4 master 类目](../../product/PF-004-agent-definition-and-assembly/design.md#master-类目)（rev 20）
 - **⚠️ 别混**：**它不是[会话类型](agent-runtime-loop.md#ul-session-type--会话类型--session-type)。**
   会话类型是**会话**的属性，**由它算出来**——
   [算，不是拷贝](../../product/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)。
@@ -495,7 +499,7 @@
 > line**, so the source's v7 may be v2 over there.
 
 - **形态**：对象
-- **出处**：[PF-002 flows §3.3 一个资产定义的版本](../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 24） ·
+- **出处**：[PF-002 flows §3.3 一个资产定义的版本](../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)（rev 31） ·
   [PF-003 §6.4 可复制的对象](../../product/PF-003-asset-transfer-and-sharing/design.md#64-可复制的对象)（rev 6）
 - **别混 ①**：**不是[版本选用](circulation-and-entitlement.md#ul-version-selection--版本选用--version-selection)**——
   那说的是**某个范围当前选了哪一个**，是一条关系；这一条说的是**被选的那个东西**
@@ -516,66 +520,32 @@
 > acyclic**, and **composition transfers no definition ownership**.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.1](../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)（rev 24）
+- **出处**：[PF-002 §5.1](../../product/PF-002-assets-settings-and-permissions/design.md#51-组合是一种关系不是几种)（rev 31）
 - **别混**：与[作用域合成语义](scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics)不是一回事——**裸写「组合」不作数**
 - **注意 ①**：这一节在 PF-002 里标着「**PM 推导，待产品负责人确认**」
 - **注意 ②**：**「环」指沿引用展开会回到自己、展开不完的那一种**；[Skill 与 Tool 互相引用不算](../../product/PF-002-assets-settings-and-permissions/design.md#谁能组合谁)——两边各装一份就完
 
 ### UL-agent-constitution · agent 构成 · Agent Constitution
 
-> **中**：**一份[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)里「它是什么」的那部分**——
-> 动作空间、技能、需要哪几类执行环境、装进来哪些[沙箱实现](grounding-and-isolation.md#ul-sandbox-implementation--沙箱实现--sandbox-implementation)、
-> 系统提示词的全部成分。**在装配时确定。**
-> **构成变了就是另一个 agent**；与[运行时注入](agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection)的分界是一句话：
-> **这个变化改变的是「它是什么」，还是「它处在什么情况下」？**
+> **中**：装配清单记录的 agent 组成：采用的 AgentDefinition、Loop 与 extensions、提示词组合规则及会话能力访问关系。清单记录当次采用依据，不把会话能力条目的后续数据、实现和可用性冻结在一个 Agent runtime 的存活期。替换 runtime 自身捕获的组成不更换会话固定的 agent 身份。
 >
-> **EN**: **The part of an assembly manifest that says *what it is*** — its action
-> space, its skills, which kinds of execution environment it needs, which sandbox
-> implementations are assembled in, and every ingredient of its system prompt.
-> **Fixed at assembly time.** **A change of
-> constitution makes it a different agent.** The line against runtime injection is
-> one question: **does this change alter *what it is*, or *what circumstances it is
-> in*?**
+> **EN**: The agent composition recorded in an assembly manifest: the adopted AgentDefinition, loop and extensions, prompt composition rules and access to session capabilities. The manifest records adoption inputs; it does not freeze later capability data, implementations or availability for the lifetime of an Agent runtime. Replacing the runtime’s own captured composition preserves the session’s fixed agent identity.
 
 - **形态**：属性
-- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 13） · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 13）
+- **出处**：[PF-004 §4 注入](../../product/PF-004-agent-definition-and-assembly/design.md#注入)（rev 20） · [§5.3](../../product/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 20）
 - **弃用的说法**：**「agent 构成 / Instance Constitution」**——
   2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20)
-- **别混**：**它不是整份清单**——清单还记着为哪个会话求的、依据哪个定义版本、成本算谁的。
-  **这一条只说其中「是什么」那一部分**，因为**那一部分才与注入对立**
-- **注意**：构成变了**未必要重新装配**——系统已受理的 Agent Definition 变更是**下一次 run 重新装配**，
-  运行中[增量装载](agent-runtime-loop.md#ul-incremental-loading--增量装载--incremental-loading)则**只在清单上追加一条**；
-  **构成变小**（移除、禁用、「谁可以使用它」被收回，落在非常驻条目上也算）**下一次运行起重新装配**——[PF-004 §6.3](../../product/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变)（rev 13）
-- **工作区来源边界**：只改文件不等于系统已受理装载变更；等待实际装配或显式资产 reload，校验失败时原内存数据不变。
+- **别混**：构成记录、会话能力的当前采用值和单次调用的实际输入是不同时间粒度；能力条目变化本身不等于 runtime 的直接依赖变化。
 
 ### UL-action-space · 动作空间 · Action Space
 
-> **中**：**这个[agent runtime](agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime)能发起哪些动作的集合。**
-> 它**只由[agent 构成](#ul-agent-constitution--agent-构成--agent-constitution)决定**——
-> 装上新工具就变大，移除工具就变小，而**一次运行之内，权限怎么变它都不变**。
-> agent 照样能发起那个调用，只是这次被拒绝：它因此知道
-> **「这件事存在，只是我现在不被允许」，而不是「这件事不存在」**。
-> 运行之间，下一次装配按当时的权限求值：执行权限这一类不进构成，动作空间照样不变；
-> **只有[「谁可以使用它」](circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by)改的是装不装进来**——判下来这个人不能用的，自下一次运行起不再装入，那是构成变了。
-> **构成变小（移除、禁用、「谁可以使用它」被收回）时，下一次运行起重新装配**——落在非常驻条目上也一样，agent 从那时起搜不到、调不到它。
+> **中**：一个会话中 agent 能识别并尝试发起的动作集合，由合法纳入会话的能力条目投影得到。能力身份的可见性在同一 Session 内单调增加；定义变更、禁用、卸载或撤权使已知条目不可用，不删除该身份。可尝试发起不等于获准执行；不可用时由替换件返回原因。
 >
-> **EN**: **The set of actions this agent runtime can initiate.** Determined **by the
-> agent's constitution alone** — it grows when a tool is loaded, shrinks when one is
-> removed, and **within one run it does not change however permissions change**. The agent
-> can still issue the call and simply be refused, so it knows **"this exists, I am merely
-> not allowed right now"** rather than **"this does not exist"**. Between runs the next
-> assembly evaluates with the permissions of that moment: execution permissions never enter
-> the constitution, so the action space still does not change; **only "usable by" decides
-> whether something is loaded at all** — what that person may not use is no longer loaded from
-> the next run on, which is a change of constitution. **When the constitution shrinks (removal,
-> disable, "usable by" withdrawn), the agent is reassembled from the next run on** — for
-> non-resident entries too; from then on the agent can neither find nor call it.
+> **EN**: The actions an agent can recognize and attempt in a session, projected from capabilities lawfully admitted to that session. Capability-identity visibility is monotonic within a Session; definition changes, disablement, unloading or revocation make known entries unavailable rather than erase their identities. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[PF-004 §4 动作空间](../../product/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](../../product/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](../../product/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 13）
-- **注意 ①**：这条锁定的是**变化的唯一原因**，不是「永不改变」。它真正排除的只有一件事：**拿构成之外的东西去改动作空间**
-- **注意 ②**：**「谁可以使用它」被收回不是这条的反例**——它落在组装之前、与禁用同一段，agent 一样不知道有这回事；已经开始的那次运行照它捕获的构成跑完
-- **注意 ③**：**[PF-012 §5.7](../../product/PF-012-agent-loop-and-run/design.md#57-一次尝试三条路通向重新算一遍)（rev 14）写「重算之后动作空间可能与上一次尝试不同」，与本条（PF-004 I-4）对不上**——两处说法照实记在 [C-33](../conflicts.md)，本条不选边；PF-012 已登记为来源问题，PM 的读法是那两处的「动作空间」该读作「调得通的范围」
+- **出处**：[PF-004 §4 动作空间](../../product/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](../../product/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](../../product/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。未曾合法纳入的能力仍受选入与访问边界限制。
 
 ### UL-session-slash-command-set · 会话斜杠命令集 · Session Slash-Command Set
 
@@ -595,7 +565,7 @@
 > by itself; it lives in a session registry and **changes only when the matching reload hot-updates that registry** (refreshed automatically after a type-③ failure; a full re-assembly refills it too).
 
 - **形态**：视图
-- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)（rev 24）
+- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)（rev 31）
 - **别混**：[动作空间](#ul-action-space--动作空间--action-space)在权限变了时**不变**，agent 因此知道「存在，只是不许」；
   会话斜杠命令集**恰好相反**——无权使用的**就不在里面**，人得到的回答是「没有这个命令」
 - **注意**：**收窄即时，放宽要等 reload**——权限一收回，那条命令此刻起就不在；
@@ -615,7 +585,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[PF-007 §4 meta](../../product/PF-007-meta-capabilities/design.md#meta)（rev 19） · [meta 与常驻的关系](../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 19）
+- **出处**：[PF-007 §4 meta](../../product/PF-007-meta-capabilities/design.md#meta)（rev 23） · [meta 与常驻的关系](../../product/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 23）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -632,6 +602,8 @@
 - **别混**：**具体是哪几扇门（`Tools()` `Shell()` …）是它的实例，不是概念**——
   词表定义 meta 能力，**不为每一扇门各立一条**
 
+- **运行期边界**：Ask() 可被会话协作模式关闭人交互能力；这不删除、替换或解除 meta 资产的必需绑定。命令是否可用仍受各自权限限制。
+
 ### UL-prompt-slot · 提示词槽位 · Prompt Slot
 
 > **中**：**agent 始终直接看见的一个条目**——正文说「在系统提示词里」指的就是这种始终可见的呈现，不限定它落在一次模型请求的哪个位置。
@@ -647,7 +619,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 20） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 19）
+- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 23） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 23）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -684,7 +656,7 @@
 - **形态**：对象
 - **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
   [档案的身份：所在范围加路由名](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
-  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 13）
+  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 14）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -716,7 +688,7 @@
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
 - **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
   [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
-  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 13）
+  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 14）
 - **⚠️ 别混**：**不是[官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset)**——官方件说的是资产的来源，而档案不是资产；**所以这里叫「档案」不叫「件」**
 
 ### UL-custom-model-profile · 自建档案 · Custom Model Profile
@@ -737,8 +709,8 @@
 
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
 - **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
-  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 13） ·
-  [flows §四 角色与操作](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 13）
+  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 14） ·
+  [flows §四 角色与操作](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 14）
 - **⚠️ 别混**：**不是[自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——理由同上
 - **注意**：**组织层建的档案，成员配上自己那一把凭据之前用不上**——列表上标明缺的是什么；组织那一层给不了他一把兜底的
 
@@ -762,8 +734,8 @@
 
 - **形态**：状态
 - **出处**：[PF-013 §4 在册 / 已撤回](../../product/PF-013-model-profiles-and-invocation/design.md#在册--已撤回) ·
-  [§6.4](../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 13） ·
-  [flows §3.1](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 13）
+  [§6.4](../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 14） ·
+  [flows §3.1](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 14）
 - **别混**：**「这个范围不允许它」不是这里的取值**——那是求值的结果，档案照样在册；两者要用户做的事不同：已下架要换一个，不被允许要去找管理员
 - **注意**：**同一个范围里想再用一个已撤回档案的路由名，走的是「恢复在册」，不是「建档」**——那个名字在这个范围里只对应这一条
 
@@ -778,7 +750,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 13）
+  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 14）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
 - **别混**：**不是「各家一把凭据」**——所有模型请求统一经 OpenRouter 出去，一个租户一把[模型凭据](#ul-model-credential--模型凭据--model-credential)，不分供应商
 
@@ -795,7 +767,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 13）
+  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 14）
 - **注意**：它同样只是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)的输入；租户换掉默认重试件之后，怎么读它由那一件定
 
 ### UL-model-credential · 模型凭据 · Model Credential
@@ -823,7 +795,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
   [组织那一层为什么不持有](../../product/PF-013-model-profiles-and-invocation/design.md#组织那一层为什么不持有) ·
-  [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 13）
+  [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 14）
 - **⚠️ 别混 ①**：**不是[设置](#ul-setting--设置--setting)**——设置是**资产**的属性，
   而[档案不是资产](#ul-model-profile--模型档案--model-profile)、凭据也不是；**它挂在租户身上**
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
@@ -848,7 +820,7 @@
 > at "before the model call" may override them for that one request.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 13）
+- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 14）
 - **别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——凭据挂租户、一租户一把；参数挂档案、一档案一组
 - **注意**：词表里有哪些参数、各取什么值，归规格，不归产品正文
 
@@ -875,7 +847,7 @@
 - **形态**：属性
 - **出处**：[PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp) ·
   [MCP 凭据：一份持有一份](../../product/PF-002-assets-settings-and-permissions/design.md#mcp-凭据一份持有一份静态的或经-oauth-取得的) ·
-  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 24）
+  [§5.2 设置项分四类](../../product/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 31）
 - **⚠️ 别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——模型凭据挂在**租户身上**、一租户一把、不是设置；
   MCP 凭据挂在**接入点的持有**上、一份持有一份、是一项设置。**两者同一条路：组织那一层都不持有**
 - **别混 ②**：[连接件](#ul-connector--连接件--connector)的**鉴权绑定**方向相反（对面进来找我），不是这一项；它同样只在租户那一层配
@@ -900,11 +872,11 @@
 - **形态**：属性
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
   [档案的身份：所在范围加路由名](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
-  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 13）
+  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 14）
 - **⚠️ 别混**：用户界面上「你正在用 X」说的是它；**「刚才那句话是 X 说的」说的是另一件事**，两者完全可以不是同一个答案
 - **注意**：它是「用哪个模型」这项[设置](#ul-setting--设置--setting)在**会话那一格**的值；切换就是改这一格，**从没切换过时那一格没有值**，所以初值取沿层级求值的那一条
 - **注意 ②**：**它的每一次改变，都先是会话日志里的一条[切换](#ul-model-switch--模型切换--model-switch)事实**——[条目落盘即改变](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（PF-013 rev 12），没有「自动从 A 变成别的」这条转移
-- **注意 ③**：**最具体那一条撤回了、链上另有同名在册的，它没变**——变的是这个名字落到哪一条，那不是改选；[§6.1](../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用)（rev 13）标题里的「引用」指名字背后必须有一条档案，不指某一行
+- **注意 ③**：**最具体那一条撤回了、链上另有同名在册的，它没变**——变的是这个名字落到哪一条，那不是改选；[§6.1](../../product/PF-013-model-profiles-and-invocation/design.md#61-档案是一个对象那项设置的取值是对它的引用)（rev 14）标题里的「引用」指名字背后必须有一条档案，不指某一行
 
 ### UL-effective-model · 有效模型 · Effective Model
 
@@ -927,7 +899,7 @@
 - **形态**：视图
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
   [§5.10](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
-  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 13）
+  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 14）
 - **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
 - **注意 ②**：**出门之前核的是它，不是选中模型**——上层锁死了另一条，请求就用锁定的那条照常发出，不算失败；
   [只有它算不出来、或不是合法目标，这一次才失败](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)
@@ -952,8 +924,8 @@
 - **出处**：[PF-013 §5.9 换模型](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) ·
   [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝) ·
   [§6.6](../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实) ·
-  [§6.7](../../product/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 13） ·
-  [flows §3.3](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 13）
+  [§6.7](../../product/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 14） ·
+  [flows §3.3](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 14）
 - **别混 ①**：**选中模型变了，不等于[有效模型](#ul-effective-model--有效模型--effective-model)变了**——上层锁死过，求值出来的可能仍是别的
 - **别混 ②**：**不是[当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)的切换**。裸写「切换」不作数
 - **注意 ①**：**窗口更小、看着更「差」都不构成拒绝**——装不装得下，下一次请求前照常量、照常压缩

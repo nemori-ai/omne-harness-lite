@@ -2,7 +2,7 @@
 id: PF-009
 title: 上下文消息类型
 status: active
-revision: 8
+revision: 9
 relations:
   supersedes: []
   depends-on:
@@ -175,7 +175,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 8**（2026-09-23）——[变更历史](changelog.md)。
+- 产品设计：**rev 9**（2026-09-23）——[变更历史](changelog.md)。
   **rev 4 已接受为正式版本**（2026-09-22）；**rev 5–8 全文待产品负责人确认**
 - 范围：**只讲消息类型**；上下文管理与组装归 **PF-010**，异常的分层处理归 **PF-011**
 - 待裁决：**无**

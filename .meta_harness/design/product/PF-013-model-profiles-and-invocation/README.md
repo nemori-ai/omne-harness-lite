@@ -2,7 +2,7 @@
 id: PF-013
 title: 模型档案、调用与切换
 status: active
-revision: 13
+revision: 14
 relations:
   supersedes: []
   depends-on:
@@ -66,7 +66,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 13，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 14**，本轮运行时归属增量按产品负责人明确要求修订；此前 **rev 13，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 待裁决：**0**
 - **凭据只在租户层**：每人自取，[组织那一层不持有](design.md#组织那一层为什么不持有)；出厂默认那一格另有部署配的一把
 - **档案的身份是[所在范围加路由名](design.md#档案的身份所在范围加路由名)**：官方、组织、租户可以各有一条同路由名的，列表上每条标着来源；[已撤回的可以恢复在册](design.md#64-撤回不删行会话指向被撤回的档案时说已下架)
@@ -97,3 +97,6 @@ PF-013-model-profiles-and-invocation/
 ├── interviews/       产品调研的来源与观察（不是依据）
 └── projection/       技术投影（按版本固化的派生快照，不是权威）
 ```
+
+
+本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。

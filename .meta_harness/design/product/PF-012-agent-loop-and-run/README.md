@@ -2,7 +2,7 @@
 id: PF-012
 title: Agent Loop 与 Run
 status: active
-revision: 15
+revision: 21
 relations:
   supersedes: []
   depends-on:
@@ -103,7 +103,7 @@ relations:
 **位置不是挑出来的，是推出来的：**
 
 > **每个[状态点](design.md#53-改日志的动作与纯派生的动作)有紧前与紧后两条边，每条边就是一个位置。**
-> 六个状态点十二条边，**只有「尝试开始之前」不归本 topic**，[其余十一条全部开放](design.md#十一个位置是推出来的不是挑出来的)。
+> 六个状态点十二条边，**只有「尝试开始之前」不另开挂点**，[其余十一条全部开放](design.md#十一个位置是推出来的不是挑出来的)。
 
 **尝试开始之后 · 消息落盘之前 · 消息落盘之后 · 压缩之前 · 压缩之后 · 调模型之前 ·
 调模型之后 · 执行动作之前 · 执行动作之后 · 落终态之前 · 落终态之后**
@@ -192,7 +192,11 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 15，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+能力更新不发生实例交接时同样核对旧模型建议；调用约定或实现改变不自动执行，已发调用保持原输入。本轮为产品规则与消费边界的修订，未据此接受具体 Cordis 插件划分或实现。
+
+补齐重装配安全交接、独立模型／工具执行与待续判断的关联；旧模型建议中尚未发起的动作按新装配核对，绑定已移除或已变则不自动执行。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
+
+- 产品设计：**rev 21**，明确完整函数输入与持久化投影；新增表达不扩大历史接受范围。此前 **rev 15，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - **没有待裁决项**；[对账那条裁决](decisions.md#一拍板记录)有一处 PM 读法[由 D-065 确认](decisions.md#四已知的来源问题)（追补前提含「工具执行运行时里找不到它」）
 - **那个缺口已经有主了**：会话归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)（rev 13，已正式接受；显式未决项保留）。
   **它没有终态**——[生命周期是四个状态，收束的锚点是归档](../PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)，
@@ -220,3 +224,11 @@ PF-012-agent-loop-and-run/
 ```
 
 返回[产品设计入口](../README.md)。
+
+
+创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [changelog](changelog.md)。
+
+
+本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。
+
+本次产品裁决：队列派生排除因归档取消的输入，历史与承接事实不改写。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。

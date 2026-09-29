@@ -2,7 +2,7 @@
 id: PF-005
 title: 执行环境与沙箱
 status: active
-revision: 7
+revision: 8
 relations:
   supersedes: []
   depends-on:
@@ -96,7 +96,7 @@ Agent Definition 对 agent runtime、会话历史对 agent runtime。三次形�
 
 ## 状态
 
-- 产品设计：**rev 7**，本轮工作区一致性增量为草稿；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 6，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 8**，补齐会话执行环境策略初始化与持久化，逐工具求值及当前授权约束保持；本轮工作区一致性增量为草稿；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 6，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题，见 [decisions.md 第四节](decisions.md#四已知的来源问题)：两处**用词上的偏离**
@@ -120,3 +120,6 @@ PF-005-execution-environments-and-sandboxes/
 ├── changelog.md      产品设计本身的演进
 └── interviews/       设计交流笔记（原始材料）
 ```
+
+
+创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [changelog](changelog.md)。
