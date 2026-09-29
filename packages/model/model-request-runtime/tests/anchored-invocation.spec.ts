@@ -3,12 +3,80 @@ import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { join } from 'node:path'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import type { DiagnosticEvent } from '../src/diagnostics-types.ts'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
 import { appendControlRecord } from '../src/service-control.ts'
 import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import { harness, transport, payload, deferred } from './anchored-invocation-fixture.ts'
 
 describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel', () => {
+  it('projects only confirmed exact durable positions when reply handoff is reached', async () => {
+    await harness(async h => {
+      const events: DiagnosticEvent[] = []
+      let factories = 0
+      let closes = 0
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        diagnosticEmitterFactory() {
+          factories++
+          return {
+            record(event) {
+              events.push(event)
+              return { recorded: { collectorId: 'test', sequence: String(events.length) } }
+            },
+            close() {
+              closes++
+            },
+          }
+        },
+      })
+      expect(await handle.outcome).toHaveProperty('replyPending')
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read)) throw new Error('durable log unreadable')
+      const anchorRecords = read.entries.filter(entry =>
+        ['model_call_dispatched', 'model_call_opened'].includes(String(payload(entry).kind)),
+      )
+      expect(anchorRecords).toHaveLength(2)
+      const dispatchedEntry = anchorRecords[0]
+      const openedEntry = anchorRecords[1]
+      if (dispatchedEntry === undefined || openedEntry === undefined)
+        throw new Error('durable anchors absent')
+      expect(
+        events.filter(
+          event =>
+            event.stage === 'reply_handoff' &&
+            event.facts.kind === 'progress' &&
+            event.facts.anchor !== undefined,
+        ),
+      ).toEqual([
+        {
+          source: 'runtime',
+          stage: 'reply_handoff',
+          outcome: 'started',
+          facts: {
+            kind: 'progress',
+            anchor: 'dispatched',
+            anchorId: ExactDecimal.from(dispatchedEntry.position).toString(),
+          },
+        },
+        {
+          source: 'runtime',
+          stage: 'reply_handoff',
+          outcome: 'started',
+          facts: {
+            kind: 'progress',
+            anchor: 'opened',
+            anchorId: ExactDecimal.from(openedEntry.position).toString(),
+          },
+        },
+      ])
+      expect(factories).toBe(1)
+      expect(closes).toBe(1)
+      await handle.close()
+    })
+  })
+
   it('borrows the original owner slot for a durable intent during a live stream', async () => {
     await harness(async h => {
       const entered = deferred<void>()
@@ -540,14 +608,32 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
   it('malformed successful anchor receipt is unknown and never authorizes HTTP/release', async () => {
     await harness(async h => {
       const t = transport()
+      const events: DiagnosticEvent[] = []
+      let closed = 0
       h.wrap({
         ...h.log,
         async append() {
           return { positions: [], tail: 0 }
         },
       })
-      const handle = createAnchoredModelInvocation({ ...h.input, transport: t.adapter })
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        transport: t.adapter,
+        diagnosticEmitterFactory: () => ({
+          record(event) {
+            events.push(event)
+            return { recorded: { collectorId: 'test', sequence: String(events.length) } }
+          },
+          close() {
+            closed++
+          },
+        }),
+      })
       expect(await handle.outcome).toEqual({ unavailable: true })
+      expect(events.some(event => event.facts.kind === 'progress' && 'anchor' in event.facts)).toBe(
+        false,
+      )
+      expect(closed).toBe(1)
       expect(t.sends()).toBe(0)
       expect(await handle.close()).toEqual({ unavailable: true })
       expect(h.released()).toBe(0)

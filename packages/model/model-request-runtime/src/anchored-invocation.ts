@@ -1,10 +1,17 @@
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import type { ModelCallDispatchedRecord } from '@omne-harness-lite/messages'
-import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type {
+  AppendResult,
+  AppendSuccess,
+  OwnedLogEntry,
+} from '@omne-harness-lite/session-log-jsonl'
 import type { ReplyDisposition } from '@omne-harness-lite/model-response'
 import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
 import { invokeModel } from './invoke.ts'
+import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,
@@ -38,8 +45,114 @@ import type {
   AnchoredInvocationOutcome,
   ResponseConstructionResult,
 } from './anchored-invocation-types.ts'
+import type {
+  DiagnosticEmitter,
+  DiagnosticEvent,
+  DiagnosticRecordResult,
+} from './diagnostics-types.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
+/** One actual emitter is shared by the anchored owner and the inner public invocation. */
+function anchoredDiagnostics<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+): {
+  readonly invocationEmitter?: DiagnosticEmitter
+  readonly record: (event: DiagnosticEvent) => DiagnosticRecordResult
+  readonly close: () => void
+} {
+  let emitter: DiagnosticEmitter | undefined
+  let recordEnabled = true
+  let closeAttempted = false
+  let reportEnabled = true
+  const report = (kind: string): void => {
+    if (!reportEnabled) return
+    try {
+      const result: unknown = input.policy.diagnostic({ kind })
+      if (drainDiagnosticThenable(result)) reportEnabled = false
+    } catch {
+      reportEnabled = false
+    }
+  }
+  if (input.diagnosticEmitterFactory !== undefined) {
+    try {
+      const produced: unknown = input.diagnosticEmitterFactory()
+      if (drainDiagnosticThenable(produced)) report('model_anchor.diagnostic_contract_violation')
+      else if (
+        produced !== null &&
+        typeof produced === 'object' &&
+        'record' in produced &&
+        'close' in produced &&
+        typeof produced.record === 'function' &&
+        typeof produced.close === 'function'
+      )
+        emitter = produced as DiagnosticEmitter
+      else report('model_anchor.diagnostic_contract_violation')
+    } catch {
+      report('model_anchor.diagnostic_sink_failed')
+    }
+  }
+  const record = (event: DiagnosticEvent): DiagnosticRecordResult => {
+    if (!emitter || !recordEnabled) return { dropped: 'closed' }
+    try {
+      const result: unknown = emitter.record(event)
+      if (drainDiagnosticThenable(result)) {
+        recordEnabled = false
+        report('model_anchor.diagnostic_contract_violation')
+        return { dropped: 'invalid' }
+      } else if (result !== null && typeof result === 'object') {
+        if ('recorded' in result) {
+          const ref = result.recorded
+          if (
+            ref !== null &&
+            typeof ref === 'object' &&
+            'collectorId' in ref &&
+            'sequence' in ref &&
+            typeof ref.collectorId === 'string' &&
+            typeof ref.sequence === 'string'
+          )
+            return { recorded: { collectorId: ref.collectorId, sequence: ref.sequence } }
+        } else if (
+          'dropped' in result &&
+          (result.dropped === 'invalid' ||
+            result.dropped === 'unsupported' ||
+            result.dropped === 'oversize' ||
+            result.dropped === 'queue_full' ||
+            result.dropped === 'closed')
+        )
+          return { dropped: result.dropped }
+      }
+      recordEnabled = false
+      report('model_anchor.diagnostic_contract_violation')
+    } catch {
+      recordEnabled = false
+      report('model_anchor.diagnostic_sink_failed')
+    }
+    return { dropped: 'invalid' }
+  }
+  const close = (): void => {
+    if (!emitter || closeAttempted) return
+    closeAttempted = true
+    try {
+      const result: unknown = emitter.close()
+      if (drainDiagnosticThenable(result)) report('model_anchor.diagnostic_contract_violation')
+    } catch {
+      report('model_anchor.diagnostic_sink_failed')
+    }
+  }
+  return {
+    ...(emitter === undefined
+      ? {}
+      : {
+          invocationEmitter: Object.freeze({
+            record,
+            // The anchored owner closes the one emitter after durable work has stopped.
+            close() {},
+          } satisfies DiagnosticEmitter),
+        }),
+    record,
+    close,
+  }
+}
 function validPolicy(policy: InvocationPolicy): boolean {
   return (
     typeof policy.now === 'function' &&
@@ -261,6 +374,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
   let interruption: Extract<ResponseConstructionResult, { readonly response: unknown }> | undefined
   let settled = false
   let dispatchConfirmed = false
+  let dispatchedPosition: JsonNumber | undefined
+  let openedPosition: JsonNumber | undefined
+  let anchorsReported = false
   let anchoredStopped = false
   let interruptInitiator: 'user' | 'run_cancelled' | undefined
   let draining: Promise<void> | undefined
@@ -284,6 +400,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       throw error
     }
   })()
+  const engineering = anchoredDiagnostics(input)
   const diagnose = (kind: string) => {
     try {
       policy.diagnostic({ kind })
@@ -421,18 +538,18 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     unresolved.add(task)
     return task
   }
-  async function receipt(task: SettlementTask<AppendResult>): Promise<boolean> {
+  async function receipt(task: SettlementTask<AppendResult>): Promise<AppendSuccess | undefined> {
     let raw: unknown
     try {
       raw = await task.completion
     } catch {
       quarantined = true
-      return false
+      return undefined
     }
     const result = settlementAppendReceipt(raw, 1)
     if (result === null) {
       quarantined = true
-      return false
+      return undefined
     }
     if ('failure' in result) {
       if (result.failure === 'unavailable' || result.failure === 'alreadyRecorded')
@@ -442,15 +559,32 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         unresolved.delete(task)
         if (task === openedTask) openedKnownAbsent = true
       }
-      return false
+      return undefined
     }
     unresolved.delete(task)
-    return true
+    return result
+  }
+  function recordAnchors(stage: 'reply_handoff' | 'settlement'): void {
+    if (anchorsReported) return
+    anchorsReported = true
+    for (const [anchor, position] of [
+      ['dispatched', dispatchedPosition],
+      ['opened', openedPosition],
+    ] as const) {
+      if (position === undefined) continue
+      engineering.record({
+        source: 'runtime',
+        stage,
+        outcome: 'started',
+        facts: { kind: 'progress', anchor, anchorId: ExactDecimal.from(position).toString() },
+      })
+    }
   }
   async function settleCandidate(
     disposition: ReplyDisposition | null,
     withoutReply = false,
   ): Promise<SettlementResult> {
+    recordAnchors('settlement')
     if ((!construction && !interruption) || quarantined || unresolved.size > 0)
       return { unavailable: true, reason: 'opened_unknown' }
     const candidate =
@@ -481,8 +615,10 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     try {
       if (!usable()) return { cancelledBeforeDispatch: true }
       const dispatchTask = append(prepared.ok)
-      if (!(await receipt(dispatchTask))) return unavailable
+      const dispatchReceipt = await receipt(dispatchTask)
+      if (dispatchReceipt === undefined) return unavailable
       dispatchConfirmed = true
+      dispatchedPosition = dispatchReceipt.positions[0]
       if (!usable()) {
         const candidate = constructAnchoredInterruption({
           dispatched,
@@ -503,6 +639,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         if (signal.aborted) cancel()
         try {
           if (!usable()) return { cancelledBeforeSend: true } as const
+          const invocationEmitter = engineering.invocationEmitter
           invocation = invokeModel({
             ...requested,
             transport: {
@@ -515,9 +652,9 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
             signal: controller.signal,
             beforeSend: usable,
             ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
-            ...(input.diagnosticEmitterFactory === undefined
+            ...(invocationEmitter === undefined
               ? {}
-              : { diagnosticEmitterFactory: input.diagnosticEmitterFactory }),
+              : { diagnosticEmitterFactory: () => invocationEmitter }),
             beforeFirstContent: () =>
               start('wait', async () => {
                 if (!usable()) throw new Error('model_anchor.stopped')
@@ -545,8 +682,10 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
                 })
                 if ('invalidValue' in entry) throw new Error('model_anchor.opened')
                 openedTask = append(entry.ok)
-                if (!(await receipt(openedTask))) throw new Error('model_anchor.unconfirmed')
+                const openedReceipt = await receipt(openedTask)
+                if (openedReceipt === undefined) throw new Error('model_anchor.unconfirmed')
                 openedConfirmed = true
+                openedPosition = openedReceipt.positions[0]
                 firstTokenAt = at
                 if (!usable()) {
                   quarantined = true
@@ -584,6 +723,7 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
         const stoppedSettlement = await settleCandidate(null)
         return 'settled' in stoppedSettlement ? { settled: stoppedSettlement } : unavailable
       }
+      recordAnchors('reply_handoff')
       if (!settlementGenerationCurrent(binding)) return unavailable
       construction = Object.freeze({
         dispatched,
@@ -600,9 +740,13 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
       return 'settled' in resultSettlement ? { settled: resultSettlement } : unavailable
     } finally {
       // Unknown append may outlive invoke; close retains and awaits its actual stopped fact.
-      if (!quarantined) {
-        await drain()
-        anchoredStopped = registrationReleased
+      try {
+        if (!quarantined) {
+          await drain()
+          anchoredStopped = registrationReleased
+        }
+      } finally {
+        engineering.close()
       }
     }
   }
