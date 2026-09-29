@@ -439,7 +439,19 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
               : runtime.history.call(result.prefix, key.callId)
           },
         )
-        if ('unavailable' in received || 'unavailable' in received.ok) return { unavailable: true }
+        if ('unavailable' in received) return { unavailable: true }
+        if ('unavailable' in received.ok) {
+          const durable = await runtime.callFacts.lookup({ binding: view.session.log, ref: key })
+          if (
+            'view' in durable &&
+            durable.view.result !== undefined &&
+            (durable.view.state === 'complete' || durable.view.state === 'interrupted')
+          ) {
+            control.publishStopped()
+            return { released: true }
+          }
+          return { unavailable: true }
+        }
         const history = received.ok
         if (
           'known' in history &&

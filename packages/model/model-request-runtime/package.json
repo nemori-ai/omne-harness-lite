@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Standalone model invocation, pure policies, log codec and durable thirteen-operation model runtime service",
+  "description": "Standalone model invocation, pure policies, log codec and durable model runtime service",
   "engines": {
     "node": ">=24.18.0 <25"
   },

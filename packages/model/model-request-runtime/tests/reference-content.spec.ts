@@ -12,6 +12,7 @@ import { composeMigrations, narrow, type Storage } from '@omne-harness-lite/stor
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { publishModelCallContent } from '../src/reference-publish.ts'
+import { createModelCallFacts } from '../src/reference-facts.ts'
 import { OwnedReadTracker } from '../src/service-control.ts'
 import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
 import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
@@ -210,6 +211,62 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       expect(await reads.close()).toEqual({ released: true })
     })
   })
+  it('rebuilds cold call and creation indexes from the real marker and immutable row', async () => {
+    await host(async h => {
+      const owner = publicationOwner().owner
+      const first = createModelCallContentStore({ storage: h.storage, policy })
+      const reads = new OwnedReadTracker()
+      const written = await publishModelCallContent({
+        binding: h.binding,
+        owner,
+        concurrent: 2,
+        reads,
+        contentStore: first,
+        content: h.content,
+        locator: 'created-cold',
+        version: 'v1',
+        at: '2026-09-20T08:00:00Z',
+        retainUnknown() {
+          throw new Error('known real JSONL receipt')
+        },
+      })
+      expect(written).toEqual({ published: true })
+      await first.close()
+      const reopened = createModelCallContentStore({ storage: await h.reopen(), policy })
+      const facts = createModelCallFacts({
+        content: reopened,
+        maxScopes: 2,
+        presence: {
+          async read(input, observed) {
+            return {
+              read: await observed({
+                kind: 'stopped',
+                source: input.source,
+                executionGeneration: null,
+                sourceVersion: 'cold-log-v1',
+                target: null,
+                unknownBatches: [],
+              }),
+            }
+          },
+        },
+      })
+      const found = await facts.lookup({ binding: h.binding, ref: h.content.value.ref })
+      expect(found).toMatchObject({
+        view: { ref: h.content.value.ref, state: 'open', presence: { kind: 'stopped' } },
+      })
+      const creation = await facts.creation({
+        binding: h.binding,
+        creationKey: h.content.value.creationKey,
+      })
+      expect(creation).toMatchObject({
+        payload: { creationKey: h.content.value.creationKey },
+        view: { state: 'open' },
+      })
+      expect(await facts.close()).toEqual({ released: true })
+      expect(await reads.close()).toEqual({ released: true })
+    })
+  })
   it('confirms exact created/complete pending bytes, rejects replacement, survives close/reopen', async () => {
     await host(async h => {
       const store = createModelCallContentStore({ storage: h.storage, policy })
@@ -256,8 +313,9 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       // Match the current text/thinking/tool_call transport: headers are inline, no raw body locator.
       if (externalReady.value.raw === undefined) throw new Error('normative raw body')
       const { body: _externalBody, ...raw } = externalReady.value.raw
-      const ready = { kind: 'reply_ready' as const, value: { ...externalReady.value, raw } }
-      expect(judgePendingModelResponse(ready.value)).toEqual({ ok: true })
+      const inline = { ...externalReady.value, raw }
+      if (!isPending(inline)) throw new Error('owned inline ready must match MR10')
+      const ready = { kind: 'reply_ready' as const, value: inline }
       const writtenReady = await store.put({
         binding: h.binding,
         locator: 'ready',

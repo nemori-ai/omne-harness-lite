@@ -75,6 +75,8 @@ export interface AnchoredInvocationHandle {
     | { readonly unavailable: true }
   /** Caller-owned settlement through the same whole-batch coordinator, including persisted [M,R]. */
   readonly settleReply: (disposition: ReplyDisposition) => Promise<SettlementResult>
+  /** S-86: ready is already durable; drain work and borrowed resources without a final/cancel. */
+  readonly finishReady: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
   /** Closes admission; unresolved durable responsibility retains borrowed references. */
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
 }

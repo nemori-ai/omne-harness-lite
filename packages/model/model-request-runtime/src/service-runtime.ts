@@ -145,6 +145,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const owners = [
     ['reads', reads.close],
     ['acquire', acquire.close],
+    ['facts', construction.callFacts.close],
     ['calls', calls.close],
     ['dispatch', dispatch.close],
     ['control', control.close],

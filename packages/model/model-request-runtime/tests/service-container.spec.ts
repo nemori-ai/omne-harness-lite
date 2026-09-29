@@ -445,6 +445,7 @@ describe('call container admission and retention', () => {
       async settleReply() {
         return { unavailable: true, reason: 'candidate' } as const
       },
+      finishReady: async () => ({ unavailable: true as const }),
     }
     first.reservation.attachInvocation(old)
     first.reservation.release()
@@ -488,6 +489,7 @@ describe('call container admission and retention', () => {
       async settleReply() {
         return { unavailable: true, reason: 'candidate' } as const
       },
+      finishReady: async () => ({ unavailable: true as const }),
     } as AnchoredInvocationHandle
     const next = {
       outcome: Promise.resolve({ unavailable: true }),
@@ -502,6 +504,7 @@ describe('call container admission and retention', () => {
       async settleReply() {
         return { unavailable: true, reason: 'candidate' } as const
       },
+      finishReady: async () => ({ unavailable: true as const }),
     } as AnchoredInvocationHandle
     first.reservation.attachInvocation(old)
     first.reservation.release()
@@ -576,7 +579,12 @@ describe('call container admission and retention', () => {
     expect(() => first.reservation.updateRequest({ ...next, host: { ...old.host } })).toThrow(
       'call request ownership mismatch',
     )
-    first.reservation.publish({ phase: 'dispatching', abort() {}, interrupt() {} })
+    first.reservation.publish({
+      phase: 'dispatching',
+      target: { kind: 'model_call', callId: f.container.key.callId, dispatch: 1 },
+      abort() {},
+      interrupt() {},
+    })
     expect(() => first.reservation.updateRequest(next)).toThrow('cannot update request')
     first.reservation.release()
     expect(() => first.reservation.updateRequest(next)).toThrow('reservation released')
@@ -647,6 +655,7 @@ describe('call container admission and retention', () => {
     let aborts = 0
     opening.reservation.publish({
       phase: 'dispatching',
+      target: { kind: 'model_call', callId: f.container.key.callId, dispatch: 1 },
       abort: () => {
         aborts++
       },

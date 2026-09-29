@@ -101,6 +101,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   let released = false
   let releaseAttempted = false
   let leaseReleased = false
+  let leaseReleaseAttempted = false
   let stopFailed = false
   let invocation: AnchoredInvocationHandle | undefined
   let observer: CallObserverBinding | undefined = input.observer
@@ -212,8 +213,12 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       return { unavailable: true }
     try {
       releaseAttempted = true
-      binding.lease.release()
-      leaseReleased = true
+      if (!leaseReleased) {
+        if (leaseReleaseAttempted) return { unavailable: true }
+        leaseReleaseAttempted = true
+        binding.lease.release()
+        leaseReleased = true
+      }
       const hook = releaseHooks.get(container)
       const result = hook?.() ?? { released: true }
       if (!('released' in result)) return { unavailable: true }
@@ -249,6 +254,22 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         throw new TypeError('call container admission closed')
       operation = Object.freeze({ ...next })
       notifyReferenceConsumers(container)
+    },
+    releaseExecutionLease(): RuntimeCloseResult {
+      if (leaseReleased) return { released: true }
+      if (
+        leaseReleaseAttempted ||
+        (operation.phase !== 'complete' && operation.phase !== 'interrupted')
+      )
+        return { unavailable: true }
+      leaseReleaseAttempted = true
+      try {
+        binding.lease.release()
+        leaseReleased = true
+        return { released: true }
+      } catch {
+        return { unavailable: true }
+      }
     },
     retainStopped,
     close(): Promise<RuntimeCloseResult> {

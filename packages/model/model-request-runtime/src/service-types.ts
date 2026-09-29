@@ -654,6 +654,8 @@ export interface CallContainer<P extends PlannedSemantics, R> {
   readonly publish: (next: CallOperationState) => void
   /** Retain an actual stop promise independently of a short operation reservation. */
   readonly retainStopped: (stopped: Promise<void>) => void
+  /** Ready-published execution may release its exact transport lease before disposition. */
+  readonly releaseExecutionLease: () => RuntimeCloseResult
   /** Close admission; release only after actual stop and durable unknown reconciliation. */
   readonly close: () => Promise<RuntimeCloseResult>
   /** True only after close has released its exact lease. */

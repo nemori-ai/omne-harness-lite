@@ -24,6 +24,7 @@ import {
 } from '@omne-harness-lite/organization-governance'
 import { composeMigrations, narrow } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
+import { modelCallContentMigrations } from '../src/reference-content.ts'
 import {
   createSessionTenancyReader,
   sessionTenancyMigrations,
@@ -143,6 +144,7 @@ export async function selectionHost(model = true, factoryCredential = false) {
       ...sessionTenancyMigrations,
       ...evaluationInputMigrations,
       ...modelProfileDirectoryMigrations,
+      ...modelCallContentMigrations('sqlite'),
     ]),
   })
   const manifest = {

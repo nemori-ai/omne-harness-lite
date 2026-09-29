@@ -4,6 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { composeMigrations } from '@omne-harness-lite/storage'
+import { openStorage } from '@omne-harness-lite/storage-sql'
+import {
+  createModelCallContentStore,
+  modelCallContentMigrations,
+} from '../src/reference-content.ts'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import { createServiceCalls, ownOpenCallInput, UnknownAppendTracker } from '../src/service-calls.ts'
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
@@ -30,6 +36,7 @@ import type {
 } from '../src/settlement-types.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_open_call', 'SessionRef'))
+const creationKey = (value: string) => unwrap(parseOpaqueIdentifier(value, 'CreationKey'))
 const host: ModelCallHost = {
   signal: new AbortController().signal,
   stopping: () => false,
@@ -102,6 +109,7 @@ test('unknown append recognition reuses its only registration before release', a
 
 function request(change: Partial<OpenCallInput> = {}): OpenCallInput {
   return {
+    creationKey: creationKey('create_open_call_1'),
     session,
     target: 'model_a',
     basis: {
@@ -342,6 +350,16 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
         },
       },
     })
+    const storage = await openStorage({
+      dialect: 'sqlite',
+      file: join(dir, 'content.sqlite'),
+      upgrade: false,
+      migrations: composeMigrations(modelCallContentMigrations('sqlite')),
+    })
+    const content = createModelCallContentStore({
+      storage,
+      policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
+    })
     const tenant = unwrap(parseTenantId({ organization: 'open-org', account: 'open-account' }))
     const generation = Object.freeze({})
     const stopped: SettlementTask<unknown>[] = []
@@ -416,6 +434,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
     let forceResumable = false
     const binding = {
       log: logBinding,
+      sourceVersions: { fixture: 'open-call-test-v1' },
       selection: {
         binding: logBinding,
         owner,
@@ -453,6 +472,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
     }
     const runtime = {
       maxScopes: 4,
+      callFacts: { content },
       sessions: { bind: async () => ({ binding }) },
       calls,
       transport: {
@@ -485,7 +505,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       },
       reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
       tokenMargin: { multiplier: 1.25, reserveTokens: 8 },
-      policy: { diagnostic() {} },
+      policy: { now: () => '2026-09-28T00:00:00Z', diagnostic() {} },
       diagnosticCollector: {
         emitter(scope: DiagnosticScope, association?: DiagnosticAssociation) {
           return {
@@ -552,16 +572,23 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
         expect(prefix.entries).toHaveLength(0)
         return
       }
-      const second = await service.openCall({ ...request(), host })
-      expect(first).toEqual({ callId: 'call_1', state: 'open' })
-      expect(second).toEqual({ callId: 'call_2', state: 'open' })
+      const second = await service.openCall({
+        ...request({ creationKey: creationKey('create_open_call_2') }),
+        host,
+      })
+      expect(first).toEqual({ ref: { session, callId: 'call_1' }, callId: 'call_1', state: 'open' })
+      expect(second).toEqual({
+        ref: { session, callId: 'call_2' },
+        callId: 'call_2',
+        state: 'open',
+      })
       forceResumable = true
       expect(
         await service.openCall({
           ...request({ callId: 'call_1', observer: replacementObserverRequest }),
           host,
         }),
-      ).toEqual({ callId: 'call_1', state: 'resumable' })
+      ).toEqual({ ref: { session, callId: 'call_1' }, callId: 'call_1', state: 'resumable' })
       forceResumable = false
       expect(calls.find({ session, callId: 'call_1' })?.view().observer?.request.endpoint).toBe(
         replacementObserverRequest.endpoint,
@@ -596,7 +623,10 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       })
       const read = await log.readSince(session, 0)
       if ('failure' in read) throw new Error(read.failure)
-      expect(read.entries).toHaveLength(0)
+      expect(read.entries.map(entry => entry.payload)).toMatchObject([
+        { value: { kind: 'model_call_created', call: 'call_1' } },
+        { value: { kind: 'model_call_created', call: 'call_2' } },
+      ])
       const run = 'open-calibration-run'
       const started = captureModelLogValue({
         category: 'message',
@@ -634,7 +664,13 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       )
       if ('failure' in appended) throw new Error('Run attempt append')
       const report = { session, runId: run, attempt: 1 } as unknown as AvailabilityReport
-      expect(await service.openCall({ ...request({ run, attempt: 1, report }), host })).toEqual({
+      expect(
+        await service.openCall({
+          ...request({ creationKey: creationKey('create_open_call_3'), run, attempt: 1, report }),
+          host,
+        }),
+      ).toEqual({
+        ref: { session, callId: 'call_3' },
         callId: 'call_3',
         state: 'open',
       })
@@ -653,10 +689,12 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       expect(observerClosed).toBe(2)
       const stoppedRead = await log.readSince(session, 0)
       if ('failure' in stoppedRead) throw new Error(stoppedRead.failure)
-      expect(stoppedRead.entries).toHaveLength(4)
+      expect(stoppedRead.entries).toHaveLength(7)
       for (const callId of ['call_1', 'call_2', 'call_3']) {
-        const entry = stoppedRead.entries.find(item =>
-          JSON.stringify(item.payload).includes(`\"call\":\"${callId}\"`),
+        const entry = stoppedRead.entries.find(
+          item =>
+            JSON.stringify(item.payload).includes(`\"call\":\"${callId}\"`) &&
+            JSON.stringify(item.payload).includes('"kind":"model_call_ended"'),
         )
         expect(entry?.payload).toMatchObject({
           value: {
@@ -671,6 +709,8 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       expect(await service.close()).toEqual({ released: true })
       expect(stopped.length).toBeGreaterThan(0)
     } finally {
+      await content.close()
+      await storage.close()
       await log.close()
       await rm(dir, { recursive: true, force: true })
     }

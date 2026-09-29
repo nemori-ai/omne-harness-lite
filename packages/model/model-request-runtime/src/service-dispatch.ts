@@ -206,7 +206,13 @@ function effectivePhase(
 ): DispatchGuardPhase | 'absent' | 'unknown' {
   if ('unavailable' in history) return 'unknown'
   if ('absent' in history) return local === undefined ? 'absent' : 'open'
-  if (history.known.phase === null) return 'unknown'
+  if (history.known.phase === null)
+    return history.known.dispatches.length === 0 &&
+      history.known.intent === null &&
+      history.known.ending === null &&
+      local?.phase === 'ready'
+      ? 'open'
+      : 'unknown'
   if (history.known.phase === 'speaking' && local?.phase === 'reply_pending') return 'reply_pending'
   return history.known.phase
 }
@@ -426,7 +432,30 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       )
       if ('unavailable' in received) return { unavailable: true }
       const history = received.ok
-      if ('unavailable' in history) return { unavailable: true }
+      if ('unavailable' in history) {
+        const authoritative = await runtime.callFacts.lookup({ binding: session.log, ref: key })
+        const ended =
+          'view' in authoritative &&
+          (authoritative.view.state === 'complete' ||
+            authoritative.view.state === 'interrupted' ||
+            authoritative.view.state === 'handed_up')
+        if (ended) {
+          const refusal = operationDiagnostics(
+            runtime.diagnosticCollector,
+            session.log.tenant,
+            { executionId: randomUUID(), session: key.session, call: key.callId },
+            reportDiagnosticFailure,
+          )
+          refusal.record({
+            source: 'runtime',
+            stage: 'admission',
+            outcome: 'rejected',
+            facts: { kind: 'decision' },
+          })
+          refusal.close()
+        }
+        return ended ? { alreadyEnded: true } : { unavailable: true }
+      }
       const retrySnapshot =
         local?.binding.snapshot ??
         ('known' in history ? history.known.dispatches.at(-1)?.record.profileSnapshot : undefined)
@@ -942,11 +971,14 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           finish.reservation.publish({ phase: 'reply_pending', pending })
           return { unavailable: true }
         }
-        const closed = await handle.close()
+        const closed = await handle.finishReady()
         if ('released' in closed) invocations.delete(handle)
         if ('unavailable' in closed) return { unavailable: true }
         const state = pending.outcome === 'interrupted' ? 'interrupted' : 'complete'
         finish.reservation.publish({ phase: state, pending })
+        const container = runtime.calls.find(key)
+        if (container === undefined || 'unavailable' in container.releaseExecutionLease())
+          return { unavailable: true }
         return { replyPending: pending, state, disposition: 'disposition_pending' }
       }
       if ('settled' in outcome) {

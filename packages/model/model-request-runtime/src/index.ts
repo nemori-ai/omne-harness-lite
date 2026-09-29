@@ -67,6 +67,7 @@ export type { PlanReuseScopes, PlanReuseScopeLease, PlanScopeBinding } from './p
 export type * from './reference-types.ts'
 
 export { createModelCallContentStore, modelCallContentMigrations } from './reference-content.ts'
+export { createModelCallFacts } from './reference-facts.ts'
 export type { ModelCallContentPolicy } from './reference-content.ts'
 
 export { createRuntimeAcquire } from './service-acquire.ts'

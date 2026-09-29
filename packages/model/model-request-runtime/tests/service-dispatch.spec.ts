@@ -1,12 +1,20 @@
 import { expect, test } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
-import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
+import {
+  parseOpaqueIdentifier,
+  parseTenantId,
+  tenantIdEquals,
+  unwrap,
+} from '@omne-harness-lite/identity-values'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createServiceCalls } from '../src/service-calls.ts'
 import { createServiceControl } from '../src/service-control.ts'
 import { createServiceDispatch, settlementEvent } from '../src/service-dispatch.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
+import { createModelCallContentStore } from '../src/reference-content.ts'
+import { createModelCallFacts } from '../src/reference-facts.ts'
+import { createRuntimeAcquire } from '../src/service-acquire.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -30,6 +38,7 @@ import type {
 } from '../src/diagnostics-types.ts'
 
 const session = unwrap(parseOpaqueIdentifier('session_dispatch', 'SessionRef'))
+const creationKey = (value: string) => unwrap(parseOpaqueIdentifier(value, 'CreationKey'))
 const key = { session, callId: 'call_dispatch' }
 const snapshot: ModelProfileSnapshot = {
   adaptation: {
@@ -131,6 +140,10 @@ test('retry checks the same fact-class and provider rules as the public guard', 
 
 test('service dispatch writes both anchors before handing out a complete pending response', async () => {
   const host = await selectionHost(true, true)
+  const contentStore = createModelCallContentStore({
+    storage: host.storage,
+    policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
+  })
   try {
     const selected = host.create()
     expect(await selected.component.selectModel('example/model-a')).toEqual({
@@ -175,6 +188,56 @@ test('service dispatch writes both anchors before handing out a complete pending
     let observerTargetAllowed = false
     let observerOpenCount = 0
     const calls = createCallContainerStore<TestPlan, object>()
+    const callPresence = {
+      async read(input, observed) {
+        const local = calls.find(input.ref)?.view()
+        return {
+          read: await observed({
+            ...(local === undefined
+              ? {
+                  kind: 'stopped' as const,
+                  source: input.source,
+                  executionGeneration: null,
+                  sourceVersion: 'dispatch-log-v1',
+                  target: null,
+                  unknownBatches: [],
+                }
+              : {
+                  kind: 'live' as const,
+                  source: input.source,
+                  executionGeneration: local.executionGeneration,
+                  sourceVersion: 'dispatch-log-v1',
+                }),
+          }),
+        }
+      },
+    } satisfies RuntimeConstruction<TestPlan, object>['callPresence']
+    const callFacts = createModelCallFacts({
+      content: contentStore,
+      presence: callPresence,
+      maxScopes: 4,
+    })
+    const callAccess: RuntimeConstruction<TestPlan, object>['callAccess'] = {
+      async check(input, admitted) {
+        const held = await host.tenancy.holdingTenant(input.ref.session)
+        if (
+          !('tenant' in held) ||
+          !tenantIdEquals(held.tenant, input.binding.tenant) ||
+          !('view' in (await callFacts.lookup({ binding: input.binding, ref: input.ref })))
+        )
+          return { unavailable: true }
+        const found = await callFacts.lookup({ binding: input.binding, ref: input.ref })
+        if (!('view' in found)) return { unavailable: true }
+        const evidence = {
+          action: input.action,
+          ref: input.ref,
+          source: found.view.source,
+          sourceVersion: 'dispatch-log-v1',
+          revoked: new AbortController().signal,
+        }
+        return { allowed: await admitted(evidence), evidence }
+      },
+    }
     const lifecycleHost = {
       signal: new AbortController().signal,
       stopping: () => false,
@@ -183,6 +246,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     let released = 0
     const binding: SessionRuntimeBinding = {
       log: selected.input.binding,
+      sourceVersions: { fixture: 'selection-host-recipe-v1' },
       selection: { ...selected.input, projection: async () => ({ known: [] }) },
       catalog: host.catalog,
       currentEvaluationInputs: {
@@ -253,6 +317,9 @@ test('service dispatch writes both anchors before handing out a complete pending
       }),
     ).toBeUndefined()
     const runtime: RuntimeConstruction<TestPlan, object> = {
+      callFacts,
+      callPresence,
+      callAccess,
       maxScopes: 4,
       sessions: { bind: async () => ({ binding }) },
       calls,
@@ -336,6 +403,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     }
     const opening = createServiceCalls(runtime)
     const opened = await opening.openCall({
+      creationKey: creationKey('create_dispatch_1'),
       session: host.session,
       target: effective.ok.routeName,
       basis: effective.ok,
@@ -353,7 +421,11 @@ test('service dispatch writes both anchors before handing out a complete pending
         observer_max_buffered_bytes: 100_000,
       },
     })
-    expect(opened).toEqual({ callId: 'actual-call-1', state: 'open' })
+    expect(opened).toEqual({
+      ref: { session: host.session, callId: 'actual-call-1' },
+      callId: 'actual-call-1',
+      state: 'open',
+    })
     const dispatch = createServiceDispatch(runtime)
     diagnosticFail = true
     expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })).toEqual({
@@ -389,10 +461,46 @@ test('service dispatch writes both anchors before handing out a complete pending
     const records = read.entries.map(entry => payload(entry).kind).filter(Boolean)
     expect(records).toEqual([
       'model_selection_changed',
+      'model_call_created',
       'model_call_dispatched',
       'model_call_opened',
+      'model_call_reply_ready',
     ])
     expect(result).toHaveProperty('replyPending')
+    const acquired = createRuntimeAcquire(runtime)
+    const recovered = await acquired.acquireCall({
+      ref: { session: host.session, callId: 'actual-call-1' },
+      mode: 'read',
+    })
+    expect(recovered).toMatchObject({
+      view: {
+        ref: { session: host.session, callId: 'actual-call-1' },
+        state: 'complete',
+        result: { disposition: 'disposition_pending' },
+      },
+    })
+    expect(await acquired.close()).toEqual({ released: true })
+    // A second, empty projection reconstructs this ref from the real JSONL/SQLite sources.
+    const coldContent = createModelCallContentStore({
+      storage: host.storage,
+      policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
+    })
+    const coldFacts = createModelCallFacts({
+      content: coldContent,
+      presence: callPresence,
+      maxScopes: 4,
+    })
+    const coldAcquire = createRuntimeAcquire({ ...runtime, callFacts: coldFacts })
+    expect(
+      await coldAcquire.acquireCall({
+        ref: { session: host.session, callId: 'actual-call-1' },
+        mode: 'read',
+      }),
+    ).toMatchObject({
+      view: { state: 'complete', result: { disposition: 'disposition_pending' } },
+    })
+    expect(await coldAcquire.close()).toEqual({ released: true })
+    expect(await coldFacts.close()).toEqual({ released: true })
     const acceptedCredentialIndex = engineering.findLastIndex(
       item =>
         item.association?.call === 'actual-call-1' &&
@@ -464,20 +572,21 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(JSON.stringify(observed)).not.toContain('rawHeaders')
     expect(
       calls.find({ session: host.session, callId: 'actual-call-1' })?.view().operation.phase,
-    ).toBe('reply_pending')
+    ).toBe('complete')
     expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })).toEqual({
       alreadyEnded: true,
     })
-    expect(engineering.at(-1)?.event).toEqual({
+    expect(engineering.map(item => item.event)).toContainEqual({
       source: 'runtime',
       stage: 'admission',
       outcome: 'rejected',
       facts: { kind: 'decision' },
     })
     expect(wire.sends()).toBe(1)
-    expect(released).toBe(0)
+    expect(released).toBe(1)
     expect(
       await opening.openCall({
+        creationKey: creationKey('create_dispatch_2'),
         session: host.session,
         target: effective.ok.routeName,
         basis: effective.ok,
@@ -485,7 +594,11 @@ test('service dispatch writes both anchors before handing out a complete pending
         tools: [],
         host: lifecycleHost,
       }),
-    ).toEqual({ callId: 'actual-call-2', state: 'open' })
+    ).toEqual({
+      ref: { session: host.session, callId: 'actual-call-2' },
+      callId: 'actual-call-2',
+      state: 'open',
+    })
     finalPlanFailure = {
       rejected: 'invalidInput',
       reason: 'input_limit_exceeded',
@@ -513,11 +626,19 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(sendCount).toBe(1)
     const finalLog = await host.log.readSince(host.session, 0)
     if (!('entries' in finalLog)) throw new Error('log read')
-    expect(finalLog.entries).toHaveLength(3)
+    expect(finalLog.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
+      'model_selection_changed',
+      'model_call_created',
+      'model_call_dispatched',
+      'model_call_opened',
+      'model_call_reply_ready',
+      'model_call_created',
+    ])
     finalPlanFailure = undefined
     failSend = true
     expect(
       await opening.openCall({
+        creationKey: creationKey('create_dispatch_3'),
         session: host.session,
         target: effective.ok.routeName,
         basis: effective.ok,
@@ -525,7 +646,11 @@ test('service dispatch writes both anchors before handing out a complete pending
         tools: [],
         host: lifecycleHost,
       }),
-    ).toEqual({ callId: 'actual-call-3', state: 'open' })
+    ).toEqual({
+      ref: { session: host.session, callId: 'actual-call-3' },
+      callId: 'actual-call-3',
+      state: 'open',
+    })
     const consumedFailure = await dispatch.dispatch(
       { session: host.session, callId: 'actual-call-3' },
       { consumeFailure: true },
@@ -624,11 +749,16 @@ test('service dispatch writes both anchors before handing out a complete pending
     if (!('entries' in afterRetry)) throw new Error('log read')
     expect(afterRetry.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
       'model_selection_changed',
+      'model_call_created',
       'model_call_dispatched',
       'model_call_opened',
+      'model_call_reply_ready',
+      'model_call_created',
+      'model_call_created',
       'model_call_dispatched',
       'model_call_dispatched',
       'model_call_opened',
+      'model_call_reply_ready',
     ])
     const durableDispatches = afterRetry.entries
       .map(payload)
@@ -639,6 +769,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(durableDispatches[1]?.response).not.toBe(durableDispatches[2]?.response)
     expect(
       await opening.openCall({
+        creationKey: creationKey('create_dispatch_4'),
         session: host.session,
         target: effective.ok.routeName,
         basis: effective.ok,
@@ -646,7 +777,11 @@ test('service dispatch writes both anchors before handing out a complete pending
         tools: [],
         host: lifecycleHost,
       }),
-    ).toEqual({ callId: 'actual-call-4', state: 'open' })
+    ).toEqual({
+      ref: { session: host.session, callId: 'actual-call-4' },
+      callId: 'actual-call-4',
+      state: 'open',
+    })
     selected.owner.openedState = {
       unknown: {
         completion: Promise.resolve(null),
@@ -662,6 +797,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     selected.owner.openedState = { confirmed: true }
     expect(
       await opening.openCall({
+        creationKey: creationKey('create_dispatch_5'),
         session: host.session,
         target: effective.ok.routeName,
         basis: effective.ok,
@@ -669,7 +805,11 @@ test('service dispatch writes both anchors before handing out a complete pending
         tools: [],
         host: lifecycleHost,
       }),
-    ).toEqual({ callId: 'actual-call-5', state: 'open' })
+    ).toEqual({
+      ref: { session: host.session, callId: 'actual-call-5' },
+      callId: 'actual-call-5',
+      state: 'open',
+    })
     credentialAvailable = false
     expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-5' })).toEqual({
       callId: 'actual-call-5',
@@ -696,11 +836,12 @@ test('service dispatch writes both anchors before handing out a complete pending
         .every(item => item.association?.response === undefined),
     ).toBe(true)
     expect(sendCount).toBe(3)
-    expect(released).toBe(1)
+    expect(released).toBe(3)
     expect(calls.find({ session: host.session, callId: 'actual-call-5' })).toBeUndefined()
     credentialAvailable = true
     expect(
       await opening.openCall({
+        creationKey: creationKey('create_dispatch_6'),
         session: host.session,
         target: effective.ok.routeName,
         basis: effective.ok,
@@ -708,7 +849,11 @@ test('service dispatch writes both anchors before handing out a complete pending
         tools: [],
         host: lifecycleHost,
       }),
-    ).toEqual({ callId: 'actual-call-6', state: 'open' })
+    ).toEqual({
+      ref: { session: host.session, callId: 'actual-call-6' },
+      callId: 'actual-call-6',
+      state: 'open',
+    })
     const control = createServiceControl(runtime)
     expect(
       await control.interrupt({
@@ -718,7 +863,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       }),
     ).toEqual({ stage: 'before_dispatch' })
     expect(await control.close()).toEqual({ released: true })
-    expect(released).toBe(2)
+    expect(released).toBe(4)
     expect(calls.find({ session: host.session, callId: 'actual-call-6' })).toBeUndefined()
     const run = 'calibration-dispatch-run'
     const appendAttempt = async (attempt: number) => {
@@ -765,6 +910,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       attempt: 1,
     } as unknown as AvailabilityReport
     const runRequest = {
+      creationKey: creationKey('create_dispatch_7'),
       session: host.session,
       target: effective.ok.routeName,
       basis: effective.ok,
@@ -775,7 +921,11 @@ test('service dispatch writes both anchors before handing out a complete pending
       attempt: 1,
       report,
     }
-    expect(await opening.openCall(runRequest)).toEqual({ callId: 'actual-call-7', state: 'open' })
+    expect(await opening.openCall(runRequest)).toEqual({
+      ref: { session: host.session, callId: 'actual-call-7' },
+      callId: 'actual-call-7',
+      state: 'open',
+    })
     expect(
       await dispatch.dispatch({ session: host.session, callId: 'actual-call-7', attempt: 1 }),
     ).toHaveProperty('replyPending')
@@ -786,7 +936,13 @@ test('service dispatch writes both anchors before handing out a complete pending
       attempt: 1,
     })
     failSend = true
-    expect(await opening.openCall(runRequest)).toEqual({ callId: 'actual-call-8', state: 'open' })
+    expect(
+      await opening.openCall({ ...runRequest, creationKey: creationKey('create_dispatch_8') }),
+    ).toEqual({
+      ref: { session: host.session, callId: 'actual-call-8' },
+      callId: 'actual-call-8',
+      state: 'open',
+    })
     const firstRunFailure = await dispatch.dispatch(
       { session: host.session, callId: 'actual-call-8', attempt: 1 },
       { consumeFailure: true },
@@ -847,6 +1003,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       attempt: 2,
     })
   } finally {
+    await contentStore.close()
     await host.close()
   }
 })

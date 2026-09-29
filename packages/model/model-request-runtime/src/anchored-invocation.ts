@@ -187,6 +187,7 @@ function terminalHandle(
     async settleReply() {
       return { unavailable: true, reason: 'closed' }
     },
+    finishReady: () => Promise.resolve(unavailable),
     close() {
       if (keepReferences) return Promise.resolve(unavailable)
       closing ??= (async () => {
@@ -842,6 +843,33 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       if (!('replyPending' in finished)) return { unavailable: true, reason: 'candidate' }
       return settleCandidate(disposition)
     },
+    finishReady() {
+      if (closePromise) return closePromise
+      const attempt = (async () => {
+        const finished = await outcome
+        if (!('replyPending' in finished) || quarantined || unresolved.size > 0) return unavailable
+        closed = true
+        await drain()
+        if (quarantined || unresolved.size > 0) return unavailable
+        input.signal.removeEventListener('abort', stop)
+        await coordinator.close()
+        if (!borrowedReleased) {
+          await input.releaseBorrowed?.()
+          borrowedReleased = true
+        }
+        return { released: true } as const
+      })()
+      closePromise = attempt
+      void attempt.then(
+        result => {
+          if ('unavailable' in result && closePromise === attempt) closePromise = undefined
+        },
+        () => {
+          if (closePromise === attempt) closePromise = undefined
+        },
+      )
+      return attempt
+    },
     close() {
       if (closePromise) return closePromise
       closed = true
@@ -914,9 +942,21 @@ export function createAnchoredModelInvocation<P extends PlannedSemantics, R>(
     async settleReply(disposition) {
       return (await ready).settleReply(disposition)
     },
+    finishReady() {
+      closing ??= ready
+        .then(handle => handle.finishReady())
+        .then(result => {
+          if ('unavailable' in result) closing = undefined
+          else input.signal.removeEventListener('abort', stop)
+          return result
+        })
+      return closing
+    },
     close() {
-      stop()
-      attached?.abort()
+      if (closing === undefined) {
+        stop()
+        attached?.abort()
+      }
       closing ??= ready
         .then(handle => handle.close())
         .then(result => {
