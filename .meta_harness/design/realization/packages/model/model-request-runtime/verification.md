@@ -376,3 +376,30 @@ H19-G3 宿主提供真实授权选择关系（完整 compaction/Run 仍外置）
 本增量实际执行：2026-09-29 以本工作树 `.venv/bin/python` 执行 `check_design.py --root .meta_harness/design --formal registered`，exit 0，实际输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design passed gate=internal; formal=registered.`；`git diff --check` exit 0。首次使用系统 Python 因缺 `PurePosixPath.is_relative_to` 退出失败，不作为设计错误或成功证据。没有运行本表行为测试、上游网络或模型认证；formal=registered 只核登记，不执行模型。文档检查不提升语义接受、实现或实际验证层。
 
 G3 修订：本轮选定runtime私有无GC耐久内容行，引用与尚可能发布writer同存续。外部引用仅在实际启用时要求可信保留，缺席unavailable。RT11/MS7同步条件化独立回收机制要求；当前只验所选路径，不把未来GC/媒体派生全部前置。
+
+## A22 ACK与模型副本释放候选
+
+2026-09-29，关联 [v22 revision 1](v22-acknowledgement-design.md)。RT12/MS8/MR11/CA4 均为 candidate，SL3 不升。全部义务**未开始**，新增 binding 0；本节取代后继 ACK 路径对 v20 无 GC 的验证前提，未 ACK 仍保留原性质。形式模型不证明实际 Storage/JSONL、权限来源、物理停止、SHA 碰撞安全、语言 GC 或已发布内容释放。
+
+| ID／条款 | 必须实际执行的正向、反例与观测 | owner／证据范围 |
+|---|---|---|
+| A22-V1：RT12 S-95/S-96 | 同 CallKey 两 consumer 仅一个有真实 ack 权；read/wait/ref/旧 consumer、跨租户及撤权均不能确认；目标指较早 failed、未终态、混合 target 字段依各自闭合失败拒绝。保留真实终态并发身份，不靠 caller true | runtime/实际访问装配；当前准入与撤权实际交错，不宣称完整生产治理 |
+| A22-V2：RT12 S-96/S-100 | 真实统一服务逐项调用十五操作：重复同目标返回原确认与当前进度，不同目标 wrongPhase；释放/零 consumer/Run 结束无隐式 ACK；ready pending ACK 不生成处分或消息；host 关闭不屏蔽尚可用耐久读 | runtime/demo/packed 类型及行为；不是 method exists 断言 |
+| A22-V3：RT12 S-98 | 两个真实并发写事务：read/publish 先登记许可→ACK retiring→cleanup 被阻；retiring 先落→新 read/publish 被拒。关闭门负控允许迟到持内容者时必须失败；不同 CallKey 不互删 | runtime/Storage；同 retention 行的真实锁/持久许可，不以 JS 顺序数组模拟 |
+| A22-V4：RT12 S-97/S-98 | ACK 前真实复制可完整结束或明确失败，无半份；未入读 wait/闲置 handle 不 pin，ACK 后后续 wait 为小视图。旧代际释放只撤本 useId，新代许可仍在；去掉实际 reader drain 负控失败 | runtime/host/Storage；原 owned-copy 与私有持有关系分开观察 |
+| A22-V5：RT12 S-96/S-98；MS8 S-58 | ACK JSONL 已落回执 unknown→SQL 仍 retiring→实际停止旧 writer→重开认回原 ACK；未落只同批重送，绝不重建 acknowledgedAt/清单/摘要。去掉 ACK 先行后能删内容的变异必须失败 | runtime/SL3/真实重开；确认未知只能 unavailable，确认后故障是 pending |
+| A22-V6：RT12 S-98/S-102 | 原 final writer 未停/unknown 晚提交、取消/宿主退出/Map空不解除许可；停证据及唯一恢复通过后才能清旧代。跳过 writer 排空负控在晚提交交错失败 | 原 host/恢复装配；实际网络、门和全部可能追加者，非 AbortSignal |
+| A22-V7：RT12 S-98 | 删除内容+released 在同 Storage 事务；注入前/中/提交回执故障，重开只得完整前态或后态。拆为两事务负控暴露悬空/假released；同locator/version异归属与版本复用拒绝；日志字节未改变 | runtime/真实Storage；不用内存模拟代替SQL耐久与unknown认回 |
+| A22-V8：RT12 S-97/S-100；MS8 S-59 | ACK确认后清理pending也不可新取全文；acquire/wait/open/readAttempts/reconcile 全是显式acknowledged，不notFound、不阻整会话。当前ACK遇旧projection/缓存/full-read路径，不得回吐payload；无合法ACK缺内容仍失败 | runtime读面/真实索引；权威tail/generation当前性保持 |
+| A22-V9：RT12 S-101；MS8 S-56 | 删除原created后同creationKey以core摘要认回：对象换序/1与1.0等值、数组顺序/缺席null/sourceVersions/大整数邻值不同；不重采用新档案。payload字节hash冒充语义hash与角色互换拒绝 | runtime/core/真实冷读；固定向量不是来源认证 |
+| A22-V10：RT12 S-98 | 检查 container request/pending、resolved invocation Promise、callFacts/cache、observer未交付项及handle闭包的真实大引用全部解除；已交付consumer自持值完整。实际外部额外lease两call共享，只释放本call使用权；inline不依外部provider | runtime/实际receiver/外引用owner；不要求某时刻GC，不以删SQL一行证明全清 |
+| A22-V11：RT12 S-99；MR11 S-46/S-47 | 自行保存→ACK→released→合法vetoed/consumed：无值wrongPhase，篡改reply/route/calibration/精确数/身份或错误digest malformed；权限另判；已有同final无需回送全文，异处分alreadyEnded | runtime/core/current access；不重取旧provider、不重建ready |
+| A22-V12：RT12 S-99；MS8 S-58 | 授权persisted写方自持原值、消息合法派生/真实转换来源、当前写权、同批M/R；ACK先/后final均原事实不变；普通settleReply/ACK/acquire不泄persisted/anchored权；旧final先赢不冒ACK提交 | 原消息写方/共同coordinator；真实并发日志批与原来源 |
+| A22-V13：RT12 S-99⑧/S-103 G-42 | ACK已released后开始新persisted，原批发前耐久→JSONL unknown→crash→从SettlementWork认回同一完整批。删除发前暂存的负控在仅剩摘要时失败；不读已删ready、不重跑转换/消费、不复用locator | runtime/Storage/SL3/消息写方；接缝待独立复评，未运行 |
+| A22-V14：RT12 S-99⑧ | final已确认但旧writer未停不得删暂存；全部停后自动删且无需第二ACK。实际全停+权威确无批+显式策略结束可删并unavailable；unknown/碰撞/超时不能伪零写。原cleanup released不回退，新work不开放全文领取 | 结算/恢复owner；两种终责路径真实重开、暂存字节归零，非仅close回调 |
+| A22-V15：CA4 S-43；MS8 S-57；RT12 S-101 | ready→ACK witness→final及迟到补账各阶段同ResponseId只计一次；历史failed分别计；源矛盾不能被final优先遮盖；合法删除不要求全文。创建attempt A、终结attempt B 分别核壳；unknown/零/optional保真、归原Run/Session | 实际费用reader→selector→summarize；witness不是补账后总数 |
+| A22-V16：RT12 S-98/S-102/S-103 | 真实Cordis 4.0.4 provider替换/并行effect完成、构造部分失败、清理调度中断与恢复不丢责任；存储恢复/真实工作停且公平调度后released，不等旧consumer。中英README的保存/ACK/释放/旧ref/后继处分例子在仓库外制品均实际执行；最小可达Schema删必要URI负控 | runtime/assembly/core/独立验收；formal登记、文档编译和产品完整交付分别报告 |
+
+覆盖缺口：A22-G1为本批语义/技术接受，owner主线；A22-G2为S-99⑧/G-42新处分暂存接缝独立复评与真实恢复，owner结算写方/Storage及主线；A22-G3为S-95/S-98/S-102真实ack资格、停止/唯一恢复与实际启用外部配对保留，owner访问/宿主/外引用提供者；A22-G4为本表实际实现/验收，owner runtime/Storage/消息写方及独立验收。缺外域来源只阻依赖路径，inline/noRun不因未来平台阻塞。没有本批正式Session/Run assembly，示例仅承担其真实本地绑定。
+
+实际执行：2026-09-29，以本工作树 `.venv/bin/python` 运行 `check_design.py --root .meta_harness/design --formal registered`，exit 0，实际输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/.meta_harness/design passed gate=internal; formal=registered.`；`git diff --check` exit 0。七份最终接口输入均与固定摘要一致。本轮未执行上述行为测试或模型，formal=registered 仅核登记。原 bindings 保持原范围，不登记计划证据或空占位。
