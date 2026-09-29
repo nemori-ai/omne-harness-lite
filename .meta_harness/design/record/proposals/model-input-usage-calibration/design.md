@@ -1,6 +1,6 @@
 # 输入总量随响应校准的最小方案
 
-状态：U0 revision 1 候选。用户已确定追加式响应计量依据、稳定前缀加新增量、两类失效及全量回退；本包推荐承载候选 C，未经独立评审或接受。不存在新的正式领域对象、服务或后台校准进程。数学变量和字段草名只在本包有效。
+状态：U0 revision 2 候选。用户已确定追加式响应计量依据、稳定前缀加新增量、两类失效及全量回退；本包推荐承载候选 C，未经独立评审或接受。不存在新的正式领域对象、服务或后台校准进程。数学变量和字段草名只在本包有效。
 
 ## 1. 必须承载的性质与归属
 
@@ -8,7 +8,7 @@
 |---|---|---|
 | 过去已经实际计入的输入总量不再逐轮分词 | ModelResponse 保留同次输入 observation；纯规划器消费它 | 只保存本地预测不能把历史变成实测 |
 | 新增贡献和历史实测的精度分别可见 | 窄模型适配函数与 InputMeter，纯输入/输出 | output usage 直接等于回放输入会把隐藏输出错算 |
-| 只复用同一实际前缀及兼容计量依据 | 最终请求投影的规划责任；service 提供授权历史关联 | 相同 modelId 与相同 seq 都不足以证明相同输入 |
+| 只复用同一实际前缀及兼容计量依据 | 绑定的适配/计量提供者拥有兼容依据；planner 核验最终投影；service 提供授权历史关联 | 相同 modelId 与相同 seq 都不足以证明相同输入 |
 | 不回写历史；计量来源与原 response/reply 一起提交 | 既有 ModelResponse payload、settlement owner、session-log 原批追加 | 单独更新“最新 token 总量”会与回复批次失配 |
 | standalone 与 service 得到相同规划语义 | 独立公开纯函数和显式参数；runtime 是消费者 | 纯函数偷偷查当前 tenant/log 会失去独立可用性 |
 | unknown、估算及上界不伪装 exact | 既有 MP6/RT9 计量精度与后继数据字段 | 配置余量不是证明，未知不能置零 |
@@ -56,6 +56,8 @@ Cnext − Ĉnext = (φθ − φ̂θ) + (δθ − δ̂θ)
 
 各种实际场景归入这两类，不增加平级的特殊开关。旧 usage 缺失/错误只是没有可用 observation，不是结构上的第三类失效。
 
+**兼容依据的 owner 是绑定的适配/计量提供者**：它提供版本化 basis、φ、meter 及其可判兼容声明，并对声明适用的模型/provider/投影/隐藏保留语义负责。固定调用持有该精确版本组合，换代不得替换进行中调用的计量语义。planner 负责检验实际最终输入、来源与提供者声明是否匹配；未知、缺声明或不能判兼容就全量回退，不凭 caller 的 `trust`/`skip` 布尔放行。service 负责授权来源关联，不自行发明计量兼容关系。此责任分配沿 [RT9 S-53/S-57/S-60/S-74](../../../spec/capabilities/model-request-runtime/v9/contract.md) 的精确绑定、显式计量构件、纯规划及固定计划边界；后继规格只细化字段和可判条件，不另选 owner。
+
 前缀核验发生在**最终输入投影形成后**。最小方案记录规范化输入前缀的边界、内容摘要与 envelope 摘要、投影版本和计量依据；由当前授权输入重建并比较。同 tenant/session 的 seq 负责找回来源，不能代替内容相等。摘要依赖抗碰撞假设，不应宣称无条件数学同一；能直接比较时可直接比较。不得因哈希相同就容忍不同 canonicalization 版本。输入外的 timeout 等字段是否影响 C 由计量依据定义，不盲目把整个含 request id 的 envelope 当输入。
 
 核验允许必要的线性字节扫描/序列化，**不能为了判增量又把稳定历史全量 tokenize**。仍需发送完整上下文，字节序列化并未消失。现有基准不足以支持建设 Merkle 树、持久分词索引或额外服务。长期留存摘要和现有引用即可，不为本功能重复存储全部输入正文。
@@ -87,7 +89,7 @@ settle(originalResponse, originalReply, evidence):
 
 ## 4. 当次响应中的事实与耐久责任
 
-候选字段 `inputCalibration` 包含下列技术值；名称待规格作者与统一语言 owner 核定：
+候选字段 `inputCalibration` 在后继当前格式中必填，其中 `observedInput` 必填且必须判别为 `from_usage`、`upstream_total` 或 `unavailable`。语义上缺 usage 用 `unavailable` 表达，不以省略字段容纳旧格式。旧精确发布 Schema 留存不表示新 runtime 提供旧值兼容路径；格式拒绝、不可解释耐久值与在途责任沿 [RT9 S-74](../../../spec/capabilities/model-request-runtime/v9/contract.md) 的当前格式边界。下列技术字段的精确形状和名称待规格细化：
 
 | 字段组 | 权威来源与最小内容 | 不得做的事 |
 |---|---|---|
@@ -142,12 +144,12 @@ Cordis 继续承担既有插件作用域、依赖注入、贡献换代和 bindin
 
 | 权威边界 | 后继候选变更 | 保留 |
 |---|---|---|
-| MR8 → 暂称 MR9 | response 可选计量证据、原输入/输出来源、不可变与同次对应校验 | 原 usage、route、reply 身份与不可回写 |
+| MR8 → 暂称 MR9 | response 必填判别计量证据（含 unavailable）、原输入/输出来源、不可变与同次对应校验 | 原 usage、route、reply 身份与不可回写 |
 | RT9 → 暂称 RT10 | S54/S57/S58/S60 显式纯规划证据；S68–S75 同批来源、恢复、计量/准入证据；InputMeter增量接口与失效 | 单次发送、固定计划、取消门禁、原批结算、现有操作身份 |
 | MP6 → 暂称 MP7（如需） | 增量/φ 精度与依据版本化兼容要求，沿现行 estimated 余量 | 不把估算政策变硬保证，不改输出预留口径 |
 | CA2、MS6、SL3 | 预计不改语义；仅若 MR schema 引用闭包需要再精确核对 | cache互斥分项、派生可见性、原批追加 |
 | core/model-response、model/pi-ai-transport、model/model-request-runtime realization | 分别映射证据 schema、来源提取/φ，以及同一 runtime 节点中的公开规划/授权来源/结算 owner；必须另写候选修订 | 既有 provider 与 lease 边界，无新 store |
 
-G1：未来 compaction 的硬 fit 承诺如何与 estimated 准入对齐，交产品/架构 owner；仅阻断本包对压缩硬保证的声明。G2：具体模型 φ 的 exact/上界依据尚缺实际 OR 观察；首个实现不能冒称已证，允许依现行政策 estimated 或 unavailable。G3：规范化输入投影及 θ 的精确字段、兼容证据提供者，需规格施工将以下原则写成可判条件；无法证明者回退，不猜兼容。G4：候选字段的正式命名及后继版本号由相应 owner 核定；本包无权限登记。其他既定方向无需重开产品取舍。
+G1：未来 compaction 的硬 fit 承诺如何与 estimated 准入对齐，交产品/架构 owner；仅阻断本包对压缩硬保证的声明。G2：具体模型 φ 的 exact/上界依据尚缺实际 OR 观察；首个实现不能冒称已证，允许依现行政策 estimated 或 unavailable。G3：规范化输入投影及 θ 的精确字段和兼容可判条件待规格细化；兼容依据 owner 已固定为绑定的适配/计量提供者，固定调用持有版本化 basis/φ/meter，planner 核验实际最终输入与声明。未知/不可判即回退，禁止 caller trust/skip 布尔；不把 owner 选择留给规格作者。G4：候选字段的正式命名及后继版本号由相应 owner 核定；本包无权限登记。其他既定方向无需重开产品取舍。
 
 验证交接见 construction brief；本包尚无新 TLA+/实现测试结果。研究中的离线计时证明当前纯 text meter 的成本，不证明所有 provider 的窗口、φ 或新方案已经实现正确。
