@@ -1,3 +1,5 @@
+2026-09-29：[D-107 后继采用](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-transport-v12-revision-2-与-runtime-v16) 已技术采用本节点输入校准映射；原 Anthropic B1 在设计层闭合，实际组合/上游/性能验收仍待。新增绑定0，以下候选标记按起草日期读取。
+
 ## 2026-09-29 输入观察校准候选
 
 - **语义接受**：MR9／RT10 在 catalog 均为 candidate、未接受；本次 [v16 实施映射](v16-usage-calibration-design.md) 亦未技术采用。此前接受范围保持。

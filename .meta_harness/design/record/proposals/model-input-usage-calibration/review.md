@@ -90,3 +90,11 @@ B1：S-59固定reader解释并经同一终止事实交出 observedInput/provenan
 既有transport B1仍未关闭，不放行该组合完整增量交付；U16-G5只登记问题。transport的projectOutput须按runtime唯一三分支账本对齐，由接口表达检查继续核对。无新增产品裁决：G-36硬fit归原owner；U16-G3真实withRun来源不能用noRun或受控测试代签。
 
 未运行实现、形式、模型或性能测试，新增绑定0，V1～V12均为义务。旁路raw、最后到达响应、独立锚store各有简化局部实现的优点，但分别引入第二解释、因果错误或第二提交责任；当前设计避免这些边界，线性扫描/读面成本仍待实测。若实现需绕过final facts、冷恢复依赖当前模型或稳定前缀不能marginal，须重开相应审查。意见不代替采用。
+
+## 2026-09-29 transport B1 revision 2 独立窄复核
+
+Reviewer `/root/usage_projection_review` 核对 `e93e69bf` 上三文件修订（作者提交 `be847d0a`，HUB `f686055c`）：v12 正文 `8e2c62b2379ef7741ad44112421b1e6440849ec43d4b54edd7d94c2ff8e41476`、README `e77691af08c3acc73e13f523cda3a00fd3237c9cec7da36322addbe50d26ff8d`、verification `7999b6af006b6afb999db1ed13c93aeea126dfd85a15defafb7122c13a5594e4`。原 B1 在设计层关闭，无新阻断/非阻断。
+
+只排除四型号/固定provider配置下planner生成的精确缓存控制对象；非空assistant/tool从首轮固定合法数组，不推定string/array计量等价。新basis首次full，未知字段和真实内容仍比较，实际wire/完整字节/图片门保留。UCT-V12四型号public/service三轮full→marginal→marginal、历史tokenizer零调用、恢复旧摘要/假归一/遗漏真实贡献负控可以击穿原问题。projectOutput三分支/fullContribution与runtime v16账本一致，不改授权来源、reader、lease或原批责任。
+
+未实施或执行测试/模型/性能；UCT-V10～12、上游口径/φ/δ及固定OpenAPI制品provenance仍待真实验收。omne-next其他算法/stride不属于本修订前提，若另采用需明确范围。反方全wire更保守却不能完成正常增量；比较时归一化缺等价依据；固定旧断点会改变当前配置。采用仍归主线。
