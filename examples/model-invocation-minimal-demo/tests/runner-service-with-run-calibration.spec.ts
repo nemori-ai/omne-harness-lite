@@ -121,7 +121,7 @@ describe('actual withRun input calibration through the demo service', () => {
         }
       },
       calibrationHistory(prefix, messages, target) {
-        const result =
+        const result: ReturnType<typeof readDemoCalibrationHistory> =
           selected === undefined
             ? { sourceUnavailable: true }
             : readDemoCalibrationHistory(prefix, messages, target, selected)
