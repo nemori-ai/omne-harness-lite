@@ -14,3 +14,5 @@
 ## 当前候选交接
 
 [transport v15 revision4](../../../realization/packages/model/pi-ai-transport/v15-image-preparation-design.md) 与 [runtime v21 revision3](../../../realization/packages/model/model-request-runtime/v21-image-preparation-design.md) 已完成独立架构、表达与对应增量复评，精确hash和原反例见[评审记录](review.md#2026-09-29-r3r4-收束记录)。结论是可交主线采用判断，尚无采用或实施授权。没有新增领域spec，公开接口只在现有RT10语义内精确化；所有实际验收义务保留。
+
+- [D109 施工接缝定点评审](scope-and-basis-followup-review.md)：scope 清理端口与原计量依据适用表的窄补充，候选未采用；原v15/v21保持已接受字节。

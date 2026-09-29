@@ -170,3 +170,7 @@ D-100 实施接续另采用 [mrr/3 当前承载字节](v8-current-codec-design.m
 ## v21 图片准备接入候选（2026-09-29）
 
 [v21-image-preparation-design.md](v21-image-preparation-design.md) 保留原消息，在最终计量前准备同模态图片。语义沿RT10/MR9，新增提供者方案尚未采用；新增binding 0，实际实现与组合验收未执行，不扩完整上下文组装/Session/Run。
+
+## D109 scope 清理接缝候选
+
+[图片准备 scope 清理附页](image-preparation-scope-cleanup-candidate.md) 补齐既有显式资源清理的跨包端口；不覆盖已采用 v15/v21。候选未采用、未实现；独立定点评审已完成，精确主线后继接受及工程验证待完成。
