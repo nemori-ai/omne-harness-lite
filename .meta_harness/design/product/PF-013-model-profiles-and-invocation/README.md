@@ -2,7 +2,7 @@
 id: PF-013
 title: 模型档案、调用与切换
 status: active
-revision: 15
+revision: 16
 relations:
   supersedes: []
   depends-on:
@@ -66,7 +66,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 15，用户已裁定 token 估算与可配置余量**（2026-09-28，[裁决来源](decisions.md#2026-09-28--输入-token-允许有依据的估算与可配置余量)）；本次表达复核与技术规格采用尚未完成。其余正式范围沿 [D-096](../../record/decisions/model-profile-input-limits-product-adoption/decision.md)。技术规格、提供者映射与实现分别沿其精确采用记录。
+- 产品设计：**rev 16**，合并 Session／Run 归属规则与输入上限、估算及可配置余量的既有裁决；归属按产品负责人明确要求修订，输入范围的正式接受沿 [D-096](../../record/decisions/model-profile-input-limits-product-adoption/decision.md)，其余范围及逐次状态见 [decisions](decisions.md)。本次不自动升级技术规格、提供者映射或实现接受。
 - 待裁决：**0**
 - **[上游限制与档案提供的上限分别可读](design.md#上游限制与档案提供的上限)**：上游限制可以明确未知；官方与自建档案实际提供的输入范围必须有明确、有限的上限。提供图片输入就必须给出单图字节上限，缺失或超过相应限额检查都不能先发请求；token 允许有依据估算和明确余量，字节与图片数量精确检查。
 - **凭据只在租户层**：每人自取，[组织那一层不持有](design.md#组织那一层为什么不持有)；出厂默认那一格另有部署配的一把
@@ -98,3 +98,6 @@ PF-013-model-profiles-and-invocation/
 ├── interviews/       产品调研的来源与观察（不是依据）
 └── projection/       技术投影（按版本固化的派生快照，不是权威）
 ```
+
+
+本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。

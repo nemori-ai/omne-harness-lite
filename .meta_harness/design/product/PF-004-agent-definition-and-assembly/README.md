@@ -2,7 +2,7 @@
 id: PF-004
 title: Agent 定义与装配
 status: active
-revision: 13
+revision: 20
 relations:
   supersedes: []
   depends-on:
@@ -26,8 +26,9 @@ relations:
 「成本算谁的」，一个都答不出来。
 
 ```text
-Agent Definition ──装配(定义, 作用域)──→ 装配清单 ──照它起──→ agent runtime
-   数据，长期           一次求值            数据，可跨尝试复用     协程，归 PF-012
+会话类型要求 ＋ Agent Definition ＋ 作用域输入
+                  └──装配──→ 装配清单 ──照它起──→ agent runtime
+                    一次求值    数据，可跨尝试复用     协程，归 PF-012
                                                  ↑
                            注入：上下文 · 执行环境 · 权限
                          （可变，清单不因此重算、协程不因此重起）
@@ -52,7 +53,7 @@ Agent Definition ──装配(定义, 作用域)──→ 装配清单 ──照
 
 **会话、输入的受理与排队、一次运行的驱动、那个协程的生灭，都不在这里。**
 本 topic 只用到它们各自的一件事：**一次装配为一个会话而做**，
-一次运行**照一份装配清单跑**，agent runtime **照它起**。
+一次运行**按当前已生效装配清单推进**，agent runtime **照它起**。
 
 理由是四者的改动原因不同：会话因协作形态变，驱动因调度策略变，
 **agent runtime 因资源治理变**，而装配因求值的输入变。
@@ -84,10 +85,13 @@ PF-002 因对象的种类或组合形状变，本 topic 因装配与资源治理
 
 ## 状态
 
-- 产品设计：**rev 13**，本次工作区一致性增量**已正式接受**（2026-09-27，依据[本次登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；此前 rev 12 的正式接受范围保留（[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），现存未决与技术投影状态分别保留。
-- 未决项：**两项**——[「master 的全套机制」包含哪些](design.md#九未决项)、
-  [`spawn`/`delegate` 能不能派一份 master 定义](design.md#九未决项)
-- 待裁决：**两项**（[D-1、D-2](decisions.md#三待裁决)，即上面那两条）。
+明确会话与各 runtime 消费关系；能力身份单调保留，数据／实现更新不自动重建 Agent runtime；必需能力不等于 Loop 的直接服务依赖。本轮为产品规则与消费边界的修订，未据此接受具体 Cordis 插件划分或实现。
+
+补齐 Agent runtime 装配输入、可变性、作用范围和触发矩阵；显式 reload 可在同一 Run 采用同身份新版并开启新尝试；撤除与不可用只给原则。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
+
+- 产品设计：**rev 20**，定义身份固定、同身份内容在运行边界热重载，能力装卸的会话声明参与求值；本轮明确自动继承默认 false、声明随生效定义，补齐 official 定义不可替换与三层自定义 non-master 边界；三类能力绑定规则由产品负责人直接裁定，推导与未决项另记；rev 13 的工作区一致性增量已正式接受（[登记](decisions.md#2026-09-27-工作区增量正式状态登记)），原有整包接受与评审范围不扩张。此前状态：**rev 12，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 未决项：当前装配范围无；spawn／delegate 可选 master，连接件范围搁置。
+- 待裁决：当前范围无；[D-1、D-2、D-3](decisions.md#三待裁决) 的当前处置见决策记录。
   **第一条更要紧**：`non-master` 是由 master 反向定义的，**那份清单不全，这条线就划不准**
 - 来源问题：[§6.3 判据没有覆盖非常驻条目](decisions.md#四已知的来源问题)那一条**已闭合**（rev 12，主线裁定）；其余仍按原处置
 - 技术投影：**尚未开始**
@@ -107,3 +111,8 @@ PF-004-agent-definition-and-assembly/
 ├── changelog.md      产品设计本身的演进
 └── interviews/       设计交流笔记（原始材料）
 ```
+
+
+创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [changelog](changelog.md)。
+
+本次产品裁决：明确 spawn／delegate 允许 master 与 non-master，定义类型不改变子会话关系。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。

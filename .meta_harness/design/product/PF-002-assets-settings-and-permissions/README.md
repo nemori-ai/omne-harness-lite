@@ -2,7 +2,7 @@
 id: PF-002
 title: 设置、权限与资产的展开
 status: active
-revision: 26
+revision: 32
 relations:
   supersedes: []
   depends-on:
@@ -29,7 +29,7 @@ relations:
 |---|---|
 | `supersedes` | 无 |
 | `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md)。直接使用它定义的**四层作用域**、**三种合成语义**、**能力标识**与 **official/customized**，不重复定义 |
-| 被谁展开 | [PF-003 资产的复制与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动，[PF-004 装配与存活](../PF-004-agent-definition-and-assembly/README.md) 定义怎样把这些搬进运行时，[PF-012 Agent Loop 与 Run](../PF-012-agent-loop-and-run/README.md) 定义 loop 上**一共有哪些拓展点位置**。三者都依赖本 topic，**方向不能反**：本 topic 不引用它们的结论 |
+| 被谁展开 | [PF-003 资产的复制与分享](../PF-003-asset-transfer-and-sharing/README.md) 定义资产怎样跨组织流动，[PF-004 装配与存活](../PF-004-agent-definition-and-assembly/README.md) 定义怎样把这些搬进运行时，[PF-012 Agent Loop 与 Run](../PF-012-agent-loop-and-run/README.md) 定义 loop 上**一共有哪些拓展点位置**。资产类别、组合与实现求值由本 topic 拥有；Skill、Tool、MCP 选入装配的规则归 PF-004，本 topic 引用该规则，不在这里另定一套 |
 | `extends` | 无 |
 
 **与 PF-001 的分界**：同一个字段在多层都有值时听谁的，归 PF-001；
@@ -49,9 +49,13 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 26，工作区一致性增量已正式接受**（产品负责人，2026-09-27）。接受依据、独立评审范围及残余矛盾修正见 [本次登记](decisions.md#2026-09-27-工作区增量正式接受与残余矛盾修正)。既有 rev 20 的接受范围及 OAuth 到期人工重授权的已知缺口继续按 [D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md) 保留；本次不接受原有未决政策或扩大技术采用。
-- 未决项：**一项**（[§九](design.md#九未决项)）——同一份连接件送来的一条事件，走两种投递方式的哪一路；另有一处缺口**归会话那一块**（新会话以哪个 agent definition、哪个租户身份建），§九只指路
-- 待裁决：**一项**（D-6，同上），见 [decisions §三](decisions.md#三待裁决)；D-2～D-4 已于 2026-09-24 裁定，D-5 的现行主线裁定已由 D-065 确认
+区分资产定义数据、执行实现与承载服务；资格过滤不删除会话已知能力身份。本轮为产品规则与消费边界的修订，未据此接受具体 Cordis 插件划分或实现。
+
+区分 reload 的来源刷新范围与构成生效边界；构成变化按 PF-004／PF-012 完整校验并安全交接。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
+
+- 产品设计：**rev 32**，会话值与共享配置的作用域按 PF-015 明确；承接产品负责人直接裁定的三类能力绑定与自动继承规则；规则正文归 PF-004，本包对齐定义与求值输入。rev 24 工作区一致性增量及 rev 25 残余修正已正式接受（[登记](decisions.md#2026-09-27-工作区增量正式接受与残余矛盾修正)），原有接受与评审范围不扩张。**rev 20 已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），其接受范围与 OAuth 到期人工重授权的已知缺口保留。接受范围以对应登记为准。
+- 搁置范围：连接件是否保留为资产及全部相关接入设计；保留内容不是当前交付要求。
+- 待裁决：当前范围无；D-6 属连接件搁置范围，见 [decisions §三](decisions.md#三待裁决)；D-2～D-4 已于 2026-09-24 裁定，D-5 的现行主线裁定已由 D-065 确认
 - 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留
 
 技术投影按 `harness-design-handbook` skill 展开，
@@ -69,3 +73,8 @@ PF-002-assets-settings-and-permissions/
 ├── changelog.md      产品设计本身的演进
 └── interviews/       设计交流笔记（原始材料）
 ```
+
+
+创建、动态部件与持久化的当前规则见 [PF-015 完整矩阵](../PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)。本 topic 的本轮变更见 [changelog](changelog.md)。
+
+本次产品裁决：连接件是否作为资产存在尚未定论，相关设计整体搁置，不作为当前交付前提。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。

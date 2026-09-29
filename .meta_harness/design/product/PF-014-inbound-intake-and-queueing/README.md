@@ -2,7 +2,7 @@
 id: PF-014
 title: 输入的受理与排队
 status: active
-revision: 8
+revision: 11
 relations:
   supersedes: []
   depends-on:
@@ -81,7 +81,9 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 8**，本次工作区显式资产 reload 增量**已正式接受**（2026-09-27，依据[本次登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；rev 5 的定稿范围保留，**rev 6、rev 7 仍待产品负责人确认**，既有未决和未覆盖范围不随本事件闭合。
+明确 reload 在当前 Run 内的交接与新尝试不改变命令受理的去处；命令留痕不代替实际生效与恢复事实。本次为产品设计增量，直接裁决与 PM 推导见 decisions；不扩大此前整包接受、规格或实现状态。
+
+- 产品设计：**rev 11**，rev 8 工作区 reload 增量已正式接受（[登记](decisions.md#2026-09-27-工作区增量正式状态登记)），原接受及未决范围不扩张。此前状态：**rev 7**。rev 5 **已定稿**（2026-09-22 由产品负责人定）；**rev 6、rev 7 待产品负责人确认** · [演进过程见变更历史](changelog.md)
 - 待裁决：**0**，去向见 [decisions.md 第三节](decisions.md#三待裁决)
 - **连接件的事件可以经受理开出一个新会话**（[§5.7](design.md#57-穷举一什么会让队列从空变成非空) 第四行）：本 topic **只登记这一路存在**；
   新会话以哪个 agent definition、哪个租户身份建归会话那一块，去重、合并与这一路的验收下次升 rev 时做（[decisions §四](decisions.md#四已知的来源问题)）
@@ -105,3 +107,5 @@ PF-014-inbound-intake-and-queueing/
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
 └── changelog.md      产品设计本身的演进                ← 必须
 ```
+
+本次产品裁决：归档取消待处理任务且保留历史，拒收新任务但接收迟到执行事实；连接件路径搁置。新增裁决的依据与范围见 decisions；不扩大既有整包接受、规格或实现状态。

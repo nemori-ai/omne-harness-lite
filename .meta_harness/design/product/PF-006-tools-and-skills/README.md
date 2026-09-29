@@ -2,7 +2,7 @@
 id: PF-006
 title: 工具与技能
 status: active
-revision: 20
+revision: 23
 relations:
   supersedes: []
   depends-on:
@@ -66,8 +66,7 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
    数据，长期                构成，绑 agent runtime          计算资源，自己的 runtime，绑会话
 ```
 
-这是「数据 vs 计算资源」的**第四次出现**，但这次换了宿主——前三次的计算资源
-都挂在 agent runtime 上，**这次挂在会话上，从不由 agent runtime 承载**。
+工具执行与模型请求的生命周期都归会话。Agent runtime 持有访问、等待和控制句柄，句柄释放不取消执行；Run 保留工作与成本归属。
 **前台 / 后台说的是 agent runtime 这副协程有没有阻塞在它上面**，不是它挂在谁身上。
 正因如此，agent runtime 被回收不影响任何一次执行；转了后台的在 run 结束之后还能继续，结果照样回得到那个会话。
 
@@ -139,7 +138,9 @@ Tool Definition ──装配──→ 动作空间里的条目 ──调用─�
 
 ## 状态
 
-- 产品设计：**rev 20**，本次工作区一致性增量**已正式接受**（2026-09-27，依据[本次登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；此前 rev 19 的正式接受范围保留（[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），现存未决与技术投影状态分别保留。
+替换件覆盖已知能力卸载及不再选入；数据与实现按单次使用固定，MCP 已知动作不删除。本轮为产品规则与消费边界的修订，未据此接受具体 Cordis 插件划分或实现。
+
+- 产品设计：**rev 23**，本轮运行时归属增量按产品负责人明确要求修订；此前工作区一致性增量已正式接受（[登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 19，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题：见 [decisions.md 第四节](decisions.md#四已知的来源问题)
@@ -160,3 +161,6 @@ PF-006-tools-and-skills/
 ├── changelog.md      产品设计本身的演进
 └── interviews/       设计交流笔记（原始材料）
 ```
+
+
+本轮明确 [Session 归属、Run 工作与句柄](../PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)，持久关联见 [PF-015 §6.21](../PF-015-session-lifecycle-and-ownership/design.md#621-三类-runtime-的归属与执行关联)；释放 Agent runtime 不取消模型／工具执行。

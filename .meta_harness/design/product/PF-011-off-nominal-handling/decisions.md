@@ -294,3 +294,13 @@ agent 读不到它（它不进模型上下文），剩下只有排查的人看�
 ---
 
 返回[本 topic 入口](README.md)。
+
+## 2026-09-29 运行时归属与句柄
+
+**直接要求**：[INT-001～003](../PF-015-session-lifecycle-and-ownership/interviews/2026-09-29-runtime-ownership-and-handles.md) 要求模型／工具 runtime 归 Session 或 Run 逻辑治理，Agent runtime 仅持句柄，销毁不结束所引用执行，并完整落盘。
+
+**本包处置**：明确非常态层级描述工作归因与上交路径，不是 runtime 的寿命包含关系；模型和工具均归会话。 “代表 Run 发起”沿 [INT-004](../PF-015-session-lifecycle-and-ownership/interviews/2026-09-29-runtime-ownership-and-handles.md#int-004) 作职责解释；Agent Loop 与运行实例不作为同义词。
+
+**PM 推导**：Session 统一生命周期，Run 统一工作归因；Run 外调用直接归 Session。零句柄继续执行要求独立结果记账、持久调用关联与接续查询；仅 Agent runtime 消失不足以判定执行失联。保留显式取消的原传播范围，不由句柄释放隐式取消，不承诺外部效果可撤销。
+
+**取代范围与消费者**：PF-012／013 与 UL-D-3 中“模型 runtime 以 Agent runtime 为宿主”及据此推导“等模型不可释放尝试”的旧说法被取代；PF-011 的树只说明工作归因。历史记录保留，现行正文、流程、验收、词条及对象表改用本轮规则。PF-004 装配、PF-009 流式输出、PF-010 组装压缩、PF-014 入站、PF-020 工作区、PF-021 Job 继续消费原边界，执行接续由 PF-012／013 表达。已冻结 model-request-runtime 等契约及其提供者／装配映射须在后续规格演进中核对宿主、取消、尝试栅栏和恢复；本次产品变更不自动修改其版本或扩大正式接受范围。

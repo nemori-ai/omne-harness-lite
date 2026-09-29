@@ -191,3 +191,62 @@ C-1 那两个概念都已拍板、都动不了，只能定用法；**这两条�
 - **产品依据**：[PF-013 §5.5 留痕](../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) 与 [§5.13 停机](../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 15）要求真实留痕及未知费用不补零，并没有给出词表增加的“从未实际发送则绝无响应记录”排除条件。
 - **处置**：2026-09-28 主线按已接受的登记／结算责任边界纠正这条过强概括；独立 spec-reviewer 已定位词表／对象冲突及产品出处。模型响应体仍是同一耐久记录对象，Upstream Send 仍指实际发送；响应记录存在不证明发生发送、收到回复或产生零费用，不改变重试条件。不把未接受 MR8／RT9 的具体时间表示视作本词条的接受依据。
 - **状态**：中英定义、索引与对象生灭已对齐；实际发送时间的未知表示、恢复来源与消费者迁移仍按 MR8／RT9 候选的独立评审、接受及验证流程处理。既有对象条目中成功／失败记录归并的产品来源未裁项保持，不借本次消歧关闭。
+
+
+### C-49：装配选入的来源不止 Agent Definition
+
+整合编号：origin/main `00356190` 原编号 C-40；HUB C-40 已被冻结接受记录引用，故本项改用 C-49，含义和来源不变。
+
+- **旧说法**：PF-004 rev 13 §4 装配及 UL-agent-assembly 写「输入是两样——依据的定义版本，加上当时该作用域的求值结果」；PF-002 rev 24 §5.1 用从 AgentDefinition 展开的组合图描述组装。
+- **新输入**：产品负责人要求会话类型的必须依赖优先、定义显式依赖必需，Skill、Tool、MCP 可按声明自动继承并排除；继承只选能力，不限制实现来源。见 [INT-006～008](../product/PF-004-agent-definition-and-assembly/interviews/2026-09-27-assembly-and-tool-scope.md#int-006)。
+- **差别**：旧说法无法独立表达特殊会话的强制能力，也无法控制额外环境能力的选入；把继承层级同时用于实现选择，会排除用户明确允许的同标识实现覆盖。
+- **状态**：按 [PF-004 裁决](../product/PF-004-agent-definition-and-assembly/decisions.md#2026-09-29-能力绑定与自动继承) 对齐 PF-004 rev 14、PF-002 rev 25 与词条；保留 meta 不可替换、上级持有的 immutable 及热重载边界。后续 INT-011 已闭合 PF-004 D-3：默认 false、声明随生效定义；PF-004 rev 15 与词表同步。
+
+
+### C-41：official Agent Definition 的不可替换边界
+
+- **旧说法**：PF-004 rev 14 §6.8 写「租户能自定义的，只有 non-master 的定义」；PF-002 rev 25 §5.5 写「official 可被替代，除了三种情形」，仅列 meta、组织与租户的持有锁定；其 flows §1.3/1.4 仍写「official 永远可被替代」「不存在把 official 锁住这回事」。PF-001 rev 22 来源表只显式指向 meta 例外。
+- **新要求**：[INT-011](../product/PF-004-agent-definition-and-assembly/interviews/2026-09-27-assembly-and-tool-scope.md#int-011) 明确 official Agent Definition 为 immutable，组织、租户、工作区能自定义的均为 non-master。
+- **差别**：旧表述会允许以同标识定义替换官方定义，且没有完整覆盖三层自定义边界；旧流程还遗漏已经存在的持有层锁定。
+- **处置**：按 [PF-004 续裁](../product/PF-004-agent-definition-and-assembly/decisions.md#2026-09-29-续裁默认关闭与定义替换) 对齐 PF-001 rev 23、PF-002 rev 26、PF-004 rev 15 与相关词条。其他 official 类别不因此全部不可替换。冻结规格不改，产品接受范围不扩大。
+
+
+### C-42：协作模式开关与 meta 必需绑定
+
+- **两处输入**：PF-007 rev 19 §5.7 规定 meta 门不可禁用、替换、移除，并写「never 时 ask 照常能用」；[PF-015 INT-003](../product/PF-015-session-lifecycle-and-ownership/interviews/2026-09-29-collaboration-modes.md#int-003) 明确用 Ask() 开关与目标完成检查装卸区分协作模式。
+- **差别**：若把关 Ask() 当成删除资产，会破坏既有必需绑定；若把原可用性表述读成不受任何会话模式影响，则无法支持 auto-drive 关 Ask()。
+- **处置**：PF-015 rev 14、PF-007 rev 20 区分资产绑定与运行期人交互能力开关。协作模式与权限、执行环境正交；never 本身不禁 ask，但 ask 仍受协作开关约束。开启不解除命令限制，关闭不授予权限。推导依据见 [PF-007 本轮记录](../product/PF-007-meta-capabilities/decisions.md#2026-09-29--ask-的协作模式开关)。具体开关及在途衔接归技术设计。
+
+### C-43：定义身份固定与内容热重载
+
+- **分歧**：交流中曾把 AgentDefinition 不可变理解为身份和版本一起固定，词条也笼统写“改定义不会改变已经在跑的 agent”；PF-004 已规定定义更新在下一 Run 采用。
+- **裁决**：[PF-015 INT-002](../product/PF-015-session-lifecycle-and-ownership/interviews/2026-09-29-session-composition-and-persistence.md#int-002)明确身份固定、同身份内容热重载。
+- **处置**：PF-004 rev 16 与 PF-015 rev 15 明确新 Run 取最新有效内容、同 Run 尝试保留既有版本；同步定义词条，不把工作区切换当作换定义身份。已闭合。
+
+### C-44：持久化投影与完整恢复输入
+
+- **分歧**：PF-012 rev 15 的“不另存”“当下条件不落日志”可能被理解为禁止保存投影和实际采用依据；PF-015 rev 14 的恢复“全部一样”可能把动态外部事实也冻结。
+- **裁决**：[PF-015 INT-001、INT-003](../product/PF-015-session-lifecycle-and-ownership/interviews/2026-09-29-session-composition-and-persistence.md)要求投影和会话使用值持久化，从同结果所需的确定函数输入反推保存范围。
+- **处置**：PF-012 rev 16 允许派生投影落盘，禁止第二份事实权威；PF-015 rev 15 区分自有恢复输入、历史采用依据与当前来源。模型／工具真实结果不由纯函数假设取代。相关词条对齐，已闭合。
+
+### C-45：模型宿主、工作归因与运行时句柄
+
+- **分歧**：PF-012 rev 16、PF-013 rev 13 和 UL-D-3 把 Model runtime 的生命挂在 Agent runtime 上，并据此禁止等待模型时释放 Agent runtime；PF-011 rev 4 把工作层级描述为生命周期包含。用户的新要求明确 Model／Tool runtime 均归 Session 或 Run 逻辑治理，Agent runtime 销毁仅释放句柄。
+- **裁决依据**：[运行时归属 INT-001～003](../product/PF-015-session-lifecycle-and-ownership/interviews/2026-09-29-runtime-ownership-and-handles.md)。
+- **处置**：PF-006 rev 21、PF-011 rev 5、PF-012 rev 17、PF-013 rev 14、PF-015 rev 16 及词条／对象条目统一为 Session 生命周期、Run 工作归因和显式取消。零句柄仍执行，先查原执行再恢复；当前尝试承接结果与旧尝试越权分开。产品表达已闭合；冻结契约及历史接受记录保留，后续规格演进仍须落实该变化。
+
+### C-46：同一 Run 的定义版本与显式 reload
+
+- **分歧**：PF-004 rev 16 的 I-3 禁止同 Run 更换定义版本；PF-002 rev 27 把 reload 一律限定为刷新注册表且不影响当前 Run。
+- **裁决**：[2026-09-29 装配交流](../product/PF-004-agent-definition-and-assembly/interviews/2026-09-29-agent-runtime-assembly.md)允许显式 reload 在当前 Run 的安全交接点采用同身份新定义、开启新尝试；未发起的旧模型建议按新装配核对。
+- **处置**：PF-004、PF-012、PF-015 明确默认传播与显式交接；PF-002、PF-014 区分来源刷新范围与构成生效边界。撤销、卸载和不可用只规定产品原则，具体衔接归 Cordis 技术设计。历史 C-43 保留当时裁决语境；当前规则以本次裁决为准。
+
+### C-47：能力数据与实现变化被误当成 Loop 生命周期变化
+
+- **分歧**：PF-004 rev 17 把同身份工具实现替换、能力移除或常驻成分变化一概列为 Agent runtime 重建；PF-002 / PF-006 把禁用与替换件的可见范围分割为“必定不可见”和“仅依赖不可用”。PF-010 又把系统提示词描述为实例期恒定。
+- **裁决依据**：[装配交流 INT-005～008](../product/PF-004-agent-definition-and-assembly/interviews/2026-09-29-agent-runtime-assembly.md)明确会话能力身份单调、数据／实现解耦；两种必需来源均不构成 Loop 对具体能力服务的直接依赖。
+- **处置**：会话保留已知能力，当前数据、实现与可用性动态采用；单次执行冻结自身输入；Loop 自身捕获组成变化才交接，AgentDefinition 版本沿原采用边界。系统提示词按当前合法输入逐请求生成，仍不受压缩影响。C-33 的“动作空间”疑义按已知身份与可执行集合区分；历史解释保留，不再据其推导删除已知身份或工具实现换代必重建 Loop。人的命令入口隐藏规则保持。
+
+### C-48：派发者停止与子会话执行被混为同一生命周期
+
+PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；PF-012 的现行规则明确父 Run 取消不影响子会话及其执行。按现行会话归属与显式取消目标对齐：派发撤回是控制被派工作，报告结束派发，不据此终结子 Run；父会话归档仍递归归档子会话。PF-007 rev 22 已修订，未重开产品取舍。
