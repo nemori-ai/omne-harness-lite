@@ -1,0 +1,27 @@
+{
+  "case": "public",
+  "entryId": "8a1d7a0b-e89b-4003-acf7-25080caf8650",
+  "modelId": "anthropic/claude-fable-5.1",
+  "definitionRevision": "2",
+  "implementation": {
+    "name": "pi-ai:anthropic",
+    "revision": "mp4-5"
+  },
+  "wireSha256": "90f6ebf8e478e1b4060be083ae71b3d767d217b7b5eb744635c8c961d750d8c6",
+  "estimateUsd": "17.452800000000000000",
+  "outcome": "complete",
+  "usage": {
+    "input_tokens": 4,
+    "output_tokens": 4,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 8256,
+    "source": "upstream",
+    "reasoning_tokens": 0
+  },
+  "cost": {
+    "cost_usd": 0.16536,
+    "source": "upstream_usage",
+    "upstream_inference_cost_usd": 0.16536
+  },
+  "observedInput": "from_usage"
+}
