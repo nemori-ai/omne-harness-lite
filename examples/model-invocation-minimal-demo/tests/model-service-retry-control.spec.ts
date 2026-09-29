@@ -7,7 +7,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment } from './model-request-support.ts'
 import { createLocalTls, deferred } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 const PROVIDER = 'deepinfra/fp8'
@@ -42,6 +42,7 @@ async function ready(label: string, onReceive?: () => Promise<void>) {
   const host = createDemoCallHost()
   await app.ready
   const who = await actor(app)
+  const diagnostics = await activateModelFixture(app, who, config)
   const prepared = await app.prepareSession(who, `${label}-session`)
   if (!('session' in prepared)) throw new Error('session preparation failed')
   const session = prepared.session
@@ -65,13 +66,14 @@ async function ready(label: string, onReceive?: () => Promise<void>) {
     app,
     tls,
     host,
+    diagnostics,
     who,
     session,
     service: bound.service,
     basis: effective.effectiveModel,
     async close() {
       await host.stop()
-      await app.close()
+      await diagnostics.closeAfterBusiness(() => app.close())
       await tls.close()
     },
   }

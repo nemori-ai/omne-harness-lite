@@ -5,7 +5,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment } from './model-request-support.ts'
 import { createLocalTls, deferred } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 
@@ -39,9 +39,11 @@ describe('demo real recovery host', () => {
     })
     const host = createDemoCallHost()
     const stopStarted = deferred()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       const prepared = await app.prepareSession(who, 'recovery-held-http')
       if (!('session' in prepared)) throw new Error('session unavailable')
       expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -73,7 +75,11 @@ describe('demo real recovery host', () => {
       expect(tls.requests).toHaveLength(1)
       const recovering = app.reconcileModelRuntime(who, prepared.session)
       await stopStarted.promise
-      const closing = app.close()
+      let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
+      const closing = diagnostics.closeAfterBusiness(async () => {
+        businessClose = await app.close()
+        return businessClose
+      })
       // The server never finishes its held SSE body; only host cancellation may close the socket.
       await tls.socketClosed.promise
       const sent = await dispatch
@@ -81,11 +87,13 @@ describe('demo real recovery host', () => {
       expect(await recovering).toEqual({ calls: [{ callId: sent.callId, state: 'interrupted' }] })
       expect(host.released?.()).toBe(true)
       expect((await closing).complete).toBe(true)
+      expect(businessClose?.complete).toBe(true)
       expect(tls.requests).toHaveLength(1)
     } finally {
       tls.finishHeld()
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })
@@ -105,9 +113,11 @@ describe('demo real recovery host', () => {
     })
     const host = createDemoCallHost()
     const nextHost = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       const other = await actor(app, 'other')
       const prepared = await app.prepareSession(who, 'recovery-session')
       if (!('session' in prepared)) throw new Error('session unavailable')
@@ -169,7 +179,8 @@ describe('demo real recovery host', () => {
     } finally {
       await host.stop()
       await nextHost.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })
@@ -185,9 +196,11 @@ describe('demo real recovery host', () => {
     const host = createDemoCallHost()
     const stopping = deferred(),
       releaseStop = deferred()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       const prepared = await app.prepareSession(who, 'recovery-seal')
       if (!('session' in prepared)) throw new Error('session unavailable')
       expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -229,19 +242,23 @@ describe('demo real recovery host', () => {
         runtimeStopped: true,
       })
       let closeSettled = false
-      const closing = app.close().then(result => {
+      let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
+      const closing = diagnostics.closeAfterBusiness(async () => {
+        businessClose = await app.close()
         closeSettled = true
-        return result
+        return businessClose
       })
       await new Promise<void>(resolve => setImmediate(resolve))
       expect(closeSettled).toBe(false)
       releaseStop.resolve()
       expect(await recovering).toEqual({ calls: [] })
       expect((await closing).complete).toBe(true)
+      expect(businessClose?.complete).toBe(true)
     } finally {
       releaseStop.resolve()
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })

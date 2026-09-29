@@ -7,7 +7,7 @@ import { createDemoCallHost } from '../src/model-call-host.ts'
 import type { AcceptanceEvent } from '../src/types.ts'
 import { callDeployment, publication, ROOT } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 function user(label: string) {
   const parsed = judgeMessage({
@@ -58,9 +58,11 @@ describe('demo diagnostic correlation', () => {
     const firstHost = createDemoCallHost()
     const secondHost = createDemoCallHost()
     let revoke: (() => Promise<unknown>) | undefined
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       const first = await app.prepareSession(who, 'diagnostic-session-first')
       const second = await app.prepareSession(who, 'diagnostic-session-second')
       if (!('session' in first) || !('session' in second))
@@ -168,7 +170,15 @@ describe('demo diagnostic correlation', () => {
       await firstHost.stop()
       await secondHost.stop()
       await revoke?.()
-      expect((await app.close()).complete).toBe(true)
+      if (diagnostics) {
+        let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
+        const closed = await diagnostics.closeAfterBusiness(async () => {
+          businessClose = await app.close()
+          return businessClose
+        })
+        expect(businessClose?.complete).toBe(true)
+        expect(closed.complete).toBe(true)
+      } else expect((await app.close()).complete).toBe(true)
       await tls.close()
     }
   })

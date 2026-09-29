@@ -10,7 +10,7 @@ import {
   type AcceptanceEvent,
   type AcceptanceHooks,
 } from '../src/index.ts'
-import { actor, latch } from './support.ts'
+import { activateModelFixture, actor, latch, PASSWORD } from './support.ts'
 import { callDeployment, ROOT } from './model-request-support.ts'
 
 function currentFace(value: unknown): value is CurrentEvaluationInputs {
@@ -57,6 +57,7 @@ describe('A2b source and transport preparation', () => {
     )
     await first.ready
     const who = await actor(first)
+    const firstDiagnostics = await activateModelFixture(first, who, config)
     try {
       expect(Object.isFrozen(MODEL_REQUEST_FIBERS)).toBe(true)
       expect(Object.keys(first.status().fibers)).toEqual([...MODEL_REQUEST_FIBERS])
@@ -79,7 +80,13 @@ describe('A2b source and transport preparation', () => {
         step: 'publishLocalInputs',
         result: { failure: 'conflict' },
       })
-      expect((await first.close()).complete).toBe(true)
+      let firstBusinessClose: Awaited<ReturnType<typeof first.close>> | undefined
+      const firstClosed = await firstDiagnostics.closeAfterBusiness(async () => {
+        firstBusinessClose = await first.close()
+        return firstBusinessClose
+      })
+      expect(firstBusinessClose?.complete).toBe(true)
+      expect(firstClosed.complete).toBe(true)
       let reopenedReader: CurrentEvaluationInputs | undefined
       const next = app(config, {
         async fiberCreated(name, fiber) {
@@ -93,17 +100,30 @@ describe('A2b source and transport preparation', () => {
       })
       try {
         await next.ready
-        expect(await reopenedReader?.read('s1', who.tenant)).toEqual(actual)
-        expect(await next.readSessionLog(who, 's1')).toEqual({ entries: [], tail: 0 })
+        const nextWho = await next.authenticate('alice', PASSWORD)
+        if (!('account' in nextWho)) throw new Error('reopened actor authentication failed')
+        const nextDiagnostics = await activateModelFixture(next, nextWho, config)
+        try {
+          expect(await reopenedReader?.read('s1', who.tenant)).toEqual(actual)
+          expect(await next.readSessionLog(who, 's1')).toEqual({ entries: [], tail: 0 })
+        } finally {
+          let nextBusinessClose: Awaited<ReturnType<typeof next.close>> | undefined
+          const nextClosed = await nextDiagnostics.closeAfterBusiness(async () => {
+            nextBusinessClose = await next.close()
+            return nextBusinessClose
+          })
+          expect(nextBusinessClose?.complete).toBe(true)
+          expect(nextClosed.complete).toBe(true)
+        }
       } finally {
-        expect((await next.close()).complete).toBe(true)
+        await next.close()
       }
       const closed = events.filter(e => e.event === 'close').map(e => e.phase)
       expect(closed.indexOf('modelContributions')).toBeLessThan(closed.indexOf('modelTransport'))
       expect(closed.indexOf('modelTransport')).toBeLessThan(closed.indexOf('evaluationInputs'))
       expect(closed.indexOf('evaluationInputs')).toBeLessThan(closed.indexOf('sessionLogOwner'))
     } finally {
-      await first.close()
+      await firstDiagnostics.closeAfterBusiness(() => first.close())
     }
   })
 
@@ -130,10 +150,12 @@ describe('A2b source and transport preparation', () => {
       },
     }
     const instance = app(broken)
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await instance.ready
       const alice = await actor(instance),
         bob = await actor(instance, 'bob')
+      diagnostics = await activateModelFixture(instance, alice, config)
       await instance.prepareSession(alice, 's1')
       expect(await instance.prepareModelInputs(bob, 's1')).toEqual({ failure: 'identityMismatch' })
       expect(await instance.prepareModelInputs(alice, 's1')).toEqual({
@@ -141,7 +163,15 @@ describe('A2b source and transport preparation', () => {
         result: { failure: 'unavailable' },
       })
     } finally {
-      expect((await instance.close()).complete).toBe(true)
+      if (diagnostics) {
+        let businessClose: Awaited<ReturnType<typeof instance.close>> | undefined
+        const closed = await diagnostics.closeAfterBusiness(async () => {
+          businessClose = await instance.close()
+          return businessClose
+        })
+        expect(businessClose?.complete).toBe(true)
+        expect(closed.complete).toBe(true)
+      } else expect((await instance.close()).complete).toBe(true)
     }
   })
 
@@ -166,14 +196,21 @@ describe('A2b source and transport preparation', () => {
     })
     await instance.ready
     const who = await actor(instance)
+    const diagnostics = await activateModelFixture(instance, who, config)
     await instance.prepareSession(who, 's1')
     const work = instance.prepareModelInputs(who, 's1')
     await entered.promise
-    const close = instance.close()
+    let businessClose: Awaited<ReturnType<typeof instance.close>> | undefined
+    const close = diagnostics.closeAfterBusiness(async () => {
+      businessClose = await instance.close()
+      return businessClose
+    })
+    await Promise.resolve()
     expect(await instance.prepareModelInputs(who, 's1')).toEqual({ failure: 'stageClosed' })
     expect(instance.status().inFlight).toBe(1)
     release.resolve()
     expect(await work).toEqual({ prepared: true })
     expect((await close).complete).toBe(true)
+    expect(businessClose?.complete).toBe(true)
   })
 })

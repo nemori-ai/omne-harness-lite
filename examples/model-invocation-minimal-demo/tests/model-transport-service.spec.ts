@@ -23,7 +23,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { createLocalTls } from './local-tls.ts'
 import { callDeployment, demoRetirement } from './model-request-support.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const PRO = 'deepseek/deepseek-v4-pro-0813'
 const FLASH = deepseekV41FlashDefinition.modelId
@@ -93,10 +93,12 @@ describe('demo runtime with Cordis transport contributions', () => {
       },
     })
     const host = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
-      if (!catalog) throw new Error('real catalog absent')
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
+      if (!catalog) throw new Error('real catalog absent')
       const complete = createOfficialProfileContent(deepseekV4Pro0813Definition, {
         providers: ['deepinfra/fp8'],
         allowFallback: false,
@@ -149,7 +151,8 @@ describe('demo runtime with Cordis transport contributions', () => {
       expect(keys.some(key => 'ok' in key && key.ok.kind === 'ended')).toBe(false)
     } finally {
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })
@@ -239,13 +242,15 @@ describe('demo runtime with Cordis transport contributions', () => {
     let replacement: Fiber | undefined
     let oldCall: ReturnType<typeof app.startServiceCall> | undefined
     let oldRetirement: Promise<void> | undefined
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
+      const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       if (!service || !providerFiber || !oldFiber || !logins)
         throw new Error('real contribution or identity provider absent')
       const registry = service
       expect(registry.inspect()).toMatchObject({ registrations: 1, references: 0 })
-      const who = await actor(app)
       const other = await actor(app, 'hotupdate-other')
       for (const [session, host] of [
         ['hotupdate-old', oldHost],
@@ -352,7 +357,15 @@ describe('demo runtime with Cordis transport contributions', () => {
       await Promise.allSettled([oldHost.stop(), newHost.stop()])
       if (oldRetirement) await oldRetirement
       await replacement?.dispose()
-      expect(await app.close()).toHaveProperty('complete', true)
+      if (diagnostics) {
+        let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
+        const closed = await diagnostics.closeAfterBusiness(async () => {
+          businessClose = await app.close()
+          return businessClose
+        })
+        expect(businessClose).toHaveProperty('complete', true)
+        expect(closed.complete).toBe(true)
+      } else expect(await app.close()).toHaveProperty('complete', true)
       await service?.closed
       expect(tls.closedSockets()).toBeGreaterThanOrEqual(1)
       await tls.close()

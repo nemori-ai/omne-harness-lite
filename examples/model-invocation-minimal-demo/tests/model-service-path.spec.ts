@@ -6,7 +6,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 const AT = '2026-09-28T00:00:00Z'
@@ -21,9 +21,11 @@ describe('demo unified service path', () => {
       diagnostics: { record() {} },
     })
     const host = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       const prepared = await app.prepareSession(who, 'demo-service-session')
       if (!('session' in prepared)) throw new Error('session preparation failed')
       expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -124,7 +126,8 @@ describe('demo unified service path', () => {
       expect(await openedObserver.revoke()).toEqual({ released: true })
     } finally {
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })

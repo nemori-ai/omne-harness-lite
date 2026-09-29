@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isOk, parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { callDeployment } from './model-request-support.ts'
-import { actor } from './support.ts'
+import { activateModelFixture, actor } from './support.ts'
 
 describe('demo authenticated observer issuance', () => {
   it('binds an endpoint only after the real actor and held session are checked', async () => {
@@ -11,9 +11,11 @@ describe('demo authenticated observer issuance', () => {
       stage: 'modelRequest',
       diagnostics: { record() {} },
     })
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       const prepared = await app.prepareSession(who, 'observer-session')
       if (!('session' in prepared)) throw new Error('session preparation failed')
       const call = parseOpaqueIdentifier('observer-call', 'ModelCallId')
@@ -60,7 +62,15 @@ describe('demo authenticated observer issuance', () => {
         }),
       ).toEqual({ unavailable: true })
     } finally {
-      expect((await app.close()).complete).toBe(true)
+      if (diagnostics) {
+        let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
+        const closed = await diagnostics.closeAfterBusiness(async () => {
+          businessClose = await app.close()
+          return businessClose
+        })
+        expect(businessClose?.complete).toBe(true)
+        expect(closed.complete).toBe(true)
+      } else expect((await app.close()).complete).toBe(true)
     }
   })
 })

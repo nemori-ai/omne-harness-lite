@@ -36,7 +36,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment, publication, rootBody, ROOT } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 const AT = '2026-09-28T00:00:00Z'
@@ -166,8 +166,11 @@ describe('service tool declaration and externally supplied result', () => {
     const host = createDemoCallHost()
     let manifest: ReturnType<typeof createAssemblyManifestStore> | undefined
     let history: RegistryHistoryReader | undefined
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
+      const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       if (storage === undefined || context === undefined)
         throw new Error('provider capture missing')
       const currentInputs: CurrentEvaluationInputs = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
@@ -205,7 +208,6 @@ describe('service tool declaration and externally supplied result', () => {
         conflictPolicy: { maxRetries: 0 },
         maxInFlight: 2,
       })
-      const who = await actor(app)
       const prepared = await app.prepareSession(who, 'service-real-tools-session')
       if (!('session' in prepared)) throw new Error('session preparation failed')
       expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -341,11 +343,18 @@ describe('service tool declaration and externally supplied result', () => {
           host: host.host,
         }),
       ).toEqual({ failure: 'stageClosed' })
-      expect((await app.close()).complete).toBe(true)
+      let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
+      const closed = await diagnostics.closeAfterBusiness(async () => {
+        businessClose = await app.close()
+        return businessClose
+      })
+      expect(businessClose?.complete).toBe(true)
+      expect(closed.complete).toBe(true)
       expect(await host.stop()).toEqual({ released: true })
     } finally {
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await registry?.close()
       await history?.close()
       await manifest?.close()

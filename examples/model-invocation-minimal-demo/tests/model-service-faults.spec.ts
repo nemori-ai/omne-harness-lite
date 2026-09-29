@@ -6,7 +6,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment, publication, ROOT } from './model-request-support.ts'
 import { createLocalTls, deferred } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 const AT = '2026-09-28T00:00:00Z'
@@ -90,10 +90,12 @@ describe('real unified service boundaries in the demo', () => {
       diagnostics: { record() {} },
     })
     const host = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app),
         other = await actor(app, 'other')
+      diagnostics = await activateModelFixture(app, who, config)
       await app.prepareSession(who, 's1')
       await app.prepareModelInputs(who, 's1')
       await app.selectModel(who, 's1', MODEL)
@@ -142,7 +144,8 @@ describe('real unified service boundaries in the demo', () => {
       expect(tls.requests).toHaveLength(0)
     } finally {
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })
@@ -175,9 +178,11 @@ describe('real unified service boundaries in the demo', () => {
       diagnostics: { record() {} },
     })
     const host = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       await app.prepareSession(who, 's1')
       await app.prepareModelInputs(who, 's1')
       await app.selectModel(who, 's1', MODEL)
@@ -198,13 +203,20 @@ describe('real unified service boundaries in the demo', () => {
       expect(await app.reconcileModelRuntime(who, 's1')).toEqual({ unavailable: true })
       expect(await send(app, who, 's1', host, 'second')).toEqual({ failure: 'stageClosed' })
       expect(tls.requests).toHaveLength(1)
-      expect((await app.close()).complete).toBe(false)
+      let businessClose: Awaited<ReturnType<typeof app.close>> | undefined
+      const closed = await diagnostics.closeAfterBusiness(async () => {
+        businessClose = await app.close()
+        return businessClose
+      })
+      expect(businessClose?.complete).toBe(false)
+      expect(closed.complete).toBe(false)
     } finally {
       fail = false
       syncSpy.mockRestore()
       truncateSpy.mockRestore()
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await probe.close()
       await tls.close()
     }
@@ -264,9 +276,11 @@ describe('real unified service boundaries in the demo', () => {
       diagnostics: { record() {} },
     })
     const host = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       await app.prepareSession(who, 's1')
       await app.prepareModelInputs(who, 's1')
       await app.selectModel(who, 's1', MODEL)
@@ -296,7 +310,8 @@ describe('real unified service boundaries in the demo', () => {
     } finally {
       resume.resolve()
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })

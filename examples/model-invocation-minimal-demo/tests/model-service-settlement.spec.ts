@@ -8,7 +8,7 @@ import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
 const SESSION = 'settlement-vetoed-session'
@@ -56,9 +56,12 @@ async function scenario(
     developmentTransport: tls.developmentTransport,
     diagnostics: { record() {} },
   })
+  let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
   try {
     await app.ready
     const who = await actor(app)
+    diagnostics = await activateModelFixture(app, who, config)
+    const openedDiagnostics = diagnostics
     const prepared = await app.prepareSession(who, `${label}-session`)
     if (!('session' in prepared)) throw new Error('session preparation failed')
     expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -83,18 +86,20 @@ async function scenario(
       app,
       who,
       host,
+      diagnostics: openedDiagnostics,
       tls,
       session: prepared.session,
       service: bound.service,
       async close() {
         await host.stop()
-        await app.close()
+        await openedDiagnostics.closeAfterBusiness(() => app.close())
         await tls.close()
       },
     }
   } catch (error) {
     await host.stop()
-    await app.close()
+    if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+    else await app.close()
     await tls.close()
     throw error
   }
@@ -143,9 +148,11 @@ describe('S-49 settlement through the actual demo model service', () => {
       diagnostics: { record() {} },
     })
     const host = createDemoCallHost()
+    let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
     try {
       await app.ready
       const who = await actor(app)
+      diagnostics = await activateModelFixture(app, who, config)
       const prepared = await app.prepareSession(who, SESSION)
       if (!('session' in prepared)) throw new Error('session preparation failed')
       expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -222,7 +229,8 @@ describe('S-49 settlement through the actual demo model service', () => {
       expect(await host.stop()).toEqual({ released: true })
     } finally {
       await host.stop()
-      await app.close()
+      if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+      else await app.close()
       await tls.close()
     }
   })
@@ -569,7 +577,13 @@ describe('S-49 settlement through the actual demo model service', () => {
       expect(syncFailures).toBeGreaterThan(0)
       expect(truncateFailures).toBeGreaterThan(0)
       expect(s.tls.requests).toHaveLength(1)
-      expect((await s.app.close()).complete).toBe(false)
+      let businessClose: Awaited<ReturnType<typeof s.app.close>> | undefined
+      const closed = await s.diagnostics.closeAfterBusiness(async () => {
+        businessClose = await s.app.close()
+        return businessClose
+      })
+      expect(businessClose?.complete).toBe(false)
+      expect(closed.complete).toBe(false)
     } finally {
       faulting = false
       syncSpy.mockRestore()

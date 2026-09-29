@@ -6,7 +6,7 @@ import { createDemoCallHost } from '../src/model-call-host.ts'
 import type { AcceptanceEvent } from '../src/types.ts'
 import { callDeployment } from './model-request-support.ts'
 import { createLocalTls } from './local-tls.ts'
-import { actor, ref } from './support.ts'
+import { activateModelFixture, actor, ref } from './support.ts'
 
 type SinkMode = 'healthy' | 'throw' | 'reject' | 'pending'
 type UpstreamMode = 'complete' | 'http503' | 'hold'
@@ -48,9 +48,11 @@ async function runServicePath(upstream: UpstreamMode, sink: SinkMode) {
     },
   })
   const host = createDemoCallHost()
+  let diagnostics: Awaited<ReturnType<typeof activateModelFixture>> | undefined
   try {
     await app.ready
     const who = await actor(app)
+    diagnostics = await activateModelFixture(app, who, config)
     const prepared = await app.prepareSession(who, `${label}-session`)
     if (!('session' in prepared)) throw new Error('session preparation unavailable')
     expect(await app.prepareModelInputs(who, prepared.session)).toEqual({ prepared: true })
@@ -94,7 +96,13 @@ async function runServicePath(upstream: UpstreamMode, sink: SinkMode) {
       callId: sent.callId,
     })
     const diagnosticFailures = app.status().diagnosticFailures
-    const close = await app.close()
+    let close: Awaited<ReturnType<typeof app.close>> | undefined
+    const closed = await diagnostics.closeAfterBusiness(async () => {
+      close = await app.close()
+      return close
+    })
+    if (close === undefined) throw new Error('actual business close did not return')
+    expect(closed.businessComplete).toBe(close?.complete)
     const diagnosticFailuresAfterClose = app.status().diagnosticFailures
     return {
       sent,
@@ -111,7 +119,8 @@ async function runServicePath(upstream: UpstreamMode, sink: SinkMode) {
   } finally {
     tls.finishHeld()
     await host.stop()
-    await app.close()
+    if (diagnostics) await diagnostics.closeAfterBusiness(() => app.close())
+    else await app.close()
     await tls.close()
   }
 }
