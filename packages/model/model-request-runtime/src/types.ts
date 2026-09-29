@@ -13,6 +13,11 @@ import type {
   ResponseOutcome,
   ParameterAdjustment,
   RawHeaders,
+  CountingBasis,
+  RequestInputEvidence,
+  ObservedInput,
+  OutputGroupEvidence,
+  InputCalibration,
 } from '@omne-harness-lite/model-response'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
@@ -25,7 +30,63 @@ export interface TokenMargin {
   readonly multiplier: JsonNumber
   readonly reserveTokens: JsonNumber
 }
+export interface ReplaySelection {
+  readonly sourceBlockIndex: number
+  readonly messageIndex: number
+  readonly blockIndex: number
+}
+export type PlanCalibration =
+  | { readonly kind: 'none'; readonly reason: 'no_observation' | 'source_unavailable' }
+  | {
+      readonly kind: 'observation'
+      readonly inputCalibration: InputCalibration
+      readonly usage: Usage
+      readonly outputBlocks: readonly ContentBlock[]
+      readonly replaySelection: readonly ReplaySelection[]
+    }
+export type MeasurementPrecision = 'exact' | 'upperBound' | 'estimated'
+export interface MeasurementContribution {
+  readonly tokens: JsonNumber
+  readonly precision: MeasurementPrecision
+}
+interface MeasurementBase {
+  readonly precision: MeasurementPrecision
+  readonly predictedInput: JsonNumber
+  readonly admissionTokens: JsonNumber
+  readonly basis: CountingBasis
+}
+export type InputMeasurement =
+  | (MeasurementBase & {
+      readonly mode: 'full'
+      readonly fallbackReason?:
+        'source_unavailable' | 'no_observation' | 'prefix_changed' | 'basis_changed'
+      readonly fullContribution: MeasurementContribution
+      readonly replayContribution?: never
+      readonly newContribution?: never
+    })
+  | (MeasurementBase & {
+      readonly mode: 'marginal'
+      readonly fallbackReason?: never
+      readonly fullContribution?: never
+      readonly replayContribution: MeasurementContribution
+      readonly newContribution: MeasurementContribution
+    })
+export interface ReadFacts {
+  readonly usage: Usage
+  readonly cost: Cost
+  readonly observedInput: ObservedInput
+}
+export interface OutputProjectionInput {
+  readonly blocks: readonly ContentBlock[]
+  readonly source: 'reply' | 'delivered' | 'none'
+  readonly completeness: 'complete' | 'partial'
+}
+export type OutputProjectionResult =
+  | { readonly projected: OutputGroupEvidence }
+  | { readonly invalidInput: { readonly reason: 'malformed' } }
+  | { readonly unavailable: true }
 export interface PlanInput {
+  readonly calibration: PlanCalibration
   readonly tokenMargin: TokenMargin
   readonly target: Extract<ArrivalTarget, { kind: 'model_call' }>
   readonly routeName: string
@@ -37,6 +98,8 @@ export interface PlanInput {
 }
 export interface PlannedSemantics {
   readonly input: PlanInput
+  readonly requestInput: RequestInputEvidence
+  readonly measurement: InputMeasurement
   readonly parameters: ModelRequestParameters
   readonly parameterAdjustments?: readonly ParameterAdjustment[]
   readonly droppedParameters?: readonly string[]
@@ -99,8 +162,7 @@ export type TransportFailure = {
       readonly statusCode?: import('@omne-harness-lite/content-blocks').JsonNumber
     }
 )
-export type StreamEnd = ServingFacts &
-  (
+export type StreamEnd = ServingFacts & { readonly readFacts: ReadFacts } & (
     | { readonly ended: 'end' | 'max_tokens' }
     | { readonly aborted: true; readonly queued?: true }
     | { readonly rejected: 'invalidInput' | 'unavailable' }
@@ -127,6 +189,7 @@ export interface PublicDiagnosticAssociation {
 }
 export interface TransportAdapter<P extends PlannedSemantics, R> {
   readonly plan: (input: PlanInput) => PlanResult<P>
+  readonly projectOutput: (planned: P, input: OutputProjectionInput) => OutputProjectionResult
   readonly send: (
     planned: P,
     credential: string,
@@ -170,6 +233,7 @@ export interface InvocationInput<P extends PlannedSemantics, R> extends PlanInpu
   readonly onAccepted?: (event: ArrivalEvent, snapshot: AssemblySnapshot) => void
 }
 export interface ModelInvocationResult extends ServingFacts {
+  readonly inputCalibration: InputCalibration
   readonly rawHeaders?: RawHeaders
   readonly outcome: ResponseOutcome
   readonly blocks: readonly ContentBlock[]
@@ -188,6 +252,7 @@ export interface ModelInvocationResult extends ServingFacts {
 }
 /** Stable, owned facts retained by the original send, including an incomplete outcome. */
 export interface InvocationObservedFacts extends ServingFacts {
+  readonly inputCalibration: InputCalibration
   readonly sentAt?: string
   readonly rawHeaders?: RawHeaders
   readonly usage: Usage
