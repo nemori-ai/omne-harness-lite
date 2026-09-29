@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-09-29 模型引用候选**：[有限形式与 Schema 实际运行](2026-09-29-formal-model-reference-candidate/README.md)。3 个正配置无反例、9 个负控命中、57 个形状实例通过；运行时未采输入摘要及早期两项 Schema 失败原日志丢失的局限明确保留。不构成契约采用或实现验收。
+
 **2026-09-27 MR5 纯值核心**：[源码、制品和有限技术签收](2026-09-27-tests-model-response-v5-core/README.md)。77 规范块、387 包测试、两份作者制品消费者及独立优先级/制品/行为负控通过；原 Pass with issues 的文字问题已修，317 归档成员逐项核对。纯值范围不关闭 transport/真实写方责任。
 
 **2026-09-27 transport 不透明响应资源**：[实际 TLS 与有限技术签收](2026-09-27-tests-model-transport-opaque-response/README.md)。独立切片 Pass，真实反射/关闭/单 reader/延期读取及两个编译行为负控通过；原测量失败保留，294 归档成员逐项核对。G6、完整响应头交接和完整 PH-V9 未签收。

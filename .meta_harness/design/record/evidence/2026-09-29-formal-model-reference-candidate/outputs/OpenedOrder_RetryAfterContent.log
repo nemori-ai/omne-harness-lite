@@ -1,0 +1,85 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 95 and seed -280079275340677523 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 186079] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla
+Parsing file /tmp/tlc-13669552485856507007/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-13669552485856507007/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module OpenedOrder
+Linting of module OpenedOrder
+Starting... (2026-09-29 12:16:45)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-29 12:16:45.
+Error: Invariant NoSendAfterOpenedLoss is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ openedReceipt = "none"
+/\ writerStopped = FALSE
+/\ sends = 1
+/\ readPermit = FALSE
+/\ currentAttempt = 1
+/\ visible = FALSE
+/\ lost = FALSE
+/\ log = <<"dispatch-1">>
+/\ readTail = 0
+
+State 2: <ReadPrefix line 17, col 15 to line 20, col 96 of module OpenedOrder>
+/\ openedReceipt = "none"
+/\ writerStopped = FALSE
+/\ sends = 1
+/\ readPermit = TRUE
+/\ currentAttempt = 1
+/\ visible = FALSE
+/\ lost = FALSE
+/\ log = <<"dispatch-1">>
+/\ readTail = 1
+
+State 3: <CommitOpened line 21, col 17 to line 24, col 100 of module OpenedOrder>
+/\ openedReceipt = "unknown"
+/\ writerStopped = FALSE
+/\ sends = 1
+/\ readPermit = TRUE
+/\ currentAttempt = 1
+/\ visible = FALSE
+/\ lost = FALSE
+/\ log = <<"dispatch-1", "opened-1">>
+/\ readTail = 1
+
+State 4: <Stop line 31, col 9 to line 32, col 96 of module OpenedOrder>
+/\ openedReceipt = "unknown"
+/\ writerStopped = TRUE
+/\ sends = 1
+/\ readPermit = TRUE
+/\ currentAttempt = 1
+/\ visible = FALSE
+/\ lost = FALSE
+/\ log = <<"dispatch-1", "opened-1">>
+/\ readTail = 1
+
+State 5: <Lose line 33, col 9 to line 34, col 105 of module OpenedOrder>
+/\ openedReceipt = "unknown"
+/\ writerStopped = TRUE
+/\ sends = 1
+/\ readPermit = TRUE
+/\ currentAttempt = 1
+/\ visible = FALSE
+/\ lost = TRUE
+/\ log = <<"dispatch-1", "opened-1">>
+/\ readTail = 1
+
+State 6: <Recover line 35, col 12 to line 38, col 103 of module OpenedOrder>
+/\ openedReceipt = "unknown"
+/\ writerStopped = TRUE
+/\ sends = 2
+/\ readPermit = TRUE
+/\ currentAttempt = 1
+/\ visible = FALSE
+/\ lost = TRUE
+/\ log = <<"dispatch-1", "opened-1", "final">>
+/\ readTail = 1
+
+127 states generated, 85 distinct states found, 30 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 02s at (2026-09-29 12:16:46)
