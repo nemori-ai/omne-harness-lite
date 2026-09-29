@@ -125,8 +125,9 @@ export type DiagnosticFact =
     }
   | {
       readonly kind: 'observer'
-      readonly observerStage: 'delivery' | 'snapshot' | 'increment' | 'close'
-      readonly reason: 'buffer_full' | 'consumer_failed' | 'scope_mismatch' | 'closed'
+      readonly observerStage: 'offer' | 'delivery' | 'close'
+      readonly reason:
+        'malformed' | 'observer_scope_mismatch' | 'unavailable' | 'buffer_full' | 'consumer_failed'
       readonly position?: JsonNumber
       readonly bufferedEvents?: JsonNumber
       readonly bufferedBytes?: JsonNumber
@@ -289,8 +290,9 @@ export interface DiagnosticMetrics {
     readonly max: number | 'unknown'
   }[]
   readonly observerRejections: readonly {
-    readonly stage: 'delivery' | 'snapshot' | 'increment' | 'close'
-    readonly reason: 'buffer_full' | 'consumer_failed' | 'scope_mismatch' | 'closed'
+    readonly stage: 'offer' | 'delivery' | 'close'
+    readonly reason:
+      'malformed' | 'observer_scope_mismatch' | 'unavailable' | 'buffer_full' | 'consumer_failed'
     readonly count: number | 'unknown'
   }[]
   readonly dropped: Readonly<

@@ -139,6 +139,46 @@ function fixture(
 }
 
 describe('diagnostic collector', () => {
+  it('keeps actual observer stage and reason values and rejects invented ones', async () => {
+    const { collector, records } = fixture()
+    expect(
+      collector.record(
+        {
+          source: 'observer',
+          stage: 'observer',
+          outcome: 'rejected',
+          facts: {
+            kind: 'observer',
+            observerStage: 'offer',
+            reason: 'observer_scope_mismatch',
+            position: new LosslessNumber('9007199254740993'),
+            bufferedEvents: 0,
+            bufferedBytes: 0,
+          },
+        },
+        local,
+      ),
+    ).toHaveProperty('recorded')
+    expect(
+      collector.record(
+        {
+          source: 'observer',
+          stage: 'observer',
+          outcome: 'rejected',
+          facts: { kind: 'observer', observerStage: 'snapshot', reason: 'scope_mismatch' },
+        } as unknown as DiagnosticEvent,
+        local,
+      ),
+    ).toEqual({ dropped: 'invalid' })
+    await collector.close()
+    expect(records).toHaveLength(1)
+    const metrics = collector.metrics(local)
+    if ('rejected' in metrics) throw new Error('local metrics unavailable')
+    expect(metrics.observerRejections).toEqual([
+      { stage: 'offer', reason: 'observer_scope_mismatch', count: 1 },
+    ])
+  })
+
   it('accepts the exact truncated outcome but rejects an unlisted response outcome', async () => {
     const { collector, records } = fixture()
     const truncated: DiagnosticEvent = {

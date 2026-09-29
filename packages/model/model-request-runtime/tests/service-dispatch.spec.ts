@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createServiceCalls } from '../src/service-calls.ts'
@@ -410,6 +411,32 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(evaluationReads).toBe(3)
     expect(sendCount).toBe(1)
     expect(observerOpenCount).toBe(1)
+    const observerQueue = calls.find({ session: host.session, callId: 'actual-call-1' })?.view()
+      .observer?.queue
+    if (observerQueue === undefined) throw new Error('observer queue missing')
+    expect(observerQueue.start({ blocks: [], position: 0 })).toEqual({
+      invalidInput: { reason: 'malformed' },
+    })
+    expect(engineering).toContainEqual({
+      scope: { kind: 'tenant', tenant: binding.log.tenant },
+      association: expect.objectContaining({
+        session: host.session,
+        call: 'actual-call-1',
+        dispatch: 1,
+      }),
+      event: {
+        source: 'observer',
+        stage: 'observer',
+        outcome: 'rejected',
+        facts: {
+          kind: 'observer',
+          observerStage: 'offer',
+          reason: 'malformed',
+          bufferedEvents: new LosslessNumber('0'),
+          bufferedBytes: new LosslessNumber('0'),
+        },
+      },
+    })
     expect(observed[0]).toMatchObject({
       kind: 'snapshot',
       scope: {
@@ -523,6 +550,20 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(retryAdmission?.association?.executionId).not.toBe(
       previousCall3?.item.association?.executionId,
     )
+    expect(engineering).toContainEqual({
+      scope: { kind: 'tenant', tenant: binding.log.tenant },
+      association: expect.objectContaining({
+        call: 'actual-call-3',
+        dispatch: 2,
+        executionId: retryAdmission?.association?.executionId,
+      }),
+      event: {
+        source: 'runtime',
+        stage: 'retry',
+        outcome: 'started',
+        facts: { kind: 'progress', retry: 'again' },
+      },
+    })
     expect(sendCount).toBe(3)
     expect(evaluationReads).toBe(7)
     const afterRetry = await host.log.readSince(host.session, 0)

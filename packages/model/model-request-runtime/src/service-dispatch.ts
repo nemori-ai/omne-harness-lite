@@ -331,27 +331,6 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
     }
   }
 
-  function observerDiagnostic(event: ObserverDiagnostic): void {
-    try {
-      runtime.policy.diagnostic({
-        kind: 'model_observer.delivery',
-        detail: {
-          session: event.session,
-          tenant: { organization: event.tenant.organization, account: event.tenant.account },
-          callId: event.callId,
-          dispatch: event.dispatch,
-          stage: event.stage,
-          reason: event.reason,
-          bufferedEvents: event.bufferedEvents,
-          bufferedBytes: event.bufferedBytes,
-          ...(event.position === undefined ? {} : { position: event.position }),
-        },
-      })
-    } catch {
-      // A diagnostic sink cannot change the model settlement or delivery owner.
-    }
-  }
-
   async function retire(reservation: CallReservation<P, R>): Promise<void> {
     const container = runtime.calls.find(reservation.key)
     if (container === undefined) return
@@ -484,6 +463,13 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         outcome: 'accepted',
         facts: { kind: 'decision' },
       })
+      if (again)
+        earlyDiagnostics.record({
+          source: 'runtime',
+          stage: 'retry',
+          outcome: 'started',
+          facts: { kind: 'progress', retry: 'again' },
+        })
       earlyDiagnostics.record({
         source: 'runtime',
         stage: 'credential',
@@ -573,6 +559,76 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           credentialScope: credentialScope.layer,
         },
       })
+      let observerLegacyEnabled = true
+      const observerDiagnostic = (event: ObserverDiagnostic): void => {
+        if (
+          event.session !== key.session ||
+          !tenantIdEquals(event.tenant, session.log.tenant) ||
+          event.callId !== key.callId ||
+          !isJsonNumber(event.dispatch) ||
+          ExactDecimal.from(event.dispatch).compare(ExactDecimal.from(admission.dispatch)) !== 0
+        ) {
+          reportDiagnosticFailure('model_runtime.diagnostic_scope_mismatch')
+          return
+        }
+        if (observerLegacyEnabled) {
+          try {
+            const returned: unknown = runtime.policy.diagnostic({
+              kind: 'model_observer.delivery',
+              detail: {
+                session: event.session,
+                tenant: { organization: event.tenant.organization, account: event.tenant.account },
+                callId: event.callId,
+                dispatch: event.dispatch,
+                stage: event.stage,
+                reason: event.reason,
+                bufferedEvents: event.bufferedEvents,
+                bufferedBytes: event.bufferedBytes,
+                ...(event.position === undefined ? {} : { position: event.position }),
+              },
+            })
+            if (drainDiagnosticThenable(returned)) {
+              observerLegacyEnabled = false
+              reportDiagnosticFailure()
+            }
+          } catch {
+            observerLegacyEnabled = false
+            reportDiagnosticFailure()
+          }
+        }
+        const observer = operationDiagnostics(
+          runtime.diagnosticCollector,
+          session.log.tenant,
+          {
+            executionId,
+            ...(parentDiagnostic === undefined ? {} : { causedBy: parentDiagnostic }),
+            session: key.session,
+            call: key.callId,
+            dispatch: admission.dispatch,
+          },
+          reportDiagnosticFailure,
+          rememberDiagnostic,
+        )
+        observer.record({
+          source: 'observer',
+          stage: 'observer',
+          outcome:
+            event.reason === 'consumer_failed'
+              ? 'failed'
+              : event.reason === 'unavailable'
+                ? 'unavailable'
+                : 'rejected',
+          facts: {
+            kind: 'observer',
+            observerStage: event.stage,
+            reason: event.reason,
+            bufferedEvents: event.bufferedEvents,
+            bufferedBytes: event.bufferedBytes,
+            ...(event.position === undefined ? {} : { position: event.position }),
+          },
+        })
+        observer.close()
+      }
       if (local.observer !== undefined) {
         const observer = local.observer
         const target = planInput.target

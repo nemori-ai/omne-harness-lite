@@ -440,8 +440,16 @@ function validFacts(
     )
       return null
   } else if (header.kind === 'observer') {
-    if (!oneOf(record.observerStage, ['delivery', 'snapshot', 'increment', 'close'])) return null
-    if (!oneOf(record.reason, ['buffer_full', 'consumer_failed', 'scope_mismatch', 'closed']))
+    if (!oneOf(record.observerStage, ['offer', 'delivery', 'close'])) return null
+    if (
+      !oneOf(record.reason, [
+        'malformed',
+        'observer_scope_mismatch',
+        'unavailable',
+        'buffer_full',
+        'consumer_failed',
+      ])
+    )
       return null
     for (const key of ['position', 'bufferedEvents', 'bufferedBytes'])
       if (!optionalCount(record, key)) return null
@@ -608,8 +616,9 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
   const observerRejections = new Map<
     string,
     {
-      stage: 'delivery' | 'snapshot' | 'increment' | 'close'
-      reason: 'buffer_full' | 'consumer_failed' | 'scope_mismatch' | 'closed'
+      stage: 'offer' | 'delivery' | 'close'
+      reason:
+        'malformed' | 'observer_scope_mismatch' | 'unavailable' | 'buffer_full' | 'consumer_failed'
       count: Counter
     }
   >()
