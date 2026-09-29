@@ -207,3 +207,5 @@ evidence/
 [2026-09-28 G6共享脱敏纯构件](2026-09-28-tests-model-credential-redaction-pure/README.md)：D093限定实施签收，GI1–7独立Pass、1525原归档成员与实际HUB组合检查；生产接线、附件、G4及完整S20仍未完成。
 
 [2026-09-29 模型runner与响应校准组合](2026-09-29-tests-model-runner-calibration-closeout/README.md)：合法失败来源/P5、十三操作最终组合和代表域U4有限技术验收；保留原noRun反例与全部末轮失败，不含逐模型算法和37型号线上认证。
+
+[2026-09-29 Sonnet 工具与图片真实调用](2026-09-29-tests-sonnet-tool-image/README.md)：两个固定路由 public 场景通过，真实 usage 与费用结算齐；保留归档判据失败，不代替 service 或整个型号认证。
