@@ -129,12 +129,11 @@ export function createDemoRunnerServiceHost(
       if ('failure' in acquired) return acquired
       const { scope, actor, settlement } = acquired
       const callId = failureCall(request)
-      if (callId === undefined || dependencies.external === undefined) {
-        scope.release()
-        return { failure: 'unavailable' }
-      }
-      const external = await dependencies.external(actor, request, signal)
-      if ('unavailable' in external || !scope.isActive()) {
+      if (
+        callId === undefined ||
+        dependencies.external === undefined ||
+        !failurePosition(request)
+      ) {
         scope.release()
         return { failure: 'unavailable' }
       }
@@ -149,6 +148,25 @@ export function createDemoRunnerServiceHost(
       }
       const source = consumed.consumption.source
       if (source.subject.dispatches.some(dispatch => dispatch.call !== callId)) {
+        source.release()
+        scope.release()
+        return { failure: 'unavailable' }
+      }
+      const verifiedRequest = source.verify(request.subject)
+      if ('invalidInput' in verifiedRequest || 'unavailable' in verifiedRequest) {
+        source.release()
+        scope.release()
+        return { failure: 'invalidInput' in verifiedRequest ? 'invalidInput' : 'unavailable' }
+      }
+      let external: DemoRunnerExternalExecution | { readonly unavailable: true }
+      try {
+        external = await dependencies.external(actor, request, signal)
+      } catch (error) {
+        source.release()
+        scope.release()
+        throw error
+      }
+      if ('unavailable' in external || !scope.isActive()) {
         source.release()
         scope.release()
         return { failure: 'unavailable' }

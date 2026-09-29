@@ -143,6 +143,20 @@ describe('formal runner and P5 demo assembly', () => {
         await app.dispatchRunner(who, 'other-session', request, new AbortController().signal),
       ).toEqual({ failure: 'identityMismatch' })
       expect(externalAcquires).toBe(0)
+      const tamperedSubject: typeof request.subject = {
+        ...request.subject,
+        failure: 'request_rejected',
+      }
+      expect(
+        await app.dispatchRunner(
+          who,
+          session,
+          { ...request, subject: tamperedSubject },
+          new AbortController().signal,
+        ),
+      ).toEqual({ failure: 'invalidInput' })
+      expect(externalAcquires).toBe(0)
+      expect(tls.requests).toHaveLength(1)
       validOwner = false
       expect(await app.dispatchRunner(who, session, request, new AbortController().signal)).toEqual(
         { failure: 'unavailable' },
