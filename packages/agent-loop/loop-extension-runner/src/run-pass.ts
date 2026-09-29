@@ -248,7 +248,11 @@ function samePosition(
   return left.position === right.position && sameJson(left.dimension, right.dimension)
 }
 
-function validatePass(pass: RunnerPass, chain: readonly RunnerPiece[]): RunnerFailure | undefined {
+function validatePass(
+  pass: RunnerPass,
+  chain: readonly RunnerPiece[],
+  nested: boolean,
+): RunnerFailure | undefined {
   if (!pass || typeof pass !== 'object' || !identity(pass.anchor)) return invalidInput
   const first = judgePositionedSubject(pass.initial)
   if ('rejected' in first)
@@ -266,13 +270,16 @@ function validatePass(pass: RunnerPass, chain: readonly RunnerPiece[]): RunnerFa
   } else if (
     position === 'before_persist_message' &&
     subject.producer !== 'model' &&
-    subject.producer !== 'tool'
+    subject.producer !== 'tool' &&
+    // S-19: only runner-owned reminder nesting inherits the outer write fence.
+    !(nested && subject.producer === 'system')
   ) {
     return invalidInput
   } else if (
     pass.execution.kind !== 'withRun' ||
     !identity(pass.execution.run) ||
     !isJsonNumber(pass.execution.attempt) ||
+    !ExactDecimal.from(pass.execution.attempt).isInteger ||
     ExactDecimal.from(pass.execution.attempt).compare(ExactDecimal.from(0)) <= 0
   )
     return invalidInput
@@ -678,7 +685,7 @@ async function runPassInternal(
   nested: boolean,
 ): Promise<RunnerPassResult> {
   if (!validPorts(ports) || !(signal instanceof AbortSignal)) return invalidInput
-  const passFailure = validatePass(pass, chain)
+  const passFailure = validatePass(pass, chain, nested)
   if (passFailure !== undefined) return passFailure
   const initialJudged = judgePositionedSubject(pass.initial)
   if (!('ok' in initialJudged)) return invalidInput
@@ -755,6 +762,11 @@ async function runPassInternal(
         } catch {
           return unavailable
         }
+        const afterWait = checkControl(signal, ports)
+        if (afterWait !== undefined) {
+          if (state.kind === 'ready') state.binding.release()
+          return afterWait
+        }
         if (state.kind === 'unavailable') return unavailable
         if (state.kind === 'replayInconsistent') return replayInconsistent
         if (state.kind === 'pending') {
@@ -787,6 +799,8 @@ async function runPassInternal(
         } catch {
           return unavailable
         }
+        const afterPresence = checkControl(signal, ports)
+        if (afterPresence !== undefined) return afterPresence
         if (presence === 'unavailable') return unavailable
         let candidateOutput: ExtensionOutput | undefined
         let candidateError:
@@ -804,8 +818,10 @@ async function runPassInternal(
           } catch {
             return unavailable
           }
-          if ('unavailable' in handles) return unavailable
+          if ('unavailable' in handles) return checkControl(signal, ports) ?? unavailable
           try {
+            const afterHandles = checkControl(signal, ports)
+            if (afterHandles !== undefined) return afterHandles
             const rawInput = {
               ...subject,
               earlier: finals,

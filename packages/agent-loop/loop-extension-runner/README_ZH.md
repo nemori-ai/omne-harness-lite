@@ -71,6 +71,6 @@ if ('invalidInput' in result) throw new Error('结论与原主体不一致')
 console.log(result.effect.kind) // proceed
 ```
 
-除 `before_persist_message` 外，准备耐久结论时调用方须提供真实的 `{ kind: 'withRun', run, attempt }` 壳；`before_persist_message` 可以继承外层真实栅栏，但不会把 Run 字段传给拓展件。`composeEffect` 使用 core 的纯主体与结论判定，无需 Run 或句柄，也不证明曾发生执行。提醒的 MessageId 采用与模型运行时相同的 `mrr/3` 消息键；结论内同时保留完整提醒副本，以便恢复时精确比对。
+除 `before_persist_message` 外，准备耐久结论时调用方须提供真实的 `{ kind: 'withRun', run, attempt }` 壳；`before_persist_message` 可以继承外层真实栅栏，但不会把 Run 字段传给拓展件。`composeEffect` 使用 core 的纯主体与结论判定，无需 Run 或句柄，也不证明曾发生执行。提醒的 MessageId 采用与模型运行时相同的 `mrr/3` 消息键；结论内同时保留完整提醒副本，以便恢复时精确比对。 对于 `producer: system`，只有 runner 内部发起的提醒嵌套继承该栅栏；公开 `runPass` 直接传系统消息及 `withRun` 仍拒绝。等待来源、存在性查询或句柄取得返回后，已观察到的取消会阻止下一次求值，并释放已取得的重演绑定或句柄。
 
 纯函数均为同步实现，不访问网络、时钟、随机源或隐藏存储。`runPass` 是异步函数，只使用显式端口。公共函数成功不证明正式宿主已兑现卡片等待归属、同前缀失败核验、物理写者停止后的恢复，或真实 Run 来源；这些仍是宿主组合义务。
