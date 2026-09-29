@@ -162,7 +162,13 @@ function contributions(
   policy: OutputHistoryPolicy,
   originalInput: object,
   projection?: InputProjection,
-): { readonly units: readonly JsonValue[]; readonly output: ExactDecimal } | undefined {
+):
+  | {
+      readonly units: readonly JsonValue[]
+      readonly output: ExactDecimal
+      readonly hasWholeGroup: boolean
+    }
+  | undefined {
   const classifications = input.units.map(unit => policy.classifyUnit(unit))
   if (classifications.some(kind => !['visible', 'wholeGroup'].includes(kind))) return undefined
   const replaced = new Set<number>()
@@ -200,11 +206,19 @@ function contributions(
   }
   if (classifications.some((kind, index) => kind === 'wholeGroup' && !replaced.has(index)))
     return undefined
-  return { units: input.units.filter((_, index) => !replaced.has(index)), output }
+  return {
+    units: input.units.filter((_, index) => !replaced.has(index)),
+    output,
+    hasWholeGroup: replaced.size > 0,
+  }
 }
-function addOutput(measured: MeterContribution, output: ExactDecimal): MeterContribution {
+function addOutput(
+  measured: MeterContribution,
+  output: ExactDecimal,
+  hasWholeGroup: boolean,
+): MeterContribution {
   if (!('tokens' in measured) || !meterContributionValid(measured)) return { kind: 'unavailable' }
-  return output.compare(ExactDecimal.from(0)) === 0
+  return !hasWholeGroup
     ? measured
     : {
         kind: 'estimated',
@@ -255,6 +269,7 @@ export function fullOutputHistory(
     const result = addOutput(
       countBody({ body, serialized: writeJsonLossless(body) }),
       selected.output,
+      selected.hasWholeGroup,
     )
     return result.kind === 'invalidInput' ? { kind: 'unavailable' } : result
   } catch {
@@ -279,7 +294,11 @@ export function newOutputHistory(
       return { kind: relation.kind === 'invalidInput' ? 'invalidInput' : 'unavailable' }
     const selected = contributions(input, meter, policy, identity)
     return selected
-      ? addOutput(fullJsonMarginal(countBody, { ...input, units: selected.units }), selected.output)
+      ? addOutput(
+          fullJsonMarginal(countBody, { ...input, units: selected.units }),
+          selected.output,
+          selected.hasWholeGroup,
+        )
       : { kind: 'unavailable' }
   } catch {
     return { kind: 'unavailable' }

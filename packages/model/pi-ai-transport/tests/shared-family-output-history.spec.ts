@@ -200,6 +200,37 @@ describe('shared complete output group composition', () => {
     ).toEqual({ kind: 'estimated', tokens: 12 })
     expect(counter).toHaveBeenCalledOnce()
   })
+  it('known zero O remains estimated in full/new/phi while missing O is never zero', () => {
+    const f = fixture()
+    const group = { ...f.group, usage: { ...f.group.usage, output_tokens: 0, reasoning_tokens: 0 } }
+    expect(
+      amount(
+        fullOutputHistory({ ...f.full, outputHistory: [group] }, f.meter, f.counter, f.policy),
+      ),
+    ).toBe('25')
+    const fresh = {
+      ...f.fresh,
+      units: f.fresh.units.slice(0, 1),
+      unitIndices: [1],
+      outputHistory: [group],
+    }
+    const delta = newOutputHistory(fresh, f.meter, f.counter, f.policy)
+    expect(delta.kind).toBe('estimated')
+    expect(amount(delta)).toBe('0')
+    const replay = {
+      ...f.replay,
+      observation: { ...f.replay.observation, usage: group.usage },
+      outputHistory: [group],
+    }
+    expect(replayOutputHistory(replay, f.meter, f.counter, f.policy)).toEqual({
+      kind: 'estimated',
+      tokens: 0,
+    })
+    const missing = { ...group, usage: { ...group.usage, output_tokens: 'unknown' as const } }
+    expect(
+      newOutputHistory({ ...fresh, outputHistory: [missing] }, f.meter, f.counter, f.policy),
+    ).toEqual({ kind: 'unavailable' })
+  })
   it('multiple complete groups use exact decimal addition without binary rounding or extra reasoning', () => {
     const f = fixture()
     const blocks = f.group.outputBlocks.map(block => {
