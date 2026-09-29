@@ -29,7 +29,7 @@ const load = async path => {
 const frame = data => `data: ${writeJsonLossless(data)}\n\n`
 const credential = 'synthetic-cache-secret-ABC123456789'
 
-test('four current mp4-17 dry plans reject stale binding and preserve exact costs', async () => {
+test('four current mp4-18 dry plans reject stale binding and preserve exact costs', async () => {
   assert.match(await sourceFingerprint(), /^[a-f0-9]{64}$/)
   for (const model of [
     'anthropic/claude-opus-5.5',
@@ -38,14 +38,14 @@ test('four current mp4-17 dry plans reject stale binding and preserve exact cost
     'anthropic/claude-fable-5.1',
   ]) {
     const manifest = makeManifest(model)
-    assert.equal(manifest.implementationRevision, 'mp4-17')
+    assert.equal(manifest.implementationRevision, 'mp4-18')
     const { planned } = await dryPlan(manifest)
     assert(planned.serialized.includes('"ttl":"1h"'))
     assert.equal(planned.inputLimitEvidence.inputTokens.kind, 'estimated')
     await assert.rejects(() => dryPlan({ ...manifest, implementationRevision: 'mp4-4' }), {
       name: 'AssertionError',
       actual: 'mp4-4',
-      expected: 'mp4-17',
+      expected: 'mp4-18',
     })
   }
   assert.throws(

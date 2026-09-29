@@ -23,8 +23,9 @@ export function makeManifest(model, ttl = '1h') {
     model,
     path,
     nonce,
-    implementationRevision: 'mp4-17',
-    algorithmRevision: 'anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1',
+    implementationRevision: 'mp4-18',
+    algorithmRevision:
+      'anthropic-legacy-bpe-plus-vision-patches-complete-output-5/response-calibration-1',
     provider: 'anthropic',
     allowFallback: false,
     parameters: { maxOutputTokens: 512, reasoningEffort: 'low' },
