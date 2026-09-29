@@ -1,3 +1,5 @@
+2026-09-29：[xAI 有限贡献采用](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)接受两款完整组提供者 revision 2；释放共享核上的窄实现，真实身份、图片及 X1–X6 仍待，新增 binding 0。
+
 2026-09-29：[D109](../../../../record/decisions/model-request-image-preparation-adoption/decision.md) 技术采用 v15 r4 请求图片准备，精确正文不变；新增 binding 0，实际实现与 IP-V1～10 待验。
 
 2026-09-29：[D108 refusal 映射](../../../../record/decisions/openrouter-refusal-mapping-adoption/decision.md)技术采用 v14 revision 2 精确字节，释放共享 reader 与 RF-V1–V9 实施；未表示代码、绑定发布或逐型号验证完成。原候选标签保留起草时状态。
