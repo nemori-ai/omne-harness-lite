@@ -37,6 +37,12 @@ vi.mock('js-tiktoken', async importOriginal => {
   }
 })
 const models = ['openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
+// Tokenizer construction is fixture setup, outside the three-request behavior timeout.
+const modelCases = models.map(model => {
+  const definition = openaiDefinitions.find(item => item.modelId === model)
+  if (!definition) throw new Error(`missing definition: ${model}`)
+  return { model, definition, meter: createOpenAiInputMeter(definition) }
+})
 const detail = {
   type: 'reasoning.encrypted',
   data: 'ENCRYPTED_NEVER_TOKENIZE',
@@ -50,10 +56,9 @@ beforeAll(async () => {
 })
 afterAll(async () => cert.dispose())
 
-describe.each(models)('%s complete encrypted output replay', model => {
+describe.each(modelCases)('$model complete encrypted output replay', testCase => {
+  const { model, definition, meter } = testCase
   it('public TLS runs three rounds, estimates O once, preserves ciphertext and rejects unverifiable mappings', async () => {
-    const definition = openaiDefinitions.find(item => item.modelId === model)!
-    const meter = createOpenAiInputMeter(definition)
     const full = vi.fn(meter.measureFull)
     const replay = vi.fn(meter.measureReplay)
     const host = await fixture(

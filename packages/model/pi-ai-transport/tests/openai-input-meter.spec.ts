@@ -22,6 +22,8 @@ import {
   sse,
 } from './support.ts'
 
+// Reuse the independent oracle's immutable vocabulary; initialization is fixture setup.
+const oracleEncoding = getEncoding('o200k_base')
 const baseModel = 'openai/gpt-5.6-sol'
 const baseModels = [baseModel, 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
 const proModels = baseModels.map(id => `${id}-pro`)
@@ -78,7 +80,7 @@ describe('OpenAI model-specific input estimator', () => {
   })
   afterAll(() => cert.dispose())
   it('matches independent OpenAI tiktoken 0.12.0 o200k_base vectors', () => {
-    const encoding = getEncoding('o200k_base')
+    const encoding = oracleEncoding
     expect(encoding.encode('Hello, 世界!')).toEqual([13225, 11, 185558, 0])
     expect(encoding.encode('{"role":"developer","content":"Remember the policy."}')).toEqual([
       10848, 8716, 7534, 77944, 4294, 3252, 7534, 43605, 290, 7562, 3692, 92,
@@ -125,7 +127,7 @@ describe('OpenAI model-specific input estimator', () => {
       const serialized = writeJsonLossless(body)
       // 65,536 × 32 fits to 65,535 × 31 (documented fit; local floor convention).
       // ceil(65,535 / 32) × ceil(31 / 32) × 1.2 rounds up to 2,458 tokens.
-      const textTokens = getEncoding('o200k_base').encode(
+      const textTokens = oracleEncoding.encode(
         writeJsonLossless(imageBody(modelId, '[image]')),
       ).length
       expect(directFull(meter, { body, serialized })).toEqual({
@@ -133,7 +135,7 @@ describe('OpenAI model-specific input estimator', () => {
         tokens: textTokens + 2458,
       })
       const { messages, ...envelope } = body
-      const emptyTokens = getEncoding('o200k_base').encode(
+      const emptyTokens = oracleEncoding.encode(
         writeJsonLossless({ ...envelope, messages: [] }),
       ).length
       const contribution = directNew(meter, { units: messages, envelope, precedingUnitCount: 2 })
