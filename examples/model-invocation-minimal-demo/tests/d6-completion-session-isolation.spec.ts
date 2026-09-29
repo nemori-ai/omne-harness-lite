@@ -66,6 +66,7 @@ describe('D6 application diagnostic closure', () => {
     const config = await callDeployment('d6-completion-two-sessions')
     const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
     let revision = 0
+    let disposeContribution: (() => Promise<void>) | undefined
     const app = createAcceptanceApplication(
       {
         ...config,
@@ -88,6 +89,11 @@ describe('D6 application diagnostic closure', () => {
         stage: 'modelRequest',
         developmentTransport: tls.developmentTransport,
         diagnostics: { record() {} },
+        hooks: {
+          modelContributionCreated(_definition, fiber) {
+            disposeContribution = () => fiber.dispose()
+          },
+        },
       },
     )
     const hosts = [createDemoCallHost(), createDemoCallHost()] as const
@@ -139,6 +145,38 @@ describe('D6 application diagnostic closure', () => {
           await app.persistModelReply(who, sessions[index]!, result.result.replyPending),
         ).toHaveProperty('settled')
       }
+      const contribution = disposeContribution
+      if (!contribution) throw new Error('real Cordis model contribution absent')
+      const retained = diagnostics
+      expect(diagnostics.transports.health().live[0]?.inspect?.registrations).toBe(1)
+      const beforeUnload = await records(diagnostics.tenant.query, diagnostics.tenant.scope)
+      expect(beforeUnload.some(row => row.stage === 'reply_handoff')).toBe(true)
+      let disposed = false
+      const retirement = contribution().then(() => {
+        disposed = true
+      })
+      await expect.poll(() => retained.transports.health().live[0]?.inspect?.retiring).toBe(1)
+      expect(disposed).toBe(false)
+      for (const host of hosts) await host.stop()
+      await retirement
+      expect(disposed).toBe(true)
+      expect(diagnostics.transports.health().live[0]?.inspect).toMatchObject({
+        registrations: 0,
+        retiring: 0,
+        references: 0,
+        executions: 0,
+      })
+      expect(diagnostics.tenant.health().writeState).toBe('open')
+      await expect
+        .poll(async () => {
+          const rows = await records(retained.local.query, retained.local.scope)
+          return rows.some(row => row.stage === 'retirement')
+        })
+        .toBe(true)
+      const afterUnload = await records(diagnostics.tenant.query, diagnostics.tenant.scope)
+      expect(afterUnload.length).toBeGreaterThanOrEqual(beforeUnload.length)
+      expect(afterUnload.some(row => row.stage === 'reply_handoff')).toBe(true)
+      expect('entries' in (await app.readSessionLog(who, sessions[0]!))).toBe(true)
       const closed = await diagnostics.closeAfterBusiness(() => app.close())
       expect(closed.complete).toBe(true)
       const tenantRows = await records(diagnostics.tenant.query, diagnostics.tenant.scope)
