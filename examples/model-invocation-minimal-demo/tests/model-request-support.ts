@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import sharp from 'sharp'
 import { toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { AssetDefinition, AssetHolding, CapabilityId } from '@omne-harness-lite/asset-model'
 import type { LocalPublication } from '@omne-harness-lite/evaluation-input-store/publication'
@@ -11,6 +12,8 @@ import {
   createDeepSeekV41FlashInputMeter,
   deepseekV41FlashConfiguration,
   createOfficialProfileContent,
+  createSharpImageCodec,
+  modelImageBalancedV1,
   type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
@@ -140,6 +143,7 @@ export async function callDeployment(
       policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
     },
     modelRequest: {
+      maxScopes: 64,
       tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
       defaultRetry: createDemoDefaultRetryConfiguration(),
       registryPolicy: { maxRetries: 2, maxInFlight: 8 },
@@ -152,6 +156,10 @@ export async function callDeployment(
         },
       },
       transport: {
+        imagePreparation: {
+          policy: modelImageBalancedV1,
+          codec: createSharpImageCodec(sharp),
+        },
         definitions:
           model === 'flash' ? [deepseekV41FlashDefinition] : [deepseekV4Pro0813Definition],
         inputMeters:
