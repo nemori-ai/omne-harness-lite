@@ -8,6 +8,7 @@ import {
   type LoopExtensionRunnerService,
   type RunnerDispatchRequest,
   type RunnerExecutionPorts,
+  type RunnerCapabilityResult,
   type RunnerReadScope,
   type RunnerReplayRequest,
   type RunnerServiceHost,
@@ -18,6 +19,7 @@ import {
   type CurrentHistoryReaders,
   type SettlementPrefix,
   type ModelRuntimeService,
+  type CanDispatchAgainResult,
   type SettlementLogBinding,
   type SettlementRegistration,
 } from '@omne-harness-lite/model-request-runtime'
@@ -87,6 +89,17 @@ function failurePosition(
     value.dimension.ending === 'failure' &&
     'dispatches' in value.subject
   )
+}
+
+/** Keep the runtime guard's closed result and original refusal reason at the runner boundary. */
+export function projectRunnerRetryGuard(guarded: CanDispatchAgainResult): RunnerCapabilityResult {
+  if ('allowed' in guarded) return { kind: 'accepted' }
+  if ('refused' in guarded) return { kind: 'rejected', reason: guarded.refused.why }
+  if ('alreadyEnded' in guarded) return { kind: 'rejected', reason: 'alreadyEnded' }
+  if ('callNotFound' in guarded) return { kind: 'rejected', reason: 'callNotFound' }
+  if ('wrongPhase' in guarded) return { kind: 'rejected', reason: 'wrongPhase' }
+  if ('invalidInput' in guarded) return { kind: 'invalidInput' }
+  return { kind: 'unavailable' }
 }
 
 /** Borrows real authenticated scope and the shared physical SL3 task owner. */
@@ -271,13 +284,7 @@ export function createDemoRunnerServiceHost(
               plan: output.plan,
             })
             if (!scope.isActive()) return { kind: 'unavailable' }
-            if ('allowed' in guarded) return { kind: 'accepted' }
-            if ('refused' in guarded) return { kind: 'rejected', reason: guarded.refused.why }
-            if ('alreadyEnded' in guarded) return { kind: 'rejected', reason: 'alreadyEnded' }
-            if ('callNotFound' in guarded) return { kind: 'rejected', reason: 'callNotFound' }
-            if ('wrongPhase' in guarded) return { kind: 'rejected', reason: 'wrongPhase' }
-            if ('invalidInput' in guarded) return { kind: 'invalidInput' }
-            return { kind: 'unavailable' }
+            return projectRunnerRetryGuard(guarded)
           },
         },
       }
