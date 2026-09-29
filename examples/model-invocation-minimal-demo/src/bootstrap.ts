@@ -1117,6 +1117,12 @@ export function createAcceptanceApplication(
         typeof transportRetention?.reserveReplacement !== 'function'
       )
         return { failure: 'stageClosed' }
+      try {
+        if (diagnostics.health().writeState !== 'open' || !transportRetention.health().accepting)
+          return { failure: 'stageClosed' }
+      } catch {
+        return { failure: 'stageClosed' }
+      }
       activationInputs = { actor, diagnostics, transportRetention }
       try {
         if (stage === 'modelRequest') {

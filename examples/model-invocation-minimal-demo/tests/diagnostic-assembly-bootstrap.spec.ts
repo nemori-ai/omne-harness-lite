@@ -65,6 +65,35 @@ describe('demo transport diagnostic retention at the real bootstrap', () => {
     }
   })
 
+  it('does not activate P-2 with a diagnostic writer that has already closed', async () => {
+    const config = await callDeployment('diagnostic-closed-writer')
+    let createdTransportFibers = 0
+    const app = createAcceptanceApplication(config, {
+      stage: 'modelRequest',
+      diagnostics: { record() {} },
+      hooks: {
+        fiberCreated(name) {
+          if (name === 'modelTransport') createdTransportFibers++
+        },
+      },
+    })
+    await app.ready
+    const authenticated = await actor(app)
+    const directory = dirname(config.databaseFile)
+    await mkdir(join(directory, 'diagnostics'), { mode: 0o700 })
+    const diagnostics = await openDemoDiagnosticAssembly(
+      createDemoDiagnosticConfig(directory, authenticated.tenant, demoRetirement()),
+    )
+    expect((await diagnostics.closeAfterBusiness(async () => ({ complete: true }))).complete).toBe(
+      true,
+    )
+    expect(
+      await app.activateModelRequest(authenticated, diagnostics.tenant, diagnostics.transports),
+    ).toEqual({ failure: 'stageClosed' })
+    expect(createdTransportFibers).toBe(0)
+    expect((await app.close()).complete).toBe(true)
+  })
+
   it('tracks the actual Cordis transport service through application close', async () => {
     const config = await callDeployment('diagnostic-transport-owner')
     const app = createAcceptanceApplication(config, {
