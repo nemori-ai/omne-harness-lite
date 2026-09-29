@@ -15,7 +15,10 @@ import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createOfficialProfileContent } from '../src/configuration.ts'
-import { createZaiCommercialInputMeter } from '../src/input-meters/zai-commercial.ts'
+import {
+  createZaiCommercialInputMeter,
+  renderZaiCommercialPrompt,
+} from '../src/input-meters/zai-commercial.ts'
 import type { InputMeter } from '../src/input-meter.ts'
 import { object } from '../src/json.ts'
 import { zaiDefinitions } from '../src/official-models/zai.ts'
@@ -171,6 +174,16 @@ function publicInput(
 }
 
 describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
+  it('rejects the retired Prime meter coordinate', () => {
+    expect(() =>
+      createZaiCommercialInputMeter({
+        ...definition('z-ai/glm-5.3-prime'),
+        revision: '1',
+        implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+      }),
+    ).toThrow('unsupported')
+  })
+
   it('matches eight independent fit/holdout usage counts from frozen real request wires', () => {
     for (const raw of rawGoldens) {
       if (
@@ -315,14 +328,30 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
     }
   })
 
-  it.each(ids)(
-    '%s sends the fixed planned wire over local TLS and keeps actual usage',
-    async modelId => {
+  it.each([
+    ...(['low', 'high', 'max'] as const).map(effort => ({
+      modelId: 'z-ai/glm-5.3-prime' as const,
+      effort,
+    })),
+    { modelId: 'z-ai/glm-5.3-flashx' as const, effort: undefined },
+  ])(
+    '$modelId $effort sends the fixed planned wire over local TLS and keeps actual usage',
+    async ({ modelId, effort }) => {
       const selected = definition(modelId)
       const meter = createZaiCommercialInputMeter(selected)
-      const input = publicInput(modelId)
+      const base = publicInput(modelId)
+      const input = {
+        ...base,
+        parameters: { ...base.parameters, ...(effort ? { reasoningEffort: effort } : {}) },
+      }
       const planned = planRequest(input, [selected], meter)
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      if (effort) {
+        expect(planned.planned.body.reasoning).toEqual({ effort })
+        expect(renderZaiCommercialPrompt(planned.planned.body)).toContain(
+          `Reasoning Effort: ${effort[0]?.toUpperCase()}${effort.slice(1)}`,
+        )
+      }
       const host = await fixture(
         cert.tls,
         response => {
@@ -395,7 +424,18 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
         messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }],
       }
       expect(measured(body).kind).toBe('estimated')
-      expect(measured({ ...body, reasoning: { effort: 'high' } })).toEqual({ kind: 'unavailable' })
+      for (const reasoning of [
+        {},
+        { effort: 'medium' },
+        { effort: 'none' },
+        { effort: 1 },
+        { effort: 'low', extra: true },
+      ])
+        expect(measured({ ...body, reasoning })).toEqual({ kind: 'unavailable' })
+      if (modelId === 'z-ai/glm-5.3-flashx')
+        expect(measured({ ...body, reasoning: { effort: 'high' } })).toEqual({
+          kind: 'unavailable',
+        })
       expect(
         measured({
           ...body,
@@ -443,7 +483,7 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
         }),
       ).toEqual({ kind: 'unavailable' })
       expect(() =>
-        createZaiCommercialInputMeter({ ...definition(modelId), revision: '2' }),
+        createZaiCommercialInputMeter({ ...definition(modelId), revision: 'not-current' }),
       ).toThrow(TypeError)
       expect(() => createZaiCommercialInputMeter({ ...definition(modelId), routes: {} })).toThrow(
         TypeError,

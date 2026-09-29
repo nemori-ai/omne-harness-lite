@@ -7,7 +7,8 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type { ModelDefinition } from '../definitions.ts'
+import { ruleAccepts, type ModelDefinition } from '../definitions.ts'
+import { zaiDefinitions } from '../official-models/zai.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { exactKeys, glm5Tokenizer } from './zai-glm52.ts'
 import { renderGlm53Prompt } from './zai-glm53.ts'
@@ -27,6 +28,9 @@ export function projectZaiCommercialBody(
   modelId: CommercialModelId,
 ): JsonObject | undefined {
   const provider = commercialRoutes[modelId]
+  const effortRule = zaiDefinitions.find(value => value.modelId === modelId)?.routes[provider]
+    ?.parameters.reasoningEffort
+  if (!effortRule) return undefined
   if (
     body.model !== modelId ||
     !exactKeys(body, [
@@ -42,7 +46,11 @@ export function projectZaiCommercialBody(
     ]) ||
     body.stream !== true ||
     (body.store !== undefined && body.store !== false) ||
-    body.reasoning !== undefined ||
+    (body.reasoning !== undefined &&
+      (!object(body.reasoning) ||
+        !exactKeys(body.reasoning, ['effort']) ||
+        typeof body.reasoning.effort !== 'string' ||
+        !ruleAccepts(effortRule, body.reasoning.effort))) ||
     !object(body.provider) ||
     !exactKeys(body.provider, ['order', 'allow_fallbacks', 'require_parameters']) ||
     !Array.isArray(body.provider.order) ||
@@ -117,11 +125,12 @@ export function renderZaiCommercialPrompt(body: JsonObject): string | undefined 
 
 /** Separate exact bindings; one-token calibration is observed only for text/tools. */
 export function createZaiCommercialInputMeter(definition: ModelDefinition): InputMeter {
+  const canonical = zaiDefinitions.find(value => value.modelId === definition.modelId)
   if (
     !commercialModelId(definition.modelId) ||
-    definition.revision !== '1' ||
+    definition.revision !== canonical?.revision ||
     definition.implementation.name !== 'pi-ai:zai' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== canonical?.implementation.revision ||
     !Object.hasOwn(definition.routes, commercialRoutes[definition.modelId])
   )
     throw new TypeError('unsupported ZAI commercial input-meter binding')
@@ -135,12 +144,14 @@ export function createZaiCommercialInputMeter(definition: ModelDefinition): Inpu
     provider,
     algorithmRevision:
       modelId === 'z-ai/glm-5.3-prime'
-        ? 'prime-public-glm53-route-fit-1'
+        ? 'prime-public-glm53-declared-effort-route-fit-2'
         : 'flashx-public-glm53-route-fit-1',
     evidence:
       'zai-org/GLM-5.3 aca966e4 template + pinned GLM-5 tokenizer 19e77364; ' +
       'selected OpenRouter route fit/independent holdout 2026-09-28 (each observed=public-1); ' +
-      'text/tools only, hosted tokenizer and private transform unknown',
+      'text/tools only, hosted tokenizer and private transform unknown; ' +
+      'declared request effort uses the pinned public template mapping without refitting; ' +
+      'Prime low/high/max scope extension has no actual effort holdout or error bound',
     measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }

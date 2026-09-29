@@ -2,6 +2,7 @@ import { defineInputMeter } from '../input-meter.ts'
 // Unbound diagnostic candidate; no route calibration or production certification.
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { ModelDefinition } from '../definitions.ts'
+import { zaiDefinitions } from '../official-models/zai.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { projectZaiCommercialBody } from './zai-commercial.ts'
 import { glm5Tokenizer } from './zai-glm52.ts'
@@ -12,6 +13,8 @@ import { renderGlm53HistoryCandidatePrompt } from './zai-glm53.ts'
  * Encrypted, signed, summarized and other opaque reasoning remain unavailable.
  */
 export function renderZaiHistoryCandidatePrompt(body: JsonObject): string | undefined {
+  // Keep the unbound history candidate's original scope independent of the supplied effort extension.
+  if (body.reasoning !== undefined) return undefined
   if (body.model !== 'z-ai/glm-5.3-prime' && body.model !== 'z-ai/glm-5.3-flashx') return undefined
   const projected = projectZaiCommercialBody(body, body.model)
   return projected ? renderGlm53HistoryCandidatePrompt(projected) : undefined
@@ -20,12 +23,13 @@ export function renderZaiHistoryCandidatePrompt(body: JsonObject): string | unde
 /** Not registered by official models; intended for frozen fit/holdout probes only. */
 export function createZaiHistoryCandidateMeter(definition: ModelDefinition): InputMeter {
   const modelId = definition.modelId
+  const canonical = zaiDefinitions.find(value => value.modelId === modelId)
   const provider = modelId === 'z-ai/glm-5.3-prime' ? 'alibaba' : 'z-ai/fp8'
   if (
     (modelId !== 'z-ai/glm-5.3-prime' && modelId !== 'z-ai/glm-5.3-flashx') ||
-    definition.revision !== '1' ||
+    definition.revision !== canonical?.revision ||
     definition.implementation.name !== 'pi-ai:zai' ||
-    definition.implementation.revision !== 'mp4-1' ||
+    definition.implementation.revision !== canonical?.implementation.revision ||
     !Object.hasOwn(definition.routes, provider)
   )
     throw new TypeError('unsupported ZAI history candidate binding')

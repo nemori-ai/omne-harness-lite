@@ -174,3 +174,5 @@ pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run t
 `tests/google-effort-service.spec.ts` 对两个 Google Flash 定义的 low／medium／high effort 分别执行三轮持久服务本机 TLS，保留可见历史与响应原 usage/cost，并验证超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/google-effort-service.spec.ts --maxWorkers=1`。合成响应只验证服务装配，不认证 Gemini 计量准确性或真实路由接受行为。
 
 `tests/xai-effort-service.spec.ts` 覆盖两个 Grok 定义的 low／medium／high effort，分别验证三轮持久本机 TLS 及超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/xai-effort-service.spec.ts --maxWorkers=1`。这验证当前服务组合与上游原计量保留；合成响应不认证实际 effort 精度、图片支持或不透明回放。
+
+`tests/zai-prime-effort-service.spec.ts` 在已声明的 5m／last_message 缓存配置下，验证 Prime low／high／max 的三轮持久本机 TLS 文本交互与超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/zai-prime-effort-service.spec.ts --maxWorkers=1`。这不认证真实 effort 精度或缓存保留；历史思考仍在当前官方计量器支持域之外。

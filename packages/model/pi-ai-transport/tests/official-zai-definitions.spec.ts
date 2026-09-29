@@ -35,8 +35,11 @@ describe('ZAI complete official declarations (MP4)', () => {
     for (const expected of supplied) {
       const definition = zaiDefinitions.find(value => value.modelId === expected.id)
       if (!definition) throw new Error(`missing ${expected.id}`)
-      expect(definition.revision).toBe('1')
-      expect(definition.implementation).toEqual({ name: 'pi-ai:zai', revision: 'mp4-1' })
+      expect(definition.revision).toBe(expected.id === 'z-ai/glm-5.3-prime' ? '2' : '1')
+      expect(definition.implementation).toEqual({
+        name: 'pi-ai:zai',
+        revision: expected.id === 'z-ai/glm-5.3-prime' ? 'mp4-2' : 'mp4-1',
+      })
       expect(Object.keys(definition.routes)).toEqual([expected.provider])
       expect(Object.values(definition.routes)[0]).toEqual(
         Object.values(zaiModelRoutes[expected.id])[0],

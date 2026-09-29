@@ -95,8 +95,8 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.3-prime',
-    revision: '1',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
+    revision: '2',
+    implementation: { name: 'pi-ai:zai', revision: 'mp4-2' },
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],
