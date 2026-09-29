@@ -1,4 +1,4 @@
-import { judgeAccountValue, type Usage } from '@omne-harness-lite/call-accounts'
+import { ExactDecimal, judgeAccountValue, type Usage } from '@omne-harness-lite/call-accounts'
 import {
   copyJsonValue,
   judgeContentBlock,
@@ -100,6 +100,26 @@ export function copyPlanOutputHistory(
     if (!('ok' in source) || source.ok.outputGroup.kind !== 'known') return undefined
     const usage = judgeAccountValue('Usage', group.usage)
     if (!('ok' in usage)) return undefined
+    const originalUsage = group.usage as unknown as Usage
+    const observedInput = source.ok.observedInput
+    const inputParts = [
+      originalUsage.input_tokens,
+      originalUsage.cache_read_tokens,
+      originalUsage.cache_write_tokens,
+    ]
+    if (
+      (observedInput.kind === 'from_usage' &&
+        (originalUsage.source !== 'upstream' || inputParts.some(part => part === 'unknown'))) ||
+      (observedInput.kind === 'upstream_total' &&
+        (inputParts.every(part => part !== 'unknown') ||
+          inputParts
+            .reduce(
+              (sum, part) => (part === 'unknown' ? sum : sum.add(ExactDecimal.from(part))),
+              ExactDecimal.from(0),
+            )
+            .compare(ExactDecimal.from(observedInput.tokens)) > 0))
+    )
+      return undefined
     const blocks: ContentBlock[] = []
     for (const rawBlock of group.outputBlocks) {
       const judged = judgeContentBlock(rawBlock)
@@ -176,7 +196,7 @@ export function copyPlanOutputHistory(
     groups.push(
       Object.freeze({
         inputCalibration: source.ok,
-        usage: group.usage as unknown as Usage,
+        usage: originalUsage,
         outputBlocks: Object.freeze(blocks),
         replaySelection: selected,
         origin: Object.freeze({

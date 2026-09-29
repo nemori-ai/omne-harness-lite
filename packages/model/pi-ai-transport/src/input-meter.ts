@@ -2,17 +2,36 @@ import {
   isJsonNumber,
   jsonNumberSource,
   LosslessNumber,
+  writeJsonLossless,
   type JsonNumber,
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { PlanCalibration, TokenMargin } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanCalibration,
+  PlanOutputHistoryGroup,
+  TokenMargin,
+} from '@omne-harness-lite/model-request-runtime'
+import type { CountingBasis } from '@omne-harness-lite/model-response'
 import type { ModelDefinition } from './definitions.ts'
+import type { InputProjection } from './projection.ts'
+import { meterHistoryValid } from './history-projection.ts'
 
-export interface FullMeterInput {
+export interface HistorySelectionSpan {
+  readonly groupIndex: number
+  readonly selectionIndex: number
+  readonly start: number
+  readonly end: number
+}
+export interface MeterHistoryInput {
+  readonly outputHistory: readonly PlanOutputHistoryGroup[]
+  readonly historySpans: readonly HistorySelectionSpan[]
+}
+export interface FullMeterInput extends MeterHistoryInput {
   readonly body: JsonObject
   readonly serialized: string
+  readonly projection: InputProjection
 }
 /** Only anchor-external final units are exposed to a marginal tokenizer. */
 export interface MarginalMeterInput {
@@ -29,6 +48,7 @@ export interface MarginalMeterInput {
  */
 export interface ReplayMeterInput extends MarginalMeterInput {
   readonly observation: Extract<PlanCalibration, { kind: 'observation' }>
+  readonly outputHistory: readonly PlanOutputHistoryGroup[]
   /** Absolute final-projection indices, in the same order as units; never includes P. */
   readonly unitIndices: readonly number[]
   /**
@@ -41,6 +61,10 @@ export interface ReplayMeterInput extends MarginalMeterInput {
     readonly start: number
     readonly end: number
   }[]
+}
+export interface NewMeterInput extends MarginalMeterInput, MeterHistoryInput {
+  readonly unitIndices: readonly number[]
+  readonly countingBasis: CountingBasis
 }
 export type MeterContribution = TokenMeasurement | { readonly kind: 'invalidInput' }
 
@@ -59,7 +83,7 @@ export interface InputMeter {
   readonly transformRevision: string
   readonly measureFull: (input: FullMeterInput) => TokenMeasurement
   readonly measureReplay: (input: ReplayMeterInput) => MeterContribution
-  readonly measureNew: (input: MarginalMeterInput) => MeterContribution
+  readonly measureNew: (input: NewMeterInput) => MeterContribution
 }
 
 export type TokenMeasurement =
@@ -254,9 +278,44 @@ export function meterContributionValid(value: unknown): value is MeterContributi
     return false
   return ExactDecimal.from(value.tokens).isInteger
 }
-export const measureFull = (meter: InputMeter, input: FullMeterInput): TokenMeasurement =>
-  meter.measureFull(input)
+export function measureFull(meter: InputMeter, input: FullMeterInput): TokenMeasurement {
+  try {
+    if (
+      writeJsonLossless(input.body) !== input.serialized ||
+      !meterHistoryValid(input.outputHistory, input.historySpans, input.projection.units.length)
+    )
+      return { kind: 'unavailable' }
+    return meter.measureFull(input)
+  } catch {
+    return { kind: 'unavailable' }
+  }
+}
 export const measureReplay = (meter: InputMeter, input: ReplayMeterInput): MeterContribution =>
-  meter.measureReplay(input)
-export const measureNew = (meter: InputMeter, input: MarginalMeterInput): MeterContribution =>
-  meter.measureNew(input)
+  Array.isArray(input.outputHistory) && input.outputHistory.length <= 1
+    ? meter.measureReplay(input)
+    : { kind: 'invalidInput' }
+export function measureNew(meter: InputMeter, input: NewMeterInput): MeterContribution {
+  if (
+    !Array.isArray(input.unitIndices) ||
+    !Array.isArray(input.units) ||
+    input.unitIndices.length !== input.units.length ||
+    !Number.isSafeInteger(input.precedingUnitCount) ||
+    input.precedingUnitCount < 0
+  )
+    return { kind: 'invalidInput' }
+  const indices = new Set<number>()
+  let upper = input.precedingUnitCount
+  for (const index of input.unitIndices) {
+    if (!Number.isSafeInteger(index) || index < input.precedingUnitCount || indices.has(index))
+      return { kind: 'invalidInput' }
+    indices.add(index)
+    upper = Math.max(upper, index + 1)
+  }
+  try {
+    return meterHistoryValid(input.outputHistory, input.historySpans, upper, indices)
+      ? meter.measureNew(input)
+      : { kind: 'invalidInput' }
+  } catch {
+    return { kind: 'invalidInput' }
+  }
+}

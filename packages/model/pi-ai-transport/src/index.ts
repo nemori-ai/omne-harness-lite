@@ -14,7 +14,10 @@ export {
   type TokenMeasurement,
   type MeterContribution,
   type FullMeterInput,
+  type MeterHistoryInput,
+  type HistorySelectionSpan,
   type MarginalMeterInput,
+  type NewMeterInput,
   type ReplayMeterInput,
 } from './input-meter.ts'
 export {

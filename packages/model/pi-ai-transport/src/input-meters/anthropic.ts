@@ -7,7 +7,7 @@ import { imageSize } from 'image-size'
 import { Tiktoken } from 'js-tiktoken/lite'
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
 
 // This archived Claude BPE is an Anthropic-described *very rough approximation*
 // for models since Claude 3. It is not the Claude 4.7+/5 tokenizer.
@@ -274,6 +274,45 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
   if (cache?.mode !== 'explicit') throw new TypeError('unsupported Anthropic cache declaration')
   const ttlValues = new Set(cache.ttlValues)
   const tokenizer = encoder()
+  const countBody = ({
+    body,
+    serialized,
+  }: Pick<FullMeterInput, 'body' | 'serialized'>): TokenMeasurement => {
+    if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
+      return { kind: 'unavailable' }
+    const images = new Map<JsonObject, number>()
+    if (!Array.isArray(body.messages) || !supportedInputBody(body, ttlValues, images))
+      return { kind: 'unavailable' }
+    try {
+      // Archived NFKC BPE is a rough surrogate. Cache markers select reuse, not prompt text.
+      let visualTotal = 0
+      const messages = body.messages.map(message => {
+        if (!object(message) || !Array.isArray(message.content)) return message
+        return {
+          ...message,
+          content: message.content.map(part => {
+            if (!object(part)) return part
+            if (part.type === 'text' && typeof part.text === 'string')
+              return { type: 'text', text: part.text }
+            if (part.type === 'image_url') {
+              const tokens = images.get(part)
+              if (tokens === undefined) throw new Error('validated Anthropic image missing')
+              visualTotal += tokens
+              return { type: 'image_url', image_url: { url: '[image]' } }
+            }
+            return part
+          }),
+        }
+      })
+      const projected = { messages, ...(body.tools === undefined ? {} : { tools: body.tools }) }
+      const tokens =
+        tokenizer.encode(writeJsonLossless(projected).normalize('NFKC'), 'all').length + visualTotal
+      if (!Number.isSafeInteger(tokens)) return { kind: 'unavailable' }
+      return { kind: 'estimated', tokens }
+    } catch {
+      return { kind: 'unavailable' }
+    }
+  }
   const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
@@ -282,49 +321,7 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     algorithmRevision: 'anthropic-legacy-bpe-plus-vision-patches-4',
     evidence:
       'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation for text; Anthropic Vision https://platform.claude.com/docs/en/build-with-claude/vision high-resolution 28px patches / 2576px edge / 4784 visual-token ceiling for Claude 4.7+; final OpenRouter messages/tools/images projected without routing/generation/cache controls; private conversion and Claude 5 text framing uncertain; encrypted reasoning replay unavailable',
-    measureFull({ body, serialized }): TokenMeasurement {
-      if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
-        return { kind: 'unavailable' }
-      const images = new Map<JsonObject, number>()
-      if (!Array.isArray(body.messages) || !supportedInputBody(body, ttlValues, images))
-        return { kind: 'unavailable' }
-      try {
-        // The archived first-party implementation applies NFKC and permits its
-        // own special tokens. Keep all supported input-bearing final-wire fields.
-        // Cache markers select reuse of the same text; their TTL is not prompt
-        // text. This JSON shape approximates the private prompt format.
-        let visualTotal = 0
-        const messages = body.messages.map(message => {
-          if (!object(message) || !Array.isArray(message.content)) return message
-          return {
-            ...message,
-            content: message.content.map(part => {
-              if (!object(part)) return part
-              if (part.type === 'text' && typeof part.text === 'string')
-                return { type: 'text', text: part.text }
-              if (part.type === 'image_url') {
-                const tokens = images.get(part)
-                if (tokens === undefined) throw new Error('validated Anthropic image missing')
-                visualTotal += tokens
-                return { type: 'image_url', image_url: { url: '[image]' } }
-              }
-              return part
-            }),
-          }
-        })
-        const projected = {
-          messages,
-          ...(body.tools === undefined ? {} : { tools: body.tools }),
-        }
-        const tokens =
-          tokenizer.encode(writeJsonLossless(projected).normalize('NFKC'), 'all').length +
-          visualTotal
-        if (!Number.isSafeInteger(tokens)) return { kind: 'unavailable' }
-        return { kind: 'estimated', tokens }
-      } catch {
-        return { kind: 'unavailable' }
-      }
-    },
+    measureFull: countBody,
   })
-  return withEstimatedJsonMarginals(meter, input => fullJsonMarginal(meter, input))
+  return withEstimatedJsonMarginals(meter, input => fullJsonMarginal(countBody, input))
 }

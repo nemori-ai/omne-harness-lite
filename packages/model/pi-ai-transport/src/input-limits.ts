@@ -9,10 +9,12 @@ import type {
 import { object } from './json.ts'
 import {
   meterMatches,
+  measureFull,
   admissionTokens,
   tokenMarginValid,
   tokenMeasurementValid,
   type InputMeter,
+  type FullMeterInput,
   type TokenMeasurement,
 } from './input-meter.ts'
 import type { ModelDefinition } from './definitions.ts'
@@ -249,13 +251,20 @@ export function checkFinalInput(input: {
 
 /** Public full measurement always calls the supplied fixed meter; no caller passed flag. */
 export function measureFinalInput(
-  input: Omit<Parameters<typeof checkFinalInput>[0], 'tokenMeasurement'>,
+  input: Omit<Parameters<typeof checkFinalInput>[0], 'tokenMeasurement'> &
+    Pick<FullMeterInput, 'projection' | 'outputHistory' | 'historySpans'>,
 ): ReturnType<typeof checkFinalInput> {
   if (!input.meter || !meterMatches(input.meter, input.definition, input.provider))
     return { rejected: 'unavailable' }
   let token: TokenMeasurement
   try {
-    token = input.meter.measureFull({ body: input.body, serialized: input.serialized })
+    token = measureFull(input.meter, {
+      body: input.body,
+      serialized: input.serialized,
+      projection: input.projection,
+      outputHistory: input.outputHistory,
+      historySpans: input.historySpans,
+    })
   } catch {
     token = { kind: 'unavailable' }
   }

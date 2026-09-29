@@ -7,7 +7,7 @@ import {
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
-import { createXaiInputMeter } from './xai.ts'
+import { createXaiInputMeter, createXaiVisibleBodyCounter } from './xai.ts'
 
 // xAI grok-build f0e3be1 uses UTF-8 bytes / 4 and 765 per image for its own
 // compaction estimate. This projection counts final OpenRouter JSON framing too;
@@ -140,7 +140,8 @@ export function createXaiHistoryCandidateInputMeter(
   definition: ModelDefinition,
 ): InputMeter | undefined {
   const visible = createXaiInputMeter(definition)
-  if (!visible) return undefined
+  const countVisible = createXaiVisibleBodyCounter(definition)
+  if (!visible || !countVisible) return undefined
   const meter = defineInputMeter({
     modelId: visible.modelId,
     definitionRevision: visible.definitionRevision,
@@ -207,10 +208,10 @@ export function createXaiHistoryCandidateInputMeter(
         messages.push(rest)
         sawHistory = true
       }
-      if (!sawHistory) return visible.measureFull({ body, serialized })
+      if (!sawHistory) return countVisible({ body, serialized })
       const visibleBody = { ...body, messages }
       const visibleSerialized = writeJsonLossless(visibleBody)
-      const base = visible.measureFull({ body: visibleBody, serialized: visibleSerialized })
+      const base = countVisible({ body: visibleBody, serialized: visibleSerialized })
       if (base.kind !== 'estimated' || typeof base.tokens !== 'number')
         return { kind: 'unavailable' }
       const visibleBytes = Buffer.byteLength(visibleSerialized, 'utf8')

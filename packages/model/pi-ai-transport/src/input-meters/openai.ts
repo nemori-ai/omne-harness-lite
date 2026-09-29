@@ -22,7 +22,7 @@ import { getEncoding } from 'js-tiktoken'
 import { imageTokens, type ImageRule } from './openai-images.ts'
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
 
 // The OpenAI tiktoken source maps gpt-5* to o200k_base. This exact allowlist
 // does not establish a GPT-6 mapping. The separately calibrated GPT-6 path below
@@ -290,6 +290,29 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   )
     throw new TypeError('unsupported OpenAI input-meter binding')
   const tokenizer = encoder()
+  const countBody = ({
+    body,
+    serialized,
+  }: Pick<FullMeterInput, 'body' | 'serialized'>): TokenMeasurement => {
+    if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
+    if (gpt6VisibleHistory) {
+      try {
+        const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
+        return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
+      } catch {
+        return { kind: 'unavailable' }
+      }
+    }
+    if (!imageRule) return { kind: 'unavailable' }
+    const projected = sanitizedBody(body, imageRule)
+    if (!projected) return { kind: 'unavailable' }
+    try {
+      const textTokens = tokenizer.encode(writeJsonLossless(projected.body)).length
+      return { kind: 'estimated', tokens: textTokens + projected.imageTokens }
+    } catch {
+      return { kind: 'unavailable' }
+    }
+  }
   const meter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
@@ -313,29 +336,10 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
           tokenizerRevision: `js-tiktoken-1.0.21/o200k-base-${definition.modelId.slice('openai/'.length)}-surrogate/1`,
         }
       : {}),
-    measureFull({ body, serialized }): TokenMeasurement {
-      if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
-      if (gpt6VisibleHistory) {
-        try {
-          const tokens = visibleHistoryTokens(body, definition.modelId, tokenizer)
-          return tokens === undefined ? { kind: 'unavailable' } : { kind: 'estimated', tokens }
-        } catch {
-          return { kind: 'unavailable' }
-        }
-      }
-      if (!imageRule) return { kind: 'unavailable' }
-      const projected = sanitizedBody(body, imageRule)
-      if (!projected) return { kind: 'unavailable' }
-      try {
-        const textTokens = tokenizer.encode(writeJsonLossless(projected.body)).length
-        return { kind: 'estimated', tokens: textTokens + projected.imageTokens }
-      } catch {
-        return { kind: 'unavailable' }
-      }
-    },
+    measureFull: countBody,
   })
   const marginal = withEstimatedJsonMarginals(meter, input => {
-    if (!gpt6VisibleHistory) return fullJsonMarginal(meter, input)
+    if (!gpt6VisibleHistory) return fullJsonMarginal(countBody, input)
     if (!input.units.length) return { kind: 'exact', tokens: 0 }
     const { tools: _tools, ...envelope } = input.envelope
     const tokens = visibleHistoryTokens(

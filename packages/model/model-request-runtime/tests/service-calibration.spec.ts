@@ -6,6 +6,7 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { authorizedCalibration } from '../src/service-calibration.ts'
+import { copyPlanOutputHistory } from '../src/output-history.ts'
 import type { CurrentHistoryReaders } from '../src/service-types.ts'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import {
@@ -110,6 +111,65 @@ async function prefixOf(
 }
 
 describe('U16 authorized noRun calibration over real SL3', () => {
+  it('keeps an actually selected G when original input evidence is unavailable', async () => {
+    await controlled('history-without-input', async ({ binding: log, owner }) => {
+      const original = knownResponse('reply')
+      const body: ModelResponse = {
+        ...original,
+        inputCalibration: {
+          requestInput: { kind: 'unavailable', reason: 'not_retained' },
+          observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+          outputGroup: original.inputCalibration.outputGroup,
+        },
+      }
+      if (!isModelResponse(body)) throw new Error('partial calibration fixture')
+      const written = await log.log.append(
+        session,
+        batch(bodyValue(body)),
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in written) throw new Error(`append original batch: ${written.failure}`)
+      const prefix = await prefixOf(log, owner)
+      const selected = judgeMessage(reply)
+      if (!('ok' in selected)) throw new Error('reply')
+      const group = {
+        origin: 'selected_reply' as const,
+        dispatchedEntry: entryAt(prefix, 0),
+        messageEntry: entryAt(prefix, 2),
+        responseEntry: entryAt(prefix, 3),
+        messageIndex: 0,
+        response: body,
+        replaySelection: [{ sourceBlockIndex: 0, messageIndex: 0, blockIndex: 0 }],
+      }
+      const result = authorizedCalibration(
+        prefix,
+        [selected.ok],
+        { callId: 'next-call', dispatch: 1 },
+        () => ({
+          selectedSources: [{ messageIndex: 0, entry: entryAt(prefix, 2) }],
+          candidates: [group],
+        }),
+      )
+      expect(result).toMatchObject({
+        calibration: { kind: 'none', reason: 'no_observation' },
+        outputHistory: [{ inputCalibration: { requestInput: { kind: 'unavailable' } } }],
+      })
+      if (!('outputHistory' in result)) throw new Error('history missing')
+      expect(result.outputHistory).toHaveLength(1)
+      expect(result.outputHistory[0]?.origin).toEqual({
+        adaptation: body.route.adaptation,
+        provider: body.route.provider,
+        parameters: body.route.parameters,
+      })
+      const duplicated = copyPlanOutputHistory(
+        [result.outputHistory[0], result.outputHistory[0]],
+        [selected.ok],
+        result.calibration,
+      )
+      expect(duplicated).toBeUndefined()
+    })
+  })
   it('accepts an actual selected assistant M/R ancestor and rejects changed locator or replay target', async () => {
     await controlled('calibration-selected', async ({ binding: log, owner }) => {
       const body = knownResponse('reply')
