@@ -287,7 +287,7 @@ describe('C14 actual supervised worker', () => {
     }
   }, 50_000)
 
-  it('preserves exact upstream usage and cost and an empty HTTP failure through real IPC', async () => {
+  it('preserves exact upstream usage and cost through real IPC and reopen', async () => {
     const root = await mkdtemp(join(tmpdir(), 'cold-demo-exact-ipc-'))
     const server = await createLocalTls(
       join(root, 'tls'),
@@ -320,8 +320,52 @@ describe('C14 actual supervised worker', () => {
       expect(usage.usage.input_tokens.knownSum.toString()).toBe('9007199254740989')
       expect(usage.usage.cache_read_tokens.knownSum.toString()).toBe('4')
       expect(usage.cost.knownSum.toString()).toBe('0.000000000000000123456789')
+      expect(server.requests).toHaveLength(1)
+      expect((await conversation.totals()).responses).toBe(1)
+      expect((await conversation.close()).complete).toBe(true)
+      expect(await supervisor.waitWorkerExit()).toEqual({ exited: true, closed: true })
+      const successor = await supervisor.open()
+      expect(successor.workerIdentity).not.toBe(conversation.workerIdentity)
+      expect(successor.session).toBe(conversation.session)
+      const reopenedUsage = await successor.totals()
+      expect(reopenedUsage.responses).toBe(1)
+      expect(reopenedUsage.usage.input_tokens.knownSum.toString()).toBe('9007199254740989')
+      expect(reopenedUsage.usage.cache_read_tokens.knownSum.toString()).toBe('4')
+      expect(reopenedUsage.cost.knownSum.toString()).toBe('0.000000000000000123456789')
+      expect(server.requests).toHaveLength(1)
+      expect((await successor.close()).complete).toBe(true)
+    } finally {
+      await server.close()
+    }
+  }, 45_000)
+
+  it('preserves an empty HTTP failure through real IPC and reopen', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'cold-demo-empty-http-ipc-'))
+    const server = await createLocalTls(join(root, 'tls'))
+    const keyFile = join(root, 'key')
+    await writeFile(keyFile, 'controlled-key', { mode: 0o600 })
+    const supervisor = createDemoSupervisor({
+      dataDirectory: join(root, 'data'),
+      keyFile,
+      multiplier: '1.1',
+      reserveTokens: '256',
+      maxOutputTokens: 128,
+      retirementWaitMilliseconds: 2000,
+      maxPacketBytes: 1_048_576,
+      maxCommands: 1,
+      dedicatedRoot: true,
+      developmentTransport: {
+        baseUrl: server.developmentTransport.baseUrl,
+        ca: server.developmentTransport.tls.ca,
+      },
+    })
+    try {
+      const conversation = await supervisor.open()
+      expect((await conversation.send('ordinary usage', async () => undefined)).kind).toBe('saved')
+      expect(server.requests).toHaveLength(1)
       server.setMode('http503empty')
       const failed = await conversation.send('empty failure', async () => undefined)
+      expect(server.requests).toHaveLength(2)
       expect(failed.kind).toBe('failed')
       if (failed.kind === 'failed') expect(failed.response).toBeDefined()
       expect((await conversation.totals()).responses).toBe(2)
@@ -331,6 +375,7 @@ describe('C14 actual supervised worker', () => {
       expect(successor.workerIdentity).not.toBe(conversation.workerIdentity)
       expect(successor.session).toBe(conversation.session)
       expect((await successor.totals()).responses).toBe(2)
+      expect(server.requests).toHaveLength(2)
       expect((await successor.close()).complete).toBe(true)
     } finally {
       await server.close()

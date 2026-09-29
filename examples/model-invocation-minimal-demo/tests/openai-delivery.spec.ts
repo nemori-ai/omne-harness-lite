@@ -263,6 +263,8 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         const evaluated = evaluate(current.input)
         if (!('ok' in evaluated))
           throw new Error(`evaluation rejected: ${JSON.stringify(evaluated)}`)
+        const beforeFill = await manifest.readHead(prepared.session)
+        if (!('head' in beforeFill)) throw new Error('manifest head unavailable before fill')
         expect(
           await registry.fill(
             prepared.session,
@@ -271,7 +273,10 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
             evaluated.ok.composition,
           ),
         ).toHaveProperty('snapshots')
-        expect(await manifest.readHead(prepared.session)).toHaveProperty('head', 1)
+        expect(await manifest.readHead(prepared.session)).toHaveProperty(
+          'head',
+          beforeFill.head + 1,
+        )
         expect(
           await registry.lookup(prepared.session, 'tool', TOOL_NAME, { kind: 'session' }),
         ).toHaveProperty('entry')
@@ -452,8 +457,9 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
           ],
         })
         if (MODEL !== 'openai/gpt-6-luna') {
-          // A received encrypted reply remains durable and replayable as data.
-          // Its ciphertext is not evidence for the next request's input count.
+          // Keep the durable encrypted reply intact. A changed value under its
+          // original identity is a source failure; an intact source-less replay
+          // still has no applicable full-input counting basis for its ciphertext.
           const reply = third.replyPending.reply
           expect(reply.blocks).toContainEqual(
             expect.objectContaining({
@@ -488,9 +494,16 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
                 tools: [],
                 host: host.host,
               }),
-            ).toEqual({
-              invalidInput: { reason: 'input_size_unavailable', metrics: ['maxInputTokens'] },
-            })
+            ).toEqual(
+              mixed
+                ? {
+                    invalidInput: {
+                      reason: 'input_size_unavailable',
+                      metrics: ['maxInputTokens'],
+                    },
+                  }
+                : { unavailable: true },
+            )
             expect(JSON.stringify(messages)).toBe(originalMessages)
             expect(tls.requests).toHaveLength(3)
             // No dispatched/opened/response/termination record for either refusal.

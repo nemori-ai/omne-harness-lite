@@ -215,6 +215,8 @@ describe('service tool declaration and externally supplied result', () => {
       if (!('input' in current)) throw new Error('actual current inputs unavailable')
       const evaluated = evaluate(current.input)
       if (!('ok' in evaluated)) throw new Error(`evaluation rejected: ${JSON.stringify(evaluated)}`)
+      const beforeFill = await manifest.readHead(prepared.session)
+      if (!('head' in beforeFill)) throw new Error('manifest head unavailable before fill')
       expect(
         await registry.fill(
           prepared.session,
@@ -223,7 +225,7 @@ describe('service tool declaration and externally supplied result', () => {
           evaluated.ok.composition,
         ),
       ).toHaveProperty('snapshots')
-      expect(await manifest.readHead(prepared.session)).toHaveProperty('head', 1)
+      expect(await manifest.readHead(prepared.session)).toHaveProperty('head', beforeFill.head + 1)
       expect(
         await registry.lookup(prepared.session, 'tool', TOOL_NAME, { kind: 'session' }),
       ).toHaveProperty('entry')

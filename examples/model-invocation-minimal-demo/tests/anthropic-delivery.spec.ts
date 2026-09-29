@@ -320,6 +320,8 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         const evaluated = evaluate(current.input)
         if (!('ok' in evaluated))
           throw new Error(`evaluation rejected: ${JSON.stringify(evaluated)}`)
+        const beforeFill = await manifest.readHead(prepared.session)
+        if (!('head' in beforeFill)) throw new Error('manifest head unavailable before fill')
         expect(
           await registry.fill(
             prepared.session,
@@ -328,7 +330,10 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
             evaluated.ok.composition,
           ),
         ).toHaveProperty('snapshots')
-        expect(await manifest.readHead(prepared.session)).toHaveProperty('head', 1)
+        expect(await manifest.readHead(prepared.session)).toHaveProperty(
+          'head',
+          beforeFill.head + 1,
+        )
         expect(
           await registry.lookup(prepared.session, 'tool', TOOL_NAME, { kind: 'session' }),
         ).toHaveProperty('entry')
