@@ -142,6 +142,7 @@ export async function callDeployment(
     modelRequest: {
       tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
       defaultRetry: createDemoDefaultRetryConfiguration(),
+      registryPolicy: { maxRetries: 2, maxInFlight: 8 },
       evaluationInputs: {
         storeKey: label,
         deployedOfficial: [{ capability: ROOT, meta: false }],

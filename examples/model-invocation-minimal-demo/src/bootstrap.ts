@@ -73,6 +73,16 @@ import {
 } from './model-request-text.ts'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import {
+  assemblyManifestMigrations,
+  createAssemblyManifestStore,
+  type AssemblyManifestStore,
+} from '@omne-harness-lite/assembly-manifest-store'
+import { createAssetRegistry, type AssetRegistry } from '@omne-harness-lite/asset-registry'
+import {
+  createRegistryHistoryReader,
+  type RegistryHistoryReader,
+} from '@omne-harness-lite/evaluation-input-store/registry-history'
+import {
   createEvaluationInputStorePlugin,
   evaluationInputMigrations,
   CURRENT_EVALUATION_INPUTS_SERVICE,
@@ -461,6 +471,9 @@ export function createAcceptanceApplication(
   let replica: ModelReplicaCustodian | undefined
   let sessionLogOwner: JsonlSessionLog | undefined
   let runnerHost: ReturnType<typeof createDemoRunnerHost> | undefined
+  let manifest: AssemblyManifestStore | undefined
+  let registryHistory: RegistryHistoryReader | undefined
+  let assetRegistry: AssetRegistry | undefined
   let transportService: ModelTransportService | undefined
   const modelContributions: Fiber[] = []
   let modelRuntime:
@@ -759,23 +772,37 @@ export function createAcceptanceApplication(
       runtimeActors.clear()
       runtimeBindings.clear()
       const unfinished: string[] = []
-      const order: readonly (StageFiber | 'replica' | 'sessionLogOwner' | 'modelContributions')[] =
-        [
-          ...(stage === 'modelRequest'
-            ? (['modelContributions', 'modelTransport', 'evaluationInputs'] as const)
-            : []),
-          ...(logStage ? (['sessionLogOwner', 'sessionLog'] as const) : []),
-          ...(preparationStage ? (['sessionTenancy'] as const) : []),
-          'lookup',
-          'directory',
-          'replica',
-          'registration',
-          'governance',
-          'accountIdentity',
-          'credentials',
-          'clock',
-          'storage',
-        ]
+      const order: readonly (
+        | StageFiber
+        | 'replica'
+        | 'sessionLogOwner'
+        | 'modelContributions'
+        | 'assetRegistry'
+        | 'registryHistory'
+        | 'assemblyManifest'
+      )[] = [
+        ...(stage === 'modelRequest'
+          ? ([
+              'modelContributions',
+              'modelTransport',
+              'assetRegistry',
+              'registryHistory',
+              'assemblyManifest',
+              'evaluationInputs',
+            ] as const)
+          : []),
+        ...(logStage ? (['sessionLogOwner', 'sessionLog'] as const) : []),
+        ...(preparationStage ? (['sessionTenancy'] as const) : []),
+        'lookup',
+        'directory',
+        'replica',
+        'registration',
+        'governance',
+        'accountIdentity',
+        'credentials',
+        'clock',
+        'storage',
+      ]
       for (const [index, name] of order.entries()) {
         try {
           if (name === 'modelContributions') {
@@ -791,7 +818,10 @@ export function createAcceptanceApplication(
               for (const item of result.recovered)
                 record({ event: 'close', phase: 'runnerRecovery', outcome: item.kind })
             } else await sessionLogOwner?.close()
-          } else if (name === 'replica') await replica?.close()
+          } else if (name === 'assetRegistry') await assetRegistry?.close()
+          else if (name === 'registryHistory') await registryHistory?.close()
+          else if (name === 'assemblyManifest') await manifest?.close()
+          else if (name === 'replica') await replica?.close()
           else await fibers.get(name)?.dispose()
           record({ event: 'close', phase: name, outcome: 'closed' })
         } catch {
@@ -862,7 +892,10 @@ export function createAcceptanceApplication(
       const fragments = [
         ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
         ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
-        ...(hooks?.extraMigrations ?? []),
+        ...(stage === 'modelRequest' ? assemblyManifestMigrations : []),
+        ...(hooks?.extraMigrations ?? []).filter(
+          extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
+        ),
       ]
       storage = await openStorage(
         {
@@ -1194,6 +1227,45 @@ export function createAcceptanceApplication(
           const value: unknown = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
           if (!currentInputFace(value)) throw new Error('acceptance input service absent')
           currentInputs = value
+          if (activeClock === undefined) throw new Error('acceptance clock absent')
+          manifest = createAssemblyManifestStore(storage, {
+            diagnostic: event =>
+              record({ event: 'provider', phase: 'assemblyManifest', outcome: event.result }),
+            diagnosticFailure: () => {
+              diagnosticFailures += 1
+            },
+          })
+          registryHistory = createRegistryHistoryReader({
+            storage,
+            storeKey: inputSource.storeKey,
+            sessionTenancy,
+            memberships: actualMemberships,
+            manifestHistory: manifest,
+            diagnostics: () =>
+              record({ event: 'provider', phase: 'registryHistory', outcome: 'observed' }),
+            onDiagnosticFailure: () => {
+              diagnosticFailures += 1
+            },
+            monotonicNow: inputSource.monotonicNow,
+          })
+          assetRegistry = createAssetRegistry({
+            manifest,
+            clock: activeClock,
+            sessionTenancy,
+            currentInputs,
+            historicalBody: registryHistory,
+            deployedMeta: inputSource.deployedOfficial
+              .filter(entry => entry.meta)
+              .map(entry => entry.capability),
+            diagnostic: () =>
+              record({ event: 'provider', phase: 'assetRegistry', outcome: 'observed' }),
+            diagnosticFailure: () => {
+              diagnosticFailures += 1
+            },
+            monotonicNow: inputSource.monotonicNow,
+            conflictPolicy: { maxRetries: requestDeployment.registryPolicy.maxRetries },
+            maxInFlight: requestDeployment.registryPolicy.maxInFlight,
+          })
           phase = 'transport'
           category = 'failed'
           assertNotClosing()
@@ -1324,11 +1396,12 @@ export function createAcceptanceApplication(
                   credentials: lookup,
                   currentEvaluationInputs: currentInputs,
                   observers: observerAccess.access,
-                  tools: requestDeployment?.assetRegistry ?? {
-                    async lookup() {
-                      return { failure: 'unavailable' }
+                  tools: requestDeployment?.assetRegistry ??
+                    assetRegistry ?? {
+                      async lookup() {
+                        return { failure: 'unavailable' }
+                      },
                     },
-                  },
                 }
                 runtimeBindings.set(session, binding)
                 return { binding }
@@ -1695,6 +1768,16 @@ export function createAcceptanceApplication(
         if ('failure' in current) return { step: 'currentInputs', result: current }
         const evaluated = evaluate(current.input)
         if (!('ok' in evaluated)) return { step: 'evaluate', result: evaluated }
+        if (assetRegistry === undefined) throw new AcceptanceOperationDefect('assetRegistry')
+        const evaluationRef = parseOpaqueIdentifier(`evaluation-${randomUUID()}`, 'EvaluationRef')
+        if (!isOk(evaluationRef)) throw new AcceptanceOperationDefect('evaluationRef')
+        const filled = await assetRegistry.fill(
+          parsed.ok,
+          evaluated.ok,
+          evaluationRef.ok,
+          evaluated.ok.composition,
+        )
+        if (!('snapshots' in filled)) return { step: 'assetRegistry', result: filled }
         return { prepared: true }
       } catch (error) {
         throw operationError(error, 'prepareModelInputs')

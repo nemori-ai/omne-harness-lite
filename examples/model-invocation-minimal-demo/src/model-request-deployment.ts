@@ -1,4 +1,7 @@
-import { createCredentialRedactionPolicy } from '@omne-harness-lite/model-request-runtime'
+import {
+  createCredentialRedactionPolicy,
+  createDefaultRetryImplementation,
+} from '@omne-harness-lite/model-request-runtime'
 import { type RetirementPolicy, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
 import type { ModelRequestDeployment } from './types.ts'
 
@@ -25,6 +28,11 @@ export function prepareModelRequestDeployment(
     !Array.isArray(input.evaluationInputs.deployedOfficial) ||
     typeof input.evaluationInputs.monotonicNow !== 'function' ||
     typeof input.evaluationInputs.prepare !== 'function' ||
+    input.registryPolicy === undefined ||
+    !Number.isSafeInteger(input.registryPolicy.maxRetries) ||
+    input.registryPolicy.maxRetries < 0 ||
+    !Number.isSafeInteger(input.registryPolicy.maxInFlight) ||
+    input.registryPolicy.maxInFlight < 1 ||
     input.transport === undefined ||
     !Array.isArray(input.transport.definitions) ||
     !Array.isArray(input.transport.inputMeters) ||
@@ -49,6 +57,7 @@ export function prepareModelRequestDeployment(
     throw new Error('acceptance request deployment invalid')
   createCredentialRedactionPolicy(input.invocation.credentialRedaction)
   createCredentialRedactionPolicy(input.transport.policy.credentialRedaction)
+  createDefaultRetryImplementation(input.defaultRetry)
   if (development !== undefined) {
     if (development.baseUrl === undefined) throw new Error('controlled transport URL required')
     const url = new URL(development.baseUrl)
@@ -59,6 +68,11 @@ export function prepareModelRequestDeployment(
   return Object.freeze({
     ...input,
     evaluationInputs: Object.freeze({ ...input.evaluationInputs }),
+    registryPolicy: Object.freeze({ ...input.registryPolicy }),
+    defaultRetry: Object.freeze({
+      policy: Object.freeze({ ...input.defaultRetry.policy }),
+      sample: input.defaultRetry.sample,
+    }),
     transport: Object.freeze({
       definitions: input.transport.definitions,
       inputMeters: input.transport.inputMeters,

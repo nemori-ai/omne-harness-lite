@@ -84,6 +84,8 @@ export interface ModelRequestDeployment {
   readonly tokenMargin: TokenMargin
   /** Explicit P-5 policy and replaceable sample source for this demonstration. */
   readonly defaultRetry: DefaultRetryConfiguration
+  /** Bounded current-evaluation fill retries and concurrent operations. */
+  readonly registryPolicy: { readonly maxRetries: number; readonly maxInFlight: number }
   readonly evaluationInputs: {
     readonly storeKey: string
     readonly deployedOfficial: readonly DeployedOfficialEntry[]
@@ -230,6 +232,10 @@ export type ProviderRejection =
         import('@omne-harness-lite/asset-evaluation').EvaluationResult,
         { readonly ok: unknown }
       >
+    }
+  | {
+      readonly step: 'assetRegistry'
+      readonly result: import('@omne-harness-lite/asset-registry').RegistryFailure
     }
   | {
       readonly step: 'holdingTenant'

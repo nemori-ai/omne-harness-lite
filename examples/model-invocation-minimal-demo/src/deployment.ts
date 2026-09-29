@@ -215,6 +215,7 @@ export function createDemoConfig(
     modelRequest: {
       tokenMargin,
       defaultRetry: createDemoDefaultRetryConfiguration(),
+      registryPolicy: { maxRetries: 2, maxInFlight: 8 },
       evaluationInputs: {
         storeKey: 'model-invocation-minimal-demo',
         deployedOfficial: [
