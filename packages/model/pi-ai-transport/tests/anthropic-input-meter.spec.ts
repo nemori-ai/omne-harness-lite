@@ -92,9 +92,9 @@ describe('four exact Anthropic projected-input rough estimates', () => {
   it('binds only the four explicit definitions and selected Anthropic provider', () => {
     for (const modelId of modelIds) {
       const meter = createAnthropicInputMeter(definition(modelId))
-      expect(meter).toMatchObject({ modelId, definitionRevision: '3', provider: 'anthropic' })
+      expect(meter).toMatchObject({ modelId, definitionRevision: '4', provider: 'anthropic' })
       expect(meter.algorithmRevision).toBe(
-        'anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1',
+        'anthropic-legacy-bpe-plus-vision-patches-complete-output-5/response-calibration-1',
       )
       expect(meter.evidence).toContain('very rough approximation')
     }
@@ -292,22 +292,33 @@ describe('four exact Anthropic projected-input rough estimates', () => {
     }
   })
 
-  it('refuses encrypted reasoning replay rather than counting ciphertext as model input', () => {
+  it('refuses unbacked reasoning details while preserving independent plain reasoning', () => {
     for (const model of modelIds) {
       const textBody = {
         model,
         provider: { order: ['anthropic'], allow_fallbacks: false, require_parameters: true },
         messages: [
           { role: 'assistant', content: '', reasoning: 'Need to check the result.' },
+          { role: 'user', content: 'Continue.' },
+        ],
+      }
+      expect(measuredTokens(model, textBody)).toBeGreaterThan(0)
+      const unsigned = {
+        ...textBody,
+        messages: [
           {
             role: 'assistant',
             content: '',
             reasoning_details: [{ type: 'reasoning.text', text: 'The result is valid.' }],
           },
-          { role: 'user', content: 'Continue.' },
         ],
       }
-      expect(measuredTokens(model, textBody)).toBeGreaterThan(0)
+      expect(
+        directFull(createAnthropicInputMeter(definition(model)), {
+          body: unsigned,
+          serialized: writeJsonLossless(unsigned),
+        }),
+      ).toEqual({ kind: 'unavailable' })
       const body = {
         model,
         messages: [

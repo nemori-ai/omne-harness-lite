@@ -1,4 +1,11 @@
-import { withEstimatedJsonMarginals, fullJsonMarginal } from './marginal.ts'
+import { fullOutputHistory, newOutputHistory, replayOutputHistory } from './output-history.ts'
+import {
+  anthropicOutputHistoryPolicy,
+  anthropicReplayModels,
+  ANTHROPIC_HISTORY_ALGORITHM,
+  ANTHROPIC_REPLAY_REVISION,
+  ANTHROPIC_TOKENIZER_REVISION,
+} from './anthropic-replay.ts'
 import { defineInputMeter } from '../input-meter.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -188,19 +195,9 @@ function supportedInputBody(
         message.role !== 'tool')
     )
       return false
-    // Text reasoning remains in the serialized estimate. Encrypted or unknown
-    // replay is opaque provider state: its ciphertext length does not measure
-    // the model's retained reasoning input.
-    if (Object.hasOwn(message, 'reasoning_details')) {
-      if (
-        !Array.isArray(message.reasoning_details) ||
-        !message.reasoning_details.every(
-          detail =>
-            object(detail) && detail.type === 'reasoning.text' && typeof detail.text === 'string',
-        )
-      )
-        return false
-    }
+    // Signed text can be a display summary. Only the shared complete-group
+    // contribution may account for replay details, never this visible counter.
+    if (Object.hasOwn(message, 'reasoning_details')) return false
     if (message.reasoning !== undefined && typeof message.reasoning !== 'string') return false
     if (message.tool_call_id !== undefined && typeof message.tool_call_id !== 'string') return false
     if (
@@ -248,25 +245,13 @@ function supportedInputBody(
   return true
 }
 
-function supportedModel(modelId: string): boolean {
-  switch (modelId) {
-    case 'anthropic/claude-opus-5.5':
-    case 'anthropic/claude-opus-5':
-    case 'anthropic/claude-sonnet-5':
-    case 'anthropic/claude-fable-5.1':
-      return true
-    default:
-      return false
-  }
-}
-
 /** Four exact Anthropic routes share one narrow estimated-input implementation. */
 export function createAnthropicInputMeter(definition: ModelDefinition): InputMeter {
   if (
-    !supportedModel(definition.modelId) ||
-    definition.revision !== '3' ||
+    !anthropicReplayModels.some(row => row.modelId === definition.modelId) ||
+    definition.revision !== '4' ||
     definition.implementation.name !== 'pi-ai:anthropic' ||
-    definition.implementation.revision !== 'mp4-17' ||
+    definition.implementation.revision !== 'mp4-18' ||
     !Object.hasOwn(definition.routes, 'anthropic')
   )
     throw new TypeError('unsupported Anthropic input-meter binding')
@@ -313,15 +298,20 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
       return { kind: 'unavailable' }
     }
   }
-  const meter = defineInputMeter({
+  const meter: InputMeter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'anthropic',
-    algorithmRevision: 'anthropic-legacy-bpe-plus-vision-patches-4',
+    algorithmRevision: ANTHROPIC_HISTORY_ALGORITHM,
+    tokenizerRevision: ANTHROPIC_TOKENIZER_REVISION,
+    replayRevision: ANTHROPIC_REPLAY_REVISION,
     evidence:
-      'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation for text; Anthropic Vision https://platform.claude.com/docs/en/build-with-claude/vision high-resolution 28px patches / 2576px edge / 4784 visual-token ceiling for Claude 4.7+; final OpenRouter messages/tools/images projected without routing/generation/cache controls; private conversion and Claude 5 text framing uncertain; encrypted reasoning replay unavailable',
-    measureFull: countBody,
+      'anthropics/anthropic-tokenizer-typescript 4d75e64 legacy Claude BPE very rough approximation for text; Anthropic Vision https://platform.claude.com/docs/en/build-with-claude/vision high-resolution 28px patches / 2576px edge / 4784 visual-token ceiling for Claude 4.7+; final OpenRouter input-bearing projection; complete same-model signed/encrypted groups use upstream O plus zero net framing as estimated under D107 priority-family revision 5; https://platform.claude.com/docs/en/build-with-claude/thinking keep-all and encrypted signatures establish correlation, not exact input equality; Opus5.5/Fable5.1 require original unchanged prefix facts; unknown details and incomplete sources unavailable',
+    measureFull: input => fullOutputHistory(input, meter, countBody, anthropicOutputHistoryPolicy),
+    measureReplay: input =>
+      replayOutputHistory(input, meter, countBody, anthropicOutputHistoryPolicy),
+    measureNew: input => newOutputHistory(input, meter, countBody, anthropicOutputHistoryPolicy),
   })
-  return withEstimatedJsonMarginals(meter, input => fullJsonMarginal(countBody, input))
+  return meter
 }
