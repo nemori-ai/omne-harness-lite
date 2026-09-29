@@ -174,3 +174,5 @@ D-100 实施接续另采用 [mrr/3 当前承载字节](v8-current-codec-design.m
 ## D109 scope 清理接缝候选
 
 [图片准备 scope 清理附页](image-preparation-scope-cleanup-candidate.md) 补齐既有显式资源清理的跨包端口；不覆盖已采用 v15/v21。候选未采用、未实现；独立定点评审已完成，精确主线后继接受及工程验证待完成。
+
+2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。

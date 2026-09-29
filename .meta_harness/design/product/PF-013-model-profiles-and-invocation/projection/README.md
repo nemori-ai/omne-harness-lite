@@ -20,3 +20,5 @@
 - [v7](v7/projection.md) · [来源](v7/provenance.json)：**post-review candidate**，D109之后仅补scope清理与原basis适用表的技术接缝；不覆盖v6，主线后继采用和实现验证待完成。
 
 [D-109 后继](../../../record/decisions/model-request-image-preparation-adoption/scope-and-basis-decision.md)已采用 v7 对应三附页；候选标签保留快照时事实，实际实现与 SC/BR 验收另核。
+
+[D-110](../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用 v5 的四契约及五节点精确映射；原候选标签保留快照时事实，实现与验收另核。

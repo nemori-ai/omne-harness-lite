@@ -196,3 +196,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 2026-09-28：[D-106 runner当前纯构件](runner-current-pure-provider-adoption/README.md)采用精确v5 revision3的键、结论codec、效果与历史解释器；真实服务组合及实现证据另核。
 
 - [D-107：响应输入校准规范与纯值映射采用](model-input-usage-calibration-adoption/README.md)（2026-09-29；仅释放纯 core 实施）。
+
+[D-110：模型调用引用与独立消费者](model-runtime-reference-lifecycle-adoption/README.md)：接受四契约和五现有节点映射；十四操作、耐久引用与独立消费待实施验收，不前置完整Session/Run。
