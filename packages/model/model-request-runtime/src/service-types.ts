@@ -466,7 +466,13 @@ export interface CurrentHistoryReaders {
   readonly calibration: (
     prefix: SettlementPrefix,
     messages: readonly Message[],
-    target: { readonly callId: ModelCallId; readonly dispatch: JsonNumber },
+    target: {
+      readonly callId: ModelCallId
+      readonly dispatch: JsonNumber
+    } & (
+      | { readonly run: RunId; readonly attempt: AttemptId }
+      | { readonly run?: never; readonly attempt?: never }
+    ),
   ) => CalibrationHistoryResult
   /** Actual G28 terminal recognition remains a host-supplied source. */
   readonly run: RunHistoryReader

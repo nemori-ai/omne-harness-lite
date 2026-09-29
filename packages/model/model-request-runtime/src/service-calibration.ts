@@ -24,13 +24,14 @@ function sameEntry(left: unknown, right: unknown): boolean {
 export function authorizedCalibration(
   prefix: SettlementPrefix,
   messages: readonly Message[],
-  target: {
-    readonly callId: string
-    readonly dispatch: import('@omne-harness-lite/content-blocks').JsonNumber
-  },
+  target: Parameters<CurrentHistoryReaders['calibration']>[2],
   read: CurrentHistoryReaders['calibration'],
 ): AuthorizedCalibrationResult {
-  if (!settlementGenerationCurrent(prefix.binding)) return { unavailable: true }
+  if (
+    !settlementGenerationCurrent(prefix.binding) ||
+    (target.run === undefined) !== (target.attempt === undefined)
+  )
+    return { unavailable: true }
   let interpreted: ReturnType<CurrentHistoryReaders['calibration']>
   try {
     interpreted = read(prefix, messages, target)
@@ -93,11 +94,20 @@ export function authorizedCalibration(
       dispatched.captured.record.call !== candidate.response.call.callId ||
       ExactDecimal.from(dispatched.captured.record.dispatch).compare(
         ExactDecimal.from(candidate.response.dispatch),
-      ) !== 0 ||
-      dispatched.entry.run !== undefined ||
-      dispatched.entry.attempt !== undefined ||
-      response.entry.run !== undefined ||
-      response.entry.attempt !== undefined
+      ) !== 0
+    )
+      return { unavailable: true }
+    const originalRun = dispatched.entry.run
+    const originalAttempt = dispatched.entry.attempt
+    if (
+      (originalRun === undefined) !== (originalAttempt === undefined) ||
+      candidate.response.call.runId !== originalRun ||
+      (originalAttempt === undefined) !== (candidate.response.attemptId === undefined) ||
+      (originalAttempt !== undefined &&
+        candidate.response.attemptId !== undefined &&
+        ExactDecimal.from(originalAttempt).compare(
+          ExactDecimal.from(candidate.response.attemptId),
+        ) !== 0)
     )
       return { unavailable: true }
     const members = interpretSettlementPrefix({
@@ -127,8 +137,6 @@ export function authorizedCalibration(
         selected === undefined ||
         !sameEntry(selected, candidate.messageEntry) ||
         attached?.captured.message?.type !== 'assistant' ||
-        attached.entry.run !== undefined ||
-        attached.entry.attempt !== undefined ||
         !modelLogJsonEqual(attached.captured.message, message) ||
         message.response !== candidate.response.id ||
         !originalMembers.entries.some(entry => sameEntry(entry, attached.entry))
@@ -141,6 +149,7 @@ export function authorizedCalibration(
       if (
         selectedSeen ||
         candidate.response.call.callId !== target.callId ||
+        originalRun !== target.run ||
         candidate.response.reply !== undefined ||
         ordinal.compare(priorDispatch) >= 0 ||
         originalMembers.message !== null

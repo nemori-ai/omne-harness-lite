@@ -806,7 +806,13 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             const calibrated = authorizedCalibration(
               prefix.prefix,
               request.messages,
-              { callId, dispatch: 1 },
+              {
+                callId,
+                dispatch: 1,
+                ...(request.run === undefined
+                  ? {}
+                  : { run: request.run, attempt: request.attempt }),
+              },
               runtime.history.calibration,
             )
             return 'unavailable' in calibrated

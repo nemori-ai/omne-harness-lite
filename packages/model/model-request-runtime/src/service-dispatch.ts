@@ -505,6 +505,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         key,
         admission.dispatch,
         admission.provider,
+        input.attempt,
         retainedReads,
       )
       if ('unavailable' in prepared) {
@@ -1106,11 +1107,21 @@ async function prepareSend<P extends PlannedSemantics, R>(
   key: CallKey,
   dispatch: number,
   provider: string,
+  attempt: DispatchInput['attempt'],
   retained: OwnedReadTracker,
 ): Promise<PreparationResult> {
   const container = runtime.calls.find(key)
   if (container === undefined) return { unavailable: true }
   const view = container.view()
+  if (view.request.run === undefined && attempt !== undefined)
+    return { invalidInput: { reason: 'malformed' } }
+  const calibrationTarget =
+    view.request.run === undefined
+      ? { callId: key.callId, dispatch }
+      : attempt === undefined
+        ? null
+        : { callId: key.callId, dispatch, run: view.request.run, attempt }
+  if (calibrationTarget === null) return { invalidInput: { reason: 'malformed' } }
   if (
     view.session !== session ||
     view.owner.admission() !== 'open' ||
@@ -1172,7 +1183,7 @@ async function prepareSend<P extends PlannedSemantics, R>(
         : authorizedCalibration(
             prefix.prefix,
             view.request.messages,
-            { callId: key.callId, dispatch },
+            calibrationTarget,
             runtime.history.calibration,
           )
     },

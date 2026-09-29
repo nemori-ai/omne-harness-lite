@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { judgeMessage } from '@omne-harness-lite/messages'
+import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { readSettlementPrefix, type SettlementPrefix } from '../src/settlement-prefix.ts'
+import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { authorizedCalibration } from '../src/service-calibration.ts'
 import type { CurrentHistoryReaders } from '../src/service-types.ts'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
-import { batch, binding, jsonObject, reply, response, session } from './log-codec-fixture.ts'
+import {
+  batch,
+  binding,
+  dispatched,
+  jsonObject,
+  opened,
+  reply,
+  response,
+  session,
+} from './log-codec-fixture.ts'
 import { controlled, type ControlledSettlementOwner } from './settlement-fixture.ts'
 import type { SettlementLogBinding } from '../src/settlement-types.ts'
 
@@ -186,6 +197,153 @@ describe('U16 authorized noRun calibration over real SL3', () => {
       expect(authorizedCalibration(prefix, [], { callId: 'call', dispatch: 3 }, read)).toEqual({
         unavailable: true,
       })
+    })
+  })
+})
+
+describe('U16/V17 conditional withRun calibration over real SL3', () => {
+  it('uses a selected old-attempt complete batch from one owned prefix without rejudging current Run', async () => {
+    await controlled('calibration-with-run', async ({ binding: original, owner }) => {
+      const parsed = parseOpaqueIdentifier('calibration-run-session', 'SessionRef')
+      if (!('ok' in parsed)) throw new Error('Run session identity')
+      const runSession = parsed.ok
+      const run = 'calibration-source-run'
+      const shell = (attempt: number) => ({ tenant: original.tenant, run, attempt })
+      const make = (
+        category: 'message' | 'record' | 'response',
+        value: unknown,
+        attempt: number,
+        purpose: Parameters<typeof prepareModelLogEntry>[0]['purpose'],
+      ) => {
+        const captured = captureModelLogValue({ category, input: { kind: 'value', value } })
+        if (!('ok' in captured)) throw new Error(`Run value: ${captured.reason}`)
+        const entry = prepareModelLogEntry({
+          session: runSession,
+          shell: shell(attempt),
+          captured: captured.ok,
+          purpose,
+          messagePrefix: [],
+        })
+        if (!('ok' in entry)) throw new Error(`Run entry: ${entry.reason}`)
+        return entry.ok
+      }
+      const start = (attempt: number) =>
+        make(
+          'message',
+          {
+            id: `calibration-attempt-${attempt}`,
+            type: 'system_reminder',
+            nature: 'event',
+            source: {
+              kind: 'attempt_started',
+              attempt,
+              reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+              at: '2026-09-29T00:00:00Z',
+            },
+            blocks: [],
+            createdAt: '2026-09-29T00:00:00Z',
+          },
+          attempt,
+          { kind: 'message' },
+        )
+      const first = await original.log.append(
+        runSession,
+        [
+          start(1),
+          make('record', dispatched, 1, { kind: 'record' }),
+          make('record', opened, 1, { kind: 'record' }),
+        ],
+        { kind: 'fenced', run, attempt: 1 },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in first) throw new Error('Run original anchors')
+      const second = await original.log.append(
+        runSession,
+        [start(2)],
+        { kind: 'fenced', run, attempt: 2 },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in second) throw new Error('Run newer attempt')
+      const candidate = {
+        ...knownResponse('reply'),
+        call: { callId: 'call', runId: run },
+        attemptId: 1,
+        late: true,
+      }
+      if (!isModelResponse(candidate)) throw new Error('Run MR9 response')
+      const captured = captureModelLogValue({
+        category: 'response',
+        input: { kind: 'value', value: candidate },
+      })
+      if (!('ok' in captured)) throw new Error('Run response capture')
+      const message = prepareModelLogEntry({
+        session: runSession,
+        shell: shell(2),
+        captured: (() => {
+          const value = captureModelLogValue({
+            category: 'message',
+            input: { kind: 'value', value: reply },
+          })
+          if (!('ok' in value)) throw new Error('Run reply capture')
+          return value.ok
+        })(),
+        purpose: { kind: 'persistedMessage', response: captured.ok },
+        messagePrefix: [],
+      })
+      if (!('ok' in message)) throw new Error('Run reply entry')
+      const responseEntry = make('response', candidate, 2, { kind: 'response' })
+      const settled = await original.log.append(
+        runSession,
+        [message.ok, responseEntry],
+        { kind: 'unfenced' },
+        { kind: 'tailEquals', tail: 4 },
+      )
+      if ('failure' in settled) throw new Error('Run MR9 batch')
+      const prefix = await prefixOf({ ...original, session: runSession }, owner)
+      const selectedMessage = judgeMessage(reply)
+      if (!('ok' in selectedMessage)) throw new Error('selected reply')
+      const selected = [selectedMessage.ok]
+      const ancestor = {
+        origin: 'selected_reply' as const,
+        dispatchedEntry: entryAt(prefix, 1),
+        messageEntry: entryAt(prefix, 4),
+        responseEntry: entryAt(prefix, 5),
+        messageIndex: 0,
+        response: candidate,
+        replaySelection: [{ sourceBlockIndex: 0, messageIndex: 0, blockIndex: 0 }],
+      }
+      const target = { callId: 'next-call', dispatch: 1, run: 'selected-target-run', attempt: 3 }
+      const source: CurrentHistoryReaders['calibration'] = (_prefix, _messages, requested) => {
+        expect(requested).toEqual(target)
+        return {
+          selectedSources: [{ messageIndex: 0, entry: ancestor.messageEntry }],
+          candidates: [ancestor],
+        }
+      }
+      expect(authorizedCalibration(prefix, selected, target, source)).toMatchObject({
+        calibration: { kind: 'observation', usage: { input_tokens: 11 } },
+      })
+      expect(
+        authorizedCalibration(prefix, selected, target, () => ({ sourceUnavailable: true })),
+      ).toEqual({ calibration: { kind: 'none', reason: 'source_unavailable' } })
+      for (const changed of [
+        { ...ancestor, response: { ...candidate, call: { callId: 'call', runId: 'wrong-run' } } },
+        { ...ancestor, response: { ...candidate, attemptId: 2 } },
+        { ...ancestor, dispatchedEntry: { ...ancestor.dispatchedEntry, run: 'other-branch' } },
+        { ...ancestor, messageEntry: { ...ancestor.messageEntry, attempt: 1 } },
+      ])
+        expect(
+          authorizedCalibration(prefix, selected, target, () => ({
+            selectedSources: [{ messageIndex: 0, entry: ancestor.messageEntry }],
+            candidates: [changed],
+          })),
+        ).toEqual({ unavailable: true })
+      expect(
+        authorizedCalibration(prefix, selected, target, () => ({
+          selectedSources: [{ messageIndex: 0, entry: null }],
+          candidates: [ancestor],
+        })),
+      ).toEqual({ unavailable: true })
     })
   })
 })
