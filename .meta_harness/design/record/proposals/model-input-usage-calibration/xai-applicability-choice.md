@@ -7,3 +7,5 @@
 共享负责完整组/去重/来源/精确加总/full-new-φ；xAI负责格式与有限原record，型号只两组偏移和明确身份。后继definition5/pi-ai:xai mp4-19由主线发布协调；原3/4只解释合法已存事实，研究unbound候选和nativeReasoningTokens不升级成生产basis。上游实际identity映射若缺精确原件，相应guard保持unknown，不猜别名。
 
 765/image与低分辨率compaction证据不足以覆盖已声明图片域，独立保留gap；不缩供给目标、不借别家算法、不阻断opaque实现。图片真实估算/差分需另有事实采用。没有改变契约性质，不触发新TLA/Alloy；参数化负控及真实public/service三轮验证见提供者义务。独立评审和最终采用待发生。
+
+独立评审已完成，范围、精确基线与未验证项见[评审记录](xai-applicability-review.md)；本选择仍待主线采用。
