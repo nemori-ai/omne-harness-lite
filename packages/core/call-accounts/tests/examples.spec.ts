@@ -5,7 +5,7 @@ import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { judgeAccountValue, validate } from '../src/index.ts'
 import { examples } from './fixtures.ts'
 const spec = new URL(
-  '../../../../.meta_harness/design/spec/data/call-accounts/v2/',
+  '../../../../.meta_harness/design/spec/data/call-accounts/v3/',
   import.meta.url,
 )
 describe('V1/V2 frozen normative examples', () => {
@@ -31,7 +31,7 @@ describe('V1/V2 frozen normative examples', () => {
     const packaged = readFileSync(new URL('../schema/call-accounts.schema.json', import.meta.url))
     expect(packaged.equals(authoritative)).toBe(true)
     expect(createHash('sha256').update(packaged).digest('hex')).toBe(
-      'c79cbf51ada9314d83f8bd5fcb5a10b2ebbf855a59bddbe68bb3fdfeffc19511',
+      '2aaecc1c7c7586f48dd94866d856351a999acb47191bed0dcc9173632504be50',
     )
   })
 })

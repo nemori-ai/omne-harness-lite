@@ -14,7 +14,8 @@
     },
     "./schema": "./schema/model-profile.schema.json",
     "./schema/v2": "./schema/v2/model-profile.schema.json",
-    "./schema/v3": "./schema/v3/model-profile.schema.json"
+    "./schema/v3": "./schema/v3/model-profile.schema.json",
+    "./schema/v6": "./schema/v6/model-profile.schema.json"
   },
   "files": [
     "dist",

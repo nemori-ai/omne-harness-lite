@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.call-accounts v2: pure account admission and exact decimal evaluation",
+  "description": "data.call-accounts v3: pure account admission and exact decimal evaluation",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,11 +12,14 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/call-accounts.schema.json"
+    "./schema": "./schema/call-accounts.schema.json",
+    "./schema/v2": "./schema/v2/call-accounts.schema.json"
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",

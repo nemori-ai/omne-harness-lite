@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v2/call-accounts.schema.json",
-  "title": "data.call-accounts v2",
-  "description": "一次模型调用或一次工具执行的账：用量、费用、逐笔费用、砍了多少、事后补账。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.call-accounts/v2 内有效。",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v3/call-accounts.schema.json",
+  "title": "data.call-accounts v3",
+  "description": "一次模型调用或一次工具执行的账：用量、费用、逐笔费用、砍了多少、事后补账。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.call-accounts/v3 内有效。",
   "$comment": "状态 candidate，未接受、未冻结。Schema 管形状与一部分组合约束；另有几条组合约束 Schema 表达不了（reasoning_tokens ≤ output_tokens、总额恰等于各笔之和、同一 ResponseId 不镜像两次、endedAt ≥ startedAt、TrimSummary 的三式与帧数一式），contract.md S-27 把它们归入 malformed，由校验方在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是五个拒绝值里的哪一个按 S-27 的次序定。外部引用：Instant 取自 data.offer-expiry v1（S-22）；CallId 取自 data.content-blocks v2（S-14）；TenantId 与 ScopeLayerIdentity 取自 data.identity-values v1（S-5、S-11）。ResponseId 按 data.identity-values v1 S-31 的散文自写形状、不 $ref data.model-response（那份契约引用本契约，反向引用会成环），含义以 data.model-response/v2 S-6 为准。正反实例在同目录 examples.md。",
   "$defs": {
     "Unknown": {
