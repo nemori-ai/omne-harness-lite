@@ -1,6 +1,6 @@
 # xAI 两叶完整输出组贡献的有限适用性
 
-2026-09-29，revision 1，candidate，未采用/未实施，新增bindings 0。接续[D107完整输出组](v13-output-history-design.md)、[已采用共享家族机制](priority-family-output-cache-candidate.md)、[basis关系](image-preparation-basis-applicability-candidate.md)及[D108拒绝映射](v14-refusal-design.md)。RT10/MR9的estimated、完整组、来源、失效与贡献不可用表面足以表达；不升公共契约，不依赖ACK/T29，不新增框架、plugin或通用walker。
+2026-09-29，revision 2，candidate，未采用/未实施，新增bindings 0。接续[D107完整输出组](v13-output-history-design.md)、[已采用共享家族机制](priority-family-output-cache-candidate.md)、[basis关系](image-preparation-basis-applicability-candidate.md)及[D108拒绝映射](v14-refusal-design.md)。RT10/MR9的estimated、完整组、来源、失效与贡献不可用表面足以表达；不升公共契约，不依赖ACK/T29，不新增框架、plugin或通用walker。
 
 依据为[固定xAI窄研究](../../../../../research/model-request-adaptation/vendor-continuation/xai/2026-09-29-closeout-evidence.md)及其逐项SHA来源，原件已在HUB `bb992237d7a02d6074d9257f84b70e86e440bbc7`存在。本候选只从这些固定事实选择**有依据的估算**，不把native Responses回放或Grok Build密文字节估算写成OpenRouter的token等式。
 
@@ -33,7 +33,7 @@
 
 1. classifier三态沿共享接口：纯可见合法unit→visible；包含有效`xai-responses-v1` reasoning.summary（非空summary）或reasoning.encrypted（非空data）的完整assistant组→wholeGroup；未知format、无法解释的opaque或缺必要字段→uninterpretable/unavailable。不把false落进JSON/BPE去分词密文，不删除summary或任何原块来凑可见输入。共享source/摘要不一致仍先invalidInput/malformed，不能降级full绕过真实性。
 2. 完整组的块身份、选择顺序、同一assistant消息、全部原块可见、实际wire投影、工具domain callId及完整参数均由同一个共享组核验证；O仅合法非负整数且source=upstream。缺O、partial组、未知来源不可补造。存在同组多种reasoning+text+tool时只覆盖一次；多个完整组各计一次。
-3. 原origin.parameters.reasoningEffort与当前实际wire reasoning.effort分别限于缺席或low/medium/high，且二者必须相同（缺席只与缺席相等）。改变effort会使旧组本候选贡献unavailable，不能以新effort重解释原O；max_tokens变化不改变O解释，但原完整envelope变化依原C使I/φ失效而走full。xhigh/max/none不在本供应域，不暗改统一值含义。原字段缺席不猜默认；固定mode=OR chat wire承载xai-responses-v1，不声称这是native Chat直接回放ciphertext。
+3. 原origin.parameters.reasoningEffort与当前实际wire reasoning.effort分别限于缺席或low/medium/high，不要求二者相等。原O始终指原完整生成组；合法改变当前effort或max_tokens不改写这个原事实，也不单凭该变更禁止其estimated贡献。原完整envelope变化依共享C使I/φ失效，full重新核来源与完整组后独立应用原O；不把当前effort当原组的新mode，不主张xAI有未被证实的effort签名绑定。xhigh/max/none不在本供应域，不暗改统一值含义。原字段缺席不猜默认；固定mode=OR chat wire承载xai-responses-v1，不声称这是native Chat直接回放ciphertext。
 4. 原origin若有servingProvider或upstreamModel，须与实际response provenance一致，并命中实施前从固定真实原件提取的两模型有限身份映射；缺席不得被填成xai/路由名。未取得精确映射时相应组unavailable，不能以contains(grok)等宽匹配放行。模型ID/provider冲突为可判来源矛盾，先按既有接收拒绝；没有冲突但无法解释为unavailable。
 5. 本候选不声称xAI有Anthropic那种签名前缀核验契约，因此requiresSignedPrefix=false，不借用Anthropic签名facts。但模型/basis/原前缀实际变化仍按统一C使原I/φ失效；full需再次核完整组来源后才独立应用O。φ只在完整同一有效依据和合法追加前缀下复用I；unknown I不由O推导、unknown O不借I补造。输出组O可解释与输入I可复用分开。
 
@@ -47,13 +47,13 @@ Grok Build 765/image注释仅低分辨率compaction粗估，当前4MiB字节cap�
 
 | 义务 | 精确覆盖 |
 | --- | --- |
-| X1 有限表及发布 | 两模型逐字段factory导出表；新5/mp4-19当前实现，旧3/4仅原事实解释；未知revision/algorithm/provider/上游identity、跨模型/effort改变反控 |
+| X1 有限表及发布 | 两模型逐字段factory导出表；新5/mp4-19当前实现，旧3/4仅原事实解释；未知revision/algorithm/provider/上游identity、跨模型反控，合法effort改变仍full可估 |
 | X2 唯一组贡献 | full/new/φ参数化同一数值oracle；text+summary+encrypted+tool整组O一次，两个组、不相交I、O=0、reasoning不另加、margin一次；密文tokenizer调用零 |
 | X3 完整性与真实性 | partial/repeated/乱序/跨message/错误callId/参数不完整/坏摘要/篡改origin；可判伪造invalidInput，未知解释unavailable，full不绕源检查 |
 | X4 失效 | 模型、算法、effort、max_tokens、prepared历史投影变化分别检查；I失效时full独立O前提，φ只同有效basis，unknown I不重锚 |
 | X5 真实两入口 | 两叶公开独立invoke及真实Cordis service各三轮原回复回放；记录完整wire/source/basis/O/完整I/cache/cost、估计误差及局限；工具结果只配原真实callId；含stream与无第二send拒绝 |
 | X6 复用 | 原visible77/55测试、14 service TLS及六个upstream fit/holdout按精确源码与行为无影响复用；受控TLS/研究候选/旧明文holdout不能充新opaque真实认证 |
 
-low/medium/high供给已有，但当前原真实观察没有覆盖各effort的opaque二轮；采用同effort estimated策略不等于已验全域，认证需区分实际覆盖，至少每叶主路径真实三轮及各effort本地正反分支。上游更改实际身份/format时显式unknown，不能继续声称原认证有效。README/README_ZH同步能力、估算口径及图像剩余缺口。
+low/medium/high供给已有，但当前原真实观察没有覆盖各effort的opaque二轮；采用合法effort域estimated策略不等于已验全域，认证需区分实际覆盖，至少每叶主路径真实三轮及各effort本地正反分支。上游更改实际身份/format时显式unknown，不能继续声称原认证有效。README/README_ZH同步能力、估算口径及图像剩余缺口。
 
 无新状态机、持久关系或跨owner提交；不新增TLA/Alloy，以既有RT10形式性质和上述家族正反/真实差分承接。未执行新paid，最终采用及真实认证归主线。
