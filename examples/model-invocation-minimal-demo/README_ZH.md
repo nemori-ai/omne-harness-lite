@@ -88,6 +88,12 @@ Closed. Start again with the same --data path to resume.
 
 `openDemo(...).diagnostics.tenant` 与 `.local` 向受信本机宿主提供有界 `query`、`exportPage` 和 `health`。`close()` 先停止业务，再关闭诊断写端，返回 `complete`、`businessComplete`、诊断关闭结果和 transport 健康状态；未完成时保留同一 owner 并重试。关闭后只读句柄仍可用。这些工程记录与会话历史分离。
 
+工程日志读句柄在真实 Cordis 模型贡献热卸载和应用关闭后仍可使用。卸载先使注册进入退役，再等待在途调用宿主引用实际停止；仅发起卸载不代表已完成。若业务关闭后诊断 sink 仍在执行，关闭结果仍为未完成并报告待处理数量；等真实 sink 结束后，重试同一 owner。接受、写入、刷盘是不同水位：同步失败不能声称已刷盘，也不会撤销已持久化的会话回复。
+
+受信程序宿主可通过 `DemoDiagnosticConfig.journalFileSystem` 为两份工程日志提供文件系统，省略时使用 Node 文件系统。此入口用于开发故障注入和本地嵌入，CLI 不提供覆盖参数。诊断写入或同步失败时，业务回复保留在独立的会话日志中，关闭结果明确报告受影响的诊断组件。
+
+计量诊断只保存封闭投影：模式、回退、精度、预测与准入 tokens、有符号贡献、安全的 basis 修订及保留的来源前缀摘要，不包含 `configuration.values`。journal 在异步写入前取得冻结的自有副本，重开、查询和导出使用相同校验。collector 的 `planning` 阶段耗时涵盖完整规划边界及诊断投影，不能解释为纯 tokenizer 耗时。估算值不进入累计实际用量和账单。
+
 `createDemoDiagnosticConfig` 明确示例的限额；独立装配调用者可提供自己的完整 `DemoDiagnosticConfig`。当前、构造中、仍存活的旧代际与终态 transport 快照共用一个保留上限（示例配置为四）。新构造先预留容量，必要时淘汰终态快照；若上限被活跃 owner 占满则拒绝新构造。TTL 物理删除仅在 owner 活跃或再次打开维护时执行，不承诺进程缺席期间定时清理。
 
 ```ts
