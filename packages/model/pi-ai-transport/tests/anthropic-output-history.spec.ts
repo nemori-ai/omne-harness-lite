@@ -37,6 +37,16 @@ function response(model: string, id: string, kind: 'signed' | 'encrypted', tool 
                 ? { text: '', signature: `SIGNATURE_${id}` }
                 : { data: `CIPHER_${id}` }),
             },
+            ...(tool
+              ? [
+                  {
+                    type: 'reasoning.encrypted',
+                    format: 'anthropic-claude-v1',
+                    index: 1,
+                    data: `CIPHER_${id}`,
+                  },
+                ]
+              : []),
           ],
         }),
       },
@@ -211,6 +221,31 @@ describe.each(anthropicReplayModels)('$modelId complete output contribution', ro
     ).toBeGreaterThan(0)
   })
 
+  it('keeps an observed zero-O opaque-only new region estimated', async () => {
+    const first = await planned(request()),
+      a = response(row.modelId, 'zero-a', 'signed'),
+      ga = group(first, a, 1, 18)
+    const secondInput = {
+      ...request(),
+      messages: [...request().messages, a],
+      outputHistory: [ga],
+      calibration: observation(ga),
+    }
+    const second = await planned(secondInput),
+      b = response(row.modelId, 'zero-b', 'encrypted')
+    const observed = group(second, b, 2, 0)
+    const gb = { ...observed, usage: { ...observed.usage, reasoning_tokens: 0 } }
+    const current = await planned({
+      ...secondInput,
+      messages: [...secondInput.messages, b],
+      outputHistory: [ga, gb],
+    })
+    expect(current.measurement.mode).toBe('marginal')
+    if (current.measurement.mode !== 'marginal') throw Error('expected marginal fixture')
+    expect(current.measurement.newContribution.precision).toBe('estimated')
+    expect(ExactDecimal.from(current.measurement.newContribution.tokens).toString()).toBe('0')
+  })
+
   it('interprets a real retained original request basis without an old factory alias', async () => {
     const first = await planned(request()),
       a = response(row.modelId, 'original', 'signed'),
@@ -265,7 +300,7 @@ describe.each(anthropicReplayModels)('$modelId complete output contribution', ro
     ).toThrow()
   })
 
-  it('counts a complete signed text/tool output only once', async () => {
+  it('counts a complete signed/encrypted/text/tool output only once', async () => {
     const first = await planned(request()),
       a = response(row.modelId, 'tool', 'signed', true),
       ga = group(first, a, 1, 37)
@@ -302,6 +337,8 @@ describe.each(anthropicReplayModels)('$modelId complete output contribution', ro
     if (outcome.measurement.mode !== 'marginal') throw Error('marginal required')
     expect(outcome.measurement.replayContribution).toEqual({ precision: 'estimated', tokens: 37 })
     expect(writeJsonLossless(outcome.body)).toContain('weather')
+    expect(writeJsonLossless(outcome.body)).toContain('CIPHER_tool')
+    expect(writeJsonLossless(outcome.body)).toContain('SIGNATURE_tool')
   })
 
   it('keeps unknown O and unbacked opaque histories unavailable', async () => {
