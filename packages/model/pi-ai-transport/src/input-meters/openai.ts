@@ -14,7 +14,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { getEncoding } from 'js-tiktoken'
-import { imageSize } from 'image-size'
+import { imageTokens, type ImageRule } from './openai-images.ts'
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
@@ -23,136 +23,6 @@ import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 // does not establish a GPT-6 mapping. The separately calibrated GPT-6 path below
 // uses this encoding only as a surrogate and never claims tokenizer identity.
 // Source: openai/tiktoken 4e71bbe0c078468e00fefbf94b39849389f346e5/model.py.
-type ImageRule = 'patch' | 'unknown'
-type ImageDetail = 'low' | 'high' | 'original' | 'auto'
-const dataUrl =
-  /^data:(image\/(?:png|jpeg|webp|gif));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
-function expectedImageType(mime: string): string | undefined {
-  switch (mime) {
-    case 'image/png':
-      return 'png'
-    case 'image/jpeg':
-      return 'jpg'
-    case 'image/webp':
-      return 'webp'
-    case 'image/gif':
-      return 'gif'
-    default:
-      return undefined
-  }
-}
-
-// OpenAI's vision input list permits GIF only when it has one frame. image-size
-// reads GIF dimensions from the header, so inspect the block chain as well.
-function singleFrameGif(bytes: Buffer): boolean {
-  const version = bytes.toString('ascii', 0, 6)
-  if (bytes.length < 14 || (version !== 'GIF87a' && version !== 'GIF89a')) return false
-  let offset = 13
-  const screenFlags = bytes[10]
-  if (screenFlags === undefined) return false
-  if (screenFlags & 0x80) offset += 3 * 2 ** ((screenFlags & 0x07) + 1)
-  let frames = 0
-  function skipSubBlocks(): boolean {
-    while (offset < bytes.length) {
-      const size = bytes[offset++]
-      if (size === undefined) return false
-      if (size === 0) return true
-      offset += size
-      if (offset > bytes.length) return false
-    }
-    return false
-  }
-  while (offset < bytes.length) {
-    const marker = bytes[offset++]
-    if (marker === 0x3b) return frames === 1 && offset === bytes.length
-    if (marker === 0x21) {
-      if (offset >= bytes.length) return false
-      offset++ // extension label; all extension payloads are sub-block chains
-      if (!skipSubBlocks()) return false
-      continue
-    }
-    if (marker !== 0x2c || ++frames > 1 || offset + 9 > bytes.length) return false
-    const imageFlags = bytes[offset + 8]
-    if (imageFlags === undefined) return false
-    offset += 9
-    if (imageFlags & 0x80) offset += 3 * 2 ** ((imageFlags & 0x07) + 1)
-    if (offset >= bytes.length) return false
-    offset++ // LZW minimum code size
-    if (!skipSubBlocks()) return false
-  }
-  return false
-}
-
-/** Named GPT-5.6 base image rules; private route conversion still makes the total estimated. */
-function openAiBaseImageTokens(
-  width: number,
-  height: number,
-  detail: ImageDetail,
-): number | undefined {
-  if (
-    !Number.isSafeInteger(width) ||
-    !Number.isSafeInteger(height) ||
-    width <= 0 ||
-    height <= 0 ||
-    width > 65535 ||
-    height > 65535
-  )
-    return undefined
-
-  const maxDimension = detail === 'low' ? 512 : detail === 'high' ? 2048 : 65535
-  const pixelScale = Math.min(1, maxDimension / Math.max(width, height))
-  // The guide says to round the first fit to whole pixels without specifying
-  // a direction. Floor is this estimator's convention, not an upstream-exact claim.
-  let scaledWidth = pixelScale === 1 ? width : Math.floor(width * pixelScale)
-  let scaledHeight = pixelScale === 1 ? height : Math.floor(height * pixelScale)
-  if (scaledWidth < 1 || scaledHeight < 1) return undefined
-
-  let patches = Math.ceil(scaledWidth / 32) * Math.ceil(scaledHeight / 32)
-  if (detail === 'high' && patches > 2500) {
-    const shrink = Math.sqrt((32 * 32 * 2500) / (scaledWidth * scaledHeight))
-    const adjusted =
-      shrink *
-      Math.min(
-        Math.floor((scaledWidth * shrink) / 32) / ((scaledWidth * shrink) / 32),
-        Math.floor((scaledHeight * shrink) / 32) / ((scaledHeight * shrink) / 32),
-      )
-    scaledWidth = Math.floor(scaledWidth * adjusted)
-    scaledHeight = Math.floor(scaledHeight * adjusted)
-    if (scaledWidth < 1 || scaledHeight < 1) return undefined
-    patches = Math.ceil(scaledWidth / 32) * Math.ceil(scaledHeight / 32)
-  }
-  if (patches > 30000) return undefined
-  return Math.ceil((patches * 6) / 5)
-}
-
-function imageTokens(part: JsonObject, rule: ImageRule): number | undefined {
-  if (rule !== 'patch') return undefined
-  if (Object.keys(part).some(key => key !== 'type' && key !== 'image_url')) return undefined
-  const image = part.image_url
-  if (!object(image) || Object.keys(image).some(key => key !== 'url' && key !== 'detail'))
-    return undefined
-  if (
-    image.detail !== undefined &&
-    image.detail !== 'auto' &&
-    image.detail !== 'original' &&
-    image.detail !== 'low' &&
-    image.detail !== 'high'
-  )
-    return undefined
-  const match = typeof image.url === 'string' ? dataUrl.exec(image.url) : null
-  if (!match?.[1] || !match[2]) return undefined
-  const decoded = Buffer.from(match[2], 'base64')
-  if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
-  if (match[1] === 'image/gif' && !singleFrameGif(decoded)) return undefined
-  try {
-    const dimensions = imageSize(decoded)
-    if (dimensions.type !== expectedImageType(match[1])) return undefined
-    return openAiBaseImageTokens(dimensions.width, dimensions.height, image.detail ?? 'auto')
-  } catch {
-    return undefined
-  }
-}
-
 function sanitizedBody(
   body: JsonObject,
   rule: ImageRule,
@@ -224,10 +94,12 @@ function encoder(): ReturnType<typeof getEncoding> {
 
 function imageRuleFor(modelId: string): ImageRule | undefined {
   switch (modelId) {
+    case 'openai/gpt-6-astra':
+      return 'astra-patch'
     case 'openai/gpt-5.6-sol':
     case 'openai/gpt-5.6-terra':
     case 'openai/gpt-5.6-luna':
-      return 'patch'
+      return 'gpt56-patch'
     case 'openai/gpt-5.6-sol-pro':
     case 'openai/gpt-5.6-terra-pro':
     case 'openai/gpt-5.6-luna-pro':
@@ -303,13 +175,27 @@ function visibleHistoryTokens(
   )
     return undefined
 
-  for (const message of body.messages) {
+  const rule = imageRuleFor(modelId) ?? 'unknown'
+  const projected = sanitizedBody(body, rule)
+  if (!projected || !Array.isArray(projected.body.messages)) return undefined
+  for (const message of projected.body.messages) {
     if (!object(message) || typeof message.role !== 'string') return undefined
     switch (message.role) {
       case 'system':
       case 'developer':
-      case 'user':
         if (!onlyKeys(message, ['role', 'content']) || !visibleTextParts(message.content))
+          return undefined
+        break
+      case 'user':
+        if (
+          !onlyKeys(message, ['role', 'content']) ||
+          !Array.isArray(message.content) ||
+          !message.content.every(
+            part =>
+              visibleTextParts([part]) ||
+              (rule === 'astra-patch' && object(part) && part.type === 'image_url'),
+          )
+        )
           return undefined
         break
       case 'assistant':
@@ -362,7 +248,7 @@ function visibleHistoryTokens(
         return undefined
     }
 
-  return tokenizer.encode(writeJsonLossless(body)).length
+  return tokenizer.encode(writeJsonLossless(projected.body)).length + projected.imageTokens
 }
 
 /** Model-specific estimates; private OpenRouter/OpenAI formatting remains uncertain. */
@@ -431,7 +317,7 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
       }
     },
   })
-  return withEstimatedJsonMarginals(meter, input => {
+  const marginal = withEstimatedJsonMarginals(meter, input => {
     if (!gpt6VisibleHistory) return fullJsonMarginal(meter, input)
     if (!input.units.length) return { kind: 'exact', tokens: 0 }
     const { tools: _tools, ...envelope } = input.envelope
@@ -448,4 +334,10 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
             tokens - tokenizer.encode(writeJsonLossless({ ...envelope, messages: [] })).length,
         }
   })
+  return definition.modelId === 'openai/gpt-6-astra'
+    ? defineInputMeter({
+        ...marginal,
+        replayRevision: 'openai-gpt-6-astra-visible-image-units-json-net-estimated/1',
+      })
+    : marginal
 }

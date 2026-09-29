@@ -70,8 +70,9 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       const lunaHistoryMetered = modelId === 'openai/gpt-6-luna'
       expect(definition.implementation).toEqual({
         name: 'pi-ai:openai',
-        revision:
-          astraTextMetered || gpt6ProMetered
+        revision: astraTextMetered
+          ? 'mp4-10'
+          : gpt6ProMetered
             ? 'mp4-8'
             : pro
               ? 'mp4-7'
@@ -87,7 +88,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
         gpt6ProMetered
           ? '3'
           : astraTextMetered
-            ? '2'
+            ? '3'
             : pro
               ? metered
                 ? '5'

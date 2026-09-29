@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -328,7 +327,7 @@ describe('Astra current official full/replay/new surrogate', () => {
       await host.close()
     }
   })
-  it('rejects unsupported opaque/images and excess margin before public HTTP without deleting history', async () => {
+  it('rejects unsupported opaque/bad images and excess margin before public HTTP without deleting history', async () => {
     const meter = createOpenAiInputMeter(definition)
     const seen: string[] = []
     const host = await fixture(cert.tls, res => res.end(finish()), {}, undefined, [definition])
@@ -378,9 +377,7 @@ describe('Astra current official full/replay/new surrogate', () => {
             kind: 'image',
             mediaType: 'image/png',
             data: {
-              inline: readFileSync(
-                new URL('./fixtures/openai-meter/1x1.png', import.meta.url),
-              ).toString('base64'),
+              inline: Buffer.from('invalid image header').toString('base64'),
             },
             visibility: { toHuman: true, toModel: true },
           },

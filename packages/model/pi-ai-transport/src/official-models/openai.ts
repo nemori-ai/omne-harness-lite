@@ -141,12 +141,12 @@ export const openaiFinalVisibleBindings: Readonly<
       'OpenRouter OpenAI GPT-6 Luna own low-effort visible text/tool/reminder observations (2026-09-28): old messages/tools proxy 126/302/410 versus actual input 70/178/236; those observations remain attached to the prior algorithm. OpenAI reasoning guide and OpenRouter GPT-6 migration guide (2026-09-29) separate effort from mode; complete final visible JSON with declared Luna efforts or omitted effort is an estimated protocol applicability inference, not GPT-6 tokenizer identity, private framing proof, error bound or live per-effort certification',
   }),
   'openai/gpt-6-astra': Object.freeze({
-    revision: '2',
-    implementationRevision: 'mp4-8',
+    revision: '3',
+    implementationRevision: 'mp4-10',
     efforts: astra.parameters.reasoningEffort.accepted.values,
-    algorithmRevision: 'openai-gpt-6-astra-final-visible-json-o200k-1',
+    algorithmRevision: 'openai-gpt-6-astra-final-visible-json-o200k-patches-1',
     evidence:
-      'OpenRouter OpenAI GPT-6 Astra own low-effort baseline (2026-09-28): text o200k surrogate 25, actual prompt_tokens 39; OpenRouter GPT-6 migration guide (2026-09-29) establishes shared Chat API and Astra effort domain; full final visible JSON framing/tools/controls is an estimated applicability inference, not model tokenizer identity, fitted +14 overhead, error bound, or completed multi-turn/effort certification',
+      'OpenRouter OpenAI GPT-6 Astra own low-effort baseline (2026-09-28): text o200k surrogate 25, actual prompt_tokens 39; OpenRouter GPT-6 migration guide (2026-09-29) establishes shared Chat API and Astra effort domain; full final visible JSON framing/tools/controls is an estimated applicability inference, not model tokenizer identity, fitted +14 overhead, error bound, or completed multi-turn/effort certification; archived OpenAI images-vision guide (2026-09-28), image-doc.md SHA256 4936284cccfc38f22281d6a698b6f190ccc857849ea8dc533ed68617984b608d: Astra 32px patches times 1.2, low 512px, high 65535px/2500 patches, original/auto 65535px and reject above 30000 processed patches; actual provider preprocessing remains estimated',
   }),
   'openai/gpt-6-astra-pro': Object.freeze({
     revision: '3',
