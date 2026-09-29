@@ -11,8 +11,16 @@ import {
 } from '@omne-harness-lite/session-log-jsonl'
 import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { AnchoredInvocationInput } from '../src/anchored-invocation-types.ts'
-import type { PlannedSemantics, TransportAdapter, StreamEnd, SendResult } from '../src/types.ts'
-import { request, policy as invokePolicy, content } from './invoke-policy-fixture.ts'
+import type { PlannedSemantics, TransportAdapter, SendResult } from '../src/types.ts'
+import {
+  request,
+  policy as invokePolicy,
+  content,
+  fixturePlan,
+  fixtureProjection,
+  fixtureReadFacts,
+  type FixtureEnd,
+} from './invoke-policy-fixture.ts'
 import { ControlledSettlementOwner, noWaitScheduler, policy } from './settlement-fixture.ts'
 
 export function deferred<T>() {
@@ -31,7 +39,7 @@ export function transport(
   options: {
     readonly beforeSend?: () => Promise<void>
     readonly stop?: () => Promise<void>
-    readonly end?: StreamEnd
+    readonly end?: FixtureEnd
     readonly sent?: SendResult<object>
     readonly afterContent?: () => Promise<void>
   } = {},
@@ -44,12 +52,12 @@ export function transport(
     plan(input) {
       plans++
       plan = Object.freeze({
-        input,
-        parameters: input.parameters,
+        ...fixturePlan(input),
         body: Object.freeze({ originalBytes: 'unchanged' }),
       })
       return { planned: plan }
     },
+    projectOutput: fixtureProjection,
     async send(planned) {
       if (planned !== plan) throw new Error('replanned or copied wire body')
       sends++
@@ -59,19 +67,20 @@ export function transport(
     async *read(_response, _planned, signal) {
       try {
         for (const event of content()) {
-          if (signal.aborted) return { aborted: true }
+          if (signal.aborted) return { aborted: true, readFacts: fixtureReadFacts() }
           yield event
           if (event.t === 'fill') await options.afterContent?.()
         }
-        return (
-          options.end ?? {
+        return {
+          ...(options.end ?? {
             ended: 'end',
             stopReason: 'stop',
             servingProvider: 'actual-provider',
             upstreamModel: 'actual-model',
             upstreamRequestId: 'actual-id',
-          }
-        )
+          }),
+          readFacts: fixtureReadFacts(),
+        }
       } finally {
         await options.stop?.()
         stopped++

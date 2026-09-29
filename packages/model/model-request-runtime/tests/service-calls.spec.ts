@@ -488,6 +488,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       },
       identities: { call: () => `call_${++next}` },
       history: {
+        calibration: () => ({ noObservation: true }),
         call: (prefix: Parameters<typeof interpretCallHistory>[0]['prefix'], callId: string) =>
           forceResumable && callId === 'call_1'
             ? {

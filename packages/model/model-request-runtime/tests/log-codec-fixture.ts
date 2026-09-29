@@ -113,6 +113,11 @@ export const response: JsonObject = {
     cache_write_tokens: 0,
     source: 'upstream',
   },
+  inputCalibration: {
+    requestInput: { kind: 'unavailable', reason: 'not_retained' },
+    observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+    outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+  },
   cost: {
     cost_usd: new LosslessNumber('0.0000000000000000000000000310'),
     source: 'upstream_usage',

@@ -125,6 +125,7 @@ describe('MR8 anchored interruption construction', () => {
       dispatched: original,
       planned,
       observed: null,
+      sendState: 'send_unknown',
       firstTokenAt: null,
       endedAt: '2026-09-27T00:00:02Z',
       initiator: 'run_cancelled',
@@ -143,6 +144,7 @@ describe('MR8 anchored interruption construction', () => {
         dispatched: original,
         planned: { ...planned, parameters: original.parameters },
         observed: null,
+        sendState: 'send_unknown',
         firstTokenAt: null,
         endedAt: '2026-09-27T00:00:02Z',
         initiator: 'run_cancelled',
@@ -152,6 +154,11 @@ describe('MR8 anchored interruption construction', () => {
   it('preserves actual source facts and rejects reversed known timing', () => {
     const observed = {
       sentAt: '2026-09-27T00:00:00Z',
+      inputCalibration: {
+        requestInput: { kind: 'unavailable', reason: 'not_retained' },
+        observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+        outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+      } as const,
       usage: {
         input_tokens: 0,
         output_tokens: 1,

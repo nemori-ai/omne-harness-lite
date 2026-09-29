@@ -147,8 +147,13 @@ export function authorizedCalibration(
       )
         return { unavailable: true }
       const history = interpretCallHistory({ prefix, callId: target.callId })
+      const latest = 'known' in history ? history.known.dispatches.at(-1) : undefined
       if (
         !('known' in history) ||
+        latest === undefined ||
+        ExactDecimal.from(latest.ordinal)
+          .add(ExactDecimal.from(1))
+          .compare(ExactDecimal.from(target.dispatch)) !== 0 ||
         !history.known.dispatches.some(
           item =>
             ExactDecimal.from(item.ordinal).compare(ordinal) === 0 &&
@@ -160,6 +165,18 @@ export function authorizedCalibration(
         return { unavailable: true }
       priorDispatch = ordinal
     } else return { unavailable: true }
+    if (!Array.isArray(candidate.replaySelection)) return { unavailable: true }
+    for (const selection of candidate.replaySelection) {
+      if (
+        !Number.isSafeInteger(selection.sourceBlockIndex) ||
+        selection.sourceBlockIndex < 0 ||
+        !Number.isSafeInteger(selection.messageIndex) ||
+        selection.messageIndex < 0 ||
+        !Number.isSafeInteger(selection.blockIndex) ||
+        selection.blockIndex < 0
+      )
+        return { unavailable: true }
+    }
     const observation = candidate.response.inputCalibration.observedInput
     const request = candidate.response.inputCalibration.requestInput
     const group = candidate.response.inputCalibration.outputGroup
@@ -176,7 +193,6 @@ export function authorizedCalibration(
           ? candidate.response.delivered
           : []
     if (outputBlocks === undefined) return { unavailable: true }
-    if (!Array.isArray(candidate.replaySelection)) return { unavailable: true }
     const mapped = new Set<string>()
     for (const selection of candidate.replaySelection) {
       const message = messages[selection.messageIndex]

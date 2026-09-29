@@ -81,6 +81,7 @@ function construction(
     },
     history: {
       call: () => ({ unavailable: true, reason: 'history' }),
+      calibration: () => ({ sourceUnavailable: true }),
       failure: () => ({ unavailable: true }),
       run: () => ({ unavailable: true }),
     },
@@ -169,6 +170,7 @@ describe('D102 unified model runtime owner', () => {
         },
         history: {
           call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+          calibration: () => ({ sourceUnavailable: true }),
           failure: () => ({ unavailable: true }),
           run: () => ({ unavailable: true }),
         },

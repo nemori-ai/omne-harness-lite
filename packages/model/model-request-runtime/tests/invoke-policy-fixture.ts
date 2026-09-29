@@ -7,6 +7,7 @@ import {
   type InvocationPolicy,
   type PlanInput,
   type PlannedSemantics,
+  type ReadFacts,
   type SendResult,
   type StreamEnd,
   type TransportAdapter,
@@ -16,6 +17,7 @@ export function request(): PlanInput {
   const call = parseOpaqueIdentifier('policy-call', 'ModelCallId')
   if (!('ok' in call)) throw new Error('call')
   return {
+    calibration: { kind: 'none', reason: 'no_observation' },
     tokenMargin: { multiplier: 1, reserveTokens: 0 },
     target: { kind: 'model_call', callId: call.ok, dispatch: 1 },
     routeName: 'teaching/model',
@@ -42,6 +44,50 @@ export function request(): PlanInput {
       },
       updatedAt: '2026-09-28T00:00:00Z',
     },
+  }
+}
+export function fixturePlan(input: PlanInput): PlannedSemantics {
+  return {
+    input,
+    parameters: input.parameters,
+    requestInput: { kind: 'unavailable', reason: 'not_retained' },
+    measurement: {
+      mode: 'full',
+      fallbackReason: 'no_observation',
+      precision: 'estimated',
+      predictedInput: 0,
+      admissionTokens: 0,
+      fullContribution: { tokens: 0, precision: 'estimated' },
+      basis: {
+        binding: input.snapshot.adaptation,
+        model: input.routeName,
+        provider: input.provider,
+        tokenizerRevision: 'fixture',
+        meterRevision: 'fixture',
+        projectionRevision: 'fixture',
+        replayRevision: 'fixture',
+        transformRevision: 'fixture',
+      },
+    },
+  }
+}
+export const fixtureProjection = () => ({ unavailable: true }) as const
+export type FixtureEnd<T = StreamEnd> = T extends StreamEnd ? Omit<T, 'readFacts'> : never
+export function fixtureReadFacts(events: readonly ArrivalEvent[] = content()): ReadFacts {
+  const account = events.findLast(event => event.t === 'account')
+  return {
+    usage:
+      account?.t === 'account'
+        ? account.usage
+        : {
+            input_tokens: 'unknown',
+            output_tokens: 'unknown',
+            cache_read_tokens: 'unknown',
+            cache_write_tokens: 'unknown',
+            source: 'none',
+          },
+    cost: account?.t === 'account' ? account.cost : { cost_usd: 'unknown', source: 'none' },
+    observedInput: { kind: 'unavailable', reason: 'missing_usage' },
   }
 }
 export function policy(diagnostic: InvocationPolicy['diagnostic'] = () => {}): InvocationPolicy {
@@ -93,7 +139,7 @@ export function adapter(
   options: {
     sent?: SendResult<object>
     events?: readonly ArrivalEvent[]
-    end?: StreamEnd
+    end?: FixtureEnd
     pause?: () => Promise<void>
     stopped?: () => Promise<void>
   } = {},
@@ -103,7 +149,8 @@ export function adapter(
     stopped = 0
   let lastSignal: AbortSignal | undefined
   const transport: TransportAdapter<PlannedSemantics, object> = {
-    plan: input => ({ planned: { input, parameters: input.parameters } }),
+    plan: input => ({ planned: fixturePlan(input) }),
+    projectOutput: fixtureProjection,
     async send(_planned, _credential, signal) {
       sends++
       lastSignal = signal
@@ -112,12 +159,16 @@ export function adapter(
     },
     async *read(_response, _planned, signal) {
       reads++
+      const events = options.events ?? content()
+      const readFacts = fixtureReadFacts(events)
       try {
-        for (const event of options.events ?? content()) {
-          if (signal.aborted) return { aborted: true }
+        for (const event of events) {
+          if (signal.aborted) return { aborted: true, readFacts }
           yield event
         }
-        return signal.aborted ? { aborted: true } : (options.end ?? { ended: 'end' })
+        return signal.aborted
+          ? { aborted: true, readFacts }
+          : { ...(options.end ?? { ended: 'end' }), readFacts }
       } finally {
         await options.stopped?.()
         stopped++

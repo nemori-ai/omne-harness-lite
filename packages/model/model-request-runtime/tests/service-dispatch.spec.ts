@@ -297,6 +297,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       },
       history: {
         call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+        calibration: () => ({ sourceUnavailable: true }),
         failure: (prefix, callId) => {
           const found = interpretCallHistory({ prefix, callId })
           const last = 'known' in found ? found.known.dispatches.at(-1) : undefined

@@ -925,6 +925,11 @@ describe('S-33 noRun recovered full-prefix read', () => {
             return {
               facts: {
                 sentAt: '2026-09-27T00:00:00Z',
+                inputCalibration: {
+                  requestInput: { kind: 'unavailable', reason: 'not_retained' },
+                  observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+                  outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+                },
                 upstreamRequestId: 'actual-upstream-request',
                 usage: {
                   input_tokens: 0,

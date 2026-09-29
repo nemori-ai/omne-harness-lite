@@ -70,6 +70,7 @@ function construction(
     },
     history: {
       call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+      calibration: () => ({ sourceUnavailable: true }),
       failure() {
         return { unavailable: true }
       },

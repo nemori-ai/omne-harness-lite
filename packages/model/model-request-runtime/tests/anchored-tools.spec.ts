@@ -6,6 +6,7 @@ import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import type { PlannedSemantics, TransportAdapter } from '../src/types.ts'
 import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
 import { harness, payload, transport } from './anchored-invocation-fixture.ts'
+import { fixturePlan, fixtureProjection, fixtureReadFacts } from './invoke-policy-fixture.ts'
 
 const tool: ModelToolEntry = {
   name: 'lookup__exact',
@@ -47,8 +48,9 @@ describe('anchored noRun tool definitions and history', () => {
         plan(input) {
           observed.push('plan')
           expect(input.tools).toEqual([tool])
-          return { planned: { input, parameters: input.parameters } }
+          return { planned: fixturePlan(input) }
         },
+        projectOutput: fixtureProjection,
         async send() {
           observed.push('send')
           sends++
@@ -57,7 +59,7 @@ describe('anchored noRun tool definitions and history', () => {
         },
         async *read() {
           for (const event of toolCall()) yield event
-          return { ended: 'end' }
+          return { ended: 'end', readFacts: fixtureReadFacts([]) }
         },
       }
       const first = createAnchoredModelInvocation({
@@ -137,6 +139,7 @@ describe('anchored noRun tool definitions and history', () => {
             expect(input.messages).toEqual([assistant.ok, result.ok])
             return secondTransport.adapter.plan(input)
           },
+          projectOutput: fixtureProjection,
         },
       })
       expect(await second.outcome).toHaveProperty('replyPending')
@@ -196,12 +199,13 @@ describe('anchored noRun tool definitions and history', () => {
             expect(input.messages).toEqual([assistant.ok])
             return { rejected: 'orphan_tool_call' }
           },
+          projectOutput: fixtureProjection,
           async send() {
             sends++
             return { response: {} }
           },
           async *read() {
-            return { ended: 'end' }
+            return { ended: 'end', readFacts: fixtureReadFacts([]) }
           },
         },
       })
