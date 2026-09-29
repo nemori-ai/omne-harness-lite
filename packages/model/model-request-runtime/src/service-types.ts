@@ -339,11 +339,18 @@ export type ReadAttemptsResult =
   | ServiceCallNotFound
   | ServiceUnavailable
 
+/** The actual runner execution, not the attempt of the original model dispatch. */
+export interface ModelFailureExecution {
+  readonly run: RunId
+  readonly attempt: AttemptId
+}
+
 /** Transient, non-serializable proof from the same authorized failure read. */
 export interface ModelFailureSource {
   readonly subject: AfterModelCallFailureSubject
   readonly verify: (
     subject: AfterModelCallFailureSubject,
+    execution: ModelFailureExecution,
   ) =>
     | { readonly authoritativeSubject: AfterModelCallFailureSubject }
     | { readonly invalidInput: true }

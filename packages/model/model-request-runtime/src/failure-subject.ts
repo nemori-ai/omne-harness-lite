@@ -2,11 +2,21 @@ import {
   validate as validateLoop,
   type AfterModelCallFailureSubject,
 } from '@omne-harness-lite/loop-extension'
-import { ExactDecimal, type ModelCallId } from '@omne-harness-lite/call-accounts'
+import {
+  ExactDecimal,
+  judgeAccountValue,
+  type ModelCallId,
+  type RunId,
+} from '@omne-harness-lite/call-accounts'
 import { copyJsonValue, isJsonNumber } from '@omne-harness-lite/content-blocks'
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { modelLogJsonEqual } from './log-codec.ts'
-import type { CallHistoryDispatch } from './call-history.ts'
-import type { CurrentHistoryReaders, ModelFailureSource } from './service-types.ts'
+import { interpretCallHistory, type CallHistoryDispatch } from './call-history.ts'
+import type {
+  CurrentHistoryReaders,
+  ModelFailureExecution,
+  ModelFailureSource,
+} from './service-types.ts'
 import { settlementGenerationCurrent, type SettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementOwner } from './settlement-types.ts'
 
@@ -85,12 +95,49 @@ export function readFailureSubject(input: {
 /** The returned source owns a fixed value/prefix until explicit release or host revocation. */
 export function createModelFailureSource(input: {
   readonly prefix: SettlementPrefix
+  readonly callId: ModelCallId
   readonly owner: SettlementOwner
   readonly subject: AfterModelCallFailureSubject
   readonly usable: () => boolean
   readonly retain: (source: ModelFailureSource) => void
   readonly forget: (source: ModelFailureSource) => void
 }): ModelFailureSource | null {
+  const history = interpretCallHistory({ prefix: input.prefix, callId: input.callId })
+  if (!('known' in history) || history.known.phase !== 'awaiting_decision') return null
+  const checkedHistory = readFailureSubject({
+    prefix: input.prefix,
+    callId: input.callId,
+    dispatches: history.known.dispatches,
+    source: () => ({ subject: input.subject }),
+  })
+  if (!('subject' in checkedHistory)) return null
+  let originalRun: RunId | undefined
+  for (const [index, dispatch] of history.known.dispatches.entries()) {
+    const shell = dispatch.dispatched
+    if (
+      (shell.run === undefined) !== (shell.attempt === undefined) ||
+      (shell.run !== undefined && !('ok' in judgeAccountValue('RunId', shell.run))) ||
+      (shell.attempt !== undefined && !('ok' in judgeAccountValue('AttemptId', shell.attempt)))
+    )
+      return null
+    if (index === 0) originalRun = shell.run
+    else if (shell.run !== originalRun) return null
+    if (dispatch.response !== null) {
+      const response = judgeModelResponse(dispatch.response.value)
+      if (!('ok' in response)) return null
+      // The response validator established this full value before the typed projection.
+      const value = dispatch.response.value as unknown as ModelResponse
+      if (
+        value.call.callId !== input.callId ||
+        value.call.runId !== shell.run ||
+        (value.attemptId === undefined) !== (shell.attempt === undefined) ||
+        (value.attemptId !== undefined &&
+          shell.attempt !== undefined &&
+          ExactDecimal.from(value.attemptId).compare(ExactDecimal.from(shell.attempt)) !== 0)
+      )
+        return null
+    }
+  }
   const copied = copyJsonValue(input.subject)
   if ('failed' in copied || !validateLoop('AfterModelCallFailureSubject', copied.ok).valid)
     return null
@@ -106,7 +153,10 @@ export function createModelFailureSource(input: {
   let prefix: SettlementPrefix | undefined = input.prefix
   const source: ModelFailureSource = Object.freeze({
     subject,
-    verify(candidate: AfterModelCallFailureSubject): ReturnType<ModelFailureSource['verify']> {
+    verify(
+      candidate: AfterModelCallFailureSubject,
+      execution: ModelFailureExecution,
+    ): ReturnType<ModelFailureSource['verify']> {
       try {
         if (
           prefix === undefined ||
@@ -118,6 +168,15 @@ export function createModelFailureSource(input: {
       } catch {
         return { unavailable: true }
       }
+      if (
+        !object(execution) ||
+        Object.keys(execution).length !== 2 ||
+        !('ok' in judgeAccountValue('RunId', execution.run)) ||
+        !('ok' in judgeAccountValue('AttemptId', execution.attempt)) ||
+        originalRun === undefined ||
+        execution.run !== originalRun
+      )
+        return { invalidInput: true }
       const checked = copyJsonValue(candidate)
       if (
         'failed' in checked ||

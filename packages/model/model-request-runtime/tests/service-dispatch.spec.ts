@@ -533,12 +533,15 @@ test('service dispatch writes both anchors before handing out a complete pending
     })
     if (consumedFailure.consumption.kind !== 'failure') throw new Error('failure source absent')
     const failureSource = consumedFailure.consumption.source
+    const attemptedRun = { run: 'invented-run', attempt: 1 }
     if (!('failureSubject' in failed)) throw new Error('failed result missing subject')
     expect(failed.failureSubject).toBe(failureSource.subject)
-    expect(failureSource.verify(failureSource.subject)).toHaveProperty('authoritativeSubject')
-    expect(failureSource.verify({ ...failureSource.subject, failure: 'request_rejected' })).toEqual(
-      { invalidInput: true },
-    )
+    expect(failureSource.verify(failureSource.subject, attemptedRun)).toEqual({
+      invalidInput: true,
+    })
+    expect(
+      failureSource.verify({ ...failureSource.subject, failure: 'request_rejected' }, attemptedRun),
+    ).toEqual({ invalidInput: true })
     const reads = createRuntimeReads(runtime)
     const callKey = { session: host.session, callId: 'actual-call-3' }
     expect(await reads.methods.readAttempts(callKey)).toMatchObject({
@@ -551,9 +554,9 @@ test('service dispatch writes both anchors before handing out a complete pending
     const readSource = fromRead.consumption.source
     if (!('failureSubject' in fromRead.result)) throw new Error('read result missing subject')
     expect(fromRead.result.failureSubject).toBe(readSource.subject)
-    expect(readSource.verify(readSource.subject)).toHaveProperty('authoritativeSubject')
+    expect(readSource.verify(readSource.subject, attemptedRun)).toEqual({ invalidInput: true })
     expect(await reads.close()).toEqual({ released: true })
-    expect(readSource.verify(readSource.subject)).toEqual({ unavailable: true })
+    expect(readSource.verify(readSource.subject, attemptedRun)).toEqual({ unavailable: true })
     expect(
       engineering.some(
         item =>
@@ -606,10 +609,12 @@ test('service dispatch writes both anchors before handing out a complete pending
     })
     expect(sendCount).toBe(3)
     // A later legitimate append does not invalidate the captured prefix.
-    expect(failureSource.verify(failureSource.subject)).toHaveProperty('authoritativeSubject')
+    expect(failureSource.verify(failureSource.subject, attemptedRun)).toEqual({
+      invalidInput: true,
+    })
     failureSource.release()
     failureSource.release()
-    expect(failureSource.verify(failureSource.subject)).toEqual({ unavailable: true })
+    expect(failureSource.verify(failureSource.subject, attemptedRun)).toEqual({ unavailable: true })
     expect(evaluationReads).toBe(7)
     const afterRetry = await host.log.readSince(host.session, 0)
     if (!('entries' in afterRetry)) throw new Error('log read')

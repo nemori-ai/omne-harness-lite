@@ -912,6 +912,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
               if (onFailure !== undefined) {
                 const source = createModelFailureSource({
                   prefix: prefix.prefix,
+                  callId: key.callId,
                   owner: view.owner,
                   subject: subject.subject,
                   usable: () =>

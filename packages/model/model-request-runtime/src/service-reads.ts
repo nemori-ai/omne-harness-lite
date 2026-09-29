@@ -277,6 +277,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
         if (!requested) return { result }
         const source = createModelFailureSource({
           prefix,
+          callId: input.callId,
           owner: binding.selection.owner,
           subject: subject.subject,
           usable: () =>
