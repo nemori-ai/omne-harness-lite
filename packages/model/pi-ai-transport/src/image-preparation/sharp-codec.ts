@@ -6,6 +6,7 @@ import type {
   DecodedImage,
   ImageEncodeSpec,
   ImageMetadata,
+  ImageOutputFormat,
   LoadedImageCodec,
 } from './types.ts'
 
@@ -78,12 +79,24 @@ function orientation(value: number | undefined): ImageMetadata['orientation'] | 
 export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCodec {
   if (typeof loadedSharp !== 'function' || loadedSharp.versions.sharp !== '0.35.3')
     throw new TypeError('Expected explicitly loaded sharp 0.35.3')
-  const revision = `sharp-rgba8-srgb-exif/1:${JSON.stringify([Object.entries(loadedSharp.versions).sort(([a], [b]) => a.localeCompare(b)), process.platform, process.arch])}`
+  const inputMediaTypes = [
+    { mediaType: 'image/png', available: loadedSharp.format.png.input.buffer },
+    { mediaType: 'image/jpeg', available: loadedSharp.format.jpeg.input.buffer },
+    { mediaType: 'image/webp', available: loadedSharp.format.webp.input.buffer },
+    { mediaType: 'image/gif', available: loadedSharp.format.gif.input.buffer },
+  ]
+    .filter(format => format.available)
+    .map(format => format.mediaType)
+  const desiredOutputs: ImageOutputFormat[] = ['png', 'jpeg', 'webp']
+  const outputFormats = desiredOutputs.filter(format => loadedSharp.format[format].output.buffer)
+  if (!inputMediaTypes.length || !outputFormats.length)
+    throw new TypeError('Loaded sharp has no supported buffer codec')
+  const revision = `sharp-rgba8-srgb-exif/1:${JSON.stringify([Object.entries(loadedSharp.versions).sort(([a], [b]) => a.localeCompare(b)), process.platform, process.arch, inputMediaTypes, outputFormats])}`
   return {
     name: 'sharp',
     revision,
-    inputMediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
-    outputFormats: ['png', 'jpeg', 'webp'],
+    inputMediaTypes,
+    outputFormats,
     available: () => true,
     async inspect(bytes, limits) {
       if (
