@@ -12,7 +12,7 @@ This is an experimental, private workspace package, currently not published on n
 
 | Public API                                         | Purpose                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `judgeAccountValue`, `validate`; `./schema`        | Complete accounting judgment, shape validation and v2 Schema                           |
+| `judgeAccountValue`, `validate`; `./schema`        | Complete accounting judgment, shape validation and v3 Schema                           |
 | `ExactDecimal`                                     | Exact `from`, `add`, `compare`, `isInteger`, `toString`, `toJsonNumber`                |
 | `prepareAccountGroup`, `AccountGroup`, `summarize` | Admit a complete owned group before authoritative cost projection                      |
 | `effectiveCost`                                    | Apply only the corrections belonging to one explicit model/tool target                 |
@@ -130,3 +130,21 @@ pnpm --filter @omne-harness-lite/call-accounts run test
 ```
 
 Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
+
+The default public entry and `./schema` adopt `data.call-accounts/v3`. `./schema/v2` retains the exact normative CA2 bytes for pinned references in the current dependency graph; it has no executable versioned entry. The actual read owner first selects confirmed final, otherwise complete ready facts, for each ResponseId within one authorized Session source prefix, then supplies one explicit model account per response. `summarize` does not query logs, deduplicate CallKey or select ready/final: passing both accounts for one response fails with `duplicate_account`. Corrections still target the original ResponseId; absent late on ready does not establish timeliness. Unknown access, source or ready payload must be resolved by the read owner, without omission or zero substitution.
+
+### Import the current and pinned dependency schemas
+
+```ts
+import assert from 'node:assert/strict'
+import current from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
+import pinned from '@omne-harness-lite/call-accounts/schema/v2' with { type: 'json' }
+import { schemaId } from '@omne-harness-lite/call-accounts'
+
+assert.equal(schemaId, current.$id)
+assert.ok(current.$id.includes('/call-accounts/v3/'))
+assert.ok(pinned.$id.includes('/call-accounts/v2/'))
+assert.deepEqual(current.$defs, pinned.$defs)
+```
+
+Adoption and mapping: [D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md), [CA3](../../../.meta_harness/design/spec/data/call-accounts/v3/contract.md), [provider](../../../.meta_harness/design/realization/packages/core/call-accounts/v3-design.md). Verification: [CA3 explicit inputs](tests/v3.spec.ts) and [normative examples](tests/examples.spec.ts). Actual source selection, access and durable recovery remain composition obligations.

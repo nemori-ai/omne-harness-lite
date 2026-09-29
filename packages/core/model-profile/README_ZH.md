@@ -125,8 +125,23 @@ JSON Schema 通过 `@omne-harness-lite/model-profile/schema` 公开。参见[源
 默认入口与 Schema 采用 `data.model-profile/v5`；当前档案必须提供全部必填事实。逐字保留的 `./schema/v2` 与 `./schema/v3` 资源只供钉定规范的精确引用，包括 AD1 所需的 MP3 `RouteName`；二者均无旧版可执行入口。支持图片的档案即使本次只发文本，也必须提供项目 `maxImageBytes` 有限上限以及上游 `maxImageBytes`、`maxImages` 事实。上游为 `unknown` 或 `unbounded` 时，项目上限仍须有限。
 
 ```ts
+import { judgeModelProfileDocument, type ModelProfile } from '@omne-harness-lite/model-profile'
+
 const imageProfile: ModelProfile = {
-  ...profile,
+  routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
+  origin: 'official',
+  providers: ['provider-a'],
+  allowFallback: false,
+  outputModalities: ['text'],
+  maxInputTokens: 32000,
+  maxOutputTokens: 8192,
+  registration: 'listed',
+  updatedAt: '2026-09-29T00:00:00Z',
   inputModalities: ['text', 'image'],
   inputConstraints: { maxImageBytes: 4_000_000, maxImages: 4 },
   upstreamInputLimits: {
@@ -140,3 +155,21 @@ console.log(judgeModelProfileDocument('ModelProfile', imageProfile)) // { ok: tr
 ```
 
 `validate` 只检查 Schema 形状；完整判定还会对项目上限与已知有限上游事实逐项做精确比较。`ModelProfileSnapshot` 的类型与 Schema 保留两个输入限制对象，实际复制和历史保存由请求写入方负责。具体边界以已接受设计为准。
+
+`./schema/v6` 提供 MS7 created 内容引用所需的规范 MP6 原字节；默认执行入口与 `./schema` 仍为 MP5。两版所有定义同形，完整快照可原样复制后按 MP6 精确定义判形，不转换字段，也不改写目录原采用版本。Schema 通过不证明运行时发送前 token 计量、依据和显式余量已满足。
+
+### 导入 MP5 与 MP6 精确资源
+
+```ts
+import assert from 'node:assert/strict'
+import current from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
+import created from '@omne-harness-lite/model-profile/schema/v6' with { type: 'json' }
+import { schemaId } from '@omne-harness-lite/model-profile'
+
+assert.equal(schemaId, current.$id)
+assert.ok(current.$id.includes('/model-profile/v5/'))
+assert.ok(created.$id.includes('/model-profile/v6/'))
+assert.deepEqual(current.$defs, created.$defs)
+```
+
+采用依据与映射：[D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md), [MP6 resource provider](../../../.meta_harness/design/realization/packages/core/model-profile/v6-schema-resource-design.md). [资源与纯值测试](tests/v6-resource.spec.ts)验证原字节、两个精确快照定义及无损复制；运行时冻结、created 记录往返和发送保证另由真实组合验证。

@@ -125,8 +125,23 @@ The JSON Schema is available through `@omne-harness-lite/model-profile/schema`. 
 The default entry and Schema use `data.model-profile/v5`. Current profiles must supply all required facts. The byte-exact `./schema/v2` and `./schema/v3` resources remain available solely for pinned normative references, including AD1's MP3 `RouteName`; neither has a versioned executable entry. An image-capable profile requires an explicit project `maxImageBytes` cap plus upstream `maxImageBytes` and `maxImages` facts, even for text-only calls. Project caps remain finite when an upstream fact is `unknown` or `unbounded`.
 
 ```ts
+import { judgeModelProfileDocument, type ModelProfile } from '@omne-harness-lite/model-profile'
+
 const imageProfile: ModelProfile = {
-  ...profile,
+  routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
+  origin: 'official',
+  providers: ['provider-a'],
+  allowFallback: false,
+  outputModalities: ['text'],
+  maxInputTokens: 32000,
+  maxOutputTokens: 8192,
+  registration: 'listed',
+  updatedAt: '2026-09-29T00:00:00Z',
   inputModalities: ['text', 'image'],
   inputConstraints: { maxImageBytes: 4_000_000, maxImages: 4 },
   upstreamInputLimits: {
@@ -140,3 +155,21 @@ console.log(judgeModelProfileDocument('ModelProfile', imageProfile)) // { ok: tr
 ```
 
 `validate` checks Schema shape. The full judge also compares each supplied project cap with any known finite upstream value, without rounding. The `ModelProfileSnapshot` type and Schema retain both input-limit objects; the request writer owns the actual copy and history. See the accepted design for the precise boundary.
+
+`./schema/v6` supplies the exact normative MP6 bytes referenced by MS7 created content; the default executable entry and `./schema` remain MP5. Every definition has the same shape, so a complete snapshot can be copied unchanged and checked at the precise MP6 definition, without field conversion or changing the directory’s adopted version. Schema success does not establish runtime token measurement, its basis or explicit admission margin.
+
+### Import the precise MP5 and MP6 resources
+
+```ts
+import assert from 'node:assert/strict'
+import current from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
+import created from '@omne-harness-lite/model-profile/schema/v6' with { type: 'json' }
+import { schemaId } from '@omne-harness-lite/model-profile'
+
+assert.equal(schemaId, current.$id)
+assert.ok(current.$id.includes('/model-profile/v5/'))
+assert.ok(created.$id.includes('/model-profile/v6/'))
+assert.deepEqual(current.$defs, created.$defs)
+```
+
+Adoption and mapping: [D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md), [MP6 resource provider](../../../.meta_harness/design/realization/packages/core/model-profile/v6-schema-resource-design.md). [Resource and pure-value tests](tests/v6-resource.spec.ts) check original bytes, both exact snapshot definitions and lossless copying; actual runtime freezing, created-record round trips and sending guarantees require composition verification.
