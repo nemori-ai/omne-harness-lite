@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及不属于 Run 的纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下；生产恢复宿主与 Run 路径仍待接线。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的成功路径仍依赖真实 Run 历史解释器。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把十三个类型化方法组合在同一个进程内调用 owner 下。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的不属于 Run 的原批。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
 
 ## 公开接口
 
@@ -18,7 +18,7 @@
 | `TransportAdapter`、`PlanInput`                                                  | 调用者持有的 plan/send/read 端口与显式请求输入                                                                                                                       |
 | `InvocationPolicy`、`ModelInvocationResult`                                      | 调度、脱敏、诊断政策与携带实际字符串发送时刻的未结算结果投影                                                                                                         |
 | `createSessionModelSelection(input)`                                             | 借用提供者的消费者：`legalTargets`、`selectModel`、`displayList`、`effectiveModel` 与操作收口                                                                        |
-| `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 的一次调用；不完整或属于 Run 的历史保持不可用                                                                 |
+| `interpretCallHistory({ prefix, callId })`                                       | 从完整自有 SL3 前缀经当前 `mrr/3` codec 解释不属于 Run 或属于 Run 的原始调用记录；Run 终结事实另由授权来源提供                                                       |
 | `projectCallState({ session, callId, history, local? })`                         | 仅在耐久响应尚未覆盖时叠加进程自有 `open` 或 `reply_pending` 责任                                                                                                    |
 | `ModelRuntimeService`、`RuntimeConstruction` 及各操作输入／结果类型              | 十三操作的显式服务契约与必需宿主端口；类型契约本身不安装可运行服务                                                                                                   |
 | `createCallContainerStore()`                                                     | 按会话和调用持有进程资源，以及有界、可取消的短 reservation                                                                                                           |
@@ -28,7 +28,7 @@
 | `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                           |
 | `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                      |
 | `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                   |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与不属于 Run 的对账；重复处分通过 `sessions.bind` 读取耐久结果，不停止会话。对账返回 `{ reconcile, close }`，原 scope 留到实际停止与完整前缀认回后收口 |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与有条件的 Run 对账；重复处分通过 `sessions.bind` 读取耐久结果，不停止会话。对账返回 `{ reconcile, close }`，原 scope 留到实际停止与完整前缀认回后收口 |
 | `createModelRuntime(construction)`                                               | 十三方法共用一份调用 store 与可重试收口 owner；无需 Cordis Context                                                                                                   |
 
 `createRuntimeReconcile(input)` 返回 `{ reconcile, close }`。事实或写入未决而返回 `unavailable` 时，组件保留原恢复作用域；下一次对账会先沿同一作用域认回，不为同会话另开一个恢复入口。`close()` 关闭新对账准入，停止有归属的任务，从原绑定读取完整前缀；仅在物理工作有确定结果后释放各作用域。收口不追加业务记录。若返回 `unavailable`，宿主须继续持有同一组件，在原任务或读取来源恢复后重试；`createModelRuntime` 已将此收口纳入自身的可重试收口。
@@ -115,6 +115,25 @@ export async function inspectWithRuntime(
 }
 ```
 
+`readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。交给 runner 前核验精确主体，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
+
+```ts
+import type { CallKey, ModelRuntimeService } from '@omne-harness-lite/model-request-runtime'
+
+export async function inspectFailure(service: ModelRuntimeService, key: CallKey) {
+  const answer = await service.readAttempts(key, { consumeFailure: true })
+  if (answer.consumption.kind !== 'failure') return answer.result
+  const source = answer.consumption.source
+  try {
+    return source.verify(source.subject)
+  } finally {
+    source.release()
+  }
+}
+```
+
+主体中按序保留的 retry 结论必须取自同一原调用的授权前缀；runner 历史不可读时返回 `unavailable`，不能补造空数组。宿主还要把本来源和 runner 的真实绑定配对，在 `runPass` 外层 `finally` 再释放一次；重复释放无害。不属于 Run 的失败不能进入 runner 的 `after_model_call` 位置。采用依据见 [runtime v17 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v17-model-consumption-design.md)。
+
 服务宿主分别提供 `call()`、`response()` 和 `message()` 身份来源。回复的 `MessageId` 在那次发送时由 `message()` 产生，不复用 `ResponseId`，也不交由适配器自定。
 
 每次新规划都要求宿主或直接调用者完整给出 `tokenMargin: { multiplier, reserveTokens }`；运行时为该计划捕获它，不补默认值。适用档案上限或上游输入限制事实缺失时，以 `input_limit_missing` 拒绝，不写新锚点、不发 HTTP。估算超门拒绝保留 `basis: 'estimated'`、`estimatedTokens`、`admissionTokens` 和 `limit`；准确超限保留 `basis: 'exact'`、`actual` 和 `limit`。估算值不是上游实际 usage 或费用。采用依据见 [RT8 输入上限契约](../../../.meta_harness/design/spec/capabilities/model-request-runtime/v8/contract.md#s-74-每次发送之前的完整输入限制与固定计划)及 [runtime v9 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v9-token-estimate-design.md)。
@@ -156,7 +175,7 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 }
 ```
 
-返回的 `CallHistoryDispatch` 保留原「已出门」条目、「已开口」锚点、经验证的完整原响应值及其投影。`in_flight`、`speaking` 只描述耐久事实前沿，不证明旧网络请求或写者已实际停止。只有中断意图、没有发出记录时，历史保留 `phase: null` 供对账，状态投影在收场未明前返回 `unavailable`。未知模型日志格式也返回 `unavailable`，不冒充缺席。属于 Run 的历史在原 Run/attempt 认法被正式采用前返回 `run_history_unavailable`。
+返回的 `CallHistoryDispatch` 保留原「已出门」条目、「已开口」锚点、经验证的完整原响应值及其投影。`in_flight`、`speaking` 只描述耐久事实前沿，不证明旧网络请求或写者已实际停止。只有中断意图、没有发出记录时，历史保留 `phase: null` 供对账，状态投影在收场未明前返回 `unavailable`。未知模型日志格式也返回 `unavailable`，不冒充缺席。完整前缀中的 Run 原锚与已提交响应可以读取。新建属于 Run 的结算还必须核同前缀 MS6 尝试事实和宿主授权的 G28 终结来源；未知返回 `run_history_unavailable`。
 
 响应 usage 校准遵循 [D107 采用决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md)及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
 
@@ -318,7 +337,7 @@ const answer = dispatchGuard(input)
 if (!('allowed' in answer)) throw new Error('Expected this example retry plan to be allowed')
 ```
 
-`after` 沿共享 ISO 时长字符串（`PT` 后的时／分／秒），不设数值上限、不转成毫秒。缺席表示不等，函数本身从不等待。答案是 `{ allowed: true }`、`{ refused: { why } }` 或 `{ rejected }`（`wrongPhase` 另带 `phase`）。拒绝原因恰为 `already_spoke`、`fact_class`、`provider_not_allowed`；错误恰为 `invalidInput`、`callNotFound`、`alreadyEnded`、`wrongPhase`、`unavailable`。允许只对应已交入事实，后续实际操作仍核当前状态、宿主停止与依赖。耐久 `canDispatchAgain`／`dispatchAgain` 服务尚待交付。
+`after` 沿共享 ISO 时长字符串（`PT` 后的时／分／秒），不设数值上限、不转成毫秒。缺席表示不等，函数本身从不等待。答案是 `{ allowed: true }`、`{ refused: { why } }` 或 `{ rejected }`（`wrongPhase` 另带 `phase`）。拒绝原因恰为 `already_spoke`、`fact_class`、`provider_not_allowed`；错误恰为 `invalidInput`、`callNotFound`、`alreadyEnded`、`wrongPhase`、`unavailable`。允许只对应已交入事实，后续实际操作仍核当前状态、宿主停止与依赖。耐久 `canDispatchAgain`／`dispatchAgain` 服务在实际使用时重新核当前调用状态。
 
 ## 计算精确重试退避
 
@@ -464,7 +483,7 @@ console.log(legal.ok[0], list.ok[0].annotations, effective.ok.selectedBy)
 
 合法目标不因凭据缺失或据点传输能力而过滤。租户行撤回后在册的更一般行可以胜出；胜出行缺凭据或模态不符时不回退。没有胜出行时，落点先取最具体在册行，再取已撤回行。展示列表为合法名字加选中名字，每条附自有不可变 ref 与注记；被覆盖行只作注记，不能另选。没有胜出行只标恰一个 `withdrawn` 或 `scope_disallowed`，不问该行的凭据或模态。
 
-成功为 `{ ok: value }`；非法或缺必需数据返回 `{ invalidInput: { reason } }`，必需事实明确未知或兼容回调意外抛错返回 `{ unavailable: true }`，不交出原异常或部分集合。选中／有效名字在链上查无行时返回 `{ profileNotFound: true }`。凭据有无按完整胜出 ref 与来源匹配：缺必需事实是 malformed，显式未知有无是 unavailable。结果自持且深度不可变；借用回调寿命仍归调用者。完整十三操作耐久服务与持久投影缓存尚待交付；当前读取的限定消费者见下文「会话模型的耐久选择」。
+成功为 `{ ok: value }`；非法或缺必需数据返回 `{ invalidInput: { reason } }`，必需事实明确未知或兼容回调意外抛错返回 `{ unavailable: true }`，不交出原异常或部分集合。选中／有效名字在链上查无行时返回 `{ profileNotFound: true }`。凭据有无按完整胜出 ref 与来源匹配：缺必需事实是 malformed，显式未知有无是 unavailable。结果自持且深度不可变；借用回调寿命仍归调用者。十三方法已组合；持久投影缓存不由本选择构件提供，当前读取的限定消费者见下文「会话模型的耐久选择」。
 
 ## 开发与验证
 
@@ -560,7 +579,7 @@ if (!writeJsonLossless(recognized.original.value).includes('1.00'))
 
 认回先看原批自己的身份、绑定、参数、原金额和完整回复；败方未提交 MessageId 不同或被另批占用，不单独否定合法原批。原批不存在时，当前候选 MessageId 占用才阻止 absent。`completeMembers` 附原捕获值和条目，以及 `disposition: 'same' | 'firstWinner' | 'unrequested'`；不同合法处置保留先到原批，具体服务的成功/alreadyEnded 映射仍归原操作。
 
-成员检查不证明一次物理 append、合法历史、读权限、Run 生命周期或旧任务实际停止。H1 一次 `[M,R]` 与 H2 分次 `[M]`/`[R]` 可有相同 SL3 读面；G29-P/H 仍由宿主和全部写方关闭。withRun late 认回在 G28 原生产解释器未交付时返回 `undetermined: true, reason: 'run_history_unavailable'`，不能把未知历史当 false，也不能用归账 attempt 代原发出 attempt。十三操作服务、真实 runner/app 采用、G30/G31 和生产模型认证仍待交付。
+成员检查不证明一次物理 append、合法历史、读权限、Run 生命周期或旧任务实际停止。H1 一次 `[M,R]` 与 H2 分次 `[M]`/`[R]` 可有相同 SL3 读面；G29-P/H 仍由宿主和全部写方关闭。已提交的完整 withRun 原批按原耐久值认回，不重新计算 late。新候选必须同时取得同前缀 MS6 尝试与宿主 G28 终结来源；未知为不可用，归账 attempt 不替换响应里的原发出 attempt。十三方法已组合；生产宿主接线、真实 runner/app 采用、G30/G31 与模型认证仍须各自证据。
 
 ```ts
 import { captureModelLogValue, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
@@ -668,7 +687,7 @@ export function inspectReplyBatch(input: InspectSettlementMembersInput) {
 
 ## 耐久结算构件
 
-`readSettlementPrefix`、`interpretSettlementPrefix` 和 `createSettlementCoordinator` 是可独立取用的构件，消费实际 SL3 日志和包根 `mrr/3` 表示。首个交付路径为 noRun：一次 unfenced、unconditional 追加完整 `[消息,响应]` 或 `[响应]` 批。合法原批优先，保留其身份、格式和原账；协调器不会规划或发出模型请求。
+`readSettlementPrefix`、`interpretSettlementPrefix` 和 `createSettlementCoordinator` 是可独立取用的构件，消费实际 SL3 日志和包根 `mrr/3` 表示。noRun 用 unfenced、unconditional 追加；新建 withRun 批先核原 Run/attempt、最新 MS6 尝试及宿主 Run 终结，再用 unfenced 和完整前缀的 tailEquals 追加。每次均追加完整 `[消息,响应]` 或 `[响应]` 批。合法原批优先，保留其身份、格式和原账；协调器不会规划或发出模型请求。
 
 由宿主提供实际 session/tenant/log 代际绑定与已登记 owner。`SettlementRegistration.start` 必须先登记、再执行；`stopped` 表示资源实际停止。owner 负责同一所有者的并发准入，并提供实际 opened 回执及全部尚未确认的旧写方。这些接口形状不授予权限或认证历史物理同批。具名争用预算和精确单调调度器须显式提供，不安装默认次数、计时器或等待政策。
 
@@ -697,7 +716,7 @@ export async function settleResponse(
 
 `completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 和 `close()` 等实际任务停止后才释放额度。旧任务仍在途时可认回已提交原批，但仍保留旧任务的真实 owner；unknown 后的一次缺席读取不允许重交。opened unknown 阻断普通响应。恢复后的缺席只能由原宿主在既有 S-33 时机、全部旧写方停止之后建立，本构件没有新增在线恢复 API。
 
-示例接收实际宿主依赖与完整 MR7 响应，不注册服务。十三操作统一组合、官方模型认证、生产 withRun 认法 G28、合法读权接线及全部写方来源仍待交付。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[v8 当前 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md)。
+示例接收实际宿主依赖与完整 MR7 响应，不注册服务。十三方法已组合；官方模型认证、生产 G28 来源、合法宿主读权接线及全部写方来源仍需各自证据。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[v8 当前 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md)。
 
 ## 耐久 noRun 调用
 
@@ -718,7 +737,7 @@ export async function settleResponse(
 候选和借用引用，由真实宿主承担恢复责任。本函数不执行 S-33 恢复、不重发，也不把
 未知回执解释成确定缺席。
 
-完成实际宿主准备后，把输入和明确的回复处置传给下例。close 为 unavailable 时，保留返回的 call 和实际宿主 owner。完整十三操作服务、Run 集成与生产模型认证仍待交付。
+完成实际宿主准备后，把输入和明确的回复处置传给下例。close 为 unavailable 时，保留返回的 call 和实际宿主 owner。十三方法已组合；生产 Run owner 与模型认证仍须各自证据。
 
 ```ts
 import {

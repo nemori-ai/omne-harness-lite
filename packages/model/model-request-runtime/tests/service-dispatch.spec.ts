@@ -5,6 +5,7 @@ import { createCallContainerStore } from '../src/service-container.ts'
 import { createServiceCalls } from '../src/service-calls.ts'
 import { createServiceControl } from '../src/service-control.ts'
 import { createServiceDispatch, settlementEvent } from '../src/service-dispatch.ts'
+import { createRuntimeReads } from '../src/service-reads.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
@@ -526,6 +527,19 @@ test('service dispatch writes both anchors before handing out a complete pending
     expect(failureSource.verify({ ...failureSource.subject, failure: 'request_rejected' })).toEqual(
       { invalidInput: true },
     )
+    const reads = createRuntimeReads(runtime)
+    const callKey = { session: host.session, callId: 'actual-call-3' }
+    expect(await reads.methods.readAttempts(callKey)).toMatchObject({
+      state: 'awaiting_decision',
+      failureSubject: { statusCode: 503 },
+    })
+    const fromRead = await reads.methods.readAttempts(callKey, { consumeFailure: true })
+    expect(fromRead.result).toMatchObject({ state: 'awaiting_decision' })
+    if (fromRead.consumption.kind !== 'failure') throw new Error('read source absent')
+    const readSource = fromRead.consumption.source
+    expect(readSource.verify(readSource.subject)).toHaveProperty('authoritativeSubject')
+    expect(await reads.close()).toEqual({ released: true })
+    expect(readSource.verify(readSource.subject)).toEqual({ unavailable: true })
     expect(
       engineering.some(
         item =>

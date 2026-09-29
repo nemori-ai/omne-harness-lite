@@ -479,125 +479,225 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
       expect(await h.completion).toMatchObject({ reason: 'run_history_unavailable' })
       await h.stopped
       await coordinator.close()
+      let called = 0
+      const noMs6 = createSettlementCoordinator({
+        binding: { ...binding, session: newSession.ok },
+        owner,
+        run(_prefix, run, originalAttempt) {
+          called++
+          return { known: { run, originalAttempt, latestAttempt: 1, terminal: 'open' } }
+        },
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      const missingStart = noMs6.settle({
+        ...request,
+        response: {
+          ...responseV5,
+          call: { callId: 'call', runId: 'controlled-run' },
+          attemptId: 1,
+        },
+      })
+      expect(await missingStart.completion).toMatchObject({ reason: 'run_history_unavailable' })
+      await missingStart.stopped
+      await noMs6.close()
+      expect(called).toBe(0)
       expect(submissions).toHaveLength(2)
     })
   })
-  it('uses one real JSONL prefix for a superseded Run response and its tail condition', async () => {
-    await controlled('with-run-tail', async ({ binding, owner, submissions }) => {
-      const parsed = parseOpaqueIdentifier('controlled-run-tail', 'SessionRef')
-      if (!('ok' in parsed)) throw new Error('session')
-      const runSession = parsed.ok
-      async function appendStart(attempt: number) {
-        const message = captureModelLogValue({
-          category: 'message',
-          input: {
-            kind: 'value',
-            value: {
-              id: `attempt-${attempt}`,
-              type: 'system_reminder',
-              nature: 'event',
-              source: {
-                kind: 'attempt_started',
-                attempt,
-                reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
-                at: '2026-09-29T00:00:00Z',
+  for (const race of [false, true])
+    it(`uses one real JSONL prefix for a superseded Run response with tail race=${race}`, async () => {
+      await controlled(`with-run-tail-${race}`, async ({ binding, owner, submissions, wrap }) => {
+        const parsed = parseOpaqueIdentifier('controlled-run-tail', 'SessionRef')
+        if (!('ok' in parsed)) throw new Error('session')
+        const runSession = parsed.ok
+        async function appendStart(attempt: number) {
+          const message = captureModelLogValue({
+            category: 'message',
+            input: {
+              kind: 'value',
+              value: {
+                id: `attempt-${attempt}`,
+                type: 'system_reminder',
+                nature: 'event',
+                source: {
+                  kind: 'attempt_started',
+                  attempt,
+                  reason: attempt === 1 ? 'first' : 'resumed_after_interruption',
+                  at: '2026-09-29T00:00:00Z',
+                },
+                blocks: [],
+                createdAt: '2026-09-29T00:00:00Z',
               },
-              blocks: [],
-              createdAt: '2026-09-29T00:00:00Z',
             },
+          })
+          if (!('ok' in message)) throw new Error('attempt message capture')
+          const entry = prepareModelLogEntry({
+            session: runSession,
+            shell: { tenant: binding.tenant, run: 'controlled-run', attempt },
+            captured: message.ok,
+            purpose: { kind: 'message' },
+            messagePrefix: [],
+          })
+          if (!('ok' in entry)) throw new Error('attempt message prepare')
+          const appended = await binding.log.append(
+            runSession,
+            [entry.ok],
+            { kind: 'fenced', run: 'controlled-run', attempt },
+            { kind: 'unconditional' },
+          )
+          if ('failure' in appended) throw new Error('attempt message append')
+        }
+        await appendStart(1)
+        const original = anchors().entries.map(entry => {
+          const captured = captureModelLogValue({
+            category: 'record',
+            input: { kind: 'value', value: jsonObject(entry.payload).value },
+          })
+          if (!('ok' in captured)) throw new Error('anchor capture')
+          const prepared = prepareModelLogEntry({
+            session: runSession,
+            shell: { tenant: binding.tenant, run: 'controlled-run', attempt: 1 },
+            captured: captured.ok,
+            purpose: { kind: 'record' },
+            messagePrefix: [],
+          })
+          if (!('ok' in prepared)) throw new Error('anchor prepare')
+          return prepared.ok
+        })
+        expect(
+          await binding.log.append(
+            runSession,
+            original,
+            { kind: 'fenced', run: 'controlled-run', attempt: 1 },
+            { kind: 'unconditional' },
+          ),
+        ).toHaveProperty('positions')
+        await appendStart(2)
+        const wrongLatest = createSettlementCoordinator({
+          binding: { ...binding, session: runSession },
+          owner,
+          run(_prefix, run, originalAttempt) {
+            return { known: { run, originalAttempt, latestAttempt: 1, terminal: 'open' } }
+          },
+          settlementContention: policy(),
+          settlementScheduler: noWaitScheduler,
+          diagnostic() {},
+        })
+        const refused = wrongLatest.settle({
+          ...request,
+          response: {
+            ...responseV5,
+            call: { callId: 'call', runId: 'controlled-run' },
+            attemptId: 1,
           },
         })
-        if (!('ok' in message)) throw new Error('attempt message capture')
-        const entry = prepareModelLogEntry({
+        expect(await refused.completion).toMatchObject({ reason: 'run_history_unavailable' })
+        await refused.stopped
+        await wrongLatest.close()
+        let raced = false
+        const unrelated = prepareModelLogEntry({
           session: runSession,
-          shell: { tenant: binding.tenant, run: 'controlled-run', attempt },
-          captured: message.ok,
-          purpose: { kind: 'message' },
-          messagePrefix: [],
-        })
-        if (!('ok' in entry)) throw new Error('attempt message prepare')
-        const appended = await binding.log.append(
-          runSession,
-          [entry.ok],
-          { kind: 'fenced', run: 'controlled-run', attempt },
-          { kind: 'unconditional' },
-        )
-        if ('failure' in appended) throw new Error('attempt message append')
-      }
-      await appendStart(1)
-      const original = anchors().entries.map(entry => {
-        const captured = captureModelLogValue({
-          category: 'record',
-          input: { kind: 'value', value: jsonObject(entry.payload).value },
-        })
-        if (!('ok' in captured)) throw new Error('anchor capture')
-        const prepared = prepareModelLogEntry({
-          session: runSession,
-          shell: { tenant: binding.tenant, run: 'controlled-run', attempt: 1 },
-          captured: captured.ok,
+          shell: { tenant: binding.tenant },
+          captured: (() => {
+            const value = captureModelLogValue({
+              category: 'record',
+              input: {
+                kind: 'value',
+                value: {
+                  kind: 'model_call_ended',
+                  call: 'unrelated',
+                  ending: 'undispatched',
+                  cause: 'credential_unavailable',
+                },
+              },
+            })
+            if (!('ok' in value)) throw new Error('unrelated capture')
+            return value.ok
+          })(),
           purpose: { kind: 'record' },
           messagePrefix: [],
         })
-        if (!('ok' in prepared)) throw new Error('anchor prepare')
-        return prepared.ok
+        if (!('ok' in unrelated)) throw new Error('unrelated prepare')
+        const racingLog: SessionLog = {
+          ...binding.log,
+          async append(...args) {
+            if (race && !raced && args[3].kind === 'tailEquals') {
+              raced = true
+              const winner = await binding.log.append(
+                runSession,
+                [unrelated.ok],
+                { kind: 'unfenced' },
+                { kind: 'unconditional' },
+              )
+              if ('failure' in winner) throw new Error('unrelated append')
+            }
+            return await binding.log.append(...args)
+          },
+        }
+        const coordinator = createSettlementCoordinator({
+          binding: { ...wrap(racingLog), session: runSession },
+          owner,
+          settlementContention: policy(race ? 2 : 1),
+          settlementScheduler: noWaitScheduler,
+          run(prefix, originalRun, originalAttempt) {
+            expect(prefix.binding.session).toBe(runSession)
+            expect(originalRun).toBe('controlled-run')
+            expect(originalAttempt).toBe(1)
+            return {
+              known: { run: originalRun, originalAttempt, latestAttempt: 2, terminal: 'open' },
+            }
+          },
+          diagnostic() {},
+        })
+        const response = {
+          ...responseV5,
+          call: { callId: 'call', runId: 'controlled-run' },
+          attemptId: 1,
+        }
+        const handle = coordinator.settle({ ...request, response })
+        const result = await handle.completion
+        await handle.stopped
+        expect(result).toHaveProperty('origin', 'appended')
+        if (!('settled' in result)) throw new Error('not settled')
+        expect(result.settled.response.response?.late).toBe(true)
+        const responseEntry = result.settled.entries.at(-1)
+        expect(responseEntry?.run).toBe('controlled-run')
+        expect(responseEntry?.attempt).toBe(2)
+        const responseSubmissions = submissions.filter(
+          item =>
+            typeof item.condition === 'object' &&
+            item.condition !== null &&
+            'kind' in item.condition &&
+            item.condition.kind === 'tailEquals',
+        )
+        expect(responseSubmissions.map(item => item.condition)).toEqual(
+          race
+            ? [
+                { kind: 'tailEquals', tail: 4 },
+                { kind: 'tailEquals', tail: 5 },
+              ]
+            : [{ kind: 'tailEquals', tail: 4 }],
+        )
+        await coordinator.close()
+        const originalFirst = createSettlementCoordinator({
+          binding: { ...binding, session: runSession },
+          owner,
+          settlementContention: policy(),
+          settlementScheduler: noWaitScheduler,
+          diagnostic() {},
+        })
+        const reread = originalFirst.settle({ ...request, response })
+        const recognized = await reread.completion
+        await reread.stopped
+        expect(recognized).toHaveProperty('origin', 'recognized')
+        if (!('settled' in recognized)) throw new Error('original batch unavailable')
+        expect(recognized.settled.response.response?.late).toBe(true)
+        expect(responseSubmissions).toHaveLength(race ? 2 : 1)
+        await originalFirst.close()
       })
-      expect(
-        await binding.log.append(
-          runSession,
-          original,
-          { kind: 'fenced', run: 'controlled-run', attempt: 1 },
-          { kind: 'unconditional' },
-        ),
-      ).toHaveProperty('positions')
-      await appendStart(2)
-      const coordinator = createSettlementCoordinator({
-        binding: { ...binding, session: runSession },
-        owner,
-        settlementContention: policy(),
-        settlementScheduler: noWaitScheduler,
-        run(prefix, originalRun, originalAttempt) {
-          expect(prefix.binding.session).toBe(runSession)
-          expect(originalRun).toBe('controlled-run')
-          expect(originalAttempt).toBe(1)
-          return {
-            known: { run: originalRun, originalAttempt, latestAttempt: 2, terminal: 'open' },
-          }
-        },
-        diagnostic() {},
-      })
-      const response = {
-        ...responseV5,
-        call: { callId: 'call', runId: 'controlled-run' },
-        attemptId: 1,
-      }
-      const handle = coordinator.settle({ ...request, response })
-      const result = await handle.completion
-      await handle.stopped
-      expect(result).toHaveProperty('origin', 'appended')
-      if (!('settled' in result)) throw new Error('not settled')
-      expect(result.settled.response.response?.late).toBe(true)
-      const responseEntry = result.settled.entries.at(-1)
-      expect(responseEntry?.run).toBe('controlled-run')
-      expect(responseEntry?.attempt).toBe(2)
-      expect(submissions.at(-1)?.condition).toEqual({ kind: 'tailEquals', tail: 4 })
-      await coordinator.close()
-      const originalFirst = createSettlementCoordinator({
-        binding: { ...binding, session: runSession },
-        owner,
-        settlementContention: policy(),
-        settlementScheduler: noWaitScheduler,
-        diagnostic() {},
-      })
-      const reread = originalFirst.settle({ ...request, response })
-      const recognized = await reread.completion
-      await reread.stopped
-      expect(recognized).toHaveProperty('origin', 'recognized')
-      if (!('settled' in recognized)) throw new Error('original batch unavailable')
-      expect(recognized.settled.response.response?.late).toBe(true)
-      expect(submissions.at(-1)?.condition).toEqual({ kind: 'tailEquals', tail: 4 })
-      await originalFirst.close()
     })
-  })
   it('post-send current binding/accounting never overwrite a lawful first batch', async () => {
     await controlled('first-original', async ({ coordinator, submissions }) => {
       const h = coordinator.settle(request)
