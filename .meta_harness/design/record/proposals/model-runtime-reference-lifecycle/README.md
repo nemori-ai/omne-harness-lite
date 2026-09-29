@@ -63,3 +63,5 @@ RT11/MR10/MS7/CA3 candidate 提交 `3f597c18` 已成稿，SL3 保持。两位独
 [后继施工边界](ack-spec-construction-brief.md)给RT12/MS8/MR11/CA4候选方向及形式/实现验收义务。产品和技术采用仍归主线；候选通过评审不等于规范已冻结、实现已完成或真实删除已验证。模型自身副本释放不扩成Session日志清除或通用GC。
 
 ACK 四契约最终[表达评审](ack-spec-review.md)、[架构复评](ack-architecture-review.md)及[实际验证归档](../../evidence/2026-09-29-model-call-ack-candidate/README.md)已交主线；仍待精确后继采用。
+
+ACK 最终可审增量、逐项采用坐标、提交顺序和剩余验收见[交接](ack-final-handoff.md)及[文件摘要](ack-final-handoff-manifest.json)。
