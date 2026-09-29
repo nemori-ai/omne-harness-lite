@@ -289,17 +289,22 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
     }
   })
 
-  it('invokes Luna official history through the public function with one TLS send and one content gate', async () => {
-    const c = packet.cases.find(value => value.id === 'luna-tool-reminder-holdout')
-    if (!c) throw new Error('missing Luna holdout')
+  it.each([
+    'luna-tool-reminder-holdout',
+    'sol-plain-history',
+    'sol-paired-tool-history',
+    'sol-tool-reminder-holdout',
+  ])('invokes %s through the public function with one TLS send and one content gate', async id => {
+    const c = packet.cases.find(value => value.id === id)
+    if (!c) throw new Error('missing frozen history case')
     const selected = definition(c.modelId)
     const host = await fixture(
       cert.tls,
       res =>
         res.end(
           sse({
-            id: 'gen-local-luna-history',
-            model: 'openai/gpt-6-luna-20260922',
+            id: 'gen-local-openai-history',
+            model: c.modelId,
             provider: 'OpenAI',
             choices: [{ delta: { content: 'ALPHA' } }],
           }) +
@@ -313,7 +318,8 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
     const transport = createPiAiTransport({
       ...host.options,
       definitions: [selected],
-      inputMeters: [createOpenAiInputMeter(selected)],
+      // Sol remains an unbound research candidate; this does not alter its official meter.
+      inputMeters: [historyMeter(c.modelId)],
     })
     try {
       const requested = request(c)
@@ -323,7 +329,7 @@ describe('OpenAI visible-history Sol candidate and official Luna meter', () => {
       expect(planned.planned.serialized).toContain('"max_tokens":64')
       expect(planned.planned.inputLimitEvidence.inputTokens).toEqual({
         kind: 'estimated',
-        tokens: 410,
+        tokens: c.expectedTokens,
       })
       let contentGates = 0
       const accepted: string[] = []
