@@ -160,3 +160,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 [图片准备 scope 清理附页](image-preparation-scope-cleanup-candidate.md) 补齐既有显式资源清理的跨包端口；不覆盖已采用 v15/v21。候选未采用、未实现；独立定点评审已完成，精确主线后继接受及工程验证待完成。
 
 [计量原依据适用表接缝](image-preparation-basis-applicability-candidate.md) 仅补共享relation取得家族有限ledger的内部参数，不扩InputMeter；候选未采用、未实施，独立定点评审已完成，主线后继接受待完成。
+
+## 两家优先模型窄增量候选（2026-09-29）
+
+[完整输出贡献与纯图缓存](priority-family-output-cache-candidate.md)接续已接受 v13/v15 及 C relation；新增有限 O 贡献域与严格 last_message 纯图映射。未接受、未实施，新增 bindings 0；精确采用与 PF1–PF8 验收仍待。
