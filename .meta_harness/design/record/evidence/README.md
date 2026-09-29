@@ -205,3 +205,5 @@ evidence/
 [2026-09-27 W17 core精确RFC3339比较](2026-09-27-tests-core-rfc3339-order/README.md)：D089 B/R1有限签收；150测试、两闭合公开根各9475oracle、12literal及两真编译行为负控，4542归档成员/198输入核对。保留首次测量记账缺项；TL-G1与runtime组合/十三操作/37认证未闭。
 
 [2026-09-28 G6共享脱敏纯构件](2026-09-28-tests-model-credential-redaction-pure/README.md)：D093限定实施签收，GI1–7独立Pass、1525原归档成员与实际HUB组合检查；生产接线、附件、G4及完整S20仍未完成。
+
+[2026-09-29 模型runner与响应校准组合](2026-09-29-tests-model-runner-calibration-closeout/README.md)：合法失败来源/P5、十三操作最终组合和代表域U4有限技术验收；保留原noRun反例与全部末轮失败，不含逐模型算法和37型号线上认证。
