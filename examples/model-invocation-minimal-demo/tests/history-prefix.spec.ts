@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import {
@@ -14,6 +15,9 @@ import {
   deepseekV4Pro0813Configuration,
   defineInputMeter,
   planRequest,
+  createImagePreparer,
+  createSharpImageCodec,
+  modelImageBalancedV1,
   type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
@@ -29,11 +33,17 @@ const callId = unwrap(parseOpaqueIdentifier('history-call', 'ModelCallId'))
 const tenant = unwrap(parseTenantId({ organization: 'history-org', account: 'history-account' }))
 const at = '2026-09-28T00:00:00Z'
 const visibility = { toHuman: true, toModel: true }
+// Valid native PNG: D109 prepares actual image bytes rather than opaque placeholders.
+const imageBase64 = (
+  await sharp({ create: { width: 32, height: 32, channels: 4, background: '#00ff00' } })
+    .png({ compressionLevel: 9 })
+    .toBuffer()
+).toString('base64')
 const image = {
   id: 'image',
   kind: 'image',
   mediaType: 'image/png',
-  data: { inline: 'aW1hZ2U=' },
+  data: { inline: imageBase64 },
   visibility,
 }
 function user(blocks: readonly unknown[]) {
@@ -152,7 +162,9 @@ describe('complete demo history without a text-only whitelist', () => {
     expect(nativeCompatibility(profile(deepseekV4Pro0813Definition), ['image', 'text'])).toEqual({
       blocked: ['image'],
     })
-    const planned = planRequest(
+    const preparer = createImagePreparer(modelImageBalancedV1, createSharpImageCodec(sharp))
+    if (!('ready' in preparer)) throw new Error('native image preparation unavailable')
+    const planned = await planRequest(
       {
         calibration: { kind: 'none', reason: 'no_observation' },
         outputHistory: [],
@@ -190,12 +202,16 @@ describe('complete demo history without a text-only whitelist', () => {
         evidence: 'Controlled projection only; no upstream measurement claim',
         measureFull: () => ({ kind: 'exact', tokens: 1 }),
       }),
-    )
+      { signal: new AbortController().signal },
+      preparer.ready,
+    ).finally(() => preparer.ready.close())
     if ('rejected' in planned) throw new Error(planned.rejected)
     expect(planned.planned.body.messages).toMatchObject([
       {
         role: 'user',
-        content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }],
+        content: [
+          { type: 'image_url', image_url: { url: `data:image/png;base64,${imageBase64}` } },
+        ],
       },
       { role: 'user', content: [{ type: 'text' }, { type: 'text', text: 'keep the image' }] },
     ])

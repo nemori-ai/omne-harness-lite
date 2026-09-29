@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { join } from 'node:path'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
@@ -22,6 +23,8 @@ import {
   createDeepSeekV4ProInputMeter,
   createDeepSeekV41FlashInputMeter,
   createModelTransportService,
+  createSharpImageCodec,
+  modelImageBalancedV1,
   createOfficialProfileContent,
   deepseekV4Pro0813Configuration,
   deepseekV4Pro0813Definition,
@@ -245,6 +248,7 @@ describe('D4 real-provider hot update slice', () => {
         name: 'hotupdate-actual-transport-provider',
         apply(ctx) {
           const service = createModelTransportService({
+            imagePreparation: { policy: modelImageBalancedV1, codec: createSharpImageCodec(sharp) },
             baseUrl: tls.developmentTransport.baseUrl,
             tls: tls.developmentTransport.tls,
             policy: {
@@ -286,7 +290,9 @@ describe('D4 real-provider hot update slice', () => {
       oldLease = service.acquire(old.profile.adaptation, MODEL)
       if ('rejected' in oldLease) throw new Error(`old lease rejected: ${oldLease.rejected}`)
       const oldRequest = request(old, 'v1')
-      const oldPlan = oldLease.lease.transport.plan(oldRequest)
+      const oldPlan = await oldLease.lease.transport.plan(oldRequest, {
+        signal: new AbortController().signal,
+      })
       if ('rejected' in oldPlan) throw new Error(`old plan rejected: ${oldPlan.rejected}`)
       tls.setMode('hold')
       const oldSend = await oldLease.lease.transport.send(
@@ -333,13 +339,19 @@ describe('D4 real-provider hot update slice', () => {
       ).toEqual({ stored: true })
       expect(await credential(lookup, who.tenant)).toBe(v2Credential.toString())
       expect(oldLease.lease.binding).toEqual(old.profile.adaptation)
-      expect(oldLease.lease.transport.plan(request(changed, 'wrong-old'))).toEqual({
+      expect(
+        await oldLease.lease.transport.plan(request(changed, 'wrong-old'), {
+          signal: new AbortController().signal,
+        }),
+      ).toEqual({
         rejected: 'invalidInput',
         reason: 'malformed',
       })
       newLease = service.acquire(second.profile.adaptation, v2.modelId)
       if ('rejected' in newLease) throw new Error(`new lease rejected: ${newLease.rejected}`)
-      const newPlan = newLease.lease.transport.plan(request(second, 'v2'))
+      const newPlan = await newLease.lease.transport.plan(request(second, 'v2'), {
+        signal: new AbortController().signal,
+      })
       if ('rejected' in newPlan) throw new Error(`new plan rejected: ${newPlan.rejected}`)
       tls.setMode('complete')
       const newSend = await newLease.lease.transport.send(

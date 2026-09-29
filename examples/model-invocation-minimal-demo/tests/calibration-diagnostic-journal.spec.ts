@@ -227,7 +227,7 @@ describe('calibration engineering facts through the real JSONL journal', () => {
           ...plan.input,
           transport: {
             ...base.transport,
-            plan: () => ({ planned: plan }),
+            plan: async () => ({ planned: plan }),
             async send(p, c, s, d) {
               await fetch(`http://127.0.0.1:${addr.port}/`)
               return base.transport.send(p, c, s)
@@ -393,7 +393,7 @@ describe('calibration engineering facts through the real JSONL journal', () => {
     })
     const result = await invokeModel({
       ...plan.input,
-      transport: { ...base.transport, plan: () => ({ planned: plan }) },
+      transport: { ...base.transport, plan: async () => ({ planned: plan }) },
       credential: secret,
       signal: new AbortController().signal,
       policy: policy(),

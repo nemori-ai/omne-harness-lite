@@ -102,6 +102,7 @@ function fakeTransport(initialPending = 0): {
   })
   const service: ModelTransportService = {
     closed,
+    clearReuseScope() {},
     diagnostics: () => ({ failed: 0, pending, dropped: 0 }),
     inspect: () => ({
       accepting: calls === 0,

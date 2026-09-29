@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import type { Fiber } from '@deepseek-ai/cordis'
 import {
   createModelPlugin,
@@ -28,6 +29,8 @@ import {
   type ModelRequestDeployment,
 } from '../src/index.ts'
 import {
+  createSharpImageCodec,
+  modelImageBalancedV1,
   createOfficialProfileContent,
   createDeepSeekV4ProInputMeter,
   deepseekV4Pro0813Definition,
@@ -123,6 +126,7 @@ async function callConfig(
       policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
     },
     modelRequest: {
+      maxScopes: 64,
       tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
       defaultRetry: createDemoDefaultRetryConfiguration(),
       registryPolicy: { maxRetries: 2, maxInFlight: 8 },
@@ -140,6 +144,7 @@ async function callConfig(
         },
       },
       transport: {
+        imagePreparation: { policy: modelImageBalancedV1, codec: createSharpImageCodec(sharp) },
         definitions: [model],
         inputMeters: [createDeepSeekV4ProInputMeter(model)],
         policy: {
