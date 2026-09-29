@@ -219,6 +219,12 @@ importers:
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/core/kernel-basis
+      '@omne-harness-lite/loop-extension':
+        specifier: workspace:*
+        version: link:../../packages/core/loop-extension
+      '@omne-harness-lite/loop-extension-runner':
+        specifier: workspace:*
+        version: link:../../packages/agent-loop/loop-extension-runner
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
