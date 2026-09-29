@@ -1,3 +1,5 @@
+2026-09-29：[D-107](../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受 MR9/RT10，新增冻结81资源；原冻结项保持，covers/formal任务状态不提升。规范接受不等于实现或消费者升级。
+
 # 身份、版本与关系清单
 
 2026-09-27：[D086](../record/decisions/model-runtime-tail-settlement-adoption/decision.md)登记RT4 accepted，新增27冻结资源／17精确依赖／55项reviewed=false covers／6形式任务，原记录及445冻结hash保持；当前catalog79、frozen472、covers2015、formal tasks54。旧推荐不自动升级消费者，后文较早计数按当时事件读取。

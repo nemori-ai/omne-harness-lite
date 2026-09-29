@@ -1,3 +1,5 @@
+2026-09-29：[D-107](../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受并冻结 v10 全83条/76资源；transport/runtime 映射仍待采用，消费者不自动升级。以下按原版本与日期读取。
+
 2026-09-28：[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 接受本次恢复时序后继 v9 的全部规范资源；当前精确范围以该决定与 registry 为准。下文候选标签记录起草时状态，提供者迁移及真实恢复另验。
 
 **v6 起草时摘要（历史；后由 D-099 接受）**：[契约](v6/contract.md)、[实例](v6/examples.md)、[形式义务](v6/formal/README.md)、[消费者传播](v6/consumer-impact.md)、[验证](verification.md#v6-候选变化与证据)。完整继承 RT5，新增最终输入限制、MR6 未处分事实交接与 LC5 重试历史；跨包定型与未决项见 G-32～G-35。

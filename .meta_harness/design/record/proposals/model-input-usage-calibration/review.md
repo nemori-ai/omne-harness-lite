@@ -70,3 +70,23 @@ B1：S-59固定reader解释并经同一终止事实交出 observedInput/provenan
 两位均只读，查看20个Schema实例及新增形式日志，未独立重跑或复审未变旧模型；主线逐项核验的86份输入快照、22份配置/原始日志和实际6正16负结果见[第二轮证据](../../evidence/2026-09-29-formal-model-input-usage-calibration-2/README.md)。初始结果判读字符串修正没有改写原始日志或冒充产品修复。
 
 主线据此释放三个既有节点的 realization 候选起草（core/model-response、model/pi-ai-transport、model/model-request-runtime）；契约仍 candidate，**尚未采用、尚未放行 U3 实现**。实际模型 φ/δ/兼容证据、压缩硬fit政策、真实授权/存储/网络、性能改善与端到端交付仍按各自边界验证，复评通过不代替这些结果。
+
+## 2026-09-29 U2 core 整体审查与 transport 窄反例
+
+独立 architecture-reviewer `/root/usage_projection_review` 只读核对 HUB `970cf35e`：core v9 正文 SHA256 `a650ba101257ca9ee51b9d6cb8520c7351aaf53eb6e6fceba5e5d210e6813726`，transport v12 正文 `338c0d71117798719c02e51bc090eca046e69480892322d17db1d0884e207cba`；结束时摘要不变。本轮未运行产品测试、形式工具或模型请求。
+
+**阻断 B1（仅 transport 正常 Anthropic 增量采用）**：完整 wire message 摘要纳入每次移动的 cache_control，四条官方 explicit/1h/last_message 路由在正常追加时旧断点消失，稳定内容每轮 prefix_changed→full；assistant/tool 的 string→单 text 数组还有表示变化。保守回退保证安全，却不满足稳定前缀仅计新增的性能目标，不能标为后续优化或通过。固定适配提供者须给出有来源、有型号/路由/角色范围的 input-bearing 投影；实际 wire/字节/逐图检查不变，未知字段和真实内容、role、tools、reasoning 变化仍须失效。有限 token 同值或缓存命中不独自证明普遍中立。须补三轮 full→marginal→marginal、稳定历史 tokenizer 零调用，真实内容/未知字段/换代负控，以及 public/service 和百万输入分项成本。φ/δ 允许有依据的 estimated 加配置余量，不得把旧 P 的未知变化藏入新增估算。作者另行修订，本轮未关闭 B1。
+
+**core 范围无阻断，也无新增非阻断发现**：已核 R9-P1～P5/V9-1～7、MR9 S-27/S-39/S-41～45 和 RT10 S-79～82。六共享类型及 copy 只负责表示、自有快照、局部关系；validate 保持 Schema-only，judge 保留具名拒绝顺序；摘要、真实来源、祖先和 φ/δ 分别归适配及 runtime。共同提交对象明确为 SL3 原 response+reply batch，无第二写者、服务或存储。可在有权者采用规范与此映射后独立实现纯 core。
+
+**范围外及反方**：压缩硬 fit 与估算准入差异仍归原 owner；保守全 wire 摘要有不遗漏未知变换、容易审计的优点，但已知正常路径代价不满足目标。core 的 codec/unknown 原子性、真实授权及 runtime v16 整体交接仍待组合验收。规范有限模型不证明厂商 tokenizer 准确性。本轮意见不代替采用。
+
+## 2026-09-29 U2 runtime v16 整体架构审查
+
+同一独立 architecture-reviewer 只读核 HUB `9ac88753`：runtime 正文 SHA256 `17e4552faac16a3ab03aa974b210e150ac1fc96a5982f4812b8e549e203c978d`、README `42ad0b028f270dbe7a19d57eaf960abc04872ab6d77f25b72bbaa5a009105eae`、verification `6d214af100803292603f9f1b073ee4463b67baf17fa9dc4d6565901ba562b04d`，结束复核不变。范围 U16-P1～P7/V1～V12 及 MR9/RT10/core/transport 交接，未重复 core 全审。
+
+本节点无新增阻断或非阻断发现。受控历史读面和 runtime 核授权前缀/原 response/reply/选入关系，planner 核 P/θ/G；不合用的新响应不遮掉旧合法祖先。reader 的同一累积器交 final facts，实际停止另判，取消不等待未来usage。自有捕获的计划固定 projection/meter/reader/projectOutput；实际停止和结算责任结束前保留lease。SL3原M/R batch为共同存储对象，unknown保留原owner，冷恢复认回原值且零新tokenizer/projection/HTTP。core六值唯一，runtime拥有组合参数及三分支接口，估计不覆盖actual usage。V10/V12覆盖稳定历史零tokenizer与实际demo，不新建app或校准store。
+
+既有transport B1仍未关闭，不放行该组合完整增量交付；U16-G5只登记问题。transport的projectOutput须按runtime唯一三分支账本对齐，由接口表达检查继续核对。无新增产品裁决：G-36硬fit归原owner；U16-G3真实withRun来源不能用noRun或受控测试代签。
+
+未运行实现、形式、模型或性能测试，新增绑定0，V1～V12均为义务。旁路raw、最后到达响应、独立锚store各有简化局部实现的优点，但分别引入第二解释、因果错误或第二提交责任；当前设计避免这些边界，线性扫描/读面成本仍待实测。若实现需绕过final facts、冷恢复依赖当前模型或稳定前缀不能marginal，须重开相应审查。意见不代替采用。

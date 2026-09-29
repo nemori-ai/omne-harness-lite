@@ -1,3 +1,5 @@
+2026-09-29：[D-107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 已接受 MR9/RT10，并采用本节点 v9 纯值映射 R9-P1～P5。新增绑定 0；实际实施与 V9 验收待完成。受审正文保持原字节，以下候选标记按起草日期读取。
+
 ## MR9 输入校准值映射候选（2026-09-29）
 
 - 入口：[v9-usage-calibration-design.md](v9-usage-calibration-design.md)，revision 1；节点及源码路径仍为 `packages/core/model-response`，纯共享值包，无 plugin/fiber/service。

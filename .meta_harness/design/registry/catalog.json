@@ -13160,7 +13160,7 @@
       },
       "family": "data",
       "topic": "model-response",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/model-response/v9/contract.md",
       "resources": [
         "spec/data/model-response/v9/contract.md",
@@ -13169,7 +13169,7 @@
         "spec/data/model-response/v9/model-response.schema.json",
         "spec/data/model-response/v9/verification.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-usage-calibration-adoption/acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -13292,9 +13292,9 @@
       },
       "family": "capabilities",
       "topic": "model-request-runtime",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/model-request-runtime/v10/contract.md",
-      "acceptance": null,
+      "acceptance": "record/decisions/model-input-usage-calibration-adoption/acceptance.json",
       "resources": [
         "spec/capabilities/model-request-runtime/v10/consumer-impact.md",
         "spec/capabilities/model-request-runtime/v10/contract.md",

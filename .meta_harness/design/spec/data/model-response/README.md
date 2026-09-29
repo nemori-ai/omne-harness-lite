@@ -1,3 +1,5 @@
+2026-09-29：[D-107](../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受并冻结 v9 全45条/5资源；当前规范采用不等于真实调用/持久或实现验收。以下按原版本与日期读取。
+
 2026-09-28：[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 接受本次恢复时序后继 v8 的全部规范资源；当前精确范围以该决定与 registry 为准。下文候选标签记录起草时状态，提供者迁移及真实恢复另验。
 
 > **历史起草记录（当时状态）**：**2026-09-28 新候选**：[v6](v6/contract.md)（S-1～S-40）引用 MP4/MS5，新增待提交回复表示；未接受、未冻结。完整输入限制快照、持久根/待提交边界与证据见 [v6 验证说明](verification.md#2026-09-28-v6-候选验证)。当前已接受 v5 保持原采用。
