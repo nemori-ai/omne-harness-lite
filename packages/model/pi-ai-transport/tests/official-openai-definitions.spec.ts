@@ -51,16 +51,16 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
       const read = readModelDefinition(openaiDefinitions, coordinates)
       if ('rejected' in read) throw new Error(read.rejected)
       expect(read.ok).toEqual(definition)
-      expect(definition.implementation).toEqual({ name: 'pi-ai:openai', revision: 'mp4-17' })
+      expect(definition.implementation).toEqual({ name: 'pi-ai:openai', revision: 'mp4-18' })
       const expectedRevision = modelId.startsWith('openai/gpt-5.6-')
         ? modelId.endsWith('-pro')
-          ? '7'
-          : '8'
+          ? '8'
+          : '9'
         : modelId === 'openai/gpt-6-astra'
-          ? '4'
+          ? '5'
           : modelId === 'openai/gpt-6-luna'
-            ? '6'
-            : '5'
+            ? '7'
+            : '6'
       expect(definition.revision).toBe(expectedRevision)
       expect(definition.capabilities).toEqual({
         inputModalities: ['image', 'text'],

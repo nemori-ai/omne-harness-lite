@@ -276,9 +276,9 @@ const supplemental = createDeepSeekSupplemental(['type', 'text'])
 export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4-pro-0813' ||
-    definition.revision !== '4' ||
+    definition.revision !== '5' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-17' ||
+    definition.implementation.revision !== 'mp4-18' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4 Pro definition')
@@ -294,7 +294,7 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v4-pro-reference-2',
+    algorithmRevision: 'deepseek-v4-pro-reference-3',
     tokenizerRevision: 'deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1',
     replayRevision: 'deepseek-reference-boundary/1',
     transformRevision: 'deepseek-pro-reference-projection/1',

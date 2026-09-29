@@ -67,7 +67,7 @@ describe('independent six fixed Pro usage-scope bindings', () => {
         const definition = openaiDefinitions.find(d => d.modelId === model)!
         const is56 = model.startsWith('openai/gpt-5.6-')
         expect(definition.revision).toBe(is56 ? '7' : '5')
-        expect(definition.implementation.revision).toBe('mp4-17')
+        expect(definition.implementation.revision).toBe('mp4-18')
         // Current official visible-input estimates are supplied for all six.
         // These controlled reader observations do not certify upstream token scope.
         const meter = createOpenAiInputMeter(definition)

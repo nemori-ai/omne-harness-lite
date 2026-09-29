@@ -434,9 +434,9 @@ const supplemental = createDeepSeekSupplemental(['type', 'text', 'image_url'])
 export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4.1-flash' ||
-    definition.revision !== '3' ||
+    definition.revision !== '4' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-17' ||
+    definition.implementation.revision !== 'mp4-18' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4.1 Flash definition')
@@ -453,7 +453,7 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v41-flash-reference-3',
+    algorithmRevision: 'deepseek-v41-flash-reference-4',
     tokenizerRevision: 'deepseek-v41-flash-dba1be0a40aa45a94ad051997016db3960a90277',
     replayRevision: 'deepseek-reference-boundary/1',
     transformRevision: 'deepseek-flash-reference-projection/1',

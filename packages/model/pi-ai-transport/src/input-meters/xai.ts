@@ -129,7 +129,7 @@ function fixedCalibration(definition: ModelDefinition) {
     !('ok' in candidate) ||
     !('ok' in expected) ||
     !jsonEqual(candidate.ok, expected.ok) ||
-    definition.implementation.revision !== 'mp4-17'
+    definition.implementation.revision !== 'mp4-18'
   )
     return undefined
   return calibration

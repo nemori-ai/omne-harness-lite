@@ -50,8 +50,8 @@ export const deepseekModelRoutes = {
 export const deepseekDefinitions = ownDefinitions([
   {
     modelId: 'deepseek/deepseek-v4.1-flash',
-    revision: '3',
-    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-17' },
+    revision: '4',
+    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-18' },
     capabilities: {
       inputModalities: ['image', 'text'],
       outputModalities: ['text'],
@@ -69,8 +69,8 @@ export const deepseekDefinitions = ownDefinitions([
   },
   {
     modelId: 'deepseek/deepseek-v4-pro-0813',
-    revision: '4',
-    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-17' },
+    revision: '5',
+    implementation: { name: 'pi-ai:deepseek', revision: 'mp4-18' },
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],

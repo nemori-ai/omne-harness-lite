@@ -207,9 +207,11 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `InputMeter` 是提供给函数或 transport factory 的可信可执行构件，不进 model profile JSON，也不是调用者传入的准入布尔值。定义、供应商、算法版本及证据绑定到贡献；另一计量来源签发的计划不能经本宿主发送。`createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` 针对精确的 `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` 路由，固定 DeepSeek V4 Pro 公开提示词编码器与 tokenizer。由于已查来源未公开 OpenRouter／DeepInfra 的字节完全一致的私有提示词装配，它返回的是**估算**。打包 tokenizer/config 的哈希及官方文本、推理、工具 golden 离线验证。余量由调用者显式选择；估算不替代上游 usage 和费用。没有计量证据的官方定义无法成功规划。上面的合成 `controlledMeter` 只演示本地协议，绝不可用于真实供应商。
 
-37 个官方叶均绑定本家族实现 `mp4-17`，采用共享拒答文本读取器。各 definition 修订递增一次；计量算法、tokenizer／replay／transform 修订、声明能力与路由不变。`tests/official-reader-bindings.spec.ts` 对照发布前固定算法／范围样本，逐一验证工厂、完整 profile 和真实 planner 调用。工厂拒绝旧定义；这次发布不冒充 37 型号实机 OpenRouter 认证，Pro 输入上下文用量仍明确未知。
+37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic、DeepSeek 和 xAI 定义绑定各家族 `mp4-18` 实现，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
 
-`createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-17` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
+`createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-18` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
+
+DeepSeek Flash／Pro 当前分别绑定 definition 修订 4／5 与 `mp4-18`，共用 wire 元数据及增量计量，保留不同的参考编码器。full 和增量路径均在发送前拒绝无法解释的私有 `reasoning_details`，不以密文 JSON 分词代替隐藏推理计量；支持的可见历史完整保留。算法标识更新使旧校准锚点失效。
 
 `createOpenAiInputMeter(definition)` 通过唯一 `openaiFamilyRecord` 表和 `openAiOutputHistoryPolicy` 提供 12 个当前 OpenAI 型号。GPT-6 Astra/Sol/Luna 的 definition 修订为 5/6/7，三个 Pro 为 6；GPT-5.6 Sol/Terra/Luna 为 9，三个 Pro 为 8，统一绑定 `pi-ai:openai/mp4-18`。工厂拒绝旧执行绑定，精确留存的原绑定仅作为有限历史事实解释 O。
 
@@ -227,7 +229,9 @@ Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text blo
 
 `createGoogleInputMeter(definition)` 绑定两个 Gemini 3.7／3.8 Flash AI Studio 定义 revision 3／`mp4-17`。它以固定 Gemma4 对照词表和冻结的逐型号偏置计入可见文本及工具，结果明确为粗略 `estimated`，调用方必须显式给余量。八次固定路由观测区分拟合与留出输入：样本中最多少估 10 token，最大绝对误差 60；这两个数都不是误差上界，也不是 Gemini 自身 tokenizer。已声明的请求 effort `low`／`medium`／`high` 作为生成控制被识别，不进入 messages/tools 代理计数；这是既有代理的输入域扩展，没有重拟合偏置，也不声称 effort 专属上游准确性。缺席仍不发送；其他值继续按定义原有规则丢弃。直接提交不支持的 effort 结构、媒体、不透明推理回放及未知控制字段仍不可计量，实际 effort 留出验证仍待完成。词表和许可随包提供给独立制品消费者。
 
-`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7（definition 3／`mp4-17`）提供可见文本／工具粗估：将第一方 Grok Build 的 UTF-8 字节算法投影到最终 wire，加上各型号仅用两个 fit 样本得出的偏移（4.6 为 141、4.7 为 1181 token）；独立工具历史 holdout 分别对完整输入高估 35、34 token。它不是精确 tokenizer 或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。opaque reasoning 和媒体保持不可计量，不删除历史；完整模型认证仍未完成。已声明的 `low`／`medium`／`high` effort 进入完整 wire 估算；冻结偏置不是按 effort 单独拟合，本次扩域尚无实际 effort 留出证据。直接提交未声明或畸形 effort 仍不可计量。
+`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7（definition 4／`mp4-18`）提供可见文本／工具粗估：将第一方 Grok Build 的 UTF-8 字节算法投影到最终 wire，加上各型号仅用两个 fit 样本得出的偏移（4.6 为 141、4.7 为 1181 token）；独立工具历史 holdout 分别对完整输入高估 35、34 token。它不是精确 tokenizer 或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。opaque reasoning 和媒体保持不可计量，不删除历史；完整模型认证仍未完成。已声明的 `low`／`medium`／`high` effort 进入完整 wire 估算；冻结偏置不是按 effort 单独拟合，本次扩域尚无实际 effort 留出证据。直接提交未声明或畸形 effort 仍不可计量。
+
+仅含可见内容的响应复用采用共享 JSON 净增量估算：相对于空消息 framing 计算新回放的可见单元及新增输入，不重复计算稳定前缀及其工具声明。这些贡献仍是估算，不将上游输出 token 等同于回放输入 token。空消息仅可用于内部 framing，完整请求计量仍返回不可计量。计量器发布新的回放依据，旧观察须重新完整计量；无需新增用户配置。opaque 推理和图片仍不在此计量器的支持范围内。
 
 ```ts
 import { createXaiInputMeter, xaiDefinitions } from '@omne-harness-lite/pi-ai-transport'

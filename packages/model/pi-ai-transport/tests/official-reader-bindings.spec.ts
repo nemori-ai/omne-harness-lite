@@ -2,6 +2,7 @@ import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import before from './fixtures/shared-reader/before-mp4-17.json' with { type: 'json' }
 import priorityRelease from './fixtures/shared-reader/priority-family-mp4-18.json' with { type: 'json' }
+import nextRelease from './fixtures/shared-reader/deepseek-xai-mp4-18.json' with { type: 'json' }
 import {
   openaiDefinitions,
   anthropicDefinitions,
@@ -59,7 +60,7 @@ const factories: Readonly<Record<string, (d: ModelDefinition) => InputMeter | un
         : createZaiCommercialInputMeter(d),
 }
 const successors: Readonly<Record<string, (typeof priorityRelease)[keyof typeof priorityRelease]>> =
-  priorityRelease
+  { ...priorityRelease, ...nextRelease }
 
 describe('Current official reader and priority-family releases', () => {
   it('enumerates exactly the frozen 37 supplied leaves', () => {
