@@ -83,9 +83,9 @@ function projectedMessage(value: JsonValue): { message: JsonObject; images: numb
 export function createXaiCandidateInputMeter(definition: ModelDefinition): InputMeter {
   if (
     (definition.modelId !== 'x-ai/grok-4.6' && definition.modelId !== 'x-ai/grok-4.7') ||
-    definition.revision !== '1' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:xai' ||
-    definition.implementation.revision !== 'mp4-2' ||
+    definition.implementation.revision !== 'mp4-3' ||
     !Object.hasOwn(definition.routes, 'xai')
   )
     throw new TypeError('unsupported xAI candidate binding')

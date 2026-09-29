@@ -83,7 +83,7 @@ describe('Grok limited visible text/tool estimates', () => {
     expect(
       createXaiInputMeter({
         ...definition,
-        implementation: { ...definition.implementation, revision: 'mp4-1' },
+        implementation: { ...definition.implementation, revision: 'mp4-2' },
       }),
     ).toBeUndefined()
     expect(
@@ -93,6 +93,25 @@ describe('Grok limited visible text/tool estimates', () => {
       }),
     ).toBeUndefined()
   })
+  it.each(xaiDefinitions)(
+    '$modelId retains its frozen formula across declared efforts',
+    definition => {
+      const meter = requiredMeter(definition)
+      const fixture = rows.find(
+        row => row.modelId === definition.modelId && row.scenario === 'holdout-tool-history',
+      )
+      if (!fixture) throw new Error('missing full visible-history fixture')
+      const offset = definition.modelId === 'x-ai/grok-4.6' ? 141 : 1181
+      for (const effort of ['low', 'medium', 'high']) {
+        const body = { ...fixture.body, reasoning: { effort } }
+        const serialized = writeJsonLossless(body)
+        expect(directFull(meter, { body, serialized })).toEqual({
+          kind: 'estimated',
+          tokens: Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + offset,
+        })
+      }
+    },
+  )
   it('handles actual JsonNumber bytes and refuses mismatched serialization', () => {
     const body = { ...rows[0]!.body, max_tokens: new LosslessNumber('128') }
     expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
@@ -141,7 +160,11 @@ describe('Grok limited visible text/tool estimates', () => {
             },
           ],
         },
-        { ...body, reasoning: { effort: 'low' } },
+        { ...body, reasoning: { effort: 'none' } },
+        { ...body, reasoning: { effort: 'max' } },
+        { ...body, reasoning: {} },
+        { ...body, reasoning: { effort: 1 } },
+        { ...body, reasoning: { effort: 'low', extra: true } },
         { ...body, temperature: new LosslessNumber('0.5') },
         { ...body, tools: [{ type: 'web_search' }] },
       ]
@@ -152,9 +175,17 @@ describe('Grok limited visible text/tool estimates', () => {
       expect(writeJsonLossless(body)).toBe(original)
     },
   )
-  it.each(xaiDefinitions)(
-    '$modelId plans once and sends identical candidate-measured bytes over local TLS',
-    async definition => {
+  it.each(
+    xaiDefinitions.flatMap(definition =>
+      (['low', 'medium', 'high'] as const).map(effort => ({
+        definition,
+        modelId: definition.modelId,
+        effort,
+      })),
+    ),
+  )(
+    '$modelId $effort plans once and sends identical estimated bytes over local TLS',
+    async ({ definition, effort }) => {
       const profile = createOfficialProfileContent(definition, {
         providers: ['xai'],
         allowFallback: false,
@@ -184,7 +215,7 @@ describe('Grok limited visible text/tool estimates', () => {
           upstreamInputLimits: profile.ok.upstreamInputLimits,
           updatedAt: '2026-09-28T00:00:00Z',
         },
-        parameters: { maxOutputTokens: 128 },
+        parameters: { reasoningEffort: effort, maxOutputTokens: 128 },
         tools: [],
         messages: [
           judgedMessage({
@@ -222,9 +253,10 @@ describe('Grok limited visible text/tool estimates', () => {
           inputTokens: { kind: 'estimated' },
           meterRevision:
             definition.modelId === 'x-ai/grok-4.6'
-              ? 'grok-build-visible-text-tools-offset141-1'
-              : 'grok-build-visible-text-tools-offset1181-1',
+              ? 'grok-build-visible-text-tools-effort-offset141-2'
+              : 'grok-build-visible-text-tools-effort-offset1181-2',
         })
+        expect(planned.planned.body.reasoning).toEqual({ effort })
         const evidence = planned.planned.inputLimitEvidence
         if (evidence.inputTokens.kind !== 'estimated' || evidence.admissionTokens === undefined)
           throw new Error('expected estimate and admitted token count')

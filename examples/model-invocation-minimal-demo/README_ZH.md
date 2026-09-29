@@ -172,3 +172,5 @@ pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run t
 独立的 `tests/openai-pro-images-service.spec.ts` 对三个 GPT-5.6 Pro 绑定及 GPT-6 Astra Pro 各做三轮真实持久服务本地 TLS 检查，保留图片历史与上游原 usage/cost；输入观测仍为 `scope_unknown` 时逐轮完整**估算**，并验证超限余量在零 HTTP 下拒绝。运行：`pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-pro-images-service.spec.ts`。受控响应不认证真实 Pro 图片预处理或 OpenRouter 接受行为。
 
 `tests/google-effort-service.spec.ts` 对两个 Google Flash 定义的 low／medium／high effort 分别执行三轮持久服务本机 TLS，保留可见历史与响应原 usage/cost，并验证超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/google-effort-service.spec.ts --maxWorkers=1`。合成响应只验证服务装配，不认证 Gemini 计量准确性或真实路由接受行为。
+
+`tests/xai-effort-service.spec.ts` 覆盖两个 Grok 定义的 low／medium／high effort，分别验证三轮持久本机 TLS 及超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/xai-effort-service.spec.ts --maxWorkers=1`。这验证当前服务组合与上游原计量保留；合成响应不认证实际 effort 精度、图片支持或不透明回放。

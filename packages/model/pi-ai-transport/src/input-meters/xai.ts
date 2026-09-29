@@ -6,7 +6,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import { jsonEqual, type ModelDefinition } from '../definitions.ts'
+import { jsonEqual, ruleAccepts, type ModelDefinition } from '../definitions.ts'
 import { object } from '../json.ts'
 import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { xaiDefinitions } from '../official-models/xai.ts'
@@ -47,9 +47,11 @@ function functionCall(value: JsonValue): boolean {
     typeof value.function.arguments === 'string'
   )
 }
-function supported(body: JsonObject, modelId: string): boolean {
+function supported(body: JsonObject, definition: ModelDefinition): boolean {
+  const effortRule = definition.routes.xai?.parameters.reasoningEffort
+  if (!effortRule) return false
   if (
-    body.model !== modelId ||
+    body.model !== definition.modelId ||
     Object.keys(body).some(key => !bodyKeys.has(key)) ||
     body.stream !== true ||
     body.store !== false ||
@@ -68,7 +70,8 @@ function supported(body: JsonObject, modelId: string): boolean {
     (body.reasoning !== undefined &&
       (!object(body.reasoning) ||
         Object.keys(body.reasoning).length !== 1 ||
-        body.reasoning.effort !== 'high'))
+        typeof body.reasoning.effort !== 'string' ||
+        !ruleAccepts(effortRule, body.reasoning.effort)))
   )
     return false
   for (const message of body.messages) {
@@ -126,7 +129,7 @@ function fixedCalibration(definition: ModelDefinition) {
     !('ok' in candidate) ||
     !('ok' in expected) ||
     !jsonEqual(candidate.ok, expected.ok) ||
-    definition.implementation.revision !== 'mp4-2'
+    definition.implementation.revision !== 'mp4-3'
   )
     return undefined
   return calibration
@@ -139,7 +142,7 @@ export function createXaiVisibleBodyCounter(
   const calibration = fixedCalibration(definition)
   if (!calibration) return undefined
   return ({ body, serialized }) => {
-    if (writeJsonLossless(body) !== serialized || !supported(body, definition.modelId))
+    if (writeJsonLossless(body) !== serialized || !supported(body, definition))
       return { kind: 'unavailable' }
     const tokens = Math.floor(Buffer.byteLength(serialized, 'utf8') / 4) + calibration.offset
     return Number.isSafeInteger(tokens) ? { kind: 'estimated', tokens } : { kind: 'unavailable' }
@@ -156,8 +159,8 @@ export function createXaiInputMeter(definition: ModelDefinition): InputMeter | u
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'xai',
-    algorithmRevision: `grok-build-visible-text-tools-offset${calibration.offset}-1`,
-    evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; rough estimate, no error bound`,
+    algorithmRevision: `grok-build-visible-text-tools-effort-offset${calibration.offset}-2`,
+    evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; complete wire surrogate includes declared low/medium/high request effort; frozen offsets are not effort-specific fits and expanded effort scope has no actual holdout; rough estimate, no error bound`,
     // First-party byte estimate projected onto final wire; fixed offset derived
     // only from two fit cases per model. No cross-model or holdout fitting.
     measureFull: countBody,
