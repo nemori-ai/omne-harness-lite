@@ -26,6 +26,7 @@ import {
   type SessionModelSelectionInput,
   type SettlementLogBinding,
   type RunHistoryReader,
+  type CurrentHistoryReaders,
   type SessionSelectModelResult,
   type LegalTargetsResult,
   type SessionEffectiveModelResult,
@@ -487,6 +488,8 @@ export function createAcceptanceApplication(
     readonly runnerExternal?: DemoRunnerServiceHostDependencies['external']
     /** Trusted Run owner interprets both terminal axes from the supplied owned prefix. */
     readonly runHistory?: RunHistoryReader
+    /** Trusted source owner proves selected-message ancestry from this owned prefix. */
+    readonly calibrationHistory?: CurrentHistoryReaders['calibration']
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
@@ -1488,7 +1491,7 @@ export function createAcceptanceApplication(
             history: {
               call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
               failure: readDemoRunnerFailure,
-              calibration: readDemoCalibrationHistory,
+              calibration: options.calibrationHistory ?? readDemoCalibrationHistory,
               run: options.runHistory ?? (() => ({ unavailable: true })),
             },
             reservationWaitPolicy: deployment.reservationWaitPolicy,

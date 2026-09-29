@@ -1,9 +1,9 @@
 import { modalityOf, type ContentBlock, type Modality } from '@omne-harness-lite/content-blocks'
-import { ExactDecimal, type ModelCallId } from '@omne-harness-lite/call-accounts'
-import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeMessage, type LoggedMessage, type Message } from '@omne-harness-lite/messages'
 import type {
   CalibrationHistoryResult,
+  CurrentHistoryReaders,
   LocatedCalibrationCandidate,
   SettlementPrefix,
   SelectionProjection,
@@ -129,8 +129,12 @@ export function messagePrefix(
 export function readDemoCalibrationHistory(
   prefix: SettlementPrefix,
   selectedMessages: readonly Message[],
-  target: { readonly callId: ModelCallId; readonly dispatch: JsonNumber },
+  target: Parameters<CurrentHistoryReaders['calibration']>[2],
 ): CalibrationHistoryResult {
+  // The linear demo reader cannot prove a Run's selected-message ancestry. A
+  // trusted Run owner must provide the callback for that branch.
+  if (Object.hasOwn(target, 'run') || Object.hasOwn(target, 'attempt'))
+    return { sourceUnavailable: true }
   const decoded = messagePrefixWithSources(prefix)
   if ('unavailable' in decoded) return { sourceUnavailable: true }
   const selectedSources: {
