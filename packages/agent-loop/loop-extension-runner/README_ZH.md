@@ -2,9 +2,9 @@
 
 本包公开一个不依赖宿主的拓展件经过执行函数，以及 `runner/5` 结论纯构件。`runPass` 顺序执行拓展件链，每件结论确认写入后才推进；它通过受控等待来源接续耐久 ask，并返回完整结论历史与生效结果。纯构件仍负责结论编解码、经过键、重试结论和效果合成。
 
-本包是公共函数层，不是 Cordis 插件或 runner 服务。宿主通过类型化端口提供已授权作用域、必要时的真实 Run、完整日志前缀、有序定义、拓展件执行、等待与卡片事实，以及能力判定。`runPass` 不创建 Run，也不决定模型能否重试发送。`readRunnerRetryConclusions` 检查条目和稠密位置，但单凭数组不能证明读取权限。
+本包同时公开独立函数与 Cordis 服务插件。宿主通过类型化端口提供已授权作用域、必要时的真实 Run、完整日志前缀、有序定义、拓展件执行、等待与卡片事实，以及能力判定。`runPass` 不创建 Run，也不决定模型能否重试发送。`readRunnerRetryConclusions` 检查条目和稠密位置，但单凭数组不能证明读取权限。
 
-采用范围见 [D-106](../../../.meta_harness/design/record/decisions/runner-current-pure-provider-adoption/decision.md)，依据 [Runner5](../../../.meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../.meta_harness/design/spec/data/loop-extension/v6/contract.md) 和继承 [v5](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v5-current-design.md) 的 [v6 实现映射](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md)。[验证义务](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md)区分公共函数层与尚待接线的正式宿主。
+采用范围见 [D-106](../../../.meta_harness/design/record/decisions/runner-current-pure-provider-adoption/decision.md)，依据 [Runner5](../../../.meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../.meta_harness/design/spec/data/loop-extension/v6/contract.md) 和继承 [v5](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v5-current-design.md) 的 [v6 实现映射](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md)，服务接线沿已采用的 [v7](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md)。[验证义务](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md)区分公共函数层与尚待接线的正式宿主。
 
 ## 公开接口
 
@@ -12,7 +12,7 @@
 - `createRunnerImplementationRegistry()` 持有内置贡献的代际。`registerBuiltin(name, implementation)` 返回同步、幂等的注销函数；同时在场的同名登记抛错。`capture(name)` 固定所选代际，在途旧贡献撤下后即使同名新代已登记，旧结果仍返回错误。`closeAdmission()` 关闭新准入，`drain()` 等实际贡献 Promise 结束。登记面类型为 `RunnerImplementations`，贡献函数类型为 `RunnerBuiltinImplementation(input, signal, mode)`。
 - `runPass(pass, chain, ports, signal)` 返回 `{ conclusions, effect }` 或具名失败。历史保留 final 前所有 ask，生效结果只使用各件 final 和当前 ask。`noRun` 只允许符合条件的 user/system `before_persist_message`；pending 不再次调用，ready 要有等待 owner 给出的回放绑定和独立于贡献者错误的偏离锁存。
 - `createRunnerLogAdapter({ log, binding, owner, subjectForCandidate })` 把结论读写接到 SL3 `SessionLog`。调用宿主须把 `subjectForCandidate` 绑定为每条候选结论当时的原定位主体；适配器校验后留存，供恢复时判合法竞争胜者。`createRunnerTaskOwner(binding)` 在调用提供者前登记任务，留存 unknown 写入，并提供 `closeAdmission`、`reconcileStoppedLog`、`drain`。真实日志宿主须先让旧物理写者停止并准入恢复读取，才可对账；新日志读空不能证明旧写入缺席。
-- `createRunnerReminderLogAdapter({ log, binding, owner, readMessagePrefix })` 使用模型运行时共用的 `mrr/3` MessageId 键并比较完整消息值。回调须提供该操作位置完整且已授权的前缀；同 ID 异值是冲突，不能当作已写入成功。嵌套链由宿主另行提供。
+- `createRunnerReminderLogAdapter({ log, binding, owner, readMessagePrefix })` 使用模型运行时共用的 `mrr/3` MessageId 键并比较完整消息值。回调须提供该操作位置完整且已授权的前缀；同 ID 异值是冲突，不能当作已写入成功。独立适配器的嵌套链由宿主提供；服务从本次固定的清单链筛选。
 - `passKeys(input)` 返回经过、全域及可选的最终、ask、模型调用键；输入不合法返回 `{ invalidInput: true }`。键使用固定 JSON 数组，ask 序号保持精确正整数值。
 - `prepareRunnerConclusion(input)` 检查完整 LC6 结论、轮次、租户与运行壳、提醒关联和键，返回尚未写入的 `LogEntryInput`。
 - `inspectRunnerConclusion(input)` 返回复制后的完整结论及其关联；真正外域条目返回 `{ unrelated: true }`，runner 标记不一致返回 `{ invalid: true }`。
@@ -88,5 +88,13 @@ console.log(result.effect.kind) // proceed
 替换本表对应的求值，合法同序删除的 `reuse` 表仍然可读。
 
 `RunnerServiceHost` 将 `acquireDispatch` 和 `acquireReplay` 分开，后者只能
-取得读取授权。这些装配端口由宿主持有，不是请求数据中的证明。目前导出供
-服务组合使用；服务插件及其生命周期验收将在后续实施增量完成。
+取得读取授权。这些装配端口由宿主持有，不是请求数据中的证明。`loopExtensionRunnerPlugin` 配置为
+`{host: RunnerHostFactory}`，仅必需 `sessionLog`；同一 fiber 提供
+`loopExtensionRunner` 和 `loopExtensionImplementations`。`dispatch(request, signal)`
+消费真实链和 SL3 适配器。`replay(request)` 没有当前 attempt，不求值贡献、不调用
+守卫、句柄、时钟或提醒写入。共享日志宿主跨插件替换保留 unknown 责任；runner
+卸载等待实际调用停止，但不关闭借用的日志与历史 reader。
+
+编译后运行 `node examples/service-lifecycle.mjs`，可观察两个真实 Cordis 服务面，
+以及未提供授权清单作用域时明确返回 unavailable。示例使用临时真实 JSONL 日志，
+由应用在撤除 runner 后关闭。

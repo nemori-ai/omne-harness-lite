@@ -25,8 +25,9 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
-import type { RunnerFailure, RunnerPiece } from './run-pass.ts'
+import type { RunnerPiece } from './run-pass.ts'
 import type { RunnerLogBinding } from './task-owner.ts'
+import type { RunnerReplayFailure } from './pass-history.ts'
 
 /** Borrowed, captured providers. The caller owns authorization, generation checks and closure. */
 export interface RunnerChainSources {
@@ -223,7 +224,7 @@ function piece(
 /** Read one current category record and its exact immutable versions, without re-evaluation. */
 export async function readRunnerChain(
   input: ReadRunnerChainInput,
-): Promise<readonly RunnerPiece[] | RunnerFailure> {
+): Promise<readonly RunnerPiece[] | RunnerReplayFailure> {
   const { session, binding, sources } = input
   if (
     !('ok' in parseOpaqueIdentifier(session, 'SessionRef')) ||

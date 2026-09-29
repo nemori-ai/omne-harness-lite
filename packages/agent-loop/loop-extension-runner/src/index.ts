@@ -73,3 +73,10 @@ export type {
   RunnerHostFactory,
   LoopExtensionRunnerService,
 } from './service-types.ts'
+
+export { createLoopExtensionRunner, type RunnerServiceInstance } from './service.ts'
+export {
+  loopExtensionRunnerPlugin,
+  LOOP_EXTENSION_RUNNER_SERVICE,
+  LOOP_EXTENSION_IMPLEMENTATIONS_SERVICE,
+} from './plugin.ts'
