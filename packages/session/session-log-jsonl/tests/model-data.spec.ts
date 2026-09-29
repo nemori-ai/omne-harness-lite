@@ -17,9 +17,9 @@ function record(value: JsonValue | undefined): JsonObject {
   if (value === undefined || !object(value)) throw new Error('fixture object missing')
   return value
 }
-it('stores accepted MS4/MR4 values, exact configuration and business-invalid arrays across reopen', async () => {
+it('stores accepted MS6/MR9 values, exact configuration and business-invalid arrays across reopen', async () => {
   const read = readJsonStrict(
-    await readFile(new URL('./fixtures/model-response-v4.json', import.meta.url), 'utf8'),
+    await readFile(new URL('./fixtures/model-response-v9.json', import.meta.url), 'utf8'),
   )
   if ('failed' in read) throw new Error('normative data fixture syntax')
   const original = record(read.ok)
@@ -53,11 +53,11 @@ it('stores accepted MS4/MR4 values, exact configuration and business-invalid arr
   }
   const response = judgeModelResponse(precise)
   if ('rejected' in response)
-    throw new Error(`MR4 normative fixture rejected: ${response.rejected}`)
+    throw new Error(`MR9 normative fixture rejected: ${response.rejected}`)
   const message = judgeMessage(original.reply)
-  if ('rejected' in message) throw new Error(`MS4 reply fixture rejected: ${message.rejected}`)
+  if ('rejected' in message) throw new Error(`MS6 reply fixture rejected: ${message.rejected}`)
   const illegalMessage = { type: 'assistant', id: 'missing-fields', blocks: [] }
-  const illegalResponse = { ...precise, raw: { headers: { 'x-multi': ['a', 'b'] } } }
+  const illegalResponse = { ...precise, raw: { headers: { 'x-multi': ['a', 42] } } }
   expect(judgeMessage(illegalMessage)).toHaveProperty('rejected')
   expect(judgeModelResponse(illegalResponse)).toHaveProperty('rejected')
   const inputs = [message.ok, precise, illegalMessage, illegalResponse]

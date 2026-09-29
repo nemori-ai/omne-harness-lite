@@ -172,3 +172,5 @@ try {
 旧 writer 的目录没有正式标记，只有可选 `observeLegacyExit(dir)` 能给出全部旧物理写进程退出证据时才迁移；缺席则拒绝。先停旧准入、排空所有写方并确认实际进程退出，再迁移四参数追加调用者、提供新宿主端口、打开旧数据。损坏正式标记保持不可用，不转成 legacy；遗留 `recovery.json.next` 永不作为权威。旧写器不能安全回开新布局。本包不等于完整 model-request-runtime 纵线交付，runtime v3 仍消费 session-log v2。
 
 源码采用关系：[SL3](../../../.meta_harness/design/spec/capabilities/session-log/v3/contract.md)、[D083](../../../.meta_harness/design/record/decisions/session-log-tail-condition-adoption/decision.md)、[D084 投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-design.md)、[D085 恢复投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-recovery-design.md)。Run 解释、共同业务键 codec、合法读取权限、消费者重试策略和所有旧业务写方的实际停止，仍归各自 owner。
+
+model-data 回归以当前 MS6/MR9 载荷验证追加和重开，包括响应自身的输入计量依据。日志只保存 JSON 值，不解释校准或修补业务非法载荷；这些判断归模型消费者。
