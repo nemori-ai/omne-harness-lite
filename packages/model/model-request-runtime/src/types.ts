@@ -199,8 +199,13 @@ export interface PublicDiagnosticAssociation {
   readonly executionId: string
   readonly causedBy?: DiagnosticReference
 }
+/** Process-local execution resources; a reuse scope conveys no identity or authority. */
+export interface PlanExecutionContext {
+  readonly signal: AbortSignal
+  readonly reuseScope?: object
+}
 export interface TransportAdapter<P extends PlannedSemantics, R> {
-  readonly plan: (input: PlanInput) => PlanResult<P>
+  readonly plan: (input: PlanInput, execution: PlanExecutionContext) => Promise<PlanResult<P>>
   readonly projectOutput: (planned: P, input: OutputProjectionInput) => OutputProjectionResult
   readonly send: (
     planned: P,
