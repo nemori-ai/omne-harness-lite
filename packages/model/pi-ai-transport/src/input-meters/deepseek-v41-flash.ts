@@ -458,7 +458,9 @@ function supplemental(body: JsonObject): JsonObject | undefined {
   )
   const messages: JsonValue[] = []
   for (const message of body.messages) {
-    if (!object(message)) return undefined
+    // The pinned reference does not explain private reasoning details. Counting
+    // their serialized bytes cannot account for the hidden prompt contribution.
+    if (!object(message) || message.reasoning_details !== undefined) return undefined
     const extra = Object.fromEntries(
       Object.entries(message).filter(
         ([name]) =>
