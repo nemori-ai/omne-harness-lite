@@ -145,6 +145,59 @@ async function animatedPng(): Promise<Buffer> {
 }
 
 describe('D109 real loaded sharp codec', () => {
+  it('preserves a decoded 1x1 static GIF at ordinal zero without an encoder', async () => {
+    // Same original35-byte fixture as C's OpenAI input-meter integration.
+    const bytes = Buffer.from('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAkQBADs=', 'base64')
+    const metadata = await sharp(bytes, { animated: true }).metadata()
+    expect([metadata.width, metadata.height, metadata.pages]).toEqual([1, 1, 1])
+    const preparer = ready()
+    const result = await preparer.prepareRequestImages(batch(bytes, 'image/gif'))
+    if (!('prepared' in result)) throw new Error(JSON.stringify(result))
+    const image = result.prepared.images[0]
+    if (!image) throw new Error('missing')
+    expect(image.mediaType).toBe('image/gif')
+    expect(Buffer.from(image.bytes).equals(bytes)).toBe(true)
+    expect([image.width, image.height, image.changed, image.candidateOrdinal]).toEqual([
+      1,
+      1,
+      false,
+      0,
+    ])
+    expect(result.prepared.exploredThrough).toEqual([0])
+    await preparer.close()
+  })
+  it('closes each owned decoded native handle once on successful preparation', async () => {
+    let decodes = 0,
+      closes = 0
+    const codec = createSharpImageCodec(sharp)
+    const counting: LoadedImageCodec = {
+      ...codec,
+      async decode(...args) {
+        const result = await codec.decode(...args)
+        if ('failure' in result) return result
+        decodes++
+        const decoded = result.ok
+        return {
+          ok: {
+            ...decoded,
+            async close() {
+              closes++
+              await decoded.close()
+            },
+          },
+        }
+      },
+    }
+    const preparer = ready(modelImageBalancedV1, counting)
+    const bytes = await sharp({ create: { width: 8, height: 8, channels: 3, background: 'blue' } })
+      .png()
+      .toBuffer()
+    expect('prepared' in (await preparer.prepareRequestImages(batch(bytes)))).toBe(true)
+    expect(decodes).toBe(1)
+    expect(closes).toBe(1)
+    await preparer.close()
+    expect(closes).toBe(1)
+  })
   it('real native scoped cache encodes only the first of three rounds and eviction recomputes same bytes', async () => {
     let encodes = 0
     const codec = createSharpImageCodec(sharp)
@@ -586,6 +639,7 @@ describe('D109 finite search, cache and resource ownership', () => {
         entered = Promise.withResolvers<void>(),
         gate = Promise.withResolvers<void>()
       let decodedClosed = false
+      let closeCalls = 0
       const wrapped: LoadedImageCodec = {
         ...codec,
         async inspect(...args) {
@@ -616,6 +670,7 @@ describe('D109 finite search, cache and resource ownership', () => {
                 return result
               },
               async close() {
+                closeCalls++
                 await decoded.close()
                 if (stage === 'release') {
                   entered.resolve()
@@ -648,6 +703,7 @@ describe('D109 finite search, cache and resource ownership', () => {
       expect(await observed).toEqual({ rejected: { reason: 'aborted' } })
       await closing
       if (stage !== 'inspect') expect(decodedClosed).toBe(true)
+      expect(closeCalls).toBe(stage === 'inspect' ? 0 : 1)
     }
   })
 })

@@ -60,6 +60,16 @@ interface Cursor {
   explored: number
   selected?: Candidate
   pending: Map<string, Candidate>
+  closePromise?: Promise<void>
+}
+function closeDecoded(cursor: Cursor): Promise<void> {
+  if (cursor.closePromise) return cursor.closePromise
+  try {
+    cursor.closePromise = cursor.decoded.close()
+  } catch (error) {
+    cursor.closePromise = Promise.reject(error)
+  }
+  return cursor.closePromise
 }
 class Rejection extends Error {
   constructor(readonly rejection: ImagePrepareRejection) {
@@ -378,8 +388,7 @@ export function createImagePreparer(
             image.bytes.byteLength <= image.targetMaxBytes &&
             image.bytes.byteLength <= p.candidateMaxBytes &&
             decoded.ok.width <= p.maxWidth &&
-            decoded.ok.height <= p.maxHeight &&
-            codec.outputFormats.some(f => mime[f] === image.mediaType)
+            decoded.ok.height <= p.maxHeight
           )
             cursor.selected = {
               ordinal: 0,
@@ -448,7 +457,7 @@ export function createImagePreparer(
             candidateOrdinal: candidate.ordinal,
           }
         })
-        const drained = await Promise.allSettled(cursors.map(cursor => cursor.decoded.close()))
+        const drained = await Promise.allSettled(cursors.map(closeDecoded))
         if (drained.some(result => result.status === 'rejected'))
           reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
         check()
@@ -465,7 +474,7 @@ export function createImagePreparer(
               : { reason: 'provider_unavailable', cause: 'codec_failure' },
         }
       } finally {
-        const drained = await Promise.allSettled(cursors.map(cursor => cursor.decoded.close()))
+        const drained = await Promise.allSettled(cursors.map(closeDecoded))
         validated.signal.removeEventListener('abort', onAbort)
         inFlightBytes -= reserved
         if (drained.some(result => result.status === 'rejected'))
