@@ -433,21 +433,29 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           ? dispatchAgainAdmission(key, history, local?.operation, retrySnapshot, input.plan)
           : dispatchAdmission(history, local?.operation, local?.binding.snapshot.providers[0] ?? '')
       if (!('allowed' in admission)) {
-        if (again && 'retryRefused' in admission) {
-          const refusal = operationDiagnostics(
-            runtime.diagnosticCollector,
-            session.log.tenant,
-            { executionId: randomUUID(), session: key.session, call: key.callId },
-            reportDiagnosticFailure,
-          )
+        const refusal = operationDiagnostics(
+          runtime.diagnosticCollector,
+          session.log.tenant,
+          { executionId: randomUUID(), session: key.session, call: key.callId },
+          reportDiagnosticFailure,
+        )
+        refusal.record({
+          source: 'runtime',
+          stage: 'admission',
+          outcome:
+            'unavailable' in admission || 'runtimeStopped' in admission
+              ? 'unavailable'
+              : 'rejected',
+          facts: { kind: 'decision' },
+        })
+        if (again && 'retryRefused' in admission)
           refusal.record({
             source: 'runtime',
             stage: 'retry',
             outcome: 'rejected',
             facts: { kind: 'progress', retry: 'refused' },
           })
-          refusal.close()
-        }
+        refusal.close()
         return admission
       }
       const diagnosticOwner = runtime.calls.find(key)
@@ -499,11 +507,16 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       if ('unavailable' in prepared) {
         earlyDiagnostics.record({
           source: 'runtime',
-          stage: 'credential',
+          stage: prepared.diagnosticReason === 'scope_disallowed' ? 'binding' : 'credential',
           outcome: 'unavailable',
-          facts: { kind: 'decision' },
+          facts: {
+            kind: 'decision',
+            ...(prepared.diagnosticReason === 'scope_disallowed'
+              ? { cause: 'scope_disallowed' as const }
+              : {}),
+          },
         })
-        return prepared
+        return { unavailable: true }
       }
       if ('invalidInput' in prepared) {
         earlyDiagnostics.record({
@@ -898,7 +911,7 @@ type PreparationResult =
   | { readonly prepared: PreparedSend }
   | { readonly credentialUnavailable: true }
   | { readonly invalidInput: { readonly reason: 'malformed' | 'unknownTool' } }
-  | { readonly unavailable: true }
+  | { readonly unavailable: true; readonly diagnosticReason?: 'scope_disallowed' }
 
 /** Do not spend a dispatch number or write an anchor before these current provider facts. */
 async function prepareSend<P extends PlannedSemantics, R>(
@@ -942,10 +955,10 @@ async function prepareSend<P extends PlannedSemantics, R>(
   const value = credential.ok
   if (
     (value.scope.layer === 'tenant' && !tenantIdEquals(value.scope.tenant, session.log.tenant)) ||
-    (view.binding.profile.origin === 'custom' && value.scope.layer === 'factory') ||
-    !(value.value instanceof Uint8Array)
+    (view.binding.profile.origin === 'custom' && value.scope.layer === 'factory')
   )
-    return { unavailable: true }
+    return { unavailable: true, diagnosticReason: 'scope_disallowed' }
+  if (!(value.value instanceof Uint8Array)) return { unavailable: true }
   let credentialText: string
   try {
     credentialText = new TextDecoder('utf-8', { fatal: true }).decode(value.value)

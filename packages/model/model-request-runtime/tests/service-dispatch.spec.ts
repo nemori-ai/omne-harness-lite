@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
+import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createServiceCalls } from '../src/service-calls.ts'
 import { createServiceControl } from '../src/service-control.ts'
@@ -143,6 +143,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     let failSend = false
     let evaluationReads = 0
     let credentialAvailable = true
+    let wrongCredentialScope = false
     const observed: unknown[] = []
     const diagnosticFaults: string[] = []
     let diagnosticFail = false
@@ -188,7 +189,14 @@ test('service dispatch writes both anchors before handing out a complete pending
         async value() {
           return credentialAvailable
             ? {
-                scope: { layer: 'factory' as const },
+                scope: wrongCredentialScope
+                  ? {
+                      layer: 'tenant' as const,
+                      tenant: unwrap(
+                        parseTenantId({ organization: 'other-org', account: 'other-account' }),
+                      ),
+                    }
+                  : { layer: 'factory' as const },
                 value: new TextEncoder().encode('test-secret'),
               }
             : { failure: 'credentialUnavailable' as const }
@@ -337,6 +345,25 @@ test('service dispatch writes both anchors before handing out a complete pending
     diagnosticFail = false
     expect(sendCount).toBe(0)
     expect(observerOpenCount).toBe(0)
+    wrongCredentialScope = true
+    expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })).toEqual({
+      unavailable: true,
+    })
+    expect(engineering).toContainEqual({
+      scope: { kind: 'tenant', tenant: binding.log.tenant },
+      association: expect.objectContaining({
+        session: host.session,
+        call: 'actual-call-1',
+        dispatch: 1,
+      }),
+      event: {
+        source: 'runtime',
+        stage: 'binding',
+        outcome: 'unavailable',
+        facts: { kind: 'decision', cause: 'scope_disallowed' },
+      },
+    })
+    wrongCredentialScope = false
     observerTargetAllowed = true
     const result = await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })
     const read = await host.log.readSince(host.session, 0)
@@ -380,7 +407,7 @@ test('service dispatch writes both anchors before handing out a complete pending
     })
     expect(JSON.stringify(engineering)).not.toContain('test-secret')
     expect(wire.sends()).toBe(1)
-    expect(evaluationReads).toBe(2)
+    expect(evaluationReads).toBe(3)
     expect(sendCount).toBe(1)
     expect(observerOpenCount).toBe(1)
     expect(observed[0]).toMatchObject({
@@ -396,6 +423,12 @@ test('service dispatch writes both anchors before handing out a complete pending
     ).toBe('reply_pending')
     expect(await dispatch.dispatch({ session: host.session, callId: 'actual-call-1' })).toEqual({
       alreadyEnded: true,
+    })
+    expect(engineering.at(-1)?.event).toEqual({
+      source: 'runtime',
+      stage: 'admission',
+      outcome: 'rejected',
+      facts: { kind: 'decision' },
     })
     expect(wire.sends()).toBe(1)
     expect(released).toBe(0)
@@ -491,7 +524,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       previousCall3?.item.association?.executionId,
     )
     expect(sendCount).toBe(3)
-    expect(evaluationReads).toBe(6)
+    expect(evaluationReads).toBe(7)
     const afterRetry = await host.log.readSince(host.session, 0)
     if (!('entries' in afterRetry)) throw new Error('log read')
     expect(afterRetry.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
@@ -530,7 +563,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       unavailable: true,
     })
     expect(sendCount).toBe(3)
-    expect(evaluationReads).toBe(6)
+    expect(evaluationReads).toBe(7)
     selected.owner.openedState = { confirmed: true }
     expect(
       await opening.openCall({
