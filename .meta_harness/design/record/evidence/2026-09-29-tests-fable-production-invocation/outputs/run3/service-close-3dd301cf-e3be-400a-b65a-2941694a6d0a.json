@@ -1,0 +1,11 @@
+{
+  "hostReleasedBeforeBusiness": false,
+  "hostReleasedAfterBusiness": true,
+  "complete": true,
+  "businessComplete": true,
+  "completedEntries": [
+    "7c9ecdd2-a11d-4700-9412-0cd32c2e150c",
+    "afc95836-9718-4ed3-b327-b205460a0bc5",
+    "7ac88fe6-9cc7-4a14-9a58-8dd68167d788"
+  ]
+}

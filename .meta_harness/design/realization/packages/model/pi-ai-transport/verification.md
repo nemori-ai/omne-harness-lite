@@ -286,3 +286,8 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 ## 2026-09-29 D4 模型贡献范围实际接受
 
 [独立及HUB真实验收](../../../../record/evidence/2026-09-29-tests-model-contribution-lifecycle/README.md)覆盖可信贡献/声明式custom、同一旧lease及phi、真实排空/失败隔离、组织租户/配置/凭据与撤销准入、历史锚旧绑定和三等待状态。HUB7＋2＋2场景通过，root逐门核对后接受该D4范围；新增绑定0，不提升37模型D7、D6、完整十三操作或任意JS reader在线补丁的声明。精确输入/原始输出与有限前提沿run读取。
+
+
+## 2026-09-29 Fable 5.1 生产路径有限验证
+
+[实际生产公开调用／三轮service／响应校准](../../../../record/evidence/2026-09-29-tests-fable-production-invocation/README.md)：固定Anthropic路由，full→marginal→marginal、物理[M,R]同批和真实关闭；7笔全部结清，含两次截断原结果。只验证本次文本/low场景，cache命中、TTL及全部模态/模型认证未由此关闭。

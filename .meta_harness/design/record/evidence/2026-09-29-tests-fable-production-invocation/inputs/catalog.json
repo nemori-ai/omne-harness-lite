@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "observedAt": "2026-09-29T05:58:31.575Z",
+  "directoryObservedAt": "2026-09-29T05:58:31.555Z",
+  "directoryRawSha256": "29e102a5f424a086ad722bec5dfd1603e1911ae827b8a2b86d21a474d3b4a5a1",
+  "endpointRawSha256": "82decfb89ec5e6e91e14f0ed8a2eb760bb377f505b620293474f6ebbe5c91703",
+  "cards": [
+    {
+      "id": "anthropic/claude-fable-5.1",
+      "state": "directory_present",
+      "endpoints": [
+        {
+          "tag": "anthropic",
+          "provider": "Anthropic",
+          "status": 0,
+          "pricing": {
+            "prompt": "0.00001",
+            "completion": "0.00005",
+            "web_search": "0.01",
+            "input_cache_read": "0.00000025",
+            "input_cache_write": "0.0000125",
+            "input_cache_write_1h": "0.00002",
+            "discount": 0
+          }
+        }
+      ]
+    }
+  ]
+}
