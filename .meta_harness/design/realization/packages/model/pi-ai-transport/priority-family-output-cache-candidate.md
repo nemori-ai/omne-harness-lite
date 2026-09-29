@@ -1,6 +1,6 @@
 # 优先两家完整输出贡献与纯图缓存增量
 
-2026-09-29，revision 4，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
+2026-09-29，revision 5，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
 
 依据为 [OpenAI 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-openai-closeout.md)、[Anthropic 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-anthropic-closeout.md)，选择依据见[提案附页](../../../../record/proposals/model-input-usage-calibration/priority-family-choice.md)。原产品允许有依据的估算及可配置余量；以下均不是精确计数或可证明上界。
 
@@ -67,7 +67,7 @@
 
 refusal 历史按现有 D108 文本映射；refusal 不创造缓存目标或 signed reasoning 组。上游拒绝/错误仍按实际终结记录，不能宣称缓存成功；reader 保全已知真实 usage/cost，未知不补零。
 
-**缓存元数据投影中立性**：只对已由以上同一纯选择函数验证的 planner-owned 精确顶层控制，在 input-bearing projection 排除其两个键；现有合法 text 标记中立规则保留。任意用户来源、额外字段、不同端点/路由/TTL/layout 的 cache_control 不由“字段名相同”豁免。wire、encoded body bytes、摘要及发送前字节门仍保留实际控制。projection 必须换明确 revision；原/今完整 basis 不相等时不得因去缓存元数据就声称 I 可复用。
+**缓存元数据投影中立性**：只对已由以上同一纯选择函数验证的 planner-owned 精确顶层控制，在 input-bearing projection 移除整个顶层 cache_control 属性（不是只删内部 type/ttl 后留下空对象）；现有合法 text 标记中立规则保留。任意用户来源、额外字段、不同端点/路由/TTL/layout 的 cache_control 不由“字段名相同”豁免。wire、encoded body bytes、摘要及发送前字节门仍保留实际控制。projection 必须换明确 revision；原/今完整 basis 不相等时不得因去缓存元数据就声称 I 可复用。
 
 原生 signed-prefix 规则排除 cache_control，为此中立选择提供限定依据；OR 的具体转换仍须当前真实观察，不声称拥有原生 payload。自动/块标记的切换不改原历史，未证明同一末端不能剥字段。缓存命中最终只认真实 read/write usage；成功发送、出现控制字段或 token 下降均不能单独认定命中。
 
@@ -80,7 +80,7 @@ refusal 历史按现有 D108 文本映射；refusal 不创造缓存目标或 sig
 | PF1 | 13 叶有限来源逐行、未知 revision/model/provider/context、签名/密文缺值、部分/乱序/重复组 | 合法原组 O 恰一次；来源矛盾先 invalidInput；未知必要解释 unavailable；密文/signature tokenizer 调用为零 |
 | PF2 | 多组 full/new/φ、同组 text/tool、已知小数精确相加与超限/margin | 同一贡献函数和覆盖分配；稳定前缀不全量分词；当前 bytes/image 门仍精确执行；Pro I 不重锚 |
 | PF3 | Opus5.5/Fable5.1 改 system/tools/前缀、缺 requestInput、合法仅尾追加、已允许 cache metadata 移动 | 前三不能伪造 prefix 通过；追加合法；metadata 中立不掩盖真实内容变化；其它两叶不误套跨模型许可 |
-| PF4 | ND-G2 纯图单/多图、图文、tool 文本、空目标、空 text、错误 layout/TTL、额外 cache 字段、后继 assistant | 精确 wire 快照；仅合格纯图用顶层且 TTL 来自配置；其它有效路径不变；无目标明确失败、不回溯 |
+| PF4 | ND-G2 纯图单/多图、图文、tool 文本、空目标、空 text、错误 layout/TTL、额外 cache 字段、后继 assistant | 精确 wire 快照；仅合格纯图用顶层且 TTL 来自配置；其它有效路径不变；无目标明确失败、不回溯；计量投影不残留 cache_control 空对象 |
 | PF5 | 公共独立 invoke 与实际 Cordis service 各自组合；同一响应流生成历史后再请求，含 prepared image | 真实实现同路，完整组/usage 来源保留；新路径不能用提取函数或仅 plan fixture 替代组合验收 |
 | PF6 | 每叶三轮实际同 provider 完整响应回放（尽可能含工具）：一组、再新增组、多组 | 记录完整 basis/wire/actual usage/估计误差及局限；普通叶观察 full→marginal→marginal；Pro 因 I 未知可 full，不能强制伪造 marginal |
 | PF7 | 四 Anthropic 当前路由纯图实际发送及足量暖读、配置 TTL 对应证据 | 分别证明 wire 被接受及真实 cache read/write；原文字命中不覆盖纯图，不用等待时间或字段存在代替命中；TTL 到期证据仍沿既有完整认证要求 |
