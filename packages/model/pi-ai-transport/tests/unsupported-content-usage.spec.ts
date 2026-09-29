@@ -11,7 +11,7 @@ beforeAll(() => {
 })
 afterAll(() => cert.dispose())
 
-const fields = ['images', 'audio', 'refusal'] as const
+const fields = ['images', 'audio'] as const
 const marker = 'PRIVATE-UNSUPPORTED-CONTENT-MUST-NOT-BE-LOGGED'
 const values = {
   images: [{ url: marker }],

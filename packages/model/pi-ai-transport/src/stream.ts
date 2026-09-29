@@ -219,8 +219,13 @@ export async function* readStream(
       if (object(delta)) {
         const nonempty = (v: JsonValue | undefined) =>
           v !== undefined && v !== null && v !== '' && (!Array.isArray(v) || v.length > 0)
-        for (const key of ['images', 'audio', 'refusal'])
+        for (const key of ['images', 'audio'])
           if (nonempty(delta[key])) throw new SseProtocolError(`unsupported content member: ${key}`)
+        // Validate before yielding any content from this frame. Refusal text shares
+        // the ordinary text channel; its protocol source does not alter its ending.
+        const refusal = delta.refusal
+        if (refusal !== undefined && refusal !== null && typeof refusal !== 'string')
+          throw new SseProtocolError('invalid refusal')
         const content = delta.content
         for (const key of ['reasoning', 'reasoning_content', 'reasoning_text'])
           if (nonempty(delta[key]) && typeof delta[key] !== 'string')
@@ -230,17 +235,19 @@ export async function* readStream(
         )
         const detail = delta.reasoning_details
         const callParts = delta.tool_calls
-        if (finish !== undefined && [content, reasoning, detail, callParts].some(nonempty))
+        if (finish !== undefined && [content, refusal, reasoning, detail, callParts].some(nonempty))
           throw new SseProtocolError('content after finish_reason')
         if (nonempty(content) && typeof content !== 'string')
           throw new SseProtocolError('invalid content')
-        if (typeof content === 'string' && content.length) {
-          if (!textBlock) {
-            textBlock = block('text')
-            yield textBlock.opened
+        for (const fragment of [content, refusal]) {
+          if (typeof fragment === 'string' && fragment.length) {
+            if (!textBlock) {
+              textBlock = block('text')
+              yield textBlock.opened
+            }
+            textBlock.text += fragment
+            yield { t: 'fill', index: textBlock.opened.index, payload: fragment }
           }
-          textBlock.text += content
-          yield { t: 'fill', index: textBlock.opened.index, payload: content }
         }
         if (typeof reasoning === 'string' && reasoning.length) {
           if (!thinkingBlock) {
