@@ -38,7 +38,10 @@ import { callDeployment, publication, rootBody, ROOT } from './model-request-sup
 import { createLocalTls } from './local-tls.ts'
 import { activateModelFixture, actor, ref } from './support.ts'
 
-const MODEL = 'deepseek/deepseek-v4-pro-0813'
+const models = [
+  { variant: 'pro', model: 'deepseek/deepseek-v4-pro-0813' },
+  { variant: 'flash', model: 'deepseek/deepseek-v4.1-flash' },
+] as const
 const AT = '2026-09-28T00:00:00Z'
 const VISIBLE = { toHuman: true, toModel: true }
 const TOOL = { category: 'tool', name: 'example:read' } as const
@@ -63,9 +66,9 @@ function user(id: string) {
   return judged.ok
 }
 
-describe('service tool declaration and externally supplied result', () => {
+describe.each(models)('$model service tool history', ({ variant, model }) => {
   it('uses the actual registry and manifest, then sends one paired durable tool result', async () => {
-    const base = await callDeployment('service-real-tools')
+    const base = await callDeployment(`service-real-tools-${variant}`, variant)
     let registry: AssetRegistry | undefined
     let bridgeLookups = 0
     let storage: AtomicStorage | undefined
@@ -147,7 +150,12 @@ describe('service tool declaration and externally supplied result', () => {
         },
       },
     }
-    const tls = await createLocalTls(join(dirname(config.databaseFile), 'tls'))
+    const tls = await createLocalTls(
+      join(dirname(config.databaseFile), 'tls'),
+      async () => {},
+      0,
+      model,
+    )
     tls.setMode('tool')
     const app = createAcceptanceApplication(config, {
       stage: 'modelRequest',
@@ -229,8 +237,10 @@ describe('service tool declaration and externally supplied result', () => {
       expect(
         await registry.lookup(prepared.session, 'tool', TOOL_NAME, { kind: 'session' }),
       ).toHaveProperty('entry')
-      expect(await app.attachModelCallHost(who, prepared.session, host)).toEqual({ attached: true })
-      expect(await app.selectModel(who, prepared.session, MODEL)).toEqual({ selected: MODEL })
+      expect(await app.attachModelCallHost(who, prepared.session, host)).toEqual({
+        attached: true,
+      })
+      expect(await app.selectModel(who, prepared.session, model)).toEqual({ selected: model })
       expect(
         await app.publishCredential(who, async checked => ({
           account: checked.account,
