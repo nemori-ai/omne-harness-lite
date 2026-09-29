@@ -1,3 +1,14 @@
+## v7 创建记录与回复关系候选（2026-09-29）
+
+节点为 `provider`，源码 `packages/core/messages` 已存在、当前实现 MS6；本次只起草 [v7-design.md](v7-design.md)，不修改原 v6 设计与采用。
+
+- 语义接受：**本版无**；catalog 的 `data.messages/v7` 及本批 MR10/RT11/CA3 为 candidate，旧接受不提升本版。
+- 可实施：候选明确唯一共享技术值、创建内容和 marker 的纯判定、S-9 原回复与首次 persisted 消息关系；无存储/服务/索引/授权。22 资源图、下游精确 MS6 资源、候选公开面及消费者迁移待实施与独立审阅，见 M7-G1/G2。
+- 绑定与证据：**新增 0 条**；原 `bindings.yaml` 的 v3 单条保留原适用范围，新候选不绑旧证据。
+- 实际验证：**本版尚无实现验证**；结构检查不证明运行行为。真实来源、当前写权、内容存续与原批发布仍由 runtime/日志/装配 owner 完成，受阻范围见 M7-G3。
+
+入口：[v7 候选投影与公开面](v7-design.md) · [本版义务及覆盖缺口](verification.md#v7-创建记录与回复关系候选义务)。下方历史段落按原版本和日期读取。
+
 ## v6 当前格式迁移候选（2026-09-28）
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。

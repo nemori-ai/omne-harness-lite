@@ -8,6 +8,31 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 # messages 验证与证据
 
+## v7 创建记录与回复关系候选义务
+
+本节对应 [v7-design.md](v7-design.md) M7-P1～P7。MS7/MR10/RT11/CA3 均为 candidate；全部下列验收尚未执行，无新增 binding，旧473项及历次core证据保持原坐标。结构检查的实际输出由本次起草报告给出，不提升实现状态。
+
+| 编号／精确条款 | 必须出现的正反证据 | owner／状态 |
+|---|---|---|
+| M7-V1：MS7 S-37/S-51～S-55；M7-P1/P7 | 实际包制品编译MS7全部50定义及22原字节资源；核原$id/hash、逐资源断开必失败；MP5 dispatched与MP6 created各自精确编译。MR10/LC6消费者另编译MS6与全部传递资源；CA2/MP5/MS2/3/6不能被root新字节替换，也不能远程补取 | messages及各Schema owner；未实施/未运行 |
+| M7-V2：MS7 S-39/S-49～S-54；M7-P1/P2/P3/P6 | accepted与rejected创建正例、合法CallKey/payload ref与两个marker；缺身份、未知kind、错payload kind、非法摘要表示、run/attempt单缺、accepted缺adopted或两处绑定不等、rejected带adopted均拒绝。undispatched两成员同在/同缺分别形状合法，单有其一拒绝，released/interrupted带它们拒绝。marker不能通过Message/OutboundMessage；十四拒绝及原消息/工具/多模态语义回归 | messages owner；未运行；不以单值合法证明创建历史 |
+| M7-V3：MS7 S-37/S-52/S-53；M7-P3/P5 | 严格文本入口拒绝深层重复键；超安全整数、小数、原opaque完整往返；数值相等1/1.0与对象换键序相等，相邻大整数及数组换序不同；返回后改输入不改结果。摘要外测对原UTF-8字节计算，合法重编码后值相同也不能冒充相同原字节 | messages纯值、runtime字节边界 owner；未运行 |
+| M7-V4：MS7 S-9/S-39，CB3 S-19/S-22；M7-P4 | 完全相同回复正例；原无派生的合格块合法成对添加renderings/transcript正例，新renderings.blocks合法新id通过。原块删除/添加/换序、任一原成员或标注/identity/ending/时间变化、改已有renderings/transcript及内部opaque、添第三种字段都拒绝；重复id涵盖派生子树；子块再派生、错误模态/类型、缺配对、空transcript拒绝。输入不变，成功是分离的persisted值 | messages owner；未运行；不得用“先剥派生”的实现生成oracle |
+| M7-V5：MS7 S-9/S-39；M7-P4 | original失败先返回其既有拒绝；original合法非assistant为malformed；original合法而persisted失败取第二侧拒绝；两侧合法而关系坏为malformed。每侧多缺陷按S-39原顺序；纯helper通过的自报system值仍在真实最终写方因无可信转换来源/当前写权遭拒 | messages单元+runtime组合 owner；未运行；前四项不证明授权 |
+| M7-V6：MS7 S-37/S-55，MR10 S-39/S-47；M7-P6/P7 | 无环副本逐项对齐，MR唯一Pending类型，runtime无同名副本；MR复用本包关系函数而不复制算法。ready/final原reply、原inputCalibration完整保留；正式组装只有persisted消息。H13原source/digest矛盾必须invalidInput，不能因有派生而full逃逸；已核实合法选择不适用另测既有full路径 | response/runtime/计量消费者 owner；未运行 |
+| M7-V7：MS7 S-9/S-32/S-52～S-55；外部边界 | 原字节坏摘要、错CallKey/原壳/dispatch、原源不可取分别按边界失败；初次拒绝同原批认回rejected内容与原身份，已accepted后首次拒绝保留原accepted内容且不造rejected。真实并发演练：发布读存在→GC删除→marker；旧写方未止→新实例Map空→GC→旧写方晚发；同内容保留记录须让非法交错失败。消息+final提交未知认回原完整批、不重新转换；created/ready/final重启与末消费者离开后的取回另验 | runtime、日志与内容存储 owner；未运行，本节点无存储保证 |
+| M7-V8：MS7 当前格式边界；M7-P7 | 清理dist后build/typecheck与独立打包消费者；root/schema用MS7、保留精确旧Schema资源，旧执行子路径/私有制品均不可导入。实际README与README_ZH执行公开示例，覆盖新创建判定、合法派生关系及不赋权边界；真实消费者imports/完整工具与多模态用例同步迁移，用户数据字节不改 | 本包、各消费者与验证工具 owner；未运行 |
+
+### v7 覆盖缺口
+
+| 缺口／条款 | 受阻消费者与闭合条件 | owner |
+|---|---|---|
+| M7-G1：MS7 S-9/S-51～S-55候选未接受，新类型/judge尚未实施与验证 | 本包、MR10、RT11候选采用；主线独立评审/精确接受后实施并取得M7-V2～V6/V8证据。现有源码不等于本版已验证 | 主线及messages实施者 |
+| M7-G2：MS7 S-37/S-53/S-55精确Schema图及公开资源尚未闭合 | messages固定22资源图、MR10/LC6消费图；实际补齐MP5、CA2、MS6公开资源并跑M7-V1，不把旧版本Schema当旧执行兼容；下游被冻结的采用由各owner处理 | messages/profile/accounts及各Schema消费者owner |
+| M7-G3：MS7 S-9/S-32/S-52～S-55（继承G-14）的真实来源、保留与原批未验证 | runtime与日志写方的可信创建/读取/最终消息写入、生产Session/Run消费者；完成M7-V5外部反例及V7。归装配：内容存储/保留、Session日志、入口身份/当前写权/撤销、真实转换来源、时钟/密钥；本批无新apps节点，demo只限明确可信本地上下文 | runtime/日志/内容存储实现者及主线指定装配owner |
+
+本节点无跨owner写入事务，不能以本地单元测试关闭M7-G3。Readable Alloy仍只覆盖既有可读性；类型吸收的“同一个”、Schema形状或测试命名不能变成新binding。M7-V*须先取得会因语义破坏而失败的实际测试与精确记录，再由有权维护者登记；本次bindings保持原字节。
+
 ## v6 当前格式迁移候选义务
 
 本节对应 [v6-design.md](v6-design.md) 的 M6-P1～P6。MS6/MP5 尚待发布、登记和采用；本节没有运行通过声明、没有新增 binding，不改写既有证据。

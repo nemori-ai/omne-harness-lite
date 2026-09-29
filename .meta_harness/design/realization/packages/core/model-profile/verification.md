@@ -131,3 +131,7 @@ strict、skipLibCheck=false，[types原log](../../../../record/evidence/2026-09-
 ## 独立评审
 
 N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行），无阻断、无应修、无建议（批的结论见 [D-060 §八 N-28](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+
+## MP6 精确资源候选义务
+
+本增补仅资源面，MP6-R1～R4及失败判据见[v6资源设计](v6-schema-resource-design.md#选择迁移与验收义务)。当前均未执行，原MP5证据不证明新增子路径；新增绑定0。

@@ -1,3 +1,7 @@
+## MP6 精确资源候选增补（2026-09-29）
+
+[窄资源设计](v6-schema-resource-design.md)仅为MS7创建内容提供MP6精确Schema；当前root/Schema仍MP5，两个版本快照值域相同，发送计量语义另归runtime。语义接受：本节点增补未采用；可实施范围：仅资源出口与消费核验候选；绑定证据：新增0；实际验证：本增补未执行。不得把D-101契约接受视为本提供者已发布。
+
 ## v4 破坏性迁移增补（2026-09-28）
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v5-current-design.md](v5-current-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。

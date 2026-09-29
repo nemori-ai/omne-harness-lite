@@ -163,3 +163,19 @@ N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块�
 ### MR9 本次检查范围
 
 本次只检查三个指定设计文件的新增链接、目录范围与差异格式；全树规范 gate 交主线在完整设计树执行。稀疏检出中未物化的历史 evidence 不判为规范缺失。本页没有新增产品运行或 TLC 执行声明。
+## MR10 原响应与未处分内容候选义务
+
+2026-09-29，R10 候选，全部待执行；不改此前运行/采用。兑现映射见 [v10 设计](v10-reference-result-design.md)，新增 bindings 0。
+
+| ID | 必须失败或成立的真实检查 | 负责面与当前边界 |
+|---|---|---|
+| R10-V1 | MR10 root/Schema 与 MR10、MS7、CA3、MP5/MP6 所需闭包全量解析；原 Pending、final、partial failed/interrupted 值均按各自入口判断，根 final 不接受缺处分的 Pending | MR pure；待实施，不是网络证据 |
+| R10-V2 | Pending 原数 >2^53、长小数、未知费用、raw、多值headers与inputCalibration完整保存；getter/重复JSON键/非JSON值拒绝；不以字段白名单漏未来成员 | MR strict边界及实际公开制品；只判值 |
+| R10-V3 | 同 Pending 的三种合法 final 关系可通过，改任一原事实（id、route、reply、原派生、usage/cost、headers顺序、校准）均 malformed；对象键换序与数值同值不误拒；两侧混合错误按 pending→final 及各自固定优先级 | 新 `judgeResponseFinalization`；变异掉原字段比较应导致验收失败 |
+| R10-V4 | 最终化与复制不调用当前 provider/meter、不重算旧digest；known/unknown/source均保留；给final新增派生而改原reply必须拒绝 | MR pure + runtime消费；不证明上游统计准确 |
+| R10-V5 | 最终写方实际组合MR关系与MS唯一消息扩展关系：合法新增派生的Assistant可同批，改已有派生/原成员/伪造系统来源/当前无权必须分别拒绝；unknown只认回原批，不重新转换 | runtime/消息写方真实组合，MR单测不能关闭真实来源与原子性 |
+| R10-V6 | 同ResponseId的ready/final传入成本读面只计一次，原unknown不零、原Session/Run不转移、补账一次；不得把单值judge通过当成来源齐全 | runtime/成本读面 + CA3；外置真实组合待验 |
+| R10-V7 | 实际pack安装只用公开入口；CA2/CA3、MS6/MS7、MP5/MP6等精确资源各按原$id可达；移除必要旧规范resource出口或注册时必须失败；不能用URI重定向通过 | MR与各数据资源owner；无旧执行兼容接口 |
+| R10-V8 | README/README_ZH的Pending→final示例、拒绝例和未知账例从实际制品严格编译执行，runtime/transport/core-verification当前消费者同步构建；旧MR9实现证据不记为本轮通过 | 包实施者及独立验收者 |
+
+R10-G1 采用门、R10-G2 新实现/纯值证据、R10-G3 外部真实内容/权限/转换/日志/选择证据保持开放。没有新增存储提供者、正式应用或完整Session/Run验收承诺。

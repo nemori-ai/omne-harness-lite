@@ -340,3 +340,39 @@ U16-V6/V7须分别覆盖原selected reply与同call较早dispatch的无reply响�
 覆盖缺口：H19-G1 主线联合审查和采用；H19-G2 runtime/transport/所有消费者的实现及本表证据；
 H19-G3 宿主提供真实授权选择关系（完整 compaction/Run 仍外置）；H19-G4 固定模型提供者对原组的映射依据。
 四者不相互冒充。只补当前 provider 交接，不建正式 acceptance app，不改变原 batch、十三操作或原失败优先级。
+
+## R20 持久引用与独立消费者候选
+
+2026-09-29，关联 [v20 revision 1](v20-reference-lifecycle-design.md)，RT11/MR10/MS7/CA3 candidate、SL3 accepted。以下均为**未开始**的真实实现/组合验收义务，新增绑定 0。现有十六条绑定保留原坐标/assumptions；有限 ReferenceLifecycle/Publication/OpenedOrder 模型不覆盖物理存储、当前访问、来源真实性、实际停止或查询 I/O，不能替换本表，也不为被模型构造吸收的相同身份添加绑定。
+
+| ID／精确条款 | 必须实际运行的正向、反例与观测 | owner／完成边界 |
+|---|---|---|
+| R20-V1：RT11 S-84/S-89 | 原调用 streaming→消费者 A release→消费者数 0→原执行 ready→消费者 B 同 ref 取得完整原值；实际 HTTP 只一次，原 Run/attempt/ResponseId/usage/cost 不变；将 release 接到 owner.close 的负控必须失败 | runtime/真实 demo；不能只观察 Promise resolve |
+| R20-V2：RT11 S-61～S-64/S-84 | A release/abort/revoke 与 B attach 并发，A 的迟到 callback/finally 只清自己的精确实例；旧 receiver 不停时保留其 actual-stop 责任，原网络完成后 lease 可释放，B 可读结果 | runtime/host；观察每个 receiver、lease、host 登记实际资源数 |
+| R20-V3：RT11 S-89/S-94 | acquire read/wait/已终态 wait 在 runtime 关执行准入后仍可用合法 durable read；无 live resource 时不造 container；四值失败优先级、观察双限、released/aborted 域及无 anchored/persisted 控制；声明负例和运行非法访问均失败 | runtime/packed consumer；源码内类型断言不是证据 |
+| R20-V4：RT11 S-28/S-85；MS7 S-51～S-54 | 首次 created 前 crash 不公开 ref，确认后未 dispatch 重启可读 open；显式相同 creationKey/值重入认回，对象键顺序不冲突、数组/缺席/null/精确数差异冲突；运行资源比较固定 sourceVersions，不比较地址/密钥 | runtime/内容/日志；真实重启、键唯一性与零 send |
+| R20-V5：RT11 S-85 | 初次拒绝：rejected payload+原拒绝批唯一认回；accepted created 后首次 dispatch 拒绝：原 adopted/key 不变、零发送终结不带 rejected 关联。同键并发 accepted/rejected 候选只一批胜出；冲突不泄内容 | runtime/共同 codec；不能仅 Schema fixture |
+| R20-V6：RT11 S-85/S-93；MS7 S-55 | 两个独立 writer/GC 对真实 ModelContentRetention：① GC 先封闭/删除，迟到 marker 不提交；② marker 先提交，GC 看见有效引用不删除。unknown writer 存活、重新装载、新进程 GC 三窗口均保留内容；关闭共同锁/约束负控必须失败 | 内容/日志 provider；双方同一约束域，原内容及引用附件都核验 |
+| R20-V7：RT11 S-17/S-75/S-86；MR10 S-46 | runtime 产生完整 pending，先原字节内容再 ready；raw/header 值顺序、精确数、route、时序、calibration 不失真；ready 前 unknown 不交恢复成功，ready 后零 consumer 冷读完整原值；错 digest/kind/版本/归属拒绝 | runtime/core/内容；冷新进程不借原内存 |
+| R20-V8：RT11 S-31/S-36/S-86/S-94 | 用户中断的真实 reply ready、fault/timeout/owner stop 的 delivered final 分别恢复；interrupt 只命令；无首内容不造 reply，未知费用不填零；清掉 caller delta 缓存仍能取得原持久事实 | runtime/真实受控传输；硬 kill 未持久增量明确不能恢复 |
+| R20-V9：RT11 S-86；MR10 S-47 | ready complete/interrupted+pending 在 owner.close 后保持吸收；lease 释放但 pending 可长等；final 后旧投影读取不得倒退；不同 payload 同 ResponseId 不能再发布 | runtime/投影；状态与处分分别断言 |
+| R20-V10：RT11 S-87/S-89 | 同 ref 不同主体/tenant/session、读权不含 wait/settle/cancel，后继 Run 合法历史读不迁归属；表示错误先判，无权与不可核均对外 unavailable，内部原因不同；真实成员/会话数据变更能撤权 | 访问装配/runtime；不能用始终 allowed fake 关闭生产缺口 |
+| R20-V11：RT11 S-87/S-93 | 真实 SessionAccessAdmission 共享对象两次交错：撤权先提交→settle/cancel 零新批；原批先提交→事实保留但后续投递立即关闭。暂停在旧 allowed 返回与实际 append 之间，换实例后仍拒绝过期来源 | 访问/日志 provider；只进程内锁、过期 token 的负控失败 |
+| R20-V12：RT11 S-33/S-90 | 混合会话包含 live/created/ready/final/真正 stopped：普通 reconcile 不 stop live、不发 HTTP，acquire 不调用 recovery.enter；Map absent/超时/旧 generation 为 unknown；实际 lost 仅在旧网络/门/所有 writer 停与唯一恢复前提后追补 | runtime/恢复 host；记录调用端口序列与实际 stop 事件 |
+| R20-V13：RT11 S-91 | 日志长度分档增长而指定查 CallKey/creationKey 的实际读次数有固定上界；payload 字节、history 列表、冷 rebuild 单列。append 后索引滞后、head 两读间变化、generation 更换均 unavailable 或有界重试；negative 只能来源当前 | runtime/实际存储；不能用 Map benchmark 替代真实 I/O |
+| R20-V14：RT11 S-88；SL3 S-10/S-32～S-37 | 原 dispatch 后换 attempt，旧真实 owner 收首内容仍可 unfenced+tailEquals opened；新 dispatch 旧 attempt 继续被 fenced 拒绝。① cancel 先提交 opened 失败且零首内容；② opened 先提交保留历史、取消仅停后续 | anchored/log；两个真实并发 append，不能只把数组换序 |
+| R20-V15：RT11 S-15/S-88 | opened unknown 且旧 append 仍可能提交，首内容门保持关闭；停止旧 writer 后整批认回，不能因一刻 absent 开门或重发。伪装旧 Agent 动作为 original execution 被真实来源拒绝 | runtime/host/log；actual stopped 非 AbortSignal |
+| R20-V16：RT11 S-69/S-75/S-86；MR10 S-47；MS7 S-9 | 两个合法处分者 race，只有唯一 final 与唯一 M；纯 judge 组合成功且真实转换来源/当前写权真实；改原字段/覆盖原派生/只加半对/改 final.reply/calibration 均拒绝。acquire holder 不能绕过写方 | 原消息写方/runtime/core；同日志完整批，普通 caller 同形值无授权 |
+| R20-V17：RT11 S-86；MR10 S-47 | `[M,R]` 已落而回执丢失，转换件随后变化：必须认回/重送原整批，不再转换、不重铸号、不重跑外部消费；final 与 ready/旧索引并发只认原相符事实，异处分 alreadyEnded | 消息/日志/恢复 owner；逐字批内容和外部动作次数 |
+| R20-V18：CA3 S-40～S-42；RT11 S-34/S-86/S-91 | 仅 ready 计原账、ready+final 仍一次、final-only 旧无回复支一次；不相符拒绝；未知不零化、迟到补账原 ResponseId、原 Run/Session 不换为当前 observer。独立 sum 签名与精确数保持 | 成本读面/core/runtime；实际 reader→selector→sum 组合 |
+| R20-V19：RT11 S-84/S-86/S-93 | Cordis 4.0.4 真实必需 provider 替换/loop dispose，execution 继续或按真实 owner close 收口；部分 construct 后 stop、prepare 迟到、observer 不停、writer unknown 都留原 owner；两个 effect 反序完成仍不提前关日志 | runtime/host/kernel assembly；实际 resources/old generation/payload 观测，不只 disposer 调用数 |
+| R20-V20：RT11 S-77～S-83；MR10 S-47 | 原块与摘要矛盾即 invalidInput，不走 full；原源不可核 unavailable；原事实真且首次派生合法、实际选中派生表示使 O 不适用，才完整计量。public/runtime/transport 两端 copy 缺字段/错 messageIndex/错原 ResponseId/改已存消息均拒绝 | runtime/transport 后继/原写方；实际 wire/spans，G5 待联合设计 |
+| R20-V21：RT11 S-74/S-79/S-80 | 多组输出、较早输入锚、某组合法派生、其他组 unchanged 同时存在：full/φ/δ 完整覆盖且不双加；来源先核后 mode，原 calibration/输出摘要不回写；request-local image preparation 映射不能冒充持久派生来源 | transport/runtime；逐模型映射依据另验，不声称模型全认证 |
+| R20-V22：RT11 S-23/S-92 | 从真实统一服务逐项调用十四操作，原 failureSubject/consumeFailure/noRun/withRun 原归属门保持；root 类型、plugin 转发、store、codec、所有构造点同步破坏性迁移，无遗留本地 CallKey 或旧兼容 overload | runtime/消费者；真实调用记录＋类型负例，不是方法存在检查 |
+| R20-V23：RT11 S-54/S-84/S-89 | 公共独立 invoke 无 Session/Run/Cordis；packed runtime 的中文/英文 literal 都实际执行 creationKey→dispatch→release→acquire→原合法结算。demo loop fiber 重跑与应用 host 停止分开；diagnostic 具 action/ref/source，不泄原内容/秘密 | runtime/示例/独立验收；局部示例不能冒生产 Run 来源 |
+
+覆盖缺口及受阻消费者与正文一致：R20-G1 主线接受阻本候选实施；R20-G2（RT11 S-87/S-93/S-94）访问/日志装配未供真实当前资格与共同提交域，阻生产 read/wait/settle/cancel、原工作/Run 终态消费；R20-G3（RT11 S-85/S-86、MS7 S-55、MR10 S-46）内容 provider 与 session-log-jsonl 后继需两边写出 ModelContentRetention 共同域要求，阻 durable 创建/结果发布及 GC；R20-G4（S-84/S-90/S-91）停止/唯一恢复/新鲜索引的真实实现和 I/O 证据由 runtime/host 承担；R20-G5（S-75/S-77～S-83、MR10 S-47）真实转换来源、transport v16 候选联合交接待承接，阻派生消息路径；R20-G6 全部新实现及本表实际验收未开始。当前没有本批生产 assembly，examples bootstrap 只接其真实本地 noRun 身份/时钟/凭据/host；其余 owner 不因本页命名而已交付。
+
+本增量实际执行：2026-09-29 以本工作树 `.venv/bin/python` 执行 `check_design.py --root .meta_harness/design --formal registered`，exit 0，实际输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design passed gate=internal; formal=registered.`；`git diff --check` exit 0。首次使用系统 Python 因缺 `PurePosixPath.is_relative_to` 退出失败，不作为设计错误或成功证据。没有运行本表行为测试、上游网络或模型认证；formal=registered 只核登记，不执行模型。文档检查不提升语义接受、实现或实际验证层。
+
+G3 范围补充：inline 完整值随原耐久对象存、无独立 GC，是待联合评审的最小替代；只有实际外部引用/独立回收者才触发 ST2 的可注入保留与发布协议及 R20-V6 两 writer/GC 交错。provider 缺席时相关路径 unavailable，不能由 ref 的存在推导必建通用内容平台。评审需对本轮实际引用指出原子反例，并比较 inline 对 MS7 S-52/S-54 原字节可取得/marker 关系的兑现；本次不代主线选定架构。

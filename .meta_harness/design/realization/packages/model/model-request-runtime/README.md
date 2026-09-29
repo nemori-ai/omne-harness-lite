@@ -1,5 +1,12 @@
 2026-09-29：[D109](../../../../record/decisions/model-request-image-preparation-adoption/decision.md) 技术采用 v21 r3 异步图片规划与资源归属，精确正文不变；新增 binding 0，实际生命周期与组合验收待实施。
 
+## 2026-09-29 持久引用与独立消费者候选
+
+- **语义接受：无**。本增量 RT11／MR10／MS7／CA3 在 catalog 为 candidate，SL3 保持原 accepted；[v20 候选映射](v20-reference-lifecycle-design.md) 未技术采用。旧版本接受范围保持。
+- **可实施：候选设计，未放行实施**。节点和源码均为既有 `packages/model/model-request-runtime`，扩展现 service/store/ModelCallHost，给出十四操作、创建/ready 留存、独立 consumer、同日志 opened/final、当前索引与费用选择。R20-G2/G3/G5 的真实访问与共同提交、内容保留域、合法派生/transport 后继尚缺对应提供者；生产相关路径受阻，独立 pure/noRun 路径分别判断。
+- **绑定证据：新增 0，原 16 条不改**。不把候选模型或已实现十三方法作为新承诺证据；[R20-V1～V23](verification.md#r20-持久引用与独立消费者候选) 列明正反并发、真实装卸、冷重建、公共制品与双语示例义务。
+- **实际验证：本增量尚无实现验收**。已读取现有公开实现，不声称“尚未建包”。R20-G1～G6 分列接受、真实访问、存储共同域、停止/索引、派生交接和实际证据；完整 Session/Run 与生产 assembly 不随本候选建立。
+
 2026-09-29：[D107 多输出组交接后继](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-runtime-v19-与-transport-v13-多输出组交接)已技术采用本节点精确受审增量；可按唯一接口账本实施，新增绑定0，H19/H13实际实现与验证仍待。以下候选标签保留起草时状态，不代表当前采用门。
 
 ## 2026-09-29 多响应输出事实交接候选

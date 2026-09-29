@@ -1,3 +1,10 @@
+## 2026-09-29 MR10 原响应证据与耐久未处分候选
+
+- **语义接受**：MR10／MS7／CA3／RT11 均为 candidate；此前 MR9 接受及实际证据保持原范围。
+- **可实施**：[v10-reference-result-design.md](v10-reference-result-design.md) 起草当前资源图、共享 `judgeResponseFinalization`、原回复和首次消息派生的分工；未技术采用，不释放新增实现。
+- **绑定证据**：新增 0，旧 bindings 不变；[R10 验证义务](verification.md#mr10-原响应与未处分内容候选义务) 待执行。
+- **实际验证**：本增量未实现、未验。候选 Schema／TLA 只支持各自有限检查，不能证明真实内容来源、原子批、转换与消息写权。
+
 2026-09-29：[D-107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 已接受 MR9/RT10，并采用本节点 v9 纯值映射 R9-P1～P5。新增绑定 0；实际实施与 V9 验收待完成。受审正文保持原字节，以下候选标记按起草日期读取。
 
 ## MR9 输入校准值映射候选（2026-09-29）
