@@ -174,6 +174,32 @@ export function firstRequest(input: Omit<PlanInput, 'calibration'>): PlanInput {
 }
 ```
 
+独立调用者如果持有经过授权的原响应，以及下一次请求实际选入的原输出块，可显式提供观察。适配器仍会核对当前投影与计数依据；传入观察不强制进入增量模式。使用下列类型时，请将 `model-response` 和 `content-blocks` 声明为直接依赖：
+
+```ts
+import type { ContentBlock } from '@omne-harness-lite/content-blocks'
+import type { ModelResponse } from '@omne-harness-lite/model-response'
+import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
+
+export function nextRequest(
+  input: Omit<PlanInput, 'calibration'>,
+  original: ModelResponse,
+  outputBlocks: readonly ContentBlock[],
+  replaySelection: readonly ReplaySelection[],
+): PlanInput {
+  return {
+    ...input,
+    calibration: {
+      kind: 'observation',
+      inputCalibration: original.inputCalibration,
+      usage: original.usage,
+      outputBlocks,
+      replaySelection,
+    },
+  }
+}
+```
+
 后续请求由同会话授权历史读者提供 `calibration`。runtime 核对选入消息来自同一份完整 SL3 前缀、原 dispatch 和完整响应的稳定身份与完整值，以及 assistant 回复确实进入本次模型输入。同一调用重试时，连续的前序 dispatch 即使没有回复，也可以提供准确的输入观察。planner 再核本次前缀摘要、计数依据、重放输出组及实际新增输入；匹配才使用增量计量，否则全量计量。较新的响应缺失可用输入 usage 时，可选择更早的合法祖先。读端检查原始值及相邻关系；物理同批保证归原结算 append 与 SL3。`source_unavailable` 与已证明的 `no_observation` 不同。
 
 `TransportAdapter.read` 的每种终态，包括取消与失败，均须返回 `readFacts`。`invokeModel` 在实际停止后保留最终读取事实，不用输入估算覆盖真实 usage 或费用。固定的 `projectOutput` 适配器把实际保留的回复或已交付块映成输出组。相同的 `inputCalibration` 贯穿 Pending、原耐久响应与认回；冷恢复读取原事实，不再请求模型或重新分词。目前 runtime 可核验选入的 no-Run 回复与同一调用的前序 dispatch。跨调用且无关联选入消息的响应，以及缺少授权 Run owner 的 Run 历史，保持来源不可用，不从日志物理位置猜测。

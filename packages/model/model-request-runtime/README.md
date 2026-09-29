@@ -176,6 +176,32 @@ export function firstRequest(input: Omit<PlanInput, 'calibration'>): PlanInput {
 }
 ```
 
+An independent caller that owns an authorized original response and the exact blocks selected for the next request can supply that observation explicitly. The adapter decides whether the current projection and counting basis permit a marginal measurement; passing an observation does not force marginal mode. Declare `model-response` and `content-blocks` as direct dependencies when using their types:
+
+```ts
+import type { ContentBlock } from '@omne-harness-lite/content-blocks'
+import type { ModelResponse } from '@omne-harness-lite/model-response'
+import type { PlanInput, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
+
+export function nextRequest(
+  input: Omit<PlanInput, 'calibration'>,
+  original: ModelResponse,
+  outputBlocks: readonly ContentBlock[],
+  replaySelection: readonly ReplaySelection[],
+): PlanInput {
+  return {
+    ...input,
+    calibration: {
+      kind: 'observation',
+      inputCalibration: original.inputCalibration,
+      usage: original.usage,
+      outputBlocks,
+      replaySelection,
+    },
+  }
+}
+```
+
 On a later request, the authorized same-session history reader supplies `calibration`. The runtime checks that each selected message comes from the same complete SL3 prefix, that an original dispatch and complete response have the same stable identity and value, and that an assistant reply actually appears in the selected model input. For a retry of the same call, a prior continuous dispatch with no reply can also supply an accurate input observation. The planner then checks the current prefix digest, counting basis, replayed output group, and actual newly serialized input before using a marginal measurement; a mismatch falls back to a full measurement. A prior response with missing or unusable input usage is skipped in favor of an earlier valid ancestor. The reader checks original values and adjacency; original settlement append and SL3 own the physical atomic-batch guarantee. `source_unavailable` is different from a proved `no_observation`.
 
 `TransportAdapter.read` must return `readFacts` on every terminal branch, including abort and failure. `invokeModel` retains the last facts read after actual stop; it does not replace real usage or cost with an input estimate. The fixed `projectOutput` adapter maps the actually retained reply or delivered blocks into an output-group fact. The same `inputCalibration` value is carried through a pending response, the original durable response and its readback; cold recovery reads those facts without another model request or tokenizer pass. The runtime currently verifies selected no-Run replies and same-call prior dispatches. A cross-call response without an associated selected message, and Run-backed history without its authorized Run owner, remain source-unavailable rather than guessed from log position.
