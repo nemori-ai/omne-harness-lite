@@ -110,6 +110,8 @@ function fakeTransport(initialPending = 0): {
       references: 0,
       executions: 0,
       cleanupFailures: 0,
+      registryDiagnosticFailures: 0,
+      registryDiagnosticDropped: 0,
     }),
     async close() {
       calls++
