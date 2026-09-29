@@ -137,10 +137,16 @@ export function createDemoRunnerServiceHost(
         scope.release()
         return { failure: 'unavailable' }
       }
-      const consumed = await dependencies.model.readAttempts(
-        { session: settlement.session, callId },
-        { consumeFailure: true },
-      )
+      let consumed: Awaited<ReturnType<typeof dependencies.model.readAttempts>>
+      try {
+        consumed = await dependencies.model.readAttempts(
+          { session: settlement.session, callId },
+          { consumeFailure: true },
+        )
+      } catch (error) {
+        scope.release()
+        throw error
+      }
       if (consumed.consumption.kind !== 'failure' || !scope.isActive()) {
         if (consumed.consumption.kind === 'failure') consumed.consumption.source.release()
         scope.release()
@@ -237,6 +243,9 @@ export function createDemoRunnerServiceHost(
             if (!scope.isActive()) return { kind: 'unavailable' }
             if ('allowed' in guarded) return { kind: 'accepted' }
             if ('refused' in guarded) return { kind: 'rejected', reason: guarded.refused.why }
+            if ('alreadyEnded' in guarded) return { kind: 'rejected', reason: 'alreadyEnded' }
+            if ('callNotFound' in guarded) return { kind: 'rejected', reason: 'callNotFound' }
+            if ('wrongPhase' in guarded) return { kind: 'rejected', reason: 'wrongPhase' }
             if ('invalidInput' in guarded) return { kind: 'invalidInput' }
             return { kind: 'unavailable' }
           },
