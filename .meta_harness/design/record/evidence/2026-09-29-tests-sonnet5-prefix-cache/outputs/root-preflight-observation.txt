@@ -1,0 +1,1 @@
+2026-09-29: production entry rejected required source tools/model-probe/src/budget.mjs at paid.mjs:86. Exit 1 before openProductionLedger and before HTTP; ledger remained 327 entries, no lock, temporary credential removed. Added only the two required budget/gate exact paths. Original scripts and generated scenario preserved in adjacent before-source-path-fix directories.
